@@ -8,30 +8,9 @@ extern "C" {
 namespace afc {
 namespace editor {
 
-struct TerminalInformation {
-  char* clear_screen_string;
-  char* move_cursor_string;
-};
-
-static TerminalInformation* InitTerminal() {
-  char *term = getenv("TERM");
-  tgetent(nullptr, term);
-
-  TerminalInformation* output = new TerminalInformation();
-  output->clear_screen_string = tgetstr("cl", nullptr);
-  output->move_cursor_string = tgetstr("cm", nullptr);
-
-  printf("%s", output->clear_screen_string);
-  return output;
-}
-
-static const TerminalInformation* GetTerminalInformation() {
-  static const TerminalInformation* output = InitTerminal();
-  return output;
-}
-
 Terminal::Terminal() {
   initscr();
+  noecho();
   SetStatus("Initializing...");
 }
 
