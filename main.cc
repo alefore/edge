@@ -41,6 +41,11 @@ static std::unique_ptr<Token> ParseFromPath(const std::string& path) {
   return Parse(sstr.str());
 }
 
+static std::unique_ptr<OpenBuffer> LoadBufferFromPath(const char* path) {
+  unique_ptr<MemoryMappedFile> file(new MemoryMappedFile(path));
+  return unique_ptr<OpenBuffer>(new OpenBuffer(std::move(file)));
+}
+
 }  // namespace editor
 }  // namespace afc
 
@@ -49,10 +54,12 @@ int main(int argc, const char* argv[]) {
   using std::unique_ptr;
 
   Terminal terminal;
-  terminal.SetStatus("Loading file: editor_cp.cc");
-  unique_ptr<MemoryMappedFile> file(new MemoryMappedFile("editor_cp.cc"));
   EditorState editor_state;
-  editor_state.buffers.push_back(shared_ptr<OpenBuffer>(new OpenBuffer(std::move(file))));
+  for (int i = 1; i < argc; i++) {
+    terminal.SetStatus("Loading file...");
+    editor_state.buffers.push_back(
+        shared_ptr<OpenBuffer>(LoadBufferFromPath(argv[i]).release()));
+  }
 
   while (!editor_state.terminate) {
     terminal.Display(&editor_state);
