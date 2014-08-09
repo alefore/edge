@@ -16,12 +16,22 @@ class AdvancedMode : public EditorMode {
   void WriteBuffer(shared_ptr<OpenBuffer>& buffer) {
   }
 
+  void CloseCurrentBuffer(EditorState* editor_state) {
+    editor_state->buffers.erase(
+        editor_state->buffers.begin()
+        + editor_state->current_buffer);
+    editor_state->current_buffer = 0;
+  }
+
   void ProcessInput(int c, EditorState* editor_state) {
     shared_ptr<OpenBuffer> buffer(editor_state->get_current_buffer());
 
     switch (c) {
       case 'w':
         WriteBuffer(buffer);
+        break;
+      case 'c':
+        CloseCurrentBuffer(editor_state);
         break;
     }
 

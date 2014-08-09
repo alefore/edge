@@ -1,3 +1,4 @@
+#include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
@@ -13,6 +14,7 @@ extern "C" {
 #include "editor.h"
 #include "lazy_string.h"
 #include "line_parser.h"
+#include "file_link_mode.h"
 #include "memory_mapped_file.h"
 #include "terminal.h"
 #include "token.h"
@@ -22,28 +24,11 @@ namespace editor {
 
 using std::string;
 
-class CharBuffer : public LazyString {
- public:
-  CharBuffer(char* buffer, size_t size) : buffer_(buffer), size_(size) {}
-
-  char get(size_t pos) { return buffer_[pos]; }
-  size_t size() { return size_; }
-
- private:
-  char* buffer_;
-  int size_;
-};
-
 static std::unique_ptr<Token> ParseFromPath(const std::string& path) {
   std::ifstream input(path.c_str(), std::ios::in | std::ios::binary);
   std::stringstream sstr;
   sstr << input.rdbuf();
   return Parse(sstr.str());
-}
-
-static std::unique_ptr<OpenBuffer> LoadBufferFromPath(const char* path) {
-  unique_ptr<MemoryMappedFile> file(new MemoryMappedFile(path));
-  return unique_ptr<OpenBuffer>(new OpenBuffer(std::move(file)));
 }
 
 }  // namespace editor
@@ -57,8 +42,9 @@ int main(int argc, const char* argv[]) {
   EditorState editor_state;
   for (int i = 1; i < argc; i++) {
     terminal.SetStatus("Loading file...");
-    editor_state.buffers.push_back(
-        shared_ptr<OpenBuffer>(LoadBufferFromPath(argv[i]).release()));
+
+    unique_ptr<EditorMode> loader(NewFileLinkMode(argv[i], 0));
+    loader->ProcessInput('\n', &editor_state);
   }
 
   while (!editor_state.terminate) {
