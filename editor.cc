@@ -24,6 +24,11 @@ static vector<shared_ptr<Line>> ParseInput(
   return output;
 }
 
+OpenBuffer::OpenBuffer()
+    : view_start_line(0),
+      current_position_line(0),
+      current_position_col(0) {}
+
 OpenBuffer::OpenBuffer(unique_ptr<MemoryMappedFile> input)
     : contents(ParseInput(std::move(input))),
       view_start_line(0),

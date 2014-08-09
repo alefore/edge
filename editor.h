@@ -21,10 +21,13 @@ using std::max;
 
 struct Line {
   size_t size() const { return contents->size(); }
+
+  unique_ptr<EditorMode> activate;
   shared_ptr<LazyString> contents;
 };
 
 struct OpenBuffer {
+  OpenBuffer();
   OpenBuffer(unique_ptr<MemoryMappedFile> input);
 
   void CheckPosition();
