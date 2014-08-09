@@ -47,7 +47,11 @@ struct EditorState {
         mode(std::move(NewCommandMode())) {}
 
   void CheckPosition() {
-    buffers[current_buffer]->CheckPosition();
+    get_current_buffer()->CheckPosition();
+  }
+
+  shared_ptr<OpenBuffer> get_current_buffer() const {
+    return buffers.at(current_buffer);
   }
 
   vector<shared_ptr<OpenBuffer>> buffers;
