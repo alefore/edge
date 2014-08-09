@@ -3,6 +3,7 @@
 #include <string>
 
 #include "command_mode.h"
+#include "find_mode.h"
 #include "editor.h"
 
 namespace afc {
