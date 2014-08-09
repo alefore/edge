@@ -20,7 +20,7 @@ Terminal::~Terminal() {
 
 void Terminal::Display(EditorState* editor_state) {
   clear();
-  const shared_ptr<OpenBuffer> open_buffer(editor_state->buffers[0]);
+  const shared_ptr<OpenBuffer> open_buffer(editor_state->get_current_buffer());
   const vector<shared_ptr<Line>>& contents(open_buffer->contents);
 
   if (open_buffer->view_start_line > open_buffer->current_position_line) {
