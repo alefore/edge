@@ -2,6 +2,7 @@
 #include <list>
 #include <string>
 
+#include "advanced_mode.h"
 #include "command_mode.h"
 #include "find_mode.h"
 
@@ -45,6 +46,9 @@ class CommandMode : public EditorMode {
         break;
       case 'f':
         editor_state->mode = std::move(NewFindMode());
+        break;
+      case 'a':
+        editor_state->mode = std::move(NewAdvancedMode());
         break;
     }
   }
