@@ -50,6 +50,11 @@ class CommandMode : public EditorMode {
       case 'a':
         editor_state->mode = std::move(NewAdvancedMode());
         break;
+      case '\n':
+        if (buffer->current_line()->activate.get() != nullptr) {
+          buffer->current_line()->activate->ProcessInput(c, editor_state);
+        }
+        break;
     }
   }
 };
