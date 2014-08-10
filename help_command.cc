@@ -32,6 +32,7 @@ class HelpCommand : public Command {
     }
     it.first->second->current_position_line = 0;
 
+    editor_state->screen_needs_redraw = true;
     editor_state->mode = std::move(NewCommandMode());
     editor_state->repetitions = 1;
   }
