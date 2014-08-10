@@ -14,20 +14,23 @@ using std::shared_ptr;
 
 class FindMode : public EditorMode {
 
-  void SeekOnce(shared_ptr<OpenBuffer>& buffer, int c) {
+  bool SeekOnce(const shared_ptr<OpenBuffer> buffer, int c) {
     shared_ptr<LazyString> current_line = buffer->current_line()->contents;
     size_t line_length = current_line->size();
     for (int i = buffer->current_position_col + 1; i < line_length; i++) {
       if (current_line->get(i) == c) {
         buffer->current_position_col = i;
-        return;
+        return true;
       }
     }
+    return false;
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
     for (int times = 0; times < editor_state->repetitions; times++) {
-      SeekOnce(editor_state->buffers[editor_state->current_buffer], c);
+      if (!SeekOnce(editor_state->get_current_buffer(), c)) {
+        break;
+      }
     }
     editor_state->mode = std::move(NewCommandMode());
     editor_state->repetitions = 1;
