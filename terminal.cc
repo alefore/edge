@@ -81,13 +81,13 @@ void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
 
 int Terminal::Read() {
   int c = getch();
-  cerr << "Read: " << c << "\n";
+  //cerr << "Read: " << c << "\n";
   if (c != 27) {
     return c;
   }
   nodelay(stdscr, true);
   int next = getch();
-  cerr << "Read next: " << next << "\n";
+  //cerr << "Read next: " << next << "\n";
   nodelay(stdscr, false);
   switch (next) {
     case -1:
@@ -96,7 +96,7 @@ int Terminal::Read() {
     case 91:
       {
         int next2 = getch();
-        cerr << "Read next2: " << next2 << "\n";
+        //cerr << "Read next2: " << next2 << "\n";
         switch (next2) {
           case 65:
             return UP_ARROW;
@@ -111,7 +111,7 @@ int Terminal::Read() {
       return -1;
 
     default:
-      cerr << "Unget: " << next << "\n";
+      //cerr << "Unget: " << next << "\n";
       ungetch(next);
       return -1;
   }
