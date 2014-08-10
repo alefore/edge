@@ -15,7 +15,6 @@ extern "C" {
 #include "lazy_string.h"
 #include "line_parser.h"
 #include "file_link_mode.h"
-#include "memory_mapped_file.h"
 #include "terminal.h"
 #include "token.h"
 

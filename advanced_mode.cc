@@ -1,47 +1,48 @@
 #include <memory>
-#include <list>
-#include <string>
+#include <map>
 
 #include "advanced_mode.h"
+#include "command.h"
 #include "command_mode.h"
 #include "editor.h"
+#include "help_command.h"
+#include "map_mode.h"
 
 namespace afc {
 namespace editor {
 
-using std::unique_ptr;
+using std::make_pair;
+using std::map;
 using std::shared_ptr;
+using std::unique_ptr;
 
-class AdvancedMode : public EditorMode {
-  void WriteBuffer(shared_ptr<OpenBuffer>& buffer) {
+class CloseCurrentBuffer : public Command {
+  const string Description() {
+    return "closes the current buffer";
   }
 
-  void CloseCurrentBuffer(EditorState* editor_state) {
+  void ProcessInput(int c, EditorState* editor_state) {
     editor_state->buffers.erase(
         editor_state->buffers.begin()
         + editor_state->current_buffer);
     editor_state->current_buffer = 0;
-  }
-
-  void ProcessInput(int c, EditorState* editor_state) {
-    shared_ptr<OpenBuffer> buffer(editor_state->get_current_buffer());
-
-    switch (c) {
-      case 'w':
-        WriteBuffer(buffer);
-        break;
-      case 'c':
-        CloseCurrentBuffer(editor_state);
-        break;
-    }
-
     editor_state->mode = std::move(NewCommandMode());
     editor_state->repetitions = 1;
   }
 };
 
+static const map<int, Command*>& GetAdvancedModeMap() {
+  static map<int, Command*> output;
+  if (output.empty()) {
+    output.insert(make_pair('c', new CloseCurrentBuffer()));
+    output.insert(make_pair('?', NewHelpCommand(output, "advance command mode").release()));
+  }
+  return output;
+}
+
 unique_ptr<EditorMode> NewAdvancedMode() {
-  return std::move(unique_ptr<EditorMode>(new AdvancedMode()));
+  unique_ptr<MapMode> mode(new MapMode(GetAdvancedModeMap()));
+  return std::move(mode);
 }
 
 }  // namespace afc

@@ -35,7 +35,7 @@ void Terminal::Display(EditorState* editor_state) {
     last_line_to_show = contents.size() - 1;
   }
   for (size_t current_line = open_buffer->view_start_line;
-       current_line < last_line_to_show; current_line++) {
+       current_line <= last_line_to_show; current_line++) {
     const shared_ptr<LazyString> line(contents[current_line]->contents);
     int size = std::min(static_cast<size_t>(COLS), line->size());
     for (size_t pos = 0; pos < size; pos++) {

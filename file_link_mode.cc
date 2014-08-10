@@ -21,7 +21,7 @@ using std::shared_ptr;
 
 class FileLinkMode : public EditorMode {
  public:
-  FileLinkMode(const char* path, size_t position)
+  FileLinkMode(const string& path, size_t position)
       : path_(path), position_(position) {}
 
   void ProcessInput(int c, EditorState* editor_state) {
@@ -50,7 +50,7 @@ class FileLinkMode : public EditorMode {
       while ((entry = readdir(dir)) != nullptr) {
         unique_ptr<Line> line(new Line);
         line->contents.reset(NewCopyCharBuffer(entry->d_name).release());
-        line->activate.reset(NewFileLinkMode(entry->d_name, 0).release());
+        line->activate.reset(NewFileLinkMode(path_ + "/" + entry->d_name, 0).release());
         buffer->contents.push_back(std::move(line));
       }
       closedir(dir);
@@ -65,7 +65,7 @@ class FileLinkMode : public EditorMode {
   size_t position_;
 };
 
-unique_ptr<EditorMode> NewFileLinkMode(const char* path, int position) {
+unique_ptr<EditorMode> NewFileLinkMode(const string& path, int position) {
   return std::move(unique_ptr<EditorMode>(new FileLinkMode(path, position)));
 }
 
