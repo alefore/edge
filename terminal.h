@@ -12,6 +12,11 @@ namespace editor {
 
 class Terminal {
  public:
+  static const int DOWN_ARROW;
+  static const int UP_ARROW;
+  static const int LEFT_ARROW;
+  static const int RIGHT_ARROW;
+
   Terminal();
   ~Terminal();
 
@@ -21,6 +26,7 @@ class Terminal {
 
  private:
   void ShowBuffer(const shared_ptr<OpenBuffer> buffer);
+  void AdjustPosition(const shared_ptr<OpenBuffer> buffer);
 
   std::string status_;
 };

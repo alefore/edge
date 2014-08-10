@@ -7,8 +7,10 @@
 #include "command_mode.h"
 #include "find_mode.h"
 #include "help_command.h"
+#include "insert_mode.h"
 #include "map_mode.h"
 #include "repeat_mode.h"
+#include "terminal.h"
 
 namespace {
 using std::make_pair;
@@ -96,6 +98,17 @@ class MoveBackwards : public Command {
   }
 };
 
+class EnterInsertMode : public Command {
+ public:
+  const string Description() {
+    return "enters insert mode";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    afc::editor::EnterInsertMode(editor_state);
+  }
+};
+
 class EnterAdvancedMode : public Command {
  public:
   const string Description() {
@@ -150,6 +163,7 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('q', new Quit()));
 
     output.insert(make_pair('a', new EnterAdvancedMode()));
+    output.insert(make_pair('i', new EnterInsertMode()));
     output.insert(make_pair('f', new EnterFindMode()));
 
     output.insert(make_pair('\n', new ActivateLink()));
@@ -171,6 +185,10 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('7', new RepeatMode()));
     output.insert(make_pair('8', new RepeatMode()));
     output.insert(make_pair('9', new RepeatMode()));
+    output.insert(make_pair(Terminal::DOWN_ARROW, new LineDown()));
+    output.insert(make_pair(Terminal::UP_ARROW, new LineUp()));
+    output.insert(make_pair(Terminal::LEFT_ARROW, new MoveBackwards()));
+    output.insert(make_pair(Terminal::RIGHT_ARROW, new MoveForwards()));
   }
   return output;
 }

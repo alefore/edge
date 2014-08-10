@@ -28,6 +28,7 @@ class FileLinkMode : public EditorMode {
       it.first->second.reset(Load().release());
     }
     it.first->second->current_position_line = position_;
+    editor_state->screen_needs_redraw = true;
   }
 
  private:
