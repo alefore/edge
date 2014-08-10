@@ -66,6 +66,8 @@ struct EditorState {
   unique_ptr<EditorMode> mode;
 
   bool screen_needs_redraw;
+
+  string status;
 };
 
 }  // namespace editor
