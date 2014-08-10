@@ -25,6 +25,7 @@ class Terminal {
   int Read();
 
  private:
+  void ShowStatus(const string& status);
   void ShowBuffer(const shared_ptr<OpenBuffer> buffer);
   void AdjustPosition(const shared_ptr<OpenBuffer> buffer);
 

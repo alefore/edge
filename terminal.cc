@@ -34,6 +34,7 @@ void Terminal::Display(EditorState* editor_state) {
     if (editor_state->screen_needs_redraw) {
       editor_state->screen_needs_redraw = false;
       clear();
+      ShowStatus(editor_state->status);
       refresh();
     }
     return;
@@ -51,8 +52,21 @@ void Terminal::Display(EditorState* editor_state) {
     ShowBuffer(buffer);
     editor_state->screen_needs_redraw = false;
   }
+  ShowStatus(editor_state->status);
   AdjustPosition(buffer);
   refresh();
+}
+
+void Terminal::ShowStatus(const string& status) {
+  move(LINES - 1, 0);
+  if (status.size() < COLS) {
+    addstr(status.c_str());
+    for (int i = 0; i < status.size(); i++) {
+      addch(' ');
+    }
+  } else {
+    addstr(status.substr(0, COLS).c_str());
+  }
 }
 
 void Terminal::ShowBuffer(const shared_ptr<OpenBuffer> buffer) {
