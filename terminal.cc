@@ -1,5 +1,6 @@
 #include "terminal.h"
 
+#include <cassert>
 #include <iostream>
 
 extern "C" {
@@ -69,7 +70,9 @@ void Terminal::ShowBuffer(const shared_ptr<OpenBuffer> buffer) {
     const shared_ptr<LazyString> line(contents[current_line]->contents);
     int size = std::min(static_cast<size_t>(COLS), line->size());
     for (size_t pos = 0; pos < size; pos++) {
-      addch(line->get(pos));
+      int c = line->get(pos);
+      assert(c != '\n');
+      addch(c);
     }
     addch('\n');
   }

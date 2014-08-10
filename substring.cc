@@ -1,5 +1,7 @@
 #include "substring.h"
 
+#include <cassert>
+
 namespace afc {
 namespace editor {
 
@@ -33,6 +35,7 @@ shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
   if (pos == 0 && size == input->size()) {
     return input;  // Optimization.
   }
+  assert(pos + size <= input->size());
   shared_ptr<LazyString> output(new SubstringImpl(input, pos, size));
   return output;
 }
