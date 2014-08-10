@@ -1,8 +1,7 @@
 #include <cassert>
-#include <iostream>
 #include <memory>
 #include <string>
-
+#include <algorithm>
 
 extern "C" {
 #include <dirent.h>
@@ -12,12 +11,10 @@ extern "C" {
 #include "file_link_mode.h"
 #include "editor.h"
 
-namespace afc {
-namespace editor {
-
-using std::cerr;
-using std::unique_ptr;
+namespace {
 using std::shared_ptr;
+using std::sort;
+using namespace afc::editor;
 
 class FileLinkMode : public EditorMode {
  public:
@@ -25,25 +22,27 @@ class FileLinkMode : public EditorMode {
       : path_(path), position_(position) {}
 
   void ProcessInput(int c, EditorState* editor_state) {
-    shared_ptr<OpenBuffer> buffer(Load().release());
-    if (buffer.get() == nullptr) {
-      return;
+    auto it = editor_state->buffers.insert(make_pair(path_, nullptr));
+    editor_state->current_buffer = it.first;
+    if (it.second) {
+      it.first->second.reset(Load().release());
     }
-    buffer->current_position_line = position_;
-    editor_state->buffers.push_back(buffer);
-    editor_state->current_buffer = editor_state->buffers.size() - 1;
+    it.first->second->current_position_line = position_;
   }
 
  private:
   unique_ptr<OpenBuffer> Load() {
-    cerr << "LOADING: " << path_;
+    unique_ptr<OpenBuffer> buffer(new OpenBuffer());
     struct stat sb;
     if (stat(path_.c_str(), &sb) == -1) {
-      return nullptr;
+      return std::move(buffer);
     }
 
     if (S_ISDIR(sb.st_mode)) {
-      unique_ptr<OpenBuffer> buffer(new OpenBuffer());
+      unique_ptr<Line> line(new Line);
+      line->contents.reset(NewCopyString("File listing: " + path_).release());
+      buffer->contents.push_back(std::move(line));
+
       DIR* dir = opendir(path_.c_str());
       assert(dir != nullptr);
       struct dirent* entry;
@@ -54,6 +53,14 @@ class FileLinkMode : public EditorMode {
         buffer->contents.push_back(std::move(line));
       }
       closedir(dir);
+
+      struct Compare {
+        bool operator()(const shared_ptr<Line>& a, const shared_ptr<Line>& b) {
+          return *a->contents < *b->contents;
+        }
+      } compare;
+
+      sort(buffer->contents.begin() + 1, buffer->contents.end(), compare);
       return std::move(buffer);
     }
 
@@ -65,6 +72,12 @@ class FileLinkMode : public EditorMode {
   size_t position_;
 };
 
+}  // namespace
+
+namespace afc {
+namespace editor {
+
+using std::unique_ptr;
 unique_ptr<EditorMode> NewFileLinkMode(const string& path, int position) {
   return std::move(unique_ptr<EditorMode>(new FileLinkMode(path, position)));
 }

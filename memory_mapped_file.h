@@ -21,8 +21,8 @@ class MemoryMappedFile : public LazyString {
   MemoryMappedFile(const string& path);
   ~MemoryMappedFile();
 
-  char get(size_t pos) { return buffer_[pos]; }
-  size_t size() { return stat_buffer_.st_size; }
+  char get(size_t pos) const { return buffer_[pos]; }
+  size_t size() const { return stat_buffer_.st_size; }
 
  private:
   const string path_;

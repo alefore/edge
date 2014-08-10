@@ -20,6 +20,8 @@ class Terminal {
   int Read();
 
  private:
+  void ShowBuffer(const shared_ptr<OpenBuffer> buffer);
+
   std::string status_;
 };
 

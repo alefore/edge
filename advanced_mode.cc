@@ -22,10 +22,8 @@ class CloseCurrentBuffer : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    editor_state->buffers.erase(
-        editor_state->buffers.begin()
-        + editor_state->current_buffer);
-    editor_state->current_buffer = 0;
+    editor_state->buffers.erase(editor_state->current_buffer);
+    editor_state->current_buffer = editor_state->buffers.begin();
     editor_state->mode = std::move(NewCommandMode());
     editor_state->repetitions = 1;
   }

@@ -1,7 +1,7 @@
 #ifndef __AFC_EDITOR_EDITOR_H__
 #define __AFC_EDITOR_EDITOR_H__
 
-#include <list>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -16,8 +16,9 @@ namespace editor {
 using std::shared_ptr;
 using std::unique_ptr;
 using std::vector;
-using std::min;
+using std::map;
 using std::max;
+using std::min;
 
 struct Line {
   size_t size() const { return contents->size(); }
@@ -44,7 +45,7 @@ struct OpenBuffer {
 
 struct EditorState {
   EditorState()
-      : current_buffer(0),
+      : current_buffer(buffers.end()),
         terminate(false),
         repetitions(1),
         mode(std::move(NewCommandMode())) {}
@@ -54,11 +55,11 @@ struct EditorState {
   }
 
   shared_ptr<OpenBuffer> get_current_buffer() const {
-    return buffers.at(current_buffer);
+    return current_buffer->second;
   }
 
-  vector<shared_ptr<OpenBuffer>> buffers;
-  int current_buffer;
+  map<string, shared_ptr<OpenBuffer>> buffers;
+  map<string, shared_ptr<OpenBuffer>>::iterator current_buffer;
   bool terminate;
 
   int repetitions;

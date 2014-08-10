@@ -8,11 +8,11 @@ class SubstringImpl : public LazyString {
   SubstringImpl(const shared_ptr<LazyString>& input, size_t pos, size_t size)
       : buffer_(input), pos_(pos), size_(size) {}
 
-  char get(size_t pos) {
+  char get(size_t pos) const {
     return buffer_->get(pos_ + pos);
   }
 
-  size_t size() {
+  size_t size() const {
     return size_;
   }
 

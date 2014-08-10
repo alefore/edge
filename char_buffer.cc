@@ -13,11 +13,11 @@ class CharBuffer : public LazyString {
  public:
   CharBuffer(const char* buffer, size_t size) : buffer_(buffer), size_(size) {}
 
-  char get(size_t pos) {
+  char get(size_t pos) const {
     assert(pos < size_);
     return buffer_[pos];
   }
-  size_t size() { return size_; }
+  size_t size() const { return size_; }
 
  protected:
   const char* buffer_;

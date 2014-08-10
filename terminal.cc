@@ -20,21 +20,27 @@ Terminal::~Terminal() {
 
 void Terminal::Display(EditorState* editor_state) {
   clear();
-  const shared_ptr<OpenBuffer> open_buffer(editor_state->get_current_buffer());
-  const vector<shared_ptr<Line>>& contents(open_buffer->contents);
+  if (editor_state->current_buffer != editor_state->buffers.end()) {
+    ShowBuffer(editor_state->get_current_buffer());
+  }
+  refresh();
+}
 
-  if (open_buffer->view_start_line > open_buffer->current_position_line) {
-    open_buffer->view_start_line = open_buffer->current_position_line;
-  } else if (open_buffer->view_start_line + LINES <= open_buffer->current_position_line) {
-    open_buffer->view_start_line = open_buffer->current_position_line - LINES + 1;
+void Terminal::ShowBuffer(const shared_ptr<OpenBuffer> buffer) {
+  const vector<shared_ptr<Line>>& contents(buffer->contents);
+
+  if (buffer->view_start_line > buffer->current_position_line) {
+    buffer->view_start_line = buffer->current_position_line;
+  } else if (buffer->view_start_line + LINES <= buffer->current_position_line) {
+    buffer->view_start_line = buffer->current_position_line - LINES + 1;
   }
 
   size_t last_line_to_show =
-      open_buffer->view_start_line + static_cast<size_t>(LINES);
+      buffer->view_start_line + static_cast<size_t>(LINES);
   if (last_line_to_show > contents.size()) {
     last_line_to_show = contents.size() - 1;
   }
-  for (size_t current_line = open_buffer->view_start_line;
+  for (size_t current_line = buffer->view_start_line;
        current_line <= last_line_to_show; current_line++) {
     const shared_ptr<LazyString> line(contents[current_line]->contents);
     int size = std::min(static_cast<size_t>(COLS), line->size());
@@ -44,14 +50,12 @@ void Terminal::Display(EditorState* editor_state) {
     addch('\n');
   }
 
-  size_t pos_x = open_buffer->current_position_col;
-  if (pos_x > contents[open_buffer->current_position_line]->contents->size()) {
-    pos_x = contents[open_buffer->current_position_line]->contents->size();
+  size_t pos_x = buffer->current_position_col;
+  if (pos_x > contents[buffer->current_position_line]->contents->size()) {
+    pos_x = contents[buffer->current_position_line]->contents->size();
   }
 
-  move(open_buffer->current_position_line - open_buffer->view_start_line, pos_x);
-
-  refresh();
+  move(buffer->current_position_line - buffer->view_start_line, pos_x);
 }
 
 int Terminal::Read() {

@@ -8,13 +8,11 @@
 #include "find_mode.h"
 #include "help_command.h"
 #include "map_mode.h"
+#include "repeat_mode.h"
 
-namespace afc {
-namespace editor {
-
+namespace {
 using std::make_pair;
-using std::map;
-using std::unique_ptr;
+using namespace afc::editor;
 
 class Quit : public Command {
  public:
@@ -35,9 +33,12 @@ class LineUp : public Command {
 
   void ProcessInput(int c, EditorState* editor_state) {
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
-    if (buffer->current_position_line > 0) {
-      buffer->current_position_line--;
+    if (editor_state->repetitions < buffer->current_position_line) {
+      buffer->current_position_line -= editor_state->repetitions;
+    } else {
+      buffer->current_position_line = 0;
     }
+    editor_state->repetitions = 1;
   }
 };
 
@@ -49,9 +50,12 @@ class LineDown : public Command {
 
   void ProcessInput(int c, EditorState* editor_state) {
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
-    if (buffer->current_position_line < buffer->contents.size() - 1) {
-      buffer->current_position_line++;
+    if (buffer->current_position_line + editor_state->repetitions < buffer->contents.size() - 1) {
+      buffer->current_position_line += editor_state->repetitions;
+    } else {
+      buffer->current_position_line = buffer->contents.size() - 1;
     }
+    editor_state->repetitions = 1;
   }
 };
 
@@ -63,11 +67,12 @@ class MoveForwards : public Command {
 
   void ProcessInput(int c, EditorState* editor_state) {
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
-    if (buffer->current_position_col < buffer->current_line()->size()) {
-      buffer->current_position_col++;
-    } else if (buffer->current_position_col > buffer->current_line()->size()) {
+    if (buffer->current_position_col + editor_state->repetitions <= buffer->current_line()->size()) {
+      buffer->current_position_col += editor_state->repetitions;
+    } else {
       buffer->current_position_col = buffer->current_line()->size();
     }
+    editor_state->repetitions = 1;
   }
 };
 
@@ -82,9 +87,12 @@ class MoveBackwards : public Command {
     if (buffer->current_position_col > buffer->current_line()->size()) {
       buffer->current_position_col = buffer->current_line()->size();
     }
-    if (buffer->current_position_col > 0) {
-      buffer->current_position_col--;
+    if (buffer->current_position_col > editor_state->repetitions) {
+      buffer->current_position_col -= editor_state->repetitions;
+    } else {
+      buffer->current_position_col = 0;
     }
+    editor_state->repetitions = 1;
   }
 };
 
@@ -107,6 +115,18 @@ class EnterFindMode : public Command {
 
   void ProcessInput(int c, EditorState* editor_state) {
     editor_state->mode = std::move(NewFindMode());
+  }
+};
+
+class RepeatMode : public Command {
+  const string Description() {
+    return "repeats for the next command";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    editor_state->repetitions = 0;
+    editor_state->mode = std::move(NewRepeatMode());
+    editor_state->mode->ProcessInput(c, editor_state);
   }
 };
 
@@ -140,9 +160,28 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('h', new MoveBackwards()));
 
     output.insert(make_pair('?', NewHelpCommand(output, "command mode").release()));
+
+    output.insert(make_pair('0', new RepeatMode()));
+    output.insert(make_pair('1', new RepeatMode()));
+    output.insert(make_pair('2', new RepeatMode()));
+    output.insert(make_pair('3', new RepeatMode()));
+    output.insert(make_pair('4', new RepeatMode()));
+    output.insert(make_pair('5', new RepeatMode()));
+    output.insert(make_pair('6', new RepeatMode()));
+    output.insert(make_pair('7', new RepeatMode()));
+    output.insert(make_pair('8', new RepeatMode()));
+    output.insert(make_pair('9', new RepeatMode()));
   }
   return output;
 }
+
+}  // namespace
+
+namespace afc {
+namespace editor {
+
+using std::map;
+using std::unique_ptr;
 
 unique_ptr<EditorMode> NewCommandMode() {
   unique_ptr<MapMode> mode(new MapMode(GetCommandModeMap()));
