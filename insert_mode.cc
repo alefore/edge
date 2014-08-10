@@ -1,11 +1,13 @@
 #include "insert_mode.h"
 
+#include <cassert>
 #include <memory>
 
 #include "command_mode.h"
-#include "find_mode.h"
-#include "terminal.h"
 #include "editor.h"
+#include "find_mode.h"
+#include "substring.h"
+#include "terminal.h"
 
 namespace {
 using namespace afc::editor;
@@ -29,6 +31,7 @@ class EditableString : public LazyString {
   }
 
   void Insert(int c) {
+    assert(c != '\n');
     editable_part_ += static_cast<char>(c);
   }
 
@@ -51,21 +54,43 @@ class InsertMode : public EditorMode {
   InsertMode(shared_ptr<EditableString>& line) : line_(line) {}
 
   void ProcessInput(int c, EditorState* editor_state) {
-    if (c == -1) {
-      editor_state->mode = std::move(NewCommandMode());
-      editor_state->repetitions = 1;
-      return;
-    }
-    if (c == 127) {
-      if (line_->Backspace()) {
+    auto buffer = editor_state->get_current_buffer();
+    switch (c) {
+      case -1:
+        editor_state->mode = std::move(NewCommandMode());
+        editor_state->repetitions = 1;
+        return;
+      case 127:
+        if (line_->Backspace()) {
+          editor_state->screen_needs_redraw = true;
+          editor_state->get_current_buffer()->current_position_col --;
+        }
+        return;
+      case '\n':
+        size_t pos = buffer->current_position_col;
+
+        // Adjust the old line.
+        buffer->current_line()->contents =
+            Substring(buffer->current_line()->contents, 0, pos);
+
+        // Create a new line and insert it.
+        line_.reset(new EditableString(Substring(line_, pos), 0));
+
+        shared_ptr<Line> line(new Line());
+        line->contents = line_;
+        buffer->contents.insert(
+            buffer->contents.begin() + buffer->current_position_line + 1,
+            line);
+
+        // Move to the new line and schedule a redraw.
+        buffer->current_position_line++;
+        buffer->current_position_col = 0;
         editor_state->screen_needs_redraw = true;
-        editor_state->get_current_buffer()->current_position_col --;
-      }
-      return;
+        return;
     }
     line_->Insert(c);
     editor_state->screen_needs_redraw = true;
-    editor_state->get_current_buffer()->current_position_col ++;
+    buffer->current_position_col ++;
   }
 
  private:
