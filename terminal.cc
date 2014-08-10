@@ -29,8 +29,8 @@ Terminal::~Terminal() {
 }
 
 void Terminal::Display(EditorState* editor_state) {
-  auto const& buffer = editor_state->get_current_buffer();
   if (editor_state->current_buffer != editor_state->buffers.end()) {
+    auto const& buffer = editor_state->get_current_buffer();
     if (buffer->view_start_line > buffer->current_position_line) {
       buffer->view_start_line = buffer->current_position_line;
       editor_state->screen_needs_redraw = true;

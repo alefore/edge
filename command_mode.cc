@@ -34,6 +34,7 @@ class LineUp : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
+    if (editor_state->buffers.empty()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
     if (editor_state->repetitions < buffer->current_position_line) {
       buffer->current_position_line -= editor_state->repetitions;
@@ -51,6 +52,7 @@ class LineDown : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
+    if (editor_state->buffers.empty()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
     if (buffer->current_position_line + editor_state->repetitions < buffer->contents.size() - 1) {
       buffer->current_position_line += editor_state->repetitions;
@@ -68,6 +70,7 @@ class MoveForwards : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
+    if (editor_state->buffers.empty()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
     if (buffer->current_position_col + editor_state->repetitions <= buffer->current_line()->size()) {
       buffer->current_position_col += editor_state->repetitions;
@@ -85,6 +88,7 @@ class MoveBackwards : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
+    if (editor_state->buffers.empty()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
     if (buffer->current_position_col > buffer->current_line()->size()) {
       buffer->current_position_col = buffer->current_line()->size();
@@ -150,6 +154,7 @@ class ActivateLink : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
+    if (editor_state->buffers.empty()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
     if (buffer->current_line()->activate.get() != nullptr) {
       buffer->current_line()->activate->ProcessInput(c, editor_state);
