@@ -29,22 +29,28 @@ Terminal::~Terminal() {
 }
 
 void Terminal::Display(EditorState* editor_state) {
-  if (editor_state->current_buffer != editor_state->buffers.end()) {
-    auto const& buffer = editor_state->get_current_buffer();
-    if (buffer->view_start_line > buffer->current_position_line) {
-      buffer->view_start_line = buffer->current_position_line;
-      editor_state->screen_needs_redraw = true;
-    } else if (buffer->view_start_line + LINES <= buffer->current_position_line) {
-      buffer->view_start_line = buffer->current_position_line - LINES + 1;
-      editor_state->screen_needs_redraw = true;
-    }
-
+  if (editor_state->current_buffer == editor_state->buffers.end()) {
     if (editor_state->screen_needs_redraw) {
-      ShowBuffer(buffer);
       editor_state->screen_needs_redraw = false;
+      clear();
+      refresh();
     }
-    AdjustPosition(buffer);
+    return;
   }
+  auto const& buffer = editor_state->get_current_buffer();
+  if (buffer->view_start_line > buffer->current_position_line) {
+    buffer->view_start_line = buffer->current_position_line;
+    editor_state->screen_needs_redraw = true;
+  } else if (buffer->view_start_line + LINES <= buffer->current_position_line) {
+    buffer->view_start_line = buffer->current_position_line - LINES + 1;
+    editor_state->screen_needs_redraw = true;
+  }
+
+  if (editor_state->screen_needs_redraw) {
+    ShowBuffer(buffer);
+    editor_state->screen_needs_redraw = false;
+  }
+  AdjustPosition(buffer);
   refresh();
 }
 
