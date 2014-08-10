@@ -1,5 +1,9 @@
-#include <memory>
+#include <cerrno>
+#include <cstring>
+#include <unistd.h>
+#include <iostream>
 #include <map>
+#include <memory>
 
 #include "advanced_mode.h"
 #include "command.h"
@@ -11,6 +15,7 @@
 namespace afc {
 namespace editor {
 
+using std::cerr;
 using std::make_pair;
 using std::map;
 using std::shared_ptr;
@@ -22,6 +27,11 @@ class CloseCurrentBuffer : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
+    if (editor_state->current_buffer == editor_state->buffers.end()) {
+      return;
+    }
+
+    editor_state->screen_needs_redraw = true;
     editor_state->buffers.erase(editor_state->current_buffer);
     editor_state->current_buffer = editor_state->buffers.begin();
     editor_state->mode = std::move(NewCommandMode());
@@ -40,8 +50,30 @@ class SaveCurrentBuffer : public Command {
     }
     const auto& buffer = editor_state->get_current_buffer();
     string tmp_path = editor_state->current_buffer->first + ".tmp";
-    int fd = open(tmp_path.c_str(), O_RDONLY);
+    int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
+    if (fd == -1) {
+      cerr << tmp_path << ": open failed: " << strerror(errno);
+      exit(-1);
+    }
+    for (const auto& line : buffer->contents) {
+      const auto& str = *line->contents;
+      char* tmp = static_cast<char*>(malloc(str.size() + 1));
+      for (int i = 0; i < str.size(); i++) {
+        tmp[i] = str.get(i);
+      }
+      tmp[str.size()] = '\n';
+      if (write(fd, tmp, str.size() + 1) == -1) {
+        cerr << tmp_path << ": write failed: " << fd << ": " << strerror(errno);
+        exit(-1);
+      }
+      free(tmp);
+    }
     close(fd);
+    rename(tmp_path.c_str(), editor_state->current_buffer->first.c_str());
+
+    editor_state->status = "Saved: " + editor_state->current_buffer->first;
+    editor_state->current_buffer = editor_state->buffers.begin();
+    editor_state->mode = std::move(NewCommandMode());
   }
 };
 
