@@ -16,7 +16,7 @@ class LazyString {
   virtual char get(size_t pos) const = 0;
   virtual size_t size() const = 0;
 
-  string ToString() {
+  string ToString() const {
     string output(size(), 0);
     for (int i = 0; i < output.size(); i++) {
       output.at(i) = get(i);
