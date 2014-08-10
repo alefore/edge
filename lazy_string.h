@@ -2,13 +2,13 @@
 #define __AFC_EDITOR_LAZY_STRING_H__
 
 #include <memory>
-#include <list>
 #include <string>
 
 namespace afc {
 namespace editor {
 
 using std::string;
+using std::shared_ptr;
 
 class LazyString {
  public:
@@ -39,6 +39,8 @@ class LazyString {
     return size() < x.size();
   }
 };
+
+shared_ptr<LazyString> EmptyString();
 
 }  // namespace editor
 }  // namespace afc
