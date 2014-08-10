@@ -17,10 +17,12 @@ class LinePromptMode : public EditorMode {
 
   void ProcessInput(int c, EditorState* editor_state) {
     if (c == '\n') {
+      editor_state->status = "";
       handler_(input_, editor_state);
       return;
     }
     input_.push_back(static_cast<char>(c));
+    editor_state->status = prompt_ + input_;
   }
 
  private:
@@ -43,6 +45,7 @@ class LinePromptCommand : public Command {
   void ProcessInput(int c, EditorState* editor_state) {
     editor_state->mode = std::unique_ptr<EditorMode>(
         new LinePromptMode(prompt_, handler_));
+    editor_state->status = prompt_;
   }
 
  private:
