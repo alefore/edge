@@ -76,7 +76,7 @@ void Terminal::ShowBuffer(const shared_ptr<OpenBuffer> buffer) {
 
   size_t last_line_to_show =
       buffer->view_start_line + static_cast<size_t>(LINES) - 1;
-  if (last_line_to_show > contents.size()) {
+  if (last_line_to_show >= contents.size()) {
     last_line_to_show = contents.size() - 1;
   }
   for (size_t current_line = buffer->view_start_line;
