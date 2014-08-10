@@ -64,6 +64,8 @@ struct EditorState {
 
   int repetitions;
   unique_ptr<EditorMode> mode;
+
+  bool screen_needs_redraw;
 };
 
 }  // namespace editor
