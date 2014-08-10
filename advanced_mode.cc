@@ -58,9 +58,7 @@ class SaveCurrentBuffer : public Command {
     for (const auto& line : buffer->contents) {
       const auto& str = *line->contents;
       char* tmp = static_cast<char*>(malloc(str.size() + 1));
-      for (int i = 0; i < str.size(); i++) {
-        tmp[i] = str.get(i);
-      }
+      strcpy(tmp, str.ToString().c_str());
       tmp[str.size()] = '\n';
       if (write(fd, tmp, str.size() + 1) == -1) {
         cerr << tmp_path << ": write failed: " << fd << ": " << strerror(errno);
