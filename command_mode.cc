@@ -1,3 +1,4 @@
+#include <functional>
 #include <memory>
 #include <map>
 #include <string>
@@ -8,9 +9,11 @@
 #include "find_mode.h"
 #include "help_command.h"
 #include "insert_mode.h"
+#include "line_prompt_mode.h"
 #include "map_mode.h"
 #include "noop_command.h"
 #include "repeat_mode.h"
+#include "search_handler.h"
 #include "terminal.h"
 
 namespace {
@@ -171,6 +174,9 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('a', new EnterAdvancedMode()));
     output.insert(make_pair('i', new EnterInsertMode()));
     output.insert(make_pair('f', new EnterFindMode()));
+    output.insert(make_pair(
+        '/',
+        NewLinePromptCommand("/", "searches for a string", SearchHandler).release()));
 
     output.insert(make_pair('\n', new ActivateLink()));
 
