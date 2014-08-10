@@ -31,6 +31,10 @@ struct OpenBuffer {
   OpenBuffer();
   OpenBuffer(unique_ptr<MemoryMappedFile> input);
 
+  // Checks that current_position_col is in the expected range (between 0 and
+  // the length of the current line.
+  void MaybeAdjustPositionCol();
+
   void CheckPosition();
   shared_ptr<Line> current_line() const {
     return contents.at(current_position_line);

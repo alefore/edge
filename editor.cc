@@ -35,6 +35,13 @@ OpenBuffer::OpenBuffer(unique_ptr<MemoryMappedFile> input)
       current_position_line(0),
       current_position_col(0) {}
 
+void OpenBuffer::MaybeAdjustPositionCol() {
+  size_t line_length = current_line()->contents->size();
+  if (current_position_col > line_length) {
+    current_position_col = line_length;
+  }
+}
+
 void OpenBuffer::CheckPosition() {
   if (current_position_line >= contents.size()) {
     current_position_line = contents.size();

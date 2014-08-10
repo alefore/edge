@@ -5,7 +5,7 @@
 
 #include "command_mode.h"
 #include "editor.h"
-#include "find_mode.h"
+#include "lazy_string_append.h"
 #include "substring.h"
 #include "terminal.h"
 
@@ -14,7 +14,20 @@ using namespace afc::editor;
 class EditableString : public LazyString {
  public:
   EditableString(const shared_ptr<LazyString>& base, size_t position)
-      : base_(base), position_(position) {}
+      : base_(base), position_(position) {
+    assert(position_ <= base_->size());
+  }
+
+  EditableString(const string& editable_part)
+      : base_(EmptyString()), position_(0), editable_part_(editable_part) {
+    assert(position_ <= base_->size());
+  }
+
+  EditableString(const shared_ptr<LazyString>& base, size_t position,
+                 const string& editable_part)
+      : base_(base), position_(position), editable_part_(editable_part) {
+    assert(position_ <= base_->size());
+  }
 
   virtual char get(size_t pos) const {
     if (pos < position_) {
@@ -55,6 +68,7 @@ class InsertMode : public EditorMode {
 
   void ProcessInput(int c, EditorState* editor_state) {
     auto buffer = editor_state->get_current_buffer();
+    buffer->MaybeAdjustPositionCol();
     switch (c) {
       case -1:
         editor_state->mode = std::move(NewCommandMode());
@@ -62,6 +76,35 @@ class InsertMode : public EditorMode {
         return;
       case 127:
         if (line_->Backspace()) {
+          editor_state->screen_needs_redraw = true;
+          editor_state->get_current_buffer()->current_position_col --;
+        } else if (buffer->current_position_col == 0) {
+          // Join lines.
+          if (buffer->current_position_line == 0)
+            return;
+
+          shared_ptr<LazyString> old_line = buffer->current_line()->contents;
+          buffer->contents.erase(
+              buffer->contents.begin() + buffer->current_position_line);
+
+          buffer->current_position_line --;
+          auto prefix = buffer->current_line()->contents;
+          line_.reset(new EditableString(StringAppend(prefix, old_line), prefix->size()));
+          buffer->current_position_col = prefix->size();
+          buffer->current_line()->contents = line_;
+          editor_state->screen_needs_redraw = true;
+        } else {
+          auto prefix = Substring(
+              buffer->current_line()->contents, 0,
+              min(buffer->current_position_col,
+                  buffer->current_line()->contents->size()));
+          line_.reset(new EditableString(
+              Substring(buffer->current_line()->contents,
+                        buffer->current_position_col),
+              0,
+              prefix->ToString()));
+          buffer->current_line()->contents = line_;
+          assert(line_->Backspace());
           editor_state->screen_needs_redraw = true;
           editor_state->get_current_buffer()->current_position_col --;
         }
@@ -107,6 +150,7 @@ using std::shared_ptr;
 
 void EnterInsertMode(EditorState* editor_state) {
   auto buffer = editor_state->get_current_buffer();
+  buffer->MaybeAdjustPositionCol();
   auto line(buffer->current_line());
   shared_ptr<EditableString> new_line(
       new EditableString(line->contents, buffer->current_position_col));
