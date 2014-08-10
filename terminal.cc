@@ -61,7 +61,7 @@ void Terminal::ShowStatus(const string& status) {
   move(LINES - 1, 0);
   if (status.size() < COLS) {
     addstr(status.c_str());
-    for (int i = 0; i < status.size(); i++) {
+    for (int i = status.size(); i < COLS; i++) {
       addch(' ');
     }
   } else {
