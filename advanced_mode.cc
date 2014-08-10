@@ -21,6 +21,16 @@ using std::map;
 using std::shared_ptr;
 using std::unique_ptr;
 
+class RestoreCommandMode : public Command {
+  const string Description() {
+    return "restores command mode";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    editor_state->mode = std::move(NewCommandMode());
+  }
+};
+
 class CloseCurrentBuffer : public Command {
   const string Description() {
     return "closes the current buffer (without saving)";
@@ -86,7 +96,8 @@ static const map<int, Command*>& GetAdvancedModeMap() {
 }
 
 unique_ptr<EditorMode> NewAdvancedMode() {
-  unique_ptr<MapMode> mode(new MapMode(GetAdvancedModeMap()));
+  static auto default_command = new RestoreCommandMode();
+  unique_ptr<MapMode> mode(new MapMode(GetAdvancedModeMap(), default_command));
   return std::move(mode);
 }
 

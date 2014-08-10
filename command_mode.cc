@@ -9,6 +9,7 @@
 #include "help_command.h"
 #include "insert_mode.h"
 #include "map_mode.h"
+#include "noop_command.h"
 #include "repeat_mode.h"
 #include "terminal.h"
 
@@ -207,7 +208,7 @@ using std::map;
 using std::unique_ptr;
 
 unique_ptr<EditorMode> NewCommandMode() {
-  unique_ptr<MapMode> mode(new MapMode(GetCommandModeMap()));
+  unique_ptr<MapMode> mode(new MapMode(GetCommandModeMap(), NoopCommand()));
   return std::move(mode);
 }
 
