@@ -50,7 +50,7 @@ class SaveCurrentBuffer : public Command {
     }
     const auto& buffer = editor_state->get_current_buffer();
     string tmp_path = editor_state->current_buffer->first + ".tmp";
-    int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU | S_IRWXG | S_IRWXO);
+    int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
     if (fd == -1) {
       cerr << tmp_path << ": open failed: " << strerror(errno);
       exit(-1);
