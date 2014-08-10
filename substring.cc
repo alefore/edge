@@ -23,8 +23,16 @@ class SubstringImpl : public LazyString {
 };
 
 shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
+                                 size_t pos) {
+  return Substring(input, pos, input->size() - pos);
+}
+
+shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
                                  size_t pos,
                                  size_t size) {
+  if (pos == 0 && size == input->size()) {
+    return input;  // Optimization.
+  }
   shared_ptr<LazyString> output(new SubstringImpl(input, pos, size));
   return output;
 }

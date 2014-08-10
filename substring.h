@@ -11,6 +11,9 @@ namespace editor {
 using std::shared_ptr;
 
 shared_ptr<LazyString> Substring(
+    const shared_ptr<LazyString>& input, size_t pos);
+
+shared_ptr<LazyString> Substring(
     const shared_ptr<LazyString>& input, size_t pos, size_t size);
 
 }  // namespace editor
