@@ -47,10 +47,11 @@ class FileLinkMode : public EditorMode {
       DIR* dir = opendir(path_.c_str());
       assert(dir != nullptr);
       struct dirent* entry;
+      string prefix = path_ == "." ? "" : path_ + "/";
       while ((entry = readdir(dir)) != nullptr) {
         unique_ptr<Line> line(new Line);
         line->contents.reset(NewCopyCharBuffer(entry->d_name).release());
-        line->activate.reset(NewFileLinkMode(path_ + "/" + entry->d_name, 0).release());
+        line->activate.reset(NewFileLinkMode(prefix + entry->d_name, 0).release());
         buffer->contents.push_back(std::move(line));
       }
       closedir(dir);
