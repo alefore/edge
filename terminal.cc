@@ -44,13 +44,13 @@ void Terminal::Display(EditorState* editor_state) {
   if (buffer->view_start_line > buffer->current_position_line) {
     buffer->view_start_line = buffer->current_position_line;
     editor_state->screen_needs_redraw = true;
-  } else if (buffer->view_start_line + LINES <= buffer->current_position_line) {
-    buffer->view_start_line = buffer->current_position_line - LINES + 1;
+  } else if (buffer->view_start_line + LINES - 1 <= buffer->current_position_line) {
+    buffer->view_start_line = buffer->current_position_line - LINES + 2;
     editor_state->screen_needs_redraw = true;
   }
 
   if (editor_state->screen_needs_redraw) {
-    ShowBuffer(buffer);
+    ShowBuffer(editor_state);
     editor_state->screen_needs_redraw = false;
   }
   ShowStatus(editor_state->status);
@@ -59,6 +59,9 @@ void Terminal::Display(EditorState* editor_state) {
 }
 
 void Terminal::ShowStatus(const string& status) {
+  if (status.empty()) {
+    return;
+  }
   move(LINES - 1, 0);
   if (status.size() < COLS) {
     addstr(status.c_str());
@@ -70,13 +73,15 @@ void Terminal::ShowStatus(const string& status) {
   }
 }
 
-void Terminal::ShowBuffer(const shared_ptr<OpenBuffer> buffer) {
+void Terminal::ShowBuffer(const EditorState* editor_state) {
+  const shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
   const vector<shared_ptr<Line>>& contents(buffer->contents);
 
   clear();
 
   size_t last_line_to_show =
-      buffer->view_start_line + static_cast<size_t>(LINES) - 1;
+      buffer->view_start_line + static_cast<size_t>(LINES)
+      - (editor_state->status.empty() ? 1 : 2);
   if (last_line_to_show >= contents.size()) {
     last_line_to_show = contents.size() - 1;
   }

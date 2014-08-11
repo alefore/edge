@@ -27,7 +27,7 @@ class Terminal {
 
  private:
   void ShowStatus(const string& status);
-  void ShowBuffer(const shared_ptr<OpenBuffer> buffer);
+  void ShowBuffer(const EditorState* editor_state);
   void AdjustPosition(const shared_ptr<OpenBuffer> buffer);
 
   std::string status_;
