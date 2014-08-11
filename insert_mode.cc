@@ -74,7 +74,7 @@ class InsertMode : public EditorMode {
         editor_state->mode = std::move(NewCommandMode());
         editor_state->repetitions = 1;
         return;
-      case 127:
+      case Terminal::BACKSPACE:
         if (line_->Backspace()) {
           editor_state->screen_needs_redraw = true;
           editor_state->get_current_buffer()->current_position_col --;
