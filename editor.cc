@@ -13,7 +13,7 @@ static vector<shared_ptr<Line>> ParseInput(
   vector<shared_ptr<Line>> output;
   size_t size = input->size();
   size_t start = 0;
-  for (int i = 0; i < size; i++) {
+  for (size_t i = 0; i < size; i++) {
     if (input->get(i) == '\n') {
       shared_ptr<Line> line(new Line());
       line->contents = Substring(input, start, i - start);
