@@ -18,21 +18,6 @@ extern "C" {
 #include "terminal.h"
 #include "token.h"
 
-namespace afc {
-namespace editor {
-
-using std::string;
-
-static std::unique_ptr<Token> ParseFromPath(const std::string& path) {
-  std::ifstream input(path.c_str(), std::ios::in | std::ios::binary);
-  std::stringstream sstr;
-  sstr << input.rdbuf();
-  return Parse(sstr.str());
-}
-
-}  // namespace editor
-}  // namespace afc
-
 int main(int argc, const char* argv[]) {
   using namespace afc::editor;
   using std::unique_ptr;
