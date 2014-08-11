@@ -21,11 +21,12 @@ class HelpCommand : public Command {
       : commands_(commands), mode_description_(mode_description) {}
 
   const string Description() {
-    return "Shows help about commands.";
+    return "shows help about commands.";
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    auto it = editor_state->buffers.insert(make_pair(mode_description_, nullptr));
+    auto it = editor_state->buffers.insert(
+        make_pair("Help: " + mode_description_, nullptr));
     editor_state->current_buffer = it.first;
     if (it.second) {
       it.first->second.reset(Load().release());
