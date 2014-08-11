@@ -5,10 +5,15 @@
 #include <map>
 #include <memory>
 
+extern "C" {
+#include <libgen.h>
+}
+
 #include "advanced_mode.h"
 #include "command.h"
 #include "command_mode.h"
 #include "editor.h"
+#include "file_link_mode.h"
 #include "help_command.h"
 #include "map_mode.h"
 
@@ -28,6 +33,25 @@ class RestoreCommandMode : public Command {
 
   void ProcessInput(int c, EditorState* editor_state) {
     editor_state->mode = std::move(NewCommandMode());
+  }
+};
+
+class OpenDirectory : public Command {
+  const string Description() {
+    return "opens a view of the current directory";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    string path;
+    if (editor_state->current_buffer == editor_state->buffers.end()) {
+      path = ".";
+    } else {
+      char* tmp = strdup(editor_state->current_buffer->first.c_str());
+      path = dirname(tmp);
+      free(tmp);
+    }
+    unique_ptr<EditorMode> loader(NewFileLinkMode(path, 0));
+    loader->ProcessInput('\n', editor_state);
   }
 };
 
@@ -90,6 +114,7 @@ static const map<int, Command*>& GetAdvancedModeMap() {
   if (output.empty()) {
     output.insert(make_pair('c', new CloseCurrentBuffer()));
     output.insert(make_pair('s', new SaveCurrentBuffer()));
+    output.insert(make_pair('d', new OpenDirectory()));
     output.insert(make_pair('?', NewHelpCommand(output, "advance command mode").release()));
   }
   return output;

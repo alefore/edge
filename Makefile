@@ -15,7 +15,7 @@ substring.o: substring.cc substring.h lazy_string.h Makefile
 
 editor.o: editor.cc editor.h substring.h memory_mapped_file.h lazy_string.h Makefile
 
-advanced_mode.o: advanced_mode.h advanced_mode.cc command_mode.h editor_mode.h editor.h help_command.h map_mode.h Makefile
+advanced_mode.o: advanced_mode.h advanced_mode.cc command_mode.h editor_mode.h editor.h file_link_mode.h help_command.h map_mode.h Makefile
 command_mode.o: command_mode.cc command_mode.h advanced_mode.h command.h editor_mode.h editor.h find_mode.h help_command.h insert_mode.h map_mode.h noop_command.o repeat_mode.h terminal.h Makefile
 file_link_mode.o: char_buffer.h editor.h editor_mode.h file_link_mode.cc file_link_mode.h Makefile
 find_mode.o: editor_mode.h editor.h command_mode.h find_mode.h find_mode.cc Makefile
