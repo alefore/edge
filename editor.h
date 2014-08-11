@@ -68,7 +68,7 @@ struct EditorState {
   map<string, shared_ptr<OpenBuffer>>::iterator current_buffer;
   bool terminate;
 
-  int repetitions;
+  size_t repetitions;
   unique_ptr<EditorMode> mode;
 
   bool screen_needs_redraw;
