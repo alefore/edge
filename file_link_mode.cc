@@ -82,8 +82,22 @@ namespace afc {
 namespace editor {
 
 using std::unique_ptr;
+using std::stoi;
+
 unique_ptr<EditorMode> NewFileLinkMode(const string& path, int position) {
-  return std::move(unique_ptr<EditorMode>(new FileLinkMode(path, position)));
+  string actual_path;
+  size_t pos = path.find_last_of(':');
+  if (pos != path.npos && pos > 0) {
+    string test_path = path.substr(0, pos);
+    struct stat dummy;
+    if (stat(test_path.c_str(), &dummy) != -1) {
+      actual_path = test_path;
+      position = stoi(path.substr(pos + 1)) - 1;
+    }
+  } else {
+    actual_path = path;
+  }
+  return std::move(unique_ptr<EditorMode>(new FileLinkMode(actual_path, position)));
 }
 
 }  // namespace afc
