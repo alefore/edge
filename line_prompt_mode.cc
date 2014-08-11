@@ -6,6 +6,7 @@
 #include "command_mode.h"
 #include "line_prompt_mode.h"
 #include "editor.h"
+#include "terminal.h"
 
 namespace {
 using namespace afc::editor;
@@ -21,7 +22,11 @@ class LinePromptMode : public EditorMode {
       handler_(input_, editor_state);
       return;
     }
-    input_.push_back(static_cast<char>(c));
+    if (c == Terminal::BACKSPACE) {
+      input_.resize(input_.size() - 1);
+    } else {
+      input_.push_back(static_cast<char>(c));
+    }
     editor_state->status = prompt_ + input_;
   }
 
