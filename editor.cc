@@ -27,13 +27,15 @@ static vector<shared_ptr<Line>> ParseInput(
 OpenBuffer::OpenBuffer()
     : view_start_line(0),
       current_position_line(0),
-      current_position_col(0) {}
+      current_position_col(0),
+      saveable(false) {}
 
 OpenBuffer::OpenBuffer(unique_ptr<MemoryMappedFile> input)
     : contents(ParseInput(std::move(input))),
       view_start_line(0),
       current_position_line(0),
-      current_position_col(0) {}
+      current_position_col(0),
+      saveable(false) {}
 
 void OpenBuffer::MaybeAdjustPositionCol() {
   size_t line_length = current_line()->contents->size();

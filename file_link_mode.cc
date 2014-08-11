@@ -67,8 +67,9 @@ class FileLinkMode : public EditorMode {
       return std::move(buffer);
     }
 
-    unique_ptr<MemoryMappedFile> file(new MemoryMappedFile(path_));
-    return unique_ptr<OpenBuffer>(new OpenBuffer(std::move(file)));
+    buffer.reset(new OpenBuffer(unique_ptr<MemoryMappedFile>(new MemoryMappedFile(path_))));
+    buffer->saveable = true;
+    return buffer;
   }
 
   string path_;

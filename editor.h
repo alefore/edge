@@ -32,7 +32,7 @@ struct OpenBuffer {
   OpenBuffer(unique_ptr<MemoryMappedFile> input);
 
   // Checks that current_position_col is in the expected range (between 0 and
-  // the length of the current line.
+  // the length of the current line).
   void MaybeAdjustPositionCol();
 
   void CheckPosition();
@@ -45,6 +45,8 @@ struct OpenBuffer {
   int view_start_line;
   size_t current_position_line;
   size_t current_position_col;
+
+  bool saveable;
 };
 
 struct EditorState {

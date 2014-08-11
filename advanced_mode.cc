@@ -84,6 +84,10 @@ class SaveCurrentBuffer : public Command {
       return;
     }
     const auto& buffer = editor_state->get_current_buffer();
+    if (!buffer->saveable) {
+      editor_state->status = "Buffer can't be saved.";
+      return;
+    }
     string tmp_path = editor_state->current_buffer->first + ".tmp";
     int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
     if (fd == -1) {
