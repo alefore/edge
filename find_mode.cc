@@ -27,7 +27,7 @@ class FindMode : public EditorMode {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    for (int times = 0; times < editor_state->repetitions; times++) {
+    for (size_t times = 0; times < editor_state->repetitions; times++) {
       if (!SeekOnce(editor_state->get_current_buffer(), c)) {
         break;
       }
