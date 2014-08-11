@@ -1,4 +1,4 @@
-CPPFLAGS=-std=c++0x -g
+CPPFLAGS=-std=c++0x -g -Wall
 LDFLAGS=-std=c++0x -g
 LDLIBS=-lncurses
 
