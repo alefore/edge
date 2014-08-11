@@ -10,6 +10,7 @@ extern "C" {
 }
 
 #include "advanced_mode.h"
+#include "char_buffer.h"
 #include "command.h"
 #include "command_mode.h"
 #include "editor.h"
@@ -109,12 +110,69 @@ class SaveCurrentBuffer : public Command {
   }
 };
 
+class OpenBufferCommand : public EditorMode {
+ public:
+  OpenBufferCommand(const string& name) : name_(name) {}
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    auto it = editor_state->buffers.find(name_);
+    if (it == editor_state->buffers.end()) {
+      // TODO: Keep a function and re-open the buffer?
+      editor_state->status = "Buffer not found: " + name_;
+      return;
+    }
+    editor_state->current_buffer = it;
+    editor_state->screen_needs_redraw = true;
+    editor_state->status = "";
+    editor_state-> mode = std::move(NewCommandMode());
+  }
+
+ private:
+  const string name_;
+};
+
+class ListBuffers : public Command {
+ public:
+  const string Description() {
+    return "lists all open buffers";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    auto it = editor_state->buffers.insert(make_pair("open buffers", nullptr));
+    editor_state->current_buffer = it.first;
+    it.first->second.reset(Load(editor_state).release());
+
+    editor_state->screen_needs_redraw = true;
+    editor_state->status = "";
+    editor_state->mode = std::move(NewCommandMode());
+    editor_state->repetitions = 1;
+  }
+
+ private:
+  unique_ptr<OpenBuffer> Load(EditorState* editor_state) {
+    unique_ptr<OpenBuffer> buffer(new OpenBuffer());
+    {
+      unique_ptr<Line> line(new Line);
+      line->contents.reset(NewCopyString("Open Buffers:").release());
+      buffer->contents.push_back(std::move(line));
+    }
+    for (const auto& it : editor_state->buffers) {
+      unique_ptr<Line> line(new Line);
+      line->contents.reset(NewCopyString(it.first).release());
+      line->activate.reset(new OpenBufferCommand(it.first));
+      buffer->contents.push_back(std::move(line));
+    }
+    return std::move(buffer);
+  }
+};
+
 static const map<int, Command*>& GetAdvancedModeMap() {
   static map<int, Command*> output;
   if (output.empty()) {
     output.insert(make_pair('c', new CloseCurrentBuffer()));
     output.insert(make_pair('s', new SaveCurrentBuffer()));
     output.insert(make_pair('d', new OpenDirectory()));
+    output.insert(make_pair('l', new ListBuffers()));
     output.insert(make_pair('?', NewHelpCommand(output, "advance command mode").release()));
   }
   return output;
