@@ -13,11 +13,6 @@ namespace editor {
 
 using std::cerr;
 
-const int Terminal::DOWN_ARROW = -2;
-const int Terminal::UP_ARROW = -3;
-const int Terminal::LEFT_ARROW = -4;
-const int Terminal::RIGHT_ARROW = -5;
-
 Terminal::Terminal() {
   initscr();
   noecho();
@@ -105,38 +100,42 @@ void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
 int Terminal::Read() {
   int c = getch();
   //cerr << "Read: " << c << "\n";
-  if (c != 27) {
-    return c;
-  }
-  nodelay(stdscr, true);
-  int next = getch();
-  //cerr << "Read next: " << next << "\n";
-  nodelay(stdscr, false);
-  switch (next) {
-    case -1:
-      return -1;
-
-    case 91:
+  switch (c) {
+    case 127:
+      return BACKSPACE;
+    case 27:
       {
-        int next2 = getch();
-        //cerr << "Read next2: " << next2 << "\n";
-        switch (next2) {
-          case 65:
-            return UP_ARROW;
-          case 66:
-            return DOWN_ARROW;
-          case 67:
-            return RIGHT_ARROW;
-          case 68:
-            return LEFT_ARROW;
+        nodelay(stdscr, true);
+        int next = getch();
+        //cerr << "Read next: " << next << "\n";
+        nodelay(stdscr, false);
+        switch (next) {
+          case -1:
+            return -1;
+
+          case 91:
+            {
+              int next2 = getch();
+              //cerr << "Read next2: " << next2 << "\n";
+              switch (next2) {
+                case 65:
+                  return UP_ARROW;
+                case 66:
+                  return DOWN_ARROW;
+                case 67:
+                  return RIGHT_ARROW;
+                case 68:
+                  return LEFT_ARROW;
+              }
+            }
+            return -1;
         }
+        //cerr << "Unget: " << next << "\n";
+        ungetch(next);
       }
       return -1;
-
     default:
-      //cerr << "Unget: " << next << "\n";
-      ungetch(next);
-      return -1;
+      return c;
   }
 }
 
