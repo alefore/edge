@@ -149,6 +149,7 @@ using std::unique_ptr;
 using std::shared_ptr;
 
 void EnterInsertMode(EditorState* editor_state) {
+  editor_state->status = "";
   auto buffer = editor_state->get_current_buffer();
   buffer->MaybeAdjustPositionCol();
   auto line(buffer->current_line());
