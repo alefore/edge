@@ -29,6 +29,7 @@ class FileLinkMode : public EditorMode {
     }
     it.first->second->current_position_line = position_;
     editor_state->screen_needs_redraw = true;
+    editor_state->mode = std::move(NewCommandMode());
   }
 
  private:
