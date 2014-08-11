@@ -28,7 +28,6 @@ unique_ptr<LazyString> ReadUntilEnd(int fd) {
     int result = read(fd, buffer + buffer_length, buffer_size - buffer_length);
     if (result == 0) {
       buffer = static_cast<char*>(realloc(buffer, buffer_length));
-      std::cerr << "READ: [" << buffer << "]\n";
       return NewCharBufferWithOwnership(buffer, buffer_length);
     }
     buffer_length += result;
