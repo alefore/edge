@@ -18,14 +18,14 @@ class LazyString {
 
   string ToString() const {
     string output(size(), 0);
-    for (int i = 0; i < output.size(); i++) {
+    for (size_t i = 0; i < output.size(); i++) {
       output.at(i) = get(i);
     }
     return output;
   }
 
   bool operator<(const LazyString& x) {
-    for (int current = 0; current < size(); current++) {
+    for (size_t current = 0; current < size(); current++) {
       if (current == x.size()) {
         return false;
       }

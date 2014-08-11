@@ -21,7 +21,7 @@ class CharBuffer : public LazyString {
 
  protected:
   const char* buffer_;
-  int size_;
+  size_t size_;
 };
 
 unique_ptr<LazyString> NewCharBuffer(const char* buffer, size_t size) {
