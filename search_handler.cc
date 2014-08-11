@@ -21,6 +21,12 @@ using std::regex;
 
 void SearchHandler(const string& input, EditorState* editor_state) {
   if (editor_state->buffers.empty()) { return; }
+  if (input.empty()) {
+    editor_state->mode = NewCommandMode();
+    editor_state->screen_needs_redraw = true;
+    return;
+  }
+
   std::cerr << "Search: [" << input << "]\n";
   auto buffer = editor_state->get_current_buffer();
 #if CPP_REGEX
@@ -31,7 +37,7 @@ void SearchHandler(const string& input, EditorState* editor_state) {
   regcomp(&preg, input.c_str(), REG_ICASE);
 #endif
   // This can certainly be optimized.
-  for (int i = buffer->current_position_line + 1;
+  for (size_t i = buffer->current_position_line + 1;
        i < buffer->contents.size();
        i++) {
     string str = buffer->contents[i]->contents->ToString();
