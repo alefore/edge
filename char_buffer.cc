@@ -24,19 +24,25 @@ class CharBuffer : public LazyString {
   size_t size_;
 };
 
+class CharBufferWithOwnership : public CharBuffer {
+ public:
+  CharBufferWithOwnership(const char* buffer, size_t size)
+      : CharBuffer(buffer, size) {}
+  ~CharBufferWithOwnership() { free(const_cast<char*>(buffer_)); }
+};
+
 unique_ptr<LazyString> NewCharBuffer(const char* buffer, size_t size) {
   return unique_ptr<LazyString>(new CharBuffer(buffer, size));
 }
 
-class CopyCharBuffer : public CharBuffer {
- public:
-  CopyCharBuffer(const char* buffer)
-      : CharBuffer(strdup(buffer), strlen(buffer)) {}
-  ~CopyCharBuffer() { free(const_cast<char*>(buffer_)); }
-};
+unique_ptr<LazyString> NewCharBufferWithOwnership(
+    const char* buffer, size_t size) {
+  return unique_ptr<LazyString>(new CharBufferWithOwnership(buffer, size));
+}
 
 unique_ptr<LazyString> NewCopyCharBuffer(const char* buffer) {
-  return unique_ptr<LazyString>(new CopyCharBuffer(buffer));
+  return unique_ptr<LazyString>(
+      new CharBufferWithOwnership(strdup(buffer), strlen(buffer)));
 }
 
 unique_ptr<LazyString> NewCopyString(const string& buffer) {

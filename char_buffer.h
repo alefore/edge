@@ -12,6 +12,8 @@ using std::string;
 using std::unique_ptr;
 
 unique_ptr<LazyString> NewCharBuffer(const char* buffer, size_t size);
+unique_ptr<LazyString> NewCharBufferWithOwnership(
+    const char* buffer, size_t size);
 unique_ptr<LazyString> NewCopyCharBuffer(const char* buffer);
 unique_ptr<LazyString> NewCopyString(const string& buffer);
 
