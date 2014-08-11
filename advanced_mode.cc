@@ -196,7 +196,7 @@ static const map<int, Command*>& GetAdvancedModeMap() {
   if (output.empty()) {
     output.insert(make_pair('k', new CloseCurrentBuffer()));
     output.insert(make_pair('w', new SaveCurrentBuffer()));
-    output.insert(make_pair('d', new OpenDirectory()));
+    output.insert(make_pair('.', new OpenDirectory()));
     output.insert(make_pair('l', new ListBuffers()));
     output.insert(make_pair('r', new ReloadBuffer()));
     output.insert(
