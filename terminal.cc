@@ -13,6 +13,12 @@ namespace editor {
 
 using std::cerr;
 
+constexpr int Terminal::DOWN_ARROW;
+constexpr int Terminal::UP_ARROW;
+constexpr int Terminal::LEFT_ARROW;
+constexpr int Terminal::RIGHT_ARROW;
+constexpr int Terminal::BACKSPACE;
+
 Terminal::Terminal() {
   initscr();
   noecho();
