@@ -16,7 +16,9 @@ extern "C" {
 #include "editor.h"
 #include "file_link_mode.h"
 #include "help_command.h"
+#include "line_prompt_mode.h"
 #include "map_mode.h"
+#include "run_command_handler.h"
 
 namespace afc {
 namespace editor {
@@ -192,11 +194,13 @@ class ReloadBuffer : public Command {
 static const map<int, Command*>& GetAdvancedModeMap() {
   static map<int, Command*> output;
   if (output.empty()) {
-    output.insert(make_pair('c', new CloseCurrentBuffer()));
-    output.insert(make_pair('s', new SaveCurrentBuffer()));
+    output.insert(make_pair('k', new CloseCurrentBuffer()));
+    output.insert(make_pair('w', new SaveCurrentBuffer()));
     output.insert(make_pair('d', new OpenDirectory()));
     output.insert(make_pair('l', new ListBuffers()));
     output.insert(make_pair('r', new ReloadBuffer()));
+    output.insert(
+        make_pair('c', NewLinePromptCommand("$ ", "runs a command", RunCommandHandler).release()));
     output.insert(make_pair('?', NewHelpCommand(output, "advance command mode").release()));
   }
   return output;

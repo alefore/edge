@@ -94,7 +94,9 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
       assert(c != '\n');
       addch(c);
     }
-    addch('\n');
+    if (size < COLS) {
+      addch('\n');
+    }
   }
 }
 
