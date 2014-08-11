@@ -7,6 +7,7 @@ extern "C" {
 #include <fcntl.h>
 }
 
+#include <functional>
 #include <string>
 
 #include "lazy_string.h"
@@ -15,6 +16,7 @@ namespace afc {
 namespace editor {
 
 using std::string;
+using std::function;
 
 class MemoryMappedFile : public LazyString {
  public:
@@ -30,6 +32,10 @@ class MemoryMappedFile : public LazyString {
   struct stat stat_buffer_;
   char* buffer_;
 };
+
+class OpenBuffer;
+
+void LoadMemoryMappedFile(const string& path, OpenBuffer* buffer);
 
 }  // namespace editor
 }  // namespace afc

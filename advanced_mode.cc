@@ -170,6 +170,25 @@ class ListBuffers : public Command {
   }
 };
 
+class ReloadBuffer : public Command {
+ public:
+  const string Description() {
+    return "reloads the current buffer";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    if (editor_state->current_buffer == editor_state->buffers.end()) {
+      return;
+    }
+    shared_ptr<OpenBuffer> buffer(editor_state->get_current_buffer());
+    buffer->contents.clear();
+    buffer->loader(editor_state->get_current_buffer().get());
+    editor_state->screen_needs_redraw = true;
+    editor_state->status = "";
+    editor_state->mode = std::move(NewCommandMode());
+  }
+};
+
 static const map<int, Command*>& GetAdvancedModeMap() {
   static map<int, Command*> output;
   if (output.empty()) {
@@ -177,6 +196,7 @@ static const map<int, Command*>& GetAdvancedModeMap() {
     output.insert(make_pair('s', new SaveCurrentBuffer()));
     output.insert(make_pair('d', new OpenDirectory()));
     output.insert(make_pair('l', new ListBuffers()));
+    output.insert(make_pair('r', new ReloadBuffer()));
     output.insert(make_pair('?', NewHelpCommand(output, "advance command mode").release()));
   }
   return output;

@@ -16,6 +16,43 @@ using std::shared_ptr;
 using std::sort;
 using namespace afc::editor;
 
+static void LoadBuffer(const string& path, OpenBuffer* buffer) {
+  struct stat sb;
+  if (stat(path.c_str(), &sb) == -1) {
+    return;
+  }
+
+  if (!S_ISDIR(sb.st_mode)) {
+    LoadMemoryMappedFile(path, buffer);
+    buffer->saveable = true;
+    return;
+  }
+
+  unique_ptr<Line> line(new Line);
+  line->contents.reset(NewCopyString("File listing: " + path).release());
+  buffer->contents.push_back(std::move(line));
+
+  DIR* dir = opendir(path.c_str());
+  assert(dir != nullptr);
+  struct dirent* entry;
+  string prefix = path == "." ? "" : path + "/";
+  while ((entry = readdir(dir)) != nullptr) {
+    unique_ptr<Line> line(new Line);
+    line->contents.reset(NewCopyCharBuffer(entry->d_name).release());
+    line->activate.reset(NewFileLinkMode(prefix + entry->d_name, 0).release());
+    buffer->contents.push_back(std::move(line));
+  }
+  closedir(dir);
+
+  struct Compare {
+    bool operator()(const shared_ptr<Line>& a, const shared_ptr<Line>& b) {
+      return *a->contents < *b->contents;
+    }
+  } compare;
+
+  sort(buffer->contents.begin() + 1, buffer->contents.end(), compare);
+}
+
 class FileLinkMode : public EditorMode {
  public:
   FileLinkMode(const string& path, size_t position)
@@ -25,51 +62,15 @@ class FileLinkMode : public EditorMode {
     auto it = editor_state->buffers.insert(make_pair(path_, nullptr));
     editor_state->current_buffer = it.first;
     if (it.second) {
-      it.first->second.reset(Load().release());
+      it.first->second.reset(new OpenBuffer());
+      it.first->second->loader = [path_](OpenBuffer* buffer) {
+        LoadBuffer(path_, buffer);
+      };
+      it.first->second->loader(it.first->second.get());
     }
     it.first->second->current_position_line = position_;
     editor_state->screen_needs_redraw = true;
     editor_state->mode = std::move(NewCommandMode());
-  }
-
- private:
-  unique_ptr<OpenBuffer> Load() {
-    unique_ptr<OpenBuffer> buffer(new OpenBuffer());
-    struct stat sb;
-    if (stat(path_.c_str(), &sb) == -1) {
-      return std::move(buffer);
-    }
-
-    if (S_ISDIR(sb.st_mode)) {
-      unique_ptr<Line> line(new Line);
-      line->contents.reset(NewCopyString("File listing: " + path_).release());
-      buffer->contents.push_back(std::move(line));
-
-      DIR* dir = opendir(path_.c_str());
-      assert(dir != nullptr);
-      struct dirent* entry;
-      string prefix = path_ == "." ? "" : path_ + "/";
-      while ((entry = readdir(dir)) != nullptr) {
-        unique_ptr<Line> line(new Line);
-        line->contents.reset(NewCopyCharBuffer(entry->d_name).release());
-        line->activate.reset(NewFileLinkMode(prefix + entry->d_name, 0).release());
-        buffer->contents.push_back(std::move(line));
-      }
-      closedir(dir);
-
-      struct Compare {
-        bool operator()(const shared_ptr<Line>& a, const shared_ptr<Line>& b) {
-          return *a->contents < *b->contents;
-        }
-      } compare;
-
-      sort(buffer->contents.begin() + 1, buffer->contents.end(), compare);
-      return std::move(buffer);
-    }
-
-    buffer.reset(new OpenBuffer(unique_ptr<MemoryMappedFile>(new MemoryMappedFile(path_))));
-    buffer->saveable = true;
-    return buffer;
   }
 
   string path_;

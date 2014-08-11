@@ -2,6 +2,7 @@ extern "C" {
 #include <sys/mman.h>
 }
 
+#include "buffer.h"
 #include "memory_mapped_file.h"
 
 namespace afc {
@@ -29,6 +30,11 @@ MemoryMappedFile::MemoryMappedFile(const string& path)
 MemoryMappedFile::~MemoryMappedFile() {
   munmap(buffer_, stat_buffer_.st_size);
   close(fd_);
+}
+
+void LoadMemoryMappedFile(const string& path, OpenBuffer* buffer) {
+  shared_ptr<MemoryMappedFile> file(new MemoryMappedFile(path));
+  buffer->AppendLazyString(file);
 }
 
 }  // namespace editor

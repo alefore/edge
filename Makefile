@@ -13,6 +13,7 @@ memory_mapped_file.o: memory_mapped_file.cc memory_mapped_file.h lazy_string.h M
 char_buffer.o: char_buffer.h lazy_string.h
 substring.o: substring.cc substring.h lazy_string.h Makefile
 
+buffer.o: buffer.cc buffer.h editor.h Makefile
 editor.o: editor.cc editor.h substring.h memory_mapped_file.h lazy_string.h Makefile
 
 advanced_mode.o: advanced_mode.h advanced_mode.cc char_buffer.h command_mode.h editor_mode.h editor.h file_link_mode.h help_command.h map_mode.h Makefile
@@ -33,6 +34,6 @@ search_handler.o: search_handler.cc search_handler.h Makefile
 lazy_string.o: lazy_string.cc lazy_string.h Makefile
 lazy_string_append.o: lazy_string_append.cc lazy_string_append.h lazy_string.h Makefile
 
-OBJS=token.o line_parser.o advanced_mode.o char_buffer.o command_mode.o editor.o file_link_mode.o find_mode.o help_command.o insert_mode.o lazy_string.o lazy_string_append.o line_prompt_mode.o main.o map_mode.o memory_mapped_file.o noop_command.o repeat_mode.o search_handler.o substring.o terminal.o
+OBJS=token.o line_parser.o advanced_mode.o buffer.o char_buffer.o command_mode.o editor.o file_link_mode.o find_mode.o help_command.o insert_mode.o lazy_string.o lazy_string_append.o line_prompt_mode.o main.o map_mode.o memory_mapped_file.o noop_command.o repeat_mode.o search_handler.o substring.o terminal.o
 edge: $(OBJS)
 	$(CXX) $(LDFLAGS) -o edge $(OBJS) $(LDLIBS)
