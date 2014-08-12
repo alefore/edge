@@ -1,9 +1,10 @@
 #include "buffer.h"
 
+#include <cassert>
 #include <memory>
-#include <list>
 #include <string>
 
+#include "char_buffer.h"
 #include "editor.h"
 #include "substring.h"
 
@@ -11,10 +12,47 @@ namespace afc {
 namespace editor {
 
 OpenBuffer::OpenBuffer()
-    : view_start_line_(0),
+    : fd_(-1),
+      buffer_(nullptr),
+      buffer_line_start_(0),
+      buffer_length_(0),
+      buffer_size_(0),
+      view_start_line_(0),
       current_position_line_(0),
       current_position_col_(0),
       saveable_(false) {}
+
+void OpenBuffer::ReadData() {
+  assert(fd_ > 0);
+  if (buffer_length_ == buffer_size_) {
+    buffer_size_ = buffer_size_ ? buffer_size_ * 2 : 64 * 1024;
+    buffer_ = static_cast<char*>(realloc(buffer_, buffer_size_));
+  }
+  int characters_read = read(fd_, buffer_ + buffer_length_, buffer_size_ - buffer_length_);
+  if (characters_read == -1) {
+    if (errno == EAGAIN) {
+      return;
+    }
+    // TODO: Handle this better.
+    exit(1);
+  }
+  if (characters_read == 0) {
+    close(fd_);
+    buffer_ = static_cast<char*>(realloc(buffer_, buffer_length_));
+    fd_ = -1;
+  }
+
+  shared_ptr<LazyString> buffer_wrapper(
+      NewMoveableCharBuffer(&buffer_, buffer_length_));
+  for (size_t i = buffer_length_;
+       i < buffer_length_ + static_cast<size_t>(characters_read);
+       i++) {
+    if (buffer_[i] == '\n') {
+      AppendLine(Substring(buffer_wrapper, buffer_line_start_, i - buffer_line_start_ - 1));
+      buffer_line_start_ = i + 1;
+    }
+  }
+}
 
 void OpenBuffer::AppendLazyString(shared_ptr<LazyString> input) {
   size_t size = input->size();

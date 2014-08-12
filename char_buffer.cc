@@ -11,7 +11,7 @@ using std::string;
 
 class MoveableCharBuffer : public LazyString {
  public:
-  MoveableCharBuffer(const char** buffer, size_t size)
+  MoveableCharBuffer(const char* const* buffer, size_t size)
       : buffer_(buffer), size_(size) {}
 
   char get(size_t pos) const {
@@ -21,7 +21,7 @@ class MoveableCharBuffer : public LazyString {
   size_t size() const { return size_; }
 
  protected:
-  const char** buffer_;
+  const char* const* buffer_;
   size_t size_;
 };
 
@@ -42,7 +42,7 @@ class CharBufferWithOwnership : public CharBuffer {
   ~CharBufferWithOwnership() { free(const_cast<char*>(location_)); }
 };
 
-unique_ptr<LazyString> NewMoveableCharBuffer(const char** buffer, size_t size) {
+unique_ptr<LazyString> NewMoveableCharBuffer(const char* const* buffer, size_t size) {
   return unique_ptr<LazyString>(new MoveableCharBuffer(buffer, size));
 }
 

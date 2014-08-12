@@ -11,7 +11,7 @@ namespace editor {
 using std::string;
 using std::unique_ptr;
 
-unique_ptr<LazyString> NewMoveableCharBuffer(const char** buffer, size_t size);
+unique_ptr<LazyString> NewMoveableCharBuffer(const char* const* buffer, size_t size);
 unique_ptr<LazyString> NewCharBuffer(const char* buffer, size_t size);
 unique_ptr<LazyString> NewCharBufferWithOwnership(
     const char* buffer, size_t size);
