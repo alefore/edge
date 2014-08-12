@@ -49,13 +49,13 @@ int main(int argc, const char* argv[]) {
     }
 
     fds[buffers_reading.size()].fd = 0;
-    fds[buffers_reading.size()].events = POLLIN;
+    fds[buffers_reading.size()].events = POLLIN | POLLPRI;
 
     int results = poll(fds, buffers_reading.size() + 1, -1);
-    if (results < 0) {
+    if (results == -1) {
       exit(-1);
-    } else {
-      for (size_t i = 0; i < static_cast<size_t>(results); i++) {
+    } else if (results > 0) {
+      for (size_t i = 0; i < buffers_reading.size() + 1; i++) {
         if (!(fds[i].revents & (POLLIN | POLLPRI | POLLHUP))) {
           continue;
         }
@@ -66,6 +66,7 @@ int main(int argc, const char* argv[]) {
           }
           continue;
         }
+
         assert(i < buffers_reading.size());
         buffers_reading[i]->ReadData(&editor_state);
       }
