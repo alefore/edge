@@ -33,7 +33,7 @@ class OpenBuffer {
 
   virtual void Reload(EditorState* editor_state) {}
 
-  void ReadData();
+  void ReadData(EditorState* editor_state);
 
   void AppendLazyString(shared_ptr<LazyString> input);
   shared_ptr<Line> AppendLine(shared_ptr<LazyString> line);

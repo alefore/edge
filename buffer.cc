@@ -22,7 +22,7 @@ OpenBuffer::OpenBuffer()
       current_position_col_(0),
       saveable_(false) {}
 
-void OpenBuffer::ReadData() {
+void OpenBuffer::ReadData(EditorState* editor_state) {
   assert(fd_ > 0);
   if (buffer_length_ == buffer_size_) {
     buffer_size_ = buffer_size_ ? buffer_size_ * 2 : 64 * 1024;
@@ -43,13 +43,14 @@ void OpenBuffer::ReadData() {
   }
 
   shared_ptr<LazyString> buffer_wrapper(
-      NewMoveableCharBuffer(&buffer_, buffer_length_));
+      NewMoveableCharBuffer(&buffer_, buffer_length_ + characters_read));
   for (size_t i = buffer_length_;
        i < buffer_length_ + static_cast<size_t>(characters_read);
        i++) {
     if (buffer_[i] == '\n') {
       AppendLine(Substring(buffer_wrapper, buffer_line_start_, i - buffer_line_start_ - 1));
       buffer_line_start_ = i + 1;
+      editor_state->screen_needs_redraw = true;
     }
   }
 }

@@ -65,7 +65,7 @@ int main(int argc, const char* argv[]) {
           continue;
         }
         assert(i < buffers_reading.size());
-        buffers_reading[i]->ReadData();
+        buffers_reading[i]->ReadData(&editor_state);
       }
     }
   }
