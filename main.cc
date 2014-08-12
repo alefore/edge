@@ -51,7 +51,6 @@ int main(int argc, const char* argv[]) {
     fds[buffers_reading.size()].fd = 0;
     fds[buffers_reading.size()].events = POLLIN;
 
-
     int results = poll(fds, buffers_reading.size() + 1, -1);
     if (results < 0) {
       exit(-1);
@@ -61,7 +60,10 @@ int main(int argc, const char* argv[]) {
           continue;
         }
         if (fds[i].fd == 0) {
-          editor_state.mode->ProcessInput(terminal.Read(), &editor_state);
+          int c;
+          while ((c = terminal.Read()) != -1) {
+            editor_state.mode->ProcessInput(c, &editor_state);
+          }
           continue;
         }
         assert(i < buffers_reading.size());

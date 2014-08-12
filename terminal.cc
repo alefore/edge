@@ -22,6 +22,7 @@ constexpr int Terminal::BACKSPACE;
 Terminal::Terminal() {
   initscr();
   noecho();
+  nodelay(stdscr, true);
   keypad(stdscr, false);
   SetStatus("Initializing...");
 }
@@ -120,13 +121,11 @@ int Terminal::Read() {
       return BACKSPACE;
     case 27:
       {
-        nodelay(stdscr, true);
         int next = getch();
         //cerr << "Read next: " << next << "\n";
-        nodelay(stdscr, false);
         switch (next) {
           case -1:
-            return -1;
+            return ESCAPE;
 
           case 91:
             {
@@ -148,7 +147,7 @@ int Terminal::Read() {
         //cerr << "Unget: " << next << "\n";
         ungetch(next);
       }
-      return -1;
+      return ESCAPE;
     default:
       return c;
   }

@@ -70,7 +70,7 @@ class InsertMode : public EditorMode {
     auto buffer = editor_state->get_current_buffer();
     buffer->MaybeAdjustPositionCol();
     switch (c) {
-      case -1:
+      case Terminal::ESCAPE:
         editor_state->mode = std::move(NewCommandMode());
         editor_state->repetitions = 1;
         return;

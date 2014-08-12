@@ -12,11 +12,12 @@ namespace editor {
 
 class Terminal {
  public:
-  static constexpr int DOWN_ARROW = -2;
-  static constexpr int UP_ARROW = -3;
-  static constexpr int LEFT_ARROW = -4;
-  static constexpr int RIGHT_ARROW = -5;
-  static constexpr int BACKSPACE = -6;
+  static constexpr int ESCAPE = -2;
+  static constexpr int DOWN_ARROW = -3;
+  static constexpr int UP_ARROW = -4;
+  static constexpr int LEFT_ARROW = -5;
+  static constexpr int RIGHT_ARROW = -6;
+  static constexpr int BACKSPACE = -7;
 
   Terminal();
   ~Terminal();
