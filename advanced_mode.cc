@@ -111,7 +111,6 @@ class SaveCurrentBuffer : public Command {
     rename(tmp_path.c_str(), editor_state->current_buffer->first.c_str());
 
     editor_state->status = "Saved: " + editor_state->current_buffer->first;
-    editor_state->current_buffer = editor_state->buffers.begin();
     editor_state->mode = std::move(NewCommandMode());
   }
 };
