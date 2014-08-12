@@ -35,9 +35,9 @@ void Terminal::Display(EditorState* editor_state) {
     if (editor_state->screen_needs_redraw) {
       editor_state->screen_needs_redraw = false;
       clear();
-      ShowStatus(editor_state->status);
-      refresh();
     }
+    ShowStatus(editor_state->status);
+    refresh();
     return;
   }
   auto const& buffer = editor_state->get_current_buffer();
