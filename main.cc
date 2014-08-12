@@ -57,7 +57,7 @@ int main(int argc, const char* argv[]) {
       exit(-1);
     } else {
       for (size_t i = 0; i < static_cast<size_t>(results); i++) {
-        if (!(fds[i].revents & (POLLIN | POLLPRI))) {
+        if (!(fds[i].revents & (POLLIN | POLLPRI | POLLHUP))) {
           continue;
         }
         if (fds[i].fd == 0) {
