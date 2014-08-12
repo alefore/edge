@@ -27,29 +27,50 @@ struct Line {
   shared_ptr<LazyString> contents;
 };
 
-struct OpenBuffer {
+class OpenBuffer {
+ public:
   OpenBuffer();
 
-  void Reload();
+  virtual void Reload(EditorState* editor_state) {}
+
   void AppendLazyString(shared_ptr<LazyString> input);
+  shared_ptr<Line> AppendLine(shared_ptr<LazyString> line);
 
   // Checks that current_position_col is in the expected range (between 0 and
   // the length of the current line).
   void MaybeAdjustPositionCol();
 
   void CheckPosition();
+
   shared_ptr<Line> current_line() const {
-    return contents.at(current_position_line);
+    return contents_.at(current_position_line_);
   }
 
-  vector<shared_ptr<Line>> contents;
+  const vector<shared_ptr<Line>>* contents() const { return &contents_; }
+  vector<shared_ptr<Line>>* contents() { return &contents_; }
+  bool saveable() const { return saveable_; }
 
-  int view_start_line;
-  size_t current_position_line;
-  size_t current_position_col;
+  size_t view_start_line() const { return view_start_line_; }
+  void set_view_start_line(size_t value) {
+    view_start_line_ = value;
+  }
+  size_t current_position_line() const { return current_position_line_; }
+  void set_current_position_line(size_t value) {
+    current_position_line_ = value;
+  }
+  size_t current_position_col() const { return current_position_col_; }
+  void set_current_position_col(size_t value) {
+    current_position_col_ = value;
+  }
 
-  bool saveable;
-  function<void(OpenBuffer*)> loader;
+ protected:
+  vector<shared_ptr<Line>> contents_;
+
+  int view_start_line_;
+  size_t current_position_line_;
+  size_t current_position_col_;
+
+  bool saveable_;
 };
 
 }  // namespace editor

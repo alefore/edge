@@ -37,10 +37,10 @@ void SearchHandler(const string& input, EditorState* editor_state) {
   regcomp(&preg, input.c_str(), REG_ICASE);
 #endif
   // This can certainly be optimized.
-  for (size_t i = buffer->current_position_line + 1;
-       i < buffer->contents.size();
+  for (size_t i = buffer->current_position_line() + 1;
+       i < buffer->contents()->size();
        i++) {
-    string str = buffer->contents[i]->contents->ToString();
+    string str = buffer->contents()->at(i)->contents->ToString();
     std::cerr << "String walked: [" << str << "]\n";
 #if CPP_REGEX
     std::regex_search(str, pattern_match, pattern);
@@ -55,8 +55,8 @@ void SearchHandler(const string& input, EditorState* editor_state) {
     }
     size_t pos = matches.rm_so;
 #endif
-    buffer->current_position_line = i;
-    buffer->current_position_col = pos;
+    buffer->set_current_position_line(i);
+    buffer->set_current_position_col(pos);
     break;  // TODO: Honor repetitions.
   }
   editor_state->mode = NewCommandMode();

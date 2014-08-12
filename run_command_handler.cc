@@ -34,26 +34,36 @@ unique_ptr<LazyString> ReadUntilEnd(int fd) {
   }
 }
 
-void RunCommand(const string& command, OpenBuffer* buffer) {
-  int pipefd[2];
-  if (pipe(pipefd) == -1) {
-    exit(1);
+class CommandBuffer : public OpenBuffer {
+ public:
+  CommandBuffer(const string& command) : command_(command) {}
+
+  void Reload(EditorState* editor_state) {
+    int pipefd[2];
+    if (pipe(pipefd) == -1) {
+      exit(1);
+    }
+
+    pid_t pid = fork();
+    if (pid == 0) {
+      close(0);
+      close(pipefd[0]);
+      if (dup2(pipefd[1], 1) == -1) { exit(1); }
+      system(command_.c_str());
+      exit(0);
+    }
+    close(pipefd[1]);
+    shared_ptr<LazyString> input(ReadUntilEnd(pipefd[0]).release());
+    int status_dummy;
+    waitpid(pid, &status_dummy, 0);
+    contents_.clear();
+    AppendLazyString(input);
+    editor_state->screen_needs_redraw = true;
   }
 
-  pid_t pid = fork();
-  if (pid == 0) {
-    close(0);
-    close(pipefd[0]);
-    if (dup2(pipefd[1], 1) == -1) { exit(1); }
-    system(command.c_str());
-    exit(0);
-  }
-  close(pipefd[1]);
-  shared_ptr<LazyString> input(ReadUntilEnd(pipefd[0]).release());
-  int status_dummy;
-  waitpid(pid, &status_dummy, 0);
-  buffer->AppendLazyString(input);
-}
+ private:
+  const string command_;
+};
 
 }  // namespace
 
@@ -70,13 +80,10 @@ void RunCommandHandler(const string& input, EditorState* editor_state) {
   auto it = editor_state->buffers.insert(make_pair("Command: " + input, nullptr));
   editor_state->current_buffer = it.first;
   if (it.second) {
-    it.first->second.reset(new OpenBuffer());
-    it.first->second->loader = [input](OpenBuffer* buffer) {
-      RunCommand(input, buffer);
-    };
-    it.first->second->loader(it.first->second.get());
+    it.first->second.reset(new CommandBuffer(input));
+    it.first->second->Reload(editor_state);
   }
-  it.first->second->current_position_line = 0;
+  it.first->second->set_current_position_line(0);
   editor_state->screen_needs_redraw = true;
   editor_state->mode = std::move(NewCommandMode());
 }

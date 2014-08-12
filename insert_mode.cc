@@ -77,40 +77,40 @@ class InsertMode : public EditorMode {
       case Terminal::BACKSPACE:
         if (line_->Backspace()) {
           editor_state->screen_needs_redraw = true;
-          editor_state->get_current_buffer()->current_position_col --;
-        } else if (buffer->current_position_col == 0) {
+          buffer->set_current_position_col(buffer->current_position_col() - 1);
+        } else if (buffer->current_position_col() == 0) {
           // Join lines.
-          if (buffer->current_position_line == 0)
+          if (buffer->current_position_line() == 0)
             return;
 
           shared_ptr<LazyString> old_line = buffer->current_line()->contents;
-          buffer->contents.erase(
-              buffer->contents.begin() + buffer->current_position_line);
+          buffer->contents()->erase(
+              buffer->contents()->begin() + buffer->current_position_line());
 
-          buffer->current_position_line --;
+          buffer->set_current_position_line(buffer->current_position_line() - 1);
           auto prefix = buffer->current_line()->contents;
           line_.reset(new EditableString(StringAppend(prefix, old_line), prefix->size()));
-          buffer->current_position_col = prefix->size();
+          buffer->set_current_position_col(prefix->size());
           buffer->current_line()->contents = line_;
           editor_state->screen_needs_redraw = true;
         } else {
           auto prefix = Substring(
               buffer->current_line()->contents, 0,
-              min(buffer->current_position_col,
+              min(buffer->current_position_col(),
                   buffer->current_line()->contents->size()));
           line_.reset(new EditableString(
               Substring(buffer->current_line()->contents,
-                        buffer->current_position_col),
+                        buffer->current_position_col()),
               0,
               prefix->ToString()));
           buffer->current_line()->contents = line_;
           assert(line_->Backspace());
           editor_state->screen_needs_redraw = true;
-          editor_state->get_current_buffer()->current_position_col --;
+          buffer->set_current_position_col(buffer->current_position_col() - 1);
         }
         return;
       case '\n':
-        size_t pos = buffer->current_position_col;
+        size_t pos = buffer->current_position_col();
 
         // Adjust the old line.
         buffer->current_line()->contents =
@@ -121,19 +121,19 @@ class InsertMode : public EditorMode {
 
         shared_ptr<Line> line(new Line());
         line->contents = line_;
-        buffer->contents.insert(
-            buffer->contents.begin() + buffer->current_position_line + 1,
+        buffer->contents()->insert(
+            buffer->contents()->begin() + buffer->current_position_line() + 1,
             line);
 
         // Move to the new line and schedule a redraw.
-        buffer->current_position_line++;
-        buffer->current_position_col = 0;
+        buffer->set_current_position_line(buffer->current_position_line() + 1);
+        buffer->set_current_position_col(0);
         editor_state->screen_needs_redraw = true;
         return;
     }
     line_->Insert(c);
     editor_state->screen_needs_redraw = true;
-    buffer->current_position_col ++;
+    buffer->set_current_position_col(buffer->current_position_col() + 1);
   }
 
  private:
@@ -154,7 +154,7 @@ void EnterInsertMode(EditorState* editor_state) {
   buffer->MaybeAdjustPositionCol();
   auto line(buffer->current_line());
   shared_ptr<EditableString> new_line(
-      new EditableString(line->contents, buffer->current_position_col));
+      new EditableString(line->contents, buffer->current_position_col()));
   line->contents = new_line;
   editor_state->mode.reset(new InsertMode(new_line));
 }

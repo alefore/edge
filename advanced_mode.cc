@@ -86,7 +86,7 @@ class SaveCurrentBuffer : public Command {
       return;
     }
     const auto& buffer = editor_state->get_current_buffer();
-    if (!buffer->saveable) {
+    if (!buffer->saveable()) {
       editor_state->status = "Buffer can't be saved.";
       return;
     }
@@ -96,7 +96,7 @@ class SaveCurrentBuffer : public Command {
       cerr << tmp_path << ": open failed: " << strerror(errno);
       exit(-1);
     }
-    for (const auto& line : buffer->contents) {
+    for (const auto& line : *buffer->contents()) {
       const auto& str = *line->contents;
       char* tmp = static_cast<char*>(malloc(str.size() + 1));
       strcpy(tmp, str.ToString().c_str());
@@ -137,6 +137,18 @@ class OpenBufferCommand : public EditorMode {
   const string name_;
 };
 
+class ListBuffersBuffer : public OpenBuffer {
+  void Reload(EditorState* editor_state) {
+    contents_.clear();
+    AppendLine(std::move(NewCopyString("Open Buffers:")));
+    for (const auto& it : editor_state->buffers) {
+      AppendLine(std::move(NewCopyString(it.first)))
+          ->activate.reset(new OpenBufferCommand(it.first));
+    }
+    editor_state->screen_needs_redraw = true;
+  }
+};
+
 class ListBuffers : public Command {
  public:
   const string Description() {
@@ -146,8 +158,10 @@ class ListBuffers : public Command {
   void ProcessInput(int c, EditorState* editor_state) {
     auto it = editor_state->buffers.insert(make_pair("open buffers", nullptr));
     editor_state->current_buffer = it.first;
-    it.first->second.reset(Load(editor_state).release());
-
+    if (it.second) {
+      it.first->second.reset(new ListBuffersBuffer());
+      it.first->second->Reload(editor_state);
+    }
     editor_state->screen_needs_redraw = true;
     editor_state->status = "";
     editor_state->mode = std::move(NewCommandMode());
@@ -155,21 +169,6 @@ class ListBuffers : public Command {
   }
 
  private:
-  unique_ptr<OpenBuffer> Load(EditorState* editor_state) {
-    unique_ptr<OpenBuffer> buffer(new OpenBuffer());
-    {
-      unique_ptr<Line> line(new Line);
-      line->contents.reset(NewCopyString("Open Buffers:").release());
-      buffer->contents.push_back(std::move(line));
-    }
-    for (const auto& it : editor_state->buffers) {
-      unique_ptr<Line> line(new Line);
-      line->contents.reset(NewCopyString(it.first).release());
-      line->activate.reset(new OpenBufferCommand(it.first));
-      buffer->contents.push_back(std::move(line));
-    }
-    return std::move(buffer);
-  }
 };
 
 class ReloadBuffer : public Command {
@@ -179,14 +178,9 @@ class ReloadBuffer : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    if (editor_state->current_buffer == editor_state->buffers.end()) {
-      return;
+    if (editor_state->current_buffer != editor_state->buffers.end()) {
+      editor_state->get_current_buffer()->Reload(editor_state);
     }
-    shared_ptr<OpenBuffer> buffer(editor_state->get_current_buffer());
-    buffer->contents.clear();
-    buffer->loader(editor_state->get_current_buffer().get());
-    editor_state->screen_needs_redraw = true;
-    editor_state->status = "";
     editor_state->mode = std::move(NewCommandMode());
   }
 };

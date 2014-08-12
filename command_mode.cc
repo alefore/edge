@@ -40,10 +40,11 @@ class LineUp : public Command {
   void ProcessInput(int c, EditorState* editor_state) {
     if (editor_state->buffers.empty()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
-    if (editor_state->repetitions < buffer->current_position_line) {
-      buffer->current_position_line -= editor_state->repetitions;
+    size_t pos = buffer->current_position_line();
+    if (editor_state->repetitions < pos) {
+      buffer->set_current_position_line(pos - editor_state->repetitions);
     } else {
-      buffer->current_position_line = 0;
+      buffer->set_current_position_line(0);
     }
     editor_state->repetitions = 1;
   }
@@ -58,10 +59,11 @@ class LineDown : public Command {
   void ProcessInput(int c, EditorState* editor_state) {
     if (editor_state->buffers.empty()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
-    if (buffer->current_position_line + editor_state->repetitions < buffer->contents.size() - 1) {
-      buffer->current_position_line += editor_state->repetitions;
+    size_t pos = buffer->current_position_line();
+    if (pos + editor_state->repetitions < buffer->contents()->size() - 1) {
+      buffer->set_current_position_line(pos + editor_state->repetitions);
     } else {
-      buffer->current_position_line = buffer->contents.size() - 1;
+      buffer->set_current_position_line(buffer->contents()->size() - 1);
     }
     editor_state->repetitions = 1;
   }
@@ -76,10 +78,12 @@ class MoveForwards : public Command {
   void ProcessInput(int c, EditorState* editor_state) {
     if (editor_state->buffers.empty()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
-    if (buffer->current_position_col + editor_state->repetitions <= buffer->current_line()->size()) {
-      buffer->current_position_col += editor_state->repetitions;
+    if (buffer->current_position_col() + editor_state->repetitions
+        <= buffer->current_line()->size()) {
+      buffer->set_current_position_col(
+          buffer->current_position_col() + editor_state->repetitions);
     } else {
-      buffer->current_position_col = buffer->current_line()->size();
+      buffer->set_current_position_col(buffer->current_line()->size());
     }
     editor_state->repetitions = 1;
   }
@@ -94,13 +98,14 @@ class MoveBackwards : public Command {
   void ProcessInput(int c, EditorState* editor_state) {
     if (editor_state->buffers.empty()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
-    if (buffer->current_position_col > buffer->current_line()->size()) {
-      buffer->current_position_col = buffer->current_line()->size();
+    if (buffer->current_position_col() > buffer->current_line()->size()) {
+      buffer->set_current_position_col(buffer->current_line()->size());
     }
-    if (buffer->current_position_col > editor_state->repetitions) {
-      buffer->current_position_col -= editor_state->repetitions;
+    if (buffer->current_position_col() > editor_state->repetitions) {
+      buffer->set_current_position_col(
+          buffer->current_position_col() - editor_state->repetitions);
     } else {
-      buffer->current_position_col = 0;
+      buffer->set_current_position_col(0);
     }
     editor_state->repetitions = 1;
   }

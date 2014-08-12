@@ -29,32 +29,21 @@ class HelpCommand : public Command {
         make_pair("Help: " + mode_description_, nullptr));
     editor_state->current_buffer = it.first;
     if (it.second) {
-      it.first->second.reset(Load().release());
+      shared_ptr<OpenBuffer> buffer(new OpenBuffer());
+      buffer->AppendLine(
+          std::move(NewCopyString("Help: " + mode_description_)));
+      for (const auto& it : commands_) {
+        buffer->AppendLine(std::move(NewCopyString(
+          (it.first == '\n' ? "RET" : string(1, static_cast<char>(it.first)))
+          + " - " + it.second->Description())));
+      }
+      it.first->second = buffer;
     }
-    it.first->second->current_position_line = 0;
+    it.first->second->set_current_position_line(0);
 
     editor_state->screen_needs_redraw = true;
     editor_state->mode = std::move(NewCommandMode());
     editor_state->repetitions = 1;
-  }
-
- private:
-  unique_ptr<OpenBuffer> Load() {
-    unique_ptr<OpenBuffer> buffer(new OpenBuffer());
-    {
-      unique_ptr<Line> line(new Line);
-      line->contents.reset(
-          NewCopyString("Help: " + mode_description_).release());
-      buffer->contents.push_back(std::move(line));
-    }
-    for (const auto& it : commands_) {
-      unique_ptr<Line> line(new Line);
-      line->contents.reset(NewCopyString(
-          (it.first == '\n' ? "RET" : string(1, static_cast<char>(it.first)))
-          + " - " + it.second->Description()).release());
-      buffer->contents.push_back(std::move(line));
-    }
-    return std::move(buffer);
   }
 
  private:
