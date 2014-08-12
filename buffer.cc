@@ -24,6 +24,8 @@ OpenBuffer::OpenBuffer()
 
 void OpenBuffer::ReadData(EditorState* editor_state) {
   assert(fd_ > 0);
+  assert(buffer_line_start_ <= buffer_length_);
+  assert(buffer_length_ <= buffer_size_);
   if (buffer_length_ == buffer_size_) {
     buffer_size_ = buffer_size_ ? buffer_size_ * 2 : 64 * 1024;
     buffer_ = static_cast<char*>(realloc(buffer_, buffer_size_));
@@ -53,6 +55,7 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
       editor_state->screen_needs_redraw = true;
     }
   }
+  buffer_length_ += characters_read;
 }
 
 void OpenBuffer::AppendLazyString(shared_ptr<LazyString> input) {
