@@ -79,14 +79,14 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
 
   clear();
 
-  size_t last_line_to_show =
+  size_t view_stop_line =
       buffer->view_start_line() + static_cast<size_t>(LINES)
-      - (editor_state->status.empty() ? 1 : 2);
-  if (last_line_to_show >= contents.size()) {
-    last_line_to_show = contents.size() - 1;
+      - (editor_state->status.empty() ? 0 : 1);
+  if (view_stop_line > contents.size()) {
+    view_stop_line = contents.size();
   }
   for (size_t current_line = buffer->view_start_line();
-       current_line <= last_line_to_show; current_line++) {
+       current_line < view_stop_line; current_line++) {
     const shared_ptr<LazyString> line(contents[current_line]->contents);
     size_t size = std::min(static_cast<size_t>(COLS), line->size());
     for (size_t pos = 0; pos < size; pos++) {
@@ -103,7 +103,9 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
 void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
   const vector<shared_ptr<Line>>& contents(*buffer->contents());
   size_t pos_x = buffer->current_position_col();
-  if (pos_x > contents[buffer->current_position_line()]->contents->size()) {
+  size_t line_length = contents.empty()
+      ? 0 : contents[buffer->current_position_line()]->contents->size();
+  if (pos_x > line_length) {
     pos_x = contents[buffer->current_position_line()]->contents->size();
   }
 
