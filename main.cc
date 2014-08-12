@@ -9,6 +9,7 @@
 extern "C" {
 #include <sys/types.h>
 #include <fcntl.h>
+#include <poll.h>
 }
 
 #include "editor.h"
@@ -33,8 +34,40 @@ int main(int argc, const char* argv[]) {
 
   while (!editor_state.terminate) {
     terminal.Display(&editor_state);
-    int c = terminal.Read();
-    editor_state.mode->ProcessInput(c, &editor_state);
+
+    vector<shared_ptr<OpenBuffer>> buffers_reading;
+    for (auto& buffer : editor_state.buffers) {
+      if (buffer.second->fd() == -1) { continue; }
+      buffers_reading.push_back(buffer.second);
+    }
+
+    struct pollfd fds[buffers_reading.size() + 1];
+
+    for (size_t i = 0; i < buffers_reading.size(); i++) {
+      fds[i].fd = buffers_reading[i]->fd();
+      fds[i].events = POLLIN | POLLPRI;
+    }
+
+    fds[buffers_reading.size()].fd = 0;
+    fds[buffers_reading.size()].events = POLLIN;
+
+
+    int results = poll(fds, buffers_reading.size() + 1, -1);
+    if (results < 0) {
+      exit(-1);
+    } else {
+      for (size_t i = 0; i < static_cast<size_t>(results); i++) {
+        if (!(fds[i].revents & (POLLIN | POLLPRI))) {
+          continue;
+        }
+        if (fds[i].fd == 0) {
+          editor_state.mode->ProcessInput(terminal.Read(), &editor_state);
+          continue;
+        }
+        assert(i < buffers_reading.size());
+        buffers_reading[i]->ReadData();
+      }
+    }
   }
   terminal.SetStatus("done");
 }
