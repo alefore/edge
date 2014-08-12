@@ -16,24 +16,6 @@ namespace {
 
 using namespace afc::editor;
 
-unique_ptr<LazyString> ReadUntilEnd(int fd) {
-  char *buffer = nullptr;
-  int buffer_size = 0;
-  int buffer_length = 0;
-  while (true) {
-    if (buffer_size == buffer_length) {
-      buffer_size = buffer_size ? buffer_size * 2 : 4096;
-      buffer = static_cast<char*>(realloc(buffer, buffer_size));
-    }
-    int result = read(fd, buffer + buffer_length, buffer_size - buffer_length);
-    if (result == 0) {
-      buffer = static_cast<char*>(realloc(buffer, buffer_length));
-      return NewCharBufferWithOwnership(buffer, buffer_length);
-    }
-    buffer_length += result;
-  }
-}
-
 class CommandBuffer : public OpenBuffer {
  public:
   CommandBuffer(const string& command) : command_(command) {}
@@ -53,11 +35,9 @@ class CommandBuffer : public OpenBuffer {
       exit(0);
     }
     close(pipefd[1]);
-    shared_ptr<LazyString> input(ReadUntilEnd(pipefd[0]).release());
-    int status_dummy;
-    waitpid(pid, &status_dummy, 0);
     contents_.clear();
-    AppendLazyString(input);
+    fd_ = pipefd[0];
+    // TODO: waitpid(pid, &status_dummy, 0);
     editor_state->screen_needs_redraw = true;
   }
 
