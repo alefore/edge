@@ -159,8 +159,8 @@ class ListBuffers : public Command {
     editor_state->current_buffer = it.first;
     if (it.second) {
       it.first->second.reset(new ListBuffersBuffer());
-      it.first->second->Reload(editor_state);
     }
+    it.first->second->Reload(editor_state);
     editor_state->screen_needs_redraw = true;
     editor_state->status = "";
     editor_state->mode = std::move(NewCommandMode());
