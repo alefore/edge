@@ -50,7 +50,7 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
        i < buffer_length_ + static_cast<size_t>(characters_read);
        i++) {
     if (buffer_[i] == '\n') {
-      AppendLine(Substring(buffer_wrapper, buffer_line_start_, i - buffer_line_start_ - 1));
+      AppendLine(Substring(buffer_wrapper, buffer_line_start_, i - buffer_line_start_));
       buffer_line_start_ = i + 1;
       editor_state->screen_needs_redraw = true;
     }
