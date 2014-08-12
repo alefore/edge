@@ -52,7 +52,10 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
     if (buffer_[i] == '\n') {
       AppendLine(Substring(buffer_wrapper, buffer_line_start_, i - buffer_line_start_));
       buffer_line_start_ = i + 1;
-      editor_state->screen_needs_redraw = true;
+      if (editor_state->current_buffer != editor_state->buffers.end()
+          && editor_state->get_current_buffer().get() == this) {
+        editor_state->screen_needs_redraw = true;
+      }
     }
   }
   buffer_length_ += characters_read;
