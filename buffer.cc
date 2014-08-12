@@ -92,5 +92,17 @@ void OpenBuffer::CheckPosition() {
   }
 }
 
+void OpenBuffer::SetInputFile(int fd) {
+  contents_.clear();
+  buffer_ = nullptr;
+  buffer_line_start_ = 0;
+  buffer_length_ = 0;
+  buffer_size_ = 0;
+  if (fd_ != -1) {
+    close(fd_);
+  }
+  fd_ = fd;
+}
+
 }  // namespace editor
 }  // namespace afc

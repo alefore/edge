@@ -68,6 +68,8 @@ class OpenBuffer {
   }
 
  protected:
+  void SetInputFile(int fd);
+
   int fd_;
   char* buffer_;
   int buffer_line_start_;

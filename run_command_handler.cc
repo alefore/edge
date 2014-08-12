@@ -31,13 +31,14 @@ class CommandBuffer : public OpenBuffer {
       close(0);
       close(pipefd[0]);
       if (dup2(pipefd[1], 1) == -1) { exit(1); }
+      if (dup2(pipefd[1], 2) == -1) { exit(1); }
       system(command_.c_str());
       exit(0);
     }
     close(pipefd[1]);
-    contents_.clear();
-    fd_ = pipefd[0];
+    SetInputFile(pipefd[0]);
     // TODO: waitpid(pid, &status_dummy, 0);
+    // Both when it's done reading or when it's interrupted.
     editor_state->screen_needs_redraw = true;
   }
 
