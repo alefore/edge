@@ -149,13 +149,25 @@ using std::unique_ptr;
 using std::shared_ptr;
 
 void EnterInsertMode(EditorState* editor_state) {
+  if (editor_state->current_buffer == editor_state->buffers.end()) {
+    shared_ptr<OpenBuffer> buffer(new OpenBuffer);
+    editor_state->buffers.insert(make_pair("[anonymous]", buffer));
+    editor_state->current_buffer = editor_state->buffers.begin();
+  }
+
   editor_state->status = "";
   auto buffer = editor_state->get_current_buffer();
-  buffer->MaybeAdjustPositionCol();
-  auto line(buffer->current_line());
-  shared_ptr<EditableString> new_line(
-      new EditableString(line->contents, buffer->current_position_col()));
-  line->contents = new_line;
+  shared_ptr<EditableString> new_line;
+  if (buffer->contents()->empty()) {
+    new_line.reset(new EditableString(""));
+    buffer->AppendLine(new_line);
+  } else {
+    buffer->MaybeAdjustPositionCol();
+    auto line = buffer->current_line();
+    new_line.reset(new EditableString(line->contents,
+                                      buffer->current_position_col()));
+    line->contents = new_line;
+  }
   editor_state->mode.reset(new InsertMode(new_line));
 }
 
