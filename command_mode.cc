@@ -93,8 +93,12 @@ class Delete : public Command {
     if (buffer->contents()->empty()) { return; }
     shared_ptr<OpenBuffer> deleted_text(new OpenBuffer());
 
+    if (buffer->current_position_col() > buffer->current_line()->size()) {
+      buffer->set_current_position_col(buffer->current_line()->size());
+    }
+
     while (editor_state->repetitions > 0) {
-      int characters_to_erase;
+      size_t characters_to_erase;
       auto current_line = buffer->current_line();
       shared_ptr<LazyString> suffix;
       if (editor_state->repetitions + buffer->current_position_col()
