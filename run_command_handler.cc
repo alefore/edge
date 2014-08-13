@@ -59,7 +59,7 @@ void RunCommandHandler(const string& input, EditorState* editor_state) {
     return;
   }
 
-  auto it = editor_state->buffers.insert(make_pair("Command: " + input, nullptr));
+  auto it = editor_state->buffers.insert(make_pair("$ " + input, nullptr));
   editor_state->current_buffer = it.first;
   if (it.second) {
     it.first->second.reset(new CommandBuffer(input));
