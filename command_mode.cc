@@ -69,6 +69,7 @@ class Delete : public Command {
  private:
   void DeleteLines(int c, EditorState* editor_state) {
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
+    if (buffer->contents()->empty()) { return; }
     shared_ptr<OpenBuffer> deleted_text(new OpenBuffer());
 
     assert(buffer->current_position_line() < buffer->contents()->size());
@@ -89,6 +90,7 @@ class Delete : public Command {
 
   void DeleteCharacters(int c, EditorState* editor_state) {
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
+    if (buffer->contents()->empty()) { return; }
     shared_ptr<OpenBuffer> deleted_text(new OpenBuffer());
 
     while (editor_state->repetitions > 0) {
