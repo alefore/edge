@@ -27,7 +27,10 @@ struct EditorState {
         terminate(false),
         repetitions(1),
         structure(0),
-        mode(std::move(NewCommandMode())) {}
+        mode(std::move(NewCommandMode())),
+        visible_lines(1),
+        screen_needs_redraw(false),
+        status("") {}
 
   void CheckPosition() {
     get_current_buffer()->CheckPosition();
