@@ -17,18 +17,25 @@ class LinePromptMode : public EditorMode {
       : prompt_(prompt), handler_(handler) {}
 
   void ProcessInput(int c, EditorState* editor_state) {
-    if (c == '\n') {
-      editor_state->status = "";
-      handler_(input_, editor_state);
-      return;
-    }
-    if (c == Terminal::BACKSPACE) {
-      if (input_.empty()) {
+    switch (c) {
+      case '\n':
+        editor_state->status = "";
+        handler_(input_, editor_state);
         return;
-      }
-      input_.resize(input_.size() - 1);
-    } else {
-      input_.push_back(static_cast<char>(c));
+
+      case Terminal::ESCAPE:
+        handler_("", editor_state);
+        return;
+
+      case Terminal::BACKSPACE:
+        if (input_.empty()) {
+          return;
+        }
+        input_.resize(input_.size() - 1);
+        break;
+
+      default:
+        input_.push_back(static_cast<char>(c));
     }
     editor_state->status = prompt_ + input_;
   }
