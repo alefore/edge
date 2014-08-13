@@ -197,6 +197,32 @@ class LineDown : public Command {
   }
 };
 
+class PageUp : public Command {
+ public:
+  const string Description() {
+    return "moves up one page";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    editor_state->repetitions *= editor_state->visible_lines;
+    editor_state->structure = 0;
+    LineUp::Move(c, editor_state);
+  }
+};
+
+class PageDown : public Command {
+ public:
+  const string Description() {
+    return "moves down one page";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    editor_state->repetitions *= editor_state->visible_lines;
+    editor_state->structure = 0;
+    LineDown::Move(c, editor_state);
+  }
+};
+
 class MoveForwards : public Command {
  public:
   const string Description() {
@@ -386,6 +412,8 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair(Terminal::UP_ARROW, new LineUp()));
     output.insert(make_pair(Terminal::LEFT_ARROW, new MoveBackwards()));
     output.insert(make_pair(Terminal::RIGHT_ARROW, new MoveForwards()));
+    output.insert(make_pair(Terminal::PAGE_DOWN, new PageDown()));
+    output.insert(make_pair(Terminal::PAGE_UP, new PageUp()));
   }
   return output;
 }
