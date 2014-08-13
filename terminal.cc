@@ -18,6 +18,8 @@ constexpr int Terminal::UP_ARROW;
 constexpr int Terminal::LEFT_ARROW;
 constexpr int Terminal::RIGHT_ARROW;
 constexpr int Terminal::BACKSPACE;
+constexpr int Terminal::PAGE_UP;
+constexpr int Terminal::PAGE_DOWN;
 
 Terminal::Terminal() {
   initscr();
@@ -136,6 +138,10 @@ int Terminal::Read() {
               int next2 = getch();
               //cerr << "Read next2: " << next2 << "\n";
               switch (next2) {
+                case 53:
+                  return PAGE_UP;
+                case 54:
+                  return PAGE_DOWN;
                 case 65:
                   return UP_ARROW;
                 case 66:

@@ -18,6 +18,8 @@ class Terminal {
   static constexpr int LEFT_ARROW = -5;
   static constexpr int RIGHT_ARROW = -6;
   static constexpr int BACKSPACE = -7;
+  static constexpr int PAGE_DOWN = -8;
+  static constexpr int PAGE_UP = -9;
 
   Terminal();
   ~Terminal();
