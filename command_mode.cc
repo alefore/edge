@@ -43,6 +43,54 @@ class Delete : public Command {
     if (editor_state->buffers.empty()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
     shared_ptr<OpenBuffer> new_buffer(new OpenBuffer());
+
+    if (editor_state->structure == 0) {
+      DeleteCharacters(c, editor_state);
+    } else if (editor_state->structure == 1) {
+      DeleteLines(c, editor_state);
+    } else if (editor_state->structure == 2) {
+      auto buffer_to_erase = editor_state->current_buffer;
+      if (editor_state->current_buffer == editor_state->buffers.begin()) {
+        editor_state->current_buffer = editor_state->buffers.end();
+      }
+      editor_state->current_buffer--;
+      editor_state->buffers.erase(buffer_to_erase);
+      if (editor_state->current_buffer == buffer_to_erase) {
+        editor_state->current_buffer = editor_state->buffers.end();
+        assert(editor_state->current_buffer == editor_state->buffers.end());
+      }
+    }
+
+    editor_state->structure = 0;
+    editor_state->screen_needs_redraw = true;
+    editor_state->repetitions = 1;
+  }
+
+ private:
+  void DeleteLines(int c, EditorState* editor_state) {
+    shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
+    shared_ptr<OpenBuffer> deleted_text(new OpenBuffer());
+
+    assert(buffer->current_position_line() < buffer->contents()->size());
+
+    auto first_line = buffer->contents()->begin() + buffer->current_position_line();
+    vector<shared_ptr<Line>>::iterator last_line;
+    if (buffer->current_position_line() + editor_state->repetitions
+        > buffer->contents()->size()) {
+      last_line = buffer->contents()->end();
+    } else {
+      last_line = first_line + editor_state->repetitions;
+    }
+    deleted_text->contents()->insert(
+        deleted_text->contents()->end(), first_line, last_line);
+    buffer->contents()->erase(first_line, last_line);
+    InsertDeletedTextBuffer(editor_state, deleted_text);
+  }
+
+  void DeleteCharacters(int c, EditorState* editor_state) {
+    shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
+    shared_ptr<OpenBuffer> deleted_text(new OpenBuffer());
+
     while (editor_state->repetitions > 0) {
       int characters_to_erase;
       auto current_line = buffer->current_line();
@@ -66,7 +114,7 @@ class Delete : public Command {
                            buffer->current_position_col() + characters_to_erase);
       }
       editor_state->repetitions -= characters_to_erase;
-      new_buffer->AppendLine(
+      deleted_text->AppendLine(
           Substring(current_line->contents, buffer->current_position_col(),
                     characters_to_erase));
       buffer->contents()->at(buffer->current_position_line()).reset(new Line(
@@ -74,15 +122,16 @@ class Delete : public Command {
               Substring(current_line->contents, 0, buffer->current_position_col()),
               suffix)));
     }
+    InsertDeletedTextBuffer(editor_state, deleted_text);
+  }
 
+  void InsertDeletedTextBuffer(
+      EditorState* editor_state, const shared_ptr<OpenBuffer>& buffer) {
     auto insert_result = editor_state->buffers.insert(make_pair(
-        "deleted text", new_buffer));
+        "deleted text", buffer));
     if (!insert_result.second) {
-      insert_result.first->second = new_buffer;
+      insert_result.first->second = buffer;
     }
-
-    editor_state->screen_needs_redraw = true;
-    editor_state->repetitions = 1;
   }
 };
 

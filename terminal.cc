@@ -88,6 +88,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
   }
   for (size_t current_line = buffer->view_start_line();
        current_line < view_stop_line; current_line++) {
+    assert(current_line < contents.size());
     const shared_ptr<LazyString> line(contents[current_line]->contents);
     assert(line.get() != nullptr);
     size_t size = std::min(static_cast<size_t>(COLS), line->size());
