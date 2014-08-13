@@ -15,6 +15,7 @@ using std::shared_ptr;
 class FindMode : public EditorMode {
 
   bool SeekOnce(const shared_ptr<OpenBuffer> buffer, int c) {
+    if (buffer->contents()->empty()) { return false; }
     shared_ptr<LazyString> current_line = buffer->current_line()->contents;
     size_t line_length = current_line->size();
     for (size_t i = buffer->current_position_col() + 1; i < line_length; i++) {
@@ -27,9 +28,11 @@ class FindMode : public EditorMode {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    for (size_t times = 0; times < editor_state->repetitions; times++) {
-      if (!SeekOnce(editor_state->get_current_buffer(), c)) {
-        break;
+    if (editor_state->current_buffer != editor_state->buffers.end()) {
+      for (size_t times = 0; times < editor_state->repetitions; times++) {
+        if (!SeekOnce(editor_state->get_current_buffer(), c)) {
+          break;
+        }
       }
     }
     editor_state->mode = std::move(NewCommandMode());
