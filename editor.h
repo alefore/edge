@@ -48,6 +48,9 @@ struct EditorState {
   int structure;
   unique_ptr<EditorMode> mode;
 
+  // Set by the terminal handler.
+  size_t visible_lines;
+
   bool screen_needs_redraw;
 
   string status;

@@ -59,6 +59,7 @@ void Terminal::Display(EditorState* editor_state) {
   ShowStatus(editor_state->status);
   AdjustPosition(buffer);
   refresh();
+  editor_state->visible_lines = static_cast<size_t>(LINES);
 }
 
 void Terminal::ShowStatus(const string& status) {
