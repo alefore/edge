@@ -1,6 +1,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -22,7 +23,7 @@ extern "C" {
 int main(int argc, const char* argv[]) {
   using namespace afc::editor;
   using std::unique_ptr;
-
+  using std::cerr;
   Terminal terminal;
   EditorState editor_state;
   for (int i = 1; i < argc; i++) {
@@ -51,25 +52,33 @@ int main(int argc, const char* argv[]) {
     fds[buffers_reading.size()].fd = 0;
     fds[buffers_reading.size()].events = POLLIN | POLLPRI;
 
-    int results = poll(fds, buffers_reading.size() + 1, -1);
-    if (results == -1) {
-      exit(-1);
-    } else if (results > 0) {
-      for (size_t i = 0; i < buffers_reading.size() + 1; i++) {
-        if (!(fds[i].revents & (POLLIN | POLLPRI | POLLHUP))) {
-          continue;
+    int results;
+    while ((results = poll(fds, buffers_reading.size() + 1, -1)) <= 0) {
+      if (results == -1) {
+        switch (errno) {
+          case EINTR:
+            break;
+          default:
+            cerr << "poll failed, exiting: " << strerror(errno) << "\n";
+            exit(-1);
         }
-        if (fds[i].fd == 0) {
-          int c;
-          while ((c = terminal.Read()) != -1) {
-            editor_state.mode->ProcessInput(c, &editor_state);
-          }
-          continue;
-        }
-
-        assert(i < buffers_reading.size());
-        buffers_reading[i]->ReadData(&editor_state);
       }
+    }
+
+    for (size_t i = 0; i < buffers_reading.size() + 1; i++) {
+      if (!(fds[i].revents & (POLLIN | POLLPRI | POLLHUP))) {
+        continue;
+      }
+      if (fds[i].fd == 0) {
+        int c;
+        while ((c = terminal.Read()) != -1) {
+          editor_state.mode->ProcessInput(c, &editor_state);
+        }
+        continue;
+      }
+
+      assert(i < buffers_reading.size());
+      buffers_reading[i]->ReadData(&editor_state);
     }
   }
   terminal.SetStatus("done");
