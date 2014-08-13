@@ -105,6 +105,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
 void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
   const vector<shared_ptr<Line>>& contents(*buffer->contents());
   size_t pos_x = buffer->current_position_col();
+  assert(buffer->current_position_line() <
+         contents.empty() ? 1 : contents.size());
   size_t line_length = contents.empty()
       ? 0 : contents[buffer->current_position_line()]->contents->size();
   if (pos_x > line_length) {
