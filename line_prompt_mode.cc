@@ -1,29 +1,44 @@
 #include <memory>
-#include <list>
+#include <limits>
 #include <string>
 
 #include "char_buffer.h"
 #include "command.h"
 #include "command_mode.h"
 #include "line_prompt_mode.h"
+#include "editable_string.h"
 #include "editor.h"
 #include "terminal.h"
 
 namespace {
 using namespace afc::editor;
 using std::make_pair;
+using std::numeric_limits;
+
+const string kHistoryName = "- prompt history";
 
 class LinePromptMode : public EditorMode {
  public:
   LinePromptMode(const string& prompt, LinePromptHandler handler)
-      : prompt_(prompt), handler_(handler) {}
+      : prompt_(prompt),
+        handler_(handler),
+        input_(EditableString::New("")),
+        history_position_(numeric_limits<size_t>::max()) {}
+
+  static shared_ptr<OpenBuffer> FindHistoryBuffer(EditorState* editor_state) {
+    auto result = editor_state->buffers.find(kHistoryName);
+    if (result == editor_state->buffers.end()) {
+      return shared_ptr<OpenBuffer>(nullptr);
+    }
+    return result->second;
+  }
 
   void ProcessInput(int c, EditorState* editor_state) {
     switch (c) {
       case '\n':
         InsertToHistory(editor_state);
         editor_state->status = "";
-        handler_(input_, editor_state);
+        handler_(input_->ToString(), editor_state);
         return;
 
       case Terminal::ESCAPE:
@@ -31,31 +46,64 @@ class LinePromptMode : public EditorMode {
         return;
 
       case Terminal::BACKSPACE:
-        if (input_.empty()) {
-          return;
+        input_->Backspace();
+        break;
+
+      case Terminal::UP_ARROW:
+        {
+          auto buffer = FindHistoryBuffer(editor_state);
+          if (buffer == nullptr || buffer->contents()->empty()) { return; }
+          if (history_position_ > 0) {
+            history_position_ =
+              min(history_position_, buffer->contents()->size()) - 1;
+          }
+          SetInputFromCurrentLine(buffer);
         }
-        input_.resize(input_.size() - 1);
+        break;
+
+      case Terminal::DOWN_ARROW:
+        {
+          auto buffer = FindHistoryBuffer(editor_state);
+          if (buffer == nullptr || buffer->contents()->empty()) { return; }
+          history_position_ =
+              min(history_position_, buffer->contents()->size() - 1) + 1;
+          if (history_position_ < buffer->contents()->size()) {
+            SetInputFromCurrentLine(buffer);
+          } else {
+            input_ = EditableString::New("");
+          }
+        }
         break;
 
       default:
-        input_.push_back(static_cast<char>(c));
+        input_->Insert(static_cast<char>(c));
     }
-    editor_state->status = prompt_ + input_;
+    editor_state->status = prompt_ + input_->ToString();
   }
 
  private:
+  void SetInputFromCurrentLine(const shared_ptr<OpenBuffer>& buffer) {
+    if (buffer == nullptr || buffer->contents()->empty()) {
+      input_ = EditableString::New("");
+      return;
+    }
+    auto line = buffer->contents()->at(history_position_)->contents;
+    input_ = EditableString::New(line, line->size());
+  }
+
   void InsertToHistory(EditorState* editor_state) {
     auto insert_result = editor_state->buffers.insert(
-        make_pair("- prompt history", nullptr));
+        make_pair(kHistoryName, nullptr));
     if (insert_result.second) {
       insert_result.first->second.reset(new OpenBuffer);
     }
-    auto line = insert_result.first->second->AppendLine(NewCopyString(input_));
+    insert_result.first->second->AppendLine(input_);
   }
 
   const string prompt_;
   LinePromptHandler handler_;
-  string input_;
+  shared_ptr<EditableString> input_;
+  size_t history_position_;
 };
 
 class LinePromptCommand : public Command {
@@ -72,6 +120,12 @@ class LinePromptCommand : public Command {
   void ProcessInput(int c, EditorState* editor_state) {
     editor_state->mode = std::unique_ptr<EditorMode>(
         new LinePromptMode(prompt_, handler_));
+    auto history = editor_state->buffers.find(kHistoryName);
+    if (history != editor_state->buffers.end()
+        && !history->second->contents()->empty()) {
+      history->second->set_current_position_line(
+          history->second->contents()->size() - 1);
+    }
     editor_state->status = prompt_;
   }
 
