@@ -130,7 +130,7 @@ class Delete : public Command {
   void InsertDeletedTextBuffer(
       EditorState* editor_state, const shared_ptr<OpenBuffer>& buffer) {
     auto insert_result = editor_state->buffers.insert(make_pair(
-        "deleted text", buffer));
+        "- deleted text", buffer));
     if (!insert_result.second) {
       insert_result.first->second = buffer;
     }
