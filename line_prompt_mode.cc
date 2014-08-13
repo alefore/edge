@@ -2,6 +2,7 @@
 #include <list>
 #include <string>
 
+#include "char_buffer.h"
 #include "command.h"
 #include "command_mode.h"
 #include "line_prompt_mode.h"
@@ -10,6 +11,7 @@
 
 namespace {
 using namespace afc::editor;
+using std::make_pair;
 
 class LinePromptMode : public EditorMode {
  public:
@@ -19,6 +21,7 @@ class LinePromptMode : public EditorMode {
   void ProcessInput(int c, EditorState* editor_state) {
     switch (c) {
       case '\n':
+        InsertToHistory(editor_state);
         editor_state->status = "";
         handler_(input_, editor_state);
         return;
@@ -41,6 +44,15 @@ class LinePromptMode : public EditorMode {
   }
 
  private:
+  void InsertToHistory(EditorState* editor_state) {
+    auto insert_result = editor_state->buffers.insert(
+        make_pair("- prompt history", nullptr));
+    if (insert_result.second) {
+      insert_result.first->second.reset(new OpenBuffer);
+    }
+    auto line = insert_result.first->second->AppendLine(NewCopyString(input_));
+  }
+
   const string prompt_;
   LinePromptHandler handler_;
   string input_;
