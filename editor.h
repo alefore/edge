@@ -37,6 +37,9 @@ struct EditorState {
     return current_buffer->second;
   }
 
+  void MoveBufferForwards(size_t times);
+  void MoveBufferBackwards(size_t times);
+
   map<string, shared_ptr<OpenBuffer>> buffers;
   map<string, shared_ptr<OpenBuffer>>::iterator current_buffer;
   bool terminate;
