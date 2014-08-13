@@ -54,6 +54,7 @@ namespace editor {
 void RunCommandHandler(const string& input, EditorState* editor_state) {
   if (input.empty()) {
     editor_state->mode = NewCommandMode();
+    editor_state->status = "";
     editor_state->screen_needs_redraw = true;
     return;
   }
