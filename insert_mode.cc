@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "command_mode.h"
+#include "editable_string.h"
 #include "editor.h"
 #include "lazy_string_append.h"
 #include "substring.h"
@@ -11,56 +12,6 @@
 
 namespace {
 using namespace afc::editor;
-class EditableString : public LazyString {
- public:
-  EditableString(const shared_ptr<LazyString>& base, size_t position)
-      : base_(base), position_(position) {
-    assert(position_ <= base_->size());
-  }
-
-  EditableString(const string& editable_part)
-      : base_(EmptyString()), position_(0), editable_part_(editable_part) {
-    assert(position_ <= base_->size());
-  }
-
-  EditableString(const shared_ptr<LazyString>& base, size_t position,
-                 const string& editable_part)
-      : base_(base), position_(position), editable_part_(editable_part) {
-    assert(position_ <= base_->size());
-  }
-
-  virtual char get(size_t pos) const {
-    if (pos < position_) {
-      return base_->get(pos);
-    }
-    if (pos - position_ < editable_part_.size()) {
-      return editable_part_.at(pos - position_);
-    }
-    return base_->get(pos - editable_part_.size());
-  }
-
-  virtual size_t size() const {
-    return base_->size() + editable_part_.size();
-  }
-
-  void Insert(int c) {
-    assert(c != '\n');
-    editable_part_ += static_cast<char>(c);
-  }
-
-  bool Backspace() {
-    if (editable_part_.empty()) {
-      return false;
-    }
-    editable_part_.resize(editable_part_.size() - 1);
-    return true;
-  }
-
- private:
-  const shared_ptr<LazyString> base_;
-  size_t position_;
-  string editable_part_;
-};
 
 class InsertMode : public EditorMode {
  public:
@@ -89,7 +40,7 @@ class InsertMode : public EditorMode {
 
           buffer->set_current_position_line(buffer->current_position_line() - 1);
           auto prefix = buffer->current_line()->contents;
-          line_.reset(new EditableString(StringAppend(prefix, old_line), prefix->size()));
+          line_ = EditableString::New(StringAppend(prefix, old_line), prefix->size());
           buffer->set_current_position_col(prefix->size());
           buffer->current_line()->contents = line_;
           editor_state->screen_needs_redraw = true;
@@ -98,11 +49,11 @@ class InsertMode : public EditorMode {
               buffer->current_line()->contents, 0,
               min(buffer->current_position_col(),
                   buffer->current_line()->contents->size()));
-          line_.reset(new EditableString(
+          line_ = EditableString::New(
               Substring(buffer->current_line()->contents,
                         buffer->current_position_col()),
               0,
-              prefix->ToString()));
+              prefix->ToString());
           buffer->current_line()->contents = line_;
           assert(line_->Backspace());
           editor_state->screen_needs_redraw = true;
@@ -117,7 +68,7 @@ class InsertMode : public EditorMode {
             Substring(buffer->current_line()->contents, 0, pos);
 
         // Create a new line and insert it.
-        line_.reset(new EditableString(Substring(line_, pos), 0));
+        line_ = EditableString::New(Substring(line_, pos), 0);
 
         shared_ptr<Line> line(new Line());
         line->contents = line_;
@@ -153,13 +104,13 @@ void EnterInsertCharactersMode(EditorState* editor_state) {
   auto buffer = editor_state->get_current_buffer();
   shared_ptr<EditableString> new_line;
   if (buffer->contents()->empty()) {
-    new_line.reset(new EditableString(""));
+    new_line = EditableString::New("");
     buffer->AppendLine(new_line);
   } else {
     buffer->MaybeAdjustPositionCol();
     auto line = buffer->current_line();
-    new_line.reset(new EditableString(line->contents,
-                                      buffer->current_position_col()));
+    new_line = EditableString::New(
+        line->contents, buffer->current_position_col());
     line->contents = new_line;
   }
   editor_state->mode.reset(new InsertMode(new_line));
