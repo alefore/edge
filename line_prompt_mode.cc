@@ -23,6 +23,9 @@ class LinePromptMode : public EditorMode {
       return;
     }
     if (c == Terminal::BACKSPACE) {
+      if (input_.empty()) {
+        return;
+      }
       input_.resize(input_.size() - 1);
     } else {
       input_.push_back(static_cast<char>(c));
