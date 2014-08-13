@@ -20,8 +20,7 @@ using std::regex;
 #endif
 
 void SearchHandler(const string& input, EditorState* editor_state) {
-  if (editor_state->buffers.empty()) { return; }
-  if (input.empty()) {
+  if (editor_state->buffers.empty() || input.empty()) {
     editor_state->mode = NewCommandMode();
     editor_state->screen_needs_redraw = true;
     return;
