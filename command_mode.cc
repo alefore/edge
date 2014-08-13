@@ -9,11 +9,13 @@
 #include "find_mode.h"
 #include "help_command.h"
 #include "insert_mode.h"
+#include "lazy_string_append.h"
 #include "line_prompt_mode.h"
 #include "map_mode.h"
 #include "noop_command.h"
 #include "repeat_mode.h"
 #include "search_handler.h"
+#include "substring.h"
 #include "terminal.h"
 
 namespace {
@@ -28,6 +30,52 @@ class Quit : public Command {
 
   void ProcessInput(int c, EditorState* editor_state) {
     editor_state->terminate = true;
+  }
+};
+
+class Delete : public Command {
+ public:
+  const string Description() {
+    return "deletes the current item (char, word, line ...)";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    if (editor_state->buffers.empty()) { return; }
+    shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
+    shared_ptr<OpenBuffer> new_buffer(new OpenBuffer());
+    while (editor_state->repetitions > 0) {
+      int characters_to_erase;
+      auto current_line = buffer->current_line();
+      shared_ptr<LazyString> suffix;
+      if (editor_state->repetitions + buffer->current_position_col()
+          > current_line->size()) {
+        characters_to_erase = current_line->size() - buffer->current_position_col();
+        if (buffer->contents()->size() > buffer->current_position_line() + 1) {
+          suffix = buffer->contents()->at(buffer->current_position_line() + 1)
+              ->contents;
+          buffer->contents()->erase(
+              buffer->contents()->begin() + buffer->current_position_line() + 1);
+          editor_state->repetitions--;
+        } else {
+          suffix = EmptyString();
+          editor_state->repetitions = characters_to_erase;
+        }
+      } else {
+        characters_to_erase = editor_state->repetitions;
+        suffix = Substring(current_line->contents,
+                           buffer->current_position_col() + characters_to_erase);
+      }
+      editor_state->repetitions -= characters_to_erase;
+      new_buffer->AppendLine(
+          Substring(current_line->contents, buffer->current_position_col(),
+                    characters_to_erase));
+      buffer->contents()->at(buffer->current_position_line()).reset(new Line(
+          StringAppend(
+              Substring(current_line->contents, 0, buffer->current_position_col()),
+              suffix)));
+    }
+    editor_state->screen_needs_redraw = true;
+    editor_state->repetitions = 1;
   }
 };
 
@@ -183,6 +231,7 @@ static const map<int, Command*>& GetCommandModeMap() {
         '/',
         NewLinePromptCommand("/", "searches for a string", SearchHandler).release()));
 
+    output.insert(make_pair('d', new Delete()));
     output.insert(make_pair('\n', new ActivateLink()));
 
     output.insert(make_pair('j', new LineDown()));
