@@ -24,7 +24,7 @@ class MemoryMappedFile : public LazyString {
   ~MemoryMappedFile();
 
   char get(size_t pos) const { return buffer_[pos]; }
-  size_t size() const { return stat_buffer_.st_size; }
+  size_t size() const { return static_cast<size_t>(stat_buffer_.st_size); }
 
  private:
   const string path_;

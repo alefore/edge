@@ -22,7 +22,8 @@ using std::min;
 
 struct Line {
   Line() {};
-  Line(const shared_ptr<LazyString>& contents) : contents(contents) {}
+  Line(const shared_ptr<LazyString>& contents_input)
+      : contents(contents_input) {}
 
   size_t size() const { return contents->size(); }
 
@@ -77,13 +78,13 @@ class OpenBuffer {
 
   int fd_;
   char* buffer_;
-  int buffer_line_start_;
-  int buffer_length_;
-  int buffer_size_;
+  size_t buffer_line_start_;
+  size_t buffer_length_;
+  size_t buffer_size_;
 
   vector<shared_ptr<Line>> contents_;
 
-  int view_start_line_;
+  size_t view_start_line_;
   size_t current_position_line_;
   size_t current_position_col_;
 

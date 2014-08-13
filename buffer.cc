@@ -30,7 +30,7 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
     buffer_size_ = buffer_size_ ? buffer_size_ * 2 : 64 * 1024;
     buffer_ = static_cast<char*>(realloc(buffer_, buffer_size_));
   }
-  int characters_read = read(fd_, buffer_ + buffer_length_, buffer_size_ - buffer_length_);
+  ssize_t characters_read = read(fd_, buffer_ + buffer_length_, buffer_size_ - buffer_length_);
   if (characters_read == -1) {
     if (errno == EAGAIN) {
       return;
@@ -38,6 +38,7 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
     // TODO: Handle this better.
     exit(1);
   }
+  assert(characters_read >= 0);
   if (characters_read == 0) {
     close(fd_);
     buffer_ = static_cast<char*>(realloc(buffer_, buffer_length_));
@@ -45,7 +46,8 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
   }
 
   shared_ptr<LazyString> buffer_wrapper(
-      NewMoveableCharBuffer(&buffer_, buffer_length_ + characters_read));
+      NewMoveableCharBuffer(
+          &buffer_, buffer_length_ + static_cast<size_t>(characters_read)));
   for (size_t i = buffer_length_;
        i < buffer_length_ + static_cast<size_t>(characters_read);
        i++) {
@@ -58,7 +60,7 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
       }
     }
   }
-  buffer_length_ += characters_read;
+  buffer_length_ += static_cast<size_t>(characters_read);
 }
 
 void OpenBuffer::AppendLazyString(shared_ptr<LazyString> input) {
@@ -95,7 +97,7 @@ void OpenBuffer::CheckPosition() {
   }
 }
 
-void OpenBuffer::SetInputFile(int fd) {
+void OpenBuffer::SetInputFile(int input_fd) {
   contents_.clear();
   buffer_ = nullptr;
   buffer_line_start_ = 0;
@@ -104,7 +106,7 @@ void OpenBuffer::SetInputFile(int fd) {
   if (fd_ != -1) {
     close(fd_);
   }
-  fd_ = fd;
+  fd_ = input_fd;
 }
 
 }  // namespace editor
