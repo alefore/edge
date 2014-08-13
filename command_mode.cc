@@ -203,24 +203,41 @@ class EnterFindMode : public Command {
   }
 };
 
-class RepeatMode : public Command {
+void SetRepetitions(EditorState* editor_state, int number) {
+  editor_state->repetitions = number;
+}
+
+void SetStructure(EditorState* editor_state, int number) {
+  editor_state->structure = number;
+}
+
+class NumberMode : public Command {
  public:
+  NumberMode(function<void(EditorState*, int)> consumer)
+      : description_(""), consumer_(consumer) {}
+
+  NumberMode(
+      const string& description, function<void(EditorState*, int)> consumer)
+      : description_(description), consumer_(consumer) {}
+
   const string Description() {
-    return "repeats for the next command";
+    return description_;
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    editor_state->repetitions = 0;
-    editor_state->mode = std::move(NewRepeatMode(RunCommand));
+    editor_state->mode = std::move(NewRepeatMode(
+        [consumer_](int c, EditorState* editor_state, int number) {
+      consumer_(editor_state, number);
+      editor_state->mode = std::move(NewCommandMode());
+      editor_state->mode->ProcessInput(c, editor_state);
+    }));
+    if (c < '0' || c > '9') { return; }
     editor_state->mode->ProcessInput(c, editor_state);
   }
 
  private:
-  static void RunCommand(int c, EditorState* editor_state, int repetitions) {
-    editor_state->mode = std::move(NewCommandMode());
-    editor_state->repetitions = repetitions;
-    editor_state->mode->ProcessInput(c, editor_state);
-  }
+  const string description_;
+  function<void(EditorState*, int)> consumer_;
 };
 
 class ActivateLink : public Command {
@@ -258,18 +275,26 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('l', new MoveForwards()));
     output.insert(make_pair('h', new MoveBackwards()));
 
+    output.insert(make_pair(
+        's',
+        new NumberMode("sets the structure affected by the next command",
+                       SetStructure)));
+    output.insert(make_pair(
+        'r',
+        new NumberMode("repeats the next command", SetRepetitions)));
+
     output.insert(make_pair('?', NewHelpCommand(output, "command mode").release()));
 
-    output.insert(make_pair('0', new RepeatMode()));
-    output.insert(make_pair('1', new RepeatMode()));
-    output.insert(make_pair('2', new RepeatMode()));
-    output.insert(make_pair('3', new RepeatMode()));
-    output.insert(make_pair('4', new RepeatMode()));
-    output.insert(make_pair('5', new RepeatMode()));
-    output.insert(make_pair('6', new RepeatMode()));
-    output.insert(make_pair('7', new RepeatMode()));
-    output.insert(make_pair('8', new RepeatMode()));
-    output.insert(make_pair('9', new RepeatMode()));
+    output.insert(make_pair('0', new NumberMode(SetRepetitions)));
+    output.insert(make_pair('1', new NumberMode(SetRepetitions)));
+    output.insert(make_pair('2', new NumberMode(SetRepetitions)));
+    output.insert(make_pair('3', new NumberMode(SetRepetitions)));
+    output.insert(make_pair('4', new NumberMode(SetRepetitions)));
+    output.insert(make_pair('5', new NumberMode(SetRepetitions)));
+    output.insert(make_pair('6', new NumberMode(SetRepetitions)));
+    output.insert(make_pair('7', new NumberMode(SetRepetitions)));
+    output.insert(make_pair('8', new NumberMode(SetRepetitions)));
+    output.insert(make_pair('9', new NumberMode(SetRepetitions)));
     output.insert(make_pair(Terminal::DOWN_ARROW, new LineDown()));
     output.insert(make_pair(Terminal::UP_ARROW, new LineUp()));
     output.insert(make_pair(Terminal::LEFT_ARROW, new MoveBackwards()));

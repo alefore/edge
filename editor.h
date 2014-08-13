@@ -26,6 +26,7 @@ struct EditorState {
       : current_buffer(buffers.end()),
         terminate(false),
         repetitions(1),
+        structure(0),
         mode(std::move(NewCommandMode())) {}
 
   void CheckPosition() {
@@ -41,6 +42,7 @@ struct EditorState {
   bool terminate;
 
   size_t repetitions;
+  int structure;
   unique_ptr<EditorMode> mode;
 
   bool screen_needs_redraw;
