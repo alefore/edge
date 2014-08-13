@@ -74,6 +74,13 @@ class Delete : public Command {
               Substring(current_line->contents, 0, buffer->current_position_col()),
               suffix)));
     }
+
+    auto insert_result = editor_state->buffers.insert(make_pair(
+        "deleted text", new_buffer));
+    if (!insert_result.second) {
+      insert_result.first->second = new_buffer;
+    }
+
     editor_state->screen_needs_redraw = true;
     editor_state->repetitions = 1;
   }
