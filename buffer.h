@@ -21,6 +21,9 @@ using std::max;
 using std::min;
 
 struct Line {
+  Line() {};
+  Line(const shared_ptr<LazyString>& contents) : contents(contents) {}
+
   size_t size() const { return contents->size(); }
 
   unique_ptr<EditorMode> activate;
