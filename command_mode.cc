@@ -204,13 +204,21 @@ class EnterFindMode : public Command {
 };
 
 class RepeatMode : public Command {
+ public:
   const string Description() {
     return "repeats for the next command";
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
     editor_state->repetitions = 0;
-    editor_state->mode = std::move(NewRepeatMode());
+    editor_state->mode = std::move(NewRepeatMode(RunCommand));
+    editor_state->mode->ProcessInput(c, editor_state);
+  }
+
+ private:
+  static void RunCommand(int c, EditorState* editor_state, int repetitions) {
+    editor_state->mode = std::move(NewCommandMode());
+    editor_state->repetitions = repetitions;
     editor_state->mode->ProcessInput(c, editor_state);
   }
 };

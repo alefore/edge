@@ -9,15 +9,20 @@ namespace {
 using namespace afc::editor;
 
 class RepeatMode : public EditorMode {
+ public:
+  RepeatMode(function<void(int, EditorState*, int)> done)
+      : done_(done), result_(0) {}
+
   void ProcessInput(int c, EditorState* editor_state) {
-    if (c >= '0' && c <= '9') {
-      editor_state->repetitions = 10 * editor_state->repetitions + c - '0';
+    if (c < '0' || c > '9') {
+      done_(c, editor_state, result_);
       return;
     }
-
-    editor_state->mode = std::move(NewCommandMode());
-    editor_state->mode->ProcessInput(c, editor_state);
+    result_ = 10 * result_ + c - '0';
   }
+ private:
+  function<void(int, EditorState*, int)> done_;
+  int result_;
 };
 }
 
@@ -26,8 +31,8 @@ namespace editor {
 
 using std::unique_ptr;
 
-unique_ptr<EditorMode> NewRepeatMode() {
-  return unique_ptr<EditorMode>(new RepeatMode());
+unique_ptr<EditorMode> NewRepeatMode(function<void(int, EditorState*, int)> done) {
+  return unique_ptr<EditorMode>(new RepeatMode(done));
 }
 
 }  // namespace afc
