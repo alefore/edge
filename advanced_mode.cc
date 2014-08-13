@@ -115,6 +115,11 @@ class SaveCurrentBuffer : public Command {
   }
 };
 
+void OpenFileHandler(const string& name, EditorState* editor_state) {
+  unique_ptr<EditorMode> mode(NewFileLinkMode(name, 0));
+  mode->ProcessInput(0, editor_state);
+}
+
 class OpenBufferCommand : public EditorMode {
  public:
   OpenBufferCommand(const string& name) : name_(name) {}
@@ -194,6 +199,9 @@ static const map<int, Command*>& GetAdvancedModeMap() {
     output.insert(make_pair('.', new OpenDirectory()));
     output.insert(make_pair('l', new ListBuffers()));
     output.insert(make_pair('r', new ReloadBuffer()));
+    output.insert(make_pair(
+        'o',
+        NewLinePromptCommand("<", "loads a file", OpenFileHandler).release()));
     output.insert(
         make_pair('c', NewLinePromptCommand("$ ", "runs a command", RunCommandHandler).release()));
     output.insert(make_pair('?', NewHelpCommand(output, "advance command mode").release()));
