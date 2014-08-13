@@ -178,7 +178,9 @@ class ReloadBuffer : public Command {
 
   void ProcessInput(int c, EditorState* editor_state) {
     if (editor_state->current_buffer != editor_state->buffers.end()) {
-      editor_state->get_current_buffer()->Reload(editor_state);
+      auto buffer = editor_state->get_current_buffer();
+      buffer->Reload(editor_state);
+      buffer->CheckPosition();
     }
     editor_state->mode = std::move(NewCommandMode());
   }

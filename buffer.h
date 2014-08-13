@@ -1,9 +1,9 @@
 #ifndef __AFC_EDITOR_BUFFER_H__
 #define __AFC_EDITOR_BUFFER_H__
 
+#include <cassert>
 #include <map>
 #include <memory>
-#include <string>
 #include <vector>
 
 #include "command_mode.h"
@@ -48,6 +48,8 @@ class OpenBuffer {
   void CheckPosition();
 
   shared_ptr<Line> current_line() const {
+    assert(!contents_.empty());
+    assert(current_position_line_ < contents_.size());
     return contents_.at(current_position_line_);
   }
 

@@ -110,7 +110,7 @@ void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
   size_t line_length = contents.empty()
       ? 0 : contents[buffer->current_position_line()]->contents->size();
   if (pos_x > line_length) {
-    pos_x = contents[buffer->current_position_line()]->contents->size();
+    pos_x = line_length;
   }
 
   move(buffer->current_position_line() - buffer->view_start_line(), pos_x);
