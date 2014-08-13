@@ -155,7 +155,7 @@ class ListBuffers : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    auto it = editor_state->buffers.insert(make_pair("open buffers", nullptr));
+    auto it = editor_state->buffers.insert(make_pair("- open buffers", nullptr));
     editor_state->current_buffer = it.first;
     if (it.second) {
       it.first->second.reset(new ListBuffersBuffer());
