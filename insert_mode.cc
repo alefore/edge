@@ -148,13 +148,7 @@ namespace editor {
 using std::unique_ptr;
 using std::shared_ptr;
 
-void EnterInsertMode(EditorState* editor_state) {
-  if (editor_state->current_buffer == editor_state->buffers.end()) {
-    shared_ptr<OpenBuffer> buffer(new OpenBuffer);
-    editor_state->buffers.insert(make_pair("[anonymous]", buffer));
-    editor_state->current_buffer = editor_state->buffers.begin();
-  }
-
+void EnterInsertCharactersMode(EditorState* editor_state) {
   editor_state->status = "";
   auto buffer = editor_state->get_current_buffer();
   shared_ptr<EditableString> new_line;
@@ -169,6 +163,28 @@ void EnterInsertMode(EditorState* editor_state) {
     line->contents = new_line;
   }
   editor_state->mode.reset(new InsertMode(new_line));
+}
+
+void EnterInsertMode(EditorState* editor_state) {
+  if (editor_state->current_buffer == editor_state->buffers.end()) {
+    shared_ptr<OpenBuffer> buffer(new OpenBuffer);
+    editor_state->buffers.insert(make_pair("[anonymous buffer]", buffer));
+    editor_state->current_buffer = editor_state->buffers.begin();
+  }
+
+  editor_state->status = "";
+  if (editor_state->structure == 0) {
+    EnterInsertCharactersMode(editor_state);
+  } else if (editor_state->structure == 1) {
+    auto buffer = editor_state->get_current_buffer();
+    shared_ptr<Line> line(new Line());
+    line->contents = EmptyString();
+    buffer->contents()->insert(
+        buffer->contents()->begin() + buffer->current_position_line(),
+        line);
+    EnterInsertCharactersMode(editor_state);
+    editor_state->screen_needs_redraw = true;
+  }
 }
 
 }  // namespace afc
