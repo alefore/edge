@@ -1,3 +1,5 @@
+#include <iostream>
+
 extern "C" {
 #include <sys/mman.h>
 }
@@ -8,16 +10,23 @@ extern "C" {
 namespace afc {
 namespace editor {
 
+using std::cerr;
+
 static struct stat StatFD(int fd) {
   struct stat output;
-  if (fstat(fd, &output) == -1) { exit(1); }
+  if (fstat(fd, &output) == -1) {
+    cerr << "fstat failed.";
+    exit(1);
+  }
   return output;
 }
 
 static char* LoadFile(int fd, size_t size) {
   void* addr = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
-  if (addr == MAP_FAILED)
+  if (addr == MAP_FAILED) {
+    cerr << "mmap failed.";
     exit(1);
+  }
   return static_cast<char*>(addr);
 }
 
