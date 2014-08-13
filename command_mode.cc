@@ -96,12 +96,18 @@ class LineUp : public Command {
     if (editor_state->buffers.empty()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
     if (buffer->contents()->empty()) { return; }
-    size_t pos = buffer->current_position_line();
-    if (editor_state->repetitions < pos) {
-      buffer->set_current_position_line(pos - editor_state->repetitions);
+    if (editor_state->structure == 0) {
+      size_t pos = buffer->current_position_line();
+      if (editor_state->repetitions < pos) {
+        buffer->set_current_position_line(pos - editor_state->repetitions);
+      } else {
+        buffer->set_current_position_line(0);
+      }
     } else {
-      buffer->set_current_position_line(0);
+      editor_state->MoveBufferBackwards(editor_state->repetitions);
+      editor_state->screen_needs_redraw = true;
     }
+    editor_state->structure = 0;
     editor_state->repetitions = 1;
   }
 
@@ -120,12 +126,18 @@ class LineDown : public Command {
     if (editor_state->buffers.empty()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
     if (buffer->contents()->empty()) { return; }
-    size_t pos = buffer->current_position_line();
-    if (pos + editor_state->repetitions < buffer->contents()->size() - 1) {
-      buffer->set_current_position_line(pos + editor_state->repetitions);
+    if (editor_state->structure == 0) {
+      size_t pos = buffer->current_position_line();
+      if (pos + editor_state->repetitions < buffer->contents()->size() - 1) {
+        buffer->set_current_position_line(pos + editor_state->repetitions);
+      } else {
+        buffer->set_current_position_line(buffer->contents()->size() - 1);
+      }
     } else {
-      buffer->set_current_position_line(buffer->contents()->size() - 1);
+      editor_state->MoveBufferForwards(editor_state->repetitions);
+      editor_state->screen_needs_redraw = true;
     }
+    editor_state->structure = 0;
     editor_state->repetitions = 1;
   }
 
@@ -141,10 +153,11 @@ class MoveForwards : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    if (editor_state->buffers.empty()) { return; }
-    shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
-    if (buffer->contents()->empty()) { return; }
     if (editor_state->structure == 0) {
+      if (editor_state->buffers.empty()) { return; }
+      shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
+      if (buffer->contents()->empty()) { return; }
+
       if (buffer->current_position_col() + editor_state->repetitions
           <= buffer->current_line()->size()) {
         buffer->set_current_position_col(
@@ -152,12 +165,13 @@ class MoveForwards : public Command {
       } else {
         buffer->set_current_position_col(buffer->current_line()->size());
       }
+
+      editor_state->repetitions = 1;
+      editor_state->structure = 0;
     } else {
       editor_state->structure--;
       LineDown::Move(c, editor_state);
     }
-    editor_state->repetitions = 1;
-    editor_state->structure = 0;
   }
 };
 
@@ -168,10 +182,11 @@ class MoveBackwards : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    if (editor_state->buffers.empty()) { return; }
-    shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
-    if (buffer->contents()->empty()) { return; }
     if (editor_state->structure == 0) {
+      if (editor_state->buffers.empty()) { return; }
+      shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
+      if (buffer->contents()->empty()) { return; }
+
       if (buffer->current_position_col() > buffer->current_line()->size()) {
         buffer->set_current_position_col(buffer->current_line()->size());
       }
@@ -181,11 +196,13 @@ class MoveBackwards : public Command {
       } else {
         buffer->set_current_position_col(0);
       }
+
+      editor_state->repetitions = 1;
+      editor_state->structure = 0;
     } else {
+      editor_state->structure--;
       LineUp::Move(c, editor_state);
     }
-    editor_state->repetitions = 1;
-    editor_state->structure = 0;
   }
 };
 
