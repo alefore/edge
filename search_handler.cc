@@ -41,20 +41,16 @@ void SearchHandler(const string& input, EditorState* editor_state) {
   int delta;
   size_t position_line = buffer->current_position_line();
   size_t position_col;
-  size_t times;
   shared_ptr<LazyString> next_line;
 
   assert(position_line < buffer->contents()->size());
-  //buffer->MaybeAdjustPositionCol();
 
   switch (editor_state->direction) {
     case FORWARDS:
       delta = 1;
-      times = buffer->contents()->size() - position_line;
       if (buffer->current_position_col() >= buffer->current_line()->contents->size()) {
         // We're at the end of the line, start searching in the next.
         position_line++;
-        times--;
         next_line = buffer->current_line()->contents;
         position_col = 0;
       } else {
@@ -65,7 +61,6 @@ void SearchHandler(const string& input, EditorState* editor_state) {
       break;
     case BACKWARDS:
       delta = -1;
-      times = position_line + 1;
       // Even though we're searching backwards, we have to include the whole
       // line: it's possible there's a match starting before our current position
       // but going beyond it.  We have to compensate for that below, when
@@ -77,8 +72,10 @@ void SearchHandler(const string& input, EditorState* editor_state) {
 
   editor_state->status = "Not found";
 
+  bool wrapped = false;
+
   // This can certainly be optimized.
-  for (size_t i = 0; i < times; i++) {
+  for (size_t i = 0; i < buffer->contents()->size() + 1; i++) {
     string str = next_line->ToString();
     bool match = false;
 
@@ -107,15 +104,21 @@ void SearchHandler(const string& input, EditorState* editor_state) {
     if (match) {
       buffer->set_current_position_line(position_line);
       buffer->set_current_position_col(pos + position_col);
-      editor_state->status = "Found";
+      editor_state->status = wrapped ? "Found (wrapped)" : "Found";
       break;  // TODO: Honor repetitions.
     }
 
-    if (i + 1 < times) {
+    if (position_line == 0 && delta == -1) {
+      position_line = buffer->contents()->size() - 1;
+      wrapped = true;
+    } else if (position_line == buffer->contents()->size() - 1 && delta == 1) {
+      position_line = 0;
+      wrapped = true;
+    } else {
       position_line += delta;
-      position_col = 0;
-      next_line = buffer->contents()->at(position_line)->contents;
     }
+    position_col = 0;
+    next_line = buffer->contents()->at(position_line)->contents;
   }
   editor_state->mode = NewCommandMode();
   editor_state->direction = FORWARDS;
