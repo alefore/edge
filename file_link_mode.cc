@@ -5,8 +5,10 @@
 #include <algorithm>
 
 extern "C" {
-#include <libgen.h>
 #include <dirent.h>
+#include <libgen.h>
+#include <limits.h>
+#include <stdlib.h>
 }
 
 #include "char_buffer.h"
@@ -15,7 +17,9 @@ extern "C" {
 #include "run_command_handler.h"
 
 namespace {
+using std::make_pair;
 using std::shared_ptr;
+using std::unique_ptr;
 using std::sort;
 using namespace afc::editor;
 
@@ -50,11 +54,10 @@ class FileBuffer : public OpenBuffer {
     DIR* dir = opendir(path_.c_str());
     assert(dir != nullptr);
     struct dirent* entry;
-    string prefix = path_ == "." ? "" : path_ + "/";
     while ((entry = readdir(dir)) != nullptr) {
       unique_ptr<Line> line(new Line);
       line->contents.reset(NewCopyCharBuffer(entry->d_name).release());
-      line->activate.reset(NewFileLinkMode(prefix + entry->d_name, 0).release());
+      line->activate.reset(NewFileLinkMode(path_ + "/" + entry->d_name, 0).release());
       contents_.push_back(std::move(line));
     }
     closedir(dir);
@@ -75,13 +78,13 @@ class FileBuffer : public OpenBuffer {
 class FileLinkMode : public EditorMode {
  public:
   FileLinkMode(const string& path, size_t position)
-      : path_(path), position_(position) {}
+      : path_(realpath(path.c_str(), nullptr)), position_(position) {}
 
   void ProcessInput(int c, EditorState* editor_state) {
-    auto it = editor_state->buffers.insert(make_pair(path_, nullptr));
+    auto it = editor_state->buffers.insert(make_pair(path_.get(), nullptr));
     editor_state->current_buffer = it.first;
     if (it.second) {
-      it.first->second.reset(new FileBuffer(path_));
+      it.first->second.reset(new FileBuffer(path_.get()));
       it.first->second->Reload(editor_state);
     }
     it.first->second->set_current_position_line(position_);
@@ -89,7 +92,7 @@ class FileLinkMode : public EditorMode {
     editor_state->mode = std::move(NewCommandMode());
   }
 
-  string path_;
+  unique_ptr<char> path_;
   size_t position_;
 };
 
