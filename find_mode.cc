@@ -13,14 +13,33 @@ using std::unique_ptr;
 using std::shared_ptr;
 
 class FindMode : public EditorMode {
-
-  bool SeekOnce(const shared_ptr<OpenBuffer> buffer, int c) {
+ public:
+  bool SeekOnce(Direction direction, const shared_ptr<OpenBuffer> buffer, int c) {
     if (buffer->contents()->empty()) { return false; }
     shared_ptr<LazyString> current_line = buffer->current_line()->contents;
-    size_t line_length = current_line->size();
-    for (size_t i = buffer->current_position_col() + 1; i < line_length; i++) {
-      if (current_line->get(i) == c) {
-        buffer->set_current_position_col(i);
+    int delta;
+    size_t position = buffer->current_position_col();
+    size_t times;
+    assert(position <= current_line->size());
+    switch (direction) {
+      case FORWARDS:
+        delta = 1;
+        times = current_line->size() - position;
+        break;
+      case BACKWARDS:
+        delta = -1;
+        times = position + 1;
+        break;
+    }
+
+    if (times == 0) {
+      return false;
+    }
+    times --;
+    for (size_t i = 0; i < times; i ++) {
+      position += delta;
+      if (current_line->get(position) == c) {
+        buffer->set_current_position_col(position);
         return true;
       }
     }
@@ -30,13 +49,15 @@ class FindMode : public EditorMode {
   void ProcessInput(int c, EditorState* editor_state) {
     if (editor_state->current_buffer != editor_state->buffers.end()) {
       for (size_t times = 0; times < editor_state->repetitions; times++) {
-        if (!SeekOnce(editor_state->get_current_buffer(), c)) {
+        if (!SeekOnce(editor_state->direction,
+                      editor_state->get_current_buffer(), c)) {
           break;
         }
       }
     }
     editor_state->mode = std::move(NewCommandMode());
     editor_state->repetitions = 1;
+    editor_state->direction = FORWARDS;
   }
 };
 
