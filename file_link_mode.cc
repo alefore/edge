@@ -1,15 +1,18 @@
 #include <cassert>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <algorithm>
 
 extern "C" {
+#include <libgen.h>
 #include <dirent.h>
 }
 
 #include "char_buffer.h"
 #include "file_link_mode.h"
 #include "editor.h"
+#include "run_command_handler.h"
 
 namespace {
 using std::shared_ptr;
@@ -30,7 +33,12 @@ class FileBuffer : public OpenBuffer {
     editor_state->screen_needs_redraw = true;
 
     if (!S_ISDIR(sb.st_mode)) {
-      LoadMemoryMappedFile(path_, this);
+      char* tmp = strdup(path_.c_str());
+      if (0 == strcmp(basename(tmp), "passwd")) {
+        RunCommandHandler("parsers/passwd <" + path_, editor_state);
+      } else {
+        LoadMemoryMappedFile(path_, this);
+      }
       saveable_ = true;
       return;
     }

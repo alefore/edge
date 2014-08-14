@@ -20,7 +20,8 @@ OpenBuffer::OpenBuffer()
       view_start_line_(0),
       current_position_line_(0),
       current_position_col_(0),
-      saveable_(false) {}
+      saveable_(false),
+      reading_from_parser_(false) {}
 
 void OpenBuffer::ReadData(EditorState* editor_state) {
   assert(fd_ > 0);
@@ -74,7 +75,34 @@ void OpenBuffer::AppendLazyString(shared_ptr<LazyString> input) {
   }
 }
 
+static void AddToParseTree(const shared_ptr<LazyString>& str_input) {
+  string str = str_input->ToString();
+}
+
 shared_ptr<Line> OpenBuffer::AppendLine(shared_ptr<LazyString> str) {
+  if (reading_from_parser_) {
+    switch (str->get(0)) {
+      case 'E':
+        return AppendRawLine(Substring(str, 1));
+
+      case 'T':
+        AddToParseTree(str);
+        return nullptr;
+    }
+    return nullptr;
+  }
+
+  if (contents_.empty()) {
+    if (str->ToString() == "EDGE PARSER v1.0") {
+      reading_from_parser_ = true;
+      return nullptr;
+    }
+  }
+
+  return AppendRawLine(str);
+}
+
+shared_ptr<Line> OpenBuffer::AppendRawLine(shared_ptr<LazyString> str) {
   shared_ptr<Line> line(new Line);
   line->contents = str;
   contents_.push_back(line);

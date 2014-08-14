@@ -31,6 +31,12 @@ struct Line {
   shared_ptr<LazyString> contents;
 };
 
+struct ParseTree {
+  string name;
+  int length;
+  vector<unique_ptr<ParseTree>> items;
+};
+
 class OpenBuffer {
  public:
   OpenBuffer();
@@ -41,6 +47,7 @@ class OpenBuffer {
 
   void AppendLazyString(shared_ptr<LazyString> input);
   shared_ptr<Line> AppendLine(shared_ptr<LazyString> line);
+  shared_ptr<Line> AppendRawLine(shared_ptr<LazyString> str);
 
   // Checks that current_position_col is in the expected range (between 0 and
   // the length of the current line).
@@ -76,6 +83,8 @@ class OpenBuffer {
  protected:
   void SetInputFile(int fd);
 
+  vector<unique_ptr<ParseTree>> parse_tree;
+
   int fd_;
   char* buffer_;
   size_t buffer_line_start_;
@@ -89,6 +98,7 @@ class OpenBuffer {
   size_t current_position_col_;
 
   bool saveable_;
+  bool reading_from_parser_;
 };
 
 }  // namespace editor
