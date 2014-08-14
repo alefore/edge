@@ -19,6 +19,7 @@
 #include "terminal.h"
 
 namespace {
+using std::advance;
 using std::make_pair;
 using namespace afc::editor;
 
@@ -30,6 +31,55 @@ class Quit : public Command {
 
   void ProcessInput(int c, EditorState* editor_state) {
     editor_state->terminate = true;
+  }
+};
+
+class GotoCommand : public Command {
+ public:
+  const string Description() {
+    return "goes to Rth structure from the beginning";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    if (editor_state->current_buffer == editor_state->buffers.end()) {
+      return;
+    }
+    if (editor_state->structure == 0) {
+      shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
+      if (buffer->contents()->empty()) { return; }
+      size_t position =
+          ComputePosition(editor_state, buffer->current_line()->size() + 1);
+      assert(position <= buffer->current_line()->size());
+      buffer->set_current_position_col(position);
+    } else if (editor_state->structure == 1) {
+      shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
+      if (buffer->contents()->empty()) { return; }
+      size_t position =
+          ComputePosition(editor_state, buffer->contents()->size());
+      assert(position < buffer->contents()->size());
+      buffer->set_current_position_line(position);
+    } else if (editor_state->structure == 2) {
+      size_t position =
+          ComputePosition(editor_state, editor_state->buffers.size());
+      assert(position < editor_state->buffers.size());
+      editor_state->current_buffer = editor_state->buffers.begin();
+      advance(editor_state->current_buffer, position);
+    }
+    editor_state->screen_needs_redraw = true;
+    editor_state->structure = 0;
+    editor_state->direction = FORWARDS;
+    editor_state->repetitions = 1;
+  }
+
+ private:
+  size_t ComputePosition(EditorState* editor_state, size_t elements) {
+    if (editor_state->repetitions == 0) { editor_state->repetitions = 1; }
+    editor_state->repetitions = min(elements, editor_state->repetitions);
+    if (editor_state->direction == FORWARDS) {
+      return editor_state->repetitions - 1;
+    } else {
+      return elements - editor_state->repetitions;
+    }
   }
 };
 
@@ -398,6 +448,7 @@ static const map<int, Command*>& GetCommandModeMap() {
         '/',
         NewLinePromptCommand("/", "searches for a string", SearchHandler).release()));
 
+    output.insert(make_pair('g', new GotoCommand()));
     output.insert(make_pair('d', new Delete()));
     output.insert(make_pair('\n', new ActivateLink()));
 
