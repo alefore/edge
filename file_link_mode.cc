@@ -101,9 +101,22 @@ class FileLinkMode : public EditorMode {
 };
 
 static string FindPath(const string& path, vector<int>* positions) {
+  struct stat dummy;
+  if (stat(path.c_str(), &dummy) != -1) { return path; }
+
+  // Strip off any trailing colons.
+  size_t str_end;
+  for (str_end = path.size();
+       str_end > 0 && path.at(str_end - 1) == ':';
+       str_end--) {
+    // Nothing.
+  }
+  const string path_without_suffix = path.substr(0, str_end);
+  if (path_without_suffix.empty()) { return path; }
+
   for (size_t tokens_to_try = 0; tokens_to_try <= positions->size(); tokens_to_try++) {
     vector<int> tokens;
-    string test_path = path;
+    string test_path = path_without_suffix;
     for (size_t i = 0; i < tokens_to_try; i++) {
       size_t pos = test_path.find_last_of(':');
       if (pos == 0 || pos == test_path.npos) {
@@ -112,7 +125,6 @@ static string FindPath(const string& path, vector<int>* positions) {
       tokens.push_back(stoi(test_path.substr(pos + 1)));
       test_path = test_path.substr(0, pos);
     }
-    struct stat dummy;
     if (stat(test_path.c_str(), &dummy) != -1) {
       reverse(tokens.begin(), tokens.end());
       for (size_t i = 0; i < tokens.size(); i++) {
