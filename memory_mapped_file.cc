@@ -24,6 +24,7 @@ static struct stat StatFD(int fd) {
 }
 
 static char* LoadFile(const string& path, int fd, size_t size) {
+  if (size == 0) { return nullptr; }
   void* addr = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
   if (addr == MAP_FAILED) {
     cerr << path << ": mmap failed: " << strerror(errno) << endl;
@@ -36,10 +37,12 @@ MemoryMappedFile::MemoryMappedFile(const string& path)
     : path_(path),
       fd_(open(path_.c_str(), O_RDONLY)),
       stat_buffer_(StatFD(fd_)),
-      buffer_(LoadFile(path_, fd_, stat_buffer_.st_size)) {}
+      buffer_(LoadFile(path_, fd_, stat_buffer_.st_size)) {
+  assert(size() == 0 || buffer_ != nullptr);
+}
 
 MemoryMappedFile::~MemoryMappedFile() {
-  munmap(buffer_, stat_buffer_.st_size);
+  if (buffer_ != nullptr) { munmap(buffer_, stat_buffer_.st_size); }
   close(fd_);
 }
 
