@@ -320,6 +320,17 @@ class EnterFindMode : public Command {
   }
 };
 
+class ReverseDirection : public Command {
+ public:
+  const string Description() {
+    return "reverses the direction of the next command";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    editor_state->direction = editor_state->direction == FORWARDS ? BACKWARDS : FORWARDS;
+  }
+};
+
 void SetRepetitions(EditorState* editor_state, int number) {
   editor_state->repetitions = number;
 }
@@ -380,6 +391,9 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('a', new EnterAdvancedMode()));
     output.insert(make_pair('i', new EnterInsertMode()));
     output.insert(make_pair('f', new EnterFindMode()));
+
+    output.insert(make_pair('r', new ReverseDirection()));
+
     output.insert(make_pair(
         '/',
         NewLinePromptCommand("/", "searches for a string", SearchHandler).release()));

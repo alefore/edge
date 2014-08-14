@@ -8,6 +8,7 @@
 
 #include "buffer.h"
 #include "command_mode.h"
+#include "direction.h"
 #include "lazy_string.h"
 #include "memory_mapped_file.h"
 
@@ -47,8 +48,10 @@ struct EditorState {
   map<string, shared_ptr<OpenBuffer>>::iterator current_buffer;
   bool terminate;
 
+  Direction direction;
   size_t repetitions;
   int structure;
+
   unique_ptr<EditorMode> mode;
 
   // Set by the terminal handler.
