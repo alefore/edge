@@ -26,6 +26,7 @@ struct EditorState {
   EditorState()
       : current_buffer(buffers.end()),
         terminate(false),
+        direction(FORWARDS),
         repetitions(1),
         structure(0),
         mode(std::move(NewCommandMode())),
