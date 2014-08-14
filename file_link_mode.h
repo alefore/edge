@@ -12,7 +12,8 @@ namespace editor {
 using std::unique_ptr;
 using std::string;
 
-unique_ptr<EditorMode> NewFileLinkMode(const string& path, int position);
+unique_ptr<EditorMode> NewFileLinkMode(
+    const string& path, int position, bool ignore_if_not_found);
 
 }  // namespace editor
 }  // namespace afc

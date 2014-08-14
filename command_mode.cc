@@ -6,6 +6,7 @@
 #include "advanced_mode.h"
 #include "command.h"
 #include "command_mode.h"
+#include "file_link_mode.h"
 #include "find_mode.h"
 #include "help_command.h"
 #include "insert_mode.h"
@@ -429,6 +430,13 @@ class ActivateLink : public Command {
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
     if (buffer->current_line()->activate.get() != nullptr) {
       buffer->current_line()->activate->ProcessInput(c, editor_state);
+    } else {
+      // TODO(alejo): Improve this.
+      string path = buffer->current_line()->contents->ToString();
+      unique_ptr<EditorMode> mode = NewFileLinkMode(path, 0, true);
+      if (mode.get() != nullptr) {
+        mode->ProcessInput(c, editor_state);
+      }
     }
   }
 };

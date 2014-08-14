@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include <algorithm>
+#include <stdexcept>
 
 extern "C" {
 #include <dirent.h>
@@ -57,7 +58,8 @@ class FileBuffer : public OpenBuffer {
     while ((entry = readdir(dir)) != nullptr) {
       unique_ptr<Line> line(new Line);
       line->contents.reset(NewCopyCharBuffer(entry->d_name).release());
-      line->activate.reset(NewFileLinkMode(path_ + "/" + entry->d_name, 0).release());
+      line->activate.reset(
+          NewFileLinkMode(path_ + "/" + entry->d_name, 0, false).release());
       contents_.push_back(std::move(line));
     }
     closedir(dir);
@@ -112,7 +114,7 @@ static string FindPath(const string& path, vector<int>* positions) {
     // Nothing.
   }
   const string path_without_suffix = path.substr(0, str_end);
-  if (path_without_suffix.empty()) { return path; }
+  if (path_without_suffix.empty()) { return ""; }
 
   for (size_t tokens_to_try = 0; tokens_to_try <= positions->size(); tokens_to_try++) {
     vector<int> tokens;
@@ -120,9 +122,13 @@ static string FindPath(const string& path, vector<int>* positions) {
     for (size_t i = 0; i < tokens_to_try; i++) {
       size_t pos = test_path.find_last_of(':');
       if (pos == 0 || pos == test_path.npos) {
-        return path;
+        return "";
       }
-      tokens.push_back(stoi(test_path.substr(pos + 1)));
+      try {
+        tokens.push_back(stoi(test_path.substr(pos + 1)));
+      } catch (const std::invalid_argument& ia) {
+        return "";
+      }
       test_path = test_path.substr(0, pos);
     }
     if (stat(test_path.c_str(), &dummy) != -1) {
@@ -133,7 +139,7 @@ static string FindPath(const string& path, vector<int>* positions) {
       return test_path;
     }
   }
-  return path;
+  return "";
 }
 
 }  // namespace
@@ -142,11 +148,18 @@ namespace afc {
 namespace editor {
 
 using std::unique_ptr;
-using std::stoi;
 
-unique_ptr<EditorMode> NewFileLinkMode(const string& path, int position) {
+unique_ptr<EditorMode> NewFileLinkMode(
+    const string& path, int position, bool ignore_if_not_found) {
   vector<int> tokens { position, 0 };
   string actual_path = FindPath(path, &tokens);
+  if (actual_path.empty()) {
+    if (ignore_if_not_found) {
+      return nullptr;
+    } else {
+      actual_path = path;
+    }
+  }
   return std::move(unique_ptr<EditorMode>(
       new FileLinkMode(actual_path, tokens[0], tokens[1])));
 }
