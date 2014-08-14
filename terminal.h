@@ -29,7 +29,7 @@ class Terminal {
   int Read();
 
  private:
-  void ShowStatus(const string& status);
+  void ShowStatus(const EditorState& editor_state);
   void ShowBuffer(const EditorState* editor_state);
   void AdjustPosition(const shared_ptr<OpenBuffer> buffer);
 

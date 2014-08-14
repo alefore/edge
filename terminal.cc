@@ -12,6 +12,7 @@ namespace afc {
 namespace editor {
 
 using std::cerr;
+using std::to_string;
 
 constexpr int Terminal::DOWN_ARROW;
 constexpr int Terminal::UP_ARROW;
@@ -39,7 +40,7 @@ void Terminal::Display(EditorState* editor_state) {
       editor_state->screen_needs_redraw = false;
       clear();
     }
-    ShowStatus(editor_state->status);
+    ShowStatus(*editor_state);
     refresh();
     return;
   }
@@ -56,24 +57,33 @@ void Terminal::Display(EditorState* editor_state) {
     ShowBuffer(editor_state);
     editor_state->screen_needs_redraw = false;
   }
-  ShowStatus(editor_state->status);
+  ShowStatus(*editor_state);
   AdjustPosition(buffer);
   refresh();
   editor_state->visible_lines = static_cast<size_t>(LINES);
 }
 
-void Terminal::ShowStatus(const string& status) {
-  if (status.empty()) {
-    return;
-  }
+void Terminal::ShowStatus(const EditorState& editor_state) {
   move(LINES - 1, 0);
-  if (status.size() < static_cast<size_t>(COLS)) {
-    addstr(status.c_str());
-    for (int i = status.size(); i < COLS; i++) {
+  if (editor_state.current_buffer != editor_state.buffers.end()) {
+    auto buffer = editor_state.current_buffer->second;
+    addstr(to_string(buffer->current_position_line() + 1).c_str());
+    addch(':');
+    addstr(to_string(buffer->current_position_col() + 1).c_str());
+    addch(' ');
+  }
+  int unused_y, x;
+  getyx(stdscr, unused_y, x);
+  (void) unused_y;  // Silence warning about unused variable y.
+  if (x >= COLS) { return; }
+  size_t chars_left = COLS - x;
+  if (editor_state.status.size() < chars_left) {
+    addstr(editor_state.status.c_str());
+    for (size_t i = editor_state.status.size(); i < chars_left; i++) {
       addch(' ');
     }
   } else {
-    addstr(status.substr(0, COLS).c_str());
+    addstr(editor_state.status.substr(0, chars_left).c_str());
   }
 }
 
