@@ -11,6 +11,7 @@ extern "C" {
 #endif
 
 #include "editor.h"
+#include "substring.h"
 
 namespace afc {
 namespace editor {
@@ -27,8 +28,8 @@ void SearchHandler(const string& input, EditorState* editor_state) {
     return;
   }
 
-  std::cerr << "Search: [" << input << "]\n";
   auto buffer = editor_state->get_current_buffer();
+
 #if CPP_REGEX
   std::regex pattern(input);
   std::smatch pattern_match;
@@ -36,30 +37,88 @@ void SearchHandler(const string& input, EditorState* editor_state) {
   regex_t preg;
   regcomp(&preg, input.c_str(), REG_ICASE);
 #endif
+
+  int delta;
+  size_t position_line = buffer->current_position_line();
+  size_t position_col;
+  size_t times;
+  shared_ptr<LazyString> next_line;
+
+  assert(position_line < buffer->contents()->size());
+  //buffer->MaybeAdjustPositionCol();
+
+  switch (editor_state->direction) {
+    case FORWARDS:
+      delta = 1;
+      times = buffer->contents()->size() - position_line;
+      if (buffer->current_position_col() >= buffer->current_line()->contents->size()) {
+        // We're at the end of the line, start searching in the next.
+        position_line++;
+        times--;
+        next_line = buffer->current_line()->contents;
+        position_col = 0;
+      } else {
+        next_line = Substring(buffer->current_line()->contents,
+                              buffer->current_position_col() + 1);
+        position_col = buffer->current_position_col() + 1;
+      }
+      break;
+    case BACKWARDS:
+      delta = -1;
+      times = position_line + 1;
+      // Even though we're searching backwards, we have to include the whole
+      // line: it's possible there's a match starting before our current position
+      // but going beyond it.  We have to compensate for that below, when
+      // checking a match.
+      next_line = buffer->current_line()->contents;
+      position_col = 0;
+      break;
+  }
+
+  editor_state->status = "Not found";
+
   // This can certainly be optimized.
-  for (size_t i = buffer->current_position_line() + 1;
-       i < buffer->contents()->size();
-       i++) {
-    string str = buffer->contents()->at(i)->contents->ToString();
-    std::cerr << "String walked: [" << str << "]\n";
+  for (size_t i = 0; i < times; i++) {
+    string str = next_line->ToString();
+    bool match = false;
+
 #if CPP_REGEX
     std::regex_search(str, pattern_match, pattern);
-    if (pattern_match.empty()) {
-      continue;
+    if (!pattern_match.empty()) {
+      match = true;
     }
     size_t pos = pattern_match.prefix().first - str.begin();
 #else
     regmatch_t matches;
-    if (regexec(&preg, str.c_str(), 1, &matches, 0) != 0) {
-      continue;
+    if (regexec(&preg, str.c_str(), 1, &matches, 0) == 0) {
+      match = true;
     }
     size_t pos = matches.rm_so;
 #endif
-    buffer->set_current_position_line(i);
-    buffer->set_current_position_col(pos);
-    break;  // TODO: Honor repetitions.
+
+    if (match
+        && editor_state->direction == BACKWARDS
+        && position_line == buffer->current_position_line()
+        && pos >= buffer->current_position_col()) {
+      // Not a match we're interested on.
+      match = false;
+    }
+
+    if (match) {
+      buffer->set_current_position_line(position_line);
+      buffer->set_current_position_col(pos + position_col);
+      editor_state->status = "Found";
+      break;  // TODO: Honor repetitions.
+    }
+
+    if (i + 1 < times) {
+      position_line += delta;
+      position_col = 0;
+      next_line = buffer->contents()->at(position_line)->contents;
+    }
   }
   editor_state->mode = NewCommandMode();
+  editor_state->direction = FORWARDS;
   editor_state->screen_needs_redraw = true;
 }
 

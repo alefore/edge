@@ -30,7 +30,7 @@ help_command.o: help_command.cc help_command.h buffer.h char_buffer.h editor.h c
 noop_command.o: noop_command.cc noop_command.h char_buffer.h editor.h command.h Makefile
 
 run_command_handler.o: run_command_handler.cc run_command_handler.h buffer.h char_buffer.h command_mode.h editor.h Makefile
-search_handler.o: search_handler.cc search_handler.h Makefile
+search_handler.o: search_handler.cc search_handler.h editor.h substring.h Makefile
 
 lazy_string.o: lazy_string.cc lazy_string.h Makefile
 editable_string.o: editable_string.cc editable_string.h Makefile
