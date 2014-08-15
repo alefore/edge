@@ -202,16 +202,20 @@ class GotoPreviousPositionCommand : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    if (editor_state->positions_stack.empty()) { return; }
-    const Position& pos = editor_state->positions_stack.back();
-    auto it = editor_state->buffers.find(pos.buffer);
-    if (it != editor_state->buffers.end()) {
-      editor_state->current_buffer = it;
-      it->second->set_current_position_line(pos.line);
-      it->second->set_current_position_col(pos.col);
-      editor_state->screen_needs_redraw = true;
+    while (editor_state->repetitions > 0
+           && !editor_state->positions_stack.empty()) {
+      const Position& pos = editor_state->positions_stack.back();
+      auto it = editor_state->buffers.find(pos.buffer);
+      if (it != editor_state->buffers.end()) {
+        editor_state->current_buffer = it;
+        it->second->set_current_position_line(pos.line);
+        it->second->set_current_position_col(pos.col);
+        editor_state->screen_needs_redraw = true;
+      }
+      editor_state->positions_stack.pop_back();
+      editor_state->repetitions--;
     }
-    editor_state->positions_stack.pop_back();
+    editor_state->repetitions = 1;
   }
 };
 
