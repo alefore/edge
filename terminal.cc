@@ -58,7 +58,9 @@ void Terminal::Display(EditorState* editor_state) {
     editor_state->screen_needs_redraw = false;
   }
   ShowStatus(*editor_state);
-  AdjustPosition(buffer);
+  if (!editor_state->status_prompt) {
+    AdjustPosition(buffer);
+  }
   refresh();
   editor_state->visible_lines = static_cast<size_t>(LINES);
 }
@@ -84,15 +86,17 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
       addstr(flags.c_str());
     }
   }
-  int unused_y, x;
-  getyx(stdscr, unused_y, x);
-  (void) unused_y;  // Silence warning about unused variable y.
+  int y, x;
+  getyx(stdscr, y, x);
   if (x >= COLS) { return; }
   size_t chars_left = COLS - x;
   if (editor_state.status.size() < chars_left) {
     addstr(editor_state.status.c_str());
     for (size_t i = editor_state.status.size(); i < chars_left; i++) {
       addch(' ');
+    }
+    if (editor_state.status_prompt) {
+      move(y, x + editor_state.status.size());
     }
   } else {
     addstr(editor_state.status.substr(0, chars_left).c_str());

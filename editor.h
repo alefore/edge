@@ -41,6 +41,7 @@ struct EditorState {
         mode(std::move(NewCommandMode())),
         visible_lines(1),
         screen_needs_redraw(false),
+        status_prompt(false),
         status("") {}
 
   void CheckPosition() {
@@ -77,6 +78,7 @@ struct EditorState {
 
   list<Position> positions_stack;
 
+  bool status_prompt;
   string status;
 };
 

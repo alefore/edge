@@ -37,11 +37,14 @@ class LinePromptMode : public EditorMode {
     switch (c) {
       case '\n':
         InsertToHistory(editor_state);
+        editor_state->status_prompt = false;
         editor_state->status = "";
         handler_(input_->ToString(), editor_state);
         return;
 
       case Terminal::ESCAPE:
+        editor_state->status = "";
+        editor_state->status_prompt = false;
         handler_("", editor_state);
         return;
 
@@ -88,7 +91,7 @@ class LinePromptMode : public EditorMode {
       return;
     }
     auto line = buffer->contents()->at(history_position_)->contents;
-    input_ = EditableString::New(line, line->size());
+    input_ = EditableString::New(line->ToString());
   }
 
   void InsertToHistory(EditorState* editor_state) {
@@ -126,6 +129,7 @@ class LinePromptCommand : public Command {
       history->second->set_current_position_line(
           history->second->contents()->size() - 1);
     }
+    editor_state->status_prompt = true;
     editor_state->status = prompt_;
   }
 
