@@ -104,40 +104,33 @@ class FileLinkMode : public EditorMode {
 
 static string FindPath(const string& path, vector<int>* positions) {
   struct stat dummy;
-  if (stat(path.c_str(), &dummy) != -1) { return path; }
 
   // Strip off any trailing colons.
-  size_t str_end;
-  for (str_end = path.size();
-       str_end > 0 && path.at(str_end - 1) == ':';
-       str_end--) {
-    // Nothing.
-  }
-  const string path_without_suffix = path.substr(0, str_end);
-  if (path_without_suffix.empty()) { return ""; }
+  for (size_t str_end = path.size();
+       str_end != path.npos && str_end != 0;
+       str_end = path.find_last_of(':', str_end - 1)) {
+    const string path_without_suffix = path.substr(0, str_end);
+    assert(!path_without_suffix.empty());
+    if (stat(path_without_suffix.c_str(), &dummy) == -1) {
+      continue;
+    }
 
-  for (size_t tokens_to_try = 0; tokens_to_try <= positions->size(); tokens_to_try++) {
-    vector<int> tokens;
-    string test_path = path_without_suffix;
-    for (size_t i = 0; i < tokens_to_try; i++) {
-      size_t pos = test_path.find_last_of(':');
-      if (pos == 0 || pos == test_path.npos) {
-        return "";
+    for (auto& it : *positions) {
+      while (str_end < path.size() && ':' == path[str_end]) {
+        str_end++;
       }
+      if (str_end == path.size()) { break; }
+      size_t next_str_end = path.find(':', str_end);
       try {
-        tokens.push_back(stoi(test_path.substr(pos + 1)));
+        it = stoi(path.substr(str_end, next_str_end));
+        if (it > 0) { it --; }
       } catch (const std::invalid_argument& ia) {
-        return "";
+        break;
       }
-      test_path = test_path.substr(0, pos);
+      str_end = next_str_end;
+      if (str_end == path.npos) { break; }
     }
-    if (stat(test_path.c_str(), &dummy) != -1) {
-      reverse(tokens.begin(), tokens.end());
-      for (size_t i = 0; i < tokens.size(); i++) {
-        positions->at(i) = tokens.at(i) - 1;
-      }
-      return test_path;
-    }
+    return path_without_suffix;
   }
   return "";
 }
