@@ -194,149 +194,200 @@ class Delete : public Command {
 
 class LineUp : public Command {
  public:
-  const string Description() {
-    return "moves up one line";
-  }
-
-  static void Move(int c, EditorState* editor_state) {
-    if (editor_state->buffers.empty()) { return; }
-    shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
-    if (buffer->contents()->empty()) { return; }
-    if (editor_state->structure == 0) {
-      size_t pos = buffer->current_position_line();
-      if (editor_state->repetitions < pos) {
-        buffer->set_current_position_line(pos - editor_state->repetitions);
-      } else {
-        buffer->set_current_position_line(0);
-      }
-    } else {
-      editor_state->MoveBufferBackwards(editor_state->repetitions);
-      editor_state->screen_needs_redraw = true;
-    }
-    editor_state->ResetStructure();
-    editor_state->repetitions = 1;
-  }
-
-  void ProcessInput(int c, EditorState* editor_state) {
-    Move(c, editor_state);
-  }
+  const string Description();
+  static void Move(int c, EditorState* editor_state);
+  void ProcessInput(int c, EditorState* editor_state);
 };
 
 class LineDown : public Command {
  public:
-  const string Description() {
-    return "moves down one line";
-  }
-
-  static void Move(int c, EditorState* editor_state) {
-    if (editor_state->buffers.empty()) { return; }
-    shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
-    if (buffer->contents()->empty()) { return; }
-    if (editor_state->structure == 0) {
-      size_t pos = buffer->current_position_line();
-      if (pos + editor_state->repetitions < buffer->contents()->size() - 1) {
-        buffer->set_current_position_line(pos + editor_state->repetitions);
-      } else {
-        buffer->set_current_position_line(buffer->contents()->size() - 1);
-      }
-    } else {
-      editor_state->MoveBufferForwards(editor_state->repetitions);
-      editor_state->screen_needs_redraw = true;
-    }
-    editor_state->ResetStructure();
-    editor_state->repetitions = 1;
-  }
-
-  void ProcessInput(int c, EditorState* editor_state) {
-    Move(c, editor_state);
-  }
+  const string Description();
+  static void Move(int c, EditorState* editor_state);
+  void ProcessInput(int c, EditorState* editor_state);
 };
 
 class PageUp : public Command {
  public:
-  const string Description() {
-    return "moves up one page";
-  }
-
-  void ProcessInput(int c, EditorState* editor_state) {
-    editor_state->repetitions *= editor_state->visible_lines;
-    editor_state->ResetStructure();
-    LineUp::Move(c, editor_state);
-  }
+  const string Description();
+  static void Move(int c, EditorState* editor_state);
+  void ProcessInput(int c, EditorState* editor_state);
 };
 
 class PageDown : public Command {
  public:
-  const string Description() {
-    return "moves down one page";
-  }
-
-  void ProcessInput(int c, EditorState* editor_state) {
-    editor_state->repetitions *= editor_state->visible_lines;
-    editor_state->ResetStructure();
-    LineDown::Move(c, editor_state);
-  }
+  const string Description();
+  void ProcessInput(int c, EditorState* editor_state);
 };
 
 class MoveForwards : public Command {
  public:
-  const string Description() {
-    return "moves forwards";
-  }
-
-  void ProcessInput(int c, EditorState* editor_state) {
-    if (editor_state->structure == 0) {
-      if (editor_state->buffers.empty()) { return; }
-      shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
-      if (buffer->contents()->empty()) { return; }
-
-      if (buffer->current_position_col() + editor_state->repetitions
-          <= buffer->current_line()->size()) {
-        buffer->set_current_position_col(
-            buffer->current_position_col() + editor_state->repetitions);
-      } else {
-        buffer->set_current_position_col(buffer->current_line()->size());
-      }
-
-      editor_state->repetitions = 1;
-      editor_state->ResetStructure();
-    } else {
-      editor_state->structure--;
-      LineDown::Move(c, editor_state);
-    }
-  }
+  const string Description();
+  void ProcessInput(int c, EditorState* editor_state);
+  static void Move(int c, EditorState* editor_state);
 };
 
 class MoveBackwards : public Command {
  public:
-  const string Description() {
-    return "moves backwards";
+  const string Description();
+  void ProcessInput(int c, EditorState* editor_state);
+  static void Move(int c, EditorState* editor_state);
+};
+
+const string LineUp::Description() {
+  return "moves up one line";
+}
+
+/* static */ void LineUp::Move(int c, EditorState* editor_state) {
+  if (editor_state->direction == BACKWARDS) {
+    editor_state->direction = FORWARDS;
+    LineDown::Move(c, editor_state);
+    return;
   }
-
-  void ProcessInput(int c, EditorState* editor_state) {
-    if (editor_state->structure == 0) {
-      if (editor_state->buffers.empty()) { return; }
-      shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
-      if (buffer->contents()->empty()) { return; }
-
-      if (buffer->current_position_col() > buffer->current_line()->size()) {
-        buffer->set_current_position_col(buffer->current_line()->size());
-      }
-      if (buffer->current_position_col() > editor_state->repetitions) {
-        buffer->set_current_position_col(
-            buffer->current_position_col() - editor_state->repetitions);
-      } else {
-        buffer->set_current_position_col(0);
-      }
-
-      editor_state->repetitions = 1;
-      editor_state->ResetStructure();
+  if (editor_state->buffers.empty()) { return; }
+  shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
+  if (buffer->contents()->empty()) { return; }
+  if (editor_state->structure == 0) {
+    size_t pos = buffer->current_position_line();
+    if (editor_state->repetitions < pos) {
+      buffer->set_current_position_line(pos - editor_state->repetitions);
     } else {
-      editor_state->structure--;
-      LineUp::Move(c, editor_state);
+      buffer->set_current_position_line(0);
     }
+  } else {
+    editor_state->MoveBufferBackwards(editor_state->repetitions);
+    editor_state->screen_needs_redraw = true;
+  }
+  editor_state->ResetStructure();
+  editor_state->repetitions = 1;
+}
+
+void LineUp::ProcessInput(int c, EditorState* editor_state) {
+  Move(c, editor_state);
+}
+
+const string LineDown::Description() {
+  return "moves down one line";
+}
+
+/* static */ void LineDown::Move(int c, EditorState* editor_state) {
+  if (editor_state->direction == BACKWARDS) {
+    editor_state->direction = FORWARDS;
+    LineUp::Move(c, editor_state);
+    return;
+  }
+  if (editor_state->buffers.empty()) { return; }
+  shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
+  if (buffer->contents()->empty()) { return; }
+  if (editor_state->structure == 0) {
+    size_t pos = buffer->current_position_line();
+    if (pos + editor_state->repetitions < buffer->contents()->size() - 1) {
+      buffer->set_current_position_line(pos + editor_state->repetitions);
+    } else {
+      buffer->set_current_position_line(buffer->contents()->size() - 1);
+    }
+  } else {
+    editor_state->MoveBufferForwards(editor_state->repetitions);
+    editor_state->screen_needs_redraw = true;
+  }
+  editor_state->ResetStructure();
+  editor_state->repetitions = 1;
+}
+
+void LineDown::ProcessInput(int c, EditorState* editor_state) {
+  Move(c, editor_state);
+}
+
+const string PageUp::Description() {
+  return "moves up one page";
+}
+
+void PageUp::ProcessInput(int c, EditorState* editor_state) {
+  editor_state->repetitions *= editor_state->visible_lines;
+  editor_state->ResetStructure();
+  LineUp::Move(c, editor_state);
+}
+
+const string PageDown::Description() {
+  return "moves down one page";
+}
+
+void PageDown::ProcessInput(int c, EditorState* editor_state) {
+  editor_state->repetitions *= editor_state->visible_lines;
+  editor_state->ResetStructure();
+  LineDown::Move(c, editor_state);
+}
+
+const string MoveForwards::Description() {
+  return "moves forwards";
+}
+
+void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
+  Move(c, editor_state);
+}
+
+/* static */ void MoveForwards::Move(int c, EditorState* editor_state) {
+  if (editor_state->direction == BACKWARDS) {
+    editor_state->direction = FORWARDS;
+    MoveBackwards::Move(c, editor_state);
+    return;
+  }
+  if (editor_state->structure == 0) {
+    if (editor_state->buffers.empty()) { return; }
+    shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
+    if (buffer->contents()->empty()) { return; }
+
+    if (buffer->current_position_col() + editor_state->repetitions
+        <= buffer->current_line()->size()) {
+      buffer->set_current_position_col(
+          buffer->current_position_col() + editor_state->repetitions);
+    } else {
+      buffer->set_current_position_col(buffer->current_line()->size());
+    }
+
+    editor_state->repetitions = 1;
+    editor_state->ResetStructure();
+  } else {
+    editor_state->structure--;
+    LineDown::Move(c, editor_state);
   }
 };
+
+const string MoveBackwards::Description() {
+  return "moves backwards";
+}
+
+void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
+  Move(c, editor_state);
+}
+
+/* static */ void MoveBackwards::Move(int c, EditorState* editor_state) {
+  if (editor_state->direction == BACKWARDS) {
+    editor_state->direction = FORWARDS;
+    MoveForwards::Move(c, editor_state);
+    return;
+  }
+  if (editor_state->structure == 0) {
+    if (editor_state->buffers.empty()) { return; }
+    shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
+    if (buffer->contents()->empty()) { return; }
+
+    if (buffer->current_position_col() > buffer->current_line()->size()) {
+      buffer->set_current_position_col(buffer->current_line()->size());
+    }
+    if (buffer->current_position_col() > editor_state->repetitions) {
+      buffer->set_current_position_col(
+          buffer->current_position_col() - editor_state->repetitions);
+    } else {
+      buffer->set_current_position_col(0);
+    }
+
+    editor_state->repetitions = 1;
+    editor_state->ResetStructure();
+  } else {
+    editor_state->structure--;
+    LineUp::Move(c, editor_state);
+  }
+}
 
 class EnterInsertMode : public Command {
  public:
