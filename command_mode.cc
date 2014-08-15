@@ -409,9 +409,10 @@ class NumberMode : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
+    auto consumer = consumer_; // Copy so that lambda can capture it.
     editor_state->mode = std::move(NewRepeatMode(
-        [consumer_](int c, EditorState* editor_state, int number) {
-      consumer_(editor_state, number);
+        [consumer](int c, EditorState* editor_state, int number) {
+      consumer(editor_state, number);
       editor_state->mode = std::move(NewCommandMode());
       editor_state->mode->ProcessInput(c, editor_state);
     }));
