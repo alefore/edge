@@ -46,5 +46,21 @@ void EditorState::PushCurrentPosition() {
   position.col = current_buffer->second->current_position_col();
 }
 
+void EditorState::PopLastNearPositions() {
+  while (true) {
+    if (positions_stack.empty() || current_buffer == buffers.end()) {
+      return;
+    }
+    const auto& pos = positions_stack.back();
+    const auto& buffer = get_current_buffer();
+    if (pos.buffer != current_buffer->first
+        || pos.line != buffer->current_position_line()
+        || pos.col != buffer->current_position_col()) {
+      return;
+    }
+    positions_stack.pop_back();
+  }
+}
+
 }  // namespace editor
 }  // namespace afc

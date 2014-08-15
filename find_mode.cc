@@ -56,6 +56,7 @@ class FindMode : public EditorMode {
         }
       }
     }
+    editor_state->PopLastNearPositions();
     editor_state->mode = std::move(NewCommandMode());
     editor_state->repetitions = 1;
     editor_state->direction = FORWARDS;

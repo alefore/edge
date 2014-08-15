@@ -57,6 +57,7 @@ struct EditorState {
   void MoveBufferBackwards(size_t times);
 
   void PushCurrentPosition();
+  void PopLastNearPositions();
 
   map<string, shared_ptr<OpenBuffer>> buffers;
   map<string, shared_ptr<OpenBuffer>>::iterator current_buffer;
