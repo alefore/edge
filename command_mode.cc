@@ -204,18 +204,23 @@ class GotoPreviousPositionCommand : public Command {
   void ProcessInput(int c, EditorState* editor_state) {
     while (editor_state->repetitions > 0
            && !editor_state->positions_stack.empty()) {
-      const Position& pos = editor_state->positions_stack.back();
+      const Position pos = editor_state->positions_stack.back();
+      editor_state->positions_stack.pop_back();
       auto it = editor_state->buffers.find(pos.buffer);
-      if (it != editor_state->buffers.end()) {
+      if (it != editor_state->buffers.end()
+          && (pos.buffer != editor_state->current_buffer->first
+              || (editor_state->structure <= 1
+                  && pos.line != editor_state->get_current_buffer()->current_position_line())
+              || editor_state->structure <= 0)) {
         editor_state->current_buffer = it;
         it->second->set_current_position_line(pos.line);
         it->second->set_current_position_col(pos.col);
         editor_state->screen_needs_redraw = true;
+        editor_state->repetitions--;
       }
-      editor_state->positions_stack.pop_back();
-      editor_state->repetitions--;
     }
     editor_state->repetitions = 1;
+    editor_state->ResetStructure();
   }
 };
 
