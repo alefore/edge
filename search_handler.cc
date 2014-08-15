@@ -104,6 +104,7 @@ void SearchHandler(const string& input, EditorState* editor_state) {
     }
 
     if (match) {
+      editor_state->PushCurrentPosition();
       buffer->set_current_position_line(position_line);
       buffer->set_current_position_col(pos + position_col);
       editor_state->status = wrapped ? "Found (wrapped)" : "Found";

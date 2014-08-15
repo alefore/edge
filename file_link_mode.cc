@@ -84,6 +84,7 @@ class FileLinkMode : public EditorMode {
       : path_(realpath(path.c_str(), nullptr)), line_(line), col_(col) {}
 
   void ProcessInput(int c, EditorState* editor_state) {
+    editor_state->PushCurrentPosition();
     auto it = editor_state->buffers.insert(make_pair(path_.get(), nullptr));
     editor_state->current_buffer = it.first;
     if (it.second) {

@@ -37,5 +37,14 @@ void EditorState::MoveBufferBackwards(size_t times) {
   }
 }
 
+void EditorState::PushCurrentPosition() {
+  if (current_buffer == buffers.end()) { return; }
+  positions_stack.emplace_back();
+  Position& position = positions_stack.back();
+  position.buffer = current_buffer->first;
+  position.line = current_buffer->second->current_position_line();
+  position.col = current_buffer->second->current_position_col();
+}
+
 }  // namespace editor
 }  // namespace afc

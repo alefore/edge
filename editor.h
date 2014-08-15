@@ -1,6 +1,7 @@
 #ifndef __AFC_EDITOR_EDITOR_H__
 #define __AFC_EDITOR_EDITOR_H__
 
+#include <list>
 #include <map>
 #include <memory>
 #include <string>
@@ -18,9 +19,16 @@ namespace editor {
 using std::shared_ptr;
 using std::unique_ptr;
 using std::vector;
+using std::list;
 using std::map;
 using std::max;
 using std::min;
+
+struct Position {
+  string buffer;
+  size_t line;
+  size_t col;
+};
 
 struct EditorState {
   EditorState()
@@ -48,6 +56,8 @@ struct EditorState {
   void MoveBufferForwards(size_t times);
   void MoveBufferBackwards(size_t times);
 
+  void PushCurrentPosition();
+
   map<string, shared_ptr<OpenBuffer>> buffers;
   map<string, shared_ptr<OpenBuffer>>::iterator current_buffer;
   bool terminate;
@@ -63,6 +73,8 @@ struct EditorState {
   size_t visible_lines;
 
   bool screen_needs_redraw;
+
+  list<Position> positions_stack;
 
   string status;
 };

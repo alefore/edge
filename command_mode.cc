@@ -45,6 +45,7 @@ class GotoCommand : public Command {
     if (editor_state->current_buffer == editor_state->buffers.end()) {
       return;
     }
+    editor_state->PushCurrentPosition();
     if (editor_state->structure == 0) {
       shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
       if (buffer->contents()->empty()) { return; }
@@ -194,6 +195,26 @@ class Delete : public Command {
   }
 };
 
+class GotoPreviousPositionCommand : public Command {
+ public:
+  const string Description() {
+    return "go back to previous position";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    if (editor_state->positions_stack.empty()) { return; }
+    const Position& pos = editor_state->positions_stack.back();
+    auto it = editor_state->buffers.find(pos.buffer);
+    if (it != editor_state->buffers.end()) {
+      editor_state->current_buffer = it;
+      it->second->set_current_position_line(pos.line);
+      it->second->set_current_position_col(pos.col);
+      editor_state->screen_needs_redraw = true;
+    }
+    editor_state->positions_stack.pop_back();
+  }
+};
+
 class LineUp : public Command {
  public:
   const string Description();
@@ -248,6 +269,10 @@ const string LineUp::Description() {
   if (editor_state->buffers.empty()) { return; }
   shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
   if (buffer->contents()->empty()) { return; }
+  if (editor_state->repetitions > 1) {
+    // Saving on single-lines changes makes this very verbose, lets avoid that. 
+    editor_state->PushCurrentPosition();
+  }
   if (editor_state->structure == 0) {
     size_t pos = buffer->current_position_line();
     if (editor_state->repetitions < pos) {
@@ -280,6 +305,10 @@ const string LineDown::Description() {
   if (editor_state->buffers.empty()) { return; }
   shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
   if (buffer->contents()->empty()) { return; }
+  if (editor_state->repetitions > 1) {
+    // Saving on single-lines changes makes this very verbose, lets avoid that.
+    editor_state->PushCurrentPosition();
+  }
   if (editor_state->structure == 0) {
     size_t pos = buffer->current_position_line();
     if (pos + editor_state->repetitions < buffer->contents()->size() - 1) {
@@ -337,7 +366,9 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
     if (editor_state->buffers.empty()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
     if (buffer->contents()->empty()) { return; }
-
+    if (editor_state->repetitions > 1) {
+      editor_state->PushCurrentPosition();
+    }
     if (buffer->current_position_col() + editor_state->repetitions
         <= buffer->current_line()->size()) {
       buffer->set_current_position_col(
@@ -372,7 +403,9 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
     if (editor_state->buffers.empty()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
     if (buffer->contents()->empty()) { return; }
-
+    if (editor_state->repetitions > 1) {
+      editor_state->PushCurrentPosition();
+    }
     if (buffer->current_position_col() > buffer->current_line()->size()) {
       buffer->set_current_position_col(buffer->current_line()->size());
     }
@@ -530,6 +563,7 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('d', new Delete()));
     output.insert(make_pair('\n', new ActivateLink()));
 
+    output.insert(make_pair('b', new GotoPreviousPositionCommand()));
     output.insert(make_pair('j', new LineDown()));
     output.insert(make_pair('k', new LineUp()));
     output.insert(make_pair('l', new MoveForwards()));
