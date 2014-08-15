@@ -16,6 +16,7 @@ extern "C" {
 #include "file_link_mode.h"
 #include "editor.h"
 #include "run_command_handler.h"
+#include "search_handler.h"
 
 namespace {
 using std::make_pair;
@@ -80,8 +81,12 @@ class FileBuffer : public OpenBuffer {
 
 class FileLinkMode : public EditorMode {
  public:
-  FileLinkMode(const string& path, size_t line, size_t col)
-      : path_(realpath(path.c_str(), nullptr)), line_(line), col_(col) {}
+  FileLinkMode(const string& path, size_t line, size_t col,
+               const string& pattern)
+      : path_(realpath(path.c_str(), nullptr)),
+        line_(line),
+        col_(col),
+        pattern_(pattern) {}
 
   void ProcessInput(int c, EditorState* editor_state) {
     editor_state->PushCurrentPosition();
@@ -95,16 +100,17 @@ class FileLinkMode : public EditorMode {
     it.first->second->set_current_position_col(col_);
     it.first->second->CheckPosition();
     it.first->second->MaybeAdjustPositionCol();
-    editor_state->screen_needs_redraw = true;
-    editor_state->mode = std::move(NewCommandMode());
+    SearchHandler(pattern_, editor_state);
   }
 
   unique_ptr<char> path_;
   size_t line_;
   size_t col_;
+  const string pattern_;
 };
 
-static string FindPath(const string& path, vector<int>* positions) {
+static string FindPath(
+    const string& path, vector<int>* positions, string* pattern) {
   struct stat dummy;
 
   // Strip off any trailing colons.
@@ -117,17 +123,23 @@ static string FindPath(const string& path, vector<int>* positions) {
       continue;
     }
 
-    for (auto& it : *positions) {
+    for (size_t i = 0; i < positions->size(); i++) {
       while (str_end < path.size() && ':' == path[str_end]) {
         str_end++;
       }
       if (str_end == path.size()) { break; }
       size_t next_str_end = path.find(':', str_end);
-      try {
-        it = stoi(path.substr(str_end, next_str_end));
-        if (it > 0) { it --; }
-      } catch (const std::invalid_argument& ia) {
+      const string arg = path.substr(str_end, next_str_end);
+      if (i == 0 && arg.size() > 0 && arg[0] == '/') {
+        *pattern = arg.substr(1);
         break;
+      } else {
+        try {
+          positions->at(i) = stoi(arg);
+          if (positions->at(i) > 0) { positions->at(i) --; }
+        } catch (const std::invalid_argument& ia) {
+          break;
+        }
       }
       str_end = next_str_end;
       if (str_end == path.npos) { break; }
@@ -147,7 +159,8 @@ using std::unique_ptr;
 unique_ptr<EditorMode> NewFileLinkMode(
     const string& path, int position, bool ignore_if_not_found) {
   vector<int> tokens { position, 0 };
-  string actual_path = FindPath(path, &tokens);
+  string pattern;
+  string actual_path = FindPath(path, &tokens, &pattern);
   if (actual_path.empty()) {
     if (ignore_if_not_found) {
       return nullptr;
@@ -156,7 +169,7 @@ unique_ptr<EditorMode> NewFileLinkMode(
     }
   }
   return std::move(unique_ptr<EditorMode>(
-      new FileLinkMode(actual_path, tokens[0], tokens[1])));
+      new FileLinkMode(actual_path, tokens[0], tokens[1], pattern)));
 }
 
 }  // namespace afc
