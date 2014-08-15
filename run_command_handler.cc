@@ -67,8 +67,8 @@ void RunCommandHandler(const string& input, EditorState* editor_state) {
   editor_state->current_buffer = it.first;
   if (it.second) {
     it.first->second.reset(new CommandBuffer(input));
-    it.first->second->Reload(editor_state);
   }
+  it.first->second->Reload(editor_state);
   it.first->second->set_current_position_line(0);
   editor_state->screen_needs_redraw = true;
   editor_state->mode = std::move(NewCommandMode());
