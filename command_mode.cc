@@ -67,7 +67,7 @@ class GotoCommand : public Command {
       advance(editor_state->current_buffer, position);
     }
     editor_state->screen_needs_redraw = true;
-    editor_state->structure = 0;
+    editor_state->ResetStructure();
     editor_state->direction = FORWARDS;
     editor_state->repetitions = 1;
   }
@@ -112,7 +112,7 @@ class Delete : public Command {
       }
     }
 
-    editor_state->structure = 0;
+    editor_state->ResetStructure();
     editor_state->screen_needs_redraw = true;
     editor_state->repetitions = 1;
   }
@@ -213,7 +213,7 @@ class LineUp : public Command {
       editor_state->MoveBufferBackwards(editor_state->repetitions);
       editor_state->screen_needs_redraw = true;
     }
-    editor_state->structure = 0;
+    editor_state->ResetStructure();
     editor_state->repetitions = 1;
   }
 
@@ -243,7 +243,7 @@ class LineDown : public Command {
       editor_state->MoveBufferForwards(editor_state->repetitions);
       editor_state->screen_needs_redraw = true;
     }
-    editor_state->structure = 0;
+    editor_state->ResetStructure();
     editor_state->repetitions = 1;
   }
 
@@ -260,7 +260,7 @@ class PageUp : public Command {
 
   void ProcessInput(int c, EditorState* editor_state) {
     editor_state->repetitions *= editor_state->visible_lines;
-    editor_state->structure = 0;
+    editor_state->ResetStructure();
     LineUp::Move(c, editor_state);
   }
 };
@@ -273,7 +273,7 @@ class PageDown : public Command {
 
   void ProcessInput(int c, EditorState* editor_state) {
     editor_state->repetitions *= editor_state->visible_lines;
-    editor_state->structure = 0;
+    editor_state->ResetStructure();
     LineDown::Move(c, editor_state);
   }
 };
@@ -299,7 +299,7 @@ class MoveForwards : public Command {
       }
 
       editor_state->repetitions = 1;
-      editor_state->structure = 0;
+      editor_state->ResetStructure();
     } else {
       editor_state->structure--;
       LineDown::Move(c, editor_state);
@@ -330,7 +330,7 @@ class MoveBackwards : public Command {
       }
 
       editor_state->repetitions = 1;
-      editor_state->structure = 0;
+      editor_state->ResetStructure();
     } else {
       editor_state->structure--;
       LineUp::Move(c, editor_state);
@@ -388,6 +388,11 @@ void SetRepetitions(EditorState* editor_state, int number) {
 
 void SetStructure(EditorState* editor_state, int number) {
   editor_state->structure = number;
+}
+
+void SetDefaultStructure(EditorState* editor_state, int number) {
+  editor_state->default_structure = number;
+  editor_state->ResetStructure();
 }
 
 class NumberMode : public Command {
@@ -480,6 +485,10 @@ static const map<int, Command*>& GetCommandModeMap() {
         's',
         new NumberMode("sets the structure affected by the next command",
                        SetStructure)));
+    output.insert(make_pair(
+        'S',
+        new NumberMode("sets the default structure affected by commands",
+                       SetDefaultStructure)));
     output.insert(make_pair(
         'r',
         new NumberMode("repeats the next command", SetRepetitions)));

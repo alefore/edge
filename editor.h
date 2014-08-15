@@ -29,6 +29,7 @@ struct EditorState {
         direction(FORWARDS),
         repetitions(1),
         structure(0),
+        default_structure(0),
         mode(std::move(NewCommandMode())),
         visible_lines(1),
         screen_needs_redraw(false),
@@ -42,6 +43,8 @@ struct EditorState {
     return current_buffer->second;
   }
 
+  void ResetStructure() { structure = default_structure; }
+
   void MoveBufferForwards(size_t times);
   void MoveBufferBackwards(size_t times);
 
@@ -52,6 +55,7 @@ struct EditorState {
   Direction direction;
   size_t repetitions;
   int structure;
+  int default_structure;
 
   unique_ptr<EditorMode> mode;
 

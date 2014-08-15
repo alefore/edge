@@ -136,7 +136,7 @@ void EnterInsertMode(EditorState* editor_state) {
     EnterInsertCharactersMode(editor_state);
     editor_state->screen_needs_redraw = true;
   }
-  editor_state->structure = 0;
+  editor_state->ResetStructure();
 }
 
 }  // namespace afc
