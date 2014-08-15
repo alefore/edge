@@ -35,6 +35,7 @@ class FileBuffer : public OpenBuffer {
     }
 
     contents_.clear();
+    editor_state->CheckPosition();
     editor_state->screen_needs_redraw = true;
 
     if (!S_ISDIR(sb.st_mode)) {

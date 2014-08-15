@@ -85,7 +85,10 @@ class OpenBuffer {
   }
   bool reload_on_enter() const { return reload_on_enter_; }
   void Enter(EditorState* editor_state) {
-    if (reload_on_enter_) { Reload(editor_state); }
+    if (reload_on_enter_) {
+      Reload(editor_state);
+      CheckPosition();
+    }
   }
 
  protected:
