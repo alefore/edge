@@ -4,6 +4,10 @@
 #include <memory>
 #include <string>
 
+extern "C" {
+#include <unistd.h>
+}
+
 #include "char_buffer.h"
 #include "editor.h"
 #include "substring.h"
