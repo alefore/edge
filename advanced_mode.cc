@@ -120,6 +120,18 @@ void OpenFileHandler(const string& name, EditorState* editor_state) {
   mode->ProcessInput(0, editor_state);
 }
 
+void SetVariableHandler(const string& name, EditorState* editor_state) {
+  editor_state->mode = std::move(NewCommandMode());
+  if (name == "reload_on_enter") {
+    if (editor_state->current_buffer == editor_state->buffers.end()) {
+      return;
+    }
+    editor_state->get_current_buffer()->toggle_reload_on_enter();
+  } else {
+    editor_state->status = "Unknown variable: " + name;
+  }
+}
+
 class OpenBufferCommand : public EditorMode {
  public:
   OpenBufferCommand(const string& name) : name_(name) {}
@@ -132,6 +144,7 @@ class OpenBufferCommand : public EditorMode {
       return;
     }
     editor_state->current_buffer = it;
+    it->second->Enter(editor_state);
     editor_state->screen_needs_redraw = true;
     editor_state->status = "";
     editor_state-> mode = std::move(NewCommandMode());
@@ -196,6 +209,9 @@ static const map<int, Command*>& GetAdvancedModeMap() {
   if (output.empty()) {
     output.insert(make_pair('d', new CloseCurrentBuffer()));
     output.insert(make_pair('w', new SaveCurrentBuffer()));
+    output.insert(make_pair(
+        'v',
+        NewLinePromptCommand("var ", "assigns to a variable", SetVariableHandler).release()));
     output.insert(make_pair('.', new OpenDirectory()));
     output.insert(make_pair('l', new ListBuffers()));
     output.insert(make_pair('r', new ReloadBuffer()));

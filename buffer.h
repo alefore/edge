@@ -80,6 +80,14 @@ class OpenBuffer {
     current_position_col_ = value;
   }
 
+  void toggle_reload_on_enter() {
+    reload_on_enter_ = !reload_on_enter_;
+  }
+  bool reload_on_enter() const { return reload_on_enter_; }
+  void Enter(EditorState* editor_state) {
+    if (reload_on_enter_) { Reload(editor_state); }
+  }
+
  protected:
   void SetInputFile(int fd);
 
@@ -100,6 +108,8 @@ class OpenBuffer {
 
   bool saveable_;
   bool reading_from_parser_;
+
+  bool reload_on_enter_;
 };
 
 }  // namespace editor
