@@ -431,9 +431,20 @@ class ActivateLink : public Command {
     if (buffer->current_line()->activate.get() != nullptr) {
       buffer->current_line()->activate->ProcessInput(c, editor_state);
     } else {
-      // TODO(alejo): Improve this.
-      string path = buffer->current_line()->contents->ToString();
-      unique_ptr<EditorMode> mode = NewFileLinkMode(path, 0, true);
+      buffer->MaybeAdjustPositionCol();
+      string line = buffer->current_line()->contents->ToString();
+
+      size_t start = line.find_last_of(' ', buffer->current_position_col());
+      if (start != line.npos) {
+        line = line.substr(start + 1);
+      }
+
+      size_t end = line.find_first_of(' ');
+      if (end != line.npos) {
+        line = line.substr(0, end);
+      }
+
+      unique_ptr<EditorMode> mode = NewFileLinkMode(line, 0, true);
       if (mode.get() != nullptr) {
         mode->ProcessInput(c, editor_state);
       }
