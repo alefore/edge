@@ -21,7 +21,9 @@ using std::regex;
 #endif
 
 void SearchHandler(const string& input, EditorState* editor_state) {
-  if (editor_state->buffers.empty() || input.empty()) {
+  if (editor_state->current_buffer == editor_state->buffers.end()
+      || input.empty()
+      || editor_state->get_current_buffer()->contents()->empty()) {
     editor_state->mode = NewCommandMode();
     editor_state->status = "";
     editor_state->screen_needs_redraw = true;
