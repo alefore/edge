@@ -25,7 +25,8 @@ OpenBuffer::OpenBuffer()
       current_position_line_(0),
       current_position_col_(0),
       saveable_(false),
-      reading_from_parser_(false) {}
+      reading_from_parser_(false),
+      reload_on_enter_(false) {}
 
 void OpenBuffer::ReadData(EditorState* editor_state) {
   assert(fd_ > 0);
