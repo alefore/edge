@@ -71,6 +71,9 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
     addch(':');
     addstr(to_string(buffer->current_position_col() + 1).c_str());
     addch(' ');
+    if (buffer->fd() != -1) {
+      addstr("& ");
+    }
   }
   int unused_y, x;
   getyx(stdscr, unused_y, x);

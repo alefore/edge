@@ -85,6 +85,7 @@ class OpenBuffer {
 
   vector<unique_ptr<ParseTree>> parse_tree;
 
+  // -1 means "no file descriptor" (i.e. not currently loading this).
   int fd_;
   char* buffer_;
   size_t buffer_line_start_;
