@@ -108,6 +108,7 @@ void EnterInsertCharactersMode(EditorState* editor_state) {
   editor_state->status = "";
   auto buffer = editor_state->get_current_buffer();
   shared_ptr<EditableString> new_line;
+  editor_state->PushCurrentPosition();
   if (buffer->contents()->empty()) {
     new_line = EditableString::New("");
     buffer->AppendLine(new_line);
