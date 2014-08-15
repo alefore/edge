@@ -91,6 +91,9 @@ class OpenBuffer {
     }
   }
 
+  void set_modified(bool value) { modified_ = value; }
+  bool modified() const { return modified_; }
+
  protected:
   void SetInputFile(int fd);
 
@@ -109,6 +112,7 @@ class OpenBuffer {
   size_t current_position_line_;
   size_t current_position_col_;
 
+  bool modified_;
   bool saveable_;
   bool reading_from_parser_;
 

@@ -90,7 +90,8 @@ class SaveCurrentBuffer : public Command {
       editor_state->status = "Buffer can't be saved.";
       return;
     }
-    string tmp_path = editor_state->current_buffer->first + ".tmp";
+    string path = editor_state->current_buffer->first;
+    string tmp_path = path + ".tmp";
     int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
     if (fd == -1) {
       cerr << tmp_path << ": open failed: " << strerror(errno);
@@ -108,9 +109,9 @@ class SaveCurrentBuffer : public Command {
       free(tmp);
     }
     close(fd);
-    rename(tmp_path.c_str(), editor_state->current_buffer->first.c_str());
-
-    editor_state->status = "Saved: " + editor_state->current_buffer->first;
+    rename(tmp_path.c_str(), path.c_str());
+    buffer->set_modified(false);
+    editor_state->status = "Saved: " + path;
     editor_state->mode = std::move(NewCommandMode());
   }
 };
@@ -198,6 +199,7 @@ class ReloadBuffer : public Command {
     if (editor_state->current_buffer != editor_state->buffers.end()) {
       auto buffer = editor_state->get_current_buffer();
       buffer->Reload(editor_state);
+      buffer->set_modified(false);
       buffer->CheckPosition();
     }
     editor_state->mode = std::move(NewCommandMode());

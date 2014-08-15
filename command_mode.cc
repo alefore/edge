@@ -136,6 +136,7 @@ class Delete : public Command {
     deleted_text->contents()->insert(
         deleted_text->contents()->end(), first_line, last_line);
     buffer->contents()->erase(first_line, last_line);
+    buffer->set_modified(true);
     InsertDeletedTextBuffer(editor_state, deleted_text);
   }
 
@@ -178,6 +179,7 @@ class Delete : public Command {
           StringAppend(
               Substring(current_line->contents, 0, buffer->current_position_col()),
               suffix)));
+      buffer->set_modified(true);
     }
     InsertDeletedTextBuffer(editor_state, deleted_text);
   }

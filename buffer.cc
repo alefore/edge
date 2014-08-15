@@ -24,6 +24,7 @@ OpenBuffer::OpenBuffer()
       view_start_line_(0),
       current_position_line_(0),
       current_position_col_(0),
+      modified_(false),
       saveable_(false),
       reading_from_parser_(false),
       reload_on_enter_(false) {}

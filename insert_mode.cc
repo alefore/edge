@@ -27,6 +27,7 @@ class InsertMode : public EditorMode {
         return;
       case Terminal::BACKSPACE:
         if (line_->Backspace()) {
+          buffer->set_modified(true);
           editor_state->screen_needs_redraw = true;
           buffer->set_current_position_col(buffer->current_position_col() - 1);
         } else if (buffer->current_position_col() == 0) {
@@ -37,6 +38,7 @@ class InsertMode : public EditorMode {
           shared_ptr<LazyString> old_line = buffer->current_line()->contents;
           buffer->contents()->erase(
               buffer->contents()->begin() + buffer->current_position_line());
+          buffer->set_modified(true);
 
           buffer->set_current_position_line(buffer->current_position_line() - 1);
           auto prefix = buffer->current_line()->contents;
@@ -56,6 +58,7 @@ class InsertMode : public EditorMode {
               prefix->ToString());
           buffer->current_line()->contents = line_;
           assert(line_->Backspace());
+          buffer->set_modified(true);
           editor_state->screen_needs_redraw = true;
           buffer->set_current_position_col(buffer->current_position_col() - 1);
         }
@@ -75,6 +78,7 @@ class InsertMode : public EditorMode {
         buffer->contents()->insert(
             buffer->contents()->begin() + buffer->current_position_line() + 1,
             line);
+        buffer->set_modified(true);
 
         // Move to the new line and schedule a redraw.
         buffer->set_current_position_line(buffer->current_position_line() + 1);
@@ -83,6 +87,7 @@ class InsertMode : public EditorMode {
         return;
     }
     line_->Insert(c);
+    buffer->set_modified(true);
     editor_state->screen_needs_redraw = true;
     buffer->set_current_position_col(buffer->current_position_col() + 1);
   }

@@ -71,8 +71,17 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
     addch(':');
     addstr(to_string(buffer->current_position_col() + 1).c_str());
     addch(' ');
+
+    string flags = "";
     if (buffer->fd() != -1) {
-      addstr("& ");
+      flags += "<";
+    }
+    if (buffer->modified()) {
+      flags += "~";
+    }
+    if (!flags.empty()) {
+      flags += " ";
+      addstr(flags.c_str());
     }
   }
   int unused_y, x;
