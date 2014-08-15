@@ -79,14 +79,21 @@ class FileBuffer : public OpenBuffer {
   const string path_;
 };
 
+static char* realpath_safe(const string& path) {
+  char* result = realpath(path.c_str(), nullptr);
+  return result == nullptr ? strdup(path.c_str()) : result;
+}
+
 class FileLinkMode : public EditorMode {
  public:
   FileLinkMode(const string& path, size_t line, size_t col,
                const string& pattern)
-      : path_(realpath(path.c_str(), nullptr)),
+      : path_(realpath_safe(path.c_str())),
         line_(line),
         col_(col),
-        pattern_(pattern) {}
+        pattern_(pattern) {
+    assert(path_.get() != nullptr);
+  }
 
   void ProcessInput(int c, EditorState* editor_state) {
     editor_state->PushCurrentPosition();

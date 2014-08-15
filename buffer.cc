@@ -116,6 +116,7 @@ shared_ptr<Line> OpenBuffer::AppendRawLine(shared_ptr<LazyString> str) {
 }
 
 void OpenBuffer::MaybeAdjustPositionCol() {
+  if (contents_.empty()) { return; }
   size_t line_length = current_line()->contents->size();
   if (current_position_col_ > line_length) {
     current_position_col_ = line_length;
