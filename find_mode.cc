@@ -47,6 +47,7 @@ class FindMode : public EditorMode {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
+    editor_state->PushCurrentPosition();
     if (editor_state->current_buffer != editor_state->buffers.end()) {
       for (size_t times = 0; times < editor_state->repetitions; times++) {
         if (!SeekOnce(editor_state->direction,
