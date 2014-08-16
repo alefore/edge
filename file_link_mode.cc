@@ -86,6 +86,7 @@ class FileBuffer : public OpenBuffer {
       editor_state->status = tmp_path + ": open failed: " + strerror(errno);
       return;
     }
+    // TODO: It'd be significant more efficient to do fewer writes.
     for (const auto& line : contents_) {
       const auto& str = *line->contents;
       char* tmp = static_cast<char*>(malloc(str.size() + 1));
