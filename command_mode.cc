@@ -55,6 +55,8 @@ class GotoCommand : public Command {
           ComputePosition(editor_state, buffer->current_line()->size() + 1);
       assert(position <= buffer->current_line()->size());
       buffer->set_current_position_col(position);
+    } else if (editor_state->structure == EditorState::WORD) {
+      // TODO: Implement.
     } else if (editor_state->structure == EditorState::LINE) {
       shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
       if (buffer->contents()->empty()) { return; }
@@ -113,6 +115,9 @@ class Delete : public Command {
 
     if (editor_state->structure == EditorState::CHAR) {
       DeleteCharacters(c, editor_state);
+    } else if (editor_state->structure == EditorState::WORD) {
+      // TODO: Implement.
+      editor_state->status = "Oops, delete word is not yet implemented.";
     } else if (editor_state->structure == EditorState::LINE) {
       DeleteLines(c, editor_state);
     } else if (editor_state->structure == EditorState::PAGE) {
@@ -311,7 +316,7 @@ const string LineUp::Description() {
     } else {
       buffer->set_current_position_line(0);
     }
-  } else if (editor_state->structure == EditorState::LINE) {
+  } else if (editor_state->structure == EditorState::WORD) {
     // Move in whole pages.
     editor_state->repetitions *= editor_state->visible_lines;
     editor_state->structure = EditorState::CHAR;
@@ -352,7 +357,7 @@ const string LineDown::Description() {
     } else {
       buffer->set_current_position_line(buffer->contents()->size() - 1);
     }
-  } else if (editor_state->structure == EditorState::LINE) {
+  } else if (editor_state->structure == EditorState::WORD) {
     // Move in whole pages.
     editor_state->repetitions *= editor_state->visible_lines;
     editor_state->structure = EditorState::CHAR;
@@ -420,9 +425,13 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
 
     editor_state->repetitions = 1;
     editor_state->ResetStructure();
+  } else if (editor_state->structure == EditorState::WORD) {
+    // TODO: Implement.
+    editor_state->status = "Oops, move by word is not yet implemented.";
   } else {
     editor_state->structure =
-        EditorState::LowerStructure(editor_state->structure);
+        EditorState::LowerStructure(
+            EditorState::LowerStructure(editor_state->structure));
     LineDown::Move(c, editor_state);
   }
 };
@@ -460,9 +469,13 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
 
     editor_state->repetitions = 1;
     editor_state->ResetStructure();
+  } else if (editor_state->structure == EditorState::WORD) {
+    // TODO: Implement.
+    editor_state->status = "Oops, move by word is not yet implemented.";
   } else {
     editor_state->structure =
-        EditorState::LowerStructure(editor_state->structure);
+        EditorState::LowerStructure(
+            EditorState::LowerStructure(editor_state->structure));
     LineUp::Move(c, editor_state);
   }
 }
@@ -523,6 +536,9 @@ class StructureMode : public EditorMode {
       case 'c':
         editor_state->SetStructure(EditorState::CHAR);
         break;
+      case 'w':
+        editor_state->SetStructure(EditorState::WORD);
+        break;
       case 'l':
         editor_state->SetStructure(EditorState::LINE);
         break;
@@ -534,6 +550,9 @@ class StructureMode : public EditorMode {
         break;
       case 'C':
         editor_state->SetDefaultStructure(EditorState::CHAR);
+        break;
+      case 'W':
+        editor_state->SetDefaultStructure(EditorState::WORD);
         break;
       case 'L':
         editor_state->SetDefaultStructure(EditorState::LINE);

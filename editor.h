@@ -33,6 +33,7 @@ struct Position {
 struct EditorState {
   enum Structure {
     CHAR,
+    WORD,
     LINE,
     PAGE,
     BUFFER,
@@ -41,7 +42,8 @@ struct EditorState {
   static Structure LowerStructure(Structure s) {
     switch (s) {
       case CHAR: return CHAR;
-      case LINE: return CHAR;
+      case WORD: return CHAR;
+      case LINE: return WORD;
       case PAGE: return LINE;
       case BUFFER: return PAGE;
     }

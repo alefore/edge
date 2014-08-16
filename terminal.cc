@@ -90,6 +90,9 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
         switch (editor_state.structure) {
           case EditorState::CHAR:
             break;
+          case EditorState::WORD:
+            flags += "w";
+            break;
           case EditorState::LINE:
             flags += "l";
             break;
@@ -100,6 +103,9 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
             flags += "b";
             break;
         }
+        break;
+      case EditorState::WORD:
+        flags += "W";
         break;
       case EditorState::LINE:
         flags += "L";
