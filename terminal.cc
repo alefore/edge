@@ -81,6 +81,23 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
     if (buffer->modified()) {
       flags += "~";
     }
+    if (editor_state.direction == BACKWARDS) {
+      flags += "r";
+    }
+    if (editor_state.repetitions != 1) {
+      flags += to_string(editor_state.repetitions);
+    }
+    switch (editor_state.structure) {
+      case 0:
+        break;
+      case 1:
+        flags += flags.empty() ? "li" : " li";
+        break;
+      case 2:
+        flags += flags.empty() ? "bu" : " bu";
+        break;
+    }
+
     if (!flags.empty()) {
       flags += " ";
       addstr(flags.c_str());

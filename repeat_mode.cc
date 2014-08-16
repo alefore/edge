@@ -10,18 +10,21 @@ using namespace afc::editor;
 
 class RepeatMode : public EditorMode {
  public:
-  RepeatMode(function<void(int, EditorState*, int)> done)
-      : done_(done), result_(0) {}
+  RepeatMode(function<void(EditorState*, int)> consumer)
+      : consumer_(consumer), result_(0) {}
 
   void ProcessInput(int c, EditorState* editor_state) {
     if (c < '0' || c > '9') {
-      done_(c, editor_state, result_);
+      consumer_(editor_state, result_);
+      editor_state->mode = std::move(NewCommandMode());
+      editor_state->mode->ProcessInput(c, editor_state);
       return;
     }
     result_ = 10 * result_ + c - '0';
+    consumer_(editor_state, result_);
   }
  private:
-  function<void(int, EditorState*, int)> done_;
+  function<void(EditorState*, int)> consumer_;
   int result_;
 };
 }
@@ -31,8 +34,9 @@ namespace editor {
 
 using std::unique_ptr;
 
-unique_ptr<EditorMode> NewRepeatMode(function<void(int, EditorState*, int)> done) {
-  return unique_ptr<EditorMode>(new RepeatMode(done));
+unique_ptr<EditorMode> NewRepeatMode(
+    function<void(EditorState*, int)> consumer) {
+  return unique_ptr<EditorMode>(new RepeatMode(consumer));
 }
 
 }  // namespace afc

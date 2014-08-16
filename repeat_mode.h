@@ -12,7 +12,7 @@ namespace editor {
 using std::function;
 using std::unique_ptr;
 
-unique_ptr<EditorMode> NewRepeatMode(function<void(int, EditorState*, int)> done);
+unique_ptr<EditorMode> NewRepeatMode(function<void(EditorState*, int)> consumer);
 
 }  // namespace editor
 }  // namespace afc

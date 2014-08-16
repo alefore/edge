@@ -9,6 +9,7 @@ namespace afc {
 namespace editor {
 
 void EditorState::MoveBufferForwards(size_t times) {
+  PushCurrentPosition();
   if (current_buffer == buffers.end()) {
     if (buffers.empty()) { return; }
     current_buffer = buffers.begin();
@@ -23,6 +24,7 @@ void EditorState::MoveBufferForwards(size_t times) {
 }
 
 void EditorState::MoveBufferBackwards(size_t times) {
+  PushCurrentPosition();
   if (current_buffer == buffers.end()) {
     if (buffers.empty()) { return; }
     current_buffer = buffers.end();
