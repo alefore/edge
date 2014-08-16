@@ -80,34 +80,10 @@ class FileBuffer : public OpenBuffer {
       return;
     }
 
-    string tmp_path = path_ + ".tmp";
-    int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-    if (fd == -1) {
-      editor_state->status = tmp_path + ": open failed: " + strerror(errno);
-      return;
+    if (SaveContentsToFile(editor_state, this, path_)) {
+      set_modified(false);
+      editor_state->status = "Saved: " + path_;
     }
-    // TODO: It'd be significant more efficient to do fewer writes.
-    for (const auto& line : contents_) {
-      const auto& str = *line->contents;
-      char* tmp = static_cast<char*>(malloc(str.size() + 1));
-      strcpy(tmp, str.ToString().c_str());
-      tmp[str.size()] = '\n';
-      int write_result = write(fd, tmp, str.size() + 1);
-      free(tmp);
-      if (write_result == -1) {
-        editor_state->status = tmp_path + ": write failed: " + to_string(fd)
-            + ": " + strerror(errno);
-        close(fd);
-        return;
-      }
-    }
-    close(fd);
-    if (rename(tmp_path.c_str(), path_.c_str()) == -1) {
-      editor_state->status = path_ + ": rename failed: " + strerror(errno);
-      return;
-    }
-    set_modified(false);
-    editor_state->status = "Saved: " + path_;
   }
 
  private:
@@ -198,6 +174,38 @@ namespace afc {
 namespace editor {
 
 using std::unique_ptr;
+
+bool SaveContentsToFile(
+    EditorState* editor_state, OpenBuffer* buffer, const string& path) {
+  assert(buffer != nullptr);
+  string tmp_path = path + ".tmp";
+  int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+  if (fd == -1) {
+    editor_state->status = tmp_path + ": open failed: " + strerror(errno);
+    return false;
+  }
+  // TODO: It'd be significant more efficient to do fewer writes.
+  for (const auto& line : *buffer->contents()) {
+    const auto& str = *line->contents;
+    char* tmp = static_cast<char*>(malloc(str.size() + 1));
+    strcpy(tmp, str.ToString().c_str());
+    tmp[str.size()] = '\n';
+    int write_result = write(fd, tmp, str.size() + 1);
+    free(tmp);
+    if (write_result == -1) {
+      editor_state->status = tmp_path + ": write failed: " + to_string(fd)
+          + ": " + strerror(errno);
+      close(fd);
+      return false;
+    }
+  }
+  close(fd);
+  if (rename(tmp_path.c_str(), path.c_str()) == -1) {
+    editor_state->status = path + ": rename failed: " + strerror(errno);
+    return false;
+  }
+  return true;
+}
 
 unique_ptr<EditorMode> NewFileLinkMode(
     const string& path, int position, bool ignore_if_not_found) {
