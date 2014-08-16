@@ -7,8 +7,13 @@ import os
 import sys
 
 def Run(cmd):
-  print "Running: %s" % cmd
   status = os.system(cmd)
+  if status:
+    print "Error in command: %s" % cmd
+  return status
+
+def RunOrDie(cmd):
+  status = Run(cmd)
   if status:
     sys.exit(status)
 
@@ -18,7 +23,14 @@ if len(sys.argv) != 3:
 
 patch_parameters = os.getenv("PATCH_PARAMETERS") or "-p1"
 
-Run("patch --reverse %s <%s" % (patch_parameters, sys.argv[1]))
-Run("patch %s <%s" % (patch_parameters, sys.argv[2]))
+RunOrDie("patch --reverse %s <%s" % (patch_parameters, sys.argv[1]))
+
+dry_run_status = Run("patch --dry-run %s <%s" % (patch_parameters, sys.argv[2]))
+if dry_run_status:
+  print "Reverting to old state."
+  RunOrDie("patch %s <%s" % (patch_parameters, sys.argv[1]))
+  sys.exit(dry_run_status)
+
+RunOrDie("patch %s <%s" % (patch_parameters, sys.argv[2]))
 
 print "Done."
