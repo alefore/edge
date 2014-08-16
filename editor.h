@@ -56,6 +56,8 @@ struct EditorState {
     return current_buffer->second;
   }
 
+  void SetStructure(Structure structure);
+  void SetDefaultStructure(Structure structure);
   void ResetStructure() { structure = default_structure; }
 
   void MoveBufferForwards(size_t times);

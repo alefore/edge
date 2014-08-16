@@ -56,6 +56,16 @@ EditorState::EditorState()
       home_directory(GetHomeDirectory()),
       edge_path(GetEdgeConfigPath(home_directory)) {}
 
+void EditorState::SetStructure(Structure new_structure) {
+  default_structure = EditorState::CHAR;
+  structure = new_structure;
+}
+
+void EditorState::SetDefaultStructure(Structure new_structure) {
+  default_structure = new_structure;
+  ResetStructure();
+}
+
 void EditorState::MoveBufferForwards(size_t times) {
   PushCurrentPosition();
   if (current_buffer == buffers.end()) {

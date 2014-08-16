@@ -490,56 +490,46 @@ void SetRepetitions(EditorState* editor_state, int number) {
   editor_state->repetitions = number;
 }
 
-void SetStructure(EditorState* editor_state, EditorState::Structure structure) {
-  editor_state->default_structure = EditorState::CHAR;
-  editor_state->structure = structure;
-}
-
-void SetDefaultStructure(EditorState* editor_state, EditorState::Structure structure) {
-  editor_state->default_structure = structure;
-  editor_state->ResetStructure();
-}
-
 class StructureMode : public EditorMode {
  public:
-  StructureMode(function<void(EditorState*, EditorState::Structure)> handler)
-      : handler_(handler) {}
-
   void ProcessInput(int c, EditorState* editor_state) {
     editor_state->mode = NewCommandMode();
     switch (c) {
       case 'c':
-        handler_(editor_state, EditorState::CHAR);
+        editor_state->SetStructure(EditorState::CHAR);
         break;
       case 'l':
-        handler_(editor_state, EditorState::LINE);
+        editor_state->SetStructure(EditorState::LINE);
         break;
       case 'b':
-        handler_(editor_state, EditorState::BUFFER);
+        editor_state->SetStructure(EditorState::BUFFER);
+        break;
+      case 'C':
+        editor_state->SetDefaultStructure(EditorState::CHAR);
+        break;
+      case 'L':
+        editor_state->SetDefaultStructure(EditorState::LINE);
+        break;
+      case 'B':
+        editor_state->SetDefaultStructure(EditorState::BUFFER);
+        break;
+      case Terminal::ESCAPE:
+        editor_state->SetStructure(EditorState::CHAR);
         break;
       default:
         editor_state->mode->ProcessInput(c, editor_state);
     }
   }
-
- private:
-  function<void(EditorState*, EditorState::Structure)> handler_;
 };
 
 class EnterStructureMode : public Command {
- public:
-  EnterStructureMode(
-      const string& description, function<void(EditorState*, EditorState::Structure)> handler)
-      : description_(description), handler_(handler) {}
-
-  const string Description() { return description_; }
+  const string Description() {
+    return "sets the structure affected by commands";
+  }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    editor_state->mode = unique_ptr<EditorMode>(new StructureMode(handler_));
+    editor_state->mode = unique_ptr<EditorMode>(new StructureMode());
   }
- private:
-  const string description_;
-  function<void(EditorState*, EditorState::Structure)> handler_;
 };
 
 class NumberMode : public Command {
@@ -625,13 +615,7 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('l', new MoveForwards()));
     output.insert(make_pair('h', new MoveBackwards()));
 
-    output.insert(make_pair('s', new EnterStructureMode(
-        "sets the structure affected by the next command",
-        SetStructure)));
-    output.insert(make_pair(
-        'S',
-        new EnterStructureMode("sets the default structure affected by commands",
-                          SetDefaultStructure)));
+    output.insert(make_pair('s', new EnterStructureMode()));
     output.insert(make_pair(
         'r',
         new NumberMode("repeats the next command", SetRepetitions)));
