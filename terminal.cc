@@ -69,10 +69,13 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
   move(LINES - 1, 0);
   if (editor_state.current_buffer != editor_state.buffers.end()) {
     auto buffer = editor_state.current_buffer->second;
+    addch('[');
     addstr(to_string(buffer->current_position_line() + 1).c_str());
-    addch(':');
+    addstr(" of ");
+    addstr(to_string(buffer->contents()->size()).c_str());
+    addstr(", ");
     addstr(to_string(buffer->current_position_col() + 1).c_str());
-    addch(' ');
+    addstr("] ");
 
     string flags = "";
     if (buffer->fd() != -1) {
@@ -81,20 +84,21 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
     if (buffer->modified()) {
       flags += "~";
     }
-    if (editor_state.direction == BACKWARDS) {
-      flags += "r";
-    }
     if (editor_state.repetitions != 1) {
       flags += to_string(editor_state.repetitions);
     }
+    if (editor_state.direction == BACKWARDS) {
+      flags += "r";
+    }
+
     switch (editor_state.structure) {
       case 0:
         break;
       case 1:
-        flags += flags.empty() ? "li" : " li";
+        flags += "l";
         break;
       case 2:
-        flags += flags.empty() ? "bu" : " bu";
+        flags += "b";
         break;
     }
 
