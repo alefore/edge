@@ -1,5 +1,6 @@
 #include "search_handler.h"
 
+#include <fstream>
 #include <iostream>
 #include <cstring>
 
@@ -26,34 +27,21 @@ void LoadEnvironmentVariables(
   string command = full_command.substr(start, end - start);
   for (auto dir : path) {
     string full_path = dir + "/commands/" + command + "/environment";
-    int fd = open(full_path.c_str(), O_RDONLY);
-    if (fd == -1) { continue; }
-    // TODO: This is super lame.  Handle better.  Maybe use PBs?
-    char buffer[64 * 1024];
-    size_t len = read(fd, buffer, sizeof(buffer) - 1);
-    if (len > 0) {
-      buffer[len] = 0;
-      size_t pos = 0;
-      while (pos < len) {
-        if (buffer[pos] == '\n') {
-          pos++;
-          continue;
-        }
-        auto line_end = strchr(buffer + pos, '\n');
-        if (line_end != nullptr) {
-          *line_end = 0;
-        } else {
-          line_end = buffer + len;
-        }
-        auto equals = strchr(buffer + pos, '=');
-        if (equals != nullptr) {
-          *equals = 0;
-          setenv(buffer + pos, equals + 1, 1);
-        }
-        pos = line_end - buffer + 1;
-      }
+    std::ifstream infile(full_path);
+    if (!infile.is_open()) {
+      continue;
     }
-    close(fd);
+    std::string line;
+    while (std::getline(infile, line)) {
+      if (line == "") {
+        continue;
+      }
+      size_t equals = line.find('=');
+      if (equals == line.npos) {
+        continue;
+      }
+      setenv(line.substr(0, equals).c_str(), line.substr(equals + 1).c_str(), 1);
+    }
   }
 }
 
