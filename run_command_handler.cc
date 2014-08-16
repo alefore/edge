@@ -1,6 +1,7 @@
 #include "search_handler.h"
 
 #include <iostream>
+#include <cstring>
 
 extern "C" {
 #include <sys/types.h>
@@ -15,6 +16,46 @@ extern "C" {
 namespace {
 
 using namespace afc::editor;
+using std::cerr;
+
+void LoadEnvironmentVariables(
+    const vector<string>& path, const string& full_command) {
+  static const string whitespace = "\t ";
+  size_t start = full_command.find_first_not_of(whitespace);
+  size_t end = full_command.find_first_of(whitespace, start);
+  string command = full_command.substr(start, end - start);
+  for (auto dir : path) {
+    string full_path = dir + "/commands/" + command + "/environment";
+    int fd = open(full_path.c_str(), O_RDONLY);
+    if (fd == -1) { continue; }
+    // TODO: This is super lame.  Handle better.  Maybe use PBs?
+    char buffer[64 * 1024];
+    size_t len = read(fd, buffer, sizeof(buffer) - 1);
+    if (len > 0) {
+      buffer[len] = 0;
+      size_t pos = 0;
+      while (pos < len) {
+        if (buffer[pos] == '\n') {
+          pos++;
+          continue;
+        }
+        auto line_end = strchr(buffer + pos, '\n');
+        if (line_end != nullptr) {
+          *line_end = 0;
+        } else {
+          line_end = buffer + len;
+        }
+        auto equals = strchr(buffer + pos, '=');
+        if (equals != nullptr) {
+          *equals = 0;
+          setenv(buffer + pos, equals + 1, 1);
+        }
+        pos = line_end - buffer + 1;
+      }
+    }
+    close(fd);
+  }
+}
 
 class CommandBuffer : public OpenBuffer {
  public:
@@ -38,8 +79,7 @@ class CommandBuffer : public OpenBuffer {
       if (stdin != 0) { close(stdin); }
       if (pipefd[1] != 1 && pipefd[1] != 2) { close(pipefd[1]); }
 
-      // TODO: Don't hardcode this here, use some config file instead.
-      setenv("GREP_OPTIONS", "-n", 0);
+      LoadEnvironmentVariables(editor_state->edge_path, command_);
 
       system(command_.c_str());
       exit(0);

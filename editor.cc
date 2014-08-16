@@ -2,11 +2,59 @@
 #include <list>
 #include <string>
 
+extern "C" {
+#include <sys/types.h>
+#include <pwd.h>
+}
+
 #include "editor.h"
 #include "substring.h"
 
+namespace {
+
+using std::string;
+using std::vector;
+
+static string GetHomeDirectory() {
+  char* env = getenv("HOME");
+  if (env != nullptr) { return env; }
+  struct passwd* entry = getpwuid(getuid());
+  if (entry != nullptr) { return entry->pw_dir; }
+  return "/";  // What else?
+}
+
+static vector<string> GetEdgeConfigPath(const string& home) {
+  vector<string> output;
+  char* env = getenv("EDGE_PATH");
+  if (env != nullptr) {
+    // TODO: Handle multiple directories separated with colons.
+    // TODO: stat it and don't add it if it doesn't exist.
+    output.push_back(env);
+  }
+  // TODO: Don't add it if it doesn't exist or it's already there.
+  output.push_back(home + "/.edge");
+  return output;
+}
+
+}  // namespace
+
 namespace afc {
 namespace editor {
+
+EditorState::EditorState()
+    : current_buffer(buffers.end()),
+      terminate(false),
+      direction(FORWARDS),
+      repetitions(1),
+      structure(CHAR),
+      default_structure(CHAR),
+      mode(std::move(NewCommandMode())),
+      visible_lines(1),
+      screen_needs_redraw(false),
+      status_prompt(false),
+      status(""),
+      home_directory(GetHomeDirectory()),
+      edge_path(GetEdgeConfigPath(home_directory)) {}
 
 void EditorState::MoveBufferForwards(size_t times) {
   PushCurrentPosition();

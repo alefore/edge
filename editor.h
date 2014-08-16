@@ -46,18 +46,7 @@ struct EditorState {
     assert(false);
   }
 
-  EditorState()
-      : current_buffer(buffers.end()),
-        terminate(false),
-        direction(FORWARDS),
-        repetitions(1),
-        structure(CHAR),
-        default_structure(CHAR),
-        mode(std::move(NewCommandMode())),
-        visible_lines(1),
-        screen_needs_redraw(false),
-        status_prompt(false),
-        status("") {}
+  EditorState();
 
   void CheckPosition() {
     get_current_buffer()->CheckPosition();
@@ -95,6 +84,9 @@ struct EditorState {
 
   bool status_prompt;
   string status;
+
+  string home_directory;
+  vector<string> edge_path;
 };
 
 }  // namespace editor
