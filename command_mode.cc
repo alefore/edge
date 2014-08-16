@@ -491,6 +491,48 @@ void SetDefaultStructure(EditorState* editor_state, int number) {
   editor_state->ResetStructure();
 }
 
+class StructureMode : public EditorMode {
+ public:
+  StructureMode(function<void(EditorState*, int)> handler)
+      : handler_(handler) {}
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    editor_state->mode = NewCommandMode();
+    switch (c) {
+      case 'c':
+        handler_(editor_state, 0);
+        break;
+      case 'l':
+        handler_(editor_state, 1);
+        break;
+      case 'b':
+        handler_(editor_state, 2);
+        break;
+      default:
+        editor_state->mode->ProcessInput(c, editor_state);
+    }
+  }
+
+ private:
+  function<void(EditorState*, int)> handler_;
+};
+
+class EnterStructureMode : public Command {
+ public:
+  EnterStructureMode(
+      const string& description, function<void(EditorState*, int)> handler)
+      : description_(description), handler_(handler) {}
+
+  const string Description() { return description_; }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    editor_state->mode = unique_ptr<EditorMode>(new StructureMode(handler_));
+  }
+ private:
+  const string description_;
+  function<void(EditorState*, int)> handler_;
+};
+
 class NumberMode : public Command {
  public:
   NumberMode(function<void(EditorState*, int)> consumer)
@@ -573,14 +615,13 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('l', new MoveForwards()));
     output.insert(make_pair('h', new MoveBackwards()));
 
-    output.insert(make_pair(
-        's',
-        new NumberMode("sets the structure affected by the next command",
-                       SetStructure)));
+    output.insert(make_pair('s', new EnterStructureMode(
+        "sets the structure affected by the next command",
+        SetStructure)));
     output.insert(make_pair(
         'S',
-        new NumberMode("sets the default structure affected by commands",
-                       SetDefaultStructure)));
+        new EnterStructureMode("sets the default structure affected by commands",
+                          SetDefaultStructure)));
     output.insert(make_pair(
         'r',
         new NumberMode("repeats the next command", SetRepetitions)));
