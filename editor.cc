@@ -21,6 +21,7 @@ void EditorState::MoveBufferForwards(size_t times) {
       current_buffer = buffers.begin();
     }
   }
+  current_buffer->second->Enter(this);
 }
 
 void EditorState::MoveBufferBackwards(size_t times) {
@@ -37,6 +38,7 @@ void EditorState::MoveBufferBackwards(size_t times) {
     }
     current_buffer--;
   }
+  current_buffer->second->Enter(this);
 }
 
 void EditorState::PushCurrentPosition() {

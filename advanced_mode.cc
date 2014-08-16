@@ -72,6 +72,7 @@ class CloseCurrentBuffer : public Command {
     editor_state->screen_needs_redraw = true;
     editor_state->buffers.erase(editor_state->current_buffer);
     editor_state->current_buffer = editor_state->buffers.begin();
+    editor_state->current_buffer->second->Enter(editor_state);
     editor_state->mode = std::move(NewCommandMode());
     editor_state->repetitions = 1;
   }
