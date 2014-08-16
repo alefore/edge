@@ -23,6 +23,7 @@ if len(sys.argv) != 3:
 
 patch_parameters = os.getenv("PATCH_PARAMETERS") or "-p1"
 
+RunOrDie("patch --dry-run --reverse %s <%s" % (patch_parameters, sys.argv[1]))
 RunOrDie("patch --reverse %s <%s" % (patch_parameters, sys.argv[1]))
 
 dry_run_status = Run("patch --dry-run %s <%s" % (patch_parameters, sys.argv[2]))
