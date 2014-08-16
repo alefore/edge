@@ -55,7 +55,12 @@ OpenBuffer::OpenBuffer()
       current_position_col_(0),
       modified_(false),
       reading_from_parser_(false),
-      reload_on_enter_(false) {}
+      reload_on_enter_(false) {
+  static const string digits = "abcdefghijklmnopqrstuvwxyz0123456789_";
+  for (size_t i = 0; i < sizeof(whitespace_characters_); i++) {
+    whitespace_characters_[i] = digits.find(tolower(static_cast<char>(i))) == digits.npos;
+  }
+}
 
 void OpenBuffer::ReadData(EditorState* editor_state) {
   assert(fd_ > 0);

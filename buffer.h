@@ -83,6 +83,14 @@ class OpenBuffer {
     return current_position_line_ + 1 >= contents_.size()
         && current_position_col_ >= current_line()->contents->size();
   }
+  char current_character() const {
+    assert(current_position_col() < current_line()->contents->size());
+    return current_line()->contents->get(current_position_col());
+  }
+  char previous_character() const {
+    assert(current_position_col() > 0);
+    return current_line()->contents->get(current_position_col() - 1);
+  }
   size_t current_position_line() const { return current_position_line_; }
   void set_current_position_line(size_t value) {
     current_position_line_ = value;
@@ -115,6 +123,8 @@ class OpenBuffer {
 
   void toggle_diff() { diff_ = !diff_; }
 
+  bool* whitespace_characters() { return whitespace_characters_; }
+
  protected:
   vector<unique_ptr<ParseTree>> parse_tree;
 
@@ -138,6 +148,8 @@ class OpenBuffer {
   bool reload_on_enter_;
   // Does this buffer represent a diff?  Changes the way 'Save' behaves.
   bool diff_;
+
+  bool whitespace_characters_[256];
 };
 
 }  // namespace editor
