@@ -95,10 +95,16 @@ class LinePromptMode : public EditorMode {
   }
 
   void InsertToHistory(EditorState* editor_state) {
+    if (input_->size() == 0) { return; }
     auto insert_result = editor_state->buffers.insert(
         make_pair(kHistoryName, nullptr));
     if (insert_result.second) {
       insert_result.first->second.reset(new OpenBuffer);
+      if (editor_state->current_buffer == editor_state->buffers.end()) {
+        // Seems lame, but what can we do?
+        editor_state->current_buffer = insert_result.first;
+        editor_state->screen_needs_redraw = true;
+      }
     }
     insert_result.first->second->AppendLine(input_);
   }

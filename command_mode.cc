@@ -575,6 +575,7 @@ class ActivateLink : public Command {
   void ProcessInput(int c, EditorState* editor_state) {
     if (editor_state->buffers.empty()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
+    if (buffer->contents()->empty()) { return; }
     if (buffer->current_line()->activate.get() != nullptr) {
       buffer->current_line()->activate->ProcessInput(c, editor_state);
     } else {
