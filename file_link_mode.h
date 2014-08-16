@@ -18,6 +18,13 @@ using std::string;
 bool SaveContentsToFile(
     EditorState* editor_state, OpenBuffer* buffer, const string& path);
 
+// Saves the contents of the buffer directly to an already open file.  Like
+// SaveContentsToFile, either returns true (on success) or updates the editor
+// status.
+bool SaveContentsToOpenFile(
+    EditorState* editor_state, OpenBuffer* buffer, const string& path,
+    int fd);
+
 unique_ptr<EditorMode> NewFileLinkMode(
     const string& path, int position, bool ignore_if_not_found);
 

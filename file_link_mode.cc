@@ -184,7 +184,24 @@ bool SaveContentsToFile(
     editor_state->status = tmp_path + ": open failed: " + strerror(errno);
     return false;
   }
-  // TODO: It'd be significant more efficient to do fewer writes.
+  bool result = SaveContentsToOpenFile(editor_state, buffer, tmp_path, fd);
+  close(fd);
+  if (!result) {
+    return false;
+  }
+
+  if (rename(tmp_path.c_str(), path.c_str()) == -1) {
+    editor_state->status = path + ": rename failed: " + strerror(errno);
+    return false;
+  }
+
+  return true;
+}
+
+bool SaveContentsToOpenFile(
+    EditorState* editor_state, OpenBuffer* buffer, const string& path,
+    int fd) {
+  // TODO: It'd be significant more efficient to do fewer (bigger) writes.
   for (const auto& line : *buffer->contents()) {
     const auto& str = *line->contents;
     char* tmp = static_cast<char*>(malloc(str.size() + 1));
@@ -193,16 +210,10 @@ bool SaveContentsToFile(
     int write_result = write(fd, tmp, str.size() + 1);
     free(tmp);
     if (write_result == -1) {
-      editor_state->status = tmp_path + ": write failed: " + to_string(fd)
+      editor_state->status = path + ": write failed: " + to_string(fd)
           + ": " + strerror(errno);
-      close(fd);
       return false;
     }
-  }
-  close(fd);
-  if (rename(tmp_path.c_str(), path.c_str()) == -1) {
-    editor_state->status = path + ": rename failed: " + strerror(errno);
-    return false;
   }
   return true;
 }
