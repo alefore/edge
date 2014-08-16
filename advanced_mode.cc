@@ -99,33 +99,7 @@ class SaveCurrentBuffer : public Command {
     if (editor_state->current_buffer == editor_state->buffers.end()) {
       return;
     }
-    const auto& buffer = editor_state->get_current_buffer();
-    if (!buffer->saveable()) {
-      editor_state->status = "Buffer can't be saved.";
-      return;
-    }
-    string path = editor_state->current_buffer->first;
-    string tmp_path = path + ".tmp";
-    int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-    if (fd == -1) {
-      cerr << tmp_path << ": open failed: " << strerror(errno);
-      exit(-1);
-    }
-    for (const auto& line : *buffer->contents()) {
-      const auto& str = *line->contents;
-      char* tmp = static_cast<char*>(malloc(str.size() + 1));
-      strcpy(tmp, str.ToString().c_str());
-      tmp[str.size()] = '\n';
-      if (write(fd, tmp, str.size() + 1) == -1) {
-        cerr << tmp_path << ": write failed: " << fd << ": " << strerror(errno);
-        exit(-1);
-      }
-      free(tmp);
-    }
-    close(fd);
-    rename(tmp_path.c_str(), path.c_str());
-    buffer->set_modified(false);
-    editor_state->status = "Saved: " + path;
+    editor_state->get_current_buffer()->Save(editor_state);
     editor_state->mode = std::move(NewCommandMode());
   }
 };

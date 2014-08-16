@@ -45,6 +45,8 @@ class OpenBuffer {
 
   void ReadData(EditorState* editor_state);
 
+  void Save(EditorState* editor_state);
+
   void AppendLazyString(shared_ptr<LazyString> input);
   shared_ptr<Line> AppendLine(shared_ptr<LazyString> line);
   shared_ptr<Line> AppendRawLine(shared_ptr<LazyString> str);
