@@ -284,12 +284,12 @@ const string LineUp::Description() {
   }
   if (editor_state->buffers.empty()) { return; }
   shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
-  if (buffer->contents()->empty()) { return; }
-  if (editor_state->repetitions > 1) {
-    // Saving on single-lines changes makes this very verbose, lets avoid that. 
-    editor_state->PushCurrentPosition();
-  }
   if (editor_state->structure == 0) {
+    if (buffer->contents()->empty()) { return; }
+    if (editor_state->repetitions > 1) {
+      // Saving on single-lines changes makes this very verbose, lets avoid that.
+      editor_state->PushCurrentPosition();
+    }
     size_t pos = buffer->current_position_line();
     if (editor_state->repetitions < pos) {
       buffer->set_current_position_line(pos - editor_state->repetitions);
@@ -319,13 +319,13 @@ const string LineDown::Description() {
     return;
   }
   if (editor_state->buffers.empty()) { return; }
-  shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
-  if (buffer->contents()->empty()) { return; }
-  if (editor_state->repetitions > 1) {
-    // Saving on single-lines changes makes this very verbose, lets avoid that.
-    editor_state->PushCurrentPosition();
-  }
   if (editor_state->structure == 0) {
+    shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
+    if (buffer->contents()->empty()) { return; }
+    if (editor_state->repetitions > 1) {
+      // Saving on single-lines changes makes this very verbose, lets avoid that.
+      editor_state->PushCurrentPosition();
+    }
     size_t pos = buffer->current_position_line();
     if (pos + editor_state->repetitions < buffer->contents()->size() - 1) {
       buffer->set_current_position_line(pos + editor_state->repetitions);
