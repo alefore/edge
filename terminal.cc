@@ -77,13 +77,7 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
     addstr(to_string(buffer->current_position_col() + 1).c_str());
     addstr("] ");
 
-    string flags = "";
-    if (buffer->fd() != -1) {
-      flags += "<";
-    }
-    if (buffer->modified()) {
-      flags += "~";
-    }
+    string flags(buffer->FlagsString());
     if (editor_state.repetitions != 1) {
       flags += to_string(editor_state.repetitions);
     }

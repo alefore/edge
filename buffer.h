@@ -97,6 +97,8 @@ class OpenBuffer {
   void set_modified(bool value) { modified_ = value; }
   bool modified() const { return modified_; }
 
+  string FlagsString() const;
+
  protected:
   void SetInputFile(int fd);
 

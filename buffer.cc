@@ -148,5 +148,16 @@ void OpenBuffer::SetInputFile(int input_fd) {
   fd_ = input_fd;
 }
 
+string OpenBuffer::FlagsString() const {
+  string output;
+  if (fd() != -1) {
+    output += "<";
+  }
+  if (modified()) {
+    output += "~";
+  }
+  return output;
+}
+
 }  // namespace editor
 }  // namespace afc
