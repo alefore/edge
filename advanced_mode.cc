@@ -195,6 +195,7 @@ class ListBuffers : public Command {
     editor_state->current_buffer = it.first;
     if (it.second) {
       it.first->second.reset(new ListBuffersBuffer());
+      it.first->second->set_reload_on_enter(true);
     }
     it.first->second->Reload(editor_state);
     editor_state->screen_needs_redraw = true;
