@@ -123,7 +123,7 @@ class OpenBuffer {
 
   void toggle_diff() { diff_ = !diff_; }
 
-  bool* whitespace_characters() { return whitespace_characters_; }
+  bool* word_characters() { return word_characters_; }
 
  protected:
   vector<unique_ptr<ParseTree>> parse_tree;
@@ -149,7 +149,7 @@ class OpenBuffer {
   // Does this buffer represent a diff?  Changes the way 'Save' behaves.
   bool diff_;
 
-  bool whitespace_characters_[256];
+  bool word_characters_[256];
 };
 
 }  // namespace editor

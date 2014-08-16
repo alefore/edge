@@ -57,8 +57,8 @@ OpenBuffer::OpenBuffer()
       reading_from_parser_(false),
       reload_on_enter_(false) {
   static const string digits = "abcdefghijklmnopqrstuvwxyz0123456789_";
-  for (size_t i = 0; i < sizeof(whitespace_characters_); i++) {
-    whitespace_characters_[i] = digits.find(tolower(static_cast<char>(i))) == digits.npos;
+  for (size_t i = 0; i < sizeof(word_characters_); i++) {
+    word_characters_[i] = digits.find(tolower(static_cast<char>(i))) != digits.npos;
   }
 }
 

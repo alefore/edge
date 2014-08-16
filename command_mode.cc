@@ -432,11 +432,11 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
     buffer->CheckPosition();
     buffer->MaybeAdjustPositionCol();
     editor_state->PushCurrentPosition();
-    const bool* is_whitespace = buffer->whitespace_characters();
+    const bool* is_word = buffer->word_characters();
     while (editor_state->repetitions > 0) {
       // Seek forwards until we're in a whitespace.
       while (buffer->current_position_col() < buffer->current_line()->size()
-             && !is_whitespace[static_cast<int>(buffer->current_character())]) {
+             && is_word[static_cast<int>(buffer->current_character())]) {
         buffer->set_current_position_col(buffer->current_position_col() + 1);
       }
 
@@ -444,7 +444,7 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
       bool advanced = false;
       while (!buffer->at_end()
              && (buffer->current_position_col() == buffer->current_line()->contents->size()
-                 || is_whitespace[static_cast<int>(buffer->current_character())])) {
+                 || !is_word[static_cast<int>(buffer->current_character())])) {
         if (buffer->current_position_col() == buffer->current_line()->contents->size()) {
           buffer->set_current_position_line(buffer->current_position_line() + 1);
           buffer->set_current_position_col(0);
@@ -509,11 +509,11 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
     buffer->CheckPosition();
     buffer->MaybeAdjustPositionCol();
     editor_state->PushCurrentPosition();
-    const bool* is_whitespace = buffer->whitespace_characters();
+    const bool* is_word = buffer->word_characters();
     while (editor_state->repetitions > 0) {
       // Seek backwards until we're just after a whitespace.
       while (buffer->current_position_col() > 0
-             && !is_whitespace[static_cast<int>(buffer->previous_character())]) {
+             && is_word[static_cast<int>(buffer->previous_character())]) {
         buffer->set_current_position_col(buffer->current_position_col() - 1);
       }
 
@@ -521,7 +521,7 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
       bool advanced = false;
       while (!buffer->at_beginning()
              && (buffer->current_position_col() == 0
-                 || is_whitespace[static_cast<int>(buffer->previous_character())])) {
+                 || !is_word[static_cast<int>(buffer->previous_character())])) {
         if (buffer->current_position_col() == 0) {
           buffer->set_current_position_line(buffer->current_position_line() - 1);
           buffer->set_current_position_col(buffer->current_line()->contents->size());
