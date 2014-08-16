@@ -136,6 +136,9 @@ void EnterInsertMode(EditorState* editor_state) {
     auto buffer = editor_state->get_current_buffer();
     shared_ptr<Line> line(new Line());
     line->contents = EmptyString();
+    if (editor_state->direction == BACKWARDS) {
+      buffer->set_current_position_line(buffer->current_position_line() + 1);
+    }
     buffer->contents()->insert(
         buffer->contents()->begin() + buffer->current_position_line(),
         line);
