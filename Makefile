@@ -5,7 +5,7 @@ LDLIBS=-lncurses
 all: edge
 
 token.o: token.cc token.h Makefile
-main.o: main.cc file_link_mode.h token.h terminal.h Makefile
+main.o: main.cc editor.h file_link_mode.h token.h terminal.h Makefile
 terminal.o: terminal.cc terminal.h Makefile
 
 memory_mapped_file.o: memory_mapped_file.cc memory_mapped_file.h buffer.h lazy_string.h Makefile
