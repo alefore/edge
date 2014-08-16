@@ -129,6 +129,7 @@ void EnterInsertMode(EditorState* editor_state) {
     editor_state->current_buffer = editor_state->buffers.begin();
   }
 
+  editor_state->get_current_buffer()->CheckPosition();
   editor_state->status = "";
   if (editor_state->structure == EditorState::CHAR) {
     EnterInsertCharactersMode(editor_state);
