@@ -482,6 +482,7 @@ void SetRepetitions(EditorState* editor_state, int number) {
 }
 
 void SetStructure(EditorState* editor_state, int number) {
+  editor_state->default_structure = 0;
   editor_state->structure = number;
 }
 
