@@ -426,8 +426,41 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
     editor_state->repetitions = 1;
     editor_state->ResetStructure();
   } else if (editor_state->structure == EditorState::WORD) {
-    // TODO: Implement.
-    editor_state->status = "Oops, move by word is not yet implemented.";
+    if (editor_state->buffers.empty()) { return; }
+    shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
+    if (buffer->contents()->empty()) { return; }
+    buffer->CheckPosition();
+    buffer->MaybeAdjustPositionCol();
+    editor_state->PushCurrentPosition();
+    while (editor_state->repetitions > 0) {
+      // Seek forwards until we're in a whitespace.
+      while (buffer->current_position_col() < buffer->current_line()->size()
+             && buffer->current_line()->contents->get(buffer->current_position_col()) != ' ') {
+        buffer->set_current_position_col(buffer->current_position_col() + 1);
+      }
+
+      // Seek forwards until we're in a non-whitespace.
+      bool advanced = false;
+      while (!(buffer->current_position_line() + 1 == buffer->contents()->size()
+               && buffer->current_position_col() == buffer->current_line()->contents->size())
+             && (buffer->current_position_col() == buffer->current_line()->contents->size()
+                 || buffer->current_line()->contents->get(buffer->current_position_col()) == ' ')) {
+        if (buffer->current_position_col() == buffer->current_line()->contents->size()) {
+          buffer->set_current_position_line(buffer->current_position_line() + 1);
+          buffer->set_current_position_col(0);
+        } else {
+          buffer->set_current_position_col(buffer->current_position_col() + 1);
+        }
+        advanced = true;
+      }
+      if (advanced) {
+        editor_state->repetitions--;
+      } else {
+        editor_state->repetitions = 0;
+      }
+    }
+    editor_state->repetitions = 1;
+    editor_state->ResetStructure();
   } else {
     editor_state->structure =
         EditorState::LowerStructure(
@@ -470,8 +503,45 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
     editor_state->repetitions = 1;
     editor_state->ResetStructure();
   } else if (editor_state->structure == EditorState::WORD) {
-    // TODO: Implement.
-    editor_state->status = "Oops, move by word is not yet implemented.";
+    if (editor_state->buffers.empty()) { return; }
+    shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
+    if (buffer->contents()->empty()) { return; }
+    buffer->CheckPosition();
+    buffer->MaybeAdjustPositionCol();
+    editor_state->PushCurrentPosition();
+    while (editor_state->repetitions > 0) {
+      // Seek backwards until we're just after a whitespace.
+      while (buffer->current_position_col() > 0
+             && buffer->current_line()->contents->get(buffer->current_position_col() - 1) != ' ') {
+        buffer->set_current_position_col(buffer->current_position_col() - 1);
+      }
+
+      // Seek backwards until we're just after a non-whitespace.
+      bool advanced = false;
+      while (!(buffer->current_position_line() == 0
+               && buffer->current_position_col() == 0)
+             && (buffer->current_position_col() == 0
+                 || buffer->current_line()->contents->get(buffer->current_position_col() - 1) == ' ')) {
+        if (buffer->current_position_col() == 0) {
+          buffer->set_current_position_line(buffer->current_position_line() - 1);
+          buffer->set_current_position_col(buffer->current_line()->contents->size());
+        } else {
+          buffer->set_current_position_col(buffer->current_position_col() - 1);
+        }
+        advanced = true;
+      }
+      if (advanced) {
+        editor_state->repetitions--;
+      } else {
+        editor_state->repetitions = 0;
+      }
+    }
+    if (buffer->current_position_col() != 0) {
+      buffer->set_current_position_col(buffer->current_position_col() - 1);
+    }
+
+    editor_state->repetitions = 1;
+    editor_state->ResetStructure();
   } else {
     editor_state->structure =
         EditorState::LowerStructure(
