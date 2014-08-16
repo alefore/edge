@@ -218,10 +218,10 @@ class GotoPreviousPositionCommand : public Command {
               || (editor_state->structure <= 1
                   && pos.line != editor_state->get_current_buffer()->current_position_line())
               || editor_state->structure <= 0)) {
-        it->second->Enter(editor_state);
         editor_state->current_buffer = it;
         it->second->set_current_position_line(pos.line);
         it->second->set_current_position_col(pos.col);
+        it->second->Enter(editor_state);
         editor_state->screen_needs_redraw = true;
         editor_state->repetitions--;
       }
