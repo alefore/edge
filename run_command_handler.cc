@@ -30,12 +30,17 @@ class CommandBuffer : public OpenBuffer {
     if (pid == 0) {
       close(0);
       close(pipefd[0]);
+
       int stdin = open("/dev/null", O_RDONLY);
       if (stdin != 0 && dup2(stdin, 0) == -1) { exit(1); }
       if (dup2(pipefd[1], 1) == -1) { exit(1); }
       if (dup2(pipefd[1], 2) == -1) { exit(1); }
       if (stdin != 0) { close(stdin); }
       if (pipefd[1] != 1 && pipefd[1] != 2) { close(pipefd[1]); }
+
+      // TODO: Don't hardcode this here, use some config file instead.
+      setenv("GREP_OPTIONS", "-n", 0);
+
       system(command_.c_str());
       exit(0);
     }
