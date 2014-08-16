@@ -130,9 +130,9 @@ void EnterInsertMode(EditorState* editor_state) {
   }
 
   editor_state->status = "";
-  if (editor_state->structure == 0) {
+  if (editor_state->structure == EditorState::CHAR) {
     EnterInsertCharactersMode(editor_state);
-  } else if (editor_state->structure == 1) {
+  } else if (editor_state->structure == EditorState::LINE) {
     auto buffer = editor_state->get_current_buffer();
     shared_ptr<Line> line(new Line());
     line->contents = EmptyString();

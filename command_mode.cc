@@ -46,21 +46,21 @@ class GotoCommand : public Command {
       return;
     }
     editor_state->PushCurrentPosition();
-    if (editor_state->structure == 0) {
+    if (editor_state->structure == EditorState::CHAR) {
       shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
       if (buffer->contents()->empty()) { return; }
       size_t position =
           ComputePosition(editor_state, buffer->current_line()->size() + 1);
       assert(position <= buffer->current_line()->size());
       buffer->set_current_position_col(position);
-    } else if (editor_state->structure == 1) {
+    } else if (editor_state->structure == EditorState::LINE) {
       shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
       if (buffer->contents()->empty()) { return; }
       size_t position =
           ComputePosition(editor_state, buffer->contents()->size());
       assert(position < buffer->contents()->size());
       buffer->set_current_position_line(position);
-    } else if (editor_state->structure == 2) {
+    } else if (editor_state->structure == EditorState::BUFFER) {
       size_t position =
           ComputePosition(editor_state, editor_state->buffers.size());
       assert(position < editor_state->buffers.size());
@@ -100,11 +100,11 @@ class Delete : public Command {
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
     shared_ptr<OpenBuffer> new_buffer(new OpenBuffer());
 
-    if (editor_state->structure == 0) {
+    if (editor_state->structure == EditorState::CHAR) {
       DeleteCharacters(c, editor_state);
-    } else if (editor_state->structure == 1) {
+    } else if (editor_state->structure == EditorState::LINE) {
       DeleteLines(c, editor_state);
-    } else if (editor_state->structure == 2) {
+    } else if (editor_state->structure == EditorState::BUFFER) {
       auto buffer_to_erase = editor_state->current_buffer;
       if (editor_state->current_buffer == editor_state->buffers.begin()) {
         editor_state->current_buffer = editor_state->buffers.end();
@@ -284,7 +284,7 @@ const string LineUp::Description() {
   }
   if (editor_state->buffers.empty()) { return; }
   shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
-  if (editor_state->structure == 0) {
+  if (editor_state->structure == EditorState::CHAR) {
     if (buffer->contents()->empty()) { return; }
     if (editor_state->repetitions > 1) {
       // Saving on single-lines changes makes this very verbose, lets avoid that.
@@ -319,7 +319,7 @@ const string LineDown::Description() {
     return;
   }
   if (editor_state->buffers.empty()) { return; }
-  if (editor_state->structure == 0) {
+  if (editor_state->structure == EditorState::CHAR) {
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
     if (buffer->contents()->empty()) { return; }
     if (editor_state->repetitions > 1) {
@@ -378,7 +378,7 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
     MoveBackwards::Move(c, editor_state);
     return;
   }
-  if (editor_state->structure == 0) {
+  if (editor_state->structure == EditorState::CHAR) {
     if (editor_state->buffers.empty()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
     if (buffer->contents()->empty()) { return; }
@@ -416,7 +416,7 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
     MoveForwards::Move(c, editor_state);
     return;
   }
-  if (editor_state->structure == 0) {
+  if (editor_state->structure == EditorState::CHAR) {
     if (editor_state->buffers.empty()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
     if (buffer->contents()->empty()) { return; }
