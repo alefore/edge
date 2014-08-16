@@ -17,7 +17,6 @@ extern "C" {
 #include "lazy_string.h"
 #include "file_link_mode.h"
 #include "terminal.h"
-#include "token.h"
 
 int main(int argc, const char* argv[]) {
   using namespace afc::editor;

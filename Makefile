@@ -4,8 +4,7 @@ LDLIBS=-lncurses
 
 all: edge
 
-token.o: token.cc token.h Makefile
-main.o: main.cc editor.h file_link_mode.h token.h terminal.h Makefile
+main.o: main.cc editor.h file_link_mode.h terminal.h Makefile
 terminal.o: terminal.cc terminal.h Makefile
 
 memory_mapped_file.o: memory_mapped_file.cc memory_mapped_file.h buffer.h lazy_string.h Makefile
@@ -35,6 +34,6 @@ lazy_string.o: lazy_string.cc lazy_string.h Makefile
 editable_string.o: editable_string.cc editable_string.h Makefile
 lazy_string_append.o: lazy_string_append.cc lazy_string_append.h lazy_string.h Makefile
 
-OBJS=token.o advanced_mode.o buffer.o char_buffer.o command_mode.o editable_string.o editor.o file_link_mode.o find_mode.o help_command.o insert_mode.o lazy_string.o lazy_string_append.o line_prompt_mode.o main.o map_mode.o memory_mapped_file.o noop_command.o repeat_mode.o run_command_handler.o search_handler.o substring.o terminal.o
+OBJS=advanced_mode.o buffer.o char_buffer.o command_mode.o editable_string.o editor.o file_link_mode.o find_mode.o help_command.o insert_mode.o lazy_string.o lazy_string_append.o line_prompt_mode.o main.o map_mode.o memory_mapped_file.o noop_command.o repeat_mode.o run_command_handler.o search_handler.o substring.o terminal.o
 edge: $(OBJS)
 	$(CXX) $(LDFLAGS) -o edge $(OBJS) $(LDLIBS)
