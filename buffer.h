@@ -123,6 +123,7 @@ class OpenBuffer {
 
   void toggle_diff() { diff_ = !diff_; }
 
+  void set_word_characters(const string& word_characters);
   bool* word_characters() { return word_characters_; }
 
  protected:

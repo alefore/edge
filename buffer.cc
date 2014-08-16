@@ -56,10 +56,8 @@ OpenBuffer::OpenBuffer()
       modified_(false),
       reading_from_parser_(false),
       reload_on_enter_(false) {
-  static const string digits = "abcdefghijklmnopqrstuvwxyz0123456789_";
-  for (size_t i = 0; i < sizeof(word_characters_); i++) {
-    word_characters_[i] = digits.find(tolower(static_cast<char>(i))) != digits.npos;
-  }
+  set_word_characters(
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
 }
 
 void OpenBuffer::ReadData(EditorState* editor_state) {
@@ -194,6 +192,13 @@ string OpenBuffer::FlagsString() const {
     output += "~";
   }
   return output;
+}
+
+void OpenBuffer::set_word_characters(const string& word_characters) {
+  for (size_t i = 0; i < sizeof(word_characters_); i++) {
+    word_characters_[i] = word_characters.find(static_cast<char>(i))
+        != word_characters.npos;
+  }
 }
 
 }  // namespace editor

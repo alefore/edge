@@ -110,6 +110,14 @@ void OpenFileHandler(const string& name, EditorState* editor_state) {
   mode->ProcessInput(0, editor_state);
 }
 
+void SetWordCharacters(const string& input, EditorState* editor_state) {
+  editor_state->mode = NewCommandMode();
+  if (editor_state->current_buffer == editor_state->buffers.end()) {
+    return;
+  }
+  editor_state->get_current_buffer()->set_word_characters(input);
+}
+
 void SetVariableHandler(const string& name, EditorState* editor_state) {
   editor_state->mode = std::move(NewCommandMode());
   if (name == "reload_on_enter") {
@@ -122,6 +130,10 @@ void SetVariableHandler(const string& name, EditorState* editor_state) {
       return;
     }
     editor_state->get_current_buffer()->toggle_diff();
+  } else if (name == "word_characters") {
+    unique_ptr<Command> command(NewLinePromptCommand(
+        "word_characters: ", "", SetWordCharacters));
+    command->ProcessInput('X', editor_state);
   } else {
     editor_state->status = "Unknown variable: " + name;
   }
