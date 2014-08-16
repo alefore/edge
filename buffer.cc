@@ -16,8 +16,6 @@ extern "C" {
 namespace afc {
 namespace editor {
 
-using std::to_string;
-
 OpenBuffer::OpenBuffer()
     : fd_(-1),
       buffer_(nullptr),
@@ -28,7 +26,6 @@ OpenBuffer::OpenBuffer()
       current_position_line_(0),
       current_position_col_(0),
       modified_(false),
-      saveable_(false),
       reading_from_parser_(false),
       reload_on_enter_(false) {}
 
@@ -74,38 +71,7 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
 }
 
 void OpenBuffer::Save(EditorState* editor_state) {
-  if (!saveable()) {
-    editor_state->status = "Buffer can't be saved.";
-    return;
-  }
-  string path = editor_state->current_buffer->first;
-  string tmp_path = path + ".tmp";
-  int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-  if (fd == -1) {
-    editor_state->status = tmp_path + ": open failed: " + strerror(errno);
-    return;
-  }
-  for (const auto& line : contents_) {
-    const auto& str = *line->contents;
-    char* tmp = static_cast<char*>(malloc(str.size() + 1));
-    strcpy(tmp, str.ToString().c_str());
-    tmp[str.size()] = '\n';
-    int write_result = write(fd, tmp, str.size() + 1);
-    free(tmp);
-    if (write_result == -1) {
-      editor_state->status = tmp_path + ": write failed: " + to_string(fd)
-          + ": " + strerror(errno);
-      close(fd);
-      return;
-    }
-  }
-  close(fd);
-  if (rename(tmp_path.c_str(), path.c_str()) == -1) {
-    editor_state->status = path + ": rename failed: " + strerror(errno);
-    return;
-  }
-  set_modified(false);
-  editor_state->status = "Saved: " + path;
+  editor_state->status = "Buffer can't be saved.";
 }
 
 void OpenBuffer::AppendLazyString(shared_ptr<LazyString> input) {

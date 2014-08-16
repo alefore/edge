@@ -21,6 +21,7 @@ extern "C" {
 namespace {
 using std::make_pair;
 using std::shared_ptr;
+using std::to_string;
 using std::unique_ptr;
 using std::sort;
 using namespace afc::editor;
@@ -30,8 +31,7 @@ class FileBuffer : public OpenBuffer {
   FileBuffer(const string& path) : path_(path) {}
 
   void Reload(EditorState* editor_state) {
-    struct stat sb;
-    if (stat(path_.c_str(), &sb) == -1) {
+    if (stat(path_.c_str(), &stat_buffer_) == -1) {
       return;
     }
 
@@ -39,14 +39,13 @@ class FileBuffer : public OpenBuffer {
     editor_state->CheckPosition();
     editor_state->screen_needs_redraw = true;
 
-    if (!S_ISDIR(sb.st_mode)) {
+    if (!S_ISDIR(stat_buffer_.st_mode)) {
       char* tmp = strdup(path_.c_str());
       if (0 == strcmp(basename(tmp), "passwd")) {
         RunCommandHandler("parsers/passwd <" + path_, editor_state);
       } else {
         LoadMemoryMappedFile(path_, this);
       }
-      saveable_ = true;
       return;
     }
 
@@ -75,8 +74,44 @@ class FileBuffer : public OpenBuffer {
     sort(contents_.begin() + 1, contents_.end(), compare);
   }
 
+  void Save(EditorState* editor_state) {
+    if (S_ISDIR(stat_buffer_.st_mode)) {
+      OpenBuffer::Save(editor_state);
+      return;
+    }
+
+    string tmp_path = path_ + ".tmp";
+    int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+    if (fd == -1) {
+      editor_state->status = tmp_path + ": open failed: " + strerror(errno);
+      return;
+    }
+    for (const auto& line : contents_) {
+      const auto& str = *line->contents;
+      char* tmp = static_cast<char*>(malloc(str.size() + 1));
+      strcpy(tmp, str.ToString().c_str());
+      tmp[str.size()] = '\n';
+      int write_result = write(fd, tmp, str.size() + 1);
+      free(tmp);
+      if (write_result == -1) {
+        editor_state->status = tmp_path + ": write failed: " + to_string(fd)
+            + ": " + strerror(errno);
+        close(fd);
+        return;
+      }
+    }
+    close(fd);
+    if (rename(tmp_path.c_str(), path_.c_str()) == -1) {
+      editor_state->status = path_ + ": rename failed: " + strerror(errno);
+      return;
+    }
+    set_modified(false);
+    editor_state->status = "Saved: " + path_;
+  }
+
  private:
   const string path_;
+  struct stat stat_buffer_;
 };
 
 static char* realpath_safe(const string& path) {

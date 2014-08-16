@@ -42,10 +42,9 @@ class OpenBuffer {
   OpenBuffer();
 
   virtual void Reload(EditorState* editor_state) {}
+  virtual void Save(EditorState* editor_state);
 
   void ReadData(EditorState* editor_state);
-
-  void Save(EditorState* editor_state);
 
   void AppendLazyString(shared_ptr<LazyString> input);
   shared_ptr<Line> AppendLine(shared_ptr<LazyString> line);
@@ -67,7 +66,6 @@ class OpenBuffer {
 
   const vector<shared_ptr<Line>>* contents() const { return &contents_; }
   vector<shared_ptr<Line>>* contents() { return &contents_; }
-  bool saveable() const { return saveable_; }
 
   size_t view_start_line() const { return view_start_line_; }
   void set_view_start_line(size_t value) {
@@ -118,7 +116,6 @@ class OpenBuffer {
   size_t current_position_col_;
 
   bool modified_;
-  bool saveable_;
   bool reading_from_parser_;
 
   bool reload_on_enter_;
