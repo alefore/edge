@@ -70,9 +70,21 @@ class CloseCurrentBuffer : public Command {
     }
 
     editor_state->screen_needs_redraw = true;
+    map<string, shared_ptr<OpenBuffer>>::iterator it;
+    if (editor_state->buffers.size() == 1) {
+      it = editor_state->buffers.end();
+    } else {
+      it = editor_state->current_buffer;
+      if (it == editor_state->buffers.begin()) {
+        it = editor_state->buffers.end();
+      }
+      it--;
+      assert(it != editor_state->current_buffer);
+      assert(it != editor_state->buffers.end());
+      it->second->Enter(editor_state);
+    }
     editor_state->buffers.erase(editor_state->current_buffer);
-    editor_state->current_buffer = editor_state->buffers.begin();
-    editor_state->current_buffer->second->Enter(editor_state);
+    editor_state->current_buffer = it;
     editor_state->mode = std::move(NewCommandMode());
     editor_state->repetitions = 1;
   }
