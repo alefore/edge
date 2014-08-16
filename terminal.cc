@@ -91,14 +91,24 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
       flags += "r";
     }
 
-    switch (editor_state.structure) {
+    switch (editor_state.default_structure) {
       case 0:
+        switch (editor_state.structure) {
+          case 0:
+            break;
+          case 1:
+            flags += "l";
+            break;
+          case 2:
+            flags += "b";
+            break;
+        }
         break;
       case 1:
-        flags += "l";
+        flags += "L";
         break;
       case 2:
-        flags += "b";
+        flags += "B";
         break;
     }
 
