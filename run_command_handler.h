@@ -11,6 +11,7 @@ using std::string;
 struct EditorState;
 
 void RunCommandHandler(const string& input, EditorState* editor_state);
+void RunMultipleCommandsHandler(const string& input, EditorState* editor_state);
 
 }  // namespace editor
 }  // namespace afc

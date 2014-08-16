@@ -47,7 +47,8 @@ void LoadEnvironmentVariables(
 
 class CommandBuffer : public OpenBuffer {
  public:
-  CommandBuffer(const string& command) : command_(command) {}
+  CommandBuffer(const string& command, const map<string, string>& environment)
+      : command_(command), environment_(environment) {}
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     int pipefd[2];
@@ -68,6 +69,9 @@ class CommandBuffer : public OpenBuffer {
       if (pipefd[1] != 1 && pipefd[1] != 2) { close(pipefd[1]); }
 
       LoadEnvironmentVariables(editor_state->edge_path, command_);
+      for (const auto& it : environment_) {
+        setenv(it.first.c_str(), it.second.c_str(), 1);
+      }
 
       system(command_.c_str());
       exit(0);
@@ -81,14 +85,12 @@ class CommandBuffer : public OpenBuffer {
 
  private:
   const string command_;
+  const map<string, string> environment_;
 };
 
-}  // namespace
-
-namespace afc {
-namespace editor {
-
-void RunCommandHandler(const string& input, EditorState* editor_state) {
+void RunCommand(
+    const string& name, const string& input,
+    const map<string, string> environment, EditorState* editor_state) {
   if (input.empty()) {
     editor_state->mode = NewCommandMode();
     editor_state->status = "";
@@ -96,15 +98,41 @@ void RunCommandHandler(const string& input, EditorState* editor_state) {
     return;
   }
 
-  auto it = editor_state->buffers.insert(make_pair("$ " + input, nullptr));
+  auto it = editor_state->buffers.insert(make_pair(name, nullptr));
   editor_state->current_buffer = it.first;
   if (it.second) {
-    it.first->second.reset(new CommandBuffer(input));
+    it.first->second.reset(new CommandBuffer(input, environment));
   }
   it.first->second->Reload(editor_state);
   it.first->second->set_current_position_line(0);
   editor_state->screen_needs_redraw = true;
   editor_state->mode = std::move(NewCommandMode());
+}
+
+}  // namespace
+
+namespace afc {
+namespace editor {
+
+void RunCommandHandler(const string& input, EditorState* editor_state) {
+  map<string, string> empty_environment;
+  RunCommand("$ " + input, input, empty_environment, editor_state);
+}
+
+void RunMultipleCommandsHandler(const string& input, EditorState* editor_state) {
+  if (input.empty()
+      || editor_state->current_buffer == editor_state->buffers.end()) {
+    editor_state->mode = NewCommandMode();
+    editor_state->status = "";
+    editor_state->screen_needs_redraw = true;
+    return;
+  }
+  auto buffer = editor_state->get_current_buffer();
+  for (const auto& line : *buffer->contents()) {
+    string arg = line->contents->ToString();
+    map<string, string> environment = {{"ARG", arg}};
+    RunCommand("$ " + input + " " + arg, input, environment, editor_state);
+  }
 }
 
 }  // namespace editor

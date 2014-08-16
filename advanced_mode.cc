@@ -231,6 +231,12 @@ static const map<int, Command*>& GetAdvancedModeMap() {
     output.insert(make_pair(
         'o',
         NewLinePromptCommand("<", "loads a file", OpenFileHandler).release()));
+    output.insert(make_pair(
+        'C',
+        NewLinePromptCommand(
+            "...$ ",
+            "runs a command once for each line in the current buffer",
+            RunMultipleCommandsHandler).release()));
     output.insert(
         make_pair('c', NewLinePromptCommand("$ ", "runs a command", RunCommandHandler).release()));
     output.insert(make_pair('?', NewHelpCommand(output, "advance command mode").release()));
