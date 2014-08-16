@@ -312,7 +312,7 @@ const string LineUp::Description() {
       buffer->set_current_position_line(0);
     }
   } else if (editor_state->structure == EditorState::LINE) {
-    // Move in whole screens.
+    // Move in whole pages.
     editor_state->repetitions *= editor_state->visible_lines;
     editor_state->structure = EditorState::CHAR;
     Move(c, editor_state);
@@ -353,7 +353,7 @@ const string LineDown::Description() {
       buffer->set_current_position_line(buffer->contents()->size() - 1);
     }
   } else if (editor_state->structure == EditorState::LINE) {
-    // Move in whole screens.
+    // Move in whole pages.
     editor_state->repetitions *= editor_state->visible_lines;
     editor_state->structure = EditorState::CHAR;
     Move(c, editor_state);
