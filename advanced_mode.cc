@@ -117,6 +117,11 @@ void SetVariableHandler(const string& name, EditorState* editor_state) {
       return;
     }
     editor_state->get_current_buffer()->toggle_reload_on_enter();
+  } else if (name == "diff") {
+    if (editor_state->current_buffer == editor_state->buffers.end()) {
+      return;
+    }
+    editor_state->get_current_buffer()->toggle_diff();
   } else {
     editor_state->status = "Unknown variable: " + name;
   }

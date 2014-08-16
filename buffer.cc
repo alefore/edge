@@ -11,7 +11,35 @@ extern "C" {
 
 #include "char_buffer.h"
 #include "editor.h"
+#include "file_link_mode.h"
+#include "run_command_handler.h"
 #include "substring.h"
+
+namespace {
+
+using namespace afc::editor;
+
+void SaveDiff(EditorState* editor_state, OpenBuffer* buffer) {
+  unique_ptr<OpenBuffer> original(new OpenBuffer());
+  buffer->ReloadInto(editor_state, original.get());
+  while (original->fd() != -1) {
+    original->ReadData(editor_state);
+  }
+
+  char* path_old_diff = strdup("patch-old-diff-XXXXXX");
+  int fd_old_diff = mkstemp(path_old_diff);
+  char* path_new_diff = strdup("patch-new-diff-XXXXXX");
+  int fd_new_diff = mkstemp(path_new_diff);
+
+  SaveContentsToOpenFile(editor_state, original.get(), path_old_diff, fd_old_diff);
+  SaveContentsToOpenFile(editor_state, buffer, path_new_diff, fd_new_diff);
+  close(fd_old_diff);
+  close(fd_new_diff);
+  RunCommandHandler("./diff_writer.py " + string(path_old_diff) + " " + string(path_new_diff), editor_state);
+  editor_state->status = "Changing diff";
+}
+
+}  // namespace
 
 namespace afc {
 namespace editor {
@@ -71,6 +99,10 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
 }
 
 void OpenBuffer::Save(EditorState* editor_state) {
+  if (diff_) {
+    SaveDiff(editor_state, this);
+    return;
+  }
   editor_state->status = "Buffer can't be saved.";
 }
 

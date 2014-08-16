@@ -104,6 +104,8 @@ class OpenBuffer {
 
   void SetInputFile(int fd);
 
+  void toggle_diff() { diff_ = !diff_; }
+
  protected:
   vector<unique_ptr<ParseTree>> parse_tree;
 
@@ -123,7 +125,10 @@ class OpenBuffer {
   bool modified_;
   bool reading_from_parser_;
 
+  // Variables that can be set from the editor.
   bool reload_on_enter_;
+  // Does this buffer represent a diff?  Changes the way 'Save' behaves.
+  bool diff_;
 };
 
 }  // namespace editor
