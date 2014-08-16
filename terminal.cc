@@ -86,22 +86,22 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
     }
 
     switch (editor_state.default_structure) {
-      case 0:
+      case EditorState::CHAR:
         switch (editor_state.structure) {
-          case 0:
+          case EditorState::CHAR:
             break;
-          case 1:
+          case EditorState::LINE:
             flags += "l";
             break;
-          case 2:
+          case EditorState::BUFFER:
             flags += "b";
             break;
         }
         break;
-      case 1:
+      case EditorState::LINE:
         flags += "L";
         break;
-      case 2:
+      case EditorState::BUFFER:
         flags += "B";
         break;
     }
