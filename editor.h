@@ -31,13 +31,28 @@ struct Position {
 };
 
 struct EditorState {
+  enum Structure {
+    CHAR,
+    LINE,
+    BUFFER,
+  };
+
+  static Structure LowerStructure(Structure s) {
+    switch (s) {
+      case CHAR: return CHAR;
+      case LINE: return CHAR;
+      case BUFFER: return LINE;
+    }
+    assert(false);
+  }
+
   EditorState()
       : current_buffer(buffers.end()),
         terminate(false),
         direction(FORWARDS),
         repetitions(1),
-        structure(0),
-        default_structure(0),
+        structure(CHAR),
+        default_structure(CHAR),
         mode(std::move(NewCommandMode())),
         visible_lines(1),
         screen_needs_redraw(false),
@@ -66,8 +81,8 @@ struct EditorState {
 
   Direction direction;
   size_t repetitions;
-  int structure;
-  int default_structure;
+  Structure structure;
+  Structure default_structure;
 
   unique_ptr<EditorMode> mode;
 

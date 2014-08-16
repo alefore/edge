@@ -389,7 +389,8 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
     editor_state->repetitions = 1;
     editor_state->ResetStructure();
   } else {
-    editor_state->structure--;
+    editor_state->structure =
+        EditorState::LowerStructure(editor_state->structure);
     LineDown::Move(c, editor_state);
   }
 };
@@ -428,7 +429,8 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
     editor_state->repetitions = 1;
     editor_state->ResetStructure();
   } else {
-    editor_state->structure--;
+    editor_state->structure =
+        EditorState::LowerStructure(editor_state->structure);
     LineUp::Move(c, editor_state);
   }
 }
@@ -481,32 +483,32 @@ void SetRepetitions(EditorState* editor_state, int number) {
   editor_state->repetitions = number;
 }
 
-void SetStructure(EditorState* editor_state, int number) {
-  editor_state->default_structure = 0;
-  editor_state->structure = number;
+void SetStructure(EditorState* editor_state, EditorState::Structure structure) {
+  editor_state->default_structure = EditorState::CHAR;
+  editor_state->structure = structure;
 }
 
-void SetDefaultStructure(EditorState* editor_state, int number) {
-  editor_state->default_structure = number;
+void SetDefaultStructure(EditorState* editor_state, EditorState::Structure structure) {
+  editor_state->default_structure = structure;
   editor_state->ResetStructure();
 }
 
 class StructureMode : public EditorMode {
  public:
-  StructureMode(function<void(EditorState*, int)> handler)
+  StructureMode(function<void(EditorState*, EditorState::Structure)> handler)
       : handler_(handler) {}
 
   void ProcessInput(int c, EditorState* editor_state) {
     editor_state->mode = NewCommandMode();
     switch (c) {
       case 'c':
-        handler_(editor_state, 0);
+        handler_(editor_state, EditorState::CHAR);
         break;
       case 'l':
-        handler_(editor_state, 1);
+        handler_(editor_state, EditorState::LINE);
         break;
       case 'b':
-        handler_(editor_state, 2);
+        handler_(editor_state, EditorState::BUFFER);
         break;
       default:
         editor_state->mode->ProcessInput(c, editor_state);
@@ -514,13 +516,13 @@ class StructureMode : public EditorMode {
   }
 
  private:
-  function<void(EditorState*, int)> handler_;
+  function<void(EditorState*, EditorState::Structure)> handler_;
 };
 
 class EnterStructureMode : public Command {
  public:
   EnterStructureMode(
-      const string& description, function<void(EditorState*, int)> handler)
+      const string& description, function<void(EditorState*, EditorState::Structure)> handler)
       : description_(description), handler_(handler) {}
 
   const string Description() { return description_; }
@@ -530,7 +532,7 @@ class EnterStructureMode : public Command {
   }
  private:
   const string description_;
-  function<void(EditorState*, int)> handler_;
+  function<void(EditorState*, EditorState::Structure)> handler_;
 };
 
 class NumberMode : public Command {
