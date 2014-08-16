@@ -49,7 +49,7 @@ class CommandBuffer : public OpenBuffer {
  public:
   CommandBuffer(const string& command) : command_(command) {}
 
-  void Reload(EditorState* editor_state) {
+  void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     int pipefd[2];
     if (pipe(pipefd) == -1) {
       exit(1);
@@ -73,7 +73,7 @@ class CommandBuffer : public OpenBuffer {
       exit(0);
     }
     close(pipefd[1]);
-    SetInputFile(pipefd[0]);
+    target->SetInputFile(pipefd[0]);
     // TODO: waitpid(pid, &status_dummy, 0);
     // Both when it's done reading or when it's interrupted.
     editor_state->screen_needs_redraw = true;

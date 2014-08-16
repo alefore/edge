@@ -41,9 +41,12 @@ class OpenBuffer {
  public:
   OpenBuffer();
 
-  virtual void Reload(EditorState* editor_state) {}
+  virtual void ReloadInto(EditorState* editor_state, OpenBuffer* target) {}
   virtual void Save(EditorState* editor_state);
 
+  void Reload(EditorState* editor_state) {
+    ReloadInto(editor_state, this);
+  }
   void ReadData(EditorState* editor_state);
 
   void AppendLazyString(shared_ptr<LazyString> input);
@@ -99,9 +102,9 @@ class OpenBuffer {
 
   string FlagsString() const;
 
- protected:
   void SetInputFile(int fd);
 
+ protected:
   vector<unique_ptr<ParseTree>> parse_tree;
 
   // -1 means "no file descriptor" (i.e. not currently loading this).

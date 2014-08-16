@@ -146,13 +146,13 @@ class OpenBufferCommand : public EditorMode {
 };
 
 class ListBuffersBuffer : public OpenBuffer {
-  void Reload(EditorState* editor_state) {
-    contents_.clear();
+  void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
+    target->contents()->clear();
     AppendLine(std::move(NewCopyString("Open Buffers:")));
     for (const auto& it : editor_state->buffers) {
       string flags(it.second->FlagsString());
       auto name = NewCopyString(it.first + (flags.empty() ? "" : "  ") + flags);
-      AppendLine(std::move(name))
+      target->AppendLine(std::move(name))
           ->activate.reset(new OpenBufferCommand(it.first));
     }
     editor_state->screen_needs_redraw = true;

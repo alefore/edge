@@ -30,12 +30,12 @@ class FileBuffer : public OpenBuffer {
  public:
   FileBuffer(const string& path) : path_(path) {}
 
-  void Reload(EditorState* editor_state) {
+  void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     if (stat(path_.c_str(), &stat_buffer_) == -1) {
       return;
     }
 
-    contents_.clear();
+    target->contents()->clear();
     editor_state->CheckPosition();
     editor_state->screen_needs_redraw = true;
 
@@ -44,14 +44,14 @@ class FileBuffer : public OpenBuffer {
       if (0 == strcmp(basename(tmp), "passwd")) {
         RunCommandHandler("parsers/passwd <" + path_, editor_state);
       } else {
-        LoadMemoryMappedFile(path_, this);
+        LoadMemoryMappedFile(path_, target);
       }
       return;
     }
 
     unique_ptr<Line> line(new Line);
     line->contents.reset(NewCopyString("File listing: " + path_).release());
-    contents_.push_back(std::move(line));
+    target->contents()->push_back(std::move(line));
 
     DIR* dir = opendir(path_.c_str());
     assert(dir != nullptr);
@@ -61,7 +61,7 @@ class FileBuffer : public OpenBuffer {
       line->contents.reset(NewCopyCharBuffer(entry->d_name).release());
       line->activate.reset(
           NewFileLinkMode(path_ + "/" + entry->d_name, 0, false).release());
-      contents_.push_back(std::move(line));
+      target->contents()->push_back(std::move(line));
     }
     closedir(dir);
 
@@ -71,7 +71,7 @@ class FileBuffer : public OpenBuffer {
       }
     } compare;
 
-    sort(contents_.begin() + 1, contents_.end(), compare);
+    sort(target->contents()->begin() + 1, target->contents()->end(), compare);
   }
 
   void Save(EditorState* editor_state) {
