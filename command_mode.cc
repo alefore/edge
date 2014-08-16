@@ -441,8 +441,7 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
 
       // Seek forwards until we're in a non-whitespace.
       bool advanced = false;
-      while (!(buffer->current_position_line() + 1 == buffer->contents()->size()
-               && buffer->current_position_col() == buffer->current_line()->contents->size())
+      while (!buffer->at_end()
              && (buffer->current_position_col() == buffer->current_line()->contents->size()
                  || buffer->current_line()->contents->get(buffer->current_position_col()) == ' ')) {
         if (buffer->current_position_col() == buffer->current_line()->contents->size()) {
@@ -518,8 +517,7 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
 
       // Seek backwards until we're just after a non-whitespace.
       bool advanced = false;
-      while (!(buffer->current_position_line() == 0
-               && buffer->current_position_col() == 0)
+      while (!buffer->at_beginning()
              && (buffer->current_position_col() == 0
                  || buffer->current_line()->contents->get(buffer->current_position_col() - 1) == ' ')) {
         if (buffer->current_position_col() == 0) {

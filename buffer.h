@@ -74,6 +74,15 @@ class OpenBuffer {
   void set_view_start_line(size_t value) {
     view_start_line_ = value;
   }
+  bool at_beginning() const {
+    if (contents_.empty()) { return true; }
+    return current_position_line_ == 0 && current_position_col_ == 0;
+  }
+  bool at_end() const {
+    if (contents_.empty()) { return true; }
+    return current_position_line_ + 1 >= contents_.size()
+        && current_position_col_ >= current_line()->contents->size();
+  }
   size_t current_position_line() const { return current_position_line_; }
   void set_current_position_line(size_t value) {
     current_position_line_ = value;
