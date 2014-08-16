@@ -144,6 +144,7 @@ class Delete : public Command {
         deleted_text->contents()->end(), first_line, last_line);
     buffer->contents()->erase(first_line, last_line);
     buffer->set_modified(true);
+    buffer->CheckPosition();
     InsertDeletedTextBuffer(editor_state, deleted_text);
   }
 
