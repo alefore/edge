@@ -34,6 +34,7 @@ struct EditorState {
   enum Structure {
     CHAR,
     LINE,
+    PAGE,
     BUFFER,
   };
 
@@ -41,7 +42,8 @@ struct EditorState {
     switch (s) {
       case CHAR: return CHAR;
       case LINE: return CHAR;
-      case BUFFER: return LINE;
+      case PAGE: return LINE;
+      case BUFFER: return PAGE;
     }
     assert(false);
   }

@@ -62,7 +62,7 @@ void Terminal::Display(EditorState* editor_state) {
     AdjustPosition(buffer);
   }
   refresh();
-  editor_state->visible_lines = static_cast<size_t>(LINES);
+  editor_state->visible_lines = static_cast<size_t>(LINES - 1);
 }
 
 void Terminal::ShowStatus(const EditorState& editor_state) {
@@ -93,6 +93,9 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
           case EditorState::LINE:
             flags += "l";
             break;
+          case EditorState::PAGE:
+            flags += "p";
+            break;
           case EditorState::BUFFER:
             flags += "b";
             break;
@@ -100,6 +103,9 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
         break;
       case EditorState::LINE:
         flags += "L";
+        break;
+      case EditorState::PAGE:
+        flags += "P";
         break;
       case EditorState::BUFFER:
         flags += "B";

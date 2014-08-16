@@ -1,3 +1,4 @@
+#include <cmath>
 #include <functional>
 #include <memory>
 #include <map>
@@ -21,6 +22,7 @@
 
 namespace {
 using std::advance;
+using std::ceil;
 using std::make_pair;
 using namespace afc::editor;
 
@@ -58,6 +60,15 @@ class GotoCommand : public Command {
       if (buffer->contents()->empty()) { return; }
       size_t position =
           ComputePosition(editor_state, buffer->contents()->size());
+      assert(position < buffer->contents()->size());
+      buffer->set_current_position_line(position);
+    } else if (editor_state->structure == EditorState::PAGE) {
+      shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
+      if (buffer->contents()->empty()) { return; }
+      size_t position = editor_state->visible_lines * ComputePosition(
+          editor_state,
+          ceil(static_cast<double>(buffer->contents()->size())
+               / editor_state->visible_lines));
       assert(position < buffer->contents()->size());
       buffer->set_current_position_line(position);
     } else if (editor_state->structure == EditorState::BUFFER) {
@@ -104,6 +115,9 @@ class Delete : public Command {
       DeleteCharacters(c, editor_state);
     } else if (editor_state->structure == EditorState::LINE) {
       DeleteLines(c, editor_state);
+    } else if (editor_state->structure == EditorState::PAGE) {
+      // TODO: Implement.
+      editor_state->status = "Oops, delete page is not yet implemented.";
     } else if (editor_state->structure == EditorState::BUFFER) {
       auto buffer_to_erase = editor_state->current_buffer;
       if (editor_state->current_buffer == editor_state->buffers.begin()) {
@@ -297,6 +311,11 @@ const string LineUp::Description() {
     } else {
       buffer->set_current_position_line(0);
     }
+  } else if (editor_state->structure == EditorState::LINE) {
+    // Move in whole screens.
+    editor_state->repetitions *= editor_state->visible_lines;
+    editor_state->structure = EditorState::CHAR;
+    Move(c, editor_state);
   } else {
     editor_state->MoveBufferBackwards(editor_state->repetitions);
     editor_state->screen_needs_redraw = true;
@@ -333,6 +352,11 @@ const string LineDown::Description() {
     } else {
       buffer->set_current_position_line(buffer->contents()->size() - 1);
     }
+  } else if (editor_state->structure == EditorState::LINE) {
+    // Move in whole screens.
+    editor_state->repetitions *= editor_state->visible_lines;
+    editor_state->structure = EditorState::CHAR;
+    Move(c, editor_state);
   } else {
     editor_state->MoveBufferForwards(editor_state->repetitions);
     editor_state->screen_needs_redraw = true;
@@ -502,6 +526,9 @@ class StructureMode : public EditorMode {
       case 'l':
         editor_state->SetStructure(EditorState::LINE);
         break;
+      case 'p':
+        editor_state->SetStructure(EditorState::PAGE);
+        break;
       case 'b':
         editor_state->SetStructure(EditorState::BUFFER);
         break;
@@ -510,6 +537,9 @@ class StructureMode : public EditorMode {
         break;
       case 'L':
         editor_state->SetDefaultStructure(EditorState::LINE);
+        break;
+      case 'P':
+        editor_state->SetDefaultStructure(EditorState::PAGE);
         break;
       case 'B':
         editor_state->SetDefaultStructure(EditorState::BUFFER);
