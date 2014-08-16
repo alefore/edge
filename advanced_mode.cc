@@ -150,7 +150,9 @@ class ListBuffersBuffer : public OpenBuffer {
     contents_.clear();
     AppendLine(std::move(NewCopyString("Open Buffers:")));
     for (const auto& it : editor_state->buffers) {
-      AppendLine(std::move(NewCopyString(it.first)))
+      string flags(it.second->FlagsString());
+      auto name = NewCopyString(it.first + (flags.empty() ? "" : "  ") + flags);
+      AppendLine(std::move(name))
           ->activate.reset(new OpenBufferCommand(it.first));
     }
     editor_state->screen_needs_redraw = true;
