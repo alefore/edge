@@ -55,7 +55,8 @@ OpenBuffer::OpenBuffer()
       current_position_col_(0),
       modified_(false),
       reading_from_parser_(false),
-      reload_on_enter_(false) {
+      reload_on_enter_(false),
+      atomic_lines_(false) {
   set_word_characters(
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
 }
