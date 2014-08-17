@@ -203,10 +203,10 @@ class Delete : public Command {
       deleted_text->AppendLine(
           Substring(current_line->contents, buffer->current_position_col(),
                     characters_to_erase));
-      buffer->contents()->at(buffer->current_position_line()).reset(new Line(
+      buffer->contents()->at(buffer->current_position_line())->contents =
           StringAppend(
               Substring(current_line->contents, 0, buffer->current_position_col()),
-              suffix)));
+              suffix);
       buffer->set_modified(true);
     }
     InsertDeletedTextBuffer(editor_state, deleted_text);
