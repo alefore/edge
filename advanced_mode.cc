@@ -7,6 +7,7 @@
 
 extern "C" {
 #include <libgen.h>
+#include <sys/socket.h>
 }
 
 #include "advanced_mode.h"
@@ -249,6 +250,28 @@ class ReloadBuffer : public Command {
   }
 };
 
+class SendEndOfFile : public Command {
+ public:
+  const string Description() {
+    return "stops writing to a subprocess (effectively sending EOF).";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    editor_state->ResetMode();
+    if (!editor_state->has_current_buffer()) { return; }
+    auto buffer = editor_state->current_buffer()->second;
+    if (buffer->fd() == -1) {
+      editor_state->SetStatus("No active subprocess for current buffer.");
+      return;
+    }
+    if (shutdown(buffer->fd(), SHUT_WR) == -1) {
+      editor_state->SetStatus("shutdown(SHUT_WR) failed: " + string(strerror(errno)));
+      return;
+    }
+    editor_state->SetStatus("shutdown sent");
+  }
+};
+
 static const map<int, Command*>& GetAdvancedModeMap() {
   static map<int, Command*> output;
   if (output.empty()) {
@@ -260,17 +283,18 @@ static const map<int, Command*>& GetAdvancedModeMap() {
     output.insert(make_pair('.', new OpenDirectory()));
     output.insert(make_pair('l', new ListBuffers()));
     output.insert(make_pair('r', new ReloadBuffer()));
+    output.insert(make_pair('e', new SendEndOfFile()));
     output.insert(make_pair(
         'o',
         NewLinePromptCommand("<", "loads a file", OpenFileHandler).release()));
     output.insert(make_pair(
-        'C',
+        'F',
         NewLinePromptCommand(
             "...$ ",
-            "runs a command once for each line in the current buffer",
+            "forks a command for each line in the current buffer",
             RunMultipleCommandsHandler).release()));
     output.insert(
-        make_pair('c', NewLinePromptCommand("$ ", "runs a command", RunCommandHandler).release()));
+        make_pair('f', NewLinePromptCommand("$ ", "forks a command", RunCommandHandler).release()));
     output.insert(make_pair('?', NewHelpCommand(output, "advance command mode").release()));
   }
   return output;

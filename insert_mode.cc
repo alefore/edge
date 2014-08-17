@@ -110,6 +110,19 @@ class InsertMode : public EditorMode {
   shared_ptr<EditableString> line_;
 };
 
+class RawInputTypeMode : public EditorMode {
+  void ProcessInput(int c, EditorState* editor_state) {
+    switch (c) {
+      case Terminal::ESCAPE:
+        editor_state->ResetMode();
+        break;
+      default:
+        string str(1, static_cast<char>(c));
+        write(editor_state->current_buffer()->second->fd(), str.c_str(), 1);
+    };
+  }
+};
+
 }  // namespace
 
 namespace afc {
@@ -145,7 +158,9 @@ void EnterInsertMode(EditorState* editor_state) {
 
   editor_state->current_buffer()->second->CheckPosition();
   editor_state->ResetStatus();
-  if (editor_state->structure() == EditorState::CHAR) {
+  if (editor_state->current_buffer()->second->fd() != -1) {
+    editor_state->set_mode(unique_ptr<EditorMode>(new RawInputTypeMode()));
+  } else if (editor_state->structure() == EditorState::CHAR) {
     EnterInsertCharactersMode(editor_state);
   } else if (editor_state->structure() == EditorState::LINE) {
     auto buffer = editor_state->current_buffer()->second;
