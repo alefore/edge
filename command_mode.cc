@@ -214,6 +214,11 @@ class Delete : public Command {
         continue;
       }
 
+      if (buffer->atomic_lines()) {
+        editor_state->repetitions = 0;
+        continue;
+      }
+
       auto next_line =
           buffer->contents()->begin() + buffer->current_position_line() + 1;
       deleted_text->AppendLine(
