@@ -76,12 +76,22 @@ class OpenBuffer {
   }
   bool at_beginning() const {
     if (contents_.empty()) { return true; }
-    return current_position_line_ == 0 && current_position_col_ == 0;
+    return current_position_line_ == 0 && at_beginning_of_line();
+  }
+  bool at_beginning_of_line() const {
+     if (contents_.empty()) { return true; }
+    return current_position_col_ == 0;
   }
   bool at_end() const {
     if (contents_.empty()) { return true; }
-    return current_position_line_ + 1 >= contents_.size()
-        && current_position_col_ >= current_line()->contents->size();
+    return at_last_line() && at_end_of_line();
+  }
+  bool at_last_line() const {
+    return contents_.size() <= current_position_line_ + 1;
+  }
+  bool at_end_of_line() const {
+    if (contents_.empty()) { return true; }
+    return current_position_col_ >= current_line()->contents->size();
   }
   char current_character() const {
     assert(current_position_col() < current_line()->contents->size());

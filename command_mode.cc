@@ -181,23 +181,23 @@ class Delete : public Command {
       auto current_line = buffer->current_line();
       shared_ptr<LazyString> suffix;
       if (editor_state->repetitions + buffer->current_position_col()
-          > current_line->size()) {
+          <= current_line->size()) {
+        characters_to_erase = editor_state->repetitions;
+        suffix = Substring(current_line->contents,
+                           buffer->current_position_col() + characters_to_erase);
+      } else {
         // Needs to erase beyond end of line.
         characters_to_erase = current_line->size() - buffer->current_position_col();
-        if (buffer->contents()->size() > buffer->current_position_line() + 1) {
+        if (buffer->at_last_line()) {
+          suffix = EmptyString();
+          editor_state->repetitions = characters_to_erase;
+        } else {
           suffix = buffer->contents()->at(buffer->current_position_line() + 1)
               ->contents;
           buffer->contents()->erase(
               buffer->contents()->begin() + buffer->current_position_line() + 1);
           editor_state->repetitions--;
-        } else {
-          suffix = EmptyString();
-          editor_state->repetitions = characters_to_erase;
         }
-      } else {
-        characters_to_erase = editor_state->repetitions;
-        suffix = Substring(current_line->contents,
-                           buffer->current_position_col() + characters_to_erase);
       }
       editor_state->repetitions -= characters_to_erase;
       deleted_text->AppendLine(
