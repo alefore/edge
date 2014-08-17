@@ -38,7 +38,7 @@ class InsertMode : public EditorMode {
           auto previous_line = current_line - 1;
           if ((*previous_line)->size() == 0) {
             if ((*previous_line)->activate.get() != nullptr) {
-              ((*previous_line)->activate->ProcessInput('d', editor_state);
+              (*previous_line)->activate->ProcessInput('d', editor_state);
             }
             buffer->contents()->erase(previous_line);
           } else {
