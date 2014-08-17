@@ -39,7 +39,7 @@ struct ParseTree {
 
 class OpenBuffer {
  public:
-  OpenBuffer();
+  OpenBuffer(const string& name);
 
   virtual void ReloadInto(EditorState* editor_state, OpenBuffer* target) {}
   virtual void Save(EditorState* editor_state);
@@ -109,6 +109,11 @@ class OpenBuffer {
     current_position_col_ = value;
   }
 
+  void toggle_close_after_clean_exit() {
+    close_after_clean_exit_ = !close_after_clean_exit_;
+  }
+  bool close_after_clean_exit() const { return close_after_clean_exit_; }
+
   void toggle_reload_on_enter() {
     reload_on_enter_ = !reload_on_enter_;
   }
@@ -116,6 +121,7 @@ class OpenBuffer {
   void set_reload_on_enter(bool value) {
     reload_on_enter_ = value;
   }
+
   void Enter(EditorState* editor_state) {
     if (reload_on_enter_) {
       Reload(editor_state);
@@ -136,8 +142,12 @@ class OpenBuffer {
   void set_word_characters(const string& word_characters);
   bool* word_characters() { return word_characters_; }
 
+  void CopyVariablesFrom(const shared_ptr<OpenBuffer>& buffer);
+
  protected:
   vector<unique_ptr<ParseTree>> parse_tree;
+
+  string name_;
 
   // -1 means "no file descriptor" (i.e. not currently loading this).
   int fd_;
@@ -163,6 +173,8 @@ class OpenBuffer {
   // them just set this and kill the underlying process (so that we can avoid
   // blocking the whole process waiting for the process to exit).
   bool reload_after_exit_;
+
+  bool close_after_clean_exit_;
 
   // Variables that can be set from the editor.
   bool reload_on_enter_;

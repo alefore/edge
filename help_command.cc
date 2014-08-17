@@ -25,11 +25,11 @@ class HelpCommand : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    auto it = editor_state->buffers()->insert(
-        make_pair("- help: " + mode_description_, nullptr));
+    const string name = "- help: " + mode_description_;
+    auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
     editor_state->set_current_buffer(it.first);
     if (it.second) {
-      shared_ptr<OpenBuffer> buffer(new OpenBuffer());
+      shared_ptr<OpenBuffer> buffer(new OpenBuffer(name));
       buffer->AppendLine(
           std::move(NewCopyString("Help: " + mode_description_)));
       for (const auto& it : commands_) {

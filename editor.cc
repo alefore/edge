@@ -56,6 +56,22 @@ EditorState::EditorState()
       home_directory_(GetHomeDirectory()),
       edge_path_(GetEdgeConfigPath(home_directory_)) {}
 
+void EditorState::CloseBuffer(
+    map<string, shared_ptr<OpenBuffer>>::iterator buffer) {
+  ScheduleRedraw();
+  if (buffers_.size() == 1) {
+    current_buffer_ = buffers_.end();
+  } else {
+    current_buffer_ = buffer == buffers_.begin() ? buffers_.end() : buffer;
+    current_buffer_--;
+  }
+
+  if (current_buffer_ != buffers_.end()) {
+    current_buffer_->second->Enter(this);
+  }
+  buffers_.erase(buffer);
+}
+
 void EditorState::set_structure(Structure structure) {
   default_structure_ = EditorState::CHAR;
   structure_ = structure;

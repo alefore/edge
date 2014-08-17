@@ -22,7 +22,7 @@ namespace {
 using namespace afc::editor;
 
 void SaveDiff(EditorState* editor_state, OpenBuffer* buffer) {
-  unique_ptr<OpenBuffer> original(new OpenBuffer());
+  unique_ptr<OpenBuffer> original(new OpenBuffer("- original diff"));
   buffer->ReloadInto(editor_state, original.get());
   while (original->fd() != -1) {
     original->ReadData(editor_state);
@@ -48,8 +48,9 @@ namespace editor {
 
 using std::to_string;
 
-OpenBuffer::OpenBuffer()
-    : fd_(-1),
+OpenBuffer::OpenBuffer(const string& name)
+    : name_(name),
+      fd_(-1),
       buffer_(nullptr),
       buffer_line_start_(0),
       buffer_length_(0),
@@ -99,6 +100,14 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
     if (reload_after_exit_) {
       reload_after_exit_ = false;
       Reload(editor_state);
+    }
+    if (close_after_clean_exit_
+        && WIFEXITED(child_exit_status_)
+        && WEXITSTATUS(child_exit_status_) == 0) {
+      auto it = editor_state->buffers()->find(name_);
+      if (it != editor_state->buffers()->end()) {
+        editor_state->CloseBuffer(it);
+      }
     }
     return;
   }
@@ -240,6 +249,18 @@ void OpenBuffer::set_word_characters(const string& word_characters) {
   for (size_t i = 0; i < sizeof(word_characters_); i++) {
     word_characters_[i] = word_characters.find(static_cast<char>(i))
         != word_characters.npos;
+  }
+}
+
+void OpenBuffer::CopyVariablesFrom(const shared_ptr<OpenBuffer>& src) {
+  assert(src.get() != nullptr);
+  reload_after_exit_ = src->reload_after_exit_;
+  close_after_clean_exit_ = src->close_after_clean_exit_;
+  reload_on_enter_ = src->reload_on_enter_;
+  diff_ = src->diff_;
+  atomic_lines_ = src->atomic_lines_;
+  for (size_t i = 0; i < sizeof(word_characters_); i++) {
+    word_characters_[i] = src->word_characters_[i];
   }
 }
 

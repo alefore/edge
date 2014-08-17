@@ -99,7 +99,7 @@ class LinePromptMode : public EditorMode {
     auto insert_result = editor_state->buffers()->insert(
         make_pair(kHistoryName, nullptr));
     if (insert_result.second) {
-      insert_result.first->second.reset(new OpenBuffer);
+      insert_result.first->second.reset(new OpenBuffer(kHistoryName));
       if (!editor_state->has_current_buffer()) {
         // Seems lame, but what can we do?
         editor_state->set_current_buffer(insert_result.first);

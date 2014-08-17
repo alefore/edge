@@ -47,8 +47,12 @@ void LoadEnvironmentVariables(
 
 class CommandBuffer : public OpenBuffer {
  public:
-  CommandBuffer(const string& command, const map<string, string>& environment)
-      : command_(command), environment_(environment) {}
+  CommandBuffer(const string& name,
+                const string& command,
+                const map<string, string>& environment)
+      : OpenBuffer(name),
+        command_(command),
+        environment_(environment) {}
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     int pipefd[2];
@@ -108,10 +112,14 @@ void RunCommand(
   }
 
   auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
-  editor_state->set_current_buffer(it.first);
   if (it.second) {
-    it.first->second.reset(new CommandBuffer(input, environment));
+    it.first->second.reset(new CommandBuffer(name, input, environment));
+    if (editor_state->has_current_buffer()) {
+      it.first->second->CopyVariablesFrom(
+          editor_state->current_buffer()->second);
+    }
   }
+  editor_state->set_current_buffer(it.first);
   it.first->second->Reload(editor_state);
   it.first->second->set_current_position_line(0);
   editor_state->ResetMode();

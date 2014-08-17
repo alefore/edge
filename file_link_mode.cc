@@ -26,9 +26,10 @@ using std::unique_ptr;
 using std::sort;
 using namespace afc::editor;
 
+// TODO: Get rid of path_, it's redundant with name_.
 class FileBuffer : public OpenBuffer {
  public:
-  FileBuffer(const string& path) : path_(path) {}
+  FileBuffer(const string& path) : OpenBuffer(path), path_(path) {}
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     if (stat(path_.c_str(), &stat_buffer_) == -1) {

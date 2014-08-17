@@ -138,8 +138,9 @@ void EnterInsertCharactersMode(EditorState* editor_state) {
 
 void EnterInsertMode(EditorState* editor_state) {
   if (!editor_state->has_current_buffer()) {
-    shared_ptr<OpenBuffer> buffer(new OpenBuffer);
-    editor_state->buffers()->insert(make_pair("[anonymous buffer]", buffer));
+    const string name = "[anonymous buffer]";
+    shared_ptr<OpenBuffer> buffer(new OpenBuffer(name));
+    editor_state->buffers()->insert(make_pair(name, buffer));
     editor_state->set_current_buffer(editor_state->buffers()->begin());
   }
 

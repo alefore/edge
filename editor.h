@@ -57,6 +57,8 @@ class EditorState {
     current_buffer_->second->CheckPosition();
   }
 
+  void CloseBuffer(const map<string, shared_ptr<OpenBuffer>>::iterator buffer);
+
   map<string, shared_ptr<OpenBuffer>>* buffers() {
     return &buffers_;
   }

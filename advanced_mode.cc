@@ -131,11 +131,17 @@ void SetVariableHandler(const string& name, EditorState* editor_state) {
   if (name == "reload_on_enter") {
     if (!editor_state->has_current_buffer()) { return; }
     editor_state->current_buffer()->second->toggle_reload_on_enter();
+  } else if (name == "close_after_clean_exit") {
+    if (!editor_state->has_current_buffer()) { return; }
+    editor_state->current_buffer()->second->toggle_close_after_clean_exit();
+    editor_state->SetStatus(
+        string("close_after_clean_exit is ")
+        + (editor_state->current_buffer()->second->close_after_clean_exit() ? "ON" : "OFF"));
   } else if (name == "diff") {
-    if (editor_state->has_current_buffer()) { return; }
+    if (!editor_state->has_current_buffer()) { return; }
     editor_state->current_buffer()->second->toggle_diff();
   } else if (name == "atomic_lines") {
-    if (editor_state->has_current_buffer()) { return; }
+    if (!editor_state->has_current_buffer()) { return; }
     editor_state->current_buffer()->second->toggle_atomic_lines();
   } else if (name == "word_characters") {
     unique_ptr<Command> command(NewLinePromptCommand(
@@ -184,7 +190,7 @@ class ActivateBufferLineCommand : public EditorMode {
 
 class ListBuffersBuffer : public OpenBuffer {
  public:
-  ListBuffersBuffer() {
+  ListBuffersBuffer(const string& name) : OpenBuffer(name) {
     atomic_lines_ = true;
   }
 
@@ -208,11 +214,12 @@ class ListBuffers : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    auto it = editor_state->buffers()->insert(make_pair("- open buffers", nullptr));
+    const string name = "- open buffers";
+    auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
     editor_state->PushCurrentPosition();
     editor_state->set_current_buffer(it.first);
     if (it.second) {
-      it.first->second.reset(new ListBuffersBuffer());
+      it.first->second.reset(new ListBuffersBuffer(name));
       it.first->second->set_reload_on_enter(true);
     }
     it.first->second->Reload(editor_state);
@@ -232,7 +239,7 @@ class ReloadBuffer : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) {
+    if (editor_state->has_current_buffer()) {
       auto buffer = editor_state->current_buffer();
       buffer->second->Reload(editor_state);
       buffer->second->set_modified(false);

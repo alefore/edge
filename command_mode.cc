@@ -127,7 +127,6 @@ class Delete : public Command {
   void ProcessInput(int c, EditorState* editor_state) {
     if (editor_state->buffers()->empty()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-    shared_ptr<OpenBuffer> new_buffer(new OpenBuffer());
 
     switch (editor_state->structure()) {
       case EditorState::CHAR:
@@ -173,7 +172,7 @@ class Delete : public Command {
   void DeleteLines(int c, EditorState* editor_state) {
     shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
     if (buffer->contents()->empty()) { return; }
-    shared_ptr<OpenBuffer> deleted_text(new OpenBuffer());
+    shared_ptr<OpenBuffer> deleted_text(new OpenBuffer(deleted_text_name));
 
     assert(buffer->current_position_line() < buffer->contents()->size());
 
@@ -201,7 +200,7 @@ class Delete : public Command {
   void DeleteCharacters(int c, EditorState* editor_state) {
     shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
     if (buffer->contents()->empty()) { return; }
-    shared_ptr<OpenBuffer> deleted_text(new OpenBuffer());
+    shared_ptr<OpenBuffer> deleted_text(new OpenBuffer(deleted_text_name));
 
     if (buffer->current_position_col() > buffer->current_line()->size()) {
       buffer->set_current_position_col(buffer->current_line()->size());
@@ -270,12 +269,16 @@ class Delete : public Command {
   void InsertDeletedTextBuffer(
       EditorState* editor_state, const shared_ptr<OpenBuffer>& buffer) {
     auto insert_result = editor_state->buffers()->insert(make_pair(
-        "- deleted text", buffer));
+        deleted_text_name, buffer));
     if (!insert_result.second) {
       insert_result.first->second = buffer;
     }
   }
+
+  static const string deleted_text_name;
 };
+
+/* static */ const string Delete::deleted_text_name = "- deleted text";
 
 class GotoPreviousPositionCommand : public Command {
  public:
