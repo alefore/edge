@@ -26,6 +26,8 @@ using std::ceil;
 using std::make_pair;
 using namespace afc::editor;
 
+const string kPasteBuffer = "- paste buffer";
+
 class Quit : public Command {
  public:
   const string Description() {
@@ -172,7 +174,7 @@ class Delete : public Command {
   void DeleteLines(int c, EditorState* editor_state) {
     shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
     if (buffer->contents()->empty()) { return; }
-    shared_ptr<OpenBuffer> deleted_text(new OpenBuffer(deleted_text_name));
+    shared_ptr<OpenBuffer> deleted_text(new OpenBuffer(kPasteBuffer));
 
     assert(buffer->current_position_line() < buffer->contents()->size());
 
@@ -200,7 +202,7 @@ class Delete : public Command {
   void DeleteCharacters(int c, EditorState* editor_state) {
     shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
     if (buffer->contents()->empty()) { return; }
-    shared_ptr<OpenBuffer> deleted_text(new OpenBuffer(deleted_text_name));
+    shared_ptr<OpenBuffer> deleted_text(new OpenBuffer(kPasteBuffer));
 
     if (buffer->current_position_col() > buffer->current_line()->size()) {
       buffer->set_current_position_col(buffer->current_line()->size());
@@ -255,9 +257,8 @@ class Delete : public Command {
 
       deleted_text->AppendLine(
           Substring((*current_line)->contents, buffer->current_position_col()));
-      (*current_line)->contents = StringAppend(
-          Substring((*current_line)->contents, 0, buffer->current_position_col()),
-          (*next_line)->contents);
+      buffer->replace_current_line(shared_ptr<Line>(new Line(
+          StringAppend(buffer->current_line_head(), (*next_line)->contents))));
       assert(editor_state->repetitions() >= characters_left + 1);
       editor_state->set_repetitions(
           editor_state->repetitions() - characters_left - 1);
@@ -269,16 +270,36 @@ class Delete : public Command {
   void InsertDeletedTextBuffer(
       EditorState* editor_state, const shared_ptr<OpenBuffer>& buffer) {
     auto insert_result = editor_state->buffers()->insert(make_pair(
-        deleted_text_name, buffer));
+        kPasteBuffer, buffer));
     if (!insert_result.second) {
       insert_result.first->second = buffer;
     }
   }
-
-  static const string deleted_text_name;
 };
 
-/* static */ const string Delete::deleted_text_name = "- deleted text";
+// TODO: Replace with insert.  Insert should be called 'type'.
+class Paste : public Command {
+ public:
+  const string Description() {
+    return "pastes the last deleted text";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    if (!editor_state->has_current_buffer()) { return; }
+    auto it = editor_state->buffers()->find(kPasteBuffer);
+    if (it == editor_state->buffers()->end()) {
+      editor_state->SetStatus("No text to paste.");
+      return;
+    }
+    if (it == editor_state->current_buffer()) {
+      editor_state->SetStatus("You shall not paste into the paste buffer.");
+      return;
+    }
+    editor_state->current_buffer()->second->InsertInCurrentPosition(
+        *it->second->contents());
+    editor_state->ScheduleRedraw();
+  }
+};
 
 class GotoPreviousPositionCommand : public Command {
  public:
@@ -813,7 +834,6 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('a', new EnterAdvancedMode()));
     output.insert(make_pair('i', new EnterInsertMode()));
     output.insert(make_pair('f', new EnterFindMode()));
-
     output.insert(make_pair('r', new ReverseDirection()));
 
     output.insert(make_pair(
@@ -822,6 +842,7 @@ static const map<int, Command*>& GetCommandModeMap() {
 
     output.insert(make_pair('g', new GotoCommand()));
     output.insert(make_pair('d', new Delete()));
+    output.insert(make_pair('p', new Paste()));
     output.insert(make_pair('\n', new ActivateLink()));
 
     output.insert(make_pair('b', new GotoPreviousPositionCommand()));

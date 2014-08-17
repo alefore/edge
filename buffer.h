@@ -9,6 +9,7 @@
 #include "command_mode.h"
 #include "lazy_string.h"
 #include "memory_mapped_file.h"
+#include "substring.h"
 
 namespace afc {
 namespace editor {
@@ -52,6 +53,8 @@ class OpenBuffer {
   shared_ptr<Line> AppendLine(shared_ptr<LazyString> line);
   shared_ptr<Line> AppendRawLine(shared_ptr<LazyString> str);
 
+  void InsertInCurrentPosition(const vector<shared_ptr<Line>>& insertion);
+
   // Checks that current_position_col is in the expected range (between 0 and
   // the length of the current line).
   void MaybeAdjustPositionCol();
@@ -62,6 +65,19 @@ class OpenBuffer {
     assert(!contents_.empty());
     assert(current_position_line_ < contents_.size());
     return contents_.at(current_position_line_);
+  }
+  // Returns the substring of the current line until the current position.
+  shared_ptr<LazyString> current_line_head() const {
+    return Substring(current_line()->contents, 0, current_position_col());
+  }
+  // Returns the substring of the current line from the current to the last
+  // position.
+  shared_ptr<LazyString> current_line_tail() const {
+    return Substring(current_line()->contents, current_position_col());
+  }
+
+  void replace_current_line(const shared_ptr<Line>& line) {
+    contents_.at(current_position_line_) = line;
   }
 
   int fd() const { return fd_; }

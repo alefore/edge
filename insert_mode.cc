@@ -49,7 +49,7 @@ class InsertMode : public EditorMode {
                                         (*previous_line)->contents->size());
             buffer->set_current_position_col(
                 (*previous_line)->contents->size());
-            (*previous_line)->contents = line_;
+            (*previous_line).reset(new Line(line_));
             buffer->contents()->erase(current_line);
           }
           buffer->set_modified(true);
@@ -128,10 +128,9 @@ void EnterInsertCharactersMode(EditorState* editor_state) {
     buffer->AppendLine(new_line);
   } else {
     buffer->MaybeAdjustPositionCol();
-    auto line = buffer->current_line();
     new_line = EditableString::New(
-        line->contents, buffer->current_position_col());
-    line->contents = new_line;
+        buffer->current_line()->contents, buffer->current_position_col());
+    buffer->contents()->at(buffer->current_position_line()).reset(new Line(new_line));
   }
   editor_state->set_mode(unique_ptr<EditorMode>(new InsertMode(new_line)));
 }

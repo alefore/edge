@@ -15,6 +15,7 @@ extern "C" {
 #include "editor.h"
 #include "file_link_mode.h"
 #include "run_command_handler.h"
+#include "lazy_string_append.h"
 #include "substring.h"
 
 namespace {
@@ -190,6 +191,28 @@ shared_ptr<Line> OpenBuffer::AppendRawLine(shared_ptr<LazyString> str) {
   line->contents = str;
   contents_.push_back(line);
   return line;
+}
+
+void OpenBuffer::InsertInCurrentPosition(const vector<shared_ptr<Line>>& insertion) {
+  auto begin = insertion.begin();
+  auto end = insertion.end();
+  if (begin == end) { return; }
+  CheckPosition();
+  MaybeAdjustPositionCol();
+  if (!at_beginning_of_line()) {
+    auto tail = current_line_tail();
+    replace_current_line(shared_ptr<Line>(new Line(
+        StringAppend(current_line_head(), (*begin)->contents))));
+    begin++;
+    current_position_col_ = 0;
+    current_position_line_ ++;
+    contents_.insert(contents_.begin() + current_position_line_,
+        shared_ptr<Line>(new Line(tail)));
+  }
+  if (begin == end) { return; }
+  contents_.insert(contents_.begin() + current_position_line_, begin, end);
+  current_position_line_ += end - begin;
+  current_position_col_ = 0;
 }
 
 void OpenBuffer::MaybeAdjustPositionCol() {
