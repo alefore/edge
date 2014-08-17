@@ -28,9 +28,7 @@ using namespace afc::editor;
 
 class FileBuffer : public OpenBuffer {
  public:
-  FileBuffer(const string& path) : path_(path) {
-    atomic_lines_ = true;
-  }
+  FileBuffer(const string& path) : path_(path) {}
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     if (stat(path_.c_str(), &stat_buffer_) == -1) {
@@ -50,6 +48,8 @@ class FileBuffer : public OpenBuffer {
       }
       return;
     }
+
+    atomic_lines_ = true;
 
     unique_ptr<Line> line(new Line);
     line->contents.reset(NewCopyString("File listing: " + path_).release());
