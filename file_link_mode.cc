@@ -111,6 +111,7 @@ class FileLinkMode : public EditorMode {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
+    if (c != '\n') { return; }
     editor_state->PushCurrentPosition();
     auto it = editor_state->buffers()->insert(make_pair(path_.get(), nullptr));
     editor_state->set_current_buffer(it.first);
