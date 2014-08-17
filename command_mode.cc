@@ -182,6 +182,7 @@ class Delete : public Command {
       shared_ptr<LazyString> suffix;
       if (editor_state->repetitions + buffer->current_position_col()
           > current_line->size()) {
+        // Needs to erase beyond end of line.
         characters_to_erase = current_line->size() - buffer->current_position_col();
         if (buffer->contents()->size() > buffer->current_position_line() + 1) {
           suffix = buffer->contents()->at(buffer->current_position_line() + 1)

@@ -120,6 +120,8 @@ void SetWordCharacters(const string& input, EditorState* editor_state) {
 
 void SetVariableHandler(const string& name, EditorState* editor_state) {
   editor_state->mode = std::move(NewCommandMode());
+  // TODO: Make this nicer, use some structure that has information about the
+  // variables.
   if (name == "reload_on_enter") {
     if (editor_state->current_buffer == editor_state->buffers.end()) {
       return;
@@ -130,10 +132,15 @@ void SetVariableHandler(const string& name, EditorState* editor_state) {
       return;
     }
     editor_state->get_current_buffer()->toggle_diff();
+  } else if (name == "atomic_lines") {
+    if (editor_state->current_buffer == editor_state->buffers.end()) {
+      return;
+    }
+    editor_state->get_current_buffer()->toggle_atomic_lines();
   } else if (name == "word_characters") {
     unique_ptr<Command> command(NewLinePromptCommand(
         "word_characters: ", "", SetWordCharacters));
-    command->ProcessInput('X', editor_state);
+    command->ProcessInput('\n', editor_state);
   } else {
     editor_state->status = "Unknown variable: " + name;
   }

@@ -122,7 +122,8 @@ class OpenBuffer {
   void SetInputFile(int fd);
 
   void toggle_diff() { diff_ = !diff_; }
-
+  bool atomic_lines() const { return atomic_lines_; }
+  void toggle_atomic_lines() { atomic_lines_ = !atomic_lines_; }
   void set_word_characters(const string& word_characters);
   bool* word_characters() { return word_characters_; }
 
@@ -149,6 +150,9 @@ class OpenBuffer {
   bool reload_on_enter_;
   // Does this buffer represent a diff?  Changes the way 'Save' behaves.
   bool diff_;
+  // If true, lines can't be joined (e.g. you can't delete the last item in a
+  // line unless the line is empty).
+  bool atomic_lines_;
 
   bool word_characters_[256];
 };
