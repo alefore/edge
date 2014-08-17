@@ -159,6 +159,11 @@ class Delete : public Command {
     } else {
       last_line = first_line + editor_state->repetitions;
     }
+    for (auto it = first_line; it < last_line; ++it) {
+      if ((*it)->activate.get() != nullptr) {
+        (*it)->activate->ProcessInput('d', editor_state);
+      }
+    }
     deleted_text->contents()->insert(
         deleted_text->contents()->end(), first_line, last_line);
     buffer->contents()->erase(first_line, last_line);

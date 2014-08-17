@@ -59,6 +59,30 @@ class OpenDirectory : public Command {
   }
 };
 
+// TODO: This should be a method of EditorState.
+static void CloseBuffer(
+    EditorState* editor_state,
+    map<string, shared_ptr<OpenBuffer>>::iterator buffer) {
+  editor_state->screen_needs_redraw = true;
+  map<string, shared_ptr<OpenBuffer>>::iterator it;
+  if (editor_state->buffers.size() == 1) {
+    it = editor_state->buffers.end();
+  } else {
+    it = buffer;
+    if (it == editor_state->buffers.begin()) {
+      it = editor_state->buffers.end();
+    }
+    it--;
+    assert(it != buffer);
+    assert(it != editor_state->buffers.end());
+    it->second->Enter(editor_state);
+  }
+  editor_state->buffers.erase(buffer);
+  if (buffer == editor_state->current_buffer) {
+    editor_state->current_buffer = it;
+  }
+}
+
 class CloseCurrentBuffer : public Command {
   const string Description() {
     return "closes the current buffer (without saving)";
@@ -68,23 +92,7 @@ class CloseCurrentBuffer : public Command {
     if (editor_state->current_buffer == editor_state->buffers.end()) {
       return;
     }
-
-    editor_state->screen_needs_redraw = true;
-    map<string, shared_ptr<OpenBuffer>>::iterator it;
-    if (editor_state->buffers.size() == 1) {
-      it = editor_state->buffers.end();
-    } else {
-      it = editor_state->current_buffer;
-      if (it == editor_state->buffers.begin()) {
-        it = editor_state->buffers.end();
-      }
-      it--;
-      assert(it != editor_state->current_buffer);
-      assert(it != editor_state->buffers.end());
-      it->second->Enter(editor_state);
-    }
-    editor_state->buffers.erase(editor_state->current_buffer);
-    editor_state->current_buffer = it;
+    CloseBuffer(editor_state, editor_state->current_buffer);
     editor_state->mode = std::move(NewCommandMode());
     editor_state->repetitions = 1;
   }
@@ -146,23 +154,36 @@ void SetVariableHandler(const string& name, EditorState* editor_state) {
   }
 }
 
-class OpenBufferCommand : public EditorMode {
+class ActivateBufferLineCommand : public EditorMode {
  public:
-  OpenBufferCommand(const string& name) : name_(name) {}
+  ActivateBufferLineCommand(const string& name) : name_(name) {}
 
   void ProcessInput(int c, EditorState* editor_state) {
-    editor_state->PushCurrentPosition();
-    auto it = editor_state->buffers.find(name_);
-    if (it == editor_state->buffers.end()) {
-      // TODO: Keep a function and re-open the buffer?
-      editor_state->status = "Buffer not found: " + name_;
-      return;
+    switch (c) {
+      case '\n':
+        {
+          editor_state->PushCurrentPosition();
+          auto it = editor_state->buffers.find(name_);
+          if (it == editor_state->buffers.end()) {
+            // TODO: Keep a function and re-open the buffer?
+            editor_state->status = "Buffer not found: " + name_;
+            return;
+          }
+          editor_state->current_buffer = it;
+          it->second->Enter(editor_state);
+          editor_state->screen_needs_redraw = true;
+          editor_state->status = "";
+          editor_state-> mode = std::move(NewCommandMode());
+          break;
+        }
+      case 'd':
+        {
+          auto it = editor_state->buffers.find(name_);
+          if (it == editor_state->buffers.end()) { return; }
+          CloseBuffer(editor_state, it);
+          break;
+        }
     }
-    editor_state->current_buffer = it;
-    it->second->Enter(editor_state);
-    editor_state->screen_needs_redraw = true;
-    editor_state->status = "";
-    editor_state-> mode = std::move(NewCommandMode());
   }
 
  private:
@@ -182,7 +203,7 @@ class ListBuffersBuffer : public OpenBuffer {
       string flags(it.second->FlagsString());
       auto name = NewCopyString(it.first + (flags.empty() ? "" : "  ") + flags);
       target->AppendLine(std::move(name))
-          ->activate.reset(new OpenBufferCommand(it.first));
+          ->activate.reset(new ActivateBufferLineCommand(it.first));
     }
     editor_state->screen_needs_redraw = true;
   }
