@@ -309,7 +309,7 @@ class GotoPreviousPositionCommand : public Command {
 
   void ProcessInput(int c, EditorState* editor_state) {
     while (editor_state->repetitions() > 0
-           && !editor_state->HasPositionsInStack()) {
+           && editor_state->HasPositionsInStack()) {
       const Position pos = editor_state->PopBackPosition();
       auto it = editor_state->buffers()->find(pos.buffer);
       if (it != editor_state->buffers()->end()
