@@ -17,7 +17,7 @@ extern "C" {
 namespace {
 
 using namespace afc::editor;
-using std::cerr;
+using std::to_string;
 
 void LoadEnvironmentVariables(
     const vector<string>& path, const string& full_command) {
@@ -48,7 +48,21 @@ void LoadEnvironmentVariables(
 class CommandBuffer : public OpenBuffer {
  public:
   CommandBuffer(const string& command, const map<string, string>& environment)
-      : command_(command), environment_(environment) {}
+      : command_(command),
+        environment_(environment),
+        child_pid_(-1),
+        child_status_(0) {}
+
+  void ReadData(EditorState* editor_state) {
+    OpenBuffer::ReadData(editor_state);
+    if (fd_ != -1) { return; }
+    if (waitpid(child_pid_, &child_status_, 0) == -1) {
+      editor_state->status =
+          "waitpid(" + to_string(child_pid_) + " failed: "
+          + string(strerror(errno));
+      return;
+    }
+  }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     int pipefd[2];
@@ -56,8 +70,8 @@ class CommandBuffer : public OpenBuffer {
       exit(1);
     }
 
-    pid_t pid = fork();
-    if (pid == 0) {
+    child_pid_ = fork();
+    if (child_pid_ == 0) {
       close(0);
       close(pipefd[0]);
 
@@ -79,13 +93,15 @@ class CommandBuffer : public OpenBuffer {
     close(pipefd[1]);
     target->SetInputFile(pipefd[0]);
     // TODO: waitpid(pid, &status_dummy, 0);
-    // Both when it's done reading or when it's interrupted.
+    // Both when it's it's interrupted.
     editor_state->screen_needs_redraw = true;
   }
 
  private:
   const string command_;
   const map<string, string> environment_;
+  pid_t child_pid_;
+  int child_status_;
 };
 
 void RunCommand(

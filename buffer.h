@@ -43,11 +43,11 @@ class OpenBuffer {
 
   virtual void ReloadInto(EditorState* editor_state, OpenBuffer* target) {}
   virtual void Save(EditorState* editor_state);
+  virtual void ReadData(EditorState* editor_state);
 
   void Reload(EditorState* editor_state) {
     ReloadInto(editor_state, this);
   }
-  void ReadData(EditorState* editor_state);
 
   void AppendLazyString(shared_ptr<LazyString> input);
   shared_ptr<Line> AppendLine(shared_ptr<LazyString> line);
