@@ -84,8 +84,8 @@ class CommandBuffer : public OpenBuffer {
       }
 
       // TODO: Don't use system?  Use exec and call the shell directly.
-      system(command_.c_str());
-      exit(0);
+      int status = system(command_.c_str());
+      exit(WIFEXITED(status) ? WEXITSTATUS(status) : 1);
     }
     close(pipefd[1]);
     target->SetInputFile(pipefd[0], child_pid);

@@ -46,6 +46,8 @@ void SaveDiff(EditorState* editor_state, OpenBuffer* buffer) {
 namespace afc {
 namespace editor {
 
+using std::to_string;
+
 OpenBuffer::OpenBuffer()
     : fd_(-1),
       buffer_(nullptr),
@@ -214,11 +216,22 @@ void OpenBuffer::SetInputFile(int input_fd, pid_t child_pid) {
 
 string OpenBuffer::FlagsString() const {
   string output;
+  if (modified()) {
+    output += "~";
+  }
   if (fd() != -1) {
     output += "<";
   }
-  if (modified()) {
-    output += "~";
+  if (child_pid_ != -1) {
+    output += "[pid:" + to_string(child_pid_) + "]";
+  } else if (child_exit_status_ != 0) {
+    if (WIFEXITED(child_exit_status_)) {
+      output += "{" + to_string(WEXITSTATUS(child_exit_status_)) + "}";
+    } else if (WIFSIGNALED(child_exit_status_)) {
+      output += "{signaled:" + to_string(WTERMSIG(child_exit_status_)) + "}";
+    } else {
+      output += "{exit-status:" + to_string(child_exit_status_) + "}";
+    }
   }
   return output;
 }
