@@ -177,37 +177,53 @@ class Delete : public Command {
     }
 
     while (editor_state->repetitions > 0) {
-      size_t characters_to_erase;
-      auto current_line = buffer->current_line();
-      shared_ptr<LazyString> suffix;
-      if (editor_state->repetitions + buffer->current_position_col()
-          <= current_line->size()) {
-        characters_to_erase = editor_state->repetitions;
-        suffix = Substring(current_line->contents,
-                           buffer->current_position_col() + characters_to_erase);
-      } else {
-        // Needs to erase beyond end of line.
-        characters_to_erase = current_line->size() - buffer->current_position_col();
-        if (buffer->at_last_line()) {
-          suffix = EmptyString();
-          editor_state->repetitions = characters_to_erase;
-        } else {
-          suffix = buffer->contents()->at(buffer->current_position_line() + 1)
-              ->contents;
-          buffer->contents()->erase(
-              buffer->contents()->begin() + buffer->current_position_line() + 1);
-          editor_state->repetitions--;
-        }
+      auto current_line = buffer->contents()->begin() + buffer->current_position_line();
+      shared_ptr<LazyString> suffix = EmptyString();
+      size_t characters_left =
+          (*current_line)->contents->size() - buffer->current_position_col();
+
+      if (buffer->at_last_line()
+          && editor_state->repetitions > characters_left) {
+        editor_state->repetitions = characters_left;
+        if (editor_state->repetitions == 0) { continue; }
       }
-      editor_state->repetitions -= characters_to_erase;
-      deleted_text->AppendLine(
-          Substring(current_line->contents, buffer->current_position_col(),
-                    characters_to_erase));
-      buffer->contents()->at(buffer->current_position_line())->contents =
-          StringAppend(
-              Substring(current_line->contents, 0, buffer->current_position_col()),
-              suffix);
       buffer->set_modified(true);
+
+      if (editor_state->repetitions <= characters_left) {
+        deleted_text->AppendLine(Substring(
+            (*current_line)->contents,
+            buffer->current_position_col(),
+            editor_state->repetitions));
+        (*current_line)->contents = StringAppend(
+            Substring(
+                (*current_line)->contents,
+                0,
+                buffer->current_position_col()),
+            Substring(
+                (*current_line)->contents,
+                buffer->current_position_col() + editor_state->repetitions));
+        editor_state->repetitions = 0;
+        continue;
+      }
+
+      if (buffer->at_beginning_of_line()) {
+        deleted_text->AppendLine((*current_line)->contents);
+        assert(editor_state->repetitions >= (*current_line)->size() + 1);
+        editor_state->repetitions -= (*current_line)->size() + 1;
+        buffer->contents()->erase(current_line);
+        continue;
+      }
+
+      auto next_line =
+          buffer->contents()->begin() + buffer->current_position_line() + 1;
+      deleted_text->AppendLine(
+          Substring((*current_line)->contents, buffer->current_position_col()));
+      (*current_line)->contents = StringAppend(
+          Substring((*current_line)->contents, 0, buffer->current_position_col()),
+          (*next_line)->contents);
+      assert(editor_state->repetitions >= characters_left + 1);
+      editor_state->repetitions -= characters_left + 1;
+      buffer->contents()->erase(next_line);
     }
     InsertDeletedTextBuffer(editor_state, deleted_text);
   }
