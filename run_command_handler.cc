@@ -6,6 +6,7 @@
 
 extern "C" {
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/wait.h>
 #include <unistd.h>
 }
@@ -56,7 +57,9 @@ class CommandBuffer : public OpenBuffer {
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     int pipefd[2];
-    if (pipe(pipefd) == -1) {
+    static const int parent_fd = 0;
+    static const int child_fd = 1;
+    if (socketpair(PF_LOCAL, SOCK_STREAM, 0, pipefd) == -1) {
       exit(1);
     }
 
@@ -70,17 +73,17 @@ class CommandBuffer : public OpenBuffer {
       editor_state->SetStatus("setpgid failed: " + string(strerror(errno)));
       return;
     }
-
     if (child_pid == 0) {
-      close(0);
-      close(pipefd[0]);
+      close(pipefd[parent_fd]);
 
-      int stdin = open("/dev/null", O_RDONLY);
-      if (stdin != 0 && dup2(stdin, 0) == -1) { exit(1); }
-      if (dup2(pipefd[1], 1) == -1) { exit(1); }
-      if (dup2(pipefd[1], 2) == -1) { exit(1); }
-      if (stdin != 0) { close(stdin); }
-      if (pipefd[1] != 1 && pipefd[1] != 2) { close(pipefd[1]); }
+      if (dup2(pipefd[child_fd], 0) == -1) { exit(1); }
+      if (dup2(pipefd[child_fd], 1) == -1) { exit(1); }
+      if (dup2(pipefd[child_fd], 2) == -1) { exit(1); }
+      if (pipefd[child_fd] != 0
+          && pipefd[child_fd] != 1
+          && pipefd[child_fd] != 2) {
+        close(pipefd[child_fd]);
+      }
 
       LoadEnvironmentVariables(editor_state->edge_path(), command_);
       for (const auto& it : environment_) {
@@ -91,8 +94,8 @@ class CommandBuffer : public OpenBuffer {
       int status = system(command_.c_str());
       exit(WIFEXITED(status) ? WEXITSTATUS(status) : 1);
     }
-    close(pipefd[1]);
-    target->SetInputFile(pipefd[0], child_pid);
+    close(pipefd[child_fd]);
+    target->SetInputFile(pipefd[parent_fd], child_pid);
     editor_state->ScheduleRedraw();
   }
 
