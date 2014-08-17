@@ -21,16 +21,16 @@ using std::regex;
 #endif
 
 void SearchHandler(const string& input, EditorState* editor_state) {
-  if (editor_state->current_buffer == editor_state->buffers.end()
+  if (!editor_state->has_current_buffer()
       || input.empty()
-      || editor_state->get_current_buffer()->contents()->empty()) {
-    editor_state->mode = NewCommandMode();
-    editor_state->status = "";
-    editor_state->screen_needs_redraw = true;
+      || editor_state->current_buffer()->second->contents()->empty()) {
+    editor_state->ResetMode();
+    editor_state->ResetStatus();
+    editor_state->ScheduleRedraw();
     return;
   }
 
-  auto buffer = editor_state->get_current_buffer();
+  auto buffer = editor_state->current_buffer()->second;
 
 #if CPP_REGEX
   std::regex pattern(input);
@@ -47,7 +47,7 @@ void SearchHandler(const string& input, EditorState* editor_state) {
 
   assert(position_line < buffer->contents()->size());
 
-  switch (editor_state->direction) {
+  switch (editor_state->direction()) {
     case FORWARDS:
       delta = 1;
       if (buffer->current_position_col() >= buffer->current_line()->contents->size()) {
@@ -72,7 +72,7 @@ void SearchHandler(const string& input, EditorState* editor_state) {
       break;
   }
 
-  editor_state->status = "Not found";
+  editor_state->SetStatus("Not found");
 
   bool wrapped = false;
 
@@ -96,7 +96,7 @@ void SearchHandler(const string& input, EditorState* editor_state) {
 #endif
 
     if (match
-        && editor_state->direction == BACKWARDS
+        && editor_state->direction() == BACKWARDS
         && position_line == buffer->current_position_line()
         && pos >= buffer->current_position_col()) {
       // Not a match we're interested on.
@@ -107,7 +107,7 @@ void SearchHandler(const string& input, EditorState* editor_state) {
       editor_state->PushCurrentPosition();
       buffer->set_current_position_line(position_line);
       buffer->set_current_position_col(pos + position_col);
-      editor_state->status = wrapped ? "Found (wrapped)" : "Found";
+      editor_state->SetStatus(wrapped ? "Found (wrapped)" : "Found");
       break;  // TODO: Honor repetitions.
     }
 
@@ -123,9 +123,9 @@ void SearchHandler(const string& input, EditorState* editor_state) {
     position_col = 0;
     next_line = buffer->contents()->at(position_line)->contents;
   }
-  editor_state->mode = NewCommandMode();
-  editor_state->direction = FORWARDS;
-  editor_state->screen_needs_redraw = true;
+  editor_state->ResetMode();
+  editor_state->ResetDirection();
+  editor_state->ScheduleRedraw();
 }
 
 }  // namespace editor

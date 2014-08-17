@@ -42,85 +42,85 @@ namespace afc {
 namespace editor {
 
 EditorState::EditorState()
-    : current_buffer(buffers.end()),
-      terminate(false),
-      direction(FORWARDS),
-      repetitions(1),
-      structure(CHAR),
-      default_structure(CHAR),
-      mode(std::move(NewCommandMode())),
-      visible_lines(1),
-      screen_needs_redraw(false),
-      status_prompt(false),
-      status(""),
-      home_directory(GetHomeDirectory()),
-      edge_path(GetEdgeConfigPath(home_directory)) {}
+    : current_buffer_(buffers_.end()),
+      terminate_(false),
+      direction_(FORWARDS),
+      repetitions_(1),
+      structure_(CHAR),
+      default_structure_(CHAR),
+      mode_(std::move(NewCommandMode())),
+      visible_lines_(1),
+      screen_needs_redraw_(false),
+      status_prompt_(false),
+      status_(""),
+      home_directory_(GetHomeDirectory()),
+      edge_path_(GetEdgeConfigPath(home_directory_)) {}
 
-void EditorState::SetStructure(Structure new_structure) {
-  default_structure = EditorState::CHAR;
-  structure = new_structure;
+void EditorState::set_structure(Structure structure) {
+  default_structure_ = EditorState::CHAR;
+  structure_ = structure;
 }
 
-void EditorState::SetDefaultStructure(Structure new_structure) {
-  default_structure = new_structure;
+void EditorState::set_default_structure(Structure structure) {
+  default_structure_ = structure;
   ResetStructure();
 }
 
 void EditorState::MoveBufferForwards(size_t times) {
   PushCurrentPosition();
-  if (current_buffer == buffers.end()) {
-    if (buffers.empty()) { return; }
-    current_buffer = buffers.begin();
+  if (current_buffer_ == buffers_.end()) {
+    if (buffers_.empty()) { return; }
+    current_buffer_ = buffers_.begin();
   }
-  times = times % buffers.size();
+  times = times % buffers_.size();
   for (size_t i = 0; i < times; i++) {
-    current_buffer++;
-    if (current_buffer == buffers.end()) {
-      current_buffer = buffers.begin();
+    current_buffer_++;
+    if (current_buffer_ == buffers_.end()) {
+      current_buffer_ = buffers_.begin();
     }
   }
-  current_buffer->second->Enter(this);
+  current_buffer_->second->Enter(this);
 }
 
 void EditorState::MoveBufferBackwards(size_t times) {
   PushCurrentPosition();
-  if (current_buffer == buffers.end()) {
-    if (buffers.empty()) { return; }
-    current_buffer = buffers.end();
-    current_buffer--;
+  if (current_buffer_ == buffers_.end()) {
+    if (buffers_.empty()) { return; }
+    current_buffer_ = buffers_.end();
+    current_buffer_--;
   }
-  times = times % buffers.size();
+  times = times % buffers_.size();
   for (size_t i = 0; i < times; i++) {
-    if (current_buffer == buffers.begin()) {
-      current_buffer = buffers.end();
+    if (current_buffer_ == buffers_.begin()) {
+      current_buffer_ = buffers_.end();
     }
-    current_buffer--;
+    current_buffer_--;
   }
-  current_buffer->second->Enter(this);
+  current_buffer_->second->Enter(this);
 }
 
 void EditorState::PushCurrentPosition() {
-  if (current_buffer == buffers.end()) { return; }
-  positions_stack.emplace_back();
-  Position& position = positions_stack.back();
-  position.buffer = current_buffer->first;
-  position.line = current_buffer->second->current_position_line();
-  position.col = current_buffer->second->current_position_col();
+  if (!has_current_buffer()) { return; }
+  positions_stack_.emplace_back();
+  Position& position = positions_stack_.back();
+  position.buffer = current_buffer_->first;
+  position.line = current_buffer_->second->current_position_line();
+  position.col = current_buffer_->second->current_position_col();
 }
 
 void EditorState::PopLastNearPositions() {
   while (true) {
-    if (positions_stack.empty() || current_buffer == buffers.end()) {
+    if (positions_stack_.empty() || has_current_buffer()) {
       return;
     }
-    const auto& pos = positions_stack.back();
-    const auto& buffer = get_current_buffer();
-    if (pos.buffer != current_buffer->first
+    const auto& pos = positions_stack_.back();
+    const auto& buffer = current_buffer()->second;
+    if (pos.buffer != current_buffer_->first
         || pos.line != buffer->current_position_line()
         || pos.col != buffer->current_position_col()) {
       return;
     }
-    positions_stack.pop_back();
+    positions_stack_.pop_back();
   }
 }
 

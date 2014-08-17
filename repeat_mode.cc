@@ -16,8 +16,8 @@ class RepeatMode : public EditorMode {
   void ProcessInput(int c, EditorState* editor_state) {
     if (c < '0' || c > '9') {
       consumer_(editor_state, result_);
-      editor_state->mode = std::move(NewCommandMode());
-      editor_state->mode->ProcessInput(c, editor_state);
+      editor_state->set_mode(NewCommandMode());
+      editor_state->mode()->ProcessInput(c, editor_state);
       return;
     }
     result_ = 10 * result_ + c - '0';

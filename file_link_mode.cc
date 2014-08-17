@@ -37,7 +37,7 @@ class FileBuffer : public OpenBuffer {
 
     target->contents()->clear();
     editor_state->CheckPosition();
-    editor_state->screen_needs_redraw = true;
+    editor_state->ScheduleRedraw();
 
     if (!S_ISDIR(stat_buffer_.st_mode)) {
       char* tmp = strdup(path_.c_str());
@@ -84,7 +84,7 @@ class FileBuffer : public OpenBuffer {
 
     if (SaveContentsToFile(editor_state, this, path_)) {
       set_modified(false);
-      editor_state->status = "Saved: " + path_;
+      editor_state->SetStatus("Saved: " + path_);
     }
   }
 
@@ -111,8 +111,8 @@ class FileLinkMode : public EditorMode {
 
   void ProcessInput(int c, EditorState* editor_state) {
     editor_state->PushCurrentPosition();
-    auto it = editor_state->buffers.insert(make_pair(path_.get(), nullptr));
-    editor_state->current_buffer = it.first;
+    auto it = editor_state->buffers()->insert(make_pair(path_.get(), nullptr));
+    editor_state->set_current_buffer(it.first);
     if (it.second) {
       it.first->second.reset(new FileBuffer(path_.get()));
       it.first->second->Reload(editor_state);
@@ -183,7 +183,7 @@ bool SaveContentsToFile(
   string tmp_path = path + ".tmp";
   int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
   if (fd == -1) {
-    editor_state->status = tmp_path + ": open failed: " + strerror(errno);
+    editor_state->SetStatus(tmp_path + ": open failed: " + strerror(errno));
     return false;
   }
   bool result = SaveContentsToOpenFile(editor_state, buffer, tmp_path, fd);
@@ -193,7 +193,7 @@ bool SaveContentsToFile(
   }
 
   if (rename(tmp_path.c_str(), path.c_str()) == -1) {
-    editor_state->status = path + ": rename failed: " + strerror(errno);
+    editor_state->SetStatus(path + ": rename failed: " + strerror(errno));
     return false;
   }
 
@@ -212,8 +212,8 @@ bool SaveContentsToOpenFile(
     int write_result = write(fd, tmp, str.size() + 1);
     free(tmp);
     if (write_result == -1) {
-      editor_state->status = path + ": write failed: " + to_string(fd)
-          + ": " + strerror(errno);
+      editor_state->SetStatus(
+          path + ": write failed: " + to_string(fd) + ": " + strerror(errno));
       return false;
     }
   }

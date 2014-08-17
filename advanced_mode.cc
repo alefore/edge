@@ -35,7 +35,7 @@ class RestoreCommandMode : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    editor_state->mode = std::move(NewCommandMode());
+    editor_state->ResetMode();
   }
 };
 
@@ -46,10 +46,10 @@ class OpenDirectory : public Command {
 
   void ProcessInput(int c, EditorState* editor_state) {
     string path;
-    if (editor_state->current_buffer == editor_state->buffers.end()) {
+    if (!editor_state->has_current_buffer()) {
       path = ".";
     } else {
-      char* tmp = strdup(editor_state->current_buffer->first.c_str());
+      char* tmp = strdup(editor_state->current_buffer()->first.c_str());
       path = dirname(tmp);
       free(tmp);
     }
@@ -63,23 +63,23 @@ class OpenDirectory : public Command {
 static void CloseBuffer(
     EditorState* editor_state,
     map<string, shared_ptr<OpenBuffer>>::iterator buffer) {
-  editor_state->screen_needs_redraw = true;
+  editor_state->ScheduleRedraw();
   map<string, shared_ptr<OpenBuffer>>::iterator it;
-  if (editor_state->buffers.size() == 1) {
-    it = editor_state->buffers.end();
+  if (editor_state->buffers()->size() == 1) {
+    it = editor_state->buffers()->end();
   } else {
     it = buffer;
-    if (it == editor_state->buffers.begin()) {
-      it = editor_state->buffers.end();
+    if (it == editor_state->buffers()->begin()) {
+      it = editor_state->buffers()->end();
     }
     it--;
     assert(it != buffer);
-    assert(it != editor_state->buffers.end());
+    assert(it != editor_state->buffers()->end());
     it->second->Enter(editor_state);
   }
-  editor_state->buffers.erase(buffer);
-  if (buffer == editor_state->current_buffer) {
-    editor_state->current_buffer = it;
+  editor_state->buffers()->erase(buffer);
+  if (buffer == editor_state->current_buffer()) {
+    editor_state->set_current_buffer(it);
   }
 }
 
@@ -89,12 +89,12 @@ class CloseCurrentBuffer : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    if (editor_state->current_buffer == editor_state->buffers.end()) {
+    if (!editor_state->has_current_buffer()) {
       return;
     }
-    CloseBuffer(editor_state, editor_state->current_buffer);
-    editor_state->mode = std::move(NewCommandMode());
-    editor_state->repetitions = 1;
+    CloseBuffer(editor_state, editor_state->current_buffer());
+    editor_state->ResetMode();
+    editor_state->ResetRepetitions();
   }
 };
 
@@ -104,11 +104,11 @@ class SaveCurrentBuffer : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    if (editor_state->current_buffer == editor_state->buffers.end()) {
+    if (!editor_state->has_current_buffer()) {
       return;
     }
-    editor_state->get_current_buffer()->Save(editor_state);
-    editor_state->mode = std::move(NewCommandMode());
+    editor_state->current_buffer()->second->Save(editor_state);
+    editor_state->ResetMode();
   }
 };
 
@@ -119,38 +119,30 @@ void OpenFileHandler(const string& name, EditorState* editor_state) {
 }
 
 void SetWordCharacters(const string& input, EditorState* editor_state) {
-  editor_state->mode = NewCommandMode();
-  if (editor_state->current_buffer == editor_state->buffers.end()) {
-    return;
-  }
-  editor_state->get_current_buffer()->set_word_characters(input);
+  editor_state->ResetMode();
+  if (!editor_state->has_current_buffer()) { return; }
+  editor_state->current_buffer()->second->set_word_characters(input);
 }
 
 void SetVariableHandler(const string& name, EditorState* editor_state) {
-  editor_state->mode = std::move(NewCommandMode());
+  editor_state->ResetMode();
   // TODO: Make this nicer, use some structure that has information about the
   // variables.
   if (name == "reload_on_enter") {
-    if (editor_state->current_buffer == editor_state->buffers.end()) {
-      return;
-    }
-    editor_state->get_current_buffer()->toggle_reload_on_enter();
+    if (!editor_state->has_current_buffer()) { return; }
+    editor_state->current_buffer()->second->toggle_reload_on_enter();
   } else if (name == "diff") {
-    if (editor_state->current_buffer == editor_state->buffers.end()) {
-      return;
-    }
-    editor_state->get_current_buffer()->toggle_diff();
+    if (editor_state->has_current_buffer()) { return; }
+    editor_state->current_buffer()->second->toggle_diff();
   } else if (name == "atomic_lines") {
-    if (editor_state->current_buffer == editor_state->buffers.end()) {
-      return;
-    }
-    editor_state->get_current_buffer()->toggle_atomic_lines();
+    if (editor_state->has_current_buffer()) { return; }
+    editor_state->current_buffer()->second->toggle_atomic_lines();
   } else if (name == "word_characters") {
     unique_ptr<Command> command(NewLinePromptCommand(
         "word_characters: ", "", SetWordCharacters));
     command->ProcessInput('\n', editor_state);
   } else {
-    editor_state->status = "Unknown variable: " + name;
+    editor_state->SetStatus("Unknown variable: " + name);
   }
 }
 
@@ -163,23 +155,23 @@ class ActivateBufferLineCommand : public EditorMode {
       case '\n':
         {
           editor_state->PushCurrentPosition();
-          auto it = editor_state->buffers.find(name_);
-          if (it == editor_state->buffers.end()) {
+          auto it = editor_state->buffers()->find(name_);
+          if (it == editor_state->buffers()->end()) {
             // TODO: Keep a function and re-open the buffer?
-            editor_state->status = "Buffer not found: " + name_;
+            editor_state->SetStatus("Buffer not found: " + name_);
             return;
           }
-          editor_state->current_buffer = it;
+          editor_state->set_current_buffer(it);
           it->second->Enter(editor_state);
-          editor_state->screen_needs_redraw = true;
-          editor_state->status = "";
-          editor_state-> mode = std::move(NewCommandMode());
+          editor_state->ScheduleRedraw();
+          editor_state->ResetStatus();
+          editor_state->ResetMode();
           break;
         }
       case 'd':
         {
-          auto it = editor_state->buffers.find(name_);
-          if (it == editor_state->buffers.end()) { return; }
+          auto it = editor_state->buffers()->find(name_);
+          if (it == editor_state->buffers()->end()) { return; }
           CloseBuffer(editor_state, it);
           break;
         }
@@ -199,13 +191,13 @@ class ListBuffersBuffer : public OpenBuffer {
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     target->contents()->clear();
     AppendLine(std::move(NewCopyString("Open Buffers:")));
-    for (const auto& it : editor_state->buffers) {
+    for (const auto& it : *editor_state->buffers()) {
       string flags(it.second->FlagsString());
       auto name = NewCopyString(it.first + (flags.empty() ? "" : "  ") + flags);
       target->AppendLine(std::move(name))
           ->activate.reset(new ActivateBufferLineCommand(it.first));
     }
-    editor_state->screen_needs_redraw = true;
+    editor_state->ScheduleRedraw();
   }
 };
 
@@ -216,18 +208,18 @@ class ListBuffers : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    auto it = editor_state->buffers.insert(make_pair("- open buffers", nullptr));
+    auto it = editor_state->buffers()->insert(make_pair("- open buffers", nullptr));
     editor_state->PushCurrentPosition();
-    editor_state->current_buffer = it.first;
+    editor_state->set_current_buffer(it.first);
     if (it.second) {
       it.first->second.reset(new ListBuffersBuffer());
       it.first->second->set_reload_on_enter(true);
     }
     it.first->second->Reload(editor_state);
-    editor_state->screen_needs_redraw = true;
-    editor_state->status = "";
-    editor_state->mode = std::move(NewCommandMode());
-    editor_state->repetitions = 1;
+    editor_state->ScheduleRedraw();
+    editor_state->ResetStatus();
+    editor_state->ResetMode();
+    editor_state->ResetRepetitions();
   }
 
  private:
@@ -240,13 +232,13 @@ class ReloadBuffer : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    if (editor_state->current_buffer != editor_state->buffers.end()) {
-      auto buffer = editor_state->get_current_buffer();
-      buffer->Reload(editor_state);
-      buffer->set_modified(false);
-      buffer->CheckPosition();
+    if (!editor_state->has_current_buffer()) {
+      auto buffer = editor_state->current_buffer();
+      buffer->second->Reload(editor_state);
+      buffer->second->set_modified(false);
+      buffer->second->CheckPosition();
     }
-    editor_state->mode = std::move(NewCommandMode());
+    editor_state->ResetMode();
   }
 };
 

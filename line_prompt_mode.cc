@@ -26,8 +26,8 @@ class LinePromptMode : public EditorMode {
         history_position_(numeric_limits<size_t>::max()) {}
 
   static shared_ptr<OpenBuffer> FindHistoryBuffer(EditorState* editor_state) {
-    auto result = editor_state->buffers.find(kHistoryName);
-    if (result == editor_state->buffers.end()) {
+    auto result = editor_state->buffers()->find(kHistoryName);
+    if (result == editor_state->buffers()->end()) {
       return shared_ptr<OpenBuffer>(nullptr);
     }
     return result->second;
@@ -37,14 +37,14 @@ class LinePromptMode : public EditorMode {
     switch (c) {
       case '\n':
         InsertToHistory(editor_state);
-        editor_state->status_prompt = false;
-        editor_state->status = "";
+        editor_state->set_status_prompt(false);
+        editor_state->ResetStatus();
         handler_(input_->ToString(), editor_state);
         return;
 
       case Terminal::ESCAPE:
-        editor_state->status = "";
-        editor_state->status_prompt = false;
+        editor_state->set_status_prompt(false);
+        editor_state->ResetStatus();
         handler_("", editor_state);
         return;
 
@@ -81,7 +81,7 @@ class LinePromptMode : public EditorMode {
       default:
         input_->Insert(static_cast<char>(c));
     }
-    editor_state->status = prompt_ + input_->ToString();
+    editor_state->SetStatus(prompt_ + input_->ToString());
   }
 
  private:
@@ -96,14 +96,14 @@ class LinePromptMode : public EditorMode {
 
   void InsertToHistory(EditorState* editor_state) {
     if (input_->size() == 0) { return; }
-    auto insert_result = editor_state->buffers.insert(
+    auto insert_result = editor_state->buffers()->insert(
         make_pair(kHistoryName, nullptr));
     if (insert_result.second) {
       insert_result.first->second.reset(new OpenBuffer);
-      if (editor_state->current_buffer == editor_state->buffers.end()) {
+      if (!editor_state->has_current_buffer()) {
         // Seems lame, but what can we do?
-        editor_state->current_buffer = insert_result.first;
-        editor_state->screen_needs_redraw = true;
+        editor_state->set_current_buffer(insert_result.first);
+        editor_state->ScheduleRedraw();
       }
     }
     insert_result.first->second->AppendLine(input_);
@@ -127,16 +127,16 @@ class LinePromptCommand : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    editor_state->mode = std::unique_ptr<EditorMode>(
-        new LinePromptMode(prompt_, handler_));
-    auto history = editor_state->buffers.find(kHistoryName);
-    if (history != editor_state->buffers.end()
+    editor_state->set_mode(std::unique_ptr<EditorMode>(
+        new LinePromptMode(prompt_, handler_)));
+    auto history = editor_state->buffers()->find(kHistoryName);
+    if (history != editor_state->buffers()->end()
         && !history->second->contents()->empty()) {
       history->second->set_current_position_line(
           history->second->contents()->size() - 1);
     }
-    editor_state->status_prompt = true;
-    editor_state->status = prompt_;
+    editor_state->set_status_prompt(true);
+    editor_state->SetStatus(prompt_);
   }
 
  private:

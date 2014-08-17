@@ -38,7 +38,7 @@ void SaveDiff(EditorState* editor_state, OpenBuffer* buffer) {
   close(fd_old_diff);
   close(fd_new_diff);
   RunCommandHandler("./diff_writer.py " + string(path_old_diff) + " " + string(path_new_diff), editor_state);
-  editor_state->status = "Changing diff";
+  editor_state->SetStatus("Changing diff");
 }
 
 }  // namespace
@@ -90,7 +90,7 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
     buffer_ = static_cast<char*>(realloc(buffer_, buffer_length_));
     if (child_pid_ != -1) {
       if (waitpid(child_pid_, &child_exit_status_, 0) == -1) {
-        editor_state->status = "waitpid failed: " + string(strerror(errno));
+        editor_state->SetStatus("waitpid failed: " + string(strerror(errno)));
         return;
       }
     }
@@ -112,9 +112,9 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
     if (buffer_[i] == '\n') {
       AppendLine(Substring(buffer_wrapper, buffer_line_start_, i - buffer_line_start_));
       buffer_line_start_ = i + 1;
-      if (editor_state->current_buffer != editor_state->buffers.end()
-          && editor_state->get_current_buffer().get() == this) {
-        editor_state->screen_needs_redraw = true;
+      if (editor_state->has_current_buffer()
+          && editor_state->current_buffer()->second.get() == this) {
+        editor_state->ScheduleRedraw();
       }
     }
   }
@@ -135,7 +135,7 @@ void OpenBuffer::Save(EditorState* editor_state) {
     SaveDiff(editor_state, this);
     return;
   }
-  editor_state->status = "Buffer can't be saved.";
+  editor_state->SetStatus("Buffer can't be saved.");
 }
 
 void OpenBuffer::AppendLazyString(shared_ptr<LazyString> input) {

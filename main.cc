@@ -32,11 +32,11 @@ int main(int argc, const char* argv[]) {
     loader->ProcessInput('\n', &editor_state);
   }
 
-  while (!editor_state.terminate) {
+  while (!editor_state.terminate()) {
     terminal.Display(&editor_state);
 
     vector<shared_ptr<OpenBuffer>> buffers_reading;
-    for (auto& buffer : editor_state.buffers) {
+    for (auto& buffer : *editor_state.buffers()) {
       if (buffer.second->fd() == -1) { continue; }
       buffers_reading.push_back(buffer.second);
     }
@@ -71,7 +71,7 @@ int main(int argc, const char* argv[]) {
       if (fds[i].fd == 0) {
         int c;
         while ((c = terminal.Read()) != -1) {
-          editor_state.mode->ProcessInput(c, &editor_state);
+          editor_state.mode()->ProcessInput(c, &editor_state);
         }
         continue;
       }

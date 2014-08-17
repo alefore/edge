@@ -48,18 +48,18 @@ class FindMode : public EditorMode {
 
   void ProcessInput(int c, EditorState* editor_state) {
     editor_state->PushCurrentPosition();
-    if (editor_state->current_buffer != editor_state->buffers.end()) {
-      for (size_t times = 0; times < editor_state->repetitions; times++) {
-        if (!SeekOnce(editor_state->direction,
-                      editor_state->get_current_buffer(), c)) {
+    if (editor_state->has_current_buffer()) {
+      for (size_t times = 0; times < editor_state->repetitions(); times++) {
+        if (!SeekOnce(editor_state->direction(),
+                      editor_state->current_buffer()->second, c)) {
           break;
         }
       }
     }
     editor_state->PopLastNearPositions();
-    editor_state->mode = std::move(NewCommandMode());
-    editor_state->repetitions = 1;
-    editor_state->direction = FORWARDS;
+    editor_state->ResetMode();
+    editor_state->ResetRepetitions();
+    editor_state->ResetDirection();
   }
 };
 

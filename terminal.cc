@@ -35,40 +35,40 @@ Terminal::~Terminal() {
 }
 
 void Terminal::Display(EditorState* editor_state) {
-  if (editor_state->current_buffer == editor_state->buffers.end()) {
-    if (editor_state->screen_needs_redraw) {
-      editor_state->screen_needs_redraw = false;
+  if (!editor_state->has_current_buffer()) {
+    if (editor_state->screen_needs_redraw()) {
+      editor_state->set_screen_needs_redraw(false);
       clear();
     }
     ShowStatus(*editor_state);
     refresh();
     return;
   }
-  auto const& buffer = editor_state->get_current_buffer();
+  auto const& buffer = editor_state->current_buffer()->second;
   if (buffer->view_start_line() > buffer->current_position_line()) {
     buffer->set_view_start_line(buffer->current_position_line());
-    editor_state->screen_needs_redraw = true;
+    editor_state->ScheduleRedraw();
   } else if (buffer->view_start_line() + LINES - 1 <= buffer->current_position_line()) {
     buffer->set_view_start_line(buffer->current_position_line() - LINES + 2);
-    editor_state->screen_needs_redraw = true;
+    editor_state->ScheduleRedraw();
   }
 
-  if (editor_state->screen_needs_redraw) {
+  if (editor_state->screen_needs_redraw()) {
     ShowBuffer(editor_state);
-    editor_state->screen_needs_redraw = false;
+    editor_state->set_screen_needs_redraw(false);
   }
   ShowStatus(*editor_state);
-  if (!editor_state->status_prompt) {
+  if (!editor_state->status_prompt()) {
     AdjustPosition(buffer);
   }
   refresh();
-  editor_state->visible_lines = static_cast<size_t>(LINES - 1);
+  editor_state->set_visible_lines(static_cast<size_t>(LINES - 1));
 }
 
 void Terminal::ShowStatus(const EditorState& editor_state) {
   move(LINES - 1, 0);
-  if (editor_state.current_buffer != editor_state.buffers.end()) {
-    auto buffer = editor_state.current_buffer->second;
+  if (editor_state.has_current_buffer()) {
+    auto buffer = editor_state.current_buffer()->second;
     addch('[');
     addstr(to_string(buffer->current_position_line() + 1).c_str());
     addstr(" of ");
@@ -78,16 +78,16 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
     addstr("] ");
 
     string flags(buffer->FlagsString());
-    if (editor_state.repetitions != 1) {
-      flags += to_string(editor_state.repetitions);
+    if (editor_state.repetitions() != 1) {
+      flags += to_string(editor_state.repetitions());
     }
-    if (editor_state.direction == BACKWARDS) {
+    if (editor_state.direction() == BACKWARDS) {
       flags += "r";
     }
 
-    switch (editor_state.default_structure) {
+    switch (editor_state.default_structure()) {
       case EditorState::CHAR:
-        switch (editor_state.structure) {
+        switch (editor_state.structure()) {
           case EditorState::CHAR:
             break;
           case EditorState::WORD:
@@ -127,28 +127,28 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
   getyx(stdscr, y, x);
   if (x >= COLS) { return; }
   size_t chars_left = COLS - x;
-  if (editor_state.status.size() < chars_left) {
-    addstr(editor_state.status.c_str());
-    for (size_t i = editor_state.status.size(); i < chars_left; i++) {
+  if (editor_state.status().size() < chars_left) {
+    addstr(editor_state.status().c_str());
+    for (size_t i = editor_state.status().size(); i < chars_left; i++) {
       addch(' ');
     }
-    if (editor_state.status_prompt) {
-      move(y, x + editor_state.status.size());
+    if (editor_state.status_prompt()) {
+      move(y, x + editor_state.status().size());
     }
   } else {
-    addstr(editor_state.status.substr(0, chars_left).c_str());
+    addstr(editor_state.status().substr(0, chars_left).c_str());
   }
 }
 
 void Terminal::ShowBuffer(const EditorState* editor_state) {
-  const shared_ptr<OpenBuffer> buffer = editor_state->get_current_buffer();
+  const shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
   const vector<shared_ptr<Line>>& contents(*buffer->contents());
 
   clear();
 
   size_t view_stop_line =
       buffer->view_start_line() + static_cast<size_t>(LINES)
-      - (editor_state->status.empty() ? 0 : 1);
+      - (editor_state->status().empty() ? 0 : 1);
   if (view_stop_line > contents.size()) {
     view_stop_line = contents.size();
   }

@@ -58,12 +58,12 @@ class CommandBuffer : public OpenBuffer {
 
     pid_t child_pid = fork();
     if (child_pid == -1) {
-      editor_state->status = "fork failed: " + string(strerror(errno));
+      editor_state->SetStatus("fork failed: " + string(strerror(errno)));
       return;
     }
     if (setpgid(child_pid, 0)) {
       if (child_pid == 0) { exit(1); }
-      editor_state->status = "setpgid failed: " + string(strerror(errno));
+      editor_state->SetStatus("setpgid failed: " + string(strerror(errno)));
       return;
     }
 
@@ -78,7 +78,7 @@ class CommandBuffer : public OpenBuffer {
       if (stdin != 0) { close(stdin); }
       if (pipefd[1] != 1 && pipefd[1] != 2) { close(pipefd[1]); }
 
-      LoadEnvironmentVariables(editor_state->edge_path, command_);
+      LoadEnvironmentVariables(editor_state->edge_path(), command_);
       for (const auto& it : environment_) {
         setenv(it.first.c_str(), it.second.c_str(), 1);
       }
@@ -89,7 +89,7 @@ class CommandBuffer : public OpenBuffer {
     }
     close(pipefd[1]);
     target->SetInputFile(pipefd[0], child_pid);
-    editor_state->screen_needs_redraw = true;
+    editor_state->ScheduleRedraw();
   }
 
  private:
@@ -101,21 +101,21 @@ void RunCommand(
     const string& name, const string& input,
     const map<string, string> environment, EditorState* editor_state) {
   if (input.empty()) {
-    editor_state->mode = NewCommandMode();
-    editor_state->status = "";
-    editor_state->screen_needs_redraw = true;
+    editor_state->ResetMode();
+    editor_state->ResetStatus();
+    editor_state->ScheduleRedraw();
     return;
   }
 
-  auto it = editor_state->buffers.insert(make_pair(name, nullptr));
-  editor_state->current_buffer = it.first;
+  auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
+  editor_state->set_current_buffer(it.first);
   if (it.second) {
     it.first->second.reset(new CommandBuffer(input, environment));
   }
   it.first->second->Reload(editor_state);
   it.first->second->set_current_position_line(0);
-  editor_state->screen_needs_redraw = true;
-  editor_state->mode = std::move(NewCommandMode());
+  editor_state->ResetMode();
+  editor_state->ScheduleRedraw();
 }
 
 }  // namespace
@@ -129,14 +129,13 @@ void RunCommandHandler(const string& input, EditorState* editor_state) {
 }
 
 void RunMultipleCommandsHandler(const string& input, EditorState* editor_state) {
-  if (input.empty()
-      || editor_state->current_buffer == editor_state->buffers.end()) {
-    editor_state->mode = NewCommandMode();
-    editor_state->status = "";
-    editor_state->screen_needs_redraw = true;
+  if (input.empty() || !editor_state->has_current_buffer()) {
+    editor_state->ResetMode();
+    editor_state->ResetStatus();
+    editor_state->ScheduleRedraw();
     return;
   }
-  auto buffer = editor_state->get_current_buffer();
+  auto buffer = editor_state->current_buffer()->second;
   for (const auto& line : *buffer->contents()) {
     string arg = line->contents->ToString();
     map<string, string> environment = {{"ARG", arg}};

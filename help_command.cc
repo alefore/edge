@@ -25,9 +25,9 @@ class HelpCommand : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    auto it = editor_state->buffers.insert(
+    auto it = editor_state->buffers()->insert(
         make_pair("- help: " + mode_description_, nullptr));
-    editor_state->current_buffer = it.first;
+    editor_state->set_current_buffer(it.first);
     if (it.second) {
       shared_ptr<OpenBuffer> buffer(new OpenBuffer());
       buffer->AppendLine(
@@ -41,9 +41,9 @@ class HelpCommand : public Command {
     }
     it.first->second->set_current_position_line(0);
 
-    editor_state->screen_needs_redraw = true;
-    editor_state->mode = std::move(NewCommandMode());
-    editor_state->repetitions = 1;
+    editor_state->ScheduleRedraw();
+    editor_state->ResetMode();
+    editor_state->ResetRepetitions();
   }
 
  private:
