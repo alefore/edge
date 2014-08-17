@@ -28,7 +28,9 @@ using namespace afc::editor;
 
 class FileBuffer : public OpenBuffer {
  public:
-  FileBuffer(const string& path) : path_(path) {}
+  FileBuffer(const string& path) : path_(path) {
+    atomic_lines_ = true;
+  }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     if (stat(path_.c_str(), &stat_buffer_) == -1) {
