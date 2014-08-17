@@ -32,6 +32,7 @@ shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
 shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
                                  size_t pos,
                                  size_t size) {
+  assert(input.get());
   if (pos == 0 && size == input->size()) {
     return input;  // Optimization.
   }

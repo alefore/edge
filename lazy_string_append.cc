@@ -1,5 +1,7 @@
 #include "lazy_string_append.h"
 
+#include <cassert>
+
 namespace {
 
 using namespace afc::editor;
@@ -33,6 +35,8 @@ namespace editor {
 
 shared_ptr<LazyString> StringAppend(const shared_ptr<LazyString>& a,
                                     const shared_ptr<LazyString>& b) {
+  assert(a.get() != nullptr);
+  assert(b.get() != nullptr);
   if (a->size() == 0) { return b; }
   if (b->size() == 0) { return a; }
   shared_ptr<LazyString> output(new StringAppendImpl(a, b));
