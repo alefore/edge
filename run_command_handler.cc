@@ -48,21 +48,7 @@ void LoadEnvironmentVariables(
 class CommandBuffer : public OpenBuffer {
  public:
   CommandBuffer(const string& command, const map<string, string>& environment)
-      : command_(command),
-        environment_(environment),
-        child_pid_(-1),
-        child_status_(0) {}
-
-  void ReadData(EditorState* editor_state) {
-    OpenBuffer::ReadData(editor_state);
-    if (fd_ != -1) { return; }
-    if (waitpid(child_pid_, &child_status_, 0) == -1) {
-      editor_state->status =
-          "waitpid(" + to_string(child_pid_) + " failed: "
-          + string(strerror(errno));
-      return;
-    }
-  }
+      : command_(command), environment_(environment) {}
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     int pipefd[2];
@@ -70,8 +56,18 @@ class CommandBuffer : public OpenBuffer {
       exit(1);
     }
 
-    child_pid_ = fork();
-    if (child_pid_ == 0) {
+    pid_t child_pid = fork();
+    if (child_pid == -1) {
+      editor_state->status = "fork failed: " + string(strerror(errno));
+      return;
+    }
+    if (setpgid(child_pid, 0)) {
+      if (child_pid == 0) { exit(1); }
+      editor_state->status = "setpgid failed: " + string(strerror(errno));
+      return;
+    }
+
+    if (child_pid == 0) {
       close(0);
       close(pipefd[0]);
 
@@ -87,21 +83,18 @@ class CommandBuffer : public OpenBuffer {
         setenv(it.first.c_str(), it.second.c_str(), 1);
       }
 
+      // TODO: Don't use system?  Use exec and call the shell directly.
       system(command_.c_str());
       exit(0);
     }
     close(pipefd[1]);
-    target->SetInputFile(pipefd[0]);
-    // TODO: waitpid(pid, &status_dummy, 0);
-    // Both when it's it's interrupted.
+    target->SetInputFile(pipefd[0], child_pid);
     editor_state->screen_needs_redraw = true;
   }
 
  private:
   const string command_;
   const map<string, string> environment_;
-  pid_t child_pid_;
-  int child_status_;
 };
 
 void RunCommand(

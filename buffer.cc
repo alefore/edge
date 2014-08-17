@@ -6,6 +6,8 @@
 #include <string>
 
 extern "C" {
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 }
 
@@ -50,11 +52,14 @@ OpenBuffer::OpenBuffer()
       buffer_line_start_(0),
       buffer_length_(0),
       buffer_size_(0),
+      child_pid_(-1),
+      child_exit_status_(0),
       view_start_line_(0),
       current_position_line_(0),
       current_position_col_(0),
       modified_(false),
       reading_from_parser_(false),
+      reload_after_exit_(false),
       reload_on_enter_(false),
       atomic_lines_(false) {
   set_word_characters(
@@ -81,7 +86,19 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
   if (characters_read == 0) {
     close(fd_);
     buffer_ = static_cast<char*>(realloc(buffer_, buffer_length_));
+    if (child_pid_ != -1) {
+      if (waitpid(child_pid_, &child_exit_status_, 0) == -1) {
+        editor_state->status = "waitpid failed: " + string(strerror(errno));
+        return;
+      }
+    }
     fd_ = -1;
+    child_pid_ = -1;
+    if (reload_after_exit_) {
+      reload_after_exit_ = false;
+      Reload(editor_state);
+    }
+    return;
   }
 
   shared_ptr<LazyString> buffer_wrapper(
@@ -100,6 +117,15 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
     }
   }
   buffer_length_ += static_cast<size_t>(characters_read);
+}
+
+void OpenBuffer::Reload(EditorState* editor_state) {
+  if (child_pid_ != -1) {
+    kill(-child_pid_, SIGTERM);
+    reload_after_exit_ = true;
+    return;
+  }
+  ReloadInto(editor_state, this);
 }
 
 void OpenBuffer::Save(EditorState* editor_state) {
@@ -172,7 +198,7 @@ void OpenBuffer::CheckPosition() {
   }
 }
 
-void OpenBuffer::SetInputFile(int input_fd) {
+void OpenBuffer::SetInputFile(int input_fd, pid_t child_pid) {
   contents_.clear();
   buffer_ = nullptr;
   buffer_line_start_ = 0;
@@ -181,7 +207,9 @@ void OpenBuffer::SetInputFile(int input_fd) {
   if (fd_ != -1) {
     close(fd_);
   }
+  assert(child_pid_ == -1);
   fd_ = input_fd;
+  child_pid_ = child_pid;
 }
 
 string OpenBuffer::FlagsString() const {

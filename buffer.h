@@ -43,11 +43,10 @@ class OpenBuffer {
 
   virtual void ReloadInto(EditorState* editor_state, OpenBuffer* target) {}
   virtual void Save(EditorState* editor_state);
-  virtual void ReadData(EditorState* editor_state);
 
-  void Reload(EditorState* editor_state) {
-    ReloadInto(editor_state, this);
-  }
+  void ReadData(EditorState* editor_state);
+
+  void Reload(EditorState* editor_state);
 
   void AppendLazyString(shared_ptr<LazyString> input);
   shared_ptr<Line> AppendLine(shared_ptr<LazyString> line);
@@ -129,7 +128,7 @@ class OpenBuffer {
 
   string FlagsString() const;
 
-  void SetInputFile(int fd);
+  void SetInputFile(int fd, pid_t child_pid);
 
   void toggle_diff() { diff_ = !diff_; }
   bool atomic_lines() const { return atomic_lines_; }
@@ -146,6 +145,9 @@ class OpenBuffer {
   size_t buffer_line_start_;
   size_t buffer_length_;
   size_t buffer_size_;
+  // -1 means "no child process"
+  pid_t child_pid_;
+  int child_exit_status_;
 
   vector<shared_ptr<Line>> contents_;
 
@@ -155,6 +157,12 @@ class OpenBuffer {
 
   bool modified_;
   bool reading_from_parser_;
+
+  // Once we're done reading, should we reload the buffer?  This is used when
+  // a reload is triggered while we're reading from an underlying process: we
+  // them just set this and kill the underlying process (so that we can avoid
+  // blocking the whole process waiting for the process to exit).
+  bool reload_after_exit_;
 
   // Variables that can be set from the editor.
   bool reload_on_enter_;
