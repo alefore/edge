@@ -30,21 +30,27 @@ class InsertMode : public EditorMode {
           buffer->set_modified(true);
           editor_state->screen_needs_redraw = true;
           buffer->set_current_position_col(buffer->current_position_col() - 1);
-        } else if (buffer->current_position_col() == 0) {
+        } else if (buffer->at_beginning_of_line()) {
           // Join lines.
-          if (buffer->current_position_line() == 0)
-            return;
-
-          shared_ptr<LazyString> old_line = buffer->current_line()->contents;
-          buffer->contents()->erase(
-              buffer->contents()->begin() + buffer->current_position_line());
+          if (buffer->at_beginning()) { return; }
+          auto current_line =
+              buffer->contents()->begin() + buffer->current_position_line();
+          auto previous_line = current_line - 1;
+          if ((*previous_line)->size() == 0) {
+            buffer->contents()->erase(previous_line);
+          } else {
+            if (buffer->atomic_lines()
+                && (*current_line)->contents->size() > 0) { return; }
+            line_ = EditableString::New(StringAppend((*previous_line)->contents,
+                                                     (*current_line)->contents),
+                                        (*previous_line)->contents->size());
+            buffer->set_current_position_col(
+                (*previous_line)->contents->size());
+            (*previous_line)->contents = line_;
+            buffer->contents()->erase(current_line);
+          }
           buffer->set_modified(true);
-
           buffer->set_current_position_line(buffer->current_position_line() - 1);
-          auto prefix = buffer->current_line()->contents;
-          line_ = EditableString::New(StringAppend(prefix, old_line), prefix->size());
-          buffer->set_current_position_col(prefix->size());
-          buffer->current_line()->contents = line_;
           editor_state->screen_needs_redraw = true;
         } else {
           auto prefix = Substring(
@@ -65,6 +71,11 @@ class InsertMode : public EditorMode {
         return;
       case '\n':
         size_t pos = buffer->current_position_col();
+        if (buffer->atomic_lines()
+            && pos != 0
+            && pos != buffer->current_line()->contents->size()) {
+          return;
+        }
 
         // Adjust the old line.
         buffer->current_line()->contents =
