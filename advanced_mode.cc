@@ -170,6 +170,11 @@ class OpenBufferCommand : public EditorMode {
 };
 
 class ListBuffersBuffer : public OpenBuffer {
+ public:
+  ListBuffersBuffer() {
+    atomic_lines_ = true;
+  }
+
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     target->contents()->clear();
     AppendLine(std::move(NewCopyString("Open Buffers:")));
