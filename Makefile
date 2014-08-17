@@ -5,7 +5,7 @@ LDLIBS=-lncurses
 all: edge
 
 main.o: main.cc editor.h file_link_mode.h terminal.h Makefile
-terminal.o: terminal.cc terminal.h Makefile
+terminal.o: terminal.cc terminal.h editor.h Makefile
 
 memory_mapped_file.o: memory_mapped_file.cc memory_mapped_file.h buffer.h lazy_string.h Makefile
 char_buffer.o: char_buffer.cc char_buffer.h buffer.h lazy_string.h
