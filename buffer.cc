@@ -253,6 +253,7 @@ string OpenBuffer::FlagsString() const {
   }
   if (fd() != -1) {
     output += "<";
+    output += "[l:" + to_string(contents_.size()) + "]";
   }
   if (child_pid_ != -1) {
     output += "[pid:" + to_string(child_pid_) + "]";
