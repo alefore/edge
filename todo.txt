@@ -13,8 +13,6 @@ Handle unicode.
 
 Handle lines longer than the screen width?
 
-Handle paths like ~/foo (starting with '~')
-
 Have a way to fork a command running whatever is in the current line?
   Maybe as part of af?
     CHAR> prompt (as before)
