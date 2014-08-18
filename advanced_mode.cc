@@ -116,7 +116,7 @@ class SaveCurrentBuffer : public Command {
 void OpenFileHandler(const string& name, EditorState* editor_state) {
   unique_ptr<EditorMode> mode(NewFileLinkMode(name, 0, false));
   editor_state->PushCurrentPosition();
-  mode->ProcessInput(0, editor_state);
+  mode->ProcessInput('\n', editor_state);
 }
 
 void SetWordCharacters(const string& input, EditorState* editor_state) {
