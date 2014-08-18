@@ -65,7 +65,8 @@ class FileBuffer : public OpenBuffer {
       unique_ptr<Line> line(new Line);
       line->contents.reset(NewCopyCharBuffer(entry->d_name).release());
       line->activate.reset(
-          NewFileLinkMode(path_ + "/" + entry->d_name, 0, false).release());
+          NewFileLinkMode(editor_state, path_ + "/" + entry->d_name, 0, false)
+              .release());
       target->contents()->push_back(std::move(line));
     }
     closedir(dir);
@@ -253,10 +254,15 @@ bool SaveContentsToOpenFile(
 }
 
 unique_ptr<EditorMode> NewFileLinkMode(
-    const string& path, int position, bool ignore_if_not_found) {
+    EditorState* editor_state, const string& path, int position,
+    bool ignore_if_not_found) {
   vector<int> tokens { position, 0 };
   string pattern;
-  string actual_path = FindPath(path, &tokens, &pattern);
+  // TODO: Also support ~user/foo.
+  string path_after_home_dir =
+      path != "~" && (path.size() < 2 || path.substr(0, 2) != "~/")
+      ? path : editor_state->home_directory() + path.substr(1);
+  string actual_path = FindPath(path_after_home_dir, &tokens, &pattern);
   if (actual_path.empty()) {
     if (ignore_if_not_found) {
       return nullptr;

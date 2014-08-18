@@ -824,7 +824,8 @@ class ActivateLink : public Command {
         line = line.substr(0, end);
       }
 
-      unique_ptr<EditorMode> mode = NewFileLinkMode(line, 0, true);
+      unique_ptr<EditorMode> mode =
+          NewFileLinkMode(editor_state, line, 0, true);
       if (mode.get() != nullptr) {
         mode->ProcessInput(c, editor_state);
       }

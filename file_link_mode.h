@@ -26,7 +26,8 @@ bool SaveContentsToOpenFile(
     int fd);
 
 unique_ptr<EditorMode> NewFileLinkMode(
-    const string& path, int position, bool ignore_if_not_found);
+    EditorState* editor_state, const string& path, int position,
+    bool ignore_if_not_found);
 
 }  // namespace editor
 }  // namespace afc

@@ -27,7 +27,8 @@ int main(int argc, const char* argv[]) {
   for (int i = 1; i < argc; i++) {
     terminal.SetStatus("Loading file...");
 
-    unique_ptr<EditorMode> loader(NewFileLinkMode(argv[i], 0, false));
+    unique_ptr<EditorMode> loader(
+        NewFileLinkMode(&editor_state, argv[i], 0, false));
     assert(loader.get() != nullptr);
     loader->ProcessInput('\n', &editor_state);
   }

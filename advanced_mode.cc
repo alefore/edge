@@ -55,7 +55,8 @@ class OpenDirectory : public Command {
       free(tmp);
     }
     editor_state->PushCurrentPosition();
-    unique_ptr<EditorMode> loader(NewFileLinkMode(path, 0, false));
+    unique_ptr<EditorMode> loader(
+        NewFileLinkMode(editor_state, path, 0, false));
     loader->ProcessInput('\n', editor_state);
   }
 };
@@ -114,7 +115,7 @@ class SaveCurrentBuffer : public Command {
 };
 
 void OpenFileHandler(const string& name, EditorState* editor_state) {
-  unique_ptr<EditorMode> mode(NewFileLinkMode(name, 0, false));
+  unique_ptr<EditorMode> mode(NewFileLinkMode(editor_state, name, 0, false));
   editor_state->PushCurrentPosition();
   mode->ProcessInput('\n', editor_state);
 }

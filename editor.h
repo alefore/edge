@@ -124,6 +124,7 @@ class EditorState {
   void ResetStatus() { SetStatus(""); }
   const string& status() const { return status_; }
 
+  const string& home_directory() const { return home_directory_; }
   const vector<string>& edge_path() const { return edge_path_; }
 
  private:
