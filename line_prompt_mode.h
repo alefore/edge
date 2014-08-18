@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "command.h"
 #include "editor.h"
 
 namespace afc {

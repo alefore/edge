@@ -15,6 +15,7 @@ extern "C" {
 #include "char_buffer.h"
 #include "file_link_mode.h"
 #include "editor.h"
+#include "line_prompt_mode.h"
 #include "run_command_handler.h"
 #include "search_handler.h"
 
@@ -111,19 +112,47 @@ class FileLinkMode : public EditorMode {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    if (c != '\n') { return; }
-    editor_state->PushCurrentPosition();
-    auto it = editor_state->buffers()->insert(make_pair(path_.get(), nullptr));
-    editor_state->set_current_buffer(it.first);
-    if (it.second) {
-      it.first->second.reset(new FileBuffer(path_.get()));
-      it.first->second->Reload(editor_state);
+    switch (c) {
+      case '\n':
+        {
+          editor_state->PushCurrentPosition();
+          auto it = editor_state->buffers()->insert(make_pair(path_.get(), nullptr));
+          editor_state->set_current_buffer(it.first);
+          if (it.second) {
+            it.first->second.reset(new FileBuffer(path_.get()));
+            it.first->second->Reload(editor_state);
+          }
+          it.first->second->set_current_position_line(line_);
+          it.first->second->set_current_position_col(col_);
+          it.first->second->CheckPosition();
+          it.first->second->MaybeAdjustPositionCol();
+          SearchHandler(pattern_, editor_state);
+        }
+        return;
+
+      case 'd':
+        {
+          const string path(path_.get());
+          unique_ptr<Command> command(NewLinePromptCommand(
+              "rm " + path + "? ",
+              "Confirmation",
+              [path](const string input, EditorState* editor_state) {
+                if (input == "yes") {
+                  unlink(path.c_str());
+                  editor_state->SetStatus("removed");
+                } else {
+                  // TODO: insert it again?  Actually, only let it be erased
+                  // in the other case.
+                }
+                editor_state->ResetMode();
+              }));
+          command->ProcessInput('\n', editor_state);
+        }
+        return;
+
+      default:
+        editor_state->SetStatus("Invalid command: " + string(1, static_cast<char>(c)));
     }
-    it.first->second->set_current_position_line(line_);
-    it.first->second->set_current_position_col(col_);
-    it.first->second->CheckPosition();
-    it.first->second->MaybeAdjustPositionCol();
-    SearchHandler(pattern_, editor_state);
   }
 
   unique_ptr<char> path_;
