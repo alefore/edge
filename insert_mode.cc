@@ -26,6 +26,7 @@ class InsertMode : public EditorMode {
     buffer->MaybeAdjustPositionCol();
     switch (c) {
       case Terminal::ESCAPE:
+        editor_state->ResetStatus();
         editor_state->ResetMode();
         editor_state->ResetRepetitions();
         return;
@@ -119,6 +120,7 @@ class RawInputTypeMode : public EditorMode {
     switch (c) {
       case Terminal::ESCAPE:
         editor_state->ResetMode();
+        editor_state->ResetStatus();
         break;
       default:
         string str(1, static_cast<char>(c));
@@ -136,7 +138,6 @@ using std::unique_ptr;
 using std::shared_ptr;
 
 void EnterInsertCharactersMode(EditorState* editor_state) {
-  editor_state->ResetStatus();
   auto buffer = editor_state->current_buffer()->second;
   shared_ptr<EditableString> new_line;
   editor_state->PushCurrentPosition();
@@ -149,6 +150,7 @@ void EnterInsertCharactersMode(EditorState* editor_state) {
         buffer->current_line()->contents, buffer->current_position_col());
     buffer->contents()->at(buffer->current_position_line()).reset(new Line(new_line));
   }
+  editor_state->SetStatus("type");
   editor_state->set_mode(unique_ptr<EditorMode>(new InsertMode(new_line)));
 }
 
@@ -163,6 +165,7 @@ void EnterInsertMode(EditorState* editor_state) {
   editor_state->current_buffer()->second->CheckPosition();
   editor_state->ResetStatus();
   if (editor_state->current_buffer()->second->fd() != -1) {
+    editor_state->SetStatus("type (raw)");
     editor_state->set_mode(unique_ptr<EditorMode>(new RawInputTypeMode()));
   } else if (editor_state->structure() == EditorState::CHAR) {
     EnterInsertCharactersMode(editor_state);
