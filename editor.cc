@@ -74,7 +74,6 @@ void EditorState::CloseBuffer(
 }
 
 void EditorState::set_structure(Structure structure) {
-  default_structure_ = EditorState::CHAR;
   structure_ = structure;
 }
 

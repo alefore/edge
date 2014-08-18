@@ -720,18 +720,23 @@ class StructureMode : public EditorMode {
     editor_state->set_mode(NewCommandMode());
     switch (c) {
       case 'c':
+        editor_state->set_default_structure(EditorState::CHAR);
         editor_state->set_structure(EditorState::CHAR);
         break;
       case 'w':
+        editor_state->set_default_structure(EditorState::CHAR);
         editor_state->set_structure(EditorState::WORD);
         break;
       case 'l':
+        editor_state->set_default_structure(EditorState::CHAR);
         editor_state->set_structure(EditorState::LINE);
         break;
       case 'p':
+        editor_state->set_default_structure(EditorState::CHAR);
         editor_state->set_structure(EditorState::PAGE);
         break;
       case 'b':
+        editor_state->set_default_structure(EditorState::CHAR);
         editor_state->set_structure(EditorState::BUFFER);
         break;
       case 'C':
@@ -750,6 +755,7 @@ class StructureMode : public EditorMode {
         editor_state->set_default_structure(EditorState::BUFFER);
         break;
       case Terminal::ESCAPE:
+        editor_state->set_default_structure(EditorState::CHAR);
         editor_state->set_structure(EditorState::CHAR);
         break;
       default:
