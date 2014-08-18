@@ -19,8 +19,6 @@ Have a way to fork a command running whatever is in the current line?
     LINE> run line
     BUFFER> run a command for each line
 
-When a line is read, don't schedule a redraw if it isn't shown.
-
 Implement delete of page/word.
 
 Allow configuration files to specify variables for buffers (by various criteria)

@@ -123,7 +123,8 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
       AppendLine(Substring(buffer_wrapper, buffer_line_start_, i - buffer_line_start_));
       buffer_line_start_ = i + 1;
       if (editor_state->has_current_buffer()
-          && editor_state->current_buffer()->second.get() == this) {
+          && editor_state->current_buffer()->second.get() == this
+          && contents_.size() <= view_start_line_ + editor_state->visible_lines()) {
         editor_state->ScheduleRedraw();
       }
     }
