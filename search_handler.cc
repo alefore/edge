@@ -21,6 +21,7 @@ using std::regex;
 #endif
 
 void SearchHandler(const string& input, EditorState* editor_state) {
+  editor_state->set_last_search_query(input);
   if (!editor_state->has_current_buffer()
       || input.empty()
       || editor_state->current_buffer()->second->contents()->empty()) {

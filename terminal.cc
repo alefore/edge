@@ -99,6 +99,9 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
           case EditorState::PAGE:
             flags += "p";
             break;
+          case EditorState::SEARCH:
+            flags += "s";
+            break;
           case EditorState::BUFFER:
             flags += "b";
             break;
@@ -112,6 +115,9 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
         break;
       case EditorState::PAGE:
         flags += "P";
+        break;
+      case EditorState::SEARCH:
+        flags += "S";
         break;
       case EditorState::BUFFER:
         flags += "B";

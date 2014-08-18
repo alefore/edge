@@ -37,6 +37,7 @@ class EditorState {
     WORD,
     LINE,
     PAGE,
+    SEARCH,
     BUFFER,
   };
 
@@ -46,7 +47,8 @@ class EditorState {
       case WORD: return CHAR;
       case LINE: return WORD;
       case PAGE: return LINE;
-      case BUFFER: return PAGE;
+      case SEARCH: return PAGE;
+      case BUFFER: return SEARCH;
     }
     assert(false);
   }
@@ -84,6 +86,12 @@ class EditorState {
   size_t repetitions() const { return repetitions_; }
   void ResetRepetitions() { repetitions_ = 1; }
   void set_repetitions(size_t value) { repetitions_ = value; }
+
+  // TODO: Maybe use a compiled regexp?
+  const string& last_search_query() const { return last_search_query_; }
+  void set_last_search_query(const string& query) {
+    last_search_query_ = query;
+  }
 
   Structure structure() const { return structure_; }
   void set_structure(Structure structure);
@@ -134,6 +142,7 @@ class EditorState {
 
   Direction direction_;
   size_t repetitions_;
+  string last_search_query_;
   Structure structure_;
   Structure default_structure_;
 

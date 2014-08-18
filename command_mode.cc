@@ -88,6 +88,10 @@ class GotoCommand : public Command {
         }
         break;
 
+      case EditorState::SEARCH:
+        // TODO: Implement.
+        break;
+
       case EditorState::BUFFER:
         {
           size_t position =
@@ -147,6 +151,11 @@ class Delete : public Command {
       case EditorState::PAGE:
         // TODO: Implement.
         editor_state->SetStatus("Oops, delete page is not yet implemented.");
+        break;
+
+      case EditorState::SEARCH:
+        // TODO: Implement.
+        editor_state->SetStatus("Ooops, delete search is not yet implemented.");
         break;
 
       case EditorState::BUFFER:
@@ -567,6 +576,10 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
       }
       break;
 
+    case EditorState::SEARCH:
+      SearchHandler(editor_state->last_search_query(), editor_state);
+      break;
+
     default:
       editor_state->set_structure(
           EditorState::LowerStructure(
@@ -657,6 +670,11 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
       }
       break;
 
+    case EditorState::SEARCH:
+      editor_state->set_direction(BACKWARDS);
+      SearchHandler(editor_state->last_search_query(), editor_state);
+      break;
+
     default:
       editor_state->set_structure(
           EditorState::LowerStructure(
@@ -735,6 +753,10 @@ class StructureMode : public EditorMode {
         editor_state->set_default_structure(EditorState::CHAR);
         editor_state->set_structure(EditorState::PAGE);
         break;
+      case 's':
+        editor_state->set_default_structure(EditorState::CHAR);
+        editor_state->set_structure(EditorState::SEARCH);
+        break;
       case 'b':
         editor_state->set_default_structure(EditorState::CHAR);
         editor_state->set_structure(EditorState::BUFFER);
@@ -747,6 +769,9 @@ class StructureMode : public EditorMode {
         break;
       case 'L':
         editor_state->set_default_structure(EditorState::LINE);
+        break;
+      case 'S':
+        editor_state->set_default_structure(EditorState::SEARCH);
         break;
       case 'P':
         editor_state->set_default_structure(EditorState::PAGE);
