@@ -15,11 +15,28 @@ Handle DELETE key
 
 Implement delete of page/word.
 
+Autocomplete?
+  Maybe should just initially attempt to use files?
+  Or maybe also just look up words in the current file?
+  Maybe variables control sources of completions?
+
 -- Navigation
 
-Add a way to repeat the last search.
-
 Add a "forward" command (perhaps "B") that undoes the current "back" command.
+
+Add a "margin_lines" integer variable.
+  Scroll the file automatically to always keep that number of entries visible above/below cursor.
+    Unless at the beginning/end.
+  Also "margin_columns", consistent.
+
+-- Prompt
+
+Add autocomplete for files?
+  See also autocomplete entry in Editing.
+
+Support ^u to edit the buffer.
+
+Support scrolling back?
 
 -- Commands
 
