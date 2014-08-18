@@ -252,18 +252,17 @@ string OpenBuffer::FlagsString() const {
     output += "~";
   }
   if (fd() != -1) {
-    output += "<";
-    output += "[l:" + to_string(contents_.size()) + "]";
+    output += "< l:" + to_string(contents_.size());
   }
   if (child_pid_ != -1) {
-    output += "[pid:" + to_string(child_pid_) + "]";
+    output += " pid:" + to_string(child_pid_);
   } else if (child_exit_status_ != 0) {
     if (WIFEXITED(child_exit_status_)) {
-      output += "{" + to_string(WEXITSTATUS(child_exit_status_)) + "}";
+      output += " exit:" + to_string(WEXITSTATUS(child_exit_status_));
     } else if (WIFSIGNALED(child_exit_status_)) {
-      output += "{signaled:" + to_string(WTERMSIG(child_exit_status_)) + "}";
+      output += " signal:" + to_string(WTERMSIG(child_exit_status_));
     } else {
-      output += "{exit-status:" + to_string(child_exit_status_) + "}";
+      output += " exit-status:" + to_string(child_exit_status_);
     }
   }
   return output;
