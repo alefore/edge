@@ -3,6 +3,10 @@
 #include <cassert>
 #include <memory>
 
+extern "C" {
+#include <unistd.h>
+}
+
 #include "command_mode.h"
 #include "editable_string.h"
 #include "editor.h"

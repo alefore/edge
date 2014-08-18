@@ -10,6 +10,7 @@ extern "C" {
 #include <libgen.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <unistd.h>
 }
 
 #include "char_buffer.h"
