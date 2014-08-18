@@ -1,17 +1,29 @@
+-- Display
+
 Show that a line is longer than a given width.
   Should be based on a config variable that sets the text width.
+
+Handle lines longer than the screen width?
+
+Handle unicode.
+
+-- Editing
 
 Reflow a paragraph?  How to detect the prefix?
 
 Handle DELETE key
 
+Implement delete of page/word.
+
+-- Navigation
+
 Add a way to repeat the last search.
 
-Save the contents of the history and variables?
+Add a "forward" command (perhaps "B") that undoes the current "back" command.
 
-Handle unicode.
+-- Commands
 
-Handle lines longer than the screen width?
+When the flags of a file changes, update the list of buffers if it's shown.
 
 Have a way to fork a command running whatever is in the current line?
   Maybe as part of af?
@@ -19,24 +31,22 @@ Have a way to fork a command running whatever is in the current line?
     LINE> run line
     BUFFER> run a command for each line
 
-Implement delete of page/word.
-
-Allow configuration files to specify variables for buffers (by various criteria)
-
-When the flags of a file changes, update the list of buffers if it's shown.
-
-Add a variable for specifying which characters should be considered parts of a path?
-  Then use that to find the current path in the current line.
-  Then set that for c++ files so that #include "local_file.cc" works.
-
 Figure out why "python" doesn't work very interactively.
   Canonical test: create a "python" buffer and give it some "help(list)" or similar, it should do it.
-
-Add a "forward" command (perhaps "B") that undoes the current "back" command.
-
-Let commands inherit variables from their parent.
 
 When running subcommands with aC, actually set variables "ARG0", "ARG1", "ARG2", "ARG3", with words in line...
 
 Create some "barriers" that limit the number of subprocesses.  Set a limit for each.  Maybe as a special type of buffer?  Let it reload to show the state?
   Commands should by default go against a shared barrier, but should have a variable that specifies what barrier to use.
+
+-- Variables
+
+Save the contents of the history and variables?
+
+Allow configuration files to specify variables for buffers (by various criteria)
+
+Let commands inherit variables from their parent.
+
+Add a variable for specifying which characters should be considered parts of a path?
+  Then use that to find the current path in the current line.
+  Then set that for c++ files so that #include "local_file.cc" works.
