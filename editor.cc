@@ -170,38 +170,36 @@ static Position PositionFromLine(const string& line) {
   return pos;
 }
 
-void EditorState::PopLastNearPositions() {
-  if (!HasPositionsInStack() != has_current_buffer()) { return; }
-  auto buffer = buffers_.find(kPositionsBufferName)->second;
-  while (true) {
-    const auto position = PositionFromLine(
-        buffer->current_line()->contents->ToString());
-    const auto& buffer = current_buffer()->second;
-    if (position.buffer != current_buffer_->first
-        || position.line != buffer->current_position_line()
-        || position.col != buffer->current_position_col()) {
-      return;
-    }
-    if (buffer->current_position_line() == 0) {
-      return;
-    }
-    buffer->set_current_position_line(buffer->current_position_line() - 1);
-  }
-}
-
 bool EditorState::HasPositionsInStack() {
   auto it = buffers_.find(kPositionsBufferName);
   return it != buffers_.end() && !it->second->contents()->empty();
 }
 
-Position EditorState::PopBackPosition() {
+Position EditorState::ReadPositionsStack() {
   assert(HasPositionsInStack());
   auto buffer = buffers_.find(kPositionsBufferName)->second;
-  const string position = buffer->current_line()->contents->ToString();
-  if (buffer->current_position_line() > 0) {
-    buffer->set_current_position_line(buffer->current_position_line() - 1);
+  return PositionFromLine(buffer->current_line()->contents->ToString());
+}
+
+bool EditorState::MovePositionsStack(Direction direction) {
+  // The directions here are somewhat counterintuitive: FORWARDS means the user
+  // is actually going "back" in the history, which means we have to decrement
+  // the line counter.
+  assert(HasPositionsInStack());
+  auto buffer = buffers_.find(kPositionsBufferName)->second;
+  if (direction == BACKWARDS) {
+    if (buffer->current_position_line() + 1 >= buffer->contents()->size()) {
+      return false;
+    }
+    buffer->set_current_position_line(buffer->current_position_line() + 1);
+    return true;
   }
-  return PositionFromLine(position);
+
+  if (buffer->current_position_line() == 0) {
+    return false;
+  }
+  buffer->set_current_position_line(buffer->current_position_line() - 1);
+  return true;
 }
 
 }  // namespace editor

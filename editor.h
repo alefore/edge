@@ -118,9 +118,9 @@ class EditorState {
   bool screen_needs_redraw() const { return screen_needs_redraw_; }
 
   void PushCurrentPosition();
-  void PopLastNearPositions();
   bool HasPositionsInStack();
-  Position PopBackPosition();
+  Position ReadPositionsStack();
+  bool MovePositionsStack(Direction direction);
 
   void set_status_prompt(bool value) { status_prompt_ = value; }
   bool status_prompt() const { return status_prompt_; }

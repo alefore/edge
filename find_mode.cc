@@ -56,7 +56,6 @@ class FindMode : public EditorMode {
         }
       }
     }
-    editor_state->PopLastNearPositions();
     editor_state->ResetMode();
     editor_state->ResetRepetitions();
     editor_state->ResetDirection();

@@ -317,15 +317,29 @@ class GotoPreviousPositionCommand : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    while (editor_state->repetitions() > 0
-           && editor_state->HasPositionsInStack()) {
-      const Position pos = editor_state->PopBackPosition();
+    Go(editor_state);
+    editor_state->ResetDirection();
+    editor_state->ResetRepetitions();
+    editor_state->ResetStructure();
+  }
+
+  static void Go(EditorState* editor_state) {
+    if (!editor_state->HasPositionsInStack()) {
+      return;
+    }
+    while (editor_state->repetitions() > 0) {
+      if (editor_state->direction() == BACKWARDS
+          && !editor_state->MovePositionsStack(BACKWARDS)) {
+        return;
+      }
+      const Position pos = editor_state->ReadPositionsStack();
       auto it = editor_state->buffers()->find(pos.buffer);
       if (it != editor_state->buffers()->end()
           && (pos.buffer != editor_state->current_buffer()->first
-              || (editor_state->structure() <= 1
+              || (editor_state->structure() <= EditorState::LINE
                   && pos.line != editor_state->current_buffer()->second->current_position_line())
-              || editor_state->structure() <= 0)) {
+              || (editor_state->structure() <= EditorState::CHAR
+                  && pos.col != editor_state->current_buffer()->second->current_position_col()))) {
         editor_state->set_current_buffer(it);
         it->second->set_current_position_line(pos.line);
         it->second->set_current_position_col(pos.col);
@@ -333,7 +347,25 @@ class GotoPreviousPositionCommand : public Command {
         editor_state->ScheduleRedraw();
         editor_state->set_repetitions(editor_state->repetitions() - 1);
       }
+      if (editor_state->direction() == FORWARDS
+          && !editor_state->MovePositionsStack(FORWARDS)) {
+        return;
+      }
     }
+  }
+};
+
+class GotoNextPositionCommand : public Command {
+ public:
+  const string Description() {
+    return "go forwards to next position";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    editor_state->set_direction( 
+        editor_state->direction() == FORWARDS ? BACKWARDS : FORWARDS);
+    GotoPreviousPositionCommand::Go(editor_state);
+    editor_state->ResetDirection();
     editor_state->ResetRepetitions();
     editor_state->ResetStructure();
   }
@@ -880,6 +912,7 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('\n', new ActivateLink()));
 
     output.insert(make_pair('b', new GotoPreviousPositionCommand()));
+    output.insert(make_pair('B', new GotoNextPositionCommand()));
     output.insert(make_pair('j', new LineDown()));
     output.insert(make_pair('k', new LineUp()));
     output.insert(make_pair('l', new MoveForwards()));

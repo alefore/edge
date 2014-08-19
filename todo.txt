@@ -27,8 +27,6 @@ For the "g"oto command, if we're already at the position specified, then invert 
 
 Support sticky "r"everse mode.
 
-Add a "forward" command (perhaps "B") that undoes the current "back" command.
-
 Add a "margin_lines" integer variable.
   Scroll the file automatically to always keep that number of entries visible above/below cursor.
     Unless at the beginning/end.
