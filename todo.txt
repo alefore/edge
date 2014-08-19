@@ -49,8 +49,9 @@ When the flags of a file changes, update the list of buffers if it's shown.
 
 Improve "af":
   Add more structures to "af":
-    BUFFER> run a command for each line in buffer (prompt)
-  Handle repetitions?  Maybe for line, run multiple lines?
+    BUFFER> run a command with the whole contents of the buffer
+      (another possibility: run a command for each line in buffer (prompt))
+  Handle repetitions?  Maybe for line, run multiple lines in separate buffers?
 
 Figure out why "python" doesn't work very interactively.
   Canonical test: create a "python" buffer and give it some "help(list)" or similar, it should do it.
