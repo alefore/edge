@@ -41,6 +41,9 @@ Support scrolling back?
 
 -- Commands
 
+Make it possible to scroll just one line past the last line.  In command mode, it should just follow the output to the end.
+  Might need tweaks to various modes to keep them from crashing?
+
 When the flags of a file changes, update the list of buffers if it's shown.
 
 Improve "af":
@@ -68,3 +71,9 @@ Let commands inherit variables from their parent.
 Add a variable for specifying which characters should be considered parts of a path?
   Then use that to find the current path in the current line.
   Then set that for c++ files so that #include "local_file.cc" works.
+
+-- Misc
+
+Add a variable to set the exit status?
+  Should probably be an int, default to 0.
+  Maybe add a quick way of setting it?
