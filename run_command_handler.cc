@@ -1,4 +1,4 @@
-#include "search_handler.h"
+#include "run_command_handler.h"
 
 #include <fstream>
 #include <iostream>
@@ -14,6 +14,7 @@ extern "C" {
 #include "char_buffer.h"
 #include "command_mode.h"
 #include "editor.h"
+#include "line_prompt_mode.h"
 
 namespace {
 
@@ -129,10 +130,50 @@ void RunCommand(
   editor_state->ScheduleRedraw();
 }
 
+class ForkCommand : public Command {
+ public:
+  const string Description() {
+    return "forks a subprocess";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    switch (editor_state->structure()) {
+      case EditorState::CHAR:
+        {
+          unique_ptr<Command> command(
+              NewLinePromptCommand("$ ", "", RunCommandHandler));
+          command->ProcessInput(c, editor_state);
+        }
+        break;
+
+      case EditorState::LINE:
+        {
+          if (!editor_state->has_current_buffer()
+              || editor_state->current_buffer()->second->contents()->empty()) {
+            return;
+          }
+          RunCommandHandler(
+              editor_state->current_buffer()->second->current_line()->contents
+                  ->ToString(),
+              editor_state);
+        }
+        break;
+
+      default:
+        editor_state->SetStatus("Oops, that structure is not handled.");
+    }
+    editor_state->ResetStructure();
+  }
+};
+
 }  // namespace
 
 namespace afc {
 namespace editor {
+
+unique_ptr<Command> NewForkCommand() {
+  return unique_ptr<Command>(new ForkCommand());
+}
 
 void RunCommandHandler(const string& input, EditorState* editor_state) {
   map<string, string> empty_environment;

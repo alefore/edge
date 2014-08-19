@@ -42,11 +42,10 @@ Support scrolling back?
 
 When the flags of a file changes, update the list of buffers if it's shown.
 
-Have a way to fork a command running whatever is in the current line?
-  Maybe as part of af?
-    CHAR> prompt (as before)
-    LINE> run line
-    BUFFER> run a command for each line
+Improve "af":
+  Add more structures to "af":
+    BUFFER> run a command for each line in buffer (prompt)
+  Handle repetitions?  Maybe for line, run multiple lines?
 
 Figure out why "python" doesn't work very interactively.
   Canonical test: create a "python" buffer and give it some "help(list)" or similar, it should do it.

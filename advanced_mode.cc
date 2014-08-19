@@ -297,8 +297,7 @@ static const map<int, Command*>& GetAdvancedModeMap() {
             "...$ ",
             "forks a command for each line in the current buffer",
             RunMultipleCommandsHandler).release()));
-    output.insert(
-        make_pair('f', NewLinePromptCommand("$ ", "forks a command", RunCommandHandler).release()));
+    output.insert(make_pair('f', NewForkCommand().release()));
     output.insert(make_pair('?', NewHelpCommand(output, "advance command mode").release()));
   }
   return output;
