@@ -102,6 +102,10 @@ static char* realpath_safe(const string& path) {
   return result == nullptr ? strdup(path.c_str()) : result;
 }
 
+string GetAnonymousBufferName(size_t i) {
+  return "[anonymous buffer " + to_string(i) + "]";
+}
+
 class FileLinkMode : public EditorMode {
  public:
   FileLinkMode(const string& path, size_t line, size_t col,
@@ -116,20 +120,8 @@ class FileLinkMode : public EditorMode {
   void ProcessInput(int c, EditorState* editor_state) {
     switch (c) {
       case '\n':
-        {
-          editor_state->PushCurrentPosition();
-          auto it = editor_state->buffers()->insert(make_pair(path_.get(), nullptr));
-          editor_state->set_current_buffer(it.first);
-          if (it.second) {
-            it.first->second.reset(new FileBuffer(path_.get()));
-            it.first->second->Reload(editor_state);
-          }
-          it.first->second->set_current_position_line(line_);
-          it.first->second->set_current_position_col(col_);
-          it.first->second->CheckPosition();
-          it.first->second->MaybeAdjustPositionCol();
-          SearchHandler(pattern_, editor_state);
-        }
+        afc::editor::OpenFile(
+            editor_state, string(path_.get()), line_, col_, pattern_);
         return;
 
       case 'd':
@@ -253,6 +245,38 @@ bool SaveContentsToOpenFile(
   return true;
 }
 
+void OpenFile(EditorState* editor_state, string path, int line, int column,
+              const string& search_pattern) {
+  editor_state->PushCurrentPosition();
+  shared_ptr<OpenBuffer> buffer;
+  if (path.empty()) {
+    size_t count = 0;
+    while (editor_state->buffers()->find(GetAnonymousBufferName(count))
+           != editor_state->buffers()->end()) {
+      count++;
+    }
+    path = GetAnonymousBufferName(count);
+    buffer.reset(new OpenBuffer(path));
+  }
+  auto it = editor_state->buffers()->insert(make_pair(path, buffer));
+  editor_state->set_current_buffer(it.first);
+  if (it.second) {
+    if (it.first->second.get() == nullptr) {
+      it.first->second.reset(new FileBuffer(path));
+    }
+    it.first->second->Reload(editor_state);
+  }
+  it.first->second->set_current_position_line(line);
+  it.first->second->set_current_position_col(column);
+  it.first->second->CheckPosition();
+  it.first->second->MaybeAdjustPositionCol();
+  SearchHandler(search_pattern, editor_state);
+}
+
+void OpenAnonymousBuffer(EditorState* editor_state) {
+  OpenFile(editor_state, "", 0, 0, "");
+}
+
 unique_ptr<EditorMode> NewFileLinkMode(
     EditorState* editor_state, const string& path, int position,
     bool ignore_if_not_found) {
@@ -266,9 +290,8 @@ unique_ptr<EditorMode> NewFileLinkMode(
   if (actual_path.empty()) {
     if (ignore_if_not_found) {
       return nullptr;
-    } else {
-      actual_path = path;
     }
+    actual_path = path;
   }
   return std::move(unique_ptr<EditorMode>(
       new FileLinkMode(actual_path, tokens[0], tokens[1], pattern)));

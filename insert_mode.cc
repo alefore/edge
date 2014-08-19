@@ -10,6 +10,7 @@ extern "C" {
 #include "command_mode.h"
 #include "editable_string.h"
 #include "editor.h"
+#include "file_link_mode.h"
 #include "lazy_string_append.h"
 #include "substring.h"
 #include "terminal.h"
@@ -155,15 +156,12 @@ void EnterInsertCharactersMode(EditorState* editor_state) {
 }
 
 void EnterInsertMode(EditorState* editor_state) {
-  if (!editor_state->has_current_buffer()) {
-    const string name = "[anonymous buffer]";
-    shared_ptr<OpenBuffer> buffer(new OpenBuffer(name));
-    editor_state->buffers()->insert(make_pair(name, buffer));
-    editor_state->set_current_buffer(editor_state->buffers()->begin());
-  }
-
-  editor_state->current_buffer()->second->CheckPosition();
   editor_state->ResetStatus();
+
+  if (!editor_state->has_current_buffer()) {
+    OpenAnonymousBuffer(editor_state);
+  }
+  editor_state->current_buffer()->second->CheckPosition();
   if (editor_state->current_buffer()->second->fd() != -1) {
     editor_state->SetStatus("type (raw)");
     editor_state->set_mode(unique_ptr<EditorMode>(new RawInputTypeMode()));

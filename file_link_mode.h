@@ -25,6 +25,13 @@ bool SaveContentsToOpenFile(
     EditorState* editor_state, OpenBuffer* buffer, const string& path,
     int fd);
 
+// Creates a new buffer for the file at the path given, jumping to the line and
+// column given, and then searching for the string given.
+void OpenFile(EditorState* editor_state, string path, int line, int column,
+              const string& search_pattern);
+
+void OpenAnonymousBuffer(EditorState* editor_state);
+
 unique_ptr<EditorMode> NewFileLinkMode(
     EditorState* editor_state, const string& path, int position,
     bool ignore_if_not_found);

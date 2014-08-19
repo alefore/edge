@@ -7,8 +7,6 @@ Handle unicode.
 
 -- Editing
 
-Allow the creation of an anonymous buffer.
-
 When an anonymous buffer is saved, ask for the name?
 
 Reflow a paragraph?  How to detect the prefix?
