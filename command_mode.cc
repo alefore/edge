@@ -578,6 +578,7 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
 
     case EditorState::SEARCH:
       SearchHandler(editor_state->last_search_query(), editor_state);
+      editor_state->ResetStructure();
       break;
 
     default:
@@ -673,6 +674,7 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
     case EditorState::SEARCH:
       editor_state->set_direction(BACKWARDS);
       SearchHandler(editor_state->last_search_query(), editor_state);
+      editor_state->ResetStructure();
       break;
 
     default:
