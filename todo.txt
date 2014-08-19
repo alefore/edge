@@ -3,8 +3,6 @@
 Show that a line is longer than a given width.
   Should be based on a config variable that sets the text width.
 
-Handle lines longer than the screen width?
-
 Handle unicode.
 
 -- Editing

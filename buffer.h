@@ -89,6 +89,10 @@ class OpenBuffer {
   void set_view_start_line(size_t value) {
     view_start_line_ = value;
   }
+  size_t view_start_column() const { return view_start_column_; }
+  void set_view_start_column(size_t value) {
+    view_start_column_ = value;
+  }
   bool at_beginning() const {
     if (contents_.empty()) { return true; }
     return current_position_line_ == 0 && at_beginning_of_line();
@@ -178,6 +182,7 @@ class OpenBuffer {
   vector<shared_ptr<Line>> contents_;
 
   size_t view_start_line_;
+  size_t view_start_column_;
   size_t current_position_line_;
   size_t current_position_col_;
 

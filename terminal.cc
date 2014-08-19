@@ -53,6 +53,13 @@ void Terminal::Display(EditorState* editor_state) {
     editor_state->ScheduleRedraw();
   }
 
+  size_t desired_start_column = buffer->current_position_col()
+      - min(buffer->current_position_col(), static_cast<size_t>(COLS) - 1);
+  if (buffer->view_start_column() != desired_start_column) {
+    buffer->set_view_start_column(desired_start_column);
+    editor_state->ScheduleRedraw();
+  }
+
   if (editor_state->screen_needs_redraw()) {
     ShowBuffer(editor_state);
     editor_state->set_screen_needs_redraw(false);
@@ -158,18 +165,21 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
   if (view_stop_line > contents.size()) {
     view_stop_line = contents.size();
   }
+
   for (size_t current_line = buffer->view_start_line();
        current_line < view_stop_line; current_line++) {
     assert(current_line < contents.size());
     const shared_ptr<LazyString> line(contents[current_line]->contents);
     assert(line.get() != nullptr);
-    size_t size = std::min(static_cast<size_t>(COLS), line->size());
-    for (size_t pos = 0; pos < size; pos++) {
+    size_t pos_end = std::min(
+        buffer->view_start_column() + static_cast<size_t>(COLS),
+        line->size());
+    for (size_t pos = buffer->view_start_column(); pos < pos_end; pos++) {
       int c = line->get(pos);
       assert(c != '\n');
       addch(c);
     }
-    if (size < static_cast<size_t>(COLS)) {
+    if (pos_end < buffer->view_start_column() + static_cast<size_t>(COLS)) {
       addch('\n');
     }
   }
@@ -177,14 +187,12 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
 
 void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
   const vector<shared_ptr<Line>>& contents(*buffer->contents());
-  size_t pos_x = buffer->current_position_col();
   assert(buffer->current_position_line() <
          contents.empty() ? 1 : contents.size());
   size_t line_length = contents.empty()
       ? 0 : contents[buffer->current_position_line()]->contents->size();
-  if (pos_x > line_length) {
-    pos_x = line_length;
-  }
+  size_t pos_x = min(min(static_cast<size_t>(COLS) - 1, line_length),
+                     buffer->current_position_col());
 
   move(buffer->current_position_line() - buffer->view_start_line(), pos_x);
 }
