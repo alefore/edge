@@ -12,7 +12,7 @@ char_buffer.o: char_buffer.cc char_buffer.h buffer.h lazy_string.h
 substring.o: substring.cc substring.h lazy_string.h Makefile
 
 buffer.o: buffer.cc buffer.h editor.h file_link_mode.h lazy_string_append.h run_command_handler.h substring.h Makefile
-editor.o: editor.cc editor.h substring.h memory_mapped_file.h lazy_string.h Makefile
+editor.o: editor.cc editor.h char_buffer.h substring.h memory_mapped_file.h lazy_string.h Makefile
 
 advanced_mode.o: advanced_mode.h advanced_mode.cc buffer.h char_buffer.h command_mode.h editor_mode.h editor.h file_link_mode.h help_command.h line_prompt_mode.h map_mode.h Makefile
 command_mode.o: command_mode.cc command_mode.h advanced_mode.h command.h editor_mode.h editor.h find_mode.h help_command.h insert_mode.h lazy_string_append.h map_mode.h noop_command.o repeat_mode.h substring.h terminal.h Makefile

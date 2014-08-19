@@ -119,12 +119,8 @@ class EditorState {
 
   void PushCurrentPosition();
   void PopLastNearPositions();
-  bool HasPositionsInStack() { return !positions_stack_.empty(); }
-  Position PopBackPosition() {
-    Position output = positions_stack_.back();
-    positions_stack_.pop_back();
-    return output;
-  }
+  bool HasPositionsInStack();
+  Position PopBackPosition();
 
   void set_status_prompt(bool value) { status_prompt_ = value; }
   bool status_prompt() const { return status_prompt_; }
@@ -152,8 +148,6 @@ class EditorState {
   size_t visible_lines_;
 
   bool screen_needs_redraw_;
-
-  list<Position> positions_stack_;
 
   bool status_prompt_;
   string status_;

@@ -1,6 +1,9 @@
+#include <iostream>
 #include <memory>
 #include <list>
 #include <string>
+#include <sstream>
+#include <stdexcept>
 
 extern "C" {
 #include <sys/types.h>
@@ -9,11 +12,15 @@ extern "C" {
 }
 
 #include "editor.h"
+#include "char_buffer.h"
 #include "substring.h"
 
 namespace {
 
+using std::make_pair;
 using std::string;
+using std::stringstream;
+using std::to_string;
 using std::vector;
 
 static string GetHomeDirectory() {
@@ -115,29 +122,86 @@ void EditorState::MoveBufferBackwards(size_t times) {
   current_buffer_->second->Enter(this);
 }
 
+// We will store the positions in a special buffer.  They will be sorted from
+// old (top) to new (bottom), one per line.  Each line will be of the form:
+//
+//   line column buffer
+//
+// The current line position in the positions buffer represents the next line
+// to be returned by a pop.  To insert a new position, we put it right after
+// the current line.
+
+static const char* kPositionsBufferName = "- positions";
+
 void EditorState::PushCurrentPosition() {
   if (!has_current_buffer()) { return; }
-  positions_stack_.emplace_back();
-  Position& position = positions_stack_.back();
-  position.buffer = current_buffer_->first;
-  position.line = current_buffer_->second->current_position_line();
-  position.col = current_buffer_->second->current_position_col();
+  auto it = buffers_.find(kPositionsBufferName);
+  if (it == buffers_.end()) {
+    it = buffers_.insert(
+        make_pair(kPositionsBufferName, new OpenBuffer(kPositionsBufferName)))
+        .first;
+  }
+  assert(it->second.get() != nullptr);
+  shared_ptr<Line> line(new Line());
+  line->contents = NewCopyString(
+      to_string(current_buffer_->second->current_position_line())
+      + " " + to_string(current_buffer_->second->current_position_col())
+      + " " + current_buffer_->first);
+  it->second->contents()->insert(
+      it->second->contents()->begin()
+      + it->second->current_position_line()
+      + (it->second->contents()->empty() ? 0 : 1),
+      line);
+  if (it->second->current_position_line() + 1 < it->second->contents()->size()) {
+    it->second->set_current_position_line(
+        it->second->current_position_line() + 1);
+  }
+  if (it == current_buffer_) {
+    ScheduleRedraw();
+  }
+}
+
+static Position PositionFromLine(const string& line) {
+  stringstream line_stream(line);
+  Position pos;
+  line_stream >> pos.line >> pos.col;
+  line_stream.get();
+  getline(line_stream, pos.buffer);
+  return pos;
 }
 
 void EditorState::PopLastNearPositions() {
+  if (!HasPositionsInStack() != has_current_buffer()) { return; }
+  auto buffer = buffers_.find(kPositionsBufferName)->second;
   while (true) {
-    if (positions_stack_.empty() || has_current_buffer()) {
-      return;
-    }
-    const auto& pos = positions_stack_.back();
+    const auto position = PositionFromLine(
+        buffer->current_line()->contents->ToString());
     const auto& buffer = current_buffer()->second;
-    if (pos.buffer != current_buffer_->first
-        || pos.line != buffer->current_position_line()
-        || pos.col != buffer->current_position_col()) {
+    if (position.buffer != current_buffer_->first
+        || position.line != buffer->current_position_line()
+        || position.col != buffer->current_position_col()) {
       return;
     }
-    positions_stack_.pop_back();
+    if (buffer->current_position_line() == 0) {
+      return;
+    }
+    buffer->set_current_position_line(buffer->current_position_line() - 1);
   }
+}
+
+bool EditorState::HasPositionsInStack() {
+  auto it = buffers_.find(kPositionsBufferName);
+  return it != buffers_.end() && !it->second->contents()->empty();
+}
+
+Position EditorState::PopBackPosition() {
+  assert(HasPositionsInStack());
+  auto buffer = buffers_.find(kPositionsBufferName)->second;
+  const string position = buffer->current_line()->contents->ToString();
+  if (buffer->current_position_line() > 0) {
+    buffer->set_current_position_line(buffer->current_position_line() - 1);
+  }
+  return PositionFromLine(position);
 }
 
 }  // namespace editor
