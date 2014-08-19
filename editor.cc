@@ -53,6 +53,7 @@ EditorState::EditorState()
     : current_buffer_(buffers_.end()),
       terminate_(false),
       direction_(FORWARDS),
+      default_direction_(FORWARDS),
       repetitions_(1),
       structure_(CHAR),
       default_structure_(CHAR),
@@ -78,6 +79,15 @@ void EditorState::CloseBuffer(
     current_buffer_->second->Enter(this);
   }
   buffers_.erase(buffer);
+}
+
+void EditorState::set_direction(Direction direction) {
+  direction_ = direction;
+}
+
+void EditorState::set_default_direction(Direction direction) {
+  default_direction_ = direction;
+  ResetDirection();
 }
 
 void EditorState::set_structure(Structure structure) {

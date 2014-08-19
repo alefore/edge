@@ -59,6 +59,7 @@ void SearchHandler(const string& input, EditorState* editor_state) {
       } else {
         next_line = Substring(buffer->current_line()->contents,
                               buffer->current_position_col() + 1);
+        assert(next_line.get() != nullptr);
         position_col = buffer->current_position_col() + 1;
       }
       break;
@@ -69,6 +70,7 @@ void SearchHandler(const string& input, EditorState* editor_state) {
       // but going beyond it.  We have to compensate for that below, when
       // checking a match.
       next_line = buffer->current_line()->contents;
+      assert(next_line.get() != nullptr);
       position_col = 0;
       break;
   }
@@ -122,7 +124,9 @@ void SearchHandler(const string& input, EditorState* editor_state) {
       position_line += delta;
     }
     position_col = 0;
+    assert(position_line < buffer->contents()->size());
     next_line = buffer->contents()->at(position_line)->contents;
+    assert(next_line.get() != nullptr);
   }
   editor_state->ResetMode();
   editor_state->ResetDirection();

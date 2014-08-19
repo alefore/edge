@@ -25,8 +25,6 @@ Autocomplete?
 For the "g"oto command, if we're already at the position specified, then invert the direction and try again.
   Obviously, don't get into an empty loop (e.g. "g"oto in an empty line).
 
-Support sticky "r"everse mode.
-
 Add a "margin_lines" integer variable.
   Scroll the file automatically to always keep that number of entries visible above/below cursor.
     Unless at the beginning/end.

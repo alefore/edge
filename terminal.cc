@@ -88,7 +88,9 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
     if (editor_state.repetitions() != 1) {
       flags += to_string(editor_state.repetitions());
     }
-    if (editor_state.direction() == BACKWARDS) {
+    if (editor_state.default_direction() == BACKWARDS) {
+      flags += "R";
+    } else if (editor_state.direction() == BACKWARDS) {
       flags += "r";
     }
 

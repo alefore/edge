@@ -363,7 +363,7 @@ class GotoNextPositionCommand : public Command {
 
   void ProcessInput(int c, EditorState* editor_state) {
     editor_state->set_direction( 
-        editor_state->direction() == FORWARDS ? BACKWARDS : FORWARDS);
+        ReverseDirection(editor_state->direction()));
     GotoPreviousPositionCommand::Go(editor_state);
     editor_state->ResetDirection();
     editor_state->ResetRepetitions();
@@ -455,6 +455,7 @@ const string LineUp::Description() {
   }
   editor_state->ResetStructure();
   editor_state->ResetRepetitions();
+  editor_state->ResetDirection();
 }
 
 void LineUp::ProcessInput(int c, EditorState* editor_state) {
@@ -504,6 +505,7 @@ const string LineDown::Description() {
   }
   editor_state->ResetStructure();
   editor_state->ResetRepetitions();
+  editor_state->ResetDirection();
 }
 
 void LineDown::ProcessInput(int c, EditorState* editor_state) {
@@ -565,6 +567,7 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
 
         editor_state->ResetRepetitions();
         editor_state->ResetStructure();
+        editor_state->ResetDirection();
       }
       break;
 
@@ -605,6 +608,7 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
         }
         editor_state->ResetRepetitions();
         editor_state->ResetStructure();
+        editor_state->ResetDirection();
       }
       break;
 
@@ -656,6 +660,7 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
 
         editor_state->ResetRepetitions();
         editor_state->ResetStructure();
+        editor_state->ResetDirection();
       }
       break;
 
@@ -700,6 +705,7 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
 
         editor_state->ResetRepetitions();
         editor_state->ResetStructure();
+        editor_state->ResetDirection();
       }
       break;
 
@@ -750,15 +756,28 @@ class EnterFindMode : public Command {
   }
 };
 
-class ReverseDirection : public Command {
+class ReverseDirectionCommand : public Command {
  public:
   const string Description() {
     return "reverses the direction of the next command";
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    editor_state->set_direction(
-        editor_state->direction() == FORWARDS ? BACKWARDS : FORWARDS);
+    Direction previous_direction = editor_state->direction();
+    editor_state->set_default_direction(FORWARDS);
+    editor_state->set_direction(ReverseDirection(previous_direction));
+  }
+};
+
+class ReverseDefaultDirectionCommand : public Command {
+ public:
+  const string Description() {
+    return "reverses the direction of future commands";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    editor_state->set_default_direction(
+        ReverseDirection(editor_state->default_direction()));
   }
 };
 
@@ -900,7 +919,8 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('a', new EnterAdvancedMode()));
     output.insert(make_pair('i', new EnterInsertMode()));
     output.insert(make_pair('f', new EnterFindMode()));
-    output.insert(make_pair('r', new ReverseDirection()));
+    output.insert(make_pair('r', new ReverseDirectionCommand()));
+    output.insert(make_pair('R', new ReverseDefaultDirectionCommand()));
 
     output.insert(make_pair(
         '/',
@@ -919,9 +939,6 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('h', new MoveBackwards()));
 
     output.insert(make_pair('s', new EnterStructureMode()));
-    output.insert(make_pair(
-        'r',
-        new NumberMode("repeats the next command", SetRepetitions)));
 
     output.insert(make_pair('?', NewHelpCommand(output, "command mode").release()));
 

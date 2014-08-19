@@ -80,8 +80,10 @@ class EditorState {
   void set_terminate(bool value) { terminate_ = value; }
 
   Direction direction() const { return direction_; }
-  void set_direction(Direction direction) { direction_ = direction; }
-  void ResetDirection() { direction_ = FORWARDS; }
+  void set_direction(Direction direction);
+  void ResetDirection() { direction_ = default_direction_; }
+  Direction default_direction() const { return default_direction_; }
+  void set_default_direction(Direction direction);
 
   size_t repetitions() const { return repetitions_; }
   void ResetRepetitions() { repetitions_ = 1; }
@@ -137,6 +139,7 @@ class EditorState {
   bool terminate_;
 
   Direction direction_;
+  Direction default_direction_;
   size_t repetitions_;
   string last_search_query_;
   Structure structure_;
