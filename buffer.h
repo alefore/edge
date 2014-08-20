@@ -157,23 +157,35 @@ class OpenBuffer {
 
   string FlagsString() const;
 
-  void SetInputFile(int fd, pid_t child_pid);
+  void SetInputFile(int fd, bool fd_is_terminal, pid_t child_pid);
 
   void toggle_diff() { diff_ = !diff_; }
   bool atomic_lines() const { return atomic_lines_; }
   void toggle_atomic_lines() { atomic_lines_ = !atomic_lines_; }
+
+  bool pts() const { return pts_; }
+  void toggle_pts() { pts_ = !pts_; }
+
   void set_word_characters(const string& word_characters);
   bool* word_characters() { return word_characters_; }
 
   void CopyVariablesFrom(const shared_ptr<OpenBuffer>& buffer);
 
  protected:
+  void EndOfFile(EditorState* editor_state);
+
   vector<unique_ptr<ParseTree>> parse_tree;
 
   string name_;
 
   // -1 means "no file descriptor" (i.e. not currently loading this).
   int fd_;
+  // This is used to remember if we obtained a terminal for the file descriptor
+  // (for a subprocess).  Typically this has the same value of pts_ after a
+  // subprocess is started, but it's a separate value to allow the user to
+  // change the value of pts_ without breaking things (when one command is
+  // already running).
+  bool fd_is_terminal_;
   char* buffer_;
   size_t buffer_line_start_;
   size_t buffer_length_;
@@ -207,6 +219,10 @@ class OpenBuffer {
   // If true, lines can't be joined (e.g. you can't delete the last item in a
   // line unless the line is empty).
   bool atomic_lines_;
+
+  // If a command is forked to write to this buffer, should we obtain a
+  // pseudoterminal for it?
+  bool pts_;
 
   bool word_characters_[256];
 };
