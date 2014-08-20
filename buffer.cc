@@ -64,7 +64,9 @@ OpenBuffer::OpenBuffer(const string& name)
       modified_(false),
       reading_from_parser_(false),
       reload_after_exit_(false),
+      close_after_clean_exit_(false),
       reload_on_enter_(false),
+      diff_(false),
       atomic_lines_(false) {
   set_word_characters(
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
