@@ -11,7 +11,61 @@ extern "C" {
 #endif
 
 #include "editor.h"
-#include "substring.h"
+
+namespace {
+
+using std::vector;
+using std::string;
+
+#if CPP_REGEX
+typedef std::regex RegexPattern;
+#else
+typedef regex_t RegexPattern;
+#endif
+
+vector<size_t> GetMatches(const string& line, const RegexPattern& pattern) {
+  int start = 0;
+  vector<size_t> output;
+  while (true) {
+    size_t match = string::npos;
+    string line_substr = line.substr(start);
+
+#if CPP_REGEX
+    std::smatch pattern_match;
+    std::regex_search(line_substr, pattern_match, pattern);
+    if (!pattern_match.empty()) {
+      match = pattern_match.prefix().first - line_substr.begin();
+    }
+#else
+    regmatch_t matches;
+    if (regexec(&pattern, line_substr.c_str(), 1, &matches, 0) == 0) {
+      match = matches.rm_so;
+    }
+#endif
+
+    if (match == string::npos) { return output; }
+    output.push_back(start + match);
+    start += match + 1;
+  }
+}
+
+template <typename Iterator>
+size_t FindInterestingMatch(
+    Iterator begin, Iterator end, bool wrapped, size_t pos_line,
+    size_t pos_column, size_t line, afc::editor::Direction direction) {
+  if (begin == end) { return string::npos; }
+  if (pos_line != line) { return *begin; }
+  bool require_greater = wrapped ^ (direction == afc::editor::FORWARDS);
+  while (begin != end) {
+    if (require_greater ? *begin > pos_column : *begin < pos_column) {
+      return *begin;
+    }
+    ++begin;
+  }
+  return string::npos;
+}
+
+}  // namespace
 
 namespace afc {
 namespace editor {
@@ -35,43 +89,23 @@ void SearchHandler(const string& input, EditorState* editor_state) {
 
 #if CPP_REGEX
   std::regex pattern(input);
-  std::smatch pattern_match;
 #else
-  regex_t preg;
-  regcomp(&preg, input.c_str(), REG_ICASE);
+  regex_t pattern;
+  regcomp(&pattern, input.c_str(), REG_ICASE);
 #endif
 
   int delta;
   size_t position_line = buffer->current_position_line();
-  size_t position_col;
-  shared_ptr<LazyString> next_line;
+  shared_ptr<Line> next_line = buffer->current_line();
 
-  assert(position_line < buffer->contents()->size());
+  assert(position_line <= buffer->contents()->size());
 
   switch (editor_state->direction()) {
     case FORWARDS:
       delta = 1;
-      if (buffer->current_position_col() >= buffer->current_line()->contents->size()) {
-        // We're at the end of the line, start searching in the next.
-        position_line++;
-        next_line = buffer->current_line()->contents;
-        position_col = 0;
-      } else {
-        next_line = Substring(buffer->current_line()->contents,
-                              buffer->current_position_col() + 1);
-        assert(next_line.get() != nullptr);
-        position_col = buffer->current_position_col() + 1;
-      }
       break;
     case BACKWARDS:
       delta = -1;
-      // Even though we're searching backwards, we have to include the whole
-      // line: it's possible there's a match starting before our current position
-      // but going beyond it.  We have to compensate for that below, when
-      // checking a match.
-      next_line = buffer->current_line()->contents;
-      assert(next_line.get() != nullptr);
-      position_col = 0;
       break;
   }
 
@@ -80,53 +114,46 @@ void SearchHandler(const string& input, EditorState* editor_state) {
   bool wrapped = false;
 
   // This can certainly be optimized.
-  for (size_t i = 0; i < buffer->contents()->size() + 1; i++) {
-    string str = next_line->ToString();
-    bool match = false;
+  for (size_t i = 0; i < buffer->contents()->size() + 1 + 1; i++) {
+    if (next_line != nullptr) {
+      string str = next_line->contents->ToString();
 
-#if CPP_REGEX
-    std::regex_search(str, pattern_match, pattern);
-    if (!pattern_match.empty()) {
-      match = true;
-    }
-    size_t pos = pattern_match.prefix().first - str.begin();
-#else
-    regmatch_t matches;
-    if (regexec(&preg, str.c_str(), 1, &matches, 0) == 0) {
-      match = true;
-    }
-    size_t pos = matches.rm_so;
-#endif
+      vector<size_t> matches = GetMatches(str, pattern);
+      size_t interesting_match;
+      if (editor_state->direction() == FORWARDS) {
+        interesting_match = FindInterestingMatch(
+            matches.begin(), matches.end(), wrapped,
+            buffer->current_position_line(), buffer->current_position_col(),
+            position_line, editor_state->direction());
+      } else {
+        interesting_match = FindInterestingMatch(
+            matches.rbegin(), matches.rend(), wrapped,
+            buffer->current_position_line(), buffer->current_position_col(),
+            position_line, editor_state->direction());
+      }
 
-    if (match
-        && editor_state->direction() == BACKWARDS
-        && position_line == buffer->current_position_line()
-        && pos >= buffer->current_position_col()) {
-      // Not a match we're interested on.
-      match = false;
-    }
-
-    if (match) {
-      editor_state->PushCurrentPosition();
-      buffer->set_current_position_line(position_line);
-      buffer->set_current_position_col(pos + position_col);
-      editor_state->SetStatus(wrapped ? "Found (wrapped)" : "Found");
-      break;  // TODO: Honor repetitions.
+      if (interesting_match != string::npos) {
+        editor_state->PushCurrentPosition();
+        buffer->set_current_position_line(position_line);
+        buffer->set_current_position_col(interesting_match);
+        editor_state->SetStatus(wrapped ? "Found (wrapped)" : "Found");
+        break;  // TODO: Honor repetitions.
+      }
     }
 
     if (position_line == 0 && delta == -1) {
       position_line = buffer->contents()->size() - 1;
       wrapped = true;
-    } else if (position_line == buffer->contents()->size() - 1 && delta == 1) {
+    } else if (position_line == buffer->contents()->size() && delta == 1) {
       position_line = 0;
       wrapped = true;
     } else {
       position_line += delta;
     }
-    position_col = 0;
-    assert(position_line < buffer->contents()->size());
-    next_line = buffer->contents()->at(position_line)->contents;
-    assert(next_line.get() != nullptr);
+    assert(position_line <= buffer->contents()->size());
+    next_line = position_line == buffer->contents()->size()
+        ? nullptr
+        : buffer->contents()->at(position_line);
   }
   editor_state->ResetMode();
   editor_state->ResetDirection();
