@@ -179,6 +179,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
     for (size_t pos = buffer->view_start_column(); pos < pos_end; pos++) {
       int c = line->get(pos);
       assert(c != '\n');
+      if (c == '\r') { addch(' '); continue; }
       addch(c);
     }
     if (pos_end < buffer->view_start_column() + static_cast<size_t>(COLS)) {
