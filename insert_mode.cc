@@ -161,13 +161,14 @@ void EnterInsertMode(EditorState* editor_state) {
   if (!editor_state->has_current_buffer()) {
     OpenAnonymousBuffer(editor_state);
   }
-  editor_state->current_buffer()->second->CheckPosition();
   if (editor_state->current_buffer()->second->fd() != -1) {
     editor_state->SetStatus("type (raw)");
     editor_state->set_mode(unique_ptr<EditorMode>(new RawInputTypeMode()));
   } else if (editor_state->structure() == EditorState::CHAR) {
+    editor_state->current_buffer()->second->CheckPosition();
     EnterInsertCharactersMode(editor_state);
   } else if (editor_state->structure() == EditorState::LINE) {
+    editor_state->current_buffer()->second->CheckPosition();
     auto buffer = editor_state->current_buffer()->second;
     shared_ptr<Line> line(new Line());
     line->contents = EmptyString();
