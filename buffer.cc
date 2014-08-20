@@ -143,6 +143,8 @@ void OpenBuffer::Reload(EditorState* editor_state) {
     return;
   }
   ReloadInto(editor_state, this);
+  set_modified(false);
+  CheckPosition();
 }
 
 void OpenBuffer::Save(EditorState* editor_state) {

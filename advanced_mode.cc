@@ -247,8 +247,6 @@ class ReloadBuffer : public Command {
     if (editor_state->has_current_buffer()) {
       auto buffer = editor_state->current_buffer();
       buffer->second->Reload(editor_state);
-      buffer->second->set_modified(false);
-      buffer->second->CheckPosition();
     }
     editor_state->ResetMode();
   }
