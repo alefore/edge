@@ -120,7 +120,11 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
        i < buffer_length_ + static_cast<size_t>(characters_read);
        i++) {
     if (buffer_[i] == '\n') {
+      if (current_position_line_ == contents_.size()) {
+        current_position_line_ ++;
+      }
       AppendLine(Substring(buffer_wrapper, buffer_line_start_, i - buffer_line_start_));
+      assert(current_position_line_ <= contents_.size());
       buffer_line_start_ = i + 1;
       if (editor_state->has_current_buffer()
           && editor_state->current_buffer()->second.get() == this
