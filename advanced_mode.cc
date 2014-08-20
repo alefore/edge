@@ -152,6 +152,9 @@ void SetVariableHandler(const string& name, EditorState* editor_state) {
     unique_ptr<Command> command(NewLinePromptCommand(
         "word_characters: ", "", SetWordCharacters));
     command->ProcessInput('\n', editor_state);
+  } else if (name == "pts") {
+    if (!editor_state->has_current_buffer()) { return; }
+    editor_state->current_buffer()->second->toggle_pts();
   } else {
     editor_state->SetStatus("Unknown variable: " + name);
   }

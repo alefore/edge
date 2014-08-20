@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <iostream>
 #include <memory>
 #include <string>
 
@@ -21,6 +22,7 @@ extern "C" {
 namespace {
 
 using namespace afc::editor;
+using std::cerr;
 
 void SaveDiff(EditorState* editor_state, OpenBuffer* buffer) {
   unique_ptr<OpenBuffer> original(new OpenBuffer("- original diff"));
@@ -52,6 +54,7 @@ using std::to_string;
 OpenBuffer::OpenBuffer(const string& name)
     : name_(name),
       fd_(-1),
+      fd_is_terminal_(false),
       buffer_(nullptr),
       buffer_line_start_(0),
       buffer_length_(0),
@@ -67,9 +70,35 @@ OpenBuffer::OpenBuffer(const string& name)
       close_after_clean_exit_(false),
       reload_on_enter_(false),
       diff_(false),
-      atomic_lines_(false) {
+      atomic_lines_(false),
+      pts_(false) {
   set_word_characters(
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
+}
+
+void OpenBuffer::EndOfFile(EditorState* editor_state) {
+  close(fd_);
+  buffer_ = static_cast<char*>(realloc(buffer_, buffer_length_));
+  if (child_pid_ != -1) {
+    if (waitpid(child_pid_, &child_exit_status_, 0) == -1) {
+      editor_state->SetStatus("waitpid failed: " + string(strerror(errno)));
+      return;
+    }
+  }
+  fd_ = -1;
+  child_pid_ = -1;
+  if (reload_after_exit_) {
+    reload_after_exit_ = false;
+    Reload(editor_state);
+  }
+  if (close_after_clean_exit_
+      && WIFEXITED(child_exit_status_)
+      && WEXITSTATUS(child_exit_status_) == 0) {
+    auto it = editor_state->buffers()->find(name_);
+    if (it != editor_state->buffers()->end()) {
+      editor_state->CloseBuffer(it);
+    }
+  }
 }
 
 void OpenBuffer::ReadData(EditorState* editor_state) {
@@ -85,34 +114,11 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
     if (errno == EAGAIN) {
       return;
     }
-    // TODO: Handle this better.
-    exit(1);
+    return EndOfFile(editor_state);
   }
   assert(characters_read >= 0);
   if (characters_read == 0) {
-    close(fd_);
-    buffer_ = static_cast<char*>(realloc(buffer_, buffer_length_));
-    if (child_pid_ != -1) {
-      if (waitpid(child_pid_, &child_exit_status_, 0) == -1) {
-        editor_state->SetStatus("waitpid failed: " + string(strerror(errno)));
-        return;
-      }
-    }
-    fd_ = -1;
-    child_pid_ = -1;
-    if (reload_after_exit_) {
-      reload_after_exit_ = false;
-      Reload(editor_state);
-    }
-    if (close_after_clean_exit_
-        && WIFEXITED(child_exit_status_)
-        && WEXITSTATUS(child_exit_status_) == 0) {
-      auto it = editor_state->buffers()->find(name_);
-      if (it != editor_state->buffers()->end()) {
-        editor_state->CloseBuffer(it);
-      }
-    }
-    return;
+    return EndOfFile(editor_state);
   }
 
   shared_ptr<LazyString> buffer_wrapper(
@@ -241,7 +247,8 @@ void OpenBuffer::CheckPosition() {
   }
 }
 
-void OpenBuffer::SetInputFile(int input_fd, pid_t child_pid) {
+void OpenBuffer::SetInputFile(
+    int input_fd, bool fd_is_terminal, pid_t child_pid) {
   contents_.clear();
   buffer_ = nullptr;
   buffer_line_start_ = 0;
@@ -252,6 +259,7 @@ void OpenBuffer::SetInputFile(int input_fd, pid_t child_pid) {
   }
   assert(child_pid_ == -1);
   fd_ = input_fd;
+  fd_is_terminal_ = fd_is_terminal;
   child_pid_ = child_pid;
 }
 

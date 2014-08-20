@@ -19,6 +19,7 @@ extern "C" {
 namespace {
 
 using namespace afc::editor;
+using std::cerr;
 using std::to_string;
 
 void LoadEnvironmentVariables(
@@ -60,7 +61,29 @@ class CommandBuffer : public OpenBuffer {
     int pipefd[2];
     static const int parent_fd = 0;
     static const int child_fd = 1;
-    if (socketpair(PF_LOCAL, SOCK_STREAM, 0, pipefd) == -1) {
+    if (pts_) {
+      int master_fd = posix_openpt(O_RDWR);
+      if (master_fd == -1) {
+        cerr << "posix_openpt failed: " << string(strerror(errno));
+        exit(1);
+      }
+      if (grantpt(master_fd) == -1) {
+        cerr << "grantpt failed: " << string(strerror(errno));
+        exit(1);
+      }
+      if (unlockpt(master_fd) == -1) {
+        cerr << "grantpt failed: " << string(strerror(errno));
+        exit(1);
+      }
+      pipefd[parent_fd] = master_fd;
+      char* pts_path = ptsname(master_fd);
+      pipefd[child_fd] = open(pts_path, O_RDWR);
+      if (pipefd[child_fd] == -1) {
+        cerr << "open failed: " << pts_path << ": " << string(strerror(errno));
+        exit(1);
+      }
+    } else if (socketpair(PF_LOCAL, SOCK_STREAM, 0, pipefd) == -1) {
+      cerr << "socketpair failed: " << string(strerror(errno));
       exit(1);
     }
 
@@ -69,12 +92,11 @@ class CommandBuffer : public OpenBuffer {
       editor_state->SetStatus("fork failed: " + string(strerror(errno)));
       return;
     }
-    if (setpgid(child_pid, 0)) {
-      if (child_pid == 0) { exit(1); }
-      editor_state->SetStatus("setpgid failed: " + string(strerror(errno)));
-      return;
-    }
     if (child_pid == 0) {
+      if (setsid() == -1) {
+        cerr << "setsid failed: " << string(strerror(errno));
+        exit(1);
+      }
       close(pipefd[parent_fd]);
 
       if (dup2(pipefd[child_fd], 0) == -1) { exit(1); }
@@ -86,6 +108,7 @@ class CommandBuffer : public OpenBuffer {
         close(pipefd[child_fd]);
       }
 
+      setenv("TERM", "screen", 1);
       LoadEnvironmentVariables(editor_state->edge_path(), command_);
       for (const auto& it : environment_) {
         setenv(it.first.c_str(), it.second.c_str(), 1);
@@ -96,7 +119,7 @@ class CommandBuffer : public OpenBuffer {
       exit(WIFEXITED(status) ? WEXITSTATUS(status) : 1);
     }
     close(pipefd[child_fd]);
-    target->SetInputFile(pipefd[parent_fd], child_pid);
+    target->SetInputFile(pipefd[parent_fd], pts_, child_pid);
     editor_state->ScheduleRedraw();
   }
 
