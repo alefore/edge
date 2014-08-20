@@ -63,7 +63,10 @@ class OpenBuffer {
 
   shared_ptr<Line> current_line() const {
     assert(!contents_.empty());
-    assert(current_position_line_ < contents_.size());
+    assert(current_position_line_ <= contents_.size());
+    if (current_position_line_ == contents_.size()) {
+      return nullptr;
+    }
     return contents_.at(current_position_line_);
   }
   // Returns the substring of the current line until the current position.

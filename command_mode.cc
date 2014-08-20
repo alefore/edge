@@ -52,7 +52,7 @@ class GotoCommand : public Command {
       case EditorState::CHAR:
         {
           shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-          if (buffer->contents()->empty()) { return; }
+          if (buffer->current_line() == nullptr) { return; }
           size_t position =
               ComputePosition(editor_state, buffer->current_line()->size() + 1);
           assert(position <= buffer->current_line()->size());
@@ -67,10 +67,9 @@ class GotoCommand : public Command {
       case EditorState::LINE:
         {
           shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-          if (buffer->contents()->empty()) { return; }
           size_t position =
-              ComputePosition(editor_state, buffer->contents()->size());
-          assert(position < buffer->contents()->size());
+              ComputePosition(editor_state, buffer->contents()->size() + 1);
+          assert(position <= buffer->contents()->size());
           buffer->set_current_position_line(position);
         }
         break;
@@ -182,10 +181,9 @@ class Delete : public Command {
  private:
   void DeleteLines(int c, EditorState* editor_state) {
     shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-    if (buffer->contents()->empty()) { return; }
     shared_ptr<OpenBuffer> deleted_text(new OpenBuffer(kPasteBuffer));
 
-    assert(buffer->current_position_line() < buffer->contents()->size());
+    assert(buffer->current_position_line() <= buffer->contents()->size());
 
     auto first_line = buffer->contents()->begin() + buffer->current_position_line();
     vector<shared_ptr<Line>>::iterator last_line;
@@ -194,6 +192,9 @@ class Delete : public Command {
       last_line = buffer->contents()->end();
     } else {
       last_line = first_line + editor_state->repetitions();
+    }
+    if (first_line == last_line) {
+      return;
     }
     for (auto it = first_line; it < last_line; ++it) {
       if ((*it)->activate.get() != nullptr) {
@@ -210,10 +211,10 @@ class Delete : public Command {
 
   void DeleteCharacters(int c, EditorState* editor_state) {
     shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-    if (buffer->contents()->empty()) { return; }
+    if (buffer->current_line() == nullptr) { return; }
     shared_ptr<OpenBuffer> deleted_text(new OpenBuffer(kPasteBuffer));
 
-    if (buffer->current_position_col() > buffer->current_line()->size()) {
+    if (buffer->current_position_col() >= buffer->current_line()->size()) {
       buffer->set_current_position_col(buffer->current_line()->size());
     }
 
@@ -427,7 +428,6 @@ const string LineUp::Description() {
   switch (editor_state->structure()) {
     case EditorState::CHAR:
       {
-        if (buffer->contents()->empty()) { return; }
         if (editor_state->repetitions() > 1) {
           // Saving on single-lines changes makes this very verbose, lets avoid that.
           editor_state->PushCurrentPosition();
@@ -477,17 +477,13 @@ const string LineDown::Description() {
     case EditorState::CHAR:
       {
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-        if (buffer->contents()->empty()) { return; }
         if (editor_state->repetitions() > 1) {
           // Saving on single-lines changes makes this very verbose, lets avoid that.
           editor_state->PushCurrentPosition();
         }
         size_t pos = buffer->current_position_line();
-        if (pos + editor_state->repetitions() < buffer->contents()->size() - 1) {
-          buffer->set_current_position_line(pos + editor_state->repetitions());
-        } else {
-          buffer->set_current_position_line(buffer->contents()->size() - 1);
-        }
+        buffer->set_current_position_line(min(pos + editor_state->repetitions(),
+                                              buffer->contents()->size()));
       }
       break;
 
@@ -553,17 +549,13 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
       {
         if (!editor_state->has_current_buffer()) { return; }
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-        if (buffer->contents()->empty()) { return; }
+        if (buffer->current_line() == nullptr) { return; }
         if (editor_state->repetitions() > 1) {
           editor_state->PushCurrentPosition();
         }
-        if (buffer->current_position_col() + editor_state->repetitions()
-            <= buffer->current_line()->size()) {
-          buffer->set_current_position_col(
-              buffer->current_position_col() + editor_state->repetitions());
-        } else {
-          buffer->set_current_position_col(buffer->current_line()->size());
-        }
+        buffer->set_current_position_col(min(
+            buffer->current_position_col() + editor_state->repetitions(),
+            buffer->current_line()->size()));
 
         editor_state->ResetRepetitions();
         editor_state->ResetStructure();
@@ -575,7 +567,7 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
       {
         if (!editor_state->has_current_buffer()) { return; }
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-        if (buffer->contents()->empty()) { return; }
+        if (buffer->current_line() == nullptr) { return; }
         buffer->CheckPosition();
         buffer->MaybeAdjustPositionCol();
         editor_state->PushCurrentPosition();
@@ -644,7 +636,7 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
       {
         if (!editor_state->has_current_buffer()) { return; }
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-        if (buffer->contents()->empty()) { return; }
+        if (buffer->current_line() == nullptr) { return; }
         if (editor_state->repetitions() > 1) {
           editor_state->PushCurrentPosition();
         }
@@ -668,7 +660,7 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
       {
         if (!editor_state->has_current_buffer()) { return; }
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-        if (buffer->contents()->empty()) { return; }
+        if (buffer->current_line()) { return; }
         buffer->CheckPosition();
         buffer->MaybeAdjustPositionCol();
         editor_state->PushCurrentPosition();
@@ -683,9 +675,9 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
           // Seek backwards until we're just after a non-whitespace.
           bool advanced = false;
           while (!buffer->at_beginning()
-                 && (buffer->current_position_col() == 0
+                 && (buffer->at_beginning_of_line()
                      || !is_word[static_cast<int>(buffer->previous_character())])) {
-            if (buffer->current_position_col() == 0) {
+            if (buffer->at_beginning_of_line()) {
               buffer->set_current_position_line(buffer->current_position_line() - 1);
               buffer->set_current_position_col(buffer->current_line()->contents->size());
             } else {
@@ -699,7 +691,7 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
             editor_state->set_repetitions(0);
           }
         }
-        if (buffer->current_position_col() != 0) {
+        if (!buffer->at_beginning_of_line()) {
           buffer->set_current_position_col(buffer->current_position_col() - 1);
         }
 
@@ -885,7 +877,7 @@ class ActivateLink : public Command {
   void ProcessInput(int c, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-    if (buffer->contents()->empty()) { return; }
+    if (buffer->current_line() == nullptr) { return; }
     if (buffer->current_line()->activate.get() != nullptr) {
       buffer->current_line()->activate->ProcessInput(c, editor_state);
     } else {

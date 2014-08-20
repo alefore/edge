@@ -15,7 +15,7 @@ using std::shared_ptr;
 class FindMode : public EditorMode {
  public:
   bool SeekOnce(Direction direction, const shared_ptr<OpenBuffer> buffer, int c) {
-    if (buffer->contents()->empty()) { return false; }
+    if (buffer->current_line() == nullptr) { return false; }
     shared_ptr<LazyString> current_line = buffer->current_line()->contents;
     int delta;
     size_t position = buffer->current_position_col();

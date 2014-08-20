@@ -149,7 +149,7 @@ class ForkCommand : public Command {
       case EditorState::LINE:
         {
           if (!editor_state->has_current_buffer()
-              || editor_state->current_buffer()->second->contents()->empty()) {
+              || editor_state->current_buffer()->second->current_line() == nullptr) {
             return;
           }
           RunCommandHandler(
