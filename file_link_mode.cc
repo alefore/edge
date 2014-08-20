@@ -39,7 +39,6 @@ class FileBuffer : public OpenBuffer {
     }
 
     target->contents()->clear();
-    editor_state->CheckPosition();
     editor_state->ScheduleRedraw();
 
     if (!S_ISDIR(stat_buffer_.st_mode)) {
@@ -49,6 +48,7 @@ class FileBuffer : public OpenBuffer {
       } else {
         LoadMemoryMappedFile(path_, target);
       }
+      editor_state->CheckPosition();
       return;
     }
 
@@ -78,6 +78,7 @@ class FileBuffer : public OpenBuffer {
     } compare;
 
     sort(target->contents()->begin() + 1, target->contents()->end(), compare);
+    editor_state->CheckPosition();
   }
 
   void Save(EditorState* editor_state) {
