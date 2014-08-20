@@ -11,9 +11,7 @@ enum Direction {
   FORWARDS
 };
 
-Direction ReverseDirection(Direction direction) {
-  return direction == FORWARDS ? BACKWARDS : FORWARDS;
-}
+Direction ReverseDirection(Direction direction);
 
 }  // namespace editor
 }  // namespace afc
