@@ -97,6 +97,7 @@ const T& EdgeStructInstance<T>::Get(const EdgeVariable<T>* variable) const {
 template <typename T>
 void EdgeStructInstance<T>::Set(
     const EdgeVariable<T>* variable, const T& value) {
+  assert(variable->position() <= values_.size());
   values_[variable->position()] = value;
 }
 
