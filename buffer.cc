@@ -62,6 +62,7 @@ OpenBuffer::OpenBuffer(const string& name)
       child_pid_(-1),
       child_exit_status_(0),
       view_start_line_(0),
+      view_start_column_(0),
       current_position_line_(0),
       current_position_col_(0),
       modified_(false),
