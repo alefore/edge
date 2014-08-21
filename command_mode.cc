@@ -236,14 +236,14 @@ class Delete : public Command {
             (*current_line)->contents,
             buffer->current_position_col(),
             editor_state->repetitions()));
-        (*current_line)->contents = StringAppend(
+        buffer->replace_current_line(shared_ptr<Line>(new Line(StringAppend(
             Substring(
                 (*current_line)->contents,
                 0,
                 buffer->current_position_col()),
             Substring(
                 (*current_line)->contents,
-                buffer->current_position_col() + editor_state->repetitions()));
+                buffer->current_position_col() + editor_state->repetitions())))));
         editor_state->set_repetitions(0);
         continue;
       }

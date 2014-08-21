@@ -66,7 +66,7 @@ int main(int argc, char**argv) {
   assert(editor_state.current_buffer()->second->current_position_line() == 2);
   // This one is incorrect.
   assert(editor_state.current_buffer()->second->ToString()
-         == "jandro\nforero\njandro\nforero\ncuervo\n");
+         == "alejandro\nforero\njandro\nforero\ncuervo\n");
   std::cout << "Pass!\n";
   return 0;
 }
