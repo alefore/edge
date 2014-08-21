@@ -128,8 +128,6 @@ void SetWordCharacters(const string& input, EditorState* editor_state) {
 
 void SetVariableHandler(const string& name, EditorState* editor_state) {
   editor_state->ResetMode();
-  // TODO: Make this nicer, use some structure that has information about the
-  // variables.
   if (name == "word_characters") {
     unique_ptr<Command> command(NewLinePromptCommand(
         "word_characters: ", "", SetWordCharacters));
