@@ -133,16 +133,8 @@ class OpenBuffer {
     current_position_col_ = value;
   }
 
-  void toggle_reload_on_enter() {
-    reload_on_enter_ = !reload_on_enter_;
-  }
-  bool reload_on_enter() const { return reload_on_enter_; }
-  void set_reload_on_enter(bool value) {
-    reload_on_enter_ = value;
-  }
-
   void Enter(EditorState* editor_state) {
-    if (reload_on_enter_) {
+    if (read_bool_variable(variable_reload_on_enter())) {
       Reload(editor_state);
       CheckPosition();
     }
@@ -167,8 +159,10 @@ class OpenBuffer {
   static EdgeStruct<bool>* BoolStruct();
   static EdgeVariable<bool>* variable_pts();
   static EdgeVariable<bool>* variable_close_after_clean_exit();
+  static EdgeVariable<bool>* variable_reload_on_enter();
 
   bool read_bool_variable(const EdgeVariable<bool>* variable);
+  void set_bool_variable(const EdgeVariable<bool>* variable, bool value);
   void toggle_bool_variable(const EdgeVariable<bool>* variable);
 
  protected:
@@ -211,7 +205,6 @@ class OpenBuffer {
   bool reload_after_exit_;
 
   // Variables that can be set from the editor.
-  bool reload_on_enter_;
   // Does this buffer represent a diff?  Changes the way 'Save' behaves.
   bool diff_;
   // If true, lines can't be joined (e.g. you can't delete the last item in a

@@ -130,13 +130,7 @@ void SetVariableHandler(const string& name, EditorState* editor_state) {
   editor_state->ResetMode();
   // TODO: Make this nicer, use some structure that has information about the
   // variables.
-  if (name == "reload_on_enter") {
-    if (!editor_state->has_current_buffer()) { return; }
-    editor_state->current_buffer()->second->toggle_reload_on_enter();
-    editor_state->SetStatus(
-        string("reload_on_enter is ")
-        + (editor_state->current_buffer()->second->reload_on_enter() ? "ON" : "OFF"));
-  } else if (name == "diff") {
+  if (name == "diff") {
     if (!editor_state->has_current_buffer()) { return; }
     editor_state->current_buffer()->second->toggle_diff();
   } else if (name == "atomic_lines") {
@@ -228,7 +222,8 @@ class ListBuffers : public Command {
     editor_state->set_current_buffer(it.first);
     if (it.second) {
       it.first->second.reset(new ListBuffersBuffer(name));
-      it.first->second->set_reload_on_enter(true);
+      it.first->second->set_bool_variable(
+          OpenBuffer::variable_reload_on_enter(), true);
     }
     it.first->second->Reload(editor_state);
     editor_state->ScheduleRedraw();

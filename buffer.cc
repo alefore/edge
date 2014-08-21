@@ -67,7 +67,6 @@ OpenBuffer::OpenBuffer(const string& name)
       modified_(false),
       reading_from_parser_(false),
       reload_after_exit_(false),
-      reload_on_enter_(false),
       diff_(false),
       atomic_lines_(false),
       bool_variables_(BoolStruct()->NewInstance()) {
@@ -291,6 +290,7 @@ string OpenBuffer::FlagsString() const {
     // Trigger registration of all fields.
     OpenBuffer::variable_pts();
     OpenBuffer::variable_close_after_clean_exit();
+    OpenBuffer::variable_reload_on_enter();
   }
   return output;
 }
@@ -315,12 +315,26 @@ string OpenBuffer::FlagsString() const {
   return variable;
 }
 
+/* static */ EdgeVariable<bool>* OpenBuffer::variable_reload_on_enter() {
+  static EdgeVariable<bool>* variable =
+      BoolStruct()->AddVariable(
+          "reload_on_enter",
+          "Should this buffer be reloaded automatically when visited?",
+          false);
+  return variable;
+}
+
 bool OpenBuffer::read_bool_variable(const EdgeVariable<bool>* variable) {
   return bool_variables_.Get(variable);
 }
 
+void OpenBuffer::set_bool_variable(
+    const EdgeVariable<bool>* variable, bool value) {
+  bool_variables_.Set(variable, value);
+}
+
 void OpenBuffer::toggle_bool_variable(const EdgeVariable<bool>* variable) {
-  bool_variables_.Set(variable, !read_bool_variable(variable));
+  set_bool_variable(variable, !read_bool_variable(variable));
 }
 
 void OpenBuffer::set_word_characters(const string& word_characters) {
@@ -334,7 +348,6 @@ void OpenBuffer::CopyVariablesFrom(const shared_ptr<const OpenBuffer>& src) {
   assert(src.get() != nullptr);
   bool_variables_.CopyFrom(src->bool_variables_);
   reload_after_exit_ = src->reload_after_exit_;
-  reload_on_enter_ = src->reload_on_enter_;
   diff_ = src->diff_;
   atomic_lines_ = src->atomic_lines_;
   for (size_t i = 0; i < sizeof(word_characters_); i++) {
