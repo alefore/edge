@@ -10,6 +10,7 @@
 #include "lazy_string.h"
 #include "memory_mapped_file.h"
 #include "substring.h"
+#include "variables.h"
 
 namespace afc {
 namespace editor {
@@ -163,13 +164,16 @@ class OpenBuffer {
   bool atomic_lines() const { return atomic_lines_; }
   void toggle_atomic_lines() { atomic_lines_ = !atomic_lines_; }
 
-  bool pts() const { return pts_; }
-  void toggle_pts() { pts_ = !pts_; }
-
   void set_word_characters(const string& word_characters);
   bool* word_characters() { return word_characters_; }
 
   void CopyVariablesFrom(const shared_ptr<OpenBuffer>& buffer);
+
+  static EdgeStruct<bool>* BoolStruct();
+  static EdgeVariable<bool>* variable_pts();
+
+  bool read_bool_variable(const EdgeVariable<bool>* variable);
+  void toggle_bool_variable(const EdgeVariable<bool>* variable);
 
  protected:
   void EndOfFile(EditorState* editor_state);
@@ -220,11 +224,9 @@ class OpenBuffer {
   // line unless the line is empty).
   bool atomic_lines_;
 
-  // If a command is forked to write to this buffer, should we obtain a
-  // pseudoterminal for it?
-  bool pts_;
-
   bool word_characters_[256];
+
+  EdgeStructInstance<bool> bool_variables_;
 };
 
 }  // namespace editor

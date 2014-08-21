@@ -62,6 +62,8 @@ Create some "barriers" that limit the number of subprocesses.  Set a limit for e
 
 -- Variables
 
+Convert more variables to the new system for defining variables.
+
 Save the contents of the history and variables?
 
 Allow configuration files to specify variables for buffers (by various criteria)

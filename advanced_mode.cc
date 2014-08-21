@@ -152,10 +152,16 @@ void SetVariableHandler(const string& name, EditorState* editor_state) {
     unique_ptr<Command> command(NewLinePromptCommand(
         "word_characters: ", "", SetWordCharacters));
     command->ProcessInput('\n', editor_state);
-  } else if (name == "pts") {
-    if (!editor_state->has_current_buffer()) { return; }
-    editor_state->current_buffer()->second->toggle_pts();
   } else {
+    auto var = OpenBuffer::BoolStruct()->find_variable(name);
+    if (var != nullptr) {
+      if (!editor_state->has_current_buffer()) { return; }
+      auto buffer = editor_state->current_buffer()->second;
+      buffer->toggle_bool_variable(var);
+      editor_state->SetStatus(
+          name + " := " + (buffer->read_bool_variable(var) ? "ON" : "OFF"));
+      return;
+    }
     editor_state->SetStatus("Unknown variable: " + name);
   }
 }
