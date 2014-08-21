@@ -98,9 +98,9 @@ class FileBuffer : public OpenBuffer {
   struct stat stat_buffer_;
 };
 
-static char* realpath_safe(const string& path) {
+static string realpath_safe(const string& path) {
   char* result = realpath(path.c_str(), nullptr);
-  return result == nullptr ? strdup(path.c_str()) : result;
+  return result == nullptr ? path : string(result);
 }
 
 string GetAnonymousBufferName(size_t i) {
@@ -111,25 +111,24 @@ class FileLinkMode : public EditorMode {
  public:
   FileLinkMode(const string& path, size_t line, size_t col,
                const string& pattern)
-      : path_(realpath_safe(path.c_str())),
+      : path_(realpath_safe(path)),
         line_(line),
         col_(col),
         pattern_(pattern) {
-    assert(path_.get() != nullptr);
+    assert(path_ != "");
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
     switch (c) {
       case '\n':
-        afc::editor::OpenFile(
-            editor_state, string(path_.get()), line_, col_, pattern_);
+        afc::editor::OpenFile(editor_state, path_, line_, col_, pattern_);
         return;
 
       case 'd':
         {
-          const string path(path_.get());
+          string path = path_;  // Capture for the lambda.
           unique_ptr<Command> command(NewLinePromptCommand(
-              "rm " + path + "? ",
+              "rm " + path_ + "? ",
               "Confirmation",
               [path](const string input, EditorState* editor_state) {
                 if (input == "yes") {
@@ -150,7 +149,7 @@ class FileLinkMode : public EditorMode {
     }
   }
 
-  unique_ptr<char> path_;
+  string path_;
   size_t line_;
   size_t col_;
   const string pattern_;
