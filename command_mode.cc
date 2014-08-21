@@ -887,12 +887,16 @@ class ActivateLink : public Command {
       buffer->MaybeAdjustPositionCol();
       string line = buffer->current_line()->contents->ToString();
 
-      size_t start = line.find_last_of(' ', buffer->current_position_col());
+      const string& path_characters =
+          buffer->read_string_variable(buffer->variable_path_characters());
+
+      size_t start = line.find_last_not_of(
+          path_characters, buffer->current_position_col());
       if (start != line.npos) {
         line = line.substr(start + 1);
       }
 
-      size_t end = line.find_first_of(' ');
+      size_t end = line.find_first_not_of(path_characters);
       if (end != line.npos) {
         line = line.substr(0, end);
       }

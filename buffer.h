@@ -158,6 +158,7 @@ class OpenBuffer {
 
   static EdgeStruct<string>* StringStruct();
   static EdgeVariable<string>* variable_word_characters();
+  static EdgeVariable<string>* variable_path_characters();
 
   bool read_bool_variable(const EdgeVariable<char>* variable);
   void set_bool_variable(const EdgeVariable<char>* variable, bool value);

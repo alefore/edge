@@ -348,6 +348,7 @@ string OpenBuffer::FlagsString() const {
     output = new EdgeStruct<string>;
     // Trigger registration of all fields.
     OpenBuffer::variable_word_characters();
+    OpenBuffer::variable_path_characters();
   }
   return output;
 }
@@ -358,6 +359,15 @@ string OpenBuffer::FlagsString() const {
       "String with all the characters that should be considered part of a "
       "word.",
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
+  return variable;
+}
+
+/* static */ EdgeVariable<string>* OpenBuffer::variable_path_characters() {
+  static EdgeVariable<string>* variable = StringStruct()->AddVariable(
+      "path_characters",
+      "String with all the characters that should be considered part of a "
+      "path.",
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-.*:");
   return variable;
 }
 
