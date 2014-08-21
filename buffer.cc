@@ -243,6 +243,19 @@ void OpenBuffer::CheckPosition() {
   }
 }
 
+string OpenBuffer::ToString() const {
+  size_t size = 0;
+  for (auto& it : contents_) {
+    size += it->contents->size() + 1;
+  }
+  string output;
+  output.reserve(size);
+  for (auto& it : contents_) {
+    output.append(it->contents->ToString() + "\n");
+  }
+  return output;
+}
+
 void OpenBuffer::SetInputFile(
     int input_fd, bool fd_is_terminal, pid_t child_pid) {
   contents_.clear();

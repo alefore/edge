@@ -56,6 +56,17 @@ int main(int argc, char**argv) {
   editor_state.ProcessInputString("pp");
   assert(editor_state.current_buffer()->second->contents()->size() == 5);
 
+  editor_state.ProcessInputString("slrg");
+  assert(editor_state.current_buffer()->second->current_position_line() == 5);
+
+  editor_state.ProcessInputString("sLhhh");
+  assert(editor_state.current_buffer()->second->current_position_line() == 2);
+
+  editor_state.ProcessInputString("sc3d");
+  assert(editor_state.current_buffer()->second->current_position_line() == 2);
+  // This one is incorrect.
+  assert(editor_state.current_buffer()->second->ToString()
+         == "jandro\nforero\njandro\nforero\ncuervo\n");
   std::cout << "Pass!\n";
   return 0;
 }

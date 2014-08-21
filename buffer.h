@@ -79,6 +79,9 @@ class OpenBuffer {
   shared_ptr<LazyString> current_line_tail() const {
     return Substring(current_line()->contents, current_position_col());
   }
+  // Serializes the buffer into a string.  This is not particularly fast (it's
+  // meant more for debugging/testing rather than for real use).
+  string ToString() const;
 
   void replace_current_line(const shared_ptr<Line>& line) {
     contents_.at(current_position_line_) = line;
