@@ -120,20 +120,29 @@ void OpenFileHandler(const string& name, EditorState* editor_state) {
   mode->ProcessInput('\n', editor_state);
 }
 
-void SetWordCharacters(const string& input, EditorState* editor_state) {
-  editor_state->ResetMode();
-  if (!editor_state->has_current_buffer()) { return; }
-  editor_state->current_buffer()->second->set_string_variable(
-      OpenBuffer::variable_word_characters(), input);
-}
-
 void SetVariableHandler(const string& name, EditorState* editor_state) {
   editor_state->ResetMode();
-  if (name == "word_characters") {
-    unique_ptr<Command> command(NewLinePromptCommand(
-        "word_characters: ", "", SetWordCharacters));
-    command->ProcessInput('\n', editor_state);
-  } else {
+  {
+    const EdgeVariable<string>* var = OpenBuffer::StringStruct()->find_variable(name);
+    if (var != nullptr) {
+      if (!editor_state->has_current_buffer()) { return; }
+      Prompt(
+          editor_state,
+          name + " := ",
+          editor_state->current_buffer()->second->read_string_variable(var),
+          [var](const string& input, EditorState* editor_state) {
+            if (editor_state->has_current_buffer()) {
+              editor_state->current_buffer()
+                  ->second->set_string_variable(var, input);
+            }
+            // ResetMode causes the prompt to be deleted, and the captures of
+            // this lambda go away with it.
+            editor_state->ResetMode();
+          });
+      return;
+    }
+  }
+  {
     auto var = OpenBuffer::BoolStruct()->find_variable(name);
     if (var != nullptr) {
       if (!editor_state->has_current_buffer()) { return; }
@@ -143,8 +152,8 @@ void SetVariableHandler(const string& name, EditorState* editor_state) {
           name + " := " + (buffer->read_bool_variable(var) ? "ON" : "OFF"));
       return;
     }
-    editor_state->SetStatus("Unknown variable: " + name);
   }
+  editor_state->SetStatus("Unknown variable: " + name);
 }
 
 class ActivateBufferLineCommand : public EditorMode {
