@@ -47,6 +47,8 @@ struct EdgeVariable {
 template <typename T>
 class EdgeStructInstance {
  public:
+  void CopyFrom(const EdgeStructInstance<T>& src);
+
   T Get(const EdgeVariable<T>* variable) const;
   void Set(const EdgeVariable<T>* variable, const T& value);
 
@@ -82,6 +84,11 @@ class EdgeStruct {
  private:
   map<string, unique_ptr<EdgeVariable<T>>> variables_;
 };
+
+template <typename T>
+void EdgeStructInstance<T>::CopyFrom(const EdgeStructInstance<T>& src) {
+  values_ = src.values_;
+}
 
 template <typename T>
 T EdgeStructInstance<T>::Get(const EdgeVariable<T>* variable) const {

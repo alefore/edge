@@ -320,8 +320,9 @@ void OpenBuffer::set_word_characters(const string& word_characters) {
   }
 }
 
-void OpenBuffer::CopyVariablesFrom(const shared_ptr<OpenBuffer>& src) {
+void OpenBuffer::CopyVariablesFrom(const shared_ptr<const OpenBuffer>& src) {
   assert(src.get() != nullptr);
+  bool_variables_.CopyFrom(src->bool_variables_);
   reload_after_exit_ = src->reload_after_exit_;
   close_after_clean_exit_ = src->close_after_clean_exit_;
   reload_on_enter_ = src->reload_on_enter_;

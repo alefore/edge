@@ -167,7 +167,7 @@ class OpenBuffer {
   void set_word_characters(const string& word_characters);
   bool* word_characters() { return word_characters_; }
 
-  void CopyVariablesFrom(const shared_ptr<OpenBuffer>& buffer);
+  void CopyVariablesFrom(const shared_ptr<const OpenBuffer>& buffer);
 
   static EdgeStruct<bool>* BoolStruct();
   static EdgeVariable<bool>* variable_pts();
