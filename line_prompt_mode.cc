@@ -19,10 +19,11 @@ const string kHistoryName = "- prompt history";
 
 class LinePromptMode : public EditorMode {
  public:
-  LinePromptMode(const string& prompt, LinePromptHandler handler)
+  LinePromptMode(const string& prompt, const string& initial_value,
+                 LinePromptHandler handler)
       : prompt_(prompt),
         handler_(handler),
-        input_(EditableString::New("")),
+        input_(EditableString::New(initial_value)),
         history_position_(numeric_limits<size_t>::max()) {}
 
   static shared_ptr<OpenBuffer> FindHistoryBuffer(EditorState* editor_state) {
@@ -81,6 +82,10 @@ class LinePromptMode : public EditorMode {
       default:
         input_->Insert(static_cast<char>(c));
     }
+    UpdateStatus(editor_state);
+  }
+
+  void UpdateStatus(EditorState* editor_state) {
     editor_state->SetStatus(prompt_ + input_->ToString());
   }
 
@@ -127,16 +132,7 @@ class LinePromptCommand : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    editor_state->set_mode(std::unique_ptr<EditorMode>(
-        new LinePromptMode(prompt_, handler_)));
-    auto history = editor_state->buffers()->find(kHistoryName);
-    if (history != editor_state->buffers()->end()
-        && !history->second->contents()->empty()) {
-      history->second->set_current_position_line(
-          history->second->contents()->size() - 1);
-    }
-    editor_state->set_status_prompt(true);
-    editor_state->SetStatus(prompt_);
+    Prompt(editor_state, prompt_, "", handler_);
   }
 
  private:
@@ -152,6 +148,23 @@ namespace editor {
 
 using std::unique_ptr;
 using std::shared_ptr;
+
+void Prompt(EditorState* editor_state,
+            const string& prompt,
+            const string& initial_value,
+            LinePromptHandler handler) {
+  std::unique_ptr<LinePromptMode> line_prompt_mode(
+      new LinePromptMode(prompt, initial_value, handler));
+  auto history = editor_state->buffers()->find(kHistoryName);
+  if (history != editor_state->buffers()->end()
+      && !history->second->contents()->empty()) {
+    history->second->set_current_position_line(
+        history->second->contents()->size() - 1);
+  }
+  line_prompt_mode->UpdateStatus(editor_state);
+  editor_state->set_mode(std::move(line_prompt_mode));
+  editor_state->set_status_prompt(true);
+}
 
 unique_ptr<Command> NewLinePromptCommand(
     const string& prompt,

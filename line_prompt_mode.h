@@ -14,6 +14,11 @@ using std::unique_ptr;
 typedef std::function<void(const string& input, EditorState* editor)>
     LinePromptHandler;
 
+void Prompt(EditorState* editor_state,
+            const string& prompt,
+            const string& initial_value,
+            LinePromptHandler handler);
+
 unique_ptr<Command> NewLinePromptCommand(
     const string& prompt, const string& description, LinePromptHandler handler);
 
