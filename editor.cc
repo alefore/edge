@@ -212,5 +212,10 @@ bool EditorState::MovePositionsStack(Direction direction) {
   return true;
 }
 
+void EditorState::ApplyToCurrentBuffer(const Transformation& transformation) {
+  assert(has_current_buffer());
+  current_buffer_->second->Apply(this, transformation);
+}
+
 }  // namespace editor
 }  // namespace afc

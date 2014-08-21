@@ -204,26 +204,27 @@ shared_ptr<Line> OpenBuffer::AppendRawLine(shared_ptr<LazyString> str) {
   return line;
 }
 
-void OpenBuffer::InsertInCurrentPosition(const vector<shared_ptr<Line>>& insertion) {
-  auto begin = insertion.begin();
-  auto end = insertion.end();
-  if (begin == end) { return; }
-  CheckPosition();
-  MaybeAdjustPositionCol();
-  if (!at_beginning_of_line()) {
-    auto tail = current_line_tail();
-    replace_current_line(shared_ptr<Line>(new Line(
-        StringAppend(current_line_head(), (*begin)->contents))));
-    begin++;
-    current_position_col_ = 0;
-    current_position_line_ ++;
-    contents_.insert(contents_.begin() + current_position_line_,
-        shared_ptr<Line>(new Line(tail)));
+void OpenBuffer::InsertInCurrentPosition(
+    const vector<shared_ptr<Line>>& insertion) {
+  InsertInPosition(insertion, current_position_line_, current_position_col_);
+}
+
+void OpenBuffer::InsertInPosition(
+    const vector<shared_ptr<Line>>& insertion, size_t line, size_t column) {
+  if (insertion.empty()) { return; }
+  auto head = Substring(contents_.at(line)->contents, 0, column);
+  auto tail = Substring(contents_.at(line)->contents, column);
+  if (insertion.size() == 1) {
+    contents_.at(line).reset(
+        new Line(StringAppend(head, StringAppend(insertion.at(0)->contents, tail))));
+  } else {
+    contents_.insert(contents_.begin() + line + 1, insertion.begin() + 1, insertion.end());
+    contents_.at(line).reset(
+        new Line(StringAppend(head, (*insertion.begin())->contents)));
+    size_t line_end = line + insertion.size() - 1;
+    contents_.at(line_end).reset(
+        new Line(StringAppend((*insertion.rbegin())->contents, tail)));
   }
-  if (begin == end) { return; }
-  contents_.insert(contents_.begin() + current_position_line_, begin, end);
-  current_position_line_ += end - begin;
-  current_position_col_ = 0;
 }
 
 void OpenBuffer::MaybeAdjustPositionCol() {
@@ -412,6 +413,19 @@ void OpenBuffer::CopyVariablesFrom(const shared_ptr<const OpenBuffer>& src) {
   bool_variables_.CopyFrom(src->bool_variables_);
   string_variables_.CopyFrom(src->string_variables_);
   reload_after_exit_ = src->reload_after_exit_;
+}
+
+void OpenBuffer::Apply(
+    EditorState* editor_state, const Transformation& transformation) {
+  unique_ptr<Transformation> undo = transformation.Apply(editor_state, this);
+  assert(undo != nullptr);
+  undo_history_.push_back(std::move(undo));
+}
+
+void OpenBuffer::Undo(EditorState* editor_state) {
+  if (undo_history_.empty()) { return; }
+  undo_history_.back()->Apply(editor_state, this);
+  undo_history_.pop_back();
 }
 
 }  // namespace editor

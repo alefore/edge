@@ -15,6 +15,7 @@
 namespace afc {
 namespace editor {
 
+using std::list;
 using std::shared_ptr;
 using std::unique_ptr;
 using std::vector;
@@ -39,6 +40,36 @@ struct ParseTree {
   vector<unique_ptr<ParseTree>> items;
 };
 
+class Transformation {
+ public:
+  virtual ~Transformation() {}
+  virtual unique_ptr<Transformation> Apply(
+      EditorState* editor_state, OpenBuffer* buffer) const = 0;
+};
+
+class TransformationStack : public Transformation {
+ public:
+  void PushBack(unique_ptr<Transformation> transformation) {
+    stack_.push_back(std::move(transformation));
+  }
+
+  void PushFront(unique_ptr<Transformation> transformation) {
+    stack_.push_front(std::move(transformation));
+  }
+
+  unique_ptr<Transformation> Apply(
+      EditorState* editor_state, OpenBuffer* buffer) const {
+    unique_ptr<TransformationStack> undo(new TransformationStack());
+    for (auto& it : stack_) {
+      undo->PushFront(it->Apply(editor_state, buffer));
+    }
+    return std::move(undo);
+  }
+
+ private:
+  list<unique_ptr<Transformation>> stack_;
+};
+
 class OpenBuffer {
  public:
   OpenBuffer(const string& name);
@@ -55,7 +86,8 @@ class OpenBuffer {
   shared_ptr<Line> AppendRawLine(shared_ptr<LazyString> str);
 
   void InsertInCurrentPosition(const vector<shared_ptr<Line>>& insertion);
-
+  void InsertInPosition(const vector<shared_ptr<Line>>& insertion,
+                        size_t line, size_t column);
   // Checks that current_position_col is in the expected range (between 0 and
   // the length of the current line).
   void MaybeAdjustPositionCol();
@@ -171,6 +203,9 @@ class OpenBuffer {
   void set_string_variable(const EdgeVariable<string>* variable,
                            const string& value);
 
+  void Apply(EditorState* editor_state, const Transformation& transformation);
+  void Undo(EditorState* editor_state);
+
  protected:
   void EndOfFile(EditorState* editor_state);
 
@@ -217,6 +252,8 @@ class OpenBuffer {
   // temporary variable).
   EdgeStructInstance<char> bool_variables_;
   EdgeStructInstance<string> string_variables_;
+
+  list<unique_ptr<Transformation>> undo_history_;
 };
 
 }  // namespace editor

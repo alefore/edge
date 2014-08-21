@@ -143,6 +143,8 @@ class EditorState {
   const string& home_directory() const { return home_directory_; }
   const vector<string>& edge_path() const { return edge_path_; }
 
+  void ApplyToCurrentBuffer(const Transformation& transformation);
+
  private:
   map<string, shared_ptr<OpenBuffer>> buffers_;
   map<string, shared_ptr<OpenBuffer>>::iterator current_buffer_;
