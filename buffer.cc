@@ -71,7 +71,7 @@ OpenBuffer::OpenBuffer(const string& name)
       reload_on_enter_(false),
       diff_(false),
       atomic_lines_(false),
-      pts_(false) {
+      bool_variables_(BoolStruct()->NewInstance()) {
   set_word_characters(
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
 }
@@ -283,6 +283,34 @@ string OpenBuffer::FlagsString() const {
     }
   }
   return output;
+}
+
+/* static */ EdgeStruct<bool>* OpenBuffer::BoolStruct() {
+  static EdgeStruct<bool>* output = nullptr;
+  if (output == nullptr) {
+    output = new EdgeStruct<bool>;
+    // Trigger registration of all fields.
+    OpenBuffer::variable_pts();
+  }
+  return output;
+}
+
+/* static */ EdgeVariable<bool>* OpenBuffer::variable_pts() {
+  static EdgeVariable<bool>* variable =
+      BoolStruct()->AddVariable(
+          "pts",
+          "If a command is forked that writes to this buffer, should it be run "
+          "with its own pseudoterminal?",
+          false);
+  return variable;
+}
+
+bool OpenBuffer::read_bool_variable(const EdgeVariable<bool>* variable) {
+  return bool_variables_.Get(variable);
+}
+
+void OpenBuffer::toggle_bool_variable(const EdgeVariable<bool>* variable) {
+  bool_variables_.Set(variable, !read_bool_variable(variable));
 }
 
 void OpenBuffer::set_word_characters(const string& word_characters) {

@@ -61,7 +61,7 @@ class CommandBuffer : public OpenBuffer {
     int pipefd[2];
     static const int parent_fd = 0;
     static const int child_fd = 1;
-    if (pts_) {
+    if (read_bool_variable(variable_pts())) {
       int master_fd = posix_openpt(O_RDWR);
       if (master_fd == -1) {
         cerr << "posix_openpt failed: " << string(strerror(errno));
@@ -119,7 +119,8 @@ class CommandBuffer : public OpenBuffer {
       exit(WIFEXITED(status) ? WEXITSTATUS(status) : 1);
     }
     close(pipefd[child_fd]);
-    target->SetInputFile(pipefd[parent_fd], pts_, child_pid);
+    target->SetInputFile(pipefd[parent_fd], read_bool_variable(variable_pts()),
+                         child_pid);
     editor_state->ScheduleRedraw();
   }
 

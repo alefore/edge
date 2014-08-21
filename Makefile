@@ -11,7 +11,7 @@ memory_mapped_file.o: memory_mapped_file.cc memory_mapped_file.h buffer.h lazy_s
 char_buffer.o: char_buffer.cc char_buffer.h buffer.h lazy_string.h
 substring.o: substring.cc substring.h lazy_string.h Makefile
 
-buffer.o: buffer.cc buffer.h editor.h file_link_mode.h lazy_string_append.h run_command_handler.h substring.h Makefile
+buffer.o: buffer.cc buffer.h editor.h file_link_mode.h lazy_string_append.h run_command_handler.h substring.h variables.h Makefile
 editor.o: editor.cc editor.h char_buffer.h substring.h memory_mapped_file.h lazy_string.h Makefile
 direction.o: direction.cc direction.h Makefile
 
