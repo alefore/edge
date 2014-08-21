@@ -260,7 +260,8 @@ class Delete : public Command {
       auto next_line =
           buffer->contents()->begin() + buffer->current_position_line() + 1;
 
-      if (buffer->atomic_lines() && (*next_line)->contents->size() > 0) {
+      if (buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())
+          && (*next_line)->contents->size() > 0) {
         editor_state->set_repetitions(0);
         continue;
       }

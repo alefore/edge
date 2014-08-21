@@ -68,7 +68,6 @@ OpenBuffer::OpenBuffer(const string& name)
       reading_from_parser_(false),
       reload_after_exit_(false),
       diff_(false),
-      atomic_lines_(false),
       bool_variables_(BoolStruct()->NewInstance()) {
   set_word_characters(
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
@@ -291,36 +290,45 @@ string OpenBuffer::FlagsString() const {
     OpenBuffer::variable_pts();
     OpenBuffer::variable_close_after_clean_exit();
     OpenBuffer::variable_reload_on_enter();
+    OpenBuffer::variable_atomic_lines();
   }
   return output;
 }
 
 /* static */ EdgeVariable<bool>* OpenBuffer::variable_pts() {
-  static EdgeVariable<bool>* variable =
-      BoolStruct()->AddVariable(
-          "pts",
-          "If a command is forked that writes to this buffer, should it be run "
-          "with its own pseudoterminal?",
-          false);
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
+      "pts",
+      "If a command is forked that writes to this buffer, should it be run "
+      "with its own pseudoterminal?",
+      false);
   return variable;
 }
 
 /* static */ EdgeVariable<bool>* OpenBuffer::variable_close_after_clean_exit() {
-  static EdgeVariable<bool>* variable =
-      BoolStruct()->AddVariable(
-          "close_after_clean_exit",
-          "If a command is forked that writes to this buffer, should the "
-          "be closed when the command exits with a successful status code?",
-          false);
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
+      "close_after_clean_exit",
+      "If a command is forked that writes to this buffer, should the buffer be "
+      "when the command exits with a successful status code?",
+      false);
   return variable;
 }
 
 /* static */ EdgeVariable<bool>* OpenBuffer::variable_reload_on_enter() {
-  static EdgeVariable<bool>* variable =
-      BoolStruct()->AddVariable(
-          "reload_on_enter",
-          "Should this buffer be reloaded automatically when visited?",
-          false);
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
+      "reload_on_enter",
+      "Should this buffer be reloaded automatically when visited?",
+      false);
+  return variable;
+}
+
+/* static */ EdgeVariable<bool>* OpenBuffer::variable_atomic_lines() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
+      "atomic_lines",
+      "If true, lines can't be joined (e.g. you can't delete the last "
+      "character in a line unless the line is empty).  This is used by certain "
+      "buffers that represent lists of things (each represented as a line), "
+      "for which this is a natural behavior.",
+      false);
   return variable;
 }
 
@@ -349,7 +357,6 @@ void OpenBuffer::CopyVariablesFrom(const shared_ptr<const OpenBuffer>& src) {
   bool_variables_.CopyFrom(src->bool_variables_);
   reload_after_exit_ = src->reload_after_exit_;
   diff_ = src->diff_;
-  atomic_lines_ = src->atomic_lines_;
   for (size_t i = 0; i < sizeof(word_characters_); i++) {
     word_characters_[i] = src->word_characters_[i];
   }

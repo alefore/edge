@@ -133,9 +133,6 @@ void SetVariableHandler(const string& name, EditorState* editor_state) {
   if (name == "diff") {
     if (!editor_state->has_current_buffer()) { return; }
     editor_state->current_buffer()->second->toggle_diff();
-  } else if (name == "atomic_lines") {
-    if (!editor_state->has_current_buffer()) { return; }
-    editor_state->current_buffer()->second->toggle_atomic_lines();
   } else if (name == "word_characters") {
     unique_ptr<Command> command(NewLinePromptCommand(
         "word_characters: ", "", SetWordCharacters));
@@ -193,7 +190,7 @@ class ActivateBufferLineCommand : public EditorMode {
 class ListBuffersBuffer : public OpenBuffer {
  public:
   ListBuffersBuffer(const string& name) : OpenBuffer(name) {
-    atomic_lines_ = true;
+    set_bool_variable(variable_atomic_lines(), true);
   }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {

@@ -48,7 +48,7 @@ class InsertMode : public EditorMode {
             }
             buffer->contents()->erase(previous_line);
           } else {
-            if (buffer->atomic_lines()
+            if (buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())
                 && (*current_line)->contents->size() > 0) { return; }
             line_ = EditableString::New(StringAppend((*previous_line)->contents,
                                                      (*current_line)->contents),
@@ -80,7 +80,7 @@ class InsertMode : public EditorMode {
         return;
       case '\n':
         size_t pos = buffer->current_position_col();
-        if (buffer->atomic_lines()
+        if (buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())
             && pos != 0
             && pos != buffer->current_line()->contents->size()) {
           return;

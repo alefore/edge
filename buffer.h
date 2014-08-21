@@ -148,8 +148,6 @@ class OpenBuffer {
   void SetInputFile(int fd, bool fd_is_terminal, pid_t child_pid);
 
   void toggle_diff() { diff_ = !diff_; }
-  bool atomic_lines() const { return atomic_lines_; }
-  void toggle_atomic_lines() { atomic_lines_ = !atomic_lines_; }
 
   void set_word_characters(const string& word_characters);
   bool* word_characters() { return word_characters_; }
@@ -160,6 +158,7 @@ class OpenBuffer {
   static EdgeVariable<bool>* variable_pts();
   static EdgeVariable<bool>* variable_close_after_clean_exit();
   static EdgeVariable<bool>* variable_reload_on_enter();
+  static EdgeVariable<bool>* variable_atomic_lines();
 
   bool read_bool_variable(const EdgeVariable<bool>* variable);
   void set_bool_variable(const EdgeVariable<bool>* variable, bool value);
@@ -207,9 +206,6 @@ class OpenBuffer {
   // Variables that can be set from the editor.
   // Does this buffer represent a diff?  Changes the way 'Save' behaves.
   bool diff_;
-  // If true, lines can't be joined (e.g. you can't delete the last item in a
-  // line unless the line is empty).
-  bool atomic_lines_;
 
   bool word_characters_[256];
 

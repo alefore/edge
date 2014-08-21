@@ -52,7 +52,7 @@ class FileBuffer : public OpenBuffer {
       return;
     }
 
-    atomic_lines_ = true;
+    set_bool_variable(variable_atomic_lines(), true);
 
     unique_ptr<Line> line(new Line);
     line->contents.reset(NewCopyString("File listing: " + path_).release());
