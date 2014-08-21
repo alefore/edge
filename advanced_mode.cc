@@ -130,10 +130,7 @@ void SetVariableHandler(const string& name, EditorState* editor_state) {
   editor_state->ResetMode();
   // TODO: Make this nicer, use some structure that has information about the
   // variables.
-  if (name == "diff") {
-    if (!editor_state->has_current_buffer()) { return; }
-    editor_state->current_buffer()->second->toggle_diff();
-  } else if (name == "word_characters") {
+  if (name == "word_characters") {
     unique_ptr<Command> command(NewLinePromptCommand(
         "word_characters: ", "", SetWordCharacters));
     command->ProcessInput('\n', editor_state);

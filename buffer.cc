@@ -67,7 +67,6 @@ OpenBuffer::OpenBuffer(const string& name)
       modified_(false),
       reading_from_parser_(false),
       reload_after_exit_(false),
-      diff_(false),
       bool_variables_(BoolStruct()->NewInstance()) {
   set_word_characters(
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
@@ -153,7 +152,7 @@ void OpenBuffer::Reload(EditorState* editor_state) {
 }
 
 void OpenBuffer::Save(EditorState* editor_state) {
-  if (diff_) {
+  if (read_bool_variable(variable_diff())) {
     SaveDiff(editor_state, this);
     return;
   }
@@ -291,6 +290,7 @@ string OpenBuffer::FlagsString() const {
     OpenBuffer::variable_close_after_clean_exit();
     OpenBuffer::variable_reload_on_enter();
     OpenBuffer::variable_atomic_lines();
+    OpenBuffer::variable_diff();
   }
   return output;
 }
@@ -332,6 +332,17 @@ string OpenBuffer::FlagsString() const {
   return variable;
 }
 
+/* static */ EdgeVariable<bool>* OpenBuffer::variable_diff() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
+      "diff",
+      "Does this buffer represent a diff?  If true, when it gets saved the "
+      "original contents are reloaded into a separate buffer, an attempt is "
+      "made to revert them and then an attempt is made to apply the new "
+      "contents.",
+      false);
+  return variable;
+}
+
 bool OpenBuffer::read_bool_variable(const EdgeVariable<bool>* variable) {
   return bool_variables_.Get(variable);
 }
@@ -356,7 +367,6 @@ void OpenBuffer::CopyVariablesFrom(const shared_ptr<const OpenBuffer>& src) {
   assert(src.get() != nullptr);
   bool_variables_.CopyFrom(src->bool_variables_);
   reload_after_exit_ = src->reload_after_exit_;
-  diff_ = src->diff_;
   for (size_t i = 0; i < sizeof(word_characters_); i++) {
     word_characters_[i] = src->word_characters_[i];
   }

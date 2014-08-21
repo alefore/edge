@@ -147,8 +147,6 @@ class OpenBuffer {
 
   void SetInputFile(int fd, bool fd_is_terminal, pid_t child_pid);
 
-  void toggle_diff() { diff_ = !diff_; }
-
   void set_word_characters(const string& word_characters);
   bool* word_characters() { return word_characters_; }
 
@@ -159,6 +157,7 @@ class OpenBuffer {
   static EdgeVariable<bool>* variable_close_after_clean_exit();
   static EdgeVariable<bool>* variable_reload_on_enter();
   static EdgeVariable<bool>* variable_atomic_lines();
+  static EdgeVariable<bool>* variable_diff();
 
   bool read_bool_variable(const EdgeVariable<bool>* variable);
   void set_bool_variable(const EdgeVariable<bool>* variable, bool value);
@@ -202,10 +201,6 @@ class OpenBuffer {
   // them just set this and kill the underlying process (so that we can avoid
   // blocking the whole process waiting for the process to exit).
   bool reload_after_exit_;
-
-  // Variables that can be set from the editor.
-  // Does this buffer represent a diff?  Changes the way 'Save' behaves.
-  bool diff_;
 
   bool word_characters_[256];
 
