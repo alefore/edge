@@ -48,8 +48,7 @@ template <typename T>
 class EdgeStructInstance {
  public:
   void CopyFrom(const EdgeStructInstance<T>& src);
-
-  T Get(const EdgeVariable<T>* variable) const;
+  const T& Get(const EdgeVariable<T>* variable) const;
   void Set(const EdgeVariable<T>* variable, const T& value);
 
  private:
@@ -91,8 +90,8 @@ void EdgeStructInstance<T>::CopyFrom(const EdgeStructInstance<T>& src) {
 }
 
 template <typename T>
-T EdgeStructInstance<T>::Get(const EdgeVariable<T>* variable) const {
-  return values_[variable->position()];
+const T& EdgeStructInstance<T>::Get(const EdgeVariable<T>* variable) const {
+  return values_.at(variable->position());
 }
 
 template <typename T>

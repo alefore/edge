@@ -147,21 +147,25 @@ class OpenBuffer {
 
   void SetInputFile(int fd, bool fd_is_terminal, pid_t child_pid);
 
-  void set_word_characters(const string& word_characters);
-  bool* word_characters() { return word_characters_; }
-
   void CopyVariablesFrom(const shared_ptr<const OpenBuffer>& buffer);
 
-  static EdgeStruct<bool>* BoolStruct();
-  static EdgeVariable<bool>* variable_pts();
-  static EdgeVariable<bool>* variable_close_after_clean_exit();
-  static EdgeVariable<bool>* variable_reload_on_enter();
-  static EdgeVariable<bool>* variable_atomic_lines();
-  static EdgeVariable<bool>* variable_diff();
+  static EdgeStruct<char>* BoolStruct();
+  static EdgeVariable<char>* variable_pts();
+  static EdgeVariable<char>* variable_close_after_clean_exit();
+  static EdgeVariable<char>* variable_reload_on_enter();
+  static EdgeVariable<char>* variable_atomic_lines();
+  static EdgeVariable<char>* variable_diff();
 
-  bool read_bool_variable(const EdgeVariable<bool>* variable);
-  void set_bool_variable(const EdgeVariable<bool>* variable, bool value);
-  void toggle_bool_variable(const EdgeVariable<bool>* variable);
+  static EdgeStruct<string>* StringStruct();
+  static EdgeVariable<string>* variable_word_characters();
+
+  bool read_bool_variable(const EdgeVariable<char>* variable);
+  void set_bool_variable(const EdgeVariable<char>* variable, bool value);
+  void toggle_bool_variable(const EdgeVariable<char>* variable);
+
+  const string& read_string_variable(const EdgeVariable<string>* variable);
+  void set_string_variable(const EdgeVariable<string>* variable,
+                           const string& value);
 
  protected:
   void EndOfFile(EditorState* editor_state);
@@ -202,9 +206,13 @@ class OpenBuffer {
   // blocking the whole process waiting for the process to exit).
   bool reload_after_exit_;
 
-  bool word_characters_[256];
-
-  EdgeStructInstance<bool> bool_variables_;
+  // This uses char rather than bool because vector<bool>::iterator does not
+  // yield a bool& when dereferenced, which makes EdgeStructInstance<bool>
+  // incompatible with other template specializations
+  // (EdgeStructInstance<bool>::Get would be returning a reference to a
+  // temporary variable).
+  EdgeStructInstance<char> bool_variables_;
+  EdgeStructInstance<string> string_variables_;
 };
 
 }  // namespace editor

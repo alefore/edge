@@ -67,9 +67,8 @@ OpenBuffer::OpenBuffer(const string& name)
       modified_(false),
       reading_from_parser_(false),
       reload_after_exit_(false),
-      bool_variables_(BoolStruct()->NewInstance()) {
-  set_word_characters(
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
+      bool_variables_(BoolStruct()->NewInstance()),
+      string_variables_(StringStruct()->NewInstance()) {
 }
 
 void OpenBuffer::EndOfFile(EditorState* editor_state) {
@@ -281,10 +280,10 @@ string OpenBuffer::FlagsString() const {
   return output;
 }
 
-/* static */ EdgeStruct<bool>* OpenBuffer::BoolStruct() {
-  static EdgeStruct<bool>* output = nullptr;
+/* static */ EdgeStruct<char>* OpenBuffer::BoolStruct() {
+  static EdgeStruct<char>* output = nullptr;
   if (output == nullptr) {
-    output = new EdgeStruct<bool>;
+    output = new EdgeStruct<char>;
     // Trigger registration of all fields.
     OpenBuffer::variable_pts();
     OpenBuffer::variable_close_after_clean_exit();
@@ -295,8 +294,8 @@ string OpenBuffer::FlagsString() const {
   return output;
 }
 
-/* static */ EdgeVariable<bool>* OpenBuffer::variable_pts() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
+/* static */ EdgeVariable<char>* OpenBuffer::variable_pts() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
       "pts",
       "If a command is forked that writes to this buffer, should it be run "
       "with its own pseudoterminal?",
@@ -304,8 +303,8 @@ string OpenBuffer::FlagsString() const {
   return variable;
 }
 
-/* static */ EdgeVariable<bool>* OpenBuffer::variable_close_after_clean_exit() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
+/* static */ EdgeVariable<char>* OpenBuffer::variable_close_after_clean_exit() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
       "close_after_clean_exit",
       "If a command is forked that writes to this buffer, should the buffer be "
       "when the command exits with a successful status code?",
@@ -313,16 +312,16 @@ string OpenBuffer::FlagsString() const {
   return variable;
 }
 
-/* static */ EdgeVariable<bool>* OpenBuffer::variable_reload_on_enter() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
+/* static */ EdgeVariable<char>* OpenBuffer::variable_reload_on_enter() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
       "reload_on_enter",
       "Should this buffer be reloaded automatically when visited?",
       false);
   return variable;
 }
 
-/* static */ EdgeVariable<bool>* OpenBuffer::variable_atomic_lines() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
+/* static */ EdgeVariable<char>* OpenBuffer::variable_atomic_lines() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
       "atomic_lines",
       "If true, lines can't be joined (e.g. you can't delete the last "
       "character in a line unless the line is empty).  This is used by certain "
@@ -332,9 +331,9 @@ string OpenBuffer::FlagsString() const {
   return variable;
 }
 
-/* static */ EdgeVariable<bool>* OpenBuffer::variable_diff() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      "diff",
+/* static */ EdgeVariable<char>* OpenBuffer::variable_diff() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+      "",
       "Does this buffer represent a diff?  If true, when it gets saved the "
       "original contents are reloaded into a separate buffer, an attempt is "
       "made to revert them and then an attempt is made to apply the new "
@@ -343,33 +342,52 @@ string OpenBuffer::FlagsString() const {
   return variable;
 }
 
-bool OpenBuffer::read_bool_variable(const EdgeVariable<bool>* variable) {
-  return bool_variables_.Get(variable);
+/* static */ EdgeStruct<string>* OpenBuffer::StringStruct() {
+  static EdgeStruct<string>* output = nullptr;
+  if (output == nullptr) {
+    output = new EdgeStruct<string>;
+    // Trigger registration of all fields.
+    OpenBuffer::variable_word_characters();
+  }
+  return output;
+}
+
+/* static */ EdgeVariable<string>* OpenBuffer::variable_word_characters() {
+  static EdgeVariable<string>* variable = StringStruct()->AddVariable(
+      "word_characters",
+      "String with all the characters that should be considered part of a "
+      "word.",
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
+  return variable;
+}
+
+bool OpenBuffer::read_bool_variable(const EdgeVariable<char>* variable) {
+  return static_cast<bool>(bool_variables_.Get(variable));
 }
 
 void OpenBuffer::set_bool_variable(
-    const EdgeVariable<bool>* variable, bool value) {
-  bool_variables_.Set(variable, value);
+    const EdgeVariable<char>* variable, bool value) {
+  bool_variables_.Set(variable, static_cast<char>(value));
 }
 
-void OpenBuffer::toggle_bool_variable(const EdgeVariable<bool>* variable) {
+void OpenBuffer::toggle_bool_variable(const EdgeVariable<char>* variable) {
   set_bool_variable(variable, !read_bool_variable(variable));
 }
 
-void OpenBuffer::set_word_characters(const string& word_characters) {
-  for (size_t i = 0; i < sizeof(word_characters_); i++) {
-    word_characters_[i] = word_characters.find(static_cast<char>(i))
-        != word_characters.npos;
-  }
+const string& OpenBuffer::read_string_variable(const EdgeVariable<string>* variable) {
+  return string_variables_.Get(variable);
+}
+
+void OpenBuffer::set_string_variable(
+    const EdgeVariable<string>* variable, const string& value) {
+  string_variables_.Set(variable, value);
 }
 
 void OpenBuffer::CopyVariablesFrom(const shared_ptr<const OpenBuffer>& src) {
   assert(src.get() != nullptr);
   bool_variables_.CopyFrom(src->bool_variables_);
+  string_variables_.CopyFrom(src->string_variables_);
   reload_after_exit_ = src->reload_after_exit_;
-  for (size_t i = 0; i < sizeof(word_characters_); i++) {
-    word_characters_[i] = src->word_characters_[i];
-  }
 }
 
 }  // namespace editor

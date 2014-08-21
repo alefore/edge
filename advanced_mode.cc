@@ -123,7 +123,8 @@ void OpenFileHandler(const string& name, EditorState* editor_state) {
 void SetWordCharacters(const string& input, EditorState* editor_state) {
   editor_state->ResetMode();
   if (!editor_state->has_current_buffer()) { return; }
-  editor_state->current_buffer()->second->set_word_characters(input);
+  editor_state->current_buffer()->second->set_string_variable(
+      OpenBuffer::variable_word_characters(), input);
 }
 
 void SetVariableHandler(const string& name, EditorState* editor_state) {

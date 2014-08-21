@@ -572,19 +572,20 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
         buffer->CheckPosition();
         buffer->MaybeAdjustPositionCol();
         editor_state->PushCurrentPosition();
-        const bool* is_word = buffer->word_characters();
+        const string& word_characters =
+            buffer->read_string_variable(buffer->variable_word_characters());
         while (editor_state->repetitions() > 0) {
-          // Seek forwards until we're in a whitespace.
+          // Seek forwards until we're not in a word character.
           while (buffer->current_position_col() < buffer->current_line()->size()
-                 && is_word[static_cast<int>(buffer->current_character())]) {
+                 && word_characters.find(buffer->current_character()) != string::npos) {
             buffer->set_current_position_col(buffer->current_position_col() + 1);
           }
 
-          // Seek forwards until we're in a non-whitespace.
+          // Seek forwards until we're in a word character.
           bool advanced = false;
           while (!buffer->at_end()
                  && (buffer->current_position_col() == buffer->current_line()->contents->size()
-                     || !is_word[static_cast<int>(buffer->current_character())])) {
+                     || word_characters.find(buffer->current_character()) == string::npos)) {
             if (buffer->current_position_col() == buffer->current_line()->contents->size()) {
               buffer->set_current_position_line(buffer->current_position_line() + 1);
               buffer->set_current_position_col(0);
@@ -665,19 +666,20 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
         buffer->CheckPosition();
         buffer->MaybeAdjustPositionCol();
         editor_state->PushCurrentPosition();
-        const bool* is_word = buffer->word_characters();
+        const string& word_characters =
+            buffer->read_string_variable(buffer->variable_word_characters());
         while (editor_state->repetitions() > 0) {
-          // Seek backwards until we're just after a whitespace.
+          // Seek backwards until we're not after a word character.
           while (buffer->current_position_col() > 0
-                 && is_word[static_cast<int>(buffer->previous_character())]) {
+                 && word_characters.find(buffer->previous_character()) != string::npos) {
             buffer->set_current_position_col(buffer->current_position_col() - 1);
           }
 
-          // Seek backwards until we're just after a non-whitespace.
+          // Seek backwards until we're just after a word character.
           bool advanced = false;
           while (!buffer->at_beginning()
                  && (buffer->at_beginning_of_line()
-                     || !is_word[static_cast<int>(buffer->previous_character())])) {
+                     || word_characters.find(buffer->previous_character()) == string::npos)) {
             if (buffer->at_beginning_of_line()) {
               buffer->set_current_position_line(buffer->current_position_line() - 1);
               buffer->set_current_position_col(buffer->current_line()->contents->size());
