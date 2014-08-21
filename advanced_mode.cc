@@ -136,12 +136,6 @@ void SetVariableHandler(const string& name, EditorState* editor_state) {
     editor_state->SetStatus(
         string("reload_on_enter is ")
         + (editor_state->current_buffer()->second->reload_on_enter() ? "ON" : "OFF"));
-  } else if (name == "close_after_clean_exit") {
-    if (!editor_state->has_current_buffer()) { return; }
-    editor_state->current_buffer()->second->toggle_close_after_clean_exit();
-    editor_state->SetStatus(
-        string("close_after_clean_exit is ")
-        + (editor_state->current_buffer()->second->close_after_clean_exit() ? "ON" : "OFF"));
   } else if (name == "diff") {
     if (!editor_state->has_current_buffer()) { return; }
     editor_state->current_buffer()->second->toggle_diff();

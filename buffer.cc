@@ -67,7 +67,6 @@ OpenBuffer::OpenBuffer(const string& name)
       modified_(false),
       reading_from_parser_(false),
       reload_after_exit_(false),
-      close_after_clean_exit_(false),
       reload_on_enter_(false),
       diff_(false),
       atomic_lines_(false),
@@ -91,7 +90,7 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
     reload_after_exit_ = false;
     Reload(editor_state);
   }
-  if (close_after_clean_exit_
+  if (read_bool_variable(variable_close_after_clean_exit())
       && WIFEXITED(child_exit_status_)
       && WEXITSTATUS(child_exit_status_) == 0) {
     auto it = editor_state->buffers()->find(name_);
@@ -291,6 +290,7 @@ string OpenBuffer::FlagsString() const {
     output = new EdgeStruct<bool>;
     // Trigger registration of all fields.
     OpenBuffer::variable_pts();
+    OpenBuffer::variable_close_after_clean_exit();
   }
   return output;
 }
@@ -301,6 +301,16 @@ string OpenBuffer::FlagsString() const {
           "pts",
           "If a command is forked that writes to this buffer, should it be run "
           "with its own pseudoterminal?",
+          false);
+  return variable;
+}
+
+/* static */ EdgeVariable<bool>* OpenBuffer::variable_close_after_clean_exit() {
+  static EdgeVariable<bool>* variable =
+      BoolStruct()->AddVariable(
+          "close_after_clean_exit",
+          "If a command is forked that writes to this buffer, should the "
+          "be closed when the command exits with a successful status code?",
           false);
   return variable;
 }
@@ -324,7 +334,6 @@ void OpenBuffer::CopyVariablesFrom(const shared_ptr<const OpenBuffer>& src) {
   assert(src.get() != nullptr);
   bool_variables_.CopyFrom(src->bool_variables_);
   reload_after_exit_ = src->reload_after_exit_;
-  close_after_clean_exit_ = src->close_after_clean_exit_;
   reload_on_enter_ = src->reload_on_enter_;
   diff_ = src->diff_;
   atomic_lines_ = src->atomic_lines_;

@@ -133,11 +133,6 @@ class OpenBuffer {
     current_position_col_ = value;
   }
 
-  void toggle_close_after_clean_exit() {
-    close_after_clean_exit_ = !close_after_clean_exit_;
-  }
-  bool close_after_clean_exit() const { return close_after_clean_exit_; }
-
   void toggle_reload_on_enter() {
     reload_on_enter_ = !reload_on_enter_;
   }
@@ -171,6 +166,7 @@ class OpenBuffer {
 
   static EdgeStruct<bool>* BoolStruct();
   static EdgeVariable<bool>* variable_pts();
+  static EdgeVariable<bool>* variable_close_after_clean_exit();
 
   bool read_bool_variable(const EdgeVariable<bool>* variable);
   void toggle_bool_variable(const EdgeVariable<bool>* variable);
@@ -213,8 +209,6 @@ class OpenBuffer {
   // them just set this and kill the underlying process (so that we can avoid
   // blocking the whole process waiting for the process to exit).
   bool reload_after_exit_;
-
-  bool close_after_clean_exit_;
 
   // Variables that can be set from the editor.
   bool reload_on_enter_;
