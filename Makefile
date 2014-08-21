@@ -2,7 +2,7 @@ CPPFLAGS=-std=c++0x -g -Wall
 LDFLAGS=-std=c++0x -g
 LDLIBS=-lncurses
 
-all: edge
+all: edge test
 
 main.o: main.cc editor.h file_link_mode.h terminal.h Makefile
 terminal.o: terminal.cc terminal.h editor.h Makefile
@@ -35,6 +35,8 @@ lazy_string.o: lazy_string.cc lazy_string.h Makefile
 editable_string.o: editable_string.cc editable_string.h Makefile
 lazy_string_append.o: lazy_string_append.cc lazy_string_append.h lazy_string.h Makefile
 
-OBJS=advanced_mode.o buffer.o char_buffer.o command_mode.o direction.o editable_string.o editor.o file_link_mode.o find_mode.o help_command.o insert_mode.o lazy_string.o lazy_string_append.o line_prompt_mode.o main.o map_mode.o memory_mapped_file.o noop_command.o repeat_mode.o run_command_handler.o search_handler.o substring.o terminal.o
-edge: $(OBJS)
-	$(CXX) $(LDFLAGS) -o edge $(OBJS) $(LDLIBS)
+LIB=advanced_mode.o buffer.o char_buffer.o command_mode.o direction.o editable_string.o editor.o file_link_mode.o find_mode.o help_command.o insert_mode.o lazy_string.o lazy_string_append.o line_prompt_mode.o map_mode.o memory_mapped_file.o noop_command.o repeat_mode.o run_command_handler.o search_handler.o substring.o terminal.o
+edge: main.o $(LIB)
+	$(CXX) $(LDFLAGS) -o edge $(LIB) main.o $(LDLIBS)
+test: test.o $(LIB)
+	$(CXX) $(LDFLAGS) -o test $(LIB) test.o $(LDLIBS)

@@ -101,6 +101,16 @@ class EditorState {
   Structure default_structure() const { return default_structure_; }
   void set_default_structure(Structure structure);
 
+  void ProcessInputString(const string& input) {
+    for (size_t i = 0; i < input.size(); ++i) {
+      ProcessInput(input[i]);
+    }
+  }
+
+  void ProcessInput(int c) {
+    mode()->ProcessInput(c, this);
+  }
+
   EditorMode* mode() const { return mode_.get(); }
   void ResetMode() {
     mode_ = NewCommandMode();
