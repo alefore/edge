@@ -223,12 +223,14 @@ bool SaveContentsToOpenFile(
     EditorState* editor_state, OpenBuffer* buffer, const string& path,
     int fd) {
   // TODO: It'd be significant more efficient to do fewer (bigger) writes.
-  for (const auto& line : *buffer->contents()) {
-    const auto& str = *line->contents;
-    char* tmp = static_cast<char*>(malloc(str.size() + 1));
-    strcpy(tmp, str.ToString().c_str());
-    tmp[str.size()] = '\n';
-    int write_result = write(fd, tmp, str.size() + 1);
+  for (auto it = buffer->contents()->begin(); it != buffer->contents()->end();
+       ++it) {
+    const auto& str = (*it)->contents;
+    char* tmp = static_cast<char*>(malloc(str->size() + 1));
+    strcpy(tmp, str->ToString().c_str());
+    tmp[str->size()] = '\n';
+    bool include_newline = it + 1 != buffer->contents()->end();
+    int write_result = write(fd, tmp, str->size() + (include_newline ? 1 : 0));
     free(tmp);
     if (write_result == -1) {
       editor_state->SetStatus(
@@ -293,5 +295,3 @@ unique_ptr<EditorMode> NewFileLinkMode(
 
 }  // namespace afc
 }  // namespace editor
-
-
