@@ -56,10 +56,10 @@ class LinePromptMode : public EditorMode {
       case Terminal::UP_ARROW:
         {
           auto buffer = FindHistoryBuffer(editor_state);
-          if (buffer == nullptr || buffer->contents()->empty()) { return; }
+          if (buffer == nullptr) { return; }
           if (history_position_ > 0) {
             history_position_ =
-              min(history_position_, buffer->contents()->size()) - 1;
+                min(history_position_, buffer->contents()->size()) - 1;
           }
           SetInputFromCurrentLine(buffer);
         }
@@ -68,7 +68,7 @@ class LinePromptMode : public EditorMode {
       case Terminal::DOWN_ARROW:
         {
           auto buffer = FindHistoryBuffer(editor_state);
-          if (buffer == nullptr || buffer->contents()->empty()) { return; }
+          if (buffer == nullptr) { return; }
           history_position_ =
               min(history_position_, buffer->contents()->size() - 1) + 1;
           if (history_position_ < buffer->contents()->size()) {
@@ -91,7 +91,7 @@ class LinePromptMode : public EditorMode {
 
  private:
   void SetInputFromCurrentLine(const shared_ptr<OpenBuffer>& buffer) {
-    if (buffer == nullptr || buffer->contents()->empty()) {
+    if (buffer == nullptr) {
       input_ = EditableString::New("");
       return;
     }
@@ -156,11 +156,9 @@ void Prompt(EditorState* editor_state,
   std::unique_ptr<LinePromptMode> line_prompt_mode(
       new LinePromptMode(prompt, initial_value, handler));
   auto history = editor_state->buffers()->find(kHistoryName);
-  if (history != editor_state->buffers()->end()
-      && !history->second->contents()->empty()) {
-    history->second->set_current_position_line(
-        history->second->contents()->size() - 1);
-  }
+  assert(!history->second->contents()->empty());
+  history->second->set_current_position_line(
+      history->second->contents()->size() - 1);
   line_prompt_mode->UpdateStatus(editor_state);
   editor_state->set_mode(std::move(line_prompt_mode));
   editor_state->set_status_prompt(true);

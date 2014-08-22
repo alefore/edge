@@ -86,6 +86,8 @@ class OpenBuffer {
 
   OpenBuffer(const string& name);
 
+  void ClearContents();
+
   virtual void ReloadInto(EditorState* editor_state, OpenBuffer* target) {}
   virtual void Save(EditorState* editor_state);
 
@@ -94,8 +96,8 @@ class OpenBuffer {
   void Reload(EditorState* editor_state);
 
   void AppendLazyString(shared_ptr<LazyString> input);
-  shared_ptr<Line> AppendLine(shared_ptr<LazyString> line);
-  shared_ptr<Line> AppendRawLine(shared_ptr<LazyString> str);
+  void AppendLine(shared_ptr<LazyString> line);
+  void AppendRawLine(shared_ptr<LazyString> str);
 
   Position InsertInCurrentPosition(const vector<shared_ptr<Line>>& insertion);
   Position InsertInPosition(

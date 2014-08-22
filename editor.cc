@@ -151,7 +151,8 @@ void EditorState::PushCurrentPosition() {
         make_pair(kPositionsBufferName, new OpenBuffer(kPositionsBufferName)))
         .first;
   }
-  assert(it->second.get() != nullptr);
+  assert(it->second != nullptr);
+  assert(!it->second->contents()->empty());
   shared_ptr<Line> line(new Line());
   line->contents = NewCopyString(
       to_string(current_buffer_->second->current_position_line())
@@ -159,8 +160,7 @@ void EditorState::PushCurrentPosition() {
       + " " + current_buffer_->first);
   it->second->contents()->insert(
       it->second->contents()->begin()
-      + it->second->current_position_line()
-      + (it->second->contents()->empty() ? 0 : 1),
+      + it->second->current_position_line() + 1,
       line);
   if (it->second->current_position_line() + 1 < it->second->contents()->size()) {
     it->second->set_current_position_line(
@@ -182,7 +182,8 @@ static Position PositionFromLine(const string& line) {
 
 bool EditorState::HasPositionsInStack() {
   auto it = buffers_.find(kPositionsBufferName);
-  return it != buffers_.end() && !it->second->contents()->empty();
+  return it != buffers_.end()
+      && it->second->contents()->size() > 1;
 }
 
 Position EditorState::ReadPositionsStack() {

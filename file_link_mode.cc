@@ -38,7 +38,7 @@ class FileBuffer : public OpenBuffer {
       return;
     }
 
-    target->contents()->clear();
+    target->ClearContents();
     editor_state->ScheduleRedraw();
 
     if (!S_ISDIR(stat_buffer_.st_mode)) {
@@ -53,21 +53,15 @@ class FileBuffer : public OpenBuffer {
     }
 
     set_bool_variable(variable_atomic_lines(), true);
-
-    unique_ptr<Line> line(new Line);
-    line->contents.reset(NewCopyString("File listing: " + path_).release());
-    target->contents()->push_back(std::move(line));
+    target->AppendLine(shared_ptr<LazyString>(
+        NewCopyString("File listing: " + path_).release()));
 
     DIR* dir = opendir(path_.c_str());
     assert(dir != nullptr);
     struct dirent* entry;
     while ((entry = readdir(dir)) != nullptr) {
-      unique_ptr<Line> line(new Line);
-      line->contents.reset(NewCopyCharBuffer(entry->d_name).release());
-      line->activate.reset(
-          NewFileLinkMode(editor_state, path_ + "/" + entry->d_name, 0, false)
-              .release());
-      target->contents()->push_back(std::move(line));
+      target->AppendLine(shared_ptr<LazyString>(
+          NewCopyCharBuffer(entry->d_name).release()));
     }
     closedir(dir);
 
@@ -77,7 +71,7 @@ class FileBuffer : public OpenBuffer {
       }
     } compare;
 
-    sort(target->contents()->begin() + 1, target->contents()->end(), compare);
+    sort(target->contents()->begin() + 1, target->contents()->end() - 1, compare);
     editor_state->CheckPosition();
   }
 
@@ -299,3 +293,5 @@ unique_ptr<EditorMode> NewFileLinkMode(
 
 }  // namespace afc
 }  // namespace editor
+
+

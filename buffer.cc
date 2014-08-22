@@ -69,6 +69,12 @@ OpenBuffer::OpenBuffer(const string& name)
       reload_after_exit_(false),
       bool_variables_(BoolStruct()->NewInstance()),
       string_variables_(StringStruct()->NewInstance()) {
+  ClearContents();
+}
+
+void OpenBuffer::ClearContents() {
+  contents_.clear();
+  contents_.push_back(shared_ptr<Line>(new Line(EmptyString())));
 }
 
 void OpenBuffer::EndOfFile(EditorState* editor_state) {
@@ -174,7 +180,8 @@ static void AddToParseTree(const shared_ptr<LazyString>& str_input) {
   string str = str_input->ToString();
 }
 
-shared_ptr<Line> OpenBuffer::AppendLine(shared_ptr<LazyString> str) {
+void OpenBuffer::AppendLine(shared_ptr<LazyString> str) {
+  assert(str != nullptr);
   if (reading_from_parser_) {
     switch (str->get(0)) {
       case 'E':
@@ -182,26 +189,26 @@ shared_ptr<Line> OpenBuffer::AppendLine(shared_ptr<LazyString> str) {
 
       case 'T':
         AddToParseTree(str);
-        return nullptr;
+        return;
     }
-    return nullptr;
+    return;
   }
 
   if (contents_.empty()) {
     if (str->ToString() == "EDGE PARSER v1.0") {
       reading_from_parser_ = true;
-      return nullptr;
+      return;
     }
   }
 
-  return AppendRawLine(str);
+  AppendRawLine(str);
 }
 
-shared_ptr<Line> OpenBuffer::AppendRawLine(shared_ptr<LazyString> str) {
-  shared_ptr<Line> line(new Line);
-  line->contents = str;
-  contents_.push_back(line);
-  return line;
+void OpenBuffer::AppendRawLine(shared_ptr<LazyString> str) {
+  assert(!contents_.empty());
+  (*contents_.rbegin()).reset(new Line(
+      StringAppend((*contents_.rbegin())->contents, str)));
+  contents_.push_back(shared_ptr<Line>(new Line(EmptyString())));
 }
 
 OpenBuffer::Position OpenBuffer::InsertInCurrentPosition(
@@ -265,7 +272,7 @@ string OpenBuffer::ToString() const {
 
 void OpenBuffer::SetInputFile(
     int input_fd, bool fd_is_terminal, pid_t child_pid) {
-  contents_.clear();
+  ClearContents();
   buffer_ = nullptr;
   buffer_line_start_ = 0;
   buffer_length_ = 0;

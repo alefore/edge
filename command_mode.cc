@@ -77,7 +77,7 @@ class GotoCommand : public Command {
       case EditorState::PAGE:
         {
           shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-          if (buffer->contents()->empty()) { return; }
+          assert(!buffer->contents()->empty());
           size_t position = editor_state->visible_lines() * ComputePosition(
               editor_state,
               ceil(static_cast<double>(buffer->contents()->size())

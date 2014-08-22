@@ -142,15 +142,11 @@ void EnterInsertCharactersMode(EditorState* editor_state) {
   auto buffer = editor_state->current_buffer()->second;
   shared_ptr<EditableString> new_line;
   editor_state->PushCurrentPosition();
-  if (buffer->contents()->empty()) {
-    new_line = EditableString::New("");
-    buffer->AppendLine(new_line);
-  } else {
-    buffer->MaybeAdjustPositionCol();
-    new_line = EditableString::New(
-        buffer->current_line()->contents, buffer->current_position_col());
-    buffer->contents()->at(buffer->current_position_line()).reset(new Line(new_line));
-  }
+  assert(!buffer->contents()->empty());
+  buffer->MaybeAdjustPositionCol();
+  new_line = EditableString::New(
+      buffer->current_line()->contents, buffer->current_position_col());
+  buffer->contents()->at(buffer->current_position_line()).reset(new Line(new_line));
   editor_state->SetStatus("type");
   editor_state->set_mode(unique_ptr<EditorMode>(new InsertMode(new_line)));
 }
