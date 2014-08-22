@@ -373,17 +373,18 @@ class GotoPreviousPositionCommand : public Command {
           && !editor_state->MovePositionsStack(BACKWARDS)) {
         return;
       }
-      const Position pos = editor_state->ReadPositionsStack();
+      const BufferPosition pos = editor_state->ReadPositionsStack();
       auto it = editor_state->buffers()->find(pos.buffer);
+      const OpenBuffer::Position current_position =
+          editor_state->current_buffer()->second->position();
       if (it != editor_state->buffers()->end()
           && (pos.buffer != editor_state->current_buffer()->first
               || (editor_state->structure() <= EditorState::LINE
-                  && pos.line != editor_state->current_buffer()->second->current_position_line())
+                  && pos.position.line != current_position.line)
               || (editor_state->structure() <= EditorState::CHAR
-                  && pos.col != editor_state->current_buffer()->second->current_position_col()))) {
+                  && pos.position.column != current_position.column))) {
         editor_state->set_current_buffer(it);
-        it->second->set_current_position_line(pos.line);
-        it->second->set_current_position_col(pos.col);
+        it->second->set_position(pos.position);
         it->second->Enter(editor_state);
         editor_state->ScheduleRedraw();
         editor_state->set_repetitions(editor_state->repetitions() - 1);

@@ -75,6 +75,7 @@ class OpenBuffer {
   // A position in a text buffer.
   // TODO: Convert all representations of positions to use this.
   struct Position {
+    Position() : line(0), column(0) {}
     Position(size_t l, size_t c) : line(l), column(c) {}
 
     bool at_beginning_of_line() const { return column == 0; }

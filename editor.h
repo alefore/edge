@@ -24,10 +24,9 @@ using std::map;
 using std::max;
 using std::min;
 
-struct Position {
+struct BufferPosition {
   string buffer;
-  size_t line;
-  size_t col;
+  OpenBuffer::Position position;
 };
 
 class EditorState {
@@ -131,7 +130,7 @@ class EditorState {
 
   void PushCurrentPosition();
   bool HasPositionsInStack();
-  Position ReadPositionsStack();
+  BufferPosition ReadPositionsStack();
   bool MovePositionsStack(Direction direction);
 
   void set_status_prompt(bool value) { status_prompt_ = value; }

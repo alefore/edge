@@ -171,10 +171,10 @@ void EditorState::PushCurrentPosition() {
   }
 }
 
-static Position PositionFromLine(const string& line) {
+static BufferPosition PositionFromLine(const string& line) {
   stringstream line_stream(line);
-  Position pos;
-  line_stream >> pos.line >> pos.col;
+  BufferPosition pos;
+  line_stream >> pos.position.line >> pos.position.column;
   line_stream.get();
   getline(line_stream, pos.buffer);
   return pos;
@@ -186,7 +186,7 @@ bool EditorState::HasPositionsInStack() {
       && it->second->contents()->size() > 1;
 }
 
-Position EditorState::ReadPositionsStack() {
+BufferPosition EditorState::ReadPositionsStack() {
   assert(HasPositionsInStack());
   auto buffer = buffers_.find(kPositionsBufferName)->second;
   return PositionFromLine(buffer->current_line()->contents->ToString());
