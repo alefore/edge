@@ -332,8 +332,11 @@ class Paste : public Command {
       editor_state->SetStatus("You shall not paste into the paste buffer.");
       return;
     }
-    editor_state->current_buffer()->second->InsertInCurrentPosition(
-        *it->second->contents());
+    auto buffer = editor_state->current_buffer()->second;
+    InsertBuffer transformation(
+        it->second, buffer->current_position_line(),
+        buffer->current_position_col());
+    editor_state->ApplyToCurrentBuffer(transformation);
     editor_state->ScheduleRedraw();
   }
 };
