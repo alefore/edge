@@ -207,8 +207,10 @@ unique_ptr<Transformation> DeleteFromBuffer::Apply(
       buffer->contents()->begin() + start_.line + 1,
       buffer->contents()->begin() + actual_end + 1);
   buffer->contents()->at(start_.line).reset(new Line(contents_last_line));
+  buffer->set_position(start_);
   buffer->CheckPosition();
   assert(deleted_text != nullptr);
+
   editor_state->ScheduleRedraw();
 
   InsertDeletedTextBuffer(editor_state, deleted_text);
@@ -241,12 +243,10 @@ class Delete : public Command {
       case EditorState::LINE:
         if (!editor_state->has_current_buffer()) { return; }
         {
-          auto buffer = editor_state->current_buffer()->second;
+          size_t line = editor_state->current_buffer()->second->position().line;
           DeleteFromBuffer deleter(
-              OpenBuffer::Position(buffer->current_position_line(), 0),
-              OpenBuffer::Position(
-                  buffer->current_position_line() + editor_state->repetitions(),
-                  0));
+              OpenBuffer::Position(line, 0),
+              OpenBuffer::Position(line + editor_state->repetitions(), 0));
           editor_state->ApplyToCurrentBuffer(deleter);
         }
         break;
