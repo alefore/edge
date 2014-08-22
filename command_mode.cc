@@ -187,14 +187,14 @@ unique_ptr<Transformation> DeleteFromBuffer::Apply(
     size_t current_start_column = line == start_.line ? start_.column : 0;
     size_t current_end_column =
         line == end_.line ? end_.column : current_line->size();
-    deleted_text->contents()->push_back(
-        shared_ptr<Line>(new Line(
-            Substring(current_line->contents, current_start_column,
-                      current_end_column - current_start_column))));
+    deleted_text->AppendLine(
+        Substring(current_line->contents, current_start_column,
+                  current_end_column - current_start_column));
     if (current_line->activate != nullptr) {
       current_line->activate->ProcessInput('d', editor_state);
     }
   }
+  deleted_text->contents()->erase(deleted_text->contents()->end() - 1);
   shared_ptr<LazyString> prefix = Substring(
       buffer->contents()->at(start_.line)->contents, 0, start_.column);
   shared_ptr<LazyString> contents_last_line =
