@@ -17,7 +17,7 @@ int main(int argc, char**argv) {
   assert(editor_state.current_buffer()->second->current_line()->contents->ToString()
          == "alejo forero");
   editor_state.ProcessInputString("sld");
-  assert(editor_state.current_buffer()->second->contents()->empty());
+  assert(editor_state.current_buffer()->second->ToString().empty());
 
   editor_state.ProcessInputString("ialejandro\nforero\ncuervo");
   editor_state.ProcessInput(Terminal::ESCAPE);
@@ -42,7 +42,7 @@ int main(int argc, char**argv) {
   assert(editor_state.current_buffer()->second->current_position_col() == sizeof("alejandro") - 1);
 
   editor_state.ProcessInputString("slrg");
-  assert(editor_state.current_buffer()->second->current_position_line() == 3);
+  assert(editor_state.current_buffer()->second->current_position_line() == 2);
 
   editor_state.ProcessInputString("slgg");
   assert(editor_state.current_buffer()->second->current_position_line() == 0);
@@ -57,16 +57,15 @@ int main(int argc, char**argv) {
   assert(editor_state.current_buffer()->second->contents()->size() == 5);
 
   editor_state.ProcessInputString("slrg");
-  assert(editor_state.current_buffer()->second->current_position_line() == 5);
+  assert(editor_state.current_buffer()->second->current_position_line() == 4);
 
   editor_state.ProcessInputString("sLhhh");
-  assert(editor_state.current_buffer()->second->current_position_line() == 2);
+  assert(editor_state.current_buffer()->second->current_position_line() == 1);
 
   editor_state.ProcessInputString("sc3d");
-  assert(editor_state.current_buffer()->second->current_position_line() == 2);
-  // This one is incorrect.
+  assert(editor_state.current_buffer()->second->current_position_line() == 1);
   assert(editor_state.current_buffer()->second->ToString()
-         == "alejandro\nforero\njandro\nforero\ncuervo\n");
+         == "alejandro\nero\nalejandro\nforero\ncuervo");
   std::cout << "Pass!\n";
   return 0;
 }

@@ -68,7 +68,7 @@ class GotoCommand : public Command {
         {
           shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
           size_t position =
-              ComputePosition(editor_state, buffer->contents()->size() + 1);
+              ComputePosition(editor_state, buffer->contents()->size());
           assert(position <= buffer->contents()->size());
           buffer->set_current_position_line(position);
         }
@@ -523,7 +523,7 @@ const string LineDown::Description() {
         }
         size_t pos = buffer->current_position_line();
         buffer->set_current_position_line(min(pos + editor_state->repetitions(),
-                                              buffer->contents()->size()));
+                                              buffer->contents()->size() - 1));
       }
       break;
 

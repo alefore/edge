@@ -159,8 +159,12 @@ class OpenBuffer {
     if (contents_.empty()) { return true; }
     return at_last_line() && at_end_of_line();
   }
+  Position end_position() const {
+    if (contents_.empty()) { return Position(0, 0); }
+    return Position(contents_.size() - 1, (*contents_.rbegin())->contents->size());
+  }
   bool at_last_line() const {
-    return contents_.size() <= position_.line + 1;
+    return position_.line == contents_.size() - 1;
   }
   bool at_end_of_line() const {
     if (contents_.empty()) { return true; }

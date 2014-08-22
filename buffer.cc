@@ -123,11 +123,12 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
        i < buffer_length_ + static_cast<size_t>(characters_read);
        i++) {
     if (buffer_[i] == '\n') {
-      if (at_end()) {
-        position_.line ++;
-      }
+      bool was_at_end = at_end();
       AppendLine(Substring(buffer_wrapper, buffer_line_start_, i - buffer_line_start_));
-      assert(position_.line <= contents_.size());
+      if (was_at_end) {
+        set_position(end_position());
+      }
+      assert(position_.line < contents_.size());
       buffer_line_start_ = i + 1;
       if (editor_state->has_current_buffer()
           && editor_state->current_buffer()->second.get() == this
@@ -258,6 +259,7 @@ string OpenBuffer::ToString() const {
   for (auto& it : contents_) {
     output.append(it->contents->ToString() + "\n");
   }
+  output = output.substr(0, output.size() - 1);
   return output;
 }
 
