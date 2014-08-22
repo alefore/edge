@@ -100,7 +100,6 @@ void EditorState::set_default_structure(Structure structure) {
 }
 
 void EditorState::MoveBufferForwards(size_t times) {
-  PushCurrentPosition();
   if (current_buffer_ == buffers_.end()) {
     if (buffers_.empty()) { return; }
     current_buffer_ = buffers_.begin();
@@ -113,10 +112,10 @@ void EditorState::MoveBufferForwards(size_t times) {
     }
   }
   current_buffer_->second->Enter(this);
+  PushCurrentPosition();
 }
 
 void EditorState::MoveBufferBackwards(size_t times) {
-  PushCurrentPosition();
   if (current_buffer_ == buffers_.end()) {
     if (buffers_.empty()) { return; }
     current_buffer_ = buffers_.end();
@@ -130,6 +129,7 @@ void EditorState::MoveBufferBackwards(size_t times) {
     current_buffer_--;
   }
   current_buffer_->second->Enter(this);
+  PushCurrentPosition();
 }
 
 // We will store the positions in a special buffer.  They will be sorted from
@@ -137,9 +137,8 @@ void EditorState::MoveBufferBackwards(size_t times) {
 //
 //   line column buffer
 //
-// The current line position in the positions buffer represents the next line
-// to be returned by a pop.  To insert a new position, we put it right after
-// the current line.
+// The current line position is set to one line after the line to be returned
+// by a pop.  To insert a new position, we insert it right at the current line.
 
 static const char* kPositionsBufferName = "- positions";
 
@@ -153,19 +152,18 @@ void EditorState::PushCurrentPosition() {
   }
   assert(it->second != nullptr);
   assert(!it->second->contents()->empty());
+  assert(it->second->position().line < it->second->contents()->size());
   shared_ptr<Line> line(new Line());
   line->contents = NewCopyString(
-      to_string(current_buffer_->second->current_position_line())
-      + " " + to_string(current_buffer_->second->current_position_col())
+      current_buffer_->second->position().ToString()
       + " " + current_buffer_->first);
   it->second->contents()->insert(
       it->second->contents()->begin()
-      + it->second->current_position_line() + 1,
+      + it->second->current_position_line(),
       line);
-  if (it->second->current_position_line() + 1 < it->second->contents()->size()) {
-    it->second->set_current_position_line(
-        it->second->current_position_line() + 1);
-  }
+  it->second->set_current_position_line(
+      it->second->current_position_line() + 1);
+  assert(it->second->position().line < it->second->contents()->size());
   if (it == current_buffer_) {
     ScheduleRedraw();
   }
@@ -182,8 +180,7 @@ static BufferPosition PositionFromLine(const string& line) {
 
 bool EditorState::HasPositionsInStack() {
   auto it = buffers_.find(kPositionsBufferName);
-  return it != buffers_.end()
-      && it->second->contents()->size() > 1;
+  return it != buffers_.end() && it->second->contents()->size() > 1;
 }
 
 BufferPosition EditorState::ReadPositionsStack() {

@@ -66,6 +66,30 @@ int main(int argc, char**argv) {
   assert(editor_state.current_buffer()->second->current_position_line() == 1);
   assert(editor_state.current_buffer()->second->ToString()
          == "alejandro\nero\nalejandro\nforero\ncuervo");
+
+  // Clear it all.
+  editor_state.ProcessInputString("slgsl10d");
+  assert(editor_state.current_buffer()->second->ToString() == "");
+  assert(editor_state.current_buffer()->second->contents()->size() == 1);
+
+  editor_state.ProcessInputString("i0123456789abcdefghijklmnopqrstuvwxyz");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("g");
+  assert(editor_state.current_buffer()->second->position().line == 0);
+  assert(editor_state.current_buffer()->second->position().column == 0);
+
+  editor_state.ProcessInputString("2l2l2l2l2l");
+  assert(editor_state.current_buffer()->second->position().column == 10);
+
+  editor_state.ProcessInputString("3b");
+  assert(editor_state.current_buffer()->second->position().column == 4);
+
+  editor_state.ProcessInputString("2rb");
+  assert(editor_state.current_buffer()->second->position().column == 8);
+
+  editor_state.ProcessInputString("20000rb");
+  assert(editor_state.current_buffer()->second->position().column == 10);
+
   std::cout << "Pass!\n";
   return 0;
 }

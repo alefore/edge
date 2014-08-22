@@ -54,7 +54,6 @@ class OpenDirectory : public Command {
       path = dirname(tmp);
       free(tmp);
     }
-    editor_state->PushCurrentPosition();
     unique_ptr<EditorMode> loader(
         NewFileLinkMode(editor_state, path, 0, false));
     loader->ProcessInput('\n', editor_state);
@@ -116,7 +115,6 @@ class SaveCurrentBuffer : public Command {
 
 void OpenFileHandler(const string& name, EditorState* editor_state) {
   unique_ptr<EditorMode> mode(NewFileLinkMode(editor_state, name, 0, false));
-  editor_state->PushCurrentPosition();
   mode->ProcessInput('\n', editor_state);
 }
 
@@ -164,7 +162,6 @@ class ActivateBufferLineCommand : public EditorMode {
     switch (c) {
       case '\n':
         {
-          editor_state->PushCurrentPosition();
           auto it = editor_state->buffers()->find(name_);
           if (it == editor_state->buffers()->end()) {
             // TODO: Keep a function and re-open the buffer?
@@ -173,6 +170,7 @@ class ActivateBufferLineCommand : public EditorMode {
           }
           editor_state->set_current_buffer(it);
           it->second->Enter(editor_state);
+          editor_state->PushCurrentPosition();
           editor_state->ScheduleRedraw();
           editor_state->ResetStatus();
           editor_state->ResetMode();
@@ -220,7 +218,6 @@ class ListBuffers : public Command {
   void ProcessInput(int c, EditorState* editor_state) {
     const string name = "- open buffers";
     auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
-    editor_state->PushCurrentPosition();
     editor_state->set_current_buffer(it.first);
     if (it.second) {
       it.first->second.reset(new ListBuffersBuffer(name));
@@ -228,6 +225,7 @@ class ListBuffers : public Command {
           OpenBuffer::variable_reload_on_enter(), true);
     }
     it.first->second->Reload(editor_state);
+    editor_state->PushCurrentPosition();
     editor_state->ScheduleRedraw();
     editor_state->ResetStatus();
     editor_state->ResetMode();

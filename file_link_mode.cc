@@ -49,6 +49,7 @@ class FileBuffer : public OpenBuffer {
         LoadMemoryMappedFile(path_, target);
       }
       editor_state->CheckPosition();
+      editor_state->PushCurrentPosition();
       return;
     }
 
@@ -73,6 +74,7 @@ class FileBuffer : public OpenBuffer {
 
     sort(target->contents()->begin() + 1, target->contents()->end() - 1, compare);
     editor_state->CheckPosition();
+    editor_state->PushCurrentPosition();
   }
 
   void Save(EditorState* editor_state) {

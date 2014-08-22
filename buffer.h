@@ -81,6 +81,11 @@ class OpenBuffer {
     bool at_beginning_of_line() const { return column == 0; }
     bool at_beginning() const { return line == 0 && at_beginning_of_line(); }
 
+    string ToString() const {
+      using std::to_string;
+      return to_string(line) + " " + to_string(column);
+    }
+
     size_t line;
     size_t column;
   };

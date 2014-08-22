@@ -27,6 +27,7 @@ class InsertMode : public EditorMode {
     buffer->MaybeAdjustPositionCol();
     switch (c) {
       case Terminal::ESCAPE:
+        editor_state->PushCurrentPosition();
         editor_state->ResetStatus();
         editor_state->ResetMode();
         editor_state->ResetRepetitions();
@@ -141,7 +142,6 @@ using std::shared_ptr;
 void EnterInsertCharactersMode(EditorState* editor_state) {
   auto buffer = editor_state->current_buffer()->second;
   shared_ptr<EditableString> new_line;
-  editor_state->PushCurrentPosition();
   assert(!buffer->contents()->empty());
   buffer->MaybeAdjustPositionCol();
   new_line = EditableString::New(

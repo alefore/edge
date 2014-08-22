@@ -47,7 +47,6 @@ class GotoCommand : public Command {
 
   void ProcessInput(int c, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
-    editor_state->PushCurrentPosition();
     switch (editor_state->structure()) {
       case EditorState::CHAR:
         {
@@ -105,6 +104,7 @@ class GotoCommand : public Command {
         }
         break;
     }
+    editor_state->PushCurrentPosition();
     editor_state->ScheduleRedraw();
     editor_state->ResetStructure();
     editor_state->ResetDirection();
@@ -369,8 +369,7 @@ class GotoPreviousPositionCommand : public Command {
       return;
     }
     while (editor_state->repetitions() > 0) {
-      if (editor_state->direction() == BACKWARDS
-          && !editor_state->MovePositionsStack(BACKWARDS)) {
+      if (!editor_state->MovePositionsStack(editor_state->direction())) {
         return;
       }
       const BufferPosition pos = editor_state->ReadPositionsStack();
@@ -388,10 +387,6 @@ class GotoPreviousPositionCommand : public Command {
         it->second->Enter(editor_state);
         editor_state->ScheduleRedraw();
         editor_state->set_repetitions(editor_state->repetitions() - 1);
-      }
-      if (editor_state->direction() == FORWARDS
-          && !editor_state->MovePositionsStack(FORWARDS)) {
-        return;
       }
     }
   }
@@ -469,15 +464,15 @@ const string LineUp::Description() {
   switch (editor_state->structure()) {
     case EditorState::CHAR:
       {
-        if (editor_state->repetitions() > 1) {
-          // Saving on single-lines changes makes this very verbose, lets avoid that.
-          editor_state->PushCurrentPosition();
-        }
         size_t pos = buffer->current_position_line();
         if (editor_state->repetitions() < pos) {
           buffer->set_current_position_line(pos - editor_state->repetitions());
         } else {
           buffer->set_current_position_line(0);
+        }
+        if (editor_state->repetitions() > 1) {
+          // Saving on single-lines changes makes this very verbose, lets avoid that.
+          editor_state->PushCurrentPosition();
         }
       }
       break;
@@ -518,13 +513,13 @@ const string LineDown::Description() {
     case EditorState::CHAR:
       {
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
+        size_t pos = buffer->current_position_line();
+        buffer->set_current_position_line(min(pos + editor_state->repetitions(),
+                                              buffer->contents()->size() - 1));
         if (editor_state->repetitions() > 1) {
           // Saving on single-lines changes makes this very verbose, lets avoid that.
           editor_state->PushCurrentPosition();
         }
-        size_t pos = buffer->current_position_line();
-        buffer->set_current_position_line(min(pos + editor_state->repetitions(),
-                                              buffer->contents()->size() - 1));
       }
       break;
 
@@ -591,12 +586,12 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
         if (!editor_state->has_current_buffer()) { return; }
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
         if (buffer->current_line() == nullptr) { return; }
-        if (editor_state->repetitions() > 1) {
-          editor_state->PushCurrentPosition();
-        }
         buffer->set_current_position_col(min(
             buffer->current_position_col() + editor_state->repetitions(),
             buffer->current_line()->size()));
+        if (editor_state->repetitions() > 1) {
+          editor_state->PushCurrentPosition();
+        }
 
         editor_state->ResetRepetitions();
         editor_state->ResetStructure();
@@ -611,7 +606,6 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
         if (buffer->current_line() == nullptr) { return; }
         buffer->CheckPosition();
         buffer->MaybeAdjustPositionCol();
-        editor_state->PushCurrentPosition();
         const string& word_characters =
             buffer->read_string_variable(buffer->variable_word_characters());
         while (editor_state->repetitions() > 0) {
@@ -640,6 +634,7 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
             editor_state->set_repetitions(0);
           }
         }
+        editor_state->PushCurrentPosition();
         editor_state->ResetRepetitions();
         editor_state->ResetStructure();
         editor_state->ResetDirection();
@@ -679,9 +674,6 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
         if (!editor_state->has_current_buffer()) { return; }
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
         if (buffer->current_line() == nullptr) { return; }
-        if (editor_state->repetitions() > 1) {
-          editor_state->PushCurrentPosition();
-        }
         if (buffer->current_position_col() > buffer->current_line()->size()) {
           buffer->set_current_position_col(buffer->current_line()->size());
         }
@@ -692,6 +684,9 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
           buffer->set_current_position_col(0);
         }
 
+        if (editor_state->repetitions() > 1) {
+          editor_state->PushCurrentPosition();
+        }
         editor_state->ResetRepetitions();
         editor_state->ResetStructure();
         editor_state->ResetDirection();
@@ -705,7 +700,6 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
         if (buffer->current_line() == nullptr) { return; }
         buffer->CheckPosition();
         buffer->MaybeAdjustPositionCol();
-        editor_state->PushCurrentPosition();
         const string& word_characters =
             buffer->read_string_variable(buffer->variable_word_characters());
         while (editor_state->repetitions() > 0) {
@@ -738,6 +732,7 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
           buffer->set_current_position_col(buffer->current_position_col() - 1);
         }
 
+        editor_state->PushCurrentPosition();
         editor_state->ResetRepetitions();
         editor_state->ResetStructure();
         editor_state->ResetDirection();
