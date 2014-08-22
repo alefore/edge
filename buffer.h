@@ -72,6 +72,14 @@ class TransformationStack : public Transformation {
 
 class OpenBuffer {
  public:
+  // A position in a text buffer.
+  // TODO: Convert all representations of positions to use this.
+  struct Position {
+    Position(size_t l, size_t c) : line(l), column(c) {}
+    size_t line;
+    size_t column;
+  };
+
   OpenBuffer(const string& name);
 
   virtual void ReloadInto(EditorState* editor_state, OpenBuffer* target) {}
@@ -85,9 +93,10 @@ class OpenBuffer {
   shared_ptr<Line> AppendLine(shared_ptr<LazyString> line);
   shared_ptr<Line> AppendRawLine(shared_ptr<LazyString> str);
 
-  void InsertInCurrentPosition(const vector<shared_ptr<Line>>& insertion);
-  void InsertInPosition(const vector<shared_ptr<Line>>& insertion,
-                        size_t line, size_t column);
+  Position InsertInCurrentPosition(const vector<shared_ptr<Line>>& insertion);
+  Position InsertInPosition(
+      const vector<shared_ptr<Line>>& insertion,
+      size_t line, size_t column);
   // Checks that current_position_col is in the expected range (between 0 and
   // the length of the current line).
   void MaybeAdjustPositionCol();
@@ -166,6 +175,10 @@ class OpenBuffer {
   size_t current_position_col() const { return current_position_col_; }
   void set_current_position_col(size_t value) {
     current_position_col_ = value;
+  }
+  void set_position(const Position& position) {
+    current_position_line_ = position.line;
+    current_position_col_ = position.column;
   }
 
   void Enter(EditorState* editor_state) {

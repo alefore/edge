@@ -204,27 +204,33 @@ shared_ptr<Line> OpenBuffer::AppendRawLine(shared_ptr<LazyString> str) {
   return line;
 }
 
-void OpenBuffer::InsertInCurrentPosition(
+OpenBuffer::Position OpenBuffer::InsertInCurrentPosition(
     const vector<shared_ptr<Line>>& insertion) {
-  InsertInPosition(insertion, current_position_line_, current_position_col_);
+  return InsertInPosition(insertion, current_position_line_,
+                          current_position_col_);
 }
 
-void OpenBuffer::InsertInPosition(
+OpenBuffer::Position OpenBuffer::InsertInPosition(
     const vector<shared_ptr<Line>>& insertion, size_t line, size_t column) {
-  if (insertion.empty()) { return; }
+  if (insertion.empty()) { return Position(line, column); }
   auto head = Substring(contents_.at(line)->contents, 0, column);
   auto tail = Substring(contents_.at(line)->contents, column);
+  contents_.insert(contents_.begin() + line + 1, insertion.begin() + 1, insertion.end());
+  size_t line_end = line + insertion.size() - 1;
   if (insertion.size() == 1) {
-    contents_.at(line).reset(
-        new Line(StringAppend(head, StringAppend(insertion.at(0)->contents, tail))));
+    auto line_to_insert = insertion.at(0)->contents;
+    contents_.at(line).reset(new Line(
+        StringAppend(head, StringAppend(line_to_insert, tail))));
+    return Position(line, head->size() + line_to_insert->size());
   } else {
-    contents_.insert(contents_.begin() + line + 1, insertion.begin() + 1, insertion.end());
     contents_.at(line).reset(
         new Line(StringAppend(head, (*insertion.begin())->contents)));
-    size_t line_end = line + insertion.size() - 1;
     contents_.at(line_end).reset(
         new Line(StringAppend((*insertion.rbegin())->contents, tail)));
   }
+  return Position(line_end,
+      (insertion.size() == 1 ? head->size() : 0)
+      + (*insertion.rbegin())->contents->size());
 }
 
 void OpenBuffer::MaybeAdjustPositionCol() {

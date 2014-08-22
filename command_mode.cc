@@ -139,8 +139,11 @@ class DeleteFromBuffer : public Transformation {
 class InsertBuffer : public Transformation {
  public:
   InsertBuffer(shared_ptr<OpenBuffer> buffer_to_insert, size_t line,
-               size_t column)
-      : buffer_to_insert_(buffer_to_insert), line_(line), column_(column) {
+               size_t column, size_t repetitions)
+      : buffer_to_insert_(buffer_to_insert),
+        line_(line),
+        column_(column),
+        repetitions_(repetitions) {
     assert(buffer_to_insert_ != nullptr);
   }
 
@@ -150,15 +153,20 @@ class InsertBuffer : public Transformation {
         (buffer_to_insert_->contents()->size() > 1 ? 0 : column_)
         + (buffer_to_insert_->contents()->size() == 0
            ? 0 : (*buffer_to_insert_->contents()->rbegin())->contents->size());
-    buffer->InsertInPosition(*buffer_to_insert_->contents(), line_, column_);
+    for (size_t i = 0; i < repetitions_; i++) {
+      buffer->set_position(buffer->InsertInPosition(
+          *buffer_to_insert_->contents(), line_, column_));
+    }
     editor_state->ScheduleRedraw();
     return unique_ptr<Transformation>(new DeleteFromBuffer(
-        line_, column_, line_ + buffer_to_insert_->contents()->size(), size_last_line));
+        line_, column_, line_ + buffer_to_insert_->contents()->size(),
+        size_last_line));
   }
  private:
   shared_ptr<OpenBuffer> buffer_to_insert_;
   size_t line_;
   size_t column_;
+  size_t repetitions_;
 };
 
 // A transformation that, when applied, removes the text from the start position
@@ -215,7 +223,7 @@ unique_ptr<Transformation> DeleteFromBuffer::Apply(
   InsertDeletedTextBuffer(editor_state, deleted_text);
 
   return unique_ptr<Transformation>(
-      new InsertBuffer(deleted_text, start_line_, start_column_));
+      new InsertBuffer(deleted_text, start_line_, start_column_, 1));
 }
 
 class Delete : public Command {
@@ -335,8 +343,9 @@ class Paste : public Command {
     auto buffer = editor_state->current_buffer()->second;
     InsertBuffer transformation(
         it->second, buffer->current_position_line(),
-        buffer->current_position_col());
+        buffer->current_position_col(), editor_state->repetitions());
     editor_state->ApplyToCurrentBuffer(transformation);
+    editor_state->ResetRepetitions();
     editor_state->ScheduleRedraw();
   }
 };
