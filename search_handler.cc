@@ -77,8 +77,7 @@ using std::regex;
 void SearchHandler(const string& input, EditorState* editor_state) {
   editor_state->set_last_search_query(input);
   if (!editor_state->has_current_buffer()
-      || input.empty()
-      || editor_state->current_buffer()->second->contents()->empty()) {
+      || input.empty()) {
     editor_state->ResetMode();
     editor_state->ResetStatus();
     editor_state->ScheduleRedraw();
@@ -96,9 +95,7 @@ void SearchHandler(const string& input, EditorState* editor_state) {
 
   int delta;
   size_t position_line = buffer->current_position_line();
-  shared_ptr<Line> next_line = buffer->current_line();
-
-  assert(position_line <= buffer->contents()->size());
+  assert(position_line < buffer->contents()->size());
 
   switch (editor_state->direction()) {
     case FORWARDS:
@@ -114,46 +111,41 @@ void SearchHandler(const string& input, EditorState* editor_state) {
   bool wrapped = false;
 
   // This can certainly be optimized.
-  for (size_t i = 0; i < buffer->contents()->size() + 1 + 1; i++) {
-    if (next_line != nullptr) {
-      string str = next_line->contents->ToString();
+  for (size_t i = 0; i < buffer->contents()->size(); i++) {
+    string str = buffer->LineAt(position_line)->contents->ToString();
 
-      vector<size_t> matches = GetMatches(str, pattern);
-      size_t interesting_match;
-      if (editor_state->direction() == FORWARDS) {
-        interesting_match = FindInterestingMatch(
-            matches.begin(), matches.end(), wrapped,
-            buffer->current_position_line(), buffer->current_position_col(),
-            position_line, editor_state->direction());
-      } else {
-        interesting_match = FindInterestingMatch(
-            matches.rbegin(), matches.rend(), wrapped,
-            buffer->current_position_line(), buffer->current_position_col(),
-            position_line, editor_state->direction());
-      }
+    vector<size_t> matches = GetMatches(str, pattern);
+    size_t interesting_match;
+    if (editor_state->direction() == FORWARDS) {
+      interesting_match = FindInterestingMatch(
+          matches.begin(), matches.end(), wrapped,
+          buffer->current_position_line(), buffer->current_position_col(),
+          position_line, editor_state->direction());
+    } else {
+      interesting_match = FindInterestingMatch(
+          matches.rbegin(), matches.rend(), wrapped,
+          buffer->current_position_line(), buffer->current_position_col(),
+          position_line, editor_state->direction());
+    }
 
-      if (interesting_match != string::npos) {
-        editor_state->PushCurrentPosition();
-        buffer->set_current_position_line(position_line);
-        buffer->set_current_position_col(interesting_match);
-        editor_state->SetStatus(wrapped ? "Found (wrapped)" : "Found");
-        break;  // TODO: Honor repetitions.
-      }
+    if (interesting_match != string::npos) {
+      editor_state->PushCurrentPosition();
+      buffer->set_current_position_line(position_line);
+      buffer->set_current_position_col(interesting_match);
+      editor_state->SetStatus(wrapped ? "Found (wrapped)" : "Found");
+      break;  // TODO: Honor repetitions.
     }
 
     if (position_line == 0 && delta == -1) {
       position_line = buffer->contents()->size() - 1;
       wrapped = true;
-    } else if (position_line == buffer->contents()->size() && delta == 1) {
+    } else if (position_line == buffer->contents()->size() - 1 && delta == 1) {
       position_line = 0;
       wrapped = true;
     } else {
       position_line += delta;
     }
-    assert(position_line <= buffer->contents()->size());
-    next_line = position_line == buffer->contents()->size()
-        ? nullptr
-        : buffer->contents()->at(position_line);
+    assert(position_line < buffer->contents()->size());
   }
   editor_state->ResetMode();
   editor_state->ResetDirection();
