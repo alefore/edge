@@ -76,6 +76,10 @@ class OpenBuffer {
   // TODO: Convert all representations of positions to use this.
   struct Position {
     Position(size_t l, size_t c) : line(l), column(c) {}
+
+    bool at_beginning_of_line() const { return column == 0; }
+    bool at_beginning() const { return line == 0 && at_beginning_of_line(); }
+
     size_t line;
     size_t column;
   };
@@ -104,12 +108,15 @@ class OpenBuffer {
   void CheckPosition();
 
   shared_ptr<Line> current_line() const {
+    return LineAt(position_.line);
+  }
+  shared_ptr<Line> LineAt(size_t line_number) const {
     assert(!contents_.empty());
-    assert(current_position_line_ <= contents_.size());
-    if (current_position_line_ == contents_.size()) {
+    assert(line_number <= contents_.size());
+    if (line_number == contents_.size()) {
       return nullptr;
     }
-    return contents_.at(current_position_line_);
+    return contents_.at(line_number);
   }
   // Returns the substring of the current line until the current position.
   shared_ptr<LazyString> current_line_head() const {
@@ -125,7 +132,7 @@ class OpenBuffer {
   string ToString() const;
 
   void replace_current_line(const shared_ptr<Line>& line) {
-    contents_.at(current_position_line_) = line;
+    contents_.at(position_.line) = line;
   }
 
   int fd() const { return fd_; }
@@ -143,22 +150,22 @@ class OpenBuffer {
   }
   bool at_beginning() const {
     if (contents_.empty()) { return true; }
-    return current_position_line_ == 0 && at_beginning_of_line();
+    return position_.at_beginning();
   }
   bool at_beginning_of_line() const {
-     if (contents_.empty()) { return true; }
-    return current_position_col_ == 0;
+    if (contents_.empty()) { return true; }
+    return position_.at_beginning_of_line();
   }
   bool at_end() const {
     if (contents_.empty()) { return true; }
     return at_last_line() && at_end_of_line();
   }
   bool at_last_line() const {
-    return contents_.size() <= current_position_line_ + 1;
+    return contents_.size() <= position_.line + 1;
   }
   bool at_end_of_line() const {
     if (contents_.empty()) { return true; }
-    return current_position_col_ >= current_line()->contents->size();
+    return position_.column >= current_line()->contents->size();
   }
   char current_character() const {
     assert(current_position_col() < current_line()->contents->size());
@@ -168,17 +175,16 @@ class OpenBuffer {
     assert(current_position_col() > 0);
     return current_line()->contents->get(current_position_col() - 1);
   }
-  size_t current_position_line() const { return current_position_line_; }
+  size_t current_position_line() const { return position_.line; }
   void set_current_position_line(size_t value) {
-    current_position_line_ = value;
+    position_.line = value;
   }
-  size_t current_position_col() const { return current_position_col_; }
+  size_t current_position_col() const { return position_.column; }
   void set_current_position_col(size_t value) {
-    current_position_col_ = value;
+    position_.column = value;
   }
   void set_position(const Position& position) {
-    current_position_line_ = position.line;
-    current_position_col_ = position.column;
+    position_ = position;
   }
 
   void Enter(EditorState* editor_state) {
@@ -246,8 +252,7 @@ class OpenBuffer {
 
   size_t view_start_line_;
   size_t view_start_column_;
-  size_t current_position_line_;
-  size_t current_position_col_;
+  Position position_;
 
   bool modified_;
   bool reading_from_parser_;

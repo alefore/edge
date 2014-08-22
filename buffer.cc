@@ -63,8 +63,7 @@ OpenBuffer::OpenBuffer(const string& name)
       child_exit_status_(0),
       view_start_line_(0),
       view_start_column_(0),
-      current_position_line_(0),
-      current_position_col_(0),
+      position_(0, 0),
       modified_(false),
       reading_from_parser_(false),
       reload_after_exit_(false),
@@ -124,11 +123,11 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
        i < buffer_length_ + static_cast<size_t>(characters_read);
        i++) {
     if (buffer_[i] == '\n') {
-      if (current_position_line_ == contents_.size()) {
-        current_position_line_ ++;
+      if (at_end()) {
+        position_.line ++;
       }
       AppendLine(Substring(buffer_wrapper, buffer_line_start_, i - buffer_line_start_));
-      assert(current_position_line_ <= contents_.size());
+      assert(position_.line <= contents_.size());
       buffer_line_start_ = i + 1;
       if (editor_state->has_current_buffer()
           && editor_state->current_buffer()->second.get() == this
@@ -206,8 +205,7 @@ shared_ptr<Line> OpenBuffer::AppendRawLine(shared_ptr<LazyString> str) {
 
 OpenBuffer::Position OpenBuffer::InsertInCurrentPosition(
     const vector<shared_ptr<Line>>& insertion) {
-  return InsertInPosition(insertion, current_position_line_,
-                          current_position_col_);
+  return InsertInPosition(insertion, position_.line, position_.column);
 }
 
 OpenBuffer::Position OpenBuffer::InsertInPosition(
@@ -236,16 +234,16 @@ OpenBuffer::Position OpenBuffer::InsertInPosition(
 void OpenBuffer::MaybeAdjustPositionCol() {
   if (contents_.empty()) { return; }
   size_t line_length = current_line()->contents->size();
-  if (current_position_col_ > line_length) {
-    current_position_col_ = line_length;
+  if (position_.column > line_length) {
+    position_.column = line_length;
   }
 }
 
 void OpenBuffer::CheckPosition() {
-  if (current_position_line_ >= contents_.size()) {
-    current_position_line_ = contents_.size();
-    if (current_position_line_ > 0) {
-      current_position_line_--;
+  if (position_.line >= contents_.size()) {
+    position_.line = contents_.size();
+    if (position_.line > 0) {
+      position_.line--;
     }
   }
 }
