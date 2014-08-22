@@ -170,6 +170,15 @@ DeleteFromBuffer::DeleteFromBuffer(
       end_line_(end_line),
       end_column_(end_column) {}
 
+void InsertDeletedTextBuffer(EditorState* editor_state,
+                             const shared_ptr<OpenBuffer>& buffer) {
+  auto insert_result = editor_state->buffers()->insert(
+      make_pair(kPasteBuffer, buffer));
+  if (!insert_result.second) {
+    insert_result.first->second = buffer;
+  }
+}
+
 unique_ptr<Transformation> DeleteFromBuffer::Apply(
     EditorState* editor_state, OpenBuffer* buffer) const {
   shared_ptr<OpenBuffer> deleted_text(new OpenBuffer(kPasteBuffer));
@@ -202,9 +211,11 @@ unique_ptr<Transformation> DeleteFromBuffer::Apply(
   buffer->CheckPosition();
   assert(deleted_text != nullptr);
   editor_state->ScheduleRedraw();
+
+  InsertDeletedTextBuffer(editor_state, deleted_text);
+
   return unique_ptr<Transformation>(
       new InsertBuffer(deleted_text, start_line_, start_column_));
-  // InsertDeletedTextBuffer(editor_state, deleted_text);
 }
 
 class Delete : public Command {
@@ -300,7 +311,6 @@ class Delete : public Command {
         buffer->current_position_line(), buffer->current_position_col(),
         end_line, end_column);
     editor_state->ApplyToCurrentBuffer(deleter);
-    // InsertDeletedTextBuffer(editor_state, deleted_text);
   }
 };
 
