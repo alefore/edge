@@ -125,58 +125,49 @@ class GotoCommand : public Command {
 
 class DeleteFromBuffer : public Transformation {
  public:
-  DeleteFromBuffer(size_t start_line, size_t start_column, size_t end_line,
-                   size_t end_column);
+  DeleteFromBuffer(
+      const OpenBuffer::Position& start, const OpenBuffer::Position& end);
   unique_ptr<Transformation> Apply(
       EditorState* editor_state, OpenBuffer* buffer) const;
  private:
-  size_t start_line_;
-  size_t start_column_;
-  size_t end_line_;
-  size_t end_column_;
+  OpenBuffer::Position start_;
+  OpenBuffer::Position end_;
 };
 
 class InsertBuffer : public Transformation {
  public:
-  InsertBuffer(shared_ptr<OpenBuffer> buffer_to_insert, size_t line,
-               size_t column, size_t repetitions)
+  InsertBuffer(shared_ptr<OpenBuffer> buffer_to_insert,
+               const OpenBuffer::Position& position, size_t repetitions)
       : buffer_to_insert_(buffer_to_insert),
-        line_(line),
-        column_(column),
+        position_(position),
         repetitions_(repetitions) {
     assert(buffer_to_insert_ != nullptr);
   }
 
   unique_ptr<Transformation> Apply(
       EditorState* editor_state, OpenBuffer* buffer) const {
-    size_t size_last_line =
-        (buffer_to_insert_->contents()->size() > 1 ? 0 : column_)
-        + (buffer_to_insert_->contents()->size() == 0
-           ? 0 : (*buffer_to_insert_->contents()->rbegin())->contents->size());
+    OpenBuffer::Position position = position_;
     for (size_t i = 0; i < repetitions_; i++) {
-      buffer->set_position(buffer->InsertInPosition(
-          *buffer_to_insert_->contents(), line_, column_));
+      position = buffer->InsertInPosition(
+          *buffer_to_insert_->contents(), position);
     }
+    buffer->set_position(position);
     editor_state->ScheduleRedraw();
-    return unique_ptr<Transformation>(new DeleteFromBuffer(
-        line_, column_, line_ + buffer_to_insert_->contents()->size(),
-        size_last_line));
+    return unique_ptr<Transformation>(
+        new DeleteFromBuffer(position_, position));
   }
+
  private:
   shared_ptr<OpenBuffer> buffer_to_insert_;
-  size_t line_;
-  size_t column_;
+  OpenBuffer::Position position_;
   size_t repetitions_;
 };
 
 // A transformation that, when applied, removes the text from the start position
 // to the end position (leaving the characters immediately at the end position).
-DeleteFromBuffer::DeleteFromBuffer(
-    size_t start_line, size_t start_column, size_t end_line, size_t end_column)
-    : start_line_(start_line),
-      start_column_(start_column),
-      end_line_(end_line),
-      end_column_(end_column) {}
+DeleteFromBuffer::DeleteFromBuffer(const OpenBuffer::Position& start,
+                                   const OpenBuffer::Position& end)
+    : start_(start), end_(end) {}
 
 void InsertDeletedTextBuffer(EditorState* editor_state,
                              const shared_ptr<OpenBuffer>& buffer) {
@@ -190,12 +181,12 @@ void InsertDeletedTextBuffer(EditorState* editor_state,
 unique_ptr<Transformation> DeleteFromBuffer::Apply(
     EditorState* editor_state, OpenBuffer* buffer) const {
   shared_ptr<OpenBuffer> deleted_text(new OpenBuffer(kPasteBuffer));
-  size_t actual_end = min(end_line_, buffer->contents()->size() - 1);
-  for (size_t line = start_line_; line <= actual_end; line++) {
+  size_t actual_end = min(end_.line, buffer->contents()->size() - 1);
+  for (size_t line = start_.line; line <= actual_end; line++) {
     auto current_line = buffer->contents()->at(line);
-    size_t current_start_column = line == start_line_ ? start_column_ : 0;
+    size_t current_start_column = line == start_.line ? start_.column : 0;
     size_t current_end_column =
-        line == end_line_ ? end_column_ : current_line->size();
+        line == end_.line ? end_.column : current_line->size();
     deleted_text->contents()->push_back(
         shared_ptr<Line>(new Line(
             Substring(current_line->contents, current_start_column,
@@ -205,17 +196,17 @@ unique_ptr<Transformation> DeleteFromBuffer::Apply(
     }
   }
   shared_ptr<LazyString> prefix = Substring(
-      buffer->contents()->at(start_line_)->contents, 0, start_column_);
+      buffer->contents()->at(start_.line)->contents, 0, start_.column);
   shared_ptr<LazyString> contents_last_line =
-      end_line_ < buffer->contents()->size()
+      end_.line < buffer->contents()->size()
       ? StringAppend(prefix,
-                     Substring(buffer->contents()->at(end_line_)->contents,
-                               end_column_))
+                     Substring(buffer->contents()->at(end_.line)->contents,
+                               end_.column))
       : prefix;
   buffer->contents()->erase(
-      buffer->contents()->begin() + start_line_ + 1,
+      buffer->contents()->begin() + start_.line + 1,
       buffer->contents()->begin() + actual_end + 1);
-  buffer->contents()->at(start_line_).reset(new Line(contents_last_line));
+  buffer->contents()->at(start_.line).reset(new Line(contents_last_line));
   buffer->CheckPosition();
   assert(deleted_text != nullptr);
   editor_state->ScheduleRedraw();
@@ -223,7 +214,7 @@ unique_ptr<Transformation> DeleteFromBuffer::Apply(
   InsertDeletedTextBuffer(editor_state, deleted_text);
 
   return unique_ptr<Transformation>(
-      new InsertBuffer(deleted_text, start_line_, start_column_, 1));
+      new InsertBuffer(deleted_text, start_, 1));
 }
 
 class Delete : public Command {
@@ -252,8 +243,10 @@ class Delete : public Command {
         {
           auto buffer = editor_state->current_buffer()->second;
           DeleteFromBuffer deleter(
-              buffer->current_position_line(), 0,
-              buffer->current_position_line() + editor_state->repetitions(), 0);
+              OpenBuffer::Position(buffer->current_position_line(), 0),
+              OpenBuffer::Position(
+                  buffer->current_position_line() + editor_state->repetitions(),
+                  0));
           editor_state->ApplyToCurrentBuffer(deleter);
         }
         break;
@@ -294,30 +287,27 @@ class Delete : public Command {
     if (buffer->current_line() == nullptr) { return; }
     buffer->MaybeAdjustPositionCol();
 
-    size_t end_line = buffer->current_position_line();
-    size_t end_column = buffer->current_position_col();
-    auto current_line = buffer->contents()->begin() + end_line;
+    OpenBuffer::Position end = buffer->position();
+    auto current_line = buffer->contents()->begin() + end.line;
     while (editor_state->repetitions() > 0) {
       if (current_line == buffer->contents()->end()) {
         editor_state->set_repetitions(0);
         continue;
       }
-      size_t characters_left = (*current_line)->contents->size() - end_column;
+      size_t characters_left = (*current_line)->contents->size() - end.column;
       if (editor_state->repetitions() <= characters_left) {
-        end_column += editor_state->repetitions();
+        end.column += editor_state->repetitions();
         editor_state->set_repetitions(0);
         continue;
       }
- 
+
       editor_state->set_repetitions(
           editor_state->repetitions() - characters_left - 1);
-      end_line ++;
-      end_column = 0;
+      end.line ++;
+      end.column = 0;
     }
 
-    DeleteFromBuffer deleter(
-        buffer->current_position_line(), buffer->current_position_col(),
-        end_line, end_column);
+    DeleteFromBuffer deleter(buffer->position(), end);
     editor_state->ApplyToCurrentBuffer(deleter);
   }
 };
@@ -342,8 +332,7 @@ class Paste : public Command {
     }
     auto buffer = editor_state->current_buffer()->second;
     InsertBuffer transformation(
-        it->second, buffer->current_position_line(),
-        buffer->current_position_col(), editor_state->repetitions());
+        it->second, buffer->position(), editor_state->repetitions());
     editor_state->ApplyToCurrentBuffer(transformation);
     editor_state->ResetRepetitions();
     editor_state->ScheduleRedraw();

@@ -99,8 +99,7 @@ class OpenBuffer {
 
   Position InsertInCurrentPosition(const vector<shared_ptr<Line>>& insertion);
   Position InsertInPosition(
-      const vector<shared_ptr<Line>>& insertion,
-      size_t line, size_t column);
+      const vector<shared_ptr<Line>>& insertion, const Position& position);
   // Checks that current_position_col is in the expected range (between 0 and
   // the length of the current line).
   void MaybeAdjustPositionCol();
@@ -182,6 +181,9 @@ class OpenBuffer {
   size_t current_position_col() const { return position_.column; }
   void set_current_position_col(size_t value) {
     position_.column = value;
+  }
+  const Position position() const {
+    return position_;
   }
   void set_position(const Position& position) {
     position_ = position;
