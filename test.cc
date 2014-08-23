@@ -72,9 +72,10 @@ int main(int argc, char**argv) {
   assert(editor_state.current_buffer()->second->ToString() == "");
   assert(editor_state.current_buffer()->second->contents()->size() == 1);
 
-  editor_state.ProcessInputString("i0123456789abcdefghijklmnopqrstuvwxyz");
+  editor_state.ProcessInputString("ialejandro forero cuervo\n\n");
+  editor_state.ProcessInputString("0123456789abcdefghijklmnopqrstuvwxyz");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  editor_state.ProcessInputString("g");
+  editor_state.ProcessInputString("2h2h2h2h2l2l2l2l2l2h2h2h2hslgg");
   assert(editor_state.current_buffer()->second->position().line == 0);
   assert(editor_state.current_buffer()->second->position().column == 0);
 
@@ -89,6 +90,15 @@ int main(int argc, char**argv) {
 
   editor_state.ProcessInputString("20000rb");
   assert(editor_state.current_buffer()->second->position().column == 10);
+
+  editor_state.ProcessInputString("slb");
+  assert(editor_state.current_buffer()->second->position().line == 2);
+
+  editor_state.ProcessInputString("gf1f3f5f7f9");
+  assert(editor_state.current_buffer()->second->position().column == 9);
+
+  editor_state.ProcessInputString("b");
+  assert(editor_state.current_buffer()->second->position().column == 7);
 
   std::cout << "Pass!\n";
   return 0;
