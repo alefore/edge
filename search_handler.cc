@@ -110,8 +110,8 @@ void SearchHandler(const string& input, EditorState* editor_state) {
 
   bool wrapped = false;
 
-  // This can certainly be optimized.
-  for (size_t i = 0; i < buffer->contents()->size(); i++) {
+  // We search once for every line, and then again in the current line.
+  for (size_t i = 0; i <= buffer->contents()->size(); i++) {
     string str = buffer->LineAt(position_line)->contents->ToString();
 
     vector<size_t> matches = GetMatches(str, pattern);
