@@ -23,8 +23,7 @@ class LinePromptMode : public EditorMode {
                  LinePromptHandler handler)
       : prompt_(prompt),
         handler_(handler),
-        input_(EditableString::New(initial_value)),
-        history_position_(numeric_limits<size_t>::max()) {}
+        input_(EditableString::New(initial_value)) {}
 
   static shared_ptr<OpenBuffer> FindHistoryBuffer(EditorState* editor_state) {
     auto result = editor_state->buffers()->find(kHistoryName);
@@ -56,10 +55,11 @@ class LinePromptMode : public EditorMode {
       case Terminal::UP_ARROW:
         {
           auto buffer = FindHistoryBuffer(editor_state);
-          if (buffer == nullptr) { return; }
-          if (history_position_ > 0) {
-            history_position_ =
-                min(history_position_, buffer->contents()->size()) - 1;
+          if (buffer == nullptr || buffer->contents()->size() == 1) { return; }
+          OpenBuffer::Position position = buffer->position();
+          if (position.line > 0) {
+            position.line --;
+            buffer->set_position(position);
           }
           SetInputFromCurrentLine(buffer);
         }
@@ -68,14 +68,13 @@ class LinePromptMode : public EditorMode {
       case Terminal::DOWN_ARROW:
         {
           auto buffer = FindHistoryBuffer(editor_state);
-          if (buffer == nullptr) { return; }
-          history_position_ =
-              min(history_position_, buffer->contents()->size() - 1) + 1;
-          if (history_position_ < buffer->contents()->size()) {
-            SetInputFromCurrentLine(buffer);
-          } else {
-            input_ = EditableString::New("");
+          if (buffer == nullptr || buffer->contents()->size() == 1) { return; }
+          OpenBuffer::Position position = buffer->position();
+          if (position.line + 1 < buffer->contents()->size()) {
+            position.line ++;
+            buffer->set_position(position);
           }
+          SetInputFromCurrentLine(buffer);
         }
         break;
 
@@ -95,8 +94,7 @@ class LinePromptMode : public EditorMode {
       input_ = EditableString::New("");
       return;
     }
-    auto line = buffer->contents()->at(history_position_)->contents;
-    input_ = EditableString::New(line->ToString());
+    input_ = EditableString::New(buffer->current_line()->contents->ToString());
   }
 
   void InsertToHistory(EditorState* editor_state) {
@@ -117,7 +115,6 @@ class LinePromptMode : public EditorMode {
   const string prompt_;
   LinePromptHandler handler_;
   shared_ptr<EditableString> input_;
-  size_t history_position_;
 };
 
 class LinePromptCommand : public Command {
@@ -156,9 +153,11 @@ void Prompt(EditorState* editor_state,
   std::unique_ptr<LinePromptMode> line_prompt_mode(
       new LinePromptMode(prompt, initial_value, handler));
   auto history = editor_state->buffers()->find(kHistoryName);
-  assert(!history->second->contents()->empty());
-  history->second->set_current_position_line(
-      history->second->contents()->size() - 1);
+  if (history != editor_state->buffers()->end()) {
+    assert(!history->second->contents()->empty());
+    history->second->set_current_position_line(
+        history->second->contents()->size() - 1);
+  }
   line_prompt_mode->UpdateStatus(editor_state);
   editor_state->set_mode(std::move(line_prompt_mode));
   editor_state->set_status_prompt(true);
