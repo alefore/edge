@@ -65,6 +65,9 @@ class FileBuffer : public OpenBuffer {
     while ((entry = readdir(dir)) != nullptr) {
       target->AppendLine(shared_ptr<LazyString>(
           NewCopyCharBuffer(entry->d_name).release()));
+      (*++target->contents()->rbegin())->activate.reset(
+          NewFileLinkMode(editor_state, path + "/" + entry->d_name, 0, false)
+              .release());
     }
     closedir(dir);
 
