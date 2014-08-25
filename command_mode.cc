@@ -1,5 +1,6 @@
 #include <cmath>
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <map>
 #include <string>
@@ -190,7 +191,8 @@ unique_ptr<Transformation> DeleteFromBuffer::Apply(
     deleted_text->AppendLine(
         Substring(current_line->contents, current_start_column,
                   current_end_column - current_start_column));
-    if (current_line->activate != nullptr) {
+    if (current_line->activate != nullptr
+        && current_end_column == current_line->size()) {
       current_line->activate->ProcessInput('d', editor_state);
     }
   }
