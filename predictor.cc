@@ -25,6 +25,7 @@ using afc::editor::OpenBuffer;
 using afc::editor::Predictor;
 using std::cout;
 using std::function;
+using std::min;
 using std::shared_ptr;
 using std::sort;
 using std::string;
@@ -53,9 +54,20 @@ class PredictionsBufferImpl : public OpenBuffer {
     } compare;
 
     sort(contents()->begin(), contents()->end() - 1, compare);
-    if (contents()->size() == 2) {
-      consumer_((*contents()->begin())->contents->ToString());
+    if (contents()->size() == 1) { return; }
+    string common_prefix = (*contents()->begin())->contents->ToString();
+    for (auto& it = ++contents()->begin(); it != --contents()->end(); ++it) {
+      size_t current_size = min(common_prefix.size(), (*it)->contents->size());
+      string current = Substring((*it)->contents, 0, current_size)->ToString();
+
+      auto prefix_end = mismatch(common_prefix.begin(), common_prefix.end(),
+                                 current.begin());
+      if (prefix_end.first != common_prefix.end()) {
+        if (prefix_end.first == common_prefix.begin()) { return; }
+        common_prefix = string(common_prefix.begin(), prefix_end.first);
+      }
     }
+    consumer_(common_prefix);
   }
 
  private:
