@@ -16,11 +16,13 @@ typedef std::function<void(const string& input, EditorState* editor)>
 
 void Prompt(EditorState* editor_state,
             const string& prompt,
+            const string& history_file,
             const string& initial_value,
             LinePromptHandler handler);
 
 unique_ptr<Command> NewLinePromptCommand(
-    const string& prompt, const string& description, LinePromptHandler handler);
+    const string& prompt, const string& history_file, const string& description,
+    LinePromptHandler handler);
 
 }  // namespace editor
 }  // namespace afc

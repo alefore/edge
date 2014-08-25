@@ -165,7 +165,7 @@ class ForkCommand : public Command {
       case EditorState::CHAR:
         {
           unique_ptr<Command> command(
-              NewLinePromptCommand("$ ", "", RunCommandHandler));
+              NewLinePromptCommand("$ ", "commands", "", RunCommandHandler));
           command->ProcessInput(c, editor_state);
         }
         break;

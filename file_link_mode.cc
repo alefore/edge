@@ -132,6 +132,7 @@ class FileLinkMode : public EditorMode {
           string path = path_;  // Capture for the lambda.
           unique_ptr<Command> command(NewLinePromptCommand(
               "rm " + path_ + "? ",
+              "confirmation",
               "Confirmation",
               [path](const string input, EditorState* editor_state) {
                 if (input == "yes") {
