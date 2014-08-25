@@ -71,8 +71,14 @@ class LinePromptMode : public EditorMode {
     switch (c) {
       case '\n':
         if (input_->size() != 0) {
-          GetHistoryBuffer(editor_state, history_file_)
-              ->second->AppendLine(input_);
+          auto history = GetHistoryBuffer(editor_state, history_file_)->second;
+          assert(history != nullptr);
+          assert(history->contents()->size() >= 1);
+          if (history->contents()->size() == 1
+              || (history->contents()->at(history->contents()->size() - 2)->contents->ToString()
+                  != input_->ToString())) {
+            history->AppendLine(input_);
+          }
         }
         editor_state->set_status_prompt(false);
         editor_state->ResetStatus();
