@@ -19,6 +19,27 @@ using std::numeric_limits;
 const string kHistoryName = "- prompt history";
 const string kHistoryPath = "/.edge/prompt_history";
 
+map<string, shared_ptr<OpenBuffer>>::iterator
+GetHistoryBuffer(EditorState* editor_state) {
+  auto it = editor_state->buffers()->find(kHistoryName);
+  if (it != editor_state->buffers()->end()) {
+    return it;
+  }
+  it = OpenFile(
+      editor_state, kHistoryName,
+      editor_state->home_directory() + kHistoryPath);
+  assert(it != editor_state->buffers()->end());
+  assert(it->second != nullptr);
+  it->second->set_bool_variable(
+      OpenBuffer::variable_save_on_close(), true);
+  if (!editor_state->has_current_buffer()) {
+    // Seems lame, but what can we do?
+    editor_state->set_current_buffer(it);
+    editor_state->ScheduleRedraw();
+  }
+  return it;
+}
+
 class LinePromptMode : public EditorMode {
  public:
   LinePromptMode(const string& prompt, const string& initial_value,
@@ -105,22 +126,7 @@ class LinePromptMode : public EditorMode {
 
   void InsertToHistory(EditorState* editor_state) {
     if (input_->size() == 0) { return; }
-    auto it = editor_state->buffers()->find(kHistoryName);
-    if (it == editor_state->buffers()->end()) {
-      it = OpenFile(
-          editor_state, kHistoryName,
-          editor_state->home_directory() + kHistoryPath);
-      it->second->set_bool_variable(
-          OpenBuffer::variable_save_on_close(), true);
-      if (!editor_state->has_current_buffer()) {
-        // Seems lame, but what can we do?
-        editor_state->set_current_buffer(it);
-        editor_state->ScheduleRedraw();
-      }
-    }
-    assert(it != editor_state->buffers()->end());
-    assert(it->second != nullptr);
-    it->second->AppendLine(input_);
+    GetHistoryBuffer(editor_state)->second->AppendLine(input_);
   }
 
   const string prompt_;
@@ -163,12 +169,9 @@ void Prompt(EditorState* editor_state,
             LinePromptHandler handler) {
   std::unique_ptr<LinePromptMode> line_prompt_mode(
       new LinePromptMode(prompt, initial_value, handler));
-  auto history = editor_state->buffers()->find(kHistoryName);
-  if (history != editor_state->buffers()->end()) {
-    assert(!history->second->contents()->empty());
-    history->second->set_current_position_line(
-        history->second->contents()->size() - 1);
-  }
+  auto history = GetHistoryBuffer(editor_state);
+  history->second->set_current_position_line(
+      history->second->contents()->size() - 1);
   line_prompt_mode->UpdateStatus(editor_state);
   editor_state->set_mode(std::move(line_prompt_mode));
   editor_state->set_status_prompt(true);
