@@ -88,7 +88,7 @@ int main(int argc, char**argv) {
   editor_state.ProcessInputString("2rb");
   assert(editor_state.current_buffer()->second->position().column == 8);
 
-  editor_state.ProcessInputString("20000rb");
+  editor_state.ProcessInputString("200000000rb");
   assert(editor_state.current_buffer()->second->position().column == 10);
 
   editor_state.ProcessInputString("slb");
@@ -106,6 +106,12 @@ int main(int argc, char**argv) {
   editor_state.ProcessInputString("/123\n");
   assert(editor_state.current_buffer()->second->position().line == 2);
   assert(editor_state.current_buffer()->second->position().column == 1);
+
+  editor_state.ProcessInputString("slg100000000000000000d");
+  for (int i = 0; i < 5; i++) {
+    editor_state.ProcessInputString("b");
+    assert(editor_state.current_buffer()->second->position().line == 0);
+  }
 
   std::cout << "Pass!\n";
   return 0;

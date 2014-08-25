@@ -201,6 +201,10 @@ class OpenBuffer {
   }
   void set_position(const Position& position) {
     position_ = position;
+    assert(contents_.size() >= 1);
+    if (position_.line >= contents_.size()) {
+      position_.line = contents_.size() - 1;
+    }
   }
 
   void Enter(EditorState* editor_state) {
