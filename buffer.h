@@ -248,7 +248,7 @@ class OpenBuffer {
   void Undo(EditorState* editor_state);
 
  protected:
-  void EndOfFile(EditorState* editor_state);
+  virtual void EndOfFile(EditorState* editor_state);
 
   vector<unique_ptr<ParseTree>> parse_tree;
 

@@ -270,7 +270,7 @@ static const map<int, Command*>& GetAdvancedModeMap() {
     output.insert(make_pair(
         'o',
         NewLinePromptCommand("<", "files", "loads a file", OpenFileHandler,
-                             EmptyPredictor).release()));
+                             FilePredictor).release()));
     output.insert(make_pair(
         'F',
         NewLinePromptCommand(

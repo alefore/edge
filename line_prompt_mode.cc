@@ -4,6 +4,7 @@
 #include <limits>
 #include <string>
 
+#include "buffer.h"
 #include "char_buffer.h"
 #include "command.h"
 #include "command_mode.h"
@@ -14,6 +15,7 @@
 #include "terminal.h"
 
 namespace {
+
 using namespace afc::editor;
 using std::make_pair;
 using std::numeric_limits;
@@ -40,6 +42,20 @@ GetHistoryBuffer(EditorState* editor_state, const string& name) {
   return it;
 }
 
+map<string, shared_ptr<OpenBuffer>>::iterator
+GetPredictionsBuffer(
+    EditorState* editor_state,
+    const Predictor& predictor,
+    const string& input,
+    function<void(const string&)> consumer) {
+  auto it = editor_state->buffers()->insert(make_pair("- predictions", nullptr));
+  it.first->second = PredictionsBuffer(predictor, input, consumer);
+  it.first->second->Reload(editor_state);
+  it.first->second->set_current_position_line(0);
+  it.first->second->set_current_position_col(0);
+  return it.first;
+}
+
 class LinePromptMode : public EditorMode {
  public:
   LinePromptMode(const string& prompt, const string& history_file,
@@ -48,6 +64,7 @@ class LinePromptMode : public EditorMode {
       : prompt_(prompt),
         history_file_(history_file),
         handler_(handler),
+        predictor_(predictor),
         input_(EditableString::New(initial_value)) {}
 
   void ProcessInput(int c, EditorState* editor_state) {
@@ -70,6 +87,17 @@ class LinePromptMode : public EditorMode {
 
       case Terminal::BACKSPACE:
         input_->Backspace();
+        break;
+
+      case '\t':
+        {
+          GetPredictionsBuffer(
+              editor_state, predictor_, input_->ToString(),
+              [editor_state, this](const string& prediction) {
+                input_ = EditableString::New(prediction);
+                UpdateStatus(editor_state);
+              });
+        }
         break;
 
       case Terminal::CTRL_U:
@@ -125,8 +153,8 @@ class LinePromptMode : public EditorMode {
   // Name of the file in which the history for this prompt should be preserved.
   const string history_file_;
   LinePromptHandler handler_;
+  Predictor predictor_;
   shared_ptr<EditableString> input_;
-  Predictor predictor;
 };
 
 class LinePromptCommand : public Command {
