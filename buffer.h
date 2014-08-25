@@ -92,6 +92,8 @@ class OpenBuffer {
 
   OpenBuffer(const string& name);
 
+  void Close(EditorState* editor_state);
+
   void ClearContents();
 
   virtual void ReloadInto(EditorState* editor_state, OpenBuffer* target) {}
@@ -223,10 +225,12 @@ class OpenBuffer {
   static EdgeVariable<char>* variable_reload_on_enter();
   static EdgeVariable<char>* variable_atomic_lines();
   static EdgeVariable<char>* variable_diff();
+  static EdgeVariable<char>* variable_save_on_close();
 
   static EdgeStruct<string>* StringStruct();
   static EdgeVariable<string>* variable_word_characters();
   static EdgeVariable<string>* variable_path_characters();
+  static EdgeVariable<string>* variable_path();
 
   bool read_bool_variable(const EdgeVariable<char>* variable);
   void set_bool_variable(const EdgeVariable<char>* variable, bool value);

@@ -5,6 +5,7 @@
 #include "char_buffer.h"
 #include "command.h"
 #include "command_mode.h"
+#include "file_link_mode.h"
 #include "line_prompt_mode.h"
 #include "editable_string.h"
 #include "editor.h"
@@ -16,6 +17,7 @@ using std::make_pair;
 using std::numeric_limits;
 
 const string kHistoryName = "- prompt history";
+const string kHistoryPath = "/.edge/prompt_history";
 
 class LinePromptMode : public EditorMode {
  public:
@@ -103,17 +105,22 @@ class LinePromptMode : public EditorMode {
 
   void InsertToHistory(EditorState* editor_state) {
     if (input_->size() == 0) { return; }
-    auto insert_result = editor_state->buffers()->insert(
-        make_pair(kHistoryName, nullptr));
-    if (insert_result.second) {
-      insert_result.first->second.reset(new OpenBuffer(kHistoryName));
+    auto it = editor_state->buffers()->find(kHistoryName);
+    if (it == editor_state->buffers()->end()) {
+      it = OpenFile(
+          editor_state, kHistoryName,
+          editor_state->home_directory() + kHistoryPath);
+      it->second->set_bool_variable(
+          OpenBuffer::variable_save_on_close(), true);
       if (!editor_state->has_current_buffer()) {
         // Seems lame, but what can we do?
-        editor_state->set_current_buffer(insert_result.first);
+        editor_state->set_current_buffer(it);
         editor_state->ScheduleRedraw();
       }
     }
-    insert_result.first->second->AppendLine(input_);
+    assert(it != editor_state->buffers()->end());
+    assert(it->second != nullptr);
+    it->second->AppendLine(input_);
   }
 
   const string prompt_;

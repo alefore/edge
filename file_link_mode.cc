@@ -30,10 +30,13 @@ using namespace afc::editor;
 
 class FileBuffer : public OpenBuffer {
  public:
-  FileBuffer(const string& path) : OpenBuffer(path) {}
+  FileBuffer(const string& path) : OpenBuffer(path) {
+    set_string_variable(variable_path(), path);
+  }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
-    if (stat(name_.c_str(), &stat_buffer_) == -1) {
+    const string& path = read_string_variable(variable_path());
+    if (stat(path.c_str(), &stat_buffer_) == -1) {
       return;
     }
 
@@ -41,11 +44,11 @@ class FileBuffer : public OpenBuffer {
     editor_state->ScheduleRedraw();
 
     if (!S_ISDIR(stat_buffer_.st_mode)) {
-      char* tmp = strdup(name_.c_str());
+      char* tmp = strdup(path.c_str());
       if (0 == strcmp(basename(tmp), "passwd")) {
-        RunCommandHandler("parsers/passwd <" + name_, editor_state);
+        RunCommandHandler("parsers/passwd <" + path, editor_state);
       } else {
-        LoadMemoryMappedFile(name_, target);
+        LoadMemoryMappedFile(path, target);
       }
       editor_state->CheckPosition();
       editor_state->PushCurrentPosition();
@@ -54,9 +57,9 @@ class FileBuffer : public OpenBuffer {
 
     set_bool_variable(variable_atomic_lines(), true);
     target->AppendLine(shared_ptr<LazyString>(
-        NewCopyString("File listing: " + name_).release()));
+        NewCopyString("File listing: " + path).release()));
 
-    DIR* dir = opendir(name_.c_str());
+    DIR* dir = opendir(path.c_str());
     assert(dir != nullptr);
     struct dirent* entry;
     while ((entry = readdir(dir)) != nullptr) {
@@ -82,9 +85,10 @@ class FileBuffer : public OpenBuffer {
       return;
     }
 
-    if (SaveContentsToFile(editor_state, this, name_)) {
+    const string& path = read_string_variable(variable_path());
+    if (SaveContentsToFile(editor_state, this, path)) {
       set_modified(false);
-      editor_state->SetStatus("Saved: " + name_);
+      editor_state->SetStatus("Saved: " + path);
     }
   }
 
@@ -115,8 +119,14 @@ class FileLinkMode : public EditorMode {
   void ProcessInput(int c, EditorState* editor_state) {
     switch (c) {
       case '\n':
-        afc::editor::OpenFile(editor_state, path_, line_, col_, pattern_);
-        return;
+        {
+          auto it = afc::editor::OpenFile(editor_state, path_, path_);
+          if (it == editor_state->buffers()->end()) { return; }
+          editor_state->set_current_buffer(it);
+          it->second->set_position(OpenBuffer::Position(line_, col_));
+          SearchHandler(pattern_, editor_state);
+          return;
+        }
 
       case 'd':
         {
@@ -241,36 +251,37 @@ bool SaveContentsToOpenFile(
   return true;
 }
 
-void OpenFile(EditorState* editor_state, string path, int line, int column,
-              const string& search_pattern) {
+map<string, shared_ptr<OpenBuffer>>::iterator OpenFile(
+    EditorState* editor_state, const string& name_input, const string& path) {
   editor_state->PushCurrentPosition();
   shared_ptr<OpenBuffer> buffer;
-  if (path.empty()) {
+  string name;
+  if (name_input.empty()) {
     size_t count = 0;
     while (editor_state->buffers()->find(GetAnonymousBufferName(count))
            != editor_state->buffers()->end()) {
       count++;
     }
-    path = GetAnonymousBufferName(count);
-    buffer.reset(new OpenBuffer(path));
+    name = GetAnonymousBufferName(count);
+    buffer.reset(new OpenBuffer(name));
+  } else {
+    name = name_input;
   }
-  auto it = editor_state->buffers()->insert(make_pair(path, buffer));
-  editor_state->set_current_buffer(it.first);
+  auto it = editor_state->buffers()->insert(make_pair(name, buffer));
   if (it.second) {
     if (it.first->second.get() == nullptr) {
       it.first->second.reset(new FileBuffer(path));
     }
     it.first->second->Reload(editor_state);
   }
-  it.first->second->set_current_position_line(line);
-  it.first->second->set_current_position_col(column);
-  it.first->second->CheckPosition();
-  it.first->second->MaybeAdjustPositionCol();
-  SearchHandler(search_pattern, editor_state);
+  it.first->second->set_current_position_line(0);
+  it.first->second->set_current_position_col(0);
+  return it.first;
 }
 
 void OpenAnonymousBuffer(EditorState* editor_state) {
-  OpenFile(editor_state, "", 0, 0, "");
+  editor_state->set_current_buffer(
+      OpenFile(editor_state, "", ""));
 }
 
 unique_ptr<EditorMode> NewFileLinkMode(

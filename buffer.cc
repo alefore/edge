@@ -72,6 +72,12 @@ OpenBuffer::OpenBuffer(const string& name)
   ClearContents();
 }
 
+void OpenBuffer::Close(EditorState* editor_state) {
+  if (read_bool_variable(variable_save_on_close())) {
+    Save(editor_state);
+  }
+}
+
 void OpenBuffer::ClearContents() {
   contents_.clear();
   contents_.push_back(shared_ptr<Line>(new Line(EmptyString())));
@@ -318,6 +324,7 @@ string OpenBuffer::FlagsString() const {
     OpenBuffer::variable_reload_on_enter();
     OpenBuffer::variable_atomic_lines();
     OpenBuffer::variable_diff();
+    OpenBuffer::variable_save_on_close();
   }
   return output;
 }
@@ -361,11 +368,19 @@ string OpenBuffer::FlagsString() const {
 
 /* static */ EdgeVariable<char>* OpenBuffer::variable_diff() {
   static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
-      "",
+      "diff",
       "Does this buffer represent a diff?  If true, when it gets saved the "
       "original contents are reloaded into a separate buffer, an attempt is "
       "made to revert them and then an attempt is made to apply the new "
       "contents.",
+      false);
+  return variable;
+}
+
+/* static */ EdgeVariable<char>* OpenBuffer::variable_save_on_close() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+      "save_on_close",
+      "Should this buffer be saved automatically when it's closed?",
       false);
   return variable;
 }
@@ -377,6 +392,7 @@ string OpenBuffer::FlagsString() const {
     // Trigger registration of all fields.
     OpenBuffer::variable_word_characters();
     OpenBuffer::variable_path_characters();
+    OpenBuffer::variable_path();
   }
   return output;
 }
@@ -396,6 +412,14 @@ string OpenBuffer::FlagsString() const {
       "String with all the characters that should be considered part of a "
       "path.",
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-.*:");
+  return variable;
+}
+
+/* static */ EdgeVariable<string>* OpenBuffer::variable_path() {
+  static EdgeVariable<string>* variable = StringStruct()->AddVariable(
+      "path",
+      "String with the path of the current file.",
+      "");
   return variable;
 }
 

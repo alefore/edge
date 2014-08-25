@@ -65,6 +65,14 @@ EditorState::EditorState()
       home_directory_(GetHomeDirectory()),
       edge_path_(GetEdgeConfigPath(home_directory_)) {}
 
+EditorState::~EditorState() {
+  // TODO: Replace this with a custom deleter in the shared_ptr.  Simplify
+  // CloseBuffer accordingly.
+  for (auto& buffer : buffers_) {
+    buffer.second->Close(this);
+  }
+}
+
 void EditorState::CloseBuffer(
     map<string, shared_ptr<OpenBuffer>>::iterator buffer) {
   ScheduleRedraw();
@@ -78,6 +86,7 @@ void EditorState::CloseBuffer(
   if (current_buffer_ != buffers_.end()) {
     current_buffer_->second->Enter(this);
   }
+  buffer->second->Close(this);
   buffers_.erase(buffer);
 }
 

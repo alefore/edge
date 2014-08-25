@@ -53,6 +53,7 @@ class EditorState {
   }
 
   EditorState();
+  ~EditorState();
 
   void CheckPosition() {
     current_buffer_->second->CheckPosition();

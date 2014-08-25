@@ -27,8 +27,8 @@ bool SaveContentsToOpenFile(
 
 // Creates a new buffer for the file at the path given, jumping to the line and
 // column given, and then searching for the string given.
-void OpenFile(EditorState* editor_state, string path, int line, int column,
-              const string& search_pattern);
+map<string, shared_ptr<OpenBuffer>>::iterator OpenFile(
+    EditorState* editor_state, const string& name, const string& path);
 
 void OpenAnonymousBuffer(EditorState* editor_state);
 
