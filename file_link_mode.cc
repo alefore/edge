@@ -28,13 +28,12 @@ using std::unique_ptr;
 using std::sort;
 using namespace afc::editor;
 
-// TODO: Get rid of path_, it's redundant with name_.
 class FileBuffer : public OpenBuffer {
  public:
-  FileBuffer(const string& path) : OpenBuffer(path), path_(path) {}
+  FileBuffer(const string& path) : OpenBuffer(path) {}
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
-    if (stat(path_.c_str(), &stat_buffer_) == -1) {
+    if (stat(name_.c_str(), &stat_buffer_) == -1) {
       return;
     }
 
@@ -42,11 +41,11 @@ class FileBuffer : public OpenBuffer {
     editor_state->ScheduleRedraw();
 
     if (!S_ISDIR(stat_buffer_.st_mode)) {
-      char* tmp = strdup(path_.c_str());
+      char* tmp = strdup(name_.c_str());
       if (0 == strcmp(basename(tmp), "passwd")) {
-        RunCommandHandler("parsers/passwd <" + path_, editor_state);
+        RunCommandHandler("parsers/passwd <" + name_, editor_state);
       } else {
-        LoadMemoryMappedFile(path_, target);
+        LoadMemoryMappedFile(name_, target);
       }
       editor_state->CheckPosition();
       editor_state->PushCurrentPosition();
@@ -55,9 +54,9 @@ class FileBuffer : public OpenBuffer {
 
     set_bool_variable(variable_atomic_lines(), true);
     target->AppendLine(shared_ptr<LazyString>(
-        NewCopyString("File listing: " + path_).release()));
+        NewCopyString("File listing: " + name_).release()));
 
-    DIR* dir = opendir(path_.c_str());
+    DIR* dir = opendir(name_.c_str());
     assert(dir != nullptr);
     struct dirent* entry;
     while ((entry = readdir(dir)) != nullptr) {
@@ -83,14 +82,13 @@ class FileBuffer : public OpenBuffer {
       return;
     }
 
-    if (SaveContentsToFile(editor_state, this, path_)) {
+    if (SaveContentsToFile(editor_state, this, name_)) {
       set_modified(false);
-      editor_state->SetStatus("Saved: " + path_);
+      editor_state->SetStatus("Saved: " + name_);
     }
   }
 
  private:
-  const string path_;
   struct stat stat_buffer_;
 };
 
