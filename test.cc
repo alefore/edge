@@ -115,7 +115,8 @@ int main(int argc, char**argv) {
 
   editor_state.ProcessInputString("ialejo forero\n");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  editor_state.ProcessInputString("kg3drgjp");
+  editor_state.ProcessInputString("kg" "3d" "rg" "jp");
+  editor_state.ProcessInputString("krg" "j" "rfa");
 
   std::cout << "Pass!\n";
   return 0;

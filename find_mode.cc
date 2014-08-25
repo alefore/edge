@@ -49,6 +49,9 @@ class FindMode : public EditorMode {
   void ProcessInput(int c, EditorState* editor_state) {
     editor_state->PushCurrentPosition();
     if (editor_state->has_current_buffer()) {
+      auto buffer = editor_state->current_buffer()->second;
+      buffer->CheckPosition();
+      buffer->MaybeAdjustPositionCol();
       for (size_t times = 0; times < editor_state->repetitions(); times++) {
         if (!SeekOnce(editor_state->direction(),
                       editor_state->current_buffer()->second, c)) {
