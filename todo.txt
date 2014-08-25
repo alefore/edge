@@ -35,8 +35,6 @@ Add a "margin_lines" integer variable.
 Add autocomplete for files?
   See also autocomplete entry in Editing.
 
-Support ^u to edit the buffer.
-
 Support scrolling back?
 
 -- Commands
