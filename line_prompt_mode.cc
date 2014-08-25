@@ -48,14 +48,6 @@ class LinePromptMode : public EditorMode {
         handler_(handler),
         input_(EditableString::New(initial_value)) {}
 
-  static shared_ptr<OpenBuffer> FindHistoryBuffer(EditorState* editor_state) {
-    auto result = editor_state->buffers()->find(kHistoryName);
-    if (result == editor_state->buffers()->end()) {
-      return shared_ptr<OpenBuffer>(nullptr);
-    }
-    return result->second;
-  }
-
   void ProcessInput(int c, EditorState* editor_state) {
     switch (c) {
       case '\n':
@@ -81,7 +73,7 @@ class LinePromptMode : public EditorMode {
 
       case Terminal::UP_ARROW:
         {
-          auto buffer = FindHistoryBuffer(editor_state);
+          auto buffer = GetHistoryBuffer(editor_state)->second;
           if (buffer == nullptr || buffer->contents()->size() == 1) { return; }
           OpenBuffer::Position position = buffer->position();
           if (position.line > 0) {
@@ -94,7 +86,7 @@ class LinePromptMode : public EditorMode {
 
       case Terminal::DOWN_ARROW:
         {
-          auto buffer = FindHistoryBuffer(editor_state);
+          auto buffer = GetHistoryBuffer(editor_state)->second;
           if (buffer == nullptr || buffer->contents()->size() == 1) { return; }
           OpenBuffer::Position position = buffer->position();
           if (position.line + 1 < buffer->contents()->size()) {
