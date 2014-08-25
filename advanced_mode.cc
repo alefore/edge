@@ -54,9 +54,7 @@ class OpenDirectory : public Command {
       path = dirname(tmp);
       free(tmp);
     }
-    unique_ptr<EditorMode> loader(
-        NewFileLinkMode(editor_state, path, 0, false));
-    loader->ProcessInput('\n', editor_state);
+    editor_state->set_current_buffer(OpenFile(editor_state, path, path));
   }
 };
 
