@@ -60,30 +60,6 @@ class OpenDirectory : public Command {
   }
 };
 
-// TODO: This should be a method of EditorState.
-static void CloseBuffer(
-    EditorState* editor_state,
-    map<string, shared_ptr<OpenBuffer>>::iterator buffer) {
-  editor_state->ScheduleRedraw();
-  map<string, shared_ptr<OpenBuffer>>::iterator it;
-  if (editor_state->buffers()->size() == 1) {
-    it = editor_state->buffers()->end();
-  } else {
-    it = buffer;
-    if (it == editor_state->buffers()->begin()) {
-      it = editor_state->buffers()->end();
-    }
-    it--;
-    assert(it != buffer);
-    assert(it != editor_state->buffers()->end());
-    it->second->Enter(editor_state);
-  }
-  editor_state->buffers()->erase(buffer);
-  if (buffer == editor_state->current_buffer()) {
-    editor_state->set_current_buffer(it);
-  }
-}
-
 class CloseCurrentBuffer : public Command {
   const string Description() {
     return "closes the current buffer (without saving)";
@@ -93,7 +69,7 @@ class CloseCurrentBuffer : public Command {
     if (!editor_state->has_current_buffer()) {
       return;
     }
-    CloseBuffer(editor_state, editor_state->current_buffer());
+    editor_state->CloseBuffer(editor_state->current_buffer());
     editor_state->ResetMode();
     editor_state->ResetRepetitions();
   }
@@ -184,7 +160,7 @@ class ActivateBufferLineCommand : public EditorMode {
         {
           auto it = editor_state->buffers()->find(name_);
           if (it == editor_state->buffers()->end()) { return; }
-          CloseBuffer(editor_state, it);
+          editor_state->CloseBuffer(it);
           break;
         }
     }
