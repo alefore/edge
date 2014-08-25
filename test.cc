@@ -107,7 +107,7 @@ int main(int argc, char**argv) {
   assert(editor_state.current_buffer()->second->position().line == 2);
   assert(editor_state.current_buffer()->second->position().column == 1);
 
-  editor_state.ProcessInputString("slg100000000000000000d");
+  editor_state.ProcessInputString("slg1000000000000000000d");
   for (int i = 0; i < 5; i++) {
     editor_state.ProcessInputString("b");
     assert(editor_state.current_buffer()->second->position().line == 0);

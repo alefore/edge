@@ -295,8 +295,9 @@ class Delete : public Command {
         continue;
       }
       size_t characters_left = (*current_line)->contents->size() - end.column;
-      if (editor_state->repetitions() <= characters_left) {
-        end.column += editor_state->repetitions();
+      if (editor_state->repetitions() <= characters_left
+          || end.line + 1 == buffer->contents()->size()) {
+        end.column += min(characters_left, editor_state->repetitions());
         editor_state->set_repetitions(0);
         continue;
       }
