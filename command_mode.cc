@@ -949,6 +949,41 @@ class ActivateLink : public Command {
   }
 };
 
+class StartSearchMode : public Command {
+ public:
+  const string Description() {
+    return "Searches for a string.";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    switch (editor_state->structure()) {
+      case EditorState::WORD:
+        {
+          editor_state->ResetStructure();
+          if (!editor_state->has_current_buffer()) { return; }
+          auto buffer = editor_state->current_buffer()->second;
+          OpenBuffer::Position start, end;
+          if (!buffer->BoundWordAt(buffer->position(), &start, &end)) {
+            return;
+          }
+          assert(start.line == end.line);
+          assert(start.column + 1 < end.column);
+          buffer->set_position(start);
+          SearchHandler(
+              Substring(buffer->LineAt(start.line)->contents,
+                        start.column, end.column - start.column - 1)
+                  ->ToString(),
+              editor_state);
+        }
+        break;
+
+      default:
+        Prompt(editor_state, "/", "search", "", SearchHandler, EmptyPredictor);
+        break;
+    }
+  }
+};
+
 static const map<int, Command*>& GetCommandModeMap() {
   static map<int, Command*> output;
   if (output.empty()) {
@@ -960,10 +995,7 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('r', new ReverseDirectionCommand()));
     output.insert(make_pair('R', new ReverseDefaultDirectionCommand()));
 
-    output.insert(make_pair(
-        '/',
-        NewLinePromptCommand("/", "search", "searches for a string", SearchHandler,
-                             EmptyPredictor).release()));
+    output.insert(make_pair('/', new StartSearchMode()));
 
     output.insert(make_pair('g', new GotoCommand()));
 

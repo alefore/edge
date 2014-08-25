@@ -117,6 +117,15 @@ class OpenBuffer {
 
   void CheckPosition();
 
+  // Sets the positions pointed to by start and end to the beginning and end of
+  // the word at the position given by the first argument.  If there's no word
+  // in the position given (just a whitespace), moves forward until it finds
+  // one.
+  //
+  // If no word can be found (e.g. we're on a whitespace that's not followed by
+  // any word characters), returns false.
+  bool BoundWordAt(const Position& position, Position* start, Position* end);
+
   shared_ptr<Line> current_line() const {
     return LineAt(position_.line);
   }
@@ -128,6 +137,10 @@ class OpenBuffer {
     }
     return contents_.at(line_number);
   }
+  char character_at(Position position) const {
+    return LineAt(position.line)->contents->get(position.column);
+  }
+
   // Returns the substring of the current line until the current position.
   shared_ptr<LazyString> current_line_head() const {
     return Substring(current_line()->contents, 0, current_position_col());
@@ -162,24 +175,30 @@ class OpenBuffer {
     if (contents_.empty()) { return true; }
     return position_.at_beginning();
   }
-  bool at_beginning_of_line() const {
+  bool at_beginning_of_line() const { return at_beginning_of_line(position_); }
+  bool at_beginning_of_line(const Position& position) const {
     if (contents_.empty()) { return true; }
-    return position_.at_beginning_of_line();
+    return position.at_beginning_of_line();
   }
-  bool at_end() const {
+  bool at_end() const { return at_end(position_); }
+  bool at_end(const Position& position) const {
     if (contents_.empty()) { return true; }
-    return at_last_line() && at_end_of_line();
+    return at_last_line(position) && at_end_of_line(position);
   }
   Position end_position() const {
     if (contents_.empty()) { return Position(0, 0); }
     return Position(contents_.size() - 1, (*contents_.rbegin())->contents->size());
   }
-  bool at_last_line() const {
-    return position_.line == contents_.size() - 1;
+  bool at_last_line() const { return at_last_line(position_); }
+  bool at_last_line(const Position& position) const {
+    return position.line == contents_.size() - 1;
   }
   bool at_end_of_line() const {
+    return at_end_of_line(position_);
+  }
+  bool at_end_of_line(const Position& position) const {
     if (contents_.empty()) { return true; }
-    return position_.column >= current_line()->contents->size();
+    return position.column >= LineAt(position.line)->contents->size();
   }
   char current_character() const {
     assert(current_position_col() < current_line()->contents->size());

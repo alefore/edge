@@ -262,6 +262,45 @@ void OpenBuffer::CheckPosition() {
   }
 }
 
+bool OpenBuffer::BoundWordAt(
+    const Position& position_input, Position* start, Position* end) {
+  const string& word_char = read_string_variable(variable_word_characters());
+  Position position(position_input);
+
+  // Seek forwards until we're at a word character.
+  while (at_end_of_line(position)
+         || word_char.find(character_at(position)) == word_char.npos) {
+    if (at_end(position)) {
+      return false;
+    } else if (at_end_of_line(position)) {
+      position.column = 0;
+      position.line++;
+    } else {
+      position.column ++;
+    }
+  }
+
+  // Seek backwards until we're at the beginning of the word.
+  if (!at_beginning_of_line(position)) {
+    while (!at_beginning_of_line(position)
+           && word_char.find(character_at(Position(position.line, position.column - 1))) != string::npos) {
+      assert(position.column > 0);
+      position.column--;
+    }
+  }
+
+  *start = position;
+
+  // Seek forwards until the next space.
+  while (!at_end_of_line(position)
+         || word_char.find(character_at(position)) != string::npos) {
+    position.column ++;
+  }
+
+  *end = position;
+  return true;
+}
+
 string OpenBuffer::ToString() const {
   size_t size = 0;
   for (auto& it : contents_) {
