@@ -332,6 +332,7 @@ class Paste : public Command {
       return;
     }
     auto buffer = editor_state->current_buffer()->second;
+    buffer->MaybeAdjustPositionCol();
     InsertBuffer transformation(
         it->second, buffer->position(), editor_state->repetitions());
     editor_state->ApplyToCurrentBuffer(transformation);
