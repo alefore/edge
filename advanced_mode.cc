@@ -207,7 +207,7 @@ class ListBuffersBuffer : public OpenBuffer {
       string flags(it.second->FlagsString());
       auto name = NewCopyString(it.first + (flags.empty() ? "" : "  ") + flags);
       target->AppendLine(std::move(name));
-      (*target->contents()->rbegin())->activate.reset(new ActivateBufferLineCommand(it.first));
+      (*++target->contents()->rbegin())->activate.reset(new ActivateBufferLineCommand(it.first));
     }
     editor_state->ScheduleRedraw();
   }
