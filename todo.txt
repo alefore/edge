@@ -16,7 +16,6 @@ Handle DELETE key
 Implement delete of page/word.
 
 Autocomplete?
-  Maybe should just initially attempt to use files?
   Or maybe also just look up words in the current file?
   Maybe variables control sources of completions?
 
@@ -32,9 +31,6 @@ Add a "margin_lines" integer variable.
 
 -- Prompt
 
-Add autocomplete for files?
-  See also autocomplete entry in Editing.
-
 Support scrolling back?
 
 -- Commands
@@ -49,9 +45,6 @@ Improve "af":
     BUFFER> run a command with the whole contents of the buffer
       (another possibility: run a command for each line in buffer (prompt))
   Handle repetitions?  Maybe for line, run multiple lines in separate buffers?
-
-Figure out why "python" doesn't work very interactively.
-  Canonical test: create a "python" buffer and give it some "help(list)" or similar, it should do it.
 
 When running subcommands with aC, actually set variables "ARG0", "ARG1", "ARG2", "ARG3", with words in line...
 
