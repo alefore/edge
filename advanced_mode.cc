@@ -100,6 +100,7 @@ void OpenFileHandler(const string& name, EditorState* editor_state) {
 
 void SetVariableHandler(const string& name, EditorState* editor_state) {
   editor_state->ResetMode();
+  if (name.empty()) { return; }
   {
     const EdgeVariable<string>* var = OpenBuffer::StringStruct()->find_variable(name);
     if (var != nullptr) {
@@ -259,10 +260,16 @@ static const map<int, Command*>& GetAdvancedModeMap() {
   if (output.empty()) {
     output.insert(make_pair('d', new CloseCurrentBuffer()));
     output.insert(make_pair('w', new SaveCurrentBuffer()));
+
+    vector<string> variables;
+    OpenBuffer::BoolStruct()->RegisterVariableNames(&variables);
+    OpenBuffer::StringStruct()->RegisterVariableNames(&variables);
     output.insert(make_pair(
         'v',
-        NewLinePromptCommand("var ", "variables", "assigns to a variable",
-                             SetVariableHandler, EmptyPredictor).release()));
+        NewLinePromptCommand(
+            "var ", "variables", "assigns to a variable", SetVariableHandler,
+            PrecomputedPredictor(variables)).release()));
+
     output.insert(make_pair('.', new OpenDirectory()));
     output.insert(make_pair('l', new ListBuffers()));
     output.insert(make_pair('r', new ReloadBuffer()));

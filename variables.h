@@ -80,6 +80,12 @@ class EdgeStruct {
     return it == variables_.end() ? nullptr : it->second.get();
   }
 
+  void RegisterVariableNames(vector<string>* output) {
+    for (const auto& it : variables_) {
+      output->push_back(it.first);
+    }
+  }
+
  private:
   map<string, unique_ptr<EdgeVariable<T>>> variables_;
 };

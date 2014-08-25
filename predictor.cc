@@ -14,6 +14,7 @@ extern "C" {
 }
 
 #include "buffer.h"
+#include "char_buffer.h"
 #include "editor.h"
 #include "predictor.h"
 
@@ -150,7 +151,28 @@ void FilePredictor(EditorState* editor_state,
 void EmptyPredictor(EditorState* editor_state,
                     const string& input,
                     OpenBuffer* buffer) {
-  // Pass.
+  buffer->EndOfFile(editor_state);
+}
+
+Predictor PrecomputedPredictor(const vector<string>& predictions) {
+  const shared_ptr<map<string, shared_ptr<LazyString>>> contents(
+      new map<string, shared_ptr<LazyString>>());
+  for (const auto& prediction : predictions) {
+    contents->insert(
+        make_pair(prediction,
+                  NewCopyString(prediction)));
+  }
+  return [contents](EditorState* editor_state, const string& input, OpenBuffer* buffer) {
+    for (auto it = contents->lower_bound(input); it != contents->end(); ++it) {
+      auto result = mismatch(input.begin(), input.end(), (*it).first.begin());
+      if (result.first == input.end()) {
+        buffer->AppendLine(it->second);
+      } else {
+        break;
+      }
+    }
+    buffer->EndOfFile(editor_state);
+  };
 }
 
 }  // namespace afc

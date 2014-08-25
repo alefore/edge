@@ -25,6 +25,8 @@ void EmptyPredictor(EditorState* editor_state,
                    const string& input,
                    OpenBuffer* buffer);
 
+Predictor PrecomputedPredictor(const vector<string>& predictions);
+
 }  // namespace editor
 }  // namespace afc
 

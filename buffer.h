@@ -102,6 +102,7 @@ class OpenBuffer {
   void ReadData(EditorState* editor_state);
 
   void Reload(EditorState* editor_state);
+  virtual void EndOfFile(EditorState* editor_state);
 
   void AppendLazyString(shared_ptr<LazyString> input);
   void AppendLine(shared_ptr<LazyString> line);
@@ -248,7 +249,6 @@ class OpenBuffer {
   void Undo(EditorState* editor_state);
 
  protected:
-  virtual void EndOfFile(EditorState* editor_state);
 
   vector<unique_ptr<ParseTree>> parse_tree;
 
