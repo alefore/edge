@@ -958,7 +958,8 @@ static const map<int, Command*>& GetCommandModeMap() {
 
     output.insert(make_pair(
         '/',
-        NewLinePromptCommand("/", "search", "searches for a string", SearchHandler).release()));
+        NewLinePromptCommand("/", "search", "searches for a string", SearchHandler,
+                             EmptyPredictor).release()));
 
     output.insert(make_pair('g', new GotoCommand()));
 

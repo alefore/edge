@@ -117,7 +117,8 @@ void SetVariableHandler(const string& name, EditorState* editor_state) {
             // ResetMode causes the prompt to be deleted, and the captures of
             // this lambda go away with it.
             editor_state->ResetMode();
-          });
+          },
+          EmptyPredictor);
       return;
     }
   }
@@ -260,21 +261,23 @@ static const map<int, Command*>& GetAdvancedModeMap() {
     output.insert(make_pair('w', new SaveCurrentBuffer()));
     output.insert(make_pair(
         'v',
-        NewLinePromptCommand("var ", "variables", "assigns to a variable", SetVariableHandler).release()));
+        NewLinePromptCommand("var ", "variables", "assigns to a variable",
+                             SetVariableHandler, EmptyPredictor).release()));
     output.insert(make_pair('.', new OpenDirectory()));
     output.insert(make_pair('l', new ListBuffers()));
     output.insert(make_pair('r', new ReloadBuffer()));
     output.insert(make_pair('e', new SendEndOfFile()));
     output.insert(make_pair(
         'o',
-        NewLinePromptCommand("<", "files", "loads a file", OpenFileHandler).release()));
+        NewLinePromptCommand("<", "files", "loads a file", OpenFileHandler,
+                             EmptyPredictor).release()));
     output.insert(make_pair(
         'F',
         NewLinePromptCommand(
             "...$ ",
             "commands",
             "forks a command for each line in the current buffer",
-            RunMultipleCommandsHandler).release()));
+            RunMultipleCommandsHandler, EmptyPredictor).release()));
     output.insert(make_pair('f', NewForkCommand().release()));
     output.insert(make_pair('?', NewHelpCommand(output, "advance command mode").release()));
   }

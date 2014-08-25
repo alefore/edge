@@ -21,6 +21,7 @@ file_link_mode.o: file_link_mode.cc file_link_mode.h buffer.h char_buffer.h edit
 find_mode.o: editor_mode.h editor.h command_mode.h find_mode.h find_mode.cc Makefile
 insert_mode.o: insert_mode.cc insert_mode.h command_mode.h editable_string.h editor.h lazy_string_append.h substring.h terminal.h Makefile
 line_prompt_mode.o: line_prompt_mode.cc line_prompt_mode.h char_buffer.h command.h command_mode.h editable_string.h editor.h terminal.h Makefile
+preditor.o: predictor.cc predictor.h buffer.h editor.h Makefile
 
 map_mode.o: editor_mode.h map_mode.h map_mode.cc
 repeat_mode.o: repeat_mode.cc repeat_mode.h editor_mode.h editor.h command_mode.h Makefile
@@ -35,7 +36,7 @@ lazy_string.o: lazy_string.cc lazy_string.h Makefile
 editable_string.o: editable_string.cc editable_string.h Makefile
 lazy_string_append.o: lazy_string_append.cc lazy_string_append.h lazy_string.h Makefile
 
-LIB=advanced_mode.o buffer.o char_buffer.o command_mode.o direction.o editable_string.o editor.o file_link_mode.o find_mode.o help_command.o insert_mode.o lazy_string.o lazy_string_append.o line_prompt_mode.o map_mode.o memory_mapped_file.o noop_command.o repeat_mode.o run_command_handler.o search_handler.o substring.o terminal.o
+LIB=advanced_mode.o buffer.o char_buffer.o command_mode.o direction.o editable_string.o editor.o file_link_mode.o find_mode.o help_command.o insert_mode.o lazy_string.o lazy_string_append.o line_prompt_mode.o map_mode.o memory_mapped_file.o noop_command.o predictor.o repeat_mode.o run_command_handler.o search_handler.o substring.o terminal.o
 edge: main.o $(LIB)
 	$(CXX) $(LDFLAGS) -o edge $(LIB) main.o $(LDLIBS)
 test: test.o $(LIB)

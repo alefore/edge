@@ -163,11 +163,8 @@ class ForkCommand : public Command {
   void ProcessInput(int c, EditorState* editor_state) {
     switch (editor_state->structure()) {
       case EditorState::CHAR:
-        {
-          unique_ptr<Command> command(
-              NewLinePromptCommand("$ ", "commands", "", RunCommandHandler));
-          command->ProcessInput(c, editor_state);
-        }
+        Prompt(editor_state, "$ ", "commands", "", RunCommandHandler,
+               EmptyPredictor);
         break;
 
       case EditorState::LINE:

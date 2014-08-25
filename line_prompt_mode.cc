@@ -1,3 +1,5 @@
+#include "line_prompt_mode.h"
+
 #include <memory>
 #include <limits>
 #include <string>
@@ -6,9 +8,9 @@
 #include "command.h"
 #include "command_mode.h"
 #include "file_link_mode.h"
-#include "line_prompt_mode.h"
 #include "editable_string.h"
 #include "editor.h"
+#include "predictor.h"
 #include "terminal.h"
 
 namespace {
@@ -41,7 +43,8 @@ GetHistoryBuffer(EditorState* editor_state, const string& name) {
 class LinePromptMode : public EditorMode {
  public:
   LinePromptMode(const string& prompt, const string& history_file,
-                 const string& initial_value, LinePromptHandler handler)
+                 const string& initial_value, LinePromptHandler handler,
+                 Predictor predictor)
       : prompt_(prompt),
         history_file_(history_file),
         handler_(handler),
@@ -123,6 +126,7 @@ class LinePromptMode : public EditorMode {
   const string history_file_;
   LinePromptHandler handler_;
   shared_ptr<EditableString> input_;
+  Predictor predictor;
 };
 
 class LinePromptCommand : public Command {
@@ -130,18 +134,20 @@ class LinePromptCommand : public Command {
   LinePromptCommand(const string& prompt,
                     const string& history_file,
                     const string& description,
-                    LinePromptHandler handler)
+                    LinePromptHandler handler,
+                    Predictor predictor)
       : prompt_(prompt),
         history_file_(history_file),
         description_(description),
-        handler_(handler) {}
+        handler_(handler),
+        predictor_(predictor) {}
 
   const string Description() {
     return description_;
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    Prompt(editor_state, prompt_, history_file_, "", handler_);
+    Prompt(editor_state, prompt_, history_file_, "", handler_, predictor_);
   }
 
  private:
@@ -149,6 +155,7 @@ class LinePromptCommand : public Command {
   const string history_file_;
   const string description_;
   LinePromptHandler handler_;
+  Predictor predictor_;
 };
 
 }  // namespace
@@ -163,9 +170,10 @@ void Prompt(EditorState* editor_state,
             const string& prompt,
             const string& history_file,
             const string& initial_value,
-            LinePromptHandler handler) {
-  std::unique_ptr<LinePromptMode> line_prompt_mode(
-      new LinePromptMode(prompt, history_file, initial_value, handler));
+            LinePromptHandler handler,
+            Predictor predictor) {
+  std::unique_ptr<LinePromptMode> line_prompt_mode(new LinePromptMode(
+      prompt, history_file, initial_value, handler, predictor));
   auto history = GetHistoryBuffer(editor_state, history_file);
   history->second->set_current_position_line(
       history->second->contents()->size() - 1);
@@ -178,9 +186,10 @@ unique_ptr<Command> NewLinePromptCommand(
     const string& prompt,
     const string& history_file,
     const string& description,
-    LinePromptHandler handler) {
-  return std::move(unique_ptr<Command>(
-      new LinePromptCommand(prompt, history_file, description, handler)));
+    LinePromptHandler handler,
+    Predictor predictor) {
+  return std::move(unique_ptr<Command>(new LinePromptCommand(
+      prompt, history_file, description, handler, predictor)));
 }
 
 }  // namespace afc

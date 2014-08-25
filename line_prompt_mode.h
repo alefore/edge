@@ -5,6 +5,7 @@
 
 #include "command.h"
 #include "editor.h"
+#include "predictor.h"
 
 namespace afc {
 namespace editor {
@@ -18,11 +19,12 @@ void Prompt(EditorState* editor_state,
             const string& prompt,
             const string& history_file,
             const string& initial_value,
-            LinePromptHandler handler);
+            LinePromptHandler handler,
+            Predictor predictor);
 
 unique_ptr<Command> NewLinePromptCommand(
     const string& prompt, const string& history_file, const string& description,
-    LinePromptHandler handler);
+    LinePromptHandler handler, Predictor predictor);
 
 }  // namespace editor
 }  // namespace afc

@@ -143,7 +143,8 @@ class FileLinkMode : public EditorMode {
                   // in the other case.
                 }
                 editor_state->ResetMode();
-              }));
+              },
+              EmptyPredictor));
           command->ProcessInput('\n', editor_state);
         }
         return;
