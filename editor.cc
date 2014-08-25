@@ -76,18 +76,22 @@ EditorState::~EditorState() {
 void EditorState::CloseBuffer(
     map<string, shared_ptr<OpenBuffer>>::iterator buffer) {
   ScheduleRedraw();
-  if (buffers_.size() == 1) {
-    current_buffer_ = buffers_.end();
-  } else {
-    current_buffer_ = buffer == buffers_.begin() ? buffers_.end() : buffer;
-    current_buffer_--;
+  if (current_buffer_ == buffer) {
+    if (buffers_.size() == 1) {
+      current_buffer_ = buffers_.end();
+    } else {
+      current_buffer_ = buffer == buffers_.begin() ? buffers_.end() : buffer;
+      current_buffer_--;
+    }
+
+    if (current_buffer_ != buffers_.end()) {
+      current_buffer_->second->Enter(this);
+    }
   }
 
-  if (current_buffer_ != buffers_.end()) {
-    current_buffer_->second->Enter(this);
-  }
   buffer->second->Close(this);
   buffers_.erase(buffer);
+  assert(current_buffer_ != buffers_.end());
 }
 
 void EditorState::set_direction(Direction direction) {
