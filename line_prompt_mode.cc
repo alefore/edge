@@ -52,6 +52,10 @@ class LinePromptMode : public EditorMode {
         input_->Backspace();
         break;
 
+      case Terminal::CTRL_U:
+        input_->Clear();
+        break;
+
       case Terminal::UP_ARROW:
         {
           auto buffer = FindHistoryBuffer(editor_state);

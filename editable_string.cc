@@ -61,5 +61,10 @@ bool EditableString::Backspace() {
   return true;
 }
 
+void EditableString::Clear() {
+  editable_part_ = "";
+  base_ = EmptyString();
+}
+
 }  // namespace afc
 }  // namespace editor

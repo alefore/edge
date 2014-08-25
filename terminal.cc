@@ -205,6 +205,17 @@ int Terminal::Read() {
   switch (c) {
     case 127:
       return BACKSPACE;
+    case 21:
+      {
+        int next = getch();
+        switch (next) {
+          case -1:
+            return CTRL_U;
+        }
+        ungetch(next);
+      }
+      return 21;
+
     case 27:
       {
         int next = getch();

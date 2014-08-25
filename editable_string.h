@@ -27,13 +27,15 @@ class EditableString : public LazyString {
 
   void Insert(int c);
 
+  void Clear();
+
   bool Backspace();
 
  private:
   EditableString(const shared_ptr<LazyString>& base, size_t position,
                  const string& editable_part);
 
-  const shared_ptr<LazyString> base_;
+  shared_ptr<LazyString> base_;
   size_t position_;
   string editable_part_;
 };
