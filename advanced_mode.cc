@@ -114,6 +114,10 @@ class SaveCurrentBuffer : public Command {
 };
 
 void OpenFileHandler(const string& name, EditorState* editor_state) {
+  if (name.empty()) {
+    editor_state->ResetMode();
+    return;
+  }
   unique_ptr<EditorMode> mode(NewFileLinkMode(editor_state, name, 0, false));
   mode->ProcessInput('\n', editor_state);
 }
