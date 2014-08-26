@@ -13,10 +13,10 @@ Reflow a paragraph?  How to detect the prefix?
 
 Handle DELETE key
 
-Implement delete of page/word.
+Implement delete of page.
 
-Autocomplete?
-  Or maybe also just look up words in the current file?
+Support autocomplete while editting a buffer
+  Maybe initially just look up words in the current file?
   Maybe variables control sources of completions?
 
 -- Navigation
@@ -31,7 +31,7 @@ Add a "margin_lines" integer variable.
 
 -- Prompt
 
-Support scrolling back?
+Support ARROW_LEFT, allow editing characters other than the last one.
 
 -- Commands
 
@@ -57,16 +57,10 @@ Convert more variables to the new system for defining variables.
 
 Save the contents of variables?
 
-Allow configuration files to specify variables for buffers (by various criteria)
-
-Let commands inherit variables from their parent.
-
-Add a variable for specifying which characters should be considered parts of a path?
-  Then use that to find the current path in the current line.
-  Then set that for c++ files so that #include "local_file.cc" works.
+Allow configuration files to specify variables for buffers (by various criteria).
 
 -- Misc
 
 Add a variable to set the exit status?
   Should probably be an int, default to 0.
-  Maybe add a quick way of setting it?
+  Maybe add a quick way of setting it to -1? "aE"?
