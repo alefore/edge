@@ -281,19 +281,17 @@ bool OpenBuffer::BoundWordAt(
   }
 
   // Seek backwards until we're at the beginning of the word.
-  if (!at_beginning_of_line(position)) {
-    while (!at_beginning_of_line(position)
-           && word_char.find(character_at(Position(position.line, position.column - 1))) != string::npos) {
-      assert(position.column > 0);
-      position.column--;
-    }
+  while (!at_beginning_of_line(position)
+         && word_char.find(character_at(Position(position.line, position.column - 1))) != string::npos) {
+    assert(position.column > 0);
+    position.column--;
   }
 
   *start = position;
 
   // Seek forwards until the next space.
   while (!at_end_of_line(position)
-         || word_char.find(character_at(position)) != string::npos) {
+         && word_char.find(character_at(position)) != string::npos) {
     position.column ++;
   }
 
