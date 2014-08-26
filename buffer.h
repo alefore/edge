@@ -90,6 +90,9 @@ class OpenBuffer {
     size_t column;
   };
 
+  // Name of a special buffer that shows the list of buffers.
+  static const string kBuffersName;
+
   OpenBuffer(const string& name);
 
   void Close(EditorState* editor_state);

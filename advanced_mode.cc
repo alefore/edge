@@ -197,11 +197,11 @@ class ListBuffers : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    const string name = "- open buffers";
-    auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
+    auto it = editor_state->buffers()->insert(
+        make_pair(OpenBuffer::kBuffersName, nullptr));
     editor_state->set_current_buffer(it.first);
     if (it.second) {
-      it.first->second.reset(new ListBuffersBuffer(name));
+      it.first->second.reset(new ListBuffersBuffer(OpenBuffer::kBuffersName));
       it.first->second->set_bool_variable(
           OpenBuffer::variable_reload_on_enter(), true);
     }

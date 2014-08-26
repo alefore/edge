@@ -51,6 +51,8 @@ namespace editor {
 
 using std::to_string;
 
+/* static */ const string OpenBuffer::kBuffersName = "- buffers";
+
 OpenBuffer::OpenBuffer(const string& name)
     : name_(name),
       fd_(-1),
@@ -106,6 +108,11 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
       editor_state->CloseBuffer(it);
     }
   }
+
+  if (editor_state->has_current_buffer()
+      && editor_state->current_buffer()->first == kBuffersName) {
+    editor_state->current_buffer()->second->Reload(editor_state);
+  }
 }
 
 void OpenBuffer::ReadData(EditorState* editor_state) {
@@ -150,6 +157,10 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
     }
   }
   buffer_length_ += static_cast<size_t>(characters_read);
+  if (editor_state->has_current_buffer()
+      && editor_state->current_buffer()->first == kBuffersName) {
+    editor_state->current_buffer()->second->Reload(editor_state);
+  }
 }
 
 void OpenBuffer::Reload(EditorState* editor_state) {
