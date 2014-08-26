@@ -133,21 +133,25 @@ class FileLinkMode : public EditorMode {
       case 'd':
         {
           string path = path_;  // Capture for the lambda.
+          vector<string> predictions = { "no", "yes" };
           unique_ptr<Command> command(NewLinePromptCommand(
-              "rm " + path_ + "? ",
+              "unlink " + path_ + "? [yes/no] ",
               "confirmation",
               "Confirmation",
               [path](const string input, EditorState* editor_state) {
                 if (input == "yes") {
-                  unlink(path.c_str());
-                  editor_state->SetStatus("removed");
+                  int result = unlink(path.c_str());
+                  editor_state->SetStatus(
+                      path + ": unlink: "
+                      + (result == 0 ? "done" : "ERROR: " + string(strerror(errno))));
                 } else {
                   // TODO: insert it again?  Actually, only let it be erased
                   // in the other case.
+                  editor_state->SetStatus("Ignored.");
                 }
                 editor_state->ResetMode();
               },
-              EmptyPredictor));
+              PrecomputedPredictor(predictions)));
           command->ProcessInput('\n', editor_state);
         }
         return;
