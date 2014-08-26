@@ -118,6 +118,17 @@ int main(int argc, char**argv) {
   editor_state.ProcessInputString("kg" "3d" "rg" "jp");
   editor_state.ProcessInputString("krg" "j" "rfa");
 
+  // Clear.
+  editor_state.ProcessInputString("sLg99999999999999999999999dsc");
+
+  editor_state.ProcessInputString("ihey there hey hey man yes ahoheyblah.");
+  assert(editor_state.current_buffer()->second->position().line == 0);
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("glsw/");
+  assert(editor_state.last_search_query() == "hey");
+  assert(editor_state.current_buffer()->second->position().line == 0);
+  assert(editor_state.current_buffer()->second->position().column == 10);
+
   std::cout << "Pass!\n";
   return 0;
 }
