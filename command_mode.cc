@@ -968,10 +968,13 @@ class StartSearchMode : public Command {
           }
           assert(start.line == end.line);
           assert(start.column + 1 < end.column);
-          buffer->set_position(start);
+          if (start.line != buffer->position().line
+              || start.column > buffer->position().column) {
+            buffer->set_position(start);
+          }
           SearchHandler(
               Substring(buffer->LineAt(start.line)->contents,
-                        start.column, end.column - start.column - 1)
+                        start.column, end.column - start.column)
                   ->ToString(),
               editor_state);
         }
