@@ -238,8 +238,19 @@ class Delete : public Command {
         break;
 
       case EditorState::WORD:
-        // TODO: Implement.
-        editor_state->SetStatus("Oops, delete word is not yet implemented.");
+        if (!editor_state->has_current_buffer()) { return; }
+        {
+          // TODO: Honor repetition.
+          auto buffer = editor_state->current_buffer()->second;
+          OpenBuffer::Position start, end;
+          if (!buffer->BoundWordAt(buffer->position(), &start, &end)) {
+            return;
+          }
+          assert(start.line == end.line);
+          assert(start.column + 1 < end.column);
+          DeleteFromBuffer deleter(start, end);
+          editor_state->ApplyToCurrentBuffer(deleter);
+        }
         break;
 
       case EditorState::LINE:
