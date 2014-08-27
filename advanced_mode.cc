@@ -66,6 +66,7 @@ class OpenDirectory : public Command {
       free(tmp);
     }
     editor_state->set_current_buffer(OpenFile(editor_state, path, path));
+    editor_state->ScheduleRedraw();
     editor_state->ResetMode();
   }
 };
