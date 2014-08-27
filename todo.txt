@@ -19,6 +19,9 @@ Support autocomplete while editting a buffer
   Maybe initially just look up words in the current file?
   Maybe variables control sources of completions?
 
+Make undo work with insert.
+  And add tests for it.
+
 -- Navigation
 
 For the "g"oto command, if we're already at the position specified, then invert the direction and try again.
