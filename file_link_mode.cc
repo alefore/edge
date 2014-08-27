@@ -114,9 +114,7 @@ class FileLinkMode : public EditorMode {
                const string& pattern)
       : path_(realpath_safe(path)),
         position_(position),
-        pattern_(pattern) {
-    assert(path_ != "");
-  }
+        pattern_(pattern) {}
 
   void ProcessInput(int c, EditorState* editor_state) {
     switch (c) {
