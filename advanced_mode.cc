@@ -30,6 +30,17 @@ using std::map;
 using std::shared_ptr;
 using std::unique_ptr;
 
+class Quit : public Command {
+ public:
+  const string Description() {
+    return "quits";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    editor_state->set_terminate(true);
+  }
+};
+
 class RestoreCommandMode : public Command {
   const string Description() {
     return "restores command mode";
@@ -256,6 +267,7 @@ class SendEndOfFile : public Command {
 static const map<int, Command*>& GetAdvancedModeMap() {
   static map<int, Command*> output;
   if (output.empty()) {
+    output.insert(make_pair('q', new Quit()));
     output.insert(make_pair('d', new CloseCurrentBuffer()));
     output.insert(make_pair('w', new SaveCurrentBuffer()));
 

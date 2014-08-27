@@ -29,17 +29,6 @@ using namespace afc::editor;
 
 const string kPasteBuffer = "- paste buffer";
 
-class Quit : public Command {
- public:
-  const string Description() {
-    return "quits";
-  }
-
-  void ProcessInput(int c, EditorState* editor_state) {
-    editor_state->set_terminate(true);
-  }
-};
-
 class GotoCommand : public Command {
  public:
   const string Description() {
@@ -1021,8 +1010,6 @@ class StartSearchMode : public Command {
 static const map<int, Command*>& GetCommandModeMap() {
   static map<int, Command*> output;
   if (output.empty()) {
-    output.insert(make_pair('q', new Quit()));
-
     output.insert(make_pair('a', new EnterAdvancedMode()));
     output.insert(make_pair('i', new EnterInsertMode()));
     output.insert(make_pair('f', new EnterFindMode()));
