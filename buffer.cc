@@ -459,7 +459,7 @@ string OpenBuffer::FlagsString() const {
       "path_characters",
       "String with all the characters that should be considered part of a "
       "path.",
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-.*:");
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-.*:/");
   return variable;
 }
 
