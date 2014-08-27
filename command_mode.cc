@@ -1007,6 +1007,22 @@ class StartSearchMode : public Command {
   }
 };
 
+class ResetStateCommand : public Command {
+ public:
+  const string Description() {
+    return "Resets the state of the editor.";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    editor_state->ResetMode();
+    editor_state->set_default_structure(EditorState::CHAR);
+    editor_state->set_structure(EditorState::CHAR);
+    editor_state->ResetRepetitions();
+    editor_state->set_default_direction(FORWARDS);
+    editor_state->ResetDirection();
+  }
+};
+
 static const map<int, Command*>& GetCommandModeMap() {
   static map<int, Command*> output;
   if (output.empty()) {
@@ -1035,6 +1051,8 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('s', new EnterStructureMode()));
 
     output.insert(make_pair('?', NewHelpCommand(output, "command mode").release()));
+
+    output.insert(make_pair(Terminal::ESCAPE, new ResetStateCommand()));
 
     output.insert(make_pair('0', new NumberMode(SetRepetitions)));
     output.insert(make_pair('1', new NumberMode(SetRepetitions)));

@@ -21,6 +21,7 @@ constexpr int Terminal::RIGHT_ARROW;
 constexpr int Terminal::BACKSPACE;
 constexpr int Terminal::PAGE_UP;
 constexpr int Terminal::PAGE_DOWN;
+constexpr int Terminal::ESCAPE;
 
 Terminal::Terminal() {
   initscr();
