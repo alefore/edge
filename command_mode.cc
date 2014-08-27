@@ -61,7 +61,27 @@ class GotoCommand : public Command {
         break;
 
       case EditorState::WORD:
-        // TODO: Implement.
+        {
+          // TODO: Handle reverse direction
+          shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
+          OpenBuffer::Position position(buffer->position().line);
+          while (editor_state->repetitions() > 0) {
+            OpenBuffer::Position start, end;
+            if (!buffer->BoundWordAt(position, &start, &end)) {
+              editor_state->set_repetitions(0);
+              continue;
+            }
+            editor_state->set_repetitions(editor_state->repetitions() - 1);
+            if (editor_state->repetitions() == 0) {
+              position = start;
+            } else if (end.column == buffer->LineAt(position.line)->contents->size()) {
+              position = OpenBuffer::Position(end.line + 1);
+            } else {
+              position = OpenBuffer::Position(end.line, end.column + 1);
+            }
+          }
+          buffer->set_position(position);
+        }
         break;
 
       case EditorState::LINE:
