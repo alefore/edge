@@ -88,6 +88,7 @@ void OpenBuffer::ClearContents() {
 void OpenBuffer::EndOfFile(EditorState* editor_state) {
   close(fd_);
   buffer_ = static_cast<char*>(realloc(buffer_, buffer_length_));
+  buffer_size_ = buffer_length_;
   if (child_pid_ != -1) {
     if (waitpid(child_pid_, &child_exit_status_, 0) == -1) {
       editor_state->SetStatus("waitpid failed: " + string(strerror(errno)));
@@ -326,11 +327,13 @@ string OpenBuffer::ToString() const {
 
 void OpenBuffer::SetInputFile(
     int input_fd, bool fd_is_terminal, pid_t child_pid) {
-  ClearContents();
-  buffer_ = nullptr;
-  buffer_line_start_ = 0;
-  buffer_length_ = 0;
-  buffer_size_ = 0;
+  if (read_bool_variable(variable_clear_on_reload())) {
+    ClearContents();
+    buffer_ = nullptr;
+    buffer_line_start_ = 0;
+    buffer_length_ = 0;
+    buffer_size_ = 0;
+  }
   if (fd_ != -1) {
     close(fd_);
   }
@@ -373,6 +376,7 @@ string OpenBuffer::FlagsString() const {
     OpenBuffer::variable_atomic_lines();
     OpenBuffer::variable_diff();
     OpenBuffer::variable_save_on_close();
+    OpenBuffer::variable_clear_on_reload();
   }
   return output;
 }
@@ -430,6 +434,16 @@ string OpenBuffer::FlagsString() const {
       "save_on_close",
       "Should this buffer be saved automatically when it's closed?",
       false);
+  return variable;
+}
+
+/* static */ EdgeVariable<char>* OpenBuffer::variable_clear_on_reload() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+      "clear_on_reload",
+      "Should any previous contents be discarded when this buffer is reloaded? "
+      "If false, previous contents will be preserved and new contents will be "
+      "appended at the end.",
+      true);
   return variable;
 }
 

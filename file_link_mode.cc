@@ -40,7 +40,9 @@ class FileBuffer : public OpenBuffer {
       return;
     }
 
-    target->ClearContents();
+    if (target->read_bool_variable(OpenBuffer::variable_clear_on_reload())) {
+      target->ClearContents();
+    }
     editor_state->ScheduleRedraw();
 
     if (!S_ISDIR(stat_buffer_.st_mode)) {

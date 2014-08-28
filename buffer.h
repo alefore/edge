@@ -254,6 +254,7 @@ class OpenBuffer {
   static EdgeVariable<char>* variable_atomic_lines();
   static EdgeVariable<char>* variable_diff();
   static EdgeVariable<char>* variable_save_on_close();
+  static EdgeVariable<char>* variable_clear_on_reload();
 
   static EdgeStruct<string>* StringStruct();
   static EdgeVariable<string>* variable_word_characters();
