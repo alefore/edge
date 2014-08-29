@@ -455,6 +455,7 @@ string OpenBuffer::FlagsString() const {
     OpenBuffer::variable_word_characters();
     OpenBuffer::variable_path_characters();
     OpenBuffer::variable_path();
+    OpenBuffer::variable_line_prefix_characters();
   }
   return output;
 }
@@ -482,6 +483,20 @@ string OpenBuffer::FlagsString() const {
       "path",
       "String with the path of the current file.",
       "");
+  return variable;
+}
+
+/* static */ EdgeVariable<string>*
+OpenBuffer::variable_line_prefix_characters() {
+  static EdgeVariable<string>* variable = StringStruct()->AddVariable(
+      "line_prefix_characters",
+      "String with all the characters that should be considered the prefix of "
+      "the actual contents of a line.  When a new line is created, the prefix "
+      "of the previous line (the sequence of all characters at the start of "
+      "the previous line that are listed in line_prefix_characters) is copied "
+      "to the new line.  The order of elements in line_prefix_characters has "
+      "no effect.",
+      " ");
   return variable;
 }
 

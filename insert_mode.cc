@@ -32,6 +32,7 @@ class InsertMode : public EditorMode {
         editor_state->ResetMode();
         editor_state->ResetRepetitions();
         return;
+
       case Terminal::BACKSPACE:
         if (line_->Backspace()) {
           buffer->set_modified(true);
@@ -79,6 +80,7 @@ class InsertMode : public EditorMode {
           buffer->set_current_position_col(buffer->current_position_col() - 1);
         }
         return;
+
       case '\n':
         size_t pos = buffer->current_position_col();
         if (buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())
@@ -91,8 +93,20 @@ class InsertMode : public EditorMode {
         buffer->current_line()->contents =
             Substring(buffer->current_line()->contents, 0, pos);
 
+        const string& line_prefix_characters(buffer->read_string_variable(
+            OpenBuffer::variable_line_prefix_characters()));
+        size_t prefix_end = 0;
+        while (prefix_end < pos
+               && (line_prefix_characters.find(buffer->current_line()->contents->get(prefix_end))
+                   != line_prefix_characters.npos)) {
+          prefix_end++;
+        }
+
         // Create a new line and insert it.
-        line_ = EditableString::New(Substring(line_, pos), 0);
+        line_ = EditableString::New(
+            StringAppend(Substring(buffer->current_line()->contents, 0, prefix_end),
+                         Substring(line_, pos)),
+            prefix_end);
 
         shared_ptr<Line> line(new Line());
         line->contents = line_;
@@ -103,7 +117,7 @@ class InsertMode : public EditorMode {
 
         // Move to the new line and schedule a redraw.
         buffer->set_current_position_line(buffer->current_position_line() + 1);
-        buffer->set_current_position_col(0);
+        buffer->set_current_position_col(prefix_end);
         editor_state->ScheduleRedraw();
         return;
     }
