@@ -165,23 +165,21 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
   size_t view_stop_line =
       buffer->view_start_line() + static_cast<size_t>(LINES)
       - (editor_state->status().empty() ? 0 : 1);
-  if (view_stop_line > contents.size()) {
-    view_stop_line = contents.size();
-  }
-
   for (size_t current_line = buffer->view_start_line();
        current_line < view_stop_line; current_line++) {
-    assert(current_line < contents.size());
-    const shared_ptr<LazyString> line(contents[current_line]->contents);
-    assert(line.get() != nullptr);
-    size_t pos_end = std::min(
-        buffer->view_start_column() + static_cast<size_t>(COLS),
-        line->size());
-    for (size_t pos = buffer->view_start_column(); pos < pos_end; pos++) {
-      int c = line->get(pos);
-      assert(c != '\n');
-      if (c == '\r') { addch(' '); continue; }
-      addch(c);
+    size_t pos_end = 0;
+    if (current_line < contents.size()) {
+      const shared_ptr<LazyString> line(contents[current_line]->contents);
+      assert(line.get() != nullptr);
+      pos_end = std::min(
+          buffer->view_start_column() + static_cast<size_t>(COLS),
+          line->size());
+      for (size_t pos = buffer->view_start_column(); pos < pos_end; pos++) {
+        int c = line->get(pos);
+        assert(c != '\n');
+        if (c == '\r') { addch(' '); continue; }
+        addch(c);
+      }
     }
     if (pos_end < buffer->view_start_column() + static_cast<size_t>(COLS)) {
       addch('\n');
