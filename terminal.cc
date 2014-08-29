@@ -159,7 +159,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
   const shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
   const vector<shared_ptr<Line>>& contents(*buffer->contents());
 
-  clear();
+  move(0, 0);
 
   size_t view_stop_line =
       buffer->view_start_line() + static_cast<size_t>(LINES)
