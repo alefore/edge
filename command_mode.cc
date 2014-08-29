@@ -42,10 +42,19 @@ class GotoCommand : public Command {
         {
           shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
           if (buffer->current_line() == nullptr) { return; }
-          size_t position =
-              ComputePosition(editor_state, buffer->current_line()->size() + 1);
-          assert(position <= buffer->current_line()->size());
-          buffer->set_current_position_col(position);
+          const string line_prefix_characters = buffer->read_string_variable(
+              OpenBuffer::variable_line_prefix_characters());
+          const auto& line = buffer->current_line();
+          size_t start = 0;
+          while (start < line->size()
+                 && (line_prefix_characters.find(line->contents->get(start))
+                     != string::npos)) {
+            start++;
+          }
+          size_t position = ComputePosition(
+              editor_state, line->size() + 1 - start);
+          assert(start + position <= line->size());
+          buffer->set_current_position_col(start + position);
         }
         break;
 
