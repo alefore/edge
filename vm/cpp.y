@@ -105,17 +105,8 @@ expr(A) ::= expr(B) LPAREN expr(C) RPAREN. {
   }
 }
 
-expr(A) ::= expr(B) MINUS expr(C). {
-  A = new BinaryOperator(
-      unique_ptr<Expression>(B),
-      unique_ptr<Expression>(C),
-      integer_type(),
-      [](const Value& a, const Value& b, Value* output) {
-        output->integer = a.integer - b.integer;
-      });
-  B = nullptr;
-  C = nullptr;
-}
+
+// Basic operators
 
 expr(A) ::= expr(B) PLUS expr(C). {
   A = new BinaryOperator(
@@ -124,6 +115,18 @@ expr(A) ::= expr(B) PLUS expr(C). {
       integer_type(),
       [](const Value& a, const Value& b, Value* output) {
         output->integer = a.integer + b.integer;
+      });
+  B = nullptr;
+  C = nullptr;
+}
+
+expr(A) ::= expr(B) MINUS expr(C). {
+  A = new BinaryOperator(
+      unique_ptr<Expression>(B),
+      unique_ptr<Expression>(C),
+      integer_type(),
+      [](const Value& a, const Value& b, Value* output) {
+        output->integer = a.integer - b.integer;
       });
   B = nullptr;
   C = nullptr;
@@ -149,6 +152,9 @@ expr(A) ::= expr(B) TIMES expr(C). {
 //    std::cout << "divide by zero" << std::endl;
 //  }
 //}  /* end of DIVIDE */
+
+
+// Atomic types
 
 expr(A) ::= INTEGER(B). {
   assert(B->type.type == VMType::VM_INTEGER);
