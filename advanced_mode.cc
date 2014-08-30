@@ -279,6 +279,29 @@ void RunCppCommandHandler(const string& name, EditorState* editor_state) {
   editor_state->current_buffer()->second->Evaluate(editor_state, name);
 }
 
+class RunCppCommand : public Command {
+ public:
+  const string Description() {
+    return "runs a command";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    if (!editor_state->has_current_buffer()) { return; }
+    switch (editor_state->structure()) {
+      case EditorState::LINE:
+        editor_state->ResetStructure();
+        RunCppCommandHandler(
+            editor_state->current_buffer()->second->current_line()->contents->ToString(),
+            editor_state);
+        break;
+
+      default:
+        Prompt(editor_state, "cpp ", "cpp", "", RunCppCommandHandler,
+               EmptyPredictor);
+    }
+  }
+};
+
 static const map<int, Command*>& GetAdvancedModeMap() {
   static map<int, Command*> output;
   if (output.empty()) {
@@ -295,11 +318,7 @@ static const map<int, Command*>& GetAdvancedModeMap() {
             "var ", "variables", "assigns to a variable", SetVariableHandler,
             PrecomputedPredictor(variables)).release()));
 
-    output.insert(make_pair(
-        'V',
-        NewLinePromptCommand(
-            "cpp ", "cpp", "runs a command", RunCppCommandHandler,
-            EmptyPredictor).release()));
+    output.insert(make_pair('V', new RunCppCommand()));
 
     output.insert(make_pair('.', new OpenDirectory()));
     output.insert(make_pair('l', new ListBuffers()));
