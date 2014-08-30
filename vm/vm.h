@@ -19,6 +19,7 @@ using std::vector;
 
 struct VMType {
   enum Type {
+    VM_VOID,
     VM_INTEGER,
     VM_STRING,
     VM_SYMBOL,
@@ -38,6 +39,8 @@ class Environment;
 
 struct Value {
   Value(const VMType::Type& t) : type(t) {}
+
+  static unique_ptr<Value> Void();
 
   VMType type;
 

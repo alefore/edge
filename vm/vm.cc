@@ -17,6 +17,10 @@ const VMType& integer_type() {
   return type;
 }
 
+/* static */ unique_ptr<Value> Value::Void() {
+  return unique_ptr<Value>(new Value(VMType::VM_VOID));
+}
+
 class ConstantExpression : public Expression {
  public:
   ConstantExpression(unique_ptr<Value> value)
