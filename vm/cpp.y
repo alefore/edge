@@ -66,6 +66,50 @@ expr(A) ::= LPAREN expr(B) RPAREN. {
   B = nullptr;
 }
 
+expr(A) ::= IF LPAREN expr(COND) RPAREN LBRAKET expr(TRUE) SEMICOLON RBRAKET ELSE LBRAKET expr(FALSE) SEMICOLON RBRAKET . {
+  class Evaluator : public Expression {
+   public:
+    Evaluator(unique_ptr<Expression> cond, unique_ptr<Expression> true_case,
+              unique_ptr<Expression> false_case)
+        : cond_(std::move(cond)),
+          true_case_(std::move(true_case)),
+          false_case_(std::move(false_case)) {
+      assert(cond_ != nullptr);
+      assert(true_case_ != nullptr);
+    }
+
+    const VMType& type() {
+      return true_case_->type();
+    }
+
+    unique_ptr<Value> Evaluate(Environment* environment) {
+      auto cond = std::move(cond_->Evaluate(environment));
+      assert(cond->type.type == VMType::VM_BOOLEAN);
+      return (cond->boolean ? true_case_ : false_case_)->Evaluate(environment);
+    }
+
+   private:
+    unique_ptr<Expression> cond_;
+    unique_ptr<Expression> true_case_;
+    unique_ptr<Expression> false_case_;
+  };
+
+  if (COND == nullptr
+      || TRUE == nullptr
+      || FALSE == nullptr
+      || COND->type().type != VMType::VM_BOOLEAN
+      || !(TRUE->type() == FALSE->type())) {
+    A = nullptr;
+  } else {
+    A = new Evaluator(unique_ptr<Expression>(COND),
+                      unique_ptr<Expression>(TRUE),
+                      unique_ptr<Expression>(FALSE));
+    COND = nullptr;
+    TRUE = nullptr;
+    FALSE = nullptr;
+  }
+}
+
 expr(A) ::= expr(B) LPAREN expr(C) RPAREN. {
   class Evaluator : public Expression {
    public:
@@ -166,7 +210,6 @@ expr(A) ::= STRING(B). {
   assert(B->type.type == VMType::VM_STRING);
   A = new ConstantExpression(unique_ptr<Value>(B));
   B = nullptr;
-  assert(B == nullptr);
 }
 
 expr(A) ::= SYMBOL(B). {
@@ -178,4 +221,10 @@ expr(A) ::= SYMBOL(B). {
   } else {
     A = nullptr;
   }
+}
+
+expr(A) ::= BOOL(B). {
+  assert(B->type.type == VMType::VM_BOOLEAN);
+  A = new ConstantExpression(unique_ptr<Value>(B));
+  B = nullptr;
 }

@@ -20,6 +20,7 @@ using std::vector;
 struct VMType {
   enum Type {
     VM_VOID,
+    VM_BOOLEAN,
     VM_INTEGER,
     VM_STRING,
     VM_SYMBOL,
@@ -44,6 +45,7 @@ struct Value {
 
   VMType type;
 
+  bool boolean;
   int integer;
   string str;
   Environment* environment;

@@ -164,13 +164,25 @@ void Evaluator::AppendInput(const string& str) {
       case 'o': case 'p': case 'q': case 'r': case 's': case 't': case 'u':
       case 'v': case 'w': case 'x': case 'y': case 'z':
         {
-          token = SYMBOL;
-          input = new Value(VMType::VM_SYMBOL);
           size_t start = pos;
           while (pos < str.size() && isalnum(str.at(pos))) {
             pos++;
           }
-          input->str = str.substr(start, pos - start);
+          string symbol = str.substr(start, pos - start);
+          if (symbol == "true") {
+            token = BOOL;
+            input = new Value(VMType::VM_BOOLEAN);
+            input->boolean = true;
+          } else if (symbol == "false") {
+            token = BOOL;
+            input = new Value(VMType::VM_BOOLEAN);
+            input->boolean = false;
+          } else if (symbol == "if") {
+          } else {
+            token = SYMBOL;
+            input = new Value(VMType::VM_SYMBOL);
+            input->str = symbol;
+          }
         }
         break;
 
