@@ -113,6 +113,8 @@ class OpenBuffer {
   void AppendLine(EditorState* editor_state, shared_ptr<LazyString> line);
   virtual void AppendRawLine(EditorState* editor_state, shared_ptr<LazyString> str);
 
+  void Evaluate(EditorState* editor_state, const string& str);
+
   const string& name() const { return name_; }
 
   Position InsertInCurrentPosition(const vector<shared_ptr<Line>>& insertion);

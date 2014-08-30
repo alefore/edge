@@ -273,6 +273,12 @@ class SendEndOfFile : public Command {
   }
 };
 
+void RunCppCommandHandler(const string& name, EditorState* editor_state) {
+  if (!editor_state->has_current_buffer()) { return; }
+  editor_state->ResetMode();
+  editor_state->current_buffer()->second->Evaluate(editor_state, name);
+}
+
 static const map<int, Command*>& GetAdvancedModeMap() {
   static map<int, Command*> output;
   if (output.empty()) {
@@ -288,6 +294,12 @@ static const map<int, Command*>& GetAdvancedModeMap() {
         NewLinePromptCommand(
             "var ", "variables", "assigns to a variable", SetVariableHandler,
             PrecomputedPredictor(variables)).release()));
+
+    output.insert(make_pair(
+        'V',
+        NewLinePromptCommand(
+            "cpp ", "cpp", "runs a command", RunCppCommandHandler,
+            EmptyPredictor).release()));
 
     output.insert(make_pair('.', new OpenDirectory()));
     output.insert(make_pair('l', new ListBuffers()));

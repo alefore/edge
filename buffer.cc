@@ -276,6 +276,11 @@ void OpenBuffer::AppendRawLine(
   contents_.push_back(shared_ptr<Line>(new Line(EmptyString())));
 }
 
+void OpenBuffer::Evaluate(
+    EditorState* editor_state, const string& str) {
+  evaluator_.AppendInput(str);
+}
+
 OpenBuffer::Position OpenBuffer::InsertInCurrentPosition(
     const vector<shared_ptr<Line>>& insertion) {
   return InsertInPosition(insertion, position_);
