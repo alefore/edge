@@ -77,40 +77,40 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
 
   {
     unique_ptr<afc::vm::Value> open_buffer_function(new Value(VMType::FUNCTION));
-    open_buffer_function->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    open_buffer_function->type.type_arguments.push_back(VMType(VMType::VM_VOID));
     open_buffer_function->type.type_arguments.push_back(VMType(VMType::VM_STRING));
     open_buffer_function->function1 =
         [editor_state](unique_ptr<Value> path_arg) {
           assert(path_arg->type == VMType::VM_STRING);
           string path = path_arg->str;
           editor_state->set_current_buffer(OpenFile(editor_state, path, path));
-          return nullptr;
+          return std::move(Value::Void());
         };
     evaluator_.Define("OpenBuffer", std::move(open_buffer_function));
   }
 
   {
     unique_ptr<afc::vm::Value> connect_to_function(new Value(VMType::FUNCTION));
-    connect_to_function->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    connect_to_function->type.type_arguments.push_back(VMType(VMType::VM_VOID));
     connect_to_function->type.type_arguments.push_back(VMType(VMType::VM_STRING));
     connect_to_function->function1 =
         [editor_state](unique_ptr<Value> path) {
           assert(path->type == VMType::VM_STRING);
           OpenServerBuffer(editor_state, path->str);
-          return nullptr;
+          return std::move(Value::Void());
         };
     evaluator_.Define("ConnectTo", std::move(connect_to_function));
   }
 
   {
     unique_ptr<afc::vm::Value> set_status_function(new Value(VMType::FUNCTION));
-    set_status_function->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    set_status_function->type.type_arguments.push_back(VMType(VMType::VM_VOID));
     set_status_function->type.type_arguments.push_back(VMType(VMType::VM_STRING));
     set_status_function->function1 =
-        [editor_state](unique_ptr<Value> path) {
-          assert(path->type == VMType::VM_STRING);
-          editor_state->SetStatus(path->str);
-          return nullptr;
+        [editor_state](unique_ptr<Value> message) {
+          assert(message->type == VMType::VM_STRING);
+          editor_state->SetStatus(message->str);
+          return std::move(Value::Void());
         };
     evaluator_.Define("SetStatus", std::move(set_status_function));
   }
