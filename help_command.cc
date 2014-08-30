@@ -29,7 +29,7 @@ class HelpCommand : public Command {
     auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
     editor_state->set_current_buffer(it.first);
     if (it.second) {
-      shared_ptr<OpenBuffer> buffer(new OpenBuffer(name));
+      shared_ptr<OpenBuffer> buffer(new OpenBuffer(editor_state, name));
       buffer->AppendLine(
           editor_state,
           std::move(NewCopyString("Help: " + mode_description_)));

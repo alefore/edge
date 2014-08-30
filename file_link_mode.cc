@@ -30,7 +30,8 @@ using namespace afc::editor;
 
 class FileBuffer : public OpenBuffer {
  public:
-  FileBuffer(const string& path) : OpenBuffer(path) {
+  FileBuffer(EditorState* editor_state, const string& path)
+      : OpenBuffer(editor_state, path) {
     set_string_variable(variable_path(), path);
   }
 
@@ -270,14 +271,14 @@ map<string, shared_ptr<OpenBuffer>>::iterator OpenFile(
       count++;
     }
     name = GetAnonymousBufferName(count);
-    buffer.reset(new OpenBuffer(name));
+    buffer.reset(new OpenBuffer(editor_state, name));
   } else {
     name = name_input;
   }
   auto it = editor_state->buffers()->insert(make_pair(name, buffer));
   if (it.second) {
     if (it.first->second.get() == nullptr) {
-      it.first->second.reset(new FileBuffer(path));
+      it.first->second.reset(new FileBuffer(editor_state, path));
     }
     it.first->second->Reload(editor_state);
   }

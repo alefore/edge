@@ -17,7 +17,9 @@ extern "C" {
 #include "file_link_mode.h"
 #include "run_command_handler.h"
 #include "lazy_string_append.h"
+#include "server.h"
 #include "substring.h"
+#include "vm/vm.h"
 
 namespace {
 
@@ -25,7 +27,7 @@ using namespace afc::editor;
 using std::cerr;
 
 void SaveDiff(EditorState* editor_state, OpenBuffer* buffer) {
-  unique_ptr<OpenBuffer> original(new OpenBuffer("- original diff"));
+  unique_ptr<OpenBuffer> original(new OpenBuffer(editor_state, "- original diff"));
   buffer->ReloadInto(editor_state, original.get());
   while (original->fd() != -1) {
     original->ReadData(editor_state);
@@ -49,11 +51,12 @@ void SaveDiff(EditorState* editor_state, OpenBuffer* buffer) {
 namespace afc {
 namespace editor {
 
+using namespace afc::vm;
 using std::to_string;
 
 /* static */ const string OpenBuffer::kBuffersName = "- buffers";
 
-OpenBuffer::OpenBuffer(const string& name)
+OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
     : name_(name),
       fd_(-1),
       fd_is_terminal_(false),
@@ -71,6 +74,33 @@ OpenBuffer::OpenBuffer(const string& name)
       bool_variables_(BoolStruct()->NewInstance()),
       string_variables_(StringStruct()->NewInstance()) {
   ClearContents();
+
+  {
+    unique_ptr<afc::vm::Value> open_buffer_function(new Value(VMType::FUNCTION));
+    open_buffer_function->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    open_buffer_function->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    open_buffer_function->function1 =
+        [editor_state](unique_ptr<Value> path_arg) {
+          assert(path_arg->type == VMType::VM_STRING);
+          string path = path_arg->str;
+          editor_state->set_current_buffer(OpenFile(editor_state, path, path));
+          return nullptr;
+        };
+    evaluator_.Define("OpenBuffer", std::move(open_buffer_function));
+  }
+
+  {
+    unique_ptr<afc::vm::Value> connect_to_function(new Value(VMType::FUNCTION));
+    connect_to_function->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    connect_to_function->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    connect_to_function->function1 =
+        [editor_state](unique_ptr<Value> path) {
+          assert(path->type == VMType::VM_STRING);
+          OpenServerBuffer(editor_state, path->str);
+          return nullptr;
+        };
+    evaluator_.Define("ConnectTo", std::move(connect_to_function));
+  }
 }
 
 void OpenBuffer::Close(EditorState* editor_state) {

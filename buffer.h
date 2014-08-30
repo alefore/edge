@@ -11,6 +11,7 @@
 #include "memory_mapped_file.h"
 #include "substring.h"
 #include "variables.h"
+#include "vm/vm.h"
 
 namespace afc {
 namespace editor {
@@ -94,7 +95,7 @@ class OpenBuffer {
   // Name of a special buffer that shows the list of buffers.
   static const string kBuffersName;
 
-  OpenBuffer(const string& name);
+  OpenBuffer(EditorState* editor_state, const string& name);
 
   void Close(EditorState* editor_state);
 
@@ -321,6 +322,8 @@ class OpenBuffer {
   // temporary variable).
   EdgeStructInstance<char> bool_variables_;
   EdgeStructInstance<string> string_variables_;
+
+  afc::vm::Evaluator evaluator_;
 
   list<unique_ptr<Transformation>> undo_history_;
 };

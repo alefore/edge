@@ -33,10 +33,11 @@ using std::string;
 
 class PredictionsBufferImpl : public OpenBuffer {
  public:
-  PredictionsBufferImpl(Predictor predictor,
+  PredictionsBufferImpl(EditorState* editor_state,
+                        Predictor predictor,
                         const string& input,
                         function<void(string)> consumer)
-      : OpenBuffer("- predictions"),
+      : OpenBuffer(editor_state, "- predictions"),
         predictor_(predictor),
         input_(input),
         consumer_(consumer) {}
@@ -83,9 +84,10 @@ namespace afc {
 namespace editor {
 
 shared_ptr<OpenBuffer> PredictionsBuffer(
-    Predictor predictor, const string& input, function<void(const string&)> consumer) {
+    EditorState* editor_state, Predictor predictor, const string& input,
+    function<void(const string&)> consumer) {
   return shared_ptr<OpenBuffer>(
-      new PredictionsBufferImpl(predictor, input, consumer));
+      new PredictionsBufferImpl(editor_state, predictor, input, consumer));
 }
 
 void FilePredictor(EditorState* editor_state,

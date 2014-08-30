@@ -160,7 +160,8 @@ void EditorState::PushCurrentPosition() {
   auto it = buffers_.find(kPositionsBufferName);
   if (it == buffers_.end()) {
     it = buffers_.insert(
-        make_pair(kPositionsBufferName, new OpenBuffer(kPositionsBufferName)))
+        make_pair(kPositionsBufferName,
+                  new OpenBuffer(this, kPositionsBufferName)))
         .first;
   }
   assert(it->second != nullptr);

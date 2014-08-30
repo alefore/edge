@@ -50,10 +50,11 @@ void LoadEnvironmentVariables(
 
 class CommandBuffer : public OpenBuffer {
  public:
-  CommandBuffer(const string& name,
+  CommandBuffer(EditorState* editor_state,
+                const string& name,
                 const string& command,
                 const map<string, string>& environment)
-      : OpenBuffer(name),
+      : OpenBuffer(editor_state, name),
         command_(command),
         environment_(environment) {}
 
@@ -141,7 +142,8 @@ void RunCommand(
 
   auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
   if (it.second) {
-    it.first->second.reset(new CommandBuffer(name, input, environment));
+    it.first->second.reset(
+        new CommandBuffer(editor_state, name, input, environment));
     if (editor_state->has_current_buffer()) {
       it.first->second->CopyVariablesFrom(
           editor_state->current_buffer()->second);

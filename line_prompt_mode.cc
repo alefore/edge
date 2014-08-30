@@ -48,8 +48,10 @@ GetPredictionsBuffer(
     const Predictor& predictor,
     const string& input,
     function<void(const string&)> consumer) {
-  auto it = editor_state->buffers()->insert(make_pair("- predictions", nullptr));
-  it.first->second = PredictionsBuffer(predictor, input, consumer);
+  auto it = editor_state->buffers()
+      ->insert(make_pair("- predictions", nullptr));
+  it.first->second =
+      PredictionsBuffer(editor_state, predictor, input, consumer);
   it.first->second->Reload(editor_state);
   it.first->second->set_current_position_line(0);
   it.first->second->set_current_position_col(0);

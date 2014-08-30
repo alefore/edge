@@ -191,7 +191,8 @@ class ActivateBufferLineCommand : public EditorMode {
 
 class ListBuffersBuffer : public OpenBuffer {
  public:
-  ListBuffersBuffer(const string& name) : OpenBuffer(name) {
+  ListBuffersBuffer(EditorState* editor_state, const string& name)
+      : OpenBuffer(editor_state, name) {
     set_bool_variable(variable_atomic_lines(), true);
   }
 
@@ -219,7 +220,8 @@ class ListBuffers : public Command {
         make_pair(OpenBuffer::kBuffersName, nullptr));
     editor_state->set_current_buffer(it.first);
     if (it.second) {
-      it.first->second.reset(new ListBuffersBuffer(OpenBuffer::kBuffersName));
+      it.first->second.reset(
+          new ListBuffersBuffer(editor_state, OpenBuffer::kBuffersName));
       it.first->second->set_bool_variable(
           OpenBuffer::variable_reload_on_enter(), true);
     }

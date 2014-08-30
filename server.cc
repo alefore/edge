@@ -68,8 +68,8 @@ int MaybeConnectToParentServer() {
 
 class ServerBuffer : public OpenBuffer {
  public:
-  ServerBuffer(const string& name)
-      : OpenBuffer(name) {
+  ServerBuffer(EditorState* editor_state, const string& name)
+      : OpenBuffer(editor_state, name) {
     set_bool_variable(variable_clear_on_reload(), false);
   }
 
@@ -82,33 +82,6 @@ class ServerBuffer : public OpenBuffer {
     }
     SetInputFile(fd, false, -1);
 
-    {
-      unique_ptr<afc::vm::Value> open_buffer_function(new Value(VMType::FUNCTION));
-      open_buffer_function->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-      open_buffer_function->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-      open_buffer_function->function1 =
-          [editor_state](unique_ptr<Value> path_arg) {
-            assert(path_arg->type == VMType::VM_STRING);
-            string path = path_arg->str;
-            editor_state->set_current_buffer(OpenFile(editor_state, path, path));
-            return nullptr;
-          };
-      evaluator_.Define("OpenBuffer", std::move(open_buffer_function));
-    }
-
-    {
-      unique_ptr<afc::vm::Value> connect_to_function(new Value(VMType::FUNCTION));
-      connect_to_function->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-      connect_to_function->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-      connect_to_function->function1 =
-          [editor_state](unique_ptr<Value> path) {
-            assert(path->type == VMType::VM_STRING);
-            OpenServerBuffer(editor_state, path->str);
-            return nullptr;
-          };
-      evaluator_.Define("ConnectTo", std::move(connect_to_function));
-    }
-
     editor_state->ScheduleRedraw();
   }
 
@@ -117,8 +90,6 @@ class ServerBuffer : public OpenBuffer {
     OpenBuffer::AppendRawLine(editor_state, str);
     evaluator_.AppendInput(str->ToString());
   }
-
-  afc::vm::Evaluator evaluator_;
 };
 
 string GetBufferName(const string& prefix, size_t count) {
@@ -146,7 +117,8 @@ void StartServer(EditorState* editor_state) {
 shared_ptr<OpenBuffer>
 OpenServerBuffer(EditorState* editor_state, const string& address) {
   shared_ptr<OpenBuffer> buffer(
-      new ServerBuffer(GetUnusedBufferName(editor_state, "- server")));
+      new ServerBuffer(editor_state,
+                       GetUnusedBufferName(editor_state, "- server")));
   buffer->set_string_variable(OpenBuffer::variable_path(), address);
   editor_state->buffers()->insert(make_pair(buffer->name(), buffer));
   buffer->Reload(editor_state);

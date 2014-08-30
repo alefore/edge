@@ -199,7 +199,8 @@ void InsertDeletedTextBuffer(EditorState* editor_state,
 
 unique_ptr<Transformation> DeleteFromBuffer::Apply(
     EditorState* editor_state, OpenBuffer* buffer) const {
-  shared_ptr<OpenBuffer> deleted_text(new OpenBuffer(kPasteBuffer));
+  shared_ptr<OpenBuffer> deleted_text(
+      new OpenBuffer(editor_state, kPasteBuffer));
   size_t actual_end = min(end_.line, buffer->contents()->size() - 1);
   for (size_t line = start_.line; line <= actual_end; line++) {
     auto current_line = buffer->contents()->at(line);
