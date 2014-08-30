@@ -10,6 +10,7 @@
 #include "lazy_string.h"
 #include "memory_mapped_file.h"
 #include "substring.h"
+#include "transformation.h"
 #include "variables.h"
 #include "vm/vm.h"
 
@@ -41,13 +42,6 @@ struct ParseTree {
   vector<unique_ptr<ParseTree>> items;
 };
 
-class Transformation {
- public:
-  virtual ~Transformation() {}
-  virtual unique_ptr<Transformation> Apply(
-      EditorState* editor_state, OpenBuffer* buffer) const = 0;
-};
-
 class TransformationStack : public Transformation {
  public:
   void PushBack(unique_ptr<Transformation> transformation) {
@@ -71,29 +65,28 @@ class TransformationStack : public Transformation {
   list<unique_ptr<Transformation>> stack_;
 };
 
+// A position in a text buffer.
+struct LineColumn {
+  LineColumn() : line(0), column(0) {}
+  LineColumn(size_t l) : line(l), column(0) {}
+  LineColumn(size_t l, size_t c) : line(l), column(c) {}
+
+  bool at_beginning_of_line() const { return column == 0; }
+  bool at_beginning() const { return line == 0 && at_beginning_of_line(); }
+
+  string ToString() const {
+    using std::to_string;
+    return to_string(line) + " " + to_string(column);
+  }
+  size_t line;
+  size_t column;
+};
+
 class OpenBuffer {
  public:
-  // A position in a text buffer.
-  // TODO: Convert all representations of positions to use this.
-  struct Position {
-    Position() : line(0), column(0) {}
-    Position(size_t l) : line(l), column(0) {}
-    Position(size_t l, size_t c) : line(l), column(c) {}
-
-    bool at_beginning_of_line() const { return column == 0; }
-    bool at_beginning() const { return line == 0 && at_beginning_of_line(); }
-
-    string ToString() const {
-      using std::to_string;
-      return to_string(line) + " " + to_string(column);
-    }
-
-    size_t line;
-    size_t column;
-  };
-
   // Name of a special buffer that shows the list of buffers.
   static const string kBuffersName;
+  static const string kPasteBuffer;
 
   OpenBuffer(EditorState* editor_state, const string& name);
 
@@ -117,9 +110,9 @@ class OpenBuffer {
 
   const string& name() const { return name_; }
 
-  Position InsertInCurrentPosition(const vector<shared_ptr<Line>>& insertion);
-  Position InsertInPosition(
-      const vector<shared_ptr<Line>>& insertion, const Position& position);
+  LineColumn InsertInCurrentPosition(const vector<shared_ptr<Line>>& insertion);
+  LineColumn InsertInPosition(
+      const vector<shared_ptr<Line>>& insertion, const LineColumn& position);
   // Checks that current_position_col is in the expected range (between 0 and
   // the length of the current line).
   void MaybeAdjustPositionCol();
@@ -133,7 +126,7 @@ class OpenBuffer {
   //
   // If no word can be found (e.g. we're on a whitespace that's not followed by
   // any word characters), returns false.
-  bool BoundWordAt(const Position& position, Position* start, Position* end);
+  bool BoundWordAt(const LineColumn& position, LineColumn* start, LineColumn* end);
 
   shared_ptr<Line> current_line() const {
     return LineAt(position_.line);
@@ -146,7 +139,7 @@ class OpenBuffer {
     }
     return contents_.at(line_number);
   }
-  char character_at(Position position) const {
+  char character_at(LineColumn position) const {
     return LineAt(position.line)->contents->get(position.column);
   }
 
@@ -185,27 +178,27 @@ class OpenBuffer {
     return position_.at_beginning();
   }
   bool at_beginning_of_line() const { return at_beginning_of_line(position_); }
-  bool at_beginning_of_line(const Position& position) const {
+  bool at_beginning_of_line(const LineColumn& position) const {
     if (contents_.empty()) { return true; }
     return position.at_beginning_of_line();
   }
   bool at_end() const { return at_end(position_); }
-  bool at_end(const Position& position) const {
+  bool at_end(const LineColumn& position) const {
     if (contents_.empty()) { return true; }
     return at_last_line(position) && at_end_of_line(position);
   }
-  Position end_position() const {
-    if (contents_.empty()) { return Position(0, 0); }
-    return Position(contents_.size() - 1, (*contents_.rbegin())->contents->size());
+  LineColumn end_position() const {
+    if (contents_.empty()) { return LineColumn(0, 0); }
+    return LineColumn(contents_.size() - 1, (*contents_.rbegin())->contents->size());
   }
   bool at_last_line() const { return at_last_line(position_); }
-  bool at_last_line(const Position& position) const {
+  bool at_last_line(const LineColumn& position) const {
     return position.line == contents_.size() - 1;
   }
   bool at_end_of_line() const {
     return at_end_of_line(position_);
   }
-  bool at_end_of_line(const Position& position) const {
+  bool at_end_of_line(const LineColumn& position) const {
     if (contents_.empty()) { return true; }
     return position.column >= LineAt(position.line)->contents->size();
   }
@@ -225,10 +218,10 @@ class OpenBuffer {
   void set_current_position_col(size_t value) {
     position_.column = value;
   }
-  const Position position() const {
+  const LineColumn position() const {
     return position_;
   }
-  void set_position(const Position& position) {
+  void set_position(const LineColumn& position) {
     position_ = position;
     assert(contents_.size() >= 1);
     if (position_.line >= contents_.size()) {
@@ -306,7 +299,7 @@ class OpenBuffer {
 
   size_t view_start_line_;
   size_t view_start_column_;
-  Position position_;
+  LineColumn position_;
 
   bool modified_;
   bool reading_from_parser_;

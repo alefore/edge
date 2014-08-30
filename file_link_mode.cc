@@ -113,7 +113,7 @@ string GetAnonymousBufferName(size_t i) {
 
 class FileLinkMode : public EditorMode {
  public:
-  FileLinkMode(const string& path, const OpenBuffer::Position& position,
+  FileLinkMode(const string& path, const LineColumn& position,
                const string& pattern)
       : path_(realpath_safe(path)),
         position_(position),
@@ -163,7 +163,7 @@ class FileLinkMode : public EditorMode {
   }
 
   string path_;
-  OpenBuffer::Position position_;
+  LineColumn position_;
   const string pattern_;
 };
 
@@ -309,7 +309,7 @@ unique_ptr<EditorMode> NewFileLinkMode(
     actual_path = path;
   }
   return std::move(unique_ptr<EditorMode>(new FileLinkMode(
-      actual_path, OpenBuffer::Position(tokens[0], tokens[1]), pattern)));
+      actual_path, LineColumn(tokens[0], tokens[1]), pattern)));
 }
 
 }  // namespace afc

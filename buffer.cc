@@ -19,6 +19,7 @@ extern "C" {
 #include "lazy_string_append.h"
 #include "server.h"
 #include "substring.h"
+#include "transformation.h"
 #include "vm/vm.h"
 
 namespace {
@@ -55,6 +56,7 @@ using namespace afc::vm;
 using std::to_string;
 
 /* static */ const string OpenBuffer::kBuffersName = "- buffers";
+/* static */ const string OpenBuffer::kPasteBuffer = "- paste buffer";
 
 OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
     : name_(name),
@@ -113,6 +115,34 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
           return std::move(Value::Void());
         };
     evaluator_.Define("SetStatus", std::move(set_status_function));
+  }
+
+  {
+    unique_ptr<afc::vm::Value> insert_text(new Value(VMType::FUNCTION));
+    insert_text->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    insert_text->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    insert_text->function1 =
+        [editor_state](unique_ptr<Value> text) {
+          assert(text->type == VMType::VM_STRING);
+          if (!editor_state->has_current_buffer()) { return Value::Void(); }
+          shared_ptr<OpenBuffer> buffer =
+              editor_state->current_buffer()->second;
+
+          shared_ptr<OpenBuffer> buffer_to_insert(
+              new OpenBuffer(editor_state, "tmp buffer"));
+          // TODO: Break lines.
+          buffer_to_insert->AppendLine(editor_state, NewCopyString(text->str));
+          // Skip the last (empty) line.
+          buffer_to_insert->contents()->resize(
+              buffer_to_insert->contents()->size() - 1);
+
+          unique_ptr<Transformation> transformation(
+              NewInsertBufferTransformation(
+                  buffer_to_insert, buffer->position(), 1));
+          buffer->Apply(editor_state, *transformation);
+          return Value::Void();
+        };
+    evaluator_.Define("InsertText", std::move(insert_text));
   }
 }
 
@@ -281,13 +311,13 @@ void OpenBuffer::Evaluate(
   evaluator_.AppendInput(str);
 }
 
-OpenBuffer::Position OpenBuffer::InsertInCurrentPosition(
+LineColumn OpenBuffer::InsertInCurrentPosition(
     const vector<shared_ptr<Line>>& insertion) {
   return InsertInPosition(insertion, position_);
 }
 
-OpenBuffer::Position OpenBuffer::InsertInPosition(
-    const vector<shared_ptr<Line>>& insertion, const Position& position) {
+LineColumn OpenBuffer::InsertInPosition(
+    const vector<shared_ptr<Line>>& insertion, const LineColumn& position) {
   if (insertion.empty()) { return position; }
   auto head = Substring(contents_.at(position.line)->contents, 0, position.column);
   auto tail = Substring(contents_.at(position.line)->contents, position.column);
@@ -297,14 +327,14 @@ OpenBuffer::Position OpenBuffer::InsertInPosition(
     auto line_to_insert = insertion.at(0)->contents;
     contents_.at(position.line).reset(new Line(
         StringAppend(head, StringAppend(line_to_insert, tail))));
-    return Position(position.line, head->size() + line_to_insert->size());
+    return LineColumn(position.line, head->size() + line_to_insert->size());
   } else {
     contents_.at(position.line).reset(
         new Line(StringAppend(head, (*insertion.begin())->contents)));
     contents_.at(line_end).reset(
         new Line(StringAppend((*insertion.rbegin())->contents, tail)));
   }
-  return Position(line_end,
+  return LineColumn(line_end,
       (insertion.size() == 1 ? head->size() : 0)
       + (*insertion.rbegin())->contents->size());
 }
@@ -327,9 +357,9 @@ void OpenBuffer::CheckPosition() {
 }
 
 bool OpenBuffer::BoundWordAt(
-    const Position& position_input, Position* start, Position* end) {
+    const LineColumn& position_input, LineColumn* start, LineColumn* end) {
   const string& word_char = read_string_variable(variable_word_characters());
-  Position position(position_input);
+  LineColumn position(position_input);
 
   // Seek forwards until we're at a word character.
   while (at_end_of_line(position)
@@ -346,7 +376,7 @@ bool OpenBuffer::BoundWordAt(
 
   // Seek backwards until we're at the beginning of the word.
   while (!at_beginning_of_line(position)
-         && word_char.find(character_at(Position(position.line, position.column - 1))) != string::npos) {
+         && word_char.find(character_at(LineColumn(position.line, position.column - 1))) != string::npos) {
     assert(position.column > 0);
     position.column--;
   }

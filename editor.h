@@ -26,7 +26,7 @@ using std::min;
 
 struct BufferPosition {
   string buffer;
-  OpenBuffer::Position position;
+  LineColumn position;
 };
 
 class EditorState {

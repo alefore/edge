@@ -116,7 +116,7 @@ class LinePromptMode : public EditorMode {
         {
           auto buffer = GetHistoryBuffer(editor_state, history_file_)->second;
           if (buffer == nullptr || buffer->contents()->size() == 1) { return; }
-          OpenBuffer::Position position = buffer->position();
+          LineColumn position = buffer->position();
           if (position.line > 0) {
             position.line --;
             buffer->set_position(position);
@@ -129,7 +129,7 @@ class LinePromptMode : public EditorMode {
         {
           auto buffer = GetHistoryBuffer(editor_state, history_file_)->second;
           if (buffer == nullptr || buffer->contents()->size() == 1) { return; }
-          OpenBuffer::Position position = buffer->position();
+          LineColumn position = buffer->position();
           if (position.line + 1 < buffer->contents()->size()) {
             position.line ++;
             buffer->set_position(position);
