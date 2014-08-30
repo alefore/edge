@@ -4,6 +4,7 @@
 #include <cstring>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <string>
 
 extern "C" {
@@ -130,12 +131,16 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
 
           shared_ptr<OpenBuffer> buffer_to_insert(
               new OpenBuffer(editor_state, "tmp buffer"));
-          // TODO: Break lines.
-          buffer_to_insert->AppendLine(editor_state, NewCopyString(text->str));
-          // Skip the last (empty) line.
-          buffer_to_insert->contents()->resize(
-              buffer_to_insert->contents()->size() - 1);
 
+          // getline will silently eat the last (empty) line.
+          std::istringstream text_stream(text->str + "\n");
+          std::string line;
+          while (std::getline(text_stream, line, '\n')) {
+            buffer_to_insert->AppendLine(editor_state, NewCopyString(line));
+          }
+
+          // Skip the last (empty) line.
+          buffer_to_insert->contents()->pop_back();
           unique_ptr<Transformation> transformation(
               NewInsertBufferTransformation(
                   buffer_to_insert, buffer->position(), 1));
