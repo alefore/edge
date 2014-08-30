@@ -23,34 +23,15 @@ main(A) ::= program(B) . {
 %type program { Value* }
 %destructor program { delete $$; }
 
-program(A) ::= expr(B) . {
-  if (B == nullptr) {
-    A = nullptr;
+program(V) ::= statement(S). {
+  if (S == nullptr) {
+    V = nullptr;
   } else {
-    A = B->Evaluate(environment).release();
+    V = S->Evaluate(environment).release();
   }
 }
 
-program(A) ::= program(B) SEMICOLON expr(C) . {
-  class AppendExpression : public Expression {
-   public:
-    AppendExpression(unique_ptr<Expression> e0, unique_ptr<Expression> e1)
-        : e0_(std::move(e0)), e1_(std::move(e1)) {}
-
-    const VMType& type() {
-      return e1_->type();
-    }
-
-    unique_ptr<Value> Evaluate(Environment* environment) {
-      e0_->Evaluate(environment);
-      return std::move(e1_->Evaluate(environment));
-    }
-
-   private:
-    unique_ptr<Expression> e0_;
-    unique_ptr<Expression> e1_;
-  };
-
+program(A) ::= program(B) statement(C) . {
   if (B == nullptr || C == nullptr) {
     A = nullptr;
   } else {
@@ -58,15 +39,24 @@ program(A) ::= program(B) SEMICOLON expr(C) . {
   }
 }
 
-%type expr { Expression* }
-%destructor expr { delete $$; }
+%type statement { Expression* }
+%destructor statement { delete $$; }
 
-expr(A) ::= LPAREN expr(B) RPAREN. {
+statement(A) ::= expr(B) SEMICOLON . {
   A = B;
   B = nullptr;
 }
 
-expr(A) ::= IF LPAREN expr(COND) RPAREN LBRACKET expr(TRUE) SEMICOLON RBRACKET ELSE LBRACKET expr(FALSE) SEMICOLON RBRACKET . {
+statement(A) ::= SEMICOLON . {
+  A = new ConstantExpression(Value::Void());
+}
+
+statement(A) ::= LBRACKET statement_list(L) RBRACKET. {
+  A = L;
+  L = nullptr;
+}
+
+statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE) ELSE statement(FALSE_CASE). {
   class Evaluator : public Expression {
    public:
     Evaluator(unique_ptr<Expression> cond, unique_ptr<Expression> true_case,
@@ -94,26 +84,95 @@ expr(A) ::= IF LPAREN expr(COND) RPAREN LBRACKET expr(TRUE) SEMICOLON RBRACKET E
     unique_ptr<Expression> false_case_;
   };
 
-  if (COND == nullptr
-      || TRUE == nullptr
-      || FALSE == nullptr
-      || COND->type().type != VMType::VM_BOOLEAN
-      || !(TRUE->type() == FALSE->type())) {
+  if (CONDITION == nullptr || TRUE_CASE == nullptr || FALSE_CASE == nullptr
+      || CONDITION->type().type != VMType::VM_BOOLEAN
+      || !(TRUE_CASE->type() == FALSE_CASE->type())) {
     A = nullptr;
   } else {
-    A = new Evaluator(unique_ptr<Expression>(COND),
-                      unique_ptr<Expression>(TRUE),
-                      unique_ptr<Expression>(FALSE));
-    COND = nullptr;
-    TRUE = nullptr;
-    FALSE = nullptr;
+    A = new Evaluator(unique_ptr<Expression>(CONDITION),
+                      unique_ptr<Expression>(TRUE_CASE),
+                      unique_ptr<Expression>(FALSE_CASE));
+    CONDITION = nullptr;
+    TRUE_CASE = nullptr;
+    FALSE_CASE = nullptr;
   }
 }
 
-expr(A) ::= expr(B) LPAREN expr(C) RPAREN. {
-  class Evaluator : public Expression {
+statement(A) ::= STRING_SYMBOL SYMBOL(N) EQ expr(V) SEMICOLON. {
+  class AssignExpression : public Expression {
    public:
-    Evaluator(unique_ptr<Expression> func, unique_ptr<Expression> arg0)
+    AssignExpression(const string& symbol, unique_ptr<Expression> value)
+        : symbol_(symbol), value_(std::move(value)) {}
+    const VMType& type() { return VMType::Void(); }
+    unique_ptr<Value> Evaluate(Environment* environment) {
+      auto value = value_->Evaluate(environment);
+      environment->Define(symbol_, std::move(value));
+      return Value::Void();
+    }
+   private:
+    const string symbol_;
+    unique_ptr<Expression> value_;
+  };
+
+  assert(N->type.type == VMType::VM_SYMBOL);
+  environment->Define(N->str, unique_ptr<Value>(new Value(V->type().type)));
+  A = new AssignExpression(N->str, unique_ptr<Expression>(V));
+  V = nullptr;
+}
+
+// Statement list.
+
+%type statement_list { Expression * }
+%destructor statement_list { delete $$; }
+
+statement_list(L) ::= statement(A). {
+  L = A;
+  A = nullptr;
+}
+
+statement_list(OUT) ::= statement_list(L) statement(A). {
+  class AppendExpression : public Expression {
+   public:
+    AppendExpression(unique_ptr<Expression> e0, unique_ptr<Expression> e1)
+        : e0_(std::move(e0)), e1_(std::move(e1)) {}
+
+    const VMType& type() { return e1_->type(); }
+
+    unique_ptr<Value> Evaluate(Environment* environment) {
+      e0_->Evaluate(environment);
+      return std::move(e1_->Evaluate(environment));
+    }
+
+   private:
+    unique_ptr<Expression> e0_;
+    unique_ptr<Expression> e1_;
+  };
+  
+  if (L == nullptr || A == nullptr) {
+    OUT = nullptr;
+  } else {
+    OUT = new AppendExpression(unique_ptr<Expression>(L),
+                               unique_ptr<Expression>(A));
+    L = nullptr;
+    A = nullptr;
+  }
+}
+
+
+// Expressions
+
+%type expr { Expression* }
+%destructor expr { delete $$; }
+
+expr(A) ::= LPAREN expr(B) RPAREN. {
+  A = B;
+  B = nullptr;
+}
+
+expr(A) ::= expr(B) LPAREN expr(C) RPAREN. {
+  class FunctionCall : public Expression {
+   public:
+    FunctionCall(unique_ptr<Expression> func, unique_ptr<Expression> arg0)
         : func_(std::move(func)), arg0_(std::move(arg0)) {
       assert(func_ != nullptr);
       assert(arg0_ != nullptr);
@@ -133,17 +192,15 @@ expr(A) ::= expr(B) LPAREN expr(C) RPAREN. {
     unique_ptr<Expression> arg0_;
   };
 
-  if (B == nullptr
-      || C == nullptr
+  if (B == nullptr || C == nullptr
       || B->type().type != VMType::FUNCTION
       || B->type().type_arguments.size() != 2
       || !(B->type().type_arguments[1] == C->type())) {
     A = nullptr;
   } else {
-    A = new Evaluator(unique_ptr<Expression>(B), unique_ptr<Expression>(C));
+    A = new FunctionCall(unique_ptr<Expression>(B), unique_ptr<Expression>(C));
     B = nullptr;
     C = nullptr;
-    assert(B == nullptr);
   }
 }
 
@@ -154,7 +211,7 @@ expr(A) ::= expr(B) PLUS expr(C). {
   A = new BinaryOperator(
       unique_ptr<Expression>(B),
       unique_ptr<Expression>(C),
-      integer_type(),
+      VMType::integer_type(),
       [](const Value& a, const Value& b, Value* output) {
         output->integer = a.integer + b.integer;
       });
@@ -166,7 +223,7 @@ expr(A) ::= expr(B) MINUS expr(C). {
   A = new BinaryOperator(
       unique_ptr<Expression>(B),
       unique_ptr<Expression>(C),
-      integer_type(),
+      VMType::integer_type(),
       [](const Value& a, const Value& b, Value* output) {
         output->integer = a.integer - b.integer;
       });
@@ -178,7 +235,7 @@ expr(A) ::= expr(B) TIMES expr(C). {
   A = new BinaryOperator(
       unique_ptr<Expression>(B),
       unique_ptr<Expression>(C),
-      integer_type(),
+      VMType::integer_type(),
       [](const Value& a, const Value& b, Value* output) {
         output->integer = a.integer * b.integer;
       });
@@ -204,18 +261,52 @@ expr(A) ::= INTEGER(B). {
   B = nullptr;
 }
 
-expr(A) ::= STRING(B). {
+%type string { Value* }
+%destructor string { delete $$; }
+
+expr(A) ::= string(B). {
   assert(B->type.type == VMType::VM_STRING);
   A = new ConstantExpression(unique_ptr<Value>(B));
   B = nullptr;
 }
 
+string(O) ::= STRING(A). {
+  assert(A->type.type == VMType::VM_STRING);
+  O = A;
+  A = nullptr;
+}
+
+string(O) ::= string(A) STRING(B). {
+  assert(A->type.type == VMType::VM_STRING);
+  assert(B->type.type == VMType::VM_STRING);
+  O = A;
+  O->str = A->str + B->str;
+  A = nullptr;
+}
+
 expr(A) ::= SYMBOL(B). {
   assert(B->type.type == VMType::VM_SYMBOL);
+  class VariableLookup : public Expression {
+   public:
+    VariableLookup(const string& symbol, const VMType& type)
+        : symbol_(symbol), type_(type) {}
+    const VMType& type() {
+      return type_;
+    }
+    unique_ptr<Value> Evaluate(Environment* environment) {
+      Value* value = environment->Lookup(symbol_);
+      unique_ptr<Value> output = Value::Void();
+      *output = *value;
+      return std::move(output);
+    }
+   private:
+    const string symbol_;
+    const VMType type_;
+  };
+  
   auto result = environment->Lookup(B->str);
   if (result != nullptr) {
-    // TODO: This is wrong, the value may actually change, duh.
-    A = new ConstantExpression(unique_ptr<Value>(result));
+    A = new VariableLookup(B->str, result->type);
   } else {
     A = nullptr;
   }

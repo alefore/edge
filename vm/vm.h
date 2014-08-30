@@ -30,6 +30,9 @@ struct VMType {
 
   VMType(const Type& t) : type(t) {}
 
+  static const VMType& Void();
+  static const VMType& integer_type();
+
   Type type;
   vector<VMType> type_arguments;
 };

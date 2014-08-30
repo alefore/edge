@@ -12,7 +12,12 @@ bool operator==(const VMType& lhs, const VMType& rhs) {
   return lhs.type == rhs.type && lhs.type_arguments == rhs.type_arguments;
 }
 
-const VMType& integer_type() {
+/* static */ const VMType& VMType::Void() {
+  static VMType type(VMType::VM_VOID);
+  return type;
+}
+
+/* static */ const VMType& VMType::integer_type() {
   static VMType type(VMType::VM_INTEGER);
   return type;
 }
@@ -75,7 +80,8 @@ Value* Environment::Lookup(const string& symbol) {
 }
 
 void Environment::Define(const string& symbol, unique_ptr<Value> value) {
-  table.first.insert(make_pair(symbol, std::move(value)));
+  auto it = table.first.insert(make_pair(symbol, nullptr));
+  it.first->second = std::move(value);
 }
 
 void ValueDestructor(Value* value) {
@@ -102,6 +108,11 @@ void Evaluator::AppendInput(const string& str) {
         if (pos + 1 < str.size() && str.at(pos + 1) == '/') {
           pos = str.size();
         }
+        break;
+
+      case '=':
+        token = EQ;
+        pos++;
         break;
 
       case ';':
@@ -179,6 +190,8 @@ void Evaluator::AppendInput(const string& str) {
             input->boolean = false;
           } else if (symbol == "if") {
             token = IF;
+          } else if (symbol == "string") {
+            token = STRING_SYMBOL;
           } else {
             token = SYMBOL;
             input = new Value(VMType::VM_SYMBOL);
