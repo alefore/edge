@@ -39,9 +39,11 @@ class MemoryMappedFile : public LazyString {
   char* buffer_;
 };
 
+class EditorState;
 class OpenBuffer;
 
-void LoadMemoryMappedFile(const string& path, OpenBuffer* buffer);
+void LoadMemoryMappedFile(
+    EditorState* editor_state, const string& path, OpenBuffer* buffer);
 
 }  // namespace editor
 }  // namespace afc

@@ -207,6 +207,7 @@ unique_ptr<Transformation> DeleteFromBuffer::Apply(
     size_t current_end_column =
         line == end_.line ? end_.column : current_line->size();
     deleted_text->AppendLine(
+        editor_state,
         Substring(current_line->contents, current_start_column,
                   current_end_column - current_start_column));
     if (current_line->activate != nullptr

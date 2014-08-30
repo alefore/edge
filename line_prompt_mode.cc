@@ -77,7 +77,7 @@ class LinePromptMode : public EditorMode {
           if (history->contents()->size() == 1
               || (history->contents()->at(history->contents()->size() - 2)->contents->ToString()
                   != input_->ToString())) {
-            history->AppendLine(input_);
+            history->AppendLine(editor_state, input_);
           }
         }
         editor_state->set_status_prompt(false);

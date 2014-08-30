@@ -166,7 +166,7 @@ Predictor PrecomputedPredictor(const vector<string>& predictions) {
     for (auto it = contents->lower_bound(input); it != contents->end(); ++it) {
       auto result = mismatch(input.begin(), input.end(), (*it).first.begin());
       if (result.first == input.end()) {
-        buffer->AppendLine(it->second);
+        buffer->AppendLine(editor_state, it->second);
       } else {
         break;
       }

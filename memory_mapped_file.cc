@@ -47,9 +47,10 @@ MemoryMappedFile::~MemoryMappedFile() {
   close(fd_);
 }
 
-void LoadMemoryMappedFile(const string& path, OpenBuffer* buffer) {
+void LoadMemoryMappedFile(
+    EditorState* editor_state, const string& path, OpenBuffer* buffer) {
   shared_ptr<MemoryMappedFile> file(new MemoryMappedFile(path));
-  buffer->AppendLazyString(file);
+  buffer->AppendLazyString(editor_state, file);
 }
 
 }  // namespace editor

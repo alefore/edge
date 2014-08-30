@@ -197,11 +197,11 @@ class ListBuffersBuffer : public OpenBuffer {
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     target->ClearContents();
-    AppendLine(std::move(NewCopyString("Open Buffers:")));
+    AppendLine(editor_state, std::move(NewCopyString("Open Buffers:")));
     for (const auto& it : *editor_state->buffers()) {
       string flags(it.second->FlagsString());
       auto name = NewCopyString(it.first + (flags.empty() ? "" : "  ") + flags);
-      target->AppendLine(std::move(name));
+      target->AppendLine(editor_state, std::move(name));
       (*++target->contents()->rbegin())->activate.reset(new ActivateBufferLineCommand(it.first));
     }
     editor_state->ScheduleRedraw();

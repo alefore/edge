@@ -50,7 +50,7 @@ class FileBuffer : public OpenBuffer {
       if (0 == strcmp(basename(tmp), "passwd")) {
         RunCommandHandler("parsers/passwd <" + path, editor_state);
       } else {
-        LoadMemoryMappedFile(path, target);
+        LoadMemoryMappedFile(editor_state, path, target);
       }
       editor_state->CheckPosition();
       editor_state->PushCurrentPosition();
@@ -58,14 +58,14 @@ class FileBuffer : public OpenBuffer {
     }
 
     set_bool_variable(variable_atomic_lines(), true);
-    target->AppendLine(shared_ptr<LazyString>(
+    target->AppendLine(editor_state, shared_ptr<LazyString>(
         NewCopyString("File listing: " + path).release()));
 
     DIR* dir = opendir(path.c_str());
     assert(dir != nullptr);
     struct dirent* entry;
     while ((entry = readdir(dir)) != nullptr) {
-      target->AppendLine(shared_ptr<LazyString>(
+      target->AppendLine(editor_state, shared_ptr<LazyString>(
           NewCopyCharBuffer(entry->d_name).release()));
       (*++target->contents()->rbegin())->activate.reset(
           NewFileLinkMode(editor_state, path + "/" + entry->d_name, 0, false)

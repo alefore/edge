@@ -108,9 +108,11 @@ class OpenBuffer {
   void Reload(EditorState* editor_state);
   virtual void EndOfFile(EditorState* editor_state);
 
-  void AppendLazyString(shared_ptr<LazyString> input);
-  void AppendLine(shared_ptr<LazyString> line);
-  void AppendRawLine(shared_ptr<LazyString> str);
+  void AppendLazyString(EditorState* editor_state, shared_ptr<LazyString> input);
+  void AppendLine(EditorState* editor_state, shared_ptr<LazyString> line);
+  virtual void AppendRawLine(EditorState* editor_state, shared_ptr<LazyString> str);
+
+  const string& name() const { return name_; }
 
   Position InsertInCurrentPosition(const vector<shared_ptr<Line>>& insertion);
   Position InsertInPosition(
@@ -250,6 +252,8 @@ class OpenBuffer {
   static EdgeStruct<char>* BoolStruct();
   static EdgeVariable<char>* variable_pts();
   static EdgeVariable<char>* variable_close_after_clean_exit();
+  static EdgeVariable<char>* variable_reload_after_exit();
+  static EdgeVariable<char>* variable_default_reload_after_exit();
   static EdgeVariable<char>* variable_reload_on_enter();
   static EdgeVariable<char>* variable_atomic_lines();
   static EdgeVariable<char>* variable_diff();

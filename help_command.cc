@@ -31,9 +31,10 @@ class HelpCommand : public Command {
     if (it.second) {
       shared_ptr<OpenBuffer> buffer(new OpenBuffer(name));
       buffer->AppendLine(
+          editor_state,
           std::move(NewCopyString("Help: " + mode_description_)));
       for (const auto& it : commands_) {
-        buffer->AppendLine(std::move(NewCopyString(
+        buffer->AppendLine(editor_state, std::move(NewCopyString(
           (it.first == '\n' ? "RET" : string(1, static_cast<char>(it.first)))
           + " - " + it.second->Description())));
       }

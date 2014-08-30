@@ -68,7 +68,6 @@ OpenBuffer::OpenBuffer(const string& name)
       position_(0, 0),
       modified_(false),
       reading_from_parser_(false),
-      reload_after_exit_(false),
       bool_variables_(BoolStruct()->NewInstance()),
       string_variables_(StringStruct()->NewInstance()) {
   ClearContents();
@@ -97,8 +96,9 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
   }
   fd_ = -1;
   child_pid_ = -1;
-  if (reload_after_exit_) {
-    reload_after_exit_ = false;
+  if (read_bool_variable(variable_reload_after_exit())) {
+    set_bool_variable(variable_reload_after_exit(),
+        read_bool_variable(variable_default_reload_after_exit()));
     Reload(editor_state);
   }
   if (read_bool_variable(variable_close_after_clean_exit())
@@ -144,7 +144,9 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
        i++) {
     if (buffer_[i] == '\n') {
       bool was_at_end = at_end();
-      AppendLine(Substring(buffer_wrapper, buffer_line_start_, i - buffer_line_start_));
+      AppendLine(
+          editor_state,
+          Substring(buffer_wrapper, buffer_line_start_, i - buffer_line_start_));
       if (was_at_end) {
         set_position(end_position());
       }
@@ -183,12 +185,13 @@ void OpenBuffer::Save(EditorState* editor_state) {
   editor_state->SetStatus("Buffer can't be saved.");
 }
 
-void OpenBuffer::AppendLazyString(shared_ptr<LazyString> input) {
+void OpenBuffer::AppendLazyString(
+    EditorState* editor_state, shared_ptr<LazyString> input) {
   size_t size = input->size();
   size_t start = 0;
   for (size_t i = 0; i < size; i++) {
     if (input->get(i) == '\n') {
-      AppendLine(Substring(input, start, i - start));
+      AppendLine(editor_state, Substring(input, start, i - start));
       start = i + 1;
     }
   }
@@ -198,12 +201,12 @@ static void AddToParseTree(const shared_ptr<LazyString>& str_input) {
   string str = str_input->ToString();
 }
 
-void OpenBuffer::AppendLine(shared_ptr<LazyString> str) {
+void OpenBuffer::AppendLine(EditorState* editor_state, shared_ptr<LazyString> str) {
   assert(str != nullptr);
   if (reading_from_parser_) {
     switch (str->get(0)) {
       case 'E':
-        return AppendRawLine(Substring(str, 1));
+        return AppendRawLine(editor_state, Substring(str, 1));
 
       case 'T':
         AddToParseTree(str);
@@ -219,10 +222,11 @@ void OpenBuffer::AppendLine(shared_ptr<LazyString> str) {
     }
   }
 
-  AppendRawLine(str);
+  AppendRawLine(editor_state, str);
 }
 
-void OpenBuffer::AppendRawLine(shared_ptr<LazyString> str) {
+void OpenBuffer::AppendRawLine(
+    EditorState* editor_state, shared_ptr<LazyString> str) {
   assert(!contents_.empty());
   (*contents_.rbegin()).reset(new Line(
       StringAppend((*contents_.rbegin())->contents, str)));
@@ -372,6 +376,8 @@ string OpenBuffer::FlagsString() const {
     // Trigger registration of all fields.
     OpenBuffer::variable_pts();
     OpenBuffer::variable_close_after_clean_exit();
+    OpenBuffer::variable_reload_after_exit();
+    OpenBuffer::variable_default_reload_after_exit();
     OpenBuffer::variable_reload_on_enter();
     OpenBuffer::variable_atomic_lines();
     OpenBuffer::variable_diff();
@@ -394,7 +400,26 @@ string OpenBuffer::FlagsString() const {
   static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
       "close_after_clean_exit",
       "If a command is forked that writes to this buffer, should the buffer be "
-      "when the command exits with a successful status code?",
+      "closed when the command exits with a successful status code?",
+      false);
+  return variable;
+}
+
+/* static */ EdgeVariable<char>* OpenBuffer::variable_reload_after_exit() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+      "reload_after_exit",
+      "If a forked command that writes to this buffer exits, should Edge "
+      "reload the buffer?",
+      false);
+  return variable;
+}
+
+/* static */ EdgeVariable<char>* OpenBuffer::variable_default_reload_after_exit() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+      "default_reload_after_exit",
+      "If a forked command that writes to this buffer exits and "
+      "reload_after_exit is set, what should Edge set reload_after_exit just "
+      "after reloading the buffer?",
       false);
   return variable;
 }
@@ -526,7 +551,6 @@ void OpenBuffer::CopyVariablesFrom(const shared_ptr<const OpenBuffer>& src) {
   assert(src.get() != nullptr);
   bool_variables_.CopyFrom(src->bool_variables_);
   string_variables_.CopyFrom(src->string_variables_);
-  reload_after_exit_ = src->reload_after_exit_;
 }
 
 void OpenBuffer::Apply(
