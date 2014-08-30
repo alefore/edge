@@ -101,6 +101,19 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
         };
     evaluator_.Define("ConnectTo", std::move(connect_to_function));
   }
+
+  {
+    unique_ptr<afc::vm::Value> set_status_function(new Value(VMType::FUNCTION));
+    set_status_function->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    set_status_function->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    set_status_function->function1 =
+        [editor_state](unique_ptr<Value> path) {
+          assert(path->type == VMType::VM_STRING);
+          editor_state->SetStatus(path->str);
+          return nullptr;
+        };
+    evaluator_.Define("SetStatus", std::move(set_status_function));
+  }
 }
 
 void OpenBuffer::Close(EditorState* editor_state) {
