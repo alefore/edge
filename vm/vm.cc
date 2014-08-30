@@ -178,6 +178,7 @@ void Evaluator::AppendInput(const string& str) {
             input = new Value(VMType::VM_BOOLEAN);
             input->boolean = false;
           } else if (symbol == "if") {
+            token = IF;
           } else {
             token = SYMBOL;
             input = new Value(VMType::VM_SYMBOL);
@@ -193,6 +194,16 @@ void Evaluator::AppendInput(const string& str) {
 
       case ')':
         token = RPAREN;
+        pos++;
+        break;
+
+      case '{':
+        token = LBRACKET;
+        pos++;
+        break;
+
+      case '}':
+        token = RBRACKET;
         pos++;
         break;
 

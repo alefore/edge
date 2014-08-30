@@ -66,7 +66,7 @@ expr(A) ::= LPAREN expr(B) RPAREN. {
   B = nullptr;
 }
 
-expr(A) ::= IF LPAREN expr(COND) RPAREN LBRAKET expr(TRUE) SEMICOLON RBRAKET ELSE LBRAKET expr(FALSE) SEMICOLON RBRAKET . {
+expr(A) ::= IF LPAREN expr(COND) RPAREN LBRACKET expr(TRUE) SEMICOLON RBRACKET ELSE LBRACKET expr(FALSE) SEMICOLON RBRACKET . {
   class Evaluator : public Expression {
    public:
     Evaluator(unique_ptr<Expression> cond, unique_ptr<Expression> true_case,
@@ -133,8 +133,6 @@ expr(A) ::= expr(B) LPAREN expr(C) RPAREN. {
     unique_ptr<Expression> arg0_;
   };
 
-  VMType c_type = C->type();
-  VMType b_arg_type = B->type().type_arguments[1];
   if (B == nullptr
       || C == nullptr
       || B->type().type != VMType::FUNCTION
