@@ -260,6 +260,7 @@ class OpenBuffer {
   static EdgeVariable<string>* variable_word_characters();
   static EdgeVariable<string>* variable_path_characters();
   static EdgeVariable<string>* variable_path();
+  static EdgeVariable<string>* variable_editor_commands_path();
   static EdgeVariable<string>* variable_line_prefix_characters();
 
   bool read_bool_variable(const EdgeVariable<char>* variable);

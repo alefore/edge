@@ -1,5 +1,6 @@
 #include <cmath>
 #include <functional>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <map>
@@ -336,7 +337,7 @@ class GotoNextPositionCommand : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    editor_state->set_direction( 
+    editor_state->set_direction(
         ReverseDirection(editor_state->direction()));
     GotoPreviousPositionCommand::Go(editor_state);
     editor_state->ResetDirection();
@@ -936,6 +937,33 @@ class ResetStateCommand : public Command {
   }
 };
 
+void RunCppCommandHandler(const string& input, EditorState* editor_state) {
+  editor_state->ResetMode();
+  if (!editor_state->has_current_buffer()) { return; }
+  auto buffer = editor_state->current_buffer()->second;
+  // TODO: Read asynchronously.  Generalize the consumers.
+  std::ifstream infile(input);
+  std::string line;
+  while (std::getline(infile, line)) {
+    buffer->Evaluate(editor_state, line);
+  }
+}
+
+class RunCppCommand : public Command {
+  const string Description() {
+    return "runs a command";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    if (!editor_state->has_current_buffer()) { return; }
+    auto buffer = editor_state->current_buffer()->second;
+    Prompt(editor_state, "cmd ", "editor_commands",
+           buffer->read_string_variable(
+               OpenBuffer::variable_editor_commands_path()),
+           RunCppCommandHandler, FilePredictor);
+  }
+};
+
 static const map<int, Command*>& GetCommandModeMap() {
   static map<int, Command*> output;
   if (output.empty()) {
@@ -953,6 +981,8 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('p', new Paste()));
     output.insert(make_pair('u', new UndoCommand()));
     output.insert(make_pair('\n', new ActivateLink()));
+
+    output.insert(make_pair('c', new RunCppCommand()));
 
     output.insert(make_pair('b', new GotoPreviousPositionCommand()));
     output.insert(make_pair('B', new GotoNextPositionCommand()));

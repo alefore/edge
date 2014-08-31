@@ -563,6 +563,7 @@ string OpenBuffer::FlagsString() const {
     OpenBuffer::variable_word_characters();
     OpenBuffer::variable_path_characters();
     OpenBuffer::variable_path();
+    OpenBuffer::variable_editor_commands_path();
     OpenBuffer::variable_line_prefix_characters();
   }
   return output;
@@ -590,6 +591,14 @@ string OpenBuffer::FlagsString() const {
   static EdgeVariable<string>* variable = StringStruct()->AddVariable(
       "path",
       "String with the path of the current file.",
+      "");
+  return variable;
+}
+
+/* static */ EdgeVariable<string>* OpenBuffer::variable_editor_commands_path() {
+  static EdgeVariable<string>* variable = StringStruct()->AddVariable(
+      "editor_commands_path",
+      "String with the path to the initial directory for editor commands.",
       "");
   return variable;
 }
