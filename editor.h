@@ -98,9 +98,15 @@ class EditorState {
 
   Structure structure() const { return structure_; }
   void set_structure(Structure structure);
-  void ResetStructure() { structure_ = default_structure_; }
-  Structure default_structure() const { return default_structure_; }
-  void set_default_structure(Structure structure);
+  void ResetStructure() {
+    if (!sticky_structure_) {
+      structure_ = Structure::CHAR;
+    }
+  }
+  bool sticky_structure() const { return sticky_structure_; }
+  void set_sticky_structure(bool sticky_structure) {
+    sticky_structure_ = sticky_structure;
+  }
 
   void ProcessInputString(const string& input) {
     for (size_t i = 0; i < input.size(); ++i) {
@@ -159,7 +165,7 @@ class EditorState {
   size_t repetitions_;
   string last_search_query_;
   Structure structure_;
-  Structure default_structure_;
+  bool sticky_structure_;
 
   unique_ptr<EditorMode> mode_;
 

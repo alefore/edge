@@ -1,6 +1,8 @@
 #include "terminal.h"
 
+#include <algorithm>
 #include <cassert>
+#include <cctype>
 #include <iostream>
 
 extern "C" {
@@ -95,43 +97,31 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
       flags += "r";
     }
 
-    switch (editor_state.default_structure()) {
+    string structure;
+    switch (editor_state.structure()) {
       case EditorState::CHAR:
-        switch (editor_state.structure()) {
-          case EditorState::CHAR:
-            break;
-          case EditorState::WORD:
-            flags += "w";
-            break;
-          case EditorState::LINE:
-            flags += "l";
-            break;
-          case EditorState::PAGE:
-            flags += "p";
-            break;
-          case EditorState::SEARCH:
-            flags += "s";
-            break;
-          case EditorState::BUFFER:
-            flags += "b";
-            break;
-        }
         break;
       case EditorState::WORD:
-        flags += "W";
+        structure = "word";
         break;
       case EditorState::LINE:
-        flags += "L";
+        structure = "line";
         break;
       case EditorState::PAGE:
-        flags += "P";
+        structure = "page";
         break;
       case EditorState::SEARCH:
-        flags += "S";
+        structure = "search";
         break;
       case EditorState::BUFFER:
-        flags += "B";
+        structure = "buffer";
         break;
+    }
+    if (!structure.empty()) {
+      if (editor_state.sticky_structure()) {
+        structure += "*";
+      }
+      flags += "(" + structure + ")";
     }
 
     if (!flags.empty()) {

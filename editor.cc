@@ -59,7 +59,7 @@ EditorState::EditorState()
       default_direction_(FORWARDS),
       repetitions_(1),
       structure_(CHAR),
-      default_structure_(CHAR),
+      sticky_structure_(false),
       mode_(std::move(NewCommandMode())),
       visible_lines_(1),
       screen_needs_redraw_(false),
@@ -312,11 +312,6 @@ void EditorState::set_default_direction(Direction direction) {
 
 void EditorState::set_structure(Structure structure) {
   structure_ = structure;
-}
-
-void EditorState::set_default_structure(Structure structure) {
-  default_structure_ = structure;
-  ResetStructure();
 }
 
 void EditorState::MoveBufferForwards(size_t times) {

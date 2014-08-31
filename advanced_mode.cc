@@ -81,8 +81,8 @@ class CloseCurrentBuffer : public Command {
       return;
     }
     editor_state->CloseBuffer(editor_state->current_buffer());
-    editor_state->set_default_structure(EditorState::CHAR);
     editor_state->set_structure(EditorState::CHAR);
+    editor_state->set_sticky_structure(false);
     editor_state->ResetRepetitions();
     editor_state->set_default_direction(FORWARDS);
     editor_state->ResetDirection();
@@ -100,7 +100,6 @@ class SaveCurrentBuffer : public Command {
       return;
     }
     editor_state->current_buffer()->second->Save(editor_state);
-    editor_state->set_default_structure(EditorState::CHAR);
     editor_state->set_structure(EditorState::CHAR);
     editor_state->ResetRepetitions();
     editor_state->set_default_direction(FORWARDS);
