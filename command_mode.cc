@@ -1005,7 +1005,7 @@ class SwitchCaseCommand : public Command {
       buffer->set_position(LineColumn(position.line, position.column + 1));
     }
 
-    if (position.column == line->contents->size()
+    if (position.column >= line->contents->size()
         || !isalpha(line->contents->get(position.column))) {
       return;
     }
