@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "predictor.h"
+
 namespace afc {
 namespace editor {
 
@@ -24,22 +26,27 @@ struct EdgeVariable {
   const string& description() const { return description_; }
   const T& default_value() const { return default_value_; }
   const size_t position() const { return position_; }
+  const Predictor& predictor() const { return predictor_; }
 
  private:
   // Instantiate it through EdgeStruct::AddVariable.
   EdgeVariable(const string& name,
                const string& description,
                const T& default_value,
-               size_t position)
+               size_t position,
+               const Predictor& predictor)
       : name_(name),
         description_(description),
         default_value_(default_value),
-        position_(position) {}
+        position_(position),
+        predictor_(predictor) {}
 
   string name_;
   string description_;
   T default_value_;
   size_t position_;
+  // Used to predict values.
+  Predictor predictor_;
 
   friend class EdgeStruct<T>;
 };
@@ -65,6 +72,10 @@ class EdgeStruct {
  public:
   EdgeVariable<T>* AddVariable(
       const string& name, const string& description, const T& default_value);
+
+  EdgeVariable<T>* AddVariable(
+      const string& name, const string& description, const T& default_value,
+      const Predictor& predictor);
 
   EdgeStructInstance<T> NewInstance() {
     EdgeStructInstance<T> instance;
@@ -110,8 +121,15 @@ void EdgeStructInstance<T>::Set(
 template <typename T>
 EdgeVariable<T>* EdgeStruct<T>::AddVariable(
     const string& name, const string& description, const T& default_value) {
+  return AddVariable(name, description, default_value, EmptyPredictor);
+}
+
+template <typename T>
+EdgeVariable<T>* EdgeStruct<T>::AddVariable(
+    const string& name, const string& description, const T& default_value,
+    const Predictor& predictor) {
   auto it = variables_.insert(make_pair(name, new EdgeVariable<T>(
-      name, description, default_value, variables_.size())));
+      name, description, default_value, variables_.size(), predictor)));
   return it.first->second.get();
 }
 
