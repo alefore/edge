@@ -4,9 +4,9 @@
 
 %token_type { Value* }
 
-%left LPAREN RPAREN.
 %left PLUS MINUS.
 %left DIVIDE TIMES.
+%left LPAREN RPAREN.
 
 %type main { Value* }
 %destructor main { delete $$; }
