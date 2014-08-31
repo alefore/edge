@@ -193,6 +193,25 @@ EditorState::EditorState()
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
     callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->type.type_arguments.push_back(VMType::ObjectType(line_column.get()));
+    callback->type.type_arguments.push_back(VMType::ObjectType(line_column.get()));
+    callback->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          if (!has_current_buffer()) { return Value::Void(); }
+          auto buffer = current_buffer()->second;
+          LineColumn* start = static_cast<LineColumn*>(args[0]->user_value.get());
+          LineColumn* end = static_cast<LineColumn*>(args[1]->user_value.get());
+          unique_ptr<Transformation> transformation(
+              NewDeleteTransformation(*start, *end));
+          buffer->Apply(this, *transformation);
+          return Value::Void();
+        };
+    environment_.Define("DeleteText", std::move(callback));
+  }
+
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
     callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
