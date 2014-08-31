@@ -940,13 +940,7 @@ class ResetStateCommand : public Command {
 void RunCppCommandHandler(const string& input, EditorState* editor_state) {
   editor_state->ResetMode();
   if (!editor_state->has_current_buffer()) { return; }
-  auto buffer = editor_state->current_buffer()->second;
-  // TODO: Read asynchronously.  Generalize the consumers.
-  std::ifstream infile(input);
-  std::string line;
-  while (std::getline(infile, line)) {
-    buffer->Evaluate(editor_state, line);
-  }
+  editor_state->Evaluate(input);
 }
 
 class RunCppCommand : public Command {

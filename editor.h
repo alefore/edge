@@ -12,6 +12,7 @@
 #include "direction.h"
 #include "lazy_string.h"
 #include "memory_mapped_file.h"
+#include "vm/vm.h"
 
 namespace afc {
 namespace editor {
@@ -145,6 +146,8 @@ class EditorState {
 
   void ApplyToCurrentBuffer(const Transformation& transformation);
 
+  void Evaluate(const string& str);
+
  private:
   map<string, shared_ptr<OpenBuffer>> buffers_;
   map<string, shared_ptr<OpenBuffer>>::iterator current_buffer_;
@@ -169,6 +172,8 @@ class EditorState {
 
   string home_directory_;
   vector<string> edge_path_;
+
+  afc::vm::Environment environment_;
 };
 
 }  // namespace editor

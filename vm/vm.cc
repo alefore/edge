@@ -74,8 +74,8 @@ class BinaryOperator : public Expression {
 };
 
 Value* Environment::Lookup(const string& symbol) {
-  auto it = table_.find(symbol);
-  if (it != table_.end()) {
+  auto it = table_->find(symbol);
+  if (it != table_->end()) {
     return it->second.get();
   }
   if (parent_environment_ != nullptr) {
@@ -86,7 +86,7 @@ Value* Environment::Lookup(const string& symbol) {
 }
 
 void Environment::Define(const string& symbol, unique_ptr<Value> value) {
-  auto it = table_.insert(make_pair(symbol, nullptr));
+  auto it = table_->insert(make_pair(symbol, nullptr));
   it.first->second = std::move(value);
 }
 
@@ -97,11 +97,17 @@ void ValueDestructor(Value* value) {
 #include "cpp.h"
 #include "cpp.c"
 
-Evaluator::Evaluator()
-    : parser_(CppAlloc(malloc), [](void* parser) { CppFree(parser, free); }) {}
+Evaluator::Evaluator(unique_ptr<Environment> environment)
+    : environment_(std::move(environment)),
+      parser_(
+          CppAlloc(malloc),
+          [this](void* parser) {
+            Cpp(parser, 0, nullptr, environment_.get());
+            CppFree(parser, free);
+          }) {}
 
 void Evaluator::Define(const string& name, unique_ptr<Value> value) {
-  environment_.Define(name, std::move(value));
+  environment_->Define(name, std::move(value));
 }
 
 void Evaluator::AppendInput(const string& str) {
@@ -258,7 +264,7 @@ void Evaluator::AppendInput(const string& str) {
         cerr << "Unhandled character at position " << pos << ": " << str;
         exit(54);
     }
-    Cpp(parser_.get(), token, input, &environment_);
+    Cpp(parser_.get(), token, input, environment_.get());
   }
 }
 

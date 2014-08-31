@@ -42,7 +42,6 @@ class Environment;
 
 struct Value {
   Value(const VMType::Type& t) : type(t) {}
-
   static unique_ptr<Value> Void();
 
   VMType type;
@@ -61,27 +60,35 @@ class Expression {
   virtual unique_ptr<Value> Evaluate(Environment* environment) = 0;
 };
 
-struct Environment {
-  Environment() : parent_environment_(nullptr) {}
+class Environment {
+ public:
+  Environment()
+      : table_(new map<string, unique_ptr<Value>>),
+        parent_environment_(nullptr) {}
+
+  Environment(Environment* parent_environment)
+      : table_(new map<string, unique_ptr<Value>>),
+        parent_environment_(parent_environment) {}
 
   Value* Lookup(const string& symbol);
-  void Define(const string& symbol, unique_ptr<Value> value);
+  void Define(const string& symbol, const unique_ptr<Value> value);
 
-  map<string, unique_ptr<Value>> table_;
+ private:
+  map<string, unique_ptr<Value>>* table_;
   Environment* parent_environment_;
 };
 
 class Evaluator {
  public:
-  Evaluator();
+  Evaluator(unique_ptr<Environment> environment);
 
   void Define(const string& name, unique_ptr<Value> value);
 
   void AppendInput(const string& str);
 
  private:
+  unique_ptr<Environment> environment_;
   unique_ptr<void, function<void(void*)>> parser_;
-  Environment environment_;
 };
 
 }  // namespace vm

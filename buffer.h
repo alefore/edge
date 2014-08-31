@@ -319,8 +319,6 @@ class OpenBuffer {
   EdgeStructInstance<char> bool_variables_;
   EdgeStructInstance<string> string_variables_;
 
-  afc::vm::Evaluator evaluator_;
-
   list<unique_ptr<Transformation>> undo_history_;
 };
 

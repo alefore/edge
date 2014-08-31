@@ -276,7 +276,7 @@ class SendEndOfFile : public Command {
 void RunCppCommandHandler(const string& name, EditorState* editor_state) {
   if (!editor_state->has_current_buffer()) { return; }
   editor_state->ResetMode();
-  editor_state->current_buffer()->second->Evaluate(editor_state, name);
+  editor_state->Evaluate(name);
 }
 
 class RunCppCommand : public Command {

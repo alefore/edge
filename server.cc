@@ -88,7 +88,7 @@ class ServerBuffer : public OpenBuffer {
   virtual void AppendRawLine(
       EditorState* editor_state, shared_ptr<LazyString> str) {
     OpenBuffer::AppendRawLine(editor_state, str);
-    evaluator_.AppendInput(str->ToString());
+    editor_state->Evaluate(str->ToString());
   }
 };
 
