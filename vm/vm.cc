@@ -259,27 +259,30 @@ void Evaluator::AppendInput(const string& str) {
         {
           token = STRING;
           input = new Value(VMType::VM_STRING);
-          size_t start = ++pos;
-          while (pos < str.size() && str.at(pos) != '"') {
-            pos++;
-          }
-          input->str.reserve(pos - start);
-          for (size_t i = start; i < pos; i++) {
-            if (str.at(i) != '\\') {
-              input->str.push_back(str.at(i));;
+          pos++;
+          input->str = "";
+          for (; pos < str.size(); pos++) {
+            if (str.at(pos) == '"') {
+              break;
+            }
+            if (str.at(pos) != '\\') {
+              input->str.push_back(str.at(pos));;
               continue;
             }
-            i++;
-            if (i >= pos) { continue; }
-            switch (str.at(i)) {
+            pos++;
+            if (pos >= str.size()) { continue; }
+            switch (str.at(pos)) {
               case 'n':
                 input->str.push_back('\n');
                 break;
               case 't':
                 input->str.push_back('\t');
                 break;
+              case '"':
+                input->str.push_back('"');
+                break;
               default:
-                input->str.push_back(str.at(i));
+                input->str.push_back(str.at(pos));
             }
           }
           pos++;
