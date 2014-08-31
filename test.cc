@@ -16,7 +16,7 @@ int main(int argc, char**argv) {
   editor_state.ProcessInput(Terminal::ESCAPE);
   assert(editor_state.current_buffer()->second->current_line()->contents->ToString()
          == "alejo forero");
-  editor_state.ProcessInputString("sld");
+  editor_state.ProcessInputString("ed");
   assert(editor_state.current_buffer()->second->ToString().empty());
 
   editor_state.ProcessInputString("ialejandro\nforero\ncuervo");
@@ -24,7 +24,7 @@ int main(int argc, char**argv) {
   assert(editor_state.current_buffer()->second->contents()->size() == 3);
   assert(editor_state.current_buffer()->second->current_position_line() == 2);
   assert(editor_state.current_buffer()->second->current_position_col() == sizeof("cuervo") - 1);
-  editor_state.ProcessInputString("slhhh");
+  editor_state.ProcessInputString("ehhh");
   assert(editor_state.current_buffer()->second->current_position_line() == 1);
   assert(editor_state.current_buffer()->second->current_position_col() == sizeof("cuervo") - 1 - 2);
 
@@ -41,14 +41,14 @@ int main(int argc, char**argv) {
   assert(editor_state.current_buffer()->second->current_position_line() == 0);
   assert(editor_state.current_buffer()->second->current_position_col() == sizeof("alejandro") - 1);
 
-  editor_state.ProcessInputString("slrg");
+  editor_state.ProcessInputString("erg");
   assert(editor_state.current_buffer()->second->current_position_line() == 2);
 
-  editor_state.ProcessInputString("slgg");
+  editor_state.ProcessInputString("egg");
   assert(editor_state.current_buffer()->second->current_position_line() == 0);
   assert(editor_state.current_buffer()->second->current_position_col() == 0);
 
-  editor_state.ProcessInputString("sl2d");
+  editor_state.ProcessInputString("e2d");
   assert(editor_state.current_buffer()->second->contents()->size() == 1);
   assert(editor_state.current_buffer()->second->current_line()->contents->ToString()
          == "cuervo");
@@ -56,26 +56,27 @@ int main(int argc, char**argv) {
   editor_state.ProcessInputString("pp");
   assert(editor_state.current_buffer()->second->contents()->size() == 5);
 
-  editor_state.ProcessInputString("slrg");
+  editor_state.ProcessInputString("erg");
   assert(editor_state.current_buffer()->second->current_position_line() == 4);
 
-  editor_state.ProcessInputString("sLhhh");
+  editor_state.ProcessInputString("eshhh");
   assert(editor_state.current_buffer()->second->current_position_line() == 1);
 
-  editor_state.ProcessInputString("sc3d");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("3d");
   assert(editor_state.current_buffer()->second->current_position_line() == 1);
   assert(editor_state.current_buffer()->second->ToString()
          == "alejandro\nero\nalejandro\nforero\ncuervo");
 
   // Clear it all.
-  editor_state.ProcessInputString("slgsl10d");
+  editor_state.ProcessInputString("ege10d");
   assert(editor_state.current_buffer()->second->ToString() == "");
   assert(editor_state.current_buffer()->second->contents()->size() == 1);
 
   editor_state.ProcessInputString("ialejandro forero cuervo\n\n");
   editor_state.ProcessInputString("0123456789abcdefghijklmnopqrstuvwxyz");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  editor_state.ProcessInputString("2h2h2h2h2l2l2l2l2l2h2h2h2hslgg");
+  editor_state.ProcessInputString("2h2h2h2h2l2l2l2l2l2h2h2h2hegg");
   assert(editor_state.current_buffer()->second->position().line == 0);
   assert(editor_state.current_buffer()->second->position().column == 0);
 
@@ -91,7 +92,7 @@ int main(int argc, char**argv) {
   editor_state.ProcessInputString("200000000rb");
   assert(editor_state.current_buffer()->second->position().column == 10);
 
-  editor_state.ProcessInputString("slb");
+  editor_state.ProcessInputString("eb");
   assert(editor_state.current_buffer()->second->position().line == 2);
 
   editor_state.ProcessInputString("gf1f3f5f7f9");
@@ -107,7 +108,7 @@ int main(int argc, char**argv) {
   assert(editor_state.current_buffer()->second->position().line == 2);
   assert(editor_state.current_buffer()->second->position().column == 1);
 
-  editor_state.ProcessInputString("slg1000000000000000000d");
+  editor_state.ProcessInputString("eg1000000000000000000d");
   for (int i = 0; i < 5; i++) {
     editor_state.ProcessInputString("b");
     assert(editor_state.current_buffer()->second->position().line == 0);
@@ -119,7 +120,8 @@ int main(int argc, char**argv) {
   editor_state.ProcessInputString("krg" "j" "rfa");
 
   // Clear.
-  editor_state.ProcessInputString("sLg99999999999999999999999dsc");
+  editor_state.ProcessInputString("esg99999999999999999999999d");
+  editor_state.ProcessInput(Terminal::ESCAPE);
 
   editor_state.ProcessInputString("ihey there hey hey man yes ahoheyblah.");
   assert(editor_state.current_buffer()->second->position().line == 0);
@@ -130,7 +132,8 @@ int main(int argc, char**argv) {
   assert(editor_state.current_buffer()->second->position().column == 10);
 
   // Clear.
-  editor_state.ProcessInputString("sLg99999999999999999999999dsc");
+  editor_state.ProcessInputString("esg99999999999999999999999d");
+  editor_state.ProcessInput(Terminal::ESCAPE);
 
   // VM Tests.
   editor_state.ProcessInputString("i0123456789");
