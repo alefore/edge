@@ -4,7 +4,6 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace afc {
@@ -12,7 +11,6 @@ namespace vm {
 
 using std::function;
 using std::map;
-using std::pair;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -64,13 +62,13 @@ class Expression {
 };
 
 struct Environment {
-  Environment()
-      : table(make_pair(map<string, unique_ptr<Value>>(), nullptr)) {}
+  Environment() : parent_environment_(nullptr) {}
 
   Value* Lookup(const string& symbol);
   void Define(const string& symbol, unique_ptr<Value> value);
 
-  pair<map<string, unique_ptr<Value>>, Environment*> table;
+  map<string, unique_ptr<Value>> table_;
+  Environment* parent_environment_;
 };
 
 class Evaluator {

@@ -74,19 +74,19 @@ class BinaryOperator : public Expression {
 };
 
 Value* Environment::Lookup(const string& symbol) {
-  auto it = table.first.find(symbol);
-  if (it != table.first.end()) {
+  auto it = table_.find(symbol);
+  if (it != table_.end()) {
     return it->second.get();
   }
-  if (table.second != nullptr) {
-    return table.second->Lookup(symbol);
+  if (parent_environment_ != nullptr) {
+    return parent_environment_->Lookup(symbol);
   }
 
   return nullptr;
 }
 
 void Environment::Define(const string& symbol, unique_ptr<Value> value) {
-  auto it = table.first.insert(make_pair(symbol, nullptr));
+  auto it = table_.insert(make_pair(symbol, nullptr));
   it.first->second = std::move(value);
 }
 
