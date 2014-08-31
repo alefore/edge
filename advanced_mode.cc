@@ -224,10 +224,10 @@ class ListBuffers : public Command {
       it.first->second->set_bool_variable(
           OpenBuffer::variable_reload_on_enter(), true);
     }
+    editor_state->ResetStatus();
     it.first->second->Reload(editor_state);
     editor_state->PushCurrentPosition();
     editor_state->ScheduleRedraw();
-    editor_state->ResetStatus();
     editor_state->ResetMode();
     editor_state->ResetRepetitions();
   }
