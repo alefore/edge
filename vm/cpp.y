@@ -147,7 +147,7 @@ statement_list(OUT) ::= statement_list(L) statement(A). {
     unique_ptr<Expression> e0_;
     unique_ptr<Expression> e1_;
   };
-  
+
   if (L == nullptr || A == nullptr) {
     OUT = nullptr;
   } else {
@@ -200,8 +200,6 @@ expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
   if (B == nullptr || ARGS == nullptr
       || B->type().type != VMType::FUNCTION
       || B->type().type_arguments.size() - 1 != ARGS->size()) {
-    cerr << "BASIC MISMATCH\n";
-    cerr << "  B size: " << B->type().type_arguments.size() << " ARGS: " << ARGS->size() << "\n";
     OUT = nullptr;
   } else {
     bool match = true;
@@ -212,7 +210,6 @@ expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
       }
     }
     if (!match) {
-      cerr << "MISMATCH";
       OUT = nullptr;
     } else {
       OUT = new FunctionCall(unique_ptr<Expression>(B), ARGS);
@@ -256,15 +253,31 @@ non_empty_arguments_list(OUT) ::= non_empty_arguments_list(L) COMMA expr(E). {
 // Basic operators
 
 expr(A) ::= expr(B) PLUS expr(C). {
-  A = new BinaryOperator(
-      unique_ptr<Expression>(B),
-      unique_ptr<Expression>(C),
-      VMType::integer_type(),
-      [](const Value& a, const Value& b, Value* output) {
-        output->integer = a.integer + b.integer;
-      });
-  B = nullptr;
-  C = nullptr;
+  if (B == nullptr || C == nullptr || !(B->type() == C->type())) {
+    A = nullptr;
+  } else if (B->type().type == VMType::VM_STRING) {
+    A = new BinaryOperator(
+        unique_ptr<Expression>(B),
+        unique_ptr<Expression>(C),
+        VMType::String(),
+        [](const Value& a, const Value& b, Value* output) {
+          output->str = a.str + b.str;
+        });
+    B = nullptr;
+    C = nullptr;
+  } else if (B->type().type == VMType::VM_INTEGER) {
+    A = new BinaryOperator(
+        unique_ptr<Expression>(B),
+        unique_ptr<Expression>(C),
+        VMType::integer_type(),
+        [](const Value& a, const Value& b, Value* output) {
+          output->integer = a.integer + b.integer;
+        });
+    B = nullptr;
+    C = nullptr;
+  } else {
+    A = nullptr;
+  }
 }
 
 expr(A) ::= expr(B) MINUS expr(C). {
@@ -280,15 +293,21 @@ expr(A) ::= expr(B) MINUS expr(C). {
 }
 
 expr(A) ::= expr(B) TIMES expr(C). {
-  A = new BinaryOperator(
-      unique_ptr<Expression>(B),
-      unique_ptr<Expression>(C),
-      VMType::integer_type(),
-      [](const Value& a, const Value& b, Value* output) {
-        output->integer = a.integer * b.integer;
-      });
-  B = nullptr;
-  C = nullptr;
+  if (B == nullptr || C == nullptr || !(B->type() == C->type())) {
+    A = nullptr;
+  } else if (B->type().type == VMType::VM_INTEGER) {
+    A = new BinaryOperator(
+        unique_ptr<Expression>(B),
+        unique_ptr<Expression>(C),
+        VMType::integer_type(),
+        [](const Value& a, const Value& b, Value* output) {
+          output->integer = a.integer * b.integer;
+        });
+    B = nullptr;
+    C = nullptr;
+  } else {
+    A = nullptr;
+  }
 }
 
 //expr(A) ::= expr(B) DIVIDE expr(C). {
@@ -351,7 +370,7 @@ expr(A) ::= SYMBOL(B). {
     const string symbol_;
     const VMType type_;
   };
-  
+
   auto result = environment->Lookup(B->str);
   if (result != nullptr) {
     A = new VariableLookup(B->str, result->type);
