@@ -17,6 +17,11 @@ bool operator==(const VMType& lhs, const VMType& rhs) {
   return type;
 }
 
+/* static */ const VMType& VMType::String() {
+  static VMType type(VMType::VM_STRING);
+  return type;
+}
+
 /* static */ const VMType& VMType::integer_type() {
   static VMType type(VMType::VM_INTEGER);
   return type;
@@ -53,7 +58,8 @@ class BinaryOperator : public Expression {
   const VMType& type() { return type_; }
 
   unique_ptr<Value> Evaluate(Environment* environment) {
-    unique_ptr<Value> output(new Value(VMType::VM_INTEGER));
+    unique_ptr<Value> output = Value::Void();
+    output->type = type_;
     auto a = a_->Evaluate(environment);
     auto b = b_->Evaluate(environment);
     operator_(*a, *b, output.get());
@@ -132,6 +138,11 @@ void Evaluator::AppendInput(const string& str) {
 
       case '-':
         token = MINUS;
+        pos++;
+        break;
+
+      case '*':
+        token = TIMES;
         pos++;
         break;
 
