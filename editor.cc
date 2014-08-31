@@ -69,39 +69,9 @@ EditorState::EditorState()
       edge_path_(GetEdgeConfigPath(home_directory_)) {
   using namespace afc::vm;
   unique_ptr<ObjectType> line_column(new ObjectType("LineColumn"));
+  unique_ptr<ObjectType> buffer(new ObjectType("Buffer"));
 
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->type.type_arguments.push_back(VMType::ObjectType(line_column.get()));
-    callback->callback =
-        [this](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::OBJECT_TYPE);
-          assert(args[0]->user_value != nullptr);
-          unique_ptr<Value> output(new Value(VMType::VM_INTEGER));
-          output->integer = static_cast<LineColumn*>(args[0]->user_value.get())
-              ->line;
-          return output;
-        };
-    line_column->AddField("line", std::move(callback));
-  }
-
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->type.type_arguments.push_back(VMType::ObjectType(line_column.get()));
-    callback->callback =
-        [this](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::OBJECT_TYPE);
-          assert(args[0]->user_value != nullptr);
-          unique_ptr<Value> output(new Value(VMType::VM_INTEGER));
-          output->integer = static_cast<LineColumn*>(args[0]->user_value.get())
-              ->column;
-          return output;
-        };
-    line_column->AddField("column", std::move(callback));
-  }
-
+  // Methods for LineColumn.
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
     callback->type.type_arguments.push_back(VMType::ObjectType(line_column.get()));
@@ -112,23 +82,79 @@ EditorState::EditorState()
           assert(args.size() == 2);
           assert(args[0]->type == VMType::VM_INTEGER);
           assert(args[1]->type == VMType::VM_INTEGER);
-          return Value::NewObject(
-              "LineColumn",
-              new LineColumn(args[0]->integer, args[1]->integer));
+          return Value::NewObject("LineColumn", shared_ptr<LineColumn>(
+              new LineColumn(args[0]->integer, args[1]->integer)));
         };
     environment_.Define("LineColumn", std::move(callback));
   }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    callback->type.type_arguments.push_back(VMType::ObjectType(line_column.get()));
+    callback->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::OBJECT_TYPE);
+          auto line_column = static_cast<LineColumn*>(args[0]->user_value.get());
+          assert(line_column != nullptr);
+          unique_ptr<Value> output(new Value(VMType::VM_INTEGER));
+          output->integer = line_column->line;
+          return output;
+        };
+    line_column->AddField("line", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    callback->type.type_arguments.push_back(VMType::ObjectType(line_column.get()));
+    callback->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::OBJECT_TYPE);
+          auto line_column = static_cast<LineColumn*>(args[0]->user_value.get());
+          assert(line_column != nullptr);
+          unique_ptr<Value> output(new Value(VMType::VM_INTEGER));
+          output->integer = line_column->column;
+          return output;
+        };
+    line_column->AddField("column", std::move(callback));
+  }
 
+  // Methods for Buffer
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
+    callback->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::OBJECT_TYPE);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          assert(buffer != nullptr);
+          return Value::NewString(
+              buffer->read_string_variable(OpenBuffer::variable_path()));
+        };
+    buffer->AddField("path", std::move(callback));
+  }
+
+  // Other functions.
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType::ObjectType("Buffer"));
+    callback->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          assert(args.size() == 0);
+          return Value::NewObject("Buffer", current_buffer()->second);
+        };
+    environment_.Define("CurrentBuffer", std::move(callback));
+  }
   {
     unique_ptr<Value> open_buffer_function(new Value(VMType::FUNCTION));
-    open_buffer_function->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    open_buffer_function->type.type_arguments.push_back(VMType::ObjectType("Buffer"));
     open_buffer_function->type.type_arguments.push_back(VMType(VMType::VM_STRING));
     open_buffer_function->callback =
         [this](vector<unique_ptr<Value>> args) {
           assert(args[0]->type == VMType::VM_STRING);
           string path = args[0]->str;
           set_current_buffer(OpenFile(this, path, path));
-          return std::move(Value::Void());
+          return Value::NewObject("Buffer", current_buffer()->second);
         };
     environment_.Define("OpenBuffer", std::move(open_buffer_function));
   }
@@ -249,8 +275,8 @@ EditorState::EditorState()
         [this](vector<unique_ptr<Value>> args) {
           if (!has_current_buffer()) { return Value::Void(); }
           auto buffer = current_buffer()->second;
-          return Value::NewObject(
-              "LineColumn", new LineColumn(buffer->position()));
+          return Value::NewObject("LineColumn", shared_ptr<LineColumn>(
+              new LineColumn(buffer->position())));
         };
     environment_.Define("Position", std::move(callback));
   }
@@ -270,6 +296,7 @@ EditorState::EditorState()
   }
 
   environment_.DefineType("LineColumn", std::move(line_column));
+  environment_.DefineType("Buffer", std::move(buffer));
 }
 
 EditorState::~EditorState() {
