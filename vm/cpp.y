@@ -199,11 +199,12 @@ expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
 
   if (B == nullptr || ARGS == nullptr
       || B->type().type != VMType::FUNCTION
-      || B->type().type_arguments.size() - 1 != ARGS->size()) {
+      || B->type().type_arguments.size() != 1 + ARGS->size()) {
     OUT = nullptr;
   } else {
     bool match = true;
     for (size_t i = 0; i < ARGS->size(); i++) {
+      assert(1 + i < B->type().type_arguments.size());
       if (!(B->type().type_arguments[1 + i] == ARGS->at(i)->type())) {
         match = false;
         break;
@@ -212,7 +213,7 @@ expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
     if (!match) {
       OUT = nullptr;
     } else {
-      OUT = new FunctionCall(unique_ptr<Expression>(B), ARGS);
+      OUT = new FunctionCall(unique_ptr<Expression>(B), std::move(ARGS));
       B = nullptr;
       ARGS = nullptr;
     }
@@ -238,15 +239,20 @@ arguments_list(OUT) ::= non_empty_arguments_list(L). {
 %destructor non_empty_arguments_list { delete $$; }
 
 non_empty_arguments_list(OUT) ::= expr(E). {
-  OUT = new vector<unique_ptr<Expression>>;
-  OUT->push_back(unique_ptr<Expression>(E));
-  E = nullptr;
+  if (E == nullptr) {
+    OUT = nullptr;
+  } else {
+    OUT = new vector<unique_ptr<Expression>>;
+    OUT->push_back(unique_ptr<Expression>(E));
+    E = nullptr;
+  }
 }
 
 non_empty_arguments_list(OUT) ::= non_empty_arguments_list(L) COMMA expr(E). {
   OUT = L;
-  L = nullptr;
   OUT->push_back(unique_ptr<Expression>(E));
+  L = nullptr;
+  E = nullptr;
 }
 
 
@@ -371,7 +377,7 @@ expr(A) ::= SYMBOL(B). {
     const VMType type_;
   };
 
-  auto result = environment->Lookup(B->str);
+  Value* result = environment->Lookup(B->str);
   if (result != nullptr) {
     A = new VariableLookup(B->str, result->type);
   } else {
