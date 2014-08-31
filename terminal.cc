@@ -229,8 +229,10 @@ int Terminal::Read() {
               //cerr << "Read next2: " << next2 << "\n";
               switch (next2) {
                 case 53:
+                  getch();
                   return PAGE_UP;
                 case 54:
+                  getch();
                   return PAGE_DOWN;
                 case 65:
                   return UP_ARROW;
