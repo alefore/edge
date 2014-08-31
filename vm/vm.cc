@@ -27,6 +27,16 @@ bool operator==(const VMType& lhs, const VMType& rhs) {
   return type;
 }
 
+/* static */ VMType VMType::ObjectType(afc::vm::ObjectType* type) {
+  return ObjectType(type->name());
+}
+
+/* static */ VMType VMType::ObjectType(const string& name) {
+  VMType output(VMType::OBJECT_TYPE);
+  output.object_type = name;
+  return output;
+}
+
 /* static */ const VMType& VMType::integer_type() {
   static VMType type(VMType::VM_INTEGER);
   return type;
@@ -77,6 +87,67 @@ class BinaryOperator : public Expression {
   VMType type_;
   std::function<void(const Value&, const Value&, Value*)> operator_;
 };
+
+class FunctionCall : public Expression {
+ public:
+  FunctionCall(unique_ptr<Expression> func,
+               vector<unique_ptr<Expression>>* args)
+      : func_(std::move(func)), args_(args) {
+    assert(func_ != nullptr);
+    assert(args_ != nullptr);
+  }
+
+  FunctionCall(unique_ptr<Expression> func,
+               unique_ptr<Expression> object,
+               vector<unique_ptr<Expression>>* args)
+      : func_(std::move(func)),
+        object_(std::move(object)),
+        args_(args) {
+    assert(func_ != nullptr);
+    assert(object_ != nullptr);
+    assert(args_ != nullptr);
+  }
+
+  const VMType& type() {
+    return func_->type().type_arguments[0];
+  }
+
+  unique_ptr<Value> Evaluate(Environment* environment) {
+    auto func = std::move(func_->Evaluate(environment));
+    assert(func != nullptr);
+    vector<unique_ptr<Value>> values;
+    if (object_ != nullptr) {
+      values.push_back(object_->Evaluate(environment));
+    }
+    for (const auto& arg : *args_) {
+      values.push_back(arg->Evaluate(environment));
+    }
+    return std::move(func->callback(std::move(values)));
+  }
+
+ private:
+  unique_ptr<Expression> func_;
+  unique_ptr<Expression> object_;
+  unique_ptr<vector<unique_ptr<Expression>>> args_;
+};
+
+ObjectType* Environment::LookupType(const string& symbol) {
+  auto it = object_types_->find(symbol);
+  if (it != object_types_->end()) {
+    return it->second.get();
+  }
+  if (parent_environment_ != nullptr) {
+    return parent_environment_->LookupType(symbol);
+  }
+
+  return nullptr;
+}
+
+void Environment::DefineType(
+    const string& name, unique_ptr<ObjectType> value) {
+  auto it = object_types_->insert(make_pair(name, nullptr));
+  it.first->second = std::move(value);
+}
 
 Value* Environment::Lookup(const string& symbol) {
   auto it = table_->find(symbol);
@@ -137,6 +208,11 @@ void Evaluator::AppendInput(const string& str) {
 
       case ';':
         token = SEMICOLON;
+        pos++;
+        break;
+
+      case '.':
+        token = DOT;
         pos++;
         break;
 

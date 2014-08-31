@@ -7,7 +7,7 @@
 %left EQ.
 %left PLUS MINUS.
 %left DIVIDE TIMES.
-%left LPAREN RPAREN.
+%left LPAREN RPAREN DOT.
 
 %type main { Value* }
 %destructor main { delete $$; }
@@ -170,33 +170,48 @@ expr(A) ::= LPAREN expr(B) RPAREN. {
   B = nullptr;
 }
 
-expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
-  class FunctionCall : public Expression {
-   public:
-    FunctionCall(unique_ptr<Expression> func,
-                 vector<unique_ptr<Expression>>* args)
-        : func_(std::move(func)), args_(args) {
-      assert(func_ != nullptr);
-      assert(args_ != nullptr);
-    }
-
-    const VMType& type() {
-      return func_->type().type_arguments[0];
-    }
-
-    unique_ptr<Value> Evaluate(Environment* environment) {
-      auto func = std::move(func_->Evaluate(environment));
-      vector<unique_ptr<Value>> values;
-      for (const auto& arg : *args_) {
-        values.push_back(arg->Evaluate(environment));
+expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
+  if (OBJ == nullptr || ARGS == nullptr
+      || OBJ->type().type != VMType::OBJECT_TYPE) {
+    OUT = nullptr;
+  } else {
+    auto object_type = environment->LookupType(OBJ->type().object_type);
+    if (object_type == nullptr) {
+      OUT = nullptr;
+    } else {
+      auto field = object_type->LookupField(FIELD->str);
+      if (field == nullptr) {
+        OUT = nullptr;
+      } else if (field->type.type_arguments.size() != 2 + ARGS->size()) {
+        OUT = nullptr;
+      } else {
+        assert(field->type.type_arguments[1] == OBJ->type());
+        bool match = true;
+        for (size_t i = 0; i < ARGS->size(); i++) {
+          assert(2 + i < field->type.type_arguments.size());
+          if (!(field->type.type_arguments[2 + i] == ARGS->at(i)->type())) {
+            match = false;
+            break;
+          }
+        }
+        if (!match) {
+          OUT = nullptr;
+        } else {
+          unique_ptr<Value> field_copy(new Value(field->type.type));
+          *field_copy = *field;
+          OUT = new FunctionCall(
+              unique_ptr<Expression>(new ConstantExpression(std::move(field_copy))),
+              unique_ptr<Expression>(OBJ),
+              std::move(ARGS));
+          OBJ = nullptr;
+          ARGS = nullptr;
+        }
       }
-      return std::move(func->callback(std::move(values)));
     }
+  }
+}
 
-   private:
-    unique_ptr<Expression> func_;
-    unique_ptr<vector<unique_ptr<Expression>>> args_;
-  };
+expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
 
   if (B == nullptr || ARGS == nullptr
       || B->type().type != VMType::FUNCTION
@@ -389,6 +404,7 @@ string(O) ::= string(A) STRING(B). {
 
 expr(A) ::= SYMBOL(B). {
   assert(B->type.type == VMType::VM_SYMBOL);
+
   class VariableLookup : public Expression {
    public:
     VariableLookup(const string& symbol, const VMType& type)
