@@ -129,6 +129,22 @@ int main(int argc, char**argv) {
   assert(editor_state.current_buffer()->second->position().line == 0);
   assert(editor_state.current_buffer()->second->position().column == 10);
 
+  // Clear.
+  editor_state.ProcessInputString("sLg99999999999999999999999dsc");
+
+  // VM Tests.
+  editor_state.ProcessInputString("i0123456789");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  assert(editor_state.current_buffer()->second->position().line == 0);
+  assert(editor_state.current_buffer()->second->position().column == 10);
+
+  editor_state.ProcessInputString("acSetPositionColumn(4);;\n");
+  assert(editor_state.current_buffer()->second->position().column == 4);
+  editor_state.ProcessInputString("acSetPositionColumn(4 - 1);;\n");
+  assert(editor_state.current_buffer()->second->position().column == 3);
+  editor_state.ProcessInputString("acSetPositionColumn(8 - 2 * 3 + 5);;\n");
+  assert(editor_state.current_buffer()->second->position().column == 7);
+
   std::cout << "Pass!\n";
   return 0;
 }
