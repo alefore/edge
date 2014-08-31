@@ -8,6 +8,7 @@ main.o: main.cc editor.h file_link_mode.h server.h terminal.h Makefile
 terminal.o: terminal.cc terminal.h editor.h Makefile
 server.o: server.cc server.h vm/vm.h Makefile
 vm/vm.o: vm/vm.cc vm/vm.h vm/cpp.c vm/cpp.h Makefile
+vm/string.o: vm/string.cc vm/string.h vm/vm.h Makefile
 
 memory_mapped_file.o: memory_mapped_file.cc memory_mapped_file.h buffer.h lazy_string.h Makefile
 char_buffer.o: char_buffer.cc char_buffer.h buffer.h lazy_string.h
@@ -45,7 +46,7 @@ vm/cpp.h: vm/cpp.y vm/lemon
 vm/cpp.c: vm/cpp.y vm/lemon
 	./vm/lemon vm/cpp.y
 
-LIB=advanced_mode.o buffer.o char_buffer.o command_mode.o direction.o editable_string.o editor.o file_link_mode.o find_mode.o help_command.o insert_mode.o lazy_string.o lazy_string_append.o line_prompt_mode.o map_mode.o memory_mapped_file.o noop_command.o predictor.o repeat_mode.o run_command_handler.o search_handler.o server.o substring.o terminal.o transformation.o vm/vm.o
+LIB=advanced_mode.o buffer.o char_buffer.o command_mode.o direction.o editable_string.o editor.o file_link_mode.o find_mode.o help_command.o insert_mode.o lazy_string.o lazy_string_append.o line_prompt_mode.o map_mode.o memory_mapped_file.o noop_command.o predictor.o repeat_mode.o run_command_handler.o search_handler.o server.o substring.o terminal.o transformation.o vm/string.o vm/vm.o
 edge: main.o $(LIB)
 	$(CXX) $(LDFLAGS) -o edge $(LIB) main.o $(LDLIBS)
 test: test.o $(LIB)
