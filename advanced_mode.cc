@@ -135,7 +135,7 @@ void SetVariableHandler(const string& name, EditorState* editor_state) {
             // this lambda go away with it.
             editor_state->ResetMode();
           },
-          EmptyPredictor);
+          var->predictor());
       return;
     }
   }

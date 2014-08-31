@@ -591,7 +591,8 @@ string OpenBuffer::FlagsString() const {
   static EdgeVariable<string>* variable = StringStruct()->AddVariable(
       "path",
       "String with the path of the current file.",
-      "");
+      "",
+      FilePredictor);
   return variable;
 }
 
@@ -599,7 +600,8 @@ string OpenBuffer::FlagsString() const {
   static EdgeVariable<string>* variable = StringStruct()->AddVariable(
       "editor_commands_path",
       "String with the path to the initial directory for editor commands.",
-      "");
+      "",
+      FilePredictor);
   return variable;
 }
 
