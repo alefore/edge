@@ -198,6 +198,20 @@ EditorState::EditorState()
         };
     environment_.Define("PositionLine", std::move(callback));
   }
+
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          if (!has_current_buffer()) { return Value::Void(); }
+          auto buffer = current_buffer()->second;
+          unique_ptr<Value> output(new Value(VMType::VM_STRING));
+          output->str = buffer->current_line()->contents->ToString();
+          return output;
+        };
+    environment_.Define("Line", std::move(callback));
+  }
 }
 
 EditorState::~EditorState() {
