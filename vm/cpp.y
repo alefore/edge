@@ -48,6 +48,10 @@ statement(A) ::= expr(B) SEMICOLON . {
   B = nullptr;
 }
 
+statement(A) ::= error. {
+  A = new ConstantExpression(Value::Void());
+}
+
 statement(A) ::= SEMICOLON . {
   A = new ConstantExpression(Value::Void());
 }
