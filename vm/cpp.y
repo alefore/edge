@@ -4,6 +4,7 @@
 
 %token_type { Value* }
 
+%left EQ.
 %left PLUS MINUS.
 %left DIVIDE TIMES.
 %left LPAREN RPAREN.
@@ -57,10 +58,10 @@ statement(A) ::= LBRACKET statement_list(L) RBRACKET. {
 }
 
 statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE) ELSE statement(FALSE_CASE). {
-  class Evaluator : public Expression {
+  class IfEvaluator : public Expression {
    public:
-    Evaluator(unique_ptr<Expression> cond, unique_ptr<Expression> true_case,
-              unique_ptr<Expression> false_case)
+    IfEvaluator(unique_ptr<Expression> cond, unique_ptr<Expression> true_case,
+                unique_ptr<Expression> false_case)
         : cond_(std::move(cond)),
           true_case_(std::move(true_case)),
           false_case_(std::move(false_case)) {
@@ -89,9 +90,9 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE) ELSE stat
       || !(TRUE_CASE->type() == FALSE_CASE->type())) {
     A = nullptr;
   } else {
-    A = new Evaluator(unique_ptr<Expression>(CONDITION),
-                      unique_ptr<Expression>(TRUE_CASE),
-                      unique_ptr<Expression>(FALSE_CASE));
+    A = new IfEvaluator(unique_ptr<Expression>(CONDITION),
+                        unique_ptr<Expression>(TRUE_CASE),
+                        unique_ptr<Expression>(FALSE_CASE));
     CONDITION = nullptr;
     TRUE_CASE = nullptr;
     FALSE_CASE = nullptr;
@@ -257,6 +258,35 @@ non_empty_arguments_list(OUT) ::= non_empty_arguments_list(L) COMMA expr(E). {
 
 
 // Basic operators
+
+expr(OUT) ::= expr(A) EQ EQ expr(B). {
+  if (A == nullptr || B == nullptr) {
+    OUT = nullptr;
+  } else if (A->type().type == VMType::VM_STRING) {
+    OUT = new BinaryOperator(
+        unique_ptr<Expression>(A),
+        unique_ptr<Expression>(B),
+        VMType::Bool(),
+        [](const Value& a, const Value& b, Value* output) {
+          output->boolean = a.str == b.str;
+        });
+    A = nullptr;
+    B = nullptr;
+  } else if (B->type().type == VMType::VM_INTEGER) {
+    A = new BinaryOperator(
+        unique_ptr<Expression>(A),
+        unique_ptr<Expression>(B),
+        VMType::Bool(),
+        [](const Value& a, const Value& b, Value* output) {
+          output->boolean = a.integer == b.integer;
+        });
+    A = nullptr;
+    B = nullptr;
+  } else {
+    OUT = nullptr;
+  }
+}
+%endif
 
 expr(A) ::= expr(B) PLUS expr(C). {
   if (B == nullptr || C == nullptr || !(B->type() == C->type())) {
