@@ -282,7 +282,7 @@ void RunCppCommandHandler(const string& name, EditorState* editor_state) {
 class RunCppCommand : public Command {
  public:
   const string Description() {
-    return "runs a command";
+    return "prompts for a command (a C string) and runs it";
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
@@ -318,7 +318,7 @@ static const map<int, Command*>& GetAdvancedModeMap() {
             "var ", "variables", "assigns to a variable", SetVariableHandler,
             PrecomputedPredictor(variables)).release()));
 
-    output.insert(make_pair('V', new RunCppCommand()));
+    output.insert(make_pair('c', new RunCppCommand()));
 
     output.insert(make_pair('.', new OpenDirectory()));
     output.insert(make_pair('l', new ListBuffers()));
