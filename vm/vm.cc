@@ -17,6 +17,11 @@ bool operator==(const VMType& lhs, const VMType& rhs) {
   return type;
 }
 
+/* static */ const VMType& VMType::Bool() {
+  static VMType type(VMType::VM_BOOLEAN);
+  return type;
+}
+
 /* static */ const VMType& VMType::String() {
   static VMType type(VMType::VM_STRING);
   return type;
@@ -235,6 +240,8 @@ void Evaluator::AppendInput(const string& str) {
             input->boolean = false;
           } else if (symbol == "if") {
             token = IF;
+          } else if (symbol == "else") {
+            token = ELSE;
           } else if (symbol == "string") {
             token = STRING_SYMBOL;
           } else {

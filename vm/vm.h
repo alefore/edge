@@ -29,6 +29,7 @@ struct VMType {
   VMType(const Type& t) : type(t) {}
 
   static const VMType& Void();
+  static const VMType& Bool();
   static const VMType& integer_type();
   static const VMType& String();
 
