@@ -7,6 +7,7 @@
 #include <string>
 
 #include "advanced_mode.h"
+#include "char_buffer.h"
 #include "command.h"
 #include "command_mode.h"
 #include "file_link_mode.h"
@@ -958,6 +959,62 @@ class RunCppCommand : public Command {
   }
 };
 
+class SwitchCaseTransformation : public Transformation {
+ public:
+  SwitchCaseTransformation(const LineColumn& position)
+      : position_(position) {}
+
+  unique_ptr<Transformation> Apply(
+      EditorState* editor_state, OpenBuffer* buffer) const {
+    auto line = buffer->LineAt(position_.line)->contents;
+    int c = line->get(position_.column);
+    buffer->contents()->at(position_.line).reset(new Line(
+        StringAppend(
+            Substring(line, 0, position_.column),
+            StringAppend(
+                NewCopyString(string(1, isupper(c) ? tolower(c) : toupper(c))),
+                Substring(line, position_.column + 1,
+                          line->size() - (position_.column + 1))))));
+    editor_state->ScheduleRedraw();
+    return unique_ptr<Transformation>(new SwitchCaseTransformation(position_));
+  }
+
+ private:
+  LineColumn position_;
+};
+
+class SwitchCaseCommand : public Command {
+ public:
+  const string Description() {
+    return "Switches the case of the current character.";
+  }
+
+  void ProcessInput(int c, EditorState* editor_state) {
+    if (!editor_state->has_current_buffer()) { return; }
+    auto buffer = editor_state->current_buffer()->second;
+    auto line = buffer->current_line();
+    auto position = buffer->position();
+
+    // Advance.
+    if (position.column == line->contents->size()) {
+      if (position.line + 1 == buffer->contents()->size()) {
+        return;
+      }
+      buffer->set_position(LineColumn(position.line + 1));
+    } else {
+      buffer->set_position(LineColumn(position.line, position.column + 1));
+    }
+
+    if (position.column == line->contents->size()
+        || !isalpha(line->contents->get(position.column))) {
+      return;
+    }
+
+    SwitchCaseTransformation transformation(position);
+    editor_state->ApplyToCurrentBuffer(transformation);
+  }
+};
+
 static const map<int, Command*>& GetCommandModeMap() {
   static map<int, Command*> output;
   if (output.empty()) {
@@ -986,6 +1043,8 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('h', new MoveBackwards()));
 
     output.insert(make_pair('s', new EnterStructureMode()));
+
+    output.insert(make_pair('~', new SwitchCaseCommand()));
 
     output.insert(make_pair('?', NewHelpCommand(output, "command mode").release()));
 
