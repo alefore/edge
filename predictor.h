@@ -2,15 +2,20 @@
 #define __AFC_EDITOR_PREDICTOR_H__
 
 #include <memory>
-
-#include "editor.h"
+#include <vector>
 
 namespace afc {
 namespace editor {
 
 using std::function;
+using std::shared_ptr;
+using std::string;
+using std::vector;
 
-typedef function<void(EditorState* editor_state, const string& input, OpenBuffer*)> Predictor;
+class EditorState;
+class OpenBuffer;
+
+typedef function<void(EditorState*, const string&, OpenBuffer*)> Predictor;
 
 shared_ptr<OpenBuffer> PredictionsBuffer(
     EditorState* editor_state,
