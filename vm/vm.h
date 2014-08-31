@@ -55,9 +55,16 @@ struct Value {
 
   static unique_ptr<Value> Void();
 
-  static unique_ptr<Value> NewObject(const string& name, void* value) {
+  static unique_ptr<Value> NewString(const string& value) {
+    unique_ptr<Value> output(new Value(VMType::String()));
+    output->str = value;
+    return std::move(output);
+  }
+
+  static unique_ptr<Value> NewObject(const string& name,
+                                     const shared_ptr<void>& value) {
     unique_ptr<Value> output(new Value(VMType::ObjectType(name)));
-    output->user_value.reset(value);
+    output->user_value = value;
     return std::move(output);
   }
 
