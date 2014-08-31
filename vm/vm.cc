@@ -120,6 +120,11 @@ void Evaluator::AppendInput(const string& str) {
         pos++;
         break;
 
+      case ',':
+        token = COMMA;
+        pos++;
+        break;
+
       case '+':
         token = PLUS;
         pos++;
