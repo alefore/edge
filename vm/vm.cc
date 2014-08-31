@@ -55,7 +55,7 @@ class BinaryOperator : public Expression {
   unique_ptr<Value> Evaluate(Environment* environment) {
     unique_ptr<Value> output(new Value(VMType::VM_INTEGER));
     auto a = a_->Evaluate(environment);
-    auto b = a_->Evaluate(environment);
+    auto b = b_->Evaluate(environment);
     operator_(*a, *b, output.get());
     return std::move(output);
   }

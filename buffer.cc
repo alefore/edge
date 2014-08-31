@@ -82,10 +82,10 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
     unique_ptr<afc::vm::Value> open_buffer_function(new Value(VMType::FUNCTION));
     open_buffer_function->type.type_arguments.push_back(VMType(VMType::VM_VOID));
     open_buffer_function->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    open_buffer_function->function1 =
-        [editor_state](unique_ptr<Value> path_arg) {
-          assert(path_arg->type == VMType::VM_STRING);
-          string path = path_arg->str;
+    open_buffer_function->callback =
+        [editor_state](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::VM_STRING);
+          string path = args[0]->str;
           editor_state->set_current_buffer(OpenFile(editor_state, path, path));
           return std::move(Value::Void());
         };
@@ -96,10 +96,10 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
     unique_ptr<afc::vm::Value> connect_to_function(new Value(VMType::FUNCTION));
     connect_to_function->type.type_arguments.push_back(VMType(VMType::VM_VOID));
     connect_to_function->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    connect_to_function->function1 =
-        [editor_state](unique_ptr<Value> path) {
-          assert(path->type == VMType::VM_STRING);
-          OpenServerBuffer(editor_state, path->str);
+    connect_to_function->callback =
+        [editor_state](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::VM_STRING);
+          OpenServerBuffer(editor_state, args[0]->str);
           return std::move(Value::Void());
         };
     evaluator_.Define("ConnectTo", std::move(connect_to_function));
@@ -109,10 +109,10 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
     unique_ptr<afc::vm::Value> set_status_function(new Value(VMType::FUNCTION));
     set_status_function->type.type_arguments.push_back(VMType(VMType::VM_VOID));
     set_status_function->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    set_status_function->function1 =
-        [editor_state](unique_ptr<Value> message) {
-          assert(message->type == VMType::VM_STRING);
-          editor_state->SetStatus(message->str);
+    set_status_function->callback =
+        [editor_state](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::VM_STRING);
+          editor_state->SetStatus(args[0]->str);
           return std::move(Value::Void());
         };
     evaluator_.Define("SetStatus", std::move(set_status_function));
@@ -122,9 +122,9 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
     unique_ptr<afc::vm::Value> insert_text(new Value(VMType::FUNCTION));
     insert_text->type.type_arguments.push_back(VMType(VMType::VM_VOID));
     insert_text->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    insert_text->function1 =
-        [editor_state](unique_ptr<Value> text) {
-          assert(text->type == VMType::VM_STRING);
+    insert_text->callback =
+        [editor_state](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::VM_STRING);
           if (!editor_state->has_current_buffer()) { return Value::Void(); }
           shared_ptr<OpenBuffer> buffer =
               editor_state->current_buffer()->second;
@@ -133,7 +133,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
               new OpenBuffer(editor_state, "tmp buffer"));
 
           // getline will silently eat the last (empty) line.
-          std::istringstream text_stream(text->str + "\n");
+          std::istringstream text_stream(args[0]->str + "\n");
           std::string line;
           while (std::getline(text_stream, line, '\n')) {
             buffer_to_insert->AppendLine(editor_state, NewCopyString(line));
@@ -148,6 +148,56 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
           return Value::Void();
         };
     evaluator_.Define("InsertText", std::move(insert_text));
+  }
+
+  {
+    unique_ptr<afc::vm::Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    callback->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::VM_INTEGER);
+          set_position(LineColumn(position().line, args[0]->integer));
+          return Value::Void();
+        };
+    evaluator_.Define("SetPositionColumn", std::move(callback));
+  }
+
+  {
+    unique_ptr<afc::vm::Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    callback->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::VM_INTEGER);
+          set_position(LineColumn(args[0]->integer, position().column));
+          return Value::Void();
+        };
+    evaluator_.Define("SetPositionLine", std::move(callback));
+  }
+
+  {
+    unique_ptr<afc::vm::Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    callback->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          unique_ptr<Value> output(new Value(VMType::VM_INTEGER));
+          output->integer = position().column;
+          return output;
+        };
+    evaluator_.Define("PositionColumn", std::move(callback));
+  }
+
+  {
+    unique_ptr<afc::vm::Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    callback->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          unique_ptr<Value> output(new Value(VMType::VM_INTEGER));
+          output->integer = position().line;
+          return output;
+        };
+    evaluator_.Define("PositionLine", std::move(callback));
   }
 }
 

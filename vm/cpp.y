@@ -169,13 +169,14 @@ expr(A) ::= LPAREN expr(B) RPAREN. {
   B = nullptr;
 }
 
-expr(A) ::= expr(B) LPAREN expr(C) RPAREN. {
+expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
   class FunctionCall : public Expression {
    public:
-    FunctionCall(unique_ptr<Expression> func, unique_ptr<Expression> arg0)
-        : func_(std::move(func)), arg0_(std::move(arg0)) {
+    FunctionCall(unique_ptr<Expression> func,
+                 vector<unique_ptr<Expression>>* args)
+        : func_(std::move(func)), args_(args) {
       assert(func_ != nullptr);
-      assert(arg0_ != nullptr);
+      assert(args_ != nullptr);
     }
 
     const VMType& type() {
@@ -184,24 +185,71 @@ expr(A) ::= expr(B) LPAREN expr(C) RPAREN. {
 
     unique_ptr<Value> Evaluate(Environment* environment) {
       auto func = std::move(func_->Evaluate(environment));
-      return std::move(func->function1(arg0_->Evaluate(environment)));
+      vector<unique_ptr<Value>> values;
+      for (const auto& arg : *args_) {
+        values.push_back(arg->Evaluate(environment));
+      }
+      return std::move(func->callback(std::move(values)));
     }
 
    private:
     unique_ptr<Expression> func_;
-    unique_ptr<Expression> arg0_;
+    unique_ptr<vector<unique_ptr<Expression>>> args_;
   };
 
-  if (B == nullptr || C == nullptr
+  if (B == nullptr || ARGS == nullptr
       || B->type().type != VMType::FUNCTION
-      || B->type().type_arguments.size() != 2
-      || !(B->type().type_arguments[1] == C->type())) {
-    A = nullptr;
+      || B->type().type_arguments.size() - 1 != ARGS->size()) {
+    cerr << "BASIC MISMATCH\n";
+    cerr << "  B size: " << B->type().type_arguments.size() << " ARGS: " << ARGS->size() << "\n";
+    OUT = nullptr;
   } else {
-    A = new FunctionCall(unique_ptr<Expression>(B), unique_ptr<Expression>(C));
-    B = nullptr;
-    C = nullptr;
+    bool match = true;
+    for (size_t i = 0; i < ARGS->size(); i++) {
+      if (!(B->type().type_arguments[1 + i] == ARGS->at(i)->type())) {
+        match = false;
+        break;
+      }
+    }
+    if (!match) {
+      cerr << "MISMATCH";
+      OUT = nullptr;
+    } else {
+      OUT = new FunctionCall(unique_ptr<Expression>(B), ARGS);
+      B = nullptr;
+      ARGS = nullptr;
+    }
   }
+}
+
+
+// Arguments list
+
+%type arguments_list { vector<unique_ptr<Expression>>* }
+%destructor arguments_list { delete $$; }
+
+arguments_list(OUT) ::= . {
+  OUT = new vector<unique_ptr<Expression>>;
+}
+
+arguments_list(OUT) ::= non_empty_arguments_list(L). {
+  OUT = L;
+  L = nullptr;
+}
+
+%type non_empty_arguments_list { vector<unique_ptr<Expression>>* }
+%destructor non_empty_arguments_list { delete $$; }
+
+non_empty_arguments_list(OUT) ::= expr(E). {
+  OUT = new vector<unique_ptr<Expression>>;
+  OUT->push_back(unique_ptr<Expression>(E));
+  E = nullptr;
+}
+
+non_empty_arguments_list(OUT) ::= non_empty_arguments_list(L) COMMA expr(E). {
+  OUT = L;
+  L = nullptr;
+  OUT->push_back(unique_ptr<Expression>(E));
 }
 
 

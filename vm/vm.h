@@ -52,7 +52,7 @@ struct Value {
   int integer;
   string str;
   Environment* environment;
-  function<unique_ptr<Value>(unique_ptr<Value>)> function1;
+  function<unique_ptr<Value>(vector<unique_ptr<Value>>)> callback;
 };
 
 class Expression {
