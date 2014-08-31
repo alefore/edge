@@ -4,7 +4,10 @@
 
 %token_type { Value* }
 
-%left EQ.
+%left OR.
+%left AND.
+%left EQUALS.
+%left LESS_THAN GREATER_THAN.
 %left PLUS MINUS.
 %left DIVIDE TIMES.
 %left LPAREN RPAREN DOT.
@@ -176,10 +179,22 @@ expr(A) ::= LPAREN expr(B) RPAREN. {
 
 expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
   if (OBJ == nullptr || ARGS == nullptr
-      || OBJ->type().type != VMType::OBJECT_TYPE) {
+      || (OBJ->type().type != VMType::OBJECT_TYPE
+          && OBJ->type().type != VMType::VM_STRING)) {
     OUT = nullptr;
   } else {
-    auto object_type = environment->LookupType(OBJ->type().object_type);
+    string object_type_name;
+    switch (OBJ->type().type) {
+      case VMType::VM_STRING:
+        object_type_name = "string";
+        break;
+      case VMType::OBJECT_TYPE:
+        object_type_name = OBJ->type().object_type;
+        break;
+      default:
+        assert(false);
+    }
+    auto object_type = environment->LookupType(object_type_name);
     if (object_type == nullptr) {
       OUT = nullptr;
     } else {
@@ -278,7 +293,7 @@ non_empty_arguments_list(OUT) ::= non_empty_arguments_list(L) COMMA expr(E). {
 
 // Basic operators
 
-expr(OUT) ::= expr(A) EQ EQ expr(B). {
+expr(OUT) ::= expr(A) EQUALS expr(B). {
   if (A == nullptr || B == nullptr) {
     OUT = nullptr;
   } else if (A->type().type == VMType::VM_STRING) {
@@ -305,7 +320,86 @@ expr(OUT) ::= expr(A) EQ EQ expr(B). {
     OUT = nullptr;
   }
 }
-%endif
+
+expr(OUT) ::= expr(A) LESS_THAN expr(B). {
+  if (A == nullptr
+      || B == nullptr
+      || A->type().type != VMType::VM_INTEGER
+      || B->type().type != VMType::VM_INTEGER) {
+    OUT = nullptr;
+  } else {
+    // TODO: Don't evaluate B if not needed.
+    OUT = new BinaryOperator(
+        unique_ptr<Expression>(A),
+        unique_ptr<Expression>(B),
+        VMType::Bool(),
+        [](const Value& a, const Value& b, Value* output) {
+          output->boolean = a.integer < b.integer;
+        });
+    A = nullptr;
+    B = nullptr;
+  }
+}
+
+expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
+  if (A == nullptr
+      || B == nullptr
+      || A->type().type != VMType::VM_INTEGER
+      || B->type().type != VMType::VM_INTEGER) {
+    OUT = nullptr;
+  } else {
+    // TODO: Don't evaluate B if not needed.
+    OUT = new BinaryOperator(
+        unique_ptr<Expression>(A),
+        unique_ptr<Expression>(B),
+        VMType::Bool(),
+        [](const Value& a, const Value& b, Value* output) {
+          output->boolean = a.integer > b.integer;
+        });
+    A = nullptr;
+    B = nullptr;
+  }
+}
+
+expr(OUT) ::= expr(A) OR expr(B). {
+  if (A == nullptr
+      || B == nullptr
+      || A->type().type != VMType::VM_BOOLEAN
+      || B->type().type != VMType::VM_BOOLEAN) {
+    OUT = nullptr;
+  } else {
+    // TODO: Don't evaluate B if not needed.
+    OUT = new BinaryOperator(
+        unique_ptr<Expression>(A),
+        unique_ptr<Expression>(B),
+        VMType::Bool(),
+        [](const Value& a, const Value& b, Value* output) {
+          output->boolean = a.boolean || b.boolean;
+        });
+    A = nullptr;
+    B = nullptr;
+  }
+}
+
+expr(OUT) ::= expr(A) AND expr(B). {
+  if (A == nullptr
+      || B == nullptr
+      || A->type().type != VMType::VM_BOOLEAN
+      || B->type().type != VMType::VM_BOOLEAN) {
+    OUT = nullptr;
+  } else {
+    // TODO: Don't evaluate B if not needed.
+    OUT = new BinaryOperator(
+        unique_ptr<Expression>(A),
+        unique_ptr<Expression>(B),
+        VMType::Bool(),
+        [](const Value& a, const Value& b, Value* output) {
+          output->boolean = a.boolean && b.boolean;
+        });
+    A = nullptr;
+    B = nullptr;
+  }
+}
 
 expr(A) ::= expr(B) PLUS expr(C). {
   if (B == nullptr || C == nullptr || !(B->type() == C->type())) {

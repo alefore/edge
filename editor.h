@@ -153,7 +153,8 @@ class EditorState {
   void ApplyToCurrentBuffer(const Transformation& transformation);
 
   void Evaluate(const string& str);
-  void EvaluateFile(const string& path);
+  void EvaluateFile(const string& path, afc::vm::Environment* environment);
+  afc::vm::Environment* environment() { return &environment_; }
 
  private:
   map<string, shared_ptr<OpenBuffer>> buffers_;

@@ -55,6 +55,18 @@ struct Value {
 
   static unique_ptr<Value> Void();
 
+  static unique_ptr<Value> NewBool(bool value) {
+    unique_ptr<Value> output(new Value(VMType::Bool()));
+    output->boolean = value;
+    return std::move(output);
+  }
+
+  static unique_ptr<Value> NewInteger(int value) {
+    unique_ptr<Value> output(new Value(VMType::integer_type()));
+    output->integer = value;
+    return std::move(output);
+  }
+
   static unique_ptr<Value> NewString(const string& value) {
     unique_ptr<Value> output(new Value(VMType::String()));
     output->str = value;
@@ -119,6 +131,8 @@ class Environment {
       : table_(new map<string, unique_ptr<Value>>),
         object_types_(new map<string, unique_ptr<ObjectType>>),
         parent_environment_(parent_environment) {}
+
+  static Environment* DefaultEnvironment();
 
   ObjectType* LookupType(const string& symbol);
   void DefineType(const string& name, unique_ptr<ObjectType> value);

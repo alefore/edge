@@ -66,7 +66,8 @@ EditorState::EditorState()
       status_prompt_(false),
       status_(""),
       home_directory_(GetHomeDirectory()),
-      edge_path_(GetEdgeConfigPath(home_directory_)) {
+      edge_path_(GetEdgeConfigPath(home_directory_)),
+      environment_(afc::vm::Environment::DefaultEnvironment()) {
   using namespace afc::vm;
   unique_ptr<ObjectType> line_column(new ObjectType("LineColumn"));
   unique_ptr<ObjectType> buffer(new ObjectType("Buffer"));
@@ -132,6 +133,24 @@ EditorState::EditorState()
               buffer->read_string_variable(OpenBuffer::variable_path()));
         };
     buffer->AddField("path", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::OBJECT_TYPE);
+          assert(args[1]->type == VMType::VM_STRING);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          assert(buffer != nullptr);
+          buffer->set_string_variable(
+              OpenBuffer::variable_editor_commands_path(),
+              args[1]->str);
+          return std::move(Value::Void());
+        };
+    buffer->AddField("set_editor_commands_path", std::move(callback));
   }
 
   // Other functions.
@@ -464,9 +483,10 @@ void EditorState::Evaluate(const string& str) {
   evaluator.AppendInput(str);
 }
 
-void EditorState::EvaluateFile(const string& path) {
+void EditorState::EvaluateFile(const string& path,
+                               afc::vm::Environment* environment) {
   using namespace afc::vm;
-  Evaluator evaluator(unique_ptr<Environment>(new Environment(environment_)));
+  Evaluator evaluator(unique_ptr<Environment>(new Environment(environment)));
   std::ifstream infile(path);
   std::string line;
   while (std::getline(infile, line)) {

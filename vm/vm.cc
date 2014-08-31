@@ -3,6 +3,8 @@
 #include <cassert>
 #include <iostream>
 
+#include "string.h"
+
 namespace afc {
 namespace vm {
 
@@ -131,6 +133,14 @@ class FunctionCall : public Expression {
   unique_ptr<vector<unique_ptr<Expression>>> args_;
 };
 
+/* static */ Environment* Environment::DefaultEnvironment() {
+  static Environment* environment = nullptr;
+  if (environment != nullptr) { return environment; }
+  environment = new Environment();
+  RegisterStringType(environment);
+  return environment;
+}
+
 ObjectType* Environment::LookupType(const string& symbol) {
   auto it = object_types_->find(symbol);
   if (it != object_types_->end()) {
@@ -202,7 +212,42 @@ void Evaluator::AppendInput(const string& str) {
         break;
 
       case '=':
+        pos++;
+        if (pos < str.size() && str.at(pos) == '=') {
+          pos++;
+          token = EQUALS;
+          break;
+        }
         token = EQ;
+        break;
+
+      case '&':
+        pos++;
+        if (pos < str.size() && str.at(pos) == '&') {
+          pos++;
+          token = AND;
+          break;
+        }
+        //token = AMPERSAND;
+        break;
+
+      case '|':
+        pos++;
+        if (pos < str.size() && str.at(pos) == '|') {
+          pos++;
+          token = OR;
+          break;
+        }
+        //token = PIPE;
+        break;
+
+      case '<':
+        token = LESS_THAN;
+        pos++;
+        break;
+
+      case '>':
+        token = GREATER_THAN;
         pos++;
         break;
 
@@ -302,10 +347,11 @@ void Evaluator::AppendInput(const string& str) {
       case 'a': case 'b': case 'c': case 'd': case 'e': case 'f': case 'g':
       case 'h': case 'i': case 'j': case 'k': case 'l': case 'm': case 'n':
       case 'o': case 'p': case 'q': case 'r': case 's': case 't': case 'u':
-      case 'v': case 'w': case 'x': case 'y': case 'z':
+      case 'v': case 'w': case 'x': case 'y': case 'z': case '_':
         {
           size_t start = pos;
-          while (pos < str.size() && isalnum(str.at(pos))) {
+          while (pos < str.size()
+                 && (isalnum(str.at(pos)) || str.at(pos) == '_')) {
             pos++;
           }
           string symbol = str.substr(start, pos - start);
