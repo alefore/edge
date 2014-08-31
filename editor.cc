@@ -1,3 +1,4 @@
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <list>
@@ -367,6 +368,16 @@ void EditorState::Evaluate(const string& str) {
   using namespace afc::vm;
   Evaluator evaluator(unique_ptr<Environment>(new Environment(environment_)));
   evaluator.AppendInput(str);
+}
+
+void EditorState::EvaluateFile(const string& path) {
+  using namespace afc::vm;
+  Evaluator evaluator(unique_ptr<Environment>(new Environment(environment_)));
+  std::ifstream infile(path);
+  std::string line;
+  while (std::getline(infile, line)) {
+    evaluator.AppendInput(line);
+  }
 }
 
 }  // namespace editor

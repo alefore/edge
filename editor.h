@@ -147,6 +147,7 @@ class EditorState {
   void ApplyToCurrentBuffer(const Transformation& transformation);
 
   void Evaluate(const string& str);
+  void EvaluateFile(const string& path);
 
  private:
   map<string, shared_ptr<OpenBuffer>> buffers_;

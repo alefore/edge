@@ -940,7 +940,7 @@ class ResetStateCommand : public Command {
 void RunCppCommandHandler(const string& input, EditorState* editor_state) {
   editor_state->ResetMode();
   if (!editor_state->has_current_buffer()) { return; }
-  editor_state->Evaluate(input);
+  editor_state->EvaluateFile(input);
 }
 
 class RunCppCommand : public Command {
