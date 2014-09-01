@@ -332,10 +332,14 @@ non_empty_arguments_list(OUT) ::= expr(E). {
 }
 
 non_empty_arguments_list(OUT) ::= non_empty_arguments_list(L) COMMA expr(E). {
-  OUT = L;
-  OUT->push_back(unique_ptr<Expression>(E));
-  L = nullptr;
-  E = nullptr;
+  if (L == nullptr || E == nullptr) {
+    OUT = nullptr;
+  } else {
+    OUT = L;
+    OUT->push_back(unique_ptr<Expression>(E));
+    L = nullptr;
+    E = nullptr;
+  }
 }
 
 
