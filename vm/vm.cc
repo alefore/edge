@@ -48,6 +48,24 @@ bool operator==(const VMType& lhs, const VMType& rhs) {
   return unique_ptr<Value>(new Value(VMType::VM_VOID));
 }
 
+class AssignExpression : public Expression {
+ public:
+  AssignExpression(const string& symbol, unique_ptr<Expression> value)
+      : symbol_(symbol), value_(std::move(value)) {}
+
+  const VMType& type() { return value_->type(); }
+
+  unique_ptr<Value> Evaluate(Environment* environment) {
+    auto value = value_->Evaluate(environment);
+    environment->Define(symbol_, unique_ptr<Value>(new Value(*value.get())));
+    return value;
+  }
+
+ private:
+  const string symbol_;
+  unique_ptr<Expression> value_;
+};
+
 class ConstantExpression : public Expression {
  public:
   ConstantExpression(unique_ptr<Value> value)

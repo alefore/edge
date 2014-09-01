@@ -4,6 +4,8 @@
 
 %token_type { Value* }
 
+%left COMMA.
+%left EQ.
 %left OR.
 %left AND.
 %left EQUALS.
@@ -144,21 +146,6 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE) ELSE stat
 }
 
 statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) SEMICOLON. {
-  class AssignExpression : public Expression {
-   public:
-    AssignExpression(const string& symbol, unique_ptr<Expression> value)
-        : symbol_(symbol), value_(std::move(value)) {}
-    const VMType& type() { return VMType::Void(); }
-    unique_ptr<Value> Evaluate(Environment* environment) {
-      auto value = value_->Evaluate(environment);
-      environment->Define(symbol_, std::move(value));
-      return Value::Void();
-    }
-   private:
-    const string symbol_;
-    unique_ptr<Expression> value_;
-  };
-
   assert(TYPE->type.type == VMType::VM_SYMBOL);
   assert(NAME->type.type == VMType::VM_SYMBOL);
 
@@ -225,6 +212,22 @@ expr(A) ::= LPAREN expr(B) RPAREN. {
   B = nullptr;
 }
 
+expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
+  assert(NAME->type.type == VMType::VM_SYMBOL);
+
+  if (VALUE == nullptr) {
+    OUT = nullptr;
+  } else {
+    auto obj = environment->Lookup(NAME->str);
+    if (obj == nullptr || !(obj->type == VALUE->type())) {
+      OUT = nullptr;
+    } else {
+      OUT = new AssignExpression(NAME->str, unique_ptr<Expression>(VALUE));
+      VALUE = nullptr;
+    }
+  }
+}
+
 expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
   if (OBJ == nullptr || ARGS == nullptr
       || (OBJ->type().type != VMType::OBJECT_TYPE
@@ -279,7 +282,6 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
 }
 
 expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
-
   if (B == nullptr || ARGS == nullptr
       || B->type().type != VMType::FUNCTION
       || B->type().type_arguments.size() != 1 + ARGS->size()) {
