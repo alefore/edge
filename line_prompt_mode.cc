@@ -70,6 +70,7 @@ class LinePromptMode : public EditorMode {
         input_(EditableString::New(initial_value)) {}
 
   void ProcessInput(int c, EditorState* editor_state) {
+    editor_state->set_status_prompt(true);
     switch (c) {
       case '\n':
         if (input_->size() != 0) {

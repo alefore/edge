@@ -862,7 +862,8 @@ class StartSearchMode : public Command {
         break;
 
       default:
-        Prompt(editor_state, "/", "search", "", SearchHandler, EmptyPredictor);
+        Prompt(editor_state, "/", "search", "", SearchHandler,
+               SearchHandlerPredictor);
         break;
     }
   }

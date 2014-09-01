@@ -65,25 +65,9 @@ size_t FindInterestingMatch(
   return string::npos;
 }
 
-}  // namespace
-
-namespace afc {
-namespace editor {
-
-#if CPP_REGEX
-using std::regex;
-#endif
-
-void SearchHandler(const string& input, EditorState* editor_state) {
-  editor_state->set_last_search_query(input);
-  if (!editor_state->has_current_buffer()
-      || input.empty()) {
-    editor_state->ResetMode();
-    editor_state->ResetStatus();
-    editor_state->ScheduleRedraw();
-    return;
-  }
-
+void PerformSearch(afc::editor::EditorState* editor_state,
+                   const string& input) {
+  using namespace afc::editor;
   auto buffer = editor_state->current_buffer()->second;
 
 #if CPP_REGEX
@@ -147,6 +131,35 @@ void SearchHandler(const string& input, EditorState* editor_state) {
     }
     assert(position_line < buffer->contents()->size());
   }
+}
+
+}  // namespace
+
+namespace afc {
+namespace editor {
+
+#if CPP_REGEX
+using std::regex;
+#endif
+
+void SearchHandlerPredictor(
+    EditorState* editor_state, const string& input, OpenBuffer* buffer) {
+  PerformSearch(editor_state, input);
+  editor_state->set_status_prompt(false);
+  editor_state->ScheduleRedraw();
+}
+
+void SearchHandler(const string& input, EditorState* editor_state) {
+  editor_state->set_last_search_query(input);
+  if (!editor_state->has_current_buffer() || input.empty()) {
+    editor_state->ResetMode();
+    editor_state->ResetStatus();
+    editor_state->ScheduleRedraw();
+    return;
+  }
+
+  PerformSearch(editor_state, input);
+
   editor_state->ResetMode();
   editor_state->ResetDirection();
   editor_state->ScheduleRedraw();

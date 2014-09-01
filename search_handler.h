@@ -9,6 +9,12 @@ namespace editor {
 using std::string;
 
 struct EditorState;
+class OpenBuffer;
+
+void SearchHandlerPredictor(
+    EditorState* editor_state,
+    const string& current_query,
+    OpenBuffer* target);
 
 void SearchHandler(const string& input, EditorState* editor_state);
 
