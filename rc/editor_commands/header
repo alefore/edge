@@ -1,19 +1,19 @@
-Buffer buffer = CurrentBuffer();
-string path = buffer.path();
+void LoadFileWithExtension(string old_path, int dot, string extension) {
+  string new_path = old_path.substr(0, dot + 1) + extension;
+  OpenFile(new_path);
+  SetStatus(new_path);
+}
+
+string path = CurrentBuffer().path();
 int dot = path.find_last_of(".", path.size());
 if (dot == -1) {
   SetStatus("Unable to extract extension: " + path);
 } else {
-  string path_without_extension = path.substr(0, dot + 1);
   string extension = path.substr(dot + 1, path.size() - dot - 1);
   if (extension == "cc") {
-    string new_path = path_without_extension + "h";
-    OpenFile(new_path);
-    SetStatus("Switch to: " + new_path);
+    LoadFileWithExtension(path, dot, "h");
   } else if (extension == "h") {
-    string new_path = path_without_extension + "cc";
-    OpenFile(new_path);
-    SetStatus("Switch to: " + new_path);
+    LoadFileWithExtension(path, dot, "cc");
   } else {
     SetStatus("Unrecognized extension: " + extension);
   }
