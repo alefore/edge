@@ -57,6 +57,45 @@ statement(A) ::= error. {
   A = new ConstantExpression(Value::Void());
 }
 
+statement(OUT) ::= function_declaration_params(FUNC)
+    LBRACKET statement_list(BODY) RBRACKET. {
+  if (FUNC == nullptr || BODY == nullptr
+      || !(FUNC->second->type.type_arguments[0] == BODY->type())) {
+    OUT = nullptr;
+  } else {
+    Expression* body = BODY;
+    BODY = nullptr;
+
+    FUNC->second->callback = [body, environment](vector<unique_ptr<Value>> args) {
+          assert(args.size() == 0);
+          // TODO: Don't leak environment nor body.
+          return body->Evaluate(environment);
+        };
+    environment->Define(FUNC->first, unique_ptr<Value>(FUNC->second));
+    FUNC = nullptr;
+
+    environment = environment->parent_environment();
+    OUT = new ConstantExpression(Value::Void());
+  }
+}
+
+%type function_declaration_params { pair<string, Value*>* }
+
+function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME) LPAREN RPAREN . {
+  assert(RETURN_TYPE->type == VMType::VM_SYMBOL);
+  assert(NAME->type == VMType::VM_SYMBOL);
+
+  const VMType* return_type_def = environment->LookupType(RETURN_TYPE->str);
+  if (return_type_def == nullptr) {
+    OUT = nullptr;
+  } else {
+    OUT = new pair<string, Value*>(NAME->str, new Value(VMType::FUNCTION));
+    OUT->second->type.type_arguments.push_back(*return_type_def);
+    environment->Define(NAME->str, unique_ptr<Value>(new Value(*return_type_def)));
+    environment = new Environment(environment);
+  }
+}
+
 statement(A) ::= SEMICOLON . {
   A = new ConstantExpression(Value::Void());
 }
@@ -152,8 +191,8 @@ statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) SEMICOLON. {
   if (VALUE == nullptr) {
     A = nullptr;
   } else {
-    ObjectType* type_def = environment->LookupType(TYPE->str);
-    if (type_def == nullptr || !(type_def->type() == VALUE->type())) {
+    const VMType* type_def = environment->LookupType(TYPE->str);
+    if (type_def == nullptr || !(*type_def == VALUE->type())) {
       A = nullptr;
     } else {
       environment->Define(NAME->str, unique_ptr<Value>(new Value(VALUE->type())));
@@ -245,7 +284,8 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
       default:
         assert(false);
     }
-    auto object_type = environment->LookupType(object_type_name);
+    const ObjectType* object_type =
+        environment->LookupObjectType(object_type_name);
     if (object_type == nullptr) {
       OUT = nullptr;
     } else {

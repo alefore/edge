@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <iostream>
+#include <utility>
 
 #include "string.h"
 
@@ -9,6 +10,7 @@ namespace afc {
 namespace vm {
 
 using std::cerr;
+using std::pair;
 
 bool operator==(const VMType& lhs, const VMType& rhs) {
   return lhs.type == rhs.type && lhs.type_arguments == rhs.type_arguments;
@@ -166,16 +168,30 @@ class FunctionCall : public Expression {
   return environment;
 }
 
-ObjectType* Environment::LookupType(const string& symbol) {
+const ObjectType* Environment::LookupObjectType(const string& symbol) {
   auto it = object_types_->find(symbol);
   if (it != object_types_->end()) {
     return it->second.get();
   }
   if (parent_environment_ != nullptr) {
-    return parent_environment_->LookupType(symbol);
+    return parent_environment_->LookupObjectType(symbol);
+  }
+  return nullptr;
+}
+
+const VMType* Environment::LookupType(const string& symbol) {
+  if (symbol == "void") {
+    return &VMType::Void();
+  } else if (symbol == "bool") {
+    return &VMType::Bool();
+  } else if (symbol == "int") {
+    return &VMType::integer_type();
+  } else if (symbol == "string") {
+    return &VMType::String();
   }
 
-  return nullptr;
+  auto object_type = LookupObjectType(symbol);
+  return object_type == nullptr ? nullptr : &object_type->type();
 }
 
 void Environment::DefineType(

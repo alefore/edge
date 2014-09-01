@@ -114,7 +114,7 @@ class ObjectType {
     it.first->second = std::move(field);
   }
 
-  Value* LookupField(const string& name) {
+  Value* LookupField(const string& name) const {
     auto it = fields_->find(name);
     return it == fields_->end() ? nullptr : it->second.get();
   }
@@ -136,9 +136,12 @@ class Environment {
         object_types_(new map<string, unique_ptr<ObjectType>>),
         parent_environment_(parent_environment) {}
 
+  Environment* parent_environment() const { return parent_environment_; }
+
   static Environment* DefaultEnvironment();
 
-  ObjectType* LookupType(const string& symbol);
+  const ObjectType* LookupObjectType(const string& symbol);
+  const VMType* LookupType(const string& symbol);
   void DefineType(const string& name, unique_ptr<ObjectType> value);
 
   Value* Lookup(const string& symbol);
