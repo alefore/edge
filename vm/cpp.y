@@ -64,6 +64,42 @@ statement(A) ::= LBRACKET statement_list(L) RBRACKET. {
   L = nullptr;
 }
 
+statement(OUT) ::= WHILE LPAREN expr(CONDITION) RPAREN statement(BODY). {
+  class WhileEvaluator : public Expression {
+   public:
+    WhileEvaluator(unique_ptr<Expression> cond, unique_ptr<Expression> body)
+        : cond_(std::move(cond)), body_(std::move(body)) {
+      assert(cond_ != nullptr);
+      assert(body_ != nullptr);
+    }
+
+    const VMType& type() {
+      return VMType::Void();
+    }
+
+    unique_ptr<Value> Evaluate(Environment* environment) {
+      while (cond_->Evaluate(environment)->boolean) {
+        body_->Evaluate(environment);
+      }
+      return Value::Void();
+    }
+
+   private:
+    unique_ptr<Expression> cond_;
+    unique_ptr<Expression> body_;
+  };
+
+  if (CONDITION == nullptr || BODY == nullptr
+      || CONDITION->type().type != VMType::VM_BOOLEAN) {
+    OUT = nullptr;
+  } else {
+    OUT = new WhileEvaluator(unique_ptr<Expression>(CONDITION),
+                             unique_ptr<Expression>(BODY));
+    CONDITION = nullptr;
+    BODY = nullptr;
+  }
+}
+
 statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE) ELSE statement(FALSE_CASE). {
   class IfEvaluator : public Expression {
    public:
@@ -74,6 +110,7 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE) ELSE stat
           false_case_(std::move(false_case)) {
       assert(cond_ != nullptr);
       assert(true_case_ != nullptr);
+      assert(false_case_ != nullptr);
     }
 
     const VMType& type() {

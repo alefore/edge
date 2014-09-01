@@ -370,6 +370,8 @@ void Evaluator::AppendInput(const string& str) {
             token = BOOL;
             input = new Value(VMType::VM_BOOLEAN);
             input->boolean = false;
+          } else if (symbol == "while") {
+            token = WHILE;
           } else if (symbol == "if") {
             token = IF;
           } else if (symbol == "else") {
