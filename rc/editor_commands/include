@@ -1,0 +1,18 @@
+if (Line() == "#include <>") {
+  DeleteText(LineColumn(Position().line(), 9),
+             LineColumn(Position().line(), 11));
+  SetPosition(LineColumn(Position().line(), 9));
+  InsertText("\"\"");
+  SetPosition(LineColumn(Position().line(), 10));
+} else if (Line() == "#include \"\"") {
+  DeleteText(LineColumn(Position().line(), 9),
+             LineColumn(Position().line(), 11));
+  SetPosition(LineColumn(Position().line(), 9));
+  InsertText("<>");
+  SetPosition(LineColumn(Position().line(), 10));
+} else {
+  SetPosition(LineColumn(Position().line(), 0));
+  InsertText("#include <>\n");
+  SetPosition(LineColumn(Position().line() - 1, 10));
+  SetStatus("Done");;
+}
