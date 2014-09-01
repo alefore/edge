@@ -30,6 +30,7 @@ struct VMType {
     OBJECT_TYPE,
   };
 
+  VMType() : type(VM_VOID) {}
   VMType(const Type& t) : type(t) {}
 
   static const VMType& Void();
@@ -161,8 +162,19 @@ class Evaluator {
 
   void AppendInput(const string& str);
 
+  Environment* environment() const { return environment_; }
+
+  void PushEnvironment() {
+    environment_ = new Environment(environment_);
+  }
+
+  void PopEnvironment() {
+    environment_ = environment_->parent_environment();
+  }
+
  private:
-  unique_ptr<Environment> environment_;
+  unique_ptr<Environment> base_environment_;
+  Environment* environment_;
   unique_ptr<void, function<void(void*)>> parser_;
 };
 

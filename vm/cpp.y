@@ -1,6 +1,6 @@
 %name Cpp
 
-%extra_argument { Environment* environment }
+%extra_argument { Evaluator* evaluator }
 
 %token_type { Value* }
 
@@ -33,7 +33,7 @@ program(V) ::= statement(S). {
   if (S == nullptr) {
     V = nullptr;
   } else {
-    V = S->Evaluate(environment).release();
+    V = S->Evaluate(evaluator->environment()).release();
   }
 }
 
@@ -41,7 +41,7 @@ program(A) ::= program(B) statement(C) . {
   if (B == nullptr || C == nullptr) {
     A = nullptr;
   } else {
-    A = C->Evaluate(environment).release();
+    A = C->Evaluate(evaluator->environment()).release();
   }
 }
 
@@ -60,39 +60,60 @@ statement(A) ::= error. {
 statement(OUT) ::= function_declaration_params(FUNC)
     LBRACKET statement_list(BODY) RBRACKET. {
   if (FUNC == nullptr || BODY == nullptr
-      || !(FUNC->second->type.type_arguments[0] == BODY->type())) {
+      || !(FUNC->type.type_arguments[0] == BODY->type())) {
     OUT = nullptr;
   } else {
-    Expression* body = BODY;
+    // TODO: Use unique_ptr rather than shared_ptr when lambda capture works.
+    shared_ptr<Expression> body(BODY);
     BODY = nullptr;
 
-    FUNC->second->callback = [body, environment](vector<unique_ptr<Value>> args) {
-          assert(args.size() == 0);
-          // TODO: Don't leak environment nor body.
-          return body->Evaluate(environment);
-        };
-    environment->Define(FUNC->first, unique_ptr<Value>(FUNC->second));
-    FUNC = nullptr;
+    shared_ptr<Environment> func_environment(evaluator->environment());
+    evaluator->PopEnvironment();
 
-    environment = environment->parent_environment();
+    const vector<string> argument_names(FUNC->argument_names);
+
+    unique_ptr<Value> value(new Value(FUNC->type));
+    value->callback = [body, func_environment, argument_names]
+        (vector<unique_ptr<Value>> args) {
+          assert(args.size() == argument_names.size());
+          for (size_t i = 0; i < args.size(); i++) {
+            func_environment->Define(argument_names[i], std::move(args[i]));
+          }
+          return body->Evaluate(func_environment.get());
+        };
+    evaluator->environment()->Define(FUNC->name, std::move(value));
     OUT = new ConstantExpression(Value::Void());
   }
 }
 
-%type function_declaration_params { pair<string, Value*>* }
+%type function_declaration_params { UserFunction* }
+%destructor function_declaration_params { delete $$; }
 
-function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME) LPAREN RPAREN . {
+function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME)
+    LPAREN function_declaration_arguments(ARGS) RPAREN . {
   assert(RETURN_TYPE->type == VMType::VM_SYMBOL);
   assert(NAME->type == VMType::VM_SYMBOL);
 
-  const VMType* return_type_def = environment->LookupType(RETURN_TYPE->str);
+  const VMType* return_type_def =
+      evaluator->environment()->LookupType(RETURN_TYPE->str);
   if (return_type_def == nullptr) {
     OUT = nullptr;
   } else {
-    OUT = new pair<string, Value*>(NAME->str, new Value(VMType::FUNCTION));
-    OUT->second->type.type_arguments.push_back(*return_type_def);
-    environment->Define(NAME->str, unique_ptr<Value>(new Value(*return_type_def)));
-    environment = new Environment(environment);
+    OUT = new UserFunction();
+    OUT->name = NAME->str;
+    OUT->type.type = VMType::FUNCTION;
+    OUT->type.type_arguments.push_back(*return_type_def);
+    for (pair<VMType, string> arg : *ARGS) {
+      OUT->type.type_arguments.push_back(arg.first);
+      OUT->argument_names.push_back(arg.second);
+    }
+    evaluator->environment()->Define(
+        NAME->str, unique_ptr<Value>(new Value(OUT->type)));
+    evaluator->PushEnvironment();
+    for (pair<VMType, string> arg : *ARGS) {
+      evaluator->environment()->Define(
+          arg.second, unique_ptr<Value>(new Value(arg.first)));
+    }
   }
 }
 
@@ -191,11 +212,12 @@ statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) SEMICOLON. {
   if (VALUE == nullptr) {
     A = nullptr;
   } else {
-    const VMType* type_def = environment->LookupType(TYPE->str);
+    const VMType* type_def = evaluator->environment()->LookupType(TYPE->str);
     if (type_def == nullptr || !(*type_def == VALUE->type())) {
       A = nullptr;
     } else {
-      environment->Define(NAME->str, unique_ptr<Value>(new Value(VALUE->type())));
+      evaluator->environment()->Define(
+          NAME->str, unique_ptr<Value>(new Value(VALUE->type())));
       A = new AssignExpression(NAME->str, unique_ptr<Expression>(VALUE));
       VALUE = nullptr;
     }
@@ -241,6 +263,50 @@ statement_list(OUT) ::= statement_list(L) statement(A). {
 }
 
 
+// Arguments in the declaration of a function
+
+%type function_declaration_arguments { vector<pair<VMType, string>>* }
+%destructor function_declaration_arguments { delete $$; }
+
+function_declaration_arguments(OUT) ::= . {
+  OUT = new vector<pair<VMType, string>>;
+}
+
+function_declaration_arguments(OUT) ::= non_empty_function_declaration_arguments(L). {
+  OUT = L;
+  L = nullptr;
+}
+
+%type non_empty_function_declaration_arguments { vector<pair<VMType, string>>* }
+%destructor non_empty_function_declaration_arguments { delete $$; }
+
+non_empty_function_declaration_arguments(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME). {
+  const VMType* type_def = evaluator->environment()->LookupType(TYPE->str);
+  if (type_def == nullptr) {
+    OUT = nullptr;
+  } else {
+    OUT = new vector<pair<VMType, string>>;
+    OUT->push_back(make_pair(*type_def, NAME->str));
+  }
+}
+
+non_empty_function_declaration_arguments(OUT) ::=
+    non_empty_function_declaration_arguments(L) COMMA SYMBOL(TYPE) SYMBOL(NAME). {
+  if (L == nullptr) {
+    OUT = nullptr;
+  } else {
+    const VMType* type_def = evaluator->environment()->LookupType(TYPE->str);
+    if (type_def == nullptr) {
+      OUT = nullptr;
+    } else {
+      OUT = L;
+      OUT->push_back(make_pair(*type_def, NAME->str));
+      L = nullptr;
+    }
+  }
+}
+
+
 // Expressions
 
 %type expr { Expression* }
@@ -257,7 +323,7 @@ expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
   if (VALUE == nullptr) {
     OUT = nullptr;
   } else {
-    auto obj = environment->Lookup(NAME->str);
+    auto obj = evaluator->environment()->Lookup(NAME->str);
     if (obj == nullptr || !(obj->type == VALUE->type())) {
       OUT = nullptr;
     } else {
@@ -285,7 +351,7 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
         assert(false);
     }
     const ObjectType* object_type =
-        environment->LookupObjectType(object_type_name);
+        evaluator->environment()->LookupObjectType(object_type_name);
     if (object_type == nullptr) {
       OUT = nullptr;
     } else {
@@ -388,7 +454,7 @@ non_empty_arguments_list(OUT) ::= non_empty_arguments_list(L) COMMA expr(E). {
 // Basic operators
 
 expr(OUT) ::= expr(A) EQUALS expr(B). {
-  if (A == nullptr || B == nullptr) {
+  if (A == nullptr || B == nullptr || !(A->type() == B->type())) {
     OUT = nullptr;
   } else if (A->type().type == VMType::VM_STRING) {
     OUT = new BinaryOperator(
@@ -401,7 +467,7 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
     A = nullptr;
     B = nullptr;
   } else if (B->type().type == VMType::VM_INTEGER) {
-    A = new BinaryOperator(
+    OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
         VMType::Bool(),
@@ -615,7 +681,7 @@ expr(A) ::= SYMBOL(B). {
     const VMType type_;
   };
 
-  Value* result = environment->Lookup(B->str);
+  Value* result = evaluator->environment()->Lookup(B->str);
   if (result != nullptr) {
     A = new VariableLookup(B->str, result->type);
   } else {

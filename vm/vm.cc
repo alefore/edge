@@ -12,6 +12,12 @@ namespace vm {
 using std::cerr;
 using std::pair;
 
+struct UserFunction {
+  string name;
+  VMType type;
+  vector<string> argument_names;
+};
+
 bool operator==(const VMType& lhs, const VMType& rhs) {
   return lhs.type == rhs.type && lhs.type_arguments == rhs.type_arguments;
 }
@@ -225,11 +231,12 @@ void ValueDestructor(Value* value) {
 #include "cpp.c"
 
 Evaluator::Evaluator(unique_ptr<Environment> environment)
-    : environment_(std::move(environment)),
+    : base_environment_(std::move(environment)),
+      environment_(base_environment_.get()),
       parser_(
           CppAlloc(malloc),
           [this](void* parser) {
-            Cpp(parser, 0, nullptr, environment_.get());
+            Cpp(parser, 0, nullptr, this);
             CppFree(parser, free);
           }) {}
 
@@ -442,7 +449,7 @@ void Evaluator::AppendInput(const string& str) {
         cerr << "Unhandled character at position " << pos << ": " << str;
         exit(54);
     }
-    Cpp(parser_.get(), token, input, environment_.get());
+    Cpp(parser_.get(), token, input, this);
   }
 }
 
