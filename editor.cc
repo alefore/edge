@@ -247,6 +247,7 @@ EditorState::EditorState()
           assert(args[0]->type == VMType::VM_STRING);
           string path = args[0]->str;
           set_current_buffer(OpenFile(this, path, path));
+          ScheduleRedraw();
           return Value::NewObject("Buffer", current_buffer()->second);
         };
     environment_.Define("OpenFile", std::move(callback));
