@@ -8,7 +8,7 @@ namespace afc {
 namespace vm {
 
 void RegisterStringType(Environment* environment) {
-  unique_ptr<ObjectType> string_type(new ObjectType("string"));
+  unique_ptr<ObjectType> string_type(new ObjectType(VMType::String()));
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
     callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
@@ -49,6 +49,20 @@ void RegisterStringType(Environment* environment) {
           return Value::NewBool(args[0]->str.empty());
         };
     string_type->AddField("empty", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    callback->callback = [](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::VM_STRING);
+          assert(args[1]->type == VMType::VM_STRING);
+          assert(args[2]->type == VMType::VM_INTEGER);
+          return Value::NewInteger(args[0]->str.empty());
+        };
+    string_type->AddField("find", std::move(callback));
   }
 
   environment->DefineType("string", std::move(string_type));

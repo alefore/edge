@@ -99,11 +99,15 @@ class Expression {
 
 class ObjectType {
  public:
-  ObjectType(const string& name)
-      : name_(name),
+  ObjectType(const VMType& type)
+      : type_(type),
         fields_(new map<string, unique_ptr<Value>>) {}
 
-  const string& name() const { return name_; }
+  ObjectType(const string& type_name)
+      : type_(VMType::ObjectType(type_name)),
+        fields_(new map<string, unique_ptr<Value>>) {}
+
+  const VMType& type() const { return type_; }
 
   void AddField(const string& name, unique_ptr<Value> field) {
     auto it = fields_->insert(make_pair(name, nullptr));
@@ -116,7 +120,7 @@ class ObjectType {
   }
 
  private:
-  string name_;
+  VMType type_;
   map<string, unique_ptr<Value>>* fields_;
 };
 

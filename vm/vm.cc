@@ -30,7 +30,7 @@ bool operator==(const VMType& lhs, const VMType& rhs) {
 }
 
 /* static */ VMType VMType::ObjectType(afc::vm::ObjectType* type) {
-  return ObjectType(type->name());
+  return ObjectType(type->type().object_type);
 }
 
 /* static */ VMType VMType::ObjectType(const string& name) {
@@ -138,6 +138,13 @@ class FunctionCall : public Expression {
   if (environment != nullptr) { return environment; }
   environment = new Environment();
   RegisterStringType(environment);
+
+  environment->DefineType(
+      "bool", unique_ptr<ObjectType>(new ObjectType(VMType::Bool())));
+
+  environment->DefineType(
+      "int", unique_ptr<ObjectType>(new ObjectType(VMType::integer_type())));
+
   return environment;
 }
 
@@ -367,8 +374,6 @@ void Evaluator::AppendInput(const string& str) {
             token = IF;
           } else if (symbol == "else") {
             token = ELSE;
-          } else if (symbol == "string") {
-            token = STRING_SYMBOL;
           } else {
             token = SYMBOL;
             input = new Value(VMType::VM_SYMBOL);

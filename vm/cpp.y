@@ -106,7 +106,7 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE) ELSE stat
   }
 }
 
-statement(A) ::= STRING_SYMBOL SYMBOL(N) EQ expr(V) SEMICOLON. {
+statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) SEMICOLON. {
   class AssignExpression : public Expression {
    public:
     AssignExpression(const string& symbol, unique_ptr<Expression> value)
@@ -122,10 +122,21 @@ statement(A) ::= STRING_SYMBOL SYMBOL(N) EQ expr(V) SEMICOLON. {
     unique_ptr<Expression> value_;
   };
 
-  assert(N->type.type == VMType::VM_SYMBOL);
-  environment->Define(N->str, unique_ptr<Value>(new Value(V->type().type)));
-  A = new AssignExpression(N->str, unique_ptr<Expression>(V));
-  V = nullptr;
+  assert(TYPE->type.type == VMType::VM_SYMBOL);
+  assert(NAME->type.type == VMType::VM_SYMBOL);
+
+  if (VALUE == nullptr) {
+    A = nullptr;
+  } else {
+    ObjectType* type_def = environment->LookupType(TYPE->str);
+    if (type_def == nullptr || !(type_def->type() == VALUE->type())) {
+      A = nullptr;
+    } else {
+      environment->Define(NAME->str, unique_ptr<Value>(new Value(VALUE->type())));
+      A = new AssignExpression(NAME->str, unique_ptr<Expression>(VALUE));
+      VALUE = nullptr;
+    }
+  }
 }
 
 // Statement list.
