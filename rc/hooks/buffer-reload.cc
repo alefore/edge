@@ -7,7 +7,7 @@ if (dot == -1) {
   if (extension.empty()) {
     SetStatus("");
   } else if (extension == "cc" || extension == "h") {
-    buffer.set_editor_commands_path("/home/alejo/.edge/editor_commands/");
+    buffer.set_editor_commands_path("~/.edge/editor_commands/");
     SetStatus("Loaded C file (" + extension + ")");
   } else {
     SetStatus("Unrecognized extension: " + extension);

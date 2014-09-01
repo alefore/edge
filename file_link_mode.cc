@@ -297,11 +297,8 @@ unique_ptr<EditorMode> NewFileLinkMode(
     bool ignore_if_not_found) {
   vector<int> tokens { position, 0 };
   string pattern;
-  // TODO: Also support ~user/foo.
-  string path_after_home_dir =
-      path != "~" && (path.size() < 2 || path.substr(0, 2) != "~/")
-      ? path : editor_state->home_directory() + path.substr(1);
-  string actual_path = FindPath(path_after_home_dir, &tokens, &pattern);
+  string expanded_path = editor_state->expand_path(path);
+  string actual_path = FindPath(expanded_path, &tokens, &pattern);
   if (actual_path.empty()) {
     if (ignore_if_not_found) {
       return nullptr;

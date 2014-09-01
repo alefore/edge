@@ -494,5 +494,13 @@ void EditorState::EvaluateFile(const string& path,
   }
 }
 
+string EditorState::expand_path(const string& path) {
+  // TODO: Also support ~user/foo.
+  if (path == "~" || (path.size() > 2 && path.substr(0, 2) == "~/")) {
+    return home_directory() + path.substr(1);
+  }
+  return path;
+}
+
 }  // namespace editor
 }  // namespace afc

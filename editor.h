@@ -156,6 +156,8 @@ class EditorState {
   void EvaluateFile(const string& path, afc::vm::Environment* environment);
   afc::vm::Environment* environment() { return &environment_; }
 
+  string expand_path(const string& path);
+
  private:
   map<string, shared_ptr<OpenBuffer>> buffers_;
   map<string, shared_ptr<OpenBuffer>>::iterator current_buffer_;

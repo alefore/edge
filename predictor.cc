@@ -93,6 +93,8 @@ shared_ptr<OpenBuffer> PredictionsBuffer(
 void FilePredictor(EditorState* editor_state,
                    const string& input,
                    OpenBuffer* buffer) {
+  string path = editor_state->expand_path(input);
+
   int pipefd[2];
   static const int parent_fd = 0;
   static const int child_fd = 1;
@@ -113,11 +115,11 @@ void FilePredictor(EditorState* editor_state,
     string basename_prefix;
     string dirname_prefix;
     DIR* dir;
-    dir = opendir(input.empty() ? "." : input.c_str());
+    dir = opendir(path.empty() ? "." : path.c_str());
     if (dir != nullptr) {
-      dirname_prefix = input;
+      dirname_prefix = path;
     } else {
-      char* dirname_copy = strdup(input.c_str());
+      char* dirname_copy = strdup(path.c_str());
       dirname_prefix = dirname(dirname_copy);
       free(dirname_copy);
       dir = opendir(dirname_prefix.c_str());
@@ -128,7 +130,7 @@ void FilePredictor(EditorState* editor_state,
         dirname_prefix += "/";
       }
 
-      char* basename_copy = strdup(input.c_str());
+      char* basename_copy = strdup(path.c_str());
       basename_prefix = basename(basename_copy);
       free(basename_copy);
     }
