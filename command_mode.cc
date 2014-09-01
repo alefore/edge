@@ -886,7 +886,10 @@ class ResetStateCommand : public Command {
 void RunCppCommandHandler(const string& input, EditorState* editor_state) {
   editor_state->ResetMode();
   if (!editor_state->has_current_buffer()) { return; }
-  editor_state->EvaluateFile(input, editor_state->environment());
+  for (size_t i = 0; i < editor_state->repetitions(); i++) {
+    editor_state->EvaluateFile(input, editor_state->environment());
+  }
+  editor_state->ResetRepetitions();
 }
 
 class RunCppCommand : public Command {
