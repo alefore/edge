@@ -88,6 +88,8 @@ class OpenBuffer {
   static const string kBuffersName;
   static const string kPasteBuffer;
 
+  static void RegisterBufferType(afc::vm::Environment* environment);
+
   OpenBuffer(EditorState* editor_state, const string& name);
 
   void Close(EditorState* editor_state);

@@ -59,6 +59,90 @@ using std::to_string;
 /* static */ const string OpenBuffer::kBuffersName = "- buffers";
 /* static */ const string OpenBuffer::kPasteBuffer = "- paste buffer";
 
+/* static */ void OpenBuffer::RegisterBufferType(
+    afc::vm::Environment* environment) {
+  unique_ptr<ObjectType> buffer(new ObjectType("Buffer"));
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
+    callback->callback =
+        [](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::OBJECT_TYPE);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          assert(buffer != nullptr);
+          return Value::NewString(
+              buffer->read_string_variable(OpenBuffer::variable_path()));
+        };
+    buffer->AddField("path", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->callback =
+        [](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::OBJECT_TYPE);
+          assert(args[1]->type == VMType::VM_STRING);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          assert(buffer != nullptr);
+          buffer->set_string_variable(
+              OpenBuffer::variable_editor_commands_path(),
+              args[1]->str);
+          return std::move(Value::Void());
+        };
+    buffer->AddField("set_editor_commands_path", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
+    callback->callback =
+        [](vector<unique_ptr<Value>> args) {
+          assert(args.size() == 1);
+          assert(args[0]->type == VMType::OBJECT_TYPE);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          assert(buffer != nullptr);
+          return Value::NewInteger(buffer->contents()->size());
+        };
+    buffer->AddField("line_count", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
+    callback->type.type_arguments.push_back(VMType::ObjectType("LineColumn"));
+    callback->callback =
+        [](vector<unique_ptr<Value>> args) {
+          assert(args.size() == 2);
+          assert(args[0]->type == VMType::OBJECT_TYPE);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          assert(buffer != nullptr);
+          buffer->set_position(
+              *static_cast<LineColumn*>(args[1]->user_value.get()));
+          return Value::Void();
+        };
+    buffer->AddField("set_position", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType::ObjectType("LineColumn"));
+    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
+    callback->callback =
+        [](vector<unique_ptr<Value>> args) {
+          assert(args.size() == 1);
+          assert(args[0]->type == VMType::OBJECT_TYPE);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          assert(buffer != nullptr);
+          return Value::NewObject("LineColumn", shared_ptr<LineColumn>(
+              new LineColumn(buffer->position())));
+        };
+    buffer->AddField("position", std::move(callback));
+  }
+  environment->DefineType("Buffer", std::move(buffer));
+}
+
 OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
     : name_(name),
       fd_(-1),
