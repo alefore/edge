@@ -38,11 +38,6 @@ Support ARROW_LEFT, allow editing characters other than the last one.
 
 -- Commands
 
-Make it possible to scroll just one line past the last line.  In command mode, it should just follow the output to the end.
-  Might need tweaks to various modes to keep them from crashing?
-
-When the flags of a file changes, update the list of buffers if it's shown.
-
 Improve "af":
   Add more structures to "af":
     BUFFER> run a command with the whole contents of the buffer
@@ -60,7 +55,9 @@ Convert more variables to the new system for defining variables.
 
 Save the contents of variables?
 
-Allow configuration files to specify variables for buffers (by various criteria).
+-- VM
+
+Expose more buffer methods.
 
 -- Misc
 
