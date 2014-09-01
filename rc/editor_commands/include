@@ -1,18 +1,23 @@
-if (Line() == "#include <>") {
-  DeleteText(LineColumn(Position().line(), 9),
-             LineColumn(Position().line(), 11));
-  SetPosition(LineColumn(Position().line(), 9));
+Buffer b = CurrentBuffer();
+string line = Line();
+SetStatus(line);
+
+LineColumn position = b.position();
+if (line == "#include <>") {
+  DeleteText(LineColumn(position.line(), 9),
+             LineColumn(position.line(), 11));
+  b.set_position(LineColumn(position.line(), 9));
   InsertText("\"\"");
-  SetPosition(LineColumn(Position().line(), 10));
-} else if (Line() == "#include \"\"") {
-  DeleteText(LineColumn(Position().line(), 9),
-             LineColumn(Position().line(), 11));
-  SetPosition(LineColumn(Position().line(), 9));
+  b.set_position(LineColumn(position.line(), 10));
+} else if (line == "#include \"\"") {
+  DeleteText(LineColumn(position.line(), 9),
+             LineColumn(position.line(), 11));
+  b.set_position(LineColumn(position.line(), 9));
   InsertText("<>");
-  SetPosition(LineColumn(Position().line(), 10));
+  b.set_position(LineColumn(position.line(), 10));
 } else {
-  SetPosition(LineColumn(Position().line(), 0));
+  b.set_position(LineColumn(position.line(), 0));
   InsertText("#include <>\n");
-  SetPosition(LineColumn(Position().line() - 1, 10));
-  SetStatus("Done");;
+  b.set_position(LineColumn(position.line(), 10));
+  SetStatus("Done");
 }
