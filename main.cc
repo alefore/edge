@@ -27,7 +27,7 @@ int main(int argc, const char* argv[]) {
   int fd = MaybeConnectToParentServer();
   if (fd != -1) {
     for (int i = 1; i < argc; i++) {
-      string command = "OpenBuffer(\"" + string(argv[i]) + "\");\n";
+      string command = "OpenFile(\"" + string(argv[i]) + "\");\n";
       if (write(fd, command.c_str(), command.size()) == -1) {
         cerr << "write: " << strerror(errno);
         exit(1);
