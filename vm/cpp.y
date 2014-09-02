@@ -447,6 +447,7 @@ expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
   if (B == nullptr || ARGS == nullptr
       || B->type().type != VMType::FUNCTION
       || B->type().type_arguments.size() != 1 + ARGS->size()) {
+    // TODO: evaluator->error_handler()
     OUT = nullptr;
   } else {
     bool match = true;
@@ -511,6 +512,7 @@ non_empty_arguments_list(OUT) ::= non_empty_arguments_list(L) COMMA expr(E). {
 
 expr(OUT) ::= expr(A) EQUALS expr(B). {
   if (A == nullptr || B == nullptr || !(A->type() == B->type())) {
+    // TODO: evaluator->error_handler()
     OUT = nullptr;
   } else if (A->type().type == VMType::VM_STRING) {
     OUT = new BinaryOperator(
@@ -657,6 +659,27 @@ expr(A) ::= expr(B) MINUS expr(C). {
   C = nullptr;
 }
 
+expr(OUT) ::= MINUS expr(A). {
+  class MinusExpression : public Expression {
+   public:
+    MinusExpression(unique_ptr<Expression> expr) : expr_(std::move(expr)) {}
+    const VMType& type() { return expr_->type(); }
+    std::unique_ptr<Value> Evaluate(Environment* environment) {
+      return Value::NewInteger(-expr_->Evaluate(environment)->integer);
+    }
+   private:
+    unique_ptr<Expression> expr_;
+  };
+  if (A == nullptr) {
+    OUT = nullptr;
+  } else if (A->type().type != VMType::VM_INTEGER) {
+    OUT = nullptr;
+  } else {
+    OUT = new MinusExpression(unique_ptr<Expression>(A));
+    A = nullptr;
+  }
+}
+
 expr(A) ::= expr(B) TIMES expr(C). {
   if (B == nullptr || C == nullptr || !(B->type() == C->type())) {
     A = nullptr;
@@ -738,10 +761,11 @@ expr(A) ::= SYMBOL(B). {
   };
 
   Value* result = evaluator->environment()->Lookup(B->str);
-  if (result != nullptr) {
-    A = new VariableLookup(B->str, result->type);
-  } else {
+  if (result == nullptr) {
+    evaluator->error_handler()("Variable not found: \"" + B->str + "\"");
     A = nullptr;
+  } else {
+    A = new VariableLookup(B->str, result->type);
   }
 }
 
