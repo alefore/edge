@@ -71,6 +71,53 @@ string VMType::ToString() const {
   return unique_ptr<Value>(new Value(VMType::VM_VOID));
 }
 
+class ReturnExpression : public Expression {
+ public:
+  ReturnExpression(unique_ptr<Expression> expr) : expr_(std::move(expr)) {}
+
+  const VMType& type() { return expr_->type(); }
+
+  pair<Continuation, unique_ptr<Value>> Evaluate(
+      Evaluator* evaluator, const Continuation& continuation) {
+    return expr_->Evaluate(evaluator, evaluator->return_continuation());
+  }
+ private:
+  unique_ptr<Expression> expr_;
+};
+
+class IfEvaluator : public Expression {
+ public:
+  IfEvaluator(unique_ptr<Expression> cond, unique_ptr<Expression> true_case,
+              unique_ptr<Expression> false_case)
+      : cond_(std::move(cond)),
+        true_case_(std::move(true_case)),
+        false_case_(std::move(false_case)) {
+    assert(cond_ != nullptr);
+    assert(true_case_ != nullptr);
+    assert(false_case_ != nullptr);
+  }
+
+  const VMType& type() {
+    return true_case_->type();
+  }
+
+  pair<Continuation, unique_ptr<Value>> Evaluate(
+      Evaluator* evaluator, const Continuation& continuation) {
+    return cond_->Evaluate(
+        evaluator,
+        Continuation(
+            [this, evaluator, continuation](unique_ptr<Value> result) {
+              return (result->boolean ? true_case_ : false_case_)
+                  ->Evaluate(evaluator, continuation);
+            }));
+  }
+
+ private:
+  unique_ptr<Expression> cond_;
+  unique_ptr<Expression> true_case_;
+  unique_ptr<Expression> false_case_;
+};
+
 class AssignExpression : public Expression {
  public:
   AssignExpression(const string& symbol, unique_ptr<Expression> value)
@@ -268,9 +315,16 @@ void ValueDestructor(Value* value) {
 #include "cpp.h"
 #include "cpp.c"
 
+pair<Expression::Continuation, unique_ptr<Value>>
+NoopContinuation(unique_ptr<Value> value) {
+  return make_pair(Expression::Continuation(NoopContinuation),
+                   std::move(value));
+}
+
 Evaluator::Evaluator(unique_ptr<Environment> environment,
                      ErrorHandler error_handler)
     : base_environment_(std::move(environment)),
+      return_continuation_(NoopContinuation),
       environment_(base_environment_.get()),
       error_handler_(error_handler),
       parser_(
@@ -293,8 +347,7 @@ unique_ptr<Value> Evaluator::Evaluate(
   assert(expr != nullptr);
   unique_ptr<Value> result;
   bool done = false;
-  Environment* old_environment = environment_;
-  environment_ = environment;
+
   Expression::Continuation stop(
       [&result, &done, &stop](unique_ptr<Value> value) {
         assert(!done);
@@ -302,12 +355,19 @@ unique_ptr<Value> Evaluator::Evaluate(
         result = std::move(value);
         return make_pair(stop, unique_ptr<Value>(nullptr));
       });
+
+  Expression::Continuation old_return_continuation = return_continuation_;
+  return_continuation_ = stop;
+  Environment* old_environment = environment_;
+  environment_ = environment;
+
   pair<Expression::Continuation, unique_ptr<Value>> trampoline =
       expr->Evaluate(this, stop);
   while (!done) {
     trampoline = trampoline.first.func(std::move(trampoline.second));
   }
 
+  return_continuation_ = old_return_continuation;
   environment_ = old_environment;
   return result;
 }
@@ -485,6 +545,8 @@ void Evaluator::AppendInput(const string& str) {
             token = IF;
           } else if (symbol == "else") {
             token = ELSE;
+          } else if (symbol == "return") {
+            token = RETURN;
           } else {
             token = SYMBOL;
             input = new Value(VMType::VM_SYMBOL);

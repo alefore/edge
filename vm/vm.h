@@ -191,6 +191,10 @@ class Evaluator {
   unique_ptr<Value> Evaluate(Expression* expression);
   unique_ptr<Value> Evaluate(Expression* expression, Environment* environment);
 
+  const Expression::Continuation& return_continuation() const {
+    return return_continuation_;
+  }
+
   Environment* environment() const { return environment_; }
 
   void PushEnvironment() {
@@ -207,8 +211,12 @@ class Evaluator {
 
  private:
   unique_ptr<Environment> base_environment_;
+
+  Expression::Continuation return_continuation_;
   Environment* environment_;
+
   ErrorHandler error_handler_;
+
   string last_token_;
   unique_ptr<void, function<void(void*)>> parser_;
 };

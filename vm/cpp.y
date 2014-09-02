@@ -12,6 +12,7 @@
 %left LESS_THAN GREATER_THAN.
 %left PLUS MINUS.
 %left DIVIDE TIMES.
+%left ELSE.
 %left LPAREN RPAREN DOT.
 
 %type main { Value* }
@@ -50,8 +51,23 @@ statement(A) ::= expr(B) SEMICOLON . {
 }
 
 statement(A) ::= error. {
-  evaluator->error_handler()("Compilation error near: " + evaluator->last_token());
+  evaluator->error_handler()(
+      "Compilation error near: " + evaluator->last_token());
   A = new ConstantExpression(Value::Void());
+}
+
+statement(OUT) ::= RETURN expr(A) SEMICOLON . {
+  if (A == nullptr) {
+    OUT = nullptr;
+  } else {
+    OUT = new ReturnExpression(unique_ptr<Expression>(A));
+    A = nullptr;
+  }
+}
+
+statement(OUT) ::= RETURN SEMICOLON . {
+  OUT = new ReturnExpression(
+      unique_ptr<Expression>(new ConstantExpression(Value::Void())));
 }
 
 statement(OUT) ::= function_declaration_params(FUNC)
@@ -186,39 +202,6 @@ statement(OUT) ::= WHILE LPAREN expr(CONDITION) RPAREN statement(BODY). {
 }
 
 statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE) ELSE statement(FALSE_CASE). {
-  class IfEvaluator : public Expression {
-   public:
-    IfEvaluator(unique_ptr<Expression> cond, unique_ptr<Expression> true_case,
-                unique_ptr<Expression> false_case)
-        : cond_(std::move(cond)),
-          true_case_(std::move(true_case)),
-          false_case_(std::move(false_case)) {
-      assert(cond_ != nullptr);
-      assert(true_case_ != nullptr);
-      assert(false_case_ != nullptr);
-    }
-
-    const VMType& type() {
-      return true_case_->type();
-    }
-
-    pair<Continuation, unique_ptr<Value>> Evaluate(
-        Evaluator* evaluator, const Continuation& continuation) {
-      return cond_->Evaluate(
-          evaluator,
-          Continuation(
-              [this, evaluator, continuation](unique_ptr<Value> result) {
-                return (result->boolean ? true_case_ : false_case_)
-                    ->Evaluate(evaluator, continuation);
-              }));
-    }
-
-   private:
-    unique_ptr<Expression> cond_;
-    unique_ptr<Expression> true_case_;
-    unique_ptr<Expression> false_case_;
-  };
-
   if (CONDITION == nullptr || TRUE_CASE == nullptr || FALSE_CASE == nullptr) {
     A = nullptr;
   } else if (CONDITION->type().type != VMType::VM_BOOLEAN) {
@@ -239,6 +222,24 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE) ELSE stat
     CONDITION = nullptr;
     TRUE_CASE = nullptr;
     FALSE_CASE = nullptr;
+  }
+}
+
+statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
+  if (CONDITION == nullptr || TRUE_CASE == nullptr) {
+    A = nullptr;
+  } else if (CONDITION->type().type != VMType::VM_BOOLEAN) {
+    evaluator->error_handler()(
+        "Expected bool value for condition of \"if\" expression but found \""
+        + CONDITION->type().ToString() + "\".");
+    A = nullptr;
+  } else {
+    A = new IfEvaluator(
+        unique_ptr<Expression>(CONDITION),
+        unique_ptr<Expression>(TRUE_CASE),
+        unique_ptr<Expression>(new ConstantExpression(Value::Void())));
+    CONDITION = nullptr;
+    TRUE_CASE = nullptr;
   }
 }
 
