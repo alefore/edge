@@ -8,10 +8,11 @@
 %left EQ.
 %left OR.
 %left AND.
-%left EQUALS.
+%left EQUALS NOT_EQUALS.
 %left LESS_THAN GREATER_THAN.
 %left PLUS MINUS.
 %left DIVIDE TIMES.
+%right NOT.
 %left LPAREN RPAREN DOT.
 %left ELSE.
 
@@ -157,24 +158,28 @@ statement(OUT) ::= WHILE LPAREN expr(CONDITION) RPAREN statement(BODY). {
 
     pair<Continuation, unique_ptr<Value>> Evaluate(
         Evaluator* evaluator, const Continuation& done) {
-      Continuation iterate(
-          [this, evaluator, done, iterate]
+      return cond_->Evaluate(evaluator, iterator(evaluator, done));
+    }
+
+   private:
+    Continuation iterator(Evaluator* evaluator, const Continuation& done) {
+      return Continuation(
+          [this, evaluator, done]
           (unique_ptr<Value> condition_value) {
             if (condition_value->boolean) {
               return body_->Evaluate(
                   evaluator,
                   Continuation(
-                      [this, evaluator, iterate]
+                      [this, evaluator, done]
                       (unique_ptr<Value> ignored_value) {
-                        return cond_->Evaluate(evaluator, iterate);
+                        return cond_->Evaluate(evaluator,
+                                               iterator(evaluator, done));
                       }));
             }
             return make_pair(done, Value::Void());
           });
-      return cond_->Evaluate(evaluator, iterate);
     }
 
-   private:
     unique_ptr<Expression> cond_;
     unique_ptr<Expression> body_;
   };
@@ -538,6 +543,15 @@ non_empty_arguments_list(OUT) ::= non_empty_arguments_list(L) COMMA expr(E). {
 
 // Basic operators
 
+expr(OUT) ::= NOT expr(A). {
+  if (A == nullptr) {
+    OUT = nullptr;
+  } else if (A->type().type == VMType::VM_BOOLEAN) {
+    OUT = new NegateExpression(unique_ptr<Expression>(A));
+    A = nullptr;
+  }
+}
+
 expr(OUT) ::= expr(A) EQUALS expr(B). {
   if (A == nullptr || B == nullptr) {
     OUT = nullptr;
@@ -567,6 +581,39 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
     evaluator->error_handler()(
         "Unable to compare types: \"" + A->type().ToString()
         + "\" == \"" + B->type().ToString() + "\"");
+    OUT = nullptr;
+  }
+}
+
+expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
+  if (A == nullptr || B == nullptr) {
+    OUT = nullptr;
+  } else if (A->type().type == VMType::VM_STRING
+             && B->type().type == VMType::VM_STRING) {
+    OUT = new BinaryOperator(
+        unique_ptr<Expression>(A),
+        unique_ptr<Expression>(B),
+        VMType::Bool(),
+        [](const Value& a, const Value& b, Value* output) {
+          output->boolean = a.str != b.str;
+        });
+    A = nullptr;
+    B = nullptr;
+  } else if (A->type().type == VMType::VM_INTEGER
+             && B->type().type == VMType::VM_INTEGER) {
+    OUT = new BinaryOperator(
+        unique_ptr<Expression>(A),
+        unique_ptr<Expression>(B),
+        VMType::Bool(),
+        [](const Value& a, const Value& b, Value* output) {
+          output->boolean = a.integer != b.integer;
+        });
+    A = nullptr;
+    B = nullptr;
+  } else {
+    evaluator->error_handler()(
+        "Unable to compare types: \"" + A->type().ToString()
+        + "\" != \"" + B->type().ToString() + "\"");
     OUT = nullptr;
   }
 }
@@ -632,20 +679,39 @@ expr(OUT) ::= expr(A) OR expr(B). {
 }
 
 expr(OUT) ::= expr(A) AND expr(B). {
+  class AndExpression : public Expression {
+   public:
+    AndExpression(unique_ptr<Expression> expr_a, unique_ptr<Expression> expr_b)
+        : expr_a_(std::move(expr_a)), expr_b_(std::move(expr_b)) {}
+
+    const VMType& type() { return VMType::Bool(); }
+
+    pair<Continuation, unique_ptr<Value>> Evaluate(
+        Evaluator* evaluator, const Continuation& continuation) {
+      return expr_a_->Evaluate(
+          evaluator,
+          Continuation([this, evaluator, continuation](unique_ptr<Value> value_a) {
+            assert(value_a->type.type == VMType::VM_BOOLEAN);
+            if (!value_a->boolean) {
+              return make_pair(continuation, std::move(value_a));
+            }
+            return expr_b_->Evaluate(evaluator, continuation);
+          }));
+    }
+
+   private:
+    unique_ptr<Expression> expr_a_;
+    unique_ptr<Expression> expr_b_;
+  };
+
   if (A == nullptr
       || B == nullptr
       || A->type().type != VMType::VM_BOOLEAN
       || B->type().type != VMType::VM_BOOLEAN) {
     OUT = nullptr;
   } else {
-    // TODO: Don't evaluate B if not needed.
-    OUT = new BinaryOperator(
-        unique_ptr<Expression>(A),
-        unique_ptr<Expression>(B),
-        VMType::Bool(),
-        [](const Value& a, const Value& b, Value* output) {
-          output->boolean = a.boolean && b.boolean;
-        });
+    OUT = new AndExpression(
+        unique_ptr<Expression>(A), unique_ptr<Expression>(B));
     A = nullptr;
     B = nullptr;
   }

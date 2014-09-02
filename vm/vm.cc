@@ -160,6 +160,29 @@ class ConstantExpression : public Expression {
   unique_ptr<Value> value_;
 };
 
+class NegateExpression : public Expression {
+ public:
+  NegateExpression(unique_ptr<Expression> expr)
+      : expr_(std::move(expr)) {}
+
+  const VMType& type() { return expr_->type(); }
+
+  pair<Continuation, unique_ptr<Value>> Evaluate(
+      Evaluator* evaluator,
+      const Continuation& continuation) {
+    return expr_->Evaluate(
+        evaluator,
+        Continuation([continuation](unique_ptr<Value> value) {
+          unique_ptr<Value> output(new Value(VMType::VM_BOOLEAN));
+          output->boolean = !value->boolean;
+          return make_pair(continuation, std::move(output));
+        }));
+  }
+
+ private:
+  unique_ptr<Expression> expr_;
+};
+
 class BinaryOperator : public Expression {
  public:
   BinaryOperator(unique_ptr<Expression> a, unique_ptr<Expression> b,
@@ -385,6 +408,16 @@ void Evaluator::AppendInput(const string& str) {
           token = DIVIDE;
           pos++;
         }
+        break;
+
+      case '!':
+        pos++;
+        if (pos < str.size() && str.at(pos) == '=') {
+          pos++;
+          token = NOT_EQUALS;
+          break;
+        }
+        token = NOT;
         break;
 
       case '=':
