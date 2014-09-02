@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace afc {
@@ -11,6 +12,7 @@ namespace vm {
 
 using std::function;
 using std::map;
+using std::pair;
 using std::shared_ptr;
 using std::string;
 using std::unique_ptr;
@@ -93,11 +95,30 @@ struct Value {
   shared_ptr<void> user_value;
 };
 
+class Evaluator;
+
+template<typename A>
+struct RecursiveHelper
+{
+  typedef function<pair<RecursiveHelper, A>(A)> type;
+  RecursiveHelper(type f) : func(f) {}
+  operator type() { return func; }
+  type func;
+};
+
 class Expression {
  public:
+  // We use a continuation trampoline: to evaluate an expression, we must pass
+  // the continuation that wants to receive the value.  The expression will
+  // return a pair with a continuation and a value, and the runner must feed the
+  // value to the continuation and keep doing that on the returned value, until
+  // it can verify that the original continuation has run.
+  typedef RecursiveHelper<unique_ptr<Value>> Continuation;
+
   virtual ~Expression() {}
   virtual const VMType& type() = 0;
-  virtual unique_ptr<Value> Evaluate(Environment* environment) = 0;
+  virtual pair<Continuation, unique_ptr<Value>> Evaluate(
+      Evaluator* evaluator, const Continuation& continuation) = 0;
 };
 
 class ObjectType {
@@ -166,6 +187,9 @@ class Evaluator {
   void Define(const string& name, unique_ptr<Value> value);
 
   void AppendInput(const string& str);
+
+  unique_ptr<Value> Evaluate(Expression* expression);
+  unique_ptr<Value> Evaluate(Expression* expression, Environment* environment);
 
   Environment* environment() const { return environment_; }
 

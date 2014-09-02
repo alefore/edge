@@ -29,19 +29,15 @@ main(A) ::= program(B) . {
 %type program { Value* }
 %destructor program { delete $$; }
 
-program(V) ::= statement(S). {
-  if (S == nullptr) {
-    V = nullptr;
-  } else {
-    V = S->Evaluate(evaluator->environment()).release();
+program ::= statement(S). {
+  if (S != nullptr) {
+    evaluator->Evaluate(S);
   }
 }
 
-program(A) ::= program(B) statement(C) . {
-  if (B == nullptr || C == nullptr) {
-    A = nullptr;
-  } else {
-    A = C->Evaluate(evaluator->environment()).release();
+program ::= program statement(S) . {
+  if (S != nullptr) {
+    evaluator->Evaluate(S);
   }
 }
 
@@ -79,13 +75,13 @@ statement(OUT) ::= function_declaration_params(FUNC)
     const vector<string> argument_names(FUNC->argument_names);
 
     unique_ptr<Value> value(new Value(FUNC->type));
-    value->callback = [body, func_environment, argument_names]
+    value->callback = [evaluator, body, func_environment, argument_names]
         (vector<unique_ptr<Value>> args) {
           assert(args.size() == argument_names.size());
           for (size_t i = 0; i < args.size(); i++) {
             func_environment->Define(argument_names[i], std::move(args[i]));
           }
-          return body->Evaluate(func_environment.get());
+          return evaluator->Evaluate(body.get(), func_environment.get());
         };
     evaluator->environment()->Define(FUNC->name, std::move(value));
     OUT = new ConstantExpression(Value::Void());
@@ -150,11 +146,23 @@ statement(OUT) ::= WHILE LPAREN expr(CONDITION) RPAREN statement(BODY). {
       return VMType::Void();
     }
 
-    unique_ptr<Value> Evaluate(Environment* environment) {
-      while (cond_->Evaluate(environment)->boolean) {
-        body_->Evaluate(environment);
-      }
-      return Value::Void();
+    pair<Continuation, unique_ptr<Value>> Evaluate(
+        Evaluator* evaluator, const Continuation& done) {
+      Continuation iterate(
+          [this, evaluator, done, iterate]
+          (unique_ptr<Value> condition_value) {
+            if (condition_value->boolean) {
+              return body_->Evaluate(
+                  evaluator,
+                  Continuation(
+                      [this, evaluator, iterate]
+                      (unique_ptr<Value> ignored_value) {
+                        return cond_->Evaluate(evaluator, iterate);
+                      }));
+            }
+            return make_pair(done, Value::Void());
+          });
+      return cond_->Evaluate(evaluator, iterate);
     }
 
    private:
@@ -194,10 +202,15 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE) ELSE stat
       return true_case_->type();
     }
 
-    unique_ptr<Value> Evaluate(Environment* environment) {
-      auto cond = std::move(cond_->Evaluate(environment));
-      assert(cond->type.type == VMType::VM_BOOLEAN);
-      return (cond->boolean ? true_case_ : false_case_)->Evaluate(environment);
+    pair<Continuation, unique_ptr<Value>> Evaluate(
+        Evaluator* evaluator, const Continuation& continuation) {
+      return cond_->Evaluate(
+          evaluator,
+          Continuation(
+              [this, evaluator, continuation](unique_ptr<Value> result) {
+                return (result->boolean ? true_case_ : false_case_)
+                    ->Evaluate(evaluator, continuation);
+              }));
     }
 
    private:
@@ -272,9 +285,14 @@ statement_list(OUT) ::= statement_list(L) statement(A). {
 
     const VMType& type() { return e1_->type(); }
 
-    unique_ptr<Value> Evaluate(Environment* environment) {
-      e0_->Evaluate(environment);
-      return std::move(e1_->Evaluate(environment));
+    pair<Continuation, unique_ptr<Value>> Evaluate(
+        Evaluator* evaluator, const Continuation& continuation) {
+      return e0_->Evaluate(
+          evaluator,
+          Continuation(
+              [this, evaluator, continuation](unique_ptr<Value> value) {
+                return e1_->Evaluate(evaluator, continuation);
+              }));
     }
 
    private:
@@ -431,12 +449,17 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
         } else {
           unique_ptr<Value> field_copy(new Value(field->type.type));
           *field_copy = *field;
+          unique_ptr<vector<unique_ptr<Expression>>> args(
+              new vector<unique_ptr<Expression>>);
+          args->push_back(unique_ptr<Expression>(OBJ));
+          OBJ = nullptr;
+          for (auto& arg : *ARGS) {
+            args->push_back(std::move(arg));
+          }
+          ARGS = nullptr;
           OUT = new FunctionCall(
               unique_ptr<Expression>(new ConstantExpression(std::move(field_copy))),
-              unique_ptr<Expression>(OBJ),
-              std::move(ARGS));
-          OBJ = nullptr;
-          ARGS = nullptr;
+              std::move(args));
         }
       }
     }
@@ -470,7 +493,9 @@ expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
           + "\" but found \"" + ARGS->at(argument)->type().ToString() + "\"");
       OUT = nullptr;
     } else {
-      OUT = new FunctionCall(unique_ptr<Expression>(B), std::move(ARGS));
+      OUT = new FunctionCall(
+          unique_ptr<Expression>(B),
+          unique_ptr<vector<unique_ptr<Expression>>>(ARGS));
       B = nullptr;
       ARGS = nullptr;
     }
@@ -676,10 +701,19 @@ expr(OUT) ::= MINUS expr(A). {
   class MinusExpression : public Expression {
    public:
     MinusExpression(unique_ptr<Expression> expr) : expr_(std::move(expr)) {}
+
     const VMType& type() { return expr_->type(); }
-    std::unique_ptr<Value> Evaluate(Environment* environment) {
-      return Value::NewInteger(-expr_->Evaluate(environment)->integer);
+
+    pair<Continuation, unique_ptr<Value>> Evaluate(
+        Evaluator* evaluator, const Continuation& continuation) {
+      return expr_->Evaluate(
+          evaluator,
+          Continuation(
+              [continuation](unique_ptr<Value> value) {
+                return make_pair(continuation, Value::NewInteger(-value->integer));
+              }));
     }
+
    private:
     unique_ptr<Expression> expr_;
   };
@@ -759,14 +793,18 @@ expr(A) ::= SYMBOL(B). {
    public:
     VariableLookup(const string& symbol, const VMType& type)
         : symbol_(symbol), type_(type) {}
+
     const VMType& type() {
       return type_;
     }
-    unique_ptr<Value> Evaluate(Environment* environment) {
-      Value* value = environment->Lookup(symbol_);
+
+    pair<Continuation, unique_ptr<Value>> Evaluate(
+        Evaluator* evaluator, const Continuation& continuation) {
       unique_ptr<Value> output = Value::Void();
-      *output = *value;
-      return std::move(output);
+      auto result = evaluator->environment()->Lookup(symbol_);
+      assert(result != nullptr);
+      *output = *result;
+     return make_pair(continuation, std::move(output));
     }
    private:
     const string symbol_;

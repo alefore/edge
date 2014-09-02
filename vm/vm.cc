@@ -78,10 +78,15 @@ class AssignExpression : public Expression {
 
   const VMType& type() { return value_->type(); }
 
-  unique_ptr<Value> Evaluate(Environment* environment) {
-    auto value = value_->Evaluate(environment);
-    environment->Define(symbol_, unique_ptr<Value>(new Value(*value.get())));
-    return value;
+  pair<Continuation, unique_ptr<Value>> Evaluate(
+      Evaluator* evaluator, const Continuation& continuation) {
+    return value_->Evaluate(
+        evaluator,
+        Continuation([evaluator, symbol_, continuation](unique_ptr<Value> value) {
+          evaluator->environment()->Define(
+              symbol_, unique_ptr<Value>(new Value(*value.get())));
+          return std::move(make_pair(continuation, std::move(value)));
+        }));
   }
 
  private:
@@ -96,10 +101,12 @@ class ConstantExpression : public Expression {
 
   const VMType& type() { return value_->type; }
 
-  unique_ptr<Value> Evaluate(Environment* environment) {
+  pair<Continuation, unique_ptr<Value>> Evaluate(
+      Evaluator* evaluator,
+      const Continuation& continuation) {
     unique_ptr<Value> value(new Value(value_->type.type));
     *value = *value_;
-    return value;
+    return make_pair(continuation, std::move(value));
   }
 
  private:
@@ -115,13 +122,21 @@ class BinaryOperator : public Expression {
 
   const VMType& type() { return type_; }
 
-  unique_ptr<Value> Evaluate(Environment* environment) {
-    unique_ptr<Value> output = Value::Void();
-    output->type = type_;
-    auto a = a_->Evaluate(environment);
-    auto b = b_->Evaluate(environment);
-    operator_(*a, *b, output.get());
-    return std::move(output);
+  pair<Continuation, unique_ptr<Value>> Evaluate(
+      Evaluator* evaluator, const Continuation& continuation) {
+    return a_->Evaluate(
+        evaluator,
+        Continuation([this, evaluator, continuation](unique_ptr<Value> a_value) {
+          // TODO: Remove shared_ptr when we can correctly capture a unique_ptr.
+          shared_ptr<Value> a_value_shared(a_value.release());
+          return b_->Evaluate(
+              evaluator,
+              Continuation([this, a_value_shared, continuation](unique_ptr<Value> b_value) {
+                unique_ptr<Value> output(new Value(type_));
+                operator_(*a_value_shared.get(), *b_value, output.get());
+                return std::move(make_pair(continuation, std::move(output)));
+              }));
+        }));
   }
 
  private:
@@ -134,20 +149,9 @@ class BinaryOperator : public Expression {
 class FunctionCall : public Expression {
  public:
   FunctionCall(unique_ptr<Expression> func,
-               vector<unique_ptr<Expression>>* args)
-      : func_(std::move(func)), args_(args) {
+               unique_ptr<vector<unique_ptr<Expression>>> args)
+      : func_(std::move(func)), args_(std::move(args)) {
     assert(func_ != nullptr);
-    assert(args_ != nullptr);
-  }
-
-  FunctionCall(unique_ptr<Expression> func,
-               unique_ptr<Expression> object,
-               vector<unique_ptr<Expression>>* args)
-      : func_(std::move(func)),
-        object_(std::move(object)),
-        args_(args) {
-    assert(func_ != nullptr);
-    assert(object_ != nullptr);
     assert(args_ != nullptr);
   }
 
@@ -155,22 +159,41 @@ class FunctionCall : public Expression {
     return func_->type().type_arguments[0];
   }
 
-  unique_ptr<Value> Evaluate(Environment* environment) {
-    auto func = std::move(func_->Evaluate(environment));
-    assert(func != nullptr);
-    vector<unique_ptr<Value>> values;
-    if (object_ != nullptr) {
-      values.push_back(object_->Evaluate(environment));
-    }
-    for (const auto& arg : *args_) {
-      values.push_back(arg->Evaluate(environment));
-    }
-    return std::move(func->callback(std::move(values)));
+  pair<Continuation, unique_ptr<Value>> Evaluate(
+      Evaluator* evaluator, const Continuation& continuation) {
+    return func_->Evaluate(
+        evaluator,
+        Continuation([this, evaluator, continuation](unique_ptr<Value> func) {
+          assert(func != nullptr);
+          if (args_->empty()) {
+            return make_pair(continuation,
+                             func->callback(vector<unique_ptr<Value>>()));
+          }
+          return args_->at(0)->Evaluate(evaluator, capture_args(
+              evaluator, continuation, new vector<unique_ptr<Value>>,
+              shared_ptr<Value>(func.release())));
+        }));
   }
 
  private:
+  Continuation capture_args(
+      Evaluator* evaluator,
+      Continuation continuation,
+      vector<unique_ptr<Value>>* values,
+      shared_ptr<Value> func) {
+    return Continuation(
+        [this, evaluator, continuation, func, values](unique_ptr<Value> value) {
+          values->push_back(std::move(value));
+          if (values->size() < args_->size()) {
+            return args_->at(values->size())->Evaluate(
+                evaluator, capture_args(evaluator, continuation, values, func));
+          }
+          // TODO: Delete values, we're memory leaking here.
+          return make_pair(continuation, func->callback(std::move(*values)));
+        });
+  }
+
   unique_ptr<Expression> func_;
-  unique_ptr<Expression> object_;
   unique_ptr<vector<unique_ptr<Expression>>> args_;
 };
 
@@ -259,6 +282,34 @@ Evaluator::Evaluator(unique_ptr<Environment> environment,
 
 void Evaluator::Define(const string& name, unique_ptr<Value> value) {
   environment_->Define(name, std::move(value));
+}
+
+unique_ptr<Value> Evaluator::Evaluate(Expression* expression) {
+  return Evaluate(expression, environment_);
+}
+
+unique_ptr<Value> Evaluator::Evaluate(
+    Expression* expr, Environment* environment) {
+  assert(expr != nullptr);
+  unique_ptr<Value> result;
+  bool done = false;
+  Environment* old_environment = environment_;
+  environment_ = environment;
+  Expression::Continuation stop(
+      [&result, &done, &stop](unique_ptr<Value> value) {
+        assert(!done);
+        done = true;
+        result = std::move(value);
+        return make_pair(stop, unique_ptr<Value>(nullptr));
+      });
+  pair<Expression::Continuation, unique_ptr<Value>> trampoline =
+      expr->Evaluate(this, stop);
+  while (!done) {
+    trampoline = trampoline.first.func(std::move(trampoline.second));
+  }
+
+  environment_ = old_environment;
+  return result;
 }
 
 void Evaluator::AppendInput(const string& str) {
