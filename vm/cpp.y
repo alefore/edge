@@ -547,7 +547,7 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
   } else {
     evaluator->error_handler()(
         "Unable to compare types: \"" + A->type().ToString()
-        + "\" and \"" + B->type().ToString() + "\"");
+        + "\" == \"" + B->type().ToString() + "\"");
     OUT = nullptr;
   }
 }
