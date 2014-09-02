@@ -142,6 +142,23 @@ using std::to_string;
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    callback->callback =
+        [](vector<unique_ptr<Value>> args) {
+          assert(args.size() == 2);
+          assert(args[0]->type == VMType::OBJECT_TYPE);
+          assert(args[1]->type == VMType::VM_INTEGER);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          assert(buffer != nullptr);
+          return Value::NewString(
+              buffer->contents()->at(args[1]->integer)->contents->ToString());
+        };
+    buffer->AddField("line", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
     callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
     callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
     VMType function_argument(VMType::FUNCTION);
