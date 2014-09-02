@@ -12,8 +12,8 @@
 %left LESS_THAN GREATER_THAN.
 %left PLUS MINUS.
 %left DIVIDE TIMES.
-%left ELSE.
 %left LPAREN RPAREN DOT.
+%left ELSE.
 
 %type main { Value* }
 %destructor main { delete $$; }
@@ -27,16 +27,15 @@ main(A) ::= program(B) . {
   }
 }
 
+main ::= error. {
+  evaluator->error_handler()(
+      "Compilation error near: " + evaluator->last_token());
+}
+
 %type program { Value* }
 %destructor program { delete $$; }
 
-program ::= statement(S). {
-  if (S != nullptr) {
-    evaluator->Evaluate(S);
-  }
-}
-
-program ::= program statement(S) . {
+program ::= statement_list(S). {
   if (S != nullptr) {
     evaluator->Evaluate(S);
   }
@@ -48,12 +47,6 @@ program ::= program statement(S) . {
 statement(A) ::= expr(B) SEMICOLON . {
   A = B;
   B = nullptr;
-}
-
-statement(A) ::= error. {
-  evaluator->error_handler()(
-      "Compilation error near: " + evaluator->last_token());
-  A = new ConstantExpression(Value::Void());
 }
 
 statement(OUT) ::= RETURN expr(A) SEMICOLON . {
