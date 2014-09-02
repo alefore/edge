@@ -444,21 +444,30 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
 }
 
 expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
-  if (B == nullptr || ARGS == nullptr
-      || B->type().type != VMType::FUNCTION
-      || B->type().type_arguments.size() != 1 + ARGS->size()) {
-    // TODO: evaluator->error_handler()
+  if (B == nullptr || ARGS == nullptr) {
+    OUT = nullptr;
+  } else if (B->type().type != VMType::FUNCTION) {
+    evaluator->error_handler()(
+        "Expected function but found: \"" + B->type().ToString() + "\"");
+    OUT = nullptr;
+  } else if (B->type().type_arguments.size() != 1 + ARGS->size()) {
+    evaluator->error_handler()(
+        "Invalid number of arguments: Expected "
+        + to_string(B->type().type_arguments.size() - 1) + " but found "
+        + to_string(ARGS->size()));
     OUT = nullptr;
   } else {
-    bool match = true;
-    for (size_t i = 0; i < ARGS->size(); i++) {
-      assert(1 + i < B->type().type_arguments.size());
-      if (!(B->type().type_arguments[1 + i] == ARGS->at(i)->type())) {
-        match = false;
-        break;
-      }
+    size_t argument = 0;
+    while (argument < ARGS->size()
+           && (B->type().type_arguments[1 + argument]
+               == ARGS->at(argument)->type())) {
+      argument++;
     }
-    if (!match) {
+    if (argument < ARGS->size()) {
+      evaluator->error_handler()(
+          "Type mismatch in argument " + to_string(argument) + ": Expected \""
+          + B->type().type_arguments[1 + argument].ToString()
+          + "\" but found \"" + ARGS->at(argument)->type().ToString() + "\"");
       OUT = nullptr;
     } else {
       OUT = new FunctionCall(unique_ptr<Expression>(B), std::move(ARGS));
@@ -511,10 +520,10 @@ non_empty_arguments_list(OUT) ::= non_empty_arguments_list(L) COMMA expr(E). {
 // Basic operators
 
 expr(OUT) ::= expr(A) EQUALS expr(B). {
-  if (A == nullptr || B == nullptr || !(A->type() == B->type())) {
-    // TODO: evaluator->error_handler()
+  if (A == nullptr || B == nullptr) {
     OUT = nullptr;
-  } else if (A->type().type == VMType::VM_STRING) {
+  } else if (A->type().type == VMType::VM_STRING
+             && B->type().type == VMType::VM_STRING) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
@@ -524,7 +533,8 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
         });
     A = nullptr;
     B = nullptr;
-  } else if (B->type().type == VMType::VM_INTEGER) {
+  } else if (A->type().type == VMType::VM_INTEGER
+             && B->type().type == VMType::VM_INTEGER) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
@@ -535,6 +545,9 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
     A = nullptr;
     B = nullptr;
   } else {
+    evaluator->error_handler()(
+        "Unable to compare types: \"" + A->type().ToString()
+        + "\" and \"" + B->type().ToString() + "\"");
     OUT = nullptr;
   }
 }
