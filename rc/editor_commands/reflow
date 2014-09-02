@@ -1,0 +1,95 @@
+Buffer b = CurrentBuffer();
+
+LineColumn StartPosition() {
+  int line = b.position().line();
+
+  while (line != 0 && b.line(line - 1) != "") {
+    line = line - 1;
+  }
+
+  return LineColumn(line, 0);
+}
+
+LineColumn EndPosition() {
+  int line = b.position().line();
+  while (line + 1 < b.line_count() && b.line(line + 1) != "") {
+    line = line + 1;
+  }
+
+  return LineColumn(line, b.line(line).size());
+}
+
+string StripLeadingWhitespace(string text) {
+  int pos_first = text.find_first_not_of(" ", 0);
+  if (pos_first != -1) {
+    text = text.substr(pos_first, text.size() - pos_first);
+  }
+  return text;
+}
+
+string StripWhitespace(string text) {
+  text = StripLeadingWhitespace(text);
+  int pos_last = text.find_last_not_of(" ", text.size());
+  if (pos_last != -1) {
+    text = text.substr(0, pos_last + 1);
+  }
+  return text;
+}
+
+string CollapseText(int line_start, int line_end) {
+  string text = "";
+  while (line_start < line_end + 1) {
+    string line = b.line(line_start);
+    if (text == "") {
+      text = line;
+    } else {
+      text = text + " " + StripWhitespace(b.line(line_start));
+    }
+    line_start = line_start + 1;
+  }
+  return text;
+}
+
+string ExtractToken(string text) {
+  int pos_start = text.find_first_not_of(" ", 0);
+  if (pos_start == -1) {
+    return text;
+  }
+  int pos_end = text.find(" ", pos_start);
+  if (pos_end == -1) {
+    return text;
+  }
+  return text.substr(0, pos_end);
+}
+
+void InsertWrappedText(string text) {
+  string leading_prefix = ExtractToken(text);
+  int pos_end = leading_prefix.find_first_not_of(" ", 0);
+  if (pos_end != -1) {
+    leading_prefix = leading_prefix.substr(0, pos_end);
+  }
+
+  while (text != "") {
+    string token = ExtractToken(text);
+    text = text.substr(token.size(), text.size() - token.size());
+    string line = b.line(b.position().line());
+    if (line == "" || line.size() + token.size() - 1 < 20) {
+      InsertText(token);
+      b.set_position(LineColumn(b.position().line(), line.size() + token.size()));
+    } else {
+      token = leading_prefix + StripLeadingWhitespace(token);
+      InsertText("\n" + token);
+      b.set_position(LineColumn(b.position().line(), token.size()));
+    }
+  }
+  SetStatus("");
+}
+
+LineColumn start = StartPosition();
+LineColumn end = EndPosition();
+string text = CollapseText(start.line(), end.line());
+
+DeleteText(start, end);
+
+b.set_position(start);
+InsertWrappedText(text);
