@@ -413,20 +413,20 @@ void EditorState::ApplyToCurrentBuffer(const Transformation& transformation) {
   current_buffer_->second->Apply(this, transformation);
 }
 
-unique_ptr<Evaluator> EditorState::NewEvaluator() {
+unique_ptr<Evaluator> EditorState::NewEvaluator(Environment* environment) {
   return unique_ptr<Evaluator>(new Evaluator(
-      unique_ptr<Environment>(new Environment(environment_)),
+      unique_ptr<Environment>(new Environment(environment)),
       [this](const string& error_description) {
         SetStatus("Error: " + error_description);
       }));
 }
 
 void EditorState::Evaluate(const string& str) {
-  NewEvaluator()->AppendInput(str);
+  NewEvaluator(&environment_)->AppendInput(str);
 }
 
 void EditorState::EvaluateFile(const string& path, Environment* environment) {
-  unique_ptr<Evaluator> evaluator = NewEvaluator();
+  unique_ptr<Evaluator> evaluator = NewEvaluator(environment);
   std::ifstream infile(path);
   std::string line;
   while (std::getline(infile, line)) {

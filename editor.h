@@ -154,7 +154,7 @@ class EditorState {
 
   void ApplyToCurrentBuffer(const Transformation& transformation);
 
-  unique_ptr<Evaluator> NewEvaluator();
+  unique_ptr<Evaluator> NewEvaluator(Environment* environment);
 
   void Evaluate(const string& str);
   void EvaluateFile(const string& path, Environment* environment);
