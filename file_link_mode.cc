@@ -282,8 +282,6 @@ map<string, shared_ptr<OpenBuffer>>::iterator OpenFile(
     }
     it.first->second->Reload(editor_state);
   }
-  it.first->second->set_current_position_line(0);
-  it.first->second->set_current_position_col(0);
   return it.first;
 }
 
