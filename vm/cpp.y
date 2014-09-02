@@ -659,6 +659,31 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
 }
 
 expr(OUT) ::= expr(A) OR expr(B). {
+  class OrExpression : public Expression {
+   public:
+    OrExpression(unique_ptr<Expression> expr_a, unique_ptr<Expression> expr_b)
+        : expr_a_(std::move(expr_a)), expr_b_(std::move(expr_b)) {}
+
+    const VMType& type() { return VMType::Bool(); }
+
+    pair<Continuation, unique_ptr<Value>> Evaluate(
+        Evaluator* evaluator, const Continuation& continuation) {
+      return expr_a_->Evaluate(
+          evaluator,
+          Continuation([this, evaluator, continuation](unique_ptr<Value> value_a) {
+            assert(value_a->type.type == VMType::VM_BOOLEAN);
+            if (value_a->boolean) {
+              return make_pair(continuation, std::move(value_a));
+            }
+            return expr_b_->Evaluate(evaluator, continuation);
+          }));
+    }
+
+   private:
+    unique_ptr<Expression> expr_a_;
+    unique_ptr<Expression> expr_b_;
+  };
+
   if (A == nullptr
       || B == nullptr
       || A->type().type != VMType::VM_BOOLEAN
@@ -666,13 +691,8 @@ expr(OUT) ::= expr(A) OR expr(B). {
     OUT = nullptr;
   } else {
     // TODO: Don't evaluate B if not needed.
-    OUT = new BinaryOperator(
-        unique_ptr<Expression>(A),
-        unique_ptr<Expression>(B),
-        VMType::Bool(),
-        [](const Value& a, const Value& b, Value* output) {
-          output->boolean = a.boolean || b.boolean;
-        });
+    OUT = new OrExpression(
+        unique_ptr<Expression>(A), unique_ptr<Expression>(B));
     A = nullptr;
     B = nullptr;
   }
