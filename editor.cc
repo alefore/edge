@@ -67,8 +67,7 @@ EditorState::EditorState()
       status_(""),
       home_directory_(GetHomeDirectory()),
       edge_path_(GetEdgeConfigPath(home_directory_)),
-      environment_(afc::vm::Environment::DefaultEnvironment()) {
-  using namespace afc::vm;
+      environment_(Environment::DefaultEnvironment()) {
   OpenBuffer::RegisterBufferType(this, &environment_);
   unique_ptr<ObjectType> line_column(new ObjectType("LineColumn"));
 
@@ -414,20 +413,24 @@ void EditorState::ApplyToCurrentBuffer(const Transformation& transformation) {
   current_buffer_->second->Apply(this, transformation);
 }
 
-void EditorState::Evaluate(const string& str) {
-  using namespace afc::vm;
-  Evaluator evaluator(unique_ptr<Environment>(new Environment(environment_)));
-  evaluator.AppendInput(str);
+unique_ptr<Evaluator> EditorState::NewEvaluator() {
+  return unique_ptr<Evaluator>(new Evaluator(
+      unique_ptr<Environment>(new Environment(environment_)),
+      [this](const string& error_description) {
+        SetStatus("Error: " + error_description);
+      }));
 }
 
-void EditorState::EvaluateFile(const string& path,
-                               afc::vm::Environment* environment) {
-  using namespace afc::vm;
-  Evaluator evaluator(unique_ptr<Environment>(new Environment(environment)));
+void EditorState::Evaluate(const string& str) {
+  NewEvaluator()->AppendInput(str);
+}
+
+void EditorState::EvaluateFile(const string& path, Environment* environment) {
+  unique_ptr<Evaluator> evaluator = NewEvaluator();
   std::ifstream infile(path);
   std::string line;
   while (std::getline(infile, line)) {
-    evaluator.AppendInput(line);
+    evaluator->AppendInput(line);
   }
 }
 

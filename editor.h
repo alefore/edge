@@ -17,6 +17,8 @@
 namespace afc {
 namespace editor {
 
+using namespace afc::vm;
+
 using std::shared_ptr;
 using std::unique_ptr;
 using std::vector;
@@ -152,9 +154,11 @@ class EditorState {
 
   void ApplyToCurrentBuffer(const Transformation& transformation);
 
+  unique_ptr<Evaluator> NewEvaluator();
+
   void Evaluate(const string& str);
-  void EvaluateFile(const string& path, afc::vm::Environment* environment);
-  afc::vm::Environment* environment() { return &environment_; }
+  void EvaluateFile(const string& path, Environment* environment);
+  Environment* environment() { return &environment_; }
 
   string expand_path(const string& path);
 
@@ -183,7 +187,7 @@ class EditorState {
   string home_directory_;
   vector<string> edge_path_;
 
-  afc::vm::Environment environment_;
+  Environment environment_;
 };
 
 }  // namespace editor

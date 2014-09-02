@@ -1,5 +1,7 @@
 string path = buffer.path();
+
 int dot = path.find_last_of(".", path.size());
+
 if (dot == -1) {
   SetStatus("Unable to find extension.");
 } else {

@@ -54,13 +54,19 @@ statement(A) ::= expr(B) SEMICOLON . {
 }
 
 statement(A) ::= error. {
+  evaluator->error_handler()("Compilation error near: " + evaluator->last_token());
   A = new ConstantExpression(Value::Void());
 }
 
 statement(OUT) ::= function_declaration_params(FUNC)
     LBRACKET statement_list(BODY) RBRACKET. {
-  if (FUNC == nullptr || BODY == nullptr
-      || !(FUNC->type.type_arguments[0] == BODY->type())) {
+  if (FUNC == nullptr || BODY == nullptr) {
+    OUT = nullptr;
+  } else if (!(FUNC->type.type_arguments[0] == BODY->type())) {
+    evaluator->error_handler()(
+        FUNC->name
+        + ": Expected \"" + FUNC->type.type_arguments[0].ToString()
+        + "\" return value but found \"" + BODY->type().ToString() + "\".");
     OUT = nullptr;
   } else {
     // TODO: Use unique_ptr rather than shared_ptr when lambda capture works.
@@ -94,25 +100,30 @@ function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME)
   assert(RETURN_TYPE->type == VMType::VM_SYMBOL);
   assert(NAME->type == VMType::VM_SYMBOL);
 
-  const VMType* return_type_def =
-      evaluator->environment()->LookupType(RETURN_TYPE->str);
-  if (return_type_def == nullptr) {
+  if (ARGS == nullptr) {
     OUT = nullptr;
   } else {
-    OUT = new UserFunction();
-    OUT->name = NAME->str;
-    OUT->type.type = VMType::FUNCTION;
-    OUT->type.type_arguments.push_back(*return_type_def);
-    for (pair<VMType, string> arg : *ARGS) {
-      OUT->type.type_arguments.push_back(arg.first);
-      OUT->argument_names.push_back(arg.second);
-    }
-    evaluator->environment()->Define(
-        NAME->str, unique_ptr<Value>(new Value(OUT->type)));
-    evaluator->PushEnvironment();
-    for (pair<VMType, string> arg : *ARGS) {
+    const VMType* return_type_def =
+        evaluator->environment()->LookupType(RETURN_TYPE->str);
+    if (return_type_def == nullptr) {
+      evaluator->error_handler()("Unknown type: \"" + RETURN_TYPE->str + "\"");
+      OUT = nullptr;
+    } else {
+      OUT = new UserFunction();
+      OUT->name = NAME->str;
+      OUT->type.type = VMType::FUNCTION;
+      OUT->type.type_arguments.push_back(*return_type_def);
+      for (pair<VMType, string> arg : *ARGS) {
+        OUT->type.type_arguments.push_back(arg.first);
+        OUT->argument_names.push_back(arg.second);
+      }
       evaluator->environment()->Define(
-          arg.second, unique_ptr<Value>(new Value(arg.first)));
+          NAME->str, unique_ptr<Value>(new Value(OUT->type)));
+      evaluator->PushEnvironment();
+      for (pair<VMType, string> arg : *ARGS) {
+        evaluator->environment()->Define(
+            arg.second, unique_ptr<Value>(new Value(arg.first)));
+      }
     }
   }
 }
@@ -151,8 +162,12 @@ statement(OUT) ::= WHILE LPAREN expr(CONDITION) RPAREN statement(BODY). {
     unique_ptr<Expression> body_;
   };
 
-  if (CONDITION == nullptr || BODY == nullptr
-      || CONDITION->type().type != VMType::VM_BOOLEAN) {
+  if (CONDITION == nullptr || BODY == nullptr) {
+    OUT = nullptr;
+  } else if (CONDITION->type().type != VMType::VM_BOOLEAN) {
+    evaluator->error_handler()(
+        "Expected bool value for condition of \"while\" loop but found \""
+        + CONDITION->type().ToString() + "\".");
     OUT = nullptr;
   } else {
     OUT = new WhileEvaluator(unique_ptr<Expression>(CONDITION),
@@ -191,9 +206,18 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE) ELSE stat
     unique_ptr<Expression> false_case_;
   };
 
-  if (CONDITION == nullptr || TRUE_CASE == nullptr || FALSE_CASE == nullptr
-      || CONDITION->type().type != VMType::VM_BOOLEAN
-      || !(TRUE_CASE->type() == FALSE_CASE->type())) {
+  if (CONDITION == nullptr || TRUE_CASE == nullptr || FALSE_CASE == nullptr) {
+    A = nullptr;
+  } else if (CONDITION->type().type != VMType::VM_BOOLEAN) {
+    evaluator->error_handler()(
+        "Expected bool value for condition of \"if\" expression but found \""
+        + CONDITION->type().ToString() + "\".");
+    A = nullptr;
+  } else if (!(TRUE_CASE->type() == FALSE_CASE->type())) {
+    evaluator->error_handler()(
+        "Type mismatch of branches in \"if\" expression: "
+        + TRUE_CASE->type().ToString() + " != "
+        + FALSE_CASE->type().ToString());
     A = nullptr;
   } else {
     A = new IfEvaluator(unique_ptr<Expression>(CONDITION),
@@ -213,7 +237,13 @@ statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) SEMICOLON. {
     A = nullptr;
   } else {
     const VMType* type_def = evaluator->environment()->LookupType(TYPE->str);
-    if (type_def == nullptr || !(*type_def == VALUE->type())) {
+    if (type_def == nullptr) {
+      evaluator->error_handler()("Unknown type: \"" + TYPE->str + "\"");
+      A = nullptr;
+    } else if (!(*type_def == VALUE->type())) {
+      evaluator->error_handler()(
+          "Unable to assign a value of type \"" + VALUE->type().ToString()
+          + "\" to a variable of type \"" + type_def->ToString() + "\".");
       A = nullptr;
     } else {
       evaluator->environment()->Define(
@@ -283,6 +313,7 @@ function_declaration_arguments(OUT) ::= non_empty_function_declaration_arguments
 non_empty_function_declaration_arguments(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME). {
   const VMType* type_def = evaluator->environment()->LookupType(TYPE->str);
   if (type_def == nullptr) {
+    evaluator->error_handler()("Unknown type: \"" + TYPE->str + "\"");
     OUT = nullptr;
   } else {
     OUT = new vector<pair<VMType, string>>;
@@ -297,6 +328,7 @@ non_empty_function_declaration_arguments(OUT) ::=
   } else {
     const VMType* type_def = evaluator->environment()->LookupType(TYPE->str);
     if (type_def == nullptr) {
+      evaluator->error_handler()("Unknown type: \"" + TYPE->str + "\"");
       OUT = nullptr;
     } else {
       OUT = L;
@@ -324,7 +356,13 @@ expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
     OUT = nullptr;
   } else {
     auto obj = evaluator->environment()->Lookup(NAME->str);
-    if (obj == nullptr || !(obj->type == VALUE->type())) {
+    if (obj == nullptr) {
+      evaluator->error_handler()("Variable not found: \"" + NAME->str + "\"");
+      OUT = nullptr;
+    } else if (!(obj->type == VALUE->type())) {
+      evaluator->error_handler()(
+          "Unable to assign a value of type \"" + VALUE->type().ToString()
+          + "\" to a variable of type \"" + obj->type.ToString() + "\".");
       OUT = nullptr;
     } else {
       OUT = new AssignExpression(NAME->str, unique_ptr<Expression>(VALUE));
@@ -334,9 +372,13 @@ expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
 }
 
 expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
-  if (OBJ == nullptr || ARGS == nullptr
-      || (OBJ->type().type != VMType::OBJECT_TYPE
-          && OBJ->type().type != VMType::VM_STRING)) {
+  if (OBJ == nullptr || ARGS == nullptr) {
+    OUT = nullptr;
+  } else if (OBJ->type().type != VMType::OBJECT_TYPE
+             && OBJ->type().type != VMType::VM_STRING) {
+    evaluator->error_handler()(
+        "Expected an object type, found a primitive type: \""
+        + OBJ->type().ToString() + "\"");
     OUT = nullptr;
   } else {
     string object_type_name;
@@ -353,24 +395,38 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
     const ObjectType* object_type =
         evaluator->environment()->LookupObjectType(object_type_name);
     if (object_type == nullptr) {
+      evaluator->error_handler()(
+          "Unknown type: \"" + OBJ->type().ToString() + "\"");
       OUT = nullptr;
     } else {
       auto field = object_type->LookupField(FIELD->str);
       if (field == nullptr) {
+        evaluator->error_handler()(
+            "Unknown method: \"" + object_type->ToString() + "::"
+            + FIELD->str + "\"");
         OUT = nullptr;
       } else if (field->type.type_arguments.size() != 2 + ARGS->size()) {
+        evaluator->error_handler()(
+            "Invalid number of arguments provided for method \""
+            + object_type->ToString() + "::" + FIELD->str + "\": Expected "
+            + to_string(field->type.type_arguments.size() - 2) + " but found "
+            + to_string(ARGS->size()));
         OUT = nullptr;
       } else {
         assert(field->type.type_arguments[1] == OBJ->type());
-        bool match = true;
-        for (size_t i = 0; i < ARGS->size(); i++) {
-          assert(2 + i < field->type.type_arguments.size());
-          if (!(field->type.type_arguments[2 + i] == ARGS->at(i)->type())) {
-            match = false;
-            break;
-          }
+        size_t argument = 0;
+        while (argument < ARGS->size()
+               && (field->type.type_arguments[2 + argument]
+                   == ARGS->at(argument)->type())) {
+          argument++;
         }
-        if (!match) {
+        if (argument < ARGS->size()) {
+          evaluator->error_handler()(
+              "Type mismatch in argument " + to_string(argument)
+              + " to method \"" + object_type->ToString() + "::" + FIELD->str
+              + "\": Expected \""
+              + field->type.type_arguments[2 + argument].ToString()
+              + "\" but found \"" + ARGS->at(argument)->type().ToString() + "\"");
           OUT = nullptr;
         } else {
           unique_ptr<Value> field_copy(new Value(field->type.type));

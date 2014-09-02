@@ -11,6 +11,7 @@ namespace vm {
 
 using std::cerr;
 using std::pair;
+using std::to_string;
 
 struct UserFunction {
   string name;
@@ -50,6 +51,20 @@ bool operator==(const VMType& lhs, const VMType& rhs) {
 /* static */ const VMType& VMType::integer_type() {
   static VMType type(VMType::VM_INTEGER);
   return type;
+}
+
+string VMType::ToString() const {
+  switch (type) {
+    case VM_VOID: return "void";
+    case VM_BOOLEAN: return "bool";
+    case VM_INTEGER: return "int";
+    case VM_STRING: return "string";
+    case VM_SYMBOL: return "symbol";
+    case ENVIRONMENT: return "environment";
+    case FUNCTION: return "function";
+    case OBJECT_TYPE: return object_type;
+  }
+  return "unknown";
 }
 
 /* static */ unique_ptr<Value> Value::Void() {
@@ -230,9 +245,11 @@ void ValueDestructor(Value* value) {
 #include "cpp.h"
 #include "cpp.c"
 
-Evaluator::Evaluator(unique_ptr<Environment> environment)
+Evaluator::Evaluator(unique_ptr<Environment> environment,
+                     ErrorHandler error_handler)
     : base_environment_(std::move(environment)),
       environment_(base_environment_.get()),
+      error_handler_(error_handler),
       parser_(
           CppAlloc(malloc),
           [this](void* parser) {
@@ -448,6 +465,9 @@ void Evaluator::AppendInput(const string& str) {
       default:
         cerr << "Unhandled character at position " << pos << ": " << str;
         exit(54);
+    }
+    if (token == SYMBOL || token == STRING) {
+      last_token_ = input->str;
     }
     Cpp(parser_.get(), token, input, this);
   }

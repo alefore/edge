@@ -41,6 +41,8 @@ struct VMType {
   static VMType ObjectType(afc::vm::ObjectType* type);
   static VMType ObjectType(const string& name);
 
+  string ToString() const;
+
   Type type;
   vector<VMType> type_arguments;
   string object_type;
@@ -109,6 +111,7 @@ class ObjectType {
         fields_(new map<string, unique_ptr<Value>>) {}
 
   const VMType& type() const { return type_; }
+  string ToString() const { return type_.ToString(); }
 
   void AddField(const string& name, unique_ptr<Value> field) {
     auto it = fields_->insert(make_pair(name, nullptr));
@@ -156,7 +159,9 @@ class Environment {
 
 class Evaluator {
  public:
-  Evaluator(unique_ptr<Environment> environment);
+  typedef function<void(const string&)> ErrorHandler;
+
+  Evaluator(unique_ptr<Environment> environment, ErrorHandler error_handler);
 
   void Define(const string& name, unique_ptr<Value> value);
 
@@ -172,9 +177,15 @@ class Evaluator {
     environment_ = environment_->parent_environment();
   }
 
+  const ErrorHandler& error_handler() const { return error_handler_; }
+
+  const string last_token() const { return last_token_; }
+
  private:
   unique_ptr<Environment> base_environment_;
   Environment* environment_;
+  ErrorHandler error_handler_;
+  string last_token_;
   unique_ptr<void, function<void(void*)>> parser_;
 };
 
