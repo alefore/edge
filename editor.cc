@@ -69,7 +69,7 @@ EditorState::EditorState()
       edge_path_(GetEdgeConfigPath(home_directory_)),
       environment_(afc::vm::Environment::DefaultEnvironment()) {
   using namespace afc::vm;
-  OpenBuffer::RegisterBufferType(&environment_);
+  OpenBuffer::RegisterBufferType(this, &environment_);
   unique_ptr<ObjectType> line_column(new ObjectType("LineColumn"));
 
   // Methods for LineColumn.

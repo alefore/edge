@@ -42,29 +42,6 @@ struct ParseTree {
   vector<unique_ptr<ParseTree>> items;
 };
 
-class TransformationStack : public Transformation {
- public:
-  void PushBack(unique_ptr<Transformation> transformation) {
-    stack_.push_back(std::move(transformation));
-  }
-
-  void PushFront(unique_ptr<Transformation> transformation) {
-    stack_.push_front(std::move(transformation));
-  }
-
-  unique_ptr<Transformation> Apply(
-      EditorState* editor_state, OpenBuffer* buffer) const {
-    unique_ptr<TransformationStack> undo(new TransformationStack());
-    for (auto& it : stack_) {
-      undo->PushFront(it->Apply(editor_state, buffer));
-    }
-    return std::move(undo);
-  }
-
- private:
-  list<unique_ptr<Transformation>> stack_;
-};
-
 // A position in a text buffer.
 struct LineColumn {
   LineColumn() : line(0), column(0) {}
@@ -88,7 +65,8 @@ class OpenBuffer {
   static const string kBuffersName;
   static const string kPasteBuffer;
 
-  static void RegisterBufferType(afc::vm::Environment* environment);
+  static void RegisterBufferType(EditorState* editor_state,
+                                 afc::vm::Environment* environment);
 
   OpenBuffer(EditorState* editor_state, const string& name);
 

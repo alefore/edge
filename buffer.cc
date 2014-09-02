@@ -60,7 +60,7 @@ using std::to_string;
 /* static */ const string OpenBuffer::kPasteBuffer = "- paste buffer";
 
 /* static */ void OpenBuffer::RegisterBufferType(
-    afc::vm::Environment* environment) {
+    EditorState* editor_state, afc::vm::Environment* environment) {
   unique_ptr<ObjectType> buffer(new ObjectType("Buffer"));
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
@@ -139,6 +139,46 @@ using std::to_string;
               new LineColumn(buffer->position())));
         };
     buffer->AddField("position", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
+    VMType function_argument(VMType::FUNCTION);
+    function_argument.type_arguments.push_back(VMType(VMType::VM_STRING));
+    function_argument.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->type.type_arguments.push_back(function_argument);
+    callback->callback =
+        [editor_state](vector<unique_ptr<Value>> args) {
+          assert(args.size() == 2);
+          assert(args[0]->type == VMType::OBJECT_TYPE);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          assert(buffer != nullptr);
+          LineColumn old_position = buffer->position();
+          buffer->set_position(LineColumn(0));
+          TransformationStack transformation;
+          while (buffer->position().line + 1 < buffer->contents()->size()) {
+            string current_line = buffer->current_line()->contents->ToString();
+            vector<unique_ptr<Value>> line_args;
+            line_args.push_back(Value::NewString(current_line));
+            unique_ptr<Value> result = args[1]->callback(std::move(line_args));
+            if (result->str != current_line) {
+              transformation.PushBack(NewDeleteTransformation(
+                  buffer->position(), LineColumn(buffer->position().line + 1)));
+              shared_ptr<OpenBuffer> buffer_to_insert(
+                  new OpenBuffer(editor_state, "tmp buffer"));
+              buffer_to_insert->AppendLine(
+                  editor_state, NewCopyString(result->str));
+              transformation.PushBack(NewInsertBufferTransformation(
+                  buffer_to_insert, buffer->position(), 1));
+            }
+            buffer->set_position(LineColumn(buffer->position().line + 1));
+          }
+          buffer->Apply(editor_state, transformation);
+          buffer->set_position(old_position);
+          return Value::Void();
+        };
+    buffer->AddField("Map", std::move(callback));
   }
   environment->DefineType("Buffer", std::move(buffer));
 }
