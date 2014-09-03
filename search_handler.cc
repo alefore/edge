@@ -10,10 +10,12 @@ extern "C" {
 }
 #endif
 
+#include "char_buffer.h"
 #include "editor.h"
 
 namespace {
 
+using namespace afc::editor;
 using std::vector;
 using std::string;
 
@@ -51,13 +53,15 @@ vector<size_t> GetMatches(const string& line, const RegexPattern& pattern) {
 
 template <typename Iterator>
 size_t FindInterestingMatch(
-    Iterator begin, Iterator end, bool wrapped, size_t pos_line,
-    size_t pos_column, size_t line, afc::editor::Direction direction) {
+    Iterator begin, Iterator end, bool wrapped, const LineColumn start_position,
+    size_t line, afc::editor::Direction direction) {
   if (begin == end) { return string::npos; }
-  if (pos_line != line) { return *begin; }
+  if (start_position.line != line) { return *begin; }
   bool require_greater = wrapped ^ (direction == afc::editor::FORWARDS);
   while (begin != end) {
-    if (require_greater ? *begin > pos_column : *begin < pos_column) {
+    if (require_greater
+        ? *begin > start_position.column
+        : *begin < start_position.column) {
       return *begin;
     }
     ++begin;
@@ -65,23 +69,29 @@ size_t FindInterestingMatch(
   return string::npos;
 }
 
-void PerformSearch(afc::editor::EditorState* editor_state,
-                   const string& input) {
+bool PerformSearch(
+    const string& input,
+    OpenBuffer* buffer,
+    const LineColumn& start_position,
+    afc::editor::Direction direction,
+    LineColumn* match_position,
+    bool* wrapped) {
   using namespace afc::editor;
-  auto buffer = editor_state->current_buffer()->second;
 
 #if CPP_REGEX
   std::regex pattern(input);
 #else
   regex_t pattern;
-  regcomp(&pattern, input.c_str(), REG_ICASE);
+  if (regcomp(&pattern, input.c_str(), REG_ICASE) != 0) {
+    return false;
+  }
 #endif
 
   int delta;
-  size_t position_line = buffer->current_position_line();
+  size_t position_line = start_position.line;
   assert(position_line < buffer->contents()->size());
 
-  switch (editor_state->direction()) {
+  switch (direction) {
     case FORWARDS:
       delta = 1;
       break;
@@ -90,9 +100,7 @@ void PerformSearch(afc::editor::EditorState* editor_state,
       break;
   }
 
-  editor_state->SetStatus("Not found");
-
-  bool wrapped = false;
+  *wrapped = false;
 
   // We search once for every line, and then again in the current line.
   for (size_t i = 0; i <= buffer->contents()->size(); i++) {
@@ -100,37 +108,34 @@ void PerformSearch(afc::editor::EditorState* editor_state,
 
     vector<size_t> matches = GetMatches(str, pattern);
     size_t interesting_match;
-    if (editor_state->direction() == FORWARDS) {
+    if (direction == FORWARDS) {
       interesting_match = FindInterestingMatch(
-          matches.begin(), matches.end(), wrapped,
-          buffer->current_position_line(), buffer->current_position_col(),
-          position_line, editor_state->direction());
+          matches.begin(), matches.end(), *wrapped, start_position,
+          position_line, direction);
     } else {
       interesting_match = FindInterestingMatch(
-          matches.rbegin(), matches.rend(), wrapped,
-          buffer->current_position_line(), buffer->current_position_col(),
-          position_line, editor_state->direction());
+          matches.rbegin(), matches.rend(), *wrapped, start_position,
+          position_line, direction);
     }
 
     if (interesting_match != string::npos) {
-      editor_state->PushCurrentPosition();
-      buffer->set_current_position_line(position_line);
-      buffer->set_current_position_col(interesting_match);
-      editor_state->SetStatus(wrapped ? "Found (wrapped)" : "Found");
-      break;  // TODO: Honor repetitions.
+      match_position->line = position_line;
+      match_position->column = interesting_match;
+      return true;
     }
 
     if (position_line == 0 && delta == -1) {
       position_line = buffer->contents()->size() - 1;
-      wrapped = true;
+      *wrapped = true;
     } else if (position_line == buffer->contents()->size() - 1 && delta == 1) {
       position_line = 0;
-      wrapped = true;
+      *wrapped = true;
     } else {
       position_line += delta;
     }
     assert(position_line < buffer->contents()->size());
   }
+  return false;
 }
 
 }  // namespace
@@ -142,11 +147,48 @@ namespace editor {
 using std::regex;
 #endif
 
+shared_ptr<LazyString>
+RegexEscape(shared_ptr<LazyString> str) {
+  string results;
+  static string literal_characters = " ()<>";
+  for (size_t i = 0; i < str->size(); i++) {
+    int c = str->get(i);
+    if (!isalnum(c) && literal_characters.find(c) == string::npos) {
+      results.push_back('\\');
+    }
+    results.push_back(c);
+  }
+  return NewCopyString(results);
+}
+
 void SearchHandlerPredictor(
-    EditorState* editor_state, const string& input, OpenBuffer* buffer) {
-  PerformSearch(editor_state, input);
-  editor_state->set_status_prompt(false);
-  editor_state->ScheduleRedraw();
+    EditorState* editor_state, const string& input,
+    OpenBuffer* predictions_buffer) {
+  auto buffer = editor_state->current_buffer()->second;
+  LineColumn match_position = buffer->position();
+  bool already_wrapped = false;
+  for (size_t i = 0; i < 10; i++) {
+    bool wrapped;
+    if (!PerformSearch(input, buffer.get(), match_position,
+                       editor_state->direction(), &match_position, &wrapped)) {
+      break;
+    }
+    if (i == 0) {
+      buffer->set_position(match_position);
+      editor_state->set_status_prompt(false);
+      editor_state->ScheduleRedraw();
+    }
+    predictions_buffer->AppendLine(
+        editor_state,
+        RegexEscape(
+            Substring(buffer->LineAt(match_position.line)->contents,
+                      match_position.column)));
+    if (wrapped && already_wrapped) {
+      break;
+    }
+    already_wrapped |= wrapped;
+  }
+  predictions_buffer->EndOfFile(editor_state);
 }
 
 void SearchHandler(const string& input, EditorState* editor_state) {
@@ -158,7 +200,21 @@ void SearchHandler(const string& input, EditorState* editor_state) {
     return;
   }
 
-  PerformSearch(editor_state, input);
+  auto buffer = editor_state->current_buffer()->second;
+  LineColumn match_position;
+  bool wrapped;
+  if (!PerformSearch(input, buffer.get(), buffer->position(),
+                     editor_state->direction(), &match_position, &wrapped)) {
+    editor_state->SetStatus("No matches: " + input);
+  } else {
+    buffer->set_position(match_position);
+    editor_state->PushCurrentPosition();
+    if (wrapped) {
+      editor_state->SetStatus("Found (wrapped).");
+    } else {
+      editor_state->SetStatus("Found.");
+    }
+  }
 
   editor_state->ResetMode();
   editor_state->ResetDirection();
