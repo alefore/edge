@@ -20,7 +20,7 @@ LineColumn EndPosition() {
 }
 
 string StripLeadingWhitespace(string text) {
-  int pos_first = text.find_first_not_of(" ", 0);
+  int pos_first = text.find_first_not_of(b.line_prefix_characters(), 0);
   if (pos_first != -1) {
     text = text.substr(pos_first, text.size() - pos_first);
   }
@@ -51,11 +51,11 @@ string CollapseText(int line_start, int line_end) {
 }
 
 string ExtractToken(string text) {
-  int pos_start = text.find_first_not_of(" ", 0);
+  int pos_start = text.find_first_not_of(b.line_prefix_characters(), 0);
   if (pos_start == -1) {
     return text;
   }
-  int pos_end = text.find(" ", pos_start);
+  int pos_end = text.find_first_of(" ", pos_start);
   if (pos_end == -1) {
     return text;
   }
@@ -64,7 +64,7 @@ string ExtractToken(string text) {
 
 void InsertWrappedText(string text) {
   string leading_prefix = ExtractToken(text);
-  int pos_end = leading_prefix.find_first_not_of(" ", 0);
+  int pos_end = leading_prefix.find_first_not_of(b.line_prefix_characters(), 0);
   if (pos_end != -1) {
     leading_prefix = leading_prefix.substr(0, pos_end);
   }
@@ -73,7 +73,7 @@ void InsertWrappedText(string text) {
     string token = ExtractToken(text);
     text = text.substr(token.size(), text.size() - token.size());
     string line = b.line(b.position().line());
-    if (line == "" || line.size() + token.size() - 1 < 20) {
+    if (line == "" || line.size() + token.size() - 1 < 80) {
       InsertText(token);
       b.set_position(LineColumn(b.position().line(), line.size() + token.size()));
     } else {
