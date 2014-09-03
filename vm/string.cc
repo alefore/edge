@@ -114,6 +114,25 @@ void RegisterStringType(Environment* environment) {
           assert(args[0]->type == VMType::VM_STRING);
           assert(args[1]->type == VMType::VM_STRING);
           assert(args[2]->type == VMType::VM_INTEGER);
+          size_t pos =
+              args[0]->str.find_first_of(args[1]->str, args[2]->integer);
+          if (pos == string::npos) {
+            return Value::NewInteger(-1);
+          }
+          return Value::NewInteger(pos);
+        };
+    string_type->AddField("find_first_of", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    callback->callback = [](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::VM_STRING);
+          assert(args[1]->type == VMType::VM_STRING);
+          assert(args[2]->type == VMType::VM_INTEGER);
           size_t pos = args[0]->str.find_first_not_of(args[1]->str, args[2]->integer);
           if (pos == string::npos) {
             return Value::NewInteger(-1);
