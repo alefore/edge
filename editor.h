@@ -145,7 +145,7 @@ class EditorState {
 
   void set_status_prompt(bool value) { status_prompt_ = value; }
   bool status_prompt() const { return status_prompt_; }
-  void SetStatus(const string& status) { status_ = status; }
+  void SetStatus(const string& status);
   void ResetStatus() { SetStatus(""); }
   const string& status() const { return status_; }
 

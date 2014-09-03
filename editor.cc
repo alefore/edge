@@ -376,6 +376,22 @@ static BufferPosition PositionFromLine(const string& line) {
   return pos;
 }
 
+void EditorState::SetStatus(const string& status) {
+  status_ = status;
+  if (status_prompt_ || status.empty()) { return; }
+  auto status_buffer_it = buffers_.insert(make_pair("- console", nullptr));
+  if (status_buffer_it.second) {
+    // Inserted the entry.
+    status_buffer_it.first->second = shared_ptr<OpenBuffer>(
+        new OpenBuffer(this, status_buffer_it.first->first));
+  }
+  status_buffer_it.first->second
+      ->AppendLazyString(this, NewCopyString(status + "\n"));
+  if (current_buffer_ == status_buffer_it.first) {
+    ScheduleRedraw();
+  }
+}
+
 bool EditorState::HasPositionsInStack() {
   auto it = buffers_.find(kPositionsBufferName);
   return it != buffers_.end() && it->second->contents()->size() > 1;
