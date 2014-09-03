@@ -150,7 +150,7 @@ using std::regex;
 shared_ptr<LazyString>
 RegexEscape(shared_ptr<LazyString> str) {
   string results;
-  static string literal_characters = " ()<>";
+  static string literal_characters = " ()<>{}+_-;\"':,?#%";
   for (size_t i = 0; i < str->size(); i++) {
     int c = str->get(i);
     if (!isalnum(c) && literal_characters.find(c) == string::npos) {
