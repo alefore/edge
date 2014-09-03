@@ -738,16 +738,6 @@ void SetRepetitions(EditorState* editor_state, int number) {
   editor_state->set_repetitions(number);
 }
 
-class SetStickyStructureCommand : public Command {
- public:
-  const string Description() {
-    return "toggles the stickyness of the current structure";
-  }
-  void ProcessInput(int c, EditorState* editor_state) {
-    editor_state->set_sticky_structure(!editor_state->sticky_structure());
-  }
-};
-
 class SetStructureCommand : public Command {
  public:
   SetStructureCommand(EditorState::Structure value, const string& description)
@@ -758,8 +748,15 @@ class SetStructureCommand : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    editor_state->set_structure(value_);
-    editor_state->set_sticky_structure(false);
+    if (editor_state->structure() != value_) {
+      editor_state->set_structure(value_);
+      editor_state->set_sticky_structure(false);
+    } else if (!editor_state->sticky_structure()) {
+      editor_state->set_sticky_structure(true);
+    } else {
+      editor_state->set_structure(EditorState::CHAR);
+      editor_state->set_sticky_structure(false);
+    }
   }
 
  private:
@@ -994,8 +991,6 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('k', new LineUp()));
     output.insert(make_pair('l', new MoveForwards()));
     output.insert(make_pair('h', new MoveBackwards()));
-
-    output.insert(make_pair('s', new SetStickyStructureCommand()));
 
     output.insert(make_pair('~', new SwitchCaseCommand()));
 
