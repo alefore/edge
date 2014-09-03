@@ -9,8 +9,6 @@ Handle unicode.
 
 When an anonymous buffer is saved, ask for the name?
 
-Reflow a paragraph?  How to detect the prefix?
-
 Handle DELETE key
 
 Implement delete of page.
