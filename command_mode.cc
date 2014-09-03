@@ -567,7 +567,9 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
       break;
 
     case EditorState::SEARCH:
-      SearchHandler(editor_state->last_search_query(), editor_state);
+      SearchHandler(
+          editor_state->current_buffer()->second->position(),
+          editor_state->last_search_query(), editor_state);
       editor_state->ResetStructure();
       break;
 
@@ -665,7 +667,9 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
 
     case EditorState::SEARCH:
       editor_state->set_direction(BACKWARDS);
-      SearchHandler(editor_state->last_search_query(), editor_state);
+      SearchHandler(
+          editor_state->current_buffer()->second->position(),
+          editor_state->last_search_query(), editor_state);
       editor_state->ResetStructure();
       break;
 
@@ -851,6 +855,7 @@ class StartSearchMode : public Command {
             buffer->set_position(start);
           }
           SearchHandler(
+              buffer->position(),
               Substring(buffer->LineAt(start.line)->contents,
                         start.column, end.column - start.column)
                   ->ToString(),
@@ -859,7 +864,11 @@ class StartSearchMode : public Command {
         break;
 
       default:
-        Prompt(editor_state, "/", "search", "", SearchHandler,
+        auto position = editor_state->current_buffer()->second->position();
+        Prompt(editor_state, "/", "search", "",
+               [position](const string& input, EditorState* editor_state) {
+                 SearchHandler(position, input, editor_state);
+               },
                SearchHandlerPredictor);
         break;
     }

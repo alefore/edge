@@ -48,6 +48,8 @@ struct LineColumn {
   LineColumn(size_t l) : line(l), column(0) {}
   LineColumn(size_t l, size_t c) : line(l), column(c) {}
 
+  bool operator!=(const LineColumn& other) const;
+
   bool at_beginning_of_line() const { return column == 0; }
   bool at_beginning() const { return line == 0 && at_beginning_of_line(); }
 

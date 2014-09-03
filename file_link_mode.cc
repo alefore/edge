@@ -127,7 +127,7 @@ class FileLinkMode : public EditorMode {
           if (it == editor_state->buffers()->end()) { return; }
           editor_state->set_current_buffer(it);
           it->second->set_position(position_);
-          SearchHandler(pattern_, editor_state);
+          SearchHandler(position_, pattern_, editor_state);
           return;
         }
 

@@ -191,7 +191,9 @@ void SearchHandlerPredictor(
   predictions_buffer->EndOfFile(editor_state);
 }
 
-void SearchHandler(const string& input, EditorState* editor_state) {
+void SearchHandler(
+    const LineColumn& starting_position, const string& input,
+    EditorState* editor_state) {
   editor_state->set_last_search_query(input);
   if (!editor_state->has_current_buffer() || input.empty()) {
     editor_state->ResetMode();
@@ -201,6 +203,14 @@ void SearchHandler(const string& input, EditorState* editor_state) {
   }
 
   auto buffer = editor_state->current_buffer()->second;
+  if (starting_position != buffer->position()) {
+    // The user must have used the predictor, which probably means we don't need
+    // to do much.
+    editor_state->ResetMode();
+    editor_state->ResetDirection();
+    return;
+  }
+
   LineColumn match_position;
   bool wrapped;
   if (!PerformSearch(input, buffer.get(), buffer->position(),

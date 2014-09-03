@@ -96,6 +96,10 @@ namespace editor {
 using namespace afc::vm;
 using std::to_string;
 
+bool LineColumn::operator!=(const LineColumn& other) const {
+  return line != other.line || column != other.column;
+}
+
 /* static */ const string OpenBuffer::kBuffersName = "- buffers";
 /* static */ const string OpenBuffer::kPasteBuffer = "- paste buffer";
 
