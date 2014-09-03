@@ -48,6 +48,46 @@ void SaveDiff(EditorState* editor_state, OpenBuffer* buffer) {
   editor_state->SetStatus("Changing diff");
 }
 
+static void RegisterBufferFieldString(
+    afc::vm::Environment* environment,
+    afc::vm::ObjectType* object_type,
+    const EdgeVariable<string>* variable) {
+  using namespace afc::vm;
+
+  // Getter.
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->type.type_arguments.push_back(VMType::ObjectType(object_type));
+    callback->callback =
+        [variable](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::OBJECT_TYPE);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          assert(buffer != nullptr);
+          return Value::NewString(buffer->read_string_variable(variable));
+        };
+    object_type->AddField(variable->name(), std::move(callback));
+  }
+
+  // Setter.
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->type.type_arguments.push_back(VMType::ObjectType(object_type));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->callback =
+        [variable](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::OBJECT_TYPE);
+          assert(args[1]->type == VMType::VM_STRING);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          assert(buffer != nullptr);
+          buffer->set_string_variable(variable, args[1]->str);
+          return std::move(Value::Void());
+        };
+    object_type->AddField("set_" + variable->name(), std::move(callback));
+  }
+}
+
 }  // namespace
 
 namespace afc {
@@ -62,38 +102,14 @@ using std::to_string;
 /* static */ void OpenBuffer::RegisterBufferType(
     EditorState* editor_state, afc::vm::Environment* environment) {
   unique_ptr<ObjectType> buffer(new ObjectType("Buffer"));
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::OBJECT_TYPE);
-          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          assert(buffer != nullptr);
-          return Value::NewString(
-              buffer->read_string_variable(OpenBuffer::variable_path()));
-        };
-    buffer->AddField("path", std::move(callback));
+
+  vector<string> string_variable_names;
+  StringStruct()->RegisterVariableNames(&string_variable_names);
+  for (const string& name : string_variable_names) {
+    RegisterBufferFieldString(
+        environment, buffer.get(), StringStruct()->find_variable(name));
   }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::OBJECT_TYPE);
-          assert(args[1]->type == VMType::VM_STRING);
-          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          assert(buffer != nullptr);
-          buffer->set_string_variable(
-              OpenBuffer::variable_editor_commands_path(),
-              args[1]->str);
-          return std::move(Value::Void());
-        };
-    buffer->AddField("set_editor_commands_path", std::move(callback));
-  }
+
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
     callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
