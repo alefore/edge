@@ -52,6 +52,23 @@ void RegisterStringType(Environment* environment) {
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->callback = [](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::VM_STRING);
+          assert(args[1]->type == VMType::VM_STRING);
+          return Value::NewBool(
+              args[1]->str.size() <= args[0]->str.size()
+              && (std::mismatch(args[1]->str.begin(),
+                                args[1]->str.end(),
+                                args[0]->str.begin()).first
+                  == args[1]->str.end()));
+        };
+    string_type->AddField("starts_with", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
     callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
     callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
     callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
