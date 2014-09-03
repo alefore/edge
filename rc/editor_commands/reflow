@@ -1,18 +1,46 @@
 Buffer b = CurrentBuffer();
 
-LineColumn StartPosition() {
+string ExtractToken(string text) {
+  int pos_start = text.find_first_not_of(b.line_prefix_characters(), 0);
+  if (pos_start == -1) {
+    return text;
+  }
+  int pos_end = text.find(" ", pos_start);
+  if (pos_end == -1) {
+    return text;
+  }
+  return text.substr(0, pos_end);
+}
+
+string LeadingPrefix(string text) {
+  string prefix = ExtractToken(text);
+  int pos_end = prefix.find_first_not_of(b.line_prefix_characters(), 0);
+  if (pos_end == -1) {
+    return prefix;
+  } else {
+    return prefix.substr(0, pos_end);
+  }
+}
+
+bool IsLineInCurrentParagraph(string leading_prefix, string line) {
+  return line.starts_with(leading_prefix) && !line.empty();
+}
+
+LineColumn StartPosition(string leading_prefix) {
   int line = b.position().line();
 
-  while (line != 0 && b.line(line - 1) != "") {
+  while (line != 0
+         && IsLineInCurrentParagraph(leading_prefix, b.line(line - 1))) {
     line = line - 1;
   }
 
   return LineColumn(line, 0);
 }
 
-LineColumn EndPosition() {
+LineColumn EndPosition(string leading_prefix) {
   int line = b.position().line();
-  while (line + 1 < b.line_count() && b.line(line + 1) != "") {
+  while (line + 1 < b.line_count()
+         && IsLineInCurrentParagraph(leading_prefix, b.line(line + 1))) {
     line = line + 1;
   }
 
@@ -50,25 +78,8 @@ string CollapseText(int line_start, int line_end) {
   return text;
 }
 
-string ExtractToken(string text) {
-  int pos_start = text.find_first_not_of(b.line_prefix_characters(), 0);
-  if (pos_start == -1) {
-    return text;
-  }
-  int pos_end = text.find_first_of(" ", pos_start);
-  if (pos_end == -1) {
-    return text;
-  }
-  return text.substr(0, pos_end);
-}
-
 void InsertWrappedText(string text) {
-  string leading_prefix = ExtractToken(text);
-  int pos_end = leading_prefix.find_first_not_of(b.line_prefix_characters(), 0);
-  if (pos_end != -1) {
-    leading_prefix = leading_prefix.substr(0, pos_end);
-  }
-
+  string leading_prefix = LeadingPrefix(text);
   while (text != "") {
     string token = ExtractToken(text);
     text = text.substr(token.size(), text.size() - token.size());
@@ -85,8 +96,10 @@ void InsertWrappedText(string text) {
   SetStatus("");
 }
 
-LineColumn start = StartPosition();
-LineColumn end = EndPosition();
+string leading_prefix = LeadingPrefix(b.line(b.position().line()));
+
+LineColumn start = StartPosition(leading_prefix);
+LineColumn end = EndPosition(leading_prefix);
 string text = CollapseText(start.line(), end.line());
 
 DeleteText(start, end);
