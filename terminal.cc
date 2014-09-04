@@ -171,6 +171,14 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
         addch(c);
       }
     }
+    size_t line_width = buffer->read_int_variable(
+        OpenBuffer::variable_line_width());
+    if (pos_end < line_width
+        && pos_end + 1 < buffer->view_start_column() + static_cast<size_t>(COLS)) {
+      addstr(string(line_width - pos_end, ' ').c_str());
+      addch('.');
+      pos_end++;
+    }
     if (pos_end < buffer->view_start_column() + static_cast<size_t>(COLS)) {
       addch('\n');
     }

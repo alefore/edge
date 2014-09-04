@@ -801,6 +801,15 @@ void OpenBuffer::set_string_variable(
   string_variables_.Set(variable, value);
 }
 
+const int& OpenBuffer::read_int_variable(const EdgeVariable<int>* variable) {
+  return int_variables_.Get(variable);
+}
+
+void OpenBuffer::set_int_variable(
+    const EdgeVariable<int>* variable, const int& value) {
+  int_variables_.Set(variable, value);
+}
+
 void OpenBuffer::CopyVariablesFrom(const shared_ptr<const OpenBuffer>& src) {
   assert(src.get() != nullptr);
   bool_variables_.CopyFrom(src->bool_variables_);
