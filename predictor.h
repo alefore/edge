@@ -28,8 +28,8 @@ void FilePredictor(EditorState* editor_state,
                    OpenBuffer* buffer);
 
 void EmptyPredictor(EditorState* editor_state,
-                   const string& input,
-                   OpenBuffer* buffer);
+                    const string& input,
+                    OpenBuffer* buffer);
 
 Predictor PrecomputedPredictor(const vector<string>& predictions);
 
