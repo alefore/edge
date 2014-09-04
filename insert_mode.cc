@@ -7,6 +7,7 @@ extern "C" {
 #include <unistd.h>
 }
 
+#include "char_buffer.h"
 #include "command_mode.h"
 #include "editable_string.h"
 #include "editor.h"
@@ -20,7 +21,7 @@ using namespace afc::editor;
 
 class InsertMode : public EditorMode {
  public:
-  InsertMode(shared_ptr<EditableString>& line) : line_(line) {}
+  InsertMode() {}
 
   void ProcessInput(int c, EditorState* editor_state) {
     auto buffer = editor_state->current_buffer()->second;
@@ -34,101 +35,81 @@ class InsertMode : public EditorMode {
         return;
 
       case Terminal::BACKSPACE:
-        if (line_->Backspace()) {
-          buffer->set_modified(true);
-          editor_state->ScheduleRedraw();
-          buffer->set_current_position_col(buffer->current_position_col() - 1);
-        } else if (buffer->at_beginning_of_line()) {
-          // Join lines.
-          if (buffer->at_beginning()) { return; }
-          auto current_line =
-              buffer->contents()->begin() + buffer->current_position_line();
-          auto previous_line = current_line - 1;
-          if ((*previous_line)->size() == 0) {
-            if ((*previous_line)->activate.get() != nullptr) {
-              (*previous_line)->activate->ProcessInput('d', editor_state);
-            }
-            buffer->contents()->erase(previous_line);
+        {
+          LineColumn start = buffer->position();
+          if (buffer->at_beginning_of_line()) {
+            if (buffer->at_beginning()) { return; }
+            start.line--;
+            start.column = buffer->contents()->at(start.line)->contents->size();
           } else {
-            if (buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())
-                && (*current_line)->contents->size() > 0) { return; }
-            line_ = EditableString::New(StringAppend((*previous_line)->contents,
-                                                     (*current_line)->contents),
-                                        (*previous_line)->contents->size());
-            buffer->set_current_position_col(
-                (*previous_line)->contents->size());
-            (*previous_line).reset(new Line(line_));
-            buffer->contents()->erase(current_line);
+            start.column--;
           }
-          buffer->set_modified(true);
-          buffer->set_current_position_line(buffer->current_position_line() - 1);
-          editor_state->ScheduleRedraw();
-        } else {
-          auto prefix = Substring(
-              buffer->current_line()->contents, 0,
-              min(buffer->current_position_col(),
-                  buffer->current_line()->contents->size()));
-          line_ = EditableString::New(
-              Substring(buffer->current_line()->contents,
-                        buffer->current_position_col()),
-              0,
-              prefix->ToString());
-          buffer->current_line()->contents = line_;
-          assert(line_->Backspace());
+          buffer->Apply(editor_state,
+              *NewDeleteTransformation(start, buffer->position()).get());
           buffer->set_modified(true);
           editor_state->ScheduleRedraw();
-          buffer->set_current_position_col(buffer->current_position_col() - 1);
         }
         return;
 
       case '\n':
-        size_t pos = buffer->current_position_col();
+        auto position = buffer->position();
+        size_t pos = position.column;
+        auto current_line = buffer->current_line()->contents;
+
         if (buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())
             && pos != 0
-            && pos != buffer->current_line()->contents->size()) {
+            && pos != current_line->size()) {
           return;
         }
-
-        // Adjust the old line.
-        buffer->current_line()->contents =
-            Substring(buffer->current_line()->contents, 0, pos);
 
         const string& line_prefix_characters(buffer->read_string_variable(
             OpenBuffer::variable_line_prefix_characters()));
         size_t prefix_end = 0;
         while (prefix_end < pos
-               && (line_prefix_characters.find(buffer->current_line()->contents->get(prefix_end))
+               && (line_prefix_characters.find(current_line->get(prefix_end))
                    != line_prefix_characters.npos)) {
           prefix_end++;
         }
 
-        // Create a new line and insert it.
-        line_ = EditableString::New(
-            StringAppend(Substring(buffer->current_line()->contents, 0, prefix_end),
-                         Substring(line_, pos)),
-            prefix_end);
+        shared_ptr<LazyString> continuation(
+            StringAppend(
+                Substring(current_line, 0, prefix_end),
+                Substring(current_line, position.column,
+                          current_line->size() - position.column)));
 
-        shared_ptr<Line> line(new Line());
-        line->contents = line_;
-        buffer->contents()->insert(
-            buffer->contents()->begin() + buffer->current_position_line() + 1,
-            line);
+        TransformationStack transformation;
+
+        transformation.PushBack(NewDeleteTransformation(
+            position, LineColumn(position.line, current_line->size())));
+
+        {
+          shared_ptr<OpenBuffer> buffer_to_insert(
+            new OpenBuffer(editor_state, "- text inserted"));
+          buffer_to_insert->contents()->emplace_back(new Line(continuation));
+          transformation.PushBack(NewInsertBufferTransformation(
+              buffer_to_insert, buffer->position(), 1));
+        }
+
+        buffer->Apply(editor_state, transformation);
+        buffer->set_position(LineColumn(position.line + 1, prefix_end));
         buffer->set_modified(true);
-
-        // Move to the new line and schedule a redraw.
-        buffer->set_current_position_line(buffer->current_position_line() + 1);
-        buffer->set_current_position_col(prefix_end);
         editor_state->ScheduleRedraw();
         return;
     }
-    line_->Insert(c);
+
+    {
+      shared_ptr<OpenBuffer> buffer_to_insert(
+          new OpenBuffer(editor_state, "- text inserted"));
+      buffer_to_insert->contents()->at(0).reset(
+          new Line(NewCopyString(string(1, c))));
+      buffer->Apply(editor_state,
+          *NewInsertBufferTransformation(
+              buffer_to_insert, buffer->position(), 1).get());
+    }
+
     buffer->set_modified(true);
     editor_state->ScheduleRedraw();
-    buffer->set_current_position_col(buffer->current_position_col() + 1);
   }
-
- private:
-  shared_ptr<EditableString> line_;
 };
 
 class RawInputTypeMode : public EditorMode {
@@ -155,14 +136,10 @@ using std::shared_ptr;
 
 void EnterInsertCharactersMode(EditorState* editor_state) {
   auto buffer = editor_state->current_buffer()->second;
-  shared_ptr<EditableString> new_line;
   assert(!buffer->contents()->empty());
   buffer->MaybeAdjustPositionCol();
-  new_line = EditableString::New(
-      buffer->current_line()->contents, buffer->current_position_col());
-  buffer->contents()->at(buffer->current_position_line()).reset(new Line(new_line));
   editor_state->SetStatus("type");
-  editor_state->set_mode(unique_ptr<EditorMode>(new InsertMode(new_line)));
+  editor_state->set_mode(unique_ptr<EditorMode>(new InsertMode()));
 }
 
 void EnterInsertMode(EditorState* editor_state) {
