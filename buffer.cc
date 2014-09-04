@@ -746,12 +746,21 @@ void OpenBuffer::Apply(
   unique_ptr<Transformation> undo = transformation.Apply(editor_state, this);
   assert(undo != nullptr);
   undo_history_.push_back(std::move(undo));
+  redo_history_.clear();
 }
 
 void OpenBuffer::Undo(EditorState* editor_state) {
-  if (undo_history_.empty()) { return; }
-  undo_history_.back()->Apply(editor_state, this);
-  undo_history_.pop_back();
+  for (size_t i = 0; i < editor_state->repetitions(); i++) {
+    if (editor_state->direction() == FORWARDS) {
+      if (undo_history_.empty()) { return; }
+      redo_history_.push_back(undo_history_.back()->Apply(editor_state, this));
+      undo_history_.pop_back();
+    } else {
+      if (redo_history_.empty()) { return; }
+      undo_history_.push_back(redo_history_.back()->Apply(editor_state, this));
+      redo_history_.pop_back();
+    }
+  }
 }
 
 }  // namespace editor

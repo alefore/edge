@@ -287,6 +287,8 @@ class UndoCommand : public Command {
   void ProcessInput(int c, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     editor_state->current_buffer()->second->Undo(editor_state);
+    editor_state->ResetRepetitions();
+    editor_state->ResetDirection();
   }
 };
 

@@ -302,6 +302,7 @@ class OpenBuffer {
   EdgeStructInstance<string> string_variables_;
 
   list<unique_ptr<Transformation>> undo_history_;
+  list<unique_ptr<Transformation>> redo_history_;
 };
 
 }  // namespace editor
