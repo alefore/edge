@@ -88,6 +88,46 @@ static void RegisterBufferFieldString(
   }
 }
 
+static void RegisterBufferFieldInt(
+    afc::vm::Environment* environment,
+    afc::vm::ObjectType* object_type,
+    const EdgeVariable<int>* variable) {
+  using namespace afc::vm;
+
+  // Getter.
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    callback->type.type_arguments.push_back(VMType::ObjectType(object_type));
+    callback->callback =
+        [variable](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::OBJECT_TYPE);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          assert(buffer != nullptr);
+          return Value::NewInteger(buffer->read_int_variable(variable));
+        };
+    object_type->AddField(variable->name(), std::move(callback));
+  }
+
+  // Setter.
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->type.type_arguments.push_back(VMType::ObjectType(object_type));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    callback->callback =
+        [variable](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::OBJECT_TYPE);
+          assert(args[1]->type == VMType::VM_INTEGER);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          assert(buffer != nullptr);
+          buffer->set_int_variable(variable, args[1]->integer);
+          return std::move(Value::Void());
+        };
+    object_type->AddField("set_" + variable->name(), std::move(callback));
+  }
+}
+
 }  // namespace
 
 namespace afc {
@@ -112,6 +152,13 @@ bool LineColumn::operator!=(const LineColumn& other) const {
   for (const string& name : string_variable_names) {
     RegisterBufferFieldString(
         environment, buffer.get(), StringStruct()->find_variable(name));
+  }
+
+  vector<string> int_variable_names;
+  IntStruct()->RegisterVariableNames(&int_variable_names);
+  for (const string& name : int_variable_names) {
+    RegisterBufferFieldInt(
+        environment, buffer.get(), IntStruct()->find_variable(name));
   }
 
   {
@@ -236,7 +283,8 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
       modified_(false),
       reading_from_parser_(false),
       bool_variables_(BoolStruct()->NewInstance()),
-      string_variables_(StringStruct()->NewInstance()) {
+      string_variables_(StringStruct()->NewInstance()),
+      int_variables_(IntStruct()->NewInstance()) {
   ClearContents();
 }
 
@@ -696,6 +744,24 @@ string OpenBuffer::FlagsString() const {
       "String with the path to the initial directory for editor commands.",
       "",
       FilePredictor);
+  return variable;
+}
+
+/* static */ EdgeStruct<int>* OpenBuffer::IntStruct() {
+  static EdgeStruct<int>* output = nullptr;
+  if (output == nullptr) {
+    output = new EdgeStruct<int>;
+    // Trigger registration of all fields.
+    OpenBuffer::variable_line_width();
+  }
+  return output;
+}
+
+/* static */ EdgeVariable<int>* OpenBuffer::variable_line_width() {
+  static EdgeVariable<int>* variable = IntStruct()->AddVariable(
+      "line_width",
+      "Desired maximum width of a line.",
+      80);
   return variable;
 }
 
