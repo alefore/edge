@@ -119,7 +119,7 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
     }
     if (!structure.empty()) {
       if (editor_state.sticky_structure()) {
-        structure += "*";
+        transform(structure.begin(), structure.end(), structure.begin(), ::toupper);
       }
       flags += "(" + structure + ")";
     }
