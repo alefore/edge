@@ -722,21 +722,14 @@ class ReverseDirectionCommand : public Command {
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
-    Direction previous_direction = editor_state->direction();
-    editor_state->set_default_direction(FORWARDS);
-    editor_state->set_direction(ReverseDirection(previous_direction));
-  }
-};
-
-class ReverseDefaultDirectionCommand : public Command {
- public:
-  const string Description() {
-    return "reverses the direction of future commands";
-  }
-
-  void ProcessInput(int c, EditorState* editor_state) {
-    editor_state->set_default_direction(
-        ReverseDirection(editor_state->default_direction()));
+    if (editor_state->direction() == FORWARDS) {
+      editor_state->set_direction(BACKWARDS);
+    } else if (editor_state->default_direction() == FORWARDS) {
+      editor_state->set_default_direction(BACKWARDS);
+    } else {
+      editor_state->set_default_direction(FORWARDS);
+      editor_state->ResetDirection();
+    }
   }
 };
 
@@ -979,7 +972,6 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('i', new EnterInsertMode()));
     output.insert(make_pair('f', new EnterFindMode()));
     output.insert(make_pair('r', new ReverseDirectionCommand()));
-    output.insert(make_pair('R', new ReverseDefaultDirectionCommand()));
 
     output.insert(make_pair('/', new StartSearchMode()));
     output.insert(make_pair('g', new GotoCommand()));
