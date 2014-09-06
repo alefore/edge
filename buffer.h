@@ -28,12 +28,13 @@ using std::min;
 struct Line {
   Line() {};
   Line(const shared_ptr<LazyString>& contents_input)
-      : contents(contents_input) {}
+      : contents(contents_input), modified(false) {}
 
   size_t size() const { return contents->size(); }
 
   unique_ptr<EditorMode> activate;
   shared_ptr<LazyString> contents;
+  bool modified;
 };
 
 struct ParseTree {

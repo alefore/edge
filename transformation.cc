@@ -84,6 +84,7 @@ class DeleteTransformation : public Transformation {
         buffer->contents()->begin() + start_.line + 1,
         buffer->contents()->begin() + actual_end + 1);
     buffer->contents()->at(start_.line).reset(new Line(contents_last_line));
+    buffer->contents()->at(start_.line)->modified = true;
     buffer->set_position(start_);
     buffer->CheckPosition();
     assert(deleted_text != nullptr);

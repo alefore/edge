@@ -474,13 +474,15 @@ LineColumn OpenBuffer::InsertInPosition(
     auto line_to_insert = insertion.at(0)->contents;
     contents_.at(position.line).reset(new Line(
         StringAppend(head, StringAppend(line_to_insert, tail))));
+    contents_[position.line]->modified = true;
     return LineColumn(position.line, head->size() + line_to_insert->size());
-  } else {
-    contents_.at(position.line).reset(
-        new Line(StringAppend(head, (*insertion.begin())->contents)));
-    contents_.at(line_end).reset(
-        new Line(StringAppend((*insertion.rbegin())->contents, tail)));
   }
+  contents_[position.line]->modified = true;
+  contents_[line_end]->modified = true;
+  contents_.at(position.line).reset(
+      new Line(StringAppend(head, (*insertion.begin())->contents)));
+  contents_.at(line_end).reset(
+      new Line(StringAppend((*insertion.rbegin())->contents, tail)));
   return LineColumn(line_end,
       (insertion.size() == 1 ? head->size() : 0)
       + (*insertion.rbegin())->contents->size());
