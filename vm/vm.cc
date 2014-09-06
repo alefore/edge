@@ -1,6 +1,7 @@
 #include "vm.h"
 
 #include <cassert>
+#include <fstream>
 #include <iostream>
 #include <utility>
 
@@ -393,6 +394,14 @@ unique_ptr<Value> Evaluator::Evaluate(
   return_continuation_ = old_return_continuation;
   environment_ = old_environment;
   return result;
+}
+
+void Evaluator::EvaluateFile(const string& path) {
+  std::ifstream infile(path);
+  std::string line;
+  while (std::getline(infile, line)) {
+    AppendInput(line);
+  }
 }
 
 void Evaluator::AppendInput(const string& str) {

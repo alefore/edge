@@ -446,11 +446,7 @@ void EditorState::Evaluate(const string& str) {
 
 void EditorState::EvaluateFile(const string& path, Environment* environment) {
   unique_ptr<Evaluator> evaluator = NewEvaluator(environment);
-  std::ifstream infile(path);
-  std::string line;
-  while (std::getline(infile, line)) {
-    evaluator->AppendInput(line);
-  }
+  evaluator->EvaluateFile(path);
 }
 
 string EditorState::expand_path(const string& path) {

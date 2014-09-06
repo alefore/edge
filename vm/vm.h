@@ -185,6 +185,7 @@ class Evaluator {
   Evaluator(unique_ptr<Environment> environment, ErrorHandler error_handler);
 
   void Define(const string& name, unique_ptr<Value> value);
+  void EvaluateFile(const string& path);
 
   void AppendInput(const string& str);
 
