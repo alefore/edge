@@ -284,7 +284,12 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
       reading_from_parser_(false),
       bool_variables_(BoolStruct()->NewInstance()),
       string_variables_(StringStruct()->NewInstance()),
-      int_variables_(IntStruct()->NewInstance()) {
+      int_variables_(IntStruct()->NewInstance()),
+      environment_(editor_state->environment()) {
+  {
+    shared_ptr<void> buffer(this, [](void* p){});
+    environment_.Define("buffer", Value::NewObject("Buffer", buffer));
+  }
   ClearContents();
 }
 
@@ -388,15 +393,10 @@ void OpenBuffer::Reload(EditorState* editor_state) {
     return;
   }
   ReloadInto(editor_state, this);
-  {
-    Environment environment(editor_state->environment());
-    shared_ptr<void> buffer(this, [](void* p){});
-    environment.Define("buffer", Value::NewObject("Buffer", buffer));
-    for (const auto& dir : editor_state->edge_path()) {
-      editor_state->EvaluateFile(
-          dir + "/hooks/buffer-reload.cc",
-          &environment);
-    }
+  for (const auto& dir : editor_state->edge_path()) {
+    editor_state->EvaluateFile(
+        dir + "/hooks/buffer-reload.cc",
+        &environment_);
   }
   set_modified(false);
   CheckPosition();

@@ -312,6 +312,8 @@ class OpenBuffer {
 
   list<unique_ptr<Transformation>> undo_history_;
   list<unique_ptr<Transformation>> redo_history_;
+
+  afc::vm::Environment environment_;
 };
 
 }  // namespace editor
