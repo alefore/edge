@@ -114,7 +114,7 @@ string GetAnonymousBufferName(size_t i) {
 class FileLinkMode : public EditorMode {
  public:
   FileLinkMode(const string& path, bool ignore_if_not_found)
-      : path_(realpath_safe(path)),
+      : path_(path),
         ignore_if_not_found_(ignore_if_not_found) {}
 
   void ProcessInput(int c, EditorState* editor_state) {
@@ -268,6 +268,8 @@ map<string, shared_ptr<OpenBuffer>>::iterator OpenFile(
       return editor_state->buffers()->end();
     }
     actual_path = expanded_path;
+  } else {
+    actual_path = realpath_safe(actual_path);
   }
 
   editor_state->PushCurrentPosition();
