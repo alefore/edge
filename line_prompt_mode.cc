@@ -22,14 +22,17 @@ using std::numeric_limits;
 
 map<string, shared_ptr<OpenBuffer>>::iterator
 GetHistoryBuffer(EditorState* editor_state, const string& name) {
-  const string actual_name = "- history: " + name;
-  auto it = editor_state->buffers()->find(actual_name);
+  OpenFileOptions options;
+  options.editor_state = editor_state;
+  options.name = "- history: " + name;
+  auto it = editor_state->buffers()->find(options.name);
   if (it != editor_state->buffers()->end()) {
     return it;
   }
-  it = OpenFile(
-      editor_state, actual_name,
-      (*editor_state->edge_path().rbegin()) + "/" + name + "_history");
+  options.path =
+      (*editor_state->edge_path().rbegin()) + "/" + name + "_history";
+  options.make_current_buffer = false;
+  it = OpenFile(options);
   assert(it != editor_state->buffers()->end());
   assert(it->second != nullptr);
   it->second->set_bool_variable(

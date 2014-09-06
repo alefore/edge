@@ -245,7 +245,10 @@ EditorState::EditorState()
         [this](vector<unique_ptr<Value>> args) {
           assert(args[0]->type == VMType::VM_STRING);
           string path = args[0]->str;
-          set_current_buffer(OpenFile(this, path, path));
+          OpenFileOptions options;
+          options.editor_state = this;
+          options.path = path;
+          set_current_buffer(OpenFile(options));
           ScheduleRedraw();
           return Value::NewObject("Buffer", current_buffer()->second);
         };

@@ -25,16 +25,27 @@ bool SaveContentsToOpenFile(
     EditorState* editor_state, OpenBuffer* buffer, const string& path,
     int fd);
 
-// Creates a new buffer for the file at the path given, jumping to the line and
-// column given, and then searching for the string given.
+struct OpenFileOptions {
+  OpenFileOptions()
+      : editor_state(nullptr),
+        ignore_if_not_found(false),
+        make_current_buffer(true) {}
+
+  EditorState* editor_state;
+  string name;
+  string path;
+  bool ignore_if_not_found;
+  bool make_current_buffer;
+};
+
+// Creates a new buffer for the file at the path given.
 map<string, shared_ptr<OpenBuffer>>::iterator OpenFile(
-    EditorState* editor_state, const string& name, const string& path);
+    const OpenFileOptions& options);
 
 void OpenAnonymousBuffer(EditorState* editor_state);
 
 unique_ptr<EditorMode> NewFileLinkMode(
-    EditorState* editor_state, const string& path, int position,
-    bool ignore_if_not_found);
+    EditorState* editor_state, const string& path, bool ignore_if_not_found);
 
 }  // namespace editor
 }  // namespace afc

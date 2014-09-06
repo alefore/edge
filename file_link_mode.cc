@@ -69,7 +69,7 @@ class FileBuffer : public OpenBuffer {
       target->AppendLine(editor_state, shared_ptr<LazyString>(
           NewCopyCharBuffer(entry->d_name).release()));
       (*++target->contents()->rbegin())->activate.reset(
-          NewFileLinkMode(editor_state, path + "/" + entry->d_name, 0, false)
+          NewFileLinkMode(editor_state, path + "/" + entry->d_name, false)
               .release());
     }
     closedir(dir);
@@ -113,21 +113,19 @@ string GetAnonymousBufferName(size_t i) {
 
 class FileLinkMode : public EditorMode {
  public:
-  FileLinkMode(const string& path, const LineColumn& position,
-               const string& pattern)
+  FileLinkMode(const string& path, bool ignore_if_not_found)
       : path_(realpath_safe(path)),
-        position_(position),
-        pattern_(pattern) {}
+        ignore_if_not_found_(ignore_if_not_found) {}
 
   void ProcessInput(int c, EditorState* editor_state) {
     switch (c) {
       case '\n':
         {
-          auto it = afc::editor::OpenFile(editor_state, path_, path_);
-          if (it == editor_state->buffers()->end()) { return; }
-          editor_state->set_current_buffer(it);
-          it->second->set_position(position_);
-          SearchHandler(position_, pattern_, editor_state);
+          OpenFileOptions options;
+          options.editor_state = editor_state;
+          options.path = path_;
+          options.ignore_if_not_found = ignore_if_not_found_;
+          afc::editor::OpenFile(options);
           return;
         }
 
@@ -162,9 +160,8 @@ class FileLinkMode : public EditorMode {
     }
   }
 
-  string path_;
-  LineColumn position_;
-  const string pattern_;
+  const string path_;
+  const bool ignore_if_not_found_;
 };
 
 static string FindPath(
@@ -260,11 +257,25 @@ bool SaveContentsToOpenFile(
 }
 
 map<string, shared_ptr<OpenBuffer>>::iterator OpenFile(
-    EditorState* editor_state, const string& name_input, const string& path) {
+    const OpenFileOptions& options) {
+  EditorState* editor_state = options.editor_state;
+  vector<int> tokens { 0, 0 };
+  string pattern;
+  string expanded_path = editor_state->expand_path(options.path);
+  string actual_path = FindPath(expanded_path, &tokens, &pattern);
+  if (actual_path.empty()) {
+    if (options.ignore_if_not_found) {
+      return editor_state->buffers()->end();
+    }
+    actual_path = expanded_path;
+  }
+
   editor_state->PushCurrentPosition();
   shared_ptr<OpenBuffer> buffer;
   string name;
-  if (name_input.empty()) {
+  if (!options.name.empty()) {
+    name = options.name;
+  } else if (actual_path.empty()) {
     size_t count = 0;
     while (editor_state->buffers()->find(GetAnonymousBufferName(count))
            != editor_state->buffers()->end()) {
@@ -273,38 +284,35 @@ map<string, shared_ptr<OpenBuffer>>::iterator OpenFile(
     name = GetAnonymousBufferName(count);
     buffer.reset(new OpenBuffer(editor_state, name));
   } else {
-    name = name_input;
+    name = actual_path;
   }
   auto it = editor_state->buffers()->insert(make_pair(name, buffer));
   if (it.second) {
     if (it.first->second.get() == nullptr) {
-      it.first->second.reset(new FileBuffer(editor_state, path));
+      it.first->second.reset(new FileBuffer(editor_state, actual_path));
     }
     it.first->second->Reload(editor_state);
   }
+  it.first->second->set_position(LineColumn(tokens[0], tokens[1]));
+  if (options.make_current_buffer) {
+    editor_state->set_current_buffer(it.first);
+    editor_state->ScheduleRedraw();
+  }
+  SearchHandler(it.first->second->position(), pattern, editor_state);
   return it.first;
 }
 
 void OpenAnonymousBuffer(EditorState* editor_state) {
-  editor_state->set_current_buffer(
-      OpenFile(editor_state, "", ""));
+  OpenFileOptions options;
+  options.editor_state = editor_state;
+  OpenFile(options);
 }
 
 unique_ptr<EditorMode> NewFileLinkMode(
-    EditorState* editor_state, const string& path, int position,
+    EditorState* editor_state, const string& path,
     bool ignore_if_not_found) {
-  vector<int> tokens { position, 0 };
-  string pattern;
-  string expanded_path = editor_state->expand_path(path);
-  string actual_path = FindPath(expanded_path, &tokens, &pattern);
-  if (actual_path.empty()) {
-    if (ignore_if_not_found) {
-      return nullptr;
-    }
-    actual_path = path;
-  }
-  return std::move(unique_ptr<EditorMode>(new FileLinkMode(
-      actual_path, LineColumn(tokens[0], tokens[1]), pattern)));
+  return std::move(unique_ptr<EditorMode>(
+      new FileLinkMode(path, ignore_if_not_found)));
 }
 
 }  // namespace afc

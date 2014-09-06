@@ -65,8 +65,10 @@ class OpenDirectory : public Command {
       path = dirname(tmp);
       free(tmp);
     }
-    editor_state->set_current_buffer(OpenFile(editor_state, path, path));
-    editor_state->ScheduleRedraw();
+    OpenFileOptions options;
+    options.editor_state = editor_state;
+    options.path = path;
+    OpenFile(options);
     editor_state->ResetMode();
   }
 };
@@ -109,8 +111,10 @@ class SaveCurrentBuffer : public Command {
 };
 
 void OpenFileHandler(const string& name, EditorState* editor_state) {
-  unique_ptr<EditorMode> mode(NewFileLinkMode(editor_state, name, 0, false));
-  mode->ProcessInput('\n', editor_state);
+  OpenFileOptions options;
+  options.editor_state = editor_state;
+  options.path = name;
+  OpenFile(options);
 }
 
 void SetVariableHandler(const string& name, EditorState* editor_state) {

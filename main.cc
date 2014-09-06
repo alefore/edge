@@ -47,11 +47,10 @@ int main(int argc, const char* argv[]) {
 
   for (int i = 1; i < argc; i++) {
     terminal.SetStatus("Loading file...");
-
-    unique_ptr<EditorMode> loader(
-        NewFileLinkMode(&editor_state, argv[i], 0, false));
-    assert(loader.get() != nullptr);
-    loader->ProcessInput('\n', &editor_state);
+    OpenFileOptions options;
+    options.editor_state = &editor_state;
+    options.path = argv[i];
+    OpenFile(options);
   }
 
   while (!editor_state.terminate()) {

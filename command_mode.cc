@@ -817,11 +817,11 @@ class ActivateLink : public Command {
         line = line.substr(0, end);
       }
 
-      unique_ptr<EditorMode> mode =
-          NewFileLinkMode(editor_state, line, 0, true);
-      if (mode.get() != nullptr) {
-        mode->ProcessInput(c, editor_state);
-      }
+      OpenFileOptions options;
+      options.editor_state = editor_state;
+      options.path = line;
+      options.ignore_if_not_found = true;
+      OpenFile(options);
     }
   }
 };
