@@ -424,6 +424,7 @@ void Evaluator::AppendInput(const string& str) {
       case '/':
         if (pos + 1 < str.size() && str.at(pos + 1) == '/') {
           pos = str.size();
+          continue;
         } else {
           token = DIVIDE;
           pos++;
