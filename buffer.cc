@@ -392,12 +392,7 @@ void OpenBuffer::Reload(EditorState* editor_state) {
   }
   ReloadInto(editor_state, this);
   for (const auto& dir : editor_state->edge_path()) {
-    unique_ptr<Evaluator> evaluator(
-        environment_.NewEvaluator(
-            [editor_state](const string& error_description) {
-              editor_state->SetStatus("Error: " + error_description);
-            }));
-    evaluator->EvaluateFile(dir + "/hooks/buffer-reload.cc");
+    EvaluateFile(editor_state, dir + "/hooks/buffer-reload.cc");
   }
   set_modified(false);
   CheckPosition();
@@ -457,6 +452,24 @@ void OpenBuffer::AppendRawLine(
   (*contents_.rbegin()).reset(new Line(
       StringAppend((*contents_.rbegin())->contents, str)));
   contents_.push_back(shared_ptr<Line>(new Line(EmptyString())));
+}
+
+void OpenBuffer::Evaluate(EditorState* editor_state, const string& code) {
+  unique_ptr<Evaluator> evaluator(
+      environment_.NewEvaluator(
+          [editor_state](const string& error_description) {
+            editor_state->SetStatus("Error: " + error_description);
+          }));
+  evaluator->AppendInput(code);
+}
+
+void OpenBuffer::EvaluateFile(EditorState* editor_state, const string& path) {
+  unique_ptr<Evaluator> evaluator(
+      environment_.NewEvaluator(
+          [editor_state](const string& error_description) {
+            editor_state->SetStatus("Error: " + error_description);
+          }));
+  evaluator->EvaluateFile(path);
 }
 
 LineColumn OpenBuffer::InsertInCurrentPosition(

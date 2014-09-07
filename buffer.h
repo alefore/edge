@@ -90,6 +90,7 @@ class OpenBuffer {
   virtual void AppendRawLine(EditorState* editor_state, shared_ptr<LazyString> str);
 
   void Evaluate(EditorState* editor_state, const string& str);
+  void EvaluateFile(EditorState* editor_state, const string& path);
 
   const string& name() const { return name_; }
 
@@ -265,7 +266,6 @@ class OpenBuffer {
   void Undo(EditorState* editor_state);
 
  protected:
-
   vector<unique_ptr<ParseTree>> parse_tree;
 
   string name_;
