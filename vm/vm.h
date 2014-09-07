@@ -149,6 +149,46 @@ class ObjectType {
   map<string, unique_ptr<Value>>* fields_;
 };
 
+class Environment;
+
+class Evaluator {
+ public:
+  typedef function<void(const string&)> ErrorHandler;
+
+  Evaluator(Environment* environment, ErrorHandler error_handler);
+
+  void PushEnvironment();
+  void PopEnvironment();
+
+  void EvaluateFile(const string& path);
+
+  void AppendInput(const string& str);
+
+  unique_ptr<Value> Evaluate(Expression* expression);
+  unique_ptr<Value> Evaluate(Expression* expression, Environment* environment);
+
+  const Expression::Continuation& return_continuation() const {
+    return return_continuation_;
+  }
+
+  Environment* environment() const { return environment_; }
+
+  const ErrorHandler& error_handler() const { return error_handler_; }
+
+  const string last_token() const { return last_token_; }
+
+ private:
+  Environment* base_environment_;
+
+  Expression::Continuation return_continuation_;
+  Environment* environment_;
+
+  ErrorHandler error_handler_;
+
+  string last_token_;
+  unique_ptr<void, function<void(void*)>> parser_;
+};
+
 class Environment {
  public:
   Environment()
@@ -165,6 +205,9 @@ class Environment {
 
   static Environment* DefaultEnvironment();
 
+  // Returns a new Evaluator instance bound to the current environment.
+  unique_ptr<Evaluator> NewEvaluator(Evaluator::ErrorHandler error_handler);
+
   const ObjectType* LookupObjectType(const string& symbol);
   const VMType* LookupType(const string& symbol);
   void DefineType(const string& name, unique_ptr<ObjectType> value);
@@ -176,50 +219,6 @@ class Environment {
   map<string, unique_ptr<Value>>* table_;
   map<string, unique_ptr<ObjectType>>* object_types_;
   Environment* parent_environment_;
-};
-
-class Evaluator {
- public:
-  typedef function<void(const string&)> ErrorHandler;
-
-  Evaluator(unique_ptr<Environment> environment, ErrorHandler error_handler);
-
-  void Define(const string& name, unique_ptr<Value> value);
-  void EvaluateFile(const string& path);
-
-  void AppendInput(const string& str);
-
-  unique_ptr<Value> Evaluate(Expression* expression);
-  unique_ptr<Value> Evaluate(Expression* expression, Environment* environment);
-
-  const Expression::Continuation& return_continuation() const {
-    return return_continuation_;
-  }
-
-  Environment* environment() const { return environment_; }
-
-  void PushEnvironment() {
-    environment_ = new Environment(environment_);
-  }
-
-  void PopEnvironment() {
-    environment_ = environment_->parent_environment();
-  }
-
-  const ErrorHandler& error_handler() const { return error_handler_; }
-
-  const string last_token() const { return last_token_; }
-
- private:
-  unique_ptr<Environment> base_environment_;
-
-  Expression::Continuation return_continuation_;
-  Environment* environment_;
-
-  ErrorHandler error_handler_;
-
-  string last_token_;
-  unique_ptr<void, function<void(void*)>> parser_;
 };
 
 }  // namespace vm

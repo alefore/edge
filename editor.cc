@@ -433,11 +433,10 @@ void EditorState::ApplyToCurrentBuffer(const Transformation& transformation) {
 }
 
 unique_ptr<Evaluator> EditorState::NewEvaluator(Environment* environment) {
-  return unique_ptr<Evaluator>(new Evaluator(
-      unique_ptr<Environment>(new Environment(environment)),
+  return environment->NewEvaluator(
       [this](const string& error_description) {
         SetStatus("Error: " + error_description);
-      }));
+      });
 }
 
 void EditorState::Evaluate(const string& str) {
@@ -447,6 +446,10 @@ void EditorState::Evaluate(const string& str) {
 void EditorState::EvaluateFile(const string& path, Environment* environment) {
   unique_ptr<Evaluator> evaluator = NewEvaluator(environment);
   evaluator->EvaluateFile(path);
+}
+
+void EditorState::DefaultErrorHandler(const string& error_description) {
+  SetStatus("Error: " + error_description);
 }
 
 string EditorState::expand_path(const string& path) {

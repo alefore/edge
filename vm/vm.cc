@@ -283,6 +283,11 @@ class FunctionCall : public Expression {
   return environment;
 }
 
+unique_ptr<Evaluator> Environment::NewEvaluator(
+    Evaluator::ErrorHandler error_handler) {
+  return unique_ptr<Evaluator>(new Evaluator(this, error_handler));
+}
+
 const ObjectType* Environment::LookupObjectType(const string& symbol) {
   auto it = object_types_->find(symbol);
   if (it != object_types_->end()) {
@@ -345,11 +350,11 @@ NoopContinuation(unique_ptr<Value> value) {
                    std::move(value));
 }
 
-Evaluator::Evaluator(unique_ptr<Environment> environment,
+Evaluator::Evaluator(Environment* environment,
                      ErrorHandler error_handler)
-    : base_environment_(std::move(environment)),
+    : base_environment_(environment),
       return_continuation_(NoopContinuation),
-      environment_(base_environment_.get()),
+      environment_(base_environment_),
       error_handler_(error_handler),
       parser_(
           CppAlloc(malloc),
@@ -358,8 +363,14 @@ Evaluator::Evaluator(unique_ptr<Environment> environment,
             CppFree(parser, free);
           }) {}
 
-void Evaluator::Define(const string& name, unique_ptr<Value> value) {
-  environment_->Define(name, std::move(value));
+void Evaluator::PushEnvironment() {
+  environment_ = new Environment(environment_);
+}
+
+void Evaluator::PopEnvironment() {
+  auto tmp = environment_;
+  environment_ = environment_->parent_environment();
+  delete tmp;
 }
 
 unique_ptr<Value> Evaluator::Evaluate(Expression* expression) {
