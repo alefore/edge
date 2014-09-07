@@ -370,7 +370,6 @@ void Evaluator::PushEnvironment() {
 void Evaluator::PopEnvironment() {
   auto tmp = environment_;
   environment_ = environment_->parent_environment();
-  delete tmp;
 }
 
 unique_ptr<Value> Evaluator::Evaluate(Expression* expression) {
