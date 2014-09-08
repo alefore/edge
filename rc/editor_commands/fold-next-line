@@ -1,0 +1,28 @@
+string ExtractToken(string text) {
+  int pos_start = text.find_first_not_of(buffer.line_prefix_characters(), 0);
+  if (pos_start == -1) {
+    return text;
+  }
+  int pos_end = text.find(" ", pos_start);
+  if (pos_end == -1) {
+    return text;
+  }
+  return text.substr(0, pos_end);
+}
+
+string LeadingPrefix(string text) {
+  string prefix = ExtractToken(text);
+  int pos_end = prefix.find_first_not_of(buffer.line_prefix_characters(), 0);
+  if (pos_end == -1) {
+    return prefix;
+  } else {
+    return prefix.substr(0, pos_end);
+  }
+}
+
+int line = buffer.position().line();
+if (line != buffer.line_count()) {
+  DeleteText(
+      LineColumn(line, buffer.line(line).size()),
+      LineColumn(line + 1, LeadingPrefix(buffer.line(line + 1)).size()));
+}
