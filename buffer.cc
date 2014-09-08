@@ -265,6 +265,26 @@ bool LineColumn::operator!=(const LineColumn& other) const {
         };
     buffer->AddField("Map", std::move(callback));
   }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
+    VMType function_argument(VMType::FUNCTION);
+    function_argument.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
+    function_argument.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->type.type_arguments.push_back(function_argument);
+    callback->callback =
+        [editor_state](vector<unique_ptr<Value>> args) {
+          assert(args.size() == 2);
+          assert(args[0]->type == VMType::OBJECT_TYPE);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          assert(buffer != nullptr);
+          buffer->set_filter(std::move(args[1]));
+          editor_state->ScheduleRedraw();
+          return Value::NewVoid();
+        };
+    buffer->AddField("Filter", std::move(callback));
+  }
   environment->DefineType("Buffer", std::move(buffer));
 }
 
@@ -286,11 +306,14 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
       bool_variables_(BoolStruct()->NewInstance()),
       string_variables_(StringStruct()->NewInstance()),
       int_variables_(IntStruct()->NewInstance()),
-      environment_(editor_state->environment()) {
+      environment_(editor_state->environment()),
+      filter_version_(0) {
   environment_.Define("buffer", Value::NewObject(
       "Buffer", shared_ptr<void>(this, [](void* p){})));
   ClearContents();
 }
+
+OpenBuffer::~OpenBuffer() {}
 
 void OpenBuffer::Close(EditorState* editor_state) {
   if (read_bool_variable(variable_save_on_close())) {
@@ -857,6 +880,23 @@ void OpenBuffer::Undo(EditorState* editor_state) {
       redo_history_.pop_back();
     }
   }
+}
+
+void OpenBuffer::set_filter(unique_ptr<Value> filter) {
+  filter_ = std::move(filter);
+  filter_version_++;
+}
+
+bool OpenBuffer::IsLineFiltered(size_t line_number) {
+  assert(line_number < contents_.size());
+  auto line = contents_[line_number];
+  if (line->filter_version < filter_version_) {
+    vector<unique_ptr<Value>> args;
+    args.push_back(Value::NewString(line->contents->ToString()));
+    line->filtered = filter_->callback(std::move(args))->boolean;
+    line->filter_version = filter_version_;
+  }
+  return line->filtered;
 }
 
 }  // namespace editor

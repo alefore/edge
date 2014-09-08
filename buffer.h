@@ -26,16 +26,23 @@ using std::map;
 using std::max;
 using std::min;
 
+using namespace afc::vm;
+
 struct Line {
   Line() {};
   Line(const shared_ptr<LazyString>& contents_input)
-      : contents(contents_input), modified(false) {}
+      : contents(contents_input),
+        modified(false),
+        filtered(true),
+        filter_version(0) {}
 
   size_t size() const { return contents->size(); }
 
   unique_ptr<EditorMode> activate;
   shared_ptr<LazyString> contents;
   bool modified;
+  bool filtered;
+  size_t filter_version;
 };
 
 struct ParseTree {
@@ -70,9 +77,10 @@ class OpenBuffer {
   static const string kPasteBuffer;
 
   static void RegisterBufferType(EditorState* editor_state,
-                                 afc::vm::Environment* environment);
+                                 Environment* environment);
 
   OpenBuffer(EditorState* editor_state, const string& name);
+  ~OpenBuffer();
 
   void Close(EditorState* editor_state);
 
@@ -266,6 +274,9 @@ class OpenBuffer {
   void Apply(EditorState* editor_state, const Transformation& transformation);
   void Undo(EditorState* editor_state);
 
+  void set_filter(unique_ptr<Value> filter);
+  bool IsLineFiltered(size_t line);
+
  protected:
   vector<unique_ptr<ParseTree>> parse_tree;
 
@@ -314,7 +325,14 @@ class OpenBuffer {
   list<unique_ptr<Transformation>> undo_history_;
   list<unique_ptr<Transformation>> redo_history_;
 
-  afc::vm::Environment environment_;
+  Environment environment_;
+
+  // A function that receives a string and returns a boolean. The function will
+  // be evaluated on every line, to compute whether or not the line should be
+  // shown.  This does not remove any lines: it merely hides them (by setting
+  // the Line::filtered field).
+  unique_ptr<Value> filter_;
+  size_t filter_version_;
 };
 
 }  // namespace editor
