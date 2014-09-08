@@ -1,8 +1,5 @@
 -- Display
 
-Show that a line is longer than a given width.
-  Should be based on a config variable that sets the text width.
-
 Handle unicode.
 
 -- Editing
@@ -54,7 +51,8 @@ Save the contents of variables?
 
 -- VM
 
-Expose more buffer methods.
+Check types on RETURN statements
+  Probably extend compilation to register what's the expected return type.
 
 -- Misc
 
