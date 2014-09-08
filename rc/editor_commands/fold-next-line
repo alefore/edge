@@ -22,7 +22,9 @@ string LeadingPrefix(string text) {
 
 int line = buffer.position().line();
 if (line != buffer.line_count()) {
+  int column = buffer.line(line).size();
   DeleteText(
-      LineColumn(line, buffer.line(line).size()),
+      LineColumn(line, column),
       LineColumn(line + 1, LeadingPrefix(buffer.line(line + 1)).size()));
+  InsertText(" ");
 }
