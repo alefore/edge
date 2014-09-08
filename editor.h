@@ -12,7 +12,7 @@
 #include "direction.h"
 #include "lazy_string.h"
 #include "memory_mapped_file.h"
-#include "vm/vm.h"
+#include "vm/public/vm.h"
 
 namespace afc {
 namespace editor {
@@ -154,9 +154,6 @@ class EditorState {
 
   void ApplyToCurrentBuffer(const Transformation& transformation);
 
-  unique_ptr<Evaluator> NewEvaluator(Environment* environment);
-  void Evaluate(const string& str);
-  void EvaluateFile(const string& path, Environment* environment);
   Environment* environment() { return &environment_; }
 
   // Meant to be used to construct afc::vm::Evaluator::ErrorHandler instances.

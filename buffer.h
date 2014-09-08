@@ -12,7 +12,8 @@
 #include "substring.h"
 #include "transformation.h"
 #include "variables.h"
-#include "vm/vm.h"
+#include "vm/public/environment.h"
+#include "vm/public/vm.h"
 
 namespace afc {
 namespace editor {
@@ -89,7 +90,7 @@ class OpenBuffer {
   void AppendLine(EditorState* editor_state, shared_ptr<LazyString> line);
   virtual void AppendRawLine(EditorState* editor_state, shared_ptr<LazyString> str);
 
-  void Evaluate(EditorState* editor_state, const string& str);
+  void EvaluateString(EditorState* editor_state, const string& str);
   void EvaluateFile(EditorState* editor_state, const string& path);
 
   const string& name() const { return name_; }

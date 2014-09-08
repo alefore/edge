@@ -1,5 +1,5 @@
-#ifndef __AFC_VM_STRING_H__
-#define __AFC_VM_STRING_H__
+#ifndef __AFC_VM_INTERNAL_STRING_H__
+#define __AFC_VM_INTERNAL_STRING_H__
 
 namespace afc {
 namespace vm {

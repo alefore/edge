@@ -885,27 +885,28 @@ class ResetStateCommand : public Command {
   }
 };
 
-void RunCppCommandHandler(const string& input, EditorState* editor_state) {
+void RunCppFileHandler(const string& input, EditorState* editor_state) {
   editor_state->ResetMode();
   if (!editor_state->has_current_buffer()) { return; }
+  auto buffer = editor_state->current_buffer()->second;
   for (size_t i = 0; i < editor_state->repetitions(); i++) {
-    editor_state->EvaluateFile(input, editor_state->environment());
+    buffer->EvaluateFile(editor_state, input);
   }
   editor_state->ResetRepetitions();
 }
 
-class RunCppCommand : public Command {
+class RunCppFileCommand : public Command {
   const string Description() {
-    return "runs a command";
+    return "runs a command from a file";
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     auto buffer = editor_state->current_buffer()->second;
-    Prompt(editor_state, "cmd ", "editor_commands",
+    Prompt(editor_state, "cmd < ", "editor_commands",
            buffer->read_string_variable(
                OpenBuffer::variable_editor_commands_path()),
-           RunCppCommandHandler, FilePredictor);
+           RunCppFileHandler, FilePredictor);
   }
 };
 
@@ -987,7 +988,7 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('u', new UndoCommand()));
     output.insert(make_pair('\n', new ActivateLink()));
 
-    output.insert(make_pair('c', new RunCppCommand()));
+    output.insert(make_pair('c', new RunCppFileCommand()));
 
     output.insert(make_pair('b', new GotoPreviousPositionCommand()));
     output.insert(make_pair('j', new LineDown()));

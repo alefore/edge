@@ -17,6 +17,7 @@ extern "C" {
 #include "file_link_mode.h"
 #include "server.h"
 #include "substring.h"
+#include "vm/public/value.h"
 
 namespace {
 
@@ -139,7 +140,7 @@ EditorState::EditorState()
         [this](vector<unique_ptr<Value>> args) {
           assert(args[0]->type == VMType::VM_STRING);
           OpenServerBuffer(this, args[0]->str);
-          return std::move(Value::Void());
+          return std::move(Value::NewVoid());
         };
     environment_.Define("ConnectTo", std::move(connect_to_function));
   }
@@ -152,7 +153,7 @@ EditorState::EditorState()
         [this](vector<unique_ptr<Value>> args) {
           assert(args[0]->type == VMType::VM_STRING);
           SetStatus(args[0]->str);
-          return std::move(Value::Void());
+          return std::move(Value::NewVoid());
         };
     environment_.Define("SetStatus", std::move(set_status_function));
   }
@@ -164,7 +165,7 @@ EditorState::EditorState()
     insert_text->callback =
         [this](vector<unique_ptr<Value>> args) {
           assert(args[0]->type == VMType::VM_STRING);
-          if (!has_current_buffer()) { return Value::Void(); }
+          if (!has_current_buffer()) { return Value::NewVoid(); }
           auto buffer = current_buffer()->second;
 
           shared_ptr<OpenBuffer> buffer_to_insert(
@@ -183,7 +184,7 @@ EditorState::EditorState()
               NewInsertBufferTransformation(
                   buffer_to_insert, buffer->position(), 1));
           buffer->Apply(this, *transformation);
-          return Value::Void();
+          return Value::NewVoid();
         };
     environment_.Define("InsertText", std::move(insert_text));
   }
@@ -195,14 +196,14 @@ EditorState::EditorState()
     callback->type.type_arguments.push_back(VMType::ObjectType(line_column.get()));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
-          if (!has_current_buffer()) { return Value::Void(); }
+          if (!has_current_buffer()) { return Value::NewVoid(); }
           auto buffer = current_buffer()->second;
           LineColumn* start = static_cast<LineColumn*>(args[0]->user_value.get());
           LineColumn* end = static_cast<LineColumn*>(args[1]->user_value.get());
           unique_ptr<Transformation> transformation(
               NewDeleteTransformation(*start, *end));
           buffer->Apply(this, *transformation);
-          return Value::Void();
+          return Value::NewVoid();
         };
     environment_.Define("DeleteText", std::move(callback));
   }
@@ -213,12 +214,12 @@ EditorState::EditorState()
     callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
-          if (!has_current_buffer()) { return Value::Void(); }
+          if (!has_current_buffer()) { return Value::NewVoid(); }
           auto buffer = current_buffer()->second;
           assert(args[0]->type == VMType::VM_INTEGER);
           buffer->set_position(
               LineColumn(buffer->position().line, args[0]->integer));
-          return Value::Void();
+          return Value::NewVoid();
         };
     environment_.Define("SetPositionColumn", std::move(callback));
   }
@@ -228,7 +229,7 @@ EditorState::EditorState()
     callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
-          if (!has_current_buffer()) { return Value::Void(); }
+          if (!has_current_buffer()) { return Value::NewVoid(); }
           auto buffer = current_buffer()->second;
           unique_ptr<Value> output(new Value(VMType::VM_STRING));
           output->str = buffer->current_line()->contents->ToString();
@@ -430,22 +431,6 @@ bool EditorState::MovePositionsStack(Direction direction) {
 void EditorState::ApplyToCurrentBuffer(const Transformation& transformation) {
   assert(has_current_buffer());
   current_buffer_->second->Apply(this, transformation);
-}
-
-unique_ptr<Evaluator> EditorState::NewEvaluator(Environment* environment) {
-  return environment->NewEvaluator(
-      [this](const string& error_description) {
-        SetStatus("Error: " + error_description);
-      });
-}
-
-void EditorState::Evaluate(const string& str) {
-  NewEvaluator(&environment_)->AppendInput(str);
-}
-
-void EditorState::EvaluateFile(const string& path, Environment* environment) {
-  unique_ptr<Evaluator> evaluator = NewEvaluator(environment);
-  evaluator->EvaluateFile(path);
 }
 
 void EditorState::DefaultErrorHandler(const string& error_description) {

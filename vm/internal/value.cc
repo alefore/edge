@@ -1,0 +1,36 @@
+#include "../public/value.h"
+
+namespace afc {
+namespace vm {
+
+/* static */ unique_ptr<Value> Value::NewVoid() {
+  return unique_ptr<Value>(new Value(VMType::VM_VOID));
+}
+
+/* static */ unique_ptr<Value> Value::NewBool(bool value) {
+  unique_ptr<Value> output(new Value(VMType::Bool()));
+  output->boolean = value;
+  return std::move(output);
+}
+
+/* static */ unique_ptr<Value> Value::NewInteger(int value) {
+  unique_ptr<Value> output(new Value(VMType::Integer()));
+  output->integer = value;
+  return std::move(output);
+}
+
+/* static */ unique_ptr<Value> Value::NewString(const string& value) {
+  unique_ptr<Value> output(new Value(VMType::String()));
+  output->str = value;
+  return std::move(output);
+}
+
+/* static */ unique_ptr<Value> Value::NewObject(
+    const string& name, const shared_ptr<void>& value) {
+  unique_ptr<Value> output(new Value(VMType::ObjectType(name)));
+  output->user_value = value;
+  return std::move(output);
+}
+
+}  // namespace vm
+}  // namespace afc

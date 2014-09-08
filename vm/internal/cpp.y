@@ -1,6 +1,6 @@
 %name Cpp
 
-%extra_argument { Evaluator* evaluator }
+%extra_argument { Compilation* compilation }
 
 %token_type { Value* }
 
@@ -16,30 +16,21 @@
 %left LPAREN RPAREN DOT.
 %left ELSE.
 
-%type main { Value* }
-%destructor main { delete $$; }
-
-main(A) ::= program(B) . {
-  if (B == nullptr) {
-    A = nullptr;
-  } else {
-    A = B;
-    B = nullptr;
-  }
+main ::= program(P) . {
+  compilation->expr.reset(P);
 }
 
 main ::= error. {
-  evaluator->error_handler()(
-      "Compilation error near: " + evaluator->last_token());
+  compilation->errors.push_back(
+      "Compilation error near: \"" + compilation->last_token + "\"");
 }
 
-%type program { Value* }
+%type program { Expression* }
 %destructor program { delete $$; }
 
-program ::= statement_list(S). {
-  if (S != nullptr) {
-    evaluator->Evaluate(S);
-  }
+program(OUT) ::= statement_list(A). {
+  OUT = A;
+  A = nullptr;
 }
 
 %type statement { Expression* }
@@ -51,17 +42,12 @@ statement(A) ::= expr(B) SEMICOLON . {
 }
 
 statement(OUT) ::= RETURN expr(A) SEMICOLON . {
-  if (A == nullptr) {
-    OUT = nullptr;
-  } else {
-    OUT = new ReturnExpression(unique_ptr<Expression>(A));
-    A = nullptr;
-  }
+  OUT = NewReturnExpression(unique_ptr<Expression>(A)).release();
+  A = nullptr;
 }
 
 statement(OUT) ::= RETURN SEMICOLON . {
-  OUT = new ReturnExpression(
-      unique_ptr<Expression>(new ConstantExpression(Value::Void())));
+  OUT = NewReturnExpression(NewVoidExpression()).release();
 }
 
 statement(OUT) ::= function_declaration_params(FUNC)
@@ -69,7 +55,7 @@ statement(OUT) ::= function_declaration_params(FUNC)
   if (FUNC == nullptr || BODY == nullptr) {
     OUT = nullptr;
   } else if (!(FUNC->type.type_arguments[0] == BODY->type())) {
-    evaluator->error_handler()(
+    compilation->errors.push_back(
         FUNC->name
         + ": Expected \"" + FUNC->type.type_arguments[0].ToString()
         + "\" return value but found \"" + BODY->type().ToString() + "\".");
@@ -79,30 +65,30 @@ statement(OUT) ::= function_declaration_params(FUNC)
     shared_ptr<Expression> body(BODY);
     BODY = nullptr;
 
-    shared_ptr<Environment> func_environment(evaluator->environment());
-    evaluator->PopEnvironment();
+    shared_ptr<Environment> func_environment(compilation->environment);
+    compilation->environment = compilation->environment->parent_environment();
 
     const vector<string> argument_names(FUNC->argument_names);
 
     unique_ptr<Value> value(new Value(FUNC->type));
-    value->callback = [evaluator, body, func_environment, argument_names]
+    value->callback = [compilation, body, func_environment, argument_names]
         (vector<unique_ptr<Value>> args) {
           assert(args.size() == argument_names.size());
           for (size_t i = 0; i < args.size(); i++) {
             func_environment->Define(argument_names[i], std::move(args[i]));
           }
-          return evaluator->Evaluate(body.get(), func_environment.get());
+          return Evaluate(body.get(), func_environment.get());
         };
-    evaluator->environment()->Define(FUNC->name, std::move(value));
-    OUT = new ConstantExpression(Value::Void());
+    compilation->environment->Define(FUNC->name, std::move(value));
+    OUT = NewVoidExpression().release();
   }
 }
 
 %type function_declaration_params { UserFunction* }
 %destructor function_declaration_params { delete $$; }
 
-function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME)
-    LPAREN function_declaration_arguments(ARGS) RPAREN . {
+function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME) LPAREN
+    function_declaration_arguments(ARGS) RPAREN . {
   assert(RETURN_TYPE->type == VMType::VM_SYMBOL);
   assert(NAME->type == VMType::VM_SYMBOL);
 
@@ -110,9 +96,10 @@ function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME)
     OUT = nullptr;
   } else {
     const VMType* return_type_def =
-        evaluator->environment()->LookupType(RETURN_TYPE->str);
+        compilation->environment->LookupType(RETURN_TYPE->str);
     if (return_type_def == nullptr) {
-      evaluator->error_handler()("Unknown type: \"" + RETURN_TYPE->str + "\"");
+      compilation->errors.push_back(
+          "Unknown type: \"" + RETURN_TYPE->str + "\"");
       OUT = nullptr;
     } else {
       OUT = new UserFunction();
@@ -123,19 +110,19 @@ function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME)
         OUT->type.type_arguments.push_back(arg.first);
         OUT->argument_names.push_back(arg.second);
       }
-      evaluator->environment()->Define(
+      compilation->environment->Define(
           NAME->str, unique_ptr<Value>(new Value(OUT->type)));
-      evaluator->PushEnvironment();
+      compilation->environment = new Environment(compilation->environment);
       for (pair<VMType, string> arg : *ARGS) {
-        evaluator->environment()->Define(
-            arg.second, unique_ptr<Value>(new Value(arg.first)));
+        compilation->environment
+            ->Define(arg.second, unique_ptr<Value>(new Value(arg.first)));
       }
     }
   }
 }
 
 statement(A) ::= SEMICOLON . {
-  A = new ConstantExpression(Value::Void());
+  A = NewVoidExpression().release();
 }
 
 statement(A) ::= LBRACKET statement_list(L) RBRACKET. {
@@ -144,126 +131,36 @@ statement(A) ::= LBRACKET statement_list(L) RBRACKET. {
 }
 
 statement(OUT) ::= WHILE LPAREN expr(CONDITION) RPAREN statement(BODY). {
-  class WhileEvaluator : public Expression {
-   public:
-    WhileEvaluator(unique_ptr<Expression> cond, unique_ptr<Expression> body)
-        : cond_(std::move(cond)), body_(std::move(body)) {
-      assert(cond_ != nullptr);
-      assert(body_ != nullptr);
-    }
-
-    const VMType& type() {
-      return VMType::Void();
-    }
-
-    pair<Continuation, unique_ptr<Value>> Evaluate(
-        Evaluator* evaluator, const Continuation& done) {
-      return cond_->Evaluate(evaluator, iterator(evaluator, done));
-    }
-
-   private:
-    Continuation iterator(Evaluator* evaluator, const Continuation& done) {
-      return Continuation(
-          [this, evaluator, done]
-          (unique_ptr<Value> condition_value) {
-            if (condition_value->boolean) {
-              return body_->Evaluate(
-                  evaluator,
-                  Continuation(
-                      [this, evaluator, done]
-                      (unique_ptr<Value> ignored_value) {
-                        return cond_->Evaluate(evaluator,
-                                               iterator(evaluator, done));
-                      }));
-            }
-            return make_pair(done, Value::Void());
-          });
-    }
-
-    unique_ptr<Expression> cond_;
-    unique_ptr<Expression> body_;
-  };
-
-  if (CONDITION == nullptr || BODY == nullptr) {
-    OUT = nullptr;
-  } else if (CONDITION->type().type != VMType::VM_BOOLEAN) {
-    evaluator->error_handler()(
-        "Expected bool value for condition of \"while\" loop but found \""
-        + CONDITION->type().ToString() + "\".");
-    OUT = nullptr;
-  } else {
-    OUT = new WhileEvaluator(unique_ptr<Expression>(CONDITION),
-                             unique_ptr<Expression>(BODY));
-    CONDITION = nullptr;
-    BODY = nullptr;
-  }
+  OUT = NewWhileExpression(compilation, unique_ptr<Expression>(CONDITION),
+                           unique_ptr<Expression>(BODY)).release();
+  CONDITION = nullptr;
+  BODY = nullptr;
 }
 
-statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE) ELSE statement(FALSE_CASE). {
-  if (CONDITION == nullptr || TRUE_CASE == nullptr || FALSE_CASE == nullptr) {
-    A = nullptr;
-  } else if (CONDITION->type().type != VMType::VM_BOOLEAN) {
-    evaluator->error_handler()(
-        "Expected bool value for condition of \"if\" expression but found \""
-        + CONDITION->type().ToString() + "\".");
-    A = nullptr;
-  } else if (!(TRUE_CASE->type() == FALSE_CASE->type())) {
-    evaluator->error_handler()(
-        "Type mismatch of branches in \"if\" expression: "
-        + TRUE_CASE->type().ToString() + " != "
-        + FALSE_CASE->type().ToString());
-    A = nullptr;
-  } else {
-    A = new IfEvaluator(unique_ptr<Expression>(CONDITION),
-                        unique_ptr<Expression>(TRUE_CASE),
-                        unique_ptr<Expression>(FALSE_CASE));
-    CONDITION = nullptr;
-    TRUE_CASE = nullptr;
-    FALSE_CASE = nullptr;
-  }
+statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
+    ELSE statement(FALSE_CASE). {
+  A = NewIfExpression(
+      compilation, unique_ptr<Expression>(CONDITION),
+      unique_ptr<Expression>(TRUE_CASE), unique_ptr<Expression>(FALSE_CASE))
+          .release();
+  CONDITION = nullptr;
+  TRUE_CASE = nullptr;
+  FALSE_CASE = nullptr;
 }
 
 statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
-  if (CONDITION == nullptr || TRUE_CASE == nullptr) {
-    A = nullptr;
-  } else if (CONDITION->type().type != VMType::VM_BOOLEAN) {
-    evaluator->error_handler()(
-        "Expected bool value for condition of \"if\" expression but found \""
-        + CONDITION->type().ToString() + "\".");
-    A = nullptr;
-  } else {
-    A = new IfEvaluator(
-        unique_ptr<Expression>(CONDITION),
-        unique_ptr<Expression>(TRUE_CASE),
-        unique_ptr<Expression>(new ConstantExpression(Value::Void())));
-    CONDITION = nullptr;
-    TRUE_CASE = nullptr;
-  }
+  A = NewIfExpression(
+      compilation, unique_ptr<Expression>(CONDITION),
+      unique_ptr<Expression>(TRUE_CASE), NewVoidExpression())
+          .release();
+  CONDITION = nullptr;
+  TRUE_CASE = nullptr;
 }
 
 statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) SEMICOLON. {
-  assert(TYPE->type.type == VMType::VM_SYMBOL);
-  assert(NAME->type.type == VMType::VM_SYMBOL);
-
-  if (VALUE == nullptr) {
-    A = nullptr;
-  } else {
-    const VMType* type_def = evaluator->environment()->LookupType(TYPE->str);
-    if (type_def == nullptr) {
-      evaluator->error_handler()("Unknown type: \"" + TYPE->str + "\"");
-      A = nullptr;
-    } else if (!(*type_def == VALUE->type())) {
-      evaluator->error_handler()(
-          "Unable to assign a value of type \"" + VALUE->type().ToString()
-          + "\" to a variable of type \"" + type_def->ToString() + "\".");
-      A = nullptr;
-    } else {
-      evaluator->environment()->Define(
-          NAME->str, unique_ptr<Value>(new Value(VALUE->type())));
-      A = new AssignExpression(NAME->str, unique_ptr<Expression>(VALUE));
-      VALUE = nullptr;
-    }
-  }
+  A = NewAssignExpression(compilation, TYPE->str, NAME->str,
+                          unique_ptr<Expression>(VALUE)).release();
+  VALUE = nullptr;
 }
 
 // Statement list.
@@ -276,39 +173,12 @@ statement_list(L) ::= statement(A). {
   A = nullptr;
 }
 
-statement_list(OUT) ::= statement_list(L) statement(A). {
-  class AppendExpression : public Expression {
-   public:
-    AppendExpression(unique_ptr<Expression> e0, unique_ptr<Expression> e1)
-        : e0_(std::move(e0)), e1_(std::move(e1)) {}
-
-    const VMType& type() { return e1_->type(); }
-
-    pair<Continuation, unique_ptr<Value>> Evaluate(
-        Evaluator* evaluator, const Continuation& continuation) {
-      return e0_->Evaluate(
-          evaluator,
-          Continuation(
-              [this, evaluator, continuation](unique_ptr<Value> value) {
-                return e1_->Evaluate(evaluator, continuation);
-              }));
-    }
-
-   private:
-    unique_ptr<Expression> e0_;
-    unique_ptr<Expression> e1_;
-  };
-
-  if (L == nullptr || A == nullptr) {
-    OUT = nullptr;
-  } else {
-    OUT = new AppendExpression(unique_ptr<Expression>(L),
-                               unique_ptr<Expression>(A));
-    L = nullptr;
-    A = nullptr;
-  }
+statement_list(OUT) ::= statement_list(A) statement(B). {
+  OUT = NewAppendExpression(unique_ptr<Expression>(A),
+                            unique_ptr<Expression>(B)).release();
+  A = nullptr;
+  B = nullptr;
 }
-
 
 // Arguments in the declaration of a function
 
@@ -328,9 +198,9 @@ function_declaration_arguments(OUT) ::= non_empty_function_declaration_arguments
 %destructor non_empty_function_declaration_arguments { delete $$; }
 
 non_empty_function_declaration_arguments(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME). {
-  const VMType* type_def = evaluator->environment()->LookupType(TYPE->str);
+  const VMType* type_def = compilation->environment->LookupType(TYPE->str);
   if (type_def == nullptr) {
-    evaluator->error_handler()("Unknown type: \"" + TYPE->str + "\"");
+    compilation->errors.push_back("Unknown type: \"" + TYPE->str + "\"");
     OUT = nullptr;
   } else {
     OUT = new vector<pair<VMType, string>>;
@@ -343,9 +213,9 @@ non_empty_function_declaration_arguments(OUT) ::=
   if (L == nullptr) {
     OUT = nullptr;
   } else {
-    const VMType* type_def = evaluator->environment()->LookupType(TYPE->str);
+    const VMType* type_def = compilation->environment->LookupType(TYPE->str);
     if (type_def == nullptr) {
-      evaluator->error_handler()("Unknown type: \"" + TYPE->str + "\"");
+      compilation->errors.push_back("Unknown type: \"" + TYPE->str + "\"");
       OUT = nullptr;
     } else {
       OUT = L;
@@ -367,25 +237,9 @@ expr(A) ::= LPAREN expr(B) RPAREN. {
 }
 
 expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
-  assert(NAME->type.type == VMType::VM_SYMBOL);
-
-  if (VALUE == nullptr) {
-    OUT = nullptr;
-  } else {
-    auto obj = evaluator->environment()->Lookup(NAME->str);
-    if (obj == nullptr) {
-      evaluator->error_handler()("Variable not found: \"" + NAME->str + "\"");
-      OUT = nullptr;
-    } else if (!(obj->type == VALUE->type())) {
-      evaluator->error_handler()(
-          "Unable to assign a value of type \"" + VALUE->type().ToString()
-          + "\" to a variable of type \"" + obj->type.ToString() + "\".");
-      OUT = nullptr;
-    } else {
-      OUT = new AssignExpression(NAME->str, unique_ptr<Expression>(VALUE));
-      VALUE = nullptr;
-    }
-  }
+  OUT = NewAssignExpression(compilation, NAME->str,
+                            unique_ptr<Expression>(VALUE)).release();
+  VALUE = nullptr;
 }
 
 expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
@@ -393,7 +247,7 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
     OUT = nullptr;
   } else if (OBJ->type().type != VMType::OBJECT_TYPE
              && OBJ->type().type != VMType::VM_STRING) {
-    evaluator->error_handler()(
+    compilation->errors.push_back(
         "Expected an object type, found a primitive type: \""
         + OBJ->type().ToString() + "\"");
     OUT = nullptr;
@@ -410,20 +264,20 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
         assert(false);
     }
     const ObjectType* object_type =
-        evaluator->environment()->LookupObjectType(object_type_name);
+        compilation->environment->LookupObjectType(object_type_name);
     if (object_type == nullptr) {
-      evaluator->error_handler()(
+      compilation->errors.push_back(
           "Unknown type: \"" + OBJ->type().ToString() + "\"");
       OUT = nullptr;
     } else {
       auto field = object_type->LookupField(FIELD->str);
       if (field == nullptr) {
-        evaluator->error_handler()(
+        compilation->errors.push_back(
             "Unknown method: \"" + object_type->ToString() + "::"
             + FIELD->str + "\"");
         OUT = nullptr;
       } else if (field->type.type_arguments.size() != 2 + ARGS->size()) {
-        evaluator->error_handler()(
+        compilation->errors.push_back(
             "Invalid number of arguments provided for method \""
             + object_type->ToString() + "::" + FIELD->str + "\": Expected "
             + to_string(field->type.type_arguments.size() - 2) + " but found "
@@ -438,7 +292,7 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
           argument++;
         }
         if (argument < ARGS->size()) {
-          evaluator->error_handler()(
+          compilation->errors.push_back(
               "Type mismatch in argument " + to_string(argument)
               + " to method \"" + object_type->ToString() + "::" + FIELD->str
               + "\": Expected \""
@@ -456,9 +310,9 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
             args->push_back(std::move(arg));
           }
           ARGS = nullptr;
-          OUT = new FunctionCall(
-              unique_ptr<Expression>(new ConstantExpression(std::move(field_copy))),
-              std::move(args));
+          assert(field_copy != nullptr);
+          OUT = NewFunctionCall(NewConstantExpression(std::move(field_copy)),
+                                std::move(args)).release();
         }
       }
     }
@@ -469,11 +323,11 @@ expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
   if (B == nullptr || ARGS == nullptr) {
     OUT = nullptr;
   } else if (B->type().type != VMType::FUNCTION) {
-    evaluator->error_handler()(
+    compilation->errors.push_back(
         "Expected function but found: \"" + B->type().ToString() + "\"");
     OUT = nullptr;
   } else if (B->type().type_arguments.size() != 1 + ARGS->size()) {
-    evaluator->error_handler()(
+    compilation->errors.push_back(
         "Invalid number of arguments: Expected "
         + to_string(B->type().type_arguments.size() - 1) + " but found "
         + to_string(ARGS->size()));
@@ -486,15 +340,15 @@ expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
       argument++;
     }
     if (argument < ARGS->size()) {
-      evaluator->error_handler()(
+      compilation->errors.push_back(
           "Type mismatch in argument " + to_string(argument) + ": Expected \""
           + B->type().type_arguments[1 + argument].ToString()
           + "\" but found \"" + ARGS->at(argument)->type().ToString() + "\"");
       OUT = nullptr;
     } else {
-      OUT = new FunctionCall(
+      OUT = NewFunctionCall(
           unique_ptr<Expression>(B),
-          unique_ptr<vector<unique_ptr<Expression>>>(ARGS));
+          unique_ptr<vector<unique_ptr<Expression>>>(ARGS)).release();
       B = nullptr;
       ARGS = nullptr;
     }
@@ -544,12 +398,11 @@ non_empty_arguments_list(OUT) ::= non_empty_arguments_list(L) COMMA expr(E). {
 // Basic operators
 
 expr(OUT) ::= NOT expr(A). {
-  if (A == nullptr) {
-    OUT = nullptr;
-  } else if (A->type().type == VMType::VM_BOOLEAN) {
-    OUT = new NegateExpression(unique_ptr<Expression>(A));
-    A = nullptr;
-  }
+  OUT = NewNegateExpression(
+      [](Value* value) { value->boolean = !value->boolean; },
+      VMType::Bool(),
+      compilation, unique_ptr<Expression>(A)).release();
+  A = nullptr;
 }
 
 expr(OUT) ::= expr(A) EQUALS expr(B). {
@@ -578,7 +431,7 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
     A = nullptr;
     B = nullptr;
   } else {
-    evaluator->error_handler()(
+    compilation->errors.push_back(
         "Unable to compare types: \"" + A->type().ToString()
         + "\" == \"" + B->type().ToString() + "\"");
     OUT = nullptr;
@@ -611,7 +464,7 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
     A = nullptr;
     B = nullptr;
   } else {
-    evaluator->error_handler()(
+    compilation->errors.push_back(
         "Unable to compare types: \"" + A->type().ToString()
         + "\" != \"" + B->type().ToString() + "\"");
     OUT = nullptr;
@@ -659,82 +512,17 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
 }
 
 expr(OUT) ::= expr(A) OR expr(B). {
-  class OrExpression : public Expression {
-   public:
-    OrExpression(unique_ptr<Expression> expr_a, unique_ptr<Expression> expr_b)
-        : expr_a_(std::move(expr_a)), expr_b_(std::move(expr_b)) {}
-
-    const VMType& type() { return VMType::Bool(); }
-
-    pair<Continuation, unique_ptr<Value>> Evaluate(
-        Evaluator* evaluator, const Continuation& continuation) {
-      return expr_a_->Evaluate(
-          evaluator,
-          Continuation([this, evaluator, continuation](unique_ptr<Value> value_a) {
-            assert(value_a->type.type == VMType::VM_BOOLEAN);
-            if (value_a->boolean) {
-              return make_pair(continuation, std::move(value_a));
-            }
-            return expr_b_->Evaluate(evaluator, continuation);
-          }));
-    }
-
-   private:
-    unique_ptr<Expression> expr_a_;
-    unique_ptr<Expression> expr_b_;
-  };
-
-  if (A == nullptr
-      || B == nullptr
-      || A->type().type != VMType::VM_BOOLEAN
-      || B->type().type != VMType::VM_BOOLEAN) {
-    OUT = nullptr;
-  } else {
-    // TODO: Don't evaluate B if not needed.
-    OUT = new OrExpression(
-        unique_ptr<Expression>(A), unique_ptr<Expression>(B));
-    A = nullptr;
-    B = nullptr;
-  }
+  OUT = NewLogicalExpression(
+      false, unique_ptr<Expression>(A), unique_ptr<Expression>(B)).release();
+  A = nullptr;
+  B = nullptr;
 }
 
 expr(OUT) ::= expr(A) AND expr(B). {
-  class AndExpression : public Expression {
-   public:
-    AndExpression(unique_ptr<Expression> expr_a, unique_ptr<Expression> expr_b)
-        : expr_a_(std::move(expr_a)), expr_b_(std::move(expr_b)) {}
-
-    const VMType& type() { return VMType::Bool(); }
-
-    pair<Continuation, unique_ptr<Value>> Evaluate(
-        Evaluator* evaluator, const Continuation& continuation) {
-      return expr_a_->Evaluate(
-          evaluator,
-          Continuation([this, evaluator, continuation](unique_ptr<Value> value_a) {
-            assert(value_a->type.type == VMType::VM_BOOLEAN);
-            if (!value_a->boolean) {
-              return make_pair(continuation, std::move(value_a));
-            }
-            return expr_b_->Evaluate(evaluator, continuation);
-          }));
-    }
-
-   private:
-    unique_ptr<Expression> expr_a_;
-    unique_ptr<Expression> expr_b_;
-  };
-
-  if (A == nullptr
-      || B == nullptr
-      || A->type().type != VMType::VM_BOOLEAN
-      || B->type().type != VMType::VM_BOOLEAN) {
-    OUT = nullptr;
-  } else {
-    OUT = new AndExpression(
-        unique_ptr<Expression>(A), unique_ptr<Expression>(B));
-    A = nullptr;
-    B = nullptr;
-  }
+  OUT = NewLogicalExpression(
+      true, unique_ptr<Expression>(A), unique_ptr<Expression>(B)).release();
+  A = nullptr;
+  B = nullptr;
 }
 
 expr(A) ::= expr(B) PLUS expr(C). {
@@ -754,7 +542,7 @@ expr(A) ::= expr(B) PLUS expr(C). {
     A = new BinaryOperator(
         unique_ptr<Expression>(B),
         unique_ptr<Expression>(C),
-        VMType::integer_type(),
+        VMType::Integer(),
         [](const Value& a, const Value& b, Value* output) {
           output->integer = a.integer + b.integer;
         });
@@ -769,7 +557,7 @@ expr(A) ::= expr(B) MINUS expr(C). {
   A = new BinaryOperator(
       unique_ptr<Expression>(B),
       unique_ptr<Expression>(C),
-      VMType::integer_type(),
+      VMType::Integer(),
       [](const Value& a, const Value& b, Value* output) {
         output->integer = a.integer - b.integer;
       });
@@ -778,33 +566,10 @@ expr(A) ::= expr(B) MINUS expr(C). {
 }
 
 expr(OUT) ::= MINUS expr(A). {
-  class MinusExpression : public Expression {
-   public:
-    MinusExpression(unique_ptr<Expression> expr) : expr_(std::move(expr)) {}
-
-    const VMType& type() { return expr_->type(); }
-
-    pair<Continuation, unique_ptr<Value>> Evaluate(
-        Evaluator* evaluator, const Continuation& continuation) {
-      return expr_->Evaluate(
-          evaluator,
-          Continuation(
-              [continuation](unique_ptr<Value> value) {
-                return make_pair(continuation, Value::NewInteger(-value->integer));
-              }));
-    }
-
-   private:
-    unique_ptr<Expression> expr_;
-  };
-  if (A == nullptr) {
-    OUT = nullptr;
-  } else if (A->type().type != VMType::VM_INTEGER) {
-    OUT = nullptr;
-  } else {
-    OUT = new MinusExpression(unique_ptr<Expression>(A));
-    A = nullptr;
-  }
+  OUT = NewNegateExpression(
+      [](Value* value) { value->integer = -value->integer; },
+      VMType::Integer(),
+      compilation, unique_ptr<Expression>(A)).release();
 }
 
 expr(A) ::= expr(B) TIMES expr(C). {
@@ -814,7 +579,7 @@ expr(A) ::= expr(B) TIMES expr(C). {
     A = new BinaryOperator(
         unique_ptr<Expression>(B),
         unique_ptr<Expression>(C),
-        VMType::integer_type(),
+        VMType::Integer(),
         [](const Value& a, const Value& b, Value* output) {
           output->integer = a.integer * b.integer;
         });
@@ -837,71 +602,39 @@ expr(A) ::= expr(B) TIMES expr(C). {
 
 // Atomic types
 
-expr(A) ::= INTEGER(B). {
-  assert(B->type.type == VMType::VM_INTEGER);
-  A = new ConstantExpression(unique_ptr<Value>(B));
+expr(OUT) ::= BOOL(B). {
+  OUT = NewConstantExpression(unique_ptr<Value>(B)).release();
   B = nullptr;
+}
+
+expr(OUT) ::= INTEGER(I). {
+  OUT = NewConstantExpression(unique_ptr<Value>(I)).release();
+  I = nullptr;
 }
 
 %type string { Value* }
 %destructor string { delete $$; }
 
-expr(A) ::= string(B). {
-  assert(B->type.type == VMType::VM_STRING);
-  A = new ConstantExpression(unique_ptr<Value>(B));
-  B = nullptr;
+expr(OUT) ::= string(S). {
+  OUT = NewConstantExpression(unique_ptr<Value>(S)).release();
+  S = nullptr;
 }
 
-string(O) ::= STRING(A). {
+string(OUT) ::= STRING(S). {
+  assert(S->type.type == VMType::VM_STRING);
+  OUT = S;
+  S = nullptr;
+}
+
+string(OUT) ::= string(A) STRING(B). {
   assert(A->type.type == VMType::VM_STRING);
-  O = A;
+  assert(B->type.type == VMType::VM_STRING);
+  OUT = A;
+  OUT->str = A->str + B->str;
   A = nullptr;
 }
 
-string(O) ::= string(A) STRING(B). {
-  assert(A->type.type == VMType::VM_STRING);
-  assert(B->type.type == VMType::VM_STRING);
-  O = A;
-  O->str = A->str + B->str;
-  A = nullptr;
-}
-
-expr(A) ::= SYMBOL(B). {
-  assert(B->type.type == VMType::VM_SYMBOL);
-
-  class VariableLookup : public Expression {
-   public:
-    VariableLookup(const string& symbol, const VMType& type)
-        : symbol_(symbol), type_(type) {}
-
-    const VMType& type() {
-      return type_;
-    }
-
-    pair<Continuation, unique_ptr<Value>> Evaluate(
-        Evaluator* evaluator, const Continuation& continuation) {
-      unique_ptr<Value> output = Value::Void();
-      auto result = evaluator->environment()->Lookup(symbol_);
-      assert(result != nullptr);
-      *output = *result;
-     return make_pair(continuation, std::move(output));
-    }
-   private:
-    const string symbol_;
-    const VMType type_;
-  };
-
-  Value* result = evaluator->environment()->Lookup(B->str);
-  if (result == nullptr) {
-    evaluator->error_handler()("Variable not found: \"" + B->str + "\"");
-    A = nullptr;
-  } else {
-    A = new VariableLookup(B->str, result->type);
-  }
-}
-
-expr(A) ::= BOOL(B). {
-  assert(B->type.type == VMType::VM_BOOLEAN);
-  A = new ConstantExpression(unique_ptr<Value>(B));
-  B = nullptr;
+expr(OUT) ::= SYMBOL(S). {
+  assert(S->type.type == VMType::VM_SYMBOL);
+  OUT = NewVariableLookup(compilation, S->str).release();
 }

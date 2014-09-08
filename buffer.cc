@@ -21,7 +21,8 @@ extern "C" {
 #include "server.h"
 #include "substring.h"
 #include "transformation.h"
-#include "vm/vm.h"
+#include "vm/public/value.h"
+#include "vm/public/vm.h"
 
 namespace {
 
@@ -82,7 +83,7 @@ static void RegisterBufferFieldString(
           auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
           assert(buffer != nullptr);
           buffer->set_string_variable(variable, args[1]->str);
-          return std::move(Value::Void());
+          return std::move(Value::NewVoid());
         };
     object_type->AddField("set_" + variable->name(), std::move(callback));
   }
@@ -122,7 +123,7 @@ static void RegisterBufferFieldInt(
           auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
           assert(buffer != nullptr);
           buffer->set_int_variable(variable, args[1]->integer);
-          return std::move(Value::Void());
+          return std::move(Value::NewVoid());
         };
     object_type->AddField("set_" + variable->name(), std::move(callback));
   }
@@ -188,7 +189,7 @@ bool LineColumn::operator!=(const LineColumn& other) const {
           assert(buffer != nullptr);
           buffer->set_position(
               *static_cast<LineColumn*>(args[1]->user_value.get()));
-          return Value::Void();
+          return Value::NewVoid();
         };
     buffer->AddField("set_position", std::move(callback));
   }
@@ -260,7 +261,7 @@ bool LineColumn::operator!=(const LineColumn& other) const {
           }
           buffer->Apply(editor_state, transformation);
           buffer->set_position(old_position);
-          return Value::Void();
+          return Value::NewVoid();
         };
     buffer->AddField("Map", std::move(callback));
   }
@@ -454,22 +455,26 @@ void OpenBuffer::AppendRawLine(
   contents_.push_back(shared_ptr<Line>(new Line(EmptyString())));
 }
 
-void OpenBuffer::Evaluate(EditorState* editor_state, const string& code) {
-  unique_ptr<Evaluator> evaluator(
-      environment_.NewEvaluator(
-          [editor_state](const string& error_description) {
-            editor_state->SetStatus("Error: " + error_description);
-          }));
-  evaluator->AppendInput(code);
+void OpenBuffer::EvaluateString(EditorState* editor_state, const string& code) {
+  string error_description;
+  unique_ptr<Expression> expression(
+      CompileString(code, &environment_, &error_description));
+  if (expression == nullptr) {
+    editor_state->SetStatus("Compilation error: " + error_description);
+    return;
+  }
+  Evaluate(expression.get(), &environment_);
 }
 
 void OpenBuffer::EvaluateFile(EditorState* editor_state, const string& path) {
-  unique_ptr<Evaluator> evaluator(
-      environment_.NewEvaluator(
-          [editor_state](const string& error_description) {
-            editor_state->SetStatus("Error: " + error_description);
-          }));
-  evaluator->EvaluateFile(path);
+  string error_description;
+  unique_ptr<Expression> expression(
+      CompileFile(path, &environment_, &error_description));
+  if (expression == nullptr) {
+    editor_state->SetStatus(path + ": Compilation error: " + error_description);
+    return;
+  }
+  Evaluate(expression.get(), &environment_);
 }
 
 LineColumn OpenBuffer::InsertInCurrentPosition(

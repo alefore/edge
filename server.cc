@@ -13,7 +13,7 @@
 #include "editor.h"
 #include "file_link_mode.h"
 #include "lazy_string.h"
-#include "vm/vm.h"
+#include "vm/public/vm.h"
 
 namespace afc {
 namespace editor {
@@ -88,7 +88,7 @@ class ServerBuffer : public OpenBuffer {
   virtual void AppendRawLine(
       EditorState* editor_state, shared_ptr<LazyString> str) {
     OpenBuffer::AppendRawLine(editor_state, str);
-    editor_state->Evaluate(str->ToString());
+    EvaluateString(editor_state, str->ToString());
   }
 };
 

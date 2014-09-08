@@ -2,7 +2,9 @@
 
 #include <cassert>
 
-#include "vm.h"
+#include "../public/environment.h"
+#include "../public/types.h"
+#include "../public/value.h"
 
 namespace afc {
 namespace vm {
