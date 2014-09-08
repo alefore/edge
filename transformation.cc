@@ -62,6 +62,7 @@ class DeleteTransformation : public Transformation {
       size_t current_start_column = line == start_.line ? start_.column : 0;
       size_t current_end_column =
           line == end_.line ? end_.column : current_line->size();
+      assert(current_start_column <= current_end_column);
       deleted_text->AppendLine(
           editor_state,
           Substring(current_line->contents, current_start_column,

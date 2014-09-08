@@ -224,8 +224,8 @@ class Delete : public Command {
     buffer->MaybeAdjustPositionCol();
 
     LineColumn end = buffer->position();
-    auto current_line = buffer->contents()->begin() + end.line;
     while (editor_state->repetitions() > 0) {
+      auto current_line = buffer->contents()->begin() + end.line;
       if (current_line == buffer->contents()->end()) {
         editor_state->set_repetitions(0);
         continue;

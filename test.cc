@@ -59,7 +59,7 @@ int main(int argc, char**argv) {
   editor_state.ProcessInputString("erg");
   assert(editor_state.current_buffer()->second->current_position_line() == 4);
 
-  editor_state.ProcessInputString("eshhh");
+  editor_state.ProcessInputString("eehhh");
   assert(editor_state.current_buffer()->second->current_position_line() == 1);
 
   editor_state.ProcessInput(Terminal::ESCAPE);
@@ -121,18 +121,19 @@ int main(int argc, char**argv) {
 
   // Clear.
   editor_state.ProcessInputString("esg99999999999999999999999d");
+  editor_state.ProcessInputString("eeg99999999999999999999999d");
   editor_state.ProcessInput(Terminal::ESCAPE);
 
   editor_state.ProcessInputString("ihey there hey hey man yes ahoheyblah.");
   assert(editor_state.current_buffer()->second->position().line == 0);
   editor_state.ProcessInput(Terminal::ESCAPE);
-  editor_state.ProcessInputString("glsw/");
+  editor_state.ProcessInputString("glw/");
   assert(editor_state.last_search_query() == "hey");
   assert(editor_state.current_buffer()->second->position().line == 0);
   assert(editor_state.current_buffer()->second->position().column == 10);
 
   // Clear.
-  editor_state.ProcessInputString("esg99999999999999999999999d");
+  editor_state.ProcessInputString("eeg99999999999999999999999d");
   editor_state.ProcessInput(Terminal::ESCAPE);
 
   // VM Tests.
