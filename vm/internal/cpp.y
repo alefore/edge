@@ -5,6 +5,7 @@
 %token_type { Value* }
 
 %left COMMA.
+%left QUESTION_MARK.
 %left EQ.
 %left OR.
 %left AND.
@@ -42,23 +43,17 @@ statement(A) ::= expr(B) SEMICOLON . {
 }
 
 statement(OUT) ::= RETURN expr(A) SEMICOLON . {
-  OUT = NewReturnExpression(unique_ptr<Expression>(A)).release();
+  OUT = NewReturnExpression(compilation, unique_ptr<Expression>(A)).release();
   A = nullptr;
 }
 
 statement(OUT) ::= RETURN SEMICOLON . {
-  OUT = NewReturnExpression(NewVoidExpression()).release();
+  OUT = NewReturnExpression(compilation, NewVoidExpression()).release();
 }
 
 statement(OUT) ::= function_declaration_params(FUNC)
     LBRACKET statement_list(BODY) RBRACKET. {
   if (FUNC == nullptr || BODY == nullptr) {
-    OUT = nullptr;
-  } else if (!(FUNC->type.type_arguments[0] == BODY->type())) {
-    compilation->errors.push_back(
-        FUNC->name
-        + ": Expected \"" + FUNC->type.type_arguments[0].ToString()
-        + "\" return value but found \"" + BODY->type().ToString() + "\".");
     OUT = nullptr;
   } else {
     // TODO: Use unique_ptr rather than shared_ptr when lambda capture works.
@@ -67,6 +62,7 @@ statement(OUT) ::= function_declaration_params(FUNC)
 
     shared_ptr<Environment> func_environment(compilation->environment);
     compilation->environment = compilation->environment->parent_environment();
+    compilation->return_types.pop_back();
 
     const vector<string> argument_names(FUNC->argument_names);
 
@@ -113,6 +109,7 @@ function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME) LPAREN
       compilation->environment->Define(
           NAME->str, unique_ptr<Value>(new Value(OUT->type)));
       compilation->environment = new Environment(compilation->environment);
+      compilation->return_types.push_back(*return_type_def);
       for (pair<VMType, string> arg : *ARGS) {
         compilation->environment
             ->Define(arg.second, unique_ptr<Value>(new Value(arg.first)));
@@ -140,9 +137,15 @@ statement(OUT) ::= WHILE LPAREN expr(CONDITION) RPAREN statement(BODY). {
 statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
     ELSE statement(FALSE_CASE). {
   A = NewIfExpression(
-      compilation, unique_ptr<Expression>(CONDITION),
-      unique_ptr<Expression>(TRUE_CASE), unique_ptr<Expression>(FALSE_CASE))
-          .release();
+      compilation,
+      unique_ptr<Expression>(CONDITION),
+      NewAppendExpression(
+          unique_ptr<Expression>(TRUE_CASE),
+          NewVoidExpression()),
+      NewAppendExpression(
+          unique_ptr<Expression>(FALSE_CASE),
+          NewVoidExpression()))
+      .release();
   CONDITION = nullptr;
   TRUE_CASE = nullptr;
   FALSE_CASE = nullptr;
@@ -150,9 +153,13 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
 
 statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
   A = NewIfExpression(
-      compilation, unique_ptr<Expression>(CONDITION),
-      unique_ptr<Expression>(TRUE_CASE), NewVoidExpression())
-          .release();
+      compilation,
+      unique_ptr<Expression>(CONDITION),
+      NewAppendExpression(
+          unique_ptr<Expression>(TRUE_CASE),
+          NewVoidExpression()),
+      NewVoidExpression())
+      .release();
   CONDITION = nullptr;
   TRUE_CASE = nullptr;
 }
@@ -230,6 +237,17 @@ non_empty_function_declaration_arguments(OUT) ::=
 
 %type expr { Expression* }
 %destructor expr { delete $$; }
+
+expr(A) ::= expr(CONDITION) QUESTION_MARK
+    expr(TRUE_CASE) COLON expr(FALSE_CASE). {
+  A = NewIfExpression(
+      compilation, unique_ptr<Expression>(CONDITION),
+      unique_ptr<Expression>(TRUE_CASE), unique_ptr<Expression>(FALSE_CASE))
+          .release();
+  CONDITION = nullptr;
+  TRUE_CASE = nullptr;
+  FALSE_CASE = nullptr;
+}
 
 expr(A) ::= LPAREN expr(B) RPAREN. {
   A = B;

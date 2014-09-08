@@ -116,6 +116,16 @@ void CompileLine(Compilation* compilation, void* parser, const string& str) {
         pos++;
         break;
 
+      case ':':
+        token = COLON;
+        pos++;
+        break;
+
+      case '?':
+        token = QUESTION_MARK;
+        pos++;
+        break;
+
       case '.':
         token = DOT;
         pos++;
@@ -279,6 +289,7 @@ unique_ptr<Expression> CompileStream(
   Compilation compilation;
   compilation.expr = nullptr;
   compilation.environment = environment;
+  compilation.return_types = { VMType::Void() };
 
   std::string line;
   while (std::getline(stream, line)) {

@@ -60,6 +60,14 @@ unique_ptr<Expression> NewIfExpression(
     return nullptr;
   }
 
+  if (!(true_case->type() == false_case->type())) {
+    compilation->errors.push_back(
+        "Type mismatch between branches of conditional expression: \""
+        + true_case->type().ToString() + "\" and \""
+        + false_case->type().ToString() + "\"");
+    return nullptr;
+  }
+
   return unique_ptr<Expression>(new IfExpression(
       std::move(condition), std::move(true_case), std::move(false_case)));
 }

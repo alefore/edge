@@ -6,7 +6,11 @@
 namespace afc {
 namespace vm {
 
-unique_ptr<Expression> NewReturnExpression(unique_ptr<Expression> expr);
+class Compilation;
+class Expression;
+
+unique_ptr<Expression> NewReturnExpression(
+    Compilation* compilation, unique_ptr<Expression> expr);
 
 }  // namespace vm
 }  // namespace afc
