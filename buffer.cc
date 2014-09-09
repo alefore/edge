@@ -249,7 +249,8 @@ bool LineColumn::operator!=(const LineColumn& other) const {
             unique_ptr<Value> result = args[1]->callback(std::move(line_args));
             if (result->str != current_line) {
               transformation.PushBack(NewDeleteTransformation(
-                  buffer->position(), LineColumn(buffer->position().line + 1)));
+                  buffer->position(), LineColumn(buffer->position().line + 1),
+                  true));
               shared_ptr<OpenBuffer> buffer_to_insert(
                   new OpenBuffer(editor_state, "tmp buffer"));
               buffer_to_insert->AppendLine(

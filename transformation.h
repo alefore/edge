@@ -28,7 +28,7 @@ unique_ptr<Transformation> NewInsertBufferTransformation(
     size_t repetitions);
 
 unique_ptr<Transformation> NewDeleteTransformation(
-    const LineColumn& start, const LineColumn& end);
+    const LineColumn& start, const LineColumn& end, bool copy_to_paste_buffer);
 
 class TransformationStack : public Transformation {
  public:

@@ -171,7 +171,7 @@ class Delete : public Command {
           assert(start.line == end.line);
           assert(start.column + 1 < end.column);
           unique_ptr<Transformation> transformation =
-              NewDeleteTransformation(start, end);
+              NewDeleteTransformation(start, end, true);
           editor_state->ApplyToCurrentBuffer(*transformation);
         }
         break;
@@ -182,7 +182,8 @@ class Delete : public Command {
           size_t line = editor_state->current_buffer()->second->position().line;
           unique_ptr<Transformation> transformation = NewDeleteTransformation(
               LineColumn(line, 0),
-              LineColumn(line + editor_state->repetitions(), 0));
+              LineColumn(line + editor_state->repetitions(), 0),
+              true);
           editor_state->ApplyToCurrentBuffer(*transformation);
         }
         break;
@@ -245,7 +246,7 @@ class Delete : public Command {
     }
 
     unique_ptr<Transformation> transformation(
-        NewDeleteTransformation(buffer->position(), end));
+        NewDeleteTransformation(buffer->position(), end, true));
     editor_state->ApplyToCurrentBuffer(*transformation);
   }
 };

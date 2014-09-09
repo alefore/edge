@@ -45,7 +45,7 @@ class InsertMode : public EditorMode {
             start.column--;
           }
           buffer->Apply(editor_state,
-              *NewDeleteTransformation(start, buffer->position()).get());
+              *NewDeleteTransformation(start, buffer->position(), false).get());
           buffer->set_modified(true);
           editor_state->ScheduleRedraw();
         }
@@ -80,7 +80,7 @@ class InsertMode : public EditorMode {
         TransformationStack transformation;
 
         transformation.PushBack(NewDeleteTransformation(
-            position, LineColumn(position.line, current_line->size())));
+            position, LineColumn(position.line, current_line->size()), false));
 
         {
           shared_ptr<OpenBuffer> buffer_to_insert(
