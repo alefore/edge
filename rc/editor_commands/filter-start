@@ -1,0 +1,4 @@
+bool StartNonWhite(string x) {
+  return x.size() > 0 && x.substr(0, 1) != " ";
+}
+buffer.Filter(StartNonWhite);

@@ -1,0 +1,5 @@
+bool HasInclude(string x) {
+  return x.find("#include", 0) != -1;
+}
+
+buffer.Filter(HasInclude);
