@@ -99,11 +99,11 @@ class BufferLineIterator
     return copy;
   }
 
-  bool operator==(const BufferLineIterator& rhs) {
+  bool operator==(const BufferLineIterator& rhs) const {
     return buffer_ == rhs.buffer_ && line_ == rhs.line_;
   }
 
-  bool operator!=(const BufferLineIterator& rhs) {
+  bool operator!=(const BufferLineIterator& rhs) const {
     return !(*this == rhs);
   }
 
@@ -115,6 +115,19 @@ class BufferLineIterator
  private:
   OpenBuffer* buffer_;
   size_t line_;
+};
+
+class BufferLineReverseIterator
+    : public std::reverse_iterator<BufferLineIterator> {
+ public:
+  BufferLineReverseIterator(const BufferLineIterator& input_base)
+      : std::reverse_iterator<BufferLineIterator>(input_base) {}
+
+  size_t line() const {
+    BufferLineIterator tmp(base());
+    --tmp;
+    return tmp.line();
+  }
 };
 
 class OpenBuffer {
@@ -267,7 +280,13 @@ class OpenBuffer {
     return BufferLineIterator(this, 0);
   }
   BufferLineIterator line_end() {
-    return BufferLineIterator(this, contents_.size() - 1);
+    return BufferLineIterator(this, contents_.size());
+  }
+  BufferLineReverseIterator line_rbegin() {
+    return BufferLineReverseIterator(line_end());
+  }
+  BufferLineReverseIterator line_rend() {
+    return BufferLineReverseIterator(line_begin());
   }
   BufferLineIterator& line() {
     return line_;
