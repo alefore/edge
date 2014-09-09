@@ -752,6 +752,7 @@ string OpenBuffer::FlagsString() const {
     OpenBuffer::variable_path();
     OpenBuffer::variable_editor_commands_path();
     OpenBuffer::variable_line_prefix_characters();
+    OpenBuffer::variable_line_suffix_superfluous_characters();
   }
   return output;
 }
@@ -818,8 +819,19 @@ OpenBuffer::variable_line_prefix_characters() {
       "the actual contents of a line.  When a new line is created, the prefix "
       "of the previous line (the sequence of all characters at the start of "
       "the previous line that are listed in line_prefix_characters) is copied "
-      "to the new line.  The order of elements in line_prefix_characters has "
+      "to the new line.  The order of characters in line_prefix_characters has "
       "no effect.",
+      " ");
+  return variable;
+}
+
+/* static */ EdgeVariable<string>*
+OpenBuffer::variable_line_suffix_superfluous_characters() {
+  static EdgeVariable<string>* variable = StringStruct()->AddVariable(
+      "line_suffix_superfluous_characters",
+      "String with all the characters that should be removed from the suffix "
+      "of a line (after editing it).  The order of characters in "
+      "line_suffix_superfluous_characters has no effect.",
       " ");
   return variable;
 }
