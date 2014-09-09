@@ -104,24 +104,27 @@ bool PerformSearch(
 
   // We search once for every line, and then again in the current line.
   for (size_t i = 0; i <= buffer->contents()->size(); i++) {
-    string str = buffer->LineAt(position_line)->contents->ToString();
+    auto line = buffer->LineAt(position_line);
+    if (buffer->IsLineFiltered(position_line)) {
+      string str = line->contents->ToString();
 
-    vector<size_t> matches = GetMatches(str, pattern);
-    size_t interesting_match;
-    if (direction == FORWARDS) {
-      interesting_match = FindInterestingMatch(
-          matches.begin(), matches.end(), *wrapped, start_position,
-          position_line, direction);
-    } else {
-      interesting_match = FindInterestingMatch(
-          matches.rbegin(), matches.rend(), *wrapped, start_position,
-          position_line, direction);
-    }
+      vector<size_t> matches = GetMatches(str, pattern);
+      size_t interesting_match;
+      if (direction == FORWARDS) {
+        interesting_match = FindInterestingMatch(
+            matches.begin(), matches.end(), *wrapped, start_position,
+            position_line, direction);
+      } else {
+        interesting_match = FindInterestingMatch(
+            matches.rbegin(), matches.rend(), *wrapped, start_position,
+            position_line, direction);
+      }
 
-    if (interesting_match != string::npos) {
-      match_position->line = position_line;
-      match_position->column = interesting_match;
-      return true;
+      if (interesting_match != string::npos) {
+        match_position->line = position_line;
+        match_position->column = interesting_match;
+        return true;
+      }
     }
 
     if (position_line == 0 && delta == -1) {
