@@ -137,6 +137,35 @@ namespace editor {
 using namespace afc::vm;
 using std::to_string;
 
+BufferLineIterator& BufferLineIterator::operator++() {
+  while (line_ < buffer_->contents()->size()) {
+    ++line_;
+    if (buffer_->IsLineFiltered(line_)) {
+      return *this;
+    }
+  }
+  return *this;
+}
+
+BufferLineIterator& BufferLineIterator::operator--() {
+  while (line_ > 0) {
+    --line_;
+    if (buffer_->IsLineFiltered(line_)) {
+      return *this;
+    }
+  }
+  return *this;
+}
+
+shared_ptr<Line>& BufferLineIterator::operator*() {
+  return const_cast<shared_ptr<Line>&>(
+      const_cast<const BufferLineIterator*>(this)->operator*());
+}
+
+const shared_ptr<Line>& BufferLineIterator::operator*() const {
+  return buffer_->contents()->at(line_);
+}
+
 bool LineColumn::operator!=(const LineColumn& other) const {
   return line != other.line || column != other.column;
 }
@@ -301,7 +330,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
       child_exit_status_(0),
       view_start_line_(0),
       view_start_column_(0),
-      position_(0, 0),
+      line_(this, 0),
       modified_(false),
       reading_from_parser_(false),
       bool_variables_(BoolStruct()->NewInstance()),
@@ -393,7 +422,7 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
       if (was_at_end) {
         set_position(end_position());
       }
-      assert(position_.line < contents_.size());
+      assert(line_.line() < contents_.size());
       buffer_line_start_ = i + 1;
       if (editor_state->has_current_buffer()
           && editor_state->current_buffer()->second.get() == this
@@ -503,7 +532,7 @@ void OpenBuffer::EvaluateFile(EditorState* editor_state, const string& path) {
 
 LineColumn OpenBuffer::InsertInCurrentPosition(
     const vector<shared_ptr<Line>>& insertion) {
-  return InsertInPosition(insertion, position_);
+  return InsertInPosition(insertion, position());
 }
 
 LineColumn OpenBuffer::InsertInPosition(
@@ -534,16 +563,16 @@ LineColumn OpenBuffer::InsertInPosition(
 void OpenBuffer::MaybeAdjustPositionCol() {
   if (contents_.empty()) { return; }
   size_t line_length = current_line()->contents->size();
-  if (position_.column > line_length) {
-    position_.column = line_length;
+  if (column_ > line_length) {
+    column_ = line_length;
   }
 }
 
 void OpenBuffer::CheckPosition() {
-  if (position_.line >= contents_.size()) {
-    position_.line = contents_.size();
-    if (position_.line > 0) {
-      position_.line--;
+  if (line_.line() >= contents_.size()) {
+    line_ = BufferLineIterator(this, contents_.size());
+    if (line_.line() > 0) {
+      line_ = BufferLineIterator(this, line_.line() - 1);
     }
   }
 }
@@ -901,7 +930,10 @@ void OpenBuffer::set_filter(unique_ptr<Value> filter) {
 }
 
 bool OpenBuffer::IsLineFiltered(size_t line_number) {
-  assert(line_number < contents_.size());
+  assert(line_number <= contents_.size());
+  if (line_number == contents_.size()) {
+    return true;
+  }
   auto line = contents_[line_number];
   if (line->filter_version < filter_version_) {
     vector<unique_ptr<Value>> args;

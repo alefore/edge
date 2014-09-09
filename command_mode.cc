@@ -389,20 +389,16 @@ const string LineUp::Description() {
     return;
   }
   if (!editor_state->has_current_buffer()) { return; }
-  shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
   switch (structure) {
     case EditorState::CHAR:
       {
-        size_t pos = buffer->current_position_line();
-        if (editor_state->repetitions() < pos) {
-          buffer->set_current_position_line(pos - editor_state->repetitions());
-        } else {
-          buffer->set_current_position_line(0);
+        shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
+        const auto line_begin = buffer->line_begin();
+        while (editor_state->repetitions() && buffer->line() != line_begin) {
+          buffer->line()--;
+          editor_state->set_repetitions(editor_state->repetitions() - 1);
         }
-        if (editor_state->repetitions() > 1) {
-          // Saving on single-lines changes makes this very verbose, lets avoid that.
-          editor_state->PushCurrentPosition();
-        }
+        editor_state->PushCurrentPosition();
       }
       break;
 
@@ -442,13 +438,12 @@ const string LineDown::Description() {
     case EditorState::CHAR:
       {
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-        size_t pos = buffer->current_position_line();
-        buffer->set_current_position_line(min(pos + editor_state->repetitions(),
-                                              buffer->contents()->size() - 1));
-        if (editor_state->repetitions() > 1) {
-          // Saving on single-lines changes makes this very verbose, lets avoid that.
-          editor_state->PushCurrentPosition();
+        const auto line_end = buffer->line_end();
+        while (editor_state->repetitions() && buffer->line() != line_end) {
+          buffer->line()++;
+          editor_state->set_repetitions(editor_state->repetitions() - 1);
         }
+        editor_state->PushCurrentPosition();
       }
       break;
 
