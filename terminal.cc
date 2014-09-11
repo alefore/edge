@@ -157,6 +157,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
       OpenBuffer::variable_line_width());
   size_t current_line = buffer->view_start_line();
   size_t lines_shown = 0;
+  bool paste_mode = buffer->read_bool_variable(
+      OpenBuffer::variable_paste_mode());
   while (lines_shown < lines_to_show) {
     if (current_line == contents.size()) {
       addch('\n');
@@ -181,14 +183,14 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
       if (c == '\r') { addch(' '); continue; }
       addch(c);
     }
-    if (line_width != 0) {
-      if (pos_end <= line_width
-          && (pos_end + 1
-              < buffer->view_start_column() + static_cast<size_t>(COLS))) {
-        addstr(string(line_width - pos_end, ' ').c_str());
-        addch(line->modified ? '+' : '.');
-        pos_end++;
-      }
+    if (!paste_mode
+        && line_width != 0
+        && pos_end <= line_width
+        && (pos_end + 1
+            < buffer->view_start_column() + static_cast<size_t>(COLS))) {
+      addstr(string(line_width - pos_end, ' ').c_str());
+      addch(line->modified ? '+' : '.');
+      pos_end++;
     }
     if (pos_end < buffer->view_start_column() + static_cast<size_t>(COLS)) {
       addch('\n');

@@ -119,9 +119,11 @@ void OpenFileHandler(const string& name, EditorState* editor_state) {
 
 void SetVariableHandler(const string& name, EditorState* editor_state) {
   editor_state->ResetMode();
+  editor_state->ScheduleRedraw();
   if (name.empty()) { return; }
   {
-    const EdgeVariable<string>* var = OpenBuffer::StringStruct()->find_variable(name);
+    const EdgeVariable<string>* var =
+        OpenBuffer::StringStruct()->find_variable(name);
     if (var != nullptr) {
       if (!editor_state->has_current_buffer()) { return; }
       Prompt(

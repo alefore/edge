@@ -682,6 +682,7 @@ string OpenBuffer::FlagsString() const {
     OpenBuffer::variable_diff();
     OpenBuffer::variable_save_on_close();
     OpenBuffer::variable_clear_on_reload();
+    OpenBuffer::variable_paste_mode();
   }
   return output;
 }
@@ -768,6 +769,17 @@ string OpenBuffer::FlagsString() const {
       "If false, previous contents will be preserved and new contents will be "
       "appended at the end.",
       true);
+  return variable;
+}
+
+/* static */ EdgeVariable<char>* OpenBuffer::variable_paste_mode() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+      "paste_mode",
+      "When paste_mode is enabled in a buffer, it will be displayed in a way "
+      "that makes it possible to select (with a mouse) parts of it (that are "
+      "currently shown).  It will also allow you to paste text directly into "
+      "the buffer.",
+      false);
   return variable;
 }
 
