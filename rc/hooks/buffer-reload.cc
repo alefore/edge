@@ -19,3 +19,9 @@ if (extension == "cc" || extension == "h") {
   //buffer.set_input_line_processor(ProcessCCInputLine);
   SetStatus("Loaded C file (" + extension + ")");
 }
+
+if (extension == "py") {
+  buffer.set_editor_commands_path("~/.edge/editor_commands/");
+  buffer.set_line_prefix_characters(" #");
+  SetStatus("Loaded Python file (" + extension + ")");
+}
