@@ -86,10 +86,12 @@ class InsertMode : public EditorMode {
         const string& line_prefix_characters(buffer->read_string_variable(
             OpenBuffer::variable_line_prefix_characters()));
         size_t prefix_end = 0;
-        while (prefix_end < pos
-               && (line_prefix_characters.find(current_line->get(prefix_end))
-                   != line_prefix_characters.npos)) {
-          prefix_end++;
+        if (!buffer->read_bool_variable(OpenBuffer::variable_paste_mode())) {
+          while (prefix_end < pos
+                 && (line_prefix_characters.find(current_line->get(prefix_end))
+                     != line_prefix_characters.npos)) {
+            prefix_end++;
+          }
         }
 
         shared_ptr<LazyString> continuation(
