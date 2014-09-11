@@ -162,11 +162,10 @@ Predictor PrecomputedPredictor(const vector<string>& predictions) {
   const shared_ptr<map<string, shared_ptr<LazyString>>> contents(
       new map<string, shared_ptr<LazyString>>());
   for (const auto& prediction : predictions) {
-    contents->insert(
-        make_pair(prediction,
-                  NewCopyString(prediction)));
+    contents->insert(make_pair(prediction, NewCopyString(prediction)));
   }
-  return [contents](EditorState* editor_state, const string& input, OpenBuffer* buffer) {
+  return [contents](EditorState* editor_state, const string& input,
+                    OpenBuffer* buffer) {
     for (auto it = contents->lower_bound(input); it != contents->end(); ++it) {
       auto result = mismatch(input.begin(), input.end(), (*it).first.begin());
       if (result.first == input.end()) {

@@ -24,6 +24,25 @@ extern "C" {
 namespace afc {
 namespace editor {
 
+namespace {
+
+string TrimWhitespace(const string& in) {
+  size_t begin = in.find_first_not_of(" ", 0);
+  if (begin == string::npos) {
+    return "";
+  }
+  size_t end = in.find_last_not_of(" ", in.size());
+  if (end == string::npos) {
+    return "";
+  }
+  if (begin == 0 && end == in.size()) {
+    return in;
+  }
+  return in.substr(begin, end - begin + 1);
+}
+
+}
+
 using std::cerr;
 using std::make_pair;
 using std::map;
@@ -117,9 +136,10 @@ void OpenFileHandler(const string& name, EditorState* editor_state) {
   OpenFile(options);
 }
 
-void SetVariableHandler(const string& name, EditorState* editor_state) {
+void SetVariableHandler(const string& input_name, EditorState* editor_state) {
   editor_state->ResetMode();
   editor_state->ScheduleRedraw();
+  string name = TrimWhitespace(input_name);
   if (name.empty()) { return; }
   {
     const EdgeVariable<string>* var =
