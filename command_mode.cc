@@ -38,6 +38,10 @@ class GotoCommand : public Command {
 
   void ProcessInput(int c, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
+    Process(editor_state, 0);
+  }
+
+  void Process(EditorState* editor_state, size_t calls) {
     switch (editor_state->structure()) {
       case EditorState::CHAR:
         {
@@ -53,9 +57,14 @@ class GotoCommand : public Command {
             start++;
           }
           size_t position = ComputePosition(
-              editor_state, line->size() + 1 - start);
+              line->size() + 1 - start, editor_state->direction(),
+              editor_state->repetitions(), calls);
           assert(start + position <= line->size());
-          buffer->set_current_position_col(start + position);
+          if (buffer->position().column != start + position) {
+            buffer->set_current_position_col(start + position);
+          } else if (calls < 2) {
+            Process(editor_state, calls + 1);
+          }
         }
         break;
 
@@ -86,8 +95,9 @@ class GotoCommand : public Command {
       case EditorState::LINE:
         {
           shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-          size_t position =
-              ComputePosition(editor_state, buffer->contents()->size());
+          size_t position = ComputePosition(
+              buffer->contents()->size(), editor_state->direction(),
+              editor_state->repetitions(), calls);
           assert(position <= buffer->contents()->size());
           buffer->set_current_position_line(position);
         }
@@ -98,9 +108,9 @@ class GotoCommand : public Command {
           shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
           assert(!buffer->contents()->empty());
           size_t position = editor_state->visible_lines() * ComputePosition(
-              editor_state,
               ceil(static_cast<double>(buffer->contents()->size())
-                  / editor_state->visible_lines()));
+                  / editor_state->visible_lines()),
+              editor_state->direction(), editor_state->repetitions(), calls);
           assert(position < buffer->contents()->size());
           buffer->set_current_position_line(position);
         }
@@ -112,8 +122,9 @@ class GotoCommand : public Command {
 
       case EditorState::BUFFER:
         {
-          size_t position =
-              ComputePosition(editor_state, editor_state->buffers()->size());
+          size_t position = ComputePosition(
+              editor_state->buffers()->size(), editor_state->direction(),
+              editor_state->repetitions(), calls);
           assert(position < editor_state->buffers()->size());
           auto it = editor_state->buffers()->begin();
           advance(it, position);
@@ -132,10 +143,13 @@ class GotoCommand : public Command {
   }
 
  private:
-  size_t ComputePosition(EditorState* editor_state, size_t elements) {
-    size_t repetitions = editor_state->repetitions();
+  size_t ComputePosition(
+      size_t elements, Direction direction, size_t repetitions, size_t calls) {
+    if (calls == 1) {
+      direction = ReverseDirection(direction);
+    }
     repetitions = min(elements, max(1ul, repetitions));
-    if (editor_state->direction() == FORWARDS) {
+    if (direction == FORWARDS) {
       return repetitions - 1;
     } else {
       return elements - repetitions;
