@@ -137,6 +137,35 @@ namespace editor {
 using namespace afc::vm;
 using std::to_string;
 
+BufferLineIterator& BufferLineIterator::operator++() {
+  while (line_ < buffer_->contents()->size()) {
+    ++line_;
+    if (buffer_->IsLineFiltered(line_)) {
+      return *this;
+    }
+  }
+  return *this;
+}
+
+BufferLineIterator& BufferLineIterator::operator--() {
+  while (line_ > 0) {
+    --line_;
+    if (buffer_->IsLineFiltered(line_)) {
+      return *this;
+    }
+  }
+  return *this;
+}
+
+shared_ptr<Line>& BufferLineIterator::operator*() {
+  return const_cast<shared_ptr<Line>&>(
+      const_cast<const BufferLineIterator*>(this)->operator*());
+}
+
+const shared_ptr<Line>& BufferLineIterator::operator*() const {
+  return buffer_->contents()->at(line_);
+}
+
 bool LineColumn::operator!=(const LineColumn& other) const {
   return line != other.line || column != other.column;
 }
@@ -249,7 +278,8 @@ bool LineColumn::operator!=(const LineColumn& other) const {
             unique_ptr<Value> result = args[1]->callback(std::move(line_args));
             if (result->str != current_line) {
               transformation.PushBack(NewDeleteTransformation(
-                  buffer->position(), LineColumn(buffer->position().line + 1)));
+                  buffer->position(), LineColumn(buffer->position().line + 1),
+                  true));
               shared_ptr<OpenBuffer> buffer_to_insert(
                   new OpenBuffer(editor_state, "tmp buffer"));
               buffer_to_insert->AppendLine(
@@ -264,6 +294,26 @@ bool LineColumn::operator!=(const LineColumn& other) const {
           return Value::NewVoid();
         };
     buffer->AddField("Map", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
+    VMType function_argument(VMType::FUNCTION);
+    function_argument.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
+    function_argument.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->type.type_arguments.push_back(function_argument);
+    callback->callback =
+        [editor_state](vector<unique_ptr<Value>> args) {
+          assert(args.size() == 2);
+          assert(args[0]->type == VMType::OBJECT_TYPE);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          assert(buffer != nullptr);
+          buffer->set_filter(std::move(args[1]));
+          editor_state->ScheduleRedraw();
+          return Value::NewVoid();
+        };
+    buffer->AddField("Filter", std::move(callback));
   }
   environment->DefineType("Buffer", std::move(buffer));
 }
@@ -280,17 +330,20 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
       child_exit_status_(0),
       view_start_line_(0),
       view_start_column_(0),
-      position_(0, 0),
+      line_(this, 0),
       modified_(false),
       reading_from_parser_(false),
       bool_variables_(BoolStruct()->NewInstance()),
       string_variables_(StringStruct()->NewInstance()),
       int_variables_(IntStruct()->NewInstance()),
-      environment_(editor_state->environment()) {
+      environment_(editor_state->environment()),
+      filter_version_(0) {
   environment_.Define("buffer", Value::NewObject(
       "Buffer", shared_ptr<void>(this, [](void* p){})));
   ClearContents();
 }
+
+OpenBuffer::~OpenBuffer() {}
 
 void OpenBuffer::Close(EditorState* editor_state) {
   if (read_bool_variable(variable_save_on_close())) {
@@ -369,7 +422,7 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
       if (was_at_end) {
         set_position(end_position());
       }
-      assert(position_.line < contents_.size());
+      assert(line_.line() < contents_.size());
       buffer_line_start_ = i + 1;
       if (editor_state->has_current_buffer()
           && editor_state->current_buffer()->second.get() == this
@@ -479,7 +532,7 @@ void OpenBuffer::EvaluateFile(EditorState* editor_state, const string& path) {
 
 LineColumn OpenBuffer::InsertInCurrentPosition(
     const vector<shared_ptr<Line>>& insertion) {
-  return InsertInPosition(insertion, position_);
+  return InsertInPosition(insertion, position());
 }
 
 LineColumn OpenBuffer::InsertInPosition(
@@ -510,16 +563,16 @@ LineColumn OpenBuffer::InsertInPosition(
 void OpenBuffer::MaybeAdjustPositionCol() {
   if (contents_.empty()) { return; }
   size_t line_length = current_line()->contents->size();
-  if (position_.column > line_length) {
-    position_.column = line_length;
+  if (column_ > line_length) {
+    column_ = line_length;
   }
 }
 
 void OpenBuffer::CheckPosition() {
-  if (position_.line >= contents_.size()) {
-    position_.line = contents_.size();
-    if (position_.line > 0) {
-      position_.line--;
+  if (line_.line() >= contents_.size()) {
+    line_ = BufferLineIterator(this, contents_.size());
+    if (line_.line() > 0) {
+      line_ = BufferLineIterator(this, line_.line() - 1);
     }
   }
 }
@@ -728,6 +781,7 @@ string OpenBuffer::FlagsString() const {
     OpenBuffer::variable_path();
     OpenBuffer::variable_editor_commands_path();
     OpenBuffer::variable_line_prefix_characters();
+    OpenBuffer::variable_line_suffix_superfluous_characters();
   }
   return output;
 }
@@ -794,8 +848,19 @@ OpenBuffer::variable_line_prefix_characters() {
       "the actual contents of a line.  When a new line is created, the prefix "
       "of the previous line (the sequence of all characters at the start of "
       "the previous line that are listed in line_prefix_characters) is copied "
-      "to the new line.  The order of elements in line_prefix_characters has "
+      "to the new line.  The order of characters in line_prefix_characters has "
       "no effect.",
+      " ");
+  return variable;
+}
+
+/* static */ EdgeVariable<string>*
+OpenBuffer::variable_line_suffix_superfluous_characters() {
+  static EdgeVariable<string>* variable = StringStruct()->AddVariable(
+      "line_suffix_superfluous_characters",
+      "String with all the characters that should be removed from the suffix "
+      "of a line (after editing it).  The order of characters in "
+      "line_suffix_superfluous_characters has no effect.",
       " ");
   return variable;
 }
@@ -857,6 +922,26 @@ void OpenBuffer::Undo(EditorState* editor_state) {
       redo_history_.pop_back();
     }
   }
+}
+
+void OpenBuffer::set_filter(unique_ptr<Value> filter) {
+  filter_ = std::move(filter);
+  filter_version_++;
+}
+
+bool OpenBuffer::IsLineFiltered(size_t line_number) {
+  assert(line_number <= contents_.size());
+  if (line_number == contents_.size()) {
+    return true;
+  }
+  auto line = contents_[line_number];
+  if (line->filter_version < filter_version_) {
+    vector<unique_ptr<Value>> args;
+    args.push_back(Value::NewString(line->contents->ToString()));
+    line->filtered = filter_->callback(std::move(args))->boolean;
+    line->filter_version = filter_version_;
+  }
+  return line->filtered;
 }
 
 }  // namespace editor

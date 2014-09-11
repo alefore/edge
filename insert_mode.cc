@@ -19,6 +19,26 @@ extern "C" {
 namespace {
 using namespace afc::editor;
 
+void DeleteSuffixSuperfluousCharacters(
+    EditorState* editor_state, OpenBuffer* buffer) {
+  const string& superfluous_characters(buffer->read_string_variable(
+      OpenBuffer::variable_line_suffix_superfluous_characters()));
+  const auto line = buffer->current_line()->contents;
+  size_t pos = line->size();
+  while (pos > 0
+         && superfluous_characters.find(line->get(pos - 1)) != string::npos) {
+    pos--;
+  }
+  if (pos == line->size()) {
+    return;
+  }
+  int line_count = buffer->position().line;
+  buffer->Apply(editor_state,
+       *NewDeleteTransformation(LineColumn(line_count, pos),
+                                LineColumn(line_count, line->size()),
+                                false));
+}
+
 class InsertMode : public EditorMode {
  public:
   InsertMode() {}
@@ -28,6 +48,7 @@ class InsertMode : public EditorMode {
     buffer->MaybeAdjustPositionCol();
     switch (c) {
       case Terminal::ESCAPE:
+        DeleteSuffixSuperfluousCharacters(editor_state, buffer.get());
         editor_state->PushCurrentPosition();
         editor_state->ResetStatus();
         editor_state->ResetMode();
@@ -45,7 +66,7 @@ class InsertMode : public EditorMode {
             start.column--;
           }
           buffer->Apply(editor_state,
-              *NewDeleteTransformation(start, buffer->position()).get());
+              *NewDeleteTransformation(start, buffer->position(), false).get());
           buffer->set_modified(true);
           editor_state->ScheduleRedraw();
         }
@@ -80,7 +101,7 @@ class InsertMode : public EditorMode {
         TransformationStack transformation;
 
         transformation.PushBack(NewDeleteTransformation(
-            position, LineColumn(position.line, current_line->size())));
+            position, LineColumn(position.line, current_line->size()), false));
 
         {
           shared_ptr<OpenBuffer> buffer_to_insert(

@@ -2,6 +2,7 @@
 #define __AFC_EDITOR_BUFFER_H__
 
 #include <cassert>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <vector>
@@ -18,6 +19,7 @@
 namespace afc {
 namespace editor {
 
+using std::iterator;
 using std::list;
 using std::shared_ptr;
 using std::unique_ptr;
@@ -26,16 +28,23 @@ using std::map;
 using std::max;
 using std::min;
 
+using namespace afc::vm;
+
 struct Line {
   Line() {};
   Line(const shared_ptr<LazyString>& contents_input)
-      : contents(contents_input), modified(false) {}
+      : contents(contents_input),
+        modified(false),
+        filtered(true),
+        filter_version(0) {}
 
   size_t size() const { return contents->size(); }
 
   unique_ptr<EditorMode> activate;
   shared_ptr<LazyString> contents;
   bool modified;
+  bool filtered;
+  size_t filter_version;
 };
 
 struct ParseTree {
@@ -59,8 +68,66 @@ struct LineColumn {
     using std::to_string;
     return to_string(line) + " " + to_string(column);
   }
+
   size_t line;
   size_t column;
+};
+
+class BufferLineIterator
+    : public std::iterator<std::input_iterator_tag, shared_ptr<Line>> {
+ public:
+  BufferLineIterator(OpenBuffer* buffer, size_t line)
+      : buffer_(buffer), line_(line) {}
+
+  BufferLineIterator(const BufferLineIterator& other)
+      : buffer_(other.buffer_),
+        line_(other.line_) {}
+
+  BufferLineIterator& operator++();
+
+  BufferLineIterator operator++(int) {
+    BufferLineIterator copy(*this);
+    operator++();
+    return copy;
+  }
+
+  BufferLineIterator& operator--();
+
+  BufferLineIterator operator--(int) {
+    BufferLineIterator copy(*this);
+    operator--();
+    return copy;
+  }
+
+  bool operator==(const BufferLineIterator& rhs) const {
+    return buffer_ == rhs.buffer_ && line_ == rhs.line_;
+  }
+
+  bool operator!=(const BufferLineIterator& rhs) const {
+    return !(*this == rhs);
+  }
+
+  shared_ptr<Line>& operator*();
+  const shared_ptr<Line>& operator*() const;
+
+  size_t line() const { return line_; }
+
+ private:
+  OpenBuffer* buffer_;
+  size_t line_;
+};
+
+class BufferLineReverseIterator
+    : public std::reverse_iterator<BufferLineIterator> {
+ public:
+  BufferLineReverseIterator(const BufferLineIterator& input_base)
+      : std::reverse_iterator<BufferLineIterator>(input_base) {}
+
+  size_t line() const {
+    BufferLineIterator tmp(base());
+    --tmp;
+    return tmp.line();
+  }
 };
 
 class OpenBuffer {
@@ -70,9 +137,10 @@ class OpenBuffer {
   static const string kPasteBuffer;
 
   static void RegisterBufferType(EditorState* editor_state,
-                                 afc::vm::Environment* environment);
+                                 Environment* environment);
 
   OpenBuffer(EditorState* editor_state, const string& name);
+  ~OpenBuffer();
 
   void Close(EditorState* editor_state);
 
@@ -113,8 +181,11 @@ class OpenBuffer {
   // any word characters), returns false.
   bool BoundWordAt(const LineColumn& position, LineColumn* start, LineColumn* end);
 
-  shared_ptr<Line> current_line() const {
-    return LineAt(position_.line);
+  const shared_ptr<Line> current_line() const {
+    return *line_;
+  }
+  shared_ptr<Line> current_line() {
+    return *line_;
   }
   shared_ptr<Line> LineAt(size_t line_number) const {
     assert(!contents_.empty());
@@ -142,7 +213,7 @@ class OpenBuffer {
   string ToString() const;
 
   void replace_current_line(const shared_ptr<Line>& line) {
-    contents_.at(position_.line) = line;
+    *line_ = line;
   }
 
   int fd() const { return fd_; }
@@ -160,28 +231,29 @@ class OpenBuffer {
   }
   bool at_beginning() const {
     if (contents_.empty()) { return true; }
-    return position_.at_beginning();
+    return position().at_beginning();
   }
-  bool at_beginning_of_line() const { return at_beginning_of_line(position_); }
+  bool at_beginning_of_line() const { return at_beginning_of_line(position()); }
   bool at_beginning_of_line(const LineColumn& position) const {
     if (contents_.empty()) { return true; }
     return position.at_beginning_of_line();
   }
-  bool at_end() const { return at_end(position_); }
+  bool at_end() const { return at_end(position()); }
   bool at_end(const LineColumn& position) const {
     if (contents_.empty()) { return true; }
     return at_last_line(position) && at_end_of_line(position);
   }
   LineColumn end_position() const {
     if (contents_.empty()) { return LineColumn(0, 0); }
-    return LineColumn(contents_.size() - 1, (*contents_.rbegin())->contents->size());
+    return LineColumn(contents_.size() - 1,
+                      (*contents_.rbegin())->contents->size());
   }
-  bool at_last_line() const { return at_last_line(position_); }
+  bool at_last_line() const { return at_last_line(position()); }
   bool at_last_line(const LineColumn& position) const {
     return position.line == contents_.size() - 1;
   }
   bool at_end_of_line() const {
-    return at_end_of_line(position_);
+    return at_end_of_line(position());
   }
   bool at_end_of_line(const LineColumn& position) const {
     if (contents_.empty()) { return true; }
@@ -195,23 +267,42 @@ class OpenBuffer {
     assert(current_position_col() > 0);
     return current_line()->contents->get(current_position_col() - 1);
   }
-  size_t current_position_line() const { return position_.line; }
+  size_t current_position_line() const { return line_.line(); }
   void set_current_position_line(size_t value) {
-    position_.line = value;
+    line_ = BufferLineIterator(this, value);
   }
-  size_t current_position_col() const { return position_.column; }
+  size_t current_position_col() const { return column_; }
   void set_current_position_col(size_t value) {
-    position_.column = value;
+    column_ = value;
   }
+
+  BufferLineIterator line_begin() {
+    return BufferLineIterator(this, 0);
+  }
+  BufferLineIterator line_end() {
+    return BufferLineIterator(this, contents_.size());
+  }
+  BufferLineReverseIterator line_rbegin() {
+    return BufferLineReverseIterator(line_end());
+  }
+  BufferLineReverseIterator line_rend() {
+    return BufferLineReverseIterator(line_begin());
+  }
+  BufferLineIterator& line() {
+    return line_;
+  }
+
   const LineColumn position() const {
-    return position_;
+    return LineColumn(line_.line(), column_);
   }
   void set_position(const LineColumn& position) {
-    position_ = position;
     assert(contents_.size() >= 1);
-    if (position_.line >= contents_.size()) {
-      position_.line = contents_.size() - 1;
+    size_t line = position.line;
+    if (line >= contents_.size()) {
+      line = contents_.size() - 1;
     }
+    line_ = BufferLineIterator(this, line);
+    column_ = position.column;
   }
 
   void Enter(EditorState* editor_state) {
@@ -247,6 +338,7 @@ class OpenBuffer {
   static EdgeVariable<string>* variable_path();
   static EdgeVariable<string>* variable_editor_commands_path();
   static EdgeVariable<string>* variable_line_prefix_characters();
+  static EdgeVariable<string>* variable_line_suffix_superfluous_characters();
 
   static EdgeStruct<int>* IntStruct();
   static EdgeVariable<int>* variable_line_width();
@@ -265,6 +357,9 @@ class OpenBuffer {
 
   void Apply(EditorState* editor_state, const Transformation& transformation);
   void Undo(EditorState* editor_state);
+
+  void set_filter(unique_ptr<Value> filter);
+  bool IsLineFiltered(size_t line);
 
  protected:
   vector<unique_ptr<ParseTree>> parse_tree;
@@ -291,7 +386,9 @@ class OpenBuffer {
 
   size_t view_start_line_;
   size_t view_start_column_;
-  LineColumn position_;
+
+  BufferLineIterator line_;
+  size_t column_;
 
   bool modified_;
   bool reading_from_parser_;
@@ -314,7 +411,14 @@ class OpenBuffer {
   list<unique_ptr<Transformation>> undo_history_;
   list<unique_ptr<Transformation>> redo_history_;
 
-  afc::vm::Environment environment_;
+  Environment environment_;
+
+  // A function that receives a string and returns a boolean. The function will
+  // be evaluated on every line, to compute whether or not the line should be
+  // shown.  This does not remove any lines: it merely hides them (by setting
+  // the Line::filtered field).
+  unique_ptr<Value> filter_;
+  size_t filter_version_;
 };
 
 }  // namespace editor

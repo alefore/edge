@@ -152,51 +152,70 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
 
   move(0, 0);
 
-  size_t view_stop_line =
-      buffer->view_start_line() + static_cast<size_t>(LINES)
-      - (editor_state->status().empty() ? 0 : 1);
+  size_t lines_to_show = static_cast<size_t>(LINES);
   size_t line_width = buffer->read_int_variable(
       OpenBuffer::variable_line_width());
-  for (size_t current_line = buffer->view_start_line();
-       current_line < view_stop_line; current_line++) {
+  size_t current_line = buffer->view_start_line();
+  size_t lines_shown = 0;
+  while (lines_shown < lines_to_show) {
+    if (current_line == contents.size()) {
+      addch('\n');
+      lines_shown++;
+      continue;
+    }
+    if (!buffer->IsLineFiltered(current_line)) {
+      current_line ++;
+      continue;
+    }
+
+    lines_shown++;
     size_t pos_end = 0;
-    if (current_line < contents.size()) {
-      const shared_ptr<Line> line(contents[current_line]);
-      assert(line->contents.get() != nullptr);
-      pos_end = std::min(
-          buffer->view_start_column() + static_cast<size_t>(COLS),
-          line->contents->size());
-      for (size_t pos = buffer->view_start_column(); pos < pos_end; pos++) {
-        int c = line->contents->get(pos);
-        assert(c != '\n');
-        if (c == '\r') { addch(' '); continue; }
-        addch(c);
-      }
-      if (line_width != 0) {
-        if (pos_end <= line_width
-            && (pos_end + 1
-                < buffer->view_start_column() + static_cast<size_t>(COLS))) {
-          addstr(string(line_width - pos_end, ' ').c_str());
-          addch(line->modified ? '+' : '.');
-          pos_end++;
-        }
+    const shared_ptr<Line> line(contents[current_line]);
+    assert(line->contents.get() != nullptr);
+    pos_end = std::min(
+        buffer->view_start_column() + static_cast<size_t>(COLS),
+        line->contents->size());
+    for (size_t pos = buffer->view_start_column(); pos < pos_end; pos++) {
+      int c = line->contents->get(pos);
+      assert(c != '\n');
+      if (c == '\r') { addch(' '); continue; }
+      addch(c);
+    }
+    if (line_width != 0) {
+      if (pos_end <= line_width
+          && (pos_end + 1
+              < buffer->view_start_column() + static_cast<size_t>(COLS))) {
+        addstr(string(line_width - pos_end, ' ').c_str());
+        addch(line->modified ? '+' : '.');
+        pos_end++;
       }
     }
     if (pos_end < buffer->view_start_column() + static_cast<size_t>(COLS)) {
       addch('\n');
     }
+    current_line ++;
   }
 }
 
 void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
   const vector<shared_ptr<Line>>& contents(*buffer->contents());
-  assert(buffer->current_position_line() <= contents.size());
-  size_t line_length = buffer->current_position_line() == contents.size()
-      ? 0 : contents[buffer->current_position_line()]->contents->size();
+  assert(buffer->position().line <= contents.size());
+  size_t line_length =
+      buffer->position().line == contents.size()
+      || !buffer->IsLineFiltered(buffer->position().line)
+      ? 0 : contents[buffer->position().line]->contents->size();
   size_t pos_x = min(min(static_cast<size_t>(COLS) - 1, line_length),
-                     buffer->current_position_col());
+                     buffer->position().column);
 
-  move(buffer->current_position_line() - buffer->view_start_line(), pos_x);
+  size_t pos_y = 0;
+  for (size_t line = buffer->view_start_line();
+       line < buffer->position().line;
+       line++) {
+    if (buffer->IsLineFiltered(line)) {
+      pos_y++;
+    }
+  }
+  move(pos_y, pos_x);
 }
 
 int Terminal::Read() {

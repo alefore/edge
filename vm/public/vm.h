@@ -62,6 +62,12 @@ unique_ptr<Expression> CompileString(
     Environment* environment,
     string* error_description);
 
+unique_ptr<Expression> CompileString(
+    const string& str,
+    Environment* environment,
+    string* error_description,
+    const VMType& return_type);
+
 unique_ptr<Value> Evaluate(Expression* expr, Environment* environment);
 
 }  // namespace vm

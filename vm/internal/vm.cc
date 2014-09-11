@@ -116,6 +116,16 @@ void CompileLine(Compilation* compilation, void* parser, const string& str) {
         pos++;
         break;
 
+      case ':':
+        token = COLON;
+        pos++;
+        break;
+
+      case '?':
+        token = QUESTION_MARK;
+        pos++;
+        break;
+
       case '.':
         token = DOT;
         pos++;
@@ -273,12 +283,14 @@ void CompileLine(Compilation* compilation, void* parser, const string& str) {
 }  // namespace
 
 unique_ptr<Expression> CompileStream(
-    Environment* environment, std::istream& stream, string* error_description) {
+    Environment* environment, std::istream& stream, string* error_description,
+    const VMType& return_type) {
   void* parser = CppAlloc(malloc);
 
   Compilation compilation;
   compilation.expr = nullptr;
   compilation.environment = environment;
+  compilation.return_types = { return_type };
 
   std::string line;
   while (std::getline(stream, line)) {
@@ -298,13 +310,19 @@ unique_ptr<Expression> CompileStream(
 unique_ptr<Expression> CompileFile(
     const string& path, Environment* environment, string* error_description) {
   std::ifstream infile(path);
-  return CompileStream(environment, infile, error_description);
+  return CompileStream(environment, infile, error_description, VMType::Void());
 }
 
 unique_ptr<Expression> CompileString(
     const string& str, Environment* environment, string* error_description) {
+  return CompileString(str, environment, error_description, VMType::Void());
+}
+
+unique_ptr<Expression> CompileString(
+    const string& str, Environment* environment, string* error_description,
+    const VMType& return_type) {
   std::istream* instr = new std::stringstream(str, std::ios_base::in);
-  return CompileStream(environment, *instr, error_description);
+  return CompileStream(environment, *instr, error_description, return_type);
 }
 
 unique_ptr<Value> Evaluate(Expression* expr, Environment* environment) {

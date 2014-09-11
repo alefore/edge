@@ -27,7 +27,7 @@ class InsertBuffer : public Transformation {
     }
     buffer->set_position(position);
     editor_state->ScheduleRedraw();
-    return NewDeleteTransformation(position_, position);
+    return NewDeleteTransformation(position_, position, false);
   }
 
  private:
@@ -49,8 +49,9 @@ void InsertDeletedTextBuffer(EditorState* editor_state,
 // to the end position (leaving the characters immediately at the end position).
 class DeleteTransformation : public Transformation {
  public:
-  DeleteTransformation(const LineColumn& start, const LineColumn& end)
-      : start_(start), end_(end) {}
+  DeleteTransformation(const LineColumn& start, const LineColumn& end,
+                       bool copy_to_paste_buffer)
+      : start_(start), end_(end), copy_to_paste_buffer_(copy_to_paste_buffer) {}
       
   unique_ptr<Transformation> Apply(
       EditorState* editor_state, OpenBuffer* buffer) const {
@@ -72,7 +73,6 @@ class DeleteTransformation : public Transformation {
         current_line->activate->ProcessInput('d', editor_state);
       }
     }
-    deleted_text->contents()->erase(deleted_text->contents()->end() - 1);
     shared_ptr<LazyString> prefix = Substring(
         buffer->contents()->at(start_.line)->contents, 0, start_.column);
     shared_ptr<LazyString> contents_last_line =
@@ -88,11 +88,13 @@ class DeleteTransformation : public Transformation {
     buffer->contents()->at(start_.line)->modified = true;
     buffer->set_position(start_);
     buffer->CheckPosition();
-    assert(deleted_text != nullptr);
 
     editor_state->ScheduleRedraw();
 
-    InsertDeletedTextBuffer(editor_state, deleted_text);
+    deleted_text->contents()->erase(deleted_text->contents()->end() - 1);
+    if (copy_to_paste_buffer_) {
+      InsertDeletedTextBuffer(editor_state, deleted_text);
+    }
 
     return NewInsertBufferTransformation(deleted_text, start_, 1);
   }
@@ -100,6 +102,7 @@ class DeleteTransformation : public Transformation {
  private:
   LineColumn start_;
   LineColumn end_;
+  bool copy_to_paste_buffer_;
 };
 
 }  // namespace
@@ -115,8 +118,9 @@ unique_ptr<Transformation> NewInsertBufferTransformation(
 }
 
 unique_ptr<Transformation> NewDeleteTransformation(
-    const LineColumn& start, const LineColumn& end) {
-  return unique_ptr<Transformation>(new DeleteTransformation(start, end));
+    const LineColumn& start, const LineColumn& end, bool copy_to_paste_buffer) {
+  return unique_ptr<Transformation>(
+      new DeleteTransformation(start, end, copy_to_paste_buffer));
 }
 
 }  // namespace editor

@@ -1,5 +1,8 @@
 #include "return_expression.h"
 
+#include <cassert>
+
+#include "compilation.h"
 #include "evaluation.h"
 #include "../public/value.h"
 
@@ -26,8 +29,18 @@ class ReturnExpression : public Expression {
 
 }  // namespace
 
-unique_ptr<Expression> NewReturnExpression(unique_ptr<Expression> expr) {
+unique_ptr<Expression> NewReturnExpression(
+    Compilation* compilation, unique_ptr<Expression> expr) {
   if (expr == nullptr) {
+    return nullptr;
+  }
+
+  assert(!compilation->return_types.empty());
+  const VMType& expected_type = compilation->return_types.back();
+  if (!(expected_type == expr->type())) {
+    compilation->errors.push_back(
+        "Returning value of type \"" + expr->type().ToString()
+        + "\" but expected \"" + expected_type.ToString() + "\"");
     return nullptr;
   }
   return unique_ptr<Expression>(new ReturnExpression(std::move(expr)));

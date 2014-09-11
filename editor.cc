@@ -201,7 +201,7 @@ EditorState::EditorState()
           LineColumn* start = static_cast<LineColumn*>(args[0]->user_value.get());
           LineColumn* end = static_cast<LineColumn*>(args[1]->user_value.get());
           unique_ptr<Transformation> transformation(
-              NewDeleteTransformation(*start, *end));
+              NewDeleteTransformation(*start, *end, true));
           buffer->Apply(this, *transformation);
           return Value::NewVoid();
         };

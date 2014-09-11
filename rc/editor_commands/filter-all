@@ -1,0 +1,2 @@
+bool ShowAllStrings(string x) { return true; }
+buffer.Filter(ShowAllStrings);
