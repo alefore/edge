@@ -355,12 +355,7 @@ class OpenBuffer {
     return LineColumn(line_.line(), column_);
   }
   void set_position(const LineColumn& position) {
-    assert(contents_.size() >= 1);
-    size_t line = position.line;
-    if (line >= contents_.size()) {
-      line = contents_.size() - 1;
-    }
-    line_ = BufferLineIterator(this, line);
+    line_ = BufferLineIterator(this, position.line);
     column_ = position.column;
   }
 

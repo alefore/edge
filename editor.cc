@@ -353,19 +353,17 @@ void EditorState::PushCurrentPosition() {
         .first;
   }
   assert(it->second != nullptr);
-  assert(!it->second->contents()->empty());
-  assert(it->second->position().line < it->second->contents()->size());
+  assert(it->second->position().line <= it->second->contents()->size());
   shared_ptr<Line> line(new Line());
   line->contents = NewCopyString(
       current_buffer_->second->position().ToString()
       + " " + current_buffer_->first);
   it->second->contents()->insert(
-      it->second->contents()->begin()
-      + it->second->current_position_line(),
+      it->second->contents()->begin() + it->second->current_position_line(),
       line);
   it->second->set_current_position_line(
       it->second->current_position_line() + 1);
-  assert(it->second->position().line < it->second->contents()->size());
+  assert(it->second->position().line <= it->second->contents()->size());
   if (it == current_buffer_) {
     ScheduleRedraw();
   }

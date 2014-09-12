@@ -49,16 +49,17 @@ class PredictionsBufferImpl : public OpenBuffer {
  protected:
   void EndOfFile(EditorState* editor_state) {
     OpenBuffer::EndOfFile(editor_state);
+    if (contents()->empty()) { return; }
     struct Compare {
       bool operator()(const shared_ptr<Line>& a, const shared_ptr<Line>& b) {
         return *a->contents < *b->contents;
       }
     } compare;
 
-    sort(contents()->begin(), contents()->end() - 1, compare);
+    sort(contents()->begin(), contents()->end(), compare);
     if (contents()->size() == 1) { return; }
     string common_prefix = (*contents()->begin())->contents->ToString();
-    for (auto& it = ++contents()->begin(); it != --contents()->end(); ++it) {
+    for (auto& it = ++contents()->begin(); it != contents()->end(); ++it) {
       size_t current_size = min(common_prefix.size(), (*it)->contents->size());
       string current = Substring((*it)->contents, 0, current_size)->ToString();
 

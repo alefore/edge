@@ -23,19 +23,20 @@ void DeleteSuffixSuperfluousCharacters(
     EditorState* editor_state, OpenBuffer* buffer) {
   const string& superfluous_characters(buffer->read_string_variable(
       OpenBuffer::variable_line_suffix_superfluous_characters()));
-  const auto line = buffer->current_line()->contents;
-  size_t pos = line->size();
+  const auto line = buffer->current_line();
+  if (!line) { return; }
+  size_t pos = line->contents->size();
   while (pos > 0
-         && superfluous_characters.find(line->get(pos - 1)) != string::npos) {
+         && superfluous_characters.find(line->contents->get(pos - 1)) != string::npos) {
     pos--;
   }
-  if (pos == line->size()) {
+  if (pos == line->contents->size()) {
     return;
   }
   int line_count = buffer->position().line;
   buffer->Apply(editor_state,
        *NewDeleteTransformation(LineColumn(line_count, pos),
-                                LineColumn(line_count, line->size()),
+                                LineColumn(line_count, line->contents->size()),
                                 false));
 }
 
@@ -108,6 +109,7 @@ class InsertMode : public EditorMode {
         {
           shared_ptr<OpenBuffer> buffer_to_insert(
             new OpenBuffer(editor_state, "- text inserted"));
+          buffer_to_insert->contents()->emplace_back(new Line(EmptyString()));
           buffer_to_insert->contents()->emplace_back(new Line(continuation));
           transformation.PushBack(NewInsertBufferTransformation(
               buffer_to_insert, buffer->position(), 1));
@@ -123,7 +125,7 @@ class InsertMode : public EditorMode {
     {
       shared_ptr<OpenBuffer> buffer_to_insert(
           new OpenBuffer(editor_state, "- text inserted"));
-      buffer_to_insert->contents()->at(0).reset(
+      buffer_to_insert->contents()->emplace_back(
           new Line(NewCopyString(string(1, c))));
       buffer->Apply(editor_state,
           *NewInsertBufferTransformation(
@@ -159,7 +161,6 @@ using std::shared_ptr;
 
 void EnterInsertCharactersMode(EditorState* editor_state) {
   auto buffer = editor_state->current_buffer()->second;
-  assert(!buffer->contents()->empty());
   buffer->MaybeAdjustPositionCol();
   editor_state->SetStatus("type");
   editor_state->set_mode(unique_ptr<EditorMode>(new InsertMode()));
@@ -195,5 +196,5 @@ void EnterInsertMode(EditorState* editor_state) {
   editor_state->ResetStructure();
 }
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc

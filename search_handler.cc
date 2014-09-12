@@ -71,8 +71,8 @@ size_t FindInterestingMatch(
     const BufferLineReverseIterator& line) {
   if (matches.empty()) { return string::npos; }
   if (line != start_line) { return *matches.begin(); }
-  for (auto it = matches.begin(); it != matches.end(); ++it) {
-    if (!wrapped ? *it > start_column : *it < start_column) {
+  for (auto it = matches.rbegin(); it != matches.rend(); ++it) {
+    if (wrapped ? *it > start_column : *it < start_column) {
       return *it;
     }
   }
@@ -99,28 +99,30 @@ bool PerformSearch(
 
   *wrapped = false;
 
-  // We search once for every line, and then again in the current line.
   while (true) {
-    string str = (*line)->contents->ToString();
+    if (line.line() < buffer->line_end().line()) {
+      string str = (*line)->contents->ToString();
 
-    vector<size_t> matches = GetMatches(str, pattern);
-    size_t interesting_match;
-    interesting_match =
-        FindInterestingMatch(matches, *wrapped, start_line, start_column, line);
+      vector<size_t> matches = GetMatches(str, pattern);
+      size_t interesting_match;
+      interesting_match =
+          FindInterestingMatch(matches, *wrapped, start_line, start_column, line);
 
-    if (interesting_match != string::npos) {
-      match_position->line = line.line();
-      match_position->column = interesting_match;
-      return true;
+      if (interesting_match != string::npos) {
+        match_position->line = line.line();
+        match_position->column = interesting_match;
+        return true;
+      }
     }
 
     if (line == start_line && *wrapped) {
       return false;
     }
-    line++;
     if (line == end) {
       line = begin;
       *wrapped = true;
+    } else {
+      line++;
     }
   }
 }

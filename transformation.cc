@@ -91,7 +91,6 @@ class DeleteTransformation : public Transformation {
 
     editor_state->ScheduleRedraw();
 
-    deleted_text->contents()->erase(deleted_text->contents()->end() - 1);
     if (copy_to_paste_buffer_) {
       InsertDeletedTextBuffer(editor_state, deleted_text);
     }

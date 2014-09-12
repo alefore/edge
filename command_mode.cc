@@ -235,6 +235,7 @@ class Delete : public Command {
  private:
   void DeleteCharacters(EditorState* editor_state) {
     shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
+    buffer->CheckPosition();
     if (buffer->current_line() == nullptr) { return; }
     buffer->MaybeAdjustPositionCol();
 
@@ -284,6 +285,7 @@ class Paste : public Command {
       return;
     }
     auto buffer = editor_state->current_buffer()->second;
+    buffer->CheckPosition();
     buffer->MaybeAdjustPositionCol();
     unique_ptr<Transformation> transformation = NewInsertBufferTransformation(
         it->second, buffer->position(), editor_state->repetitions());
@@ -407,6 +409,7 @@ const string LineUp::Description() {
     case EditorState::CHAR:
       {
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
+        buffer->CheckPosition();
         const auto line_begin = buffer->line_begin();
         while (editor_state->repetitions() && buffer->line() != line_begin) {
           buffer->line()--;
@@ -452,6 +455,7 @@ const string LineDown::Description() {
     case EditorState::CHAR:
       {
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
+        buffer->CheckPosition();
         const auto line_end = buffer->line_end();
         while (editor_state->repetitions() && buffer->line() != line_end) {
           buffer->line()++;
@@ -522,6 +526,7 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
       {
         if (!editor_state->has_current_buffer()) { return; }
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
+        buffer->CheckPosition();
         if (buffer->current_line() == nullptr) { return; }
         buffer->set_current_position_col(min(
             buffer->current_position_col() + editor_state->repetitions(),
@@ -540,9 +545,9 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
       {
         if (!editor_state->has_current_buffer()) { return; }
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-        if (buffer->current_line() == nullptr) { return; }
         buffer->CheckPosition();
         buffer->MaybeAdjustPositionCol();
+        if (buffer->current_line() == nullptr) { return; }
         const string& word_characters =
             buffer->read_string_variable(buffer->variable_word_characters());
         while (editor_state->repetitions() > 0) {
@@ -611,6 +616,7 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
       {
         if (!editor_state->has_current_buffer()) { return; }
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
+        buffer->CheckPosition();
         if (buffer->current_line() == nullptr) { return; }
         if (buffer->current_position_col() > buffer->current_line()->size()) {
           buffer->set_current_position_col(buffer->current_line()->size());
@@ -635,8 +641,8 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
       {
         if (!editor_state->has_current_buffer()) { return; }
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-        if (buffer->current_line() == nullptr) { return; }
         buffer->CheckPosition();
+        if (buffer->current_line() == nullptr) { return; }
         buffer->MaybeAdjustPositionCol();
         const string& word_characters =
             buffer->read_string_variable(buffer->variable_word_characters());

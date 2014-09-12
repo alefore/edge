@@ -109,10 +109,7 @@ int main(int argc, char**argv) {
   assert(editor_state.current_buffer()->second->position().column == 1);
 
   editor_state.ProcessInputString("eg1000000000000000000d");
-  for (int i = 0; i < 5; i++) {
-    editor_state.ProcessInputString("b");
-    assert(editor_state.current_buffer()->second->position().line == 0);
-  }
+  assert(editor_state.current_buffer()->second->position().line == 0);
 
   editor_state.ProcessInputString("ialejo forero\n");
   editor_state.ProcessInput(Terminal::ESCAPE);
@@ -131,6 +128,17 @@ int main(int argc, char**argv) {
   assert(editor_state.last_search_query() == "hey");
   assert(editor_state.current_buffer()->second->position().line == 0);
   assert(editor_state.current_buffer()->second->position().column == 10);
+
+  // Clear.
+  editor_state.ProcessInputString("eeg99999999999999999999999d");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+
+  editor_state.ProcessInputString("ialejo");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("jjjj");
+  editor_state.ProcessInputString("/alejo\n");
+  assert(editor_state.current_buffer()->second->position().line == 0);
+  assert(editor_state.current_buffer()->second->position().column == 0);
 
   // Clear.
   editor_state.ProcessInputString("eeg99999999999999999999999d");

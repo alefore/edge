@@ -48,11 +48,13 @@ void Terminal::Display(EditorState* editor_state) {
     return;
   }
   auto const& buffer = editor_state->current_buffer()->second;
-  if (buffer->view_start_line() > buffer->current_position_line()) {
-    buffer->set_view_start_line(buffer->current_position_line());
+  size_t line =
+      min(buffer->current_position_line(), buffer->contents()->size());
+  if (buffer->view_start_line() > line) {
+    buffer->set_view_start_line(line);
     editor_state->ScheduleRedraw();
-  } else if (buffer->view_start_line() + LINES - 1 <= buffer->current_position_line()) {
-    buffer->set_view_start_line(buffer->current_position_line() - LINES + 2);
+  } else if (buffer->view_start_line() + LINES - 1 <= line) {
+    buffer->set_view_start_line(line - LINES + 2);
     editor_state->ScheduleRedraw();
   }
 
@@ -201,18 +203,16 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
 
 void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
   const vector<shared_ptr<Line>>& contents(*buffer->contents());
-  assert(buffer->position().line <= contents.size());
+  size_t position_line = min(buffer->position().line, contents.size());
   size_t line_length =
-      buffer->position().line == contents.size()
+      position_line == contents.size()
       || !buffer->IsLineFiltered(buffer->position().line)
-      ? 0 : contents[buffer->position().line]->contents->size();
+      ? 0 : contents[position_line]->contents->size();
   size_t pos_x = min(min(static_cast<size_t>(COLS) - 1, line_length),
                      buffer->position().column);
 
   size_t pos_y = 0;
-  for (size_t line = buffer->view_start_line();
-       line < buffer->position().line;
-       line++) {
+  for (size_t line = buffer->view_start_line(); line < position_line; line++) {
     if (buffer->IsLineFiltered(line)) {
       pos_y++;
     }

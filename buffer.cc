@@ -325,7 +325,6 @@ void OpenBuffer::Close(EditorState* editor_state) {
 
 void OpenBuffer::ClearContents() {
   contents_.clear();
-  contents_.push_back(shared_ptr<Line>(new Line(EmptyString())));
 }
 
 void OpenBuffer::EndOfFile(EditorState* editor_state) {
@@ -387,14 +386,10 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
        i < buffer_length_ + static_cast<size_t>(characters_read);
        i++) {
     if (buffer_[i] == '\n') {
-      bool was_at_end = at_end();
       AppendLine(
           editor_state,
           Substring(buffer_wrapper, buffer_line_start_, i - buffer_line_start_));
-      if (was_at_end) {
-        set_position(end_position());
-      }
-      assert(line_.line() < contents_.size());
+      assert(line_.line() <= contents_.size());
       buffer_line_start_ = i + 1;
       if (editor_state->has_current_buffer()
           && editor_state->current_buffer()->second.get() == this
@@ -442,6 +437,7 @@ void OpenBuffer::AppendLazyString(
       start = i + 1;
     }
   }
+  AppendLine(editor_state, Substring(input, start, size - start));
 }
 
 static void AddToParseTree(const shared_ptr<LazyString>& str_input) {
@@ -474,10 +470,9 @@ void OpenBuffer::AppendLine(EditorState* editor_state, shared_ptr<LazyString> st
 
 void OpenBuffer::AppendRawLine(
     EditorState* editor_state, shared_ptr<LazyString> str) {
-  assert(!contents_.empty());
-  (*contents_.rbegin()).reset(new Line(
-      StringAppend((*contents_.rbegin())->contents, str)));
-  contents_.push_back(shared_ptr<Line>(new Line(EmptyString())));
+  bool was_at_end = line_.line() >= contents_.size();
+  contents_.emplace_back(new Line(str));
+  if (was_at_end) { line_ = BufferLineIterator(this, contents_.size()); }
 }
 
 void OpenBuffer::EvaluateString(EditorState* editor_state, const string& code) {
@@ -510,23 +505,37 @@ LineColumn OpenBuffer::InsertInCurrentPosition(
 LineColumn OpenBuffer::InsertInPosition(
     const vector<shared_ptr<Line>>& insertion, const LineColumn& position) {
   if (insertion.empty()) { return position; }
-  auto head = Substring(contents_.at(position.line)->contents, 0, position.column);
-  auto tail = Substring(contents_.at(position.line)->contents, position.column);
-  contents_.insert(contents_.begin() + position.line + 1, insertion.begin() + 1, insertion.end());
-  size_t line_end = position.line + insertion.size() - 1;
+  auto head = position.line >= contents_.size()
+      ? EmptyString()
+      : Substring(contents_.at(position.line)->contents, 0, position.column);
+  auto tail = position.line >= contents_.size()
+      ? EmptyString()
+      : Substring(contents_.at(position.line)->contents, position.column);
+  contents_.insert(contents_.begin() + position.line, insertion.begin(), insertion.end() - 1);
   if (insertion.size() == 1) {
     auto line_to_insert = insertion.at(0)->contents;
-    contents_.at(position.line).reset(new Line(
-        StringAppend(head, StringAppend(line_to_insert, tail))));
+    auto new_line = new Line(
+        StringAppend(head, StringAppend(line_to_insert, tail)));
+    if (position.line >= contents_.size()) {
+      contents_.emplace_back(new_line);
+    } else {
+      contents_.at(position.line).reset(new_line);
+    }
     contents_[position.line]->modified = true;
     return LineColumn(position.line, head->size() + line_to_insert->size());
   }
-  contents_[position.line]->modified = true;
-  contents_[line_end]->modified = true;
+  size_t line_end = position.line + insertion.size() - 1;
   contents_.at(position.line).reset(
       new Line(StringAppend(head, (*insertion.begin())->contents)));
-  contents_.at(line_end).reset(
-      new Line(StringAppend((*insertion.rbegin())->contents, tail)));
+  contents_[position.line]->modified = true;
+  auto last_line =
+      new Line(StringAppend((*insertion.rbegin())->contents, tail));
+  if (line_end >= contents_.size()) {
+    contents_.emplace_back(last_line);
+  } else {
+    contents_.at(line_end).reset(last_line);
+  }
+  contents_[line_end]->modified = true;
   return LineColumn(line_end,
       (insertion.size() == 1 ? head->size() : 0)
       + (*insertion.rbegin())->contents->size());
@@ -541,7 +550,7 @@ void OpenBuffer::MaybeAdjustPositionCol() {
 }
 
 void OpenBuffer::CheckPosition() {
-  if (line_.line() >= contents_.size()) {
+  if (line_.line() > contents_.size()) {
     line_ = BufferLineIterator(this, contents_.size());
     if (line_.line() > 0) {
       line_ = BufferLineIterator(this, line_.line() - 1);
