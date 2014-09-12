@@ -73,48 +73,101 @@ struct LineColumn {
   size_t column;
 };
 
-class BufferLineIterator
+template <typename T, typename B>
+class BufferLineGenericIterator
     : public std::iterator<std::input_iterator_tag, shared_ptr<Line>> {
  public:
-  BufferLineIterator(OpenBuffer* buffer, size_t line)
+  BufferLineGenericIterator(B buffer, size_t line)
       : buffer_(buffer), line_(line) {}
 
-  BufferLineIterator(const BufferLineIterator& other)
+  BufferLineGenericIterator(const BufferLineGenericIterator& other)
       : buffer_(other.buffer_),
         line_(other.line_) {}
 
-  BufferLineIterator& operator++();
+  BufferLineGenericIterator& operator++();
 
-  BufferLineIterator operator++(int) {
-    BufferLineIterator copy(*this);
+  BufferLineGenericIterator operator++(int) {
+    BufferLineGenericIterator copy(*this);
     operator++();
     return copy;
   }
 
-  BufferLineIterator& operator--();
+  BufferLineGenericIterator& operator--();
 
-  BufferLineIterator operator--(int) {
-    BufferLineIterator copy(*this);
+  BufferLineGenericIterator operator--(int) {
+    BufferLineGenericIterator copy(*this);
     operator--();
     return copy;
   }
 
-  bool operator==(const BufferLineIterator& rhs) const {
+  bool operator==(const BufferLineGenericIterator& rhs) const {
     return buffer_ == rhs.buffer_ && line_ == rhs.line_;
   }
 
-  bool operator!=(const BufferLineIterator& rhs) const {
+  bool operator!=(const BufferLineGenericIterator& rhs) const {
     return !(*this == rhs);
   }
 
-  shared_ptr<Line>& operator*();
-  const shared_ptr<Line>& operator*() const;
+  T& operator*();
+  const T& operator*() const;
 
   size_t line() const { return line_; }
+  B buffer() { return buffer_; }
+  const B buffer() const { return buffer_; }
 
  private:
-  OpenBuffer* buffer_;
+  B buffer_;
   size_t line_;
+};
+
+template <typename T, typename B>
+BufferLineGenericIterator<T, B>& BufferLineGenericIterator<T, B>::operator++() {
+  while (line_ < buffer_->contents()->size()) {
+    ++line_;
+    if (buffer_->IsLineFiltered(line_)) {
+      return *this;
+    }
+  }
+  return *this;
+}
+
+template <typename T, typename B>
+BufferLineGenericIterator<T, B>& BufferLineGenericIterator<T, B>::operator--() {
+  while (line_ > 0) {
+    --line_;
+    if (buffer_->IsLineFiltered(line_)) {
+      return *this;
+    }
+  }
+  return *this;
+}
+
+template <typename T, typename B>
+T& BufferLineGenericIterator<T, B>::operator*() {
+  return const_cast<T&>(
+      const_cast<const BufferLineGenericIterator<T, B>*>(this)->operator*());
+}
+
+template <typename T, typename B>
+const T& BufferLineGenericIterator<T, B>::operator*() const {
+  return buffer_->contents()->at(line_);
+}
+
+typedef BufferLineGenericIterator<shared_ptr<Line>, OpenBuffer*>
+        BufferLineIterator;
+
+class BufferLineConstIterator
+    : public BufferLineGenericIterator<const shared_ptr<Line>,
+                                       const OpenBuffer*> {
+ public:
+  BufferLineConstIterator(const OpenBuffer* buffer, size_t line)
+      : BufferLineGenericIterator(buffer, line) {}
+
+  BufferLineConstIterator(const BufferLineConstIterator& other)
+      : BufferLineGenericIterator(other) {}
+
+  BufferLineConstIterator(const BufferLineIterator& input)
+      : BufferLineGenericIterator(input.buffer(), input.line()) {}
 };
 
 class BufferLineReverseIterator
@@ -182,9 +235,11 @@ class OpenBuffer {
   bool BoundWordAt(const LineColumn& position, LineColumn* start, LineColumn* end);
 
   const shared_ptr<Line> current_line() const {
+    if (line_end() == BufferLineConstIterator(line_)) { return nullptr; }
     return *line_;
   }
   shared_ptr<Line> current_line() {
+    if (line_end() == line_) { return nullptr; }
     return *line_;
   }
   shared_ptr<Line> LineAt(size_t line_number) const {
@@ -280,7 +335,11 @@ class OpenBuffer {
     return BufferLineIterator(this, 0);
   }
   BufferLineIterator line_end() {
-    return BufferLineIterator(this, contents_.size());
+    auto const_result = const_cast<const OpenBuffer*>(this)->line_end();
+    return BufferLineIterator(this, const_result.line());
+  }
+  const BufferLineConstIterator line_end() const {
+    return BufferLineConstIterator(this, contents_.size());
   }
   BufferLineReverseIterator line_rbegin() {
     return BufferLineReverseIterator(line_end());

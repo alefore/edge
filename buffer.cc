@@ -137,35 +137,6 @@ namespace editor {
 using namespace afc::vm;
 using std::to_string;
 
-BufferLineIterator& BufferLineIterator::operator++() {
-  while (line_ < buffer_->contents()->size()) {
-    ++line_;
-    if (buffer_->IsLineFiltered(line_)) {
-      return *this;
-    }
-  }
-  return *this;
-}
-
-BufferLineIterator& BufferLineIterator::operator--() {
-  while (line_ > 0) {
-    --line_;
-    if (buffer_->IsLineFiltered(line_)) {
-      return *this;
-    }
-  }
-  return *this;
-}
-
-shared_ptr<Line>& BufferLineIterator::operator*() {
-  return const_cast<shared_ptr<Line>&>(
-      const_cast<const BufferLineIterator*>(this)->operator*());
-}
-
-const shared_ptr<Line>& BufferLineIterator::operator*() const {
-  return buffer_->contents()->at(line_);
-}
-
 bool LineColumn::operator!=(const LineColumn& other) const {
   return line != other.line || column != other.column;
 }
@@ -562,7 +533,7 @@ LineColumn OpenBuffer::InsertInPosition(
 }
 
 void OpenBuffer::MaybeAdjustPositionCol() {
-  if (contents_.empty()) { return; }
+  if (contents_.empty() || current_line() == nullptr) { return; }
   size_t line_length = current_line()->contents->size();
   if (column_ > line_length) {
     column_ = line_length;
