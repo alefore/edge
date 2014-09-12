@@ -512,7 +512,11 @@ LineColumn OpenBuffer::InsertInPosition(
       ? EmptyString()
       : Substring(contents_.at(position.line)->contents, position.column);
   contents_.insert(contents_.begin() + position.line, insertion.begin(), insertion.end() - 1);
+  for (size_t i = 1; i < insertion.size() - 1; i++) {
+    contents_.at(position.line + i)->modified = true;
+  }
   if (insertion.size() == 1) {
+    if (insertion.at(0)->contents->size() == 0) { return position; }
     auto line_to_insert = insertion.at(0)->contents;
     auto new_line = new Line(
         StringAppend(head, StringAppend(line_to_insert, tail)));
@@ -527,7 +531,9 @@ LineColumn OpenBuffer::InsertInPosition(
   size_t line_end = position.line + insertion.size() - 1;
   contents_.at(position.line).reset(
       new Line(StringAppend(head, (*insertion.begin())->contents)));
-  contents_[position.line]->modified = true;
+  if (contents_.at(position.line)->contents != head) {
+    contents_[position.line]->modified = true;
+  }
   auto last_line =
       new Line(StringAppend((*insertion.rbegin())->contents, tail));
   if (line_end >= contents_.size()) {
@@ -535,7 +541,9 @@ LineColumn OpenBuffer::InsertInPosition(
   } else {
     contents_.at(line_end).reset(last_line);
   }
-  contents_[line_end]->modified = true;
+  if (head->size() > 0 || (*insertion.rbegin())->contents->size() > 0) {
+    contents_[line_end]->modified = true;
+  }
   return LineColumn(line_end,
       (insertion.size() == 1 ? head->size() : 0)
       + (*insertion.rbegin())->contents->size());

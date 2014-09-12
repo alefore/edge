@@ -82,10 +82,12 @@ class DeleteTransformation : public Transformation {
                                  end_.column))
         : prefix;
     buffer->contents()->erase(
-        buffer->contents()->begin() + start_.line + 1,
-        buffer->contents()->begin() + actual_end + 1);
-    buffer->contents()->at(start_.line).reset(new Line(contents_last_line));
-    buffer->contents()->at(start_.line)->modified = true;
+        buffer->contents()->begin() + start_.line,
+        buffer->contents()->begin() + actual_end);
+    if (buffer->contents()->at(start_.line)->contents != contents_last_line) {
+      buffer->contents()->at(start_.line).reset(new Line(contents_last_line));
+      buffer->contents()->at(start_.line)->modified = true;
+    }
     buffer->set_position(start_);
     buffer->CheckPosition();
 
