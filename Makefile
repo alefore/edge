@@ -36,7 +36,7 @@ direction.o: direction.cc direction.h Makefile
 transformation.o: transformation.cc transformation.h buffer.h editor.h Makefile
 
 advanced_mode.o: advanced_mode.h advanced_mode.cc buffer.h char_buffer.h command_mode.h editor_mode.h editor.h file_link_mode.h help_command.h line_prompt_mode.h map_mode.h Makefile
-command_mode.o: command_mode.cc command_mode.h advanced_mode.h command.h editor_mode.h editor.h find_mode.h help_command.h insert_mode.h lazy_string_append.h map_mode.h noop_command.o repeat_mode.h substring.h terminal.h transformation.h Makefile
+command_mode.o: command_mode.cc command_mode.h advanced_mode.h buffer.h command.h editor_mode.h editor.h find_mode.h help_command.h insert_mode.h lazy_string_append.h map_mode.h noop_command.o repeat_mode.h substring.h terminal.h transformation.h Makefile
 file_link_mode.o: file_link_mode.cc file_link_mode.h buffer.h char_buffer.h editor.h editor_mode.h Makefile
 find_mode.o: editor_mode.h editor.h command_mode.h find_mode.h find_mode.cc Makefile
 insert_mode.o: insert_mode.cc insert_mode.h command_mode.h editable_string.h editor.h lazy_string_append.h substring.h terminal.h transformation.h Makefile
@@ -50,7 +50,7 @@ help_command.o: help_command.cc help_command.h buffer.h char_buffer.h editor.h c
 noop_command.o: noop_command.cc noop_command.h char_buffer.h editor.h command.h Makefile
 
 run_command_handler.o: run_command_handler.cc run_command_handler.h buffer.h char_buffer.h command.h command_mode.h editor.h line_prompt_mode.h Makefile
-search_handler.o: search_handler.cc search_handler.h editor.h substring.h Makefile
+search_handler.o: search_handler.cc search_handler.h buffer.h editor.h substring.h Makefile
 
 lazy_string.o: lazy_string.cc lazy_string.h Makefile
 editable_string.o: editable_string.cc editable_string.h Makefile
