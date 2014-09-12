@@ -62,7 +62,7 @@ class GotoCommand : public Command {
           assert(start + position <= line->size());
           if (buffer->position().column != start + position) {
             buffer->set_current_position_col(start + position);
-          } else if (calls < 2) {
+          } else if (calls < 1) {
             Process(editor_state, calls + 1);
           }
         }
@@ -99,7 +99,11 @@ class GotoCommand : public Command {
               buffer->contents()->size(), editor_state->direction(),
               editor_state->repetitions(), calls);
           assert(position <= buffer->contents()->size());
-          buffer->set_current_position_line(position);
+          if (buffer->position().line != position) {
+            buffer->set_current_position_line(position);
+          } else if (calls < 1) {
+            Process(editor_state, calls + 1);
+          }
         }
         break;
 
