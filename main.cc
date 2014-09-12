@@ -38,6 +38,7 @@ int main(int argc, const char* argv[]) {
     char buffer[4096];
     while (read(0, buffer, sizeof(buffer)) > 0)
       continue;
+    cerr << argv[0] << ": EOF received, exiting.\n";
     exit(0);
   }
 
