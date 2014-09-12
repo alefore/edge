@@ -331,6 +331,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
       view_start_line_(0),
       view_start_column_(0),
       line_(this, 0),
+      column_(0),
       modified_(false),
       reading_from_parser_(false),
       bool_variables_(BoolStruct()->NewInstance()),
