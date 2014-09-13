@@ -69,11 +69,13 @@ void Line::Output(const EditorState*,
 
   if (!buffer->read_bool_variable(OpenBuffer::variable_paste_mode())
       && line_width != 0
-      && output_column <= line_width
-      && line_width < width) {
-    receiver->AddString(string(line_width - output_column, ' '));
+      && buffer->view_start_column() < line_width
+      && output_column <= line_width - buffer->view_start_column()
+      && line_width - buffer->view_start_column() < width) {
+    size_t padding = line_width - buffer->view_start_column() - output_column;
+    receiver->AddString(string(padding, ' '));
     receiver->AddCharacter(modified() ? '+' : '.');
-    output_column += line_width - output_column + 1;
+    output_column += padding + 1;
   }
 
   if (output_column < width) {
