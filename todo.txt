@@ -18,9 +18,6 @@ Add tests for Undo for insert.
 
 -- Navigation
 
-For the "g"oto command, if we're already at the position specified, then invert the direction and try again.
-  Obviously, don't get into an empty loop (e.g. "g"oto in an empty line).
-
 Add a "margin_lines" integer variable.
   Scroll the file automatically to always keep that number of entries visible above/below cursor.
     Unless at the beginning/end.
@@ -45,14 +42,9 @@ Create some "barriers" that limit the number of subprocesses.  Set a limit for e
 
 -- Variables
 
-Convert more variables to the new system for defining variables.
-
 Save the contents of variables?
 
 -- VM
-
-Check types on RETURN statements
-  Probably extend compilation to register what's the expected return type.
 
 -- Misc
 
