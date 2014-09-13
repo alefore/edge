@@ -11,7 +11,9 @@ namespace afc {
 namespace editor {
 
 class EditorMode;
+class EditorState;
 class LazyString;
+class OpenBuffer;
 
 using std::shared_ptr;
 using std::string;
@@ -50,6 +52,16 @@ class Line {
     filtered_ = filtered;
     filter_version_ = filter_version;
   }
+
+  class OutputReceiverInterface {
+   public:
+    virtual void AddCharacter(int character) = 0;
+    virtual void AddString(const string& str) = 0;
+    virtual size_t width() const = 0;
+  };
+  void Output(const EditorState* editor_state,
+              const shared_ptr<OpenBuffer>& buffer,
+              OutputReceiverInterface* receiver);
 
  private:
   unique_ptr<EditorMode> activate_;

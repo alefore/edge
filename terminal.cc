@@ -149,19 +149,30 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
   }
 }
 
+class LineOutputReceiver : public Line::OutputReceiverInterface {
+ public:
+  void AddCharacter(int c) {
+    addch(c);
+  }
+  void AddString(const string& str) {
+    addstr(str.c_str());
+  }
+  size_t width() const {
+    return COLS;
+  }
+};
+
 void Terminal::ShowBuffer(const EditorState* editor_state) {
   const shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
   const vector<shared_ptr<Line>>& contents(*buffer->contents());
 
   move(0, 0);
 
+  LineOutputReceiver receiver;
+
   size_t lines_to_show = static_cast<size_t>(LINES);
-  size_t line_width = buffer->read_int_variable(
-      OpenBuffer::variable_line_width());
   size_t current_line = buffer->view_start_line();
   size_t lines_shown = 0;
-  bool paste_mode = buffer->read_bool_variable(
-      OpenBuffer::variable_paste_mode());
   while (lines_shown < lines_to_show) {
     if (current_line == contents.size()) {
       addch('\n');
@@ -176,46 +187,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
     lines_shown++;
     const shared_ptr<Line> line(contents[current_line]);
     assert(line->contents() != nullptr);
-    size_t output_column = 0;
-    size_t input_column = buffer->view_start_column();
-    while (input_column < line->size()
-           && output_column < static_cast<size_t>(COLS)) {
-      int c = line->get(input_column);
-      assert(c != '\n');
-      switch (c) {
-        case '\r':
-          break;
-        case '\t':
-          {
-            size_t new_output_column = min(
-                static_cast<size_t>(COLS),
-                8 * static_cast<size_t>(
-                    1 + floor(static_cast<double>(output_column) / 8.0)));
-            assert(new_output_column > output_column);
-            assert(new_output_column - output_column <= 8);
-            addstr(string(new_output_column - output_column, ' ').c_str());
-            output_column = new_output_column;
-          }
-          break;
-        default:
-          if (isprint(c)) {
-            addch(c);
-            output_column++;
-          }
-      }
-      input_column++;
-    }
-    if (!paste_mode
-        && line_width != 0
-        && output_column <= line_width
-        && (output_column + 1 < static_cast<size_t>(COLS))) {
-      addstr(string(line_width - output_column, ' ').c_str());
-      addch(line->modified() ? '+' : '.');
-      output_column++;
-    }
-    if (output_column < buffer->view_start_column() + static_cast<size_t>(COLS)) {
-      addch('\n');
-    }
+    line->Output(editor_state, buffer, &receiver);
     current_line ++;
   }
 }
