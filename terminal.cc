@@ -173,28 +173,46 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
     }
 
     lines_shown++;
-    size_t pos_end = 0;
     const shared_ptr<Line> line(contents[current_line]);
     assert(line->contents.get() != nullptr);
-    pos_end = std::min(
-        buffer->view_start_column() + static_cast<size_t>(COLS),
-        line->contents->size());
-    for (size_t pos = buffer->view_start_column(); pos < pos_end; pos++) {
-      int c = line->contents->get(pos);
+    size_t output_column = 0;
+    size_t input_column = buffer->view_start_column();
+    while (input_column < line->contents->size()
+           && output_column < static_cast<size_t>(COLS)) {
+      int c = line->contents->get(input_column);
       assert(c != '\n');
-      if (c == '\r') { addch(' '); continue; }
-      addch(c);
+      switch (c) {
+        case '\r':
+          break;
+        case '\t':
+          {
+            size_t new_output_column = min(
+                static_cast<size_t>(COLS),
+                8 * static_cast<size_t>(
+                    1 + floor(static_cast<double>(output_column) / 8.0)));
+            assert(new_output_column > output_column);
+            assert(new_output_column - output_column <= 8);
+            addstr(string(new_output_column - output_column, ' ').c_str());
+            output_column = new_output_column;
+          }
+          break;
+        default:
+          if (isprint(c)) {
+            addch(c);
+            output_column++;
+          }
+      }
+      input_column++;
     }
     if (!paste_mode
         && line_width != 0
-        && pos_end <= line_width
-        && (pos_end + 1
-            < buffer->view_start_column() + static_cast<size_t>(COLS))) {
-      addstr(string(line_width - pos_end, ' ').c_str());
+        && output_column <= line_width
+        && (output_column + 1 < static_cast<size_t>(COLS))) {
+      addstr(string(line_width - output_column, ' ').c_str());
       addch(line->modified ? '+' : '.');
-      pos_end++;
+      output_column++;
     }
-    if (pos_end < buffer->view_start_column() + static_cast<size_t>(COLS)) {
+    if (output_column < buffer->view_start_column() + static_cast<size_t>(COLS)) {
       addch('\n');
     }
     current_line ++;
