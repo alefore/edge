@@ -178,8 +178,6 @@ EditorState::EditorState()
             buffer_to_insert->AppendLine(this, NewCopyString(line));
           }
 
-          // Skip the last (empty) line.
-          buffer_to_insert->contents()->pop_back();
           unique_ptr<Transformation> transformation(
               NewInsertBufferTransformation(
                   buffer_to_insert, buffer->position(), 1));
