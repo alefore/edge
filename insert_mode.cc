@@ -138,17 +138,36 @@ class InsertMode : public EditorMode {
 };
 
 class RawInputTypeMode : public EditorMode {
+ public:
   void ProcessInput(int c, EditorState* editor_state) {
+    auto buffer = editor_state->current_buffer()->second;
     switch (c) {
       case Terminal::ESCAPE:
         editor_state->ResetMode();
         editor_state->ResetStatus();
         break;
+      case Terminal::BACKSPACE:
+        {
+          if (line_buffer_.empty()) { return; }
+          line_buffer_.resize(line_buffer_.size() - 1);
+          auto last_line = *buffer->contents()->rbegin();
+          last_line.reset(
+              new Line(last_line->Substring(0, last_line->size() - 1)));
+        }
+        break;
+      case '\n':
+        line_buffer_.push_back('\n');
+        write(buffer->fd(), line_buffer_.c_str(), line_buffer_.size());
+        line_buffer_ = "";
+        break;
       default:
-        string str(1, static_cast<char>(c));
-        write(editor_state->current_buffer()->second->fd(), str.c_str(), 1);
+        line_buffer_.push_back(c);
+        buffer->AppendToLastLine(editor_state, NewCopyString(string(1, c)));
+        editor_state->ScheduleRedraw();
     };
   }
+ private:
+  string line_buffer_;
 };
 
 }  // namespace

@@ -183,7 +183,7 @@ class OpenBuffer {
 
   void ClearContents();
 
-  virtual void ReloadInto(EditorState* editor_state, OpenBuffer* target) {}
+  virtual void ReloadInto(EditorState*, OpenBuffer*) {}
   virtual void Save(EditorState* editor_state);
 
   void ReadData(EditorState* editor_state);
@@ -194,6 +194,7 @@ class OpenBuffer {
   void AppendLazyString(EditorState* editor_state, shared_ptr<LazyString> input);
   void AppendLine(EditorState* editor_state, shared_ptr<LazyString> line);
   virtual void AppendRawLine(EditorState* editor_state, shared_ptr<LazyString> str);
+  void AppendToLastLine(EditorState* editor_state, shared_ptr<LazyString> str);
 
   void EvaluateString(EditorState* editor_state, const string& str);
   void EvaluateFile(EditorState* editor_state, const string& path);
@@ -413,7 +414,6 @@ class OpenBuffer {
   // already running).
   bool fd_is_terminal_;
   char* buffer_;
-  size_t buffer_line_start_;
   size_t buffer_length_;
   size_t buffer_size_;
   // -1 means "no child process"

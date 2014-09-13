@@ -49,10 +49,8 @@ void SaveDiff(EditorState* editor_state, OpenBuffer* buffer) {
   editor_state->SetStatus("Changing diff");
 }
 
-static void RegisterBufferFieldString(
-    afc::vm::Environment* environment,
-    afc::vm::ObjectType* object_type,
-    const EdgeVariable<string>* variable) {
+static void RegisterBufferFieldString(afc::vm::ObjectType* object_type,
+                                      const EdgeVariable<string>* variable) {
   using namespace afc::vm;
 
   // Getter.
@@ -89,10 +87,8 @@ static void RegisterBufferFieldString(
   }
 }
 
-static void RegisterBufferFieldInt(
-    afc::vm::Environment* environment,
-    afc::vm::ObjectType* object_type,
-    const EdgeVariable<int>* variable) {
+static void RegisterBufferFieldInt(afc::vm::ObjectType* object_type,
+                                   const EdgeVariable<int>* variable) {
   using namespace afc::vm;
 
   // Getter.
@@ -152,14 +148,14 @@ bool LineColumn::operator!=(const LineColumn& other) const {
   StringStruct()->RegisterVariableNames(&string_variable_names);
   for (const string& name : string_variable_names) {
     RegisterBufferFieldString(
-        environment, buffer.get(), StringStruct()->find_variable(name));
+        buffer.get(), StringStruct()->find_variable(name));
   }
 
   vector<string> int_variable_names;
   IntStruct()->RegisterVariableNames(&int_variable_names);
   for (const string& name : int_variable_names) {
     RegisterBufferFieldInt(
-        environment, buffer.get(), IntStruct()->find_variable(name));
+        buffer.get(), IntStruct()->find_variable(name));
   }
 
   {
@@ -294,7 +290,6 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
       fd_(-1),
       fd_is_terminal_(false),
       buffer_(nullptr),
-      buffer_line_start_(0),
       buffer_length_(0),
       buffer_size_(0),
       child_pid_(-1),
@@ -311,7 +306,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
       environment_(editor_state->environment()),
       filter_version_(0) {
   environment_.Define("buffer", Value::NewObject(
-      "Buffer", shared_ptr<void>(this, [](void* p){})));
+      "Buffer", shared_ptr<void>(this, [](void*){})));
   ClearContents();
 }
 
@@ -361,7 +356,6 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
 
 void OpenBuffer::ReadData(EditorState* editor_state) {
   assert(fd_ > 0);
-  assert(buffer_line_start_ <= buffer_length_);
   assert(buffer_length_ <= buffer_size_);
   if (buffer_length_ == buffer_size_) {
     buffer_size_ = buffer_size_ ? buffer_size_ * 2 : 64 * 1024;
@@ -382,15 +376,24 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
   shared_ptr<LazyString> buffer_wrapper(
       NewMoveableCharBuffer(
           &buffer_, buffer_length_ + static_cast<size_t>(characters_read)));
+  size_t line_start = buffer_length_;
+  if (contents_.empty()) {
+    bool was_at_end = line_.line() >= contents_.size();
+    contents_.emplace_back(new Line());
+    if (was_at_end) { line_ = BufferLineIterator(this, contents_.size()); }
+  }
   for (size_t i = buffer_length_;
        i < buffer_length_ + static_cast<size_t>(characters_read);
        i++) {
     if (buffer_[i] == '\n') {
-      AppendLine(
+      AppendToLastLine(
           editor_state,
-          Substring(buffer_wrapper, buffer_line_start_, i - buffer_line_start_));
+          Substring(buffer_wrapper, line_start, i - line_start));
       assert(line_.line() <= contents_.size());
-      buffer_line_start_ = i + 1;
+      bool was_at_end = line_.line() >= contents_.size();
+      contents_.emplace_back(new Line());
+      if (was_at_end) { line_ = BufferLineIterator(this, contents_.size()); }
+      line_start = i + 1;
       if (editor_state->has_current_buffer()
           && editor_state->current_buffer()->second.get() == this
           && contents_.size() <= view_start_line_ + editor_state->visible_lines()) {
@@ -399,6 +402,11 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
     }
   }
   buffer_length_ += static_cast<size_t>(characters_read);
+  if (line_start < buffer_length_) {
+    AppendToLastLine(
+        editor_state,
+        Substring(buffer_wrapper, line_start, buffer_length_ - line_start));
+  }
   if (editor_state->has_current_buffer()
       && editor_state->current_buffer()->first == kBuffersName) {
     editor_state->current_buffer()->second->Reload(editor_state);
@@ -469,10 +477,22 @@ void OpenBuffer::AppendLine(EditorState* editor_state, shared_ptr<LazyString> st
 }
 
 void OpenBuffer::AppendRawLine(
-    EditorState* editor_state, shared_ptr<LazyString> str) {
+    EditorState*, shared_ptr<LazyString> str) {
   bool was_at_end = line_.line() >= contents_.size();
   contents_.emplace_back(new Line(str));
   if (was_at_end) { line_ = BufferLineIterator(this, contents_.size()); }
+}
+
+void OpenBuffer::AppendToLastLine(
+    EditorState*, shared_ptr<LazyString> str) {
+  if (contents_.empty()) {
+    bool was_at_end = line_.line() >= contents_.size();
+    contents_.emplace_back(new Line());
+    if (was_at_end) { line_ = BufferLineIterator(this, contents_.size()); }
+  }
+  assert((*contents_.rbegin())->contents() != nullptr);
+  contents_.rbegin()->reset(
+      new Line(StringAppend((*contents_.rbegin())->contents(), str)));
 }
 
 void OpenBuffer::EvaluateString(EditorState* editor_state, const string& code) {
@@ -559,9 +579,10 @@ void OpenBuffer::MaybeAdjustPositionCol() {
 
 void OpenBuffer::CheckPosition() {
   if (line_.line() > contents_.size()) {
-    line_ = BufferLineIterator(this, contents_.size());
+    BufferLineIterator pos(this, contents_.size());
+    line_ = pos;
     if (line_.line() > 0) {
-      line_ = BufferLineIterator(this, line_.line() - 1);
+      //line_ = BufferLineIterator(this, line_.line() - 1);
     }
   }
 }
@@ -622,7 +643,6 @@ void OpenBuffer::SetInputFile(
   if (read_bool_variable(variable_clear_on_reload())) {
     ClearContents();
     buffer_ = nullptr;
-    buffer_line_start_ = 0;
     buffer_length_ = 0;
     buffer_size_ = 0;
   }

@@ -52,15 +52,15 @@ class PredictionsBufferImpl : public OpenBuffer {
     if (contents()->empty()) { return; }
     struct Compare {
       bool operator()(const shared_ptr<Line>& a, const shared_ptr<Line>& b) {
-        return *a->contents < *b->contents;
+        return *a->contents() < *b->contents();
       }
     } compare;
 
     sort(contents()->begin(), contents()->end(), compare);
-    string common_prefix = (*contents()->begin())->contents->ToString();
+    string common_prefix = (*contents()->begin())->ToString();
     for (auto& it = ++contents()->begin(); it != contents()->end(); ++it) {
-      size_t current_size = min(common_prefix.size(), (*it)->contents->size());
-      string current = Substring((*it)->contents, 0, current_size)->ToString();
+      size_t current_size = min(common_prefix.size(), (*it)->size());
+      string current = (*it)->Substring(0, current_size)->ToString();
 
       auto prefix_end = mismatch(common_prefix.begin(), common_prefix.end(),
                                  current.begin());

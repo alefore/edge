@@ -55,7 +55,7 @@ class Quit : public Command {
     return "quits";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     editor_state->set_terminate(true);
   }
 };
@@ -65,7 +65,7 @@ class RestoreCommandMode : public Command {
     return "restores command mode";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     editor_state->ResetMode();
   }
 };
@@ -75,7 +75,7 @@ class OpenDirectory : public Command {
     return "opens a view of the current directory";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     string path;
     if (!editor_state->has_current_buffer()) {
       path = ".";
@@ -97,7 +97,7 @@ class CloseCurrentBuffer : public Command {
     return "closes the current buffer (without saving)";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) {
       return;
     }
@@ -116,7 +116,7 @@ class SaveCurrentBuffer : public Command {
     return "saves the current buffer";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) {
       return;
     }

@@ -228,7 +228,7 @@ EditorState::EditorState()
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
     callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
     callback->callback =
-        [this](vector<unique_ptr<Value>> args) {
+        [this](vector<unique_ptr<Value>>) {
           if (!has_current_buffer()) { return Value::NewVoid(); }
           auto buffer = current_buffer()->second;
           unique_ptr<Value> output(new Value(VMType::VM_STRING));

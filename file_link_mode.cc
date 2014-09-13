@@ -310,8 +310,7 @@ void OpenAnonymousBuffer(EditorState* editor_state) {
 }
 
 unique_ptr<EditorMode> NewFileLinkMode(
-    EditorState* editor_state, const string& path,
-    bool ignore_if_not_found) {
+    EditorState*, const string& path, bool ignore_if_not_found) {
   return std::move(unique_ptr<EditorMode>(
       new FileLinkMode(path, ignore_if_not_found)));
 }

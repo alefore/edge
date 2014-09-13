@@ -1,17 +1,23 @@
 #include "line.h"
 
+#include <cassert>
+
 #include "editor.h"
 #include "substring.h"
 
 namespace afc {
 namespace editor {
 
-Line::Line() {};
+Line::Line()
+    : contents_(EmptyString()) {}
+
 Line::Line(const shared_ptr<LazyString>& contents_input)
     : contents_(contents_input),
       modified_(false),
       filtered_(true),
-      filter_version_(0) {}
+      filter_version_(0) {
+  assert(contents_input != nullptr);
+}
 
 shared_ptr<LazyString> Line::Substring(size_t pos, size_t length) {
   return afc::editor::Substring(contents_, pos, length);

@@ -25,7 +25,7 @@ struct EdgeVariable {
   const string& name() const { return name_; }
   const string& description() const { return description_; }
   const T& default_value() const { return default_value_; }
-  const size_t position() const { return position_; }
+  const size_t& position() const { return position_; }
   const Predictor& predictor() const { return predictor_; }
 
  private:

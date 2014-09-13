@@ -1,4 +1,4 @@
-CPPFLAGS=-std=c++0x -g -Wall
+CPPFLAGS=-std=c++0x -g -Wall -Wextra
 LDFLAGS=-std=c++0x -g
 LDLIBS=-lncurses
 
@@ -42,9 +42,9 @@ file_link_mode.o: file_link_mode.cc file_link_mode.h buffer.h char_buffer.h edit
 find_mode.o: editor_mode.h editor.h command_mode.h find_mode.h find_mode.cc Makefile
 insert_mode.o: insert_mode.cc insert_mode.h command_mode.h editable_string.h editor.h lazy_string_append.h substring.h terminal.h transformation.h Makefile
 line_prompt_mode.o: line_prompt_mode.cc line_prompt_mode.h char_buffer.h command.h command_mode.h editable_string.h editor.h terminal.h Makefile
-preditor.o: predictor.cc predictor.h buffer.h editor.h Makefile
+predictor.o: predictor.cc predictor.h buffer.h editor.h Makefile
 
-map_mode.o: editor_mode.h map_mode.h map_mode.cc
+map_mode.o: editor_mode.h map_mode.h map_mode.cc Makefile
 repeat_mode.o: repeat_mode.cc repeat_mode.h editor_mode.h editor.h command_mode.h Makefile
 
 help_command.o: help_command.cc help_command.h buffer.h char_buffer.h editor.h command.h Makefile

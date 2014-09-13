@@ -4,7 +4,7 @@
 #include "editor.h"
 #include "terminal.h"
 
-int main(int argc, char**argv) {
+int main(int, char**) {
   using namespace afc::editor;
   EditorState editor_state;
   assert(!editor_state.has_current_buffer());
@@ -14,7 +14,7 @@ int main(int argc, char**argv) {
   editor_state.ProcessInput(Terminal::ESCAPE);
   editor_state.ProcessInputString("i forero");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  assert(editor_state.current_buffer()->second->current_line()->contents->ToString()
+  assert(editor_state.current_buffer()->second->current_line()->ToString()
          == "alejo forero");
   editor_state.ProcessInputString("ed");
   assert(editor_state.current_buffer()->second->ToString().empty());
@@ -50,7 +50,7 @@ int main(int argc, char**argv) {
 
   editor_state.ProcessInputString("e2d");
   assert(editor_state.current_buffer()->second->contents()->size() == 1);
-  assert(editor_state.current_buffer()->second->current_line()->contents->ToString()
+  assert(editor_state.current_buffer()->second->current_line()->ToString()
          == "cuervo");
 
   editor_state.ProcessInputString("pp");
