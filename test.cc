@@ -57,6 +57,8 @@ int main(int, char**) {
   assert(editor_state.current_buffer()->second->contents()->size() == 5);
 
   editor_state.ProcessInputString("erg");
+  assert(editor_state.current_buffer()->second->current_position_line() == 0);
+  editor_state.ProcessInputString("erg");
   assert(editor_state.current_buffer()->second->current_position_line() == 4);
 
   editor_state.ProcessInputString("eehhh");
