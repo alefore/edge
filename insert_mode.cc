@@ -146,6 +146,7 @@ class RawInputTypeMode : public EditorMode {
         editor_state->ResetMode();
         editor_state->ResetStatus();
         break;
+
       case Terminal::BACKSPACE:
         {
           if (line_buffer_.empty()) { return; }
@@ -155,11 +156,13 @@ class RawInputTypeMode : public EditorMode {
               new Line(last_line->Substring(0, last_line->size() - 1)));
         }
         break;
+
       case '\n':
         line_buffer_.push_back('\n');
         write(buffer->fd(), line_buffer_.c_str(), line_buffer_.size());
         line_buffer_ = "";
         break;
+
       default:
         line_buffer_.push_back(c);
         buffer->AppendToLastLine(editor_state, NewCopyString(string(1, c)));

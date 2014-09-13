@@ -57,8 +57,14 @@ class PredictionsBufferImpl : public OpenBuffer {
     } compare;
 
     sort(contents()->begin(), contents()->end(), compare);
-    string common_prefix = (*contents()->begin())->ToString();
-    for (auto& it = ++contents()->begin(); it != contents()->end(); ++it) {
+    auto it = contents()->begin();
+    while (it != contents()->end() && (*it)->size() == 0) {
+      ++it;
+    }
+    if (it == contents()->end()) { return; }
+    string common_prefix = (*it)->ToString();
+    while (it != contents()->end()) {
+      if ((*it)->size() == 0) { continue; }
       size_t current_size = min(common_prefix.size(), (*it)->size());
       string current = (*it)->Substring(0, current_size)->ToString();
 
@@ -68,6 +74,7 @@ class PredictionsBufferImpl : public OpenBuffer {
         if (prefix_end.first == common_prefix.begin()) { return; }
         common_prefix = string(common_prefix.begin(), prefix_end.first);
       }
+      ++it;
     }
     consumer_(common_prefix);
   }

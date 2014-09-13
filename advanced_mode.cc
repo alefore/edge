@@ -241,7 +241,7 @@ class ListBuffers : public Command {
     return "lists all open buffers";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     auto it = editor_state->buffers()->insert(
         make_pair(OpenBuffer::kBuffersName, nullptr));
     editor_state->set_current_buffer(it.first);
@@ -268,7 +268,7 @@ class ReloadBuffer : public Command {
     return "reloads the current buffer";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     if (editor_state->has_current_buffer()) {
       auto buffer = editor_state->current_buffer();
       buffer->second->Reload(editor_state);
@@ -283,7 +283,7 @@ class SendEndOfFile : public Command {
     return "stops writing to a subprocess (effectively sending EOF).";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     editor_state->ResetMode();
     if (!editor_state->has_current_buffer()) { return; }
     auto buffer = editor_state->current_buffer()->second;
@@ -291,11 +291,19 @@ class SendEndOfFile : public Command {
       editor_state->SetStatus("No active subprocess for current buffer.");
       return;
     }
-    if (shutdown(buffer->fd(), SHUT_WR) == -1) {
-      editor_state->SetStatus("shutdown(SHUT_WR) failed: " + string(strerror(errno)));
-      return;
+    if (buffer->read_bool_variable(OpenBuffer::variable_pts())) {
+      if (close(buffer->fd()) == -1) {
+        editor_state->SetStatus("close() failed: " + string(strerror(errno)));
+        return;
+      }
+      editor_state->SetStatus("EOF sent");
+    } else {
+      if (shutdown(buffer->fd(), SHUT_WR) == -1) {
+        editor_state->SetStatus("shutdown(SHUT_WR) failed: " + string(strerror(errno)));
+        return;
+      }
+      editor_state->SetStatus("shutdown sent");
     }
-    editor_state->SetStatus("shutdown sent");
   }
 };
 
@@ -311,7 +319,7 @@ class RunCppCommand : public Command {
     return "prompts for a command (a C string) and runs it";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     switch (editor_state->structure()) {
       case EditorState::LINE:
