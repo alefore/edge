@@ -57,7 +57,6 @@ class PredictionsBufferImpl : public OpenBuffer {
     } compare;
 
     sort(contents()->begin(), contents()->end(), compare);
-    if (contents()->size() == 1) { return; }
     string common_prefix = (*contents()->begin())->contents->ToString();
     for (auto& it = ++contents()->begin(); it != contents()->end(); ++it) {
       size_t current_size = min(common_prefix.size(), (*it)->contents->size());
