@@ -19,6 +19,7 @@ extern "C" {
 #include "line_prompt_mode.h"
 #include "run_command_handler.h"
 #include "search_handler.h"
+#include "vm/public/value.h"
 
 namespace {
 using std::make_pair;
@@ -91,10 +92,18 @@ class FileBuffer : public OpenBuffer {
     }
 
     const string& path = read_string_variable(variable_path());
-    if (SaveContentsToFile(editor_state, this, path)) {
-      set_modified(false);
-      editor_state->SetStatus("Saved: " + path);
+    if (!SaveContentsToFile(editor_state, this, path)) {
+      return;
     }
+    set_modified(false);
+    editor_state->SetStatus("Saved: " + path);
+    const Value* listener =
+        read_value_variable(OpenBuffer::variable_save_listener());
+    if (listener == nullptr) {
+      return;
+    }
+    vector<unique_ptr<Value>> args;
+    listener->callback(std::move(args));
   }
 
  private:

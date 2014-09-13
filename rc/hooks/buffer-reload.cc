@@ -22,6 +22,12 @@ string Basename(string path) {
 
 buffer.set_editor_commands_path("~/.edge/editor_commands/");
 
+void SaveListener() {
+  SetStatus("Saved");
+}
+
+buffer.set_save_listener(SaveListener);
+
 string extension = path.substr(dot + 1, path.size() - dot - 1);
 string basename = Basename(path);
 if (extension == "cc" || extension == "h") {

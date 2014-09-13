@@ -52,6 +52,7 @@ void SaveDiff(EditorState* editor_state, OpenBuffer* buffer) {
 static void RegisterBufferFieldString(afc::vm::ObjectType* object_type,
                                       const EdgeVariable<string>* variable) {
   using namespace afc::vm;
+  assert(variable != nullptr);
 
   // Getter.
   {
@@ -90,6 +91,7 @@ static void RegisterBufferFieldString(afc::vm::ObjectType* object_type,
 static void RegisterBufferFieldInt(afc::vm::ObjectType* object_type,
                                    const EdgeVariable<int>* variable) {
   using namespace afc::vm;
+  assert(variable != nullptr);
 
   // Getter.
   {
@@ -125,6 +127,50 @@ static void RegisterBufferFieldInt(afc::vm::ObjectType* object_type,
   }
 }
 
+static void RegisterBufferFieldValue(
+    afc::vm::ObjectType* object_type,
+    const EdgeVariable<unique_ptr<Value>>* variable) {
+  using namespace afc::vm;
+  assert(variable != nullptr);
+
+  // Getter.
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(variable->type());
+    callback->type.type_arguments.push_back(VMType::ObjectType(object_type));
+    callback->callback =
+        [variable](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::OBJECT_TYPE);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          assert(buffer != nullptr);
+          unique_ptr<Value> value = Value::NewVoid();
+          *value = *buffer->read_value_variable(variable);
+          return value;
+        };
+    object_type->AddField(variable->name(), std::move(callback));
+  }
+
+  // Setter.
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->type.type_arguments.push_back(VMType::ObjectType(object_type));
+    callback->type.type_arguments.push_back(variable->type());
+    callback->callback =
+        [variable](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::OBJECT_TYPE);
+          assert(args[1]->type == variable->type());
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          assert(buffer != nullptr);
+          unique_ptr<Value> value = Value::NewVoid();
+          *value = *args[1];
+          buffer->set_value_variable(variable, std::move(value));
+          return std::move(Value::NewVoid());
+        };
+    object_type->AddField("set_" + variable->name(), std::move(callback));
+  }
+}
+
 }  // namespace
 
 namespace afc {
@@ -144,18 +190,30 @@ bool LineColumn::operator!=(const LineColumn& other) const {
     EditorState* editor_state, afc::vm::Environment* environment) {
   unique_ptr<ObjectType> buffer(new ObjectType("Buffer"));
 
-  vector<string> string_variable_names;
-  StringStruct()->RegisterVariableNames(&string_variable_names);
-  for (const string& name : string_variable_names) {
-    RegisterBufferFieldString(
-        buffer.get(), StringStruct()->find_variable(name));
+  {
+    vector<string> variable_names;
+    StringStruct()->RegisterVariableNames(&variable_names);
+    for (const string& name : variable_names) {
+      RegisterBufferFieldString(
+          buffer.get(), StringStruct()->find_variable(name));
+    }
   }
 
-  vector<string> int_variable_names;
-  IntStruct()->RegisterVariableNames(&int_variable_names);
-  for (const string& name : int_variable_names) {
-    RegisterBufferFieldInt(
-        buffer.get(), IntStruct()->find_variable(name));
+  {
+    vector<string> variable_names;
+    IntStruct()->RegisterVariableNames(&variable_names);
+    for (const string& name : variable_names) {
+      RegisterBufferFieldInt(buffer.get(), IntStruct()->find_variable(name));
+    }
+  }
+
+  {
+    vector<string> variable_names;
+    ValueStruct()->RegisterVariableNames(&variable_names);
+    for (const string& name : variable_names) {
+      RegisterBufferFieldValue(
+          buffer.get(), ValueStruct()->find_variable(name));
+    }
   }
 
   {
@@ -303,6 +361,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
       bool_variables_(BoolStruct()->NewInstance()),
       string_variables_(StringStruct()->NewInstance()),
       int_variables_(IntStruct()->NewInstance()),
+      function_variables_(ValueStruct()->NewInstance()),
       environment_(editor_state->environment()),
       filter_version_(0) {
   environment_.Define("buffer", Value::NewObject(
@@ -861,6 +920,28 @@ string OpenBuffer::FlagsString() const {
   return variable;
 }
 
+/* static */ EdgeStruct<unique_ptr<Value>>* OpenBuffer::ValueStruct() {
+  static EdgeStruct<unique_ptr<Value>>* output = nullptr;
+  if (output == nullptr) {
+    output = new EdgeStruct<unique_ptr<Value>>;
+    // Trigger registration of all fields.
+    OpenBuffer::variable_save_listener();
+  }
+  return output;
+}
+
+/* static */ EdgeVariable<unique_ptr<Value>>*
+OpenBuffer::variable_save_listener() {
+  VMType type(VMType::FUNCTION);
+  type.type_arguments.push_back(VMType::Void());
+  static EdgeVariable<unique_ptr<Value>>* variable = ValueStruct()->AddVariable(
+      "save_listener",
+      "A function that receives no arguments and returns no arguments.  It "
+      "will be evaluated whenever the buffer is saved.",
+      type);
+  return variable;
+}
+
 /* static */ EdgeVariable<string>*
 OpenBuffer::variable_line_prefix_characters() {
   static EdgeVariable<string>* variable = StringStruct()->AddVariable(
@@ -915,6 +996,16 @@ const int& OpenBuffer::read_int_variable(const EdgeVariable<int>* variable) {
 void OpenBuffer::set_int_variable(
     const EdgeVariable<int>* variable, const int& value) {
   int_variables_.Set(variable, value);
+}
+
+const Value* OpenBuffer::read_value_variable(
+    const EdgeVariable<unique_ptr<Value>>* variable) {
+  return function_variables_.Get(variable);
+}
+
+void OpenBuffer::set_value_variable(
+    const EdgeVariable<unique_ptr<Value>>* variable, unique_ptr<Value> value) {
+  function_variables_.Set(variable, std::move(value));
 }
 
 void OpenBuffer::CopyVariablesFrom(const shared_ptr<const OpenBuffer>& src) {

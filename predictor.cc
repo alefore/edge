@@ -159,9 +159,8 @@ void FilePredictor(EditorState* editor_state,
   buffer->SetInputFile(pipefd[parent_fd], false, child_pid);
 }
 
-void EmptyPredictor(EditorState* editor_state,
-                    const string& input,
-                    OpenBuffer* buffer) {
+void EmptyPredictor(
+    EditorState* editor_state, const string&, OpenBuffer* buffer) {
   buffer->EndOfFile(editor_state);
 }
 

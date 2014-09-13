@@ -382,6 +382,9 @@ class OpenBuffer {
   static EdgeStruct<int>* IntStruct();
   static EdgeVariable<int>* variable_line_width();
 
+  static EdgeStruct<unique_ptr<Value>>* ValueStruct();
+  static EdgeVariable<unique_ptr<Value>>* variable_save_listener();
+
   bool read_bool_variable(const EdgeVariable<char>* variable);
   void set_bool_variable(const EdgeVariable<char>* variable, bool value);
   void toggle_bool_variable(const EdgeVariable<char>* variable);
@@ -393,6 +396,11 @@ class OpenBuffer {
   const int& read_int_variable(const EdgeVariable<int>* variable);
   void set_int_variable(const EdgeVariable<int>* variable,
                         const int& value);
+
+  const Value* read_value_variable(
+      const EdgeVariable<unique_ptr<Value>>* variable);
+  void set_value_variable(const EdgeVariable<unique_ptr<Value>>* variable,
+                          unique_ptr<Value> value);
 
   void Apply(EditorState* editor_state, const Transformation& transformation);
   void Undo(EditorState* editor_state);
@@ -445,6 +453,7 @@ class OpenBuffer {
   EdgeStructInstance<char> bool_variables_;
   EdgeStructInstance<string> string_variables_;
   EdgeStructInstance<int> int_variables_;
+  EdgeStructInstance<unique_ptr<Value>> function_variables_;
 
   list<unique_ptr<Transformation>> undo_history_;
   list<unique_ptr<Transformation>> redo_history_;
