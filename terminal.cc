@@ -24,6 +24,7 @@ constexpr int Terminal::BACKSPACE;
 constexpr int Terminal::PAGE_UP;
 constexpr int Terminal::PAGE_DOWN;
 constexpr int Terminal::ESCAPE;
+constexpr int Terminal::CHAR_EOF;
 
 Terminal::Terminal() {
   initscr();
@@ -244,6 +245,10 @@ int Terminal::Read() {
   switch (c) {
     case 127:
       return BACKSPACE;
+
+    case 4:
+      return CHAR_EOF;
+
     case 21:
       {
         int next = getch();

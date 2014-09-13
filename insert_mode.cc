@@ -142,6 +142,12 @@ class RawInputTypeMode : public EditorMode {
   void ProcessInput(int c, EditorState* editor_state) {
     auto buffer = editor_state->current_buffer()->second;
     switch (c) {
+      case Terminal::CHAR_EOF:
+        line_buffer_.push_back(4);
+        write(buffer->fd(), line_buffer_.c_str(), line_buffer_.size());
+        line_buffer_ = "";
+        break;
+
       case Terminal::ESCAPE:
         editor_state->ResetMode();
         editor_state->ResetStatus();

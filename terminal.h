@@ -21,6 +21,7 @@ class Terminal {
   static constexpr int PAGE_DOWN = -8;
   static constexpr int PAGE_UP = -9;
   static constexpr int CTRL_U = -10;
+  static constexpr int CHAR_EOF = -11;
 
   Terminal();
   ~Terminal();

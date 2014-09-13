@@ -292,14 +292,17 @@ class SendEndOfFile : public Command {
       return;
     }
     if (buffer->read_bool_variable(OpenBuffer::variable_pts())) {
-      if (close(buffer->fd()) == -1) {
-        editor_state->SetStatus("close() failed: " + string(strerror(errno)));
+      char str[1] = { 4 };
+      if (write(buffer->fd(), str, sizeof(str)) == -1) {
+        editor_state->SetStatus(
+            "Sending EOF failed: " + string(strerror(errno)));
         return;
       }
       editor_state->SetStatus("EOF sent");
     } else {
       if (shutdown(buffer->fd(), SHUT_WR) == -1) {
-        editor_state->SetStatus("shutdown(SHUT_WR) failed: " + string(strerror(errno)));
+        editor_state->SetStatus(
+            "shutdown(SHUT_WR) failed: " + string(strerror(errno)));
         return;
       }
       editor_state->SetStatus("shutdown sent");
