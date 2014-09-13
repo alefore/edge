@@ -70,13 +70,13 @@ void Line::Output(const EditorState*,
   if (!buffer->read_bool_variable(OpenBuffer::variable_paste_mode())
       && line_width != 0
       && output_column <= line_width
-      && output_column + 1 < width) {
+      && line_width < width) {
     receiver->AddString(string(line_width - output_column, ' '));
     receiver->AddCharacter(modified() ? '+' : '.');
-    output_column++;
+    output_column += line_width - output_column + 1;
   }
 
-  if (output_column < buffer->view_start_column() + width) {
+  if (output_column < width) {
     receiver->AddCharacter('\n');
   }
 }
