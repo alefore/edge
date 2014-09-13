@@ -174,12 +174,12 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
 
     lines_shown++;
     const shared_ptr<Line> line(contents[current_line]);
-    assert(line->contents.get() != nullptr);
+    assert(line->contents() != nullptr);
     size_t output_column = 0;
     size_t input_column = buffer->view_start_column();
-    while (input_column < line->contents->size()
+    while (input_column < line->size()
            && output_column < static_cast<size_t>(COLS)) {
-      int c = line->contents->get(input_column);
+      int c = line->get(input_column);
       assert(c != '\n');
       switch (c) {
         case '\r':
@@ -209,7 +209,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
         && output_column <= line_width
         && (output_column + 1 < static_cast<size_t>(COLS))) {
       addstr(string(line_width - output_column, ' ').c_str());
-      addch(line->modified ? '+' : '.');
+      addch(line->modified() ? '+' : '.');
       output_column++;
     }
     if (output_column < buffer->view_start_column() + static_cast<size_t>(COLS)) {
@@ -225,7 +225,7 @@ void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
   size_t line_length =
       position_line == contents.size()
       || !buffer->IsLineFiltered(buffer->position().line)
-      ? 0 : contents[position_line]->contents->size();
+      ? 0 : contents[position_line]->size();
   size_t pos_x = min(min(static_cast<size_t>(COLS) - 1, line_length),
                      buffer->position().column);
 

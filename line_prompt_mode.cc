@@ -81,7 +81,8 @@ class LinePromptMode : public EditorMode {
           assert(history != nullptr);
           assert(history->contents()->size() >= 1);
           if (history->contents()->size() == 1
-              || (history->contents()->at(history->contents()->size() - 2)->contents->ToString()
+              || (history->contents()->at(history->contents()->size() - 2)
+                      ->ToString()
                   != input_->ToString())) {
             history->AppendLine(editor_state, input_);
           }
@@ -158,7 +159,7 @@ class LinePromptMode : public EditorMode {
       input_ = EditableString::New("");
       return;
     }
-    input_ = EditableString::New(buffer->current_line()->contents->ToString());
+    input_ = EditableString::New(buffer->current_line()->ToString());
   }
 
   const string prompt_;

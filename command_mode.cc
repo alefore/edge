@@ -52,7 +52,7 @@ class GotoCommand : public Command {
           const auto& line = buffer->current_line();
           size_t start = 0;
           while (start < line->size()
-                 && (line_prefix_characters.find(line->contents->get(start))
+                 && (line_prefix_characters.find(line->get(start))
                      != string::npos)) {
             start++;
           }
@@ -82,7 +82,7 @@ class GotoCommand : public Command {
             editor_state->set_repetitions(editor_state->repetitions() - 1);
             if (editor_state->repetitions() == 0) {
               position = start;
-            } else if (end.column == buffer->LineAt(position.line)->contents->size()) {
+            } else if (end.column == buffer->LineAt(position.line)->size()) {
               position = LineColumn(end.line + 1);
             } else {
               position = LineColumn(end.line, end.column + 1);
@@ -250,7 +250,7 @@ class Delete : public Command {
         editor_state->set_repetitions(0);
         continue;
       }
-      size_t characters_left = (*current_line)->contents->size() - end.column;
+      size_t characters_left = (*current_line)->size() - end.column;
       if (editor_state->repetitions() <= characters_left
           || end.line + 1 == buffer->contents()->size()) {
         end.column += min(characters_left, editor_state->repetitions());
@@ -564,9 +564,12 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
           // Seek forwards until we're in a word character.
           bool advanced = false;
           while (!buffer->at_end()
-                 && (buffer->current_position_col() == buffer->current_line()->contents->size()
-                     || word_characters.find(buffer->current_character()) == string::npos)) {
-            if (buffer->current_position_col() == buffer->current_line()->contents->size()) {
+                 && (buffer->current_position_col() ==
+                         buffer->current_line()->size()
+                     || word_characters.find(buffer->current_character()) ==
+                            string::npos)) {
+            if (buffer->current_position_col() ==
+                    buffer->current_line()->size()) {
               buffer->set_current_position_line(buffer->current_position_line() + 1);
               buffer->set_current_position_col(0);
             } else {
@@ -664,7 +667,7 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
                      || word_characters.find(buffer->previous_character()) == string::npos)) {
             if (buffer->at_beginning_of_line()) {
               buffer->set_current_position_line(buffer->current_position_line() - 1);
-              buffer->set_current_position_col(buffer->current_line()->contents->size());
+              buffer->set_current_position_col(buffer->current_line()->size());
             } else {
               buffer->set_current_position_col(buffer->current_position_col() - 1);
             }
@@ -817,11 +820,11 @@ class ActivateLink : public Command {
     if (!editor_state->has_current_buffer()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
     if (buffer->current_line() == nullptr) { return; }
-    if (buffer->current_line()->activate.get() != nullptr) {
-      buffer->current_line()->activate->ProcessInput(c, editor_state);
+    if (buffer->current_line()->activate() != nullptr) {
+      buffer->current_line()->activate()->ProcessInput(c, editor_state);
     } else {
       buffer->MaybeAdjustPositionCol();
-      string line = buffer->current_line()->contents->ToString();
+      string line = buffer->current_line()->ToString();
 
       const string& path_characters =
           buffer->read_string_variable(buffer->variable_path_characters());
@@ -871,8 +874,8 @@ class StartSearchMode : public Command {
           }
           SearchHandler(
               buffer->position(),
-              Substring(buffer->LineAt(start.line)->contents,
-                        start.column, end.column - start.column)
+              buffer->LineAt(start.line)
+                  ->Substring(start.column, end.column - start.column)
                   ->ToString(),
               editor_state);
         }
@@ -937,15 +940,14 @@ class SwitchCaseTransformation : public Transformation {
 
   unique_ptr<Transformation> Apply(
       EditorState* editor_state, OpenBuffer* buffer) const {
-    auto line = buffer->LineAt(position_.line)->contents;
+    auto line = buffer->LineAt(position_.line);
     int c = line->get(position_.column);
     buffer->contents()->at(position_.line).reset(new Line(
         StringAppend(
-            Substring(line, 0, position_.column),
+            line->Substring(0, position_.column),
             StringAppend(
                 NewCopyString(string(1, isupper(c) ? tolower(c) : toupper(c))),
-                Substring(line, position_.column + 1,
-                          line->size() - (position_.column + 1))))));
+                line->Substring(position_.column + 1)))));
     editor_state->ScheduleRedraw();
     return unique_ptr<Transformation>(new SwitchCaseTransformation(position_));
   }
@@ -967,7 +969,7 @@ class SwitchCaseCommand : public Command {
     auto position = buffer->position();
 
     // Advance.
-    if (position.column == line->contents->size()) {
+    if (position.column == line->size()) {
       if (position.line + 1 == buffer->contents()->size()) {
         return;
       }
@@ -976,8 +978,8 @@ class SwitchCaseCommand : public Command {
       buffer->set_position(LineColumn(position.line, position.column + 1));
     }
 
-    if (position.column >= line->contents->size()
-        || !isalpha(line->contents->get(position.column))) {
+    if (position.column >= line->size()
+        || !isalpha(line->get(position.column))) {
       return;
     }
 

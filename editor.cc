@@ -232,7 +232,7 @@ EditorState::EditorState()
           if (!has_current_buffer()) { return Value::NewVoid(); }
           auto buffer = current_buffer()->second;
           unique_ptr<Value> output(new Value(VMType::VM_STRING));
-          output->str = buffer->current_line()->contents->ToString();
+          output->str = buffer->current_line()->ToString();
           return output;
         };
     environment_.Define("Line", std::move(callback));
@@ -354,10 +354,10 @@ void EditorState::PushCurrentPosition() {
   }
   assert(it->second != nullptr);
   assert(it->second->position().line <= it->second->contents()->size());
-  shared_ptr<Line> line(new Line());
-  line->contents = NewCopyString(
-      current_buffer_->second->position().ToString()
-      + " " + current_buffer_->first);
+  shared_ptr<Line> line(new Line(
+      NewCopyString(
+          current_buffer_->second->position().ToString()
+          + " " + current_buffer_->first)));
   it->second->contents()->insert(
       it->second->contents()->begin() + it->second->current_position_line(),
       line);
@@ -402,7 +402,7 @@ bool EditorState::HasPositionsInStack() {
 BufferPosition EditorState::ReadPositionsStack() {
   assert(HasPositionsInStack());
   auto buffer = buffers_.find(kPositionsBufferName)->second;
-  return PositionFromLine(buffer->current_line()->contents->ToString());
+  return PositionFromLine(buffer->current_line()->ToString());
 }
 
 bool EditorState::MovePositionsStack(Direction direction) {

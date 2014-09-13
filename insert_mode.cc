@@ -25,18 +25,18 @@ void DeleteSuffixSuperfluousCharacters(
       OpenBuffer::variable_line_suffix_superfluous_characters()));
   const auto line = buffer->current_line();
   if (!line) { return; }
-  size_t pos = line->contents->size();
+  size_t pos = line->size();
   while (pos > 0
-         && superfluous_characters.find(line->contents->get(pos - 1)) != string::npos) {
+         && superfluous_characters.find(line->get(pos - 1)) != string::npos) {
     pos--;
   }
-  if (pos == line->contents->size()) {
+  if (pos == line->size()) {
     return;
   }
   int line_count = buffer->position().line;
   buffer->Apply(editor_state,
        *NewDeleteTransformation(LineColumn(line_count, pos),
-                                LineColumn(line_count, line->contents->size()),
+                                LineColumn(line_count, line->size()),
                                 false));
 }
 
@@ -62,7 +62,7 @@ class InsertMode : public EditorMode {
           if (buffer->at_beginning_of_line()) {
             if (buffer->at_beginning()) { return; }
             start.line--;
-            start.column = buffer->contents()->at(start.line)->contents->size();
+            start.column = buffer->contents()->at(start.line)->size();
           } else {
             start.column--;
           }
@@ -76,7 +76,7 @@ class InsertMode : public EditorMode {
       case '\n':
         auto position = buffer->position();
         size_t pos = position.column;
-        auto current_line = buffer->current_line()->contents;
+        auto current_line = buffer->current_line();
 
         if (buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())
             && pos != 0
@@ -97,9 +97,9 @@ class InsertMode : public EditorMode {
 
         shared_ptr<LazyString> continuation(
             StringAppend(
-                Substring(current_line, 0, prefix_end),
-                Substring(current_line, position.column,
-                          current_line->size() - position.column)));
+                current_line->Substring(0, prefix_end),
+                current_line->Substring(position.column,
+                    current_line->size() - position.column)));
 
         TransformationStack transformation;
 
@@ -181,8 +181,7 @@ void EnterInsertMode(EditorState* editor_state) {
   } else if (editor_state->structure() == EditorState::LINE) {
     editor_state->current_buffer()->second->CheckPosition();
     auto buffer = editor_state->current_buffer()->second;
-    shared_ptr<Line> line(new Line());
-    line->contents = EmptyString();
+    shared_ptr<Line> line(new Line(EmptyString()));
     if (editor_state->direction() == BACKWARDS) {
       buffer->set_current_position_line(buffer->current_position_line() + 1);
     }

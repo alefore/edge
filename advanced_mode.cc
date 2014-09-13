@@ -228,7 +228,8 @@ class ListBuffersBuffer : public OpenBuffer {
       string flags(it.second->FlagsString());
       auto name = NewCopyString(it.first + (flags.empty() ? "" : "  ") + flags);
       target->AppendLine(editor_state, std::move(name));
-      (*target->contents()->rbegin())->activate.reset(new ActivateBufferLineCommand(it.first));
+      (*target->contents()->rbegin())->set_activate(
+          unique_ptr<EditorMode>(new ActivateBufferLineCommand(it.first)));
     }
     editor_state->ScheduleRedraw();
   }
@@ -316,7 +317,7 @@ class RunCppCommand : public Command {
       case EditorState::LINE:
         editor_state->ResetStructure();
         RunCppCommandHandler(
-            editor_state->current_buffer()->second->current_line()->contents->ToString(),
+            editor_state->current_buffer()->second->current_line()->ToString(),
             editor_state);
         break;
 

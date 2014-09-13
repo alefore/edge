@@ -9,6 +9,7 @@
 
 #include "command_mode.h"
 #include "lazy_string.h"
+#include "line.h"
 #include "memory_mapped_file.h"
 #include "substring.h"
 #include "transformation.h"
@@ -29,23 +30,6 @@ using std::max;
 using std::min;
 
 using namespace afc::vm;
-
-struct Line {
-  Line() {};
-  Line(const shared_ptr<LazyString>& contents_input)
-      : contents(contents_input),
-        modified(false),
-        filtered(true),
-        filter_version(0) {}
-
-  size_t size() const { return contents->size(); }
-
-  unique_ptr<EditorMode> activate;
-  shared_ptr<LazyString> contents;
-  bool modified;
-  bool filtered;
-  size_t filter_version;
-};
 
 struct ParseTree {
   string name;
@@ -251,17 +235,17 @@ class OpenBuffer {
     return contents_.at(line_number);
   }
   char character_at(LineColumn position) const {
-    return LineAt(position.line)->contents->get(position.column);
+    return LineAt(position.line)->get(position.column);
   }
 
   // Returns the substring of the current line until the current position.
   shared_ptr<LazyString> current_line_head() const {
-    return Substring(current_line()->contents, 0, current_position_col());
+    return current_line()->Substring(0, current_position_col());
   }
   // Returns the substring of the current line from the current to the last
   // position.
   shared_ptr<LazyString> current_line_tail() const {
-    return Substring(current_line()->contents, current_position_col());
+    return current_line()->Substring(current_position_col());
   }
   // Serializes the buffer into a string.  This is not particularly fast (it's
   // meant more for debugging/testing rather than for real use).
@@ -300,8 +284,7 @@ class OpenBuffer {
   }
   LineColumn end_position() const {
     if (contents_.empty()) { return LineColumn(0, 0); }
-    return LineColumn(contents_.size() - 1,
-                      (*contents_.rbegin())->contents->size());
+    return LineColumn(contents_.size() - 1, (*contents_.rbegin())->size());
   }
   bool at_last_line() const { return at_last_line(position()); }
   bool at_last_line(const LineColumn& position) const {
@@ -312,15 +295,15 @@ class OpenBuffer {
   }
   bool at_end_of_line(const LineColumn& position) const {
     if (contents_.empty()) { return true; }
-    return position.column >= LineAt(position.line)->contents->size();
+    return position.column >= LineAt(position.line)->size();
   }
   char current_character() const {
-    assert(current_position_col() < current_line()->contents->size());
-    return current_line()->contents->get(current_position_col());
+    assert(current_position_col() < current_line()->size());
+    return current_line()->get(current_position_col());
   }
   char previous_character() const {
     assert(current_position_col() > 0);
-    return current_line()->contents->get(current_position_col() - 1);
+    return current_line()->get(current_position_col() - 1);
   }
   size_t current_position_line() const { return line_.line(); }
   void set_current_position_line(size_t value) {

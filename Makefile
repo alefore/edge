@@ -32,6 +32,7 @@ substring.o: substring.cc substring.h lazy_string.h Makefile
 
 buffer.o: buffer.cc buffer.h editor.h file_link_mode.h lazy_string_append.h run_command_handler.h substring.h transformation.h variables.h Makefile
 editor.o: editor.cc editor.h char_buffer.h substring.h memory_mapped_file.h lazy_string.h transformation.h Makefile
+line.o: line.cc line.h lazy_string.h Makefile
 direction.o: direction.cc direction.h Makefile
 transformation.o: transformation.cc transformation.h buffer.h editor.h Makefile
 
@@ -64,8 +65,8 @@ vm/internal/cpp.c: vm/internal/cpp.y vm/internal/lemon
 
 LIB=advanced_mode.o buffer.o char_buffer.o command_mode.o direction.o \
 editable_string.o editor.o file_link_mode.o find_mode.o help_command.o \
-insert_mode.o lazy_string.o lazy_string_append.o line_prompt_mode.o map_mode.o \
-memory_mapped_file.o noop_command.o predictor.o repeat_mode.o \
+insert_mode.o lazy_string.o lazy_string_append.o line.o line_prompt_mode.o \
+map_mode.o memory_mapped_file.o noop_command.o predictor.o repeat_mode.o \
 run_command_handler.o search_handler.o server.o substring.o terminal.o \
 transformation.o vm/internal/vm.o vm/internal/value.o vm/internal/string.o \
 vm/internal/types.o vm/internal/binary_operator.o vm/internal/if_expression.o \

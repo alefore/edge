@@ -176,7 +176,7 @@ class ForkCommand : public Command {
             return;
           }
           RunCommandHandler(
-              editor_state->current_buffer()->second->current_line()->contents
+              editor_state->current_buffer()->second->current_line()
                   ->ToString(),
               editor_state);
         }
@@ -212,7 +212,7 @@ void RunMultipleCommandsHandler(const string& input, EditorState* editor_state) 
   }
   auto buffer = editor_state->current_buffer()->second;
   for (const auto& line : *buffer->contents()) {
-    string arg = line->contents->ToString();
+    string arg = line->ToString();
     map<string, string> environment = {{"ARG", arg}};
     RunCommand("$ " + input + " " + arg, input, environment, editor_state);
   }

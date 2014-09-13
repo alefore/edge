@@ -66,27 +66,27 @@ class DeleteTransformation : public Transformation {
       assert(current_start_column <= current_end_column);
       deleted_text->AppendLine(
           editor_state,
-          Substring(current_line->contents, current_start_column,
-                    current_end_column - current_start_column));
-      if (current_line->activate != nullptr
+          current_line->Substring(
+              current_start_column,
+              current_end_column - current_start_column));
+      if (current_line->activate() != nullptr
           && current_end_column == current_line->size()) {
-        current_line->activate->ProcessInput('d', editor_state);
+        current_line->activate()->ProcessInput('d', editor_state);
       }
     }
-    shared_ptr<LazyString> prefix = Substring(
-        buffer->contents()->at(start_.line)->contents, 0, start_.column);
+    shared_ptr<LazyString> prefix =
+        buffer->contents()->at(start_.line)->Substring(0, start_.column);
     shared_ptr<LazyString> contents_last_line =
         end_.line < buffer->contents()->size()
         ? StringAppend(prefix,
-                       Substring(buffer->contents()->at(end_.line)->contents,
-                                 end_.column))
+              buffer->contents()->at(end_.line)->Substring(end_.column))
         : prefix;
     buffer->contents()->erase(
         buffer->contents()->begin() + start_.line,
         buffer->contents()->begin() + actual_end);
-    if (buffer->contents()->at(start_.line)->contents != contents_last_line) {
+    if (buffer->contents()->at(start_.line)->contents() != contents_last_line) {
       buffer->contents()->at(start_.line).reset(new Line(contents_last_line));
-      buffer->contents()->at(start_.line)->modified = true;
+      buffer->contents()->at(start_.line)->set_modified(true);
     }
     buffer->set_position(start_);
     buffer->CheckPosition();

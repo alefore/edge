@@ -221,7 +221,7 @@ bool LineColumn::operator!=(const LineColumn& other) const {
           auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
           assert(buffer != nullptr);
           return Value::NewString(
-              buffer->contents()->at(args[1]->integer)->contents->ToString());
+              buffer->contents()->at(args[1]->integer)->ToString());
         };
     buffer->AddField("line", std::move(callback));
   }
@@ -243,7 +243,7 @@ bool LineColumn::operator!=(const LineColumn& other) const {
           buffer->set_position(LineColumn(0));
           TransformationStack transformation;
           while (buffer->position().line + 1 < buffer->contents()->size()) {
-            string current_line = buffer->current_line()->contents->ToString();
+            string current_line = buffer->current_line()->ToString();
             vector<unique_ptr<Value>> line_args;
             line_args.push_back(Value::NewString(current_line));
             unique_ptr<Value> result = args[1]->callback(std::move(line_args));
@@ -507,17 +507,17 @@ LineColumn OpenBuffer::InsertInPosition(
   if (insertion.empty()) { return position; }
   auto head = position.line >= contents_.size()
       ? EmptyString()
-      : Substring(contents_.at(position.line)->contents, 0, position.column);
+      : contents_.at(position.line)->Substring(0, position.column);
   auto tail = position.line >= contents_.size()
       ? EmptyString()
-      : Substring(contents_.at(position.line)->contents, position.column);
+      : contents_.at(position.line)->Substring(position.column);
   contents_.insert(contents_.begin() + position.line, insertion.begin(), insertion.end() - 1);
   for (size_t i = 1; i < insertion.size() - 1; i++) {
-    contents_.at(position.line + i)->modified = true;
+    contents_.at(position.line + i)->set_modified(true);
   }
   if (insertion.size() == 1) {
-    if (insertion.at(0)->contents->size() == 0) { return position; }
-    auto line_to_insert = insertion.at(0)->contents;
+    if (insertion.at(0)->size() == 0) { return position; }
+    auto line_to_insert = insertion.at(0)->contents();
     auto new_line = new Line(
         StringAppend(head, StringAppend(line_to_insert, tail)));
     if (position.line >= contents_.size()) {
@@ -525,33 +525,33 @@ LineColumn OpenBuffer::InsertInPosition(
     } else {
       contents_.at(position.line).reset(new_line);
     }
-    contents_[position.line]->modified = true;
+    contents_[position.line]->set_modified(true);
     return LineColumn(position.line, head->size() + line_to_insert->size());
   }
   size_t line_end = position.line + insertion.size() - 1;
   contents_.at(position.line).reset(
-      new Line(StringAppend(head, (*insertion.begin())->contents)));
-  if (contents_.at(position.line)->contents != head) {
-    contents_[position.line]->modified = true;
+      new Line(StringAppend(head, (*insertion.begin())->contents())));
+  if (contents_.at(position.line)->contents() != head) {
+    contents_[position.line]->set_modified(true);
   }
   auto last_line =
-      new Line(StringAppend((*insertion.rbegin())->contents, tail));
+      new Line(StringAppend((*insertion.rbegin())->contents(), tail));
   if (line_end >= contents_.size()) {
     contents_.emplace_back(last_line);
   } else {
     contents_.at(line_end).reset(last_line);
   }
-  if (head->size() > 0 || (*insertion.rbegin())->contents->size() > 0) {
-    contents_[line_end]->modified = true;
+  if (head->size() > 0 || (*insertion.rbegin())->size() > 0) {
+    contents_[line_end]->set_modified(true);
   }
   return LineColumn(line_end,
       (insertion.size() == 1 ? head->size() : 0)
-      + (*insertion.rbegin())->contents->size());
+      + (*insertion.rbegin())->size());
 }
 
 void OpenBuffer::MaybeAdjustPositionCol() {
   if (contents_.empty() || current_line() == nullptr) { return; }
-  size_t line_length = current_line()->contents->size();
+  size_t line_length = current_line()->size();
   if (column_ > line_length) {
     column_ = line_length;
   }
@@ -606,12 +606,12 @@ bool OpenBuffer::BoundWordAt(
 string OpenBuffer::ToString() const {
   size_t size = 0;
   for (auto& it : contents_) {
-    size += it->contents->size() + 1;
+    size += it->size() + 1;
   }
   string output;
   output.reserve(size);
   for (auto& it : contents_) {
-    output.append(it->contents->ToString() + "\n");
+    output.append(it->ToString() + "\n");
   }
   output = output.substr(0, output.size() - 1);
   return output;
@@ -936,13 +936,13 @@ bool OpenBuffer::IsLineFiltered(size_t line_number) {
     return true;
   }
   auto line = contents_[line_number];
-  if (line->filter_version < filter_version_) {
+  if (line->filter_version() < filter_version_) {
     vector<unique_ptr<Value>> args;
-    args.push_back(Value::NewString(line->contents->ToString()));
-    line->filtered = filter_->callback(std::move(args))->boolean;
-    line->filter_version = filter_version_;
+    args.push_back(Value::NewString(line->ToString()));
+    bool filtered = filter_->callback(std::move(args))->boolean;
+    line->set_filtered(filtered, filter_version_);
   }
-  return line->filtered;
+  return line->filtered();
 }
 
 }  // namespace editor

@@ -68,15 +68,14 @@ class FileBuffer : public OpenBuffer {
     while ((entry = readdir(dir)) != nullptr) {
       target->AppendLine(editor_state, shared_ptr<LazyString>(
           NewCopyCharBuffer(entry->d_name).release()));
-      (*target->contents()->rbegin())->activate.reset(
-          NewFileLinkMode(editor_state, path + "/" + entry->d_name, false)
-              .release());
+      (*target->contents()->rbegin())->set_activate(
+          NewFileLinkMode(editor_state, path + "/" + entry->d_name, false));
     }
     closedir(dir);
 
     struct Compare {
       bool operator()(const shared_ptr<Line>& a, const shared_ptr<Line>& b) {
-        return *a->contents < *b->contents;
+        return *a->contents() < *b->contents();
       }
     } compare;
 
@@ -240,7 +239,7 @@ bool SaveContentsToOpenFile(
   // TODO: It'd be significant more efficient to do fewer (bigger) writes.
   for (auto it = buffer->contents()->begin(); it != buffer->contents()->end();
        ++it) {
-    const auto& str = (*it)->contents;
+    const auto& str = (*it)->contents();
     char* tmp = static_cast<char*>(malloc(str->size() + 1));
     strcpy(tmp, str->ToString().c_str());
     tmp[str->size()] = '\n';

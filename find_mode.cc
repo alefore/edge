@@ -16,7 +16,7 @@ class FindMode : public EditorMode {
  public:
   bool SeekOnce(Direction direction, const shared_ptr<OpenBuffer> buffer, int c) {
     if (buffer->current_line() == nullptr) { return false; }
-    shared_ptr<LazyString> current_line = buffer->current_line()->contents;
+    shared_ptr<LazyString> current_line = buffer->current_line()->contents();
     int delta;
     size_t position = buffer->current_position_col();
     size_t times;

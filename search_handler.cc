@@ -101,7 +101,7 @@ bool PerformSearch(
 
   while (true) {
     if (line.line() < buffer->line_end().line()) {
-      string str = (*line)->contents->ToString();
+      string str = (*line)->ToString();
 
       vector<size_t> matches = GetMatches(str, pattern);
       size_t interesting_match;
@@ -187,8 +187,8 @@ void SearchHandlerPredictor(
     predictions_buffer->AppendLine(
         editor_state,
         RegexEscape(
-            Substring(buffer->LineAt(match_position.line)->contents,
-                      match_position.column)));
+            buffer->LineAt(match_position.line)->Substring(
+                match_position.column)));
     if (wrapped && already_wrapped) {
       break;
     }
