@@ -211,7 +211,7 @@ void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
   move(pos_y, pos_x);
 }
 
-int Terminal::Read() {
+int Terminal::Read(EditorState* editor_state) {
   int c = getch();
   //cerr << "Read: " << c << "\n";
   switch (c) {
@@ -220,6 +220,12 @@ int Terminal::Read() {
 
     case 4:
       return CHAR_EOF;
+
+    case 0x0c:
+      cerr << "Redraw\n";
+      wrefresh(curscr);
+      editor_state->ScheduleRedraw();
+      return -1;
 
     case 21:
       {

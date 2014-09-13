@@ -92,7 +92,7 @@ int main(int argc, const char* argv[]) {
       }
       if (fds[i].fd == 0) {
         int c;
-        while ((c = terminal.Read()) != -1) {
+        while ((c = terminal.Read(&editor_state)) != -1) {
           editor_state.mode()->ProcessInput(c, &editor_state);
         }
         continue;

@@ -28,7 +28,7 @@ class Terminal {
 
   void Display(EditorState* editor_state);
   void SetStatus(const std::string& status);
-  int Read();
+  int Read(EditorState* editor_state);
 
  private:
   void ShowStatus(const EditorState& editor_state);
