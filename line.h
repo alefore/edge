@@ -59,6 +59,8 @@ class Line {
     return contents_->ToString();
   }
   void DeleteUntilEnd(size_t position);
+  void DeleteCharacters(size_t position, size_t amount);
+  void InsertCharacter(int c);
   void SetCharacter(size_t position, int c,
                     const std::unordered_set<Modifier, hash<int>>& modifiers);
 

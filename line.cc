@@ -39,6 +39,19 @@ void Line::DeleteUntilEnd(size_t position) {
   modifiers_.resize(position);
 }
 
+void Line::DeleteCharacters(size_t position, size_t amount) {
+  contents_ = StringAppend(
+      Substring(0, position),
+      Substring(position + amount));
+  modifiers_.erase(modifiers_.begin() + position,
+                   modifiers_.begin() + position + amount);
+}
+
+void Line::InsertCharacter(int c) {
+  contents_ = StringAppend(contents_, NewCopyString(string(1, c)));
+  modifiers_.emplace_back();
+}
+
 void Line::SetCharacter(size_t position, int c,
                         const unordered_set<Modifier, hash<int>>& modifiers) {
   shared_ptr<LazyString> str = NewCopyString(string(1, c));

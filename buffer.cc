@@ -369,6 +369,8 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
       filter_version_(0) {
   environment_.Define("buffer", Value::NewObject(
       "Buffer", shared_ptr<void>(this, [](void*){})));
+  set_string_variable(variable_path(), "");
+  set_string_variable(variable_command(), "");
   ClearContents();
 }
 
@@ -491,10 +493,10 @@ void OpenBuffer::Reload(EditorState* editor_state) {
     set_bool_variable(variable_reload_after_exit(), true);
     return;
   }
-  ReloadInto(editor_state, this);
   for (const auto& dir : editor_state->edge_path()) {
     EvaluateFile(editor_state, dir + "/hooks/buffer-reload.cc");
   }
+  ReloadInto(editor_state, this);
   set_modified(false);
   CheckPosition();
 }
@@ -566,7 +568,7 @@ void OpenBuffer::ProcessCommandInput(
   std::unordered_set<Line::Modifier, hash<int>> modifiers;
 
   size_t read_index = 0;
-  // cerr << str->ToString();
+  //cerr << str->ToString();
   while (read_index < str->size()) {
     int c = str->get(read_index);
     read_index++;
@@ -580,6 +582,10 @@ void OpenBuffer::ProcessCommandInput(
     } else if (c == '\a') {
       editor_state->SetStatus("beep!");
     } else if (c == '\r') {
+      position_pts_.column = 0;
+      if (read_bool_variable(variable_follow_end_of_file())) {
+        column_ = position_pts_.column;
+      }
     } else if (c == '\n') {
       contents_.emplace_back(new Line(Line::Options()));
       if (read_bool_variable(variable_follow_end_of_file())) {
@@ -587,39 +593,9 @@ void OpenBuffer::ProcessCommandInput(
         column_ = 0;
       }
       position_pts_ = LineColumn(contents_.size() - 1);
-      current_line = *contents_.rbegin();
+      current_line = contents_[position_pts_.line];
     } else if (c == 0x1b) {
-      string sequence;
-      while (read_index < str->size() && str->get(read_index) != 'm') {
-        sequence.push_back(str->get(read_index));
-        read_index++;
-      }
-      read_index++;
-      if (sequence == "[K") {
-        current_line->DeleteUntilEnd(position_pts_.column);
-      } else if (sequence == "[0") {
-        modifiers.clear();
-      } else if (sequence == "[1") {
-        modifiers.insert(Line::BOLD);
-      } else if (sequence == "[1;30") {
-        modifiers.clear();
-        modifiers.insert(Line::BOLD);
-        modifiers.insert(Line::BLACK);
-      } else if (sequence == "[1;31") {
-        modifiers.clear();
-        modifiers.insert(Line::BOLD);
-        modifiers.insert(Line::RED);
-      } else if (sequence == "[1;36") {
-        modifiers.clear();
-        modifiers.insert(Line::BOLD);
-        modifiers.insert(Line::CYAN);
-      } else if (sequence == "[0;36") {
-        modifiers.clear();
-        modifiers.insert(Line::CYAN);
-      } else {
-        std::cerr << "Unhandled sequence: [" << sequence << "]\n";
-        continue;
-      }
+      read_index = ProcessTerminalEscapeSequence(str, read_index, &modifiers);
     } else if (isprint(c) || c == '\t') {
       current_line->SetCharacter(position_pts_.column, c, modifiers);
       position_pts_.column++;
@@ -630,6 +606,92 @@ void OpenBuffer::ProcessCommandInput(
       std::cerr << "Unknown [" << c << "]\n";
     }
   }
+}
+
+size_t OpenBuffer::ProcessTerminalEscapeSequence(
+    shared_ptr<LazyString> str, size_t read_index,
+    std::unordered_set<Line::Modifier, hash<int>>* modifiers) {
+  if (str->size() <= read_index || str->get(read_index) != '[') {
+    std::cerr << "Unhandled sequence (0): ("
+              << Substring(str, read_index)->ToString() << ")\n";
+    return read_index;
+  }
+  read_index++;
+  auto current_line = contents_[position_pts_.line];
+  string sequence;
+  while (read_index < str->size()) {
+    int c = str->get(read_index);
+    read_index++;
+    switch (c) {
+      case '@':
+        // ich: insert character
+        current_line->InsertCharacter(position_pts_.column);
+        return read_index;
+
+      case 'm':
+        if (sequence == "0") {
+          modifiers->clear();
+        } else if (sequence == "1") {
+          modifiers->insert(Line::BOLD);
+        } else if (sequence == "1;30") {
+          modifiers->clear();
+          modifiers->insert(Line::BOLD);
+          modifiers->insert(Line::BLACK);
+        } else if (sequence == "1;31") {
+          modifiers->clear();
+          modifiers->insert(Line::BOLD);
+          modifiers->insert(Line::RED);
+        } else if (sequence == "1;36") {
+          modifiers->clear();
+          modifiers->insert(Line::BOLD);
+          modifiers->insert(Line::CYAN);
+        } else if (sequence == "0;36") {
+          modifiers->clear();
+          modifiers->insert(Line::CYAN);
+        } else {
+          std::cerr << "Unhandled sequence (1): (" << sequence << ")\n";
+        }
+        return read_index;
+
+      case 'C':
+        // cuf1: non-destructive space (move right one space)
+        if (position_pts_.column >= current_line->size()) {
+          return read_index;
+        }
+        position_pts_.column++;
+        if (read_bool_variable(variable_follow_end_of_file())) {
+          column_ = position_pts_.column;
+        }
+        return read_index;
+
+      case 'K':
+        // el: clear to end of line.
+        current_line->DeleteUntilEnd(position_pts_.column);
+        return read_index;
+
+      case 'M':
+        // cuu1: up one line.
+        if (read_bool_variable(variable_follow_end_of_file())) {
+          line_--;
+          column_ = 0;
+        }
+        position_pts_ = LineColumn(position_pts_.line - 1, 0);
+        return read_index;
+
+      case 'P':
+        {
+          current_line->DeleteCharacters(
+              position_pts_.column,
+              min(static_cast<size_t>(atoi(sequence.c_str())),
+                  current_line->size()));
+          return read_index;
+        }
+      default:
+        sequence.push_back(c);
+    }
+  }
+  std::cerr << "Unhandled sequence (2): (" << sequence << ")\n";
+  return read_index;
 }
 
 void OpenBuffer::AppendToLastLine(
@@ -973,6 +1035,7 @@ string OpenBuffer::FlagsString() const {
     OpenBuffer::variable_word_characters();
     OpenBuffer::variable_path_characters();
     OpenBuffer::variable_path();
+    OpenBuffer::variable_command();
     OpenBuffer::variable_editor_commands_path();
     OpenBuffer::variable_line_prefix_characters();
     OpenBuffer::variable_line_suffix_superfluous_characters();
@@ -1002,6 +1065,15 @@ string OpenBuffer::FlagsString() const {
   static EdgeVariable<string>* variable = StringStruct()->AddVariable(
       "path",
       "String with the path of the current file.",
+      "",
+      FilePredictor);
+  return variable;
+}
+
+/* static */ EdgeVariable<string>* OpenBuffer::variable_command() {
+  static EdgeVariable<string>* variable = StringStruct()->AddVariable(
+      "command",
+      "String with the current command (or empty).",
       "",
       FilePredictor);
   return variable;

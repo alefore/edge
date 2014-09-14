@@ -54,10 +54,8 @@ class CommandBuffer : public OpenBuffer {
  public:
   CommandBuffer(EditorState* editor_state,
                 const string& name,
-                const string& command,
                 const map<string, string>& environment)
       : OpenBuffer(editor_state, name),
-        command_(command),
         environment_(environment) {}
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
@@ -132,7 +130,9 @@ class CommandBuffer : public OpenBuffer {
       }
 
       LoadEnvironmentVariables(
-          editor_state->edge_path(), command_, &environment);
+          editor_state->edge_path(),
+          read_string_variable(variable_command()),
+          &environment);
 
       char** envp =
           static_cast<char**>(malloc(sizeof(char*) * environment.size() + 1));
@@ -148,7 +148,7 @@ class CommandBuffer : public OpenBuffer {
       char* argv[] = {
           strdup("sh"),
           strdup("-c"),
-          strdup(command_.c_str()),
+          strdup(read_string_variable(variable_command()).c_str()),
           nullptr};
       int status = execve("/bin/sh", argv, envp);
       exit(WIFEXITED(status) ? WEXITSTATUS(status) : 1);
@@ -160,7 +160,6 @@ class CommandBuffer : public OpenBuffer {
   }
 
  private:
-  const string command_;
   const map<string, string> environment_;
 };
 
@@ -228,11 +227,14 @@ void ForkCommand(EditorState* editor_state, const ForkCommandOptions& options) {
   auto it = editor_state->buffers()->insert(make_pair(buffer_name, nullptr));
   if (it.second) {
     it.first->second.reset(new CommandBuffer(
-        editor_state, buffer_name, options.command, options.environment));
+        editor_state, buffer_name, options.environment));
     if (editor_state->has_current_buffer()) {
       it.first->second
           ->CopyVariablesFrom(editor_state->current_buffer()->second);
     }
+    it.first->second->set_string_variable(
+        OpenBuffer::variable_command(), options.command);
+    it.first->second->set_string_variable(OpenBuffer::variable_path(), "");
   }
   if (options.enter) {
     editor_state->set_current_buffer(it.first);

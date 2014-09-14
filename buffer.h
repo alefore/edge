@@ -197,6 +197,9 @@ class OpenBuffer {
   virtual void AppendRawLine(EditorState* editor_state, shared_ptr<LazyString> str);
   virtual void ProcessCommandInput(
       EditorState* editor_state, shared_ptr<LazyString> str);
+  size_t ProcessTerminalEscapeSequence(
+      shared_ptr<LazyString> str, size_t read_index,
+      std::unordered_set<Line::Modifier, hash<int>>* modifiers);
   void AppendToLastLine(EditorState* editor_state, shared_ptr<LazyString> str);
   void AppendToLastLine(
       EditorState* editor_state, shared_ptr<LazyString> str,
@@ -385,6 +388,7 @@ class OpenBuffer {
   static EdgeVariable<string>* variable_word_characters();
   static EdgeVariable<string>* variable_path_characters();
   static EdgeVariable<string>* variable_path();
+  static EdgeVariable<string>* variable_command();
   static EdgeVariable<string>* variable_editor_commands_path();
   static EdgeVariable<string>* variable_line_prefix_characters();
   static EdgeVariable<string>* variable_line_suffix_superfluous_characters();
