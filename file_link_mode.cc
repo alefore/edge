@@ -80,7 +80,7 @@ class FileBuffer : public OpenBuffer {
       }
     } compare;
 
-    sort(target->contents()->begin() + 1, target->contents()->end() - 1, compare);
+    sort(target->contents()->begin() + 1, target->contents()->end(), compare);
     editor_state->CheckPosition();
     editor_state->PushCurrentPosition();
   }
