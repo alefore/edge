@@ -31,6 +31,11 @@ Terminal::Terminal() {
   noecho();
   nodelay(stdscr, true);
   keypad(stdscr, false);
+  start_color();
+  init_pair(1, COLOR_BLACK, COLOR_BLACK);
+  init_pair(2, COLOR_RED, COLOR_BLACK);
+  init_pair(3, COLOR_GREEN, COLOR_BLACK);
+  init_pair(7, COLOR_CYAN, COLOR_BLACK);
   SetStatus("Initializing...");
 }
 
@@ -160,6 +165,32 @@ class LineOutputReceiver : public Line::OutputReceiverInterface {
   }
   void AddString(const string& str) {
     addstr(str.c_str());
+  }
+  void AddModifier(Line::Modifier modifier) {
+    switch (modifier) {
+      case Line::RESET:
+        attroff(A_BOLD);
+        attroff(COLOR_PAIR(1));
+        attroff(COLOR_PAIR(2));
+        attroff(COLOR_PAIR(3));
+        attroff(COLOR_PAIR(7));
+        break;
+      case Line::BOLD:
+        attron(A_BOLD);
+        break;
+      case Line::BLACK:
+        attron(COLOR_PAIR(1));
+        break;
+      case Line::RED:
+        attron(COLOR_PAIR(2));
+        break;
+      case Line::GREEN:
+        attron(COLOR_PAIR(3));
+        break;
+      case Line::CYAN:
+        attron(COLOR_PAIR(7));
+        break;
+    }
   }
   size_t width() const {
     return COLS;

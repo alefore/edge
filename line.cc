@@ -2,15 +2,73 @@
 
 #include <cassert>
 #include <cmath>
+#include <iostream>
 
+#include "char_buffer.h"
 #include "editor.h"
 #include "substring.h"
 
 namespace afc {
 namespace editor {
 
+using std::multimap;
+
+namespace {
+
+shared_ptr<LazyString> ParseInput(const Line::Options& options,
+                                  multimap<int, Line::Modifier>* modifiers) {
+  if (!options.terminal) {
+    return options.contents;
+  }
+  string contents;
+  contents.reserve(options.contents->size());
+  size_t read_index = 0;
+  while (read_index < options.contents->size()) {
+    int c = options.contents->get(read_index);
+    read_index++;
+    if (c == 0x1b) {
+      string sequence;
+      while (read_index < options.contents->size()
+             && options.contents->get(read_index) != 'm') {
+        sequence.push_back(options.contents->get(read_index));
+        read_index++;
+      }
+      read_index++;
+      Line::Modifier modifier;
+      if (sequence == "[0") {
+        modifiers->insert(make_pair(contents.size(), Line::RESET));
+      } else if (sequence == "[1") {
+        modifiers->insert(make_pair(contents.size(), Line::BOLD));
+      } else if (sequence == "[1;30") {
+        modifiers->insert(make_pair(contents.size(), Line::RESET));
+        modifiers->insert(make_pair(contents.size(), Line::BOLD));
+        modifiers->insert(make_pair(contents.size(), Line::BLACK));
+      } else if (sequence == "[1;31") {
+        modifiers->insert(make_pair(contents.size(), Line::RESET));
+        modifiers->insert(make_pair(contents.size(), Line::BOLD));
+        modifiers->insert(make_pair(contents.size(), Line::RED));
+      } else if (sequence == "[1;36") {
+        modifiers->insert(make_pair(contents.size(), Line::RESET));
+        modifiers->insert(make_pair(contents.size(), Line::BOLD));
+        modifiers->insert(make_pair(contents.size(), Line::CYAN));
+      } else if (sequence == "[0;36") {
+        modifiers->insert(make_pair(contents.size(), Line::RESET));
+        modifiers->insert(make_pair(contents.size(), Line::CYAN));
+      } else {
+        std::cerr << "[" << sequence << "]\n";
+        continue;
+      }
+    } else {
+      contents.push_back(c);
+    }
+  }
+  return NewCopyString(contents);
+}
+
+}
+
 Line::Line(const Options& options)
-    : contents_(options.contents),
+    : contents_(ParseInput(options, &modifiers_)),
       modified_(false),
       filtered_(true),
       filter_version_(0) {
@@ -35,9 +93,14 @@ void Line::Output(const EditorState*,
   size_t width = receiver->width();
   size_t output_column = 0;
   size_t input_column = buffer->view_start_column();
+  auto it = modifiers_.begin();
   while (input_column < size() && output_column < width) {
     int c = get(input_column);
     assert(c != '\n');
+    while (it != modifiers_.end() && it->first == input_column) {
+      receiver->AddModifier(it->second);
+      it++;
+    }
     switch (c) {
       case '\r':
         break;

@@ -2,6 +2,7 @@
 #define __AFC_EDITOR_LINE_H__
 
 #include <cassert>
+#include <map>
 #include <memory>
 #include <string>
 
@@ -30,6 +31,15 @@ class Line {
   };
 
   Line(const Options& options);
+
+  enum Modifier {
+    RESET,
+    BOLD,
+    BLACK,
+    RED,
+    GREEN,
+    CYAN,
+  };
 
   shared_ptr<LazyString> contents() { return contents_; }
   size_t size() const { return contents_->size(); }
@@ -64,6 +74,7 @@ class Line {
    public:
     virtual void AddCharacter(int character) = 0;
     virtual void AddString(const string& str) = 0;
+    virtual void AddModifier(Modifier modifier) = 0;
     virtual size_t width() const = 0;
   };
   void Output(const EditorState* editor_state,
@@ -72,6 +83,7 @@ class Line {
 
  private:
   unique_ptr<EditorMode> activate_;
+  std::multimap<int, Modifier> modifiers_;
   shared_ptr<LazyString> contents_;
   bool modified_;
   bool filtered_;

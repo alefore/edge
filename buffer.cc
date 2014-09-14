@@ -472,6 +472,7 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
       && editor_state->current_buffer()->first == kBuffersName) {
     editor_state->current_buffer()->second->Reload(editor_state);
   }
+  editor_state->ScheduleRedraw();
 }
 
 void OpenBuffer::Reload(EditorState* editor_state) {
@@ -557,6 +558,7 @@ void OpenBuffer::AppendToLastLine(
   assert((*contents_.rbegin())->contents() != nullptr);
   Line::Options options;
   options.contents = StringAppend((*contents_.rbegin())->contents(), str);
+  options.terminal = read_bool_variable(variable_pts());
   contents_.rbegin()->reset(new Line(options));
 }
 

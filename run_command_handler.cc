@@ -23,7 +23,8 @@ using std::cerr;
 using std::to_string;
 
 void LoadEnvironmentVariables(
-    const vector<string>& path, const string& full_command) {
+    const vector<string>& path, const string& full_command,
+    map<string, string>* environment) {
   static const string whitespace = "\t ";
   size_t start = full_command.find_first_not_of(whitespace);
   size_t end = full_command.find_first_of(whitespace, start);
@@ -43,7 +44,8 @@ void LoadEnvironmentVariables(
       if (equals == line.npos) {
         continue;
       }
-      setenv(line.substr(0, equals).c_str(), line.substr(equals + 1).c_str(), 1);
+      environment->insert(
+          make_pair(line.substr(0, equals), line.substr(equals + 1)));
     }
   }
 }
@@ -73,7 +75,7 @@ class CommandBuffer : public OpenBuffer {
         exit(1);
       }
       if (unlockpt(master_fd) == -1) {
-        cerr << "grantpt failed: " << string(strerror(errno));
+        cerr << "unlockpt failed: " << string(strerror(errno));
         exit(1);
       }
       pipefd[parent_fd] = master_fd;
@@ -94,11 +96,12 @@ class CommandBuffer : public OpenBuffer {
       return;
     }
     if (child_pid == 0) {
+      close(pipefd[parent_fd]);
+
       if (setsid() == -1) {
         cerr << "setsid failed: " << string(strerror(errno));
         exit(1);
       }
-      close(pipefd[parent_fd]);
 
       if (dup2(pipefd[child_fd], 0) == -1) { exit(1); }
       if (dup2(pipefd[child_fd], 1) == -1) { exit(1); }
@@ -109,14 +112,45 @@ class CommandBuffer : public OpenBuffer {
         close(pipefd[child_fd]);
       }
 
-      setenv("TERM", "screen", 1);
-      LoadEnvironmentVariables(editor_state->edge_path(), command_);
-      for (const auto& it : environment_) {
-        setenv(it.first.c_str(), it.second.c_str(), 1);
+      map<string, string> environment;
+
+      // Copy variables from the current environment (environ(7)).
+      for (size_t index = 0; environ[index] != nullptr; index++) {
+        string entry = environ[index];
+        int eq = entry.find_first_of("=");
+        if (eq == string::npos) {
+          environment.insert(make_pair(entry, ""));
+        } else {
+          environment.insert(
+              make_pair(entry.substr(0, eq), entry.substr(eq + 1)));
+        }
+      }
+      environment["TERM"] = "screen";
+
+      for (auto it : environment_) {
+        environment.insert(it);
       }
 
-      // TODO: Don't use system?  Use exec and call the shell directly.
-      int status = system(command_.c_str());
+      LoadEnvironmentVariables(
+          editor_state->edge_path(), command_, &environment);
+
+      char** envp =
+          static_cast<char**>(malloc(sizeof(char*) * environment.size() + 1));
+      size_t position = 0;
+      for (const auto& it : environment) {
+        string str = it.first + "=" + it.second;
+        assert(position < environment.size());
+        envp[position++] = strdup(str.c_str());
+      }
+      envp[position++] = nullptr;
+      assert(position = environment.size() + 1);
+
+      char* argv[] = {
+          strdup("sh"),
+          strdup("-c"),
+          strdup(command_.c_str()),
+          nullptr};
+      int status = execve("/bin/sh", argv, envp);
       exit(WIFEXITED(status) ? WEXITSTATUS(status) : 1);
     }
     close(pipefd[child_fd]);
@@ -156,7 +190,7 @@ class ForkEditorCommand : public Command {
     return "forks a subprocess";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     switch (editor_state->structure()) {
       case EditorState::CHAR:
         Prompt(editor_state, "$ ", "commands", "", RunCommandHandler,
