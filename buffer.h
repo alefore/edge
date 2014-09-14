@@ -340,6 +340,8 @@ class OpenBuffer {
   }
   void set_position(const LineColumn& position) {
     line_ = BufferLineIterator(this, position.line);
+    set_bool_variable(variable_follow_end_of_file(),
+                      position.line >= contents_.size());
     column_ = position.column;
   }
 
@@ -370,6 +372,7 @@ class OpenBuffer {
   static EdgeVariable<char>* variable_save_on_close();
   static EdgeVariable<char>* variable_clear_on_reload();
   static EdgeVariable<char>* variable_paste_mode();
+  static EdgeVariable<char>* variable_follow_end_of_file();
 
   static EdgeStruct<string>* StringStruct();
   static EdgeVariable<string>* variable_word_characters();
@@ -385,7 +388,7 @@ class OpenBuffer {
   // No variables currently, but we'll likely add some later.
   static EdgeStruct<unique_ptr<Value>>* ValueStruct();
 
-  bool read_bool_variable(const EdgeVariable<char>* variable);
+  bool read_bool_variable(const EdgeVariable<char>* variable) const;
   void set_bool_variable(const EdgeVariable<char>* variable, bool value);
   void toggle_bool_variable(const EdgeVariable<char>* variable);
 

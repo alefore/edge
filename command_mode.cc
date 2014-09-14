@@ -36,7 +36,7 @@ class GotoCommand : public Command {
     return "goes to Rth structure from the beginning";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     Process(editor_state, 0);
   }
@@ -167,7 +167,7 @@ class Delete : public Command {
     return "deletes the current item (char, word, line ...)";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     if (editor_state->buffers()->empty()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
 
@@ -277,7 +277,7 @@ class Paste : public Command {
     return "pastes the last deleted text";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     auto it = editor_state->buffers()->find(OpenBuffer::kPasteBuffer);
     if (it == editor_state->buffers()->end()) {
@@ -305,7 +305,7 @@ class UndoCommand : public Command {
     return "undoes the last change to the current buffer";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     editor_state->current_buffer()->second->Undo(editor_state);
     editor_state->ResetRepetitions();
@@ -319,7 +319,7 @@ class GotoPreviousPositionCommand : public Command {
     return "go back to previous position";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     Go(editor_state);
     editor_state->ResetDirection();
     editor_state->ResetRepetitions();
@@ -417,6 +417,8 @@ const string LineUp::Description() {
         const auto line_begin = buffer->line_begin();
         while (editor_state->repetitions() && buffer->line() != line_begin) {
           buffer->line()--;
+          buffer->set_bool_variable(
+              OpenBuffer::variable_follow_end_of_file(), false);
           editor_state->set_repetitions(editor_state->repetitions() - 1);
         }
         editor_state->PushCurrentPosition();
@@ -463,6 +465,10 @@ const string LineDown::Description() {
         const auto line_end = buffer->line_end();
         while (editor_state->repetitions() && buffer->line() != line_end) {
           buffer->line()++;
+          if (buffer->line() == buffer->line_end()) {
+            buffer->set_bool_variable(
+                OpenBuffer::variable_follow_end_of_file(), true);
+          }
           editor_state->set_repetitions(editor_state->repetitions() - 1);
         }
         editor_state->PushCurrentPosition();
@@ -711,7 +717,7 @@ class EnterInsertMode : public Command {
     return "enters insert mode";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     afc::editor::EnterInsertMode(editor_state);
   }
 };
@@ -722,7 +728,7 @@ class EnterAdvancedMode : public Command {
     return "enters advanced-command mode (press 'a?' for more)";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     editor_state->set_mode(NewAdvancedMode());
   }
 };
@@ -733,7 +739,7 @@ class EnterFindMode : public Command {
     return "finds occurrences of a character";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     editor_state->set_mode(NewFindMode());
   }
 };
@@ -744,7 +750,7 @@ class ReverseDirectionCommand : public Command {
     return "reverses the direction of the next command";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     if (editor_state->direction() == FORWARDS) {
       editor_state->set_direction(BACKWARDS);
     } else if (editor_state->default_direction() == FORWARDS) {
@@ -769,7 +775,7 @@ class SetStructureCommand : public Command {
     return "sets the structure: " + description_;
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     if (editor_state->structure() != value_) {
       editor_state->set_structure(value_);
       editor_state->set_sticky_structure(false);
@@ -855,7 +861,7 @@ class StartSearchMode : public Command {
     return "Searches for a string.";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     switch (editor_state->structure()) {
       case EditorState::WORD:
         {
@@ -899,7 +905,7 @@ class ResetStateCommand : public Command {
     return "Resets the state of the editor.";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     editor_state->ResetMode();
     editor_state->set_structure(EditorState::CHAR);
     editor_state->ResetRepetitions();
@@ -923,7 +929,7 @@ class RunCppFileCommand : public Command {
     return "runs a command from a file";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     auto buffer = editor_state->current_buffer()->second;
     Prompt(editor_state, "cmd < ", "editor_commands",
@@ -962,7 +968,7 @@ class SwitchCaseCommand : public Command {
     return "Switches the case of the current character.";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     auto buffer = editor_state->current_buffer()->second;
     auto line = buffer->current_line();

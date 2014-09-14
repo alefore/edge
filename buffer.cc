@@ -437,9 +437,10 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
           &buffer_, buffer_length_ + static_cast<size_t>(characters_read)));
   size_t line_start = buffer_length_;
   if (contents_.empty()) {
-    bool was_at_end = line_.line() >= contents_.size();
     contents_.emplace_back(new Line());
-    if (was_at_end) { line_ = BufferLineIterator(this, contents_.size()); }
+    if (read_bool_variable(variable_follow_end_of_file())) {
+      line_ = BufferLineIterator(this, contents_.size());
+    }
   }
   for (size_t i = buffer_length_;
        i < buffer_length_ + static_cast<size_t>(characters_read);
@@ -449,9 +450,10 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
           editor_state,
           Substring(buffer_wrapper, line_start, i - line_start));
       assert(line_.line() <= contents_.size());
-      bool was_at_end = line_.line() >= contents_.size();
       contents_.emplace_back(new Line());
-      if (was_at_end) { line_ = BufferLineIterator(this, contents_.size()); }
+      if (read_bool_variable(variable_follow_end_of_file())) {
+        line_ = BufferLineIterator(this, contents_.size());
+      }
       line_start = i + 1;
       if (editor_state->has_current_buffer()
           && editor_state->current_buffer()->second.get() == this
@@ -537,17 +539,19 @@ void OpenBuffer::AppendLine(EditorState* editor_state, shared_ptr<LazyString> st
 
 void OpenBuffer::AppendRawLine(
     EditorState*, shared_ptr<LazyString> str) {
-  bool was_at_end = line_.line() >= contents_.size();
   contents_.emplace_back(new Line(str));
-  if (was_at_end) { line_ = BufferLineIterator(this, contents_.size()); }
+  if (read_bool_variable(variable_follow_end_of_file())) {
+    line_ = BufferLineIterator(this, contents_.size());
+  }
 }
 
 void OpenBuffer::AppendToLastLine(
     EditorState*, shared_ptr<LazyString> str) {
   if (contents_.empty()) {
-    bool was_at_end = line_.line() >= contents_.size();
     contents_.emplace_back(new Line());
-    if (was_at_end) { line_ = BufferLineIterator(this, contents_.size()); }
+    if (read_bool_variable(variable_follow_end_of_file())) {
+      line_ = BufferLineIterator(this, contents_.size());
+    }
   }
   assert((*contents_.rbegin())->contents() != nullptr);
   contents_.rbegin()->reset(
@@ -637,9 +641,6 @@ void OpenBuffer::CheckPosition() {
   if (line_.line() > contents_.size()) {
     BufferLineIterator pos(this, contents_.size());
     line_ = pos;
-    if (line_.line() > 0) {
-      //line_ = BufferLineIterator(this, line_.line() - 1);
-    }
   }
 }
 
@@ -718,6 +719,9 @@ string OpenBuffer::FlagsString() const {
   }
   if (fd() != -1) {
     output += "< l:" + to_string(contents_.size());
+    if (read_bool_variable(variable_follow_end_of_file())) {
+      output += " (follow)";
+    }
   }
   if (child_pid_ != -1) {
     output += " pid:" + to_string(child_pid_);
@@ -748,6 +752,7 @@ string OpenBuffer::FlagsString() const {
     OpenBuffer::variable_save_on_close();
     OpenBuffer::variable_clear_on_reload();
     OpenBuffer::variable_paste_mode();
+    OpenBuffer::variable_follow_end_of_file();
   }
   return output;
 }
@@ -844,6 +849,14 @@ string OpenBuffer::FlagsString() const {
       "that makes it possible to select (with a mouse) parts of it (that are "
       "currently shown).  It will also allow you to paste text directly into "
       "the buffer.",
+      false);
+  return variable;
+}
+
+/* static */ EdgeVariable<char>* OpenBuffer::variable_follow_end_of_file() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+      "follow_end_of_file",
+      "Should the cursor stay at the end of the file?",
       false);
   return variable;
 }
@@ -952,7 +965,7 @@ OpenBuffer::variable_line_suffix_superfluous_characters() {
   return variable;
 }
 
-bool OpenBuffer::read_bool_variable(const EdgeVariable<char>* variable) {
+bool OpenBuffer::read_bool_variable(const EdgeVariable<char>* variable) const {
   return static_cast<bool>(bool_variables_.Get(variable));
 }
 
