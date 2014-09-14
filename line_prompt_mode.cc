@@ -65,15 +65,25 @@ class LinePromptMode : public EditorMode {
  public:
   LinePromptMode(const string& prompt, const string& history_file,
                  const string& initial_value, LinePromptHandler handler,
-                 Predictor predictor)
+                 Predictor predictor,
+                 map<string, shared_ptr<OpenBuffer>>::iterator initial_buffer)
       : prompt_(prompt),
         history_file_(history_file),
         handler_(handler),
         predictor_(predictor),
-        input_(EditableString::New(initial_value)) {}
+        initial_buffer_(initial_buffer),
+        input_(EditableString::New(initial_value)),
+        most_recent_char_(0) {}
 
   void ProcessInput(int c, EditorState* editor_state) {
     editor_state->set_status_prompt(true);
+    if (initial_buffer_ != editor_state->current_buffer()
+        && initial_buffer_ != editor_state->buffers()->end()) {
+      editor_state->set_current_buffer(initial_buffer_);
+      editor_state->ScheduleRedraw();
+    }
+    int last_char = most_recent_char_;
+    most_recent_char_ = c;
     switch (c) {
       case '\n':
         if (input_->size() != 0) {
@@ -102,7 +112,16 @@ class LinePromptMode : public EditorMode {
         break;
 
       case '\t':
-        {
+        if (last_char == '\t') {
+          auto it = editor_state->buffers()->find("- predictions");
+          if (it == editor_state->buffers()->end()) {
+            editor_state->SetStatus("Error: predictions buffer not found.");
+            return;
+          }
+          it->second->set_current_position_line(0);
+          editor_state->set_current_buffer(it);
+          editor_state->ScheduleRedraw();
+        } else {
           GetPredictionsBuffer(
               editor_state, predictor_, input_->ToString(),
               [editor_state, this](const string& prediction) {
@@ -166,7 +185,9 @@ class LinePromptMode : public EditorMode {
   const string history_file_;
   LinePromptHandler handler_;
   Predictor predictor_;
+  map<string, shared_ptr<OpenBuffer>>::iterator initial_buffer_;
   shared_ptr<EditableString> input_;
+  int most_recent_char_;
 };
 
 class LinePromptCommand : public Command {
@@ -213,7 +234,8 @@ void Prompt(EditorState* editor_state,
             LinePromptHandler handler,
             Predictor predictor) {
   std::unique_ptr<LinePromptMode> line_prompt_mode(new LinePromptMode(
-      prompt, history_file, initial_value, handler, predictor));
+      prompt, history_file, initial_value, handler, predictor,
+      editor_state->current_buffer()));
   auto history = GetHistoryBuffer(editor_state, history_file);
   history->second->set_current_position_line(
       history->second->contents()->size() - 1);
