@@ -21,8 +21,15 @@ using std::unique_ptr;
 
 class Line {
  public:
-  Line();
-  Line(const shared_ptr<LazyString>& contents_input);
+  struct Options {
+    Options() : contents(EmptyString()), terminal(false) {}
+    Options(shared_ptr<LazyString> input_contents)
+        : contents(input_contents), terminal(false) {}
+    shared_ptr<LazyString> contents;
+    bool terminal;
+  };
+
+  Line(const Options& options);
 
   shared_ptr<LazyString> contents() { return contents_; }
   size_t size() const { return contents_->size(); }

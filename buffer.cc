@@ -437,7 +437,7 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
           &buffer_, buffer_length_ + static_cast<size_t>(characters_read)));
   size_t line_start = buffer_length_;
   if (contents_.empty()) {
-    contents_.emplace_back(new Line());
+    contents_.emplace_back(new Line(Line::Options()));
     if (read_bool_variable(variable_follow_end_of_file())) {
       line_ = BufferLineIterator(this, contents_.size());
     }
@@ -450,7 +450,7 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
           editor_state,
           Substring(buffer_wrapper, line_start, i - line_start));
       assert(line_.line() <= contents_.size());
-      contents_.emplace_back(new Line());
+      contents_.emplace_back(new Line(Line::Options()));
       if (read_bool_variable(variable_follow_end_of_file())) {
         line_ = BufferLineIterator(this, contents_.size());
       }
@@ -537,9 +537,10 @@ void OpenBuffer::AppendLine(EditorState* editor_state, shared_ptr<LazyString> st
   AppendRawLine(editor_state, str);
 }
 
-void OpenBuffer::AppendRawLine(
-    EditorState*, shared_ptr<LazyString> str) {
-  contents_.emplace_back(new Line(str));
+void OpenBuffer::AppendRawLine(EditorState*, shared_ptr<LazyString> str) {
+  Line::Options options;
+  options.contents = str;
+  contents_.emplace_back(new Line(options));
   if (read_bool_variable(variable_follow_end_of_file())) {
     line_ = BufferLineIterator(this, contents_.size());
   }
@@ -548,14 +549,15 @@ void OpenBuffer::AppendRawLine(
 void OpenBuffer::AppendToLastLine(
     EditorState*, shared_ptr<LazyString> str) {
   if (contents_.empty()) {
-    contents_.emplace_back(new Line());
+    contents_.emplace_back(new Line(Line::Options()));
     if (read_bool_variable(variable_follow_end_of_file())) {
       line_ = BufferLineIterator(this, contents_.size());
     }
   }
   assert((*contents_.rbegin())->contents() != nullptr);
-  contents_.rbegin()->reset(
-      new Line(StringAppend((*contents_.rbegin())->contents(), str)));
+  Line::Options options;
+  options.contents = StringAppend((*contents_.rbegin())->contents(), str);
+  contents_.rbegin()->reset(new Line(options));
 }
 
 void OpenBuffer::EvaluateString(EditorState* editor_state, const string& code) {
@@ -598,28 +600,33 @@ LineColumn OpenBuffer::InsertInPosition(
   if (insertion.size() == 1) {
     if (insertion.at(0)->size() == 0) { return position; }
     auto line_to_insert = insertion.at(0)->contents();
-    auto new_line = new Line(
-        StringAppend(head, StringAppend(line_to_insert, tail)));
+    Line::Options options;
+    options.contents = StringAppend(head, StringAppend(line_to_insert, tail));
     if (position.line >= contents_.size()) {
-      contents_.emplace_back(new_line);
+      contents_.emplace_back(new Line(options));
     } else {
-      contents_.at(position.line).reset(new_line);
+      contents_.at(position.line).reset(new Line(options));
     }
     contents_[position.line]->set_modified(true);
     return LineColumn(position.line, head->size() + line_to_insert->size());
   }
   size_t line_end = position.line + insertion.size() - 1;
-  contents_.at(position.line).reset(
-      new Line(StringAppend(head, (*insertion.begin())->contents())));
-  if (contents_.at(position.line)->contents() != head) {
-    contents_[position.line]->set_modified(true);
+  {
+    Line::Options options;
+    options.contents = StringAppend(head, (*insertion.begin())->contents());
+    contents_.at(position.line).reset(new Line(options));
+    if (contents_.at(position.line)->contents() != head) {
+      contents_[position.line]->set_modified(true);
+    }
   }
-  auto last_line =
-      new Line(StringAppend((*insertion.rbegin())->contents(), tail));
-  if (line_end >= contents_.size()) {
-    contents_.emplace_back(last_line);
-  } else {
-    contents_.at(line_end).reset(last_line);
+  {
+    Line::Options options;
+    options.contents = StringAppend((*insertion.rbegin())->contents(), tail);
+    if (line_end >= contents_.size()) {
+      contents_.emplace_back(new Line(options));
+    } else {
+      contents_.at(line_end).reset(new Line(options));
+    }
   }
   if (head->size() > 0 || (*insertion.rbegin())->size() > 0) {
     contents_[line_end]->set_modified(true);

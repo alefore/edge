@@ -371,10 +371,10 @@ void EditorState::PushCurrentPosition() {
   }
   assert(it->second != nullptr);
   assert(it->second->position().line <= it->second->contents()->size());
-  shared_ptr<Line> line(new Line(
+  shared_ptr<Line> line(new Line(Line::Options(
       NewCopyString(
           current_buffer_->second->position().ToString()
-          + " " + current_buffer_->first)));
+          + " " + current_buffer_->first))));
   it->second->contents()->insert(
       it->second->contents()->begin() + it->second->current_position_line(),
       line);

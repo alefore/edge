@@ -949,12 +949,13 @@ class SwitchCaseTransformation : public Transformation {
       EditorState* editor_state, OpenBuffer* buffer) const {
     auto line = buffer->LineAt(position_.line);
     int c = line->get(position_.column);
-    buffer->contents()->at(position_.line).reset(new Line(
+    Line::Options options;
+    options.contents = StringAppend(
+        line->Substring(0, position_.column),
         StringAppend(
-            line->Substring(0, position_.column),
-            StringAppend(
-                NewCopyString(string(1, isupper(c) ? tolower(c) : toupper(c))),
-                line->Substring(position_.column + 1)))));
+            NewCopyString(string(1, isupper(c) ? tolower(c) : toupper(c))),
+            line->Substring(position_.column + 1)));
+    buffer->contents()->at(position_.line).reset(new Line(options));
     editor_state->ScheduleRedraw();
     return unique_ptr<Transformation>(new SwitchCaseTransformation(position_));
   }

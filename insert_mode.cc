@@ -95,11 +95,11 @@ class InsertMode : public EditorMode {
           }
         }
 
-        shared_ptr<LazyString> continuation(
-            StringAppend(
-                current_line->Substring(0, prefix_end),
-                current_line->Substring(position.column,
-                    current_line->size() - position.column)));
+        Line::Options continuation_options;
+        continuation_options.contents = StringAppend(
+            current_line->Substring(0, prefix_end),
+            current_line->Substring(position.column,
+                current_line->size() - position.column));
 
         TransformationStack transformation;
 
@@ -109,8 +109,9 @@ class InsertMode : public EditorMode {
         {
           shared_ptr<OpenBuffer> buffer_to_insert(
             new OpenBuffer(editor_state, "- text inserted"));
-          buffer_to_insert->contents()->emplace_back(new Line(EmptyString()));
-          buffer_to_insert->contents()->emplace_back(new Line(continuation));
+          buffer_to_insert->contents()->emplace_back(new Line(Line::Options()));
+          buffer_to_insert->contents()
+              ->emplace_back(new Line(continuation_options));
           transformation.PushBack(NewInsertBufferTransformation(
               buffer_to_insert, buffer->position(), 1));
         }
@@ -126,7 +127,7 @@ class InsertMode : public EditorMode {
       shared_ptr<OpenBuffer> buffer_to_insert(
           new OpenBuffer(editor_state, "- text inserted"));
       buffer_to_insert->contents()->emplace_back(
-          new Line(NewCopyString(string(1, c))));
+          new Line(Line::Options(NewCopyString(string(1, c)))));
       buffer->Apply(editor_state,
           *NewInsertBufferTransformation(
               buffer_to_insert, buffer->position(), 1).get());

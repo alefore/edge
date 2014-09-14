@@ -9,15 +9,12 @@
 namespace afc {
 namespace editor {
 
-Line::Line()
-    : contents_(EmptyString()) {}
-
-Line::Line(const shared_ptr<LazyString>& contents_input)
-    : contents_(contents_input),
+Line::Line(const Options& options)
+    : contents_(options.contents),
       modified_(false),
       filtered_(true),
       filter_version_(0) {
-  assert(contents_input != nullptr);
+  assert(contents_ != nullptr);
 }
 
 shared_ptr<LazyString> Line::Substring(size_t pos, size_t length) {
