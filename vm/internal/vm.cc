@@ -310,6 +310,7 @@ unique_ptr<Expression> CompileStream(
 unique_ptr<Expression> CompileFile(
     const string& path, Environment* environment, string* error_description) {
   std::ifstream infile(path);
+  if (infile.fail()) { return nullptr; }
   return CompileStream(environment, infile, error_description, VMType::Void());
 }
 
