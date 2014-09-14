@@ -140,23 +140,17 @@ void RunCommand(
     return;
   }
 
-  auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
-  if (it.second) {
-    it.first->second.reset(
-        new CommandBuffer(editor_state, name, input, environment));
-    if (editor_state->has_current_buffer()) {
-      it.first->second->CopyVariablesFrom(
-          editor_state->current_buffer()->second);
-    }
-  }
-  editor_state->set_current_buffer(it.first);
-  it.first->second->Reload(editor_state);
-  it.first->second->set_current_position_line(0);
+  ForkCommandOptions options;
+  options.command = input;
+  options.buffer_name = name;
+  options.enter = true;
+  options.environment = environment;
+  ForkCommand(editor_state, options);
+
   editor_state->ResetMode();
-  editor_state->ScheduleRedraw();
 }
 
-class ForkCommand : public Command {
+class ForkEditorCommand : public Command {
  public:
   const string Description() {
     return "forks a subprocess";
@@ -194,8 +188,28 @@ class ForkCommand : public Command {
 namespace afc {
 namespace editor {
 
+void ForkCommand(EditorState* editor_state, const ForkCommandOptions& options) {
+  string buffer_name = options.buffer_name.empty()
+      ? "$ " + options.command : options.buffer_name;
+  auto it = editor_state->buffers()->insert(make_pair(buffer_name, nullptr));
+  if (it.second) {
+    it.first->second.reset(new CommandBuffer(
+        editor_state, buffer_name, options.command, options.environment));
+    if (editor_state->has_current_buffer()) {
+      it.first->second
+          ->CopyVariablesFrom(editor_state->current_buffer()->second);
+    }
+  }
+  if (options.enter) {
+    editor_state->set_current_buffer(it.first);
+    editor_state->ScheduleRedraw();
+  }
+  it.first->second->Reload(editor_state);
+  it.first->second->set_current_position_line(0);
+}
+
 unique_ptr<Command> NewForkCommand() {
-  return unique_ptr<Command>(new ForkCommand());
+  return unique_ptr<Command>(new ForkEditorCommand());
 }
 
 void RunCommandHandler(const string& input, EditorState* editor_state) {

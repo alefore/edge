@@ -97,13 +97,9 @@ class FileBuffer : public OpenBuffer {
     }
     set_modified(false);
     editor_state->SetStatus("Saved: " + path);
-    const Value* listener =
-        read_value_variable(OpenBuffer::variable_save_listener());
-    if (listener == nullptr) {
-      return;
+    for (const auto& dir : editor_state->edge_path()) {
+      EvaluateFile(editor_state, dir + "/hooks/buffer-save.cc");
     }
-    vector<unique_ptr<Value>> args;
-    listener->callback(std::move(args));
   }
 
  private:

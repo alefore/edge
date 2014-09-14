@@ -15,6 +15,7 @@ extern "C" {
 #include "char_buffer.h"
 #include "editor.h"
 #include "file_link_mode.h"
+#include "run_command_handler.h"
 #include "server.h"
 #include "substring.h"
 #include "vm/public/value.h"
@@ -37,14 +38,16 @@ static string GetHomeDirectory() {
 
 static vector<string> GetEdgeConfigPath(const string& home) {
   vector<string> output;
+  output.push_back(home + "/.edge");
   char* env = getenv("EDGE_PATH");
   if (env != nullptr) {
-    // TODO: Handle multiple directories separated with colons.
+    std::istringstream text_stream(string(env) + ";");
+    std::string dir;
     // TODO: stat it and don't add it if it doesn't exist.
-    output.push_back(env);
+    while (std::getline(text_stream, dir, ';')) {
+      output.push_back(dir);
+    }
   }
-  // TODO: Don't add it if it doesn't exist or it's already there.
-  output.push_back(home + "/.edge");
   return output;
 }
 
@@ -234,6 +237,22 @@ EditorState::EditorState()
           return output;
         };
     environment_.Define("Line", std::move(callback));
+  }
+
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::VM_STRING);
+          ForkCommandOptions options;
+          options.command = args[0]->str;
+          options.enter = false;
+          ForkCommand(this, options);
+          return std::move(Value::NewVoid());
+        };
+    environment_.Define("ForkCommand", std::move(callback));
   }
 
   {

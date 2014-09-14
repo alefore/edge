@@ -30,7 +30,7 @@ GetHistoryBuffer(EditorState* editor_state, const string& name) {
     return it;
   }
   options.path =
-      (*editor_state->edge_path().rbegin()) + "/" + name + "_history";
+      (*editor_state->edge_path().begin()) + "/" + name + "_history";
   options.make_current_buffer = false;
   it = OpenFile(options);
   assert(it != editor_state->buffers()->end());
@@ -79,9 +79,8 @@ class LinePromptMode : public EditorMode {
         if (input_->size() != 0) {
           auto history = GetHistoryBuffer(editor_state, history_file_)->second;
           assert(history != nullptr);
-          assert(history->contents()->size() >= 1);
-          if (history->contents()->size() == 1
-              || (history->contents()->at(history->contents()->size() - 2)
+          if (history->contents()->size() == 0
+              || (history->contents()->at(history->contents()->size() - 1)
                       ->ToString()
                   != input_->ToString())) {
             history->AppendLine(editor_state, input_);
@@ -187,7 +186,7 @@ class LinePromptCommand : public Command {
     return description_;
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(int, EditorState* editor_state) {
     Prompt(editor_state, prompt_, history_file_, "", handler_, predictor_);
   }
 
