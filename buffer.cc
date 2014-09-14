@@ -565,14 +565,11 @@ void OpenBuffer::EvaluateString(EditorState* editor_state, const string& code) {
   Evaluate(expression.get(), &environment_);
 }
 
-void OpenBuffer::EvaluateFile(EditorState* editor_state, const string& path) {
+void OpenBuffer::EvaluateFile(EditorState*, const string& path) {
   string error_description;
   unique_ptr<Expression> expression(
       CompileFile(path, &environment_, &error_description));
-  if (expression == nullptr) {
-    editor_state->SetStatus(path + ": Compilation error: " + error_description);
-    return;
-  }
+  if (expression == nullptr) { return; }
   Evaluate(expression.get(), &environment_);
 }
 
@@ -925,21 +922,9 @@ string OpenBuffer::FlagsString() const {
   if (output == nullptr) {
     output = new EdgeStruct<unique_ptr<Value>>;
     // Trigger registration of all fields.
-    OpenBuffer::variable_save_listener();
+    // ... except there are no fields yet.
   }
   return output;
-}
-
-/* static */ EdgeVariable<unique_ptr<Value>>*
-OpenBuffer::variable_save_listener() {
-  VMType type(VMType::FUNCTION);
-  type.type_arguments.push_back(VMType::Void());
-  static EdgeVariable<unique_ptr<Value>>* variable = ValueStruct()->AddVariable(
-      "save_listener",
-      "A function that receives no arguments and returns no arguments.  It "
-      "will be evaluated whenever the buffer is saved.",
-      type);
-  return variable;
 }
 
 /* static */ EdgeVariable<string>*

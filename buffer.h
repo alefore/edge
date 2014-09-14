@@ -382,8 +382,8 @@ class OpenBuffer {
   static EdgeStruct<int>* IntStruct();
   static EdgeVariable<int>* variable_line_width();
 
+  // No variables currently, but we'll likely add some later.
   static EdgeStruct<unique_ptr<Value>>* ValueStruct();
-  static EdgeVariable<unique_ptr<Value>>* variable_save_listener();
 
   bool read_bool_variable(const EdgeVariable<char>* variable);
   void set_bool_variable(const EdgeVariable<char>* variable, bool value);
