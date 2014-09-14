@@ -439,12 +439,6 @@ class OpenBuffer {
   bool modified_;
   bool reading_from_parser_;
 
-  // Once we're done reading, should we reload the buffer?  This is used when
-  // a reload is triggered while we're reading from an underlying process: we
-  // them just set this and kill the underlying process (so that we can avoid
-  // blocking the whole process waiting for the process to exit).
-  bool reload_after_exit_;
-
   // This uses char rather than bool because vector<bool>::iterator does not
   // yield a bool& when dereferenced, which makes EdgeStructInstance<bool>
   // incompatible with other template specializations

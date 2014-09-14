@@ -475,7 +475,7 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
 void OpenBuffer::Reload(EditorState* editor_state) {
   if (child_pid_ != -1) {
     kill(-child_pid_, SIGTERM);
-    reload_after_exit_ = true;
+    set_bool_variable(variable_reload_after_exit(), true);
     return;
   }
   ReloadInto(editor_state, this);
