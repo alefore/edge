@@ -55,7 +55,7 @@ void Terminal::Display(EditorState* editor_state) {
   }
   auto const& buffer = editor_state->current_buffer()->second;
   size_t line =
-      min(buffer->current_position_line(), buffer->contents()->size());
+      min(buffer->current_position_line(), buffer->contents()->size() - 1);
   if (buffer->view_start_line() > line) {
     buffer->set_view_start_line(line);
     editor_state->ScheduleRedraw();
@@ -223,19 +223,28 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
     const shared_ptr<Line> line(contents[current_line]);
     assert(line->contents() != nullptr);
     line->Output(editor_state, buffer, &receiver);
+    receiver.AddModifier(Line::RESET);
     current_line ++;
   }
 }
 
 void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
   const vector<shared_ptr<Line>>& contents(*buffer->contents());
-  size_t position_line = min(buffer->position().line, contents.size());
-  size_t line_length =
-      position_line == contents.size()
-      || !buffer->IsLineFiltered(buffer->position().line)
-      ? 0 : contents[position_line]->size();
-  size_t pos_x = min(min(static_cast<size_t>(COLS) - 1, line_length),
-                     buffer->position().column);
+  size_t position_line = min(buffer->position().line, contents.size() - 1);
+  size_t line_length;
+  if (contents.empty()) {
+    line_length = 0;
+  } else if (buffer->position().line >= contents.size()) {
+    line_length = (*contents.rbegin())->size();
+  } else if (!buffer->IsLineFiltered(buffer->position().line)) {
+    line_length = 0;
+  } else {
+    line_length = contents[position_line]->size();
+  }
+  size_t pos_x = min(static_cast<size_t>(COLS) - 1, line_length);
+  if (buffer->position().line < contents.size()) {
+    pos_x = min(pos_x, buffer->position().column);
+  }
 
   size_t pos_y = 0;
   for (size_t line = buffer->view_start_line(); line < position_line; line++) {
@@ -263,15 +272,7 @@ int Terminal::Read(EditorState* editor_state) {
       return -1;
 
     case 21:
-      {
-        int next = getch();
-        switch (next) {
-          case -1:
-            return CTRL_U;
-        }
-        ungetch(next);
-      }
-      return 21;
+      return CTRL_U;
 
     case 27:
       {
@@ -281,7 +282,7 @@ int Terminal::Read(EditorState* editor_state) {
           case -1:
             return ESCAPE;
 
-          case 91:
+          case '[':
             {
               int next2 = getch();
               //cerr << "Read next2: " << next2 << "\n";
@@ -292,13 +293,13 @@ int Terminal::Read(EditorState* editor_state) {
                 case 54:
                   getch();
                   return PAGE_DOWN;
-                case 65:
+                case 'A':
                   return UP_ARROW;
-                case 66:
+                case 'B':
                   return DOWN_ARROW;
-                case 67:
+                case 'C':
                   return RIGHT_ARROW;
-                case 68:
+                case 'D':
                   return LEFT_ARROW;
               }
             }

@@ -4,7 +4,9 @@
 #include <cassert>
 #include <map>
 #include <memory>
+#include <unordered_set>
 #include <string>
+#include <vector>
 
 #include "lazy_string.h"
 
@@ -16,22 +18,15 @@ class EditorState;
 class LazyString;
 class OpenBuffer;
 
+using std::hash;
 using std::shared_ptr;
 using std::string;
 using std::unique_ptr;
+using std::unordered_set;
+using std::vector;
 
 class Line {
  public:
-  struct Options {
-    Options() : contents(EmptyString()), terminal(false) {}
-    Options(shared_ptr<LazyString> input_contents)
-        : contents(input_contents), terminal(false) {}
-    shared_ptr<LazyString> contents;
-    bool terminal;
-  };
-
-  Line(const Options& options);
-
   enum Modifier {
     RESET,
     BOLD,
@@ -40,6 +35,17 @@ class Line {
     GREEN,
     CYAN,
   };
+
+  struct Options {
+    Options() : contents(EmptyString()) {}
+    Options(shared_ptr<LazyString> input_contents)
+        : contents(input_contents) {}
+
+    vector<unordered_set<Modifier, hash<int>>> modifiers;
+    shared_ptr<LazyString> contents;
+  };
+
+  Line(const Options& options);
 
   shared_ptr<LazyString> contents() { return contents_; }
   size_t size() const { return contents_->size(); }
@@ -51,6 +57,13 @@ class Line {
   shared_ptr<LazyString> Substring(size_t pos);
   string ToString() const {
     return contents_->ToString();
+  }
+  void DeleteUntilEnd(size_t position);
+  void SetCharacter(size_t position, int c,
+                    const std::unordered_set<Modifier, hash<int>>& modifiers);
+
+  const vector<unordered_set<Modifier, hash<int>>> modifiers() const {
+    return modifiers_;
   }
 
   bool modified() const { return modified_; }
@@ -83,8 +96,8 @@ class Line {
 
  private:
   unique_ptr<EditorMode> activate_;
-  std::multimap<int, Modifier> modifiers_;
   shared_ptr<LazyString> contents_;
+  vector<unordered_set<Modifier, hash<int>>> modifiers_;
   bool modified_;
   bool filtered_;
   size_t filter_version_;

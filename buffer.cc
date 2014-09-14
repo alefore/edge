@@ -4,6 +4,7 @@
 #include <cstring>
 #include <iostream>
 #include <memory>
+#include <unordered_set>
 #include <sstream>
 #include <string>
 
@@ -28,6 +29,7 @@ namespace {
 
 using namespace afc::editor;
 using std::cerr;
+using std::unordered_set;
 
 void SaveDiff(EditorState* editor_state, OpenBuffer* buffer) {
   unique_ptr<OpenBuffer> original(new OpenBuffer(editor_state, "- original diff"));
@@ -352,6 +354,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
       buffer_size_(0),
       child_pid_(-1),
       child_exit_status_(0),
+      position_pts_(LineColumn(0, 0)),
       view_start_line_(0),
       view_start_column_(0),
       line_(this, 0),
@@ -420,7 +423,8 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
     buffer_size_ = buffer_size_ ? buffer_size_ * 2 : 64 * 1024;
     buffer_ = static_cast<char*>(realloc(buffer_, buffer_size_));
   }
-  ssize_t characters_read = read(fd_, buffer_ + buffer_length_, buffer_size_ - buffer_length_);
+  ssize_t characters_read =
+      read(fd_, buffer_ + buffer_length_, buffer_size_ - buffer_length_);
   if (characters_read == -1) {
     if (errno == EAGAIN) {
       return;
@@ -436,37 +440,43 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
       NewMoveableCharBuffer(
           &buffer_, buffer_length_ + static_cast<size_t>(characters_read)));
   size_t line_start = buffer_length_;
+  buffer_length_ += static_cast<size_t>(characters_read);
   if (contents_.empty()) {
     contents_.emplace_back(new Line(Line::Options()));
     if (read_bool_variable(variable_follow_end_of_file())) {
       line_ = BufferLineIterator(this, contents_.size());
     }
   }
-  for (size_t i = buffer_length_;
-       i < buffer_length_ + static_cast<size_t>(characters_read);
-       i++) {
-    if (buffer_[i] == '\n') {
-      AppendToLastLine(
-          editor_state,
-          Substring(buffer_wrapper, line_start, i - line_start));
-      assert(line_.line() <= contents_.size());
-      contents_.emplace_back(new Line(Line::Options()));
-      if (read_bool_variable(variable_follow_end_of_file())) {
-        line_ = BufferLineIterator(this, contents_.size());
-      }
-      line_start = i + 1;
-      if (editor_state->has_current_buffer()
-          && editor_state->current_buffer()->second.get() == this
-          && contents_.size() <= view_start_line_ + editor_state->visible_lines()) {
-        editor_state->ScheduleRedraw();
-      }
-    }
-  }
-  buffer_length_ += static_cast<size_t>(characters_read);
-  if (line_start < buffer_length_) {
-    AppendToLastLine(
+  if (read_bool_variable(variable_pts())) {
+    ProcessCommandInput(
         editor_state,
         Substring(buffer_wrapper, line_start, buffer_length_ - line_start));
+    editor_state->ScheduleRedraw();
+  } else {
+    for (size_t i = line_start; i < buffer_length_; i++) {
+      if (buffer_[i] == '\n') {
+        AppendToLastLine(
+            editor_state,
+            Substring(buffer_wrapper, line_start, i - line_start));
+        assert(line_.line() <= contents_.size());
+        contents_.emplace_back(new Line(Line::Options()));
+        if (read_bool_variable(variable_follow_end_of_file())) {
+          line_ = BufferLineIterator(this, contents_.size());
+        }
+        line_start = i + 1;
+        if (editor_state->has_current_buffer()
+            && editor_state->current_buffer()->second.get() == this
+            && contents_.size() <=
+                   view_start_line_ + editor_state->visible_lines()) {
+          editor_state->ScheduleRedraw();
+        }
+      }
+    }
+    if (line_start < buffer_length_) {
+      AppendToLastLine(
+          editor_state,
+          Substring(buffer_wrapper, line_start, buffer_length_ - line_start));
+    }
   }
   if (editor_state->has_current_buffer()
       && editor_state->current_buffer()->first == kBuffersName) {
@@ -547,8 +557,90 @@ void OpenBuffer::AppendRawLine(EditorState*, shared_ptr<LazyString> str) {
   }
 }
 
+void OpenBuffer::ProcessCommandInput(
+    EditorState* editor_state, shared_ptr<LazyString> str) {
+  assert(read_bool_variable(variable_pts()));
+  assert(position_pts_.line < contents_.size());
+  auto current_line = contents_[position_pts_.line];
+
+  std::unordered_set<Line::Modifier, hash<int>> modifiers;
+
+  size_t read_index = 0;
+  // cerr << str->ToString();
+  while (read_index < str->size()) {
+    int c = str->get(read_index);
+    read_index++;
+    if (c == '\b') {
+      if (position_pts_.column > 0) {
+        position_pts_.column--;
+        if (read_bool_variable(variable_follow_end_of_file())) {
+          column_ = position_pts_.column;
+        }
+      }
+    } else if (c == '\a') {
+      editor_state->SetStatus("beep!");
+    } else if (c == '\r') {
+    } else if (c == '\n') {
+      contents_.emplace_back(new Line(Line::Options()));
+      if (read_bool_variable(variable_follow_end_of_file())) {
+        line_ = BufferLineIterator(this, contents_.size() - 1);
+        column_ = 0;
+      }
+      position_pts_ = LineColumn(contents_.size() - 1);
+      current_line = *contents_.rbegin();
+    } else if (c == 0x1b) {
+      string sequence;
+      while (read_index < str->size() && str->get(read_index) != 'm') {
+        sequence.push_back(str->get(read_index));
+        read_index++;
+      }
+      read_index++;
+      if (sequence == "[K") {
+        current_line->DeleteUntilEnd(position_pts_.column);
+      } else if (sequence == "[0") {
+        modifiers.clear();
+      } else if (sequence == "[1") {
+        modifiers.insert(Line::BOLD);
+      } else if (sequence == "[1;30") {
+        modifiers.clear();
+        modifiers.insert(Line::BOLD);
+        modifiers.insert(Line::BLACK);
+      } else if (sequence == "[1;31") {
+        modifiers.clear();
+        modifiers.insert(Line::BOLD);
+        modifiers.insert(Line::RED);
+      } else if (sequence == "[1;36") {
+        modifiers.clear();
+        modifiers.insert(Line::BOLD);
+        modifiers.insert(Line::CYAN);
+      } else if (sequence == "[0;36") {
+        modifiers.clear();
+        modifiers.insert(Line::CYAN);
+      } else {
+        std::cerr << "Unhandled sequence: [" << sequence << "]\n";
+        continue;
+      }
+    } else if (isprint(c) || c == '\t') {
+      current_line->SetCharacter(position_pts_.column, c, modifiers);
+      position_pts_.column++;
+      if (read_bool_variable(variable_follow_end_of_file())) {
+        column_ = position_pts_.column;
+      }
+    } else {
+      std::cerr << "Unknown [" << c << "]\n";
+    }
+  }
+}
+
 void OpenBuffer::AppendToLastLine(
-    EditorState*, shared_ptr<LazyString> str) {
+    EditorState* editor_state, shared_ptr<LazyString> str) {
+  vector<unordered_set<Line::Modifier, hash<int>>> modifiers;
+  AppendToLastLine(editor_state, str, modifiers);
+}
+
+void OpenBuffer::AppendToLastLine(
+    EditorState*, shared_ptr<LazyString> str,
+    const vector<unordered_set<Line::Modifier, hash<int>>>& modifiers) {
   if (contents_.empty()) {
     contents_.emplace_back(new Line(Line::Options()));
     if (read_bool_variable(variable_follow_end_of_file())) {
@@ -558,7 +650,10 @@ void OpenBuffer::AppendToLastLine(
   assert((*contents_.rbegin())->contents() != nullptr);
   Line::Options options;
   options.contents = StringAppend((*contents_.rbegin())->contents(), str);
-  options.terminal = read_bool_variable(variable_pts());
+  options.modifiers = (*contents_.rbegin())->modifiers();
+  for (auto& it : modifiers) {
+    options.modifiers.push_back(it);
+  }
   contents_.rbegin()->reset(new Line(options));
 }
 

@@ -151,9 +151,48 @@ class RawInputTypeMode : public EditorMode {
         line_buffer_ = "";
         break;
 
+      case Terminal::CTRL_U:
+        if (!buffer) {
+          line_buffer_ = "";
+        } else {
+          string sequence(1, 21);
+          write(buffer->fd(), sequence.c_str(), sequence.size());
+        }
+        break;
+
       case Terminal::ESCAPE:
-        editor_state->ResetMode();
-        editor_state->ResetStatus();
+        {
+          editor_state->ResetMode();
+          editor_state->ResetStatus();
+        }
+        break;
+
+      case Terminal::UP_ARROW:
+        {
+          string sequence = { 27, '[', 'A' };
+          write(buffer->fd(), sequence.c_str(), sequence.size());
+        }
+        break;
+
+      case Terminal::DOWN_ARROW:
+        {
+          string sequence = { 27, '[', 'B' };
+          write(buffer->fd(), sequence.c_str(), sequence.size());
+        }
+        break;
+
+      case Terminal::RIGHT_ARROW:
+        {
+          string sequence = { 27, '[', 'C' };
+          write(buffer->fd(), sequence.c_str(), sequence.size());
+        }
+        break;
+
+      case Terminal::LEFT_ARROW:
+        {
+          string sequence = { 27, '[', 'D' };
+          write(buffer->fd(), sequence.c_str(), sequence.size());
+        }
         break;
 
       case Terminal::BACKSPACE:

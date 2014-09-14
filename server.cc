@@ -85,9 +85,9 @@ class ServerBuffer : public OpenBuffer {
     editor_state->ScheduleRedraw();
   }
 
-  virtual void AppendRawLine(
+  virtual void ProcessCommandInput(
       EditorState* editor_state, shared_ptr<LazyString> str) {
-    OpenBuffer::AppendRawLine(editor_state, str);
+    OpenBuffer::ProcessCommandInput(editor_state, str);
     EvaluateString(editor_state, str->ToString());
   }
 };

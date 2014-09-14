@@ -117,7 +117,7 @@ class CommandBuffer : public OpenBuffer {
       // Copy variables from the current environment (environ(7)).
       for (size_t index = 0; environ[index] != nullptr; index++) {
         string entry = environ[index];
-        int eq = entry.find_first_of("=");
+        size_t eq = entry.find_first_of("=");
         if (eq == string::npos) {
           environment.insert(make_pair(entry, ""));
         } else {

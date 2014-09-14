@@ -28,6 +28,7 @@ using std::vector;
 using std::map;
 using std::max;
 using std::min;
+using std::multimap;
 
 using namespace afc::vm;
 
@@ -194,7 +195,12 @@ class OpenBuffer {
   void AppendLazyString(EditorState* editor_state, shared_ptr<LazyString> input);
   void AppendLine(EditorState* editor_state, shared_ptr<LazyString> line);
   virtual void AppendRawLine(EditorState* editor_state, shared_ptr<LazyString> str);
+  virtual void ProcessCommandInput(
+      EditorState* editor_state, shared_ptr<LazyString> str);
   void AppendToLastLine(EditorState* editor_state, shared_ptr<LazyString> str);
+  void AppendToLastLine(
+      EditorState* editor_state, shared_ptr<LazyString> str,
+      const vector<unordered_set<Line::Modifier, hash<int>>>& modifiers);
 
   void EvaluateString(EditorState* editor_state, const string& str);
   void EvaluateFile(EditorState* editor_state, const string& path);
@@ -431,6 +437,8 @@ class OpenBuffer {
   // -1 means "no child process"
   pid_t child_pid_;
   int child_exit_status_;
+
+  LineColumn position_pts_;
 
   vector<shared_ptr<Line>> contents_;
 
