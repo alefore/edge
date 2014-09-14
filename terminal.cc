@@ -83,7 +83,11 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
   if (editor_state.has_current_buffer()) {
     auto buffer = editor_state.current_buffer()->second;
     addch('[');
-    addstr(to_string(buffer->current_position_line() + 1).c_str());
+    if (buffer->current_position_line() >= buffer->contents()->size()) {
+      addstr("<EOF>");
+    } else {
+      addstr(to_string(buffer->current_position_line() + 1).c_str());
+    }
     addstr(" of ");
     addstr(to_string(buffer->contents()->size()).c_str());
     addstr(", ");

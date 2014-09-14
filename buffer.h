@@ -309,6 +309,7 @@ class OpenBuffer {
   size_t current_position_line() const { return line_.line(); }
   void set_current_position_line(size_t value) {
     line_ = BufferLineIterator(this, value);
+    set_bool_variable(variable_follow_end_of_file(), value >= contents_.size());
   }
   size_t current_position_col() const { return column_; }
   void set_current_position_col(size_t value) {

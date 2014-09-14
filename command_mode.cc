@@ -45,7 +45,8 @@ class GotoCommand : public Command {
     switch (editor_state->structure()) {
       case EditorState::CHAR:
         {
-          shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
+          shared_ptr<OpenBuffer> buffer =
+              editor_state->current_buffer()->second;
           if (buffer->current_line() == nullptr) { return; }
           const string line_prefix_characters = buffer->read_string_variable(
               OpenBuffer::variable_line_prefix_characters());
@@ -96,7 +97,7 @@ class GotoCommand : public Command {
         {
           shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
           size_t position = ComputePosition(
-              buffer->contents()->size(), editor_state->direction(),
+              buffer->contents()->size() + 1, editor_state->direction(),
               editor_state->repetitions(), calls);
           assert(position <= buffer->contents()->size());
           if (buffer->position().line != position) {
