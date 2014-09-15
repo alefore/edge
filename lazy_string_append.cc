@@ -10,7 +10,7 @@ class StringAppendImpl : public LazyString {
  public:
   StringAppendImpl(const shared_ptr<LazyString>& a,
                    const shared_ptr<LazyString>& b)
-      : a_(a), b_(b) {}
+      : size_(a->size() + b->size()), a_(a), b_(b) {}
 
   char get(size_t pos) const {
     if (pos < a_->size()) {
@@ -19,11 +19,10 @@ class StringAppendImpl : public LazyString {
     return b_->get(pos - a_->size());
   }
 
-  size_t size() const {
-    return a_->size() + b_->size();
-  }
+  size_t size() const { return size_; }
 
  private:
+  const int size_;
   const shared_ptr<LazyString> a_;
   const shared_ptr<LazyString> b_;
 };
