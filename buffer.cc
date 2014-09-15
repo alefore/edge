@@ -420,6 +420,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
   set_string_variable(variable_path(), "");
   set_string_variable(variable_pts_path(), "");
   set_string_variable(variable_command(), "");
+  set_bool_variable(variable_reload_after_exit(), false);
   ClearContents();
 }
 
