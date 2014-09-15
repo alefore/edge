@@ -195,8 +195,6 @@ class OpenBuffer {
   void AppendLazyString(EditorState* editor_state, shared_ptr<LazyString> input);
   void AppendLine(EditorState* editor_state, shared_ptr<LazyString> line);
   virtual void AppendRawLine(EditorState* editor_state, shared_ptr<LazyString> str);
-  virtual void ProcessCommandInput(
-      EditorState* editor_state, shared_ptr<LazyString> str);
   size_t ProcessTerminalEscapeSequence(
       shared_ptr<LazyString> str, size_t read_index,
       std::unordered_set<Line::Modifier, hash<int>>* modifiers);
@@ -373,6 +371,7 @@ class OpenBuffer {
 
   static EdgeStruct<char>* BoolStruct();
   static EdgeVariable<char>* variable_pts();
+  static EdgeVariable<char>* variable_vm_exec();
   static EdgeVariable<char>* variable_close_after_clean_exit();
   static EdgeVariable<char>* variable_reload_after_exit();
   static EdgeVariable<char>* variable_default_reload_after_exit();
@@ -478,6 +477,10 @@ class OpenBuffer {
   // the Line::filtered field).
   unique_ptr<Value> filter_;
   size_t filter_version_;
+
+ private:
+  void ProcessCommandInput(
+      EditorState* editor_state, shared_ptr<LazyString> str);
 };
 
 }  // namespace editor

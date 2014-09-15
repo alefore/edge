@@ -498,6 +498,11 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
       line_ = BufferLineIterator(this, contents_.size());
     }
   }
+
+  if (read_bool_variable(variable_vm_exec())) {
+    EvaluateString(editor_state, string(buffer_ + line_start, characters_read));
+  }
+
   if (read_bool_variable(variable_pts())) {
     ProcessCommandInput(
         editor_state,
@@ -962,6 +967,7 @@ string OpenBuffer::FlagsString() const {
     output = new EdgeStruct<char>;
     // Trigger registration of all fields.
     OpenBuffer::variable_pts();
+    OpenBuffer::variable_vm_exec();
     OpenBuffer::variable_close_after_clean_exit();
     OpenBuffer::variable_reload_after_exit();
     OpenBuffer::variable_default_reload_after_exit();
@@ -981,6 +987,14 @@ string OpenBuffer::FlagsString() const {
       "pts",
       "If a command is forked that writes to this buffer, should it be run "
       "with its own pseudoterminal?",
+      false);
+  return variable;
+}
+
+/* static */ EdgeVariable<char>* OpenBuffer::variable_vm_exec() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+      "vm_exec",
+      "If set, all input read into this buffer will be executed.",
       false);
   return variable;
 }

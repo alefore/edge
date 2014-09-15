@@ -71,6 +71,7 @@ class ServerBuffer : public OpenBuffer {
   ServerBuffer(EditorState* editor_state, const string& name)
       : OpenBuffer(editor_state, name) {
     set_bool_variable(variable_clear_on_reload(), false);
+    set_bool_variable(variable_vm_exec(), true);
   }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
@@ -83,12 +84,6 @@ class ServerBuffer : public OpenBuffer {
     target->SetInputFile(fd, false, -1);
 
     editor_state->ScheduleRedraw();
-  }
-
-  virtual void ProcessCommandInput(
-      EditorState* editor_state, shared_ptr<LazyString> str) {
-    OpenBuffer::ProcessCommandInput(editor_state, str);
-    EvaluateString(editor_state, str->ToString());
   }
 };
 
