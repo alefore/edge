@@ -6,7 +6,7 @@ all: edge test
 
 main.o: main.cc editor.h file_link_mode.h server.h terminal.h Makefile
 terminal.o: terminal.cc terminal.h editor.h Makefile
-server.o: server.cc server.h vm/public/vm.h Makefile
+server.o: server.cc server.h buffer.h vm/public/vm.h Makefile
 
 vm/internal/vm.o: vm/internal/vm.cc vm/public/vm.h vm/internal/cpp.c vm/internal/cpp.h Makefile
 vm/internal/value.o: vm/internal/value.cc vm/public/value.h Makefile
@@ -32,7 +32,7 @@ substring.o: substring.cc substring.h lazy_string.h Makefile
 
 buffer.o: buffer.cc buffer.h editor.h file_link_mode.h lazy_string_append.h run_command_handler.h substring.h transformation.h variables.h Makefile
 editor.o: editor.cc editor.h char_buffer.h substring.h memory_mapped_file.h lazy_string.h transformation.h Makefile
-line.o: line.cc line.h lazy_string.h Makefile
+line.o: line.cc line.h buffer.h lazy_string.h Makefile
 direction.o: direction.cc direction.h Makefile
 transformation.o: transformation.cc transformation.h buffer.h editor.h Makefile
 
