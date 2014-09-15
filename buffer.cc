@@ -51,6 +51,45 @@ void SaveDiff(EditorState* editor_state, OpenBuffer* buffer) {
   editor_state->SetStatus("Changing diff");
 }
 
+static void RegisterBufferFieldBool(afc::vm::ObjectType* object_type,
+                                    const EdgeVariable<char>* variable) {
+  using namespace afc::vm;
+  assert(variable != nullptr);
+
+  // Getter.
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
+    callback->type.type_arguments.push_back(VMType::ObjectType(object_type));
+    callback->callback =
+        [variable](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::OBJECT_TYPE);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          assert(buffer != nullptr);
+          return Value::NewBool(buffer->read_bool_variable(variable));
+        };
+    object_type->AddField(variable->name(), std::move(callback));
+  }
+
+  // Setter.
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->type.type_arguments.push_back(VMType::ObjectType(object_type));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
+    callback->callback =
+        [variable](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::OBJECT_TYPE);
+          assert(args[1]->type == VMType::VM_BOOLEAN);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          assert(buffer != nullptr);
+          buffer->set_bool_variable(variable, args[1]->boolean);
+          return std::move(Value::NewVoid());
+        };
+    object_type->AddField("set_" + variable->name(), std::move(callback));
+  }
+}
+
 static void RegisterBufferFieldString(afc::vm::ObjectType* object_type,
                                       const EdgeVariable<string>* variable) {
   using namespace afc::vm;
@@ -198,6 +237,15 @@ bool LineColumn::operator!=(const LineColumn& other) const {
     for (const string& name : variable_names) {
       RegisterBufferFieldString(
           buffer.get(), StringStruct()->find_variable(name));
+    }
+  }
+
+  {
+    vector<string> variable_names;
+    BoolStruct()->RegisterVariableNames(&variable_names);
+    for (const string& name : variable_names) {
+      RegisterBufferFieldBool(
+          buffer.get(), BoolStruct()->find_variable(name));
     }
   }
 
