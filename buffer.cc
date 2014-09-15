@@ -434,6 +434,7 @@ void OpenBuffer::Close(EditorState* editor_state) {
 
 void OpenBuffer::ClearContents() {
   contents_.clear();
+  position_pts_ = LineColumn();
 }
 
 void OpenBuffer::EndOfFile(EditorState* editor_state) {
