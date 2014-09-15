@@ -76,13 +76,17 @@ void Line::Output(const EditorState*,
   size_t width = receiver->width();
   size_t output_column = 0;
   size_t input_column = buffer->view_start_column();
+  unordered_set<Line::Modifier, hash<int>> current_modifiers;
   while (input_column < size() && output_column < width) {
     int c = get(input_column);
     assert(c != '\n');
     // TODO: Optimize.
-    receiver->AddModifier(Line::RESET);
-    if (input_column < modifiers_.size()) {
-      for (auto it : modifiers_[input_column]) {
+    if (input_column >= modifiers_.size()) {
+      receiver->AddModifier(Line::RESET);
+    } else if (modifiers_[input_column] != current_modifiers) {
+      receiver->AddModifier(Line::RESET);
+      current_modifiers = modifiers_[input_column];
+      for (auto it : current_modifiers) {
         receiver->AddModifier(it);
       }
     }
