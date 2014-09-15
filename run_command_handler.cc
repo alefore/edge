@@ -78,6 +78,7 @@ class CommandBuffer : public OpenBuffer {
       }
       pipefd[parent_fd] = master_fd;
       char* pts_path = ptsname(master_fd);
+      target->set_string_variable(variable_pts_path(), pts_path);
       pipefd[child_fd] = open(pts_path, O_RDWR);
       if (pipefd[child_fd] == -1) {
         cerr << "open failed: " << pts_path << ": " << string(strerror(errno));

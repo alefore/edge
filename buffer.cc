@@ -418,6 +418,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
   environment_.Define("buffer", Value::NewObject(
       "Buffer", shared_ptr<void>(this, [](void*){})));
   set_string_variable(variable_path(), "");
+  set_string_variable(variable_pts_path(), "");
   set_string_variable(variable_command(), "");
   ClearContents();
 }
@@ -934,7 +935,11 @@ string OpenBuffer::FlagsString() const {
   if (fd() != -1) {
     output += "< l:" + to_string(contents_.size());
     if (read_bool_variable(variable_follow_end_of_file())) {
-      output += " (follow)";
+      output += " follow";
+    }
+    string pts_path = read_string_variable(variable_pts_path());
+    if (!pts_path.empty()) {
+      output += " " + pts_path;
     }
   }
   if (child_pid_ != -1) {
@@ -1083,6 +1088,7 @@ string OpenBuffer::FlagsString() const {
     OpenBuffer::variable_word_characters();
     OpenBuffer::variable_path_characters();
     OpenBuffer::variable_path();
+    OpenBuffer::variable_pts_path();
     OpenBuffer::variable_command();
     OpenBuffer::variable_editor_commands_path();
     OpenBuffer::variable_line_prefix_characters();
@@ -1113,6 +1119,16 @@ string OpenBuffer::FlagsString() const {
   static EdgeVariable<string>* variable = StringStruct()->AddVariable(
       "path",
       "String with the path of the current file.",
+      "",
+      FilePredictor);
+  return variable;
+}
+
+/* static */ EdgeVariable<string>* OpenBuffer::variable_pts_path() {
+  static EdgeVariable<string>* variable = StringStruct()->AddVariable(
+      "pts_path",
+      "String with the path of the terminal used by the current buffer (or "
+      "empty if the user is not using a terminal).",
       "",
       FilePredictor);
   return variable;
@@ -1202,7 +1218,8 @@ void OpenBuffer::toggle_bool_variable(const EdgeVariable<char>* variable) {
   set_bool_variable(variable, !read_bool_variable(variable));
 }
 
-const string& OpenBuffer::read_string_variable(const EdgeVariable<string>* variable) {
+const string& OpenBuffer::read_string_variable(
+    const EdgeVariable<string>* variable) const {
   return string_variables_.Get(variable);
 }
 
@@ -1211,7 +1228,8 @@ void OpenBuffer::set_string_variable(
   string_variables_.Set(variable, value);
 }
 
-const int& OpenBuffer::read_int_variable(const EdgeVariable<int>* variable) {
+const int& OpenBuffer::read_int_variable(
+    const EdgeVariable<int>* variable) const {
   return int_variables_.Get(variable);
 }
 
@@ -1221,7 +1239,7 @@ void OpenBuffer::set_int_variable(
 }
 
 const Value* OpenBuffer::read_value_variable(
-    const EdgeVariable<unique_ptr<Value>>* variable) {
+    const EdgeVariable<unique_ptr<Value>>* variable) const {
   return function_variables_.Get(variable);
 }
 

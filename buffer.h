@@ -388,6 +388,7 @@ class OpenBuffer {
   static EdgeVariable<string>* variable_word_characters();
   static EdgeVariable<string>* variable_path_characters();
   static EdgeVariable<string>* variable_path();
+  static EdgeVariable<string>* variable_pts_path();
   static EdgeVariable<string>* variable_command();
   static EdgeVariable<string>* variable_editor_commands_path();
   static EdgeVariable<string>* variable_line_prefix_characters();
@@ -403,16 +404,17 @@ class OpenBuffer {
   void set_bool_variable(const EdgeVariable<char>* variable, bool value);
   void toggle_bool_variable(const EdgeVariable<char>* variable);
 
-  const string& read_string_variable(const EdgeVariable<string>* variable);
+  const string& read_string_variable(const EdgeVariable<string>* variable)
+      const;
   void set_string_variable(const EdgeVariable<string>* variable,
                            const string& value);
 
-  const int& read_int_variable(const EdgeVariable<int>* variable);
+  const int& read_int_variable(const EdgeVariable<int>* variable) const;
   void set_int_variable(const EdgeVariable<int>* variable,
                         const int& value);
 
   const Value* read_value_variable(
-      const EdgeVariable<unique_ptr<Value>>* variable);
+      const EdgeVariable<unique_ptr<Value>>* variable) const;
   void set_value_variable(const EdgeVariable<unique_ptr<Value>>* variable,
                           unique_ptr<Value> value);
 
