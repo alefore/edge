@@ -151,6 +151,13 @@ class RawInputTypeMode : public EditorMode {
         line_buffer_ = "";
         break;
 
+      case Terminal::CTRL_L:
+        {
+          string sequence(1, 0x0c);
+          write(buffer->fd(), sequence.c_str(), sequence.size());
+        }
+        break;
+
       case Terminal::CTRL_U:
         if (!buffer) {
           line_buffer_ = "";

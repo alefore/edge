@@ -365,6 +365,8 @@ class OpenBuffer {
 
   string FlagsString() const;
 
+  void PushSignal(EditorState* editor_state, int signal);
+
   void SetInputFile(int fd, bool fd_is_terminal, pid_t child_pid);
 
   void CopyVariablesFrom(const shared_ptr<const OpenBuffer>& buffer);

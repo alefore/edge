@@ -719,6 +719,18 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         }
         return read_index;
 
+      case 'H':
+        // home: move cursor home.
+        position_pts_ = LineColumn(view_start_line_);
+        view_start_column_ = 0;
+        return read_index;
+
+      case 'J':
+        // ed: clear to end of screen.
+        contents_.erase(contents_.begin() + position_pts_.line + 1,
+                        contents_.end());
+        return read_index;
+
       case 'K':
         // el: clear to end of line.
         current_line->DeleteUntilEnd(position_pts_.column);
@@ -914,6 +926,24 @@ string OpenBuffer::ToString() const {
   }
   output = output.substr(0, output.size() - 1);
   return output;
+}
+
+void OpenBuffer::PushSignal(EditorState* editor_state, int signal) {
+  switch (signal) {
+    case SIGINT:
+      if (read_bool_variable(variable_pts())) {
+        string sequence(1, 0x03);
+        write(fd_, sequence.c_str(), sequence.size());
+        //editor_state->SetStatus("Sending SIGINT to terminal.");
+      } else if (child_pid_ != -1) {
+        //editor_state->SetStatus("Sending SIGINT to process " + child_pid_);
+        kill(child_pid_, signal);
+      }
+      break;
+
+    default:
+      editor_state->SetStatus("Unexpected signal received: " + signal);
+  }
 }
 
 void OpenBuffer::SetInputFile(
