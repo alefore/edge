@@ -618,7 +618,9 @@ void OpenBuffer::AppendRawLine(EditorState*, shared_ptr<LazyString> str) {
 void OpenBuffer::ProcessCommandInput(
     EditorState* editor_state, shared_ptr<LazyString> str) {
   assert(read_bool_variable(variable_pts()));
-  assert(position_pts_.line < contents_.size());
+  if (position_pts_.line >= contents_.size()) {
+    position_pts_.line = contents_.size() - 1;
+  }
   auto current_line = contents_[position_pts_.line];
 
   std::unordered_set<Line::Modifier, hash<int>> modifiers;

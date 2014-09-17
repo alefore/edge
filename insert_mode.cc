@@ -80,14 +80,15 @@ class InsertMode : public EditorMode {
 
         if (buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())
             && pos != 0
-            && pos != current_line->size()) {
+            && (current_line == nullptr || pos != current_line->size())) {
           return;
         }
 
         const string& line_prefix_characters(buffer->read_string_variable(
             OpenBuffer::variable_line_prefix_characters()));
         size_t prefix_end = 0;
-        if (!buffer->read_bool_variable(OpenBuffer::variable_paste_mode())) {
+        if (current_line != nullptr
+            && !buffer->read_bool_variable(OpenBuffer::variable_paste_mode())) {
           while (prefix_end < pos
                  && (line_prefix_characters.find(current_line->get(prefix_end))
                      != line_prefix_characters.npos)) {
@@ -96,15 +97,20 @@ class InsertMode : public EditorMode {
         }
 
         Line::Options continuation_options;
-        continuation_options.contents = StringAppend(
-            current_line->Substring(0, prefix_end),
-            current_line->Substring(position.column,
-                current_line->size() - position.column));
+        if (current_line != nullptr) {
+          continuation_options.contents = StringAppend(
+              current_line->Substring(0, prefix_end),
+              current_line->Substring(position.column,
+                  current_line->size() - position.column));
+        }
 
         TransformationStack transformation;
 
-        transformation.PushBack(NewDeleteTransformation(
-            position, LineColumn(position.line, current_line->size()), false));
+        if (current_line != nullptr && position != current_line->size()) {
+          transformation.PushBack(NewDeleteTransformation(
+              position, LineColumn(position.line, current_line->size()),
+              false));
+        }
 
         {
           shared_ptr<OpenBuffer> buffer_to_insert(
