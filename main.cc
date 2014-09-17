@@ -59,6 +59,7 @@ int main(int argc, const char* argv[]) {
   }
 
   signal(SIGINT, &SignalHandler);
+  signal(SIGTSTP, &SignalHandler);
 
   Terminal terminal;
   StartServer(editor_state());

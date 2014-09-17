@@ -928,21 +928,31 @@ string OpenBuffer::ToString() const {
   return output;
 }
 
-void OpenBuffer::PushSignal(EditorState* editor_state, int signal) {
-  switch (signal) {
+void OpenBuffer::PushSignal(EditorState* editor_state, int sig) {
+  switch (sig) {
     case SIGINT:
       if (read_bool_variable(variable_pts())) {
         string sequence(1, 0x03);
         write(fd_, sequence.c_str(), sequence.size());
-        //editor_state->SetStatus("Sending SIGINT to terminal.");
+        editor_state->SetStatus("SIGINT");
       } else if (child_pid_ != -1) {
-        //editor_state->SetStatus("Sending SIGINT to process " + child_pid_);
-        kill(child_pid_, signal);
+        editor_state->SetStatus("SIGINT >> pid:" + to_string(child_pid_));
+        kill(child_pid_, sig);
       }
       break;
 
+    case SIGTSTP:
+      if (read_bool_variable(variable_pts())) {
+        string sequence(1, 0x1a);
+        write(fd_, sequence.c_str(), sequence.size());
+      }
+      // TODO(alejo): If not pts, we should pause ourselves.  This requires
+      // calling the signal handler installed by ncurses so that we don't end up
+      // with the terminal in a broken state.
+      break;
+
     default:
-      editor_state->SetStatus("Unexpected signal received: " + signal);
+      editor_state->SetStatus("Unexpected signal received: " + to_string(sig));
   }
 }
 

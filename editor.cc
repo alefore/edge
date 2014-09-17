@@ -469,8 +469,9 @@ void EditorState::ProcessSignals() {
   for (int signal : signals) {
     switch (signal) {
       case SIGINT:
+      case SIGTSTP:
         if (has_current_buffer()) {
-          current_buffer()->second->PushSignal(this, SIGINT);
+          current_buffer()->second->PushSignal(this, signal);
         }
     }
   }
