@@ -18,11 +18,13 @@ string path = buffer.path();
 if (path == "") {
   string command = buffer.command();
   int space = command.find_first_of(" ", 0);
-  string basecommand = space == -1 ? command : command.substr(0, space);
-  SetStatus("[" + basecommand + "]");
-  if (basecommand == "bash") {
+  string base_command = space == -1 ? command : command.substr(0, space);
+  SetStatus("[" + base_command + "]");
+  if (base_command == "bash" || base_command == "python") {
     buffer.set_pts(true);
   }
+  buffer.set_paste_mode(true);
+  buffer.set_reload_on_enter(false);
 } else {
   int dot = path.find_last_of(".", path.size());
   string extension = dot == -1 ? "" : path.substr(dot + 1, path.size() - dot - 1);
