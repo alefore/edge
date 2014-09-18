@@ -982,6 +982,7 @@ string OpenBuffer::FlagsString() const {
     OpenBuffer::variable_clear_on_reload();
     OpenBuffer::variable_paste_mode();
     OpenBuffer::variable_follow_end_of_file();
+    OpenBuffer::variable_commands_background_mode();
   }
   return output;
 }
@@ -1094,6 +1095,15 @@ string OpenBuffer::FlagsString() const {
   static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
       "follow_end_of_file",
       "Should the cursor stay at the end of the file?",
+      false);
+  return variable;
+}
+
+/* static */ EdgeVariable<char>* OpenBuffer::variable_commands_background_mode() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+      "commands_background_mode",
+      "Should new commands forked from this buffer be started in background "
+      "mode?  If false, we will switch to them automatically.",
       false);
   return variable;
 }

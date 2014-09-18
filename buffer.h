@@ -382,6 +382,7 @@ class OpenBuffer {
   static EdgeVariable<char>* variable_clear_on_reload();
   static EdgeVariable<char>* variable_paste_mode();
   static EdgeVariable<char>* variable_follow_end_of_file();
+  static EdgeVariable<char>* variable_commands_background_mode();
 
   static EdgeStruct<string>* StringStruct();
   static EdgeVariable<string>* variable_word_characters();

@@ -177,7 +177,9 @@ void RunCommand(
   ForkCommandOptions options;
   options.command = input;
   options.buffer_name = name;
-  options.enter = true;
+  options.enter = !editor_state->has_current_buffer()
+      || !editor_state->current_buffer()->second->read_bool_variable(
+              OpenBuffer::variable_commands_background_mode());
   options.environment = environment;
   ForkCommand(editor_state, options);
 
