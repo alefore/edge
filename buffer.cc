@@ -654,6 +654,7 @@ void OpenBuffer::ProcessCommandInput(
       current_line = contents_[position_pts_.line];
     } else if (c == 0x1b) {
       read_index = ProcessTerminalEscapeSequence(str, read_index, &modifiers);
+      current_line = contents_[position_pts_.line];
     } else if (isprint(c) || c == '\t') {
       current_line->SetCharacter(position_pts_.column, c, modifiers);
       position_pts_.column++;
@@ -669,10 +670,30 @@ void OpenBuffer::ProcessCommandInput(
 size_t OpenBuffer::ProcessTerminalEscapeSequence(
     shared_ptr<LazyString> str, size_t read_index,
     std::unordered_set<Line::Modifier, hash<int>>* modifiers) {
-  if (str->size() <= read_index || str->get(read_index) != '[') {
+  if (str->size() <= read_index) {
     std::cerr << "Unhandled sequence (0): ("
               << Substring(str, read_index)->ToString() << ")\n";
     return read_index;
+  }
+  switch (str->get(read_index)) {
+    case 'M':
+      // cuu1: Up one line.
+      if (position_pts_.line > 0) {
+        position_pts_.line--;
+        if (read_bool_variable(variable_follow_end_of_file())) {
+          line_--;
+          column_ = 0;
+        }
+        if (view_start_line_ > position_pts_.line) {
+          view_start_line_ = position_pts_.line;
+        }
+      }
+      return read_index + 1;
+    case '[':
+      break;
+    default:
+      std::cerr << "Unhandled sequence (5): ("
+                << Substring(str, read_index)->ToString() << ")\n";
   }
   read_index++;
   auto current_line = contents_[position_pts_.line];
@@ -687,10 +708,21 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         return read_index;
 
       case 'm':
-        if (sequence == "0") {
+        if (sequence == "") {
+          modifiers->clear();
+        } else if (sequence == "0") {
           modifiers->clear();
         } else if (sequence == "1") {
           modifiers->insert(Line::BOLD);
+        } else if (sequence == "31") {
+          modifiers->clear();
+          modifiers->insert(Line::RED);
+        } else if (sequence == "32") {
+          modifiers->clear();
+          modifiers->insert(Line::GREEN);
+        } else if (sequence == "36") {
+          modifiers->clear();
+          modifiers->insert(Line::CYAN);
         } else if (sequence == "1;30") {
           modifiers->clear();
           modifiers->insert(Line::BOLD);
@@ -711,6 +743,26 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         }
         return read_index;
 
+      case '>':
+        if (sequence == "?1l\E") {
+          // rmkx: leave 'keyboard_transmit' mode
+          // TODO(alejo): Handle it.
+        } else {
+          std::cerr << "Unhandled sequence (2): (" << sequence << ")\n";
+        }
+        return read_index;
+        break;
+
+      case '=':
+        if (sequence == "?1h\E") {
+          // smkx: enter 'keyboard_transmit' mode
+          // TODO(alejo): Handle it.
+        } else {
+          std::cerr << "Unhandled sequence (3): (" << sequence << ")\n";
+        }
+        return read_index;
+        break;
+
       case 'C':
         // cuf1: non-destructive space (move right one space)
         if (position_pts_.column >= current_line->size()) {
@@ -724,6 +776,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
 
       case 'H':
         // home: move cursor home.
+        // TODO(alejo): Sequence may be of the form "54;1".  Abide.
         position_pts_ = LineColumn(view_start_line_);
         view_start_column_ = 0;
         return read_index;
@@ -740,12 +793,8 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         return read_index;
 
       case 'M':
-        // cuu1: up one line.
-        if (read_bool_variable(variable_follow_end_of_file())) {
-          line_--;
-          column_ = 0;
-        }
-        position_pts_ = LineColumn(position_pts_.line - 1, 0);
+        // dl1: delete one line.
+        contents_.erase(contents_.begin() + position_pts_.line);
         return read_index;
 
       case 'P':
@@ -760,7 +809,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         sequence.push_back(c);
     }
   }
-  std::cerr << "Unhandled sequence (2): (" << sequence << ")\n";
+  std::cerr << "Unhandled sequence (4): (" << sequence << ")\n";
   return read_index;
 }
 
