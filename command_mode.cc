@@ -915,6 +915,17 @@ class ResetStateCommand : public Command {
   }
 };
 
+class HardRedrawCommand : public Command {
+ public:
+  const string Description() {
+    return "Redraws the screen";
+  }
+
+  void ProcessInput(int, EditorState* editor_state) {
+    editor_state->set_screen_needs_hard_redraw(true);
+  }
+};
+
 void RunCppFileHandler(const string& input, EditorState* editor_state) {
   editor_state->ResetMode();
   if (!editor_state->has_current_buffer()) { return; }
@@ -1032,6 +1043,7 @@ static const map<int, Command*>& GetCommandModeMap() {
 
     output.insert(make_pair(Terminal::ESCAPE, new ResetStateCommand()));
 
+    output.insert(make_pair(Terminal::CTRL_L, new HardRedrawCommand()));
     output.insert(make_pair('0', new NumberMode(SetRepetitions)));
     output.insert(make_pair('1', new NumberMode(SetRepetitions)));
     output.insert(make_pair('2', new NumberMode(SetRepetitions)));

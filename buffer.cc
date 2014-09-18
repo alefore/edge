@@ -722,6 +722,18 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         }
         return read_index;
 
+      case 'H':
+        // home: move cursor home.
+        position_pts_ = LineColumn(view_start_line_);
+        view_start_column_ = 0;
+        return read_index;
+
+      case 'J':
+        // ed: clear to end of screen.
+        contents_.erase(contents_.begin() + position_pts_.line + 1,
+                        contents_.end());
+        return read_index;
+
       case 'K':
         // el: clear to end of line.
         current_line->DeleteUntilEnd(position_pts_.column);
@@ -917,6 +929,34 @@ string OpenBuffer::ToString() const {
   }
   output = output.substr(0, output.size() - 1);
   return output;
+}
+
+void OpenBuffer::PushSignal(EditorState* editor_state, int sig) {
+  switch (sig) {
+    case SIGINT:
+      if (read_bool_variable(variable_pts())) {
+        string sequence(1, 0x03);
+        write(fd_, sequence.c_str(), sequence.size());
+        editor_state->SetStatus("SIGINT");
+      } else if (child_pid_ != -1) {
+        editor_state->SetStatus("SIGINT >> pid:" + to_string(child_pid_));
+        kill(child_pid_, sig);
+      }
+      break;
+
+    case SIGTSTP:
+      if (read_bool_variable(variable_pts())) {
+        string sequence(1, 0x1a);
+        write(fd_, sequence.c_str(), sequence.size());
+      }
+      // TODO(alejo): If not pts, we should pause ourselves.  This requires
+      // calling the signal handler installed by ncurses so that we don't end up
+      // with the terminal in a broken state.
+      break;
+
+    default:
+      editor_state->SetStatus("Unexpected signal received: " + to_string(sig));
+  }
 }
 
 void OpenBuffer::SetInputFile(

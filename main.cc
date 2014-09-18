@@ -8,9 +8,10 @@
 #include <fstream>
 
 extern "C" {
-#include <sys/types.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <signal.h>
+#include <sys/types.h>
 }
 
 #include "editor.h"
@@ -18,6 +19,21 @@ extern "C" {
 #include "file_link_mode.h"
 #include "server.h"
 #include "terminal.h"
+
+namespace {
+
+using namespace afc::editor;
+
+EditorState* editor_state() {
+  static EditorState* editor_state = new EditorState();
+  return editor_state;
+}
+
+void SignalHandler(int sig) {
+  editor_state()->PushSignal(sig);
+}
+
+}  // namespace
 
 int main(int argc, const char* argv[]) {
   using namespace afc::editor;
@@ -42,23 +58,25 @@ int main(int argc, const char* argv[]) {
     exit(0);
   }
 
+  signal(SIGINT, &SignalHandler);
+  signal(SIGTSTP, &SignalHandler);
+
   Terminal terminal;
-  EditorState editor_state;
-  StartServer(&editor_state);
+  StartServer(editor_state());
 
   for (int i = 1; i < argc; i++) {
     terminal.SetStatus("Loading file...");
     OpenFileOptions options;
-    options.editor_state = &editor_state;
+    options.editor_state = editor_state();
     options.path = argv[i];
     OpenFile(options);
   }
 
-  while (!editor_state.terminate()) {
-    terminal.Display(&editor_state);
+  while (!editor_state()->terminate()) {
+    terminal.Display(editor_state());
 
     vector<shared_ptr<OpenBuffer>> buffers_reading;
-    for (auto& buffer : *editor_state.buffers()) {
+    for (auto& buffer : *editor_state()->buffers()) {
       if (buffer.second->fd() == -1) { continue; }
       buffers_reading.push_back(buffer.second);
     }
@@ -78,6 +96,7 @@ int main(int argc, const char* argv[]) {
       if (results == -1) {
         switch (errno) {
           case EINTR:
+            editor_state()->ProcessSignals();
             break;
           default:
             cerr << "poll failed, exiting: " << strerror(errno) << "\n";
@@ -92,14 +111,14 @@ int main(int argc, const char* argv[]) {
       }
       if (fds[i].fd == 0) {
         int c;
-        while ((c = terminal.Read(&editor_state)) != -1) {
-          editor_state.mode()->ProcessInput(c, &editor_state);
+        while ((c = terminal.Read(editor_state())) != -1) {
+          editor_state()->mode()->ProcessInput(c, editor_state());
         }
         continue;
       }
 
       assert(i < buffers_reading.size());
-      buffers_reading[i]->ReadData(&editor_state);
+      buffers_reading[i]->ReadData(editor_state());
     }
   }
   terminal.SetStatus("done");

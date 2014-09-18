@@ -20,8 +20,9 @@ class Terminal {
   static constexpr int BACKSPACE = -7;
   static constexpr int PAGE_DOWN = -8;
   static constexpr int PAGE_UP = -9;
-  static constexpr int CTRL_U = -10;
-  static constexpr int CHAR_EOF = -11;
+  static constexpr int CTRL_L = -10;
+  static constexpr int CTRL_U = -11;
+  static constexpr int CHAR_EOF = -12;
 
   Terminal();
   ~Terminal();

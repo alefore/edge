@@ -9,6 +9,7 @@
 extern "C" {
 #include <sys/types.h>
 #include <pwd.h>
+#include <signal.h>
 #include <unistd.h>
 }
 
@@ -67,6 +68,7 @@ EditorState::EditorState()
       mode_(std::move(NewCommandMode())),
       visible_lines_(1),
       screen_needs_redraw_(false),
+      screen_needs_hard_redraw_(false),
       status_prompt_(false),
       status_(""),
       home_directory_(GetHomeDirectory()),
@@ -458,6 +460,21 @@ string EditorState::expand_path(const string& path) {
     return home_directory() + path.substr(1);
   }
   return path;
+}
+
+void EditorState::ProcessSignals() {
+  if (pending_signals_.empty()) { return; }
+  vector<int> signals;
+  signals.swap(pending_signals_);
+  for (int signal : signals) {
+    switch (signal) {
+      case SIGINT:
+      case SIGTSTP:
+        if (has_current_buffer()) {
+          current_buffer()->second->PushSignal(this, signal);
+        }
+    }
+  }
 }
 
 }  // namespace editor

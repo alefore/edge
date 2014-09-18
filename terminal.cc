@@ -24,6 +24,8 @@ constexpr int Terminal::BACKSPACE;
 constexpr int Terminal::PAGE_UP;
 constexpr int Terminal::PAGE_DOWN;
 constexpr int Terminal::ESCAPE;
+constexpr int Terminal::CTRL_L;
+constexpr int Terminal::CTRL_U;
 constexpr int Terminal::CHAR_EOF;
 
 Terminal::Terminal() {
@@ -44,6 +46,11 @@ Terminal::~Terminal() {
 }
 
 void Terminal::Display(EditorState* editor_state) {
+  if (editor_state->screen_needs_hard_redraw()) {
+    wrefresh(curscr);
+    editor_state->set_screen_needs_hard_redraw(false),
+    editor_state->ScheduleRedraw();
+  }
   if (!editor_state->has_current_buffer()) {
     if (editor_state->screen_needs_redraw()) {
       editor_state->set_screen_needs_redraw(false);
@@ -266,10 +273,7 @@ int Terminal::Read(EditorState* editor_state) {
       return CHAR_EOF;
 
     case 0x0c:
-      cerr << "Redraw\n";
-      wrefresh(curscr);
-      editor_state->ScheduleRedraw();
-      return -1;
+      return CTRL_L;
 
     case 21:
       return CTRL_U;

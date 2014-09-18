@@ -136,7 +136,7 @@ class CommandBuffer : public OpenBuffer {
           &environment);
 
       char** envp =
-          static_cast<char**>(malloc(sizeof(char*) * environment.size() + 1));
+          static_cast<char**>(malloc(sizeof(char*) * (environment.size() + 1)));
       size_t position = 0;
       for (const auto& it : environment) {
         string str = it.first + "=" + it.second;

@@ -139,6 +139,10 @@ class EditorState {
   void ScheduleRedraw() { screen_needs_redraw_ = true; }
   void set_screen_needs_redraw(bool value) { screen_needs_redraw_ = value; }
   bool screen_needs_redraw() const { return screen_needs_redraw_; }
+  void set_screen_needs_hard_redraw(bool value) {
+    screen_needs_hard_redraw_ = value;
+  }
+  bool screen_needs_hard_redraw() const { return screen_needs_hard_redraw_; }
 
   void PushCurrentPosition();
   bool HasPositionsInStack();
@@ -163,6 +167,9 @@ class EditorState {
 
   string expand_path(const string& path);
 
+  void PushSignal(int signal) { pending_signals_.push_back(signal); }
+  void ProcessSignals();
+
  private:
   map<string, shared_ptr<OpenBuffer>> buffers_;
   map<string, shared_ptr<OpenBuffer>>::iterator current_buffer_;
@@ -181,6 +188,7 @@ class EditorState {
   size_t visible_lines_;
 
   bool screen_needs_redraw_;
+  bool screen_needs_hard_redraw_;
 
   bool status_prompt_;
   string status_;
@@ -189,6 +197,8 @@ class EditorState {
   vector<string> edge_path_;
 
   Environment environment_;
+
+  vector<int> pending_signals_;
 };
 
 }  // namespace editor
