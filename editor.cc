@@ -13,6 +13,8 @@ extern "C" {
 #include <unistd.h>
 }
 
+#include <glog/logging.h>
+
 #include "char_buffer.h"
 #include "editor.h"
 #include "file_link_mode.h"
@@ -398,6 +400,7 @@ static BufferPosition PositionFromLine(const string& line) {
 }
 
 void EditorState::SetStatus(const string& status) {
+  LOG(INFO) << "SetStatus: " << status;
   status_ = status;
   if (status_prompt_ || status.empty()) { return; }
   auto status_buffer_it = buffers_.insert(make_pair("- console", nullptr));

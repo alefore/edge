@@ -14,6 +14,8 @@ extern "C" {
 #include <sys/types.h>
 }
 
+#include <glog/logging.h>
+
 #include "editor.h"
 #include "lazy_string.h"
 #include "file_link_mode.h"
@@ -40,8 +42,10 @@ int main(int argc, const char* argv[]) {
   using std::unique_ptr;
   using std::cerr;
 
+  google::InitGoogleLogging(argv[0]);
   int fd = MaybeConnectToParentServer();
   if (fd != -1) {
+    LOG(INFO) << "Connected to parent server.";
     for (int i = 1; i < argc; i++) {
       string command = "OpenFile(\"" + string(argv[i]) + "\");\n";
       if (write(fd, command.c_str(), command.size()) == -1) {
@@ -62,6 +66,8 @@ int main(int argc, const char* argv[]) {
   signal(SIGTSTP, &SignalHandler);
 
   Terminal terminal;
+
+  LOG(INFO) << "Starting server.";
   StartServer(editor_state());
 
   for (int i = 1; i < argc; i++) {
