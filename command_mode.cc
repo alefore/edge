@@ -169,7 +169,7 @@ class Delete : public Command {
   }
 
   void ProcessInput(int, EditorState* editor_state) {
-    if (editor_state->buffers()->empty()) { return; }
+    if (!editor_state->has_current_buffer()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
 
     switch (editor_state->structure()) {
