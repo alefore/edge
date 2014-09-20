@@ -6,6 +6,7 @@
 #include <memory>
 #include <unordered_set>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 
 extern "C" {
@@ -645,15 +646,19 @@ void OpenBuffer::ProcessCommandInput(
         column_ = position_pts_.column;
       }
     } else if (c == '\n') {
-      contents_.emplace_back(new Line(Line::Options()));
-      if (read_bool_variable(variable_follow_end_of_file())) {
-        line_ = BufferLineIterator(this, contents_.size() - 1);
-        column_ = 0;
+      position_pts_.line++;
+      position_pts_.column = 0;
+      if (position_pts_.line == contents_.size()) {
+        contents_.emplace_back(new Line(Line::Options()));
       }
-      position_pts_ = LineColumn(contents_.size() - 1);
       current_line = contents_[position_pts_.line];
+      if (read_bool_variable(variable_follow_end_of_file())) {
+        line_ = BufferLineIterator(this, position_pts_.line);
+        column_ = position_pts_.column;
+      }
     } else if (c == 0x1b) {
-      read_index = ProcessTerminalEscapeSequence(str, read_index, &modifiers);
+      read_index = ProcessTerminalEscapeSequence(
+          editor_state, str, read_index, &modifiers);
       current_line = contents_[position_pts_.line];
     } else if (isprint(c) || c == '\t') {
       current_line->SetCharacter(position_pts_.column, c, modifiers);
@@ -668,7 +673,7 @@ void OpenBuffer::ProcessCommandInput(
 }
 
 size_t OpenBuffer::ProcessTerminalEscapeSequence(
-    shared_ptr<LazyString> str, size_t read_index,
+    EditorState* editor_state, shared_ptr<LazyString> str, size_t read_index,
     std::unordered_set<Line::Modifier, hash<int>>* modifiers) {
   if (str->size() <= read_index) {
     std::cerr << "Unhandled sequence (0): ("
@@ -707,6 +712,30 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         current_line->InsertCharacter(position_pts_.column);
         return read_index;
 
+      case 'l':
+        if (sequence == "?1") {
+          sequence.push_back(c);
+          continue;
+        }
+        if (sequence == "?1049") {
+          // rmcup
+        } else {
+          std::cerr << "Unhandled sequence (6): (" << sequence << ")\n";
+        }
+        return read_index;
+
+      case 'h':
+        if (sequence == "?1") {
+          sequence.push_back(c);
+          continue;
+        }
+        if (sequence == "?1049") {
+          // smcup
+        } else {
+          std::cerr << "Unhandled sequence (7): (" << sequence << ")\n";
+        }
+        return read_index;
+
       case 'm':
         if (sequence == "") {
           modifiers->clear();
@@ -714,6 +743,10 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
           modifiers->clear();
         } else if (sequence == "1") {
           modifiers->insert(Line::BOLD);
+        } else if (sequence == "3") {
+          // TODO(alejo): Support italic on.
+        } else if (sequence == "23") {
+          // Fraktur off, italic off.  No need to do anything for now.
         } else if (sequence == "31") {
           modifiers->clear();
           modifiers->insert(Line::RED);
@@ -776,9 +809,30 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
 
       case 'H':
         // home: move cursor home.
-        // TODO(alejo): Sequence may be of the form "54;1".  Abide.
-        position_pts_ = LineColumn(view_start_line_);
-        view_start_column_ = 0;
+        {
+          size_t line_delta = 0, column_delta = 0;
+          size_t pos = sequence.find(';');
+          try {
+            if (pos != string::npos) {
+              line_delta = pos == 0 ? 0 : stoul(sequence.substr(0, pos)) - 1;
+              column_delta = pos == sequence.size() - 1
+                  ? 0 : stoul(sequence.substr(pos + 1)) - 1;
+            } else if (!sequence.empty()) {
+              line_delta = stoul(sequence);
+            }
+          } catch (const std::invalid_argument& ia) {
+            editor_state->SetStatus(
+                "Unable to parse sequence from terminal in 'home' command: \""
+                + sequence + "\"");
+          }
+          position_pts_ =
+              LineColumn(view_start_line_ + line_delta, column_delta);
+          if (read_bool_variable(variable_follow_end_of_file())) {
+            line_ = BufferLineIterator(this, position_pts_.line);
+            column_ = position_pts_.column;
+          }
+          view_start_column_ = column_delta;
+        }
         return read_index;
 
       case 'J':

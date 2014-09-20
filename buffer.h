@@ -196,7 +196,7 @@ class OpenBuffer {
   void AppendLine(EditorState* editor_state, shared_ptr<LazyString> line);
   virtual void AppendRawLine(EditorState* editor_state, shared_ptr<LazyString> str);
   size_t ProcessTerminalEscapeSequence(
-      shared_ptr<LazyString> str, size_t read_index,
+      EditorState* editor_state, shared_ptr<LazyString> str, size_t read_index,
       std::unordered_set<Line::Modifier, hash<int>>* modifiers);
   void AppendToLastLine(EditorState* editor_state, shared_ptr<LazyString> str);
   void AppendToLastLine(
