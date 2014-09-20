@@ -262,7 +262,7 @@ void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
   move(pos_y, pos_x);
 }
 
-int Terminal::Read(EditorState* editor_state) {
+int Terminal::Read(EditorState*) {
   int c = getch();
   //cerr << "Read: " << c << "\n";
   switch (c) {

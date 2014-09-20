@@ -196,9 +196,10 @@ class Delete : public Command {
         break;
 
       case EditorState::LINE:
-        if (!editor_state->has_current_buffer()) { return; }
-        {
-          size_t line = editor_state->current_buffer()->second->position().line;
+        if (editor_state->has_current_buffer()) {
+          auto buffer = editor_state->current_buffer()->second;
+          size_t line = min(buffer->position().line,
+                            buffer->contents()->size() - 1);
           unique_ptr<Transformation> transformation = NewDeleteTransformation(
               LineColumn(line, 0),
               LineColumn(line + editor_state->repetitions(), 0),
