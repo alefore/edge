@@ -48,9 +48,9 @@ class InsertMode : public EditorMode {
 
   void ProcessInput(int c, EditorState* editor_state) {
     auto buffer = editor_state->current_buffer()->second;
-    buffer->MaybeAdjustPositionCol();
     switch (c) {
       case Terminal::ESCAPE:
+        buffer->MaybeAdjustPositionCol();
         DeleteSuffixSuperfluousCharacters(editor_state, buffer.get());
         editor_state->PushCurrentPosition();
         editor_state->ResetStatus();
@@ -82,6 +82,7 @@ class InsertMode : public EditorMode {
 
       case Terminal::BACKSPACE:
         {
+          buffer->MaybeAdjustPositionCol();
           LineColumn start = buffer->position();
           if (buffer->at_beginning_of_line()) {
             if (buffer->at_beginning()) { return; }
@@ -98,6 +99,7 @@ class InsertMode : public EditorMode {
         return;
 
       case '\n':
+        buffer->MaybeAdjustPositionCol();
         auto position = buffer->position();
         size_t pos = position.column;
         auto current_line = buffer->current_line();
