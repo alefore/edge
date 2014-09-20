@@ -224,7 +224,8 @@ class OpenBuffer {
   //
   // If no word can be found (e.g. we're on a whitespace that's not followed by
   // any word characters), returns false.
-  bool BoundWordAt(const LineColumn& position, LineColumn* start, LineColumn* end);
+  bool BoundWordAt(
+      const LineColumn& position, LineColumn* start, LineColumn* end);
 
   const shared_ptr<Line> current_line() const {
     if (line_end() == BufferLineConstIterator(line_)) { return nullptr; }
@@ -341,6 +342,17 @@ class OpenBuffer {
   }
   BufferLineIterator& line() {
     return line_;
+  }
+
+  void LineUp() {
+    line()--;
+    set_bool_variable(OpenBuffer::variable_follow_end_of_file(), false);
+  }
+
+  void LineDown() {
+    line()++;
+    set_bool_variable(OpenBuffer::variable_follow_end_of_file(),
+                      line() == line_end());
   }
 
   const LineColumn position() const {

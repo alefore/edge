@@ -7,6 +7,8 @@ extern "C" {
 #include <unistd.h>
 }
 
+#include <glog/logging.h>
+
 #include "char_buffer.h"
 #include "command_mode.h"
 #include "editable_string.h"
@@ -54,6 +56,28 @@ class InsertMode : public EditorMode {
         editor_state->ResetStatus();
         editor_state->ResetMode();
         editor_state->ResetRepetitions();
+        return;
+
+      case Terminal::UP_ARROW:
+        LOG(INFO) << "Up arrow";
+        buffer->LineUp();
+        return;
+
+      case Terminal::DOWN_ARROW:
+        LOG(INFO) << "Down arrow";
+        buffer->LineDown();
+        return;
+
+      case Terminal::LEFT_ARROW:
+        if (buffer->current_position_col() > 0) {
+          buffer->set_current_position_col(buffer->current_position_col() - 1);
+        }
+        return;
+
+      case Terminal::RIGHT_ARROW:
+        buffer->set_current_position_col(
+            min(buffer->current_position_col() + 1,
+                buffer->current_line()->size()));
         return;
 
       case Terminal::BACKSPACE:

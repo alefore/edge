@@ -418,9 +418,7 @@ const string LineUp::Description() {
         buffer->CheckPosition();
         const auto line_begin = buffer->line_begin();
         while (editor_state->repetitions() && buffer->line() != line_begin) {
-          buffer->line()--;
-          buffer->set_bool_variable(
-              OpenBuffer::variable_follow_end_of_file(), false);
+          buffer->LineUp();
           editor_state->set_repetitions(editor_state->repetitions() - 1);
         }
         editor_state->PushCurrentPosition();
@@ -466,11 +464,7 @@ const string LineDown::Description() {
         buffer->CheckPosition();
         const auto line_end = buffer->line_end();
         while (editor_state->repetitions() && buffer->line() != line_end) {
-          buffer->line()++;
-          if (buffer->line() == buffer->line_end()) {
-            buffer->set_bool_variable(
-                OpenBuffer::variable_follow_end_of_file(), true);
-          }
+          buffer->LineDown();
           editor_state->set_repetitions(editor_state->repetitions() - 1);
         }
         editor_state->PushCurrentPosition();
