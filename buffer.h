@@ -435,6 +435,12 @@ class OpenBuffer {
   void Apply(EditorState* editor_state,
              unique_ptr<Transformation> transformation);
   void RepeatLastTransformation(EditorState* editor_state);
+
+  // It is an error to call PushTransformationStack twice without calling
+  // PopTransformationStack in between.
+  void PushTransformationStack();
+  void PopTransformationStack();
+
   void Undo(EditorState* editor_state);
 
   void set_filter(unique_ptr<Value> filter);
@@ -499,6 +505,14 @@ class OpenBuffer {
   void ProcessCommandInput(
       EditorState* editor_state, shared_ptr<LazyString> str);
   unique_ptr<Transformation> last_transformation_;
+
+  // We allow the user to group many transformations in one.  They each get
+  // applied immediately, but upon repeating, the whole operation gets repeated.
+  // This is controlled through OpenBuffer::PushTransformationStack, which sets
+  // this to non-null (to signal that we've entered this mode) and
+  // OpenBuffer::PopTransformationStack (which sets this back to null and moves
+  // this value to last_transformation_).
+  unique_ptr<TransformationStack> last_transformation_stack_;
 };
 
 }  // namespace editor

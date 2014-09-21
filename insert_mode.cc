@@ -52,6 +52,7 @@ class InsertMode : public EditorMode {
       case Terminal::ESCAPE:
         buffer->MaybeAdjustPositionCol();
         DeleteSuffixSuperfluousCharacters(editor_state, buffer.get());
+        buffer->PopTransformationStack();
         editor_state->PushCurrentPosition();
         editor_state->ResetStatus();
         editor_state->ResetMode();
@@ -280,6 +281,7 @@ using std::shared_ptr;
 void EnterInsertCharactersMode(EditorState* editor_state) {
   auto buffer = editor_state->current_buffer()->second;
   buffer->MaybeAdjustPositionCol();
+  buffer->PushTransformationStack();
   editor_state->SetStatus("type");
   editor_state->set_mode(unique_ptr<EditorMode>(new InsertMode()));
 }

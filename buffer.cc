@@ -1431,8 +1431,16 @@ void OpenBuffer::CopyVariablesFrom(const shared_ptr<const OpenBuffer>& src) {
 
 void OpenBuffer::Apply(
     EditorState* editor_state, unique_ptr<Transformation> transformation) {
-  last_transformation_ = std::move(transformation);
-  RepeatLastTransformation(editor_state);
+  if (last_transformation_stack_ == nullptr) {
+    last_transformation_ = std::move(transformation);
+    RepeatLastTransformation(editor_state);
+    return;
+  }
+  unique_ptr<Transformation> undo = transformation->Apply(editor_state, this);
+  CHECK(undo != nullptr);
+  undo_history_.push_back(std::move(undo));
+  redo_history_.clear();
+  last_transformation_stack_->PushBack(std::move(transformation));
 }
 
 void OpenBuffer::RepeatLastTransformation(EditorState* editor_state) {
@@ -1441,6 +1449,17 @@ void OpenBuffer::RepeatLastTransformation(EditorState* editor_state) {
   CHECK(undo != nullptr);
   undo_history_.push_back(std::move(undo));
   redo_history_.clear();
+}
+
+void OpenBuffer::PushTransformationStack() {
+  CHECK(last_transformation_stack_ == nullptr);
+  last_transformation_stack_.reset(new TransformationStack);
+}
+
+void OpenBuffer::PopTransformationStack() {
+  CHECK(last_transformation_stack_ != nullptr);
+  last_transformation_ = std::move(last_transformation_stack_);
+  last_transformation_stack_ = nullptr;
 }
 
 void OpenBuffer::Undo(EditorState* editor_state) {
