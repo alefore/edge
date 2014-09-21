@@ -1,6 +1,8 @@
 #include <cassert>
 #include <iostream>
 
+#include <glog/logging.h>
+
 #include "editor.h"
 #include "terminal.h"
 
@@ -42,7 +44,7 @@ int main(int, char**) {
   assert(editor_state.current_buffer()->second->current_position_col() == sizeof("alejandro") - 1);
 
   editor_state.ProcessInputString("erg");
-  assert(editor_state.current_buffer()->second->current_position_line() == 2);
+  assert(editor_state.current_buffer()->second->current_position_line() == 3);
 
   editor_state.ProcessInputString("egg");
   assert(editor_state.current_buffer()->second->current_position_line() == 0);
@@ -57,12 +59,12 @@ int main(int, char**) {
   assert(editor_state.current_buffer()->second->contents()->size() == 5);
 
   editor_state.ProcessInputString("erg");
-  assert(editor_state.current_buffer()->second->current_position_line() == 0);
+  CHECK_EQ(editor_state.current_buffer()->second->current_position_line(), 5);
   editor_state.ProcessInputString("erg");
-  assert(editor_state.current_buffer()->second->current_position_line() == 4);
+  CHECK_EQ(editor_state.current_buffer()->second->current_position_line(), 0);
 
-  editor_state.ProcessInputString("eehhh");
-  assert(editor_state.current_buffer()->second->current_position_line() == 1);
+  editor_state.ProcessInputString("eel");
+  CHECK_EQ(editor_state.current_buffer()->second->current_position_line(), 1);
 
   editor_state.ProcessInput(Terminal::ESCAPE);
   editor_state.ProcessInputString("3d");
