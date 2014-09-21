@@ -3,6 +3,8 @@
 
 #include <string>
 
+#include "editor_mode.h"
+
 namespace afc {
 namespace editor {
 
@@ -10,7 +12,7 @@ using std::string;
 
 struct EditorState;
 
-class Command {
+class Command : public EditorMode {
  public:
   virtual ~Command() {}
   virtual const string Description() = 0;

@@ -6,6 +6,8 @@
 #include <map>
 #include <string>
 
+#include <glog/logging.h>
+
 #include "advanced_mode.h"
 #include "char_buffer.h"
 #include "command.h"
@@ -32,21 +34,23 @@ using namespace afc::editor;
 
 class GotoCommand : public Command {
  public:
+  GotoCommand(size_t calls) : calls_(calls % 4) {}
+
   const string Description() {
     return "goes to Rth structure from the beginning";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(int c, EditorState* editor_state) {
+    if (c != 'g') {
+      editor_state->ResetMode();
+      editor_state->ProcessInput(c);
+      return;
+    }
     if (!editor_state->has_current_buffer()) { return; }
-    Process(editor_state, 0);
-  }
-
-  void Process(EditorState* editor_state, size_t calls) {
+    shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
     switch (editor_state->structure()) {
       case EditorState::CHAR:
         {
-          shared_ptr<OpenBuffer> buffer =
-              editor_state->current_buffer()->second;
           if (buffer->current_line() == nullptr) { return; }
           const string line_prefix_characters = buffer->read_string_variable(
               OpenBuffer::variable_line_prefix_characters());
@@ -57,22 +61,23 @@ class GotoCommand : public Command {
                      != string::npos)) {
             start++;
           }
-          size_t position = ComputePosition(
-              line->size() + 1 - start, editor_state->direction(),
-              editor_state->repetitions(), calls);
-          assert(start + position <= line->size());
-          if (buffer->position().column != start + position) {
-            buffer->set_current_position_col(start + position);
-          } else if (calls < 1) {
-            Process(editor_state, calls + 1);
+          size_t end = line->size();
+          while (start + 1 < end
+                 && (line_prefix_characters.find(line->get(end - 1))
+                     != string::npos)) {
+            end--;
           }
+          size_t position = ComputePosition(
+              start, end, line->size(), editor_state->direction(),
+              editor_state->repetitions(), calls_);
+          assert(position <= line->size());
+          buffer->set_current_position_col(position);
         }
         break;
 
       case EditorState::WORD:
         {
           // TODO: Handle reverse direction
-          shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
           LineColumn position(buffer->position().line);
           while (editor_state->repetitions() > 0) {
             LineColumn start, end;
@@ -95,28 +100,24 @@ class GotoCommand : public Command {
 
       case EditorState::LINE:
         {
-          shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
+          size_t lines = buffer->contents()->size();
           size_t position = ComputePosition(
-              buffer->contents()->size() + 1, editor_state->direction(),
-              editor_state->repetitions(), calls);
+              0, lines, lines, editor_state->direction(),
+              editor_state->repetitions(), calls_);
           assert(position <= buffer->contents()->size());
-          if (buffer->position().line != position) {
-            buffer->set_current_position_line(position);
-          } else if (calls < 1) {
-            Process(editor_state, calls + 1);
-          }
+          buffer->set_current_position_line(position);
         }
         break;
 
       case EditorState::PAGE:
         {
-          shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-          assert(!buffer->contents()->empty());
+          CHECK(!buffer->contents()->empty());
+          size_t pages = ceil(static_cast<double>(buffer->contents()->size())
+              / editor_state->visible_lines());
           size_t position = editor_state->visible_lines() * ComputePosition(
-              ceil(static_cast<double>(buffer->contents()->size())
-                  / editor_state->visible_lines()),
-              editor_state->direction(), editor_state->repetitions(), calls);
-          assert(position < buffer->contents()->size());
+              0, pages, pages, editor_state->direction(),
+              editor_state->repetitions(), calls_);
+          CHECK_LT(position, buffer->contents()->size());
           buffer->set_current_position_line(position);
         }
         break;
@@ -127,9 +128,10 @@ class GotoCommand : public Command {
 
       case EditorState::BUFFER:
         {
+          size_t buffers = editor_state->buffers()->size();
           size_t position = ComputePosition(
-              editor_state->buffers()->size(), editor_state->direction(),
-              editor_state->repetitions(), calls);
+              0, buffers, buffers, editor_state->direction(),
+              editor_state->repetitions(), calls_);
           assert(position < editor_state->buffers()->size());
           auto it = editor_state->buffers()->begin();
           advance(it, position);
@@ -145,21 +147,30 @@ class GotoCommand : public Command {
     editor_state->ResetStructure();
     editor_state->ResetDirection();
     editor_state->ResetRepetitions();
+    editor_state->set_mode(unique_ptr<Command>(new GotoCommand(calls_ + 1)));
   }
 
  private:
   size_t ComputePosition(
-      size_t elements, Direction direction, size_t repetitions, size_t calls) {
+      size_t prefix_len, size_t suffix_start, size_t elements,
+      Direction direction, size_t repetitions, size_t calls) {
+    CHECK_LE(prefix_len, suffix_start);
+    CHECK_LE(suffix_start, elements);
+    if (calls > 1) {
+      return ComputePosition(0, elements, elements, direction, repetitions,
+                             calls - 2);
+    }
     if (calls == 1) {
       direction = ReverseDirection(direction);
     }
-    repetitions = min(elements, max(1ul, repetitions));
     if (direction == FORWARDS) {
-      return repetitions - 1;
+      return min(prefix_len + repetitions - 1, elements);
     } else {
-      return elements - repetitions;
+      return suffix_start - min(suffix_start, repetitions - 1);
     }
   }
+
+  const size_t calls_;
 };
 
 class Delete : public Command {
@@ -985,7 +996,7 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('r', new ReverseDirectionCommand()));
 
     output.insert(make_pair('/', new StartSearchMode()));
-    output.insert(make_pair('g', new GotoCommand()));
+    output.insert(make_pair('g', new GotoCommand(0)));
 
     output.insert(make_pair('w', new SetStructureCommand(EditorState::WORD, "word")));
     output.insert(make_pair('e', new SetStructureCommand(EditorState::LINE, "line")));
