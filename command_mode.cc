@@ -157,11 +157,12 @@ class GotoCommand : public Command {
     CHECK_LE(prefix_len, suffix_start);
     CHECK_LE(suffix_start, elements);
     if (calls > 1) {
-      return ComputePosition(0, elements, elements, direction, repetitions,
-                             calls - 2);
+      return ComputePosition(
+          prefix_len, suffix_start, elements, ReverseDirection(direction),
+          repetitions, calls - 2);
     }
     if (calls == 1) {
-      direction = ReverseDirection(direction);
+      return ComputePosition(0, elements, elements, direction, repetitions, 0);
     }
     if (direction == FORWARDS) {
       return min(prefix_len + repetitions - 1, elements);
