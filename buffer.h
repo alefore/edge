@@ -446,6 +446,9 @@ class OpenBuffer {
   void set_filter(unique_ptr<Value> filter);
   bool IsLineFiltered(size_t line);
 
+  pid_t child_pid() const { return child_pid_; }
+  int child_exit_status() const { return child_exit_status_; }
+
  protected:
   vector<unique_ptr<ParseTree>> parse_tree;
 

@@ -66,9 +66,14 @@ class EditorState {
 
   void CloseBuffer(const map<string, shared_ptr<OpenBuffer>>::iterator buffer);
 
+  const map<string, shared_ptr<OpenBuffer>>* buffers() const {
+    return &buffers_;
+  }
+
   map<string, shared_ptr<OpenBuffer>>* buffers() {
     return &buffers_;
   }
+
   void set_current_buffer(map<string, shared_ptr<OpenBuffer>>::iterator it) {
     current_buffer_ = it;
   }
