@@ -429,6 +429,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
 OpenBuffer::~OpenBuffer() {}
 
 void OpenBuffer::Close(EditorState* editor_state) {
+  LOG(INFO) << "Closing buffer: " << name_;
   if (read_bool_variable(variable_save_on_close())) {
     Save(editor_state);
   }
@@ -560,6 +561,7 @@ void OpenBuffer::Reload(EditorState* editor_state) {
 }
 
 void OpenBuffer::Save(EditorState* editor_state) {
+  LOG(INFO) << "Saving buffer: " << name_;
   if (read_bool_variable(variable_diff())) {
     SaveDiff(editor_state, this);
     return;
