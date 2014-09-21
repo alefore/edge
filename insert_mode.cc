@@ -77,6 +77,26 @@ class NewLineTransformation : public Transformation {
   }
 };
 
+class InsertEmptyLineTransformation : public Transformation {
+ public:
+  InsertEmptyLineTransformation(Direction direction) : direction_(direction) {}
+
+  unique_ptr<Transformation> Apply(
+      EditorState* editor_state, OpenBuffer* buffer) const {
+    LineColumn position = direction_ == BACKWARDS
+        ? LineColumn(buffer->position().line + 1)
+        : LineColumn(buffer->position().line);
+    return ComposeTransformation(
+        TransformationAtPosition(position,
+            unique_ptr<Transformation>(new NewLineTransformation())),
+        NewGotoPositionTransformation(position))
+            ->Apply(editor_state, buffer);
+  }
+
+ private:
+  Direction direction_;
+};
+
 class InsertMode : public EditorMode {
  public:
   InsertMode() {}
@@ -266,7 +286,6 @@ using std::shared_ptr;
 void EnterInsertCharactersMode(EditorState* editor_state) {
   auto buffer = editor_state->current_buffer()->second;
   buffer->MaybeAdjustPositionCol();
-  buffer->PushTransformationStack();
   editor_state->SetStatus("type");
   editor_state->set_mode(unique_ptr<EditorMode>(new InsertMode()));
 }
@@ -277,22 +296,21 @@ void EnterInsertMode(EditorState* editor_state) {
   if (!editor_state->has_current_buffer()) {
     OpenAnonymousBuffer(editor_state);
   }
+  auto buffer = editor_state->current_buffer()->second;
   if (editor_state->current_buffer()->second->fd() != -1) {
     editor_state->SetStatus("type (raw)");
     editor_state->set_mode(unique_ptr<EditorMode>(new RawInputTypeMode()));
   } else if (editor_state->structure() == EditorState::CHAR) {
     editor_state->current_buffer()->second->CheckPosition();
+    buffer->PushTransformationStack();
     EnterInsertCharactersMode(editor_state);
   } else if (editor_state->structure() == EditorState::LINE) {
     editor_state->current_buffer()->second->CheckPosition();
     auto buffer = editor_state->current_buffer()->second;
-    shared_ptr<Line> line(new Line(EmptyString()));
-    if (editor_state->direction() == BACKWARDS) {
-      buffer->set_current_position_line(buffer->current_position_line() + 1);
-    }
-    buffer->contents()->insert(
-        buffer->contents()->begin() + buffer->current_position_line(),
-        line);
+    buffer->PushTransformationStack();
+    buffer->Apply(editor_state,
+        unique_ptr<Transformation>(
+            new InsertEmptyLineTransformation(editor_state->direction())));
     EnterInsertCharactersMode(editor_state);
     editor_state->ScheduleRedraw();
   }
