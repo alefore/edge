@@ -54,6 +54,10 @@ struct LineColumn {
     return to_string(line) + " " + to_string(column);
   }
 
+  bool operator==(const LineColumn& rhs) const {
+    return line == rhs.line && column == rhs.column;
+  }
+
   size_t line;
   size_t column;
 };

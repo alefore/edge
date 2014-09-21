@@ -919,26 +919,47 @@ class RunCppFileCommand : public Command {
 
 class SwitchCaseTransformation : public Transformation {
  public:
-  SwitchCaseTransformation(const LineColumn& position)
-      : position_(position) {}
-
   unique_ptr<Transformation> Apply(
       EditorState* editor_state, OpenBuffer* buffer) const {
-    auto line = buffer->LineAt(position_.line);
-    int c = line->get(position_.column);
-    Line::Options options;
-    options.contents = StringAppend(
-        line->Substring(0, position_.column),
-        StringAppend(
-            NewCopyString(string(1, isupper(c) ? tolower(c) : toupper(c))),
-            line->Substring(position_.column + 1)));
-    buffer->contents()->at(position_.line).reset(new Line(options));
-    editor_state->ScheduleRedraw();
-    return unique_ptr<Transformation>(new SwitchCaseTransformation(position_));
-  }
+    unique_ptr<TransformationStack> stack(new TransformationStack);
+    if (buffer->position().line < buffer->contents()->size()
+        && buffer->position().column < (*buffer->line())->size()) {
+      int c = (*buffer->line())->get(buffer->position().column);
+      shared_ptr<OpenBuffer> buffer_to_insert(
+          new OpenBuffer(editor_state, "- text inserted"));
+      buffer_to_insert->AppendLine(editor_state,
+          NewCopyString(string(1, isupper(c) ? tolower(c) : toupper(c))));
+      editor_state->ScheduleRedraw();
 
- private:
-  LineColumn position_;
+      stack->PushBack(NewDeleteCharactersTransformation(1, false));
+      stack->PushBack(NewInsertBufferTransformation(buffer_to_insert, 1, END));
+    }
+
+    LineColumn position = buffer->position();
+    switch (editor_state->direction()) {
+      case FORWARDS:
+        if (position.line >= buffer->contents()->size()) {
+          // Pass.
+        } else if (position.column < (*buffer->line())->size()) {
+          position.column++;
+        } else {
+          position = LineColumn(position.line + 1);
+        }
+        break;
+      case BACKWARDS:
+        if (position == LineColumn(0)) {
+          // Pass.
+        } else if (position.line >= buffer->contents()->size()
+                   || position.column == 0) {
+          size_t line = min(position.line, buffer->contents()->size()) - 1;
+          position = LineColumn(line, buffer->LineAt(line)->size());
+        } else {
+          position.column --;
+        }
+    }
+    stack->PushBack(NewGotoPositionTransformation(position));
+    return stack->Apply(editor_state, buffer);
+  }
 };
 
 class SwitchCaseCommand : public Command {
@@ -951,25 +972,9 @@ class SwitchCaseCommand : public Command {
     if (!editor_state->has_current_buffer()) { return; }
     auto buffer = editor_state->current_buffer()->second;
     auto line = buffer->current_line();
-    auto position = buffer->position();
-
-    // Advance.
-    if (position.column == line->size()) {
-      if (position.line + 1 == buffer->contents()->size()) {
-        return;
-      }
-      buffer->set_position(LineColumn(position.line + 1));
-    } else {
-      buffer->set_position(LineColumn(position.line, position.column + 1));
-    }
-
-    if (position.column >= line->size()
-        || !isalpha(line->get(position.column))) {
-      return;
-    }
 
     editor_state->ApplyToCurrentBuffer(
-        unique_ptr<Transformation>(new SwitchCaseTransformation(position)));
+        unique_ptr<Transformation>(new SwitchCaseTransformation()));
   }
 };
 
