@@ -158,7 +158,7 @@ class EditorState {
   const string& home_directory() const { return home_directory_; }
   const vector<string>& edge_path() const { return edge_path_; }
 
-  void ApplyToCurrentBuffer(const Transformation& transformation);
+  void ApplyToCurrentBuffer(unique_ptr<Transformation> transformation);
 
   Environment* environment() { return &environment_; }
 

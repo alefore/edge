@@ -36,10 +36,10 @@ void DeleteSuffixSuperfluousCharacters(
     return;
   }
   int line_count = buffer->position().line;
-  buffer->Apply(editor_state,
-       *NewDeleteTransformation(LineColumn(line_count, pos),
-                                LineColumn(line_count, line->size()),
-                                false));
+  buffer->Apply(editor_state, NewDeleteTransformation(
+      LineColumn(line_count, pos),
+      LineColumn(line_count, line->size()),
+      false));
 }
 
 class InsertMode : public EditorMode {
@@ -92,7 +92,7 @@ class InsertMode : public EditorMode {
             start.column--;
           }
           buffer->Apply(editor_state,
-              *NewDeleteTransformation(start, buffer->position(), false).get());
+              NewDeleteTransformation(start, buffer->position(), false));
           buffer->set_modified(true);
           editor_state->ScheduleRedraw();
         }
@@ -130,10 +130,11 @@ class InsertMode : public EditorMode {
                   current_line->size() - position.column));
         }
 
-        TransformationStack transformation;
+        unique_ptr<TransformationStack> transformation(
+            new TransformationStack);
 
         if (current_line != nullptr && position != current_line->size()) {
-          transformation.PushBack(NewDeleteTransformation(
+          transformation->PushBack(NewDeleteTransformation(
               position, LineColumn(position.line, current_line->size()),
               false));
         }
@@ -144,11 +145,11 @@ class InsertMode : public EditorMode {
           buffer_to_insert->contents()->emplace_back(new Line(Line::Options()));
           buffer_to_insert->contents()
               ->emplace_back(new Line(continuation_options));
-          transformation.PushBack(NewInsertBufferTransformation(
-              buffer_to_insert, buffer->position(), 1));
+          transformation->PushBack(
+              NewInsertBufferTransformation(buffer_to_insert, 1, END));
         }
 
-        buffer->Apply(editor_state, transformation);
+        buffer->Apply(editor_state, std::move(transformation));
         buffer->set_position(LineColumn(position.line + 1, prefix_end));
         buffer->set_modified(true);
         editor_state->ScheduleRedraw();
@@ -161,8 +162,7 @@ class InsertMode : public EditorMode {
       buffer_to_insert->contents()->emplace_back(
           new Line(Line::Options(NewCopyString(string(1, c)))));
       buffer->Apply(editor_state,
-          *NewInsertBufferTransformation(
-              buffer_to_insert, buffer->position(), 1).get());
+          NewInsertBufferTransformation(buffer_to_insert, 1, END));
     }
 
     buffer->set_modified(true);

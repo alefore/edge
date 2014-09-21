@@ -185,10 +185,8 @@ EditorState::EditorState()
             buffer_to_insert->AppendLine(this, NewCopyString(line));
           }
 
-          unique_ptr<Transformation> transformation(
-              NewInsertBufferTransformation(
-                  buffer_to_insert, buffer->position(), 1));
-          buffer->Apply(this, *transformation);
+          buffer->Apply(this,
+              NewInsertBufferTransformation(buffer_to_insert, 1, END));
           return Value::NewVoid();
         };
     environment_.Define("InsertText", std::move(insert_text));
@@ -205,9 +203,7 @@ EditorState::EditorState()
           auto buffer = current_buffer()->second;
           LineColumn* start = static_cast<LineColumn*>(args[0]->user_value.get());
           LineColumn* end = static_cast<LineColumn*>(args[1]->user_value.get());
-          unique_ptr<Transformation> transformation(
-              NewDeleteTransformation(*start, *end, true));
-          buffer->Apply(this, *transformation);
+          buffer->Apply(this, NewDeleteTransformation(*start, *end, true));
           return Value::NewVoid();
         };
     environment_.Define("DeleteText", std::move(callback));
@@ -448,9 +444,11 @@ bool EditorState::MovePositionsStack(Direction direction) {
   return true;
 }
 
-void EditorState::ApplyToCurrentBuffer(const Transformation& transformation) {
+void EditorState::ApplyToCurrentBuffer(
+    unique_ptr<Transformation> transformation) {
+  CHECK(transformation != nullptr);
   assert(has_current_buffer());
-  current_buffer_->second->Apply(this, transformation);
+  current_buffer_->second->Apply(this, std::move(transformation));
 }
 
 void EditorState::DefaultErrorHandler(const string& error_description) {

@@ -174,37 +174,30 @@ class Delete : public Command {
 
     switch (editor_state->structure()) {
       case EditorState::CHAR:
-        if (!editor_state->has_current_buffer()) { return; }
-        DeleteCharacters(editor_state);
+        if (editor_state->has_current_buffer()) {
+          auto buffer = editor_state->current_buffer()->second;
+          editor_state->ApplyToCurrentBuffer(
+              NewDeleteCharactersTransformation(
+                  editor_state->repetitions(), true));
+          editor_state->ScheduleRedraw();
+        }
         break;
 
       case EditorState::WORD:
-        if (!editor_state->has_current_buffer()) { return; }
-        {
-          // TODO: Honor repetition.
+        if (editor_state->has_current_buffer()) {
           auto buffer = editor_state->current_buffer()->second;
-          LineColumn start, end;
-          if (!buffer->BoundWordAt(buffer->position(), &start, &end)) {
-            return;
-          }
-          assert(start.line == end.line);
-          assert(start.column + 1 < end.column);
-          unique_ptr<Transformation> transformation =
-              NewDeleteTransformation(start, end, true);
-          editor_state->ApplyToCurrentBuffer(*transformation);
+          editor_state->ApplyToCurrentBuffer(
+              NewDeleteWordsTransformation(editor_state->repetitions(), true));
+          editor_state->ScheduleRedraw();
         }
         break;
 
       case EditorState::LINE:
         if (editor_state->has_current_buffer()) {
           auto buffer = editor_state->current_buffer()->second;
-          size_t line = min(buffer->position().line,
-                            buffer->contents()->size() - 1);
-          unique_ptr<Transformation> transformation = NewDeleteTransformation(
-              LineColumn(line, 0),
-              LineColumn(line + editor_state->repetitions(), 0),
-              true);
-          editor_state->ApplyToCurrentBuffer(*transformation);
+          editor_state->ApplyToCurrentBuffer(
+              NewDeleteLinesTransformation(editor_state->repetitions(), true));
+          editor_state->ScheduleRedraw();
         }
         break;
 
@@ -237,39 +230,6 @@ class Delete : public Command {
     editor_state->ResetStructure();
     editor_state->ResetRepetitions();
   }
-
- private:
-  void DeleteCharacters(EditorState* editor_state) {
-    shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-    buffer->CheckPosition();
-    if (buffer->current_line() == nullptr) { return; }
-    buffer->MaybeAdjustPositionCol();
-
-    LineColumn end = buffer->position();
-    while (editor_state->repetitions() > 0) {
-      auto current_line = buffer->contents()->begin() + end.line;
-      if (current_line == buffer->contents()->end()) {
-        editor_state->set_repetitions(0);
-        continue;
-      }
-      size_t characters_left = (*current_line)->size() - end.column;
-      if (editor_state->repetitions() <= characters_left
-          || end.line + 1 == buffer->contents()->size()) {
-        end.column += min(characters_left, editor_state->repetitions());
-        editor_state->set_repetitions(0);
-        continue;
-      }
-
-      editor_state->set_repetitions(
-          editor_state->repetitions() - characters_left - 1);
-      end.line ++;
-      end.column = 0;
-    }
-
-    unique_ptr<Transformation> transformation(
-        NewDeleteTransformation(buffer->position(), end, true));
-    editor_state->ApplyToCurrentBuffer(*transformation);
-  }
 };
 
 // TODO: Replace with insert.  Insert should be called 'type'.
@@ -293,9 +253,8 @@ class Paste : public Command {
     auto buffer = editor_state->current_buffer()->second;
     buffer->CheckPosition();
     buffer->MaybeAdjustPositionCol();
-    unique_ptr<Transformation> transformation = NewInsertBufferTransformation(
-        it->second, buffer->position(), editor_state->repetitions());
-    editor_state->ApplyToCurrentBuffer(*transformation);
+    editor_state->ApplyToCurrentBuffer(NewInsertBufferTransformation(
+        it->second, editor_state->repetitions(), END));
     editor_state->ResetRepetitions();
     editor_state->ScheduleRedraw();
   }
@@ -997,8 +956,22 @@ class SwitchCaseCommand : public Command {
       return;
     }
 
-    SwitchCaseTransformation transformation(position);
-    editor_state->ApplyToCurrentBuffer(transformation);
+    editor_state->ApplyToCurrentBuffer(
+        unique_ptr<Transformation>(new SwitchCaseTransformation(position)));
+  }
+};
+
+class RepeatLastTransformationCommand : public Command {
+ public:
+  const string Description() {
+    return "Repeats the last command.";
+  }
+
+  void ProcessInput(int, EditorState* editor_state) {
+    if (!editor_state->has_current_buffer()) { return; }
+    editor_state
+        ->current_buffer()->second->RepeatLastTransformation(editor_state);
+    editor_state->ScheduleRedraw();
   }
 };
 
@@ -1034,6 +1007,7 @@ static const map<int, Command*>& GetCommandModeMap() {
 
     output.insert(make_pair('~', new SwitchCaseCommand()));
 
+    output.insert(make_pair('.', new RepeatLastTransformationCommand()));
     output.insert(make_pair('?', NewHelpCommand(output, "command mode").release()));
 
     output.insert(make_pair(Terminal::ESCAPE, new ResetStateCommand()));

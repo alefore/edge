@@ -22,13 +22,38 @@ class Transformation {
       EditorState* editor_state, OpenBuffer* buffer) const = 0;
 };
 
-unique_ptr<Transformation> NewInsertBufferTransformation(
-    shared_ptr<OpenBuffer> buffer_to_insert,
-    const LineColumn& position,
-    size_t repetitions);
+enum InsertBufferTransformationPosition {
+  // Leaves the buffer position at the start of the inserted text.
+  START,
 
+  // Leaves the buffer position at the end of the inserted text.
+  END,
+};
+
+unique_ptr<Transformation> NewInsertBufferTransformation(
+    shared_ptr<OpenBuffer> buffer_to_insert, size_t repetitions,
+    InsertBufferTransformationPosition insert_buffer_transformation_position);
+
+unique_ptr<Transformation> NewDeleteCharactersTransformation(
+    size_t repetitions, bool copy_to_paste_buffer);
+unique_ptr<Transformation> NewDeleteWordsTransformation(
+    size_t repetitions, bool copy_to_paste_buffer);
+unique_ptr<Transformation> NewDeleteLinesTransformation(
+    size_t repetitions, bool copy_to_paste_buffer);
+
+// DEPRECATED: Use one of the above transformations, which are more semantically
+// reach (and thus better for repeating).
 unique_ptr<Transformation> NewDeleteTransformation(
     const LineColumn& start, const LineColumn& end, bool copy_to_paste_buffer);
+
+unique_ptr<Transformation> NewNoopTransformation();
+
+// Goes to a given position and applies a transformation.
+unique_ptr<Transformation> TransformationAtPosition(
+    const LineColumn& position, unique_ptr<Transformation> transformation);
+
+unique_ptr<Transformation> ComposeTransformation(
+    unique_ptr<Transformation> a, unique_ptr<Transformation> b);
 
 class TransformationStack : public Transformation {
  public:
@@ -52,7 +77,6 @@ class TransformationStack : public Transformation {
  private:
   list<unique_ptr<Transformation>> stack_;
 };
-
 
 }  // namespace editor
 }  // namespace afc

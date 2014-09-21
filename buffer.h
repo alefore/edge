@@ -432,7 +432,9 @@ class OpenBuffer {
   void set_value_variable(const EdgeVariable<unique_ptr<Value>>* variable,
                           unique_ptr<Value> value);
 
-  void Apply(EditorState* editor_state, const Transformation& transformation);
+  void Apply(EditorState* editor_state,
+             unique_ptr<Transformation> transformation);
+  void RepeatLastTransformation(EditorState* editor_state);
   void Undo(EditorState* editor_state);
 
   void set_filter(unique_ptr<Value> filter);
@@ -496,6 +498,7 @@ class OpenBuffer {
  private:
   void ProcessCommandInput(
       EditorState* editor_state, shared_ptr<LazyString> str);
+  unique_ptr<Transformation> last_transformation_;
 };
 
 }  // namespace editor
