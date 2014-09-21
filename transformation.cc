@@ -210,29 +210,33 @@ class DeleteWordsTransformation : public Transformation {
       EditorState* editor_state, OpenBuffer* buffer) const {
     shared_ptr<OpenBuffer> deleted_text(
         new OpenBuffer(editor_state, OpenBuffer::kPasteBuffer));
-    // TODO: Honor repetition.
-    LineColumn initial_position = buffer->position();
-    LineColumn start, end;
-    if (!buffer->BoundWordAt(initial_position, &start, &end)) {
-      LOG(INFO) << "Unable to bound word, giving up.";
-      return NewNoopTransformation();
+    unique_ptr<TransformationStack> stack(new TransformationStack);
+    for (size_t i = 0; i < repetitions_; i++) {
+      LineColumn initial_position = buffer->position();
+      LineColumn start, end;
+      if (!buffer->BoundWordAt(initial_position, &start, &end)) {
+        LOG(INFO) << "Unable to bound word, giving up.";
+        return NewNoopTransformation();
+      }
+      CHECK_EQ(start.line, end.line);
+      CHECK_LE(start.column + 1, end.column);
+      size_t characters_to_erase;
+      if (start.column < initial_position.column) {
+        buffer->set_position(start);
+        characters_to_erase = end.column - start.column;
+      } else if (initial_position.line == end.line) {
+        characters_to_erase = end.column - initial_position.column;
+      } else {
+        characters_to_erase = 0;
+      }
+      LOG(INFO) << "Erasing word, characters: " << characters_to_erase;
+      stack->PushFront(unique_ptr<Transformation>(
+          new GotoPositionTransformation(initial_position)));
+      stack->PushFront(
+          NewDeleteCharactersTransformation(characters_to_erase, true)
+              ->Apply(editor_state, buffer));
     }
-    CHECK_EQ(start.line, end.line);
-    CHECK_LE(start.column + 1, end.column);
-    size_t characters_to_erase;
-    if (start.column < initial_position.column) {
-      buffer->set_position(start);
-      characters_to_erase = end.column - start.column;
-    } else {
-      CHECK(initial_position.line == end.line);
-      characters_to_erase = end.column - initial_position.column;
-    }
-    LOG(INFO) << "Erasing word, number of characters: " << characters_to_erase;
-    return ComposeTransformation(
-        NewDeleteCharactersTransformation(characters_to_erase, true)
-            ->Apply(editor_state, buffer),
-        unique_ptr<Transformation>(
-            new GotoPositionTransformation(initial_position)));
+    return std::move(stack);
   }
 
  private:
