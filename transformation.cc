@@ -74,7 +74,7 @@ class DeleteTransformation : public Transformation {
   DeleteTransformation(const LineColumn& start, const LineColumn& end,
                        bool copy_to_paste_buffer)
       : start_(start), end_(end), copy_to_paste_buffer_(copy_to_paste_buffer) {}
-      
+
   unique_ptr<Transformation> Apply(
       EditorState* editor_state, OpenBuffer* buffer) const {
     shared_ptr<OpenBuffer> deleted_text(
@@ -217,10 +217,16 @@ class DeleteWordsTransformation : public Transformation {
       LOG(INFO) << "Unable to bound word, giving up.";
       return NewNoopTransformation();
     }
-    CHECK(start.line == end.line);
-    CHECK(start.column + 1 < end.column);
-    buffer->set_position(start);
-    size_t characters_to_erase = end.column - start.column;
+    CHECK_EQ(start.line, end.line);
+    CHECK_LE(start.column + 1, end.column);
+    size_t characters_to_erase;
+    if (start.column < initial_position.column) {
+      buffer->set_position(start);
+      characters_to_erase = end.column - start.column;
+    } else {
+      CHECK(initial_position.line == end.line);
+      characters_to_erase = end.column - initial_position.column;
+    }
     LOG(INFO) << "Erasing word, number of characters: " << characters_to_erase;
     return ComposeTransformation(
         NewDeleteCharactersTransformation(characters_to_erase, true)
