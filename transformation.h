@@ -20,6 +20,7 @@ class Transformation {
   virtual ~Transformation() {}
   virtual unique_ptr<Transformation> Apply(
       EditorState* editor_state, OpenBuffer* buffer) const = 0;
+  virtual unique_ptr<Transformation> Clone() = 0;
 };
 
 enum InsertBufferTransformationPosition {
@@ -75,6 +76,14 @@ class TransformationStack : public Transformation {
       undo->PushFront(it->Apply(editor_state, buffer));
     }
     return std::move(undo);
+  }
+
+  unique_ptr<Transformation> Clone() {
+    unique_ptr<TransformationStack> output(new TransformationStack());
+    for (auto& it : stack_) {
+      output->PushBack(it->Clone());
+    }
+    return std::move(output);
   }
 
  private:

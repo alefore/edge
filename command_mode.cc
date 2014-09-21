@@ -22,6 +22,7 @@
 #include "noop_command.h"
 #include "repeat_mode.h"
 #include "search_handler.h"
+#include "secondary_mode.h"
 #include "substring.h"
 #include "terminal.h"
 #include "transformation.h"
@@ -701,6 +702,17 @@ class EnterAdvancedMode : public Command {
   }
 };
 
+class EnterSecondaryMode : public Command {
+ public:
+  const string Description() {
+    return "enters secondary-command mode (press 's?' for more)";
+  }
+
+  void ProcessInput(int, EditorState* editor_state) {
+    editor_state->set_mode(NewSecondaryMode());
+  }
+};
+
 class EnterFindMode : public Command {
  public:
   const string Description() {
@@ -961,6 +973,10 @@ class SwitchCaseTransformation : public Transformation {
     stack->PushBack(NewGotoPositionTransformation(position));
     return stack->Apply(editor_state, buffer);
   }
+
+  unique_ptr<Transformation> Clone() {
+    return unique_ptr<Transformation>(new SwitchCaseTransformation());
+  }
 };
 
 class SwitchCaseCommand : public Command {
@@ -997,6 +1013,7 @@ static const map<int, Command*>& GetCommandModeMap() {
   static map<int, Command*> output;
   if (output.empty()) {
     output.insert(make_pair('a', new EnterAdvancedMode()));
+    output.insert(make_pair('s', new EnterSecondaryMode()));
     output.insert(make_pair('i', new EnterInsertMode()));
     output.insert(make_pair('f', new EnterFindMode()));
     output.insert(make_pair('r', new ReverseDirectionCommand()));

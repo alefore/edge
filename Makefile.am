@@ -25,6 +25,7 @@ predictor.cc \
 repeat_mode.cc \
 run_command_handler.cc \
 search_handler.cc \
+secondary_mode.cc \
 server.cc \
 substring.cc \
 terminal.cc \

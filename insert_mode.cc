@@ -75,6 +75,10 @@ class NewLineTransformation : public Transformation {
         LineColumn(buffer->position().line + 1, prefix_end)));
     return transformation->Apply(editor_state, buffer);
   }
+
+  unique_ptr<Transformation> Clone() {
+    return unique_ptr<Transformation>(new NewLineTransformation);
+  }
 };
 
 class InsertEmptyLineTransformation : public Transformation {
@@ -91,6 +95,11 @@ class InsertEmptyLineTransformation : public Transformation {
             unique_ptr<Transformation>(new NewLineTransformation())),
         NewGotoPositionTransformation(position))
             ->Apply(editor_state, buffer);
+  }
+
+  unique_ptr<Transformation> Clone() {
+    return unique_ptr<Transformation>(
+        new InsertEmptyLineTransformation(direction_));
   }
 
  private:

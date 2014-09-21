@@ -440,10 +440,11 @@ class OpenBuffer {
              unique_ptr<Transformation> transformation);
   void RepeatLastTransformation(EditorState* editor_state);
 
-  // It is an error to call PushTransformationStack twice without calling
-  // PopTransformationStack in between.
   void PushTransformationStack();
   void PopTransformationStack();
+  bool HasTransformationStack() const {
+    return !last_transformation_stack_.empty();
+  }
 
   void Undo(EditorState* editor_state);
 
@@ -519,7 +520,7 @@ class OpenBuffer {
   // this to non-null (to signal that we've entered this mode) and
   // OpenBuffer::PopTransformationStack (which sets this back to null and moves
   // this value to last_transformation_).
-  unique_ptr<TransformationStack> last_transformation_stack_;
+  list<unique_ptr<TransformationStack>> last_transformation_stack_;
 };
 
 }  // namespace editor

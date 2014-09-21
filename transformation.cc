@@ -21,6 +21,10 @@ class GotoPositionTransformation : public Transformation {
     return NewGotoPositionTransformation(initial_position);
   }
 
+  unique_ptr<Transformation> Clone() {
+    return NewGotoPositionTransformation(position_);
+  }
+
  private:
   LineColumn position_;
 };
@@ -64,6 +68,11 @@ class InsertBufferTransformation : public Transformation {
     return TransformationAtPosition(start_position,
         NewDeleteCharactersTransformation(
             buffer_to_insert_length_ * repetitions_, false));
+  }
+
+  unique_ptr<Transformation> Clone() {
+    return NewInsertBufferTransformation(
+        buffer_to_insert_, repetitions_, final_position_);
   }
 
  private:
@@ -150,6 +159,11 @@ class DeleteCharactersTransformation : public Transformation {
         NewInsertBufferTransformation(deleted_text, 1, START));
   }
 
+  unique_ptr<Transformation> Clone() {
+    return NewDeleteCharactersTransformation(
+        repetitions_, copy_to_paste_buffer_);
+  }
+
  private:
   size_t repetitions_;
   bool copy_to_paste_buffer_;
@@ -193,6 +207,10 @@ class DeleteWordsTransformation : public Transformation {
     return std::move(stack);
   }
 
+  unique_ptr<Transformation> Clone() {
+    return NewDeleteWordsTransformation(repetitions_, copy_to_paste_buffer_);
+  }
+
  private:
   size_t repetitions_;
   bool copy_to_paste_buffer_;
@@ -234,15 +252,22 @@ class DeleteLinesTransformation : public Transformation {
             NewGotoPositionTransformation(buffer->position())));
   }
 
+  unique_ptr<Transformation> Clone() {
+    return NewDeleteLinesTransformation(repetitions_, copy_to_paste_buffer_);
+  }
+
  private:
   size_t repetitions_;
   bool copy_to_paste_buffer_;
 };
 
 class NoopTransformation : public Transformation {
+ public:
   unique_ptr<Transformation> Apply(EditorState*, OpenBuffer*) const {
     return NewNoopTransformation();
   }
+
+  unique_ptr<Transformation> Clone() { return NewNoopTransformation(); }
 };
 
 class DeleteSuffixSuperfluousCharacters : public Transformation {
@@ -266,6 +291,10 @@ class DeleteSuffixSuperfluousCharacters : public Transformation {
         LineColumn(buffer->position().line, pos),
         NewDeleteCharactersTransformation(line->size() - pos, false))
             ->Apply(editor_state, buffer);
+  }
+
+  unique_ptr<Transformation> Clone() {
+    return NewDeleteSuffixSuperfluousCharacters();
   }
 };
 

@@ -1431,16 +1431,13 @@ void OpenBuffer::CopyVariablesFrom(const shared_ptr<const OpenBuffer>& src) {
 
 void OpenBuffer::Apply(
     EditorState* editor_state, unique_ptr<Transformation> transformation) {
-  if (last_transformation_stack_ == nullptr) {
-    last_transformation_ = std::move(transformation);
-    RepeatLastTransformation(editor_state);
-    return;
+  if (!last_transformation_stack_.empty()) {
+    CHECK(last_transformation_stack_.back() != nullptr);
+    last_transformation_stack_.back()->PushBack(transformation->Clone());
   }
-  unique_ptr<Transformation> undo = transformation->Apply(editor_state, this);
-  CHECK(undo != nullptr);
-  undo_history_.push_back(std::move(undo));
-  redo_history_.clear();
-  last_transformation_stack_->PushBack(std::move(transformation));
+  last_transformation_ = std::move(transformation);
+  RepeatLastTransformation(editor_state);
+  return;
 }
 
 void OpenBuffer::RepeatLastTransformation(EditorState* editor_state) {
@@ -1452,14 +1449,16 @@ void OpenBuffer::RepeatLastTransformation(EditorState* editor_state) {
 }
 
 void OpenBuffer::PushTransformationStack() {
-  CHECK(last_transformation_stack_ == nullptr);
-  last_transformation_stack_.reset(new TransformationStack);
+  last_transformation_stack_.emplace_back(new TransformationStack);
 }
 
 void OpenBuffer::PopTransformationStack() {
-  CHECK(last_transformation_stack_ != nullptr);
-  last_transformation_ = std::move(last_transformation_stack_);
-  last_transformation_stack_ = nullptr;
+  CHECK(!last_transformation_stack_.empty());
+  last_transformation_ = std::move(last_transformation_stack_.back());
+  last_transformation_stack_.pop_back();
+  if (!last_transformation_stack_.empty()) {
+    last_transformation_stack_.back()->PushBack(last_transformation_->Clone());
+  }
 }
 
 void OpenBuffer::Undo(EditorState* editor_state) {
