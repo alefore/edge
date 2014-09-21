@@ -41,6 +41,7 @@ class RecordCommand : public Command {
       buffer->second->PushTransformationStack();
       editor_state->SetStatus("Recording: start");
     }
+    editor_state->ResetMode();
   }
 };
 

@@ -504,16 +504,8 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
     case EditorState::CHAR:
       {
         if (!editor_state->has_current_buffer()) { return; }
-        shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-        buffer->CheckPosition();
-        if (buffer->current_line() == nullptr) { return; }
-        buffer->set_current_position_col(min(
-            buffer->current_position_col() + editor_state->repetitions(),
-            buffer->current_line()->size()));
-        if (editor_state->repetitions() > 1) {
-          editor_state->PushCurrentPosition();
-        }
-
+        editor_state->ApplyToCurrentBuffer(NewMoveCharacterTransformation(
+            FORWARDS, editor_state->repetitions()));
         editor_state->ResetRepetitions();
         editor_state->ResetStructure();
         editor_state->ResetDirection();
@@ -597,22 +589,8 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
     case EditorState::CHAR:
       {
         if (!editor_state->has_current_buffer()) { return; }
-        shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-        buffer->CheckPosition();
-        if (buffer->current_line() == nullptr) { return; }
-        if (buffer->current_position_col() > buffer->current_line()->size()) {
-          buffer->set_current_position_col(buffer->current_line()->size());
-        }
-        if (buffer->current_position_col() > editor_state->repetitions()) {
-          buffer->set_current_position_col(
-              buffer->current_position_col() - editor_state->repetitions());
-        } else {
-          buffer->set_current_position_col(0);
-        }
-
-        if (editor_state->repetitions() > 1) {
-          editor_state->PushCurrentPosition();
-        }
+        editor_state->ApplyToCurrentBuffer(NewMoveCharacterTransformation(
+            BACKWARDS, editor_state->repetitions()));
         editor_state->ResetRepetitions();
         editor_state->ResetStructure();
         editor_state->ResetDirection();
@@ -977,6 +955,8 @@ class SwitchCaseTransformation : public Transformation {
   unique_ptr<Transformation> Clone() {
     return unique_ptr<Transformation>(new SwitchCaseTransformation());
   }
+
+  virtual bool ModifiesBuffer() { return true; }
 };
 
 class SwitchCaseCommand : public Command {

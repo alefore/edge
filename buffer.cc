@@ -1435,9 +1435,13 @@ void OpenBuffer::Apply(
     CHECK(last_transformation_stack_.back() != nullptr);
     last_transformation_stack_.back()->PushBack(transformation->Clone());
   }
-  last_transformation_ = std::move(transformation);
-  RepeatLastTransformation(editor_state);
-  return;
+  unique_ptr<Transformation> undo = transformation->Apply(editor_state, this);
+  CHECK(undo != nullptr);
+  undo_history_.push_back(std::move(undo));
+  redo_history_.clear();
+  if (transformation->ModifiesBuffer()) {
+    last_transformation_ = std::move(transformation);
+  }
 }
 
 void OpenBuffer::RepeatLastTransformation(EditorState* editor_state) {
