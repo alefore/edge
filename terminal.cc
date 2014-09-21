@@ -175,9 +175,9 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
   getyx(stdscr, y, x);
   status += editor_state.status();
   x += status.size();
-  if (status.size() < COLS) {
+  if (status.size() < static_cast<size_t>(COLS)) {
     status += string(COLS - status.size(), ' ');
-  } else if (status.size() > COLS) {
+  } else if (status.size() > static_cast<size_t>(COLS)) {
     status = status.substr(0, COLS);
   }
   addstr(status.c_str());
