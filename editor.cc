@@ -195,18 +195,16 @@ EditorState::EditorState()
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
     callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    callback->type.type_arguments.push_back(VMType::ObjectType(line_column.get()));
-    callback->type.type_arguments.push_back(VMType::ObjectType(line_column.get()));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
           if (!has_current_buffer()) { return Value::NewVoid(); }
           auto buffer = current_buffer()->second;
-          LineColumn* start = static_cast<LineColumn*>(args[0]->user_value.get());
-          LineColumn* end = static_cast<LineColumn*>(args[1]->user_value.get());
-          buffer->Apply(this, NewDeleteTransformation(*start, *end, true));
+          buffer->Apply(this,
+              NewDeleteCharactersTransformation(args[0]->integer, true));
           return Value::NewVoid();
         };
-    environment_.Define("DeleteText", std::move(callback));
+    environment_.Define("DeleteCharacters", std::move(callback));
   }
 
   {

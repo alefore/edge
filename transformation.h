@@ -41,10 +41,8 @@ unique_ptr<Transformation> NewDeleteWordsTransformation(
 unique_ptr<Transformation> NewDeleteLinesTransformation(
     size_t repetitions, bool copy_to_paste_buffer);
 
-// DEPRECATED: Use one of the above transformations, which are more semantically
-// reach (and thus better for repeating).
-unique_ptr<Transformation> NewDeleteTransformation(
-    const LineColumn& start, const LineColumn& end, bool copy_to_paste_buffer);
+unique_ptr<Transformation> NewGotoPositionTransformation(
+    const LineColumn& position);
 
 unique_ptr<Transformation> NewNoopTransformation();
 
@@ -54,6 +52,11 @@ unique_ptr<Transformation> TransformationAtPosition(
 
 unique_ptr<Transformation> ComposeTransformation(
     unique_ptr<Transformation> a, unique_ptr<Transformation> b);
+
+// Returns a transformation that deletes superfluous characters (based on
+// OpenBuffer::variable_line_suffix_superfluous_characters) from the current
+// line.
+unique_ptr<Transformation> NewDeleteSuffixSuperfluousCharacters();
 
 class TransformationStack : public Transformation {
  public:

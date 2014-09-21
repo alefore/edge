@@ -271,6 +271,7 @@ class UndoCommand : public Command {
     editor_state->current_buffer()->second->Undo(editor_state);
     editor_state->ResetRepetitions();
     editor_state->ResetDirection();
+    editor_state->ScheduleRedraw();
   }
 };
 

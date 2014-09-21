@@ -18,13 +18,24 @@ class GotoPositionTransformation : public Transformation {
   unique_ptr<Transformation> Apply(EditorState*, OpenBuffer* buffer) const {
     LineColumn initial_position = buffer->position();
     buffer->set_position(position_);
-    return unique_ptr<Transformation>(
-        new GotoPositionTransformation(initial_position));
+    return NewGotoPositionTransformation(initial_position);
   }
 
  private:
   LineColumn position_;
 };
+
+size_t CountCharacters(OpenBuffer* buffer) {
+  size_t output = 0;
+  for (auto it = buffer->line_begin(); it != buffer->line_end(); it++) {
+    output += (*it)->size();
+    output ++;
+  }
+  if (output > 0) {
+    output--;  // Last line has no \n.
+  }
+  return output;
+}
 
 class InsertBufferTransformation : public Transformation {
  public:
@@ -32,6 +43,7 @@ class InsertBufferTransformation : public Transformation {
       shared_ptr<OpenBuffer> buffer_to_insert, size_t repetitions,
       InsertBufferTransformationPosition final_position)
       : buffer_to_insert_(buffer_to_insert),
+        buffer_to_insert_length_(CountCharacters(buffer_to_insert.get())),
         repetitions_(repetitions),
         final_position_(final_position) {
     CHECK(buffer_to_insert_ != nullptr);
@@ -48,11 +60,15 @@ class InsertBufferTransformation : public Transformation {
     if (final_position_ == START) {
       buffer->set_position(start_position);
     }
-    return NewDeleteTransformation(start_position, buffer->position(), false);
+
+    return TransformationAtPosition(start_position,
+        NewDeleteCharactersTransformation(
+            buffer_to_insert_length_ * repetitions_, false));
   }
 
  private:
   shared_ptr<OpenBuffer> buffer_to_insert_;
+  size_t buffer_to_insert_length_;
   LineColumn position_;
   size_t repetitions_;
   InsertBufferTransformationPosition final_position_;
@@ -67,67 +83,6 @@ void InsertDeletedTextBuffer(EditorState* editor_state,
   }
 }
 
-// A transformation that, when applied, removes the text from the start position
-// to the end position (leaving the characters immediately at the end position).
-class DeleteTransformation : public Transformation {
- public:
-  DeleteTransformation(const LineColumn& start, const LineColumn& end,
-                       bool copy_to_paste_buffer)
-      : start_(start), end_(end), copy_to_paste_buffer_(copy_to_paste_buffer) {}
-
-  unique_ptr<Transformation> Apply(
-      EditorState* editor_state, OpenBuffer* buffer) const {
-    shared_ptr<OpenBuffer> deleted_text(
-        new OpenBuffer(editor_state, OpenBuffer::kPasteBuffer));
-    size_t actual_end = min(end_.line, buffer->contents()->size() - 1);
-    for (size_t line = start_.line; line <= actual_end; line++) {
-      auto current_line = buffer->contents()->at(line);
-      size_t current_start_column = line == start_.line ? start_.column : 0;
-      size_t current_end_column =
-          line == end_.line ? end_.column : current_line->size();
-      CHECK_LE(current_start_column, current_end_column);
-      deleted_text->AppendLine(
-          editor_state,
-          current_line->Substring(
-              current_start_column,
-              current_end_column - current_start_column));
-      if (current_line->activate() != nullptr
-          && current_end_column == current_line->size()) {
-        current_line->activate()->ProcessInput('d', editor_state);
-      }
-    }
-    shared_ptr<LazyString> prefix =
-        buffer->contents()->at(start_.line)->Substring(0, start_.column);
-    shared_ptr<LazyString> contents_last_line =
-        end_.line < buffer->contents()->size()
-        ? StringAppend(prefix,
-              buffer->contents()->at(end_.line)->Substring(end_.column))
-        : prefix;
-    buffer->contents()->erase(
-        buffer->contents()->begin() + start_.line,
-        buffer->contents()->begin() + actual_end);
-    if (buffer->contents()->at(start_.line)->contents() != contents_last_line) {
-      buffer->contents()->at(start_.line).reset(
-          new Line(Line::Options(contents_last_line)));
-      buffer->contents()->at(start_.line)->set_modified(true);
-    }
-    buffer->set_position(start_);
-    buffer->CheckPosition();
-
-    editor_state->ScheduleRedraw();
-
-    if (copy_to_paste_buffer_) {
-      InsertDeletedTextBuffer(editor_state, deleted_text);
-    }
-
-    return NewInsertBufferTransformation(deleted_text, 1, START);
-  }
-
- private:
-  LineColumn start_;
-  LineColumn end_;
-  bool copy_to_paste_buffer_;
-};
 
 class DeleteCharactersTransformation : public Transformation {
  public:
@@ -230,8 +185,7 @@ class DeleteWordsTransformation : public Transformation {
         characters_to_erase = 0;
       }
       LOG(INFO) << "Erasing word, characters: " << characters_to_erase;
-      stack->PushFront(unique_ptr<Transformation>(
-          new GotoPositionTransformation(initial_position)));
+      stack->PushFront(NewGotoPositionTransformation(initial_position));
       stack->PushFront(
           NewDeleteCharactersTransformation(characters_to_erase, true)
               ->Apply(editor_state, buffer));
@@ -277,8 +231,7 @@ class DeleteLinesTransformation : public Transformation {
     return TransformationAtPosition(LineColumn(buffer->position().line),
         ComposeTransformation(
             NewInsertBufferTransformation(deleted_text, 1, END),
-            unique_ptr<Transformation>(
-                new GotoPositionTransformation(buffer->position()))));
+            NewGotoPositionTransformation(buffer->position())));
   }
 
  private:
@@ -289,6 +242,30 @@ class DeleteLinesTransformation : public Transformation {
 class NoopTransformation : public Transformation {
   unique_ptr<Transformation> Apply(EditorState*, OpenBuffer*) const {
     return NewNoopTransformation();
+  }
+};
+
+class DeleteSuffixSuperfluousCharacters : public Transformation {
+ public:
+  unique_ptr<Transformation> Apply(
+      EditorState* editor_state, OpenBuffer* buffer) const {
+    const string& superfluous_characters(buffer->read_string_variable(
+        OpenBuffer::variable_line_suffix_superfluous_characters()));
+    const auto line = buffer->current_line();
+    if (!line) { return NewNoopTransformation(); }
+    size_t pos = line->size();
+    while (pos > 0
+           && superfluous_characters.find(line->get(pos - 1)) != string::npos) {
+      pos--;
+    }
+    if (pos == line->size()) {
+      return NewNoopTransformation();
+    }
+    CHECK_LT(pos, line->size());
+    return TransformationAtPosition(
+        LineColumn(buffer->position().line, pos),
+        NewDeleteCharactersTransformation(line->size() - pos, false))
+            ->Apply(editor_state, buffer);
   }
 };
 
@@ -322,10 +299,9 @@ unique_ptr<Transformation> NewDeleteLinesTransformation(
       new DeleteLinesTransformation(repetitions, copy_to_paste_buffer));
 }
 
-unique_ptr<Transformation> NewDeleteTransformation(
-    const LineColumn& start, const LineColumn& end, bool copy_to_paste_buffer) {
-  return unique_ptr<Transformation>(
-      new DeleteTransformation(start, end, copy_to_paste_buffer));
+unique_ptr<Transformation> NewGotoPositionTransformation(
+    const LineColumn& position) {
+  return unique_ptr<Transformation>(new GotoPositionTransformation(position));
 }
 
 unique_ptr<Transformation> NewNoopTransformation() {
@@ -343,8 +319,11 @@ unique_ptr<Transformation> ComposeTransformation(
 unique_ptr<Transformation> TransformationAtPosition(
     const LineColumn& position, unique_ptr<Transformation> transformation) {
   return ComposeTransformation(
-      unique_ptr<Transformation>(new GotoPositionTransformation(position)),
-      std::move(transformation));
+      NewGotoPositionTransformation(position), std::move(transformation));
+}
+
+unique_ptr<Transformation> NewDeleteSuffixSuperfluousCharacters() {
+  return unique_ptr<Transformation>(new DeleteSuffixSuperfluousCharacters());
 }
 
 }  // namespace editor
