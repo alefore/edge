@@ -15,6 +15,8 @@ extern "C" {
 #include <unistd.h>
 }
 
+#include <glog/logging.h>
+
 #include "char_buffer.h"
 #include "editor.h"
 #include "file_link_mode.h"
@@ -346,26 +348,25 @@ bool LineColumn::operator!=(const LineColumn& other) const {
           assert(buffer != nullptr);
           LineColumn old_position = buffer->position();
           buffer->set_position(LineColumn(0));
-          TransformationStack transformation;
+          unique_ptr<TransformationStack> transformation(
+              new TransformationStack());
           while (buffer->position().line + 1 < buffer->contents()->size()) {
             string current_line = buffer->current_line()->ToString();
             vector<unique_ptr<Value>> line_args;
             line_args.push_back(Value::NewString(current_line));
             unique_ptr<Value> result = args[1]->callback(std::move(line_args));
             if (result->str != current_line) {
-              transformation.PushBack(NewDeleteTransformation(
-                  buffer->position(), LineColumn(buffer->position().line + 1),
-                  true));
+              transformation->PushBack(NewDeleteLinesTransformation(1, false));
               shared_ptr<OpenBuffer> buffer_to_insert(
                   new OpenBuffer(editor_state, "tmp buffer"));
               buffer_to_insert->AppendLine(
                   editor_state, NewCopyString(result->str));
-              transformation.PushBack(NewInsertBufferTransformation(
-                  buffer_to_insert, buffer->position(), 1));
+              transformation->PushBack(
+                  NewInsertBufferTransformation(buffer_to_insert, 1, END));
             }
             buffer->set_position(LineColumn(buffer->position().line + 1));
           }
-          buffer->Apply(editor_state, transformation);
+          buffer->Apply(editor_state, std::move(transformation));
           buffer->set_position(old_position);
           return Value::NewVoid();
         };
@@ -428,6 +429,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
 OpenBuffer::~OpenBuffer() {}
 
 void OpenBuffer::Close(EditorState* editor_state) {
+  LOG(INFO) << "Closing buffer: " << name_;
   if (read_bool_variable(variable_save_on_close())) {
     Save(editor_state);
   }
@@ -559,6 +561,7 @@ void OpenBuffer::Reload(EditorState* editor_state) {
 }
 
 void OpenBuffer::Save(EditorState* editor_state) {
+  LOG(INFO) << "Saving buffer: " << name_;
   if (read_bool_variable(variable_diff())) {
     SaveDiff(editor_state, this);
     return;
@@ -913,6 +916,7 @@ void OpenBuffer::EvaluateFile(EditorState*, const string& path) {
 
 LineColumn OpenBuffer::InsertInCurrentPosition(
     const vector<shared_ptr<Line>>& insertion) {
+  MaybeAdjustPositionCol();
   return InsertInPosition(insertion, position());
 }
 
@@ -1426,11 +1430,39 @@ void OpenBuffer::CopyVariablesFrom(const shared_ptr<const OpenBuffer>& src) {
 }
 
 void OpenBuffer::Apply(
-    EditorState* editor_state, const Transformation& transformation) {
-  unique_ptr<Transformation> undo = transformation.Apply(editor_state, this);
-  assert(undo != nullptr);
+    EditorState* editor_state, unique_ptr<Transformation> transformation) {
+  if (!last_transformation_stack_.empty()) {
+    CHECK(last_transformation_stack_.back() != nullptr);
+    last_transformation_stack_.back()->PushBack(transformation->Clone());
+  }
+  unique_ptr<Transformation> undo = transformation->Apply(editor_state, this);
+  CHECK(undo != nullptr);
   undo_history_.push_back(std::move(undo));
   redo_history_.clear();
+  if (transformation->ModifiesBuffer()) {
+    last_transformation_ = std::move(transformation);
+  }
+}
+
+void OpenBuffer::RepeatLastTransformation(EditorState* editor_state) {
+  unique_ptr<Transformation> undo =
+      last_transformation_->Apply(editor_state, this);
+  CHECK(undo != nullptr);
+  undo_history_.push_back(std::move(undo));
+  redo_history_.clear();
+}
+
+void OpenBuffer::PushTransformationStack() {
+  last_transformation_stack_.emplace_back(new TransformationStack);
+}
+
+void OpenBuffer::PopTransformationStack() {
+  CHECK(!last_transformation_stack_.empty());
+  last_transformation_ = std::move(last_transformation_stack_.back());
+  last_transformation_stack_.pop_back();
+  if (!last_transformation_stack_.empty()) {
+    last_transformation_stack_.back()->PushBack(last_transformation_->Clone());
+  }
 }
 
 void OpenBuffer::Undo(EditorState* editor_state) {

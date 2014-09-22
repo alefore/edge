@@ -66,9 +66,14 @@ class EditorState {
 
   void CloseBuffer(const map<string, shared_ptr<OpenBuffer>>::iterator buffer);
 
+  const map<string, shared_ptr<OpenBuffer>>* buffers() const {
+    return &buffers_;
+  }
+
   map<string, shared_ptr<OpenBuffer>>* buffers() {
     return &buffers_;
   }
+
   void set_current_buffer(map<string, shared_ptr<OpenBuffer>>::iterator it) {
     current_buffer_ = it;
   }
@@ -158,7 +163,7 @@ class EditorState {
   const string& home_directory() const { return home_directory_; }
   const vector<string>& edge_path() const { return edge_path_; }
 
-  void ApplyToCurrentBuffer(const Transformation& transformation);
+  void ApplyToCurrentBuffer(unique_ptr<Transformation> transformation);
 
   Environment* environment() { return &environment_; }
 

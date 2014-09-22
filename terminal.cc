@@ -92,21 +92,19 @@ void Terminal::Display(EditorState* editor_state) {
 
 void Terminal::ShowStatus(const EditorState& editor_state) {
   move(LINES - 1, 0);
+  string status;
   if (editor_state.has_current_buffer()) {
     auto buffer = editor_state.current_buffer()->second;
-    addch('[');
+    status.push_back('[');
     if (buffer->current_position_line() >= buffer->contents()->size()) {
-      addstr("<EOF>");
+      status += "<EOF>";
     } else {
-      addstr(to_string(buffer->current_position_line() + 1).c_str());
+      status += to_string(buffer->current_position_line() + 1);
     }
-    addstr(" of ");
-    addstr(to_string(buffer->contents()->size()).c_str());
-    addstr(", ");
-    addstr(to_string(buffer->current_position_col() + 1).c_str());
-    addstr("] ");
+    status += " of " + to_string(buffer->contents()->size()) + ", "
+        + to_string(buffer->current_position_col() + 1) + "] ";
 
-    string flags(buffer->FlagsString());
+    string flags = buffer->FlagsString();
     if (editor_state.repetitions() != 1) {
       flags += to_string(editor_state.repetitions());
     }
@@ -138,30 +136,53 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
     }
     if (!structure.empty()) {
       if (editor_state.sticky_structure()) {
-        transform(structure.begin(), structure.end(), structure.begin(), ::toupper);
+        transform(structure.begin(), structure.end(), structure.begin(),
+                  ::toupper);
       }
       flags += "(" + structure + ")";
     }
 
     if (!flags.empty()) {
       flags += " ";
-      addstr(flags.c_str());
+      status += " " + flags;
     }
   }
+
+  {
+    int running = 0;
+    int failed = 0;
+    for (const auto& it : *editor_state.buffers()) {
+      if (it.second->child_pid() != -1) {
+        running++;
+      } else {
+        int status = it.second->child_exit_status();
+        if (WIFEXITED(status)) {
+          if (WEXITSTATUS(status)) {
+            failed++;
+          }
+        }
+      }
+    }
+    if (running > 0) {
+      status += "run:" + to_string(running) + " ";
+    }
+    if (failed > 0) {
+      status += "fail:" + to_string(failed) + " ";
+    }
+  }
+
   int y, x;
   getyx(stdscr, y, x);
-  if (x >= COLS) { return; }
-  size_t chars_left = COLS - x;
-  if (editor_state.status().size() < chars_left) {
-    addstr(editor_state.status().c_str());
-    for (size_t i = editor_state.status().size(); i < chars_left; i++) {
-      addch(' ');
-    }
-    if (editor_state.status_prompt()) {
-      move(y, x + editor_state.status().size());
-    }
-  } else {
-    addstr(editor_state.status().substr(0, chars_left).c_str());
+  status += editor_state.status();
+  x += status.size();
+  if (status.size() < static_cast<size_t>(COLS)) {
+    status += string(COLS - status.size(), ' ');
+  } else if (status.size() > static_cast<size_t>(COLS)) {
+    status = status.substr(0, COLS);
+  }
+  addstr(status.c_str());
+  if (editor_state.status_prompt()) {
+    move(y, x);
   }
 }
 
@@ -262,7 +283,7 @@ void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
   move(pos_y, pos_x);
 }
 
-int Terminal::Read(EditorState* editor_state) {
+int Terminal::Read(EditorState*) {
   int c = getch();
   //cerr << "Read: " << c << "\n";
   switch (c) {

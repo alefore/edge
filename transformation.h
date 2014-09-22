@@ -4,6 +4,8 @@
 #include <list>
 #include <memory>
 
+#include "direction.h"
+
 namespace afc {
 namespace editor {
 
@@ -20,15 +22,48 @@ class Transformation {
   virtual ~Transformation() {}
   virtual unique_ptr<Transformation> Apply(
       EditorState* editor_state, OpenBuffer* buffer) const = 0;
+  virtual unique_ptr<Transformation> Clone() = 0;
+  virtual bool ModifiesBuffer() = 0;
+};
+
+enum InsertBufferTransformationPosition {
+  // Leaves the buffer position at the start of the inserted text.
+  START,
+
+  // Leaves the buffer position at the end of the inserted text.
+  END,
 };
 
 unique_ptr<Transformation> NewInsertBufferTransformation(
-    shared_ptr<OpenBuffer> buffer_to_insert,
-    const LineColumn& position,
-    size_t repetitions);
+    shared_ptr<OpenBuffer> buffer_to_insert, size_t repetitions,
+    InsertBufferTransformationPosition insert_buffer_transformation_position);
 
-unique_ptr<Transformation> NewDeleteTransformation(
-    const LineColumn& start, const LineColumn& end, bool copy_to_paste_buffer);
+unique_ptr<Transformation> NewDeleteCharactersTransformation(
+    size_t repetitions, bool copy_to_paste_buffer);
+unique_ptr<Transformation> NewDeleteWordsTransformation(
+    size_t repetitions, bool copy_to_paste_buffer);
+unique_ptr<Transformation> NewDeleteLinesTransformation(
+    size_t repetitions, bool copy_to_paste_buffer);
+
+unique_ptr<Transformation> NewGotoPositionTransformation(
+    const LineColumn& position);
+
+unique_ptr<Transformation> NewNoopTransformation();
+
+// Goes to a given position and applies a transformation.
+unique_ptr<Transformation> TransformationAtPosition(
+    const LineColumn& position, unique_ptr<Transformation> transformation);
+
+unique_ptr<Transformation> ComposeTransformation(
+    unique_ptr<Transformation> a, unique_ptr<Transformation> b);
+
+// Returns a transformation that deletes superfluous characters (based on
+// OpenBuffer::variable_line_suffix_superfluous_characters) from the current
+// line.
+unique_ptr<Transformation> NewDeleteSuffixSuperfluousCharacters();
+
+unique_ptr<Transformation> NewMoveCharacterTransformation(
+    Direction direction, size_t repetitions);
 
 class TransformationStack : public Transformation {
  public:
@@ -49,10 +84,24 @@ class TransformationStack : public Transformation {
     return std::move(undo);
   }
 
+  unique_ptr<Transformation> Clone() {
+    unique_ptr<TransformationStack> output(new TransformationStack());
+    for (auto& it : stack_) {
+      output->PushBack(it->Clone());
+    }
+    return std::move(output);
+  }
+
+  virtual bool ModifiesBuffer() {
+    for (auto& it : stack_) {
+      if (it->ModifiesBuffer()) { return true; }
+    }
+    return false;
+  }
+
  private:
   list<unique_ptr<Transformation>> stack_;
 };
-
 
 }  // namespace editor
 }  // namespace afc

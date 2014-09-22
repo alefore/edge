@@ -127,5 +127,7 @@ int main(int argc, const char* argv[]) {
       buffers_reading[i]->ReadData(editor_state());
     }
   }
+
+  delete editor_state();
   terminal.SetStatus("done");
 }

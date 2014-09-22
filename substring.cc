@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include <glog/logging.h>
+
 namespace afc {
 namespace editor {
 
@@ -36,8 +38,8 @@ shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
   if (pos == 0 && size == input->size()) {
     return input;  // Optimization.
   }
-  assert(pos <= input->size());
-  assert(pos + size <= input->size());
+  CHECK_LE(pos, input->size());
+  CHECK_LE(pos + size, input->size());
   shared_ptr<LazyString> output(new SubstringImpl(input, pos, size));
   return output;
 }

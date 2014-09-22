@@ -18,7 +18,7 @@ class AppendExpression : public Expression {
 
   pair<Continuation, unique_ptr<Value>> Evaluate(const Evaluation& evaluation) {
     return e0_->Evaluate(Evaluation(evaluation, Continuation(
-        [this, evaluation](unique_ptr<Value> value_ignored) {
+        [this, evaluation](unique_ptr<Value>) {
           return e1_->Evaluate(evaluation);
         })));
   }

@@ -138,7 +138,7 @@ class LinePromptMode : public EditorMode {
       case Terminal::UP_ARROW:
         {
           auto buffer = GetHistoryBuffer(editor_state, history_file_)->second;
-          if (buffer == nullptr || buffer->contents()->size() == 1) { return; }
+          if (buffer == nullptr || buffer->contents()->empty()) { return; }
           LineColumn position = buffer->position();
           if (position.line > 0) {
             position.line --;
@@ -153,7 +153,7 @@ class LinePromptMode : public EditorMode {
           auto buffer = GetHistoryBuffer(editor_state, history_file_)->second;
           if (buffer == nullptr || buffer->contents()->size() == 1) { return; }
           LineColumn position = buffer->position();
-          if (position.line + 1 < buffer->contents()->size()) {
+          if (position.line + 1 <= buffer->contents()->size()) {
             position.line ++;
             buffer->set_position(position);
           }
@@ -173,7 +173,7 @@ class LinePromptMode : public EditorMode {
 
  private:
   void SetInputFromCurrentLine(const shared_ptr<OpenBuffer>& buffer) {
-    if (buffer == nullptr) {
+    if (buffer == nullptr || buffer->line() == buffer->line_end()) {
       input_ = EditableString::New("");
       return;
     }
@@ -238,7 +238,7 @@ void Prompt(EditorState* editor_state,
       editor_state->current_buffer()));
   auto history = GetHistoryBuffer(editor_state, history_file);
   history->second->set_current_position_line(
-      history->second->contents()->size() - 1);
+      history->second->contents()->size());
   line_prompt_mode->UpdateStatus(editor_state);
   editor_state->set_mode(std::move(line_prompt_mode));
   editor_state->set_status_prompt(true);

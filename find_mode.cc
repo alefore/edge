@@ -30,6 +30,8 @@ class FindMode : public EditorMode {
         delta = -1;
         times = position + 1;
         break;
+      default:
+        assert(false);
     }
 
     if (times == 0) {

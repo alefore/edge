@@ -54,6 +54,10 @@ struct LineColumn {
     return to_string(line) + " " + to_string(column);
   }
 
+  bool operator==(const LineColumn& rhs) const {
+    return line == rhs.line && column == rhs.column;
+  }
+
   size_t line;
   size_t column;
 };
@@ -224,7 +228,8 @@ class OpenBuffer {
   //
   // If no word can be found (e.g. we're on a whitespace that's not followed by
   // any word characters), returns false.
-  bool BoundWordAt(const LineColumn& position, LineColumn* start, LineColumn* end);
+  bool BoundWordAt(
+      const LineColumn& position, LineColumn* start, LineColumn* end);
 
   const shared_ptr<Line> current_line() const {
     if (line_end() == BufferLineConstIterator(line_)) { return nullptr; }
@@ -343,6 +348,17 @@ class OpenBuffer {
     return line_;
   }
 
+  void LineUp() {
+    line()--;
+    set_bool_variable(OpenBuffer::variable_follow_end_of_file(), false);
+  }
+
+  void LineDown() {
+    line()++;
+    set_bool_variable(OpenBuffer::variable_follow_end_of_file(),
+                      line() == line_end());
+  }
+
   const LineColumn position() const {
     return LineColumn(line_.line(), column_);
   }
@@ -420,11 +436,23 @@ class OpenBuffer {
   void set_value_variable(const EdgeVariable<unique_ptr<Value>>* variable,
                           unique_ptr<Value> value);
 
-  void Apply(EditorState* editor_state, const Transformation& transformation);
+  void Apply(EditorState* editor_state,
+             unique_ptr<Transformation> transformation);
+  void RepeatLastTransformation(EditorState* editor_state);
+
+  void PushTransformationStack();
+  void PopTransformationStack();
+  bool HasTransformationStack() const {
+    return !last_transformation_stack_.empty();
+  }
+
   void Undo(EditorState* editor_state);
 
   void set_filter(unique_ptr<Value> filter);
   bool IsLineFiltered(size_t line);
+
+  pid_t child_pid() const { return child_pid_; }
+  int child_exit_status() const { return child_exit_status_; }
 
  protected:
   vector<unique_ptr<ParseTree>> parse_tree;
@@ -484,6 +512,15 @@ class OpenBuffer {
  private:
   void ProcessCommandInput(
       EditorState* editor_state, shared_ptr<LazyString> str);
+  unique_ptr<Transformation> last_transformation_;
+
+  // We allow the user to group many transformations in one.  They each get
+  // applied immediately, but upon repeating, the whole operation gets repeated.
+  // This is controlled through OpenBuffer::PushTransformationStack, which sets
+  // this to non-null (to signal that we've entered this mode) and
+  // OpenBuffer::PopTransformationStack (which sets this back to null and moves
+  // this value to last_transformation_).
+  list<unique_ptr<TransformationStack>> last_transformation_stack_;
 };
 
 }  // namespace editor
