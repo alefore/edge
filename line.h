@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include <glog/logging.h>
+
 #include "lazy_string.h"
 
 namespace afc {
@@ -50,7 +52,7 @@ class Line {
   shared_ptr<LazyString> contents() { return contents_; }
   size_t size() const { return contents_->size(); }
   int get(size_t column) {
-    assert(column < contents_->size());
+    CHECK_LT(column, contents_->size());
     return contents_->get(column);
   }
   shared_ptr<LazyString> Substring(size_t pos, size_t length);

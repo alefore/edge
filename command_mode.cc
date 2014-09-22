@@ -498,54 +498,10 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
 /* static */ void MoveForwards::Move(int c, EditorState* editor_state) {
   switch (editor_state->structure()) {
     case EditorState::CHAR:
-      {
-        if (!editor_state->has_current_buffer()) { return; }
-        editor_state->ApplyToCurrentBuffer(NewMoveTransformation());
-        editor_state->ResetRepetitions();
-        editor_state->ResetStructure();
-        editor_state->ResetDirection();
-      }
-      break;
-
     case EditorState::WORD:
       {
         if (!editor_state->has_current_buffer()) { return; }
-        shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-        buffer->CheckPosition();
-        buffer->MaybeAdjustPositionCol();
-        if (buffer->current_line() == nullptr) { return; }
-        const string& word_characters =
-            buffer->read_string_variable(buffer->variable_word_characters());
-        while (editor_state->repetitions() > 0) {
-          // Seek forwards until we're not in a word character.
-          while (buffer->current_position_col() < buffer->current_line()->size()
-                 && word_characters.find(buffer->current_character()) != string::npos) {
-            buffer->set_current_position_col(buffer->current_position_col() + 1);
-          }
-
-          // Seek forwards until we're in a word character.
-          bool advanced = false;
-          while (!buffer->at_end()
-                 && (buffer->current_position_col() ==
-                         buffer->current_line()->size()
-                     || word_characters.find(buffer->current_character()) ==
-                            string::npos)) {
-            if (buffer->current_position_col() ==
-                    buffer->current_line()->size()) {
-              buffer->set_current_position_line(buffer->current_position_line() + 1);
-              buffer->set_current_position_col(0);
-            } else {
-              buffer->set_current_position_col(buffer->current_position_col() + 1);
-            }
-            advanced = true;
-          }
-          if (advanced) {
-            editor_state->set_repetitions(editor_state->repetitions() - 1);
-          } else {
-            editor_state->set_repetitions(0);
-          }
-        }
-        editor_state->PushCurrentPosition();
+        editor_state->ApplyToCurrentBuffer(NewMoveTransformation());
         editor_state->ResetRepetitions();
         editor_state->ResetStructure();
         editor_state->ResetDirection();
@@ -582,58 +538,13 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
   }
   switch (editor_state->structure()) {
     case EditorState::CHAR:
+    case EditorState::WORD:
       {
         if (!editor_state->has_current_buffer()) { return; }
         editor_state->set_direction(
             ReverseDirection(editor_state->direction()));
         MoveForwards::Move(c, editor_state);
         return;
-      }
-      break;
-
-    case EditorState::WORD:
-      {
-        if (!editor_state->has_current_buffer()) { return; }
-        shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-        buffer->CheckPosition();
-        if (buffer->current_line() == nullptr) { return; }
-        buffer->MaybeAdjustPositionCol();
-        const string& word_characters =
-            buffer->read_string_variable(buffer->variable_word_characters());
-        while (editor_state->repetitions() > 0) {
-          // Seek backwards until we're not after a word character.
-          while (buffer->current_position_col() > 0
-                 && word_characters.find(buffer->previous_character()) != string::npos) {
-            buffer->set_current_position_col(buffer->current_position_col() - 1);
-          }
-
-          // Seek backwards until we're just after a word character.
-          bool advanced = false;
-          while (!buffer->at_beginning()
-                 && (buffer->at_beginning_of_line()
-                     || word_characters.find(buffer->previous_character()) == string::npos)) {
-            if (buffer->at_beginning_of_line()) {
-              buffer->set_current_position_line(buffer->current_position_line() - 1);
-              buffer->set_current_position_col(buffer->current_line()->size());
-            } else {
-              buffer->set_current_position_col(buffer->current_position_col() - 1);
-            }
-            advanced = true;
-          }
-          if (advanced) {
-            editor_state->set_repetitions(editor_state->repetitions() - 1);
-          } else {
-            editor_state->set_repetitions(0);
-          }
-        }
-        if (!buffer->at_beginning_of_line()) {
-          buffer->set_current_position_col(buffer->current_position_col() - 1);
-        }
-
-        editor_state->PushCurrentPosition();
-        editor_state->ResetRepetitions();
-        editor_state->ResetStructure();
-        editor_state->ResetDirection();
       }
       break;
 
