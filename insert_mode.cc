@@ -121,6 +121,10 @@ class InsertMode : public EditorMode {
         buffer->MaybeAdjustPositionCol();
         buffer->Apply(editor_state, NewDeleteSuffixSuperfluousCharacters());
         buffer->PopTransformationStack();
+        for (size_t i = 1; i < editor_state->repetitions(); i++) {
+          editor_state->current_buffer()
+              ->second->RepeatLastTransformation(editor_state);
+        }
         editor_state->PushCurrentPosition();
         editor_state->ResetStatus();
         editor_state->ResetMode();
