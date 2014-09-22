@@ -28,9 +28,11 @@ extern "C" {
 #include "vm/public/value.h"
 #include "vm/public/vm.h"
 
+namespace afc {
+namespace editor {
+
 namespace {
 
-using namespace afc::editor;
 using std::cerr;
 using std::unordered_set;
 
@@ -216,9 +218,6 @@ static void RegisterBufferFieldValue(
 }
 
 }  // namespace
-
-namespace afc {
-namespace editor {
 
 using namespace afc::vm;
 using std::to_string;
