@@ -26,6 +26,7 @@
 #include "substring.h"
 #include "terminal.h"
 #include "transformation.h"
+#include "transformation_delete.h"
 #include "transformation_move.h"
 
 namespace {
@@ -188,32 +189,15 @@ class Delete : public Command {
 
     switch (editor_state->structure()) {
       case EditorState::CHAR:
-        if (editor_state->has_current_buffer()) {
-          auto buffer = editor_state->current_buffer()->second;
-          editor_state->ApplyToCurrentBuffer(
-              NewDeleteCharactersTransformation(
-                  editor_state->repetitions(), true));
-          editor_state->ScheduleRedraw();
-        }
-        break;
-
       case EditorState::WORD:
-        if (editor_state->has_current_buffer()) {
-          auto buffer = editor_state->current_buffer()->second;
-          editor_state->ApplyToCurrentBuffer(
-              NewDeleteWordsTransformation(editor_state->repetitions(), true));
-          editor_state->ScheduleRedraw();
-        }
-        break;
-
       case EditorState::LINE:
         if (editor_state->has_current_buffer()) {
           auto buffer = editor_state->current_buffer()->second;
-          editor_state->ApplyToCurrentBuffer(
-              NewDeleteLinesTransformation(editor_state->repetitions(), true));
+          editor_state->ApplyToCurrentBuffer(NewDeleteTransformation(true));
           editor_state->ScheduleRedraw();
         }
         break;
+
 
       case EditorState::PAGE:
         // TODO: Implement.
@@ -827,7 +811,7 @@ class SwitchCaseTransformation : public Transformation {
           NewCopyString(string(1, isupper(c) ? tolower(c) : toupper(c))));
       editor_state->ScheduleRedraw();
 
-      stack->PushBack(NewDeleteCharactersTransformation(1, false));
+      stack->PushBack(NewDeleteCharactersTransformation(false));
       stack->PushBack(NewInsertBufferTransformation(buffer_to_insert, 1, END));
     }
 

@@ -21,6 +21,7 @@ extern "C" {
 #include "run_command_handler.h"
 #include "server.h"
 #include "substring.h"
+#include "transformation_delete.h"
 #include "vm/public/value.h"
 
 namespace {
@@ -195,13 +196,12 @@ EditorState::EditorState()
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
     callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
           if (!has_current_buffer()) { return Value::NewVoid(); }
           auto buffer = current_buffer()->second;
           buffer->Apply(this,
-              NewDeleteCharactersTransformation(args[0]->integer, true));
+              NewDeleteCharactersTransformation(true));
           return Value::NewVoid();
         };
     environment_.Define("DeleteCharacters", std::move(callback));

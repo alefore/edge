@@ -38,13 +38,6 @@ unique_ptr<Transformation> NewInsertBufferTransformation(
     shared_ptr<OpenBuffer> buffer_to_insert, size_t repetitions,
     InsertBufferTransformationPosition insert_buffer_transformation_position);
 
-unique_ptr<Transformation> NewDeleteCharactersTransformation(
-    size_t repetitions, bool copy_to_paste_buffer);
-unique_ptr<Transformation> NewDeleteWordsTransformation(
-    size_t repetitions, bool copy_to_paste_buffer);
-unique_ptr<Transformation> NewDeleteLinesTransformation(
-    size_t repetitions, bool copy_to_paste_buffer);
-
 unique_ptr<Transformation> NewGotoPositionTransformation(
     const LineColumn& position);
 
@@ -61,6 +54,11 @@ unique_ptr<Transformation> ComposeTransformation(
 // OpenBuffer::variable_line_suffix_superfluous_characters) from the current
 // line.
 unique_ptr<Transformation> NewDeleteSuffixSuperfluousCharacters();
+
+// Returns a transformation that sets the number of repetitions to a given
+// value, calls a delegate and then restores the original number.
+unique_ptr<Transformation> NewRepetitionsTransformation(
+    size_t repetitions, unique_ptr<Transformation> transformation);
 
 class TransformationStack : public Transformation {
  public:
