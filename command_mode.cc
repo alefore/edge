@@ -26,6 +26,7 @@
 #include "substring.h"
 #include "terminal.h"
 #include "transformation.h"
+#include "transformation_move.h"
 
 namespace {
 using std::advance;
@@ -495,17 +496,11 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
 }
 
 /* static */ void MoveForwards::Move(int c, EditorState* editor_state) {
-  if (editor_state->direction() == BACKWARDS) {
-    editor_state->set_direction(FORWARDS);
-    MoveBackwards::Move(c, editor_state);
-    return;
-  }
   switch (editor_state->structure()) {
     case EditorState::CHAR:
       {
         if (!editor_state->has_current_buffer()) { return; }
-        editor_state->ApplyToCurrentBuffer(NewMoveCharacterTransformation(
-            FORWARDS, editor_state->repetitions()));
+        editor_state->ApplyToCurrentBuffer(NewMoveTransformation());
         editor_state->ResetRepetitions();
         editor_state->ResetStructure();
         editor_state->ResetDirection();
@@ -589,11 +584,10 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
     case EditorState::CHAR:
       {
         if (!editor_state->has_current_buffer()) { return; }
-        editor_state->ApplyToCurrentBuffer(NewMoveCharacterTransformation(
-            BACKWARDS, editor_state->repetitions()));
-        editor_state->ResetRepetitions();
-        editor_state->ResetStructure();
-        editor_state->ResetDirection();
+        editor_state->set_direction(
+            ReverseDirection(editor_state->direction()));
+        MoveForwards::Move(c, editor_state);
+        return;
       }
       break;
 

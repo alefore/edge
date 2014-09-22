@@ -62,9 +62,6 @@ unique_ptr<Transformation> ComposeTransformation(
 // line.
 unique_ptr<Transformation> NewDeleteSuffixSuperfluousCharacters();
 
-unique_ptr<Transformation> NewMoveCharacterTransformation(
-    Direction direction, size_t repetitions);
-
 class TransformationStack : public Transformation {
  public:
   void PushBack(unique_ptr<Transformation> transformation) {

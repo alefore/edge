@@ -30,6 +30,7 @@ server.cc \
 substring.cc \
 terminal.cc \
 transformation.cc \
+transformation_move.cc \
 vm/internal/vm.cc \
 vm/internal/value.cc \
 vm/internal/string.cc \

@@ -312,46 +312,6 @@ class DeleteSuffixSuperfluousCharacters : public Transformation {
   virtual bool ModifiesBuffer() { return true; }
 };
 
-class MoveCharacterTransformation : public Transformation {
- public:
-  MoveCharacterTransformation(Direction direction, size_t repetitions)
-      : direction_(direction), repetitions_(repetitions) {}
-
-  unique_ptr<Transformation> Apply(
-      EditorState* editor_state, OpenBuffer* buffer) const {
-    buffer->CheckPosition();
-    if (buffer->current_line() == nullptr) { return NewNoopTransformation(); }
-    LineColumn position = buffer->position();
-    switch (direction_) {
-      case FORWARDS:
-        position.column = min(position.column + repetitions_,
-            buffer->current_line()->size());
-        break;
-      case BACKWARDS:
-        position.column = min(position.column, buffer->current_line()->size());
-        position.column -= min(position.column, repetitions_);
-        break;
-      default:
-        CHECK(false);
-    }
-    unique_ptr<Transformation> undo(
-        NewGotoPositionTransformation(position)->Apply(editor_state, buffer));
-    if (repetitions_ > 1) {
-      editor_state->PushCurrentPosition();
-    }
-    return std::move(undo);
-  }
-
-  unique_ptr<Transformation> Clone() {
-    return NewMoveCharacterTransformation(direction_, repetitions_);
-  }
-
-  bool ModifiesBuffer() { return false; }
-
- private:
-  Direction direction_;
-  size_t repetitions_;
-};
 
 }  // namespace
 
@@ -408,12 +368,6 @@ unique_ptr<Transformation> TransformationAtPosition(
 
 unique_ptr<Transformation> NewDeleteSuffixSuperfluousCharacters() {
   return unique_ptr<Transformation>(new DeleteSuffixSuperfluousCharacters());
-}
-
-unique_ptr<Transformation> NewMoveCharacterTransformation(
-    Direction direction, size_t repetitions) {
-  return unique_ptr<Transformation>(
-      new MoveCharacterTransformation(direction, repetitions));
 }
 
 }  // namespace editor
