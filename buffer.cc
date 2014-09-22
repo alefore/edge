@@ -222,6 +222,11 @@ static void RegisterBufferFieldValue(
 using namespace afc::vm;
 using std::to_string;
 
+ostream& operator<<(ostream& os, const LineColumn& lc) {
+    os << "[" << lc.line << ":" << lc.column << "]";
+    return os;
+}
+
 bool LineColumn::operator!=(const LineColumn& other) const {
   return line != other.line || column != other.column;
 }

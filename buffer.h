@@ -29,6 +29,7 @@ using std::map;
 using std::max;
 using std::min;
 using std::multimap;
+using std::ostream;
 
 using namespace afc::vm;
 
@@ -60,7 +61,11 @@ struct LineColumn {
 
   size_t line;
   size_t column;
+
+  friend ostream& operator<<(ostream& os, const LineColumn& lc);
 };
+
+ostream& operator<<(ostream& os, const LineColumn& lc);
 
 template <typename T, typename B>
 class BufferLineGenericIterator
