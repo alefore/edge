@@ -23,8 +23,8 @@ namespace {
 using namespace afc::editor;
 
 class NewLineTransformation : public Transformation {
-  unique_ptr<Transformation> Apply(
-      EditorState* editor_state, OpenBuffer* buffer) const {
+  void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     buffer->MaybeAdjustPositionCol();
     const size_t column = buffer->position().column;
     auto current_line = buffer->current_line();
@@ -32,7 +32,7 @@ class NewLineTransformation : public Transformation {
     if (buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())
         && column != 0
         && (current_line == nullptr || column != current_line->size())) {
-      return NewNoopTransformation();
+      return;
     }
 
     const string& line_prefix_characters(buffer->read_string_variable(
@@ -75,7 +75,7 @@ class NewLineTransformation : public Transformation {
     }
     transformation->PushBack(NewGotoPositionTransformation(
         LineColumn(buffer->position().line + 1, prefix_end)));
-    return transformation->Apply(editor_state, buffer);
+    return transformation->Apply(editor_state, buffer, result);
   }
 
   unique_ptr<Transformation> Clone() {
@@ -89,8 +89,8 @@ class InsertEmptyLineTransformation : public Transformation {
  public:
   InsertEmptyLineTransformation(Direction direction) : direction_(direction) {}
 
-  unique_ptr<Transformation> Apply(
-      EditorState* editor_state, OpenBuffer* buffer) const {
+  void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     LineColumn position = direction_ == BACKWARDS
         ? LineColumn(buffer->position().line + 1)
         : LineColumn(buffer->position().line);
@@ -98,7 +98,7 @@ class InsertEmptyLineTransformation : public Transformation {
         TransformationAtPosition(position,
             unique_ptr<Transformation>(new NewLineTransformation())),
         NewGotoPositionTransformation(position))
-            ->Apply(editor_state, buffer);
+            ->Apply(editor_state, buffer, result);
   }
 
   unique_ptr<Transformation> Clone() {

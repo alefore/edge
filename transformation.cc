@@ -16,10 +16,11 @@ class GotoPositionTransformation : public Transformation {
   GotoPositionTransformation(const LineColumn& position)
       : position_(position) {}
 
-  unique_ptr<Transformation> Apply(EditorState*, OpenBuffer* buffer) const {
-    LineColumn initial_position = buffer->position();
+  void Apply(EditorState*, OpenBuffer* buffer, Result* result) const {
+    CHECK(buffer != nullptr);
+    CHECK(result != nullptr);
+    result->undo = NewGotoPositionTransformation(buffer->position());
     buffer->set_position(position_);
-    return NewGotoPositionTransformation(initial_position);
   }
 
   unique_ptr<Transformation> Clone() {
@@ -56,8 +57,8 @@ class InsertBufferTransformation : public Transformation {
     CHECK(buffer_to_insert_ != nullptr);
   }
 
-  unique_ptr<Transformation> Apply(
-      EditorState* editor_state, OpenBuffer* buffer) const {
+  void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     LineColumn start_position = buffer->position();
     for (size_t i = 0; i < repetitions_; i++) {
       buffer->set_position(
@@ -68,7 +69,8 @@ class InsertBufferTransformation : public Transformation {
       buffer->set_position(start_position);
     }
 
-    return TransformationAtPosition(start_position,
+    result->modified_buffer = true;
+    result->undo = TransformationAtPosition(start_position,
         NewRepetitionsTransformation(
             buffer_to_insert_length_ * repetitions_,
             NewDeleteCharactersTransformation(false)));
@@ -91,9 +93,7 @@ class InsertBufferTransformation : public Transformation {
 
 class NoopTransformation : public Transformation {
  public:
-  unique_ptr<Transformation> Apply(EditorState*, OpenBuffer*) const {
-    return NewNoopTransformation();
-  }
+  void Apply(EditorState*, OpenBuffer*, Result*) const {}
 
   unique_ptr<Transformation> Clone() { return NewNoopTransformation(); }
 
@@ -102,26 +102,26 @@ class NoopTransformation : public Transformation {
 
 class DeleteSuffixSuperfluousCharacters : public Transformation {
  public:
-  unique_ptr<Transformation> Apply(
-      EditorState* editor_state, OpenBuffer* buffer) const {
+  void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     const string& superfluous_characters(buffer->read_string_variable(
         OpenBuffer::variable_line_suffix_superfluous_characters()));
     const auto line = buffer->current_line();
-    if (!line) { return NewNoopTransformation(); }
+    if (!line) { return; }
     size_t pos = line->size();
     while (pos > 0
            && superfluous_characters.find(line->get(pos - 1)) != string::npos) {
       pos--;
     }
     if (pos == line->size()) {
-      return NewNoopTransformation();
+      return;
     }
     CHECK_LT(pos, line->size());
     return TransformationAtPosition(
         LineColumn(buffer->position().line, pos),
         NewRepetitionsTransformation(line->size() - pos,
                                      NewDeleteCharactersTransformation(false)))
-            ->Apply(editor_state, buffer);
+            ->Apply(editor_state, buffer, result);
   }
 
   unique_ptr<Transformation> Clone() {
@@ -138,13 +138,12 @@ class RepetitionsTransformation : public Transformation {
       : repetitions_(repetitions),
         delegate_(std::move(delegate)) {}
 
-  unique_ptr<Transformation> Apply(
-      EditorState* editor_state, OpenBuffer* buffer) const {
+  void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     auto original_repetitions = editor_state->repetitions();
     editor_state->set_repetitions(repetitions_);
-    auto result = delegate_->Apply(editor_state, buffer);
+    delegate_->Apply(editor_state, buffer, result);
     editor_state->set_repetitions(original_repetitions);
-    return std::move(result);
   }
 
   unique_ptr<Transformation> Clone() {
@@ -162,6 +161,9 @@ class RepetitionsTransformation : public Transformation {
 
 namespace afc {
 namespace editor {
+
+Transformation::Result::Result()
+     : success(true), modified_buffer(false), undo(NewNoopTransformation()) {}
 
 unique_ptr<Transformation> NewInsertBufferTransformation(
     shared_ptr<OpenBuffer> buffer_to_insert, size_t repetitions,

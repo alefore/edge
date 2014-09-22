@@ -14,9 +14,10 @@ namespace {
 
 class MoveTransformation : public Transformation {
  public:
-  unique_ptr<Transformation> Apply(
-      EditorState* editor_state, OpenBuffer* buffer) const {
-    if (buffer->current_line() == nullptr) { return NewNoopTransformation(); }
+  void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
+    CHECK(result);
+    if (buffer->current_line() == nullptr) { return; }
     buffer->CheckPosition();
     buffer->MaybeAdjustPositionCol();
     LineColumn position;
@@ -31,15 +32,14 @@ class MoveTransformation : public Transformation {
         CHECK(false);
     }
     LOG(INFO) << "Move to: " << position;
-    unique_ptr<Transformation> undo(
-        NewGotoPositionTransformation(position)->Apply(editor_state, buffer));
+    NewGotoPositionTransformation(position)
+        ->Apply(editor_state, buffer, result);
     if (editor_state->repetitions() > 1) {
       editor_state->PushCurrentPosition();
     }
     editor_state->ResetRepetitions();
     editor_state->ResetStructure();
     editor_state->ResetDirection();
-    return std::move(undo);
   }
 
   unique_ptr<Transformation> Clone() {

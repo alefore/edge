@@ -799,8 +799,8 @@ class RunCppFileCommand : public Command {
 
 class SwitchCaseTransformation : public Transformation {
  public:
-  unique_ptr<Transformation> Apply(
-      EditorState* editor_state, OpenBuffer* buffer) const {
+  void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     unique_ptr<TransformationStack> stack(new TransformationStack);
     if (buffer->position().line < buffer->contents()->size()
         && buffer->position().column < (*buffer->line())->size()) {
@@ -838,7 +838,7 @@ class SwitchCaseTransformation : public Transformation {
         }
     }
     stack->PushBack(NewGotoPositionTransformation(position));
-    return stack->Apply(editor_state, buffer);
+    stack->Apply(editor_state, buffer, result);
   }
 
   unique_ptr<Transformation> Clone() {

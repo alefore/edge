@@ -1440,20 +1440,21 @@ void OpenBuffer::Apply(
     CHECK(last_transformation_stack_.back() != nullptr);
     last_transformation_stack_.back()->PushBack(transformation->Clone());
   }
-  unique_ptr<Transformation> undo = transformation->Apply(editor_state, this);
-  CHECK(undo != nullptr);
-  undo_history_.push_back(std::move(undo));
+  Transformation::Result result;
+  transformation->Apply(editor_state, this, &result);
+  CHECK(result.undo != nullptr);
+  undo_history_.push_back(std::move(result.undo));
   redo_history_.clear();
-  if (transformation->ModifiesBuffer()) {
+  if (result.modified_buffer) {
     last_transformation_ = std::move(transformation);
   }
 }
 
 void OpenBuffer::RepeatLastTransformation(EditorState* editor_state) {
-  unique_ptr<Transformation> undo =
-      last_transformation_->Apply(editor_state, this);
-  CHECK(undo != nullptr);
-  undo_history_.push_back(std::move(undo));
+  Transformation::Result result;
+  last_transformation_->Apply(editor_state, this, &result);
+  CHECK(result.undo != nullptr);
+  undo_history_.push_back(std::move(result.undo));
   redo_history_.clear();
 }
 
@@ -1472,15 +1473,20 @@ void OpenBuffer::PopTransformationStack() {
 
 void OpenBuffer::Undo(EditorState* editor_state) {
   for (size_t i = 0; i < editor_state->repetitions(); i++) {
+    list<unique_ptr<Transformation>>* source;
+    list<unique_ptr<Transformation>>* target;
     if (editor_state->direction() == FORWARDS) {
-      if (undo_history_.empty()) { return; }
-      redo_history_.push_back(undo_history_.back()->Apply(editor_state, this));
-      undo_history_.pop_back();
+      source = &undo_history_;
+      target = &redo_history_;
     } else {
-      if (redo_history_.empty()) { return; }
-      undo_history_.push_back(redo_history_.back()->Apply(editor_state, this));
-      redo_history_.pop_back();
+      source = &redo_history_;
+      target = &undo_history_;
     }
+    if (source->empty()) { return; }
+    Transformation::Result result;
+    source->back()->Apply(editor_state, this, &result);
+    source->pop_back();
+    target->push_back(std::move(result.undo));
   }
 }
 

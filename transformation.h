@@ -4,6 +4,8 @@
 #include <list>
 #include <memory>
 
+#include <glog/logging.h>
+
 #include "direction.h"
 
 namespace afc {
@@ -19,9 +21,25 @@ class LineColumn;
 
 class Transformation {
  public:
+  struct Result {
+    Result();
+
+    // Did the transformation run to completion?  If it only run partially, this
+    // should be false.
+    bool success;
+
+    // This the transformation made any actual changes to the contents of the
+    // buffer?
+    bool modified_buffer;
+
+    // Reverse transformation that will undo any changes done by this one.  This
+    // should never be null (see NewNoopTransformation instead).
+    unique_ptr<Transformation> undo;
+  };
+
   virtual ~Transformation() {}
-  virtual unique_ptr<Transformation> Apply(
-      EditorState* editor_state, OpenBuffer* buffer) const = 0;
+  virtual void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const = 0;
   virtual unique_ptr<Transformation> Clone() = 0;
   virtual bool ModifiesBuffer() = 0;
 };
@@ -70,13 +88,21 @@ class TransformationStack : public Transformation {
     stack_.push_front(std::move(transformation));
   }
 
-  unique_ptr<Transformation> Apply(
-      EditorState* editor_state, OpenBuffer* buffer) const {
+  void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
+    CHECK(result != nullptr);
     unique_ptr<TransformationStack> undo(new TransformationStack());
     for (auto& it : stack_) {
-      undo->PushFront(it->Apply(editor_state, buffer));
+      Result it_result;
+      it->Apply(editor_state, buffer, &it_result);
+      result->modified_buffer |= it_result.modified_buffer;
+      undo->PushFront(std::move(it_result.undo));
+      if (!it_result.success) {
+        result->success = false;
+        break;
+      }
     }
-    return std::move(undo);
+    result->undo = std::move(undo);
   }
 
   unique_ptr<Transformation> Clone() {

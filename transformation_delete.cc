@@ -26,8 +26,8 @@ class DeleteCharactersTransformation : public Transformation {
   DeleteCharactersTransformation(bool copy_to_paste_buffer)
       : copy_to_paste_buffer_(copy_to_paste_buffer) {}
 
-  unique_ptr<Transformation> Apply(
-      EditorState* editor_state, OpenBuffer* buffer) const {
+  void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     buffer->CheckPosition();
     buffer->MaybeAdjustPositionCol();
     shared_ptr<OpenBuffer> deleted_text(
@@ -40,6 +40,7 @@ class DeleteCharactersTransformation : public Transformation {
       if (buffer->line() == buffer->line_end()) {
         LOG(INFO) << "Giving up: at end of file.";
         characters_erased = editor_state->repetitions();
+        result->success = false;
         continue;
       }
       size_t characters_left =
@@ -60,6 +61,7 @@ class DeleteCharactersTransformation : public Transformation {
                 (*buffer->line())->Substring(0, buffer->current_position_col()),
                 (*buffer->line())->Substring(
                     buffer->current_position_col() + characters_to_erase)))));
+        result->modified_buffer = true;
         needs_empty_line = false;
         continue;
       }
@@ -75,6 +77,7 @@ class DeleteCharactersTransformation : public Transformation {
               buffer->contents()->at(buffer->line().line() + 1)->contents()))));
       buffer->contents()->erase(
           buffer->contents()->begin() + buffer->line().line() + 1);
+      result->modified_buffer = true;
       needs_empty_line = true;
     }
     if (copy_to_paste_buffer_) {
@@ -83,7 +86,7 @@ class DeleteCharactersTransformation : public Transformation {
       }
       InsertDeletedTextBuffer(editor_state, deleted_text);
     }
-    return TransformationAtPosition(buffer->position(),
+    result->undo = TransformationAtPosition(buffer->position(),
         NewInsertBufferTransformation(deleted_text, 1, START));
   }
 
@@ -102,8 +105,9 @@ class DeleteWordsTransformation : public Transformation {
   DeleteWordsTransformation(bool copy_to_paste_buffer)
       : copy_to_paste_buffer_(copy_to_paste_buffer) {}
 
-  unique_ptr<Transformation> Apply(
-      EditorState* editor_state, OpenBuffer* buffer) const {
+  void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
+    CHECK(result != nullptr);
     shared_ptr<OpenBuffer> deleted_text(
         new OpenBuffer(editor_state, OpenBuffer::kPasteBuffer));
     unique_ptr<TransformationStack> stack(new TransformationStack);
@@ -112,7 +116,7 @@ class DeleteWordsTransformation : public Transformation {
       LineColumn start, end;
       if (!buffer->BoundWordAt(initial_position, &start, &end)) {
         LOG(INFO) << "Unable to bound word, giving up.";
-        return NewNoopTransformation();
+        return;
       }
       CHECK_EQ(start.line, end.line);
       CHECK_LE(start.column + 1, end.column);
@@ -127,12 +131,18 @@ class DeleteWordsTransformation : public Transformation {
       }
       LOG(INFO) << "Erasing word, characters: " << characters_to_erase;
       stack->PushFront(NewGotoPositionTransformation(initial_position));
-      stack->PushFront(
-          NewRepetitionsTransformation(characters_to_erase,
-                                       NewDeleteCharactersTransformation(true))
-              ->Apply(editor_state, buffer));
+      Result current_result;
+      NewRepetitionsTransformation(characters_to_erase,
+          NewDeleteCharactersTransformation(true))
+              ->Apply(editor_state, buffer, &current_result);
+      result->modified_buffer |= current_result.modified_buffer;
+      stack->PushFront(std::move(current_result.undo));
+      if (!current_result.success) {
+        result->success = false;
+        break;
+      }
     }
-    return std::move(stack);
+    result->undo = std::move(stack);
   }
 
   unique_ptr<Transformation> Clone() {
@@ -150,8 +160,8 @@ class DeleteLinesTransformation : public Transformation {
   DeleteLinesTransformation(bool copy_to_paste_buffer)
       : copy_to_paste_buffer_(copy_to_paste_buffer) {}
 
-  unique_ptr<Transformation> Apply(
-      EditorState* editor_state, OpenBuffer* buffer) const {
+  void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     BufferLineIterator line = buffer->line();
     size_t repetitions = min(editor_state->repetitions(),
         buffer->contents()->size() - line.line());
@@ -174,7 +184,8 @@ class DeleteLinesTransformation : public Transformation {
     if (copy_to_paste_buffer_) {
       InsertDeletedTextBuffer(editor_state, deleted_text);
     }
-    return TransformationAtPosition(LineColumn(buffer->position().line),
+    result->undo = TransformationAtPosition(
+        LineColumn(buffer->position().line),
         ComposeTransformation(
             NewInsertBufferTransformation(deleted_text, 1, END),
             NewGotoPositionTransformation(buffer->position())));
@@ -195,8 +206,8 @@ class DeleteTransformation : public Transformation {
   DeleteTransformation(bool copy_to_paste_buffer)
       : copy_to_paste_buffer_(copy_to_paste_buffer) {}
 
-  unique_ptr<Transformation> Apply(
-      EditorState* editor_state, OpenBuffer* buffer) const {
+  void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     unique_ptr<Transformation> delegate;
     switch (editor_state->structure()) {
       case EditorState::CHAR:
@@ -213,7 +224,7 @@ class DeleteTransformation : public Transformation {
                   << editor_state->structure();
         delegate = NewNoopTransformation();
     }
-    return delegate->Apply(editor_state, buffer);
+    return delegate->Apply(editor_state, buffer, result);
   }
 
   unique_ptr<Transformation> Clone() {
