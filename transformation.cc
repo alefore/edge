@@ -328,6 +328,7 @@ class MoveCharacterTransformation : public Transformation {
             buffer->current_line()->size());
         break;
       case BACKWARDS:
+        position.column = min(position.column, buffer->current_line()->size());
         position.column -= min(position.column, repetitions_);
         break;
       default:
