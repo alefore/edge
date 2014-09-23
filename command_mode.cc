@@ -651,7 +651,10 @@ class SetStructureModifierCommand : public Command {
   }
 
   void ProcessInput(int, EditorState* editor_state) {
-    editor_state->set_structure_modifier(value_);
+    editor_state->set_structure_modifier(
+        editor_state->structure_modifier() == value_
+        ? EditorState::ENTIRE_STRUCTURE
+        : value_);
   }
 
  private:
