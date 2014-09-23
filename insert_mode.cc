@@ -57,10 +57,8 @@ class NewLineTransformation : public Transformation {
     unique_ptr<TransformationStack> transformation(new TransformationStack);
 
     if (current_line != nullptr && column < current_line->size()) {
-      transformation->PushBack(
-          NewRepetitionsTransformation(
-              current_line->size() - column,
-              NewDeleteCharactersTransformation(false)));
+      transformation->PushBack(NewDeleteCharactersTransformation(
+          current_line->size() - column, false));
     }
     transformation->PushBack(NewDeleteSuffixSuperfluousCharacters());
 
@@ -164,8 +162,7 @@ class InsertMode : public EditorMode {
           }
           buffer->Apply(editor_state,
               TransformationAtPosition(start,
-                  NewRepetitionsTransformation(1,
-                      NewDeleteCharactersTransformation(false))));
+                  NewDeleteCharactersTransformation(1, false)));
           buffer->set_modified(true);
           editor_state->ScheduleRedraw();
         }

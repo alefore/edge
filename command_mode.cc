@@ -193,7 +193,8 @@ class Delete : public Command {
       case EditorState::LINE:
         if (editor_state->has_current_buffer()) {
           auto buffer = editor_state->current_buffer()->second;
-          editor_state->ApplyToCurrentBuffer(NewDeleteTransformation(true));
+          editor_state->ApplyToCurrentBuffer(NewDeleteTransformation(
+              editor_state->structure(), editor_state->repetitions(), true));
           editor_state->ScheduleRedraw();
         }
         break;
@@ -811,7 +812,7 @@ class SwitchCaseTransformation : public Transformation {
           NewCopyString(string(1, isupper(c) ? tolower(c) : toupper(c))));
       editor_state->ScheduleRedraw();
 
-      stack->PushBack(NewDeleteCharactersTransformation(false));
+      stack->PushBack(NewDeleteCharactersTransformation(1, false));
       stack->PushBack(NewInsertBufferTransformation(buffer_to_insert, 1, END));
     }
 
