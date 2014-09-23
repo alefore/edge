@@ -7,6 +7,7 @@
 #include <glog/logging.h>
 
 #include "direction.h"
+#include "structure.h"
 
 namespace afc {
 namespace editor {
@@ -74,8 +75,21 @@ unique_ptr<Transformation> NewDeleteSuffixSuperfluousCharacters();
 
 // Returns a transformation that sets the number of repetitions to a given
 // value, calls a delegate and then restores the original number.
-unique_ptr<Transformation> NewRepetitionsTransformation(
+unique_ptr<Transformation> NewSetRepetitionsTransformation(
     size_t repetitions, unique_ptr<Transformation> transformation);
+
+// Returns a transformation that repeats another transformation a given number
+// of times.
+unique_ptr<Transformation> NewApplyRepetitionsTransformation(
+    size_t repetitions, unique_ptr<Transformation> transformation);
+
+unique_ptr<Transformation> NewDirectionTransformation(
+    Direction direction, unique_ptr<Transformation> transformation);
+
+unique_ptr<Transformation> NewStructureTransformation(
+    Structure structure,
+    StructureModifier structure_modifier,
+    unique_ptr<Transformation> transformation);
 
 class TransformationStack : public Transformation {
  public:

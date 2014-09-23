@@ -27,6 +27,7 @@ run_command_handler.cc \
 search_handler.cc \
 secondary_mode.cc \
 server.cc \
+structure.cc \
 substring.cc \
 terminal.cc \
 transformation.cc \

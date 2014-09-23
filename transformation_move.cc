@@ -22,10 +22,10 @@ class MoveTransformation : public Transformation {
     buffer->MaybeAdjustPositionCol();
     LineColumn position;
     switch (editor_state->structure()) {
-      case EditorState::CHAR:
+      case CHAR:
         position = MoveCharacter(editor_state, buffer);
         break;
-      case EditorState::WORD:
+      case WORD:
         position = MoveWord(editor_state, buffer);
         break;
       default:

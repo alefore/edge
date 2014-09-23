@@ -206,12 +206,12 @@ class ForkEditorCommand : public Command {
 
   void ProcessInput(int, EditorState* editor_state) {
     switch (editor_state->structure()) {
-      case EditorState::CHAR:
+      case CHAR:
         Prompt(editor_state, "$ ", "commands", "", RunCommandHandler,
                EmptyPredictor);
         break;
 
-      case EditorState::LINE:
+      case LINE:
         {
           if (!editor_state->has_current_buffer()
               || editor_state->current_buffer()->second->current_line() == nullptr) {

@@ -116,21 +116,21 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
 
     string structure;
     switch (editor_state.structure()) {
-      case EditorState::CHAR:
+      case CHAR:
         break;
-      case EditorState::WORD:
+      case WORD:
         structure = "word";
         break;
-      case EditorState::LINE:
+      case LINE:
         structure = "line";
         break;
-      case EditorState::PAGE:
+      case PAGE:
         structure = "page";
         break;
-      case EditorState::SEARCH:
+      case SEARCH:
         structure = "search";
         break;
-      case EditorState::BUFFER:
+      case BUFFER:
         structure = "buffer";
         break;
     }
@@ -140,12 +140,12 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
                   ::toupper);
       }
       switch (editor_state.structure_modifier()) {
-        case EditorState::ENTIRE_STRUCTURE:
+        case ENTIRE_STRUCTURE:
           break;
-        case EditorState::FROM_BEGINNING_TO_CURRENT_POSITION:
+        case FROM_BEGINNING_TO_CURRENT_POSITION:
           structure = "[..." + structure;
           break;
-        case EditorState::FROM_CURRENT_POSITION_TO_END:
+        case FROM_CURRENT_POSITION_TO_END:
           structure = structure + "...]";
           break;
       }

@@ -122,10 +122,10 @@ class DeleteSuffixSuperfluousCharacters : public Transformation {
   }
 };
 
-class RepetitionsTransformation : public Transformation {
+class SetRepetitionsTransformation : public Transformation {
  public:
-  RepetitionsTransformation(int repetitions,
-                            unique_ptr<Transformation> delegate)
+  SetRepetitionsTransformation(int repetitions,
+                               unique_ptr<Transformation> delegate)
       : repetitions_(repetitions),
         delegate_(std::move(delegate)) {}
 
@@ -138,11 +138,97 @@ class RepetitionsTransformation : public Transformation {
   }
 
   unique_ptr<Transformation> Clone() {
-    return NewRepetitionsTransformation(repetitions_, delegate_->Clone());
+    return NewSetRepetitionsTransformation(repetitions_, delegate_->Clone());
   }
 
  private:
   size_t repetitions_;
+  unique_ptr<Transformation> delegate_;
+};
+
+class ApplyRepetitionsTransformation : public Transformation {
+ public:
+  ApplyRepetitionsTransformation(int repetitions,
+                                 unique_ptr<Transformation> delegate)
+      : repetitions_(repetitions),
+        delegate_(std::move(delegate)) {}
+
+  void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
+    unique_ptr<TransformationStack> undo_stack(new TransformationStack);
+    for (size_t i = 0; i < repetitions_; i++) {
+      Result current_result;
+      delegate_->Apply(editor_state, buffer, &current_result);
+      result->modified_buffer |= current_result.modified_buffer;
+      undo_stack->PushFront(std::move(current_result.undo));
+      if (!current_result.success) {
+        break;
+      }
+    }
+    result->undo = std::move(undo_stack);
+  }
+
+  unique_ptr<Transformation> Clone() {
+    return NewApplyRepetitionsTransformation(repetitions_, delegate_->Clone());
+  }
+
+ private:
+  size_t repetitions_;
+  unique_ptr<Transformation> delegate_;
+};
+
+class DirectionTransformation : public Transformation {
+ public:
+  DirectionTransformation(Direction direction,
+                          unique_ptr<Transformation> delegate)
+      : direction_(direction),
+        delegate_(std::move(delegate)) {}
+
+  void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
+    auto original_direction = editor_state->direction();
+    editor_state->set_direction(direction_);
+    delegate_->Apply(editor_state, buffer, result);
+    editor_state->set_direction(original_direction);
+  }
+
+  unique_ptr<Transformation> Clone() {
+    return NewDirectionTransformation(direction_, delegate_->Clone());
+  }
+
+ private:
+  Direction direction_;
+  unique_ptr<Transformation> delegate_;
+};
+
+class StructureTransformation : public Transformation {
+ public:
+  StructureTransformation(Structure structure,
+                          StructureModifier structure_modifier,
+                          unique_ptr<Transformation> delegate)
+      : structure_(structure),
+        structure_modifier_(structure_modifier),
+        delegate_(std::move(delegate)) {}
+
+  void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
+    auto original_structure = editor_state->structure();
+    auto original_structure_modifier = editor_state->structure_modifier();
+    editor_state->set_structure(structure_);
+    editor_state->set_structure_modifier(structure_modifier_);
+    delegate_->Apply(editor_state, buffer, result);
+    editor_state->set_structure(original_structure);
+    editor_state->set_structure_modifier(original_structure_modifier);
+  }
+
+  unique_ptr<Transformation> Clone() {
+    return NewStructureTransformation(
+        structure_, structure_modifier_, delegate_->Clone());
+  }
+
+ private:
+  Structure structure_;
+  StructureModifier structure_modifier_;
   unique_ptr<Transformation> delegate_;
 };
 
@@ -188,12 +274,31 @@ unique_ptr<Transformation> NewDeleteSuffixSuperfluousCharacters() {
   return unique_ptr<Transformation>(new DeleteSuffixSuperfluousCharacters());
 }
 
-unique_ptr<Transformation> NewRepetitionsTransformation(
+unique_ptr<Transformation> NewSetRepetitionsTransformation(
     size_t repetitions, unique_ptr<Transformation> transformation) {
   return unique_ptr<Transformation>(
-      new RepetitionsTransformation(repetitions, std::move(transformation)));
+      new SetRepetitionsTransformation(repetitions, std::move(transformation)));
 }
 
+unique_ptr<Transformation> NewApplyRepetitionsTransformation(
+    size_t repetitions, unique_ptr<Transformation> transformation) {
+  return unique_ptr<Transformation>(new ApplyRepetitionsTransformation(
+      repetitions, std::move(transformation)));
+}
+
+unique_ptr<Transformation> NewDirectionTransformation(
+    Direction direction, unique_ptr<Transformation> transformation) {
+  return unique_ptr<Transformation>(
+      new DirectionTransformation(direction, std::move(transformation)));
+}
+
+unique_ptr<Transformation> NewStructureTransformation(
+    Structure structure,
+    StructureModifier structure_modifier,
+    unique_ptr<Transformation> transformation) {
+  return unique_ptr<Transformation>(new StructureTransformation(
+      structure, structure_modifier, std::move(transformation)));
+}
 
 }  // namespace editor
 }  // namespace afc

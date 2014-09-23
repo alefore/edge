@@ -34,33 +34,6 @@ struct BufferPosition {
 
 class EditorState {
  public:
-  enum Structure {
-    CHAR,
-    WORD,
-    LINE,
-    PAGE,
-    SEARCH,
-    BUFFER,
-  };
-
-  enum StructureModifier {
-    ENTIRE_STRUCTURE,
-    FROM_BEGINNING_TO_CURRENT_POSITION,
-    FROM_CURRENT_POSITION_TO_END,
-  };
-
-  static Structure LowerStructure(Structure s) {
-    switch (s) {
-      case CHAR: return CHAR;
-      case WORD: return CHAR;
-      case LINE: return WORD;
-      case PAGE: return LINE;
-      case SEARCH: return PAGE;
-      case BUFFER: return SEARCH;
-    }
-    assert(false);
-  }
-
   EditorState();
   ~EditorState();
 

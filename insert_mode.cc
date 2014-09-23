@@ -314,11 +314,11 @@ void EnterInsertMode(EditorState* editor_state) {
   if (editor_state->current_buffer()->second->fd() != -1) {
     editor_state->SetStatus("type (raw)");
     editor_state->set_mode(unique_ptr<EditorMode>(new RawInputTypeMode()));
-  } else if (editor_state->structure() == EditorState::CHAR) {
+  } else if (editor_state->structure() == CHAR) {
     editor_state->current_buffer()->second->CheckPosition();
     buffer->PushTransformationStack();
     EnterInsertCharactersMode(editor_state);
-  } else if (editor_state->structure() == EditorState::LINE) {
+  } else if (editor_state->structure() == LINE) {
     editor_state->current_buffer()->second->CheckPosition();
     auto buffer = editor_state->current_buffer()->second;
     buffer->PushTransformationStack();

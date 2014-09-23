@@ -52,7 +52,7 @@ class GotoCommand : public Command {
     if (!editor_state->has_current_buffer()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
     switch (editor_state->structure()) {
-      case EditorState::CHAR:
+      case CHAR:
         {
           if (buffer->current_line() == nullptr) { return; }
           const string line_prefix_characters = buffer->read_string_variable(
@@ -78,7 +78,7 @@ class GotoCommand : public Command {
         }
         break;
 
-      case EditorState::WORD:
+      case WORD:
         {
           // TODO: Handle reverse direction
           LineColumn position(buffer->position().line);
@@ -101,7 +101,7 @@ class GotoCommand : public Command {
         }
         break;
 
-      case EditorState::LINE:
+      case LINE:
         {
           size_t lines = buffer->contents()->size();
           size_t position = ComputePosition(
@@ -112,7 +112,7 @@ class GotoCommand : public Command {
         }
         break;
 
-      case EditorState::PAGE:
+      case PAGE:
         {
           CHECK(!buffer->contents()->empty());
           size_t pages = ceil(static_cast<double>(buffer->contents()->size())
@@ -125,11 +125,11 @@ class GotoCommand : public Command {
         }
         break;
 
-      case EditorState::SEARCH:
+      case SEARCH:
         // TODO: Implement.
         break;
 
-      case EditorState::BUFFER:
+      case BUFFER:
         {
           size_t buffers = editor_state->buffers()->size();
           size_t position = ComputePosition(
@@ -188,9 +188,9 @@ class Delete : public Command {
     shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
 
     switch (editor_state->structure()) {
-      case EditorState::CHAR:
-      case EditorState::WORD:
-      case EditorState::LINE:
+      case CHAR:
+      case WORD:
+      case LINE:
         if (editor_state->has_current_buffer()) {
           auto buffer = editor_state->current_buffer()->second;
           editor_state->ApplyToCurrentBuffer(NewDeleteTransformation(
@@ -202,17 +202,17 @@ class Delete : public Command {
         break;
 
 
-      case EditorState::PAGE:
+      case PAGE:
         // TODO: Implement.
         editor_state->SetStatus("Oops, delete page is not yet implemented.");
         break;
 
-      case EditorState::SEARCH:
+      case SEARCH:
         // TODO: Implement.
         editor_state->SetStatus("Ooops, delete search is not yet implemented.");
         break;
 
-      case EditorState::BUFFER:
+      case BUFFER:
         auto buffer_to_erase = editor_state->current_buffer();
         if (editor_state->current_buffer() == editor_state->buffers()->begin()) {
           editor_state->set_current_buffer(editor_state->buffers()->end());
@@ -303,9 +303,9 @@ class GotoPreviousPositionCommand : public Command {
           editor_state->current_buffer()->second->position();
       if (it != editor_state->buffers()->end()
           && (pos.buffer != editor_state->current_buffer()->first
-              || (editor_state->structure() <= EditorState::LINE
+              || (editor_state->structure() <= LINE
                   && pos.position.line != current_position.line)
-              || (editor_state->structure() <= EditorState::CHAR
+              || (editor_state->structure() <= CHAR
                   && pos.position.column != current_position.column))) {
         editor_state->set_current_buffer(it);
         it->second->set_position(pos.position);
@@ -320,16 +320,14 @@ class GotoPreviousPositionCommand : public Command {
 class LineUp : public Command {
  public:
   const string Description();
-  static void Move(int c, EditorState* editor_state,
-                   EditorState::Structure structure);
+  static void Move(int c, EditorState* editor_state, Structure structure);
   void ProcessInput(int c, EditorState* editor_state);
 };
 
 class LineDown : public Command {
  public:
   const string Description();
-  static void Move(int c, EditorState* editor_state,
-                   EditorState::Structure structure);
+  static void Move(int c, EditorState* editor_state, Structure structure);
   void ProcessInput(int c, EditorState* editor_state);
 };
 
@@ -365,7 +363,7 @@ const string LineUp::Description() {
 }
 
 /* static */ void LineUp::Move(
-    int c, EditorState* editor_state, EditorState::Structure structure) {
+    int c, EditorState* editor_state, Structure structure) {
   if (editor_state->direction() == BACKWARDS) {
     editor_state->set_direction(FORWARDS);
     LineDown::Move(c, editor_state, structure);
@@ -373,7 +371,7 @@ const string LineUp::Description() {
   }
   if (!editor_state->has_current_buffer()) { return; }
   switch (structure) {
-    case EditorState::CHAR:
+    case CHAR:
       {
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
         buffer->CheckPosition();
@@ -386,11 +384,11 @@ const string LineUp::Description() {
       }
       break;
 
-    case EditorState::WORD:
+    case WORD:
       // Move in whole pages.
       editor_state->set_repetitions(
           editor_state->repetitions() * editor_state->visible_lines());
-      Move(c, editor_state, EditorState::CHAR);
+      Move(c, editor_state, CHAR);
       break;
 
     default:
@@ -411,7 +409,7 @@ const string LineDown::Description() {
 }
 
 /* static */ void LineDown::Move(
-    int c, EditorState* editor_state, EditorState::Structure structure) {
+    int c, EditorState* editor_state, Structure structure) {
   if (editor_state->direction() == BACKWARDS) {
     editor_state->set_direction(FORWARDS);
     LineUp::Move(c, editor_state, structure);
@@ -419,7 +417,7 @@ const string LineDown::Description() {
   }
   if (!editor_state->has_current_buffer()) { return; }
   switch (structure) {
-    case EditorState::CHAR:
+    case CHAR:
       {
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
         buffer->CheckPosition();
@@ -432,11 +430,11 @@ const string LineDown::Description() {
       }
       break;
 
-    case EditorState::WORD:
+    case WORD:
       // Move in whole pages.
       editor_state->set_repetitions(
           editor_state->repetitions() * editor_state->visible_lines());
-      Move(c, editor_state, EditorState::CHAR);
+      Move(c, editor_state, CHAR);
       break;
 
     default:
@@ -484,8 +482,8 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
 
 /* static */ void MoveForwards::Move(int c, EditorState* editor_state) {
   switch (editor_state->structure()) {
-    case EditorState::CHAR:
-    case EditorState::WORD:
+    case CHAR:
+    case WORD:
       {
         if (!editor_state->has_current_buffer()) { return; }
         editor_state->ApplyToCurrentBuffer(NewMoveTransformation());
@@ -495,7 +493,7 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
       }
       break;
 
-    case EditorState::SEARCH:
+    case SEARCH:
       SearchHandler(
           editor_state->current_buffer()->second->position(),
           editor_state->last_search_query(), editor_state);
@@ -504,8 +502,8 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
 
     default:
       LineDown::Move(c, editor_state,
-          EditorState::LowerStructure(
-              EditorState::LowerStructure(editor_state->structure())));
+          LowerStructure(
+              LowerStructure(editor_state->structure())));
   }
 }
 
@@ -524,8 +522,8 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
     return;
   }
   switch (editor_state->structure()) {
-    case EditorState::CHAR:
-    case EditorState::WORD:
+    case CHAR:
+    case WORD:
       {
         if (!editor_state->has_current_buffer()) { return; }
         editor_state->set_direction(
@@ -535,7 +533,7 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
       }
       break;
 
-    case EditorState::SEARCH:
+    case SEARCH:
       editor_state->set_direction(BACKWARDS);
       SearchHandler(
           editor_state->current_buffer()->second->position(),
@@ -545,8 +543,8 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
 
     default:
       LineUp::Move(c, editor_state,
-          EditorState::LowerStructure(
-              EditorState::LowerStructure(editor_state->structure())));
+          LowerStructure(
+              LowerStructure(editor_state->structure())));
   }
 }
 
@@ -618,7 +616,7 @@ void SetRepetitions(EditorState* editor_state, int number) {
 
 class SetStructureCommand : public Command {
  public:
-  SetStructureCommand(EditorState::Structure value, const string& description)
+  SetStructureCommand(Structure value, const string& description)
       : value_(value), description_(description) {}
 
   const string Description() {
@@ -632,20 +630,20 @@ class SetStructureCommand : public Command {
     } else if (!editor_state->sticky_structure()) {
       editor_state->set_sticky_structure(true);
     } else {
-      editor_state->set_structure(EditorState::CHAR);
+      editor_state->set_structure(CHAR);
       editor_state->set_sticky_structure(false);
     }
   }
 
  private:
-  EditorState::Structure value_;
+  Structure value_;
   const string description_;
 };
 
 class SetStructureModifierCommand : public Command {
  public:
   SetStructureModifierCommand(
-      EditorState::StructureModifier value, const string& description)
+      StructureModifier value, const string& description)
       : value_(value), description_(description) {}
 
   const string Description() {
@@ -655,12 +653,12 @@ class SetStructureModifierCommand : public Command {
   void ProcessInput(int, EditorState* editor_state) {
     editor_state->set_structure_modifier(
         editor_state->structure_modifier() == value_
-        ? EditorState::ENTIRE_STRUCTURE
+        ? ENTIRE_STRUCTURE
         : value_);
   }
 
  private:
-  EditorState::StructureModifier value_;
+  StructureModifier value_;
   const string description_;
 };
 
@@ -735,7 +733,7 @@ class StartSearchMode : public Command {
 
   void ProcessInput(int, EditorState* editor_state) {
     switch (editor_state->structure()) {
-      case EditorState::WORD:
+      case WORD:
         {
           editor_state->ResetStructure();
           if (!editor_state->has_current_buffer()) { return; }
@@ -909,11 +907,11 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('/', new StartSearchMode()));
     output.insert(make_pair('g', new GotoCommand(0)));
 
-    output.insert(make_pair('w', new SetStructureCommand(EditorState::WORD, "word")));
-    output.insert(make_pair('e', new SetStructureCommand(EditorState::LINE, "line")));
-    output.insert(make_pair('E', new SetStructureCommand(EditorState::PAGE, "page")));
-    output.insert(make_pair('F', new SetStructureCommand(EditorState::SEARCH, "search")));
-    output.insert(make_pair('B', new SetStructureCommand(EditorState::BUFFER, "buffer")));
+    output.insert(make_pair('w', new SetStructureCommand(WORD, "word")));
+    output.insert(make_pair('e', new SetStructureCommand(LINE, "line")));
+    output.insert(make_pair('E', new SetStructureCommand(PAGE, "page")));
+    output.insert(make_pair('F', new SetStructureCommand(SEARCH, "search")));
+    output.insert(make_pair('B', new SetStructureCommand(BUFFER, "buffer")));
 
     output.insert(make_pair('d', new Delete()));
     output.insert(make_pair('p', new Paste()));
@@ -936,10 +934,10 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair(Terminal::ESCAPE, new ResetStateCommand()));
 
     output.insert(make_pair('[', new SetStructureModifierCommand(
-        EditorState::FROM_BEGINNING_TO_CURRENT_POSITION,
+        FROM_BEGINNING_TO_CURRENT_POSITION,
         "from the beggining to the current position")));
     output.insert(make_pair(']', new SetStructureModifierCommand(
-        EditorState::FROM_CURRENT_POSITION_TO_END,
+        FROM_CURRENT_POSITION_TO_END,
         "from the current position to the end")));
     output.insert(make_pair(Terminal::CTRL_L, new HardRedrawCommand()));
     output.insert(make_pair('0', new NumberMode(SetRepetitions)));
