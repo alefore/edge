@@ -135,6 +135,8 @@ class DeleteWordTransformation : public Transformation {
     unique_ptr<TransformationStack> stack(new TransformationStack);
 
     if (initial_position.line < start.line) {
+      LOG(INFO) << "Deleting superfluous lines (from " << initial_position.line
+                << " to " << start.line;
       while (initial_position.line < start.line) {
         start.line--;
         end.line--;
@@ -149,15 +151,19 @@ class DeleteWordTransformation : public Transformation {
     if (initial_position.column < start.column) {
       stack->PushBack(NewDeleteCharactersTransformation(
           start.column - initial_position.column, true));
+      end.column = initial_position.column + end.column - start.column;
+      start.column = initial_position.column;
     }
 
     CHECK_EQ(start.line, end.line);
     CHECK_EQ(start.line, initial_position.line);
+    CHECK_LE(start.column, initial_position.column);
+    CHECK_LT(initial_position.column, end.column);
     switch (structure_modifier_) {
       case ENTIRE_STRUCTURE:
         break;
       case FROM_BEGINNING_TO_CURRENT_POSITION:
-        end.column = max(initial_position.column, start.column);
+        end = initial_position;
         break;
       case FROM_CURRENT_POSITION_TO_END:
         start = initial_position;
