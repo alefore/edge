@@ -4,7 +4,10 @@
 #include <list>
 #include <memory>
 
+#include <glog/logging.h>
+
 #include "direction.h"
+#include "structure.h"
 
 namespace afc {
 namespace editor {
@@ -19,11 +22,26 @@ class LineColumn;
 
 class Transformation {
  public:
+  struct Result {
+    Result();
+
+    // Did the transformation run to completion?  If it only run partially, this
+    // should be false.
+    bool success;
+
+    // This the transformation made any actual changes to the contents of the
+    // buffer?
+    bool modified_buffer;
+
+    // Reverse transformation that will undo any changes done by this one.  This
+    // should never be null (see NewNoopTransformation instead).
+    unique_ptr<Transformation> undo;
+  };
+
   virtual ~Transformation() {}
-  virtual unique_ptr<Transformation> Apply(
-      EditorState* editor_state, OpenBuffer* buffer) const = 0;
+  virtual void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const = 0;
   virtual unique_ptr<Transformation> Clone() = 0;
-  virtual bool ModifiesBuffer() = 0;
 };
 
 enum InsertBufferTransformationPosition {
@@ -37,13 +55,6 @@ enum InsertBufferTransformationPosition {
 unique_ptr<Transformation> NewInsertBufferTransformation(
     shared_ptr<OpenBuffer> buffer_to_insert, size_t repetitions,
     InsertBufferTransformationPosition insert_buffer_transformation_position);
-
-unique_ptr<Transformation> NewDeleteCharactersTransformation(
-    size_t repetitions, bool copy_to_paste_buffer);
-unique_ptr<Transformation> NewDeleteWordsTransformation(
-    size_t repetitions, bool copy_to_paste_buffer);
-unique_ptr<Transformation> NewDeleteLinesTransformation(
-    size_t repetitions, bool copy_to_paste_buffer);
 
 unique_ptr<Transformation> NewGotoPositionTransformation(
     const LineColumn& position);
@@ -62,8 +73,23 @@ unique_ptr<Transformation> ComposeTransformation(
 // line.
 unique_ptr<Transformation> NewDeleteSuffixSuperfluousCharacters();
 
-unique_ptr<Transformation> NewMoveCharacterTransformation(
-    Direction direction, size_t repetitions);
+// Returns a transformation that sets the number of repetitions to a given
+// value, calls a delegate and then restores the original number.
+unique_ptr<Transformation> NewSetRepetitionsTransformation(
+    size_t repetitions, unique_ptr<Transformation> transformation);
+
+// Returns a transformation that repeats another transformation a given number
+// of times.
+unique_ptr<Transformation> NewApplyRepetitionsTransformation(
+    size_t repetitions, unique_ptr<Transformation> transformation);
+
+unique_ptr<Transformation> NewDirectionTransformation(
+    Direction direction, unique_ptr<Transformation> transformation);
+
+unique_ptr<Transformation> NewStructureTransformation(
+    Structure structure,
+    StructureModifier structure_modifier,
+    unique_ptr<Transformation> transformation);
 
 class TransformationStack : public Transformation {
  public:
@@ -75,13 +101,21 @@ class TransformationStack : public Transformation {
     stack_.push_front(std::move(transformation));
   }
 
-  unique_ptr<Transformation> Apply(
-      EditorState* editor_state, OpenBuffer* buffer) const {
+  void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
+    CHECK(result != nullptr);
     unique_ptr<TransformationStack> undo(new TransformationStack());
     for (auto& it : stack_) {
-      undo->PushFront(it->Apply(editor_state, buffer));
+      Result it_result;
+      it->Apply(editor_state, buffer, &it_result);
+      result->modified_buffer |= it_result.modified_buffer;
+      undo->PushFront(std::move(it_result.undo));
+      if (!it_result.success) {
+        result->success = false;
+        break;
+      }
     }
-    return std::move(undo);
+    result->undo = std::move(undo);
   }
 
   unique_ptr<Transformation> Clone() {
@@ -90,13 +124,6 @@ class TransformationStack : public Transformation {
       output->PushBack(it->Clone());
     }
     return std::move(output);
-  }
-
-  virtual bool ModifiesBuffer() {
-    for (auto& it : stack_) {
-      if (it->ModifiesBuffer()) { return true; }
-    }
-    return false;
   }
 
  private:

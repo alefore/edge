@@ -34,27 +34,6 @@ struct BufferPosition {
 
 class EditorState {
  public:
-  enum Structure {
-    CHAR,
-    WORD,
-    LINE,
-    PAGE,
-    SEARCH,
-    BUFFER,
-  };
-
-  static Structure LowerStructure(Structure s) {
-    switch (s) {
-      case CHAR: return CHAR;
-      case WORD: return CHAR;
-      case LINE: return WORD;
-      case PAGE: return LINE;
-      case SEARCH: return PAGE;
-      case BUFFER: return SEARCH;
-    }
-    assert(false);
-  }
-
   EditorState();
   ~EditorState();
 
@@ -89,6 +68,15 @@ class EditorState {
   bool terminate() const { return terminate_; }
   void set_terminate(bool value) { terminate_ = value; }
 
+  void ResetModifiers() {
+    ResetMode();
+    set_structure(CHAR);
+    set_structure_modifier(ENTIRE_STRUCTURE);
+    ResetRepetitions();
+    set_default_direction(FORWARDS);
+    ResetDirection();
+  }
+
   Direction direction() const { return direction_; }
   void set_direction(Direction direction);
   void ResetDirection() { direction_ = default_direction_; }
@@ -111,7 +99,14 @@ class EditorState {
     if (!sticky_structure_) {
       structure_ = Structure::CHAR;
     }
+    structure_modifier_ = ENTIRE_STRUCTURE;
   }
+
+  StructureModifier structure_modifier() const { return structure_modifier_; }
+  void set_structure_modifier(StructureModifier structure_modifier) {
+    structure_modifier_ = structure_modifier;
+  }
+
   bool sticky_structure() const { return sticky_structure_; }
   void set_sticky_structure(bool sticky_structure) {
     sticky_structure_ = sticky_structure;
@@ -185,6 +180,7 @@ class EditorState {
   size_t repetitions_;
   string last_search_query_;
   Structure structure_;
+  StructureModifier structure_modifier_;
   bool sticky_structure_;
 
   unique_ptr<EditorMode> mode_;

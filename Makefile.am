@@ -27,9 +27,12 @@ run_command_handler.cc \
 search_handler.cc \
 secondary_mode.cc \
 server.cc \
+structure.cc \
 substring.cc \
 terminal.cc \
 transformation.cc \
+transformation_delete.cc \
+transformation_move.cc \
 vm/internal/vm.cc \
 vm/internal/value.cc \
 vm/internal/string.cc \

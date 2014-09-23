@@ -25,12 +25,15 @@ extern "C" {
 #include "server.h"
 #include "substring.h"
 #include "transformation.h"
+#include "transformation_delete.h"
 #include "vm/public/value.h"
 #include "vm/public/vm.h"
 
+namespace afc {
+namespace editor {
+
 namespace {
 
-using namespace afc::editor;
 using std::cerr;
 using std::unordered_set;
 
@@ -217,11 +220,13 @@ static void RegisterBufferFieldValue(
 
 }  // namespace
 
-namespace afc {
-namespace editor {
-
 using namespace afc::vm;
 using std::to_string;
+
+ostream& operator<<(ostream& os, const LineColumn& lc) {
+    os << "[" << lc.line << ":" << lc.column << "]";
+    return os;
+}
 
 bool LineColumn::operator!=(const LineColumn& other) const {
   return line != other.line || column != other.column;
@@ -356,7 +361,8 @@ bool LineColumn::operator!=(const LineColumn& other) const {
             line_args.push_back(Value::NewString(current_line));
             unique_ptr<Value> result = args[1]->callback(std::move(line_args));
             if (result->str != current_line) {
-              transformation->PushBack(NewDeleteLinesTransformation(1, false));
+              transformation->PushBack(NewDeleteLinesTransformation(
+                  1, ENTIRE_STRUCTURE, false));
               shared_ptr<OpenBuffer> buffer_to_insert(
                   new OpenBuffer(editor_state, "tmp buffer"));
               buffer_to_insert->AppendLine(
@@ -1435,21 +1441,19 @@ void OpenBuffer::Apply(
     CHECK(last_transformation_stack_.back() != nullptr);
     last_transformation_stack_.back()->PushBack(transformation->Clone());
   }
-  unique_ptr<Transformation> undo = transformation->Apply(editor_state, this);
-  CHECK(undo != nullptr);
-  undo_history_.push_back(std::move(undo));
-  redo_history_.clear();
-  if (transformation->ModifiesBuffer()) {
+  transformations_past_.emplace_back(new Transformation::Result);
+  transformation->Apply(editor_state, this, transformations_past_.back().get());
+  transformations_future_.clear();
+  if (transformations_past_.back()->modified_buffer) {
     last_transformation_ = std::move(transformation);
   }
 }
 
 void OpenBuffer::RepeatLastTransformation(EditorState* editor_state) {
-  unique_ptr<Transformation> undo =
-      last_transformation_->Apply(editor_state, this);
-  CHECK(undo != nullptr);
-  undo_history_.push_back(std::move(undo));
-  redo_history_.clear();
+  transformations_past_.emplace_back(new Transformation::Result);
+  last_transformation_
+      ->Apply(editor_state, this, transformations_past_.back().get());
+  transformations_future_.clear();
 }
 
 void OpenBuffer::PushTransformationStack() {
@@ -1466,16 +1470,24 @@ void OpenBuffer::PopTransformationStack() {
 }
 
 void OpenBuffer::Undo(EditorState* editor_state) {
+  list<unique_ptr<Transformation::Result>>* source;
+  list<unique_ptr<Transformation::Result>>* target;
+  if (editor_state->direction() == FORWARDS) {
+    source = &transformations_past_;
+    target = &transformations_future_;
+  } else {
+    source = &transformations_future_;
+    target = &transformations_past_;
+  }
   for (size_t i = 0; i < editor_state->repetitions(); i++) {
-    if (editor_state->direction() == FORWARDS) {
-      if (undo_history_.empty()) { return; }
-      redo_history_.push_back(undo_history_.back()->Apply(editor_state, this));
-      undo_history_.pop_back();
-    } else {
-      if (redo_history_.empty()) { return; }
-      undo_history_.push_back(redo_history_.back()->Apply(editor_state, this));
-      redo_history_.pop_back();
+    bool modified_buffer = false;
+    while (!modified_buffer && !source->empty()) {
+      target->emplace_back(new Transformation::Result);
+      source->back()->undo->Apply(editor_state, this, target->back().get());
+      source->pop_back();
+      modified_buffer = target->back()->modified_buffer;
     }
+    if (source->empty()) { return; }
   }
 }
 

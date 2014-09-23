@@ -29,6 +29,7 @@ using std::map;
 using std::max;
 using std::min;
 using std::multimap;
+using std::ostream;
 
 using namespace afc::vm;
 
@@ -60,7 +61,11 @@ struct LineColumn {
 
   size_t line;
   size_t column;
+
+  friend ostream& operator<<(ostream& os, const LineColumn& lc);
 };
+
+ostream& operator<<(ostream& os, const LineColumn& lc);
 
 template <typename T, typename B>
 class BufferLineGenericIterator
@@ -497,8 +502,10 @@ class OpenBuffer {
   EdgeStructInstance<int> int_variables_;
   EdgeStructInstance<unique_ptr<Value>> function_variables_;
 
-  list<unique_ptr<Transformation>> undo_history_;
-  list<unique_ptr<Transformation>> redo_history_;
+  // When a transformation is done, we append its result to
+  // transformations_past_, so that it can be undone.
+  list<unique_ptr<Transformation::Result>> transformations_past_;
+  list<unique_ptr<Transformation::Result>> transformations_future_;
 
   Environment environment_;
 

@@ -21,6 +21,7 @@ extern "C" {
 #include "run_command_handler.h"
 #include "server.h"
 #include "substring.h"
+#include "transformation_delete.h"
 #include "vm/public/value.h"
 
 namespace {

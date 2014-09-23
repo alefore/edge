@@ -102,7 +102,7 @@ class CloseCurrentBuffer : public Command {
       return;
     }
     editor_state->CloseBuffer(editor_state->current_buffer());
-    editor_state->set_structure(EditorState::CHAR);
+    editor_state->set_structure(CHAR);
     editor_state->set_sticky_structure(false);
     editor_state->ResetRepetitions();
     editor_state->set_default_direction(FORWARDS);
@@ -121,7 +121,7 @@ class SaveCurrentBuffer : public Command {
       return;
     }
     editor_state->current_buffer()->second->Save(editor_state);
-    editor_state->set_structure(EditorState::CHAR);
+    editor_state->set_structure(CHAR);
     editor_state->ResetRepetitions();
     editor_state->set_default_direction(FORWARDS);
     editor_state->ResetDirection();
@@ -325,7 +325,7 @@ class RunCppCommand : public Command {
   void ProcessInput(int, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     switch (editor_state->structure()) {
-      case EditorState::LINE:
+      case LINE:
         editor_state->ResetStructure();
         RunCppCommandHandler(
             editor_state->current_buffer()->second->current_line()->ToString(),

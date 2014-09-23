@@ -17,13 +17,14 @@ extern "C" {
 #include "lazy_string_append.h"
 #include "substring.h"
 #include "terminal.h"
+#include "transformation_delete.h"
 
 namespace {
 using namespace afc::editor;
 
 class NewLineTransformation : public Transformation {
-  unique_ptr<Transformation> Apply(
-      EditorState* editor_state, OpenBuffer* buffer) const {
+  void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     buffer->MaybeAdjustPositionCol();
     const size_t column = buffer->position().column;
     auto current_line = buffer->current_line();
@@ -31,7 +32,7 @@ class NewLineTransformation : public Transformation {
     if (buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())
         && column != 0
         && (current_line == nullptr || column != current_line->size())) {
-      return NewNoopTransformation();
+      return;
     }
 
     const string& line_prefix_characters(buffer->read_string_variable(
@@ -57,8 +58,7 @@ class NewLineTransformation : public Transformation {
 
     if (current_line != nullptr && column < current_line->size()) {
       transformation->PushBack(NewDeleteCharactersTransformation(
-          current_line->size() - column,
-          false));
+          current_line->size() - column, false));
     }
     transformation->PushBack(NewDeleteSuffixSuperfluousCharacters());
 
@@ -73,22 +73,20 @@ class NewLineTransformation : public Transformation {
     }
     transformation->PushBack(NewGotoPositionTransformation(
         LineColumn(buffer->position().line + 1, prefix_end)));
-    return transformation->Apply(editor_state, buffer);
+    return transformation->Apply(editor_state, buffer, result);
   }
 
   unique_ptr<Transformation> Clone() {
     return unique_ptr<Transformation>(new NewLineTransformation);
   }
-
-  virtual bool ModifiesBuffer() { return true; }
 };
 
 class InsertEmptyLineTransformation : public Transformation {
  public:
   InsertEmptyLineTransformation(Direction direction) : direction_(direction) {}
 
-  unique_ptr<Transformation> Apply(
-      EditorState* editor_state, OpenBuffer* buffer) const {
+  void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     LineColumn position = direction_ == BACKWARDS
         ? LineColumn(buffer->position().line + 1)
         : LineColumn(buffer->position().line);
@@ -96,15 +94,13 @@ class InsertEmptyLineTransformation : public Transformation {
         TransformationAtPosition(position,
             unique_ptr<Transformation>(new NewLineTransformation())),
         NewGotoPositionTransformation(position))
-            ->Apply(editor_state, buffer);
+            ->Apply(editor_state, buffer, result);
   }
 
   unique_ptr<Transformation> Clone() {
     return unique_ptr<Transformation>(
         new InsertEmptyLineTransformation(direction_));
   }
-
-  virtual bool ModifiesBuffer() { return true; }
 
  private:
   Direction direction_;
@@ -121,6 +117,10 @@ class InsertMode : public EditorMode {
         buffer->MaybeAdjustPositionCol();
         buffer->Apply(editor_state, NewDeleteSuffixSuperfluousCharacters());
         buffer->PopTransformationStack();
+        for (size_t i = 1; i < editor_state->repetitions(); i++) {
+          editor_state->current_buffer()
+              ->second->RepeatLastTransformation(editor_state);
+        }
         editor_state->PushCurrentPosition();
         editor_state->ResetStatus();
         editor_state->ResetMode();
@@ -160,8 +160,9 @@ class InsertMode : public EditorMode {
           } else {
             start.column--;
           }
-          buffer->Apply(editor_state, TransformationAtPosition(start,
-              NewDeleteCharactersTransformation(1, false)));
+          buffer->Apply(editor_state,
+              TransformationAtPosition(start,
+                  NewDeleteCharactersTransformation(1, false)));
           buffer->set_modified(true);
           editor_state->ScheduleRedraw();
         }
@@ -313,11 +314,11 @@ void EnterInsertMode(EditorState* editor_state) {
   if (editor_state->current_buffer()->second->fd() != -1) {
     editor_state->SetStatus("type (raw)");
     editor_state->set_mode(unique_ptr<EditorMode>(new RawInputTypeMode()));
-  } else if (editor_state->structure() == EditorState::CHAR) {
+  } else if (editor_state->structure() == CHAR) {
     editor_state->current_buffer()->second->CheckPosition();
     buffer->PushTransformationStack();
     EnterInsertCharactersMode(editor_state);
-  } else if (editor_state->structure() == EditorState::LINE) {
+  } else if (editor_state->structure() == LINE) {
     editor_state->current_buffer()->second->CheckPosition();
     auto buffer = editor_state->current_buffer()->second;
     buffer->PushTransformationStack();
