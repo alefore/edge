@@ -156,8 +156,11 @@ class DeleteWordsTransformation : public Transformation {
 
 class DeleteLinesTransformation : public Transformation {
  public:
-  DeleteLinesTransformation(size_t repetitions, bool copy_to_paste_buffer)
+  DeleteLinesTransformation(size_t repetitions,
+                            EditorState::StructureModifier structure_modifier,
+                            bool copy_to_paste_buffer)
       : repetitions_(repetitions),
+        structure_modifier_(structure_modifier),
         copy_to_paste_buffer_(copy_to_paste_buffer) {}
 
   void Apply(
@@ -170,33 +173,80 @@ class DeleteLinesTransformation : public Transformation {
     LOG(INFO) << "Erasing lines " << repetitions << " starting at line "
          << buffer->line().line() << " in a buffer with size "
          << buffer->contents()->size();
+
     for (size_t i = 0; i < repetitions; i++) {
-      deleted_text->AppendLine(editor_state, (*line)->contents());
-      if ((*line)->activate() != nullptr) {
-        (*line)->activate()->ProcessInput('d', editor_state);
+      shared_ptr<LazyString> line_deletion;
+      switch (structure_modifier_) {
+        case EditorState::ENTIRE_STRUCTURE:
+          line_deletion = (*line)->contents();
+          if ((*line)->activate() != nullptr) {
+            (*line)->activate()->ProcessInput('d', editor_state);
+          }
+          break;
+
+        case EditorState::FROM_BEGINNING_TO_CURRENT_POSITION:
+          line_deletion = (*line)->Substring(0, buffer->position().column);
+          break;
+
+        case EditorState::FROM_CURRENT_POSITION_TO_END:
+          line_deletion = (*line)->Substring(buffer->position().column);
+          break;
       }
+      deleted_text->AppendLine(editor_state, line_deletion);
       line++;
     }
     deleted_text->AppendLine(editor_state, EmptyString());
-    buffer->contents()->erase(
-        buffer->contents()->begin() + buffer->line().line(),
-        buffer->contents()->begin() + buffer->line().line() + repetitions);
     if (copy_to_paste_buffer_) {
       InsertDeletedTextBuffer(editor_state, deleted_text);
     }
-    result->undo = TransformationAtPosition(
-        LineColumn(buffer->position().line),
-        ComposeTransformation(
-            NewInsertBufferTransformation(deleted_text, 1, END),
-            NewGotoPositionTransformation(buffer->position())));
+
+    LOG(INFO) << "Modifying buffer.";
+    if (structure_modifier_ == EditorState::ENTIRE_STRUCTURE) {
+      buffer->contents()->erase(
+          buffer->contents()->begin() + buffer->line().line(),
+          buffer->contents()->begin() + buffer->line().line() + repetitions);
+      result->undo = TransformationAtPosition(
+          LineColumn(buffer->position().line),
+          ComposeTransformation(
+              NewInsertBufferTransformation(deleted_text, 1, END),
+              NewGotoPositionTransformation(buffer->position())));
+      return;
+    }
+    unique_ptr<TransformationStack> stack(new TransformationStack);
+    LineColumn position = buffer->position();
+    for (size_t i = 0; i < repetitions; i++) {
+      switch (structure_modifier_) {
+        case EditorState::ENTIRE_STRUCTURE:
+          CHECK(false);
+
+        case EditorState::FROM_BEGINNING_TO_CURRENT_POSITION:
+          stack->PushBack(NewGotoPositionTransformation(
+              LineColumn(position.line + i)));
+          stack->PushBack(
+              NewDeleteCharactersTransformation(position.column, false));
+          break;
+
+        case EditorState::FROM_CURRENT_POSITION_TO_END:
+          stack->PushBack(NewGotoPositionTransformation(
+              LineColumn(position.line + i, position.column)));
+          stack->PushBack(
+              NewDeleteCharactersTransformation(
+                  buffer->LineAt(position.line + i)->size() - position.column,
+                  false));
+          break;
+      }
+    }
+    stack->Apply(editor_state, buffer, result);
   }
 
   unique_ptr<Transformation> Clone() {
-    return NewDeleteLinesTransformation(repetitions_, copy_to_paste_buffer_);
+    return NewDeleteLinesTransformation(
+        repetitions_, structure_modifier_, copy_to_paste_buffer_);
   }
 
  private:
   size_t repetitions_;
+  EditorState::StructureModifier structure_modifier_;
   bool copy_to_paste_buffer_;
 };
 
@@ -221,8 +271,9 @@ class DeleteTransformation : public Transformation {
             NewDeleteWordsTransformation(repetitions_, copy_to_paste_buffer_);
         break;
       case EditorState::LINE:
-        delegate =
-            NewDeleteLinesTransformation(repetitions_, copy_to_paste_buffer_);
+        delegate = NewDeleteLinesTransformation(
+            repetitions_, editor_state->structure_modifier(),
+            copy_to_paste_buffer_);
         break;
       default:
         LOG(INFO) << "DeleteTransformation can't handle structure: "
@@ -258,9 +309,10 @@ unique_ptr<Transformation> NewDeleteWordsTransformation(
 }
 
 unique_ptr<Transformation> NewDeleteLinesTransformation(
-    size_t repetitions, bool copy_to_paste_buffer) {
-  return unique_ptr<Transformation>(
-      new DeleteLinesTransformation(repetitions, copy_to_paste_buffer));
+    size_t repetitions, EditorState::StructureModifier structure_modifier,
+    bool copy_to_paste_buffer) {
+  return unique_ptr<Transformation>(new DeleteLinesTransformation(
+      repetitions, structure_modifier, copy_to_paste_buffer));
 }
 
 unique_ptr<Transformation> NewDeleteTransformation(

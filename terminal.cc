@@ -139,6 +139,16 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
         transform(structure.begin(), structure.end(), structure.begin(),
                   ::toupper);
       }
+      switch (editor_state.structure_modifier()) {
+        case EditorState::ENTIRE_STRUCTURE:
+          break;
+        case EditorState::FROM_BEGINNING_TO_CURRENT_POSITION:
+          structure = "[..." + structure;
+          break;
+        case EditorState::FROM_CURRENT_POSITION_TO_END:
+          structure = structure + "...]";
+          break;
+      }
       flags += "(" + structure + ")";
     }
 

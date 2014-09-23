@@ -640,6 +640,25 @@ class SetStructureCommand : public Command {
   const string description_;
 };
 
+class SetStructureModifierCommand : public Command {
+ public:
+  SetStructureModifierCommand(
+      EditorState::StructureModifier value, const string& description)
+      : value_(value), description_(description) {}
+
+  const string Description() {
+    return "sets the structure modifier: " + description_;
+  }
+
+  void ProcessInput(int, EditorState* editor_state) {
+    editor_state->set_structure_modifier(value_);
+  }
+
+ private:
+  EditorState::StructureModifier value_;
+  const string description_;
+};
+
 class NumberMode : public Command {
  public:
   NumberMode(function<void(EditorState*, int)> consumer)
@@ -754,11 +773,7 @@ class ResetStateCommand : public Command {
   }
 
   void ProcessInput(int, EditorState* editor_state) {
-    editor_state->ResetMode();
-    editor_state->set_structure(EditorState::CHAR);
-    editor_state->ResetRepetitions();
-    editor_state->set_default_direction(FORWARDS);
-    editor_state->ResetDirection();
+    editor_state->ResetModifiers();
   }
 };
 
@@ -915,6 +930,12 @@ static const map<int, Command*>& GetCommandModeMap() {
 
     output.insert(make_pair(Terminal::ESCAPE, new ResetStateCommand()));
 
+    output.insert(make_pair('[', new SetStructureModifierCommand(
+        EditorState::FROM_BEGINNING_TO_CURRENT_POSITION,
+        "from the beggining to the current position")));
+    output.insert(make_pair(']', new SetStructureModifierCommand(
+        EditorState::FROM_CURRENT_POSITION_TO_END,
+        "from the current position to the end")));
     output.insert(make_pair(Terminal::CTRL_L, new HardRedrawCommand()));
     output.insert(make_pair('0', new NumberMode(SetRepetitions)));
     output.insert(make_pair('1', new NumberMode(SetRepetitions)));
