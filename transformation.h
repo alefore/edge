@@ -41,7 +41,6 @@ class Transformation {
   virtual void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const = 0;
   virtual unique_ptr<Transformation> Clone() = 0;
-  virtual bool ModifiesBuffer() = 0;
 };
 
 enum InsertBufferTransformationPosition {
@@ -111,13 +110,6 @@ class TransformationStack : public Transformation {
       output->PushBack(it->Clone());
     }
     return std::move(output);
-  }
-
-  virtual bool ModifiesBuffer() {
-    for (auto& it : stack_) {
-      if (it->ModifiesBuffer()) { return true; }
-    }
-    return false;
   }
 
  private:

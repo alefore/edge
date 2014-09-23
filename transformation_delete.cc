@@ -94,8 +94,6 @@ class DeleteCharactersTransformation : public Transformation {
     return NewDeleteCharactersTransformation(copy_to_paste_buffer_);
   }
 
-  virtual bool ModifiesBuffer() { return true; }
-
  private:
   bool copy_to_paste_buffer_;
 };
@@ -149,8 +147,6 @@ class DeleteWordsTransformation : public Transformation {
     return NewDeleteWordsTransformation(copy_to_paste_buffer_);
   }
 
-  virtual bool ModifiesBuffer() { return true; }
-
  private:
   bool copy_to_paste_buffer_;
 };
@@ -195,8 +191,6 @@ class DeleteLinesTransformation : public Transformation {
     return NewDeleteLinesTransformation(copy_to_paste_buffer_);
   }
 
-  virtual bool ModifiesBuffer() { return true; }
-
  private:
   bool copy_to_paste_buffer_;
 };
@@ -230,8 +224,6 @@ class DeleteTransformation : public Transformation {
   unique_ptr<Transformation> Clone() {
     return NewDeleteLinesTransformation(copy_to_paste_buffer_);
   }
-
-  virtual bool ModifiesBuffer() { return true; }
 
  private:
   bool copy_to_paste_buffer_;

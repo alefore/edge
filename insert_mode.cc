@@ -81,8 +81,6 @@ class NewLineTransformation : public Transformation {
   unique_ptr<Transformation> Clone() {
     return unique_ptr<Transformation>(new NewLineTransformation);
   }
-
-  virtual bool ModifiesBuffer() { return true; }
 };
 
 class InsertEmptyLineTransformation : public Transformation {
@@ -105,8 +103,6 @@ class InsertEmptyLineTransformation : public Transformation {
     return unique_ptr<Transformation>(
         new InsertEmptyLineTransformation(direction_));
   }
-
-  virtual bool ModifiesBuffer() { return true; }
 
  private:
   Direction direction_;

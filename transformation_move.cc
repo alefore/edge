@@ -46,7 +46,6 @@ class MoveTransformation : public Transformation {
     return NewMoveTransformation();
   }
 
-  bool ModifiesBuffer() { return false; }
  private:
   LineColumn MoveCharacter(EditorState* editor_state, OpenBuffer* buffer)
       const {

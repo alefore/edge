@@ -27,8 +27,6 @@ class GotoPositionTransformation : public Transformation {
     return NewGotoPositionTransformation(position_);
   }
 
-  virtual bool ModifiesBuffer() { return false; }
-
  private:
   LineColumn position_;
 };
@@ -81,8 +79,6 @@ class InsertBufferTransformation : public Transformation {
         buffer_to_insert_, repetitions_, final_position_);
   }
 
-  virtual bool ModifiesBuffer() { return true; }
-
  private:
   shared_ptr<OpenBuffer> buffer_to_insert_;
   size_t buffer_to_insert_length_;
@@ -96,8 +92,6 @@ class NoopTransformation : public Transformation {
   void Apply(EditorState*, OpenBuffer*, Result*) const {}
 
   unique_ptr<Transformation> Clone() { return NewNoopTransformation(); }
-
-  virtual bool ModifiesBuffer() { return false; }
 };
 
 class DeleteSuffixSuperfluousCharacters : public Transformation {
@@ -127,8 +121,6 @@ class DeleteSuffixSuperfluousCharacters : public Transformation {
   unique_ptr<Transformation> Clone() {
     return NewDeleteSuffixSuperfluousCharacters();
   }
-
-  virtual bool ModifiesBuffer() { return true; }
 };
 
 class RepetitionsTransformation : public Transformation {
@@ -149,8 +141,6 @@ class RepetitionsTransformation : public Transformation {
   unique_ptr<Transformation> Clone() {
     return NewRepetitionsTransformation(repetitions_, delegate_->Clone());
   }
-
-  virtual bool ModifiesBuffer() { return delegate_->ModifiesBuffer(); }
 
  private:
   size_t repetitions_;

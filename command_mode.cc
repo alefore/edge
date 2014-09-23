@@ -844,8 +844,6 @@ class SwitchCaseTransformation : public Transformation {
   unique_ptr<Transformation> Clone() {
     return unique_ptr<Transformation>(new SwitchCaseTransformation());
   }
-
-  virtual bool ModifiesBuffer() { return true; }
 };
 
 class SwitchCaseCommand : public Command {
