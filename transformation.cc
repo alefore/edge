@@ -160,9 +160,16 @@ class ApplyRepetitionsTransformation : public Transformation {
     for (size_t i = 0; i < repetitions_; i++) {
       Result current_result;
       delegate_->Apply(editor_state, buffer, &current_result);
-      result->modified_buffer |= current_result.modified_buffer;
+      if (current_result.modified_buffer) {
+        result->modified_buffer = true;
+      }
       undo_stack->PushFront(std::move(current_result.undo));
-      if (!current_result.success || !current_result.made_progress) {
+      if (!current_result.success) {
+        LOG(INFO) << "Application " << i << " didn't succeed, giving up.";
+        break;
+      }
+      if (!current_result.made_progress) {
+        LOG(INFO) << "Application " << i << " didn't make progress, giving up.";
         break;
       }
     }

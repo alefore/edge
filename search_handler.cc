@@ -192,7 +192,7 @@ void SearchHandlerPredictor(
     if (wrapped && already_wrapped) {
       break;
     }
-    already_wrapped |= wrapped;
+    already_wrapped = already_wrapped || wrapped;
   }
   predictions_buffer->EndOfFile(editor_state);
 }

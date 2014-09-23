@@ -51,7 +51,9 @@ class DeleteCharactersTransformation : public Transformation {
         size_t characters_to_erase = min(
             (*buffer->line())->size() - buffer->current_position_col(),
             repetitions_ - characters_erased);
-        result->made_progress |= characters_to_erase > 0;
+        if (characters_to_erase > 0) {
+          result->made_progress = true;
+        }
         result->success =
             characters_to_erase == repetitions_ - characters_erased;
         LOG(INFO) << "Maybe not enough characters left ("
