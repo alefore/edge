@@ -1472,16 +1472,16 @@ void OpenBuffer::PopTransformationStack() {
 }
 
 void OpenBuffer::Undo(EditorState* editor_state) {
+  list<unique_ptr<Transformation>>* source;
+  list<unique_ptr<Transformation>>* target;
+  if (editor_state->direction() == FORWARDS) {
+    source = &undo_history_;
+    target = &redo_history_;
+  } else {
+    source = &redo_history_;
+    target = &undo_history_;
+  }
   for (size_t i = 0; i < editor_state->repetitions(); i++) {
-    list<unique_ptr<Transformation>>* source;
-    list<unique_ptr<Transformation>>* target;
-    if (editor_state->direction() == FORWARDS) {
-      source = &undo_history_;
-      target = &redo_history_;
-    } else {
-      source = &redo_history_;
-      target = &undo_history_;
-    }
     if (source->empty()) { return; }
     Transformation::Result result;
     source->back()->Apply(editor_state, this, &result);
