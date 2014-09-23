@@ -194,7 +194,9 @@ class Delete : public Command {
         if (editor_state->has_current_buffer()) {
           auto buffer = editor_state->current_buffer()->second;
           editor_state->ApplyToCurrentBuffer(NewDeleteTransformation(
-              editor_state->structure(), editor_state->repetitions(), true));
+              editor_state->structure(),
+              editor_state->structure_modifier(),
+              editor_state->repetitions(), true));
           editor_state->ScheduleRedraw();
         }
         break;

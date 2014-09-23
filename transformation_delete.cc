@@ -252,9 +252,13 @@ class DeleteLinesTransformation : public Transformation {
 
 class DeleteTransformation : public Transformation {
  public:
-  DeleteTransformation(EditorState::Structure structure, size_t repetitions,
-                       bool copy_to_paste_buffer)
+  DeleteTransformation(
+      EditorState::Structure structure,
+      EditorState::StructureModifier structure_modifier,
+      size_t repetitions,
+      bool copy_to_paste_buffer)
       : structure_(structure),
+        structure_modifier_(structure_modifier),
         repetitions_(repetitions),
         copy_to_paste_buffer_(copy_to_paste_buffer) {}
 
@@ -272,8 +276,7 @@ class DeleteTransformation : public Transformation {
         break;
       case EditorState::LINE:
         delegate = NewDeleteLinesTransformation(
-            repetitions_, editor_state->structure_modifier(),
-            copy_to_paste_buffer_);
+            repetitions_, structure_modifier_, copy_to_paste_buffer_);
         break;
       default:
         LOG(INFO) << "DeleteTransformation can't handle structure: "
@@ -285,11 +288,12 @@ class DeleteTransformation : public Transformation {
 
   unique_ptr<Transformation> Clone() {
     return NewDeleteTransformation(
-        structure_, repetitions_, copy_to_paste_buffer_);
+        structure_, structure_modifier_, repetitions_, copy_to_paste_buffer_);
   }
 
  private:
   EditorState::Structure structure_;
+  EditorState::StructureModifier structure_modifier_;
   size_t repetitions_;
   bool copy_to_paste_buffer_;
 };
@@ -316,10 +320,12 @@ unique_ptr<Transformation> NewDeleteLinesTransformation(
 }
 
 unique_ptr<Transformation> NewDeleteTransformation(
-    EditorState::Structure structure, size_t repetitions,
+    EditorState::Structure structure,
+    EditorState::StructureModifier structure_modifier,
+    size_t repetitions,
     bool copy_to_paste_buffer) {
-  return unique_ptr<Transformation>(
-      new DeleteTransformation(structure, repetitions, copy_to_paste_buffer));
+  return unique_ptr<Transformation>(new DeleteTransformation(
+      structure, structure_modifier, repetitions, copy_to_paste_buffer));
 }
 
 }  // namespace editor
