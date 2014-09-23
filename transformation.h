@@ -29,6 +29,11 @@ class Transformation {
     // should be false.
     bool success;
 
+    // Did the transformation actually make any progress?  Some transformations
+    // succeed without actually having any effect; we use this to stop iterating
+    // them needlessly.
+    bool made_progress;
+
     // This the transformation made any actual changes to the contents of the
     // buffer?
     bool modified_buffer;

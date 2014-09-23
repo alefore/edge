@@ -68,6 +68,7 @@ class InsertBufferTransformation : public Transformation {
     }
 
     result->modified_buffer = true;
+    result->made_progress = true;
     result->undo = TransformationAtPosition(start_position,
         NewDeleteCharactersTransformation(
             buffer_to_insert_length_ * repetitions_,
@@ -161,7 +162,7 @@ class ApplyRepetitionsTransformation : public Transformation {
       delegate_->Apply(editor_state, buffer, &current_result);
       result->modified_buffer |= current_result.modified_buffer;
       undo_stack->PushFront(std::move(current_result.undo));
-      if (!current_result.success) {
+      if (!current_result.success || !current_result.made_progress) {
         break;
       }
     }
@@ -238,7 +239,10 @@ namespace afc {
 namespace editor {
 
 Transformation::Result::Result()
-     : success(true), modified_buffer(false), undo(NewNoopTransformation()) {}
+     : success(true),
+       made_progress(false),
+       modified_buffer(false),
+       undo(NewNoopTransformation()) {}
 
 unique_ptr<Transformation> NewInsertBufferTransformation(
     shared_ptr<OpenBuffer> buffer_to_insert, size_t repetitions,
