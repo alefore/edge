@@ -105,8 +105,10 @@ class DeleteCharactersTransformation : public Transformation {
 
 class DeleteWordTransformation : public Transformation {
  public:
-  DeleteWordTransformation(bool copy_to_paste_buffer)
-      : copy_to_paste_buffer_(copy_to_paste_buffer) {}
+  DeleteWordTransformation(StructureModifier structure_modifier,
+                           bool copy_to_paste_buffer)
+      : structure_modifier_(structure_modifier),
+        copy_to_paste_buffer_(copy_to_paste_buffer) {}
 
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
@@ -143,10 +145,25 @@ class DeleteWordTransformation : public Transformation {
       start.column += initial_position.column;
       end.column += initial_position.column;
     }
+
     if (initial_position.column < start.column) {
       stack->PushBack(NewDeleteCharactersTransformation(
           start.column - initial_position.column, true));
-    } else if (initial_position.column > start.column) {
+    }
+
+    CHECK_EQ(start.line, end.line);
+    CHECK_EQ(start.line, initial_position.line);
+    switch (structure_modifier_) {
+      case ENTIRE_STRUCTURE:
+        break;
+      case FROM_BEGINNING_TO_CURRENT_POSITION:
+        end.column = max(initial_position.column, start.column);
+        break;
+      case FROM_CURRENT_POSITION_TO_END:
+        start = initial_position;
+        break;
+    }
+    if (initial_position.column > start.column) {
       LOG(INFO) << "Scroll back: " << initial_position.column - start.column;
       stack->PushBack(NewSetRepetitionsTransformation(
           initial_position.column - start.column,
@@ -155,6 +172,7 @@ class DeleteWordTransformation : public Transformation {
               NewStructureTransformation(
                   CHAR, ENTIRE_STRUCTURE, NewMoveTransformation()))));
     }
+    CHECK(end.column >= start.column);
     size_t size = end.column - start.column;
     LOG(INFO) << "Erasing word, characters: " << size;
     stack->PushBack(NewDeleteCharactersTransformation(size, true));
@@ -162,11 +180,12 @@ class DeleteWordTransformation : public Transformation {
   }
 
   unique_ptr<Transformation> Clone() {
-    return unique_ptr<Transformation>(
-        new DeleteWordTransformation(copy_to_paste_buffer_));
+    return unique_ptr<Transformation>(new DeleteWordTransformation(
+        structure_modifier_, copy_to_paste_buffer_));
   }
 
  private:
+  StructureModifier structure_modifier_;
   bool copy_to_paste_buffer_;
 };
 
@@ -287,8 +306,8 @@ class DeleteTransformation : public Transformation {
             repetitions_, copy_to_paste_buffer_);
         break;
       case WORD:
-        delegate =
-            NewDeleteWordsTransformation(repetitions_, copy_to_paste_buffer_);
+        delegate = NewDeleteWordsTransformation(
+            repetitions_, structure_modifier_, copy_to_paste_buffer_);
         break;
       case LINE:
         delegate = NewDeleteLinesTransformation(
@@ -323,10 +342,11 @@ unique_ptr<Transformation> NewDeleteCharactersTransformation(
 }
 
 unique_ptr<Transformation> NewDeleteWordsTransformation(
-    size_t repetitions, bool copy_to_paste_buffer) {
+    size_t repetitions, StructureModifier structure_modifier,
+    bool copy_to_paste_buffer) {
   return NewApplyRepetitionsTransformation(repetitions,
       unique_ptr<Transformation>(new DeleteWordTransformation(
-          copy_to_paste_buffer)));
+          structure_modifier, copy_to_paste_buffer)));
 }
 
 unique_ptr<Transformation> NewDeleteLinesTransformation(
