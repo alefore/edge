@@ -24,81 +24,230 @@ void InsertDeletedTextBuffer(EditorState* editor_state,
 namespace {
 class DeleteCharactersTransformation : public Transformation {
  public:
-  DeleteCharactersTransformation(size_t repetitions, bool copy_to_paste_buffer)
-      : repetitions_(repetitions),
+  DeleteCharactersTransformation(
+      Direction direction, size_t repetitions, bool copy_to_paste_buffer)
+      : direction_(direction),
+        repetitions_(repetitions),
         copy_to_paste_buffer_(copy_to_paste_buffer) {}
 
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     buffer->CheckPosition();
     buffer->MaybeAdjustPositionCol();
-    shared_ptr<OpenBuffer> deleted_text(
-        new OpenBuffer(editor_state, OpenBuffer::kPasteBuffer));
-    bool needs_empty_line = false;
-    size_t characters_erased = 0;
-    while (characters_erased < repetitions_) {
-      LOG(INFO) << "Erased " << characters_erased << " of " << repetitions_;
-      if (buffer->line() == buffer->line_end()) {
-        LOG(INFO) << "Giving up: at end of file.";
-        characters_erased = repetitions_;
-        result->success = false;
-        continue;
+    size_t current_line = buffer->line().line();
+
+    shared_ptr<LazyString> preserved_contents =
+        StartOfLine(buffer, current_line, buffer->current_position_col());
+
+    size_t line;
+    size_t chars_erased;
+    SkipLinesToErase(buffer, preserved_contents, &line, &chars_erased);
+    LOG(INFO) << "Erasing from line " << current_line << " to line " << line
+              << " would erase " << chars_erased << " characters.";
+
+    // The amount of characters that should be erased from the current line.
+    // Depending on the direction, we'll erase from the beginning (FORWARDS) or
+    // the end of the current line (BACKWARDS).  If the line is the current
+    // line, this already includes characters in preserved_contents.
+    size_t chars_erase_line = buffer->LineAt(line)->size()
+        + (direction_ == FORWARDS ? 1 : 0)
+        - min(buffer->LineAt(line)->size(),
+              (repetitions_ < chars_erased ? chars_erased - repetitions_ : 0));
+    if (chars_erase_line > buffer->LineAt(line)->size()) {
+      LOG(INFO) << "Adjusting for end of buffer.";
+      CHECK_EQ(chars_erase_line, buffer->LineAt(line)->size() + 1);
+      chars_erase_line = 0;
+      if (!AdvanceLine(buffer, &line)) {
+        chars_erase_line = buffer->LineAt(line)->size();
       }
-      size_t characters_left =
-          (*buffer->line())->size() - buffer->current_position_col();
-      if (repetitions_ - characters_erased <= characters_left
-          || buffer->line().line() + 1 == buffer->line_end().line()) {
-        size_t characters_to_erase = min(
-            (*buffer->line())->size() - buffer->current_position_col(),
-            repetitions_ - characters_erased);
-        result->success =
-            characters_to_erase == repetitions_ - characters_erased;
-        LOG(INFO) << "Maybe not enough characters left ("
-                  << characters_to_erase << ")";
-        characters_erased = repetitions_;
-        deleted_text->AppendLine(editor_state,
-            (*buffer->line())->Substring(
-                buffer->current_position_col(), characters_to_erase));
-        buffer->contents()->at(buffer->line().line()).reset(
-            new Line(Line::Options(StringAppend(
-                (*buffer->line())->Substring(0, buffer->current_position_col()),
-                (*buffer->line())->Substring(
-                    buffer->current_position_col() + characters_to_erase)))));
-        result->modified_buffer = true;
-        needs_empty_line = false;
-        continue;
-      }
-      characters_erased += characters_left + 1;
-      LOG(INFO) << "Erasing characters " << characters_left + 1 << " from line "
-                << buffer->line().line();
-      deleted_text->AppendLine(editor_state,
-          (*buffer->line())->Substring(buffer->current_position_col()));
-      LOG(INFO) << "Overwriting line: " << buffer->line().line();
-      buffer->contents()->at(buffer->line().line()).reset(
-          new Line(Line::Options(StringAppend(
-              (*buffer->line())->Substring(0, buffer->current_position_col()),
-              buffer->contents()->at(buffer->line().line() + 1)->contents()))));
-      buffer->contents()->erase(
-          buffer->contents()->begin() + buffer->line().line() + 1);
-      result->modified_buffer = true;
-      needs_empty_line = true;
     }
+    LOG(INFO) << "Characters to erase from current line: " << chars_erase_line
+              << ", repetitions: " << repetitions_ << ", chars_erased: "
+              << chars_erased << ", preserved_contents size: "
+              << preserved_contents->size() << ", actual length: "
+              << buffer->LineAt(line)->size();
+
+    result->success = chars_erased >= repetitions_;
+    result->made_progress = chars_erased + chars_erase_line > 0;
+
+    size_t line_begin = min(line, current_line);
+    size_t line_end = max(line, current_line);
+    shared_ptr<OpenBuffer> deleted_text(GetDeletedTextBuffer(
+        editor_state, buffer, line_begin, line_end, preserved_contents,
+        chars_erase_line));
+
+    if (direction_ == BACKWARDS) {
+      buffer->set_position(
+          LineColumn(line, buffer->LineAt(line)->size() - chars_erase_line));
+    }
+
+    LOG(INFO) << "Storing new line (at position " << max(current_line, line)
+              << ").";
+    buffer->contents()->at(line_end).reset(new Line(Line::Options(
+        ProduceFinalLine(buffer, preserved_contents, line, chars_erase_line))));
+
+    LOG(INFO) << "Erasing lines in range [" << line_begin << ", " << line_end
+              << ").";
+    buffer->contents()->erase(
+        buffer->contents()->begin() + line_begin,
+        buffer->contents()->begin() + line_end);
+    result->modified_buffer = true;
+
     if (copy_to_paste_buffer_) {
-      if (needs_empty_line) {
-        deleted_text->AppendLine(editor_state, EmptyString());
-      }
       InsertDeletedTextBuffer(editor_state, deleted_text);
     }
     result->undo = TransformationAtPosition(buffer->position(),
-        NewInsertBufferTransformation(deleted_text, 1, START));
+        NewInsertBufferTransformation(
+            deleted_text, 1, direction_ == FORWARDS ? START : END));
   }
 
   unique_ptr<Transformation> Clone() {
     return NewDeleteCharactersTransformation(
-        repetitions_, copy_to_paste_buffer_);
+        direction_, repetitions_, copy_to_paste_buffer_);
   }
 
  private:
+  shared_ptr<OpenBuffer> GetDeletedTextBuffer(
+      EditorState* editor_state, OpenBuffer* buffer, size_t line_begin,
+      size_t line_end, const shared_ptr<LazyString>& preserved_contents,
+      size_t chars_erase_line) const {
+    LOG(INFO) << "Preparing deleted text buffer.";
+    shared_ptr<OpenBuffer> deleted_text(
+        new OpenBuffer(editor_state, OpenBuffer::kPasteBuffer));
+
+    if (line_begin == line_end) {
+      auto end_line = buffer->LineAt(line_begin);
+      size_t start = direction_ == FORWARDS
+          ? preserved_contents->size()
+          : end_line->size() - chars_erase_line;
+      CHECK_LE(start, end_line->size());
+      size_t end = direction_ == FORWARDS
+          ? chars_erase_line
+          : end_line->size() - preserved_contents->size();
+      CHECK_LE(start, end);
+      CHECK_LE(end, end_line->size());
+      LOG(INFO) << "Preserving chars from single line: [" << start << ", "
+                << end << "): "
+                << end_line->Substring(start, end - start)->ToString();
+      deleted_text
+          ->AppendLine(editor_state, end_line->Substring(start, end - start));
+      return deleted_text;
+    }
+
+    deleted_text->AppendLine(editor_state,
+        buffer->LineAt(line_begin)->Substring(
+            direction_ == FORWARDS
+            ? preserved_contents->size()
+            : buffer->LineAt(line_begin)->size() - chars_erase_line));
+
+    for (size_t i = line_begin + 1; i < line_end; i++) {
+      deleted_text->AppendLine(editor_state, buffer->LineAt(i)->contents());
+    }
+
+    deleted_text->AppendLine(editor_state,
+        buffer->LineAt(line_end)->Substring(0,
+            direction_ == FORWARDS
+                ? chars_erase_line
+                : buffer->LineAt(line_end)->size() - preserved_contents->size()));
+  }
+
+  shared_ptr<LazyString> StartOfLine(
+      OpenBuffer* buffer, size_t line_number, size_t column,
+      Direction direction) const {
+    auto line = buffer->LineAt(line_number);
+    switch (direction) {
+      case FORWARDS:
+        return line->Substring(0, column);
+      case BACKWARDS:
+        return line->Substring(column);
+    }
+  }
+
+  shared_ptr<LazyString> StartOfLine(
+      OpenBuffer* buffer, size_t line_number, size_t column) const {
+    return StartOfLine(buffer, line_number, column, direction_);
+  }
+
+  shared_ptr<LazyString> EndOfLine(
+      OpenBuffer* buffer, size_t line_number, size_t chars_to_erase) const {
+    return StartOfLine(
+        buffer, line_number, chars_to_erase, ReverseDirection(direction_));
+  }
+
+  shared_ptr<LazyString> ProduceFinalLine(
+      OpenBuffer* buffer, const shared_ptr<LazyString> preserved_contents,
+      size_t line, size_t chars_to_erase) const {
+    switch (direction_) {
+      case FORWARDS:
+        return StringAppend(preserved_contents,
+             EndOfLine(buffer, line, chars_to_erase));
+      case BACKWARDS:
+        auto end_line = buffer->LineAt(line);
+        return StringAppend(
+             StartOfLine(buffer, line, end_line->size() - chars_to_erase,
+                         FORWARDS),
+             preserved_contents);
+    }
+  }
+
+  // Loop away from the current line (in the direction given by direction_),
+  // stopping at the first line such that if we erase all characters in it
+  // (including \n), we will have erased at least as many characters as needed.
+  //
+  // chars_erased will be set to the total number of characters erased from the
+  // current position until (including) line.
+  void SkipLinesToErase(const OpenBuffer* buffer,
+                        const shared_ptr<LazyString>& preserved_contents,
+                        size_t* line, size_t* chars_erased) const {
+    size_t current_line = buffer->current_position_line();
+    *line = current_line;
+    *chars_erased = 0;
+    if (direction_ == FORWARDS && *line == buffer->contents()->size()) {
+      return;
+    }
+
+    while (true) {
+      CHECK_LT(*line, buffer->contents()->size());
+      LOG(INFO) << "Iteration at line " << *line << " having already erased "
+                << *chars_erased << " characters.";
+      size_t chars_in_line = buffer->LineAt(*line)->size();
+      if (*line == current_line) {
+        CHECK_GE(chars_in_line, preserved_contents->size());
+        chars_in_line -= preserved_contents->size();
+        if (direction_ == FORWARDS) {
+          chars_in_line++;
+        }
+      } else if (*line + 1 < buffer->contents()->size()) {
+        chars_in_line++;  // The new line character.
+      }
+      LOG(INFO) << "Characters available in line: " << chars_in_line;
+      *chars_erased += chars_in_line;
+      if (*chars_erased >= repetitions_) {
+        return;
+      }
+      CHECK_LT(*chars_erased, repetitions_);
+
+      if (!AdvanceLine(buffer, line)) {
+        return;
+      }
+    }
+  }
+
+  bool AdvanceLine(const OpenBuffer* buffer, size_t* line) const {
+    size_t old_value = *line;
+    switch (direction_) {
+      case FORWARDS:
+        if (*line + 1 < buffer->contents()->size()) { (*line)++; }
+        break;
+      case BACKWARDS:
+        if (*line > 0) { (*line)--; }
+        break;
+    }
+    CHECK_LT(*line, buffer->contents()->size());
+    return old_value != *line;
+  }
+
+  Direction direction_;
   size_t repetitions_;
   bool copy_to_paste_buffer_;
 };
@@ -142,7 +291,7 @@ class DeleteWordTransformation : public Transformation {
         end.line--;
         stack->PushBack(
             NewDeleteLinesTransformation(1, FROM_CURRENT_POSITION_TO_END, true));
-        stack->PushBack(NewDeleteCharactersTransformation(1, true));
+        stack->PushBack(NewDeleteCharactersTransformation(FORWARDS, 1, true));
       }
       start.column += initial_position.column;
       end.column += initial_position.column;
@@ -150,7 +299,7 @@ class DeleteWordTransformation : public Transformation {
 
     if (initial_position.column < start.column) {
       stack->PushBack(NewDeleteCharactersTransformation(
-          start.column - initial_position.column, true));
+          FORWARDS, start.column - initial_position.column, true));
       end.column = initial_position.column + end.column - start.column;
       start.column = initial_position.column;
     }
@@ -181,7 +330,7 @@ class DeleteWordTransformation : public Transformation {
     CHECK(end.column >= start.column);
     size_t size = end.column - start.column;
     LOG(INFO) << "Erasing word, characters: " << size;
-    stack->PushBack(NewDeleteCharactersTransformation(size, true));
+    stack->PushBack(NewDeleteCharactersTransformation(FORWARDS, size, true));
     stack->Apply(editor_state, buffer, result);
   }
 
@@ -264,17 +413,16 @@ class DeleteLinesTransformation : public Transformation {
         case FROM_BEGINNING_TO_CURRENT_POSITION:
           stack->PushBack(NewGotoPositionTransformation(
               LineColumn(position.line + i)));
-          stack->PushBack(
-              NewDeleteCharactersTransformation(position.column, false));
+          stack->PushBack(NewDeleteCharactersTransformation(
+              FORWARDS, position.column, false));
           break;
 
         case FROM_CURRENT_POSITION_TO_END:
           stack->PushBack(NewGotoPositionTransformation(
               LineColumn(position.line + i, position.column)));
-          stack->PushBack(
-              NewDeleteCharactersTransformation(
-                  buffer->LineAt(position.line + i)->size() - position.column,
-                  false));
+          stack->PushBack(NewDeleteCharactersTransformation(FORWARDS,
+              buffer->LineAt(position.line + i)->size() - position.column,
+              false));
           break;
       }
     }
@@ -297,10 +445,12 @@ class DeleteTransformation : public Transformation {
   DeleteTransformation(
       Structure structure,
       StructureModifier structure_modifier,
+      Direction direction,
       size_t repetitions,
       bool copy_to_paste_buffer)
       : structure_(structure),
         structure_modifier_(structure_modifier),
+        direction_(direction),
         repetitions_(repetitions),
         copy_to_paste_buffer_(copy_to_paste_buffer) {}
 
@@ -310,7 +460,7 @@ class DeleteTransformation : public Transformation {
     switch (structure_) {
       case CHAR:
         delegate = NewDeleteCharactersTransformation(
-            repetitions_, copy_to_paste_buffer_);
+            direction_, repetitions_, copy_to_paste_buffer_);
         break;
       case WORD:
         delegate = NewDeleteWordsTransformation(
@@ -330,12 +480,14 @@ class DeleteTransformation : public Transformation {
 
   unique_ptr<Transformation> Clone() {
     return NewDeleteTransformation(
-        structure_, structure_modifier_, repetitions_, copy_to_paste_buffer_);
+        structure_, structure_modifier_, direction_, repetitions_,
+        copy_to_paste_buffer_);
   }
 
  private:
   Structure structure_;
   StructureModifier structure_modifier_;
+  Direction direction_;
   size_t repetitions_;
   bool copy_to_paste_buffer_;
 };
@@ -343,9 +495,9 @@ class DeleteTransformation : public Transformation {
 }  // namespace
 
 unique_ptr<Transformation> NewDeleteCharactersTransformation(
-    size_t repetitions, bool copy_to_paste_buffer) {
-  return unique_ptr<Transformation>(
-      new DeleteCharactersTransformation(repetitions, copy_to_paste_buffer));
+    Direction direction, size_t repetitions, bool copy_to_paste_buffer) {
+  return unique_ptr<Transformation>(new DeleteCharactersTransformation(
+      direction, repetitions, copy_to_paste_buffer));
 }
 
 unique_ptr<Transformation> NewDeleteWordsTransformation(
@@ -365,9 +517,10 @@ unique_ptr<Transformation> NewDeleteLinesTransformation(
 
 unique_ptr<Transformation> NewDeleteTransformation(
     Structure structure, StructureModifier structure_modifier,
-    size_t repetitions, bool copy_to_paste_buffer) {
+    Direction direction, size_t repetitions, bool copy_to_paste_buffer) {
   return unique_ptr<Transformation>(new DeleteTransformation(
-      structure, structure_modifier, repetitions, copy_to_paste_buffer));
+      structure, structure_modifier, direction, repetitions,
+      copy_to_paste_buffer));
 }
 
 }  // namespace editor

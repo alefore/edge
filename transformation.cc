@@ -68,8 +68,10 @@ class InsertBufferTransformation : public Transformation {
     }
 
     result->modified_buffer = true;
+    result->made_progress = true;
     result->undo = TransformationAtPosition(start_position,
         NewDeleteCharactersTransformation(
+            FORWARDS,
             buffer_to_insert_length_ * repetitions_,
             false));
   }
@@ -113,7 +115,7 @@ class DeleteSuffixSuperfluousCharacters : public Transformation {
     CHECK_LT(pos, line->size());
     return TransformationAtPosition(
         LineColumn(buffer->position().line, pos),
-        NewDeleteCharactersTransformation(line->size() - pos, false))
+        NewDeleteCharactersTransformation(FORWARDS, line->size() - pos, false))
             ->Apply(editor_state, buffer, result);
   }
 
@@ -159,9 +161,16 @@ class ApplyRepetitionsTransformation : public Transformation {
     for (size_t i = 0; i < repetitions_; i++) {
       Result current_result;
       delegate_->Apply(editor_state, buffer, &current_result);
-      result->modified_buffer |= current_result.modified_buffer;
+      if (current_result.modified_buffer) {
+        result->modified_buffer = true;
+      }
       undo_stack->PushFront(std::move(current_result.undo));
       if (!current_result.success) {
+        LOG(INFO) << "Application " << i << " didn't succeed, giving up.";
+        break;
+      }
+      if (!current_result.made_progress) {
+        LOG(INFO) << "Application " << i << " didn't make progress, giving up.";
         break;
       }
     }
@@ -238,7 +247,10 @@ namespace afc {
 namespace editor {
 
 Transformation::Result::Result()
-     : success(true), modified_buffer(false), undo(NewNoopTransformation()) {}
+     : success(true),
+       made_progress(false),
+       modified_buffer(false),
+       undo(NewNoopTransformation()) {}
 
 unique_ptr<Transformation> NewInsertBufferTransformation(
     shared_ptr<OpenBuffer> buffer_to_insert, size_t repetitions,
