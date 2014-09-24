@@ -71,6 +71,7 @@ class InsertBufferTransformation : public Transformation {
     result->made_progress = true;
     result->undo = TransformationAtPosition(start_position,
         NewDeleteCharactersTransformation(
+            FORWARDS,
             buffer_to_insert_length_ * repetitions_,
             false));
   }
@@ -114,7 +115,7 @@ class DeleteSuffixSuperfluousCharacters : public Transformation {
     CHECK_LT(pos, line->size());
     return TransformationAtPosition(
         LineColumn(buffer->position().line, pos),
-        NewDeleteCharactersTransformation(line->size() - pos, false))
+        NewDeleteCharactersTransformation(FORWARDS, line->size() - pos, false))
             ->Apply(editor_state, buffer, result);
   }
 

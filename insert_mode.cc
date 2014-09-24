@@ -58,7 +58,7 @@ class NewLineTransformation : public Transformation {
 
     if (current_line != nullptr && column < current_line->size()) {
       transformation->PushBack(NewDeleteCharactersTransformation(
-          current_line->size() - column, false));
+          FORWARDS, current_line->size() - column, false));
     }
     transformation->PushBack(NewDeleteSuffixSuperfluousCharacters());
 
@@ -160,9 +160,11 @@ class InsertMode : public EditorMode {
           } else {
             start.column--;
           }
+          // TODO(alejo): Instead of this, pass BACKWARDS.  That makes this more
+          // repeatable.
           buffer->Apply(editor_state,
               TransformationAtPosition(start,
-                  NewDeleteCharactersTransformation(1, false)));
+                  NewDeleteCharactersTransformation(FORWARDS, 1, false)));
           buffer->set_modified(true);
           editor_state->ScheduleRedraw();
         }

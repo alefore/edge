@@ -201,8 +201,8 @@ EditorState::EditorState()
         [this](vector<unique_ptr<Value>> args) {
           if (!has_current_buffer()) { return Value::NewVoid(); }
           auto buffer = current_buffer()->second;
-          buffer->Apply(this,
-              NewDeleteCharactersTransformation(args[0]->integer, true));
+          buffer->Apply(this, NewDeleteCharactersTransformation(
+              FORWARDS, args[0]->integer, true));
           return Value::NewVoid();
         };
     environment_.Define("DeleteCharacters", std::move(callback));
