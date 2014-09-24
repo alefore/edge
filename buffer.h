@@ -245,8 +245,8 @@ class OpenBuffer {
     return *line_;
   }
   shared_ptr<Line> LineAt(size_t line_number) const {
-    assert(!contents_.empty());
-    assert(line_number <= contents_.size());
+    CHECK(!contents_.empty());
+    CHECK_LE(line_number, contents_.size());
     if (line_number == contents_.size()) {
       return nullptr;
     }
