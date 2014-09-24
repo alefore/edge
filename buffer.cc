@@ -422,7 +422,8 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
       int_variables_(IntStruct()->NewInstance()),
       function_variables_(ValueStruct()->NewInstance()),
       environment_(editor_state->environment()),
-      filter_version_(0) {
+      filter_version_(0),
+      last_transformation_(NewNoopTransformation()) {
   environment_.Define("buffer", Value::NewObject(
       "Buffer", shared_ptr<void>(this, [](void*){})));
   set_string_variable(variable_path(), "");
