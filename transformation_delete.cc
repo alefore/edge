@@ -246,6 +246,7 @@ class DeleteLinesTransformation : public Transformation {
       buffer->contents()->erase(
           buffer->contents()->begin() + buffer->line().line(),
           buffer->contents()->begin() + buffer->line().line() + repetitions);
+      result->modified_buffer = true;
       result->undo = TransformationAtPosition(
           LineColumn(buffer->position().line),
           ComposeTransformation(
