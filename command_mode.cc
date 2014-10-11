@@ -229,9 +229,13 @@ class Delete : public Command {
         }
     }
 
-    editor_state->ResetModifiers();
+    LOG(INFO) << "After applying delete transformation: "
+              << editor_state->structure();
+    editor_state->set_structure_modifier(ENTIRE_STRUCTURE);
     editor_state->ResetStructure();
     editor_state->ResetRepetitions();
+    LOG(INFO) << "After resetting transformation: "
+              << editor_state->structure();
   }
 };
 
