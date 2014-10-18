@@ -1,1 +1,5 @@
-A text editor.
+Edge - A text editor.
+
+Edge is a text editor and terminal handler.  It handles "buffers", where a
+buffer can be a file or a program (optionally running with a terminal).  As its
+extension language, Edge uses a subset of C++.
