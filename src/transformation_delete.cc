@@ -32,9 +32,15 @@ class DeleteCharactersTransformation : public Transformation {
 
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
+    LOG(INFO) << "Starting DeleteCharactersTransformation.";
+    if (buffer->contents()->empty()) {
+      result->success = false;
+      return;
+    }
     buffer->CheckPosition();
-    buffer->MaybeAdjustPositionCol();
+    buffer->set_position(min(buffer->position(), buffer->end_position()));
     size_t current_line = buffer->line().line();
+    buffer->MaybeAdjustPositionCol();
 
     shared_ptr<LazyString> preserved_contents =
         StartOfLine(buffer, current_line, buffer->current_position_col());
@@ -149,6 +155,7 @@ class DeleteCharactersTransformation : public Transformation {
             direction_ == FORWARDS
                 ? chars_erase_line
                 : buffer->LineAt(line_end)->size() - preserved_contents->size()));
+    return deleted_text;
   }
 
   shared_ptr<LazyString> StartOfLine(
@@ -160,6 +167,8 @@ class DeleteCharactersTransformation : public Transformation {
         return line->Substring(0, column);
       case BACKWARDS:
         return line->Substring(column);
+      default:
+        CHECK(false);
     }
   }
 
@@ -188,6 +197,7 @@ class DeleteCharactersTransformation : public Transformation {
                          FORWARDS),
              preserved_contents);
     }
+    CHECK(false);
   }
 
   // Loop away from the current line (in the direction given by direction_),
