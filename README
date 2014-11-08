@@ -75,6 +75,27 @@ The list of positions is kept in a buffer called "- positions".
 TODO: Describe the effect of structures.
 
 
+3.5. Goto beginning
+
+Use "g" to go to the first character in the current line.  Press "g" again to go
+to the last character in the current line.
+
+If a repetition is active, the behavior changes to "go to the i-th character
+in the current line".
+
+The current structure alters the behavior thus:
+
+- Word: Goes to the i-th word from the beginning of the current line.
+- Line: Goes to the i-th line from the beginning of the current buffer.
+- Page: Goes to the i-th page from the beginning of the current buffer.
+- Buffer: Goes to the i-th buffer (in the list of buffers).
+
+If the Reverse modifier is enabled, it moves backwards from the end.
+
+(The current implementation is slightly different than this.  But we'll likely
+change it to do this.)
+
+
 4. Editing a buffer
 
 
@@ -136,6 +157,16 @@ pressing "sr" again.  If you then press ".", you will repeat all the commands
 in the sequence.
 
 
+4.6 Capitals swap
+
+Press "~" to convert the current character from upper case to lower case (and
+viceversa) and advance by one position.
+
+If the reverse modifier is enabled, will move backwards instead of advancing.
+
+"~" doesn't currently handle any structures nor repetitions, but it should.
+
+
 5. Buffers
 
 5.1. List of buffers
@@ -169,16 +200,21 @@ progress).
 
 5.3. Run a command
 
-You can run a command with "af".  Edge will prompt you for a command to run and
-will create a buffer in which it will run this command.  If a buffer for the
-command already existed, Edge will just reload the process (similar to "ar" as
-described in section 5.2).
+You can run a command with "af" ("Advanced > Fork").  Edge will prompt you for a
+command to run and will create a buffer in which it will run this command.  If a
+buffer for the command already existed, Edge will just reload the process
+(similar to "ar" as described in section 5.2).
 
 If Line structure is active, "af" will not prompt you for a command but will
 instead run the command given in the current line.  For commands that you might
 expect to run in the future, we recommend creating a simple text file for your
 project in which you list them, so that you can quickly launch them with this
 mechanism.
+
+By default, commands will be run without a controlling terminal.  This can be
+toggled (which can be very useful e.g. for running a shell in a buffer) with the
+variable "pts" (section 7.2.1).
+
 
 5.4. Running many commands.
 
@@ -187,8 +223,9 @@ TODO: Describe aF
 
 5.5. Open a file
 
-Use "ao" to open a file.  Edge will prompt you for the filename.  Tab will
-autocomplete (and pressing Tab again will show all the options).
+Use "ao" ("Advanced > Open") to open a file.  Edge will prompt you for the
+filename.  Tab will autocomplete (and pressing Tab again will show all the
+options).
 
 In practice, we tend to use "a." (section 5.6) much more frequently to open
 files.
@@ -196,9 +233,9 @@ files.
 
 5.6. Files view
 
-If you press "a." in a buffer, a new buffer will be created (unless it already
-existed) displaying the contents of the directory containing the current buffer,
-one file (or directory) per line.
+If you press "a." ("Advanced > Current directory") in a buffer, a new buffer
+will be created (unless it already existed) displaying the contents of the
+directory containing the current buffer, one file (or directory) per line.
 
 Like the list of buffers (section 5.1), this is a special buffer:
 
@@ -211,15 +248,15 @@ Like the list of buffers (section 5.1), this is a special buffer:
 
 5.7. Save a file
 
-Use "aw" in a buffer to save its contents.
+Use "aw" ("Advanced > Write") in a buffer to save its contents.
 
 Some buffers can't be saved and will display an error in the status.
 
 
 5.6. Close a buffer
 
-Press "ad" to close (delete) the current buffer.  Any unsaved changes will be
-lost.
+Press "ad" ("Advanced > Delete") to close (delete) the current buffer.  Any
+unsaved changes will be lost.
 
 See section 5.1 for another mechanism for closing buffers, by deleting lines
 from the list of buffers.
@@ -227,13 +264,94 @@ from the list of buffers.
 
 6. Structures & structure modifiers
 
+Edge has a notion of "modifiers" that alter the behavior of commands.  There are
+various kinds of modifiers, described in this section.
+
+
 6.1. Logical structures
 
-6.2. Structure modifiers "[" and "]"
+The most important type of modifier is the logical "structure" that the next
+command will affect.  To set the structure, press any of the following keys:
+
+"w" - Word: Affect the current word.
+"e" - Line: Affect the current line.
+"F" - Search: The region affected is based on the next match to the last search
+      query (performed with "/", section 3.2).  This structure is somewhat
+      different to the others and relatively fewer commands recognize it.
+"E" - Page: Affect the current page.  The size of a page is computed dynamically
+      based on the current screen size.
+"B" - Buffer: Affect the current buffer.
+
+The default structure is the current character.  The current structure will be
+shown at the bottom of the screen (unless the structure is set to the default
+value).
+
+Once a command is executed that is affected by the structure modifier, it will
+set the structure back to the default value.  However, redundantly setting the
+structure to the value it already has will activate "stickyness": in this case,
+the structure will not reset back to the default value.
+
+Pressing Esc will reset the structure to the default.
+
+Here are some examples:
+
+- If you expect to erase many lines, you can set the structure to Line in sticky
+  mode ("ee") and then just delete away ("ddddd").
+- To navigate by matches to a given search, you can perform a search and set the
+  structure to Search in sticky mode ("FF") and then just navigate matches with
+  "h" or "l".
+
+
+6.2. Sub-structure modifiers ("[" and "]")
+
+When the structure is set to anything other than character, "[" changes the
+semantics to mean "apply the command to the part of the structure from its
+beginning until the current cursor position".  Conversely, "]" changes the
+meaning to "apply the command from the current cursor position until the end".
+
+The current modifier will be shown at the bottom of the screen (next to the
+current structure modifier).
+
+The specific behavior depends on the command.  This is particularly useful with
+the delete command, where e.g. "]ed" could be used to delete to the beginning
+of the current line.
+
 
 6.3. Reverse modifier
+
+Pressing "r" will reverse the direction in which the command is applied.  Most
+commands set the direction back to the default value (forwards), but if you
+press "rr", you'll activate sticky reverse mode.  Press Esc to leave sticky
+mode.
+
+
+6.4. Repetitions
+
+You can type a number to set an amount of repetitions that affects the next
+command.
+
+The specific behavior depends on the command.  Most navigation and editing
+commands simply repeat the command the given number of times.  Other commands
+may have their behavior altered in different ways.
 
 
 7. Variables
 
+7.1. Setting variables
+
+TODO: av
+
+7.2. List of variables
+
+7.2.1. Variable: pts.
+
+TODO: List many more variables.
+
+
 8. Extension language
+
+TODO: ac
+TODO: SetStatus("foo");
+TODO: Document the API.
+TODO: Document the integration points (e.g. buffer-reload.cc).
+TODO: Useful examples
