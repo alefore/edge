@@ -16,6 +16,8 @@ Support autocomplete while editting a buffer
 
 Add tests for Undo for insert.
 
+Implement replace mode.
+
 -- Navigation
 
 Add a "margin_lines" integer variable.
@@ -40,9 +42,11 @@ When running subcommands with aC, actually set variables "ARG0", "ARG1", "ARG2",
 Create some "barriers" that limit the number of subprocesses.  Set a limit for each.  Maybe as a special type of buffer?  Let it reload to show the state?
   Commands should by default go against a shared barrier, but should have a variable that specifies what barrier to use.
 
+Add a way to start a command, like with flags.
+
 -- Variables
 
-Save the contents of variables?
+Save the contents of variables?  Maybe in a per-buffer file?
 
 -- VM
 
