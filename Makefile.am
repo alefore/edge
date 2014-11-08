@@ -2,6 +2,11 @@ SUBDIRS = glog-0.3.3
 
 bin_PROGRAMS = edge test
 
+noinst_PROGRAMS = lemon
+
+EXTRA_DIST = \
+src/vm/internal/cpp.y
+
 COMMON_SOURCES = \
 src/advanced_mode.cc \
 src/buffer.cc \
@@ -51,8 +56,17 @@ src/vm/internal/logical_expression.cc \
 src/vm/internal/variable_lookup.cc \
 src/vm/internal/evaluation.cc
 
-edge_SOURCES=$(COMMON_SOURCES) src/main.cc
-test_SOURCES=$(COMMON_SOURCES) src/test.cc
+CLEANFILES = src/vm/internal/cpp.cc src/vm/internal/cpp.h
+
+BUILT_SOURCES = src/vm/internal/cpp.cc src/vm/internal/cpp.h
+
+edge_SOURCES = $(COMMON_SOURCES) src/main.cc
+test_SOURCES = $(COMMON_SOURCES) src/test.cc
+
+lemon_SOURCES = src/vm/internal/lemon.c
+
+src/vm/internal/cpp.cc: src/vm/internal/cpp.y lemon
+	./lemon -Tsrc/vm/internal/lempar.c src/vm/internal/cpp.y
 
 GLOG=glog-0.3.3/libglog_la-demangle.o \
 glog-0.3.3/libglog_la-logging.o \
