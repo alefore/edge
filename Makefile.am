@@ -65,8 +65,10 @@ test_SOURCES = $(COMMON_SOURCES) src/test.cc
 
 lemon_SOURCES = src/vm/internal/lemon.c
 
-src/vm/internal/cpp.cc: src/vm/internal/cpp.y lemon
+src/vm/internal/cpp.h: src/vm/internal/cpp.y lemon
 	./lemon -Tsrc/vm/internal/lempar.c src/vm/internal/cpp.y
+
+src/vm/internal/cpp.cc: src/vm/internal/cpp.h
 
 GLOG=glog-0.3.3/libglog_la-demangle.o \
 glog-0.3.3/libglog_la-logging.o \
