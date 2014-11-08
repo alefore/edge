@@ -48,9 +48,9 @@ regular expression by the longest common prefix of its next 10 matches
 (configurable through variable xxx, see section 7).  Press Tab once again to
 display a buffer with the list of matches.
 
-To repeat a search, use the SEARCH structure (section 6.1).
+To repeat a search, use the Search structure (section 6.1).
 
-If the WORD structure (section 6.1) is enabled, Edge will not prompt you for a
+If the Word structure (section 6.1) is enabled, Edge will not prompt you for a
 regular expression: it will, instead, just search for the current word.
 
 To search backwards, use the Reverse modifier (section 6.3).
@@ -70,7 +70,9 @@ To search backwards, use the Reverse modifier (section 6.3).
 Edge keeps a history of the positions in which you've been.  You can go back to
 the previous position with "b".
 
-TODO: Structures.
+The list of positions is kept in a buffer called "- positions".
+
+TODO: Describe the effect of structures.
 
 
 4. Editing a buffer
@@ -78,17 +80,60 @@ TODO: Structures.
 
 4.1. Inserting characters
 
+To type some text into a buffer, use "i".  This enters insert mode, which is
+indicated at the bottom of the screen by the word "type" (of "type (raw)" if the
+buffer is a command with a terminal).  Press Esc to exit insert mode.  Anything
+you type while in insert mode will be inserted into the buffer; for buffers with
+an associated terminal, the text will be written to the terminal.
 
-4.2. Deleting characters
+If insert mode is activated with the Line structure, an empty line will be
+inserted above the current line and text will be inserted into it.  The Reverse
+modifier will instead insert the line after the current line.
+
+
+4.2. Deleting contents
+
+Press "d" to delete the current character.
+
+If the Word structure is enabled, delete will delete the current word.  The
+contents of variable word_characters is used to specify the list of characters
+that are considered to be part of a word.  If the cursor position is in a
+non-word character, characters will be deleted until the beginning of the word,
+and then the "delete word" command will run).
+
+If the Line structure is enabled, delete deletes the current line.
+
+The "[" or "]" modifiers (section 6.2) alter this behavior, causing delete to
+only delete until the beginning or end of the current structure.  For example,
+to delete from the current position to the end of line, one would use "e]d".
 
 
 4.3. Pasting characters
 
+Press "p" to paste the last contents deleted by the delete command.
+
+Whenever "d" deletes some contents, they go to a special buffer called "- paste
+buffer".  You could modify the contents in this buffer directly to alter what
+"p" will paste.
+
 
 4.4. Undo & Redo
 
+Edge maintains full undo history.  Press "u" to undo the last edition.
+Navigation commands (that only alter the cursor position but not the contents of
+the buffer) are ignored: undo will revert the last transformation.
 
-4.5. Repeating the last command
+To "re do" activate the Reverse modifier (section 6.3).
+
+
+4.5. Repeat the last command
+
+You can repeat the last transformation at the current position by pressing ".".
+
+You can group multiple commands to be repeated by pressing "sr" (short for
+Secondary > Record), then applying all the commands you want to group, and then
+pressing "sr" again.  If you then press ".", you will repeat all the commands
+in the sequence.
 
 
 5. Buffers
@@ -99,20 +144,92 @@ Press "al" at any time to open a buffer that contains the list of buffers.  Each
 line in this buffer represents a buffer: an open file or the output of a
 subprocess (which may be running or may have already exited).
 
+If you delete lines in this buffer (with "ed", see sections 6.1 and 4.2), this
+will close the associated buffers.  If you have unsaved changes, you will lose
+them.
+
+The list of buffers will be updated dynamically whenever you create new buffers
+or as they make progress (e.g. it will show the number of lines that have been
+read from a command that's currently running).
+
+
 5.2. Reload a buffer
+
+You can reload a buffer with "ar".  If the buffer is a file, this discards any
+unsaved changes.  If the buffer is a command (section 5.3), this will kill it
+with SIGTERM (if it's still running), wait for it to exit, and restart it.
+
+If you're in the list of buffers (section 5.1), you can activate Line mode
+("e", section 6.1) and press "ar" to reload the buffer that the cursor is
+currently on.  During software development, this can provide a quick way to
+re-run commands like "make" during development and wait for them to terminate
+successfully (since the list of buffers will be updated dynamically as they make
+progress).
+
 
 5.3. Run a command
 
-5.4. Open a file
+You can run a command with "af".  Edge will prompt you for a command to run and
+will create a buffer in which it will run this command.  If a buffer for the
+command already existed, Edge will just reload the process (similar to "ar" as
+described in section 5.2).
 
-5.5. Close a buffer
+If Line structure is active, "af" will not prompt you for a command but will
+instead run the command given in the current line.  For commands that you might
+expect to run in the future, we recommend creating a simple text file for your
+project in which you list them, so that you can quickly launch them with this
+mechanism.
+
+5.4. Running many commands.
+
+TODO: Describe aF
+
+
+5.5. Open a file
+
+Use "ao" to open a file.  Edge will prompt you for the filename.  Tab will
+autocomplete (and pressing Tab again will show all the options).
+
+In practice, we tend to use "a." (section 5.6) much more frequently to open
+files.
+
+
+5.6. Files view
+
+If you press "a." in a buffer, a new buffer will be created (unless it already
+existed) displaying the contents of the directory containing the current buffer,
+one file (or directory) per line.
+
+Like the list of buffers (section 5.1), this is a special buffer:
+
+- Deleting lines (with "ed") from this buffer will, after prompting you for
+  confirmation, delete the underlying files from the file system.
+
+- Pressing Enter on the line for a given file will create a buffer for that file
+  (unless one already existed, in which case it'll just take you to it).
+
+
+5.7. Save a file
+
+Use "aw" in a buffer to save its contents.
+
+Some buffers can't be saved and will display an error in the status.
+
+
+5.6. Close a buffer
+
+Press "ad" to close (delete) the current buffer.  Any unsaved changes will be
+lost.
+
+See section 5.1 for another mechanism for closing buffers, by deleting lines
+from the list of buffers.
 
 
 6. Structures & structure modifiers
 
 6.1. Logical structures
 
-6.2. Structure modifiers
+6.2. Structure modifiers "[" and "]"
 
 6.3. Reverse modifier
 
