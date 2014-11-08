@@ -171,9 +171,9 @@ If the reverse modifier is enabled, will move backwards instead of advancing.
 
 5.1. List of buffers
 
-Press "al" at any time to open a buffer that contains the list of buffers.  Each
-line in this buffer represents a buffer: an open file or the output of a
-subprocess (which may be running or may have already exited).
+Press "al" ("Advanced > List") to open a buffer that contains the list of
+buffers.  Each line in this buffer represents a buffer: an open file or the
+output of a subprocess (which may be running or may have already exited).
 
 If you delete lines in this buffer (with "ed", see sections 6.1 and 4.2), this
 will close the associated buffers.  If you have unsaved changes, you will lose
