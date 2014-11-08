@@ -151,20 +151,10 @@ class InsertMode : public EditorMode {
 
       case Terminal::BACKSPACE:
         {
+          LOG(INFO) << "Handling backspace in insert mode.";
           buffer->MaybeAdjustPositionCol();
-          LineColumn start = buffer->position();
-          if (buffer->at_beginning_of_line()) {
-            if (buffer->at_beginning()) { return; }
-            start.line--;
-            start.column = buffer->contents()->at(start.line)->size();
-          } else {
-            start.column--;
-          }
-          // TODO(alejo): Instead of this, pass BACKWARDS.  That makes this more
-          // repeatable.
           buffer->Apply(editor_state,
-              TransformationAtPosition(start,
-                  NewDeleteCharactersTransformation(FORWARDS, 1, false)));
+              NewDeleteCharactersTransformation(BACKWARDS, 1, false));
           buffer->set_modified(true);
           editor_state->ScheduleRedraw();
         }
