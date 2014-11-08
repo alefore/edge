@@ -228,8 +228,10 @@ template <typename T>
 EdgeVariable<T>* EdgeStruct<T>::AddVariable(
     const string& name, const string& description, const T& default_value,
     const Predictor& predictor) {
-  auto it = variables_.insert(make_pair(name, new EdgeVariable<T>(
-      name, description, default_value, variables_.size(), predictor)));
+  auto it = variables_.insert(std::move(make_pair(
+      name,
+      unique_ptr<EdgeVariable<T>>(new EdgeVariable<T>(
+          name, description, default_value, variables_.size(), predictor)))));
   return it.first->second.get();
 }
 
