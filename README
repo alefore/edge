@@ -14,6 +14,15 @@ This document describes the use of Edge.  Edge is an editor with multiple modes,
 where commands are typically executed by typing their associated character
 sequences.  These sequences are given in this document between quotes.
 
+To get the most out of Edge, you should probably familiarize yourself with the
+modifiers (section 6) and the navigation (section 3) and editing (section 4)
+commands.  We'd also strongly recommend learning the commands for controlling
+buffers (section 5).
+
+Edge will probably be relatively hard to use for the first few hours but you
+might be surprised by how fast your fingers will start picking up the new
+bindings and how expressive the modifiers-based language will turn out to be.
+
 
 2. Running Edge
 
@@ -94,6 +103,14 @@ If the Reverse modifier is enabled, it moves backwards from the end.
 
 (The current implementation is slightly different than this.  But we'll likely
 change it to do this.)
+
+
+3.6. Go to file
+
+If the cursor is over a path that exists in the filesystem, pressing Enter
+should cause a new buffer to be created with the contents of that file.
+
+See section 5.5 for more commands to open a file.
 
 
 4. Editing a buffer
@@ -213,7 +230,11 @@ mechanism.
 
 By default, commands will be run without a controlling terminal.  This can be
 toggled (which can be very useful e.g. for running a shell in a buffer) with the
-variable "pts" (section 7.2.1).
+variable "pts" (section 7.2.1).  For example, if you run "bash", you'll probably
+want to do "av" (set variable), then "pts" and Enter (to toggle the value of the
+boolean variable) and then press "ar" to restart the shell.  Of course, this
+should be done automatically through the buffer-reload.cc script (which we'll
+start distributing soon).
 
 
 5.4. Running many commands.
@@ -223,12 +244,29 @@ TODO: Describe aF
 
 5.5. Open a file
 
+5.5.1. Advanced > Open ("ao")
+
 Use "ao" ("Advanced > Open") to open a file.  Edge will prompt you for the
 filename.  Tab will autocomplete (and pressing Tab again will show all the
 options).
 
 In practice, we tend to use "a." (section 5.6) much more frequently to open
-files.
+files.  We also tend to navigate across files by moving the cursor over to a
+path and pressing return (section 3.6).
+
+5.5.2. Path suffixes
+
+Edge will look for an optional suffix to the path indicating the position in the
+file, which is mostly compatible with the output of GCC and other similar
+compilers.  The following examples show the supported forms:
+
+- file.cc:54 takes you to line 54 of file.cc.
+- file.cc:54:12 additionally takes you to column 12.
+- file.cc:/XXX takes you to the first match in file.cc for the regular
+  expression "XXX".
+
+These suffixes can be given anywhere where Edge opens a file (e.g. they also
+work for files specified through the command line).
 
 
 5.6. Files view
