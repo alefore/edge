@@ -1,5 +1,122 @@
 Edge - A text editor.
 
-Edge is a text editor and terminal handler.  It handles "buffers", where a
-buffer can be a file or a program (optionally running with a terminal).  As its
-extension language, Edge uses a subset of C++.
+1. Introduction
+
+Edge is a text editor and terminal handler.  It uses the notion of "buffers" to
+represent open files or the output of a program (which might still be running,
+and which might have a terminal of its own).  As its extension language, Edge
+uses a subset of C++.
+
+Edge is under active development and many of its bindings and/or general
+interface is likely to change soon.
+
+This document describes the use of Edge.  Edge is an editor with multiple modes,
+where commands are typically executed by typing their associated character
+sequences.  These sequences are given in this document between quotes.
+
+
+2. Running Edge
+
+If you run Edge on a file, it will open it and display it:
+
+  $ edge README.txt
+
+Inside Edge, you can get help typing "?" (and "a?" for advanced commands).
+
+You can quit at any time with "aq" (short for "Advanced > Quit").
+
+
+3. Navigating a buffer
+
+
+3.1 Basic navigation
+
+The cursor will start at the beginning of the file.  You can use "h", "j", "k",
+"l" or the arrow keys to move it around.
+
+TODO: Explain structures and modifiers.
+
+
+3.2 Search for a regular expression
+
+You can search for a string with "/": Edge will prompt you for a regular
+expression to search for and pressing Enter will take you to its first match
+after the current cursor position.
+
+Search supports autocompletion, where hitting Tab will replace the current
+regular expression by the longest common prefix of its next 10 matches
+(configurable through variable xxx, see section 7).  Press Tab once again to
+display a buffer with the list of matches.
+
+To repeat a search, use the SEARCH structure (section 6.1).
+
+If the WORD structure (section 6.1) is enabled, Edge will not prompt you for a
+regular expression: it will, instead, just search for the current word.
+
+To search backwards, use the Reverse modifier (section 6.3).
+
+
+3.3. Search for a character
+
+You can search for a character with "f": this will take you to the next
+occurrence of the next character you type.  This is roughly equivalent to typing
+"/", entering a character and pressing Enter.
+
+To search backwards, use the Reverse modifier (section 6.3).
+
+
+3.4. History of positions
+
+Edge keeps a history of the positions in which you've been.  You can go back to
+the previous position with "b".
+
+TODO: Structures.
+
+
+4. Editing a buffer
+
+
+4.1. Inserting characters
+
+
+4.2. Deleting characters
+
+
+4.3. Pasting characters
+
+
+4.4. Undo & Redo
+
+
+4.5. Repeating the last command
+
+
+5. Buffers
+
+5.1. List of buffers
+
+Press "al" at any time to open a buffer that contains the list of buffers.  Each
+line in this buffer represents a buffer: an open file or the output of a
+subprocess (which may be running or may have already exited).
+
+5.2. Reload a buffer
+
+5.3. Run a command
+
+5.4. Open a file
+
+5.5. Close a buffer
+
+
+6. Structures & structure modifiers
+
+6.1. Logical structures
+
+6.2. Structure modifiers
+
+6.3. Reverse modifier
+
+
+7. Variables
+
+8. Extension language
