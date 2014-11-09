@@ -355,11 +355,11 @@ the delete command, where e.g. "]ed" could be used to delete to the beginning
 of the current line.
 
 
-6.3. Reverse modifier
+6.3. Reverse modifier ("R")
 
-Pressing "r" will reverse the direction in which the command is applied.  Most
+Pressing "R" will reverse the direction in which the command is applied.  Most
 commands set the direction back to the default value (forwards), but if you
-press "rr", you'll activate sticky reverse mode.  Press Esc to leave sticky
+press "RR", you'll activate sticky reverse mode.  Press Esc to leave sticky
 mode.
 
 
@@ -372,6 +372,15 @@ The specific behavior depends on the command.  Most navigation and editing
 commands simply repeat the command the given number of times.  Other commands
 may have their behavior altered in different ways.
 
+
+6.5. Insertion Modifier ("r")
+
+By default, commands that insert text will "push" existing contents after the
+current cursor position back.  Press "r" to activate "replace" mode, which will
+instead overwrite previous contents of the buffer.  After a command has been
+executed, the modifier will reset back to the default, but if you press "rr",
+you'll activate sticky replace mode.  Press Esc to go back to the default
+behavior.
 
 7. Variables
 

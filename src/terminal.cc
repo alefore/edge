@@ -109,9 +109,15 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
       flags += to_string(editor_state.repetitions());
     }
     if (editor_state.default_direction() == BACKWARDS) {
-      flags += "R";
+      flags += " REVERSE";
     } else if (editor_state.direction() == BACKWARDS) {
-      flags += "r";
+      flags += " reverse";
+    }
+
+    if (editor_state.default_insertion_modifier() == REPLACE) {
+      flags += " REPLACE";
+    } else if (editor_state.insertion_modifier() == REPLACE) {
+      flags += " replace";
     }
 
     string structure;

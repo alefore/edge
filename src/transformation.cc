@@ -63,17 +63,28 @@ class InsertBufferTransformation : public Transformation {
           buffer->InsertInCurrentPosition(*buffer_to_insert_->contents()));
     }
     editor_state->ScheduleRedraw();
+
+    size_t chars_inserted = buffer_to_insert_length_ * repetitions_;
+    unique_ptr<TransformationStack> undo_stack(new TransformationStack());
+    undo_stack->PushFront(
+        TransformationAtPosition(start_position,
+            NewDeleteCharactersTransformation(
+                FORWARDS, chars_inserted, false)));
+
+    if (editor_state->insertion_modifier() == REPLACE) {
+      Result current_result(editor_state);
+      NewDeleteCharactersTransformation(FORWARDS, chars_inserted, false)
+          ->Apply(editor_state, buffer, &current_result);
+      undo_stack->PushFront(std::move(current_result.undo));
+    }
+
     if (final_position_ == START) {
       buffer->set_position(start_position);
     }
 
     result->modified_buffer = true;
     result->made_progress = true;
-    result->undo = TransformationAtPosition(start_position,
-        NewDeleteCharactersTransformation(
-            FORWARDS,
-            buffer_to_insert_length_ * repetitions_,
-            false));
+    result->undo = std::move(undo_stack);
   }
 
   unique_ptr<Transformation> Clone() {
