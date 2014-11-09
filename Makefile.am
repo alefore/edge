@@ -1,3 +1,5 @@
+AUTOMAKE_OPTIONS = subdir-objects
+
 SUBDIRS = glog-0.3.3
 
 bin_PROGRAMS = edge test
