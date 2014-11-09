@@ -67,6 +67,7 @@ EditorState::EditorState()
       default_direction_(FORWARDS),
       repetitions_(1),
       structure_(CHAR),
+      structure_modifier_(ENTIRE_STRUCTURE),
       sticky_structure_(false),
       mode_(std::move(NewCommandMode())),
       visible_lines_(1),
