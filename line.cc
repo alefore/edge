@@ -128,6 +128,7 @@ void Line::Output(const EditorState*,
   }
 
   if (output_column < width) {
+    receiver->AddModifier(Line::RESET);
     receiver->AddCharacter('\n');
   }
 }
