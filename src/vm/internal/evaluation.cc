@@ -10,18 +10,9 @@ namespace vm {
 
 namespace {
 
-pair<Expression::Continuation, unique_ptr<Value>> Crash(
-    unique_ptr<Value> value_ignored) {
-  assert(false);
-  return make_pair(Expression::Continuation(Crash), nullptr);
-}
+void Crash(OngoingEvaluation*) { assert(false); }
 
 }
-
-Evaluation::Evaluation()
-    : return_continuation(Crash),
-      continuation(Crash),
-      environment(nullptr) {}
 
 }  // namespace vm
 }  // namespace afc

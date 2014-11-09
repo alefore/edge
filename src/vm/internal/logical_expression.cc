@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include <glog/logging.h>
+
 #include "evaluation.h"
 #include "../public/types.h"
 #include "../public/value.h"
@@ -24,15 +26,17 @@ class LogicalExpression : public Expression {
 
   const VMType& type() { return VMType::Bool(); }
 
-  pair<Continuation, unique_ptr<Value>> Evaluate(const Evaluation& evaluation) {
-    return expr_a_->Evaluate(Evaluation(evaluation, Continuation(
-        [this, evaluation](unique_ptr<Value> value_a) {
-          assert(value_a->type.type == VMType::VM_BOOLEAN);
-          if (value_a->boolean != identity_) {
-            return make_pair(evaluation.continuation, std::move(value_a));
+  void Evaluate(OngoingEvaluation* evaluation) {
+    auto advancer = evaluation->advancer;
+    evaluation->advancer =
+        [this, advancer](OngoingEvaluation* inner_evaluation) {
+          CHECK_EQ(VMType::VM_BOOLEAN, inner_evaluation->value->type.type);
+          inner_evaluation->advancer = advancer;
+          if (inner_evaluation->value->boolean == identity_) {
+            expr_b_->Evaluate(inner_evaluation);
           }
-          return expr_b_->Evaluate(evaluation);
-        })));
+        };
+    expr_a_->Evaluate(evaluation);
   }
 
  private:

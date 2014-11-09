@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include <glog/logging.h>
+
 #include "evaluation.h"
 #include "../public/value.h"
 #include "../public/vm.h"
@@ -24,35 +26,46 @@ class FunctionCall : public Expression {
     return func_->type().type_arguments[0];
   }
 
-  pair<Continuation, unique_ptr<Value>> Evaluate(const Evaluation& evaluation) {
-    return func_->Evaluate(Evaluation(evaluation, Continuation(
-        [this, evaluation](unique_ptr<Value> func) {
-          assert(func != nullptr);
+  void Evaluate(OngoingEvaluation* evaluation) {
+    DVLOG(3) << "Function call evaluation starts.";
+    auto advancer = evaluation->advancer;
+    evaluation->advancer =
+        [this, advancer](OngoingEvaluation* inner_evaluation) {
+          DVLOG(5) << "Evaluating function parameters.";
+          assert(inner_evaluation->value != nullptr);
+          auto func = std::move(inner_evaluation->value);
           if (args_->empty()) {
-            return make_pair(evaluation.continuation,
-                             func->callback(vector<unique_ptr<Value>>()));
+            inner_evaluation->advancer = advancer;
+            inner_evaluation->value =
+                func->callback(vector<unique_ptr<Value>>());
+            return;
           }
-          return args_->at(0)->Evaluate(Evaluation(evaluation,
-              CaptureArgs(evaluation, new vector<unique_ptr<Value>>,
-                          shared_ptr<Value>(func.release()))));
-        })));
+          inner_evaluation->advancer = CaptureArgs(
+              advancer, new vector<unique_ptr<Value>>(),
+              shared_ptr<Value>(func.release()));
+          args_->at(0)->Evaluate(inner_evaluation);
+        };
+    func_->Evaluate(evaluation);
   }
 
  private:
-  Continuation CaptureArgs(const Evaluation& evaluation,
-                           vector<unique_ptr<Value>>* values,
-                           shared_ptr<Value> func) {
-    return Continuation(
-        [this, evaluation, func, values](unique_ptr<Value> value) {
-          values->push_back(std::move(value));
+  std::function<void(OngoingEvaluation*)> CaptureArgs(
+      std::function<void(OngoingEvaluation*)> advancer,
+      vector<unique_ptr<Value>>* values, shared_ptr<Value> func) {
+    return [this, advancer, values, func]
+        (OngoingEvaluation* evaluation) {
+          DVLOG(5) << "Received results of parameter: " << values->size() + 1;
+          values->push_back(std::move(evaluation->value));
           if (values->size() == args_->size()) {
             // TODO: Delete values, we're memory leaking here.
-            return make_pair(evaluation.continuation,
-                             func->callback(std::move(*values)));
+            DVLOG(4) << "No more parameters, performing function call.";
+            evaluation->advancer = advancer;
+            evaluation->value = func->callback(std::move(*values));
+            return;
           }
-          return args_->at(values->size())->Evaluate(Evaluation(evaluation,
-              CaptureArgs(evaluation, values, func)));
-        });
+          evaluation->advancer = CaptureArgs(advancer, values, func);
+          args_->at(values->size())->Evaluate(evaluation);
+        };
   }
 
   unique_ptr<Expression> func_;

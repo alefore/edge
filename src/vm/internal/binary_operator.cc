@@ -13,20 +13,24 @@ BinaryOperator::BinaryOperator(
 
 const VMType& BinaryOperator::type() { return type_; }
 
-pair<Expression::Continuation, unique_ptr<Value>> BinaryOperator::Evaluate(
-    const Evaluation& evaluation) {
-  return a_->Evaluate(Evaluation(evaluation, Continuation(
-      [this, evaluation](unique_ptr<Value> a_value) {
+void BinaryOperator::Evaluate(OngoingEvaluation* evaluation) {
+  auto advancer = evaluation->advancer;
+
+  evaluation->advancer =
+      [this, advancer](OngoingEvaluation* evaluation_after_a) {
         // TODO: Remove shared_ptr when we can correctly capture a unique_ptr.
-        shared_ptr<Value> a_value_shared(a_value.release());
-        return b_->Evaluate(Evaluation(evaluation, Continuation(
-            [this, a_value_shared, evaluation](unique_ptr<Value> b_value) {
+        shared_ptr<Value> a_value_shared(evaluation_after_a->value.release());
+        evaluation_after_a->advancer =
+            [this, a_value_shared, advancer]
+            (OngoingEvaluation* evaluation_after_b) {
               unique_ptr<Value> output(new Value(type_));
-              operator_(*a_value_shared.get(), *b_value, output.get());
-              return std::move(
-                  make_pair(evaluation.continuation, std::move(output)));
-            })));
-      })));
+              operator_(*a_value_shared, *evaluation_after_b->value, output.get());
+              evaluation_after_b->value = std::move(output);
+              evaluation_after_b->advancer = advancer;
+            };
+        b_->Evaluate(evaluation_after_a);
+      };
+  a_->Evaluate(evaluation);
 }
 
 }  // namespace vm

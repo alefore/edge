@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include <glog/logging.h>
+
 #include "compilation.h"
 #include "evaluation.h"
 #include "../public/environment.h"
@@ -22,12 +24,11 @@ class VariableLookup : public Expression {
     return type_;
   }
 
-  pair<Continuation, unique_ptr<Value>> Evaluate(const Evaluation& evaluation) {
-    unique_ptr<Value> output = Value::NewVoid();
-    Value* result = evaluation.environment->Lookup(symbol_);
+  void Evaluate(OngoingEvaluation* evaluation) {
+    DVLOG(5) << "Look up symbol: " << symbol_;
+    Value* result = evaluation->environment->Lookup(symbol_);
     assert(result != nullptr);
-    *output = *result;
-    return make_pair(evaluation.continuation, std::move(output));
+    evaluation->value = unique_ptr<Value>(new Value(*result));
   }
 
  private:

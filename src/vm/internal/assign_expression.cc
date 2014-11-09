@@ -1,5 +1,7 @@
 #include "assign_expression.h"
 
+#include <glog/logging.h>
+
 #include "compilation.h"
 #include "evaluation.h"
 #include "../public/environment.h"
@@ -17,14 +19,18 @@ class AssignExpression : public Expression {
 
   const VMType& type() { return value_->type(); }
 
-  pair<Continuation, unique_ptr<Value>> Evaluate(const Evaluation& evaluation) {
-    return value_->Evaluate(Evaluation(evaluation, Continuation(
-        [evaluation, this](unique_ptr<Value> value) {
-          evaluation.environment->Define(
-            symbol_, unique_ptr<Value>(new Value(*value.get())));
-          return std::move(
-              make_pair(evaluation.continuation, std::move(value)));
-        })));
+  void Evaluate(OngoingEvaluation* evaluation) {
+    auto advancer = evaluation->advancer;
+    evaluation->advancer =
+        [this, advancer](OngoingEvaluation* inner_evaluation) {
+          DVLOG(3) << "Setting value for: " << symbol_;
+          DVLOG(4) << "Value: " << *inner_evaluation->value;
+          inner_evaluation->environment->Define(
+              symbol_,
+              unique_ptr<Value>(new Value(*inner_evaluation->value)));
+          inner_evaluation->advancer = advancer;
+        };
+    value_->Evaluate(evaluation);
   }
 
  private:

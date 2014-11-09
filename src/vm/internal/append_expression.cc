@@ -16,11 +16,14 @@ class AppendExpression : public Expression {
 
   const VMType& type() { return e1_->type(); }
 
-  pair<Continuation, unique_ptr<Value>> Evaluate(const Evaluation& evaluation) {
-    return e0_->Evaluate(Evaluation(evaluation, Continuation(
-        [this, evaluation](unique_ptr<Value>) {
-          return e1_->Evaluate(evaluation);
-        })));
+  void Evaluate(OngoingEvaluation* evaluation) {
+    auto advancer = evaluation->advancer;
+    evaluation->advancer =
+        [this, advancer](OngoingEvaluation* inner_evaluation) {
+          inner_evaluation->advancer = advancer;
+          e1_->Evaluate(inner_evaluation);
+        };
+    e0_->Evaluate(evaluation);
   }
 
  private:

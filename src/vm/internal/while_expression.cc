@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include <glog/logging.h>
+
 #include "compilation.h"
 #include "evaluation.h"
 #include "../public/vm.h"
@@ -24,23 +26,30 @@ class WhileExpression : public Expression {
     return VMType::Void();
   }
 
-  pair<Continuation, unique_ptr<Value>> Evaluate(const Evaluation& evaluation) {
-    return condition_
-        ->Evaluate(Evaluation(evaluation, iterator(evaluation)));
+  void Evaluate(OngoingEvaluation* evaluation) {
+    auto advancer = evaluation->advancer;
+    evaluation->advancer =
+        [advancer, this](OngoingEvaluation* evaluation) {
+          Iteration(advancer, evaluation);
+        };
+    DVLOG(4) << "Evaluating condition...";
+    return condition_->Evaluate(evaluation);
   }
-
  private:
-  Continuation iterator(const Evaluation& evaluation) {
-    return Continuation(
-        [this, evaluation](unique_ptr<Value> condition_value) {
-          if (!condition_value->boolean) {
-            return make_pair(evaluation.continuation, Value::NewVoid());
-          }
-          return body_->Evaluate(Evaluation(evaluation, Continuation(
-              [this, evaluation](unique_ptr<Value> ignored_value) {
-                return Evaluate(evaluation);
-              })));
-        });
+
+  void Iteration(std::function<void(OngoingEvaluation* evaluation)> advancer,
+                 OngoingEvaluation* evaluation) {
+    if (!evaluation->value->boolean) {
+      DVLOG(3) << "Iteration is done.";
+      evaluation->value = Value::NewVoid();
+      evaluation->advancer = advancer;
+    }
+    DVLOG(5) << "Iterating...";
+    evaluation->advancer = [advancer, this](OngoingEvaluation* post_loop) {
+      post_loop->advancer = advancer;
+      Evaluate(post_loop);
+    };
+    body_->Evaluate(evaluation);
   }
 
   unique_ptr<Expression> condition_;

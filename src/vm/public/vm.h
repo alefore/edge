@@ -24,13 +24,24 @@ class Environment;
 class Evaluation;
 class VMType;
 
-template<typename A>
-struct RecursiveHelper
-{
-  typedef function<pair<RecursiveHelper, A>&&(A)> type;
-  RecursiveHelper(type f) : func(f) {}
-  operator type() { return func; }
-  type func;
+struct OngoingEvaluation {
+  // The function to run to advance the evaluation.
+  //
+  // When this is run, the advancer field in the passed instance will be used
+  // both as an input and output paremeter: as an output parameter, the advancer
+  // sets the next piece of code that should run; as an input parameter, the
+  // advancer can signal that the computation is done (by just leaving it
+  // unmodified).
+  std::function<void(OngoingEvaluation*)> advancer;
+
+  // The function to run to halt the evaluation and return a value to the parent
+  // scope.
+  std::function<void(OngoingEvaluation*)> return_advancer;
+
+  Environment* environment;
+
+  // The current value, intended to be consumed by the advancer.
+  unique_ptr<Value> value;
 };
 
 class Expression {
@@ -41,15 +52,10 @@ class Expression {
   // Implementation details, not relevant for customers.
   // TODO: Figure out a nice way to hide this.
 
-  // We use a continuation trampoline: to evaluate an expression, we must pass
-  // the continuation that wants to receive the value.  The expression will
-  // return a pair with a continuation and a value, and the runner must feed the
-  // value to the continuation and keep doing that on the returned value, until
-  // it can verify that the original continuation has run.
-  typedef RecursiveHelper<unique_ptr<Value>> Continuation;
-
-  virtual pair<Continuation, unique_ptr<Value>> Evaluate(
-      const Evaluation& evaluation) = 0;
+  // Should adjust OngoingEvaluation to evaluate the current expression and
+  // ensure that eventually (after advancing the evaluation) the value of the
+  // expression will be received by the current advancer.
+  virtual void Evaluate(OngoingEvaluation* evaluation) = 0;
 };
 
 unique_ptr<Expression> CompileFile(

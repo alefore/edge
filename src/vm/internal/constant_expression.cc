@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include <glog/logging.h>
+
 #include "evaluation.h"
 #include "../public/value.h"
 #include "../public/vm.h"
@@ -19,10 +21,9 @@ class ConstantExpression : public Expression {
 
   const VMType& type() { return value_->type; }
 
-  pair<Continuation, unique_ptr<Value>> Evaluate(const Evaluation& evaluation) {
-    unique_ptr<Value> value(new Value(value_->type.type));
-    *value = *value_;
-    return make_pair(evaluation.continuation, std::move(value));
+  void Evaluate(OngoingEvaluation* evaluation) {
+    DVLOG(5) << "Evaluating constant value: " << *value_;
+    evaluation->value.reset(new Value(*value_));
   }
 
  private:

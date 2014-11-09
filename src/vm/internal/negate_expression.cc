@@ -19,14 +19,14 @@ class NegateExpression : public Expression {
 
   const VMType& type() { return expr_->type(); }
 
-  pair<Continuation, unique_ptr<Value>> Evaluate(const Evaluation& evaluation) {
-    return expr_->Evaluate(Evaluation(evaluation, Continuation(
-        [this, evaluation](unique_ptr<Value> value) {
-          unique_ptr<Value> output(new Value(VMType::VM_BOOLEAN));
-          *output = *value;
-          negate_(output.get());
-          return make_pair(evaluation.continuation, std::move(output));
-        })));
+  void Evaluate(OngoingEvaluation* evaluation) {
+    auto advancer = evaluation->advancer;
+    evaluation->advancer =
+        [this, advancer](OngoingEvaluation* inner_evaluation) {
+          negate_(inner_evaluation->value.get());
+          inner_evaluation->advancer = advancer;
+        };
+    expr_->Evaluate(evaluation);
   }
 
  private:

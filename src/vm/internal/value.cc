@@ -32,5 +32,11 @@ namespace vm {
   return std::move(output);
 }
 
+std::ostream& operator<<(std::ostream& os, const Value& value) {
+  // TODO: implement.
+  os << "[" << value.type.ToString() << "]";
+  return os;
+}
+
 }  // namespace vm
 }  // namespace afc

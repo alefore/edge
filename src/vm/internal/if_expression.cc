@@ -28,12 +28,15 @@ class IfExpression : public Expression {
     return true_case_->type();
   }
 
-  pair<Continuation, unique_ptr<Value>> Evaluate(const Evaluation& evaluation) {
-    return cond_->Evaluate(Evaluation(evaluation, Continuation(
-        [this, evaluation](unique_ptr<Value> result) {
-          return (result->boolean ? true_case_ : false_case_)
-              ->Evaluate(evaluation);
-        })));
+  void Evaluate(OngoingEvaluation* evaluation) {
+    auto advancer = evaluation->advancer;
+    evaluation->advancer =
+        [this, advancer](OngoingEvaluation* inner_evaluation) {
+          inner_evaluation->advancer = advancer;
+          (inner_evaluation->value->boolean ? true_case_ : false_case_)
+              ->Evaluate(inner_evaluation);
+        };
+    cond_->Evaluate(evaluation);
   }
 
  private:

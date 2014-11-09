@@ -2,6 +2,7 @@
 #define __AFC_VM_PUBLIC_VALUE_H__
 
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
@@ -35,6 +36,8 @@ struct Value {
   function<unique_ptr<Value>(vector<unique_ptr<Value>>)> callback;
   shared_ptr<void> user_value;
 };
+
+std::ostream& operator<<(std::ostream& os, const Value& value);
 
 }  // namespace vm
 }  // namespace afc

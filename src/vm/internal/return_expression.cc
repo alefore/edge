@@ -18,9 +18,9 @@ class ReturnExpression : public Expression {
 
   const VMType& type() { return expr_->type(); }
 
-  pair<Continuation, unique_ptr<Value>> Evaluate(const Evaluation& evaluation) {
-    return expr_
-        ->Evaluate(Evaluation(evaluation, evaluation.return_continuation));
+  void Evaluate(OngoingEvaluation* evaluation) {
+    evaluation->advancer = evaluation->return_advancer;
+    expr_->Evaluate(evaluation);
   }
 
  private:

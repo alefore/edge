@@ -8,6 +8,8 @@
 #include <sstream>  
 #include <string>
 
+#include <glog/logging.h>
+
 #include "../public/environment.h"
 #include "../public/value.h"
 #include "append_expression.h"
@@ -331,22 +333,24 @@ unique_ptr<Value> Evaluate(Expression* expr, Environment* environment) {
   unique_ptr<Value> result;
   bool done = false;
 
-  Evaluation evaluation;
-  evaluation.return_continuation = Expression::Continuation(
-      [&result, &done, &evaluation](unique_ptr<Value> value) {
+  OngoingEvaluation evaluation;
+  evaluation.return_advancer =
+      [&result, &done](OngoingEvaluation* evaluation) {
+        DVLOG(4) << "Evaluation done.";
+        DVLOG(5) << "Result: " << *evaluation->value;
         assert(!done);
         done = true;
-        result = std::move(value);
-        return make_pair(evaluation.return_continuation,
-                         unique_ptr<Value>(nullptr));
-      });
-  evaluation.continuation = evaluation.return_continuation;
+        result = std::move(evaluation->value);
+      };
+  evaluation.advancer = evaluation.return_advancer;
   evaluation.environment = environment;
 
-  pair<Expression::Continuation, unique_ptr<Value>> trampoline =
-      expr->Evaluate(evaluation);
+  expr->Evaluate(&evaluation);
   while (!done) {
-    trampoline = trampoline.first.func(std::move(trampoline.second));
+    DVLOG(7) << "Jumping in the evaluation trampoline...";
+    auto advancer = evaluation.advancer;
+    advancer(&evaluation);
+    DVLOG(10) << "Landed in the evaluation trampoline...";
   }
 
   return result;
