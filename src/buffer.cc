@@ -1448,8 +1448,18 @@ void OpenBuffer::Apply(
     CHECK(last_transformation_stack_.back() != nullptr);
     last_transformation_stack_.back()->PushBack(transformation->Clone());
   }
-  transformations_past_.emplace_back(new Transformation::Result);
+  transformations_past_.emplace_back(new Transformation::Result(editor_state));
   transformation->Apply(editor_state, this, transformations_past_.back().get());
+
+  auto delete_buffer = transformations_past_.back()->delete_buffer;
+  if (!delete_buffer->contents()->empty()) {
+    auto insert_result = editor_state->buffers()->insert(
+        make_pair(delete_buffer->name(), delete_buffer));
+    if (!insert_result.second) {
+      insert_result.first->second = delete_buffer;
+    }
+  }
+
   transformations_future_.clear();
   if (transformations_past_.back()->modified_buffer) {
     last_transformation_ = std::move(transformation);
@@ -1457,7 +1467,7 @@ void OpenBuffer::Apply(
 }
 
 void OpenBuffer::RepeatLastTransformation(EditorState* editor_state) {
-  transformations_past_.emplace_back(new Transformation::Result);
+  transformations_past_.emplace_back(new Transformation::Result(editor_state));
   last_transformation_
       ->Apply(editor_state, this, transformations_past_.back().get());
   transformations_future_.clear();
@@ -1489,7 +1499,7 @@ void OpenBuffer::Undo(EditorState* editor_state) {
   for (size_t i = 0; i < editor_state->repetitions(); i++) {
     bool modified_buffer = false;
     while (!modified_buffer && !source->empty()) {
-      target->emplace_back(new Transformation::Result);
+      target->emplace_back(new Transformation::Result(editor_state));
       source->back()->undo->Apply(editor_state, this, target->back().get());
       source->pop_back();
       modified_buffer = target->back()->modified_buffer;

@@ -159,7 +159,8 @@ class ApplyRepetitionsTransformation : public Transformation {
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     unique_ptr<TransformationStack> undo_stack(new TransformationStack);
     for (size_t i = 0; i < repetitions_; i++) {
-      Result current_result;
+      Result current_result(editor_state);
+      current_result.delete_buffer = result->delete_buffer;
       delegate_->Apply(editor_state, buffer, &current_result);
       if (current_result.modified_buffer) {
         result->modified_buffer = true;
@@ -246,11 +247,12 @@ class StructureTransformation : public Transformation {
 namespace afc {
 namespace editor {
 
-Transformation::Result::Result()
+Transformation::Result::Result(EditorState* editor_state)
      : success(true),
        made_progress(false),
        modified_buffer(false),
-       undo(NewNoopTransformation()) {}
+       undo(NewNoopTransformation()),
+       delete_buffer(new OpenBuffer(editor_state, OpenBuffer::kPasteBuffer)) {}
 
 unique_ptr<Transformation> NewInsertBufferTransformation(
     shared_ptr<OpenBuffer> buffer_to_insert, size_t repetitions,

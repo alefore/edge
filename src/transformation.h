@@ -23,7 +23,7 @@ class LineColumn;
 class Transformation {
  public:
   struct Result {
-    Result();
+    Result(EditorState* editor_state);
 
     // Did the transformation run to completion?  If it only run partially, this
     // should be false.
@@ -41,6 +41,10 @@ class Transformation {
     // Reverse transformation that will undo any changes done by this one.  This
     // should never be null (see NewNoopTransformation instead).
     unique_ptr<Transformation> undo;
+
+    // Any text deleted will be appended to this buffer.  If any text at all is
+    // appended, the buffer will replace the previous paste buffer.
+    shared_ptr<OpenBuffer> delete_buffer;
   };
 
   virtual ~Transformation() {}
@@ -111,7 +115,8 @@ class TransformationStack : public Transformation {
     CHECK(result != nullptr);
     unique_ptr<TransformationStack> undo(new TransformationStack());
     for (auto& it : stack_) {
-      Result it_result;
+      Result it_result(editor_state);
+      it_result.delete_buffer = result->delete_buffer;
       it->Apply(editor_state, buffer, &it_result);
       if (it_result.modified_buffer) {
         result->modified_buffer = true;
