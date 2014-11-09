@@ -5,7 +5,7 @@ AC_PREREQ([2.68])
 AC_INIT([Edge], [0.0], [alefore@gmail.com])
 LT_INIT
 AM_INIT_AUTOMAKE
-AC_CONFIG_SRCDIR([buffer.h])
+AC_CONFIG_SRCDIR([src/buffer.h])
 AC_CONFIG_HEADERS([config.h])
 
 # Checks for programs.

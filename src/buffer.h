@@ -59,6 +59,10 @@ struct LineColumn {
     return line == rhs.line && column == rhs.column;
   }
 
+  bool operator<(const LineColumn& rhs) const {
+    return line < rhs.line || (line == rhs.line && column < rhs.column);
+  }
+
   size_t line;
   size_t column;
 
@@ -224,6 +228,9 @@ class OpenBuffer {
   // the length of the current line).
   void MaybeAdjustPositionCol();
 
+  // Makes sure that the current line (position) is not greater than the number
+  // of elements in contents().  Note that after this, it may still not be a
+  // valid index for contents() (it may be just at the end).
   void CheckPosition();
 
   // Sets the positions pointed to by start and end to the beginning and end of
@@ -300,10 +307,13 @@ class OpenBuffer {
     if (contents_.empty()) { return true; }
     return at_last_line(position) && at_end_of_line(position);
   }
+
+  // Returns the position of just after the last character of the current file.
   LineColumn end_position() const {
     if (contents_.empty()) { return LineColumn(0, 0); }
     return LineColumn(contents_.size() - 1, (*contents_.rbegin())->size());
   }
+
   bool at_last_line() const { return at_last_line(position()); }
   bool at_last_line(const LineColumn& position) const {
     return position.line == contents_.size() - 1;

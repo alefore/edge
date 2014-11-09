@@ -1,1 +1,395 @@
-A text editor.
+Edge - A text editor.
+
+1. Introduction
+
+Edge is a text editor and terminal handler.  It uses the notion of "buffers" to
+represent open files or the output of a program (which might still be running,
+and which might have a terminal of its own).  As its extension language, Edge
+uses a subset of C++.
+
+Edge is under active development and many of its bindings and/or general
+interface is likely to change soon.
+
+This document describes the use of Edge.  Edge is an editor with multiple modes,
+where commands are typically executed by typing their associated character
+sequences.  These sequences are given in this document between quotes.
+
+To get the most out of Edge, you should probably familiarize yourself with the
+modifiers (section 6) and the navigation (section 3) and editing (section 4)
+commands.  We'd also strongly recommend learning the commands for controlling
+buffers (section 5).
+
+Edge will probably be relatively hard to use for the first few hours but you
+might be surprised by how fast your fingers will start picking up the new
+bindings and how expressive the modifiers-based language will turn out to be.
+
+
+2. Running Edge
+
+If you run Edge on a file, it will open it and display it:
+
+  $ edge README.txt
+
+Inside Edge, you can get help typing "?" (and "a?" for advanced commands).
+
+You can quit at any time with "aq" (short for "Advanced > Quit").
+
+
+3. Navigating a buffer
+
+
+3.1 Basic navigation
+
+The cursor will start at the beginning of the file.  You can use "h", "j", "k",
+"l" or the arrow keys to move it around.
+
+TODO: Explain structures and modifiers.
+
+
+3.2 Search for a regular expression
+
+You can search for a string with "/": Edge will prompt you for a regular
+expression to search for and pressing Enter will take you to its first match
+after the current cursor position.
+
+Search supports autocompletion, where hitting Tab will replace the current
+regular expression by the longest common prefix of its next 10 matches
+(configurable through variable xxx, see section 7).  Press Tab once again to
+display a buffer with the list of matches.
+
+To repeat a search, use the Search structure (section 6.1).
+
+If the Word structure (section 6.1) is enabled, Edge will not prompt you for a
+regular expression: it will, instead, just search for the current word.
+
+To search backwards, use the Reverse modifier (section 6.3).
+
+
+3.3. Search for a character
+
+You can search for a character with "f": this will take you to the next
+occurrence of the next character you type.  This is roughly equivalent to typing
+"/", entering a character and pressing Enter.
+
+To search backwards, use the Reverse modifier (section 6.3).
+
+
+3.4. History of positions
+
+Edge keeps a history of the positions in which you've been.  You can go back to
+the previous position with "b".
+
+The list of positions is kept in a buffer called "- positions".
+
+TODO: Describe the effect of structures.
+
+
+3.5. Goto beginning
+
+Use "g" to go to the first character in the current line.  Press "g" again to go
+to the last character in the current line.
+
+If a repetition is active, the behavior changes to "go to the i-th character
+in the current line".
+
+The current structure alters the behavior thus:
+
+- Word: Goes to the i-th word from the beginning of the current line.
+- Line: Goes to the i-th line from the beginning of the current buffer.
+- Page: Goes to the i-th page from the beginning of the current buffer.
+- Buffer: Goes to the i-th buffer (in the list of buffers).
+
+If the Reverse modifier is enabled, it moves backwards from the end.
+
+(The current implementation is slightly different than this.  But we'll likely
+change it to do this.)
+
+
+3.6. Go to file
+
+If the cursor is over a path that exists in the filesystem, pressing Enter
+should cause a new buffer to be created with the contents of that file.
+
+See section 5.5 for more commands to open a file.
+
+
+4. Editing a buffer
+
+
+4.1. Inserting characters
+
+To type some text into a buffer, use "i".  This enters insert mode, which is
+indicated at the bottom of the screen by the word "type" (of "type (raw)" if the
+buffer is a command with a terminal).  Press Esc to exit insert mode.  Anything
+you type while in insert mode will be inserted into the buffer; for buffers with
+an associated terminal, the text will be written to the terminal.
+
+If insert mode is activated with the Line structure, an empty line will be
+inserted above the current line and text will be inserted into it.  The Reverse
+modifier will instead insert the line after the current line.
+
+
+4.2. Deleting contents
+
+Press "d" to delete the current character.
+
+If the Word structure is enabled, delete will delete the current word.  The
+contents of variable word_characters is used to specify the list of characters
+that are considered to be part of a word.  If the cursor position is in a
+non-word character, characters will be deleted until the beginning of the word,
+and then the "delete word" command will run).
+
+If the Line structure is enabled, delete deletes the current line.
+
+The "[" or "]" modifiers (section 6.2) alter this behavior, causing delete to
+only delete until the beginning or end of the current structure.  For example,
+to delete from the current position to the end of line, one would use "e]d".
+
+
+4.3. Pasting characters
+
+Press "p" to paste the last contents deleted by the delete command.
+
+Whenever "d" deletes some contents, they go to a special buffer called "- paste
+buffer".  You could modify the contents in this buffer directly to alter what
+"p" will paste.
+
+
+4.4. Undo & Redo
+
+Edge maintains full undo history.  Press "u" to undo the last edition.
+Navigation commands (that only alter the cursor position but not the contents of
+the buffer) are ignored: undo will revert the last transformation.
+
+To "re do" activate the Reverse modifier (section 6.3).
+
+
+4.5. Repeat the last command
+
+You can repeat the last transformation at the current position by pressing ".".
+
+You can group multiple commands to be repeated by pressing "sr" (short for
+Secondary > Record), then applying all the commands you want to group, and then
+pressing "sr" again.  If you then press ".", you will repeat all the commands
+in the sequence.
+
+
+4.6 Capitals swap
+
+Press "~" to convert the current character from upper case to lower case (and
+viceversa) and advance by one position.
+
+If the reverse modifier is enabled, will move backwards instead of advancing.
+
+"~" doesn't currently handle any structures nor repetitions, but it should.
+
+
+5. Buffers
+
+5.1. List of buffers
+
+Press "al" ("Advanced > List") to open a buffer that contains the list of
+buffers.  Each line in this buffer represents a buffer: an open file or the
+output of a subprocess (which may be running or may have already exited).
+
+If you delete lines in this buffer (with "ed", see sections 6.1 and 4.2), this
+will close the associated buffers.  If you have unsaved changes, you will lose
+them.
+
+The list of buffers will be updated dynamically whenever you create new buffers
+or as they make progress (e.g. it will show the number of lines that have been
+read from a command that's currently running).
+
+
+5.2. Reload a buffer
+
+You can reload a buffer with "ar".  If the buffer is a file, this discards any
+unsaved changes.  If the buffer is a command (section 5.3), this will kill it
+with SIGTERM (if it's still running), wait for it to exit, and restart it.
+
+If you're in the list of buffers (section 5.1), you can activate Line mode
+("e", section 6.1) and press "ar" to reload the buffer that the cursor is
+currently on.  During software development, this can provide a quick way to
+re-run commands like "make" during development and wait for them to terminate
+successfully (since the list of buffers will be updated dynamically as they make
+progress).
+
+
+5.3. Run a command
+
+You can run a command with "af" ("Advanced > Fork").  Edge will prompt you for a
+command to run and will create a buffer in which it will run this command.  If a
+buffer for the command already existed, Edge will just reload the process
+(similar to "ar" as described in section 5.2).
+
+If Line structure is active, "af" will not prompt you for a command but will
+instead run the command given in the current line.  For commands that you might
+expect to run in the future, we recommend creating a simple text file for your
+project in which you list them, so that you can quickly launch them with this
+mechanism.
+
+By default, commands will be run without a controlling terminal.  This can be
+toggled (which can be very useful e.g. for running a shell in a buffer) with the
+variable "pts" (section 7.2.1).  For example, if you run "bash", you'll probably
+want to do "av" (set variable), then "pts" and Enter (to toggle the value of the
+boolean variable) and then press "ar" to restart the shell.  Of course, this
+should be done automatically through the buffer-reload.cc script (which we'll
+start distributing soon).
+
+
+5.4. Running many commands.
+
+TODO: Describe aF
+
+
+5.5. Open a file
+
+5.5.1. Advanced > Open ("ao")
+
+Use "ao" ("Advanced > Open") to open a file.  Edge will prompt you for the
+filename.  Tab will autocomplete (and pressing Tab again will show all the
+options).
+
+In practice, we tend to use "a." (section 5.6) much more frequently to open
+files.  We also tend to navigate across files by moving the cursor over to a
+path and pressing return (section 3.6).
+
+5.5.2. Path suffixes
+
+Edge will look for an optional suffix to the path indicating the position in the
+file, which is mostly compatible with the output of GCC and other similar
+compilers.  The following examples show the supported forms:
+
+- file.cc:54 takes you to line 54 of file.cc.
+- file.cc:54:12 additionally takes you to column 12.
+- file.cc:/XXX takes you to the first match in file.cc for the regular
+  expression "XXX".
+
+These suffixes can be given anywhere where Edge opens a file (e.g. they also
+work for files specified through the command line).
+
+
+5.6. Files view
+
+If you press "a." ("Advanced > Current directory") in a buffer, a new buffer
+will be created (unless it already existed) displaying the contents of the
+directory containing the current buffer, one file (or directory) per line.
+
+Like the list of buffers (section 5.1), this is a special buffer:
+
+- Deleting lines (with "ed") from this buffer will, after prompting you for
+  confirmation, delete the underlying files from the file system.
+
+- Pressing Enter on the line for a given file will create a buffer for that file
+  (unless one already existed, in which case it'll just take you to it).
+
+
+5.7. Save a file
+
+Use "aw" ("Advanced > Write") in a buffer to save its contents.
+
+Some buffers can't be saved and will display an error in the status.
+
+
+5.6. Close a buffer
+
+Press "ad" ("Advanced > Delete") to close (delete) the current buffer.  Any
+unsaved changes will be lost.
+
+See section 5.1 for another mechanism for closing buffers, by deleting lines
+from the list of buffers.
+
+
+6. Structures & structure modifiers
+
+Edge has a notion of "modifiers" that alter the behavior of commands.  There are
+various kinds of modifiers, described in this section.
+
+
+6.1. Logical structures
+
+The most important type of modifier is the logical "structure" that the next
+command will affect.  To set the structure, press any of the following keys:
+
+"w" - Word: Affect the current word.
+"e" - Line: Affect the current line.
+"F" - Search: The region affected is based on the next match to the last search
+      query (performed with "/", section 3.2).  This structure is somewhat
+      different to the others and relatively fewer commands recognize it.
+"E" - Page: Affect the current page.  The size of a page is computed dynamically
+      based on the current screen size.
+"B" - Buffer: Affect the current buffer.
+
+The default structure is the current character.  The current structure will be
+shown at the bottom of the screen (unless the structure is set to the default
+value).
+
+Once a command is executed that is affected by the structure modifier, it will
+set the structure back to the default value.  However, redundantly setting the
+structure to the value it already has will activate "stickyness": in this case,
+the structure will not reset back to the default value.
+
+Pressing Esc will reset the structure to the default.
+
+Here are some examples:
+
+- If you expect to erase many lines, you can set the structure to Line in sticky
+  mode ("ee") and then just delete away ("ddddd").
+- To navigate by matches to a given search, you can perform a search and set the
+  structure to Search in sticky mode ("FF") and then just navigate matches with
+  "h" or "l".
+
+
+6.2. Sub-structure modifiers ("[" and "]")
+
+When the structure is set to anything other than character, "[" changes the
+semantics to mean "apply the command to the part of the structure from its
+beginning until the current cursor position".  Conversely, "]" changes the
+meaning to "apply the command from the current cursor position until the end".
+
+The current modifier will be shown at the bottom of the screen (next to the
+current structure modifier).
+
+The specific behavior depends on the command.  This is particularly useful with
+the delete command, where e.g. "]ed" could be used to delete to the beginning
+of the current line.
+
+
+6.3. Reverse modifier
+
+Pressing "r" will reverse the direction in which the command is applied.  Most
+commands set the direction back to the default value (forwards), but if you
+press "rr", you'll activate sticky reverse mode.  Press Esc to leave sticky
+mode.
+
+
+6.4. Repetitions
+
+You can type a number to set an amount of repetitions that affects the next
+command.
+
+The specific behavior depends on the command.  Most navigation and editing
+commands simply repeat the command the given number of times.  Other commands
+may have their behavior altered in different ways.
+
+
+7. Variables
+
+7.1. Setting variables
+
+TODO: av
+
+7.2. List of variables
+
+7.2.1. Variable: pts.
+
+TODO: List many more variables.
+
+
+8. Extension language
+
+TODO: ac
+TODO: SetStatus("foo");
+TODO: Document the API.
+TODO: Document the integration points (e.g. buffer-reload.cc).
+TODO: Useful examples

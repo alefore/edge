@@ -184,7 +184,7 @@ class ActivateBufferLineCommand : public EditorMode {
 
   void ProcessInput(int c, EditorState* editor_state) {
     switch (c) {
-      case '\n':
+      case '\n':  // Open the current buffer.
         {
           auto it = editor_state->buffers()->find(name_);
           if (it == editor_state->buffers()->end()) {
@@ -200,11 +200,19 @@ class ActivateBufferLineCommand : public EditorMode {
           editor_state->ResetMode();
           break;
         }
-      case 'd':
+      case 'd':  // Delete (close) the current buffer.
         {
           auto it = editor_state->buffers()->find(name_);
           if (it == editor_state->buffers()->end()) { return; }
           editor_state->CloseBuffer(it);
+          break;
+        }
+      case 'r':  // Reload the current buffer.
+        {
+          auto it = editor_state->buffers()->find(name_);
+          if (it == editor_state->buffers()->end()) { return; }
+          editor_state->SetStatus("Reloading buffer: " + name_);
+          it->second->Reload(editor_state);
           break;
         }
     }
@@ -269,11 +277,25 @@ class ReloadBuffer : public Command {
   }
 
   void ProcessInput(int, EditorState* editor_state) {
-    if (editor_state->has_current_buffer()) {
-      auto buffer = editor_state->current_buffer();
-      buffer->second->Reload(editor_state);
+    switch (editor_state->structure()) {
+      case LINE:
+        if (editor_state->has_current_buffer()) {
+          auto buffer = editor_state->current_buffer()->second;
+          if (buffer->current_line() != nullptr &&
+              buffer->current_line()->activate() != nullptr) {
+            buffer->current_line()->activate()->ProcessInput('r', editor_state);
+          }
+        }
+        break;
+      default:
+        if (editor_state->has_current_buffer()) {
+          auto buffer = editor_state->current_buffer();
+          buffer->second->Reload(editor_state);
+        }
     }
     editor_state->ResetMode();
+    editor_state->ResetRepetitions();
+    editor_state->ResetStructure();
   }
 };
 
