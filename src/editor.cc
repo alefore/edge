@@ -365,7 +365,8 @@ void EditorState::PushCurrentPosition() {
   if (it == buffers_.end()) {
     it = buffers_.insert(
         make_pair(kPositionsBufferName,
-                  new OpenBuffer(this, kPositionsBufferName)))
+                  shared_ptr<OpenBuffer>(
+                      new OpenBuffer(this, kPositionsBufferName))))
         .first;
   }
   assert(it->second != nullptr);

@@ -19,7 +19,7 @@ class AssignExpression : public Expression {
 
   pair<Continuation, unique_ptr<Value>> Evaluate(const Evaluation& evaluation) {
     return value_->Evaluate(Evaluation(evaluation, Continuation(
-        [evaluation, symbol_](unique_ptr<Value> value) {
+        [evaluation, this](unique_ptr<Value> value) {
           evaluation.environment->Define(
             symbol_, unique_ptr<Value>(new Value(*value.get())));
           return std::move(

@@ -27,7 +27,7 @@ class VMType;
 template<typename A>
 struct RecursiveHelper
 {
-  typedef function<pair<RecursiveHelper, A>(A)> type;
+  typedef function<pair<RecursiveHelper, A>&&(A)> type;
   RecursiveHelper(type f) : func(f) {}
   operator type() { return func; }
   type func;
