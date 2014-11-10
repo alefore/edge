@@ -21,7 +21,7 @@ buffers (section 5).
 
 Edge will probably be relatively hard to use for the first few hours but you
 might be surprised by how fast your fingers will start picking up the new
-bindings and how expressive the modifiers-based language will turn out to be.
+bindings and how expressive/logical the modifiers-based language is.
 
 
 2. Running Edge
@@ -60,7 +60,7 @@ display a buffer with the list of matches.
 To repeat a search, use the Search structure (section 6.1).
 
 If the Word structure (section 6.1) is enabled, Edge will not prompt you for a
-regular expression: it will, instead, just search for the current word.
+regular expression: it will, instead, just search for the word under the cursor.
 
 To search backwards, use the Reverse modifier (section 6.3).
 
@@ -108,7 +108,8 @@ change it to do this.)
 3.6. Go to file
 
 If the cursor is over a path that exists in the filesystem, pressing Enter
-should cause a new buffer to be created with the contents of that file.
+creates a new buffer with the contents of that file (or, if a buffer for the
+file already exists, just takes you to it).
 
 See section 5.5 for more commands to open a file.
 
@@ -128,23 +129,28 @@ If insert mode is activated with the Line structure, an empty line will be
 inserted above the current line and text will be inserted into it.  The Reverse
 modifier will instead insert the line after the current line.
 
+If the insertion modifier is set to Replace (section 6.5), insert will replace
+characters as you type; otherwise, it will make room for the new characters,
+preserving the contents that follow the cursor.
 
 4.2. Deleting contents
 
 Press "d" to delete the current character.
 
-If the Word structure is enabled, delete will delete the current word.  The
-contents of variable word_characters is used to specify the list of characters
-that are considered to be part of a word.  If the cursor position is in a
-non-word character, characters will be deleted until the beginning of the word,
-and then the "delete word" command will run).
+If the Word structure (section 6.1) is enabled, "d" deletes the current word.
+The contents of variable word_characters (section 7.2.xxx) is used to specify
+the list of characters that are considered to be part of a word.  If the cursor
+position is in a non-word character, characters will be deleted until the
+beginning of the word, and then the "delete word" command will run).
 
-If the Line structure is enabled, delete deletes the current line.
+If the Line structure is enabled, "d" deletes the current line.
 
 The "[" or "]" modifiers (section 6.2) alter this behavior, causing delete to
-only delete until the beginning or end of the current structure.  For example,
-to delete from the current position to the end of line, one would use "e]d".
+only delete until the beginning or end of the current structure.  For example:
 
+- To delete from the current position to the end of line, use: "e]d"
+- With the cursor in a series of space characters, to delete until the beginning
+  of the next workd, use: "w[d"
 
 4.3. Pasting characters
 
