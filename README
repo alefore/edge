@@ -129,9 +129,9 @@ If insert mode is activated with the Line structure, an empty line will be
 inserted above the current line and text will be inserted into it.  The Reverse
 modifier will instead insert the line after the current line.
 
-If the insertion modifier is set to Replace (section 6.5), insert will replace
-characters as you type; otherwise, it will make room for the new characters,
-preserving the contents that follow the cursor.
+The insertion modifier (section 6.5) will specify if insert should preserve the
+contents that follow the cursor (default) or replace them as you type.
+
 
 4.2. Deleting contents
 
@@ -152,6 +152,7 @@ only delete until the beginning or end of the current structure.  For example:
 - With the cursor in a series of space characters, to delete until the beginning
   of the next workd, use: "w[d"
 
+
 4.3. Pasting characters
 
 Press "p" to paste the last contents deleted by the delete command.
@@ -159,6 +160,9 @@ Press "p" to paste the last contents deleted by the delete command.
 Whenever "d" deletes some contents, they go to a special buffer called "- paste
 buffer".  You could modify the contents in this buffer directly to alter what
 "p" will paste.
+
+The insertion modifier (section 6.5) will specify if insert should preserve the
+contents that follow the cursor (default) or replace them as you type.
 
 
 4.4. Undo & Redo
