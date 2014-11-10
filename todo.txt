@@ -16,8 +16,6 @@ Support autocomplete while editting a buffer
 
 Add tests for Undo for insert.
 
-Implement replace mode.
-
 -- Navigation
 
 Add a "margin_lines" integer variable.
@@ -55,6 +53,8 @@ Add a way to start a command, like with flags.
 Save the contents of variables?  Maybe in a per-buffer file?
 
 -- VM
+
+Add support for templates, so that we can do "vector<string>".
 
 -- Misc
 

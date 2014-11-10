@@ -125,6 +125,7 @@ class InsertMode : public EditorMode {
         editor_state->ResetStatus();
         editor_state->ResetMode();
         editor_state->ResetRepetitions();
+        editor_state->ResetInsertionModifier();
         return;
 
       case Terminal::UP_ARROW:

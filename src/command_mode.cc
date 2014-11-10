@@ -263,6 +263,7 @@ class Paste : public Command {
     editor_state->ApplyToCurrentBuffer(NewInsertBufferTransformation(
         it->second, editor_state->repetitions(), END));
     editor_state->ResetRepetitions();
+    editor_state->ResetInsertionModifier();
     editor_state->ScheduleRedraw();
   }
 };
@@ -598,6 +599,24 @@ class EnterFindMode : public Command {
   }
 };
 
+class InsertionModifierCommand : public Command {
+ public:
+  const string Description() {
+    return "activates replace modifier (overwrites text on insertions)";
+  }
+
+  void ProcessInput(int, EditorState* editor_state) {
+    if (editor_state->insertion_modifier() == INSERT) {
+      editor_state->set_insertion_modifier(REPLACE);
+    } else if (editor_state->default_insertion_modifier() == INSERT) {
+      editor_state->set_default_insertion_modifier(REPLACE);
+    } else {
+      editor_state->set_default_insertion_modifier(INSERT);
+      editor_state->ResetInsertionModifier();
+    }
+  }
+};
+
 class ReverseDirectionCommand : public Command {
  public:
   const string Description() {
@@ -908,7 +927,8 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('s', new EnterSecondaryMode()));
     output.insert(make_pair('i', new EnterInsertMode()));
     output.insert(make_pair('f', new EnterFindMode()));
-    output.insert(make_pair('r', new ReverseDirectionCommand()));
+    output.insert(make_pair('R', new ReverseDirectionCommand()));
+    output.insert(make_pair('r', new InsertionModifierCommand()));
 
     output.insert(make_pair('/', new StartSearchMode()));
     output.insert(make_pair('g', new GotoCommand(0)));

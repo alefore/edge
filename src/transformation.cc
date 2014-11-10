@@ -63,17 +63,28 @@ class InsertBufferTransformation : public Transformation {
           buffer->InsertInCurrentPosition(*buffer_to_insert_->contents()));
     }
     editor_state->ScheduleRedraw();
+
+    size_t chars_inserted = buffer_to_insert_length_ * repetitions_;
+    unique_ptr<TransformationStack> undo_stack(new TransformationStack());
+    undo_stack->PushFront(
+        TransformationAtPosition(start_position,
+            NewDeleteCharactersTransformation(
+                FORWARDS, chars_inserted, false)));
+
+    if (editor_state->insertion_modifier() == REPLACE) {
+      Result current_result(editor_state);
+      NewDeleteCharactersTransformation(FORWARDS, chars_inserted, false)
+          ->Apply(editor_state, buffer, &current_result);
+      undo_stack->PushFront(std::move(current_result.undo));
+    }
+
     if (final_position_ == START) {
       buffer->set_position(start_position);
     }
 
     result->modified_buffer = true;
     result->made_progress = true;
-    result->undo = TransformationAtPosition(start_position,
-        NewDeleteCharactersTransformation(
-            FORWARDS,
-            buffer_to_insert_length_ * repetitions_,
-            false));
+    result->undo = std::move(undo_stack);
   }
 
   unique_ptr<Transformation> Clone() {
@@ -159,7 +170,8 @@ class ApplyRepetitionsTransformation : public Transformation {
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     unique_ptr<TransformationStack> undo_stack(new TransformationStack);
     for (size_t i = 0; i < repetitions_; i++) {
-      Result current_result;
+      Result current_result(editor_state);
+      current_result.delete_buffer = result->delete_buffer;
       delegate_->Apply(editor_state, buffer, &current_result);
       if (current_result.modified_buffer) {
         result->modified_buffer = true;
@@ -246,11 +258,12 @@ class StructureTransformation : public Transformation {
 namespace afc {
 namespace editor {
 
-Transformation::Result::Result()
+Transformation::Result::Result(EditorState* editor_state)
      : success(true),
        made_progress(false),
        modified_buffer(false),
-       undo(NewNoopTransformation()) {}
+       undo(NewNoopTransformation()),
+       delete_buffer(new OpenBuffer(editor_state, OpenBuffer::kPasteBuffer)) {}
 
 unique_ptr<Transformation> NewInsertBufferTransformation(
     shared_ptr<OpenBuffer> buffer_to_insert, size_t repetitions,

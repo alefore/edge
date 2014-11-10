@@ -12,15 +12,6 @@
 namespace afc {
 namespace editor {
 
-void InsertDeletedTextBuffer(EditorState* editor_state,
-                             const shared_ptr<OpenBuffer>& buffer) {
-  auto insert_result = editor_state->buffers()->insert(
-      make_pair(OpenBuffer::kPasteBuffer, buffer));
-  if (!insert_result.second) {
-    insert_result.first->second = buffer;
-  }
-}
-
 namespace {
 class DeleteCharactersTransformation : public Transformation {
  public:
@@ -78,9 +69,14 @@ class DeleteCharactersTransformation : public Transformation {
 
     size_t line_begin = min(line, current_line);
     size_t line_end = max(line, current_line);
-    shared_ptr<OpenBuffer> deleted_text(GetDeletedTextBuffer(
+
+    shared_ptr<OpenBuffer> delete_buffer = GetDeletedTextBuffer(
         editor_state, buffer, line_begin, line_end, preserved_contents,
-        chars_erase_line));
+        chars_erase_line);
+    if (copy_to_paste_buffer_) {
+      result->delete_buffer->Apply(
+          editor_state, NewInsertBufferTransformation(delete_buffer, 1, END));
+    }
 
     if (direction_ == BACKWARDS) {
       buffer->set_position(
@@ -99,12 +95,9 @@ class DeleteCharactersTransformation : public Transformation {
         buffer->contents()->begin() + line_end);
     result->modified_buffer = true;
 
-    if (copy_to_paste_buffer_) {
-      InsertDeletedTextBuffer(editor_state, deleted_text);
-    }
     result->undo = TransformationAtPosition(buffer->position(),
         NewInsertBufferTransformation(
-            deleted_text, 1, direction_ == FORWARDS ? START : END));
+            delete_buffer, 1, direction_ == FORWARDS ? START : END));
   }
 
   unique_ptr<Transformation> Clone() {
@@ -118,7 +111,7 @@ class DeleteCharactersTransformation : public Transformation {
       size_t line_end, const shared_ptr<LazyString>& preserved_contents,
       size_t chars_erase_line) const {
     LOG(INFO) << "Preparing deleted text buffer.";
-    shared_ptr<OpenBuffer> deleted_text(
+    shared_ptr<OpenBuffer> delete_buffer(
         new OpenBuffer(editor_state, OpenBuffer::kPasteBuffer));
 
     if (line_begin == line_end) {
@@ -135,27 +128,27 @@ class DeleteCharactersTransformation : public Transformation {
       LOG(INFO) << "Preserving chars from single line: [" << start << ", "
                 << end << "): "
                 << end_line->Substring(start, end - start)->ToString();
-      deleted_text
+      delete_buffer
           ->AppendLine(editor_state, end_line->Substring(start, end - start));
-      return deleted_text;
+      return delete_buffer;
     }
 
-    deleted_text->AppendLine(editor_state,
+    delete_buffer->AppendLine(editor_state,
         buffer->LineAt(line_begin)->Substring(
             direction_ == FORWARDS
             ? preserved_contents->size()
             : buffer->LineAt(line_begin)->size() - chars_erase_line));
 
     for (size_t i = line_begin + 1; i < line_end; i++) {
-      deleted_text->AppendLine(editor_state, buffer->LineAt(i)->contents());
+      delete_buffer->AppendLine(editor_state, buffer->LineAt(i)->contents());
     }
 
-    deleted_text->AppendLine(editor_state,
+    delete_buffer->AppendLine(editor_state,
         buffer->LineAt(line_end)->Substring(0,
             direction_ == FORWARDS
                 ? chars_erase_line
                 : buffer->LineAt(line_end)->size() - preserved_contents->size()));
-    return deleted_text;
+    return delete_buffer;
   }
 
   shared_ptr<LazyString> StartOfLine(
@@ -289,8 +282,6 @@ class DeleteWordTransformation : public Transformation {
     CHECK_LE(start.column + 1, end.column);
     CHECK_LE(initial_position.line, start.line);
 
-    shared_ptr<OpenBuffer> deleted_text(
-        new OpenBuffer(editor_state, OpenBuffer::kPasteBuffer));
     unique_ptr<TransformationStack> stack(new TransformationStack);
 
     if (initial_position.line < start.line) {
@@ -368,7 +359,7 @@ class DeleteLinesTransformation : public Transformation {
     BufferLineIterator line = buffer->line();
     size_t repetitions = min(repetitions_,
         buffer->contents()->size() - line.line());
-    shared_ptr<OpenBuffer> deleted_text(
+    shared_ptr<OpenBuffer> delete_buffer(
         new OpenBuffer(editor_state, OpenBuffer::kPasteBuffer));
     LOG(INFO) << "Erasing lines " << repetitions << " starting at line "
          << buffer->line().line() << " in a buffer with size "
@@ -392,12 +383,13 @@ class DeleteLinesTransformation : public Transformation {
           line_deletion = (*line)->Substring(buffer->position().column);
           break;
       }
-      deleted_text->AppendLine(editor_state, line_deletion);
+      delete_buffer->AppendLine(editor_state, line_deletion);
       line++;
     }
-    deleted_text->AppendLine(editor_state, EmptyString());
+    delete_buffer->AppendLine(editor_state, EmptyString());
     if (copy_to_paste_buffer_) {
-      InsertDeletedTextBuffer(editor_state, deleted_text);
+      result->delete_buffer->Apply(
+          editor_state, NewInsertBufferTransformation(delete_buffer, 1, END));
     }
 
     LOG(INFO) << "Modifying buffer: " << structure_modifier_;
@@ -409,7 +401,7 @@ class DeleteLinesTransformation : public Transformation {
       result->undo = TransformationAtPosition(
           LineColumn(buffer->position().line),
           ComposeTransformation(
-              NewInsertBufferTransformation(deleted_text, 1, END),
+              NewInsertBufferTransformation(delete_buffer, 1, END),
               NewGotoPositionTransformation(buffer->position())));
       return;
     }
