@@ -100,7 +100,11 @@ The current structure alters the behavior thus:
 - Page: Goes to the i-th page from the beginning of the current buffer.
 - Buffer: Goes to the i-th buffer (in the list of buffers).
 
-If the Reverse modifier is enabled, it moves backwards from the end.
+If the Reverse modifier is enabled, moves backwards from the end.
+
+If the structure modifier is set to "FromEndToCurrentPosition", moves backwards
+from the end (unless the Reverse modifier is also enabled, in which case they
+cancel out).
 
 (The current implementation is slightly different than this in how it handles
 repeated presses, but we'll likely change it to do this.)

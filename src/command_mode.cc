@@ -72,7 +72,8 @@ class GotoCommand : public Command {
           }
           size_t position = ComputePosition(
               start, end, line->size(), editor_state->direction(),
-              editor_state->repetitions(), calls_);
+              editor_state->repetitions(), editor_state->structure_modifier(),
+              calls_);
           assert(position <= line->size());
           buffer->set_current_position_col(position);
         }
@@ -106,7 +107,8 @@ class GotoCommand : public Command {
           size_t lines = buffer->contents()->size();
           size_t position = ComputePosition(
               0, lines, lines, editor_state->direction(),
-              editor_state->repetitions(), calls_);
+              editor_state->repetitions(), editor_state->structure_modifier(),
+              calls_);
           assert(position <= buffer->contents()->size());
           buffer->set_current_position_line(position);
         }
@@ -119,7 +121,8 @@ class GotoCommand : public Command {
               / editor_state->visible_lines());
           size_t position = editor_state->visible_lines() * ComputePosition(
               0, pages, pages, editor_state->direction(),
-              editor_state->repetitions(), calls_);
+              editor_state->repetitions(), editor_state->structure_modifier(),
+              calls_);
           CHECK_LT(position, buffer->contents()->size());
           buffer->set_current_position_line(position);
         }
@@ -134,7 +137,8 @@ class GotoCommand : public Command {
           size_t buffers = editor_state->buffers()->size();
           size_t position = ComputePosition(
               0, buffers, buffers, editor_state->direction(),
-              editor_state->repetitions(), calls_);
+              editor_state->repetitions(), editor_state->structure_modifier(),
+              calls_);
           assert(position < editor_state->buffers()->size());
           auto it = editor_state->buffers()->begin();
           advance(it, position);
@@ -156,17 +160,25 @@ class GotoCommand : public Command {
  private:
   size_t ComputePosition(
       size_t prefix_len, size_t suffix_start, size_t elements,
-      Direction direction, size_t repetitions, size_t calls) {
+      Direction direction, size_t repetitions,
+      StructureModifier structure_modifier, size_t calls) {
     CHECK_LE(prefix_len, suffix_start);
     CHECK_LE(suffix_start, elements);
     if (calls > 1) {
       return ComputePosition(
           prefix_len, suffix_start, elements, ReverseDirection(direction),
-          repetitions, calls - 2);
+          repetitions, structure_modifier, calls - 2);
     }
     if (calls == 1) {
-      return ComputePosition(0, elements, elements, direction, repetitions, 0);
+      return ComputePosition(0, elements, elements, direction, repetitions,
+                             structure_modifier, 0);
     }
+    if (structure_modifier == FROM_CURRENT_POSITION_TO_END) {
+      return ComputePosition(
+          prefix_len, suffix_start, elements, ReverseDirection(direction),
+          repetitions, ENTIRE_STRUCTURE, calls);
+    }
+
     if (direction == FORWARDS) {
       return min(prefix_len + repetitions - 1, elements);
     } else {
