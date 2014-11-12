@@ -407,6 +407,13 @@ TODO: av
 
 7.2.1. pts.
 
+7.2.2. reload_on_buffer_write (bool)
+
+Should the current buffer (on which this variable is set) be reloaded when any
+file buffer is written?
+
+This is useful mainly for command buffers like 'make' or 'git diff'.
+
 TODO: List many more variables.
 
 
