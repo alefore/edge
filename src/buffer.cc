@@ -1143,6 +1143,7 @@ string OpenBuffer::FlagsString() const {
     OpenBuffer::variable_paste_mode();
     OpenBuffer::variable_follow_end_of_file();
     OpenBuffer::variable_commands_background_mode();
+    OpenBuffer::variable_reload_on_buffer_write();
   }
   return output;
 }
@@ -1264,6 +1265,16 @@ string OpenBuffer::FlagsString() const {
       "commands_background_mode",
       "Should new commands forked from this buffer be started in background "
       "mode?  If false, we will switch to them automatically.",
+      false);
+  return variable;
+}
+
+/* static */ EdgeVariable<char>* OpenBuffer::variable_reload_on_buffer_write() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+      "reload_on_buffer_write",
+      "Should the current buffer (on which this variable is set) be reloaded "
+      "when any buffer is written?  This is useful mainly for command buffers "
+      "like 'make' or 'git diff'.",
       false);
   return variable;
 }

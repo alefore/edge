@@ -100,6 +100,12 @@ class FileBuffer : public OpenBuffer {
     for (const auto& dir : editor_state->edge_path()) {
       EvaluateFile(editor_state, dir + "/hooks/buffer-save.cc");
     }
+    for (auto& it : *editor_state->buffers()) {
+      if (it.second->read_bool_variable(
+              OpenBuffer::variable_reload_on_buffer_write())) {
+        it.second->Reload(editor_state);
+      }
+    }
   }
 
  private:
