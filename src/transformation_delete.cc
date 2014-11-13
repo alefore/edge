@@ -442,6 +442,53 @@ class DeleteLinesTransformation : public Transformation {
   bool copy_to_paste_buffer_;
 };
 
+class DeleteBufferTransformation : public Transformation {
+ public:
+  DeleteBufferTransformation(StructureModifier structure_modifier,
+                             bool copy_to_paste_buffer)
+      : structure_modifier_(structure_modifier),
+        copy_to_paste_buffer_(copy_to_paste_buffer) {}
+
+  void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
+    LOG(INFO) << "Erasing buffer (modifier: " << structure_modifier_
+              << ") of size: " << buffer->contents()->size();
+
+    int current_line = buffer->line().line();
+    int last_line = buffer->contents()->size();
+
+    int begin = 0;
+    int end = last_line;
+    switch (structure_modifier_) {
+      case ENTIRE_STRUCTURE:
+        break;  // We're all set.
+      case FROM_BEGINNING_TO_CURRENT_POSITION:
+        end = current_line;
+        break;
+      case FROM_CURRENT_POSITION_TO_END:
+        begin = current_line;
+        break;
+    }
+
+    CHECK_LE(begin, end);
+    // TODO(alejo): Handle reverse?
+    TransformationAtPosition(LineColumn(begin),
+        NewDeleteLinesTransformation(
+            end - begin, ENTIRE_STRUCTURE, copy_to_paste_buffer_))
+        ->Apply(editor_state, buffer, result);
+  }
+
+  unique_ptr<Transformation> Clone() {
+    return NewDeleteBufferTransformation(
+        structure_modifier_, copy_to_paste_buffer_);
+  }
+
+ private:
+  size_t repetitions_;
+  StructureModifier structure_modifier_;
+  bool copy_to_paste_buffer_;
+};
+
 class DeleteTransformation : public Transformation {
  public:
   DeleteTransformation(
@@ -471,6 +518,10 @@ class DeleteTransformation : public Transformation {
       case LINE:
         delegate = NewDeleteLinesTransformation(
             repetitions_, structure_modifier_, copy_to_paste_buffer_);
+        break;
+      case BUFFER:
+        delegate = NewDeleteBufferTransformation(
+            structure_modifier_, copy_to_paste_buffer_);
         break;
       default:
         LOG(INFO) << "DeleteTransformation can't handle structure: "
@@ -515,6 +566,13 @@ unique_ptr<Transformation> NewDeleteLinesTransformation(
     bool copy_to_paste_buffer) {
   return unique_ptr<Transformation>(new DeleteLinesTransformation(
       repetitions, structure_modifier, copy_to_paste_buffer));
+}
+
+unique_ptr<Transformation> NewDeleteBufferTransformation(
+    StructureModifier structure_modifier,
+    bool copy_to_paste_buffer) {
+  return unique_ptr<Transformation>(new DeleteBufferTransformation(
+      structure_modifier, copy_to_paste_buffer));
 }
 
 unique_ptr<Transformation> NewDeleteTransformation(

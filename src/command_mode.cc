@@ -203,6 +203,7 @@ class Delete : public Command {
       case CHAR:
       case WORD:
       case LINE:
+      case BUFFER:
         if (editor_state->has_current_buffer()) {
           auto buffer = editor_state->current_buffer()->second;
           editor_state->ApplyToCurrentBuffer(NewDeleteTransformation(
@@ -224,21 +225,6 @@ class Delete : public Command {
         // TODO: Implement.
         editor_state->SetStatus("Ooops, delete search is not yet implemented.");
         break;
-
-      case BUFFER:
-        auto buffer_to_erase = editor_state->current_buffer();
-        if (editor_state->current_buffer() == editor_state->buffers()->begin()) {
-          editor_state->set_current_buffer(editor_state->buffers()->end());
-        }
-        auto it = editor_state->current_buffer();
-        --it;
-        editor_state->set_current_buffer(it);
-        editor_state->buffers()->erase(buffer_to_erase);
-        if (editor_state->current_buffer() == buffer_to_erase) {
-          editor_state->set_current_buffer(editor_state->buffers()->end());
-        } else {
-          editor_state->current_buffer()->second->Enter(editor_state);
-        }
     }
 
     LOG(INFO) << "After applying delete transformation: "

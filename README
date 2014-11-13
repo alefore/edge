@@ -142,13 +142,18 @@ contents that follow the cursor (default) or replace them as you type.
 
 Press "d" to delete the current character.
 
-If the Word structure (section 6.1) is enabled, "d" deletes the current word.
-The contents of variable word_characters (section 7.2.xxx) is used to specify
-the list of characters that are considered to be part of a word.  If the cursor
-position is in a non-word character, characters will be deleted until the
-beginning of the word, and then the "delete word" command will run).
+The actual meaning varies depending on the active structure (section 6.1) thus:
 
-If the Line structure is enabled, "d" deletes the current line.
+Word: deletes the current word.  The contents of variable word_characters
+(section 7.2.xxx) is used to specify the list of characters that are considered
+to be part of a word.  If the cursor position is in a non-word character,
+characters will be deleted until the beginning of the word, and then the "delete
+word" command will run).
+
+Line: deletes the current line.
+
+Buffer: deletes the contents of the current buffer.  If you want to close the
+current buffer, see section 5.6.
 
 The "[" or "]" modifiers (section 6.2) alter this behavior, causing delete to
 only delete until the beginning or end of the current structure.  For example:
