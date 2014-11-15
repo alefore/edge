@@ -623,6 +623,9 @@ class ReverseDirectionCommand : public Command {
   }
 
   void ProcessInput(int, EditorState* editor_state) {
+    VLOG(3) << "Setting reverse direction. [previous value: "
+        << editor_state->direction() << "][previous default value: "
+        << editor_state->default_direction() << "]";
     if (editor_state->direction() == FORWARDS) {
       editor_state->set_direction(BACKWARDS);
     } else if (editor_state->default_direction() == FORWARDS) {
@@ -956,8 +959,8 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('s', new EnterSecondaryMode()));
     output.insert(make_pair('i', new EnterInsertMode()));
     output.insert(make_pair('f', new EnterFindMode()));
-    output.insert(make_pair('R', new ReverseDirectionCommand()));
-    output.insert(make_pair('r', new InsertionModifierCommand()));
+    output.insert(make_pair('r', new ReverseDirectionCommand()));
+    output.insert(make_pair('R', new InsertionModifierCommand()));
 
     output.insert(make_pair('/', new StartSearchMode()));
     output.insert(make_pair('g', new GotoCommand(0)));
