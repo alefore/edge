@@ -63,9 +63,6 @@ namespace editor {
 EditorState::EditorState()
     : current_buffer_(buffers_.end()),
       terminate_(false),
-      structure_(CHAR),
-      structure_modifier_(ENTIRE_STRUCTURE),
-      sticky_structure_(false),
       mode_(std::move(NewCommandMode())),
       visible_lines_(1),
       screen_needs_redraw_(false),
@@ -301,10 +298,6 @@ void EditorState::CloseBuffer(
   buffer->second->Close(this);
   buffers_.erase(buffer);
   assert(current_buffer_ != buffers_.end());
-}
-
-void EditorState::set_structure(Structure structure) {
-  structure_ = structure;
 }
 
 void EditorState::MoveBufferForwards(size_t times) {

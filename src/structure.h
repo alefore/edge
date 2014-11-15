@@ -4,6 +4,7 @@
 namespace afc {
 namespace editor {
 
+// TODO: Move to Modifiers.
 enum Structure {
   CHAR,
   WORD,
@@ -11,12 +12,6 @@ enum Structure {
   PAGE,
   SEARCH,
   BUFFER,
-};
-
-enum StructureModifier {
-  ENTIRE_STRUCTURE,
-  FROM_BEGINNING_TO_CURRENT_POSITION,
-  FROM_CURRENT_POSITION_TO_END,
 };
 
 Structure LowerStructure(Structure s);

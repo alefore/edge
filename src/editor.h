@@ -71,8 +71,6 @@ class EditorState {
 
   void ResetModifiers() {
     ResetMode();
-    set_structure(CHAR);
-    set_structure_modifier(ENTIRE_STRUCTURE);
     modifiers_.Reset();
   }
 
@@ -98,26 +96,33 @@ class EditorState {
   Modifiers modifiers() const { return modifiers_; }
   void set_modifiers(const Modifiers& modifiers) { modifiers_ = modifiers; }
 
-  Structure structure() const { return structure_; }
-  void set_structure(Structure structure);
-  void ResetStructure() {
-    if (!sticky_structure_) {
-      structure_ = Structure::CHAR;
-    }
-    structure_modifier_ = ENTIRE_STRUCTURE;
+  Structure structure() const { return modifiers_.structure; }
+  void set_structure(Structure structure) { modifiers_.structure = structure; }
+  void ResetStructure() { modifiers_.ResetStructure(); }
+
+  // TODO: Erase; it's now replaced by structure_range.
+  Modifiers::StructureRange structure_modifier() const {
+    return structure_range();
+  }
+  Modifiers::StructureRange structure_range() const {
+    return modifiers_.structure_range;
+  }
+  // TODO: Erase; it's now replaced by set_structure_range.
+  void set_structure_modifier(Modifiers::StructureRange structure_range) {
+    set_structure_range(structure_range);
+  }
+  void set_structure_range(Modifiers::StructureRange structure_range) {
+    modifiers_.structure_range = structure_range;
   }
 
-  StructureModifier structure_modifier() const { return structure_modifier_; }
-  void set_structure_modifier(StructureModifier structure_modifier) {
-    structure_modifier_ = structure_modifier;
-  }
-
-  bool sticky_structure() const { return sticky_structure_; }
+  bool sticky_structure() const { return modifiers_.sticky_structure; }
   void set_sticky_structure(bool sticky_structure) {
-    sticky_structure_ = sticky_structure;
+    modifiers_.sticky_structure = sticky_structure;
   }
 
-  Modifiers::Insertion insertion_modifier() const { return modifiers_.insertion; }
+  Modifiers::Insertion insertion_modifier() const {
+    return modifiers_.insertion;
+  }
   void set_insertion_modifier(Modifiers::Insertion insertion_modifier) {
     modifiers_.insertion = insertion_modifier;
   }
@@ -196,9 +201,6 @@ class EditorState {
   bool terminate_;
 
   string last_search_query_;
-  Structure structure_;
-  StructureModifier structure_modifier_;
-  bool sticky_structure_;
 
   unique_ptr<EditorMode> mode_;
 

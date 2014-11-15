@@ -7,6 +7,7 @@
 #include <glog/logging.h>
 
 #include "direction.h"
+#include "modifiers.h"
 #include "structure.h"
 
 namespace afc {
@@ -97,7 +98,7 @@ unique_ptr<Transformation> NewDirectionTransformation(
 
 unique_ptr<Transformation> NewStructureTransformation(
     Structure structure,
-    StructureModifier structure_modifier,
+    Modifiers::StructureRange structure_modifier,
     unique_ptr<Transformation> transformation);
 
 class TransformationStack : public Transformation {

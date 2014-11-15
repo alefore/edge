@@ -161,22 +161,22 @@ class GotoCommand : public Command {
   size_t ComputePosition(
       size_t prefix_len, size_t suffix_start, size_t elements,
       Direction direction, size_t repetitions,
-      StructureModifier structure_modifier, size_t calls) {
+      Modifiers::StructureRange structure_range, size_t calls) {
     CHECK_LE(prefix_len, suffix_start);
     CHECK_LE(suffix_start, elements);
     if (calls > 1) {
       return ComputePosition(
           prefix_len, suffix_start, elements, ReverseDirection(direction),
-          repetitions, structure_modifier, calls - 2);
+          repetitions, structure_range, calls - 2);
     }
     if (calls == 1) {
       return ComputePosition(0, elements, elements, direction, repetitions,
-                             structure_modifier, 0);
+                             structure_range, 0);
     }
-    if (structure_modifier == FROM_CURRENT_POSITION_TO_END) {
+    if (structure_range == Modifiers::FROM_CURRENT_POSITION_TO_END) {
       return ComputePosition(
           prefix_len, suffix_start, elements, ReverseDirection(direction),
-          repetitions, ENTIRE_STRUCTURE, calls);
+          repetitions, Modifiers::ENTIRE_STRUCTURE, calls);
     }
 
     if (direction == FORWARDS) {
@@ -206,11 +206,8 @@ class Delete : public Command {
       case BUFFER:
         if (editor_state->has_current_buffer()) {
           auto buffer = editor_state->current_buffer()->second;
-          editor_state->ApplyToCurrentBuffer(NewDeleteTransformation(
-              editor_state->structure(),
-              editor_state->structure_modifier(),
-              editor_state->modifiers(),
-              true));
+          editor_state->ApplyToCurrentBuffer(
+              NewDeleteTransformation(editor_state->modifiers(), true));
           editor_state->ScheduleRedraw();
         }
         break;
@@ -229,7 +226,7 @@ class Delete : public Command {
 
     LOG(INFO) << "After applying delete transformation: "
               << editor_state->structure();
-    editor_state->set_structure_modifier(ENTIRE_STRUCTURE);
+    editor_state->set_structure_modifier(Modifiers::ENTIRE_STRUCTURE);
     editor_state->ResetStructure();
     editor_state->ResetRepetitions();
     LOG(INFO) << "After resetting transformation: "
@@ -699,7 +696,7 @@ class SetStrengthCommand : public Command {
 class SetStructureModifierCommand : public Command {
  public:
   SetStructureModifierCommand(
-      StructureModifier value, const string& description)
+      Modifiers::StructureRange value, const string& description)
       : value_(value), description_(description) {}
 
   const string Description() {
@@ -709,12 +706,12 @@ class SetStructureModifierCommand : public Command {
   void ProcessInput(int, EditorState* editor_state) {
     editor_state->set_structure_modifier(
         editor_state->structure_modifier() == value_
-        ? ENTIRE_STRUCTURE
-        : value_);
+            ? Modifiers::ENTIRE_STRUCTURE
+            : value_);
   }
 
  private:
-  StructureModifier value_;
+  Modifiers::StructureRange value_;
   const string description_;
 };
 
@@ -996,10 +993,10 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair(Terminal::ESCAPE, new ResetStateCommand()));
 
     output.insert(make_pair('[', new SetStructureModifierCommand(
-        FROM_BEGINNING_TO_CURRENT_POSITION,
+        Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION,
         "from the beggining to the current position")));
     output.insert(make_pair(']', new SetStructureModifierCommand(
-        FROM_CURRENT_POSITION_TO_END,
+        Modifiers::FROM_CURRENT_POSITION_TO_END,
         "from the current position to the end")));
     output.insert(make_pair(Terminal::CTRL_L, new HardRedrawCommand()));
     output.insert(make_pair('0', new NumberMode(SetRepetitions)));

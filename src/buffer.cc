@@ -361,8 +361,8 @@ bool LineColumn::operator!=(const LineColumn& other) const {
             line_args.push_back(Value::NewString(current_line));
             unique_ptr<Value> result = args[1]->callback(std::move(line_args));
             if (result->str != current_line) {
-              transformation->PushBack(NewDeleteLinesTransformation(
-                  ENTIRE_STRUCTURE, Modifiers(), false));
+              transformation->PushBack(
+                  NewDeleteLinesTransformation(Modifiers(), false));
               shared_ptr<OpenBuffer> buffer_to_insert(
                   new OpenBuffer(editor_state, "tmp buffer"));
               buffer_to_insert->AppendLine(

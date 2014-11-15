@@ -165,12 +165,12 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
                   ::toupper);
       }
       switch (editor_state.structure_modifier()) {
-        case ENTIRE_STRUCTURE:
+        case Modifiers::ENTIRE_STRUCTURE:
           break;
-        case FROM_BEGINNING_TO_CURRENT_POSITION:
+        case Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION:
           structure = "[..." + structure;
           break;
-        case FROM_CURRENT_POSITION_TO_END:
+        case Modifiers::FROM_CURRENT_POSITION_TO_END:
           structure = structure + "...]";
           break;
       }
