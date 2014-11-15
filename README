@@ -52,9 +52,8 @@ Here are some example commands:
 
   "u" - Undo the last command.  See section 4.4.
 
-  "af tail -f /var/log/syslog" + Enter - Open a new buffer with the output of a
-      given command.  "af" is short for "Advanced > Fork" and is covered in
-      section 5.3.
+  "af make" + Enter - Open a new buffer with the output of a given command.
+      "af" is short for "Advanced > Fork" and is covered in section 5.3.
 
   "ar" - Reload the current buffer.  See section 5.2.
 
