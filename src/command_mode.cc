@@ -212,7 +212,6 @@ class Delete : public Command {
         }
         break;
 
-
       case PAGE:
         // TODO: Implement.
         editor_state->SetStatus("Oops, delete page is not yet implemented.");
@@ -225,12 +224,8 @@ class Delete : public Command {
     }
 
     LOG(INFO) << "After applying delete transformation: "
-              << editor_state->structure();
-    editor_state->set_structure_modifier(Modifiers::ENTIRE_STRUCTURE);
-    editor_state->ResetStructure();
-    editor_state->ResetRepetitions();
-    LOG(INFO) << "After resetting transformation: "
-              << editor_state->structure();
+              << editor_state->modifiers();
+    editor_state->ResetModifiers();
   }
 };
 
