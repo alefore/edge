@@ -3,9 +3,9 @@ Edge - A text editor.
 1. Introduction
 
 Edge is a text editor and terminal handler.  It uses the notion of "buffers" to
-represent open files or the output of a program (which might still be running,
-and which might have a terminal of its own).  As its extension language, Edge
-uses a subset of C++.
+represent open files or the output of a program (which might or might not still
+be running, and which might or might not have a terminal of its own).  As its
+extension language, Edge uses a small subset of C++/Java.
 
 Edge is under active development and many of its bindings and/or general
 interface is likely to change soon.
@@ -31,7 +31,7 @@ If you run Edge on a file, it will open it and display it:
 
   $ edge README.txt
 
-Here are some example commands:
+Example commands:
 
   "aq" - Quit (short for "Advanced > Quit").
 
