@@ -63,8 +63,6 @@ namespace editor {
 EditorState::EditorState()
     : current_buffer_(buffers_.end()),
       terminate_(false),
-      direction_(FORWARDS),
-      default_direction_(FORWARDS),
       repetitions_(1),
       structure_(CHAR),
       structure_modifier_(ENTIRE_STRUCTURE),
@@ -203,7 +201,7 @@ EditorState::EditorState()
           if (!has_current_buffer()) { return Value::NewVoid(); }
           auto buffer = current_buffer()->second;
           buffer->Apply(this, NewDeleteCharactersTransformation(
-              FORWARDS, args[0]->integer, true));
+              Modifiers(), args[0]->integer, true));
           return Value::NewVoid();
         };
     environment_.Define("DeleteCharacters", std::move(callback));
@@ -302,15 +300,6 @@ void EditorState::CloseBuffer(
   buffer->second->Close(this);
   buffers_.erase(buffer);
   assert(current_buffer_ != buffers_.end());
-}
-
-void EditorState::set_direction(Direction direction) {
-  direction_ = direction;
-}
-
-void EditorState::set_default_direction(Direction direction) {
-  default_direction_ = direction;
-  ResetDirection();
 }
 
 void EditorState::set_structure(Structure structure) {

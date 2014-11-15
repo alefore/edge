@@ -69,11 +69,11 @@ class InsertBufferTransformation : public Transformation {
     undo_stack->PushFront(
         TransformationAtPosition(start_position,
             NewDeleteCharactersTransformation(
-                FORWARDS, chars_inserted, false)));
+                Modifiers(), chars_inserted, false)));
 
     if (editor_state->insertion_modifier() == REPLACE) {
       Result current_result(editor_state);
-      NewDeleteCharactersTransformation(FORWARDS, chars_inserted, false)
+      NewDeleteCharactersTransformation(Modifiers(), chars_inserted, false)
           ->Apply(editor_state, buffer, &current_result);
       undo_stack->PushFront(std::move(current_result.undo));
     }
@@ -126,8 +126,9 @@ class DeleteSuffixSuperfluousCharacters : public Transformation {
     CHECK_LT(pos, line->size());
     return TransformationAtPosition(
         LineColumn(buffer->position().line, pos),
-        NewDeleteCharactersTransformation(FORWARDS, line->size() - pos, false))
-            ->Apply(editor_state, buffer, result);
+        NewDeleteCharactersTransformation(
+            Modifiers(), line->size() - pos, false))
+                ->Apply(editor_state, buffer, result);
   }
 
   unique_ptr<Transformation> Clone() {

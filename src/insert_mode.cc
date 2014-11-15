@@ -58,7 +58,7 @@ class NewLineTransformation : public Transformation {
 
     if (current_line != nullptr && column < current_line->size()) {
       transformation->PushBack(NewDeleteCharactersTransformation(
-          FORWARDS, current_line->size() - column, false));
+          Modifiers(), current_line->size() - column, false));
     }
     transformation->PushBack(NewDeleteSuffixSuperfluousCharacters());
 
@@ -154,8 +154,10 @@ class InsertMode : public EditorMode {
         {
           LOG(INFO) << "Handling backspace in insert mode.";
           buffer->MaybeAdjustPositionCol();
+          Modifiers modifiers;
+          modifiers.direction = BACKWARDS;
           buffer->Apply(editor_state,
-              NewDeleteCharactersTransformation(BACKWARDS, 1, false));
+              NewDeleteCharactersTransformation(modifiers, 1, false));
           buffer->set_modified(true);
           editor_state->ScheduleRedraw();
         }

@@ -88,11 +88,14 @@ class EditorState {
     modifiers_.Reset();
   }
 
-  Direction direction() const { return direction_; }
-  void set_direction(Direction direction);
-  void ResetDirection() { direction_ = default_direction_; }
-  Direction default_direction() const { return default_direction_; }
-  void set_default_direction(Direction direction);
+  Direction direction() const { return modifiers_.direction; }
+  void set_direction(Direction direction) { modifiers_.direction = direction; }
+  void ResetDirection() { modifiers_.ResetDirection(); }
+  Direction default_direction() const { return modifiers_.default_direction; }
+  void set_default_direction(Direction direction) {
+    modifiers_.direction = direction;
+    ResetDirection();
+  }
 
   size_t repetitions() const { return repetitions_; }
   void ResetRepetitions() { repetitions_ = 1; }
@@ -204,8 +207,6 @@ class EditorState {
   map<string, shared_ptr<OpenBuffer>>::iterator current_buffer_;
   bool terminate_;
 
-  Direction direction_;
-  Direction default_direction_;
   size_t repetitions_;
   string last_search_query_;
   Structure structure_;

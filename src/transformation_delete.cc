@@ -16,8 +16,8 @@ namespace {
 class DeleteCharactersTransformation : public Transformation {
  public:
   DeleteCharactersTransformation(
-      Direction direction, size_t repetitions, bool copy_to_paste_buffer)
-      : direction_(direction),
+      const Modifiers& modifiers, size_t repetitions, bool copy_to_paste_buffer)
+      : modifiers_(modifiers),
         repetitions_(repetitions),
         copy_to_paste_buffer_(copy_to_paste_buffer) {}
 
@@ -50,7 +50,7 @@ class DeleteCharactersTransformation : public Transformation {
     // the end of the current line (BACKWARDS).  If the line is the current
     // line, this already includes characters in preserved_contents.
     size_t chars_erase_line = buffer->LineAt(line)->size()
-        + (direction_ == FORWARDS ? 1 : 0)
+        + (modifiers_.direction == FORWARDS ? 1 : 0)
         - min(buffer->LineAt(line)->size(),
               (repetitions_ < chars_erased ? chars_erased - repetitions_ : 0));
     if (chars_erase_line > buffer->LineAt(line)->size()) {
@@ -81,7 +81,7 @@ class DeleteCharactersTransformation : public Transformation {
           editor_state, NewInsertBufferTransformation(delete_buffer, 1, END));
     }
 
-    if (direction_ == BACKWARDS) {
+    if (modifiers_.direction == BACKWARDS) {
       buffer->set_position(
           LineColumn(line, buffer->LineAt(line)->size() - chars_erase_line));
     }
@@ -100,12 +100,12 @@ class DeleteCharactersTransformation : public Transformation {
 
     result->undo = TransformationAtPosition(buffer->position(),
         NewInsertBufferTransformation(
-            delete_buffer, 1, direction_ == FORWARDS ? START : END));
+            delete_buffer, 1, modifiers_.direction == FORWARDS ? START : END));
   }
 
   unique_ptr<Transformation> Clone() {
     return NewDeleteCharactersTransformation(
-        direction_, repetitions_, copy_to_paste_buffer_);
+        modifiers_, repetitions_, copy_to_paste_buffer_);
   }
 
  private:
@@ -119,11 +119,11 @@ class DeleteCharactersTransformation : public Transformation {
 
     if (line_begin == line_end) {
       auto end_line = buffer->LineAt(line_begin);
-      size_t start = direction_ == FORWARDS
+      size_t start = modifiers_.direction == FORWARDS
           ? preserved_contents->size()
           : end_line->size() - chars_erase_line;
       CHECK_LE(start, end_line->size());
-      size_t end = direction_ == FORWARDS
+      size_t end = modifiers_.direction == FORWARDS
           ? chars_erase_line
           : end_line->size() - preserved_contents->size();
       CHECK_LE(start, end);
@@ -138,7 +138,7 @@ class DeleteCharactersTransformation : public Transformation {
 
     delete_buffer->AppendLine(editor_state,
         buffer->LineAt(line_begin)->Substring(
-            direction_ == FORWARDS
+            modifiers_.direction == FORWARDS
             ? preserved_contents->size()
             : buffer->LineAt(line_begin)->size() - chars_erase_line));
 
@@ -148,15 +148,15 @@ class DeleteCharactersTransformation : public Transformation {
 
     delete_buffer->AppendLine(editor_state,
         buffer->LineAt(line_end)->Substring(0,
-            direction_ == FORWARDS
+            modifiers_.direction == FORWARDS
                 ? chars_erase_line
                 : buffer->LineAt(line_end)->size() - preserved_contents->size()));
     return delete_buffer;
   }
 
-  shared_ptr<LazyString> StartOfLine(
+  static shared_ptr<LazyString> StartOfLine(
       OpenBuffer* buffer, size_t line_number, size_t column,
-      Direction direction) const {
+      Direction direction) {
     auto line = buffer->LineAt(line_number);
     switch (direction) {
       case FORWARDS:
@@ -170,19 +170,19 @@ class DeleteCharactersTransformation : public Transformation {
 
   shared_ptr<LazyString> StartOfLine(
       OpenBuffer* buffer, size_t line_number, size_t column) const {
-    return StartOfLine(buffer, line_number, column, direction_);
+    return StartOfLine(buffer, line_number, column, modifiers_.direction);
   }
 
   shared_ptr<LazyString> EndOfLine(
       OpenBuffer* buffer, size_t line_number, size_t chars_to_erase) const {
-    return StartOfLine(
-        buffer, line_number, chars_to_erase, ReverseDirection(direction_));
+    return StartOfLine(buffer, line_number, chars_to_erase,
+                       ReverseDirection(modifiers_.direction));
   }
 
   shared_ptr<LazyString> ProduceFinalLine(
       OpenBuffer* buffer, const shared_ptr<LazyString> preserved_contents,
       size_t line, size_t chars_to_erase) const {
-    switch (direction_) {
+    switch (modifiers_.direction) {
       case FORWARDS:
         return StringAppend(preserved_contents,
              EndOfLine(buffer, line, chars_to_erase));
@@ -196,9 +196,9 @@ class DeleteCharactersTransformation : public Transformation {
     CHECK(false);
   }
 
-  // Loop away from the current line (in the direction given by direction_),
-  // stopping at the first line such that if we erase all characters in it
-  // (including \n), we will have erased at least as many characters as needed.
+  // Loop away from the current line (in the direction given), stopping at the
+  // first line such that if we erase all characters in it (including \n), we
+  // will have erased at least as many characters as needed.
   //
   // chars_erased will be set to the total number of characters erased from the
   // current position until (including) line.
@@ -208,7 +208,8 @@ class DeleteCharactersTransformation : public Transformation {
     size_t current_line = buffer->current_position_line();
     *line = current_line;
     *chars_erased = 0;
-    if (direction_ == FORWARDS && *line == buffer->contents()->size()) {
+    if (modifiers_.direction == FORWARDS
+        && *line == buffer->contents()->size()) {
       return;
     }
 
@@ -220,7 +221,7 @@ class DeleteCharactersTransformation : public Transformation {
       if (*line == current_line) {
         CHECK_GE(chars_in_line, preserved_contents->size());
         chars_in_line -= preserved_contents->size();
-        if (direction_ == FORWARDS) {
+        if (modifiers_.direction == FORWARDS) {
           chars_in_line++;
         }
       } else if (*line + 1 < buffer->contents()->size()) {
@@ -241,7 +242,7 @@ class DeleteCharactersTransformation : public Transformation {
 
   bool AdvanceLine(const OpenBuffer* buffer, size_t* line) const {
     size_t old_value = *line;
-    switch (direction_) {
+    switch (modifiers_.direction) {
       case FORWARDS:
         if (*line + 1 < buffer->contents()->size()) { (*line)++; }
         break;
@@ -253,7 +254,7 @@ class DeleteCharactersTransformation : public Transformation {
     return old_value != *line;
   }
 
-  Direction direction_;
+  Modifiers modifiers_;
   size_t repetitions_;
   bool copy_to_paste_buffer_;
 };
@@ -296,7 +297,8 @@ class DeleteWordTransformation : public Transformation {
         stack->PushBack(
             NewDeleteLinesTransformation(
                 1, FROM_CURRENT_POSITION_TO_END, Modifiers(), true));
-        stack->PushBack(NewDeleteCharactersTransformation(FORWARDS, 1, true));
+        stack->PushBack(
+            NewDeleteCharactersTransformation(Modifiers(), 1, true));
       }
       start.column += initial_position.column;
       end.column += initial_position.column;
@@ -304,7 +306,7 @@ class DeleteWordTransformation : public Transformation {
 
     if (initial_position.column < start.column) {
       stack->PushBack(NewDeleteCharactersTransformation(
-          FORWARDS, start.column - initial_position.column, true));
+          Modifiers(), start.column - initial_position.column, true));
       end.column = initial_position.column + end.column - start.column;
       start.column = initial_position.column;
     }
@@ -335,7 +337,7 @@ class DeleteWordTransformation : public Transformation {
     CHECK(end.column >= start.column);
     size_t size = end.column - start.column;
     LOG(INFO) << "Erasing word, characters: " << size;
-    stack->PushBack(NewDeleteCharactersTransformation(FORWARDS, size, true));
+    stack->PushBack(NewDeleteCharactersTransformation(Modifiers(), size, true));
     stack->Apply(editor_state, buffer, result);
   }
 
@@ -431,7 +433,7 @@ class DeleteLinesTransformation : public Transformation {
       }
       stack->PushBack(NewGotoPositionTransformation(delete_from));
       stack->PushBack(NewDeleteCharactersTransformation(
-          FORWARDS, delete_characters, false));
+          Modifiers(), delete_characters, false));
     }
     size_t delete_characters_before = 0;
     size_t delete_characters_after = 0;
@@ -490,13 +492,15 @@ class DeleteLinesTransformation : public Transformation {
       stack->PushBack(NewGotoPositionTransformation(
           LineColumn(position.line, buffer->LineAt(position.line)->size())));
       stack->PushBack(NewDeleteCharactersTransformation(
-          FORWARDS, delete_characters_after, false));
+          Modifiers(), delete_characters_after, false));
     }
     if (delete_characters_before > 0) {
       LOG(INFO) << "Deleting characters before: " << delete_characters_before;
       stack->PushBack(NewGotoPositionTransformation(LineColumn(position.line)));
+      Modifiers modifiers;
+      modifiers.direction = BACKWARDS;
       stack->PushBack(NewDeleteCharactersTransformation(
-          BACKWARDS, delete_characters_before, false));
+          modifiers, delete_characters_before, false));
     }
     stack->Apply(editor_state, buffer, result);
   }
@@ -600,13 +604,11 @@ class DeleteTransformation : public Transformation {
   DeleteTransformation(
       Structure structure,
       StructureModifier structure_modifier,
-      Direction direction,
       size_t repetitions,
       const Modifiers& modifiers,
       bool copy_to_paste_buffer)
       : structure_(structure),
         structure_modifier_(structure_modifier),
-        direction_(direction),
         repetitions_(repetitions),
         modifiers_(modifiers),
         copy_to_paste_buffer_(copy_to_paste_buffer) {}
@@ -617,7 +619,7 @@ class DeleteTransformation : public Transformation {
     switch (structure_) {
       case CHAR:
         delegate = NewDeleteCharactersTransformation(
-            direction_, repetitions_, copy_to_paste_buffer_);
+            modifiers_, repetitions_, copy_to_paste_buffer_);
         break;
       case WORD:
         delegate = NewDeleteWordsTransformation(
@@ -642,14 +644,13 @@ class DeleteTransformation : public Transformation {
 
   unique_ptr<Transformation> Clone() {
     return NewDeleteTransformation(
-        structure_, structure_modifier_, direction_, repetitions_,
-        Modifiers(), copy_to_paste_buffer_);
+        structure_, structure_modifier_, repetitions_, modifiers_,
+        copy_to_paste_buffer_);
   }
 
  private:
   Structure structure_;
   StructureModifier structure_modifier_;
-  Direction direction_;
   size_t repetitions_;
   Modifiers modifiers_;
   bool copy_to_paste_buffer_;
@@ -658,9 +659,9 @@ class DeleteTransformation : public Transformation {
 }  // namespace
 
 unique_ptr<Transformation> NewDeleteCharactersTransformation(
-    Direction direction, size_t repetitions, bool copy_to_paste_buffer) {
+    const Modifiers& modifiers, size_t repetitions, bool copy_to_paste_buffer) {
   return unique_ptr<Transformation>(new DeleteCharactersTransformation(
-      direction, repetitions, copy_to_paste_buffer));
+      modifiers, repetitions, copy_to_paste_buffer));
 }
 
 unique_ptr<Transformation> NewDeleteWordsTransformation(
@@ -687,10 +688,9 @@ unique_ptr<Transformation> NewDeleteBufferTransformation(
 
 unique_ptr<Transformation> NewDeleteTransformation(
     Structure structure, StructureModifier structure_modifier,
-    Direction direction, size_t repetitions, const Modifiers& modifiers,
-    bool copy_to_paste_buffer) {
+    size_t repetitions, const Modifiers& modifiers, bool copy_to_paste_buffer) {
   return unique_ptr<Transformation>(new DeleteTransformation(
-      structure, structure_modifier, direction, repetitions, modifiers,
+      structure, structure_modifier, repetitions, modifiers,
       copy_to_paste_buffer));
 }
 
