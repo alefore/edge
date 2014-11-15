@@ -63,7 +63,6 @@ namespace editor {
 EditorState::EditorState()
     : current_buffer_(buffers_.end()),
       terminate_(false),
-      repetitions_(1),
       structure_(CHAR),
       structure_modifier_(ENTIRE_STRUCTURE),
       sticky_structure_(false),

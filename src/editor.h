@@ -73,9 +73,6 @@ class EditorState {
     ResetMode();
     set_structure(CHAR);
     set_structure_modifier(ENTIRE_STRUCTURE);
-    ResetRepetitions();
-    set_default_direction(FORWARDS);
-    ResetDirection();
     modifiers_.Reset();
   }
 
@@ -88,9 +85,9 @@ class EditorState {
     ResetDirection();
   }
 
-  size_t repetitions() const { return repetitions_; }
-  void ResetRepetitions() { repetitions_ = 1; }
-  void set_repetitions(size_t value) { repetitions_ = value; }
+  size_t repetitions() const { return modifiers_.repetitions; }
+  void ResetRepetitions() { modifiers_.ResetRepetitions(); }
+  void set_repetitions(size_t value) { modifiers_.repetitions = value; }
 
   // TODO: Maybe use a compiled regexp?
   const string& last_search_query() const { return last_search_query_; }
@@ -198,7 +195,6 @@ class EditorState {
   map<string, shared_ptr<OpenBuffer>>::iterator current_buffer_;
   bool terminate_;
 
-  size_t repetitions_;
   string last_search_query_;
   Structure structure_;
   StructureModifier structure_modifier_;
