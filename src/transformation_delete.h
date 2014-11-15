@@ -9,19 +9,19 @@ namespace editor {
 using std::unique_ptr;
 
 unique_ptr<Transformation> NewDeleteCharactersTransformation(
-    const Modifiers& modifiers, size_t repetitions, bool copy_to_paste_buffer);
+    const Modifiers& modifiers, bool copy_to_paste_buffer);
 unique_ptr<Transformation> NewDeleteWordsTransformation(
-    size_t repetitions, StructureModifier structure_modifier,
+    const Modifiers& modifiers, StructureModifier structure_modifier,
     bool copy_to_paste_buffer);
 unique_ptr<Transformation> NewDeleteLinesTransformation(
-    size_t repetitions, StructureModifier structure_modifier,
-    const Modifiers& modifiers, bool copy_to_paste_buffer);
+    StructureModifier structure_modifier, const Modifiers& modifiers,
+    bool copy_to_paste_buffer);
 unique_ptr<Transformation> NewDeleteBufferTransformation(
-    StructureModifier structure_modifier,
+    const Modifiers& modifiers, StructureModifier structure_modifier,
     bool copy_to_paste_buffer);
 unique_ptr<Transformation> NewDeleteTransformation(
     Structure structure, StructureModifier structure_modifier,
-    size_t repetitions, const Modifiers& modifiers, bool copy_to_paste_buffer);
+    const Modifiers& modifiers, bool copy_to_paste_buffer);
 
 }  // namespace editor
 }  // namespace afc

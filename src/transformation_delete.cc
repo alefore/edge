@@ -16,9 +16,8 @@ namespace {
 class DeleteCharactersTransformation : public Transformation {
  public:
   DeleteCharactersTransformation(
-      const Modifiers& modifiers, size_t repetitions, bool copy_to_paste_buffer)
+      const Modifiers& modifiers, bool copy_to_paste_buffer)
       : modifiers_(modifiers),
-        repetitions_(repetitions),
         copy_to_paste_buffer_(copy_to_paste_buffer) {}
 
   void Apply(
@@ -28,7 +27,7 @@ class DeleteCharactersTransformation : public Transformation {
       result->success = false;
       return;
     }
-    if (repetitions_ == 0) {
+    if (modifiers_.repetitions == 0) {
       return;
     }
     buffer->CheckPosition();
@@ -52,7 +51,9 @@ class DeleteCharactersTransformation : public Transformation {
     size_t chars_erase_line = buffer->LineAt(line)->size()
         + (modifiers_.direction == FORWARDS ? 1 : 0)
         - min(buffer->LineAt(line)->size(),
-              (repetitions_ < chars_erased ? chars_erased - repetitions_ : 0));
+              (modifiers_.repetitions < chars_erased
+                   ? chars_erased - modifiers_.repetitions
+                   : 0));
     if (chars_erase_line > buffer->LineAt(line)->size()) {
       LOG(INFO) << "Adjusting for end of buffer.";
       CHECK_EQ(chars_erase_line, buffer->LineAt(line)->size() + 1);
@@ -62,12 +63,12 @@ class DeleteCharactersTransformation : public Transformation {
       }
     }
     LOG(INFO) << "Characters to erase from current line: " << chars_erase_line
-              << ", repetitions: " << repetitions_ << ", chars_erased: "
+              << ", modifiers: " << modifiers_ << ", chars_erased: "
               << chars_erased << ", preserved_contents size: "
               << preserved_contents->size() << ", actual length: "
               << buffer->LineAt(line)->size();
 
-    result->success = chars_erased >= repetitions_;
+    result->success = chars_erased >= modifiers_.repetitions;
     result->made_progress = chars_erased + chars_erase_line > 0;
 
     size_t line_begin = min(line, current_line);
@@ -105,7 +106,7 @@ class DeleteCharactersTransformation : public Transformation {
 
   unique_ptr<Transformation> Clone() {
     return NewDeleteCharactersTransformation(
-        modifiers_, repetitions_, copy_to_paste_buffer_);
+        modifiers_, copy_to_paste_buffer_);
   }
 
  private:
@@ -229,10 +230,10 @@ class DeleteCharactersTransformation : public Transformation {
       }
       LOG(INFO) << "Characters available in line: " << chars_in_line;
       *chars_erased += chars_in_line;
-      if (*chars_erased >= repetitions_) {
+      if (*chars_erased >= modifiers_.repetitions) {
         return;
       }
-      CHECK_LT(*chars_erased, repetitions_);
+      CHECK_LT(*chars_erased, modifiers_.repetitions);
 
       if (!AdvanceLine(buffer, line)) {
         return;
@@ -255,7 +256,6 @@ class DeleteCharactersTransformation : public Transformation {
   }
 
   Modifiers modifiers_;
-  size_t repetitions_;
   bool copy_to_paste_buffer_;
 };
 
@@ -296,17 +296,17 @@ class DeleteWordTransformation : public Transformation {
         end.line--;
         stack->PushBack(
             NewDeleteLinesTransformation(
-                1, FROM_CURRENT_POSITION_TO_END, Modifiers(), true));
-        stack->PushBack(
-            NewDeleteCharactersTransformation(Modifiers(), 1, true));
+                FROM_CURRENT_POSITION_TO_END, Modifiers(), true));
+        stack->PushBack(NewDeleteCharactersTransformation(Modifiers(), true));
       }
       start.column += initial_position.column;
       end.column += initial_position.column;
     }
 
     if (initial_position.column < start.column) {
-      stack->PushBack(NewDeleteCharactersTransformation(
-          Modifiers(), start.column - initial_position.column, true));
+      Modifiers modifiers;
+      modifiers.repetitions = start.column - initial_position.column;
+      stack->PushBack(NewDeleteCharactersTransformation(modifiers, true));
       end.column = initial_position.column + end.column - start.column;
       start.column = initial_position.column;
     }
@@ -337,7 +337,9 @@ class DeleteWordTransformation : public Transformation {
     CHECK(end.column >= start.column);
     size_t size = end.column - start.column;
     LOG(INFO) << "Erasing word, characters: " << size;
-    stack->PushBack(NewDeleteCharactersTransformation(Modifiers(), size, true));
+    Modifiers modifiers;
+    modifiers.repetitions = size;
+    stack->PushBack(NewDeleteCharactersTransformation(modifiers, true));
     stack->Apply(editor_state, buffer, result);
   }
 
@@ -353,19 +355,17 @@ class DeleteWordTransformation : public Transformation {
 
 class DeleteLinesTransformation : public Transformation {
  public:
-  DeleteLinesTransformation(size_t repetitions,
-                            StructureModifier structure_modifier,
+  DeleteLinesTransformation(StructureModifier structure_modifier,
                             const Modifiers& modifiers,
                             bool copy_to_paste_buffer)
-      : repetitions_(repetitions),
-        structure_modifier_(structure_modifier),
+      : structure_modifier_(structure_modifier),
         modifiers_(modifiers),
         copy_to_paste_buffer_(copy_to_paste_buffer) {}
 
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     BufferLineIterator line = buffer->line();
-    size_t repetitions = min(repetitions_,
+    size_t repetitions = min(modifiers_.repetitions,
         buffer->contents()->size() - line.line());
     shared_ptr<OpenBuffer> delete_buffer(
         new OpenBuffer(editor_state, OpenBuffer::kPasteBuffer));
@@ -431,9 +431,10 @@ class DeleteLinesTransformation : public Transformation {
       if (repetitions > 1) {
         delete_characters++;  // The newline character.
       }
+      Modifiers modifiers;
+      modifiers.repetitions = delete_characters;
       stack->PushBack(NewGotoPositionTransformation(delete_from));
-      stack->PushBack(NewDeleteCharactersTransformation(
-          Modifiers(), delete_characters, false));
+      stack->PushBack(NewDeleteCharactersTransformation(modifiers, false));
     }
     size_t delete_characters_before = 0;
     size_t delete_characters_after = 0;
@@ -491,23 +492,24 @@ class DeleteLinesTransformation : public Transformation {
       LOG(INFO) << "Deleting characters after: " << delete_characters_after;
       stack->PushBack(NewGotoPositionTransformation(
           LineColumn(position.line, buffer->LineAt(position.line)->size())));
-      stack->PushBack(NewDeleteCharactersTransformation(
-          Modifiers(), delete_characters_after, false));
+      Modifiers modifiers;
+      modifiers.repetitions = delete_characters_after;
+      stack->PushBack(NewDeleteCharactersTransformation(modifiers, false));
     }
     if (delete_characters_before > 0) {
       LOG(INFO) << "Deleting characters before: " << delete_characters_before;
       stack->PushBack(NewGotoPositionTransformation(LineColumn(position.line)));
       Modifiers modifiers;
       modifiers.direction = BACKWARDS;
-      stack->PushBack(NewDeleteCharactersTransformation(
-          modifiers, delete_characters_before, false));
+      modifiers.repetitions = delete_characters_before;
+      stack->PushBack(NewDeleteCharactersTransformation(modifiers, false));
     }
     stack->Apply(editor_state, buffer, result);
   }
 
   unique_ptr<Transformation> Clone() {
     return NewDeleteLinesTransformation(
-        repetitions_, structure_modifier_, modifiers_, copy_to_paste_buffer_);
+        structure_modifier_, modifiers_, copy_to_paste_buffer_);
   }
 
  private:
@@ -546,7 +548,6 @@ class DeleteLinesTransformation : public Transformation {
     return length;
   }
 
-  size_t repetitions_;
   StructureModifier structure_modifier_;
   Modifiers modifiers_;
   bool copy_to_paste_buffer_;
@@ -554,15 +555,18 @@ class DeleteLinesTransformation : public Transformation {
 
 class DeleteBufferTransformation : public Transformation {
  public:
-  DeleteBufferTransformation(StructureModifier structure_modifier,
+  DeleteBufferTransformation(const Modifiers& modifiers,
+                             StructureModifier structure_modifier,
                              bool copy_to_paste_buffer)
-      : structure_modifier_(structure_modifier),
+      : modifiers_(modifiers),
+        structure_modifier_(structure_modifier),
         copy_to_paste_buffer_(copy_to_paste_buffer) {}
 
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     LOG(INFO) << "Erasing buffer (modifier: " << structure_modifier_
-              << ") of size: " << buffer->contents()->size();
+              << ", modifiers: " << modifiers_ << ") of size: "
+              << buffer->contents()->size();
 
     int current_line = buffer->line().line();
     int last_line = buffer->contents()->size();
@@ -582,19 +586,21 @@ class DeleteBufferTransformation : public Transformation {
 
     CHECK_LE(begin, end);
     // TODO(alejo): Handle reverse?
+    Modifiers modifiers;
+    modifiers.repetitions = end - begin;
     TransformationAtPosition(LineColumn(begin),
         NewDeleteLinesTransformation(
-            end - begin, ENTIRE_STRUCTURE, Modifiers(), copy_to_paste_buffer_))
+            ENTIRE_STRUCTURE, modifiers, copy_to_paste_buffer_))
         ->Apply(editor_state, buffer, result);
   }
 
   unique_ptr<Transformation> Clone() {
     return NewDeleteBufferTransformation(
-        structure_modifier_, copy_to_paste_buffer_);
+        modifiers_, structure_modifier_, copy_to_paste_buffer_);
   }
 
  private:
-  size_t repetitions_;
+  const Modifiers& modifiers_;
   StructureModifier structure_modifier_;
   bool copy_to_paste_buffer_;
 };
@@ -604,12 +610,10 @@ class DeleteTransformation : public Transformation {
   DeleteTransformation(
       Structure structure,
       StructureModifier structure_modifier,
-      size_t repetitions,
       const Modifiers& modifiers,
       bool copy_to_paste_buffer)
       : structure_(structure),
         structure_modifier_(structure_modifier),
-        repetitions_(repetitions),
         modifiers_(modifiers),
         copy_to_paste_buffer_(copy_to_paste_buffer) {}
 
@@ -619,20 +623,19 @@ class DeleteTransformation : public Transformation {
     switch (structure_) {
       case CHAR:
         delegate = NewDeleteCharactersTransformation(
-            modifiers_, repetitions_, copy_to_paste_buffer_);
+            modifiers_, copy_to_paste_buffer_);
         break;
       case WORD:
         delegate = NewDeleteWordsTransformation(
-            repetitions_, structure_modifier_, copy_to_paste_buffer_);
+            modifiers_, structure_modifier_, copy_to_paste_buffer_);
         break;
       case LINE:
         delegate = NewDeleteLinesTransformation(
-            repetitions_, structure_modifier_, modifiers_,
-            copy_to_paste_buffer_);
+            structure_modifier_, modifiers_, copy_to_paste_buffer_);
         break;
       case BUFFER:
         delegate = NewDeleteBufferTransformation(
-            structure_modifier_, copy_to_paste_buffer_);
+            modifiers_, structure_modifier_, copy_to_paste_buffer_);
         break;
       default:
         LOG(INFO) << "DeleteTransformation can't handle structure: "
@@ -644,14 +647,12 @@ class DeleteTransformation : public Transformation {
 
   unique_ptr<Transformation> Clone() {
     return NewDeleteTransformation(
-        structure_, structure_modifier_, repetitions_, modifiers_,
-        copy_to_paste_buffer_);
+        structure_, structure_modifier_, modifiers_, copy_to_paste_buffer_);
   }
 
  private:
   Structure structure_;
   StructureModifier structure_modifier_;
-  size_t repetitions_;
   Modifiers modifiers_;
   bool copy_to_paste_buffer_;
 };
@@ -659,39 +660,38 @@ class DeleteTransformation : public Transformation {
 }  // namespace
 
 unique_ptr<Transformation> NewDeleteCharactersTransformation(
-    const Modifiers& modifiers, size_t repetitions, bool copy_to_paste_buffer) {
-  return unique_ptr<Transformation>(new DeleteCharactersTransformation(
-      modifiers, repetitions, copy_to_paste_buffer));
+    const Modifiers& modifiers, bool copy_to_paste_buffer) {
+  return unique_ptr<Transformation>(
+      new DeleteCharactersTransformation(modifiers, copy_to_paste_buffer));
 }
 
 unique_ptr<Transformation> NewDeleteWordsTransformation(
-    size_t repetitions, StructureModifier structure_modifier,
+    const Modifiers& modifiers, StructureModifier structure_modifier,
     bool copy_to_paste_buffer) {
-  return NewApplyRepetitionsTransformation(repetitions,
+  return NewApplyRepetitionsTransformation(modifiers.repetitions,
       unique_ptr<Transformation>(new DeleteWordTransformation(
           structure_modifier, copy_to_paste_buffer)));
 }
 
 unique_ptr<Transformation> NewDeleteLinesTransformation(
-    size_t repetitions, StructureModifier structure_modifier,
-    const Modifiers& modifiers, bool copy_to_paste_buffer) {
+    StructureModifier structure_modifier, const Modifiers& modifiers,
+    bool copy_to_paste_buffer) {
   return unique_ptr<Transformation>(new DeleteLinesTransformation(
-      repetitions, structure_modifier, modifiers, copy_to_paste_buffer));
+      structure_modifier, modifiers, copy_to_paste_buffer));
 }
 
 unique_ptr<Transformation> NewDeleteBufferTransformation(
-    StructureModifier structure_modifier,
+    const Modifiers& modifiers, StructureModifier structure_modifier,
     bool copy_to_paste_buffer) {
   return unique_ptr<Transformation>(new DeleteBufferTransformation(
-      structure_modifier, copy_to_paste_buffer));
+      modifiers, structure_modifier, copy_to_paste_buffer));
 }
 
 unique_ptr<Transformation> NewDeleteTransformation(
     Structure structure, StructureModifier structure_modifier,
-    size_t repetitions, const Modifiers& modifiers, bool copy_to_paste_buffer) {
+    const Modifiers& modifiers, bool copy_to_paste_buffer) {
   return unique_ptr<Transformation>(new DeleteTransformation(
-      structure, structure_modifier, repetitions, modifiers,
-      copy_to_paste_buffer));
+      structure, structure_modifier, modifiers, copy_to_paste_buffer));
 }
 
 }  // namespace editor

@@ -209,7 +209,6 @@ class Delete : public Command {
           editor_state->ApplyToCurrentBuffer(NewDeleteTransformation(
               editor_state->structure(),
               editor_state->structure_modifier(),
-              editor_state->repetitions(),
               editor_state->modifiers(),
               true));
           editor_state->ScheduleRedraw();
@@ -887,7 +886,7 @@ class SwitchCaseTransformation : public Transformation {
           NewCopyString(string(1, isupper(c) ? tolower(c) : toupper(c))));
       editor_state->ScheduleRedraw();
 
-      stack->PushBack(NewDeleteCharactersTransformation(Modifiers(), 1, false));
+      stack->PushBack(NewDeleteCharactersTransformation(Modifiers(), false));
       stack->PushBack(NewInsertBufferTransformation(buffer_to_insert, 1, END));
     }
 
