@@ -33,13 +33,6 @@ struct BufferPosition {
   LineColumn position;
 };
 
-enum InsertionModifier {
-  // Default.  Text inserted pushes previous contents backwards.
-  INSERT,
-  // Text inserted overwrites previous contents.
-  REPLACE
-};
-
 class EditorState {
  public:
   EditorState();
@@ -83,8 +76,6 @@ class EditorState {
     ResetRepetitions();
     set_default_direction(FORWARDS);
     ResetDirection();
-    set_default_insertion_modifier(INSERT);
-    ResetInsertionModifier();
     modifiers_.Reset();
   }
 
@@ -129,19 +120,19 @@ class EditorState {
     sticky_structure_ = sticky_structure;
   }
 
-  InsertionModifier insertion_modifier() const { return insertion_modifier_; }
-  void set_insertion_modifier(InsertionModifier insertion_modifier) {
-    insertion_modifier_ = insertion_modifier;
+  Modifiers::Insertion insertion_modifier() const { return modifiers_.insertion; }
+  void set_insertion_modifier(Modifiers::Insertion insertion_modifier) {
+    modifiers_.insertion = insertion_modifier;
   }
   void ResetInsertionModifier() {
-    insertion_modifier_ = default_insertion_modifier_;
+    modifiers_.ResetInsertion();
   }
-  InsertionModifier default_insertion_modifier() const {
-    return default_insertion_modifier_;
+  Modifiers::Insertion default_insertion_modifier() const {
+    return modifiers_.default_insertion;
   }
   void set_default_insertion_modifier(
-      InsertionModifier default_insertion_modifier) {
-    default_insertion_modifier_ = default_insertion_modifier;
+      Modifiers::Insertion default_insertion_modifier) {
+    modifiers_.default_insertion = default_insertion_modifier;
   }
 
   void ProcessInputString(const string& input) {
@@ -212,8 +203,6 @@ class EditorState {
   Structure structure_;
   StructureModifier structure_modifier_;
   bool sticky_structure_;
-  InsertionModifier insertion_modifier_;
-  InsertionModifier default_insertion_modifier_;
 
   unique_ptr<EditorMode> mode_;
 

@@ -605,12 +605,12 @@ class InsertionModifierCommand : public Command {
   }
 
   void ProcessInput(int, EditorState* editor_state) {
-    if (editor_state->insertion_modifier() == INSERT) {
-      editor_state->set_insertion_modifier(REPLACE);
-    } else if (editor_state->default_insertion_modifier() == INSERT) {
-      editor_state->set_default_insertion_modifier(REPLACE);
+    if (editor_state->insertion_modifier() == Modifiers::INSERT) {
+      editor_state->set_insertion_modifier(Modifiers::REPLACE);
+    } else if (editor_state->default_insertion_modifier() == Modifiers::INSERT) {
+      editor_state->set_default_insertion_modifier(Modifiers::REPLACE);
     } else {
-      editor_state->set_default_insertion_modifier(INSERT);
+      editor_state->set_default_insertion_modifier(Modifiers::INSERT);
       editor_state->ResetInsertionModifier();
     }
   }

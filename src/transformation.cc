@@ -71,7 +71,7 @@ class InsertBufferTransformation : public Transformation {
             NewDeleteCharactersTransformation(
                 Modifiers(), chars_inserted, false)));
 
-    if (editor_state->insertion_modifier() == REPLACE) {
+    if (editor_state->insertion_modifier() == Modifiers::REPLACE) {
       Result current_result(editor_state);
       NewDeleteCharactersTransformation(Modifiers(), chars_inserted, false)
           ->Apply(editor_state, buffer, &current_result);

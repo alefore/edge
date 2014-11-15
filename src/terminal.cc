@@ -105,22 +105,22 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
         + to_string(buffer->current_position_col() + 1) + "] ";
 
     string flags = buffer->FlagsString();
+    Modifiers modifiers(editor_state.modifiers());
     if (editor_state.repetitions() != 1) {
       flags += to_string(editor_state.repetitions());
     }
-    if (editor_state.default_direction() == BACKWARDS) {
+    if (modifiers.default_direction == BACKWARDS) {
       flags += " REVERSE";
-    } else if (editor_state.direction() == BACKWARDS) {
+    } else if (modifiers.direction == BACKWARDS) {
       flags += " reverse";
     }
 
-    if (editor_state.default_insertion_modifier() == REPLACE) {
+    if (modifiers.default_insertion == Modifiers::REPLACE) {
       flags += " REPLACE";
-    } else if (editor_state.insertion_modifier() == REPLACE) {
+    } else if (modifiers.insertion == Modifiers::REPLACE) {
       flags += " replace";
     }
 
-    Modifiers modifiers(editor_state.modifiers());
     switch (modifiers.strength) {
       case Modifiers::WEAK:
         flags += " w";
