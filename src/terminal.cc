@@ -123,9 +123,15 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
     Modifiers modifiers(editor_state.modifiers());
     switch (modifiers.strength) {
       case Modifiers::WEAK:
+        flags += " w";
+        break;
+      case Modifiers::VERY_WEAK:
         flags += " W";
         break;
       case Modifiers::STRONG:
+        flags += " s";
+        break;
+      case Modifiers::VERY_STRONG:
         flags += " S";
         break;
       case Modifiers::DEFAULT:

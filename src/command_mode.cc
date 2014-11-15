@@ -667,8 +667,11 @@ class SetStructureCommand : public Command {
 
 class SetStrengthCommand : public Command {
  public:
-  SetStrengthCommand(Modifiers::Strength value, const string& description)
-      : value_(value), description_(description) {}
+  SetStrengthCommand(Modifiers::Strength value,
+                     Modifiers::Strength extreme_value,
+                     const string& description)
+      : value_(value), extreme_value_(extreme_value),
+        description_(description) {}
 
   const string Description() {
     return "sets the strength: " + description_;
@@ -676,13 +679,19 @@ class SetStrengthCommand : public Command {
 
   void ProcessInput(int, EditorState* editor_state) {
     Modifiers modifiers(editor_state->modifiers());
-    modifiers.strength =
-        modifiers.strength == value_ ? Modifiers::DEFAULT : value_;
+    if (modifiers.strength == value_) {
+      modifiers.strength = extreme_value_;
+    } else if (modifiers.strength == extreme_value_) {
+      modifiers.strength = Modifiers::DEFAULT;
+    } else {
+      modifiers.strength = value_;
+    }
     editor_state->set_modifiers(modifiers);
   }
 
  private:
   Modifiers::Strength value_;
+  Modifiers::Strength extreme_value_;
   const string description_;
 };
 
@@ -960,10 +969,10 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('F', new SetStructureCommand(SEARCH, "search")));
     output.insert(make_pair('B', new SetStructureCommand(BUFFER, "buffer")));
 
-    output.insert(make_pair('W',
-        new SetStrengthCommand(Modifiers::WEAK, "weak")));
-    output.insert(make_pair('S',
-        new SetStrengthCommand(Modifiers::STRONG, "strong")));
+    output.insert(make_pair('W', new SetStrengthCommand(
+        Modifiers::WEAK, Modifiers::VERY_WEAK, "weak")));
+    output.insert(make_pair('S', new SetStrengthCommand(
+        Modifiers::STRONG, Modifiers::VERY_STRONG, "strong")));
 
     output.insert(make_pair('d', new Delete()));
     output.insert(make_pair('p', new Paste()));

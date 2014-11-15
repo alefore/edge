@@ -31,9 +31,36 @@ If you run Edge on a file, it will open it and display it:
 
   $ edge README.txt
 
-Inside Edge, you can get help typing "?" (and "a?" for advanced commands).
+Here are some example commands:
 
-You can quit at any time with "aq" (short for "Advanced > Quit").
+  "aq" - Quit (short for "Advanced > Quit").
+
+  "?" and "a?" - Shows help for basic and advanced commands.
+
+  "5d" - Delete 5 characters.  Delete is covered in section 4.2.
+
+  "ed" - Delete a lines (Line; Delete).  Section 6.1 explains the Line modifier
+      (and other structure modifiers).
+
+  "w]d" - Delete until the end of the word (Word; from current position to end;
+      Delete).  The word modifier is covered in section 6.1 and the "]" modifier
+      in section 6.2.
+
+  "p" - Paste the previously deleted sequence.  See section 4.3.
+
+  "i" - Insert (type into the buffer).  See section 4.1.
+
+  "u" - Undo the last command.  See section 4.4.
+
+  "af tail -f /var/log/syslog" + Enter - Open a new buffer with the output of a
+      given command.  "af" is short for "Advanced > Fork" and is covered in
+      section 5.3.
+
+  "ar" - Reload the current buffer.  See section 5.2.
+
+  "al" - Shows the list of buffers currently open.  See section 5.1.
+
+  "a." - Show the list of files in the current directory.  See section 5.5.
 
 
 3. Navigating a buffer
@@ -142,25 +169,62 @@ contents that follow the cursor (default) or replace them as you type.
 
 Press "d" to delete the current character.
 
-The actual meaning varies depending on the active structure (section 6.1) thus:
+The actual meaning varies depending on the active structure (section 6.1) as
+described in the subsections.
 
-Word: deletes the current word.  The contents of variable word_characters
-(section 7.2.xxx) is used to specify the list of characters that are considered
-to be part of a word.  If the cursor position is in a non-word character,
-characters will be deleted until the beginning of the word, and then the "delete
-word" command will run).
+The "[" or "]" modifiers (section 6.2) alter this behavior, causing "d" to only
+delete until the beginning or end of the current structure.  For "[", we say
+that we're deleting "backwards"; for "]", "forwards"; if neither "[" nor "]" are
+active, we say that we're both deleting backwards and forwards.
 
-Line: deletes the current line.
-
-Buffer: deletes the contents of the current buffer.  If you want to close the
-current buffer, see section 5.6.
-
-The "[" or "]" modifiers (section 6.2) alter this behavior, causing delete to
-only delete until the beginning or end of the current structure.  For example:
+For example:
 
 - To delete from the current position to the end of line, use: "e]d"
 - With the cursor in a series of space characters, to delete until the beginning
   of the next workd, use: "w[d"
+
+4.2.1. Deleting words
+
+When the structure is set to Word, "d" deletes the current word.  The contents
+of variable word_characters section 7.2.xxx) are used to specify the list of
+characters that are considered part of a word.  If the cursor position is in a
+non-word character, characters will be deleted until the beginning of the word,
+and then the "delete word" command will run).
+
+4.2.1. Deleting line
+
+When the structure is set to Line, "d" deletes the current line.
+
+The strength modifier affects the behavior as follows.  The word_characters
+variable of the buffer is used to decide which characters are considered spaces.
+
+- Very weak: Stops deleting after the first (last) sequence of spaces from the
+      beginning (end) of the line.
+
+- Weak: Similar to Default, but does not delete the newline character that
+      follows the line.
+
+- Default: If we're deleting backwards, deletes until the beginning of the line
+      (including any initial spaces).  The newline character from the preceeding
+      line is preserved.
+
+      If we're deleting forwards, deletes until (including) the newline
+      character that follows the current line.
+
+- Strong: If we're deleting backwards, deletes everything from (including) the
+      newline character from the preceeding line.
+
+      Like Default, if we're deleting forwards, deletes until the newline
+      character that follows the current line.
+
+- Very strong: Similar to Strong but both forwards and backwards keeps deleting
+      space characters from adjacent lines.
+
+4.2.3. Deleting a buffer
+
+Buffer: deletes the contents of the current buffer.  If you want to close the
+current buffer, see section 5.6.
+
 
 
 4.3. Pasting characters
@@ -401,6 +465,7 @@ instead overwrite previous contents of the buffer.  After a command has been
 executed, the modifier will reset back to the default, but if you press "rr",
 you'll activate sticky replace mode.  Press Esc to go back to the default
 behavior.
+
 
 7. Variables
 

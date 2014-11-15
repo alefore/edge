@@ -85,6 +85,7 @@ class EditorState {
     ResetDirection();
     set_default_insertion_modifier(INSERT);
     ResetInsertionModifier();
+    modifiers_.Reset();
   }
 
   Direction direction() const { return direction_; }
