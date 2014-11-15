@@ -93,7 +93,7 @@ class EditorState {
   void ResetDirection() { modifiers_.ResetDirection(); }
   Direction default_direction() const { return modifiers_.default_direction; }
   void set_default_direction(Direction direction) {
-    modifiers_.direction = direction;
+    modifiers_.default_direction = direction;
     ResetDirection();
   }
 

@@ -623,9 +623,8 @@ class ReverseDirectionCommand : public Command {
   }
 
   void ProcessInput(int, EditorState* editor_state) {
-    VLOG(3) << "Setting reverse direction. [previous value: "
-        << editor_state->direction() << "][previous default value: "
-        << editor_state->default_direction() << "]";
+    VLOG(3) << "Setting reverse direction. [previous modifiers: "
+        << editor_state->modifiers();
     if (editor_state->direction() == FORWARDS) {
       editor_state->set_direction(BACKWARDS);
     } else if (editor_state->default_direction() == FORWARDS) {
@@ -634,6 +633,7 @@ class ReverseDirectionCommand : public Command {
       editor_state->set_default_direction(FORWARDS);
       editor_state->ResetDirection();
     }
+    VLOG(5) << "After setting, modifiers: " << editor_state->modifiers();
   }
 };
 
