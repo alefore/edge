@@ -15,13 +15,14 @@ unique_ptr<Transformation> NewDeleteWordsTransformation(
     bool copy_to_paste_buffer);
 unique_ptr<Transformation> NewDeleteLinesTransformation(
     size_t repetitions, StructureModifier structure_modifier,
-    bool copy_to_paste_buffer);
+    const Modifiers& modifiers, bool copy_to_paste_buffer);
 unique_ptr<Transformation> NewDeleteBufferTransformation(
     StructureModifier structure_modifier,
     bool copy_to_paste_buffer);
 unique_ptr<Transformation> NewDeleteTransformation(
     Structure structure, StructureModifier structure_modifier,
-    Direction direction, size_t repetitions, bool copy_to_paste_buffer);
+    Direction direction, size_t repetitions, const Modifiers& modifiers,
+    bool copy_to_paste_buffer);
 
 }  // namespace editor
 }  // namespace afc

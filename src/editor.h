@@ -12,6 +12,7 @@
 #include "direction.h"
 #include "lazy_string.h"
 #include "memory_mapped_file.h"
+#include "modifiers.h"
 #include "vm/public/vm.h"
 
 namespace afc {
@@ -101,6 +102,9 @@ class EditorState {
   void set_last_search_query(const string& query) {
     last_search_query_ = query;
   }
+
+  Modifiers modifiers() const { return modifiers_; }
+  void set_modifiers(const Modifiers& modifiers) { modifiers_ = modifiers; }
 
   Structure structure() const { return structure_; }
   void set_structure(Structure structure);
@@ -226,6 +230,8 @@ class EditorState {
   Environment environment_;
 
   vector<int> pending_signals_;
+
+  Modifiers modifiers_;
 };
 
 }  // namespace editor

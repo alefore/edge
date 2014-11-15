@@ -210,7 +210,9 @@ class Delete : public Command {
               editor_state->structure(),
               editor_state->structure_modifier(),
               editor_state->direction(),
-              editor_state->repetitions(), true));
+              editor_state->repetitions(),
+              editor_state->modifiers(),
+              true));
           editor_state->ScheduleRedraw();
         }
         break;
@@ -663,6 +665,27 @@ class SetStructureCommand : public Command {
   const string description_;
 };
 
+class SetStrengthCommand : public Command {
+ public:
+  SetStrengthCommand(Modifiers::Strength value, const string& description)
+      : value_(value), description_(description) {}
+
+  const string Description() {
+    return "sets the strength: " + description_;
+  }
+
+  void ProcessInput(int, EditorState* editor_state) {
+    Modifiers modifiers(editor_state->modifiers());
+    modifiers.strength =
+        modifiers.strength == value_ ? Modifiers::DEFAULT : value_;
+    editor_state->set_modifiers(modifiers);
+  }
+
+ private:
+  Modifiers::Strength value_;
+  const string description_;
+};
+
 class SetStructureModifierCommand : public Command {
  public:
   SetStructureModifierCommand(
@@ -936,6 +959,11 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('E', new SetStructureCommand(PAGE, "page")));
     output.insert(make_pair('F', new SetStructureCommand(SEARCH, "search")));
     output.insert(make_pair('B', new SetStructureCommand(BUFFER, "buffer")));
+
+    output.insert(make_pair('W',
+        new SetStrengthCommand(Modifiers::WEAK, "weak")));
+    output.insert(make_pair('S',
+        new SetStrengthCommand(Modifiers::STRONG, "strong")));
 
     output.insert(make_pair('d', new Delete()));
     output.insert(make_pair('p', new Paste()));

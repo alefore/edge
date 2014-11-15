@@ -120,6 +120,19 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
       flags += " replace";
     }
 
+    Modifiers modifiers(editor_state.modifiers());
+    switch (modifiers.strength) {
+      case Modifiers::WEAK:
+        flags += " W";
+        break;
+      case Modifiers::STRONG:
+        flags += " S";
+        break;
+      case Modifiers::DEFAULT:
+        flags += " -";
+        break;
+    }
+
     string structure;
     switch (editor_state.structure()) {
       case CHAR:
