@@ -40,6 +40,9 @@ struct Args {
   string binary_name;
   vector<string> files_to_open;
   vector<string> commands_to_fork;
+
+  // Contains C++ (VM) code to execute.
+  string commands_to_run;
 };
 
 Args ParseArgs(int* argc, const char*** argv) {
@@ -66,11 +69,17 @@ Args ParseArgs(int* argc, const char*** argv) {
       cout << kHelpString;
       exit(0);
     } else if (cmd == "--fork") {
-      if (*argc == 1) {
-        cerr << output.binary_name << ": Expected command to run.\n";
-        exit(1);
-      }
+      CHECK(*argc > 1)
+          << output.binary_name << ": " << cmd
+          << ": Expected command to fork.\n";
       output.commands_to_fork.push_back((*argv)[1]);
+      (*argv)++;
+      (*argc)--;
+    } else if (cmd == "--run") {
+      CHECK(*argc > 1)
+          << output.binary_name << ": " << cmd
+          << ": Expected command to run.\n";
+      output.commands_to_run += (*argv)[1];
       (*argv)++;
       (*argc)--;
     } else {
@@ -82,6 +91,23 @@ Args ParseArgs(int* argc, const char*** argv) {
   }
 
   return output;
+}
+
+void SendCommandsToParent(int fd, const Args& args) {
+  CHECK(fd != -1);
+  using std::cerr;
+  LOG(INFO) << "Connected to parent server.";
+  string commands_to_run = args.commands_to_run;
+  for (auto& path : args.files_to_open) {
+    commands_to_run += "OpenFile(\"" + string(path) + "\");\n";
+  }
+  for (auto& command_to_fork : args.commands_to_fork) {
+    commands_to_run += "ForkCommand(\"" + string(command_to_fork) + "\");\n";
+  }
+  if (write(fd, commands_to_run.c_str(), commands_to_run.size()) == -1) {
+    cerr << "write: " << strerror(errno);
+    exit(1);
+  }
 }
 
 }  // namespace
@@ -96,19 +122,8 @@ int main(int argc, const char** argv) {
 
   int fd = MaybeConnectToParentServer();
   if (fd != -1) {
-    LOG(INFO) << "Connected to parent server.";
-    string parent_commands = "";
-    for (auto& path : args.files_to_open) {
-      parent_commands += "OpenFile(\"" + string(path) + "\");\n";
-    }
-    for (auto& command : args.commands_to_fork) {
-      parent_commands += "ForkCommand(\"" + string(command) + "\");\n";
-    }
-    if (write(fd, parent_commands.c_str(), parent_commands.size()) == -1) {
-      cerr << "write: " << strerror(errno);
-      exit(1);
-    }
-    cerr << argv[0] << ": Waiting for EOF ...\n";
+    SendCommandsToParent(fd, args);
+    cerr << args.binary_name << ": Waiting for EOF ...\n";
     char buffer[4096];
     while (read(0, buffer, sizeof(buffer)) > 0)
       continue;
@@ -123,17 +138,7 @@ int main(int argc, const char** argv) {
 
   LOG(INFO) << "Starting server.";
   StartServer(editor_state());
-
-  for (auto& path : args.files_to_open) {
-    terminal.SetStatus("Loading file...");
-    OpenFileOptions options;
-    options.editor_state = editor_state();
-    options.path = path;
-    OpenFile(options);
-  }
-  for (auto& command : args.commands_to_fork) {
-    RunCommandHandler(command, editor_state());
-  };
+  SendCommandsToParent(MaybeConnectToParentServer(), args);
 
   while (!editor_state()->terminate()) {
     terminal.Display(editor_state());
