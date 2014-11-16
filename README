@@ -31,6 +31,9 @@ If you run Edge on a file, it will open it and display it:
 
   $ edge README.txt
 
+
+2.1. Example commands
+
 Example commands:
 
   "aq" - Quit (short for "Advanced > Quit").
@@ -60,6 +63,27 @@ Example commands:
   "al" - Shows the list of buffers currently open.  See section 5.1.
 
   "a." - Show the list of files in the current directory.  See section 5.5.
+
+
+2.2. Command line arguments
+
+
+2.2.1. --help
+
+Causes Edge to display a list of command-line arguments and exit.
+
+
+2.2.2. --fork <command>
+
+The --fork command-line argument must be followed by a shell command.  Edge will
+create a buffer running that command.
+
+Example:
+
+  edge --fork "ls -lR /tmp" --fork "make"
+
+If Edge is running nested (inside an existing Edge), it will cause the parent
+instance to open those buffers.
 
 
 3. Navigating a buffer
