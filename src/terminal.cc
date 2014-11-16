@@ -77,6 +77,10 @@ void Terminal::Display(EditorState* editor_state) {
     buffer->set_view_start_column(desired_start_column);
     editor_state->ScheduleRedraw();
   }
+  if (buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())
+      && buffer->last_highlighted_line() != buffer->position().line) {
+    editor_state->ScheduleRedraw();
+  }
 
   if (editor_state->screen_needs_redraw()) {
     ShowBuffer(editor_state);
@@ -233,6 +237,7 @@ class LineOutputReceiver : public Line::OutputReceiverInterface {
     switch (modifier) {
       case Line::RESET:
         attroff(A_BOLD);
+        attroff(A_REVERSE);
         attroff(COLOR_PAIR(1));
         attroff(COLOR_PAIR(2));
         attroff(COLOR_PAIR(3));
@@ -240,6 +245,9 @@ class LineOutputReceiver : public Line::OutputReceiverInterface {
         break;
       case Line::BOLD:
         attron(A_BOLD);
+        break;
+      case Line::REVERSE:
+        attron(A_REVERSE);
         break;
       case Line::BLACK:
         attron(COLOR_PAIR(1));
@@ -258,6 +266,32 @@ class LineOutputReceiver : public Line::OutputReceiverInterface {
   size_t width() const {
     return COLS;
   }
+};
+
+class HighlightedLineOutputReceiver : public Line::OutputReceiverInterface {
+ public:
+  HighlightedLineOutputReceiver(Line::OutputReceiverInterface* delegate)
+      : delegate_(delegate) {
+    delegate_->AddModifier(Line::REVERSE);
+  }
+
+  void AddCharacter(int c) { delegate_->AddCharacter(c); }
+  void AddString(const string& str) { delegate_->AddString(str); }
+  void AddModifier(Line::Modifier modifier) {
+    switch (modifier) {
+      case Line::RESET:
+        delegate_->AddModifier(Line::RESET);
+        delegate_->AddModifier(Line::REVERSE);
+        break;
+      default:
+        delegate_->AddModifier(modifier);
+    }
+  }
+  size_t width() const {
+    return delegate_->width();
+  }
+ private:
+  Line::OutputReceiverInterface* const delegate_;
 };
 
 void Terminal::ShowBuffer(const EditorState* editor_state) {
@@ -285,13 +319,26 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
     lines_shown++;
     const shared_ptr<Line> line(contents[current_line]);
     assert(line->contents() != nullptr);
-    line->Output(editor_state, buffer, &receiver);
+    if (current_line == buffer->position().line
+        && buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())) {
+      buffer->set_last_highlighted_line(current_line);
+      HighlightedLineOutputReceiver current_receiver(&receiver);
+      line->Output(editor_state, buffer, &current_receiver);
+    } else {
+      line->Output(editor_state, buffer, &receiver);
+    }
     receiver.AddModifier(Line::RESET);
     current_line ++;
   }
 }
 
 void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
+  if (buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())) {
+    curs_set(0);
+    return;
+  } else {
+    curs_set(1);
+  }
   const vector<shared_ptr<Line>>& contents(*buffer->contents());
   size_t position_line = min(buffer->position().line, contents.size() - 1);
   size_t line_length;

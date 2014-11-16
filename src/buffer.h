@@ -370,8 +370,6 @@ class OpenBuffer {
 
   void LineDown() {
     line()++;
-    set_bool_variable(OpenBuffer::variable_follow_end_of_file(),
-                      line() == line_end());
   }
 
   const LineColumn position() const {
@@ -469,6 +467,11 @@ class OpenBuffer {
   pid_t child_pid() const { return child_pid_; }
   int child_exit_status() const { return child_exit_status_; }
 
+  size_t last_highlighted_line() const { return last_highlighted_line_; }
+  void set_last_highlighted_line(size_t value) {
+    last_highlighted_line_ = value;
+  }
+
  protected:
   vector<unique_ptr<ParseTree>> parse_tree;
 
@@ -538,6 +541,10 @@ class OpenBuffer {
   // OpenBuffer::PopTransformationStack (which sets this back to null and moves
   // this value to last_transformation_).
   list<unique_ptr<TransformationStack>> last_transformation_stack_;
+
+  // If variable_atomic_lines is true, this will be set to the last line that
+  // was highlighted.
+  size_t last_highlighted_line_;
 };
 
 }  // namespace editor
