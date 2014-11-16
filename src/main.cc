@@ -49,7 +49,11 @@ Args ParseArgs(int* argc, const char*** argv) {
   using std::cout;
   using std::cerr;
 
-  string kHelpString = "Edge - A text editor.\n";
+  string kHelpString = "Usage: edge [OPTION]... [FILE]...\n"
+      "Open the files given.\n\nEdge supports the following options:\n"
+      "  --fork <shellcmd>: Creates a buffer running a shell command\n"
+      "  --run <vmcmd>: Runs a VM command\n\n"
+      "Report bugs to <alefore@gmail.com>\n";
 
   Args output;
   output.binary_name = (*argv)[0];
