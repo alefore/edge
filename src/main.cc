@@ -39,7 +39,7 @@ void SignalHandler(int sig) {
 struct Args {
   string binary_name;
   vector<string> files_to_open;
-  vector<string> commands_to_run;
+  vector<string> commands_to_fork;
 };
 
 Args ParseArgs(int* argc, const char*** argv) {
@@ -65,12 +65,12 @@ Args ParseArgs(int* argc, const char*** argv) {
     } else if (cmd == "--help") {
       cout << kHelpString;
       exit(0);
-    } else if (cmd == "--run") {
+    } else if (cmd == "--fork") {
       if (*argc == 1) {
         cerr << output.binary_name << ": Expected command to run.\n";
         exit(1);
       }
-      output.commands_to_run.push_back((*argv)[1]);
+      output.commands_to_fork.push_back((*argv)[1]);
       (*argv)++;
       (*argc)--;
     } else {
@@ -101,7 +101,7 @@ int main(int argc, const char** argv) {
     for (auto& path : args.files_to_open) {
       parent_commands += "OpenFile(\"" + string(path) + "\");\n";
     }
-    for (auto& command : args.commands_to_run) {
+    for (auto& command : args.commands_to_fork) {
       parent_commands += "ForkCommand(\"" + string(command) + "\");\n";
     }
     if (write(fd, parent_commands.c_str(), parent_commands.size()) == -1) {
@@ -131,7 +131,7 @@ int main(int argc, const char** argv) {
     options.path = path;
     OpenFile(options);
   }
-  for (auto& command : args.commands_to_run) {
+  for (auto& command : args.commands_to_fork) {
     RunCommandHandler(command, editor_state());
   };
 
