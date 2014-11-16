@@ -824,7 +824,7 @@ class ResetStateCommand : public Command {
   }
 
   void ProcessInput(int, EditorState* editor_state) {
-    editor_state->ResetModifiers();
+    editor_state->set_modifiers(Modifiers());
   }
 };
 

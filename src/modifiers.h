@@ -33,18 +33,23 @@ struct Modifiers {
     REPLACE
   };
 
-  void Reset() {
+  // Sets the modifiers to their default values, including resetting any form
+  // of stickyness.
+  void ResetHard() {
     structure = CHAR;
     structure_range = Modifiers::ENTIRE_STRUCTURE;
-
-    strength = DEFAULT;
-
     default_direction = FORWARDS;
-    ResetDirection();
-
     default_insertion = INSERT;
-    ResetInsertion();
+    ResetSoft();
+  }
 
+  // After executing a command, sets modifiers to their default values, but,
+  // unline ResetHard, abides by stickyness.
+  void ResetSoft() {
+    ResetStructure();
+    strength = DEFAULT;
+    ResetDirection();
+    ResetInsertion();
     ResetRepetitions();
   }
 

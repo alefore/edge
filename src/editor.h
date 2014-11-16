@@ -71,7 +71,7 @@ class EditorState {
 
   void ResetModifiers() {
     ResetMode();
-    modifiers_.Reset();
+    modifiers_.ResetSoft();
   }
 
   Direction direction() const { return modifiers_.direction; }
