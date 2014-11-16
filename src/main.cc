@@ -19,6 +19,7 @@ extern "C" {
 #include "editor.h"
 #include "lazy_string.h"
 #include "file_link_mode.h"
+#include "run_command_handler.h"
 #include "server.h"
 #include "terminal.h"
 
@@ -35,30 +36,83 @@ void SignalHandler(int sig) {
   editor_state()->PushSignal(sig);
 }
 
+struct Args {
+  string binary_name;
+  vector<string> files_to_open;
+  vector<string> commands_to_run;
+};
+
+Args ParseArgs(int* argc, const char*** argv) {
+  using std::cout;
+  using std::cerr;
+
+  string kHelpString = "Edge - A text editor.\n";
+
+  Args output;
+  output.binary_name = (*argv)[0];
+  (*argv)++;
+  (*argc)--;
+
+  while (*argc > 0) {
+    string cmd = (*argv)[0];
+    if (cmd.empty()) {
+      (*argv)++;
+      (*argc)--;
+      continue;
+    }
+    if (cmd[0] != '-') {
+      output.files_to_open.push_back(cmd);
+    } else if (cmd == "--help") {
+      cout << kHelpString;
+      exit(0);
+    } else if (cmd == "--run") {
+      if (*argc == 1) {
+        cerr << output.binary_name << ": Expected command to run.\n";
+        exit(1);
+      }
+      output.commands_to_run.push_back((*argv)[1]);
+      (*argv)++;
+      (*argc)--;
+    } else {
+      cerr << output.binary_name << ": Invalid flag: " << cmd << "\n";
+      exit(1);
+    }
+    (*argv)++;
+    (*argc)--;
+  }
+
+  return output;
+}
+
 }  // namespace
 
-int main(int argc, const char* argv[]) {
+int main(int argc, const char** argv) {
   using namespace afc::editor;
   using std::unique_ptr;
   using std::cerr;
 
   google::InitGoogleLogging(argv[0]);
+  Args args = ParseArgs(&argc, &argv);
+
   int fd = MaybeConnectToParentServer();
   if (fd != -1) {
     LOG(INFO) << "Connected to parent server.";
-    for (int i = 1; i < argc; i++) {
-      string command = "OpenFile(\"" + string(argv[i]) + "\");\n";
-      if (write(fd, command.c_str(), command.size()) == -1) {
-        cerr << "write: " << strerror(errno);
-        exit(1);
-      }
+    string parent_commands = "";
+    for (auto& path : args.files_to_open) {
+      parent_commands += "OpenFile(\"" + string(path) + "\");\n";
     }
-
+    for (auto& command : args.commands_to_run) {
+      parent_commands += "ForkCommand(\"" + string(command) + "\");\n";
+    }
+    if (write(fd, parent_commands.c_str(), parent_commands.size()) == -1) {
+      cerr << "write: " << strerror(errno);
+      exit(1);
+    }
     cerr << argv[0] << ": Waiting for EOF ...\n";
     char buffer[4096];
     while (read(0, buffer, sizeof(buffer)) > 0)
       continue;
-    cerr << argv[0] << ": EOF received, exiting.\n";
+    cerr << args.binary_name << ": EOF received, exiting.\n";
     exit(0);
   }
 
@@ -70,13 +124,16 @@ int main(int argc, const char* argv[]) {
   LOG(INFO) << "Starting server.";
   StartServer(editor_state());
 
-  for (int i = 1; i < argc; i++) {
+  for (auto& path : args.files_to_open) {
     terminal.SetStatus("Loading file...");
     OpenFileOptions options;
     options.editor_state = editor_state();
-    options.path = argv[i];
+    options.path = path;
     OpenFile(options);
   }
+  for (auto& command : args.commands_to_run) {
+    RunCommandHandler(command, editor_state());
+  };
 
   while (!editor_state()->terminate()) {
     terminal.Display(editor_state());
