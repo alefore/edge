@@ -562,9 +562,12 @@ Default: false
 7.2.6. atomic_lines (bool)
 
 If true, lines can't be joined (e.g. you can't delete the last character in a
-line unless the line is empty).  This is used by certain buffers that represent
-lists of things (each represented as a line), for which this is a natural
-behavior.
+line unless the line is empty).  In this case, instead of displaying the cursor,
+Edge will show the currently selected line.
+
+This is used by certain buffers such as the list of buffers or a directory view
+that represent lists of things (each represented as a line), for which this is a
+natural behavior.
 
 Default: false
 
