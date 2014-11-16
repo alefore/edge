@@ -410,7 +410,6 @@ class OpenBuffer {
   static EdgeVariable<char>* variable_default_reload_after_exit();
   static EdgeVariable<char>* variable_reload_on_enter();
   static EdgeVariable<char>* variable_atomic_lines();
-  static EdgeVariable<char>* variable_diff();
   static EdgeVariable<char>* variable_save_on_close();
   static EdgeVariable<char>* variable_clear_on_reload();
   static EdgeVariable<char>* variable_paste_mode();
