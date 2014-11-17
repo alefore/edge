@@ -19,6 +19,7 @@ extern "C" {
 #include "editor.h"
 #include "lazy_string.h"
 #include "file_link_mode.h"
+#include "run_command_handler.h"
 #include "server.h"
 #include "terminal.h"
 
@@ -35,30 +36,102 @@ void SignalHandler(int sig) {
   editor_state()->PushSignal(sig);
 }
 
+struct Args {
+  string binary_name;
+  vector<string> files_to_open;
+  vector<string> commands_to_fork;
+
+  // Contains C++ (VM) code to execute.
+  string commands_to_run;
+};
+
+Args ParseArgs(int* argc, const char*** argv) {
+  using std::cout;
+  using std::cerr;
+
+  string kHelpString = "Usage: edge [OPTION]... [FILE]...\n"
+      "Open the files given.\n\nEdge supports the following options:\n"
+      "  --fork <shellcmd>: Creates a buffer running a shell command\n"
+      "  --run <vmcmd>: Runs a VM command\n\n"
+      "Report bugs to <alefore@gmail.com>\n";
+
+  Args output;
+  output.binary_name = (*argv)[0];
+  (*argv)++;
+  (*argc)--;
+
+  while (*argc > 0) {
+    string cmd = (*argv)[0];
+    if (cmd.empty()) {
+      (*argv)++;
+      (*argc)--;
+      continue;
+    }
+    if (cmd[0] != '-') {
+      output.files_to_open.push_back(cmd);
+    } else if (cmd == "--help") {
+      cout << kHelpString;
+      exit(0);
+    } else if (cmd == "--fork") {
+      CHECK(*argc > 1)
+          << output.binary_name << ": " << cmd
+          << ": Expected command to fork.\n";
+      output.commands_to_fork.push_back((*argv)[1]);
+      (*argv)++;
+      (*argc)--;
+    } else if (cmd == "--run") {
+      CHECK(*argc > 1)
+          << output.binary_name << ": " << cmd
+          << ": Expected command to run.\n";
+      output.commands_to_run += (*argv)[1];
+      (*argv)++;
+      (*argc)--;
+    } else {
+      cerr << output.binary_name << ": Invalid flag: " << cmd << "\n";
+      exit(1);
+    }
+    (*argv)++;
+    (*argc)--;
+  }
+
+  return output;
+}
+
+void SendCommandsToParent(int fd, const Args& args) {
+  CHECK(fd != -1);
+  using std::cerr;
+  LOG(INFO) << "Connected to parent server.";
+  string commands_to_run = args.commands_to_run;
+  for (auto& path : args.files_to_open) {
+    commands_to_run += "OpenFile(\"" + string(path) + "\");\n";
+  }
+  for (auto& command_to_fork : args.commands_to_fork) {
+    commands_to_run += "ForkCommand(\"" + string(command_to_fork) + "\");\n";
+  }
+  if (write(fd, commands_to_run.c_str(), commands_to_run.size()) == -1) {
+    cerr << "write: " << strerror(errno);
+    exit(1);
+  }
+}
+
 }  // namespace
 
-int main(int argc, const char* argv[]) {
+int main(int argc, const char** argv) {
   using namespace afc::editor;
   using std::unique_ptr;
   using std::cerr;
 
   google::InitGoogleLogging(argv[0]);
+  Args args = ParseArgs(&argc, &argv);
+
   int fd = MaybeConnectToParentServer();
   if (fd != -1) {
-    LOG(INFO) << "Connected to parent server.";
-    for (int i = 1; i < argc; i++) {
-      string command = "OpenFile(\"" + string(argv[i]) + "\");\n";
-      if (write(fd, command.c_str(), command.size()) == -1) {
-        cerr << "write: " << strerror(errno);
-        exit(1);
-      }
-    }
-
-    cerr << argv[0] << ": Waiting for EOF ...\n";
+    SendCommandsToParent(fd, args);
+    cerr << args.binary_name << ": Waiting for EOF ...\n";
     char buffer[4096];
     while (read(0, buffer, sizeof(buffer)) > 0)
       continue;
-    cerr << argv[0] << ": EOF received, exiting.\n";
+    cerr << args.binary_name << ": EOF received, exiting.\n";
     exit(0);
   }
 
@@ -69,14 +142,7 @@ int main(int argc, const char* argv[]) {
 
   LOG(INFO) << "Starting server.";
   StartServer(editor_state());
-
-  for (int i = 1; i < argc; i++) {
-    terminal.SetStatus("Loading file...");
-    OpenFileOptions options;
-    options.editor_state = editor_state();
-    options.path = argv[i];
-    OpenFile(options);
-  }
+  SendCommandsToParent(MaybeConnectToParentServer(), args);
 
   while (!editor_state()->terminate()) {
     terminal.Display(editor_state());

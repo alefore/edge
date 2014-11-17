@@ -3,9 +3,9 @@ Edge - A text editor.
 1. Introduction
 
 Edge is a text editor and terminal handler.  It uses the notion of "buffers" to
-represent open files or the output of a program (which might still be running,
-and which might have a terminal of its own).  As its extension language, Edge
-uses a subset of C++.
+represent open files or the output of a program (which might or might not still
+be running, and which might or might not have a terminal of its own).  As its
+extension language, Edge uses a small subset of C++/Java.
 
 Edge is under active development and many of its bindings and/or general
 interface is likely to change soon.
@@ -31,9 +31,71 @@ If you run Edge on a file, it will open it and display it:
 
   $ edge README.txt
 
-Inside Edge, you can get help typing "?" (and "a?" for advanced commands).
 
-You can quit at any time with "aq" (short for "Advanced > Quit").
+2.1. Example commands
+
+Example commands:
+
+  "aq" - Quit (short for "Advanced > Quit").
+
+  "?" and "a?" - Shows help for basic and advanced commands.
+
+  "5d" - Delete 5 characters.  Delete is covered in section 4.2.
+
+  "ed" - Delete a lines (Line; Delete).  Section 6.1 explains the Line modifier
+      (and other structure modifiers).
+
+  "w]d" - Delete until the end of the word (Word; from current position to end;
+      Delete).  The word modifier is covered in section 6.1 and the "]" modifier
+      in section 6.2.
+
+  "p" - Paste the previously deleted sequence.  See section 4.3.
+
+  "i" - Insert (type into the buffer).  See section 4.1.
+
+  "u" - Undo the last command.  See section 4.4.
+
+  "af make" + Enter - Open a new buffer with the output of a given command.
+      "af" is short for "Advanced > Fork" and is covered in section 5.3.
+
+  "ar" - Reload the current buffer.  See section 5.2.
+
+  "al" - Shows the list of buffers currently open.  See section 5.1.
+
+  "a." - Show the list of files in the current directory.  See section 5.5.
+
+
+2.2. Command line arguments
+
+
+2.2.1. --help
+
+Causes Edge to display a list of command-line arguments and exit.
+
+
+2.2.2. --fork <command>
+
+The --fork command-line argument must be followed by a shell command.  Edge will
+create a buffer running that command.
+
+Example:
+
+  edge --fork "ls -lR /tmp" --fork "make"
+
+If Edge is running nested (inside an existing Edge), it will cause the parent
+instance to open those buffers.
+
+
+2.2.3. --run <command>
+
+The --run command-line argument must be followed by a string with a VM command
+to run.
+
+Example:
+
+  edge --run 'string flags = "-R"; ForkCommand("ls " + flags);'
+
+See section 8 for more information on the syntax supported.
 
 
 3. Navigating a buffer
@@ -44,7 +106,7 @@ You can quit at any time with "aq" (short for "Advanced > Quit").
 The cursor will start at the beginning of the file.  You can use "h", "j", "k",
 "l" or the arrow keys to move it around.
 
-TODO: Explain structures and modifiers.
+TODO: Explain the effect of modifiers.
 
 
 3.2 Search for a regular expression
@@ -142,25 +204,62 @@ contents that follow the cursor (default) or replace them as you type.
 
 Press "d" to delete the current character.
 
-The actual meaning varies depending on the active structure (section 6.1) thus:
+The actual meaning varies depending on the active structure (section 6.1) as
+described in the subsections.
 
-Word: deletes the current word.  The contents of variable word_characters
-(section 7.2.xxx) is used to specify the list of characters that are considered
-to be part of a word.  If the cursor position is in a non-word character,
-characters will be deleted until the beginning of the word, and then the "delete
-word" command will run).
+The "[" or "]" modifiers (section 6.2) alter this behavior, causing "d" to only
+delete until the beginning or end of the current structure.  For "[", we say
+that we're deleting "backwards"; for "]", "forwards"; if neither "[" nor "]" are
+active, we say that we're both deleting backwards and forwards.
 
-Line: deletes the current line.
-
-Buffer: deletes the contents of the current buffer.  If you want to close the
-current buffer, see section 5.6.
-
-The "[" or "]" modifiers (section 6.2) alter this behavior, causing delete to
-only delete until the beginning or end of the current structure.  For example:
+For example:
 
 - To delete from the current position to the end of line, use: "e]d"
 - With the cursor in a series of space characters, to delete until the beginning
   of the next workd, use: "w[d"
+
+4.2.1. Deleting words
+
+When the structure is set to Word, "d" deletes the current word.  The contents
+of variable word_characters section 7.2.xxx) are used to specify the list of
+characters that are considered part of a word.  If the cursor position is in a
+non-word character, characters will be deleted until the beginning of the word,
+and then the "delete word" command will run).
+
+4.2.1. Deleting line
+
+When the structure is set to Line, "d" deletes the current line.
+
+The strength modifier affects the behavior as follows.  The word_characters
+variable of the buffer is used to decide which characters are considered spaces.
+
+- Very weak: Stops deleting after the first (last) sequence of spaces from the
+      beginning (end) of the line.
+
+- Weak: Similar to Default, but does not delete the newline character that
+      follows the line.
+
+- Default: If we're deleting backwards, deletes until the beginning of the line
+      (including any initial spaces).  The newline character from the preceeding
+      line is preserved.
+
+      If we're deleting forwards, deletes until (including) the newline
+      character that follows the current line.
+
+- Strong: If we're deleting backwards, deletes everything from (including) the
+      newline character from the preceeding line.
+
+      Like Default, if we're deleting forwards, deletes until the newline
+      character that follows the current line.
+
+- Very strong: Similar to Strong but both forwards and backwards keeps deleting
+      space characters from adjacent lines.
+
+4.2.3. Deleting a buffer
+
+Buffer: deletes the contents of the current buffer.  If you want to close the
+current buffer, see section 5.6.
+
 
 
 4.3. Pasting characters
@@ -375,11 +474,11 @@ the delete command, where e.g. "]ed" could be used to delete to the beginning
 of the current line.
 
 
-6.3. Reverse modifier ("R")
+6.3. Reverse modifier ("r")
 
-Pressing "R" will reverse the direction in which the command is applied.  Most
+Pressing "r" will reverse the direction in which the command is applied.  Most
 commands set the direction back to the default value (forwards), but if you
-press "RR", you'll activate sticky reverse mode.  Press Esc to leave sticky
+press "rr", you'll activate sticky reverse mode.  Press Esc to leave sticky
 mode.
 
 
@@ -393,14 +492,15 @@ commands simply repeat the command the given number of times.  Other commands
 may have their behavior altered in different ways.
 
 
-6.5. Insertion Modifier ("r")
+6.5. Insertion Modifier ("R")
 
 By default, commands that insert text will "push" existing contents after the
-current cursor position back.  Press "r" to activate "replace" mode, which will
+current cursor position back.  Press "R" to activate "replace" mode, which will
 instead overwrite previous contents of the buffer.  After a command has been
-executed, the modifier will reset back to the default, but if you press "rr",
+executed, the modifier will reset back to the default, but if you press "RR",
 you'll activate sticky replace mode.  Press Esc to go back to the default
 behavior.
+
 
 7. Variables
 
@@ -410,22 +510,212 @@ TODO: av
 
 7.2. List of variables
 
-7.2.1. pts.
 
-7.2.2. reload_on_buffer_write (bool)
+7.2.1. pts (bool)
 
-Should the current buffer (on which this variable is set) be reloaded when any
-file buffer is written?
+If a command is forked that writes to this buffer, should it be run with its own
+pseudoterminal?
+
+Default: false.
+
+
+7.2.2. close_after_clean_exit (bool)
+
+If this buffer is a command buffer (e.g. it was started with "af", as described
+in section 5.3), should the buffer be closed when the command exists with a
+successful status code?
+
+This can be used to fork commands that you expect to succeed and where you don't
+care for their output unless they fail.
+
+Default: false
+
+
+7.2.3. reload_after_exit (bool)
+
+If this buffer is a command buffer (e.g. it was started with "af", as described
+in section 5.3), should the buffer be reloaded automatically when the command
+exits?
+
+When the buffer is reloaded, this variable is automatically set to the value of
+default_reload_after_exit (section 7.2.4).
+
+Default: false
+
+
+7.2.4. default_reload_after_exit (bool)
+
+If this buffer is a command buffer (e.g. it was started with "af", as described
+in section 5.3), what should reload_after_exit (section 7.2.3) be set to as the
+buffer is reloaded?
+
+Default: false
+
+
+7.2.5. reload_on_enter (bool)
+
+Should this buffer be reloaded automatically when visited?
+
+Default: false
+
+
+7.2.6. atomic_lines (bool)
+
+If true, lines can't be joined (e.g. you can't delete the last character in a
+line unless the line is empty).  In this case, instead of displaying the cursor,
+Edge will show the currently selected line.
+
+This is used by certain buffers such as the list of buffers or a directory view
+that represent lists of things (each represented as a line), for which this is a
+natural behavior.
+
+Default: false
+
+
+7.2.7. save_on_close (bool)
+
+Should this buffer be saved automatically when it's closed?
+
+This applies both when the buffer is closed explicitly (e.g. through "ad",
+section 5.6) or when Edge exits.
+
+Default: false
+
+
+7.2.8. clear_on_reload (bool)
+
+Should any previous contents be discarded when this buffer is reloaded? If
+false, previous contents will be preserved and new contents will be appended at
+the end.
+
+This is useful mainly for buffers with the output of commands, where you don't
+want to discard the output of previous runs as you reload the buffer.
+
+Default: true
+
+
+7.2.9. paste_mode (bool)
+
+When paste_mode is true in a buffer, it will be displayed in a way that makes it
+possible to select (with a mouse) parts of it (that are currently shown).  It
+will also allow you to paste text directly into the buffer (i.e. it will disable
+any smart "auto indenting").
+
+Default: false
+
+
+7.2.10. commands_background_mode (bool)
+
+Should new commands forked from this buffer be started in background mode?  If
+false, we will switch to them automatically.
+
+This just affects whether we switch the currently selected Edge buffer to the
+new buffer; it has no effect whatsoever in the command.
+
+Default: false
+
+
+7.2.11. reload_on_buffer_write (bool)
+
+Should the buffer on which this variable is set be reloaded automatically when
+any buffer is written?
 
 This is useful mainly for command buffers like 'make' or 'git diff'.
 
-TODO: List many more variables.
+Default: false
+
+
+7.2.12. word_characters (string)
+
+String with all the characters that should be considered part of a word.  This
+affects commands such as "wd" (delete word).
+
+Default: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_"
+
+
+7.2.13. path_characters (string)
+
+String with all the characters that should be considered part of a path.
+
+Default: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-.*:/"
+
+
+7.2.14. path (string)
+
+String with the path of the current file.
+
+Default: ""
+
+
+7.2.15. pts_path (string)
+
+String with the path of the terminal used by the current buffer (or empty if the
+buffer is not using a terminal).
+
+Default: ""
+
+
+7.2.16. command (string)
+
+String with the current command (or empty).
+
+Default: ""
+
+
+7.2.17. editor_commands_path (string)
+
+String with the path to the initial directory for editor commands ("c", see
+section 6).
+
+Default: ""
+
+
+7.2.18. line_width (int)
+
+Desired maximum width of a line.
+
+Default: 80
+
+
+7.2.19. line_prefix_characters (string)
+
+String with all the characters that should be considered the prefix of the
+actual contents of a line.  When a new line is created, the prefix of the
+previous line (the sequence of all characters at the start of the previous line
+that are listed in line_prefix_characters) is copied to the new line.
+
+The order of characters in line_prefix_characters has no effect.
+
+Default: " "
+
+
+7.2.20. line_suffix_superfluous_characters (string)
+
+String with all the characters that should be removed from the suffix of a line
+(after editing it).
+
+The order of characters in line_suffix_superfluous_characters has no effect.
+
+Default: " "
 
 
 8. Extension language
 
 
-TODO: ac
+8.1. Running commands
+
+TODO: "ac"
+
+
+8.2. Running scripts
+
+TODO: "c"
+
+8.3. Syntax supported
+
+8.4. Programming interface
+
+
 TODO: SetStatus("foo");
 TODO: Document the API.
 TODO: Document the integration points (e.g. buffer-reload.cc).

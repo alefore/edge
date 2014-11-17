@@ -50,8 +50,6 @@ When running subcommands with aC, actually set variables "ARG0", "ARG1", "ARG2",
 Create some "barriers" that limit the number of subprocesses.  Set a limit for each.  Maybe as a special type of buffer?  Let it reload to show the state?
   Commands should by default go against a shared barrier, but should have a variable that specifies what barrier to use.
 
-Add a way to start a command, like with flags.
-
 -- Variables
 
 Save the contents of variables?  Maybe in a per-buffer file?
@@ -66,7 +64,7 @@ Don't exit if there are processes running or unsaved buffers.
 
 When running nested edge on a file, pass its absolute path to the parent.
 
-Allow running a nested edge sending a command to the parent.
+Allow running a nested edge sending a c++ (extension) command to the parent.
 
 Add a variable to set the exit status?
   Should probably be an int, default to 0.

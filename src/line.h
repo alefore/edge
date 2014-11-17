@@ -32,6 +32,7 @@ class Line {
   enum Modifier {
     RESET,
     BOLD,
+    REVERSE,
     BLACK,
     RED,
     GREEN,
@@ -51,7 +52,7 @@ class Line {
 
   shared_ptr<LazyString> contents() { return contents_; }
   size_t size() const { return contents_->size(); }
-  int get(size_t column) {
+  int get(size_t column) const {
     CHECK_LT(column, contents_->size());
     return contents_->get(column);
   }

@@ -161,22 +161,22 @@ class GotoCommand : public Command {
   size_t ComputePosition(
       size_t prefix_len, size_t suffix_start, size_t elements,
       Direction direction, size_t repetitions,
-      StructureModifier structure_modifier, size_t calls) {
+      Modifiers::StructureRange structure_range, size_t calls) {
     CHECK_LE(prefix_len, suffix_start);
     CHECK_LE(suffix_start, elements);
     if (calls > 1) {
       return ComputePosition(
           prefix_len, suffix_start, elements, ReverseDirection(direction),
-          repetitions, structure_modifier, calls - 2);
+          repetitions, structure_range, calls - 2);
     }
     if (calls == 1) {
       return ComputePosition(0, elements, elements, direction, repetitions,
-                             structure_modifier, 0);
+                             structure_range, 0);
     }
-    if (structure_modifier == FROM_CURRENT_POSITION_TO_END) {
+    if (structure_range == Modifiers::FROM_CURRENT_POSITION_TO_END) {
       return ComputePosition(
           prefix_len, suffix_start, elements, ReverseDirection(direction),
-          repetitions, ENTIRE_STRUCTURE, calls);
+          repetitions, Modifiers::ENTIRE_STRUCTURE, calls);
     }
 
     if (direction == FORWARDS) {
@@ -206,15 +206,11 @@ class Delete : public Command {
       case BUFFER:
         if (editor_state->has_current_buffer()) {
           auto buffer = editor_state->current_buffer()->second;
-          editor_state->ApplyToCurrentBuffer(NewDeleteTransformation(
-              editor_state->structure(),
-              editor_state->structure_modifier(),
-              editor_state->direction(),
-              editor_state->repetitions(), true));
+          editor_state->ApplyToCurrentBuffer(
+              NewDeleteTransformation(editor_state->modifiers(), true));
           editor_state->ScheduleRedraw();
         }
         break;
-
 
       case PAGE:
         // TODO: Implement.
@@ -228,12 +224,8 @@ class Delete : public Command {
     }
 
     LOG(INFO) << "After applying delete transformation: "
-              << editor_state->structure();
-    editor_state->set_structure_modifier(ENTIRE_STRUCTURE);
-    editor_state->ResetStructure();
-    editor_state->ResetRepetitions();
-    LOG(INFO) << "After resetting transformation: "
-              << editor_state->structure();
+              << editor_state->modifiers();
+    editor_state->ResetModifiers();
   }
 };
 
@@ -604,12 +596,12 @@ class InsertionModifierCommand : public Command {
   }
 
   void ProcessInput(int, EditorState* editor_state) {
-    if (editor_state->insertion_modifier() == INSERT) {
-      editor_state->set_insertion_modifier(REPLACE);
-    } else if (editor_state->default_insertion_modifier() == INSERT) {
-      editor_state->set_default_insertion_modifier(REPLACE);
+    if (editor_state->insertion_modifier() == Modifiers::INSERT) {
+      editor_state->set_insertion_modifier(Modifiers::REPLACE);
+    } else if (editor_state->default_insertion_modifier() == Modifiers::INSERT) {
+      editor_state->set_default_insertion_modifier(Modifiers::REPLACE);
     } else {
-      editor_state->set_default_insertion_modifier(INSERT);
+      editor_state->set_default_insertion_modifier(Modifiers::INSERT);
       editor_state->ResetInsertionModifier();
     }
   }
@@ -622,6 +614,8 @@ class ReverseDirectionCommand : public Command {
   }
 
   void ProcessInput(int, EditorState* editor_state) {
+    VLOG(3) << "Setting reverse direction. [previous modifiers: "
+        << editor_state->modifiers();
     if (editor_state->direction() == FORWARDS) {
       editor_state->set_direction(BACKWARDS);
     } else if (editor_state->default_direction() == FORWARDS) {
@@ -630,6 +624,7 @@ class ReverseDirectionCommand : public Command {
       editor_state->set_default_direction(FORWARDS);
       editor_state->ResetDirection();
     }
+    VLOG(5) << "After setting, modifiers: " << editor_state->modifiers();
   }
 };
 
@@ -663,10 +658,40 @@ class SetStructureCommand : public Command {
   const string description_;
 };
 
+class SetStrengthCommand : public Command {
+ public:
+  SetStrengthCommand(Modifiers::Strength value,
+                     Modifiers::Strength extreme_value,
+                     const string& description)
+      : value_(value), extreme_value_(extreme_value),
+        description_(description) {}
+
+  const string Description() {
+    return "sets the strength: " + description_;
+  }
+
+  void ProcessInput(int, EditorState* editor_state) {
+    Modifiers modifiers(editor_state->modifiers());
+    if (modifiers.strength == value_) {
+      modifiers.strength = extreme_value_;
+    } else if (modifiers.strength == extreme_value_) {
+      modifiers.strength = Modifiers::DEFAULT;
+    } else {
+      modifiers.strength = value_;
+    }
+    editor_state->set_modifiers(modifiers);
+  }
+
+ private:
+  Modifiers::Strength value_;
+  Modifiers::Strength extreme_value_;
+  const string description_;
+};
+
 class SetStructureModifierCommand : public Command {
  public:
   SetStructureModifierCommand(
-      StructureModifier value, const string& description)
+      Modifiers::StructureRange value, const string& description)
       : value_(value), description_(description) {}
 
   const string Description() {
@@ -676,12 +701,12 @@ class SetStructureModifierCommand : public Command {
   void ProcessInput(int, EditorState* editor_state) {
     editor_state->set_structure_modifier(
         editor_state->structure_modifier() == value_
-        ? ENTIRE_STRUCTURE
-        : value_);
+            ? Modifiers::ENTIRE_STRUCTURE
+            : value_);
   }
 
  private:
-  StructureModifier value_;
+  Modifiers::StructureRange value_;
   const string description_;
 };
 
@@ -799,7 +824,7 @@ class ResetStateCommand : public Command {
   }
 
   void ProcessInput(int, EditorState* editor_state) {
-    editor_state->ResetModifiers();
+    editor_state->set_modifiers(Modifiers());
   }
 };
 
@@ -853,7 +878,7 @@ class SwitchCaseTransformation : public Transformation {
           NewCopyString(string(1, isupper(c) ? tolower(c) : toupper(c))));
       editor_state->ScheduleRedraw();
 
-      stack->PushBack(NewDeleteCharactersTransformation(FORWARDS, 1, false));
+      stack->PushBack(NewDeleteCharactersTransformation(Modifiers(), false));
       stack->PushBack(NewInsertBufferTransformation(buffer_to_insert, 1, END));
     }
 
@@ -925,8 +950,8 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('s', new EnterSecondaryMode()));
     output.insert(make_pair('i', new EnterInsertMode()));
     output.insert(make_pair('f', new EnterFindMode()));
-    output.insert(make_pair('R', new ReverseDirectionCommand()));
-    output.insert(make_pair('r', new InsertionModifierCommand()));
+    output.insert(make_pair('r', new ReverseDirectionCommand()));
+    output.insert(make_pair('R', new InsertionModifierCommand()));
 
     output.insert(make_pair('/', new StartSearchMode()));
     output.insert(make_pair('g', new GotoCommand(0)));
@@ -936,6 +961,11 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('E', new SetStructureCommand(PAGE, "page")));
     output.insert(make_pair('F', new SetStructureCommand(SEARCH, "search")));
     output.insert(make_pair('B', new SetStructureCommand(BUFFER, "buffer")));
+
+    output.insert(make_pair('W', new SetStrengthCommand(
+        Modifiers::WEAK, Modifiers::VERY_WEAK, "weak")));
+    output.insert(make_pair('S', new SetStrengthCommand(
+        Modifiers::STRONG, Modifiers::VERY_STRONG, "strong")));
 
     output.insert(make_pair('d', new Delete()));
     output.insert(make_pair('p', new Paste()));
@@ -958,10 +988,10 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair(Terminal::ESCAPE, new ResetStateCommand()));
 
     output.insert(make_pair('[', new SetStructureModifierCommand(
-        FROM_BEGINNING_TO_CURRENT_POSITION,
+        Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION,
         "from the beggining to the current position")));
     output.insert(make_pair(']', new SetStructureModifierCommand(
-        FROM_CURRENT_POSITION_TO_END,
+        Modifiers::FROM_CURRENT_POSITION_TO_END,
         "from the current position to the end")));
     output.insert(make_pair(Terminal::CTRL_L, new HardRedrawCommand()));
     output.insert(make_pair('0', new NumberMode(SetRepetitions)));

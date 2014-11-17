@@ -37,26 +37,6 @@ namespace {
 using std::cerr;
 using std::unordered_set;
 
-void SaveDiff(EditorState* editor_state, OpenBuffer* buffer) {
-  unique_ptr<OpenBuffer> original(new OpenBuffer(editor_state, "- original diff"));
-  buffer->ReloadInto(editor_state, original.get());
-  while (original->fd() != -1) {
-    original->ReadData(editor_state);
-  }
-
-  char* path_old_diff = strdup("patch-old-diff-XXXXXX");
-  int fd_old_diff = mkstemp(path_old_diff);
-  char* path_new_diff = strdup("patch-new-diff-XXXXXX");
-  int fd_new_diff = mkstemp(path_new_diff);
-
-  SaveContentsToOpenFile(editor_state, original.get(), path_old_diff, fd_old_diff);
-  SaveContentsToOpenFile(editor_state, buffer, path_new_diff, fd_new_diff);
-  close(fd_old_diff);
-  close(fd_new_diff);
-  RunCommandHandler("./diff_writer.py " + string(path_old_diff) + " " + string(path_new_diff), editor_state);
-  editor_state->SetStatus("Changing diff");
-}
-
 static void RegisterBufferFieldBool(afc::vm::ObjectType* object_type,
                                     const EdgeVariable<char>* variable) {
   using namespace afc::vm;
@@ -361,8 +341,8 @@ bool LineColumn::operator!=(const LineColumn& other) const {
             line_args.push_back(Value::NewString(current_line));
             unique_ptr<Value> result = args[1]->callback(std::move(line_args));
             if (result->str != current_line) {
-              transformation->PushBack(NewDeleteLinesTransformation(
-                  1, ENTIRE_STRUCTURE, false));
+              transformation->PushBack(
+                  NewDeleteLinesTransformation(Modifiers(), false));
               shared_ptr<OpenBuffer> buffer_to_insert(
                   new OpenBuffer(editor_state, "tmp buffer"));
               buffer_to_insert->AppendLine(
@@ -575,10 +555,6 @@ void OpenBuffer::Reload(EditorState* editor_state) {
 
 void OpenBuffer::Save(EditorState* editor_state) {
   LOG(INFO) << "Saving buffer: " << name_;
-  if (read_bool_variable(variable_diff())) {
-    SaveDiff(editor_state, this);
-    return;
-  }
   editor_state->SetStatus("Buffer can't be saved.");
 }
 
@@ -1137,7 +1113,6 @@ string OpenBuffer::FlagsString() const {
     OpenBuffer::variable_default_reload_after_exit();
     OpenBuffer::variable_reload_on_enter();
     OpenBuffer::variable_atomic_lines();
-    OpenBuffer::variable_diff();
     OpenBuffer::variable_save_on_close();
     OpenBuffer::variable_clear_on_reload();
     OpenBuffer::variable_paste_mode();
@@ -1208,17 +1183,6 @@ string OpenBuffer::FlagsString() const {
       "character in a line unless the line is empty).  This is used by certain "
       "buffers that represent lists of things (each represented as a line), "
       "for which this is a natural behavior.",
-      false);
-  return variable;
-}
-
-/* static */ EdgeVariable<char>* OpenBuffer::variable_diff() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
-      "diff",
-      "Does this buffer represent a diff?  If true, when it gets saved the "
-      "original contents are reloaded into a separate buffer, an attempt is "
-      "made to revert them and then an attempt is made to apply the new "
-      "contents.",
       false);
   return variable;
 }

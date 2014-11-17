@@ -66,14 +66,17 @@ class InsertBufferTransformation : public Transformation {
 
     size_t chars_inserted = buffer_to_insert_length_ * repetitions_;
     unique_ptr<TransformationStack> undo_stack(new TransformationStack());
+    Modifiers modifiers;
+    modifiers.repetitions = chars_inserted;
     undo_stack->PushFront(
         TransformationAtPosition(start_position,
-            NewDeleteCharactersTransformation(
-                FORWARDS, chars_inserted, false)));
+            NewDeleteCharactersTransformation(modifiers, false)));
 
-    if (editor_state->insertion_modifier() == REPLACE) {
+    if (editor_state->insertion_modifier() == Modifiers::REPLACE) {
       Result current_result(editor_state);
-      NewDeleteCharactersTransformation(FORWARDS, chars_inserted, false)
+      Modifiers modifiers;
+      modifiers.repetitions = chars_inserted;
+      NewDeleteCharactersTransformation(modifiers, false)
           ->Apply(editor_state, buffer, &current_result);
       undo_stack->PushFront(std::move(current_result.undo));
     }
@@ -124,9 +127,11 @@ class DeleteSuffixSuperfluousCharacters : public Transformation {
       return;
     }
     CHECK_LT(pos, line->size());
+    Modifiers modifiers;
+    modifiers.repetitions = line->size() - pos;
     return TransformationAtPosition(
         LineColumn(buffer->position().line, pos),
-        NewDeleteCharactersTransformation(FORWARDS, line->size() - pos, false))
+        NewDeleteCharactersTransformation(modifiers, false))
             ->Apply(editor_state, buffer, result);
   }
 
@@ -225,31 +230,31 @@ class DirectionTransformation : public Transformation {
 class StructureTransformation : public Transformation {
  public:
   StructureTransformation(Structure structure,
-                          StructureModifier structure_modifier,
+                          Modifiers::StructureRange structure_range,
                           unique_ptr<Transformation> delegate)
       : structure_(structure),
-        structure_modifier_(structure_modifier),
+        structure_range_(structure_range),
         delegate_(std::move(delegate)) {}
 
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     auto original_structure = editor_state->structure();
-    auto original_structure_modifier = editor_state->structure_modifier();
+    auto original_structure_range = editor_state->structure_range();
     editor_state->set_structure(structure_);
-    editor_state->set_structure_modifier(structure_modifier_);
+    editor_state->set_structure_range(structure_range_);
     delegate_->Apply(editor_state, buffer, result);
     editor_state->set_structure(original_structure);
-    editor_state->set_structure_modifier(original_structure_modifier);
+    editor_state->set_structure_range(original_structure_range);
   }
 
   unique_ptr<Transformation> Clone() {
     return NewStructureTransformation(
-        structure_, structure_modifier_, delegate_->Clone());
+        structure_, structure_range_, delegate_->Clone());
   }
 
  private:
   Structure structure_;
-  StructureModifier structure_modifier_;
+  Modifiers::StructureRange structure_range_;
   unique_ptr<Transformation> delegate_;
 };
 
@@ -319,10 +324,10 @@ unique_ptr<Transformation> NewDirectionTransformation(
 
 unique_ptr<Transformation> NewStructureTransformation(
     Structure structure,
-    StructureModifier structure_modifier,
+    Modifiers::StructureRange structure_range,
     unique_ptr<Transformation> transformation) {
   return unique_ptr<Transformation>(new StructureTransformation(
-      structure, structure_modifier, std::move(transformation)));
+      structure, structure_range, std::move(transformation)));
 }
 
 }  // namespace editor

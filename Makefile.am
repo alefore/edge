@@ -27,6 +27,8 @@ src/line.cc \
 src/line_prompt_mode.cc \
 src/map_mode.cc \
 src/memory_mapped_file.cc \
+src/modifiers.cc \
+src/modifiers.h \
 src/noop_command.cc \
 src/predictor.cc \
 src/repeat_mode.cc \

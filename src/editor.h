@@ -12,6 +12,7 @@
 #include "direction.h"
 #include "lazy_string.h"
 #include "memory_mapped_file.h"
+#include "modifiers.h"
 #include "vm/public/vm.h"
 
 namespace afc {
@@ -30,13 +31,6 @@ using std::min;
 struct BufferPosition {
   string buffer;
   LineColumn position;
-};
-
-enum InsertionModifier {
-  // Default.  Text inserted pushes previous contents backwards.
-  INSERT,
-  // Text inserted overwrites previous contents.
-  REPLACE
 };
 
 class EditorState {
@@ -77,24 +71,21 @@ class EditorState {
 
   void ResetModifiers() {
     ResetMode();
-    set_structure(CHAR);
-    set_structure_modifier(ENTIRE_STRUCTURE);
-    ResetRepetitions();
-    set_default_direction(FORWARDS);
-    ResetDirection();
-    set_default_insertion_modifier(INSERT);
-    ResetInsertionModifier();
+    modifiers_.ResetSoft();
   }
 
-  Direction direction() const { return direction_; }
-  void set_direction(Direction direction);
-  void ResetDirection() { direction_ = default_direction_; }
-  Direction default_direction() const { return default_direction_; }
-  void set_default_direction(Direction direction);
+  Direction direction() const { return modifiers_.direction; }
+  void set_direction(Direction direction) { modifiers_.direction = direction; }
+  void ResetDirection() { modifiers_.ResetDirection(); }
+  Direction default_direction() const { return modifiers_.default_direction; }
+  void set_default_direction(Direction direction) {
+    modifiers_.default_direction = direction;
+    ResetDirection();
+  }
 
-  size_t repetitions() const { return repetitions_; }
-  void ResetRepetitions() { repetitions_ = 1; }
-  void set_repetitions(size_t value) { repetitions_ = value; }
+  size_t repetitions() const { return modifiers_.repetitions; }
+  void ResetRepetitions() { modifiers_.ResetRepetitions(); }
+  void set_repetitions(size_t value) { modifiers_.repetitions = value; }
 
   // TODO: Maybe use a compiled regexp?
   const string& last_search_query() const { return last_search_query_; }
@@ -102,38 +93,48 @@ class EditorState {
     last_search_query_ = query;
   }
 
-  Structure structure() const { return structure_; }
-  void set_structure(Structure structure);
-  void ResetStructure() {
-    if (!sticky_structure_) {
-      structure_ = Structure::CHAR;
-    }
-    structure_modifier_ = ENTIRE_STRUCTURE;
+  Modifiers modifiers() const { return modifiers_; }
+  void set_modifiers(const Modifiers& modifiers) { modifiers_ = modifiers; }
+
+  Structure structure() const { return modifiers_.structure; }
+  void set_structure(Structure structure) { modifiers_.structure = structure; }
+  void ResetStructure() { modifiers_.ResetStructure(); }
+
+  // TODO: Erase; it's now replaced by structure_range.
+  Modifiers::StructureRange structure_modifier() const {
+    return structure_range();
+  }
+  Modifiers::StructureRange structure_range() const {
+    return modifiers_.structure_range;
+  }
+  // TODO: Erase; it's now replaced by set_structure_range.
+  void set_structure_modifier(Modifiers::StructureRange structure_range) {
+    set_structure_range(structure_range);
+  }
+  void set_structure_range(Modifiers::StructureRange structure_range) {
+    modifiers_.structure_range = structure_range;
   }
 
-  StructureModifier structure_modifier() const { return structure_modifier_; }
-  void set_structure_modifier(StructureModifier structure_modifier) {
-    structure_modifier_ = structure_modifier;
-  }
-
-  bool sticky_structure() const { return sticky_structure_; }
+  bool sticky_structure() const { return modifiers_.sticky_structure; }
   void set_sticky_structure(bool sticky_structure) {
-    sticky_structure_ = sticky_structure;
+    modifiers_.sticky_structure = sticky_structure;
   }
 
-  InsertionModifier insertion_modifier() const { return insertion_modifier_; }
-  void set_insertion_modifier(InsertionModifier insertion_modifier) {
-    insertion_modifier_ = insertion_modifier;
+  Modifiers::Insertion insertion_modifier() const {
+    return modifiers_.insertion;
+  }
+  void set_insertion_modifier(Modifiers::Insertion insertion_modifier) {
+    modifiers_.insertion = insertion_modifier;
   }
   void ResetInsertionModifier() {
-    insertion_modifier_ = default_insertion_modifier_;
+    modifiers_.ResetInsertion();
   }
-  InsertionModifier default_insertion_modifier() const {
-    return default_insertion_modifier_;
+  Modifiers::Insertion default_insertion_modifier() const {
+    return modifiers_.default_insertion;
   }
   void set_default_insertion_modifier(
-      InsertionModifier default_insertion_modifier) {
-    default_insertion_modifier_ = default_insertion_modifier;
+      Modifiers::Insertion default_insertion_modifier) {
+    modifiers_.default_insertion = default_insertion_modifier;
   }
 
   void ProcessInputString(const string& input) {
@@ -199,15 +200,7 @@ class EditorState {
   map<string, shared_ptr<OpenBuffer>>::iterator current_buffer_;
   bool terminate_;
 
-  Direction direction_;
-  Direction default_direction_;
-  size_t repetitions_;
   string last_search_query_;
-  Structure structure_;
-  StructureModifier structure_modifier_;
-  bool sticky_structure_;
-  InsertionModifier insertion_modifier_;
-  InsertionModifier default_insertion_modifier_;
 
   unique_ptr<EditorMode> mode_;
 
@@ -226,6 +219,8 @@ class EditorState {
   Environment environment_;
 
   vector<int> pending_signals_;
+
+  Modifiers modifiers_;
 };
 
 }  // namespace editor
