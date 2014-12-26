@@ -34,7 +34,6 @@ namespace editor {
 
 namespace {
 
-using std::cerr;
 using std::unordered_set;
 
 static void RegisterBufferFieldBool(afc::vm::ObjectType* object_type,
@@ -619,7 +618,7 @@ void OpenBuffer::ProcessCommandInput(
   std::unordered_set<Line::Modifier, hash<int>> modifiers;
 
   size_t read_index = 0;
-  //cerr << str->ToString();
+  VLOG(5) << "Terminal input: " << str->ToString();
   while (read_index < str->size()) {
     int c = str->get(read_index);
     read_index++;
@@ -659,7 +658,7 @@ void OpenBuffer::ProcessCommandInput(
         column_ = position_pts_.column;
       }
     } else {
-      std::cerr << "Unknown [" << c << "]\n";
+      LOG(INFO) << "Unknown character: [" << c << "]\n";
     }
   }
 }
@@ -668,7 +667,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
     EditorState* editor_state, shared_ptr<LazyString> str, size_t read_index,
     std::unordered_set<Line::Modifier, hash<int>>* modifiers) {
   if (str->size() <= read_index) {
-    std::cerr << "Unhandled sequence (0): ("
+    LOG(INFO) << "Unhandled character sequence: "
               << Substring(str, read_index)->ToString() << ")\n";
     return read_index;
   }
@@ -689,8 +688,8 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
     case '[':
       break;
     default:
-      std::cerr << "Unhandled sequence (5): ("
-                << Substring(str, read_index)->ToString() << ")\n";
+      LOG(INFO) << "Unhandled character sequence: "
+                << Substring(str, read_index)->ToString();
   }
   read_index++;
   auto current_line = contents_[position_pts_.line];
@@ -712,7 +711,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         if (sequence == "?1049") {
           // rmcup
         } else {
-          std::cerr << "Unhandled sequence (6): (" << sequence << ")\n";
+          LOG(INFO) << "Unhandled character sequence: " << sequence;
         }
         return read_index;
 
@@ -724,7 +723,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         if (sequence == "?1049") {
           // smcup
         } else {
-          std::cerr << "Unhandled sequence (7): (" << sequence << ")\n";
+          LOG(INFO) << "Unhandled character sequence: " << sequence;
         }
         return read_index;
 
@@ -764,7 +763,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
           modifiers->clear();
           modifiers->insert(Line::CYAN);
         } else {
-          std::cerr << "Unhandled sequence (1): (" << sequence << ")\n";
+          LOG(INFO) << "Unhandled character sequence: (" << sequence;
         }
         return read_index;
 
@@ -773,7 +772,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
           // rmkx: leave 'keyboard_transmit' mode
           // TODO(alejo): Handle it.
         } else {
-          std::cerr << "Unhandled sequence (2): (" << sequence << ")\n";
+          LOG(INFO) << "Unhandled character sequence: " << sequence;
         }
         return read_index;
         break;
@@ -783,7 +782,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
           // smkx: enter 'keyboard_transmit' mode
           // TODO(alejo): Handle it.
         } else {
-          std::cerr << "Unhandled sequence (3): (" << sequence << ")\n";
+          LOG(INFO) << "Unhandled character sequence: " << sequence;
         }
         return read_index;
         break;
@@ -855,7 +854,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         sequence.push_back(c);
     }
   }
-  std::cerr << "Unhandled sequence (4): (" << sequence << ")\n";
+  LOG(INFO) << "Unhandled character sequence: " << sequence;
   return read_index;
 }
 
