@@ -613,6 +613,7 @@ void OpenBuffer::ProcessCommandInput(
   if (position_pts_.line >= contents_.size()) {
     position_pts_.line = contents_.size() - 1;
   }
+  CHECK_LT(position_pts_.line, contents_.size());
   auto current_line = contents_[position_pts_.line];
 
   std::unordered_set<Line::Modifier, hash<int>> modifiers;
@@ -642,6 +643,7 @@ void OpenBuffer::ProcessCommandInput(
       if (position_pts_.line == contents_.size()) {
         contents_.emplace_back(new Line(Line::Options()));
       }
+      CHECK_LT(position_pts_.line, contents_.size());
       current_line = contents_[position_pts_.line];
       if (read_bool_variable(variable_follow_end_of_file())) {
         line_ = BufferLineIterator(this, position_pts_.line);
@@ -650,6 +652,7 @@ void OpenBuffer::ProcessCommandInput(
     } else if (c == 0x1b) {
       read_index = ProcessTerminalEscapeSequence(
           editor_state, str, read_index, &modifiers);
+      CHECK_LT(position_pts_.line, contents_.size());
       current_line = contents_[position_pts_.line];
     } else if (isprint(c) || c == '\t') {
       current_line->SetCharacter(position_pts_.column, c, modifiers);
@@ -692,6 +695,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
                 << Substring(str, read_index)->ToString();
   }
   read_index++;
+  CHECK_LT(position_pts_.line, contents_.size());
   auto current_line = contents_[position_pts_.line];
   string sequence;
   while (read_index < str->size()) {
@@ -711,6 +715,8 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         }
         if (sequence == "?1049") {
           // rmcup
+        } else if (sequence == "?25") {
+          LOG(INFO) << "Ignoring: Make cursor invisible";
         } else {
           LOG(INFO) << "Unhandled character sequence: " << sequence;
         }
@@ -723,6 +729,8 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         }
         if (sequence == "?1049") {
           // smcup
+        } else if (sequence == "?25") {
+          LOG(INFO) << "Ignoring: Make cursor visible";
         } else {
           LOG(INFO) << "Unhandled character sequence: " << sequence;
         }
@@ -821,8 +829,13 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
                 "Unable to parse sequence from terminal in 'home' command: \""
                 + sequence + "\"");
           }
+          DLOG(INFO) << "Move cursor home: line: " << line_delta << ", column: "
+                     << column_delta;
           position_pts_ =
               LineColumn(view_start_line_ + line_delta, column_delta);
+          while (position_pts_.line >= contents_.size()) {
+            contents_.emplace_back(new Line(Line::Options()));
+          }
           if (read_bool_variable(variable_follow_end_of_file())) {
             line_ = BufferLineIterator(this, position_pts_.line);
             column_ = position_pts_.column;
@@ -835,6 +848,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         // ed: clear to end of screen.
         contents_.erase(contents_.begin() + position_pts_.line + 1,
                         contents_.end());
+        CHECK_LT(position_pts_.line, contents_.size());
         return read_index;
 
       case 'K':
@@ -845,6 +859,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
       case 'M':
         // dl1: delete one line.
         contents_.erase(contents_.begin() + position_pts_.line);
+        CHECK_LT(position_pts_.line, contents_.size());
         return read_index;
 
       case 'P':
