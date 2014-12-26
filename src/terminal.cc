@@ -371,7 +371,7 @@ void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
 
 int Terminal::Read(EditorState*) {
   int c = getch();
-  //cerr << "Read: " << c << "\n";
+  DLOG(INFO) << "Read: " << c << "\n";
   switch (c) {
     case 127:
       return BACKSPACE;
@@ -384,6 +384,9 @@ int Terminal::Read(EditorState*) {
 
     case 21:
       return CTRL_U;
+
+    case 22:
+      return CTRL_V;
 
     case 27:
       {
