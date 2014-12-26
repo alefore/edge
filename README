@@ -240,11 +240,21 @@ variable of the buffer is used to decide which characters are considered spaces.
 - Very weak: Stops deleting after the first (last) sequence of non-word
       characters from the beginning (end) of the line.
 
-- Weak: Same as Default.
+- Weak: Similar to Default, but does not delete the newline character that
+      follows the line.
 
-- Default: Deletes the current line, excluding the newline characters around it.
+- Default: If we're deleting backwards, deletes until the beginning of the line
+      (including any initial spaces).  The newline character from the preceeding
+      line is preserved.
 
-- Strong: Deletes one of the newline characters around the line.
+      If we're deleting forwards, deletes until (including) the newline
+      character that follows the current line.
+
+- Strong: If we're deleting backwards, deletes everything from (including) the
+      newline character from the preceeding line.
+
+      Like Default, if we're deleting forwards, deletes until the newline
+      character that follows the current line.
 
 - Very strong: Similar to Strong but both forwards and backwards keeps deleting
       non-word characters from adjacent lines.
