@@ -700,7 +700,8 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
     switch (c) {
       case '@':
         // ich: insert character
-        current_line->InsertCharacter(position_pts_.column);
+        DLOG(INFO) << "Terminal: ich: Insert character.";
+        current_line->InsertCharacterAtPosition(position_pts_.column);
         return read_index;
 
       case 'l':

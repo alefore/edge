@@ -47,9 +47,17 @@ void Line::DeleteCharacters(size_t position, size_t amount) {
                    modifiers_.begin() + position + amount);
 }
 
-void Line::InsertCharacter(int c) {
-  contents_ = StringAppend(contents_, NewCopyString(string(1, c)));
-  modifiers_.emplace_back();
+void Line::InsertCharacterAtPosition(size_t position) {
+  CHECK_EQ(contents_->size(), modifiers_.size());
+  contents_ = StringAppend(
+      StringAppend(Substring(0, position),
+                   NewCopyString(string(1, ' '))),
+      Substring(position));
+
+  modifiers_.push_back(unordered_set<Modifier, hash<int>>());
+  for (size_t i = modifiers_.size() - 1; i > position; i--) {
+    modifiers_[i] = modifiers_[i - 1];
+  }
 }
 
 void Line::SetCharacter(size_t position, int c,

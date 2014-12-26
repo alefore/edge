@@ -63,7 +63,7 @@ class Line {
   }
   void DeleteUntilEnd(size_t position);
   void DeleteCharacters(size_t position, size_t amount);
-  void InsertCharacter(int c);
+  void InsertCharacterAtPosition(size_t position);
   void SetCharacter(size_t position, int c,
                     const std::unordered_set<Modifier, hash<int>>& modifiers);
 
