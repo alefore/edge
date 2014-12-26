@@ -199,6 +199,10 @@ modifier will instead insert the line after the current line.
 The insertion modifier (section 6.5) will specify if insert should preserve the
 contents that follow the cursor (default) or replace them as you type.
 
+While inserting to a terminal, press ctrl+v to activate "literal" insertion: the
+next character will be inserted literally.  This is mainly useful to insert an
+Esc code (instead of having Esc take you out of insert mode).
+
 
 4.2. Deleting contents
 
