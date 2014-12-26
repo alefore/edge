@@ -737,8 +737,12 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
           modifiers->insert(Line::BOLD);
         } else if (sequence == "3") {
           // TODO(alejo): Support italic on.
+        } else if (sequence == "4") {
+          modifiers->insert(Line::UNDERLINE);
         } else if (sequence == "23") {
           // Fraktur off, italic off.  No need to do anything for now.
+        } else if (sequence == "24") {
+          modifiers->erase(Line::UNDERLINE);
         } else if (sequence == "31") {
           modifiers->clear();
           modifiers->insert(Line::RED);
