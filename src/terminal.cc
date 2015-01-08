@@ -237,6 +237,7 @@ class LineOutputReceiver : public Line::OutputReceiverInterface {
     switch (modifier) {
       case Line::RESET:
         attroff(A_BOLD);
+        attroff(A_UNDERLINE);
         attroff(A_REVERSE);
         attroff(COLOR_PAIR(1));
         attroff(COLOR_PAIR(2));
@@ -245,6 +246,9 @@ class LineOutputReceiver : public Line::OutputReceiverInterface {
         break;
       case Line::BOLD:
         attron(A_BOLD);
+        break;
+      case Line::UNDERLINE:
+        attron(A_UNDERLINE);
         break;
       case Line::REVERSE:
         attron(A_REVERSE);
@@ -367,7 +371,7 @@ void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
 
 int Terminal::Read(EditorState*) {
   int c = getch();
-  //cerr << "Read: " << c << "\n";
+  DLOG(INFO) << "Read: " << c << "\n";
   switch (c) {
     case 127:
       return BACKSPACE;
@@ -380,6 +384,9 @@ int Terminal::Read(EditorState*) {
 
     case 21:
       return CTRL_U;
+
+    case 22:
+      return CTRL_V;
 
     case 27:
       {

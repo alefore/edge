@@ -34,7 +34,6 @@ namespace editor {
 
 namespace {
 
-using std::cerr;
 using std::unordered_set;
 
 static void RegisterBufferFieldBool(afc::vm::ObjectType* object_type,
@@ -614,12 +613,13 @@ void OpenBuffer::ProcessCommandInput(
   if (position_pts_.line >= contents_.size()) {
     position_pts_.line = contents_.size() - 1;
   }
+  CHECK_LT(position_pts_.line, contents_.size());
   auto current_line = contents_[position_pts_.line];
 
   std::unordered_set<Line::Modifier, hash<int>> modifiers;
 
   size_t read_index = 0;
-  //cerr << str->ToString();
+  VLOG(5) << "Terminal input: " << str->ToString();
   while (read_index < str->size()) {
     int c = str->get(read_index);
     read_index++;
@@ -643,6 +643,7 @@ void OpenBuffer::ProcessCommandInput(
       if (position_pts_.line == contents_.size()) {
         contents_.emplace_back(new Line(Line::Options()));
       }
+      CHECK_LT(position_pts_.line, contents_.size());
       current_line = contents_[position_pts_.line];
       if (read_bool_variable(variable_follow_end_of_file())) {
         line_ = BufferLineIterator(this, position_pts_.line);
@@ -651,6 +652,7 @@ void OpenBuffer::ProcessCommandInput(
     } else if (c == 0x1b) {
       read_index = ProcessTerminalEscapeSequence(
           editor_state, str, read_index, &modifiers);
+      CHECK_LT(position_pts_.line, contents_.size());
       current_line = contents_[position_pts_.line];
     } else if (isprint(c) || c == '\t') {
       current_line->SetCharacter(position_pts_.column, c, modifiers);
@@ -659,7 +661,7 @@ void OpenBuffer::ProcessCommandInput(
         column_ = position_pts_.column;
       }
     } else {
-      std::cerr << "Unknown [" << c << "]\n";
+      LOG(INFO) << "Unknown character: [" << c << "]\n";
     }
   }
 }
@@ -668,7 +670,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
     EditorState* editor_state, shared_ptr<LazyString> str, size_t read_index,
     std::unordered_set<Line::Modifier, hash<int>>* modifiers) {
   if (str->size() <= read_index) {
-    std::cerr << "Unhandled sequence (0): ("
+    LOG(INFO) << "Unhandled character sequence: "
               << Substring(str, read_index)->ToString() << ")\n";
     return read_index;
   }
@@ -689,10 +691,11 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
     case '[':
       break;
     default:
-      std::cerr << "Unhandled sequence (5): ("
-                << Substring(str, read_index)->ToString() << ")\n";
+      LOG(INFO) << "Unhandled character sequence: "
+                << Substring(str, read_index)->ToString();
   }
   read_index++;
+  CHECK_LT(position_pts_.line, contents_.size());
   auto current_line = contents_[position_pts_.line];
   string sequence;
   while (read_index < str->size()) {
@@ -701,7 +704,8 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
     switch (c) {
       case '@':
         // ich: insert character
-        current_line->InsertCharacter(position_pts_.column);
+        DLOG(INFO) << "Terminal: ich: Insert character.";
+        current_line->InsertCharacterAtPosition(position_pts_.column);
         return read_index;
 
       case 'l':
@@ -711,8 +715,10 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         }
         if (sequence == "?1049") {
           // rmcup
+        } else if (sequence == "?25") {
+          LOG(INFO) << "Ignoring: Make cursor invisible";
         } else {
-          std::cerr << "Unhandled sequence (6): (" << sequence << ")\n";
+          LOG(INFO) << "Unhandled character sequence: " << sequence;
         }
         return read_index;
 
@@ -723,8 +729,10 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         }
         if (sequence == "?1049") {
           // smcup
+        } else if (sequence == "?25") {
+          LOG(INFO) << "Ignoring: Make cursor visible";
         } else {
-          std::cerr << "Unhandled sequence (7): (" << sequence << ")\n";
+          LOG(INFO) << "Unhandled character sequence: " << sequence;
         }
         return read_index;
 
@@ -737,8 +745,12 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
           modifiers->insert(Line::BOLD);
         } else if (sequence == "3") {
           // TODO(alejo): Support italic on.
+        } else if (sequence == "4") {
+          modifiers->insert(Line::UNDERLINE);
         } else if (sequence == "23") {
           // Fraktur off, italic off.  No need to do anything for now.
+        } else if (sequence == "24") {
+          modifiers->erase(Line::UNDERLINE);
         } else if (sequence == "31") {
           modifiers->clear();
           modifiers->insert(Line::RED);
@@ -764,7 +776,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
           modifiers->clear();
           modifiers->insert(Line::CYAN);
         } else {
-          std::cerr << "Unhandled sequence (1): (" << sequence << ")\n";
+          LOG(INFO) << "Unhandled character sequence: (" << sequence;
         }
         return read_index;
 
@@ -773,7 +785,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
           // rmkx: leave 'keyboard_transmit' mode
           // TODO(alejo): Handle it.
         } else {
-          std::cerr << "Unhandled sequence (2): (" << sequence << ")\n";
+          LOG(INFO) << "Unhandled character sequence: " << sequence;
         }
         return read_index;
         break;
@@ -783,7 +795,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
           // smkx: enter 'keyboard_transmit' mode
           // TODO(alejo): Handle it.
         } else {
-          std::cerr << "Unhandled sequence (3): (" << sequence << ")\n";
+          LOG(INFO) << "Unhandled character sequence: " << sequence;
         }
         return read_index;
         break;
@@ -817,8 +829,13 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
                 "Unable to parse sequence from terminal in 'home' command: \""
                 + sequence + "\"");
           }
+          DLOG(INFO) << "Move cursor home: line: " << line_delta << ", column: "
+                     << column_delta;
           position_pts_ =
               LineColumn(view_start_line_ + line_delta, column_delta);
+          while (position_pts_.line >= contents_.size()) {
+            contents_.emplace_back(new Line(Line::Options()));
+          }
           if (read_bool_variable(variable_follow_end_of_file())) {
             line_ = BufferLineIterator(this, position_pts_.line);
             column_ = position_pts_.column;
@@ -831,6 +848,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         // ed: clear to end of screen.
         contents_.erase(contents_.begin() + position_pts_.line + 1,
                         contents_.end());
+        CHECK_LT(position_pts_.line, contents_.size());
         return read_index;
 
       case 'K':
@@ -841,6 +859,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
       case 'M':
         // dl1: delete one line.
         contents_.erase(contents_.begin() + position_pts_.line);
+        CHECK_LT(position_pts_.line, contents_.size());
         return read_index;
 
       case 'P':
@@ -855,7 +874,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         sequence.push_back(c);
     }
   }
-  std::cerr << "Unhandled sequence (4): (" << sequence << ")\n";
+  LOG(INFO) << "Unhandled character sequence: " << sequence;
   return read_index;
 }
 

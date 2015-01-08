@@ -193,6 +193,8 @@ class RawInputTypeMode : public EditorMode {
 
   void ProcessInput(int c, EditorState* editor_state) {
     auto buffer = editor_state->current_buffer()->second;
+    bool old_literal = literal_;
+    literal_ = false;
     switch (c) {
       case Terminal::CHAR_EOF:
         line_buffer_.push_back(4);
@@ -207,6 +209,17 @@ class RawInputTypeMode : public EditorMode {
         }
         break;
 
+      case Terminal::CTRL_V:
+        if (old_literal) {
+          DLOG(INFO) << "Inserting literal CTRL_V";
+          string sequence(1, 22);
+          write(buffer->fd(), sequence.c_str(), sequence.size());
+        } else {
+          DLOG(INFO) << "Set literal.";
+          literal_ = true;
+        }
+        break;
+
       case Terminal::CTRL_U:
         if (!buffer) {
           line_buffer_ = "";
@@ -217,7 +230,11 @@ class RawInputTypeMode : public EditorMode {
         break;
 
       case Terminal::ESCAPE:
-        {
+        if (old_literal) {
+          DLOG(INFO) << "Inserting literal ESCAPE";
+          string sequence(1, 27);
+          write(buffer->fd(), sequence.c_str(), sequence.size());
+        } else {
           editor_state->ResetMode();
           editor_state->ResetStatus();
         }
@@ -284,6 +301,7 @@ class RawInputTypeMode : public EditorMode {
  private:
   string line_buffer_;
   bool buffering_;
+  bool literal_ = false;
 };
 
 }  // namespace
