@@ -389,7 +389,7 @@ class DeleteLinesTransformation : public Transformation {
       delete_buffer->AppendLine(editor_state, line_deletion);
       line++;
     }
-    if (forwards && modifiers_.strength > Modifiers::WEAK) {
+    if (forwards && modifiers_.strength > Modifiers::DEFAULT) {
       delete_buffer->AppendLine(editor_state, EmptyString());
     }
     if (copy_to_paste_buffer_) {
@@ -399,7 +399,7 @@ class DeleteLinesTransformation : public Transformation {
 
     LOG(INFO) << "Modifying buffer: " << modifiers_.structure_range;
     if (modifiers_.structure_range == Modifiers::ENTIRE_STRUCTURE
-        && modifiers_.strength == Modifiers::DEFAULT) {
+        && modifiers_.strength == Modifiers::STRONG) {
       // Optimization.
       buffer->contents()->erase(
           buffer->contents()->begin() + buffer->line().line(),
@@ -441,11 +441,7 @@ class DeleteLinesTransformation : public Transformation {
     switch (modifiers_.strength) {
       case Modifiers::VERY_WEAK:
       case Modifiers::WEAK:
-        break;
       case Modifiers::DEFAULT:
-        if (forwards) {
-          delete_characters_after = 1;
-        }
         break;
       case Modifiers::STRONG:
         if (forwards) {
