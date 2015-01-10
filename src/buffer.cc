@@ -914,11 +914,14 @@ void OpenBuffer::EvaluateString(EditorState* editor_state, const string& code) {
   Evaluate(expression.get(), &environment_);
 }
 
-void OpenBuffer::EvaluateFile(EditorState*, const string& path) {
+void OpenBuffer::EvaluateFile(EditorState* editor_state, const string& path) {
   string error_description;
   unique_ptr<Expression> expression(
       CompileFile(path, &environment_, &error_description));
-  if (expression == nullptr) { return; }
+  if (expression == nullptr) {
+    editor_state->SetStatus("Compilation error: " + error_description);
+    return;
+  }
   Evaluate(expression.get(), &environment_);
 }
 
