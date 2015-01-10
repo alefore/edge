@@ -390,7 +390,7 @@ void EditorState::SetStatus(const string& status) {
         new OpenBuffer(this, status_buffer_it.first->first));
   }
   status_buffer_it.first->second
-      ->AppendLazyString(this, NewCopyString(status + "\n"));
+      ->AppendLazyString(this, NewCopyString(status));
   if (current_buffer_ == status_buffer_it.first) {
     ScheduleRedraw();
   }
