@@ -42,7 +42,7 @@ unique_ptr<Expression> NewVariableLookup(
     Compilation* compilation, const string& symbol) {
   Value* result = compilation->environment->Lookup(symbol);
   if (result == nullptr) {
-    compilation->errors.push_back("Variable not found: \"" + symbol + "\"");
+    compilation->AddError("Variable not found: \"" + symbol + "\"");
     return nullptr;
   }
   return unique_ptr<Expression>(new VariableLookup(symbol, result->type));

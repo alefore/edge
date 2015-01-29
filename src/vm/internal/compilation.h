@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include <glog/logging.h>
+
 namespace afc {
 namespace vm {
 
@@ -19,6 +21,11 @@ class Expression;
 class Environment;
 
 struct Compilation {
+  void AddError(string error) {
+    LOG(INFO) << "Compilation error: " << error;
+    errors.push_back(std::move(error));
+  }
+
   unique_ptr<Expression> expr;
   vector<string> errors;
 

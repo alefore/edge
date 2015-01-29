@@ -162,50 +162,6 @@ EditorState::EditorState()
   }
 
   {
-    unique_ptr<Value> insert_text(new Value(VMType::FUNCTION));
-    insert_text->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    insert_text->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    insert_text->callback =
-        [this](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::VM_STRING);
-          if (!has_current_buffer()) { return Value::NewVoid(); }
-          auto buffer = current_buffer()->second;
-
-          shared_ptr<OpenBuffer> buffer_to_insert(
-              new OpenBuffer(this, "tmp buffer"));
-
-          // getline will silently eat the last (empty) line.
-          std::istringstream text_stream(args[0]->str + "\n");
-          std::string line;
-          while (std::getline(text_stream, line, '\n')) {
-            buffer_to_insert->AppendLine(this, NewCopyString(line));
-          }
-
-          buffer->Apply(this,
-              NewInsertBufferTransformation(buffer_to_insert, 1, END));
-          return Value::NewVoid();
-        };
-    environment_.Define("InsertText", std::move(insert_text));
-  }
-
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->callback =
-        [this](vector<unique_ptr<Value>> args) {
-          if (!has_current_buffer()) { return Value::NewVoid(); }
-          auto buffer = current_buffer()->second;
-          Modifiers modifiers;
-          modifiers.repetitions = args[0]->integer;
-          buffer->Apply(this,
-              NewDeleteCharactersTransformation(modifiers, true));
-          return Value::NewVoid();
-        };
-    environment_.Define("DeleteCharacters", std::move(callback));
-  }
-
-  {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
     callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
     callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
@@ -390,7 +346,7 @@ void EditorState::SetStatus(const string& status) {
         new OpenBuffer(this, status_buffer_it.first->first));
   }
   status_buffer_it.first->second
-      ->AppendLazyString(this, NewCopyString(status + "\n"));
+      ->AppendLazyString(this, NewCopyString(status));
   if (current_buffer_ == status_buffer_it.first) {
     ScheduleRedraw();
   }

@@ -19,10 +19,13 @@ if (path == "") {
   string command = buffer.command();
   int space = command.find_first_of(" ", 0);
   string base_command = space == -1 ? command : command.substr(0, space);
-  SetStatus("[" + base_command + "]");
-  if (base_command == "bash" || base_command == "python") {
-    buffer.set_pts(true);
+  if (base_command != "") {
+    SetStatus("Running command: [" + base_command + "]");
+    if (base_command == "bash" || base_command == "python") {
+      buffer.set_pts(true);
+    }
   }
+  buffer.set_atomic_lines(false);
   buffer.set_paste_mode(true);
   buffer.set_reload_on_enter(false);
 } else {

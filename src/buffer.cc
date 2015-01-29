@@ -377,6 +377,62 @@ bool LineColumn::operator!=(const LineColumn& other) const {
         };
     buffer->AddField("Filter", std::move(callback));
   }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    // Returns nothing.
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    // The buffer to modify.
+    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
+    // The number of characters to delete.
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    callback->callback =
+        [editor_state](vector<unique_ptr<Value>> args) {
+          CHECK(args.size() == 2);
+          CHECK(args[0]->type == VMType::OBJECT_TYPE);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          CHECK(buffer != nullptr);
+
+          Modifiers modifiers;
+          modifiers.repetitions = args[1]->integer;
+          buffer->Apply(editor_state,
+              NewDeleteCharactersTransformation(modifiers, true));
+          return Value::NewVoid();
+        };
+    buffer->AddField("DeleteCharacters", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    // Returns nothing.
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    // The buffer to modify.
+    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
+    // The text to insert.
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->callback =
+        [editor_state](vector<unique_ptr<Value>> args) {
+          CHECK(args.size() == 2);
+          CHECK(args[0]->type == VMType::OBJECT_TYPE);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          CHECK(buffer != nullptr);
+
+          shared_ptr<OpenBuffer> buffer_to_insert(
+              new OpenBuffer(editor_state, "tmp buffer"));
+
+          // getline will silently eat the last (empty) line.
+          std::istringstream text_stream(args[1]->str + "\n");
+          std::string line;
+          while (std::getline(text_stream, line, '\n')) {
+            buffer_to_insert->AppendLine(editor_state, NewCopyString(line));
+          }
+
+          buffer->Apply(editor_state,
+              NewInsertBufferTransformation(buffer_to_insert, 1, END));
+
+          return Value::NewVoid();
+        };
+    buffer->AddField("InsertText", std::move(callback));
+  }
+
   environment->DefineType("Buffer", std::move(buffer));
 }
 
@@ -914,11 +970,14 @@ void OpenBuffer::EvaluateString(EditorState* editor_state, const string& code) {
   Evaluate(expression.get(), &environment_);
 }
 
-void OpenBuffer::EvaluateFile(EditorState*, const string& path) {
+void OpenBuffer::EvaluateFile(EditorState* editor_state, const string& path) {
   string error_description;
   unique_ptr<Expression> expression(
       CompileFile(path, &environment_, &error_description));
-  if (expression == nullptr) { return; }
+  if (expression == nullptr) {
+    editor_state->SetStatus("Compilation error: " + error_description);
+    return;
+  }
   Evaluate(expression.get(), &environment_);
 }
 
