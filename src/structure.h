@@ -11,6 +11,7 @@ enum Structure {
   LINE,
   PAGE,
   SEARCH,
+  REGION,
   BUFFER,
 };
 

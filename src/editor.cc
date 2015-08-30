@@ -331,7 +331,7 @@ static BufferPosition PositionFromLine(const string& line) {
   BufferPosition pos;
   line_stream >> pos.position.line >> pos.position.column;
   line_stream.get();
-  getline(line_stream, pos.buffer);
+  getline(line_stream, pos.buffer_name);
   return pos;
 }
 

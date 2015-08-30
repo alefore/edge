@@ -97,6 +97,7 @@ void Terminal::Display(EditorState* editor_state) {
 void Terminal::ShowStatus(const EditorState& editor_state) {
   move(LINES - 1, 0);
   string status;
+  auto modifiers = editor_state.modifiers();
   if (editor_state.has_current_buffer()) {
     auto buffer = editor_state.current_buffer()->second;
     status.push_back('[');
@@ -106,7 +107,20 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
       status += to_string(buffer->current_position_line() + 1);
     }
     status += " of " + to_string(buffer->contents()->size()) + ", "
-        + to_string(buffer->current_position_col() + 1) + "] ";
+        + to_string(buffer->current_position_col() + 1);
+
+    if (modifiers.has_region_start) {
+      status += " R:";
+      const auto& buffer_name = modifiers.region_start.buffer_name;
+      if (buffer_name != editor_state.current_buffer()->first) {
+        status += buffer_name + ":";
+      }
+      const auto& position = modifiers.region_start.position;
+      status += to_string(position.line + 1) + ":"
+          + to_string(position.column + 1);
+    }
+
+    status += + "] ";
 
     string flags = buffer->FlagsString();
     Modifiers modifiers(editor_state.modifiers());
@@ -139,7 +153,6 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
         flags += " S";
         break;
       case Modifiers::DEFAULT:
-        flags += " -";
         break;
     }
 
@@ -161,6 +174,9 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
         break;
       case BUFFER:
         structure = "buffer";
+        break;
+      case REGION:
+        structure = "region";
         break;
     }
     if (!structure.empty()) {

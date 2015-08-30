@@ -28,11 +28,6 @@ using std::map;
 using std::max;
 using std::min;
 
-struct BufferPosition {
-  string buffer;
-  LineColumn position;
-};
-
 class EditorState {
  public:
   EditorState();

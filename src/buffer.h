@@ -10,6 +10,7 @@
 #include "command_mode.h"
 #include "lazy_string.h"
 #include "line.h"
+#include "line_column.h"
 #include "memory_mapped_file.h"
 #include "substring.h"
 #include "transformation.h"
@@ -38,38 +39,6 @@ struct ParseTree {
   int length;
   vector<unique_ptr<ParseTree>> items;
 };
-
-// A position in a text buffer.
-struct LineColumn {
-  LineColumn() : line(0), column(0) {}
-  LineColumn(size_t l) : line(l), column(0) {}
-  LineColumn(size_t l, size_t c) : line(l), column(c) {}
-
-  bool operator!=(const LineColumn& other) const;
-
-  bool at_beginning_of_line() const { return column == 0; }
-  bool at_beginning() const { return line == 0 && at_beginning_of_line(); }
-
-  string ToString() const {
-    using std::to_string;
-    return to_string(line) + " " + to_string(column);
-  }
-
-  bool operator==(const LineColumn& rhs) const {
-    return line == rhs.line && column == rhs.column;
-  }
-
-  bool operator<(const LineColumn& rhs) const {
-    return line < rhs.line || (line == rhs.line && column < rhs.column);
-  }
-
-  size_t line;
-  size_t column;
-
-  friend ostream& operator<<(ostream& os, const LineColumn& lc);
-};
-
-ostream& operator<<(ostream& os, const LineColumn& lc);
 
 template <typename T, typename B>
 class BufferLineGenericIterator

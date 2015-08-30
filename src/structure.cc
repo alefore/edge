@@ -12,7 +12,8 @@ Structure LowerStructure(Structure s) {
     case LINE: return WORD;
     case PAGE: return LINE;
     case SEARCH: return PAGE;
-    case BUFFER: return SEARCH;
+    case REGION: return SEARCH;
+    case BUFFER: return REGION;
   }
   CHECK(false);
 }
