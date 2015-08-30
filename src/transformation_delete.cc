@@ -286,7 +286,7 @@ class DeleteWordTransformation : public Transformation {
     CHECK_LE(start.column + 1, end.column);
     CHECK_LE(initial_position.line, start.line);
 
-    unique_ptr<TransformationStack> stack(new TransformationStack());
+    TransformationStack stack;
 
     if (initial_position.line < start.line) {
       LOG(INFO) << "Deleting superfluous lines (from " << initial_position.line
@@ -296,8 +296,8 @@ class DeleteWordTransformation : public Transformation {
         end.line--;
         Modifiers modifiers;
         modifiers.structure_range = Modifiers::FROM_CURRENT_POSITION_TO_END;
-        stack->PushBack(NewDeleteLinesTransformation(modifiers, true));
-        stack->PushBack(NewDeleteCharactersTransformation(Modifiers(), true));
+        stack.PushBack(NewDeleteLinesTransformation(modifiers, true));
+        stack.PushBack(NewDeleteCharactersTransformation(Modifiers(), true));
       }
       start.column += initial_position.column;
       end.column += initial_position.column;
@@ -306,7 +306,7 @@ class DeleteWordTransformation : public Transformation {
     if (initial_position.column < start.column) {
       Modifiers modifiers;
       modifiers.repetitions = start.column - initial_position.column;
-      stack->PushBack(NewDeleteCharactersTransformation(modifiers, true));
+      stack.PushBack(NewDeleteCharactersTransformation(modifiers, true));
       end.column = initial_position.column + end.column - start.column;
       start.column = initial_position.column;
     }
@@ -327,7 +327,7 @@ class DeleteWordTransformation : public Transformation {
     }
     if (initial_position.column > start.column) {
       LOG(INFO) << "Scroll back: " << initial_position.column - start.column;
-      stack->PushBack(NewSetRepetitionsTransformation(
+      stack.PushBack(NewSetRepetitionsTransformation(
           initial_position.column - start.column,
           NewDirectionTransformation(
               Direction::BACKWARDS,
@@ -340,8 +340,8 @@ class DeleteWordTransformation : public Transformation {
     LOG(INFO) << "Erasing word, characters: " << size;
     Modifiers modifiers;
     modifiers.repetitions = size;
-    stack->PushBack(NewDeleteCharactersTransformation(modifiers, true));
-    stack->Apply(editor_state, buffer, result);
+    stack.PushBack(NewDeleteCharactersTransformation(modifiers, true));
+    stack.Apply(editor_state, buffer, result);
   }
 
   unique_ptr<Transformation> Clone() {
@@ -413,7 +413,7 @@ class DeleteLinesTransformation : public Transformation {
       return;
     }
 
-    unique_ptr<TransformationStack> stack(new TransformationStack);
+    TransformationStack stack;
     LineColumn position = buffer->position();
     for (size_t i = 0; i < repetitions; i++) {
       auto line = buffer->LineAt(position.line + i);
@@ -433,8 +433,8 @@ class DeleteLinesTransformation : public Transformation {
       }
       Modifiers modifiers;
       modifiers.repetitions = delete_characters;
-      stack->PushBack(NewGotoPositionTransformation(delete_from));
-      stack->PushBack(NewDeleteCharactersTransformation(modifiers, false));
+      stack.PushBack(NewGotoPositionTransformation(delete_from));
+      stack.PushBack(NewDeleteCharactersTransformation(modifiers, false));
     }
     size_t delete_characters_before = 0;
     size_t delete_characters_after = 0;
@@ -490,21 +490,21 @@ class DeleteLinesTransformation : public Transformation {
     }
     if (delete_characters_after > 0) {
       LOG(INFO) << "Deleting characters after: " << delete_characters_after;
-      stack->PushBack(NewGotoPositionTransformation(
+      stack.PushBack(NewGotoPositionTransformation(
           LineColumn(position.line, buffer->LineAt(position.line)->size())));
       Modifiers modifiers;
       modifiers.repetitions = delete_characters_after;
-      stack->PushBack(NewDeleteCharactersTransformation(modifiers, false));
+      stack.PushBack(NewDeleteCharactersTransformation(modifiers, false));
     }
     if (delete_characters_before > 0) {
       LOG(INFO) << "Deleting characters before: " << delete_characters_before;
-      stack->PushBack(NewGotoPositionTransformation(LineColumn(position.line)));
+      stack.PushBack(NewGotoPositionTransformation(LineColumn(position.line)));
       Modifiers modifiers;
       modifiers.direction = BACKWARDS;
       modifiers.repetitions = delete_characters_before;
-      stack->PushBack(NewDeleteCharactersTransformation(modifiers, false));
+      stack.PushBack(NewDeleteCharactersTransformation(modifiers, false));
     }
-    stack->Apply(editor_state, buffer, result);
+    stack.Apply(editor_state, buffer, result);
   }
 
   unique_ptr<Transformation> Clone() {
@@ -629,14 +629,14 @@ class DeleteRegionTransformation : public Transformation {
       return;
     }
 
-    unique_ptr<TransformationStack> stack(new TransformationStack());
+    TransformationStack stack;
 
     {
       Modifiers modifiers;
       modifiers.structure_range = Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
       LOG(INFO) << "Delete start of last line: " << modifiers << " at " << to;
-      stack->PushBack(NewGotoPositionTransformation(to));
-      stack->PushBack(
+      stack.PushBack(NewGotoPositionTransformation(to));
+      stack.PushBack(
           NewDeleteLinesTransformation(modifiers, copy_to_paste_buffer_));
     }
 
@@ -645,8 +645,8 @@ class DeleteRegionTransformation : public Transformation {
       Modifiers modifiers;
       modifiers.repetitions = lines_delta - 1;
       LOG(INFO) << "Delete intermediate lines: " << modifiers << " at " << from;
-      stack->PushBack(NewGotoPositionTransformation(LineColumn(from.line + 1)));
-      stack->PushBack(
+      stack.PushBack(NewGotoPositionTransformation(LineColumn(from.line + 1)));
+      stack.PushBack(
           NewDeleteLinesTransformation(modifiers, copy_to_paste_buffer_));
     }
 
@@ -655,12 +655,12 @@ class DeleteRegionTransformation : public Transformation {
       modifiers.structure_range = Modifiers::FROM_CURRENT_POSITION_TO_END;
       LOG(INFO) << "Delete end of the first line: " << modifiers << " at "
                 << from;
-      stack->PushBack(NewGotoPositionTransformation(from));
-      stack->PushBack(
+      stack.PushBack(NewGotoPositionTransformation(from));
+      stack.PushBack(
           NewDeleteLinesTransformation(modifiers, copy_to_paste_buffer_));
     }
 
-    stack->Apply(editor_state, buffer, result);
+    stack.Apply(editor_state, buffer, result);
   }
 
   unique_ptr<Transformation> Clone() {
