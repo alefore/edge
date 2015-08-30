@@ -293,6 +293,16 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
   return it->second;
 }
 
+void GetSearchPaths(EditorState* editor_state, vector<string>* output) {
+  auto search_paths_buffer = GetSearchPathsBuffer(editor_state);
+  if (search_paths_buffer == nullptr) {
+    return;
+  }
+  for (auto it : *search_paths_buffer) {
+    output->push_back(it->ToString());
+  }
+}
+
 map<string, shared_ptr<OpenBuffer>>::iterator OpenFile(
     const OpenFileOptions& options) {
   EditorState* editor_state = options.editor_state;
@@ -302,12 +312,7 @@ map<string, shared_ptr<OpenBuffer>>::iterator OpenFile(
 
   vector<string> search_paths = { "" };
   if (options.use_search_paths) {
-    auto search_paths_buffer = GetSearchPathsBuffer(editor_state);
-    if (search_paths_buffer != nullptr) {
-      for (auto it : *search_paths_buffer) {
-        search_paths.push_back(it->ToString());
-      }
-    }
+    GetSearchPaths(editor_state, &search_paths);
   }
   string actual_path = FindPath(search_paths, expanded_path, &tokens, &pattern);
 

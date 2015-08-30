@@ -16,6 +16,7 @@ extern "C" {
 #include "buffer.h"
 #include "char_buffer.h"
 #include "editor.h"
+#include "file_link_mode.h"
 #include "predictor.h"
 
 namespace {
@@ -100,7 +101,11 @@ shared_ptr<OpenBuffer> PredictionsBuffer(
 void FilePredictor(EditorState* editor_state,
                    const string& input,
                    OpenBuffer* buffer) {
+  LOG(INFO) << "Generating predictions for: " << input;
+
   string path = editor_state->expand_path(input);
+  vector<string> search_paths = { "" };
+  GetSearchPaths(editor_state, &search_paths);
 
   int pipefd[2];
   static const int parent_fd = 0;
@@ -121,37 +126,60 @@ void FilePredictor(EditorState* editor_state,
 
     string basename_prefix;
     string dirname_prefix;
-    DIR* dir;
-    dir = opendir(path.empty() ? "." : path.c_str());
-    if (dir != nullptr) {
-      dirname_prefix = path;
-    } else {
-      char* dirname_copy = strdup(path.c_str());
-      dirname_prefix = dirname(dirname_copy);
-      free(dirname_copy);
-      dir = opendir(dirname_prefix.c_str());
-      if (dir == nullptr) { exit(0); }
-      if (dirname_prefix == ".") {
-        dirname_prefix = "";
-      } else if (dirname_prefix != "/") {
-        dirname_prefix += "/";
+    for (const auto& search_path_it : search_paths) {
+      string path_with_prefix;
+      if (search_path_it.empty()) {
+        path_with_prefix = path.empty() ? "." : path;
+      } else {
+        path_with_prefix = search_path_it;
+        if (!path.empty()) {
+          path_with_prefix += "/" + path;
+        }
       }
 
-      char* basename_copy = strdup(path.c_str());
-      basename_prefix = basename(basename_copy);
-      free(basename_copy);
-    }
+      std::unique_ptr<DIR, decltype(&closedir)> dir(
+          opendir(path_with_prefix.c_str()), &closedir);
+      if (dir != nullptr) {
+        LOG(INFO) << "Exact match: " << path_with_prefix;
+        dirname_prefix = path_with_prefix;
+        if (dirname_prefix.back() != '/') {
+          dirname_prefix.push_back('/');
+        }
+      } else {
+        char* dirname_copy = strdup(path_with_prefix.c_str());
+        dirname_prefix = dirname(dirname_copy);
+        free(dirname_copy);
+        LOG(INFO) << "Inexact match, trying with dirname: " << dirname_prefix;
+        dir.reset(opendir(dirname_prefix.c_str()));
+        if (dir == nullptr) {
+          LOG(INFO) << "Unable to open, giving up current search path.";
+          continue;
+        }
+        if (dirname_prefix == ".") {
+          dirname_prefix = "";
+        } else if (dirname_prefix != "/") {
+          dirname_prefix += "/";
+        }
 
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != nullptr) {
-      string entry_path = entry->d_name;
-      if (entry_path.size() < basename_prefix.size()
-          || entry_path.substr(0, basename_prefix.size()) != basename_prefix) {
-        continue;
+        char* basename_copy = strdup(path.c_str());
+        basename_prefix = basename(basename_copy);
+        free(basename_copy);
       }
-      cout << dirname_prefix << entry->d_name << (entry->d_type == DT_DIR ? "/" : "") << "\n";
+
+      CHECK(dir != nullptr);
+
+      struct dirent* entry;
+      while ((entry = readdir(dir.get())) != nullptr) {
+        string entry_path = entry->d_name;
+        if (entry_path.size() < basename_prefix.size()
+            || entry_path.substr(0, basename_prefix.size()) != basename_prefix
+            || entry_path == "."
+            || entry_path == "..") {
+          continue;
+        }
+        cout << dirname_prefix << entry->d_name << (entry->d_type == DT_DIR ? "/" : "") << "\n";
+      }
     }
-    closedir(dir);
 
     exit(0);
   }

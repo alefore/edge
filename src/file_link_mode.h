@@ -38,6 +38,9 @@ struct OpenFileOptions {
   bool use_search_paths = true;
 };
 
+shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state);
+void GetSearchPaths(EditorState* editor_state, vector<string>* output);
+
 // Creates a new buffer for the file at the path given.
 map<string, shared_ptr<OpenBuffer>>::iterator OpenFile(
     const OpenFileOptions& options);
