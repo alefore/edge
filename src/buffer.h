@@ -213,11 +213,11 @@ class OpenBuffer {
       const LineColumn& position, LineColumn* start, LineColumn* end);
 
   const shared_ptr<Line> current_line() const {
-    if (line_end() == BufferLineConstIterator(line_)) { return nullptr; }
+    if (end() == BufferLineConstIterator(line_)) { return nullptr; }
     return *line_;
   }
   shared_ptr<Line> current_line() {
-    if (line_end() == line_) { return nullptr; }
+    if (end() == line_) { return nullptr; }
     return *line_;
   }
   shared_ptr<Line> LineAt(size_t line_number) const {
@@ -312,21 +312,21 @@ class OpenBuffer {
     column_ = value;
   }
 
-  BufferLineIterator line_begin() {
+  BufferLineIterator begin() {
     return BufferLineIterator(this, 0);
   }
-  BufferLineIterator line_end() {
-    auto const_result = const_cast<const OpenBuffer*>(this)->line_end();
+  BufferLineIterator end() {
+    auto const_result = const_cast<const OpenBuffer*>(this)->end();
     return BufferLineIterator(this, const_result.line());
   }
-  const BufferLineConstIterator line_end() const {
+  const BufferLineConstIterator end() const {
     return BufferLineConstIterator(this, contents_.size());
   }
-  BufferLineReverseIterator line_rbegin() {
-    return BufferLineReverseIterator(line_end());
+  BufferLineReverseIterator rbegin() {
+    return BufferLineReverseIterator(end());
   }
-  BufferLineReverseIterator line_rend() {
-    return BufferLineReverseIterator(line_begin());
+  BufferLineReverseIterator rend() {
+    return BufferLineReverseIterator(begin());
   }
   BufferLineIterator& line() {
     return line_;

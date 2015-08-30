@@ -173,7 +173,7 @@ class LinePromptMode : public EditorMode {
 
  private:
   void SetInputFromCurrentLine(const shared_ptr<OpenBuffer>& buffer) {
-    if (buffer == nullptr || buffer->line() == buffer->line_end()) {
+    if (buffer == nullptr || buffer->line() == buffer->end()) {
       input_ = EditableString::New("");
       return;
     }

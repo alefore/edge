@@ -33,7 +33,7 @@ class GotoPositionTransformation : public Transformation {
 
 size_t CountCharacters(OpenBuffer* buffer) {
   size_t output = 0;
-  for (auto it = buffer->line_begin(); it != buffer->line_end(); it++) {
+  for (auto it = buffer->begin(); it != buffer->end(); it++) {
     output += (*it)->size();
     output ++;
   }

@@ -26,16 +26,16 @@ bool SaveContentsToOpenFile(
     int fd);
 
 struct OpenFileOptions {
-  OpenFileOptions()
-      : editor_state(nullptr),
-        ignore_if_not_found(false),
-        make_current_buffer(true) {}
+  OpenFileOptions() {}
 
-  EditorState* editor_state;
+  EditorState* editor_state = nullptr;
   string name;
   string path;
-  bool ignore_if_not_found;
-  bool make_current_buffer;
+  bool ignore_if_not_found = false;
+  bool make_current_buffer = true;
+
+  // Should the contents of the search paths buffer be used to find the file?
+  bool use_search_paths = true;
 };
 
 // Creates a new buffer for the file at the path given.

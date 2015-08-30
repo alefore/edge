@@ -396,7 +396,7 @@ const string LineUp::Description() {
       {
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
         buffer->CheckPosition();
-        const auto line_begin = buffer->line_begin();
+        const auto line_begin = buffer->begin();
         while (editor_state->repetitions() && buffer->line() != line_begin) {
           buffer->LineUp();
           editor_state->set_repetitions(editor_state->repetitions() - 1);
@@ -442,7 +442,7 @@ const string LineDown::Description() {
       {
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
         buffer->CheckPosition();
-        const auto line_end = buffer->line_end();
+        const auto line_end = buffer->end();
         while (editor_state->repetitions() && buffer->line() != line_end) {
           buffer->LineDown();
           editor_state->set_repetitions(editor_state->repetitions() - 1);
