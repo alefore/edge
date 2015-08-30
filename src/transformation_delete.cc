@@ -286,7 +286,7 @@ class DeleteWordTransformation : public Transformation {
     CHECK_LE(start.column + 1, end.column);
     CHECK_LE(initial_position.line, start.line);
 
-    unique_ptr<TransformationStack> stack(new TransformationStack);
+    unique_ptr<TransformationStack> stack(new TransformationStack());
 
     if (initial_position.line < start.line) {
       LOG(INFO) << "Deleting superfluous lines (from " << initial_position.line
@@ -597,6 +597,81 @@ class DeleteBufferTransformation : public Transformation {
   bool copy_to_paste_buffer_;
 };
 
+class DeleteRegionTransformation : public Transformation {
+ public:
+  DeleteRegionTransformation(const Modifiers& modifiers,
+                             bool copy_to_paste_buffer)
+      : modifiers_(modifiers),
+        copy_to_paste_buffer_(copy_to_paste_buffer) {}
+
+  void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
+    LOG(INFO) << "Erasing region (modifiers: " << modifiers_ << ")";
+    if (!modifiers_.has_region_start
+        || modifiers_.region_start.buffer_name != buffer->name()) {
+      return;
+    }
+
+    LineColumn from = min(buffer->position(), modifiers_.region_start.position);
+    LineColumn to = max(buffer->position(), modifiers_.region_start.position);
+
+    CHECK_GE(to.line, from.line);
+
+    if (to.line == from.line) {
+      CHECK_GE(to.column, from.column);
+      Modifiers modifiers;
+      modifiers.repetitions = to.column - from.column;
+      if (buffer->position() != from) {
+        modifiers.direction = BACKWARDS;
+      }
+      NewDeleteCharactersTransformation(modifiers, copy_to_paste_buffer_)
+          ->Apply(editor_state, buffer, result);
+      return;
+    }
+
+    unique_ptr<TransformationStack> stack(new TransformationStack());
+
+    {
+      Modifiers modifiers;
+      modifiers.structure_range = Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
+      LOG(INFO) << "Delete start of last line: " << modifiers << " at " << to;
+      stack->PushBack(NewGotoPositionTransformation(to));
+      stack->PushBack(
+          NewDeleteLinesTransformation(modifiers, copy_to_paste_buffer_));
+    }
+
+    int lines_delta = to.line - from.line;
+    if (lines_delta > 1) {
+      Modifiers modifiers;
+      modifiers.repetitions = lines_delta - 1;
+      LOG(INFO) << "Delete intermediate lines: " << modifiers << " at " << from;
+      stack->PushBack(NewGotoPositionTransformation(LineColumn(from.line + 1)));
+      stack->PushBack(
+          NewDeleteLinesTransformation(modifiers, copy_to_paste_buffer_));
+    }
+
+    {
+      Modifiers modifiers;
+      modifiers.structure_range = Modifiers::FROM_CURRENT_POSITION_TO_END;
+      LOG(INFO) << "Delete end of the first line: " << modifiers << " at "
+                << from;
+      stack->PushBack(NewGotoPositionTransformation(from));
+      stack->PushBack(
+          NewDeleteLinesTransformation(modifiers, copy_to_paste_buffer_));
+    }
+
+    stack->Apply(editor_state, buffer, result);
+  }
+
+  unique_ptr<Transformation> Clone() {
+    return NewDeleteRegionTransformation(modifiers_, copy_to_paste_buffer_);
+  }
+
+ private:
+  const Modifiers& modifiers_;
+  bool copy_to_paste_buffer_;
+};
+
 class DeleteTransformation : public Transformation {
  public:
   DeleteTransformation(const Modifiers& modifiers, bool copy_to_paste_buffer)
@@ -605,7 +680,7 @@ class DeleteTransformation : public Transformation {
 
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
-    unique_ptr<Transformation> delegate;
+    unique_ptr<Transformation> delegate = NewNoopTransformation();
     switch (modifiers_.structure) {
       case CHAR:
         delegate = NewDeleteCharactersTransformation(
@@ -623,10 +698,15 @@ class DeleteTransformation : public Transformation {
         delegate = NewDeleteBufferTransformation(
             modifiers_, copy_to_paste_buffer_);
         break;
-      default:
+      case REGION:
+        delegate = NewDeleteRegionTransformation(
+            modifiers_, copy_to_paste_buffer_);
+        break;
+      case PAGE:
+      case SEARCH:
         LOG(INFO) << "DeleteTransformation can't handle structure: "
                   << modifiers_.structure;
-        delegate = NewNoopTransformation();
+        break;
     }
     return delegate->Apply(editor_state, buffer, result);
   }
@@ -669,6 +749,12 @@ unique_ptr<Transformation> NewDeleteBufferTransformation(
       new DeleteBufferTransformation(modifiers, copy_to_paste_buffer));
 }
 
+unique_ptr<Transformation> NewDeleteRegionTransformation(
+    const Modifiers& modifiers, bool copy_to_paste_buffer) {
+  return unique_ptr<Transformation>(
+      new DeleteRegionTransformation(modifiers, copy_to_paste_buffer));
+}
+
 unique_ptr<Transformation> NewDeleteTransformation(
     const Modifiers& modifiers, bool copy_to_paste_buffer) {
   return unique_ptr<Transformation>(
@@ -677,3 +763,6 @@ unique_ptr<Transformation> NewDeleteTransformation(
 
 }  // namespace editor
 }  // namespace afc
+
+
+
