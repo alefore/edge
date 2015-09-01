@@ -100,7 +100,7 @@ bool PerformSearch(
   *wrapped = false;
 
   while (true) {
-    if (line.line() < buffer->line_end().line()) {
+    if (line.line() < buffer->end().line()) {
       string str = (*line)->ToString();
 
       vector<size_t> matches = GetMatches(str, pattern);
@@ -157,14 +157,14 @@ bool PerformSearchWithDirection(
   if (editor_state->direction() == FORWARDS) {
     return PerformSearch(
         input, buffer.get(), buffer->line(), buffer->current_position_col(),
-        buffer->line_begin(), buffer->line_end(), match_position, wrapped);
+        buffer->begin(), buffer->end(), match_position, wrapped);
   }
 
   BufferLineReverseIterator rev_iterator(buffer->line());
   rev_iterator--;
   return PerformSearch(
       input, buffer.get(), rev_iterator, buffer->current_position_col(),
-      buffer->line_rbegin(), buffer->line_rend(), match_position, wrapped);
+      buffer->rbegin(), buffer->rend(), match_position, wrapped);
 }
 
 void SearchHandlerPredictor(

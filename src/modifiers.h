@@ -2,14 +2,25 @@
 #define __AFC_EDITOR_MODIFIERS_H__
 
 #include <iostream> 
+#include <string>
 
 #include "direction.h"
+#include "line_column.h"
 #include "structure.h"
 
 namespace afc {
 namespace editor {
 
 using std::ostream;
+
+struct BufferPosition {
+  // The name of the buffer.
+  std::string buffer_name;
+  // The position within the buffer.
+  LineColumn position;
+};
+
+std::ostream& operator<<(std::ostream& os, const BufferPosition& bp);
 
 struct Modifiers {
   enum StructureRange {
@@ -80,6 +91,11 @@ struct Modifiers {
   Insertion default_insertion = INSERT;
 
   size_t repetitions = 1;
+
+  // The start of the region. region_start is only defined if has_region_start
+  // is true.
+  bool has_region_start = false;
+  BufferPosition region_start;
 };
 
 ostream& operator<<(ostream& os, const Modifiers& m);

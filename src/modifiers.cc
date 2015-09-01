@@ -3,6 +3,11 @@
 namespace afc {
 namespace editor {
 
+std::ostream& operator<<(std::ostream& os, const BufferPosition& bp) {
+    os << "[" << bp.buffer_name << ":" << bp.position << "]";
+    return os;
+}
+
 ostream& operator<<(ostream& os, const Modifiers& m) {
   os << "[strength: ";
   switch (m.strength) {

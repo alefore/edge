@@ -21,13 +21,14 @@ extern "C" {
 #include "search_handler.h"
 #include "vm/public/value.h"
 
+namespace afc {
+namespace editor {
 namespace {
 using std::make_pair;
 using std::shared_ptr;
 using std::to_string;
 using std::unique_ptr;
 using std::sort;
-using namespace afc::editor;
 
 class FileBuffer : public OpenBuffer {
  public:
@@ -175,49 +176,53 @@ class FileLinkMode : public EditorMode {
 };
 
 static string FindPath(
-    const string& path, vector<int>* positions, string* pattern) {
+    vector<string> search_paths, const string& path, vector<int>* positions,
+    string* pattern) {
+  CHECK(!search_paths.empty());
+
   struct stat dummy;
 
   // Strip off any trailing colons.
-  for (size_t str_end = path.size();
-       str_end != path.npos && str_end != 0;
-       str_end = path.find_last_of(':', str_end - 1)) {
-    const string path_without_suffix = path.substr(0, str_end);
-    assert(!path_without_suffix.empty());
-    if (stat(path_without_suffix.c_str(), &dummy) == -1) {
-      continue;
-    }
+  for (auto search_path_it = search_paths.begin();
+       search_path_it != search_paths.end();
+       ++search_path_it) {
+    for (size_t str_end = path.size();
+         str_end != path.npos && str_end != 0;
+         str_end = path.find_last_of(':', str_end - 1)) {
+      const string path_without_suffix = *search_path_it + path.substr(0, str_end);
+      CHECK(!path_without_suffix.empty());
+      if (stat(path_without_suffix.c_str(), &dummy) == -1) {
+        continue;
+      }
 
-    for (size_t i = 0; i < positions->size(); i++) {
-      while (str_end < path.size() && ':' == path[str_end]) {
-        str_end++;
-      }
-      if (str_end == path.size()) { break; }
-      size_t next_str_end = path.find(':', str_end);
-      const string arg = path.substr(str_end, next_str_end);
-      if (i == 0 && arg.size() > 0 && arg[0] == '/') {
-        *pattern = arg.substr(1);
-        break;
-      } else {
-        try {
-          positions->at(i) = stoi(arg);
-          if (positions->at(i) > 0) { positions->at(i) --; }
-        } catch (const std::invalid_argument& ia) {
-          break;
+      for (size_t i = 0; i < positions->size(); i++) {
+        while (str_end < path.size() && ':' == path[str_end]) {
+          str_end++;
         }
+        if (str_end == path.size()) { break; }
+        size_t next_str_end = path.find(':', str_end);
+        const string arg = path.substr(str_end, next_str_end);
+        if (i == 0 && arg.size() > 0 && arg[0] == '/') {
+          *pattern = arg.substr(1);
+          break;
+        } else {
+          try {
+            positions->at(i) = stoi(arg);
+            if (positions->at(i) > 0) { positions->at(i) --; }
+          } catch (const std::invalid_argument& ia) {
+            break;
+          }
+        }
+        str_end = next_str_end;
+        if (str_end == path.npos) { break; }
       }
-      str_end = next_str_end;
-      if (str_end == path.npos) { break; }
+      return path_without_suffix;
     }
-    return path_without_suffix;
   }
   return "";
 }
 
 }  // namespace
-
-namespace afc {
-namespace editor {
 
 using std::unique_ptr;
 
@@ -266,13 +271,51 @@ bool SaveContentsToOpenFile(
   return true;
 }
 
+shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
+  OpenFileOptions options;
+  options.editor_state = editor_state;
+  options.name = "- search paths";
+  auto it = editor_state->buffers()->find(options.name);
+  if (it != editor_state->buffers()->end()) {
+    return it->second;
+  }
+  options.path = (*editor_state->edge_path().begin()) + "/search_paths";
+  options.make_current_buffer = false;
+  options.use_search_paths = false;
+  it = OpenFile(options);
+  assert(it != editor_state->buffers()->end());
+  assert(it->second != nullptr);
+  it->second->set_bool_variable(OpenBuffer::variable_save_on_close(), true);
+  if (!editor_state->has_current_buffer()) {
+    editor_state->set_current_buffer(it);
+    editor_state->ScheduleRedraw();
+  }
+  return it->second;
+}
+
+void GetSearchPaths(EditorState* editor_state, vector<string>* output) {
+  auto search_paths_buffer = GetSearchPathsBuffer(editor_state);
+  if (search_paths_buffer == nullptr) {
+    return;
+  }
+  for (auto it : *search_paths_buffer) {
+    output->push_back(it->ToString());
+  }
+}
+
 map<string, shared_ptr<OpenBuffer>>::iterator OpenFile(
     const OpenFileOptions& options) {
   EditorState* editor_state = options.editor_state;
   vector<int> tokens { 0, 0 };
   string pattern;
   string expanded_path = editor_state->expand_path(options.path);
-  string actual_path = FindPath(expanded_path, &tokens, &pattern);
+
+  vector<string> search_paths = { "" };
+  if (options.use_search_paths) {
+    GetSearchPaths(editor_state, &search_paths);
+  }
+  string actual_path = FindPath(search_paths, expanded_path, &tokens, &pattern);
+
   if (actual_path.empty()) {
     if (options.ignore_if_not_found) {
       return editor_state->buffers()->end();

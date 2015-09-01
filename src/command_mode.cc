@@ -132,6 +132,10 @@ class GotoCommand : public Command {
         // TODO: Implement.
         break;
 
+      case REGION:
+        GotoRegion(editor_state);
+        break;
+
       case BUFFER:
         {
           size_t buffers = editor_state->buffers()->size();
@@ -186,6 +190,25 @@ class GotoCommand : public Command {
     }
   }
 
+  void GotoRegion(EditorState* editor_state) {
+    auto modifiers = editor_state->modifiers();
+    if (!modifiers.has_region_start) {
+      LOG(INFO) << "GotoRegion got called with a region start, ignoring.";
+      return;
+    }
+    auto& buffer_name = modifiers.region_start.buffer_name;
+    if (editor_state->current_buffer()->first != buffer_name) {
+      auto it = editor_state->buffers()->find(buffer_name);
+      if (it == editor_state->buffers()->end()) {
+        LOG(INFO) << "Region starts in unexistent buffer, ignoring.";
+        return;
+      }
+      editor_state->set_current_buffer(it);
+    }
+    editor_state->current_buffer()
+        ->second->set_position(modifiers.region_start.position);
+  }
+
   const size_t calls_;
 };
 
@@ -204,6 +227,7 @@ class Delete : public Command {
       case WORD:
       case LINE:
       case BUFFER:
+      case REGION:
         if (editor_state->has_current_buffer()) {
           auto buffer = editor_state->current_buffer()->second;
           editor_state->ApplyToCurrentBuffer(
@@ -295,11 +319,11 @@ class GotoPreviousPositionCommand : public Command {
         return;
       }
       const BufferPosition pos = editor_state->ReadPositionsStack();
-      auto it = editor_state->buffers()->find(pos.buffer);
+      auto it = editor_state->buffers()->find(pos.buffer_name);
       const LineColumn current_position =
           editor_state->current_buffer()->second->position();
       if (it != editor_state->buffers()->end()
-          && (pos.buffer != editor_state->current_buffer()->first
+          && (pos.buffer_name != editor_state->current_buffer()->first
               || (editor_state->structure() <= LINE
                   && pos.position.line != current_position.line)
               || (editor_state->structure() <= CHAR
@@ -372,7 +396,7 @@ const string LineUp::Description() {
       {
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
         buffer->CheckPosition();
-        const auto line_begin = buffer->line_begin();
+        const auto line_begin = buffer->begin();
         while (editor_state->repetitions() && buffer->line() != line_begin) {
           buffer->LineUp();
           editor_state->set_repetitions(editor_state->repetitions() - 1);
@@ -418,7 +442,7 @@ const string LineDown::Description() {
       {
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
         buffer->CheckPosition();
-        const auto line_end = buffer->line_end();
+        const auto line_end = buffer->end();
         while (editor_state->repetitions() && buffer->line() != line_end) {
           buffer->LineDown();
           editor_state->set_repetitions(editor_state->repetitions() - 1);
@@ -656,6 +680,36 @@ class SetStructureCommand : public Command {
  private:
   Structure value_;
   const string description_;
+};
+
+class SetRegionStartCommand : public Command {
+ public:
+  const string Description() {
+    return "sets the region start / switches to region mode";
+  }
+
+  void ProcessInput(int, EditorState* editor_state) {
+    if (!editor_state->has_current_buffer()) { return; }
+
+    const auto buffer_it = editor_state->current_buffer();
+    auto modifiers = editor_state->modifiers();
+
+    if (modifiers.structure == REGION) {
+      DVLOG(5) << "Disabling REGION mode (and clearing region).";
+      modifiers.structure = CHAR;
+      modifiers.sticky_structure = false;
+      modifiers.has_region_start = false;
+    } else if (modifiers.has_region_start) {
+      DVLOG(5) << "Activating region mode: " << modifiers.region_start;
+      modifiers.structure = REGION;
+    } else {
+      modifiers.region_start.buffer_name = buffer_it->first;
+      modifiers.region_start.position = buffer_it->second->position();
+      modifiers.has_region_start = true;
+      DVLOG(5) << "Setting start of region: " << modifiers.region_start;
+    }
+    editor_state->set_modifiers(modifiers);
+  }
 };
 
 class SetStrengthCommand : public Command {
@@ -961,6 +1015,7 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('E', new SetStructureCommand(PAGE, "page")));
     output.insert(make_pair('F', new SetStructureCommand(SEARCH, "search")));
     output.insert(make_pair('B', new SetStructureCommand(BUFFER, "buffer")));
+    output.insert(make_pair('m', new SetRegionStartCommand()));
 
     output.insert(make_pair('W', new SetStrengthCommand(
         Modifiers::WEAK, Modifiers::VERY_WEAK, "weak")));

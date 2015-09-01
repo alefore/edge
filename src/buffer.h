@@ -10,6 +10,7 @@
 #include "command_mode.h"
 #include "lazy_string.h"
 #include "line.h"
+#include "line_column.h"
 #include "memory_mapped_file.h"
 #include "substring.h"
 #include "transformation.h"
@@ -38,38 +39,6 @@ struct ParseTree {
   int length;
   vector<unique_ptr<ParseTree>> items;
 };
-
-// A position in a text buffer.
-struct LineColumn {
-  LineColumn() : line(0), column(0) {}
-  LineColumn(size_t l) : line(l), column(0) {}
-  LineColumn(size_t l, size_t c) : line(l), column(c) {}
-
-  bool operator!=(const LineColumn& other) const;
-
-  bool at_beginning_of_line() const { return column == 0; }
-  bool at_beginning() const { return line == 0 && at_beginning_of_line(); }
-
-  string ToString() const {
-    using std::to_string;
-    return to_string(line) + " " + to_string(column);
-  }
-
-  bool operator==(const LineColumn& rhs) const {
-    return line == rhs.line && column == rhs.column;
-  }
-
-  bool operator<(const LineColumn& rhs) const {
-    return line < rhs.line || (line == rhs.line && column < rhs.column);
-  }
-
-  size_t line;
-  size_t column;
-
-  friend ostream& operator<<(ostream& os, const LineColumn& lc);
-};
-
-ostream& operator<<(ostream& os, const LineColumn& lc);
 
 template <typename T, typename B>
 class BufferLineGenericIterator
@@ -244,11 +213,11 @@ class OpenBuffer {
       const LineColumn& position, LineColumn* start, LineColumn* end);
 
   const shared_ptr<Line> current_line() const {
-    if (line_end() == BufferLineConstIterator(line_)) { return nullptr; }
+    if (end() == BufferLineConstIterator(line_)) { return nullptr; }
     return *line_;
   }
   shared_ptr<Line> current_line() {
-    if (line_end() == line_) { return nullptr; }
+    if (end() == line_) { return nullptr; }
     return *line_;
   }
   shared_ptr<Line> LineAt(size_t line_number) const {
@@ -343,21 +312,21 @@ class OpenBuffer {
     column_ = value;
   }
 
-  BufferLineIterator line_begin() {
+  BufferLineIterator begin() {
     return BufferLineIterator(this, 0);
   }
-  BufferLineIterator line_end() {
-    auto const_result = const_cast<const OpenBuffer*>(this)->line_end();
+  BufferLineIterator end() {
+    auto const_result = const_cast<const OpenBuffer*>(this)->end();
     return BufferLineIterator(this, const_result.line());
   }
-  const BufferLineConstIterator line_end() const {
+  const BufferLineConstIterator end() const {
     return BufferLineConstIterator(this, contents_.size());
   }
-  BufferLineReverseIterator line_rbegin() {
-    return BufferLineReverseIterator(line_end());
+  BufferLineReverseIterator rbegin() {
+    return BufferLineReverseIterator(end());
   }
-  BufferLineReverseIterator line_rend() {
-    return BufferLineReverseIterator(line_begin());
+  BufferLineReverseIterator rend() {
+    return BufferLineReverseIterator(begin());
   }
   BufferLineIterator& line() {
     return line_;
