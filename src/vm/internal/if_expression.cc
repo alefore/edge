@@ -58,16 +58,16 @@ unique_ptr<Expression> NewIfExpression(
 
   if (condition->type().type != VMType::VM_BOOLEAN) {
     compilation->errors.push_back(
-        "Expected bool value for condition of \"if\" expression but found \""
-        + condition->type().ToString() + "\".");
+        L"Expected bool value for condition of \"if\" expression but found \""
+        + condition->type().ToString() + L"\".");
     return nullptr;
   }
 
   if (!(true_case->type() == false_case->type())) {
     compilation->errors.push_back(
-        "Type mismatch between branches of conditional expression: \""
-        + true_case->type().ToString() + "\" and \""
-        + false_case->type().ToString() + "\"");
+        L"Type mismatch between branches of conditional expression: \""
+        + true_case->type().ToString() + L"\" and \""
+        + false_case->type().ToString() + L"\"");
     return nullptr;
   }
 

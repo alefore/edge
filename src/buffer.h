@@ -153,13 +153,13 @@ class BufferLineReverseIterator
 class OpenBuffer {
  public:
   // Name of a special buffer that shows the list of buffers.
-  static const string kBuffersName;
-  static const string kPasteBuffer;
+  static const wstring kBuffersName;
+  static const wstring kPasteBuffer;
 
   static void RegisterBufferType(EditorState* editor_state,
                                  Environment* environment);
 
-  OpenBuffer(EditorState* editor_state, const string& name);
+  OpenBuffer(EditorState* editor_state, const wstring& name);
   ~OpenBuffer();
 
   void Close(EditorState* editor_state);
@@ -185,10 +185,10 @@ class OpenBuffer {
       EditorState* editor_state, shared_ptr<LazyString> str,
       const vector<unordered_set<Line::Modifier, hash<int>>>& modifiers);
 
-  void EvaluateString(EditorState* editor_state, const string& str);
-  void EvaluateFile(EditorState* editor_state, const string& path);
+  void EvaluateString(EditorState* editor_state, const wstring& str);
+  void EvaluateFile(EditorState* editor_state, const wstring& path);
 
-  const string& name() const { return name_; }
+  const wstring& name() const { return name_; }
 
   LineColumn InsertInCurrentPosition(const vector<shared_ptr<Line>>& insertion);
   LineColumn InsertInPosition(
@@ -243,7 +243,7 @@ class OpenBuffer {
   }
   // Serializes the buffer into a string.  This is not particularly fast (it's
   // meant more for debugging/testing rather than for real use).
-  string ToString() const;
+  wstring ToString() const;
 
   void replace_current_line(const shared_ptr<Line>& line) {
     *line_ = line;
@@ -361,7 +361,7 @@ class OpenBuffer {
   void set_modified(bool value) { modified_ = value; }
   bool modified() const { return modified_; }
 
-  string FlagsString() const;
+  wstring FlagsString() const;
 
   void PushSignal(EditorState* editor_state, int signal);
 
@@ -384,15 +384,15 @@ class OpenBuffer {
   static EdgeVariable<char>* variable_commands_background_mode();
   static EdgeVariable<char>* variable_reload_on_buffer_write();
 
-  static EdgeStruct<string>* StringStruct();
-  static EdgeVariable<string>* variable_word_characters();
-  static EdgeVariable<string>* variable_path_characters();
-  static EdgeVariable<string>* variable_path();
-  static EdgeVariable<string>* variable_pts_path();
-  static EdgeVariable<string>* variable_command();
-  static EdgeVariable<string>* variable_editor_commands_path();
-  static EdgeVariable<string>* variable_line_prefix_characters();
-  static EdgeVariable<string>* variable_line_suffix_superfluous_characters();
+  static EdgeStruct<wstring>* StringStruct();
+  static EdgeVariable<wstring>* variable_word_characters();
+  static EdgeVariable<wstring>* variable_path_characters();
+  static EdgeVariable<wstring>* variable_path();
+  static EdgeVariable<wstring>* variable_pts_path();
+  static EdgeVariable<wstring>* variable_command();
+  static EdgeVariable<wstring>* variable_editor_commands_path();
+  static EdgeVariable<wstring>* variable_line_prefix_characters();
+  static EdgeVariable<wstring>* variable_line_suffix_superfluous_characters();
 
   static EdgeStruct<int>* IntStruct();
   static EdgeVariable<int>* variable_line_width();
@@ -404,10 +404,10 @@ class OpenBuffer {
   void set_bool_variable(const EdgeVariable<char>* variable, bool value);
   void toggle_bool_variable(const EdgeVariable<char>* variable);
 
-  const string& read_string_variable(const EdgeVariable<string>* variable)
+  const wstring& read_string_variable(const EdgeVariable<wstring>* variable)
       const;
-  void set_string_variable(const EdgeVariable<string>* variable,
-                           const string& value);
+  void set_string_variable(const EdgeVariable<wstring>* variable,
+                           const wstring& value);
 
   const int& read_int_variable(const EdgeVariable<int>* variable) const;
   void set_int_variable(const EdgeVariable<int>* variable,
@@ -444,7 +444,7 @@ class OpenBuffer {
  protected:
   vector<unique_ptr<ParseTree>> parse_tree;
 
-  string name_;
+  wstring name_;
 
   // -1 means "no file descriptor" (i.e. not currently loading this).
   int fd_;
@@ -454,9 +454,13 @@ class OpenBuffer {
   // change the value of pts_ without breaking things (when one command is
   // already running).
   bool fd_is_terminal_;
-  char* buffer_;
-  size_t buffer_length_;
-  size_t buffer_size_;
+
+  // We read directly into low_buffer_ and then drain from that into contents_.
+  // It's possible that not all bytes read can be converted (for example, if the
+  // reading stops in the middle of a wide character).
+  char* low_buffer_ = nullptr;
+  size_t low_buffer_length_ = 0;
+
   // -1 means "no child process"
   pid_t child_pid_;
   int child_exit_status_;
@@ -480,7 +484,7 @@ class OpenBuffer {
   // (EdgeStructInstance<bool>::Get would be returning a reference to a
   // temporary variable).
   EdgeStructInstance<char> bool_variables_;
-  EdgeStructInstance<string> string_variables_;
+  EdgeStructInstance<wstring> string_variables_;
   EdgeStructInstance<int> int_variables_;
   EdgeStructInstance<unique_ptr<Value>> function_variables_;
 

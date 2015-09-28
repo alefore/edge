@@ -16,6 +16,7 @@ extern "C" {
 #include "command_mode.h"
 #include "editor.h"
 #include "line_prompt_mode.h"
+#include "wstring.h"
 
 namespace {
 
@@ -23,16 +24,16 @@ using namespace afc::editor;
 using std::cerr;
 using std::to_string;
 
-void LoadEnvironmentVariables(
-    const vector<string>& path, const string& full_command,
-    map<string, string>* environment) {
-  static const string whitespace = "\t ";
+map<wstring, wstring> LoadEnvironmentVariables(
+    const vector<wstring>& path, const wstring& full_command,
+    map<wstring, wstring> environment) {
+  static const wstring whitespace = L"\t ";
   size_t start = full_command.find_first_not_of(whitespace);
   size_t end = full_command.find_first_of(whitespace, start);
-  string command = full_command.substr(start, end - start);
+  wstring command = full_command.substr(start, end - start);
   for (auto dir : path) {
-    string full_path = dir + "/commands/" + command + "/environment";
-    std::ifstream infile(full_path);
+    wstring full_path = dir + L"/commands/" + command + L"/environment";
+    std::ifstream infile(ToByteString(full_path));
     if (!infile.is_open()) {
       continue;
     }
@@ -45,19 +46,25 @@ void LoadEnvironmentVariables(
       if (equals == line.npos) {
         continue;
       }
-      environment->insert(
-          make_pair(line.substr(0, equals), line.substr(equals + 1)));
+      environment.insert(
+          make_pair(FromByteString(line.substr(0, equals)),
+                    FromByteString(line.substr(equals + 1))));
     }
   }
+  return environment;
 }
 
 class CommandBuffer : public OpenBuffer {
  public:
   CommandBuffer(EditorState* editor_state,
-                const string& name,
-                const map<string, string>& environment)
+                const wstring& name,
+                const wstring& command,
+                map<wstring, wstring> environment)
       : OpenBuffer(editor_state, name),
-        environment_(environment) {}
+        environment_(LoadEnvironmentVariables(
+            editor_state->edge_path(),
+            command,
+            std::move(environment))) {}
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     int pipefd[2];
@@ -90,7 +97,8 @@ class CommandBuffer : public OpenBuffer {
       }
       pipefd[parent_fd] = master_fd;
       char* pts_path = ptsname(master_fd);
-      target->set_string_variable(variable_pts_path(), pts_path);
+      target->set_string_variable(
+          variable_pts_path(), FromByteString(pts_path));
       pipefd[child_fd] = open(pts_path, O_RDWR);
       if (pipefd[child_fd] == -1) {
         cerr << "open failed: " << pts_path << ": " << string(strerror(errno));
@@ -103,7 +111,8 @@ class CommandBuffer : public OpenBuffer {
 
     pid_t child_pid = fork();
     if (child_pid == -1) {
-      editor_state->SetStatus("fork failed: " + string(strerror(errno)));
+      editor_state->SetStatus(
+          L"fork failed: " + FromByteString(strerror(errno)));
       return;
     }
     if (child_pid == 0) {
@@ -139,13 +148,9 @@ class CommandBuffer : public OpenBuffer {
       environment["TERM"] = "screen";
 
       for (auto it : environment_) {
-        environment.insert(it);
+        environment.insert(
+            make_pair(ToByteString(it.first), ToByteString(it.second)));
       }
-
-      LoadEnvironmentVariables(
-          editor_state->edge_path(),
-          read_string_variable(variable_command()),
-          &environment);
 
       char** envp =
           static_cast<char**>(malloc(sizeof(char*) * (environment.size() + 1)));
@@ -161,7 +166,8 @@ class CommandBuffer : public OpenBuffer {
       char* argv[] = {
           strdup("sh"),
           strdup("-c"),
-          strdup(read_string_variable(variable_command()).c_str()),
+          strdup(
+              ToByteString(read_string_variable(variable_command())).c_str()),
           nullptr};
       int status = execve("/bin/sh", argv, envp);
       exit(WIFEXITED(status) ? WEXITSTATUS(status) : 1);
@@ -173,12 +179,12 @@ class CommandBuffer : public OpenBuffer {
   }
 
  private:
-  const map<string, string> environment_;
+  const map<wstring, wstring> environment_;
 };
 
 void RunCommand(
-    const string& name, const string& input,
-    const map<string, string> environment, EditorState* editor_state) {
+    const wstring& name, const wstring& input,
+    const map<wstring, wstring> environment, EditorState* editor_state) {
   if (input.empty()) {
     editor_state->ResetMode();
     editor_state->ResetStatus();
@@ -200,14 +206,14 @@ void RunCommand(
 
 class ForkEditorCommand : public Command {
  public:
-  const string Description() {
-    return "forks a subprocess";
+  const wstring Description() {
+    return L"forks a subprocess";
   }
 
   void ProcessInput(int, EditorState* editor_state) {
     switch (editor_state->structure()) {
       case CHAR:
-        Prompt(editor_state, "$ ", "commands", "", RunCommandHandler,
+        Prompt(editor_state, L"$ ", L"commands", L"", RunCommandHandler,
                EmptyPredictor);
         break;
 
@@ -225,7 +231,7 @@ class ForkEditorCommand : public Command {
         break;
 
       default:
-        editor_state->SetStatus("Oops, that structure is not handled.");
+        editor_state->SetStatus(L"Oops, that structure is not handled.");
     }
     editor_state->ResetStructure();
   }
@@ -237,19 +243,20 @@ namespace afc {
 namespace editor {
 
 void ForkCommand(EditorState* editor_state, const ForkCommandOptions& options) {
-  string buffer_name = options.buffer_name.empty()
-      ? "$ " + options.command : options.buffer_name;
+  wstring buffer_name = options.buffer_name.empty()
+      ? (L"$ " + options.command)
+      : options.buffer_name;
   auto it = editor_state->buffers()->insert(make_pair(buffer_name, nullptr));
   if (it.second) {
     it.first->second.reset(new CommandBuffer(
-        editor_state, buffer_name, options.environment));
+        editor_state, buffer_name, options.command, options.environment));
     if (editor_state->has_current_buffer()) {
       it.first->second
           ->CopyVariablesFrom(editor_state->current_buffer()->second);
     }
     it.first->second->set_string_variable(
         OpenBuffer::variable_command(), options.command);
-    it.first->second->set_string_variable(OpenBuffer::variable_path(), "");
+    it.first->second->set_string_variable(OpenBuffer::variable_path(), L"");
   }
   if (options.enter) {
     editor_state->set_current_buffer(it.first);
@@ -263,12 +270,13 @@ unique_ptr<Command> NewForkCommand() {
   return unique_ptr<Command>(new ForkEditorCommand());
 }
 
-void RunCommandHandler(const string& input, EditorState* editor_state) {
-  map<string, string> empty_environment;
-  RunCommand("$ " + input, input, empty_environment, editor_state);
+void RunCommandHandler(const wstring& input, EditorState* editor_state) {
+  map<wstring, wstring> empty_environment;
+  RunCommand(L"$ " + input, input, empty_environment, editor_state);
 }
 
-void RunMultipleCommandsHandler(const string& input, EditorState* editor_state) {
+void RunMultipleCommandsHandler(const wstring& input,
+                                EditorState* editor_state) {
   if (input.empty() || !editor_state->has_current_buffer()) {
     editor_state->ResetMode();
     editor_state->ResetStatus();
@@ -277,9 +285,9 @@ void RunMultipleCommandsHandler(const string& input, EditorState* editor_state) 
   }
   auto buffer = editor_state->current_buffer()->second;
   for (const auto& line : *buffer->contents()) {
-    string arg = line->ToString();
-    map<string, string> environment = {{"ARG", arg}};
-    RunCommand("$ " + input + " " + arg, input, environment, editor_state);
+    wstring arg = line->ToString();
+    map<wstring, wstring> environment = {{L"ARG", arg}};
+    RunCommand(L"$ " + input + L" " + arg, input, environment, editor_state);
   }
 }
 

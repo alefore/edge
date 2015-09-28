@@ -8,14 +8,12 @@
 namespace afc {
 namespace editor {
 
-using std::string;
-
 struct EditorState;
 
 class Command : public EditorMode {
  public:
   virtual ~Command() {}
-  virtual const string Description() = 0;
+  virtual const std::wstring Description() = 0;
   virtual void ProcessInput(int c, EditorState* editor_state) = 0;
 };
 

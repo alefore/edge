@@ -66,8 +66,8 @@ unique_ptr<Expression> NewWhileExpression(
   }
   if (condition->type().type != VMType::VM_BOOLEAN) {
     compilation->errors.push_back(
-        "Expected bool value for condition of \"while\" loop but found \""
-        + condition->type().ToString() + "\".");
+        L"Expected bool value for condition of \"while\" loop but found \""
+        + condition->type().ToString() + L"\".");
     return nullptr;
   }
 

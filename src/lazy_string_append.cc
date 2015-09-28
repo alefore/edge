@@ -12,7 +12,7 @@ class StringAppendImpl : public LazyString {
                    const shared_ptr<LazyString>& b)
       : size_(a->size() + b->size()), a_(a), b_(b) {}
 
-  char get(size_t pos) const {
+  wchar_t get(size_t pos) const {
     if (pos < a_->size()) {
       return a_->get(pos);
     }

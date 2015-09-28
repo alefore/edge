@@ -15,7 +15,7 @@ using std::ostream;
 
 struct BufferPosition {
   // The name of the buffer.
-  std::string buffer_name;
+  std::wstring buffer_name;
   // The position within the buffer.
   LineColumn position;
 };

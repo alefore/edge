@@ -6,7 +6,7 @@
 #include <iostream>
 
 extern "C" {
-#include <curses.h>
+#include <ncursesw/curses.h>
 #include <term.h>
 }
 
@@ -14,7 +14,7 @@ namespace afc {
 namespace editor {
 
 using std::cerr;
-using std::to_string;
+using std::to_wstring;
 
 constexpr int Terminal::DOWN_ARROW;
 constexpr int Terminal::UP_ARROW;
@@ -38,7 +38,7 @@ Terminal::Terminal() {
   init_pair(2, COLOR_RED, COLOR_BLACK);
   init_pair(3, COLOR_GREEN, COLOR_BLACK);
   init_pair(7, COLOR_CYAN, COLOR_BLACK);
-  SetStatus("Initializing...");
+  SetStatus(L"Initializing...");
 }
 
 Terminal::~Terminal() {
@@ -96,87 +96,87 @@ void Terminal::Display(EditorState* editor_state) {
 
 void Terminal::ShowStatus(const EditorState& editor_state) {
   move(LINES - 1, 0);
-  string status;
+  wstring status;
   auto modifiers = editor_state.modifiers();
   if (editor_state.has_current_buffer()) {
     auto buffer = editor_state.current_buffer()->second;
     status.push_back('[');
     if (buffer->current_position_line() >= buffer->contents()->size()) {
-      status += "<EOF>";
+      status += L"<EOF>";
     } else {
-      status += to_string(buffer->current_position_line() + 1);
+      status += to_wstring(buffer->current_position_line() + 1);
     }
-    status += " of " + to_string(buffer->contents()->size()) + ", "
-        + to_string(buffer->current_position_col() + 1);
+    status += L" of " + to_wstring(buffer->contents()->size()) + L", "
+        + to_wstring(buffer->current_position_col() + 1);
 
     if (modifiers.has_region_start) {
-      status += " R:";
+      status += L" R:";
       const auto& buffer_name = modifiers.region_start.buffer_name;
       if (buffer_name != editor_state.current_buffer()->first) {
-        status += buffer_name + ":";
+        status += buffer_name + L":";
       }
       const auto& position = modifiers.region_start.position;
-      status += to_string(position.line + 1) + ":"
-          + to_string(position.column + 1);
+      status += to_wstring(position.line + 1) + L":"
+          + to_wstring(position.column + 1);
     }
 
-    status += + "] ";
+    status += + L"] ";
 
-    string flags = buffer->FlagsString();
+    wstring flags = buffer->FlagsString();
     Modifiers modifiers(editor_state.modifiers());
     if (editor_state.repetitions() != 1) {
-      flags += to_string(editor_state.repetitions());
+      flags += to_wstring(editor_state.repetitions());
     }
     if (modifiers.default_direction == BACKWARDS) {
-      flags += " REVERSE";
+      flags += L" REVERSE";
     } else if (modifiers.direction == BACKWARDS) {
-      flags += " reverse";
+      flags += L" reverse";
     }
 
     if (modifiers.default_insertion == Modifiers::REPLACE) {
-      flags += " REPLACE";
+      flags += L" REPLACE";
     } else if (modifiers.insertion == Modifiers::REPLACE) {
-      flags += " replace";
+      flags += L" replace";
     }
 
     switch (modifiers.strength) {
       case Modifiers::WEAK:
-        flags += " w";
+        flags += L" w";
         break;
       case Modifiers::VERY_WEAK:
-        flags += " W";
+        flags += L" W";
         break;
       case Modifiers::STRONG:
-        flags += " s";
+        flags += L" s";
         break;
       case Modifiers::VERY_STRONG:
-        flags += " S";
+        flags += L" S";
         break;
       case Modifiers::DEFAULT:
         break;
     }
 
-    string structure;
+    wstring structure;
     switch (editor_state.structure()) {
       case CHAR:
         break;
       case WORD:
-        structure = "word";
+        structure = L"word";
         break;
       case LINE:
-        structure = "line";
+        structure = L"line";
         break;
       case PAGE:
-        structure = "page";
+        structure = L"page";
         break;
       case SEARCH:
-        structure = "search";
+        structure = L"search";
         break;
       case BUFFER:
-        structure = "buffer";
+        structure = L"buffer";
         break;
       case REGION:
-        structure = "region";
+        structure = L"region";
         break;
     }
     if (!structure.empty()) {
@@ -188,18 +188,18 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
         case Modifiers::ENTIRE_STRUCTURE:
           break;
         case Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION:
-          structure = "[..." + structure;
+          structure = L"[..." + structure;
           break;
         case Modifiers::FROM_CURRENT_POSITION_TO_END:
-          structure = structure + "...]";
+          structure = structure + L"...]";
           break;
       }
-      flags += "(" + structure + ")";
+      flags += L"(" + structure + L")";
     }
 
     if (!flags.empty()) {
-      flags += " ";
-      status += " " + flags;
+      flags += L" ";
+      status += L" " + flags;
     }
   }
 
@@ -219,10 +219,10 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
       }
     }
     if (running > 0) {
-      status += "run:" + to_string(running) + " ";
+      status += L"run:" + to_wstring(running) + L" ";
     }
     if (failed > 0) {
-      status += "fail:" + to_string(failed) + " ";
+      status += L"fail:" + to_wstring(failed) + L" ";
     }
   }
 
@@ -231,11 +231,11 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
   status += editor_state.status();
   x += status.size();
   if (status.size() < static_cast<size_t>(COLS)) {
-    status += string(COLS - status.size(), ' ');
+    status += wstring(COLS - status.size(), ' ');
   } else if (status.size() > static_cast<size_t>(COLS)) {
     status = status.substr(0, COLS);
   }
-  addstr(status.c_str());
+  addwstr(status.c_str());
   if (editor_state.status_prompt()) {
     move(y, x);
   }
@@ -243,11 +243,14 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
 
 class LineOutputReceiver : public Line::OutputReceiverInterface {
  public:
-  void AddCharacter(int c) {
-    addch(c);
+  void AddCharacter(wchar_t c) {
+    cchar_t cchar;
+    wchar_t input[] = { c, L'0' };
+    setcchar(&cchar, input, 0, 0, nullptr);
+    add_wch(&cchar);
   }
-  void AddString(const string& str) {
-    addstr(str.c_str());
+  void AddString(const wstring& str) {
+    addwstr(str.c_str());
   }
   void AddModifier(Line::Modifier modifier) {
     switch (modifier) {
@@ -295,8 +298,8 @@ class HighlightedLineOutputReceiver : public Line::OutputReceiverInterface {
     delegate_->AddModifier(Line::REVERSE);
   }
 
-  void AddCharacter(int c) { delegate_->AddCharacter(c); }
-  void AddString(const string& str) { delegate_->AddString(str); }
+  void AddCharacter(wchar_t c) { delegate_->AddCharacter(c); }
+  void AddString(const wstring& str) { delegate_->AddString(str); }
   void AddModifier(Line::Modifier modifier) {
     switch (modifier) {
       case Line::RESET:
@@ -327,7 +330,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
   size_t lines_shown = 0;
   while (lines_shown < lines_to_show) {
     if (current_line == contents.size()) {
-      addch('\n');
+      addwstr(L"\n");
       lines_shown++;
       continue;
     }
@@ -338,7 +341,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
 
     lines_shown++;
     const shared_ptr<Line> line(contents[current_line]);
-    assert(line->contents() != nullptr);
+    CHECK(line->contents() != nullptr);
     if (current_line == buffer->position().line
         && buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())) {
       buffer->set_last_highlighted_line(current_line);
@@ -444,17 +447,17 @@ int Terminal::Read(EditorState*) {
   }
 }
 
-void Terminal::SetStatus(const std::string& status) {
+void Terminal::SetStatus(const std::wstring& status) {
   status_ = status;
 
   size_t height = LINES;
   size_t width = COLS;
   move(height - 1, 0);
-  std::string output_status =
+  std::wstring output_status =
       status_.length() > width
       ? status_.substr(0, width)
-      : (status_ + std::string(width - status_.length(), ' '));
-  addstr(output_status.c_str());
+      : (status_ + std::wstring(width - status_.length(), ' '));
+  addwstr(output_status.c_str());
   move(0, 0);
   refresh();
 }

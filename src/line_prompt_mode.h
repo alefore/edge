@@ -12,19 +12,20 @@ namespace editor {
 
 using std::unique_ptr;
 
-typedef std::function<void(const string& input, EditorState* editor)>
+typedef std::function<void(const wstring& input, EditorState* editor)>
     LinePromptHandler;
 
 void Prompt(EditorState* editor_state,
-            const string& prompt,
-            const string& history_file,
-            const string& initial_value,
+            const wstring& prompt,
+            const wstring& history_file,
+            const wstring& initial_value,
             LinePromptHandler handler,
             Predictor predictor);
 
 unique_ptr<Command> NewLinePromptCommand(
-    const string& prompt, const string& history_file, const string& description,
-    LinePromptHandler handler, Predictor predictor);
+    const wstring& prompt, const wstring& history_file,
+    const wstring& description, LinePromptHandler handler,
+    Predictor predictor);
 
 }  // namespace editor
 }  // namespace afc

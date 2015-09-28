@@ -14,6 +14,7 @@
 #include "file_link_mode.h"
 #include "lazy_string.h"
 #include "vm/public/vm.h"
+#include "wstring.h"
 
 namespace afc {
 namespace editor {
@@ -27,7 +28,7 @@ using std::string;
 
 struct Environment;
 
-string CreateFifo() {
+wstring CreateFifo() {
   while (true) {
     char* path_str = mktemp(strdup("/tmp/edge-server-XXXXXX"));
     if (mkfifo(path_str, 0600) == -1) {
@@ -36,7 +37,7 @@ string CreateFifo() {
     }
     string path(path_str);
     free(path_str);
-    return path;
+    return FromByteString(path);
   }
 }
 
@@ -46,19 +47,22 @@ int MaybeConnectToParentServer() {
   if (server_address == nullptr) {
     return - 1;
   }
-  string private_fifo = CreateFifo();
+  wstring private_fifo = CreateFifo();
+  LOG(INFO) << "Fifo created: " << private_fifo;
   int fd = open(server_address, O_WRONLY);
   if (fd == -1) {
     cerr << server_address << ": open failed: " << strerror(errno);
     exit(1);
   }
-  string command = "ConnectTo(\"" + private_fifo + "\");\n";
+  string command = "ConnectTo(\"" + ToByteString(private_fifo) + "\");\n";
+  LOG(INFO) << "Sending connection command: " << command;
   if (write(fd, command.c_str(), command.size()) == -1) {
     cerr << server_address << ": write failed: " << strerror(errno);
     exit(1);
   }
   close(fd);
-  int private_fd = open(private_fifo.c_str(), O_RDWR);
+  int private_fd = open(ToByteString(private_fifo).c_str(), O_RDWR);
+  LOG(INFO) << "Connection fd: " << private_fd;
   if (private_fd == -1) {
     cerr << private_fd << ": open failed: " << strerror(errno);
     exit(1);
@@ -68,15 +72,15 @@ int MaybeConnectToParentServer() {
 
 class ServerBuffer : public OpenBuffer {
  public:
-  ServerBuffer(EditorState* editor_state, const string& name)
+  ServerBuffer(EditorState* editor_state, const wstring& name)
       : OpenBuffer(editor_state, name) {
     set_bool_variable(variable_clear_on_reload(), false);
     set_bool_variable(variable_vm_exec(), true);
   }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
-    string address = read_string_variable(variable_path());
-    int fd = open(address.c_str(), O_RDONLY | O_NDELAY);
+    wstring address = read_string_variable(variable_path());
+    int fd = open(ToByteString(address).c_str(), O_RDONLY | O_NDELAY);
     if (fd == -1) {
       cerr << address << ": open failed: " << strerror(errno);
       exit(1);
@@ -87,12 +91,12 @@ class ServerBuffer : public OpenBuffer {
   }
 };
 
-string GetBufferName(const string& prefix, size_t count) {
-  return prefix + " " + std::to_string(count);
+wstring GetBufferName(const wstring& prefix, size_t count) {
+  return prefix + L" " + std::to_wstring(count);
 }
 
 // TODO: Reuse this for anonymous buffers.
-string GetUnusedBufferName(EditorState* editor_state, const string& prefix) {
+wstring GetUnusedBufferName(EditorState* editor_state, const wstring& prefix) {
   size_t count = 0;
   while (editor_state->buffers()->find(GetBufferName(prefix, count))
          != editor_state->buffers()->end()) {
@@ -102,18 +106,18 @@ string GetUnusedBufferName(EditorState* editor_state, const string& prefix) {
 }
 
 void StartServer(EditorState* editor_state) {
-  string address = CreateFifo();
-  setenv("EDGE_PARENT_ADDRESS", address.c_str(), 1);
+  wstring address = CreateFifo();
+  setenv("EDGE_PARENT_ADDRESS", ToByteString(address).c_str(), 1);
   auto buffer = OpenServerBuffer(editor_state, address);
   buffer->set_bool_variable(OpenBuffer::variable_reload_after_exit(), true);
   buffer->set_bool_variable(OpenBuffer::variable_default_reload_after_exit(), true);
 }
 
 shared_ptr<OpenBuffer>
-OpenServerBuffer(EditorState* editor_state, const string& address) {
+OpenServerBuffer(EditorState* editor_state, const wstring& address) {
   shared_ptr<OpenBuffer> buffer(
       new ServerBuffer(editor_state,
-                       GetUnusedBufferName(editor_state, "- server")));
+                       GetUnusedBufferName(editor_state, L"- server")));
   buffer->set_string_variable(OpenBuffer::variable_path(), address);
   editor_state->buffers()->insert(make_pair(buffer->name(), buffer));
   buffer->Reload(editor_state);

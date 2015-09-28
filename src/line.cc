@@ -9,6 +9,7 @@
 #include "editor.h"
 #include "lazy_string_append.h"
 #include "substring.h"
+#include "wstring.h"
 
 namespace afc {
 namespace editor {
@@ -22,7 +23,7 @@ Line::Line(const Options& options)
       modified_(false),
       filtered_(true),
       filter_version_(0) {
-  assert(contents_ != nullptr);
+  CHECK(contents_ != nullptr);
 }
 
 shared_ptr<LazyString> Line::Substring(size_t pos, size_t length) {
@@ -51,7 +52,7 @@ void Line::InsertCharacterAtPosition(size_t position) {
   CHECK_EQ(contents_->size(), modifiers_.size());
   contents_ = StringAppend(
       StringAppend(Substring(0, position),
-                   NewCopyString(string(1, ' '))),
+                   NewCopyString(L" ")),
       Substring(position));
 
   modifiers_.push_back(unordered_set<Modifier, hash<int>>());
@@ -62,7 +63,7 @@ void Line::InsertCharacterAtPosition(size_t position) {
 
 void Line::SetCharacter(size_t position, int c,
                         const unordered_set<Modifier, hash<int>>& modifiers) {
-  shared_ptr<LazyString> str = NewCopyString(string(1, c));
+  shared_ptr<LazyString> str = NewCopyString(wstring(1, c));
   if (position >= size()) {
     contents_ = StringAppend(contents_, str);
     modifiers_.push_back(modifiers);
@@ -81,13 +82,14 @@ void Line::set_activate(unique_ptr<EditorMode> activate) {
 void Line::Output(const EditorState*,
                   const shared_ptr<OpenBuffer>& buffer,
                   OutputReceiverInterface* receiver) {
+  VLOG(5) << "Producing output of line: " << ToString();
   size_t width = receiver->width();
   size_t output_column = 0;
   size_t input_column = buffer->view_start_column();
   unordered_set<Line::Modifier, hash<int>> current_modifiers;
   while (input_column < size() && output_column < width) {
-    int c = get(input_column);
-    assert(c != '\n');
+    wint_t c = get(input_column);
+    CHECK(c != '\n');
     // TODO: Optimize.
     if (input_column >= modifiers_.size()) {
       receiver->AddModifier(Line::RESET);
@@ -108,14 +110,17 @@ void Line::Output(const EditorState*,
                   1 + floor(static_cast<double>(output_column) / 8.0)));
           assert(new_output_column > output_column);
           assert(new_output_column - output_column <= 8);
-          receiver->AddString(string(new_output_column - output_column, ' '));
+          receiver->AddString(wstring(new_output_column - output_column, ' '));
           output_column = new_output_column;
         }
         break;
       default:
-        if (isprint(c)) {
+        if (iswprint(c)) {
+          VLOG(8) << "Print character: " << c;
           receiver->AddCharacter(c);
           output_column++;
+        } else {
+          VLOG(7) << "Ignoring non-printable character: " << c;
         }
     }
     input_column++;
@@ -130,14 +135,15 @@ void Line::Output(const EditorState*,
       && output_column <= line_width - buffer->view_start_column()
       && line_width - buffer->view_start_column() < width) {
     size_t padding = line_width - buffer->view_start_column() - output_column;
-    receiver->AddString(string(padding, ' '));
-    receiver->AddCharacter(modified() ? '+' : '.');
+    receiver->AddString(wstring(padding, L' '));
+    receiver->AddCharacter(modified() ? L'+' : L'.');
     output_column += padding + 1;
   }
 
   if (output_column < width) {
     receiver->AddModifier(Line::RESET);
-    receiver->AddCharacter('\n');
+    VLOG(6) << "Adding newline characters.";
+    receiver->AddString(L"\n");
   }
 }
 

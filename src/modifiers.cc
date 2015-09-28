@@ -1,11 +1,14 @@
 #include "modifiers.h"
 
+#include "wstring.h"
+
 namespace afc {
 namespace editor {
 
 std::ostream& operator<<(std::ostream& os, const BufferPosition& bp) {
-    os << "[" << bp.buffer_name << ":" << bp.position << "]";
-    return os;
+  // TODO: Get rid of ToByteString invocation below.
+  os << "[" << ToByteString(bp.buffer_name) << ":" << bp.position << "]";
+  return os;
 }
 
 ostream& operator<<(ostream& os, const Modifiers& m) {

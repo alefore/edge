@@ -23,7 +23,7 @@ main ::= program(P) . {
 
 main ::= error. {
   compilation->errors.push_back(
-      "Compilation error near: \"" + compilation->last_token + "\"");
+      L"Compilation error near: \"" + compilation->last_token + L"\"");
 }
 
 %type program { Expression* }
@@ -64,7 +64,7 @@ statement(OUT) ::= function_declaration_params(FUNC)
     compilation->environment = compilation->environment->parent_environment();
     compilation->return_types.pop_back();
 
-    const vector<string> argument_names(FUNC->argument_names);
+    const vector<wstring> argument_names(FUNC->argument_names);
 
     unique_ptr<Value> value(new Value(FUNC->type));
     value->callback = [compilation, body, func_environment, argument_names]
@@ -95,14 +95,14 @@ function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME) LPAREN
         compilation->environment->LookupType(RETURN_TYPE->str);
     if (return_type_def == nullptr) {
       compilation->errors.push_back(
-          "Unknown type: \"" + RETURN_TYPE->str + "\"");
+          L"Unknown type: \"" + RETURN_TYPE->str + L"\"");
       OUT = nullptr;
     } else {
       OUT = new UserFunction();
       OUT->name = NAME->str;
       OUT->type.type = VMType::FUNCTION;
       OUT->type.type_arguments.push_back(*return_type_def);
-      for (pair<VMType, string> arg : *ARGS) {
+      for (pair<VMType, wstring> arg : *ARGS) {
         OUT->type.type_arguments.push_back(arg.first);
         OUT->argument_names.push_back(arg.second);
       }
@@ -110,7 +110,7 @@ function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME) LPAREN
           NAME->str, unique_ptr<Value>(new Value(OUT->type)));
       compilation->environment = new Environment(compilation->environment);
       compilation->return_types.push_back(*return_type_def);
-      for (pair<VMType, string> arg : *ARGS) {
+      for (pair<VMType, wstring> arg : *ARGS) {
         compilation->environment
             ->Define(arg.second, unique_ptr<Value>(new Value(arg.first)));
       }
@@ -189,11 +189,11 @@ statement_list(OUT) ::= statement_list(A) statement(B). {
 
 // Arguments in the declaration of a function
 
-%type function_declaration_arguments { vector<pair<VMType, string>>* }
+%type function_declaration_arguments { vector<pair<VMType, wstring>>* }
 %destructor function_declaration_arguments { delete $$; }
 
 function_declaration_arguments(OUT) ::= . {
-  OUT = new vector<pair<VMType, string>>;
+  OUT = new vector<pair<VMType, wstring>>;
 }
 
 function_declaration_arguments(OUT) ::= non_empty_function_declaration_arguments(L). {
@@ -201,33 +201,35 @@ function_declaration_arguments(OUT) ::= non_empty_function_declaration_arguments
   L = nullptr;
 }
 
-%type non_empty_function_declaration_arguments { vector<pair<VMType, string>>* }
+%type non_empty_function_declaration_arguments {
+  vector<pair<VMType, wstring>>*
+}
 %destructor non_empty_function_declaration_arguments { delete $$; }
 
 non_empty_function_declaration_arguments(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME). {
   const VMType* type_def = compilation->environment->LookupType(TYPE->str);
   if (type_def == nullptr) {
-    compilation->errors.push_back("Unknown type: \"" + TYPE->str + "\"");
+    compilation->errors.push_back(L"Unknown type: \"" + TYPE->str + L"\"");
     OUT = nullptr;
   } else {
-    OUT = new vector<pair<VMType, string>>;
+    OUT = new vector<pair<VMType, wstring>>;
     OUT->push_back(make_pair(*type_def, NAME->str));
   }
 }
 
 non_empty_function_declaration_arguments(OUT) ::=
-    non_empty_function_declaration_arguments(L) COMMA SYMBOL(TYPE) SYMBOL(NAME). {
-  if (L == nullptr) {
+    non_empty_function_declaration_arguments(LIST) COMMA SYMBOL(TYPE) SYMBOL(NAME). {
+  if (LIST == nullptr) {
     OUT = nullptr;
   } else {
     const VMType* type_def = compilation->environment->LookupType(TYPE->str);
     if (type_def == nullptr) {
-      compilation->errors.push_back("Unknown type: \"" + TYPE->str + "\"");
+      compilation->errors.push_back(L"Unknown type: \"" + TYPE->str + L"\"");
       OUT = nullptr;
     } else {
-      OUT = L;
+      OUT = LIST;
       OUT->push_back(make_pair(*type_def, NAME->str));
-      L = nullptr;
+      LIST = nullptr;
     }
   }
 }
@@ -266,14 +268,14 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
   } else if (OBJ->type().type != VMType::OBJECT_TYPE
              && OBJ->type().type != VMType::VM_STRING) {
     compilation->errors.push_back(
-        "Expected an object type, found a primitive type: \""
-        + OBJ->type().ToString() + "\"");
+        L"Expected an object type, found a primitive type: \""
+        + OBJ->type().ToString() + L"\"");
     OUT = nullptr;
   } else {
-    string object_type_name;
+    wstring object_type_name;
     switch (OBJ->type().type) {
       case VMType::VM_STRING:
-        object_type_name = "string";
+        object_type_name = L"string";
         break;
       case VMType::OBJECT_TYPE:
         object_type_name = OBJ->type().object_type;
@@ -285,21 +287,21 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
         compilation->environment->LookupObjectType(object_type_name);
     if (object_type == nullptr) {
       compilation->errors.push_back(
-          "Unknown type: \"" + OBJ->type().ToString() + "\"");
+          L"Unknown type: \"" + OBJ->type().ToString() + L"\"");
       OUT = nullptr;
     } else {
       auto field = object_type->LookupField(FIELD->str);
       if (field == nullptr) {
         compilation->errors.push_back(
-            "Unknown method: \"" + object_type->ToString() + "::"
-            + FIELD->str + "\"");
+            L"Unknown method: \"" + object_type->ToString() + L"::"
+            + FIELD->str + L"\"");
         OUT = nullptr;
       } else if (field->type.type_arguments.size() != 2 + ARGS->size()) {
         compilation->errors.push_back(
-            "Invalid number of arguments provided for method \""
-            + object_type->ToString() + "::" + FIELD->str + "\": Expected "
-            + to_string(field->type.type_arguments.size() - 2) + " but found "
-            + to_string(ARGS->size()));
+            L"Invalid number of arguments provided for method \""
+            + object_type->ToString() + L"::" + FIELD->str + L"\": Expected "
+            + to_wstring(field->type.type_arguments.size() - 2) + L" but found "
+            + to_wstring(ARGS->size()));
         OUT = nullptr;
       } else {
         assert(field->type.type_arguments[1] == OBJ->type());
@@ -311,11 +313,12 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
         }
         if (argument < ARGS->size()) {
           compilation->errors.push_back(
-              "Type mismatch in argument " + to_string(argument)
-              + " to method \"" + object_type->ToString() + "::" + FIELD->str
-              + "\": Expected \""
+              L"Type mismatch in argument " + to_wstring(argument)
+              + L" to method \"" + object_type->ToString() + L"::" + FIELD->str
+              + L"\": Expected \""
               + field->type.type_arguments[2 + argument].ToString()
-              + "\" but found \"" + ARGS->at(argument)->type().ToString() + "\"");
+              + L"\" but found \"" + ARGS->at(argument)->type().ToString()
+              + L"\"");
           OUT = nullptr;
         } else {
           unique_ptr<Value> field_copy(new Value(field->type.type));
@@ -342,13 +345,13 @@ expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
     OUT = nullptr;
   } else if (B->type().type != VMType::FUNCTION) {
     compilation->errors.push_back(
-        "Expected function but found: \"" + B->type().ToString() + "\"");
+        L"Expected function but found: \"" + B->type().ToString() + L"\"");
     OUT = nullptr;
   } else if (B->type().type_arguments.size() != 1 + ARGS->size()) {
     compilation->errors.push_back(
-        "Invalid number of arguments: Expected "
-        + to_string(B->type().type_arguments.size() - 1) + " but found "
-        + to_string(ARGS->size()));
+        L"Invalid number of arguments: Expected "
+        + to_wstring(B->type().type_arguments.size() - 1) + L" but found "
+        + to_wstring(ARGS->size()));
     OUT = nullptr;
   } else {
     size_t argument = 0;
@@ -359,9 +362,9 @@ expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
     }
     if (argument < ARGS->size()) {
       compilation->errors.push_back(
-          "Type mismatch in argument " + to_string(argument) + ": Expected \""
-          + B->type().type_arguments[1 + argument].ToString()
-          + "\" but found \"" + ARGS->at(argument)->type().ToString() + "\"");
+          L"Type mismatch in argument " + to_wstring(argument)
+          + L": Expected \"" + B->type().type_arguments[1 + argument].ToString()
+          + L"\" but found \"" + ARGS->at(argument)->type().ToString() + L"\"");
       OUT = nullptr;
     } else {
       OUT = NewFunctionCall(
@@ -450,8 +453,8 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
     B = nullptr;
   } else {
     compilation->errors.push_back(
-        "Unable to compare types: \"" + A->type().ToString()
-        + "\" == \"" + B->type().ToString() + "\"");
+        L"Unable to compare types: \"" + A->type().ToString()
+        + L"\" == \"" + B->type().ToString() + L"\"");
     OUT = nullptr;
   }
 }
@@ -483,8 +486,8 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
     B = nullptr;
   } else {
     compilation->errors.push_back(
-        "Unable to compare types: \"" + A->type().ToString()
-        + "\" != \"" + B->type().ToString() + "\"");
+        L"Unable to compare types: \"" + A->type().ToString()
+        + L"\" != \"" + B->type().ToString() + L"\"");
     OUT = nullptr;
   }
 }

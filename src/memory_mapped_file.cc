@@ -8,6 +8,7 @@ extern "C" {
 
 #include "buffer.h"
 #include "memory_mapped_file.h"
+#include "wstring.h"
 
 namespace afc {
 namespace editor {
@@ -34,12 +35,13 @@ static char* LoadFile(const string& path, int fd, size_t size) {
   return static_cast<char*>(addr);
 }
 
-MemoryMappedFile::MemoryMappedFile(const string& path)
-    : path_(path),
+MemoryMappedFile::MemoryMappedFile(const wstring& path)
+    : path_(ToByteString(path)),
       fd_(open(path_.c_str(), O_RDONLY)),
       stat_buffer_(StatFD(fd_)),
       buffer_(LoadFile(path_, fd_, stat_buffer_.st_size)) {
-  assert(size() == 0 || buffer_ != nullptr);
+  LOG(INFO) << "Memory mapped file: " << path_;
+  CHECK(size() == 0 || buffer_ != nullptr);
 }
 
 MemoryMappedFile::~MemoryMappedFile() {
@@ -48,7 +50,7 @@ MemoryMappedFile::~MemoryMappedFile() {
 }
 
 void LoadMemoryMappedFile(
-    EditorState* editor_state, const string& path, OpenBuffer* buffer) {
+    EditorState* editor_state, const wstring& path, OpenBuffer* buffer) {
   shared_ptr<MemoryMappedFile> file(new MemoryMappedFile(path));
   buffer->AppendLazyString(editor_state, file);
 }

@@ -7,14 +7,14 @@
 namespace afc {
 namespace vm {
 
-using std::string;
 using std::unique_ptr;
+using std::wstring;
 
 class Compilation;
 class Expression;
 
 unique_ptr<Expression> NewVariableLookup(
-    Compilation* compilation, const string& symbol);
+    Compilation* compilation, const wstring& symbol);
 
 }  // namespace vm
 }  // namespace afc

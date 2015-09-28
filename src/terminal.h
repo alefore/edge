@@ -29,7 +29,7 @@ class Terminal {
   ~Terminal();
 
   void Display(EditorState* editor_state);
-  void SetStatus(const std::string& status);
+  void SetStatus(const std::wstring& status);
   int Read(EditorState* editor_state);
 
  private:
@@ -37,7 +37,7 @@ class Terminal {
   void ShowBuffer(const EditorState* editor_state);
   void AdjustPosition(const shared_ptr<OpenBuffer> buffer);
 
-  std::string status_;
+  std::wstring status_;
 };
 
 }  // namespace editor

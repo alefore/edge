@@ -16,21 +16,21 @@ using std::string;
 // updates the editor status and returns false; otherwise, returns true (and
 // leaves the status unmodified).
 bool SaveContentsToFile(
-    EditorState* editor_state, OpenBuffer* buffer, const string& path);
+    EditorState* editor_state, OpenBuffer* buffer, const wstring& path);
 
 // Saves the contents of the buffer directly to an already open file.  Like
 // SaveContentsToFile, either returns true (on success) or updates the editor
 // status.
 bool SaveContentsToOpenFile(
-    EditorState* editor_state, OpenBuffer* buffer, const string& path,
+    EditorState* editor_state, OpenBuffer* buffer, const wstring& path,
     int fd);
 
 struct OpenFileOptions {
   OpenFileOptions() {}
 
   EditorState* editor_state = nullptr;
-  string name;
-  string path;
+  wstring name;
+  wstring path;
   bool ignore_if_not_found = false;
   bool make_current_buffer = true;
 
@@ -39,16 +39,16 @@ struct OpenFileOptions {
 };
 
 shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state);
-void GetSearchPaths(EditorState* editor_state, vector<string>* output);
+void GetSearchPaths(EditorState* editor_state, vector<wstring>* output);
 
 // Creates a new buffer for the file at the path given.
-map<string, shared_ptr<OpenBuffer>>::iterator OpenFile(
+map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     const OpenFileOptions& options);
 
 void OpenAnonymousBuffer(EditorState* editor_state);
 
 unique_ptr<EditorMode> NewFileLinkMode(
-    EditorState* editor_state, const string& path, bool ignore_if_not_found);
+    EditorState* editor_state, const wstring& path, bool ignore_if_not_found);
 
 }  // namespace editor
 }  // namespace afc

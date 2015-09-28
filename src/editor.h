@@ -39,26 +39,26 @@ class EditorState {
     }
   }
 
-  void CloseBuffer(const map<string, shared_ptr<OpenBuffer>>::iterator buffer);
+  void CloseBuffer(const map<wstring, shared_ptr<OpenBuffer>>::iterator buffer);
 
-  const map<string, shared_ptr<OpenBuffer>>* buffers() const {
+  const map<wstring, shared_ptr<OpenBuffer>>* buffers() const {
     return &buffers_;
   }
 
-  map<string, shared_ptr<OpenBuffer>>* buffers() {
+  map<wstring, shared_ptr<OpenBuffer>>* buffers() {
     return &buffers_;
   }
 
-  void set_current_buffer(map<string, shared_ptr<OpenBuffer>>::iterator it) {
+  void set_current_buffer(map<wstring, shared_ptr<OpenBuffer>>::iterator it) {
     current_buffer_ = it;
   }
   bool has_current_buffer() const {
     return current_buffer_ != buffers_.end();
   }
-  map<string, shared_ptr<OpenBuffer>>::iterator current_buffer() {
+  map<wstring, shared_ptr<OpenBuffer>>::iterator current_buffer() {
     return current_buffer_;
   }
-  map<string, shared_ptr<OpenBuffer>>::const_iterator current_buffer() const {
+  map<wstring, shared_ptr<OpenBuffer>>::const_iterator current_buffer() const {
     return current_buffer_;
   }
   bool terminate() const { return terminate_; }
@@ -83,8 +83,8 @@ class EditorState {
   void set_repetitions(size_t value) { modifiers_.repetitions = value; }
 
   // TODO: Maybe use a compiled regexp?
-  const string& last_search_query() const { return last_search_query_; }
-  void set_last_search_query(const string& query) {
+  const wstring& last_search_query() const { return last_search_query_; }
+  void set_last_search_query(const wstring& query) {
     last_search_query_ = query;
   }
 
@@ -171,31 +171,31 @@ class EditorState {
 
   void set_status_prompt(bool value) { status_prompt_ = value; }
   bool status_prompt() const { return status_prompt_; }
-  void SetStatus(const string& status);
-  void ResetStatus() { SetStatus(""); }
-  const string& status() const { return status_; }
+  void SetStatus(const wstring& status);
+  void ResetStatus() { SetStatus(L""); }
+  const wstring& status() const { return status_; }
 
-  const string& home_directory() const { return home_directory_; }
-  const vector<string>& edge_path() const { return edge_path_; }
+  const wstring& home_directory() const { return home_directory_; }
+  const vector<wstring>& edge_path() const { return edge_path_; }
 
   void ApplyToCurrentBuffer(unique_ptr<Transformation> transformation);
 
   Environment* environment() { return &environment_; }
 
   // Meant to be used to construct afc::vm::Evaluator::ErrorHandler instances.
-  void DefaultErrorHandler(const string& error_description);
+  void DefaultErrorHandler(const wstring& error_description);
 
-  string expand_path(const string& path);
+  wstring expand_path(const wstring& path);
 
   void PushSignal(int signal) { pending_signals_.push_back(signal); }
   void ProcessSignals();
 
  private:
-  map<string, shared_ptr<OpenBuffer>> buffers_;
-  map<string, shared_ptr<OpenBuffer>>::iterator current_buffer_;
+  map<wstring, shared_ptr<OpenBuffer>> buffers_;
+  map<wstring, shared_ptr<OpenBuffer>>::iterator current_buffer_;
   bool terminate_;
 
-  string last_search_query_;
+  wstring last_search_query_;
 
   unique_ptr<EditorMode> mode_;
 
@@ -206,10 +206,10 @@ class EditorState {
   bool screen_needs_hard_redraw_;
 
   bool status_prompt_;
-  string status_;
+  wstring status_;
 
-  string home_directory_;
-  vector<string> edge_path_;
+  wstring home_directory_;
+  vector<wstring> edge_path_;
 
   Environment environment_;
 

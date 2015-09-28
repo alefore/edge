@@ -8,6 +8,7 @@
 #include "lazy_string_append.h"
 #include "transformation.h"
 #include "transformation_move.h"
+#include "wstring.h"
 
 namespace afc {
 namespace editor {
@@ -519,11 +520,11 @@ class DeleteLinesTransformation : public Transformation {
     return 0;
   }
   static size_t FindSoftStartOfLine(OpenBuffer* buffer, const Line* line) {
-    const string& word_chars =
+    const wstring& word_chars =
         buffer->read_string_variable(buffer->variable_word_characters());
     size_t start = 0;
     while (start < line->size()
-           && word_chars.find(line->get(start)) == string::npos) {
+           && word_chars.find(line->get(start)) == wstring::npos) {
       start++;
     }
     return start;
@@ -537,11 +538,11 @@ class DeleteLinesTransformation : public Transformation {
   }
 
   static size_t FindSoftLengthOfLine(OpenBuffer* buffer, const Line* line) {
-    const string& word_chars =
+    const wstring& word_chars =
         buffer->read_string_variable(buffer->variable_word_characters());
     size_t length = line->size();
     while (length > 0
-           && word_chars.find(line->get(length - 1)) == string::npos) {
+           && word_chars.find(line->get(length - 1)) == wstring::npos) {
       length--;
     }
     return length;

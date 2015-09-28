@@ -24,15 +24,15 @@ struct Value {
   static unique_ptr<Value> NewVoid();
   static unique_ptr<Value> NewBool(bool value);
   static unique_ptr<Value> NewInteger(int value);
-  static unique_ptr<Value> NewString(const string& value);
-  static unique_ptr<Value> NewObject(const string& name,
+  static unique_ptr<Value> NewString(const wstring& value);
+  static unique_ptr<Value> NewObject(const wstring& name,
                                      const shared_ptr<void>& value);
 
   VMType type;
 
   bool boolean;
   int integer;
-  string str;
+  wstring str;
   function<unique_ptr<Value>(vector<unique_ptr<Value>>)> callback;
   shared_ptr<void> user_value;
 };

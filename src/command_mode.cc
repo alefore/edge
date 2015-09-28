@@ -28,6 +28,7 @@
 #include "transformation.h"
 #include "transformation_delete.h"
 #include "transformation_move.h"
+#include "wstring.h"
 
 namespace {
 using std::advance;
@@ -39,8 +40,8 @@ class GotoCommand : public Command {
  public:
   GotoCommand(size_t calls) : calls_(calls % 4) {}
 
-  const string Description() {
-    return "goes to Rth structure from the beginning";
+  const wstring Description() {
+    return L"goes to Rth structure from the beginning";
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
@@ -55,7 +56,7 @@ class GotoCommand : public Command {
       case CHAR:
         {
           if (buffer->current_line() == nullptr) { return; }
-          const string line_prefix_characters = buffer->read_string_variable(
+          const wstring& line_prefix_characters = buffer->read_string_variable(
               OpenBuffer::variable_line_prefix_characters());
           const auto& line = buffer->current_line();
           size_t start = 0;
@@ -214,8 +215,8 @@ class GotoCommand : public Command {
 
 class Delete : public Command {
  public:
-  const string Description() {
-    return "deletes the current item (char, word, line ...)";
+  const wstring Description() {
+    return L"deletes the current item (char, word, line ...)";
   }
 
   void ProcessInput(int, EditorState* editor_state) {
@@ -238,12 +239,13 @@ class Delete : public Command {
 
       case PAGE:
         // TODO: Implement.
-        editor_state->SetStatus("Oops, delete page is not yet implemented.");
+        editor_state->SetStatus(L"Oops, delete page is not yet implemented.");
         break;
 
       case SEARCH:
         // TODO: Implement.
-        editor_state->SetStatus("Ooops, delete search is not yet implemented.");
+        editor_state->SetStatus(
+            L"Ooops, delete search is not yet implemented.");
         break;
     }
 
@@ -256,19 +258,19 @@ class Delete : public Command {
 // TODO: Replace with insert.  Insert should be called 'type'.
 class Paste : public Command {
  public:
-  const string Description() {
-    return "pastes the last deleted text";
+  const wstring Description() {
+    return L"pastes the last deleted text";
   }
 
   void ProcessInput(int, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     auto it = editor_state->buffers()->find(OpenBuffer::kPasteBuffer);
     if (it == editor_state->buffers()->end()) {
-      editor_state->SetStatus("No text to paste.");
+      editor_state->SetStatus(L"No text to paste.");
       return;
     }
     if (it == editor_state->current_buffer()) {
-      editor_state->SetStatus("You shall not paste into the paste buffer.");
+      editor_state->SetStatus(L"You shall not paste into the paste buffer.");
       return;
     }
     auto buffer = editor_state->current_buffer()->second;
@@ -284,8 +286,8 @@ class Paste : public Command {
 
 class UndoCommand : public Command {
  public:
-  const string Description() {
-    return "undoes the last change to the current buffer";
+  const wstring Description() {
+    return L"undoes the last change to the current buffer";
   }
 
   void ProcessInput(int, EditorState* editor_state) {
@@ -299,8 +301,8 @@ class UndoCommand : public Command {
 
 class GotoPreviousPositionCommand : public Command {
  public:
-  const string Description() {
-    return "go back to previous position";
+  const wstring Description() {
+    return L"go back to previous position";
   }
 
   void ProcessInput(int, EditorState* editor_state) {
@@ -340,47 +342,47 @@ class GotoPreviousPositionCommand : public Command {
 
 class LineUp : public Command {
  public:
-  const string Description();
+  const wstring Description();
   static void Move(int c, EditorState* editor_state, Structure structure);
   void ProcessInput(int c, EditorState* editor_state);
 };
 
 class LineDown : public Command {
  public:
-  const string Description();
+  const wstring Description();
   static void Move(int c, EditorState* editor_state, Structure structure);
   void ProcessInput(int c, EditorState* editor_state);
 };
 
 class PageUp : public Command {
  public:
-  const string Description();
+  const wstring Description();
   static void Move(int c, EditorState* editor_state);
   void ProcessInput(int c, EditorState* editor_state);
 };
 
 class PageDown : public Command {
  public:
-  const string Description();
+  const wstring Description();
   void ProcessInput(int c, EditorState* editor_state);
 };
 
 class MoveForwards : public Command {
  public:
-  const string Description();
+  const wstring Description();
   void ProcessInput(int c, EditorState* editor_state);
   static void Move(int c, EditorState* editor_state);
 };
 
 class MoveBackwards : public Command {
  public:
-  const string Description();
+  const wstring Description();
   void ProcessInput(int c, EditorState* editor_state);
   static void Move(int c, EditorState* editor_state);
 };
 
-const string LineUp::Description() {
-  return "moves up one line";
+const wstring LineUp::Description() {
+  return L"moves up one line";
 }
 
 /* static */ void LineUp::Move(
@@ -425,8 +427,8 @@ void LineUp::ProcessInput(int c, EditorState* editor_state) {
   Move(c, editor_state, editor_state->structure());
 }
 
-const string LineDown::Description() {
-  return "moves down one line";
+const wstring LineDown::Description() {
+  return L"moves down one line";
 }
 
 /* static */ void LineDown::Move(
@@ -471,8 +473,8 @@ void LineDown::ProcessInput(int c, EditorState* editor_state) {
   Move(c, editor_state, editor_state->structure());
 }
 
-const string PageUp::Description() {
-  return "moves up one page";
+const wstring PageUp::Description() {
+  return L"moves up one page";
 }
 
 void PageUp::ProcessInput(int c, EditorState* editor_state) {
@@ -482,8 +484,8 @@ void PageUp::ProcessInput(int c, EditorState* editor_state) {
   LineUp::Move(c, editor_state, editor_state->structure());
 }
 
-const string PageDown::Description() {
-  return "moves down one page";
+const wstring PageDown::Description() {
+  return L"moves down one page";
 }
 
 void PageDown::ProcessInput(int c, EditorState* editor_state) {
@@ -493,8 +495,8 @@ void PageDown::ProcessInput(int c, EditorState* editor_state) {
   LineDown::Move(c, editor_state, editor_state->structure());
 }
 
-const string MoveForwards::Description() {
-  return "moves forwards";
+const wstring MoveForwards::Description() {
+  return L"moves forwards";
 }
 
 void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
@@ -528,8 +530,8 @@ void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
   }
 }
 
-const string MoveBackwards::Description() {
-  return "moves backwards";
+const wstring MoveBackwards::Description() {
+  return L"moves backwards";
 }
 
 void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
@@ -571,8 +573,8 @@ void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
 
 class EnterInsertMode : public Command {
  public:
-  const string Description() {
-    return "enters insert mode";
+  const wstring Description() {
+    return L"enters insert mode";
   }
 
   void ProcessInput(int, EditorState* editor_state) {
@@ -582,8 +584,8 @@ class EnterInsertMode : public Command {
 
 class EnterAdvancedMode : public Command {
  public:
-  const string Description() {
-    return "enters advanced-command mode (press 'a?' for more)";
+  const wstring Description() {
+    return L"enters advanced-command mode (press 'a?' for more)";
   }
 
   void ProcessInput(int, EditorState* editor_state) {
@@ -593,8 +595,8 @@ class EnterAdvancedMode : public Command {
 
 class EnterSecondaryMode : public Command {
  public:
-  const string Description() {
-    return "enters secondary-command mode (press 's?' for more)";
+  const wstring Description() {
+    return L"enters secondary-command mode (press 's?' for more)";
   }
 
   void ProcessInput(int, EditorState* editor_state) {
@@ -604,8 +606,8 @@ class EnterSecondaryMode : public Command {
 
 class EnterFindMode : public Command {
  public:
-  const string Description() {
-    return "finds occurrences of a character";
+  const wstring Description() {
+    return L"finds occurrences of a character";
   }
 
   void ProcessInput(int, EditorState* editor_state) {
@@ -615,8 +617,8 @@ class EnterFindMode : public Command {
 
 class InsertionModifierCommand : public Command {
  public:
-  const string Description() {
-    return "activates replace modifier (overwrites text on insertions)";
+  const wstring Description() {
+    return L"activates replace modifier (overwrites text on insertions)";
   }
 
   void ProcessInput(int, EditorState* editor_state) {
@@ -633,8 +635,8 @@ class InsertionModifierCommand : public Command {
 
 class ReverseDirectionCommand : public Command {
  public:
-  const string Description() {
-    return "reverses the direction of the next command";
+  const wstring Description() {
+    return L"reverses the direction of the next command";
   }
 
   void ProcessInput(int, EditorState* editor_state) {
@@ -658,11 +660,11 @@ void SetRepetitions(EditorState* editor_state, int number) {
 
 class SetStructureCommand : public Command {
  public:
-  SetStructureCommand(Structure value, const string& description)
+  SetStructureCommand(Structure value, const wstring& description)
       : value_(value), description_(description) {}
 
-  const string Description() {
-    return "sets the structure: " + description_;
+  const wstring Description() {
+    return L"sets the structure: " + description_;
   }
 
   void ProcessInput(int, EditorState* editor_state) {
@@ -679,13 +681,13 @@ class SetStructureCommand : public Command {
 
  private:
   Structure value_;
-  const string description_;
+  const wstring description_;
 };
 
 class SetRegionStartCommand : public Command {
  public:
-  const string Description() {
-    return "sets the region start / switches to region mode";
+  const wstring Description() {
+    return L"sets the region start / switches to region mode";
   }
 
   void ProcessInput(int, EditorState* editor_state) {
@@ -716,12 +718,12 @@ class SetStrengthCommand : public Command {
  public:
   SetStrengthCommand(Modifiers::Strength value,
                      Modifiers::Strength extreme_value,
-                     const string& description)
+                     const wstring& description)
       : value_(value), extreme_value_(extreme_value),
         description_(description) {}
 
-  const string Description() {
-    return "sets the strength: " + description_;
+  const wstring Description() {
+    return L"sets the strength: " + description_;
   }
 
   void ProcessInput(int, EditorState* editor_state) {
@@ -739,17 +741,17 @@ class SetStrengthCommand : public Command {
  private:
   Modifiers::Strength value_;
   Modifiers::Strength extreme_value_;
-  const string description_;
+  const wstring description_;
 };
 
 class SetStructureModifierCommand : public Command {
  public:
   SetStructureModifierCommand(
-      Modifiers::StructureRange value, const string& description)
+      Modifiers::StructureRange value, const wstring& description)
       : value_(value), description_(description) {}
 
-  const string Description() {
-    return "sets the structure modifier: " + description_;
+  const wstring Description() {
+    return L"sets the structure modifier: " + description_;
   }
 
   void ProcessInput(int, EditorState* editor_state) {
@@ -761,19 +763,19 @@ class SetStructureModifierCommand : public Command {
 
  private:
   Modifiers::StructureRange value_;
-  const string description_;
+  const wstring description_;
 };
 
 class NumberMode : public Command {
  public:
   NumberMode(function<void(EditorState*, int)> consumer)
-      : description_(""), consumer_(consumer) {}
+      : description_(L""), consumer_(consumer) {}
 
   NumberMode(
-      const string& description, function<void(EditorState*, int)> consumer)
+      const wstring& description, function<void(EditorState*, int)> consumer)
       : description_(description), consumer_(consumer) {}
 
-  const string Description() {
+  const wstring Description() {
     return description_;
   }
 
@@ -784,14 +786,14 @@ class NumberMode : public Command {
   }
 
  private:
-  const string description_;
+  const wstring description_;
   function<void(EditorState*, int)> consumer_;
 };
 
 class ActivateLink : public Command {
  public:
-  const string Description() {
-    return "activates the current link (if any)";
+  const wstring Description() {
+    return L"activates the current link (if any)";
   }
 
   void ProcessInput(int c, EditorState* editor_state) {
@@ -802,9 +804,9 @@ class ActivateLink : public Command {
       buffer->current_line()->activate()->ProcessInput(c, editor_state);
     } else {
       buffer->MaybeAdjustPositionCol();
-      string line = buffer->current_line()->ToString();
+      wstring line = buffer->current_line()->ToString();
 
-      const string& path_characters =
+      const wstring& path_characters =
           buffer->read_string_variable(buffer->variable_path_characters());
 
       size_t start = line.find_last_not_of(
@@ -829,8 +831,8 @@ class ActivateLink : public Command {
 
 class StartSearchMode : public Command {
  public:
-  const string Description() {
-    return "Searches for a string.";
+  const wstring Description() {
+    return L"Searches for a string.";
   }
 
   void ProcessInput(int, EditorState* editor_state) {
@@ -861,8 +863,8 @@ class StartSearchMode : public Command {
 
       default:
         auto position = editor_state->current_buffer()->second->position();
-        Prompt(editor_state, "/", "search", "",
-               [position](const string& input, EditorState* editor_state) {
+        Prompt(editor_state, L"/", L"search", L"",
+               [position](const wstring& input, EditorState* editor_state) {
                  SearchHandler(position, input, editor_state);
                },
                SearchHandlerPredictor);
@@ -873,8 +875,8 @@ class StartSearchMode : public Command {
 
 class ResetStateCommand : public Command {
  public:
-  const string Description() {
-    return "Resets the state of the editor.";
+  const wstring Description() {
+    return L"Resets the state of the editor.";
   }
 
   void ProcessInput(int, EditorState* editor_state) {
@@ -884,8 +886,8 @@ class ResetStateCommand : public Command {
 
 class HardRedrawCommand : public Command {
  public:
-  const string Description() {
-    return "Redraws the screen";
+  const wstring Description() {
+    return L"Redraws the screen";
   }
 
   void ProcessInput(int, EditorState* editor_state) {
@@ -893,7 +895,7 @@ class HardRedrawCommand : public Command {
   }
 };
 
-void RunCppFileHandler(const string& input, EditorState* editor_state) {
+void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
   editor_state->ResetMode();
   if (!editor_state->has_current_buffer()) { return; }
   auto buffer = editor_state->current_buffer()->second;
@@ -904,14 +906,14 @@ void RunCppFileHandler(const string& input, EditorState* editor_state) {
 }
 
 class RunCppFileCommand : public Command {
-  const string Description() {
-    return "runs a command from a file";
+  const wstring Description() {
+    return L"runs a command from a file";
   }
 
   void ProcessInput(int, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     auto buffer = editor_state->current_buffer()->second;
-    Prompt(editor_state, "cmd < ", "editor_commands",
+    Prompt(editor_state, L"cmd < ", L"editor_commands",
            buffer->read_string_variable(
                OpenBuffer::variable_editor_commands_path()),
            RunCppFileHandler, FilePredictor);
@@ -925,11 +927,11 @@ class SwitchCaseTransformation : public Transformation {
     unique_ptr<TransformationStack> stack(new TransformationStack);
     if (buffer->position().line < buffer->contents()->size()
         && buffer->position().column < (*buffer->line())->size()) {
-      int c = (*buffer->line())->get(buffer->position().column);
+      wchar_t c = (*buffer->line())->get(buffer->position().column);
       shared_ptr<OpenBuffer> buffer_to_insert(
-          new OpenBuffer(editor_state, "- text inserted"));
+          new OpenBuffer(editor_state, L"- text inserted"));
       buffer_to_insert->AppendLine(editor_state,
-          NewCopyString(string(1, isupper(c) ? tolower(c) : toupper(c))));
+          NewCopyString(wstring(1, iswupper(c) ? towlower(c) : towupper(c))));
       editor_state->ScheduleRedraw();
 
       stack->PushBack(NewDeleteCharactersTransformation(Modifiers(), false));
@@ -969,8 +971,8 @@ class SwitchCaseTransformation : public Transformation {
 
 class SwitchCaseCommand : public Command {
  public:
-  const string Description() {
-    return "Switches the case of the current character.";
+  const wstring Description() {
+    return L"Switches the case of the current character.";
   }
 
   void ProcessInput(int, EditorState* editor_state) {
@@ -985,8 +987,8 @@ class SwitchCaseCommand : public Command {
 
 class RepeatLastTransformationCommand : public Command {
  public:
-  const string Description() {
-    return "Repeats the last command.";
+  const wstring Description() {
+    return L"Repeats the last command.";
   }
 
   void ProcessInput(int, EditorState* editor_state) {
@@ -997,8 +999,8 @@ class RepeatLastTransformationCommand : public Command {
   }
 };
 
-static const map<int, Command*>& GetCommandModeMap() {
-  static map<int, Command*> output;
+static const map<wchar_t, Command*>& GetCommandModeMap() {
+  static map<wchar_t, Command*> output;
   if (output.empty()) {
     output.insert(make_pair('a', new EnterAdvancedMode()));
     output.insert(make_pair('s', new EnterSecondaryMode()));
@@ -1010,17 +1012,17 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('/', new StartSearchMode()));
     output.insert(make_pair('g', new GotoCommand(0)));
 
-    output.insert(make_pair('w', new SetStructureCommand(WORD, "word")));
-    output.insert(make_pair('e', new SetStructureCommand(LINE, "line")));
-    output.insert(make_pair('E', new SetStructureCommand(PAGE, "page")));
-    output.insert(make_pair('F', new SetStructureCommand(SEARCH, "search")));
-    output.insert(make_pair('B', new SetStructureCommand(BUFFER, "buffer")));
+    output.insert(make_pair('w', new SetStructureCommand(WORD, L"word")));
+    output.insert(make_pair('e', new SetStructureCommand(LINE, L"line")));
+    output.insert(make_pair('E', new SetStructureCommand(PAGE, L"page")));
+    output.insert(make_pair('F', new SetStructureCommand(SEARCH, L"search")));
+    output.insert(make_pair('B', new SetStructureCommand(BUFFER, L"buffer")));
     output.insert(make_pair('m', new SetRegionStartCommand()));
 
     output.insert(make_pair('W', new SetStrengthCommand(
-        Modifiers::WEAK, Modifiers::VERY_WEAK, "weak")));
+        Modifiers::WEAK, Modifiers::VERY_WEAK, L"weak")));
     output.insert(make_pair('S', new SetStrengthCommand(
-        Modifiers::STRONG, Modifiers::VERY_STRONG, "strong")));
+        Modifiers::STRONG, Modifiers::VERY_STRONG, L"strong")));
 
     output.insert(make_pair('d', new Delete()));
     output.insert(make_pair('p', new Paste()));
@@ -1038,16 +1040,18 @@ static const map<int, Command*>& GetCommandModeMap() {
     output.insert(make_pair('~', new SwitchCaseCommand()));
 
     output.insert(make_pair('.', new RepeatLastTransformationCommand()));
-    output.insert(make_pair('?', NewHelpCommand(output, "command mode").release()));
+    output.insert(make_pair(
+        '?',
+        NewHelpCommand(output, L"command mode").release()));
 
     output.insert(make_pair(Terminal::ESCAPE, new ResetStateCommand()));
 
     output.insert(make_pair('[', new SetStructureModifierCommand(
         Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION,
-        "from the beggining to the current position")));
+        L"from the beggining to the current position")));
     output.insert(make_pair(']', new SetStructureModifierCommand(
         Modifiers::FROM_CURRENT_POSITION_TO_END,
-        "from the current position to the end")));
+        L"from the current position to the end")));
     output.insert(make_pair(Terminal::CTRL_L, new HardRedrawCommand()));
     output.insert(make_pair('0', new NumberMode(SetRepetitions)));
     output.insert(make_pair('1', new NumberMode(SetRepetitions)));

@@ -12,8 +12,8 @@ namespace editor {
 using std::map;
 using std::unique_ptr;
 
-unique_ptr<Command> NewHelpCommand(const map<int, Command*>& commands,
-                                   const string& mode_description);
+unique_ptr<Command> NewHelpCommand(const map<wchar_t, Command*>& commands,
+                                   const std::wstring& mode_description);
 
 }  // namespace editor
 }  // namespace afc

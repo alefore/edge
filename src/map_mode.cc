@@ -7,7 +7,8 @@ namespace editor {
 
 struct EditorState;
 
-MapMode::MapMode(const map<int, Command*>& commands, Command* default_command)
+MapMode::MapMode(const map<wchar_t, Command*>& commands,
+                 Command* default_command)
     : commands_(commands),
       default_command_(default_command) {}
 

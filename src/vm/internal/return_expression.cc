@@ -39,8 +39,8 @@ unique_ptr<Expression> NewReturnExpression(
   const VMType& expected_type = compilation->return_types.back();
   if (!(expected_type == expr->type())) {
     compilation->errors.push_back(
-        "Returning value of type \"" + expr->type().ToString()
-        + "\" but expected \"" + expected_type.ToString() + "\"");
+        L"Returning value of type \"" + expr->type().ToString()
+        + L"\" but expected \"" + expected_type.ToString() + L"\"");
     return nullptr;
   }
   return unique_ptr<Expression>(new ReturnExpression(std::move(expr)));

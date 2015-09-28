@@ -35,7 +35,7 @@ class NewLineTransformation : public Transformation {
       return;
     }
 
-    const string& line_prefix_characters(buffer->read_string_variable(
+    const wstring& line_prefix_characters(buffer->read_string_variable(
         OpenBuffer::variable_line_prefix_characters()));
     size_t prefix_end = 0;
     if (current_line != nullptr
@@ -66,7 +66,7 @@ class NewLineTransformation : public Transformation {
 
     {
       shared_ptr<OpenBuffer> buffer_to_insert(
-        new OpenBuffer(editor_state, "- text inserted"));
+        new OpenBuffer(editor_state, L"- text inserted"));
       buffer_to_insert->contents()->emplace_back(new Line(Line::Options()));
       buffer_to_insert->contents()
           ->emplace_back(new Line(continuation_options));
@@ -175,9 +175,9 @@ class InsertMode : public EditorMode {
 
     {
       shared_ptr<OpenBuffer> buffer_to_insert(
-          new OpenBuffer(editor_state, "- text inserted"));
+          new OpenBuffer(editor_state, L"- text inserted"));
       buffer_to_insert->contents()->emplace_back(
-          new Line(Line::Options(NewCopyString(string(1, c)))));
+          new Line(Line::Options(NewCopyString(wstring(1, c)))));
       buffer->Apply(editor_state,
           NewInsertBufferTransformation(buffer_to_insert, 1, END));
     }
@@ -289,7 +289,7 @@ class RawInputTypeMode : public EditorMode {
 
       default:
         if (buffering_) {
-          buffer->AppendToLastLine(editor_state, NewCopyString(string(1, c)));
+          buffer->AppendToLastLine(editor_state, NewCopyString(wstring(1, c)));
           line_buffer_.push_back(c);
           editor_state->ScheduleRedraw();
         } else {
@@ -315,7 +315,7 @@ using std::shared_ptr;
 void EnterInsertCharactersMode(EditorState* editor_state) {
   auto buffer = editor_state->current_buffer()->second;
   buffer->MaybeAdjustPositionCol();
-  editor_state->SetStatus("type");
+  editor_state->SetStatus(L"type");
   editor_state->set_mode(unique_ptr<EditorMode>(new InsertMode()));
 }
 
@@ -327,7 +327,7 @@ void EnterInsertMode(EditorState* editor_state) {
   }
   auto buffer = editor_state->current_buffer()->second;
   if (editor_state->current_buffer()->second->fd() != -1) {
-    editor_state->SetStatus("type (raw)");
+    editor_state->SetStatus(L"type (raw)");
     editor_state->set_mode(unique_ptr<EditorMode>(new RawInputTypeMode()));
   } else if (editor_state->structure() == CHAR) {
     editor_state->current_buffer()->second->CheckPosition();

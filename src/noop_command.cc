@@ -8,7 +8,7 @@ namespace {
 using namespace afc::editor;
 
 class NoopCommandImpl : public Command {
-  const string Description() { return "does nothing"; }
+  const wstring Description() { return L"does nothing"; }
   void ProcessInput(int, EditorState*) {}
 };
 

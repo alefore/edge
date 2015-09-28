@@ -28,6 +28,7 @@ extern "C" {
 #include "transformation_delete.h"
 #include "vm/public/value.h"
 #include "vm/public/vm.h"
+#include "wstring.h"
 
 namespace afc {
 namespace editor {
@@ -71,12 +72,12 @@ static void RegisterBufferFieldBool(afc::vm::ObjectType* object_type,
           buffer->set_bool_variable(variable, args[1]->boolean);
           return std::move(Value::NewVoid());
         };
-    object_type->AddField("set_" + variable->name(), std::move(callback));
+    object_type->AddField(L"set_" + variable->name(), std::move(callback));
   }
 }
 
 static void RegisterBufferFieldString(afc::vm::ObjectType* object_type,
-                                      const EdgeVariable<string>* variable) {
+                                      const EdgeVariable<wstring>* variable) {
   using namespace afc::vm;
   assert(variable != nullptr);
 
@@ -110,7 +111,7 @@ static void RegisterBufferFieldString(afc::vm::ObjectType* object_type,
           buffer->set_string_variable(variable, args[1]->str);
           return std::move(Value::NewVoid());
         };
-    object_type->AddField("set_" + variable->name(), std::move(callback));
+    object_type->AddField(L"set_" + variable->name(), std::move(callback));
   }
 }
 
@@ -149,7 +150,7 @@ static void RegisterBufferFieldInt(afc::vm::ObjectType* object_type,
           buffer->set_int_variable(variable, args[1]->integer);
           return std::move(Value::NewVoid());
         };
-    object_type->AddField("set_" + variable->name(), std::move(callback));
+    object_type->AddField(L"set_" + variable->name(), std::move(callback));
   }
 }
 
@@ -193,52 +194,52 @@ static void RegisterBufferFieldValue(
           buffer->set_value_variable(variable, std::move(value));
           return std::move(Value::NewVoid());
         };
-    object_type->AddField("set_" + variable->name(), std::move(callback));
+    object_type->AddField(L"set_" + variable->name(), std::move(callback));
   }
 }
 
 }  // namespace
 
 using namespace afc::vm;
-using std::to_string;
+using std::to_wstring;
 
-/* static */ const string OpenBuffer::kBuffersName = "- buffers";
-/* static */ const string OpenBuffer::kPasteBuffer = "- paste buffer";
+/* static */ const wstring OpenBuffer::kBuffersName = L"- buffers";
+/* static */ const wstring OpenBuffer::kPasteBuffer = L"- paste buffer";
 
 /* static */ void OpenBuffer::RegisterBufferType(
     EditorState* editor_state, afc::vm::Environment* environment) {
-  unique_ptr<ObjectType> buffer(new ObjectType("Buffer"));
+  unique_ptr<ObjectType> buffer(new ObjectType(L"Buffer"));
 
   {
-    vector<string> variable_names;
+    vector<wstring> variable_names;
     StringStruct()->RegisterVariableNames(&variable_names);
-    for (const string& name : variable_names) {
+    for (const wstring& name : variable_names) {
       RegisterBufferFieldString(
           buffer.get(), StringStruct()->find_variable(name));
     }
   }
 
   {
-    vector<string> variable_names;
+    vector<wstring> variable_names;
     BoolStruct()->RegisterVariableNames(&variable_names);
-    for (const string& name : variable_names) {
+    for (const wstring& name : variable_names) {
       RegisterBufferFieldBool(
           buffer.get(), BoolStruct()->find_variable(name));
     }
   }
 
   {
-    vector<string> variable_names;
+    vector<wstring> variable_names;
     IntStruct()->RegisterVariableNames(&variable_names);
-    for (const string& name : variable_names) {
+    for (const wstring& name : variable_names) {
       RegisterBufferFieldInt(buffer.get(), IntStruct()->find_variable(name));
     }
   }
 
   {
-    vector<string> variable_names;
+    vector<wstring> variable_names;
     ValueStruct()->RegisterVariableNames(&variable_names);
-    for (const string& name : variable_names) {
+    for (const wstring& name : variable_names) {
       RegisterBufferFieldValue(
           buffer.get(), ValueStruct()->find_variable(name));
     }
@@ -256,13 +257,13 @@ using std::to_string;
           assert(buffer != nullptr);
           return Value::NewInteger(buffer->contents()->size());
         };
-    buffer->AddField("line_count", std::move(callback));
+    buffer->AddField(L"line_count", std::move(callback));
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
     callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
     callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
-    callback->type.type_arguments.push_back(VMType::ObjectType("LineColumn"));
+    callback->type.type_arguments.push_back(VMType::ObjectType(L"LineColumn"));
     callback->callback =
         [](vector<unique_ptr<Value>> args) {
           assert(args.size() == 2);
@@ -273,11 +274,11 @@ using std::to_string;
               *static_cast<LineColumn*>(args[1]->user_value.get()));
           return Value::NewVoid();
         };
-    buffer->AddField("set_position", std::move(callback));
+    buffer->AddField(L"set_position", std::move(callback));
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType::ObjectType("LineColumn"));
+    callback->type.type_arguments.push_back(VMType::ObjectType(L"LineColumn"));
     callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
     callback->callback =
         [](vector<unique_ptr<Value>> args) {
@@ -285,10 +286,10 @@ using std::to_string;
           assert(args[0]->type == VMType::OBJECT_TYPE);
           auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
           assert(buffer != nullptr);
-          return Value::NewObject("LineColumn", shared_ptr<LineColumn>(
+          return Value::NewObject(L"LineColumn", shared_ptr<LineColumn>(
               new LineColumn(buffer->position())));
         };
-    buffer->AddField("position", std::move(callback));
+    buffer->AddField(L"position", std::move(callback));
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
@@ -305,7 +306,7 @@ using std::to_string;
           return Value::NewString(
               buffer->contents()->at(args[1]->integer)->ToString());
         };
-    buffer->AddField("line", std::move(callback));
+    buffer->AddField(L"line", std::move(callback));
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
@@ -326,7 +327,7 @@ using std::to_string;
           unique_ptr<TransformationStack> transformation(
               new TransformationStack());
           while (buffer->position().line + 1 < buffer->contents()->size()) {
-            string current_line = buffer->current_line()->ToString();
+            wstring current_line = buffer->current_line()->ToString();
             vector<unique_ptr<Value>> line_args;
             line_args.push_back(Value::NewString(current_line));
             unique_ptr<Value> result = args[1]->callback(std::move(line_args));
@@ -334,7 +335,7 @@ using std::to_string;
               transformation->PushBack(
                   NewDeleteLinesTransformation(Modifiers(), false));
               shared_ptr<OpenBuffer> buffer_to_insert(
-                  new OpenBuffer(editor_state, "tmp buffer"));
+                  new OpenBuffer(editor_state, L"tmp buffer"));
               buffer_to_insert->AppendLine(
                   editor_state, NewCopyString(result->str));
               transformation->PushBack(
@@ -346,7 +347,7 @@ using std::to_string;
           buffer->set_position(old_position);
           return Value::NewVoid();
         };
-    buffer->AddField("Map", std::move(callback));
+    buffer->AddField(L"Map", std::move(callback));
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
@@ -366,7 +367,7 @@ using std::to_string;
           editor_state->ScheduleRedraw();
           return Value::NewVoid();
         };
-    buffer->AddField("Filter", std::move(callback));
+    buffer->AddField(L"Filter", std::move(callback));
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
@@ -389,7 +390,7 @@ using std::to_string;
               NewDeleteCharactersTransformation(modifiers, true));
           return Value::NewVoid();
         };
-    buffer->AddField("DeleteCharacters", std::move(callback));
+    buffer->AddField(L"DeleteCharacters", std::move(callback));
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
@@ -407,12 +408,12 @@ using std::to_string;
           CHECK(buffer != nullptr);
 
           shared_ptr<OpenBuffer> buffer_to_insert(
-              new OpenBuffer(editor_state, "tmp buffer"));
+              new OpenBuffer(editor_state, L"tmp buffer"));
 
           // getline will silently eat the last (empty) line.
-          std::istringstream text_stream(args[1]->str + "\n");
-          std::string line;
-          while (std::getline(text_stream, line, '\n')) {
+          std::wistringstream text_stream(args[1]->str + L"\n");
+          std::wstring line;
+          while (std::getline(text_stream, line, wchar_t('\n'))) {
             buffer_to_insert->AppendLine(editor_state, NewCopyString(line));
           }
 
@@ -421,19 +422,16 @@ using std::to_string;
 
           return Value::NewVoid();
         };
-    buffer->AddField("InsertText", std::move(callback));
+    buffer->AddField(L"InsertText", std::move(callback));
   }
 
-  environment->DefineType("Buffer", std::move(buffer));
+  environment->DefineType(L"Buffer", std::move(buffer));
 }
 
-OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
+OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
     : name_(name),
       fd_(-1),
       fd_is_terminal_(false),
-      buffer_(nullptr),
-      buffer_length_(0),
-      buffer_size_(0),
       child_pid_(-1),
       child_exit_status_(0),
       position_pts_(LineColumn(0, 0)),
@@ -450,11 +448,11 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const string& name)
       environment_(editor_state->environment()),
       filter_version_(0),
       last_transformation_(NewNoopTransformation()) {
-  environment_.Define("buffer", Value::NewObject(
-      "Buffer", shared_ptr<void>(this, [](void*){})));
-  set_string_variable(variable_path(), "");
-  set_string_variable(variable_pts_path(), "");
-  set_string_variable(variable_command(), "");
+  environment_.Define(L"buffer", Value::NewObject(
+      L"Buffer", shared_ptr<void>(this, [](void*){})));
+  set_string_variable(variable_path(), L"");
+  set_string_variable(variable_pts_path(), L"");
+  set_string_variable(variable_command(), L"");
   set_bool_variable(variable_reload_after_exit(), false);
   ClearContents();
 }
@@ -475,11 +473,12 @@ void OpenBuffer::ClearContents() {
 
 void OpenBuffer::EndOfFile(EditorState* editor_state) {
   close(fd_);
-  buffer_ = static_cast<char*>(realloc(buffer_, buffer_length_));
-  buffer_size_ = buffer_length_;
+  low_buffer_ = nullptr;
+  low_buffer_length_ = 0;
   if (child_pid_ != -1) {
     if (waitpid(child_pid_, &child_exit_status_, 0) == -1) {
-      editor_state->SetStatus("waitpid failed: " + string(strerror(errno)));
+      editor_state->SetStatus(
+          L"waitpid failed: " + FromByteString(strerror(errno)));
       return;
     }
   }
@@ -506,30 +505,53 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
 }
 
 void OpenBuffer::ReadData(EditorState* editor_state) {
-  assert(fd_ > 0);
-  assert(buffer_length_ <= buffer_size_);
-  if (buffer_length_ == buffer_size_) {
-    buffer_size_ = buffer_size_ ? buffer_size_ * 2 : 64 * 1024;
-    buffer_ = static_cast<char*>(realloc(buffer_, buffer_size_));
+  static const size_t kLowBufferSize = 1024 * 60;
+  if (low_buffer_ == nullptr) {
+    CHECK_EQ(low_buffer_length_, 0);
+    low_buffer_ = static_cast<char*>(malloc(kLowBufferSize));
   }
   ssize_t characters_read =
-      read(fd_, buffer_ + buffer_length_, buffer_size_ - buffer_length_);
+      read(fd_, low_buffer_ + low_buffer_length_,
+           kLowBufferSize - low_buffer_length_);
+  LOG(INFO) << "Read returns: " << characters_read;
   if (characters_read == -1) {
     if (errno == EAGAIN) {
       return;
     }
     return EndOfFile(editor_state);
   }
-  assert(characters_read >= 0);
+  CHECK_GE(characters_read, 0);
+  CHECK_LE(characters_read, kLowBufferSize - low_buffer_length_);
   if (characters_read == 0) {
     return EndOfFile(editor_state);
   }
+  low_buffer_length_ += characters_read;
 
-  shared_ptr<LazyString> buffer_wrapper(
-      NewMoveableCharBuffer(
-          &buffer_, buffer_length_ + static_cast<size_t>(characters_read)));
-  size_t line_start = buffer_length_;
-  buffer_length_ += static_cast<size_t>(characters_read);
+  const char* low_buffer_tmp = low_buffer_;
+  std::vector<wchar_t> buffer(
+      1 + mbsnrtowcs(nullptr, &low_buffer_tmp, low_buffer_length_, 0, nullptr));
+
+  low_buffer_tmp = low_buffer_;
+  mbsnrtowcs(&buffer[0], &low_buffer_tmp, low_buffer_length_, buffer.size(),
+             nullptr);
+
+  shared_ptr<LazyString> buffer_wrapper(NewStringFromVector(std::move(buffer)));
+  VLOG(5) << "Input: [" << buffer_wrapper->ToString() << "]";
+
+  size_t processed = low_buffer_tmp == nullptr
+      ? low_buffer_length_
+      : low_buffer_tmp - low_buffer_;
+  VLOG(5) << name_ << ": Characters consumed: " << processed;
+  VLOG(5) << name_ << ": Characters produced: " << buffer_wrapper->size();
+  CHECK_LE(processed, low_buffer_length_);
+  memmove(low_buffer_, low_buffer_tmp, low_buffer_length_ - processed);
+  low_buffer_length_ -= processed;
+  if (low_buffer_length_ == 0) {
+    LOG(INFO) << "Consumed all input.";
+    free(low_buffer_);
+    low_buffer_ = nullptr;
+  }
+
   if (contents_.empty()) {
     contents_.emplace_back(new Line(Line::Options()));
     if (read_bool_variable(variable_follow_end_of_file())) {
@@ -538,21 +560,21 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
   }
 
   if (read_bool_variable(variable_vm_exec())) {
-    EvaluateString(editor_state, string(buffer_ + line_start, characters_read));
+    EvaluateString(editor_state, buffer_wrapper->ToString());
   }
 
   if (read_bool_variable(variable_pts())) {
-    ProcessCommandInput(
-        editor_state,
-        Substring(buffer_wrapper, line_start, buffer_length_ - line_start));
+    ProcessCommandInput(editor_state, buffer_wrapper);
     editor_state->ScheduleRedraw();
   } else {
-    for (size_t i = line_start; i < buffer_length_; i++) {
-      if (buffer_[i] == '\n') {
-        AppendToLastLine(
-            editor_state,
-            Substring(buffer_wrapper, line_start, i - line_start));
-        assert(line_.line() <= contents_.size());
+    size_t line_start = 0;
+    for (size_t i = 0; i < buffer_wrapper->size(); i++) {
+      if (buffer_wrapper->get(i) == '\n') {
+        auto line = Substring(buffer_wrapper, line_start, i - line_start);
+        VLOG(6) << "Adding line of length: " << line->size();
+        VLOG(7) << "Adding line: " << line->ToString();
+        AppendToLastLine(editor_state, line);
+        CHECK_LE(line_.line(), contents_.size());
         contents_.emplace_back(new Line(Line::Options()));
         if (read_bool_variable(variable_follow_end_of_file())) {
           line_ = BufferLineIterator(this, contents_.size());
@@ -566,10 +588,11 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
         }
       }
     }
-    if (line_start < buffer_length_) {
+    if (line_start < buffer_wrapper->size()) {
       AppendToLastLine(
           editor_state,
-          Substring(buffer_wrapper, line_start, buffer_length_ - line_start));
+          Substring(buffer_wrapper, line_start,
+                    buffer_wrapper->size() - line_start));
     }
   }
   if (editor_state->has_current_buffer()
@@ -586,7 +609,7 @@ void OpenBuffer::Reload(EditorState* editor_state) {
     return;
   }
   for (const auto& dir : editor_state->edge_path()) {
-    EvaluateFile(editor_state, dir + "/hooks/buffer-reload.cc");
+    EvaluateFile(editor_state, dir + L"/hooks/buffer-reload.cc");
   }
   ReloadInto(editor_state, this);
   set_modified(false);
@@ -601,7 +624,7 @@ void OpenBuffer::Reload(EditorState* editor_state) {
 
 void OpenBuffer::Save(EditorState* editor_state) {
   LOG(INFO) << "Saving buffer: " << name_;
-  editor_state->SetStatus("Buffer can't be saved.");
+  editor_state->SetStatus(L"Buffer can't be saved.");
 }
 
 void OpenBuffer::AppendLazyString(
@@ -618,7 +641,7 @@ void OpenBuffer::AppendLazyString(
 }
 
 static void AddToParseTree(const shared_ptr<LazyString>& str_input) {
-  string str = str_input->ToString();
+  wstring str = str_input->ToString();
 }
 
 void OpenBuffer::AppendLine(EditorState* editor_state, shared_ptr<LazyString> str) {
@@ -636,7 +659,7 @@ void OpenBuffer::AppendLine(EditorState* editor_state, shared_ptr<LazyString> st
   }
 
   if (contents_.empty()) {
-    if (str->ToString() == "EDGE PARSER v1.0") {
+    if (str->ToString() == L"EDGE PARSER v1.0") {
       reading_from_parser_ = true;
       return;
     }
@@ -678,7 +701,7 @@ void OpenBuffer::ProcessCommandInput(
         }
       }
     } else if (c == '\a') {
-      editor_state->SetStatus("beep!");
+      editor_state->SetStatus(L"beep!");
     } else if (c == '\r') {
       position_pts_.column = 0;
       if (read_bool_variable(variable_follow_end_of_file())) {
@@ -864,7 +887,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
           size_t line_delta = 0, column_delta = 0;
           size_t pos = sequence.find(';');
           try {
-            if (pos != string::npos) {
+            if (pos != wstring::npos) {
               line_delta = pos == 0 ? 0 : stoul(sequence.substr(0, pos)) - 1;
               column_delta = pos == sequence.size() - 1
                   ? 0 : stoul(sequence.substr(pos + 1)) - 1;
@@ -873,8 +896,8 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
             }
           } catch (const std::invalid_argument& ia) {
             editor_state->SetStatus(
-                "Unable to parse sequence from terminal in 'home' command: \""
-                + sequence + "\"");
+                L"Unable to parse sequence from terminal in 'home' command: \""
+                + FromByteString(sequence) + L"\"");
           }
           DLOG(INFO) << "Move cursor home: line: " << line_delta << ", column: "
                      << column_delta;
@@ -950,23 +973,24 @@ void OpenBuffer::AppendToLastLine(
   contents_.rbegin()->reset(new Line(options));
 }
 
-void OpenBuffer::EvaluateString(EditorState* editor_state, const string& code) {
-  string error_description;
+void OpenBuffer::EvaluateString(EditorState* editor_state,
+                                const wstring& code) {
+  wstring error_description;
   unique_ptr<Expression> expression(
       CompileString(code, &environment_, &error_description));
   if (expression == nullptr) {
-    editor_state->SetStatus("Compilation error: " + error_description);
+    editor_state->SetStatus(L"Compilation error: " + error_description);
     return;
   }
   Evaluate(expression.get(), &environment_);
 }
 
-void OpenBuffer::EvaluateFile(EditorState* editor_state, const string& path) {
-  string error_description;
+void OpenBuffer::EvaluateFile(EditorState* editor_state, const wstring& path) {
+  wstring error_description;
   unique_ptr<Expression> expression(
-      CompileFile(path, &environment_, &error_description));
+      CompileFile(ToByteString(path), &environment_, &error_description));
   if (expression == nullptr) {
-    editor_state->SetStatus("Compilation error: " + error_description);
+    editor_state->SetStatus(L"Compilation error: " + error_description);
     return;
   }
   Evaluate(expression.get(), &environment_);
@@ -1047,7 +1071,7 @@ void OpenBuffer::CheckPosition() {
 
 bool OpenBuffer::BoundWordAt(
     const LineColumn& position_input, LineColumn* start, LineColumn* end) {
-  const string& word_char = read_string_variable(variable_word_characters());
+  const wstring& word_char = read_string_variable(variable_word_characters());
   LineColumn position(position_input);
 
   // Seek forwards until we're at a word character.
@@ -1065,7 +1089,7 @@ bool OpenBuffer::BoundWordAt(
 
   // Seek backwards until we're at the beginning of the word.
   while (!at_beginning_of_line(position)
-         && word_char.find(character_at(LineColumn(position.line, position.column - 1))) != string::npos) {
+         && word_char.find(character_at(LineColumn(position.line, position.column - 1))) != wstring::npos) {
     assert(position.column > 0);
     position.column--;
   }
@@ -1074,7 +1098,7 @@ bool OpenBuffer::BoundWordAt(
 
   // Seek forwards until the next space.
   while (!at_end_of_line(position)
-         && word_char.find(character_at(position)) != string::npos) {
+         && word_char.find(character_at(position)) != wstring::npos) {
     position.column ++;
   }
 
@@ -1082,15 +1106,15 @@ bool OpenBuffer::BoundWordAt(
   return true;
 }
 
-string OpenBuffer::ToString() const {
+wstring OpenBuffer::ToString() const {
   size_t size = 0;
   for (auto& it : contents_) {
     size += it->size() + 1;
   }
-  string output;
+  wstring output;
   output.reserve(size);
   for (auto& it : contents_) {
-    output.append(it->ToString() + "\n");
+    output.append(it->ToString() + L"\n");
   }
   output = output.substr(0, output.size() - 1);
   return output;
@@ -1102,9 +1126,9 @@ void OpenBuffer::PushSignal(EditorState* editor_state, int sig) {
       if (read_bool_variable(variable_pts())) {
         string sequence(1, 0x03);
         write(fd_, sequence.c_str(), sequence.size());
-        editor_state->SetStatus("SIGINT");
+        editor_state->SetStatus(L"SIGINT");
       } else if (child_pid_ != -1) {
-        editor_state->SetStatus("SIGINT >> pid:" + to_string(child_pid_));
+        editor_state->SetStatus(L"SIGINT >> pid:" + to_wstring(child_pid_));
         kill(child_pid_, sig);
       }
       break;
@@ -1120,7 +1144,7 @@ void OpenBuffer::PushSignal(EditorState* editor_state, int sig) {
       break;
 
     default:
-      editor_state->SetStatus("Unexpected signal received: " + to_string(sig));
+      editor_state->SetStatus(L"Unexpected signal received: " + to_wstring(sig));
   }
 }
 
@@ -1128,9 +1152,8 @@ void OpenBuffer::SetInputFile(
     int input_fd, bool fd_is_terminal, pid_t child_pid) {
   if (read_bool_variable(variable_clear_on_reload())) {
     ClearContents();
-    buffer_ = nullptr;
-    buffer_length_ = 0;
-    buffer_size_ = 0;
+    low_buffer_ = nullptr;
+    low_buffer_length_ = 0;
   }
   if (fd_ != -1) {
     close(fd_);
@@ -1141,30 +1164,30 @@ void OpenBuffer::SetInputFile(
   child_pid_ = child_pid;
 }
 
-string OpenBuffer::FlagsString() const {
-  string output;
+wstring OpenBuffer::FlagsString() const {
+  wstring output;
   if (modified()) {
-    output += "~";
+    output += L"~";
   }
   if (fd() != -1) {
-    output += "< l:" + to_string(contents_.size());
+    output += L"< l:" + to_wstring(contents_.size());
     if (read_bool_variable(variable_follow_end_of_file())) {
-      output += " follow";
+      output += L" follow";
     }
-    string pts_path = read_string_variable(variable_pts_path());
+    wstring pts_path = read_string_variable(variable_pts_path());
     if (!pts_path.empty()) {
-      output += " " + pts_path;
+      output += L" " + pts_path;
     }
   }
   if (child_pid_ != -1) {
-    output += " pid:" + to_string(child_pid_);
+    output += L" pid:" + to_wstring(child_pid_);
   } else if (child_exit_status_ != 0) {
     if (WIFEXITED(child_exit_status_)) {
-      output += " exit:" + to_string(WEXITSTATUS(child_exit_status_));
+      output += L" exit:" + to_wstring(WEXITSTATUS(child_exit_status_));
     } else if (WIFSIGNALED(child_exit_status_)) {
-      output += " signal:" + to_string(WTERMSIG(child_exit_status_));
+      output += L" signal:" + to_wstring(WTERMSIG(child_exit_status_));
     } else {
-      output += " exit-status:" + to_string(child_exit_status_);
+      output += L" exit-status:" + to_wstring(child_exit_status_);
     }
   }
   return output;
@@ -1194,128 +1217,128 @@ string OpenBuffer::FlagsString() const {
 
 /* static */ EdgeVariable<char>* OpenBuffer::variable_pts() {
   static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
-      "pts",
-      "If a command is forked that writes to this buffer, should it be run "
-      "with its own pseudoterminal?",
+      L"pts",
+      L"If a command is forked that writes to this buffer, should it be run "
+      L"with its own pseudoterminal?",
       false);
   return variable;
 }
 
 /* static */ EdgeVariable<char>* OpenBuffer::variable_vm_exec() {
   static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
-      "vm_exec",
-      "If set, all input read into this buffer will be executed.",
+      L"vm_exec",
+      L"If set, all input read into this buffer will be executed.",
       false);
   return variable;
 }
 
 /* static */ EdgeVariable<char>* OpenBuffer::variable_close_after_clean_exit() {
   static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
-      "close_after_clean_exit",
-      "If a command is forked that writes to this buffer, should the buffer be "
-      "closed when the command exits with a successful status code?",
+      L"close_after_clean_exit",
+      L"If a command is forked that writes to this buffer, should the buffer be "
+      L"closed when the command exits with a successful status code?",
       false);
   return variable;
 }
 
 /* static */ EdgeVariable<char>* OpenBuffer::variable_reload_after_exit() {
   static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
-      "reload_after_exit",
-      "If a forked command that writes to this buffer exits, should Edge "
-      "reload the buffer?",
+      L"reload_after_exit",
+      L"If a forked command that writes to this buffer exits, should Edge "
+      L"reload the buffer?",
       false);
   return variable;
 }
 
 /* static */ EdgeVariable<char>* OpenBuffer::variable_default_reload_after_exit() {
   static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
-      "default_reload_after_exit",
-      "If a forked command that writes to this buffer exits and "
-      "reload_after_exit is set, what should Edge set reload_after_exit just "
-      "after reloading the buffer?",
+      L"default_reload_after_exit",
+      L"If a forked command that writes to this buffer exits and "
+      L"reload_after_exit is set, what should Edge set reload_after_exit just "
+      L"after reloading the buffer?",
       false);
   return variable;
 }
 
 /* static */ EdgeVariable<char>* OpenBuffer::variable_reload_on_enter() {
   static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
-      "reload_on_enter",
-      "Should this buffer be reloaded automatically when visited?",
+      L"reload_on_enter",
+      L"Should this buffer be reloaded automatically when visited?",
       false);
   return variable;
 }
 
 /* static */ EdgeVariable<char>* OpenBuffer::variable_atomic_lines() {
   static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
-      "atomic_lines",
-      "If true, lines can't be joined (e.g. you can't delete the last "
-      "character in a line unless the line is empty).  This is used by certain "
-      "buffers that represent lists of things (each represented as a line), "
-      "for which this is a natural behavior.",
+      L"atomic_lines",
+      L"If true, lines can't be joined (e.g. you can't delete the last "
+      L"character in a line unless the line is empty).  This is used by certain "
+      L"buffers that represent lists of things (each represented as a line), "
+      L"for which this is a natural behavior.",
       false);
   return variable;
 }
 
 /* static */ EdgeVariable<char>* OpenBuffer::variable_save_on_close() {
   static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
-      "save_on_close",
-      "Should this buffer be saved automatically when it's closed?",
+      L"save_on_close",
+      L"Should this buffer be saved automatically when it's closed?",
       false);
   return variable;
 }
 
 /* static */ EdgeVariable<char>* OpenBuffer::variable_clear_on_reload() {
   static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
-      "clear_on_reload",
-      "Should any previous contents be discarded when this buffer is reloaded? "
-      "If false, previous contents will be preserved and new contents will be "
-      "appended at the end.",
+      L"clear_on_reload",
+      L"Should any previous contents be discarded when this buffer is reloaded? "
+      L"If false, previous contents will be preserved and new contents will be "
+      L"appended at the end.",
       true);
   return variable;
 }
 
 /* static */ EdgeVariable<char>* OpenBuffer::variable_paste_mode() {
   static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
-      "paste_mode",
-      "When paste_mode is enabled in a buffer, it will be displayed in a way "
-      "that makes it possible to select (with a mouse) parts of it (that are "
-      "currently shown).  It will also allow you to paste text directly into "
-      "the buffer.",
+      L"paste_mode",
+      L"When paste_mode is enabled in a buffer, it will be displayed in a way "
+      L"that makes it possible to select (with a mouse) parts of it (that are "
+      L"currently shown).  It will also allow you to paste text directly into "
+      L"the buffer.",
       false);
   return variable;
 }
 
 /* static */ EdgeVariable<char>* OpenBuffer::variable_follow_end_of_file() {
   static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
-      "follow_end_of_file",
-      "Should the cursor stay at the end of the file?",
+      L"follow_end_of_file",
+      L"Should the cursor stay at the end of the file?",
       false);
   return variable;
 }
 
 /* static */ EdgeVariable<char>* OpenBuffer::variable_commands_background_mode() {
   static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
-      "commands_background_mode",
-      "Should new commands forked from this buffer be started in background "
-      "mode?  If false, we will switch to them automatically.",
+      L"commands_background_mode",
+      L"Should new commands forked from this buffer be started in background "
+      L"mode?  If false, we will switch to them automatically.",
       false);
   return variable;
 }
 
 /* static */ EdgeVariable<char>* OpenBuffer::variable_reload_on_buffer_write() {
   static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
-      "reload_on_buffer_write",
-      "Should the current buffer (on which this variable is set) be reloaded "
-      "when any buffer is written?  This is useful mainly for command buffers "
-      "like 'make' or 'git diff'.",
+      L"reload_on_buffer_write",
+      L"Should the current buffer (on which this variable is set) be reloaded "
+      L"when any buffer is written?  This is useful mainly for command buffers "
+      L"like 'make' or 'git diff'.",
       false);
   return variable;
 }
 
-/* static */ EdgeStruct<string>* OpenBuffer::StringStruct() {
-  static EdgeStruct<string>* output = nullptr;
+/* static */ EdgeStruct<wstring>* OpenBuffer::StringStruct() {
+  static EdgeStruct<wstring>* output = nullptr;
   if (output == nullptr) {
-    output = new EdgeStruct<string>;
+    output = new EdgeStruct<wstring>;
     // Trigger registration of all fields.
     OpenBuffer::variable_word_characters();
     OpenBuffer::variable_path_characters();
@@ -1329,57 +1352,57 @@ string OpenBuffer::FlagsString() const {
   return output;
 }
 
-/* static */ EdgeVariable<string>* OpenBuffer::variable_word_characters() {
-  static EdgeVariable<string>* variable = StringStruct()->AddVariable(
-      "word_characters",
-      "String with all the characters that should be considered part of a "
-      "word.",
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
+/* static */ EdgeVariable<wstring>* OpenBuffer::variable_word_characters() {
+  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
+      L"word_characters",
+      L"String with all the characters that should be considered part of a "
+      L"word.",
+      L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
   return variable;
 }
 
-/* static */ EdgeVariable<string>* OpenBuffer::variable_path_characters() {
-  static EdgeVariable<string>* variable = StringStruct()->AddVariable(
-      "path_characters",
-      "String with all the characters that should be considered part of a "
-      "path.",
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-.*:/");
+/* static */ EdgeVariable<wstring>* OpenBuffer::variable_path_characters() {
+  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
+      L"path_characters",
+      L"String with all the characters that should be considered part of a "
+      L"path.",
+      L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-.*:/");
   return variable;
 }
 
-/* static */ EdgeVariable<string>* OpenBuffer::variable_path() {
-  static EdgeVariable<string>* variable = StringStruct()->AddVariable(
-      "path",
-      "String with the path of the current file.",
-      "",
+/* static */ EdgeVariable<wstring>* OpenBuffer::variable_path() {
+  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
+      L"path",
+      L"String with the path of the current file.",
+      L"",
       FilePredictor);
   return variable;
 }
 
-/* static */ EdgeVariable<string>* OpenBuffer::variable_pts_path() {
-  static EdgeVariable<string>* variable = StringStruct()->AddVariable(
-      "pts_path",
-      "String with the path of the terminal used by the current buffer (or "
-      "empty if the user is not using a terminal).",
-      "",
+/* static */ EdgeVariable<wstring>* OpenBuffer::variable_pts_path() {
+  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
+      L"pts_path",
+      L"String with the path of the terminal used by the current buffer (or "
+      L"empty if the user is not using a terminal).",
+      L"",
       FilePredictor);
   return variable;
 }
 
-/* static */ EdgeVariable<string>* OpenBuffer::variable_command() {
-  static EdgeVariable<string>* variable = StringStruct()->AddVariable(
-      "command",
-      "String with the current command (or empty).",
-      "",
+/* static */ EdgeVariable<wstring>* OpenBuffer::variable_command() {
+  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
+      L"command",
+      L"String with the current command (or empty).",
+      L"",
       FilePredictor);
   return variable;
 }
 
-/* static */ EdgeVariable<string>* OpenBuffer::variable_editor_commands_path() {
-  static EdgeVariable<string>* variable = StringStruct()->AddVariable(
-      "editor_commands_path",
-      "String with the path to the initial directory for editor commands.",
-      "",
+/* static */ EdgeVariable<wstring>* OpenBuffer::variable_editor_commands_path() {
+  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
+      L"editor_commands_path",
+      L"String with the path to the initial directory for editor commands.",
+      L"",
       FilePredictor);
   return variable;
 }
@@ -1396,8 +1419,8 @@ string OpenBuffer::FlagsString() const {
 
 /* static */ EdgeVariable<int>* OpenBuffer::variable_line_width() {
   static EdgeVariable<int>* variable = IntStruct()->AddVariable(
-      "line_width",
-      "Desired maximum width of a line.",
+      L"line_width",
+      L"Desired maximum width of a line.",
       80);
   return variable;
 }
@@ -1412,28 +1435,28 @@ string OpenBuffer::FlagsString() const {
   return output;
 }
 
-/* static */ EdgeVariable<string>*
+/* static */ EdgeVariable<wstring>*
 OpenBuffer::variable_line_prefix_characters() {
-  static EdgeVariable<string>* variable = StringStruct()->AddVariable(
-      "line_prefix_characters",
-      "String with all the characters that should be considered the prefix of "
-      "the actual contents of a line.  When a new line is created, the prefix "
-      "of the previous line (the sequence of all characters at the start of "
-      "the previous line that are listed in line_prefix_characters) is copied "
-      "to the new line.  The order of characters in line_prefix_characters has "
-      "no effect.",
-      " ");
+  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
+      L"line_prefix_characters",
+      L"String with all the characters that should be considered the prefix of "
+      L"the actual contents of a line.  When a new line is created, the prefix "
+      L"of the previous line (the sequence of all characters at the start of "
+      L"the previous line that are listed in line_prefix_characters) is copied "
+      L"to the new line.  The order of characters in line_prefix_characters has "
+      L"no effect.",
+      L" ");
   return variable;
 }
 
-/* static */ EdgeVariable<string>*
+/* static */ EdgeVariable<wstring>*
 OpenBuffer::variable_line_suffix_superfluous_characters() {
-  static EdgeVariable<string>* variable = StringStruct()->AddVariable(
-      "line_suffix_superfluous_characters",
-      "String with all the characters that should be removed from the suffix "
-      "of a line (after editing it).  The order of characters in "
-      "line_suffix_superfluous_characters has no effect.",
-      " ");
+  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
+      L"line_suffix_superfluous_characters",
+      L"String with all the characters that should be removed from the suffix "
+      L"of a line (after editing it).  The order of characters in "
+      L"line_suffix_superfluous_characters has no effect.",
+      L" ");
   return variable;
 }
 
@@ -1450,13 +1473,13 @@ void OpenBuffer::toggle_bool_variable(const EdgeVariable<char>* variable) {
   set_bool_variable(variable, !read_bool_variable(variable));
 }
 
-const string& OpenBuffer::read_string_variable(
-    const EdgeVariable<string>* variable) const {
+const wstring& OpenBuffer::read_string_variable(
+    const EdgeVariable<wstring>* variable) const {
   return string_variables_.Get(variable);
 }
 
 void OpenBuffer::set_string_variable(
-    const EdgeVariable<string>* variable, const string& value) {
+    const EdgeVariable<wstring>* variable, const wstring& value) {
   string_variables_.Set(variable, value);
 }
 

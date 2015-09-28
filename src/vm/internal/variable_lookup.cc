@@ -14,10 +14,11 @@ namespace afc {
 namespace vm {
 
 namespace {
-  
+
+// TODO: Don't pass symbol by const reference.
 class VariableLookup : public Expression {
  public:
-  VariableLookup(const string& symbol, const VMType& type)
+  VariableLookup(const wstring& symbol, const VMType& type)
       : symbol_(symbol), type_(type) {}
 
   const VMType& type() {
@@ -25,24 +26,25 @@ class VariableLookup : public Expression {
   }
 
   void Evaluate(OngoingEvaluation* evaluation) {
-    DVLOG(5) << "Look up symbol: " << symbol_;
+    // TODO: Enable this logging.
+    // DVLOG(5) << "Look up symbol: " << symbol_;
     Value* result = evaluation->environment->Lookup(symbol_);
     assert(result != nullptr);
     evaluation->value = unique_ptr<Value>(new Value(*result));
   }
 
  private:
-  const string symbol_;
+  const wstring symbol_;
   const VMType type_;
 };
 
 }  // namespace
 
 unique_ptr<Expression> NewVariableLookup(
-    Compilation* compilation, const string& symbol) {
+    Compilation* compilation, const wstring& symbol) {
   Value* result = compilation->environment->Lookup(symbol);
   if (result == nullptr) {
-    compilation->AddError("Variable not found: \"" + symbol + "\"");
+    compilation->AddError(L"Variable not found: \"" + symbol + L"\"");
     return nullptr;
   }
   return unique_ptr<Expression>(new VariableLookup(symbol, result->type));

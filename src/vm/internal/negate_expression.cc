@@ -45,8 +45,9 @@ unique_ptr<Expression> NewNegateExpression(
     return nullptr;
   }
   if (!(expr->type() == expected_type)) {
-    compilation->errors.push_back("Can't negate an expression of type: "
-                                  + expr->type().ToString());
+    compilation->errors.push_back(
+        L"Can't negate an expression of type: \"" + expr->type().ToString()
+        + L"\"");
     return nullptr;
   }
   return unique_ptr<Expression>(

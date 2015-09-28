@@ -14,7 +14,7 @@ AC_PROG_CC
 AC_PROG_MAKE_SET
 
 # Checks for libraries.
-AC_CHECK_LIB([ncurses], [initscr])
+AC_CHECK_LIB([ncursesw], [addwstr])
 AC_CHECK_LIB([pthread], [pthread_create])
 
 # Checks for header files.

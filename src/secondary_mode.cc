@@ -27,8 +27,8 @@ namespace editor {
 namespace {
 
 class RecordCommand : public Command {
-  const string Description() {
-    return "starts/stops recording a transformation";
+  const wstring Description() {
+    return L"starts/stops recording a transformation";
   }
 
   void ProcessInput(int, EditorState* editor_state) {
@@ -36,18 +36,18 @@ class RecordCommand : public Command {
     auto buffer = editor_state->current_buffer();
     if (buffer->second->HasTransformationStack()) {
       buffer->second->PopTransformationStack();
-      editor_state->SetStatus("Recording: stop");
+      editor_state->SetStatus(L"Recording: stop");
     } else {
       buffer->second->PushTransformationStack();
-      editor_state->SetStatus("Recording: start");
+      editor_state->SetStatus(L"Recording: start");
     }
     editor_state->ResetMode();
   }
 };
 
 class RestoreCommandMode : public Command {
-  const string Description() {
-    return "restores command mode";
+  const wstring Description() {
+    return L"restores command mode";
   }
 
   void ProcessInput(int, EditorState* editor_state) {
@@ -63,12 +63,12 @@ using std::map;
 using std::shared_ptr;
 using std::unique_ptr;
 
-static const map<int, Command*>& GetSecondaryModeMap() {
-  static map<int, Command*> output;
+static const map<wchar_t, Command*>& GetSecondaryModeMap() {
+  static map<wchar_t, Command*> output;
   if (output.empty()) {
     output.insert(make_pair('r', new RecordCommand()));
     output.insert(make_pair('?',
-        NewHelpCommand(output, "secondary command mode").release()));
+        NewHelpCommand(output, L"secondary command mode").release()));
   }
   return output;
 }

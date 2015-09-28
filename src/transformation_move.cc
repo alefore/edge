@@ -64,8 +64,8 @@ class MoveTransformation : public Transformation {
     return position;
   }
 
-  static bool StringContains(const string& str, int c) {
-    return str.find(static_cast<char>(c)) != string::npos;
+  static bool StringContains(const wstring& str, int c) {
+    return str.find(static_cast<char>(c)) != wstring::npos;
   }
 
   LineColumn
@@ -73,7 +73,7 @@ class MoveTransformation : public Transformation {
                       bool word_character, LineColumn position) const {
     auto line = buffer->contents()->at(position.line);
 
-    const string& word_chars =
+    const wstring& word_chars =
         buffer->read_string_variable(buffer->variable_word_characters());
 
     LOG(INFO) << "Seek (" << word_character << ") starting at: " << position;

@@ -13,22 +13,22 @@ Environment* BuildDefaultEnvironment() {
   Environment* environment = new Environment();
   RegisterStringType(environment);
   environment->DefineType(
-      "bool", unique_ptr<ObjectType>(new ObjectType(VMType::Bool())));
+      L"bool", unique_ptr<ObjectType>(new ObjectType(VMType::Bool())));
   environment->DefineType(
-      "int", unique_ptr<ObjectType>(new ObjectType(VMType::Integer())));
+      L"int", unique_ptr<ObjectType>(new ObjectType(VMType::Integer())));
   return environment;
 }
 
 }  // namespace
 
 Environment::Environment()
-    : table_(new map<string, unique_ptr<Value>>),
-      object_types_(new map<string, unique_ptr<ObjectType>>),
+    : table_(new map<wstring, unique_ptr<Value>>),
+      object_types_(new map<wstring, unique_ptr<ObjectType>>),
       parent_environment_(nullptr) {}
 
 Environment::Environment(Environment* parent_environment)
-    : table_(new map<string, unique_ptr<Value>>),
-      object_types_(new map<string, unique_ptr<ObjectType>>),
+    : table_(new map<wstring, unique_ptr<Value>>),
+      object_types_(new map<wstring, unique_ptr<ObjectType>>),
       parent_environment_(parent_environment) {}
 
 /* static */ Environment* Environment::DefaultEnvironment() {
@@ -36,7 +36,7 @@ Environment::Environment(Environment* parent_environment)
   return environment;
 }
 
-const ObjectType* Environment::LookupObjectType(const string& symbol) {
+const ObjectType* Environment::LookupObjectType(const wstring& symbol) {
   auto it = object_types_->find(symbol);
   if (it != object_types_->end()) {
     return it->second.get();
@@ -47,14 +47,14 @@ const ObjectType* Environment::LookupObjectType(const string& symbol) {
   return nullptr;
 }
 
-const VMType* Environment::LookupType(const string& symbol) {
-  if (symbol == "void") {
+const VMType* Environment::LookupType(const wstring& symbol) {
+  if (symbol == L"void") {
     return &VMType::Void();
-  } else if (symbol == "bool") {
+  } else if (symbol == L"bool") {
     return &VMType::Bool();
-  } else if (symbol == "int") {
+  } else if (symbol == L"int") {
     return &VMType::Integer();
-  } else if (symbol == "string") {
+  } else if (symbol == L"string") {
     return &VMType::String();
   }
 
@@ -63,12 +63,12 @@ const VMType* Environment::LookupType(const string& symbol) {
 }
 
 void Environment::DefineType(
-    const string& name, unique_ptr<ObjectType> value) {
+    const wstring& name, unique_ptr<ObjectType> value) {
   auto it = object_types_->insert(make_pair(name, nullptr));
   it.first->second = std::move(value);
 }
 
-Value* Environment::Lookup(const string& symbol) {
+Value* Environment::Lookup(const wstring& symbol) {
   auto it = table_->find(symbol);
   if (it != table_->end()) {
     return it->second.get();
@@ -80,7 +80,7 @@ Value* Environment::Lookup(const string& symbol) {
   return nullptr;
 }
 
-void Environment::Define(const string& symbol, unique_ptr<Value> value) {
+void Environment::Define(const wstring& symbol, unique_ptr<Value> value) {
   auto it = table_->insert(make_pair(symbol, nullptr));
   it.first->second = std::move(value);
 }

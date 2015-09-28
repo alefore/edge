@@ -8,7 +8,7 @@ using namespace afc::editor;
 
 class EmptyStringImpl : public LazyString {
  public:
-  char get(size_t) const { assert(false); }
+  wchar_t get(size_t) const { assert(false); }
   size_t size() const { return 0; }
 };
 

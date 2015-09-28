@@ -19,7 +19,7 @@ class EditorState;
 void StartServer(EditorState* editor_state);
 
 shared_ptr<OpenBuffer>
-OpenServerBuffer(EditorState* editor_state, const string& address);
+OpenServerBuffer(EditorState* editor_state, const wstring& address);
 
 }  // namespace editor
 }  // namespace afc

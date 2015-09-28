@@ -114,7 +114,7 @@ class DeleteSuffixSuperfluousCharacters : public Transformation {
  public:
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
-    const string& superfluous_characters(buffer->read_string_variable(
+    const wstring& superfluous_characters(buffer->read_string_variable(
         OpenBuffer::variable_line_suffix_superfluous_characters()));
     const auto line = buffer->current_line();
     if (!line) { return; }
