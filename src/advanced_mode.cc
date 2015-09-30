@@ -57,7 +57,7 @@ class Quit : public Command {
     return L"quits";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->set_terminate(true);
   }
 };
@@ -67,7 +67,7 @@ class RestoreCommandMode : public Command {
     return L"restores command mode";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->ResetMode();
   }
 };
@@ -77,7 +77,7 @@ class OpenDirectory : public Command {
     return L"opens a view of the current directory";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     wstring path;
     if (!editor_state->has_current_buffer()) {
       path = L".";
@@ -102,7 +102,7 @@ class CloseCurrentBuffer : public Command {
     return L"closes the current buffer (without saving)";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) {
       return;
     }
@@ -121,7 +121,7 @@ class SaveCurrentBuffer : public Command {
     return L"saves the current buffer";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) {
       return;
     }
@@ -187,7 +187,7 @@ class ActivateBufferLineCommand : public EditorMode {
  public:
   ActivateBufferLineCommand(const wstring& name) : name_(name) {}
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(wint_t c, EditorState* editor_state) {
     switch (c) {
       case '\n':  // Open the current buffer.
         {
@@ -255,7 +255,7 @@ class ListBuffers : public Command {
     return L"lists all open buffers";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     auto it = editor_state->buffers()->insert(
         make_pair(OpenBuffer::kBuffersName, nullptr));
     editor_state->set_current_buffer(it.first);
@@ -282,7 +282,7 @@ class ReloadBuffer : public Command {
     return L"reloads the current buffer";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     switch (editor_state->structure()) {
       case LINE:
         if (editor_state->has_current_buffer()) {
@@ -311,7 +311,7 @@ class SendEndOfFile : public Command {
     return L"stops writing to a subprocess (effectively sending EOF).";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->ResetMode();
     if (!editor_state->has_current_buffer()) { return; }
     auto buffer = editor_state->current_buffer()->second;
@@ -350,7 +350,7 @@ class RunCppCommand : public Command {
     return L"prompts for a command (a C string) and runs it";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     switch (editor_state->structure()) {
       case LINE:

@@ -210,7 +210,7 @@ class ForkEditorCommand : public Command {
     return L"forks a subprocess";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     switch (editor_state->structure()) {
       case CHAR:
         Prompt(editor_state, L"$ ", L"commands", L"", RunCommandHandler,

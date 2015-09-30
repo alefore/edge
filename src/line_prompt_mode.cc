@@ -79,7 +79,7 @@ class LinePromptMode : public EditorMode {
         input_(EditableString::New(initial_value)),
         most_recent_char_(0) {}
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(wint_t c, EditorState* editor_state) {
     editor_state->set_status_prompt(true);
     if (initial_buffer_ != editor_state->current_buffer()
         && initial_buffer_ != editor_state->buffers()->end()) {
@@ -221,7 +221,7 @@ class LinePromptCommand : public Command {
     return description_;
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     Prompt(editor_state, prompt_, history_file_, L"", handler_, predictor_);
   }
 

@@ -48,7 +48,7 @@ class FindMode : public EditorMode {
     return false;
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(wint_t c, EditorState* editor_state) {
     editor_state->PushCurrentPosition();
     if (editor_state->has_current_buffer()) {
       auto buffer = editor_state->current_buffer()->second;

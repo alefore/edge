@@ -44,7 +44,7 @@ class GotoCommand : public Command {
     return L"goes to Rth structure from the beginning";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(wint_t c, EditorState* editor_state) {
     if (c != 'g') {
       editor_state->ResetMode();
       editor_state->ProcessInput(c);
@@ -219,7 +219,7 @@ class Delete : public Command {
     return L"deletes the current item (char, word, line ...)";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
 
@@ -262,7 +262,7 @@ class Paste : public Command {
     return L"pastes the last deleted text";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     auto it = editor_state->buffers()->find(OpenBuffer::kPasteBuffer);
     if (it == editor_state->buffers()->end()) {
@@ -290,7 +290,7 @@ class UndoCommand : public Command {
     return L"undoes the last change to the current buffer";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     editor_state->current_buffer()->second->Undo(editor_state);
     editor_state->ResetRepetitions();
@@ -305,7 +305,7 @@ class GotoPreviousPositionCommand : public Command {
     return L"go back to previous position";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     Go(editor_state);
     editor_state->ResetDirection();
     editor_state->ResetRepetitions();
@@ -344,40 +344,40 @@ class LineUp : public Command {
  public:
   const wstring Description();
   static void Move(int c, EditorState* editor_state, Structure structure);
-  void ProcessInput(int c, EditorState* editor_state);
+  void ProcessInput(wint_t c, EditorState* editor_state);
 };
 
 class LineDown : public Command {
  public:
   const wstring Description();
   static void Move(int c, EditorState* editor_state, Structure structure);
-  void ProcessInput(int c, EditorState* editor_state);
+  void ProcessInput(wint_t c, EditorState* editor_state);
 };
 
 class PageUp : public Command {
  public:
   const wstring Description();
   static void Move(int c, EditorState* editor_state);
-  void ProcessInput(int c, EditorState* editor_state);
+  void ProcessInput(wint_t c, EditorState* editor_state);
 };
 
 class PageDown : public Command {
  public:
   const wstring Description();
-  void ProcessInput(int c, EditorState* editor_state);
+  void ProcessInput(wint_t c, EditorState* editor_state);
 };
 
 class MoveForwards : public Command {
  public:
   const wstring Description();
-  void ProcessInput(int c, EditorState* editor_state);
+  void ProcessInput(wint_t c, EditorState* editor_state);
   static void Move(int c, EditorState* editor_state);
 };
 
 class MoveBackwards : public Command {
  public:
   const wstring Description();
-  void ProcessInput(int c, EditorState* editor_state);
+  void ProcessInput(wint_t c, EditorState* editor_state);
   static void Move(int c, EditorState* editor_state);
 };
 
@@ -423,7 +423,7 @@ const wstring LineUp::Description() {
   editor_state->ResetDirection();
 }
 
-void LineUp::ProcessInput(int c, EditorState* editor_state) {
+void LineUp::ProcessInput(wint_t c, EditorState* editor_state) {
   Move(c, editor_state, editor_state->structure());
 }
 
@@ -469,7 +469,7 @@ const wstring LineDown::Description() {
   editor_state->ResetDirection();
 }
 
-void LineDown::ProcessInput(int c, EditorState* editor_state) {
+void LineDown::ProcessInput(wint_t c, EditorState* editor_state) {
   Move(c, editor_state, editor_state->structure());
 }
 
@@ -477,7 +477,7 @@ const wstring PageUp::Description() {
   return L"moves up one page";
 }
 
-void PageUp::ProcessInput(int c, EditorState* editor_state) {
+void PageUp::ProcessInput(wint_t c, EditorState* editor_state) {
   editor_state->set_repetitions(
       editor_state->repetitions() * editor_state->visible_lines());
   editor_state->ResetStructure();
@@ -488,7 +488,7 @@ const wstring PageDown::Description() {
   return L"moves down one page";
 }
 
-void PageDown::ProcessInput(int c, EditorState* editor_state) {
+void PageDown::ProcessInput(wint_t c, EditorState* editor_state) {
   editor_state->set_repetitions(
       editor_state->repetitions() * editor_state->visible_lines());
   editor_state->ResetStructure();
@@ -499,7 +499,7 @@ const wstring MoveForwards::Description() {
   return L"moves forwards";
 }
 
-void MoveForwards::ProcessInput(int c, EditorState* editor_state) {
+void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
   Move(c, editor_state);
 }
 
@@ -534,7 +534,7 @@ const wstring MoveBackwards::Description() {
   return L"moves backwards";
 }
 
-void MoveBackwards::ProcessInput(int c, EditorState* editor_state) {
+void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
   Move(c, editor_state);
 }
 
@@ -577,7 +577,7 @@ class EnterInsertMode : public Command {
     return L"enters insert mode";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     afc::editor::EnterInsertMode(editor_state);
   }
 };
@@ -588,7 +588,7 @@ class EnterAdvancedMode : public Command {
     return L"enters advanced-command mode (press 'a?' for more)";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->set_mode(NewAdvancedMode());
   }
 };
@@ -599,7 +599,7 @@ class EnterSecondaryMode : public Command {
     return L"enters secondary-command mode (press 's?' for more)";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->set_mode(NewSecondaryMode());
   }
 };
@@ -610,7 +610,7 @@ class EnterFindMode : public Command {
     return L"finds occurrences of a character";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->set_mode(NewFindMode());
   }
 };
@@ -621,7 +621,7 @@ class InsertionModifierCommand : public Command {
     return L"activates replace modifier (overwrites text on insertions)";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     if (editor_state->insertion_modifier() == Modifiers::INSERT) {
       editor_state->set_insertion_modifier(Modifiers::REPLACE);
     } else if (editor_state->default_insertion_modifier() == Modifiers::INSERT) {
@@ -639,7 +639,7 @@ class ReverseDirectionCommand : public Command {
     return L"reverses the direction of the next command";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     VLOG(3) << "Setting reverse direction. [previous modifiers: "
         << editor_state->modifiers();
     if (editor_state->direction() == FORWARDS) {
@@ -667,7 +667,7 @@ class SetStructureCommand : public Command {
     return L"sets the structure: " + description_;
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     if (editor_state->structure() != value_) {
       editor_state->set_structure(value_);
       editor_state->set_sticky_structure(false);
@@ -690,7 +690,7 @@ class SetRegionStartCommand : public Command {
     return L"sets the region start / switches to region mode";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
 
     const auto buffer_it = editor_state->current_buffer();
@@ -726,7 +726,7 @@ class SetStrengthCommand : public Command {
     return L"sets the strength: " + description_;
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     Modifiers modifiers(editor_state->modifiers());
     if (modifiers.strength == value_) {
       modifiers.strength = extreme_value_;
@@ -754,7 +754,7 @@ class SetStructureModifierCommand : public Command {
     return L"sets the structure modifier: " + description_;
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->set_structure_modifier(
         editor_state->structure_modifier() == value_
             ? Modifiers::ENTIRE_STRUCTURE
@@ -779,7 +779,7 @@ class NumberMode : public Command {
     return description_;
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(wint_t c, EditorState* editor_state) {
     editor_state->set_mode(NewRepeatMode(consumer_));
     if (c < '0' || c > '9') { return; }
     editor_state->mode()->ProcessInput(c, editor_state);
@@ -796,7 +796,7 @@ class ActivateLink : public Command {
     return L"activates the current link (if any)";
   }
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(wint_t c, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
     if (buffer->current_line() == nullptr) { return; }
@@ -835,7 +835,7 @@ class StartSearchMode : public Command {
     return L"Searches for a string.";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     switch (editor_state->structure()) {
       case WORD:
         {
@@ -879,7 +879,7 @@ class ResetStateCommand : public Command {
     return L"Resets the state of the editor.";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->set_modifiers(Modifiers());
   }
 };
@@ -890,7 +890,7 @@ class HardRedrawCommand : public Command {
     return L"Redraws the screen";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->set_screen_needs_hard_redraw(true);
   }
 };
@@ -910,7 +910,7 @@ class RunCppFileCommand : public Command {
     return L"runs a command from a file";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     auto buffer = editor_state->current_buffer()->second;
     Prompt(editor_state, L"cmd < ", L"editor_commands",
@@ -975,7 +975,7 @@ class SwitchCaseCommand : public Command {
     return L"Switches the case of the current character.";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     auto buffer = editor_state->current_buffer()->second;
     auto line = buffer->current_line();
@@ -991,7 +991,7 @@ class RepeatLastTransformationCommand : public Command {
     return L"Repeats the last command.";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     editor_state
         ->current_buffer()->second->RepeatLastTransformation(editor_state);

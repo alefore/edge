@@ -17,7 +17,7 @@ class MapMode : public EditorMode {
  public:
   MapMode(const map<wchar_t, Command*>& commands, Command* default_command);
 
-  void ProcessInput(int c, EditorState* editor_state);
+  void ProcessInput(wint_t c, EditorState* editor_state);
 
  private:
   const map<wchar_t, Command*>& commands_;

@@ -18,6 +18,7 @@ extern "C" {
 #include "substring.h"
 #include "terminal.h"
 #include "transformation_delete.h"
+#include "wstring.h"
 
 namespace {
 using namespace afc::editor;
@@ -112,7 +113,7 @@ class InsertMode : public EditorMode {
  public:
   InsertMode() {}
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(wint_t c, EditorState* editor_state) {
     auto buffer = editor_state->current_buffer()->second;
     switch (c) {
       case Terminal::ESCAPE:
@@ -174,10 +175,15 @@ class InsertMode : public EditorMode {
     }
 
     {
+      std::wstring string_to_insert(1, c);
+      VLOG(6) << "String to insert: " << string_to_insert << "(" << c << ")";
+
       shared_ptr<OpenBuffer> buffer_to_insert(
           new OpenBuffer(editor_state, L"- text inserted"));
       buffer_to_insert->contents()->emplace_back(
-          new Line(Line::Options(NewCopyString(wstring(1, c)))));
+          new Line(Line::Options(NewCopyString(string_to_insert))));
+
+      VLOG(5) << "Buffer to insert: " << buffer_to_insert->ToString();
       buffer->Apply(editor_state,
           NewInsertBufferTransformation(buffer_to_insert, 1, END));
     }
@@ -191,7 +197,7 @@ class RawInputTypeMode : public EditorMode {
  public:
   RawInputTypeMode() : buffering_(false) {}
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(wint_t c, EditorState* editor_state) {
     auto buffer = editor_state->current_buffer()->second;
     bool old_literal = literal_;
     literal_ = false;

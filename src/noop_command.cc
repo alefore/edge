@@ -9,7 +9,7 @@ using namespace afc::editor;
 
 class NoopCommandImpl : public Command {
   const wstring Description() { return L"does nothing"; }
-  void ProcessInput(int, EditorState*) {}
+  void ProcessInput(wint_t, EditorState*) {}
 };
 
 }  // namespace

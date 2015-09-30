@@ -388,62 +388,81 @@ void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
   move(pos_y, pos_x);
 }
 
-int Terminal::Read(EditorState*) {
-  int c = getch();
-  DLOG(INFO) << "Read: " << c << "\n";
-  switch (c) {
-    case 127:
-      return BACKSPACE;
-
-    case 4:
-      return CHAR_EOF;
-
-    case 0x0c:
-      return CTRL_L;
-
-    case 21:
-      return CTRL_U;
-
-    case 22:
-      return CTRL_V;
-
-    case 27:
-      {
-        int next = getch();
-        //cerr << "Read next: " << next << "\n";
-        switch (next) {
-          case -1:
-            return ESCAPE;
-
-          case '[':
-            {
-              int next2 = getch();
-              //cerr << "Read next2: " << next2 << "\n";
-              switch (next2) {
-                case 53:
-                  getch();
-                  return PAGE_UP;
-                case 54:
-                  getch();
-                  return PAGE_DOWN;
-                case 'A':
-                  return UP_ARROW;
-                case 'B':
-                  return DOWN_ARROW;
-                case 'C':
-                  return RIGHT_ARROW;
-                case 'D':
-                  return LEFT_ARROW;
-              }
-            }
-            return -1;
-        }
-        //cerr << "Unget: " << next << "\n";
-        ungetch(next);
-      }
-      return ESCAPE;
-    default:
+wint_t Terminal::Read(EditorState*) {
+  while (true) {
+    int c = getch();
+    DVLOG(5) << "Read: " << c << "\n";
+    if (c == -1) {
       return c;
+    }
+    wchar_t output;
+    char input[1] = { static_cast<char>(c) };
+    switch (mbrtowc(&output, input, 1, &mbstate_)) {
+      case 1:
+        VLOG(4) << "Finished reading wide character: " << output;
+        break;
+      case -1:
+        LOG(FATAL) << "Encoding error occurred. Input: " << c;
+      case -2:
+        VLOG(5) << "Incomplete (but valid) mbs, reading further.";
+        continue;
+      default:
+        LOG(FATAL) << "Unexpected return value from mbrtowc.";
+    }
+    switch (output) {
+      case 127:
+        return BACKSPACE;
+
+      case 4:
+        return CHAR_EOF;
+
+      case 0x0c:
+        return CTRL_L;
+
+      case 21:
+        return CTRL_U;
+
+      case 22:
+        return CTRL_V;
+
+      case 27:
+        {
+          int next = getch();
+          //cerr << "Read next: " << next << "\n";
+          switch (next) {
+            case -1:
+              return ESCAPE;
+
+            case '[':
+              {
+                int next2 = getch();
+                //cerr << "Read next2: " << next2 << "\n";
+                switch (next2) {
+                  case 53:
+                    getch();
+                    return PAGE_UP;
+                  case 54:
+                    getch();
+                    return PAGE_DOWN;
+                  case 'A':
+                    return UP_ARROW;
+                  case 'B':
+                    return DOWN_ARROW;
+                  case 'C':
+                    return RIGHT_ARROW;
+                  case 'D':
+                    return LEFT_ARROW;
+                }
+              }
+              return -1;
+          }
+          //cerr << "Unget: " << next << "\n";
+          ungetch(next);
+        }
+        return ESCAPE;
+      default:
+        return output;
+    }
   }
 }
 

@@ -31,7 +31,7 @@ class RecordCommand : public Command {
     return L"starts/stops recording a transformation";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     auto buffer = editor_state->current_buffer();
     if (buffer->second->HasTransformationStack()) {
@@ -50,7 +50,7 @@ class RestoreCommandMode : public Command {
     return L"restores command mode";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->ResetMode();
   }
 };

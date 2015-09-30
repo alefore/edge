@@ -136,7 +136,7 @@ class FileLinkMode : public EditorMode {
       : path_(path),
         ignore_if_not_found_(ignore_if_not_found) {}
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(wint_t c, EditorState* editor_state) {
     switch (c) {
       case '\n':
         {

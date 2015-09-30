@@ -24,7 +24,7 @@ class HelpCommand : public Command {
     return L"shows help about commands.";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     const wstring name = L"- help: " + mode_description_;
     auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
     editor_state->set_current_buffer(it.first);

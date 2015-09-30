@@ -187,8 +187,8 @@ int main(int argc, const char** argv) {
         continue;
       }
       if (fds[i].fd == 0) {
-        int c;
-        while ((c = terminal.Read(editor_state())) != -1) {
+        wint_t c;
+        while ((c = terminal.Read(editor_state())) != static_cast<wint_t>(-1)) {
           editor_state()->mode()->ProcessInput(c, editor_state());
         }
         continue;
