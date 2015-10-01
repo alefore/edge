@@ -437,8 +437,6 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       position_pts_(LineColumn(0, 0)),
       view_start_line_(0),
       view_start_column_(0),
-      line_(this, 0),
-      column_(0),
       modified_(false),
       reading_from_parser_(false),
       bool_variables_(BoolStruct()->NewInstance()),
@@ -504,6 +502,15 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
   }
 }
 
+void OpenBuffer::MaybeFollowToEndOfFile() {
+  if (!read_bool_variable(variable_follow_end_of_file())) { return; }
+  if (read_bool_variable(variable_pts())) {
+    position_ = position_pts_;
+  }
+  position_.line = contents_.size();
+  position_.column = 0;
+}
+
 void OpenBuffer::ReadData(EditorState* editor_state) {
   static const size_t kLowBufferSize = 1024 * 60;
   if (low_buffer_ == nullptr) {
@@ -554,9 +561,7 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
 
   if (contents_.empty()) {
     contents_.emplace_back(new Line(Line::Options()));
-    if (read_bool_variable(variable_follow_end_of_file())) {
-      line_ = BufferLineIterator(this, contents_.size());
-    }
+    MaybeFollowToEndOfFile();
   }
 
   if (read_bool_variable(variable_vm_exec())) {
@@ -574,11 +579,8 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
         VLOG(6) << "Adding line of length: " << line->size();
         VLOG(7) << "Adding line: " << line->ToString();
         AppendToLastLine(editor_state, line);
-        CHECK_LE(line_.line(), contents_.size());
         contents_.emplace_back(new Line(Line::Options()));
-        if (read_bool_variable(variable_follow_end_of_file())) {
-          line_ = BufferLineIterator(this, contents_.size());
-        }
+        MaybeFollowToEndOfFile();
         line_start = i + 1;
         if (editor_state->has_current_buffer()
             && editor_state->current_buffer()->second.get() == this
@@ -672,9 +674,7 @@ void OpenBuffer::AppendRawLine(EditorState*, shared_ptr<LazyString> str) {
   Line::Options options;
   options.contents = str;
   contents_.emplace_back(new Line(options));
-  if (read_bool_variable(variable_follow_end_of_file())) {
-    line_ = BufferLineIterator(this, contents_.size());
-  }
+  MaybeFollowToEndOfFile();
 }
 
 void OpenBuffer::ProcessCommandInput(
@@ -696,17 +696,13 @@ void OpenBuffer::ProcessCommandInput(
     if (c == '\b') {
       if (position_pts_.column > 0) {
         position_pts_.column--;
-        if (read_bool_variable(variable_follow_end_of_file())) {
-          column_ = position_pts_.column;
-        }
+        MaybeFollowToEndOfFile();
       }
     } else if (c == '\a') {
       editor_state->SetStatus(L"beep!");
     } else if (c == '\r') {
       position_pts_.column = 0;
-      if (read_bool_variable(variable_follow_end_of_file())) {
-        column_ = position_pts_.column;
-      }
+      MaybeFollowToEndOfFile();
     } else if (c == '\n') {
       position_pts_.line++;
       position_pts_.column = 0;
@@ -715,10 +711,7 @@ void OpenBuffer::ProcessCommandInput(
       }
       CHECK_LT(position_pts_.line, contents_.size());
       current_line = contents_[position_pts_.line];
-      if (read_bool_variable(variable_follow_end_of_file())) {
-        line_ = BufferLineIterator(this, position_pts_.line);
-        column_ = position_pts_.column;
-      }
+      MaybeFollowToEndOfFile();
     } else if (c == 0x1b) {
       read_index = ProcessTerminalEscapeSequence(
           editor_state, str, read_index, &modifiers);
@@ -727,9 +720,7 @@ void OpenBuffer::ProcessCommandInput(
     } else if (isprint(c) || c == '\t') {
       current_line->SetCharacter(position_pts_.column, c, modifiers);
       position_pts_.column++;
-      if (read_bool_variable(variable_follow_end_of_file())) {
-        column_ = position_pts_.column;
-      }
+      MaybeFollowToEndOfFile();
     } else {
       LOG(INFO) << "Unknown character: [" << c << "]\n";
     }
@@ -749,10 +740,8 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
       // cuu1: Up one line.
       if (position_pts_.line > 0) {
         position_pts_.line--;
-        if (read_bool_variable(variable_follow_end_of_file())) {
-          line_--;
-          column_ = 0;
-        }
+        position_pts_.column = 0;
+        MaybeFollowToEndOfFile();
         if (view_start_line_ > position_pts_.line) {
           view_start_line_ = position_pts_.line;
         }
@@ -876,9 +865,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
           return read_index;
         }
         position_pts_.column++;
-        if (read_bool_variable(variable_follow_end_of_file())) {
-          column_ = position_pts_.column;
-        }
+        MaybeFollowToEndOfFile();
         return read_index;
 
       case 'H':
@@ -906,10 +893,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
           while (position_pts_.line >= contents_.size()) {
             contents_.emplace_back(new Line(Line::Options()));
           }
-          if (read_bool_variable(variable_follow_end_of_file())) {
-            line_ = BufferLineIterator(this, position_pts_.line);
-            column_ = position_pts_.column;
-          }
+          MaybeFollowToEndOfFile();
           view_start_column_ = column_delta;
         }
         return read_index;
@@ -959,11 +943,9 @@ void OpenBuffer::AppendToLastLine(
     const vector<unordered_set<Line::Modifier, hash<int>>>& modifiers) {
   if (contents_.empty()) {
     contents_.emplace_back(new Line(Line::Options()));
-    if (read_bool_variable(variable_follow_end_of_file())) {
-      line_ = BufferLineIterator(this, contents_.size());
-    }
+    MaybeFollowToEndOfFile();
   }
-  assert((*contents_.rbegin())->contents() != nullptr);
+  CHECK((*contents_.rbegin())->contents() != nullptr);
   Line::Options options;
   options.contents = StringAppend((*contents_.rbegin())->contents(), str);
   options.modifiers = (*contents_.rbegin())->modifiers();
@@ -1057,15 +1039,14 @@ LineColumn OpenBuffer::InsertInPosition(
 void OpenBuffer::MaybeAdjustPositionCol() {
   if (contents_.empty() || current_line() == nullptr) { return; }
   size_t line_length = current_line()->size();
-  if (column_ > line_length) {
-    column_ = line_length;
+  if (position_.column > line_length) {
+    position_.column = line_length;
   }
 }
 
 void OpenBuffer::CheckPosition() {
-  if (line_.line() > contents_.size()) {
-    BufferLineIterator pos(this, contents_.size());
-    line_ = pos;
+  if (position_.line > contents_.size()) {
+    position_.line = contents_.size();
   }
 }
 
@@ -1581,8 +1562,7 @@ void OpenBuffer::set_filter(unique_ptr<Value> filter) {
 }
 
 bool OpenBuffer::IsLineFiltered(size_t line_number) {
-  assert(line_number <= contents_.size());
-  if (line_number == contents_.size()) {
+  if (line_number >= contents_.size()) {
     return true;
   }
   auto line = contents_[line_number];

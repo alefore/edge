@@ -329,7 +329,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
   size_t current_line = buffer->view_start_line();
   size_t lines_shown = 0;
   while (lines_shown < lines_to_show) {
-    if (current_line == contents.size()) {
+    if (current_line >= contents.size()) {
       addwstr(L"\n");
       lines_shown++;
       continue;

@@ -169,6 +169,8 @@ class OpenBuffer {
   virtual void ReloadInto(EditorState*, OpenBuffer*) {}
   virtual void Save(EditorState* editor_state);
 
+  void MaybeFollowToEndOfFile();
+
   void ReadData(EditorState* editor_state);
 
   void Reload(EditorState* editor_state);
@@ -213,17 +215,14 @@ class OpenBuffer {
       const LineColumn& position, LineColumn* start, LineColumn* end);
 
   const shared_ptr<Line> current_line() const {
-    if (end() == BufferLineConstIterator(line_)) { return nullptr; }
-    return *line_;
+    return LineAt(position_.line);
   }
   shared_ptr<Line> current_line() {
-    if (end() == line_) { return nullptr; }
-    return *line_;
+    return LineAt(position_.line);
   }
   shared_ptr<Line> LineAt(size_t line_number) const {
     CHECK(!contents_.empty());
-    CHECK_LE(line_number, contents_.size());
-    if (line_number == contents_.size()) {
+    if (line_number >= contents_.size()) {
       return nullptr;
     }
     return contents_.at(line_number);
@@ -246,7 +245,10 @@ class OpenBuffer {
   wstring ToString() const;
 
   void replace_current_line(const shared_ptr<Line>& line) {
-    *line_ = line;
+    if (position_.line >= contents_.size()) {
+      position_.line = contents_.size() - 1;
+    }
+    contents_.at(position_.line) = line;
   }
 
   int fd() const { return fd_; }
@@ -302,14 +304,13 @@ class OpenBuffer {
     assert(current_position_col() > 0);
     return current_line()->get(current_position_col() - 1);
   }
-  size_t current_position_line() const { return line_.line(); }
-  void set_current_position_line(size_t value) {
-    line_ = BufferLineIterator(this, value);
-    set_bool_variable(variable_follow_end_of_file(), value >= contents_.size());
+  size_t current_position_line() const { return position_.line; }
+  void set_current_position_line(size_t line) {
+    position_.line = line;
   }
-  size_t current_position_col() const { return column_; }
-  void set_current_position_col(size_t value) {
-    column_ = value;
+  size_t current_position_col() const { return position_.column; }
+  void set_current_position_col(size_t column) {
+    position_.column = column;
   }
 
   BufferLineIterator begin() {
@@ -328,28 +329,25 @@ class OpenBuffer {
   BufferLineReverseIterator rend() {
     return BufferLineReverseIterator(begin());
   }
-  BufferLineIterator& line() {
-    return line_;
+  BufferLineIterator line() {
+    CHECK_GE(contents_.size(), 1);
+    size_t line = min(position_.line, contents_.size() - 1);
+    return BufferLineIterator(this, line);
   }
 
   void LineUp() {
-    line()--;
+    position_.line--;
     set_bool_variable(OpenBuffer::variable_follow_end_of_file(), false);
   }
 
   void LineDown() {
-    line()++;
+    position_.line++;
   }
 
   const LineColumn position() const {
-    return LineColumn(line_.line(), column_);
+    return position_;
   }
-  void set_position(const LineColumn& position) {
-    line_ = BufferLineIterator(this, position.line);
-    set_bool_variable(variable_follow_end_of_file(),
-                      position.line >= contents_.size());
-    column_ = position.column;
-  }
+  void set_position(const LineColumn& position) { position_ = position; }
 
   void Enter(EditorState* editor_state) {
     if (read_bool_variable(variable_reload_on_enter())) {
@@ -472,8 +470,7 @@ class OpenBuffer {
   size_t view_start_line_;
   size_t view_start_column_;
 
-  BufferLineIterator line_;
-  size_t column_;
+  LineColumn position_;
 
   bool modified_;
   bool reading_from_parser_;
