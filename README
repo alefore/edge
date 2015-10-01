@@ -724,3 +724,10 @@ TODO: SetStatus("foo");
 TODO: Document the API.
 TODO: Document the integration points (e.g. buffer-reload.cc).
 TODO: Useful examples
+
+
+9. Limitations
+
+Edge is very incomplete and many features are missing. It is currently
+relatively unstable and crashes often. We are likely going to change the API of
+of the extension language in the future.
