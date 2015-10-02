@@ -19,6 +19,7 @@ using std::shared_ptr;
 using std::string;
 using std::unique_ptr;
 using std::vector;
+using std::wstring;
 
 class Environment;
 class Evaluation;
@@ -61,17 +62,17 @@ class Expression {
 unique_ptr<Expression> CompileFile(
     const string& path,
     Environment* environment,
-    string* error_description);
+    wstring* error_description);
 
 unique_ptr<Expression> CompileString(
-    const string& str,
+    const wstring& str,
     Environment* environment,
-    string* error_description);
+    wstring* error_description);
 
 unique_ptr<Expression> CompileString(
-    const string& str,
+    const wstring& str,
     Environment* environment,
-    string* error_description,
+    wstring* error_description,
     const VMType& return_type);
 
 unique_ptr<Value> Evaluate(Expression* expr, Environment* environment);

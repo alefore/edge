@@ -20,7 +20,7 @@ void RegisterStringType(Environment* environment) {
           assert(args[0]->type == VMType::VM_STRING);
           return Value::NewInteger(args[0]->str.size());
         };
-    string_type->AddField("size", std::move(callback));
+    string_type->AddField(L"size", std::move(callback));
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
@@ -31,7 +31,7 @@ void RegisterStringType(Environment* environment) {
           assert(args[0]->type == VMType::VM_STRING);
           return Value::NewInteger(args[0]->str.size());
         };
-    string_type->AddField("match", std::move(callback));
+    string_type->AddField(L"match", std::move(callback));
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
@@ -46,12 +46,12 @@ void RegisterStringType(Environment* environment) {
               || args[2]->integer < 0
               || (static_cast<size_t>(args[1]->integer + args[2]->integer)
                   > args[0]->str.size())) {
-            return Value::NewString("");
+            return Value::NewString(L"");
           }
           return Value::NewString(
               args[0]->str.substr(args[1]->integer, args[2]->integer));
         };
-    string_type->AddField("substr", std::move(callback));
+    string_type->AddField(L"substr", std::move(callback));
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
@@ -61,7 +61,7 @@ void RegisterStringType(Environment* environment) {
           assert(args[0]->type == VMType::VM_STRING);
           return Value::NewBool(args[0]->str.empty());
         };
-    string_type->AddField("empty", std::move(callback));
+    string_type->AddField(L"empty", std::move(callback));
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
@@ -78,7 +78,7 @@ void RegisterStringType(Environment* environment) {
                                 args[0]->str.begin()).first
                   == args[1]->str.end()));
         };
-    string_type->AddField("starts_with", std::move(callback));
+    string_type->AddField(L"starts_with", std::move(callback));
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
@@ -91,12 +91,12 @@ void RegisterStringType(Environment* environment) {
           assert(args[1]->type == VMType::VM_STRING);
           assert(args[2]->type == VMType::VM_INTEGER);
           size_t pos = args[0]->str.find(args[1]->str, args[2]->integer);
-          if (pos == string::npos) {
+          if (pos == wstring::npos) {
             return Value::NewInteger(-1);
           }
           return Value::NewInteger(pos);
         };
-    string_type->AddField("find", std::move(callback));
+    string_type->AddField(L"find", std::move(callback));
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
@@ -109,12 +109,12 @@ void RegisterStringType(Environment* environment) {
           assert(args[1]->type == VMType::VM_STRING);
           assert(args[2]->type == VMType::VM_INTEGER);
           size_t pos = args[0]->str.find_last_of(args[1]->str, args[2]->integer);
-          if (pos == string::npos) {
+          if (pos == wstring::npos) {
             return Value::NewInteger(-1);
           }
           return Value::NewInteger(pos);
         };
-    string_type->AddField("find_last_of", std::move(callback));
+    string_type->AddField(L"find_last_of", std::move(callback));
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
@@ -127,12 +127,12 @@ void RegisterStringType(Environment* environment) {
           assert(args[1]->type == VMType::VM_STRING);
           assert(args[2]->type == VMType::VM_INTEGER);
           size_t pos = args[0]->str.find_last_not_of(args[1]->str, args[2]->integer);
-          if (pos == string::npos) {
+          if (pos == wstring::npos) {
             return Value::NewInteger(-1);
           }
           return Value::NewInteger(pos);
         };
-    string_type->AddField("find_last_not_of", std::move(callback));
+    string_type->AddField(L"find_last_not_of", std::move(callback));
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
@@ -146,12 +146,12 @@ void RegisterStringType(Environment* environment) {
           assert(args[2]->type == VMType::VM_INTEGER);
           size_t pos =
               args[0]->str.find_first_of(args[1]->str, args[2]->integer);
-          if (pos == string::npos) {
+          if (pos == wstring::npos) {
             return Value::NewInteger(-1);
           }
           return Value::NewInteger(pos);
         };
-    string_type->AddField("find_first_of", std::move(callback));
+    string_type->AddField(L"find_first_of", std::move(callback));
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
@@ -164,15 +164,15 @@ void RegisterStringType(Environment* environment) {
           assert(args[1]->type == VMType::VM_STRING);
           assert(args[2]->type == VMType::VM_INTEGER);
           size_t pos = args[0]->str.find_first_not_of(args[1]->str, args[2]->integer);
-          if (pos == string::npos) {
+          if (pos == wstring::npos) {
             return Value::NewInteger(-1);
           }
           return Value::NewInteger(pos);
         };
-    string_type->AddField("find_first_not_of", std::move(callback));
+    string_type->AddField(L"find_first_not_of", std::move(callback));
   }
 
-  environment->DefineType("string", std::move(string_type));
+  environment->DefineType(L"string", std::move(string_type));
 }
 
 }  // namespace vm

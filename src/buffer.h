@@ -153,21 +153,24 @@ class BufferLineReverseIterator
 class OpenBuffer {
  public:
   // Name of a special buffer that shows the list of buffers.
-  static const string kBuffersName;
-  static const string kPasteBuffer;
+  static const wstring kBuffersName;
+  static const wstring kPasteBuffer;
 
   static void RegisterBufferType(EditorState* editor_state,
                                  Environment* environment);
 
-  OpenBuffer(EditorState* editor_state, const string& name);
+  OpenBuffer(EditorState* editor_state, const wstring& name);
   ~OpenBuffer();
 
+  bool PrepareToClose(EditorState* editor_state);
   void Close(EditorState* editor_state);
 
   void ClearContents();
 
   virtual void ReloadInto(EditorState*, OpenBuffer*) {}
   virtual void Save(EditorState* editor_state);
+
+  void MaybeFollowToEndOfFile();
 
   void ReadData(EditorState* editor_state);
 
@@ -185,10 +188,10 @@ class OpenBuffer {
       EditorState* editor_state, shared_ptr<LazyString> str,
       const vector<unordered_set<Line::Modifier, hash<int>>>& modifiers);
 
-  void EvaluateString(EditorState* editor_state, const string& str);
-  void EvaluateFile(EditorState* editor_state, const string& path);
+  void EvaluateString(EditorState* editor_state, const wstring& str);
+  void EvaluateFile(EditorState* editor_state, const wstring& path);
 
-  const string& name() const { return name_; }
+  const wstring& name() const { return name_; }
 
   LineColumn InsertInCurrentPosition(const vector<shared_ptr<Line>>& insertion);
   LineColumn InsertInPosition(
@@ -213,17 +216,14 @@ class OpenBuffer {
       const LineColumn& position, LineColumn* start, LineColumn* end);
 
   const shared_ptr<Line> current_line() const {
-    if (end() == BufferLineConstIterator(line_)) { return nullptr; }
-    return *line_;
+    return LineAt(position_.line);
   }
   shared_ptr<Line> current_line() {
-    if (end() == line_) { return nullptr; }
-    return *line_;
+    return LineAt(position_.line);
   }
   shared_ptr<Line> LineAt(size_t line_number) const {
     CHECK(!contents_.empty());
-    CHECK_LE(line_number, contents_.size());
-    if (line_number == contents_.size()) {
+    if (line_number >= contents_.size()) {
       return nullptr;
     }
     return contents_.at(line_number);
@@ -243,10 +243,13 @@ class OpenBuffer {
   }
   // Serializes the buffer into a string.  This is not particularly fast (it's
   // meant more for debugging/testing rather than for real use).
-  string ToString() const;
+  wstring ToString() const;
 
   void replace_current_line(const shared_ptr<Line>& line) {
-    *line_ = line;
+    if (position_.line >= contents_.size()) {
+      position_.line = contents_.size() - 1;
+    }
+    contents_.at(position_.line) = line;
   }
 
   int fd() const { return fd_; }
@@ -302,14 +305,13 @@ class OpenBuffer {
     assert(current_position_col() > 0);
     return current_line()->get(current_position_col() - 1);
   }
-  size_t current_position_line() const { return line_.line(); }
-  void set_current_position_line(size_t value) {
-    line_ = BufferLineIterator(this, value);
-    set_bool_variable(variable_follow_end_of_file(), value >= contents_.size());
+  size_t current_position_line() const { return position_.line; }
+  void set_current_position_line(size_t line) {
+    position_.line = line;
   }
-  size_t current_position_col() const { return column_; }
-  void set_current_position_col(size_t value) {
-    column_ = value;
+  size_t current_position_col() const { return position_.column; }
+  void set_current_position_col(size_t column) {
+    position_.column = column;
   }
 
   BufferLineIterator begin() {
@@ -328,28 +330,24 @@ class OpenBuffer {
   BufferLineReverseIterator rend() {
     return BufferLineReverseIterator(begin());
   }
-  BufferLineIterator& line() {
-    return line_;
+  BufferLineIterator line() {
+    size_t line = min(position_.line, contents_.size() - 1);
+    return BufferLineIterator(this, line);
   }
 
   void LineUp() {
-    line()--;
+    position_.line--;
     set_bool_variable(OpenBuffer::variable_follow_end_of_file(), false);
   }
 
   void LineDown() {
-    line()++;
+    position_.line++;
   }
 
   const LineColumn position() const {
-    return LineColumn(line_.line(), column_);
+    return position_;
   }
-  void set_position(const LineColumn& position) {
-    line_ = BufferLineIterator(this, position.line);
-    set_bool_variable(variable_follow_end_of_file(),
-                      position.line >= contents_.size());
-    column_ = position.column;
-  }
+  void set_position(const LineColumn& position) { position_ = position; }
 
   void Enter(EditorState* editor_state) {
     if (read_bool_variable(variable_reload_on_enter())) {
@@ -361,7 +359,14 @@ class OpenBuffer {
   void set_modified(bool value) { modified_ = value; }
   bool modified() const { return modified_; }
 
-  string FlagsString() const;
+  bool dirty() const {
+    return modified_
+        || child_pid_ != -1
+        || !WIFEXITED(child_exit_status_)
+        || WEXITSTATUS(child_exit_status_) != 0;
+  }
+
+  wstring FlagsString() const;
 
   void PushSignal(EditorState* editor_state, int signal);
 
@@ -373,6 +378,7 @@ class OpenBuffer {
   static EdgeVariable<char>* variable_pts();
   static EdgeVariable<char>* variable_vm_exec();
   static EdgeVariable<char>* variable_close_after_clean_exit();
+  static EdgeVariable<char>* variable_allow_dirty_delete();
   static EdgeVariable<char>* variable_reload_after_exit();
   static EdgeVariable<char>* variable_default_reload_after_exit();
   static EdgeVariable<char>* variable_reload_on_enter();
@@ -384,15 +390,15 @@ class OpenBuffer {
   static EdgeVariable<char>* variable_commands_background_mode();
   static EdgeVariable<char>* variable_reload_on_buffer_write();
 
-  static EdgeStruct<string>* StringStruct();
-  static EdgeVariable<string>* variable_word_characters();
-  static EdgeVariable<string>* variable_path_characters();
-  static EdgeVariable<string>* variable_path();
-  static EdgeVariable<string>* variable_pts_path();
-  static EdgeVariable<string>* variable_command();
-  static EdgeVariable<string>* variable_editor_commands_path();
-  static EdgeVariable<string>* variable_line_prefix_characters();
-  static EdgeVariable<string>* variable_line_suffix_superfluous_characters();
+  static EdgeStruct<wstring>* StringStruct();
+  static EdgeVariable<wstring>* variable_word_characters();
+  static EdgeVariable<wstring>* variable_path_characters();
+  static EdgeVariable<wstring>* variable_path();
+  static EdgeVariable<wstring>* variable_pts_path();
+  static EdgeVariable<wstring>* variable_command();
+  static EdgeVariable<wstring>* variable_editor_commands_path();
+  static EdgeVariable<wstring>* variable_line_prefix_characters();
+  static EdgeVariable<wstring>* variable_line_suffix_superfluous_characters();
 
   static EdgeStruct<int>* IntStruct();
   static EdgeVariable<int>* variable_line_width();
@@ -404,10 +410,10 @@ class OpenBuffer {
   void set_bool_variable(const EdgeVariable<char>* variable, bool value);
   void toggle_bool_variable(const EdgeVariable<char>* variable);
 
-  const string& read_string_variable(const EdgeVariable<string>* variable)
+  const wstring& read_string_variable(const EdgeVariable<wstring>* variable)
       const;
-  void set_string_variable(const EdgeVariable<string>* variable,
-                           const string& value);
+  void set_string_variable(const EdgeVariable<wstring>* variable,
+                           const wstring& value);
 
   const int& read_int_variable(const EdgeVariable<int>* variable) const;
   void set_int_variable(const EdgeVariable<int>* variable,
@@ -444,7 +450,7 @@ class OpenBuffer {
  protected:
   vector<unique_ptr<ParseTree>> parse_tree;
 
-  string name_;
+  wstring name_;
 
   // -1 means "no file descriptor" (i.e. not currently loading this).
   int fd_;
@@ -454,9 +460,13 @@ class OpenBuffer {
   // change the value of pts_ without breaking things (when one command is
   // already running).
   bool fd_is_terminal_;
-  char* buffer_;
-  size_t buffer_length_;
-  size_t buffer_size_;
+
+  // We read directly into low_buffer_ and then drain from that into contents_.
+  // It's possible that not all bytes read can be converted (for example, if the
+  // reading stops in the middle of a wide character).
+  char* low_buffer_ = nullptr;
+  size_t low_buffer_length_ = 0;
+
   // -1 means "no child process"
   pid_t child_pid_;
   int child_exit_status_;
@@ -468,8 +478,7 @@ class OpenBuffer {
   size_t view_start_line_;
   size_t view_start_column_;
 
-  BufferLineIterator line_;
-  size_t column_;
+  LineColumn position_;
 
   bool modified_;
   bool reading_from_parser_;
@@ -480,7 +489,7 @@ class OpenBuffer {
   // (EdgeStructInstance<bool>::Get would be returning a reference to a
   // temporary variable).
   EdgeStructInstance<char> bool_variables_;
-  EdgeStructInstance<string> string_variables_;
+  EdgeStructInstance<wstring> string_variables_;
   EdgeStructInstance<int> int_variables_;
   EdgeStructInstance<unique_ptr<Value>> function_variables_;
 

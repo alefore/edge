@@ -23,6 +23,10 @@ extern "C" {
 #include "substring.h"
 #include "transformation_delete.h"
 #include "vm/public/value.h"
+#include "wstring.h"
+
+namespace afc {
+namespace editor {
 
 namespace {
 
@@ -31,34 +35,32 @@ using std::string;
 using std::stringstream;
 using std::to_string;
 using std::vector;
+using std::wstring;
 
-static string GetHomeDirectory() {
+static wstring GetHomeDirectory() {
   char* env = getenv("HOME");
-  if (env != nullptr) { return env; }
+  if (env != nullptr) { return FromByteString(env); }
   struct passwd* entry = getpwuid(getuid());
-  if (entry != nullptr) { return entry->pw_dir; }
-  return "/";  // What else?
+  if (entry != nullptr) { return FromByteString(entry->pw_dir); }
+  return L"/";  // What else?
 }
 
-static vector<string> GetEdgeConfigPath(const string& home) {
-  vector<string> output;
-  output.push_back(home + "/.edge");
+static vector<wstring> GetEdgeConfigPath(const wstring& home) {
+  vector<wstring> output;
+  output.push_back(home + L"/.edge");
   char* env = getenv("EDGE_PATH");
   if (env != nullptr) {
     std::istringstream text_stream(string(env) + ";");
     std::string dir;
     // TODO: stat it and don't add it if it doesn't exist.
     while (std::getline(text_stream, dir, ';')) {
-      output.push_back(dir);
+      output.push_back(FromByteString(dir));
     }
   }
   return output;
 }
 
 }  // namespace
-
-namespace afc {
-namespace editor {
 
 EditorState::EditorState()
     : current_buffer_(buffers_.end()),
@@ -68,17 +70,18 @@ EditorState::EditorState()
       screen_needs_redraw_(false),
       screen_needs_hard_redraw_(false),
       status_prompt_(false),
-      status_(""),
+      status_(L""),
       home_directory_(GetHomeDirectory()),
       edge_path_(GetEdgeConfigPath(home_directory_)),
       environment_(Environment::DefaultEnvironment()) {
   OpenBuffer::RegisterBufferType(this, &environment_);
-  unique_ptr<ObjectType> line_column(new ObjectType("LineColumn"));
+  unique_ptr<ObjectType> line_column(new ObjectType(L"LineColumn"));
 
   // Methods for LineColumn.
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType::ObjectType(line_column.get()));
+    callback->type.type_arguments.push_back(
+        VMType::ObjectType(line_column.get()));
     callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
     callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
     callback->callback =
@@ -86,53 +89,57 @@ EditorState::EditorState()
           assert(args.size() == 2);
           assert(args[0]->type == VMType::VM_INTEGER);
           assert(args[1]->type == VMType::VM_INTEGER);
-          return Value::NewObject("LineColumn", shared_ptr<LineColumn>(
+          return Value::NewObject(L"LineColumn", shared_ptr<LineColumn>(
               new LineColumn(args[0]->integer, args[1]->integer)));
         };
-    environment_.Define("LineColumn", std::move(callback));
+    environment_.Define(L"LineColumn", std::move(callback));
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
     callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->type.type_arguments.push_back(VMType::ObjectType(line_column.get()));
+    callback->type.type_arguments.push_back(
+        VMType::ObjectType(line_column.get()));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
           assert(args[0]->type == VMType::OBJECT_TYPE);
-          auto line_column = static_cast<LineColumn*>(args[0]->user_value.get());
+          auto line_column =
+              static_cast<LineColumn*>(args[0]->user_value.get());
           assert(line_column != nullptr);
           unique_ptr<Value> output(new Value(VMType::VM_INTEGER));
           output->integer = line_column->line;
           return output;
         };
-    line_column->AddField("line", std::move(callback));
+    line_column->AddField(L"line", std::move(callback));
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
     callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->type.type_arguments.push_back(VMType::ObjectType(line_column.get()));
+    callback->type.type_arguments.push_back(
+        VMType::ObjectType(line_column.get()));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
           assert(args[0]->type == VMType::OBJECT_TYPE);
-          auto line_column = static_cast<LineColumn*>(args[0]->user_value.get());
+          auto line_column =
+              static_cast<LineColumn*>(args[0]->user_value.get());
           assert(line_column != nullptr);
           unique_ptr<Value> output(new Value(VMType::VM_INTEGER));
           output->integer = line_column->column;
           return output;
         };
-    line_column->AddField("column", std::move(callback));
+    line_column->AddField(L"column", std::move(callback));
   }
 
 
   // Other functions.
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType::ObjectType("Buffer"));
+    callback->type.type_arguments.push_back(VMType::ObjectType(L"Buffer"));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
           assert(args.size() == 0);
-          return Value::NewObject("Buffer", current_buffer()->second);
+          return Value::NewObject(L"Buffer", current_buffer()->second);
         };
-    environment_.Define("CurrentBuffer", std::move(callback));
+    environment_.Define(L"CurrentBuffer", std::move(callback));
   }
 
   {
@@ -145,20 +152,22 @@ EditorState::EditorState()
           OpenServerBuffer(this, args[0]->str);
           return std::move(Value::NewVoid());
         };
-    environment_.Define("ConnectTo", std::move(connect_to_function));
+    environment_.Define(L"ConnectTo", std::move(connect_to_function));
   }
 
   {
     unique_ptr<Value> set_status_function(new Value(VMType::FUNCTION));
-    set_status_function->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    set_status_function->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    set_status_function->type.type_arguments.push_back(
+        VMType(VMType::VM_VOID));
+    set_status_function->type.type_arguments.push_back(
+        VMType(VMType::VM_STRING));
     set_status_function->callback =
         [this](vector<unique_ptr<Value>> args) {
           assert(args[0]->type == VMType::VM_STRING);
           SetStatus(args[0]->str);
           return std::move(Value::NewVoid());
         };
-    environment_.Define("SetStatus", std::move(set_status_function));
+    environment_.Define(L"SetStatus", std::move(set_status_function));
   }
 
   {
@@ -174,7 +183,7 @@ EditorState::EditorState()
               LineColumn(buffer->position().line, args[0]->integer));
           return Value::NewVoid();
         };
-    environment_.Define("SetPositionColumn", std::move(callback));
+    environment_.Define(L"SetPositionColumn", std::move(callback));
   }
 
   {
@@ -188,7 +197,7 @@ EditorState::EditorState()
           output->str = buffer->current_line()->ToString();
           return output;
         };
-    environment_.Define("Line", std::move(callback));
+    environment_.Define(L"Line", std::move(callback));
   }
 
   {
@@ -204,27 +213,26 @@ EditorState::EditorState()
           ForkCommand(this, options);
           return std::move(Value::NewVoid());
         };
-    environment_.Define("ForkCommand", std::move(callback));
+    environment_.Define(L"ForkCommand", std::move(callback));
   }
 
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType::ObjectType("Buffer"));
+    callback->type.type_arguments.push_back(VMType::ObjectType(L"Buffer"));
     callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
           assert(args[0]->type == VMType::VM_STRING);
-          string path = args[0]->str;
           OpenFileOptions options;
           options.editor_state = this;
-          options.path = path;
+          options.path = args[0]->str;
           set_current_buffer(OpenFile(options));
           ScheduleRedraw();
-          return Value::NewObject("Buffer", current_buffer()->second);
+          return Value::NewObject(L"Buffer", current_buffer()->second);
         };
-    environment_.Define("OpenFile", std::move(callback));
+    environment_.Define(L"OpenFile", std::move(callback));
   }
-  environment_.DefineType("LineColumn", std::move(line_column));
+  environment_.DefineType(L"LineColumn", std::move(line_column));
 }
 
 EditorState::~EditorState() {
@@ -235,8 +243,12 @@ EditorState::~EditorState() {
   }
 }
 
-void EditorState::CloseBuffer(
-    map<string, shared_ptr<OpenBuffer>>::iterator buffer) {
+bool EditorState::CloseBuffer(
+    map<wstring, shared_ptr<OpenBuffer>>::iterator buffer) {
+  if (!buffer->second->PrepareToClose(this)) {
+    SetStatus(L"Unable to close buffer: " + buffer->first);
+    return false;
+  }
   ScheduleRedraw();
   if (current_buffer_ == buffer) {
     if (buffers_.size() == 1) {
@@ -253,7 +265,33 @@ void EditorState::CloseBuffer(
 
   buffer->second->Close(this);
   buffers_.erase(buffer);
-  assert(current_buffer_ != buffers_.end());
+  CHECK(current_buffer_ != buffers_.end());
+  return true;
+}
+
+bool EditorState::AttemptTermination(wstring* error_description) {
+  LOG(INFO) << "Checking buffers for termination.";
+  vector<wstring> buffers_with_problems;
+  for (auto& it : buffers_) {
+    if (!it.second->PrepareToClose(this)) {
+      buffers_with_problems.push_back(it.first);
+    }
+  }
+  if (buffers_with_problems.empty()) {
+    LOG(INFO) << "Terminating.";
+    terminate_ = true;
+    return true;
+  }
+
+  wstring error = L"Unable to close buffers:";
+  for (auto name : buffers_with_problems) {
+    error += L" " + name;
+  }
+  LOG(INFO) << error;
+  if (error_description != nullptr) {
+    *error_description = std::move(error);
+  }
+  return false;
 }
 
 void EditorState::MoveBufferForwards(size_t times) {
@@ -297,7 +335,7 @@ void EditorState::MoveBufferBackwards(size_t times) {
 // The current line position is set to one line after the line to be returned
 // by a pop.  To insert a new position, we insert it right at the current line.
 
-static const char* kPositionsBufferName = "- positions";
+static wstring kPositionsBufferName = L"- positions";
 
 void EditorState::PushCurrentPosition() {
   if (!has_current_buffer()) { return; }
@@ -314,7 +352,7 @@ void EditorState::PushCurrentPosition() {
   shared_ptr<Line> line(new Line(Line::Options(
       NewCopyString(
           current_buffer_->second->position().ToString()
-          + " " + current_buffer_->first))));
+          + L" " + current_buffer_->first))));
   it->second->contents()->insert(
       it->second->contents()->begin() + it->second->current_position_line(),
       line);
@@ -326,8 +364,8 @@ void EditorState::PushCurrentPosition() {
   }
 }
 
-static BufferPosition PositionFromLine(const string& line) {
-  stringstream line_stream(line);
+static BufferPosition PositionFromLine(const wstring& line) {
+  std::wstringstream line_stream(line);
   BufferPosition pos;
   line_stream >> pos.position.line >> pos.position.column;
   line_stream.get();
@@ -335,11 +373,11 @@ static BufferPosition PositionFromLine(const string& line) {
   return pos;
 }
 
-void EditorState::SetStatus(const string& status) {
+void EditorState::SetStatus(const wstring& status) {
   LOG(INFO) << "SetStatus: " << status;
   status_ = status;
   if (status_prompt_ || status.empty()) { return; }
-  auto status_buffer_it = buffers_.insert(make_pair("- console", nullptr));
+  auto status_buffer_it = buffers_.insert(make_pair(L"- console", nullptr));
   if (status_buffer_it.second) {
     // Inserted the entry.
     status_buffer_it.first->second = shared_ptr<OpenBuffer>(
@@ -391,13 +429,13 @@ void EditorState::ApplyToCurrentBuffer(
   current_buffer_->second->Apply(this, std::move(transformation));
 }
 
-void EditorState::DefaultErrorHandler(const string& error_description) {
-  SetStatus("Error: " + error_description);
+void EditorState::DefaultErrorHandler(const wstring& error_description) {
+  SetStatus(L"Error: " + error_description);
 }
 
-string EditorState::expand_path(const string& path) {
+wstring EditorState::expand_path(const wstring& path) {
   // TODO: Also support ~user/foo.
-  if (path == "~" || (path.size() > 2 && path.substr(0, 2) == "~/")) {
+  if (path == L"~" || (path.size() > 2 && path.substr(0, 2) == L"~/")) {
     return home_directory() + path.substr(1);
   }
   return path;

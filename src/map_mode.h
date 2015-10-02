@@ -15,12 +15,12 @@ using std::unique_ptr;
 
 class MapMode : public EditorMode {
  public:
-  MapMode(const map<int, Command*>& commands, Command* default_command);
+  MapMode(const map<wchar_t, Command*>& commands, Command* default_command);
 
-  void ProcessInput(int c, EditorState* editor_state);
+  void ProcessInput(wint_t c, EditorState* editor_state);
 
  private:
-  const map<int, Command*>& commands_;
+  const map<wchar_t, Command*>& commands_;
   Command* const default_command_;
 };
 

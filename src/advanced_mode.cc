@@ -1,5 +1,6 @@
 #include <cerrno>
 #include <cstring>
+#include <locale>
 #include <unistd.h>
 #include <iostream>
 #include <map>
@@ -20,20 +21,21 @@ extern "C" {
 #include "line_prompt_mode.h"
 #include "map_mode.h"
 #include "run_command_handler.h"
+#include "wstring.h"
 
 namespace afc {
 namespace editor {
 
 namespace {
 
-string TrimWhitespace(const string& in) {
-  size_t begin = in.find_first_not_of(" ", 0);
+wstring TrimWhitespace(const wstring& in) {
+  size_t begin = in.find_first_not_of(' ', 0);
   if (begin == string::npos) {
-    return "";
+    return L"";
   }
-  size_t end = in.find_last_not_of(" ", in.size());
+  size_t end = in.find_last_not_of(' ', in.size());
   if (end == string::npos) {
-    return "";
+    return L"";
   }
   if (begin == 0 && end == in.size()) {
     return in;
@@ -51,37 +53,43 @@ using std::unique_ptr;
 
 class Quit : public Command {
  public:
-  const string Description() {
-    return "quits";
+  const wstring Description() {
+    return L"quits";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
-    editor_state->set_terminate(true);
+  void ProcessInput(wint_t, EditorState* editor_state) {
+    wstring error_description;
+    if (!editor_state->AttemptTermination(&error_description)) {
+      editor_state->SetStatus(error_description);
+    }
   }
 };
 
 class RestoreCommandMode : public Command {
-  const string Description() {
-    return "restores command mode";
+  const wstring Description() {
+    return L"restores command mode";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->ResetMode();
   }
 };
 
 class OpenDirectory : public Command {
-  const string Description() {
-    return "opens a view of the current directory";
+  const wstring Description() {
+    return L"opens a view of the current directory";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
-    string path;
+  void ProcessInput(wint_t, EditorState* editor_state) {
+    wstring path;
     if (!editor_state->has_current_buffer()) {
-      path = ".";
+      path = L".";
     } else {
-      char* tmp = strdup(editor_state->current_buffer()->first.c_str());
-      path = dirname(tmp);
+      // TODO: We could alter ToByteString to return a char* and avoid the extra
+      // copy.
+      char* tmp = strdup(
+          ToByteString(editor_state->current_buffer()->first.c_str()).c_str());
+      path = FromByteString(dirname(tmp));
       free(tmp);
     }
     OpenFileOptions options;
@@ -93,11 +101,11 @@ class OpenDirectory : public Command {
 };
 
 class CloseCurrentBuffer : public Command {
-  const string Description() {
-    return "closes the current buffer (without saving)";
+  const wstring Description() {
+    return L"closes the current buffer";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) {
       return;
     }
@@ -112,11 +120,11 @@ class CloseCurrentBuffer : public Command {
 };
 
 class SaveCurrentBuffer : public Command {
-  const string Description() {
-    return "saves the current buffer";
+  const wstring Description() {
+    return L"saves the current buffer";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) {
       return;
     }
@@ -129,29 +137,29 @@ class SaveCurrentBuffer : public Command {
   }
 };
 
-void OpenFileHandler(const string& name, EditorState* editor_state) {
+void OpenFileHandler(const wstring& name, EditorState* editor_state) {
   OpenFileOptions options;
   options.editor_state = editor_state;
   options.path = name;
   OpenFile(options);
 }
 
-void SetVariableHandler(const string& input_name, EditorState* editor_state) {
+void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
   editor_state->ResetMode();
   editor_state->ScheduleRedraw();
-  string name = TrimWhitespace(input_name);
+  wstring name = TrimWhitespace(input_name);
   if (name.empty()) { return; }
   {
-    const EdgeVariable<string>* var =
+    const EdgeVariable<wstring>* var =
         OpenBuffer::StringStruct()->find_variable(name);
     if (var != nullptr) {
       if (!editor_state->has_current_buffer()) { return; }
       Prompt(
           editor_state,
-          name + " := ",
-          "values",
+          name + L" := ",
+          L"values",
           editor_state->current_buffer()->second->read_string_variable(var),
-          [var](const string& input, EditorState* editor_state) {
+          [var](const wstring& input, EditorState* editor_state) {
             if (editor_state->has_current_buffer()) {
               editor_state->current_buffer()
                   ->second->set_string_variable(var, input);
@@ -171,25 +179,25 @@ void SetVariableHandler(const string& input_name, EditorState* editor_state) {
       auto buffer = editor_state->current_buffer()->second;
       buffer->toggle_bool_variable(var);
       editor_state->SetStatus(
-          name + " := " + (buffer->read_bool_variable(var) ? "ON" : "OFF"));
+          name + L" := " + (buffer->read_bool_variable(var) ? L"ON" : L"OFF"));
       return;
     }
   }
-  editor_state->SetStatus("Unknown variable: " + name);
+  editor_state->SetStatus(L"Unknown variable: " + name);
 }
 
 class ActivateBufferLineCommand : public EditorMode {
  public:
-  ActivateBufferLineCommand(const string& name) : name_(name) {}
+  ActivateBufferLineCommand(const wstring& name) : name_(name) {}
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(wint_t c, EditorState* editor_state) {
     switch (c) {
       case '\n':  // Open the current buffer.
         {
           auto it = editor_state->buffers()->find(name_);
           if (it == editor_state->buffers()->end()) {
             // TODO: Keep a function and re-open the buffer?
-            editor_state->SetStatus("Buffer not found: " + name_);
+            editor_state->SetStatus(L"Buffer not found: " + name_);
             return;
           }
           editor_state->set_current_buffer(it);
@@ -211,7 +219,7 @@ class ActivateBufferLineCommand : public EditorMode {
         {
           auto it = editor_state->buffers()->find(name_);
           if (it == editor_state->buffers()->end()) { return; }
-          editor_state->SetStatus("Reloading buffer: " + name_);
+          editor_state->SetStatus(L"Reloading buffer: " + name_);
           it->second->Reload(editor_state);
           break;
         }
@@ -219,22 +227,23 @@ class ActivateBufferLineCommand : public EditorMode {
   }
 
  private:
-  const string name_;
+  const wstring name_;
 };
 
 class ListBuffersBuffer : public OpenBuffer {
  public:
-  ListBuffersBuffer(EditorState* editor_state, const string& name)
+  ListBuffersBuffer(EditorState* editor_state, const wstring& name)
       : OpenBuffer(editor_state, name) {
     set_bool_variable(variable_atomic_lines(), true);
   }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     target->ClearContents();
-    AppendLine(editor_state, std::move(NewCopyString("Open Buffers:")));
+    AppendLine(editor_state, std::move(NewCopyString(L"Open Buffers:")));
     for (const auto& it : *editor_state->buffers()) {
-      string flags(it.second->FlagsString());
-      auto name = NewCopyString(it.first + (flags.empty() ? "" : "  ") + flags);
+      wstring flags = it.second->FlagsString();
+      auto name =
+          NewCopyString(it.first + (flags.empty() ? L"" : L"  ") + flags);
       target->AppendLine(editor_state, std::move(name));
       (*target->contents()->rbegin())->set_activate(
           unique_ptr<EditorMode>(new ActivateBufferLineCommand(it.first)));
@@ -245,11 +254,11 @@ class ListBuffersBuffer : public OpenBuffer {
 
 class ListBuffers : public Command {
  public:
-  const string Description() {
-    return "lists all open buffers";
+  const wstring Description() {
+    return L"lists all open buffers";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     auto it = editor_state->buffers()->insert(
         make_pair(OpenBuffer::kBuffersName, nullptr));
     editor_state->set_current_buffer(it.first);
@@ -272,11 +281,11 @@ class ListBuffers : public Command {
 
 class ReloadBuffer : public Command {
  public:
-  const string Description() {
-    return "reloads the current buffer";
+  const wstring Description() {
+    return L"reloads the current buffer";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     switch (editor_state->structure()) {
       case LINE:
         if (editor_state->has_current_buffer()) {
@@ -301,38 +310,38 @@ class ReloadBuffer : public Command {
 
 class SendEndOfFile : public Command {
  public:
-  const string Description() {
-    return "stops writing to a subprocess (effectively sending EOF).";
+  const wstring Description() {
+    return L"stops writing to a subprocess (effectively sending EOF).";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->ResetMode();
     if (!editor_state->has_current_buffer()) { return; }
     auto buffer = editor_state->current_buffer()->second;
     if (buffer->fd() == -1) {
-      editor_state->SetStatus("No active subprocess for current buffer.");
+      editor_state->SetStatus(L"No active subprocess for current buffer.");
       return;
     }
     if (buffer->read_bool_variable(OpenBuffer::variable_pts())) {
       char str[1] = { 4 };
       if (write(buffer->fd(), str, sizeof(str)) == -1) {
         editor_state->SetStatus(
-            "Sending EOF failed: " + string(strerror(errno)));
+            L"Sending EOF failed: " + FromByteString(strerror(errno)));
         return;
       }
-      editor_state->SetStatus("EOF sent");
+      editor_state->SetStatus(L"EOF sent");
     } else {
       if (shutdown(buffer->fd(), SHUT_WR) == -1) {
         editor_state->SetStatus(
-            "shutdown(SHUT_WR) failed: " + string(strerror(errno)));
+            L"shutdown(SHUT_WR) failed: " + FromByteString(strerror(errno)));
         return;
       }
-      editor_state->SetStatus("shutdown sent");
+      editor_state->SetStatus(L"shutdown sent");
     }
   }
 };
 
-void RunCppCommandHandler(const string& name, EditorState* editor_state) {
+void RunCppCommandHandler(const wstring& name, EditorState* editor_state) {
   if (!editor_state->has_current_buffer()) { return; }
   editor_state->ResetMode();
   editor_state->current_buffer()->second->EvaluateString(editor_state, name);
@@ -340,11 +349,11 @@ void RunCppCommandHandler(const string& name, EditorState* editor_state) {
 
 class RunCppCommand : public Command {
  public:
-  const string Description() {
-    return "prompts for a command (a C string) and runs it";
+  const wstring Description() {
+    return L"prompts for a command (a C string) and runs it";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     switch (editor_state->structure()) {
       case LINE:
@@ -355,26 +364,26 @@ class RunCppCommand : public Command {
         break;
 
       default:
-        Prompt(editor_state, "cpp ", "cpp", "", RunCppCommandHandler,
+        Prompt(editor_state, L"cpp ", L"cpp", L"", RunCppCommandHandler,
                EmptyPredictor);
     }
   }
 };
 
-static const map<int, Command*>& GetAdvancedModeMap() {
-  static map<int, Command*> output;
+static const map<wchar_t, Command*>& GetAdvancedModeMap() {
+  static map<wchar_t, Command*> output;
   if (output.empty()) {
     output.insert(make_pair('q', new Quit()));
     output.insert(make_pair('d', new CloseCurrentBuffer()));
     output.insert(make_pair('w', new SaveCurrentBuffer()));
 
-    vector<string> variables;
+    vector<wstring> variables;
     OpenBuffer::BoolStruct()->RegisterVariableNames(&variables);
     OpenBuffer::StringStruct()->RegisterVariableNames(&variables);
     output.insert(make_pair(
         'v',
         NewLinePromptCommand(
-            "var ", "variables", "assigns to a variable", SetVariableHandler,
+            L"var ", L"variables", L"assigns to a variable", SetVariableHandler,
             PrecomputedPredictor(variables)).release()));
 
     output.insert(make_pair('c', new RunCppCommand()));
@@ -385,17 +394,19 @@ static const map<int, Command*>& GetAdvancedModeMap() {
     output.insert(make_pair('e', new SendEndOfFile()));
     output.insert(make_pair(
         'o',
-        NewLinePromptCommand("<", "files", "loads a file", OpenFileHandler,
+        NewLinePromptCommand(L"<", L"files", L"loads a file", OpenFileHandler,
                              FilePredictor).release()));
     output.insert(make_pair(
         'F',
         NewLinePromptCommand(
-            "...$ ",
-            "commands",
-            "forks a command for each line in the current buffer",
+            L"...$ ",
+            L"commands",
+            L"forks a command for each line in the current buffer",
             RunMultipleCommandsHandler, EmptyPredictor).release()));
     output.insert(make_pair('f', NewForkCommand().release()));
-    output.insert(make_pair('?', NewHelpCommand(output, "advance command mode").release()));
+    output.insert(make_pair(
+        '?',
+        NewHelpCommand(output, L"advance command mode").release()));
   }
   return output;
 }

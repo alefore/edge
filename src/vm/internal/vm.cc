@@ -26,20 +26,21 @@
 #include "string.h"
 #include "variable_lookup.h"
 #include "while_expression.h"
+#include "wstring.h"
 
 namespace afc {
 namespace vm {
 
 using std::cerr;
 using std::pair;
-using std::to_string;
+using std::to_wstring;
 
 namespace {
 
 struct UserFunction {
-  string name;
+  wstring name;
   VMType type;
-  vector<string> argument_names;
+  vector<wstring> argument_names;
 };
 
 extern "C" {
@@ -47,10 +48,11 @@ extern "C" {
 #include "cpp.c"
 }
 
-void CompileLine(Compilation* compilation, void* parser, const string& str) {
+void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
   size_t pos = 0;
   int token;
   while (pos < str.size()) {
+    VLOG(5) << "Compiling from character: " << str.at(pos);
     Value* input = nullptr;
     switch (str.at(pos)) {
       case '/':
@@ -177,7 +179,7 @@ void CompileLine(Compilation* compilation, void* parser, const string& str) {
           token = STRING;
           input = new Value(VMType::VM_STRING);
           pos++;
-          input->str = "";
+          input->str = L"";
           for (; pos < str.size(); pos++) {
             if (str.at(pos) == '"') {
               break;
@@ -206,6 +208,7 @@ void CompileLine(Compilation* compilation, void* parser, const string& str) {
         }
         break;
 
+      case 0:
       case ' ':
       case '\n':
       case '\t':
@@ -226,22 +229,22 @@ void CompileLine(Compilation* compilation, void* parser, const string& str) {
                  && (isalnum(str.at(pos)) || str.at(pos) == '_')) {
             pos++;
           }
-          string symbol = str.substr(start, pos - start);
-          if (symbol == "true") {
+          wstring symbol = str.substr(start, pos - start);
+          if (symbol == L"true") {
             token = BOOL;
             input = new Value(VMType::VM_BOOLEAN);
             input->boolean = true;
-          } else if (symbol == "false") {
+          } else if (symbol == L"false") {
             token = BOOL;
             input = new Value(VMType::VM_BOOLEAN);
             input->boolean = false;
-          } else if (symbol == "while") {
+          } else if (symbol == L"while") {
             token = WHILE;
-          } else if (symbol == "if") {
+          } else if (symbol == L"if") {
             token = IF;
-          } else if (symbol == "else") {
+          } else if (symbol == L"else") {
             token = ELSE;
-          } else if (symbol == "return") {
+          } else if (symbol == L"return") {
             token = RETURN;
           } else {
             token = SYMBOL;
@@ -272,7 +275,8 @@ void CompileLine(Compilation* compilation, void* parser, const string& str) {
         break;
 
       default:
-        cerr << "Unhandled character at position " << pos << ": " << str;
+        // TODO: Add str.
+        cerr << "Unhandled character at position " << pos << "\n";
         exit(54);
     }
     if (token == SYMBOL || token == STRING) {
@@ -285,7 +289,7 @@ void CompileLine(Compilation* compilation, void* parser, const string& str) {
 }  // namespace
 
 unique_ptr<Expression> CompileStream(
-    Environment* environment, std::istream& stream, string* error_description,
+    Environment* environment, std::wistream& stream, wstring* error_description,
     const VMType& return_type) {
   void* parser = CppAlloc(malloc);
 
@@ -294,8 +298,9 @@ unique_ptr<Expression> CompileStream(
   compilation.environment = environment;
   compilation.return_types = { return_type };
 
-  std::string line;
+  std::wstring line;
   while (std::getline(stream, line)) {
+    VLOG(4) << "Compiling line: [" << line << "] (" << line.size() << ")";
     CompileLine(&compilation, parser, line);
   }
 
@@ -310,21 +315,21 @@ unique_ptr<Expression> CompileStream(
 }
 
 unique_ptr<Expression> CompileFile(
-    const string& path, Environment* environment, string* error_description) {
-  std::ifstream infile(path);
+    const string& path, Environment* environment, wstring* error_description) {
+  std::wifstream infile(path);
   if (infile.fail()) { return nullptr; }
   return CompileStream(environment, infile, error_description, VMType::Void());
 }
 
 unique_ptr<Expression> CompileString(
-    const string& str, Environment* environment, string* error_description) {
+    const wstring& str, Environment* environment, wstring* error_description) {
   return CompileString(str, environment, error_description, VMType::Void());
 }
 
 unique_ptr<Expression> CompileString(
-    const string& str, Environment* environment, string* error_description,
+    const wstring& str, Environment* environment, wstring* error_description,
     const VMType& return_type) {
-  std::istream* instr = new std::stringstream(str, std::ios_base::in);
+  std::wistream* instr = new std::wstringstream(str, std::ios_base::in);
   return CompileStream(environment, *instr, error_description, return_type);
 }
 

@@ -18,8 +18,8 @@ struct LineColumn {
   bool at_beginning_of_line() const { return column == 0; }
   bool at_beginning() const { return line == 0 && at_beginning_of_line(); }
 
-  std::string ToString() const {
-    return std::to_string(line) + " " + std::to_string(column);
+  std::wstring ToString() const {
+    return std::to_wstring(line) + L" " + std::to_wstring(column);
   }
 
   bool operator==(const LineColumn& rhs) const {

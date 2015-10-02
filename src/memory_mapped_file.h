@@ -20,14 +20,16 @@ using std::function;
 
 class MemoryMappedFile : public LazyString {
  public:
-  MemoryMappedFile(const string& path);
+  MemoryMappedFile(const wstring& path);
   ~MemoryMappedFile();
 
-  char get(size_t pos) const {
+  // TODO: This is a lame implementation that doesn't really support wide chars.
+  wchar_t get(size_t pos) const {
     assert(buffer_ != nullptr);
     assert(pos < size());
     return buffer_[pos];
   }
+
   size_t size() const {
     return static_cast<size_t>(stat_buffer_.st_size);
   }
@@ -43,7 +45,7 @@ class EditorState;
 class OpenBuffer;
 
 void LoadMemoryMappedFile(
-    EditorState* editor_state, const string& path, OpenBuffer* buffer);
+    EditorState* editor_state, const wstring& path, OpenBuffer* buffer);
 
 }  // namespace editor
 }  // namespace afc

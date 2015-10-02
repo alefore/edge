@@ -17,7 +17,7 @@ int main(int, char**) {
   editor_state.ProcessInputString("i forero");
   editor_state.ProcessInput(Terminal::ESCAPE);
   assert(editor_state.current_buffer()->second->current_line()->ToString()
-         == "alejo forero");
+         == L"alejo forero");
   editor_state.ProcessInputString("ed");
   assert(editor_state.current_buffer()->second->ToString().empty());
 
@@ -53,7 +53,7 @@ int main(int, char**) {
   editor_state.ProcessInputString("e2d");
   assert(editor_state.current_buffer()->second->contents()->size() == 1);
   assert(editor_state.current_buffer()->second->current_line()->ToString()
-         == "cuervo");
+         == L"cuervo");
 
   editor_state.ProcessInputString("pp");
   assert(editor_state.current_buffer()->second->contents()->size() == 5);
@@ -70,7 +70,7 @@ int main(int, char**) {
   editor_state.ProcessInputString("3d");
   assert(editor_state.current_buffer()->second->current_position_line() == 1);
   assert(editor_state.current_buffer()->second->ToString()
-         == "alejandro\nero\nalejandro\nforero\ncuervo");
+         == L"alejandro\nero\nalejandro\nforero\ncuervo");
 
   // Clear it all.
   editor_state.ProcessInputString("ege10d");

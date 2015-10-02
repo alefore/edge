@@ -16,27 +16,27 @@ using std::shared_ptr;
 
 class HelpCommand : public Command {
  public:
-  HelpCommand(const map<int, Command*>& commands,
-              const string& mode_description)
+  HelpCommand(const map<wchar_t, Command*>& commands,
+              const wstring& mode_description)
       : commands_(commands), mode_description_(mode_description) {}
 
-  const string Description() {
-    return "shows help about commands.";
+  const wstring Description() {
+    return L"shows help about commands.";
   }
 
-  void ProcessInput(int, EditorState* editor_state) {
-    const string name = "- help: " + mode_description_;
+  void ProcessInput(wint_t, EditorState* editor_state) {
+    const wstring name = L"- help: " + mode_description_;
     auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
     editor_state->set_current_buffer(it.first);
     if (it.second) {
       shared_ptr<OpenBuffer> buffer(new OpenBuffer(editor_state, name));
       buffer->AppendLine(
           editor_state,
-          std::move(NewCopyString("Help: " + mode_description_)));
+          std::move(NewCopyString(L"Help: " + mode_description_)));
       for (const auto& it : commands_) {
         buffer->AppendLine(editor_state, std::move(NewCopyString(
-          (it.first == '\n' ? "RET" : string(1, static_cast<char>(it.first)))
-          + " - " + it.second->Description())));
+          (it.first == '\n' ? L"RET" : wstring(1, it.first))
+          + L" - " + it.second->Description())));
       }
       it.first->second = buffer;
     }
@@ -48,13 +48,13 @@ class HelpCommand : public Command {
   }
 
  private:
-  const map<int, Command*> commands_;
-  const string mode_description_;
+  const map<wchar_t, Command*> commands_;
+  const wstring mode_description_;
 };
 
 unique_ptr<Command> NewHelpCommand(
-    const map<int, Command*>& commands,
-    const string& mode_description) {
+    const map<wchar_t, Command*>& commands,
+    const wstring& mode_description) {
   return unique_ptr<Command>(new HelpCommand(commands, mode_description));
 }
 

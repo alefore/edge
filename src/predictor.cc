@@ -18,7 +18,10 @@ extern "C" {
 #include "editor.h"
 #include "file_link_mode.h"
 #include "predictor.h"
+#include "wstring.h"
 
+namespace afc {
+namespace editor {
 namespace {
 
 using afc::editor::EditorState;
@@ -30,15 +33,16 @@ using std::function;
 using std::min;
 using std::shared_ptr;
 using std::sort;
-using std::string;
+using std::wstring;
 
 class PredictionsBufferImpl : public OpenBuffer {
  public:
+  // TODO: Replace "- predictions" with a reference to the right variable.
   PredictionsBufferImpl(EditorState* editor_state,
                         Predictor predictor,
-                        const string& input,
-                        function<void(string)> consumer)
-      : OpenBuffer(editor_state, "- predictions"),
+                        const wstring& input,
+                        function<void(wstring)> consumer)
+      : OpenBuffer(editor_state, L"- predictions"),
         predictor_(predictor),
         input_(input),
         consumer_(consumer) {}
@@ -50,6 +54,8 @@ class PredictionsBufferImpl : public OpenBuffer {
  protected:
   void EndOfFile(EditorState* editor_state) {
     OpenBuffer::EndOfFile(editor_state);
+    LOG(INFO) << "Predictions buffer received end of file. Predictions: "
+              << contents()->size();
     if (contents()->empty()) { return; }
     struct Compare {
       bool operator()(const shared_ptr<Line>& a, const shared_ptr<Line>& b) {
@@ -57,54 +63,54 @@ class PredictionsBufferImpl : public OpenBuffer {
       }
     } compare;
 
-    sort(contents()->begin(), contents()->end(), compare);
-    auto it = contents()->begin();
-    while (it != contents()->end() && (*it)->size() == 0) {
-      ++it;
+    if (contents_.empty()) {
+      consumer_(L"");
+      return;
     }
-    if (it == contents()->end()) { return; }
-    string common_prefix = (*it)->ToString();
-    while (it != contents()->end()) {
-      if ((*it)->size() == 0) { continue; }
+
+    sort(contents()->begin(), contents()->end() - 1, compare);
+    wstring common_prefix = (*contents()->begin())->ToString();
+    for (auto it = contents()->begin(); it != contents()->end(); ++it) {
+      if ((*it)->size() == 0) {
+        continue;
+      }
+      VLOG(5) << "Considering prediction: " << (*it)->ToString() << " (len: "
+              << (*it)->size() << ")";
       size_t current_size = min(common_prefix.size(), (*it)->size());
-      string current = (*it)->Substring(0, current_size)->ToString();
+      wstring current = (*it)->Substring(0, current_size)->ToString();
 
       auto prefix_end = mismatch(common_prefix.begin(), common_prefix.end(),
                                  current.begin());
       if (prefix_end.first != common_prefix.end()) {
         if (prefix_end.first == common_prefix.begin()) { return; }
-        common_prefix = string(common_prefix.begin(), prefix_end.first);
+        common_prefix = wstring(common_prefix.begin(), prefix_end.first);
       }
-      ++it;
     }
     consumer_(common_prefix);
   }
 
  private:
   Predictor predictor_;
-  const string input_;
-  std::function<void(string)> consumer_;
+  const wstring input_;
+  std::function<void(wstring)> consumer_;
 };
 
 }  // namespace
 
-namespace afc {
-namespace editor {
-
 shared_ptr<OpenBuffer> PredictionsBuffer(
-    EditorState* editor_state, Predictor predictor, const string& input,
-    function<void(const string&)> consumer) {
+    EditorState* editor_state, Predictor predictor, const wstring& input,
+    function<void(const wstring&)> consumer) {
   return shared_ptr<OpenBuffer>(
       new PredictionsBufferImpl(editor_state, predictor, input, consumer));
 }
 
 void FilePredictor(EditorState* editor_state,
-                   const string& input,
+                   const wstring& input,
                    OpenBuffer* buffer) {
   LOG(INFO) << "Generating predictions for: " << input;
 
-  string path = editor_state->expand_path(input);
-  vector<string> search_paths = { "" };
+  wstring path = editor_state->expand_path(input);
+  vector<wstring> search_paths = { L"" };
   GetSearchPaths(editor_state, &search_paths);
 
   int pipefd[2];
@@ -114,7 +120,7 @@ void FilePredictor(EditorState* editor_state,
   if (pipe(pipefd) == -1) { exit(57); }
   pid_t child_pid = fork();
   if (child_pid == -1) {
-    editor_state->SetStatus("fork failed: " + string(strerror(errno)));
+    editor_state->SetStatus(L"fork failed: " + FromByteString(strerror(errno)));
     return;
   }
   if (child_pid == 0) {
@@ -127,26 +133,26 @@ void FilePredictor(EditorState* editor_state,
     string basename_prefix;
     string dirname_prefix;
     for (const auto& search_path_it : search_paths) {
-      string path_with_prefix;
+      wstring path_with_prefix;
       if (search_path_it.empty()) {
-        path_with_prefix = path.empty() ? "." : path;
+        path_with_prefix = path.empty() ? L"." : path;
       } else {
         path_with_prefix = search_path_it;
         if (!path.empty()) {
-          path_with_prefix += "/" + path;
+          path_with_prefix += L"/" + path;
         }
       }
 
       std::unique_ptr<DIR, decltype(&closedir)> dir(
-          opendir(path_with_prefix.c_str()), &closedir);
+          opendir(ToByteString(path_with_prefix).c_str()), &closedir);
       if (dir != nullptr) {
         LOG(INFO) << "Exact match: " << path_with_prefix;
-        dirname_prefix = path_with_prefix;
+        dirname_prefix = ToByteString(path_with_prefix);
         if (dirname_prefix.back() != '/') {
           dirname_prefix.push_back('/');
         }
       } else {
-        char* dirname_copy = strdup(path_with_prefix.c_str());
+        char* dirname_copy = strdup(ToByteString(path_with_prefix).c_str());
         dirname_prefix = dirname(dirname_copy);
         free(dirname_copy);
         LOG(INFO) << "Inexact match, trying with dirname: " << dirname_prefix;
@@ -161,7 +167,7 @@ void FilePredictor(EditorState* editor_state,
           dirname_prefix += "/";
         }
 
-        char* basename_copy = strdup(path.c_str());
+        char* basename_copy = strdup(ToByteString(path).c_str());
         basename_prefix = basename(basename_copy);
         free(basename_copy);
       }
@@ -177,7 +183,10 @@ void FilePredictor(EditorState* editor_state,
             || entry_path == "..") {
           continue;
         }
-        cout << dirname_prefix << entry->d_name << (entry->d_type == DT_DIR ? "/" : "") << "\n";
+        string prediction = dirname_prefix + entry->d_name +
+            (entry->d_type == DT_DIR ? "/" : "");
+        VLOG(5) << "Prediction: " << prediction;
+        cout << prediction << "\n";
       }
     }
 
@@ -188,17 +197,18 @@ void FilePredictor(EditorState* editor_state,
 }
 
 void EmptyPredictor(
-    EditorState* editor_state, const string&, OpenBuffer* buffer) {
+    EditorState* editor_state, const wstring&, OpenBuffer* buffer) {
   buffer->EndOfFile(editor_state);
 }
 
-Predictor PrecomputedPredictor(const vector<string>& predictions) {
-  const shared_ptr<map<string, shared_ptr<LazyString>>> contents(
-      new map<string, shared_ptr<LazyString>>());
+Predictor PrecomputedPredictor(const vector<wstring>& predictions) {
+  // TODO: Use std::make_shared.
+  const shared_ptr<map<wstring, shared_ptr<LazyString>>> contents(
+      new map<wstring, shared_ptr<LazyString>>());
   for (const auto& prediction : predictions) {
     contents->insert(make_pair(prediction, NewCopyString(prediction)));
   }
-  return [contents](EditorState* editor_state, const string& input,
+  return [contents](EditorState* editor_state, const wstring& input,
                     OpenBuffer* buffer) {
     for (auto it = contents->lower_bound(input); it != contents->end(); ++it) {
       auto result = mismatch(input.begin(), input.end(), (*it).first.begin());

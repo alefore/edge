@@ -108,6 +108,7 @@ void SendCommandsToParent(int fd, const Args& args) {
   for (auto& command_to_fork : args.commands_to_fork) {
     commands_to_run += "ForkCommand(\"" + string(command_to_fork) + "\");\n";
   }
+  LOG(INFO) << "Sending commands to parent: " << commands_to_run;
   if (write(fd, commands_to_run.c_str(), commands_to_run.size()) == -1) {
     cerr << "write: " << strerror(errno);
     exit(1);
@@ -122,6 +123,10 @@ int main(int argc, const char** argv) {
   using std::cerr;
 
   google::InitGoogleLogging(argv[0]);
+
+  string locale = std::setlocale(LC_ALL, "");
+  LOG(INFO) << "Using locale: " << locale;
+
   Args args = ParseArgs(&argc, &argv);
 
   int fd = MaybeConnectToParentServer();
@@ -182,8 +187,8 @@ int main(int argc, const char** argv) {
         continue;
       }
       if (fds[i].fd == 0) {
-        int c;
-        while ((c = terminal.Read(editor_state())) != -1) {
+        wint_t c;
+        while ((c = terminal.Read(editor_state())) != static_cast<wint_t>(-1)) {
           editor_state()->mode()->ProcessInput(c, editor_state());
         }
         continue;
@@ -195,5 +200,5 @@ int main(int argc, const char** argv) {
   }
 
   delete editor_state();
-  terminal.SetStatus("done");
+  terminal.SetStatus(L"done");
 }

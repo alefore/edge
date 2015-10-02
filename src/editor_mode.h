@@ -11,7 +11,7 @@ struct EditorState;
 class EditorMode {
  public:
   virtual ~EditorMode() {}
-  virtual void ProcessInput(int c, EditorState* editor_state) = 0;
+  virtual void ProcessInput(wint_t c, EditorState* editor_state) = 0;
 };
 
 }  // namespace editor

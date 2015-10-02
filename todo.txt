@@ -1,7 +1,5 @@
 -- Display
 
-Handle unicode.
-
 -- Editing
 
 When an anonymous buffer is saved, ask for the name?
@@ -10,7 +8,7 @@ Handle DELETE key
 
 Implement delete of page.
 
-Support autocomplete while editting a buffer
+Support autocomplete while editing a buffer
   Maybe initially just look up words in the current file?
   Maybe variables control sources of completions?
 
@@ -30,8 +28,6 @@ Add a "margin_lines" integer variable.
 Add a boolean variable "highlight_current_line" (default: false); when set, highlight the line with the current cursor position.
 
 When entering a file, check if it has been modified.  If it has, show a warning (and/or reload it).
-
-In the list of buffers: e (line) ar (reload) should send a reload command to the current buffer.
 
 -- Prompt
 

@@ -9,8 +9,8 @@ namespace afc {
 namespace vm {
 
 using std::map;
-using std::string;
 using std::unique_ptr;
+using std::wstring;
 
 class Value;
 class VMType;
@@ -26,16 +26,16 @@ class Environment {
 
   static Environment* DefaultEnvironment();
 
-  const ObjectType* LookupObjectType(const string& symbol);
-  const VMType* LookupType(const string& symbol);
-  void DefineType(const string& name, unique_ptr<ObjectType> value);
+  const ObjectType* LookupObjectType(const wstring& symbol);
+  const VMType* LookupType(const wstring& symbol);
+  void DefineType(const wstring& name, unique_ptr<ObjectType> value);
 
-  Value* Lookup(const string& symbol);
-  void Define(const string& symbol, unique_ptr<Value> value);
+  Value* Lookup(const wstring& symbol);
+  void Define(const wstring& symbol, unique_ptr<Value> value);
 
  private:
-  map<string, unique_ptr<Value>>* table_;
-  map<string, unique_ptr<ObjectType>>* object_types_;
+  map<wstring, unique_ptr<Value>>* table_;
+  map<wstring, unique_ptr<ObjectType>>* object_types_;
   Environment* parent_environment_;
 };
 

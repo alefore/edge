@@ -10,9 +10,9 @@ namespace afc {
 namespace vm {
 
 using std::map;
-using std::string;
 using std::unique_ptr;
 using std::vector;
+using std::wstring;
 
 class ObjectType;
 
@@ -37,13 +37,13 @@ struct VMType {
   static const VMType& String();
 
   static VMType ObjectType(ObjectType* type);
-  static VMType ObjectType(const string& name);
+  static VMType ObjectType(const wstring& name);
 
-  string ToString() const;
+  wstring ToString() const;
 
   Type type;
   vector<VMType> type_arguments;
-  string object_type;
+  wstring object_type;
 };
 
 bool operator==(const VMType& lhs, const VMType& rhs);
@@ -53,22 +53,23 @@ class Value;
 class ObjectType {
  public:
   ObjectType(const VMType& type);
-  ObjectType(const string& type_name);
+  ObjectType(const wstring& type_name);
   ~ObjectType() {};
 
   const VMType& type() const { return type_; }
-  string ToString() const { return type_.ToString(); }
+  wstring ToString() const { return type_.ToString(); }
 
-  void AddField(const string& name, unique_ptr<Value> field);
+  void AddField(const wstring& name, unique_ptr<Value> field);
 
-  Value* LookupField(const string& name) const {
+  Value* LookupField(const wstring& name) const {
     auto it = fields_->find(name);
     return it == fields_->end() ? nullptr : it->second.get();
   }
 
  private:
   VMType type_;
-  map<string, unique_ptr<Value>>* fields_;
+  // TODO: Consider not making it a pointer?
+  map<wstring, unique_ptr<Value>>* fields_;
 };
 
 }  // namespace vm

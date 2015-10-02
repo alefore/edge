@@ -13,6 +13,7 @@ namespace editor {
 using std::map;
 using std::string;
 using std::unique_ptr;
+using std::wstring;
 
 struct EditorState;
 
@@ -20,12 +21,12 @@ struct ForkCommandOptions {
   ForkCommandOptions() : enter(false) {}
 
   // The command to run.
-  string command;
+  wstring command;
 
-  string buffer_name;
+  wstring buffer_name;
 
   // Additional environment variables (e.g. getenv) to give to the command.
-  map<string, string> environment;
+  map<wstring, wstring> environment;
 
   // Should we make it the active buffer?
   bool enter;
@@ -34,8 +35,9 @@ struct ForkCommandOptions {
 unique_ptr<Command> NewForkCommand();
 
 void ForkCommand(EditorState* editor_state, const ForkCommandOptions& options);
-void RunCommandHandler(const string& input, EditorState* editor_state);
-void RunMultipleCommandsHandler(const string& input, EditorState* editor_state);
+void RunCommandHandler(const wstring& input, EditorState* editor_state);
+void RunMultipleCommandsHandler(const wstring& input,
+                                EditorState* editor_state);
 
 }  // namespace editor
 }  // namespace afc

@@ -13,7 +13,7 @@ class RepeatMode : public EditorMode {
   RepeatMode(function<void(EditorState*, int)> consumer)
       : consumer_(consumer), result_(0) {}
 
-  void ProcessInput(int c, EditorState* editor_state) {
+  void ProcessInput(wint_t c, EditorState* editor_state) {
     if (c < '0' || c > '9') {
       consumer_(editor_state, result_);
       editor_state->set_mode(NewCommandMode());

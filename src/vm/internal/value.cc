@@ -19,14 +19,14 @@ namespace vm {
   return std::move(output);
 }
 
-/* static */ unique_ptr<Value> Value::NewString(const string& value) {
+/* static */ unique_ptr<Value> Value::NewString(const wstring& value) {
   unique_ptr<Value> output(new Value(VMType::String()));
   output->str = value;
   return std::move(output);
 }
 
 /* static */ unique_ptr<Value> Value::NewObject(
-    const string& name, const shared_ptr<void>& value) {
+    const wstring& name, const shared_ptr<void>& value) {
   unique_ptr<Value> output(new Value(VMType::ObjectType(name)));
   output->user_value = value;
   return std::move(output);
@@ -34,7 +34,8 @@ namespace vm {
 
 std::ostream& operator<<(std::ostream& os, const Value& value) {
   // TODO: implement.
-  os << "[" << value.type.ToString() << "]";
+  // TODO: Comment out: os << "[" << value.type.ToString() << "]";
+  os << "[ some value ]";
   return os;
 }
 

@@ -12,12 +12,13 @@ extern "C" {
 
 #include "char_buffer.h"
 #include "editor.h"
+#include "wstring.h"
 
 namespace {
 
 using namespace afc::editor;
 using std::vector;
-using std::string;
+using std::wstring;
 
 #if CPP_REGEX
 typedef std::regex RegexPattern;
@@ -25,12 +26,13 @@ typedef std::regex RegexPattern;
 typedef regex_t RegexPattern;
 #endif
 
-vector<size_t> GetMatches(const string& line, const RegexPattern& pattern) {
+vector<size_t> GetMatches(const wstring& line, const RegexPattern& pattern) {
   int start = 0;
   vector<size_t> output;
   while (true) {
-    size_t match = string::npos;
-    string line_substr = line.substr(start);
+    size_t match = wstring::npos;
+    // TODO: Ugh, our regexp engines are not wchar aware. :-(
+    string line_substr = ToByteString(line.substr(start));
 
 #if CPP_REGEX
     std::smatch pattern_match;
@@ -45,7 +47,7 @@ vector<size_t> GetMatches(const string& line, const RegexPattern& pattern) {
     }
 #endif
 
-    if (match == string::npos) { return output; }
+    if (match == wstring::npos) { return output; }
     output.push_back(start + match);
     start += match + 1;
   }
@@ -55,42 +57,44 @@ size_t FindInterestingMatch(
     const vector<size_t> matches, bool wrapped,
     const BufferLineIterator& start_line, size_t start_column,
     const BufferLineIterator& line) {
-  if (matches.empty()) { return string::npos; }
+  if (matches.empty()) { return wstring::npos; }
   if (line != start_line) { return *matches.begin(); }
   for (auto it = matches.begin(); it != matches.end(); ++it) {
     if (!wrapped ? *it > start_column : *it < start_column) {
       return *it;
     }
   }
-  return string::npos;
+  return wstring::npos;
 }
 
 size_t FindInterestingMatch(
     const vector<size_t> matches, bool wrapped,
     const BufferLineReverseIterator& start_line, size_t start_column,
     const BufferLineReverseIterator& line) {
-  if (matches.empty()) { return string::npos; }
+  if (matches.empty()) { return wstring::npos; }
   if (line != start_line) { return *matches.begin(); }
   for (auto it = matches.rbegin(); it != matches.rend(); ++it) {
     if (wrapped ? *it > start_column : *it < start_column) {
       return *it;
     }
   }
-  return string::npos;
+  return wstring::npos;
 }
 
 template <typename Iterator>
 bool PerformSearch(
-    const string& input, OpenBuffer* buffer, const Iterator& start_line,
+    const wstring& input, OpenBuffer* buffer, const Iterator& start_line,
     size_t start_column, const Iterator& begin, const Iterator& end,
     LineColumn* match_position, bool* wrapped) {
   using namespace afc::editor;
 
 #if CPP_REGEX
-  std::regex pattern(input);
+  // TODO: Get rid of ToByteString. Ugh.
+  std::regex pattern(ToByteString(input));
 #else
   regex_t pattern;
-  if (regcomp(&pattern, input.c_str(), REG_ICASE) != 0) {
+  // TODO: Get rid of ToByteString. Ugh.
+  if (regcomp(&pattern, ToByteString(input).c_str(), REG_ICASE) != 0) {
     return false;
   }
 #endif
@@ -101,14 +105,14 @@ bool PerformSearch(
 
   while (true) {
     if (line.line() < buffer->end().line()) {
-      string str = (*line)->ToString();
+      wstring str = (*line)->ToString();
 
       vector<size_t> matches = GetMatches(str, pattern);
       size_t interesting_match;
       interesting_match =
           FindInterestingMatch(matches, *wrapped, start_line, start_column, line);
 
-      if (interesting_match != string::npos) {
+      if (interesting_match != wstring::npos) {
         match_position->line = line.line();
         match_position->column = interesting_match;
         return true;
@@ -138,11 +142,11 @@ using std::regex;
 
 shared_ptr<LazyString>
 RegexEscape(shared_ptr<LazyString> str) {
-  string results;
-  static string literal_characters = " ()<>{}+_-;\"':,?#%";
+  wstring results;
+  static wstring literal_characters = L" ()<>{}+_-;\"':,?#%";
   for (size_t i = 0; i < str->size(); i++) {
-    int c = str->get(i);
-    if (!isalnum(c) && literal_characters.find(c) == string::npos) {
+    wchar_t c = str->get(i);
+    if (!iswalnum(c) && literal_characters.find(c) == wstring::npos) {
       results.push_back('\\');
     }
     results.push_back(c);
@@ -151,7 +155,7 @@ RegexEscape(shared_ptr<LazyString> str) {
 }
 
 bool PerformSearchWithDirection(
-    EditorState* editor_state, const string& input, LineColumn* match_position,
+    EditorState* editor_state, const wstring& input, LineColumn* match_position,
     bool* wrapped) {
   auto buffer = editor_state->current_buffer()->second;
   if (editor_state->direction() == FORWARDS) {
@@ -168,7 +172,7 @@ bool PerformSearchWithDirection(
 }
 
 void SearchHandlerPredictor(
-    EditorState* editor_state, const string& input,
+    EditorState* editor_state, const wstring& input,
     OpenBuffer* predictions_buffer) {
   auto buffer = editor_state->current_buffer()->second;
   LineColumn match_position = buffer->position();
@@ -198,7 +202,7 @@ void SearchHandlerPredictor(
 }
 
 void SearchHandler(
-    const LineColumn& starting_position, const string& input,
+    const LineColumn& starting_position, const wstring& input,
     EditorState* editor_state) {
   editor_state->set_last_search_query(input);
   if (!editor_state->has_current_buffer() || input.empty()) {
@@ -222,14 +226,14 @@ void SearchHandler(
 
   if (!PerformSearchWithDirection(
            editor_state, input, &match_position, &wrapped)) {
-    editor_state->SetStatus("No matches: " + input);
+    editor_state->SetStatus(L"No matches: " + input);
   } else {
     buffer->set_position(match_position);
     editor_state->PushCurrentPosition();
     if (wrapped) {
-      editor_state->SetStatus("Found (wrapped).");
+      editor_state->SetStatus(L"Found (wrapped).");
     } else {
-      editor_state->SetStatus("Found.");
+      editor_state->SetStatus(L"Found.");
     }
   }
 

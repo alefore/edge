@@ -1,6 +1,7 @@
 #ifndef __AFC_EDITOR_TERMINAL_H__
 #define __AFC_EDITOR_TERMINAL_H__
 
+#include <cwchar>
 #include <memory>
 #include <list>
 #include <string>
@@ -29,15 +30,17 @@ class Terminal {
   ~Terminal();
 
   void Display(EditorState* editor_state);
-  void SetStatus(const std::string& status);
-  int Read(EditorState* editor_state);
+  void SetStatus(const std::wstring& status);
+  wint_t Read(EditorState* editor_state);
 
  private:
   void ShowStatus(const EditorState& editor_state);
   void ShowBuffer(const EditorState* editor_state);
   void AdjustPosition(const shared_ptr<OpenBuffer> buffer);
 
-  std::string status_;
+  std::wstring status_;
+
+  std::mbstate_t mbstate_;
 };
 
 }  // namespace editor

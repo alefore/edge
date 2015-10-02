@@ -12,16 +12,16 @@ using std::shared_ptr;
 
 class EditableString : public LazyString {
  public:
-  static shared_ptr<EditableString> New(const string& editable_part);
+  static shared_ptr<EditableString> New(const wstring& editable_part);
 
   static shared_ptr<EditableString> New(
       const shared_ptr<LazyString>& base, size_t position);
 
   static shared_ptr<EditableString> New(
     const shared_ptr<LazyString>& base, size_t position,
-    const string& editable_part);
+    const wstring& editable_part);
 
-  virtual char get(size_t pos) const;
+  virtual wchar_t get(size_t pos) const;
 
   virtual size_t size() const;
 
@@ -33,11 +33,11 @@ class EditableString : public LazyString {
 
  private:
   EditableString(const shared_ptr<LazyString>& base, size_t position,
-                 const string& editable_part);
+                 const wstring& editable_part);
 
   shared_ptr<LazyString> base_;
   size_t position_;
-  string editable_part_;
+  wstring editable_part_;
 };
 
 }  // namespace editor

@@ -8,8 +8,8 @@ namespace {
 using namespace afc::editor;
 
 class NoopCommandImpl : public Command {
-  const string Description() { return "does nothing"; }
-  void ProcessInput(int, EditorState*) {}
+  const wstring Description() { return L"does nothing"; }
+  void ProcessInput(wint_t, EditorState*) {}
 };
 
 }  // namespace

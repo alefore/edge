@@ -22,7 +22,7 @@ class OpenBuffer;
 
 using std::hash;
 using std::shared_ptr;
-using std::string;
+using std::wstring;
 using std::unique_ptr;
 using std::unordered_set;
 using std::vector;
@@ -53,13 +53,13 @@ class Line {
 
   shared_ptr<LazyString> contents() { return contents_; }
   size_t size() const { return contents_->size(); }
-  int get(size_t column) const {
+  wint_t get(size_t column) const {
     CHECK_LT(column, contents_->size());
     return contents_->get(column);
   }
   shared_ptr<LazyString> Substring(size_t pos, size_t length);
   shared_ptr<LazyString> Substring(size_t pos);
-  string ToString() const {
+  wstring ToString() const {
     return contents_->ToString();
   }
   void DeleteUntilEnd(size_t position);
@@ -91,8 +91,8 @@ class Line {
 
   class OutputReceiverInterface {
    public:
-    virtual void AddCharacter(int character) = 0;
-    virtual void AddString(const string& str) = 0;
+    virtual void AddCharacter(wchar_t character) = 0;
+    virtual void AddString(const wstring& str) = 0;
     virtual void AddModifier(Modifier modifier) = 0;
     virtual size_t width() const = 0;
   };
