@@ -39,7 +39,7 @@ class EditorState {
     }
   }
 
-  void CloseBuffer(const map<wstring, shared_ptr<OpenBuffer>>::iterator buffer);
+  bool CloseBuffer(const map<wstring, shared_ptr<OpenBuffer>>::iterator buffer);
 
   const map<wstring, shared_ptr<OpenBuffer>>* buffers() const {
     return &buffers_;
@@ -62,7 +62,7 @@ class EditorState {
     return current_buffer_;
   }
   bool terminate() const { return terminate_; }
-  void set_terminate(bool value) { terminate_ = value; }
+  bool AttemptTermination(wstring* error_description);
 
   void ResetModifiers() {
     ResetMode();

@@ -58,7 +58,10 @@ class Quit : public Command {
   }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->set_terminate(true);
+    wstring error_description;
+    if (!editor_state->AttemptTermination(&error_description)) {
+      editor_state->SetStatus(error_description);
+    }
   }
 };
 
@@ -99,7 +102,7 @@ class OpenDirectory : public Command {
 
 class CloseCurrentBuffer : public Command {
   const wstring Description() {
-    return L"closes the current buffer (without saving)";
+    return L"closes the current buffer";
   }
 
   void ProcessInput(wint_t, EditorState* editor_state) {

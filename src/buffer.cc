@@ -457,9 +457,30 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
 
 OpenBuffer::~OpenBuffer() {}
 
+bool OpenBuffer::PrepareToClose(EditorState* editor_state) {
+  if (!dirty()) {
+    LOG(INFO) << name_ << ": clean, skipping.";
+    return true;
+  }
+  if (read_bool_variable(variable_save_on_close())) {
+    LOG(INFO) << name_ << ": attempting to save buffer.";
+    // TODO(alejo): Let Save give us status?
+    Save(editor_state);
+    if (!dirty()) {
+      LOG(INFO) << name_ << ": successful save.";
+      return true;
+    }
+  }
+  if (read_bool_variable(variable_allow_dirty_delete())) {
+    LOG(INFO) << name_ << ": allows dirty delete, skipping.";
+    return true;
+  }
+  return false;
+}
+
 void OpenBuffer::Close(EditorState* editor_state) {
   LOG(INFO) << "Closing buffer: " << name_;
-  if (read_bool_variable(variable_save_on_close())) {
+  if (dirty() && read_bool_variable(variable_save_on_close())) {
     Save(editor_state);
   }
 }
@@ -1185,6 +1206,7 @@ wstring OpenBuffer::FlagsString() const {
     OpenBuffer::variable_pts();
     OpenBuffer::variable_vm_exec();
     OpenBuffer::variable_close_after_clean_exit();
+    OpenBuffer::variable_allow_dirty_delete();
     OpenBuffer::variable_reload_after_exit();
     OpenBuffer::variable_default_reload_after_exit();
     OpenBuffer::variable_reload_on_enter();
@@ -1221,6 +1243,16 @@ wstring OpenBuffer::FlagsString() const {
       L"close_after_clean_exit",
       L"If a command is forked that writes to this buffer, should the buffer be "
       L"closed when the command exits with a successful status code?",
+      false);
+  return variable;
+}
+
+/* static */ EdgeVariable<char>*
+OpenBuffer::variable_allow_dirty_delete() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+      L"allow_dirty_delete",
+      L"Allow this buffer to be deleted even if it's dirty (i.e. if it has "
+      L"unsaved changes or an underlying process that's still running).",
       false);
   return variable;
 }

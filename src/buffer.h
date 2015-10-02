@@ -162,6 +162,7 @@ class OpenBuffer {
   OpenBuffer(EditorState* editor_state, const wstring& name);
   ~OpenBuffer();
 
+  bool PrepareToClose(EditorState* editor_state);
   void Close(EditorState* editor_state);
 
   void ClearContents();
@@ -358,6 +359,13 @@ class OpenBuffer {
   void set_modified(bool value) { modified_ = value; }
   bool modified() const { return modified_; }
 
+  bool dirty() const {
+    return modified_
+        || child_pid_ != -1
+        || !WIFEXITED(child_exit_status_)
+        || WEXITSTATUS(child_exit_status_) != 0;
+  }
+
   wstring FlagsString() const;
 
   void PushSignal(EditorState* editor_state, int signal);
@@ -370,6 +378,7 @@ class OpenBuffer {
   static EdgeVariable<char>* variable_pts();
   static EdgeVariable<char>* variable_vm_exec();
   static EdgeVariable<char>* variable_close_after_clean_exit();
+  static EdgeVariable<char>* variable_allow_dirty_delete();
   static EdgeVariable<char>* variable_reload_after_exit();
   static EdgeVariable<char>* variable_default_reload_after_exit();
   static EdgeVariable<char>* variable_reload_on_enter();

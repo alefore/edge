@@ -243,8 +243,12 @@ EditorState::~EditorState() {
   }
 }
 
-void EditorState::CloseBuffer(
+bool EditorState::CloseBuffer(
     map<wstring, shared_ptr<OpenBuffer>>::iterator buffer) {
+  if (!buffer->second->PrepareToClose(this)) {
+    SetStatus(L"Unable to close buffer: " + buffer->first);
+    return false;
+  }
   ScheduleRedraw();
   if (current_buffer_ == buffer) {
     if (buffers_.size() == 1) {
@@ -261,7 +265,33 @@ void EditorState::CloseBuffer(
 
   buffer->second->Close(this);
   buffers_.erase(buffer);
-  assert(current_buffer_ != buffers_.end());
+  CHECK(current_buffer_ != buffers_.end());
+  return true;
+}
+
+bool EditorState::AttemptTermination(wstring* error_description) {
+  LOG(INFO) << "Checking buffers for termination.";
+  vector<wstring> buffers_with_problems;
+  for (auto& it : buffers_) {
+    if (!it.second->PrepareToClose(this)) {
+      buffers_with_problems.push_back(it.first);
+    }
+  }
+  if (buffers_with_problems.empty()) {
+    LOG(INFO) << "Terminating.";
+    terminate_ = true;
+    return true;
+  }
+
+  wstring error = L"Unable to close buffers:";
+  for (auto name : buffers_with_problems) {
+    error += L" " + name;
+  }
+  LOG(INFO) << error;
+  if (error_description != nullptr) {
+    *error_description = std::move(error);
+  }
+  return false;
 }
 
 void EditorState::MoveBufferForwards(size_t times) {

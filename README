@@ -262,7 +262,7 @@ variable of the buffer is used to decide which characters are considered spaces.
 4.2.3. Deleting a buffer
 
 Buffer: deletes the contents of the current buffer.  If you want to close the
-current buffer, see section 5.6.
+current buffer, see section 5.8.
 
 
 
@@ -401,7 +401,8 @@ directory containing the current buffer, one file (or directory) per line.
 Like the list of buffers (section 5.1), this is a special buffer:
 
 - Deleting lines (with "ed") from this buffer will, after prompting you for
-  confirmation, delete the underlying files from the file system.
+  confirmation, delete the underlying files from the file system. See section
+  5.8 for more details on the logic of deleting buffers.
 
 - Pressing Enter on the line for a given file will create a buffer for that file
   (unless one already existed, in which case it'll just take you to it).
@@ -414,10 +415,23 @@ Use "aw" ("Advanced > Write") in a buffer to save its contents.
 Some buffers can't be saved and will display an error in the status.
 
 
-5.6. Close a buffer
+5.8. Delete a buffer
 
-Press "ad" ("Advanced > Delete") to close (delete) the current buffer.  Any
-unsaved changes will be lost.
+Press "ad" ("Advanced > Delete") to delete (close) the current buffer.
+
+A buffer is said to be dirty if any of these conditions holds:
+
+- It has unsaved modifications.
+- It has a running process.
+- It had a running process which was killed or exited with a non-zero status.
+
+If you attempt to close a dirty buffer:
+
+- If variable save_on_close (section 7.2.7) is set, Edge will attempt to save
+  the buffer.
+- If the buffer is still dirty, Edge will prevent you from deleting the buffer,
+  unless variable allow_dirty_delete (section 7.2.8) is set.
+
 
 See section 5.1 for another mechanism for closing buffers, by deleting lines
 from the list of buffers.
@@ -578,15 +592,26 @@ Default: false
 
 7.2.7. save_on_close (bool)
 
-Should this buffer be saved automatically when it's closed?
+Should this buffer be saved automatically when it's closed?  See section 5.8 for
+details.
 
 This applies both when the buffer is closed explicitly (e.g. through "ad",
-section 5.6) or when Edge exits.
+section 5.8) or when Edge exits.
 
 Default: false
 
 
-7.2.8. clear_on_reload (bool)
+7.2.8. allow_dirty_delete (bool)
+
+Can this buffer be deleted if it's dirty?  See section 5.8 for details.
+
+This applies both when the buffer is closed explicitly (e.g. through "ad",
+section 5.8) or when Edge exits.
+
+Default: false
+
+
+7.2.9. clear_on_reload (bool)
 
 Should any previous contents be discarded when this buffer is reloaded? If
 false, previous contents will be preserved and new contents will be appended at
@@ -598,7 +623,7 @@ want to discard the output of previous runs as you reload the buffer.
 Default: true
 
 
-7.2.9. paste_mode (bool)
+7.2.10. paste_mode (bool)
 
 When paste_mode is true in a buffer, it will be displayed in a way that makes it
 possible to select (with a mouse) parts of it (that are currently shown).  It
@@ -608,7 +633,7 @@ any smart "auto indenting").
 Default: false
 
 
-7.2.10. commands_background_mode (bool)
+7.2.11. commands_background_mode (bool)
 
 Should new commands forked from this buffer be started in background mode?  If
 false, we will switch to them automatically.
@@ -619,7 +644,7 @@ new buffer; it has no effect whatsoever in the command.
 Default: false
 
 
-7.2.11. reload_on_buffer_write (bool)
+7.2.12. reload_on_buffer_write (bool)
 
 Should the buffer on which this variable is set be reloaded automatically when
 any buffer is written?
@@ -629,7 +654,7 @@ This is useful mainly for command buffers like 'make' or 'git diff'.
 Default: false
 
 
-7.2.12. word_characters (string)
+7.2.13. word_characters (string)
 
 String with all the characters that should be considered part of a word.  This
 affects commands such as "wd" (delete word).
@@ -637,21 +662,21 @@ affects commands such as "wd" (delete word).
 Default: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_"
 
 
-7.2.13. path_characters (string)
+7.2.14. path_characters (string)
 
 String with all the characters that should be considered part of a path.
 
 Default: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-.*:/"
 
 
-7.2.14. path (string)
+7.2.15. path (string)
 
 String with the path of the current file.
 
 Default: ""
 
 
-7.2.15. pts_path (string)
+7.2.16. pts_path (string)
 
 String with the path of the terminal used by the current buffer (or empty if the
 buffer is not using a terminal).
@@ -659,14 +684,14 @@ buffer is not using a terminal).
 Default: ""
 
 
-7.2.16. command (string)
+7.2.17. command (string)
 
 String with the current command (or empty).
 
 Default: ""
 
 
-7.2.17. editor_commands_path (string)
+7.2.18. editor_commands_path (string)
 
 String with the path to the initial directory for editor commands ("c", see
 section 6).
@@ -674,14 +699,14 @@ section 6).
 Default: ""
 
 
-7.2.18. line_width (int)
+7.2.19. line_width (int)
 
 Desired maximum width of a line.
 
 Default: 80
 
 
-7.2.19. line_prefix_characters (string)
+7.2.20. line_prefix_characters (string)
 
 String with all the characters that should be considered the prefix of the
 actual contents of a line.  When a new line is created, the prefix of the
@@ -693,7 +718,7 @@ The order of characters in line_prefix_characters has no effect.
 Default: " "
 
 
-7.2.20. line_suffix_superfluous_characters (string)
+7.2.21. line_suffix_superfluous_characters (string)
 
 String with all the characters that should be removed from the suffix of a line
 (after editing it).
