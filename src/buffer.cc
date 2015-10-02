@@ -536,7 +536,7 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
 
   const char* low_buffer_tmp = low_buffer_;
   std::vector<wchar_t> buffer(
-      1 + mbsnrtowcs(nullptr, &low_buffer_tmp, low_buffer_length_, 0, nullptr));
+      mbsnrtowcs(nullptr, &low_buffer_tmp, low_buffer_length_, 0, nullptr));
 
   low_buffer_tmp = low_buffer_;
   mbsnrtowcs(&buffer[0], &low_buffer_tmp, low_buffer_length_, buffer.size(),
@@ -576,8 +576,7 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
     for (size_t i = 0; i < buffer_wrapper->size(); i++) {
       if (buffer_wrapper->get(i) == '\n') {
         auto line = Substring(buffer_wrapper, line_start, i - line_start);
-        VLOG(6) << "Adding line of length: " << line->size();
-        VLOG(7) << "Adding line: " << line->ToString();
+        VLOG(8) << "Adding line from " << line_start << " to " << i;
         AppendToLastLine(editor_state, line);
         contents_.emplace_back(new Line(Line::Options()));
         MaybeFollowToEndOfFile();
@@ -591,6 +590,8 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
       }
     }
     if (line_start < buffer_wrapper->size()) {
+      VLOG(8) << "Adding last line from " << line_start << " to "
+              << buffer_wrapper->size();
       AppendToLastLine(
           editor_state,
           Substring(buffer_wrapper, line_start,
@@ -941,6 +942,8 @@ void OpenBuffer::AppendToLastLine(
 void OpenBuffer::AppendToLastLine(
     EditorState*, shared_ptr<LazyString> str,
     const vector<unordered_set<Line::Modifier, hash<int>>>& modifiers) {
+  VLOG(6) << "Adding line of length: " << str->size();
+  VLOG(7) << "Adding line: " << str->ToString();
   if (contents_.empty()) {
     contents_.emplace_back(new Line(Line::Options()));
     MaybeFollowToEndOfFile();
