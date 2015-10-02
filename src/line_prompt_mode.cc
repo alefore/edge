@@ -126,15 +126,15 @@ class LinePromptMode : public EditorMode {
           editor_state->set_current_buffer(it);
           editor_state->ScheduleRedraw();
         } else {
-          LOG(INFO) << "Triggering predictions from: " << input_;
+          LOG(INFO) << "Triggering predictions from: " << input_->ToString();
           GetPredictionsBuffer(
               editor_state, predictor_, input_->ToString(),
               [editor_state, this](const wstring& prediction) {
                 if (input_->ToString() == prediction) {
                   return;
                 }
-                LOG(INFO) << "Prediction advanced from " << input_ << " to "
-                          << prediction;
+                LOG(INFO) << "Prediction advanced from " << input_->ToString()
+                          << " to " << prediction;
                 input_ = EditableString::New(prediction);
                 UpdateStatus(editor_state);
                 // We do this so that another \t will cause the predictors

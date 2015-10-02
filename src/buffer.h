@@ -330,7 +330,6 @@ class OpenBuffer {
     return BufferLineReverseIterator(begin());
   }
   BufferLineIterator line() {
-    CHECK_GE(contents_.size(), 1);
     size_t line = min(position_.line, contents_.size() - 1);
     return BufferLineIterator(this, line);
   }

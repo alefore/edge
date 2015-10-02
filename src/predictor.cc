@@ -20,6 +20,8 @@ extern "C" {
 #include "predictor.h"
 #include "wstring.h"
 
+namespace afc {
+namespace editor {
 namespace {
 
 using afc::editor::EditorState;
@@ -52,6 +54,8 @@ class PredictionsBufferImpl : public OpenBuffer {
  protected:
   void EndOfFile(EditorState* editor_state) {
     OpenBuffer::EndOfFile(editor_state);
+    LOG(INFO) << "Predictions buffer received end of file. Predictions: "
+              << contents()->size();
     if (contents()->empty()) { return; }
     struct Compare {
       bool operator()(const shared_ptr<Line>& a, const shared_ptr<Line>& b) {
@@ -59,15 +63,19 @@ class PredictionsBufferImpl : public OpenBuffer {
       }
     } compare;
 
-    sort(contents()->begin(), contents()->end(), compare);
-    auto it = contents()->begin();
-    while (it != contents()->end() && (*it)->size() == 0) {
-      ++it;
+    if (contents_.empty()) {
+      consumer_(L"");
+      return;
     }
-    if (it == contents()->end()) { return; }
-    wstring common_prefix = (*it)->ToString();
-    while (it != contents()->end()) {
-      if ((*it)->size() == 0) { continue; }
+
+    sort(contents()->begin(), contents()->end() - 1, compare);
+    wstring common_prefix = (*contents()->begin())->ToString();
+    for (auto it = contents()->begin(); it != contents()->end(); ++it) {
+      if ((*it)->size() == 0) {
+        continue;
+      }
+      VLOG(5) << "Considering prediction: " << (*it)->ToString() << " (len: "
+              << (*it)->size() << ")";
       size_t current_size = min(common_prefix.size(), (*it)->size());
       wstring current = (*it)->Substring(0, current_size)->ToString();
 
@@ -77,7 +85,6 @@ class PredictionsBufferImpl : public OpenBuffer {
         if (prefix_end.first == common_prefix.begin()) { return; }
         common_prefix = wstring(common_prefix.begin(), prefix_end.first);
       }
-      ++it;
     }
     consumer_(common_prefix);
   }
@@ -89,9 +96,6 @@ class PredictionsBufferImpl : public OpenBuffer {
 };
 
 }  // namespace
-
-namespace afc {
-namespace editor {
 
 shared_ptr<OpenBuffer> PredictionsBuffer(
     EditorState* editor_state, Predictor predictor, const wstring& input,
@@ -179,7 +183,10 @@ void FilePredictor(EditorState* editor_state,
             || entry_path == "..") {
           continue;
         }
-        cout << dirname_prefix << entry->d_name << (entry->d_type == DT_DIR ? "/" : "") << "\n";
+        string prediction = dirname_prefix + entry->d_name +
+            (entry->d_type == DT_DIR ? "/" : "");
+        VLOG(5) << "Prediction: " << prediction;
+        cout << prediction << "\n";
       }
     }
 
