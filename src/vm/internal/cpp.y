@@ -575,15 +575,27 @@ expr(A) ::= expr(B) PLUS expr(C). {
 }
 
 expr(A) ::= expr(B) MINUS expr(C). {
-  A = new BinaryOperator(
-      unique_ptr<Expression>(B),
-      unique_ptr<Expression>(C),
-      VMType::Integer(),
-      [](const Value& a, const Value& b, Value* output) {
-        output->integer = a.integer - b.integer;
-      });
-  B = nullptr;
-  C = nullptr;
+  if (B == nullptr || C == nullptr) {
+    A = nullptr;
+  } else if (!(B->type() == C->type())) {
+    compilation->errors.push_back(
+        L"Unable to subtract different types: \"" + B->type().ToString() +
+        L"\" and \"" + C->type().ToString() + L"\"");
+  } else if (B->type().type == VMType::VM_INTEGER) {
+    A = new BinaryOperator(
+        unique_ptr<Expression>(B),
+        unique_ptr<Expression>(C),
+        VMType::Integer(),
+        [](const Value& a, const Value& b, Value* output) {
+          output->integer = a.integer - b.integer;
+        });
+    B = nullptr;
+    C = nullptr;
+  } else {
+    compilation->errors.push_back(
+        L"Unable to subtract objects of type: \"" + B->type().ToString()
+        + L"\"");
+  }
 }
 
 expr(OUT) ::= MINUS expr(A). {
