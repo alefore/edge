@@ -198,8 +198,11 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
     }
 
     if (!flags.empty()) {
-      flags += L" ";
-      status += L" " + flags;
+      status += L" " + flags + L" ";
+    }
+
+    if (editor_state.status().empty()) {
+      status += L"“" + buffer->name() + L"” ";
     }
   }
 
