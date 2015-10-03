@@ -6,6 +6,7 @@
 #include "evaluation.h"
 #include "../public/environment.h"
 #include "../public/value.h"
+#include "wstring.h"
 
 namespace afc {
 namespace vm {
@@ -24,9 +25,8 @@ class AssignExpression : public Expression {
     auto advancer = evaluation->advancer;
     evaluation->advancer =
         [this, advancer](OngoingEvaluation* inner_evaluation) {
-          // TODO: Enable this logging.
-          // DVLOG(3) << "Setting value for: " << symbol_;
-          // DVLOG(4) << "Value: " << *inner_evaluation->value;
+          DVLOG(3) << "Setting value for: " << symbol_;
+          DVLOG(4) << "Value: " << *inner_evaluation->value;
           inner_evaluation->environment->Define(
               symbol_,
               unique_ptr<Value>(new Value(*inner_evaluation->value)));

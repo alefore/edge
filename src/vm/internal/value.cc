@@ -1,4 +1,5 @@
 #include "../public/value.h"
+#include "wstring.h"
 
 namespace afc {
 namespace vm {
@@ -33,9 +34,7 @@ namespace vm {
 }
 
 std::ostream& operator<<(std::ostream& os, const Value& value) {
-  // TODO: implement.
-  // TODO: Comment out: os << "[" << value.type.ToString() << "]";
-  os << "[ some value ]";
+  os << "[" << value.type.ToString() << "]";
   return os;
 }
 
