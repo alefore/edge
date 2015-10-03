@@ -6,6 +6,7 @@
 #include <string>
 #include <algorithm>
 #include <stdexcept>
+#include <unordered_map>
 
 extern "C" {
 #include <dirent.h>
@@ -71,8 +72,20 @@ class FileBuffer : public OpenBuffer {
     assert(dir != nullptr);
     struct dirent* entry;
     while ((entry = readdir(dir)) != nullptr) {
+      static std::unordered_map<int, wstring> types = {
+          { DT_BLK, L" (block dev)" },
+          { DT_CHR, L" (char dev)" },
+          { DT_DIR, L"/" },
+          { DT_FIFO, L" (named pipe)" },
+          { DT_LNK, L"@" },
+          { DT_REG, L"" },
+          { DT_SOCK, L" (unix sock)" }
+      };
+      auto type_it = types.find(entry->d_type);
       target->AppendLine(editor_state, shared_ptr<LazyString>(
-          NewCopyCharBuffer(FromByteString(entry->d_name).c_str())));
+          NewCopyString(
+              FromByteString(entry->d_name) +
+              (type_it == types.end() ? L"" : type_it->second))));
       (*target->contents()->rbegin())->set_activate(
           NewFileLinkMode(editor_state,
               path + L"/" + FromByteString(entry->d_name), false));
