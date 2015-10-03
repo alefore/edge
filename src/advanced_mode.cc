@@ -150,8 +150,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
   wstring name = TrimWhitespace(input_name);
   if (name.empty()) { return; }
   {
-    const EdgeVariable<wstring>* var =
-        OpenBuffer::StringStruct()->find_variable(name);
+    auto var = OpenBuffer::StringStruct()->find_variable(name);
     if (var != nullptr) {
       if (!editor_state->has_current_buffer()) { return; }
       Prompt(
@@ -180,6 +179,35 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
       buffer->toggle_bool_variable(var);
       editor_state->SetStatus(
           name + L" := " + (buffer->read_bool_variable(var) ? L"ON" : L"OFF"));
+      return;
+    }
+  }
+  {
+    auto var = OpenBuffer::IntStruct()->find_variable(name);
+    if (var != nullptr) {
+      if (!editor_state->has_current_buffer()) { return; }
+      auto buffer = editor_state->current_buffer()->second;
+      Prompt(
+          editor_state,
+          name + L" := ",
+          L"values",
+          std::to_wstring(
+              editor_state->current_buffer()->second->read_int_variable(var)),
+          [var](const wstring& input, EditorState* editor_state) {
+            if (!editor_state->has_current_buffer()) { return; }
+            try {
+              editor_state->current_buffer()
+                  ->second->set_int_variable(var, stoi(input));
+            } catch (const std::invalid_argument& ia) {
+              editor_state->SetStatus(
+                  L"Invalid value for integer value “" + var->name() + L"”: " +
+                  FromByteString(ia.what()));
+            }
+            // ResetMode causes the prompt to be deleted, and the captures of
+            // this lambda go away with it.
+            editor_state->ResetMode();
+          },
+          &EmptyPredictor);
       return;
     }
   }
@@ -380,6 +408,7 @@ static const map<wchar_t, Command*>& GetAdvancedModeMap() {
     vector<wstring> variables;
     OpenBuffer::BoolStruct()->RegisterVariableNames(&variables);
     OpenBuffer::StringStruct()->RegisterVariableNames(&variables);
+    OpenBuffer::IntStruct()->RegisterVariableNames(&variables);
     output.insert(make_pair(
         'v',
         NewLinePromptCommand(
