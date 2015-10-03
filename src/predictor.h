@@ -32,7 +32,8 @@ void EmptyPredictor(EditorState* editor_state,
                     const wstring& input,
                     OpenBuffer* buffer);
 
-Predictor PrecomputedPredictor(const vector<wstring>& predictions);
+Predictor PrecomputedPredictor(const vector<wstring>& predictions,
+                               wchar_t separator);
 
 }  // namespace editor
 }  // namespace afc

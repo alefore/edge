@@ -413,7 +413,7 @@ static const map<wchar_t, Command*>& GetAdvancedModeMap() {
         'v',
         NewLinePromptCommand(
             L"var ", L"variables", L"assigns to a variable", SetVariableHandler,
-            PrecomputedPredictor(variables)).release()));
+            PrecomputedPredictor(variables, '_')).release()));
 
     output.insert(make_pair('c', new RunCppCommand()));
 

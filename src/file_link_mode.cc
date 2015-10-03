@@ -200,7 +200,7 @@ class FileLinkMode : public EditorMode {
                 }
                 editor_state->ResetMode();
               },
-              PrecomputedPredictor(predictions)));
+              PrecomputedPredictor(predictions, '/')));
           command->ProcessInput('\n', editor_state);
         }
         return;

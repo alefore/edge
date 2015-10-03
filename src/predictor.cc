@@ -201,12 +201,35 @@ void EmptyPredictor(
   buffer->EndOfFile(editor_state);
 }
 
-Predictor PrecomputedPredictor(const vector<wstring>& predictions) {
+namespace {
+
+void RegisterVariations(const wstring& prediction, wchar_t separator,
+                         vector<wstring>* output) {
+  size_t start = 0;
+  DVLOG(5) << "Generating predictions for: " << prediction;
+  while (true) {
+    start = prediction.find_first_not_of(separator, start);
+    if (start == wstring::npos) { return; }
+    output->push_back(prediction.substr(start));
+    DVLOG(6) << "Prediction: " << output->back();
+    start = prediction.find_first_of(separator, start);
+    if (start == wstring::npos) { return; }
+  }
+}
+
+}  // namespace
+
+Predictor PrecomputedPredictor(const vector<wstring>& predictions,
+                               wchar_t separator) {
   // TODO: Use std::make_shared.
-  const shared_ptr<map<wstring, shared_ptr<LazyString>>> contents(
-      new map<wstring, shared_ptr<LazyString>>());
+  const shared_ptr<multimap<wstring, shared_ptr<LazyString>>> contents(
+      new multimap<wstring, shared_ptr<LazyString>>());
   for (const auto& prediction : predictions) {
-    contents->insert(make_pair(prediction, NewCopyString(prediction)));
+    vector<wstring> variations;
+    RegisterVariations(prediction, separator, &variations);
+    for (auto& variation : variations) {
+      contents->insert(make_pair(variation, NewCopyString(prediction)));
+    }
   }
   return [contents](EditorState* editor_state, const wstring& input,
                     OpenBuffer* buffer) {
