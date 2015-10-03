@@ -39,6 +39,21 @@ class FileBuffer : public OpenBuffer {
     set_string_variable(variable_path(), path);
   }
 
+  void Enter(EditorState* editor_state) {
+    OpenBuffer::Enter(editor_state);
+
+    LOG(INFO) << "Checking if file has changed.";
+    const wstring path = GetPath();
+    const string path_raw = ToByteString(path);
+    struct stat current_stat_buffer;
+    if (stat(path_raw.c_str(), &current_stat_buffer) == -1) {
+      return;
+    }
+    if (current_stat_buffer.st_mtime > stat_buffer_.st_mtime) {
+      editor_state->SetStatus(L"Underying file has changed!");
+    }
+  }
+
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     const wstring path = GetPath();
     const string path_raw = ToByteString(path);
@@ -124,6 +139,7 @@ class FileBuffer : public OpenBuffer {
         it.second->Reload(editor_state);
       }
     }
+    stat(ToByteString(path).c_str(), &stat_buffer_);
   }
 
  private:

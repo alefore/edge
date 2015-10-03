@@ -228,11 +228,11 @@ class ActivateBufferLineCommand : public EditorMode {
             editor_state->SetStatus(L"Buffer not found: " + name_);
             return;
           }
+          editor_state->ResetStatus();
           editor_state->set_current_buffer(it);
           it->second->Enter(editor_state);
           editor_state->PushCurrentPosition();
           editor_state->ScheduleRedraw();
-          editor_state->ResetStatus();
           editor_state->ResetMode();
           break;
         }

@@ -164,6 +164,7 @@ class OpenBuffer {
 
   bool PrepareToClose(EditorState* editor_state);
   void Close(EditorState* editor_state);
+  virtual void Enter(EditorState* editor_state);
 
   void ClearContents();
 
@@ -350,13 +351,6 @@ class OpenBuffer {
     return position_;
   }
   void set_position(const LineColumn& position) { position_ = position; }
-
-  void Enter(EditorState* editor_state) {
-    if (read_bool_variable(variable_reload_on_enter())) {
-      Reload(editor_state);
-      CheckPosition();
-    }
-  }
 
   void set_modified(bool value) { modified_ = value; }
   bool modified() const { return modified_; }

@@ -486,6 +486,13 @@ void OpenBuffer::Close(EditorState* editor_state) {
   }
 }
 
+void OpenBuffer::Enter(EditorState* editor_state) {
+  if (read_bool_variable(variable_reload_on_enter())) {
+    Reload(editor_state);
+    CheckPosition();
+  }
+}
+
 void OpenBuffer::ClearContents() {
   contents_.clear();
   position_pts_ = LineColumn();
