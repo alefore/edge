@@ -64,9 +64,9 @@ int main(int, char**) {
   assert(editor_state.current_buffer()->second->current_position_col() == 0);
 
   editor_state.ProcessInputString("e2d");
-  assert(editor_state.current_buffer()->second->contents()->size() == 1);
-  assert(editor_state.current_buffer()->second->current_line()->ToString()
-         == L"cuervo");
+  CHECK_EQ(editor_state.current_buffer()->second->contents()->size(), 1);
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->current_line()->ToString()),
+           "cuervo");
 
   editor_state.ProcessInputString("pp");
   CHECK_EQ(editor_state.current_buffer()->second->contents()->size(), 5);
@@ -169,6 +169,8 @@ int main(int, char**) {
 
   Clear(&editor_state);
 
+
+  // Test for undo after normal delete line.
   editor_state.ProcessInputString("i12345\n67890");
   editor_state.ProcessInput(Terminal::ESCAPE);
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
@@ -183,6 +185,17 @@ int main(int, char**) {
   editor_state.ProcessInput('u');
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "12345\n67890");
+
+  Clear(&editor_state);
+
+
+  // Test for insertion at EOF.
+  CHECK_EQ(editor_state.current_buffer()->second->contents()->size(), 1);
+  editor_state.ProcessInputString("55ji\n");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  CHECK_EQ(editor_state.current_buffer()->second->contents()->size(), 2);
+
+  Clear(&editor_state);
 
   std::cout << "Pass!\n";
   return 0;

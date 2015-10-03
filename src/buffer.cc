@@ -1010,14 +1010,19 @@ LineColumn OpenBuffer::InsertInCurrentPosition(
 }
 
 LineColumn OpenBuffer::InsertInPosition(
-    const vector<shared_ptr<Line>>& insertion, const LineColumn& position) {
-  if (insertion.empty()) { return position; }
-  auto head = position.line >= contents_.size()
-      ? EmptyString()
-      : contents_.at(position.line)->Substring(0, position.column);
-  auto tail = position.line >= contents_.size()
-      ? EmptyString()
-      : contents_.at(position.line)->Substring(position.column);
+    const vector<shared_ptr<Line>>& insertion,
+    const LineColumn& input_position) {
+  if (insertion.empty()) { return input_position; }
+  LineColumn position = input_position;
+  if (contents_.empty()) {
+    contents_.emplace_back(new Line(Line::Options()));
+  }
+  if (position.line >= contents_.size()) {
+    position.line = contents_.size() - 1;
+    position.column = contents_.at(position.line)->size();
+  }
+  auto head = contents_.at(position.line)->Substring(0, position.column);
+  auto tail = contents_.at(position.line)->Substring(position.column);
   contents_.insert(contents_.begin() + position.line, insertion.begin(), insertion.end() - 1);
   for (size_t i = 1; i < insertion.size() - 1; i++) {
     contents_.at(position.line + i)->set_modified(true);
