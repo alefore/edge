@@ -5,9 +5,22 @@
 
 #include "editor.h"
 #include "terminal.h"
+#include "wstring.h"
+
+using namespace afc::editor;
+
+void CheckIsEmpty(EditorState* editor_state) {
+  CHECK_EQ(editor_state->current_buffer()->second->contents()->size(), 1);
+  CHECK_EQ(editor_state->current_buffer()->second->contents()->at(0)->size(), 0);
+}
+
+void Clear(EditorState* editor_state) {
+  editor_state->ProcessInputString("eeg99999999999999999999999d");
+  editor_state->ProcessInput(Terminal::ESCAPE);
+  CheckIsEmpty(editor_state);
+}
 
 int main(int, char**) {
-  using namespace afc::editor;
   EditorState editor_state;
   assert(!editor_state.has_current_buffer());
   editor_state.ProcessInputString("i");
@@ -56,11 +69,11 @@ int main(int, char**) {
          == L"cuervo");
 
   editor_state.ProcessInputString("pp");
-  assert(editor_state.current_buffer()->second->contents()->size() == 5);
+  CHECK_EQ(editor_state.current_buffer()->second->contents()->size(), 5);
 
   editor_state.ProcessInputString("erg");
   CHECK_EQ(editor_state.current_buffer()->second->current_position_line(), 5);
-  editor_state.ProcessInputString("erg");
+  editor_state.ProcessInputString("eg");
   CHECK_EQ(editor_state.current_buffer()->second->current_position_line(), 0);
 
   editor_state.ProcessInputString("eel");
@@ -74,8 +87,8 @@ int main(int, char**) {
 
   // Clear it all.
   editor_state.ProcessInputString("ege10d");
-  assert(editor_state.current_buffer()->second->ToString() == L"");
-  assert(editor_state.current_buffer()->second->contents()->size() == 1);
+  CHECK(editor_state.current_buffer()->second->ToString() == L"");
+  CHECK_EQ(editor_state.current_buffer()->second->contents()->size(), 1);
 
   editor_state.ProcessInputString("ialejandro forero cuervo\n\n");
   editor_state.ProcessInputString("0123456789abcdefghijklmnopqrstuvwxyz");
@@ -120,10 +133,7 @@ int main(int, char**) {
   editor_state.ProcessInputString("kg" "3d" "rg" "jp");
   editor_state.ProcessInputString("krg" "j" "rfa");
 
-  // Clear.
-  editor_state.ProcessInputString("esg99999999999999999999999d");
-  editor_state.ProcessInputString("eeg99999999999999999999999d");
-  editor_state.ProcessInput(Terminal::ESCAPE);
+  Clear(&editor_state);
 
   editor_state.ProcessInputString("ihey there hey hey man yes ahoheyblah.");
   assert(editor_state.current_buffer()->second->position().line == 0);
@@ -133,9 +143,7 @@ int main(int, char**) {
   assert(editor_state.current_buffer()->second->position().line == 0);
   assert(editor_state.current_buffer()->second->position().column == 10);
 
-  // Clear.
-  editor_state.ProcessInputString("eeg99999999999999999999999d");
-  editor_state.ProcessInput(Terminal::ESCAPE);
+  Clear(&editor_state);
 
   editor_state.ProcessInputString("ialejo");
   editor_state.ProcessInput(Terminal::ESCAPE);
@@ -144,9 +152,7 @@ int main(int, char**) {
   assert(editor_state.current_buffer()->second->position().line == 0);
   assert(editor_state.current_buffer()->second->position().column == 0);
 
-  // Clear.
-  editor_state.ProcessInputString("eeg99999999999999999999999d");
-  editor_state.ProcessInput(Terminal::ESCAPE);
+  Clear(&editor_state);
 
   // VM Tests.
   editor_state.ProcessInputString("i0123456789");
@@ -160,6 +166,23 @@ int main(int, char**) {
   assert(editor_state.current_buffer()->second->position().column == 3);
   editor_state.ProcessInputString("acSetPositionColumn(8 - 2 * 3 + 5);;\n");
   assert(editor_state.current_buffer()->second->position().column == 7);
+
+  Clear(&editor_state);
+
+  editor_state.ProcessInputString("i12345\n67890");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "12345\n67890");
+
+  editor_state.ProcessInputString("egg");
+  CHECK_EQ(editor_state.current_buffer()->second->position(), LineColumn(0, 0));
+
+  editor_state.ProcessInputString("e5d");
+  CheckIsEmpty(&editor_state);
+
+  editor_state.ProcessInput('u');
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "12345\n67890");
 
   std::cout << "Pass!\n";
   return 0;

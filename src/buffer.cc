@@ -670,7 +670,7 @@ static void AddToParseTree(const shared_ptr<LazyString>& str_input) {
 }
 
 void OpenBuffer::AppendLine(EditorState* editor_state, shared_ptr<LazyString> str) {
-  assert(str != nullptr);
+  CHECK(str != nullptr);
   if (reading_from_parser_) {
     switch (str->get(0)) {
       case 'E':

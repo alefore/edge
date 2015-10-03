@@ -387,11 +387,11 @@ class DeleteLinesTransformation : public Transformation {
         (*line)->activate()->ProcessInput('d', editor_state);
       }
       line_deletion = (*line)->Substring(start, end - start);
-      delete_buffer->AppendLine(editor_state, line_deletion);
+      delete_buffer->AppendToLastLine(editor_state, line_deletion);
       line++;
-    }
-    if (forwards && modifiers_.strength > Modifiers::WEAK) {
-      delete_buffer->AppendLine(editor_state, EmptyString());
+      if (line != buffer->end()) {
+        delete_buffer->contents()->emplace_back(new Line(Line::Options()));
+      }
     }
     if (copy_to_paste_buffer_) {
       result->delete_buffer->Apply(
@@ -399,22 +399,35 @@ class DeleteLinesTransformation : public Transformation {
     }
 
     LOG(INFO) << "Modifying buffer: " << modifiers_.structure_range;
+    TransformationStack stack;
+
     if (modifiers_.structure_range == Modifiers::ENTIRE_STRUCTURE
         && modifiers_.strength == Modifiers::DEFAULT) {
       // Optimization.
       buffer->contents()->erase(
           buffer->contents()->begin() + buffer->line().line(),
           buffer->contents()->begin() + buffer->line().line() + repetitions);
+      if (buffer->contents()->empty()) {
+        VLOG(5) << "Apending empty string.";
+        buffer->AppendLine(editor_state, EmptyString());
+        Modifiers modifiers;
+        modifiers.repetitions = 1;
+        stack.PushBack(
+            TransformationAtPosition(LineColumn(),
+                NewDeleteCharactersTransformation(modifiers, false)));
+      }
+
+      stack.PushBack(
+          TransformationAtPosition(LineColumn(buffer->position().line),
+              ComposeTransformation(
+                  NewInsertBufferTransformation(delete_buffer, 1, END),
+                  NewGotoPositionTransformation(buffer->position()))));
+
       result->modified_buffer = true;
-      result->undo = TransformationAtPosition(
-          LineColumn(buffer->position().line),
-          ComposeTransformation(
-              NewInsertBufferTransformation(delete_buffer, 1, END),
-              NewGotoPositionTransformation(buffer->position())));
+      result->undo = stack.Clone();
       return;
     }
 
-    TransformationStack stack;
     LineColumn position = buffer->position();
     for (size_t i = 0; i < repetitions; i++) {
       auto line = buffer->LineAt(position.line + i);
