@@ -66,7 +66,11 @@ CLEANFILES = src/vm/internal/cpp.cc src/vm/internal/cpp.h
 
 BUILT_SOURCES = src/vm/internal/cpp.cc src/vm/internal/cpp.h
 
+docdir = $(prefix)/share/doc/$(PACKAGE)-$(VERSION)
+dist_doc_DATA = README
+
 edge_SOURCES = $(COMMON_SOURCES) src/main.cc
+
 test_SOURCES = $(COMMON_SOURCES) src/test.cc
 
 lemon_SOURCES = src/vm/internal/lemon.c
@@ -83,7 +87,7 @@ glog-0.3.3/libglog_la-raw_logging.o \
 glog-0.3.3/libglog_la-utilities.o \
 glog-0.3.3/libglog_la-vlog_is_on.o
 
-AM_CPPFLAGS=-std=c++0x -g -Wall -Wextra -Iglog-0.3.3/src
+AM_CPPFLAGS=-std=c++0x -g -Wall -Wextra -Iglog-0.3.3/src -DDOCDIR='"$(docdir)"'
 AM_LDFLAGS=-std=c++0x -g
 edge_LDADD=glog-0.3.3/libglog.la
 test_LDADD=glog-0.3.3/libglog.la

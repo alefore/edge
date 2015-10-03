@@ -16,6 +16,8 @@ extern "C" {
 
 #include <glog/logging.h>
 
+#include "config.h"
+
 #include "editor.h"
 #include "lazy_string.h"
 #include "file_link_mode.h"
@@ -45,6 +47,9 @@ struct Args {
   string commands_to_run;
 };
 
+static const char* kDefaultCommandsToRun =
+    "OpenFile(\"" DOCDIR "/README\");";
+
 string CommandsToRun(Args args) {
   string commands_to_run = args.commands_to_run;
   for (auto& path : args.files_to_open) {
@@ -52,6 +57,9 @@ string CommandsToRun(Args args) {
   }
   for (auto& command_to_fork : args.commands_to_fork) {
     commands_to_run += "ForkCommand(\"" + string(command_to_fork) + "\");\n";
+  }
+  if (commands_to_run.empty()) {
+    return kDefaultCommandsToRun;
   }
   return commands_to_run;
 }
