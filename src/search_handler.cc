@@ -206,9 +206,6 @@ void SearchHandler(
     EditorState* editor_state) {
   editor_state->set_last_search_query(input);
   if (!editor_state->has_current_buffer() || input.empty()) {
-    editor_state->ResetMode();
-    editor_state->ResetStatus();
-    editor_state->ScheduleRedraw();
     return;
   }
 
@@ -216,8 +213,6 @@ void SearchHandler(
   if (starting_position != buffer->position()) {
     // The user must have used the predictor, which probably means we don't need
     // to do much.
-    editor_state->ResetMode();
-    editor_state->ResetDirection();
     return;
   }
 
@@ -236,10 +231,6 @@ void SearchHandler(
       editor_state->SetStatus(L"Found.");
     }
   }
-
-  editor_state->ResetMode();
-  editor_state->ResetDirection();
-  editor_state->ScheduleRedraw();
 }
 
 }  // namespace editor

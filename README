@@ -206,6 +206,14 @@ While inserting to a terminal, press ctrl+v to activate "literal" insertion: the
 next character will be inserted literally.  This is mainly useful to insert an
 Esc code (instead of having Esc take you out of insert mode).
 
+4.1.1. Autocomplete
+
+If the dictionary variable is set to a non-empty string, pressing Tab will cause
+that string to be interpreted as the path to the dictionary file. The contents
+of the file will be loaded into a buffer and used to look for completions.
+Pressing Tab again will iterate through the entries in the dictionary following
+the first completion. See section 7.2.22 for more information on how to create a
+dictionary file.
 
 4.2. Deleting contents
 
@@ -378,7 +386,7 @@ options).
 
 In practice, we tend to use "a." (section 5.6) much more frequently to open
 files.  We also tend to navigate across files by moving the cursor over to a
-path and pressing return (section 3.6).
+path and pressing Enter (section 3.6).
 
 5.5.2. Path suffixes
 
@@ -527,7 +535,18 @@ behavior.
 
 7.1. Setting variables
 
-TODO: av
+Type "av" to set the value of a given variable. You will be promoted for the
+variable you want to set. You can press Tab twice to see a list of all options
+that match the current input (which can be empty, to list all variables). Press
+Enter to edit the value of a variable.
+
+If the variable is a boolean, its value will be toggled. Otherwise, you will be
+prompted for the new value for the variable.
+
+For example, to adjust the line width of the current buffer, press "av", then
+type "line_width" (or a shorter prefix of that and use Tab to autocomplete),
+then Enter, then edit the current value, and then press Enter.
+
 
 7.2. List of variables
 
@@ -729,6 +748,20 @@ String with all the characters that should be removed from the suffix of a line
 The order of characters in line_suffix_superfluous_characters has no effect.
 
 Default: " "
+
+
+7.2.22. dictionary (string)
+
+If the dictionary variable is non-empty, pressing Tab while in Insert mode in a
+buffer that contains a file (i.e. not in a buffer that runs a command) will
+cause the dictionary to be loaded and used for autocompletions.
+
+The dictionary file must be a text file containing one word per line and be
+sorted alphabetically.
+
+See section 4.1. for more details.
+
+Default: ""
 
 
 8. Extension language

@@ -520,7 +520,10 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
       SearchHandler(
           editor_state->current_buffer()->second->position(),
           editor_state->last_search_query(), editor_state);
+      editor_state->ResetMode();
+      editor_state->ResetDirection();
       editor_state->ResetStructure();
+      editor_state->ScheduleRedraw();
       break;
 
     default:
@@ -561,7 +564,10 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
       SearchHandler(
           editor_state->current_buffer()->second->position(),
           editor_state->last_search_query(), editor_state);
+      editor_state->ResetMode();
+      editor_state->ResetDirection();
       editor_state->ResetStructure();
+      editor_state->ScheduleRedraw();
       break;
 
     default:
@@ -858,6 +864,10 @@ class StartSearchMode : public Command {
                   ->Substring(start.column, end.column - start.column)
                   ->ToString(),
               editor_state);
+          editor_state->ResetMode();
+          editor_state->ResetDirection();
+          editor_state->ResetStructure();
+          editor_state->ScheduleRedraw();
         }
         break;
 
@@ -866,6 +876,10 @@ class StartSearchMode : public Command {
         Prompt(editor_state, L"/", L"search", L"",
                [position](const wstring& input, EditorState* editor_state) {
                  SearchHandler(position, input, editor_state);
+                 editor_state->ResetMode();
+                 editor_state->ResetDirection();
+                 editor_state->ResetStructure();
+                 editor_state->ScheduleRedraw();
                },
                SearchHandlerPredictor);
         break;

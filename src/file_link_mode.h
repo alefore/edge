@@ -29,7 +29,11 @@ struct OpenFileOptions {
   OpenFileOptions() {}
 
   EditorState* editor_state = nullptr;
+
+  // Name can be empty, in which case the name will come from the path.
   wstring name;
+
+  // The path of the file to open.
   wstring path;
   bool ignore_if_not_found = false;
   bool make_current_buffer = true;

@@ -486,6 +486,14 @@ void OpenBuffer::Close(EditorState* editor_state) {
   }
 }
 
+void OpenBuffer::AddEndOfFileObserver(std::function<void()> observer) {
+  if (fd_ == -1) {
+    observer();
+    return;
+  }
+  end_of_file_observers_.push_back(observer);
+}
+
 void OpenBuffer::Enter(EditorState* editor_state) {
   if (read_bool_variable(variable_reload_on_enter())) {
     Reload(editor_state);
@@ -528,6 +536,12 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
   if (editor_state->has_current_buffer()
       && editor_state->current_buffer()->first == kBuffersName) {
     editor_state->current_buffer()->second->Reload(editor_state);
+  }
+
+  vector<std::function<void()>> observers;
+  observers.swap(end_of_file_observers_);
+  for (auto& observer : observers) {
+    observer();
   }
 }
 
@@ -1377,6 +1391,7 @@ OpenBuffer::variable_allow_dirty_delete() {
     OpenBuffer::variable_editor_commands_path();
     OpenBuffer::variable_line_prefix_characters();
     OpenBuffer::variable_line_suffix_superfluous_characters();
+    OpenBuffer::variable_dictionary();
   }
   return output;
 }
@@ -1486,6 +1501,19 @@ OpenBuffer::variable_line_suffix_superfluous_characters() {
       L"of a line (after editing it).  The order of characters in "
       L"line_suffix_superfluous_characters has no effect.",
       L" ");
+  return variable;
+}
+
+/* static */ EdgeVariable<wstring>*
+OpenBuffer::variable_dictionary() {
+  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
+      L"dictionary",
+      L"Path to a dictionary file used for autocompletion. If empty, pressing "
+      L"TAB (in insert mode) just inserts a tab character into the file; "
+      L"otherwise, it triggers completion to the first string from the "
+      L"dictionary that matches the prefix of the current word. Pressing TAB "
+      L"again iterates through all completions.",
+      L"");
   return variable;
 }
 

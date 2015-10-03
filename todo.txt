@@ -8,10 +8,6 @@ Handle DELETE key
 
 Implement delete of page.
 
-Support autocomplete while editing a buffer
-  Maybe initially just look up words in the current file?
-  Maybe variables control sources of completions?
-
 Add tests for Undo for insert.
 
 -- Navigation
@@ -50,11 +46,11 @@ Add support for templates, so that we can do "vector<string>".
 
 -- Misc
 
-Don't exit if there are processes running or unsaved buffers.
-
 When running nested edge on a file, pass its absolute path to the parent.
 
 Allow running a nested edge sending a c++ (extension) command to the parent.
+
+Support variables scoped at the Editor level (i.e. not specific to a given buffer).
 
 Add a variable to set the exit status?
   Should probably be an int, default to 0.

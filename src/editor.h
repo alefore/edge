@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "buffer.h"
+#include "editor_mode.h"
 #include "command_mode.h"
 #include "direction.h"
 #include "lazy_string.h"
@@ -143,8 +144,10 @@ class EditorState {
   }
 
   EditorMode* mode() const { return mode_.get(); }
-  void ResetMode() {
+  std::unique_ptr<EditorMode> ResetMode() {
+    auto copy = std::move(mode_);
     mode_ = NewCommandMode();
+    return copy;
   }
   void set_mode(unique_ptr<EditorMode> mode) {
     mode_ = std::move(mode);

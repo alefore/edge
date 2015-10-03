@@ -164,6 +164,11 @@ class OpenBuffer {
 
   bool PrepareToClose(EditorState* editor_state);
   void Close(EditorState* editor_state);
+
+  // If the buffer is still being read (fd_ != -1), adds an observer to
+  // end_of_file_observers_. Otherwise just calls the observer directly.
+  void AddEndOfFileObserver(std::function<void()> observer);
+
   virtual void Enter(EditorState* editor_state);
 
   void ClearContents();
@@ -395,6 +400,7 @@ class OpenBuffer {
   static EdgeVariable<wstring>* variable_editor_commands_path();
   static EdgeVariable<wstring>* variable_line_prefix_characters();
   static EdgeVariable<wstring>* variable_line_suffix_superfluous_characters();
+  static EdgeVariable<wstring>* variable_dictionary();
 
   static EdgeStruct<int>* IntStruct();
   static EdgeVariable<int>* variable_line_width();
@@ -456,6 +462,11 @@ class OpenBuffer {
   // change the value of pts_ without breaking things (when one command is
   // already running).
   bool fd_is_terminal_;
+
+  // functions to be called when the end of file is reached. The functions will
+  // be called at most once (so they won't be notified if the buffer is
+  // reloaded.
+  vector<std::function<void()>> end_of_file_observers_;
 
   // We read directly into low_buffer_ and then drain from that into contents_.
   // It's possible that not all bytes read can be converted (for example, if the

@@ -142,6 +142,7 @@ void OpenFileHandler(const wstring& name, EditorState* editor_state) {
   options.editor_state = editor_state;
   options.path = name;
   OpenFile(options);
+  editor_state->ResetMode();
 }
 
 void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
