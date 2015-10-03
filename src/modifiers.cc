@@ -48,7 +48,7 @@ ostream& operator<<(ostream& os, const Modifiers& m) {
       os << "backwards";
       break;
   }
-  os << "]";
+  os << "][repetitions: " << m.repetitions << "]";
   return os;
 }
 
