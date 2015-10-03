@@ -34,7 +34,13 @@ namespace vm {
 }
 
 std::ostream& operator<<(std::ostream& os, const Value& value) {
-  os << "[" << value.type.ToString() << "]";
+  os << "[" << value.type.ToString();
+  if (value.type == VMType::Integer()) {
+    os << ": " << value.integer;
+  } else if (value.type == VMType::String()) {
+    os << ": " << value.str;
+  }
+  os << "]";
   return os;
 }
 
