@@ -4,20 +4,18 @@ SetStatus(line);
 
 LineColumn position = b.position();
 if (line == "#include <>") {
-  DeleteText(LineColumn(position.line(), 9),
-             LineColumn(position.line(), 11));
   b.set_position(LineColumn(position.line(), 9));
-  InsertText("\"\"");
+  b.DeleteCharacters(2);
+  b.InsertText("\"\"");
   b.set_position(LineColumn(position.line(), 10));
 } else if (line == "#include \"\"") {
-  DeleteText(LineColumn(position.line(), 9),
-             LineColumn(position.line(), 11));
   b.set_position(LineColumn(position.line(), 9));
-  InsertText("<>");
+  b.DeleteCharacters(2);
+  b.InsertText("<>");
   b.set_position(LineColumn(position.line(), 10));
 } else {
   b.set_position(LineColumn(position.line(), 0));
-  InsertText("#include <>\n");
+  b.InsertText("#include <>\n");
   b.set_position(LineColumn(position.line(), 10));
   SetStatus("Done");
 }
