@@ -45,6 +45,17 @@ struct Args {
   string commands_to_run;
 };
 
+string CommandsToRun(Args args) {
+  string commands_to_run = args.commands_to_run;
+  for (auto& path : args.files_to_open) {
+    commands_to_run += "OpenFile(\"" + string(path) + "\");\n";
+  }
+  for (auto& command_to_fork : args.commands_to_fork) {
+    commands_to_run += "ForkCommand(\"" + string(command_to_fork) + "\");\n";
+  }
+  return commands_to_run;
+}
+
 Args ParseArgs(int* argc, const char*** argv) {
   using std::cout;
   using std::cerr;
@@ -97,17 +108,9 @@ Args ParseArgs(int* argc, const char*** argv) {
   return output;
 }
 
-void SendCommandsToParent(int fd, const Args& args) {
+void SendCommandsToParent(int fd, const string commands_to_run) {
   CHECK(fd != -1);
   using std::cerr;
-  LOG(INFO) << "Connected to parent server.";
-  string commands_to_run = args.commands_to_run;
-  for (auto& path : args.files_to_open) {
-    commands_to_run += "OpenFile(\"" + string(path) + "\");\n";
-  }
-  for (auto& command_to_fork : args.commands_to_fork) {
-    commands_to_run += "ForkCommand(\"" + string(command_to_fork) + "\");\n";
-  }
   LOG(INFO) << "Sending commands to parent: " << commands_to_run;
   if (write(fd, commands_to_run.c_str(), commands_to_run.size()) == -1) {
     cerr << "write: " << strerror(errno);
@@ -131,7 +134,7 @@ int main(int argc, const char** argv) {
 
   int fd = MaybeConnectToParentServer();
   if (fd != -1) {
-    SendCommandsToParent(fd, args);
+    SendCommandsToParent(fd, CommandsToRun(args));
     cerr << args.binary_name << ": Waiting for EOF ...\n";
     char buffer[4096];
     while (read(0, buffer, sizeof(buffer)) > 0)
@@ -147,7 +150,10 @@ int main(int argc, const char** argv) {
 
   LOG(INFO) << "Starting server.";
   StartServer(editor_state());
-  SendCommandsToParent(MaybeConnectToParentServer(), args);
+  auto commands_to_run = CommandsToRun(args);
+  if (!commands_to_run.empty()) {
+    SendCommandsToParent(MaybeConnectToParentServer(), commands_to_run);
+  }
 
   while (!editor_state()->terminate()) {
     terminal.Display(editor_state());
