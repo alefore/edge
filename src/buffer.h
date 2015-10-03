@@ -336,7 +336,9 @@ class OpenBuffer {
   }
 
   void LineUp() {
-    position_.line--;
+    if (position_.line != 0) {
+      position_.line = min(position_.line, contents_.size()) - 1;
+    }
     set_bool_variable(OpenBuffer::variable_follow_end_of_file(), false);
   }
 
