@@ -298,13 +298,14 @@ using std::to_wstring;
     callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
     callback->callback =
         [](vector<unique_ptr<Value>> args) {
-          assert(args.size() == 2);
-          assert(args[0]->type == VMType::OBJECT_TYPE);
-          assert(args[1]->type == VMType::VM_INTEGER);
+          CHECK_EQ(args.size(), 2);
+          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+          CHECK_EQ(args[1]->type, VMType::VM_INTEGER);
           auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          assert(buffer != nullptr);
-          return Value::NewString(
-              buffer->contents()->at(args[1]->integer)->ToString());
+          CHECK(buffer != nullptr);
+          auto line = min(static_cast<size_t>(max(args[1]->integer, 0)),
+                          buffer->contents()->size() - 1);
+          return Value::NewString(buffer->contents()->at(line)->ToString());
         };
     buffer->AddField(L"line", std::move(callback));
   }
