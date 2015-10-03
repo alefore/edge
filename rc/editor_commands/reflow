@@ -1,108 +1,100 @@
 Buffer b = CurrentBuffer();
 
-string ExtractToken(string text) {
+// Returns a substring of text from the start, up until (excluding) the first
+// character not in line_prefix_characters.
+string GetPrefix(string text) {
   int pos_start = text.find_first_not_of(b.line_prefix_characters(), 0);
   if (pos_start == -1) {
     return text;
   }
-  int pos_end = text.find(" ", pos_start);
-  if (pos_end == -1) {
-    return text;
-  }
-  return text.substr(0, pos_end);
+  return text.substr(0, pos_start);
 }
 
-string LeadingPrefix(string text) {
-  string prefix = ExtractToken(text);
-  int pos_end = prefix.find_first_not_of(b.line_prefix_characters(), 0);
-  if (pos_end == -1) {
-    return prefix;
-  } else {
-    return prefix.substr(0, pos_end);
-  }
+// Checks if a given line starts with the prefix. The line must have an
+// additional character after the prefix for this to be true (in other words,
+// this is false if the line is just equal to the prefix).
+bool LineHasPrefix(string prefix, int line) {
+  string contents = b.line(line);
+  return contents.starts_with(prefix) && contents.size() > prefix.size();
 }
 
-bool IsLineInCurrentParagraph(string leading_prefix, string line) {
-  return line.starts_with(leading_prefix) && !line.empty();
-}
-
-LineColumn StartPosition(string leading_prefix) {
+// Moves the current position to the first line that follows a line that doesn't
+// have a given prefix (by LineHasPrefix).
+void ScrollBackToBeginningOfParagraph(string prefix) {
+  SetStatus("Scrolling back to beginning of paragraph.");
   int line = b.position().line();
-
-  while (line != 0
-         && IsLineInCurrentParagraph(leading_prefix, b.line(line - 1))) {
+  while (line > 0 && LineHasPrefix(prefix, line - 1)) {
     line = line - 1;
   }
 
-  return LineColumn(line, 0);
+  b.set_position(LineColumn(line, 0));
 }
 
-LineColumn EndPosition(string leading_prefix) {
+// Runs a while loop, folding into the current line all lines in the current
+// paragraph (by LineHasPrefix).
+void FoldNextLineWhilePrefixIs(string prefix) {
+  SetStatus("Folding paragraph into a single line.");
   int line = b.position().line();
-  while (line + 1 < b.line_count()
-         && IsLineInCurrentParagraph(leading_prefix, b.line(line + 1))) {
-    line = line + 1;
-  }
-
-  return LineColumn(line, b.line(line).size());
-}
-
-string StripLeadingWhitespace(string text) {
-  int pos_first = text.find_first_not_of(b.line_prefix_characters(), 0);
-  if (pos_first != -1) {
-    text = text.substr(pos_first, text.size() - pos_first);
-  }
-  return text;
-}
-
-string StripWhitespace(string text) {
-  text = StripLeadingWhitespace(text);
-  int pos_last = text.find_last_not_of(" ", text.size());
-  if (pos_last != -1) {
-    text = text.substr(0, pos_last + 1);
-  }
-  return text;
-}
-
-string CollapseText(int line_start, int line_end) {
-  string text = "";
-  while (line_start < line_end + 1) {
-    string line = b.line(line_start);
-    if (text == "") {
-      text = line;
-    } else {
-      text = text + " " + StripWhitespace(b.line(line_start));
+  while (line + 1 < b.line_count() && LineHasPrefix(prefix, line + 1)) {
+    b.set_position(LineColumn(line, b.line(line).size()));
+    if (b.position().column() > prefix.size()) {
+      b.InsertText(" ");  // To avoid a space in the first line.
     }
-    line_start = line_start + 1;
+    int prefix_to_delete =
+        b.line(line + 1).find_first_of(b.word_characters(), prefix.size());
+    b.DeleteCharacters(1 + prefix_to_delete);
   }
-  return text;
 }
 
-void InsertWrappedText(string text) {
-  string leading_prefix = LeadingPrefix(text);
-  while (text != "") {
-    string token = ExtractToken(text);
-    text = text.substr(token.size(), text.size() - token.size());
-    string line = b.line(b.position().line());
-    if (line == "" || line.size() + token.size() - 1 < 80) {
-      InsertText(token);
-      b.set_position(LineColumn(b.position().line(), line.size() + token.size()));
+// Deletes length characters starting at start and inserts a break.
+void BreakAt(string prefix, int start, int length) {
+  b.set_position(LineColumn(b.position().line(), start));
+  b.DeleteCharacters(length);
+  b.InsertText("\n" + prefix);
+}
+
+void BreakLineByLineWidth(string prefix) {
+  SetStatus("Breaking line by line width.");
+  while (b.line(b.position().line()).size() > b.line_width()) {
+    string s = b.line(b.position().line());
+    int last_space = s.find_last_not_of(b.word_characters(), b.line_width());
+    if (last_space != -1 && last_space > prefix.size()) {
+      int last_char = s.find_last_of(b.word_characters(), last_space);
+      if (last_char == -1) {
+        SetStatus("Giving up: couldn't find start of break.");
+        return;
+      }
+      BreakAt(prefix, last_char + 1, last_space - last_char);
     } else {
-      token = leading_prefix + StripLeadingWhitespace(token);
-      InsertText("\n" + token);
-      b.set_position(LineColumn(b.position().line(), token.size()));
+      // We'll have to leave a line longer than line_width.
+      int first_space = s.find_first_not_of(b.word_characters(), b.line_width());
+      if (first_space == -1) {
+        SetStatus("Giving up: Couldn't find end of line.");
+        return;
+      }
+      int next_char = s.find_first_of(b.word_characters(), first_space);
+      if (next_char == -1) {
+        SetStatus("Giving up: Couldn't find next character.");
+        return;
+      }
+      BreakAt(prefix, first_space, next_char - first_space);
     }
   }
-  SetStatus("");
 }
 
-string leading_prefix = LeadingPrefix(b.line(b.position().line()));
+string prefix = GetPrefix(b.line(b.position().line()));
+SetStatus("Paragraph prefix: '" + prefix + "'");
 
-LineColumn start = StartPosition(leading_prefix);
-LineColumn end = EndPosition(leading_prefix);
-string text = CollapseText(start.line(), end.line());
+ScrollBackToBeginningOfParagraph(prefix);
+LineColumn starting_position = b.position();
 
-DeleteText(start, end);
+// This is in case the first line in the paragraph has spaces that should be
+// removed.
+b.InsertText(prefix + "\n");
+b.set_position(starting_position);
 
-b.set_position(start);
-InsertWrappedText(text);
+FoldNextLineWhilePrefixIs(prefix);
+b.set_position(starting_position);
+
+BreakLineByLineWidth(prefix);
+b.set_position(starting_position);
