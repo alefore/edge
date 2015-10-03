@@ -74,7 +74,7 @@ int main(int, char**) {
 
   // Clear it all.
   editor_state.ProcessInputString("ege10d");
-  assert(editor_state.current_buffer()->second->ToString() == "");
+  assert(editor_state.current_buffer()->second->ToString() == L"");
   assert(editor_state.current_buffer()->second->contents()->size() == 1);
 
   editor_state.ProcessInputString("ialejandro forero cuervo\n\n");
@@ -129,7 +129,7 @@ int main(int, char**) {
   assert(editor_state.current_buffer()->second->position().line == 0);
   editor_state.ProcessInput(Terminal::ESCAPE);
   editor_state.ProcessInputString("glw/");
-  assert(editor_state.last_search_query() == "hey");
+  assert(editor_state.last_search_query() == L"hey");
   assert(editor_state.current_buffer()->second->position().line == 0);
   assert(editor_state.current_buffer()->second->position().column == 10);
 
