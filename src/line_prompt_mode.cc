@@ -130,7 +130,7 @@ class LinePromptMode : public EditorMode {
           GetPredictionsBuffer(
               editor_state, predictor_, input_->ToString(),
               [editor_state, this](const wstring& prediction) {
-                if (input_->ToString() == prediction) {
+                if (input_->ToString().size() >= prediction.size()) {
                   return;
                 }
                 LOG(INFO) << "Prediction advanced from " << input_->ToString()
