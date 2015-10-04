@@ -173,6 +173,7 @@ class OpenBuffer {
   virtual void Enter(EditorState* editor_state);
 
   void ClearContents(EditorState* editor_state);
+  void AppendEmptyLine(EditorState* editor_state);
 
   virtual void ReloadInto(EditorState*, OpenBuffer*) {}
   virtual void Save(EditorState* editor_state);
@@ -338,6 +339,7 @@ class OpenBuffer {
     return BufferLineReverseIterator(begin());
   }
   BufferLineIterator line() {
+    CHECK(!contents_.empty());
     size_t line = min(position_.line, contents_.size() - 1);
     return BufferLineIterator(this, line);
   }

@@ -61,6 +61,7 @@ class Quit : public Command {
     wstring error_description;
     if (!editor_state->AttemptTermination(&error_description)) {
       editor_state->SetStatus(error_description);
+      editor_state->ResetMode();
     }
   }
 };
@@ -268,7 +269,7 @@ class ListBuffersBuffer : public OpenBuffer {
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     target->ClearContents(editor_state);
-    AppendLine(editor_state, std::move(NewCopyString(L"Open Buffers:")));
+    AppendToLastLine(editor_state, NewCopyString(L"Open Buffers:"));
     for (const auto& it : *editor_state->buffers()) {
       wstring flags = it.second->FlagsString();
       auto name =

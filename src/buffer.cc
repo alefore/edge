@@ -505,7 +505,12 @@ void OpenBuffer::Enter(EditorState* editor_state) {
 void OpenBuffer::ClearContents(EditorState* editor_state) {
   contents_.clear();
   position_pts_ = LineColumn();
+  AppendEmptyLine(editor_state);
   editor_state->line_marks()->RemoveMarksFromSource(name_);
+}
+
+void OpenBuffer::AppendEmptyLine(EditorState*) {
+  contents_.emplace_back(new Line(Line::Options()));
 }
 
 void OpenBuffer::EndOfFile(EditorState* editor_state) {
@@ -1609,7 +1614,8 @@ void OpenBuffer::Apply(
   transformation->Apply(editor_state, this, transformations_past_.back().get());
 
   auto delete_buffer = transformations_past_.back()->delete_buffer;
-  if (!delete_buffer->contents()->empty()) {
+  if (delete_buffer->contents()->size() > 1
+      || delete_buffer->LineAt(0)->size() > 0) {
     auto insert_result = editor_state->buffers()->insert(
         make_pair(delete_buffer->name(), delete_buffer));
     if (!insert_result.second) {

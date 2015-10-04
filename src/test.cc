@@ -32,11 +32,11 @@ int main(int, char**) {
   assert(editor_state.current_buffer()->second->current_line()->ToString()
          == L"alejo forero");
   editor_state.ProcessInputString("ed");
-  assert(editor_state.current_buffer()->second->ToString().empty());
+  CHECK(editor_state.current_buffer()->second->ToString().empty());
 
   editor_state.ProcessInputString("ialejandro\nforero\ncuervo");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  assert(editor_state.current_buffer()->second->contents()->size() == 3);
+  CHECK_EQ(editor_state.current_buffer()->second->contents()->size(), 3);
   assert(editor_state.current_buffer()->second->current_position_line() == 2);
   assert(editor_state.current_buffer()->second->current_position_col() == sizeof("cuervo") - 1);
   editor_state.ProcessInputString("ehhh");
@@ -82,8 +82,8 @@ int main(int, char**) {
   editor_state.ProcessInput(Terminal::ESCAPE);
   editor_state.ProcessInputString("3d");
   assert(editor_state.current_buffer()->second->current_position_line() == 1);
-  assert(editor_state.current_buffer()->second->ToString()
-         == L"alejandro\nero\nalejandro\nforero\ncuervo");
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "alejandro\nero\nalejandro\nforero\ncuervo");
 
   // Clear it all.
   editor_state.ProcessInputString("ege10d");
@@ -194,6 +194,17 @@ int main(int, char**) {
   editor_state.ProcessInputString("55ji\n");
   editor_state.ProcessInput(Terminal::ESCAPE);
   CHECK_EQ(editor_state.current_buffer()->second->contents()->size(), 2);
+
+  Clear(&editor_state);
+
+
+  // Test for uppercase switch
+  // TODO: Support repetitions.
+  editor_state.ProcessInputString("ialeJAnDRo\nfoRero");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("kg~");
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "AleJAnDRo\nfoRero");
 
   Clear(&editor_state);
 

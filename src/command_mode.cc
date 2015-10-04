@@ -944,7 +944,7 @@ class SwitchCaseTransformation : public Transformation {
       wchar_t c = (*buffer->line())->get(buffer->position().column);
       shared_ptr<OpenBuffer> buffer_to_insert(
           new OpenBuffer(editor_state, L"- text inserted"));
-      buffer_to_insert->AppendLine(editor_state,
+      buffer_to_insert->AppendToLastLine(editor_state,
           NewCopyString(wstring(1, iswupper(c) ? towlower(c) : towupper(c))));
       editor_state->ScheduleRedraw();
 

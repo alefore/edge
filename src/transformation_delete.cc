@@ -134,19 +134,20 @@ class DeleteCharactersTransformation : public Transformation {
       LOG(INFO) << "Preserving chars from single line: [" << start << ", "
                 << end << "): "
                 << end_line->Substring(start, end - start)->ToString();
-      delete_buffer
-          ->AppendLine(editor_state, end_line->Substring(start, end - start));
+      delete_buffer->AppendToLastLine(
+          editor_state, end_line->Substring(start, end - start));
       return delete_buffer;
     }
 
-    delete_buffer->AppendLine(editor_state,
+    delete_buffer->AppendToLastLine(editor_state,
         buffer->LineAt(line_begin)->Substring(
             modifiers_.direction == FORWARDS
             ? preserved_contents->size()
             : buffer->LineAt(line_begin)->size() - chars_erase_line));
 
     for (size_t i = line_begin + 1; i < line_end; i++) {
-      delete_buffer->AppendLine(editor_state, buffer->LineAt(i)->contents());
+      delete_buffer->AppendLine(
+          editor_state, buffer->LineAt(i)->contents());
     }
 
     delete_buffer->AppendLine(editor_state,

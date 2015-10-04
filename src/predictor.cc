@@ -236,7 +236,8 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
     for (auto it = contents->lower_bound(input); it != contents->end(); ++it) {
       auto result = mismatch(input.begin(), input.end(), (*it).first.begin());
       if (result.first == input.end()) {
-        buffer->AppendLine(editor_state, it->second);
+        buffer->AppendToLastLine(editor_state, it->second);
+        buffer->contents()->emplace_back(new Line(Line::Options()));
       } else {
         break;
       }

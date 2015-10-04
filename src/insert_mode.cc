@@ -70,7 +70,6 @@ class NewLineTransformation : public Transformation {
     {
       shared_ptr<OpenBuffer> buffer_to_insert(
         new OpenBuffer(editor_state, L"- text inserted"));
-      buffer_to_insert->contents()->emplace_back(new Line(Line::Options()));
       buffer_to_insert->contents()
           ->emplace_back(new Line(continuation_options));
       transformation->PushBack(
@@ -255,8 +254,8 @@ class InsertMode : public EditorMode {
 
       shared_ptr<OpenBuffer> buffer_to_insert(
           new OpenBuffer(editor_state, L"- text inserted"));
-      buffer_to_insert->contents()->emplace_back(
-          new Line(Line::Options(NewCopyString(string_to_insert))));
+      buffer_to_insert->AppendToLastLine(
+          editor_state, NewCopyString(string_to_insert));
 
       VLOG(5) << "Buffer to insert: " << buffer_to_insert->ToString();
       buffer->Apply(editor_state,
