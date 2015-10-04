@@ -259,6 +259,7 @@ class LineOutputReceiver : public Line::OutputReceiverInterface {
     switch (modifier) {
       case Line::RESET:
         attroff(A_BOLD);
+        attroff(A_DIM);
         attroff(A_UNDERLINE);
         attroff(A_REVERSE);
         attroff(COLOR_PAIR(1));
@@ -268,6 +269,9 @@ class LineOutputReceiver : public Line::OutputReceiverInterface {
         break;
       case Line::BOLD:
         attron(A_BOLD);
+        break;
+      case Line::DIM:
+        attron(A_DIM);
         break;
       case Line::UNDERLINE:
         attron(A_UNDERLINE);

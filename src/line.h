@@ -32,6 +32,7 @@ class Line {
   enum Modifier {
     RESET,
     BOLD,
+    DIM,
     UNDERLINE,
     REVERSE,
     BLACK,

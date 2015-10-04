@@ -137,24 +137,23 @@ void Line::Output(const EditorState* editor_state,
       && line_width - buffer->view_start_column() < width) {
     size_t padding = line_width - buffer->view_start_column() - output_column;
     receiver->AddString(wstring(padding, L' '));
+
     auto all_marks = buffer->GetLineMarks(editor_state);
     auto marks = all_marks->equal_range(line);
+
     char info_char = '.';
-    Modifier modifier = Modifier::RESET;
     if (marks.first != marks.second) {
-      modifier = Modifier::RED;
-      info_char = '#';
+      receiver->AddModifier(Modifier::RED);
+      receiver->AddModifier(Modifier::BOLD);
+      info_char = '!';
     } else if (modified()) {
-      modifier = Modifier::GREEN;
+      receiver->AddModifier(Modifier::GREEN);
       info_char = '.';
-    }
-    if (modifier != Modifier::RESET) {
-      receiver->AddModifier(modifier);
+    } else {
+      receiver->AddModifier(Modifier::DIM);
     }
     receiver->AddCharacter(info_char);
-    if (modifier != Modifier::RESET) {
-      receiver->AddModifier(Modifier::RESET);
-    }
+    receiver->AddModifier(Modifier::RESET);
     output_column += padding + 1;
   }
 
