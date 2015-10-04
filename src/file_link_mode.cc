@@ -34,8 +34,9 @@ using std::sort;
 
 class FileBuffer : public OpenBuffer {
  public:
-  FileBuffer(EditorState* editor_state, const wstring& path)
-      : OpenBuffer(editor_state, path) {
+  FileBuffer(EditorState* editor_state, const wstring& path,
+             const wstring& name)
+      : OpenBuffer(editor_state, name) {
     set_string_variable(variable_path(), path);
   }
 
@@ -57,14 +58,19 @@ class FileBuffer : public OpenBuffer {
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     const wstring path = GetPath();
     const string path_raw = ToByteString(path);
-    if (stat(path_raw.c_str(), &stat_buffer_) == -1) {
+    if (!path.empty() && stat(path_raw.c_str(), &stat_buffer_) == -1) {
       return;
     }
 
     if (target->read_bool_variable(OpenBuffer::variable_clear_on_reload())) {
       target->ClearContents(editor_state);
     }
+
     editor_state->ScheduleRedraw();
+
+    if (path.empty()) {
+      return;
+    }
 
     if (!S_ISDIR(stat_buffer_.st_mode)) {
       char* tmp = strdup(path_raw.c_str());
@@ -119,12 +125,18 @@ class FileBuffer : public OpenBuffer {
   }
 
   void Save(EditorState* editor_state) {
+    const wstring path = GetPath();
+    if (path.empty()) {
+      OpenBuffer::Save(editor_state);
+      editor_state->SetStatus(
+          L"Buffer can't be saved: “path” variable is empty.");
+      return;
+    }
     if (S_ISDIR(stat_buffer_.st_mode)) {
       OpenBuffer::Save(editor_state);
       return;
     }
 
-    const wstring path = GetPath();
     if (!SaveContentsToFile(editor_state, this, path)) {
       return;
     }
@@ -394,14 +406,15 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
       count++;
     }
     name = GetAnonymousBufferName(count);
-    buffer.reset(new OpenBuffer(editor_state, name));
+    buffer.reset(new FileBuffer(editor_state, actual_path, name));
   } else {
     name = actual_path;
   }
   auto it = editor_state->buffers()->insert(make_pair(name, buffer));
   if (it.second) {
     if (it.first->second.get() == nullptr) {
-      it.first->second.reset(new FileBuffer(editor_state, actual_path));
+      it.first->second =
+          std::make_shared<FileBuffer>(editor_state, actual_path, actual_path);
     }
     it.first->second->Reload(editor_state);
   }

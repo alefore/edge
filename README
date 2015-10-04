@@ -388,6 +388,7 @@ In practice, we tend to use "a." (section 5.6) much more frequently to open
 files.  We also tend to navigate across files by moving the cursor over to a
 path and pressing Enter (section 3.6).
 
+
 5.5.2. Path suffixes
 
 Edge will look for an optional suffix to the path indicating the position in the
@@ -401,6 +402,14 @@ compilers.  The following examples show the supported forms:
 
 These suffixes can be given anywhere where Edge opens a file (e.g. they also
 work for files specified through the command line).
+
+
+5.5.3. Anonymous buffers
+
+If you open a buffer with an empty path (i.e. you press Return immediately after
+pressing "ao"), you'll create an anonymous buffer.  Anonymous buffers can't be
+saved unless you give them a path (by assigning to the path variable, described
+in section 7.2.15).
 
 
 5.6. Files view
@@ -442,7 +451,6 @@ If you attempt to close a dirty buffer:
   the buffer.
 - If the buffer is still dirty, Edge will prevent you from deleting the buffer,
   unless variable allow_dirty_delete (section 7.2.8) is set.
-
 
 See section 5.1 for another mechanism for closing buffers, by deleting lines
 from the list of buffers.

@@ -2,8 +2,6 @@
 
 -- Editing
 
-When an anonymous buffer is saved, ask for the name?
-
 Handle DELETE key
 
 Implement delete of page.
