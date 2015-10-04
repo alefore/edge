@@ -130,14 +130,18 @@ void FilePredictor(EditorState* editor_state,
       close(pipefd[child_fd]);
     }
 
-    string basename_prefix;
-    string dirname_prefix;
     for (const auto& search_path_it : search_paths) {
+      string basename_prefix;
+      string dirname_prefix;
       wstring path_with_prefix;
       if (search_path_it.empty()) {
         path_with_prefix = path.empty() ? L"." : path;
       } else {
         path_with_prefix = search_path_it;
+        if (!path.empty() && path[0] == '/') {
+          VLOG(5) << "Skipping non-empty search path for absolute path.";
+          continue;
+        }
         if (!path.empty()) {
           path_with_prefix += L"/" + path;
         }
@@ -185,6 +189,15 @@ void FilePredictor(EditorState* editor_state,
         }
         string prediction = dirname_prefix + entry->d_name +
             (entry->d_type == DT_DIR ? "/" : "");
+        if (!search_path_it.empty() &&
+            prediction.size() >= search_path_it.size() &&
+            prediction.substr(0, search_path_it.size()) == ToByteString(search_path_it)) {
+          VLOG(6) << "Removing prefix from prediction: " << prediction;
+          int start = prediction.find_first_not_of('/', search_path_it.size());
+          if (start != prediction.npos) {
+            prediction = prediction.substr(start);
+          }
+        }
         VLOG(5) << "Prediction: " << prediction;
         cout << prediction << "\n";
       }
