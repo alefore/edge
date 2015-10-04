@@ -142,7 +142,7 @@ class AutocompleteMode : public EditorMode {
 
     auto buffer_to_insert =
         std::make_shared<OpenBuffer>(editor_state, L"tmp buffer");
-    buffer_to_insert->AppendLine(
+    buffer_to_insert->AppendToLastLine(
         editor_state,
         StringAppend((*matches_current_)->contents(), NewCopyString(L" ")));
     DLOG(INFO) << "Completion selected: " << buffer_to_insert->ToString();
