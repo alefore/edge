@@ -16,6 +16,8 @@ buffer.set_editor_commands_path("~/.edge/editor_commands/");
 
 string path = buffer.path();
 if (path == "") {
+  buffer.set_follow_end_of_file(false);
+
   string command = buffer.command();
   int space = command.find_first_of(" ", 0);
   string base_command = space == -1 ? command : command.substr(0, space);
@@ -23,10 +25,12 @@ if (path == "") {
     SetStatus("Running command: [" + base_command + "]");
     if (base_command == "bash" || base_command == "python") {
       buffer.set_pts(true);
+      buffer.set_follow_end_of_file(true);
     }
     if (base_command == "make") {
       buffer.set_contains_line_marks(true);
       buffer.set_reload_on_buffer_write(true);
+      buffer.set_follow_end_of_file(true);
     }
     if (base_command == "grep") {
       buffer.set_contains_line_marks(true);
