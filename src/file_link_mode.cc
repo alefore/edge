@@ -86,8 +86,8 @@ class FileBuffer : public OpenBuffer {
     }
 
     set_bool_variable(variable_atomic_lines(), true);
-    target->AppendLine(editor_state, shared_ptr<LazyString>(
-        NewCopyString(L"File listing: " + path).release()));
+    target->AppendToLastLine(editor_state,
+        NewCopyString(L"File listing: " + path));
 
     DIR* dir = opendir(path_raw.c_str());
     assert(dir != nullptr);
