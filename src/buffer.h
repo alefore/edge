@@ -457,7 +457,7 @@ class OpenBuffer {
   // Returns a multimap with all the marks for the current buffer, indexed by
   // the line they refer to. Each call may update the map.
   const multimap<size_t, LineMarks::Mark>*
-      GetLineMarks(const EditorState* editor_state);
+      GetLineMarks(const EditorState& editor_state);
 
  protected:
   vector<unique_ptr<ParseTree>> parse_tree;

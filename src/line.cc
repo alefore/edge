@@ -138,7 +138,7 @@ void Line::Output(const EditorState* editor_state,
     size_t padding = line_width - buffer->view_start_column() - output_column;
     receiver->AddString(wstring(padding, L' '));
 
-    auto all_marks = buffer->GetLineMarks(editor_state);
+    auto all_marks = buffer->GetLineMarks(*editor_state);
     auto marks = all_marks->equal_range(line);
 
     char info_char = '.';

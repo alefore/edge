@@ -10,6 +10,8 @@ extern "C" {
 #include <term.h>
 }
 
+#include "line_marks.h"
+
 namespace afc {
 namespace editor {
 
@@ -202,7 +204,7 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
     }
 
     if (editor_state.status().empty()) {
-      status += L"“" + buffer->name() + L"” ";
+      status += L"“" + GetBufferContext(editor_state, buffer) + L"” ";
     }
   }
 
@@ -242,6 +244,22 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
   if (editor_state.status_prompt()) {
     move(y, x);
   }
+}
+
+wstring Terminal::GetBufferContext(
+    const EditorState& editor_state,
+    const shared_ptr<OpenBuffer>& buffer) {
+  auto marks = buffer->GetLineMarks(editor_state);
+  auto current_line_marks = marks->find(buffer->position().line);
+  if (current_line_marks != marks->end()) {
+    auto mark = current_line_marks->second;
+    auto source = editor_state.buffers()->find(mark.source);
+    if (source != editor_state.buffers()->end()
+        && source->second->contents()->size() > mark.source_line) {
+      return source->second->contents()->at(mark.source_line)->ToString();
+    }
+  }
+  return buffer->name();
 }
 
 class LineOutputReceiver : public Line::OutputReceiverInterface {

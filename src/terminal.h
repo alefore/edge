@@ -35,6 +35,9 @@ class Terminal {
 
  private:
   void ShowStatus(const EditorState& editor_state);
+  wstring GetBufferContext(
+      const EditorState& editor_state,
+      const shared_ptr<OpenBuffer>& buffer);
   void ShowBuffer(const EditorState* editor_state);
   void AdjustPosition(const shared_ptr<OpenBuffer> buffer);
 

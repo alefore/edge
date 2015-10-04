@@ -18,11 +18,14 @@ struct LineMarks {
     // What created this mark?
     std::wstring source;
 
+    // What line in the source did this mark occur in?
+    size_t source_line = 0;
+
     // What buffer does this mark identify?
     std::wstring target_buffer;
 
     // The line marked.
-    size_t line;
+    size_t line = 0;
   };
 
   void AddMark(Mark mark);

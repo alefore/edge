@@ -667,6 +667,7 @@ void OpenBuffer::StartNewLine(EditorState* editor_state) {
                        &positions, &pattern)) {
       LineMarks::Mark mark;
       mark.source = name_;
+      mark.source_line = contents_.size() - 1;
       mark.target_buffer = path;
       mark.line = positions.empty() ? 0 : positions[0];
       LOG(INFO) << "Found a mark: " << mark;
@@ -1691,8 +1692,8 @@ bool OpenBuffer::IsLineFiltered(size_t line_number) {
 }
 
 const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks(
-    const EditorState* editor_state) {
-  auto marks = editor_state->line_marks();
+    const EditorState& editor_state) {
+  auto marks = editor_state.line_marks();
   if (marks->updates > line_marks_last_updates_) {
     LOG(INFO) << name_ << ": Updating marks.";
     line_marks_.clear();
