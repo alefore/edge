@@ -317,7 +317,10 @@ unique_ptr<Expression> CompileStream(
 unique_ptr<Expression> CompileFile(
     const string& path, Environment* environment, wstring* error_description) {
   std::wifstream infile(path);
-  if (infile.fail()) { return nullptr; }
+  if (infile.fail()) {
+    *error_description = L"open failed";
+    return nullptr;
+  }
   return CompileStream(environment, infile, error_description, VMType::Void());
 }
 
