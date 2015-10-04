@@ -216,12 +216,58 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
   editor_state->SetStatus(L"Unknown variable: " + name);
 }
 
+void SendEndOfFileToBuffer(EditorState* editor_state,
+                           std::shared_ptr<OpenBuffer> buffer) {
+  if (editor_state->structure() == LINE) {
+    editor_state->ResetStructure();
+    DLOG(INFO) << "Sending EOF to line: "
+               << buffer->current_line()->ToString();
+    if (buffer->current_line()->activate() != nullptr) {
+      buffer->current_line()->activate()->ProcessInput(0, editor_state);
+    }
+    return;
+  }
+  if (buffer->fd() == -1) {
+    editor_state->SetStatus(L"No active subprocess for current buffer.");
+    return;
+  }
+  if (buffer->read_bool_variable(OpenBuffer::variable_pts())) {
+    char str[1] = { 4 };
+    if (write(buffer->fd(), str, sizeof(str)) == -1) {
+      editor_state->SetStatus(
+          L"Sending EOF failed: " + FromByteString(strerror(errno)));
+      return;
+    }
+    editor_state->SetStatus(L"EOF sent");
+  } else {
+    if (shutdown(buffer->fd(), SHUT_WR) == -1) {
+      editor_state->SetStatus(
+          L"shutdown(SHUT_WR) failed: " + FromByteString(strerror(errno)));
+      return;
+    }
+    editor_state->SetStatus(L"shutdown sent");
+  }
+}
+
 class ActivateBufferLineCommand : public EditorMode {
  public:
   ActivateBufferLineCommand(const wstring& name) : name_(name) {}
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
     switch (c) {
+      case 0:  // Send EOF
+        {
+          auto it = editor_state->buffers()->find(name_);
+          if (it == editor_state->buffers()->end()) {
+            // TODO: Keep a function and re-open the buffer?
+            editor_state->SetStatus(L"Buffer not found: " + name_);
+            return;
+          }
+          editor_state->ResetStatus();
+          SendEndOfFileToBuffer(editor_state, it->second);
+          editor_state->ScheduleRedraw();
+          break;
+        }
       case '\n':  // Open the current buffer.
         {
           auto it = editor_state->buffers()->find(name_);
@@ -347,27 +393,7 @@ class SendEndOfFile : public Command {
   void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->ResetMode();
     if (!editor_state->has_current_buffer()) { return; }
-    auto buffer = editor_state->current_buffer()->second;
-    if (buffer->fd() == -1) {
-      editor_state->SetStatus(L"No active subprocess for current buffer.");
-      return;
-    }
-    if (buffer->read_bool_variable(OpenBuffer::variable_pts())) {
-      char str[1] = { 4 };
-      if (write(buffer->fd(), str, sizeof(str)) == -1) {
-        editor_state->SetStatus(
-            L"Sending EOF failed: " + FromByteString(strerror(errno)));
-        return;
-      }
-      editor_state->SetStatus(L"EOF sent");
-    } else {
-      if (shutdown(buffer->fd(), SHUT_WR) == -1) {
-        editor_state->SetStatus(
-            L"shutdown(SHUT_WR) failed: " + FromByteString(strerror(errno)));
-        return;
-      }
-      editor_state->SetStatus(L"shutdown sent");
-    }
+    SendEndOfFileToBuffer(editor_state, editor_state->current_buffer()->second);
   }
 };
 
