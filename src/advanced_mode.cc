@@ -267,7 +267,7 @@ class ListBuffersBuffer : public OpenBuffer {
   }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
-    target->ClearContents();
+    target->ClearContents(editor_state);
     AppendLine(editor_state, std::move(NewCopyString(L"Open Buffers:")));
     for (const auto& it : *editor_state->buffers()) {
       wstring flags = it.second->FlagsString();

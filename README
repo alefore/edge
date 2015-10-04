@@ -673,6 +673,9 @@ any buffer is written?
 
 This is useful mainly for command buffers like 'make' or 'git diff'.
 
+If you set this on a buffer, you may want to also set contains_line_marks
+(section 7.2.22).
+
 Default: false
 
 
@@ -762,6 +765,26 @@ sorted alphabetically.
 See section 4.1. for more details.
 
 Default: ""
+
+
+7.2.23. contains_line_marks (bool)
+
+contains_line_marks indicates whether the current buffer should be scanned for
+"marks": lines that start with a prefix of the form "path:line" (e.g.
+src/test.cc:23"). For any such marks found, the corresponding lines in the
+corresponding buffers will be highlighted.
+
+This is useful for commands like "make" that output lines with compilation
+errors.
+
+Unfortunately, we don't currently support any fancy formats: the lines need to
+start with the marks (so this is not useful if your commands output lines like
+"Error in src/test.cc:23:").
+
+If you set this on a buffer, you may want to also set reload_on_buffer_write
+(section 7.2.12).
+
+Default: false
 
 
 8. Extension language

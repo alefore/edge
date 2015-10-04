@@ -62,7 +62,7 @@ class FileBuffer : public OpenBuffer {
     }
 
     if (target->read_bool_variable(OpenBuffer::variable_clear_on_reload())) {
-      target->ClearContents();
+      target->ClearContents(editor_state);
     }
     editor_state->ScheduleRedraw();
 
@@ -72,7 +72,7 @@ class FileBuffer : public OpenBuffer {
         RunCommandHandler(L"parsers/passwd <" + path, editor_state);
       } else {
         int fd = open(ToByteString(path).c_str(), O_RDONLY);
-        target->SetInputFile(fd, false, -1);
+        target->SetInputFile(editor_state, fd, false, -1);
       }
       editor_state->CheckPosition();
       editor_state->PushCurrentPosition();
@@ -216,9 +216,9 @@ class FileLinkMode : public EditorMode {
   const bool ignore_if_not_found_;
 };
 
-static wstring FindPath(
-    vector<wstring> search_paths, const wstring& path, vector<int>* positions,
-    wstring* pattern) {
+static bool FindPath(
+    vector<wstring> search_paths, const wstring& path, wstring* resolved_path,
+    vector<int>* positions, wstring* pattern) {
   CHECK(!search_paths.empty());
 
   struct stat dummy;
@@ -258,10 +258,11 @@ static wstring FindPath(
         str_end = next_str_end;
         if (str_end == path.npos) { break; }
       }
-      return path_without_suffix;
+      *resolved_path = realpath_safe(path_without_suffix);
+      return true;
     }
   }
-  return L"";
+  return false;
 }
 
 }  // namespace
@@ -350,6 +351,16 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
   }
 }
 
+bool ResolvePath(EditorState* editor_state, const wstring& path,
+                 wstring* resolved_path,
+                 vector<int>* positions, wstring* pattern) {
+  vector<wstring> search_paths = { L"" };
+  GetSearchPaths(editor_state, &search_paths);
+  *positions = { 0, 0 };
+  return FindPath(
+      std::move(search_paths), path, resolved_path, positions, pattern);
+}
+
 map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     const OpenFileOptions& options) {
   EditorState* editor_state = options.editor_state;
@@ -361,16 +372,14 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   if (options.use_search_paths) {
     GetSearchPaths(editor_state, &search_paths);
   }
-  wstring actual_path =
-      FindPath(search_paths, expanded_path, &tokens, &pattern);
+  wstring actual_path;
+  FindPath(search_paths, expanded_path, &actual_path, &tokens, &pattern);
 
   if (actual_path.empty()) {
     if (options.ignore_if_not_found) {
       return editor_state->buffers()->end();
     }
     actual_path = expanded_path;
-  } else {
-    actual_path = realpath_safe(actual_path);
   }
 
   editor_state->PushCurrentPosition();

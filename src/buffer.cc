@@ -22,6 +22,7 @@ extern "C" {
 #include "file_link_mode.h"
 #include "run_command_handler.h"
 #include "lazy_string_append.h"
+#include "line_marks.h"
 #include "server.h"
 #include "substring.h"
 #include "transformation.h"
@@ -453,7 +454,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
   set_string_variable(variable_pts_path(), L"");
   set_string_variable(variable_command(), L"");
   set_bool_variable(variable_reload_after_exit(), false);
-  ClearContents();
+  ClearContents(editor_state);
 }
 
 OpenBuffer::~OpenBuffer() {}
@@ -501,9 +502,10 @@ void OpenBuffer::Enter(EditorState* editor_state) {
   }
 }
 
-void OpenBuffer::ClearContents() {
+void OpenBuffer::ClearContents(EditorState* editor_state) {
   contents_.clear();
   position_pts_ = LineColumn();
+  editor_state->line_marks()->RemoveMarksFromSource(name_);
 }
 
 void OpenBuffer::EndOfFile(EditorState* editor_state) {
@@ -621,7 +623,7 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
         auto line = Substring(buffer_wrapper, line_start, i - line_start);
         VLOG(8) << "Adding line from " << line_start << " to " << i;
         AppendToLastLine(editor_state, line);
-        contents_.emplace_back(new Line(Line::Options()));
+        StartNewLine(editor_state);
         MaybeFollowToEndOfFile();
         line_start = i + 1;
         if (editor_state->has_current_buffer()
@@ -646,6 +648,27 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
     editor_state->current_buffer()->second->Reload(editor_state);
   }
   editor_state->ScheduleRedraw();
+}
+
+void OpenBuffer::StartNewLine(EditorState* editor_state) {
+  if (!contents_.empty()) {
+    DVLOG(5) << "Line is completed: " << contents_.back()->ToString();
+
+    wstring path;
+    vector<int> positions;
+    wstring pattern;
+    if (read_bool_variable(variable_contains_line_marks())
+        && ResolvePath(editor_state, contents_.back()->ToString(), &path,
+                       &positions, &pattern)) {
+      LineMarks::Mark mark;
+      mark.source = name_;
+      mark.target_buffer = path;
+      mark.line = positions.empty() ? 0 : positions[0];
+      LOG(INFO) << "Found a mark: " << mark;
+      editor_state->line_marks()->AddMark(mark);
+    }
+  }
+  contents_.emplace_back(new Line(Line::Options()));
 }
 
 void OpenBuffer::Reload(EditorState* editor_state) {
@@ -1181,9 +1204,10 @@ void OpenBuffer::PushSignal(EditorState* editor_state, int sig) {
 }
 
 void OpenBuffer::SetInputFile(
-    int input_fd, bool fd_is_terminal, pid_t child_pid) {
+    EditorState* editor_state, int input_fd, bool fd_is_terminal,
+    pid_t child_pid) {
   if (read_bool_variable(variable_clear_on_reload())) {
-    ClearContents();
+    ClearContents(editor_state);
     low_buffer_ = nullptr;
     low_buffer_length_ = 0;
   }
@@ -1244,6 +1268,7 @@ wstring OpenBuffer::FlagsString() const {
     OpenBuffer::variable_follow_end_of_file();
     OpenBuffer::variable_commands_background_mode();
     OpenBuffer::variable_reload_on_buffer_write();
+    OpenBuffer::variable_contains_line_marks();
   }
   return output;
 }
@@ -1374,6 +1399,14 @@ OpenBuffer::variable_allow_dirty_delete() {
       L"Should the current buffer (on which this variable is set) be reloaded "
       L"when any buffer is written?  This is useful mainly for command buffers "
       L"like 'make' or 'git diff'.",
+      false);
+  return variable;
+}
+
+/* static */ EdgeVariable<char>* OpenBuffer::variable_contains_line_marks() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+      L"contains_line_marks",
+      L"If set to true, this buffer will be scanned for line marks.",
       false);
   return variable;
 }
@@ -1649,6 +1682,22 @@ bool OpenBuffer::IsLineFiltered(size_t line_number) {
     line->set_filtered(filtered, filter_version_);
   }
   return line->filtered();
+}
+
+const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks(
+    const EditorState* editor_state) {
+  auto marks = editor_state->line_marks();
+  if (marks->updates > line_marks_last_updates_) {
+    LOG(INFO) << name_ << ": Updating marks.";
+    line_marks_.clear();
+    auto relevant_marks = marks->GetMarksForTargetBuffer(name_);
+    for (auto& mark : relevant_marks) {
+      line_marks_.insert(make_pair(mark.line, mark));
+    }
+    line_marks_last_updates_ = marks->updates;
+  }
+  LOG(INFO) << "Returning multimap with size: " << line_marks_.size();
+  return &line_marks_;
 }
 
 }  // namespace editor

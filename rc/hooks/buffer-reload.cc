@@ -24,6 +24,10 @@ if (path == "") {
     if (base_command == "bash" || base_command == "python") {
       buffer.set_pts(true);
     }
+    if (base_command == "make") {
+      buffer.set_contains_line_marks(true);
+      buffer.set_reload_on_buffer_write(true);
+    }
   }
   buffer.set_atomic_lines(false);
   buffer.set_paste_mode(true);

@@ -349,9 +349,9 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
         && buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())) {
       buffer->set_last_highlighted_line(current_line);
       HighlightedLineOutputReceiver current_receiver(&receiver);
-      line->Output(editor_state, buffer, &current_receiver);
+      line->Output(editor_state, buffer, current_line, &current_receiver);
     } else {
-      line->Output(editor_state, buffer, &receiver);
+      line->Output(editor_state, buffer, current_line, &receiver);
     }
     receiver.AddModifier(Line::RESET);
     current_line ++;

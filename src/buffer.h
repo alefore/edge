@@ -11,6 +11,7 @@
 #include "lazy_string.h"
 #include "line.h"
 #include "line_column.h"
+#include "line_marks.h"
 #include "memory_mapped_file.h"
 #include "substring.h"
 #include "transformation.h"
@@ -171,7 +172,7 @@ class OpenBuffer {
 
   virtual void Enter(EditorState* editor_state);
 
-  void ClearContents();
+  void ClearContents(EditorState* editor_state);
 
   virtual void ReloadInto(EditorState*, OpenBuffer*) {}
   virtual void Save(EditorState* editor_state);
@@ -371,7 +372,8 @@ class OpenBuffer {
 
   void PushSignal(EditorState* editor_state, int signal);
 
-  void SetInputFile(int fd, bool fd_is_terminal, pid_t child_pid);
+  void SetInputFile(EditorState* editor_state, int fd, bool fd_is_terminal,
+                    pid_t child_pid);
 
   void CopyVariablesFrom(const shared_ptr<const OpenBuffer>& buffer);
 
@@ -390,6 +392,7 @@ class OpenBuffer {
   static EdgeVariable<char>* variable_follow_end_of_file();
   static EdgeVariable<char>* variable_commands_background_mode();
   static EdgeVariable<char>* variable_reload_on_buffer_write();
+  static EdgeVariable<char>* variable_contains_line_marks();
 
   static EdgeStruct<wstring>* StringStruct();
   static EdgeVariable<wstring>* variable_word_characters();
@@ -448,6 +451,11 @@ class OpenBuffer {
   void set_last_highlighted_line(size_t value) {
     last_highlighted_line_ = value;
   }
+
+  // Returns a multimap with all the marks for the current buffer, indexed by
+  // the line they refer to. Each call may update the map.
+  const multimap<size_t, LineMarks::Mark>*
+      GetLineMarks(const EditorState* editor_state);
 
  protected:
   vector<unique_ptr<ParseTree>> parse_tree;
@@ -515,6 +523,9 @@ class OpenBuffer {
   size_t filter_version_;
 
  private:
+  // Adds a new line. If there's a previous line, notifies various things about
+  // it.
+  void StartNewLine(EditorState* editor_state);
   void ProcessCommandInput(
       EditorState* editor_state, shared_ptr<LazyString> str);
   unique_ptr<Transformation> last_transformation_;
@@ -530,6 +541,14 @@ class OpenBuffer {
   // If variable_atomic_lines is true, this will be set to the last line that
   // was highlighted.
   size_t last_highlighted_line_;
+
+  // Index of the marks for the current buffer (i.e. Mark::target_buffer is the
+  // current buffer). The key is the line (i.e. Mark::line).
+  multimap<size_t, LineMarks::Mark> line_marks_;
+  // The value of EditorState::marks_::updates the last time we computed
+  // line_marks_. This allows us to avoid recomputing it when no new marks have
+  // been added.
+  size_t line_marks_last_updates_ = 0;
 };
 
 }  // namespace editor

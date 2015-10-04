@@ -85,7 +85,7 @@ class ServerBuffer : public OpenBuffer {
       cerr << address << ": open failed: " << strerror(errno);
       exit(1);
     }
-    target->SetInputFile(fd, false, -1);
+    target->SetInputFile(editor_state, fd, false, -1);
 
     editor_state->ScheduleRedraw();
   }

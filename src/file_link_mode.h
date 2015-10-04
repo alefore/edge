@@ -45,6 +45,13 @@ struct OpenFileOptions {
 shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state);
 void GetSearchPaths(EditorState* editor_state, vector<wstring>* output);
 
+// Takes a specification of a path (which can be absolute or relative) and, if
+// relative, looks it up in the search paths. If a file is found, returns an
+// absolute path pointing to it. Otherwise, returns just the input.
+bool ResolvePath(EditorState* editor_state, const wstring& path,
+                 wstring* resolved_path, vector<int>* positions,
+                 wstring* pattern);
+
 // Creates a new buffer for the file at the path given.
 map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     const OpenFileOptions& options);
