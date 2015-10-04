@@ -28,6 +28,10 @@ if (path == "") {
       buffer.set_contains_line_marks(true);
       buffer.set_reload_on_buffer_write(true);
     }
+    if (base_command == "grep") {
+      buffer.set_contains_line_marks(true);
+      buffer.set_allow_dirty_delete(true);
+    }
   }
   buffer.set_atomic_lines(false);
   buffer.set_paste_mode(true);
