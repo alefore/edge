@@ -184,6 +184,30 @@ file already exists, just takes you to it).
 See section 5.5 for more commands to open a file.
 
 
+3.7. Navigation mode
+
+If you press "n", you activate a special navigation mode, which uses binary
+search to help you very quickly land in the character (in the current line)
+that you want.
+
+This can be a very efficient way to reach a given position. For example, if you
+start at the beginning of a relatively long line with 100 characters, all
+positions are reachable with at most 8 keystrokes (including the initial "n").
+
+In navigation mode, if you press "l" ("h") you'll move forwards (backwards) to
+the middle position between the current cursor position and the end (beginning)
+of the current line, discarding (for the purpose of subsequent navigation) all
+characters before (after) the current cursor position. Each subsequent press (of
+"l" or "h") moves the cursor in the corresponding direction.
+
+The current structure alters the behaviors thus:
+- Word: constrains the range to the current word (instead of the entire line).
+- Line: instead of moving the column left or right, moves the cursor up or down
+  in the current file.
+
+You exit navigation mode by pressing any character other than "l" or "h".
+
+
 4. Editing a buffer
 
 

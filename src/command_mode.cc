@@ -19,6 +19,7 @@
 #include "lazy_string_append.h"
 #include "line_prompt_mode.h"
 #include "map_mode.h"
+#include "navigate_command.h"
 #include "noop_command.h"
 #include "repeat_mode.h"
 #include "search_handler.h"
@@ -1047,6 +1048,7 @@ static const map<wchar_t, Command*>& GetCommandModeMap() {
     output.insert(make_pair('c', new RunCppFileCommand()));
 
     output.insert(make_pair('b', new GotoPreviousPositionCommand()));
+    output.insert(make_pair('n', NewNavigateCommand().release()));
     output.insert(make_pair('j', new LineDown()));
     output.insert(make_pair('k', new LineUp()));
     output.insert(make_pair('l', new MoveForwards()));
