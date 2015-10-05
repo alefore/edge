@@ -10,6 +10,8 @@ extern "C" {
 #include <term.h>
 }
 
+#include "line_marks.h"
+
 namespace afc {
 namespace editor {
 
@@ -198,8 +200,11 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
     }
 
     if (!flags.empty()) {
-      flags += L" ";
-      status += L" " + flags;
+      status += L" " + flags + L" ";
+    }
+
+    if (editor_state.status().empty()) {
+      status += L"“" + GetBufferContext(editor_state, buffer) + L"” ";
     }
   }
 
@@ -241,6 +246,22 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
   }
 }
 
+wstring Terminal::GetBufferContext(
+    const EditorState& editor_state,
+    const shared_ptr<OpenBuffer>& buffer) {
+  auto marks = buffer->GetLineMarks(editor_state);
+  auto current_line_marks = marks->find(buffer->position().line);
+  if (current_line_marks != marks->end()) {
+    auto mark = current_line_marks->second;
+    auto source = editor_state.buffers()->find(mark.source);
+    if (source != editor_state.buffers()->end()
+        && source->second->contents()->size() > mark.source_line) {
+      return source->second->contents()->at(mark.source_line)->ToString();
+    }
+  }
+  return buffer->name();
+}
+
 class LineOutputReceiver : public Line::OutputReceiverInterface {
  public:
   void AddCharacter(wchar_t c) {
@@ -256,6 +277,7 @@ class LineOutputReceiver : public Line::OutputReceiverInterface {
     switch (modifier) {
       case Line::RESET:
         attroff(A_BOLD);
+        attroff(A_DIM);
         attroff(A_UNDERLINE);
         attroff(A_REVERSE);
         attroff(COLOR_PAIR(1));
@@ -265,6 +287,9 @@ class LineOutputReceiver : public Line::OutputReceiverInterface {
         break;
       case Line::BOLD:
         attron(A_BOLD);
+        break;
+      case Line::DIM:
+        attron(A_DIM);
         break;
       case Line::UNDERLINE:
         attron(A_UNDERLINE);
@@ -346,9 +371,9 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
         && buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())) {
       buffer->set_last_highlighted_line(current_line);
       HighlightedLineOutputReceiver current_receiver(&receiver);
-      line->Output(editor_state, buffer, &current_receiver);
+      line->Output(editor_state, buffer, current_line, &current_receiver);
     } else {
-      line->Output(editor_state, buffer, &receiver);
+      line->Output(editor_state, buffer, current_line, &receiver);
     }
     receiver.AddModifier(Line::RESET);
     current_line ++;

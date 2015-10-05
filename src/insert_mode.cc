@@ -1,5 +1,6 @@
 #include "insert_mode.h"
 
+#include <algorithm>
 #include <cassert>
 #include <memory>
 
@@ -13,6 +14,7 @@ extern "C" {
 #include "command_mode.h"
 #include "editable_string.h"
 #include "editor.h"
+#include "editor_mode.h"
 #include "file_link_mode.h"
 #include "lazy_string_append.h"
 #include "substring.h"
@@ -68,7 +70,6 @@ class NewLineTransformation : public Transformation {
     {
       shared_ptr<OpenBuffer> buffer_to_insert(
         new OpenBuffer(editor_state, L"- text inserted"));
-      buffer_to_insert->contents()->emplace_back(new Line(Line::Options()));
       buffer_to_insert->contents()
           ->emplace_back(new Line(continuation_options));
       transformation->PushBack(
@@ -109,6 +110,73 @@ class InsertEmptyLineTransformation : public Transformation {
   Direction direction_;
 };
 
+
+class AutocompleteMode : public EditorMode {
+ public:
+  using Iterator = vector<std::shared_ptr<Line>>::iterator;
+
+  struct Options {
+    std::unique_ptr<EditorMode> delegate;
+
+    std::shared_ptr<Line> prefix;
+
+    // TODO: Make these shared_ptr weak_ptrs.
+    std::shared_ptr<OpenBuffer> dictionary;
+    std::shared_ptr<OpenBuffer> buffer;
+    Iterator matches_start;
+    size_t column_start;
+    size_t column_end;
+  };
+
+  AutocompleteMode(Options options)
+      : options_(std::move(options)),
+        matches_current_(options_.matches_start),
+        word_length_(options_.column_end - options_.column_start) {}
+
+  void ProcessInput(wint_t c, EditorState* editor_state) {
+    if (c != '\t') {
+      editor_state->set_mode(std::move(options_.delegate));
+      editor_state->ProcessInput(c);
+      return;
+    }
+
+    auto buffer_to_insert =
+        std::make_shared<OpenBuffer>(editor_state, L"tmp buffer");
+    buffer_to_insert->AppendToLastLine(
+        editor_state,
+        StringAppend((*matches_current_)->contents(), NewCopyString(L" ")));
+    DLOG(INFO) << "Completion selected: " << buffer_to_insert->ToString();
+
+    Modifiers modifiers;
+    modifiers.repetitions = word_length_;
+    options_.buffer->Apply(editor_state,
+        TransformationAtPosition(
+            LineColumn(options_.buffer->position().line, options_.column_start),
+            ComposeTransformation(
+                NewDeleteCharactersTransformation(modifiers, false),
+                NewInsertBufferTransformation(buffer_to_insert, 1, END))));
+
+    options_.buffer->set_modified(true);
+    editor_state->ScheduleRedraw();
+
+    LOG(INFO) << "Updating variables for next completion.";
+    word_length_ = (*matches_current_)->size() + 1;
+    matches_current_++;
+    if (matches_current_ == options_.dictionary->contents()->end()) {
+      matches_current_ = options_.matches_start;
+    }
+  }
+
+ private:
+  Options options_;
+  Iterator matches_current_;
+  // The number of characters that need to be erased (starting at
+  // options_.column_start) for the next insertion. Initially, this is computed
+  // from options_.column_start and options_.column_end; however, after an
+  // insertion, it gets updated with the length of the insertion.
+  size_t word_length_;
+};
+
 class InsertMode : public EditorMode {
  public:
   InsertMode() {}
@@ -116,6 +184,12 @@ class InsertMode : public EditorMode {
   void ProcessInput(wint_t c, EditorState* editor_state) {
     auto buffer = editor_state->current_buffer()->second;
     switch (c) {
+      case '\t':
+        if (AttemptCompletion(editor_state, buffer)) {
+          return;
+        }
+        break;
+
       case Terminal::ESCAPE:
         buffer->MaybeAdjustPositionCol();
         buffer->Apply(editor_state, NewDeleteSuffixSuperfluousCharacters());
@@ -180,8 +254,8 @@ class InsertMode : public EditorMode {
 
       shared_ptr<OpenBuffer> buffer_to_insert(
           new OpenBuffer(editor_state, L"- text inserted"));
-      buffer_to_insert->contents()->emplace_back(
-          new Line(Line::Options(NewCopyString(string_to_insert))));
+      buffer_to_insert->AppendToLastLine(
+          editor_state, NewCopyString(string_to_insert));
 
       VLOG(5) << "Buffer to insert: " << buffer_to_insert->ToString();
       buffer->Apply(editor_state,
@@ -190,6 +264,74 @@ class InsertMode : public EditorMode {
 
     buffer->set_modified(true);
     editor_state->ScheduleRedraw();
+  }
+
+ private:
+  bool AttemptCompletion(EditorState* editor_state,
+                         std::shared_ptr<OpenBuffer> buffer) {
+    OpenFileOptions options;
+    options.path =
+        buffer->read_string_variable(OpenBuffer::variable_dictionary());
+    if (options.path.empty()) {
+      LOG(INFO) << "Dictionary is not set.";
+      return false;
+    }
+    options.editor_state = editor_state;
+    options.make_current_buffer = false;
+    auto file = OpenFile(options);
+    LOG(INFO) << "Loaded dictionary.";
+    std::weak_ptr<OpenBuffer> weak_dictionary = file->second;
+    std::weak_ptr<OpenBuffer> weak_buffer = buffer;
+    file->second->AddEndOfFileObserver(
+        [this, editor_state, weak_buffer, weak_dictionary]() {
+          FindCompletion(
+              editor_state, weak_buffer.lock(), weak_dictionary.lock());
+        });
+    return true;
+  }
+
+  void FindCompletion(EditorState* editor_state,
+                      std::shared_ptr<OpenBuffer> buffer,
+                      std::shared_ptr<OpenBuffer> dictionary) {
+    if (buffer == nullptr || dictionary == nullptr) {
+      LOG(INFO) << "Buffer or dictionary have expired, giving up.";
+      return;
+    }
+
+    AutocompleteMode::Options options;
+
+    auto line = buffer->current_line()->ToString();
+    LOG(INFO) << "Extracting token from line: " << line;
+    options.column_end = buffer->position().column;
+    options.column_start = line.find_last_not_of(
+        buffer->read_string_variable(OpenBuffer::variable_word_characters()),
+        options.column_end);
+    if (options.column_start == wstring::npos) {
+      options.column_start = 0;
+    } else {
+      options.column_start++;
+    }
+    options.prefix = std::make_shared<Line>(Line::Options(NewCopyString(
+        line.substr(options.column_start,
+                    options.column_end - options.column_start))));
+
+    options.delegate = std::move(editor_state->ResetMode());
+    options.dictionary = dictionary;
+    options.buffer = buffer;
+
+    LOG(INFO) << "Find completion for \"" << options.prefix->ToString()
+              << "\" among options: " << dictionary->contents()->size();
+    options.matches_start = std::lower_bound(
+        dictionary->contents()->begin(),
+        dictionary->contents()->end(),
+        options.prefix,
+        [](const std::shared_ptr<Line>& a, const std::shared_ptr<Line>& b) {
+          return a->ToString() < b->ToString();
+        });
+
+    editor_state->set_mode(unique_ptr<AutocompleteMode>(
+        new AutocompleteMode(std::move(options))));
+    editor_state->ProcessInput('\t');
   }
 };
 

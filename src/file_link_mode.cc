@@ -6,6 +6,7 @@
 #include <string>
 #include <algorithm>
 #include <stdexcept>
+#include <unordered_map>
 
 extern "C" {
 #include <dirent.h>
@@ -33,22 +34,43 @@ using std::sort;
 
 class FileBuffer : public OpenBuffer {
  public:
-  FileBuffer(EditorState* editor_state, const wstring& path)
-      : OpenBuffer(editor_state, path) {
+  FileBuffer(EditorState* editor_state, const wstring& path,
+             const wstring& name)
+      : OpenBuffer(editor_state, name) {
     set_string_variable(variable_path(), path);
+  }
+
+  void Enter(EditorState* editor_state) {
+    OpenBuffer::Enter(editor_state);
+
+    LOG(INFO) << "Checking if file has changed.";
+    const wstring path = GetPath();
+    const string path_raw = ToByteString(path);
+    struct stat current_stat_buffer;
+    if (stat(path_raw.c_str(), &current_stat_buffer) == -1) {
+      return;
+    }
+    if (current_stat_buffer.st_mtime > stat_buffer_.st_mtime) {
+      editor_state->SetStatus(L"Underying file has changed!");
+    }
   }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     const wstring path = GetPath();
     const string path_raw = ToByteString(path);
-    if (stat(path_raw.c_str(), &stat_buffer_) == -1) {
+    if (!path.empty() && stat(path_raw.c_str(), &stat_buffer_) == -1) {
       return;
     }
 
     if (target->read_bool_variable(OpenBuffer::variable_clear_on_reload())) {
-      target->ClearContents();
+      target->ClearContents(editor_state);
     }
+
     editor_state->ScheduleRedraw();
+
+    if (path.empty()) {
+      return;
+    }
 
     if (!S_ISDIR(stat_buffer_.st_mode)) {
       char* tmp = strdup(path_raw.c_str());
@@ -56,7 +78,7 @@ class FileBuffer : public OpenBuffer {
         RunCommandHandler(L"parsers/passwd <" + path, editor_state);
       } else {
         int fd = open(ToByteString(path).c_str(), O_RDONLY);
-        target->SetInputFile(fd, false, -1);
+        target->SetInputFile(editor_state, fd, false, -1);
       }
       editor_state->CheckPosition();
       editor_state->PushCurrentPosition();
@@ -64,15 +86,27 @@ class FileBuffer : public OpenBuffer {
     }
 
     set_bool_variable(variable_atomic_lines(), true);
-    target->AppendLine(editor_state, shared_ptr<LazyString>(
-        NewCopyString(L"File listing: " + path).release()));
+    target->AppendToLastLine(editor_state,
+        NewCopyString(L"File listing: " + path));
 
     DIR* dir = opendir(path_raw.c_str());
     assert(dir != nullptr);
     struct dirent* entry;
     while ((entry = readdir(dir)) != nullptr) {
+      static std::unordered_map<int, wstring> types = {
+          { DT_BLK, L" (block dev)" },
+          { DT_CHR, L" (char dev)" },
+          { DT_DIR, L"/" },
+          { DT_FIFO, L" (named pipe)" },
+          { DT_LNK, L"@" },
+          { DT_REG, L"" },
+          { DT_SOCK, L" (unix sock)" }
+      };
+      auto type_it = types.find(entry->d_type);
       target->AppendLine(editor_state, shared_ptr<LazyString>(
-          NewCopyCharBuffer(FromByteString(entry->d_name).c_str())));
+          NewCopyString(
+              FromByteString(entry->d_name) +
+              (type_it == types.end() ? L"" : type_it->second))));
       (*target->contents()->rbegin())->set_activate(
           NewFileLinkMode(editor_state,
               path + L"/" + FromByteString(entry->d_name), false));
@@ -91,12 +125,18 @@ class FileBuffer : public OpenBuffer {
   }
 
   void Save(EditorState* editor_state) {
+    const wstring path = GetPath();
+    if (path.empty()) {
+      OpenBuffer::Save(editor_state);
+      editor_state->SetStatus(
+          L"Buffer can't be saved: “path” variable is empty.");
+      return;
+    }
     if (S_ISDIR(stat_buffer_.st_mode)) {
       OpenBuffer::Save(editor_state);
       return;
     }
 
-    const wstring path = GetPath();
     if (!SaveContentsToFile(editor_state, this, path)) {
       return;
     }
@@ -111,6 +151,7 @@ class FileBuffer : public OpenBuffer {
         it.second->Reload(editor_state);
       }
     }
+    stat(ToByteString(path).c_str(), &stat_buffer_);
   }
 
  private:
@@ -171,7 +212,7 @@ class FileLinkMode : public EditorMode {
                 }
                 editor_state->ResetMode();
               },
-              PrecomputedPredictor(predictions)));
+              PrecomputedPredictor(predictions, '/')));
           command->ProcessInput('\n', editor_state);
         }
         return;
@@ -187,9 +228,9 @@ class FileLinkMode : public EditorMode {
   const bool ignore_if_not_found_;
 };
 
-static wstring FindPath(
-    vector<wstring> search_paths, const wstring& path, vector<int>* positions,
-    wstring* pattern) {
+static bool FindPath(
+    vector<wstring> search_paths, const wstring& path, wstring* resolved_path,
+    vector<int>* positions, wstring* pattern) {
   CHECK(!search_paths.empty());
 
   struct stat dummy;
@@ -229,10 +270,11 @@ static wstring FindPath(
         str_end = next_str_end;
         if (str_end == path.npos) { break; }
       }
-      return path_without_suffix;
+      *resolved_path = realpath_safe(path_without_suffix);
+      return true;
     }
   }
-  return L"";
+  return false;
 }
 
 }  // namespace
@@ -321,6 +363,16 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
   }
 }
 
+bool ResolvePath(EditorState* editor_state, const wstring& path,
+                 wstring* resolved_path,
+                 vector<int>* positions, wstring* pattern) {
+  vector<wstring> search_paths = { L"" };
+  GetSearchPaths(editor_state, &search_paths);
+  *positions = { 0, 0 };
+  return FindPath(
+      std::move(search_paths), path, resolved_path, positions, pattern);
+}
+
 map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     const OpenFileOptions& options) {
   EditorState* editor_state = options.editor_state;
@@ -332,16 +384,14 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   if (options.use_search_paths) {
     GetSearchPaths(editor_state, &search_paths);
   }
-  wstring actual_path =
-      FindPath(search_paths, expanded_path, &tokens, &pattern);
+  wstring actual_path;
+  FindPath(search_paths, expanded_path, &actual_path, &tokens, &pattern);
 
   if (actual_path.empty()) {
     if (options.ignore_if_not_found) {
       return editor_state->buffers()->end();
     }
     actual_path = expanded_path;
-  } else {
-    actual_path = realpath_safe(actual_path);
   }
 
   editor_state->PushCurrentPosition();
@@ -356,14 +406,15 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
       count++;
     }
     name = GetAnonymousBufferName(count);
-    buffer.reset(new OpenBuffer(editor_state, name));
+    buffer.reset(new FileBuffer(editor_state, actual_path, name));
   } else {
     name = actual_path;
   }
   auto it = editor_state->buffers()->insert(make_pair(name, buffer));
   if (it.second) {
     if (it.first->second.get() == nullptr) {
-      it.first->second.reset(new FileBuffer(editor_state, actual_path));
+      it.first->second =
+          std::make_shared<FileBuffer>(editor_state, actual_path, actual_path);
     }
     it.first->second->Reload(editor_state);
   }

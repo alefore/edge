@@ -6,6 +6,7 @@
 #include "direction.h"
 #include "editor.h"
 #include "lazy_string_append.h"
+#include "modifiers.h"
 #include "transformation.h"
 #include "transformation_move.h"
 #include "wstring.h"
@@ -23,7 +24,7 @@ class DeleteCharactersTransformation : public Transformation {
 
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
-    LOG(INFO) << "Starting DeleteCharactersTransformation.";
+    LOG(INFO) << "Starting DeleteCharactersTransformation: " << modifiers_;
     if (buffer->contents()->empty()) {
       result->success = false;
       return;
@@ -133,19 +134,20 @@ class DeleteCharactersTransformation : public Transformation {
       LOG(INFO) << "Preserving chars from single line: [" << start << ", "
                 << end << "): "
                 << end_line->Substring(start, end - start)->ToString();
-      delete_buffer
-          ->AppendLine(editor_state, end_line->Substring(start, end - start));
+      delete_buffer->AppendToLastLine(
+          editor_state, end_line->Substring(start, end - start));
       return delete_buffer;
     }
 
-    delete_buffer->AppendLine(editor_state,
+    delete_buffer->AppendToLastLine(editor_state,
         buffer->LineAt(line_begin)->Substring(
             modifiers_.direction == FORWARDS
             ? preserved_contents->size()
             : buffer->LineAt(line_begin)->size() - chars_erase_line));
 
     for (size_t i = line_begin + 1; i < line_end; i++) {
-      delete_buffer->AppendLine(editor_state, buffer->LineAt(i)->contents());
+      delete_buffer->AppendLine(
+          editor_state, buffer->LineAt(i)->contents());
     }
 
     delete_buffer->AppendLine(editor_state,
@@ -363,13 +365,13 @@ class DeleteLinesTransformation : public Transformation {
 
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
-    BufferLineIterator line = buffer->line();
     size_t repetitions = min(modifiers_.repetitions,
-        buffer->contents()->size() - line.line());
+        buffer->contents()->size() - buffer->position().line);
     shared_ptr<OpenBuffer> delete_buffer(
         new OpenBuffer(editor_state, OpenBuffer::kPasteBuffer));
+
     LOG(INFO) << "Erasing lines " << repetitions << " starting at line "
-         << buffer->line().line() << " in a buffer with size "
+         << buffer->position().line << " in a buffer with size "
          << buffer->contents()->size() << " with modifiers: " << modifiers_;
 
     bool forwards = modifiers_.structure_range
@@ -377,133 +379,29 @@ class DeleteLinesTransformation : public Transformation {
     bool backwards = modifiers_.structure_range
         != Modifiers::FROM_CURRENT_POSITION_TO_END;
 
-    for (size_t i = 0; i < repetitions; i++) {
-      shared_ptr<LazyString> line_deletion;
-      size_t start = backwards ? 0 : buffer->position().column;
-      size_t end = forwards ? (*line)->size() : buffer->position().column;
-      if (start == 0
-          && end == (*line)->size()
-          && (*line)->activate() != nullptr) {
-        (*line)->activate()->ProcessInput('d', editor_state);
-      }
-      line_deletion = (*line)->Substring(start, end - start);
-      delete_buffer->AppendLine(editor_state, line_deletion);
-      line++;
-    }
-    if (forwards && modifiers_.strength > Modifiers::WEAK) {
-      delete_buffer->AppendLine(editor_state, EmptyString());
-    }
-    if (copy_to_paste_buffer_) {
-      result->delete_buffer->Apply(
-          editor_state, NewInsertBufferTransformation(delete_buffer, 1, END));
-    }
-
-    LOG(INFO) << "Modifying buffer: " << modifiers_.structure_range;
-    if (modifiers_.structure_range == Modifiers::ENTIRE_STRUCTURE
-        && modifiers_.strength == Modifiers::DEFAULT) {
-      // Optimization.
-      buffer->contents()->erase(
-          buffer->contents()->begin() + buffer->line().line(),
-          buffer->contents()->begin() + buffer->line().line() + repetitions);
-      result->modified_buffer = true;
-      result->undo = TransformationAtPosition(
-          LineColumn(buffer->position().line),
-          ComposeTransformation(
-              NewInsertBufferTransformation(delete_buffer, 1, END),
-              NewGotoPositionTransformation(buffer->position())));
-      return;
-    }
+    bool deletes_ends_of_lines = modifiers_.strength > Modifiers::WEAK;
 
     TransformationStack stack;
-    LineColumn position = buffer->position();
+
+    size_t line = buffer->position().line;
     for (size_t i = 0; i < repetitions; i++) {
-      auto line = buffer->LineAt(position.line + i);
-      // The column in the current line that we should move to before deleting.
-      size_t column = backwards
-          ? min(min(position.column, line->size()),
-                FindStartOfLine(buffer, line.get()))
-          : position.column;
-      size_t delete_characters = forwards
-          ? max(column, FindLengthOfLine(buffer, line.get())) - column
-          : position.column - column;
-      LineColumn delete_from(position.line + i, column);
-      LOG(INFO) << "Deleting from " << delete_from << " characters: "
-                << delete_characters;
-      if (repetitions > 1) {
-        delete_characters++;  // The newline character.
+      auto contents = buffer->contents()->at(line + i);
+      DVLOG(5) << "Erasing line: " << contents->ToString();
+      size_t start = backwards ? 0 : buffer->position().column;
+      size_t end = forwards ? contents->size() : buffer->position().column;
+      if (start == 0
+          && end == contents->size()
+          && contents->activate() != nullptr) {
+        contents->activate()->ProcessInput('d', editor_state);
       }
       Modifiers modifiers;
-      modifiers.repetitions = delete_characters;
-      stack.PushBack(NewGotoPositionTransformation(delete_from));
-      stack.PushBack(NewDeleteCharactersTransformation(modifiers, false));
-    }
-    size_t delete_characters_before = 0;
-    size_t delete_characters_after = 0;
-    switch (modifiers_.strength) {
-      case Modifiers::VERY_WEAK:
-      case Modifiers::WEAK:
-        break;
-      case Modifiers::DEFAULT:
-        if (forwards) {
-          delete_characters_after = 1;
-        }
-        break;
-      case Modifiers::STRONG:
-        if (forwards) {
-          delete_characters_after = 1;
-        }
-        if (backwards && position.line > 0) {
-          delete_characters_before = 1;
-        }
-        break;
-      case Modifiers::VERY_STRONG:
-        if (forwards) {
-          size_t position_line = position.line;
-          while (position_line + 1 < buffer->contents()->size()) {
-            delete_characters_after++;
-            auto line = buffer->LineAt(position_line + 1);
-            size_t start = FindSoftStartOfLine(buffer, line.get());
-            VLOG(5) << "Deleting forwards at line " << position_line
-                    << " consumes up to character " << start << " of "
-                    << line->size();
-            CHECK_LE(start, line->size());
-            delete_characters_after += start;
-            if (start < line->size()) { break; }
-            position_line++;
-          }
-        }
-        if (backwards) {
-          size_t position_line = position.line;
-          while (position_line > 0) {
-            delete_characters_before++;  // The newline.
-            auto line = buffer->LineAt(position_line - 1);
-            size_t length = FindSoftLengthOfLine(buffer, line.get());
-            VLOG(5) << "Deleting backwards at line " << position_line
-                    << " consumes down to character " << length << " of "
-                    << line->size();
-            CHECK_LE(length, line->size());
-            delete_characters_before += line->size() - length;
-            if (length > 0) { break; }
-            position_line--;
-          }
-        }
-        break;
-    }
-    if (delete_characters_after > 0) {
-      LOG(INFO) << "Deleting characters after: " << delete_characters_after;
-      stack.PushBack(NewGotoPositionTransformation(
-          LineColumn(position.line, buffer->LineAt(position.line)->size())));
-      Modifiers modifiers;
-      modifiers.repetitions = delete_characters_after;
-      stack.PushBack(NewDeleteCharactersTransformation(modifiers, false));
-    }
-    if (delete_characters_before > 0) {
-      LOG(INFO) << "Deleting characters before: " << delete_characters_before;
-      stack.PushBack(NewGotoPositionTransformation(LineColumn(position.line)));
-      Modifiers modifiers;
-      modifiers.direction = BACKWARDS;
-      modifiers.repetitions = delete_characters_before;
-      stack.PushBack(NewDeleteCharactersTransformation(modifiers, false));
+      modifiers.repetitions = end - start + (deletes_ends_of_lines ? 1 : 0);
+      LineColumn position(line + (deletes_ends_of_lines ? 0 : i), start);
+      DVLOG(6) << "Modifiers for line: " << modifiers;
+      DVLOG(6) << "Position for line: " << position;
+      stack.PushBack(
+          TransformationAtPosition(position,
+               NewDeleteCharactersTransformation(modifiers, true)));
     }
     stack.Apply(editor_state, buffer, result);
   }

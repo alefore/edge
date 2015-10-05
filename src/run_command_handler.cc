@@ -173,8 +173,9 @@ class CommandBuffer : public OpenBuffer {
       exit(WIFEXITED(status) ? WEXITSTATUS(status) : 1);
     }
     close(pipefd[child_fd]);
-    target->SetInputFile(pipefd[parent_fd], read_bool_variable(variable_pts()),
-                         child_pid);
+    target->SetInputFile(
+        editor_state, pipefd[parent_fd], read_bool_variable(variable_pts()),
+        child_pid);
     editor_state->ScheduleRedraw();
   }
 

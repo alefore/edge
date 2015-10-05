@@ -32,6 +32,7 @@ class Line {
   enum Modifier {
     RESET,
     BOLD,
+    DIM,
     UNDERLINE,
     REVERSE,
     BLACK,
@@ -98,6 +99,7 @@ class Line {
   };
   void Output(const EditorState* editor_state,
               const shared_ptr<OpenBuffer>& buffer,
+              size_t line,
               OutputReceiverInterface* receiver);
 
  private:

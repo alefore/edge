@@ -11,6 +11,7 @@
 #include "lazy_string.h"
 #include "line.h"
 #include "line_column.h"
+#include "line_marks.h"
 #include "memory_mapped_file.h"
 #include "substring.h"
 #include "transformation.h"
@@ -165,7 +166,14 @@ class OpenBuffer {
   bool PrepareToClose(EditorState* editor_state);
   void Close(EditorState* editor_state);
 
-  void ClearContents();
+  // If the buffer is still being read (fd_ != -1), adds an observer to
+  // end_of_file_observers_. Otherwise just calls the observer directly.
+  void AddEndOfFileObserver(std::function<void()> observer);
+
+  virtual void Enter(EditorState* editor_state);
+
+  void ClearContents(EditorState* editor_state);
+  void AppendEmptyLine(EditorState* editor_state);
 
   virtual void ReloadInto(EditorState*, OpenBuffer*) {}
   virtual void Save(EditorState* editor_state);
@@ -331,12 +339,15 @@ class OpenBuffer {
     return BufferLineReverseIterator(begin());
   }
   BufferLineIterator line() {
+    CHECK(!contents_.empty());
     size_t line = min(position_.line, contents_.size() - 1);
     return BufferLineIterator(this, line);
   }
 
   void LineUp() {
-    position_.line--;
+    if (position_.line != 0) {
+      position_.line = min(position_.line, contents_.size()) - 1;
+    }
     set_bool_variable(OpenBuffer::variable_follow_end_of_file(), false);
   }
 
@@ -348,13 +359,6 @@ class OpenBuffer {
     return position_;
   }
   void set_position(const LineColumn& position) { position_ = position; }
-
-  void Enter(EditorState* editor_state) {
-    if (read_bool_variable(variable_reload_on_enter())) {
-      Reload(editor_state);
-      CheckPosition();
-    }
-  }
 
   void set_modified(bool value) { modified_ = value; }
   bool modified() const { return modified_; }
@@ -370,7 +374,8 @@ class OpenBuffer {
 
   void PushSignal(EditorState* editor_state, int signal);
 
-  void SetInputFile(int fd, bool fd_is_terminal, pid_t child_pid);
+  void SetInputFile(EditorState* editor_state, int fd, bool fd_is_terminal,
+                    pid_t child_pid);
 
   void CopyVariablesFrom(const shared_ptr<const OpenBuffer>& buffer);
 
@@ -389,6 +394,7 @@ class OpenBuffer {
   static EdgeVariable<char>* variable_follow_end_of_file();
   static EdgeVariable<char>* variable_commands_background_mode();
   static EdgeVariable<char>* variable_reload_on_buffer_write();
+  static EdgeVariable<char>* variable_contains_line_marks();
 
   static EdgeStruct<wstring>* StringStruct();
   static EdgeVariable<wstring>* variable_word_characters();
@@ -399,6 +405,7 @@ class OpenBuffer {
   static EdgeVariable<wstring>* variable_editor_commands_path();
   static EdgeVariable<wstring>* variable_line_prefix_characters();
   static EdgeVariable<wstring>* variable_line_suffix_superfluous_characters();
+  static EdgeVariable<wstring>* variable_dictionary();
 
   static EdgeStruct<int>* IntStruct();
   static EdgeVariable<int>* variable_line_width();
@@ -447,6 +454,11 @@ class OpenBuffer {
     last_highlighted_line_ = value;
   }
 
+  // Returns a multimap with all the marks for the current buffer, indexed by
+  // the line they refer to. Each call may update the map.
+  const multimap<size_t, LineMarks::Mark>*
+      GetLineMarks(const EditorState& editor_state);
+
  protected:
   vector<unique_ptr<ParseTree>> parse_tree;
 
@@ -460,6 +472,11 @@ class OpenBuffer {
   // change the value of pts_ without breaking things (when one command is
   // already running).
   bool fd_is_terminal_;
+
+  // functions to be called when the end of file is reached. The functions will
+  // be called at most once (so they won't be notified if the buffer is
+  // reloaded.
+  vector<std::function<void()>> end_of_file_observers_;
 
   // We read directly into low_buffer_ and then drain from that into contents_.
   // It's possible that not all bytes read can be converted (for example, if the
@@ -508,6 +525,9 @@ class OpenBuffer {
   size_t filter_version_;
 
  private:
+  // Adds a new line. If there's a previous line, notifies various things about
+  // it.
+  void StartNewLine(EditorState* editor_state);
   void ProcessCommandInput(
       EditorState* editor_state, shared_ptr<LazyString> str);
   unique_ptr<Transformation> last_transformation_;
@@ -523,6 +543,14 @@ class OpenBuffer {
   // If variable_atomic_lines is true, this will be set to the last line that
   // was highlighted.
   size_t last_highlighted_line_;
+
+  // Index of the marks for the current buffer (i.e. Mark::target_buffer is the
+  // current buffer). The key is the line (i.e. Mark::line).
+  multimap<size_t, LineMarks::Mark> line_marks_;
+  // The value of EditorState::marks_::updates the last time we computed
+  // line_marks_. This allows us to avoid recomputing it when no new marks have
+  // been added.
+  size_t line_marks_last_updates_ = 0;
 };
 
 }  // namespace editor

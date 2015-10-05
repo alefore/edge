@@ -61,6 +61,7 @@ class Quit : public Command {
     wstring error_description;
     if (!editor_state->AttemptTermination(&error_description)) {
       editor_state->SetStatus(error_description);
+      editor_state->ResetMode();
     }
   }
 };
@@ -142,6 +143,7 @@ void OpenFileHandler(const wstring& name, EditorState* editor_state) {
   options.editor_state = editor_state;
   options.path = name;
   OpenFile(options);
+  editor_state->ResetMode();
 }
 
 void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
@@ -150,8 +152,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
   wstring name = TrimWhitespace(input_name);
   if (name.empty()) { return; }
   {
-    const EdgeVariable<wstring>* var =
-        OpenBuffer::StringStruct()->find_variable(name);
+    auto var = OpenBuffer::StringStruct()->find_variable(name);
     if (var != nullptr) {
       if (!editor_state->has_current_buffer()) { return; }
       Prompt(
@@ -183,7 +184,69 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
       return;
     }
   }
+  {
+    auto var = OpenBuffer::IntStruct()->find_variable(name);
+    if (var != nullptr) {
+      if (!editor_state->has_current_buffer()) { return; }
+      auto buffer = editor_state->current_buffer()->second;
+      Prompt(
+          editor_state,
+          name + L" := ",
+          L"values",
+          std::to_wstring(
+              editor_state->current_buffer()->second->read_int_variable(var)),
+          [var](const wstring& input, EditorState* editor_state) {
+            if (!editor_state->has_current_buffer()) { return; }
+            try {
+              editor_state->current_buffer()
+                  ->second->set_int_variable(var, stoi(input));
+            } catch (const std::invalid_argument& ia) {
+              editor_state->SetStatus(
+                  L"Invalid value for integer value “" + var->name() + L"”: " +
+                  FromByteString(ia.what()));
+            }
+            // ResetMode causes the prompt to be deleted, and the captures of
+            // this lambda go away with it.
+            editor_state->ResetMode();
+          },
+          &EmptyPredictor);
+      return;
+    }
+  }
   editor_state->SetStatus(L"Unknown variable: " + name);
+}
+
+void SendEndOfFileToBuffer(EditorState* editor_state,
+                           std::shared_ptr<OpenBuffer> buffer) {
+  if (editor_state->structure() == LINE) {
+    editor_state->ResetStructure();
+    DLOG(INFO) << "Sending EOF to line: "
+               << buffer->current_line()->ToString();
+    if (buffer->current_line()->activate() != nullptr) {
+      buffer->current_line()->activate()->ProcessInput(0, editor_state);
+    }
+    return;
+  }
+  if (buffer->fd() == -1) {
+    editor_state->SetStatus(L"No active subprocess for current buffer.");
+    return;
+  }
+  if (buffer->read_bool_variable(OpenBuffer::variable_pts())) {
+    char str[1] = { 4 };
+    if (write(buffer->fd(), str, sizeof(str)) == -1) {
+      editor_state->SetStatus(
+          L"Sending EOF failed: " + FromByteString(strerror(errno)));
+      return;
+    }
+    editor_state->SetStatus(L"EOF sent");
+  } else {
+    if (shutdown(buffer->fd(), SHUT_WR) == -1) {
+      editor_state->SetStatus(
+          L"shutdown(SHUT_WR) failed: " + FromByteString(strerror(errno)));
+      return;
+    }
+    editor_state->SetStatus(L"shutdown sent");
+  }
 }
 
 class ActivateBufferLineCommand : public EditorMode {
@@ -192,6 +255,19 @@ class ActivateBufferLineCommand : public EditorMode {
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
     switch (c) {
+      case 0:  // Send EOF
+        {
+          auto it = editor_state->buffers()->find(name_);
+          if (it == editor_state->buffers()->end()) {
+            // TODO: Keep a function and re-open the buffer?
+            editor_state->SetStatus(L"Buffer not found: " + name_);
+            return;
+          }
+          editor_state->ResetStatus();
+          SendEndOfFileToBuffer(editor_state, it->second);
+          editor_state->ScheduleRedraw();
+          break;
+        }
       case '\n':  // Open the current buffer.
         {
           auto it = editor_state->buffers()->find(name_);
@@ -200,11 +276,11 @@ class ActivateBufferLineCommand : public EditorMode {
             editor_state->SetStatus(L"Buffer not found: " + name_);
             return;
           }
+          editor_state->ResetStatus();
           editor_state->set_current_buffer(it);
           it->second->Enter(editor_state);
           editor_state->PushCurrentPosition();
           editor_state->ScheduleRedraw();
-          editor_state->ResetStatus();
           editor_state->ResetMode();
           break;
         }
@@ -238,8 +314,8 @@ class ListBuffersBuffer : public OpenBuffer {
   }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
-    target->ClearContents();
-    AppendLine(editor_state, std::move(NewCopyString(L"Open Buffers:")));
+    target->ClearContents(editor_state);
+    AppendToLastLine(editor_state, NewCopyString(L"Open Buffers:"));
     for (const auto& it : *editor_state->buffers()) {
       wstring flags = it.second->FlagsString();
       auto name =
@@ -317,27 +393,7 @@ class SendEndOfFile : public Command {
   void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->ResetMode();
     if (!editor_state->has_current_buffer()) { return; }
-    auto buffer = editor_state->current_buffer()->second;
-    if (buffer->fd() == -1) {
-      editor_state->SetStatus(L"No active subprocess for current buffer.");
-      return;
-    }
-    if (buffer->read_bool_variable(OpenBuffer::variable_pts())) {
-      char str[1] = { 4 };
-      if (write(buffer->fd(), str, sizeof(str)) == -1) {
-        editor_state->SetStatus(
-            L"Sending EOF failed: " + FromByteString(strerror(errno)));
-        return;
-      }
-      editor_state->SetStatus(L"EOF sent");
-    } else {
-      if (shutdown(buffer->fd(), SHUT_WR) == -1) {
-        editor_state->SetStatus(
-            L"shutdown(SHUT_WR) failed: " + FromByteString(strerror(errno)));
-        return;
-      }
-      editor_state->SetStatus(L"shutdown sent");
-    }
+    SendEndOfFileToBuffer(editor_state, editor_state->current_buffer()->second);
   }
 };
 
@@ -380,11 +436,12 @@ static const map<wchar_t, Command*>& GetAdvancedModeMap() {
     vector<wstring> variables;
     OpenBuffer::BoolStruct()->RegisterVariableNames(&variables);
     OpenBuffer::StringStruct()->RegisterVariableNames(&variables);
+    OpenBuffer::IntStruct()->RegisterVariableNames(&variables);
     output.insert(make_pair(
         'v',
         NewLinePromptCommand(
             L"var ", L"variables", L"assigns to a variable", SetVariableHandler,
-            PrecomputedPredictor(variables)).release()));
+            PrecomputedPredictor(variables, '_')).release()));
 
     output.insert(make_pair('c', new RunCppCommand()));
 

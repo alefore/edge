@@ -130,14 +130,18 @@ void FilePredictor(EditorState* editor_state,
       close(pipefd[child_fd]);
     }
 
-    string basename_prefix;
-    string dirname_prefix;
     for (const auto& search_path_it : search_paths) {
+      string basename_prefix;
+      string dirname_prefix;
       wstring path_with_prefix;
       if (search_path_it.empty()) {
         path_with_prefix = path.empty() ? L"." : path;
       } else {
         path_with_prefix = search_path_it;
+        if (!path.empty() && path[0] == '/') {
+          VLOG(5) << "Skipping non-empty search path for absolute path.";
+          continue;
+        }
         if (!path.empty()) {
           path_with_prefix += L"/" + path;
         }
@@ -185,6 +189,15 @@ void FilePredictor(EditorState* editor_state,
         }
         string prediction = dirname_prefix + entry->d_name +
             (entry->d_type == DT_DIR ? "/" : "");
+        if (!search_path_it.empty() &&
+            prediction.size() >= search_path_it.size() &&
+            prediction.substr(0, search_path_it.size()) == ToByteString(search_path_it)) {
+          VLOG(6) << "Removing prefix from prediction: " << prediction;
+          int start = prediction.find_first_not_of('/', search_path_it.size());
+          if (start != prediction.npos) {
+            prediction = prediction.substr(start);
+          }
+        }
         VLOG(5) << "Prediction: " << prediction;
         cout << prediction << "\n";
       }
@@ -193,7 +206,7 @@ void FilePredictor(EditorState* editor_state,
     exit(0);
   }
   close(pipefd[child_fd]);
-  buffer->SetInputFile(pipefd[parent_fd], false, child_pid);
+  buffer->SetInputFile(editor_state, pipefd[parent_fd], false, child_pid);
 }
 
 void EmptyPredictor(
@@ -201,19 +214,43 @@ void EmptyPredictor(
   buffer->EndOfFile(editor_state);
 }
 
-Predictor PrecomputedPredictor(const vector<wstring>& predictions) {
+namespace {
+
+void RegisterVariations(const wstring& prediction, wchar_t separator,
+                         vector<wstring>* output) {
+  size_t start = 0;
+  DVLOG(5) << "Generating predictions for: " << prediction;
+  while (true) {
+    start = prediction.find_first_not_of(separator, start);
+    if (start == wstring::npos) { return; }
+    output->push_back(prediction.substr(start));
+    DVLOG(6) << "Prediction: " << output->back();
+    start = prediction.find_first_of(separator, start);
+    if (start == wstring::npos) { return; }
+  }
+}
+
+}  // namespace
+
+Predictor PrecomputedPredictor(const vector<wstring>& predictions,
+                               wchar_t separator) {
   // TODO: Use std::make_shared.
-  const shared_ptr<map<wstring, shared_ptr<LazyString>>> contents(
-      new map<wstring, shared_ptr<LazyString>>());
+  const shared_ptr<multimap<wstring, shared_ptr<LazyString>>> contents(
+      new multimap<wstring, shared_ptr<LazyString>>());
   for (const auto& prediction : predictions) {
-    contents->insert(make_pair(prediction, NewCopyString(prediction)));
+    vector<wstring> variations;
+    RegisterVariations(prediction, separator, &variations);
+    for (auto& variation : variations) {
+      contents->insert(make_pair(variation, NewCopyString(prediction)));
+    }
   }
   return [contents](EditorState* editor_state, const wstring& input,
                     OpenBuffer* buffer) {
     for (auto it = contents->lower_bound(input); it != contents->end(); ++it) {
       auto result = mismatch(input.begin(), input.end(), (*it).first.begin());
       if (result.first == input.end()) {
-        buffer->AppendLine(editor_state, it->second);
+        buffer->AppendToLastLine(editor_state, it->second);
+        buffer->contents()->emplace_back(new Line(Line::Options()));
       } else {
         break;
       }

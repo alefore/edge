@@ -18,8 +18,8 @@ class WhileExpression : public Expression {
  public:
   WhileExpression(unique_ptr<Expression> condition, unique_ptr<Expression> body)
       : condition_(std::move(condition)), body_(std::move(body)) {
-    assert(condition_ != nullptr);
-    assert(body_ != nullptr);
+    CHECK(condition_ != nullptr);
+    CHECK(body_ != nullptr);
   }
 
   const VMType& type() {
@@ -43,6 +43,7 @@ class WhileExpression : public Expression {
       DVLOG(3) << "Iteration is done.";
       evaluation->value = Value::NewVoid();
       evaluation->advancer = advancer;
+      return;
     }
     DVLOG(5) << "Iterating...";
     evaluation->advancer = [advancer, this](OngoingEvaluation* post_loop) {

@@ -1,11 +1,14 @@
 Edge - A text editor.
 
+
 1. Introduction
 
 Edge is a text editor and terminal handler.  It uses the notion of "buffers" to
 represent open files or the output of a program (which might or might not still
 be running, and which might or might not have a terminal of its own).  As its
 extension language, Edge uses a small subset of C++/Java.
+
+To quit Edge, press "aq".
 
 Edge is under active development and many of its bindings and/or general
 interface is likely to change soon.
@@ -203,6 +206,14 @@ While inserting to a terminal, press ctrl+v to activate "literal" insertion: the
 next character will be inserted literally.  This is mainly useful to insert an
 Esc code (instead of having Esc take you out of insert mode).
 
+4.1.1. Autocomplete
+
+If the dictionary variable is set to a non-empty string, pressing Tab will cause
+that string to be interpreted as the path to the dictionary file. The contents
+of the file will be loaded into a buffer and used to look for completions.
+Pressing Tab again will iterate through the entries in the dictionary following
+the first completion. See section 7.2.22 for more information on how to create a
+dictionary file.
 
 4.2. Deleting contents
 
@@ -375,7 +386,8 @@ options).
 
 In practice, we tend to use "a." (section 5.6) much more frequently to open
 files.  We also tend to navigate across files by moving the cursor over to a
-path and pressing return (section 3.6).
+path and pressing Enter (section 3.6).
+
 
 5.5.2. Path suffixes
 
@@ -390,6 +402,14 @@ compilers.  The following examples show the supported forms:
 
 These suffixes can be given anywhere where Edge opens a file (e.g. they also
 work for files specified through the command line).
+
+
+5.5.3. Anonymous buffers
+
+If you open a buffer with an empty path (i.e. you press Return immediately after
+pressing "ao"), you'll create an anonymous buffer.  Anonymous buffers can't be
+saved unless you give them a path (by assigning to the path variable, described
+in section 7.2.15).
 
 
 5.6. Files view
@@ -431,7 +451,6 @@ If you attempt to close a dirty buffer:
   the buffer.
 - If the buffer is still dirty, Edge will prevent you from deleting the buffer,
   unless variable allow_dirty_delete (section 7.2.8) is set.
-
 
 See section 5.1 for another mechanism for closing buffers, by deleting lines
 from the list of buffers.
@@ -524,7 +543,18 @@ behavior.
 
 7.1. Setting variables
 
-TODO: av
+Type "av" to set the value of a given variable. You will be promoted for the
+variable you want to set. You can press Tab twice to see a list of all options
+that match the current input (which can be empty, to list all variables). Press
+Enter to edit the value of a variable.
+
+If the variable is a boolean, its value will be toggled. Otherwise, you will be
+prompted for the new value for the variable.
+
+For example, to adjust the line width of the current buffer, press "av", then
+type "line_width" (or a shorter prefix of that and use Tab to autocomplete),
+then Enter, then edit the current value, and then press Enter.
+
 
 7.2. List of variables
 
@@ -651,6 +681,9 @@ any buffer is written?
 
 This is useful mainly for command buffers like 'make' or 'git diff'.
 
+If you set this on a buffer, you may want to also set contains_line_marks
+(section 7.2.22).
+
 Default: false
 
 
@@ -726,6 +759,40 @@ String with all the characters that should be removed from the suffix of a line
 The order of characters in line_suffix_superfluous_characters has no effect.
 
 Default: " "
+
+
+7.2.22. dictionary (string)
+
+If the dictionary variable is non-empty, pressing Tab while in Insert mode in a
+buffer that contains a file (i.e. not in a buffer that runs a command) will
+cause the dictionary to be loaded and used for autocompletions.
+
+The dictionary file must be a text file containing one word per line and be
+sorted alphabetically.
+
+See section 4.1. for more details.
+
+Default: ""
+
+
+7.2.23. contains_line_marks (bool)
+
+contains_line_marks indicates whether the current buffer should be scanned for
+"marks": lines that start with a prefix of the form "path:line" (e.g.
+src/test.cc:23"). For any such marks found, the corresponding lines in the
+corresponding buffers will be highlighted.
+
+This is useful for commands like "make" that output lines with compilation
+errors.
+
+Unfortunately, we don't currently support any fancy formats: the lines need to
+start with the marks (so this is not useful if your commands output lines like
+"Error in src/test.cc:23:").
+
+If you set this on a buffer, you may want to also set reload_on_buffer_write
+(section 7.2.12).
+
+Default: false
 
 
 8. Extension language

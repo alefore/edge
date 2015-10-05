@@ -79,8 +79,9 @@ void Line::set_activate(unique_ptr<EditorMode> activate) {
   activate_ = std::move(activate);
 }
 
-void Line::Output(const EditorState*,
+void Line::Output(const EditorState* editor_state,
                   const shared_ptr<OpenBuffer>& buffer,
+                  size_t line,
                   OutputReceiverInterface* receiver) {
   VLOG(5) << "Producing output of line: " << ToString();
   size_t width = receiver->width();
@@ -136,7 +137,23 @@ void Line::Output(const EditorState*,
       && line_width - buffer->view_start_column() < width) {
     size_t padding = line_width - buffer->view_start_column() - output_column;
     receiver->AddString(wstring(padding, L' '));
-    receiver->AddCharacter(modified() ? L'+' : L'.');
+
+    auto all_marks = buffer->GetLineMarks(*editor_state);
+    auto marks = all_marks->equal_range(line);
+
+    char info_char = '.';
+    if (marks.first != marks.second) {
+      receiver->AddModifier(Modifier::RED);
+      receiver->AddModifier(Modifier::BOLD);
+      info_char = '!';
+    } else if (modified()) {
+      receiver->AddModifier(Modifier::GREEN);
+      info_char = '.';
+    } else {
+      receiver->AddModifier(Modifier::DIM);
+    }
+    receiver->AddCharacter(info_char);
+    receiver->AddModifier(Modifier::RESET);
     output_column += padding + 1;
   }
 

@@ -22,6 +22,7 @@ extern "C" {
 #include "file_link_mode.h"
 #include "run_command_handler.h"
 #include "lazy_string_append.h"
+#include "line_marks.h"
 #include "server.h"
 #include "substring.h"
 #include "transformation.h"
@@ -298,13 +299,14 @@ using std::to_wstring;
     callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
     callback->callback =
         [](vector<unique_ptr<Value>> args) {
-          assert(args.size() == 2);
-          assert(args[0]->type == VMType::OBJECT_TYPE);
-          assert(args[1]->type == VMType::VM_INTEGER);
+          CHECK_EQ(args.size(), 2);
+          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+          CHECK_EQ(args[1]->type, VMType::VM_INTEGER);
           auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          assert(buffer != nullptr);
-          return Value::NewString(
-              buffer->contents()->at(args[1]->integer)->ToString());
+          CHECK(buffer != nullptr);
+          auto line = min(static_cast<size_t>(max(args[1]->integer, 0)),
+                          buffer->contents()->size() - 1);
+          return Value::NewString(buffer->contents()->at(line)->ToString());
         };
     buffer->AddField(L"line", std::move(callback));
   }
@@ -452,7 +454,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
   set_string_variable(variable_pts_path(), L"");
   set_string_variable(variable_command(), L"");
   set_bool_variable(variable_reload_after_exit(), false);
-  ClearContents();
+  ClearContents(editor_state);
 }
 
 OpenBuffer::~OpenBuffer() {}
@@ -485,9 +487,30 @@ void OpenBuffer::Close(EditorState* editor_state) {
   }
 }
 
-void OpenBuffer::ClearContents() {
+void OpenBuffer::AddEndOfFileObserver(std::function<void()> observer) {
+  if (fd_ == -1) {
+    observer();
+    return;
+  }
+  end_of_file_observers_.push_back(observer);
+}
+
+void OpenBuffer::Enter(EditorState* editor_state) {
+  if (read_bool_variable(variable_reload_on_enter())) {
+    Reload(editor_state);
+    CheckPosition();
+  }
+}
+
+void OpenBuffer::ClearContents(EditorState* editor_state) {
   contents_.clear();
   position_pts_ = LineColumn();
+  AppendEmptyLine(editor_state);
+  editor_state->line_marks()->RemoveMarksFromSource(name_);
+}
+
+void OpenBuffer::AppendEmptyLine(EditorState*) {
+  contents_.emplace_back(new Line(Line::Options()));
 }
 
 void OpenBuffer::EndOfFile(EditorState* editor_state) {
@@ -520,6 +543,12 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
   if (editor_state->has_current_buffer()
       && editor_state->current_buffer()->first == kBuffersName) {
     editor_state->current_buffer()->second->Reload(editor_state);
+  }
+
+  vector<std::function<void()>> observers;
+  observers.swap(end_of_file_observers_);
+  for (auto& observer : observers) {
+    observer();
   }
 }
 
@@ -599,7 +628,7 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
         auto line = Substring(buffer_wrapper, line_start, i - line_start);
         VLOG(8) << "Adding line from " << line_start << " to " << i;
         AppendToLastLine(editor_state, line);
-        contents_.emplace_back(new Line(Line::Options()));
+        StartNewLine(editor_state);
         MaybeFollowToEndOfFile();
         line_start = i + 1;
         if (editor_state->has_current_buffer()
@@ -624,6 +653,28 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
     editor_state->current_buffer()->second->Reload(editor_state);
   }
   editor_state->ScheduleRedraw();
+}
+
+void OpenBuffer::StartNewLine(EditorState* editor_state) {
+  if (!contents_.empty()) {
+    DVLOG(5) << "Line is completed: " << contents_.back()->ToString();
+
+    wstring path;
+    vector<int> positions;
+    wstring pattern;
+    if (read_bool_variable(variable_contains_line_marks())
+        && ResolvePath(editor_state, contents_.back()->ToString(), &path,
+                       &positions, &pattern)) {
+      LineMarks::Mark mark;
+      mark.source = name_;
+      mark.source_line = contents_.size() - 1;
+      mark.target_buffer = path;
+      mark.line = positions.empty() ? 0 : positions[0];
+      LOG(INFO) << "Found a mark: " << mark;
+      editor_state->line_marks()->AddMark(mark);
+    }
+  }
+  contents_.emplace_back(new Line(Line::Options()));
 }
 
 void OpenBuffer::Reload(EditorState* editor_state) {
@@ -669,7 +720,7 @@ static void AddToParseTree(const shared_ptr<LazyString>& str_input) {
 }
 
 void OpenBuffer::AppendLine(EditorState* editor_state, shared_ptr<LazyString> str) {
-  assert(str != nullptr);
+  CHECK(str != nullptr);
   if (reading_from_parser_) {
     switch (str->get(0)) {
       case 'E':
@@ -996,7 +1047,7 @@ void OpenBuffer::EvaluateFile(EditorState* editor_state, const wstring& path) {
   unique_ptr<Expression> expression(
       CompileFile(ToByteString(path), &environment_, &error_description));
   if (expression == nullptr) {
-    editor_state->SetStatus(L"Compilation error: " + error_description);
+    editor_state->SetStatus(path + L": Compilation error: " + error_description);
     return;
   }
   Evaluate(expression.get(), &environment_);
@@ -1009,14 +1060,19 @@ LineColumn OpenBuffer::InsertInCurrentPosition(
 }
 
 LineColumn OpenBuffer::InsertInPosition(
-    const vector<shared_ptr<Line>>& insertion, const LineColumn& position) {
-  if (insertion.empty()) { return position; }
-  auto head = position.line >= contents_.size()
-      ? EmptyString()
-      : contents_.at(position.line)->Substring(0, position.column);
-  auto tail = position.line >= contents_.size()
-      ? EmptyString()
-      : contents_.at(position.line)->Substring(position.column);
+    const vector<shared_ptr<Line>>& insertion,
+    const LineColumn& input_position) {
+  if (insertion.empty()) { return input_position; }
+  LineColumn position = input_position;
+  if (contents_.empty()) {
+    contents_.emplace_back(new Line(Line::Options()));
+  }
+  if (position.line >= contents_.size()) {
+    position.line = contents_.size() - 1;
+    position.column = contents_.at(position.line)->size();
+  }
+  auto head = contents_.at(position.line)->Substring(0, position.column);
+  auto tail = contents_.at(position.line)->Substring(position.column);
   contents_.insert(contents_.begin() + position.line, insertion.begin(), insertion.end() - 1);
   for (size_t i = 1; i < insertion.size() - 1; i++) {
     contents_.at(position.line + i)->set_modified(true);
@@ -1154,9 +1210,10 @@ void OpenBuffer::PushSignal(EditorState* editor_state, int sig) {
 }
 
 void OpenBuffer::SetInputFile(
-    int input_fd, bool fd_is_terminal, pid_t child_pid) {
+    EditorState* editor_state, int input_fd, bool fd_is_terminal,
+    pid_t child_pid) {
   if (read_bool_variable(variable_clear_on_reload())) {
-    ClearContents();
+    ClearContents(editor_state);
     low_buffer_ = nullptr;
     low_buffer_length_ = 0;
   }
@@ -1217,6 +1274,7 @@ wstring OpenBuffer::FlagsString() const {
     OpenBuffer::variable_follow_end_of_file();
     OpenBuffer::variable_commands_background_mode();
     OpenBuffer::variable_reload_on_buffer_write();
+    OpenBuffer::variable_contains_line_marks();
   }
   return output;
 }
@@ -1351,6 +1409,14 @@ OpenBuffer::variable_allow_dirty_delete() {
   return variable;
 }
 
+/* static */ EdgeVariable<char>* OpenBuffer::variable_contains_line_marks() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+      L"contains_line_marks",
+      L"If set to true, this buffer will be scanned for line marks.",
+      false);
+  return variable;
+}
+
 /* static */ EdgeStruct<wstring>* OpenBuffer::StringStruct() {
   static EdgeStruct<wstring>* output = nullptr;
   if (output == nullptr) {
@@ -1364,6 +1430,7 @@ OpenBuffer::variable_allow_dirty_delete() {
     OpenBuffer::variable_editor_commands_path();
     OpenBuffer::variable_line_prefix_characters();
     OpenBuffer::variable_line_suffix_superfluous_characters();
+    OpenBuffer::variable_dictionary();
   }
   return output;
 }
@@ -1476,6 +1543,19 @@ OpenBuffer::variable_line_suffix_superfluous_characters() {
   return variable;
 }
 
+/* static */ EdgeVariable<wstring>*
+OpenBuffer::variable_dictionary() {
+  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
+      L"dictionary",
+      L"Path to a dictionary file used for autocompletion. If empty, pressing "
+      L"TAB (in insert mode) just inserts a tab character into the file; "
+      L"otherwise, it triggers completion to the first string from the "
+      L"dictionary that matches the prefix of the current word. Pressing TAB "
+      L"again iterates through all completions.",
+      L"");
+  return variable;
+}
+
 bool OpenBuffer::read_bool_variable(const EdgeVariable<char>* variable) const {
   return static_cast<bool>(bool_variables_.Get(variable));
 }
@@ -1535,7 +1615,8 @@ void OpenBuffer::Apply(
   transformation->Apply(editor_state, this, transformations_past_.back().get());
 
   auto delete_buffer = transformations_past_.back()->delete_buffer;
-  if (!delete_buffer->contents()->empty()) {
+  if (delete_buffer->contents()->size() > 1
+      || delete_buffer->LineAt(0)->size() > 0) {
     auto insert_result = editor_state->buffers()->insert(
         make_pair(delete_buffer->name(), delete_buffer));
     if (!insert_result.second) {
@@ -1608,6 +1689,22 @@ bool OpenBuffer::IsLineFiltered(size_t line_number) {
     line->set_filtered(filtered, filter_version_);
   }
   return line->filtered();
+}
+
+const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks(
+    const EditorState& editor_state) {
+  auto marks = editor_state.line_marks();
+  if (marks->updates > line_marks_last_updates_) {
+    LOG(INFO) << name_ << ": Updating marks.";
+    line_marks_.clear();
+    auto relevant_marks = marks->GetMarksForTargetBuffer(name_);
+    for (auto& mark : relevant_marks) {
+      line_marks_.insert(make_pair(mark.line, mark));
+    }
+    line_marks_last_updates_ = marks->updates;
+  }
+  LOG(INFO) << "Returning multimap with size: " << line_marks_.size();
+  return &line_marks_;
 }
 
 }  // namespace editor
