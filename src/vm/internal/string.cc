@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include <glog/logging.h>
+
 #include "../public/environment.h"
 #include "../public/types.h"
 #include "../public/value.h"
@@ -170,6 +172,36 @@ void RegisterStringType(Environment* environment) {
           return Value::NewInteger(pos);
         };
     string_type->AddField(L"find_first_not_of", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->callback = [](vector<unique_ptr<Value>> args) {
+      CHECK_EQ(args.size(), 1);
+      CHECK_EQ(args[0]->type.type, VMType::VM_STRING);
+      auto output = Value::NewString(std::move(args[0]->str));
+      for (auto& i : output->str) {
+        i = std::tolower(i, std::locale(""));
+      }
+      return std::move(output);
+    };
+    string_type->AddField(L"tolower", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->callback = [](vector<unique_ptr<Value>> args) {
+      CHECK_EQ(args.size(), 1);
+      CHECK_EQ(args[0]->type.type, VMType::VM_STRING);
+      auto output = Value::NewString(std::move(args[0]->str));
+      for (auto& i : output->str) {
+        i = std::toupper(i, std::locale(""));
+      }
+      return std::move(output);
+    };
+    string_type->AddField(L"toupper", std::move(callback));
   }
 
   environment->DefineType(L"string", std::move(string_type));

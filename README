@@ -884,6 +884,26 @@ Returns a boolean value indicating if the string starts with a given prefix.
 8.4.1.9. int string::find_first_not_of(string chars, int start)
 
 
+8.4.1.10. string string::toupper()
+
+Returns a copy of the string, with all characters converted to uppercase.
+
+Example:
+
+  string x = "Alejandro";
+  x.toupper();  // Returns: "ALEJANDRO"
+
+
+8.4.1.11. string string::tolower()
+
+Returns a copy of the string, with all characters converted to lowercase.
+
+Example:
+
+  string x = "Alejandro";
+  x.toupper();  // Returns: "alejandro"
+
+
 8.4.2. Buffer
 
 
