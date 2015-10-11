@@ -1,4 +1,7 @@
 #include "../public/types.h"
+
+#include <glog/logging.h>
+
 #include "../public/value.h"
 
 namespace afc {
@@ -46,7 +49,18 @@ wstring VMType::ToString() const {
     case VM_STRING: return L"string";
     case VM_SYMBOL: return L"symbol";
     case ENVIRONMENT: return L"environment";
-    case FUNCTION: return L"function";
+    case FUNCTION:
+      {
+        CHECK(!type_arguments.empty());
+        wstring output = L"function<" + type_arguments[0].ToString() + L"(";
+        wstring separator = L"";
+        for (size_t i = 1; i < type_arguments.size(); i++) {
+          output += separator + type_arguments[i].ToString();
+          separator = L", ";
+        }
+        output += L")>";
+        return output;
+      }
     case OBJECT_TYPE: return object_type;
   }
   return L"unknown";
