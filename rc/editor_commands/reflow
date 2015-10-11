@@ -41,7 +41,7 @@ void FoldNextLineWhilePrefixIs(string prefix) {
       b.InsertText(" ");  // To avoid a space in the first line.
     }
     int prefix_to_delete =
-        b.line(line + 1).find_first_of(b.word_characters(), prefix.size());
+        b.line(line + 1).find_first_not_of(" ", prefix.size());
     b.DeleteCharacters(1 + prefix_to_delete);
   }
 }
@@ -57,9 +57,9 @@ void BreakLineByLineWidth(string prefix) {
   SetStatus("Breaking line by line width.");
   while (b.line(b.position().line()).size() > b.line_width()) {
     string s = b.line(b.position().line());
-    int last_space = s.find_last_not_of(b.word_characters(), b.line_width());
+    int last_space = s.find_last_of(" ", b.line_width());
     if (last_space != -1 && last_space > prefix.size()) {
-      int last_char = s.find_last_of(b.word_characters(), last_space);
+      int last_char = s.find_last_not_of(" ", last_space);
       if (last_char == -1) {
         SetStatus("Giving up: couldn't find start of break.");
         return;
@@ -67,7 +67,7 @@ void BreakLineByLineWidth(string prefix) {
       BreakAt(prefix, last_char + 1, last_space - last_char);
     } else {
       // We'll have to leave a line longer than line_width.
-      int first_space = s.find_first_not_of(b.word_characters(), b.line_width());
+      int first_space = s.find_first_not_of(" ", b.line_width());
       if (first_space == -1) {
         SetStatus("Giving up: Couldn't find end of line.");
         return;
@@ -90,7 +90,7 @@ LineColumn starting_position = b.position();
 
 // This is in case the first line in the paragraph has spaces that should be
 // removed.
-b.InsertText(prefix + "\n");
+b.InsertText(prefix);
 b.set_position(starting_position);
 
 FoldNextLineWhilePrefixIs(prefix);
