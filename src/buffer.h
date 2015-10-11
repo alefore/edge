@@ -382,6 +382,10 @@ class OpenBuffer {
 
   void PushSignal(EditorState* editor_state, int signal);
 
+  wstring TransformKeyboardText(wstring input);
+  bool AddKeyboardTextTransformer(EditorState* editor_state,
+                                  unique_ptr<Value> transformer);
+
   void SetInputFile(EditorState* editor_state, int fd, bool fd_is_terminal,
                     pid_t child_pid);
 
@@ -525,6 +529,7 @@ class OpenBuffer {
   list<unique_ptr<Transformation::Result>> transformations_past_;
   list<unique_ptr<Transformation::Result>> transformations_future_;
 
+  list<unique_ptr<Value>> keyboard_text_transformers_;
   Environment environment_;
 
   // A function that receives a string and returns a boolean. The function will

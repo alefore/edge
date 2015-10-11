@@ -884,15 +884,21 @@ Returns a boolean value indicating if the string starts with a given prefix.
 8.4.1.9. int string::find_first_not_of(string chars, int start)
 
 
-8.4.2. buffer
+8.4.2. Buffer
 
 
-8.5. Integration points
+8.4.2.1. bool Buffer::AddKeyboardTextTransformer(function<string(string)> transformer)
 
-Every buffer has an environment. You can define special symbols in that
-environment to alter the behavior of Edge. To do this, it's enough to load into
-an environment (with "ac" or "c", described in sections 8.1 and 8.2) a script
-that defines them.
+If you pass a function mapping a string to a string, it'll be called by Edge on
+every character that the user attempts to insert (by typing "i", section 4.1.).
+The transformer can return a different string, to override the string inserted.
+It could even alter the buffer (for example, erase the previous character, or
+adjust the current position).
+
+If you call it multiple times, all transformers will be run in the order in
+which they've been added. Each transfomer will see the output of the previous
+ones.
+
 
 TODO: SetStatus("foo");
 TODO: Document the integration points (e.g. buffer-reload.cc).

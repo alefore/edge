@@ -353,6 +353,29 @@ using std::to_wstring;
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
+    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
+
+    VMType function_type(VMType::FUNCTION);
+    function_type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    function_type.type_arguments.push_back(VMType(VMType::VM_STRING));
+
+    callback->type.type_arguments.push_back(function_type);
+
+    callback->callback =
+        [editor_state, function_type](vector<unique_ptr<Value>> args) {
+          CHECK_EQ(args.size(), 2);
+          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          CHECK(buffer != nullptr);
+          CHECK_EQ(args[1]->type, function_type);
+          return Value::NewBool(buffer->AddKeyboardTextTransformer(
+              editor_state, std::move(args[1])));
+        };
+    buffer->AddField(L"AddKeyboardTextTransformer", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
     callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
     callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
     VMType function_argument(VMType::FUNCTION);
@@ -457,6 +480,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       last_transformation_(NewNoopTransformation()) {
   environment_.Define(L"buffer", Value::NewObject(
       L"Buffer", shared_ptr<void>(this, [](void*){})));
+
   set_string_variable(variable_path(), L"");
   set_string_variable(variable_pts_path(), L"");
   set_string_variable(variable_command(), L"");
@@ -1226,6 +1250,34 @@ void OpenBuffer::PushSignal(EditorState* editor_state, int sig) {
     default:
       editor_state->SetStatus(L"Unexpected signal received: " + to_wstring(sig));
   }
+}
+
+wstring OpenBuffer::TransformKeyboardText(wstring input) {
+  using afc::vm::VMType;
+  for (auto& t : keyboard_text_transformers_) {
+    vector<unique_ptr<Value>> args;
+    args.push_back(afc::vm::Value::NewString(std::move(input)));
+    auto result = t->callback(std::move(args));
+    CHECK_EQ(result->type.type, VMType::VM_STRING);
+    input = std::move(result->str);
+  }
+  return input;
+}
+
+bool OpenBuffer::AddKeyboardTextTransformer(EditorState* editor_state,
+                                            unique_ptr<Value> transformer) {
+  if (transformer == nullptr
+      || transformer->type.type != VMType::FUNCTION
+      || transformer->type.type_arguments.size() != 2
+      || transformer->type.type_arguments[0].type != VMType::VM_STRING
+      || transformer->type.type_arguments[1].type != VMType::VM_STRING) {
+    editor_state->SetStatus(
+        L": Unexpected type for keyboard text transformer: " +
+        transformer->type.ToString());
+    return false;
+  }
+  keyboard_text_transformers_.push_back(std::move(transformer));
+  return true;
 }
 
 void OpenBuffer::SetInputFile(

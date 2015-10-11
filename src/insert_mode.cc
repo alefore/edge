@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <memory>
+#include <vector>
 
 extern "C" {
 #include <unistd.h>
@@ -20,6 +21,7 @@ extern "C" {
 #include "substring.h"
 #include "terminal.h"
 #include "transformation_delete.h"
+#include "vm/public/value.h"
 #include "wstring.h"
 
 namespace {
@@ -249,17 +251,12 @@ class InsertMode : public EditorMode {
     }
 
     {
-      std::wstring string_to_insert(1, c);
-      VLOG(6) << "String to insert: " << string_to_insert << "(" << c << ")";
-
-      shared_ptr<OpenBuffer> buffer_to_insert(
+      shared_ptr<OpenBuffer> insert(
           new OpenBuffer(editor_state, L"- text inserted"));
-      buffer_to_insert->AppendToLastLine(
-          editor_state, NewCopyString(string_to_insert));
-
-      VLOG(5) << "Buffer to insert: " << buffer_to_insert->ToString();
+      insert->AppendToLastLine(editor_state,
+          NewCopyString(buffer->TransformKeyboardText(wstring(1, c))));
       buffer->Apply(editor_state,
-          NewInsertBufferTransformation(buffer_to_insert, 1, END));
+          NewInsertBufferTransformation(insert, 1, END));
     }
 
     buffer->set_modified(true);
