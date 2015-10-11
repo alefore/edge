@@ -1066,7 +1066,7 @@ unique_ptr<Value> OpenBuffer::EvaluateFile(EditorState* editor_state,
   unique_ptr<Expression> expression(
       CompileFile(ToByteString(path), &environment_, &error_description));
   if (expression == nullptr) {
-    editor_state->SetStatus(path + L": Compilation error: " + error_description);
+    editor_state->SetStatus(path + L": error: " + error_description);
     return nullptr;
   }
   return Evaluate(expression.get(), &environment_);
