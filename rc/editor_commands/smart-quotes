@@ -1,0 +1,22 @@
+// Returns true if the quote that we're inserting should be an opening quote.
+// This is checked just by looking at whether the preceding character is a
+// space.
+bool IsOpeningQuote() {
+  int column = buffer.position().column();
+  if (column == 0) {
+    return true;
+  }
+  string line = buffer.line(buffer.position().line());
+  return line.substr(column - 1, 1) == " ";
+}
+
+string TransformQuotes(string input) {
+  if (input == "\"") {
+    return IsOpeningQuote() ? "“" : "”";
+  } else if (input == "'") {
+    return IsOpeningQuote() ? "‘" : "’";
+  }
+  return input;
+}
+
+buffer.AddKeyboardTextTransformer(TransformQuotes);

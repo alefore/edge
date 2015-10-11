@@ -1,0 +1,23 @@
+bool CanRemovePreviousPrefix(string prefix) {
+  int column = buffer.position().column();
+  if (column < prefix.size()) {
+    return false;
+  }
+  string line = buffer.line(buffer.position().line());
+  if (line.substr(column - prefix.size(), prefix.size()) != prefix) {
+    return false;
+  }
+  buffer.set_position(
+      LineColumn(buffer.position().line(), column - prefix.size()));
+  buffer.DeleteCharacters(prefix.size());
+  return true;
+}
+
+string HandleEllipsis(string input) {
+  if (input != "." || !CanRemovePreviousPrefix("..")) {
+    return input;
+  }
+  return "…";
+}
+
+buffer.AddKeyboardTextTransformer(HandleEllipsis);
