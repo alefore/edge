@@ -415,8 +415,15 @@ using std::to_wstring;
           // getline will silently eat the last (empty) line.
           std::wistringstream text_stream(args[1]->str + L"\n");
           std::wstring line;
+          bool insert_separator = false;
           while (std::getline(text_stream, line, wchar_t('\n'))) {
-            buffer_to_insert->AppendLine(editor_state, NewCopyString(line));
+            if (insert_separator) {
+              buffer_to_insert->AppendEmptyLine(editor_state);
+            } else {
+              insert_separator = true;
+            }
+            buffer_to_insert->AppendToLastLine(
+                editor_state, NewCopyString(line));
           }
 
           buffer->Apply(editor_state,
