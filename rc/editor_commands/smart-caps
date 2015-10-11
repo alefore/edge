@@ -1,0 +1,30 @@
+bool AtBeginningOfSentence() {
+  LineColumn position = buffer.position();
+  string sentence_end = ".!?";
+  while (position.column() != 0 || position.line() != 0) {
+    if (position.column() > 0) {
+      position = LineColumn(position.line(), position.column() - 1);
+    } else {
+      position = LineColumn(position.line() - 1,
+                            buffer.line(position.line() - 1).size() - 1);
+      if (position.column() == 0) {
+        return true;
+      }
+    }
+    string c = buffer.line(position.line()).substr(position.column(), 1);
+    if (c == ".") {
+      return true;
+    } else if (c != " ") {
+      return sentence_end.find(c, 0) != -1;
+    }
+  }
+}
+
+string TransformCaps(string input) {
+  if (input.tolower() == input && AtBeginningOfSentence()) {
+    return input.toupper();
+  }
+  return input;
+}
+
+buffer.AddKeyboardTextTransformer(TransformCaps);
