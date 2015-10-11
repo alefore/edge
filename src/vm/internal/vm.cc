@@ -204,6 +204,10 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
                 input->str.push_back(str.at(pos));
             }
           }
+          if (pos == str.size()) {
+            compilation->AddError(L"Missing terminating \" character.");
+            return;
+          }
           pos++;
         }
         break;
@@ -316,7 +320,9 @@ unique_ptr<Expression> CompileStream(
 
 unique_ptr<Expression> CompileFile(
     const string& path, Environment* environment, wstring* error_description) {
+  VLOG(3) << "Compiling file: [" << path << "]";
   std::wifstream infile(path);
+  infile.imbue(std::locale(""));
   if (infile.fail()) {
     *error_description = L"open failed";
     return nullptr;
