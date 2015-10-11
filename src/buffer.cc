@@ -1037,27 +1037,39 @@ void OpenBuffer::AppendToLastLine(
   contents_.rbegin()->reset(new Line(options));
 }
 
-void OpenBuffer::EvaluateString(EditorState* editor_state,
-                                const wstring& code) {
-  wstring error_description;
-  unique_ptr<Expression> expression(
-      CompileString(code, &environment_, &error_description));
-  if (expression == nullptr) {
-    editor_state->SetStatus(L"Compilation error: " + error_description);
-    return;
-  }
-  Evaluate(expression.get(), &environment_);
+unique_ptr<Expression> OpenBuffer::CompileString(EditorState*,
+                                                 const wstring& code,
+                                                 wstring* error_description) {
+  return afc::vm::CompileString(code, &environment_, error_description);
 }
 
-void OpenBuffer::EvaluateFile(EditorState* editor_state, const wstring& path) {
+unique_ptr<Value> OpenBuffer::EvaluateExpression(EditorState*,
+                                                 Expression* expr) {
+  return Evaluate(expr, &environment_);
+}
+
+unique_ptr<Value> OpenBuffer::EvaluateString(EditorState* editor_state,
+                                             const wstring& code) {
+  wstring error_description;
+  unique_ptr<Expression> expression =
+      CompileString(editor_state, code, &error_description);
+  if (expression == nullptr) {
+    editor_state->SetStatus(L"Compilation error: " + error_description);
+    return nullptr;
+  }
+  return EvaluateExpression(editor_state, expression.get());
+}
+
+unique_ptr<Value> OpenBuffer::EvaluateFile(EditorState* editor_state,
+                                           const wstring& path) {
   wstring error_description;
   unique_ptr<Expression> expression(
       CompileFile(ToByteString(path), &environment_, &error_description));
   if (expression == nullptr) {
     editor_state->SetStatus(path + L": Compilation error: " + error_description);
-    return;
+    return nullptr;
   }
-  Evaluate(expression.get(), &environment_);
+  return Evaluate(expression.get(), &environment_);
 }
 
 LineColumn OpenBuffer::InsertInCurrentPosition(
@@ -1497,34 +1509,6 @@ OpenBuffer::variable_allow_dirty_delete() {
   return variable;
 }
 
-/* static */ EdgeStruct<int>* OpenBuffer::IntStruct() {
-  static EdgeStruct<int>* output = nullptr;
-  if (output == nullptr) {
-    output = new EdgeStruct<int>;
-    // Trigger registration of all fields.
-    OpenBuffer::variable_line_width();
-  }
-  return output;
-}
-
-/* static */ EdgeVariable<int>* OpenBuffer::variable_line_width() {
-  static EdgeVariable<int>* variable = IntStruct()->AddVariable(
-      L"line_width",
-      L"Desired maximum width of a line.",
-      80);
-  return variable;
-}
-
-/* static */ EdgeStruct<unique_ptr<Value>>* OpenBuffer::ValueStruct() {
-  static EdgeStruct<unique_ptr<Value>>* output = nullptr;
-  if (output == nullptr) {
-    output = new EdgeStruct<unique_ptr<Value>>;
-    // Trigger registration of all fields.
-    // ... except there are no fields yet.
-  }
-  return output;
-}
-
 /* static */ EdgeVariable<wstring>*
 OpenBuffer::variable_line_prefix_characters() {
   static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
@@ -1561,6 +1545,34 @@ OpenBuffer::variable_dictionary() {
       L"again iterates through all completions.",
       L"");
   return variable;
+}
+
+/* static */ EdgeStruct<int>* OpenBuffer::IntStruct() {
+  static EdgeStruct<int>* output = nullptr;
+  if (output == nullptr) {
+    output = new EdgeStruct<int>;
+    // Trigger registration of all fields.
+    OpenBuffer::variable_line_width();
+  }
+  return output;
+}
+
+/* static */ EdgeVariable<int>* OpenBuffer::variable_line_width() {
+  static EdgeVariable<int>* variable = IntStruct()->AddVariable(
+      L"line_width",
+      L"Desired maximum width of a line.",
+      80);
+  return variable;
+}
+
+/* static */ EdgeStruct<unique_ptr<Value>>* OpenBuffer::ValueStruct() {
+  static EdgeStruct<unique_ptr<Value>>* output = nullptr;
+  if (output == nullptr) {
+    output = new EdgeStruct<unique_ptr<Value>>;
+    // Trigger registration of all fields.
+    // ... except there are no fields yet.
+  }
+  return output;
 }
 
 bool OpenBuffer::read_bool_variable(const EdgeVariable<char>* variable) const {

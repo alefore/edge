@@ -17,6 +17,7 @@
 #include "transformation.h"
 #include "variables.h"
 #include "vm/public/environment.h"
+#include "vm/public/value.h"
 #include "vm/public/vm.h"
 
 namespace afc {
@@ -196,8 +197,15 @@ class OpenBuffer {
       EditorState* editor_state, shared_ptr<LazyString> str,
       const vector<unordered_set<Line::Modifier, hash<int>>>& modifiers);
 
-  void EvaluateString(EditorState* editor_state, const wstring& str);
-  void EvaluateFile(EditorState* editor_state, const wstring& path);
+  unique_ptr<Expression> CompileString(EditorState* editor_state,
+                                       const wstring& str,
+                                       wstring* error_description);
+  unique_ptr<Value> EvaluateExpression(EditorState* editor_state,
+                                       Expression* expr);
+  unique_ptr<Value> EvaluateString(EditorState* editor_state,
+                                   const wstring& str);
+  unique_ptr<Value> EvaluateFile(EditorState* editor_state,
+                                 const wstring& path);
 
   const wstring& name() const { return name_; }
 
