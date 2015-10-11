@@ -467,6 +467,8 @@ class OpenBuffer {
   const multimap<size_t, LineMarks::Mark>*
       GetLineMarks(const EditorState& editor_state);
 
+  Environment* environment() { return &environment_; }
+
  protected:
   vector<unique_ptr<ParseTree>> parse_tree;
 
