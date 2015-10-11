@@ -1,6 +1,7 @@
 bool AtBeginningOfSentence() {
   LineColumn position = buffer.position();
   string sentence_end = ".!?";
+  // Scroll back until we find an empty line or a character that's not a space.
   while (position.column() != 0 || position.line() != 0) {
     if (position.column() > 0) {
       position = LineColumn(position.line(), position.column() - 1);
@@ -8,13 +9,11 @@ bool AtBeginningOfSentence() {
       position = LineColumn(position.line() - 1,
                             buffer.line(position.line() - 1).size() - 1);
       if (position.column() == 0) {
-        return true;
+        return true; // Current position follows an empty line.
       }
     }
     string c = buffer.line(position.line()).substr(position.column(), 1);
-    if (c == ".") {
-      return true;
-    } else if (c != " ") {
+    if (c != " ") {
       return sentence_end.find(c, 0) != -1;
     }
   }
