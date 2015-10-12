@@ -90,7 +90,7 @@ LineColumn starting_position = b.position();
 
 // This is in case the first line in the paragraph has spaces that should be
 // removed.
-b.InsertText(prefix);
+b.InsertText(prefix + "\n");
 b.set_position(starting_position);
 
 FoldNextLineWhilePrefixIs(prefix);
