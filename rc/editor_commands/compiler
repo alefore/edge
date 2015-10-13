@@ -1,0 +1,13 @@
+// Marks the current buffer as a "compiler".
+
+// Avoid giving it a pts.
+buffer.set_pts(false)
+
+// Scroll down to the end of output automatically.
+buffer.set_follow_end_of_file(true);
+
+// If another buffer is saved, reload this buffer automatically.
+buffer.set_reload_on_buffer_write(true);
+
+// Track PATH:LINE references to other files in the compiler output.
+buffer.set_contains_line_marks(true);
