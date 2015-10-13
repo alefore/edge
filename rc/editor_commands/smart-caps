@@ -1,6 +1,19 @@
+// Automatically turns lowercase characters into uppercase if they are at the
+// beginning of a sentence
+//
+// A character is considered to be at the beginning of the sentence if follows a
+// character in the same paragraph (ignoring any characters in the value of
+// variable line_prefix_characters) that’s listed in sentence_end.
+//
+// TODO: This can be improved further. Currently it ignores occurrences of
+// characters in line_prefix_characters even if they follow characters not in
+// line_prefix_characters.
+
+string sentence_end = ".!?";
+
 bool AtBeginningOfSentence() {
   LineColumn position = buffer.position();
-  string sentence_end = ".!?";
+
   // Scroll back until we find an empty line or a character that's not a space.
   while (position.column() != 0 || position.line() != 0) {
     if (position.column() > 0) {
@@ -8,15 +21,19 @@ bool AtBeginningOfSentence() {
     } else {
       position = LineColumn(position.line() - 1,
                             buffer.line(position.line() - 1).size() - 1);
-      if (position.column() == 0) {
-        return true; // Current position follows an empty line.
+      if (buffer.line(position.line())
+              .find_first_not_of(buffer.line_prefix_characters(), 0) == -1) {
+        // We're at the first position after an empty line.
+        return true;
       }
     }
     string c = buffer.line(position.line()).substr(position.column(), 1);
-    if (c != " ") {
+    if (c != " " && buffer.line_prefix_characters().find(c, 0) == -1) {
+      // We found the previous character.
       return sentence_end.find(c, 0) != -1;
     }
   }
+  return true;
 }
 
 string TransformCaps(string input) {
