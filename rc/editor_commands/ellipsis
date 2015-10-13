@@ -1,3 +1,5 @@
+// Turns three consecutive dots ("...") into a single ellipsis character (“…”).
+
 bool CanRemovePreviousPrefix(string prefix) {
   int column = buffer.position().column();
   if (column < prefix.size()) {

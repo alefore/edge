@@ -1,4 +1,7 @@
-// Returns true if the quote that we're inserting should be an opening quote.
+// Transforms plain quotes and apostrophes (“"” and “’”) into curvy ones (““”,
+// “””, “‘”, and “’”).
+
+// Returns true if the quote that we’re inserting should be an opening quote.
 // This is checked just by looking at whether the preceding character is a
 // space.
 bool IsOpeningQuote() {

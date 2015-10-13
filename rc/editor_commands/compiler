@@ -1,4 +1,5 @@
-// Marks the current buffer as a "compiler".
+// Marks the current buffer as a “compiler”: a buffer that goes over the text
+// being edited and produces a report of errors as its output.
 
 // Avoid giving it a pts.
 buffer.set_pts(false)

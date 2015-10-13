@@ -1,3 +1,5 @@
+// Turns two consecutive dashes (“--”) into an emdash (“—”).
+
 bool CanRemovePreviousPrefix(string prefix) {
   int column = buffer.position().column();
   if (column < prefix.size()) {

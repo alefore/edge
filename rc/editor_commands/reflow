@@ -1,3 +1,7 @@
+// Reflows the current paragraph, based on variable line_prefix_characters, to
+// make each line as long as possible but shorter than the value of variable
+// line_width.
+
 Buffer b = CurrentBuffer();
 
 // Returns a substring of text from the start, up until (excluding) the first
