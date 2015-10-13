@@ -2,7 +2,7 @@
 // being edited and produces a report of errors as its output.
 
 // Avoid giving it a pts.
-buffer.set_pts(false)
+buffer.set_pts(false);
 
 // Scroll down to the end of output automatically.
 buffer.set_follow_end_of_file(true);
