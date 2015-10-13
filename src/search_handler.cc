@@ -27,12 +27,12 @@ typedef regex_t RegexPattern;
 #endif
 
 vector<size_t> GetMatches(const wstring& line, const RegexPattern& pattern) {
-  int start = 0;
+  size_t start = 0;
   vector<size_t> output;
   while (true) {
     size_t match = wstring::npos;
     // TODO: Ugh, our regexp engines are not wchar aware. :-(
-    string line_substr = ToByteString(line.substr(start));
+    string line_substr = ToByteString(line.substr(min(start, line.size())));
 
 #if CPP_REGEX
     std::smatch pattern_match;
