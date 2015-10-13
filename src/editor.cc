@@ -227,6 +227,7 @@ EditorState::EditorState()
           options.editor_state = this;
           options.path = args[0]->str;
           set_current_buffer(OpenFile(options));
+          ResetMode();
           ScheduleRedraw();
           return Value::NewObject(L"Buffer", current_buffer()->second);
         };
