@@ -8,6 +8,8 @@
 #include <sstream>  
 #include <string>
 
+#include <libgen.h>
+
 #include <glog/logging.h>
 
 #include "../public/environment.h"
@@ -73,8 +75,13 @@ bool HandleInclude(Compilation* compilation, const wstring& str,
   }
   wstring error_description;
   wstring path = str.substr(start, pos - start);
+  string low_level_path = ToByteString(path);
 
-  auto expr = CompileFile(ToByteString(path), compilation->environment,
+  if (delimiter == '\"') {
+    low_level_path = compilation->directory + "/" + low_level_path;
+  }
+
+  auto expr = CompileFile(low_level_path, compilation->environment,
                           &error_description);
   if (!error_description.empty()) {
     VLOG(5) << path << ": Processing #include produced error: "
@@ -356,11 +363,12 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
 }  // namespace
 
 unique_ptr<Expression> CompileStream(
-    Environment* environment, std::wistream& stream, wstring* error_description,
-    const VMType& return_type) {
+    Environment* environment, std::wistream& stream, string directory,
+    wstring* error_description, const VMType& return_type) {
   void* parser = CppAlloc(malloc);
 
   Compilation compilation;
+  compilation.directory = std::move(directory);
   compilation.expr = nullptr;
   compilation.environment = environment;
   compilation.return_types = { return_type };
@@ -390,7 +398,13 @@ unique_ptr<Expression> CompileFile(
     *error_description = FromByteString(path) + L": open failed";
     return nullptr;
   }
-  return CompileStream(environment, infile, error_description, VMType::Void());
+
+  char* directory_c_str = strdup(path.c_str());
+  string directory = dirname(directory_c_str);
+  free(directory_c_str);
+
+  return CompileStream(environment, infile, directory, error_description,
+                       VMType::Void());
 }
 
 unique_ptr<Expression> CompileString(
@@ -402,7 +416,8 @@ unique_ptr<Expression> CompileString(
     const wstring& str, Environment* environment, wstring* error_description,
     const VMType& return_type) {
   std::wistream* instr = new std::wstringstream(str, std::ios_base::in);
-  return CompileStream(environment, *instr, error_description, return_type);
+  return CompileStream(environment, *instr, ".", error_description,
+                       return_type);
 }
 
 unique_ptr<Value> Evaluate(Expression* expr, Environment* environment) {

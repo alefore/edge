@@ -14,6 +14,7 @@ namespace vm {
 using std::list;
 using std::unique_ptr;
 using std::vector;
+using std::string;
 using std::wstring;
 
 class VMType;
@@ -26,6 +27,11 @@ struct Compilation {
     // LOG(INFO) << "Compilation error: " << error;
     errors.push_back(std::move(error));
   }
+
+  // The directory containing the file currently being compiled. Used for
+  // resolving relative paths (that are relative to this directory, rather than
+  // to cwd).
+  string directory;
 
   unique_ptr<Expression> expr;
   vector<wstring> errors;
