@@ -16,7 +16,7 @@ string ToByteString(wstring input) {
   static std::locale loc("en_US.utf-8");
 
   const wchar_t* src = input.data();
-  size_t length = wcsnrtombs(nullptr, &src, input.length(), 0, nullptr);
+  int length = wcsnrtombs(nullptr, &src, input.length(), 0, nullptr);
   VLOG(6) << "Output length: " << length;
   if (length == -1) {
     return "<bad conversion>";
@@ -35,7 +35,7 @@ wstring FromByteString(string input) {
   VLOG(5) << "FromByteString: " << input;
 
   const char* src = input.data();
-  size_t length = mbsnrtowcs(nullptr, &src, input.length(), 0, nullptr);
+  int length = mbsnrtowcs(nullptr, &src, input.length(), 0, nullptr);
   VLOG(6) << "Output length: " << length;
   if (length == -1) {
     return L"<bad conversion>";
