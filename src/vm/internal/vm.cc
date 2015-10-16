@@ -48,6 +48,45 @@ extern "C" {
 #include "cpp.c"
 }
 
+bool HandleInclude(Compilation* compilation, const wstring& str,
+                   size_t* pos_output) {
+  VLOG(6) << "Processing #include directive.";
+  size_t pos = *pos_output;
+  while (pos < str.size() && str[pos] == ' ') {
+    pos++;
+  }
+  if (pos >= str.size() || (str[pos] != '\"' && str[pos] != '<')) {
+    VLOG(5) << "Processing #include failed: Expected opening delimiter";
+    compilation->AddError(L"#include expects \"FILENAME\" or <FILENAME>");
+    return false;
+  }
+  wchar_t delimiter = str[pos];
+  pos++;
+  size_t start = pos;
+  while (pos < str.size() && str[pos] != delimiter) {
+    pos++;
+  }
+  if (pos >= str.size()) {
+    VLOG(5) << "Processing #include failed: Expected closing delimiter";
+    compilation->AddError(L"#include expects \"FILENAME\" or <FILENAME>");
+    return false;
+  }
+  wstring error_description;
+  wstring path = str.substr(start, pos - start);
+
+  auto expr = CompileFile(ToByteString(path), compilation->environment,
+                          &error_description);
+  if (!error_description.empty()) {
+    VLOG(5) << path << ": Processing #include produced error: "
+            << error_description;
+    compilation->AddError(path + L": " + error_description);
+  }
+  *pos_output = pos + 1;
+  VLOG(5) << path << ": Returned expression: "
+          << (expr != nullptr ? "yes" : "no");
+  return expr != nullptr;
+}
+
 void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
   size_t pos = 0;
   int token;
@@ -128,6 +167,30 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
       case '?':
         token = QUESTION_MARK;
         pos++;
+        break;
+
+      case '#':
+        pos++;
+        {
+          size_t start = pos;
+          while (pos < str.size()
+                 && (isalnum(str.at(pos)) || str.at(pos) == '_')) {
+            pos++;
+          }
+          wstring symbol = str.substr(start, pos - start);
+          if (symbol == L"include") {
+            if (!HandleInclude(compilation, str, &pos)) {
+              compilation->AddError(
+                  compilation->errors.empty()
+                       ? L"Compilation error"
+                       : compilation->errors[0]);
+            }
+          } else {
+            compilation->AddError(
+                L"Invalid preprocessing directive #" + symbol);
+            return;
+          }
+        }
         break;
 
       case '.':
@@ -324,7 +387,7 @@ unique_ptr<Expression> CompileFile(
   std::wifstream infile(path);
   infile.imbue(std::locale(""));
   if (infile.fail()) {
-    *error_description = L"open failed";
+    *error_description = FromByteString(path) + L": open failed";
     return nullptr;
   }
   return CompileStream(environment, infile, error_description, VMType::Void());
