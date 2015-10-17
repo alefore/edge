@@ -10,9 +10,9 @@ EXTRA_DIST = \
 src/vm/internal/cpp.y
 
 COMMON_SOURCES = \
-src/advanced_mode.cc \
 src/buffer.cc \
 src/char_buffer.cc \
+src/close_buffer_command.cc \
 src/command_mode.cc \
 src/direction.cc \
 src/editable_string.cc \
@@ -27,18 +27,27 @@ src/line.cc \
 src/line_column.cc \
 src/line_marks.cc \
 src/line_prompt_mode.cc \
+src/list_buffers_command.cc \
 src/map_mode.cc \
 src/memory_mapped_file.cc \
 src/modifiers.cc \
 src/modifiers.h \
 src/navigate_command.cc \
 src/noop_command.cc \
+src/open_directory_command.cc \
+src/open_file_command.cc \
 src/predictor.cc \
+src/quit_command.cc \
 src/record_command.cc \
+src/reload_command.cc \
 src/repeat_mode.cc \
 src/run_command_handler.cc \
+src/run_cpp_command.cc \
+src/save_buffer_command.cc \
 src/search_handler.cc \
+src/send_end_of_file_command.cc \
 src/server.cc \
+src/set_variable_command.cc \
 src/structure.cc \
 src/substring.cc \
 src/terminal.cc \

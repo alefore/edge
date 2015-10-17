@@ -8,8 +8,8 @@
 
 #include <glog/logging.h>
 
-#include "advanced_mode.h"
 #include "char_buffer.h"
+#include "close_buffer_command.h"
 #include "command.h"
 #include "command_mode.h"
 #include "file_link_mode.h"
@@ -18,12 +18,22 @@
 #include "insert_mode.h"
 #include "lazy_string_append.h"
 #include "line_prompt_mode.h"
+#include "list_buffers_command.h"
 #include "map_mode.h"
 #include "navigate_command.h"
 #include "noop_command.h"
+#include "open_directory_command.h"
+#include "open_file_command.h"
+#include "quit_command.h"
 #include "record_command.h"
+#include "reload_command.h"
 #include "repeat_mode.h"
+#include "run_command_handler.h"
+#include "run_cpp_command.h"
+#include "save_buffer_command.h"
 #include "search_handler.h"
+#include "send_end_of_file_command.h"
+#include "set_variable_command.h"
 #include "substring.h"
 #include "terminal.h"
 #include "transformation.h"
@@ -589,17 +599,6 @@ class EnterInsertMode : public Command {
   }
 };
 
-class EnterAdvancedMode : public Command {
- public:
-  const wstring Description() {
-    return L"enters advanced-command mode (press 'a?' for more)";
-  }
-
-  void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->set_mode(NewAdvancedMode());
-  }
-};
-
 class EnterFindMode : public Command {
  public:
   const wstring Description() {
@@ -1008,7 +1007,24 @@ static const map<vector<wint_t>, Command*>& GetCommandModeMap() {
   static map<vector<wint_t>, Command*> output;
   auto Register = MapMode::RegisterEntry;
   if (output.empty()) {
-    Register(L"a", new EnterAdvancedMode(), &output);
+    Register(L"aq", NewQuitCommand().release(), &output);
+    Register(L"ad", NewCloseBufferCommand().release(), &output);
+    Register(L"aw", NewSaveBufferCommand().release(), &output);
+    Register(L"av", NewSetVariableCommand().release(), &output);
+    Register(L"ac", NewRunCppCommand().release(), &output);
+    Register(L"a.", NewOpenDirectoryCommand().release(), &output);
+    Register(L"al", NewListBuffersCommand().release(), &output);
+    Register(L"ar", NewReloadCommand().release(), &output);
+    Register(L"ae", NewSendEndOfFileCommand().release(), &output);
+    Register(L"ao", NewOpenFileCommand().release(), &output);
+    Register(L"aF",
+        NewLinePromptCommand(
+            L"...$ ",
+            L"commands",
+            L"forks a command for each line in the current buffer",
+            RunMultipleCommandsHandler, EmptyPredictor).release(), &output);
+    Register(L"af", NewForkCommand().release(), &output);
+
     Register(L"i", new EnterInsertMode(), &output);
     Register(L"f", new EnterFindMode(), &output);
     Register(L"r", new ReverseDirectionCommand(), &output);
