@@ -35,8 +35,11 @@ class RunCppCommand : public Command {
         break;
 
       default:
-        Prompt(editor_state, L"cpp ", L"cpp", L"", RunCppCommandHandler,
-               EmptyPredictor);
+        PromptOptions options;
+        options.prompt = L"cpp ";
+        options.history_file = L"cpp";
+        options.handler = RunCppCommandHandler;
+        Prompt(editor_state, options);
     }
   }
 };

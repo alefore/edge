@@ -862,15 +862,19 @@ class StartSearchMode : public Command {
 
       default:
         auto position = editor_state->current_buffer()->second->position();
-        Prompt(editor_state, L"/", L"search", L"",
-               [position](const wstring& input, EditorState* editor_state) {
-                 SearchHandler(position, input, editor_state);
-                 editor_state->ResetMode();
-                 editor_state->ResetDirection();
-                 editor_state->ResetStructure();
-                 editor_state->ScheduleRedraw();
-               },
-               SearchHandlerPredictor);
+        PromptOptions options;
+        options.prompt = L"/";
+        options.history_file = L"search";
+        options.handler = [position](const wstring& input,
+                                     EditorState* editor_state) {
+          SearchHandler(position, input, editor_state);
+          editor_state->ResetMode();
+          editor_state->ResetDirection();
+          editor_state->ResetStructure();
+          editor_state->ScheduleRedraw();
+        };
+        options.predictor = SearchHandlerPredictor;
+        Prompt(editor_state, std::move(options));
         break;
     }
   }
@@ -917,10 +921,14 @@ class RunCppFileCommand : public Command {
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     auto buffer = editor_state->current_buffer()->second;
-    Prompt(editor_state, L"cmd < ", L"editor_commands",
-           buffer->read_string_variable(
-               OpenBuffer::variable_editor_commands_path()),
-           RunCppFileHandler, FilePredictor);
+    PromptOptions options;
+    options.prompt = L"cmd";
+    options.history_file = L"editor_commands";
+    options.initial_value = buffer->read_string_variable(
+        OpenBuffer::variable_editor_commands_path()),
+    options.handler = RunCppFileHandler;
+    options.predictor = FilePredictor;
+    Prompt(editor_state, std::move(options));
   }
 };
 
@@ -1017,12 +1025,17 @@ static const map<vector<wint_t>, Command*>& GetCommandModeMap() {
     Register(L"ar", NewReloadCommand().release(), &output);
     Register(L"ae", NewSendEndOfFileCommand().release(), &output);
     Register(L"ao", NewOpenFileCommand().release(), &output);
-    Register(L"aF",
-        NewLinePromptCommand(
-            L"...$ ",
-            L"commands",
-            L"forks a command for each line in the current buffer",
-            RunMultipleCommandsHandler, EmptyPredictor).release(), &output);
+    {
+      PromptOptions options;
+      options.prompt = L"...$";
+      options.history_file = L"commands";
+      options.handler = RunMultipleCommandsHandler;
+      Register(L"aF",
+          NewLinePromptCommand(
+              L"forks a command for each line in the current buffer",
+              std::move(options)).release(),
+          &output);
+    }
     Register(L"af", NewForkCommand().release(), &output);
 
     Register(L"i", new EnterInsertMode(), &output);

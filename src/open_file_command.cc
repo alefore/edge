@@ -20,8 +20,12 @@ void OpenFileHandler(const wstring& name, EditorState* editor_state) {
 }  // namespace
 
 std::unique_ptr<Command> NewOpenFileCommand() {
-  return NewLinePromptCommand(
-      L"<", L"files", L"loads a file", OpenFileHandler, FilePredictor);
+  PromptOptions options;
+  options.prompt = L"<";
+  options.history_file = L"files";
+  options.handler = OpenFileHandler;
+  options.predictor = FilePredictor;
+  return NewLinePromptCommand(L"loads a file", std::move(options));
 }
 
 }  // namespace afc

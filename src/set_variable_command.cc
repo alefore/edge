@@ -39,21 +39,22 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
     auto var = OpenBuffer::StringStruct()->find_variable(name);
     if (var != nullptr) {
       if (!editor_state->has_current_buffer()) { return; }
-      Prompt(
-          editor_state,
-          name + L" := ",
-          L"values",
-          editor_state->current_buffer()->second->read_string_variable(var),
-          [var](const wstring& input, EditorState* editor_state) {
-            if (editor_state->has_current_buffer()) {
-              editor_state->current_buffer()
-                  ->second->set_string_variable(var, input);
-            }
-            // ResetMode causes the prompt to be deleted, and the captures of
-            // this lambda go away with it.
-            editor_state->ResetMode();
-          },
-          var->predictor());
+      PromptOptions options;
+      options.prompt = name + L" := ";
+      options.history_file = L"values";
+      options.initial_value =
+          editor_state->current_buffer()->second->read_string_variable(var);
+      options.handler = [var](const wstring& input, EditorState* editor_state) {
+          if (editor_state->has_current_buffer()) {
+            editor_state->current_buffer()
+                ->second->set_string_variable(var, input);
+          }
+          // ResetMode causes the prompt to be deleted, and the captures of
+          // this lambda go away with it.
+          editor_state->ResetMode();
+        };
+      options.predictor = var->predictor();
+      Prompt(editor_state, std::move(options));
       return;
     }
   }
@@ -73,27 +74,26 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
     if (var != nullptr) {
       if (!editor_state->has_current_buffer()) { return; }
       auto buffer = editor_state->current_buffer()->second;
-      Prompt(
-          editor_state,
-          name + L" := ",
-          L"values",
-          std::to_wstring(
-              editor_state->current_buffer()->second->read_int_variable(var)),
-          [var](const wstring& input, EditorState* editor_state) {
-            if (!editor_state->has_current_buffer()) { return; }
-            try {
-              editor_state->current_buffer()
-                  ->second->set_int_variable(var, stoi(input));
-            } catch (const std::invalid_argument& ia) {
-              editor_state->SetStatus(
-                  L"Invalid value for integer value “" + var->name() + L"”: " +
-                  FromByteString(ia.what()));
-            }
-            // ResetMode causes the prompt to be deleted, and the captures of
-            // this lambda go away with it.
-            editor_state->ResetMode();
-          },
-          &EmptyPredictor);
+      PromptOptions options;
+      options.prompt = name + L" := ",
+      options.history_file = L"values",
+      options.initial_value = std::to_wstring(
+          editor_state->current_buffer()->second->read_int_variable(var)),
+      options.handler = [var](const wstring& input, EditorState* editor_state) {
+          if (!editor_state->has_current_buffer()) { return; }
+          try {
+            editor_state->current_buffer()
+                ->second->set_int_variable(var, stoi(input));
+          } catch (const std::invalid_argument& ia) {
+            editor_state->SetStatus(
+                L"Invalid value for integer value “" + var->name() + L"”: " +
+                FromByteString(ia.what()));
+          }
+          // ResetMode causes the prompt to be deleted, and the captures of
+          // this lambda go away with it.
+          editor_state->ResetMode();
+        };
+      Prompt(editor_state, std::move(options));
       return;
     }
   }
@@ -110,9 +110,12 @@ unique_ptr<Command> NewSetVariableCommand() {
     OpenBuffer::IntStruct()->RegisterVariableNames(&variables);
   }
 
-  return NewLinePromptCommand(
-      L"var ", L"variables", L"assigns to a variable", SetVariableHandler,
-      PrecomputedPredictor(variables, '_'));
+  PromptOptions options;
+  options.prompt = L"var ";
+  options.history_file = L"variables";
+  options.handler = SetVariableHandler;
+  options.predictor = PrecomputedPredictor(variables, '_');
+  return NewLinePromptCommand(L"assigns to a variable", std::move(options));
 }
 
 }  // namespace afc

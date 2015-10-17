@@ -214,8 +214,13 @@ class ForkEditorCommand : public Command {
   void ProcessInput(wint_t, EditorState* editor_state) {
     switch (editor_state->structure()) {
       case CHAR:
-        Prompt(editor_state, L"$ ", L"commands", L"", RunCommandHandler,
-               EmptyPredictor);
+        {
+          PromptOptions options;
+          options.prompt = L"$ ";
+          options.history_file = L"commands";
+          options.handler = RunCommandHandler;
+          Prompt(editor_state, options);
+        }
         break;
 
       case LINE:

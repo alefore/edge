@@ -12,16 +12,28 @@ namespace editor {
 
 using std::unique_ptr;
 
-typedef std::function<void(const wstring& input, EditorState* editor)>
-    LinePromptHandler;
+struct PromptOptions {
+  // Text to show in the prompt.
+  wstring prompt;
 
-void Prompt(EditorState* editor_state, wstring prompt, wstring history_file,
-            wstring initial_value, LinePromptHandler handler,
-            Predictor predictor);
+  // Optional. Name of the file with the history for this type of prompt.
+  // Defaults to no history.
+  wstring history_file;
 
-unique_ptr<Command> NewLinePromptCommand(
-    wstring prompt, wstring history_file, wstring description,
-    LinePromptHandler handler, Predictor predictor);
+  // Optional. Initial value for the prompt. Defaults to empty.
+  wstring initial_value;
+
+  // Function to run when the prompt receives the final input.
+  std::function<void(const wstring& input, EditorState* editor)> handler;
+
+  // Optional. Useful for automatic completion.
+  Predictor predictor = EmptyPredictor;
+};
+
+void Prompt(EditorState* editor_state, PromptOptions options);
+
+unique_ptr<Command> NewLinePromptCommand(wstring description,
+                                         PromptOptions options);
 
 }  // namespace editor
 }  // namespace afc
