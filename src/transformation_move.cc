@@ -1,10 +1,13 @@
 #include "transformation_move.h"
 
+#include <algorithm>
+
 #include <glog/logging.h>
 
 #include "buffer.h"
 #include "direction.h"
 #include "editor.h"
+#include "line_marks.h"
 #include "transformation.h"
 
 namespace afc {
@@ -27,6 +30,9 @@ class MoveTransformation : public Transformation {
         break;
       case WORD:
         position = MoveWord(editor_state, buffer);
+        break;
+      case MARK:
+        position = MoveMark(editor_state, buffer);
         break;
       default:
         CHECK(false);
@@ -58,8 +64,6 @@ class MoveTransformation : public Transformation {
       case BACKWARDS:
         position.column -= min(position.column, editor_state->repetitions());
         break;
-      default:
-        CHECK(false);
     }
     return position;
   }
@@ -126,6 +130,54 @@ class MoveTransformation : public Transformation {
       position = new_position;
     }
     return position;
+  }
+
+  template <typename Iterator>
+  static size_t GetMarkPosition(Iterator it_begin, Iterator it_end,
+                                size_t current, EditorState* editor_state) {
+    using P = pair<const size_t, LineMarks::Mark>;
+    Iterator it = std::upper_bound(
+        it_begin, it_end, P(current, LineMarks::Mark()),
+        editor_state->direction() == FORWARDS
+            ? [](const P& a, const P& b) { return a.first < b.first; }
+            : [](const P& a, const P& b) { return a.first > b.first; });
+    if (it == it_end) {
+      return current;
+    }
+
+    for (size_t i = 1; i < editor_state->repetitions(); i ++) {
+      size_t position = it->first;
+      ++it;
+      // Skip more marks for the same line.
+      while (it != it_end && it->first == position) {
+        ++it;
+      }
+      if (it == it_end) {
+        // Can't move past the current mark.
+        return position;
+      }
+    }
+
+    return it->first;
+  }
+
+  LineColumn MoveMark(EditorState* editor_state, OpenBuffer* buffer) const {
+    const multimap<size_t, LineMarks::Mark>* marks =
+        buffer->GetLineMarks(*editor_state);
+
+    size_t line;
+    switch (editor_state->direction()) {
+      case FORWARDS:
+        line = GetMarkPosition(
+            marks->begin(), marks->end(), buffer->position().line, editor_state);
+        break;
+      case BACKWARDS:
+        line = GetMarkPosition(
+            marks->rbegin(), marks->rend(), buffer->position().line,
+            editor_state);
+    }
+    return LineColumn(line, 0);
+
   }
 };
 

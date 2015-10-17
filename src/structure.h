@@ -9,6 +9,7 @@ enum Structure {
   CHAR,
   WORD,
   LINE,
+  MARK,
   PAGE,
   SEARCH,
   REGION,

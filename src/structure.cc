@@ -10,7 +10,8 @@ Structure LowerStructure(Structure s) {
     case CHAR: return CHAR;
     case WORD: return CHAR;
     case LINE: return WORD;
-    case PAGE: return LINE;
+    case MARK: return LINE;
+    case PAGE: return MARK;
     case SEARCH: return PAGE;
     case REGION: return SEARCH;
     case BUFFER: return REGION;

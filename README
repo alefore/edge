@@ -109,7 +109,13 @@ See section 8 for more information on the syntax supported.
 The cursor will start at the beginning of the file.  You can use "h", "j", "k",
 "l" or the arrow keys to move it around.
 
-TODO: Explain the effect of modifiers.
+The current structure alters the behavior of "h" and "l" thus:
+
+- Word: Goes to the next (previous) word. If advancing, the cursor is left at
+      the start of the next word; if going backwards, at the end.
+- Line: Goes to the next (previous) line.
+- Mark: Goes to the next (previous) mark in the current buffer. See section
+      7.2.23 for details about line marks.
 
 
 3.2 Search for a regular expression
@@ -162,6 +168,8 @@ The current structure alters the behavior thus:
 
 - Word: Goes to the i-th word from the beginning of the current line.
 - Line: Goes to the i-th line from the beginning of the current buffer.
+- Mark: Goes to the i-th mark from the beginning of the current buffer. See
+      section 7.2.23 for details about line marks.
 - Page: Goes to the i-th page from the beginning of the current buffer.
 - Buffer: Goes to the i-th buffer (in the list of buffers).
 
@@ -298,7 +306,6 @@ variable of the buffer is used to decide which characters are considered spaces.
 
 Buffer: deletes the contents of the current buffer.  If you want to close the
 current buffer, see section 5.8.
-
 
 
 4.3. Pasting characters
@@ -493,6 +500,8 @@ command will affect.  To set the structure, press any of the following keys:
 
 "w" - Word: Affect the current word.
 "e" - Line: Affect the current line.
+"!" - Mark: Use the marks for lines in the current buffer. See section 7.2.23
+      for details about marks.
 "F" - Search: The region affected is based on the next match to the last search
       query (performed with "/", section 3.2).  This structure is somewhat
       different to the others and relatively fewer commands recognize it.

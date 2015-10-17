@@ -168,6 +168,9 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
       case LINE:
         structure = L"line";
         break;
+      case MARK:
+        structure = L"mark";
+        break;
       case PAGE:
         structure = L"page";
         break;

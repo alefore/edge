@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <fstream>
@@ -121,8 +122,29 @@ class GotoCommand : public Command {
               0, lines, lines, editor_state->direction(),
               editor_state->repetitions(), editor_state->structure_range(),
               calls_);
-          assert(position <= buffer->contents()->size());
+          CHECK_LE(position, buffer->contents()->size());
           buffer->set_current_position_line(position);
+        }
+        break;
+
+      case MARK:
+        {
+          // Navigates marks in the current buffer.
+          const multimap<size_t, LineMarks::Mark>* marks =
+              buffer->GetLineMarks(*editor_state);
+          vector<pair<size_t, LineMarks::Mark>> lines;
+          std::unique_copy(
+              marks->begin(), marks->end(), std::back_inserter(lines),
+              [](const pair<size_t, LineMarks::Mark> &entry1,
+                 const pair<size_t, LineMarks::Mark> &entry2) {
+                return (entry1.first == entry2.first);
+              });
+          size_t position = ComputePosition(
+              0, lines.size(), lines.size(), editor_state->direction(),
+              editor_state->repetitions(), editor_state->structure_range(),
+              calls_);
+          CHECK_LE(position, lines.size());
+          buffer->set_current_position_line(lines.at(position).first);
         }
         break;
 
@@ -174,6 +196,16 @@ class GotoCommand : public Command {
   }
 
  private:
+  // Arguments:
+  //   prefix_len: The size of the prefix that we skip when calls is 0.
+  //   suffix_start: The position where the suffix starts. This is the base when
+  //       calls is 2.
+  //   elements: The total number of elements.
+  //   direction: The direction of movement.
+  //   repetitions: The nth element to jump to.
+  //   structure_range: The StructureRange. If FROM_CURRENT_POSITION_TO_END, it
+  //       reverses the direction.
+  //   calls: The number of consecutive number of times this command has run.
   size_t ComputePosition(
       size_t prefix_len, size_t suffix_start, size_t elements,
       Direction direction, size_t repetitions,
@@ -246,6 +278,11 @@ class Delete : public Command {
               NewDeleteTransformation(editor_state->modifiers(), true));
           editor_state->ScheduleRedraw();
         }
+        break;
+
+      case MARK:
+        // TODO: Implement.
+        editor_state->SetStatus(L"Oops, delete mark is not implemented.");
         break;
 
       case PAGE:
@@ -523,6 +560,7 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
   switch (editor_state->structure()) {
     case CHAR:
     case WORD:
+    case MARK:
       {
         if (!editor_state->has_current_buffer()) { return; }
         editor_state->ApplyToCurrentBuffer(NewMoveTransformation());
@@ -566,6 +604,7 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
   switch (editor_state->structure()) {
     case CHAR:
     case WORD:
+    case MARK:
       {
         if (!editor_state->has_current_buffer()) { return; }
         editor_state->set_direction(
@@ -1056,6 +1095,7 @@ static const map<vector<wint_t>, Command*>& GetCommandModeMap() {
     Register(L"E", new SetStructureCommand(PAGE, L"page"), &output);
     Register(L"F", new SetStructureCommand(SEARCH, L"search"), &output);
     Register(L"B", new SetStructureCommand(BUFFER, L"buffer"), &output);
+    Register(L"!", new SetStructureCommand(MARK, L"mark"), &output);
     Register(L"m", new SetRegionStartCommand(), &output);
 
     Register(L"W", new SetStrengthCommand(
