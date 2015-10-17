@@ -353,6 +353,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
   size_t lines_to_show = static_cast<size_t>(LINES);
   size_t current_line = buffer->view_start_line();
   size_t lines_shown = 0;
+  buffer->set_last_highlighted_line(-1);
   while (lines_shown < lines_to_show) {
     if (current_line >= contents.size()) {
       addwstr(L"\n");
