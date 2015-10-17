@@ -348,8 +348,8 @@ void EditorState::PushCurrentPosition() {
                       new OpenBuffer(this, kPositionsBufferName))))
         .first;
   }
-  assert(it->second != nullptr);
-  assert(it->second->position().line <= it->second->contents()->size());
+  CHECK(it->second != nullptr);
+  CHECK_LE(it->second->position().line, it->second->contents()->size());
   shared_ptr<Line> line(new Line(Line::Options(
       NewCopyString(
           current_buffer_->second->position().ToString()
@@ -359,7 +359,7 @@ void EditorState::PushCurrentPosition() {
       line);
   it->second->set_current_position_line(
       it->second->current_position_line() + 1);
-  assert(it->second->position().line <= it->second->contents()->size());
+  CHECK_LE(it->second->position().line, it->second->contents()->size());
   if (it == current_buffer_) {
     ScheduleRedraw();
   }
