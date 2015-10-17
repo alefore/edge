@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <fstream>
@@ -8,8 +9,8 @@
 
 #include <glog/logging.h>
 
-#include "advanced_mode.h"
 #include "char_buffer.h"
+#include "close_buffer_command.h"
 #include "command.h"
 #include "command_mode.h"
 #include "file_link_mode.h"
@@ -18,12 +19,22 @@
 #include "insert_mode.h"
 #include "lazy_string_append.h"
 #include "line_prompt_mode.h"
+#include "list_buffers_command.h"
 #include "map_mode.h"
 #include "navigate_command.h"
 #include "noop_command.h"
+#include "open_directory_command.h"
+#include "open_file_command.h"
+#include "quit_command.h"
+#include "record_command.h"
+#include "reload_command.h"
 #include "repeat_mode.h"
+#include "run_command_handler.h"
+#include "run_cpp_command.h"
+#include "save_buffer_command.h"
 #include "search_handler.h"
-#include "secondary_mode.h"
+#include "send_end_of_file_command.h"
+#include "set_variable_command.h"
 #include "substring.h"
 #include "terminal.h"
 #include "transformation.h"
@@ -74,7 +85,7 @@ class GotoCommand : public Command {
           }
           size_t position = ComputePosition(
               start, end, line->size(), editor_state->direction(),
-              editor_state->repetitions(), editor_state->structure_modifier(),
+              editor_state->repetitions(), editor_state->structure_range(),
               calls_);
           assert(position <= line->size());
           buffer->set_current_position_col(position);
@@ -109,10 +120,31 @@ class GotoCommand : public Command {
           size_t lines = buffer->contents()->size();
           size_t position = ComputePosition(
               0, lines, lines, editor_state->direction(),
-              editor_state->repetitions(), editor_state->structure_modifier(),
+              editor_state->repetitions(), editor_state->structure_range(),
               calls_);
-          assert(position <= buffer->contents()->size());
+          CHECK_LE(position, buffer->contents()->size());
           buffer->set_current_position_line(position);
+        }
+        break;
+
+      case MARK:
+        {
+          // Navigates marks in the current buffer.
+          const multimap<size_t, LineMarks::Mark>* marks =
+              buffer->GetLineMarks(*editor_state);
+          vector<pair<size_t, LineMarks::Mark>> lines;
+          std::unique_copy(
+              marks->begin(), marks->end(), std::back_inserter(lines),
+              [](const pair<size_t, LineMarks::Mark> &entry1,
+                 const pair<size_t, LineMarks::Mark> &entry2) {
+                return (entry1.first == entry2.first);
+              });
+          size_t position = ComputePosition(
+              0, lines.size(), lines.size(), editor_state->direction(),
+              editor_state->repetitions(), editor_state->structure_range(),
+              calls_);
+          CHECK_LE(position, lines.size());
+          buffer->set_current_position_line(lines.at(position).first);
         }
         break;
 
@@ -123,7 +155,7 @@ class GotoCommand : public Command {
               / editor_state->visible_lines());
           size_t position = editor_state->visible_lines() * ComputePosition(
               0, pages, pages, editor_state->direction(),
-              editor_state->repetitions(), editor_state->structure_modifier(),
+              editor_state->repetitions(), editor_state->structure_range(),
               calls_);
           CHECK_LT(position, buffer->contents()->size());
           buffer->set_current_position_line(position);
@@ -143,7 +175,7 @@ class GotoCommand : public Command {
           size_t buffers = editor_state->buffers()->size();
           size_t position = ComputePosition(
               0, buffers, buffers, editor_state->direction(),
-              editor_state->repetitions(), editor_state->structure_modifier(),
+              editor_state->repetitions(), editor_state->structure_range(),
               calls_);
           assert(position < editor_state->buffers()->size());
           auto it = editor_state->buffers()->begin();
@@ -164,6 +196,16 @@ class GotoCommand : public Command {
   }
 
  private:
+  // Arguments:
+  //   prefix_len: The size of the prefix that we skip when calls is 0.
+  //   suffix_start: The position where the suffix starts. This is the base when
+  //       calls is 2.
+  //   elements: The total number of elements.
+  //   direction: The direction of movement.
+  //   repetitions: The nth element to jump to.
+  //   structure_range: The StructureRange. If FROM_CURRENT_POSITION_TO_END, it
+  //       reverses the direction.
+  //   calls: The number of consecutive number of times this command has run.
   size_t ComputePosition(
       size_t prefix_len, size_t suffix_start, size_t elements,
       Direction direction, size_t repetitions,
@@ -236,6 +278,11 @@ class Delete : public Command {
               NewDeleteTransformation(editor_state->modifiers(), true));
           editor_state->ScheduleRedraw();
         }
+        break;
+
+      case MARK:
+        // TODO: Implement.
+        editor_state->SetStatus(L"Oops, delete mark is not implemented.");
         break;
 
       case PAGE:
@@ -399,11 +446,13 @@ const wstring LineUp::Description() {
       {
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
         buffer->CheckPosition();
-        const auto line_begin = buffer->begin();
-        while (editor_state->repetitions() && buffer->line() != line_begin) {
+        VLOG(6) << "Up: Initial position: " << buffer->position();
+        while (editor_state->repetitions() && buffer->position().line != 0) {
+          VLOG(5) << "Up: Moving up.";
           buffer->LineUp();
           editor_state->set_repetitions(editor_state->repetitions() - 1);
         }
+        VLOG(6) << "Up: Final position: " << buffer->position();
         editor_state->PushCurrentPosition();
       }
       break;
@@ -445,11 +494,14 @@ const wstring LineDown::Description() {
       {
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
         buffer->CheckPosition();
+        VLOG(6) << "Down: Initial position: " << buffer->position();
         const auto line_end = buffer->end();
         while (editor_state->repetitions() && buffer->line() != line_end) {
+          VLOG(5) << "Down: Moving down.";
           buffer->LineDown();
           editor_state->set_repetitions(editor_state->repetitions() - 1);
         }
+        VLOG(6) << "Down: Final position: " << buffer->position();
         editor_state->PushCurrentPosition();
       }
       break;
@@ -508,6 +560,7 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
   switch (editor_state->structure()) {
     case CHAR:
     case WORD:
+    case MARK:
       {
         if (!editor_state->has_current_buffer()) { return; }
         editor_state->ApplyToCurrentBuffer(NewMoveTransformation());
@@ -551,6 +604,7 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
   switch (editor_state->structure()) {
     case CHAR:
     case WORD:
+    case MARK:
       {
         if (!editor_state->has_current_buffer()) { return; }
         editor_state->set_direction(
@@ -586,28 +640,6 @@ class EnterInsertMode : public Command {
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     afc::editor::EnterInsertMode(editor_state);
-  }
-};
-
-class EnterAdvancedMode : public Command {
- public:
-  const wstring Description() {
-    return L"enters advanced-command mode (press 'a?' for more)";
-  }
-
-  void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->set_mode(NewAdvancedMode());
-  }
-};
-
-class EnterSecondaryMode : public Command {
- public:
-  const wstring Description() {
-    return L"enters secondary-command mode (press 's?' for more)";
-  }
-
-  void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->set_mode(NewSecondaryMode());
   }
 };
 
@@ -762,8 +794,8 @@ class SetStructureModifierCommand : public Command {
   }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->set_structure_modifier(
-        editor_state->structure_modifier() == value_
+    editor_state->set_structure_range(
+        editor_state->structure_range() == value_
             ? Modifiers::ENTIRE_STRUCTURE
             : value_);
   }
@@ -874,15 +906,19 @@ class StartSearchMode : public Command {
 
       default:
         auto position = editor_state->current_buffer()->second->position();
-        Prompt(editor_state, L"/", L"search", L"",
-               [position](const wstring& input, EditorState* editor_state) {
-                 SearchHandler(position, input, editor_state);
-                 editor_state->ResetMode();
-                 editor_state->ResetDirection();
-                 editor_state->ResetStructure();
-                 editor_state->ScheduleRedraw();
-               },
-               SearchHandlerPredictor);
+        PromptOptions options;
+        options.prompt = L"/";
+        options.history_file = L"search";
+        options.handler = [position](const wstring& input,
+                                     EditorState* editor_state) {
+          SearchHandler(position, input, editor_state);
+          editor_state->ResetMode();
+          editor_state->ResetDirection();
+          editor_state->ResetStructure();
+          editor_state->ScheduleRedraw();
+        };
+        options.predictor = SearchHandlerPredictor;
+        Prompt(editor_state, std::move(options));
         break;
     }
   }
@@ -929,10 +965,14 @@ class RunCppFileCommand : public Command {
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     auto buffer = editor_state->current_buffer()->second;
-    Prompt(editor_state, L"cmd < ", L"editor_commands",
-           buffer->read_string_variable(
-               OpenBuffer::variable_editor_commands_path()),
-           RunCppFileHandler, FilePredictor);
+    PromptOptions options;
+    options.prompt = L"cmd";
+    options.history_file = L"editor_commands";
+    options.initial_value = buffer->read_string_variable(
+        OpenBuffer::variable_editor_commands_path()),
+    options.handler = RunCppFileHandler;
+    options.predictor = FilePredictor;
+    Prompt(editor_state, std::move(options));
   }
 };
 
@@ -1015,77 +1055,101 @@ class RepeatLastTransformationCommand : public Command {
   }
 };
 
-static const map<wchar_t, Command*>& GetCommandModeMap() {
-  static map<wchar_t, Command*> output;
+static const map<vector<wint_t>, Command*>& GetCommandModeMap() {
+  static map<vector<wint_t>, Command*> output;
+  auto Register = MapMode::RegisterEntry;
   if (output.empty()) {
-    output.insert(make_pair('a', new EnterAdvancedMode()));
-    output.insert(make_pair('s', new EnterSecondaryMode()));
-    output.insert(make_pair('i', new EnterInsertMode()));
-    output.insert(make_pair('f', new EnterFindMode()));
-    output.insert(make_pair('r', new ReverseDirectionCommand()));
-    output.insert(make_pair('R', new InsertionModifierCommand()));
+    Register(L"aq", NewQuitCommand().release(), &output);
+    Register(L"ad", NewCloseBufferCommand().release(), &output);
+    Register(L"aw", NewSaveBufferCommand().release(), &output);
+    Register(L"av", NewSetVariableCommand().release(), &output);
+    Register(L"ac", NewRunCppCommand().release(), &output);
+    Register(L"a.", NewOpenDirectoryCommand().release(), &output);
+    Register(L"al", NewListBuffersCommand().release(), &output);
+    Register(L"ar", NewReloadCommand().release(), &output);
+    Register(L"ae", NewSendEndOfFileCommand().release(), &output);
+    Register(L"ao", NewOpenFileCommand().release(), &output);
+    {
+      PromptOptions options;
+      options.prompt = L"...$";
+      options.history_file = L"commands";
+      options.handler = RunMultipleCommandsHandler;
+      Register(L"aF",
+          NewLinePromptCommand(
+              L"forks a command for each line in the current buffer",
+              std::move(options)).release(),
+          &output);
+    }
+    Register(L"af", NewForkCommand().release(), &output);
 
-    output.insert(make_pair('/', new StartSearchMode()));
-    output.insert(make_pair('g', new GotoCommand(0)));
+    Register(L"i", new EnterInsertMode(), &output);
+    Register(L"f", new EnterFindMode(), &output);
+    Register(L"r", new ReverseDirectionCommand(), &output);
+    Register(L"R", new InsertionModifierCommand(), &output);
 
-    output.insert(make_pair('w', new SetStructureCommand(WORD, L"word")));
-    output.insert(make_pair('e', new SetStructureCommand(LINE, L"line")));
-    output.insert(make_pair('E', new SetStructureCommand(PAGE, L"page")));
-    output.insert(make_pair('F', new SetStructureCommand(SEARCH, L"search")));
-    output.insert(make_pair('B', new SetStructureCommand(BUFFER, L"buffer")));
-    output.insert(make_pair('m', new SetRegionStartCommand()));
+    Register(L"/", new StartSearchMode(), &output);
+    Register(L"g", new GotoCommand(0), &output);
 
-    output.insert(make_pair('W', new SetStrengthCommand(
-        Modifiers::WEAK, Modifiers::VERY_WEAK, L"weak")));
-    output.insert(make_pair('S', new SetStrengthCommand(
-        Modifiers::STRONG, Modifiers::VERY_STRONG, L"strong")));
+    Register(L"w", new SetStructureCommand(WORD, L"word"), &output);
+    Register(L"e", new SetStructureCommand(LINE, L"line"), &output);
+    Register(L"E", new SetStructureCommand(PAGE, L"page"), &output);
+    Register(L"F", new SetStructureCommand(SEARCH, L"search"), &output);
+    Register(L"B", new SetStructureCommand(BUFFER, L"buffer"), &output);
+    Register(L"!", new SetStructureCommand(MARK, L"mark"), &output);
+    Register(L"m", new SetRegionStartCommand(), &output);
 
-    output.insert(make_pair('d', new Delete()));
-    output.insert(make_pair('p', new Paste()));
-    output.insert(make_pair('u', new UndoCommand()));
-    output.insert(make_pair('\n', new ActivateLink()));
+    Register(L"W", new SetStrengthCommand(
+        Modifiers::WEAK, Modifiers::VERY_WEAK, L"weak"), &output);
+    Register(L"S", new SetStrengthCommand(
+        Modifiers::STRONG, Modifiers::VERY_STRONG, L"strong"), &output);
 
-    output.insert(make_pair('c', new RunCppFileCommand()));
+    Register(L"d", new Delete(), &output);
+    Register(L"p", new Paste(), &output);
+    Register(L"u", new UndoCommand(), &output);
+    Register(L"\n", new ActivateLink(), &output);
 
-    output.insert(make_pair('b', new GotoPreviousPositionCommand()));
-    output.insert(make_pair('n', NewNavigateCommand().release()));
-    output.insert(make_pair('j', new LineDown()));
-    output.insert(make_pair('k', new LineUp()));
-    output.insert(make_pair('l', new MoveForwards()));
-    output.insert(make_pair('h', new MoveBackwards()));
+    Register(L"c", new RunCppFileCommand(), &output);
 
-    output.insert(make_pair('~', new SwitchCaseCommand()));
+    Register(L"b", new GotoPreviousPositionCommand(), &output);
+    Register(L"n", NewNavigateCommand().release(), &output);
+    Register(L"j", new LineDown(), &output);
+    Register(L"k", new LineUp(), &output);
+    Register(L"l", new MoveForwards(), &output);
+    Register(L"h", new MoveBackwards(), &output);
 
-    output.insert(make_pair('.', new RepeatLastTransformationCommand()));
-    output.insert(make_pair(
-        '?',
-        NewHelpCommand(output, L"command mode").release()));
+    Register(L"~", new SwitchCaseCommand(), &output);
 
-    output.insert(make_pair(Terminal::ESCAPE, new ResetStateCommand()));
+    Register(L"sr", NewRecordCommand().release(), &output);
 
-    output.insert(make_pair('[', new SetStructureModifierCommand(
+    Register(L".", new RepeatLastTransformationCommand(), &output);
+    Register(L"?",
+        NewHelpCommand(output, L"command mode").release(), &output);
+
+    Register({Terminal::ESCAPE}, new ResetStateCommand(), &output);
+
+    Register(L"[", new SetStructureModifierCommand(
         Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION,
-        L"from the beggining to the current position")));
-    output.insert(make_pair(']', new SetStructureModifierCommand(
+        L"from the beggining to the current position"), &output);
+    Register(L"]", new SetStructureModifierCommand(
         Modifiers::FROM_CURRENT_POSITION_TO_END,
-        L"from the current position to the end")));
-    output.insert(make_pair(Terminal::CTRL_L, new HardRedrawCommand()));
-    output.insert(make_pair('0', new NumberMode(SetRepetitions)));
-    output.insert(make_pair('1', new NumberMode(SetRepetitions)));
-    output.insert(make_pair('2', new NumberMode(SetRepetitions)));
-    output.insert(make_pair('3', new NumberMode(SetRepetitions)));
-    output.insert(make_pair('4', new NumberMode(SetRepetitions)));
-    output.insert(make_pair('5', new NumberMode(SetRepetitions)));
-    output.insert(make_pair('6', new NumberMode(SetRepetitions)));
-    output.insert(make_pair('7', new NumberMode(SetRepetitions)));
-    output.insert(make_pair('8', new NumberMode(SetRepetitions)));
-    output.insert(make_pair('9', new NumberMode(SetRepetitions)));
-    output.insert(make_pair(Terminal::DOWN_ARROW, new LineDown()));
-    output.insert(make_pair(Terminal::UP_ARROW, new LineUp()));
-    output.insert(make_pair(Terminal::LEFT_ARROW, new MoveBackwards()));
-    output.insert(make_pair(Terminal::RIGHT_ARROW, new MoveForwards()));
-    output.insert(make_pair(Terminal::PAGE_DOWN, new PageDown()));
-    output.insert(make_pair(Terminal::PAGE_UP, new PageUp()));
+        L"from the current position to the end"), &output);
+    Register({Terminal::CTRL_L}, new HardRedrawCommand(), &output);
+    Register(L"0", new NumberMode(SetRepetitions), &output);
+    Register(L"1", new NumberMode(SetRepetitions), &output);
+    Register(L"2", new NumberMode(SetRepetitions), &output);
+    Register(L"3", new NumberMode(SetRepetitions), &output);
+    Register(L"4", new NumberMode(SetRepetitions), &output);
+    Register(L"5", new NumberMode(SetRepetitions), &output);
+    Register(L"6", new NumberMode(SetRepetitions), &output);
+    Register(L"7", new NumberMode(SetRepetitions), &output);
+    Register(L"8", new NumberMode(SetRepetitions), &output);
+    Register(L"9", new NumberMode(SetRepetitions), &output);
+    Register({Terminal::DOWN_ARROW}, new LineDown(), &output);
+    Register({Terminal::UP_ARROW}, new LineUp(), &output);
+    Register({Terminal::LEFT_ARROW}, new MoveBackwards(), &output);
+    Register({Terminal::RIGHT_ARROW}, new MoveForwards(), &output);
+    Register({Terminal::PAGE_DOWN}, new PageDown(), &output);
+    Register({Terminal::PAGE_UP}, new PageUp(), &output);
   }
   return output;
 }

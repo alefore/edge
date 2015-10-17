@@ -168,6 +168,9 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
       case LINE:
         structure = L"line";
         break;
+      case MARK:
+        structure = L"mark";
+        break;
       case PAGE:
         structure = L"page";
         break;
@@ -186,7 +189,7 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
         transform(structure.begin(), structure.end(), structure.begin(),
                   ::toupper);
       }
-      switch (editor_state.structure_modifier()) {
+      switch (editor_state.structure_range()) {
         case Modifiers::ENTIRE_STRUCTURE:
           break;
         case Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION:
@@ -353,6 +356,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
   size_t lines_to_show = static_cast<size_t>(LINES);
   size_t current_line = buffer->view_start_line();
   size_t lines_shown = 0;
+  buffer->set_last_highlighted_line(-1);
   while (lines_shown < lines_to_show) {
     if (current_line >= contents.size()) {
       addwstr(L"\n");

@@ -52,13 +52,14 @@ GetHistoryBuffer(EditorState* editor_state, const wstring& name) {
 map<wstring, shared_ptr<OpenBuffer>>::iterator
 GetPredictionsBuffer(
     EditorState* editor_state,
-    const Predictor& predictor,
-    const wstring& input,
+    Predictor predictor,
+    wstring input,
     function<void(const wstring&)> consumer) {
   auto it = editor_state->buffers()
       ->insert(make_pair(kPredictionsBufferName, nullptr));
-  it.first->second =
-      PredictionsBuffer(editor_state, predictor, input, consumer);
+  it.first->second = PredictionsBuffer(
+      editor_state, std::move(predictor), std::move(input),
+      std::move(consumer));
   it.first->second->Reload(editor_state);
   it.first->second->set_current_position_line(0);
   it.first->second->set_current_position_col(0);
@@ -67,16 +68,11 @@ GetPredictionsBuffer(
 
 class LinePromptMode : public EditorMode {
  public:
-  LinePromptMode(const wstring& prompt, const wstring& history_file,
-                 const wstring& initial_value, LinePromptHandler handler,
-                 Predictor predictor,
+  LinePromptMode(PromptOptions options,
                  map<wstring, shared_ptr<OpenBuffer>>::iterator initial_buffer)
-      : prompt_(prompt),
-        history_file_(history_file),
-        handler_(handler),
-        predictor_(predictor),
+      : options_(std::move(options)),
         initial_buffer_(initial_buffer),
-        input_(EditableString::New(initial_value)),
+        input_(EditableString::New(options_.initial_value)),
         most_recent_char_(0) {}
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
@@ -91,8 +87,9 @@ class LinePromptMode : public EditorMode {
     switch (c) {
       case '\n':
         if (input_->size() != 0) {
-          auto history = GetHistoryBuffer(editor_state, history_file_)->second;
-          assert(history != nullptr);
+          auto history =
+              GetHistoryBuffer(editor_state, options_.history_file)->second;
+          CHECK(history != nullptr);
           if (history->contents()->size() == 0
               || (history->contents()->at(history->contents()->size() - 1)
                       ->ToString()
@@ -102,13 +99,19 @@ class LinePromptMode : public EditorMode {
         }
         editor_state->set_status_prompt(false);
         editor_state->ResetStatus();
-        handler_(input_->ToString(), editor_state);
+        options_.handler(input_->ToString(), editor_state);
         return;
 
       case Terminal::ESCAPE:
         editor_state->set_status_prompt(false);
         editor_state->ResetStatus();
-        handler_(L"", editor_state);
+        if (options_.cancel_handler) {
+          VLOG(5) << "Running cancel handler.";
+          options_.cancel_handler(editor_state);
+        } else {
+          VLOG(5) << "Running handler on empty input.";
+          options_.handler(L"", editor_state);
+        }
         return;
 
       case Terminal::BACKSPACE:
@@ -128,7 +131,7 @@ class LinePromptMode : public EditorMode {
         } else {
           LOG(INFO) << "Triggering predictions from: " << input_->ToString();
           GetPredictionsBuffer(
-              editor_state, predictor_, input_->ToString(),
+              editor_state, options_.predictor, input_->ToString(),
               [editor_state, this](const wstring& prediction) {
                 if (input_->ToString().size() >= prediction.size()) {
                   return;
@@ -150,7 +153,8 @@ class LinePromptMode : public EditorMode {
 
       case Terminal::UP_ARROW:
         {
-          auto buffer = GetHistoryBuffer(editor_state, history_file_)->second;
+          auto buffer =
+              GetHistoryBuffer(editor_state, options_.history_file)->second;
           if (buffer == nullptr || buffer->contents()->empty()) { return; }
           LineColumn position = buffer->position();
           if (position.line > 0) {
@@ -163,7 +167,8 @@ class LinePromptMode : public EditorMode {
 
       case Terminal::DOWN_ARROW:
         {
-          auto buffer = GetHistoryBuffer(editor_state, history_file_)->second;
+          auto buffer =
+              GetHistoryBuffer(editor_state, options_.history_file)->second;
           if (buffer == nullptr || buffer->contents()->size() == 1) { return; }
           LineColumn position = buffer->position();
           if (position.line + 1 <= buffer->contents()->size()) {
@@ -181,7 +186,7 @@ class LinePromptMode : public EditorMode {
   }
 
   void UpdateStatus(EditorState* editor_state) {
-    editor_state->SetStatus(prompt_ + input_->ToString());
+    editor_state->SetStatus(options_.prompt + input_->ToString());
   }
 
  private:
@@ -193,44 +198,30 @@ class LinePromptMode : public EditorMode {
     input_ = EditableString::New(buffer->current_line()->ToString());
   }
 
-  const wstring prompt_;
-  // Name of the file in which the history for this prompt should be preserved.
-  const wstring history_file_;
-  LinePromptHandler handler_;
-  Predictor predictor_;
-  map<wstring, shared_ptr<OpenBuffer>>::iterator initial_buffer_;
+  const PromptOptions options_;
+  const map<wstring, shared_ptr<OpenBuffer>>::iterator initial_buffer_;
+
   shared_ptr<EditableString> input_;
   int most_recent_char_;
 };
 
-// TODO: Receive parameters we copy by value; use std::move.
 class LinePromptCommand : public Command {
  public:
-  LinePromptCommand(const wstring& prompt,
-                    const wstring& history_file,
-                    const wstring& description,
-                    LinePromptHandler handler,
-                    Predictor predictor)
-      : prompt_(prompt),
-        history_file_(history_file),
-        description_(description),
-        handler_(handler),
-        predictor_(predictor) {}
+  LinePromptCommand(wstring description, PromptOptions options)
+      : description_(std::move(description)),
+        options_(std::move(options)) {}
 
   const wstring Description() {
     return description_;
   }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    Prompt(editor_state, prompt_, history_file_, L"", handler_, predictor_);
+    Prompt(editor_state, options_);
   }
 
  private:
-  const wstring prompt_;
-  const wstring history_file_;
   const wstring description_;
-  LinePromptHandler handler_;
-  Predictor predictor_;
+  PromptOptions options_;
 };
 
 }  // namespace
@@ -238,16 +229,10 @@ class LinePromptCommand : public Command {
 using std::unique_ptr;
 using std::shared_ptr;
 
-void Prompt(EditorState* editor_state,
-            const wstring& prompt,
-            const wstring& history_file,
-            const wstring& initial_value,
-            LinePromptHandler handler,
-            Predictor predictor) {
-  std::unique_ptr<LinePromptMode> line_prompt_mode(new LinePromptMode(
-      prompt, history_file, initial_value, handler, predictor,
-      editor_state->current_buffer()));
-  auto history = GetHistoryBuffer(editor_state, history_file);
+void Prompt(EditorState* editor_state, PromptOptions options) {
+  auto history = GetHistoryBuffer(editor_state, options.history_file);
+  std::unique_ptr<LinePromptMode> line_prompt_mode(
+      new LinePromptMode(std::move(options), editor_state->current_buffer()));
   history->second->set_current_position_line(
       history->second->contents()->size());
   line_prompt_mode->UpdateStatus(editor_state);
@@ -255,14 +240,10 @@ void Prompt(EditorState* editor_state,
   editor_state->set_status_prompt(true);
 }
 
-unique_ptr<Command> NewLinePromptCommand(
-    const wstring& prompt,
-    const wstring& history_file,
-    const wstring& description,
-    LinePromptHandler handler,
-    Predictor predictor) {
+unique_ptr<Command> NewLinePromptCommand(wstring description,
+                                         PromptOptions options) {
   return std::move(unique_ptr<Command>(new LinePromptCommand(
-      prompt, history_file, description, handler, predictor)));
+      std::move(description), std::move(options))));
 }
 
 }  // namespace afc

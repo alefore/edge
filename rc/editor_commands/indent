@@ -1,0 +1,35 @@
+// Removes all spaces at the beginning of the current line and then inserts
+// enough spaces to leave the beginning of the line at the point the cursor was
+// (before any spaces were removed).
+//
+// This uses the line_prefix_characters variable to figure out where the line
+// actually begins.
+
+// Return the position (column) at which the prefix of the current line ends.
+int GetBeginningOfCurrentLine() {
+  string line = buffer.line(buffer.position().line());
+  int column = line.find_first_not_of(buffer.line_prefix_characters(), 0);
+  return column == -1 ? line.size() : column;
+}
+
+int InsertSpacesAtBeginningOfLine() {
+  int line = buffer.position().line();
+
+  int desired_column = buffer.position().column();
+  int start_column = GetBeginningOfCurrentLine();
+
+  buffer.set_position(LineColumn(line, 0));
+
+  if (start_column > desired_column) {
+    buffer.DeleteCharacters(start_column - desired_column);
+  }
+
+  while (start_column < desired_column) {
+    buffer.InsertText(" ");
+    start_column = start_column + 1;
+  }
+
+  buffer.set_position(LineColumn(line, desired_column));
+}
+
+InsertSpacesAtBeginningOfLine();

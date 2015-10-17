@@ -12,6 +12,9 @@ namespace vm {
 using std::string;
 using std::wstring;
 
+string ToByteString(wstring input);
+wstring FromByteString(string input);
+
 inline std::ostream& operator<<(std::ostream& out, const wchar_t* str) {
   size_t len = 1 + std::wcsrtombs(nullptr, &str, 0, nullptr);
   std::vector<char> mbstr(len);

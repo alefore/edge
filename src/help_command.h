@@ -3,6 +3,8 @@
 
 #include <memory>
 #include <map>
+#include <string>
+#include <vector>
 
 #include "command.h"
 
@@ -11,9 +13,12 @@ namespace editor {
 
 using std::map;
 using std::unique_ptr;
+using std::vector;
+using std::wstring;
 
-unique_ptr<Command> NewHelpCommand(const map<wchar_t, Command*>& commands,
-                                   const std::wstring& mode_description);
+unique_ptr<Command> NewHelpCommand(
+    const map<vector<wint_t>, Command*>& commands,
+    const std::wstring& mode_description);
 
 }  // namespace editor
 }  // namespace afc

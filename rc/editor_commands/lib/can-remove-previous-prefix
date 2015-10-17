@@ -1,0 +1,19 @@
+// Attempts to remove the string prefix right before the current cursor.
+//
+// Does not skip line boundaries.
+//
+// Returns a boolean indicating if the prefix was successfully removed.
+bool CanRemovePreviousPrefix(string prefix) {
+  int column = buffer.position().column();
+  if (column < prefix.size()) {
+    return false;
+  }
+  string line = buffer.line(buffer.position().line());
+  if (line.substr(column - prefix.size(), prefix.size()) != prefix) {
+    return false;
+  }
+  buffer.set_position(
+      LineColumn(buffer.position().line(), column - prefix.size()));
+  buffer.DeleteCharacters(prefix.size());
+  return true;
+}

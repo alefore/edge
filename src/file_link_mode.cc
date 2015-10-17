@@ -102,6 +102,9 @@ class FileBuffer : public OpenBuffer {
           { DT_REG, L"" },
           { DT_SOCK, L" (unix sock)" }
       };
+      if (strcmp(entry->d_name, ".") == 0) {
+        continue;  // Showing the link to itself is rather pointless.
+      }
       auto type_it = types.find(entry->d_type);
       target->AppendLine(editor_state, shared_ptr<LazyString>(
           NewCopyString(
@@ -191,28 +194,29 @@ class FileLinkMode : public EditorMode {
 
       case 'd':
         {
+          PromptOptions options;
+          options.prompt = L"unlink " + path_ + L"? [yes/no] ",
+          options.history_file = L"confirmation";
           wstring path = path_;  // Capture for the lambda.
-          vector<wstring> predictions = { L"no", L"yes" };
-          unique_ptr<Command> command(NewLinePromptCommand(
-              L"unlink " + path_ + L"? [yes/no] ",
-              L"confirmation",
-              L"Confirmation",
-              [path](const wstring input, EditorState* editor_state) {
-                if (input == L"yes") {
-                  int result = unlink(ToByteString(path).c_str());
-                  editor_state->SetStatus(
-                      path + L": unlink: "
-                      + (result == 0
-                         ? L"done"
-                         : L"ERROR: " + FromByteString(strerror(errno))));
-                } else {
-                  // TODO: insert it again?  Actually, only let it be erased
-                  // in the other case.
-                  editor_state->SetStatus(L"Ignored.");
-                }
-                editor_state->ResetMode();
-              },
-              PrecomputedPredictor(predictions, '/')));
+          options.handler = [path](const wstring input,
+                                   EditorState* editor_state) {
+            if (input == L"yes") {
+              int result = unlink(ToByteString(path).c_str());
+              editor_state->SetStatus(
+                  path + L": unlink: "
+                  + (result == 0
+                     ? L"done"
+                     : L"ERROR: " + FromByteString(strerror(errno))));
+            } else {
+              // TODO: insert it again?  Actually, only let it be erased
+              // in the other case.
+              editor_state->SetStatus(L"Ignored.");
+            }
+            editor_state->ResetMode();
+          };
+          options.predictor = PrecomputedPredictor({L"no", L"yes"}, '/');
+          unique_ptr<Command> command =
+              NewLinePromptCommand(L"Confirmation", std::move(options));
           command->ProcessInput('\n', editor_state);
         }
         return;
