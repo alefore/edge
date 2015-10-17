@@ -193,7 +193,7 @@ void FilePredictor(EditorState* editor_state,
             prediction.size() >= search_path_it.size() &&
             prediction.substr(0, search_path_it.size()) == ToByteString(search_path_it)) {
           VLOG(6) << "Removing prefix from prediction: " << prediction;
-          int start = prediction.find_first_not_of('/', search_path_it.size());
+          size_t start = prediction.find_first_not_of('/', search_path_it.size());
           if (start != prediction.npos) {
             prediction = prediction.substr(start);
           }
