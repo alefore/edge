@@ -21,9 +21,9 @@
 #include "map_mode.h"
 #include "navigate_command.h"
 #include "noop_command.h"
+#include "record_command.h"
 #include "repeat_mode.h"
 #include "search_handler.h"
-#include "secondary_mode.h"
 #include "substring.h"
 #include "terminal.h"
 #include "transformation.h"
@@ -600,17 +600,6 @@ class EnterAdvancedMode : public Command {
   }
 };
 
-class EnterSecondaryMode : public Command {
- public:
-  const wstring Description() {
-    return L"enters secondary-command mode (press 's?' for more)";
-  }
-
-  void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->set_mode(NewSecondaryMode());
-  }
-};
-
 class EnterFindMode : public Command {
  public:
   const wstring Description() {
@@ -1020,7 +1009,6 @@ static const map<vector<wint_t>, Command*>& GetCommandModeMap() {
   auto Register = MapMode::RegisterEntry;
   if (output.empty()) {
     Register(L"a", new EnterAdvancedMode(), &output);
-    Register(L"s", new EnterSecondaryMode(), &output);
     Register(L"i", new EnterInsertMode(), &output);
     Register(L"f", new EnterFindMode(), &output);
     Register(L"r", new ReverseDirectionCommand(), &output);
@@ -1056,6 +1044,8 @@ static const map<vector<wint_t>, Command*>& GetCommandModeMap() {
     Register(L"h", new MoveBackwards(), &output);
 
     Register(L"~", new SwitchCaseCommand(), &output);
+
+    Register(L"sr", NewRecordCommand().release(), &output);
 
     Register(L".", new RepeatLastTransformationCommand(), &output);
     Register(L"?",

@@ -34,10 +34,10 @@ src/modifiers.h \
 src/navigate_command.cc \
 src/noop_command.cc \
 src/predictor.cc \
+src/record_command.cc \
 src/repeat_mode.cc \
 src/run_command_handler.cc \
 src/search_handler.cc \
-src/secondary_mode.cc \
 src/server.cc \
 src/structure.cc \
 src/substring.cc \
