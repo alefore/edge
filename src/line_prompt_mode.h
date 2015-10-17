@@ -26,6 +26,10 @@ struct PromptOptions {
   // Function to run when the prompt receives the final input.
   std::function<void(const wstring& input, EditorState* editor)> handler;
 
+  // Optional. Function to run when the prompt is cancelled (because ESCAPE was
+  // pressed). If empty, handler will be run with an empty input.
+  std::function<void(EditorState* editor)> cancel_handler;
+
   // Optional. Useful for automatic completion.
   Predictor predictor = EmptyPredictor;
 };

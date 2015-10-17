@@ -105,7 +105,13 @@ class LinePromptMode : public EditorMode {
       case Terminal::ESCAPE:
         editor_state->set_status_prompt(false);
         editor_state->ResetStatus();
-        options_.handler(L"", editor_state);
+        if (options_.cancel_handler) {
+          VLOG(5) << "Running cancel handler.";
+          options_.cancel_handler(editor_state);
+        } else {
+          VLOG(5) << "Running handler on empty input.";
+          options_.handler(L"", editor_state);
+        }
         return;
 
       case Terminal::BACKSPACE:

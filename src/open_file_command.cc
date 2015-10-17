@@ -24,6 +24,9 @@ std::unique_ptr<Command> NewOpenFileCommand() {
   options.prompt = L"<";
   options.history_file = L"files";
   options.handler = OpenFileHandler;
+  options.cancel_handler = [](EditorState* editor_state) {
+    editor_state->ResetMode();
+  };
   options.predictor = FilePredictor;
   return NewLinePromptCommand(L"loads a file", std::move(options));
 }
