@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_RECORD_MODE_H__
-#define __AFC_EDITOR_RECORD_MODE_H__
+#ifndef __AFC_EDITOR_RECORD_COMMAND_H__
+#define __AFC_EDITOR_RECORD_COMMAND_H__
 
 #include <memory>
 
@@ -13,4 +13,4 @@ std::unique_ptr<Command> NewRecordCommand();
 }  // namespace editor
 }  // namespace afc
 
-#endif  // __AFC_EDITOR_RECORD_MODE_H__
+#endif  // __AFC_EDITOR_RECORD_COMMAND_H__
