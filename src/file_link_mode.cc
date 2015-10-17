@@ -102,6 +102,9 @@ class FileBuffer : public OpenBuffer {
           { DT_REG, L"" },
           { DT_SOCK, L" (unix sock)" }
       };
+      if (strcmp(entry->d_name, ".") == 0) {
+        continue;  // Showing the link to itself is rather pointless.
+      }
       auto type_it = types.find(entry->d_type);
       target->AppendLine(editor_state, shared_ptr<LazyString>(
           NewCopyString(
