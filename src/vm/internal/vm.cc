@@ -50,7 +50,38 @@ extern "C" {
 #include "cpp.c"
 }
 
-bool HandleInclude(Compilation* compilation, const wstring& str,
+void CompileLine(Compilation* compilation, void* parser, const wstring& str);
+
+string CppDirname(string path) {
+  char* directory_c_str = strdup(path.c_str());
+  string output = dirname(directory_c_str);
+  free(directory_c_str);
+  return output;
+}
+
+void CompileStream(std::wistream& stream, Compilation* compilation,
+                   void* parser) {
+  std::wstring line;
+  while (std::getline(stream, line)) {
+    VLOG(4) << "Compiling line: [" << line << "] (" << line.size() << ")";
+    CompileLine(compilation, parser, line);
+  }
+}
+
+void CompileFile(const string& path, Compilation* compilation, void* parser) {
+  VLOG(3) << "Compiling file: [" << path << "]";
+
+  std::wifstream infile(path);
+  infile.imbue(std::locale(""));
+  if (infile.fail()) {
+    compilation->AddError(FromByteString(path) + L": open failed");
+    return;
+  }
+
+  CompileStream(infile, compilation, parser);
+}
+
+void HandleInclude(Compilation* compilation, void* parser, const wstring& str,
                    size_t* pos_output) {
   VLOG(6) << "Processing #include directive.";
   size_t pos = *pos_output;
@@ -60,7 +91,7 @@ bool HandleInclude(Compilation* compilation, const wstring& str,
   if (pos >= str.size() || (str[pos] != '\"' && str[pos] != '<')) {
     VLOG(5) << "Processing #include failed: Expected opening delimiter";
     compilation->AddError(L"#include expects \"FILENAME\" or <FILENAME>");
-    return false;
+    return;
   }
   wchar_t delimiter = str[pos];
   pos++;
@@ -71,7 +102,7 @@ bool HandleInclude(Compilation* compilation, const wstring& str,
   if (pos >= str.size()) {
     VLOG(5) << "Processing #include failed: Expected closing delimiter";
     compilation->AddError(L"#include expects \"FILENAME\" or <FILENAME>");
-    return false;
+    return;
   }
   wstring error_description;
   wstring path = str.substr(start, pos - start);
@@ -81,17 +112,16 @@ bool HandleInclude(Compilation* compilation, const wstring& str,
     low_level_path = compilation->directory + "/" + low_level_path;
   }
 
-  auto expr = CompileFile(low_level_path, compilation->environment,
-                          &error_description);
-  if (!error_description.empty()) {
-    VLOG(5) << path << ": Processing #include produced error: "
-            << error_description;
-    compilation->AddError(path + L": " + error_description);
-  }
+  const string old_directory = compilation->directory;
+  compilation->directory = CppDirname(low_level_path);
+
+  CompileFile(low_level_path, compilation, parser);
+
+  compilation->directory = old_directory;
+
   *pos_output = pos + 1;
-  VLOG(5) << path << ": Returned expression: "
-          << (expr != nullptr ? "yes" : "no");
-  return expr != nullptr;
+
+  VLOG(5) << path << ": Done compiling.";
 }
 
 void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
@@ -186,17 +216,12 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
           }
           wstring symbol = str.substr(start, pos - start);
           if (symbol == L"include") {
-            if (!HandleInclude(compilation, str, &pos)) {
-              compilation->AddError(
-                  compilation->errors.empty()
-                       ? L"Compilation error"
-                       : compilation->errors[0]);
-            }
+            HandleInclude(compilation, parser, str, &pos);
           } else {
             compilation->AddError(
                 L"Invalid preprocessing directive #" + symbol);
-            return;
           }
+          continue;
         }
         break;
 
@@ -360,51 +385,38 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
   }
 }
 
-}  // namespace
+unique_ptr<void, std::function<void(void*)>> GetParser(
+    Compilation* compilation) {
+  return unique_ptr<void, std::function<void(void*)>>(
+      CppAlloc(malloc),
+      [compilation](void* parser) {
+        Cpp(parser, 0, nullptr, compilation);
+        CppFree(parser, free);
+      });
+}
 
-unique_ptr<Expression> CompileStream(
-    Environment* environment, std::wistream& stream, string directory,
-    wstring* error_description, const VMType& return_type) {
-  void* parser = CppAlloc(malloc);
-
-  Compilation compilation;
-  compilation.directory = std::move(directory);
-  compilation.expr = nullptr;
-  compilation.environment = environment;
-  compilation.return_types = { return_type };
-
-  std::wstring line;
-  while (std::getline(stream, line)) {
-    VLOG(4) << "Compiling line: [" << line << "] (" << line.size() << ")";
-    CompileLine(&compilation, parser, line);
-  }
-
-  Cpp(parser, 0, nullptr, &compilation);
-  CppFree(parser, free);
-
-  if (!compilation.errors.empty()) {
-    *error_description = *compilation.errors.rbegin();
+unique_ptr<Expression> ResultsFromCompilation(Compilation* compilation,
+                                              wstring* error_description) {
+  if (!compilation->errors.empty()) {
+    *error_description = *compilation->errors.rbegin();
     return nullptr;
   }
-  return std::move(compilation.expr);
+  return std::move(compilation->expr);
 }
+
+}  // namespace
 
 unique_ptr<Expression> CompileFile(
     const string& path, Environment* environment, wstring* error_description) {
-  VLOG(3) << "Compiling file: [" << path << "]";
-  std::wifstream infile(path);
-  infile.imbue(std::locale(""));
-  if (infile.fail()) {
-    *error_description = FromByteString(path) + L": open failed";
-    return nullptr;
-  }
+  Compilation compilation;
+  compilation.directory = CppDirname(path);
+  compilation.expr = nullptr;
+  compilation.environment = environment;
+  compilation.return_types = { VMType::Void() };
 
-  char* directory_c_str = strdup(path.c_str());
-  string directory = dirname(directory_c_str);
-  free(directory_c_str);
+  CompileFile(path, &compilation, GetParser(&compilation).get());
 
-  return CompileStream(environment, infile, directory, error_description,
-                       VMType::Void());
+  return ResultsFromCompilation(&compilation, error_description);
 }
 
 unique_ptr<Expression> CompileString(
@@ -415,9 +427,17 @@ unique_ptr<Expression> CompileString(
 unique_ptr<Expression> CompileString(
     const wstring& str, Environment* environment, wstring* error_description,
     const VMType& return_type) {
+  // TODO(alejo): Delete it?
   std::wistream* instr = new std::wstringstream(str, std::ios_base::in);
-  return CompileStream(environment, *instr, ".", error_description,
-                       return_type);
+  Compilation compilation;
+  compilation.directory = ".";
+  compilation.expr = nullptr;
+  compilation.environment = environment;
+  compilation.return_types = { return_type };
+
+  CompileStream(*instr, &compilation, GetParser(&compilation).get());
+
+  return ResultsFromCompilation(&compilation, error_description);
 }
 
 unique_ptr<Value> Evaluate(Expression* expr, Environment* environment) {
