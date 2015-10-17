@@ -427,15 +427,14 @@ unique_ptr<Expression> CompileString(
 unique_ptr<Expression> CompileString(
     const wstring& str, Environment* environment, wstring* error_description,
     const VMType& return_type) {
-  // TODO(alejo): Delete it?
-  std::wistream* instr = new std::wstringstream(str, std::ios_base::in);
+  std::wstringstream instr(str, std::ios_base::in);
   Compilation compilation;
   compilation.directory = ".";
   compilation.expr = nullptr;
   compilation.environment = environment;
   compilation.return_types = { return_type };
 
-  CompileStream(*instr, &compilation, GetParser(&compilation).get());
+  CompileStream(instr, &compilation, GetParser(&compilation).get());
 
   return ResultsFromCompilation(&compilation, error_description);
 }
