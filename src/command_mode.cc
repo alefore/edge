@@ -84,7 +84,7 @@ class GotoCommand : public Command {
           }
           size_t position = ComputePosition(
               start, end, line->size(), editor_state->direction(),
-              editor_state->repetitions(), editor_state->structure_modifier(),
+              editor_state->repetitions(), editor_state->structure_range(),
               calls_);
           assert(position <= line->size());
           buffer->set_current_position_col(position);
@@ -119,7 +119,7 @@ class GotoCommand : public Command {
           size_t lines = buffer->contents()->size();
           size_t position = ComputePosition(
               0, lines, lines, editor_state->direction(),
-              editor_state->repetitions(), editor_state->structure_modifier(),
+              editor_state->repetitions(), editor_state->structure_range(),
               calls_);
           assert(position <= buffer->contents()->size());
           buffer->set_current_position_line(position);
@@ -133,7 +133,7 @@ class GotoCommand : public Command {
               / editor_state->visible_lines());
           size_t position = editor_state->visible_lines() * ComputePosition(
               0, pages, pages, editor_state->direction(),
-              editor_state->repetitions(), editor_state->structure_modifier(),
+              editor_state->repetitions(), editor_state->structure_range(),
               calls_);
           CHECK_LT(position, buffer->contents()->size());
           buffer->set_current_position_line(position);
@@ -153,7 +153,7 @@ class GotoCommand : public Command {
           size_t buffers = editor_state->buffers()->size();
           size_t position = ComputePosition(
               0, buffers, buffers, editor_state->direction(),
-              editor_state->repetitions(), editor_state->structure_modifier(),
+              editor_state->repetitions(), editor_state->structure_range(),
               calls_);
           assert(position < editor_state->buffers()->size());
           auto it = editor_state->buffers()->begin();
@@ -755,8 +755,8 @@ class SetStructureModifierCommand : public Command {
   }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->set_structure_modifier(
-        editor_state->structure_modifier() == value_
+    editor_state->set_structure_range(
+        editor_state->structure_range() == value_
             ? Modifiers::ENTIRE_STRUCTURE
             : value_);
   }

@@ -186,7 +186,7 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
         transform(structure.begin(), structure.end(), structure.begin(),
                   ::toupper);
       }
-      switch (editor_state.structure_modifier()) {
+      switch (editor_state.structure_range()) {
         case Modifiers::ENTIRE_STRUCTURE:
           break;
         case Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION:
