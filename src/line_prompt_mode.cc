@@ -52,13 +52,14 @@ GetHistoryBuffer(EditorState* editor_state, const wstring& name) {
 map<wstring, shared_ptr<OpenBuffer>>::iterator
 GetPredictionsBuffer(
     EditorState* editor_state,
-    const Predictor& predictor,
-    const wstring& input,
+    Predictor predictor,
+    wstring input,
     function<void(const wstring&)> consumer) {
   auto it = editor_state->buffers()
       ->insert(make_pair(kPredictionsBufferName, nullptr));
-  it.first->second =
-      PredictionsBuffer(editor_state, predictor, input, consumer);
+  it.first->second = PredictionsBuffer(
+      editor_state, std::move(predictor), std::move(input),
+      std::move(consumer));
   it.first->second->Reload(editor_state);
   it.first->second->set_current_position_line(0);
   it.first->second->set_current_position_col(0);
@@ -67,14 +68,13 @@ GetPredictionsBuffer(
 
 class LinePromptMode : public EditorMode {
  public:
-  LinePromptMode(const wstring& prompt, const wstring& history_file,
-                 const wstring& initial_value, LinePromptHandler handler,
-                 Predictor predictor,
+  LinePromptMode(wstring prompt, wstring history_file, wstring initial_value,
+                 LinePromptHandler handler, Predictor predictor,
                  map<wstring, shared_ptr<OpenBuffer>>::iterator initial_buffer)
-      : prompt_(prompt),
-        history_file_(history_file),
-        handler_(handler),
-        predictor_(predictor),
+      : prompt_(std::move(prompt)),
+        history_file_(std::move(history_file)),
+        handler_(std::move(handler)),
+        predictor_(std::move(predictor)),
         initial_buffer_(initial_buffer),
         input_(EditableString::New(initial_value)),
         most_recent_char_(0) {}
@@ -196,26 +196,26 @@ class LinePromptMode : public EditorMode {
   const wstring prompt_;
   // Name of the file in which the history for this prompt should be preserved.
   const wstring history_file_;
-  LinePromptHandler handler_;
-  Predictor predictor_;
-  map<wstring, shared_ptr<OpenBuffer>>::iterator initial_buffer_;
+  const LinePromptHandler handler_;
+  const Predictor predictor_;
+  const map<wstring, shared_ptr<OpenBuffer>>::iterator initial_buffer_;
+
   shared_ptr<EditableString> input_;
   int most_recent_char_;
 };
 
-// TODO: Receive parameters we copy by value; use std::move.
 class LinePromptCommand : public Command {
  public:
-  LinePromptCommand(const wstring& prompt,
-                    const wstring& history_file,
-                    const wstring& description,
+  LinePromptCommand(wstring prompt,
+                    wstring history_file,
+                    wstring description,
                     LinePromptHandler handler,
                     Predictor predictor)
-      : prompt_(prompt),
-        history_file_(history_file),
-        description_(description),
-        handler_(handler),
-        predictor_(predictor) {}
+      : prompt_(std::move(prompt)),
+        history_file_(std::move(history_file)),
+        description_(std::move(description)),
+        handler_(std::move(handler)),
+        predictor_(std::move(predictor)) {}
 
   const wstring Description() {
     return description_;
@@ -239,15 +239,16 @@ using std::unique_ptr;
 using std::shared_ptr;
 
 void Prompt(EditorState* editor_state,
-            const wstring& prompt,
-            const wstring& history_file,
-            const wstring& initial_value,
+            wstring prompt,
+            wstring history_file,
+            wstring initial_value,
             LinePromptHandler handler,
             Predictor predictor) {
-  std::unique_ptr<LinePromptMode> line_prompt_mode(new LinePromptMode(
-      prompt, history_file, initial_value, handler, predictor,
-      editor_state->current_buffer()));
   auto history = GetHistoryBuffer(editor_state, history_file);
+  std::unique_ptr<LinePromptMode> line_prompt_mode(new LinePromptMode(
+      std::move(prompt), std::move(history_file), std::move(initial_value),
+      std::move(handler), std::move(predictor),
+      editor_state->current_buffer()));
   history->second->set_current_position_line(
       history->second->contents()->size());
   line_prompt_mode->UpdateStatus(editor_state);
@@ -256,13 +257,11 @@ void Prompt(EditorState* editor_state,
 }
 
 unique_ptr<Command> NewLinePromptCommand(
-    const wstring& prompt,
-    const wstring& history_file,
-    const wstring& description,
-    LinePromptHandler handler,
-    Predictor predictor) {
+    wstring prompt, wstring history_file, wstring description,
+    LinePromptHandler handler, Predictor predictor) {
   return std::move(unique_ptr<Command>(new LinePromptCommand(
-      prompt, history_file, description, handler, predictor)));
+      std::move(prompt), std::move(history_file), std::move(description),
+      std::move(handler), std::move(predictor))));
 }
 
 }  // namespace afc
