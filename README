@@ -28,6 +28,17 @@ bindings and how well the modifiers-based language works: it is a small (and
 thus not very difficult to learn) language that is very expressive.
 
 
+1.1. Features
+
+* Supports background compilation.
+* Uses a subset of C++ as its extension language. Extensions are interpreted.
+* Supports running commands, capturing their output into a buffer.
+* Use of a pts can be enabled or disabled for buffers with underlying commands.
+  For example, this makes it possible to run a shell process inside Edge.
+* Buffers are read asynchronously (whether from files or from commands). Edge
+  will never block while waiting for input.
+
+
 2. Running Edge
 
 If you run Edge on a file, it will open it and display it:
