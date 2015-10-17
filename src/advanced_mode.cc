@@ -426,44 +426,42 @@ class RunCppCommand : public Command {
   }
 };
 
-static const map<wchar_t, Command*>& GetAdvancedModeMap() {
-  static map<wchar_t, Command*> output;
+static const map<vector<wint_t>, Command*>& GetAdvancedModeMap() {
+  static map<vector<wint_t>, Command*> output;
+  auto Register = MapMode::RegisterEntry;
   if (output.empty()) {
-    output.insert(make_pair('q', new Quit()));
-    output.insert(make_pair('d', new CloseCurrentBuffer()));
-    output.insert(make_pair('w', new SaveCurrentBuffer()));
+    Register(L"q", new Quit(), &output);
+    Register(L"d", new CloseCurrentBuffer(), &output);
+    Register(L"w", new SaveCurrentBuffer(), &output);
 
     vector<wstring> variables;
     OpenBuffer::BoolStruct()->RegisterVariableNames(&variables);
     OpenBuffer::StringStruct()->RegisterVariableNames(&variables);
     OpenBuffer::IntStruct()->RegisterVariableNames(&variables);
-    output.insert(make_pair(
-        'v',
+    Register(L"v",
         NewLinePromptCommand(
             L"var ", L"variables", L"assigns to a variable", SetVariableHandler,
-            PrecomputedPredictor(variables, '_')).release()));
+            PrecomputedPredictor(variables, '_')).release(),
+        &output);
 
-    output.insert(make_pair('c', new RunCppCommand()));
+    Register(L"c", new RunCppCommand(), &output);
 
-    output.insert(make_pair('.', new OpenDirectory()));
-    output.insert(make_pair('l', new ListBuffers()));
-    output.insert(make_pair('r', new ReloadBuffer()));
-    output.insert(make_pair('e', new SendEndOfFile()));
-    output.insert(make_pair(
-        'o',
+    Register(L".", new OpenDirectory(), &output);
+    Register(L"l", new ListBuffers(), &output);
+    Register(L"r", new ReloadBuffer(), &output);
+    Register(L"e", new SendEndOfFile(), &output);
+    Register(L"o",
         NewLinePromptCommand(L"<", L"files", L"loads a file", OpenFileHandler,
-                             FilePredictor).release()));
-    output.insert(make_pair(
-        'F',
+                             FilePredictor).release(), &output);
+    Register(L"F",
         NewLinePromptCommand(
             L"...$ ",
             L"commands",
             L"forks a command for each line in the current buffer",
-            RunMultipleCommandsHandler, EmptyPredictor).release()));
-    output.insert(make_pair('f', NewForkCommand().release()));
-    output.insert(make_pair(
-        '?',
-        NewHelpCommand(output, L"advance command mode").release()));
+            RunMultipleCommandsHandler, EmptyPredictor).release(), &output);
+    Register(L"f", NewForkCommand().release(), &output);
+    Register(L"?",
+        NewHelpCommand(output, L"advance command mode").release(), &output);
   }
   return output;
 }

@@ -14,9 +14,22 @@ using std::map;
 using std::unique_ptr;
 using std::shared_ptr;
 
+namespace {
+wstring DescribeSequence(const vector<wint_t> input) {
+  wstring output;
+  for (wint_t c : input) {
+    if (c == '\n') {
+      output.push_back(L'↩');
+    } else {
+      output.push_back(static_cast<wchar_t>(c));
+    }
+  }
+  return output;
+}
+
 class HelpCommand : public Command {
  public:
-  HelpCommand(const map<wchar_t, Command*>& commands,
+  HelpCommand(const map<vector<wint_t>, Command*>& commands,
               const wstring& mode_description)
       : commands_(commands), mode_description_(mode_description) {}
 
@@ -35,8 +48,7 @@ class HelpCommand : public Command {
           NewCopyString(L"Help: " + mode_description_));
       for (const auto& it : commands_) {
         buffer->AppendLine(editor_state, std::move(NewCopyString(
-          (it.first == '\n' ? L"RET" : wstring(1, it.first))
-          + L" - " + it.second->Description())));
+          DescribeSequence(it.first) + L" - " + it.second->Description())));
       }
       it.first->second = buffer;
     }
@@ -48,12 +60,13 @@ class HelpCommand : public Command {
   }
 
  private:
-  const map<wchar_t, Command*> commands_;
+  const map<vector<wint_t>, Command*> commands_;
   const wstring mode_description_;
 };
+}  // namespace
 
 unique_ptr<Command> NewHelpCommand(
-    const map<wchar_t, Command*>& commands,
+    const map<vector<wint_t>, Command*>& commands,
     const wstring& mode_description) {
   return unique_ptr<Command>(new HelpCommand(commands, mode_description));
 }

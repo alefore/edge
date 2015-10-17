@@ -1015,77 +1015,77 @@ class RepeatLastTransformationCommand : public Command {
   }
 };
 
-static const map<wchar_t, Command*>& GetCommandModeMap() {
-  static map<wchar_t, Command*> output;
+static const map<vector<wint_t>, Command*>& GetCommandModeMap() {
+  static map<vector<wint_t>, Command*> output;
+  auto Register = MapMode::RegisterEntry;
   if (output.empty()) {
-    output.insert(make_pair('a', new EnterAdvancedMode()));
-    output.insert(make_pair('s', new EnterSecondaryMode()));
-    output.insert(make_pair('i', new EnterInsertMode()));
-    output.insert(make_pair('f', new EnterFindMode()));
-    output.insert(make_pair('r', new ReverseDirectionCommand()));
-    output.insert(make_pair('R', new InsertionModifierCommand()));
+    Register(L"a", new EnterAdvancedMode(), &output);
+    Register(L"s", new EnterSecondaryMode(), &output);
+    Register(L"i", new EnterInsertMode(), &output);
+    Register(L"f", new EnterFindMode(), &output);
+    Register(L"r", new ReverseDirectionCommand(), &output);
+    Register(L"R", new InsertionModifierCommand(), &output);
 
-    output.insert(make_pair('/', new StartSearchMode()));
-    output.insert(make_pair('g', new GotoCommand(0)));
+    Register(L"/", new StartSearchMode(), &output);
+    Register(L"g", new GotoCommand(0), &output);
 
-    output.insert(make_pair('w', new SetStructureCommand(WORD, L"word")));
-    output.insert(make_pair('e', new SetStructureCommand(LINE, L"line")));
-    output.insert(make_pair('E', new SetStructureCommand(PAGE, L"page")));
-    output.insert(make_pair('F', new SetStructureCommand(SEARCH, L"search")));
-    output.insert(make_pair('B', new SetStructureCommand(BUFFER, L"buffer")));
-    output.insert(make_pair('m', new SetRegionStartCommand()));
+    Register(L"w", new SetStructureCommand(WORD, L"word"), &output);
+    Register(L"e", new SetStructureCommand(LINE, L"line"), &output);
+    Register(L"E", new SetStructureCommand(PAGE, L"page"), &output);
+    Register(L"F", new SetStructureCommand(SEARCH, L"search"), &output);
+    Register(L"B", new SetStructureCommand(BUFFER, L"buffer"), &output);
+    Register(L"m", new SetRegionStartCommand(), &output);
 
-    output.insert(make_pair('W', new SetStrengthCommand(
-        Modifiers::WEAK, Modifiers::VERY_WEAK, L"weak")));
-    output.insert(make_pair('S', new SetStrengthCommand(
-        Modifiers::STRONG, Modifiers::VERY_STRONG, L"strong")));
+    Register(L"W", new SetStrengthCommand(
+        Modifiers::WEAK, Modifiers::VERY_WEAK, L"weak"), &output);
+    Register(L"S", new SetStrengthCommand(
+        Modifiers::STRONG, Modifiers::VERY_STRONG, L"strong"), &output);
 
-    output.insert(make_pair('d', new Delete()));
-    output.insert(make_pair('p', new Paste()));
-    output.insert(make_pair('u', new UndoCommand()));
-    output.insert(make_pair('\n', new ActivateLink()));
+    Register(L"d", new Delete(), &output);
+    Register(L"p", new Paste(), &output);
+    Register(L"u", new UndoCommand(), &output);
+    Register(L"\n", new ActivateLink(), &output);
 
-    output.insert(make_pair('c', new RunCppFileCommand()));
+    Register(L"c", new RunCppFileCommand(), &output);
 
-    output.insert(make_pair('b', new GotoPreviousPositionCommand()));
-    output.insert(make_pair('n', NewNavigateCommand().release()));
-    output.insert(make_pair('j', new LineDown()));
-    output.insert(make_pair('k', new LineUp()));
-    output.insert(make_pair('l', new MoveForwards()));
-    output.insert(make_pair('h', new MoveBackwards()));
+    Register(L"b", new GotoPreviousPositionCommand(), &output);
+    Register(L"n", NewNavigateCommand().release(), &output);
+    Register(L"j", new LineDown(), &output);
+    Register(L"k", new LineUp(), &output);
+    Register(L"l", new MoveForwards(), &output);
+    Register(L"h", new MoveBackwards(), &output);
 
-    output.insert(make_pair('~', new SwitchCaseCommand()));
+    Register(L"~", new SwitchCaseCommand(), &output);
 
-    output.insert(make_pair('.', new RepeatLastTransformationCommand()));
-    output.insert(make_pair(
-        '?',
-        NewHelpCommand(output, L"command mode").release()));
+    Register(L".", new RepeatLastTransformationCommand(), &output);
+    Register(L"?",
+        NewHelpCommand(output, L"command mode").release(), &output);
 
-    output.insert(make_pair(Terminal::ESCAPE, new ResetStateCommand()));
+    Register({Terminal::ESCAPE}, new ResetStateCommand(), &output);
 
-    output.insert(make_pair('[', new SetStructureModifierCommand(
+    Register(L"[", new SetStructureModifierCommand(
         Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION,
-        L"from the beggining to the current position")));
-    output.insert(make_pair(']', new SetStructureModifierCommand(
+        L"from the beggining to the current position"), &output);
+    Register(L"]", new SetStructureModifierCommand(
         Modifiers::FROM_CURRENT_POSITION_TO_END,
-        L"from the current position to the end")));
-    output.insert(make_pair(Terminal::CTRL_L, new HardRedrawCommand()));
-    output.insert(make_pair('0', new NumberMode(SetRepetitions)));
-    output.insert(make_pair('1', new NumberMode(SetRepetitions)));
-    output.insert(make_pair('2', new NumberMode(SetRepetitions)));
-    output.insert(make_pair('3', new NumberMode(SetRepetitions)));
-    output.insert(make_pair('4', new NumberMode(SetRepetitions)));
-    output.insert(make_pair('5', new NumberMode(SetRepetitions)));
-    output.insert(make_pair('6', new NumberMode(SetRepetitions)));
-    output.insert(make_pair('7', new NumberMode(SetRepetitions)));
-    output.insert(make_pair('8', new NumberMode(SetRepetitions)));
-    output.insert(make_pair('9', new NumberMode(SetRepetitions)));
-    output.insert(make_pair(Terminal::DOWN_ARROW, new LineDown()));
-    output.insert(make_pair(Terminal::UP_ARROW, new LineUp()));
-    output.insert(make_pair(Terminal::LEFT_ARROW, new MoveBackwards()));
-    output.insert(make_pair(Terminal::RIGHT_ARROW, new MoveForwards()));
-    output.insert(make_pair(Terminal::PAGE_DOWN, new PageDown()));
-    output.insert(make_pair(Terminal::PAGE_UP, new PageUp()));
+        L"from the current position to the end"), &output);
+    Register({Terminal::CTRL_L}, new HardRedrawCommand(), &output);
+    Register(L"0", new NumberMode(SetRepetitions), &output);
+    Register(L"1", new NumberMode(SetRepetitions), &output);
+    Register(L"2", new NumberMode(SetRepetitions), &output);
+    Register(L"3", new NumberMode(SetRepetitions), &output);
+    Register(L"4", new NumberMode(SetRepetitions), &output);
+    Register(L"5", new NumberMode(SetRepetitions), &output);
+    Register(L"6", new NumberMode(SetRepetitions), &output);
+    Register(L"7", new NumberMode(SetRepetitions), &output);
+    Register(L"8", new NumberMode(SetRepetitions), &output);
+    Register(L"9", new NumberMode(SetRepetitions), &output);
+    Register({Terminal::DOWN_ARROW}, new LineDown(), &output);
+    Register({Terminal::UP_ARROW}, new LineUp(), &output);
+    Register({Terminal::LEFT_ARROW}, new MoveBackwards(), &output);
+    Register({Terminal::RIGHT_ARROW}, new MoveForwards(), &output);
+    Register({Terminal::PAGE_DOWN}, new PageDown(), &output);
+    Register({Terminal::PAGE_UP}, new PageUp(), &output);
   }
   return output;
 }

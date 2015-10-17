@@ -63,12 +63,12 @@ using std::map;
 using std::shared_ptr;
 using std::unique_ptr;
 
-static const map<wchar_t, Command*>& GetSecondaryModeMap() {
-  static map<wchar_t, Command*> output;
+static const map<vector<wint_t>, Command*>& GetSecondaryModeMap() {
+  static map<vector<wint_t>, Command*> output;
   if (output.empty()) {
-    output.insert(make_pair('r', new RecordCommand()));
-    output.insert(make_pair('?',
-        NewHelpCommand(output, L"secondary command mode").release()));
+    MapMode::RegisterEntry(L"r", new RecordCommand(), &output);
+    MapMode::RegisterEntry(L"?",
+        NewHelpCommand(output, L"secondary command mode").release(), &output);
   }
   return output;
 }
