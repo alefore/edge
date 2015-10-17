@@ -409,11 +409,13 @@ const wstring LineUp::Description() {
       {
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
         buffer->CheckPosition();
-        const auto line_begin = buffer->begin();
-        while (editor_state->repetitions() && buffer->line() != line_begin) {
+        VLOG(6) << "Up: Initial position: " << buffer->position();
+        while (editor_state->repetitions() && buffer->position().line != 0) {
+          VLOG(5) << "Up: Moving up.";
           buffer->LineUp();
           editor_state->set_repetitions(editor_state->repetitions() - 1);
         }
+        VLOG(6) << "Up: Final position: " << buffer->position();
         editor_state->PushCurrentPosition();
       }
       break;
@@ -455,11 +457,14 @@ const wstring LineDown::Description() {
       {
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
         buffer->CheckPosition();
+        VLOG(6) << "Down: Initial position: " << buffer->position();
         const auto line_end = buffer->end();
         while (editor_state->repetitions() && buffer->line() != line_end) {
+          VLOG(5) << "Down: Moving down.";
           buffer->LineDown();
           editor_state->set_repetitions(editor_state->repetitions() - 1);
         }
+        VLOG(6) << "Down: Final position: " << buffer->position();
         editor_state->PushCurrentPosition();
       }
       break;
