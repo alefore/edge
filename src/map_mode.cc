@@ -27,7 +27,10 @@ void MapMode::ProcessInput(wint_t c, EditorState* editor_state) {
   auto it = commands_.lower_bound(input);
   if (it == commands_.end()
       || !std::equal(input.begin(), input.end(), it->first.begin())) {
-    default_command_->ProcessInput(c, editor_state);
+    current_input_ = {};
+    for (wint_t c : input) {
+      default_command_->ProcessInput(c, editor_state);
+    }
     return;
   }
   if (input != it->first) {
