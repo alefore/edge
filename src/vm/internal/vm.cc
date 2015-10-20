@@ -398,7 +398,9 @@ unique_ptr<void, std::function<void(void*)>> GetParser(
 unique_ptr<Expression> ResultsFromCompilation(Compilation* compilation,
                                               wstring* error_description) {
   if (!compilation->errors.empty()) {
-    *error_description = *compilation->errors.rbegin();
+    if (error_description != nullptr) {
+      *error_description = *compilation->errors.rbegin();
+    }
     return nullptr;
   }
   return std::move(compilation->expr);
