@@ -30,9 +30,13 @@ wstring TrimWhitespace(const wstring& in) {
   return in.substr(begin, end - begin + 1);
 }
 
-void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
+void SetVariableCancelHandler(EditorState* editor_state) {
   editor_state->ResetMode();
   editor_state->ScheduleRedraw();
+}
+
+void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
+  SetVariableCancelHandler(editor_state);
   wstring name = TrimWhitespace(input_name);
   if (name.empty()) { return; }
   {
@@ -114,6 +118,7 @@ unique_ptr<Command> NewSetVariableCommand() {
   options.prompt = L"var ";
   options.history_file = L"variables";
   options.handler = SetVariableHandler;
+  options.cancel_handler = SetVariableCancelHandler;
   options.predictor = PrecomputedPredictor(variables, '_');
   return NewLinePromptCommand(L"assigns to a variable", std::move(options));
 }
