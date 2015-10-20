@@ -203,6 +203,7 @@ int main(int argc, const char** argv) {
       if (fds[i].fd == 0) {
         wint_t c;
         while ((c = terminal.Read(editor_state())) != static_cast<wint_t>(-1)) {
+          DCHECK(editor_state()->mode() != nullptr);
           editor_state()->mode()->ProcessInput(c, editor_state());
         }
         continue;
