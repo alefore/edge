@@ -7,7 +7,6 @@
 #include <memory>
 #include <vector>
 
-#include "command_mode.h"
 #include "lazy_string.h"
 #include "line.h"
 #include "line_column.h"

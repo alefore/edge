@@ -11,6 +11,7 @@ src/vm/internal/cpp.y
 
 COMMON_SOURCES = \
 src/buffer.cc \
+src/cpp_command.cc \
 src/char_buffer.cc \
 src/close_buffer_command.cc \
 src/command_mode.cc \
@@ -39,7 +40,6 @@ src/open_file_command.cc \
 src/predictor.cc \
 src/quit_command.cc \
 src/record_command.cc \
-src/reload_command.cc \
 src/repeat_mode.cc \
 src/run_command_handler.cc \
 src/run_cpp_command.cc \

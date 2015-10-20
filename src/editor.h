@@ -15,6 +15,8 @@
 #include "line_marks.h"
 #include "memory_mapped_file.h"
 #include "modifiers.h"
+#include "transformation.h"
+#include "vm/public/environment.h"
 #include "vm/public/vm.h"
 
 namespace afc {
@@ -146,7 +148,7 @@ class EditorState {
   EditorMode* mode() const { return mode_.get(); }
   std::unique_ptr<EditorMode> ResetMode() {
     auto copy = std::move(mode_);
-    mode_ = NewCommandMode();
+    mode_ = NewCommandMode(this);
     return copy;
   }
   void set_mode(unique_ptr<EditorMode> mode) {
@@ -183,7 +185,7 @@ class EditorState {
 
   void ApplyToCurrentBuffer(unique_ptr<Transformation> transformation);
 
-  Environment* environment() { return &environment_; }
+  Environment* environment() { return environment_.get(); }
 
   // Meant to be used to construct afc::vm::Evaluator::ErrorHandler instances.
   void DefaultErrorHandler(const wstring& error_description);
@@ -198,6 +200,11 @@ class EditorState {
   map<wstring, shared_ptr<OpenBuffer>>::iterator current_buffer_;
   bool terminate_;
 
+  wstring home_directory_;
+  vector<wstring> edge_path_;
+
+  std::unique_ptr<Environment> environment_;
+
   wstring last_search_query_;
 
   unique_ptr<EditorMode> mode_;
@@ -210,11 +217,6 @@ class EditorState {
 
   bool status_prompt_;
   wstring status_;
-
-  wstring home_directory_;
-  vector<wstring> edge_path_;
-
-  Environment environment_;
 
   vector<int> pending_signals_;
 

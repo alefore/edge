@@ -9,6 +9,7 @@
 
 #include <glog/logging.h>
 
+#include "cpp_command.h"
 #include "char_buffer.h"
 #include "close_buffer_command.h"
 #include "command.h"
@@ -27,7 +28,6 @@
 #include "open_file_command.h"
 #include "quit_command.h"
 #include "record_command.h"
-#include "reload_command.h"
 #include "repeat_mode.h"
 #include "run_command_handler.h"
 #include "run_cpp_command.h"
@@ -1055,102 +1055,107 @@ class RepeatLastTransformationCommand : public Command {
   }
 };
 
-static const map<vector<wint_t>, Command*>& GetCommandModeMap() {
-  static map<vector<wint_t>, Command*> output;
+// TODO: This leaks a lot of memory... fix that.
+static const map<vector<wint_t>, Command*> GetCommandModeMap(
+    EditorState* editor_state) {
+  map<vector<wint_t>, Command*> output;
   auto Register = MapMode::RegisterEntry;
-  if (output.empty()) {
-    Register(L"aq", NewQuitCommand().release(), &output);
-    Register(L"ad", NewCloseBufferCommand().release(), &output);
-    Register(L"aw", NewSaveBufferCommand().release(), &output);
-    Register(L"av", NewSetVariableCommand().release(), &output);
-    Register(L"ac", NewRunCppCommand().release(), &output);
-    Register(L"a.", NewOpenDirectoryCommand().release(), &output);
-    Register(L"al", NewListBuffersCommand().release(), &output);
-    Register(L"ar", NewReloadCommand().release(), &output);
-    Register(L"ae", NewSendEndOfFileCommand().release(), &output);
-    Register(L"ao", NewOpenFileCommand().release(), &output);
-    {
-      PromptOptions options;
-      options.prompt = L"...$";
-      options.history_file = L"commands";
-      options.handler = RunMultipleCommandsHandler;
-      Register(L"aF",
-          NewLinePromptCommand(
-              L"forks a command for each line in the current buffer",
-              std::move(options)).release(),
-          &output);
-    }
-    Register(L"af", NewForkCommand().release(), &output);
-
-    Register(L"i", new EnterInsertMode(), &output);
-    Register(L"f", new EnterFindMode(), &output);
-    Register(L"r", new ReverseDirectionCommand(), &output);
-    Register(L"R", new InsertionModifierCommand(), &output);
-
-    Register(L"/", new StartSearchMode(), &output);
-    Register(L"g", new GotoCommand(0), &output);
-
-    Register(L"w", new SetStructureCommand(WORD, L"word"), &output);
-    Register(L"e", new SetStructureCommand(LINE, L"line"), &output);
-    Register(L"E", new SetStructureCommand(PAGE, L"page"), &output);
-    Register(L"F", new SetStructureCommand(SEARCH, L"search"), &output);
-    Register(L"B", new SetStructureCommand(BUFFER, L"buffer"), &output);
-    Register(L"!", new SetStructureCommand(MARK, L"mark"), &output);
-    Register(L"m", new SetRegionStartCommand(), &output);
-
-    Register(L"W", new SetStrengthCommand(
-        Modifiers::WEAK, Modifiers::VERY_WEAK, L"weak"), &output);
-    Register(L"S", new SetStrengthCommand(
-        Modifiers::STRONG, Modifiers::VERY_STRONG, L"strong"), &output);
-
-    Register(L"d", new Delete(), &output);
-    Register(L"p", new Paste(), &output);
-    Register(L"u", new UndoCommand(), &output);
-    Register(L"\n", new ActivateLink(), &output);
-
-    Register(L"c", new RunCppFileCommand(), &output);
-
-    Register(L"b", new GotoPreviousPositionCommand(), &output);
-    Register(L"n", NewNavigateCommand().release(), &output);
-    Register(L"j", new LineDown(), &output);
-    Register(L"k", new LineUp(), &output);
-    Register(L"l", new MoveForwards(), &output);
-    Register(L"h", new MoveBackwards(), &output);
-
-    Register(L"~", new SwitchCaseCommand(), &output);
-
-    Register(L"sr", NewRecordCommand().release(), &output);
-
-    Register(L".", new RepeatLastTransformationCommand(), &output);
-    Register(L"?",
-        NewHelpCommand(output, L"command mode").release(), &output);
-
-    Register({Terminal::ESCAPE}, new ResetStateCommand(), &output);
-
-    Register(L"[", new SetStructureModifierCommand(
-        Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION,
-        L"from the beggining to the current position"), &output);
-    Register(L"]", new SetStructureModifierCommand(
-        Modifiers::FROM_CURRENT_POSITION_TO_END,
-        L"from the current position to the end"), &output);
-    Register({Terminal::CTRL_L}, new HardRedrawCommand(), &output);
-    Register(L"0", new NumberMode(SetRepetitions), &output);
-    Register(L"1", new NumberMode(SetRepetitions), &output);
-    Register(L"2", new NumberMode(SetRepetitions), &output);
-    Register(L"3", new NumberMode(SetRepetitions), &output);
-    Register(L"4", new NumberMode(SetRepetitions), &output);
-    Register(L"5", new NumberMode(SetRepetitions), &output);
-    Register(L"6", new NumberMode(SetRepetitions), &output);
-    Register(L"7", new NumberMode(SetRepetitions), &output);
-    Register(L"8", new NumberMode(SetRepetitions), &output);
-    Register(L"9", new NumberMode(SetRepetitions), &output);
-    Register({Terminal::DOWN_ARROW}, new LineDown(), &output);
-    Register({Terminal::UP_ARROW}, new LineUp(), &output);
-    Register({Terminal::LEFT_ARROW}, new MoveBackwards(), &output);
-    Register({Terminal::RIGHT_ARROW}, new MoveForwards(), &output);
-    Register({Terminal::PAGE_DOWN}, new PageDown(), &output);
-    Register({Terminal::PAGE_UP}, new PageUp(), &output);
+  Register(L"aq", NewQuitCommand().release(), &output);
+  Register(L"ad", NewCloseBufferCommand().release(), &output);
+  Register(L"aw", NewSaveBufferCommand().release(), &output);
+  Register(L"av", NewSetVariableCommand().release(), &output);
+  Register(L"ac", NewRunCppCommand().release(), &output);
+  Register(L"a.", NewOpenDirectoryCommand().release(), &output);
+  Register(L"al", NewListBuffersCommand().release(), &output);
+  Register(L"ar",
+      NewCppCommand(editor_state->environment(),
+          L"// Reload the current buffer.\n"
+          L"editor.ReloadCurrentBuffer();").release(),
+      &output);
+  Register(L"ae", NewSendEndOfFileCommand().release(), &output);
+  Register(L"ao", NewOpenFileCommand().release(), &output);
+  {
+    PromptOptions options;
+    options.prompt = L"...$";
+    options.history_file = L"commands";
+    options.handler = RunMultipleCommandsHandler;
+    Register(L"aF",
+        NewLinePromptCommand(
+            L"forks a command for each line in the current buffer",
+            std::move(options)).release(),
+        &output);
   }
+  Register(L"af", NewForkCommand().release(), &output);
+
+  Register(L"i", new EnterInsertMode(), &output);
+  Register(L"f", new EnterFindMode(), &output);
+  Register(L"r", new ReverseDirectionCommand(), &output);
+  Register(L"R", new InsertionModifierCommand(), &output);
+
+  Register(L"/", new StartSearchMode(), &output);
+  Register(L"g", new GotoCommand(0), &output);
+
+  Register(L"w", new SetStructureCommand(WORD, L"word"), &output);
+  Register(L"e", new SetStructureCommand(LINE, L"line"), &output);
+  Register(L"E", new SetStructureCommand(PAGE, L"page"), &output);
+  Register(L"F", new SetStructureCommand(SEARCH, L"search"), &output);
+  Register(L"B", new SetStructureCommand(BUFFER, L"buffer"), &output);
+  Register(L"!", new SetStructureCommand(MARK, L"mark"), &output);
+  Register(L"m", new SetRegionStartCommand(), &output);
+
+  Register(L"W", new SetStrengthCommand(
+      Modifiers::WEAK, Modifiers::VERY_WEAK, L"weak"), &output);
+  Register(L"S", new SetStrengthCommand(
+      Modifiers::STRONG, Modifiers::VERY_STRONG, L"strong"), &output);
+
+  Register(L"d", new Delete(), &output);
+  Register(L"p", new Paste(), &output);
+  Register(L"u", new UndoCommand(), &output);
+  Register(L"\n", new ActivateLink(), &output);
+
+  Register(L"c", new RunCppFileCommand(), &output);
+
+  Register(L"b", new GotoPreviousPositionCommand(), &output);
+  Register(L"n", NewNavigateCommand().release(), &output);
+  Register(L"j", new LineDown(), &output);
+  Register(L"k", new LineUp(), &output);
+  Register(L"l", new MoveForwards(), &output);
+  Register(L"h", new MoveBackwards(), &output);
+
+  Register(L"~", new SwitchCaseCommand(), &output);
+
+  Register(L"sr", NewRecordCommand().release(), &output);
+
+  Register(L".", new RepeatLastTransformationCommand(), &output);
+  Register(L"?",
+      NewHelpCommand(output, L"command mode").release(), &output);
+
+  Register({Terminal::ESCAPE}, new ResetStateCommand(), &output);
+
+  Register(L"[", new SetStructureModifierCommand(
+      Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION,
+      L"from the beggining to the current position"), &output);
+  Register(L"]", new SetStructureModifierCommand(
+      Modifiers::FROM_CURRENT_POSITION_TO_END,
+      L"from the current position to the end"), &output);
+  Register({Terminal::CTRL_L}, new HardRedrawCommand(), &output);
+  Register(L"0", new NumberMode(SetRepetitions), &output);
+  Register(L"1", new NumberMode(SetRepetitions), &output);
+  Register(L"2", new NumberMode(SetRepetitions), &output);
+  Register(L"3", new NumberMode(SetRepetitions), &output);
+  Register(L"4", new NumberMode(SetRepetitions), &output);
+  Register(L"5", new NumberMode(SetRepetitions), &output);
+  Register(L"6", new NumberMode(SetRepetitions), &output);
+  Register(L"7", new NumberMode(SetRepetitions), &output);
+  Register(L"8", new NumberMode(SetRepetitions), &output);
+  Register(L"9", new NumberMode(SetRepetitions), &output);
+  Register({Terminal::DOWN_ARROW}, new LineDown(), &output);
+  Register({Terminal::UP_ARROW}, new LineUp(), &output);
+  Register({Terminal::LEFT_ARROW}, new MoveBackwards(), &output);
+  Register({Terminal::RIGHT_ARROW}, new MoveForwards(), &output);
+  Register({Terminal::PAGE_DOWN}, new PageDown(), &output);
+  Register({Terminal::PAGE_UP}, new PageUp(), &output);
+
   return output;
 }
 
@@ -1162,9 +1167,9 @@ namespace editor {
 using std::map;
 using std::unique_ptr;
 
-unique_ptr<EditorMode> NewCommandMode() {
-  unique_ptr<MapMode> mode(new MapMode(GetCommandModeMap(), NoopCommand()));
-  return std::move(mode);
+unique_ptr<EditorMode> NewCommandMode(EditorState* editor_state) {
+  return unique_ptr<MapMode>(
+      new MapMode(GetCommandModeMap(editor_state), NoopCommand()));
 }
 
 }  // namespace afc

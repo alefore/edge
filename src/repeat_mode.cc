@@ -16,7 +16,7 @@ class RepeatMode : public EditorMode {
   void ProcessInput(wint_t c, EditorState* editor_state) {
     if (c < '0' || c > '9') {
       consumer_(editor_state, result_);
-      editor_state->set_mode(NewCommandMode());
+      editor_state->set_mode(NewCommandMode(editor_state));
       editor_state->mode()->ProcessInput(c, editor_state);
       return;
     }

@@ -1,5 +1,7 @@
 #include <memory>
 
+#include <glog/logging.h>
+
 #include "map_mode.h"
 
 namespace afc {
@@ -16,9 +18,9 @@ void MapMode::RegisterEntry(wstring name, Command* value,
   output->insert(make_pair(std::move(key), value));
 }
 
-MapMode::MapMode(const map<vector<wint_t>, Command*>& commands,
+MapMode::MapMode(map<vector<wint_t>, Command*> commands,
                  Command* default_command)
-    : commands_(commands),
+    : commands_(std::move(commands)),
       default_command_(default_command) {}
 
 void MapMode::ProcessInput(wint_t c, EditorState* editor_state) {
@@ -39,6 +41,7 @@ void MapMode::ProcessInput(wint_t c, EditorState* editor_state) {
   }
 
   current_input_ = {};
+  CHECK(it->second);
   it->second->ProcessInput(c, editor_state);
 }
 

@@ -23,14 +23,14 @@ class MapMode : public EditorMode {
   static void RegisterEntry(wstring name, Command* value,
                             map<vector<wint_t>, Command*>* output);
 
-  MapMode(const map<vector<wint_t>, Command*>& commands,
+  MapMode(map<vector<wint_t>, Command*> commands,
           Command* default_command);
 
   void ProcessInput(wint_t c, EditorState* editor_state);
 
  private:
   vector<wint_t> current_input_;
-  const map<vector<wint_t>, Command*>& commands_;
+  const map<vector<wint_t>, Command*> commands_;
   Command* const default_command_;
 };
 

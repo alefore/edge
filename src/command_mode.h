@@ -11,9 +11,11 @@
 namespace afc {
 namespace editor {
 
+class EditorState;
+
 using std::unique_ptr;
 
-unique_ptr<EditorMode> NewCommandMode();
+unique_ptr<EditorMode> NewCommandMode(EditorState*);
 
 }  // namespace editor
 }  // namespace afc
