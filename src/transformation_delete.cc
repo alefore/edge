@@ -601,6 +601,7 @@ class DeleteTransformation : public Transformation {
         delegate = NewDeleteRegionTransformation(
             modifiers_, copy_to_paste_buffer_);
         break;
+      case MARK:
       case PAGE:
       case SEARCH:
         LOG(INFO) << "DeleteTransformation can't handle structure: "
