@@ -508,6 +508,10 @@ bool OpenBuffer::PrepareToClose(EditorState* editor_state) {
     LOG(INFO) << name_ << ": allows dirty delete, skipping.";
     return true;
   }
+  if (editor_state->modifiers().strength > Modifiers::DEFAULT) {
+    LOG(INFO) << name_ << ": Deleting due to modifiers.";
+    return true;
+  }
   return false;
 }
 

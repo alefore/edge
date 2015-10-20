@@ -492,7 +492,8 @@ If you attempt to close a dirty buffer:
 - If variable save_on_close (section 7.2.7) is set, Edge will attempt to save
   the buffer.
 - If the buffer is still dirty, Edge will prevent you from deleting the buffer,
-  unless variable allow_dirty_delete (section 7.2.8) is set.
+  unless variable allow_dirty_delete (section 7.2.8) is set or the strength
+  modifier is set above Default.
 
 See section 5.1 for another mechanism for closing buffers, by deleting lines
 from the list of buffers.
