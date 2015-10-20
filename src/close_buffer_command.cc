@@ -19,12 +19,7 @@ class CloseBufferCommand : public Command {
       return;
     }
     editor_state->CloseBuffer(editor_state->current_buffer());
-    editor_state->set_structure(CHAR);
-    editor_state->set_sticky_structure(false);
-    editor_state->ResetRepetitions();
-    editor_state->set_default_direction(FORWARDS);
-    editor_state->ResetDirection();
-    editor_state->ResetMode();
+    editor_state->ResetModifiers();
   }
 };
 
