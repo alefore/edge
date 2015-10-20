@@ -31,7 +31,7 @@ Environment::Environment(Environment* parent_environment)
       object_types_(new map<wstring, unique_ptr<ObjectType>>),
       parent_environment_(parent_environment) {}
 
-/* static */ Environment* Environment::DefaultEnvironment() {
+/* static */ Environment* Environment::GetDefault() {
   static Environment* environment = BuildDefaultEnvironment();
   return environment;
 }

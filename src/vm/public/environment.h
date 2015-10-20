@@ -24,7 +24,7 @@ class Environment {
 
   Environment* parent_environment() const { return parent_environment_; }
 
-  static Environment* DefaultEnvironment();
+  static Environment* GetDefault();
 
   const ObjectType* LookupObjectType(const wstring& symbol);
   const VMType* LookupType(const wstring& symbol);
