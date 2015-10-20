@@ -620,12 +620,21 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
   low_buffer_length_ += characters_read;
 
   const char* low_buffer_tmp = low_buffer_;
+  int output_characters =
+      mbsnrtowcs(nullptr, &low_buffer_tmp, low_buffer_length_, 0, nullptr);
   std::vector<wchar_t> buffer(
-      mbsnrtowcs(nullptr, &low_buffer_tmp, low_buffer_length_, 0, nullptr));
+      output_characters == -1 ? low_buffer_length_ : output_characters);
 
   low_buffer_tmp = low_buffer_;
-  mbsnrtowcs(&buffer[0], &low_buffer_tmp, low_buffer_length_, buffer.size(),
-             nullptr);
+  if (output_characters == -1) {
+    low_buffer_tmp = nullptr;
+    for (int i = 0; i < low_buffer_length_; i++) {
+      buffer[i] = static_cast<wchar_t>(low_buffer_[i]);
+    }
+  } else {
+    mbsnrtowcs(&buffer[0], &low_buffer_tmp, low_buffer_length_, buffer.size(),
+               nullptr);
+  }
 
   shared_ptr<LazyString> buffer_wrapper(NewStringFromVector(std::move(buffer)));
   VLOG(5) << "Input: [" << buffer_wrapper->ToString() << "]";
