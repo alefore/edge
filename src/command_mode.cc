@@ -1034,8 +1034,6 @@ class SwitchCaseCommand : public Command {
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     auto buffer = editor_state->current_buffer()->second;
-    auto line = buffer->current_line();
-
     editor_state->ApplyToCurrentBuffer(
         unique_ptr<Transformation>(new SwitchCaseTransformation()));
   }
