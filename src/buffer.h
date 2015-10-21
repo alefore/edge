@@ -180,6 +180,11 @@ class OpenBuffer {
 
   void MaybeFollowToEndOfFile();
 
+  // Returns the position immediately after end or before start (depending on
+  // the direction modifier).
+  LineColumn MovePosition(const Modifiers& modifiers, LineColumn start,
+                          LineColumn end);
+
   void ReadData(EditorState* editor_state);
 
   void Reload(EditorState* editor_state);
@@ -220,6 +225,10 @@ class OpenBuffer {
   // valid index for contents() (it may be just at the end).
   void CheckPosition();
 
+  bool BoundStructureAt(
+      const LineColumn& position, const Modifiers& modifiers, LineColumn* start,
+      LineColumn* end);
+
   // Sets the positions pointed to by start and end to the beginning and end of
   // the word at the position given by the first argument.  If there's no word
   // in the position given (just a whitespace), moves forward until it finds
@@ -228,7 +237,8 @@ class OpenBuffer {
   // If no word can be found (e.g. we're on a whitespace that's not followed by
   // any word characters), returns false.
   bool BoundWordAt(
-      const LineColumn& position, LineColumn* start, LineColumn* end);
+      const LineColumn& position, const Modifiers& modifiers, LineColumn* start,
+      LineColumn* end);
 
   const shared_ptr<Line> current_line() const {
     return LineAt(position_.line);

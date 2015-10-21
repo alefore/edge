@@ -278,7 +278,7 @@ class DeleteWordTransformation : public Transformation {
 
     LineColumn initial_position = buffer->position();
     LineColumn start, end;
-    if (!buffer->BoundWordAt(initial_position, &start, &end)) {
+    if (!buffer->BoundWordAt(initial_position, modifiers_, &start, &end)) {
       result->success = false;
       LOG(INFO) << "Unable to bound word, giving up.";
       return;
@@ -286,7 +286,7 @@ class DeleteWordTransformation : public Transformation {
     LOG(INFO) << "Starting at " << initial_position << " bound word from "
               << start << " to " << end;
     CHECK_EQ(start.line, end.line);
-    CHECK_LE(start.column + 1, end.column);
+    CHECK_LE(start, end);
     CHECK_LE(initial_position.line, start.line);
 
     TransformationStack stack;
@@ -317,33 +317,19 @@ class DeleteWordTransformation : public Transformation {
     CHECK_EQ(start.line, end.line);
     CHECK_EQ(start.line, initial_position.line);
     CHECK_LE(start.column, initial_position.column);
-    CHECK_LT(initial_position.column, end.column);
-    switch (modifiers_.structure_range) {
-      case Modifiers::ENTIRE_STRUCTURE:
-        break;
-      case Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION:
-        end = initial_position;
-        break;
-      case Modifiers::FROM_CURRENT_POSITION_TO_END:
-        start = initial_position;
-        break;
-    }
+    CHECK_LE(initial_position.column, end.column);
     if (initial_position.column > start.column) {
       LOG(INFO) << "Scroll back: " << initial_position.column - start.column;
-      stack.PushBack(NewSetRepetitionsTransformation(
-          initial_position.column - start.column,
-          NewDirectionTransformation(
-              Direction::BACKWARDS,
-              NewStructureTransformation(
-                  CHAR, Modifiers::ENTIRE_STRUCTURE,
-                  NewMoveTransformation()))));
+      stack.PushBack(NewGotoPositionTransformation(start));
     }
-    CHECK(end.column >= start.column);
+    CHECK_GE(end.column, start.column);
     size_t size = end.column - start.column;
-    LOG(INFO) << "Erasing word, characters: " << size;
-    Modifiers modifiers;
-    modifiers.repetitions = size;
-    stack.PushBack(NewDeleteCharactersTransformation(modifiers, true));
+    if (size > 0) {
+      LOG(INFO) << "Erasing word, characters: " << size;
+      Modifiers modifiers;
+      modifiers.repetitions = size;
+      stack.PushBack(NewDeleteCharactersTransformation(modifiers, true));
+    }
     stack.Apply(editor_state, buffer, result);
   }
 

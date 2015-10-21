@@ -596,6 +596,34 @@ void OpenBuffer::MaybeFollowToEndOfFile() {
   position_.column = 0;
 }
 
+LineColumn OpenBuffer::MovePosition(
+    const Modifiers& modifiers, LineColumn start, LineColumn end) {
+  LineColumn output;
+  switch (modifiers.direction) {
+    case FORWARDS:
+      output = end;
+      if (output.line >= contents()->size()) {
+        // Pass.
+      } else if (output.column < (*line())->size()) {
+        output.column++;
+      } else {
+        output = LineColumn(output.line + 1);
+      }
+      break;
+    case BACKWARDS:
+      output = start;
+      if (output == LineColumn(0)) {
+        // Pass.
+      } else if (output.line >= contents()->size() || output.column == 0) {
+        size_t line = min(output.line, contents()->size()) - 1;
+        output = LineColumn(line, LineAt(line)->size());
+      } else {
+        output.column --;
+      }
+  }
+  return output;
+}
+
 void OpenBuffer::ReadData(EditorState* editor_state) {
   static const size_t kLowBufferSize = 1024 * 60;
   if (low_buffer_ == nullptr) {
@@ -628,7 +656,7 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
   low_buffer_tmp = low_buffer_;
   if (output_characters == -1) {
     low_buffer_tmp = nullptr;
-    for (int i = 0; i < low_buffer_length_; i++) {
+    for (size_t i = 0; i < low_buffer_length_; i++) {
       buffer[i] = static_cast<wchar_t>(low_buffer_[i]);
     }
   } else {
@@ -1186,12 +1214,51 @@ void OpenBuffer::CheckPosition() {
   }
 }
 
+bool OpenBuffer::BoundStructureAt(
+    const LineColumn& position, const Modifiers& modifiers, LineColumn* start,
+    LineColumn* end) {
+  switch (modifiers.structure) {
+    case CHAR:
+      {
+        LineColumn a = position;
+        LineColumn b = MovePosition(modifiers, a, a);
+        *start = min(a, b);
+        *end = max(a, b);
+      }
+      return true;
+    case WORD:
+      return BoundWordAt(position, modifiers, start, end);
+
+    case LINE:
+      *start =
+          modifiers.structure_range == Modifiers::FROM_CURRENT_POSITION_TO_END
+              ? position
+              : LineColumn(position.line);
+      *end =
+          modifiers.structure_range == Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION
+              ? position
+              : LineColumn(position.line + 1);
+      return true;
+
+    case BUFFER:
+    case REGION:
+    case MARK:
+    case SEARCH:
+    case PAGE:
+      return false;
+  }
+  // Just in case a compiler warning was ignored...
+  return false;
+}
+
 bool OpenBuffer::BoundWordAt(
-    const LineColumn& position_input, LineColumn* start, LineColumn* end) {
+    const LineColumn& position_input, const Modifiers& modifiers,
+    LineColumn* start, LineColumn* end) {
   const wstring& word_char = read_string_variable(variable_word_characters());
   LineColumn position(position_input);
 
-  // Seek forwards until we're at a word character.
+  // Seek forwards until we're at a word character. Typically, if we're already
+  // in a word character, this does nothing.
   while (at_end_of_line(position)
          || word_char.find(character_at(position)) == word_char.npos) {
     if (at_end(position)) {
@@ -1205,21 +1272,27 @@ bool OpenBuffer::BoundWordAt(
   }
 
   // Seek backwards until we're at the beginning of the word.
-  while (!at_beginning_of_line(position)
-         && word_char.find(character_at(LineColumn(position.line, position.column - 1))) != wstring::npos) {
-    assert(position.column > 0);
-    position.column--;
+  if (modifiers.structure_range != Modifiers::FROM_CURRENT_POSITION_TO_END) {
+    while (!at_beginning_of_line(position)
+           && word_char.find(
+                  character_at(LineColumn(position.line, position.column - 1)))
+              != wstring::npos) {
+      CHECK_GT(position.column, 0);
+      position.column--;
+    }
   }
 
   *start = position;
 
   // Seek forwards until the next space.
-  while (!at_end_of_line(position)
-         && word_char.find(character_at(position)) != wstring::npos) {
-    position.column ++;
+  if (modifiers.structure_range != Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION) {
+    while (!at_end_of_line(position)
+           && word_char.find(character_at(position)) != wstring::npos) {
+      position.column ++;
+    }
   }
 
-  *end = position;
+  *end = max(position, position_input);
   return true;
 }
 
