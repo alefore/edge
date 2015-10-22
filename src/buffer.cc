@@ -713,7 +713,7 @@ void OpenBuffer::StartNewLine(EditorState* editor_state) {
       mark.source = name_;
       mark.source_line = contents_.size() - 1;
       mark.target_buffer = path;
-      mark.line = positions.empty() ? 0 : positions[0];
+      mark.target = LineColumn(positions);
       LOG(INFO) << "Found a mark: " << mark;
       editor_state->line_marks()->AddMark(mark);
     }
@@ -1783,7 +1783,7 @@ const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks(
     line_marks_.clear();
     auto relevant_marks = marks->GetMarksForTargetBuffer(name_);
     for (auto& mark : relevant_marks) {
-      line_marks_.insert(make_pair(mark.line, mark));
+      line_marks_.insert(make_pair(mark.target.line, mark));
     }
     line_marks_last_updates_ = marks->updates;
   }

@@ -133,11 +133,12 @@ class MoveTransformation : public Transformation {
   }
 
   template <typename Iterator>
-  static size_t GetMarkPosition(Iterator it_begin, Iterator it_end,
-                                size_t current, EditorState* editor_state) {
+  static LineColumn GetMarkPosition(
+      Iterator it_begin, Iterator it_end, LineColumn current,
+      EditorState* editor_state) {
     using P = pair<const size_t, LineMarks::Mark>;
     Iterator it = std::upper_bound(
-        it_begin, it_end, P(current, LineMarks::Mark()),
+        it_begin, it_end, P(current.line, LineMarks::Mark()),
         editor_state->direction() == FORWARDS
             ? [](const P& a, const P& b) { return a.first < b.first; }
             : [](const P& a, const P& b) { return a.first > b.first; });
@@ -158,26 +159,23 @@ class MoveTransformation : public Transformation {
       }
     }
 
-    return it->first;
+    return it->second.target;
   }
 
   LineColumn MoveMark(EditorState* editor_state, OpenBuffer* buffer) const {
     const multimap<size_t, LineMarks::Mark>* marks =
         buffer->GetLineMarks(*editor_state);
 
-    size_t line;
     switch (editor_state->direction()) {
       case FORWARDS:
-        line = GetMarkPosition(
-            marks->begin(), marks->end(), buffer->position().line, editor_state);
+        return GetMarkPosition(
+            marks->begin(), marks->end(), buffer->position(), editor_state);
         break;
       case BACKWARDS:
-        line = GetMarkPosition(
-            marks->rbegin(), marks->rend(), buffer->position().line,
-            editor_state);
+        return GetMarkPosition(
+            marks->rbegin(), marks->rend(), buffer->position(), editor_state);
     }
-    return LineColumn(line, 0);
-
+    CHECK(false);
   }
 };
 

@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "editor_mode.h"
+#include "line_column.h"
 
 namespace afc {
 namespace editor {
@@ -25,7 +26,7 @@ struct LineMarks {
     std::wstring target_buffer;
 
     // The line marked.
-    size_t line = 0;
+    LineColumn target;
   };
 
   void AddMark(Mark mark);
