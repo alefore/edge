@@ -4,6 +4,7 @@
 #include <glog/logging.h>
 
 #include "editor.h"
+#include "tree.h"
 #include "terminal.h"
 #include "wstring.h"
 
@@ -18,6 +19,130 @@ void Clear(EditorState* editor_state) {
   editor_state->ProcessInputString("eeg99999999999999999999999d");
   editor_state->ProcessInput(Terminal::ESCAPE);
   CheckIsEmpty(editor_state);
+}
+
+void ShowList(list<int> l) {
+  std::cout << "List:";
+  for (auto i : l) { std::cout << " " << i; }
+  std::cout << "\n";
+}
+
+void TreeTestsLong() {
+  srand(0);
+  list<int> l;
+  Tree<int> t;
+  for (size_t i = 0; i < 500; i++) {
+    int position = rand() % (1 + t.size());
+    auto l_it = l.begin();
+    auto t_it = t.begin();
+    for (int i = 0; i < position; i++) {
+      CHECK(t_it == t.begin() + i);
+      ++l_it;
+      ++t_it;
+    }
+    CHECK(t_it == t.begin() + position);
+    if (position > 10) {
+      t_it = t.begin();
+      t_it += position / 2;
+      t_it += position - position / 2;
+      CHECK(t_it == t.begin() + position);
+    }
+    l.insert(l_it, i);
+    t.insert(t.begin() + position, i);
+  }
+  CHECK(list<int>(t.begin(), t.end()) == l);
+  LOG(INFO) << "Starting delete tests.";
+  for (size_t i = 0; i < 250; i++) {
+    int position = rand() % t.size();
+    auto l_it = l.begin();
+    auto t_it = t.begin();
+    for (int i = 0; i < position; i++) {
+      CHECK(t_it == t.begin() + i);
+      ++l_it;
+      ++t_it;
+    }
+    CHECK_EQ(*l_it, *t_it);
+    CHECK(t_it == t.begin() + position);
+    LOG(INFO) << "Erasing at position " << (position) << ": ";
+    l.erase(l_it);
+    t.erase(t.begin() + position);
+    CHECK_EQ(t.size(), l.size());
+    CHECK(list<int>(t.begin(), t.end()) == l);
+  }
+}
+
+std::ostream& operator<<(std::ostream& out, const Node<int>& node);
+
+void TreeTestsBasic() {
+  Tree<int> t;
+  std::cout << t << "\n";
+  CHECK(t.begin() == t.end());
+
+  t.push_back(10);
+  std::cout << t << "\n";
+  CHECK_EQ(t.front(), 10);
+  CHECK_EQ(t.back(), 10);
+  CHECK(t.begin() != t.end());
+
+  t.push_back(20);
+  std::cout << t << "\n";
+  CHECK_EQ(t.front(), 10);
+  CHECK_EQ(t.back(), 20);
+
+  {
+    auto it = t.begin();
+    CHECK_EQ(*it, 10);
+    ++it;
+    CHECK_EQ(*it, 20);
+    ++it;
+    CHECK(it == t.end());
+  }
+
+  t.push_back(30);
+  std::cout << t << "\n";
+  CHECK_EQ(t.front(), 10);
+  CHECK_EQ(t.back(), 30);
+
+  t.push_back(40);
+  std::cout << t << "\n";
+  CHECK_EQ(t.front(), 10);
+  CHECK_EQ(t.back(), 40);
+
+  t.insert(t.begin(), 5);
+  std::cout << t << "\n";
+  CHECK_EQ(t.front(), 5);
+
+  {
+    auto it = t.begin();
+    CHECK(it == t.begin());
+    CHECK_EQ(*it, 5);
+    ++it;
+    CHECK(it != t.end());
+    CHECK_EQ(*it, 10);
+    ++it;
+    CHECK(it != t.end());
+    CHECK_EQ(*it, 20);
+    ++it;
+    CHECK(it != t.end());
+    CHECK_EQ(*it, 30);
+    --it;
+    CHECK(it != t.end());
+    CHECK_EQ(*it, 20);
+    ++it;
+    CHECK(it != t.end());
+    CHECK_EQ(*it, 30);
+    ++it;
+    CHECK(it != t.end());
+    CHECK_EQ(*it, 40);
+    ++it;
+    CHECK(it == t.end());
+  }
+
+  {
+    auto it = t.begin();
+    it += 3;
+    CHECK_EQ(*it, 30);
+  }
 }
 
 int main(int, char**) {
@@ -207,6 +332,9 @@ int main(int, char**) {
            "AleJAnDRo\nfoRero");
 
   Clear(&editor_state);
+
+  TreeTestsLong();
+  TreeTestsBasic();
 
   std::cout << "Pass!\n";
   return 0;

@@ -21,6 +21,7 @@ extern "C" {
 #include "substring.h"
 #include "terminal.h"
 #include "transformation_delete.h"
+#include "tree.h"
 #include "vm/public/value.h"
 #include "wstring.h"
 
@@ -115,7 +116,7 @@ class InsertEmptyLineTransformation : public Transformation {
 
 class AutocompleteMode : public EditorMode {
  public:
-  using Iterator = vector<std::shared_ptr<Line>>::iterator;
+  using Iterator = Tree<std::shared_ptr<Line>>::iterator;
 
   struct Options {
     std::unique_ptr<EditorMode> delegate;
@@ -163,7 +164,7 @@ class AutocompleteMode : public EditorMode {
 
     LOG(INFO) << "Updating variables for next completion.";
     word_length_ = (*matches_current_)->size() + 1;
-    matches_current_++;
+    ++matches_current_;
     if (matches_current_ == options_.dictionary->contents()->end()) {
       matches_current_ = options_.matches_start;
     }

@@ -1110,13 +1110,13 @@ unique_ptr<Value> OpenBuffer::EvaluateFile(EditorState* editor_state,
 }
 
 LineColumn OpenBuffer::InsertInCurrentPosition(
-    const vector<shared_ptr<Line>>& insertion) {
+    const Tree<shared_ptr<Line>>& insertion) {
   MaybeAdjustPositionCol();
   return InsertInPosition(insertion, position());
 }
 
 LineColumn OpenBuffer::InsertInPosition(
-    const vector<shared_ptr<Line>>& insertion,
+    const Tree<shared_ptr<Line>>& insertion,
     const LineColumn& input_position) {
   if (insertion.empty()) { return input_position; }
   LineColumn position = input_position;

@@ -347,7 +347,7 @@ class HighlightedLineOutputReceiver : public Line::OutputReceiverInterface {
 
 void Terminal::ShowBuffer(const EditorState* editor_state) {
   const shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-  const vector<shared_ptr<Line>>& contents(*buffer->contents());
+  const Tree<shared_ptr<Line>>& contents(*buffer->contents());
 
   move(0, 0);
 
@@ -391,7 +391,7 @@ void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
   } else {
     curs_set(1);
   }
-  const vector<shared_ptr<Line>>& contents(*buffer->contents());
+  const Tree<shared_ptr<Line>>& contents(*buffer->contents());
   size_t position_line = min(buffer->position().line, contents.size() - 1);
   size_t line_length;
   if (contents.empty()) {

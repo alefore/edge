@@ -14,6 +14,7 @@
 #include "memory_mapped_file.h"
 #include "substring.h"
 #include "transformation.h"
+#include "tree.h"
 #include "variables.h"
 #include "vm/public/environment.h"
 #include "vm/public/value.h"
@@ -208,9 +209,9 @@ class OpenBuffer {
 
   const wstring& name() const { return name_; }
 
-  LineColumn InsertInCurrentPosition(const vector<shared_ptr<Line>>& insertion);
+  LineColumn InsertInCurrentPosition(const Tree<shared_ptr<Line>>& insertion);
   LineColumn InsertInPosition(
-      const vector<shared_ptr<Line>>& insertion, const LineColumn& position);
+      const Tree<shared_ptr<Line>>& insertion, const LineColumn& position);
   // Checks that current_position_col is in the expected range (between 0 and
   // the length of the current line).
   void MaybeAdjustPositionCol();
@@ -269,8 +270,8 @@ class OpenBuffer {
 
   int fd() const { return fd_; }
 
-  const vector<shared_ptr<Line>>* contents() const { return &contents_; }
-  vector<shared_ptr<Line>>* contents() { return &contents_; }
+  const Tree<shared_ptr<Line>>* contents() const { return &contents_; }
+  Tree<shared_ptr<Line>>* contents() { return &contents_; }
 
   size_t view_start_line() const { return view_start_line_; }
   void set_view_start_line(size_t value) {
@@ -503,7 +504,7 @@ class OpenBuffer {
 
   LineColumn position_pts_;
 
-  vector<shared_ptr<Line>> contents_;
+  Tree<shared_ptr<Line>> contents_;
 
   size_t view_start_line_;
   size_t view_start_column_;
