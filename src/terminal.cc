@@ -349,9 +349,10 @@ class HighlightedLineOutputReceiver : public Line::OutputReceiverInterface {
 class CursorsHighlighter : public Line::OutputReceiverInterface {
  public:
   CursorsHighlighter(Line::OutputReceiverInterface* delegate,
+                     size_t current,
                      set<size_t>::const_iterator first,
                      set<size_t>::const_iterator last)
-      : delegate_(delegate), first_(first), last_(last) {
+      : delegate_(delegate), current_(current), first_(first), last_(last) {
     CheckInvariants();
   }
 
@@ -362,6 +363,9 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
       ++first_;
       CHECK(first_ == last_ || *first_ > position_);
       AddModifier(Line::REVERSE);
+      if (current_ != position_) {
+        AddModifier(Line::CYAN);
+      }
     }
 
     delegate_->AddCharacter(c);
@@ -417,6 +421,7 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
   }
 
   Line::OutputReceiverInterface* const delegate_;
+  const size_t current_;
   set<size_t>::const_iterator first_;
   set<size_t>::const_iterator last_;
   size_t position_ = 0;
@@ -471,10 +476,15 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
           new HighlightedLineOutputReceiver(receiver));
       receiver = atomic_lines_highlighter.get();
     } else if (current_cursors != cursors.end()) {
+      size_t line =
+          buffer->current_cursor()->first - buffer->contents()->begin();
+      size_t current = line == current_line
+          ? buffer->current_cursor()->second
+          : std::numeric_limits<size_t>::max();
       LOG(INFO) << "Cursors in current line: "
                 << current_cursors->second.size();
       cursors_highlighter.reset(new CursorsHighlighter(
-          receiver, current_cursors->second.begin(),
+          receiver, current, current_cursors->second.begin(),
           current_cursors->second.end()));
       receiver = cursors_highlighter.get();
     }
