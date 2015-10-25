@@ -80,6 +80,7 @@ class DeleteCharactersTransformation : public Transformation {
         editor_state, buffer, line_begin, line_end, preserved_contents,
         chars_erase_line);
     if (copy_to_paste_buffer_) {
+      VLOG(5) << "Preparing delete buffer.";
       result->delete_buffer->Apply(
           editor_state, NewInsertBufferTransformation(delete_buffer, 1, END));
     }
@@ -91,14 +92,14 @@ class DeleteCharactersTransformation : public Transformation {
 
     LOG(INFO) << "Storing new line (at position " << max(current_line, line)
               << ").";
-    buffer->contents()->at(line_end).reset(new Line(Line::Options(
-        ProduceFinalLine(buffer, preserved_contents, line, chars_erase_line))));
+    buffer->ReplaceLine(
+        buffer->contents()->begin() + line_end,
+        std::make_shared<Line>(Line::Options(
+           ProduceFinalLine(buffer, preserved_contents, line,
+                            chars_erase_line))));
 
-    LOG(INFO) << "Erasing lines in range [" << line_begin << ", " << line_end
-              << ").";
-    buffer->contents()->erase(
-        buffer->contents()->begin() + line_begin,
-        buffer->contents()->begin() + line_end);
+    buffer->EraseLines(buffer->contents()->begin() + line_begin,
+                       buffer->contents()->begin() + line_end);
     result->modified_buffer = true;
 
     result->undo = TransformationAtPosition(buffer->position(),

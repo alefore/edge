@@ -116,13 +116,12 @@ class FileBuffer : public OpenBuffer {
     }
     closedir(dir);
 
-    struct Compare {
-      bool operator()(const shared_ptr<Line>& a, const shared_ptr<Line>& b) {
-        return *a->contents() < *b->contents();
-      }
-    } compare;
-
-    sort(target->contents()->begin() + 1, target->contents()->end(), compare);
+    target->SortContents(
+        target->contents()->begin() + 1,
+        target->contents()->end() + 1,
+        [](const shared_ptr<Line>& a, const shared_ptr<Line>& b) {
+          return *a->contents() < *b->contents();
+        });
     editor_state->CheckPosition();
     editor_state->PushCurrentPosition();
   }

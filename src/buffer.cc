@@ -461,7 +461,8 @@ using std::to_wstring;
 }
 
 OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
-    : name_(name),
+    : editor_(editor_state),
+      name_(name),
       fd_(-1),
       fd_is_terminal_(false),
       child_pid_(-1),
@@ -477,7 +478,9 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       function_variables_(ValueStruct()->NewInstance()),
       environment_(editor_state->environment()),
       filter_version_(0),
-      last_transformation_(NewNoopTransformation()) {
+      last_transformation_(NewNoopTransformation()),
+      current_cursor_(
+          active_cursors()->insert(make_pair(contents_.begin(), 0)).first) {
   environment_.Define(L"buffer", Value::NewObject(
       L"Buffer", shared_ptr<void>(this, [](void*){})));
 
@@ -538,7 +541,8 @@ void OpenBuffer::Enter(EditorState* editor_state) {
 }
 
 void OpenBuffer::ClearContents(EditorState* editor_state) {
-  contents_.clear();
+  LOG(INFO) << "Clear contents of buffer: " << name_;
+  EraseLines(contents_.begin(), contents_.end());
   position_pts_ = LineColumn();
   AppendEmptyLine(editor_state);
   editor_state->line_marks()->RemoveMarksFromSource(name_);
@@ -590,10 +594,9 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
 void OpenBuffer::MaybeFollowToEndOfFile() {
   if (!read_bool_variable(variable_follow_end_of_file())) { return; }
   if (read_bool_variable(variable_pts())) {
-    position_ = position_pts_;
+    set_position(position_pts_);
   }
-  position_.line = contents_.size();
-  position_.column = 0;
+  set_position(LineColumn(contents_.size()));
 }
 
 void OpenBuffer::ReadData(EditorState* editor_state) {
@@ -763,6 +766,64 @@ static void AddToParseTree(const shared_ptr<LazyString>& str_input) {
   wstring str = str_input->ToString();
 }
 
+void OpenBuffer::SortContents(
+    const Tree<shared_ptr<Line>>::const_iterator& first,
+    const Tree<shared_ptr<Line>>::const_iterator& last,
+    std::function<bool(const shared_ptr<Line>&, const shared_ptr<Line>&)>
+        compare) {
+  size_t delta_first = std::distance(contents_.cbegin(), first);
+  size_t delta_last = std::distance(contents_.cbegin(), last);
+  sort(contents_.begin() + delta_first, contents_.begin() + delta_last,
+       compare);
+}
+
+Tree<shared_ptr<Line>>::const_iterator OpenBuffer::EraseLines(
+    Tree<shared_ptr<Line>>::const_iterator const_first,
+    Tree<shared_ptr<Line>>::const_iterator const_last) {
+  // Need to do this silly dance to get non-const iterators.
+  int delta_first = const_first - contents_.begin();
+  int delta_last = const_last - contents_.begin();
+  LOG(INFO) << "Erasing lines in range [" << delta_first << ", " << delta_last
+            << ").";
+  Tree<shared_ptr<Line>>::iterator first = contents_.begin() + delta_first;
+  Tree<shared_ptr<Line>>::iterator last = contents_.begin() + delta_last;
+  bool needs_new_current_cursor = false;
+  for (auto& set_it : cursors_) {
+    for (auto it = set_it.second.begin(); it != set_it.second.end();) {
+      if (!(it->first < first) && it->first < last) {
+        if (it == current_cursor_) {
+          needs_new_current_cursor = true;
+        }
+        set_it.second.erase(it++);
+      } else {
+        ++it;
+      }
+    }
+  }
+  auto result = contents_.erase(first, last);
+  if (needs_new_current_cursor) {
+    LOG(INFO) << "Setting cursor to line: " << result - contents_.begin();
+    current_cursor_ = active_cursors()->insert(make_pair(result, 0)).first;
+  }
+  CHECK(current_cursor_->first >= contents_.begin());
+  CHECK(current_cursor_->first <= contents_.end());
+  return result;
+}
+
+void OpenBuffer::ReplaceLine(
+    Tree<shared_ptr<Line>>::const_iterator position,
+    shared_ptr<Line> line) {
+  size_t delta = std::distance(contents_.cbegin(), position);
+  *(contents_.begin() + delta) = line;
+}
+
+void OpenBuffer::InsertLine(
+    Tree<shared_ptr<Line>>::const_iterator position,
+    shared_ptr<Line> line) {
+  size_t delta = std::distance(contents_.cbegin(), position);
+  contents_.insert(contents_.begin() + delta, line);
+}
+
 void OpenBuffer::AppendLine(EditorState* editor_state, shared_ptr<LazyString> str) {
   CHECK(str != nullptr);
   if (reading_from_parser_) {
@@ -787,10 +848,15 @@ void OpenBuffer::AppendLine(EditorState* editor_state, shared_ptr<LazyString> st
   AppendRawLine(editor_state, str);
 }
 
-void OpenBuffer::AppendRawLine(EditorState*, shared_ptr<LazyString> str) {
+void OpenBuffer::AppendRawLine(EditorState* editor,
+                               shared_ptr<LazyString> str) {
   Line::Options options;
   options.contents = str;
-  contents_.emplace_back(new Line(options));
+  AppendRawLine(editor, std::make_shared<Line>(options));
+}
+
+void OpenBuffer::AppendRawLine(EditorState*, shared_ptr<Line> line) {
+  contents_.push_back(line);
   MaybeFollowToEndOfFile();
 }
 
@@ -1017,8 +1083,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
 
       case 'J':
         // ed: clear to end of screen.
-        contents_.erase(contents_.begin() + position_pts_.line + 1,
-                        contents_.end());
+        EraseLines(contents_.begin() + position_pts_.line + 1, contents_.end());
         CHECK_LT(position_pts_.line, contents_.size());
         return read_index;
 
@@ -1029,8 +1094,11 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
 
       case 'M':
         // dl1: delete one line.
-        contents_.erase(contents_.begin() + position_pts_.line);
-        CHECK_LT(position_pts_.line, contents_.size());
+        {
+          auto it = contents_.begin() + position_pts_.line;
+          EraseLines(it, it + 1);
+          CHECK_LT(position_pts_.line, contents_.size());
+        }
         return read_index;
 
       case 'P':
@@ -1071,7 +1139,7 @@ void OpenBuffer::AppendToLastLine(
   for (auto& it : modifiers) {
     options.modifiers.push_back(it);
   }
-  contents_.rbegin()->reset(new Line(options));
+  *contents_.rbegin() = std::make_shared<Line>(options);
 }
 
 unique_ptr<Expression> OpenBuffer::CompileString(EditorState*,
@@ -1141,7 +1209,7 @@ LineColumn OpenBuffer::InsertInPosition(
     if (position.line >= contents_.size()) {
       contents_.emplace_back(new Line(options));
     } else {
-      contents_.at(position.line).reset(new Line(options));
+      contents_.at(position.line) = std::make_shared<Line>(options);
     }
     contents_[position.line]->set_modified(true);
     return LineColumn(position.line, head->size() + line_to_insert->size());
@@ -1150,7 +1218,7 @@ LineColumn OpenBuffer::InsertInPosition(
   {
     Line::Options options;
     options.contents = StringAppend(head, (*insertion.begin())->contents());
-    contents_.at(position.line).reset(new Line(options));
+    contents_.at(position.line) = std::make_shared<Line>(options);
     if (contents_.at(position.line)->contents() != head) {
       contents_[position.line]->set_modified(true);
     }
@@ -1161,7 +1229,7 @@ LineColumn OpenBuffer::InsertInPosition(
     if (line_end >= contents_.size()) {
       contents_.emplace_back(new Line(options));
     } else {
-      contents_.at(line_end).reset(new Line(options));
+      contents_.at(line_end) = std::make_shared<Line>(options);
     }
   }
   if (head->size() > 0 || (*insertion.rbegin())->size() > 0) {
@@ -1175,15 +1243,28 @@ LineColumn OpenBuffer::InsertInPosition(
 void OpenBuffer::MaybeAdjustPositionCol() {
   if (contents_.empty() || current_line() == nullptr) { return; }
   size_t line_length = current_line()->size();
-  if (position_.column > line_length) {
-    position_.column = line_length;
+  if (current_cursor()->second > line_length) {
+    set_current_position_col(line_length);
   }
 }
 
 void OpenBuffer::CheckPosition() {
-  if (position_.line > contents_.size()) {
-    position_.line = contents_.size();
+  if (position().line > contents_.size()) {
+    set_current_position_line(contents_.size());
   }
+}
+
+typename OpenBuffer::CursorsSet* OpenBuffer::active_cursors() {
+  return &cursors_[editor_->modifiers().active_cursors];
+}
+
+void OpenBuffer::set_current_cursor(CursorsSet::value_type new_cursor) {
+  active_cursors()->erase(current_cursor());
+  current_cursor_ = active_cursors()->insert(new_cursor).first;
+}
+
+typename OpenBuffer::CursorsSet::iterator OpenBuffer::current_cursor() {
+  return current_cursor_;
 }
 
 bool OpenBuffer::BoundWordAt(
@@ -1221,6 +1302,16 @@ bool OpenBuffer::BoundWordAt(
 
   *end = position;
   return true;
+}
+
+const shared_ptr<Line> OpenBuffer::current_line() const {
+  if (current_cursor_->first == contents_.end()) { return nullptr; }
+  return *(*current_cursor_).first;
+}
+
+shared_ptr<Line> OpenBuffer::current_line() {
+  return std::const_pointer_cast<Line>(
+      const_cast<const OpenBuffer*>(this)->current_line());
 }
 
 wstring OpenBuffer::ToString() const {
@@ -1308,6 +1399,28 @@ void OpenBuffer::SetInputFile(
   fd_ = input_fd;
   fd_is_terminal_ = fd_is_terminal;
   child_pid_ = child_pid;
+}
+
+size_t OpenBuffer::current_position_line() const {
+  return current_cursor_->first - contents_.begin();
+}
+
+void OpenBuffer::set_current_position_line(size_t line) {
+  set_current_cursor(
+      make_pair(contents_.begin() + min(line, contents_.size()), 0));
+}
+
+size_t OpenBuffer::current_position_col() const {
+  return current_cursor_->second;
+}
+
+void OpenBuffer::set_current_position_col(size_t column) {
+  set_current_cursor(make_pair(current_cursor_->first, column));
+}
+
+const LineColumn OpenBuffer::position() const {
+  return LineColumn(current_cursor_->first - contents_.begin(),
+                    current_cursor_->second);
 }
 
 wstring OpenBuffer::FlagsString() const {

@@ -238,10 +238,10 @@ int main(int, char**) {
   assert(editor_state.current_buffer()->second->position().line == 2);
 
   editor_state.ProcessInputString("gf1f3f5f7f9");
-  assert(editor_state.current_buffer()->second->position().column == 9);
+  CHECK_EQ(editor_state.current_buffer()->second->position().column, 9);
 
   editor_state.ProcessInputString("b");
-  assert(editor_state.current_buffer()->second->position().column == 7);
+  CHECK_EQ(editor_state.current_buffer()->second->position().column, 7);
 
   editor_state.ProcessInputString("10g");
   assert(editor_state.current_buffer()->second->position().column == 9);

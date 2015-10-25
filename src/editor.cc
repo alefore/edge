@@ -406,11 +406,9 @@ void EditorState::PushCurrentPosition() {
       NewCopyString(
           current_buffer_->second->position().ToString()
           + L" " + current_buffer_->first))));
-  it->second->contents()->insert(
+  it->second->InsertLine(
       it->second->contents()->begin() + it->second->current_position_line(),
       line);
-  it->second->set_current_position_line(
-      it->second->current_position_line() + 1);
   CHECK_LE(it->second->position().line, it->second->contents()->size());
   if (it == current_buffer_) {
     ScheduleRedraw();

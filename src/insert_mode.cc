@@ -73,8 +73,8 @@ class NewLineTransformation : public Transformation {
     {
       shared_ptr<OpenBuffer> buffer_to_insert(
         new OpenBuffer(editor_state, L"- text inserted"));
-      buffer_to_insert->contents()
-          ->emplace_back(new Line(continuation_options));
+      buffer_to_insert->AppendRawLine(
+          editor_state, std::make_shared<Line>(continuation_options));
       transformation->PushBack(
           NewInsertBufferTransformation(buffer_to_insert, 1, END));
     }
@@ -116,7 +116,7 @@ class InsertEmptyLineTransformation : public Transformation {
 
 class AutocompleteMode : public EditorMode {
  public:
-  using Iterator = Tree<std::shared_ptr<Line>>::iterator;
+  using Iterator = Tree<std::shared_ptr<Line>>::const_iterator;
 
   struct Options {
     std::unique_ptr<EditorMode> delegate;

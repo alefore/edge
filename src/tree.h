@@ -51,10 +51,12 @@ class TreeIterator
   explicit TreeIterator(TreeItem* tree, NodeItem* node)
       : tree_(tree), node_(node) {}
 
-  bool operator==(const TreeIterator<Item, IsConst>& rhs) const;
-  bool operator!=(const TreeIterator<Item, IsConst>& rhs) const;
+  template <bool OtherIsConst>
+  bool operator==(const TreeIterator<Item, OtherIsConst>& rhs) const;
+  template <bool OtherIsConst>
+  bool operator!=(const TreeIterator<Item, OtherIsConst>& rhs) const;
 
-  TreeIterator<Item, false> operator=(TreeIterator<Item, IsConst> rhs);
+  TreeIterator<Item, IsConst> operator=(const TreeIterator<Item, IsConst>& rhs);
 
   TreeIterator<Item, IsConst>& operator++();
   TreeIterator<Item, IsConst>& operator--();
@@ -63,16 +65,26 @@ class TreeIterator
   TreeIterator<Item, IsConst>& operator-=(const int& num);
   TreeIterator<Item, IsConst> operator+(const int& num) const;
   TreeIterator<Item, IsConst> operator-(const int& num) const;
-  int operator-(const TreeIterator<Item, IsConst>& num) const;
-  bool operator<(const TreeIterator<Item, IsConst>& num) const;
+  int operator-(const TreeIterator<Item, true>& num) const;
+  int operator-(const TreeIterator<Item, false>& num) const;
 
-  reference operator*();
-  //const reference operator*() const;
+  template <bool OtherIsConst>
+  bool operator<(const TreeIterator<Item, OtherIsConst>& other) const;
+  template <bool OtherIsConst>
+  bool operator<=(const TreeIterator<Item, OtherIsConst>& other) const;
+  template <bool OtherIsConst>
+  bool operator>(const TreeIterator<Item, OtherIsConst>& other) const;
+  template <bool OtherIsConst>
+  bool operator>=(const TreeIterator<Item, OtherIsConst>& other) const;
+
+  reference operator*() const;
 
   operator TreeIterator<Item, true>() const;
 
  private:
   friend class Tree<Item>;
+  friend class TreeIterator<Item, true>;
+  friend class TreeIterator<Item, false>;
   TreeItem* tree_;
   NodeItem* node_;
 };
@@ -102,6 +114,7 @@ class Tree {
   // Returns an iterator pointing to the first element in the Tree (or the end
   // if there are no elements).
   iterator begin();
+  const_iterator cbegin();
   const_iterator begin() const;
   reverse_iterator rbegin();
   const_reverse_iterator rbegin() const;
@@ -109,6 +122,7 @@ class Tree {
   // Returns an iterator pointing to the end of the Tree (one after the last
   // element).
   iterator end();
+  const_iterator cend();
   const_iterator end() const;
 
   size_t size() const;
@@ -129,7 +143,8 @@ class Tree {
   void insert(const iterator& position, Item item);
 
   template <typename InputIterator>
-  void insert(iterator position, InputIterator first, InputIterator last);
+  void insert(const iterator& position, InputIterator first,
+              InputIterator last);
 
   iterator erase(iterator position);
   // TODO: Current implementation has linear runtime to end - start.
@@ -240,20 +255,22 @@ struct Node {
 };
 
 template <typename Item, bool IsConst>
+template <bool OtherIsConst>
 bool TreeIterator<Item, IsConst>::operator==(
-    const TreeIterator<Item, IsConst>& rhs) const {
+    const TreeIterator<Item, OtherIsConst>& rhs) const {
   return node_ == rhs.node_;
 }
 
 template <typename Item, bool IsConst>
+template <bool OtherIsConst>
 bool TreeIterator<Item, IsConst>::operator!=(
-    const TreeIterator<Item, IsConst>& rhs) const {
+    const TreeIterator<Item, OtherIsConst>& rhs) const {
   return !(*this == rhs);
 }
 
 template <typename Item, bool IsConst>
-TreeIterator<Item, false> TreeIterator<Item, IsConst>::operator=(
-    TreeIterator<Item, IsConst> rhs) {
+TreeIterator<Item, IsConst> TreeIterator<Item, IsConst>::operator=(
+    const TreeIterator<Item, IsConst>& rhs) {
   this->tree_ = rhs.tree_;
   this->node_ = rhs.node_;
   return *this;
@@ -379,33 +396,51 @@ TreeIterator<Item, IsConst> TreeIterator<Item, IsConst>::operator-(
 
 template <typename Item, bool IsConst>
 int TreeIterator<Item, IsConst>::operator-(
-    const TreeIterator<Item, IsConst>& other) const {
+    const TreeIterator<Item, true>& other) const {
   return tree_->FindPosition(this->node_) - tree_->FindPosition(other.node_);
 }
 
 template <typename Item, bool IsConst>
+int TreeIterator<Item, IsConst>::operator-(
+    const TreeIterator<Item, false>& other) const {
+  return tree_->FindPosition(this->node_) - tree_->FindPosition(other.node_);
+}
+
+template <typename Item, bool IsConst>
+template <bool OtherIsConst>
 bool TreeIterator<Item, IsConst>::operator<(
-    const TreeIterator<Item, IsConst>& other) const {
+    const TreeIterator<Item, OtherIsConst>& other) const {
   return tree_->FindPosition(this->node_) < tree_->FindPosition(other.node_);
 }
 
-template <typename Node, bool IsConst >
-typename TreeIterator<Node, IsConst>::reference
-    TreeIterator<Node, IsConst>::operator*() {
-  DCHECK(node_ != nullptr)
-      << "Attempt to dereference iterator past end of tree.";
-  return node_->item;
+template <typename Item, bool IsConst>
+template <bool OtherIsConst>
+bool TreeIterator<Item, IsConst>::operator<=(
+    const TreeIterator<Item, OtherIsConst>& other) const {
+  return *this < other || *this == other;
 }
 
-#if 0
-template <typename Node, typename Container>
-typename TreeIterator<Node, Container>::const_reference
-    TreeIterator<Node, Container>::operator*() const {
+template <typename Item, bool IsConst>
+template <bool OtherIsConst>
+bool TreeIterator<Item, IsConst>::operator>(
+    const TreeIterator<Item, OtherIsConst>& other) const {
+  return other < *this;
+}
+
+template <typename Item, bool IsConst>
+template <bool OtherIsConst>
+bool TreeIterator<Item, IsConst>::operator>=(
+    const TreeIterator<Item, OtherIsConst>& other) const {
+  return *this > other || *this == other;
+}
+
+template <typename Item, bool IsConst>
+typename TreeIterator<Item, IsConst>::reference
+    TreeIterator<Item, IsConst>::operator*() const {
   DCHECK(node_ != nullptr)
       << "Attempt to dereference iterator past end of tree.";
   return node_->item;
 }
-#endif
 
 template <typename Item, bool IsConst>
 TreeIterator<Item, IsConst>::operator TreeIterator<Item, true>() const {
@@ -475,6 +510,11 @@ typename Tree<Item>::iterator Tree<Item>::begin() {
 }
 
 template <typename Item>
+typename Tree<Item>::const_iterator Tree<Item>::cbegin() {
+  return const_iterator(this, FirstNode(root_));
+}
+
+template <typename Item>
 typename Tree<Item>::const_iterator Tree<Item>::begin() const {
   return const_iterator(this, FirstNode(root_));
 }
@@ -493,6 +533,12 @@ template <typename Item>
 typename Tree<Item>::iterator Tree<Item>::end() {
   ValidateInvariants();
   return iterator(this, nullptr);
+}
+
+template <typename Item>
+typename Tree<Item>::const_iterator Tree<Item>::cend() {
+  ValidateInvariants();
+  return const_iterator(this, nullptr);
 }
 
 template <typename Item>
@@ -542,7 +588,7 @@ void Tree<Item>::insert(const iterator& position, Item item) {
 
 template <typename Item>
 template <typename InputIterator>
-void Tree<Item>::insert(iterator position, InputIterator first,
+void Tree<Item>::insert(const iterator& position, InputIterator first,
                         InputIterator last) {
   while (first != last) {
     insert(position, *first);

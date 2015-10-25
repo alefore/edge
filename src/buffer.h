@@ -154,6 +154,9 @@ class BufferLineReverseIterator
 
 class OpenBuffer {
  public:
+  typedef std::set<std::pair<Tree<shared_ptr<Line>>::iterator, size_t>>
+      CursorsSet;
+
   // Name of a special buffer that shows the list of buffers.
   static const wstring kBuffersName;
   static const wstring kPasteBuffer;
@@ -186,9 +189,33 @@ class OpenBuffer {
   void Reload(EditorState* editor_state);
   virtual void EndOfFile(EditorState* editor_state);
 
+  // Sort all lines in range [first, last) according to a compare function.
+  void SortContents(
+      const Tree<shared_ptr<Line>>::const_iterator& first,
+      const Tree<shared_ptr<Line>>::const_iterator& last,
+      std::function<bool(const shared_ptr<Line>&, const shared_ptr<Line>&)>
+          compare);
+
+  Tree<shared_ptr<Line>>::const_iterator EraseLines(
+      Tree<shared_ptr<Line>>::const_iterator first,
+      Tree<shared_ptr<Line>>::const_iterator last);
+
+  // Overwrites the line at a given position with a new line.
+  void ReplaceLine(Tree<shared_ptr<Line>>::const_iterator position,
+                   shared_ptr<Line> line);
+
+  // Inserts a new line into the buffer at a given position.
+  void InsertLine(
+      Tree<shared_ptr<Line>>::const_iterator position,
+      shared_ptr<Line> line);
+
   void AppendLazyString(EditorState* editor_state, shared_ptr<LazyString> input);
   void AppendLine(EditorState* editor_state, shared_ptr<LazyString> line);
   virtual void AppendRawLine(EditorState* editor_state, shared_ptr<LazyString> str);
+
+  // Insert a line at the end of the buffer.
+  void AppendRawLine(EditorState* editor, shared_ptr<Line> line);
+
   size_t ProcessTerminalEscapeSequence(
       EditorState* editor_state, shared_ptr<LazyString> str, size_t read_index,
       std::unordered_set<Line::Modifier, hash<int>>* modifiers);
@@ -221,6 +248,10 @@ class OpenBuffer {
   // valid index for contents() (it may be just at the end).
   void CheckPosition();
 
+  CursorsSet* active_cursors();
+  void set_current_cursor(CursorsSet::value_type new_cursor);
+  CursorsSet::iterator current_cursor();
+
   // Sets the positions pointed to by start and end to the beginning and end of
   // the word at the position given by the first argument.  If there's no word
   // in the position given (just a whitespace), moves forward until it finds
@@ -231,12 +262,10 @@ class OpenBuffer {
   bool BoundWordAt(
       const LineColumn& position, LineColumn* start, LineColumn* end);
 
-  const shared_ptr<Line> current_line() const {
-    return LineAt(position_.line);
-  }
-  shared_ptr<Line> current_line() {
-    return LineAt(position_.line);
-  }
+  // May return nullptr if the current_cursor is at the end of file.
+  const shared_ptr<Line> current_line() const;
+  shared_ptr<Line> current_line();
+
   shared_ptr<Line> LineAt(size_t line_number) const {
     CHECK(!contents_.empty());
     if (line_number >= contents_.size()) {
@@ -262,16 +291,18 @@ class OpenBuffer {
   wstring ToString() const;
 
   void replace_current_line(const shared_ptr<Line>& line) {
-    if (position_.line >= contents_.size()) {
-      position_.line = contents_.size() - 1;
+    if (current_cursor_->first == contents_.end()) {
+      CHECK(!contents_.empty());
+      set_current_position_line(contents_.size() - 1);
     }
-    contents_.at(position_.line) = line;
+    *current_cursor_->first = line;
   }
 
   int fd() const { return fd_; }
 
+  // We deliberately provide only a read view into our contents. All
+  // modifications should be done through methods defined in this class.
   const Tree<shared_ptr<Line>>* contents() const { return &contents_; }
-  Tree<shared_ptr<Line>>* contents() { return &contents_; }
 
   size_t view_start_line() const { return view_start_line_; }
   void set_view_start_line(size_t value) {
@@ -321,14 +352,11 @@ class OpenBuffer {
     assert(current_position_col() > 0);
     return current_line()->get(current_position_col() - 1);
   }
-  size_t current_position_line() const { return position_.line; }
-  void set_current_position_line(size_t line) {
-    position_.line = line;
-  }
-  size_t current_position_col() const { return position_.column; }
-  void set_current_position_col(size_t column) {
-    position_.column = column;
-  }
+
+  void set_current_position_line(size_t line);
+  size_t current_position_line() const;
+  size_t current_position_col() const;
+  void set_current_position_col(size_t column);
 
   BufferLineIterator begin() {
     return BufferLineIterator(this, 0);
@@ -348,25 +376,31 @@ class OpenBuffer {
   }
   BufferLineIterator line() {
     CHECK(!contents_.empty());
-    size_t line = min(position_.line, contents_.size() - 1);
+    size_t line = min(current_position_line(), contents_.size() - 1);
     return BufferLineIterator(this, line);
   }
 
   void LineUp() {
-    if (position_.line != 0) {
-      position_.line = min(position_.line, contents_.size()) - 1;
+    if (current_cursor_->first != contents_.begin()) {
+      set_current_cursor(
+          make_pair(current_cursor_->first - 1, current_cursor_->second));
     }
     set_bool_variable(OpenBuffer::variable_follow_end_of_file(), false);
   }
 
   void LineDown() {
-    position_.line++;
+    if (current_cursor_->first < contents_.end()) {
+      set_current_cursor(
+          make_pair(current_cursor_->first + 1, current_cursor_->second));
+    }
   }
 
-  const LineColumn position() const {
-    return position_;
+  const LineColumn position() const;
+
+  void set_position(const LineColumn& position) {
+    set_current_cursor(
+        make_pair(contents_.begin() + position.line, position.column));
   }
-  void set_position(const LineColumn& position) { position_ = position; }
 
   void set_modified(bool value) { modified_ = value; }
   bool modified() const { return modified_; }
@@ -474,6 +508,8 @@ class OpenBuffer {
   Environment* environment() { return &environment_; }
 
  protected:
+  EditorState* editor_;
+
   vector<unique_ptr<ParseTree>> parse_tree;
 
   wstring name_;
@@ -508,8 +544,6 @@ class OpenBuffer {
 
   size_t view_start_line_;
   size_t view_start_column_;
-
-  LineColumn position_;
 
   bool modified_;
   bool reading_from_parser_;
@@ -566,6 +600,11 @@ class OpenBuffer {
   // line_marks_. This allows us to avoid recomputing it when no new marks have
   // been added.
   size_t line_marks_last_updates_ = 0;
+
+  // Contains a collection of positions that commands should be applied to.
+  std::map<std::wstring, CursorsSet> cursors_;
+
+  CursorsSet::iterator current_cursor_;
 };
 
 }  // namespace editor

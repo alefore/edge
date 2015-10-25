@@ -57,18 +57,10 @@ class PredictionsBufferImpl : public OpenBuffer {
     LOG(INFO) << "Predictions buffer received end of file. Predictions: "
               << contents()->size();
     if (contents()->empty()) { return; }
-    struct Compare {
-      bool operator()(const shared_ptr<Line>& a, const shared_ptr<Line>& b) {
-        return *a->contents() < *b->contents();
-      }
-    } compare;
-
-    if (contents_.empty()) {
-      consumer_(L"");
-      return;
-    }
-
-    sort(contents()->begin(), contents()->end() - 1, compare);
+    SortContents(contents()->begin(), contents()->end() - 1,
+        [](const shared_ptr<Line>& a, const shared_ptr<Line>& b) {
+          return *a->contents() < *b->contents();
+        });
     wstring common_prefix = (*contents()->begin())->ToString();
     for (auto it = contents()->begin(); it != contents()->end(); ++it) {
       if ((*it)->size() == 0) {
@@ -250,7 +242,8 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
       auto result = mismatch(input.begin(), input.end(), (*it).first.begin());
       if (result.first == input.end()) {
         buffer->AppendToLastLine(editor_state, it->second);
-        buffer->contents()->emplace_back(new Line(Line::Options()));
+        buffer->AppendRawLine(editor_state,
+                              std::make_shared<Line>(Line::Options()));
       } else {
         break;
       }
