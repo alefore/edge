@@ -551,6 +551,7 @@ void OpenBuffer::ClearContents(EditorState* editor_state) {
 
 void OpenBuffer::AppendEmptyLine(EditorState*) {
   contents_.emplace_back(new Line(Line::Options()));
+  MaybeFollowToEndOfFile();
 }
 
 void OpenBuffer::EndOfFile(EditorState* editor_state) {
@@ -593,11 +594,16 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
 }
 
 void OpenBuffer::MaybeFollowToEndOfFile() {
+  if (desired_line_ < contents_.size()) {
+    set_current_position_line(desired_line_);
+    desired_line_ = std::numeric_limits<decltype(desired_line_)>::max();
+  }
   if (!read_bool_variable(variable_follow_end_of_file())) { return; }
   if (read_bool_variable(variable_pts())) {
     set_position(position_pts_);
+  } else {
+    set_position(LineColumn(contents_.size()));
   }
-  set_position(LineColumn(contents_.size()));
 }
 
 void OpenBuffer::ReadData(EditorState* editor_state) {
@@ -734,6 +740,7 @@ void OpenBuffer::Reload(EditorState* editor_state) {
   for (const auto& dir : editor_state->edge_path()) {
     EvaluateFile(editor_state, dir + L"/hooks/buffer-reload.cc");
   }
+  desired_line_ = current_position_line();
   ReloadInto(editor_state, this);
   set_modified(false);
   CheckPosition();
@@ -1501,6 +1508,15 @@ void OpenBuffer::set_current_position_col(size_t column) {
 const LineColumn OpenBuffer::position() const {
   return LineColumn(current_cursor_->first - contents_.begin(),
                     current_cursor_->second);
+}
+
+void OpenBuffer::set_position(const LineColumn& position) {
+  if (position.line > contents_.size()) {
+    desired_line_ = position.line;
+  }
+  set_current_cursor(
+      make_pair(contents_.begin() + min(position.line, contents_.size()),
+                position.column));
 }
 
 wstring OpenBuffer::FlagsString() const {

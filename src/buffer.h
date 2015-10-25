@@ -272,10 +272,7 @@ class OpenBuffer {
 
   const LineColumn position() const;
 
-  void set_position(const LineColumn& position) {
-    set_current_cursor(
-        make_pair(contents_.begin() + position.line, position.column));
-  }
+  void set_position(const LineColumn& position);
 
   void set_modified(bool value) { modified_ = value; }
   bool modified() const { return modified_; }
@@ -482,6 +479,10 @@ class OpenBuffer {
   std::map<std::wstring, CursorsSet> cursors_;
 
   CursorsSet::iterator current_cursor_;
+
+  // If we get a request to open a buffer and jump to a given line, we store
+  // that value here. Once we've read enough lines, we stay at this position.
+  size_t desired_line_ = std::numeric_limits<decltype(desired_line_)>::max();
 };
 
 }  // namespace editor
