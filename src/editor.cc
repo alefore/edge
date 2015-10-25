@@ -103,6 +103,58 @@ std::unique_ptr<Environment> NewDefaultEnvironment(EditorState* editor) {
         };
     editor_type->AddField(L"ReloadCurrentBuffer", std::move(callback));
   }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+
+    // Returns nothing.
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+
+    callback->type.type_arguments.push_back(
+        VMType::ObjectType(editor_type.get()));
+    callback->callback =
+        [](vector<unique_ptr<Value>> args) {
+          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+
+          auto editor = static_cast<EditorState*>(args[0]->user_value.get());
+          CHECK(editor != nullptr);
+
+          if (!editor->has_current_buffer()) { return Value::NewVoid(); }
+          auto buffer = editor->current_buffer()->second;
+          CHECK(buffer != nullptr);
+
+          buffer->CreateCursor();
+          editor->ResetModifiers();
+          return Value::NewVoid();
+        };
+    editor_type->AddField(L"CreateCursor", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+
+    // Returns nothing.
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+
+    callback->type.type_arguments.push_back(
+        VMType::ObjectType(editor_type.get()));
+    callback->callback =
+        [](vector<unique_ptr<Value>> args) {
+          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+
+          auto editor = static_cast<EditorState*>(args[0]->user_value.get());
+          CHECK(editor != nullptr);
+
+          if (!editor->has_current_buffer()) { return Value::NewVoid(); }
+          auto buffer = editor->current_buffer()->second;
+          CHECK(buffer != nullptr);
+
+          buffer->VisitNextCursor();
+          editor->ResetModifiers();
+          return Value::NewVoid();
+        };
+    editor_type->AddField(L"VisitNextCursor", std::move(callback));
+  }
 
   environment->DefineType(L"Editor", std::move(editor_type));
 
@@ -477,7 +529,7 @@ void EditorState::ApplyToCurrentBuffer(
     unique_ptr<Transformation> transformation) {
   CHECK(transformation != nullptr);
   assert(has_current_buffer());
-  current_buffer_->second->Apply(this, std::move(transformation));
+  current_buffer_->second->ApplyToCursors(std::move(transformation));
 }
 
 void EditorState::DefaultErrorHandler(const wstring& error_description) {

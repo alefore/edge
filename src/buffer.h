@@ -154,7 +154,7 @@ class BufferLineReverseIterator
 
 class OpenBuffer {
  public:
-  typedef std::set<std::pair<Tree<shared_ptr<Line>>::iterator, size_t>>
+  typedef std::list<std::pair<Tree<shared_ptr<Line>>::iterator, size_t>>
       CursorsSet;
 
   // Name of a special buffer that shows the list of buffers.
@@ -251,6 +251,8 @@ class OpenBuffer {
   CursorsSet* active_cursors();
   void set_current_cursor(CursorsSet::value_type new_cursor);
   CursorsSet::iterator current_cursor();
+  void CreateCursor();
+  void VisitNextCursor();
 
   // Sets the positions pointed to by start and end to the beginning and end of
   // the word at the position given by the first argument.  If there's no word
@@ -477,6 +479,7 @@ class OpenBuffer {
   void set_value_variable(const EdgeVariable<unique_ptr<Value>>* variable,
                           unique_ptr<Value> value);
 
+  void ApplyToCursors(unique_ptr<Transformation> transformation);
   void Apply(EditorState* editor_state,
              unique_ptr<Transformation> transformation);
   void RepeatLastTransformation(EditorState* editor_state);

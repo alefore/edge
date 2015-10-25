@@ -478,9 +478,10 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       function_variables_(ValueStruct()->NewInstance()),
       environment_(editor_state->environment()),
       filter_version_(0),
-      last_transformation_(NewNoopTransformation()),
-      current_cursor_(
-          active_cursors()->insert(make_pair(contents_.begin(), 0)).first) {
+      last_transformation_(NewNoopTransformation()) {
+  active_cursors()->emplace_back(contents_.begin(), 0);
+  current_cursor_ = active_cursors()->begin();
+
   environment_.Define(L"buffer", Value::NewObject(
       L"Buffer", shared_ptr<void>(this, [](void*){})));
 
@@ -790,24 +791,14 @@ Tree<shared_ptr<Line>>::const_iterator OpenBuffer::EraseLines(
             << ").";
   Tree<shared_ptr<Line>>::iterator first = contents_.begin() + delta_first;
   Tree<shared_ptr<Line>>::iterator last = contents_.begin() + delta_last;
-  bool needs_new_current_cursor = false;
   for (auto& set_it : cursors_) {
-    for (auto it = set_it.second.begin(); it != set_it.second.end();) {
-      if (!(it->first < first) && it->first < last) {
-        if (it == current_cursor_) {
-          needs_new_current_cursor = true;
-        }
-        set_it.second.erase(it++);
-      } else {
-        ++it;
+    for (auto& it : set_it.second) {
+      if (it.first >= first && it.first < last) {
+        it.first = last;
       }
     }
   }
   auto result = contents_.erase(first, last);
-  if (needs_new_current_cursor) {
-    LOG(INFO) << "Setting cursor to line: " << result - contents_.begin();
-    current_cursor_ = active_cursors()->insert(make_pair(result, 0)).first;
-  }
   CHECK(current_cursor_->first >= contents_.begin());
   CHECK(current_cursor_->first <= contents_.end());
   return result;
@@ -827,7 +818,8 @@ void OpenBuffer::InsertLine(
   contents_.insert(contents_.begin() + delta, line);
 }
 
-void OpenBuffer::AppendLine(EditorState* editor_state, shared_ptr<LazyString> str) {
+void OpenBuffer::AppendLine(EditorState* editor_state,
+                            shared_ptr<LazyString> str) {
   CHECK(str != nullptr);
   if (reading_from_parser_) {
     switch (str->get(0)) {
@@ -1261,13 +1253,30 @@ typename OpenBuffer::CursorsSet* OpenBuffer::active_cursors() {
   return &cursors_[editor_->modifiers().active_cursors];
 }
 
-void OpenBuffer::set_current_cursor(CursorsSet::value_type new_cursor) {
-  active_cursors()->erase(current_cursor());
-  current_cursor_ = active_cursors()->insert(new_cursor).first;
+void OpenBuffer::set_current_cursor(CursorsSet::value_type new_value) {
+  *current_cursor_ = new_value;
 }
 
 typename OpenBuffer::CursorsSet::iterator OpenBuffer::current_cursor() {
   return current_cursor_;
+}
+
+void OpenBuffer::CreateCursor() {
+  active_cursors()->push_back(*current_cursor_);
+}
+
+void OpenBuffer::VisitNextCursor() {
+  auto cursors = active_cursors();
+  if (cursors->empty()) {
+    return;
+  }
+  size_t repetitions = editor_->modifiers().repetitions % cursors->size();
+  for (size_t i = 0; i < repetitions; i++) {
+    current_cursor_++;
+    if (current_cursor_ == cursors->end()) {
+      current_cursor_ = cursors->begin();
+    }
+  }
 }
 
 bool OpenBuffer::BoundWordAt(
@@ -1805,14 +1814,36 @@ void OpenBuffer::CopyVariablesFrom(const shared_ptr<const OpenBuffer>& src) {
   string_variables_.CopyFrom(src->string_variables_);
 }
 
+void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
+  auto cursors = active_cursors();
+  LOG(INFO) << "Applying transformation to cursors: " << cursors->size();
+  for (CursorsSet::iterator it = cursors->begin(); it != cursors->end(); ++it) {
+    VLOG(6) << "Will apply transformation at line: "
+            << std::distance(contents_.begin(), it->first);
+  }
+  for (CursorsSet::iterator it = cursors->begin(); it != cursors->end(); ++it) {
+    CursorsSet::iterator final_current_cursor = current_cursor_;
+    VLOG(6) << "Applying transformation at line: "
+            << std::distance(contents_.begin(), it->first);
+    current_cursor_ = it;
+    Apply(editor_, transformation->Clone());
+    *it = *current_cursor_;
+    current_cursor_ = final_current_cursor;
+  }
+  VLOG(5) << "Done applying transformation to cursors: " << cursors->size();
+}
+
 void OpenBuffer::Apply(
     EditorState* editor_state, unique_ptr<Transformation> transformation) {
   if (!last_transformation_stack_.empty()) {
     CHECK(last_transformation_stack_.back() != nullptr);
     last_transformation_stack_.back()->PushBack(transformation->Clone());
   }
-  transformations_past_.emplace_back(new Transformation::Result(editor_state));
-  transformation->Apply(editor_state, this, transformations_past_.back().get());
+
+  transformations_past_.emplace_back(
+      new Transformation::Result(editor_state));
+  transformation->Apply(
+      editor_state, this, transformations_past_.back().get());
 
   auto delete_buffer = transformations_past_.back()->delete_buffer;
   if (delete_buffer->contents()->size() > 1

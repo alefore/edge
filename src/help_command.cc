@@ -31,7 +31,11 @@ class HelpCommand : public Command {
  public:
   HelpCommand(const map<vector<wint_t>, Command*>& commands,
               const wstring& mode_description)
-      : commands_(commands), mode_description_(mode_description) {}
+      : commands_(commands), mode_description_(mode_description) {
+    for (auto& it : commands_) {
+      DCHECK(it.second);
+    }
+  }
 
   const wstring Description() {
     return L"shows help about commands.";
