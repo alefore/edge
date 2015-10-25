@@ -62,6 +62,33 @@ static vector<wstring> GetEdgeConfigPath(const wstring& home) {
   return output;
 }
 
+void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
+                          void (OpenBuffer::*method)(void)) {
+  unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+
+  // Returns nothing.
+  callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+
+  callback->type.type_arguments.push_back(VMType::ObjectType(editor_type));
+  callback->callback =
+      [method](vector<unique_ptr<Value>> args) {
+        CHECK_EQ(args.size(), 1);
+        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+
+        auto editor = static_cast<EditorState*>(args[0]->user_value.get());
+        CHECK(editor != nullptr);
+
+        if (!editor->has_current_buffer()) { return Value::NewVoid(); }
+        auto buffer = editor->current_buffer()->second;
+        CHECK(buffer != nullptr);
+
+        (*buffer.*method)();
+        editor->ResetModifiers();
+        return Value::NewVoid();
+      };
+  editor_type->AddField(name, std::move(callback));
+}
+
 std::unique_ptr<Environment> NewDefaultEnvironment(EditorState* editor) {
   std::unique_ptr<Environment> environment(afc::vm::Environment::GetDefault());
 
@@ -103,137 +130,16 @@ std::unique_ptr<Environment> NewDefaultEnvironment(EditorState* editor) {
         };
     editor_type->AddField(L"ReloadCurrentBuffer", std::move(callback));
   }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-
-    // Returns nothing.
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-
-    callback->type.type_arguments.push_back(
-        VMType::ObjectType(editor_type.get()));
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1);
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-
-          auto editor = static_cast<EditorState*>(args[0]->user_value.get());
-          CHECK(editor != nullptr);
-
-          if (!editor->has_current_buffer()) { return Value::NewVoid(); }
-          auto buffer = editor->current_buffer()->second;
-          CHECK(buffer != nullptr);
-
-          buffer->CreateCursor();
-          editor->ResetModifiers();
-          return Value::NewVoid();
-        };
-    editor_type->AddField(L"CreateCursor", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-
-    // Returns nothing.
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-
-    callback->type.type_arguments.push_back(
-        VMType::ObjectType(editor_type.get()));
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1);
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-
-          auto editor = static_cast<EditorState*>(args[0]->user_value.get());
-          CHECK(editor != nullptr);
-
-          if (!editor->has_current_buffer()) { return Value::NewVoid(); }
-          auto buffer = editor->current_buffer()->second;
-          CHECK(buffer != nullptr);
-
-          buffer->VisitPreviousCursor();
-          editor->ResetModifiers();
-          return Value::NewVoid();
-        };
-    editor_type->AddField(L"VisitPreviousCursor", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-
-    // Returns nothing.
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-
-    callback->type.type_arguments.push_back(
-        VMType::ObjectType(editor_type.get()));
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1);
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-
-          auto editor = static_cast<EditorState*>(args[0]->user_value.get());
-          CHECK(editor != nullptr);
-
-          if (!editor->has_current_buffer()) { return Value::NewVoid(); }
-          auto buffer = editor->current_buffer()->second;
-          CHECK(buffer != nullptr);
-
-          buffer->VisitNextCursor();
-          editor->ResetModifiers();
-          return Value::NewVoid();
-        };
-    editor_type->AddField(L"VisitNextCursor", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-
-    // Returns nothing.
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-
-    callback->type.type_arguments.push_back(
-        VMType::ObjectType(editor_type.get()));
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1);
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-
-          auto editor = static_cast<EditorState*>(args[0]->user_value.get());
-          CHECK(editor != nullptr);
-
-          if (!editor->has_current_buffer()) { return Value::NewVoid(); }
-          auto buffer = editor->current_buffer()->second;
-          CHECK(buffer != nullptr);
-
-          buffer->DestroyCursor();
-          editor->ResetModifiers();
-          return Value::NewVoid();
-        };
-    editor_type->AddField(L"DestroyCursor", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-
-    // Returns nothing.
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-
-    callback->type.type_arguments.push_back(
-        VMType::ObjectType(editor_type.get()));
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1);
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-
-          auto editor = static_cast<EditorState*>(args[0]->user_value.get());
-          CHECK(editor != nullptr);
-
-          if (!editor->has_current_buffer()) { return Value::NewVoid(); }
-          auto buffer = editor->current_buffer()->second;
-          CHECK(buffer != nullptr);
-
-          buffer->DestroyOtherCursors();
-          editor->ResetModifiers();
-          return Value::NewVoid();
-        };
-    editor_type->AddField(L"DestroyOtherCursors", std::move(callback));
-  }
-
+  RegisterBufferMethod(editor_type.get(), L"VisitPreviousCursor",
+                       &OpenBuffer::VisitPreviousCursor);
+  RegisterBufferMethod(editor_type.get(), L"VisitNextCursor",
+                       &OpenBuffer::VisitNextCursor);
+  RegisterBufferMethod(editor_type.get(), L"CreateCursor",
+                       &OpenBuffer::CreateCursor);
+  RegisterBufferMethod(editor_type.get(), L"DestroyCursor",
+                       &OpenBuffer::DestroyCursor);
+  RegisterBufferMethod(editor_type.get(), L"DestroyOtherCursors",
+                       &OpenBuffer::DestroyOtherCursors);
   environment->DefineType(L"Editor", std::move(editor_type));
 
   environment->Define(L"editor", Value::NewObject(
