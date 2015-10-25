@@ -332,13 +332,12 @@ class DeleteWordTransformation : public Transformation {
     }
     if (initial_position.column > start.column) {
       LOG(INFO) << "Scroll back: " << initial_position.column - start.column;
-      stack.PushBack(NewSetRepetitionsTransformation(
-          initial_position.column - start.column,
-          NewDirectionTransformation(
-              Direction::BACKWARDS,
-              NewStructureTransformation(
-                  CHAR, Modifiers::ENTIRE_STRUCTURE,
-                  NewMoveTransformation()))));
+      Modifiers modifiers;
+      modifiers.direction = Direction::BACKWARDS;
+      modifiers.structure = CHAR;
+      modifiers.structure_range = Modifiers::ENTIRE_STRUCTURE;
+      modifiers.repetitions = initial_position.column - start.column;
+      stack.PushBack(NewMoveTransformation(modifiers));
     }
     CHECK(end.column >= start.column);
     size_t size = end.column - start.column;

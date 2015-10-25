@@ -564,7 +564,8 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
     case MARK:
       {
         if (!editor_state->has_current_buffer()) { return; }
-        editor_state->ApplyToCurrentBuffer(NewMoveTransformation());
+        editor_state->ApplyToCurrentBuffer(
+            NewMoveTransformation(editor_state->modifiers()));
         editor_state->ResetRepetitions();
         editor_state->ResetStructure();
         editor_state->ResetDirection();
