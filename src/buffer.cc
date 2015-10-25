@@ -1262,6 +1262,7 @@ void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
         make_pair(contents_.begin() + position.line, position.column));
   }
   current_cursor_ = cursors->begin();
+  editor_->ScheduleRedraw();
 }
 
 void OpenBuffer::set_current_cursor(CursorsSet::value_type new_value) {
@@ -1275,6 +1276,7 @@ typename OpenBuffer::CursorsSet::iterator OpenBuffer::current_cursor() {
 void OpenBuffer::CreateCursor() {
   active_cursors()->push_back(*current_cursor_);
   editor_->SetStatus(L"Cursor created.");
+  editor_->ScheduleRedraw();
 }
 
 void OpenBuffer::VisitPreviousCursor() {
@@ -1287,6 +1289,7 @@ void OpenBuffer::VisitPreviousCursor() {
     }
     --current_cursor_;
   }
+  editor_->ScheduleRedraw();
 }
 
 void OpenBuffer::VisitNextCursor() {
@@ -1299,6 +1302,7 @@ void OpenBuffer::VisitNextCursor() {
       current_cursor_ = cursors->begin();
     }
   }
+  editor_->ScheduleRedraw();
 }
 
 void OpenBuffer::DestroyCursor() {
@@ -1309,6 +1313,7 @@ void OpenBuffer::DestroyCursor() {
   for (size_t i = 0; i < repetitions; i++) {
     active_cursors()->erase(current_cursor_++);
   }
+  editor_->ScheduleRedraw();
 }
 
 void OpenBuffer::DestroyOtherCursors() {
@@ -1320,6 +1325,7 @@ void OpenBuffer::DestroyOtherCursors() {
       ++it;
     }
   }
+  editor_->ScheduleRedraw();
 }
 
 bool OpenBuffer::BoundWordAt(
