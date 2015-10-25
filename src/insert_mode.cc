@@ -195,7 +195,7 @@ class InsertMode : public EditorMode {
 
       case Terminal::ESCAPE:
         buffer->MaybeAdjustPositionCol();
-        buffer->Apply(editor_state, NewDeleteSuffixSuperfluousCharacters());
+        buffer->ApplyToCursors(NewDeleteSuffixSuperfluousCharacters());
         buffer->PopTransformationStack();
         for (size_t i = 1; i < editor_state->repetitions(); i++) {
           editor_state->current_buffer()
@@ -236,7 +236,7 @@ class InsertMode : public EditorMode {
           buffer->MaybeAdjustPositionCol();
           Modifiers modifiers;
           modifiers.direction = BACKWARDS;
-          buffer->Apply(editor_state,
+          buffer->ApplyToCursors(
               NewDeleteCharactersTransformation(modifiers, false));
           buffer->set_modified(true);
           editor_state->ScheduleRedraw();
@@ -244,7 +244,7 @@ class InsertMode : public EditorMode {
         return;
 
       case '\n':
-        buffer->Apply(editor_state,
+        buffer->ApplyToCursors(
             unique_ptr<Transformation>(new NewLineTransformation()));
         buffer->set_modified(true);
         editor_state->ScheduleRedraw();
@@ -256,7 +256,7 @@ class InsertMode : public EditorMode {
           new OpenBuffer(editor_state, L"- text inserted"));
       insert->AppendToLastLine(editor_state,
           NewCopyString(buffer->TransformKeyboardText(wstring(1, c))));
-      buffer->Apply(editor_state,
+      buffer->ApplyToCursors(
           NewInsertBufferTransformation(insert, 1, END));
     }
 
@@ -483,7 +483,7 @@ void EnterInsertMode(EditorState* editor_state) {
     editor_state->current_buffer()->second->CheckPosition();
     auto buffer = editor_state->current_buffer()->second;
     buffer->PushTransformationStack();
-    buffer->Apply(editor_state,
+    buffer->ApplyToCursors(
         unique_ptr<Transformation>(
             new InsertEmptyLineTransformation(editor_state->direction())));
     EnterInsertCharactersMode(editor_state);
