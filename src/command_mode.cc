@@ -1079,17 +1079,17 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
   }
   Register(L"af", NewForkCommand().release(), &output);
 
-  Register(L"C+",
+  Register(L"+",
       NewCppCommand(editor_state->environment(),
           L"// Create a new cursor at the current position.\n"
           L"editor.CreateCursor();").release(),
       &output);
-  Register(L"C-",
+  Register(L"-",
       NewCppCommand(editor_state->environment(),
           L"// Destroy current cursor(s) and jump to next.\n"
           L"editor.DestroyCursor();").release(),
       &output);
-  Register(L"C=",
+  Register(L"=",
       NewCppCommand(editor_state->environment(),
           L"// Destroy cursors other than the current one.\n"
           L"editor.DestroyOtherCursors();").release(),
