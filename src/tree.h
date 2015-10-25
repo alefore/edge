@@ -114,7 +114,7 @@ class Tree {
   // Returns an iterator pointing to the first element in the Tree (or the end
   // if there are no elements).
   iterator begin();
-  const_iterator cbegin();
+  const_iterator cbegin() const;
   const_iterator begin() const;
   reverse_iterator rbegin();
   const_reverse_iterator rbegin() const;
@@ -122,8 +122,10 @@ class Tree {
   // Returns an iterator pointing to the end of the Tree (one after the last
   // element).
   iterator end();
-  const_iterator cend();
+  const_iterator cend() const;
   const_iterator end() const;
+  reverse_iterator rend();
+  const_reverse_iterator rend() const;
 
   size_t size() const;
 
@@ -491,7 +493,7 @@ typename Tree<Item>::iterator Tree<Item>::begin() {
 }
 
 template <typename Item>
-typename Tree<Item>::const_iterator Tree<Item>::cbegin() {
+typename Tree<Item>::const_iterator Tree<Item>::cbegin() const {
   return const_iterator(this, FirstNode(root_));
 }
 
@@ -517,7 +519,7 @@ typename Tree<Item>::iterator Tree<Item>::end() {
 }
 
 template <typename Item>
-typename Tree<Item>::const_iterator Tree<Item>::cend() {
+typename Tree<Item>::const_iterator Tree<Item>::cend() const {
   ValidateInvariants();
   return const_iterator(this, nullptr);
 }
@@ -526,6 +528,16 @@ template <typename Item>
 typename Tree<Item>::const_iterator Tree<Item>::end() const {
   ValidateInvariants();
   return const_iterator(this, nullptr);
+}
+
+template <typename Item>
+typename Tree<Item>::reverse_iterator Tree<Item>::rend() {
+  return reverse_iterator(begin());
+}
+
+template <typename Item>
+typename Tree<Item>::const_reverse_iterator Tree<Item>::rend() const {
+  return const_reverse_iterator(cbegin());
 }
 
 template <typename Item>
