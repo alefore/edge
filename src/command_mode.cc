@@ -1056,7 +1056,8 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
   Register(L"ad", NewCloseBufferCommand().release(), &output);
   Register(L"aw", NewSaveBufferCommand().release(), &output);
   Register(L"av", NewSetVariableCommand().release(), &output);
-  Register(L"ac", NewRunCppCommand().release(), &output);
+  Register(L"ac", new RunCppFileCommand(), &output);
+  Register(L"aC", NewRunCppCommand().release(), &output);
   Register(L"a.", NewOpenDirectoryCommand().release(), &output);
   Register(L"al", NewListBuffersCommand().release(), &output);
   Register(L"ar",
@@ -1120,8 +1121,6 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
   Register(L"p", new Paste(), &output);
   Register(L"u", new UndoCommand(), &output);
   Register(L"\n", new ActivateLink(), &output);
-
-  Register(L"aC", new RunCppFileCommand(), &output);
 
   Register(L"b", new GotoPreviousPositionCommand(), &output);
   Register(L"n", NewNavigateCommand().release(), &output);
