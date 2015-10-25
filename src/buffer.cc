@@ -1263,19 +1263,40 @@ typename OpenBuffer::CursorsSet::iterator OpenBuffer::current_cursor() {
 
 void OpenBuffer::CreateCursor() {
   active_cursors()->push_back(*current_cursor_);
+  editor_->SetStatus(L"Cursor created.");
+}
+
+void OpenBuffer::VisitPreviousCursor() {
+  auto cursors = active_cursors();
+  if (cursors->empty()) { return; }
+  size_t repetitions = editor_->modifiers().repetitions % cursors->size();
+  for (size_t i = 0; i < repetitions; i++) {
+    if (current_cursor_ == cursors->begin()) {
+      current_cursor_ = cursors->end();
+    }
+    --current_cursor_;
+  }
 }
 
 void OpenBuffer::VisitNextCursor() {
   auto cursors = active_cursors();
-  if (cursors->empty()) {
-    return;
-  }
+  if (cursors->empty()) { return; }
   size_t repetitions = editor_->modifiers().repetitions % cursors->size();
   for (size_t i = 0; i < repetitions; i++) {
-    current_cursor_++;
+    ++current_cursor_;
     if (current_cursor_ == cursors->end()) {
       current_cursor_ = cursors->begin();
     }
+  }
+}
+
+void OpenBuffer::DestroyCursor() {
+  auto cursors = active_cursors();
+  if (cursors->size() <= 1) { return; }
+  size_t repetitions =
+      min(editor_->modifiers().repetitions, cursors->size() - 1);
+  for (size_t i = 0; i < repetitions; i++) {
+    active_cursors()->erase(current_cursor_++);
   }
 }
 

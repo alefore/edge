@@ -1092,14 +1092,19 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
           L"// Create a new cursor at the current position.\n"
           L"editor.CreateCursor();").release(),
       &output);
-  //Register(L"C-",
-      //NewCppCommand(editor_state->environment(),
-          //L"// Destroy nearest cursor(s) to current position.\n"
-          //L"editor.RemoveNearestCursor();").release(),
-      //&output);
+  Register(L"C-",
+      NewCppCommand(editor_state->environment(),
+          L"// Destroy current cursor(s) and jump to next.\n"
+          L"editor.DestroyCursor();").release(),
+      &output);
   Register(L"Ch",
       NewCppCommand(editor_state->environment(),
           L"// Switch to the previous cursor.\n"
+          L"editor.VisitPreviousCursor();").release(),
+      &output);
+  Register(L"Cl",
+      NewCppCommand(editor_state->environment(),
+          L"// Switch to the next cursor.\n"
           L"editor.VisitNextCursor();").release(),
       &output);
 

@@ -252,7 +252,9 @@ class OpenBuffer {
   void set_current_cursor(CursorsSet::value_type new_cursor);
   CursorsSet::iterator current_cursor();
   void CreateCursor();
+  void VisitPreviousCursor();
   void VisitNextCursor();
+  void DestroyCursor();
 
   // Sets the positions pointed to by start and end to the beginning and end of
   // the word at the position given by the first argument.  If there's no word
