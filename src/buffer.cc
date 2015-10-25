@@ -1253,6 +1253,17 @@ typename OpenBuffer::CursorsSet* OpenBuffer::active_cursors() {
   return &cursors_[editor_->modifiers().active_cursors];
 }
 
+void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
+  if (positions.empty()) { return; }
+  auto cursors = active_cursors();
+  cursors->clear();
+  for (auto& position : positions) {
+    cursors->push_back(
+        make_pair(contents_.begin() + position.line, position.column));
+  }
+  current_cursor_ = cursors->begin();
+}
+
 void OpenBuffer::set_current_cursor(CursorsSet::value_type new_value) {
   *current_cursor_ = new_value;
 }

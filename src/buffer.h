@@ -139,6 +139,8 @@ class OpenBuffer {
   void CheckPosition();
 
   CursorsSet* active_cursors();
+  // Removes all active cursors and replaces them with the ones given.
+  void set_active_cursors(const vector<LineColumn>& positions);
   void set_current_cursor(CursorsSet::value_type new_cursor);
   CursorsSet::iterator current_cursor();
   void CreateCursor();

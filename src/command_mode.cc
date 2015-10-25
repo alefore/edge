@@ -910,7 +910,7 @@ class StartSearchMode : public Command {
                     ->ToString();
             options.starting_position = buffer->position();
             options.maximum_lines_to_search = 1;
-            SearchHandler(editor_state, options);
+            DoSearch(editor_state, options);
           }
 
           editor_state->ResetMode();
@@ -930,18 +930,23 @@ class StartSearchMode : public Command {
           SearchOptions search_options;
           search_options.search_query = input;
           search_options.starting_position = position;
-          search_options.maximum_lines_to_search = 1;
-          SearchHandler(editor_state, search_options);
-
-          editor_state->ResetMode();
-          editor_state->ResetDirection();
-          editor_state->ResetStructure();
-          editor_state->ScheduleRedraw();
+          search_options.maximum_lines_to_search = 0;
+          DoSearch(editor_state, search_options);
         };
         options.predictor = SearchHandlerPredictor;
         Prompt(editor_state, std::move(options));
         break;
     }
+  }
+ private:
+  static void DoSearch(EditorState* editor_state,
+                       const SearchOptions& options) {
+    editor_state->current_buffer()
+        ->second->set_active_cursors(SearchHandler(editor_state, options));
+    editor_state->ResetMode();
+    editor_state->ResetDirection();
+    editor_state->ResetStructure();
+    editor_state->ScheduleRedraw();
   }
 };
 
