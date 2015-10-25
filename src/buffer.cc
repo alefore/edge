@@ -1484,6 +1484,7 @@ wstring OpenBuffer::FlagsString() const {
     OpenBuffer::variable_commands_background_mode();
     OpenBuffer::variable_reload_on_buffer_write();
     OpenBuffer::variable_contains_line_marks();
+    OpenBuffer::variable_multiple_cursors();
   }
   return output;
 }
@@ -1622,6 +1623,15 @@ OpenBuffer::variable_allow_dirty_delete() {
   static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
       L"contains_line_marks",
       L"If set to true, this buffer will be scanned for line marks.",
+      false);
+  return variable;
+}
+
+/* static */ EdgeVariable<char>* OpenBuffer::variable_multiple_cursors() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+      L"multiple_cursors",
+      L"If set to true, operations in this buffer apply to all cursors defined "
+      L"on it.",
       false);
   return variable;
 }
@@ -1815,22 +1825,29 @@ void OpenBuffer::CopyVariablesFrom(const shared_ptr<const OpenBuffer>& src) {
 }
 
 void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
-  auto cursors = active_cursors();
-  LOG(INFO) << "Applying transformation to cursors: " << cursors->size();
-  for (CursorsSet::iterator it = cursors->begin(); it != cursors->end(); ++it) {
-    VLOG(6) << "Will apply transformation at line: "
-            << std::distance(contents_.begin(), it->first);
+  CursorsSet single_cursor;
+  CursorsSet* cursors;
+  if (read_bool_variable(variable_multiple_cursors())) {
+    cursors = active_cursors();
+  } else {
+    cursors = &single_cursor;
+    single_cursor.push_back(*current_cursor_);
   }
+
+  LOG(INFO) << "Applying transformation to cursors: " << cursors->size();
   for (CursorsSet::iterator it = cursors->begin(); it != cursors->end(); ++it) {
     CursorsSet::iterator final_current_cursor = current_cursor_;
     VLOG(6) << "Applying transformation at line: "
             << std::distance(contents_.begin(), it->first);
-    current_cursor_ = it;
+    if (cursors != &single_cursor) {
+      current_cursor_ = it;
+    }
+
     Apply(editor_, transformation->Clone());
+
     *it = *current_cursor_;
     current_cursor_ = final_current_cursor;
   }
-  VLOG(5) << "Done applying transformation to cursors: " << cursors->size();
 }
 
 void OpenBuffer::Apply(

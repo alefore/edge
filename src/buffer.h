@@ -443,6 +443,7 @@ class OpenBuffer {
   static EdgeVariable<char>* variable_commands_background_mode();
   static EdgeVariable<char>* variable_reload_on_buffer_write();
   static EdgeVariable<char>* variable_contains_line_marks();
+  static EdgeVariable<char>* variable_multiple_cursors();
 
   static EdgeStruct<wstring>* StringStruct();
   static EdgeVariable<wstring>* variable_word_characters();
