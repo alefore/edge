@@ -1306,6 +1306,11 @@ void OpenBuffer::CreateCursor() {
 }
 
 void OpenBuffer::VisitPreviousCursor() {
+  LOG(INFO) << "Visiting previous cursor: " << editor_->modifiers();
+  if (editor_->modifiers().direction == BACKWARDS) {
+    editor_->set_direction(FORWARDS);
+    return VisitNextCursor();
+  }
   auto cursors = active_cursors();
   if (cursors->empty()) { return; }
   size_t repetitions = editor_->modifiers().repetitions % cursors->size();
@@ -1314,16 +1319,23 @@ void OpenBuffer::VisitPreviousCursor() {
       current_cursor_ = cursors->end();
     }
     --current_cursor_;
+    VLOG(6) << "Decrement cursor.";
   }
   editor_->ScheduleRedraw();
 }
 
 void OpenBuffer::VisitNextCursor() {
+  LOG(INFO) << "Visiting next cursor: " << editor_->modifiers();
+  if (editor_->modifiers().direction == BACKWARDS) {
+    editor_->set_direction(FORWARDS);
+    return VisitPreviousCursor();
+  }
   auto cursors = active_cursors();
   if (cursors->empty()) { return; }
   size_t repetitions = editor_->modifiers().repetitions % cursors->size();
   for (size_t i = 0; i < repetitions; i++) {
     ++current_cursor_;
+    VLOG(6) << "Increment cursor.";
     if (current_cursor_ == cursors->end()) {
       current_cursor_ = cursors->begin();
     }
@@ -1929,8 +1941,10 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
 
     Apply(editor_, transformation->Clone());
 
-    *it = *current_cursor_;
-    current_cursor_ = final_current_cursor;
+    if (it == current_cursor_) {
+      *it = *current_cursor_;
+      current_cursor_ = final_current_cursor;
+    }
   }
 }
 

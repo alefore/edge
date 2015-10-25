@@ -36,6 +36,13 @@ class MoveTransformation : public Transformation {
       case MARK:
         position = MoveMark(editor_state, buffer);
         break;
+      case CURSOR:
+        // Handles repetitions.
+        buffer->VisitNextCursor();
+        editor_state->ResetRepetitions();
+        editor_state->ResetStructure();
+        editor_state->ResetDirection();
+        return;
       default:
         CHECK(false);
     }
@@ -181,6 +188,7 @@ class MoveTransformation : public Transformation {
             marks->rbegin(), marks->rend(), buffer->position(), modifiers_);
     }
     CHECK(false);
+    return LineColumn();
   }
 
   Modifiers modifiers_;

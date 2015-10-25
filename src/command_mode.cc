@@ -555,6 +555,7 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
     case CHAR:
     case WORD:
     case MARK:
+    case CURSOR:
       {
         if (!editor_state->has_current_buffer()) { return; }
         editor_state->ApplyToCurrentBuffer(
@@ -605,6 +606,7 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
     case CHAR:
     case WORD:
     case MARK:
+    case CURSOR:
       {
         if (!editor_state->has_current_buffer()) { return; }
         editor_state->set_direction(
@@ -1091,16 +1093,6 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
       NewCppCommand(editor_state->environment(),
           L"// Destroy cursors other than the current one.\n"
           L"editor.DestroyOtherCursors();").release(),
-      &output);
-  Register(L"Ch",
-      NewCppCommand(editor_state->environment(),
-          L"// Switch to the previous cursor.\n"
-          L"editor.VisitPreviousCursor();").release(),
-      &output);
-  Register(L"Cl",
-      NewCppCommand(editor_state->environment(),
-          L"// Switch to the next cursor.\n"
-          L"editor.VisitNextCursor();").release(),
       &output);
 
   Register(L"i", new EnterInsertMode(), &output);
