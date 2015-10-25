@@ -512,6 +512,7 @@ command will affect.  To set the structure, press any of the following keys:
 
 "w" - Word: Affect the current word.
 "e" - Line: Affect the current line.
+"c" - Cursor: Affect the region from the current cursor to the next.
 "!" - Mark: Use the marks for lines in the current buffer. See section 7.2.23
       for details about marks.
 "F" - Search: The region affected is based on the next match to the last search

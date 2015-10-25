@@ -166,8 +166,8 @@ class GotoCommand : public Command {
         // TODO: Implement.
         break;
 
-      case REGION:
-        GotoRegion(editor_state);
+      case CURSOR:
+        GotoCursor(editor_state);
         break;
 
       case BUFFER:
@@ -234,23 +234,16 @@ class GotoCommand : public Command {
     }
   }
 
-  void GotoRegion(EditorState* editor_state) {
+  void GotoCursor(EditorState* editor_state) {
+    if (!editor_state->has_current_buffer()) { return; }
+    auto buffer = editor_state->current_buffer()->second;
+    auto cursors = buffer->active_cursors();
     auto modifiers = editor_state->modifiers();
-    if (!modifiers.has_region_start) {
-      LOG(INFO) << "GotoRegion got called with a region start, ignoring.";
-      return;
+    OpenBuffer::CursorsSet::iterator current = buffer->current_cursor();
+    for (size_t i = 0; i < modifiers.repetitions && current != cursors->begin();
+         i++) {
+      --current;
     }
-    auto& buffer_name = modifiers.region_start.buffer_name;
-    if (editor_state->current_buffer()->first != buffer_name) {
-      auto it = editor_state->buffers()->find(buffer_name);
-      if (it == editor_state->buffers()->end()) {
-        LOG(INFO) << "Region starts in unexistent buffer, ignoring.";
-        return;
-      }
-      editor_state->set_current_buffer(it);
-    }
-    editor_state->current_buffer()
-        ->second->set_position(modifiers.region_start.position);
   }
 
   const size_t calls_;
@@ -271,7 +264,7 @@ class Delete : public Command {
       case WORD:
       case LINE:
       case BUFFER:
-      case REGION:
+      case CURSOR:
         if (editor_state->has_current_buffer()) {
           auto buffer = editor_state->current_buffer()->second;
           editor_state->ApplyToCurrentBuffer(
@@ -735,36 +728,6 @@ class SetStructureCommand : public Command {
   const wstring description_;
 };
 
-class SetRegionStartCommand : public Command {
- public:
-  const wstring Description() {
-    return L"sets the region start / switches to region mode";
-  }
-
-  void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) { return; }
-
-    const auto buffer_it = editor_state->current_buffer();
-    auto modifiers = editor_state->modifiers();
-
-    if (modifiers.structure == REGION) {
-      DVLOG(5) << "Disabling REGION mode (and clearing region).";
-      modifiers.structure = CHAR;
-      modifiers.sticky_structure = false;
-      modifiers.has_region_start = false;
-    } else if (modifiers.has_region_start) {
-      DVLOG(5) << "Activating region mode: " << modifiers.region_start;
-      modifiers.structure = REGION;
-    } else {
-      modifiers.region_start.buffer_name = buffer_it->first;
-      modifiers.region_start.position = buffer_it->second->position();
-      modifiers.has_region_start = true;
-      DVLOG(5) << "Setting start of region: " << modifiers.region_start;
-    }
-    editor_state->set_modifiers(modifiers);
-  }
-};
-
 class SetStrengthCommand : public Command {
  public:
   SetStrengthCommand(Modifiers::Strength value,
@@ -1152,9 +1115,9 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
   Register(L"e", new SetStructureCommand(LINE, L"line"), &output);
   Register(L"E", new SetStructureCommand(PAGE, L"page"), &output);
   Register(L"F", new SetStructureCommand(SEARCH, L"search"), &output);
+  Register(L"c", new SetStructureCommand(CURSOR, L"cursor"), &output);
   Register(L"B", new SetStructureCommand(BUFFER, L"buffer"), &output);
   Register(L"!", new SetStructureCommand(MARK, L"mark"), &output);
-  Register(L"m", new SetRegionStartCommand(), &output);
 
   Register(L"W", new SetStrengthCommand(
       Modifiers::WEAK, Modifiers::VERY_WEAK, L"weak"), &output);
@@ -1166,7 +1129,7 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
   Register(L"u", new UndoCommand(), &output);
   Register(L"\n", new ActivateLink(), &output);
 
-  Register(L"c", new RunCppFileCommand(), &output);
+  Register(L"aC", new RunCppFileCommand(), &output);
 
   Register(L"b", new GotoPreviousPositionCommand(), &output);
   Register(L"n", NewNavigateCommand().release(), &output);

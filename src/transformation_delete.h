@@ -16,7 +16,7 @@ unique_ptr<Transformation> NewDeleteLinesTransformation(
     const Modifiers& modifiers, bool copy_to_paste_buffer);
 unique_ptr<Transformation> NewDeleteBufferTransformation(
     const Modifiers& modifiers, bool copy_to_paste_buffer);
-unique_ptr<Transformation> NewDeleteRegionTransformation(
+unique_ptr<Transformation> NewDeleteCursorTransformation(
     const Modifiers& modifiers, bool copy_to_paste_buffer);
 unique_ptr<Transformation> NewDeleteTransformation(
     const Modifiers& modifiers, bool copy_to_paste_buffer);

@@ -186,8 +186,8 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
       case BUFFER:
         structure = L"buffer";
         break;
-      case REGION:
-        structure = L"region";
+      case CURSOR:
+        structure = L"cursor";
         break;
     }
     if (!structure.empty()) {

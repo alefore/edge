@@ -12,7 +12,7 @@ enum Structure {
   MARK,
   PAGE,
   SEARCH,
-  REGION,
+  CURSOR,
   BUFFER,
 };
 
