@@ -342,6 +342,24 @@ int main(int, char**) {
 
   Clear(&editor_state);
 
+  // Test that delete word across multiple lines works.
+  editor_state.ProcessInputString("ialejandro\n\n\n\n  forero cuervo");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "alejandro\n\n\n\n  forero cuervo");
+
+  editor_state.ProcessInputString("egg");
+  CHECK_EQ(editor_state.current_buffer()->second->position(), LineColumn(0, 0));
+
+  editor_state.ProcessInputString("rg");
+  CHECK_EQ(editor_state.current_buffer()->second->position(), LineColumn(0, 9));
+
+  editor_state.ProcessInputString("w[d");
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "alejandroforero cuervo");
+
+  Clear(&editor_state);
+
   TreeTestsLong();
   TreeTestsBasic();
 

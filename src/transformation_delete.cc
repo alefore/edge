@@ -302,7 +302,6 @@ class DeleteWordTransformation : public Transformation {
         Modifiers modifiers;
         modifiers.structure_range = Modifiers::FROM_CURRENT_POSITION_TO_END;
         stack.PushBack(NewDeleteLinesTransformation(modifiers, true));
-        stack.PushBack(NewDeleteCharactersTransformation(Modifiers(), true));
       }
       start.column += initial_position.column;
       end.column += initial_position.column;
