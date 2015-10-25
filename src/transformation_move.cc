@@ -45,6 +45,9 @@ class MoveTransformation : public Transformation {
     if (modifiers_.repetitions > 1) {
       editor_state->PushCurrentPosition();
     }
+    if (buffer->active_cursors()->size() > 1) {
+      editor_state->ScheduleRedraw();
+    }
     editor_state->ResetRepetitions();
     editor_state->ResetStructure();
     editor_state->ResetDirection();
