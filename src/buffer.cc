@@ -1311,6 +1311,17 @@ void OpenBuffer::DestroyCursor() {
   }
 }
 
+void OpenBuffer::DestroyOtherCursors() {
+  auto cursors = active_cursors();
+  for (auto it = cursors->begin(); it != cursors->end();) {
+    if (it != current_cursor_) {
+      cursors->erase(it++);
+    } else {
+      ++it;
+    }
+  }
+}
+
 bool OpenBuffer::BoundWordAt(
     const LineColumn& position_input, LineColumn* start, LineColumn* end) {
   const wstring& word_char = read_string_variable(variable_word_characters());

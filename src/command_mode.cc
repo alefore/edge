@@ -1123,6 +1123,11 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
           L"// Destroy current cursor(s) and jump to next.\n"
           L"editor.DestroyCursor();").release(),
       &output);
+  Register(L"C=",
+      NewCppCommand(editor_state->environment(),
+          L"// Destroy cursors other than the current one.\n"
+          L"editor.DestroyOtherCursors();").release(),
+      &output);
   Register(L"Ch",
       NewCppCommand(editor_state->environment(),
           L"// Switch to the previous cursor.\n"

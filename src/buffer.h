@@ -147,6 +147,7 @@ class OpenBuffer {
   void VisitPreviousCursor();
   void VisitNextCursor();
   void DestroyCursor();
+  void DestroyOtherCursors();
 
   // Sets the positions pointed to by start and end to the beginning and end of
   // the word at the position given by the first argument.  If there's no word
