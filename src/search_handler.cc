@@ -55,8 +55,9 @@ vector<size_t> GetMatches(const wstring& line, const RegexPattern& pattern) {
 
 size_t FindInterestingMatch(
     const vector<size_t> matches, bool wrapped,
-    const BufferLineIterator& start_line, size_t start_column,
-    const BufferLineIterator& line) {
+    const Tree<shared_ptr<Line>>::const_iterator& start_line,
+    size_t start_column,
+    const Tree<shared_ptr<Line>>::const_iterator& line) {
   if (matches.empty()) { return wstring::npos; }
   if (line != start_line) { return *matches.begin(); }
   for (auto it = matches.begin(); it != matches.end(); ++it) {
@@ -69,8 +70,9 @@ size_t FindInterestingMatch(
 
 size_t FindInterestingMatch(
     const vector<size_t> matches, bool wrapped,
-    const BufferLineReverseIterator& start_line, size_t start_column,
-    const BufferLineReverseIterator& line) {
+    const Tree<shared_ptr<Line>>::const_reverse_iterator& start_line,
+    size_t start_column,
+    const Tree<shared_ptr<Line>>::const_reverse_iterator& line) {
   if (matches.empty()) { return wstring::npos; }
   if (line != start_line) { return *matches.begin(); }
   for (auto it = matches.rbegin(); it != matches.rend(); ++it) {
@@ -83,8 +85,8 @@ size_t FindInterestingMatch(
 
 template <typename Iterator>
 bool PerformSearch(
-    const wstring& input, OpenBuffer* buffer, const Iterator& start_line,
-    size_t start_column, const Iterator& begin, const Iterator& end,
+    const wstring& input, const Iterator& start_line,
+    size_t start_column, const Iterator& first, const Iterator& last,
     LineColumn* match_position, bool* wrapped) {
   using namespace afc::editor;
 
@@ -104,16 +106,16 @@ bool PerformSearch(
   *wrapped = false;
 
   while (true) {
-    if (line.line() < buffer->end().line()) {
+    if (line < last) {
       wstring str = (*line)->ToString();
 
       vector<size_t> matches = GetMatches(str, pattern);
       size_t interesting_match;
-      interesting_match =
-          FindInterestingMatch(matches, *wrapped, start_line, start_column, line);
+      interesting_match = FindInterestingMatch(
+          matches, *wrapped, start_line, start_column, line);
 
       if (interesting_match != wstring::npos) {
-        match_position->line = line.line();
+        match_position->line = line - first;
         match_position->column = interesting_match;
         return true;
       }
@@ -122,11 +124,11 @@ bool PerformSearch(
     if (line == start_line && *wrapped) {
       return false;
     }
-    if (line == end) {
-      line = begin;
+    if (line == last) {
+      line = first;
       *wrapped = true;
     } else {
-      line++;
+      ++line;
     }
   }
 }
@@ -158,17 +160,23 @@ bool PerformSearchWithDirection(
     EditorState* editor_state, const wstring& input, LineColumn* match_position,
     bool* wrapped) {
   auto buffer = editor_state->current_buffer()->second;
+  auto position = buffer->position();
   if (editor_state->direction() == FORWARDS) {
     return PerformSearch(
-        input, buffer.get(), buffer->line(), buffer->current_position_col(),
-        buffer->begin(), buffer->end(), match_position, wrapped);
+        input, buffer->contents()->begin() + position.line,
+        position.column, buffer->contents()->begin(), buffer->contents()->end(),
+        match_position, wrapped);
   }
 
-  BufferLineReverseIterator rev_iterator(buffer->line());
-  rev_iterator--;
-  return PerformSearch(
-      input, buffer.get(), rev_iterator, buffer->current_position_col(),
-      buffer->rbegin(), buffer->rend(), match_position, wrapped);
+  auto result = PerformSearch(
+      input, buffer->contents()->rend() - position.line,
+      position.column, buffer->contents()->rbegin(), buffer->contents()->rend(),
+      match_position, wrapped);
+  if (result) {
+    match_position->line =
+        buffer->contents()->size() - match_position->line - 1;
+  }
+  return result;
 }
 
 void SearchHandlerPredictor(

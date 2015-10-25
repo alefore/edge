@@ -364,7 +364,7 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
   if (search_paths_buffer == nullptr) {
     return;
   }
-  for (auto it : *search_paths_buffer) {
+  for (auto it : *search_paths_buffer->contents()) {
     output->push_back(it->ToString());
   }
 }

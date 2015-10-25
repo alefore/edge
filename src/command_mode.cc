@@ -495,8 +495,9 @@ const wstring LineDown::Description() {
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
         buffer->CheckPosition();
         VLOG(6) << "Down: Initial position: " << buffer->position();
-        const auto line_end = buffer->end();
-        while (editor_state->repetitions() && buffer->line() != line_end) {
+        const auto line_end = buffer->contents()->end();
+        while (editor_state->repetitions()
+               && buffer->current_cursor()->first != line_end) {
           VLOG(5) << "Down: Moving down.";
           buffer->LineDown();
           editor_state->set_repetitions(editor_state->repetitions() - 1);
@@ -982,8 +983,8 @@ class SwitchCaseTransformation : public Transformation {
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     unique_ptr<TransformationStack> stack(new TransformationStack);
     if (buffer->position().line < buffer->contents()->size()
-        && buffer->position().column < (*buffer->line())->size()) {
-      wchar_t c = (*buffer->line())->get(buffer->position().column);
+        && buffer->position().column < buffer->current_line()->size()) {
+      wchar_t c = buffer->current_line()->get(buffer->position().column);
       shared_ptr<OpenBuffer> buffer_to_insert(
           new OpenBuffer(editor_state, L"- text inserted"));
       buffer_to_insert->AppendToLastLine(editor_state,
@@ -999,7 +1000,7 @@ class SwitchCaseTransformation : public Transformation {
       case FORWARDS:
         if (position.line >= buffer->contents()->size()) {
           // Pass.
-        } else if (position.column < (*buffer->line())->size()) {
+        } else if (position.column < buffer->current_line()->size()) {
           position.column++;
         } else {
           position = LineColumn(position.line + 1);

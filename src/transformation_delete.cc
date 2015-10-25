@@ -34,7 +34,7 @@ class DeleteCharactersTransformation : public Transformation {
     }
     buffer->CheckPosition();
     buffer->set_position(min(buffer->position(), buffer->end_position()));
-    size_t current_line = buffer->line().line();
+    size_t current_line = buffer->current_position_line();
     buffer->MaybeAdjustPositionCol();
 
     shared_ptr<LazyString> preserved_contents =
@@ -168,9 +168,9 @@ class DeleteCharactersTransformation : public Transformation {
         return line->Substring(0, column);
       case BACKWARDS:
         return line->Substring(column);
-      default:
-        CHECK(false);
     }
+    CHECK(false);
+    return nullptr;
   }
 
   shared_ptr<LazyString> StartOfLine(
@@ -199,6 +199,7 @@ class DeleteCharactersTransformation : public Transformation {
              preserved_contents);
     }
     CHECK(false);
+    return nullptr;
   }
 
   // Loop away from the current line (in the direction given), stopping at the
@@ -463,7 +464,7 @@ class DeleteBufferTransformation : public Transformation {
     LOG(INFO) << "Erasing buffer (modifiers: " << modifiers_ << ") of size: "
               << buffer->contents()->size();
 
-    int current_line = buffer->line().line();
+    int current_line = buffer->current_position_line();
     int last_line = buffer->contents()->size();
 
     int begin = 0;
