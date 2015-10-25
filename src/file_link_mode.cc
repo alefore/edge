@@ -429,7 +429,10 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     editor_state->set_current_buffer(it.first);
     editor_state->ScheduleRedraw();
   }
-  SearchHandler(it.first->second->position(), pattern, editor_state);
+  SearchOptions search_options;
+  search_options.starting_position = it.first->second->position();
+  search_options.search_query = pattern;
+  SearchHandler(editor_state, search_options);
   return it.first;
 }
 

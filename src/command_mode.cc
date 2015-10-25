@@ -572,9 +572,14 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
       break;
 
     case SEARCH:
-      SearchHandler(
-          editor_state->current_buffer()->second->position(),
-          editor_state->last_search_query(), editor_state);
+      {
+        SearchOptions options;
+        options.search_query = editor_state->last_search_query();
+        options.starting_position =
+            editor_state->current_buffer()->second->position();
+        options.maximum_lines_to_search = 1;
+        SearchHandler(editor_state, options);
+      }
       editor_state->ResetMode();
       editor_state->ResetDirection();
       editor_state->ResetStructure();
@@ -617,9 +622,14 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
 
     case SEARCH:
       editor_state->set_direction(BACKWARDS);
-      SearchHandler(
-          editor_state->current_buffer()->second->position(),
-          editor_state->last_search_query(), editor_state);
+      {
+        SearchOptions options;
+        options.search_query = editor_state->last_search_query();
+        options.starting_position =
+            editor_state->current_buffer()->second->position();
+        options.maximum_lines_to_search = 1;
+        SearchHandler(editor_state, options);
+      }
       editor_state->ResetMode();
       editor_state->ResetDirection();
       editor_state->ResetStructure();
@@ -892,12 +902,17 @@ class StartSearchMode : public Command {
               || start.column > buffer->position().column) {
             buffer->set_position(start);
           }
-          SearchHandler(
-              buffer->position(),
-              buffer->LineAt(start.line)
-                  ->Substring(start.column, end.column - start.column)
-                  ->ToString(),
-              editor_state);
+          {
+            SearchOptions options;
+            options.search_query =
+                buffer->LineAt(start.line)
+                    ->Substring(start.column, end.column - start.column)
+                    ->ToString();
+            options.starting_position = buffer->position();
+            options.maximum_lines_to_search = 1;
+            SearchHandler(editor_state, options);
+          }
+
           editor_state->ResetMode();
           editor_state->ResetDirection();
           editor_state->ResetStructure();
@@ -912,7 +927,12 @@ class StartSearchMode : public Command {
         options.history_file = L"search";
         options.handler = [position](const wstring& input,
                                      EditorState* editor_state) {
-          SearchHandler(position, input, editor_state);
+          SearchOptions search_options;
+          search_options.search_query = input;
+          search_options.starting_position = position;
+          search_options.maximum_lines_to_search = 1;
+          SearchHandler(editor_state, search_options);
+
           editor_state->ResetMode();
           editor_state->ResetDirection();
           editor_state->ResetStructure();

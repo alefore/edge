@@ -2,6 +2,9 @@
 #define __AFC_EDITOR_SEARCH_HANDLER_H__
 
 #include <string>
+#include <vector>
+
+#include "line_column.h"
 
 namespace afc {
 namespace editor {
@@ -17,12 +20,19 @@ void SearchHandlerPredictor(
     const wstring& current_query,
     OpenBuffer* target);
 
-// starting_position must be the position in which the buffer was when the
-// search was started.  This is used to detect if the user has already navigated
-// the search through the predictor, in which case there's not much work to do.
-void SearchHandler(const LineColumn& starting_position,
-                   const wstring& input,
-                   EditorState* editor_state);
+struct SearchOptions {
+  // The position in which to start searching for positions.
+  LineColumn starting_position;
+
+  // The regular expression to search.
+  wstring search_query;
+
+  // The maximum number of lines to search. If 0, means unlimited.
+  size_t maximum_lines_to_search;
+};
+
+std::vector<LineColumn> SearchHandler(
+    EditorState* editor_state, const SearchOptions& options);
 
 }  // namespace editor
 }  // namespace afc

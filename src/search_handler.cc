@@ -84,11 +84,12 @@ size_t FindInterestingMatch(
 }
 
 template <typename Iterator>
-bool PerformSearch(
+vector<LineColumn> PerformSearch(
     const wstring& input, const Iterator& start_line,
     size_t start_column, const Iterator& first, const Iterator& last,
-    LineColumn* match_position, bool* wrapped) {
+    bool* wrapped) {
   using namespace afc::editor;
+  vector<LineColumn> positions;
 
 #if CPP_REGEX
   // TODO: Get rid of ToByteString. Ugh.
@@ -97,7 +98,7 @@ bool PerformSearch(
   regex_t pattern;
   // TODO: Get rid of ToByteString. Ugh.
   if (regcomp(&pattern, ToByteString(input).c_str(), REG_ICASE) != 0) {
-    return false;
+    return positions;
   }
 #endif
 
@@ -115,14 +116,12 @@ bool PerformSearch(
           matches, *wrapped, start_line, start_column, line);
 
       if (interesting_match != wstring::npos) {
-        match_position->line = line - first;
-        match_position->column = interesting_match;
-        return true;
+        positions.push_back(LineColumn(line - first, interesting_match));
       }
     }
 
     if (line == start_line && *wrapped) {
-      return false;
+      return positions;
     }
     if (line == last) {
       line = first;
@@ -156,25 +155,23 @@ RegexEscape(shared_ptr<LazyString> str) {
   return NewCopyString(results);
 }
 
-bool PerformSearchWithDirection(
-    EditorState* editor_state, const wstring& input, LineColumn* match_position,
-    bool* wrapped) {
+vector<LineColumn> PerformSearchWithDirection(
+    EditorState* editor_state, const wstring& input, bool* wrapped) {
   auto buffer = editor_state->current_buffer()->second;
   auto position = buffer->position();
   if (editor_state->direction() == FORWARDS) {
     return PerformSearch(
         input, buffer->contents()->begin() + position.line,
         position.column, buffer->contents()->begin(), buffer->contents()->end(),
-        match_position, wrapped);
+        wrapped);
   }
 
   auto result = PerformSearch(
       input, buffer->contents()->rend() - position.line,
       position.column, buffer->contents()->rbegin(), buffer->contents()->rend(),
-      match_position, wrapped);
-  if (result) {
-    match_position->line =
-        buffer->contents()->size() - match_position->line - 1;
+      wrapped);
+  for (auto& position : result) {
+    position.line = buffer->contents()->size() - position.line - 1;
   }
   return result;
 }
@@ -187,19 +184,19 @@ void SearchHandlerPredictor(
   bool already_wrapped = false;
   for (size_t i = 0; i < 10; i++) {
     bool wrapped;
-    if (!PerformSearchWithDirection(
-             editor_state, input, &match_position, &wrapped)) {
+    auto positions = PerformSearchWithDirection(editor_state, input, &wrapped);
+    if (positions.empty()) {
       break;
     }
     if (i == 0) {
-      buffer->set_position(match_position);
+      buffer->set_position(positions[0]);
       editor_state->set_status_prompt(false);
       editor_state->ScheduleRedraw();
     }
     predictions_buffer->AppendLine(
         editor_state,
         RegexEscape(
-            buffer->LineAt(match_position.line)->Substring(
+            buffer->LineAt(positions[0].line)->Substring(
                 match_position.column)));
     if (wrapped && already_wrapped) {
       break;
@@ -209,29 +206,28 @@ void SearchHandlerPredictor(
   predictions_buffer->EndOfFile(editor_state);
 }
 
-void SearchHandler(
-    const LineColumn& starting_position, const wstring& input,
-    EditorState* editor_state) {
-  editor_state->set_last_search_query(input);
-  if (!editor_state->has_current_buffer() || input.empty()) {
-    return;
+vector<LineColumn> SearchHandler(
+    EditorState* editor_state, const SearchOptions& options) {
+  editor_state->set_last_search_query(options.search_query);
+  if (!editor_state->has_current_buffer() || options.search_query.empty()) {
+    return vector<LineColumn>();
   }
 
   auto buffer = editor_state->current_buffer()->second;
-  if (starting_position != buffer->position()) {
+  if (options.starting_position != buffer->position()) {
     // The user must have used the predictor, which probably means we don't need
     // to do much.
-    return;
+    return vector<LineColumn>();
   }
 
-  LineColumn match_position;
   bool wrapped;
 
-  if (!PerformSearchWithDirection(
-           editor_state, input, &match_position, &wrapped)) {
-    editor_state->SetStatus(L"No matches: " + input);
+  auto results = PerformSearchWithDirection(
+      editor_state, options.search_query, &wrapped);
+  if (results.empty()) {
+    editor_state->SetStatus(L"No matches: " + options.search_query);
   } else {
-    buffer->set_position(match_position);
+    buffer->set_position(results[0]);
     editor_state->PushCurrentPosition();
     if (wrapped) {
       editor_state->SetStatus(L"Found (wrapped).");
@@ -239,6 +235,7 @@ void SearchHandler(
       editor_state->SetStatus(L"Found.");
     }
   }
+  return results;
 }
 
 }  // namespace editor
