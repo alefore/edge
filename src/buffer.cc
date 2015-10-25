@@ -1196,6 +1196,25 @@ LineColumn OpenBuffer::InsertInPosition(
   for (size_t i = 1; i < insertion.size() - 1; i++) {
     contents_.at(position.line + i)->set_modified(true);
   }
+  Tree<shared_ptr<Line>>::const_iterator line_it =
+      contents_.begin() + position.line;
+  // Reshuffle cursors unlucky enough to land on the insertion line right after
+  // the cursor. Ideally we wouldn't need to do that: those iterators would
+  // automatically reshuffle (just like the ones for the line do). Maybe some
+  // day.
+  for (auto& it_set : cursors_) {
+    for (auto& it : it_set.second) {
+      if (it.first == line_it && it.second > position.column) {
+        VLOG(5) << "Adjusting cursor at column: " << it.second;
+        it.first += insertion.size() - 1;
+        it.second += (*--insertion.end())->size();
+        if (insertion.size() > 1) {
+          it.second -= head->size();
+        }
+        VLOG(5) << "After adjustment: " << it.second;
+      }
+    }
+  }
   if (insertion.size() == 1) {
     if (insertion.at(0)->size() == 0) { return position; }
     auto line_to_insert = insertion.at(0)->contents();
@@ -2000,7 +2019,7 @@ const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks(
     }
     line_marks_last_updates_ = marks->updates;
   }
-  LOG(INFO) << "Returning multimap with size: " << line_marks_.size();
+  VLOG(10) << "Returning multimap with size: " << line_marks_.size();
   return &line_marks_;
 }
 
