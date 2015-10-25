@@ -116,9 +116,12 @@ class FileBuffer : public OpenBuffer {
     }
     closedir(dir);
 
+    list<shared_ptr<Line>> test(
+        target->contents()->begin() + 1,
+        target->contents()->end());
     target->SortContents(
         target->contents()->begin() + 1,
-        target->contents()->end() + 1,
+        target->contents()->end(),
         [](const shared_ptr<Line>& a, const shared_ptr<Line>& b) {
           return *a->contents() < *b->contents();
         });

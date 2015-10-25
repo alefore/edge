@@ -771,6 +771,7 @@ void OpenBuffer::SortContents(
     const Tree<shared_ptr<Line>>::const_iterator& last,
     std::function<bool(const shared_ptr<Line>&, const shared_ptr<Line>&)>
         compare) {
+  CHECK(first <= last);
   size_t delta_first = std::distance(contents_.cbegin(), first);
   size_t delta_last = std::distance(contents_.cbegin(), last);
   sort(contents_.begin() + delta_first, contents_.begin() + delta_last,
@@ -780,7 +781,9 @@ void OpenBuffer::SortContents(
 Tree<shared_ptr<Line>>::const_iterator OpenBuffer::EraseLines(
     Tree<shared_ptr<Line>>::const_iterator const_first,
     Tree<shared_ptr<Line>>::const_iterator const_last) {
-  // Need to do this silly dance to get non-const iterators.
+  if (const_first == const_last) {
+    return contents()->begin();  // That was easy...
+  }
   int delta_first = const_first - contents_.begin();
   int delta_last = const_last - contents_.begin();
   LOG(INFO) << "Erasing lines in range [" << delta_first << ", " << delta_last

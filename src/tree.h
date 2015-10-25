@@ -35,7 +35,7 @@ struct choose<false, IsTrue, IsFalse> {
 
 template <typename Item, bool IsConst>
 class TreeIterator
-    : public std::iterator<std::input_iterator_tag, Item> {
+    : public std::iterator<std::random_access_iterator_tag, Item> {
  public:
   typedef std::forward_iterator_tag iterator_category;
   typedef Item value_type;
@@ -254,6 +254,8 @@ struct Node {
   }
 };
 
+// ---- Functions for iterators ----
+
 template <typename Item, bool IsConst>
 template <bool OtherIsConst>
 bool TreeIterator<Item, IsConst>::operator==(
@@ -278,38 +280,13 @@ TreeIterator<Item, IsConst> TreeIterator<Item, IsConst>::operator=(
 
 template <typename Item, bool IsConst>
 TreeIterator<Item, IsConst>& TreeIterator<Item, IsConst>::operator++() {
-  DCHECK(node_ != nullptr) << "Attempting to increment past end of tree.";
-  if (node_->right) {
-    node_ = node_->right;
-    while (node_->left != nullptr) {
-      node_ = node_->left;
-    }
-  } else {
-    while (node_->parent != nullptr && node_->parent->right == node_) {
-      node_ = node_->parent;
-    }
-    node_ = node_->parent;
-  }
+  *this += 1;
   return *this;
 }
 
 template <typename Item, bool IsConst>
 TreeIterator<Item, IsConst>& TreeIterator<Item, IsConst>::operator--() {
-  if (node_ == nullptr) {
-    node_ = tree_->root_;
-    if (node_ != nullptr) {
-      while (node_->right != nullptr) {
-        node_ = node_->right;
-      }
-    }
-  } else if (node_->left) {
-    node_ = node_->left;
-  } else {
-    while (node_->parent != nullptr && node_->parent->left == node_) {
-      node_ = node_->parent;
-    }
-    node_ = node_->parent;
-  }
+  *this -= 1;
   return *this;
 }
 
@@ -321,19 +298,19 @@ template <typename Item>
 template <typename Item, bool IsConst>
 TreeIterator<Item, IsConst>& TreeIterator<Item, IsConst>::operator+=(
     const int& original_delta) {
-  VLOG(5) << "Advance: " << original_delta << " " << *tree_;
+  size_t original_position = tree_->FindPosition(node_);
   int delta = original_delta;
-  VLOG(7) << "Start at " << tree_->FindPosition(node_) << " and advance "
-          << delta << " with " << tree_->size();
+  DVLOG(5) << "Start at " << original_position << " and advance " << delta
+           << " with " << tree_->size();
 
   if (node_ == nullptr) {
     DCHECK_LE(delta, 0) << "Attempting to advance past end of tree.";
     node_ = tree_->LastNode(tree_->root_);
     if (node_ != nullptr) { delta++; }
-    VLOG(7) << "Adjusted: " << tree_->FindPosition(node_) << " and advance "
-            << delta << " with " << tree_->size();
+    DVLOG(7) << "Adjusted: " << tree_->FindPosition(node_) << " and advance "
+             << delta << " with " << tree_->size();
   } else {
-    VLOG(5) << "Now at: " << *node_;
+    DVLOG(6) << "Now at: " << *node_;
   }
 
   // Go up one level in each iteration until we know we can go down.
@@ -342,35 +319,38 @@ TreeIterator<Item, IsConst>& TreeIterator<Item, IsConst>::operator+=(
                   ? delta > Tree<Item>::Count(node_->right)
                   : -delta > Tree<Item>::Count(node_->left))) {
     if (node_->parent == nullptr || node_->parent->left == node_) {
-      VLOG(7) << "Going up through left branch";
+      DVLOG(7) << "Going up through left branch";
       delta -= 1 + Tree<Item>::Count(node_->right);
     } else {
-      VLOG(7) << "Going up through right branch";
+      DVLOG(7) << "Going up through right branch";
       delta += 1 + Tree<Item>::Count(node_->left);
     }
     node_ = node_->parent;
-    VLOG(7) << "After loop at " << tree_->FindPosition(node_) << " and advance "
-            << delta << " with " << tree_->size();
+    DVLOG(7) << "After loop at " << tree_->FindPosition(node_)
+             << " and advance " << delta << " with " << tree_->size();
   }
 
   tree_->ValidateInvariants(node_);
   // Now go down one level in each iteration.
   while (delta != 0) {
     DCHECK(node_ != nullptr);
-    VLOG(7) << "Before down at " << tree_->FindPosition(node_) << " and advance "
-            << delta << " with " << tree_->size();
+    DVLOG(7) << "Before down at " << tree_->FindPosition(node_)
+             << " and advance " << delta << " with " << tree_->size();
     if (delta > 0) {
-      VLOG(6) << "Down the right branch.";
+      DVLOG(6) << "Down the right branch.";
       node_ = node_->right;
       delta = delta - 1 - Tree<Item>::Count(node_->left);
     } else {
-      VLOG(6) << "Down the left branch.";
+      DVLOG(6) << "Down the left branch.";
       node_ = node_->left;
       delta = Tree<Item>::Count(node_->right) + delta + 1;
     }
-    VLOG(7) << "After down at " << tree_->FindPosition(node_) << " and advance "
-            << delta << " with " << tree_->size();
+    DVLOG(7) << "After down at " << tree_->FindPosition(node_)
+             << " and advance " << delta << " with " << tree_->size();
   }
+  size_t current_position = tree_->FindPosition(node_);
+  DCHECK_EQ(original_position + original_delta, current_position);
+  DVLOG(5) << "After advance: " << tree_->FindPosition(node_);
   return *this;
 }
 
@@ -437,7 +417,8 @@ bool TreeIterator<Item, IsConst>::operator>=(
 template <typename Item, bool IsConst>
 typename TreeIterator<Item, IsConst>::reference
     TreeIterator<Item, IsConst>::operator*() const {
-  DCHECK(node_ != nullptr)
+  VLOG(5) << "Dereference object at: " << tree_->FindPosition(node_);
+  CHECK(node_ != nullptr)
       << "Attempt to dereference iterator past end of tree.";
   return node_->item;
 }
@@ -735,11 +716,12 @@ void Tree<Item>::insert(const iterator& position, Node<Item>* node) {
   ValidateInvariants();
 
   if (position.node_ == nullptr) {  // Inserting after all elements.
-    Node<Item>* parent = (--end()).node_;
-    DVLOG(8) << "Parent: " << parent;
-    if (parent == nullptr) {
-      root_ = node;  // Tree was empty.
+    if (root_ == nullptr) {
+      root_ = node;
     } else {
+      Node<Item>* parent = (--end()).node_;
+      DVLOG(8) << "Parent: " << parent;
+      CHECK(parent != nullptr);
       InsertRight(parent, node);
     }
   } else {
@@ -778,7 +760,6 @@ void Tree<Item>::ReplaceNode(const Node<Item>* old_node, Node<Item>* new_node) {
   if (new_node) {
     new_node->parent = parent;
   }
-  DVLOG(7) << "Replaced node, yields: " << *root_;
 }
 
 template <typename Item>

@@ -31,7 +31,8 @@ void TreeTestsLong() {
   srand(0);
   list<int> l;
   Tree<int> t;
-  for (size_t i = 0; i < 500; i++) {
+  size_t elements = 500;
+  for (size_t i = 0; i < elements; i++) {
     int position = rand() % (1 + t.size());
     auto l_it = l.begin();
     auto t_it = t.begin();
@@ -52,7 +53,7 @@ void TreeTestsLong() {
   }
   CHECK(list<int>(t.begin(), t.end()) == l);
   LOG(INFO) << "Starting delete tests.";
-  for (size_t i = 0; i < 250; i++) {
+  for (size_t i = 0; i < elements / 2; i++) {
     int position = rand() % t.size();
     auto l_it = l.begin();
     auto t_it = t.begin();
@@ -69,6 +70,14 @@ void TreeTestsLong() {
     CHECK_EQ(t.size(), l.size());
     CHECK(list<int>(t.begin(), t.end()) == l);
   }
+
+  LOG(INFO) << "Starting sorting tests.";
+
+  vector<int> v(t.begin(), t.end());
+  std::sort(v.begin(), v.end());
+  std::sort(t.begin(), t.end());
+  CHECK_EQ(t.size(), v.size());
+  CHECK(vector<int>(t.begin(), t.end()) == v);
 }
 
 std::ostream& operator<<(std::ostream& out, const Node<int>& node);
