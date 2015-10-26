@@ -4,6 +4,7 @@
 #include "command.h"
 #include "editor.h"
 #include "file_link_mode.h"
+#include "lazy_string_append.h"
 #include "line_prompt_mode.h"
 #include "send_end_of_file_command.h"
 #include "wstring.h"
@@ -79,16 +80,62 @@ class ListBuffersBuffer : public OpenBuffer {
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     target->ClearContents(editor_state);
-    AppendToLastLine(editor_state, NewCopyString(L"Open Buffers:"));
+    AppendToLastLine(editor_state, NewCopyString(L"Buffers:"));
     for (const auto& it : *editor_state->buffers()) {
+      auto context = LinesToShow(*it.second);
       wstring flags = it.second->FlagsString();
-      auto name =
-          NewCopyString(it.first + (flags.empty() ? L"" : L"  ") + flags);
+      auto name = NewCopyString(
+          (context.first == context.second ? L"" : L"╭──") + it.first
+          + (flags.empty() ? L"" : L"  ") + flags
+          + (context.first == context.second ? L"" : L" ──"));
       target->AppendLine(editor_state, std::move(name));
       (*target->contents()->rbegin())->set_activate(
           unique_ptr<EditorMode>(new ActivateBufferLineCommand(it.first)));
+
+      auto start = context.first;
+      while (start < context.second) {
+        target->AppendLine(editor_state, StringAppend(
+            NewCopyString(start + 1 == context.second ? L"╰ " : L"│ "),
+            (*start)->contents()));
+        (*target->contents()->rbegin())->set_activate(
+            unique_ptr<EditorMode>(new ActivateBufferLineCommand(it.first)));
+        ++start;
+      }
     }
     editor_state->ScheduleRedraw();
+  }
+
+  pair<Tree<std::shared_ptr<Line>>::const_iterator,
+       Tree<std::shared_ptr<Line>>::const_iterator>
+      LinesToShow(const OpenBuffer& buffer) {
+    size_t context_lines_var = max(buffer.read_int_variable(
+        OpenBuffer::variable_buffer_list_context_lines()), 0);
+
+    size_t lines = min(static_cast<size_t>(context_lines_var),
+                       buffer.contents()->size());
+    VLOG(5) << buffer.name() << ": Context lines to show: " << lines;
+    if (lines == 0) {
+      auto last = buffer.contents()->end();
+      return make_pair(last, last);
+    }
+    Tree<std::shared_ptr<Line>>::const_iterator start =
+        buffer.current_cursor()->first;
+    start -= min(static_cast<size_t>(start - buffer.contents()->cbegin()),
+                 max(lines / 2,
+                     lines - min(lines,
+                                 static_cast<size_t>(
+                                     buffer.contents()->cend() - start))));
+    Tree<std::shared_ptr<Line>>::const_iterator stop =
+        (static_cast<size_t>(buffer.contents()->end() - start) > lines)
+             ? start + lines : buffer.contents()->end();
+
+    // Scroll back if there's a bunch of empty lines.
+    while (start > buffer.contents()->cbegin() && (*(stop - 1))->size() == 0) {
+      --stop;
+      --start;
+    }
+    CHECK(start <= stop);
+    return make_pair(start, stop);
   }
 };
 

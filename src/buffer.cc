@@ -1299,6 +1299,11 @@ typename OpenBuffer::CursorsSet::iterator OpenBuffer::current_cursor() {
   return current_cursor_;
 }
 
+typename OpenBuffer::CursorsSet::const_iterator OpenBuffer::current_cursor()
+    const {
+  return current_cursor_;
+}
+
 void OpenBuffer::CreateCursor() {
   active_cursors()->push_back(*current_cursor_);
   editor_->SetStatus(L"Cursor created.");
@@ -1849,6 +1854,7 @@ OpenBuffer::variable_dictionary() {
     output = new EdgeStruct<int>;
     // Trigger registration of all fields.
     OpenBuffer::variable_line_width();
+    OpenBuffer::variable_buffer_list_context_lines();
   }
   return output;
 }
@@ -1858,6 +1864,16 @@ OpenBuffer::variable_dictionary() {
       L"line_width",
       L"Desired maximum width of a line.",
       80);
+  return variable;
+}
+
+/* static */ EdgeVariable<int>*
+    OpenBuffer::variable_buffer_list_context_lines() {
+  static EdgeVariable<int>* variable = IntStruct()->AddVariable(
+      L"buffer_list_context_lines",
+      L"Number of lines of context from this buffer to show in the list of "
+      L"buffers.",
+      0);
   return variable;
 }
 

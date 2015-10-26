@@ -143,6 +143,7 @@ class OpenBuffer {
   void set_active_cursors(const vector<LineColumn>& positions);
   void set_current_cursor(CursorsSet::value_type new_cursor);
   CursorsSet::iterator current_cursor();
+  CursorsSet::const_iterator current_cursor() const;
   void CreateCursor();
   void VisitPreviousCursor();
   void VisitNextCursor();
@@ -328,6 +329,7 @@ class OpenBuffer {
 
   static EdgeStruct<int>* IntStruct();
   static EdgeVariable<int>* variable_line_width();
+  static EdgeVariable<int>* variable_buffer_list_context_lines();
 
   // No variables currently, but we'll likely add some later.
   static EdgeStruct<unique_ptr<Value>>* ValueStruct();
