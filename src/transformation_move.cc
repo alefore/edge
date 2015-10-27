@@ -17,6 +17,8 @@ namespace {
 
 class MoveTransformation : public Transformation {
  public:
+  MoveTransformation(const Modifiers& modifiers) : modifiers_(modifiers) {}
+
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     CHECK(result);
@@ -24,24 +26,34 @@ class MoveTransformation : public Transformation {
     buffer->CheckPosition();
     buffer->MaybeAdjustPositionCol();
     LineColumn position;
-    switch (editor_state->structure()) {
+    switch (modifiers_.structure) {
       case CHAR:
-        position = MoveCharacter(editor_state, buffer);
+        position = MoveCharacter(buffer);
         break;
       case WORD:
-        position = MoveWord(editor_state, buffer);
+        position = MoveWord(buffer);
         break;
       case MARK:
         position = MoveMark(editor_state, buffer);
         break;
+      case CURSOR:
+        // Handles repetitions.
+        buffer->VisitNextCursor();
+        editor_state->ResetRepetitions();
+        editor_state->ResetStructure();
+        editor_state->ResetDirection();
+        return;
       default:
         CHECK(false);
     }
     LOG(INFO) << "Move to: " << position;
     NewGotoPositionTransformation(position)
         ->Apply(editor_state, buffer, result);
-    if (editor_state->repetitions() > 1) {
+    if (modifiers_.repetitions > 1) {
       editor_state->PushCurrentPosition();
+    }
+    if (buffer->active_cursors()->size() > 1) {
+      editor_state->ScheduleRedraw();
     }
     editor_state->ResetRepetitions();
     editor_state->ResetStructure();
@@ -49,20 +61,20 @@ class MoveTransformation : public Transformation {
   }
 
   unique_ptr<Transformation> Clone() {
-    return NewMoveTransformation();
+    return NewMoveTransformation(modifiers_);
   }
 
  private:
-  LineColumn MoveCharacter(EditorState* editor_state, OpenBuffer* buffer)
+  LineColumn MoveCharacter(OpenBuffer* buffer)
       const {
     LineColumn position = buffer->position();
-    switch (editor_state->direction()) {
+    switch (modifiers_.direction) {
       case FORWARDS:
-        position.column = min(position.column + editor_state->repetitions(),
+        position.column = min(position.column + modifiers_.repetitions,
             buffer->current_line()->size());
         break;
       case BACKWARDS:
-        position.column -= min(position.column, editor_state->repetitions());
+        position.column -= min(position.column, modifiers_.repetitions);
         break;
     }
     return position;
@@ -119,12 +131,12 @@ class MoveTransformation : public Transformation {
     return position;
   }
 
-  LineColumn MoveWord(EditorState* editor_state, OpenBuffer* buffer) const {
+  LineColumn MoveWord(OpenBuffer* buffer) const {
     LineColumn position = buffer->position();
-    for (size_t i = 0; i < editor_state->repetitions(); i ++) {
+    for (size_t i = 0; i < modifiers_.repetitions; i ++) {
       LineColumn new_position =
-          SeekToWordCharacter(buffer, editor_state->direction(), true,
-              SeekToWordCharacter(buffer, editor_state->direction(), false,
+          SeekToWordCharacter(buffer, modifiers_.direction, true,
+              SeekToWordCharacter(buffer, modifiers_.direction, false,
                   position));
       if (new_position == position) { break; }
       position = new_position;
@@ -133,19 +145,20 @@ class MoveTransformation : public Transformation {
   }
 
   template <typename Iterator>
-  static size_t GetMarkPosition(Iterator it_begin, Iterator it_end,
-                                size_t current, EditorState* editor_state) {
+  static LineColumn GetMarkPosition(
+      Iterator it_begin, Iterator it_end, LineColumn current,
+      const Modifiers& modifiers) {
     using P = pair<const size_t, LineMarks::Mark>;
     Iterator it = std::upper_bound(
-        it_begin, it_end, P(current, LineMarks::Mark()),
-        editor_state->direction() == FORWARDS
+        it_begin, it_end, P(current.line, LineMarks::Mark()),
+        modifiers.direction == FORWARDS
             ? [](const P& a, const P& b) { return a.first < b.first; }
             : [](const P& a, const P& b) { return a.first > b.first; });
     if (it == it_end) {
       return current;
     }
 
-    for (size_t i = 1; i < editor_state->repetitions(); i ++) {
+    for (size_t i = 1; i < modifiers.repetitions; i ++) {
       size_t position = it->first;
       ++it;
       // Skip more marks for the same line.
@@ -158,33 +171,33 @@ class MoveTransformation : public Transformation {
       }
     }
 
-    return it->first;
+    return it->second.target;
   }
 
   LineColumn MoveMark(EditorState* editor_state, OpenBuffer* buffer) const {
     const multimap<size_t, LineMarks::Mark>* marks =
         buffer->GetLineMarks(*editor_state);
 
-    size_t line;
-    switch (editor_state->direction()) {
+    switch (modifiers_.direction) {
       case FORWARDS:
-        line = GetMarkPosition(
-            marks->begin(), marks->end(), buffer->position().line, editor_state);
+        return GetMarkPosition(
+            marks->begin(), marks->end(), buffer->position(), modifiers_);
         break;
       case BACKWARDS:
-        line = GetMarkPosition(
-            marks->rbegin(), marks->rend(), buffer->position().line,
-            editor_state);
+        return GetMarkPosition(
+            marks->rbegin(), marks->rend(), buffer->position(), modifiers_);
     }
-    return LineColumn(line, 0);
-
+    CHECK(false);
+    return LineColumn();
   }
+
+  Modifiers modifiers_;
 };
 
 }  // namespace
 
-unique_ptr<Transformation> NewMoveTransformation() {
-  return unique_ptr<Transformation>(new MoveTransformation);
+unique_ptr<Transformation> NewMoveTransformation(const Modifiers& modifiers) {
+  return unique_ptr<Transformation>(new MoveTransformation(modifiers));
 }
 
 }  // namespace editor

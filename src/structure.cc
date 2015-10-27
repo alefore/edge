@@ -13,8 +13,8 @@ Structure LowerStructure(Structure s) {
     case MARK: return LINE;
     case PAGE: return MARK;
     case SEARCH: return PAGE;
-    case REGION: return SEARCH;
-    case BUFFER: return REGION;
+    case CURSOR: return SEARCH;
+    case BUFFER: return CURSOR;
   }
   CHECK(false);
 }

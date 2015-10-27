@@ -4,6 +4,7 @@
 #include <glog/logging.h>
 
 #include "editor.h"
+#include "tree.h"
 #include "terminal.h"
 #include "wstring.h"
 
@@ -18,6 +19,139 @@ void Clear(EditorState* editor_state) {
   editor_state->ProcessInputString("eeg99999999999999999999999d");
   editor_state->ProcessInput(Terminal::ESCAPE);
   CheckIsEmpty(editor_state);
+}
+
+void ShowList(list<int> l) {
+  std::cout << "List:";
+  for (auto i : l) { std::cout << " " << i; }
+  std::cout << "\n";
+}
+
+void TreeTestsLong() {
+  srand(0);
+  list<int> l;
+  Tree<int> t;
+  size_t elements = 500;
+  for (size_t i = 0; i < elements; i++) {
+    int position = rand() % (1 + t.size());
+    auto l_it = l.begin();
+    auto t_it = t.begin();
+    for (int i = 0; i < position; i++) {
+      CHECK(t_it == t.begin() + i);
+      ++l_it;
+      ++t_it;
+    }
+    CHECK(t_it == t.begin() + position);
+    if (position > 10) {
+      t_it = t.begin();
+      t_it += position / 2;
+      t_it += position - position / 2;
+      CHECK(t_it == t.begin() + position);
+    }
+    l.insert(l_it, i);
+    t.insert(t.begin() + position, i);
+  }
+  CHECK(list<int>(t.begin(), t.end()) == l);
+  LOG(INFO) << "Starting delete tests.";
+  for (size_t i = 0; i < elements / 2; i++) {
+    int position = rand() % t.size();
+    auto l_it = l.begin();
+    auto t_it = t.begin();
+    for (int i = 0; i < position; i++) {
+      CHECK(t_it == t.begin() + i);
+      ++l_it;
+      ++t_it;
+    }
+    CHECK_EQ(*l_it, *t_it);
+    CHECK(t_it == t.begin() + position);
+    LOG(INFO) << "Erasing at position " << (position) << ": ";
+    l.erase(l_it);
+    t.erase(t.begin() + position);
+    CHECK_EQ(t.size(), l.size());
+    CHECK(list<int>(t.begin(), t.end()) == l);
+  }
+
+  LOG(INFO) << "Starting sorting tests.";
+
+  vector<int> v(t.begin(), t.end());
+  std::sort(v.begin(), v.end());
+  std::sort(t.begin(), t.end());
+  CHECK_EQ(t.size(), v.size());
+  CHECK(vector<int>(t.begin(), t.end()) == v);
+}
+
+std::ostream& operator<<(std::ostream& out, const Node<int>& node);
+
+void TreeTestsBasic() {
+  Tree<int> t;
+  std::cout << t << "\n";
+  CHECK(t.begin() == t.end());
+
+  t.push_back(10);
+  std::cout << t << "\n";
+  CHECK_EQ(t.front(), 10);
+  CHECK_EQ(t.back(), 10);
+  CHECK(t.begin() != t.end());
+
+  t.push_back(20);
+  std::cout << t << "\n";
+  CHECK_EQ(t.front(), 10);
+  CHECK_EQ(t.back(), 20);
+
+  {
+    auto it = t.begin();
+    CHECK_EQ(*it, 10);
+    ++it;
+    CHECK_EQ(*it, 20);
+    ++it;
+    CHECK(it == t.end());
+  }
+
+  t.push_back(30);
+  std::cout << t << "\n";
+  CHECK_EQ(t.front(), 10);
+  CHECK_EQ(t.back(), 30);
+
+  t.push_back(40);
+  std::cout << t << "\n";
+  CHECK_EQ(t.front(), 10);
+  CHECK_EQ(t.back(), 40);
+
+  t.insert(t.begin(), 5);
+  std::cout << t << "\n";
+  CHECK_EQ(t.front(), 5);
+
+  {
+    auto it = t.begin();
+    CHECK(it == t.begin());
+    CHECK_EQ(*it, 5);
+    ++it;
+    CHECK(it != t.end());
+    CHECK_EQ(*it, 10);
+    ++it;
+    CHECK(it != t.end());
+    CHECK_EQ(*it, 20);
+    ++it;
+    CHECK(it != t.end());
+    CHECK_EQ(*it, 30);
+    --it;
+    CHECK(it != t.end());
+    CHECK_EQ(*it, 20);
+    ++it;
+    CHECK(it != t.end());
+    CHECK_EQ(*it, 30);
+    ++it;
+    CHECK(it != t.end());
+    CHECK_EQ(*it, 40);
+    ++it;
+    CHECK(it == t.end());
+  }
+
+  {
+    auto it = t.begin();
+    it += 3;
+    CHECK_EQ(*it, 30);
+  }
 }
 
 int main(int, char**) {
@@ -113,10 +247,10 @@ int main(int, char**) {
   assert(editor_state.current_buffer()->second->position().line == 2);
 
   editor_state.ProcessInputString("gf1f3f5f7f9");
-  assert(editor_state.current_buffer()->second->position().column == 9);
+  CHECK_EQ(editor_state.current_buffer()->second->position().column, 9);
 
   editor_state.ProcessInputString("b");
-  assert(editor_state.current_buffer()->second->position().column == 7);
+  CHECK_EQ(editor_state.current_buffer()->second->position().column, 7);
 
   editor_state.ProcessInputString("10g");
   assert(editor_state.current_buffer()->second->position().column == 9);
@@ -160,11 +294,11 @@ int main(int, char**) {
   assert(editor_state.current_buffer()->second->position().line == 0);
   assert(editor_state.current_buffer()->second->position().column == 10);
 
-  editor_state.ProcessInputString("acSetPositionColumn(4);;\n");
+  editor_state.ProcessInputString("aCSetPositionColumn(4);;\n");
   assert(editor_state.current_buffer()->second->position().column == 4);
-  editor_state.ProcessInputString("acSetPositionColumn(4 - 1);;\n");
+  editor_state.ProcessInputString("aCSetPositionColumn(4 - 1);;\n");
   assert(editor_state.current_buffer()->second->position().column == 3);
-  editor_state.ProcessInputString("acSetPositionColumn(8 - 2 * 3 + 5);;\n");
+  editor_state.ProcessInputString("aCSetPositionColumn(8 - 2 * 3 + 5);;\n");
   assert(editor_state.current_buffer()->second->position().column == 7);
 
   Clear(&editor_state);
@@ -207,6 +341,27 @@ int main(int, char**) {
            "AleJAnDRo\nfoRero");
 
   Clear(&editor_state);
+
+  // Test that delete word across multiple lines works.
+  editor_state.ProcessInputString("ialejandro\n\n\n\n  forero cuervo");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "alejandro\n\n\n\n  forero cuervo");
+
+  editor_state.ProcessInputString("egg");
+  CHECK_EQ(editor_state.current_buffer()->second->position(), LineColumn(0, 0));
+
+  editor_state.ProcessInputString("rg");
+  CHECK_EQ(editor_state.current_buffer()->second->position(), LineColumn(0, 9));
+
+  editor_state.ProcessInputString("w[d");
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "alejandroforero cuervo");
+
+  Clear(&editor_state);
+
+  TreeTestsLong();
+  TreeTestsBasic();
 
   std::cout << "Pass!\n";
   return 0;

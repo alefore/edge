@@ -21,6 +21,7 @@ extern "C" {
 #include "substring.h"
 #include "terminal.h"
 #include "transformation_delete.h"
+#include "tree.h"
 #include "vm/public/value.h"
 #include "wstring.h"
 
@@ -72,8 +73,8 @@ class NewLineTransformation : public Transformation {
     {
       shared_ptr<OpenBuffer> buffer_to_insert(
         new OpenBuffer(editor_state, L"- text inserted"));
-      buffer_to_insert->contents()
-          ->emplace_back(new Line(continuation_options));
+      buffer_to_insert->AppendRawLine(
+          editor_state, std::make_shared<Line>(continuation_options));
       transformation->PushBack(
           NewInsertBufferTransformation(buffer_to_insert, 1, END));
     }
@@ -115,7 +116,7 @@ class InsertEmptyLineTransformation : public Transformation {
 
 class AutocompleteMode : public EditorMode {
  public:
-  using Iterator = vector<std::shared_ptr<Line>>::iterator;
+  using Iterator = Tree<std::shared_ptr<Line>>::const_iterator;
 
   struct Options {
     std::unique_ptr<EditorMode> delegate;
@@ -163,7 +164,7 @@ class AutocompleteMode : public EditorMode {
 
     LOG(INFO) << "Updating variables for next completion.";
     word_length_ = (*matches_current_)->size() + 1;
-    matches_current_++;
+    ++matches_current_;
     if (matches_current_ == options_.dictionary->contents()->end()) {
       matches_current_ = options_.matches_start;
     }
@@ -194,7 +195,7 @@ class InsertMode : public EditorMode {
 
       case Terminal::ESCAPE:
         buffer->MaybeAdjustPositionCol();
-        buffer->Apply(editor_state, NewDeleteSuffixSuperfluousCharacters());
+        buffer->ApplyToCursors(NewDeleteSuffixSuperfluousCharacters());
         buffer->PopTransformationStack();
         for (size_t i = 1; i < editor_state->repetitions(); i++) {
           editor_state->current_buffer()
@@ -235,7 +236,7 @@ class InsertMode : public EditorMode {
           buffer->MaybeAdjustPositionCol();
           Modifiers modifiers;
           modifiers.direction = BACKWARDS;
-          buffer->Apply(editor_state,
+          buffer->ApplyToCursors(
               NewDeleteCharactersTransformation(modifiers, false));
           buffer->set_modified(true);
           editor_state->ScheduleRedraw();
@@ -243,7 +244,7 @@ class InsertMode : public EditorMode {
         return;
 
       case '\n':
-        buffer->Apply(editor_state,
+        buffer->ApplyToCursors(
             unique_ptr<Transformation>(new NewLineTransformation()));
         buffer->set_modified(true);
         editor_state->ScheduleRedraw();
@@ -255,7 +256,7 @@ class InsertMode : public EditorMode {
           new OpenBuffer(editor_state, L"- text inserted"));
       insert->AppendToLastLine(editor_state,
           NewCopyString(buffer->TransformKeyboardText(wstring(1, c))));
-      buffer->Apply(editor_state,
+      buffer->ApplyToCursors(
           NewInsertBufferTransformation(insert, 1, END));
     }
 
@@ -482,7 +483,7 @@ void EnterInsertMode(EditorState* editor_state) {
     editor_state->current_buffer()->second->CheckPosition();
     auto buffer = editor_state->current_buffer()->second;
     buffer->PushTransformationStack();
-    buffer->Apply(editor_state,
+    buffer->ApplyToCursors(
         unique_ptr<Transformation>(
             new InsertEmptyLineTransformation(editor_state->direction())));
     EnterInsertCharactersMode(editor_state);

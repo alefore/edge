@@ -116,13 +116,15 @@ class FileBuffer : public OpenBuffer {
     }
     closedir(dir);
 
-    struct Compare {
-      bool operator()(const shared_ptr<Line>& a, const shared_ptr<Line>& b) {
-        return *a->contents() < *b->contents();
-      }
-    } compare;
-
-    sort(target->contents()->begin() + 1, target->contents()->end(), compare);
+    list<shared_ptr<Line>> test(
+        target->contents()->begin() + 1,
+        target->contents()->end());
+    target->SortContents(
+        target->contents()->begin() + 1,
+        target->contents()->end(),
+        [](const shared_ptr<Line>& a, const shared_ptr<Line>& b) {
+          return *a->contents() < *b->contents();
+        });
     editor_state->CheckPosition();
     editor_state->PushCurrentPosition();
   }
@@ -362,7 +364,7 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
   if (search_paths_buffer == nullptr) {
     return;
   }
-  for (auto it : *search_paths_buffer) {
+  for (auto it : *search_paths_buffer->contents()) {
     output->push_back(it->ToString());
   }
 }
@@ -427,7 +429,10 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     editor_state->set_current_buffer(it.first);
     editor_state->ScheduleRedraw();
   }
-  SearchHandler(it.first->second->position(), pattern, editor_state);
+  SearchOptions search_options;
+  search_options.starting_position = it.first->second->position();
+  search_options.search_query = pattern;
+  SearchHandler(editor_state, search_options);
   return it.first;
 }
 

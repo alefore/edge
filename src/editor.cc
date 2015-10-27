@@ -62,6 +62,33 @@ static vector<wstring> GetEdgeConfigPath(const wstring& home) {
   return output;
 }
 
+void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
+                          void (OpenBuffer::*method)(void)) {
+  unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+
+  // Returns nothing.
+  callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+
+  callback->type.type_arguments.push_back(VMType::ObjectType(editor_type));
+  callback->callback =
+      [method](vector<unique_ptr<Value>> args) {
+        CHECK_EQ(args.size(), 1);
+        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+
+        auto editor = static_cast<EditorState*>(args[0]->user_value.get());
+        CHECK(editor != nullptr);
+
+        if (!editor->has_current_buffer()) { return Value::NewVoid(); }
+        auto buffer = editor->current_buffer()->second;
+        CHECK(buffer != nullptr);
+
+        (*buffer.*method)();
+        editor->ResetModifiers();
+        return Value::NewVoid();
+      };
+  editor_type->AddField(name, std::move(callback));
+}
+
 std::unique_ptr<Environment> NewDefaultEnvironment(EditorState* editor) {
   std::unique_ptr<Environment> environment(afc::vm::Environment::GetDefault());
 
@@ -103,7 +130,16 @@ std::unique_ptr<Environment> NewDefaultEnvironment(EditorState* editor) {
         };
     editor_type->AddField(L"ReloadCurrentBuffer", std::move(callback));
   }
-
+  RegisterBufferMethod(editor_type.get(), L"VisitPreviousCursor",
+                       &OpenBuffer::VisitPreviousCursor);
+  RegisterBufferMethod(editor_type.get(), L"VisitNextCursor",
+                       &OpenBuffer::VisitNextCursor);
+  RegisterBufferMethod(editor_type.get(), L"CreateCursor",
+                       &OpenBuffer::CreateCursor);
+  RegisterBufferMethod(editor_type.get(), L"DestroyCursor",
+                       &OpenBuffer::DestroyCursor);
+  RegisterBufferMethod(editor_type.get(), L"DestroyOtherCursors",
+                       &OpenBuffer::DestroyOtherCursors);
   environment->DefineType(L"Editor", std::move(editor_type));
 
   environment->Define(L"editor", Value::NewObject(
@@ -406,11 +442,9 @@ void EditorState::PushCurrentPosition() {
       NewCopyString(
           current_buffer_->second->position().ToString()
           + L" " + current_buffer_->first))));
-  it->second->contents()->insert(
+  it->second->InsertLine(
       it->second->contents()->begin() + it->second->current_position_line(),
       line);
-  it->second->set_current_position_line(
-      it->second->current_position_line() + 1);
   CHECK_LE(it->second->position().line, it->second->contents()->size());
   if (it == current_buffer_) {
     ScheduleRedraw();
@@ -479,7 +513,7 @@ void EditorState::ApplyToCurrentBuffer(
     unique_ptr<Transformation> transformation) {
   CHECK(transformation != nullptr);
   assert(has_current_buffer());
-  current_buffer_->second->Apply(this, std::move(transformation));
+  current_buffer_->second->ApplyToCursors(std::move(transformation));
 }
 
 void EditorState::DefaultErrorHandler(const wstring& error_description) {

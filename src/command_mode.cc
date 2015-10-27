@@ -167,8 +167,8 @@ class GotoCommand : public Command {
         // TODO: Implement.
         break;
 
-      case REGION:
-        GotoRegion(editor_state);
+      case CURSOR:
+        GotoCursor(editor_state);
         break;
 
       case BUFFER:
@@ -235,23 +235,16 @@ class GotoCommand : public Command {
     }
   }
 
-  void GotoRegion(EditorState* editor_state) {
+  void GotoCursor(EditorState* editor_state) {
+    if (!editor_state->has_current_buffer()) { return; }
+    auto buffer = editor_state->current_buffer()->second;
+    auto cursors = buffer->active_cursors();
     auto modifiers = editor_state->modifiers();
-    if (!modifiers.has_region_start) {
-      LOG(INFO) << "GotoRegion got called with a region start, ignoring.";
-      return;
+    OpenBuffer::CursorsSet::iterator current = buffer->current_cursor();
+    for (size_t i = 0; i < modifiers.repetitions && current != cursors->begin();
+         i++) {
+      --current;
     }
-    auto& buffer_name = modifiers.region_start.buffer_name;
-    if (editor_state->current_buffer()->first != buffer_name) {
-      auto it = editor_state->buffers()->find(buffer_name);
-      if (it == editor_state->buffers()->end()) {
-        LOG(INFO) << "Region starts in unexistent buffer, ignoring.";
-        return;
-      }
-      editor_state->set_current_buffer(it);
-    }
-    editor_state->current_buffer()
-        ->second->set_position(modifiers.region_start.position);
   }
 
   const size_t calls_;
@@ -272,7 +265,7 @@ class Delete : public Command {
       case WORD:
       case LINE:
       case BUFFER:
-      case REGION:
+      case CURSOR:
         if (editor_state->has_current_buffer()) {
           auto buffer = editor_state->current_buffer()->second;
           editor_state->ApplyToCurrentBuffer(
@@ -496,8 +489,9 @@ const wstring LineDown::Description() {
         shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
         buffer->CheckPosition();
         VLOG(6) << "Down: Initial position: " << buffer->position();
-        const auto line_end = buffer->end();
-        while (editor_state->repetitions() && buffer->line() != line_end) {
+        const auto line_end = buffer->contents()->end();
+        while (editor_state->repetitions()
+               && buffer->current_cursor()->first != line_end) {
           VLOG(5) << "Down: Moving down.";
           buffer->LineDown();
           editor_state->set_repetitions(editor_state->repetitions() - 1);
@@ -562,9 +556,11 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
     case CHAR:
     case WORD:
     case MARK:
+    case CURSOR:
       {
         if (!editor_state->has_current_buffer()) { return; }
-        editor_state->ApplyToCurrentBuffer(NewMoveTransformation());
+        editor_state->ApplyToCurrentBuffer(
+            NewMoveTransformation(editor_state->modifiers()));
         editor_state->ResetRepetitions();
         editor_state->ResetStructure();
         editor_state->ResetDirection();
@@ -572,9 +568,14 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
       break;
 
     case SEARCH:
-      SearchHandler(
-          editor_state->current_buffer()->second->position(),
-          editor_state->last_search_query(), editor_state);
+      {
+        SearchOptions options;
+        options.search_query = editor_state->last_search_query();
+        options.starting_position =
+            editor_state->current_buffer()->second->position();
+        options.maximum_lines_to_search = 1;
+        SearchHandler(editor_state, options);
+      }
       editor_state->ResetMode();
       editor_state->ResetDirection();
       editor_state->ResetStructure();
@@ -606,6 +607,7 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
     case CHAR:
     case WORD:
     case MARK:
+    case CURSOR:
       {
         if (!editor_state->has_current_buffer()) { return; }
         editor_state->set_direction(
@@ -617,9 +619,14 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
 
     case SEARCH:
       editor_state->set_direction(BACKWARDS);
-      SearchHandler(
-          editor_state->current_buffer()->second->position(),
-          editor_state->last_search_query(), editor_state);
+      {
+        SearchOptions options;
+        options.search_query = editor_state->last_search_query();
+        options.starting_position =
+            editor_state->current_buffer()->second->position();
+        options.maximum_lines_to_search = 1;
+        SearchHandler(editor_state, options);
+      }
       editor_state->ResetMode();
       editor_state->ResetDirection();
       editor_state->ResetStructure();
@@ -722,36 +729,6 @@ class SetStructureCommand : public Command {
  private:
   Structure value_;
   const wstring description_;
-};
-
-class SetRegionStartCommand : public Command {
- public:
-  const wstring Description() {
-    return L"sets the region start / switches to region mode";
-  }
-
-  void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) { return; }
-
-    const auto buffer_it = editor_state->current_buffer();
-    auto modifiers = editor_state->modifiers();
-
-    if (modifiers.structure == REGION) {
-      DVLOG(5) << "Disabling REGION mode (and clearing region).";
-      modifiers.structure = CHAR;
-      modifiers.sticky_structure = false;
-      modifiers.has_region_start = false;
-    } else if (modifiers.has_region_start) {
-      DVLOG(5) << "Activating region mode: " << modifiers.region_start;
-      modifiers.structure = REGION;
-    } else {
-      modifiers.region_start.buffer_name = buffer_it->first;
-      modifiers.region_start.position = buffer_it->second->position();
-      modifiers.has_region_start = true;
-      DVLOG(5) << "Setting start of region: " << modifiers.region_start;
-    }
-    editor_state->set_modifiers(modifiers);
-  }
 };
 
 class SetStrengthCommand : public Command {
@@ -894,12 +871,17 @@ class StartSearchMode : public Command {
               || start.column > buffer->position().column) {
             buffer->set_position(start);
           }
-          SearchHandler(
-              buffer->position(),
-              buffer->LineAt(start.line)
-                  ->Substring(start.column, end.column - start.column)
-                  ->ToString(),
-              editor_state);
+          {
+            SearchOptions options;
+            options.search_query =
+                buffer->LineAt(start.line)
+                    ->Substring(start.column, end.column - start.column)
+                    ->ToString();
+            options.starting_position = buffer->position();
+            options.maximum_lines_to_search = 1;
+            DoSearch(editor_state, options);
+          }
+
           editor_state->ResetMode();
           editor_state->ResetDirection();
           editor_state->ResetStructure();
@@ -914,16 +896,26 @@ class StartSearchMode : public Command {
         options.history_file = L"search";
         options.handler = [position](const wstring& input,
                                      EditorState* editor_state) {
-          SearchHandler(position, input, editor_state);
-          editor_state->ResetMode();
-          editor_state->ResetDirection();
-          editor_state->ResetStructure();
-          editor_state->ScheduleRedraw();
+          SearchOptions search_options;
+          search_options.search_query = input;
+          search_options.starting_position = position;
+          search_options.maximum_lines_to_search = 0;
+          DoSearch(editor_state, search_options);
         };
         options.predictor = SearchHandlerPredictor;
         Prompt(editor_state, std::move(options));
         break;
     }
+  }
+ private:
+  static void DoSearch(EditorState* editor_state,
+                       const SearchOptions& options) {
+    editor_state->current_buffer()
+        ->second->set_active_cursors(SearchHandler(editor_state, options));
+    editor_state->ResetMode();
+    editor_state->ResetDirection();
+    editor_state->ResetStructure();
+    editor_state->ScheduleRedraw();
   }
 };
 
@@ -1063,7 +1055,8 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
   Register(L"ad", NewCloseBufferCommand().release(), &output);
   Register(L"aw", NewSaveBufferCommand().release(), &output);
   Register(L"av", NewSetVariableCommand().release(), &output);
-  Register(L"ac", NewRunCppCommand().release(), &output);
+  Register(L"ac", new RunCppFileCommand(), &output);
+  Register(L"aC", NewRunCppCommand().release(), &output);
   Register(L"a.", NewOpenDirectoryCommand().release(), &output);
   Register(L"al", NewListBuffersCommand().release(), &output);
   Register(L"ar",
@@ -1086,6 +1079,22 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
   }
   Register(L"af", NewForkCommand().release(), &output);
 
+  Register(L"+",
+      NewCppCommand(editor_state->environment(),
+          L"// Create a new cursor at the current position.\n"
+          L"editor.CreateCursor();").release(),
+      &output);
+  Register(L"-",
+      NewCppCommand(editor_state->environment(),
+          L"// Destroy current cursor(s) and jump to next.\n"
+          L"editor.DestroyCursor();").release(),
+      &output);
+  Register(L"=",
+      NewCppCommand(editor_state->environment(),
+          L"// Destroy cursors other than the current one.\n"
+          L"editor.DestroyOtherCursors();").release(),
+      &output);
+
   Register(L"i", new EnterInsertMode(), &output);
   Register(L"f", new EnterFindMode(), &output);
   Register(L"r", new ReverseDirectionCommand(), &output);
@@ -1098,9 +1107,9 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
   Register(L"e", new SetStructureCommand(LINE, L"line"), &output);
   Register(L"E", new SetStructureCommand(PAGE, L"page"), &output);
   Register(L"F", new SetStructureCommand(SEARCH, L"search"), &output);
+  Register(L"c", new SetStructureCommand(CURSOR, L"cursor"), &output);
   Register(L"B", new SetStructureCommand(BUFFER, L"buffer"), &output);
   Register(L"!", new SetStructureCommand(MARK, L"mark"), &output);
-  Register(L"m", new SetRegionStartCommand(), &output);
 
   Register(L"W", new SetStrengthCommand(
       Modifiers::WEAK, Modifiers::VERY_WEAK, L"weak"), &output);
@@ -1111,8 +1120,6 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
   Register(L"p", new Paste(), &output);
   Register(L"u", new UndoCommand(), &output);
   Register(L"\n", new ActivateLink(), &output);
-
-  Register(L"c", new RunCppFileCommand(), &output);
 
   Register(L"b", new GotoPreviousPositionCommand(), &output);
   Register(L"n", NewNavigateCommand().release(), &output);

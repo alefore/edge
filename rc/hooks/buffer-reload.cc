@@ -31,6 +31,7 @@ if (path == "") {
       buffer.set_contains_line_marks(true);
       buffer.set_reload_on_buffer_write(true);
       buffer.set_follow_end_of_file(true);
+      buffer.set_buffer_list_context_lines(3);
     }
     if (base_command == "grep") {
       buffer.set_contains_line_marks(true);

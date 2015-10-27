@@ -16,6 +16,7 @@ namespace afc {
 namespace editor {
 
 using std::cerr;
+using std::set;
 using std::to_wstring;
 
 constexpr int Terminal::DOWN_ARROW;
@@ -122,7 +123,12 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
           + to_wstring(position.column + 1);
     }
 
-    status += + L"] ";
+    status += L"] ";
+
+    auto active_cursors = buffer->active_cursors()->size();
+    if (active_cursors != 1) {
+      status += L" cursors:" + to_wstring(active_cursors) + L" ";
+    }
 
     wstring flags = buffer->FlagsString();
     Modifiers modifiers(editor_state.modifiers());
@@ -180,8 +186,8 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
       case BUFFER:
         structure = L"buffer";
         break;
-      case REGION:
-        structure = L"region";
+      case CURSOR:
+        structure = L"cursor";
         break;
     }
     if (!structure.empty()) {
@@ -345,19 +351,111 @@ class HighlightedLineOutputReceiver : public Line::OutputReceiverInterface {
   Line::OutputReceiverInterface* const delegate_;
 };
 
+class CursorsHighlighter : public Line::OutputReceiverInterface {
+ public:
+  CursorsHighlighter(Line::OutputReceiverInterface* delegate,
+                     size_t current,
+                     set<size_t>::const_iterator first,
+                     set<size_t>::const_iterator last)
+      : delegate_(delegate), current_(current), first_(first), last_(last) {
+    CheckInvariants();
+  }
+
+  void AddCharacter(wchar_t c) {
+    CheckInvariants();
+    bool at_cursor = first_ != last_ && *first_ == position_;
+    if (at_cursor) {
+      ++first_;
+      CHECK(first_ == last_ || *first_ > position_);
+      AddModifier(Line::REVERSE);
+      if (current_ != position_) {
+        AddModifier(Line::CYAN);
+      }
+    }
+
+    delegate_->AddCharacter(c);
+    position_++;
+
+    if (at_cursor) {
+      AddModifier(Line::RESET);
+    }
+    CheckInvariants();
+  }
+
+  void AddString(const wstring& str) {
+    size_t str_pos = 0;
+    while (str_pos < str.size()) {
+      CheckInvariants();
+      DCHECK_GE(position_, str_pos);
+
+      // Compute the position of the next cursor relative to the start of this
+      // string.
+      size_t next_cursor = (first_ == last_)
+          ? str.size() : *first_ + str_pos - position_;
+      if (next_cursor > str_pos) {
+        size_t len = next_cursor - str_pos;
+        delegate_->AddString(str.substr(str_pos, len));
+        str_pos += len;
+        position_ += len;
+      }
+
+      CheckInvariants();
+
+      if (str_pos < str.size()) {
+        CHECK(first_ != last_);
+        CHECK_EQ(*first_, position_);
+        AddCharacter(str[str_pos]);
+        str_pos++;
+      }
+      CheckInvariants();
+    }
+  }
+
+  void AddModifier(Line::Modifier modifier) {
+    delegate_->AddModifier(modifier);
+  }
+
+  size_t width() const {
+    return delegate_->width();
+  }
+ private:
+  void CheckInvariants() {
+    if (first_ != last_) {
+      CHECK_GE(*first_, position_);
+    }
+  }
+
+  Line::OutputReceiverInterface* const delegate_;
+  const size_t current_;
+  set<size_t>::const_iterator first_;
+  set<size_t>::const_iterator last_;
+  size_t position_ = 0;
+};
+
 void Terminal::ShowBuffer(const EditorState* editor_state) {
   const shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-  const vector<shared_ptr<Line>>& contents(*buffer->contents());
+  const Tree<shared_ptr<Line>>& contents(*buffer->contents());
 
   move(0, 0);
 
-  LineOutputReceiver receiver;
+  LineOutputReceiver line_output_receiver;
 
   size_t lines_to_show = static_cast<size_t>(LINES);
   size_t current_line = buffer->view_start_line();
   size_t lines_shown = 0;
   buffer->set_last_highlighted_line(-1);
+
+  // Key is line number.
+  std::map<size_t, std::set<size_t>> cursors;
+  for (auto cursor : *buffer->active_cursors()) {
+    size_t absolute_line = cursor.first - buffer->contents()->begin();
+    if (LineColumn(absolute_line, cursor.second) != buffer->position()) {
+      cursors[absolute_line].insert(cursor.second);
+    }
+  }
+
   while (lines_shown < lines_to_show) {
+    Line::OutputReceiverInterface* receiver = &line_output_receiver;
     if (current_line >= contents.size()) {
       addwstr(L"\n");
       lines_shown++;
@@ -368,18 +466,35 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
       continue;
     }
 
+    std::unique_ptr<Line::OutputReceiverInterface> atomic_lines_highlighter;
+
+    auto current_cursors = cursors.find(current_line);
+    std::unique_ptr<Line::OutputReceiverInterface> cursors_highlighter;
+
     lines_shown++;
     const shared_ptr<Line> line(contents[current_line]);
     CHECK(line->contents() != nullptr);
     if (current_line == buffer->position().line
         && buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())) {
       buffer->set_last_highlighted_line(current_line);
-      HighlightedLineOutputReceiver current_receiver(&receiver);
-      line->Output(editor_state, buffer, current_line, &current_receiver);
-    } else {
-      line->Output(editor_state, buffer, current_line, &receiver);
+      atomic_lines_highlighter.reset(
+          new HighlightedLineOutputReceiver(receiver));
+      receiver = atomic_lines_highlighter.get();
+    } else if (current_cursors != cursors.end()) {
+      size_t line =
+          buffer->current_cursor()->first - buffer->contents()->begin();
+      size_t current = line == current_line
+          ? buffer->current_cursor()->second
+          : std::numeric_limits<size_t>::max();
+      LOG(INFO) << "Cursors in current line: "
+                << current_cursors->second.size();
+      cursors_highlighter.reset(new CursorsHighlighter(
+          receiver, current, current_cursors->second.begin(),
+          current_cursors->second.end()));
+      receiver = cursors_highlighter.get();
     }
-    receiver.AddModifier(Line::RESET);
+    line->Output(editor_state, buffer, current_line, receiver);
+    receiver->AddModifier(Line::RESET);
     current_line ++;
   }
 }
@@ -391,7 +506,7 @@ void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
   } else {
     curs_set(1);
   }
-  const vector<shared_ptr<Line>>& contents(*buffer->contents());
+  const Tree<shared_ptr<Line>>& contents(*buffer->contents());
   size_t position_line = min(buffer->position().line, contents.size() - 1);
   size_t line_length;
   if (contents.empty()) {

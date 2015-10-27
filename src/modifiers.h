@@ -2,11 +2,14 @@
 #define __AFC_EDITOR_MODIFIERS_H__
 
 #include <iostream> 
+#include <map>
+#include <set>
 #include <string>
 
 #include "direction.h"
 #include "line_column.h"
 #include "structure.h"
+#include "tree.h"
 
 namespace afc {
 namespace editor {
@@ -96,6 +99,9 @@ struct Modifiers {
   // is true.
   bool has_region_start = false;
   BufferPosition region_start;
+
+  // The currently active cursors.
+  std::wstring active_cursors;
 };
 
 ostream& operator<<(ostream& os, const Modifiers& m);

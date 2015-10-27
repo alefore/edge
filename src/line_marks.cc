@@ -43,7 +43,7 @@ std::vector<LineMarks::Mark> LineMarks::GetMarksForTargetBuffer(
 }
 
 std::ostream& operator<<(std::ostream& os, const LineMarks::Mark& lm) {
-  os << "[" << lm.source << ":" << lm.target_buffer << ":" << lm.line << "]";
+  os << "[" << lm.source << ":" << lm.target_buffer << ":" << lm.target << "]";
   return os;
 }
 

@@ -33,9 +33,8 @@ class GotoPositionTransformation : public Transformation {
 
 size_t CountCharacters(OpenBuffer* buffer) {
   size_t output = 0;
-  for (auto it = buffer->begin(); it != buffer->end(); it++) {
-    output += (*it)->size();
-    output ++;
+  for (const auto& line : *buffer->contents()) {
+    output += line->size() + 1;
   }
   if (output > 0) {
     output--;  // Last line has no \n.

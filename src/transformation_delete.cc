@@ -34,7 +34,7 @@ class DeleteCharactersTransformation : public Transformation {
     }
     buffer->CheckPosition();
     buffer->set_position(min(buffer->position(), buffer->end_position()));
-    size_t current_line = buffer->line().line();
+    size_t current_line = buffer->current_position_line();
     buffer->MaybeAdjustPositionCol();
 
     shared_ptr<LazyString> preserved_contents =
@@ -80,6 +80,7 @@ class DeleteCharactersTransformation : public Transformation {
         editor_state, buffer, line_begin, line_end, preserved_contents,
         chars_erase_line);
     if (copy_to_paste_buffer_) {
+      VLOG(5) << "Preparing delete buffer.";
       result->delete_buffer->Apply(
           editor_state, NewInsertBufferTransformation(delete_buffer, 1, END));
     }
@@ -91,14 +92,14 @@ class DeleteCharactersTransformation : public Transformation {
 
     LOG(INFO) << "Storing new line (at position " << max(current_line, line)
               << ").";
-    buffer->contents()->at(line_end).reset(new Line(Line::Options(
-        ProduceFinalLine(buffer, preserved_contents, line, chars_erase_line))));
+    buffer->ReplaceLine(
+        buffer->contents()->begin() + line_end,
+        std::make_shared<Line>(Line::Options(
+           ProduceFinalLine(buffer, preserved_contents, line,
+                            chars_erase_line))));
 
-    LOG(INFO) << "Erasing lines in range [" << line_begin << ", " << line_end
-              << ").";
-    buffer->contents()->erase(
-        buffer->contents()->begin() + line_begin,
-        buffer->contents()->begin() + line_end);
+    buffer->EraseLines(buffer->contents()->begin() + line_begin,
+                       buffer->contents()->begin() + line_end);
     result->modified_buffer = true;
 
     result->undo = TransformationAtPosition(buffer->position(),
@@ -167,9 +168,9 @@ class DeleteCharactersTransformation : public Transformation {
         return line->Substring(0, column);
       case BACKWARDS:
         return line->Substring(column);
-      default:
-        CHECK(false);
     }
+    CHECK(false);
+    return nullptr;
   }
 
   shared_ptr<LazyString> StartOfLine(
@@ -198,6 +199,7 @@ class DeleteCharactersTransformation : public Transformation {
              preserved_contents);
     }
     CHECK(false);
+    return nullptr;
   }
 
   // Loop away from the current line (in the direction given), stopping at the
@@ -300,7 +302,6 @@ class DeleteWordTransformation : public Transformation {
         Modifiers modifiers;
         modifiers.structure_range = Modifiers::FROM_CURRENT_POSITION_TO_END;
         stack.PushBack(NewDeleteLinesTransformation(modifiers, true));
-        stack.PushBack(NewDeleteCharactersTransformation(Modifiers(), true));
       }
       start.column += initial_position.column;
       end.column += initial_position.column;
@@ -448,7 +449,7 @@ class DeleteBufferTransformation : public Transformation {
     LOG(INFO) << "Erasing buffer (modifiers: " << modifiers_ << ") of size: "
               << buffer->contents()->size();
 
-    int current_line = buffer->line().line();
+    int current_line = buffer->current_position_line();
     int last_line = buffer->contents()->size();
 
     int begin = 0;
@@ -482,34 +483,41 @@ class DeleteBufferTransformation : public Transformation {
   bool copy_to_paste_buffer_;
 };
 
-class DeleteRegionTransformation : public Transformation {
+class DeleteCursorTransformation : public Transformation {
  public:
-  DeleteRegionTransformation(const Modifiers& modifiers,
+  DeleteCursorTransformation(const Modifiers& modifiers,
                              bool copy_to_paste_buffer)
       : modifiers_(modifiers),
         copy_to_paste_buffer_(copy_to_paste_buffer) {}
 
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
-    LOG(INFO) << "Erasing region (modifiers: " << modifiers_ << ")";
-    if (!modifiers_.has_region_start
-        || modifiers_.region_start.buffer_name != buffer->name()) {
-      return;
-    }
+    LOG(INFO) << "Erasing to cursor (modifiers: " << modifiers_ << ")";
 
-    LineColumn from = min(buffer->position(), modifiers_.region_start.position);
-    LineColumn to = max(buffer->position(), modifiers_.region_start.position);
-
-    CHECK_GE(to.line, from.line);
-
-    if (to.line == from.line) {
-      CHECK_GE(to.column, from.column);
-      Modifiers modifiers;
-      modifiers.repetitions = to.column - from.column;
-      if (buffer->position() != from) {
-        modifiers.direction = BACKWARDS;
+    auto cursors = buffer->active_cursors();
+    OpenBuffer::CursorsSet::iterator current_cursor = buffer->current_cursor();
+    bool has_boundary = false;
+    OpenBuffer::CursorsSet::iterator boundary;
+    for (auto it = cursors->begin(); it != cursors->end(); ++it) {
+      if (modifiers_.direction == BACKWARDS
+              ? *it < *current_cursor && (!has_boundary || *it > *boundary)
+              : *it > *current_cursor && (!has_boundary || *it < *boundary)) {
+        has_boundary = true;
+        boundary = it;
       }
-      NewDeleteCharactersTransformation(modifiers, copy_to_paste_buffer_)
+    }
+    if (!has_boundary) { return; }
+
+    OpenBuffer::CursorsSet::value_type from = min(*boundary, *current_cursor);
+    OpenBuffer::CursorsSet::value_type to = max(*boundary, *current_cursor);
+
+    CHECK(from <= to);
+    if (to.first == from.first) {  // Same line.
+      CHECK_GE(to.second, from.second);
+      Modifiers output_modifiers;
+      output_modifiers.repetitions = to.second - from.second;
+      output_modifiers.direction = modifiers_.direction;
+      NewDeleteCharactersTransformation(output_modifiers, copy_to_paste_buffer_)
           ->Apply(editor_state, buffer, result);
       return;
     }
@@ -517,39 +525,43 @@ class DeleteRegionTransformation : public Transformation {
     TransformationStack stack;
 
     {
-      Modifiers modifiers;
-      modifiers.structure_range = Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
-      LOG(INFO) << "Delete start of last line: " << modifiers << " at " << to;
-      stack.PushBack(NewGotoPositionTransformation(to));
-      stack.PushBack(
-          NewDeleteLinesTransformation(modifiers, copy_to_paste_buffer_));
+      Modifiers output_modifiers;
+      output_modifiers.structure_range =
+          Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
+      LOG(INFO) << "Delete start of last line.";
+      stack.PushBack(NewGotoPositionTransformation(
+          LineColumn(to.first - buffer->contents()->begin(), to.second)));
+      stack.PushBack(NewDeleteLinesTransformation(
+          output_modifiers, copy_to_paste_buffer_));
     }
 
-    int lines_delta = to.line - from.line;
+    int lines_delta = to.first - from.first;
     if (lines_delta > 1) {
-      Modifiers modifiers;
-      modifiers.repetitions = lines_delta - 1;
-      LOG(INFO) << "Delete intermediate lines: " << modifiers << " at " << from;
-      stack.PushBack(NewGotoPositionTransformation(LineColumn(from.line + 1)));
-      stack.PushBack(
-          NewDeleteLinesTransformation(modifiers, copy_to_paste_buffer_));
+      Modifiers output_modifiers;
+      output_modifiers.repetitions = lines_delta - 1;
+      LOG(INFO) << "Delete intermediate lines.";
+      stack.PushBack(NewGotoPositionTransformation(
+          LineColumn(from.first - buffer->contents()->begin() + 1)));
+      stack.PushBack(NewDeleteLinesTransformation(
+          output_modifiers, copy_to_paste_buffer_));
     }
 
     {
-      Modifiers modifiers;
-      modifiers.structure_range = Modifiers::FROM_CURRENT_POSITION_TO_END;
-      LOG(INFO) << "Delete end of the first line: " << modifiers << " at "
-                << from;
-      stack.PushBack(NewGotoPositionTransformation(from));
-      stack.PushBack(
-          NewDeleteLinesTransformation(modifiers, copy_to_paste_buffer_));
+      Modifiers output_modifiers;
+      output_modifiers.structure_range =
+          Modifiers::FROM_CURRENT_POSITION_TO_END;
+      LOG(INFO) << "Delete end of the first line.";
+      stack.PushBack(NewGotoPositionTransformation(
+          LineColumn(from.first - buffer->contents()->begin(), from.second)));
+      stack.PushBack(NewDeleteLinesTransformation(
+          output_modifiers, copy_to_paste_buffer_));
     }
 
     stack.Apply(editor_state, buffer, result);
   }
 
   unique_ptr<Transformation> Clone() {
-    return NewDeleteRegionTransformation(modifiers_, copy_to_paste_buffer_);
+    return NewDeleteCursorTransformation(modifiers_, copy_to_paste_buffer_);
   }
 
  private:
@@ -583,8 +595,8 @@ class DeleteTransformation : public Transformation {
         delegate = NewDeleteBufferTransformation(
             modifiers_, copy_to_paste_buffer_);
         break;
-      case REGION:
-        delegate = NewDeleteRegionTransformation(
+      case CURSOR:
+        delegate = NewDeleteCursorTransformation(
             modifiers_, copy_to_paste_buffer_);
         break;
       case MARK:
@@ -635,10 +647,10 @@ unique_ptr<Transformation> NewDeleteBufferTransformation(
       new DeleteBufferTransformation(modifiers, copy_to_paste_buffer));
 }
 
-unique_ptr<Transformation> NewDeleteRegionTransformation(
+unique_ptr<Transformation> NewDeleteCursorTransformation(
     const Modifiers& modifiers, bool copy_to_paste_buffer) {
   return unique_ptr<Transformation>(
-      new DeleteRegionTransformation(modifiers, copy_to_paste_buffer));
+      new DeleteCursorTransformation(modifiers, copy_to_paste_buffer));
 }
 
 unique_ptr<Transformation> NewDeleteTransformation(
@@ -649,6 +661,3 @@ unique_ptr<Transformation> NewDeleteTransformation(
 
 }  // namespace editor
 }  // namespace afc
-
-
-

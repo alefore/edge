@@ -461,7 +461,8 @@ using std::to_wstring;
 }
 
 OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
-    : name_(name),
+    : editor_(editor_state),
+      name_(name),
       fd_(-1),
       fd_is_terminal_(false),
       child_pid_(-1),
@@ -478,6 +479,9 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       environment_(editor_state->environment()),
       filter_version_(0),
       last_transformation_(NewNoopTransformation()) {
+  active_cursors()->emplace_back(contents_.begin(), 0);
+  current_cursor_ = active_cursors()->begin();
+
   environment_.Define(L"buffer", Value::NewObject(
       L"Buffer", shared_ptr<void>(this, [](void*){})));
 
@@ -538,7 +542,8 @@ void OpenBuffer::Enter(EditorState* editor_state) {
 }
 
 void OpenBuffer::ClearContents(EditorState* editor_state) {
-  contents_.clear();
+  LOG(INFO) << "Clear contents of buffer: " << name_;
+  EraseLines(contents_.begin(), contents_.end());
   position_pts_ = LineColumn();
   AppendEmptyLine(editor_state);
   editor_state->line_marks()->RemoveMarksFromSource(name_);
@@ -546,6 +551,7 @@ void OpenBuffer::ClearContents(EditorState* editor_state) {
 
 void OpenBuffer::AppendEmptyLine(EditorState*) {
   contents_.emplace_back(new Line(Line::Options()));
+  MaybeFollowToEndOfFile();
 }
 
 void OpenBuffer::EndOfFile(EditorState* editor_state) {
@@ -588,12 +594,16 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
 }
 
 void OpenBuffer::MaybeFollowToEndOfFile() {
+  if (desired_line_ < contents_.size()) {
+    set_current_position_line(desired_line_);
+    desired_line_ = std::numeric_limits<decltype(desired_line_)>::max();
+  }
   if (!read_bool_variable(variable_follow_end_of_file())) { return; }
   if (read_bool_variable(variable_pts())) {
-    position_ = position_pts_;
+    set_position(position_pts_);
+  } else {
+    set_position(LineColumn(contents_.size()));
   }
-  position_.line = contents_.size();
-  position_.column = 0;
 }
 
 LineColumn OpenBuffer::MovePosition(
@@ -604,7 +614,7 @@ LineColumn OpenBuffer::MovePosition(
       output = end;
       if (output.line >= contents()->size()) {
         // Pass.
-      } else if (output.column < (*line())->size()) {
+      } else if (output.column < LineAt(output.line)->size()) {
         output.column++;
       } else {
         output = LineColumn(output.line + 1);
@@ -741,7 +751,7 @@ void OpenBuffer::StartNewLine(EditorState* editor_state) {
       mark.source = name_;
       mark.source_line = contents_.size() - 1;
       mark.target_buffer = path;
-      mark.line = positions.empty() ? 0 : positions[0];
+      mark.target = LineColumn(positions);
       LOG(INFO) << "Found a mark: " << mark;
       editor_state->line_marks()->AddMark(mark);
     }
@@ -758,6 +768,7 @@ void OpenBuffer::Reload(EditorState* editor_state) {
   for (const auto& dir : editor_state->edge_path()) {
     EvaluateFile(editor_state, dir + L"/hooks/buffer-reload.cc");
   }
+  desired_line_ = current_position_line();
   ReloadInto(editor_state, this);
   set_modified(false);
   CheckPosition();
@@ -791,7 +802,59 @@ static void AddToParseTree(const shared_ptr<LazyString>& str_input) {
   wstring str = str_input->ToString();
 }
 
-void OpenBuffer::AppendLine(EditorState* editor_state, shared_ptr<LazyString> str) {
+void OpenBuffer::SortContents(
+    const Tree<shared_ptr<Line>>::const_iterator& first,
+    const Tree<shared_ptr<Line>>::const_iterator& last,
+    std::function<bool(const shared_ptr<Line>&, const shared_ptr<Line>&)>
+        compare) {
+  CHECK(first <= last);
+  size_t delta_first = std::distance(contents_.cbegin(), first);
+  size_t delta_last = std::distance(contents_.cbegin(), last);
+  sort(contents_.begin() + delta_first, contents_.begin() + delta_last,
+       compare);
+}
+
+Tree<shared_ptr<Line>>::const_iterator OpenBuffer::EraseLines(
+    Tree<shared_ptr<Line>>::const_iterator const_first,
+    Tree<shared_ptr<Line>>::const_iterator const_last) {
+  if (const_first == const_last) {
+    return contents()->begin();  // That was easy...
+  }
+  int delta_first = const_first - contents_.begin();
+  int delta_last = const_last - contents_.begin();
+  LOG(INFO) << "Erasing lines in range [" << delta_first << ", " << delta_last
+            << ").";
+  Tree<shared_ptr<Line>>::iterator first = contents_.begin() + delta_first;
+  Tree<shared_ptr<Line>>::iterator last = contents_.begin() + delta_last;
+  for (auto& set_it : cursors_) {
+    for (auto& it : set_it.second) {
+      if (it.first >= first && it.first < last) {
+        it.first = last;
+      }
+    }
+  }
+  auto result = contents_.erase(first, last);
+  CHECK(current_cursor_->first >= contents_.begin());
+  CHECK(current_cursor_->first <= contents_.end());
+  return result;
+}
+
+void OpenBuffer::ReplaceLine(
+    Tree<shared_ptr<Line>>::const_iterator position,
+    shared_ptr<Line> line) {
+  size_t delta = std::distance(contents_.cbegin(), position);
+  *(contents_.begin() + delta) = line;
+}
+
+void OpenBuffer::InsertLine(
+    Tree<shared_ptr<Line>>::const_iterator position,
+    shared_ptr<Line> line) {
+  size_t delta = std::distance(contents_.cbegin(), position);
+  contents_.insert(contents_.begin() + delta, line);
+}
+
+void OpenBuffer::AppendLine(EditorState* editor_state,
+                            shared_ptr<LazyString> str) {
   CHECK(str != nullptr);
   if (reading_from_parser_) {
     switch (str->get(0)) {
@@ -815,10 +878,15 @@ void OpenBuffer::AppendLine(EditorState* editor_state, shared_ptr<LazyString> st
   AppendRawLine(editor_state, str);
 }
 
-void OpenBuffer::AppendRawLine(EditorState*, shared_ptr<LazyString> str) {
+void OpenBuffer::AppendRawLine(EditorState* editor,
+                               shared_ptr<LazyString> str) {
   Line::Options options;
   options.contents = str;
-  contents_.emplace_back(new Line(options));
+  AppendRawLine(editor, std::make_shared<Line>(options));
+}
+
+void OpenBuffer::AppendRawLine(EditorState*, shared_ptr<Line> line) {
+  contents_.push_back(line);
   MaybeFollowToEndOfFile();
 }
 
@@ -1045,8 +1113,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
 
       case 'J':
         // ed: clear to end of screen.
-        contents_.erase(contents_.begin() + position_pts_.line + 1,
-                        contents_.end());
+        EraseLines(contents_.begin() + position_pts_.line + 1, contents_.end());
         CHECK_LT(position_pts_.line, contents_.size());
         return read_index;
 
@@ -1057,8 +1124,11 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
 
       case 'M':
         // dl1: delete one line.
-        contents_.erase(contents_.begin() + position_pts_.line);
-        CHECK_LT(position_pts_.line, contents_.size());
+        {
+          auto it = contents_.begin() + position_pts_.line;
+          EraseLines(it, it + 1);
+          CHECK_LT(position_pts_.line, contents_.size());
+        }
         return read_index;
 
       case 'P':
@@ -1099,7 +1169,7 @@ void OpenBuffer::AppendToLastLine(
   for (auto& it : modifiers) {
     options.modifiers.push_back(it);
   }
-  contents_.rbegin()->reset(new Line(options));
+  *contents_.rbegin() = std::make_shared<Line>(options);
 }
 
 unique_ptr<Expression> OpenBuffer::CompileString(EditorState*,
@@ -1138,13 +1208,13 @@ unique_ptr<Value> OpenBuffer::EvaluateFile(EditorState* editor_state,
 }
 
 LineColumn OpenBuffer::InsertInCurrentPosition(
-    const vector<shared_ptr<Line>>& insertion) {
+    const Tree<shared_ptr<Line>>& insertion) {
   MaybeAdjustPositionCol();
   return InsertInPosition(insertion, position());
 }
 
 LineColumn OpenBuffer::InsertInPosition(
-    const vector<shared_ptr<Line>>& insertion,
+    const Tree<shared_ptr<Line>>& insertion,
     const LineColumn& input_position) {
   if (insertion.empty()) { return input_position; }
   LineColumn position = input_position;
@@ -1161,6 +1231,25 @@ LineColumn OpenBuffer::InsertInPosition(
   for (size_t i = 1; i < insertion.size() - 1; i++) {
     contents_.at(position.line + i)->set_modified(true);
   }
+  Tree<shared_ptr<Line>>::const_iterator line_it =
+      contents_.begin() + position.line;
+  // Reshuffle cursors unlucky enough to land on the insertion line right after
+  // the cursor. Ideally we wouldn't need to do that: those iterators would
+  // automatically reshuffle (just like the ones for the line do). Maybe some
+  // day.
+  for (auto& it_set : cursors_) {
+    for (auto& it : it_set.second) {
+      if (it.first == line_it && it.second > position.column) {
+        VLOG(5) << "Adjusting cursor at column: " << it.second;
+        it.first += insertion.size() - 1;
+        it.second += (*--insertion.end())->size();
+        if (insertion.size() > 1) {
+          it.second -= head->size();
+        }
+        VLOG(5) << "After adjustment: " << it.second;
+      }
+    }
+  }
   if (insertion.size() == 1) {
     if (insertion.at(0)->size() == 0) { return position; }
     auto line_to_insert = insertion.at(0)->contents();
@@ -1169,7 +1258,7 @@ LineColumn OpenBuffer::InsertInPosition(
     if (position.line >= contents_.size()) {
       contents_.emplace_back(new Line(options));
     } else {
-      contents_.at(position.line).reset(new Line(options));
+      contents_.at(position.line) = std::make_shared<Line>(options);
     }
     contents_[position.line]->set_modified(true);
     return LineColumn(position.line, head->size() + line_to_insert->size());
@@ -1178,7 +1267,7 @@ LineColumn OpenBuffer::InsertInPosition(
   {
     Line::Options options;
     options.contents = StringAppend(head, (*insertion.begin())->contents());
-    contents_.at(position.line).reset(new Line(options));
+    contents_.at(position.line) = std::make_shared<Line>(options);
     if (contents_.at(position.line)->contents() != head) {
       contents_[position.line]->set_modified(true);
     }
@@ -1189,7 +1278,7 @@ LineColumn OpenBuffer::InsertInPosition(
     if (line_end >= contents_.size()) {
       contents_.emplace_back(new Line(options));
     } else {
-      contents_.at(line_end).reset(new Line(options));
+      contents_.at(line_end) = std::make_shared<Line>(options);
     }
   }
   if (head->size() > 0 || (*insertion.rbegin())->size() > 0) {
@@ -1203,15 +1292,111 @@ LineColumn OpenBuffer::InsertInPosition(
 void OpenBuffer::MaybeAdjustPositionCol() {
   if (contents_.empty() || current_line() == nullptr) { return; }
   size_t line_length = current_line()->size();
-  if (position_.column > line_length) {
-    position_.column = line_length;
+  if (current_cursor()->second > line_length) {
+    set_current_position_col(line_length);
   }
 }
 
 void OpenBuffer::CheckPosition() {
-  if (position_.line > contents_.size()) {
-    position_.line = contents_.size();
+  if (position().line > contents_.size()) {
+    set_current_position_line(contents_.size());
   }
+}
+
+typename OpenBuffer::CursorsSet* OpenBuffer::active_cursors() {
+  return &cursors_[editor_->modifiers().active_cursors];
+}
+
+void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
+  if (positions.empty()) { return; }
+  auto cursors = active_cursors();
+  cursors->clear();
+  for (auto& position : positions) {
+    cursors->push_back(
+        make_pair(contents_.begin() + position.line, position.column));
+  }
+  current_cursor_ = cursors->begin();
+  editor_->ScheduleRedraw();
+}
+
+void OpenBuffer::set_current_cursor(CursorsSet::value_type new_value) {
+  *current_cursor_ = new_value;
+}
+
+typename OpenBuffer::CursorsSet::iterator OpenBuffer::current_cursor() {
+  return current_cursor_;
+}
+
+typename OpenBuffer::CursorsSet::const_iterator OpenBuffer::current_cursor()
+    const {
+  return current_cursor_;
+}
+
+void OpenBuffer::CreateCursor() {
+  active_cursors()->push_back(*current_cursor_);
+  editor_->SetStatus(L"Cursor created.");
+  editor_->ScheduleRedraw();
+}
+
+void OpenBuffer::VisitPreviousCursor() {
+  LOG(INFO) << "Visiting previous cursor: " << editor_->modifiers();
+  if (editor_->modifiers().direction == BACKWARDS) {
+    editor_->set_direction(FORWARDS);
+    return VisitNextCursor();
+  }
+  auto cursors = active_cursors();
+  if (cursors->empty()) { return; }
+  size_t repetitions = editor_->modifiers().repetitions % cursors->size();
+  for (size_t i = 0; i < repetitions; i++) {
+    if (current_cursor_ == cursors->begin()) {
+      current_cursor_ = cursors->end();
+    }
+    --current_cursor_;
+    VLOG(6) << "Decrement cursor.";
+  }
+  editor_->ScheduleRedraw();
+}
+
+void OpenBuffer::VisitNextCursor() {
+  LOG(INFO) << "Visiting next cursor: " << editor_->modifiers();
+  if (editor_->modifiers().direction == BACKWARDS) {
+    editor_->set_direction(FORWARDS);
+    return VisitPreviousCursor();
+  }
+  auto cursors = active_cursors();
+  if (cursors->empty()) { return; }
+  size_t repetitions = editor_->modifiers().repetitions % cursors->size();
+  for (size_t i = 0; i < repetitions; i++) {
+    ++current_cursor_;
+    VLOG(6) << "Increment cursor.";
+    if (current_cursor_ == cursors->end()) {
+      current_cursor_ = cursors->begin();
+    }
+  }
+  editor_->ScheduleRedraw();
+}
+
+void OpenBuffer::DestroyCursor() {
+  auto cursors = active_cursors();
+  if (cursors->size() <= 1) { return; }
+  size_t repetitions =
+      min(editor_->modifiers().repetitions, cursors->size() - 1);
+  for (size_t i = 0; i < repetitions; i++) {
+    active_cursors()->erase(current_cursor_++);
+  }
+  editor_->ScheduleRedraw();
+}
+
+void OpenBuffer::DestroyOtherCursors() {
+  auto cursors = active_cursors();
+  for (auto it = cursors->begin(); it != cursors->end();) {
+    if (it != current_cursor_) {
+      cursors->erase(it++);
+    } else {
+      ++it;
+    }
+  }
+  editor_->ScheduleRedraw();
 }
 
 bool OpenBuffer::BoundStructureAt(
@@ -1241,7 +1426,7 @@ bool OpenBuffer::BoundStructureAt(
       return true;
 
     case BUFFER:
-    case REGION:
+    case CURSOR:
     case MARK:
     case SEARCH:
     case PAGE:
@@ -1294,6 +1479,16 @@ bool OpenBuffer::BoundWordAt(
 
   *end = max(position, position_input);
   return true;
+}
+
+const shared_ptr<Line> OpenBuffer::current_line() const {
+  if (current_cursor_->first == contents_.end()) { return nullptr; }
+  return *(*current_cursor_).first;
+}
+
+shared_ptr<Line> OpenBuffer::current_line() {
+  return std::const_pointer_cast<Line>(
+      const_cast<const OpenBuffer*>(this)->current_line());
 }
 
 wstring OpenBuffer::ToString() const {
@@ -1383,6 +1578,37 @@ void OpenBuffer::SetInputFile(
   child_pid_ = child_pid;
 }
 
+size_t OpenBuffer::current_position_line() const {
+  return current_cursor_->first - contents_.begin();
+}
+
+void OpenBuffer::set_current_position_line(size_t line) {
+  set_current_cursor(
+      make_pair(contents_.begin() + min(line, contents_.size()), 0));
+}
+
+size_t OpenBuffer::current_position_col() const {
+  return current_cursor_->second;
+}
+
+void OpenBuffer::set_current_position_col(size_t column) {
+  set_current_cursor(make_pair(current_cursor_->first, column));
+}
+
+const LineColumn OpenBuffer::position() const {
+  return LineColumn(current_cursor_->first - contents_.begin(),
+                    current_cursor_->second);
+}
+
+void OpenBuffer::set_position(const LineColumn& position) {
+  if (position.line > contents_.size()) {
+    desired_line_ = position.line;
+  }
+  set_current_cursor(
+      make_pair(contents_.begin() + min(position.line, contents_.size()),
+                position.column));
+}
+
 wstring OpenBuffer::FlagsString() const {
   wstring output;
   if (modified()) {
@@ -1432,6 +1658,7 @@ wstring OpenBuffer::FlagsString() const {
     OpenBuffer::variable_commands_background_mode();
     OpenBuffer::variable_reload_on_buffer_write();
     OpenBuffer::variable_contains_line_marks();
+    OpenBuffer::variable_multiple_cursors();
   }
   return output;
 }
@@ -1574,6 +1801,15 @@ OpenBuffer::variable_allow_dirty_delete() {
   return variable;
 }
 
+/* static */ EdgeVariable<char>* OpenBuffer::variable_multiple_cursors() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+      L"multiple_cursors",
+      L"If set to true, operations in this buffer apply to all cursors defined "
+      L"on it.",
+      false);
+  return variable;
+}
+
 /* static */ EdgeStruct<wstring>* OpenBuffer::StringStruct() {
   static EdgeStruct<wstring>* output = nullptr;
   if (output == nullptr) {
@@ -1691,6 +1927,7 @@ OpenBuffer::variable_dictionary() {
     output = new EdgeStruct<int>;
     // Trigger registration of all fields.
     OpenBuffer::variable_line_width();
+    OpenBuffer::variable_buffer_list_context_lines();
   }
   return output;
 }
@@ -1700,6 +1937,16 @@ OpenBuffer::variable_dictionary() {
       L"line_width",
       L"Desired maximum width of a line.",
       80);
+  return variable;
+}
+
+/* static */ EdgeVariable<int>*
+    OpenBuffer::variable_buffer_list_context_lines() {
+  static EdgeVariable<int>* variable = IntStruct()->AddVariable(
+      L"buffer_list_context_lines",
+      L"Number of lines of context from this buffer to show in the list of "
+      L"buffers.",
+      0);
   return variable;
 }
 
@@ -1762,14 +2009,45 @@ void OpenBuffer::CopyVariablesFrom(const shared_ptr<const OpenBuffer>& src) {
   string_variables_.CopyFrom(src->string_variables_);
 }
 
+void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
+  CursorsSet single_cursor;
+  CursorsSet* cursors;
+  if (read_bool_variable(variable_multiple_cursors())) {
+    cursors = active_cursors();
+  } else {
+    cursors = &single_cursor;
+    single_cursor.push_back(*current_cursor_);
+  }
+
+  LOG(INFO) << "Applying transformation to cursors: " << cursors->size();
+  for (CursorsSet::iterator it = cursors->begin(); it != cursors->end(); ++it) {
+    CursorsSet::iterator final_current_cursor = current_cursor_;
+    VLOG(6) << "Applying transformation at line: "
+            << std::distance(contents_.begin(), it->first);
+    if (cursors != &single_cursor) {
+      current_cursor_ = it;
+    }
+
+    Apply(editor_, transformation->Clone());
+
+    if (it == current_cursor_) {
+      *it = *current_cursor_;
+      current_cursor_ = final_current_cursor;
+    }
+  }
+}
+
 void OpenBuffer::Apply(
     EditorState* editor_state, unique_ptr<Transformation> transformation) {
   if (!last_transformation_stack_.empty()) {
     CHECK(last_transformation_stack_.back() != nullptr);
     last_transformation_stack_.back()->PushBack(transformation->Clone());
   }
-  transformations_past_.emplace_back(new Transformation::Result(editor_state));
-  transformation->Apply(editor_state, this, transformations_past_.back().get());
+
+  transformations_past_.emplace_back(
+      new Transformation::Result(editor_state));
+  transformation->Apply(
+      editor_state, this, transformations_past_.back().get());
 
   auto delete_buffer = transformations_past_.back()->delete_buffer;
   if (delete_buffer->contents()->size() > 1
@@ -1856,11 +2134,11 @@ const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks(
     line_marks_.clear();
     auto relevant_marks = marks->GetMarksForTargetBuffer(name_);
     for (auto& mark : relevant_marks) {
-      line_marks_.insert(make_pair(mark.line, mark));
+      line_marks_.insert(make_pair(mark.target.line, mark));
     }
     line_marks_last_updates_ = marks->updates;
   }
-  LOG(INFO) << "Returning multimap with size: " << line_marks_.size();
+  VLOG(10) << "Returning multimap with size: " << line_marks_.size();
   return &line_marks_;
 }
 
