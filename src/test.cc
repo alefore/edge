@@ -294,11 +294,11 @@ int main(int, char**) {
   assert(editor_state.current_buffer()->second->position().line == 0);
   assert(editor_state.current_buffer()->second->position().column == 10);
 
-  editor_state.ProcessInputString("acSetPositionColumn(4);;\n");
+  editor_state.ProcessInputString("aCSetPositionColumn(4);;\n");
   assert(editor_state.current_buffer()->second->position().column == 4);
-  editor_state.ProcessInputString("acSetPositionColumn(4 - 1);;\n");
+  editor_state.ProcessInputString("aCSetPositionColumn(4 - 1);;\n");
   assert(editor_state.current_buffer()->second->position().column == 3);
-  editor_state.ProcessInputString("acSetPositionColumn(8 - 2 * 3 + 5);;\n");
+  editor_state.ProcessInputString("aCSetPositionColumn(8 - 2 * 3 + 5);;\n");
   assert(editor_state.current_buffer()->second->position().column == 7);
 
   Clear(&editor_state);
