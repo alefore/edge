@@ -484,7 +484,7 @@ class OpenBuffer {
 
   // If we get a request to open a buffer and jump to a given line, we store
   // that value here. Once we've read enough lines, we stay at this position.
-  size_t desired_line_ = std::numeric_limits<decltype(desired_line_)>::max();
+  size_t desired_line_ = 0;
 };
 
 }  // namespace editor
