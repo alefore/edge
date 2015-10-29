@@ -22,8 +22,6 @@ class MoveTransformation : public Transformation {
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     CHECK(result);
-    buffer->CheckPosition();
-    buffer->MaybeAdjustPositionCol();
     LineColumn position;
     switch (modifiers_.structure) {
       case CHAR:
@@ -69,6 +67,8 @@ class MoveTransformation : public Transformation {
  private:
   LineColumn MoveCharacter(OpenBuffer* buffer)
       const {
+    buffer->CheckPosition();
+    buffer->MaybeAdjustPositionCol();
     LineColumn position = buffer->position();
     switch (modifiers_.direction) {
       case FORWARDS:
@@ -134,6 +134,8 @@ class MoveTransformation : public Transformation {
   }
 
   LineColumn MoveWord(OpenBuffer* buffer) const {
+    buffer->CheckPosition();
+    buffer->MaybeAdjustPositionCol();
     LineColumn position = buffer->position();
     for (size_t i = 0; i < modifiers_.repetitions; i ++) {
       LineColumn new_position =
