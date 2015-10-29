@@ -256,8 +256,6 @@ class OpenBuffer {
   size_t current_position_col() const;
   void set_current_position_col(size_t column);
 
-  void LineUp();
-  void LineDown();
   const LineColumn position() const;
 
   void set_position(const LineColumn& position);
