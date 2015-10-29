@@ -21,6 +21,7 @@ extern "C" {
 #include "substring.h"
 #include "terminal.h"
 #include "transformation_delete.h"
+#include "transformation_move.h"
 #include "tree.h"
 #include "vm/public/value.h"
 #include "wstring.h"
@@ -209,25 +210,32 @@ class InsertMode : public EditorMode {
         return;
 
       case Terminal::UP_ARROW:
-        LOG(INFO) << "Up arrow";
-        buffer->LineUp();
+        {
+          Modifiers modifiers;
+          modifiers.direction = BACKWARDS;
+          modifiers.structure = LINE;
+          buffer->ApplyToCursors(NewMoveTransformation(modifiers));
+        }
         return;
 
       case Terminal::DOWN_ARROW:
-        LOG(INFO) << "Down arrow";
-        buffer->LineDown();
+        {
+          Modifiers modifiers;
+          modifiers.structure = LINE;
+          buffer->ApplyToCursors(NewMoveTransformation(modifiers));
+        }
         return;
 
       case Terminal::LEFT_ARROW:
-        if (buffer->current_position_col() > 0) {
-          buffer->set_current_position_col(buffer->current_position_col() - 1);
+        {
+          Modifiers modifiers;
+          modifiers.direction = BACKWARDS;
+          buffer->ApplyToCursors(NewMoveTransformation(modifiers));
         }
         return;
 
       case Terminal::RIGHT_ARROW:
-        buffer->set_current_position_col(
-            min(buffer->current_position_col() + 1,
-                buffer->current_line()->size()));
+        buffer->ApplyToCursors(NewMoveTransformation(Modifiers()));
         return;
 
       case Terminal::BACKSPACE:

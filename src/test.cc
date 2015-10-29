@@ -191,7 +191,7 @@ int main(int, char**) {
   assert(editor_state.current_buffer()->second->current_position_col() == sizeof("alejandro") - 1);
 
   editor_state.ProcessInputString("erg");
-  assert(editor_state.current_buffer()->second->current_position_line() == 3);
+  assert(editor_state.current_buffer()->second->current_position_line() == 2);
 
   editor_state.ProcessInputString("egg");
   assert(editor_state.current_buffer()->second->current_position_line() == 0);
@@ -206,7 +206,7 @@ int main(int, char**) {
   CHECK_EQ(editor_state.current_buffer()->second->contents()->size(), 5);
 
   editor_state.ProcessInputString("erg");
-  CHECK_EQ(editor_state.current_buffer()->second->current_position_line(), 5);
+  CHECK_EQ(editor_state.current_buffer()->second->current_position_line(), 4);
   editor_state.ProcessInputString("eg");
   CHECK_EQ(editor_state.current_buffer()->second->current_position_line(), 0);
 

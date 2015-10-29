@@ -1,4 +1,3 @@
-
 string ProcessCCInputLine(string line) {
   SetStatus("Got: " + line);
   return line;
@@ -26,6 +25,7 @@ if (path == "") {
     if (base_command == "bash" || base_command == "python") {
       buffer.set_pts(true);
       buffer.set_follow_end_of_file(true);
+      buffer.set_buffer_list_context_lines(3);
     }
     if (base_command == "make") {
       buffer.set_contains_line_marks(true);

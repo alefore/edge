@@ -118,7 +118,7 @@ class GotoCommand : public Command {
 
       case LINE:
         {
-          size_t lines = buffer->contents()->size();
+          size_t lines = buffer->contents()->size() - 1;
           size_t position = ComputePosition(
               0, lines, lines, editor_state->direction(),
               editor_state->repetitions(), editor_state->structure_range(),
@@ -437,18 +437,8 @@ const wstring LineUp::Description() {
   if (!editor_state->has_current_buffer()) { return; }
   switch (structure) {
     case CHAR:
-      {
-        shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-        buffer->CheckPosition();
-        VLOG(6) << "Up: Initial position: " << buffer->position();
-        while (editor_state->repetitions() && buffer->position().line != 0) {
-          VLOG(5) << "Up: Moving up.";
-          buffer->LineUp();
-          editor_state->set_repetitions(editor_state->repetitions() - 1);
-        }
-        VLOG(6) << "Up: Final position: " << buffer->position();
-        editor_state->PushCurrentPosition();
-      }
+      editor_state->set_structure(LINE);
+      MoveBackwards::Move(c, editor_state);
       break;
 
     case WORD:
@@ -485,20 +475,8 @@ const wstring LineDown::Description() {
   if (!editor_state->has_current_buffer()) { return; }
   switch (structure) {
     case CHAR:
-      {
-        shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-        buffer->CheckPosition();
-        VLOG(6) << "Down: Initial position: " << buffer->position();
-        const auto line_end = buffer->contents()->end();
-        while (editor_state->repetitions()
-               && buffer->current_cursor()->first != line_end) {
-          VLOG(5) << "Down: Moving down.";
-          buffer->LineDown();
-          editor_state->set_repetitions(editor_state->repetitions() - 1);
-        }
-        VLOG(6) << "Down: Final position: " << buffer->position();
-        editor_state->PushCurrentPosition();
-      }
+      editor_state->set_structure(LINE);
+      MoveForwards::Move(c, editor_state);
       break;
 
     case WORD:
@@ -555,6 +533,7 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
   switch (editor_state->structure()) {
     case CHAR:
     case WORD:
+    case LINE:
     case MARK:
     case CURSOR:
       {
@@ -606,6 +585,7 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
   switch (editor_state->structure()) {
     case CHAR:
     case WORD:
+    case LINE:
     case MARK:
     case CURSOR:
       {

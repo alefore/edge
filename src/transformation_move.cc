@@ -22,9 +22,6 @@ class MoveTransformation : public Transformation {
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     CHECK(result);
-    if (buffer->current_line() == nullptr) { return; }
-    buffer->CheckPosition();
-    buffer->MaybeAdjustPositionCol();
     LineColumn position;
     switch (modifiers_.structure) {
       case CHAR:
@@ -32,6 +29,9 @@ class MoveTransformation : public Transformation {
         break;
       case WORD:
         position = MoveWord(buffer);
+        break;
+      case LINE:
+        position = MoveLine(buffer);
         break;
       case MARK:
         position = MoveMark(editor_state, buffer);
@@ -67,6 +67,8 @@ class MoveTransformation : public Transformation {
  private:
   LineColumn MoveCharacter(OpenBuffer* buffer)
       const {
+    buffer->CheckPosition();
+    buffer->MaybeAdjustPositionCol();
     LineColumn position = buffer->position();
     switch (modifiers_.direction) {
       case FORWARDS:
@@ -132,6 +134,8 @@ class MoveTransformation : public Transformation {
   }
 
   LineColumn MoveWord(OpenBuffer* buffer) const {
+    buffer->CheckPosition();
+    buffer->MaybeAdjustPositionCol();
     LineColumn position = buffer->position();
     for (size_t i = 0; i < modifiers_.repetitions; i ++) {
       LineColumn new_position =
@@ -172,6 +176,16 @@ class MoveTransformation : public Transformation {
     }
 
     return it->second.target;
+  }
+
+  LineColumn MoveLine(OpenBuffer* buffer) const {
+    int direction = (modifiers_.direction == BACKWARDS ? -1 : 1);
+    size_t current = buffer->current_position_line();
+    int repetitions = min(modifiers_.repetitions,
+        modifiers_.direction == BACKWARDS
+            ? current : buffer->contents()->size() - 1 - current);
+    return LineColumn(current + direction * repetitions,
+                      buffer->current_position_col());
   }
 
   LineColumn MoveMark(EditorState* editor_state, OpenBuffer* buffer) const {

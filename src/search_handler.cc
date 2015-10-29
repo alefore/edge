@@ -53,34 +53,34 @@ vector<size_t> GetMatches(const wstring& line, const RegexPattern& pattern) {
   }
 }
 
-size_t FindInterestingMatch(
-    const vector<size_t> matches, bool wrapped,
+vector<size_t> FilterInterestingMatches(
+    vector<size_t> matches, bool wrapped,
     const Tree<shared_ptr<Line>>::const_iterator& start_line,
     size_t start_column,
     const Tree<shared_ptr<Line>>::const_iterator& line) {
-  if (matches.empty()) { return wstring::npos; }
-  if (line != start_line) { return *matches.begin(); }
+  if (matches.empty() || line != start_line) { return matches; }
+  vector<size_t> output;
   for (auto it = matches.begin(); it != matches.end(); ++it) {
     if (!wrapped ? *it > start_column : *it < start_column) {
-      return *it;
+      output.push_back(*it);
     }
   }
-  return wstring::npos;
+  return output;
 }
 
-size_t FindInterestingMatch(
-    const vector<size_t> matches, bool wrapped,
+vector<size_t> FilterInterestingMatches(
+    vector<size_t> matches, bool wrapped,
     const Tree<shared_ptr<Line>>::const_reverse_iterator& start_line,
     size_t start_column,
     const Tree<shared_ptr<Line>>::const_reverse_iterator& line) {
-  if (matches.empty()) { return wstring::npos; }
-  if (line != start_line) { return *matches.begin(); }
+  if (matches.empty() || line != start_line) { return matches; }
+  vector<size_t> output;
   for (auto it = matches.rbegin(); it != matches.rend(); ++it) {
     if (wrapped ? *it > start_column : *it < start_column) {
-      return *it;
+      output.push_back(*it);
     }
   }
-  return wstring::npos;
+  return output;
 }
 
 template <typename Iterator>
@@ -110,13 +110,10 @@ vector<LineColumn> PerformSearch(
     if (line < last) {
       wstring str = (*line)->ToString();
 
-      vector<size_t> matches = GetMatches(str, pattern);
-      size_t interesting_match;
-      interesting_match = FindInterestingMatch(
-          matches, *wrapped, start_line, start_column, line);
-
-      if (interesting_match != wstring::npos) {
-        positions.push_back(LineColumn(line - first, interesting_match));
+      vector<size_t> matches = FilterInterestingMatches(
+          GetMatches(str, pattern), *wrapped, start_line, start_column, line);
+      for (const auto& column : matches) {
+        positions.push_back(LineColumn(line - first, column));
       }
     }
 

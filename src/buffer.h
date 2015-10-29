@@ -266,21 +266,6 @@ class OpenBuffer {
   size_t current_position_col() const;
   void set_current_position_col(size_t column);
 
-  void LineUp() {
-    if (current_cursor_->first != contents_.begin()) {
-      set_current_cursor(
-          make_pair(current_cursor_->first - 1, current_cursor_->second));
-    }
-    set_bool_variable(OpenBuffer::variable_follow_end_of_file(), false);
-  }
-
-  void LineDown() {
-    if (current_cursor_->first < contents_.end()) {
-      set_current_cursor(
-          make_pair(current_cursor_->first + 1, current_cursor_->second));
-    }
-  }
-
   const LineColumn position() const;
 
   void set_position(const LineColumn& position);
@@ -494,7 +479,7 @@ class OpenBuffer {
 
   // If we get a request to open a buffer and jump to a given line, we store
   // that value here. Once we've read enough lines, we stay at this position.
-  size_t desired_line_ = std::numeric_limits<decltype(desired_line_)>::max();
+  size_t desired_line_ = 0;
 };
 
 }  // namespace editor
