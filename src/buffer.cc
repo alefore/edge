@@ -638,7 +638,7 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
   low_buffer_tmp = low_buffer_;
   if (output_characters == -1) {
     low_buffer_tmp = nullptr;
-    for (int i = 0; i < low_buffer_length_; i++) {
+    for (size_t i = 0; i < low_buffer_length_; i++) {
       buffer[i] = static_cast<wchar_t>(low_buffer_[i]);
     }
   } else {
