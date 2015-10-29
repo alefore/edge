@@ -256,21 +256,8 @@ class OpenBuffer {
   size_t current_position_col() const;
   void set_current_position_col(size_t column);
 
-  void LineUp() {
-    if (current_cursor_->first != contents_.begin()) {
-      set_current_cursor(
-          make_pair(current_cursor_->first - 1, current_cursor_->second));
-    }
-    set_bool_variable(OpenBuffer::variable_follow_end_of_file(), false);
-  }
-
-  void LineDown() {
-    if (current_cursor_->first < contents_.end()) {
-      set_current_cursor(
-          make_pair(current_cursor_->first + 1, current_cursor_->second));
-    }
-  }
-
+  void LineUp();
+  void LineDown();
   const LineColumn position() const;
 
   void set_position(const LineColumn& position);

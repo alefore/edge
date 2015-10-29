@@ -1522,6 +1522,21 @@ void OpenBuffer::set_current_position_col(size_t column) {
   set_current_cursor(make_pair(current_cursor_->first, column));
 }
 
+void OpenBuffer::LineUp() {
+  if (current_cursor_->first < contents_.end()) {
+    set_current_cursor(
+        make_pair(current_cursor_->first + 1, current_cursor_->second));
+  }
+  set_bool_variable(OpenBuffer::variable_follow_end_of_file(), false);
+}
+
+void OpenBuffer::LineDown() {
+  if (current_cursor_->first < contents_.end()) {
+    set_current_cursor(
+        make_pair(current_cursor_->first + 1, current_cursor_->second));
+  }
+}
+
 const LineColumn OpenBuffer::position() const {
   return LineColumn(current_cursor_->first - contents_.begin(),
                     current_cursor_->second);
