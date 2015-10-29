@@ -51,6 +51,7 @@ class Transformation {
   virtual ~Transformation() {}
   virtual void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const = 0;
+  // TODO: Add const qualifier.
   virtual unique_ptr<Transformation> Clone() = 0;
 };
 
