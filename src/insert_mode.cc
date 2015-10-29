@@ -210,13 +210,20 @@ class InsertMode : public EditorMode {
         return;
 
       case Terminal::UP_ARROW:
-        LOG(INFO) << "Up arrow";
-        buffer->LineUp();
+        {
+          Modifiers modifiers;
+          modifiers.direction = BACKWARDS;
+          modifiers.structure = LINE;
+          buffer->ApplyToCursors(NewMoveTransformation(modifiers));
+        }
         return;
 
       case Terminal::DOWN_ARROW:
-        LOG(INFO) << "Down arrow";
-        buffer->LineDown();
+        {
+          Modifiers modifiers;
+          modifiers.structure = LINE;
+          buffer->ApplyToCursors(NewMoveTransformation(modifiers));
+        }
         return;
 
       case Terminal::LEFT_ARROW:
