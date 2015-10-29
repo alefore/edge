@@ -494,7 +494,9 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
       receiver = cursors_highlighter.get();
     }
     line->Output(editor_state, buffer, current_line, receiver);
-    receiver->AddModifier(Line::RESET);
+    // Need to do this for atomic lines, since they override the Reset modifier
+    // with Reset + Reverse.
+    line_output_receiver.AddModifier(Line::RESET);
     current_line ++;
   }
 }

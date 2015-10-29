@@ -94,9 +94,15 @@ class ListBuffersBuffer : public OpenBuffer {
 
       auto start = context.first;
       while (start < context.second) {
-        target->AppendLine(editor_state, StringAppend(
+        Line::Options options;
+        options.contents = StringAppend(
             NewCopyString(start + 1 == context.second ? L"╰ " : L"│ "),
-            (*start)->contents()));
+            (*start)->contents());
+        options.modifiers.resize(2);
+        auto modifiers = (*start)->modifiers();
+        options.modifiers.insert(
+            options.modifiers.end(), modifiers.begin(), modifiers.end());
+        target->AppendRawLine(editor_state, std::make_shared<Line>(options));
         (*target->contents()->rbegin())->set_activate(
             unique_ptr<EditorMode>(new ActivateBufferLineCommand(it.first)));
         ++start;
