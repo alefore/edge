@@ -1305,7 +1305,25 @@ typename OpenBuffer::CursorsSet::const_iterator OpenBuffer::current_cursor()
 }
 
 void OpenBuffer::CreateCursor() {
-  active_cursors()->push_back(*current_cursor_);
+  switch (editor_->modifiers().structure) {
+    case CURSOR:
+      {
+        LineColumn first, last;
+        if (!FindRange(editor_->modifiers(), position(), &first, &last)) {
+          return;
+        }
+        first = LineColumn(first.line + 1);
+        if (first.line == last.line) { return; }
+        while (first.line < last.line) {
+          active_cursors()->push_back(
+              make_pair(contents_.begin() + first.line, first.column));
+          first.line++;
+        }
+      }
+      break;
+    default:
+      active_cursors()->push_back(*current_cursor_);
+  }
   editor_->SetStatus(L"Cursor created.");
   editor_->ScheduleRedraw();
 }
