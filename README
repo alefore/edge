@@ -357,7 +357,8 @@ viceversa) and advance by one position.
 
 If the reverse modifier is enabled, will move backwards instead of advancing.
 
-"~" doesn't currently handle any structures nor repetitions, but it should.
+This operation correctly handles the word and line modifiers. It doesn't
+currently handle any other structures nor repetitions, but it should.
 
 
 5. Buffers

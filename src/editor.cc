@@ -335,7 +335,7 @@ EditorState::~EditorState() {
 bool EditorState::CloseBuffer(
     map<wstring, shared_ptr<OpenBuffer>>::iterator buffer) {
   if (!buffer->second->PrepareToClose(this)) {
-    SetStatus(L"Unable to close buffer: " + buffer->first);
+    SetStatus(L"Dirty buffers (“Sad” to ignore): " + buffer->first);
     return false;
   }
   ScheduleRedraw();
@@ -372,7 +372,7 @@ bool EditorState::AttemptTermination(wstring* error_description) {
     return true;
   }
 
-  wstring error = L"Unable to close buffers:";
+  wstring error = L"Dirty buffers (“Saq” to ignore):";
   for (auto name : buffers_with_problems) {
     error += L" " + name;
   }

@@ -278,33 +278,16 @@ class DeleteRegionTransformation : public Transformation {
     buffer->CheckPosition();
     buffer->MaybeAdjustPositionCol();
 
-    LineColumn initial_position = buffer->position();
     LineColumn start, end;
-    if (!buffer->FindRange(modifiers_, initial_position, &start, &end)) {
+    if (!buffer->FindPartialRange(modifiers_, buffer->position(), &start,
+                                  &end)) {
       result->success = false;
       LOG(INFO) << "Unable to bind region, giving up.";
       return;
     }
-    LOG(INFO) << "Before structure, starting at " << initial_position
-              << " bound region at [" << start << ", " << end << ")";
 
-    switch (modifiers_.structure_range) {
-      case Modifiers::ENTIRE_STRUCTURE:
-        start = min(start, initial_position);
-        end = max(end, initial_position);
-        break;
-      case Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION:
-        end = max(start, initial_position);
-        start = min(start, initial_position);
-        break;
-      case Modifiers::FROM_CURRENT_POSITION_TO_END:
-        start = min(initial_position, end);
-        end = max(end, initial_position);
-        break;
-    }
-
-    LOG(INFO) << "After structure, starting at " << initial_position
-              << " bound region at [" << start << ", " << end << ")";
+    LOG(INFO) << "Starting at " << buffer->position() << ", bound region at ["
+              << start << ", " << end << ")";
 
     CHECK(start <= end);
 
@@ -327,7 +310,6 @@ class DeleteRegionTransformation : public Transformation {
     Modifiers modifiers;
     modifiers.repetitions = end.column - start.column;
     stack.PushBack(NewDeleteCharactersTransformation(modifiers, true));
-
     stack.Apply(editor_state, buffer, result);
   }
 

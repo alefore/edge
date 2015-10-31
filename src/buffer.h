@@ -74,6 +74,11 @@ class OpenBuffer {
 
   void MaybeFollowToEndOfFile();
 
+  // Returns the position immediately after end or before start (depending on
+  // the direction modifier).
+  LineColumn MovePosition(const Modifiers& modifiers, LineColumn start,
+                          LineColumn end);
+
   void ReadData(EditorState* editor_state);
 
   void Reload(EditorState* editor_state);
@@ -150,24 +155,24 @@ class OpenBuffer {
   void DestroyCursor();
   void DestroyOtherCursors();
 
-  // Sets the positions pointed to by start and end to the beginning and end of
-  // the word at the position given by the first argument.  If there's no word
-  // in the position given (just a whitespace), moves forward until it finds
-  // one.
-  //
-  // If no word can be found (e.g. we're on a whitespace that's not followed by
-  // any word characters), returns false.
-  bool BoundWordAt(
-      const LineColumn& position, LineColumn* start, LineColumn* end);
-
   bool FindRangeFirst(
     const Modifiers& modifiers, const LineColumn& position,
     LineColumn* output) const;
   bool FindRangeLast(
     const Modifiers& modifiers, const LineColumn& position,
     LineColumn* output) const;
+
+  // Sets the positions pointed to by start and end to the beginning and end of
+  // the structure at the position given.
+  //
+  // You probably want to call FindPartialRange instead.
   bool FindRange(const Modifiers& modifiers, const LineColumn& position,
                  LineColumn* first, LineColumn* last);
+
+  // Same as FindRange, but honors Modifiers::structure_range.
+  bool FindPartialRange(
+    const Modifiers& modifiers, const LineColumn& position, LineColumn* start,
+    LineColumn* end);
 
   // May return nullptr if the current_cursor is at the end of file.
   const shared_ptr<Line> current_line() const;

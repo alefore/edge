@@ -606,6 +606,34 @@ void OpenBuffer::MaybeFollowToEndOfFile() {
   }
 }
 
+LineColumn OpenBuffer::MovePosition(
+    const Modifiers& modifiers, LineColumn start, LineColumn end) {
+  LineColumn output;
+  switch (modifiers.direction) {
+    case FORWARDS:
+      output = end;
+      if (output.line >= contents()->size()) {
+        // Pass.
+      } else if (output.column < LineAt(output.line)->size()) {
+        output.column++;
+      } else {
+        output = LineColumn(output.line + 1);
+      }
+      break;
+    case BACKWARDS:
+      output = start;
+      if (output == LineColumn(0)) {
+        // Pass.
+      } else if (output.line >= contents()->size() || output.column == 0) {
+        size_t line = min(output.line, contents()->size()) - 1;
+        output = LineColumn(line, LineAt(line)->size());
+      } else {
+        output.column --;
+      }
+  }
+  return output;
+}
+
 void OpenBuffer::ReadData(EditorState* editor_state) {
   static const size_t kLowBufferSize = 1024 * 60;
   if (low_buffer_ == nullptr) {
@@ -1389,11 +1417,27 @@ void OpenBuffer::DestroyOtherCursors() {
   editor_->ScheduleRedraw();
 }
 
-bool OpenBuffer::BoundWordAt(
-    const LineColumn& position_input, LineColumn* start, LineColumn* end) {
-  Modifiers modifiers;
-  modifiers.structure = WORD;
-  return FindRange(modifiers, position_input, start, end);
+bool OpenBuffer::FindPartialRange(
+    const Modifiers& modifiers, const LineColumn& position, LineColumn* start,
+    LineColumn* end) {
+  if (!FindRange(modifiers, position, start, end)) {
+    return false;
+  }
+  switch (modifiers.structure_range) {
+    case Modifiers::ENTIRE_STRUCTURE:
+      *start = min(*start, position);
+      *end = max(*end, position);
+      break;
+    case Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION:
+      *end = max(*start, position);
+      *start = min(*start, position);
+      break;
+    case Modifiers::FROM_CURRENT_POSITION_TO_END:
+      *start = min(position, *end);
+      *end = max(*end, position);
+      break;
+  }
+  return true;
 }
 
 bool OpenBuffer::FindRangeFirst(
@@ -1401,12 +1445,26 @@ bool OpenBuffer::FindRangeFirst(
     LineColumn* output) const {
   *output = position;
   switch (modifiers.structure) {
+    case CHAR:
+      if (modifiers.direction == BACKWARDS) {
+        if (output->column > 0) {
+          output->column--;
+        } else if (output->line > 0) {
+          output->line--;
+          output->column = LineAt(output->line)->size();
+        } else {
+          return false;
+        }
+      }
+      return true;
+
     case WORD:
       {
         const wstring& word_char =
             read_string_variable(variable_word_characters());
 
-        // Seek forwards until we're at a word character.
+        // Seek forwards until we're at a word character. Typically, if we're
+        // already in a word character, this does nothing.
         while (at_end_of_line(*output)
                || word_char.find(character_at(*output)) == word_char.npos) {
           if (at_end(*output)) {
@@ -1430,6 +1488,10 @@ bool OpenBuffer::FindRangeFirst(
 
         return true;
       }
+
+    case LINE:
+      output->column = 0;
+      return true;
 
     case CURSOR:
       {
@@ -1456,7 +1518,6 @@ bool OpenBuffer::FindRangeFirst(
         output->column = boundary->second;
         return true;
       }
-
     default:
       return false;
   }
@@ -1468,6 +1529,19 @@ bool OpenBuffer::FindRangeLast(
     LineColumn* output) const {
   *output = position;
   switch (modifiers.structure) {
+    case CHAR:
+      if (modifiers.direction == FORWARDS) {
+        if (!at_end_of_line(*output)) {
+          output->column++;
+        } else if (at_end(*output)) {
+          return false;
+        } else {
+          output->line++;
+          output->column = 0;
+        }
+      }
+      return true;
+
     case WORD:
       {
         const wstring& word_char =
@@ -1480,6 +1554,10 @@ bool OpenBuffer::FindRangeLast(
         }
         return true;
       }
+
+    case LINE:
+      output->column = LineAt(output->line)->size();
+      return true;
 
     case CURSOR:
       {
