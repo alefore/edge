@@ -160,6 +160,15 @@ class OpenBuffer {
   bool BoundWordAt(
       const LineColumn& position, LineColumn* start, LineColumn* end);
 
+  bool FindRangeFirst(
+    const Modifiers& modifiers, const LineColumn& position,
+    LineColumn* output) const;
+  bool FindRangeLast(
+    const Modifiers& modifiers, const LineColumn& position,
+    LineColumn* output) const;
+  bool FindRange(const Modifiers& modifiers, const LineColumn& position,
+                 LineColumn* first, LineColumn* last);
+
   // May return nullptr if the current_cursor is at the end of file.
   const shared_ptr<Line> current_line() const;
   shared_ptr<Line> current_line();

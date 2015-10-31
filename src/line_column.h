@@ -34,6 +34,10 @@ struct LineColumn {
     return line < rhs.line || (line == rhs.line && column < rhs.column);
   }
 
+  bool operator<=(const LineColumn& rhs) const {
+    return *this < rhs || *this == rhs;
+  }
+
   size_t line;
   size_t column;
 

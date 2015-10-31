@@ -1373,39 +1373,133 @@ void OpenBuffer::DestroyOtherCursors() {
 
 bool OpenBuffer::BoundWordAt(
     const LineColumn& position_input, LineColumn* start, LineColumn* end) {
-  const wstring& word_char = read_string_variable(variable_word_characters());
-  LineColumn position(position_input);
+  Modifiers modifiers;
+  modifiers.structure = WORD;
+  return FindRange(modifiers, position_input, start, end);
+}
 
-  // Seek forwards until we're at a word character.
-  while (at_end_of_line(position)
-         || word_char.find(character_at(position)) == word_char.npos) {
-    if (at_end(position)) {
+bool OpenBuffer::FindRangeFirst(
+    const Modifiers& modifiers, const LineColumn& position,
+    LineColumn* output) const {
+  *output = position;
+  switch (modifiers.structure) {
+    case WORD:
+      {
+        const wstring& word_char =
+            read_string_variable(variable_word_characters());
+
+        // Seek forwards until we're at a word character.
+        while (at_end_of_line(*output)
+               || word_char.find(character_at(*output)) == word_char.npos) {
+          if (at_end(*output)) {
+            return false;
+          } else if (at_end_of_line(*output)) {
+            output->column = 0;
+            output->line++;
+          } else {
+            output->column ++;
+          }
+        }
+
+        // Seek backwards until we're at the beginning of the word.
+        while (!at_beginning_of_line(*output)
+               && word_char.find(character_at(
+                      LineColumn(output->line, output->column - 1)))
+                  != wstring::npos) {
+          CHECK_GT(output->column, 0);
+          output->column--;
+        }
+
+        return true;
+      }
+
+    case CURSOR:
+      {
+        bool has_boundary = false;
+        OpenBuffer::CursorsSet::const_iterator boundary;
+        if (modifiers.direction == FORWARDS) {
+          boundary = current_cursor_;
+          has_boundary = true;
+        } else {
+          auto cursors = cursors_.find(modifiers.active_cursors);
+          if (cursors == cursors_.end()) { return false; }
+          for (auto it = cursors->second.begin(); it != cursors->second.end();
+               ++it) {
+            if (*it < *current_cursor_ && (!has_boundary || *it > *boundary)) {
+              has_boundary = true;
+              boundary = it;
+            }
+          }
+        }
+        if (!has_boundary) {
+          return false;
+        }
+        output->line = boundary->first - contents_.begin();
+        output->column = boundary->second;
+        return true;
+      }
+
+    default:
       return false;
-    } else if (at_end_of_line(position)) {
-      position.column = 0;
-      position.line++;
-    } else {
-      position.column ++;
-    }
   }
+  return false;
+}
 
-  // Seek backwards until we're at the beginning of the word.
-  while (!at_beginning_of_line(position)
-         && word_char.find(character_at(LineColumn(position.line, position.column - 1))) != wstring::npos) {
-    assert(position.column > 0);
-    position.column--;
+bool OpenBuffer::FindRangeLast(
+    const Modifiers& modifiers, const LineColumn& position,
+    LineColumn* output) const {
+  *output = position;
+  switch (modifiers.structure) {
+    case WORD:
+      {
+        const wstring& word_char =
+            read_string_variable(variable_word_characters());
+
+        // Seek forwards until the next space.
+        while (!at_end_of_line(*output)
+               && word_char.find(character_at(*output)) != wstring::npos) {
+          output->column++;
+        }
+        return true;
+      }
+
+    case CURSOR:
+      {
+        bool has_boundary = false;
+        OpenBuffer::CursorsSet::const_iterator boundary;
+        if (modifiers.direction == BACKWARDS) {
+          boundary = current_cursor_;
+          has_boundary = true;
+        } else {
+          auto cursors = cursors_.find(modifiers.active_cursors);
+          if (cursors == cursors_.end()) { return false; }
+          for (auto it = cursors->second.begin(); it != cursors->second.end();
+               ++it) {
+            if (*it > *current_cursor_ && (!has_boundary || *it < *boundary)) {
+              has_boundary = true;
+              boundary = it;
+            }
+          }
+        }
+        if (!has_boundary) {
+          return false;
+        }
+        output->line = boundary->first - contents_.begin();
+        output->column = boundary->second;
+        return true;
+      }
+
+    default:
+      return false;
   }
+  return false;
+}
 
-  *start = position;
-
-  // Seek forwards until the next space.
-  while (!at_end_of_line(position)
-         && word_char.find(character_at(position)) != wstring::npos) {
-    position.column ++;
-  }
-
-  *end = position;
-  return true;
+bool OpenBuffer::FindRange(const Modifiers& modifiers,
+                           const LineColumn& position, LineColumn* first,
+                           LineColumn* last) {
+  return FindRangeFirst(modifiers, position, first)
+      && FindRangeLast(modifiers, *first, last);
 }
 
 const shared_ptr<Line> OpenBuffer::current_line() const {
