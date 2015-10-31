@@ -1418,24 +1418,31 @@ void OpenBuffer::DestroyOtherCursors() {
 }
 
 bool OpenBuffer::FindPartialRange(
-    const Modifiers& modifiers, const LineColumn& position, LineColumn* start,
-    LineColumn* end) {
-  if (!FindRange(modifiers, position, start, end)) {
-    return false;
-  }
-  switch (modifiers.structure_range) {
-    case Modifiers::ENTIRE_STRUCTURE:
-      *start = min(*start, position);
-      *end = max(*end, position);
-      break;
-    case Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION:
-      *end = max(*start, position);
-      *start = min(*start, position);
-      break;
-    case Modifiers::FROM_CURRENT_POSITION_TO_END:
-      *start = min(position, *end);
-      *end = max(*end, position);
-      break;
+    const Modifiers& modifiers, const LineColumn& initial_position,
+    LineColumn* start, LineColumn* end) {
+  LineColumn position = initial_position;
+  *start = position;
+  *end = position;
+  for (size_t i = 0; i < modifiers.repetitions; i++) {
+    LineColumn current_start, current_end;
+    if (!FindRange(modifiers, position, &current_start, &current_end)) {
+      return false;
+    }
+    switch (modifiers.structure_range) {
+      case Modifiers::ENTIRE_STRUCTURE:
+        *start = min(*start, current_start);
+        *end = max(*end, current_end);
+        break;
+      case Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION:
+        *end = max(*start, current_start);
+        *start = min(*start, current_start);
+        break;
+      case Modifiers::FROM_CURRENT_POSITION_TO_END:
+        *start = min(*start, position);
+        *end = max(*end, current_end);
+        break;
+    }
+    position = modifiers.direction == FORWARDS ? current_end : current_start;
   }
   return true;
 }

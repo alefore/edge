@@ -518,11 +518,8 @@ unique_ptr<Transformation> NewDeleteCharactersTransformation(
 
 unique_ptr<Transformation> NewDeleteRegionTransformation(
     const Modifiers& modifiers, bool copy_to_paste_buffer) {
-  Modifiers modifiers_sans_repetitions(modifiers);
-  modifiers_sans_repetitions.repetitions = 1;
-  return NewApplyRepetitionsTransformation(modifiers.repetitions,
-      unique_ptr<Transformation>(new DeleteRegionTransformation(
-          modifiers_sans_repetitions, copy_to_paste_buffer)));
+  return unique_ptr<Transformation>(
+      new DeleteRegionTransformation(modifiers, copy_to_paste_buffer));
 }
 
 unique_ptr<Transformation> NewDeleteLinesTransformation(
