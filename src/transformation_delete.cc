@@ -38,7 +38,8 @@ class DeleteCharactersTransformation : public Transformation {
     buffer->MaybeAdjustPositionCol();
 
     shared_ptr<LazyString> preserved_contents =
-        StartOfLine(buffer, current_line, buffer->current_position_col());
+        StartOfLine(buffer, current_line, buffer->current_position_col(),
+                    modifiers_.direction);
 
     size_t line;
     size_t chars_erased;
@@ -92,11 +93,22 @@ class DeleteCharactersTransformation : public Transformation {
 
     LOG(INFO) << "Storing new line (at position " << max(current_line, line)
               << ").";
+    auto initial_line = buffer->LineAt(line);
+    Line::Options options;
+    switch (modifiers_.direction) {
+      case FORWARDS:
+        options.contents = StringAppend(
+            preserved_contents, initial_line->Substring(chars_erase_line));
+        break;
+      case BACKWARDS:
+        options.contents = StringAppend(
+            initial_line->Substring(0, initial_line->size() - chars_erase_line),
+            preserved_contents);
+        break;
+    }
     buffer->ReplaceLine(
         buffer->contents()->begin() + line_end,
-        std::make_shared<Line>(Line::Options(
-           ProduceFinalLine(buffer, preserved_contents, line,
-                            chars_erase_line))));
+        std::make_shared<Line>(options));
 
     buffer->EraseLines(buffer->contents()->begin() + line_begin,
                        buffer->contents()->begin() + line_end);
@@ -168,35 +180,6 @@ class DeleteCharactersTransformation : public Transformation {
         return line->Substring(0, column);
       case BACKWARDS:
         return line->Substring(column);
-    }
-    CHECK(false);
-    return nullptr;
-  }
-
-  shared_ptr<LazyString> StartOfLine(
-      OpenBuffer* buffer, size_t line_number, size_t column) const {
-    return StartOfLine(buffer, line_number, column, modifiers_.direction);
-  }
-
-  shared_ptr<LazyString> EndOfLine(
-      OpenBuffer* buffer, size_t line_number, size_t chars_to_erase) const {
-    return StartOfLine(buffer, line_number, chars_to_erase,
-                       ReverseDirection(modifiers_.direction));
-  }
-
-  shared_ptr<LazyString> ProduceFinalLine(
-      OpenBuffer* buffer, const shared_ptr<LazyString> preserved_contents,
-      size_t line, size_t chars_to_erase) const {
-    switch (modifiers_.direction) {
-      case FORWARDS:
-        return StringAppend(preserved_contents,
-             EndOfLine(buffer, line, chars_to_erase));
-      case BACKWARDS:
-        auto end_line = buffer->LineAt(line);
-        return StringAppend(
-             StartOfLine(buffer, line, end_line->size() - chars_to_erase,
-                         FORWARDS),
-             preserved_contents);
     }
     CHECK(false);
     return nullptr;
