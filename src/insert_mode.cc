@@ -55,22 +55,9 @@ class NewLineTransformation : public Transformation {
     }
 
     Line::Options continuation_options;
-    if (current_line != nullptr) {
-      continuation_options.contents = StringAppend(
-          current_line->Substring(0, prefix_end),
-          current_line->Substring(column));
-    }
+    continuation_options.contents = current_line->Substring(0, prefix_end);
 
     unique_ptr<TransformationStack> transformation(new TransformationStack);
-
-    if (current_line != nullptr && column < current_line->size()) {
-      Modifiers modifiers;
-      modifiers.repetitions = current_line->size() - column;
-      transformation->PushBack(
-          NewDeleteCharactersTransformation(modifiers, false));
-    }
-    transformation->PushBack(NewDeleteSuffixSuperfluousCharacters());
-
     {
       shared_ptr<OpenBuffer> buffer_to_insert(
         new OpenBuffer(editor_state, L"- text inserted"));
@@ -79,8 +66,12 @@ class NewLineTransformation : public Transformation {
       transformation->PushBack(
           NewInsertBufferTransformation(buffer_to_insert, 1, END));
     }
+
+    transformation->PushBack(NewGotoPositionTransformation(buffer->position()));
+    transformation->PushBack(NewDeleteSuffixSuperfluousCharacters());
+
     transformation->PushBack(NewGotoPositionTransformation(
-        LineColumn(buffer->position().line + 1, prefix_end)));
+        LineColumn(buffer->current_position_line() + 1, prefix_end)));
     return transformation->Apply(editor_state, buffer, result);
   }
 

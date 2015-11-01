@@ -1227,26 +1227,32 @@ LineColumn OpenBuffer::InsertInPosition(
   }
   auto head = contents_.at(position.line)->Substring(0, position.column);
   auto tail = contents_.at(position.line)->Substring(position.column);
-  contents_.insert(contents_.begin() + position.line, insertion.begin(), insertion.end() - 1);
+  contents_.insert(contents_.begin() + position.line, insertion.begin(),
+                   insertion.end() - 1);
   for (size_t i = 1; i < insertion.size() - 1; i++) {
     contents_.at(position.line + i)->set_modified(true);
   }
+  // The last line that was inserted.
   Tree<shared_ptr<Line>>::const_iterator line_it =
-      contents_.begin() + position.line;
+      contents_.begin() + position.line + insertion.size() - 1;
   // Reshuffle cursors unlucky enough to land on the insertion line right after
   // the cursor. Ideally we wouldn't need to do that: those iterators would
   // automatically reshuffle (just like the ones for the line do). Maybe some
   // day.
+  LOG(INFO) << "Adjusting cursors.";
   for (auto& it_set : cursors_) {
     for (auto& it : it_set.second) {
-      if (it.first == line_it && it.second > position.column) {
-        VLOG(5) << "Adjusting cursor at column: " << it.second;
-        it.first += insertion.size() - 1;
-        it.second += (*--insertion.end())->size();
-        if (insertion.size() > 1) {
-          it.second -= head->size();
-        }
-        VLOG(5) << "After adjustment: " << it.second;
+      if (it.first != line_it) {
+        continue;
+      }
+      if (it.second < position.column) {
+        it.first = contents_.begin() + position.line;
+        continue;
+      }
+
+      it.second += (*insertion.rbegin())->size();
+      if (insertion.size() > 1) {
+        it.second -= position.column;
       }
     }
   }
@@ -1352,7 +1358,8 @@ void OpenBuffer::CreateCursor() {
               || tmp_first > last) {
             break;
           }
-          if (tmp_first > first) {
+          if (tmp_first > first && tmp_first < last) {
+            VLOG(5) << "Creating cursor at: " << tmp_first;
             active_cursors()->push_back(make_pair(
                 contents_.begin() + tmp_first.line, tmp_first.column));
           }
