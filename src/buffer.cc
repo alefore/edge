@@ -1334,18 +1334,34 @@ typename OpenBuffer::CursorsSet::const_iterator OpenBuffer::current_cursor()
 
 void OpenBuffer::CreateCursor() {
   switch (editor_->modifiers().structure) {
-    case CURSOR:
+    case WORD:
+    case LINE:
       {
         LineColumn first, last;
-        if (!FindRange(editor_->modifiers(), position(), &first, &last)) {
+        Modifiers tmp_modifiers = editor_->modifiers();
+        tmp_modifiers.structure = CURSOR;
+        if (!FindRange(tmp_modifiers, position(), &first, &last)) {
           return;
         }
-        first = LineColumn(first.line + 1);
-        if (first.line == last.line) { return; }
-        while (first.line < last.line) {
-          active_cursors()->push_back(
-              make_pair(contents_.begin() + first.line, first.column));
-          first.line++;
+        if (first == last) { return; }
+        editor_->set_direction(FORWARDS);
+        LOG(INFO) << "Range for cursors: [" << first << ", " << last << ")";
+        while (first < last) {
+          LineColumn tmp_first, tmp_last;
+          if (!FindRange(editor_->modifiers(), first, &tmp_first, &tmp_last)
+              || tmp_first > last) {
+            break;
+          }
+          if (tmp_first > first) {
+            active_cursors()->push_back(make_pair(
+                contents_.begin() + tmp_first.line, tmp_first.column));
+          }
+          if (tmp_last == first) {
+            LOG(INFO) << "Didn't make progress.";
+            first = last;
+          } else {
+            first = tmp_last;
+          }
         }
       }
       break;
@@ -1497,7 +1513,14 @@ bool OpenBuffer::FindRangeFirst(
       }
 
     case LINE:
-      output->column = 0;
+      if (!at_end_of_line(*output)) {
+        output->column = 0;
+      } else if (at_end(*output)) {
+        return false;
+      } else {
+        output->column = 0;
+        output->line++;
+      }
       return true;
 
     case CURSOR:
