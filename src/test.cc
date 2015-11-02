@@ -402,14 +402,12 @@ int main(int, char**) {
   editor_state.ProcessInput(Terminal::ESCAPE);
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "al[ejandro fo[rero cu[ervo");
-#if 0
-  // TODO: Make delete respect cursor positions and enable this.
+
   editor_state.ProcessInputString("d" "l" "rd" "l");
   editor_state.ProcessInputString("i)");
   editor_state.ProcessInput(Terminal::ESCAPE);
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "al[a)ndro fo[r)o cu[v)o");
-#endif
 
   Clear(&editor_state);
 
