@@ -18,6 +18,10 @@ void CheckIsEmpty(EditorState* editor_state) {
 void Clear(EditorState* editor_state) {
   editor_state->ProcessInputString("eeg99999999999999999999999d");
   editor_state->ProcessInput(Terminal::ESCAPE);
+  editor_state->current_buffer()->second
+      ->set_bool_variable(OpenBuffer::variable_multiple_cursors(), false);
+  editor_state->current_buffer()->second->DestroyOtherCursors();
+  editor_state->current_buffer()->second->set_position(LineColumn());
   CheckIsEmpty(editor_state);
 }
 
@@ -333,12 +337,14 @@ int main(int, char**) {
 
 
   // Test for uppercase switch
-  // TODO: Support repetitions.
   editor_state.ProcessInputString("ialeJAnDRo\nfoRero");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  editor_state.ProcessInputString("kg~");
+  editor_state.ProcessInputString("kg5~");
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
-           "AleJAnDRo\nfoRero");
+           "ALEjanDRo\nfoRero");
+  editor_state.ProcessInputString("w]~");
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "ALEjaNdrO\nfoRero");
 
   Clear(&editor_state);
 
@@ -357,6 +363,51 @@ int main(int, char**) {
   editor_state.ProcessInputString("w[d");
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "alejandroforero cuervo");
+
+  Clear(&editor_state);
+
+  // Test multiple cursors.
+  editor_state.ProcessInputString("ialejandro\nforero\ncuervo");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "alejandro\nforero\ncuervo");
+
+  editor_state.ProcessInputString("g");
+  CHECK_EQ(editor_state.current_buffer()->second->position(), LineColumn(2));
+
+  editor_state.ProcessInputString("+eg");
+  CHECK_EQ(editor_state.current_buffer()->second->position(), LineColumn(0));
+
+  editor_state.ProcessInputString("w+");
+  editor_state.ProcessInputString("avmultiple_cursors\n");
+  CHECK(editor_state.current_buffer()->second
+            ->read_bool_variable(OpenBuffer::variable_multiple_cursors()));
+
+  editor_state.ProcessInputString("i1234 ");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "1234 alejandro\n1234 forero\n1234 cuervo");
+  Clear(&editor_state);
+
+  // Test multiple cursors in same line, movement.
+  editor_state.ProcessInputString("ialejandro forero cuervo");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "alejandro forero cuervo");
+  editor_state.ProcessInputString("rfc+gw+");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("avmultiple_cursors\n");
+  editor_state.ProcessInputString("ll");
+  editor_state.ProcessInputString("i[");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "al[ejandro fo[rero cu[ervo");
+
+  editor_state.ProcessInputString("d" "l" "rd" "l");
+  editor_state.ProcessInputString("i)");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "al[a)ndro fo[r)o cu[v)o");
 
   Clear(&editor_state);
 

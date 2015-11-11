@@ -98,8 +98,8 @@ class GotoCommand : public Command {
           LineColumn position(buffer->position().line);
           while (editor_state->repetitions() > 0) {
             LineColumn start, end;
-            if (!buffer->BoundWordAt(
-                     position, editor_state->modifiers(), &start, &end)) {
+            if (!buffer->FindPartialRange(
+                     editor_state->modifiers(), position, &start, &end)) {
               editor_state->set_repetitions(0);
               continue;
             }
@@ -836,21 +836,20 @@ class StartSearchMode : public Command {
     switch (editor_state->structure()) {
       case WORD:
         {
-          editor_state->ResetStructure();
           if (!editor_state->has_current_buffer()) { return; }
           auto buffer = editor_state->current_buffer()->second;
           LineColumn start, end;
-          if (!buffer->BoundWordAt(
-                   buffer->position(), editor_state->modifiers(), &start,
-                   &end)) {
+          if (!buffer->FindPartialRange(
+                   editor_state->modifiers(), buffer->position(), &start,
+                   &end) || start == end) {
+            editor_state->ResetStructure();
             return;
           }
-          assert(start.line == end.line);
-          assert(start.column + 1 < end.column);
-          if (start.line != buffer->position().line
-              || start.column > buffer->position().column) {
-            buffer->set_position(start);
-          }
+          editor_state->ResetStructure();
+          CHECK_LT(start, end);
+          CHECK_EQ(start.line, end.line);
+          CHECK_LT(start.column, end.column);
+          buffer->set_position(start);
           {
             SearchOptions options;
             options.search_query =
@@ -957,8 +956,8 @@ class SwitchCaseTransformation : public Transformation {
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     LineColumn start;
     LineColumn end;
-    if (!buffer->BoundStructureAt(
-            buffer->position(), editor_state->modifiers(), &start, &end)) {
+    if (!buffer->FindPartialRange(
+            editor_state->modifiers(), buffer->position(), &start, &end)) {
       editor_state->SetStatus(L"Structure not handled.");
       return;
     }
