@@ -12,3 +12,6 @@ buffer.set_reload_on_buffer_write(true);
 
 // Track PATH:LINE references to other files in the compiler output.
 buffer.set_contains_line_marks(true);
+
+// Show the last lines of this buffer in the list of buffers.
+buffer.set_buffer_list_context_lines(5);
