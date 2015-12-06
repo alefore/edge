@@ -1424,6 +1424,9 @@ void OpenBuffer::DestroyCursor() {
       min(editor_->modifiers().repetitions, cursors->size() - 1);
   for (size_t i = 0; i < repetitions; i++) {
     active_cursors()->erase(current_cursor_++);
+    if (current_cursor_ == active_cursors()->end()) {
+      current_cursor_ = active_cursors()->begin();
+    }
   }
   editor_->ScheduleRedraw();
 }

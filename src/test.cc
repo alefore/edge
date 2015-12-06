@@ -411,6 +411,12 @@ int main(int, char**) {
 
   Clear(&editor_state);
 
+  editor_state.ProcessInputString("ioo");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("/o\n" "cl" "-");
+
+  Clear(&editor_state);
+
   TreeTestsLong();
   TreeTestsBasic();
 
