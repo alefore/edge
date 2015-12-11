@@ -540,6 +540,8 @@ wint_t Terminal::Read(EditorState*) {
     DVLOG(5) << "Read: " << c << "\n";
     if (c == -1) {
       return c;
+    } else if (c == KEY_RESIZE) {
+      return KEY_RESIZE;
     }
     wchar_t output;
     char input[1] = { static_cast<char>(c) };
@@ -548,7 +550,8 @@ wint_t Terminal::Read(EditorState*) {
         VLOG(4) << "Finished reading wide character: " << output;
         break;
       case -1:
-        LOG(FATAL) << "Encoding error occurred. Input: " << c;
+        LOG(WARNING) << "Encoding error occurred, ignoring input: " << c;
+        return -1;
       case -2:
         VLOG(5) << "Incomplete (but valid) mbs, reading further.";
         continue;
