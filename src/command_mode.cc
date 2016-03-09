@@ -970,6 +970,13 @@ class SwitchCaseTransformation : public Transformation {
     LineColumn i = start;
     while (i < end) {
       auto line = buffer->LineAt(i.line);
+      if (i.column == line->size()) {
+        // Switch to the next line.
+        i = LineColumn(i.line + 1);
+        stack->PushBack(NewDeleteCharactersTransformation(Modifiers(), false));
+        buffer_to_insert->AppendEmptyLine(editor_state);
+        continue;
+      }
       wchar_t c = line->get(i.column);
       buffer_to_insert->AppendToLastLine(editor_state,
           NewCopyString(wstring(1, iswupper(c) ? towlower(c) : towupper(c))));
@@ -977,12 +984,6 @@ class SwitchCaseTransformation : public Transformation {
 
       // Increment i.
       i.column++;
-      if (i.column == line->size()) {
-        // Switch to the next line.
-        i = LineColumn(i.line + 1);
-        stack->PushBack(NewDeleteCharactersTransformation(Modifiers(), false));
-        buffer_to_insert->AppendEmptyLine(editor_state);
-      }
     }
     stack->PushBack(NewInsertBufferTransformation(buffer_to_insert, 1, END));
     stack->PushBack(NewGotoPositionTransformation(
