@@ -1213,6 +1213,25 @@ LineColumn OpenBuffer::InsertInCurrentPosition(
   return InsertInPosition(insertion, position());
 }
 
+namespace {
+// Appends contents from source to output starting at position start and only
+// up to count elements. If start + count are outside of the boundaries of
+// source, pushes empty elements instead.
+template <typename Contents>
+void PushContents(size_t start, size_t count, const vector<Contents>& source,
+                  const Contents& empty, vector<Contents>* output) {
+  while (count != 0) {
+    if (start >= source.size()) {
+      output->push_back(empty);
+    } else {
+      output->push_back(source[start]);
+    }
+    start++;
+    count--;
+  }
+}
+}
+
 LineColumn OpenBuffer::InsertInPosition(
     const Tree<shared_ptr<Line>>& insertion,
     const LineColumn& input_position) {
@@ -1227,6 +1246,7 @@ LineColumn OpenBuffer::InsertInPosition(
   }
   auto head = contents_.at(position.line)->Substring(0, position.column);
   auto tail = contents_.at(position.line)->Substring(position.column);
+  auto modifiers = contents_.at(position.line)->modifiers();
   contents_.insert(contents_.begin() + position.line, insertion.begin(),
                    insertion.end() - 1);
   for (size_t i = 1; i < insertion.size() - 1; i++) {
@@ -1258,9 +1278,16 @@ LineColumn OpenBuffer::InsertInPosition(
   }
   if (insertion.size() == 1) {
     if (insertion.at(0)->size() == 0) { return position; }
-    auto line_to_insert = insertion.at(0)->contents();
+    auto line_to_insert = insertion.at(0);
     Line::Options options;
-    options.contents = StringAppend(head, StringAppend(line_to_insert, tail));
+    options.contents = StringAppend(head,
+        StringAppend(line_to_insert->contents(), tail));
+    unordered_set<Line::Modifier, hash<int>> empty;
+    PushContents(0, head->size(), modifiers, empty, &options.modifiers);
+    PushContents(0, line_to_insert->size(), line_to_insert->modifiers(), empty,
+                 &options.modifiers);
+    PushContents(head->size(), tail->size(), modifiers, empty,
+                 &options.modifiers);
     if (position.line >= contents_.size()) {
       contents_.emplace_back(new Line(options));
     } else {
@@ -1424,6 +1451,9 @@ void OpenBuffer::DestroyCursor() {
       min(editor_->modifiers().repetitions, cursors->size() - 1);
   for (size_t i = 0; i < repetitions; i++) {
     active_cursors()->erase(current_cursor_++);
+    if (current_cursor_ == active_cursors()->end()) {
+      current_cursor_ = active_cursors()->begin();
+    }
   }
   editor_->ScheduleRedraw();
 }

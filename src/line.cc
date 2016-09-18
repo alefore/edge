@@ -71,6 +71,9 @@ void Line::SetCharacter(size_t position, int c,
     contents_ = StringAppend(
         StringAppend(afc::editor::Substring(contents_, 0, position), str),
         afc::editor::Substring(contents_, position + 1));
+    if (modifiers_.size() <= position) {
+      modifiers_.resize(position + 1);
+    }
     modifiers_[position] = modifiers;
   }
 }
