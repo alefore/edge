@@ -14,6 +14,7 @@
 #include "close_buffer_command.h"
 #include "command.h"
 #include "command_mode.h"
+#include "goto_command.h"
 #include "file_link_mode.h"
 #include "find_mode.h"
 #include "help_command.h"
@@ -47,208 +48,6 @@ using std::advance;
 using std::ceil;
 using std::make_pair;
 using namespace afc::editor;
-
-class GotoCommand : public Command {
- public:
-  GotoCommand(size_t calls) : calls_(calls % 4) {}
-
-  const wstring Description() {
-    return L"goes to Rth structure from the beginning";
-  }
-
-  void ProcessInput(wint_t c, EditorState* editor_state) {
-    if (c != 'g') {
-      editor_state->ResetMode();
-      editor_state->ProcessInput(c);
-      return;
-    }
-    if (!editor_state->has_current_buffer()) { return; }
-    shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-    switch (editor_state->structure()) {
-      case CHAR:
-        {
-          if (buffer->current_line() == nullptr) { return; }
-          const wstring& line_prefix_characters = buffer->read_string_variable(
-              OpenBuffer::variable_line_prefix_characters());
-          const auto& line = buffer->current_line();
-          size_t start = 0;
-          while (start < line->size()
-                 && (line_prefix_characters.find(line->get(start))
-                     != string::npos)) {
-            start++;
-          }
-          size_t end = line->size();
-          while (start + 1 < end
-                 && (line_prefix_characters.find(line->get(end - 1))
-                     != string::npos)) {
-            end--;
-          }
-          size_t position = ComputePosition(
-              start, end, line->size(), editor_state->direction(),
-              editor_state->repetitions(), editor_state->structure_range(),
-              calls_);
-          assert(position <= line->size());
-          buffer->set_current_position_col(position);
-        }
-        break;
-
-      case WORD:
-        {
-          // TODO: Handle reverse direction
-          LineColumn position(buffer->position().line);
-          while (editor_state->repetitions() > 0) {
-            LineColumn start, end;
-            if (!buffer->FindPartialRange(
-                     editor_state->modifiers(), position, &start, &end)) {
-              editor_state->set_repetitions(0);
-              continue;
-            }
-            editor_state->set_repetitions(editor_state->repetitions() - 1);
-            if (editor_state->repetitions() == 0) {
-              position = start;
-            } else if (end.column == buffer->LineAt(position.line)->size()) {
-              position = LineColumn(end.line + 1);
-            } else {
-              position = LineColumn(end.line, end.column + 1);
-            }
-          }
-          buffer->set_position(position);
-        }
-        break;
-
-      case LINE:
-        {
-          size_t lines = buffer->contents()->size() - 1;
-          size_t position = ComputePosition(
-              0, lines, lines, editor_state->direction(),
-              editor_state->repetitions(), editor_state->structure_range(),
-              calls_);
-          CHECK_LE(position, buffer->contents()->size());
-          buffer->set_current_position_line(position);
-        }
-        break;
-
-      case MARK:
-        {
-          // Navigates marks in the current buffer.
-          const multimap<size_t, LineMarks::Mark>* marks =
-              buffer->GetLineMarks(*editor_state);
-          vector<pair<size_t, LineMarks::Mark>> lines;
-          std::unique_copy(
-              marks->begin(), marks->end(), std::back_inserter(lines),
-              [](const pair<size_t, LineMarks::Mark> &entry1,
-                 const pair<size_t, LineMarks::Mark> &entry2) {
-                return (entry1.first == entry2.first);
-              });
-          size_t position = ComputePosition(
-              0, lines.size(), lines.size(), editor_state->direction(),
-              editor_state->repetitions(), editor_state->structure_range(),
-              calls_);
-          CHECK_LE(position, lines.size());
-          buffer->set_current_position_line(lines.at(position).first);
-        }
-        break;
-
-      case PAGE:
-        {
-          CHECK(!buffer->contents()->empty());
-          size_t pages = ceil(static_cast<double>(buffer->contents()->size())
-              / editor_state->visible_lines());
-          size_t position = editor_state->visible_lines() * ComputePosition(
-              0, pages, pages, editor_state->direction(),
-              editor_state->repetitions(), editor_state->structure_range(),
-              calls_);
-          CHECK_LT(position, buffer->contents()->size());
-          buffer->set_current_position_line(position);
-        }
-        break;
-
-      case SEARCH:
-        // TODO: Implement.
-        break;
-
-      case CURSOR:
-        GotoCursor(editor_state);
-        break;
-
-      case BUFFER:
-        {
-          size_t buffers = editor_state->buffers()->size();
-          size_t position = ComputePosition(
-              0, buffers, buffers, editor_state->direction(),
-              editor_state->repetitions(), editor_state->structure_range(),
-              calls_);
-          assert(position < editor_state->buffers()->size());
-          auto it = editor_state->buffers()->begin();
-          advance(it, position);
-          if (it != editor_state->current_buffer()) {
-            editor_state->set_current_buffer(it);
-            it->second->Enter(editor_state);
-          }
-        }
-        break;
-    }
-    editor_state->PushCurrentPosition();
-    editor_state->ScheduleRedraw();
-    editor_state->ResetStructure();
-    editor_state->ResetDirection();
-    editor_state->ResetRepetitions();
-    editor_state->set_mode(unique_ptr<Command>(new GotoCommand(calls_ + 1)));
-  }
-
- private:
-  // Arguments:
-  //   prefix_len: The size of the prefix that we skip when calls is 0.
-  //   suffix_start: The position where the suffix starts. This is the base when
-  //       calls is 2.
-  //   elements: The total number of elements.
-  //   direction: The direction of movement.
-  //   repetitions: The nth element to jump to.
-  //   structure_range: The StructureRange. If FROM_CURRENT_POSITION_TO_END, it
-  //       reverses the direction.
-  //   calls: The number of consecutive number of times this command has run.
-  size_t ComputePosition(
-      size_t prefix_len, size_t suffix_start, size_t elements,
-      Direction direction, size_t repetitions,
-      Modifiers::StructureRange structure_range, size_t calls) {
-    CHECK_LE(prefix_len, suffix_start);
-    CHECK_LE(suffix_start, elements);
-    if (calls > 1) {
-      return ComputePosition(
-          prefix_len, suffix_start, elements, ReverseDirection(direction),
-          repetitions, structure_range, calls - 2);
-    }
-    if (calls == 1) {
-      return ComputePosition(0, elements, elements, direction, repetitions,
-                             structure_range, 0);
-    }
-    if (structure_range == Modifiers::FROM_CURRENT_POSITION_TO_END) {
-      return ComputePosition(
-          prefix_len, suffix_start, elements, ReverseDirection(direction),
-          repetitions, Modifiers::ENTIRE_STRUCTURE, calls);
-    }
-
-    if (direction == FORWARDS) {
-      return min(prefix_len + repetitions - 1, elements);
-    } else {
-      return suffix_start - min(suffix_start, repetitions - 1);
-    }
-  }
-
-  void GotoCursor(EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) { return; }
-    auto buffer = editor_state->current_buffer()->second;
-    auto cursors = buffer->active_cursors();
-    auto modifiers = editor_state->modifiers();
-    OpenBuffer::CursorsSet::iterator current = buffer->current_cursor();
-    for (size_t i = 0; i < modifiers.repetitions && current != cursors->begin();
-         i++) {
-      --current;
-    }
-  }
-
-  const size_t calls_;
-};
 
 class Delete : public Command {
  public:
@@ -1081,7 +880,7 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
   Register(L"R", new InsertionModifierCommand(), &output);
 
   Register(L"/", new StartSearchMode(), &output);
-  Register(L"g", new GotoCommand(0), &output);
+  Register(L"g", NewGotoCommand().release(), &output);
 
   Register(L"w", new SetStructureCommand(WORD, L"word"), &output);
   Register(L"e", new SetStructureCommand(LINE, L"line"), &output);

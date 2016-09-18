@@ -20,6 +20,7 @@ src/editable_string.cc \
 src/editor.cc \
 src/file_link_mode.cc \
 src/find_mode.cc \
+src/goto_command.cc \
 src/help_command.cc \
 src/insert_mode.cc \
 src/lazy_string.cc \
