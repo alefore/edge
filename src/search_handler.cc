@@ -61,7 +61,7 @@ vector<size_t> FilterInterestingMatches(
   if (matches.empty() || line != start_line) { return matches; }
   vector<size_t> output;
   for (auto it = matches.begin(); it != matches.end(); ++it) {
-    if (!wrapped ? *it > start_column : *it < start_column) {
+    if (!wrapped ? *it > start_column : *it <= start_column) {
       output.push_back(*it);
     }
   }
@@ -76,7 +76,7 @@ vector<size_t> FilterInterestingMatches(
   if (matches.empty() || line != start_line) { return matches; }
   vector<size_t> output;
   for (auto it = matches.rbegin(); it != matches.rend(); ++it) {
-    if (wrapped ? *it > start_column : *it < start_column) {
+    if (wrapped ? *it >= start_column : *it < start_column) {
       output.push_back(*it);
     }
   }
