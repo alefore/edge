@@ -33,6 +33,7 @@
 #include "run_command_handler.h"
 #include "run_cpp_command.h"
 #include "save_buffer_command.h"
+#include "search_command.h"
 #include "search_handler.h"
 #include "send_end_of_file_command.h"
 #include "set_variable_command.h"
@@ -625,78 +626,6 @@ class ActivateLink : public Command {
   }
 };
 
-class StartSearchMode : public Command {
- public:
-  const wstring Description() {
-    return L"Searches for a string.";
-  }
-
-  void ProcessInput(wint_t, EditorState* editor_state) {
-    switch (editor_state->structure()) {
-      case WORD:
-        {
-          if (!editor_state->has_current_buffer()) { return; }
-          auto buffer = editor_state->current_buffer()->second;
-          LineColumn start, end;
-          if (!buffer->FindPartialRange(
-                   editor_state->modifiers(), buffer->position(), &start,
-                   &end) || start == end) {
-            editor_state->ResetStructure();
-            return;
-          }
-          editor_state->ResetStructure();
-          CHECK_LT(start, end);
-          CHECK_EQ(start.line, end.line);
-          CHECK_LT(start.column, end.column);
-          buffer->set_position(start);
-          {
-            SearchOptions options;
-            options.search_query =
-                buffer->LineAt(start.line)
-                    ->Substring(start.column, end.column - start.column)
-                    ->ToString();
-            options.starting_position = buffer->position();
-            options.maximum_lines_to_search = 1;
-            DoSearch(editor_state, options);
-          }
-
-          editor_state->ResetMode();
-          editor_state->ResetDirection();
-          editor_state->ResetStructure();
-          editor_state->ScheduleRedraw();
-        }
-        break;
-
-      default:
-        auto position = editor_state->current_buffer()->second->position();
-        PromptOptions options;
-        options.prompt = L"/";
-        options.history_file = L"search";
-        options.handler = [position](const wstring& input,
-                                     EditorState* editor_state) {
-          SearchOptions search_options;
-          search_options.search_query = input;
-          search_options.starting_position = position;
-          search_options.maximum_lines_to_search = 0;
-          DoSearch(editor_state, search_options);
-        };
-        options.predictor = SearchHandlerPredictor;
-        Prompt(editor_state, std::move(options));
-        break;
-    }
-  }
- private:
-  static void DoSearch(EditorState* editor_state,
-                       const SearchOptions& options) {
-    editor_state->current_buffer()
-        ->second->set_active_cursors(SearchHandler(editor_state, options));
-    editor_state->ResetMode();
-    editor_state->ResetDirection();
-    editor_state->ResetStructure();
-    editor_state->ScheduleRedraw();
-  }
-};
-
 class ResetStateCommand : public Command {
  public:
   const wstring Description() {
@@ -879,7 +808,7 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
   Register(L"r", new ReverseDirectionCommand(), &output);
   Register(L"R", new InsertionModifierCommand(), &output);
 
-  Register(L"/", new StartSearchMode(), &output);
+  Register(L"/", NewSearchCommand().release(), &output);
   Register(L"g", NewGotoCommand().release(), &output);
 
   Register(L"w", new SetStructureCommand(WORD, L"word"), &output);

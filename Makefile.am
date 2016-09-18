@@ -45,6 +45,7 @@ src/repeat_mode.cc \
 src/run_command_handler.cc \
 src/run_cpp_command.cc \
 src/save_buffer_command.cc \
+src/search_command.cc \
 src/search_handler.cc \
 src/send_end_of_file_command.cc \
 src/server.cc \
