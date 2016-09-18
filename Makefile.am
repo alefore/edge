@@ -30,6 +30,7 @@ src/line_column.cc \
 src/line_marks.cc \
 src/line_prompt_mode.cc \
 src/list_buffers_command.cc \
+src/lowercase.cc \
 src/map_mode.cc \
 src/memory_mapped_file.cc \
 src/modifiers.cc \

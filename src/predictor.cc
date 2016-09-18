@@ -17,6 +17,7 @@ extern "C" {
 #include "char_buffer.h"
 #include "editor.h"
 #include "file_link_mode.h"
+#include "lowercase.h"
 #include "predictor.h"
 #include "wstring.h"
 
@@ -59,9 +60,10 @@ class PredictionsBufferImpl : public OpenBuffer {
     if (contents()->empty()) { return; }
     SortContents(contents()->begin(), contents()->end() - 1,
         [](const shared_ptr<Line>& a, const shared_ptr<Line>& b) {
-          return *a->contents() < *b->contents();
+          return *LowerCase(a->contents()) < *LowerCase(b->contents());
         });
-    wstring common_prefix = (*contents()->begin())->ToString();
+    wstring common_prefix =
+        LowerCase((*contents()->begin())->contents())->ToString();
     for (auto it = contents()->begin(); it != contents()->end(); ++it) {
       if ((*it)->size() == 0) {
         continue;
@@ -69,7 +71,8 @@ class PredictionsBufferImpl : public OpenBuffer {
       VLOG(5) << "Considering prediction: " << (*it)->ToString() << " (len: "
               << (*it)->size() << ")";
       size_t current_size = min(common_prefix.size(), (*it)->size());
-      wstring current = (*it)->Substring(0, current_size)->ToString();
+      wstring current =
+          LowerCase((*it)->Substring(0, current_size))->ToString();
 
       auto prefix_end = mismatch(common_prefix.begin(), common_prefix.end(),
                                  current.begin());
