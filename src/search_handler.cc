@@ -1,5 +1,7 @@
 #include "search_handler.h"
 
+#include <set>
+
 #include <iostream>
 #if CPP_REGEX
 #include <regex>
@@ -26,6 +28,7 @@ typedef std::regex RegexPattern;
 typedef regex_t RegexPattern;
 #endif
 
+// Returns all columns where the current line matches the pattern.
 vector<size_t> GetMatches(const wstring& line, const RegexPattern& pattern) {
   size_t start = 0;
   vector<size_t> output;
@@ -53,41 +56,8 @@ vector<size_t> GetMatches(const wstring& line, const RegexPattern& pattern) {
   }
 }
 
-vector<size_t> FilterInterestingMatches(
-    vector<size_t> matches, bool wrapped,
-    const Tree<shared_ptr<Line>>::const_iterator& start_line,
-    size_t start_column,
-    const Tree<shared_ptr<Line>>::const_iterator& line) {
-  if (matches.empty() || line != start_line) { return matches; }
-  vector<size_t> output;
-  for (auto it = matches.begin(); it != matches.end(); ++it) {
-    if (!wrapped ? *it > start_column : *it <= start_column) {
-      output.push_back(*it);
-    }
-  }
-  return output;
-}
-
-vector<size_t> FilterInterestingMatches(
-    vector<size_t> matches, bool wrapped,
-    const Tree<shared_ptr<Line>>::const_reverse_iterator& start_line,
-    size_t start_column,
-    const Tree<shared_ptr<Line>>::const_reverse_iterator& line) {
-  if (matches.empty() || line != start_line) { return matches; }
-  vector<size_t> output;
-  for (auto it = matches.rbegin(); it != matches.rend(); ++it) {
-    if (wrapped ? *it >= start_column : *it < start_column) {
-      output.push_back(*it);
-    }
-  }
-  return output;
-}
-
-template <typename Iterator>
-vector<LineColumn> PerformSearch(
-    const wstring& input, const Iterator& start_line,
-    size_t start_column, const Iterator& first, const Iterator& last,
-    bool* wrapped) {
+// Returns a vector with all positions matching input sorted in ascending order.
+vector<LineColumn> PerformSearch(const wstring& input, OpenBuffer* buffer) {
   using namespace afc::editor;
   vector<LineColumn> positions;
 
@@ -102,31 +72,13 @@ vector<LineColumn> PerformSearch(
   }
 #endif
 
-  Iterator line = start_line;
-
-  *wrapped = false;
-
-  while (true) {
-    if (line < last) {
-      wstring str = (*line)->ToString();
-
-      vector<size_t> matches = FilterInterestingMatches(
-          GetMatches(str, pattern), *wrapped, start_line, start_column, line);
-      for (const auto& column : matches) {
-        positions.push_back(LineColumn(line - first, column));
-      }
-    }
-
-    if (line == start_line && *wrapped) {
-      return positions;
-    }
-    if (line == last) {
-      line = first;
-      *wrapped = true;
-    } else {
-      ++line;
+  const auto first = buffer->contents()->begin();
+  for (auto line = first; line != buffer->contents()->end(); ++line) {
+    for (const auto& column : GetMatches((*line)->ToString(), pattern)) {
+      positions.push_back(LineColumn(line - first, column));
     }
   }
+  return positions;
 }
 
 }  // namespace
@@ -138,8 +90,7 @@ namespace editor {
 using std::regex;
 #endif
 
-shared_ptr<LazyString>
-RegexEscape(shared_ptr<LazyString> str) {
+wstring RegexEscape(shared_ptr<LazyString> str) {
   wstring results;
   static wstring literal_characters = L" ()<>{}+_-;\"':,?#%";
   for (size_t i = 0; i < str->size(); i++) {
@@ -149,56 +100,74 @@ RegexEscape(shared_ptr<LazyString> str) {
     }
     results.push_back(c);
   }
-  return NewCopyString(results);
+  return results;
 }
 
+// Returns all matches starting at start. If end is not nullptr, only matches
+// in the region enclosed by start and *end will be returned.
 vector<LineColumn> PerformSearchWithDirection(
-    EditorState* editor_state, const wstring& input, bool* wrapped) {
+    EditorState* editor_state, const wstring& input, LineColumn start,
+    const LineColumn* end) {
   auto buffer = editor_state->current_buffer()->second;
-  auto position = buffer->position();
-  if (editor_state->direction() == FORWARDS) {
-    return PerformSearch(
-        input, buffer->contents()->begin() + position.line,
-        position.column, buffer->contents()->begin(), buffer->contents()->end(),
-        wrapped);
+  auto direction = editor_state->modifiers().direction;
+  vector<LineColumn> candidates = PerformSearch(input, buffer.get());
+  if (direction == BACKWARDS) {
+    std::reverse(candidates.begin(), candidates.end());
   }
 
-  auto result = PerformSearch(
-      input, buffer->contents()->rend() - position.line,
-      position.column, buffer->contents()->rbegin(), buffer->contents()->rend(),
-      wrapped);
-  for (auto& position : result) {
-    position.line = buffer->contents()->size() - position.line - 1;
+  vector<LineColumn> head;
+  vector<LineColumn> tail;
+
+  if (end != nullptr) {
+    LOG(INFO) << "Removing elements outside of the range: " << min(start, *end)
+              << " to " << max(start, *end);
+    vector<LineColumn> valid_candidates;
+    for (auto& candidate : candidates) {
+      if (candidate >= min(start, *end) && candidate < max(start, *end)) {
+        valid_candidates.push_back(candidate);
+      }
+    }
+    candidates = std::move(valid_candidates);
   }
-  return result;
+
+  // Split them into head and tail depending on the current direction.
+  for (auto& candidate : candidates) {
+    ((direction == FORWARDS ? candidate > start : candidate < start)
+         ? head : tail)
+        .push_back(candidate);
+  }
+
+  // Append the tail to the head.
+  for (auto& candidate : tail) {
+    head.push_back(candidate);
+  }
+
+  return head;
 }
 
 void SearchHandlerPredictor(
     EditorState* editor_state, const wstring& input,
     OpenBuffer* predictions_buffer) {
   auto buffer = editor_state->current_buffer()->second;
-  LineColumn match_position = buffer->position();
-  bool already_wrapped = false;
-  for (size_t i = 0; i < 10; i++) {
-    bool wrapped;
-    auto positions = PerformSearchWithDirection(editor_state, input, &wrapped);
-    if (positions.empty()) {
-      break;
-    }
+  auto positions = PerformSearchWithDirection(editor_state, input,
+      buffer->position(), nullptr);
+
+  // Get the first kMatchesLimit matches:
+  const int kMatchesLimit = 100;
+  std::set<wstring> matches;
+  for (size_t i = 0; i < positions.size() && matches.size() < kMatchesLimit; i++) {
     if (i == 0) {
       buffer->set_position(positions[0]);
       editor_state->set_status_prompt(false);
       editor_state->ScheduleRedraw();
     }
-    predictions_buffer->AppendLine(
-        editor_state,
-        RegexEscape(
-            buffer->LineAt(positions[0].line)->Substring(
-                match_position.column)));
-    if (wrapped && already_wrapped) {
-      break;
-    }
-    already_wrapped = already_wrapped || wrapped;
+    matches.insert(RegexEscape(
+        buffer->LineAt(positions[i].line)->Substring(positions[i].column)));
+  }
+
+  // Add the matches to the predictions buffer.
+  for (auto& match : matches) {
+    predictions_buffer->AppendLine(editor_state, NewCopyString(match));
   }
   predictions_buffer->EndOfFile(editor_state);
 }
@@ -210,27 +179,14 @@ vector<LineColumn> SearchHandler(
     return vector<LineColumn>();
   }
 
-  auto buffer = editor_state->current_buffer()->second;
-  if (options.starting_position != buffer->position()) {
-    // The user must have used the predictor, which probably means we don't need
-    // to do much.
-    return vector<LineColumn>();
-  }
-
-  bool wrapped;
-
   auto results = PerformSearchWithDirection(
-      editor_state, options.search_query, &wrapped);
+      editor_state, options.search_query, options.starting_position,
+      options.has_limit_position ? &options.limit_position : nullptr);
   if (results.empty()) {
     editor_state->SetStatus(L"No matches: " + options.search_query);
   } else {
-    buffer->set_position(results[0]);
+    editor_state->current_buffer()->second->set_position(results[0]);
     editor_state->PushCurrentPosition();
-    if (wrapped) {
-      editor_state->SetStatus(L"Found (wrapped).");
-    } else {
-      editor_state->SetStatus(L"Found.");
-    }
   }
   return results;
 }
