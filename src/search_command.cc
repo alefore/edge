@@ -63,16 +63,41 @@ class SearchCommand : public Command {
         break;
 
       default:
-        auto position = editor_state->current_buffer()->second->position();
+        SearchOptions search_options;
+        auto buffer = editor_state->current_buffer()->second;
+        if (editor_state->structure() == CURSOR) {
+          if (!buffer->FindPartialRange(
+                   editor_state->modifiers(), buffer->position(),
+                   &search_options.starting_position,
+                   &search_options.limit_position) ||
+              search_options.starting_position ==
+                  search_options.limit_position) {
+            editor_state->ResetStructure();
+            return;
+          }
+          CHECK_LE(search_options.starting_position,
+                   search_options.limit_position);
+          if (editor_state->modifiers().direction == BACKWARDS) {
+            LOG(INFO) << "Swaping positions (backwards search).";
+            LineColumn tmp = search_options.starting_position;
+            search_options.starting_position = search_options.limit_position;
+            search_options.limit_position = tmp;
+          }
+          LOG(INFO) << "Searching region: " << search_options.starting_position
+                    << " to " << search_options.limit_position;
+          search_options.has_limit_position = true;
+        } else {
+          search_options.starting_position =
+              editor_state->current_buffer()->second->position();
+        }
         PromptOptions options;
         options.prompt = L"/";
         options.history_file = L"search";
-        options.handler = [position](const wstring& input,
-                                     EditorState* editor_state) {
-          SearchOptions search_options;
-          search_options.search_query = input;
-          search_options.starting_position = position;
-          DoSearch(editor_state, search_options);
+        options.handler = [search_options](const wstring& input,
+                                           EditorState* editor_state) {
+          SearchOptions options = search_options;
+          options.search_query = input;
+          DoSearch(editor_state, options);
         };
         options.predictor = SearchHandlerPredictor;
         Prompt(editor_state, std::move(options));

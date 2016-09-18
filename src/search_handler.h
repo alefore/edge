@@ -26,6 +26,11 @@ struct SearchOptions {
 
   // The regular expression to search.
   wstring search_query;
+
+  // If has_limit_position is true, limit_position marks a position where the
+  // search should stop.
+  bool has_limit_position = false;
+  LineColumn limit_position;
 };
 
 std::vector<LineColumn> SearchHandler(
