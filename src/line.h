@@ -60,6 +60,7 @@ class Line {
     return contents_->get(column);
   }
   shared_ptr<LazyString> Substring(size_t pos, size_t length);
+  // Returns the substring from pos to the end of the string.
   shared_ptr<LazyString> Substring(size_t pos);
   wstring ToString() const {
     return contents_->ToString();

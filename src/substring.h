@@ -10,6 +10,7 @@ namespace editor {
 
 using std::shared_ptr;
 
+// Returns the substring from pos to the end of the string.
 shared_ptr<LazyString> Substring(
     const shared_ptr<LazyString>& input, size_t pos);
 
@@ -19,4 +20,4 @@ shared_ptr<LazyString> Substring(
 }  // namespace editor
 }  // namespace afc
 
-#endif
+#endif  // __AFC_EDITOR_SUBSTRING_H__
