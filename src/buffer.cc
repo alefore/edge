@@ -1437,6 +1437,7 @@ void OpenBuffer::DestroyOtherCursors() {
       ++it;
     }
   }
+  set_bool_variable(variable_multiple_cursors(), false);
   editor_->ScheduleRedraw();
 }
 
