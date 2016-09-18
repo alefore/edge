@@ -39,6 +39,7 @@ Terminal::Terminal() {
   init_pair(1, COLOR_BLACK, COLOR_BLACK);
   init_pair(2, COLOR_RED, COLOR_BLACK);
   init_pair(3, COLOR_GREEN, COLOR_BLACK);
+  init_pair(4, COLOR_BLUE, COLOR_BLACK);
   init_pair(7, COLOR_CYAN, COLOR_BLACK);
   SetStatus(L"Initializing...");
 }
@@ -291,6 +292,7 @@ class LineOutputReceiver : public Line::OutputReceiverInterface {
         attroff(COLOR_PAIR(1));
         attroff(COLOR_PAIR(2));
         attroff(COLOR_PAIR(3));
+        attroff(COLOR_PAIR(4));
         attroff(COLOR_PAIR(7));
         break;
       case Line::BOLD:
@@ -313,6 +315,9 @@ class LineOutputReceiver : public Line::OutputReceiverInterface {
         break;
       case Line::GREEN:
         attron(COLOR_PAIR(3));
+        break;
+      case Line::BLUE:
+        attron(COLOR_PAIR(4));
         break;
       case Line::CYAN:
         attron(COLOR_PAIR(7));
@@ -355,8 +360,13 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
   CursorsHighlighter(Line::OutputReceiverInterface* delegate,
                      size_t current,
                      set<size_t>::const_iterator first,
-                     set<size_t>::const_iterator last)
-      : delegate_(delegate), current_(current), first_(first), last_(last) {
+                     set<size_t>::const_iterator last,
+                     bool multiple_cursors)
+      : delegate_(delegate),
+        current_(current),
+        first_(first),
+        last_(last),
+        multiple_cursors_(multiple_cursors) {
     CheckInvariants();
   }
 
@@ -368,7 +378,7 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
       CHECK(first_ == last_ || *first_ > position_);
       AddModifier(Line::REVERSE);
       if (current_ != position_) {
-        AddModifier(Line::CYAN);
+        AddModifier(multiple_cursors_ ? Line::CYAN : Line::BLUE);
       }
     }
 
@@ -428,6 +438,7 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
   const size_t current_;
   set<size_t>::const_iterator first_;
   set<size_t>::const_iterator last_;
+  const bool multiple_cursors_;
   size_t position_ = 0;
 };
 
@@ -489,7 +500,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
                 << current_cursors->second.size();
       cursors_highlighter.reset(new CursorsHighlighter(
           receiver, current, current_cursors->second.begin(),
-          current_cursors->second.end()));
+          current_cursors->second.end(),
+          buffer->read_bool_variable(buffer->variable_multiple_cursors())));
       receiver = cursors_highlighter.get();
     }
     line->Output(editor_state, buffer, current_line, receiver);
