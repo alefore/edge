@@ -26,9 +26,6 @@ struct SearchOptions {
 
   // The regular expression to search.
   wstring search_query;
-
-  // The maximum number of lines to search. If 0, means unlimited.
-  size_t maximum_lines_to_search;
 };
 
 std::vector<LineColumn> SearchHandler(

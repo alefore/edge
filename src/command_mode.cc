@@ -352,7 +352,6 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
         options.search_query = editor_state->last_search_query();
         options.starting_position =
             editor_state->current_buffer()->second->position();
-        options.maximum_lines_to_search = 1;
         SearchHandler(editor_state, options);
       }
       editor_state->ResetMode();
@@ -404,7 +403,6 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
         options.search_query = editor_state->last_search_query();
         options.starting_position =
             editor_state->current_buffer()->second->position();
-        options.maximum_lines_to_search = 1;
         SearchHandler(editor_state, options);
       }
       editor_state->ResetMode();

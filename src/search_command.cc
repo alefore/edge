@@ -52,7 +52,6 @@ class SearchCommand : public Command {
                     ->Substring(start.column, end.column - start.column)
                     ->ToString();
             options.starting_position = buffer->position();
-            options.maximum_lines_to_search = 1;
             DoSearch(editor_state, options);
           }
 
@@ -73,7 +72,6 @@ class SearchCommand : public Command {
           SearchOptions search_options;
           search_options.search_query = input;
           search_options.starting_position = position;
-          search_options.maximum_lines_to_search = 0;
           DoSearch(editor_state, search_options);
         };
         options.predictor = SearchHandlerPredictor;
