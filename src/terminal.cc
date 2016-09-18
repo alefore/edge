@@ -7,7 +7,6 @@
 
 extern "C" {
 #include <ncursesw/curses.h>
-#include <term.h>
 }
 
 #include "line_marks.h"
