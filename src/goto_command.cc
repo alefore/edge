@@ -3,11 +3,90 @@
 #include "buffer.h"
 #include "command.h"
 #include "editor.h"
+#include "transformation.h"
 
 namespace afc {
 namespace editor {
 
 namespace {
+// Arguments:
+//   prefix_len: The size of the prefix that we skip when calls is 0.
+//   suffix_start: The position where the suffix starts. This is the base when
+//       calls is 2.
+//   elements: The total number of elements.
+//   direction: The direction of movement.
+//   repetitions: The nth element to jump to.
+//   structure_range: The StructureRange. If FROM_CURRENT_POSITION_TO_END, it
+//       reverses the direction.
+//   calls: The number of consecutive number of times this command has run.
+size_t ComputePosition(
+    size_t prefix_len, size_t suffix_start, size_t elements,
+    Direction direction, size_t repetitions,
+    Modifiers::StructureRange structure_range, size_t calls) {
+  CHECK_LE(prefix_len, suffix_start);
+  CHECK_LE(suffix_start, elements);
+  if (calls > 1) {
+    return ComputePosition(
+        prefix_len, suffix_start, elements, ReverseDirection(direction),
+        repetitions, structure_range, calls - 2);
+  }
+  if (calls == 1) {
+    return ComputePosition(0, elements, elements, direction, repetitions,
+                           structure_range, 0);
+  }
+  if (structure_range == Modifiers::FROM_CURRENT_POSITION_TO_END) {
+    return ComputePosition(
+        prefix_len, suffix_start, elements, ReverseDirection(direction),
+        repetitions, Modifiers::ENTIRE_STRUCTURE, calls);
+  }
+
+  if (direction == FORWARDS) {
+    return min(prefix_len + repetitions - 1, elements);
+  } else {
+    return suffix_start - min(suffix_start, repetitions - 1);
+  }
+}
+
+class GotoCharTransformation : public Transformation {
+ public:
+  GotoCharTransformation(int calls) : calls_(calls) {}
+
+  void Apply(EditorState* editor, OpenBuffer* buffer, Result* result)
+      const override {
+    if (buffer->current_line() == nullptr) {
+      result->success = false;
+    }
+    const wstring& line_prefix_characters = buffer->read_string_variable(
+        OpenBuffer::variable_line_prefix_characters());
+    const auto& line = buffer->current_line();
+    size_t start = 0;
+    while (start < line->size()
+           && (line_prefix_characters.find(line->get(start))
+               != string::npos)) {
+      start++;
+    }
+    size_t end = line->size();
+    while (start + 1 < end
+           && (line_prefix_characters.find(line->get(end - 1))
+               != string::npos)) {
+      end--;
+    }
+    size_t position = ComputePosition(
+        start, end, line->size(), editor->direction(), editor->repetitions(),
+        editor->structure_range(), calls_);
+    assert(position <= line->size());
+    result->made_progress = buffer->current_position_col() != position;
+    buffer->set_current_position_col(position);
+  }
+
+  std::unique_ptr<Transformation> Clone() {
+    return std::unique_ptr<Transformation>(new GotoCharTransformation(calls_));
+  }
+
+ private:
+  const int calls_;
+};
+
 class GotoCommand : public Command {
  public:
   GotoCommand(size_t calls) : calls_(calls % 4) {}
@@ -26,30 +105,8 @@ class GotoCommand : public Command {
     shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
     switch (editor_state->structure()) {
       case CHAR:
-        {
-          if (buffer->current_line() == nullptr) { return; }
-          const wstring& line_prefix_characters = buffer->read_string_variable(
-              OpenBuffer::variable_line_prefix_characters());
-          const auto& line = buffer->current_line();
-          size_t start = 0;
-          while (start < line->size()
-                 && (line_prefix_characters.find(line->get(start))
-                     != string::npos)) {
-            start++;
-          }
-          size_t end = line->size();
-          while (start + 1 < end
-                 && (line_prefix_characters.find(line->get(end - 1))
-                     != string::npos)) {
-            end--;
-          }
-          size_t position = ComputePosition(
-              start, end, line->size(), editor_state->direction(),
-              editor_state->repetitions(), editor_state->structure_range(),
-              calls_);
-          assert(position <= line->size());
-          buffer->set_current_position_col(position);
-        }
+        buffer->ApplyToCursors(std::unique_ptr<Transformation>(
+            new GotoCharTransformation(calls_)));
         break;
 
       case WORD:
@@ -157,44 +214,6 @@ class GotoCommand : public Command {
   }
 
  private:
-  // Arguments:
-  //   prefix_len: The size of the prefix that we skip when calls is 0.
-  //   suffix_start: The position where the suffix starts. This is the base when
-  //       calls is 2.
-  //   elements: The total number of elements.
-  //   direction: The direction of movement.
-  //   repetitions: The nth element to jump to.
-  //   structure_range: The StructureRange. If FROM_CURRENT_POSITION_TO_END, it
-  //       reverses the direction.
-  //   calls: The number of consecutive number of times this command has run.
-  size_t ComputePosition(
-      size_t prefix_len, size_t suffix_start, size_t elements,
-      Direction direction, size_t repetitions,
-      Modifiers::StructureRange structure_range, size_t calls) {
-    CHECK_LE(prefix_len, suffix_start);
-    CHECK_LE(suffix_start, elements);
-    if (calls > 1) {
-      return ComputePosition(
-          prefix_len, suffix_start, elements, ReverseDirection(direction),
-          repetitions, structure_range, calls - 2);
-    }
-    if (calls == 1) {
-      return ComputePosition(0, elements, elements, direction, repetitions,
-                             structure_range, 0);
-    }
-    if (structure_range == Modifiers::FROM_CURRENT_POSITION_TO_END) {
-      return ComputePosition(
-          prefix_len, suffix_start, elements, ReverseDirection(direction),
-          repetitions, Modifiers::ENTIRE_STRUCTURE, calls);
-    }
-
-    if (direction == FORWARDS) {
-      return min(prefix_len + repetitions - 1, elements);
-    } else {
-      return suffix_start - min(suffix_start, repetitions - 1);
-    }
-  }
-
   void GotoCursor(EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     auto buffer = editor_state->current_buffer()->second;
