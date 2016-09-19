@@ -358,12 +358,12 @@ class HighlightedLineOutputReceiver : public Line::OutputReceiverInterface {
 class CursorsHighlighter : public Line::OutputReceiverInterface {
  public:
   CursorsHighlighter(Line::OutputReceiverInterface* delegate,
-                     size_t current,
+                     size_t current_line,
                      set<size_t>::const_iterator first,
                      set<size_t>::const_iterator last,
                      bool multiple_cursors)
       : delegate_(delegate),
-        current_(current),
+        current_line_(current_line),
         first_(first),
         last_(last),
         multiple_cursors_(multiple_cursors) {
@@ -377,7 +377,7 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
       ++first_;
       CHECK(first_ == last_ || *first_ > position_);
       AddModifier(Line::REVERSE);
-      if (current_ != position_) {
+      if (current_line_ != position_) {
         AddModifier(multiple_cursors_ ? Line::CYAN : Line::BLUE);
       }
     }
@@ -435,8 +435,19 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
   }
 
   Line::OutputReceiverInterface* const delegate_;
-  const size_t current_;
+  // The line of the main cursor. This is used (together with the position of
+  // cursors in the current line) to detect the main cursor (the fact that we
+  // don't need to display anything special: the terminal will display it for
+  // us).
+  const size_t current_line_;
+
+  // Given a set of the columns with cursors in the current line, this is an
+  // iterator to the first element in a column greater than or equal to
+  // position_.
   set<size_t>::const_iterator first_;
+
+  // Iterator past the end of the set of columns in the current line that have
+  // cursors.
   set<size_t>::const_iterator last_;
   const bool multiple_cursors_;
   size_t position_ = 0;
