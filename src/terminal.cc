@@ -357,32 +357,46 @@ class HighlightedLineOutputReceiver : public Line::OutputReceiverInterface {
 
 class CursorsHighlighter : public Line::OutputReceiverInterface {
  public:
-  CursorsHighlighter(Line::OutputReceiverInterface* delegate,
-                     size_t current_column,
-                     set<size_t>::const_iterator first,
-                     set<size_t>::const_iterator last,
-                     bool multiple_cursors)
-      : delegate_(delegate),
-        current_column_(current_column),
-        first_(first),
-        last_(last),
-        multiple_cursors_(multiple_cursors) {
+  struct Options {
+    Line::OutputReceiverInterface* delegate;
+
+    // The position (column) of the main cursor, assuming that the main cursor
+    // is in the current line. This is used to avoid any highlighting at that
+    // position, since the terminal takes care of that automatically (we don't
+    // have to do anything). If the main cursor is not in the current line, the
+    // customers of this class should just pass the maximum value (the default),
+    // so that this class will show all cursors in the current line.
+    size_t current_column = std::numeric_limits<size_t>::max();
+
+    // The customer must create a set with the position (column) of all the
+    // cursors in the current line. first should be an iterator to the first
+    // element in the set and last to one past the last.
+    set<size_t>::const_iterator first;
+    set<size_t>::const_iterator last;
+
+    bool multiple_cursors;
+  };
+
+  explicit CursorsHighlighter(Options options)
+      : options_(options),
+        next_cursor_(options_.first) {
     CheckInvariants();
   }
 
   void AddCharacter(wchar_t c) {
     CheckInvariants();
-    bool at_cursor = first_ != last_ && *first_ == position_;
+    bool at_cursor =
+        next_cursor_ != options_.last && *next_cursor_ == position_;
     if (at_cursor) {
-      ++first_;
-      CHECK(first_ == last_ || *first_ > position_);
+      ++next_cursor_;
+      CHECK(next_cursor_ == options_.last || *next_cursor_ > position_);
       AddModifier(Line::REVERSE);
-      if (current_column_ != position_) {
-        AddModifier(multiple_cursors_ ? Line::CYAN : Line::BLUE);
+      if (options_.current_column != position_) {
+        AddModifier(options_.multiple_cursors ? Line::CYAN : Line::BLUE);
       }
     }
 
-    delegate_->AddCharacter(c);
+    options_.delegate->AddCharacter(c);
     position_++;
 
     if (at_cursor) {
@@ -399,11 +413,11 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
 
       // Compute the position of the next cursor relative to the start of this
       // string.
-      size_t next_cursor = (first_ == last_)
-          ? str.size() : *first_ + str_pos - position_;
-      if (next_cursor > str_pos) {
-        size_t len = next_cursor - str_pos;
-        delegate_->AddString(str.substr(str_pos, len));
+      size_t next_column = (next_cursor_ == options_.last)
+          ? str.size() : *next_cursor_ + str_pos - position_;
+      if (next_column > str_pos) {
+        size_t len = next_column - str_pos;
+        options_.delegate->AddString(str.substr(str_pos, len));
         str_pos += len;
         position_ += len;
       }
@@ -411,8 +425,8 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
       CheckInvariants();
 
       if (str_pos < str.size()) {
-        CHECK(first_ != last_);
-        CHECK_EQ(*first_, position_);
+        CHECK(next_cursor_ != options_.last);
+        CHECK_EQ(*next_cursor_, position_);
         AddCharacter(str[str_pos]);
         str_pos++;
       }
@@ -421,38 +435,28 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
   }
 
   void AddModifier(Line::Modifier modifier) {
-    delegate_->AddModifier(modifier);
+    options_.delegate->AddModifier(modifier);
   }
 
   size_t width() const {
-    return delegate_->width();
+    return options_.delegate->width();
   }
+
  private:
   void CheckInvariants() {
-    if (first_ != last_) {
-      CHECK_GE(*first_, position_);
+    if (next_cursor_ != options_.last) {
+      CHECK_GE(*next_cursor_, position_);
     }
   }
 
-  Line::OutputReceiverInterface* const delegate_;
-  // The position (column) of the main cursor, assuming that the main cursor is
-  // in the current line. This is used to avoid any highlighting at that
-  // position, since the terminal takes care of that automatically (we don't
-  // have to do anything). If the main cursor is not in the current line, the
-  // customers of this class should just pass the maximum value, so that this
-  // class will show all cursors.
-  const size_t current_column_;
+  const Options options_;
 
-  // Given a set of the columns with cursors in the current line, this is an
-  // iterator to the first element in a column greater than or equal to
-  // position_.
-  set<size_t>::const_iterator first_;
-
-  // Iterator past the end of the set of columns in the current line that have
-  // cursors.
-  set<size_t>::const_iterator last_;
-  const bool multiple_cursors_;
+  // The last column that we've outputed.
   size_t position_ = 0;
+
+  // Points to the first element in the set of columns (given by Options::first
+  // and Options::last) that is greater than or equal to position_.
+  set<size_t>::const_iterator next_cursor_;
 };
 
 void Terminal::ShowBuffer(const EditorState* editor_state) {
@@ -504,17 +508,19 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
           new HighlightedLineOutputReceiver(receiver));
       receiver = atomic_lines_highlighter.get();
     } else if (current_cursors != cursors.end()) {
-      size_t line =
-          buffer->current_cursor()->first - buffer->contents()->begin();
-      size_t current_column = line == current_line
-          ? buffer->current_cursor()->second
-          : std::numeric_limits<size_t>::max();
       LOG(INFO) << "Cursors in current line: "
                 << current_cursors->second.size();
-      cursors_highlighter.reset(new CursorsHighlighter(
-          receiver, current_column, current_cursors->second.begin(),
-          current_cursors->second.end(),
-          buffer->read_bool_variable(buffer->variable_multiple_cursors())));
+      CursorsHighlighter::Options options;
+      options.delegate = receiver;
+      if (buffer->contents()->begin() + current_line ==
+          buffer->current_cursor()->first) {
+        options.current_column = buffer->current_cursor()->second;
+      }
+      options.first = current_cursors->second.begin();
+      options.last = current_cursors->second.end();
+      options.multiple_cursors =
+          buffer->read_bool_variable(buffer->variable_multiple_cursors());
+      cursors_highlighter.reset(new CursorsHighlighter(options));
       receiver = cursors_highlighter.get();
     }
     line->Output(editor_state, buffer, current_line, receiver);
