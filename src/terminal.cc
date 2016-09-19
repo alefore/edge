@@ -510,6 +510,15 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
           buffer->current_cursor()->first) {
         options.columns.erase(buffer->current_cursor()->second);
       }
+      // Any cursors past the end of the line will just be silently moved to the
+      // end of the line (just for displaying).
+      unsigned line_length =
+          (*(buffer->contents()->begin() + current_line))->size();
+      while (!options.columns.empty() &&
+             *options.columns.rbegin() > line_length) {
+        options.columns.erase(std::prev(options.columns.end()));
+        options.columns.insert(line_length);
+      }
       options.multiple_cursors =
           buffer->read_bool_variable(buffer->variable_multiple_cursors());
       cursors_highlighter.reset(new CursorsHighlighter(options));
