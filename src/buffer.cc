@@ -1505,6 +1505,10 @@ bool OpenBuffer::FindRangeFirst(
     const Modifiers& modifiers, const LineColumn& position,
     LineColumn* output) const {
   *output = position;
+
+  // Just in case it's a cursor pointing past the end of its line:
+  output->column = min(output->column, LineAt(output->line)->size());
+
   switch (modifiers.structure) {
     case CHAR:
       if (modifiers.direction == BACKWARDS) {
