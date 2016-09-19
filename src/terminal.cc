@@ -368,28 +368,27 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
     // so that this class will show all cursors in the current line.
     size_t current_column = std::numeric_limits<size_t>::max();
 
-    // The customer must create a set with the position (column) of all the
-    // cursors in the current line. first should be an iterator to the first
-    // element in the set and last to one past the last.
-    set<size_t>::const_iterator first;
-    set<size_t>::const_iterator last;
+    // A set with all the columns in the current line in which there are
+    // cursors.
+    set<size_t> columns;
 
     bool multiple_cursors;
   };
 
   explicit CursorsHighlighter(Options options)
-      : options_(options),
-        next_cursor_(options_.first) {
+      : options_(std::move(options)),
+        next_cursor_(options_.columns.begin()) {
     CheckInvariants();
   }
 
   void AddCharacter(wchar_t c) {
     CheckInvariants();
     bool at_cursor =
-        next_cursor_ != options_.last && *next_cursor_ == position_;
+        next_cursor_ != options_.columns.end() && *next_cursor_ == position_;
     if (at_cursor) {
       ++next_cursor_;
-      CHECK(next_cursor_ == options_.last || *next_cursor_ > position_);
+      CHECK(next_cursor_ == options_.columns.end()
+            || *next_cursor_ > position_);
       AddModifier(Line::REVERSE);
       if (options_.current_column != position_) {
         AddModifier(options_.multiple_cursors ? Line::CYAN : Line::BLUE);
@@ -413,7 +412,7 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
 
       // Compute the position of the next cursor relative to the start of this
       // string.
-      size_t next_column = (next_cursor_ == options_.last)
+      size_t next_column = (next_cursor_ == options_.columns.end())
           ? str.size() : *next_cursor_ + str_pos - position_;
       if (next_column > str_pos) {
         size_t len = next_column - str_pos;
@@ -425,7 +424,7 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
       CheckInvariants();
 
       if (str_pos < str.size()) {
-        CHECK(next_cursor_ != options_.last);
+        CHECK(next_cursor_ != options_.columns.end());
         CHECK_EQ(*next_cursor_, position_);
         AddCharacter(str[str_pos]);
         str_pos++;
@@ -444,7 +443,7 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
 
  private:
   void CheckInvariants() {
-    if (next_cursor_ != options_.last) {
+    if (next_cursor_ != options_.columns.end()) {
       CHECK_GE(*next_cursor_, position_);
     }
   }
@@ -516,8 +515,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
           buffer->current_cursor()->first) {
         options.current_column = buffer->current_cursor()->second;
       }
-      options.first = current_cursors->second.begin();
-      options.last = current_cursors->second.end();
+      options.columns = current_cursors->second;
       options.multiple_cursors =
           buffer->read_bool_variable(buffer->variable_multiple_cursors());
       cursors_highlighter.reset(new CursorsHighlighter(options));
