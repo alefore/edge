@@ -358,12 +358,12 @@ class HighlightedLineOutputReceiver : public Line::OutputReceiverInterface {
 class CursorsHighlighter : public Line::OutputReceiverInterface {
  public:
   CursorsHighlighter(Line::OutputReceiverInterface* delegate,
-                     size_t current_line,
+                     size_t current_column,
                      set<size_t>::const_iterator first,
                      set<size_t>::const_iterator last,
                      bool multiple_cursors)
       : delegate_(delegate),
-        current_line_(current_line),
+        current_column_(current_column),
         first_(first),
         last_(last),
         multiple_cursors_(multiple_cursors) {
@@ -377,7 +377,7 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
       ++first_;
       CHECK(first_ == last_ || *first_ > position_);
       AddModifier(Line::REVERSE);
-      if (current_line_ != position_) {
+      if (current_column_ != position_) {
         AddModifier(multiple_cursors_ ? Line::CYAN : Line::BLUE);
       }
     }
@@ -435,11 +435,13 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
   }
 
   Line::OutputReceiverInterface* const delegate_;
-  // The line of the main cursor. This is used (together with the position of
-  // cursors in the current line) to detect the main cursor (the fact that we
-  // don't need to display anything special: the terminal will display it for
-  // us).
-  const size_t current_line_;
+  // The position (column) of the main cursor, assuming that the main cursor is
+  // in the current line. This is used to avoid any highlighting at that
+  // position, since the terminal takes care of that automatically (we don't
+  // have to do anything). If the main cursor is not in the current line, the
+  // customers of this class should just pass the maximum value, so that this
+  // class will show all cursors.
+  const size_t current_column_;
 
   // Given a set of the columns with cursors in the current line, this is an
   // iterator to the first element in a column greater than or equal to
@@ -504,13 +506,13 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
     } else if (current_cursors != cursors.end()) {
       size_t line =
           buffer->current_cursor()->first - buffer->contents()->begin();
-      size_t current = line == current_line
+      size_t current_column = line == current_line
           ? buffer->current_cursor()->second
           : std::numeric_limits<size_t>::max();
       LOG(INFO) << "Cursors in current line: "
                 << current_cursors->second.size();
       cursors_highlighter.reset(new CursorsHighlighter(
-          receiver, current, current_cursors->second.begin(),
+          receiver, current_column, current_cursors->second.begin(),
           current_cursors->second.end(),
           buffer->read_bool_variable(buffer->variable_multiple_cursors())));
       receiver = cursors_highlighter.get();
