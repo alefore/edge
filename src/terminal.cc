@@ -360,16 +360,12 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
   struct Options {
     Line::OutputReceiverInterface* delegate;
 
-    // The position (column) of the main cursor, assuming that the main cursor
-    // is in the current line. This is used to avoid any highlighting at that
-    // position, since the terminal takes care of that automatically (we don't
-    // have to do anything). If the main cursor is not in the current line, the
-    // customers of this class should just pass the maximum value (the default),
-    // so that this class will show all cursors in the current line.
-    size_t current_column = std::numeric_limits<size_t>::max();
-
     // A set with all the columns in the current line in which there are
-    // cursors.
+    // cursors that should be drawn. If the active cursor (i.e., the one exposed
+    // to the terminal) is in the line being outputted, its column should not be
+    // included (since we shouldn't do anything special when outputting its
+    // corresponding character: the terminal will take care of drawing the
+    // cursor).
     set<size_t> columns;
 
     bool multiple_cursors;
@@ -390,9 +386,7 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
       CHECK(next_cursor_ == options_.columns.end()
             || *next_cursor_ > position_);
       AddModifier(Line::REVERSE);
-      if (options_.current_column != position_) {
-        AddModifier(options_.multiple_cursors ? Line::CYAN : Line::BLUE);
-      }
+      AddModifier(options_.multiple_cursors ? Line::CYAN : Line::BLUE);
     }
 
     options_.delegate->AddCharacter(c);
@@ -511,11 +505,11 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
                 << current_cursors->second.size();
       CursorsHighlighter::Options options;
       options.delegate = receiver;
+      options.columns = current_cursors->second;
       if (buffer->contents()->begin() + current_line ==
           buffer->current_cursor()->first) {
-        options.current_column = buffer->current_cursor()->second;
+        options.columns.erase(buffer->current_cursor()->second);
       }
-      options.columns = current_cursors->second;
       options.multiple_cursors =
           buffer->read_bool_variable(buffer->variable_multiple_cursors());
       cursors_highlighter.reset(new CursorsHighlighter(options));
