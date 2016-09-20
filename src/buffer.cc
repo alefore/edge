@@ -38,7 +38,8 @@ namespace {
 
 using std::unordered_set;
 
-static void RegisterBufferFieldBool(afc::vm::ObjectType* object_type,
+static void RegisterBufferFieldBool(EditorState* editor_state,
+                                    afc::vm::ObjectType* object_type,
                                     const EdgeVariable<char>* variable) {
   using namespace afc::vm;
   assert(variable != nullptr);
@@ -65,19 +66,21 @@ static void RegisterBufferFieldBool(afc::vm::ObjectType* object_type,
     callback->type.type_arguments.push_back(VMType::ObjectType(object_type));
     callback->type.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
     callback->callback =
-        [variable](vector<unique_ptr<Value>> args) {
+        [editor_state, variable](vector<unique_ptr<Value>> args) {
           assert(args[0]->type == VMType::OBJECT_TYPE);
           assert(args[1]->type == VMType::VM_BOOLEAN);
           auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
           assert(buffer != nullptr);
           buffer->set_bool_variable(variable, args[1]->boolean);
+          editor_state->ScheduleRedraw();
           return std::move(Value::NewVoid());
         };
     object_type->AddField(L"set_" + variable->name(), std::move(callback));
   }
 }
 
-static void RegisterBufferFieldString(afc::vm::ObjectType* object_type,
+static void RegisterBufferFieldString(EditorState* editor_state,
+                                      afc::vm::ObjectType* object_type,
                                       const EdgeVariable<wstring>* variable) {
   using namespace afc::vm;
   assert(variable != nullptr);
@@ -104,19 +107,21 @@ static void RegisterBufferFieldString(afc::vm::ObjectType* object_type,
     callback->type.type_arguments.push_back(VMType::ObjectType(object_type));
     callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
     callback->callback =
-        [variable](vector<unique_ptr<Value>> args) {
+        [editor_state, variable](vector<unique_ptr<Value>> args) {
           assert(args[0]->type == VMType::OBJECT_TYPE);
           assert(args[1]->type == VMType::VM_STRING);
           auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
           assert(buffer != nullptr);
           buffer->set_string_variable(variable, args[1]->str);
+          editor_state->ScheduleRedraw();
           return std::move(Value::NewVoid());
         };
     object_type->AddField(L"set_" + variable->name(), std::move(callback));
   }
 }
 
-static void RegisterBufferFieldInt(afc::vm::ObjectType* object_type,
+static void RegisterBufferFieldInt(EditorState* editor_state,
+                                   afc::vm::ObjectType* object_type,
                                    const EdgeVariable<int>* variable) {
   using namespace afc::vm;
   assert(variable != nullptr);
@@ -143,12 +148,13 @@ static void RegisterBufferFieldInt(afc::vm::ObjectType* object_type,
     callback->type.type_arguments.push_back(VMType::ObjectType(object_type));
     callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
     callback->callback =
-        [variable](vector<unique_ptr<Value>> args) {
+        [editor_state, variable](vector<unique_ptr<Value>> args) {
           assert(args[0]->type == VMType::OBJECT_TYPE);
           assert(args[1]->type == VMType::VM_INTEGER);
           auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
           assert(buffer != nullptr);
           buffer->set_int_variable(variable, args[1]->integer);
+          editor_state->ScheduleRedraw();
           return std::move(Value::NewVoid());
         };
     object_type->AddField(L"set_" + variable->name(), std::move(callback));
@@ -156,6 +162,7 @@ static void RegisterBufferFieldInt(afc::vm::ObjectType* object_type,
 }
 
 static void RegisterBufferFieldValue(
+    EditorState* editor_state,
     afc::vm::ObjectType* object_type,
     const EdgeVariable<unique_ptr<Value>>* variable) {
   using namespace afc::vm;
@@ -167,7 +174,7 @@ static void RegisterBufferFieldValue(
     callback->type.type_arguments.push_back(variable->type());
     callback->type.type_arguments.push_back(VMType::ObjectType(object_type));
     callback->callback =
-        [variable](vector<unique_ptr<Value>> args) {
+        [editor_state, variable](vector<unique_ptr<Value>> args) {
           assert(args[0]->type == VMType::OBJECT_TYPE);
           auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
           assert(buffer != nullptr);
@@ -185,7 +192,7 @@ static void RegisterBufferFieldValue(
     callback->type.type_arguments.push_back(VMType::ObjectType(object_type));
     callback->type.type_arguments.push_back(variable->type());
     callback->callback =
-        [variable](vector<unique_ptr<Value>> args) {
+        [editor_state, variable](vector<unique_ptr<Value>> args) {
           assert(args[0]->type == VMType::OBJECT_TYPE);
           assert(args[1]->type == variable->type());
           auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
@@ -193,6 +200,7 @@ static void RegisterBufferFieldValue(
           unique_ptr<Value> value = Value::NewVoid();
           *value = *args[1];
           buffer->set_value_variable(variable, std::move(value));
+          editor_state->ScheduleRedraw();
           return std::move(Value::NewVoid());
         };
     object_type->AddField(L"set_" + variable->name(), std::move(callback));
@@ -216,7 +224,7 @@ using std::to_wstring;
     StringStruct()->RegisterVariableNames(&variable_names);
     for (const wstring& name : variable_names) {
       RegisterBufferFieldString(
-          buffer.get(), StringStruct()->find_variable(name));
+          editor_state, buffer.get(), StringStruct()->find_variable(name));
     }
   }
 
@@ -225,7 +233,7 @@ using std::to_wstring;
     BoolStruct()->RegisterVariableNames(&variable_names);
     for (const wstring& name : variable_names) {
       RegisterBufferFieldBool(
-          buffer.get(), BoolStruct()->find_variable(name));
+          editor_state, buffer.get(), BoolStruct()->find_variable(name));
     }
   }
 
@@ -233,7 +241,8 @@ using std::to_wstring;
     vector<wstring> variable_names;
     IntStruct()->RegisterVariableNames(&variable_names);
     for (const wstring& name : variable_names) {
-      RegisterBufferFieldInt(buffer.get(), IntStruct()->find_variable(name));
+      RegisterBufferFieldInt(
+          editor_state, buffer.get(), IntStruct()->find_variable(name));
     }
   }
 
@@ -242,7 +251,7 @@ using std::to_wstring;
     ValueStruct()->RegisterVariableNames(&variable_names);
     for (const wstring& name : variable_names) {
       RegisterBufferFieldValue(
-          buffer.get(), ValueStruct()->find_variable(name));
+          editor_state, buffer.get(), ValueStruct()->find_variable(name));
     }
   }
 
