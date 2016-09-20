@@ -842,6 +842,18 @@ If you set this on a buffer, you may want to also set reload_on_buffer_write
 Default: false
 
 
+7.2.24. multiple_cursors (bool)
+
+If true, all commands apply to all cursors (see section 8 for more information
+on multiple cursors) in the current document. If false, they only apply to the
+active cursor.
+
+Because this variable is toggled very frequently, the "_" key press can be used
+to quickly toggle this variable (section 8.3).
+
+Default: false
+
+
 8. Cursors
 
 One important feature of Edge is the support for multiple cursors.  This allows
@@ -880,7 +892,7 @@ given region in a document:
      want to replace and press Enter (section 3.2). This will remove all
      cursors in the current buffer and add one for every match for the regular
      expression inside the region.
-  5. Set the variable "multiple_cursors" to make all cursors active.
+  5. Press "_" (section 8.3) to make all cursors active.
   6. Enter some edit commands to delete the old word (e.g. "wd") and insert the
      new word (e.g. "i").
   7. Press "=" to remove all cursors but one.
@@ -915,6 +927,13 @@ You can't delete the last cursor in a document.
 Pressing "=" will delete all cursors except for the current one. If you have
 created many cursors (for example, with a search query), this is a quicker way
 than through "-" to discard them.
+
+
+8.3. Toggling active cursors
+
+Pressing "_" makes Edge toggle the value of boolean variable "multiple_cursors"
+(section 7.2.24), toggling between making commands apply to all cursors or only
+to the active one.
 
 
 9. Extension language

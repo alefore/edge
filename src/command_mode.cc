@@ -800,6 +800,12 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
           L"// Destroy cursors other than the current one.\n"
           L"editor.DestroyOtherCursors();").release(),
       &output);
+  Register(L"_",
+      NewCppCommand(editor_state->environment(),
+          L"// Toggles whether operations apply to all cursors.\n"
+          L"CurrentBuffer().set_multiple_cursors(\n"
+          L"    !CurrentBuffer().multiple_cursors());").release(),
+      &output);
 
   Register(L"i", new EnterInsertMode(), &output);
   Register(L"f", new EnterFindMode(), &output);

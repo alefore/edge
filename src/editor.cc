@@ -130,6 +130,21 @@ std::unique_ptr<Environment> NewDefaultEnvironment(EditorState* editor) {
         };
     editor_type->AddField(L"ReloadCurrentBuffer", std::move(callback));
   }
+  {
+    // A callback to return the current buffer. This is needed so that at a time
+    // when there's no current buffer (i.e. EditorState is being created) we can
+    // still compile code that will depend (at run time) on getting the current
+    // buffer. Otherwise we could just use the "buffer" variable (that is
+    // declared in the environment of each buffer).
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType::ObjectType(L"Buffer"));
+    callback->callback =
+        [editor](vector<unique_ptr<Value>> args) {
+          assert(args.size() == 0);
+          return Value::NewObject(L"Buffer", editor->current_buffer()->second);
+        };
+    environment->Define(L"CurrentBuffer", std::move(callback));
+  }
   RegisterBufferMethod(editor_type.get(), L"VisitPreviousCursor",
                        &OpenBuffer::VisitPreviousCursor);
   RegisterBufferMethod(editor_type.get(), L"VisitNextCursor",
@@ -220,17 +235,6 @@ EditorState::EditorState()
   environment_->DefineType(L"LineColumn", std::move(line_column));
 
   // Other functions.
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType::ObjectType(L"Buffer"));
-    callback->callback =
-        [this](vector<unique_ptr<Value>> args) {
-          assert(args.size() == 0);
-          return Value::NewObject(L"Buffer", current_buffer()->second);
-        };
-    environment_->Define(L"CurrentBuffer", std::move(callback));
-  }
-
   {
     unique_ptr<Value> connect_to_function(new Value(VMType::FUNCTION));
     connect_to_function->type.type_arguments.push_back(VMType(VMType::VM_VOID));
