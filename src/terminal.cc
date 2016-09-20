@@ -127,7 +127,10 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
 
     auto active_cursors = buffer->active_cursors()->size();
     if (active_cursors != 1) {
-      status += L" cursors:" + to_wstring(active_cursors) + L" ";
+      status += L" cursors:" + to_wstring(active_cursors)
+          + (buffer->read_bool_variable(buffer->variable_multiple_cursors())
+                 ? L"*" : L"")
+          + L" ";
     }
 
     wstring flags = buffer->FlagsString();
