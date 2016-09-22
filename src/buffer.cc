@@ -781,12 +781,6 @@ void OpenBuffer::Reload(EditorState* editor_state) {
   ReloadInto(editor_state, this);
   set_modified(false);
   CheckPosition();
-  if (name_ != kBuffersName  // Endless recursion gets boring quickly.
-      && editor_state->has_current_buffer()
-      && editor_state->current_buffer()->first == kBuffersName) {
-    LOG(INFO) << "Updating list of buffers: " << kBuffersName;
-    editor_state->current_buffer()->second->Reload(editor_state);
-  }
 }
 
 void OpenBuffer::Save(EditorState* editor_state) {
