@@ -1240,6 +1240,7 @@ LineColumn OpenBuffer::InsertInPosition(
     const LineColumn& input_position) {
   if (insertion.empty()) { return input_position; }
   LineColumn position = input_position;
+  set_modified(true);
   if (contents_.empty()) {
     contents_.emplace_back(new Line(Line::Options()));
   }
