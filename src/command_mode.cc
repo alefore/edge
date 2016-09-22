@@ -32,7 +32,6 @@
 #include "repeat_mode.h"
 #include "run_command_handler.h"
 #include "run_cpp_command.h"
-#include "save_buffer_command.h"
 #include "search_command.h"
 #include "search_handler.h"
 #include "send_end_of_file_command.h"
@@ -759,7 +758,11 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
   auto Register = MapMode::RegisterEntry;
   Register(L"aq", NewQuitCommand().release(), &output);
   Register(L"ad", NewCloseBufferCommand().release(), &output);
-  Register(L"aw", NewSaveBufferCommand().release(), &output);
+  Register(L"aw",
+      NewCppCommand(editor_state->environment(),
+          L"// Save the current buffer.\n"
+          L"editor.SaveCurrentBuffer();").release(),
+      &output);
   Register(L"av", NewSetVariableCommand().release(), &output);
   Register(L"ac", new RunCppFileCommand(), &output);
   Register(L"aC", NewRunCppCommand().release(), &output);

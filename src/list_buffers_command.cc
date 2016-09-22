@@ -64,6 +64,19 @@ class ActivateBufferLineCommand : public EditorMode {
           it->second->Reload(editor_state);
           break;
         }
+      case 'w':  // Write the current buffer.
+        {
+          auto it = editor_state->buffers()->find(name_);
+          if (it == editor_state->buffers()->end()) { return; }
+          editor_state->SetStatus(L"Saving buffer: " + name_);
+          it->second->Save(editor_state);
+          break;
+        }
+    }
+    if (editor_state->has_current_buffer()
+        && editor_state->current_buffer()->first == OpenBuffer::kBuffersName) {
+      LOG(INFO) << "Updating list of buffers: " << OpenBuffer::kBuffersName;
+      editor_state->current_buffer()->second->Reload(editor_state);
     }
   }
 
