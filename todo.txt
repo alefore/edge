@@ -46,6 +46,8 @@ Highlight how many marks each buffer has, as both source and target.
 
 Save the contents of variables?  Maybe in a per-buffer file?
 
+atomic_lines should probably also apply to multiple cursors.
+
 -- VM
 
 Add support for templates, so that we can do "vector<string>".
