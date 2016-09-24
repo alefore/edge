@@ -534,6 +534,7 @@ bool OpenBuffer::PrepareToClose(EditorState* editor_state) {
 void OpenBuffer::Close(EditorState* editor_state) {
   LOG(INFO) << "Closing buffer: " << name_;
   if (dirty() && read_bool_variable(variable_save_on_close())) {
+    LOG(INFO) << "Saving buffer: " << name_;
     Save(editor_state);
   }
 }
@@ -893,6 +894,7 @@ void OpenBuffer::AppendRawLine(EditorState* editor,
 
 void OpenBuffer::AppendRawLine(EditorState*, shared_ptr<Line> line) {
   contents_.push_back(line);
+  set_modified(true);
   MaybeFollowToEndOfFile();
 }
 
