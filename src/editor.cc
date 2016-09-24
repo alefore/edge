@@ -508,6 +508,8 @@ void EditorState::SetStatus(const wstring& status) {
     // Inserted the entry.
     status_buffer_it.first->second = shared_ptr<OpenBuffer>(
         new OpenBuffer(this, status_buffer_it.first->first));
+    status_buffer_it.first->second->set_bool_variable(
+        OpenBuffer::variable_allow_dirty_delete(), true);
   }
   status_buffer_it.first->second
       ->AppendLazyString(this, NewCopyString(status));
