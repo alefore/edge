@@ -147,8 +147,8 @@ class DeleteCharactersTransformation : public Transformation {
       size_t line_end, const shared_ptr<LazyString>& preserved_contents,
       size_t chars_erase_line) const {
     LOG(INFO) << "Preparing deleted text buffer.";
-    shared_ptr<OpenBuffer> delete_buffer(
-        new OpenBuffer(editor_state, OpenBuffer::kPasteBuffer));
+    auto delete_buffer =
+        std::make_shared<OpenBuffer>(editor_state, OpenBuffer::kPasteBuffer);
 
     if (line_begin == line_end) {
       auto end_line = buffer->LineAt(line_begin);
