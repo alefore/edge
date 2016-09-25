@@ -665,7 +665,7 @@ class RunCppFileCommand : public Command {
     if (!editor_state->has_current_buffer()) { return; }
     auto buffer = editor_state->current_buffer()->second;
     PromptOptions options;
-    options.prompt = L"cmd";
+    options.prompt = L"cmd ";
     options.history_file = L"editor_commands";
     options.initial_value = buffer->read_string_variable(
         OpenBuffer::variable_editor_commands_path()),
@@ -777,7 +777,7 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
   Register(L"ao", NewOpenFileCommand().release(), &output);
   {
     PromptOptions options;
-    options.prompt = L"...$";
+    options.prompt = L"...$ ";
     options.history_file = L"commands";
     options.handler = RunMultipleCommandsHandler;
     Register(L"aF",
