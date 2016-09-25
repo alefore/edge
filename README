@@ -423,9 +423,11 @@ TODO: Describe aF
 
 5.5.1. Advanced > Open ("ao")
 
-Use "ao" ("Advanced > Open") to open a file.  Edge will prompt you for the
-filename.  Tab will autocomplete (and pressing Tab again will show all the
-options).
+Use "ao" ("Advanced > Open") to open a file. Edge will prompt you for the
+filename. Tab will autocomplete (and pressing Tab again will show all the
+options). You can adjust the list of paths in which autocomplete will search for
+files by editing the special "- search paths" buffer (which should contain one
+path per line).
 
 In practice, we tend to use "a." (section 5.6) much more frequently to open
 files.  We also tend to navigate across files by moving the cursor over to a
