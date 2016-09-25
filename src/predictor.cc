@@ -105,7 +105,7 @@ void FilePredictor(EditorState* editor_state,
   LOG(INFO) << "Generating predictions for: " << input;
 
   wstring path = editor_state->expand_path(input);
-  vector<wstring> search_paths = { L"" };
+  vector<wstring> search_paths;
   GetSearchPaths(editor_state, &search_paths);
 
   int pipefd[2];

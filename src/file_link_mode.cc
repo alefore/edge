@@ -368,6 +368,9 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
   for (auto it : *search_paths_buffer->contents()) {
     output->push_back(it->ToString());
   }
+  if (find(output->begin(), output->end(), L"") == output->end()) {
+    output->push_back(L"");
+  }
 }
 
 bool ResolvePath(EditorState* editor_state, const wstring& path,
