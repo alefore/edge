@@ -361,7 +361,8 @@ class DeleteLinesTransformation : public Transformation {
         contents->activate()->ProcessInput('d', editor_state);
       }
       Modifiers modifiers;
-      modifiers.repetitions = end - start + (deletes_ends_of_lines ? 1 : 0);
+      modifiers.repetitions = end - start
+          + (deletes_ends_of_lines && end == contents->size() ? 1 : 0);
       LineColumn position(line + (deletes_ends_of_lines ? 0 : i), start);
       DVLOG(6) << "Modifiers for line: " << modifiers;
       DVLOG(6) << "Position for line: " << position;
