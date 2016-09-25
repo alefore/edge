@@ -30,13 +30,30 @@ thus not very difficult to learn) language that is very expressive.
 
 1.1. Features
 
-* Supports background compilation.
-* Uses a subset of C++ as its extension language. Extensions are interpreted.
-* Supports running commands, capturing their output into a buffer.
-* Use of a pts can be enabled or disabled for buffers with underlying commands.
-  For example, this makes it possible to run a shell process inside Edge.
-* Buffers are read asynchronously (whether from files or from commands). Edge
-  will never block while waiting for input.
+* Extensibility:
+
+  * Uses a subset of C++ as its extension language. Extensions are interpreted
+    (though type errors are detected statically).
+
+  * All buffers have several "variables" that control their behavior.
+
+* Commands:
+
+  * Supports running commands (e.g. "ls -lR"), capturing their output into a
+    buffer (that can be navigated just as normal "text" buffers).
+
+  * Use of a pts can be enabled or disabled for buffers with underlying commands.
+    For example, one can run a shell process (or even some other text editor)
+    inside Edge.
+
+* Buffer are read asynchronously. Edge never blocks while waiting for input.
+
+* Editing:
+
+  * Supports multiple cursors. For example, searching creates a cursor at every
+    match of the query string (and jumps to the one following the previous
+    cursor position). One can toggle whether edit commands apply to all cursors
+    or just to the "current" one.
 
 
 2. Running Edge
