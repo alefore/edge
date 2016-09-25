@@ -72,11 +72,12 @@ class SearchCommand : public Command {
                    &search_options.limit_position) ||
               search_options.starting_position ==
                   search_options.limit_position) {
-            editor_state->ResetStructure();
+            editor_state->SetStatus(L"Unable to extract region.");
             return;
           }
           CHECK_LE(search_options.starting_position,
                    search_options.limit_position);
+          editor_state->ResetStructure();
           if (editor_state->modifiers().direction == BACKWARDS) {
             LOG(INFO) << "Swaping positions (backwards search).";
             LineColumn tmp = search_options.starting_position;
