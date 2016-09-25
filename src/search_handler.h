@@ -36,6 +36,8 @@ struct SearchOptions {
 std::vector<LineColumn> SearchHandler(
     EditorState* editor_state, const SearchOptions& options);
 
+void JumpToNextMatch(EditorState* editor_state, const SearchOptions& options);
+
 }  // namespace editor
 }  // namespace afc
 

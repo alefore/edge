@@ -36,6 +36,8 @@ namespace editor {
 
 namespace {
 
+static const wchar_t* kOldCursors = L"old-cursors";
+
 using std::unordered_set;
 
 static void RegisterBufferFieldBool(EditorState* editor_state,
@@ -1345,13 +1347,18 @@ void OpenBuffer::CheckPosition() {
   }
 }
 
+typename OpenBuffer::CursorsSet* OpenBuffer::FindCursors(const wstring& name) {
+  return &cursors_[name];
+}
+
 typename OpenBuffer::CursorsSet* OpenBuffer::active_cursors() {
-  return &cursors_[editor_->modifiers().active_cursors];
+  return FindCursors(editor_->modifiers().active_cursors);
 }
 
 void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
   if (positions.empty()) { return; }
   auto cursors = active_cursors();
+  FindCursors(kOldCursors)->swap(*cursors);
   cursors->clear();
   for (auto& position : positions) {
     cursors->push_back(
@@ -1359,6 +1366,29 @@ void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
   }
   current_cursor_ = cursors->begin();
   editor_->ScheduleRedraw();
+}
+
+void OpenBuffer::ToggleActiveCursors() {
+  LineColumn desired_position = position();
+
+  auto cursors = active_cursors();
+  auto old_cursors = FindCursors(kOldCursors);
+  LOG(INFO) << "Replacing " << cursors->size() << " with "
+            << old_cursors->size();
+
+  cursors->swap(*old_cursors);
+
+  for (auto it = cursors->begin(); it != cursors->end(); ++it) {
+    if (contents()->begin() + desired_position.line == it->first
+        && desired_position.column == it->second) {
+      LOG(INFO) << "Desired position " << desired_position << " prevails.";
+      current_cursor_ = it;
+      return;
+    }
+  }
+
+  current_cursor_ = cursors->begin();
+  LOG(INFO) << "Picked up the first cursor: " << position();
 }
 
 void OpenBuffer::set_current_cursor(CursorsSet::value_type new_value) {

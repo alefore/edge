@@ -143,9 +143,15 @@ class OpenBuffer {
   // valid index for contents() (it may be just at the end).
   void CheckPosition();
 
+  CursorsSet* FindCursors(const wstring& name);
   CursorsSet* active_cursors();
-  // Removes all active cursors and replaces them with the ones given.
+  // Removes all active cursors and replaces them with the ones given. The old
+  // cursors are saved and can be restored with ToggleActiveCursors.
   void set_active_cursors(const vector<LineColumn>& positions);
+
+  // Restores the last cursors available.
+  void ToggleActiveCursors();
+
   void set_current_cursor(CursorsSet::value_type new_cursor);
   CursorsSet::iterator current_cursor();
   CursorsSet::const_iterator current_cursor() const;

@@ -178,19 +178,23 @@ vector<LineColumn> SearchHandler(
     EditorState* editor_state, const SearchOptions& options) {
   editor_state->set_last_search_query(options.search_query);
   if (!editor_state->has_current_buffer() || options.search_query.empty()) {
-    return vector<LineColumn>();
+    return {};
   }
 
-  auto results = PerformSearchWithDirection(
+  return PerformSearchWithDirection(
       editor_state, options.search_query, options.starting_position,
       options.has_limit_position ? &options.limit_position : nullptr);
+}
+
+void JumpToNextMatch(
+    EditorState* editor_state, const SearchOptions& options) {
+  auto results = SearchHandler(editor_state, options);
   if (results.empty()) {
     editor_state->SetStatus(L"No matches: " + options.search_query);
   } else {
     editor_state->current_buffer()->second->set_position(results[0]);
     editor_state->PushCurrentPosition();
   }
-  return results;
 }
 
 }  // namespace editor

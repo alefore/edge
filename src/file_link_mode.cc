@@ -436,7 +436,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   SearchOptions search_options;
   search_options.starting_position = it.first->second->position();
   search_options.search_query = pattern;
-  SearchHandler(editor_state, search_options);
+  JumpToNextMatch(editor_state, search_options);
   return it.first;
 }
 

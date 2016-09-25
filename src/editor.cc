@@ -84,6 +84,7 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
 
         (*buffer.*method)();
         editor->ResetModifiers();
+        editor->ScheduleRedraw();
         return Value::NewVoid();
       };
   editor_type->AddField(name, std::move(callback));
@@ -180,6 +181,8 @@ std::unique_ptr<Environment> NewDefaultEnvironment(EditorState* editor) {
         };
     environment->Define(L"CurrentBuffer", std::move(callback));
   }
+  RegisterBufferMethod(editor_type.get(), L"ToggleActiveCursors",
+                       &OpenBuffer::ToggleActiveCursors);
   RegisterBufferMethod(editor_type.get(), L"VisitPreviousCursor",
                        &OpenBuffer::VisitPreviousCursor);
   RegisterBufferMethod(editor_type.get(), L"VisitNextCursor",

@@ -351,7 +351,7 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
         options.search_query = editor_state->last_search_query();
         options.starting_position =
             editor_state->current_buffer()->second->position();
-        SearchHandler(editor_state, options);
+        JumpToNextMatch(editor_state, options);
       }
       editor_state->ResetMode();
       editor_state->ResetDirection();
@@ -402,7 +402,7 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
         options.search_query = editor_state->last_search_query();
         options.starting_position =
             editor_state->current_buffer()->second->position();
-        SearchHandler(editor_state, options);
+        JumpToNextMatch(editor_state, options);
       }
       editor_state->ResetMode();
       editor_state->ResetDirection();
@@ -808,6 +808,11 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
           L"// Toggles whether operations apply to all cursors.\n"
           L"CurrentBuffer().set_multiple_cursors(\n"
           L"    !CurrentBuffer().multiple_cursors());").release(),
+      &output);
+  Register(L"Ct",
+      NewCppCommand(editor_state->environment(),
+          L"// Toggles the active cursors with the previous set.\n"
+          L"editor.ToggleActiveCursors();").release(),
       &output);
 
   Register(L"i", new EnterInsertMode(), &output);
