@@ -28,6 +28,7 @@ constexpr int Terminal::PAGE_DOWN;
 constexpr int Terminal::ESCAPE;
 constexpr int Terminal::CTRL_L;
 constexpr int Terminal::CTRL_U;
+constexpr int Terminal::CTRL_K;
 constexpr int Terminal::CHAR_EOF;
 
 Terminal::Terminal() {
@@ -602,6 +603,9 @@ wint_t Terminal::Read(EditorState*) {
       case 4:
         return CHAR_EOF;
 
+      case 0x0b:
+        return CTRL_K;
+
       case 0x0c:
         return CTRL_L;
 
@@ -614,7 +618,7 @@ wint_t Terminal::Read(EditorState*) {
       case 27:
         {
           int next = getch();
-          //cerr << "Read next: " << next << "\n";
+          // cerr << "Read next: " << next << "\n";
           switch (next) {
             case -1:
               return ESCAPE;
@@ -642,7 +646,7 @@ wint_t Terminal::Read(EditorState*) {
               }
               return -1;
           }
-          //cerr << "Unget: " << next << "\n";
+          // cerr << "Unget: " << next << "\n";
           ungetch(next);
         }
         return ESCAPE;

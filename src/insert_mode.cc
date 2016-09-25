@@ -337,15 +337,30 @@ class InsertMode : public EditorMode {
         return;
 
       case Terminal::CTRL_U:
-        Modifiers modifiers;
-        modifiers.structure = LINE;
-        modifiers.structure_range =
-            Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
-        options_.buffer->ApplyToCursors(NewDeleteTransformation(
-            modifiers, false));
-        options_.modify_listener();
-        editor_state->ScheduleRedraw();
-        return;
+        {
+          Modifiers modifiers;
+          modifiers.structure = LINE;
+          modifiers.structure_range =
+              Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
+          options_.buffer->ApplyToCursors(NewDeleteTransformation(
+              modifiers, false));
+          options_.modify_listener();
+          editor_state->ScheduleRedraw();
+          return;
+        }
+
+      case Terminal::CTRL_K:
+        {
+          Modifiers modifiers;
+          modifiers.structure = LINE;
+          modifiers.structure_range =
+              Modifiers::FROM_CURRENT_POSITION_TO_END;
+          options_.buffer->ApplyToCursors(NewDeleteTransformation(
+              modifiers, false));
+          options_.modify_listener();
+          editor_state->ScheduleRedraw();
+          return;
+        }
     }
 
     {
