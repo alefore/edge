@@ -143,6 +143,7 @@ class OpenBuffer {
   // valid index for contents() (it may be just at the end).
   void CheckPosition();
 
+  std::map<std::wstring, CursorsSet>* cursors() { return &cursors_; }
   CursorsSet* FindCursors(const wstring& name);
   CursorsSet* active_cursors();
   // Removes all active cursors and replaces them with the ones given. The old

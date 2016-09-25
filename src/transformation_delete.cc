@@ -95,17 +95,19 @@ class DeleteCharactersTransformation : public Transformation {
               << ").";
     auto initial_line = buffer->LineAt(line);
     Line::Options options;
-    auto cursors = buffer->active_cursors();
+    auto cursors = buffer->cursors();
     switch (modifiers_.direction) {
       case FORWARDS:
         options.contents = StringAppend(
             preserved_contents, initial_line->Substring(chars_erase_line));
-        for (auto& it : *cursors) {
-          if (it.first == buffer->contents()->cbegin() + line
-              && it.second > preserved_contents->size()) {
-            it.second =
-                max(it.second - (chars_erase_line - preserved_contents->size()),
-                    preserved_contents->size());
+        for (auto& cursor_set : *cursors) {
+          for (auto& it : cursor_set.second) {
+            if (it.first == buffer->contents()->cbegin() + line
+                && it.second > preserved_contents->size()) {
+              it.second =
+                  max(it.second - (chars_erase_line - preserved_contents->size()),
+                      preserved_contents->size());
+            }
           }
         }
         break;
@@ -113,12 +115,14 @@ class DeleteCharactersTransformation : public Transformation {
         options.contents = StringAppend(
             initial_line->Substring(0, initial_line->size() - chars_erase_line),
             preserved_contents);
-        for (auto& it : *cursors) {
-          if (it.first == buffer->contents()->cbegin() + line
-              && it.second > initial_line->size() - chars_erase_line) {
-            it.second =
-                max(it.second - (chars_erase_line - preserved_contents->size()),
-                    initial_line->size() - chars_erase_line);
+        for (auto& cursor_set : *cursors) {
+          for (auto& it : cursor_set.second) {
+            if (it.first == buffer->contents()->cbegin() + line
+                && it.second > initial_line->size() - chars_erase_line) {
+              it.second =
+                  max(it.second - (chars_erase_line - preserved_contents->size()),
+                      initial_line->size() - chars_erase_line);
+            }
           }
         }
         break;
