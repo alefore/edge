@@ -224,6 +224,7 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
     int running = 0;
     int failed = 0;
     for (const auto& it : *editor_state.buffers()) {
+      CHECK(it.second != nullptr);
       if (it.second->child_pid() != -1) {
         running++;
       } else {

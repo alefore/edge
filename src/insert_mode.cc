@@ -172,80 +172,178 @@ class AutocompleteMode : public EditorMode {
   size_t word_length_;
 };
 
+class DefaultScrollBehavior : public ScrollBehavior {
+ public:
+  static shared_ptr<const ScrollBehavior> Get() {
+    static const auto output = std::make_shared<DefaultScrollBehavior>();
+    return output;
+  }
+
+  // Public for make_shared, but prefer DefaultScrollBehavior::Get.
+  DefaultScrollBehavior() = default;
+
+  void Up(EditorState*, OpenBuffer* buffer) const override {
+    Modifiers modifiers;
+    modifiers.direction = BACKWARDS;
+    modifiers.structure = LINE;
+    buffer->ApplyToCursors(NewMoveTransformation(modifiers));
+  }
+
+  void Down(EditorState*, OpenBuffer* buffer) const override {
+    Modifiers modifiers;
+    modifiers.structure = LINE;
+    buffer->ApplyToCursors(NewMoveTransformation(modifiers));
+  }
+
+  void Left(EditorState*, OpenBuffer* buffer) const override {
+    Modifiers modifiers;
+    modifiers.direction = BACKWARDS;
+    buffer->ApplyToCursors(NewMoveTransformation(modifiers));
+  }
+
+  void Right(EditorState*, OpenBuffer* buffer) const override {
+    buffer->ApplyToCursors(NewMoveTransformation(Modifiers()));
+  }
+};
+
+void FindCompletion(EditorState* editor_state,
+                    std::shared_ptr<OpenBuffer> buffer,
+                    std::shared_ptr<OpenBuffer> dictionary) {
+  if (buffer == nullptr || dictionary == nullptr) {
+    LOG(INFO) << "Buffer or dictionary have expired, giving up.";
+    return;
+  }
+
+  AutocompleteMode::Options options;
+
+  auto line = buffer->current_line()->ToString();
+  LOG(INFO) << "Extracting token from line: " << line;
+  options.column_end = buffer->position().column;
+  options.column_start = line.find_last_not_of(
+      buffer->read_string_variable(OpenBuffer::variable_word_characters()),
+      options.column_end);
+  if (options.column_start == wstring::npos) {
+    options.column_start = 0;
+  } else {
+    options.column_start++;
+  }
+  options.prefix = std::make_shared<Line>(Line::Options(NewCopyString(
+      line.substr(options.column_start,
+                  options.column_end - options.column_start))));
+
+  options.delegate = editor_state->ResetMode();
+  options.dictionary = dictionary;
+  options.buffer = buffer;
+
+  LOG(INFO) << "Find completion for \"" << options.prefix->ToString()
+            << "\" among options: " << dictionary->contents()->size();
+  options.matches_start = std::lower_bound(
+      dictionary->contents()->begin(),
+      dictionary->contents()->end(),
+      options.prefix,
+      [](const std::shared_ptr<Line>& a, const std::shared_ptr<Line>& b) {
+        return a->ToString() < b->ToString();
+      });
+
+  editor_state->set_mode(unique_ptr<AutocompleteMode>(
+      new AutocompleteMode(std::move(options))));
+  editor_state->ProcessInput('\t');
+}
+
+bool StartCompletion(EditorState* editor_state,
+                     std::shared_ptr<OpenBuffer> buffer) {
+  OpenFileOptions options;
+  options.path =
+      buffer->read_string_variable(OpenBuffer::variable_dictionary());
+  if (options.path.empty()) {
+    LOG(INFO) << "Dictionary is not set.";
+    return false;
+  }
+  options.editor_state = editor_state;
+  options.make_current_buffer = false;
+  auto file = OpenFile(options);
+  LOG(INFO) << "Loaded dictionary.";
+  std::weak_ptr<OpenBuffer> weak_dictionary = file->second;
+  std::weak_ptr<OpenBuffer> weak_buffer = buffer;
+  file->second->AddEndOfFileObserver(
+      [editor_state, weak_buffer, weak_dictionary]() {
+        FindCompletion(
+            editor_state, weak_buffer.lock(), weak_dictionary.lock());
+      });
+  return true;
+}
+
 class InsertMode : public EditorMode {
  public:
-  InsertMode() {}
+  InsertMode(InsertModeOptions options)
+      : options_(std::move(options)) {}
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
-    auto buffer = editor_state->current_buffer()->second;
     switch (c) {
       case '\t':
-        if (AttemptCompletion(editor_state, buffer)) {
-          return;
+        if (options_.start_completion()) {
+          return;  // Completion has started, avoid inserting '\t'.
         }
         break;
 
       case Terminal::ESCAPE:
-        buffer->MaybeAdjustPositionCol();
-        buffer->ApplyToCursors(NewDeleteSuffixSuperfluousCharacters());
-        buffer->PopTransformationStack();
+        options_.buffer->MaybeAdjustPositionCol();
+        options_.buffer->ApplyToCursors(NewDeleteSuffixSuperfluousCharacters());
+        options_.buffer->PopTransformationStack();
         for (size_t i = 1; i < editor_state->repetitions(); i++) {
           editor_state->current_buffer()
               ->second->RepeatLastTransformation(editor_state);
         }
         editor_state->PushCurrentPosition();
         editor_state->ResetStatus();
+        options_.escape_handler();
         editor_state->ResetMode();
         editor_state->ResetRepetitions();
         editor_state->ResetInsertionModifier();
         return;
 
       case Terminal::UP_ARROW:
-        {
-          Modifiers modifiers;
-          modifiers.direction = BACKWARDS;
-          modifiers.structure = LINE;
-          buffer->ApplyToCursors(NewMoveTransformation(modifiers));
-        }
+        options_.scroll_behavior->Up(editor_state, options_.buffer.get());
         return;
 
       case Terminal::DOWN_ARROW:
-        {
-          Modifiers modifiers;
-          modifiers.structure = LINE;
-          buffer->ApplyToCursors(NewMoveTransformation(modifiers));
-        }
+        options_.scroll_behavior->Down(editor_state, options_.buffer.get());
         return;
 
       case Terminal::LEFT_ARROW:
-        {
-          Modifiers modifiers;
-          modifiers.direction = BACKWARDS;
-          buffer->ApplyToCursors(NewMoveTransformation(modifiers));
-        }
+        options_.scroll_behavior->Left(editor_state, options_.buffer.get());
         return;
 
       case Terminal::RIGHT_ARROW:
-        buffer->ApplyToCursors(NewMoveTransformation(Modifiers()));
+        options_.scroll_behavior->Right(editor_state, options_.buffer.get());
         return;
 
       case Terminal::BACKSPACE:
         {
           LOG(INFO) << "Handling backspace in insert mode.";
-          buffer->MaybeAdjustPositionCol();
+          options_.buffer->MaybeAdjustPositionCol();
           Modifiers modifiers;
           modifiers.direction = BACKWARDS;
-          buffer->ApplyToCursors(
+          options_.buffer->ApplyToCursors(
               NewDeleteCharactersTransformation(modifiers, false));
-          buffer->set_modified(true);
+          options_.buffer->set_modified(true);
+          options_.modify_listener();
           editor_state->ScheduleRedraw();
         }
         return;
 
       case '\n':
-        buffer->ApplyToCursors(
-            unique_ptr<Transformation>(new NewLineTransformation()));
-        buffer->set_modified(true);
+        options_.new_line_handler();
+        return;
+
+      case Terminal::CTRL_U:
+        Modifiers modifiers;
+        modifiers.structure = LINE;
+        modifiers.structure_range =
+            Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
+        options_.buffer->ApplyToCursors(NewDeleteTransformation(
+            modifiers, false));
+        options_.modify_listener();
         editor_state->ScheduleRedraw();
         return;
     }
@@ -254,103 +352,40 @@ class InsertMode : public EditorMode {
       shared_ptr<OpenBuffer> insert(
           new OpenBuffer(editor_state, L"- text inserted"));
       insert->AppendToLastLine(editor_state,
-          NewCopyString(buffer->TransformKeyboardText(wstring(1, c))));
-      buffer->ApplyToCursors(
+          NewCopyString(options_.buffer->TransformKeyboardText(wstring(1, c))));
+      options_.buffer->ApplyToCursors(
           NewInsertBufferTransformation(insert, 1, END));
     }
 
-    buffer->set_modified(true);
+    options_.buffer->set_modified(true);
+    options_.modify_listener();
     editor_state->ScheduleRedraw();
   }
 
  private:
-  bool AttemptCompletion(EditorState* editor_state,
-                         std::shared_ptr<OpenBuffer> buffer) {
-    OpenFileOptions options;
-    options.path =
-        buffer->read_string_variable(OpenBuffer::variable_dictionary());
-    if (options.path.empty()) {
-      LOG(INFO) << "Dictionary is not set.";
-      return false;
-    }
-    options.editor_state = editor_state;
-    options.make_current_buffer = false;
-    auto file = OpenFile(options);
-    LOG(INFO) << "Loaded dictionary.";
-    std::weak_ptr<OpenBuffer> weak_dictionary = file->second;
-    std::weak_ptr<OpenBuffer> weak_buffer = buffer;
-    file->second->AddEndOfFileObserver(
-        [this, editor_state, weak_buffer, weak_dictionary]() {
-          FindCompletion(
-              editor_state, weak_buffer.lock(), weak_dictionary.lock());
-        });
-    return true;
-  }
-
-  void FindCompletion(EditorState* editor_state,
-                      std::shared_ptr<OpenBuffer> buffer,
-                      std::shared_ptr<OpenBuffer> dictionary) {
-    if (buffer == nullptr || dictionary == nullptr) {
-      LOG(INFO) << "Buffer or dictionary have expired, giving up.";
-      return;
-    }
-
-    AutocompleteMode::Options options;
-
-    auto line = buffer->current_line()->ToString();
-    LOG(INFO) << "Extracting token from line: " << line;
-    options.column_end = buffer->position().column;
-    options.column_start = line.find_last_not_of(
-        buffer->read_string_variable(OpenBuffer::variable_word_characters()),
-        options.column_end);
-    if (options.column_start == wstring::npos) {
-      options.column_start = 0;
-    } else {
-      options.column_start++;
-    }
-    options.prefix = std::make_shared<Line>(Line::Options(NewCopyString(
-        line.substr(options.column_start,
-                    options.column_end - options.column_start))));
-
-    options.delegate = std::move(editor_state->ResetMode());
-    options.dictionary = dictionary;
-    options.buffer = buffer;
-
-    LOG(INFO) << "Find completion for \"" << options.prefix->ToString()
-              << "\" among options: " << dictionary->contents()->size();
-    options.matches_start = std::lower_bound(
-        dictionary->contents()->begin(),
-        dictionary->contents()->end(),
-        options.prefix,
-        [](const std::shared_ptr<Line>& a, const std::shared_ptr<Line>& b) {
-          return a->ToString() < b->ToString();
-        });
-
-    editor_state->set_mode(unique_ptr<AutocompleteMode>(
-        new AutocompleteMode(std::move(options))));
-    editor_state->ProcessInput('\t');
-  }
+  const InsertModeOptions options_;
 };
 
 class RawInputTypeMode : public EditorMode {
  public:
-  RawInputTypeMode() : buffering_(false) {}
+  RawInputTypeMode(shared_ptr<OpenBuffer> buffer)
+      : buffer_(buffer),
+        buffering_(false) {}
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
-    auto buffer = editor_state->current_buffer()->second;
     bool old_literal = literal_;
     literal_ = false;
     switch (c) {
       case Terminal::CHAR_EOF:
         line_buffer_.push_back(4);
-        write(buffer->fd(), line_buffer_.c_str(), line_buffer_.size());
+        write(buffer_->fd(), line_buffer_.c_str(), line_buffer_.size());
         line_buffer_ = "";
         break;
 
       case Terminal::CTRL_L:
         {
           string sequence(1, 0x0c);
-          write(buffer->fd(), sequence.c_str(), sequence.size());
+          write(buffer_->fd(), sequence.c_str(), sequence.size());
         }
         break;
 
@@ -358,7 +393,7 @@ class RawInputTypeMode : public EditorMode {
         if (old_literal) {
           DLOG(INFO) << "Inserting literal CTRL_V";
           string sequence(1, 22);
-          write(buffer->fd(), sequence.c_str(), sequence.size());
+          write(buffer_->fd(), sequence.c_str(), sequence.size());
         } else {
           DLOG(INFO) << "Set literal.";
           literal_ = true;
@@ -366,11 +401,11 @@ class RawInputTypeMode : public EditorMode {
         break;
 
       case Terminal::CTRL_U:
-        if (!buffer) {
+        if (!buffer_) {
           line_buffer_ = "";
         } else {
           string sequence(1, 21);
-          write(buffer->fd(), sequence.c_str(), sequence.size());
+          write(buffer_->fd(), sequence.c_str(), sequence.size());
         }
         break;
 
@@ -378,7 +413,7 @@ class RawInputTypeMode : public EditorMode {
         if (old_literal) {
           DLOG(INFO) << "Inserting literal ESCAPE";
           string sequence(1, 27);
-          write(buffer->fd(), sequence.c_str(), sequence.size());
+          write(buffer_->fd(), sequence.c_str(), sequence.size());
         } else {
           editor_state->ResetMode();
           editor_state->ResetStatus();
@@ -388,28 +423,28 @@ class RawInputTypeMode : public EditorMode {
       case Terminal::UP_ARROW:
         {
           string sequence = { 27, '[', 'A' };
-          write(buffer->fd(), sequence.c_str(), sequence.size());
+          write(buffer_->fd(), sequence.c_str(), sequence.size());
         }
         break;
 
       case Terminal::DOWN_ARROW:
         {
           string sequence = { 27, '[', 'B' };
-          write(buffer->fd(), sequence.c_str(), sequence.size());
+          write(buffer_->fd(), sequence.c_str(), sequence.size());
         }
         break;
 
       case Terminal::RIGHT_ARROW:
         {
           string sequence = { 27, '[', 'C' };
-          write(buffer->fd(), sequence.c_str(), sequence.size());
+          write(buffer_->fd(), sequence.c_str(), sequence.size());
         }
         break;
 
       case Terminal::LEFT_ARROW:
         {
           string sequence = { 27, '[', 'D' };
-          write(buffer->fd(), sequence.c_str(), sequence.size());
+          write(buffer_->fd(), sequence.c_str(), sequence.size());
         }
         break;
 
@@ -417,37 +452,47 @@ class RawInputTypeMode : public EditorMode {
         if (buffering_) {
           if (line_buffer_.empty()) { return; }
           line_buffer_.resize(line_buffer_.size() - 1);
-          auto last_line = *buffer->contents()->rbegin();
+          auto last_line = *buffer_->contents()->rbegin();
           last_line.reset(
               new Line(last_line->Substring(0, last_line->size() - 1)));
         } else {
           string contents(1, 127);
-          write(buffer->fd(), contents.c_str(), contents.size());
+          write(buffer_->fd(), contents.c_str(), contents.size());
         }
         break;
 
       case '\n':
         line_buffer_.push_back('\n');
-        write(buffer->fd(), line_buffer_.c_str(), line_buffer_.size());
+        write(buffer_->fd(), line_buffer_.c_str(), line_buffer_.size());
         line_buffer_ = "";
         break;
 
       default:
         if (buffering_) {
-          buffer->AppendToLastLine(editor_state, NewCopyString(wstring(1, c)));
+          buffer_->AppendToLastLine(editor_state, NewCopyString(wstring(1, c)));
           line_buffer_.push_back(c);
           editor_state->ScheduleRedraw();
         } else {
           string contents(1, c);
-          write(buffer->fd(), contents.c_str(), contents.size());
+          write(buffer_->fd(), contents.c_str(), contents.size());
         }
     };
   }
+
  private:
+  // The buffer that we will be insertint into.
+  const shared_ptr<OpenBuffer> buffer_;
   string line_buffer_;
   bool buffering_;
   bool literal_ = false;
 };
+
+void EnterInsertCharactersMode(InsertModeOptions options) {
+  options.buffer->MaybeAdjustPositionCol();
+  options.editor_state->SetStatus(L"type");
+  options.editor_state->set_mode(
+      unique_ptr<EditorMode>(new InsertMode(options)));
+}
 
 }  // namespace
 
@@ -457,35 +502,73 @@ namespace editor {
 using std::unique_ptr;
 using std::shared_ptr;
 
-void EnterInsertCharactersMode(EditorState* editor_state) {
-  auto buffer = editor_state->current_buffer()->second;
-  buffer->MaybeAdjustPositionCol();
-  editor_state->SetStatus(L"type");
-  editor_state->set_mode(unique_ptr<EditorMode>(new InsertMode()));
+/* static */ shared_ptr<const ScrollBehavior> ScrollBehavior::Default() {
+  return DefaultScrollBehavior::Get();
 }
 
 void EnterInsertMode(EditorState* editor_state) {
-  editor_state->ResetStatus();
+  InsertModeOptions options;
+  options.editor_state = editor_state;
+  EnterInsertMode(options);
+}
 
-  if (!editor_state->has_current_buffer()) {
-    OpenAnonymousBuffer(editor_state);
+void EnterInsertMode(InsertModeOptions options) {
+  EditorState* editor_state = options.editor_state;
+  CHECK(editor_state != nullptr);
+
+  if (options.buffer == nullptr) {
+    if (!editor_state->has_current_buffer()) {
+      OpenAnonymousBuffer(editor_state);
+    }
+    options.buffer = editor_state->current_buffer()->second;
   }
-  auto buffer = editor_state->current_buffer()->second;
-  if (editor_state->current_buffer()->second->fd() != -1) {
+
+  if (!options.modify_listener) {
+    options.modify_listener = []() { /* Nothing. */ };
+  }
+
+  if (options.scroll_behavior == nullptr) {
+    options.scroll_behavior = DefaultScrollBehavior::Get();
+  }
+
+  if (!options.escape_handler) {
+    options.escape_handler = []() { /* Nothing. */ };
+  }
+
+  if (!options.new_line_handler) {
+    auto buffer = options.buffer;
+    options.new_line_handler = [buffer, editor_state]() {
+      buffer->ApplyToCursors(
+          unique_ptr<Transformation>(new NewLineTransformation()));
+      buffer->set_modified(true);
+      editor_state->ScheduleRedraw();
+    };
+  }
+
+  if (!options.start_completion) {
+    auto buffer = options.buffer;
+    options.start_completion = [editor_state, buffer]() {
+      return StartCompletion(editor_state, buffer);
+    };
+  }
+
+  options.editor_state->ResetStatus();
+
+  if (options.buffer->fd() != -1) {
     editor_state->SetStatus(L"type (raw)");
-    editor_state->set_mode(unique_ptr<EditorMode>(new RawInputTypeMode()));
+    editor_state->set_mode(
+        unique_ptr<EditorMode>(new RawInputTypeMode(options.buffer)));
   } else if (editor_state->structure() == CHAR) {
-    editor_state->current_buffer()->second->CheckPosition();
-    buffer->PushTransformationStack();
-    EnterInsertCharactersMode(editor_state);
+    options.buffer->CheckPosition();
+    options.buffer->PushTransformationStack();
+    EnterInsertCharactersMode(options);
   } else if (editor_state->structure() == LINE) {
-    editor_state->current_buffer()->second->CheckPosition();
-    auto buffer = editor_state->current_buffer()->second;
-    buffer->PushTransformationStack();
-    buffer->ApplyToCursors(
+    options.buffer->CheckPosition();
+    options.buffer->PushTransformationStack();
+    options.buffer->ApplyToCursors(
         unique_ptr<Transformation>(
             new InsertEmptyLineTransformation(editor_state->direction())));
-    EnterInsertCharactersMode(editor_state);
+    EnterInsertCharactersMode(options);
     editor_state->ScheduleRedraw();
   }
   editor_state->ResetDirection();

@@ -431,6 +431,12 @@ int main(int, char**) {
 
   Clear(&editor_state);
 
+  // Can cancel the search prompt.
+  editor_state.ProcessInputString("/");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+
+  Clear(&editor_state);
+
   TreeTestsLong();
   TreeTestsBasic();
 

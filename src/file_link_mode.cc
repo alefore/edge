@@ -151,6 +151,7 @@ class FileBuffer : public OpenBuffer {
       EvaluateFile(editor_state, dir + L"/hooks/buffer-save.cc");
     }
     for (auto& it : *editor_state->buffers()) {
+      CHECK(it.second != nullptr);
       if (it.second->read_bool_variable(
               OpenBuffer::variable_reload_on_buffer_write())) {
         it.second->Reload(editor_state);
