@@ -246,6 +246,7 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
 
   int y, x;
   getyx(stdscr, y, x);
+  int status_column = status.size();
   status += editor_state.status();
   x += status.size();
   if (status.size() < static_cast<size_t>(COLS)) {
@@ -255,7 +256,8 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
   }
   addwstr(status.c_str());
   if (editor_state.status_prompt()) {
-    move(y, x);
+    status_column += editor_state.status_prompt_column();
+    move(y, min(status_column, COLS));
   }
 }
 

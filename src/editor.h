@@ -176,6 +176,11 @@ class EditorState {
 
   void set_status_prompt(bool value) { status_prompt_ = value; }
   bool status_prompt() const { return status_prompt_; }
+  void set_status_prompt_column(int column) { status_prompt_column_ = column; }
+  int status_prompt_column() const {
+    CHECK(status_prompt_);
+    return status_prompt_column_;
+  }
   void SetStatus(const wstring& status);
   void ResetStatus() { SetStatus(L""); }
   const wstring& status() const { return status_; }
@@ -216,6 +221,7 @@ class EditorState {
   bool screen_needs_hard_redraw_;
 
   bool status_prompt_;
+  int status_prompt_column_;
   wstring status_;
 
   vector<int> pending_signals_;

@@ -33,6 +33,10 @@ void UpdateStatus(EditorState* editor_state, OpenBuffer* buffer,
   auto line = buffer->current_line();
   wstring input = line == nullptr ? L"" : line->contents()->ToString();
   editor_state->SetStatus(prompt + input);
+  editor_state->set_status_prompt(true);
+  editor_state->set_status_prompt_column(
+      prompt.size()
+      + min(input.size(), buffer->current_position_col()));
 }
 
 map<wstring, shared_ptr<OpenBuffer>>::iterator
@@ -106,10 +110,12 @@ class HistoryScrollBehavior : public ScrollBehavior {
 
   void Left(EditorState* editor_state, OpenBuffer* buffer) const override {
     ScrollBehavior::Default()->Left(editor_state, buffer);
+    UpdateStatus(editor_state, buffer, prompt_);
   }
 
   void Right(EditorState* editor_state, OpenBuffer* buffer) const override {
     ScrollBehavior::Default()->Right(editor_state, buffer);
+    UpdateStatus(editor_state, buffer, prompt_);
   }
 
  private:
@@ -284,7 +290,6 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
     return true;
   };
 
-  editor_state->set_status_prompt(true);
   EnterInsertMode(insert_mode_options);
   insert_mode_options.modify_listener();
 }
