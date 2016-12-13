@@ -340,7 +340,7 @@ EditorState::EditorState()
           assert(args[0]->type == VMType::VM_STRING);
           ForkCommandOptions options;
           options.command = args[0]->str;
-          options.enter = false;
+          options.enter = true;
           ForkCommand(this, options);
           return std::move(Value::NewVoid());
         };
