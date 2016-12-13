@@ -91,7 +91,12 @@ void Terminal::Display(EditorState* editor_state) {
     editor_state->set_screen_needs_redraw(false);
   }
   ShowStatus(*editor_state);
-  if (!editor_state->status_prompt()) {
+  if (editor_state->status_prompt()) {
+    curs_set(1);
+  } else if (buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())) {
+    curs_set(0);
+  } else {
+    curs_set(1);
     AdjustPosition(buffer);
   }
   refresh();
@@ -540,12 +545,6 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
 }
 
 void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
-  if (buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())) {
-    curs_set(0);
-    return;
-  } else {
-    curs_set(1);
-  }
   const Tree<shared_ptr<Line>>& contents(*buffer->contents());
   size_t position_line = min(buffer->position().line, contents.size() - 1);
   size_t line_length;
