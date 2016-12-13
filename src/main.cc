@@ -134,6 +134,7 @@ int main(int argc, const char** argv) {
   using std::cerr;
 
   google::InitGoogleLogging(argv[0]);
+  google::InstallFailureSignalHandler();
 
   string locale = std::setlocale(LC_ALL, "");
   LOG(INFO) << "Using locale: " << locale;
