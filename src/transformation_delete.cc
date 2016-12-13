@@ -374,7 +374,13 @@ class DeleteLinesTransformation : public Transformation {
           TransformationAtPosition(position,
                NewDeleteCharactersTransformation(modifiers, true)));
     }
-    stack.Apply(editor_state, buffer, result);
+    if (editor_state->has_current_buffer()
+        && editor_state->current_buffer()->first == OpenBuffer::kBuffersName) {
+      LOG(INFO) << "Updating list of buffers: " << OpenBuffer::kBuffersName;
+      editor_state->current_buffer()->second->Reload(editor_state);
+    } else {
+      stack.Apply(editor_state, buffer, result);
+    }
   }
 
   unique_ptr<Transformation> Clone() {
