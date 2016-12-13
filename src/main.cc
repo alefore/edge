@@ -71,6 +71,7 @@ Args ParseArgs(int* argc, const char*** argv) {
   string kHelpString = "Usage: edge [OPTION]... [FILE]...\n"
       "Open the files given.\n\nEdge supports the following options:\n"
       "  --fork <shellcmd>: Creates a buffer running a shell command\n"
+      "  --help, -h: Displays this message.\n"
       "  --run <vmcmd>: Runs a VM command\n\n"
       "Report bugs to <alefore@gmail.com>\n";
 
@@ -88,10 +89,10 @@ Args ParseArgs(int* argc, const char*** argv) {
     }
     if (cmd[0] != '-') {
       output.files_to_open.push_back(cmd);
-    } else if (cmd == "--help") {
+    } else if (cmd == "--help" || cmd == "-h") {
       cout << kHelpString;
       exit(0);
-    } else if (cmd == "--fork") {
+    } else if (cmd == "--fork" || cmd == "-f") {
       CHECK(*argc > 1)
           << output.binary_name << ": " << cmd
           << ": Expected command to fork.\n";
