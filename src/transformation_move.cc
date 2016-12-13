@@ -25,6 +25,9 @@ class MoveTransformation : public Transformation {
     LineColumn position;
     switch (modifiers_.structure) {
       case CHAR:
+        buffer->CheckPosition();
+        buffer->MaybeAdjustPositionCol();
+        if (buffer->current_line() == nullptr) { return; }
         position = MoveCharacter(buffer);
         break;
       case WORD:
@@ -67,11 +70,10 @@ class MoveTransformation : public Transformation {
  private:
   LineColumn MoveCharacter(OpenBuffer* buffer)
       const {
-    buffer->CheckPosition();
-    buffer->MaybeAdjustPositionCol();
     LineColumn position = buffer->position();
     switch (modifiers_.direction) {
       case FORWARDS:
+        CHECK(buffer->current_line() != nullptr);
         position.column = min(position.column + modifiers_.repetitions,
             buffer->current_line()->size());
         break;

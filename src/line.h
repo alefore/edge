@@ -54,7 +54,10 @@ class Line {
   Line(const Options& options);
 
   shared_ptr<LazyString> contents() { return contents_; }
-  size_t size() const { return contents_->size(); }
+  size_t size() const {
+    CHECK(contents_ != nullptr);
+    return contents_->size();
+  }
   wint_t get(size_t column) const {
     CHECK_LT(column, contents_->size());
     return contents_->get(column);

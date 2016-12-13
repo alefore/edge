@@ -2267,6 +2267,7 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
 
 void OpenBuffer::Apply(
     EditorState* editor_state, unique_ptr<Transformation> transformation) {
+  CHECK(transformation != nullptr);
   if (!last_transformation_stack_.empty()) {
     CHECK(last_transformation_stack_.back() != nullptr);
     last_transformation_stack_.back()->PushBack(transformation->Clone());
