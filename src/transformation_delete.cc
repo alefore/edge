@@ -375,7 +375,8 @@ class DeleteLinesTransformation : public Transformation {
                NewDeleteCharactersTransformation(modifiers, true)));
     }
     if (editor_state->has_current_buffer()
-        && editor_state->current_buffer()->first == OpenBuffer::kBuffersName) {
+        && editor_state->current_buffer()->first == OpenBuffer::kBuffersName
+        && !editor_state->status_prompt()) {
       LOG(INFO) << "Updating list of buffers: " << OpenBuffer::kBuffersName;
       editor_state->current_buffer()->second->Reload(editor_state);
     } else {
