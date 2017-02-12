@@ -206,7 +206,12 @@ class OpenBuffer {
     return contents_.at(line_number);
   }
   char character_at(LineColumn position) const {
-    return LineAt(position.line)->get(position.column);
+    auto line = LineAt(position.line);
+    if (line->size() > position.column) {
+      return line->get(position.column);
+    } else {
+      return L'\n';
+    }
   }
 
   // Returns the substring of the current line until the current position.
@@ -344,6 +349,7 @@ class OpenBuffer {
   static EdgeVariable<wstring>* variable_line_prefix_characters();
   static EdgeVariable<wstring>* variable_line_suffix_superfluous_characters();
   static EdgeVariable<wstring>* variable_dictionary();
+  static EdgeVariable<wstring>* variable_tree_parser();
 
   static EdgeStruct<int>* IntStruct();
   static EdgeVariable<int>* variable_line_width();
@@ -473,6 +479,7 @@ class OpenBuffer {
   size_t filter_version_;
 
  private:
+  void UpdateTreeParser();
   void ResetParseTree();
 
   // Adds a new line. If there's a previous line, notifies various things about

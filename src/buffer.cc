@@ -18,6 +18,7 @@ extern "C" {
 #include <glog/logging.h>
 
 #include "char_buffer.h"
+#include "cpp_parse_tree.h"
 #include "editor.h"
 #include "file_link_mode.h"
 #include "run_command_handler.h"
@@ -493,9 +494,8 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       environment_(editor_state->environment()),
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
-      tree_parser_(NewLineTreeParser(NewWordsTreeParser(
-          read_string_variable(variable_word_characters()),
-          NewNullTreeParser()))) {
+      tree_parser_(NewNullTreeParser()) {
+  UpdateTreeParser();
   active_cursors()->emplace_back(contents_.begin(), 0);
   current_cursor_ = active_cursors()->begin();
 
@@ -758,6 +758,20 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
     editor_state->current_buffer()->second->Reload(editor_state);
   }
   editor_state->ScheduleRedraw();
+}
+
+void OpenBuffer::UpdateTreeParser() {
+  auto parser = read_string_variable(variable_tree_parser());
+  if (parser == L"text") {
+    tree_parser_ = NewLineTreeParser(NewWordsTreeParser(
+        read_string_variable(variable_word_characters()),
+        NewNullTreeParser()));
+  } else if (parser == L"cpp") {
+    tree_parser_ = NewCppTreeParser();
+  } else {
+    tree_parser_ = NewNullTreeParser();
+  }
+  ResetParseTree();
 }
 
 void OpenBuffer::ResetParseTree() {
@@ -2150,6 +2164,7 @@ OpenBuffer::variable_allow_dirty_delete() {
     OpenBuffer::variable_line_prefix_characters();
     OpenBuffer::variable_line_suffix_superfluous_characters();
     OpenBuffer::variable_dictionary();
+    OpenBuffer::variable_tree_parser();
   }
   return output;
 }
@@ -2247,6 +2262,17 @@ OpenBuffer::variable_dictionary() {
   return variable;
 }
 
+/* static */ EdgeVariable<wstring>*
+OpenBuffer::variable_tree_parser() {
+  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
+      L"tree_parser",
+      L"Name of the parser to use to extract the tree structure from the "
+      L"current file. Valid values are: \"text\" (normal text), and \"cpp\". "
+      L"Any other value disables the tree logic.",
+      L"");
+  return variable;
+}
+
 /* static */ EdgeStruct<int>* OpenBuffer::IntStruct() {
   static EdgeStruct<int>* output = nullptr;
   if (output == nullptr) {
@@ -2309,11 +2335,9 @@ void OpenBuffer::set_string_variable(
   string_variables_.Set(variable, value);
 
   // TODO: This should be in the variable definition, not here. Ugh.
-  if (variable == variable_word_characters()) {
-    tree_parser_ = NewLineTreeParser(NewWordsTreeParser(
-        read_string_variable(variable_word_characters()),
-        NewNullTreeParser()));
-    ResetParseTree();
+  if (variable == variable_word_characters()
+      || variable == variable_tree_parser()) {
+    UpdateTreeParser();
   }
 }
 
