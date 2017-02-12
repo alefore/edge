@@ -198,29 +198,24 @@ class MoveTransformation : public Transformation {
 
   LineColumn MoveTree(EditorState*, OpenBuffer* buffer) const {
     LineColumn position = buffer->position();
-    for (size_t i = 0; i < modifiers_.repetitions; i ++) {
-      LineColumn start, end;
+    LineColumn start, end;
 
-      if (!buffer->FindPartialRange(modifiers_, position, &start, &end)) {
-        return position;
-      }
-
-      auto old_position = position;
-      if (modifiers_.direction == BACKWARDS) {
-        position = start;
-        if (start.column > 0) {
-          position.column--;
-        } else if (start.line > 0) {
-          position.line--;
-          position.column = buffer->contents()->at(start.line)->size();
-        }
-      } else {
-        position = end;
-      }
-      if (old_position == position) {
-        break;
-      }
+    if (!buffer->FindPartialRange(modifiers_, position, &start, &end)) {
+      return position;
     }
+
+    if (modifiers_.direction == BACKWARDS) {
+      position = start;
+      if (start.column > 0) {
+        position.column--;
+      } else if (start.line > 0) {
+        position.line--;
+        position.column = buffer->contents()->at(start.line)->size();
+      }
+    } else {
+      position = end;
+    }
+
     return position;
   }
 
