@@ -209,7 +209,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
       history->second->contents()->size());
 
   auto buffer = GetPromptBuffer(editor_state);
-  editor_state->ResetStructure();
+  editor_state->set_modifiers(Modifiers());
 
   {
     auto insert =
