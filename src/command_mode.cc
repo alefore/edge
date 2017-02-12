@@ -65,6 +65,7 @@ class Delete : public Command {
       case LINE:
       case BUFFER:
       case CURSOR:
+      case TREE:
         if (editor_state->has_current_buffer()) {
           auto buffer = editor_state->current_buffer()->second;
           editor_state->ApplyToCurrentBuffer(
@@ -228,8 +229,8 @@ const wstring LineUp::Description() {
 
 /* static */ void LineUp::Move(
     int c, EditorState* editor_state, Structure structure) {
-  if (editor_state->direction() == BACKWARDS) {
-    editor_state->set_direction(FORWARDS);
+  if (editor_state->direction() == BACKWARDS || structure == TREE) {
+    editor_state->set_direction(ReverseDirection(editor_state->direction()));
     LineDown::Move(c, editor_state, structure);
     return;
   }
@@ -245,6 +246,10 @@ const wstring LineUp::Description() {
       editor_state->set_repetitions(
           editor_state->repetitions() * editor_state->visible_lines());
       Move(c, editor_state, CHAR);
+      break;
+
+    case TREE:
+      CHECK(false);  // Handled above.
       break;
 
     default:
@@ -266,7 +271,7 @@ const wstring LineDown::Description() {
 
 /* static */ void LineDown::Move(
     int c, EditorState* editor_state, Structure structure) {
-  if (editor_state->direction() == BACKWARDS) {
+  if (editor_state->direction() == BACKWARDS && structure != TREE) {
     editor_state->set_direction(FORWARDS);
     LineUp::Move(c, editor_state, structure);
     return;
@@ -283,6 +288,29 @@ const wstring LineDown::Description() {
       editor_state->set_repetitions(
           editor_state->repetitions() * editor_state->visible_lines());
       Move(c, editor_state, CHAR);
+      break;
+
+    case TREE:
+      {
+        if (!editor_state->has_current_buffer()) { return; }
+        auto buffer = editor_state->current_buffer()->second;
+        if (editor_state->direction() == BACKWARDS) {
+          if (buffer->tree_depth() > 0) {
+            buffer->set_tree_depth(buffer->tree_depth() - 1);
+          }
+        } else if (editor_state->direction() == FORWARDS) {
+          const ParseTree* tree = buffer->current_tree();
+          if (!tree->children.empty()) {
+            buffer->set_tree_depth(buffer->tree_depth() + 1);
+          }
+        } else {
+          CHECK(false) << "Invalid direction: " << editor_state->direction();
+        }
+      }
+      editor_state->ResetMode();
+      editor_state->ResetDirection();
+      editor_state->ResetStructure();
+      editor_state->ScheduleRedraw();
       break;
 
     default:
@@ -335,6 +363,7 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
     case LINE:
     case MARK:
     case CURSOR:
+    case TREE:
       {
         if (!editor_state->has_current_buffer()) { return; }
         editor_state->ApplyToCurrentBuffer(
@@ -386,6 +415,7 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
     case LINE:
     case MARK:
     case CURSOR:
+    case TREE:
       {
         if (!editor_state->has_current_buffer()) { return; }
         editor_state->set_direction(
@@ -830,6 +860,7 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
   Register(L"c", new SetStructureCommand(CURSOR, L"cursor"), &output);
   Register(L"B", new SetStructureCommand(BUFFER, L"buffer"), &output);
   Register(L"!", new SetStructureCommand(MARK, L"mark"), &output);
+  Register(L"t", new SetStructureCommand(TREE, L"tree"), &output);
 
   Register(L"W", new SetStrengthCommand(
       Modifiers::WEAK, Modifiers::VERY_WEAK, L"weak"), &output);

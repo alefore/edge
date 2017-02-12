@@ -198,6 +198,9 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
       case CURSOR:
         structure = L"cursor";
         break;
+      case TREE:
+        structure = L"tree<" + to_wstring(buffer->tree_depth()) + L">";
+        break;
     }
     if (!structure.empty()) {
       if (editor_state.sticky_structure()) {
@@ -464,6 +467,78 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
   set<size_t>::const_iterator next_cursor_;
 };
 
+class ReceiverTrackingPosition : public Line::OutputReceiverInterface {
+ public:
+  ReceiverTrackingPosition(Line::OutputReceiverInterface* delegate)
+      : delegate_(delegate) {}
+
+  size_t position() const { return position_; }
+
+  void AddCharacter(wchar_t c) override {
+    position_++;
+    delegate_->AddCharacter(c);
+  }
+
+  void AddString(const wstring& str) override {
+    position_+= str.size();
+    delegate_->AddString(str);
+  }
+
+  void AddModifier(Line::Modifier modifier) override {
+    delegate_->AddModifier(modifier);
+  }
+
+  size_t width() const override { return delegate_->width(); }
+
+ private:
+  Line::OutputReceiverInterface* const delegate_;
+  size_t position_ = 0;
+};
+
+class ParseTreeHighlighter : public Line::OutputReceiverInterface {
+ public:
+  explicit ParseTreeHighlighter(
+      Line::OutputReceiverInterface* delegate, size_t begin, size_t end)
+      : delegate_(delegate), begin_(begin), end_(end) {}
+
+  void AddCharacter(wchar_t c) override {
+    size_t position = delegate_.position();
+    // TODO: Optimize: Don't add it for each character, just at the start.
+    if (begin_ <= position && position < end_) {
+      AddModifier(Line::BLUE);
+    }
+
+    delegate_.AddCharacter(c);
+
+    // TODO: Optimize: Don't add it for each character, just at the end.
+    if (c != L'\n') {
+      AddModifier(Line::RESET);
+    }
+  }
+
+  void AddString(const wstring& str) override {
+    // TODO: Optimize.
+    if (str == L"\n") {
+      delegate_.AddString(str);
+      return;
+    }
+    for (auto& c : str) { AddCharacter(c); }
+  }
+
+  void AddModifier(Line::Modifier modifier) override {
+    delegate_.AddModifier(modifier);
+  }
+
+  size_t width() const override {
+    return delegate_.width();
+  }
+
+ private:
+  ReceiverTrackingPosition delegate_;
+  const size_t begin_;
+  const size_t end_;
+};
+
 void Terminal::ShowBuffer(const EditorState* editor_state) {
   const shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
   const Tree<shared_ptr<Line>>& contents(*buffer->contents());
@@ -485,6 +560,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
       cursors[absolute_line].insert(cursor.second);
     }
   }
+
+  auto current_tree = buffer->current_tree();
 
   while (lines_shown < lines_to_show) {
     Line::OutputReceiverInterface* receiver = &line_output_receiver;
@@ -536,6 +613,22 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
       cursors_highlighter.reset(new CursorsHighlighter(options));
       receiver = cursors_highlighter.get();
     }
+
+    std::unique_ptr<Line::OutputReceiverInterface> parse_tree_highlighter;
+    if (current_tree != buffer->parse_tree()
+        && current_line >= current_tree->begin.line
+        && current_line <= current_tree->end.line) {
+      size_t begin = current_line == current_tree->begin.line
+                         ? current_tree->begin.column
+                         : 0;
+      size_t end = current_line == current_tree->end.line
+                       ? current_tree->end.column
+                       : line->size();
+      parse_tree_highlighter.reset(
+          new ParseTreeHighlighter(receiver, begin, end));
+      receiver = parse_tree_highlighter.get();
+    }
+
     line->Output(editor_state, buffer, current_line, receiver);
     // Need to do this for atomic lines, since they override the Reset modifier
     // with Reset + Reverse.

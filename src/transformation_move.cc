@@ -22,6 +22,7 @@ class MoveTransformation : public Transformation {
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     CHECK(result);
+    auto current_tree = buffer->current_tree();
     LineColumn position;
     switch (modifiers_.structure) {
       case CHAR:
@@ -36,9 +37,13 @@ class MoveTransformation : public Transformation {
       case LINE:
         position = MoveLine(buffer);
         break;
+      case TREE:
+        position = MoveTree(editor_state, buffer);
+        break;
       case MARK:
         position = MoveMark(editor_state, buffer);
         break;
+
       case CURSOR:
         // Handles repetitions.
         buffer->VisitNextCursor();
@@ -55,7 +60,8 @@ class MoveTransformation : public Transformation {
     if (modifiers_.repetitions > 1) {
       editor_state->PushCurrentPosition();
     }
-    if (buffer->active_cursors()->size() > 1) {
+    if (buffer->active_cursors()->size() > 1
+        || buffer->current_tree() != current_tree) {
       editor_state->ScheduleRedraw();
     }
     editor_state->ResetRepetitions();
@@ -188,6 +194,34 @@ class MoveTransformation : public Transformation {
             ? current : buffer->contents()->size() - 1 - current);
     return LineColumn(current + direction * repetitions,
                       buffer->current_position_col());
+  }
+
+  LineColumn MoveTree(EditorState*, OpenBuffer* buffer) const {
+    LineColumn position = buffer->position();
+    for (size_t i = 0; i < modifiers_.repetitions; i ++) {
+      LineColumn start, end;
+
+      if (!buffer->FindPartialRange(modifiers_, position, &start, &end)) {
+        return position;
+      }
+
+      auto old_position = position;
+      if (modifiers_.direction == BACKWARDS) {
+        position = start;
+        if (start.column > 0) {
+          position.column--;
+        } else if (start.line > 0) {
+          position.line--;
+          position.column = buffer->contents()->at(start.line)->size();
+        }
+      } else {
+        position = end;
+      }
+      if (old_position == position) {
+        break;
+      }
+    }
+    return position;
   }
 
   LineColumn MoveMark(EditorState* editor_state, OpenBuffer* buffer) const {

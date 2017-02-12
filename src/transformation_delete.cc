@@ -490,6 +490,7 @@ class DeleteTransformation : public Transformation {
         break;
       case WORD:
       case CURSOR:
+      case TREE:
         delegate = NewDeleteRegionTransformation(
             modifiers_, copy_to_paste_buffer_);
         break;

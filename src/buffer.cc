@@ -356,6 +356,7 @@ using std::to_wstring;
             }
             buffer->set_position(LineColumn(buffer->position().line + 1));
           }
+          auto updater = buffer->BlockParseTreeUpdates();
           buffer->Apply(editor_state, std::move(transformation));
           buffer->set_position(old_position);
           return Value::NewVoid();
@@ -420,6 +421,7 @@ using std::to_wstring;
           auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
           CHECK(buffer != nullptr);
 
+          auto updater = buffer->BlockParseTreeUpdates();
           Modifiers modifiers;
           modifiers.repetitions = args[1]->integer;
           buffer->Apply(editor_state,
@@ -460,6 +462,7 @@ using std::to_wstring;
                 editor_state, NewCopyString(line));
           }
 
+          auto updater = buffer->BlockParseTreeUpdates();
           buffer->Apply(editor_state,
               NewInsertBufferTransformation(buffer_to_insert, 1, END));
 
@@ -489,7 +492,10 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       function_variables_(ValueStruct()->NewInstance()),
       environment_(editor_state->environment()),
       filter_version_(0),
-      last_transformation_(NewNoopTransformation()) {
+      last_transformation_(NewNoopTransformation()),
+      tree_parser_(NewLineTreeParser(NewWordsTreeParser(
+          read_string_variable(variable_word_characters()),
+          NewNullTreeParser()))) {
   active_cursors()->emplace_back(contents_.begin(), 0);
   current_cursor_ = active_cursors()->begin();
 
@@ -567,6 +573,7 @@ void OpenBuffer::ClearContents(EditorState* editor_state) {
 void OpenBuffer::AppendEmptyLine(EditorState*) {
   contents_.emplace_back(new Line(Line::Options()));
   MaybeFollowToEndOfFile();
+  ResetParseTree();
 }
 
 void OpenBuffer::EndOfFile(EditorState* editor_state) {
@@ -650,6 +657,7 @@ LineColumn OpenBuffer::MovePosition(
 }
 
 void OpenBuffer::ReadData(EditorState* editor_state) {
+  auto updater = BlockParseTreeUpdates();
   static const size_t kLowBufferSize = 1024 * 60;
   if (low_buffer_ == nullptr) {
     CHECK_EQ(low_buffer_length_, 0);
@@ -752,6 +760,25 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
   editor_state->ScheduleRedraw();
 }
 
+void OpenBuffer::ResetParseTree() {
+  if (block_parse_tree_updates_.lock() != nullptr) {
+    LOG(INFO) << "Skipping parse tree update.";
+    pending_parse_tree_updates_ = true;
+    return;
+  }
+  LOG(INFO) << "Resetting parse tree.";
+  parse_tree_.begin = LineColumn();
+  if (contents_.empty()) {
+    parse_tree_.end = parse_tree_.begin;
+  } else {
+    parse_tree_.end.line = contents_.size() - 1;
+    parse_tree_.end.column = contents_.back()->size();
+    tree_parser_->FindChildren(*this, &parse_tree_);
+  }
+  pending_parse_tree_updates_ = false;
+  LOG(INFO) << "Resulting tree: " << parse_tree_;
+}
+
 void OpenBuffer::StartNewLine(EditorState* editor_state) {
   if (!contents_.empty()) {
     DVLOG(5) << "Line is completed: " << contents_.back()->ToString();
@@ -843,6 +870,7 @@ Tree<shared_ptr<Line>>::const_iterator OpenBuffer::EraseLines(
     }
   }
   auto result = contents_.erase(first, last);
+  ResetParseTree();
   CHECK(current_cursor_->first >= contents_.begin());
   CHECK(current_cursor_->first <= contents_.end());
   return result;
@@ -853,6 +881,7 @@ void OpenBuffer::ReplaceLine(
     shared_ptr<Line> line) {
   size_t delta = std::distance(contents_.cbegin(), position);
   *(contents_.begin() + delta) = line;
+  ResetParseTree();
 }
 
 void OpenBuffer::InsertLine(
@@ -860,6 +889,7 @@ void OpenBuffer::InsertLine(
     shared_ptr<Line> line) {
   size_t delta = std::distance(contents_.cbegin(), position);
   contents_.insert(contents_.begin() + delta, line);
+  ResetParseTree();
 }
 
 void OpenBuffer::AppendLine(EditorState* editor_state,
@@ -896,6 +926,7 @@ void OpenBuffer::AppendRawLine(EditorState* editor,
 
 void OpenBuffer::AppendRawLine(EditorState*, shared_ptr<Line> line) {
   contents_.push_back(line);
+  ResetParseTree();
   set_modified(true);
   MaybeFollowToEndOfFile();
 }
@@ -1180,6 +1211,7 @@ void OpenBuffer::AppendToLastLine(
     options.modifiers.push_back(it);
   }
   *contents_.rbegin() = std::make_shared<Line>(options);
+  ResetParseTree();
 }
 
 unique_ptr<Expression> OpenBuffer::CompileString(EditorState*,
@@ -1240,13 +1272,15 @@ void PushContents(size_t start, size_t count, const vector<Contents>& source,
     count--;
   }
 }
-}
+}  // namespace
 
 LineColumn OpenBuffer::InsertInPosition(
     const Tree<shared_ptr<Line>>& insertion,
     const LineColumn& input_position) {
   if (insertion.empty()) { return input_position; }
   LineColumn position = input_position;
+  auto updater = BlockParseTreeUpdates();
+  ResetParseTree();
   set_modified(true);
   if (contents_.empty()) {
     contents_.emplace_back(new Line(Line::Options()));
@@ -1540,6 +1574,42 @@ bool OpenBuffer::FindPartialRange(
   return true;
 }
 
+const ParseTree* OpenBuffer::current_tree() const {
+  auto output = FindTreeInPosition(tree_depth_, position());
+  if (output.parent == nullptr) { return &parse_tree_; }
+  CHECK_GT(output.parent->children.size(), output.index);
+  return &output.parent->children.at(output.index);
+}
+
+OpenBuffer::TreeSearchResult OpenBuffer::FindTreeInPosition(
+    size_t depth, const LineColumn& position) const {
+  TreeSearchResult output;
+  output.parent = nullptr;
+  output.index = 0;
+  output.depth = 0;
+  while (output.depth < depth) {
+    auto candidate = output.depth == 0
+                         ? &parse_tree_
+                         : &output.parent->children.at(output.index);
+    if (candidate->children.empty()) { return output; }
+    output.parent = candidate;
+    output.index = FindChildrenForPosition(output.parent, position);
+    output.depth++;
+  }
+  return output;
+}
+
+size_t OpenBuffer::FindChildrenForPosition(
+    const ParseTree* tree, const LineColumn& position) const {
+  if (tree->children.empty()) { return 0; }
+  for (size_t i = 0; i < tree->children.size(); i++) {
+    if (tree->children.at(i).end > position) {
+      return i;
+    }
+  }
+  return tree->children.size() - 1;
+}
+
 bool OpenBuffer::FindRangeFirst(
     const Modifiers& modifiers, const LineColumn& position,
     LineColumn* output) const {
@@ -1629,6 +1699,19 @@ bool OpenBuffer::FindRangeFirst(
         output->column = boundary->second;
         return true;
       }
+
+    case TREE:
+      {
+        auto parent_and_index = FindTreeInPosition(tree_depth_, position);
+        const ParseTree& tree =
+            parent_and_index.parent == nullptr
+                ? parse_tree_
+                : parent_and_index.parent->children.at(parent_and_index.index);
+        *output = tree.begin;
+        return true;
+      }
+      break;
+
     default:
       return false;
   }
@@ -1695,6 +1778,18 @@ bool OpenBuffer::FindRangeLast(
         output->column = boundary->second;
         return true;
       }
+
+    case TREE:
+      {
+        auto parent_and_index = FindTreeInPosition(tree_depth_, position);
+        const ParseTree& tree =
+            parent_and_index.parent == nullptr
+                ? parse_tree_
+                : parent_and_index.parent->children.at(parent_and_index.index);
+        *output = tree.end;
+        return true;
+      }
+      break;
 
     default:
       return false;
@@ -2209,6 +2304,10 @@ const wstring& OpenBuffer::read_string_variable(
 void OpenBuffer::set_string_variable(
     const EdgeVariable<wstring>* variable, const wstring& value) {
   string_variables_.Set(variable, value);
+
+  // TODO: This should be in the variable definition.
+  if (variable == variable_word_characters()) {
+  }
 }
 
 const int& OpenBuffer::read_int_variable(
@@ -2248,6 +2347,7 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
   }
 
   LOG(INFO) << "Applying transformation to cursors: " << cursors->size();
+  auto updater = BlockParseTreeUpdates();
   for (CursorsSet::iterator it = cursors->begin(); it != cursors->end(); ++it) {
     CursorsSet::iterator final_current_cursor = current_cursor_;
     VLOG(6) << "Applying transformation at line: "
@@ -2273,8 +2373,8 @@ void OpenBuffer::Apply(
     last_transformation_stack_.back()->PushBack(transformation->Clone());
   }
 
-  transformations_past_.emplace_back(
-      new Transformation::Result(editor_state));
+  transformations_past_.emplace_back(new Transformation::Result(editor_state));
+  auto updater = BlockParseTreeUpdates();
   transformation->Apply(
       editor_state, this, transformations_past_.back().get());
 
@@ -2296,6 +2396,7 @@ void OpenBuffer::Apply(
 
 void OpenBuffer::RepeatLastTransformation(EditorState* editor_state) {
   transformations_past_.emplace_back(new Transformation::Result(editor_state));
+  auto updater = BlockParseTreeUpdates();
   last_transformation_
       ->Apply(editor_state, this, transformations_past_.back().get());
   transformations_future_.clear();
@@ -2324,6 +2425,7 @@ void OpenBuffer::Undo(EditorState* editor_state) {
     source = &transformations_future_;
     target = &transformations_past_;
   }
+  auto updater = BlockParseTreeUpdates();
   for (size_t i = 0; i < editor_state->repetitions(); i++) {
     bool modified_buffer = false;
     while (!modified_buffer && !source->empty()) {
@@ -2369,6 +2471,22 @@ const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks(
   }
   VLOG(10) << "Returning multimap with size: " << line_marks_.size();
   return &line_marks_;
+}
+
+std::shared_ptr<bool> OpenBuffer::BlockParseTreeUpdates() {
+  std::shared_ptr<bool> output = block_parse_tree_updates_.lock();
+  if (output != nullptr) {
+    return output;
+  }
+  output = std::shared_ptr<bool>(new bool(),
+      [this](bool* obj) {
+        delete obj;
+        if (pending_parse_tree_updates_) {
+          ResetParseTree();
+        }
+      });
+  block_parse_tree_updates_ = output;
+  return output;
 }
 
 }  // namespace editor

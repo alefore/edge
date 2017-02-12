@@ -89,6 +89,10 @@ class TreeIterator
   NodeItem* node_;
 };
 
+// A sequence of elements, stored internally as a tree (to provide quick
+// insertion/deletion).
+//
+// The interface provided is *not* a tree: it's a sequence of elements.
 template <typename Item>
 class Tree {
  public:

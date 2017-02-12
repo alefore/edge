@@ -15,8 +15,9 @@ Structure LowerStructure(Structure s) {
     case SEARCH: return PAGE;
     case CURSOR: return SEARCH;
     case BUFFER: return CURSOR;
+    case TREE: return TREE;
   }
-  CHECK(false);
+  CHECK(false) << "Structure type not handled by LowerStructure.";
 }
 
 }  // namespace editor

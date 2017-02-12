@@ -39,6 +39,8 @@ src/navigate_command.cc \
 src/noop_command.cc \
 src/open_directory_command.cc \
 src/open_file_command.cc \
+src/parse_tree.cc \
+src/parse_tree.h \
 src/predictor.cc \
 src/quit_command.cc \
 src/record_command.cc \

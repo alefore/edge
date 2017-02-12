@@ -12,6 +12,7 @@
 #include "line_column.h"
 #include "line_marks.h"
 #include "memory_mapped_file.h"
+#include "parse_tree.h"
 #include "substring.h"
 #include "transformation.h"
 #include "tree.h"
@@ -35,12 +36,6 @@ using std::multimap;
 using std::ostream;
 
 using namespace afc::vm;
-
-struct ParseTree {
-  string name;
-  int length;
-  vector<unique_ptr<ParseTree>> items;
-};
 
 class OpenBuffer {
  public:
@@ -161,6 +156,24 @@ class OpenBuffer {
   void VisitNextCursor();
   void DestroyCursor();
   void DestroyOtherCursors();
+
+  const ParseTree* current_tree() const;
+
+  struct TreeSearchResult {
+    // The parent containing the tree for the depth given at the position given.
+    const ParseTree* parent;
+    // The index of the children of parent for the tree.
+    size_t index;
+    // The depth of the parent.
+    size_t depth;
+  };
+
+  TreeSearchResult FindTreeInPosition(size_t depth, const LineColumn& position) const;
+
+  // Returns the index of the first children of tree that ends in a position
+  // greater than the one given.
+  size_t FindChildrenForPosition(
+      const ParseTree* tree, const LineColumn& position) const;
 
   bool FindRangeFirst(
     const Modifiers& modifiers, const LineColumn& position,
@@ -290,7 +303,6 @@ class OpenBuffer {
         || !WIFEXITED(child_exit_status_)
         || WEXITSTATUS(child_exit_status_) != 0;
   }
-
   wstring FlagsString() const;
 
   void PushSignal(EditorState* editor_state, int signal);
@@ -389,10 +401,15 @@ class OpenBuffer {
 
   Environment* environment() { return &environment_; }
 
+  ParseTree* parse_tree() { return &parse_tree_; }
+
+  size_t tree_depth() const { return tree_depth_; }
+  void set_tree_depth(size_t tree_depth) { tree_depth_ = tree_depth; }
+
+  std::shared_ptr<bool> BlockParseTreeUpdates();
+
  protected:
   EditorState* editor_;
-
-  vector<unique_ptr<ParseTree>> parse_tree;
 
   wstring name_;
 
@@ -456,6 +473,8 @@ class OpenBuffer {
   size_t filter_version_;
 
  private:
+  void ResetParseTree();
+
   // Adds a new line. If there's a previous line, notifies various things about
   // it.
   void StartNewLine(EditorState* editor_state);
@@ -491,6 +510,24 @@ class OpenBuffer {
   // If we get a request to open a buffer and jump to a given line, we store
   // that value here. Once we've read enough lines, we stay at this position.
   size_t desired_line_ = 0;
+
+  std::unique_ptr<TreeParser> tree_parser_;
+  ParseTree parse_tree_;
+  size_t tree_depth_ = 0;
+
+  // When a caller wants to make multiple modifications and ensure that the
+  // update of the parse_tree_ only happens at the end, they should use
+  // BlockParseTreeUpdates() to obtain a pointer; no updates will take place
+  // while the pointer is held. When the pointer is released, the tree will be
+  // updated (unless other callers are also blocking updates). This allows
+  // multiple callers to block parsing, having it resume as soon as all drop
+  // their pointers. Callers must never keep these pointers longer than the life
+  // of their corresponding OpenBuffer.
+  std::weak_ptr<bool> block_parse_tree_updates_;
+  // Set to true if some tree update is blocked by block_parse_tree_updates_.
+  // That way, once the operations are done, we can avoid re-parsing when it's
+  // not needed.
+  bool pending_parse_tree_updates_ = false;
 };
 
 }  // namespace editor
