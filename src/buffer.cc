@@ -775,6 +775,9 @@ void OpenBuffer::ResetParseTree() {
     parse_tree_.end.column = contents_.back()->size();
     tree_parser_->FindChildren(*this, &parse_tree_);
   }
+  if (this == editor_->current_buffer()->second.get()) {
+    editor_->ScheduleRedraw();
+  }
   pending_parse_tree_updates_ = false;
   LOG(INFO) << "Resulting tree: " << parse_tree_;
 }
