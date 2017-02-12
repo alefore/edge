@@ -2305,8 +2305,12 @@ void OpenBuffer::set_string_variable(
     const EdgeVariable<wstring>* variable, const wstring& value) {
   string_variables_.Set(variable, value);
 
-  // TODO: This should be in the variable definition.
+  // TODO: This should be in the variable definition, not here. Ugh.
   if (variable == variable_word_characters()) {
+    tree_parser_ = NewLineTreeParser(NewWordsTreeParser(
+        read_string_variable(variable_word_characters()),
+        NewNullTreeParser()));
+    ResetParseTree();
   }
 }
 
