@@ -1573,7 +1573,7 @@ bool OpenBuffer::FindPartialRange(
       return false;
     }
     CHECK_LE(current_start, current_end);
-    if (i == 0) {
+    if (i == 0 && modifiers.structure_range == Modifiers::ENTIRE_STRUCTURE) {
       *start = current_start;
       *end = current_end;
     }
