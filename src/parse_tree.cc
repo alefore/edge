@@ -63,39 +63,25 @@ class WordsTreeParser : public TreeParser {
     CHECK(root != nullptr);
     root->children.clear();
     for (auto line = root->begin.line; line <= root->end.line; line++) {
-      auto contents = buffer.contents()->at(line);
+      const auto& contents = *buffer.contents()->at(line);
 
-      size_t line_end = contents->size();
+      size_t line_end = contents.size();
       if (line == root->end.line) {
         line_end = min(line_end, root->end.column);
       }
 
       size_t column = line == root->begin.line ? root->begin.column : 0;
       while (column < line_end) {
-        size_t word_start = column;
-
-        // Skip any non-space characters.
-        while (column < line_end
-               && word_characters_.find(contents->get(column))
-                  != word_characters_.npos) {
-          column++;
-        }
-
-        // Skip any space characters.
-        while (column < line_end
-               && word_characters_.find(contents->get(column))
-                  == word_characters_.npos) {
-          column++;
-        }
-
-        CHECK_GT(column, word_start);  // Assert that we made progress.
-
         ParseTree new_children;
-        new_children.begin = LineColumn(line, word_start);
+
+        while (column < line_end && IsSpace(contents, column)) { column++; }
+        new_children.begin = LineColumn(line, column);
+
+        while (column < line_end && !IsSpace(contents, column)) { column++; }
         new_children.end = LineColumn(line, column);
-        if (column == line_end && line < root->end.line) {
-          new_children.end = LineColumn(line + 1);
-        }
+
+        if (new_children.begin == new_children.end) { return; }
+
         DVLOG(6) << "Adding word: " << new_children;
         root->children.push_back(new_children);
         delegate_->FindChildren(buffer, &root->children.back());
@@ -104,6 +90,10 @@ class WordsTreeParser : public TreeParser {
   }
 
  private:
+  bool IsSpace(const Line& line, size_t column) {
+    return word_characters_.find(line.get(column)) == word_characters_.npos;
+  }
+
   const std::wstring word_characters_;
   const std::unique_ptr<TreeParser> delegate_;
 };
