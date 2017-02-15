@@ -1670,21 +1670,45 @@ bool OpenBuffer::FindRangeFirst(
         const wstring& word_char =
             read_string_variable(variable_word_characters());
 
-        // Seek forwards until we're at a word character. Typically, if we're
-        // already in a word character, this does nothing.
-        while (at_end_of_line(*output)
-               || word_char.find(character_at(*output)) == word_char.npos) {
-          if (at_end(*output)) {
-            return false;
-          } else if (at_end_of_line(*output)) {
-            output->column = 0;
-            output->line++;
-          } else {
-            output->column ++;
-          }
+        switch (modifiers.direction) {
+          case FORWARDS:
+            // Seek forwards until we're at a word character. Typically, if we're
+            // already in a word character, this does nothing.
+            while (at_end_of_line(*output)
+                   || word_char.find(character_at(*output)) == word_char.npos) {
+              if (at_end(*output)) {
+                return false;
+              } else if (at_end_of_line(*output)) {
+                output->column = 0;
+                output->line++;
+              } else {
+                output->column ++;
+              }
+            }
+            break;
+
+          case BACKWARDS:
+            // Seek backwards until we're at a space (leave the current word).
+            while (!at_beginning_of_line(*output)
+                   && word_char.find(character_at(
+                          LineColumn(output->line, output->column)))
+                      != wstring::npos) {
+              CHECK_GT(output->column, 0);
+              output->column--;
+            }
+
+            // Seek backwards until we're at a word (or at start of file).
+            while (*output != LineColumn()
+                   && word_char.find(character_at(
+                          LineColumn(output->line, output->column)))
+                      == wstring::npos) {
+              *output = PositionBefore(*output);
+            }
+
+            break;
         }
 
-        // Seek backwards until we're at the beginning of the word.
+        // Seek backwards until we're just after a space.
         while (!at_beginning_of_line(*output)
                && word_char.find(character_at(
                       LineColumn(output->line, output->column - 1)))

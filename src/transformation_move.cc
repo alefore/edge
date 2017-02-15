@@ -31,14 +31,12 @@ class MoveTransformation : public Transformation {
         if (buffer->current_line() == nullptr) { return; }
         position = MoveCharacter(buffer);
         break;
-      case WORD:
-        position = MoveWord(buffer);
-        break;
       case LINE:
         position = MoveLine(buffer);
         break;
       case TREE:
-        position = MoveTree(editor_state, buffer);
+      case WORD:
+        position = MoveRange(editor_state, buffer);
         break;
       case MARK:
         position = MoveMark(editor_state, buffer);
@@ -94,68 +92,6 @@ class MoveTransformation : public Transformation {
     return str.find(static_cast<char>(c)) != wstring::npos;
   }
 
-  LineColumn
-  SeekToWordCharacter(OpenBuffer* buffer, Direction direction,
-                      bool word_character, LineColumn position) const {
-    auto line = buffer->contents()->at(position.line);
-
-    const wstring& word_chars =
-        buffer->read_string_variable(buffer->variable_word_characters());
-
-    LOG(INFO) << "Seek (" << word_character << ") starting at: " << position;
-    while (word_character
-           ? // Seek to word-character
-             (position.column == line->size()
-              || !StringContains(word_chars, line->get(position.column)))
-           : // Seek to non-word character.
-             (position.column != line->size()
-              && StringContains(word_chars, line->get(position.column)))) {
-      if (direction == FORWARDS) {
-        if (position.column < line->size()) {
-          position.column++;
-        } else if (position.line + 1 < buffer->contents()->size()) {
-          position.line++;
-          position.column = 0;
-          line = buffer->contents()->at(position.line);
-          LOG(INFO) << "Seek to next line: " << position;
-        } else {
-          LOG(INFO) << "Seek got to end of file.";
-          return position;
-        }
-      } else {
-        if (position.column > 0) {
-          position.column--;
-        } else if (position.line > 0) {
-          position.line--;
-          line = buffer->contents()->at(position.line);
-          position.column = buffer->LineAt(position.line)->size();
-          LOG(INFO) << "Seek to previous line: " << position;
-        } else {
-          LOG(INFO) << "Seek got to start of file.";
-          return position;
-        }
-      }
-    }
-
-    LOG(INFO) << "Seek (" << word_character << ") stopping at: " << position;
-    return position;
-  }
-
-  LineColumn MoveWord(OpenBuffer* buffer) const {
-    buffer->CheckPosition();
-    buffer->MaybeAdjustPositionCol();
-    LineColumn position = buffer->position();
-    for (size_t i = 0; i < modifiers_.repetitions; i ++) {
-      LineColumn new_position =
-          SeekToWordCharacter(buffer, modifiers_.direction, true,
-              SeekToWordCharacter(buffer, modifiers_.direction, false,
-                  position));
-      if (new_position == position) { break; }
-      position = new_position;
-    }
-    return position;
-  }
-
   template <typename Iterator>
   static LineColumn GetMarkPosition(
       Iterator it_begin, Iterator it_end, LineColumn current,
@@ -196,7 +132,7 @@ class MoveTransformation : public Transformation {
                       buffer->current_position_col());
   }
 
-  LineColumn MoveTree(EditorState*, OpenBuffer* buffer) const {
+  LineColumn MoveRange(EditorState*, OpenBuffer* buffer) const {
     LineColumn position = buffer->position();
     LineColumn start, end;
 
@@ -262,7 +198,7 @@ class MoveTransformation : public Transformation {
     return LineColumn();
   }
 
-  Modifiers modifiers_;
+  const Modifiers modifiers_;
 };
 
 }  // namespace
