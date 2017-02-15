@@ -168,12 +168,14 @@ class OpenBuffer {
     size_t depth;
   };
 
-  TreeSearchResult FindTreeInPosition(size_t depth, const LineColumn& position) const;
+  TreeSearchResult FindTreeInPosition(size_t depth, const LineColumn& position,
+                                      Direction direction) const;
 
   // Returns the index of the first children of tree that ends in a position
   // greater than the one given.
-  size_t FindChildrenForPosition(
-      const ParseTree* tree, const LineColumn& position) const;
+  size_t FindChildrenForPosition(const ParseTree* tree,
+                                 const LineColumn& position,
+                                 Direction direction) const;
 
   bool FindRangeFirst(
     const Modifiers& modifiers, const LineColumn& position,
@@ -413,6 +415,18 @@ class OpenBuffer {
   void set_tree_depth(size_t tree_depth) { tree_depth_ = tree_depth; }
 
   std::shared_ptr<bool> BlockParseTreeUpdates();
+
+  LineColumn PositionBefore(LineColumn position) const {
+    if (contents_.empty()) {
+      position = LineColumn();
+    } else if (position.column > 0) {
+      position.column--;
+    } else if (position.line > 0) {
+      position.line = min(position.line - 1, contents_.size() - 1);
+      position.column = contents_.at(position.line)->size();
+    }
+    return position;
+  }
 
  protected:
   EditorState* editor_;

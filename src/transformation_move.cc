@@ -207,27 +207,39 @@ class MoveTransformation : public Transformation {
 
     LOG(INFO) << "Found range: [" << start << ", " << end << ")";
 
-    if (modifiers_.direction == BACKWARDS) {
-      position = start;
-      if (start.column > 0) {
-        position.column--;
-      } else if (start.line > 0) {
-        position.line--;
-        position.column = buffer->contents()->at(start.line)->size();
-      }
-    } else if (start > position) {
-      position = start;
-    } else {
-      LineColumn dummy;
-      // Jump to the start of the next element:
-      Modifiers modifiers_copy = modifiers_;
-      modifiers_copy.repetitions = 1;
-      if (!buffer->FindPartialRange(modifiers_copy, end, &start, &end)) {
-        LOG(INFO) << "Unable to find partial range (next): " << end;
-        return end;
-      }
-      LOG(INFO) << "Found range (next): [" << start << ", " << end << ")";
-      position = start;
+    switch (modifiers_.direction) {
+      case FORWARDS:
+        {
+          Modifiers modifiers_copy = modifiers_;
+          modifiers_copy.repetitions = 1;
+          if (start > position) {
+            end = buffer->PositionBefore(end);
+          }
+          if (!buffer->FindPartialRange(modifiers_copy, end, &start, &end)) {
+            LOG(INFO) << "Unable to find partial range (next): " << end;
+            return end;
+          }
+          LOG(INFO) << "Found range (next): [" << start << ", " << end << ")";
+        }
+        position = start;
+        break;
+
+      case BACKWARDS:
+        {
+          Modifiers modifiers_copy = modifiers_;
+          modifiers_copy.repetitions = 1;
+          modifiers_copy.direction = FORWARDS;
+          if (end > position) {
+            //start = buffer->PositionBefore(start);
+          }
+          if (!buffer->FindPartialRange(modifiers_copy, start, &start, &end)) {
+            LOG(INFO) << "Unable to find partial range (next): " << end;
+            return end;
+          }
+          LOG(INFO) << "Found range (prev): [" << start << ", " << end << ")";
+        }
+        position = buffer->PositionBefore(end);
+        break;
     }
 
     return position;

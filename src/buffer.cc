@@ -1572,6 +1572,11 @@ bool OpenBuffer::FindPartialRange(
     if (!FindRange(modifiers, position, &current_start, &current_end)) {
       return false;
     }
+    CHECK_LE(current_start, current_end);
+    if (i == 0) {
+      *start = current_start;
+      *end = current_end;
+    }
     switch (modifiers.structure_range) {
       case Modifiers::ENTIRE_STRUCTURE:
         *start = min(*start, current_start);
@@ -1592,14 +1597,14 @@ bool OpenBuffer::FindPartialRange(
 }
 
 const ParseTree* OpenBuffer::current_tree() const {
-  auto output = FindTreeInPosition(tree_depth_, position());
+  auto output = FindTreeInPosition(tree_depth_, position(), FORWARDS);
   if (output.parent == nullptr) { return &parse_tree_; }
   CHECK_GT(output.parent->children.size(), output.index);
   return &output.parent->children.at(output.index);
 }
 
 OpenBuffer::TreeSearchResult OpenBuffer::FindTreeInPosition(
-    size_t depth, const LineColumn& position) const {
+    size_t depth, const LineColumn& position, Direction direction) const {
   TreeSearchResult output;
   output.parent = nullptr;
   output.index = 0;
@@ -1610,21 +1615,32 @@ OpenBuffer::TreeSearchResult OpenBuffer::FindTreeInPosition(
                          : &output.parent->children.at(output.index);
     if (candidate->children.empty()) { return output; }
     output.parent = candidate;
-    output.index = FindChildrenForPosition(output.parent, position);
+    output.index = FindChildrenForPosition(output.parent, position, direction);
     output.depth++;
   }
   return output;
 }
 
+// Returns the first children of tree that ends after a given position.
 size_t OpenBuffer::FindChildrenForPosition(
-    const ParseTree* tree, const LineColumn& position) const {
+    const ParseTree* tree, const LineColumn& position, Direction direction)
+    const {
   if (tree->children.empty()) { return 0; }
   for (size_t i = 0; i < tree->children.size(); i++) {
-    if (tree->children.at(i).end > position) {
-      return i;
+    switch (direction) {
+      case FORWARDS:
+        if (tree->children.at(i).end > position) {
+          return i;
+        }
+        break;
+      case BACKWARDS:
+        if (tree->children.at(tree->children.size() - i - 1).end <= position) {
+          return tree->children.size() - i - 1;
+        }
+        break;
     }
   }
-  return tree->children.size() - 1;
+  return direction == FORWARDS ? tree->children.size() - 1 : 0;
 }
 
 bool OpenBuffer::FindRangeFirst(
@@ -1719,7 +1735,8 @@ bool OpenBuffer::FindRangeFirst(
 
     case TREE:
       {
-        auto parent_and_index = FindTreeInPosition(tree_depth_, position);
+        auto parent_and_index =
+            FindTreeInPosition(tree_depth_, position, modifiers.direction);
         const ParseTree& tree =
             parent_and_index.parent == nullptr
                 ? parse_tree_
@@ -1798,7 +1815,8 @@ bool OpenBuffer::FindRangeLast(
 
     case TREE:
       {
-        auto parent_and_index = FindTreeInPosition(tree_depth_, position);
+        auto parent_and_index =
+            FindTreeInPosition(tree_depth_, position, modifiers.direction);
         const ParseTree& tree =
             parent_and_index.parent == nullptr
                 ? parse_tree_
@@ -1817,8 +1835,10 @@ bool OpenBuffer::FindRangeLast(
 bool OpenBuffer::FindRange(const Modifiers& modifiers,
                            const LineColumn& position, LineColumn* first,
                            LineColumn* last) {
+  Modifiers modifiers_copy = modifiers;
+  modifiers_copy.direction = FORWARDS;
   return FindRangeFirst(modifiers, position, first)
-      && FindRangeLast(modifiers, *first, last);
+      && FindRangeLast(modifiers_copy, *first, last);
 }
 
 const shared_ptr<Line> OpenBuffer::current_line() const {
