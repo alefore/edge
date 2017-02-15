@@ -201,8 +201,11 @@ class MoveTransformation : public Transformation {
     LineColumn start, end;
 
     if (!buffer->FindPartialRange(modifiers_, position, &start, &end)) {
+      LOG(INFO) << "Unable to find partial range: " << position;
       return position;
     }
+
+    LOG(INFO) << "Found range: [" << start << ", " << end << ")";
 
     if (modifiers_.direction == BACKWARDS) {
       position = start;
@@ -212,8 +215,19 @@ class MoveTransformation : public Transformation {
         position.line--;
         position.column = buffer->contents()->at(start.line)->size();
       }
+    } else if (start > position) {
+      position = start;
     } else {
-      position = end;
+      LineColumn dummy;
+      // Jump to the start of the next element:
+      Modifiers modifiers_copy = modifiers_;
+      modifiers_copy.repetitions = 1;
+      if (!buffer->FindPartialRange(modifiers_copy, end, &start, &end)) {
+        LOG(INFO) << "Unable to find partial range (next): " << end;
+        return end;
+      }
+      LOG(INFO) << "Found range (next): [" << start << ", " << end << ")";
+      position = start;
     }
 
     return position;
