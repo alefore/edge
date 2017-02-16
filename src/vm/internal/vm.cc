@@ -125,6 +125,7 @@ void HandleInclude(Compilation* compilation, void* parser, const wstring& str,
 }
 
 void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
+  CHECK(compilation != nullptr);
   size_t pos = 0;
   int token;
   while (pos < str.size()) {
@@ -168,8 +169,8 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
           token = AND;
           break;
         }
-        //token = AMPERSAND;
-        break;
+        compilation->AddError(L"Unhandled character: &");
+        return;
 
       case '|':
         pos++;
@@ -178,8 +179,8 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
           token = OR;
           break;
         }
-        //token = PIPE;
-        break;
+        compilation->AddError(L"Unhandled character: |");
+        return;
 
       case '<':
         token = LESS_THAN;
@@ -377,11 +378,15 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
         break;
 
       default:
-        // TODO: Add str.
-        cerr << "Unhandled character at position " << pos << ": " << str;
-        exit(54);
+        compilation->AddError(
+            L"Unhandled character at position: " + to_wstring(pos)
+            + L" in line: " + str);
+        return;
     }
     if (token == SYMBOL || token == STRING) {
+      CHECK(input != nullptr) << "No input with token: " << token;
+      CHECK(input->type == VMType::VM_SYMBOL
+            || input->type == VMType::VM_STRING);
       compilation->last_token = input->str;
     }
     Cpp(parser, token, input, compilation);
