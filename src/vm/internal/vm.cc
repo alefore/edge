@@ -407,7 +407,11 @@ unique_ptr<Expression> ResultsFromCompilation(Compilation* compilation,
                                               wstring* error_description) {
   if (!compilation->errors.empty()) {
     if (error_description != nullptr) {
-      *error_description = *compilation->errors.rbegin();
+      wstring separator = L"";
+      for (auto& error : compilation->errors) {
+        *error_description += separator + error;
+        separator = L"\n  ";
+      }
     }
     return nullptr;
   }
