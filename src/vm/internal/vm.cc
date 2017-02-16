@@ -321,11 +321,14 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
       case 'a': case 'b': case 'c': case 'd': case 'e': case 'f': case 'g':
       case 'h': case 'i': case 'j': case 'k': case 'l': case 'm': case 'n':
       case 'o': case 'p': case 'q': case 'r': case 's': case 't': case 'u':
-      case 'v': case 'w': case 'x': case 'y': case 'z': case '_':
+      case 'v': case 'w': case 'x': case 'y': case 'z':
+      case '_': case '~':
         {
           size_t start = pos;
           while (pos < str.size()
-                 && (isalnum(str.at(pos)) || str.at(pos) == '_')) {
+                 && (isalnum(str.at(pos))
+                     || str.at(pos) == '_'
+                     || str.at(pos) == '~')) {
             pos++;
           }
           wstring symbol = str.substr(start, pos - start);
@@ -375,7 +378,7 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
 
       default:
         // TODO: Add str.
-        cerr << "Unhandled character at position " << pos << "\n";
+        cerr << "Unhandled character at position " << pos << ": " << str;
         exit(54);
     }
     if (token == SYMBOL || token == STRING) {
