@@ -293,7 +293,10 @@ class DeleteRegionTransformation : public Transformation {
     LOG(INFO) << "Starting at " << buffer->position() << ", bound region at ["
               << start << ", " << end << ")";
 
-    CHECK(start <= end);
+    start = min(start, buffer->position());
+    end = max(end, buffer->position());
+
+    CHECK_LT(start, end);
 
     TransformationStack stack;
 
