@@ -90,10 +90,12 @@ void HandleInclude(Compilation* compilation, void* parser, const wstring& str,
   }
   if (pos >= str.size() || (str[pos] != '\"' && str[pos] != '<')) {
     VLOG(5) << "Processing #include failed: Expected opening delimiter";
-    compilation->AddError(L"#include expects \"FILENAME\" or <FILENAME>");
+    compilation->AddError(
+        L"#include expects \"FILENAME\" or <FILENAME>; in line: "
+        + str);
     return;
   }
-  wchar_t delimiter = str[pos];
+  wchar_t delimiter = str[pos] == L'<' ? L'>' : L'\"';
   pos++;
   size_t start = pos;
   while (pos < str.size() && str[pos] != delimiter) {
@@ -101,7 +103,10 @@ void HandleInclude(Compilation* compilation, void* parser, const wstring& str,
   }
   if (pos >= str.size()) {
     VLOG(5) << "Processing #include failed: Expected closing delimiter";
-    compilation->AddError(L"#include expects \"FILENAME\" or <FILENAME>");
+    compilation->AddError(
+        L"#include expects \"FILENAME\" or <FILENAME>, failed to find closing "
+        L"character; in line: "
+        + str);
     return;
   }
   wstring error_description;
