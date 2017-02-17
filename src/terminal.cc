@@ -26,6 +26,8 @@ constexpr int Terminal::BACKSPACE;
 constexpr int Terminal::PAGE_UP;
 constexpr int Terminal::PAGE_DOWN;
 constexpr int Terminal::ESCAPE;
+constexpr int Terminal::CTRL_A;
+constexpr int Terminal::CTRL_E;
 constexpr int Terminal::CTRL_L;
 constexpr int Terminal::CTRL_U;
 constexpr int Terminal::CTRL_K;
@@ -692,8 +694,14 @@ wint_t Terminal::Read(EditorState*) {
       case 127:
         return BACKSPACE;
 
+      case 1:
+        return CTRL_A;
+
       case 4:
         return CHAR_EOF;
+
+      case 5:
+        return CTRL_E;
 
       case 0x0b:
         return CTRL_K;

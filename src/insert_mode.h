@@ -18,6 +18,8 @@ class ScrollBehavior {
   virtual void Down(EditorState* editor_state, OpenBuffer* buffer) const = 0;
   virtual void Left(EditorState* editor_state, OpenBuffer* buffer) const = 0;
   virtual void Right(EditorState* editor_state, OpenBuffer* buffer) const = 0;
+  virtual void Begin(EditorState* editor_state, OpenBuffer* buffer) const = 0;
+  virtual void End(EditorState* editor_state, OpenBuffer* buffer) const = 0;
 };
 
 struct InsertModeOptions {

@@ -26,6 +26,8 @@ class Terminal {
   static constexpr int CTRL_U = -12;
   static constexpr int CTRL_K = -13;
   static constexpr int CHAR_EOF = -14;
+  static constexpr int CTRL_A = -15;
+  static constexpr int CTRL_E = -16;
 
   Terminal();
   ~Terminal();

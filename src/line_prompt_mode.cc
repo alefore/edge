@@ -118,6 +118,16 @@ class HistoryScrollBehavior : public ScrollBehavior {
     UpdateStatus(editor_state, buffer, prompt_);
   }
 
+  void Begin(EditorState* editor_state, OpenBuffer* buffer) const override {
+    ScrollBehavior::Default()->Begin(editor_state, buffer);
+    UpdateStatus(editor_state, buffer, prompt_);
+  }
+
+  void End(EditorState* editor_state, OpenBuffer* buffer) const override {
+    ScrollBehavior::Default()->End(editor_state, buffer);
+    UpdateStatus(editor_state, buffer, prompt_);
+  }
+
  private:
   void ScrollHistory(EditorState* editor_state, OpenBuffer* buffer, int delta) const {
     auto insert =

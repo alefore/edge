@@ -172,6 +172,44 @@ class AutocompleteMode : public EditorMode {
   size_t word_length_;
 };
 
+class JumpTransformation : public Transformation {
+ public:
+  JumpTransformation(Direction direction) : direction_(direction) {}
+
+  void Apply(
+      EditorState* editor_state, OpenBuffer* buffer, Result* result)
+      const override {
+    CHECK(result);
+    buffer->CheckPosition();
+    buffer->MaybeAdjustPositionCol();
+    if (buffer->current_line() == nullptr) { return; }
+    auto position = buffer->position();
+    switch (direction_) {
+      case FORWARDS:
+        position.column = buffer->current_line()->size();
+        break;
+      case BACKWARDS:
+        position.column = 0;
+        break;
+    }
+    NewGotoPositionTransformation(position)
+        ->Apply(editor_state, buffer, result);
+    if (buffer->active_cursors()->size() > 1) {
+      editor_state->ScheduleRedraw();
+    }
+    editor_state->ResetRepetitions();
+    editor_state->ResetStructure();
+    editor_state->ResetDirection();
+  }
+
+  unique_ptr<Transformation> Clone() {
+    return std::unique_ptr<Transformation>(new JumpTransformation(direction_));
+  }
+
+ private:
+  const Direction direction_;
+};
+
 class DefaultScrollBehavior : public ScrollBehavior {
  public:
   static shared_ptr<const ScrollBehavior> Get() {
@@ -203,6 +241,16 @@ class DefaultScrollBehavior : public ScrollBehavior {
 
   void Right(EditorState*, OpenBuffer* buffer) const override {
     buffer->ApplyToCursors(NewMoveTransformation(Modifiers()));
+  }
+
+  void Begin(EditorState*, OpenBuffer* buffer) const override {
+    buffer->ApplyToCursors(
+        std::unique_ptr<Transformation>(new JumpTransformation(BACKWARDS)));
+  }
+
+  void End(EditorState*, OpenBuffer* buffer) const override {
+    buffer->ApplyToCursors(
+        std::unique_ptr<Transformation>(new JumpTransformation(FORWARDS)));
   }
 };
 
@@ -316,6 +364,14 @@ class InsertMode : public EditorMode {
 
       case Terminal::RIGHT_ARROW:
         options_.scroll_behavior->Right(editor_state, options_.buffer.get());
+        return;
+
+      case Terminal::CTRL_A:
+        options_.scroll_behavior->Begin(editor_state, options_.buffer.get());
+        return;
+
+      case Terminal::CTRL_E:
+        options_.scroll_behavior->End(editor_state, options_.buffer.get());
         return;
 
       case Terminal::BACKSPACE:
