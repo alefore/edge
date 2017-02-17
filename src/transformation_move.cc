@@ -141,7 +141,8 @@ class MoveTransformation : public Transformation {
       return position;
     }
 
-    LOG(INFO) << "Found range: [" << start << ", " << end << ")";
+    LOG(INFO) << "Found range for " << position << ": [" << start << ", " << end
+              << ")";
 
     switch (modifiers_.direction) {
       case FORWARDS:
