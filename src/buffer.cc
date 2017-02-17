@@ -1615,7 +1615,10 @@ OpenBuffer::TreeSearchResult OpenBuffer::FindTreeInPosition(
                          : &output.parent->children.at(output.index);
     if (candidate->children.empty()) { return output; }
     output.parent = candidate;
-    output.index = FindChildrenForPosition(output.parent, position, direction);
+    // We only want to head backwards if we're already at the right depth.
+    output.index = FindChildrenForPosition(
+        output.parent, position,
+        output.depth == depth - 1 ? direction : FORWARDS);
     output.depth++;
   }
   return output;
