@@ -24,6 +24,7 @@ extern "C" {
 #include "run_command_handler.h"
 #include "server.h"
 #include "terminal.h"
+#include "wstring.h"
 
 namespace {
 
@@ -168,24 +169,31 @@ int main(int argc, const char** argv) {
   while (!editor_state()->terminate()) {
     terminal.Display(editor_state());
 
-    vector<shared_ptr<OpenBuffer>> buffers_reading;
+    std::vector<std::shared_ptr<OpenBuffer>> buffers;
+
+    // The file descriptor at position i will be either fd or fd_error of
+    // buffers[i]. The exception to this is fd 0 (at the end).
+    struct pollfd fds[editor_state()->buffers()->size() * 2 + 2];
+    buffers.reserve(sizeof(fds) / sizeof(fds[0]));
+
     for (auto& buffer : *editor_state()->buffers()) {
-      if (buffer.second->fd() == -1) { continue; }
-      buffers_reading.push_back(buffer.second);
+      if (buffer.second->fd() != -1) {
+        fds[buffers.size()].fd = buffer.second->fd();
+        fds[buffers.size()].events = POLLIN | POLLPRI;
+        buffers.push_back(buffer.second);
+      }
+      if (buffer.second->fd_error() != -1) {
+        fds[buffers.size()].fd = buffer.second->fd_error();
+        fds[buffers.size()].events = POLLIN | POLLPRI;
+        buffers.push_back(buffer.second);
+      }
     }
 
-    struct pollfd fds[buffers_reading.size() + 2];
-
-    for (size_t i = 0; i < buffers_reading.size(); i++) {
-      fds[i].fd = buffers_reading[i]->fd();
-      fds[i].events = POLLIN | POLLPRI;
-    }
-
-    fds[buffers_reading.size()].fd = 0;
-    fds[buffers_reading.size()].events = POLLIN | POLLPRI;
+    fds[buffers.size()].fd = 0;
+    fds[buffers.size()].events = POLLIN | POLLPRI;
 
     int results;
-    while ((results = poll(fds, buffers_reading.size() + 1, -1)) <= 0) {
+    while ((results = poll(fds, buffers.size() + 1, -1)) <= 0) {
       if (results == -1) {
         switch (errno) {
           case EINTR:
@@ -198,7 +206,7 @@ int main(int argc, const char** argv) {
       }
     }
 
-    for (size_t i = 0; i < buffers_reading.size() + 1; i++) {
+    for (size_t i = 0; i < buffers.size() + 1; i++) {
       if (!(fds[i].revents & (POLLIN | POLLPRI | POLLHUP))) {
         continue;
       }
@@ -211,8 +219,16 @@ int main(int argc, const char** argv) {
         continue;
       }
 
-      assert(i < buffers_reading.size());
-      buffers_reading[i]->ReadData(editor_state());
+      CHECK_LE(i, buffers.size());
+      if (fds[i].fd == buffers[i]->fd()) {
+        LOG(INFO) << "Reading (normal): " << buffers[i]->name();
+        buffers[i]->ReadData(editor_state());
+      } else if (fds[i].fd == buffers[i]->fd_error()) {
+        LOG(INFO) << "Reading (error): " << buffers[i]->name();
+        buffers[i]->ReadErrorData(editor_state());
+      } else {
+        LOG(FATAL) << "Invalid file descriptor.";
+      }
     }
   }
 

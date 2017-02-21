@@ -75,6 +75,7 @@ class OpenBuffer {
                           LineColumn end);
 
   void ReadData(EditorState* editor_state);
+  void ReadErrorData(EditorState* editor_state);
 
   void Reload(EditorState* editor_state);
   virtual void EndOfFile(EditorState* editor_state);
@@ -237,7 +238,8 @@ class OpenBuffer {
     *current_cursor_->first = line;
   }
 
-  int fd() const { return fd_; }
+  int fd() const { return fd_.fd; }
+  int fd_error() const { return fd_error_.fd; }
 
   // We deliberately provide only a read view into our contents. All
   // modifications should be done through methods defined in this class.
@@ -318,8 +320,9 @@ class OpenBuffer {
   bool AddKeyboardTextTransformer(EditorState* editor_state,
                                   unique_ptr<Value> transformer);
 
-  void SetInputFile(EditorState* editor_state, int fd, bool fd_is_terminal,
-                    pid_t child_pid);
+  void SetInputFiles(
+      EditorState* editor_state, int input_fd, int input_fd_error,
+      bool fd_is_terminal, pid_t child_pid);
 
   void CopyVariablesFrom(const shared_ptr<const OpenBuffer>& buffer);
 
@@ -433,25 +436,37 @@ class OpenBuffer {
 
   wstring name_;
 
-  // -1 means "no file descriptor" (i.e. not currently loading this).
-  int fd_;
+  struct Input {
+    void Close();
+    void Reset();
+    void ReadData(EditorState* editor_state, OpenBuffer* target);
+
+    // -1 means "no file descriptor" (i.e. not currently loading this).
+    int fd = -1;
+
+    // We read directly into low_buffer_ and then drain from that into contents_.
+    // It's possible that not all bytes read can be converted (for example, if the
+    // reading stops in the middle of a wide character).
+    char* low_buffer = nullptr;
+    size_t low_buffer_length = 0;
+
+    unordered_set<Line::Modifier, hash<int>> modifiers;
+  };
+
+  Input fd_;
+  Input fd_error_;
+
   // This is used to remember if we obtained a terminal for the file descriptor
   // (for a subprocess).  Typically this has the same value of pts_ after a
   // subprocess is started, but it's a separate value to allow the user to
   // change the value of pts_ without breaking things (when one command is
   // already running).
-  bool fd_is_terminal_;
+  bool fd_is_terminal_ = false;
 
-  // functions to be called when the end of file is reached. The functions will
+  // Functions to be called when the end of file is reached. The functions will
   // be called at most once (so they won't be notified if the buffer is
   // reloaded.
   vector<std::function<void()>> end_of_file_observers_;
-
-  // We read directly into low_buffer_ and then drain from that into contents_.
-  // It's possible that not all bytes read can be converted (for example, if the
-  // reading stops in the middle of a wide character).
-  char* low_buffer_ = nullptr;
-  size_t low_buffer_length_ = 0;
 
   // -1 means "no child process"
   pid_t child_pid_;

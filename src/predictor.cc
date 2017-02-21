@@ -201,7 +201,7 @@ void FilePredictor(EditorState* editor_state,
     exit(0);
   }
   close(pipefd[child_fd]);
-  buffer->SetInputFile(editor_state, pipefd[parent_fd], false, child_pid);
+  buffer->SetInputFiles(editor_state, pipefd[parent_fd], -1, false, child_pid);
 }
 
 void EmptyPredictor(

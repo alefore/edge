@@ -478,8 +478,6 @@ using std::to_wstring;
 OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
     : editor_(editor_state),
       name_(name),
-      fd_(-1),
-      fd_is_terminal_(false),
       child_pid_(-1),
       child_exit_status_(0),
       position_pts_(LineColumn(0, 0)),
@@ -548,7 +546,7 @@ void OpenBuffer::Close(EditorState* editor_state) {
 }
 
 void OpenBuffer::AddEndOfFileObserver(std::function<void()> observer) {
-  if (fd_ == -1) {
+  if (fd_.fd == -1) {
     observer();
     return;
   }
@@ -577,9 +575,8 @@ void OpenBuffer::AppendEmptyLine(EditorState*) {
 }
 
 void OpenBuffer::EndOfFile(EditorState* editor_state) {
-  close(fd_);
-  low_buffer_ = nullptr;
-  low_buffer_length_ = 0;
+  CHECK_EQ(fd_.fd, -1);
+  CHECK_EQ(fd_error_.fd, -1);
   if (child_pid_ != -1) {
     if (waitpid(child_pid_, &child_exit_status_, 0) == -1) {
       editor_state->SetStatus(
@@ -587,7 +584,6 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
       return;
     }
   }
-  fd_ = -1;
   child_pid_ = -1;
   if (read_bool_variable(variable_reload_after_exit())) {
     set_bool_variable(variable_reload_after_exit(),
@@ -657,43 +653,71 @@ LineColumn OpenBuffer::MovePosition(
 }
 
 void OpenBuffer::ReadData(EditorState* editor_state) {
-  auto updater = BlockParseTreeUpdates();
-  static const size_t kLowBufferSize = 1024 * 60;
-  if (low_buffer_ == nullptr) {
-    CHECK_EQ(low_buffer_length_, 0);
-    low_buffer_ = static_cast<char*>(malloc(kLowBufferSize));
+  fd_.ReadData(editor_state, this);
+}
+
+void OpenBuffer::ReadErrorData(EditorState* editor_state) {
+  fd_error_.ReadData(editor_state, this);
+}
+
+vector<unordered_set<Line::Modifier, hash<int>>> ModifiersVector(
+    const unordered_set<Line::Modifier, hash<int>>& input, size_t size) {
+  vector<unordered_set<Line::Modifier, hash<int>>> output;
+  for (size_t i = 0; i < size; i++) {
+    output.push_back(input);
   }
-  ssize_t characters_read =
-      read(fd_, low_buffer_ + low_buffer_length_,
-           kLowBufferSize - low_buffer_length_);
+  return output;
+}
+
+void OpenBuffer::Input::ReadData(
+    EditorState* editor_state, OpenBuffer* target) {
+  LOG(INFO) << "Reading input from " << fd << " for buffer " << target->name();
+  auto updater = target->BlockParseTreeUpdates();
+  static const size_t kLowBufferSize = 1024 * 60;
+  if (low_buffer == nullptr) {
+    CHECK_EQ(low_buffer_length, 0);
+    low_buffer = static_cast<char*>(malloc(kLowBufferSize));
+  }
+  ssize_t characters_read = read(fd, low_buffer + low_buffer_length,
+                                 kLowBufferSize - low_buffer_length);
   LOG(INFO) << "Read returns: " << characters_read;
   if (characters_read == -1) {
     if (errno == EAGAIN) {
       return;
     }
-    return EndOfFile(editor_state);
+    Close();
+    Reset();
+    if (target->fd_.fd == -1 && target->fd_error_.fd == -1) {
+      target->EndOfFile(editor_state);
+    }
+    return;
   }
   CHECK_GE(characters_read, 0);
-  CHECK_LE(characters_read, kLowBufferSize - low_buffer_length_);
+  CHECK_LE(characters_read, kLowBufferSize - low_buffer_length);
   if (characters_read == 0) {
-    return EndOfFile(editor_state);
+    Close();
+    Reset();
+    if (target->fd_.fd == -1 && target->fd_error_.fd == -1) {
+      target->EndOfFile(editor_state);
+    }
+    return;
   }
-  low_buffer_length_ += characters_read;
+  low_buffer_length += characters_read;
 
-  const char* low_buffer_tmp = low_buffer_;
+  const char* low_buffer_tmp = low_buffer;
   int output_characters =
-      mbsnrtowcs(nullptr, &low_buffer_tmp, low_buffer_length_, 0, nullptr);
+      mbsnrtowcs(nullptr, &low_buffer_tmp, low_buffer_length, 0, nullptr);
   std::vector<wchar_t> buffer(
-      output_characters == -1 ? low_buffer_length_ : output_characters);
+      output_characters == -1 ? low_buffer_length : output_characters);
 
-  low_buffer_tmp = low_buffer_;
+  low_buffer_tmp = low_buffer;
   if (output_characters == -1) {
     low_buffer_tmp = nullptr;
-    for (size_t i = 0; i < low_buffer_length_; i++) {
-      buffer[i] = static_cast<wchar_t>(low_buffer_[i]);
+    for (size_t i = 0; i < low_buffer_length; i++) {
+      buffer[i] = static_cast<wchar_t>(low_buffer[i]);
     }
   } else {
-    mbsnrtowcs(&buffer[0], &low_buffer_tmp, low_buffer_length_, buffer.size(),
+    mbsnrtowcs(&buffer[0], &low_buffer_tmp, low_buffer_length, buffer.size(),
                nullptr);
   }
 
@@ -701,30 +725,26 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
   VLOG(5) << "Input: [" << buffer_wrapper->ToString() << "]";
 
   size_t processed = low_buffer_tmp == nullptr
-      ? low_buffer_length_
-      : low_buffer_tmp - low_buffer_;
-  VLOG(5) << name_ << ": Characters consumed: " << processed;
-  VLOG(5) << name_ << ": Characters produced: " << buffer_wrapper->size();
-  CHECK_LE(processed, low_buffer_length_);
-  memmove(low_buffer_, low_buffer_tmp, low_buffer_length_ - processed);
-  low_buffer_length_ -= processed;
-  if (low_buffer_length_ == 0) {
+      ? low_buffer_length
+      : low_buffer_tmp - low_buffer;
+  VLOG(5) << target->name() << ": Characters consumed: " << processed;
+  VLOG(5) << target->name() << ": Characters produced: "
+          << buffer_wrapper->size();
+  CHECK_LE(processed, low_buffer_length);
+  memmove(low_buffer, low_buffer_tmp, low_buffer_length - processed);
+  low_buffer_length -= processed;
+  if (low_buffer_length == 0) {
     LOG(INFO) << "Consumed all input.";
-    free(low_buffer_);
-    low_buffer_ = nullptr;
+    free(low_buffer);
+    low_buffer = nullptr;
   }
 
-  if (contents_.empty()) {
-    contents_.emplace_back(new Line(Line::Options()));
-    MaybeFollowToEndOfFile();
+  if (target->read_bool_variable(OpenBuffer::variable_vm_exec())) {
+    target->EvaluateString(editor_state, buffer_wrapper->ToString());
   }
 
-  if (read_bool_variable(variable_vm_exec())) {
-    EvaluateString(editor_state, buffer_wrapper->ToString());
-  }
-
-  if (read_bool_variable(variable_pts())) {
-    ProcessCommandInput(editor_state, buffer_wrapper);
+  if (target->read_bool_variable(OpenBuffer::variable_pts())) {
+    target->ProcessCommandInput(editor_state, buffer_wrapper);
     editor_state->ScheduleRedraw();
   } else {
     size_t line_start = 0;
@@ -732,14 +752,15 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
       if (buffer_wrapper->get(i) == '\n') {
         auto line = Substring(buffer_wrapper, line_start, i - line_start);
         VLOG(8) << "Adding line from " << line_start << " to " << i;
-        AppendToLastLine(editor_state, line);
-        StartNewLine(editor_state);
-        MaybeFollowToEndOfFile();
+        target->AppendToLastLine(editor_state, line,
+                                 ModifiersVector(modifiers, line->size()));
+        target->StartNewLine(editor_state);
+        target->MaybeFollowToEndOfFile();
         line_start = i + 1;
         if (editor_state->has_current_buffer()
-            && editor_state->current_buffer()->second.get() == this
-            && contents_.size() <=
-                   view_start_line_ + editor_state->visible_lines()) {
+            && editor_state->current_buffer()->second.get() == target
+            && target->contents()->size() <=
+                   target->view_start_line() + editor_state->visible_lines()) {
           editor_state->ScheduleRedraw();
         }
       }
@@ -747,10 +768,10 @@ void OpenBuffer::ReadData(EditorState* editor_state) {
     if (line_start < buffer_wrapper->size()) {
       VLOG(8) << "Adding last line from " << line_start << " to "
               << buffer_wrapper->size();
-      AppendToLastLine(
-          editor_state,
-          Substring(buffer_wrapper, line_start,
-                    buffer_wrapper->size() - line_start));
+      auto line = Substring(buffer_wrapper, line_start,
+                            buffer_wrapper->size() - line_start);
+      target->AppendToLastLine(
+          editor_state, line, ModifiersVector(modifiers, line->size()));
     }
   }
   if (editor_state->has_current_buffer()
@@ -1897,7 +1918,7 @@ void OpenBuffer::PushSignal(EditorState* editor_state, int sig) {
     case SIGINT:
       if (read_bool_variable(variable_pts())) {
         string sequence(1, 0x03);
-        write(fd_, sequence.c_str(), sequence.size());
+        write(fd_.fd, sequence.c_str(), sequence.size());
         editor_state->SetStatus(L"SIGINT");
       } else if (child_pid_ != -1) {
         editor_state->SetStatus(L"SIGINT >> pid:" + to_wstring(child_pid_));
@@ -1908,7 +1929,7 @@ void OpenBuffer::PushSignal(EditorState* editor_state, int sig) {
     case SIGTSTP:
       if (read_bool_variable(variable_pts())) {
         string sequence(1, 0x1a);
-        write(fd_, sequence.c_str(), sequence.size());
+        write(fd_.fd, sequence.c_str(), sequence.size());
       }
       // TODO(alejo): If not pts, we should pause ourselves.  This requires
       // calling the signal handler installed by ncurses so that we don't end up
@@ -1948,19 +1969,34 @@ bool OpenBuffer::AddKeyboardTextTransformer(EditorState* editor_state,
   return true;
 }
 
-void OpenBuffer::SetInputFile(
-    EditorState* editor_state, int input_fd, bool fd_is_terminal,
-    pid_t child_pid) {
+void OpenBuffer::Input::Reset() {
+  low_buffer = nullptr;
+  low_buffer_length = 0;
+}
+
+void OpenBuffer::Input::Close() {
+  if (fd != -1) { close(fd); fd = -1; }
+}
+
+void OpenBuffer::SetInputFiles(
+    EditorState* editor_state, int input_fd, int input_error_fd,
+    bool fd_is_terminal, pid_t child_pid) {
   if (read_bool_variable(variable_clear_on_reload())) {
     ClearContents(editor_state);
-    low_buffer_ = nullptr;
-    low_buffer_length_ = 0;
+    fd_.Reset();
+    fd_error_.Reset();
   }
-  if (fd_ != -1) {
-    close(fd_);
-  }
-  assert(child_pid_ == -1);
-  fd_ = input_fd;
+
+  fd_.Close();
+  fd_.fd = input_fd;
+
+  fd_error_.Close();
+  fd_error_.fd = input_error_fd;
+  fd_error_.modifiers.clear();
+  fd_error_.modifiers.insert(Line::RED);
+  fd_error_.modifiers.insert(Line::BOLD);
+
+  CHECK_EQ(child_pid_, -1);
   fd_is_terminal_ = fd_is_terminal;
   child_pid_ = child_pid;
 }

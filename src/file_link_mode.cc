@@ -78,7 +78,7 @@ class FileBuffer : public OpenBuffer {
         RunCommandHandler(L"parsers/passwd <" + path, editor_state);
       } else {
         int fd = open(ToByteString(path).c_str(), O_RDONLY);
-        target->SetInputFile(editor_state, fd, false, -1);
+        target->SetInputFiles(editor_state, fd, -1, false, -1);
       }
       editor_state->CheckPosition();
       editor_state->PushCurrentPosition();

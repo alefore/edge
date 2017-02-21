@@ -67,7 +67,8 @@ class CommandBuffer : public OpenBuffer {
             std::move(environment))) {}
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
-    int pipefd[2];
+    int pipefd_out[2];
+    int pipefd_err[2];
     static const int parent_fd = 0;
     static const int child_fd = 1;
     if (read_bool_variable(variable_pts())) {
@@ -95,17 +96,20 @@ class CommandBuffer : public OpenBuffer {
         cerr << "ioctl TIOCSWINSZ failed: " << string(strerror(errno));
         exit(1);
       }
-      pipefd[parent_fd] = master_fd;
+      pipefd_out[parent_fd] = master_fd;
       char* pts_path = ptsname(master_fd);
       target->set_string_variable(
           variable_pts_path(), FromByteString(pts_path));
-      pipefd[child_fd] = open(pts_path, O_RDWR);
-      if (pipefd[child_fd] == -1) {
+      pipefd_out[child_fd] = open(pts_path, O_RDWR);
+      if (pipefd_out[child_fd] == -1) {
         cerr << "open failed: " << pts_path << ": " << string(strerror(errno));
         exit(1);
       }
-    } else if (socketpair(PF_LOCAL, SOCK_STREAM, 0, pipefd) == -1) {
-      cerr << "socketpair failed: " << string(strerror(errno));
+      pipefd_out[parent_fd] = -1;
+      pipefd_err[parent_fd] = -1;
+    } else if (socketpair(PF_LOCAL, SOCK_STREAM, 0, pipefd_out) == -1
+               || socketpair(PF_LOCAL, SOCK_STREAM, 0, pipefd_err) == -1) {
+      LOG(FATAL) << "socketpair failed: " << strerror(errno);
       exit(1);
     }
 
@@ -116,20 +120,28 @@ class CommandBuffer : public OpenBuffer {
       return;
     }
     if (child_pid == 0) {
-      close(pipefd[parent_fd]);
+      close(pipefd_out[parent_fd]);
+      close(pipefd_err[parent_fd]);
 
       if (setsid() == -1) {
         cerr << "setsid failed: " << string(strerror(errno));
         exit(1);
       }
 
-      if (dup2(pipefd[child_fd], 0) == -1) { exit(1); }
-      if (dup2(pipefd[child_fd], 1) == -1) { exit(1); }
-      if (dup2(pipefd[child_fd], 2) == -1) { exit(1); }
-      if (pipefd[child_fd] != 0
-          && pipefd[child_fd] != 1
-          && pipefd[child_fd] != 2) {
-        close(pipefd[child_fd]);
+      if (dup2(pipefd_out[child_fd], 0) == -1
+          || dup2(pipefd_out[child_fd], 1) == -1
+          || dup2(pipefd_err[child_fd], 2) == -1) {
+        LOG(FATAL) << "dup2 failed!";
+      }
+      if (pipefd_out[child_fd] != 0
+          && pipefd_out[child_fd] != 1
+          && pipefd_out[child_fd] != 2) {
+        close(pipefd_out[child_fd]);
+      }
+      if (pipefd_err[child_fd] != 0
+          && pipefd_err[child_fd] != 1
+          && pipefd_err[child_fd] != 2) {
+        close(pipefd_err[child_fd]);
       }
 
       map<string, string> environment;
@@ -161,7 +173,7 @@ class CommandBuffer : public OpenBuffer {
         envp[position++] = strdup(str.c_str());
       }
       envp[position++] = nullptr;
-      assert(position = environment.size() + 1);
+      CHECK_EQ(position, environment.size() + 1);
 
       char* argv[] = {
           strdup("sh"),
@@ -172,10 +184,11 @@ class CommandBuffer : public OpenBuffer {
       int status = execve("/bin/sh", argv, envp);
       exit(WIFEXITED(status) ? WEXITSTATUS(status) : 1);
     }
-    close(pipefd[child_fd]);
-    target->SetInputFile(
-        editor_state, pipefd[parent_fd], read_bool_variable(variable_pts()),
-        child_pid);
+    close(pipefd_out[child_fd]);
+    close(pipefd_err[child_fd]);
+    target->SetInputFiles(
+        editor_state, pipefd_out[parent_fd], pipefd_err[parent_fd],
+        read_bool_variable(variable_pts()), child_pid);
     editor_state->ScheduleRedraw();
   }
 
