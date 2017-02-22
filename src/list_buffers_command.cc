@@ -4,6 +4,7 @@
 #include "command.h"
 #include "editor.h"
 #include "file_link_mode.h"
+#include "insert_mode.h"
 #include "lazy_string_append.h"
 #include "line_prompt_mode.h"
 #include "send_end_of_file_command.h"
@@ -16,34 +17,36 @@ namespace {
 
 class ActivateBufferLineCommand : public EditorMode {
  public:
-  ActivateBufferLineCommand(const wstring& name) : name_(name) {}
+  ActivateBufferLineCommand(std::shared_ptr<OpenBuffer>& buffer)
+      : buffer_weak_(buffer) {}
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
+    auto buffer = buffer_weak_.lock();
     switch (c) {
       case 0:  // Send EOF
         {
-          auto it = editor_state->buffers()->find(name_);
-          if (it == editor_state->buffers()->end()) {
+          if (buffer == nullptr) {
             // TODO: Keep a function and re-open the buffer?
-            editor_state->SetStatus(L"Buffer not found: " + name_);
+            editor_state->SetStatus(L"Buffer not found");
             return;
           }
           editor_state->ResetStatus();
-          SendEndOfFileToBuffer(editor_state, it->second);
+          SendEndOfFileToBuffer(editor_state, buffer);
           editor_state->ScheduleRedraw();
           break;
         }
       case '\n':  // Open the current buffer.
         {
-          auto it = editor_state->buffers()->find(name_);
-          if (it == editor_state->buffers()->end()) {
+          if (buffer == nullptr) {
             // TODO: Keep a function and re-open the buffer?
-            editor_state->SetStatus(L"Buffer not found: " + name_);
+            editor_state->SetStatus(L"Buffer not found");
             return;
           }
           editor_state->ResetStatus();
+          auto it = editor_state->buffers()->find(buffer->name());
+          if (it == editor_state->buffers()->end()) { return; }
           editor_state->set_current_buffer(it);
-          it->second->Enter(editor_state);
+          buffer->Enter(editor_state);
           editor_state->PushCurrentPosition();
           editor_state->ScheduleRedraw();
           editor_state->ResetMode();
@@ -51,33 +54,40 @@ class ActivateBufferLineCommand : public EditorMode {
         }
       case 'd':  // Delete (close) the current buffer.
         {
-          auto it = editor_state->buffers()->find(name_);
+          if (buffer == nullptr) { return; }
+          auto it = editor_state->buffers()->find(buffer->name());
           if (it == editor_state->buffers()->end()) { return; }
           editor_state->CloseBuffer(it);
           break;
         }
       case 'r':  // Reload the current buffer.
         {
-          auto it = editor_state->buffers()->find(name_);
-          if (it == editor_state->buffers()->end()) { return; }
-          editor_state->SetStatus(L"Reloading buffer: " + name_);
-          it->second->Reload(editor_state);
+          if (buffer == nullptr) { return; }
+          editor_state->SetStatus(L"Reloading buffer: " + buffer->name());
+          buffer->Reload(editor_state);
           break;
         }
       case 'w':  // Write the current buffer.
         {
-          auto it = editor_state->buffers()->find(name_);
-          if (it == editor_state->buffers()->end()) { return; }
-          editor_state->SetStatus(L"Saving buffer: " + name_);
-          it->second->Save(editor_state);
+          editor_state->SetStatus(L"Saving buffer: " + buffer->name());
+          buffer->Save(editor_state);
           break;
         }
     }
   }
 
  private:
-  const wstring name_;
+  const std::weak_ptr<OpenBuffer> buffer_weak_;
 };
+
+void InsertToBuffer(EditorState* editor_state,
+                    std::weak_ptr<OpenBuffer> buffer_weak) {
+  InsertModeOptions options;
+  options.editor_state = editor_state;
+  options.buffer = buffer_weak.lock();
+  if (options.buffer == nullptr) { return; }
+  EnterInsertMode(options);
+}
 
 class ListBuffersBuffer : public OpenBuffer {
  public:
@@ -97,8 +107,7 @@ class ListBuffersBuffer : public OpenBuffer {
           + (flags.empty() ? L"" : L"  ") + flags
           + (context.first == context.second ? L"" : L" ──"));
       target->AppendLine(editor_state, std::move(name));
-      (*target->contents()->rbegin())->set_activate(
-          unique_ptr<EditorMode>(new ActivateBufferLineCommand(it.first)));
+      AdjustLastLine(editor_state, target, it.second);
 
       auto start = context.first;
       while (start < context.second) {
@@ -111,8 +120,7 @@ class ListBuffersBuffer : public OpenBuffer {
         options.modifiers.insert(
             options.modifiers.end(), modifiers.begin(), modifiers.end());
         target->AppendRawLine(editor_state, std::make_shared<Line>(options));
-        (*target->contents()->rbegin())->set_activate(
-            unique_ptr<EditorMode>(new ActivateBufferLineCommand(it.first)));
+        AdjustLastLine(editor_state, target, it.second);
         ++start;
       }
     }
@@ -150,6 +158,20 @@ class ListBuffersBuffer : public OpenBuffer {
     }
     CHECK(start <= stop);
     return make_pair(start, stop);
+  }
+
+ private:
+  void AdjustLastLine(EditorState* editor_state, OpenBuffer* target,
+                      std::shared_ptr<OpenBuffer> buffer) {
+    Line& line = *(*target->contents()->rbegin());
+    line.set_activate(
+        unique_ptr<EditorMode>(new ActivateBufferLineCommand(buffer)));
+    std::weak_ptr<OpenBuffer> buffer_weak = buffer;
+    line.SetHandler(
+        Line::INSERT,
+        [editor_state, buffer_weak]() {
+          InsertToBuffer(editor_state, buffer_weak);
+        });
   }
 };
 

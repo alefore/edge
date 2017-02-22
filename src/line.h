@@ -51,6 +51,14 @@ class Line {
     shared_ptr<LazyString> contents;
   };
 
+  // TODO: Replace 'activate_' with this. It's much more flexible (e.g. it
+  // allows us to check for presence of a given handler).
+  enum HandlerType {
+    INSERT,
+  };
+
+  using Handler = std::function<void()>;
+
   Line(const Options& options);
 
   shared_ptr<LazyString> contents() { return contents_; }
@@ -95,6 +103,15 @@ class Line {
     filter_version_ = filter_version;
   }
 
+  void SetHandler(HandlerType handler_type, Handler handler) {
+    handlers_[handler_type] = std::move(handler);
+  }
+
+  Handler handler(HandlerType handler_type) {
+    auto it = handlers_.find(handler_type);
+    return it == handlers_.end() ? nullptr : it->second;
+  }
+
   class OutputReceiverInterface {
    public:
     virtual void AddCharacter(wchar_t character) = 0;
@@ -108,6 +125,7 @@ class Line {
               OutputReceiverInterface* receiver);
 
  private:
+  std::map<HandlerType, Handler> handlers_;
   unique_ptr<EditorMode> activate_;
   shared_ptr<LazyString> contents_;
   vector<unordered_set<Modifier, hash<int>>> modifiers_;

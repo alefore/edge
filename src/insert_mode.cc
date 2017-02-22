@@ -594,6 +594,13 @@ void EnterInsertMode(InsertModeOptions options) {
     options.buffer = editor_state->current_buffer()->second;
   }
 
+  if (!options.buffer->contents()->empty()
+      && options.buffer->current_line()->handler(Line::INSERT) != nullptr) {
+    LOG(INFO) << "Calling Line::INSERT handler.";
+    options.buffer->current_line()->handler(Line::INSERT)();
+    return;
+  }
+
   if (!options.modify_listener) {
     options.modify_listener = []() { /* Nothing. */ };
   }
