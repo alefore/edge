@@ -149,6 +149,8 @@ void FilePredictor(EditorState* editor_state,
         dirname_prefix = ToByteString(path_with_prefix);
         if (dirname_prefix.back() != '/') {
           dirname_prefix.push_back('/');
+          cout << dirname_prefix << "\n";
+          continue;
         }
       } else {
         char* dirname_copy = strdup(ToByteString(path_with_prefix).c_str());

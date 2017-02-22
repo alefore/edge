@@ -330,7 +330,8 @@ class InsertMode : public EditorMode {
     switch (c) {
       case '\t':
         if (options_.start_completion()) {
-          return;  // Completion has started, avoid inserting '\t'.
+          LOG(INFO) << "Completion has started, avoid inserting '\\t'.";
+          return;
         }
         break;
 
@@ -626,6 +627,7 @@ void EnterInsertMode(InsertModeOptions options) {
   if (!options.start_completion) {
     auto buffer = options.buffer;
     options.start_completion = [editor_state, buffer]() {
+      LOG(INFO) << "Start default completion.";
       return StartCompletion(editor_state, buffer);
     };
   }

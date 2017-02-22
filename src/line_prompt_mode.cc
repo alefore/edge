@@ -292,11 +292,12 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
 
             UpdateStatus(editor_state, buffer.get(), options.prompt);
             editor_state->ScheduleRedraw();
+          } else {
+            LOG(INFO) << "Prediction didn't advance.";
+            editor_state->set_mode(unique_ptr<AutocompleteMode>(
+                new AutocompleteMode(std::move(editor_state->ResetMode()),
+                                     editor_state->current_buffer())));
           }
-
-          editor_state->set_mode(unique_ptr<AutocompleteMode>(
-              new AutocompleteMode(std::move(editor_state->ResetMode()),
-                                   editor_state->current_buffer())));
         });
     return true;
   };
