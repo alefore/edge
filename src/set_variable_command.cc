@@ -39,6 +39,10 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
   SetVariableCancelHandler(editor_state);
   wstring name = TrimWhitespace(input_name);
   if (name.empty()) { return; }
+
+  if (!editor_state->has_current_buffer()) { return; }
+  auto buffer = editor_state->current_buffer()->second;
+
   {
     auto var = OpenBuffer::StringStruct()->find_variable(name);
     if (var != nullptr) {
@@ -46,17 +50,16 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
       PromptOptions options;
       options.prompt = name + L" := ";
       options.history_file = L"values";
-      options.initial_value =
-          editor_state->current_buffer()->second->read_string_variable(var);
-      options.handler = [var](const wstring& input, EditorState* editor_state) {
-          if (editor_state->has_current_buffer()) {
-            editor_state->current_buffer()
-                ->second->set_string_variable(var, input);
-          }
-          // ResetMode causes the prompt to be deleted, and the captures of
-          // this lambda go away with it.
-          editor_state->ResetMode();
-        };
+      options.initial_value = buffer->read_string_variable(var);
+      options.handler =
+          [var, buffer](const wstring& input, EditorState* editor_state) {
+            if (buffer != nullptr) {
+              buffer->set_string_variable(var, input);
+            }
+            // ResetMode causes the prompt to be deleted, and the captures of
+            // this lambda go away with it.
+            editor_state->ResetMode();
+          };
       options.predictor = var->predictor();
       Prompt(editor_state, std::move(options));
       return;
@@ -65,8 +68,6 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
   {
     auto var = OpenBuffer::BoolStruct()->find_variable(name);
     if (var != nullptr) {
-      if (!editor_state->has_current_buffer()) { return; }
-      auto buffer = editor_state->current_buffer()->second;
       buffer->toggle_bool_variable(var);
       editor_state->SetStatus(
           name + L" := " + (buffer->read_bool_variable(var) ? L"ON" : L"OFF"));
@@ -76,27 +77,24 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
   {
     auto var = OpenBuffer::IntStruct()->find_variable(name);
     if (var != nullptr) {
-      if (!editor_state->has_current_buffer()) { return; }
-      auto buffer = editor_state->current_buffer()->second;
       PromptOptions options;
       options.prompt = name + L" := ",
       options.history_file = L"values",
       options.initial_value = std::to_wstring(
           editor_state->current_buffer()->second->read_int_variable(var)),
-      options.handler = [var](const wstring& input, EditorState* editor_state) {
-          if (!editor_state->has_current_buffer()) { return; }
-          try {
-            editor_state->current_buffer()
-                ->second->set_int_variable(var, stoi(input));
-          } catch (const std::invalid_argument& ia) {
-            editor_state->SetStatus(
-                L"Invalid value for integer value “" + var->name() + L"”: " +
-                FromByteString(ia.what()));
-          }
-          // ResetMode causes the prompt to be deleted, and the captures of
-          // this lambda go away with it.
-          editor_state->ResetMode();
-        };
+      options.handler =
+          [var, buffer](const wstring& input, EditorState* editor_state) {
+            try {
+              buffer->set_int_variable(var, stoi(input));
+            } catch (const std::invalid_argument& ia) {
+              editor_state->SetStatus(
+                  L"Invalid value for integer value “" + var->name() + L"”: " +
+                  FromByteString(ia.what()));
+            }
+            // ResetMode causes the prompt to be deleted, and the captures of
+            // this lambda go away with it.
+            editor_state->ResetMode();
+          };
       Prompt(editor_state, std::move(options));
       return;
     }
