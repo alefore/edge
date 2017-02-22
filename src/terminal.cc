@@ -66,7 +66,10 @@ void Terminal::Display(EditorState* editor_state) {
     refresh();
     return;
   }
-  auto const& buffer = editor_state->current_buffer()->second;
+  auto& buffer = editor_state->current_buffer()->second;
+  if (buffer->read_bool_variable(OpenBuffer::variable_reload_on_display())) {
+    buffer->Reload(editor_state);
+  }
   size_t line =
       min(buffer->current_position_line(), buffer->contents()->size() - 1);
   if (buffer->view_start_line() > line) {

@@ -2082,6 +2082,7 @@ wstring OpenBuffer::FlagsString() const {
     OpenBuffer::variable_reload_on_buffer_write();
     OpenBuffer::variable_contains_line_marks();
     OpenBuffer::variable_multiple_cursors();
+    OpenBuffer::variable_reload_on_display();
   }
   return output;
 }
@@ -2229,6 +2230,15 @@ OpenBuffer::variable_allow_dirty_delete() {
       L"multiple_cursors",
       L"If set to true, operations in this buffer apply to all cursors defined "
       L"on it.",
+      false);
+  return variable;
+}
+
+/* static */ EdgeVariable<char>* OpenBuffer::variable_reload_on_display() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+      L"reload_on_display",
+      L"If set to true, a buffer will always be reloaded before being "
+      L"displayed.",
       false);
   return variable;
 }

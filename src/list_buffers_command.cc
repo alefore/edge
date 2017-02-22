@@ -94,6 +94,7 @@ class ListBuffersBuffer : public OpenBuffer {
   ListBuffersBuffer(EditorState* editor_state, const wstring& name)
       : OpenBuffer(editor_state, name) {
     set_bool_variable(variable_atomic_lines(), true);
+    set_bool_variable(variable_reload_on_display(), true);
   }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
