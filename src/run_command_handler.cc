@@ -105,8 +105,8 @@ class CommandBuffer : public OpenBuffer {
         cerr << "open failed: " << pts_path << ": " << string(strerror(errno));
         exit(1);
       }
-      pipefd_out[parent_fd] = -1;
       pipefd_err[parent_fd] = -1;
+      pipefd_err[child_fd] = -1;
     } else if (socketpair(PF_LOCAL, SOCK_STREAM, 0, pipefd_out) == -1
                || socketpair(PF_LOCAL, SOCK_STREAM, 0, pipefd_err) == -1) {
       LOG(FATAL) << "socketpair failed: " << strerror(errno);
@@ -130,7 +130,10 @@ class CommandBuffer : public OpenBuffer {
 
       if (dup2(pipefd_out[child_fd], 0) == -1
           || dup2(pipefd_out[child_fd], 1) == -1
-          || dup2(pipefd_err[child_fd], 2) == -1) {
+          || dup2(pipefd_err[child_fd] == -1
+                      ? pipefd_out[child_fd]
+                      : pipefd_err[child_fd],
+                  2) == -1) {
         LOG(FATAL) << "dup2 failed!";
       }
       if (pipefd_out[child_fd] != 0
@@ -186,6 +189,8 @@ class CommandBuffer : public OpenBuffer {
     }
     close(pipefd_out[child_fd]);
     close(pipefd_err[child_fd]);
+    LOG(INFO) << "Setting input files: " << pipefd_out[parent_fd] << ", "
+              << pipefd_err[parent_fd];
     target->SetInputFiles(
         editor_state, pipefd_out[parent_fd], pipefd_err[parent_fd],
         read_bool_variable(variable_pts()), child_pid);

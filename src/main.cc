@@ -178,11 +178,15 @@ int main(int argc, const char** argv) {
 
     for (auto& buffer : *editor_state()->buffers()) {
       if (buffer.second->fd() != -1) {
+        VLOG(5) << buffer.first << ": Installing (out) fd: "
+                << buffer.second->fd();
         fds[buffers.size()].fd = buffer.second->fd();
         fds[buffers.size()].events = POLLIN | POLLPRI;
         buffers.push_back(buffer.second);
       }
       if (buffer.second->fd_error() != -1) {
+        VLOG(5) << buffer.first << ": Installing (err) fd: "
+                << buffer.second->fd();
         fds[buffers.size()].fd = buffer.second->fd_error();
         fds[buffers.size()].events = POLLIN | POLLPRI;
         buffers.push_back(buffer.second);
