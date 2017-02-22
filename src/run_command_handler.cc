@@ -274,10 +274,6 @@ void ForkCommand(EditorState* editor_state, const ForkCommandOptions& options) {
   if (it.second) {
     it.first->second.reset(new CommandBuffer(
         editor_state, buffer_name, options.command, options.environment));
-    if (editor_state->has_current_buffer()) {
-      it.first->second
-          ->CopyVariablesFrom(editor_state->current_buffer()->second);
-    }
     it.first->second->set_string_variable(
         OpenBuffer::variable_command(), options.command);
     it.first->second->set_string_variable(OpenBuffer::variable_path(), L"");
