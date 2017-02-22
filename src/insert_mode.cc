@@ -596,6 +596,7 @@ void EnterInsertMode(InsertModeOptions options) {
   }
 
   if (!options.buffer->contents()->empty()
+      && options.buffer->current_line() != nullptr
       && options.buffer->current_line()->handler(Line::INSERT) != nullptr) {
     LOG(INFO) << "Calling Line::INSERT handler.";
     options.buffer->current_line()->handler(Line::INSERT)();
