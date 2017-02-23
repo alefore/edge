@@ -105,7 +105,12 @@ class ListBuffersBuffer : public OpenBuffer {
         LOG(INFO) << "Skipping current buffer.";
         continue;
       }
-      auto context = LinesToShow(*it.second);
+      size_t context_lines_var = static_cast<size_t>(
+          max(it.second->read_int_variable(
+                  OpenBuffer::variable_buffer_list_context_lines()),
+              0));
+      auto context = LinesToShow(*it.second, context_lines_var);
+
       wstring flags = it.second->FlagsString();
       auto name = NewCopyString(
           (context.first == context.second ? L"" : L"╭──") + it.first
@@ -115,18 +120,23 @@ class ListBuffersBuffer : public OpenBuffer {
       AdjustLastLine(editor_state, target, it.second);
 
       auto start = context.first;
-      while (start < context.second) {
+      size_t index = 0;
+      while (index < context_lines_var) {
         Line::Options options;
-        options.contents = StringAppend(
-            NewCopyString(start + 1 == context.second ? L"╰ " : L"│ "),
-            (*start)->contents());
-        options.modifiers.resize(2);
-        auto modifiers = (*start)->modifiers();
-        options.modifiers.insert(
-            options.modifiers.end(), modifiers.begin(), modifiers.end());
+        options.contents =
+            NewCopyString(index + 1 == context_lines_var ? L"╰ " : L"│ ");
+        if (start < context.second) {
+          options.contents =
+              StringAppend(options.contents, (*start)->contents());
+          options.modifiers.resize(2);
+          auto modifiers = (*start)->modifiers();
+          options.modifiers.insert(
+              options.modifiers.end(), modifiers.begin(), modifiers.end());
+          ++start;
+        }
         target->AppendRawLine(editor_state, std::make_shared<Line>(options));
         AdjustLastLine(editor_state, target, it.second);
-        ++start;
+        ++index;
       }
     }
     editor_state->ScheduleRedraw();
@@ -134,12 +144,8 @@ class ListBuffersBuffer : public OpenBuffer {
 
   pair<Tree<std::shared_ptr<Line>>::const_iterator,
        Tree<std::shared_ptr<Line>>::const_iterator>
-      LinesToShow(const OpenBuffer& buffer) {
-    size_t context_lines_var = max(buffer.read_int_variable(
-        OpenBuffer::variable_buffer_list_context_lines()), 0);
-
-    size_t lines = min(static_cast<size_t>(context_lines_var),
-                       buffer.contents()->size());
+      LinesToShow(const OpenBuffer& buffer, size_t lines) {
+    lines = min(lines, buffer.contents()->size());
     VLOG(5) << buffer.name() << ": Context lines to show: " << lines;
     if (lines == 0) {
       auto last = buffer.contents()->end();
