@@ -487,25 +487,28 @@ static wstring kPositionsBufferName = L"- positions";
 
 void EditorState::PushCurrentPosition() {
   if (!has_current_buffer()) { return; }
-  auto it = buffers_.find(kPositionsBufferName);
-  if (it == buffers_.end()) {
-    it = buffers_.insert(
-        make_pair(kPositionsBufferName,
-                  shared_ptr<OpenBuffer>(
-                      new OpenBuffer(this, kPositionsBufferName))))
-        .first;
+  auto buffer_it = buffers_.insert(make_pair(kPositionsBufferName, nullptr));
+  if (buffer_it.second) {
+    // Inserted the entry.
+    buffer_it.first->second = shared_ptr<OpenBuffer>(
+        new OpenBuffer(this, kPositionsBufferName));
   }
-  CHECK(it->second != nullptr);
-  CHECK_LE(it->second->position().line, it->second->contents()->size());
+  CHECK(buffer_it.first->second != nullptr);
+  buffer_it.first->second->set_bool_variable(
+      OpenBuffer::variable_show_in_buffers_list(), false);
+  CHECK_LE(buffer_it.first->second->position().line,
+           buffer_it.first->second->contents()->size());
   shared_ptr<Line> line(new Line(Line::Options(
       NewCopyString(
           current_buffer_->second->position().ToString()
           + L" " + current_buffer_->first))));
-  it->second->InsertLine(
-      it->second->contents()->begin() + it->second->current_position_line(),
+  buffer_it.first->second->InsertLine(
+      buffer_it.first->second->contents()->begin()
+          + buffer_it.first->second->current_position_line(),
       line);
-  CHECK_LE(it->second->position().line, it->second->contents()->size());
-  if (it == current_buffer_) {
+  CHECK_LE(buffer_it.first->second->position().line,
+           buffer_it.first->second->contents()->size());
+  if (buffer_it.first == current_buffer_) {
     ScheduleRedraw();
   }
 }
@@ -530,6 +533,8 @@ void EditorState::SetStatus(const wstring& status) {
         new OpenBuffer(this, status_buffer_it.first->first));
     status_buffer_it.first->second->set_bool_variable(
         OpenBuffer::variable_allow_dirty_delete(), true);
+    status_buffer_it.first->second->set_bool_variable(
+        OpenBuffer::variable_show_in_buffers_list(), false);
   }
   status_buffer_it.first->second
       ->AppendLazyString(this, NewCopyString(status));

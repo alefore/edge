@@ -91,6 +91,7 @@ class ServerBuffer : public OpenBuffer {
       : OpenBuffer(editor_state, name) {
     set_bool_variable(variable_clear_on_reload(), false);
     set_bool_variable(variable_vm_exec(), true);
+    set_bool_variable(variable_show_in_buffers_list(), false);
   }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {

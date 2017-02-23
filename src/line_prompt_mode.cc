@@ -56,6 +56,8 @@ GetHistoryBuffer(EditorState* editor_state, const wstring& name) {
   assert(it->second != nullptr);
   it->second->set_bool_variable(
       OpenBuffer::variable_save_on_close(), true);
+  it->second->set_bool_variable(
+      OpenBuffer::variable_show_in_buffers_list(), false);
   if (!editor_state->has_current_buffer()) {
     // Seems lame, but what can we do?
     editor_state->set_current_buffer(it);
@@ -88,6 +90,8 @@ shared_ptr<OpenBuffer> GetPromptBuffer(EditorState* editor_state) {
     element.second = std::make_shared<OpenBuffer>(editor_state, element.first);
     element.second->set_bool_variable(
         OpenBuffer::variable_allow_dirty_delete(), true);
+    element.second->set_bool_variable(
+        OpenBuffer::variable_show_in_buffers_list(), false);
   } else {
     element.second->ClearContents(editor_state);
   }

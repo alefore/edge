@@ -353,6 +353,8 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
   assert(it != editor_state->buffers()->end());
   assert(it->second != nullptr);
   it->second->set_bool_variable(OpenBuffer::variable_save_on_close(), true);
+  it->second->set_bool_variable(
+      OpenBuffer::variable_show_in_buffers_list(), false);
   if (!editor_state->has_current_buffer()) {
     editor_state->set_current_buffer(it);
     editor_state->ScheduleRedraw();

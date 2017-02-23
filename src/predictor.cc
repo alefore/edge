@@ -46,7 +46,9 @@ class PredictionsBufferImpl : public OpenBuffer {
       : OpenBuffer(editor_state, L"- predictions"),
         predictor_(predictor),
         input_(input),
-        consumer_(consumer) {}
+        consumer_(consumer) {
+    set_bool_variable(variable_show_in_buffers_list(), false);
+  }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* buffer) {
     predictor_(editor_state, input_, buffer);

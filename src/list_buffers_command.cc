@@ -86,12 +86,25 @@ class ListBuffersBuffer : public OpenBuffer {
       : OpenBuffer(editor_state, name) {
     set_bool_variable(variable_atomic_lines(), true);
     set_bool_variable(variable_reload_on_display(), true);
+    set_bool_variable(variable_show_in_buffers_list(), false);
   }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     target->ClearContents(editor_state);
     AppendToLastLine(editor_state, NewCopyString(L"Buffers:"));
+    bool show_in_buffers_list =
+        read_bool_variable(variable_show_in_buffers_list());
     for (const auto& it : *editor_state->buffers()) {
+      if (!show_in_buffers_list
+          && !it.second->read_bool_variable(
+                  OpenBuffer::variable_show_in_buffers_list())) {
+        LOG(INFO) << "Skipping buffer (!show_in_buffers_list).";
+        continue;
+      }
+      if (it.second.get() == target) {
+        LOG(INFO) << "Skipping current buffer.";
+        continue;
+      }
       auto context = LinesToShow(*it.second);
       wstring flags = it.second->FlagsString();
       auto name = NewCopyString(

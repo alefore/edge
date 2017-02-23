@@ -268,7 +268,8 @@ Transformation::Result::Result(EditorState* editor_state)
        made_progress(false),
        modified_buffer(false),
        undo(NewNoopTransformation()),
-       delete_buffer(new OpenBuffer(editor_state, OpenBuffer::kPasteBuffer)) {}
+       delete_buffer(new OpenBuffer(editor_state, OpenBuffer::kPasteBuffer)) {
+}
 
 unique_ptr<Transformation> NewInsertBufferTransformation(
     shared_ptr<OpenBuffer> buffer_to_insert, size_t repetitions,

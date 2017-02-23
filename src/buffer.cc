@@ -506,6 +506,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
   set_bool_variable(variable_reload_after_exit(), false);
   if (name_ == kPasteBuffer) {
     set_bool_variable(variable_allow_dirty_delete(), true);
+    set_bool_variable(variable_show_in_buffers_list(), false);
   }
   ClearContents(editor_state);
 }
@@ -2087,6 +2088,7 @@ wstring OpenBuffer::FlagsString() const {
     OpenBuffer::variable_contains_line_marks();
     OpenBuffer::variable_multiple_cursors();
     OpenBuffer::variable_reload_on_display();
+    OpenBuffer::variable_show_in_buffers_list();
   }
   return output;
 }
@@ -2244,6 +2246,15 @@ OpenBuffer::variable_allow_dirty_delete() {
       L"If set to true, a buffer will always be reloaded before being "
       L"displayed.",
       false);
+  return variable;
+}
+
+/* static */ EdgeVariable<char>*
+OpenBuffer::variable_show_in_buffers_list() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+      L"show_in_buffers_list",
+      L"If set to true, includes this in the list of buffers.",
+      true);
   return variable;
 }
 

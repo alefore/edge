@@ -344,6 +344,7 @@ class OpenBuffer {
   static EdgeVariable<char>* variable_contains_line_marks();
   static EdgeVariable<char>* variable_multiple_cursors();
   static EdgeVariable<char>* variable_reload_on_display();
+  static EdgeVariable<char>* variable_show_in_buffers_list();
 
   static EdgeStruct<wstring>* StringStruct();
   static EdgeVariable<wstring>* variable_word_characters();
