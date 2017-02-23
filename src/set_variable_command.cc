@@ -42,11 +42,24 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
 
   if (!editor_state->has_current_buffer()) { return; }
   auto buffer = editor_state->current_buffer()->second;
+  CHECK(buffer != nullptr);
+  if (editor_state->modifiers().structure == LINE) {
+    if (!buffer->contents()->empty() && buffer->current_line() != nullptr) {
+      auto target_buffer =
+          buffer->current_line()->environment()->Lookup(L"buffer");
+      if (target_buffer != nullptr
+          && target_buffer->type.type == VMType::OBJECT_TYPE
+          && target_buffer->type.object_type == L"Buffer") {
+        buffer =
+            std::static_pointer_cast<OpenBuffer>(target_buffer->user_value);
+      }
+    }
+    editor_state->ResetModifiers();
+  }
 
   {
     auto var = OpenBuffer::StringStruct()->find_variable(name);
     if (var != nullptr) {
-      if (!editor_state->has_current_buffer()) { return; }
       PromptOptions options;
       options.prompt = name + L" := ";
       options.history_file = L"values";
@@ -80,8 +93,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
       PromptOptions options;
       options.prompt = name + L" := ",
       options.history_file = L"values",
-      options.initial_value = std::to_wstring(
-          editor_state->current_buffer()->second->read_int_variable(var)),
+      options.initial_value = std::to_wstring(buffer->read_int_variable(var));
       options.handler =
           [var, buffer](const wstring& input, EditorState* editor_state) {
             try {
