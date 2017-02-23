@@ -219,6 +219,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
       history->second->contents()->size());
 
   auto buffer = GetPromptBuffer(editor_state);
+  Modifiers original_modifiers = editor_state->modifiers();
   editor_state->set_modifiers(Modifiers());
 
   {
@@ -240,34 +241,38 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
   insert_mode_options.scroll_behavior = std::make_shared<HistoryScrollBehavior>(
       options.history_file, options.prompt);
 
-  insert_mode_options.escape_handler = [editor_state, options]() {
-    editor_state->set_status_prompt(false);
-    if (options.cancel_handler) {
-      VLOG(5) << "Running cancel handler.";
-      options.cancel_handler(editor_state);
-    } else {
-      VLOG(5) << "Running handler on empty input.";
-      options.handler(L"", editor_state);
-    }
-  };
+  insert_mode_options.escape_handler =
+      [editor_state, options, original_modifiers]() {
+        editor_state->set_modifiers(original_modifiers);
+        editor_state->set_status_prompt(false);
+        if (options.cancel_handler) {
+          VLOG(5) << "Running cancel handler.";
+          options.cancel_handler(editor_state);
+        } else {
+          VLOG(5) << "Running handler on empty input.";
+          options.handler(L"", editor_state);
+        }
+      };
 
-  insert_mode_options.new_line_handler = [editor_state, options, buffer]() {
-    auto input = buffer->current_line()->contents();
-    if (input->size() != 0) {
-      auto history =
-          GetHistoryBuffer(editor_state, options.history_file)->second;
-      CHECK(history != nullptr);
-      if (history->contents()->size() == 0
-          || (history->contents()->at(history->contents()->size() - 1)
-                  ->ToString()
-              != input->ToString())) {
-        history->AppendLine(editor_state, input);
-      }
-    }
-    editor_state->set_status_prompt(false);
-    editor_state->ResetStatus();
-    options.handler(input->ToString(), editor_state);
-  };
+  insert_mode_options.new_line_handler =
+      [editor_state, options, buffer, original_modifiers]() {
+        auto input = buffer->current_line()->contents();
+        if (input->size() != 0) {
+          auto history =
+              GetHistoryBuffer(editor_state, options.history_file)->second;
+          CHECK(history != nullptr);
+          if (history->contents()->size() == 0
+              || (history->contents()->at(history->contents()->size() - 1)
+                      ->ToString()
+                  != input->ToString())) {
+            history->AppendLine(editor_state, input);
+          }
+        }
+        editor_state->set_status_prompt(false);
+        editor_state->ResetStatus();
+        editor_state->set_modifiers(original_modifiers);
+        options.handler(input->ToString(), editor_state);
+      };
 
   insert_mode_options.start_completion = [editor_state, options, buffer]() {
     auto input = buffer->current_line()->contents()->ToString();
