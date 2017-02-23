@@ -79,7 +79,10 @@ class PredictionsBufferImpl : public OpenBuffer {
       auto prefix_end = mismatch(common_prefix.begin(), common_prefix.end(),
                                  current.begin());
       if (prefix_end.first != common_prefix.end()) {
-        if (prefix_end.first == common_prefix.begin()) { return; }
+        if (prefix_end.first == common_prefix.begin()) {
+          LOG(INFO) << "Aborting completion.";
+          return;
+        }
         common_prefix = wstring(common_prefix.begin(), prefix_end.first);
       }
     }
