@@ -11,6 +11,7 @@
 #include <glog/logging.h>
 
 #include "lazy_string.h"
+#include "src/vm/public/environment.h"
 
 namespace afc {
 namespace editor {
@@ -80,15 +81,8 @@ class Line {
 
     vector<unordered_set<Modifier, hash<int>>> modifiers;
     shared_ptr<LazyString> contents;
+    vm::Environment* parent_environment = nullptr;
   };
-
-  // TODO: Replace 'activate_' with this. It's much more flexible (e.g. it
-  // allows us to check for presence of a given handler).
-  enum HandlerType {
-    INSERT,
-  };
-
-  using Handler = std::function<void()>;
 
   Line(const Options& options);
 
@@ -120,6 +114,8 @@ class Line {
   bool modified() const { return modified_; }
   void set_modified(bool modified) { modified_ = modified; }
 
+  vm::Environment* environment() { return &environment_; }
+
   EditorMode* activate() const { return activate_.get(); }
   void set_activate(unique_ptr<EditorMode> activate);
 
@@ -132,15 +128,6 @@ class Line {
   void set_filtered(bool filtered, size_t filter_version) {
     filtered_ = filtered;
     filter_version_ = filter_version;
-  }
-
-  void SetHandler(HandlerType handler_type, Handler handler) {
-    handlers_[handler_type] = std::move(handler);
-  }
-
-  Handler handler(HandlerType handler_type) {
-    auto it = handlers_.find(handler_type);
-    return it == handlers_.end() ? nullptr : it->second;
   }
 
   class OutputReceiverInterface {
@@ -156,7 +143,7 @@ class Line {
               size_t width);
 
  private:
-  std::map<HandlerType, Handler> handlers_;
+  vm::Environment environment_;
   unique_ptr<EditorMode> activate_;
   shared_ptr<LazyString> contents_;
   vector<unordered_set<Modifier, hash<int>>> modifiers_;

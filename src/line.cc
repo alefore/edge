@@ -18,7 +18,8 @@ using std::hash;
 using std::unordered_set;
 
 Line::Line(const Options& options)
-    : contents_(options.contents),
+    : environment_(options.parent_environment),
+      contents_(options.contents),
       modifiers_(options.modifiers),
       modified_(false),
       filtered_(true),

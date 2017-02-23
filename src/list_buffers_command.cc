@@ -80,15 +80,6 @@ class ActivateBufferLineCommand : public EditorMode {
   const std::weak_ptr<OpenBuffer> buffer_weak_;
 };
 
-void InsertToBuffer(EditorState* editor_state,
-                    std::weak_ptr<OpenBuffer> buffer_weak) {
-  InsertModeOptions options;
-  options.editor_state = editor_state;
-  options.buffer = buffer_weak.lock();
-  if (options.buffer == nullptr) { return; }
-  EnterInsertMode(options);
-}
-
 class ListBuffersBuffer : public OpenBuffer {
  public:
   ListBuffersBuffer(EditorState* editor_state, const wstring& name)
@@ -167,12 +158,8 @@ class ListBuffersBuffer : public OpenBuffer {
     Line& line = *(*target->contents()->rbegin());
     line.set_activate(
         unique_ptr<EditorMode>(new ActivateBufferLineCommand(buffer)));
-    std::weak_ptr<OpenBuffer> buffer_weak = buffer;
-    line.SetHandler(
-        Line::INSERT,
-        [editor_state, buffer_weak]() {
-          InsertToBuffer(editor_state, buffer_weak);
-        });
+    line.environment()->Define(L"buffer",
+                               Value::NewObject(L"Buffer", buffer));
   }
 };
 

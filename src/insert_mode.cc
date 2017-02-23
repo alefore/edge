@@ -596,11 +596,15 @@ void EnterInsertMode(InsertModeOptions options) {
   }
 
   if (!options.buffer->contents()->empty()
-      && options.buffer->current_line() != nullptr
-      && options.buffer->current_line()->handler(Line::INSERT) != nullptr) {
-    LOG(INFO) << "Calling Line::INSERT handler.";
-    options.buffer->current_line()->handler(Line::INSERT)();
-    return;
+      && options.buffer->current_line() != nullptr) {
+    auto target_buffer =
+        options.buffer->current_line()->environment()->Lookup(L"buffer");
+    if (target_buffer != nullptr
+        && target_buffer->type.type == VMType::OBJECT_TYPE
+        && target_buffer->type.object_type == L"Buffer") {
+      options.buffer =
+          std::static_pointer_cast<OpenBuffer>(target_buffer->user_value);
+    }
   }
 
   if (!options.modify_listener) {
