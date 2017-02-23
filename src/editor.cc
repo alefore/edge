@@ -181,6 +181,23 @@ std::unique_ptr<Environment> NewDefaultEnvironment(EditorState* editor) {
         };
     environment->Define(L"CurrentBuffer", std::move(callback));
   }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+
+    // Returns nothing.
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+
+    callback->type.type_arguments.push_back(VMType::Integer());
+    callback->callback =
+        [editor](vector<unique_ptr<Value>> args) {
+          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args[0]->type, VMType::VM_INTEGER);
+          DCHECK(editor->mode() != nullptr);
+          editor->mode()->ProcessInput(args[0]->integer, editor);
+          return Value::NewVoid();
+        };
+    environment->Define(L"ProcessInput", std::move(callback));
+  }
   RegisterBufferMethod(editor_type.get(), L"ToggleActiveCursors",
                        &OpenBuffer::ToggleActiveCursors);
   RegisterBufferMethod(editor_type.get(), L"VisitPreviousCursor",

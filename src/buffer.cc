@@ -740,6 +740,7 @@ void OpenBuffer::Input::ReadData(
   }
 
   if (target->read_bool_variable(OpenBuffer::variable_vm_exec())) {
+    LOG(INFO) << "Evaluating VM code: " << buffer_wrapper->ToString();
     target->EvaluateString(editor_state, buffer_wrapper->ToString());
   }
 
@@ -1266,13 +1267,16 @@ unique_ptr<Value> OpenBuffer::EvaluateExpression(EditorState*,
 unique_ptr<Value> OpenBuffer::EvaluateString(EditorState* editor_state,
                                              const wstring& code) {
   wstring error_description;
+  LOG(INFO) << "Compiling code.";
   unique_ptr<Expression> expression =
       CompileString(editor_state, code, &error_description);
   if (expression == nullptr) {
     editor_state->SetStatus(L"Compilation error: " + error_description);
     return nullptr;
   }
+  LOG(INFO) << "Code compiled, evaluating.";
   return EvaluateExpression(editor_state, expression.get());
+  LOG(INFO) << "Done evaluating compiled code.";
 }
 
 unique_ptr<Value> OpenBuffer::EvaluateFile(EditorState* editor_state,

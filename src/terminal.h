@@ -7,9 +7,11 @@
 #include <string>
 
 #include "editor.h"
+#include "screen.h"
 
 namespace afc {
 namespace editor {
+
 
 class Terminal {
  public:
@@ -29,24 +31,15 @@ class Terminal {
   static constexpr int CTRL_A = -15;
   static constexpr int CTRL_E = -16;
 
-  Terminal();
-  ~Terminal();
-
-  void Display(EditorState* editor_state);
-  void SetStatus(const std::wstring& status);
-  wint_t Read(EditorState* editor_state);
+  void Display(EditorState* editor_state, Screen* screen);
 
  private:
-  void ShowStatus(const EditorState& editor_state);
+  void ShowStatus(const EditorState& editor_state, Screen* screen);
   wstring GetBufferContext(
       const EditorState& editor_state,
       const shared_ptr<OpenBuffer>& buffer);
-  void ShowBuffer(const EditorState* editor_state);
-  void AdjustPosition(const shared_ptr<OpenBuffer> buffer);
-
-  std::wstring status_;
-
-  std::mbstate_t mbstate_;
+  void ShowBuffer(const EditorState* editor_state, Screen* screen);
+  void AdjustPosition(const shared_ptr<OpenBuffer> buffer, Screen* screen);
 };
 
 }  // namespace editor

@@ -41,32 +41,47 @@ wstring CreateFifo() {
   }
 }
 
-int MaybeConnectToParentServer() {
+int MaybeConnectToParentServer(wstring *error) {
+  wstring dummy;
+  if (error == nullptr) {
+    error = &dummy;
+  }
+
   const char* variable = "EDGE_PARENT_ADDRESS";
   char* server_address = getenv(variable);
   if (server_address == nullptr) {
-    return - 1;
+    *error = L"Unable to find remote address (through environment variable "
+             L"EDGE_PARENT_ADDRESS).";
+    return -1;
+  }
+  return MaybeConnectToServer(string(server_address), error);
+}
+
+int MaybeConnectToServer(const string& address, wstring* error) {
+  int fd = open(address.c_str(), O_WRONLY);
+  if (fd == -1) {
+    *error = FromByteString(address) + L": open failed: "
+             + FromByteString(strerror(errno));
+    return -1;
   }
   wstring private_fifo = CreateFifo();
   LOG(INFO) << "Fifo created: " << private_fifo;
-  int fd = open(server_address, O_WRONLY);
-  if (fd == -1) {
-    cerr << server_address << ": open failed: " << strerror(errno);
-    exit(1);
-  }
   string command = "ConnectTo(\"" + ToByteString(private_fifo) + "\");\n";
   LOG(INFO) << "Sending connection command: " << command;
   if (write(fd, command.c_str(), command.size()) == -1) {
-    cerr << server_address << ": write failed: " << strerror(errno);
-    exit(1);
+    *error = FromByteString(address) + L": write failed: "
+           + FromByteString(strerror(errno));
+    return -1;
   }
   close(fd);
   int private_fd = open(ToByteString(private_fifo).c_str(), O_RDWR);
   LOG(INFO) << "Connection fd: " << private_fd;
   if (private_fd == -1) {
-    cerr << private_fd << ": open failed: " << strerror(errno);
-    exit(1);
+    *error = private_fifo + L": open failed: "
+           + FromByteString(strerror(errno));
+    return -1;
   }
+  CHECK_GT(private_fd, -1);
   return private_fd;
 }
 
@@ -85,6 +100,8 @@ class ServerBuffer : public OpenBuffer {
       cerr << address << ": open failed: " << strerror(errno);
       exit(1);
     }
+
+    LOG(INFO) << "Server received connection: " << fd;
     target->SetInputFiles(editor_state, fd, -1, false, -1);
 
     editor_state->ScheduleRedraw();
@@ -107,6 +124,7 @@ wstring GetUnusedBufferName(EditorState* editor_state, const wstring& prefix) {
 
 void StartServer(EditorState* editor_state) {
   wstring address = CreateFifo();
+  LOG(INFO) << "Starting server: " << address;
   setenv("EDGE_PARENT_ADDRESS", ToByteString(address).c_str(), 1);
   auto buffer = OpenServerBuffer(editor_state, address);
   buffer->set_bool_variable(OpenBuffer::variable_reload_after_exit(), true);

@@ -22,6 +22,7 @@ class OpenBuffer;
 
 using std::hash;
 using std::shared_ptr;
+using std::string;
 using std::wstring;
 using std::unique_ptr;
 using std::unordered_set;
@@ -41,6 +42,36 @@ class Line {
     BLUE,
     CYAN,
   };
+
+  static string ModifierToString(Modifier modifier) {
+    switch (modifier) {
+      case RESET: return "RESET";
+      case BOLD: return "BOLD";
+      case DIM: return "DIM";
+      case UNDERLINE: return "UNDERLINE";
+      case REVERSE: return "REVERSE";
+      case BLACK: return "BLACK";
+      case RED: return "RED";
+      case GREEN: return "GREEN";
+      case BLUE: return "BLUE";
+      case CYAN: return "CYAN";
+    }
+    return "UNKNOWN";
+  }
+
+  static Modifier ModifierFromString(string modifier) {
+    if (modifier == "RESET") return RESET;
+    if (modifier == "BOLD") return BOLD;
+    if (modifier == "DIM") return DIM;
+    if (modifier == "UNDERLINE") return UNDERLINE;
+    if (modifier == "REVERSE") return REVERSE;
+    if (modifier == "BLACK") return BLACK;
+    if (modifier == "RED") return RED;
+    if (modifier == "GREEN") return GREEN;
+    if (modifier == "BLUE") return BLUE;
+    if (modifier == "CYAN") return CYAN;
+    return RESET;  // Ugh.
+  }
 
   struct Options {
     Options() : contents(EmptyString()) {}
@@ -117,12 +148,12 @@ class Line {
     virtual void AddCharacter(wchar_t character) = 0;
     virtual void AddString(const wstring& str) = 0;
     virtual void AddModifier(Modifier modifier) = 0;
-    virtual size_t width() const = 0;
   };
   void Output(const EditorState* editor_state,
               const shared_ptr<OpenBuffer>& buffer,
               size_t line,
-              OutputReceiverInterface* receiver);
+              OutputReceiverInterface* receiver,
+              size_t width);
 
  private:
   std::map<HandlerType, Handler> handlers_;

@@ -22,13 +22,19 @@ extern "C" {
 #include "lazy_string.h"
 #include "file_link_mode.h"
 #include "run_command_handler.h"
+#include "screen.h"
+#include "screen_vm.h"
+#include "screen_curses.h"
 #include "server.h"
 #include "terminal.h"
+#include "vm/public/value.h"
 #include "wstring.h"
 
 namespace {
 
 using namespace afc::editor;
+
+static const char* kEdgeParentAddress = "EDGE_PARENT_ADDRESS";
 
 EditorState* editor_state() {
   static EditorState* editor_state = new EditorState();
@@ -46,6 +52,9 @@ struct Args {
 
   // Contains C++ (VM) code to execute.
   string commands_to_run;
+
+  bool silent = false;
+  bool client = false;
 };
 
 static const char* kDefaultCommandsToRun =
@@ -58,6 +67,11 @@ string CommandsToRun(Args args) {
   }
   for (auto& command_to_fork : args.commands_to_fork) {
     commands_to_run += "ForkCommand(\"" + string(command_to_fork) + "\");\n";
+  }
+  if (args.client) {
+    commands_to_run += "Screen screen = RemoteScreen(\""
+        + string(getenv(kEdgeParentAddress))
+        + "\");\n";
   }
   if (commands_to_run.empty()) {
     return kDefaultCommandsToRun;
@@ -107,6 +121,10 @@ Args ParseArgs(int* argc, const char*** argv) {
       output.commands_to_run += (*argv)[1];
       (*argv)++;
       (*argc)--;
+    } else if (cmd == "--silent") {
+      output.silent = true;
+    } else if (cmd == "--client") {
+      output.client = true;
     } else {
       cerr << output.binary_name << ": Invalid flag: " << cmd << "\n";
       exit(1);
@@ -143,31 +161,82 @@ int main(int argc, const char** argv) {
 
   Args args = ParseArgs(&argc, &argv);
 
-  int fd = MaybeConnectToParentServer();
-  if (fd != -1) {
-    SendCommandsToParent(fd, CommandsToRun(args));
-    cerr << args.binary_name << ": Waiting for EOF ...\n";
-    char buffer[4096];
-    while (read(0, buffer, sizeof(buffer)) > 0)
-      continue;
-    cerr << args.binary_name << ": EOF received, exiting.\n";
-    exit(0);
+  if (!args.client) {
+    int fd = MaybeConnectToParentServer(nullptr);
+    if (fd != -1) {
+      SendCommandsToParent(fd, CommandsToRun(args));
+      cerr << args.binary_name << ": Waiting for EOF ...\n";
+      char buffer[4096];
+      while (read(0, buffer, sizeof(buffer)) > 0)
+        continue;
+      cerr << args.binary_name << ": EOF received, exiting.\n";
+      exit(0);
+    }
   }
 
-  signal(SIGINT, &SignalHandler);
-  signal(SIGTSTP, &SignalHandler);
+  int remote_server_fd = -1;
+  if (args.client) {
+    wstring error;
+    remote_server_fd = MaybeConnectToParentServer(&error);
+    if (remote_server_fd == -1) {
+      cerr << args.binary_name << ": Unable to connect to remote server: "
+           << error << std::endl;
+      exit(1);
+    }
+  }
 
-  Terminal terminal;
+  std::shared_ptr<Screen> screen;
+  if (!args.silent) {
+    screen = NewScreenCurses();
+  }
 
   LOG(INFO) << "Starting server.";
+  RegisterScreenType(editor_state()->environment());
+  editor_state()->environment()->Define(
+      L"screen", afc::vm::Value::NewObject(L"Screen", screen));
   StartServer(editor_state());
+
   auto commands_to_run = CommandsToRun(args);
   if (!commands_to_run.empty()) {
-    SendCommandsToParent(MaybeConnectToParentServer(), commands_to_run);
+    int self_fd = remote_server_fd == -1
+                      ? MaybeConnectToParentServer(nullptr)
+                      : remote_server_fd;
+    SendCommandsToParent(self_fd, commands_to_run);
+  }
+
+  std::mbstate_t mbstate;
+  Terminal terminal;
+  if (!args.silent) {
+    signal(SIGINT, &SignalHandler);
+    signal(SIGTSTP, &SignalHandler);
+  } else {
+    std::cout << kEdgeParentAddress << "=" << getenv(kEdgeParentAddress)
+              << std::endl;
   }
 
   while (!editor_state()->terminate()) {
-    terminal.Display(editor_state());
+    if (screen != nullptr && !args.client) {
+      terminal.Display(editor_state(), screen.get());
+    }
+    LOG(INFO) << "Updating remote screens.";
+    for (auto& buffer : *editor_state()->buffers()) {
+      auto value = buffer.second->environment()->Lookup(L"screen");
+      if (value->type.type != VMType::OBJECT_TYPE
+          || value->type.object_type != L"Screen") {
+        continue;
+      }
+      auto buffer_screen = static_cast<Screen*>(value->user_value.get());
+      if (buffer_screen == nullptr) {
+        continue;
+      }
+      if (buffer_screen == screen.get()) {
+        continue;
+      }
+      LOG(INFO) << "Remote screen for buffer: " << buffer.first;
+      terminal.Display(editor_state(), buffer_screen);
+    }
+    editor_state()->set_screen_needs_hard_redraw(false);
+    editor_state()->set_screen_needs_redraw(false);
 
     std::vector<std::shared_ptr<OpenBuffer>> buffers;
 
@@ -193,11 +262,14 @@ int main(int argc, const char** argv) {
       }
     }
 
-    fds[buffers.size()].fd = 0;
-    fds[buffers.size()].events = POLLIN | POLLPRI;
+    if (screen != nullptr) {
+      fds[buffers.size()].fd = 0;
+      fds[buffers.size()].events = POLLIN | POLLPRI;
+      buffers.push_back(nullptr);
+    }
 
     int results;
-    while ((results = poll(fds, buffers.size() + 1, -1)) <= 0) {
+    while ((results = poll(fds, buffers.size(), -1)) <= 0) {
       if (results == -1) {
         switch (errno) {
           case EINTR:
@@ -210,24 +282,31 @@ int main(int argc, const char** argv) {
       }
     }
 
-    for (size_t i = 0; i < buffers.size() + 1; i++) {
+    for (size_t i = 0; i < buffers.size(); i++) {
       if (!(fds[i].revents & (POLLIN | POLLPRI | POLLHUP))) {
         continue;
       }
       if (fds[i].fd == 0) {
+        CHECK(screen != nullptr);
         wint_t c;
-        while ((c = terminal.Read(editor_state())) != static_cast<wint_t>(-1)) {
-          DCHECK(editor_state()->mode() != nullptr);
-          editor_state()->mode()->ProcessInput(c, editor_state());
+        while ((c = ReadChar(&mbstate)) != static_cast<wint_t>(-1)) {
+          if (remote_server_fd == -1) {
+            DCHECK(editor_state()->mode() != nullptr);
+            editor_state()->mode()->ProcessInput(c, editor_state());
+          } else {
+            SendCommandsToParent(
+                remote_server_fd,
+                "ProcessInput(" + std::to_string(c) + ");");
+          }
         }
         continue;
       }
 
       CHECK_LE(i, buffers.size());
-      if (fds[i].fd == buffers[i]->fd()) {
+      if (buffers[i] && fds[i].fd == buffers[i]->fd()) {
         LOG(INFO) << "Reading (normal): " << buffers[i]->name();
         buffers[i]->ReadData(editor_state());
-      } else if (fds[i].fd == buffers[i]->fd_error()) {
+      } else if (buffers[i] && fds[i].fd == buffers[i]->fd_error()) {
         LOG(INFO) << "Reading (error): " << buffers[i]->name();
         buffers[i]->ReadErrorData(editor_state());
       } else {
@@ -236,6 +315,7 @@ int main(int argc, const char** argv) {
     }
   }
 
+  editor_state()->environment()->Define(
+      L"screen", afc::vm::Value::NewObject(L"Screen", nullptr));
   delete editor_state();
-  terminal.SetStatus(L"done");
 }

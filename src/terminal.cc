@@ -5,10 +5,6 @@
 #include <cctype>
 #include <iostream>
 
-extern "C" {
-#include <ncursesw/curses.h>
-}
-
 #include "line_marks.h"
 
 namespace afc {
@@ -33,39 +29,20 @@ constexpr int Terminal::CTRL_U;
 constexpr int Terminal::CTRL_K;
 constexpr int Terminal::CHAR_EOF;
 
-Terminal::Terminal() {
-  initscr();
-  noecho();
-  nodelay(stdscr, true);
-  keypad(stdscr, false);
-  start_color();
-  init_pair(1, COLOR_BLACK, COLOR_BLACK);
-  init_pair(2, COLOR_RED, COLOR_BLACK);
-  init_pair(3, COLOR_GREEN, COLOR_BLACK);
-  init_pair(4, COLOR_BLUE, COLOR_BLACK);
-  init_pair(7, COLOR_CYAN, COLOR_BLACK);
-  SetStatus(L"Initializing...");
-}
-
-Terminal::~Terminal() {
-  endwin();
-}
-
-void Terminal::Display(EditorState* editor_state) {
+void Terminal::Display(EditorState* editor_state, Screen* screen) {
   if (editor_state->screen_needs_hard_redraw()) {
-    wrefresh(curscr);
-    editor_state->set_screen_needs_hard_redraw(false),
+    screen->HardRefresh();
     editor_state->ScheduleRedraw();
   }
   if (!editor_state->has_current_buffer()) {
     if (editor_state->screen_needs_redraw()) {
-      editor_state->set_screen_needs_redraw(false);
-      clear();
+      screen->Clear();
     }
-    ShowStatus(*editor_state);
-    refresh();
+    ShowStatus(*editor_state, screen);
+    screen->Refresh();
     return;
   }
+  int screen_lines = screen->lines();
   auto& buffer = editor_state->current_buffer()->second;
   if (buffer->read_bool_variable(OpenBuffer::variable_reload_on_display())) {
     buffer->Reload(editor_state);
@@ -75,13 +52,13 @@ void Terminal::Display(EditorState* editor_state) {
   if (buffer->view_start_line() > line) {
     buffer->set_view_start_line(line);
     editor_state->ScheduleRedraw();
-  } else if (buffer->view_start_line() + LINES - 1 <= line) {
-    buffer->set_view_start_line(line - LINES + 2);
+  } else if (buffer->view_start_line() + screen_lines - 1 <= line) {
+    buffer->set_view_start_line(line - screen_lines + 2);
     editor_state->ScheduleRedraw();
   }
 
   size_t desired_start_column = buffer->current_position_col()
-      - min(buffer->current_position_col(), static_cast<size_t>(COLS) - 1);
+      - min(buffer->current_position_col(), screen->columns() - 1);
   if (buffer->view_start_column() != desired_start_column) {
     buffer->set_view_start_column(desired_start_column);
     editor_state->ScheduleRedraw();
@@ -92,24 +69,23 @@ void Terminal::Display(EditorState* editor_state) {
   }
 
   if (editor_state->screen_needs_redraw()) {
-    ShowBuffer(editor_state);
-    editor_state->set_screen_needs_redraw(false);
+    ShowBuffer(editor_state, screen);
   }
-  ShowStatus(*editor_state);
+  ShowStatus(*editor_state, screen);
   if (editor_state->status_prompt()) {
-    curs_set(1);
+    screen->SetCursorVisibility(Screen::NORMAL);
   } else if (buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())) {
-    curs_set(0);
+    screen->SetCursorVisibility(Screen::INVISIBLE);
   } else {
-    curs_set(1);
-    AdjustPosition(buffer);
+    screen->SetCursorVisibility(Screen::NORMAL);
+    AdjustPosition(buffer, screen);
   }
-  refresh();
-  editor_state->set_visible_lines(static_cast<size_t>(LINES - 1));
+  screen->Refresh();
+  editor_state->set_visible_lines(static_cast<size_t>(screen_lines - 1));
 }
 
-void Terminal::ShowStatus(const EditorState& editor_state) {
-  move(LINES - 1, 0);
+void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
+  screen->Move(screen->lines() - 1, 0);
   wstring status;
   auto modifiers = editor_state.modifiers();
   if (editor_state.has_current_buffer()) {
@@ -258,20 +234,17 @@ void Terminal::ShowStatus(const EditorState& editor_state) {
     }
   }
 
-  int y, x;
-  getyx(stdscr, y, x);
-  int status_column = status.size();
+  size_t status_column = status.size();
   status += editor_state.status();
-  x += status.size();
-  if (status.size() < static_cast<size_t>(COLS)) {
-    status += wstring(COLS - status.size(), ' ');
-  } else if (status.size() > static_cast<size_t>(COLS)) {
-    status = status.substr(0, COLS);
+  if (status.size() < screen->columns()) {
+    status += wstring(screen->columns() - status.size(), ' ');
+  } else if (status.size() > screen->columns()) {
+    status = status.substr(0, screen->columns());
   }
-  addwstr(status.c_str());
+  screen->WriteString(status.c_str());
   if (editor_state.status_prompt()) {
     status_column += editor_state.status_prompt_column();
-    move(y, min(status_column, COLS));
+    screen->Move(screen->lines() - 1, min(status_column, screen->columns()));
   }
 }
 
@@ -293,60 +266,19 @@ wstring Terminal::GetBufferContext(
 
 class LineOutputReceiver : public Line::OutputReceiverInterface {
  public:
+  LineOutputReceiver(Screen* screen) : screen_(screen) {}
+
   void AddCharacter(wchar_t c) {
-    cchar_t cchar;
-    wchar_t input[] = { c, L'0' };
-    setcchar(&cchar, input, 0, 0, nullptr);
-    add_wch(&cchar);
+    screen_->WriteString(wstring(1, c));
   }
   void AddString(const wstring& str) {
-    addwstr(str.c_str());
+    screen_->WriteString(str);
   }
   void AddModifier(Line::Modifier modifier) {
-    switch (modifier) {
-      case Line::RESET:
-        attroff(A_BOLD);
-        attroff(A_DIM);
-        attroff(A_UNDERLINE);
-        attroff(A_REVERSE);
-        attroff(COLOR_PAIR(1));
-        attroff(COLOR_PAIR(2));
-        attroff(COLOR_PAIR(3));
-        attroff(COLOR_PAIR(4));
-        attroff(COLOR_PAIR(7));
-        break;
-      case Line::BOLD:
-        attron(A_BOLD);
-        break;
-      case Line::DIM:
-        attron(A_DIM);
-        break;
-      case Line::UNDERLINE:
-        attron(A_UNDERLINE);
-        break;
-      case Line::REVERSE:
-        attron(A_REVERSE);
-        break;
-      case Line::BLACK:
-        attron(COLOR_PAIR(1));
-        break;
-      case Line::RED:
-        attron(COLOR_PAIR(2));
-        break;
-      case Line::GREEN:
-        attron(COLOR_PAIR(3));
-        break;
-      case Line::BLUE:
-        attron(COLOR_PAIR(4));
-        break;
-      case Line::CYAN:
-        attron(COLOR_PAIR(7));
-        break;
-    }
+    screen_->SetModifier(modifier);
   }
-  size_t width() const {
-    return COLS;
-  }
+ private:
+  Screen* const screen_;
 };
 
 class HighlightedLineOutputReceiver : public Line::OutputReceiverInterface {
@@ -367,9 +299,6 @@ class HighlightedLineOutputReceiver : public Line::OutputReceiverInterface {
       default:
         delegate_->AddModifier(modifier);
     }
-  }
-  size_t width() const {
-    return delegate_->width();
   }
  private:
   Line::OutputReceiverInterface* const delegate_;
@@ -451,10 +380,6 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
     options_.delegate->AddModifier(modifier);
   }
 
-  size_t width() const {
-    return options_.delegate->width();
-  }
-
  private:
   void CheckInvariants() {
     if (next_cursor_ != options_.columns.end()) {
@@ -492,8 +417,6 @@ class ReceiverTrackingPosition : public Line::OutputReceiverInterface {
   void AddModifier(Line::Modifier modifier) override {
     delegate_->AddModifier(modifier);
   }
-
-  size_t width() const override { return delegate_->width(); }
 
  private:
   Line::OutputReceiverInterface* const delegate_;
@@ -534,25 +457,21 @@ class ParseTreeHighlighter : public Line::OutputReceiverInterface {
     delegate_.AddModifier(modifier);
   }
 
-  size_t width() const override {
-    return delegate_.width();
-  }
-
  private:
   ReceiverTrackingPosition delegate_;
   const size_t begin_;
   const size_t end_;
 };
 
-void Terminal::ShowBuffer(const EditorState* editor_state) {
+void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   const shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
   const Tree<shared_ptr<Line>>& contents(*buffer->contents());
 
-  move(0, 0);
+  screen->Move(0, 0);
 
-  LineOutputReceiver line_output_receiver;
+  LineOutputReceiver line_output_receiver(screen);
 
-  size_t lines_to_show = static_cast<size_t>(LINES);
+  size_t lines_to_show = static_cast<size_t>(screen->lines());
   size_t current_line = buffer->view_start_line();
   size_t lines_shown = 0;
   buffer->set_last_highlighted_line(-1);
@@ -571,7 +490,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
   while (lines_shown < lines_to_show) {
     Line::OutputReceiverInterface* receiver = &line_output_receiver;
     if (current_line >= contents.size()) {
-      addwstr(L"\n");
+      screen->WriteString(L"\n");
       lines_shown++;
       continue;
     }
@@ -634,7 +553,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
       receiver = parse_tree_highlighter.get();
     }
 
-    line->Output(editor_state, buffer, current_line, receiver);
+    line->Output(
+        editor_state, buffer, current_line, receiver, screen->columns());
     // Need to do this for atomic lines, since they override the Reset modifier
     // with Reset + Reverse.
     line_output_receiver.AddModifier(Line::RESET);
@@ -642,7 +562,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state) {
   }
 }
 
-void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
+void Terminal::AdjustPosition(
+    const shared_ptr<OpenBuffer> buffer, Screen* screen) {
   const Tree<shared_ptr<Line>>& contents(*buffer->contents());
   size_t position_line = min(buffer->position().line, contents.size() - 1);
   size_t line_length;
@@ -655,7 +576,7 @@ void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
   } else {
     line_length = contents[position_line]->size();
   }
-  size_t pos_x = min(static_cast<size_t>(COLS) - 1, line_length);
+  size_t pos_x = min(static_cast<size_t>(screen->columns()) - 1, line_length);
   if (buffer->position().line < contents.size()) {
     pos_x = min(pos_x, buffer->position().column);
   }
@@ -666,113 +587,9 @@ void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer) {
       pos_y++;
     }
   }
-  move(pos_y, pos_x);
+  screen->Move(pos_y, pos_x);
 }
 
-wint_t Terminal::Read(EditorState*) {
-  while (true) {
-    int c = getch();
-    DVLOG(5) << "Read: " << c << "\n";
-    if (c == -1) {
-      return c;
-    } else if (c == KEY_RESIZE) {
-      return KEY_RESIZE;
-    }
-    wchar_t output;
-    char input[1] = { static_cast<char>(c) };
-    switch (mbrtowc(&output, input, 1, &mbstate_)) {
-      case 1:
-        VLOG(4) << "Finished reading wide character: " << output;
-        break;
-      case -1:
-        LOG(WARNING) << "Encoding error occurred, ignoring input: " << c;
-        return -1;
-      case -2:
-        VLOG(5) << "Incomplete (but valid) mbs, reading further.";
-        continue;
-      default:
-        LOG(FATAL) << "Unexpected return value from mbrtowc.";
-    }
-    switch (output) {
-      case 127:
-        return BACKSPACE;
-
-      case 1:
-        return CTRL_A;
-
-      case 4:
-        return CHAR_EOF;
-
-      case 5:
-        return CTRL_E;
-
-      case 0x0b:
-        return CTRL_K;
-
-      case 0x0c:
-        return CTRL_L;
-
-      case 21:
-        return CTRL_U;
-
-      case 22:
-        return CTRL_V;
-
-      case 27:
-        {
-          int next = getch();
-          // cerr << "Read next: " << next << "\n";
-          switch (next) {
-            case -1:
-              return ESCAPE;
-
-            case '[':
-              {
-                int next2 = getch();
-                //cerr << "Read next2: " << next2 << "\n";
-                switch (next2) {
-                  case 53:
-                    getch();
-                    return PAGE_UP;
-                  case 54:
-                    getch();
-                    return PAGE_DOWN;
-                  case 'A':
-                    return UP_ARROW;
-                  case 'B':
-                    return DOWN_ARROW;
-                  case 'C':
-                    return RIGHT_ARROW;
-                  case 'D':
-                    return LEFT_ARROW;
-                }
-              }
-              return -1;
-          }
-          // cerr << "Unget: " << next << "\n";
-          ungetch(next);
-        }
-        return ESCAPE;
-      default:
-        return output;
-    }
-  }
-}
-
-void Terminal::SetStatus(const std::wstring& status) {
-  status_ = status;
-
-  size_t height = LINES;
-  size_t width = COLS;
-  move(height - 1, 0);
-  std::wstring output_status =
-      status_.length() > width
-      ? status_.substr(0, width)
-      : (status_ + std::wstring(width - status_.length(), ' '));
-  addwstr(output_status.c_str());
-  move(0, 0);
-  refresh();
-}
 
 }  // namespace afc
 }  // namespace editor

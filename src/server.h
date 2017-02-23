@@ -12,7 +12,8 @@ namespace editor {
 using std::shared_ptr;
 using std::string;
 
-int MaybeConnectToParentServer();
+int MaybeConnectToServer(const string& address, wstring* error);
+int MaybeConnectToParentServer(wstring* error);
 
 class EditorState;
 

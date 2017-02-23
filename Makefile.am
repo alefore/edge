@@ -49,6 +49,11 @@ src/record_command.cc \
 src/repeat_mode.cc \
 src/run_command_handler.cc \
 src/run_cpp_command.cc \
+src/screen.h \
+src/screen_curses.cc \
+src/screen_curses.h \
+src/screen_vm.cc \
+src/screen_vm.h \
 src/search_command.cc \
 src/search_handler.cc \
 src/send_end_of_file_command.cc \

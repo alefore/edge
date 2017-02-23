@@ -85,9 +85,9 @@ void Line::set_activate(unique_ptr<EditorMode> activate) {
 void Line::Output(const EditorState* editor_state,
                   const shared_ptr<OpenBuffer>& buffer,
                   size_t line,
-                  OutputReceiverInterface* receiver) {
+                  OutputReceiverInterface* receiver,
+                  size_t width) {
   VLOG(5) << "Producing output of line: " << ToString();
-  size_t width = receiver->width();
   size_t output_column = 0;
   size_t input_column = buffer->view_start_column();
   unordered_set<Line::Modifier, hash<int>> current_modifiers;
