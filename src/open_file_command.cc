@@ -1,8 +1,10 @@
 #include "open_file_command.h"
 
 #include "editor.h"
+#include "dirname.h"
 #include "file_link_mode.h"
 #include "line_prompt_mode.h"
+#include "wstring.h"
 
 namespace afc {
 namespace editor {
@@ -36,6 +38,17 @@ std::unique_ptr<Command> NewOpenFileCommand() {
           wstring path =
               editor_state->current_buffer()->second->read_string_variable(
                   OpenBuffer::variable_path());
+          struct stat stat_buffer;
+          if (stat(ToByteString(path).c_str(), &stat_buffer) == -1
+              || !S_ISDIR(stat_buffer.st_mode)) {
+            LOG(INFO) << "Taking dirname for prompt: " << path;
+            path = Dirname(path);
+          }
+          if (path == L".") {
+            path = L"";
+          } else if (path.empty() || *path.rbegin() != L'/') {
+            path += L'/';
+          }
           options_copy.initial_value = path;
         }
         return options_copy;
