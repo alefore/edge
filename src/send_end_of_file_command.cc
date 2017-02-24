@@ -16,21 +16,13 @@ namespace editor {
 void SendEndOfFileToBuffer(EditorState* editor_state,
                            std::shared_ptr<OpenBuffer> buffer) {
   if (editor_state->structure() == LINE) {
-    editor_state->ResetStructure();
     DLOG(INFO) << "Sending EOF to line: "
                << buffer->current_line()->ToString();
-    if (!buffer->contents()->empty() && buffer->current_line() != nullptr) {
-      auto target = buffer->current_line()->environment()->Lookup(L"buffer");
-      if (target != nullptr
-          && target->type.type == VMType::OBJECT_TYPE
-          && target->type.object_type == L"Buffer") {
-        auto target_buffer =
-            std::static_pointer_cast<OpenBuffer>(target->user_value);
-        if (target_buffer != nullptr) {
-          buffer = target_buffer;
-        }
-      }
+    auto target_buffer = buffer->GetBufferFromCurrentLine();
+    if (target_buffer != nullptr) {
+      buffer = target_buffer;
     }
+    editor_state->ResetModifiers();
   }
 
   if (buffer->fd() == -1) {

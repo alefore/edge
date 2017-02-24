@@ -217,6 +217,11 @@ class OpenBuffer {
     }
   }
 
+  // If there's a buffer associated with the current line (looking up the
+  // "buffer" variable in the line's environment), returns it. Returns nullptr
+  // otherwise.
+  std::shared_ptr<OpenBuffer> GetBufferFromCurrentLine();
+
   // Returns the substring of the current line until the current position.
   shared_ptr<LazyString> current_line_head() const {
     return current_line()->Substring(0, current_position_col());

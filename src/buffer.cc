@@ -1904,6 +1904,19 @@ shared_ptr<Line> OpenBuffer::current_line() {
       const_cast<const OpenBuffer*>(this)->current_line());
 }
 
+std::shared_ptr<OpenBuffer> OpenBuffer::GetBufferFromCurrentLine() {
+  if (contents()->empty() || current_line() == nullptr) {
+    return nullptr;
+  }
+  auto target = current_line()->environment()->Lookup(L"buffer");
+  if (target == nullptr
+      || target->type.type != VMType::OBJECT_TYPE
+      || target->type.object_type != L"Buffer") {
+    return nullptr;
+  }
+  return std::static_pointer_cast<OpenBuffer>(target->user_value);
+}
+
 wstring OpenBuffer::ToString() const {
   size_t size = 0;
   for (auto& it : contents_) {

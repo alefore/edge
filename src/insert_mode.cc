@@ -597,16 +597,9 @@ void EnterInsertMode(InsertModeOptions options) {
     options.buffer = editor_state->current_buffer()->second;
   }
 
-  if (!options.buffer->contents()->empty()
-      && options.buffer->current_line() != nullptr) {
-    auto target_buffer =
-        options.buffer->current_line()->environment()->Lookup(L"buffer");
-    if (target_buffer != nullptr
-        && target_buffer->type.type == VMType::OBJECT_TYPE
-        && target_buffer->type.object_type == L"Buffer") {
-      options.buffer =
-          std::static_pointer_cast<OpenBuffer>(target_buffer->user_value);
-    }
+  auto target_buffer = options.buffer->GetBufferFromCurrentLine();
+  if (target_buffer != nullptr) {
+    options.buffer = target_buffer;
   }
 
   if (!options.modify_listener) {
