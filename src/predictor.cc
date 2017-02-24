@@ -15,6 +15,7 @@ extern "C" {
 
 #include "buffer.h"
 #include "char_buffer.h"
+#include "dirname.h"
 #include "editor.h"
 #include "file_link_mode.h"
 #include "lowercase.h"
@@ -158,9 +159,7 @@ void FilePredictor(EditorState* editor_state,
           continue;
         }
       } else {
-        char* dirname_copy = strdup(ToByteString(path_with_prefix).c_str());
-        dirname_prefix = dirname(dirname_copy);
-        free(dirname_copy);
+        dirname_prefix = ToByteString(Dirname(path_with_prefix));
         LOG(INFO) << "Inexact match, trying with dirname: " << dirname_prefix;
         dir.reset(opendir(dirname_prefix.c_str()));
         if (dir == nullptr) {

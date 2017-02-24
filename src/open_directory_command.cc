@@ -5,6 +5,7 @@ extern "C" {
 }
 
 #include "command.h"
+#include "dirname.h"
 #include "editor.h"
 #include "file_link_mode.h"
 #include "wstring.h"
@@ -20,20 +21,13 @@ class OpenDirectoryCommand : public Command {
   }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    wstring path;
-    if (!editor_state->has_current_buffer()) {
-      path = L".";
-    } else {
-      // TODO: We could alter ToByteString to return a char* and avoid the extra
-      // copy.
-      char* tmp = strdup(
-          ToByteString(editor_state->current_buffer()->first.c_str()).c_str());
-      path = FromByteString(dirname(tmp));
-      free(tmp);
-    }
     OpenFileOptions options;
+    if (!editor_state->has_current_buffer()) {
+      options.path = L".";
+    } else {
+      options.path = Dirname(editor_state->current_buffer()->first);
+    }
     options.editor_state = editor_state;
-    options.path = path;
     OpenFile(options);
     editor_state->ResetMode();
   }

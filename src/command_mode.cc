@@ -7,10 +7,6 @@
 #include <map>
 #include <string>
 
-extern "C" {
-#include <libgen.h>
-}
-
 #include <glog/logging.h>
 
 #include "cpp_command.h"
@@ -18,6 +14,7 @@ extern "C" {
 #include "close_buffer_command.h"
 #include "command.h"
 #include "command_mode.h"
+#include "dirname.h"
 #include "goto_command.h"
 #include "file_link_mode.h"
 #include "find_mode.h"
@@ -673,9 +670,8 @@ class ActivateLink : public Command {
     options.initial_search_paths.push_back(
         buffer->read_string_variable(buffer->variable_path()));
     // And a fall-back for the current buffer being a file:
-    char* tmp = strdup(ToByteString(options.initial_search_paths[0]).c_str());
-    options.initial_search_paths.push_back(FromByteString(dirname(tmp)));
-    free(tmp);
+    options.initial_search_paths.push_back(
+        Dirname(options.initial_search_paths[0]));
     LOG(INFO) << "Initial search path: " << options.initial_search_paths[0];
 
     OpenFile(options);
