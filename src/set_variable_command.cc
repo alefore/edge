@@ -124,7 +124,8 @@ unique_ptr<Command> NewSetVariableCommand() {
   options.handler = SetVariableHandler;
   options.cancel_handler = SetVariableCancelHandler;
   options.predictor = PrecomputedPredictor(variables, '_');
-  return NewLinePromptCommand(L"assigns to a variable", std::move(options));
+  return NewLinePromptCommand(L"assigns to a variable",
+                              [options](EditorState*) { return options; });
 }
 
 }  // namespace afc

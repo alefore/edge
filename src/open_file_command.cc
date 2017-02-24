@@ -28,7 +28,18 @@ std::unique_ptr<Command> NewOpenFileCommand() {
     editor_state->ResetMode();
   };
   options.predictor = FilePredictor;
-  return NewLinePromptCommand(L"loads a file", std::move(options));
+  return NewLinePromptCommand(
+      L"loads a file",
+      [options](EditorState* editor_state) {
+        PromptOptions options_copy = options;
+        if (editor_state->has_current_buffer()) {
+          wstring path =
+              editor_state->current_buffer()->second->read_string_variable(
+                  OpenBuffer::variable_path());
+          options_copy.initial_value = path;
+        }
+        return options_copy;
+      });
 }
 
 }  // namespace afc

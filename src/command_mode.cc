@@ -842,7 +842,7 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
     Register(L"aF",
         NewLinePromptCommand(
             L"forks a command for each line in the current buffer",
-            std::move(options)).release(),
+            [options](EditorState*) { return options; }).release(),
         &output);
   }
   Register(L"af", NewForkCommand().release(), &output);

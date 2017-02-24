@@ -36,8 +36,8 @@ struct PromptOptions {
 
 void Prompt(EditorState* editor_state, PromptOptions options);
 
-unique_ptr<Command> NewLinePromptCommand(wstring description,
-                                         PromptOptions options);
+unique_ptr<Command> NewLinePromptCommand(
+    wstring description, std::function<PromptOptions(EditorState*)> options);
 
 }  // namespace editor
 }  // namespace afc

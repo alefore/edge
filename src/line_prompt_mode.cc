@@ -193,7 +193,8 @@ class AutocompleteMode : public EditorMode {
 
 class LinePromptCommand : public Command {
  public:
-  LinePromptCommand(wstring description, PromptOptions options)
+  LinePromptCommand(wstring description,
+                    std::function<PromptOptions(EditorState*)> options)
       : description_(std::move(description)),
         options_(std::move(options)) {}
 
@@ -202,12 +203,12 @@ class LinePromptCommand : public Command {
   }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    Prompt(editor_state, options_);
+    Prompt(editor_state, options_(editor_state));
   }
 
  private:
   const wstring description_;
-  PromptOptions options_;
+  std::function<PromptOptions(EditorState*)> options_;
 };
 
 
@@ -315,8 +316,8 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
   insert_mode_options.modify_listener();
 }
 
-unique_ptr<Command> NewLinePromptCommand(wstring description,
-                                         PromptOptions options) {
+unique_ptr<Command> NewLinePromptCommand(
+    wstring description, std::function<PromptOptions(EditorState*)> options) {
   return std::move(unique_ptr<Command>(new LinePromptCommand(
       std::move(description), std::move(options))));
 }
