@@ -53,9 +53,6 @@ void StartDeleteFile(EditorState* editor_state, wstring path) {
     editor_state->ResetMode();
   };
   options.predictor = PrecomputedPredictor({L"no", L"yes"}, '/');
-  //unique_ptr<Command> command =
-      //NewLinePromptCommand(L"Confirmation", std::move(options));
-  //command->ProcessInput('\n', editor_state);
   Prompt(editor_state, std::move(options));
 }
 
@@ -137,6 +134,7 @@ class FileBuffer : public OpenBuffer {
       target->AppendLine(editor_state, shared_ptr<LazyString>(
           NewCopyString(
               path + (type_it == types.end() ? L"" : type_it->second))));
+
       {
         unique_ptr<Value> callback(new Value(VMType::FUNCTION));
         // Returns nothing.
@@ -151,10 +149,6 @@ class FileBuffer : public OpenBuffer {
         (*target->contents()->rbegin())->environment()->Define(
             L"EdgeLineDeleteHandler", std::move(callback));
       }
-
-      (*target->contents()->rbegin())->set_activate(
-          NewFileLinkMode(editor_state,
-              path + L"/" + FromByteString(entry->d_name), false));
     }
     closedir(dir);
 
@@ -219,39 +213,13 @@ wstring GetAnonymousBufferName(size_t i) {
   return L"[anonymous buffer " + std::to_wstring(i) + L"]";
 }
 
-class FileLinkMode : public EditorMode {
- public:
-  FileLinkMode(const wstring& path, bool ignore_if_not_found)
-      : path_(path),
-        ignore_if_not_found_(ignore_if_not_found) {}
-
-  void ProcessInput(wint_t c, EditorState* editor_state) {
-    switch (c) {
-      case '\n':
-        {
-          OpenFileOptions options;
-          options.editor_state = editor_state;
-          options.path = path_;
-          options.ignore_if_not_found = ignore_if_not_found_;
-          afc::editor::OpenFile(options);
-          return;
-        }
-
-      default:
-        editor_state->SetStatus(
-            L"Invalid command: "
-            + FromByteString(string(1, static_cast<char>(c))));
-    }
-  }
-
-  const wstring path_;
-  const bool ignore_if_not_found_;
-};
-
 static bool FindPath(
     vector<wstring> search_paths, const wstring& path, wstring* resolved_path,
     vector<int>* positions, wstring* pattern) {
-  CHECK(!search_paths.empty());
+  if (find(search_paths.begin(), search_paths.end(), L"")
+          == search_paths.end()) {
+    search_paths.push_back(L"");
+  }
 
   struct stat dummy;
 
@@ -263,11 +231,17 @@ static bool FindPath(
          str_end != path.npos && str_end != 0;
          str_end = path.find_last_of(':', str_end - 1)) {
       const wstring path_without_suffix =
-          *search_path_it + path.substr(0, str_end);
+          *search_path_it
+          + (!search_path_it->empty() && *search_path_it->rbegin() != L'/'
+                 ? L"/" : L"")
+          + path.substr(0, str_end);
       CHECK(!path_without_suffix.empty());
+      VLOG(5) << "Considering path: " << path_without_suffix;
       if (stat(ToByteString(path_without_suffix).c_str(), &dummy) == -1) {
+        VLOG(6) << path_without_suffix << ": stat failed";
         continue;
       }
+      VLOG(4) << "Stat succeeded: " << path_without_suffix;
 
       for (size_t i = 0; i < positions->size(); i++) {
         while (str_end < path.size() && ':' == path[str_end]) {
@@ -291,6 +265,7 @@ static bool FindPath(
         if (str_end == path.npos) { break; }
       }
       *resolved_path = realpath_safe(path_without_suffix);
+      VLOG(4) << "Resolved path: " << *resolved_path;
       return true;
     }
   }
@@ -383,9 +358,6 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
   for (auto it : *search_paths_buffer->contents()) {
     output->push_back(it->ToString());
   }
-  if (find(output->begin(), output->end(), L"") == output->end()) {
-    output->push_back(L"");
-  }
 }
 
 bool ResolvePath(EditorState* editor_state, const wstring& path,
@@ -405,7 +377,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   wstring pattern;
   wstring expanded_path = editor_state->expand_path(options.path);
 
-  vector<wstring> search_paths = { L"" };
+  vector<wstring> search_paths = options.initial_search_paths;
   if (options.use_search_paths) {
     GetSearchPaths(editor_state, &search_paths);
   }
@@ -459,12 +431,6 @@ void OpenAnonymousBuffer(EditorState* editor_state) {
   OpenFileOptions options;
   options.editor_state = editor_state;
   OpenFile(options);
-}
-
-unique_ptr<EditorMode> NewFileLinkMode(
-    EditorState*, const wstring& path, bool ignore_if_not_found) {
-  return std::move(unique_ptr<EditorMode>(
-      new FileLinkMode(path, ignore_if_not_found)));
 }
 
 }  // namespace afc

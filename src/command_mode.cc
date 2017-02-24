@@ -7,6 +7,10 @@
 #include <map>
 #include <string>
 
+extern "C" {
+#include <libgen.h>
+}
+
 #include <glog/logging.h>
 
 #include "cpp_command.h"
@@ -41,7 +45,7 @@
 #include "transformation.h"
 #include "transformation_delete.h"
 #include "transformation_move.h"
-#include "wstring.h"
+#include "src/wstring.h"
 
 namespace {
 using std::advance;
@@ -624,32 +628,57 @@ class ActivateLink : public Command {
     if (!editor_state->has_current_buffer()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
     if (buffer->current_line() == nullptr) { return; }
-    if (buffer->current_line()->activate() != nullptr) {
-      buffer->current_line()->activate()->ProcessInput(c, editor_state);
-    } else {
-      buffer->MaybeAdjustPositionCol();
-      wstring line = buffer->current_line()->ToString();
 
-      const wstring& path_characters =
-          buffer->read_string_variable(buffer->variable_path_characters());
-
-      size_t start = line.find_last_not_of(
-          path_characters, buffer->current_position_col());
-      if (start != line.npos) {
-        line = line.substr(start + 1);
-      }
-
-      size_t end = line.find_first_not_of(path_characters);
-      if (end != line.npos) {
-        line = line.substr(0, end);
-      }
-
-      OpenFileOptions options;
-      options.editor_state = editor_state;
-      options.path = line;
-      options.ignore_if_not_found = true;
-      OpenFile(options);
+    auto target = buffer->GetBufferFromCurrentLine();
+    if (target != nullptr && target != buffer) {
+      editor_state->ResetStatus();
+      auto it = editor_state->buffers()->find(target->name());
+      if (it == editor_state->buffers()->end()) { return; }
+      editor_state->set_current_buffer(it);
+      target->Enter(editor_state);
+      editor_state->PushCurrentPosition();
+      editor_state->ScheduleRedraw();
+      editor_state->ResetMode();
+      return;
     }
+
+    buffer->MaybeAdjustPositionCol();
+    wstring line = buffer->current_line()->ToString();
+
+    const wstring& path_characters =
+        buffer->read_string_variable(buffer->variable_path_characters());
+
+    size_t start = line.find_last_not_of(
+        path_characters, buffer->current_position_col());
+    if (start != line.npos) {
+      line = line.substr(start + 1);
+    }
+
+    size_t end = line.find_first_not_of(path_characters);
+    if (end != line.npos) {
+      line = line.substr(0, end);
+    }
+
+    if (line.empty()) {
+      return;
+    }
+
+    OpenFileOptions options;
+    options.editor_state = editor_state;
+    options.path = line;
+    options.ignore_if_not_found = true;
+
+    options.initial_search_paths.clear();
+    // Works if the current buffer is a directory listing:
+    options.initial_search_paths.push_back(
+        buffer->read_string_variable(buffer->variable_path()));
+    // And a fall-back for the current buffer being a file:
+    char* tmp = strdup(ToByteString(options.initial_search_paths[0]).c_str());
+    options.initial_search_paths.push_back(FromByteString(dirname(tmp)));
+    free(tmp);
+    LOG(INFO) << "Initial search path: " << options.initial_search_paths[0];
+
+    OpenFile(options);
   }
 };
 

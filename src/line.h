@@ -116,9 +116,6 @@ class Line {
 
   vm::Environment* environment() { return &environment_; }
 
-  EditorMode* activate() const { return activate_.get(); }
-  void set_activate(unique_ptr<EditorMode> activate);
-
   bool filtered() const {
     return filtered_;
   }
@@ -144,7 +141,6 @@ class Line {
 
  private:
   vm::Environment environment_;
-  unique_ptr<EditorMode> activate_;
   shared_ptr<LazyString> contents_;
   vector<unordered_set<Modifier, hash<int>>> modifiers_;
   bool modified_;

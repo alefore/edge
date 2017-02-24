@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "editor.h"
 
@@ -40,6 +41,7 @@ struct OpenFileOptions {
 
   // Should the contents of the search paths buffer be used to find the file?
   bool use_search_paths = true;
+  vector<wstring> initial_search_paths;
 };
 
 shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state);
@@ -57,9 +59,6 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     const OpenFileOptions& options);
 
 void OpenAnonymousBuffer(EditorState* editor_state);
-
-unique_ptr<EditorMode> NewFileLinkMode(
-    EditorState* editor_state, const wstring& path, bool ignore_if_not_found);
 
 }  // namespace editor
 }  // namespace afc

@@ -79,10 +79,6 @@ void Line::SetCharacter(size_t position, int c,
   }
 }
 
-void Line::set_activate(unique_ptr<EditorMode> activate) {
-  activate_ = std::move(activate);
-}
-
 void Line::Output(const EditorState* editor_state,
                   const shared_ptr<OpenBuffer>& buffer,
                   size_t line,

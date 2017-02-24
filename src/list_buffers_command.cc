@@ -15,38 +15,6 @@ namespace editor {
 
 namespace {
 
-class ActivateBufferLineCommand : public EditorMode {
- public:
-  ActivateBufferLineCommand(std::shared_ptr<OpenBuffer>& buffer)
-      : buffer_weak_(buffer) {}
-
-  void ProcessInput(wint_t c, EditorState* editor_state) {
-    auto buffer = buffer_weak_.lock();
-    switch (c) {
-      case '\n':  // Open the current buffer.
-        {
-          if (buffer == nullptr) {
-            // TODO: Keep a function and re-open the buffer?
-            editor_state->SetStatus(L"Buffer not found");
-            return;
-          }
-          editor_state->ResetStatus();
-          auto it = editor_state->buffers()->find(buffer->name());
-          if (it == editor_state->buffers()->end()) { return; }
-          editor_state->set_current_buffer(it);
-          buffer->Enter(editor_state);
-          editor_state->PushCurrentPosition();
-          editor_state->ScheduleRedraw();
-          editor_state->ResetMode();
-          break;
-        }
-    }
-  }
-
- private:
-  const std::weak_ptr<OpenBuffer> buffer_weak_;
-};
-
 class ListBuffersBuffer : public OpenBuffer {
  public:
   ListBuffersBuffer(EditorState* editor_state, const wstring& name)
@@ -84,7 +52,7 @@ class ListBuffersBuffer : public OpenBuffer {
           + (flags.empty() ? L"" : L"  ") + flags
           + (context.first == context.second ? L"" : L" ──"));
       target->AppendLine(editor_state, std::move(name));
-      AdjustLastLine(editor_state, target, it.second);
+      AdjustLastLine(target, it.second);
 
       auto start = context.first;
       size_t index = 0;
@@ -102,7 +70,7 @@ class ListBuffersBuffer : public OpenBuffer {
           ++start;
         }
         target->AppendRawLine(editor_state, std::make_shared<Line>(options));
-        AdjustLastLine(editor_state, target, it.second);
+        AdjustLastLine(target, it.second);
         ++index;
       }
     }
@@ -139,13 +107,9 @@ class ListBuffersBuffer : public OpenBuffer {
   }
 
  private:
-  void AdjustLastLine(EditorState* editor_state, OpenBuffer* target,
-                      std::shared_ptr<OpenBuffer> buffer) {
-    Line& line = *(*target->contents()->rbegin());
-    line.set_activate(
-        unique_ptr<EditorMode>(new ActivateBufferLineCommand(buffer)));
-    line.environment()->Define(L"buffer",
-                               Value::NewObject(L"Buffer", buffer));
+  void AdjustLastLine(OpenBuffer* target, std::shared_ptr<OpenBuffer> buffer) {
+    (*target->contents()->rbegin())->environment()->Define(
+        L"buffer", Value::NewObject(L"Buffer", buffer));
   }
 };
 
