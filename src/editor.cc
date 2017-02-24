@@ -116,16 +116,13 @@ std::unique_ptr<Environment> NewDefaultEnvironment(EditorState* editor) {
           auto buffer = editor->current_buffer()->second;
           CHECK(buffer != nullptr);
 
-          switch (editor->structure()) {
-            case LINE:
-              if (buffer->current_line() != nullptr &&
-                  buffer->current_line()->activate() != nullptr) {
-                buffer->current_line()->activate()->ProcessInput('r', editor);
-              }
-              break;
-            default:
-              buffer->Reload(editor);
+          if (editor->structure() == LINE) {
+            auto target_buffer = buffer->GetBufferFromCurrentLine();
+            if (target_buffer != nullptr) {
+              buffer = target_buffer;
+            }
           }
+          buffer->Reload(editor);
           editor->ResetModifiers();
           return Value::NewVoid();
         };

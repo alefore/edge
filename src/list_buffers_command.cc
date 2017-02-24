@@ -48,13 +48,6 @@ class ActivateBufferLineCommand : public EditorMode {
           editor_state->CloseBuffer(it);
           break;
         }
-      case 'r':  // Reload the current buffer.
-        {
-          if (buffer == nullptr) { return; }
-          editor_state->SetStatus(L"Reloading buffer: " + buffer->name());
-          buffer->Reload(editor_state);
-          break;
-        }
       case 'w':  // Write the current buffer.
         {
           editor_state->SetStatus(L"Saving buffer: " + buffer->name());
