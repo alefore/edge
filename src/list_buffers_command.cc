@@ -48,12 +48,6 @@ class ActivateBufferLineCommand : public EditorMode {
           editor_state->CloseBuffer(it);
           break;
         }
-      case 'w':  // Write the current buffer.
-        {
-          editor_state->SetStatus(L"Saving buffer: " + buffer->name());
-          buffer->Save(editor_state);
-          break;
-        }
     }
   }
 
