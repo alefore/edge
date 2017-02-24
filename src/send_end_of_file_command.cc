@@ -19,11 +19,20 @@ void SendEndOfFileToBuffer(EditorState* editor_state,
     editor_state->ResetStructure();
     DLOG(INFO) << "Sending EOF to line: "
                << buffer->current_line()->ToString();
-    if (buffer->current_line()->activate() != nullptr) {
-      buffer->current_line()->activate()->ProcessInput(0, editor_state);
+    if (!buffer->contents()->empty() && buffer->current_line() != nullptr) {
+      auto target = buffer->current_line()->environment()->Lookup(L"buffer");
+      if (target != nullptr
+          && target->type.type == VMType::OBJECT_TYPE
+          && target->type.object_type == L"Buffer") {
+        auto target_buffer =
+            std::static_pointer_cast<OpenBuffer>(target->user_value);
+        if (target_buffer != nullptr) {
+          buffer = target_buffer;
+        }
+      }
     }
-    return;
   }
+
   if (buffer->fd() == -1) {
     editor_state->SetStatus(L"No active subprocess for current buffer.");
     return;

@@ -23,18 +23,6 @@ class ActivateBufferLineCommand : public EditorMode {
   void ProcessInput(wint_t c, EditorState* editor_state) {
     auto buffer = buffer_weak_.lock();
     switch (c) {
-      case 0:  // Send EOF
-        {
-          if (buffer == nullptr) {
-            // TODO: Keep a function and re-open the buffer?
-            editor_state->SetStatus(L"Buffer not found");
-            return;
-          }
-          editor_state->ResetStatus();
-          SendEndOfFileToBuffer(editor_state, buffer);
-          editor_state->ScheduleRedraw();
-          break;
-        }
       case '\n':  // Open the current buffer.
         {
           if (buffer == nullptr) {
