@@ -362,10 +362,14 @@ class DeleteLinesTransformation : public Transformation {
       DVLOG(5) << "Erasing line: " << contents->ToString();
       size_t start = backwards ? 0 : buffer->position().column;
       size_t end = forwards ? contents->size() : buffer->position().column;
-      if (start == 0
-          && end == contents->size()
-          && contents->activate() != nullptr) {
-        contents->activate()->ProcessInput('d', editor_state);
+      if (start == 0 && end == contents->size()) {
+        auto target_buffer = buffer->GetBufferFromCurrentLine();
+        if (target_buffer.get() != buffer && target_buffer != nullptr) {
+          auto it = editor_state->buffers()->find(target_buffer->name());
+          if (it != editor_state->buffers()->end()) {
+            editor_state->CloseBuffer(it);
+          }
+        }
       }
       Modifiers modifiers;
       modifiers.repetitions = end - start

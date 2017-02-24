@@ -40,14 +40,6 @@ class ActivateBufferLineCommand : public EditorMode {
           editor_state->ResetMode();
           break;
         }
-      case 'd':  // Delete (close) the current buffer.
-        {
-          if (buffer == nullptr) { return; }
-          auto it = editor_state->buffers()->find(buffer->name());
-          if (it == editor_state->buffers()->end()) { return; }
-          editor_state->CloseBuffer(it);
-          break;
-        }
     }
   }
 
