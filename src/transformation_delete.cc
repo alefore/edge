@@ -370,6 +370,18 @@ class DeleteLinesTransformation : public Transformation {
             editor_state->CloseBuffer(it);
           }
         }
+
+        if (!buffer->contents()->empty() && buffer->current_line() != nullptr) {
+          auto callback = buffer
+              ->current_line()->environment()->Lookup(L"EdgeLineDeleteHandler");
+          if (callback != nullptr
+              && callback->type.type == vm::VMType::FUNCTION
+              && callback->type.type_arguments.size() == 1
+              && callback->type.type_arguments.at(0) == vm::VMType::VM_VOID) {
+            LOG(INFO) << "Running EdgeLineDeleteHandler.";
+            callback->callback({});
+          }
+        }
       }
       Modifiers modifiers;
       modifiers.repetitions = end - start

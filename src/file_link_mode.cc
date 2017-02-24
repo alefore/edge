@@ -32,6 +32,33 @@ using std::shared_ptr;
 using std::unique_ptr;
 using std::sort;
 
+void StartDeleteFile(EditorState* editor_state, wstring path) {
+  PromptOptions options;
+  options.prompt = L"unlink " + path + L"? [yes/no] ",
+  options.history_file = L"confirmation";
+  options.handler = [path](const wstring input,
+                           EditorState* editor_state) {
+    if (input == L"yes") {
+      int result = unlink(ToByteString(path).c_str());
+      editor_state->SetStatus(
+          path + L": unlink: "
+          + (result == 0
+             ? L"done"
+             : L"ERROR: " + FromByteString(strerror(errno))));
+    } else {
+      // TODO: insert it again?  Actually, only let it be erased
+      // in the other case.
+      editor_state->SetStatus(L"Ignored.");
+    }
+    editor_state->ResetMode();
+  };
+  options.predictor = PrecomputedPredictor({L"no", L"yes"}, '/');
+  //unique_ptr<Command> command =
+      //NewLinePromptCommand(L"Confirmation", std::move(options));
+  //command->ProcessInput('\n', editor_state);
+  Prompt(editor_state, std::move(options));
+}
+
 class FileBuffer : public OpenBuffer {
  public:
   FileBuffer(EditorState* editor_state, const wstring& path,
@@ -106,10 +133,25 @@ class FileBuffer : public OpenBuffer {
         continue;  // Showing the link to itself is rather pointless.
       }
       auto type_it = types.find(entry->d_type);
+      auto path = FromByteString(entry->d_name);
       target->AppendLine(editor_state, shared_ptr<LazyString>(
           NewCopyString(
-              FromByteString(entry->d_name) +
-              (type_it == types.end() ? L"" : type_it->second))));
+              path + (type_it == types.end() ? L"" : type_it->second))));
+      {
+        unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+        // Returns nothing.
+        callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+        callback->callback =
+            [editor_state, path](vector<unique_ptr<Value>> args) {
+              CHECK_EQ(args.size(), 0);
+              StartDeleteFile(editor_state, path);
+              return Value::NewVoid();
+            };
+
+        (*target->contents()->rbegin())->environment()->Define(
+            L"EdgeLineDeleteHandler", std::move(callback));
+      }
+
       (*target->contents()->rbegin())->set_activate(
           NewFileLinkMode(editor_state,
               path + L"/" + FromByteString(entry->d_name), false));
@@ -194,35 +236,6 @@ class FileLinkMode : public EditorMode {
           afc::editor::OpenFile(options);
           return;
         }
-
-      case 'd':
-        {
-          PromptOptions options;
-          options.prompt = L"unlink " + path_ + L"? [yes/no] ",
-          options.history_file = L"confirmation";
-          wstring path = path_;  // Capture for the lambda.
-          options.handler = [path](const wstring input,
-                                   EditorState* editor_state) {
-            if (input == L"yes") {
-              int result = unlink(ToByteString(path).c_str());
-              editor_state->SetStatus(
-                  path + L": unlink: "
-                  + (result == 0
-                     ? L"done"
-                     : L"ERROR: " + FromByteString(strerror(errno))));
-            } else {
-              // TODO: insert it again?  Actually, only let it be erased
-              // in the other case.
-              editor_state->SetStatus(L"Ignored.");
-            }
-            editor_state->ResetMode();
-          };
-          options.predictor = PrecomputedPredictor({L"no", L"yes"}, '/');
-          unique_ptr<Command> command =
-              NewLinePromptCommand(L"Confirmation", std::move(options));
-          command->ProcessInput('\n', editor_state);
-        }
-        return;
 
       default:
         editor_state->SetStatus(
