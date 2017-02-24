@@ -355,11 +355,11 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
   if (search_paths_buffer == nullptr) {
     return;
   }
+  output->push_back(L"");
   for (auto it : *search_paths_buffer->contents()) {
-    output->push_back(it->ToString());
-  }
-  if (find(output->begin(), output->end(), L"") == output->end()) {
-    output->push_back(L"");
+    if (!it->size() > 0) {
+      output->push_back(it->ToString());
+    }
   }
 }
 
