@@ -239,7 +239,7 @@ int main(int, char**) {
   assert(editor_state.current_buffer()->second->position().column == 10);
 
   editor_state.ProcessInputString("3b");
-  assert(editor_state.current_buffer()->second->position().column == 4);
+  CHECK_EQ(editor_state.current_buffer()->second->position().column, 4);
 
   editor_state.ProcessInputString("2rb");
   assert(editor_state.current_buffer()->second->position().column == 8);
@@ -274,12 +274,12 @@ int main(int, char**) {
   Clear(&editor_state);
 
   editor_state.ProcessInputString("ihey there hey hey man yes ahoheyblah.");
-  assert(editor_state.current_buffer()->second->position().line == 0);
+  CHECK_EQ(editor_state.current_buffer()->second->position().line, 0);
   editor_state.ProcessInput(Terminal::ESCAPE);
   editor_state.ProcessInputString("glw/");
-  assert(editor_state.last_search_query() == L"hey");
-  assert(editor_state.current_buffer()->second->position().line == 0);
-  assert(editor_state.current_buffer()->second->position().column == 10);
+  CHECK(editor_state.last_search_query() == L"hey");
+  CHECK_EQ(editor_state.current_buffer()->second->position().line, 0);
+  CHECK_EQ(editor_state.current_buffer()->second->position().column, 10);
 
   Clear(&editor_state);
 
@@ -434,6 +434,21 @@ int main(int, char**) {
   // Can cancel the search prompt.
   editor_state.ProcessInputString("/");
   editor_state.ProcessInput(Terminal::ESCAPE);
+
+  Clear(&editor_state);
+
+  // Search switching cursors.
+  editor_state.ProcessInputString("i0123456789");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("g");
+  editor_state.ProcessInputString("+");  // Cursors: 0, *0
+  editor_state.ProcessInputString("2l" "+");  // Cursors: 0, 2, *2
+  editor_state.ProcessInputString("2l");  // Cursors: 0, 2, *4
+  editor_state.ProcessInputString("ch");  // Cursors: 0, *2, 4
+  editor_state.ProcessInputString("i-");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "01-23456789");
 
   Clear(&editor_state);
 

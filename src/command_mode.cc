@@ -157,10 +157,12 @@ class GotoPreviousPositionCommand : public Command {
 
   static void Go(EditorState* editor_state) {
     if (!editor_state->HasPositionsInStack()) {
+      LOG(INFO) << "Editor doesn't have positions in stack.";
       return;
     }
     while (editor_state->repetitions() > 0) {
       if (!editor_state->MovePositionsStack(editor_state->direction())) {
+        LOG(INFO) << "Editor failed to move in positions stack.";
         return;
       }
       const BufferPosition pos = editor_state->ReadPositionsStack();
@@ -173,6 +175,8 @@ class GotoPreviousPositionCommand : public Command {
                   && pos.position.line != current_position.line)
               || (editor_state->structure() <= CHAR
                   && pos.position.column != current_position.column))) {
+        LOG(INFO) << "Jumping to position: " << it->second->name() << " "
+                  << pos.position;
         editor_state->set_current_buffer(it);
         it->second->set_position(pos.position);
         it->second->Enter(editor_state);
@@ -732,17 +736,17 @@ class RunCppFileCommand : public Command {
 
 class SwitchCaseTransformation : public Transformation {
  public:
-  void Apply(
-      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
+  void Apply(EditorState* editor_state, OpenBuffer* buffer, Result* result)
+      const override {
     LineColumn start;
     LineColumn end;
     if (!buffer->FindPartialRange(
-            editor_state->modifiers(), buffer->position(), &start, &end)) {
+            editor_state->modifiers(), result->cursor, &start, &end)) {
       editor_state->SetStatus(L"Structure not handled.");
       return;
     }
     CHECK_LE(start, end);
-    unique_ptr<TransformationStack> stack(new TransformationStack);
+    unique_ptr<TransformationStack> stack(new TransformationStack());
     stack->PushBack(NewGotoPositionTransformation(start));
     shared_ptr<OpenBuffer> buffer_to_insert(
         new OpenBuffer(editor_state, L"- text inserted"));

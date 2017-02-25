@@ -30,32 +30,36 @@ namespace {
 using namespace afc::editor;
 
 class NewLineTransformation : public Transformation {
-  void Apply(
-      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
-    buffer->MaybeAdjustPositionCol();
-    const size_t column = buffer->position().column;
-    auto current_line = buffer->current_line();
+  void Apply(EditorState* editor_state, OpenBuffer* buffer, Result* result)
+      const override {
+    const size_t column = result->cursor.column;
+    auto line = buffer->LineAt(result->cursor.line);
+    if (line == nullptr) {
+      result->made_progress = false;
+      return;
+    }
 
     if (buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())
         && column != 0
-        && (current_line == nullptr || column != current_line->size())) {
+        && column != line->size()) {
+      result->made_progress = false;
       return;
     }
 
     const wstring& line_prefix_characters(buffer->read_string_variable(
         OpenBuffer::variable_line_prefix_characters()));
     size_t prefix_end = 0;
-    if (current_line != nullptr
+    if (line != nullptr
         && !buffer->read_bool_variable(OpenBuffer::variable_paste_mode())) {
       while (prefix_end < column
-             && (line_prefix_characters.find(current_line->get(prefix_end))
+             && (line_prefix_characters.find(line->get(prefix_end))
                  != line_prefix_characters.npos)) {
         prefix_end++;
       }
     }
 
     Line::Options continuation_options;
-    continuation_options.contents = current_line->Substring(0, prefix_end);
+    continuation_options.contents = line->Substring(0, prefix_end);
 
     unique_ptr<TransformationStack> transformation(new TransformationStack);
     {
@@ -67,16 +71,16 @@ class NewLineTransformation : public Transformation {
           NewInsertBufferTransformation(buffer_to_insert, 1, END));
     }
 
-    transformation->PushBack(NewGotoPositionTransformation(buffer->position()));
+    transformation->PushBack(NewGotoPositionTransformation(result->cursor));
     transformation->PushBack(NewDeleteSuffixSuperfluousCharacters());
 
     transformation->PushBack(NewGotoPositionTransformation(
-        LineColumn(buffer->current_position_line() + 1, prefix_end)));
+        LineColumn(result->cursor.line + 1, prefix_end)));
     return transformation->Apply(editor_state, buffer, result);
   }
 
   unique_ptr<Transformation> Clone() {
-    return unique_ptr<Transformation>(new NewLineTransformation);
+    return unique_ptr<Transformation>(new NewLineTransformation());
   }
 };
 
@@ -145,11 +149,10 @@ class AutocompleteMode : public EditorMode {
     Modifiers modifiers;
     modifiers.repetitions = word_length_;
     options_.buffer->Apply(editor_state,
-        TransformationAtPosition(
-            LineColumn(options_.buffer->position().line, options_.column_start),
-            ComposeTransformation(
-                NewDeleteCharactersTransformation(modifiers, false),
-                NewInsertBufferTransformation(buffer_to_insert, 1, END))));
+        ComposeTransformation(
+            NewDeleteCharactersTransformation(modifiers, false),
+            NewInsertBufferTransformation(buffer_to_insert, 1, END)),
+        LineColumn(options_.buffer->position().line, options_.column_start));
 
     options_.buffer->set_modified(true);
     editor_state->ScheduleRedraw();
@@ -176,14 +179,14 @@ class JumpTransformation : public Transformation {
  public:
   JumpTransformation(Direction direction) : direction_(direction) {}
 
-  void Apply(
-      EditorState* editor_state, OpenBuffer* buffer, Result* result)
+  void Apply(EditorState* editor_state, OpenBuffer* buffer, Result* result)
       const override {
     CHECK(result);
-    buffer->CheckPosition();
-    buffer->MaybeAdjustPositionCol();
-    if (buffer->current_line() == nullptr) { return; }
-    auto position = buffer->position();
+    if (buffer->LineAt(result->cursor.line) == nullptr) {
+      result->made_progress = false;
+      return;
+    }
+    LineColumn position = result->cursor;
     switch (direction_) {
       case FORWARDS:
         position.column = buffer->current_line()->size();
@@ -194,6 +197,7 @@ class JumpTransformation : public Transformation {
     }
     NewGotoPositionTransformation(position)
         ->Apply(editor_state, buffer, result);
+    // TODO: This probabily doesn't belong here.
     if (buffer->active_cursors()->size() > 1) {
       editor_state->ScheduleRedraw();
     }

@@ -39,8 +39,7 @@ using namespace afc::vm;
 
 class OpenBuffer {
  public:
-  typedef std::list<std::pair<Tree<shared_ptr<Line>>::iterator, size_t>>
-      CursorsSet;
+  typedef std::multiset<LineColumn> CursorsSet;
 
   // Name of a special buffer that shows the list of buffers.
   static const wstring kBuffersName;
@@ -149,12 +148,13 @@ class OpenBuffer {
   // Restores the last cursors available.
   void ToggleActiveCursors();
 
+  void AdjustCursors(std::function<LineColumn(LineColumn)> callback);
   void set_current_cursor(CursorsSet::value_type new_cursor);
   CursorsSet::iterator current_cursor();
   CursorsSet::const_iterator current_cursor() const;
   void CreateCursor();
-  void VisitPreviousCursor();
-  void VisitNextCursor();
+  CursorsSet::iterator FindPreviousCursor(LineColumn cursor);
+  CursorsSet::iterator FindNextCursor(LineColumn cursor);
   void DestroyCursor();
   void DestroyOtherCursors();
 
@@ -236,11 +236,11 @@ class OpenBuffer {
   wstring ToString() const;
 
   void replace_current_line(const shared_ptr<Line>& line) {
-    if (current_cursor_->first == contents_.end()) {
+    if (current_cursor_->line >= contents_.size()) {
       CHECK(!contents_.empty());
       set_current_position_line(contents_.size() - 1);
     }
-    *current_cursor_->first = line;
+    contents_[current_cursor_->line] = line;
   }
 
   int fd() const { return fd_.fd; }
@@ -389,8 +389,9 @@ class OpenBuffer {
                           unique_ptr<Value> value);
 
   void ApplyToCursors(unique_ptr<Transformation> transformation);
-  void Apply(EditorState* editor_state,
-             unique_ptr<Transformation> transformation);
+  LineColumn Apply(EditorState* editor_state,
+                   unique_ptr<Transformation> transformation,
+                   LineColumn cursor);
   void RepeatLastTransformation(EditorState* editor_state);
 
   void PushTransformationStack();
@@ -549,6 +550,14 @@ class OpenBuffer {
   std::map<std::wstring, CursorsSet> cursors_;
 
   CursorsSet::iterator current_cursor_;
+
+  // While we're applying a transformation to a set of cursors, we need to
+  // remember what cursors it has already been applied to. To do that, we
+  // gradually drain the original set of cursors and add them here as we apply
+  // the transformation to them. We can't just loop over the set of cursors
+  // since each transformation will likely reshuffle them. Once the source of
+  // cursors to modify is empty, we just swap it back with this.
+  CursorsSet already_applied_cursors_;
 
   // If we get a request to open a buffer and jump to a given line, we store
   // that value here. Once we've read enough lines, we stay at this position.

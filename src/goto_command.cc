@@ -53,12 +53,13 @@ class GotoCharTransformation : public Transformation {
 
   void Apply(EditorState* editor, OpenBuffer* buffer, Result* result)
       const override {
-    if (buffer->current_line() == nullptr) {
-      result->success = false;
-    }
     const wstring& line_prefix_characters = buffer->read_string_variable(
         OpenBuffer::variable_line_prefix_characters());
-    const auto& line = buffer->current_line();
+    const auto& line = buffer->LineAt(result->cursor.line);
+    if (line == nullptr) {
+      result->success = false;
+      return;
+    }
     size_t start = 0;
     while (start < line->size()
            && (line_prefix_characters.find(line->get(start))
@@ -74,9 +75,9 @@ class GotoCharTransformation : public Transformation {
     size_t position = ComputePosition(
         start, end, line->size(), editor->direction(), editor->repetitions(),
         editor->structure_range(), calls_);
-    assert(position <= line->size());
-    result->made_progress = buffer->current_position_col() != position;
-    buffer->set_current_position_col(position);
+    CHECK_LE(position, line->size());
+    result->made_progress = result->cursor.column != position;
+    result->cursor.column = position;
   }
 
   std::unique_ptr<Transformation> Clone() {

@@ -19,8 +19,8 @@ class GotoPositionTransformation : public Transformation {
   void Apply(EditorState*, OpenBuffer* buffer, Result* result) const {
     CHECK(buffer != nullptr);
     CHECK(result != nullptr);
-    result->undo = NewGotoPositionTransformation(buffer->position());
-    buffer->set_position(position_);
+    result->undo = NewGotoPositionTransformation(result->cursor);
+    result->cursor = position_;
   }
 
   unique_ptr<Transformation> Clone() {
@@ -28,7 +28,7 @@ class GotoPositionTransformation : public Transformation {
   }
 
  private:
-  LineColumn position_;
+  const LineColumn position_;
 };
 
 size_t CountCharacters(OpenBuffer* buffer) {
@@ -57,10 +57,10 @@ class InsertBufferTransformation : public Transformation {
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     auto updater = buffer->BlockParseTreeUpdates();
-    LineColumn start_position = buffer->position();
+    LineColumn start_position = result->cursor;
     for (size_t i = 0; i < repetitions_; i++) {
-      buffer->set_position(
-          buffer->InsertInCurrentPosition(*buffer_to_insert_->contents()));
+      result->cursor = buffer->InsertInPosition(*buffer_to_insert_->contents(),
+                                                result->cursor);
     }
     editor_state->ScheduleRedraw();
 
@@ -82,7 +82,7 @@ class InsertBufferTransformation : public Transformation {
     }
 
     if (final_position_ == START) {
-      buffer->set_position(start_position);
+      result->cursor = start_position;
     }
 
     result->modified_buffer = true;
@@ -112,12 +112,15 @@ class NoopTransformation : public Transformation {
 
 class DeleteSuffixSuperfluousCharacters : public Transformation {
  public:
-  void Apply(
-      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
+  void Apply(EditorState* editor_state, OpenBuffer* buffer, Result* result)
+      const override {
     const wstring& superfluous_characters(buffer->read_string_variable(
         OpenBuffer::variable_line_suffix_superfluous_characters()));
-    const auto line = buffer->current_line();
-    if (!line) { return; }
+    const auto line = buffer->LineAt(result->cursor.line);
+    if (line == nullptr) {
+      result->made_progress = false;
+      return;
+    }
     size_t pos = line->size();
     while (pos > 0
            && superfluous_characters.find(line->get(pos - 1)) != string::npos) {
@@ -130,7 +133,7 @@ class DeleteSuffixSuperfluousCharacters : public Transformation {
     Modifiers modifiers;
     modifiers.repetitions = line->size() - pos;
     return TransformationAtPosition(
-        LineColumn(buffer->position().line, pos),
+        LineColumn(result->cursor.line, pos),
         NewDeleteCharactersTransformation(modifiers, false))
             ->Apply(editor_state, buffer, result);
   }
@@ -171,13 +174,15 @@ class ApplyRepetitionsTransformation : public Transformation {
       : repetitions_(repetitions),
         delegate_(std::move(delegate)) {}
 
-  void Apply(
-      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
-    unique_ptr<TransformationStack> undo_stack(new TransformationStack);
+  void Apply(EditorState* editor_state, OpenBuffer* buffer, Result* result)
+      const override {
+    unique_ptr<TransformationStack> undo_stack(new TransformationStack());
     for (size_t i = 0; i < repetitions_; i++) {
       Result current_result(editor_state);
       current_result.delete_buffer = result->delete_buffer;
+      current_result.cursor = result->cursor;
       delegate_->Apply(editor_state, buffer, &current_result);
+      result->cursor = current_result.cursor;
       if (current_result.modified_buffer) {
         result->modified_buffer = true;
       }

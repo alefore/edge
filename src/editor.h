@@ -170,6 +170,7 @@ class EditorState {
   bool screen_needs_hard_redraw() const { return screen_needs_hard_redraw_; }
 
   void PushCurrentPosition();
+  void PushPosition(LineColumn position);
   bool HasPositionsInStack();
   BufferPosition ReadPositionsStack();
   bool MovePositionsStack(Direction direction);

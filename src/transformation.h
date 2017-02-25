@@ -46,6 +46,10 @@ class Transformation {
     // Any text deleted will be appended to this buffer.  If any text at all is
     // appended, the buffer will replace the previous paste buffer.
     shared_ptr<OpenBuffer> delete_buffer;
+
+    // Input and ouput parameter: where should the transformation be applied and
+    // where does the cursor end up afterwards.
+    LineColumn cursor;
   };
 
   virtual ~Transformation() {}
@@ -112,14 +116,16 @@ class TransformationStack : public Transformation {
     stack_.push_front(std::move(transformation));
   }
 
-  void Apply(
-      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
+  void Apply(EditorState* editor_state, OpenBuffer* buffer, Result* result)
+      const override {
     CHECK(result != nullptr);
     unique_ptr<TransformationStack> undo(new TransformationStack());
     for (auto& it : stack_) {
       Result it_result(editor_state);
       it_result.delete_buffer = result->delete_buffer;
+      it_result.cursor = result->cursor;
       it->Apply(editor_state, buffer, &it_result);
+      result->cursor = it_result.cursor;
       if (it_result.modified_buffer) {
         result->modified_buffer = true;
       }

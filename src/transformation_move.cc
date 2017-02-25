@@ -26,29 +26,49 @@ class MoveTransformation : public Transformation {
     LineColumn position;
     switch (modifiers_.structure) {
       case CHAR:
-        buffer->CheckPosition();
-        buffer->MaybeAdjustPositionCol();
-        if (buffer->current_line() == nullptr) { return; }
-        position = MoveCharacter(buffer);
+        if (buffer->LineAt(result->cursor.line) == nullptr) {
+          result->made_progress = false;
+          return;
+        }
+        position = MoveCharacter(buffer, result->cursor);
         break;
       case LINE:
-        position = MoveLine(buffer);
+        position = MoveLine(buffer, result->cursor);
         break;
       case TREE:
       case WORD:
-        position = MoveRange(editor_state, buffer);
+        position = MoveRange(editor_state, buffer, result->cursor);
         break;
       case MARK:
-        position = MoveMark(editor_state, buffer);
+        position = MoveMark(editor_state, buffer, result->cursor);
         break;
 
       case CURSOR:
         // Handles repetitions.
-        buffer->VisitNextCursor();
-        editor_state->ResetRepetitions();
-        editor_state->ResetStructure();
-        editor_state->ResetDirection();
-        return;
+        {
+          auto active_cursors = buffer->active_cursors();
+          auto next_cursor = buffer->FindNextCursor(result->cursor);
+          if (next_cursor == active_cursors->end()) {
+            LOG(INFO) << "Unable to find next cursor.";
+            result->success = false;
+            return;
+          }
+
+          LineColumn original_cursor = result->cursor;
+          result->cursor = *next_cursor;
+
+          VLOG(5) << "Moving cursor from " << *next_cursor << " to "
+                  << original_cursor;
+
+          active_cursors->erase(next_cursor);
+          active_cursors->insert(original_cursor);
+
+          editor_state->ScheduleRedraw();
+          editor_state->ResetRepetitions();
+          editor_state->ResetStructure();
+          editor_state->ResetDirection();
+          return;
+        }
       default:
         CHECK(false);
     }
@@ -56,7 +76,7 @@ class MoveTransformation : public Transformation {
     NewGotoPositionTransformation(position)
         ->Apply(editor_state, buffer, result);
     if (modifiers_.repetitions > 1) {
-      editor_state->PushCurrentPosition();
+      editor_state->PushPosition(result->cursor);
     }
     if (buffer->active_cursors()->size() > 1
         || buffer->current_tree() != current_tree) {
@@ -72,14 +92,13 @@ class MoveTransformation : public Transformation {
   }
 
  private:
-  LineColumn MoveCharacter(OpenBuffer* buffer)
+  LineColumn MoveCharacter(OpenBuffer* buffer, LineColumn position)
       const {
-    LineColumn position = buffer->position();
     switch (modifiers_.direction) {
       case FORWARDS:
         CHECK(buffer->current_line() != nullptr);
         position.column = min(position.column + modifiers_.repetitions,
-            buffer->current_line()->size());
+            buffer->LineAt(position.line)->size());
         break;
       case BACKWARDS:
         position.column -= min(position.column, modifiers_.repetitions);
@@ -122,18 +141,19 @@ class MoveTransformation : public Transformation {
     return it->second.target;
   }
 
-  LineColumn MoveLine(OpenBuffer* buffer) const {
+  LineColumn MoveLine(OpenBuffer* buffer, LineColumn position) const {
     int direction = (modifiers_.direction == BACKWARDS ? -1 : 1);
-    size_t current = buffer->current_position_line();
-    int repetitions = min(modifiers_.repetitions,
+    int repetitions = min(
+        modifiers_.repetitions,
         modifiers_.direction == BACKWARDS
-            ? current : buffer->contents()->size() - 1 - current);
-    return LineColumn(current + direction * repetitions,
-                      buffer->current_position_col());
+            ? position.line
+            : buffer->contents()->size() - 1 - position.line);
+    position.line += direction * repetitions;
+    return position;
   }
 
-  LineColumn MoveRange(EditorState*, OpenBuffer* buffer) const {
-    LineColumn position = buffer->position();
+  LineColumn MoveRange(EditorState*, OpenBuffer* buffer, LineColumn position)
+      const {
     LineColumn start, end;
 
     if (!buffer->FindPartialRange(modifiers_, position, &start, &end)) {
@@ -182,18 +202,19 @@ class MoveTransformation : public Transformation {
     return position;
   }
 
-  LineColumn MoveMark(EditorState* editor_state, OpenBuffer* buffer) const {
+  LineColumn MoveMark(EditorState* editor_state, OpenBuffer* buffer,
+                      LineColumn position) const {
     const multimap<size_t, LineMarks::Mark>* marks =
         buffer->GetLineMarks(*editor_state);
 
     switch (modifiers_.direction) {
       case FORWARDS:
         return GetMarkPosition(
-            marks->begin(), marks->end(), buffer->position(), modifiers_);
+            marks->begin(), marks->end(), position, modifiers_);
         break;
       case BACKWARDS:
         return GetMarkPosition(
-            marks->rbegin(), marks->rend(), buffer->position(), modifiers_);
+            marks->rbegin(), marks->rend(), position, modifiers_);
     }
     CHECK(false);
     return LineColumn();

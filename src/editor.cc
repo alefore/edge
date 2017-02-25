@@ -194,10 +194,6 @@ std::unique_ptr<Environment> NewDefaultEnvironment(EditorState* editor) {
   }
   RegisterBufferMethod(editor_type.get(), L"ToggleActiveCursors",
                        &OpenBuffer::ToggleActiveCursors);
-  RegisterBufferMethod(editor_type.get(), L"VisitPreviousCursor",
-                       &OpenBuffer::VisitPreviousCursor);
-  RegisterBufferMethod(editor_type.get(), L"VisitNextCursor",
-                       &OpenBuffer::VisitNextCursor);
   RegisterBufferMethod(editor_type.get(), L"CreateCursor",
                        &OpenBuffer::CreateCursor);
   RegisterBufferMethod(editor_type.get(), L"DestroyCursor",
@@ -480,10 +476,16 @@ void EditorState::MoveBufferBackwards(size_t times) {
 static wstring kPositionsBufferName = L"- positions";
 
 void EditorState::PushCurrentPosition() {
+  if (current_buffer_ != buffers_.end()) {
+    PushPosition(current_buffer_->second->position());
+  }
+}
+
+void EditorState::PushPosition(LineColumn position) {
   if (!has_current_buffer()) { return; }
-  auto buffer_it = buffers_.insert(make_pair(kPositionsBufferName, nullptr));
+  auto buffer_it = buffers_.insert({kPositionsBufferName, nullptr});
   if (buffer_it.second) {
-    // Inserted the entry.
+    // Inserted a new entry into the list of buffers.
     buffer_it.first->second = shared_ptr<OpenBuffer>(
         new OpenBuffer(this, kPositionsBufferName));
   }
@@ -493,9 +495,7 @@ void EditorState::PushCurrentPosition() {
   CHECK_LE(buffer_it.first->second->position().line,
            buffer_it.first->second->contents()->size());
   shared_ptr<Line> line(new Line(Line::Options(
-      NewCopyString(
-          current_buffer_->second->position().ToString()
-          + L" " + current_buffer_->first))));
+      NewCopyString(position.ToString() + L" " + current_buffer_->first))));
   buffer_it.first->second->InsertLine(
       buffer_it.first->second->contents()->begin()
           + buffer_it.first->second->current_position_line(),

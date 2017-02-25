@@ -22,7 +22,7 @@ class FindTransformation : public Transformation {
   void Apply(EditorState* editor, OpenBuffer* buffer, Result* result)
       const override {
     for (size_t i = 0; i < modifiers_.repetitions; i++) {
-      if (!SeekOnce(buffer)) {
+      if (!SeekOnce(buffer, result)) {
         result->success = false;
         break;
       } else {
@@ -38,11 +38,11 @@ class FindTransformation : public Transformation {
   }
 
  private:
-  bool SeekOnce(OpenBuffer* buffer) const {
-    if (buffer->current_line() == nullptr) { return false; }
+  bool SeekOnce(OpenBuffer* buffer, Result* result) const {
+    if (buffer->LineAt(result->cursor.line) == nullptr) { return false; }
     shared_ptr<LazyString> current_line = buffer->current_line()->contents();
     int direction = 1;
-    size_t position = buffer->current_position_col();
+    size_t position = result->cursor.column;
     size_t times = 0;
     CHECK_LE(position, current_line->size());
     switch (modifiers_.direction) {
@@ -58,7 +58,7 @@ class FindTransformation : public Transformation {
 
     for (size_t i = 1; i < times; i ++) {
       if (current_line->get(position + direction * i) == c_) {
-        buffer->set_current_position_col(position + direction * i);
+        result->cursor.column = position + direction * i;
         return true;
       }
     }

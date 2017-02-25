@@ -336,12 +336,11 @@ using std::to_wstring;
           assert(args[0]->type == VMType::OBJECT_TYPE);
           auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
           assert(buffer != nullptr);
-          LineColumn old_position = buffer->position();
-          buffer->set_position(LineColumn(0));
+          size_t line = 0;
           unique_ptr<TransformationStack> transformation(
               new TransformationStack());
-          while (buffer->position().line + 1 < buffer->contents()->size()) {
-            wstring current_line = buffer->current_line()->ToString();
+          while (line + 1 < buffer->contents()->size()) {
+            wstring current_line = buffer->LineAt(line)->ToString();
             vector<unique_ptr<Value>> line_args;
             line_args.push_back(Value::NewString(current_line));
             unique_ptr<Value> result = args[1]->callback(std::move(line_args));
@@ -355,11 +354,10 @@ using std::to_wstring;
               transformation->PushBack(
                   NewInsertBufferTransformation(buffer_to_insert, 1, END));
             }
-            buffer->set_position(LineColumn(buffer->position().line + 1));
+            line++;
           }
           auto updater = buffer->BlockParseTreeUpdates();
-          buffer->Apply(editor_state, std::move(transformation));
-          buffer->set_position(old_position);
+          buffer->Apply(editor_state, std::move(transformation), LineColumn());
           return Value::NewVoid();
         };
     buffer->AddField(L"Map", std::move(callback));
@@ -425,7 +423,7 @@ using std::to_wstring;
           auto updater = buffer->BlockParseTreeUpdates();
           Modifiers modifiers;
           modifiers.repetitions = args[1]->integer;
-          buffer->Apply(editor_state,
+          buffer->ApplyToCursors(
               NewDeleteCharactersTransformation(modifiers, true));
           return Value::NewVoid();
         };
@@ -464,7 +462,7 @@ using std::to_wstring;
           }
 
           auto updater = buffer->BlockParseTreeUpdates();
-          buffer->Apply(editor_state,
+          buffer->ApplyToCursors(
               NewInsertBufferTransformation(buffer_to_insert, 1, END));
 
           return Value::NewVoid();
@@ -494,8 +492,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       last_transformation_(NewNoopTransformation()),
       tree_parser_(NewNullTreeParser()) {
   UpdateTreeParser();
-  active_cursors()->emplace_back(contents_.begin(), 0);
-  current_cursor_ = active_cursors()->begin();
+  current_cursor_ = active_cursors()->insert(LineColumn());
 
   environment_.Define(L"buffer", Value::NewObject(
       L"Buffer", shared_ptr<void>(this, [](void*){})));
@@ -896,23 +893,25 @@ Tree<shared_ptr<Line>>::const_iterator OpenBuffer::EraseLines(
   if (const_first == const_last) {
     return contents()->begin();  // That was easy...
   }
-  int delta_first = const_first - contents_.begin();
-  int delta_last = const_last - contents_.begin();
+  size_t delta_first = const_first - contents_.begin();
+  size_t delta_last = const_last - contents_.begin();
   LOG(INFO) << "Erasing lines in range [" << delta_first << ", " << delta_last
             << ").";
+  AdjustCursors(
+      [delta_last, delta_first](LineColumn position) {
+        if (position.line >= delta_last) {
+          position.line -= delta_last - delta_first;
+        } else if (position.line >= delta_first) {
+          position.line = delta_first;
+        }
+        return position;
+      });
+
   Tree<shared_ptr<Line>>::iterator first = contents_.begin() + delta_first;
   Tree<shared_ptr<Line>>::iterator last = contents_.begin() + delta_last;
-  for (auto& set_it : cursors_) {
-    for (auto& it : set_it.second) {
-      if (it.first >= first && it.first < last) {
-        it.first = last;
-      }
-    }
-  }
   auto result = contents_.erase(first, last);
   ResetParseTree();
-  CHECK(current_cursor_->first >= contents_.begin());
-  CHECK(current_cursor_->first <= contents_.end());
+  CHECK_LE(current_cursor_->line, contents_.size());
   return result;
 }
 
@@ -924,11 +923,19 @@ void OpenBuffer::ReplaceLine(
   ResetParseTree();
 }
 
-void OpenBuffer::InsertLine(
-    Tree<shared_ptr<Line>>::const_iterator position,
-    shared_ptr<Line> line) {
+void OpenBuffer::InsertLine(Tree<shared_ptr<Line>>::const_iterator position,
+                            shared_ptr<Line> line) {
   size_t delta = std::distance(contents_.cbegin(), position);
   contents_.insert(contents_.begin() + delta, line);
+  LOG(INFO) << "Inserting line at position: " << delta;
+  AdjustCursors(
+      [delta](LineColumn position) {
+        if (position.line >= delta) {
+          VLOG(5) << "Cursor moves down. Initial position: " << position.line;
+          position.line++;
+        }
+        return position;
+      });
   ResetParseTree();
 }
 
@@ -1332,6 +1339,9 @@ LineColumn OpenBuffer::InsertInPosition(
     position.line = contents_.size() - 1;
     position.column = contents_.at(position.line)->size();
   }
+  if (position.column > contents_.at(position.line)->size()) {
+    position.column = contents_.at(position.line)->size();
+  }
   auto head = contents_.at(position.line)->Substring(0, position.column);
   auto tail = contents_.at(position.line)->Substring(position.column);
   auto modifiers = contents_.at(position.line)->modifiers();
@@ -1348,22 +1358,23 @@ LineColumn OpenBuffer::InsertInPosition(
   // automatically reshuffle (just like the ones for the line do). Maybe some
   // day.
   LOG(INFO) << "Adjusting cursors.";
-  for (auto& it_set : cursors_) {
-    for (auto& it : it_set.second) {
-      if (it.first != line_it) {
-        continue;
-      }
-      if (it.second < position.column) {
-        it.first = contents_.begin() + position.line;
-        continue;
-      }
-
-      it.second += (*insertion.rbegin())->size();
-      if (insertion.size() > 1) {
-        it.second -= position.column;
-      }
-    }
-  }
+  AdjustCursors(
+      [position, insertion](LineColumn cursor) {
+        if (cursor < position) {
+          VLOG(7) << "Skipping cursor: " << cursor;
+          return cursor;
+        }
+        if (cursor.line == position.line) {
+          CHECK_GE(cursor.column, position.column);
+          cursor.column += (*insertion.rbegin())->size();
+          if (insertion.size() > 1) {
+            cursor.column -= position.column;
+          }
+        }
+        cursor.line += insertion.end() - insertion.begin() - 1;
+        VLOG(6) << "Insertion shifts cursor to position: " << cursor;
+        return cursor;
+      });
   if (insertion.size() == 1) {
     if (insertion.at(0)->size() == 0) { return position; }
     auto line_to_insert = insertion.at(0);
@@ -1413,7 +1424,7 @@ LineColumn OpenBuffer::InsertInPosition(
 void OpenBuffer::MaybeAdjustPositionCol() {
   if (contents_.empty() || current_line() == nullptr) { return; }
   size_t line_length = current_line()->size();
-  if (current_cursor()->second > line_length) {
+  if (current_cursor()->column > line_length) {
     set_current_position_col(line_length);
   }
 }
@@ -1437,11 +1448,12 @@ void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
   auto cursors = active_cursors();
   FindCursors(kOldCursors)->swap(*cursors);
   cursors->clear();
-  for (auto& position : positions) {
-    cursors->push_back(
-        make_pair(contents_.begin() + position.line, position.column));
-  }
-  current_cursor_ = cursors->begin();
+  cursors->insert(positions.begin(), positions.end());
+
+  current_cursor_ = cursors->find(positions.front());
+  CHECK(current_cursor_ != cursors->end());
+  LOG(INFO) << "Current cursor set to: " << *current_cursor_;
+
   editor_->ScheduleRedraw();
 }
 
@@ -1456,8 +1468,7 @@ void OpenBuffer::ToggleActiveCursors() {
   cursors->swap(*old_cursors);
 
   for (auto it = cursors->begin(); it != cursors->end(); ++it) {
-    if (contents()->begin() + desired_position.line == it->first
-        && desired_position.column == it->second) {
+    if (desired_position == *it) {
       LOG(INFO) << "Desired position " << desired_position << " prevails.";
       current_cursor_ = it;
       return;
@@ -1468,8 +1479,43 @@ void OpenBuffer::ToggleActiveCursors() {
   LOG(INFO) << "Picked up the first cursor: " << position();
 }
 
+void AdjustCursorsSet(const std::function<LineColumn(LineColumn)>& callback,
+                      OpenBuffer::CursorsSet* cursors_set,
+                      OpenBuffer::CursorsSet::iterator* current_cursor) {
+  VLOG(8) << "Adjusting cursor set of size: " << cursors_set->size();
+  OpenBuffer::CursorsSet old_cursors;
+  cursors_set->swap(old_cursors);
+  for (auto it = old_cursors.begin(); it != old_cursors.end(); ++it) {
+    VLOG(9) << "Adjusting cursor: " << *it;
+    auto result = cursors_set->insert(callback(*it));
+    if (it == *current_cursor) {
+      VLOG(5) << "Updating current cursor: " << *result;
+      *current_cursor = result;
+    }
+  }
+}
+
+void OpenBuffer::AdjustCursors(std::function<LineColumn(LineColumn)> callback) {
+  VLOG(7) << "Before adjust cursors, current at: " << *current_cursor_;
+  for (auto& cursors_set : cursors_) {
+    AdjustCursorsSet(callback, &cursors_set.second, &current_cursor_);
+  }
+  AdjustCursorsSet(callback, &already_applied_cursors_, &current_cursor_);
+  VLOG(7) << "After adjust cursors, current at: " << *current_cursor_;
+  for (auto& cursors_set : cursors_) {
+    for (auto cursor : cursors_set.second) {
+      VLOG(9) << "Cursor: " << cursor;
+    }
+  }
+}
+
 void OpenBuffer::set_current_cursor(CursorsSet::value_type new_value) {
-  *current_cursor_ = new_value;
+  auto cursors = active_cursors();
+  auto it = cursors->find(*current_cursor_);
+  if (it != cursors->end()) {
+    cursors->erase(it);
+  }
+  current_cursor_ = cursors->insert(new_value);
 }
 
 typename OpenBuffer::CursorsSet::iterator OpenBuffer::current_cursor() {
@@ -1503,8 +1549,7 @@ void OpenBuffer::CreateCursor() {
           }
           if (tmp_first > first && tmp_first < last) {
             VLOG(5) << "Creating cursor at: " << tmp_first;
-            active_cursors()->push_back(make_pair(
-                contents_.begin() + tmp_first.line, tmp_first.column));
+            active_cursors()->insert(tmp_first);
           }
           if (tmp_last == first) {
             LOG(INFO) << "Didn't make progress.";
@@ -1516,48 +1561,74 @@ void OpenBuffer::CreateCursor() {
       }
       break;
     default:
-      active_cursors()->push_back(*current_cursor_);
+      active_cursors()->insert(*current_cursor_);
   }
   editor_->SetStatus(L"Cursor created.");
   editor_->ScheduleRedraw();
 }
 
-void OpenBuffer::VisitPreviousCursor() {
+OpenBuffer::CursorsSet::iterator OpenBuffer::FindPreviousCursor(
+    LineColumn position) {
   LOG(INFO) << "Visiting previous cursor: " << editor_->modifiers();
   if (editor_->modifiers().direction == BACKWARDS) {
     editor_->set_direction(FORWARDS);
-    return VisitNextCursor();
+    return FindNextCursor(position);
   }
   auto cursors = active_cursors();
-  if (cursors->empty()) { return; }
-  size_t repetitions = editor_->modifiers().repetitions % cursors->size();
-  for (size_t i = 0; i < repetitions; i++) {
-    if (current_cursor_ == cursors->begin()) {
-      current_cursor_ = cursors->end();
-    }
-    --current_cursor_;
-    VLOG(6) << "Decrement cursor.";
+  if (cursors->empty()) { return cursors->end(); }
+
+  size_t index = 0;
+  auto output = cursors->begin();
+  while (output != cursors->end() && *output < position) {
+    ++output;
+    ++index;
   }
-  editor_->ScheduleRedraw();
+
+  size_t repetitions = editor_->modifiers().repetitions % cursors->size();
+  size_t final_position;
+  // Avoid the perils that come from unsigned integers...
+  if (index >= repetitions) {
+    final_position = index - repetitions;
+  } else {
+    final_position = cursors->size() - (repetitions - index);
+  }
+  if (final_position < index) {
+    output = cursors->begin();
+    index = 0;
+  }
+  std::advance(output, final_position - index);
+  return output;
 }
 
-void OpenBuffer::VisitNextCursor() {
+OpenBuffer::CursorsSet::iterator OpenBuffer::FindNextCursor(
+    LineColumn position) {
   LOG(INFO) << "Visiting next cursor: " << editor_->modifiers();
   if (editor_->modifiers().direction == BACKWARDS) {
     editor_->set_direction(FORWARDS);
-    return VisitPreviousCursor();
+    return FindPreviousCursor(position);
   }
   auto cursors = active_cursors();
-  if (cursors->empty()) { return; }
-  size_t repetitions = editor_->modifiers().repetitions % cursors->size();
-  for (size_t i = 0; i < repetitions; i++) {
-    ++current_cursor_;
-    VLOG(6) << "Increment cursor.";
-    if (current_cursor_ == cursors->end()) {
-      current_cursor_ = cursors->begin();
-    }
+  if (cursors->empty()) { return cursors->end(); }
+
+  size_t index = 0;
+  auto output = cursors->begin();
+  while (output != cursors->end()
+         && (*output < position
+             || (*output == position
+                 && std::next(output) != cursors->end()
+                 && *std::next(output) == position))) {
+    ++output;
+    ++index;
   }
-  editor_->ScheduleRedraw();
+
+  size_t final_position =
+      (index + editor_->modifiers().repetitions) % cursors->size();
+  if (final_position < index) {
+    output = cursors->begin();
+    index = 0;
+  }
+  std::advance(output, final_position - index);
+  return output;
 }
 
 void OpenBuffer::DestroyCursor() {
@@ -1763,25 +1834,25 @@ bool OpenBuffer::FindRangeFirst(
     case CURSOR:
       {
         bool has_boundary = false;
-        OpenBuffer::CursorsSet::value_type boundary;
+        LineColumn boundary;
         if (modifiers.direction == FORWARDS) {
           boundary = *current_cursor_;
           has_boundary = true;
         } else {
           auto cursors = cursors_.find(modifiers.active_cursors);
           if (cursors == cursors_.end()) { return false; }
-          for (const auto& it : cursors->second) {
-            if (it < *current_cursor_ && (!has_boundary || it > boundary)) {
+          for (const auto& candidate : cursors->second) {
+            if (candidate < *current_cursor_
+                && (!has_boundary || candidate > boundary)) {
               has_boundary = true;
-              boundary = it;
+              boundary = candidate;
             }
           }
         }
         if (!has_boundary) {
           return false;
         }
-        output->line = boundary.first - contents_.begin();
-        output->column = boundary.second;
+        *output = boundary;
         return true;
       }
 
@@ -1845,14 +1916,11 @@ bool OpenBuffer::FindRangeLast(
         LineColumn boundary;
         auto cursors = cursors_.find(modifiers.active_cursors);
         if (cursors == cursors_.end()) { return false; }
-        for (const auto& it : cursors->second) {
-          LineColumn position_it;
-          position_it.line = it.first - contents_.begin();
-          position_it.column = it.second;
-          if (position_it > *output
-              && (!has_boundary || position_it < boundary)) {
+        for (const auto& candidate : cursors->second) {
+          if (candidate > *output
+              && (!has_boundary || candidate < boundary)) {
             has_boundary = true;
-            boundary = position_it;
+            boundary = candidate;
           }
         }
         if (!has_boundary) {
@@ -1891,8 +1959,8 @@ bool OpenBuffer::FindRange(const Modifiers& modifiers,
 }
 
 const shared_ptr<Line> OpenBuffer::current_line() const {
-  if (current_cursor_->first == contents_.end()) { return nullptr; }
-  return *(*current_cursor_).first;
+  if (current_cursor_->line >= contents_.size()) { return nullptr; }
+  return contents_.at(current_cursor_->line);
 }
 
 shared_ptr<Line> OpenBuffer::current_line() {
@@ -2016,25 +2084,23 @@ void OpenBuffer::SetInputFiles(
 }
 
 size_t OpenBuffer::current_position_line() const {
-  return current_cursor_->first - contents_.begin();
+  return current_cursor_->line;
 }
 
 void OpenBuffer::set_current_position_line(size_t line) {
-  set_current_cursor(
-      make_pair(contents_.begin() + min(line, contents_.size()), 0));
+  set_current_cursor(LineColumn(min(line, contents_.size())));
 }
 
 size_t OpenBuffer::current_position_col() const {
-  return current_cursor_->second;
+  return current_cursor_->column;
 }
 
 void OpenBuffer::set_current_position_col(size_t column) {
-  set_current_cursor(make_pair(current_cursor_->first, column));
+  set_current_cursor(LineColumn(current_cursor_->line, column));
 }
 
 const LineColumn OpenBuffer::position() const {
-  return LineColumn(current_cursor_->first - contents_.begin(),
-                    current_cursor_->second);
+  return *current_cursor_;
 }
 
 void OpenBuffer::set_position(const LineColumn& position) {
@@ -2042,8 +2108,8 @@ void OpenBuffer::set_position(const LineColumn& position) {
     desired_line_ = position.line;
   }
   set_current_cursor(
-      make_pair(contents_.begin() + min(position.line, contents_.size()),
-                position.column));
+      LineColumn(min(position.line, contents_.size()),
+                 position.column));
 }
 
 wstring OpenBuffer::FlagsString() const {
@@ -2489,32 +2555,45 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
   CursorsSet* cursors;
   if (read_bool_variable(variable_multiple_cursors())) {
     cursors = active_cursors();
+    CHECK(cursors != nullptr);
   } else {
     cursors = &single_cursor;
-    single_cursor.push_back(*current_cursor_);
+    single_cursor.insert(*current_cursor_);
   }
 
   LOG(INFO) << "Applying transformation to cursors: " << cursors->size();
   auto updater = BlockParseTreeUpdates();
-  for (CursorsSet::iterator it = cursors->begin(); it != cursors->end(); ++it) {
-    CursorsSet::iterator final_current_cursor = current_cursor_;
-    VLOG(6) << "Applying transformation at line: "
-            << std::distance(contents_.begin(), it->first);
-    if (cursors != &single_cursor) {
-      current_cursor_ = it;
+  CursorsSet position;
+  while (!cursors->empty()) {
+    bool is_current_cursor = cursors->begin() == current_cursor_;
+    LineColumn old_position = *cursors->begin();
+    cursors->erase(cursors->begin());
+
+    auto insert_result = position.insert(
+        Apply(editor_, transformation->Clone(), old_position));
+    VLOG(5) << "Cursor went from " << old_position << " to " << *insert_result;
+
+    if (cursors == &single_cursor) {
+      VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
+      active_cursors()->erase(current_cursor_);
+      current_cursor_ = active_cursors()->insert(*insert_result);
+      return;
     }
 
-    Apply(editor_, transformation->Clone());
-
-    if (it == current_cursor_) {
-      *it = *current_cursor_;
-      current_cursor_ = final_current_cursor;
+    if (is_current_cursor) {
+      VLOG(6) << "Adjusting default cursor (multiple): " << *insert_result;
+      current_cursor_ = insert_result;
+      continue;
     }
+
   }
+  cursors->swap(position);
+  LOG(INFO) << "Current cursor at: " << *current_cursor_;
 }
 
-void OpenBuffer::Apply(
-    EditorState* editor_state, unique_ptr<Transformation> transformation) {
+LineColumn OpenBuffer::Apply(
+    EditorState* editor_state, unique_ptr<Transformation> transformation,
+    LineColumn cursor) {
   CHECK(transformation != nullptr);
   if (!last_transformation_stack_.empty()) {
     CHECK(last_transformation_stack_.back() != nullptr);
@@ -2522,6 +2601,7 @@ void OpenBuffer::Apply(
   }
 
   transformations_past_.emplace_back(new Transformation::Result(editor_state));
+  transformations_past_.back()->cursor = cursor;
   auto updater = BlockParseTreeUpdates();
   transformation->Apply(
       editor_state, this, transformations_past_.back().get());
@@ -2540,6 +2620,8 @@ void OpenBuffer::Apply(
   if (transformations_past_.back()->modified_buffer) {
     last_transformation_ = std::move(transformation);
   }
+
+  return transformations_past_.back()->cursor;
 }
 
 void OpenBuffer::RepeatLastTransformation(EditorState* editor_state) {

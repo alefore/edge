@@ -479,9 +479,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   // Key is line number.
   std::map<size_t, std::set<size_t>> cursors;
   for (auto cursor : *buffer->active_cursors()) {
-    size_t absolute_line = cursor.first - buffer->contents()->begin();
-    if (LineColumn(absolute_line, cursor.second) != buffer->position()) {
-      cursors[absolute_line].insert(cursor.second);
+    if (cursor != buffer->position()) {
+      cursors[cursor.line].insert(cursor.column);
     }
   }
 
@@ -519,9 +518,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       CursorsHighlighter::Options options;
       options.delegate = receiver;
       options.columns = current_cursors->second;
-      if (buffer->contents()->begin() + current_line ==
-          buffer->current_cursor()->first) {
-        options.columns.erase(buffer->current_cursor()->second);
+      if (current_line == buffer->current_cursor()->line) {
+        options.columns.erase(buffer->current_cursor()->column);
       }
       // Any cursors past the end of the line will just be silently moved to the
       // end of the line (just for displaying).

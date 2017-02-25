@@ -87,8 +87,8 @@ class ListBuffersBuffer : public OpenBuffer {
       return make_pair(last, last);
     }
     Tree<std::shared_ptr<Line>>::const_iterator start =
-        buffer.current_cursor()->first;
-    start -= min(static_cast<size_t>(start - buffer.contents()->cbegin()),
+        buffer.contents()->cbegin() + buffer.current_cursor()->line;
+    start -= min(buffer.current_cursor()->line,
                  max(lines / 2,
                      lines - min(lines,
                                  static_cast<size_t>(

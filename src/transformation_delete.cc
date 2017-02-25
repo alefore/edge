@@ -32,18 +32,22 @@ class DeleteCharactersTransformation : public Transformation {
     if (modifiers_.repetitions == 0) {
       return;
     }
-    buffer->CheckPosition();
-    buffer->set_position(min(buffer->position(), buffer->end_position()));
-    size_t current_line = buffer->current_position_line();
-    buffer->MaybeAdjustPositionCol();
+    size_t current_line = result->cursor.line;
+    if (buffer->LineAt(current_line) == nullptr) {
+      result->made_progress = false;
+      return;
+    }
+    result->cursor.column = min(result->cursor.column,
+                                buffer->LineAt(current_line)->size());
 
     shared_ptr<LazyString> preserved_contents =
-        StartOfLine(buffer, current_line, buffer->current_position_col(),
+        StartOfLine(buffer, current_line, result->cursor.column,
                     modifiers_.direction);
 
     size_t line;
     size_t chars_erased;
-    SkipLinesToErase(buffer, preserved_contents, &line, &chars_erased);
+    SkipLinesToErase(buffer, preserved_contents, &line, &chars_erased,
+                     result->cursor);
     LOG(INFO) << "Erasing from line " << current_line << " to line " << line
               << " would erase " << chars_erased << " characters.";
 
@@ -83,48 +87,49 @@ class DeleteCharactersTransformation : public Transformation {
     if (copy_to_paste_buffer_) {
       VLOG(5) << "Preparing delete buffer.";
       result->delete_buffer->Apply(
-          editor_state, NewInsertBufferTransformation(delete_buffer, 1, END));
+          editor_state, NewInsertBufferTransformation(delete_buffer, 1, END),
+          result->delete_buffer->position());
     }
 
     if (modifiers_.direction == BACKWARDS) {
-      buffer->set_position(
-          LineColumn(line, buffer->LineAt(line)->size() - chars_erase_line));
+      result->cursor.line = line;
+      result->cursor.column = buffer->LineAt(line)->size() - chars_erase_line;
     }
 
     LOG(INFO) << "Storing new line (at position " << max(current_line, line)
               << ").";
     auto initial_line = buffer->LineAt(line);
     Line::Options options;
-    auto cursors = buffer->cursors();
     switch (modifiers_.direction) {
       case FORWARDS:
         options.contents = StringAppend(
             preserved_contents, initial_line->Substring(chars_erase_line));
-        for (auto& cursor_set : *cursors) {
-          for (auto& it : cursor_set.second) {
-            if (it.first == buffer->contents()->cbegin() + line
-                && it.second > preserved_contents->size()) {
-              it.second =
-                  max(it.second - (chars_erase_line - preserved_contents->size()),
-                      preserved_contents->size());
-            }
-          }
-        }
+        buffer->AdjustCursors(
+            [line, preserved_contents, chars_erase_line](LineColumn cursor) {
+              if (cursor.line == line
+                  && cursor.column > preserved_contents->size()) {
+                cursor.column =
+                    max(cursor.column - (chars_erase_line - preserved_contents->size()),
+                        preserved_contents->size());
+              }
+              return cursor;
+            });
         break;
       case BACKWARDS:
         options.contents = StringAppend(
             initial_line->Substring(0, initial_line->size() - chars_erase_line),
             preserved_contents);
-        for (auto& cursor_set : *cursors) {
-          for (auto& it : cursor_set.second) {
-            if (it.first == buffer->contents()->cbegin() + line
-                && it.second > initial_line->size() - chars_erase_line) {
-              it.second =
-                  max(it.second - (chars_erase_line - preserved_contents->size()),
-                      initial_line->size() - chars_erase_line);
-            }
-          }
-        }
+        buffer->AdjustCursors(
+            [line, preserved_contents, chars_erase_line, initial_line](
+                LineColumn cursor) {
+              if (cursor.line == line
+                  && cursor.column > initial_line->size() - chars_erase_line) {
+                cursor.column =
+                    max(cursor.column - (chars_erase_line - preserved_contents->size()),
+                        initial_line->size() - chars_erase_line);
+              }
+              return cursor;
+            });
         break;
     }
     buffer->ReplaceLine(
@@ -135,7 +140,7 @@ class DeleteCharactersTransformation : public Transformation {
                        buffer->contents()->begin() + line_end);
     result->modified_buffer = true;
 
-    result->undo = TransformationAtPosition(buffer->position(),
+    result->undo = TransformationAtPosition(result->cursor,
         NewInsertBufferTransformation(
             delete_buffer, 1, modifiers_.direction == FORWARDS ? START : END));
   }
@@ -214,9 +219,9 @@ class DeleteCharactersTransformation : public Transformation {
   // current position until (including) line.
   void SkipLinesToErase(const OpenBuffer* buffer,
                         const shared_ptr<LazyString>& preserved_contents,
-                        size_t* line, size_t* chars_erased) const {
-    size_t current_line = buffer->current_position_line();
-    *line = current_line;
+                        size_t* line, size_t* chars_erased,
+                        LineColumn position) const {
+    *line = position.line;
     *chars_erased = 0;
     if (modifiers_.direction == FORWARDS
         && *line == buffer->contents()->size()) {
@@ -228,7 +233,7 @@ class DeleteCharactersTransformation : public Transformation {
       LOG(INFO) << "Iteration at line " << *line << " having already erased "
                 << *chars_erased << " characters.";
       size_t chars_in_line = buffer->LineAt(*line)->size();
-      if (*line == current_line) {
+      if (*line == position.line) {
         CHECK_GE(chars_in_line, preserved_contents->size());
         chars_in_line -= preserved_contents->size();
         if (modifiers_.direction == FORWARDS) {
@@ -279,22 +284,19 @@ class DeleteRegionTransformation : public Transformation {
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     CHECK(buffer != nullptr);
     CHECK(result != nullptr);
-    buffer->CheckPosition();
-    buffer->MaybeAdjustPositionCol();
 
     LineColumn start, end;
-    if (!buffer->FindPartialRange(modifiers_, buffer->position(), &start,
-                                  &end)) {
+    if (!buffer->FindPartialRange(modifiers_, result->cursor, &start, &end)) {
       result->success = false;
       LOG(INFO) << "Unable to bind region, giving up.";
       return;
     }
 
-    LOG(INFO) << "Starting at " << buffer->position() << ", bound region at ["
+    LOG(INFO) << "Starting at " << result->cursor << ", bound region at ["
               << start << ", " << end << ")";
 
-    start = min(start, buffer->position());
-    end = max(end, buffer->position());
+    start = min(start, result->cursor);
+    end = max(end, result->cursor);
 
     CHECK_LT(start, end);
 
@@ -339,12 +341,12 @@ class DeleteLinesTransformation : public Transformation {
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     size_t repetitions = min(modifiers_.repetitions,
-        buffer->contents()->size() - buffer->position().line);
+        buffer->contents()->size() - result->cursor.line);
     shared_ptr<OpenBuffer> delete_buffer(
         new OpenBuffer(editor_state, OpenBuffer::kPasteBuffer));
 
     LOG(INFO) << "Erasing lines " << repetitions << " starting at line "
-         << buffer->position().line << " in a buffer with size "
+         << result->cursor.line << " in a buffer with size "
          << buffer->contents()->size() << " with modifiers: " << modifiers_;
 
     bool forwards = modifiers_.structure_range
@@ -356,12 +358,12 @@ class DeleteLinesTransformation : public Transformation {
 
     TransformationStack stack;
 
-    size_t line = buffer->position().line;
+    size_t line = result->cursor.line;
     for (size_t i = 0; i < repetitions; i++) {
-      auto contents = buffer->contents()->at(line + i);
+      auto contents = buffer->LineAt(line + i);
       DVLOG(5) << "Erasing line: " << contents->ToString();
-      size_t start = backwards ? 0 : buffer->position().column;
-      size_t end = forwards ? contents->size() : buffer->position().column;
+      size_t start = backwards ? 0 : result->cursor.column;
+      size_t end = forwards ? contents->size() : result->cursor.column;
       if (start == 0 && end == contents->size()) {
         auto target_buffer = buffer->GetBufferFromCurrentLine();
         if (target_buffer.get() != buffer && target_buffer != nullptr) {
@@ -371,9 +373,11 @@ class DeleteLinesTransformation : public Transformation {
           }
         }
 
-        if (!buffer->contents()->empty() && buffer->current_line() != nullptr) {
-          auto callback = buffer
-              ->current_line()->environment()->Lookup(L"EdgeLineDeleteHandler");
+        if (buffer->LineAt(result->cursor.line) != nullptr) {
+          auto callback =
+              buffer->LineAt(result->cursor.line)
+                  ->environment()
+                  ->Lookup(L"EdgeLineDeleteHandler");
           if (callback != nullptr
               && callback->type.type == vm::VMType::FUNCTION
               && callback->type.type_arguments.size() == 1
@@ -459,7 +463,7 @@ class DeleteBufferTransformation : public Transformation {
     LOG(INFO) << "Erasing buffer (modifiers: " << modifiers_ << ") of size: "
               << buffer->contents()->size();
 
-    int current_line = buffer->current_position_line();
+    int current_line = result->cursor.line;
     int last_line = buffer->contents()->size();
 
     int begin = 0;
