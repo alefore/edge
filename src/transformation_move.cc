@@ -25,16 +25,10 @@ class MoveTransformation : public Transformation {
     auto current_tree = buffer->current_tree();
     LineColumn position;
     switch (modifiers_.structure) {
-      case CHAR:
-        if (buffer->LineAt(result->cursor.line) == nullptr) {
-          result->made_progress = false;
-          return;
-        }
-        position = MoveCharacter(buffer, result->cursor);
-        break;
       case LINE:
         position = MoveLine(buffer, result->cursor);
         break;
+      case CHAR:
       case TREE:
       case WORD:
         position = MoveRange(editor_state, buffer, result->cursor);
@@ -92,21 +86,6 @@ class MoveTransformation : public Transformation {
   }
 
  private:
-  LineColumn MoveCharacter(OpenBuffer* buffer, LineColumn position)
-      const {
-    switch (modifiers_.direction) {
-      case FORWARDS:
-        CHECK(buffer->current_line() != nullptr);
-        position.column = min(position.column + modifiers_.repetitions,
-            buffer->LineAt(position.line)->size());
-        break;
-      case BACKWARDS:
-        position.column -= min(position.column, modifiers_.repetitions);
-        break;
-    }
-    return position;
-  }
-
   static bool StringContains(const wstring& str, int c) {
     return str.find(static_cast<char>(c)) != wstring::npos;
   }

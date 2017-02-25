@@ -452,6 +452,14 @@ int main(int, char**) {
 
   Clear(&editor_state);
 
+  // Behavior with moving past end of line.
+  editor_state.ProcessInputString("i0123\n0123456789");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("k3h");
+  CHECK_EQ(editor_state.current_buffer()->second->position(), LineColumn(0, 1));
+
+  Clear(&editor_state);
+
   TreeTestsLong();
   TreeTestsBasic();
 
