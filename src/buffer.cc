@@ -2165,6 +2165,7 @@ wstring OpenBuffer::FlagsString() const {
     OpenBuffer::variable_reload_on_display();
     OpenBuffer::variable_show_in_buffers_list();
     OpenBuffer::variable_push_positions_to_history();
+    OpenBuffer::variable_delete_into_paste_buffer();
   }
   return output;
 }
@@ -2340,6 +2341,16 @@ OpenBuffer::variable_push_positions_to_history() {
       L"push_positions_to_history",
       L"If set to true, movement in this buffer result in positions being "
       L"pushed to the history of positions.",
+      true);
+  return variable;
+}
+
+/* static */ EdgeVariable<char>*
+OpenBuffer::variable_delete_into_paste_buffer() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+      L"delete_into_paste_buffer",
+      L"If set to true, deletions from this buffer will go into the shared "
+      L"paste buffer.",
       true);
   return variable;
 }
@@ -2618,8 +2629,9 @@ LineColumn OpenBuffer::Apply(
       editor_state, this, transformations_past_.back().get());
 
   auto delete_buffer = transformations_past_.back()->delete_buffer;
-  if (delete_buffer->contents()->size() > 1
-      || delete_buffer->LineAt(0)->size() > 0) {
+  if ((delete_buffer->contents()->size() > 1
+       || delete_buffer->LineAt(0)->size() > 0)
+      && read_bool_variable(variable_delete_into_paste_buffer())) {
     auto insert_result = editor_state->buffers()->insert(
         make_pair(delete_buffer->name(), delete_buffer));
     if (!insert_result.second) {

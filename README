@@ -349,6 +349,8 @@ buffer".  You could modify the contents in this buffer directly to alter what
 The insertion modifier (section 6.5) will specify if insert should preserve the
 contents that follow the cursor (default) or replace them as you type.
 
+This behavior is affected by variable delete_into_paste_buffer (section 7.2.26).
+
 
 4.4. Undo & Redo
 
@@ -882,6 +884,16 @@ positions (3.4 section).
 
 A few buffers default this to false, to avoid pushing their positions to the
 history.
+
+Default: true
+
+
+7.2.26. delete_into_paste_buffer (bool)
+
+If true, deletions longer than one character from this buffer will go into the
+shared paste buffer (section 4.3).
+
+A few buffers, such as prompt buffers, default this to false.
 
 Default: true
 

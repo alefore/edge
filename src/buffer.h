@@ -351,6 +351,7 @@ class OpenBuffer {
   static EdgeVariable<char>* variable_reload_on_display();
   static EdgeVariable<char>* variable_show_in_buffers_list();
   static EdgeVariable<char>* variable_push_positions_to_history();
+  static EdgeVariable<char>* variable_delete_into_paste_buffer();
 
   static EdgeStruct<wstring>* StringStruct();
   static EdgeVariable<wstring>* variable_word_characters();

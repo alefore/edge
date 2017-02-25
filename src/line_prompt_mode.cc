@@ -92,6 +92,8 @@ shared_ptr<OpenBuffer> GetPromptBuffer(EditorState* editor_state) {
         OpenBuffer::variable_allow_dirty_delete(), true);
     element.second->set_bool_variable(
         OpenBuffer::variable_show_in_buffers_list(), false);
+    element.second->set_bool_variable(
+        OpenBuffer::variable_delete_into_paste_buffer(), false);
   } else {
     element.second->ClearContents(editor_state);
   }
