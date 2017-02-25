@@ -22,6 +22,7 @@ class ListBuffersBuffer : public OpenBuffer {
     set_bool_variable(variable_atomic_lines(), true);
     set_bool_variable(variable_reload_on_display(), true);
     set_bool_variable(variable_show_in_buffers_list(), false);
+    set_bool_variable(variable_push_positions_to_history(), false);
   }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {

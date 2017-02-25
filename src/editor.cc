@@ -482,7 +482,11 @@ void EditorState::PushCurrentPosition() {
 }
 
 void EditorState::PushPosition(LineColumn position) {
-  if (!has_current_buffer()) { return; }
+  if (!has_current_buffer()
+      || !current_buffer_->second->read_bool_variable(
+              OpenBuffer::variable_push_positions_to_history())) {
+    return;
+  }
   auto buffer_it = buffers_.insert({kPositionsBufferName, nullptr});
   if (buffer_it.second) {
     // Inserted a new entry into the list of buffers.

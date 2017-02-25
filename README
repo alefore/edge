@@ -181,6 +181,8 @@ the previous position with "b".
 
 The list of positions is kept in a buffer called "- positions".
 
+This behavior is affected by variable push_positions_to_history (section 7.2.25).
+
 TODO: Describe the effect of structures.
 
 
@@ -871,6 +873,17 @@ Because this variable is toggled very frequently, the "_" key press can be used
 to quickly toggle this variable (section 8.3).
 
 Default: false
+
+
+7.2.25. push_positions_to_history (bool)
+
+If true, cursor moves in the current buffer will be pushed into the history of
+positions (3.4 section).
+
+A few buffers default this to false, to avoid pushing their positions to the
+history.
+
+Default: true
 
 
 8. Cursors

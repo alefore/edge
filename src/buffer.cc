@@ -2164,6 +2164,7 @@ wstring OpenBuffer::FlagsString() const {
     OpenBuffer::variable_multiple_cursors();
     OpenBuffer::variable_reload_on_display();
     OpenBuffer::variable_show_in_buffers_list();
+    OpenBuffer::variable_push_positions_to_history();
   }
   return output;
 }
@@ -2329,6 +2330,16 @@ OpenBuffer::variable_show_in_buffers_list() {
   static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
       L"show_in_buffers_list",
       L"If set to true, includes this in the list of buffers.",
+      true);
+  return variable;
+}
+
+/* static */ EdgeVariable<char>*
+OpenBuffer::variable_push_positions_to_history() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+      L"push_positions_to_history",
+      L"If set to true, movement in this buffer result in positions being "
+      L"pushed to the history of positions.",
       true);
   return variable;
 }
