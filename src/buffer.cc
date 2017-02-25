@@ -2647,7 +2647,7 @@ LineColumn OpenBuffer::Apply(
   return transformations_past_.back()->cursor;
 }
 
-void OpenBuffer::RepeatLastTransformation(EditorState*) {
+void OpenBuffer::RepeatLastTransformation() {
   ApplyToCursors(last_transformation_->Clone());
 }
 

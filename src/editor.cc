@@ -200,6 +200,8 @@ std::unique_ptr<Environment> NewDefaultEnvironment(EditorState* editor) {
                        &OpenBuffer::DestroyCursor);
   RegisterBufferMethod(editor_type.get(), L"DestroyOtherCursors",
                        &OpenBuffer::DestroyOtherCursors);
+  RegisterBufferMethod(editor_type.get(), L"RepeatLastTransformation",
+                       &OpenBuffer::RepeatLastTransformation);
   environment->DefineType(L"Editor", std::move(editor_type));
 
   environment->Define(L"editor", Value::NewObject(

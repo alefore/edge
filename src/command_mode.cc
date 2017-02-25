@@ -796,20 +796,6 @@ class SwitchCaseCommand : public Command {
   }
 };
 
-class RepeatLastTransformationCommand : public Command {
- public:
-  const wstring Description() {
-    return L"Repeats the last command.";
-  }
-
-  void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) { return; }
-    editor_state
-        ->current_buffer()->second->RepeatLastTransformation(editor_state);
-    editor_state->ScheduleRedraw();
-  }
-};
-
 // TODO: This leaks a lot of memory... fix that.
 static const map<vector<wint_t>, Command*> GetCommandModeMap(
     EditorState* editor_state) {
@@ -912,7 +898,12 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
 
   Register(L"sr", NewRecordCommand().release(), &output);
 
-  Register(L".", new RepeatLastTransformationCommand(), &output);
+  Register(L".",
+      NewCppCommand(editor_state->environment(),
+          L"// Repeats the last command.\n"
+          L"editor.RepeatLastTransformation();").release(),
+      &output);
+
   Register(L"?",
       NewHelpCommand(output, L"command mode").release(), &output);
 

@@ -394,7 +394,7 @@ class OpenBuffer {
   LineColumn Apply(EditorState* editor_state,
                    unique_ptr<Transformation> transformation,
                    LineColumn cursor);
-  void RepeatLastTransformation(EditorState* editor_state);
+  void RepeatLastTransformation();
 
   void PushTransformationStack();
   void PopTransformationStack();
