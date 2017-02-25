@@ -460,6 +460,18 @@ int main(int, char**) {
 
   Clear(&editor_state);
 
+  editor_state.ProcessInputString("i01\n23\n45\n67\n89\n");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("3k");  // Cursor at line "45".
+  editor_state.ProcessInputString("ed");
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "01\n23\n67\n89\n");
+  editor_state.ProcessInputString(".");
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "01\n23\n89\n");
+
+  Clear(&editor_state);
+
   TreeTestsLong();
   TreeTestsBasic();
 

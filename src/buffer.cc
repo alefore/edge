@@ -2647,12 +2647,8 @@ LineColumn OpenBuffer::Apply(
   return transformations_past_.back()->cursor;
 }
 
-void OpenBuffer::RepeatLastTransformation(EditorState* editor_state) {
-  transformations_past_.emplace_back(new Transformation::Result(editor_state));
-  auto updater = BlockParseTreeUpdates();
-  last_transformation_
-      ->Apply(editor_state, this, transformations_past_.back().get());
-  transformations_future_.clear();
+void OpenBuffer::RepeatLastTransformation(EditorState*) {
+  ApplyToCursors(last_transformation_->Clone());
 }
 
 void OpenBuffer::PushTransformationStack() {
