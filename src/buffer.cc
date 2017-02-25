@@ -1763,16 +1763,15 @@ bool OpenBuffer::FindRangeFirst(
     case CURSOR:
       {
         bool has_boundary = false;
-        OpenBuffer::CursorsSet::const_iterator boundary;
+        OpenBuffer::CursorsSet::value_type boundary;
         if (modifiers.direction == FORWARDS) {
-          boundary = current_cursor_;
+          boundary = *current_cursor_;
           has_boundary = true;
         } else {
           auto cursors = cursors_.find(modifiers.active_cursors);
           if (cursors == cursors_.end()) { return false; }
-          for (auto it = cursors->second.begin(); it != cursors->second.end();
-               ++it) {
-            if (*it < *current_cursor_ && (!has_boundary || *it > *boundary)) {
+          for (const auto& it : cursors->second) {
+            if (it < *current_cursor_ && (!has_boundary || it > boundary)) {
               has_boundary = true;
               boundary = it;
             }
@@ -1781,8 +1780,8 @@ bool OpenBuffer::FindRangeFirst(
         if (!has_boundary) {
           return false;
         }
-        output->line = boundary->first - contents_.begin();
-        output->column = boundary->second;
+        output->line = boundary.first - contents_.begin();
+        output->column = boundary.second;
         return true;
       }
 
@@ -1843,26 +1842,23 @@ bool OpenBuffer::FindRangeLast(
     case CURSOR:
       {
         bool has_boundary = false;
-        OpenBuffer::CursorsSet::const_iterator boundary;
-        if (modifiers.direction == BACKWARDS) {
-          boundary = current_cursor_;
-          has_boundary = true;
-        } else {
-          auto cursors = cursors_.find(modifiers.active_cursors);
-          if (cursors == cursors_.end()) { return false; }
-          for (auto it = cursors->second.begin(); it != cursors->second.end();
-               ++it) {
-            if (*it > *current_cursor_ && (!has_boundary || *it < *boundary)) {
-              has_boundary = true;
-              boundary = it;
-            }
+        LineColumn boundary;
+        auto cursors = cursors_.find(modifiers.active_cursors);
+        if (cursors == cursors_.end()) { return false; }
+        for (const auto& it : cursors->second) {
+          LineColumn position_it;
+          position_it.line = it.first - contents_.begin();
+          position_it.column = it.second;
+          if (position_it > *output
+              && (!has_boundary || position_it < boundary)) {
+            has_boundary = true;
+            boundary = position_it;
           }
         }
         if (!has_boundary) {
           return false;
         }
-        output->line = boundary->first - contents_.begin();
-        output->column = boundary->second;
+        *output = boundary;
         return true;
       }
 
