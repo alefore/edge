@@ -133,6 +133,7 @@ class EdgeStruct {
     EdgeStructInstance<T> instance;
     instance.values_.resize(variables_.size());
     for (const auto& v : variables_) {
+      VLOG(5) << "Initializing variable: " << v.first << " = " << v.second->default_value();
       instance.values_[v.second->position()] = v.second->default_value();
     }
     return instance;
@@ -168,6 +169,7 @@ class EdgeStruct<unique_ptr<T>> {
     EdgeStructInstance<unique_ptr<T>> instance;
     instance.values_.resize(variables_.size());
     for (const auto& v : variables_) {
+      VLOG(5) << "Initializing unique_ptr variable: " << v.first;
       instance.values_[v.second->position()].reset(nullptr);
     }
     return instance;
