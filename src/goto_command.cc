@@ -112,25 +112,41 @@ class GotoCommand : public Command {
 
       case WORD:
         {
-          // TODO: Handle reverse direction
           LineColumn position(buffer->position().line);
-          while (editor_state->repetitions() > 0) {
-            LineColumn start, end;
-            if (!buffer->FindPartialRange(
-                     editor_state->modifiers(), position, &start, &end)) {
-              editor_state->set_repetitions(0);
-              continue;
-            }
-            editor_state->set_repetitions(editor_state->repetitions() - 1);
-            if (editor_state->repetitions() == 0) {
-              position = start;
-            } else if (end.column == buffer->LineAt(position.line)->size()) {
-              position = LineColumn(end.line + 1);
-            } else {
-              position = LineColumn(end.line, end.column + 1);
-            }
+          buffer->AdjustLineColumn(&position);
+          if (editor_state->direction() == BACKWARDS) {
+            position.column = buffer->LineAt(position.line)->size();
           }
-          buffer->set_position(position);
+
+          VLOG(4) << "Start WORD GotoCommand: " << editor_state->modifiers();
+          LineColumn start, end;
+          if (buffer->FindPartialRange(
+                  editor_state->modifiers(), position, &start, &end)) {
+            switch (editor_state->direction()) {
+              case FORWARDS:
+                {
+                  Modifiers modifiers_copy = editor_state->modifiers();
+                  modifiers_copy.repetitions = 1;
+                  end = buffer->PositionBefore(end);
+                  if (buffer->FindPartialRange(modifiers_copy, end, &start, &end)) {
+                    position = start;
+                  }
+                }
+                break;
+
+              case BACKWARDS:
+                {
+                  Modifiers modifiers_copy = editor_state->modifiers();
+                  modifiers_copy.repetitions = 1;
+                  modifiers_copy.direction = FORWARDS;
+                  if (buffer->FindPartialRange(modifiers_copy, start, &start, &end)) {
+                    position = buffer->PositionBefore(end);
+                  }
+                }
+                break;
+            }
+            buffer->set_position(position);
+          }
         }
         break;
 

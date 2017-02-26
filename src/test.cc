@@ -597,6 +597,11 @@ int main(int, char**) {
 
   Clear(&editor_state);
 
+  // Triggered a crash in earlier versions.
+  editor_state.ProcessInputString("wr3g");
+
+  Clear(&editor_state);
+
   TreeTestsLong();
   TreeTestsBasic();
 
