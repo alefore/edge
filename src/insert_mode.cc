@@ -71,6 +71,7 @@ class NewLineTransformation : public Transformation {
           NewInsertBufferTransformation(buffer_to_insert, 1, END));
     }
 
+    transformation->PushBack(NewGotoPositionTransformation(result->cursor));
     transformation->PushBack(NewDeleteSuffixSuperfluousCharacters());
 
     transformation->PushBack(NewGotoPositionTransformation(
