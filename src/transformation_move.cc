@@ -66,7 +66,8 @@ class MoveTransformation : public Transformation {
       default:
         CHECK(false);
     }
-    LOG(INFO) << "Move to: " << position;
+    LOG(INFO) << "Move from " << result->cursor << " to " << position << " "
+              << modifiers_;
     NewGotoPositionTransformation(position)
         ->Apply(editor_state, buffer, result);
     if (modifiers_.repetitions > 1) {
@@ -122,12 +123,13 @@ class MoveTransformation : public Transformation {
 
   LineColumn MoveLine(OpenBuffer* buffer, LineColumn position) const {
     int direction = (modifiers_.direction == BACKWARDS ? -1 : 1);
-    int repetitions = min(
-        modifiers_.repetitions,
-        modifiers_.direction == BACKWARDS
-            ? position.line
-            : buffer->contents()->size() - 1 - position.line);
-    position.line += direction * repetitions;
+    size_t repetitions = modifiers_.repetitions;
+    if (modifiers_.direction == BACKWARDS && repetitions > position.line) {
+      position.line = 0;
+    } else {
+      position.line += direction * repetitions;
+      position.line = min(position.line, buffer->contents()->size() - 1);
+    }
     return position;
   }
 
