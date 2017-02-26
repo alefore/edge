@@ -1,5 +1,6 @@
 #include <cassert>
 #include <iostream>
+#include <string>
 
 #include <glog/logging.h>
 
@@ -155,6 +156,59 @@ void TreeTestsBasic() {
     auto it = t.begin();
     it += 3;
     CHECK_EQ(*it, 30);
+  }
+}
+
+void RunRandomTests() {
+  auto seed = time(NULL);
+  if (getenv("EDGE_TEST_SEED") != nullptr) {
+    seed = std::stoll(getenv("EDGE_TEST_SEED"));
+  }
+  LOG(INFO) << "Seed: " << seed;
+  srand(seed);
+  EditorState editor_state;
+  editor_state.ProcessInputString("i");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  for (int i = 0; i < 1000; i++) {
+    switch (random() % 3) {
+      case 0:
+        break;
+      case 1:
+        editor_state.ProcessInputString("w");
+        break;
+      case 2:
+        editor_state.ProcessInputString("e");
+        break;
+    }
+    switch (random() % 6) {
+      case 0:
+        editor_state.ProcessInputString("h");
+        break;
+
+      case 1:
+        editor_state.ProcessInputString("j");
+        break;
+
+      case 2:
+        editor_state.ProcessInputString("k");
+        break;
+
+      case 3:
+        editor_state.ProcessInputString("l");
+        break;
+
+      case 4:
+        {
+          vector<string> strings = { " ", "blah", "\n", "a", "1234567890" };
+          editor_state.ProcessInputString("i");
+          editor_state.ProcessInputString(strings[random() % strings.size()]);
+          editor_state.ProcessInput(Terminal::ESCAPE);
+        }
+        break;
+
+      case 5:
+        editor_state.ProcessInputString("d");
+    }
   }
 }
 
@@ -491,6 +545,8 @@ int main(int, char**) {
 
   TreeTestsLong();
   TreeTestsBasic();
+
+  RunRandomTests();
 
   std::cout << "Pass!\n";
   return 0;
