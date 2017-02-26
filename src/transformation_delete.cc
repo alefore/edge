@@ -32,13 +32,12 @@ class DeleteCharactersTransformation : public Transformation {
     if (modifiers_.repetitions == 0) {
       return;
     }
+    buffer->AdjustLineColumn(&result->cursor);
     size_t current_line = result->cursor.line;
     if (buffer->LineAt(current_line) == nullptr) {
       result->made_progress = false;
       return;
     }
-    result->cursor.column = min(result->cursor.column,
-                                buffer->LineAt(current_line)->size());
 
     shared_ptr<LazyString> preserved_contents =
         StartOfLine(buffer, current_line, result->cursor.column,
