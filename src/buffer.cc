@@ -897,6 +897,8 @@ Tree<shared_ptr<Line>>::const_iterator OpenBuffer::EraseLines(
   size_t delta_last = const_last - contents_.begin();
   LOG(INFO) << "Erasing lines in range [" << delta_first << ", " << delta_last
             << ").";
+  CHECK_GE(delta_last, delta_first);
+  CHECK_LE(current_cursor_->line, contents_.size());
   AdjustCursors(
       [delta_last, delta_first](LineColumn position) {
         if (position.line >= delta_last) {
@@ -1354,10 +1356,6 @@ LineColumn OpenBuffer::InsertInPosition(
   // The last line that was inserted.
   Tree<shared_ptr<Line>>::const_iterator line_it =
       contents_.begin() + position.line + insertion.size() - 1;
-  // Reshuffle cursors unlucky enough to land on the insertion line right after
-  // the cursor. Ideally we wouldn't need to do that: those iterators would
-  // automatically reshuffle (just like the ones for the line do). Maybe some
-  // day.
   LOG(INFO) << "Adjusting cursors.";
   AdjustCursors(
       [position, insertion](LineColumn cursor) {
@@ -1461,6 +1459,7 @@ void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
   current_cursor_ = cursors->find(positions.front());
   CHECK(current_cursor_ != cursors->end());
   LOG(INFO) << "Current cursor set to: " << *current_cursor_;
+  CHECK_LE(current_cursor_->line, contents_.size());
 
   editor_->ScheduleRedraw();
 }
@@ -1479,12 +1478,14 @@ void OpenBuffer::ToggleActiveCursors() {
     if (desired_position == *it) {
       LOG(INFO) << "Desired position " << desired_position << " prevails.";
       current_cursor_ = it;
+      CHECK_LE(current_cursor_->line, contents_.size());
       return;
     }
   }
 
   current_cursor_ = cursors->begin();
-  LOG(INFO) << "Picked up the first cursor: " << position();
+  LOG(INFO) << "Picked up the first cursor: " << *current_cursor_;
+  CHECK_LE(current_cursor_->line, contents_.size());
 }
 
 void AdjustCursorsSet(const std::function<LineColumn(LineColumn)>& callback,
@@ -1524,6 +1525,7 @@ void OpenBuffer::set_current_cursor(CursorsSet::value_type new_value) {
     cursors->erase(it);
   }
   current_cursor_ = cursors->insert(new_value);
+  CHECK_LE(current_cursor_->line, contents_.size());
 }
 
 typename OpenBuffer::CursorsSet::iterator OpenBuffer::current_cursor() {
@@ -1569,6 +1571,7 @@ void OpenBuffer::CreateCursor() {
       }
       break;
     default:
+      CHECK_LE(current_cursor_->line, contents_.size());
       active_cursors()->insert(*current_cursor_);
   }
   editor_->SetStatus(L"Cursor created.");
@@ -1650,10 +1653,12 @@ void OpenBuffer::DestroyCursor() {
       current_cursor_ = active_cursors()->begin();
     }
   }
+  CHECK_LE(current_cursor_->line, contents_.size());
   editor_->ScheduleRedraw();
 }
 
 void OpenBuffer::DestroyOtherCursors() {
+  CHECK_LE(current_cursor_->line, contents_.size());
   auto cursors = active_cursors();
   for (auto it = cursors->begin(); it != cursors->end();) {
     if (it != current_cursor_) {
@@ -2597,31 +2602,35 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
 
   LOG(INFO) << "Applying transformation to cursors: " << cursors->size();
   auto updater = BlockParseTreeUpdates();
-  CursorsSet position;
+  CHECK(already_applied_cursors_.empty());
+  bool adjusted_current_cursor = false;
   while (!cursors->empty()) {
     bool is_current_cursor = cursors->begin() == current_cursor_;
     LineColumn old_position = *cursors->begin();
-    cursors->erase(cursors->begin());
 
-    auto insert_result = position.insert(
-        Apply(editor_, transformation->Clone(), old_position));
-    VLOG(5) << "Cursor went from " << old_position << " to " << *insert_result;
+    auto new_position = Apply(editor_, transformation->Clone(), old_position);
+    VLOG(5) << "Cursor went from " << old_position << " to " << new_position;
+    CHECK_LE(new_position.line, contents_.size());
 
     if (cursors == &single_cursor) {
       VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
       active_cursors()->erase(current_cursor_);
-      current_cursor_ = active_cursors()->insert(*insert_result);
+      current_cursor_ = active_cursors()->insert(new_position);
+      CHECK_LE(current_cursor_->line, contents_.size());
       return;
     }
 
+    cursors->erase(cursors->begin());
+    auto insert_result = already_applied_cursors_.insert(new_position);
     if (is_current_cursor) {
       VLOG(6) << "Adjusting default cursor (multiple): " << *insert_result;
       current_cursor_ = insert_result;
-      continue;
+      adjusted_current_cursor = true;
     }
-
   }
-  cursors->swap(position);
+  cursors->swap(already_applied_cursors_);
+  CHECK(adjusted_current_cursor);
+  CHECK_LE(current_cursor_->line, contents_.size());
   LOG(INFO) << "Current cursor at: " << *current_cursor_;
 }
 

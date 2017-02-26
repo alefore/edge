@@ -71,7 +71,6 @@ class NewLineTransformation : public Transformation {
           NewInsertBufferTransformation(buffer_to_insert, 1, END));
     }
 
-    transformation->PushBack(NewGotoPositionTransformation(result->cursor));
     transformation->PushBack(NewDeleteSuffixSuperfluousCharacters());
 
     transformation->PushBack(NewGotoPositionTransformation(
@@ -90,13 +89,13 @@ class InsertEmptyLineTransformation : public Transformation {
 
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
-    LineColumn position = direction_ == BACKWARDS
-        ? LineColumn(buffer->position().line + 1)
-        : LineColumn(buffer->position().line);
+    if (direction_ == BACKWARDS) {
+      result->cursor.line++;
+    }
+    result->cursor.column = 0;
     return ComposeTransformation(
-        TransformationAtPosition(position,
-            unique_ptr<Transformation>(new NewLineTransformation())),
-        NewGotoPositionTransformation(position))
+        unique_ptr<Transformation>(new NewLineTransformation()),
+        NewGotoPositionTransformation(result->cursor))
             ->Apply(editor_state, buffer, result);
   }
 
