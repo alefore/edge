@@ -1456,6 +1456,8 @@ void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
   cursors->clear();
   cursors->insert(positions.begin(), positions.end());
 
+  // We find the first position (rather than just take cursors->begin()) so that
+  // we start at the first requested position.
   current_cursor_ = cursors->find(positions.front());
   CHECK(current_cursor_ != cursors->end());
   LOG(INFO) << "Current cursor set to: " << *current_cursor_;
@@ -2605,7 +2607,6 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
   CHECK(already_applied_cursors_.empty());
   bool adjusted_current_cursor = false;
   while (!cursors->empty()) {
-    bool is_current_cursor = cursors->begin() == current_cursor_;
     LineColumn old_position = *cursors->begin();
 
     auto new_position = Apply(editor_, transformation->Clone(), old_position);
@@ -2620,13 +2621,13 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
       return;
     }
 
-    cursors->erase(cursors->begin());
     auto insert_result = already_applied_cursors_.insert(new_position);
-    if (is_current_cursor) {
+    if (cursors->begin() == current_cursor_) {
       VLOG(6) << "Adjusting default cursor (multiple): " << *insert_result;
       current_cursor_ = insert_result;
       adjusted_current_cursor = true;
     }
+    cursors->erase(cursors->begin());
   }
   cursors->swap(already_applied_cursors_);
   CHECK(adjusted_current_cursor);
