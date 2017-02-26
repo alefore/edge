@@ -472,6 +472,15 @@ int main(int, char**) {
 
   Clear(&editor_state);
 
+  editor_state.ProcessInputString("ia");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("h");
+  editor_state.ProcessInputString("w[d");
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "a");
+
+  Clear(&editor_state);
+
   TreeTestsLong();
   TreeTestsBasic();
 

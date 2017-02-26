@@ -298,7 +298,7 @@ class DeleteRegionTransformation : public Transformation {
     start = min(start, result->cursor);
     end = max(end, result->cursor);
 
-    CHECK_LT(start, end);
+    CHECK_LE(start, end);
 
     TransformationStack stack;
 
