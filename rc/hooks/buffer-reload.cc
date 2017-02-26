@@ -18,6 +18,9 @@ if (path == "") {
   buffer.set_follow_end_of_file(false);
 
   string command = buffer.command();
+  if (command != "") {
+    buffer.set_paste_mode(true);
+  }
   int space = command.find_first_of(" ", 0);
   string base_command = space == -1 ? command : command.substr(0, space);
   if (base_command != "") {
@@ -40,7 +43,6 @@ if (path == "") {
     buffer.set_atomic_lines(false);
     buffer.set_reload_on_enter(false);
   }
-  buffer.set_paste_mode(true);
 } else {
   int dot = path.find_last_of(".", path.size());
   string extension = dot == -1 ? "" : path.substr(dot + 1, path.size() - dot - 1);
