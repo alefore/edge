@@ -481,6 +481,14 @@ int main(int, char**) {
 
   Clear(&editor_state);
 
+  editor_state.ProcessInputString("ia\nbcd");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("k" "w[d");
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "abcd");
+
+  Clear(&editor_state);
+
   TreeTestsLong();
   TreeTestsBasic();
 
