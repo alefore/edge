@@ -796,11 +796,11 @@ void OpenBuffer::UpdateTreeParser() {
 
 void OpenBuffer::ResetParseTree() {
   if (block_parse_tree_updates_.lock() != nullptr) {
-    LOG(INFO) << "Skipping parse tree update.";
+    VLOG(9) << "Skipping parse tree update.";
     pending_parse_tree_updates_ = true;
     return;
   }
-  LOG(INFO) << "Resetting parse tree.";
+  VLOG(5) << "Resetting parse tree.";
   parse_tree_.begin = LineColumn();
   if (contents_.empty()) {
     parse_tree_.end = parse_tree_.begin;
@@ -813,7 +813,7 @@ void OpenBuffer::ResetParseTree() {
     editor_->ScheduleRedraw();
   }
   pending_parse_tree_updates_ = false;
-  LOG(INFO) << "Resulting tree: " << parse_tree_;
+  VLOG(6) << "Resulting tree: " << parse_tree_;
 }
 
 void OpenBuffer::StartNewLine(EditorState* editor_state) {
