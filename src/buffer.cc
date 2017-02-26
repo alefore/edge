@@ -2585,12 +2585,6 @@ void OpenBuffer::set_value_variable(
   function_variables_.Set(variable, std::move(value));
 }
 
-void OpenBuffer::CopyVariablesFrom(const shared_ptr<const OpenBuffer>& src) {
-  assert(src.get() != nullptr);
-  bool_variables_.CopyFrom(src->bool_variables_);
-  string_variables_.CopyFrom(src->string_variables_);
-}
-
 void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
   CursorsSet single_cursor;
   CursorsSet* cursors;

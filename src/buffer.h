@@ -332,8 +332,6 @@ class OpenBuffer {
       EditorState* editor_state, int input_fd, int input_fd_error,
       bool fd_is_terminal, pid_t child_pid);
 
-  void CopyVariablesFrom(const shared_ptr<const OpenBuffer>& buffer);
-
   static EdgeStruct<char>* BoolStruct();
   static EdgeVariable<char>* variable_pts();
   static EdgeVariable<char>* variable_vm_exec();
