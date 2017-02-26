@@ -105,11 +105,12 @@ class DeleteCharactersTransformation : public Transformation {
             preserved_contents, initial_line->Substring(chars_erase_line));
         buffer->AdjustCursors(
             [line, preserved_contents, chars_erase_line](LineColumn cursor) {
-              if (cursor.line == line
-                  && cursor.column > preserved_contents->size()) {
-                cursor.column =
-                    max(cursor.column - (chars_erase_line - preserved_contents->size()),
-                        preserved_contents->size());
+              if (cursor.line == line) {
+                if (cursor.column > chars_erase_line) {
+                  cursor.column += preserved_contents->size() - chars_erase_line;
+                } else if (cursor.column > preserved_contents->size()) {
+                  cursor.column -= preserved_contents->size();
+                }
               }
               return cursor;
             });
