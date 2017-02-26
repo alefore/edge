@@ -129,8 +129,11 @@ class OpenBuffer {
   LineColumn InsertInCurrentPosition(const Tree<shared_ptr<Line>>& insertion);
   LineColumn InsertInPosition(
       const Tree<shared_ptr<Line>>& insertion, const LineColumn& position);
-  // Checks that current_position_col is in the expected range (between 0 and
-  // the length of the current line).
+  // Checks that line column is in the expected range (between 0 and the length
+  // of the current line).
+  void AdjustLineColumn(LineColumn* output) const;
+
+  // Like AdjustLineColumn but for the current cursor.
   void MaybeAdjustPositionCol();
 
   // Makes sure that the current line (position) is not greater than the number

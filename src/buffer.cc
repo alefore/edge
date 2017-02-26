@@ -1283,8 +1283,9 @@ unique_ptr<Value> OpenBuffer::EvaluateString(EditorState* editor_state,
     return nullptr;
   }
   LOG(INFO) << "Code compiled, evaluating.";
-  return EvaluateExpression(editor_state, expression.get());
+  auto result = EvaluateExpression(editor_state, expression.get());
   LOG(INFO) << "Done evaluating compiled code.";
+  return result;
 }
 
 unique_ptr<Value> OpenBuffer::EvaluateFile(EditorState* editor_state,
@@ -1419,6 +1420,13 @@ LineColumn OpenBuffer::InsertInPosition(
   return LineColumn(line_end,
       (insertion.size() == 1 ? head->size() : 0)
       + (*insertion.rbegin())->size());
+}
+
+void OpenBuffer::AdjustLineColumn(LineColumn* output) const {
+  CHECK(!contents_.empty());
+  output->line = min(output->line, contents_.size() - 1);
+  CHECK(LineAt(output->line) != nullptr);
+  output->column = min(LineAt(output->line)->size(), output->column);
 }
 
 void OpenBuffer::MaybeAdjustPositionCol() {
@@ -1746,13 +1754,13 @@ size_t OpenBuffer::FindChildrenForPosition(
 bool OpenBuffer::FindRangeFirst(
     const Modifiers& modifiers, const LineColumn& position,
     LineColumn* output) const {
+  CHECK(output != nullptr);
   *output = position;
-
-  // Just in case it's a cursor pointing past the end of its line:
-  output->column = min(output->column, LineAt(output->line)->size());
+  AdjustLineColumn(output);
 
   switch (modifiers.structure) {
     case CHAR:
+      VLOG(5) << "FindRangeFirst: CHAR.";
       if (modifiers.direction == BACKWARDS) {
         if (output->column > 0) {
           output->column--;
@@ -1766,6 +1774,7 @@ bool OpenBuffer::FindRangeFirst(
       return true;
 
     case WORD:
+      VLOG(5) << "FindRangeFirst: WORD.";
       {
         const wstring& word_char =
             read_string_variable(variable_word_characters());
@@ -1821,6 +1830,7 @@ bool OpenBuffer::FindRangeFirst(
       }
 
     case LINE:
+      VLOG(5) << "FindRangeFirst: LINE.";
       if (!at_end_of_line(*output)) {
         output->column = 0;
       } else if (at_end(*output)) {
@@ -1832,6 +1842,7 @@ bool OpenBuffer::FindRangeFirst(
       return true;
 
     case CURSOR:
+      VLOG(5) << "FindRangeFirst: CURSOR.";
       {
         bool has_boundary = false;
         LineColumn boundary;
@@ -1857,6 +1868,7 @@ bool OpenBuffer::FindRangeFirst(
       }
 
     case TREE:
+      VLOG(5) << "FindRangeFirst: TREE.";
       {
         auto parent_and_index =
             FindTreeInPosition(tree_depth_, position, modifiers.direction);

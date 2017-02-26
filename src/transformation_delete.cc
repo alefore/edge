@@ -342,9 +342,8 @@ class DeleteLinesTransformation : public Transformation {
 
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
-    CHECK_LE(result->cursor.line, buffer->contents()->size());
-    result->cursor.column = min(buffer->LineAt(result->cursor.line)->size(),
-                                result->cursor.column);
+    CHECK(buffer != nullptr);
+    buffer->AdjustLineColumn(&result->cursor);
     size_t repetitions = min(modifiers_.repetitions,
         buffer->contents()->size() - result->cursor.line);
     shared_ptr<OpenBuffer> delete_buffer(
