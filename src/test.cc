@@ -180,7 +180,13 @@ void RunRandomTests() {
         editor_state.ProcessInputString("e");
         break;
     }
-    switch (random() % 6) {
+    if (random() % 3 == 0) {
+      editor_state.ProcessInputString(std::to_string(1 + random() % 5));
+    }
+    if (random() % 3 == 0) {
+      editor_state.ProcessInputString("r");
+    }
+    switch (random() % 13) {
       case 0:
         editor_state.ProcessInputString("h");
         break;
@@ -208,6 +214,35 @@ void RunRandomTests() {
 
       case 5:
         editor_state.ProcessInputString("d");
+        break;
+
+      case 6:
+        editor_state.ProcessInputString("u");
+        break;
+
+      case 7:
+        editor_state.ProcessInputString(".");
+        break;
+
+      case 8:
+        editor_state.ProcessInputString("p");
+        break;
+
+      case 9:
+        editor_state.ProcessInputString("+");
+        break;
+
+      case 10:
+        editor_state.ProcessInputString("-");
+        break;
+
+      case 11:
+        editor_state.ProcessInputString("_");
+        break;
+
+      case 12:
+        editor_state.ProcessInputString("=");
+        break;
     }
   }
 }
