@@ -709,6 +709,13 @@ void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
   editor_state->ResetMode();
   if (!editor_state->has_current_buffer()) { return; }
   auto buffer = editor_state->current_buffer()->second;
+  if (editor_state->structure() == LINE) {
+    auto target = buffer->GetBufferFromCurrentLine();
+    if (target != nullptr) {
+      buffer = target;
+    }
+    editor_state->ResetModifiers();
+  }
   for (size_t i = 0; i < editor_state->repetitions(); i++) {
     buffer->EvaluateFile(editor_state, input);
   }
