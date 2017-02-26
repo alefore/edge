@@ -27,7 +27,6 @@ class ListBuffersBuffer : public OpenBuffer {
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     target->ClearContents(editor_state);
-    AppendToLastLine(editor_state, NewCopyString(L"Buffers:"));
     bool show_in_buffers_list =
         read_bool_variable(variable_show_in_buffers_list());
     for (const auto& it : *editor_state->buffers()) {
@@ -52,7 +51,12 @@ class ListBuffersBuffer : public OpenBuffer {
           (context.first == context.second ? L"" : L"╭──") + it.first
           + (flags.empty() ? L"" : L"  ") + flags
           + (context.first == context.second ? L"" : L" ──"));
-      target->AppendLine(editor_state, std::move(name));
+      if (target->contents()->size() == 1
+          && target->contents()->at(0)->size() == 0) {
+        target->AppendToLastLine(editor_state, std::move(name));
+      } else {
+        target->AppendLine(editor_state, std::move(name));
+      }
       AdjustLastLine(target, it.second);
 
       auto start = context.first;
