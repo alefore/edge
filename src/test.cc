@@ -602,6 +602,14 @@ int main(int, char**) {
 
   Clear(&editor_state);
 
+  // Tests that lines are aligned (based on previous line).
+  editor_state.ProcessInputString("i a\nb");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           " a\n b");
+
+  Clear(&editor_state);
+
   TreeTestsLong();
   TreeTestsBasic();
 
