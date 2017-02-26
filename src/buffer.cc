@@ -2433,7 +2433,8 @@ OpenBuffer::variable_delete_into_paste_buffer() {
 /* static */ EdgeVariable<wstring>* OpenBuffer::variable_command() {
   static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
       L"command",
-      L"String with the current command (or empty).",
+      L"String with the current command. Empty if the buffer is not a "
+      L"sub-process (e.g. a regular file).",
       L"",
       FilePredictor);
   return variable;
