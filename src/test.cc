@@ -578,6 +578,13 @@ int main(int, char**) {
 
   Clear(&editor_state);
 
+  // Triggered a crash in earlier versions.
+  editor_state.ProcessInputString("rei");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("j");
+
+  Clear(&editor_state);
+
   TreeTestsLong();
   TreeTestsBasic();
 

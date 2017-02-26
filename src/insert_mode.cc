@@ -93,6 +93,7 @@ class InsertEmptyLineTransformation : public Transformation {
       result->cursor.line++;
     }
     result->cursor.column = 0;
+    buffer->AdjustLineColumn(&result->cursor);
     return ComposeTransformation(
         unique_ptr<Transformation>(new NewLineTransformation()),
         NewGotoPositionTransformation(result->cursor))
