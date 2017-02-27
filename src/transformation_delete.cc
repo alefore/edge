@@ -407,7 +407,9 @@ class DeleteLinesTransformation : public Transformation {
         && editor_state->current_buffer()->first == OpenBuffer::kBuffersName
         && !editor_state->status_prompt()) {
       LOG(INFO) << "Updating list of buffers: " << OpenBuffer::kBuffersName;
-      editor_state->current_buffer()->second->Reload(editor_state);
+      auto buffers_list = editor_state->current_buffer()->second;
+      buffers_list->Reload(editor_state);
+      buffers_list->AdjustLineColumn(&result->cursor);
     } else {
       stack.Apply(editor_state, buffer, result);
     }
@@ -511,6 +513,8 @@ class DeleteTransformation : public Transformation {
 
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
+    LOG(INFO) << "Start delete transformation at " << result->cursor << ": "
+              << modifiers_;
     unique_ptr<Transformation> delegate = NewNoopTransformation();
     switch (modifiers_.structure) {
       case CHAR:
