@@ -29,7 +29,9 @@ map<wstring, wstring> LoadEnvironmentVariables(
     map<wstring, wstring> environment) {
   static const wstring whitespace = L"\t ";
   size_t start = full_command.find_first_not_of(whitespace);
+  if (start == full_command.npos) { return environment; }
   size_t end = full_command.find_first_of(whitespace, start);
+  if (end == full_command.npos || end <= start) { return environment; }
   wstring command = full_command.substr(start, end - start);
   for (auto dir : path) {
     wstring full_path = dir + L"/commands/" + command + L"/environment";

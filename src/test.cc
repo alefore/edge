@@ -674,6 +674,10 @@ int main(int, char** argv) {
 
   Clear(&editor_state);
 
+  editor_state.ProcessInputString("af \n");
+
+  Clear(&editor_state);
+
   TreeTestsLong();
   TreeTestsBasic();
 
