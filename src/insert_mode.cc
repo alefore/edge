@@ -32,6 +32,7 @@ using namespace afc::editor;
 class NewLineTransformation : public Transformation {
   void Apply(EditorState* editor_state, OpenBuffer* buffer, Result* result)
       const override {
+    buffer->AdjustLineColumn(&result->cursor);
     const size_t column = result->cursor.column;
     auto line = buffer->LineAt(result->cursor.line);
     if (line == nullptr) {
