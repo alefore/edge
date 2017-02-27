@@ -763,7 +763,9 @@ class SwitchCaseTransformation : public Transformation {
     LineColumn i = start;
     while (i < end) {
       auto line = buffer->LineAt(i.line);
-      CHECK(line != nullptr);
+      if (line == nullptr) {
+        break;
+      }
       if (i.column >= line->size()) {
         // Switch to the next line.
         i = LineColumn(i.line + 1);
