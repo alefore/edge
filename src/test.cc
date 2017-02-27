@@ -172,7 +172,7 @@ void RunRandomTests() {
   editor_state.ProcessInput(Terminal::ESCAPE);
   for (int i = 0; i < 1000; i++) {
     LOG(INFO) << "Iteration: " << i;
-    switch (random() % 3) {
+    switch (random() % 4) {
       case 0:
         break;
       case 1:
@@ -180,6 +180,9 @@ void RunRandomTests() {
         break;
       case 2:
         editor_state.ProcessInputString("e");
+        break;
+      case 3:
+        editor_state.ProcessInputString("c");
         break;
     }
     if (random() % 3 == 0) {
@@ -270,6 +273,7 @@ void RunRandomTests() {
           auto it = cursors->begin();
           for (int cursor = 0; cursor < 50; cursor++) {
             positions.push_back(*it);
+            ++it;
           }
           editor_state.current_buffer()->second->set_active_cursors(positions);
         }
