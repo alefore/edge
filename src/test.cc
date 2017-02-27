@@ -300,10 +300,14 @@ void RunRandomTests() {
         break;
 
       case 21:
+        editor_state.ProcessInput(Terminal::ESCAPE);
+        editor_state.ProcessInput(Terminal::ESCAPE);
         editor_state.ProcessInputString("afdate\n");
         break;
 
       case 22:
+        editor_state.ProcessInput(Terminal::ESCAPE);
+        editor_state.ProcessInput(Terminal::ESCAPE);
         editor_state.ProcessInputString("afcat\n");
         break;
 
