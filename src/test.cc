@@ -1,4 +1,5 @@
 #include <cassert>
+#include <csignal>
 #include <iostream>
 #include <string>
 
@@ -166,6 +167,7 @@ void RunRandomTests() {
     seed = std::stoll(getenv("EDGE_TEST_SEED"));
   }
   LOG(INFO) << "Seed: " << seed;
+  std::cout << "Seed: " << seed << std::endl;
   srand(seed);
   EditorState editor_state;
   editor_state.ProcessInputString("i");
@@ -191,7 +193,7 @@ void RunRandomTests() {
     if (random() % 3 == 0) {
       editor_state.ProcessInputString("r");
     }
-    switch (random() % 20) {
+    switch (random() % 24) {
       case 0:
         editor_state.ProcessInputString("h");
         break;
@@ -292,11 +294,30 @@ void RunRandomTests() {
       case 19:
         editor_state.ProcessInputString("b");
         break;
+
+      case 20:
+        editor_state.ProcessInputString("ar");
+        break;
+
+      case 21:
+        editor_state.ProcessInputString("afdate\n");
+        break;
+
+      case 22:
+        editor_state.ProcessInputString("afcat\n");
+        break;
+
+      case 23:
+        editor_state.ProcessInputString("ae\n");
+        break;
     }
   }
 }
 
-int main(int, char**) {
+int main(int, char** argv) {
+  signal(SIGPIPE, SIG_IGN);
+  google::InitGoogleLogging(argv[0]);
+
   EditorState editor_state;
   assert(!editor_state.has_current_buffer());
   editor_state.ProcessInputString("i");
