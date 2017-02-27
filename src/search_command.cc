@@ -47,11 +47,20 @@ class SearchCommand : public Command {
           CHECK_LT(start, end);
           if (end.line > start.line) {
             // This can happen when repetitions are used (to find multiple
-            // words). We just cap it at the end of the line.
-            end.line = start.line;
-            end.column = buffer->LineAt(start.line)->size();
+            // words). We just cap it at the start/end of the line.
+            if (editor_state->direction() == BACKWARDS) {
+              start.line = end.line;
+              start.column = 0;
+            } else {
+              end.line = start.line;
+              end.column = buffer->LineAt(start.line)->size();
+            }
           }
           CHECK_EQ(start.line, end.line);
+          if (start == end) {
+            editor_state->ResetStructure();
+            return;
+          }
           CHECK_LT(start.column, end.column);
           buffer->set_position(start);
           {
