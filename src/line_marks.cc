@@ -16,7 +16,7 @@ void LineMarks::AddMark(Mark mark) {
 }
 
 void LineMarks::RemoveMarksFromSource(const std::wstring& source) {
-  LOG(INFO) << "Removing marks from: " << source;
+  DVLOG(5) << "Removing marks from: " << source;
   if (marks.erase(source)) {
     LOG(INFO) << "Actually removed some marks.";
     updates++;
