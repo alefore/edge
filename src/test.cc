@@ -186,7 +186,7 @@ void RunRandomTests() {
     if (random() % 3 == 0) {
       editor_state.ProcessInputString("r");
     }
-    switch (random() % 15) {
+    switch (random() % 17) {
       case 0:
         editor_state.ProcessInputString("h");
         break;
@@ -254,6 +254,14 @@ void RunRandomTests() {
 
       case 14:
         editor_state.ProcessInputString("g");
+        break;
+
+      case 15:
+        editor_state.ProcessInputString("~");
+        break;
+
+      case 16:
+        editor_state.ProcessInputString("/blah.*5\n");
         break;
     }
   }
