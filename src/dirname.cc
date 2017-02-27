@@ -6,6 +6,8 @@ extern "C" {
 #include <libgen.h>
 }
 
+#include <glog/logging.h>
+
 #include "wstring.h"
 
 namespace afc {
