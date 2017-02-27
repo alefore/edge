@@ -332,7 +332,9 @@ bool StartCompletion(EditorState* editor_state,
 class InsertMode : public EditorMode {
  public:
   InsertMode(InsertModeOptions options)
-      : options_(std::move(options)) {}
+      : options_(std::move(options)) {
+    CHECK(options_.escape_handler);
+  }
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
     switch (c) {
@@ -353,6 +355,7 @@ class InsertMode : public EditorMode {
         }
         editor_state->PushCurrentPosition();
         editor_state->ResetStatus();
+        CHECK(options_.escape_handler);
         options_.escape_handler();
         editor_state->ResetMode();
         editor_state->ResetRepetitions();

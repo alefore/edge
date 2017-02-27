@@ -250,6 +250,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
 
   insert_mode_options.escape_handler =
       [editor_state, options, original_modifiers]() {
+        LOG(INFO) << "Running escape_handler from Prompt.";
         editor_state->set_modifiers(original_modifiers);
         editor_state->set_status_prompt(false);
         if (options.cancel_handler) {

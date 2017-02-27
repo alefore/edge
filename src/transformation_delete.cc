@@ -24,12 +24,14 @@ class DeleteCharactersTransformation : public Transformation {
 
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
-    LOG(INFO) << "Starting DeleteCharactersTransformation: " << modifiers_;
+    LOG(INFO) << "Starting DeleteCharactersTransformation: " << modifiers_
+              << " cursor: " << result->cursor;
     if (buffer->contents()->empty()) {
       result->success = false;
       return;
     }
     if (modifiers_.repetitions == 0) {
+      VLOG(5) << "No repetitions.";
       return;
     }
     buffer->AdjustLineColumn(&result->cursor);
