@@ -19,18 +19,17 @@ using std::wstring;
 
 class MapMode : public EditorMode {
  public:
+  using Map = map<vector<wint_t>, Command*>;
   // Adds to output an entry mapping a given string to a given command.
-  static void RegisterEntry(wstring name, Command* value,
-                            map<vector<wint_t>, Command*>* output);
+  static void RegisterEntry(wstring name, Command* value, Map* output);
 
-  MapMode(map<vector<wint_t>, Command*> commands,
-          Command* default_command);
+  MapMode(std::shared_ptr<const Map> commands, Command* default_command);
 
   void ProcessInput(wint_t c, EditorState* editor_state);
 
  private:
   vector<wint_t> current_input_;
-  const map<vector<wint_t>, Command*> commands_;
+  const std::shared_ptr<const Map> commands_;
   Command* const default_command_;
 };
 

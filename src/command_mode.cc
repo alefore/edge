@@ -452,14 +452,14 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
   }
 }
 
-class EnterInsertMode : public Command {
+class EnterInsertModeCommand : public Command {
  public:
   const wstring Description() {
     return L"enters insert mode";
   }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    afc::editor::EnterInsertMode(editor_state);
+    EnterInsertMode(editor_state);
   }
 };
 
@@ -803,30 +803,37 @@ class SwitchCaseCommand : public Command {
   }
 };
 
-// TODO: This leaks a lot of memory... fix that.
-static const map<vector<wint_t>, Command*> GetCommandModeMap(
+}  // namespace
+
+namespace afc {
+namespace editor {
+
+using std::map;
+using std::unique_ptr;
+
+std::function<unique_ptr<EditorMode>(void)> NewCommandModeSupplier(
     EditorState* editor_state) {
-  map<vector<wint_t>, Command*> output;
+  auto commands_map = std::make_shared<map<vector<wint_t>, Command*>>();
   auto Register = MapMode::RegisterEntry;
-  Register(L"aq", NewQuitCommand().release(), &output);
-  Register(L"ad", NewCloseBufferCommand().release(), &output);
+  Register(L"aq", NewQuitCommand().release(), commands_map.get());
+  Register(L"ad", NewCloseBufferCommand().release(), commands_map.get());
   Register(L"aw",
       NewCppCommand(editor_state->environment(),
           L"// Save the current buffer.\n"
           L"editor.SaveCurrentBuffer();").release(),
-      &output);
-  Register(L"av", NewSetVariableCommand().release(), &output);
-  Register(L"ac", new RunCppFileCommand(), &output);
-  Register(L"aC", NewRunCppCommand().release(), &output);
-  Register(L"a.", NewOpenDirectoryCommand().release(), &output);
-  Register(L"al", NewListBuffersCommand().release(), &output);
+      commands_map.get());
+  Register(L"av", NewSetVariableCommand().release(), commands_map.get());
+  Register(L"ac", new RunCppFileCommand(), commands_map.get());
+  Register(L"aC", NewRunCppCommand().release(), commands_map.get());
+  Register(L"a.", NewOpenDirectoryCommand().release(), commands_map.get());
+  Register(L"al", NewListBuffersCommand().release(), commands_map.get());
   Register(L"ar",
       NewCppCommand(editor_state->environment(),
           L"// Reload the current buffer.\n"
           L"editor.ReloadCurrentBuffer();").release(),
-      &output);
-  Register(L"ae", NewSendEndOfFileCommand().release(), &output);
-  Register(L"ao", NewOpenFileCommand().release(), &output);
+      commands_map.get());
+  Register(L"ae", NewSendEndOfFileCommand().release(), commands_map.get());
+  Register(L"ao", NewOpenFileCommand().release(), commands_map.get());
   {
     PromptOptions options;
     options.prompt = L"...$ ";
@@ -836,124 +843,114 @@ static const map<vector<wint_t>, Command*> GetCommandModeMap(
         NewLinePromptCommand(
             L"forks a command for each line in the current buffer",
             [options](EditorState*) { return options; }).release(),
-        &output);
+        commands_map.get());
   }
-  Register(L"af", NewForkCommand().release(), &output);
+  Register(L"af", NewForkCommand().release(), commands_map.get());
 
   Register(L"+",
       NewCppCommand(editor_state->environment(),
           L"// Create a new cursor at the current position.\n"
           L"editor.CreateCursor();").release(),
-      &output);
+      commands_map.get());
   Register(L"-",
       NewCppCommand(editor_state->environment(),
           L"// Destroy current cursor(s) and jump to next.\n"
           L"editor.DestroyCursor();").release(),
-      &output);
+      commands_map.get());
   Register(L"=",
       NewCppCommand(editor_state->environment(),
           L"// Destroy cursors other than the current one.\n"
           L"editor.DestroyOtherCursors();").release(),
-      &output);
+      commands_map.get());
   Register(L"_",
       NewCppCommand(editor_state->environment(),
           L"// Toggles whether operations apply to all cursors.\n"
           L"CurrentBuffer().set_multiple_cursors(\n"
           L"    !CurrentBuffer().multiple_cursors());").release(),
-      &output);
+      commands_map.get());
   Register(L"Ct",
       NewCppCommand(editor_state->environment(),
           L"// Toggles the active cursors with the previous set.\n"
           L"editor.ToggleActiveCursors();").release(),
-      &output);
+      commands_map.get());
 
-  Register(L"i", new EnterInsertMode(), &output);
-  Register(L"f", new EnterFindMode(), &output);
-  Register(L"r", new ReverseDirectionCommand(), &output);
-  Register(L"R", new InsertionModifierCommand(), &output);
+  Register(L"i", new EnterInsertModeCommand(), commands_map.get());
+  Register(L"f", new EnterFindMode(), commands_map.get());
+  Register(L"r", new ReverseDirectionCommand(), commands_map.get());
+  Register(L"R", new InsertionModifierCommand(), commands_map.get());
 
-  Register(L"/", NewSearchCommand().release(), &output);
-  Register(L"g", NewGotoCommand().release(), &output);
+  Register(L"/", NewSearchCommand().release(), commands_map.get());
+  Register(L"g", NewGotoCommand().release(), commands_map.get());
 
-  Register(L"w", new SetStructureCommand(WORD, L"word"), &output);
-  Register(L"e", new SetStructureCommand(LINE, L"line"), &output);
-  Register(L"E", new SetStructureCommand(PAGE, L"page"), &output);
-  Register(L"F", new SetStructureCommand(SEARCH, L"search"), &output);
-  Register(L"c", new SetStructureCommand(CURSOR, L"cursor"), &output);
-  Register(L"B", new SetStructureCommand(BUFFER, L"buffer"), &output);
-  Register(L"!", new SetStructureCommand(MARK, L"mark"), &output);
-  Register(L"t", new SetStructureCommand(TREE, L"tree"), &output);
+  Register(L"w", new SetStructureCommand(WORD, L"word"), commands_map.get());
+  Register(L"e", new SetStructureCommand(LINE, L"line"), commands_map.get());
+  Register(L"E", new SetStructureCommand(PAGE, L"page"), commands_map.get());
+  Register(L"F", new SetStructureCommand(SEARCH, L"search"), commands_map.get());
+  Register(L"c", new SetStructureCommand(CURSOR, L"cursor"), commands_map.get());
+  Register(L"B", new SetStructureCommand(BUFFER, L"buffer"), commands_map.get());
+  Register(L"!", new SetStructureCommand(MARK, L"mark"), commands_map.get());
+  Register(L"t", new SetStructureCommand(TREE, L"tree"), commands_map.get());
 
   Register(L"W", new SetStrengthCommand(
-      Modifiers::WEAK, Modifiers::VERY_WEAK, L"weak"), &output);
+      Modifiers::WEAK, Modifiers::VERY_WEAK, L"weak"), commands_map.get());
   Register(L"S", new SetStrengthCommand(
-      Modifiers::STRONG, Modifiers::VERY_STRONG, L"strong"), &output);
+      Modifiers::STRONG, Modifiers::VERY_STRONG, L"strong"), commands_map.get());
 
-  Register(L"d", new Delete(), &output);
-  Register(L"p", new Paste(), &output);
-  Register(L"u", new UndoCommand(), &output);
-  Register(L"\n", new ActivateLink(), &output);
+  Register(L"d", new Delete(), commands_map.get());
+  Register(L"p", new Paste(), commands_map.get());
+  Register(L"u", new UndoCommand(), commands_map.get());
+  Register(L"\n", new ActivateLink(), commands_map.get());
 
-  Register(L"b", new GotoPreviousPositionCommand(), &output);
-  Register(L"n", NewNavigateCommand().release(), &output);
-  Register(L"j", new LineDown(), &output);
-  Register(L"k", new LineUp(), &output);
-  Register(L"l", new MoveForwards(), &output);
-  Register(L"h", new MoveBackwards(), &output);
+  Register(L"b", new GotoPreviousPositionCommand(), commands_map.get());
+  Register(L"n", NewNavigateCommand().release(), commands_map.get());
+  Register(L"j", new LineDown(), commands_map.get());
+  Register(L"k", new LineUp(), commands_map.get());
+  Register(L"l", new MoveForwards(), commands_map.get());
+  Register(L"h", new MoveBackwards(), commands_map.get());
 
-  Register(L"~", new SwitchCaseCommand(), &output);
+  Register(L"~", new SwitchCaseCommand(), commands_map.get());
 
-  Register(L"sr", NewRecordCommand().release(), &output);
+  Register(L"sr", NewRecordCommand().release(), commands_map.get());
 
   Register(L".",
       NewCppCommand(editor_state->environment(),
           L"// Repeats the last command.\n"
           L"editor.RepeatLastTransformation();").release(),
-      &output);
+      commands_map.get());
 
   Register(L"?",
-      NewHelpCommand(output, L"command mode").release(), &output);
+      NewHelpCommand(*commands_map,
+                     L"command mode").release(), commands_map.get());
 
-  Register({Terminal::ESCAPE}, new ResetStateCommand(), &output);
+  Register({Terminal::ESCAPE}, new ResetStateCommand(), commands_map.get());
 
   Register(L"[", new SetStructureModifierCommand(
       Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION,
-      L"from the beggining to the current position"), &output);
+      L"from the beggining to the current position"), commands_map.get());
   Register(L"]", new SetStructureModifierCommand(
       Modifiers::FROM_CURRENT_POSITION_TO_END,
-      L"from the current position to the end"), &output);
-  Register({Terminal::CTRL_L}, new HardRedrawCommand(), &output);
-  Register(L"0", new NumberMode(SetRepetitions), &output);
-  Register(L"1", new NumberMode(SetRepetitions), &output);
-  Register(L"2", new NumberMode(SetRepetitions), &output);
-  Register(L"3", new NumberMode(SetRepetitions), &output);
-  Register(L"4", new NumberMode(SetRepetitions), &output);
-  Register(L"5", new NumberMode(SetRepetitions), &output);
-  Register(L"6", new NumberMode(SetRepetitions), &output);
-  Register(L"7", new NumberMode(SetRepetitions), &output);
-  Register(L"8", new NumberMode(SetRepetitions), &output);
-  Register(L"9", new NumberMode(SetRepetitions), &output);
-  Register({Terminal::DOWN_ARROW}, new LineDown(), &output);
-  Register({Terminal::UP_ARROW}, new LineUp(), &output);
-  Register({Terminal::LEFT_ARROW}, new MoveBackwards(), &output);
-  Register({Terminal::RIGHT_ARROW}, new MoveForwards(), &output);
-  Register({Terminal::PAGE_DOWN}, new PageDown(), &output);
-  Register({Terminal::PAGE_UP}, new PageUp(), &output);
+      L"from the current position to the end"), commands_map.get());
+  Register({Terminal::CTRL_L}, new HardRedrawCommand(), commands_map.get());
+  Register(L"0", new NumberMode(SetRepetitions), commands_map.get());
+  Register(L"1", new NumberMode(SetRepetitions), commands_map.get());
+  Register(L"2", new NumberMode(SetRepetitions), commands_map.get());
+  Register(L"3", new NumberMode(SetRepetitions), commands_map.get());
+  Register(L"4", new NumberMode(SetRepetitions), commands_map.get());
+  Register(L"5", new NumberMode(SetRepetitions), commands_map.get());
+  Register(L"6", new NumberMode(SetRepetitions), commands_map.get());
+  Register(L"7", new NumberMode(SetRepetitions), commands_map.get());
+  Register(L"8", new NumberMode(SetRepetitions), commands_map.get());
+  Register(L"9", new NumberMode(SetRepetitions), commands_map.get());
+  Register({Terminal::DOWN_ARROW}, new LineDown(), commands_map.get());
+  Register({Terminal::UP_ARROW}, new LineUp(), commands_map.get());
+  Register({Terminal::LEFT_ARROW}, new MoveBackwards(), commands_map.get());
+  Register({Terminal::RIGHT_ARROW}, new MoveForwards(), commands_map.get());
+  Register({Terminal::PAGE_DOWN}, new PageDown(), commands_map.get());
+  Register({Terminal::PAGE_UP}, new PageUp(), commands_map.get());
 
-  return output;
-}
-
-}  // namespace
-
-namespace afc {
-namespace editor {
-
-using std::map;
-using std::unique_ptr;
-
-unique_ptr<EditorMode> NewCommandMode(EditorState* editor_state) {
-  return unique_ptr<MapMode>(
-      new MapMode(GetCommandModeMap(editor_state), NoopCommand()));
+  return [commands_map]() {
+    return unique_ptr<MapMode>(new MapMode(commands_map, NoopCommand()));
+  };
 }
 
 }  // namespace afc

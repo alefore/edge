@@ -15,7 +15,8 @@ class EditorState;
 
 using std::unique_ptr;
 
-unique_ptr<EditorMode> NewCommandMode(EditorState*);
+std::function<unique_ptr<EditorMode>(void)> NewCommandModeSupplier(
+    EditorState* editor_state);
 
 }  // namespace editor
 }  // namespace afc

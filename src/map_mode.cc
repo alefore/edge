@@ -18,7 +18,7 @@ void MapMode::RegisterEntry(wstring name, Command* value,
   output->insert(make_pair(std::move(key), value));
 }
 
-MapMode::MapMode(map<vector<wint_t>, Command*> commands,
+MapMode::MapMode(std::shared_ptr<const map<vector<wint_t>, Command*>> commands,
                  Command* default_command)
     : commands_(std::move(commands)),
       default_command_(default_command) {}
@@ -26,8 +26,8 @@ MapMode::MapMode(map<vector<wint_t>, Command*> commands,
 void MapMode::ProcessInput(wint_t c, EditorState* editor_state) {
   vector<wint_t> input = current_input_;
   input.push_back(c);
-  auto it = commands_.lower_bound(input);
-  if (it == commands_.end()
+  auto it = commands_->lower_bound(input);
+  if (it == commands_->end()
       || !std::equal(input.begin(), input.end(), it->first.begin())) {
     current_input_ = {};
     for (wint_t c : input) {

@@ -148,7 +148,7 @@ class EditorState {
   EditorMode* mode() const { return mode_.get(); }
   std::unique_ptr<EditorMode> ResetMode() {
     auto copy = std::move(mode_);
-    mode_ = NewCommandMode(this);
+    mode_ = default_mode_supplier_();
     return copy;
   }
   void set_mode(unique_ptr<EditorMode> mode) {
@@ -213,6 +213,7 @@ class EditorState {
 
   wstring last_search_query_;
 
+  const std::function<unique_ptr<EditorMode>()> default_mode_supplier_;
   unique_ptr<EditorMode> mode_;
 
   // Set by the terminal handler.
