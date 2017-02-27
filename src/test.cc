@@ -191,7 +191,7 @@ void RunRandomTests() {
     if (random() % 3 == 0) {
       editor_state.ProcessInputString("r");
     }
-    switch (random() % 17) {
+    switch (random() % 20) {
       case 0:
         editor_state.ProcessInputString("h");
         break;
@@ -266,17 +266,31 @@ void RunRandomTests() {
         break;
 
       case 16:
-        editor_state.ProcessInputString("/blah.*5");
-        auto cursors = editor_state.current_buffer()->second->active_cursors();
-        if (cursors->size() > 50) {
-          vector<LineColumn> positions;
-          auto it = cursors->begin();
-          for (int cursor = 0; cursor < 50; cursor++) {
-            positions.push_back(*it);
-            ++it;
+        {
+          editor_state.ProcessInputString("/blah.*5");
+          auto cursors = editor_state.current_buffer()->second->active_cursors();
+          if (cursors->size() > 50) {
+            vector<LineColumn> positions;
+            auto it = cursors->begin();
+            for (int cursor = 0; cursor < 50; cursor++) {
+              positions.push_back(*it);
+              ++it;
+            }
+            editor_state.current_buffer()->second->set_active_cursors(positions);
           }
-          editor_state.current_buffer()->second->set_active_cursors(positions);
         }
+        break;
+
+      case 17:
+        editor_state.ProcessInputString("\n");
+        break;
+
+      case 18:
+        editor_state.ProcessInputString("al");
+        break;
+
+      case 19:
+        editor_state.ProcessInputString("b");
         break;
     }
   }
