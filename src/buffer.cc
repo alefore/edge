@@ -559,7 +559,7 @@ void OpenBuffer::Enter(EditorState* editor_state) {
 }
 
 void OpenBuffer::ClearContents(EditorState* editor_state) {
-  LOG(INFO) << "Clear contents of buffer: " << name_;
+  VLOG(5) << "Clear contents of buffer: " << name_;
   EraseLines(contents_.begin(), contents_.end());
   position_pts_ = LineColumn();
   AppendEmptyLine(editor_state);
@@ -1356,7 +1356,7 @@ LineColumn OpenBuffer::InsertInPosition(
   // The last line that was inserted.
   Tree<shared_ptr<Line>>::const_iterator line_it =
       contents_.begin() + position.line + insertion.size() - 1;
-  LOG(INFO) << "Adjusting cursors.";
+  VLOG(4) << "Adjusting cursors.";
   AdjustCursors(
       [position, insertion](LineColumn cursor) {
         if (cursor < position) {
