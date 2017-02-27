@@ -48,6 +48,13 @@ class MoveTransformation : public Transformation {
             return;
           }
 
+          if (*next_cursor == result->cursor) {
+            // This isn't just an optimization: the erase from active_cursors
+            // below is dangerous if next_cursor is the current cursor.
+            LOG(INFO) << "Cursor didn't move.";
+            return;
+          }
+
           LineColumn original_cursor = result->cursor;
           result->cursor = *next_cursor;
 
