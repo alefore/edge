@@ -350,8 +350,7 @@ class InsertMode : public EditorMode {
         options_.buffer->ApplyToCursors(NewDeleteSuffixSuperfluousCharacters());
         options_.buffer->PopTransformationStack();
         for (size_t i = 1; i < editor_state->repetitions(); i++) {
-          editor_state->current_buffer()
-              ->second->RepeatLastTransformation();
+          options_.buffer->RepeatLastTransformation();
         }
         editor_state->PushCurrentPosition();
         editor_state->ResetStatus();
