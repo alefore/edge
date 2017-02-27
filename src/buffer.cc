@@ -1315,15 +1315,21 @@ namespace {
 template <typename Contents>
 void PushContents(size_t start, size_t count, const vector<Contents>& source,
                   const Contents& empty, vector<Contents>* output) {
-  while (count != 0) {
-    if (start >= source.size()) {
-      output->push_back(empty);
-    } else {
-      output->push_back(source[start]);
-    }
-    start++;
-    count--;
+  if (source.size() >= start + count) {
+    // Everything fits.
+    auto it_start = source.begin() + start;
+    output->insert(output->end(), it_start, it_start + count);
+    return;
   }
+
+  size_t elements_left = count;
+  if (source.size() > start) {
+    // Partial fit.
+    elements_left -= source.size() - start;
+    output->insert(output->end(), source.begin() + start, source.end());
+  }
+
+  output->resize(output->size() + elements_left, empty);
 }
 }  // namespace
 
