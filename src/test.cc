@@ -17,6 +17,7 @@ void CheckIsEmpty(EditorState* editor_state) {
 }
 
 void Clear(EditorState* editor_state) {
+  editor_state->ProcessInput(Terminal::ESCAPE);
   editor_state->ProcessInputString("eeg99999999999999999999999d");
   editor_state->ProcessInput(Terminal::ESCAPE);
   editor_state->current_buffer()->second
@@ -615,6 +616,12 @@ int main(int, char**) {
   editor_state.ProcessInput(Terminal::ESCAPE);
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            " a\n b");
+
+  Clear(&editor_state);
+
+  editor_state.ProcessInputString("ia\nb");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("kh2w/");
 
   Clear(&editor_state);
 

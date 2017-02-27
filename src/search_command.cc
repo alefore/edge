@@ -40,8 +40,17 @@ class SearchCommand : public Command {
             editor_state->ResetStructure();
             return;
           }
+          VLOG(5) << "FindPartialRange: [position:" << buffer->position()
+                  << "][start:" << start << "][end:" << end << "][modifiers:"
+                  << editor_state->modifiers() << "]";
           editor_state->ResetStructure();
           CHECK_LT(start, end);
+          if (end.line > start.line) {
+            // This can happen when repetitions are used (to find multiple
+            // words). We just cap it at the end of the line.
+            end.line = start.line;
+            end.column = buffer->LineAt(start.line)->size();
+          }
           CHECK_EQ(start.line, end.line);
           CHECK_LT(start.column, end.column);
           buffer->set_position(start);
