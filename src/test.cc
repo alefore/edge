@@ -171,6 +171,7 @@ void RunRandomTests() {
   editor_state.ProcessInputString("i");
   editor_state.ProcessInput(Terminal::ESCAPE);
   for (int i = 0; i < 1000; i++) {
+    LOG(INFO) << "Iteration: " << i;
     switch (random() % 3) {
       case 0:
         break;
@@ -262,7 +263,16 @@ void RunRandomTests() {
         break;
 
       case 16:
-        editor_state.ProcessInputString("/blah.*5\n");
+        editor_state.ProcessInputString("/blah.*5");
+        auto cursors = editor_state.current_buffer()->second->active_cursors();
+        if (cursors->size() > 50) {
+          vector<LineColumn> positions;
+          auto it = cursors->begin();
+          for (int cursor = 0; cursor < 50; cursor++) {
+            positions.push_back(*it);
+          }
+          editor_state.current_buffer()->second->set_active_cursors(positions);
+        }
         break;
     }
   }
