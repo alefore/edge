@@ -49,8 +49,6 @@ class MoveTransformation : public Transformation {
           }
 
           if (*next_cursor == result->cursor) {
-            // This isn't just an optimization: the erase from active_cursors
-            // below is dangerous if next_cursor is the current cursor.
             LOG(INFO) << "Cursor didn't move.";
             return;
           }
@@ -61,8 +59,10 @@ class MoveTransformation : public Transformation {
           VLOG(5) << "Moving cursor from " << *next_cursor << " to "
                   << original_cursor;
 
-          active_cursors->erase(next_cursor);
-          active_cursors->insert(original_cursor);
+          if (next_cursor != buffer->current_cursor()) {
+            active_cursors->erase(next_cursor);
+            active_cursors->insert(original_cursor);
+          }
 
           editor_state->ScheduleRedraw();
           editor_state->ResetRepetitions();
