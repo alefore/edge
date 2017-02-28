@@ -102,35 +102,15 @@ class DeleteCharactersTransformation : public Transformation {
       case FORWARDS:
         options.contents = StringAppend(
             preserved_contents, initial_line->Substring(chars_erase_line));
-        buffer->AdjustCursors(
-            [line, preserved_contents, chars_erase_line](LineColumn cursor) {
-              if (cursor.line == line) {
-                if (cursor.column > chars_erase_line) {
-                  cursor.column += preserved_contents->size() - chars_erase_line;
-                } else if (cursor.column > preserved_contents->size()) {
-                  cursor.column -= preserved_contents->size();
-                }
-              }
-              return cursor;
-            });
         break;
       case BACKWARDS:
         options.contents = StringAppend(
             initial_line->Substring(0, initial_line->size() - chars_erase_line),
             preserved_contents);
-        buffer->AdjustCursors(
-            [line, preserved_contents, chars_erase_line, initial_line](
-                LineColumn cursor) {
-              if (cursor.line == line
-                  && cursor.column > initial_line->size() - chars_erase_line) {
-                cursor.column =
-                    max(cursor.column - (chars_erase_line - preserved_contents->size()),
-                        initial_line->size() - chars_erase_line);
-              }
-              return cursor;
-            });
         break;
     }
+    AdjustCursors(buffer, line, preserved_contents->size(), chars_erase_line,
+                  initial_line->size());
     buffer->ReplaceLine(
         buffer->contents()->begin() + line_end,
         std::make_shared<Line>(options));
@@ -150,6 +130,39 @@ class DeleteCharactersTransformation : public Transformation {
   }
 
  private:
+  // line: the position where the cursor was when the deletion started.
+  // preserved_contents: the part of line that survives the deletion.
+  // chars_erase_line: the number of characters erased from current line
+  // (includes preserved_contents).
+  void AdjustCursors(OpenBuffer* buffer, size_t line, size_t preserved_contents,
+                     size_t chars_erase_line, size_t initial_line) const {
+    if (options_.modifiers.direction == FORWARDS) {
+      buffer->AdjustCursors(
+          [line, preserved_contents, chars_erase_line](LineColumn cursor) {
+            if (cursor.line == line) {
+              if (cursor.column > chars_erase_line) {
+                cursor.column += preserved_contents - chars_erase_line;
+              } else if (cursor.column > preserved_contents) {
+                cursor.column -= preserved_contents;
+              }
+            }
+            return cursor;
+          });
+    } else {
+      buffer->AdjustCursors(
+          [line, preserved_contents, chars_erase_line, initial_line](
+              LineColumn cursor) {
+            if (cursor.line == line
+                && cursor.column > initial_line - chars_erase_line) {
+              cursor.column =
+                  max(cursor.column - (chars_erase_line - preserved_contents),
+                      initial_line - chars_erase_line);
+            }
+            return cursor;
+          });
+    }
+  }
+
   shared_ptr<OpenBuffer> GetDeletedTextBuffer(
       EditorState* editor_state, OpenBuffer* buffer, size_t line_begin,
       size_t line_end, const shared_ptr<LazyString>& preserved_contents,
