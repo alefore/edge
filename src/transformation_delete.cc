@@ -92,6 +92,11 @@ class DeleteCharactersTransformation : public Transformation {
           result->delete_buffer->position());
     }
 
+    if (!options_.delete_region) {
+      LOG(INFO) << "Not actually deleting region.";
+      return;
+    }
+
     if (options_.modifiers.direction == BACKWARDS) {
       result->cursor.line = line;
       result->cursor.column = buffer->LineAt(line)->size() - chars_erase_line;
@@ -273,6 +278,9 @@ class DeleteRegionTransformation : public Transformation {
     CHECK(buffer != nullptr);
     CHECK(result != nullptr);
 
+    buffer->AdjustLineColumn(&result->cursor);
+    const LineColumn adjusted_original_cursor = result->cursor;
+
     LineColumn start, end;
     if (!buffer->FindPartialRange(options_.modifiers, result->cursor, &start,
                                   &end)) {
@@ -296,11 +304,19 @@ class DeleteRegionTransformation : public Transformation {
       LOG(INFO) << "Deleting superfluous lines (from " << start.line << " to "
                 << end.line;
       while (start.line < end.line) {
-        end.line--;
         DeleteOptions delete_options;
+        delete_options.delete_region = options_.delete_region;
         delete_options.modifiers.structure_range =
             Modifiers::FROM_CURRENT_POSITION_TO_END;
-        stack.PushBack(NewDeleteLinesTransformation(delete_options));
+        stack.PushBack(
+            TransformationAtPosition(start,
+                NewDeleteLinesTransformation(delete_options)));
+        if (options_.delete_region) {
+          end.line--;
+        } else {
+          start.line++;
+          start.column = 0;
+        }
       }
       end.column += start.column;
     }
@@ -309,8 +325,12 @@ class DeleteRegionTransformation : public Transformation {
     CHECK_LE(start.column, end.column);
     DeleteOptions delete_options;
     delete_options.modifiers.repetitions = end.column - start.column;
+    delete_options.delete_region = options_.delete_region;
     LOG(INFO) << "Deleting characters: " << options_.modifiers.repetitions;
     stack.PushBack(NewDeleteCharactersTransformation(delete_options));
+    if (!options_.delete_region) {
+      stack.PushBack(NewGotoPositionTransformation(adjusted_original_cursor));
+    }
     stack.Apply(editor_state, buffer, result);
   }
 
@@ -324,12 +344,13 @@ class DeleteRegionTransformation : public Transformation {
 
 class DeleteLinesTransformation : public Transformation {
  public:
-   DeleteLinesTransformation(DeleteOptions options) : options_(options) {}
+  DeleteLinesTransformation(DeleteOptions options) : options_(options) {}
 
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     CHECK(buffer != nullptr);
     buffer->AdjustLineColumn(&result->cursor);
+    const LineColumn adjusted_original_cursor = result->cursor;
     size_t repetitions = min(options_.modifiers.repetitions,
                              buffer->contents()->size() - result->cursor.line);
     shared_ptr<OpenBuffer> delete_buffer(
@@ -346,7 +367,6 @@ class DeleteLinesTransformation : public Transformation {
         != Modifiers::FROM_CURRENT_POSITION_TO_END;
 
     bool deletes_ends_of_lines = options_.modifiers.strength > Modifiers::WEAK;
-
     TransformationStack stack;
 
     size_t line = result->cursor.line;
@@ -355,7 +375,7 @@ class DeleteLinesTransformation : public Transformation {
       DVLOG(5) << "Erasing line: " << contents->ToString();
       size_t start = backwards ? 0 : result->cursor.column;
       size_t end = forwards ? contents->size() : result->cursor.column;
-      if (start == 0 && end == contents->size()) {
+      if (start == 0 && end == contents->size() && options_.delete_region) {
         auto target_buffer = buffer->GetBufferFromCurrentLine();
         if (target_buffer.get() != buffer && target_buffer != nullptr) {
           auto it = editor_state->buffers()->find(target_buffer->name());
@@ -379,14 +399,21 @@ class DeleteLinesTransformation : public Transformation {
         }
       }
       DeleteOptions delete_options;
+      delete_options.delete_region = options_.delete_region;
       delete_options.modifiers.repetitions = end - start
           + (deletes_ends_of_lines && end == contents->size() ? 1 : 0);
-      LineColumn position(line + (deletes_ends_of_lines ? 0 : i), start);
+      LineColumn position(line, start);
+      if (!deletes_ends_of_lines || !options_.delete_region) {
+        position.line += i;
+      }
       DVLOG(6) << "Modifiers for line: " << delete_options.modifiers;
       DVLOG(6) << "Position for line: " << position;
       stack.PushBack(
           TransformationAtPosition(position,
                NewDeleteCharactersTransformation(delete_options)));
+    }
+    if (!options_.delete_region) {
+      stack.PushBack(NewGotoPositionTransformation(adjusted_original_cursor));
     }
     if (editor_state->has_current_buffer()
         && editor_state->current_buffer()->first == OpenBuffer::kBuffersName
@@ -440,7 +467,7 @@ class DeleteLinesTransformation : public Transformation {
     return length;
   }
 
-  DeleteOptions options_;
+  const DeleteOptions options_;
 };
 
 class DeleteBufferTransformation : public Transformation {

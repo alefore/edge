@@ -10,6 +10,7 @@ using std::unique_ptr;
 
 struct DeleteOptions {
   Modifiers modifiers;
+  bool delete_region = true;
   bool copy_to_paste_buffer = true;
 };
 

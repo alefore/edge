@@ -52,8 +52,13 @@ using namespace afc::editor;
 
 class Delete : public Command {
  public:
+  Delete(DeleteOptions delete_options) : delete_options_(delete_options) {}
+
   const wstring Description() {
-    return L"deletes the current item (char, word, line ...)";
+    if (delete_options_.delete_region) {
+      return L"deletes the current item (char, word, line...)";
+    }
+    return L"copies current item (char, word, ...) to the paste buffer.";
   }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
@@ -69,7 +74,7 @@ class Delete : public Command {
       case TREE:
         if (editor_state->has_current_buffer()) {
           auto buffer = editor_state->current_buffer()->second;
-          DeleteOptions options;
+          DeleteOptions options = delete_options_;
           options.modifiers = editor_state->modifiers();
           editor_state->ApplyToCurrentBuffer(NewDeleteTransformation(options));
           editor_state->ScheduleRedraw();
@@ -97,6 +102,9 @@ class Delete : public Command {
               << editor_state->modifiers();
     editor_state->ResetModifiers();
   }
+
+ private:
+  const DeleteOptions delete_options_;
 };
 
 // TODO: Replace with insert.  Insert should be called 'type'.
@@ -906,8 +914,12 @@ std::function<unique_ptr<EditorMode>(void)> NewCommandModeSupplier(
   Register(L"S", new SetStrengthCommand(
       Modifiers::STRONG, Modifiers::VERY_STRONG, L"strong"), commands_map.get());
 
-  Register(L"d", new Delete(), commands_map.get());
+  Register(L"d", new Delete(DeleteOptions()), commands_map.get());
   Register(L"p", new Paste(), commands_map.get());
+
+  DeleteOptions copy_options;
+  copy_options.delete_region = false;
+  Register(L"sc", new Delete(copy_options), commands_map.get());
   Register(L"u", new UndoCommand(), commands_map.get());
   Register(L"\n", new ActivateLink(), commands_map.get());
 
