@@ -44,7 +44,7 @@ class DeleteCharactersTransformation : public Transformation {
 
     size_t line;
     size_t chars_erased;
-    SkipLinesToErase(buffer, preserved_contents, &line, &chars_erased,
+    SkipLinesToErase(buffer, preserved_contents->size(), &line, &chars_erased,
                      result->cursor);
     LOG(INFO) << "Erasing from line " << current_line << " to line " << line
               << " would erase " << chars_erased << " characters.";
@@ -229,10 +229,9 @@ class DeleteCharactersTransformation : public Transformation {
   //
   // chars_erased will be set to the total number of characters erased from the
   // current position until (including) line.
-  void SkipLinesToErase(const OpenBuffer* buffer,
-                        const shared_ptr<LazyString>& preserved_contents,
-                        size_t* line, size_t* chars_erased,
-                        LineColumn position) const {
+  void SkipLinesToErase(
+      const OpenBuffer* buffer, size_t preserved_contents, size_t* line,
+      size_t* chars_erased, LineColumn position) const {
     *line = position.line;
     *chars_erased = 0;
     if (options_.modifiers.direction == FORWARDS
@@ -246,8 +245,8 @@ class DeleteCharactersTransformation : public Transformation {
                 << *chars_erased << " characters.";
       size_t chars_in_line = buffer->LineAt(*line)->size();
       if (*line == position.line) {
-        CHECK_GE(chars_in_line, preserved_contents->size());
-        chars_in_line -= preserved_contents->size();
+        CHECK_GE(chars_in_line, preserved_contents);
+        chars_in_line -= preserved_contents;
         if (options_.modifiers.direction == FORWARDS) {
           chars_in_line++;
         }
