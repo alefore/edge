@@ -69,8 +69,9 @@ class Delete : public Command {
       case TREE:
         if (editor_state->has_current_buffer()) {
           auto buffer = editor_state->current_buffer()->second;
-          editor_state->ApplyToCurrentBuffer(
-              NewDeleteTransformation(editor_state->modifiers(), true));
+          DeleteOptions options;
+          options.modifiers = editor_state->modifiers();
+          editor_state->ApplyToCurrentBuffer(NewDeleteTransformation(options));
           editor_state->ScheduleRedraw();
         }
         break;
@@ -769,14 +770,18 @@ class SwitchCaseTransformation : public Transformation {
       if (i.column >= line->size()) {
         // Switch to the next line.
         i = LineColumn(i.line + 1);
-        stack->PushBack(NewDeleteCharactersTransformation(Modifiers(), false));
+        DeleteOptions options;
+        options.copy_to_paste_buffer = false;
+        stack->PushBack(NewDeleteCharactersTransformation(options));
         buffer_to_insert->AppendEmptyLine(editor_state);
         continue;
       }
       wchar_t c = line->get(i.column);
       buffer_to_insert->AppendToLastLine(editor_state,
           NewCopyString(wstring(1, iswupper(c) ? towlower(c) : towupper(c))));
-      stack->PushBack(NewDeleteCharactersTransformation(Modifiers(), false));
+      DeleteOptions options;
+      options.copy_to_paste_buffer = false;
+      stack->PushBack(NewDeleteCharactersTransformation(options));
 
       // Increment i.
       i.column++;

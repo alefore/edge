@@ -345,8 +345,9 @@ using std::to_wstring;
             line_args.push_back(Value::NewString(current_line));
             unique_ptr<Value> result = args[1]->callback(std::move(line_args));
             if (result->str != current_line) {
-              transformation->PushBack(
-                  NewDeleteLinesTransformation(Modifiers(), false));
+              DeleteOptions options;
+              options.copy_to_paste_buffer = false;
+              transformation->PushBack(NewDeleteLinesTransformation(options));
               shared_ptr<OpenBuffer> buffer_to_insert(
                   new OpenBuffer(editor_state, L"tmp buffer"));
               buffer_to_insert->AppendLine(
@@ -421,10 +422,9 @@ using std::to_wstring;
           CHECK(buffer != nullptr);
 
           auto updater = buffer->BlockParseTreeUpdates();
-          Modifiers modifiers;
-          modifiers.repetitions = args[1]->integer;
-          buffer->ApplyToCursors(
-              NewDeleteCharactersTransformation(modifiers, true));
+          DeleteOptions options;
+          options.modifiers.repetitions = args[1]->integer;
+          buffer->ApplyToCursors(NewDeleteCharactersTransformation(options));
           return Value::NewVoid();
         };
     buffer->AddField(L"DeleteCharacters", std::move(callback));

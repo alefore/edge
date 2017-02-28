@@ -153,7 +153,9 @@ class HistoryScrollBehavior : public ScrollBehavior {
       }
     }
 
-    buffer->ApplyToCursors(NewDeleteLinesTransformation(Modifiers(), false));
+    DeleteOptions delete_options;
+    delete_options.copy_to_paste_buffer = false;
+    buffer->ApplyToCursors(NewDeleteLinesTransformation(delete_options));
     buffer->ApplyToCursors(NewInsertBufferTransformation(insert, 1, END));
 
     UpdateStatus(editor_state, buffer, prompt_);
@@ -292,10 +294,10 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
             LOG(INFO) << "Prediction advanced from " << input << " to "
                       << prediction;
 
-            Modifiers modifiers;
-            modifiers.structure = LINE;
-            buffer->ApplyToCursors(NewDeleteTransformation(
-                modifiers, false));
+            DeleteOptions delete_options;
+            delete_options.copy_to_paste_buffer = false;
+            buffer->ApplyToCursors(
+                NewDeleteLinesTransformation(delete_options));
 
             auto insert =
                 std::make_shared<OpenBuffer>(editor_state, L"- text inserted");

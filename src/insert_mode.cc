@@ -148,11 +148,12 @@ class AutocompleteMode : public EditorMode {
         StringAppend((*matches_current_)->contents(), NewCopyString(L" ")));
     DLOG(INFO) << "Completion selected: " << buffer_to_insert->ToString();
 
-    Modifiers modifiers;
-    modifiers.repetitions = word_length_;
+    DeleteOptions delete_options;
+    delete_options.modifiers.repetitions = word_length_;
+    delete_options.copy_to_paste_buffer = false;
     options_.buffer->Apply(editor_state,
         ComposeTransformation(
-            NewDeleteCharactersTransformation(modifiers, false),
+            NewDeleteCharactersTransformation(delete_options),
             NewInsertBufferTransformation(buffer_to_insert, 1, END)),
         LineColumn(options_.buffer->position().line, options_.column_start));
 
@@ -389,10 +390,11 @@ class InsertMode : public EditorMode {
         {
           LOG(INFO) << "Handling backspace in insert mode.";
           options_.buffer->MaybeAdjustPositionCol();
-          Modifiers modifiers;
-          modifiers.direction = BACKWARDS;
+          DeleteOptions delete_options;
+          delete_options.modifiers.direction = BACKWARDS;
+          delete_options.copy_to_paste_buffer = false;
           options_.buffer->ApplyToCursors(
-              NewDeleteCharactersTransformation(modifiers, false));
+              NewDeleteCharactersTransformation(delete_options));
           options_.buffer->set_modified(true);
           options_.modify_listener();
           editor_state->ScheduleRedraw();
@@ -405,12 +407,12 @@ class InsertMode : public EditorMode {
 
       case Terminal::CTRL_U:
         {
-          Modifiers modifiers;
-          modifiers.structure = LINE;
-          modifiers.structure_range =
+          DeleteOptions delete_options;
+          delete_options.modifiers.structure_range =
               Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
-          options_.buffer->ApplyToCursors(NewDeleteTransformation(
-              modifiers, false));
+          delete_options.copy_to_paste_buffer = false;
+          options_.buffer->ApplyToCursors(
+              NewDeleteLinesTransformation(delete_options));
           options_.modify_listener();
           editor_state->ScheduleRedraw();
           return;
@@ -418,12 +420,12 @@ class InsertMode : public EditorMode {
 
       case Terminal::CTRL_K:
         {
-          Modifiers modifiers;
-          modifiers.structure = LINE;
-          modifiers.structure_range =
+          DeleteOptions delete_options;
+          delete_options.modifiers.structure_range =
               Modifiers::FROM_CURRENT_POSITION_TO_END;
-          options_.buffer->ApplyToCursors(NewDeleteTransformation(
-              modifiers, false));
+          delete_options.copy_to_paste_buffer = false;
+          options_.buffer->ApplyToCursors(
+              NewDeleteLinesTransformation(delete_options));
           options_.modify_listener();
           editor_state->ScheduleRedraw();
           return;

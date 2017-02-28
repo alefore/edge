@@ -8,16 +8,17 @@ namespace editor {
 
 using std::unique_ptr;
 
+struct DeleteOptions {
+  Modifiers modifiers;
+  bool copy_to_paste_buffer = true;
+};
+
 unique_ptr<Transformation> NewDeleteCharactersTransformation(
-    const Modifiers& modifiers, bool copy_to_paste_buffer);
-unique_ptr<Transformation> NewDeleteRegionTransformation(
-    const Modifiers& modifiers, bool copy_to_paste_buffer);
-unique_ptr<Transformation> NewDeleteLinesTransformation(
-    const Modifiers& modifiers, bool copy_to_paste_buffer);
-unique_ptr<Transformation> NewDeleteBufferTransformation(
-    const Modifiers& modifiers, bool copy_to_paste_buffer);
-unique_ptr<Transformation> NewDeleteTransformation(
-    const Modifiers& modifiers, bool copy_to_paste_buffer);
+    DeleteOptions options);
+unique_ptr<Transformation> NewDeleteRegionTransformation(DeleteOptions options);
+unique_ptr<Transformation> NewDeleteLinesTransformation(DeleteOptions options);
+unique_ptr<Transformation> NewDeleteBufferTransformation(DeleteOptions options);
+unique_ptr<Transformation> NewDeleteTransformation(DeleteOptions options);
 
 }  // namespace editor
 }  // namespace afc

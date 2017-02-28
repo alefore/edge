@@ -66,17 +66,18 @@ class InsertBufferTransformation : public Transformation {
 
     size_t chars_inserted = buffer_to_insert_length_ * repetitions_;
     unique_ptr<TransformationStack> undo_stack(new TransformationStack());
-    Modifiers modifiers;
-    modifiers.repetitions = chars_inserted;
-    undo_stack->PushFront(
-        TransformationAtPosition(start_position,
-            NewDeleteCharactersTransformation(modifiers, false)));
+    DeleteOptions delete_options;
+    delete_options.modifiers.repetitions = chars_inserted;
+    delete_options.copy_to_paste_buffer = false;
+    undo_stack->PushFront(TransformationAtPosition(start_position,
+        NewDeleteCharactersTransformation(delete_options)));
 
     if (editor_state->insertion_modifier() == Modifiers::REPLACE) {
       Result current_result(editor_state);
-      Modifiers modifiers;
-      modifiers.repetitions = chars_inserted;
-      NewDeleteCharactersTransformation(modifiers, false)
+      DeleteOptions delete_options;
+      delete_options.modifiers.repetitions = chars_inserted;
+      delete_options.copy_to_paste_buffer = false;
+      NewDeleteCharactersTransformation(delete_options)
           ->Apply(editor_state, buffer, &current_result);
       undo_stack->PushFront(std::move(current_result.undo));
     }
@@ -130,11 +131,12 @@ class DeleteSuffixSuperfluousCharacters : public Transformation {
       return;
     }
     CHECK_LT(pos, line->size());
-    Modifiers modifiers;
-    modifiers.repetitions = line->size() - pos;
+    DeleteOptions delete_options;
+    delete_options.modifiers.repetitions = line->size() - pos;
+    delete_options.copy_to_paste_buffer = false;
     return TransformationAtPosition(
         LineColumn(result->cursor.line, pos),
-        NewDeleteCharactersTransformation(modifiers, false))
+        NewDeleteCharactersTransformation(delete_options))
             ->Apply(editor_state, buffer, result);
   }
 
