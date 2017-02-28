@@ -46,9 +46,9 @@ class DeleteCharactersTransformation : public Transformation {
     size_t line = SkipLinesToErase(
         buffer, options_.modifiers.repetitions + preserved_contents->size(),
         result->cursor.line, &chars_erased);
-    chars_erased -= preserved_contents->size();
     LOG(INFO) << "Erasing from line " << current_line << " to line " << line
               << " would erase " << chars_erased << " characters.";
+    chars_erased -= preserved_contents->size();
 
     // The amount of characters that should be erased from the current line.
     // Depending on the direction, we'll erase from the beginning (FORWARDS) or
@@ -238,19 +238,12 @@ class DeleteCharactersTransformation : public Transformation {
         && line == buffer->contents()->size()) {
       return line;
     }
-
+    size_t newlines = options_.modifiers.direction == BACKWARDS ? 0 : 1;
     while (true) {
       CHECK_LT(line, buffer->contents()->size());
       LOG(INFO) << "Iteration at line " << line << " having already erased "
                 << *chars_erased << " characters.";
-      size_t chars_in_line = buffer->LineAt(line)->size();
-      if (*chars_erased == 0) {
-        if (options_.modifiers.direction == FORWARDS) {
-          chars_in_line++;
-        }
-      } else if (line + 1 < buffer->contents()->size()) {
-        chars_in_line++;  // The new line character.
-      }
+      size_t chars_in_line = buffer->LineAt(line)->size() + newlines;
       LOG(INFO) << "Characters available in line: " << chars_in_line;
       *chars_erased += chars_in_line;
       if (*chars_erased >= chars_to_erase) {
@@ -259,6 +252,7 @@ class DeleteCharactersTransformation : public Transformation {
       if (!AdvanceLine(buffer, &line)) {
         return line;
       }
+      newlines = 1;
     }
   }
 
