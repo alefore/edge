@@ -38,6 +38,8 @@ class DeleteCharactersTransformation : public Transformation {
       return;
     }
 
+    // The initial prefix (or final suffix, if BACKWARDS) of the current line,
+    // before (or after) the initial position.
     shared_ptr<LazyString> preserved_contents =
         StartOfLine(buffer, current_line, result->cursor.column,
                     options_.modifiers.direction);
@@ -172,41 +174,30 @@ class DeleteCharactersTransformation : public Transformation {
     auto delete_buffer =
         std::make_shared<OpenBuffer>(editor_state, OpenBuffer::kPasteBuffer);
 
-    if (line_begin == line_end) {
-      auto end_line = buffer->LineAt(line_begin);
-      size_t start = options_.modifiers.direction == FORWARDS
-          ? preserved_contents->size()
-          : end_line->size() - chars_erase_line;
-      CHECK_LE(start, end_line->size());
-      size_t end = options_.modifiers.direction == FORWARDS
-          ? chars_erase_line
-          : end_line->size() - preserved_contents->size();
-      CHECK_LE(start, end);
-      CHECK_LE(end, end_line->size());
-      LOG(INFO) << "Preserving chars from single line: [" << start << ", "
-                << end << "): "
-                << end_line->Substring(start, end - start)->ToString();
-      delete_buffer->AppendToLastLine(
-          editor_state, end_line->Substring(start, end - start));
-      return delete_buffer;
-    }
+    // The length of the prefix we skip.
+    size_t start =
+        (options_.modifiers.direction == FORWARDS
+         || (options_.modifiers.direction == BACKWARDS
+             && line_begin == line_end))
+            ? preserved_contents->size()
+            : buffer->LineAt(line_begin)->size() - chars_erase_line;
+    size_t end = line_begin != line_end
+                     ? buffer->LineAt(line_begin)->size() - start
+                     : chars_erase_line - start;
 
     delete_buffer->AppendToLastLine(editor_state,
-        buffer->LineAt(line_begin)->Substring(
-            options_.modifiers.direction == FORWARDS
-            ? preserved_contents->size()
-            : buffer->LineAt(line_begin)->size() - chars_erase_line));
+        buffer->LineAt(line_begin)->Substring(start, end));
 
-    for (size_t i = line_begin + 1; i < line_end; i++) {
-      delete_buffer->AppendLine(
-          editor_state, buffer->LineAt(i)->contents());
+    for (size_t i = line_begin + 1; i <= line_end; i++) {
+      auto line = buffer->LineAt(i)->contents();
+      if (i == line_end) {
+        line = Substring(line, 0, options_.modifiers.direction == FORWARDS
+                                      ? chars_erase_line
+                                      : line->size() - preserved_contents->size());
+      }
+      delete_buffer->AppendLine(editor_state, line);
     }
 
-    delete_buffer->AppendLine(editor_state,
-        buffer->LineAt(line_end)->Substring(0,
-            options_.modifiers.direction == FORWARDS
-                ? chars_erase_line
-                : buffer->LineAt(line_end)->size() - preserved_contents->size()));
     return delete_buffer;
   }
 
