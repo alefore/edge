@@ -42,10 +42,11 @@ class DeleteCharactersTransformation : public Transformation {
         StartOfLine(buffer, current_line, result->cursor.column,
                     options_.modifiers.direction);
 
-    size_t line;
     size_t chars_erased;
-    SkipLinesToErase(buffer, preserved_contents->size(), &line, &chars_erased,
-                     result->cursor);
+    size_t line = SkipLinesToErase(
+        buffer, options_.modifiers.repetitions + preserved_contents->size(),
+        result->cursor.line, &chars_erased);
+    chars_erased -= preserved_contents->size();
     LOG(INFO) << "Erasing from line " << current_line << " to line " << line
               << " would erase " << chars_erased << " characters.";
 
@@ -223,45 +224,40 @@ class DeleteCharactersTransformation : public Transformation {
     return nullptr;
   }
 
-  // Loop away from the current line (in the direction given), stopping at the
-  // first line such that if we erase all characters in it (including \n), we
-  // will have erased at least as many characters as needed.
+  // Find and return the nearest (to line) line A (moving in the direction
+  // given) such that if we erase all characters in every line (including \n
+  // separators) between the current line and A (including both), we will have
+  // erased at least as may characters as chars_to_erase.
   //
   // chars_erased will be set to the total number of characters erased from the
   // current position until (including) line.
-  void SkipLinesToErase(
-      const OpenBuffer* buffer, size_t preserved_contents, size_t* line,
-      size_t* chars_erased, LineColumn position) const {
-    *line = position.line;
+  size_t SkipLinesToErase(const OpenBuffer* buffer, size_t chars_to_erase,
+                          size_t line, size_t* chars_erased) const {
     *chars_erased = 0;
     if (options_.modifiers.direction == FORWARDS
-        && *line == buffer->contents()->size()) {
-      return;
+        && line == buffer->contents()->size()) {
+      return line;
     }
 
     while (true) {
-      CHECK_LT(*line, buffer->contents()->size());
-      LOG(INFO) << "Iteration at line " << *line << " having already erased "
+      CHECK_LT(line, buffer->contents()->size());
+      LOG(INFO) << "Iteration at line " << line << " having already erased "
                 << *chars_erased << " characters.";
-      size_t chars_in_line = buffer->LineAt(*line)->size();
-      if (*line == position.line) {
-        CHECK_GE(chars_in_line, preserved_contents);
-        chars_in_line -= preserved_contents;
+      size_t chars_in_line = buffer->LineAt(line)->size();
+      if (*chars_erased == 0) {
         if (options_.modifiers.direction == FORWARDS) {
           chars_in_line++;
         }
-      } else if (*line + 1 < buffer->contents()->size()) {
+      } else if (line + 1 < buffer->contents()->size()) {
         chars_in_line++;  // The new line character.
       }
       LOG(INFO) << "Characters available in line: " << chars_in_line;
       *chars_erased += chars_in_line;
-      if (*chars_erased >= options_.modifiers.repetitions) {
-        return;
+      if (*chars_erased >= chars_to_erase) {
+        return line;
       }
-      CHECK_LT(*chars_erased, options_.modifiers.repetitions);
-
-      if (!AdvanceLine(buffer, line)) {
-        return;
+      if (!AdvanceLine(buffer, &line)) {
+        return line;
       }
     }
   }
