@@ -47,10 +47,18 @@ class ListBuffersBuffer : public OpenBuffer {
       auto context = LinesToShow(*it.second, context_lines_var);
 
       wstring flags = it.second->FlagsString();
-      auto name = NewCopyString(
+      std::shared_ptr<LazyString> name = NewCopyString(
           (context.first == context.second ? L"" : L"╭──") + it.first
-          + (flags.empty() ? L"" : L"  ") + flags
-          + (context.first == context.second ? L"" : L" ──"));
+          + (flags.empty() ? L"" : L"  ") + flags);
+      if (context.first != context.second) {
+        size_t width =
+            target->read_int_variable(OpenBuffer::variable_line_width());
+        if (width > name->size()) {
+          name = StringAppend(
+              name,
+              NewCopyString(wstring(width - (name->size() + 1), L'─') + L"╮"));
+        }
+      }
       if (target->contents()->size() == 1
           && target->contents()->at(0)->size() == 0) {
         target->AppendToLastLine(editor_state, std::move(name));
