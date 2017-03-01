@@ -504,6 +504,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
   if (name_ == kPasteBuffer) {
     set_bool_variable(variable_allow_dirty_delete(), true);
     set_bool_variable(variable_show_in_buffers_list(), false);
+    set_bool_variable(variable_delete_into_paste_buffer(), false);
   }
   ClearContents(editor_state);
 }
