@@ -19,6 +19,8 @@ void CheckIsEmpty(EditorState* editor_state) {
 
 void Clear(EditorState* editor_state) {
   editor_state->ProcessInput(Terminal::ESCAPE);
+  editor_state->set_current_buffer(
+      editor_state->buffers()->find(L"[anonymous buffer 0]"));
   editor_state->ProcessInputString("eeg99999999999999999999999d");
   editor_state->ProcessInput(Terminal::ESCAPE);
   editor_state->current_buffer()->second
@@ -679,6 +681,24 @@ int main(int, char** argv) {
   Clear(&editor_state);
 
   editor_state.ProcessInputString("af \n");
+
+  Clear(&editor_state);
+
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()), "");
+
+  editor_state.ProcessInputString("ialejo");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("wrd" "p" "3h");
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "alejo");
+  CHECK_EQ(editor_state.current_buffer()->second->position(), LineColumn(0, 2));
+  editor_state.ProcessInputString("p");
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "alalejoejo");
+  editor_state.ProcessInputString("u");
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "alejo");
+  CHECK_EQ(editor_state.current_buffer()->second->position(), LineColumn(0, 2));
 
   Clear(&editor_state);
 

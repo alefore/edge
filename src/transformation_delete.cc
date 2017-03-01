@@ -151,7 +151,7 @@ class DeleteCharactersTransformation : public Transformation {
               if (cursor.column > chars_erase_line) {
                 cursor.column += preserved_contents - chars_erase_line;
               } else if (cursor.column > preserved_contents) {
-                cursor.column -= preserved_contents;
+                cursor.column = preserved_contents;
               }
             }
             return cursor;
