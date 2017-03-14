@@ -2,7 +2,7 @@ AUTOMAKE_OPTIONS = subdir-objects
 
 SUBDIRS = glog-0.3.3
 
-bin_PROGRAMS = edge test
+bin_PROGRAMS = edge test fuzz_test
 
 noinst_PROGRAMS = lemon
 
@@ -98,6 +98,8 @@ edge_SOURCES = $(COMMON_SOURCES) src/main.cc
 
 test_SOURCES = $(COMMON_SOURCES) src/test.cc
 
+fuzz_test_SOURCES = $(COMMON_SOURCES) src/fuzz_test.cc
+
 lemon_SOURCES = src/vm/internal/lemon.c
 
 src/vm/internal/cpp.h: src/vm/internal/cpp.y lemon
@@ -116,3 +118,4 @@ AM_CPPFLAGS=-std=c++0x -g -Wall -Wextra -Iglog-0.3.3/src -DDOCDIR='"$(docdir)"'
 AM_LDFLAGS=-std=c++0x -g
 edge_LDADD=glog-0.3.3/libglog.la
 test_LDADD=glog-0.3.3/libglog.la
+fuzz_test_LDADD=glog-0.3.3/libglog.la
