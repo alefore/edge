@@ -81,6 +81,7 @@ class FileBuffer : public OpenBuffer {
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     const wstring path = GetPath();
+    LOG(INFO) << "ReloadInto: " << path;
     const string path_raw = ToByteString(path);
     if (!path.empty() && stat(path_raw.c_str(), &stat_buffer_) == -1) {
       return;
@@ -114,7 +115,14 @@ class FileBuffer : public OpenBuffer {
         NewCopyString(L"File listing: " + path));
 
     DIR* dir = opendir(path_raw.c_str());
-    assert(dir != nullptr);
+    if (dir == nullptr) {
+      auto description =
+          L"Unable to open directory: " + FromByteString(strerror(errno));
+      editor_state->SetStatus(description);
+      target->AppendLine(
+          editor_state, shared_ptr<LazyString>(NewCopyString(description)));
+      return;
+    }
     struct dirent* entry;
     while ((entry = readdir(dir)) != nullptr) {
       static std::unordered_map<int, wstring> types = {
