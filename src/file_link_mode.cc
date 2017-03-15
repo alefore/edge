@@ -266,6 +266,10 @@ static bool FindPath(
             positions->at(i) = stoi(arg);
             if (positions->at(i) > 0) { positions->at(i) --; }
           } catch (const std::invalid_argument& ia) {
+            LOG(INFO) << "stoi failed: " << arg;
+            break;
+          } catch (const std::out_of_range& ia) {
+            LOG(INFO) << "stoi failed: " << arg;
             break;
           }
         }
