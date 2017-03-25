@@ -11,7 +11,6 @@ Add tests for Undo for insert.
 -- Navigation
 
 Improve "g", the current behavior is kind of annoying:
-  It should allow "[" and "]" to specify if it should operate from the end or from the start.
   There should be a way (other than pressing it again) to specify if it should ignore space.  Maybe a modifier can do it?
 
 Add a "margin_lines" integer variable.
