@@ -542,6 +542,16 @@ void TestCases() {
   CHECK_EQ(editor_state.current_buffer()->second->position(), LineColumn(0, 2));
 
   Clear(&editor_state);
+
+  editor_state.ProcessInputString("ialejo\nforero");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  // One cursor at beginning of each line.
+  editor_state.ProcessInputString("g" "+" "k" "_");
+  editor_state.ProcessInputString("fo" "d");
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "alej\nfrero");
+
+  Clear(&editor_state);
 }
 
 int main(int, char** argv) {

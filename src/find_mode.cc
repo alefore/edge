@@ -39,16 +39,17 @@ class FindTransformation : public Transformation {
 
  private:
   bool SeekOnce(OpenBuffer* buffer, Result* result) const {
-    if (buffer->LineAt(result->cursor.line) == nullptr) { return false; }
-    shared_ptr<LazyString> current_line = buffer->current_line()->contents();
+    auto line = buffer->LineAt(result->cursor.line);
+    if (line == nullptr) { return false; }
+    shared_ptr<LazyString> contents = line->contents();
+    CHECK(contents != nullptr);
     int direction = 1;
-    size_t position = result->cursor.column;
     size_t times = 0;
-    CHECK_LE(position, current_line->size());
+    size_t position = min(result->cursor.column, contents->size());
     switch (modifiers_.direction) {
       case FORWARDS:
         direction = 1;
-        times = current_line->size() - position;
+        times = contents->size() - position;
         break;
       case BACKWARDS:
         direction = -1;
@@ -57,7 +58,7 @@ class FindTransformation : public Transformation {
     }
 
     for (size_t i = 1; i < times; i ++) {
-      if (current_line->get(position + direction * i) == c_) {
+      if (contents->get(position + direction * i) == c_) {
         result->cursor.column = position + direction * i;
         return true;
       }
@@ -74,8 +75,6 @@ class FindMode : public EditorMode {
     editor_state->PushCurrentPosition();
     if (editor_state->has_current_buffer()) {
       auto buffer = editor_state->current_buffer()->second;
-      buffer->CheckPosition();
-      buffer->MaybeAdjustPositionCol();
       buffer->ApplyToCursors(std::unique_ptr<Transformation>(
           new FindTransformation(c, editor_state->modifiers())));
     }
