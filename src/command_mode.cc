@@ -826,6 +826,21 @@ class SwitchCaseCommand : public Command {
 namespace afc {
 namespace editor {
 
+namespace {
+template <typename T>
+void ToggleBoolVariable(
+    EditorState* editor_state, wstring binding, wstring variable_name,
+    T* output) {
+  MapMode::RegisterEntry(binding,
+      NewCppCommand(editor_state->environment(),
+          L"// Toggle buffer variable: " + variable_name + L"\n"
+          L"CurrentBuffer().set_" + variable_name + L"("
+          + L"!CurrentBuffer()." + variable_name + L"()"
+          + L");").release(),
+      output);
+}
+}  // namespace
+
 using std::map;
 using std::unique_ptr;
 
@@ -938,6 +953,10 @@ std::function<unique_ptr<EditorMode>(void)> NewCommandModeSupplier(
       NewCppCommand(editor_state->environment(),
           L"// Repeats the last command.\n"
           L"editor.RepeatLastTransformation();").release(),
+      commands_map.get());
+
+  ToggleBoolVariable(editor_state, L"vp", L"paste_mode", commands_map.get());
+  ToggleBoolVariable(editor_state, L"vf", L"follow_end_of_file",
       commands_map.get());
 
   Register(L"?",
