@@ -57,17 +57,25 @@ vector<size_t> GetMatches(const wstring& line, const RegexPattern& pattern) {
 }
 
 // Returns a vector with all positions matching input sorted in ascending order.
-vector<LineColumn> PerformSearch(const wstring& input, OpenBuffer* buffer) {
+vector<LineColumn> PerformSearch(const SearchOptions& options,
+                                 OpenBuffer* buffer) {
   using namespace afc::editor;
   vector<LineColumn> positions;
 
 #if CPP_REGEX
   // TODO: Get rid of ToByteString. Ugh.
-  std::regex pattern(ToByteString(input));
+  std::regex pattern(
+      ToByteString(options.search_query),
+      options.case_sensitive ? 0 : std::regex_constants::icase);
 #else
   regex_t pattern;
+  int cflags = 0;
+  if (!options.case_sensitive) {
+    cflags |= REG_ICASE;
+  }
   // TODO: Get rid of ToByteString. Ugh.
-  if (regcomp(&pattern, ToByteString(input).c_str(), REG_ICASE) != 0) {
+  if (regcomp(&pattern, ToByteString(options.search_query).c_str(),
+              cflags) != 0) {
     return positions;
   }
 #endif
@@ -106,11 +114,10 @@ wstring RegexEscape(shared_ptr<LazyString> str) {
 // Returns all matches starting at start. If end is not nullptr, only matches
 // in the region enclosed by start and *end will be returned.
 vector<LineColumn> PerformSearchWithDirection(
-    EditorState* editor_state, const wstring& input, LineColumn start,
-    const LineColumn* end) {
+    EditorState* editor_state, const SearchOptions& options) {
   auto buffer = editor_state->current_buffer()->second;
   auto direction = editor_state->modifiers().direction;
-  vector<LineColumn> candidates = PerformSearch(input, buffer.get());
+  vector<LineColumn> candidates = PerformSearch(options, buffer.get());
   if (direction == BACKWARDS) {
     std::reverse(candidates.begin(), candidates.end());
   }
@@ -118,12 +125,14 @@ vector<LineColumn> PerformSearchWithDirection(
   vector<LineColumn> head;
   vector<LineColumn> tail;
 
-  if (end != nullptr) {
-    LOG(INFO) << "Removing elements outside of the range: " << min(start, *end)
-              << " to " << max(start, *end);
+  if (options.has_limit_position) {
+    auto start = min(options.starting_position, options.limit_position);
+    auto end = max(options.starting_position, options.limit_position);
+    LOG(INFO) << "Removing elements outside of the range: " << start
+              << " to " << end;
     vector<LineColumn> valid_candidates;
     for (auto& candidate : candidates) {
-      if (candidate >= min(start, *end) && candidate < max(start, *end)) {
+      if (candidate >= start && candidate < end) {
         valid_candidates.push_back(candidate);
       }
     }
@@ -132,7 +141,9 @@ vector<LineColumn> PerformSearchWithDirection(
 
   // Split them into head and tail depending on the current direction.
   for (auto& candidate : candidates) {
-    ((direction == FORWARDS ? candidate > start : candidate < start)
+    ((direction == FORWARDS
+          ? candidate > options.starting_position
+          : candidate < options.starting_position)
          ? head : tail)
         .push_back(candidate);
   }
@@ -149,8 +160,12 @@ void SearchHandlerPredictor(
     EditorState* editor_state, const wstring& input,
     OpenBuffer* predictions_buffer) {
   auto buffer = editor_state->current_buffer()->second;
-  auto positions = PerformSearchWithDirection(editor_state, input,
-      buffer->position(), nullptr);
+  SearchOptions options;
+  options.search_query = input;
+  options.case_sensitive = buffer->read_bool_variable(
+      OpenBuffer::variable_search_case_sensitive());
+  options.starting_position = buffer->position();
+  auto positions = PerformSearchWithDirection(editor_state, options);
 
   // Get the first kMatchesLimit matches:
   const int kMatchesLimit = 100;
@@ -181,9 +196,7 @@ vector<LineColumn> SearchHandler(
     return {};
   }
 
-  return PerformSearchWithDirection(
-      editor_state, options.search_query, options.starting_position,
-      options.has_limit_position ? &options.limit_position : nullptr);
+  return PerformSearchWithDirection(editor_state, options);
 }
 
 void JumpToNextMatch(

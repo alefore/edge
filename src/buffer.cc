@@ -2192,6 +2192,7 @@ wstring OpenBuffer::FlagsString() const {
     OpenBuffer::variable_show_in_buffers_list();
     OpenBuffer::variable_push_positions_to_history();
     OpenBuffer::variable_delete_into_paste_buffer();
+    OpenBuffer::variable_search_case_sensitive();
   }
   return output;
 }
@@ -2378,6 +2379,15 @@ OpenBuffer::variable_delete_into_paste_buffer() {
       L"If set to true, deletions from this buffer will go into the shared "
       L"paste buffer.",
       true);
+  return variable;
+}
+
+/* static */ EdgeVariable<char>*
+OpenBuffer::variable_search_case_sensitive() {
+  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+      L"search_case_sensitive",
+      L"If set to true, search (through \"/\") is case sensitive.",
+      false);
   return variable;
 }
 

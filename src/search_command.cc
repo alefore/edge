@@ -70,6 +70,8 @@ class SearchCommand : public Command {
                     ->Substring(start.column, end.column - start.column)
                     ->ToString();
             options.starting_position = buffer->position();
+            options.case_sensitive = buffer->read_bool_variable(
+                OpenBuffer::variable_search_case_sensitive());
             DoSearch(editor_state, options);
           }
 
@@ -83,6 +85,8 @@ class SearchCommand : public Command {
       default:
         SearchOptions search_options;
         auto buffer = editor_state->current_buffer()->second;
+        search_options.case_sensitive = buffer->read_bool_variable(
+            OpenBuffer::variable_search_case_sensitive());
         if (editor_state->structure() == CURSOR) {
           if (!buffer->FindPartialRange(
                    editor_state->modifiers(), buffer->position(),
