@@ -19,7 +19,8 @@ class GotoPositionTransformation : public Transformation {
   void Apply(EditorState*, OpenBuffer* buffer, Result* result) const {
     CHECK(buffer != nullptr);
     CHECK(result != nullptr);
-    result->undo = NewGotoPositionTransformation(result->cursor);
+    result->undo_stack->PushFront(
+        NewGotoPositionTransformation(result->cursor));
     result->cursor = position_;
   }
 
@@ -65,11 +66,10 @@ class InsertBufferTransformation : public Transformation {
     editor_state->ScheduleRedraw();
 
     size_t chars_inserted = buffer_to_insert_length_ * repetitions_;
-    unique_ptr<TransformationStack> undo_stack(new TransformationStack());
     DeleteOptions delete_options;
     delete_options.modifiers.repetitions = chars_inserted;
     delete_options.copy_to_paste_buffer = false;
-    undo_stack->PushFront(TransformationAtPosition(start_position,
+    result->undo_stack->PushFront(TransformationAtPosition(start_position,
         NewDeleteCharactersTransformation(delete_options)));
 
     if (editor_state->insertion_modifier() == Modifiers::REPLACE) {
@@ -79,7 +79,7 @@ class InsertBufferTransformation : public Transformation {
       delete_options.copy_to_paste_buffer = false;
       NewDeleteCharactersTransformation(delete_options)
           ->Apply(editor_state, buffer, &current_result);
-      undo_stack->PushFront(std::move(current_result.undo));
+      result->undo_stack->PushFront(std::move(current_result.undo_stack));
     }
 
     if (final_position_ == START) {
@@ -88,7 +88,6 @@ class InsertBufferTransformation : public Transformation {
 
     result->modified_buffer = true;
     result->made_progress = true;
-    result->undo = std::move(undo_stack);
   }
 
   unique_ptr<Transformation> Clone() {
@@ -178,7 +177,6 @@ class ApplyRepetitionsTransformation : public Transformation {
 
   void Apply(EditorState* editor_state, OpenBuffer* buffer, Result* result)
       const override {
-    unique_ptr<TransformationStack> undo_stack(new TransformationStack());
     for (size_t i = 0; i < repetitions_; i++) {
       Result current_result(editor_state);
       current_result.delete_buffer = result->delete_buffer;
@@ -188,7 +186,7 @@ class ApplyRepetitionsTransformation : public Transformation {
       if (current_result.modified_buffer) {
         result->modified_buffer = true;
       }
-      undo_stack->PushFront(std::move(current_result.undo));
+      result->undo_stack->PushFront(std::move(current_result.undo_stack));
       if (!current_result.success) {
         LOG(INFO) << "Application " << i << " didn't succeed, giving up.";
         break;
@@ -198,7 +196,6 @@ class ApplyRepetitionsTransformation : public Transformation {
         break;
       }
     }
-    result->undo = std::move(undo_stack);
   }
 
   unique_ptr<Transformation> Clone() {
@@ -274,9 +271,8 @@ Transformation::Result::Result(EditorState* editor_state)
      : success(true),
        made_progress(false),
        modified_buffer(false),
-       undo(NewNoopTransformation()),
-       delete_buffer(new OpenBuffer(editor_state, OpenBuffer::kPasteBuffer)) {
-}
+       undo_stack(new TransformationStack()),
+       delete_buffer(new OpenBuffer(editor_state, OpenBuffer::kPasteBuffer)) {}
 
 unique_ptr<Transformation> NewInsertBufferTransformation(
     shared_ptr<OpenBuffer> buffer_to_insert, size_t repetitions,

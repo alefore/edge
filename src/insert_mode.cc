@@ -152,10 +152,11 @@ class AutocompleteMode : public EditorMode {
     delete_options.modifiers.repetitions = word_length_;
     delete_options.copy_to_paste_buffer = false;
     options_.buffer->Apply(editor_state,
-        ComposeTransformation(
-            NewDeleteCharactersTransformation(delete_options),
-            NewInsertBufferTransformation(buffer_to_insert, 1, END)),
-        LineColumn(options_.buffer->position().line, options_.column_start));
+        TransformationAtPosition(
+            LineColumn(options_.buffer->position().line, options_.column_start),
+            ComposeTransformation(
+                NewDeleteCharactersTransformation(delete_options),
+                NewInsertBufferTransformation(buffer_to_insert, 1, END))));
 
     options_.buffer->set_modified(true);
     editor_state->ScheduleRedraw();

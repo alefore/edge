@@ -21,6 +21,8 @@ class EditorState;
 class OpenBuffer;
 class LineColumn;
 
+class TransformationStack;
+
 class Transformation {
  public:
   struct Result {
@@ -39,9 +41,8 @@ class Transformation {
     // buffer?
     bool modified_buffer;
 
-    // Reverse transformation that will undo any changes done by this one.  This
-    // should never be null (see NewNoopTransformation instead).
-    unique_ptr<Transformation> undo;
+    // Transformation that will undo any changes done by this one.
+    unique_ptr<TransformationStack> undo_stack;
 
     // Any text deleted will be appended to this buffer.  If any text at all is
     // appended, the buffer will replace the previous paste buffer.
@@ -119,7 +120,6 @@ class TransformationStack : public Transformation {
   void Apply(EditorState* editor_state, OpenBuffer* buffer, Result* result)
       const override {
     CHECK(result != nullptr);
-    unique_ptr<TransformationStack> undo(new TransformationStack());
     for (auto& it : stack_) {
       Result it_result(editor_state);
       it_result.delete_buffer = result->delete_buffer;
@@ -132,13 +132,12 @@ class TransformationStack : public Transformation {
       if (it_result.made_progress) {
         result->made_progress = true;
       }
-      undo->PushFront(std::move(it_result.undo));
+      result->undo_stack->PushFront(std::move(it_result.undo_stack));
       if (!it_result.success) {
         result->success = false;
         break;
       }
     }
-    result->undo = std::move(undo);
   }
 
   unique_ptr<Transformation> Clone() {

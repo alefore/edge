@@ -87,9 +87,10 @@ class DeleteCharactersTransformation : public Transformation {
         chars_erase_line);
     if (options_.copy_to_paste_buffer) {
       VLOG(5) << "Preparing delete buffer.";
-      result->delete_buffer->Apply(
-          editor_state, NewInsertBufferTransformation(delete_buffer, 1, END),
-          result->delete_buffer->position());
+      result->delete_buffer->ApplyToCursors(
+          TransformationAtPosition(
+              result->delete_buffer->position(),
+              NewInsertBufferTransformation(delete_buffer, 1, END)));
     }
 
     if (!options_.delete_region) {
@@ -127,10 +128,10 @@ class DeleteCharactersTransformation : public Transformation {
                        buffer->contents()->begin() + line_end);
     result->modified_buffer = true;
 
-    result->undo = TransformationAtPosition(result->cursor,
+    result->undo_stack->PushFront(TransformationAtPosition(result->cursor,
         NewInsertBufferTransformation(
             delete_buffer, 1,
-            options_.modifiers.direction == FORWARDS ? START : END));
+            options_.modifiers.direction == FORWARDS ? START : END)));
   }
 
   unique_ptr<Transformation> Clone() {

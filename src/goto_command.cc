@@ -236,7 +236,7 @@ class GotoCommand : public Command {
     auto buffer = editor_state->current_buffer()->second;
     auto cursors = buffer->active_cursors();
     auto modifiers = editor_state->modifiers();
-    OpenBuffer::CursorsSet::iterator current = buffer->current_cursor();
+    CursorsSet::iterator current = buffer->current_cursor();
     for (size_t i = 0; i < modifiers.repetitions && current != cursors->begin();
          i++) {
       --current;

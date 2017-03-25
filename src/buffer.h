@@ -37,9 +37,10 @@ using std::ostream;
 
 using namespace afc::vm;
 
+typedef std::multiset<LineColumn> CursorsSet;
+
 class OpenBuffer {
  public:
-  typedef std::multiset<LineColumn> CursorsSet;
 
   // Name of a special buffer that shows the list of buffers.
   static const wstring kBuffersName;
@@ -394,8 +395,7 @@ class OpenBuffer {
 
   void ApplyToCursors(unique_ptr<Transformation> transformation);
   LineColumn Apply(EditorState* editor_state,
-                   unique_ptr<Transformation> transformation,
-                   LineColumn cursor);
+                   unique_ptr<Transformation> transformation);
   void RepeatLastTransformation();
 
   void PushTransformationStack();

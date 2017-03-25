@@ -19,6 +19,7 @@ extern "C" {
 
 #include "char_buffer.h"
 #include "cpp_parse_tree.h"
+#include "cursors_transformation.h"
 #include "editor.h"
 #include "file_link_mode.h"
 #include "run_command_handler.h"
@@ -358,7 +359,7 @@ using std::to_wstring;
             line++;
           }
           auto updater = buffer->BlockParseTreeUpdates();
-          buffer->Apply(editor_state, std::move(transformation), LineColumn());
+          buffer->Apply(editor_state, std::move(transformation));
           return Value::NewVoid();
         };
     buffer->AddField(L"Map", std::move(callback));
@@ -1448,11 +1449,11 @@ void OpenBuffer::CheckPosition() {
   }
 }
 
-typename OpenBuffer::CursorsSet* OpenBuffer::FindCursors(const wstring& name) {
+CursorsSet* OpenBuffer::FindCursors(const wstring& name) {
   return &cursors_[name];
 }
 
-typename OpenBuffer::CursorsSet* OpenBuffer::active_cursors() {
+CursorsSet* OpenBuffer::active_cursors() {
   return FindCursors(editor_->modifiers().active_cursors);
 }
 
@@ -1498,10 +1499,10 @@ void OpenBuffer::ToggleActiveCursors() {
 }
 
 void AdjustCursorsSet(const std::function<LineColumn(LineColumn)>& callback,
-                      OpenBuffer::CursorsSet* cursors_set,
-                      OpenBuffer::CursorsSet::iterator* current_cursor) {
+                      CursorsSet* cursors_set,
+                      CursorsSet::iterator* current_cursor) {
   VLOG(8) << "Adjusting cursor set of size: " << cursors_set->size();
-  OpenBuffer::CursorsSet old_cursors;
+  CursorsSet old_cursors;
   cursors_set->swap(old_cursors);
   for (auto it = old_cursors.begin(); it != old_cursors.end(); ++it) {
     VLOG(9) << "Adjusting cursor: " << *it;
@@ -1537,11 +1538,11 @@ void OpenBuffer::set_current_cursor(CursorsSet::value_type new_value) {
   CHECK_LE(current_cursor_->line, contents_.size());
 }
 
-typename OpenBuffer::CursorsSet::iterator OpenBuffer::current_cursor() {
+typename CursorsSet::iterator OpenBuffer::current_cursor() {
   return current_cursor_;
 }
 
-typename OpenBuffer::CursorsSet::const_iterator OpenBuffer::current_cursor()
+typename CursorsSet::const_iterator OpenBuffer::current_cursor()
     const {
   return current_cursor_;
 }
@@ -1587,7 +1588,7 @@ void OpenBuffer::CreateCursor() {
   editor_->ScheduleRedraw();
 }
 
-OpenBuffer::CursorsSet::iterator OpenBuffer::FindPreviousCursor(
+CursorsSet::iterator OpenBuffer::FindPreviousCursor(
     LineColumn position) {
   LOG(INFO) << "Visiting previous cursor: " << editor_->modifiers();
   if (editor_->modifiers().direction == BACKWARDS) {
@@ -1620,7 +1621,7 @@ OpenBuffer::CursorsSet::iterator OpenBuffer::FindPreviousCursor(
   return output;
 }
 
-OpenBuffer::CursorsSet::iterator OpenBuffer::FindNextCursor(
+CursorsSet::iterator OpenBuffer::FindNextCursor(
     LineColumn position) {
   LOG(INFO) << "Visiting next cursor: " << editor_->modifiers();
   if (editor_->modifiers().direction == BACKWARDS) {
@@ -2614,6 +2615,16 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
     single_cursor.insert(*current_cursor_);
   }
 
+  if (!last_transformation_stack_.empty()) {
+    CHECK(last_transformation_stack_.back() != nullptr);
+    last_transformation_stack_.back()->PushBack(transformation->Clone());
+  }
+
+  transformations_past_.emplace_back(new Transformation::Result(editor_));
+
+  transformations_past_.back()->undo_stack->PushFront(
+      NewSetCursorsTransformation(*active_cursors(), *current_cursor_));
+
   LOG(INFO) << "Applying transformation to cursors: " << cursors->size();
   auto updater = BlockParseTreeUpdates();
   CHECK(already_applied_cursors_.empty());
@@ -2621,7 +2632,8 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
   while (!cursors->empty()) {
     LineColumn old_position = *cursors->begin();
 
-    auto new_position = Apply(editor_, transformation->Clone(), old_position);
+    transformations_past_.back()->cursor = *cursors->begin();
+    auto new_position = Apply(editor_, transformation->Clone());
     VLOG(5) << "Cursor went from " << old_position << " to " << new_position;
     CHECK_LE(new_position.line, contents_.size());
 
@@ -2630,7 +2642,7 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
       active_cursors()->erase(current_cursor_);
       current_cursor_ = active_cursors()->insert(new_position);
       CHECK_LE(current_cursor_->line, contents_.size());
-      return;
+      break;
     }
 
     auto insert_result = already_applied_cursors_.insert(new_position);
@@ -2641,28 +2653,30 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
     }
     cursors->erase(cursors->begin());
   }
-  cursors->swap(already_applied_cursors_);
-  CHECK(adjusted_current_cursor);
-  CHECK_LE(current_cursor_->line, contents_.size());
-  LOG(INFO) << "Current cursor at: " << *current_cursor_;
+  if (cursors != &single_cursor) {
+    cursors->swap(already_applied_cursors_);
+    CHECK(adjusted_current_cursor);
+    CHECK_LE(current_cursor_->line, contents_.size());
+    LOG(INFO) << "Current cursor at: " << *current_cursor_;
+  }
+
+  transformations_future_.clear();
+  if (transformations_past_.back()->modified_buffer) {
+    last_transformation_ = std::move(transformation);
+  }
 }
 
 LineColumn OpenBuffer::Apply(
-    EditorState* editor_state, unique_ptr<Transformation> transformation,
-    LineColumn cursor) {
+    EditorState* editor_state, unique_ptr<Transformation> transformation) {
   CHECK(transformation != nullptr);
-  if (!last_transformation_stack_.empty()) {
-    CHECK(last_transformation_stack_.back() != nullptr);
-    last_transformation_stack_.back()->PushBack(transformation->Clone());
-  }
+  CHECK(!transformations_past_.empty());
 
-  transformations_past_.emplace_back(new Transformation::Result(editor_state));
-  transformations_past_.back()->cursor = cursor;
   auto updater = BlockParseTreeUpdates();
   transformation->Apply(
       editor_state, this, transformations_past_.back().get());
 
   auto delete_buffer = transformations_past_.back()->delete_buffer;
+  CHECK(delete_buffer != nullptr);
   if ((delete_buffer->contents()->size() > 1
        || delete_buffer->LineAt(0)->size() > 0)
       && read_bool_variable(variable_delete_into_paste_buffer())) {
@@ -2671,11 +2685,6 @@ LineColumn OpenBuffer::Apply(
     if (!insert_result.second) {
       insert_result.first->second = delete_buffer;
     }
-  }
-
-  transformations_future_.clear();
-  if (transformations_past_.back()->modified_buffer) {
-    last_transformation_ = std::move(transformation);
   }
 
   return transformations_past_.back()->cursor;
@@ -2713,7 +2722,7 @@ void OpenBuffer::Undo(EditorState* editor_state) {
     bool modified_buffer = false;
     while (!modified_buffer && !source->empty()) {
       target->emplace_back(new Transformation::Result(editor_state));
-      source->back()->undo->Apply(editor_state, this, target->back().get());
+      source->back()->undo_stack->Apply(editor_state, this, target->back().get());
       source->pop_back();
       modified_buffer = target->back()->modified_buffer;
     }

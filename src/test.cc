@@ -552,6 +552,16 @@ void TestCases() {
            "alej\nfrero");
 
   Clear(&editor_state);
+
+  // Tests that undoing a delete leaves the cursor at the original position.
+  editor_state.ProcessInputString("ialejandro cuervo");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("rf " "d" "g" "u" "i forero");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "alejandro forero cuervo");
+
+  Clear(&editor_state);
 }
 
 int main(int, char** argv) {
