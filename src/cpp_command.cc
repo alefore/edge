@@ -58,8 +58,8 @@ std::unique_ptr<Command> NewCppCommand(afc::vm::Environment* environment,
   wstring error_description;
   auto expr = afc::vm::CompileString(code, environment, &error_description);
   if (expr == nullptr) {
-    LOG(INFO) << "Failed compilation of command: " << code << ": "
-              << error_description;
+    LOG(ERROR) << "Failed compilation of command: " << code << ": "
+               << error_description;
     return nullptr;
   }
 
