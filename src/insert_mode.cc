@@ -500,16 +500,16 @@ class RawInputTypeMode : public EditorMode {
         if (!buffer_) {
           line_buffer_ = "";
         } else {
-          string sequence(1, 21);
-          write(buffer_->fd(), sequence.c_str(), sequence.size());
+          line_buffer_.push_back(21);
+          WriteLineBuffer(editor_state);
         }
         break;
 
       case Terminal::ESCAPE:
         if (old_literal) {
           DLOG(INFO) << "Inserting literal ESCAPE";
-          string sequence(1, 27);
-          write(buffer_->fd(), sequence.c_str(), sequence.size());
+          line_buffer_.push_back(27);
+          WriteLineBuffer(editor_state);
         } else {
           editor_state->ResetMode();
           editor_state->ResetStatus();
@@ -517,31 +517,31 @@ class RawInputTypeMode : public EditorMode {
         break;
 
       case Terminal::UP_ARROW:
-        {
-          string sequence = { 27, '[', 'A' };
-          write(buffer_->fd(), sequence.c_str(), sequence.size());
-        }
+        line_buffer_.push_back(27);
+        line_buffer_.push_back('[');
+        line_buffer_.push_back('A');
+        WriteLineBuffer(editor_state);
         break;
 
       case Terminal::DOWN_ARROW:
-        {
-          string sequence = { 27, '[', 'B' };
-          write(buffer_->fd(), sequence.c_str(), sequence.size());
-        }
+        line_buffer_.push_back(27);
+        line_buffer_.push_back('[');
+        line_buffer_.push_back('B');
+        WriteLineBuffer(editor_state);
         break;
 
       case Terminal::RIGHT_ARROW:
-        {
-          string sequence = { 27, '[', 'C' };
-          write(buffer_->fd(), sequence.c_str(), sequence.size());
-        }
+        line_buffer_.push_back(27);
+        line_buffer_.push_back('[');
+        line_buffer_.push_back('C');
+        WriteLineBuffer(editor_state);
         break;
 
       case Terminal::LEFT_ARROW:
-        {
-          string sequence = { 27, '[', 'D' };
-          write(buffer_->fd(), sequence.c_str(), sequence.size());
-        }
+        line_buffer_.push_back(27);
+        line_buffer_.push_back('[');
+        line_buffer_.push_back('D');
+        WriteLineBuffer(editor_state);
         break;
 
       case Terminal::BACKSPACE:
@@ -568,8 +568,8 @@ class RawInputTypeMode : public EditorMode {
           line_buffer_.push_back(c);
           editor_state->ScheduleRedraw();
         } else {
-          string contents(1, c);
-          write(buffer_->fd(), contents.c_str(), contents.size());
+          line_buffer_.push_back(c);
+          WriteLineBuffer(editor_state);
         }
     };
   }
@@ -577,7 +577,7 @@ class RawInputTypeMode : public EditorMode {
  private:
   void WriteLineBuffer(EditorState* editor_state) {
     if (buffer_->fd() == -1) {
-      editor_state->SetStatus(L"Process exited!");
+      editor_state->SetStatus(L"Warning: Process exited.");
     } else if (write(buffer_->fd(), line_buffer_.c_str(), line_buffer_.size())
                    == -1) {
       editor_state->SetStatus(
