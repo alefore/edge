@@ -576,7 +576,10 @@ class RawInputTypeMode : public EditorMode {
 
  private:
   void WriteLineBuffer(EditorState* editor_state) {
-    if (write(buffer_->fd(), line_buffer_.c_str(), line_buffer_.size()) == -1) {
+    if (buffer_->fd() == -1) {
+      editor_state->SetStatus(L"Process exited!");
+    } else if (write(buffer_->fd(), line_buffer_.c_str(), line_buffer_.size())
+                   == -1) {
       editor_state->SetStatus(
           L"Write failed: " + FromByteString(strerror(errno)));
     }
