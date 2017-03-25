@@ -462,15 +462,27 @@ class RawInputTypeMode : public EditorMode {
     switch (c) {
       case Terminal::CHAR_EOF:
         line_buffer_.push_back(4);
-        write(buffer_->fd(), line_buffer_.c_str(), line_buffer_.size());
-        line_buffer_ = "";
+        WriteLineBuffer(editor_state);
+        break;
+
+      case Terminal::CTRL_A:
+        line_buffer_.push_back(1);
+        WriteLineBuffer(editor_state);
+        break;
+
+      case Terminal::CTRL_E:
+        line_buffer_.push_back(0x05);
+        WriteLineBuffer(editor_state);
+        break;
+
+      case Terminal::CTRL_K:
+        line_buffer_.push_back(0x0b);
+        WriteLineBuffer(editor_state);
         break;
 
       case Terminal::CTRL_L:
-        {
-          string sequence(1, 0x0c);
-          write(buffer_->fd(), sequence.c_str(), sequence.size());
-        }
+        line_buffer_.push_back(0x0c);
+        WriteLineBuffer(editor_state);
         break;
 
       case Terminal::CTRL_V:
@@ -547,8 +559,7 @@ class RawInputTypeMode : public EditorMode {
 
       case '\n':
         line_buffer_.push_back('\n');
-        write(buffer_->fd(), line_buffer_.c_str(), line_buffer_.size());
-        line_buffer_ = "";
+        WriteLineBuffer(editor_state);
         break;
 
       default:
@@ -564,6 +575,14 @@ class RawInputTypeMode : public EditorMode {
   }
 
  private:
+  void WriteLineBuffer(EditorState* editor_state) {
+    if (write(buffer_->fd(), line_buffer_.c_str(), line_buffer_.size()) == -1) {
+      editor_state->SetStatus(
+          L"Write failed: " + FromByteString(strerror(errno)));
+    }
+    line_buffer_ = "";
+  }
+
   // The buffer that we will be insertint into.
   const shared_ptr<OpenBuffer> buffer_;
   string line_buffer_;
