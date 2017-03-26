@@ -47,9 +47,16 @@ if (path == "") {
   int dot = path.find_last_of(".", path.size());
   string extension = dot == -1 ? "" : path.substr(dot + 1, path.size() - dot - 1);
   string basename = Basename(path);
-  if (extension == "cc" || extension == "h") {
-    buffer.set_line_prefix_characters(" /");
+  if (extension == "cc" || extension == "h" || extension == "c") {
+    buffer.set_line_prefix_characters(" /*");
     SetStatus("Loaded C file (" + extension + ")");
+    return;
+  }
+
+  if (extension == "java") {
+    buffer.set_line_prefix_characters(" /*");
+    buffer.set_line_width(100);
+    SetStatus("Loaded Java file (" + extension + ")");
     return;
   }
 
