@@ -65,6 +65,16 @@ class PredictionsBufferImpl : public OpenBuffer {
         [](const shared_ptr<Line>& a, const shared_ptr<Line>& b) {
           return *LowerCase(a->contents()) < *LowerCase(b->contents());
         });
+    for (size_t line = 0; line < contents()->size();) {
+      if (line == 0
+          || LineAt(line - 1)->ToString() != LineAt(line)->ToString()) {
+        line++;
+      } else {
+        auto it = contents()->cbegin() + line;
+        EraseLines(it, it + 1);
+      }
+    }
+
     wstring common_prefix =
         LowerCase((*contents()->begin())->contents())->ToString();
     for (auto it = contents()->begin(); it != contents()->end(); ++it) {
