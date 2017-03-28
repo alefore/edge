@@ -351,9 +351,9 @@ class InsertMode : public EditorMode {
         options_.buffer->MaybeAdjustPositionCol();
         options_.buffer->ApplyToCursors(NewDeleteSuffixSuperfluousCharacters());
         options_.buffer->PopTransformationStack();
-        for (size_t i = 1; i < editor_state->repetitions(); i++) {
-          options_.buffer->RepeatLastTransformation();
-        }
+        editor_state->set_repetitions(editor_state->repetitions() - 1);
+        options_.buffer->RepeatLastTransformation();
+        options_.buffer->PopTransformationStack();
         editor_state->PushCurrentPosition();
         editor_state->ResetStatus();
         CHECK(options_.escape_handler);
@@ -676,9 +676,11 @@ void EnterInsertMode(InsertModeOptions options) {
   } else if (editor_state->structure() == CHAR) {
     options.buffer->CheckPosition();
     options.buffer->PushTransformationStack();
+    options.buffer->PushTransformationStack();
     EnterInsertCharactersMode(options);
   } else if (editor_state->structure() == LINE) {
     options.buffer->CheckPosition();
+    options.buffer->PushTransformationStack();
     options.buffer->PushTransformationStack();
     options.buffer->ApplyToCursors(
         unique_ptr<Transformation>(
