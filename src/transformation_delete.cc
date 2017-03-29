@@ -416,16 +416,7 @@ class DeleteLinesTransformation : public Transformation {
     if (!options_.delete_region) {
       stack.PushBack(NewGotoPositionTransformation(adjusted_original_cursor));
     }
-    if (editor_state->has_current_buffer()
-        && editor_state->current_buffer()->first == OpenBuffer::kBuffersName
-        && !editor_state->status_prompt()) {
-      LOG(INFO) << "Updating list of buffers: " << OpenBuffer::kBuffersName;
-      auto buffers_list = editor_state->current_buffer()->second;
-      buffers_list->Reload(editor_state);
-      buffers_list->AdjustLineColumn(&result->cursor);
-    } else {
-      stack.Apply(editor_state, buffer, result);
-    }
+    stack.Apply(editor_state, buffer, result);
   }
 
   unique_ptr<Transformation> Clone() {

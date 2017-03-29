@@ -2609,6 +2609,7 @@ void OpenBuffer::set_value_variable(
 }
 
 void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
+  CHECK(transformation != nullptr);
   CursorsSet single_cursor;
   CursorsSet* cursors;
   if (read_bool_variable(variable_multiple_cursors())) {
@@ -2681,6 +2682,7 @@ LineColumn OpenBuffer::Apply(
   auto updater = BlockParseTreeUpdates();
   transformation->Apply(
       editor_state, this, transformations_past_.back().get());
+  CHECK(!transformations_past_.empty());
 
   auto delete_buffer = transformations_past_.back()->delete_buffer;
   CHECK(delete_buffer != nullptr);
