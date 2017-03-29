@@ -66,7 +66,7 @@ int main(int, char** argv) {
       editor_state.ProcessInputString("r");
     }
     unsigned int value = NextRandom();
-    switch (value % 24) {
+    switch (value % 28) {
       case 0:
         VLOG(5) << "Command: h";
         editor_state.ProcessInputString("h");
@@ -199,6 +199,27 @@ int main(int, char** argv) {
       case 23:
         VLOG(5) << "Command: ae";
         editor_state.ProcessInputString("ae\n");
+        break;
+
+      case 24:
+        VLOG(5) << "Command: fa";
+        editor_state.ProcessInputString("fa");
+        break;
+
+      case 25:
+        VLOG(5) << "Command: f5";
+        editor_state.ProcessInputString("f5");
+        break;
+
+      case 26:
+        VLOG(5) << "Command: vf";
+        editor_state.ProcessInputString("vf");
+        editor_state.ProcessInputString("erg");
+        break;
+
+      case 27:
+        VLOG(5) << "Command: vp";
+        editor_state.ProcessInputString("vp");
         break;
 
       default:
