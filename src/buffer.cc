@@ -564,6 +564,10 @@ void OpenBuffer::ClearContents(EditorState* editor_state) {
   VLOG(5) << "Clear contents of buffer: " << name_;
   EraseLines(contents_.begin(), contents_.end());
   position_pts_ = LineColumn();
+  last_transformation_ = NewNoopTransformation();
+  last_transformation_stack_.clear();
+  transformations_past_.clear();
+  transformations_future_.clear();
   AppendEmptyLine(editor_state);
   editor_state->line_marks()->RemoveMarksFromSource(name_);
 }
@@ -2622,6 +2626,9 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
 
   transformations_past_.emplace_back(new Transformation::Result(editor_));
 
+  for (auto& position : *active_cursors()) {
+    CHECK_LE(position.line, contents_.size());
+  }
   transformations_past_.back()->undo_stack->PushFront(
       NewSetCursorsTransformation(*active_cursors(), *current_cursor_));
 
