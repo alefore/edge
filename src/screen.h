@@ -25,13 +25,16 @@ class Screen {
       case INVISIBLE: return "INVISIBLE";
       case NORMAL: return "NORMAL";
     }
+    LOG(WARNING) << "Invalid cursor visibility: " << cursor_visibility;
     return "UNKNOWN";
   }
 
   static CursorVisibility CursorVisibilityFromString(string cursor_visibility) {
     if (cursor_visibility == "NORMAL") return NORMAL;
     if (cursor_visibility == "INVISIBLE") return INVISIBLE;
-    return NORMAL;  // Ugh.
+
+    LOG(WARNING) << "Invalid cursor visibility: " << cursor_visibility;
+    return NORMAL;
   }
 
   virtual void SetCursorVisibility(CursorVisibility cursor_visibility) = 0;
