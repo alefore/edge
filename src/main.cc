@@ -137,7 +137,7 @@ Args ParseArgs(int* argc, const char*** argv) {
 }
 
 void SendCommandsToParent(int fd, const string commands_to_run) {
-  CHECK(fd != -1);
+  CHECK_NE(fd, -1);
   using std::cerr;
   LOG(INFO) << "Sending commands to parent: " << commands_to_run;
   if (write(fd, commands_to_run.c_str(), commands_to_run.size()) == -1) {
@@ -214,9 +214,25 @@ int main(int argc, const char** argv) {
               << std::endl;
   }
 
+  // This is only meaningful if we're running with args.client: it contains the
+  // last observed size of our screen (to detect that we need to propagate
+  // changes to the server).
+  std::pair<size_t, size_t> last_screen_size = { -1, -1 };
+
   while (!editor_state()->terminate()) {
-    if (screen != nullptr && !args.client) {
-      terminal.Display(editor_state(), screen.get());
+    if (screen != nullptr) {
+      if (args.client) {
+        auto screen_size = std::make_pair(screen->columns(), screen->lines());
+        if (screen_size != last_screen_size) {
+          SendCommandsToParent(
+              remote_server_fd,
+              "screen.set_size(" + std::to_string(screen_size.first) + ","
+              + std::to_string(screen_size.second) + ");");
+          last_screen_size = screen_size;
+        }
+      } else {
+        terminal.Display(editor_state(), screen.get());
+      }
     }
     LOG(INFO) << "Updating remote screens.";
     for (auto& buffer : *editor_state()->buffers()) {

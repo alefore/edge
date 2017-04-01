@@ -50,8 +50,12 @@ class ScreenVm : public Screen {
     Write("SetModifier(\"" + Line::ModifierToString(modifier) + "\");");
   }
 
-  size_t columns() const { return 80; }
-  size_t lines() const { return 25; }
+  size_t columns() const { return columns_; }
+  size_t lines() const { return lines_; }
+  void set_size(size_t columns, size_t lines) {
+    columns_ = columns;
+    lines_ = lines;
+  }
 
  private:
   string Escape(string input) {
@@ -82,6 +86,8 @@ class ScreenVm : public Screen {
   }
 
   const int fd_;
+  size_t columns_ = 80;
+  size_t lines_ = 25;
 };
 }  // namespace
 
@@ -274,6 +280,31 @@ void RegisterScreenType(Environment* environment) {
           return Value::NewVoid();
         };
     screen_type->AddField(L"SetModifier", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+
+    // Returns nothing.
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+
+    callback->type.type_arguments.push_back(
+        VMType::ObjectType(screen_type.get()));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+
+    callback->callback =
+        [](vector<unique_ptr<Value>> args) {
+          CHECK_EQ(args.size(), 3);
+          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+          CHECK_EQ(args[1]->type, VMType::VM_INTEGER);
+          CHECK_EQ(args[2]->type, VMType::VM_INTEGER);
+          auto screen = static_cast<ScreenVm*>(args[0]->user_value.get());
+          CHECK(screen != nullptr);
+
+          screen->set_size(args[1]->integer, args[2]->integer);
+          return Value::NewVoid();
+        };
+    screen_type->AddField(L"set_size", std::move(callback));
   }
   environment->DefineType(L"Screen", std::move(screen_type));
 }
