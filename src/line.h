@@ -129,10 +129,13 @@ class Line {
 
   class OutputReceiverInterface {
    public:
+    virtual ~OutputReceiverInterface() {}
+
     virtual void AddCharacter(wchar_t character) = 0;
     virtual void AddString(const wstring& str) = 0;
     virtual void AddModifier(Modifier modifier) = 0;
   };
+
   void Output(const EditorState* editor_state,
               const shared_ptr<OpenBuffer>& buffer,
               size_t line,
@@ -146,6 +149,32 @@ class Line {
   bool modified_;
   bool filtered_;
   size_t filter_version_;
+};
+
+// Wrapper of a Line::OutputReceiverInterface that coallesces multiple calls to
+// AddCharacter and/or AddString into as few calls (to the delegate) as
+// possible.
+class OutputReceiverOptimizer : public Line::OutputReceiverInterface {
+ public:
+  OutputReceiverOptimizer(OutputReceiverInterface* delegate)
+      : delegate_(delegate) {
+    DCHECK(delegate_ != nullptr);
+  }
+
+  ~OutputReceiverOptimizer() override;
+
+  void AddCharacter(wchar_t character) override;
+  void AddString(const wstring& str) override;
+  void AddModifier(Line::Modifier modifier) override;
+
+ private:
+  void Flush();
+
+  Line::OutputReceiverInterface* const delegate_;
+
+  unordered_set<Line::Modifier, hash<int>> modifiers_;
+  unordered_set<Line::Modifier, hash<int>> last_modifiers_;
+  wstring buffer_;
 };
 
 }  // namespace editor

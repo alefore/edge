@@ -469,7 +469,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
 
   screen->Move(0, 0);
 
-  LineOutputReceiver line_output_receiver(screen);
+  LineOutputReceiver screen_adapter(screen);
 
   size_t lines_to_show = static_cast<size_t>(screen->lines());
   size_t current_line = buffer->view_start_line();
@@ -487,6 +487,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   auto current_tree = buffer->current_tree();
 
   while (lines_shown < lines_to_show) {
+    OutputReceiverOptimizer line_output_receiver(&screen_adapter);
     Line::OutputReceiverInterface* receiver = &line_output_receiver;
     if (current_line >= contents.size()) {
       screen->WriteString(L"\n");
@@ -551,8 +552,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       receiver = parse_tree_highlighter.get();
     }
 
-    line->Output(
-        editor_state, buffer, current_line, receiver, screen->columns());
+    line->Output(editor_state, buffer, current_line, receiver,
+                 screen->columns());
     // Need to do this for atomic lines, since they override the Reset modifier
     // with Reset + Reverse.
     line_output_receiver.AddModifier(Line::RESET);
