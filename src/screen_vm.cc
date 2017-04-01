@@ -53,6 +53,7 @@ class ScreenVm : public Screen {
   size_t columns() const { return columns_; }
   size_t lines() const { return lines_; }
   void set_size(size_t columns, size_t lines) {
+    DVLOG(5) << "Received new size: " << columns << " x " << lines;
     columns_ = columns;
     lines_ = lines;
   }

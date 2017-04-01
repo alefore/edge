@@ -161,28 +161,21 @@ int main(int argc, const char** argv) {
 
   Args args = ParseArgs(&argc, &argv);
 
-  if (!args.client) {
-    int fd = MaybeConnectToParentServer(nullptr);
-    if (fd != -1) {
-      SendCommandsToParent(fd, CommandsToRun(args));
-      cerr << args.binary_name << ": Waiting for EOF ...\n";
-      char buffer[4096];
-      while (read(0, buffer, sizeof(buffer)) > 0)
-        continue;
-      cerr << args.binary_name << ": EOF received, exiting.\n";
-      exit(0);
-    }
-  }
-
   int remote_server_fd = -1;
-  if (args.client) {
-    wstring error;
-    remote_server_fd = MaybeConnectToParentServer(&error);
-    if (remote_server_fd == -1) {
-      cerr << args.binary_name << ": Unable to connect to remote server: "
-           << error << std::endl;
-      exit(1);
-    }
+  wstring parent_server_error;
+  remote_server_fd = MaybeConnectToParentServer(&parent_server_error);
+  if (!args.client && remote_server_fd != -1) {
+    SendCommandsToParent(remote_server_fd, CommandsToRun(args));
+    cerr << args.binary_name << ": Waiting for EOF ...\n";
+    char buffer[4096];
+    while (read(0, buffer, sizeof(buffer)) > 0)
+      continue;
+    cerr << args.binary_name << ": EOF received, exiting.\n";
+    exit(0);
+  } else if (args.client && remote_server_fd == -1) {
+    cerr << args.binary_name << ": Unable to connect to remote server: "
+         << parent_server_error << std::endl;
+    exit(1);
   }
 
   std::shared_ptr<Screen> screen;
@@ -222,12 +215,15 @@ int main(int argc, const char** argv) {
   while (!editor_state()->terminate()) {
     if (screen != nullptr) {
       if (args.client) {
+        screen->Refresh();
         auto screen_size = std::make_pair(screen->columns(), screen->lines());
         if (screen_size != last_screen_size) {
+          LOG(INFO) << "Sending screen size update to server.";
           SendCommandsToParent(
               remote_server_fd,
               "screen.set_size(" + std::to_string(screen_size.first) + ","
-              + std::to_string(screen_size.second) + ");");
+              + std::to_string(screen_size.second) + ");"
+              + "set_screen_needs_hard_redraw(true);\n");
           last_screen_size = screen_size;
         }
       } else {
@@ -284,18 +280,20 @@ int main(int argc, const char** argv) {
       buffers.push_back(nullptr);
     }
 
-    int results;
-    while ((results = poll(fds, buffers.size(), -1)) <= 0) {
-      if (results == -1) {
-        switch (errno) {
-          case EINTR:
-            editor_state()->ProcessSignals();
-            break;
-          default:
-            cerr << "poll failed, exiting: " << strerror(errno) << "\n";
-            exit(-1);
-        }
+    if (poll(fds, buffers.size(), -1) == -1) {
+      CHECK_EQ(errno, EINTR) << "poll failed, exiting: " << strerror(errno);
+
+      LOG(INFO) << "Received signals.";
+      if (!args.client) {
+        // We schedule a redraw in case the signal was SIGWINCH (the screen
+        // size has changed). Ideally we'd only do that for that signal, to
+        // avoid spurious refreshes, but... who cares.
+        editor_state()->set_screen_needs_hard_redraw(true);
+
+        editor_state()->ProcessSignals();
       }
+
+      continue;
     }
 
     for (size_t i = 0; i < buffers.size(); i++) {
@@ -312,7 +310,7 @@ int main(int argc, const char** argv) {
           } else {
             SendCommandsToParent(
                 remote_server_fd,
-                "ProcessInput(" + std::to_string(c) + ");");
+                "ProcessInput(" + std::to_string(c) + ");\n");
           }
         }
         continue;

@@ -314,6 +314,32 @@ EditorState::EditorState()
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
     callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          CHECK(args.empty());
+          ScheduleRedraw();
+          return std::move(Value::NewVoid());
+        };
+    environment_->Define(L"ScheduleRedraw", std::move(callback));
+  }
+
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
+    callback->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args[0]->type, VMType::VM_BOOLEAN);
+          set_screen_needs_hard_redraw(args[0]->boolean);
+          return std::move(Value::NewVoid());
+        };
+    environment_->Define(L"set_screen_needs_hard_redraw", std::move(callback));
+  }
+
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
     callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
