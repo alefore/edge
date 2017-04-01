@@ -130,7 +130,9 @@ Args ParseArgs(int* argc, const char*** argv) {
       output.commands_to_run += pop_argument();
     } else if (cmd == "--bg") {
       output.background = true;
-      output.background_path = pop_argument();
+      if (*argc > 0) {
+        output.background_path = pop_argument();
+      }
     } else if (cmd == "--client") {
       output.client = pop_argument();
       if (output.client.empty()) {
@@ -169,7 +171,7 @@ wstring StartServer(const Args& args) {
     LOG(FATAL) << args.binary_name << ": Unable to start server: " << error;
   }
   if (args.background) {
-    std::cout << args.binary_name << ": Server starting at: " << address
+    std::cout << args.binary_name << ": Server starting at: " << actual_address
               << std::endl;
   }
   return actual_address;
