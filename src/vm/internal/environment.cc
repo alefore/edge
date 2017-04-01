@@ -9,9 +9,9 @@ namespace vm {
 
 namespace {
 
-Environment* BuildDefaultEnvironment() {
-  Environment* environment = new Environment();
-  RegisterStringType(environment);
+std::unique_ptr<Environment> BuildDefaultEnvironment() {
+  std::unique_ptr<Environment> environment(new Environment());
+  RegisterStringType(environment.get());
   environment->DefineType(
       L"bool", unique_ptr<ObjectType>(new ObjectType(VMType::Bool())));
   environment->DefineType(
@@ -21,24 +21,19 @@ Environment* BuildDefaultEnvironment() {
 
 }  // namespace
 
-Environment::Environment()
-    : table_(new map<wstring, unique_ptr<Value>>),
-      object_types_(new map<wstring, unique_ptr<ObjectType>>),
-      parent_environment_(nullptr) {}
+Environment::Environment() : parent_environment_(nullptr) {}
 
 Environment::Environment(Environment* parent_environment)
-    : table_(new map<wstring, unique_ptr<Value>>),
-      object_types_(new map<wstring, unique_ptr<ObjectType>>),
-      parent_environment_(parent_environment) {}
+    : parent_environment_(parent_environment) {}
 
 /* static */ Environment* Environment::GetDefault() {
-  static Environment* environment = BuildDefaultEnvironment();
-  return environment;
+  static auto environment = BuildDefaultEnvironment();
+  return environment.get();
 }
 
 const ObjectType* Environment::LookupObjectType(const wstring& symbol) {
-  auto it = object_types_->find(symbol);
-  if (it != object_types_->end()) {
+  auto it = object_types_.find(symbol);
+  if (it != object_types_.end()) {
     return it->second.get();
   }
   if (parent_environment_ != nullptr) {
@@ -64,13 +59,13 @@ const VMType* Environment::LookupType(const wstring& symbol) {
 
 void Environment::DefineType(
     const wstring& name, unique_ptr<ObjectType> value) {
-  auto it = object_types_->insert(make_pair(name, nullptr));
+  auto it = object_types_.insert(make_pair(name, nullptr));
   it.first->second = std::move(value);
 }
 
 Value* Environment::Lookup(const wstring& symbol) {
-  auto it = table_->find(symbol);
-  if (it != table_->end()) {
+  auto it = table_.find(symbol);
+  if (it != table_.end()) {
     return it->second.get();
   }
   if (parent_environment_ != nullptr) {
@@ -81,8 +76,7 @@ Value* Environment::Lookup(const wstring& symbol) {
 }
 
 void Environment::Define(const wstring& symbol, unique_ptr<Value> value) {
-  auto it = table_->insert(make_pair(symbol, nullptr));
-  it.first->second = std::move(value);
+  table_[symbol] = std::move(value);
 }
 
 }  // namespace vm

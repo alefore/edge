@@ -37,8 +37,8 @@ using namespace afc::editor;
 static const char* kEdgeParentAddress = "EDGE_PARENT_ADDRESS";
 
 EditorState* editor_state() {
-  static EditorState* editor_state = new EditorState();
-  return editor_state;
+  static EditorState editor_state;
+  return &editor_state;
 }
 
 void SignalHandler(int sig) {
@@ -370,10 +370,6 @@ int main(int argc, const char** argv) {
       }
     }
   }
-
-  editor_state()->environment()->Define(
-      L"screen", afc::vm::Value::NewObject(L"Screen", nullptr));
-  delete editor_state();
 
   LOG(INFO) << "Removing server file: " << server_path;
   unlink(ToByteString(server_path).c_str());

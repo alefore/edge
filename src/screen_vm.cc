@@ -21,33 +21,38 @@ class ScreenVm : public Screen {
  public:
   ScreenVm(int fd) : fd_(fd) {}
 
+  ~ScreenVm() override {
+    LOG(INFO) << "Sending terminate command to remote screen: fd: " << fd_;
+    Write("set_terminate(true);");
+  }
+
   void HardRefresh() override {
-    Write("HardRefresh();");
+    Write("screen.HardRefresh();");
   }
 
   void Refresh() override {
-    Write("Refresh();");
+    Write("screen.Refresh();");
   }
 
   void Clear() override {
-    Write("Clear();");
+    Write("screen.Clear();");
   }
 
   void SetCursorVisibility(CursorVisibility cursor_visibility) override {
-    Write("SetCursorVisibility(\"" + CursorVisibilityToString(cursor_visibility)
-          + "\");");
+    Write("screen.SetCursorVisibility(\""
+          + CursorVisibilityToString(cursor_visibility) + "\");");
   }
 
   void Move(size_t y, size_t x) override {
-    Write("Move(" + std::to_string(y) + ", " + std::to_string(x) + ");");
+    Write("screen.Move(" + std::to_string(y) + ", " + std::to_string(x) + ");");
   }
 
   void WriteString(const wstring& str) override {
-    Write("WriteString(\"" + Escape(ToByteString(str)) + "\");");
+    Write("screen.WriteString(\"" + Escape(ToByteString(str)) + "\");");
   }
 
   void SetModifier(Line::Modifier modifier) override {
-    Write("SetModifier(\"" + Line::ModifierToString(modifier) + "\");");
+    Write("screen.SetModifier(\"" + Line::ModifierToString(modifier) + "\");");
   }
 
   size_t columns() const { return columns_; }
@@ -78,7 +83,7 @@ class ScreenVm : public Screen {
   }
 
   void Write(string command) {
-    command = "screen." + command + "\n";
+    command = command + "\n";
     LOG(INFO) << "Sending command: " << command;
     int result = write(fd_, command.c_str(), command.size());
     if (result != static_cast<int>(command.size())) {

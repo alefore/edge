@@ -191,7 +191,7 @@ class EditorState {
 
   void ApplyToCurrentBuffer(unique_ptr<Transformation> transformation);
 
-  Environment* environment() { return environment_.get(); }
+  Environment* environment() { return &environment_; }
 
   // Meant to be used to construct afc::vm::Evaluator::ErrorHandler instances.
   void DefaultErrorHandler(const wstring& error_description);
@@ -202,14 +202,16 @@ class EditorState {
   void ProcessSignals();
 
  private:
+  Environment BuildEditorEnvironment();
+
   map<wstring, shared_ptr<OpenBuffer>> buffers_;
   map<wstring, shared_ptr<OpenBuffer>>::iterator current_buffer_;
-  bool terminate_;
+  bool terminate_ = false;
 
   wstring home_directory_;
   vector<wstring> edge_path_;
 
-  std::unique_ptr<Environment> environment_;
+  Environment environment_;
 
   wstring last_search_query_;
 

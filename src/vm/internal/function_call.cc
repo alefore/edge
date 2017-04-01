@@ -57,10 +57,10 @@ class FunctionCall : public Expression {
           DVLOG(5) << "Received results of parameter: " << values->size() + 1;
           values->push_back(std::move(evaluation->value));
           if (values->size() == args_->size()) {
-            // TODO: Delete values, we're memory leaking here.
             DVLOG(4) << "No more parameters, performing function call.";
             evaluation->advancer = advancer;
             evaluation->value = func->callback(std::move(*values));
+            delete values;
             return;
           }
           evaluation->advancer = CaptureArgs(advancer, values, func);

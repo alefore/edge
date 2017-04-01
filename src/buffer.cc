@@ -510,7 +510,9 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
   ClearContents(editor_state);
 }
 
-OpenBuffer::~OpenBuffer() {}
+OpenBuffer::~OpenBuffer() {
+  LOG(INFO) << "Buffer deleted: " << name_;
+}
 
 bool OpenBuffer::PrepareToClose(EditorState* editor_state) {
   if (!dirty()) {

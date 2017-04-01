@@ -90,8 +90,10 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
   editor_type->AddField(name, std::move(callback));
 }
 
-std::unique_ptr<Environment> NewDefaultEnvironment(EditorState* editor) {
-  std::unique_ptr<Environment> environment(afc::vm::Environment::GetDefault());
+}  // namespace
+
+Environment EditorState::BuildEditorEnvironment() {
+  Environment environment(afc::vm::Environment::GetDefault());
 
   unique_ptr<ObjectType> editor_type(new ObjectType(L"Editor"));
 
@@ -169,11 +171,11 @@ std::unique_ptr<Environment> NewDefaultEnvironment(EditorState* editor) {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
     callback->type.type_arguments.push_back(VMType::ObjectType(L"Buffer"));
     callback->callback =
-        [editor](vector<unique_ptr<Value>> args) {
+        [this](vector<unique_ptr<Value>> args) {
           assert(args.size() == 0);
-          return Value::NewObject(L"Buffer", editor->current_buffer()->second);
+          return Value::NewObject(L"Buffer", current_buffer()->second);
         };
-    environment->Define(L"CurrentBuffer", std::move(callback));
+    environment.Define(L"CurrentBuffer", std::move(callback));
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
@@ -183,14 +185,14 @@ std::unique_ptr<Environment> NewDefaultEnvironment(EditorState* editor) {
 
     callback->type.type_arguments.push_back(VMType::Integer());
     callback->callback =
-        [editor](vector<unique_ptr<Value>> args) {
+        [this](vector<unique_ptr<Value>> args) {
           CHECK_EQ(args.size(), 1);
           CHECK_EQ(args[0]->type, VMType::VM_INTEGER);
-          DCHECK(editor->mode() != nullptr);
-          editor->mode()->ProcessInput(args[0]->integer, editor);
+          DCHECK(mode() != nullptr);
+          mode()->ProcessInput(args[0]->integer, this);
           return Value::NewVoid();
         };
-    environment->Define(L"ProcessInput", std::move(callback));
+    environment.Define(L"ProcessInput", std::move(callback));
   }
   RegisterBufferMethod(editor_type.get(), L"ToggleActiveCursors",
                        &OpenBuffer::ToggleActiveCursors);
@@ -202,24 +204,20 @@ std::unique_ptr<Environment> NewDefaultEnvironment(EditorState* editor) {
                        &OpenBuffer::DestroyOtherCursors);
   RegisterBufferMethod(editor_type.get(), L"RepeatLastTransformation",
                        &OpenBuffer::RepeatLastTransformation);
-  environment->DefineType(L"Editor", std::move(editor_type));
+  environment.DefineType(L"Editor", std::move(editor_type));
 
-  environment->Define(L"editor", Value::NewObject(
-      L"Editor", shared_ptr<void>(editor, [](void*){})));
+  environment.Define(L"editor", Value::NewObject(
+      L"Editor", shared_ptr<void>(this, [](void*){})));
 
-  OpenBuffer::RegisterBufferType(editor, environment.get());
-
-  return std::move(environment);
+  OpenBuffer::RegisterBufferType(this, &environment);
+  return environment;
 }
-
-}  // namespace
 
 EditorState::EditorState()
     : current_buffer_(buffers_.end()),
-      terminate_(false),
       home_directory_(GetHomeDirectory()),
       edge_path_(GetEdgeConfigPath(home_directory_)),
-      environment_(NewDefaultEnvironment(this)),
+      environment_(BuildEditorEnvironment()),
       default_mode_supplier_(NewCommandModeSupplier(this)),
       mode_(default_mode_supplier_()),
       visible_lines_(1),
@@ -244,7 +242,7 @@ EditorState::EditorState()
           return Value::NewObject(L"LineColumn", shared_ptr<LineColumn>(
               new LineColumn(args[0]->integer, args[1]->integer)));
         };
-    environment_->Define(L"LineColumn", std::move(callback));
+    environment_.Define(L"LineColumn", std::move(callback));
   }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
@@ -280,7 +278,7 @@ EditorState::EditorState()
         };
     line_column->AddField(L"column", std::move(callback));
   }
-  environment_->DefineType(L"LineColumn", std::move(line_column));
+  environment_.DefineType(L"LineColumn", std::move(line_column));
 
   // Other functions.
   {
@@ -293,7 +291,7 @@ EditorState::EditorState()
           OpenServerBuffer(this, args[0]->str);
           return std::move(Value::NewVoid());
         };
-    environment_->Define(L"ConnectTo", std::move(connect_to_function));
+    environment_.Define(L"ConnectTo", std::move(connect_to_function));
   }
 
   {
@@ -308,7 +306,7 @@ EditorState::EditorState()
           SetStatus(args[0]->str);
           return std::move(Value::NewVoid());
         };
-    environment_->Define(L"SetStatus", std::move(set_status_function));
+    environment_.Define(L"SetStatus", std::move(set_status_function));
   }
 
   {
@@ -320,7 +318,7 @@ EditorState::EditorState()
           ScheduleRedraw();
           return std::move(Value::NewVoid());
         };
-    environment_->Define(L"ScheduleRedraw", std::move(callback));
+    environment_.Define(L"ScheduleRedraw", std::move(callback));
   }
 
   {
@@ -334,7 +332,21 @@ EditorState::EditorState()
           set_screen_needs_hard_redraw(args[0]->boolean);
           return std::move(Value::NewVoid());
         };
-    environment_->Define(L"set_screen_needs_hard_redraw", std::move(callback));
+    environment_.Define(L"set_screen_needs_hard_redraw", std::move(callback));
+  }
+
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
+    callback->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args[0]->type, VMType::VM_BOOLEAN);
+          terminate_ = args[0]->boolean;
+          return std::move(Value::NewVoid());
+        };
+    environment_.Define(L"set_terminate", std::move(callback));
   }
 
   {
@@ -350,7 +362,7 @@ EditorState::EditorState()
               LineColumn(buffer->position().line, args[0]->integer));
           return Value::NewVoid();
         };
-    environment_->Define(L"SetPositionColumn", std::move(callback));
+    environment_.Define(L"SetPositionColumn", std::move(callback));
   }
 
   {
@@ -364,7 +376,7 @@ EditorState::EditorState()
           output->str = buffer->current_line()->ToString();
           return output;
         };
-    environment_->Define(L"Line", std::move(callback));
+    environment_.Define(L"Line", std::move(callback));
   }
 
   {
@@ -380,7 +392,7 @@ EditorState::EditorState()
           ForkCommand(this, options);
           return std::move(Value::NewVoid());
         };
-    environment_->Define(L"ForkCommand", std::move(callback));
+    environment_.Define(L"ForkCommand", std::move(callback));
   }
 
   {
@@ -398,7 +410,7 @@ EditorState::EditorState()
           ScheduleRedraw();
           return Value::NewObject(L"Buffer", current_buffer()->second);
         };
-    environment_->Define(L"OpenFile", std::move(callback));
+    environment_.Define(L"OpenFile", std::move(callback));
   }
 }
 
