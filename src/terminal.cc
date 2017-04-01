@@ -470,6 +470,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   screen->Move(0, 0);
 
   LineOutputReceiver screen_adapter(screen);
+  std::unique_ptr<OutputReceiverOptimizer> line_output_receiver(
+      new OutputReceiverOptimizer(&screen_adapter));
 
   size_t lines_to_show = static_cast<size_t>(screen->lines());
   size_t current_line = buffer->view_start_line();
@@ -487,9 +489,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   auto current_tree = buffer->current_tree();
 
   while (lines_shown < lines_to_show) {
-    OutputReceiverOptimizer line_output_receiver(&screen_adapter);
-    Line::OutputReceiverInterface* receiver = &line_output_receiver;
     if (current_line >= contents.size()) {
+      line_output_receiver = nullptr;
       screen->WriteString(L"\n");
       lines_shown++;
       continue;
@@ -499,6 +500,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       continue;
     }
 
+    Line::OutputReceiverInterface* receiver = line_output_receiver.get();
     std::unique_ptr<Line::OutputReceiverInterface> atomic_lines_highlighter;
 
     auto current_cursors = cursors.find(current_line);
@@ -556,7 +558,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
                  screen->columns());
     // Need to do this for atomic lines, since they override the Reset modifier
     // with Reset + Reverse.
-    line_output_receiver.AddModifier(Line::RESET);
+    line_output_receiver->AddModifier(Line::RESET);
     current_line ++;
   }
 }
