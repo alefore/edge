@@ -244,7 +244,7 @@ void RegisterScreenType(Environment* environment) {
 
           CHECK_EQ(args[1]->type, VMType::VM_STRING);
 
-          LOG(INFO) << "Writing string: " << args[1]->str;
+          DVLOG(5) << "Writing string: " << args[1]->str;
           screen->WriteString(args[1]->str);
           return Value::NewVoid();
         };
