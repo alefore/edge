@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_set>
 
 #include "buffer.h"
 
@@ -11,6 +12,8 @@ namespace editor {
 
 using std::shared_ptr;
 using std::string;
+
+void Daemonize(const std::unordered_set<int>& surviving_fd);
 
 int MaybeConnectToServer(const string& address, wstring* error);
 int MaybeConnectToParentServer(wstring* error);

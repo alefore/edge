@@ -9,6 +9,13 @@
 #include <sys/stat.h>
 #include <utility>
 
+extern "C" {
+#include <fcntl.h>
+#include <poll.h>
+#include <signal.h>
+#include <sys/types.h>
+}
+
 #include "buffer.h"
 #include "editor.h"
 #include "file_link_mode.h"
@@ -99,6 +106,34 @@ int MaybeConnectToServer(const string& address, wstring* error) {
   }
   CHECK_GT(private_fd, -1);
   return private_fd;
+}
+
+void Daemonize(const std::unordered_set<int>& surviving_fds) {
+  pid_t pid;
+
+  pid = fork();
+  CHECK_GE(pid, 0) << "fork failed: " << strerror(errno);
+  if (pid > 0) {
+    LOG(INFO) << "Parent exits.";
+    exit(0);
+  }
+
+  CHECK_GT(setsid(), 0);
+  signal(SIGCHLD, SIG_IGN);
+  signal(SIGHUP, SIG_IGN);
+
+  pid = fork();
+  CHECK_GE(pid, 0) << "fork failed: " << strerror(errno);
+  if (pid > 0) {
+    LOG(INFO) << "Parent exits.";
+    exit(0);
+  }
+
+  for (int fd = sysconf(_SC_OPEN_MAX); fd >= 0; fd--) {
+    if (surviving_fds.find(fd) == surviving_fds.end()) {
+      close(fd);
+    }
+  }
 }
 
 class ServerBuffer : public OpenBuffer {

@@ -160,11 +160,16 @@ void SendCommandsToParent(int fd, const string commands_to_run) {
 }
 
 wstring StartServer(const Args& args) {
+  LOG(INFO) << "Starting server.";
+
   wstring address;
+  std::unordered_set<int> surviving_fds = {1, 2};
   if (args.background && !args.background_path.empty()) {
     address = FromByteString(args.background_path);
+    // We can't close stdout until we've printed the address in which the server
+    // will run.
+    Daemonize(surviving_fds);
   }
-  LOG(INFO) << "Starting server.";
   wstring actual_address;
   wstring error;
   if (!StartServer(editor_state(), address, &actual_address, &error)) {
@@ -173,6 +178,9 @@ wstring StartServer(const Args& args) {
   if (args.background) {
     std::cout << args.binary_name << ": Server starting at: " << actual_address
               << std::endl;
+    for (int fd : surviving_fds) {
+      close(fd);
+    }
   }
   return actual_address;
 }
@@ -198,7 +206,7 @@ int main(int argc, const char** argv) {
     remote_server_fd = MaybeConnectToServer(args.client, &parent_server_error);
     if (remote_server_fd == -1) {
       cerr << args.binary_name << ": Unable to connect to remote server: "
-           << args.client << std::endl;
+           << args.client << ": " << parent_server_error << std::endl;
       exit(1);
     }
   } else {
