@@ -89,11 +89,11 @@ Args ParseArgs(int* argc, const char*** argv) {
 
   string kHelpString = "Usage: edge [OPTION]... [FILE]...\n"
       "Open the files given.\n\nEdge supports the following options:\n"
-      "  --fork <shellcmd>: Creates a buffer running a shell command\n"
-      "  --help, -h: Displays this message\n"
-      "  --run <vmcmd>: Runs a VM command\n"
-      "  --server <path>: Runs in daemon mode at path given\n"
-      "  --client <path>: Connects to daemon at path given\n"
+      "  -f, --fork <shellcmd>  Creates a buffer running a shell command\n"
+      "  --help, -h             Displays this message\n"
+      "  --run <vmcmd>          Runs a VM command\n"
+      "  -s, --server <path>    Runs in daemon mode at path given\n"
+      "  -c, --client <path>    Connects to daemon at path given\n"
       "\nReport bugs to <alefore@gmail.com>\n";
 
   Args output;
@@ -129,12 +129,12 @@ Args ParseArgs(int* argc, const char*** argv) {
           << output.binary_name << ": " << cmd
           << ": Expected command to run.\n";
       output.commands_to_run += pop_argument();
-    } else if (cmd == "--server") {
+    } else if (cmd == "--server" || cmd == "-s") {
       output.server = true;
       if (*argc > 0) {
         output.server_path = pop_argument();
       }
-    } else if (cmd == "--client") {
+    } else if (cmd == "--client" || cmd == "-c") {
       output.client = pop_argument();
       if (output.client.empty()) {
         cerr << output.binary_name << ": --client: Missing server path."
