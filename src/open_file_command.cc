@@ -1,5 +1,9 @@
 #include "open_file_command.h"
 
+extern "C" {
+#include <sys/stat.h>
+}
+
 #include "editor.h"
 #include "dirname.h"
 #include "file_link_mode.h"

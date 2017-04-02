@@ -10,6 +10,8 @@ extern "C" {
 #include <sys/wait.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 }
 
 #include "char_buffer.h"

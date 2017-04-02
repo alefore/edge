@@ -13,7 +13,6 @@
 #include "direction.h"
 #include "lazy_string.h"
 #include "line_marks.h"
-#include "memory_mapped_file.h"
 #include "modifiers.h"
 #include "transformation.h"
 #include "vm/public/environment.h"
