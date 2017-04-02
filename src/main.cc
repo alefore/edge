@@ -120,12 +120,12 @@ Args ParseArgs(int* argc, const char*** argv) {
       cout << kHelpString;
       exit(0);
     } else if (cmd == "--fork" || cmd == "-f") {
-      CHECK(*argc > 1)
+      CHECK_GT(*argc, 0)
           << output.binary_name << ": " << cmd
           << ": Expected command to fork.\n";
       output.commands_to_fork.push_back(pop_argument());
     } else if (cmd == "--run") {
-      CHECK(*argc > 0)
+      CHECK_GT(*argc, 0)
           << output.binary_name << ": " << cmd
           << ": Expected command to run.\n";
       output.commands_to_run += pop_argument();
