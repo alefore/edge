@@ -90,7 +90,7 @@ Args ParseArgs(int* argc, const char*** argv) {
   string kHelpString = "Usage: edge [OPTION]... [FILE]...\n"
       "Open the files given.\n\nEdge supports the following options:\n"
       "  -f, --fork <shellcmd>  Creates a buffer running a shell command\n"
-      "  --help, -h             Displays this message\n"
+      "  -h, --help             Displays this message\n"
       "  --run <vmcmd>          Runs a VM command\n"
       "  -s, --server <path>    Runs in daemon mode at path given\n"
       "  -c, --client <path>    Connects to daemon at path given\n"
