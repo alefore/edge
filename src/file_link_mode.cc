@@ -103,7 +103,7 @@ class FileBuffer : public OpenBuffer {
       if (0 == strcmp(basename(tmp), "passwd")) {
         RunCommandHandler(L"parsers/passwd <" + path, editor_state);
       } else {
-        int fd = open(ToByteString(path).c_str(), O_RDONLY);
+        int fd = open(ToByteString(path).c_str(), O_RDONLY | O_NONBLOCK);
         target->SetInputFiles(editor_state, fd, -1, false, -1);
       }
       editor_state->CheckPosition();
@@ -294,7 +294,9 @@ bool SaveContentsToFile(
   assert(buffer != nullptr);
   string path_raw = ToByteString(path);
   string tmp_path = path_raw + ".tmp";
-  int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+  // TODO: Make this non-blocking.
+  int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC,
+                S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
   if (fd == -1) {
     editor_state->SetStatus(
         FromByteString(tmp_path) + L": open failed: "
@@ -308,6 +310,7 @@ bool SaveContentsToFile(
     return false;
   }
 
+  // TODO: Make this non-blocking?
   if (rename(tmp_path.c_str(), path_raw.c_str()) == -1) {
     editor_state->SetStatus(
         path + L": rename failed: " + FromByteString(strerror(errno)));
