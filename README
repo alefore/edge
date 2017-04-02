@@ -98,10 +98,11 @@ Example commands:
 
   "a." - Show the list of files in the current directory.  See section 5.5.
 
-  "+" - Creates a new cursor (at the same position as the current one).
+  "+" - Creates a new cursor (at the same position as the current one). See
+        section 8.1.
 
   "_" - Toggles whether all cursors apply transformations (or just the current
-        one).
+        one). See section 8.3.
 
 2.2. Command line arguments
 
