@@ -626,6 +626,8 @@ class RawInputTypeMode : public EditorMode {
                    == -1) {
       editor_state->SetStatus(
           L"Write failed: " + FromByteString(strerror(errno)));
+    } else {
+      editor_state->StartHandlingInterrupts();
     }
     line_buffer_ = "";
   }
