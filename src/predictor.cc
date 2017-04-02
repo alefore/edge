@@ -76,7 +76,7 @@ class PredictionsBufferImpl : public OpenBuffer {
     }
 
     wstring common_prefix =
-        LowerCase((*contents()->begin())->contents())->ToString();
+        (*contents()->begin())->contents()->ToString();
     for (auto it = contents()->begin(); it != contents()->end(); ++it) {
       if ((*it)->size() == 0) {
         continue;
@@ -85,10 +85,13 @@ class PredictionsBufferImpl : public OpenBuffer {
               << (*it)->size() << ")";
       size_t current_size = min(common_prefix.size(), (*it)->size());
       wstring current =
-          LowerCase((*it)->Substring(0, current_size))->ToString();
+          (*it)->Substring(0, current_size)->ToString();
 
-      auto prefix_end = mismatch(common_prefix.begin(), common_prefix.end(),
-                                 current.begin());
+      auto prefix_end = mismatch(
+          common_prefix.begin(), common_prefix.end(), current.begin(),
+          [](wchar_t common_c, wchar_t current_c) {
+            return towlower(common_c) == towlower(current_c);
+          });
       if (prefix_end.first != common_prefix.end()) {
         if (prefix_end.first == common_prefix.begin()) {
           LOG(INFO) << "Aborting completion.";
