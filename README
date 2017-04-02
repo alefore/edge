@@ -3,19 +3,21 @@ Edge - A text editor.
 
 1. Introduction
 
-Edge is a text editor and terminal handler.  It uses the notion of "buffers" to
-represent open files or the output of a program (which might or might not still
-be running, and which might or might not have a terminal of its own).  As its
-extension language, Edge uses a small subset of C++/Java.
+Think vim + tmux + subset of C++ extension language.
 
-To quit Edge, press "aq".
+Edge is a text editor and terminal handler. Edge uses a "buffer" to represent an
+open files or a process (which might still be running). As its extension
+language, Edge uses a small subset of C++/Java.
+
+To quit Edge, press "Saq".
 
 Edge is under active development and many of its bindings and/or general
 interface is likely to change soon.
 
-This document describes the use of Edge.  Edge is an editor with multiple modes,
-where commands are typically executed by typing their associated character
-sequences.  These sequences are given in this document between quotes.
+This document describes the use of Edge. Edge is an editor with "modes", where
+commands are typically executed by typing their associated character sequences.
+These sequences are given in this document between quotes. Pressing "?" shows
+you the sequences in the current mode.
 
 To get the most out of Edge, you should probably familiarize yourself with the
 modifiers (section 6) and the navigation (section 3) and editing (section 4)
@@ -46,7 +48,8 @@ thus not very difficult to learn) language that is very expressive.
     For example, one can run a shell process (or even some other text editor)
     inside Edge.
 
-* Buffer are read asynchronously. Edge never blocks while waiting for input.
+* Buffer are read asynchronously. Edge (almost) never blocks while waiting for
+  input.
 
 * Editing:
 
@@ -69,7 +72,7 @@ Example commands:
 
   "aq" - Quit (short for "Advanced > Quit").
 
-  "?" and "a?" - Shows help for basic and advanced commands.
+  "?" - Shows help.
 
   "5d" - Delete 5 characters.  Delete is covered in section 4.2.
 
