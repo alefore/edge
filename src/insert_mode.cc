@@ -293,7 +293,7 @@ void FindCompletion(EditorState* editor_state,
 
   LOG(INFO) << "Find completion for \"" << options.prefix->ToString()
             << "\" among options: " << dictionary->contents()->size();
-  options.matches_start = std::lower_bound(
+  options.matches_start = std::upper_bound(
       dictionary->contents()->begin(),
       dictionary->contents()->end(),
       options.prefix,
@@ -301,26 +301,27 @@ void FindCompletion(EditorState* editor_state,
         return a->ToString() < b->ToString();
       });
 
+  if (options.matches_start == dictionary->contents()->end()) {
+    options.matches_start = dictionary->contents()->begin();
+  }
+
   editor_state->set_mode(unique_ptr<AutocompleteMode>(
       new AutocompleteMode(std::move(options))));
   editor_state->ProcessInput('\t');
 }
 
-bool StartCompletion(EditorState* editor_state,
-                     std::shared_ptr<OpenBuffer> buffer) {
+void StartCompletionFromDictionary(
+    EditorState* editor_state, std::shared_ptr<OpenBuffer> buffer,
+    wstring path) {
   OpenFileOptions options;
-  options.path =
-      buffer->read_string_variable(OpenBuffer::variable_dictionary());
-  if (options.path.empty()) {
-    LOG(INFO) << "Dictionary is not set.";
-    return false;
-  }
+  options.path = path;
+  DCHECK(!options.path.empty());
   options.editor_state = editor_state;
   options.make_current_buffer = false;
   auto file = OpenFile(options);
   file->second->set_bool_variable(
       OpenBuffer::variable_show_in_buffers_list(), false);
-  LOG(INFO) << "Loaded dictionary.";
+  LOG(INFO) << "Loading dictionary.";
   std::weak_ptr<OpenBuffer> weak_dictionary = file->second;
   std::weak_ptr<OpenBuffer> weak_buffer = buffer;
   file->second->AddEndOfFileObserver(
@@ -328,13 +329,52 @@ bool StartCompletion(EditorState* editor_state,
         FindCompletion(
             editor_state, weak_buffer.lock(), weak_dictionary.lock());
       });
+}
+
+void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
+                   std::set<wstring>* words) {
+  DCHECK(words != nullptr);
+  if (tree.children.empty() && tree.begin.line == tree.end.line) {
+    CHECK_LE(tree.begin.column, tree.end.column);
+    auto line = buffer.LineAt(tree.begin.line);
+    CHECK_LE(tree.end.column, line->size());
+    words->insert(line->Substring(
+        tree.begin.column, tree.end.column - tree.begin.column)->ToString());
+  }
+  for (auto& child : tree.children) {
+    RegisterLeaves(buffer, child, words);
+  }
+}
+
+bool StartCompletion(EditorState* editor_state,
+                     std::shared_ptr<OpenBuffer> buffer) {
+  auto path = buffer->read_string_variable(OpenBuffer::variable_dictionary());
+  if (!path.empty()) {
+    StartCompletionFromDictionary(editor_state, buffer, path);
+    return true;
+  }
+
+  std::set<wstring> words;
+  RegisterLeaves(*buffer, *buffer->current_tree(), &words);
+  LOG(INFO) << "Leaves found: " << words.size();
+  if (words.empty()) {
+    return false;
+  }
+
+  auto dictionary = std::make_shared<OpenBuffer>(editor_state, L"Dictionary");
+  for (auto& word : words) {
+    dictionary->AppendLine(editor_state, NewCopyString(word));
+  }
+
+  FindCompletion(editor_state, buffer, dictionary);
   return true;
 }
 
 class InsertMode : public EditorMode {
  public:
   InsertMode(InsertModeOptions options)
-      : options_(std::move(options)) {
+      : options_(std::move(options)),
+        parse_tree_updates_blocker_(options_.buffer->BlockParseTreeUpdates()) {
     CHECK(options_.escape_handler);
   }
 
@@ -351,9 +391,9 @@ class InsertMode : public EditorMode {
         options_.buffer->MaybeAdjustPositionCol();
         options_.buffer->ApplyToCursors(NewDeleteSuffixSuperfluousCharacters());
         options_.buffer->PopTransformationStack();
-        for (size_t i = 1; i < editor_state->repetitions(); i++) {
-          options_.buffer->RepeatLastTransformation();
-        }
+        editor_state->set_repetitions(editor_state->repetitions() - 1);
+        options_.buffer->RepeatLastTransformation();
+        options_.buffer->PopTransformationStack();
         editor_state->PushCurrentPosition();
         editor_state->ResetStatus();
         CHECK(options_.escape_handler);
@@ -387,12 +427,15 @@ class InsertMode : public EditorMode {
         options_.scroll_behavior->End(editor_state, options_.buffer.get());
         return;
 
+      case Terminal::DELETE:
       case Terminal::BACKSPACE:
         {
           LOG(INFO) << "Handling backspace in insert mode.";
           options_.buffer->MaybeAdjustPositionCol();
           DeleteOptions delete_options;
-          delete_options.modifiers.direction = BACKWARDS;
+          if (c == Terminal::BACKSPACE) {
+            delete_options.modifiers.direction = BACKWARDS;
+          }
           delete_options.copy_to_paste_buffer = false;
           options_.buffer->ApplyToCursors(
               NewDeleteCharactersTransformation(delete_options));
@@ -449,6 +492,7 @@ class InsertMode : public EditorMode {
 
  private:
   const InsertModeOptions options_;
+  const std::shared_ptr<bool> parse_tree_updates_blocker_;
 };
 
 class RawInputTypeMode : public EditorMode {
@@ -547,6 +591,14 @@ class RawInputTypeMode : public EditorMode {
         WriteLineBuffer(editor_state);
         break;
 
+      case Terminal::DELETE:
+        line_buffer_.push_back(27);
+        line_buffer_.push_back('[');
+        line_buffer_.push_back(51);
+        line_buffer_.push_back(126);
+        WriteLineBuffer(editor_state);
+        break;
+
       case Terminal::BACKSPACE:
         if (buffering_) {
           if (line_buffer_.empty()) { return; }
@@ -585,6 +637,8 @@ class RawInputTypeMode : public EditorMode {
                    == -1) {
       editor_state->SetStatus(
           L"Write failed: " + FromByteString(strerror(errno)));
+    } else {
+      editor_state->StartHandlingInterrupts();
     }
     line_buffer_ = "";
   }
@@ -676,9 +730,11 @@ void EnterInsertMode(InsertModeOptions options) {
   } else if (editor_state->structure() == CHAR) {
     options.buffer->CheckPosition();
     options.buffer->PushTransformationStack();
+    options.buffer->PushTransformationStack();
     EnterInsertCharactersMode(options);
   } else if (editor_state->structure() == LINE) {
     options.buffer->CheckPosition();
+    options.buffer->PushTransformationStack();
     options.buffer->PushTransformationStack();
     options.buffer->ApplyToCursors(
         unique_ptr<Transformation>(

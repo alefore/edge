@@ -34,8 +34,8 @@ class Environment {
   void Define(const wstring& symbol, unique_ptr<Value> value);
 
  private:
-  map<wstring, unique_ptr<Value>>* table_;
-  map<wstring, unique_ptr<ObjectType>>* object_types_;
+  map<wstring, unique_ptr<ObjectType>> object_types_;
+  map<wstring, unique_ptr<Value>> table_;
   Environment* parent_environment_;
 };
 

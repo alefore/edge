@@ -28,6 +28,9 @@ class ScreenCurses : public Screen {
     endwin();
   }
 
+  void Flush() override {
+  }
+
   void HardRefresh() override {
     wrefresh(curscr);
   }
@@ -164,6 +167,9 @@ wint_t ReadChar(std::mbstate_t* mbstate) {
                 int next2 = getch();
                 //cerr << "Read next2: " << next2 << "\n";
                 switch (next2) {
+                  case 51:
+                    getch();
+                    return Terminal::DELETE;
                   case 53:
                     getch();
                     return Terminal::PAGE_UP;

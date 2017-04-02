@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_set>
 
 #include "buffer.h"
 
@@ -12,12 +13,17 @@ namespace editor {
 using std::shared_ptr;
 using std::string;
 
+void Daemonize(const std::unordered_set<int>& surviving_fd);
+
 int MaybeConnectToServer(const string& address, wstring* error);
 int MaybeConnectToParentServer(wstring* error);
 
 class EditorState;
 
-void StartServer(EditorState* editor_state);
+// address can be empty, in which case it'll use a temporary file in /tmp. The
+// actual address used is returned through output parameter actual_address.
+bool StartServer(EditorState* editor_state, wstring address,
+                 wstring* actual_address, wstring* error);
 
 shared_ptr<OpenBuffer>
 OpenServerBuffer(EditorState* editor_state, const wstring& address);

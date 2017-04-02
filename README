@@ -3,19 +3,21 @@ Edge - A text editor.
 
 1. Introduction
 
-Edge is a text editor and terminal handler.  It uses the notion of "buffers" to
-represent open files or the output of a program (which might or might not still
-be running, and which might or might not have a terminal of its own).  As its
-extension language, Edge uses a small subset of C++/Java.
+Think vim + tmux + subset of C++ extension language.
 
-To quit Edge, press "aq".
+Edge is a text editor and terminal handler. Edge uses a "buffer" to represent an
+open files or a process (which might still be running). As its extension
+language, Edge uses a small subset of C++/Java.
+
+To quit Edge, press "Saq".
 
 Edge is under active development and many of its bindings and/or general
 interface is likely to change soon.
 
-This document describes the use of Edge.  Edge is an editor with multiple modes,
-where commands are typically executed by typing their associated character
-sequences.  These sequences are given in this document between quotes.
+This document describes the use of Edge. Edge is an editor with "modes", where
+commands are typically executed by typing their associated character sequences.
+These sequences are given in this document between quotes. Pressing "?" shows
+you the sequences in the current mode.
 
 To get the most out of Edge, you should probably familiarize yourself with the
 modifiers (section 6) and the navigation (section 3) and editing (section 4)
@@ -46,7 +48,8 @@ thus not very difficult to learn) language that is very expressive.
     For example, one can run a shell process (or even some other text editor)
     inside Edge.
 
-* Buffer are read asynchronously. Edge never blocks while waiting for input.
+* Buffer are read asynchronously. Edge (almost) never blocks while waiting for
+  input.
 
 * Editing:
 
@@ -69,7 +72,9 @@ Example commands:
 
   "aq" - Quit (short for "Advanced > Quit").
 
-  "?" and "a?" - Shows help for basic and advanced commands.
+  "?" - Shows help.
+
+  "i" - Insert (type to the buffer), until Escape is pressed.  See section 4.1.
 
   "5d" - Delete 5 characters.  Delete is covered in section 4.2.
 
@@ -82,8 +87,6 @@ Example commands:
 
   "p" - Paste the previously deleted sequence.  See section 4.3.
 
-  "i" - Insert (type into the buffer).  See section 4.1.
-
   "u" - Undo the last command.  See section 4.4.
 
   "af make" + Enter - Open a new buffer with the output of a given command.
@@ -95,6 +98,11 @@ Example commands:
 
   "a." - Show the list of files in the current directory.  See section 5.5.
 
+  "+" - Creates a new cursor (at the same position as the current one). See
+        section 8.1.
+
+  "_" - Toggles whether all cursors apply transformations (or just the current
+        one). See section 8.3.
 
 2.2. Command line arguments
 
@@ -127,6 +135,33 @@ Example:
   edge --run 'string flags = "-R"; ForkCommand("ls " + flags);'
 
 See section 9 for more information on the syntax supported.
+
+
+2.2.4. --server <path> and --client <path>
+
+The --server command-line argument causes Edge to run in "background" mode:
+without reading any input from stdin nor producing any output to stdout.
+Instead, Edge will wait for connections (see --client) to the path given.
+
+You can pass an empty string as the path to let Edge generate a temporary file
+automatically. Otherwise, the path given must not currently exist.
+
+Edge always runs with a server, even when this flag is not used. Passing this
+flag merely causes Edge to daemonize itself and not use the current terminal.
+Technically, it's more correct to say that this is "background" or "headless"
+mode than to say that this is "server" mode. However, we decided to use
+"--server" (instead of some other flag) for symmetry with "--client".
+
+For example, you'd start the server thus:
+
+  $ edge --server /tmp/edge-server-blah
+
+You can then connect a client:
+
+  $ edge --client /tmp/edge-server-blah
+
+If your session is terminated (e.g. your SSH connection dies), you can run the
+client command again.
 
 
 3. Navigating a buffer
@@ -901,12 +936,12 @@ Default: true
 8. Cursors
 
 One important feature of Edge is the support for multiple cursors.  This allows
-the user to apply edit commands at various parts of a document concurrently.
+the user to apply edit commands at various parts of a document simultaneously.
 
-Most of the time only a single cursor is "active": commands will apply to that
-cursor only. However, after creating multiple cursors (section 8.1), the user
-can mark all cursors as active (section 8.2), in which case edit commands will
-apply at all cursor positions.
+Most of the time only a single cursor, the "current cursor", is "active":
+commands will apply to that cursor only. However, after creating multiple
+cursors (section 8.1), the user can mark all cursors as active (section 8.3), in
+which case edit commands will apply at all cursor positions.
 
 If the current buffer has more than one cursor (regardless of whether a single
 cursor is active or all are), Edge will display this in the status line (at the
@@ -965,12 +1000,12 @@ given regular expression.
 
 8.2. Deleting cursors
 
-Pressing "-" will delete the current cursor (and immediately jump to the next).
-You can't delete the last cursor in a document.
+Pressing "-" will delete the current cursor (and immediately jump to the next,
+or to the first cursor when deleting the last cursor in the buffer).
 
 Pressing "=" will delete all cursors except for the current one. If you have
 created many cursors (for example, with a search query), this is a quicker way
-than through "-" to discard them.
+to discard them than through "-".
 
 
 8.3. Toggling active cursors
@@ -978,6 +1013,18 @@ than through "-" to discard them.
 Pressing "_" makes Edge toggle the value of boolean variable "multiple_cursors"
 (section 7.2.24), toggling between making commands apply to all cursors or only
 to the active one.
+
+
+8.4. Push and Pop
+
+Each buffer has a stack of sets of cursors. This can be a handy way to store a
+set of cursors, apply some transformation elsewhere, and restore the set.
+
+Press "C+" to push: you'll copy the set of active cursors into a new entry in
+the stack.
+
+Press "C-" to pop: you'll be replacing the set of active cursors with the last
+entry pushed into the stack, and removing that entry from the stack.
 
 
 9. Extension language

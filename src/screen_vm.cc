@@ -21,37 +21,51 @@ class ScreenVm : public Screen {
  public:
   ScreenVm(int fd) : fd_(fd) {}
 
+  ~ScreenVm() override {
+    LOG(INFO) << "Sending terminate command to remote screen: fd: " << fd_;
+    Write("set_terminate(true);");
+  }
+
+  void Flush() override {
+    Write("screen.Flush();");
+  }
+
   void HardRefresh() override {
-    Write("HardRefresh();");
+    Write("screen.HardRefresh();");
   }
 
   void Refresh() override {
-    Write("Refresh();");
+    Write("screen.Refresh();");
   }
 
   void Clear() override {
-    Write("Clear();");
+    Write("screen.Clear();");
   }
 
   void SetCursorVisibility(CursorVisibility cursor_visibility) override {
-    Write("SetCursorVisibility(\"" + CursorVisibilityToString(cursor_visibility)
-          + "\");");
+    Write("screen.SetCursorVisibility(\""
+          + CursorVisibilityToString(cursor_visibility) + "\");");
   }
 
   void Move(size_t y, size_t x) override {
-    Write("Move(" + std::to_string(y) + ", " + std::to_string(x) + ");");
+    Write("screen.Move(" + std::to_string(y) + ", " + std::to_string(x) + ");");
   }
 
   void WriteString(const wstring& str) override {
-    Write("WriteString(\"" + Escape(ToByteString(str)) + "\");");
+    Write("screen.WriteString(\"" + Escape(ToByteString(str)) + "\");");
   }
 
   void SetModifier(Line::Modifier modifier) override {
-    Write("SetModifier(\"" + Line::ModifierToString(modifier) + "\");");
+    Write("screen.SetModifier(\"" + Line::ModifierToString(modifier) + "\");");
   }
 
-  size_t columns() const { return 80; }
-  size_t lines() const { return 25; }
+  size_t columns() const { return columns_; }
+  size_t lines() const { return lines_; }
+  void set_size(size_t columns, size_t lines) {
+    DVLOG(5) << "Received new size: " << columns << " x " << lines;
+    columns_ = columns;
+    lines_ = lines;
+  }
 
  private:
   string Escape(string input) {
@@ -73,7 +87,7 @@ class ScreenVm : public Screen {
   }
 
   void Write(string command) {
-    command = "screen." + command + "\n";
+    command = command + "\n";
     LOG(INFO) << "Sending command: " << command;
     int result = write(fd_, command.c_str(), command.size());
     if (result != static_cast<int>(command.size())) {
@@ -82,6 +96,8 @@ class ScreenVm : public Screen {
   }
 
   const int fd_;
+  size_t columns_ = 80;
+  size_t lines_ = 25;
 };
 }  // namespace
 
@@ -111,6 +127,27 @@ void RegisterScreenType(Environment* environment) {
   }
 
   // Methods for Screen.
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+
+    // Returns nothing.
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+
+    callback->type.type_arguments.push_back(
+        VMType::ObjectType(screen_type.get()));
+
+    callback->callback =
+        [](vector<unique_ptr<Value>> args) {
+          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+          auto screen = static_cast<Screen*>(args[0]->user_value.get());
+          CHECK(screen != nullptr);
+
+          screen->Flush();
+          return Value::NewVoid();
+        };
+    screen_type->AddField(L"Flush", std::move(callback));
+  }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
 
@@ -244,7 +281,7 @@ void RegisterScreenType(Environment* environment) {
 
           CHECK_EQ(args[1]->type, VMType::VM_STRING);
 
-          LOG(INFO) << "Writing string: " << args[1]->str;
+          DVLOG(5) << "Writing string: " << args[1]->str;
           screen->WriteString(args[1]->str);
           return Value::NewVoid();
         };
@@ -274,6 +311,31 @@ void RegisterScreenType(Environment* environment) {
           return Value::NewVoid();
         };
     screen_type->AddField(L"SetModifier", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+
+    // Returns nothing.
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+
+    callback->type.type_arguments.push_back(
+        VMType::ObjectType(screen_type.get()));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+
+    callback->callback =
+        [](vector<unique_ptr<Value>> args) {
+          CHECK_EQ(args.size(), 3);
+          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+          CHECK_EQ(args[1]->type, VMType::VM_INTEGER);
+          CHECK_EQ(args[2]->type, VMType::VM_INTEGER);
+          auto screen = static_cast<ScreenVm*>(args[0]->user_value.get());
+          CHECK(screen != nullptr);
+
+          screen->set_size(args[1]->integer, args[2]->integer);
+          return Value::NewVoid();
+        };
+    screen_type->AddField(L"set_size", std::move(callback));
   }
   environment->DefineType(L"Screen", std::move(screen_type));
 }

@@ -23,8 +23,9 @@ extern "C" {
 #include "file_link_mode.h"
 #include "run_command_handler.h"
 #include "screen.h"
-#include "screen_vm.h"
+#include "screen_buffer.h"
 #include "screen_curses.h"
+#include "screen_vm.h"
 #include "server.h"
 #include "terminal.h"
 #include "vm/public/value.h"
@@ -37,11 +38,26 @@ using namespace afc::editor;
 static const char* kEdgeParentAddress = "EDGE_PARENT_ADDRESS";
 
 EditorState* editor_state() {
-  static EditorState* editor_state = new EditorState();
-  return editor_state;
+  static EditorState editor_state;
+  return &editor_state;
 }
 
+void (*default_interrupt_handler)(int sig);
+
 void SignalHandler(int sig) {
+  if (sig == SIGINT) {
+    if (!editor_state()->handling_interrupts()) {
+      signal(SIGINT, default_interrupt_handler);
+      raise(SIGINT);
+      return;
+    }
+
+    // Normally, when the buffer consumes the signal, it'll overwrite the
+    // status right away. So we just put a default message in case the signal is
+    // not consumed.
+    editor_state()->SetWarningStatus(
+        L"'Saq' to quit -- pending changes won't be saved.");
+  }
   editor_state()->PushSignal(sig);
 }
 
@@ -53,12 +69,14 @@ struct Args {
   // Contains C++ (VM) code to execute.
   string commands_to_run;
 
-  bool silent = false;
-  bool client = false;
+  bool server = false;
+  string server_path = "";
+
+  // If non-empty, path of the server to connect to.
+  string client = "";
 };
 
-static const char* kDefaultCommandsToRun =
-    "OpenFile(\"" DOCDIR "/README\");";
+static const char* kDefaultCommandsToRun = "ForkCommand(\"sh -l\");";
 
 string CommandsToRun(Args args) {
   string commands_to_run = args.commands_to_run;
@@ -68,7 +86,7 @@ string CommandsToRun(Args args) {
   for (auto& command_to_fork : args.commands_to_fork) {
     commands_to_run += "ForkCommand(\"" + string(command_to_fork) + "\");\n";
   }
-  if (args.client) {
+  if (!args.client.empty()) {
     commands_to_run += "Screen screen = RemoteScreen(\""
         + string(getenv(kEdgeParentAddress))
         + "\");\n";
@@ -85,21 +103,29 @@ Args ParseArgs(int* argc, const char*** argv) {
 
   string kHelpString = "Usage: edge [OPTION]... [FILE]...\n"
       "Open the files given.\n\nEdge supports the following options:\n"
-      "  --fork <shellcmd>: Creates a buffer running a shell command\n"
-      "  --help, -h: Displays this message.\n"
-      "  --run <vmcmd>: Runs a VM command\n\n"
-      "Report bugs to <alefore@gmail.com>\n";
+      "  -f, --fork <shellcmd>  Creates a buffer running a shell command\n"
+      "  -h, --help             Displays this message\n"
+      "  --run <vmcmd>          Runs a VM command\n"
+      "  -s, --server <path>    Runs in daemon mode at path given\n"
+      "  -c, --client <path>    Connects to daemon at path given\n"
+      "\nReport bugs to <alefore@gmail.com>\n";
 
   Args output;
-  output.binary_name = (*argv)[0];
-  (*argv)++;
-  (*argc)--;
+  auto pop_argument = [argc, argv, &output]() {
+    if (*argc == 0) {
+      cerr << output.binary_name << ": Parameters missing." << std::endl;
+      exit(1);
+    }
+    (*argv)++;
+    (*argc)--;
+    return (*argv)[-1];
+  };
+
+  output.binary_name = pop_argument();
 
   while (*argc > 0) {
-    string cmd = (*argv)[0];
+    string cmd = pop_argument();
     if (cmd.empty()) {
-      (*argv)++;
-      (*argc)--;
       continue;
     }
     if (cmd[0] != '-') {
@@ -108,42 +134,70 @@ Args ParseArgs(int* argc, const char*** argv) {
       cout << kHelpString;
       exit(0);
     } else if (cmd == "--fork" || cmd == "-f") {
-      CHECK(*argc > 1)
+      CHECK_GT(*argc, 0)
           << output.binary_name << ": " << cmd
           << ": Expected command to fork.\n";
-      output.commands_to_fork.push_back((*argv)[1]);
-      (*argv)++;
-      (*argc)--;
+      output.commands_to_fork.push_back(pop_argument());
     } else if (cmd == "--run") {
-      CHECK(*argc > 1)
+      CHECK_GT(*argc, 0)
           << output.binary_name << ": " << cmd
           << ": Expected command to run.\n";
-      output.commands_to_run += (*argv)[1];
-      (*argv)++;
-      (*argc)--;
-    } else if (cmd == "--silent") {
-      output.silent = true;
-    } else if (cmd == "--client") {
-      output.client = true;
+      output.commands_to_run += pop_argument();
+    } else if (cmd == "--server" || cmd == "-s") {
+      output.server = true;
+      if (*argc > 0) {
+        output.server_path = pop_argument();
+      }
+    } else if (cmd == "--client" || cmd == "-c") {
+      output.client = pop_argument();
+      if (output.client.empty()) {
+        cerr << output.binary_name << ": --client: Missing server path."
+             << std::endl;
+        exit(1);
+      }
     } else {
-      cerr << output.binary_name << ": Invalid flag: " << cmd << "\n";
+      cerr << output.binary_name << ": Invalid flag: " << cmd << std::endl;
       exit(1);
     }
-    (*argv)++;
-    (*argc)--;
   }
 
   return output;
 }
 
 void SendCommandsToParent(int fd, const string commands_to_run) {
-  CHECK(fd != -1);
+  CHECK_NE(fd, -1);
   using std::cerr;
   LOG(INFO) << "Sending commands to parent: " << commands_to_run;
   if (write(fd, commands_to_run.c_str(), commands_to_run.size()) == -1) {
     cerr << "write: " << strerror(errno);
     exit(1);
   }
+}
+
+wstring StartServer(const Args& args) {
+  LOG(INFO) << "Starting server.";
+
+  wstring address;
+  std::unordered_set<int> surviving_fds = {1, 2};
+  if (args.server && !args.server_path.empty()) {
+    address = FromByteString(args.server_path);
+    // We can't close stdout until we've printed the address in which the server
+    // will run.
+    Daemonize(surviving_fds);
+  }
+  wstring actual_address;
+  wstring error;
+  if (!StartServer(editor_state(), address, &actual_address, &error)) {
+    LOG(FATAL) << args.binary_name << ": Unable to start server: " << error;
+  }
+  if (args.server) {
+    std::cout << args.binary_name << ": Server starting at: " << actual_address
+              << std::endl;
+    for (int fd : surviving_fds) {
+      close(fd);
+    }
+  }
+  return actual_address;
 }
 
 }  // namespace
@@ -161,10 +215,19 @@ int main(int argc, const char** argv) {
 
   Args args = ParseArgs(&argc, &argv);
 
-  if (!args.client) {
-    int fd = MaybeConnectToParentServer(nullptr);
-    if (fd != -1) {
-      SendCommandsToParent(fd, CommandsToRun(args));
+  int remote_server_fd = -1;
+  if (!args.client.empty()) {
+    wstring parent_server_error;
+    remote_server_fd = MaybeConnectToServer(args.client, &parent_server_error);
+    if (remote_server_fd == -1) {
+      cerr << args.binary_name << ": Unable to connect to remote server: "
+           << parent_server_error << std::endl;
+      exit(1);
+    }
+  } else {
+    remote_server_fd = MaybeConnectToParentServer(nullptr);
+    if (remote_server_fd != -1) {
+      SendCommandsToParent(remote_server_fd, CommandsToRun(args));
       cerr << args.binary_name << ": Waiting for EOF ...\n";
       char buffer[4096];
       while (read(0, buffer, sizeof(buffer)) > 0)
@@ -174,49 +237,68 @@ int main(int argc, const char** argv) {
     }
   }
 
-  int remote_server_fd = -1;
-  if (args.client) {
-    wstring error;
-    remote_server_fd = MaybeConnectToParentServer(&error);
-    if (remote_server_fd == -1) {
-      cerr << args.binary_name << ": Unable to connect to remote server: "
-           << error << std::endl;
-      exit(1);
-    }
-  }
-
+  std::shared_ptr<Screen> screen_curses;
   std::shared_ptr<Screen> screen;
-  if (!args.silent) {
-    screen = NewScreenCurses();
+  if (!args.server) {
+    screen_curses = NewScreenCurses();
+    screen =
+        args.client.empty() ? screen_curses : NewScreenBuffer(screen_curses);
   }
 
-  LOG(INFO) << "Starting server.";
   RegisterScreenType(editor_state()->environment());
   editor_state()->environment()->Define(
       L"screen", afc::vm::Value::NewObject(L"Screen", screen));
-  StartServer(editor_state());
+
+  auto server_path = StartServer(args);
 
   auto commands_to_run = CommandsToRun(args);
   if (!commands_to_run.empty()) {
-    int self_fd = remote_server_fd == -1
-                      ? MaybeConnectToParentServer(nullptr)
-                      : remote_server_fd;
+    int self_fd;
+    wstring errors;
+    if (remote_server_fd != -1) {
+      self_fd = remote_server_fd;
+    } else if (args.server && !args.server_path.empty()) {
+      self_fd = MaybeConnectToServer(args.server_path, &errors);
+    } else {
+      self_fd = MaybeConnectToParentServer(&errors);
+    }
+    if (self_fd == -1) {
+      std::cerr << args.binary_name << ": " << errors << std::endl;
+      exit(1);
+    }
+    CHECK_NE(self_fd, -1);
     SendCommandsToParent(self_fd, commands_to_run);
   }
 
   std::mbstate_t mbstate;
   Terminal terminal;
-  if (!args.silent) {
-    signal(SIGINT, &SignalHandler);
+  if (!args.server) {
+    default_interrupt_handler = signal(SIGINT, &SignalHandler);
     signal(SIGTSTP, &SignalHandler);
-  } else {
-    std::cout << kEdgeParentAddress << "=" << getenv(kEdgeParentAddress)
-              << std::endl;
   }
 
+  // This is only meaningful if we're running with args.client: it contains the
+  // last observed size of our screen (to detect that we need to propagate
+  // changes to the server).
+  std::pair<size_t, size_t> last_screen_size = { -1, -1 };
+
   while (!editor_state()->terminate()) {
-    if (screen != nullptr && !args.client) {
-      terminal.Display(editor_state(), screen.get());
+    if (screen != nullptr) {
+      if (args.client.empty()) {
+        terminal.Display(editor_state(), screen.get());
+      } else {
+        screen_curses->Refresh();  // Don't want this to be buffered!
+        auto screen_size = std::make_pair(screen->columns(), screen->lines());
+        if (screen_size != last_screen_size) {
+          LOG(INFO) << "Sending screen size update to server.";
+          SendCommandsToParent(
+              remote_server_fd,
+              "screen.set_size(" + std::to_string(screen_size.first) + ","
+              + std::to_string(screen_size.second) + ");"
+              + "set_screen_needs_hard_redraw(true);\n");
+          last_screen_size = screen_size;
+        }
+      }
     }
     LOG(INFO) << "Updating remote screens.";
     for (auto& buffer : *editor_state()->buffers()) {
@@ -268,18 +350,20 @@ int main(int argc, const char** argv) {
       buffers.push_back(nullptr);
     }
 
-    int results;
-    while ((results = poll(fds, buffers.size(), -1)) <= 0) {
-      if (results == -1) {
-        switch (errno) {
-          case EINTR:
-            editor_state()->ProcessSignals();
-            break;
-          default:
-            cerr << "poll failed, exiting: " << strerror(errno) << "\n";
-            exit(-1);
-        }
+    if (poll(fds, buffers.size(), -1) == -1) {
+      CHECK_EQ(errno, EINTR) << "poll failed, exiting: " << strerror(errno);
+
+      LOG(INFO) << "Received signals.";
+      if (args.client.empty()) {
+        // We schedule a redraw in case the signal was SIGWINCH (the screen
+        // size has changed). Ideally we'd only do that for that signal, to
+        // avoid spurious refreshes, but... who cares.
+        editor_state()->set_screen_needs_hard_redraw(true);
+
+        editor_state()->ProcessSignals();
       }
+
+      continue;
     }
 
     for (size_t i = 0; i < buffers.size(); i++) {
@@ -296,7 +380,7 @@ int main(int argc, const char** argv) {
           } else {
             SendCommandsToParent(
                 remote_server_fd,
-                "ProcessInput(" + std::to_string(c) + ");");
+                "ProcessInput(" + std::to_string(c) + ");\n");
           }
         }
         continue;
@@ -315,7 +399,6 @@ int main(int argc, const char** argv) {
     }
   }
 
-  editor_state()->environment()->Define(
-      L"screen", afc::vm::Value::NewObject(L"Screen", nullptr));
-  delete editor_state();
+  LOG(INFO) << "Removing server file: " << server_path;
+  unlink(ToByteString(server_path).c_str());
 }

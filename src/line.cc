@@ -1,5 +1,6 @@
 #include "line.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <iostream>
@@ -142,10 +143,32 @@ void Line::Output(const EditorState* editor_state,
     auto marks = all_marks->equal_range(line);
 
     char info_char = '.';
+    wstring additional_information;
     if (marks.first != marks.second) {
       receiver->AddModifier(Modifier::RED);
-      receiver->AddModifier(Modifier::BOLD);
       info_char = '!';
+
+      // Prefer fresh over expired marks.
+      while (next(marks.first) != marks.second
+             && marks.first->second.IsExpired()) {
+        ++marks.first;
+      }
+
+      const LineMarks::Mark& mark = marks.first->second;
+      if (mark.source_line_content != nullptr) {
+        additional_information =
+            L"(old) " + mark.source_line_content->ToString();
+      } else {
+        auto source = editor_state->buffers()->find(mark.source);
+        if (source != editor_state->buffers()->end()
+            && source->second->contents()->size() > mark.source_line) {
+          receiver->AddModifier(Modifier::BOLD);
+          additional_information =
+              source->second->contents()->at(mark.source_line)->ToString();
+        } else {
+          additional_information = L"(dead)";
+        }
+      }
     } else if (modified()) {
       receiver->AddModifier(Modifier::GREEN);
       info_char = '.';
@@ -155,12 +178,76 @@ void Line::Output(const EditorState* editor_state,
     receiver->AddCharacter(info_char);
     receiver->AddModifier(Modifier::RESET);
     output_column += padding + 1;
+    CHECK_LE(output_column, width);
+
+    additional_information = additional_information.substr(
+        0, min(additional_information.size(), width - output_column));
+    receiver->AddString(additional_information);
+    output_column += additional_information.size();
   }
 
   if (output_column < width) {
     receiver->AddModifier(Line::RESET);
     VLOG(6) << "Adding newline characters.";
     receiver->AddString(L"\n");
+  }
+}
+
+OutputReceiverOptimizer::~OutputReceiverOptimizer() {
+  Flush();
+}
+
+void OutputReceiverOptimizer::AddCharacter(wchar_t character) {
+  buffer_.push_back(character);
+}
+
+void OutputReceiverOptimizer::AddString(const wstring& str) {
+  buffer_.append(str);
+}
+
+void OutputReceiverOptimizer::AddModifier(Line::Modifier modifier) {
+  if (modifier == Line::RESET) {
+    if (modifiers_.empty()) {
+      DVLOG(5) << "That was easy: reset, but modifiers were already empty.";
+      return;
+    }
+
+    Flush();
+    modifiers_.clear();
+    return;
+  }
+
+  if (modifiers_.find(modifier) != modifiers_.end()) {
+    DVLOG(5) << "That was easy: Modifier was already present.";
+    return;
+  }
+
+  Flush();
+  modifiers_.insert(modifier);
+}
+
+void OutputReceiverOptimizer::Flush() {
+  DCHECK(modifiers_.find(Line::RESET) == modifiers_.end());
+  DCHECK(last_modifiers_.find(Line::RESET) == last_modifiers_.end());
+
+  if (!std::includes(modifiers_.begin(), modifiers_.end(),
+                     last_modifiers_.begin(), last_modifiers_.end())) {
+    DVLOG(5) << "Last modifiers not contained in new modifiers.";
+    delegate_->AddModifier(Line::RESET);
+    last_modifiers_.clear();
+  }
+
+  for (auto& modifier : modifiers_) {
+    auto inserted = last_modifiers_.insert(modifier).second;
+    if (inserted) {
+      delegate_->AddModifier(modifier);
+    }
+  }
+  DCHECK(last_modifiers_ == modifiers_);
+
+  if (!buffer_.empty()) {
+    delegate_->AddString(buffer_);
+    buffer_.clear();
   }
 }
 

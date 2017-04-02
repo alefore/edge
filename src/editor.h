@@ -183,15 +183,17 @@ class EditorState {
     return status_prompt_column_;
   }
   void SetStatus(const wstring& status);
+  void SetWarningStatus(const wstring& status);
   void ResetStatus() { SetStatus(L""); }
   const wstring& status() const { return status_; }
+  bool is_status_warning() const { return is_status_warning_; }
 
   const wstring& home_directory() const { return home_directory_; }
   const vector<wstring>& edge_path() const { return edge_path_; }
 
   void ApplyToCurrentBuffer(unique_ptr<Transformation> transformation);
 
-  Environment* environment() { return environment_.get(); }
+  Environment* environment() { return &environment_; }
 
   // Meant to be used to construct afc::vm::Evaluator::ErrorHandler instances.
   void DefaultErrorHandler(const wstring& error_description);
@@ -200,16 +202,20 @@ class EditorState {
 
   void PushSignal(int signal) { pending_signals_.push_back(signal); }
   void ProcessSignals();
+  void StartHandlingInterrupts() { handling_interrupts_ = true; }
+  bool handling_interrupts() const { return handling_interrupts_; }
 
  private:
+  Environment BuildEditorEnvironment();
+
   map<wstring, shared_ptr<OpenBuffer>> buffers_;
   map<wstring, shared_ptr<OpenBuffer>>::iterator current_buffer_;
-  bool terminate_;
+  bool terminate_ = false;
 
   wstring home_directory_;
   vector<wstring> edge_path_;
 
-  std::unique_ptr<Environment> environment_;
+  Environment environment_;
 
   wstring last_search_query_;
 
@@ -223,8 +229,14 @@ class EditorState {
   bool screen_needs_hard_redraw_;
 
   bool status_prompt_;
+  bool is_status_warning_ = false;
   int status_prompt_column_;
   wstring status_;
+
+  // Initially we don't consume SIGINT: we let it crash the process (in case the
+  // user has accidentally ran Edge). However, as soon as the user starts
+  // actually using Edge (e.g. modifies a buffer), we start consuming it.
+  bool handling_interrupts_ = false;
 
   vector<int> pending_signals_;
 

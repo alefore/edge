@@ -831,12 +831,15 @@ template <typename T>
 void ToggleBoolVariable(
     EditorState* editor_state, wstring binding, wstring variable_name,
     T* output) {
+  wstring command =
+      L"// Toggle buffer variable: " + variable_name + L"\n"
+      + L"CurrentBuffer().set_" + variable_name + L"("
+      + L"!CurrentBuffer()." + variable_name + L"()" + L"); "
+      + L"SetStatus(\"" + variable_name + L" := \" + (CurrentBuffer()."
+      + variable_name + L"() ? \"ON\" : \"OFF\"));";
+  LOG(INFO) << "Command: " << command;
   MapMode::RegisterEntry(binding,
-      NewCppCommand(editor_state->environment(),
-          L"// Toggle buffer variable: " + variable_name + L"\n"
-          L"CurrentBuffer().set_" + variable_name + L"("
-          + L"!CurrentBuffer()." + variable_name + L"()"
-          + L");").release(),
+      NewCppCommand(editor_state->environment(), command).release(),
       output);
 }
 }  // namespace
@@ -905,6 +908,21 @@ std::function<unique_ptr<EditorMode>(void)> NewCommandModeSupplier(
       NewCppCommand(editor_state->environment(),
           L"// Toggles the active cursors with the previous set.\n"
           L"editor.ToggleActiveCursors();").release(),
+      commands_map.get());
+  Register(L"C+",
+      NewCppCommand(editor_state->environment(),
+          L"// Pushes the active cursors to the stack.\n"
+          L"editor.PushActiveCursors();").release(),
+      commands_map.get());
+  Register(L"C-",
+      NewCppCommand(editor_state->environment(),
+          L"// Pops active cursors from the stack.\n"
+          L"editor.PopActiveCursors();").release(),
+      commands_map.get());
+  Register(L"C!",
+      NewCppCommand(editor_state->environment(),
+          L"// Set active cursors to the marks on this buffer.\n"
+          L"editor.SetActiveCursorsToMarks();").release(),
       commands_map.get());
 
   Register(L"i", new EnterInsertModeCommand(), commands_map.get());

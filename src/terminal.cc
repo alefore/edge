@@ -40,6 +40,7 @@ void Terminal::Display(EditorState* editor_state, Screen* screen) {
     }
     ShowStatus(*editor_state, screen);
     screen->Refresh();
+    screen->Flush();
     return;
   }
   int screen_lines = screen->lines();
@@ -81,14 +82,14 @@ void Terminal::Display(EditorState* editor_state, Screen* screen) {
     AdjustPosition(buffer, screen);
   }
   screen->Refresh();
+  screen->Flush();
   editor_state->set_visible_lines(static_cast<size_t>(screen_lines - 1));
 }
 
 void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
-  screen->Move(screen->lines() - 1, 0);
   wstring status;
-  auto modifiers = editor_state.modifiers();
-  if (editor_state.has_current_buffer()) {
+  if (editor_state.has_current_buffer() && !editor_state.is_status_warning()) {
+    const auto modifiers = editor_state.modifiers();
     auto buffer = editor_state.current_buffer()->second;
     status.push_back('[');
     if (buffer->current_position_line() >= buffer->contents()->size()) {
@@ -112,16 +113,31 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
 
     status += L"] ";
 
+    auto marks = buffer->GetLineMarks(editor_state);
+    if (!marks->empty()) {
+      int expired_marks = 0;
+      for (const auto& mark : *marks) {
+        if (mark.second.IsExpired()) {
+          expired_marks++;
+        }
+      }
+      CHECK_LE(expired_marks, marks->size());
+      status += L" marks:" + to_wstring(marks->size() - expired_marks);
+      if (expired_marks > 0) {
+        status += L"(" + to_wstring(expired_marks) + L")";
+      }
+      status += L" ";
+    }
+
     auto active_cursors = buffer->active_cursors()->size();
     if (active_cursors != 1) {
-      status += L" cursors:" + to_wstring(active_cursors)
+      status += L" "
           + (buffer->read_bool_variable(buffer->variable_multiple_cursors())
-                 ? L"*" : L"")
-          + L" ";
+                 ? wstring(L"CURSORS") : wstring(L"cursors"))
+          + L":" + to_wstring(active_cursors) + L" ";
     }
 
     wstring flags = buffer->FlagsString();
-    Modifiers modifiers(editor_state.modifiers());
     if (editor_state.repetitions() != 1) {
       flags += to_wstring(editor_state.repetitions());
     }
@@ -210,7 +226,7 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
     }
   }
 
-  {
+  if (!editor_state.is_status_warning()) {
     int running = 0;
     int failed = 0;
     for (const auto& it : *editor_state.buffers()) {
@@ -241,7 +257,15 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
   } else if (status.size() > screen->columns()) {
     status = status.substr(0, screen->columns());
   }
+  screen->Move(screen->lines() - 1, 0);
+  if (editor_state.is_status_warning()) {
+    screen->SetModifier(Line::RED);
+    screen->SetModifier(Line::BOLD);
+  }
   screen->WriteString(status.c_str());
+  if (editor_state.is_status_warning()) {
+    screen->SetModifier(Line::RESET);
+  }
   if (editor_state.status_prompt()) {
     status_column += editor_state.status_prompt_column();
     screen->Move(screen->lines() - 1, min(status_column, screen->columns()));
@@ -469,7 +493,9 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
 
   screen->Move(0, 0);
 
-  LineOutputReceiver line_output_receiver(screen);
+  LineOutputReceiver screen_adapter(screen);
+  std::unique_ptr<OutputReceiverOptimizer> line_output_receiver(
+      new OutputReceiverOptimizer(&screen_adapter));
 
   size_t lines_to_show = static_cast<size_t>(screen->lines());
   size_t current_line = buffer->view_start_line();
@@ -487,8 +513,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   auto current_tree = buffer->current_tree();
 
   while (lines_shown < lines_to_show) {
-    Line::OutputReceiverInterface* receiver = &line_output_receiver;
     if (current_line >= contents.size()) {
+      line_output_receiver = nullptr;
       screen->WriteString(L"\n");
       lines_shown++;
       continue;
@@ -498,6 +524,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       continue;
     }
 
+    Line::OutputReceiverInterface* receiver = line_output_receiver.get();
     std::unique_ptr<Line::OutputReceiverInterface> atomic_lines_highlighter;
 
     auto current_cursors = cursors.find(current_line);
@@ -551,11 +578,11 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       receiver = parse_tree_highlighter.get();
     }
 
-    line->Output(
-        editor_state, buffer, current_line, receiver, screen->columns());
+    line->Output(editor_state, buffer, current_line, receiver,
+                 screen->columns());
     // Need to do this for atomic lines, since they override the Reset modifier
     // with Reset + Reverse.
-    line_output_receiver.AddModifier(Line::RESET);
+    line_output_receiver->AddModifier(Line::RESET);
     current_line ++;
   }
 }

@@ -562,6 +562,22 @@ void TestCases() {
            "alejandro forero cuervo");
 
   Clear(&editor_state);
+
+  editor_state.ProcessInputString("3iab");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "ababab");
+  editor_state.ProcessInputString(".");
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "abababababab");
+  editor_state.ProcessInputString("u");
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "ababab");
+  editor_state.ProcessInputString("3.");
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "abababababababababababab");
+
+  Clear(&editor_state);
 }
 
 int main(int, char** argv) {

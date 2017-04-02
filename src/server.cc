@@ -9,6 +9,13 @@
 #include <sys/stat.h>
 #include <utility>
 
+extern "C" {
+#include <fcntl.h>
+#include <poll.h>
+#include <signal.h>
+#include <sys/types.h>
+}
+
 #include "buffer.h"
 #include "editor.h"
 #include "file_link_mode.h"
@@ -28,16 +35,23 @@ using std::string;
 
 struct Environment;
 
-wstring CreateFifo() {
+bool CreateFifo(wstring input_path, wstring* output, wstring* error) {
   while (true) {
-    char* path_str = mktemp(strdup("/tmp/edge-server-XXXXXX"));
+    char* path_str = input_path.empty()
+        ? mktemp(strdup("/tmp/edge-server-XXXXXX"))
+        : strdup(ToByteString(input_path).c_str());
     if (mkfifo(path_str, 0600) == -1) {
+      *error =
+          FromByteString(path_str) + L": " + FromByteString(strerror(errno));
       free(path_str);
+      if (!input_path.empty()) {
+        return false;
+      }
       continue;
     }
-    string path(path_str);
+    *output = FromByteString(path_str);
     free(path_str);
-    return FromByteString(path);
+    return true;
   }
 }
 
@@ -58,13 +72,22 @@ int MaybeConnectToParentServer(wstring *error) {
 }
 
 int MaybeConnectToServer(const string& address, wstring* error) {
+  wstring dummy;
+  if (error == nullptr) {
+    error = &dummy;
+  }
+
   int fd = open(address.c_str(), O_WRONLY);
   if (fd == -1) {
-    *error = FromByteString(address) + L": open failed: "
+    *error = FromByteString(address) + L": Connecting to server: open failed: "
              + FromByteString(strerror(errno));
     return -1;
   }
-  wstring private_fifo = CreateFifo();
+  wstring private_fifo;
+  if (!CreateFifo(L"", &private_fifo, error)) {
+    *error = L"Unable to create fifo for communication with server: " + *error;
+    return -1;
+  }
   LOG(INFO) << "Fifo created: " << private_fifo;
   string command = "ConnectTo(\"" + ToByteString(private_fifo) + "\");\n";
   LOG(INFO) << "Sending connection command: " << command;
@@ -85,6 +108,34 @@ int MaybeConnectToServer(const string& address, wstring* error) {
   return private_fd;
 }
 
+void Daemonize(const std::unordered_set<int>& surviving_fds) {
+  pid_t pid;
+
+  pid = fork();
+  CHECK_GE(pid, 0) << "fork failed: " << strerror(errno);
+  if (pid > 0) {
+    LOG(INFO) << "Parent exits.";
+    exit(0);
+  }
+
+  CHECK_GT(setsid(), 0);
+  signal(SIGCHLD, SIG_IGN);
+  signal(SIGHUP, SIG_IGN);
+
+  pid = fork();
+  CHECK_GE(pid, 0) << "fork failed: " << strerror(errno);
+  if (pid > 0) {
+    LOG(INFO) << "Parent exits.";
+    exit(0);
+  }
+
+  for (int fd = sysconf(_SC_OPEN_MAX); fd >= 0; fd--) {
+    if (surviving_fds.find(fd) == surviving_fds.end()) {
+      close(fd);
+    }
+  }
+}
+
 class ServerBuffer : public OpenBuffer {
  public:
   ServerBuffer(EditorState* editor_state, const wstring& name)
@@ -98,7 +149,7 @@ class ServerBuffer : public OpenBuffer {
     wstring address = read_string_variable(variable_path());
     int fd = open(ToByteString(address).c_str(), O_RDONLY | O_NDELAY);
     if (fd == -1) {
-      cerr << address << ": open failed: " << strerror(errno);
+      cerr << address << ": ReloadInto: open failed: " << strerror(errno);
       exit(1);
     }
 
@@ -123,13 +174,26 @@ wstring GetUnusedBufferName(EditorState* editor_state, const wstring& prefix) {
   return GetBufferName(prefix, count);
 }
 
-void StartServer(EditorState* editor_state) {
-  wstring address = CreateFifo();
-  LOG(INFO) << "Starting server: " << address;
-  setenv("EDGE_PARENT_ADDRESS", ToByteString(address).c_str(), 1);
-  auto buffer = OpenServerBuffer(editor_state, address);
+bool StartServer(EditorState* editor_state, wstring address,
+                 wstring* actual_address, wstring* error) {
+  wstring dummy;
+  if (actual_address == nullptr) {
+    actual_address = &dummy;
+  }
+
+  if (!CreateFifo(address, actual_address, error)) {
+    *error = L"Error creating fifo: " + *error;
+    return false;
+  }
+
+  LOG(INFO) << "Starting server: " << *actual_address;
+  setenv("EDGE_PARENT_ADDRESS", ToByteString(*actual_address).c_str(), 1);
+  auto buffer = OpenServerBuffer(editor_state, *actual_address);
   buffer->set_bool_variable(OpenBuffer::variable_reload_after_exit(), true);
-  buffer->set_bool_variable(OpenBuffer::variable_default_reload_after_exit(), true);
+  buffer->set_bool_variable(OpenBuffer::variable_default_reload_after_exit(),
+                            true);
+
+  return true;
 }
 
 shared_ptr<OpenBuffer>

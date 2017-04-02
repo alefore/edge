@@ -510,7 +510,9 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
   ClearContents(editor_state);
 }
 
-OpenBuffer::~OpenBuffer() {}
+OpenBuffer::~OpenBuffer() {
+  LOG(INFO) << "Buffer deleted: " << name_;
+}
 
 bool OpenBuffer::PrepareToClose(EditorState* editor_state) {
   if (!dirty()) {
@@ -562,6 +564,9 @@ void OpenBuffer::Enter(EditorState* editor_state) {
 
 void OpenBuffer::ClearContents(EditorState* editor_state) {
   VLOG(5) << "Clear contents of buffer: " << name_;
+  editor_state->line_marks()->RemoveExpiredMarksFromSource(name_);
+  editor_state->line_marks()->ExpireMarksFromSource(*this, name_);
+  editor_state->ScheduleRedraw();
   EraseLines(contents_.begin(), contents_.end());
   position_pts_ = LineColumn();
   last_transformation_ = NewNoopTransformation();
@@ -569,7 +574,6 @@ void OpenBuffer::ClearContents(EditorState* editor_state) {
   transformations_past_.clear();
   transformations_future_.clear();
   AppendEmptyLine(editor_state);
-  editor_state->line_marks()->RemoveMarksFromSource(name_);
 }
 
 void OpenBuffer::AppendEmptyLine(EditorState*) {
@@ -588,6 +592,12 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
       return;
     }
   }
+
+  // We can remove expired marks now. We know that the set of fresh marks is now
+  // complete.
+  editor_state->line_marks()->RemoveExpiredMarksFromSource(name_);
+  editor_state->ScheduleRedraw();
+
   child_pid_ = -1;
   if (read_bool_variable(variable_reload_after_exit())) {
     set_bool_variable(variable_reload_after_exit(),
@@ -1500,6 +1510,50 @@ void OpenBuffer::ToggleActiveCursors() {
   current_cursor_ = cursors->begin();
   LOG(INFO) << "Picked up the first cursor: " << *current_cursor_;
   CHECK_LE(current_cursor_->line, contents_.size());
+}
+
+void OpenBuffer::PushActiveCursors() {
+  std::vector<LineColumn> cursors;
+  cursors.push_back(*current_cursor_);
+  bool found = false;
+  for (const auto& it : *active_cursors()) {
+    if (it == *current_cursor_ && !found) {
+      found = true;
+      continue;  // We already added it (at the start of the list).
+    }
+    cursors.push_back(it);
+  }
+  cursors_stack_.push_back(std::move(cursors));
+  editor_->SetStatus(
+      L"cursors stack (" + to_wstring(cursors_stack_.size())
+      + L"): +");
+}
+
+void OpenBuffer::PopActiveCursors() {
+  if (cursors_stack_.empty()) {
+    editor_->SetWarningStatus(L"cursors stack: -: Stack is empty!");
+    return;
+  }
+
+  set_active_cursors(cursors_stack_.back());
+  cursors_stack_.pop_back();
+  editor_->SetStatus(
+      L"cursors stack (" + to_wstring(cursors_stack_.size())
+      + L"): -");
+}
+
+void OpenBuffer::SetActiveCursorsToMarks() {
+  const auto& marks = *GetLineMarks(*editor_);
+  if (marks.empty()) {
+    editor_->SetWarningStatus(L"Buffer has no marks!");
+    return;
+  }
+
+  std::vector<LineColumn> cursors;
+  for (auto& it : marks) {
+    cursors.push_back(it.second.target);
+  }
+  set_active_cursors(cursors);
 }
 
 void AdjustCursorsSet(const std::function<LineColumn(LineColumn)>& callback,
@@ -2670,6 +2724,7 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
 
   transformations_future_.clear();
   if (transformations_past_.back()->modified_buffer) {
+    editor_->StartHandlingInterrupts();
     last_transformation_ = std::move(transformation);
   }
 }
@@ -2700,7 +2755,9 @@ LineColumn OpenBuffer::Apply(
 }
 
 void OpenBuffer::RepeatLastTransformation() {
-  ApplyToCursors(last_transformation_->Clone());
+  for (size_t i = 0; i < editor_->repetitions(); i++) {
+    ApplyToCursors(last_transformation_->Clone());
+  }
 }
 
 void OpenBuffer::PushTransformationStack() {
