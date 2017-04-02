@@ -76,8 +76,7 @@ struct Args {
   string client = "";
 };
 
-static const char* kDefaultCommandsToRun =
-    "OpenFile(\"" DOCDIR "/README\");";
+static const char* kDefaultCommandsToRun = "ForkCommand(\"sh -l\");";
 
 string CommandsToRun(Args args) {
   string commands_to_run = args.commands_to_run;
