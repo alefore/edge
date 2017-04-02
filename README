@@ -129,7 +129,7 @@ Example:
 See section 9 for more information on the syntax supported.
 
 
-2.2.4. --server <path>
+2.2.4. --server <path> and --client <path>
 
 The --server command-line argument causes Edge to run in "background" mode:
 without reading any input from stdin nor producing any output to stdout.
@@ -144,14 +144,16 @@ Technically, it's more correct to say that this is "background" or "headless"
 mode than to say that this is "server" mode. However, we decided to use
 "--server" (instead of some other flag) for symmetry with "--client".
 
+For example, you'd start the server thus:
 
-2.2.5. --client <path>
+  $ edge --server /tmp/edge-server-blah
 
-Runs Edge in "client" mode: it will connect to a remote Edge server (usually
-started with --server). The entire state will be held at the remote Edge server.
+You can then connect a client:
 
-This allows you to disconnect and reconnect, which may be useful together with
-SSH sessions. You can also attach multiple clients to the same server.
+  $ edge --client /tmp/edge-server-blah
+
+If your session is terminated (e.g. your SSH connection dies), you can run the
+client command again.
 
 
 3. Navigating a buffer
