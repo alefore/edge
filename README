@@ -14,15 +14,15 @@ To quit Edge, press "Saq".
 Edge is under active development and many of its bindings and/or general
 interface is likely to change soon.
 
-This document describes the use of Edge. Edge is an editor with "modes", where
-commands are typically executed by typing their associated character sequences.
-These sequences are given in this document between quotes. Pressing "?" shows
-you the sequences in the current mode.
+  This document describes the use of Edge. Edge is an editor with "modes", where
+  commands are typically executed by typing their associated character sequences.
+  These sequences are given in this document between quotes. Pressing "?" shows
+  you the sequences in the current mode.
 
-To get the most out of Edge, you should probably familiarize yourself with the
-modifiers (section 6) and the navigation (section 3) and editing (section 4)
-commands.  We'd also strongly recommend learning the commands for controlling
-buffers (section 5).
+  To get the most out of Edge, you should probably familiarize yourself with the
+  modifiers (section 6) and the navigation (section 3) and editing (section 4)
+  commands.  We'd also strongly recommend learning the commands for controlling
+  buffers (section 5).
 
 Edge will probably be relatively hard to use for the first few hours but you
 might be surprised by how fast your fingers will start picking up the new
@@ -74,6 +74,8 @@ Example commands:
 
   "?" - Shows help.
 
+  "i" - Insert (type to the buffer), until Escape is pressed.  See section 4.1.
+
   "5d" - Delete 5 characters.  Delete is covered in section 4.2.
 
   "ed" - Delete a lines (Line; Delete).  Section 6.1 explains the Line modifier
@@ -84,8 +86,6 @@ Example commands:
       in section 6.2.
 
   "p" - Paste the previously deleted sequence.  See section 4.3.
-
-  "i" - Insert (type into the buffer).  See section 4.1.
 
   "u" - Undo the last command.  See section 4.4.
 
@@ -98,6 +98,10 @@ Example commands:
 
   "a." - Show the list of files in the current directory.  See section 5.5.
 
+  "+" - Creates a new cursor (at the same position as the current one).
+
+  "_" - Toggles whether all cursors apply transformations (or just the current
+        one).
 
 2.2. Command line arguments
 
@@ -931,12 +935,12 @@ Default: true
 8. Cursors
 
 One important feature of Edge is the support for multiple cursors.  This allows
-the user to apply edit commands at various parts of a document concurrently.
+the user to apply edit commands at various parts of a document simultaneously.
 
-Most of the time only a single cursor is "active": commands will apply to that
-cursor only. However, after creating multiple cursors (section 8.1), the user
-can mark all cursors as active (section 8.2), in which case edit commands will
-apply at all cursor positions.
+Most of the time only a single cursor, the "current cursor", is "active":
+commands will apply to that cursor only. However, after creating multiple
+cursors (section 8.1), the user can mark all cursors as active (section 8.3), in
+which case edit commands will apply at all cursor positions.
 
 If the current buffer has more than one cursor (regardless of whether a single
 cursor is active or all are), Edge will display this in the status line (at the
@@ -995,12 +999,12 @@ given regular expression.
 
 8.2. Deleting cursors
 
-Pressing "-" will delete the current cursor (and immediately jump to the next).
-You can't delete the last cursor in a document.
+Pressing "-" will delete the current cursor (and immediately jump to the next,
+or to the first cursor when deleting the last cursor in the buffer).
 
 Pressing "=" will delete all cursors except for the current one. If you have
 created many cursors (for example, with a search query), this is a quicker way
-than through "-" to discard them.
+to discard them than through "-".
 
 
 8.3. Toggling active cursors
@@ -1008,6 +1012,18 @@ than through "-" to discard them.
 Pressing "_" makes Edge toggle the value of boolean variable "multiple_cursors"
 (section 7.2.24), toggling between making commands apply to all cursors or only
 to the active one.
+
+
+8.4. Push and Pop
+
+Each buffer has a stack of sets of cursors. This can be a handy way to store a
+set of cursors, apply some transformation elsewhere, and restore the set.
+
+Press "C+" to push: you'll copy the set of active cursors into a new entry in
+the stack.
+
+Press "C-" to pop: you'll be replacing the set of active cursors with the last
+entry pushed into the stack, and removing that entry from the stack.
 
 
 9. Extension language

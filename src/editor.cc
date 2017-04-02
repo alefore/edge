@@ -196,6 +196,10 @@ Environment EditorState::BuildEditorEnvironment() {
   }
   RegisterBufferMethod(editor_type.get(), L"ToggleActiveCursors",
                        &OpenBuffer::ToggleActiveCursors);
+  RegisterBufferMethod(editor_type.get(), L"PushActiveCursors",
+                       &OpenBuffer::PushActiveCursors);
+  RegisterBufferMethod(editor_type.get(), L"PopActiveCursors",
+                       &OpenBuffer::PopActiveCursors);
   RegisterBufferMethod(editor_type.get(), L"CreateCursor",
                        &OpenBuffer::CreateCursor);
   RegisterBufferMethod(editor_type.get(), L"DestroyCursor",

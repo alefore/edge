@@ -1500,6 +1500,26 @@ void OpenBuffer::ToggleActiveCursors() {
   CHECK_LE(current_cursor_->line, contents_.size());
 }
 
+void OpenBuffer::PushActiveCursors() {
+  std::vector<LineColumn> cursors;
+  cursors.push_back(*current_cursor_);
+  bool found = false;
+  for (const auto& it : *active_cursors()) {
+    if (it == *current_cursor_ && !found) {
+      found = true;
+      continue;  // We already added it (at the start of the list).
+    }
+    cursors.push_back(it);
+  }
+  cursors_stack_.push_back(std::move(cursors));
+}
+
+void OpenBuffer::PopActiveCursors() {
+  if (cursors_stack_.empty()) { return; }
+  set_active_cursors(cursors_stack_.back());
+  cursors_stack_.pop_back();
+}
+
 void AdjustCursorsSet(const std::function<LineColumn(LineColumn)>& callback,
                       CursorsSet* cursors_set,
                       CursorsSet::iterator* current_cursor) {

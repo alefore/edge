@@ -151,6 +151,8 @@ class OpenBuffer {
 
   // Restores the last cursors available.
   void ToggleActiveCursors();
+  void PushActiveCursors();
+  void PopActiveCursors();
 
   void AdjustCursors(std::function<LineColumn(LineColumn)> callback);
   void set_current_cursor(CursorsSet::value_type new_cursor);
@@ -584,6 +586,10 @@ class OpenBuffer {
   // That way, once the operations are done, we can avoid re-parsing when it's
   // not needed.
   bool pending_parse_tree_updates_ = false;
+
+  // A stack of sets of cursors on which PushActiveCursors and PopActiveCursors
+  // operate.
+  std::list<std::vector<LineColumn>> cursors_stack_;
 };
 
 }  // namespace editor

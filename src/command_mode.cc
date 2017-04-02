@@ -906,6 +906,16 @@ std::function<unique_ptr<EditorMode>(void)> NewCommandModeSupplier(
           L"// Toggles the active cursors with the previous set.\n"
           L"editor.ToggleActiveCursors();").release(),
       commands_map.get());
+  Register(L"C+",
+      NewCppCommand(editor_state->environment(),
+          L"// Pushes the active cursors to the stack.\n"
+          L"editor.PushActiveCursors();").release(),
+      commands_map.get());
+  Register(L"C-",
+      NewCppCommand(editor_state->environment(),
+          L"// Pops active cursors from the stack.\n"
+          L"editor.PopActiveCursors();").release(),
+      commands_map.get());
 
   Register(L"i", new EnterInsertModeCommand(), commands_map.get());
   Register(L"f", new EnterFindMode(), commands_map.get());
