@@ -301,6 +301,10 @@ void FindCompletion(EditorState* editor_state,
         return a->ToString() < b->ToString();
       });
 
+  if (options.matches_start == dictionary->contents()->end()) {
+    options.matches_start = dictionary->contents()->begin();
+  }
+
   editor_state->set_mode(unique_ptr<AutocompleteMode>(
       new AutocompleteMode(std::move(options))));
   editor_state->ProcessInput('\t');
