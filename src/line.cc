@@ -143,10 +143,18 @@ void Line::Output(const EditorState* editor_state,
     auto marks = all_marks->equal_range(line);
 
     char info_char = '.';
+    wstring additional_information;
     if (marks.first != marks.second) {
       receiver->AddModifier(Modifier::RED);
       receiver->AddModifier(Modifier::BOLD);
       info_char = '!';
+      const LineMarks::Mark& mark = marks.first->second;
+      auto source = editor_state->buffers()->find(mark.source);
+      if (source != editor_state->buffers()->end()
+          && source->second->contents()->size() > mark.source_line) {
+        additional_information =
+            source->second->contents()->at(mark.source_line)->ToString();
+      }
     } else if (modified()) {
       receiver->AddModifier(Modifier::GREEN);
       info_char = '.';
@@ -156,6 +164,12 @@ void Line::Output(const EditorState* editor_state,
     receiver->AddCharacter(info_char);
     receiver->AddModifier(Modifier::RESET);
     output_column += padding + 1;
+    CHECK_LE(output_column, width);
+
+    additional_information = additional_information.substr(
+        0, min(additional_information.size(), width - output_column));
+    receiver->AddString(additional_information);
+    output_column += additional_information.size();
   }
 
   if (output_column < width) {
