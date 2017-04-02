@@ -43,10 +43,6 @@ Save the contents of variables?  Maybe in a per-buffer file?
 
 atomic_lines should probably also apply to multiple cursors.
 
--- Cursors
-
-Add "C!": set a cursor in every mark in the current file.
-
 -- VM
 
 Add support for templates, so that we can do "vector<string>".
