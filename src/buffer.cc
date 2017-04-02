@@ -2664,6 +2664,7 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
 
   transformations_future_.clear();
   if (transformations_past_.back()->modified_buffer) {
+    editor_->StartHandlingInterrupts();
     last_transformation_ = std::move(transformation);
   }
 }

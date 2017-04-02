@@ -200,6 +200,8 @@ class EditorState {
 
   void PushSignal(int signal) { pending_signals_.push_back(signal); }
   void ProcessSignals();
+  void StartHandlingInterrupts() { handling_interrupts_ = true; }
+  bool handling_interrupts() const { return handling_interrupts_; }
 
  private:
   Environment BuildEditorEnvironment();
@@ -227,6 +229,11 @@ class EditorState {
   bool status_prompt_;
   int status_prompt_column_;
   wstring status_;
+
+  // Initially we don't consume SIGINT: we let it crash the process (in case the
+  // user has accidentally ran Edge). However, as soon as the user starts
+  // actually using Edge (e.g. modifies a buffer), we start consuming it.
+  bool handling_interrupts_ = false;
 
   vector<int> pending_signals_;
 

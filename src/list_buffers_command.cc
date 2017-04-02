@@ -19,6 +19,7 @@ class ListBuffersBuffer : public OpenBuffer {
  public:
   ListBuffersBuffer(EditorState* editor_state, const wstring& name)
       : OpenBuffer(editor_state, name) {
+    editor_state->StartHandlingInterrupts();
     set_bool_variable(variable_atomic_lines(), true);
     set_bool_variable(variable_reload_on_display(), true);
     set_bool_variable(variable_show_in_buffers_list(), false);

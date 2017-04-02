@@ -42,7 +42,22 @@ EditorState* editor_state() {
   return &editor_state;
 }
 
+void (*default_interrupt_handler)(int sig);
+
 void SignalHandler(int sig) {
+  if (sig == SIGINT) {
+    if (!editor_state()->handling_interrupts()) {
+      signal(SIGINT, default_interrupt_handler);
+      raise(SIGINT);
+      return;
+    }
+
+    // Normally, when the buffer consumes the signal, it'll overwrite the
+    // status right away. So we just put a default message in case the signal is
+    // not consumed.
+    editor_state()->SetStatus(
+        L"'Saq' to quit -- pending changes won't be saved.");
+  }
   editor_state()->PushSignal(sig);
 }
 
@@ -259,7 +274,7 @@ int main(int argc, const char** argv) {
   std::mbstate_t mbstate;
   Terminal terminal;
   if (!args.server) {
-    signal(SIGINT, &SignalHandler);
+    default_interrupt_handler = signal(SIGINT, &SignalHandler);
     signal(SIGTSTP, &SignalHandler);
   }
 
