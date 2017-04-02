@@ -831,12 +831,15 @@ template <typename T>
 void ToggleBoolVariable(
     EditorState* editor_state, wstring binding, wstring variable_name,
     T* output) {
+  wstring command =
+      L"// Toggle buffer variable: " + variable_name + L"\n"
+      + L"CurrentBuffer().set_" + variable_name + L"("
+      + L"!CurrentBuffer()." + variable_name + L"()" + L"); "
+      + L"SetStatus(\"" + variable_name + L" := \" + (CurrentBuffer()."
+      + variable_name + L"() ? \"ON\" : \"OFF\"));";
+  LOG(INFO) << "Command: " << command;
   MapMode::RegisterEntry(binding,
-      NewCppCommand(editor_state->environment(),
-          L"// Toggle buffer variable: " + variable_name + L"\n"
-          L"CurrentBuffer().set_" + variable_name + L"("
-          + L"!CurrentBuffer()." + variable_name + L"()"
-          + L");").release(),
+      NewCppCommand(editor_state->environment(), command).release(),
       output);
 }
 }  // namespace
