@@ -40,6 +40,7 @@ void Terminal::Display(EditorState* editor_state, Screen* screen) {
     }
     ShowStatus(*editor_state, screen);
     screen->Refresh();
+    screen->Flush();
     return;
   }
   int screen_lines = screen->lines();
@@ -81,6 +82,7 @@ void Terminal::Display(EditorState* editor_state, Screen* screen) {
     AdjustPosition(buffer, screen);
   }
   screen->Refresh();
+  screen->Flush();
   editor_state->set_visible_lines(static_cast<size_t>(screen_lines - 1));
 }
 

@@ -23,8 +23,9 @@ extern "C" {
 #include "file_link_mode.h"
 #include "run_command_handler.h"
 #include "screen.h"
-#include "screen_vm.h"
+#include "screen_buffer.h"
 #include "screen_curses.h"
+#include "screen_vm.h"
 #include "server.h"
 #include "terminal.h"
 #include "vm/public/value.h"
@@ -222,9 +223,12 @@ int main(int argc, const char** argv) {
     }
   }
 
+  std::shared_ptr<Screen> screen_curses;
   std::shared_ptr<Screen> screen;
   if (!args.background) {
-    screen = NewScreenCurses();
+    screen_curses = NewScreenCurses();
+    screen =
+        args.client.empty() ? screen_curses : NewScreenBuffer(screen_curses);
   }
 
   RegisterScreenType(editor_state()->environment());
@@ -269,7 +273,7 @@ int main(int argc, const char** argv) {
       if (args.client.empty()) {
         terminal.Display(editor_state(), screen.get());
       } else {
-        screen->Refresh();
+        screen_curses->Refresh();  // Don't want this to be buffered!
         auto screen_size = std::make_pair(screen->columns(), screen->lines());
         if (screen_size != last_screen_size) {
           LOG(INFO) << "Sending screen size update to server.";

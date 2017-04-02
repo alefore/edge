@@ -28,6 +28,9 @@ class ScreenCurses : public Screen {
     endwin();
   }
 
+  void Flush() override {
+  }
+
   void HardRefresh() override {
     wrefresh(curscr);
   }

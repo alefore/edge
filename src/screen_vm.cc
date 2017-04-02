@@ -26,6 +26,10 @@ class ScreenVm : public Screen {
     Write("set_terminate(true);");
   }
 
+  void Flush() override {
+    Write("screen.Flush();");
+  }
+
   void HardRefresh() override {
     Write("screen.HardRefresh();");
   }
@@ -123,6 +127,27 @@ void RegisterScreenType(Environment* environment) {
   }
 
   // Methods for Screen.
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+
+    // Returns nothing.
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+
+    callback->type.type_arguments.push_back(
+        VMType::ObjectType(screen_type.get()));
+
+    callback->callback =
+        [](vector<unique_ptr<Value>> args) {
+          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+          auto screen = static_cast<Screen*>(args[0]->user_value.get());
+          CHECK(screen != nullptr);
+
+          screen->Flush();
+          return Value::NewVoid();
+        };
+    screen_type->AddField(L"Flush", std::move(callback));
+  }
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
 
