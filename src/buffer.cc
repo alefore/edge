@@ -1530,6 +1530,20 @@ void OpenBuffer::PopActiveCursors() {
       + L"): -");
 }
 
+void OpenBuffer::SetActiveCursorsToMarks() {
+  const auto& marks = *GetLineMarks(*editor_);
+  if (marks.empty()) {
+    editor_->SetWarningStatus(L"Buffer has no marks!");
+    return;
+  }
+
+  std::vector<LineColumn> cursors;
+  for (auto& it : marks) {
+    cursors.push_back(it.second.target);
+  }
+  set_active_cursors(cursors);
+}
+
 void AdjustCursorsSet(const std::function<LineColumn(LineColumn)>& callback,
                       CursorsSet* cursors_set,
                       CursorsSet::iterator* current_cursor) {

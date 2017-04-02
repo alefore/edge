@@ -916,6 +916,11 @@ std::function<unique_ptr<EditorMode>(void)> NewCommandModeSupplier(
           L"// Pops active cursors from the stack.\n"
           L"editor.PopActiveCursors();").release(),
       commands_map.get());
+  Register(L"C!",
+      NewCppCommand(editor_state->environment(),
+          L"// Set active cursors to the marks on this buffer.\n"
+          L"editor.SetActiveCursorsToMarks();").release(),
+      commands_map.get());
 
   Register(L"i", new EnterInsertModeCommand(), commands_map.get());
   Register(L"f", new EnterFindMode(), commands_map.get());

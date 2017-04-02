@@ -153,6 +153,9 @@ class OpenBuffer {
   void ToggleActiveCursors();
   void PushActiveCursors();
   void PopActiveCursors();
+  // Replaces the set of active cursors with one cursor in every position with
+  // a mark (based on line_marks_).
+  void SetActiveCursorsToMarks();
 
   void AdjustCursors(std::function<LineColumn(LineColumn)> callback);
   void set_current_cursor(CursorsSet::value_type new_cursor);
@@ -547,9 +550,9 @@ class OpenBuffer {
   // Index of the marks for the current buffer (i.e. Mark::target_buffer is the
   // current buffer). The key is the line (i.e. Mark::line).
   multimap<size_t, LineMarks::Mark> line_marks_;
-  // The value of EditorState::marks_::updates the last time we computed
-  // line_marks_. This allows us to avoid recomputing it when no new marks have
-  // been added.
+  // The value that EditorState::marks_::updates had when we last computed
+  // line_marks_. This allows us to avoid recomputing line_marks_ when no new
+  // marks have been added.
   size_t line_marks_last_updates_ = 0;
 
   // Contains a collection of positions that commands should be applied to.
