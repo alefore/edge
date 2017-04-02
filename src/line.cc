@@ -147,6 +147,13 @@ void Line::Output(const EditorState* editor_state,
     if (marks.first != marks.second) {
       receiver->AddModifier(Modifier::RED);
       info_char = '!';
+
+      // Prefer fresh over expired marks.
+      while (next(marks.first) != marks.second
+             && marks.first->second.IsExpired()) {
+        ++marks.first;
+      }
+
       const LineMarks::Mark& mark = marks.first->second;
       if (mark.source_line_content != nullptr) {
         additional_information =
