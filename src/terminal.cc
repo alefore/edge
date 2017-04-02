@@ -85,7 +85,6 @@ void Terminal::Display(EditorState* editor_state, Screen* screen) {
 }
 
 void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
-  screen->Move(screen->lines() - 1, 0);
   wstring status;
   auto modifiers = editor_state.modifiers();
   if (editor_state.has_current_buffer()) {
@@ -241,6 +240,7 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
   } else if (status.size() > screen->columns()) {
     status = status.substr(0, screen->columns());
   }
+  screen->Move(screen->lines() - 1, 0);
   screen->WriteString(status.c_str());
   if (editor_state.status_prompt()) {
     status_column += editor_state.status_prompt_column();
