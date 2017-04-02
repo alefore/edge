@@ -30,6 +30,7 @@ class Terminal {
   static constexpr int CHAR_EOF = -14;
   static constexpr int CTRL_A = -15;
   static constexpr int CTRL_E = -16;
+  static constexpr int DELETE = -17;
 
   void Display(EditorState* editor_state, Screen* screen);
 

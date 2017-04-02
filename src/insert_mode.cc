@@ -427,12 +427,15 @@ class InsertMode : public EditorMode {
         options_.scroll_behavior->End(editor_state, options_.buffer.get());
         return;
 
+      case Terminal::DELETE:
       case Terminal::BACKSPACE:
         {
           LOG(INFO) << "Handling backspace in insert mode.";
           options_.buffer->MaybeAdjustPositionCol();
           DeleteOptions delete_options;
-          delete_options.modifiers.direction = BACKWARDS;
+          if (c == Terminal::BACKSPACE) {
+            delete_options.modifiers.direction = BACKWARDS;
+          }
           delete_options.copy_to_paste_buffer = false;
           options_.buffer->ApplyToCursors(
               NewDeleteCharactersTransformation(delete_options));
@@ -585,6 +588,14 @@ class RawInputTypeMode : public EditorMode {
         line_buffer_.push_back(27);
         line_buffer_.push_back('[');
         line_buffer_.push_back('D');
+        WriteLineBuffer(editor_state);
+        break;
+
+      case Terminal::DELETE:
+        line_buffer_.push_back(27);
+        line_buffer_.push_back('[');
+        line_buffer_.push_back(51);
+        line_buffer_.push_back(126);
         WriteLineBuffer(editor_state);
         break;
 

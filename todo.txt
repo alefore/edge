@@ -2,8 +2,6 @@
 
 -- Editing
 
-Handle DELETE key
-
 Implement delete of page.
 
 -- Navigation
