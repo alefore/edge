@@ -146,14 +146,21 @@ void Line::Output(const EditorState* editor_state,
     wstring additional_information;
     if (marks.first != marks.second) {
       receiver->AddModifier(Modifier::RED);
-      receiver->AddModifier(Modifier::BOLD);
       info_char = '!';
       const LineMarks::Mark& mark = marks.first->second;
-      auto source = editor_state->buffers()->find(mark.source);
-      if (source != editor_state->buffers()->end()
-          && source->second->contents()->size() > mark.source_line) {
+      if (mark.source_line_content != nullptr) {
         additional_information =
-            source->second->contents()->at(mark.source_line)->ToString();
+            L"(old) " + mark.source_line_content->ToString();
+      } else {
+        auto source = editor_state->buffers()->find(mark.source);
+        if (source != editor_state->buffers()->end()
+            && source->second->contents()->size() > mark.source_line) {
+          receiver->AddModifier(Modifier::BOLD);
+          additional_information =
+              source->second->contents()->at(mark.source_line)->ToString();
+        } else {
+          additional_information = L"(dead)";
+        }
       }
     } else if (modified()) {
       receiver->AddModifier(Modifier::GREEN);

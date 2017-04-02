@@ -564,10 +564,12 @@ void OpenBuffer::Enter(EditorState* editor_state) {
 
 void OpenBuffer::ClearContents(EditorState* editor_state) {
   VLOG(5) << "Clear contents of buffer: " << name_;
+  editor_state->line_marks()->RemoveExpiredMarksFromSource(name_);
+  editor_state->line_marks()->ExpireMarksFromSource(*this, name_);
+  editor_state->ScheduleRedraw();
   EraseLines(contents_.begin(), contents_.end());
   position_pts_ = LineColumn();
   AppendEmptyLine(editor_state);
-  editor_state->line_marks()->RemoveMarksFromSource(name_);
 }
 
 void OpenBuffer::AppendEmptyLine(EditorState*) {
@@ -586,6 +588,12 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
       return;
     }
   }
+
+  // We can remove expired marks now. We know that the set of fresh marks is now
+  // complete.
+  editor_state->line_marks()->RemoveExpiredMarksFromSource(name_);
+  editor_state->ScheduleRedraw();
+
   child_pid_ = -1;
   if (read_bool_variable(variable_reload_after_exit())) {
     set_bool_variable(variable_reload_after_exit(),
