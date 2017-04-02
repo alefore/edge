@@ -194,6 +194,130 @@ Environment EditorState::BuildEditorEnvironment() {
         };
     environment.Define(L"ProcessInput", std::move(callback));
   }
+  {
+    unique_ptr<Value> connect_to_function(new Value(VMType::FUNCTION));
+    connect_to_function->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    connect_to_function->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    connect_to_function->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::VM_STRING);
+          OpenServerBuffer(this, args[0]->str);
+          return std::move(Value::NewVoid());
+        };
+    environment.Define(L"ConnectTo", std::move(connect_to_function));
+  }
+  {
+    unique_ptr<Value> set_status_function(new Value(VMType::FUNCTION));
+    set_status_function->type.type_arguments.push_back(
+        VMType(VMType::VM_VOID));
+    set_status_function->type.type_arguments.push_back(
+        VMType(VMType::VM_STRING));
+    set_status_function->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::VM_STRING);
+          SetStatus(args[0]->str);
+          return std::move(Value::NewVoid());
+        };
+    environment.Define(L"SetStatus", std::move(set_status_function));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          CHECK(args.empty());
+          ScheduleRedraw();
+          return std::move(Value::NewVoid());
+        };
+    environment.Define(L"ScheduleRedraw", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
+    callback->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args[0]->type, VMType::VM_BOOLEAN);
+          set_screen_needs_hard_redraw(args[0]->boolean);
+          return std::move(Value::NewVoid());
+        };
+    environment.Define(L"set_screen_needs_hard_redraw", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
+    callback->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args[0]->type, VMType::VM_BOOLEAN);
+          terminate_ = args[0]->boolean;
+          return std::move(Value::NewVoid());
+        };
+    environment.Define(L"set_terminate", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    callback->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          if (!has_current_buffer()) { return Value::NewVoid(); }
+          auto buffer = current_buffer()->second;
+          assert(args[0]->type == VMType::VM_INTEGER);
+          buffer->set_position(
+              LineColumn(buffer->position().line, args[0]->integer));
+          return Value::NewVoid();
+        };
+    environment.Define(L"SetPositionColumn", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->callback =
+        [this](vector<unique_ptr<Value>>) {
+          if (!has_current_buffer()) { return Value::NewVoid(); }
+          auto buffer = current_buffer()->second;
+          unique_ptr<Value> output(new Value(VMType::VM_STRING));
+          output->str = buffer->current_line()->ToString();
+          return output;
+        };
+    environment.Define(L"Line", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::VM_STRING);
+          ForkCommandOptions options;
+          options.command = args[0]->str;
+          options.enter = true;
+          ForkCommand(this, options);
+          return std::move(Value::NewVoid());
+        };
+    environment.Define(L"ForkCommand", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType::ObjectType(L"Buffer"));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->callback =
+        [this](vector<unique_ptr<Value>> args) {
+          assert(args[0]->type == VMType::VM_STRING);
+          OpenFileOptions options;
+          options.editor_state = this;
+          options.path = args[0]->str;
+          set_current_buffer(OpenFile(options));
+          ResetMode();
+          ScheduleRedraw();
+          return Value::NewObject(L"Buffer", current_buffer()->second);
+        };
+    environment.Define(L"OpenFile", std::move(callback));
+  }
+
   RegisterBufferMethod(editor_type.get(), L"ToggleActiveCursors",
                        &OpenBuffer::ToggleActiveCursors);
   RegisterBufferMethod(editor_type.get(), L"PushActiveCursors",
@@ -286,138 +410,6 @@ EditorState::EditorState()
   }
   environment_.DefineType(L"LineColumn", std::move(line_column));
 
-  // Other functions.
-  {
-    unique_ptr<Value> connect_to_function(new Value(VMType::FUNCTION));
-    connect_to_function->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    connect_to_function->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    connect_to_function->callback =
-        [this](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::VM_STRING);
-          OpenServerBuffer(this, args[0]->str);
-          return std::move(Value::NewVoid());
-        };
-    environment_.Define(L"ConnectTo", std::move(connect_to_function));
-  }
-
-  {
-    unique_ptr<Value> set_status_function(new Value(VMType::FUNCTION));
-    set_status_function->type.type_arguments.push_back(
-        VMType(VMType::VM_VOID));
-    set_status_function->type.type_arguments.push_back(
-        VMType(VMType::VM_STRING));
-    set_status_function->callback =
-        [this](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::VM_STRING);
-          SetStatus(args[0]->str);
-          return std::move(Value::NewVoid());
-        };
-    environment_.Define(L"SetStatus", std::move(set_status_function));
-  }
-
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    callback->callback =
-        [this](vector<unique_ptr<Value>> args) {
-          CHECK(args.empty());
-          ScheduleRedraw();
-          return std::move(Value::NewVoid());
-        };
-    environment_.Define(L"ScheduleRedraw", std::move(callback));
-  }
-
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
-    callback->callback =
-        [this](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1);
-          CHECK_EQ(args[0]->type, VMType::VM_BOOLEAN);
-          set_screen_needs_hard_redraw(args[0]->boolean);
-          return std::move(Value::NewVoid());
-        };
-    environment_.Define(L"set_screen_needs_hard_redraw", std::move(callback));
-  }
-
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
-    callback->callback =
-        [this](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1);
-          CHECK_EQ(args[0]->type, VMType::VM_BOOLEAN);
-          terminate_ = args[0]->boolean;
-          return std::move(Value::NewVoid());
-        };
-    environment_.Define(L"set_terminate", std::move(callback));
-  }
-
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->callback =
-        [this](vector<unique_ptr<Value>> args) {
-          if (!has_current_buffer()) { return Value::NewVoid(); }
-          auto buffer = current_buffer()->second;
-          assert(args[0]->type == VMType::VM_INTEGER);
-          buffer->set_position(
-              LineColumn(buffer->position().line, args[0]->integer));
-          return Value::NewVoid();
-        };
-    environment_.Define(L"SetPositionColumn", std::move(callback));
-  }
-
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->callback =
-        [this](vector<unique_ptr<Value>>) {
-          if (!has_current_buffer()) { return Value::NewVoid(); }
-          auto buffer = current_buffer()->second;
-          unique_ptr<Value> output(new Value(VMType::VM_STRING));
-          output->str = buffer->current_line()->ToString();
-          return output;
-        };
-    environment_.Define(L"Line", std::move(callback));
-  }
-
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->callback =
-        [this](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::VM_STRING);
-          ForkCommandOptions options;
-          options.command = args[0]->str;
-          options.enter = true;
-          ForkCommand(this, options);
-          return std::move(Value::NewVoid());
-        };
-    environment_.Define(L"ForkCommand", std::move(callback));
-  }
-
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType::ObjectType(L"Buffer"));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->callback =
-        [this](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::VM_STRING);
-          OpenFileOptions options;
-          options.editor_state = this;
-          options.path = args[0]->str;
-          set_current_buffer(OpenFile(options));
-          ResetMode();
-          ScheduleRedraw();
-          return Value::NewObject(L"Buffer", current_buffer()->second);
-        };
-    environment_.Define(L"OpenFile", std::move(callback));
-  }
 }
 
 EditorState::~EditorState() {
