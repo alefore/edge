@@ -38,7 +38,6 @@ src/line_prompt_mode.cc \
 src/list_buffers_command.cc \
 src/lowercase.cc \
 src/map_mode.cc \
-src/memory_mapped_file.cc \
 src/modifiers.cc \
 src/modifiers.h \
 src/navigate_command.cc \
