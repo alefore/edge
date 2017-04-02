@@ -129,20 +129,26 @@ Example:
 See section 9 for more information on the syntax supported.
 
 
-2.2.4. --bg <path>
+2.2.4. --server <path>
 
-The --bg command-line argument causes Edge to run in "background" mode: without
-reading any input from stdin nor producing any output to stdout. Instead, Edge
-will wait for connections (see --client) to the path.
+The --server command-line argument causes Edge to run in "background" mode:
+without reading any input from stdin nor producing any output to stdout.
+Instead, Edge will wait for connections (see --client) to the path given.
 
 You can pass an empty string as the path to let Edge generate a temporary file
 automatically. Otherwise, the path given must not currently exist.
+
+Edge always runs with a server, even when this flag is not used. Passing this
+flag merely causes Edge to daemonize itself and not use the current terminal.
+Technically, it's more correct to say that this is "background" or "headless"
+mode than to say that this is "server" mode. However, we decided to use
+"--server" (instead of some other flag) for symmetry with "--client".
 
 
 2.2.5. --client <path>
 
 Runs Edge in "client" mode: it will connect to a remote Edge server (usually
-started with --bg). The entire state will be held at the remote Edge server.
+started with --server). The entire state will be held at the remote Edge server.
 
 This allows you to disconnect and reconnect, which may be useful together with
 SSH sessions. You can also attach multiple clients to the same server.

@@ -54,8 +54,8 @@ struct Args {
   // Contains C++ (VM) code to execute.
   string commands_to_run;
 
-  bool background = false;
-  string background_path = "";
+  bool server = false;
+  string server_path = "";
 
   // If non-empty, path of the server to connect to.
   string client = "";
@@ -92,7 +92,7 @@ Args ParseArgs(int* argc, const char*** argv) {
       "  --fork <shellcmd>: Creates a buffer running a shell command\n"
       "  --help, -h: Displays this message\n"
       "  --run <vmcmd>: Runs a VM command\n"
-      "  --bg <path>: Runs in daemon mode at path given\n"
+      "  --server <path>: Runs in daemon mode at path given\n"
       "  --client <path>: Connects to daemon at path given\n"
       "\nReport bugs to <alefore@gmail.com>\n";
 
@@ -129,10 +129,10 @@ Args ParseArgs(int* argc, const char*** argv) {
           << output.binary_name << ": " << cmd
           << ": Expected command to run.\n";
       output.commands_to_run += pop_argument();
-    } else if (cmd == "--bg") {
-      output.background = true;
+    } else if (cmd == "--server") {
+      output.server = true;
       if (*argc > 0) {
-        output.background_path = pop_argument();
+        output.server_path = pop_argument();
       }
     } else if (cmd == "--client") {
       output.client = pop_argument();
@@ -165,8 +165,8 @@ wstring StartServer(const Args& args) {
 
   wstring address;
   std::unordered_set<int> surviving_fds = {1, 2};
-  if (args.background && !args.background_path.empty()) {
-    address = FromByteString(args.background_path);
+  if (args.server && !args.server_path.empty()) {
+    address = FromByteString(args.server_path);
     // We can't close stdout until we've printed the address in which the server
     // will run.
     Daemonize(surviving_fds);
@@ -176,7 +176,7 @@ wstring StartServer(const Args& args) {
   if (!StartServer(editor_state(), address, &actual_address, &error)) {
     LOG(FATAL) << args.binary_name << ": Unable to start server: " << error;
   }
-  if (args.background) {
+  if (args.server) {
     std::cout << args.binary_name << ": Server starting at: " << actual_address
               << std::endl;
     for (int fd : surviving_fds) {
@@ -207,7 +207,7 @@ int main(int argc, const char** argv) {
     remote_server_fd = MaybeConnectToServer(args.client, &parent_server_error);
     if (remote_server_fd == -1) {
       cerr << args.binary_name << ": Unable to connect to remote server: "
-           << args.client << ": " << parent_server_error << std::endl;
+           << parent_server_error << std::endl;
       exit(1);
     }
   } else {
@@ -225,7 +225,7 @@ int main(int argc, const char** argv) {
 
   std::shared_ptr<Screen> screen_curses;
   std::shared_ptr<Screen> screen;
-  if (!args.background) {
+  if (!args.server) {
     screen_curses = NewScreenCurses();
     screen =
         args.client.empty() ? screen_curses : NewScreenBuffer(screen_curses);
@@ -243,8 +243,8 @@ int main(int argc, const char** argv) {
     wstring errors;
     if (remote_server_fd != -1) {
       self_fd = remote_server_fd;
-    } else if (args.background && !args.background_path.empty()) {
-      self_fd = MaybeConnectToServer(args.background_path, &errors);
+    } else if (args.server && !args.server_path.empty()) {
+      self_fd = MaybeConnectToServer(args.server_path, &errors);
     } else {
       self_fd = MaybeConnectToParentServer(&errors);
     }
@@ -258,7 +258,7 @@ int main(int argc, const char** argv) {
 
   std::mbstate_t mbstate;
   Terminal terminal;
-  if (!args.background) {
+  if (!args.server) {
     signal(SIGINT, &SignalHandler);
     signal(SIGTSTP, &SignalHandler);
   }
