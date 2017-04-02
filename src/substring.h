@@ -14,6 +14,7 @@ using std::shared_ptr;
 shared_ptr<LazyString> Substring(
     const shared_ptr<LazyString>& input, size_t pos);
 
+// Example: Substring("alejo", 1, 2) := "le"
 shared_ptr<LazyString> Substring(
     const shared_ptr<LazyString>& input, size_t pos, size_t size);
 

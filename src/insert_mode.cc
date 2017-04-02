@@ -293,7 +293,7 @@ void FindCompletion(EditorState* editor_state,
 
   LOG(INFO) << "Find completion for \"" << options.prefix->ToString()
             << "\" among options: " << dictionary->contents()->size();
-  options.matches_start = std::lower_bound(
+  options.matches_start = std::upper_bound(
       dictionary->contents()->begin(),
       dictionary->contents()->end(),
       options.prefix,
@@ -306,21 +306,18 @@ void FindCompletion(EditorState* editor_state,
   editor_state->ProcessInput('\t');
 }
 
-bool StartCompletion(EditorState* editor_state,
-                     std::shared_ptr<OpenBuffer> buffer) {
+void StartCompletionFromDictionary(
+    EditorState* editor_state, std::shared_ptr<OpenBuffer> buffer,
+    wstring path) {
   OpenFileOptions options;
-  options.path =
-      buffer->read_string_variable(OpenBuffer::variable_dictionary());
-  if (options.path.empty()) {
-    LOG(INFO) << "Dictionary is not set.";
-    return false;
-  }
+  options.path = path;
+  DCHECK(!options.path.empty());
   options.editor_state = editor_state;
   options.make_current_buffer = false;
   auto file = OpenFile(options);
   file->second->set_bool_variable(
       OpenBuffer::variable_show_in_buffers_list(), false);
-  LOG(INFO) << "Loaded dictionary.";
+  LOG(INFO) << "Loading dictionary.";
   std::weak_ptr<OpenBuffer> weak_dictionary = file->second;
   std::weak_ptr<OpenBuffer> weak_buffer = buffer;
   file->second->AddEndOfFileObserver(
@@ -328,13 +325,52 @@ bool StartCompletion(EditorState* editor_state,
         FindCompletion(
             editor_state, weak_buffer.lock(), weak_dictionary.lock());
       });
+}
+
+void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
+                   std::set<wstring>* words) {
+  DCHECK(words != nullptr);
+  if (tree.children.empty() && tree.begin.line == tree.end.line) {
+    CHECK_LE(tree.begin.column, tree.end.column);
+    auto line = buffer.LineAt(tree.begin.line);
+    CHECK_LE(tree.end.column, line->size());
+    words->insert(line->Substring(
+        tree.begin.column, tree.end.column - tree.begin.column)->ToString());
+  }
+  for (auto& child : tree.children) {
+    RegisterLeaves(buffer, child, words);
+  }
+}
+
+bool StartCompletion(EditorState* editor_state,
+                     std::shared_ptr<OpenBuffer> buffer) {
+  auto path = buffer->read_string_variable(OpenBuffer::variable_dictionary());
+  if (!path.empty()) {
+    StartCompletionFromDictionary(editor_state, buffer, path);
+    return true;
+  }
+
+  std::set<wstring> words;
+  RegisterLeaves(*buffer, *buffer->current_tree(), &words);
+  LOG(INFO) << "Leaves found: " << words.size();
+  if (words.empty()) {
+    return false;
+  }
+
+  auto dictionary = std::make_shared<OpenBuffer>(editor_state, L"Dictionary");
+  for (auto& word : words) {
+    dictionary->AppendLine(editor_state, NewCopyString(word));
+  }
+
+  FindCompletion(editor_state, buffer, dictionary);
   return true;
 }
 
 class InsertMode : public EditorMode {
  public:
   InsertMode(InsertModeOptions options)
-      : options_(std::move(options)) {
+      : options_(std::move(options)),
+        parse_tree_updates_blocker_(options_.buffer->BlockParseTreeUpdates()) {
     CHECK(options_.escape_handler);
   }
 
@@ -449,6 +485,7 @@ class InsertMode : public EditorMode {
 
  private:
   const InsertModeOptions options_;
+  const std::shared_ptr<bool> parse_tree_updates_blocker_;
 };
 
 class RawInputTypeMode : public EditorMode {
