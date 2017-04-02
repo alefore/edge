@@ -1512,12 +1512,22 @@ void OpenBuffer::PushActiveCursors() {
     cursors.push_back(it);
   }
   cursors_stack_.push_back(std::move(cursors));
+  editor_->SetStatus(
+      L"cursors stack (" + to_wstring(cursors_stack_.size())
+      + L"): +");
 }
 
 void OpenBuffer::PopActiveCursors() {
-  if (cursors_stack_.empty()) { return; }
+  if (cursors_stack_.empty()) {
+    editor_->SetWarningStatus(L"cursors stack: -: Stack is empty!");
+    return;
+  }
+
   set_active_cursors(cursors_stack_.back());
   cursors_stack_.pop_back();
+  editor_->SetStatus(
+      L"cursors stack (" + to_wstring(cursors_stack_.size())
+      + L"): -");
 }
 
 void AdjustCursorsSet(const std::function<LineColumn(LineColumn)>& callback,
