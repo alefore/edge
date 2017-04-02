@@ -14,15 +14,15 @@ To quit Edge, press "Saq".
 Edge is under active development and many of its bindings and/or general
 interface is likely to change soon.
 
-  This document describes the use of Edge. Edge is an editor with "modes", where
-  commands are typically executed by typing their associated character sequences.
-  These sequences are given in this document between quotes. Pressing "?" shows
-  you the sequences in the current mode.
+This document describes the use of Edge. Edge is an editor with "modes", where
+commands are typically executed by typing their associated character sequences.
+These sequences are given in this document between quotes. Pressing "?" shows
+you the sequences in the current mode.
 
-  To get the most out of Edge, you should probably familiarize yourself with the
-  modifiers (section 6) and the navigation (section 3) and editing (section 4)
-  commands.  We'd also strongly recommend learning the commands for controlling
-  buffers (section 5).
+To get the most out of Edge, you should probably familiarize yourself with the
+modifiers (section 6) and the navigation (section 3) and editing (section 4)
+commands.  We'd also strongly recommend learning the commands for controlling
+buffers (section 5).
 
 Edge will probably be relatively hard to use for the first few hours but you
 might be surprised by how fast your fingers will start picking up the new
