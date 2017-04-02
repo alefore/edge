@@ -564,6 +564,7 @@ static BufferPosition PositionFromLine(const wstring& line) {
 void EditorState::SetStatus(const wstring& status) {
   LOG(INFO) << "SetStatus: " << status;
   status_ = status;
+  is_status_warning_ = false;
   if (status_prompt_ || status.empty()) { return; }
   auto status_buffer_it = buffers_.insert(make_pair(L"- console", nullptr));
   if (status_buffer_it.second) {
@@ -580,6 +581,11 @@ void EditorState::SetStatus(const wstring& status) {
   if (current_buffer_ == status_buffer_it.first) {
     ScheduleRedraw();
   }
+}
+
+void EditorState::SetWarningStatus(const wstring& status) {
+  SetStatus(status);
+  is_status_warning_ = true;
 }
 
 bool EditorState::HasPositionsInStack() {

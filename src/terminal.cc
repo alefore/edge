@@ -88,8 +88,8 @@ void Terminal::Display(EditorState* editor_state, Screen* screen) {
 
 void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
   wstring status;
-  auto modifiers = editor_state.modifiers();
-  if (editor_state.has_current_buffer()) {
+  if (editor_state.has_current_buffer() && !editor_state.is_status_warning()) {
+    const auto modifiers = editor_state.modifiers();
     auto buffer = editor_state.current_buffer()->second;
     status.push_back('[');
     if (buffer->current_position_line() >= buffer->contents()->size()) {
@@ -122,7 +122,6 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
     }
 
     wstring flags = buffer->FlagsString();
-    Modifiers modifiers(editor_state.modifiers());
     if (editor_state.repetitions() != 1) {
       flags += to_wstring(editor_state.repetitions());
     }
@@ -211,7 +210,7 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
     }
   }
 
-  {
+  if (!editor_state.is_status_warning()) {
     int running = 0;
     int failed = 0;
     for (const auto& it : *editor_state.buffers()) {
@@ -243,7 +242,14 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
     status = status.substr(0, screen->columns());
   }
   screen->Move(screen->lines() - 1, 0);
+  if (editor_state.is_status_warning()) {
+    screen->SetModifier(Line::RED);
+    screen->SetModifier(Line::BOLD);
+  }
   screen->WriteString(status.c_str());
+  if (editor_state.is_status_warning()) {
+    screen->SetModifier(Line::RESET);
+  }
   if (editor_state.status_prompt()) {
     status_column += editor_state.status_prompt_column();
     screen->Move(screen->lines() - 1, min(status_column, screen->columns()));

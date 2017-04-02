@@ -55,7 +55,7 @@ void SignalHandler(int sig) {
     // Normally, when the buffer consumes the signal, it'll overwrite the
     // status right away. So we just put a default message in case the signal is
     // not consumed.
-    editor_state()->SetStatus(
+    editor_state()->SetWarningStatus(
         L"'Saq' to quit -- pending changes won't be saved.");
   }
   editor_state()->PushSignal(sig);

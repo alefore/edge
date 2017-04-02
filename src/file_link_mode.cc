@@ -75,7 +75,8 @@ class FileBuffer : public OpenBuffer {
       return;
     }
     if (current_stat_buffer.st_mtime > stat_buffer_.st_mtime) {
-      editor_state->SetStatus(L"Underying file has changed!");
+      editor_state->SetWarningStatus(
+          L"WARNING: File (in disk) changed since last read.");
     }
   }
 

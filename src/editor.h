@@ -183,8 +183,10 @@ class EditorState {
     return status_prompt_column_;
   }
   void SetStatus(const wstring& status);
+  void SetWarningStatus(const wstring& status);
   void ResetStatus() { SetStatus(L""); }
   const wstring& status() const { return status_; }
+  bool is_status_warning() const { return is_status_warning_; }
 
   const wstring& home_directory() const { return home_directory_; }
   const vector<wstring>& edge_path() const { return edge_path_; }
@@ -227,6 +229,7 @@ class EditorState {
   bool screen_needs_hard_redraw_;
 
   bool status_prompt_;
+  bool is_status_warning_ = false;
   int status_prompt_column_;
   wstring status_;
 
