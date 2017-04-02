@@ -833,9 +833,10 @@ void ToggleBoolVariable(
     T* output) {
   wstring command =
       L"// Toggle buffer variable: " + variable_name + L"\n"
-      + L"CurrentBuffer().set_" + variable_name + L"("
-      + L"!CurrentBuffer()." + variable_name + L"()" + L"); "
-      + L"SetStatus(\"" + variable_name + L" := \" + (CurrentBuffer()."
+      + L"Buffer tmp_buffer = CurrentBuffer();"
+      + L"tmp_buffer.set_" + variable_name + L"("
+      + L"!tmp_buffer." + variable_name + L"()" + L"); "
+      + L"SetStatus(\"" + variable_name + L" := \" + (tmp_buffer."
       + variable_name + L"() ? \"ON\" : \"OFF\"));";
   LOG(INFO) << "Command: " << command;
   MapMode::RegisterEntry(binding,
