@@ -25,16 +25,17 @@ if (path == "") {
   string base_command = space == -1 ? command : command.substr(0, space);
   if (base_command != "") {
     SetStatus("Running command: [" + base_command + "]");
-    if (base_command == "bash" || base_command == "python") {
+    if (base_command == "bash" || base_command == "python"
+        || base_command == "sh") {
       buffer.set_pts(true);
       buffer.set_follow_end_of_file(true);
-      buffer.set_buffer_list_context_lines(3);
+      buffer.set_buffer_list_context_lines(5);
     }
     if (base_command == "make") {
       buffer.set_contains_line_marks(true);
       buffer.set_reload_on_buffer_write(true);
       buffer.set_follow_end_of_file(true);
-      buffer.set_buffer_list_context_lines(3);
+      buffer.set_buffer_list_context_lines(5);
     }
     if (base_command == "grep") {
       buffer.set_contains_line_marks(true);
