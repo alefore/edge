@@ -6,8 +6,6 @@ Handle DELETE key
 
 Implement delete of page.
 
-Add tests for Undo for insert.
-
 -- Navigation
 
 Improve "g", the current behavior is kind of annoying:
@@ -21,8 +19,6 @@ Add a "margin_lines" integer variable.
 Add a boolean variable "highlight_current_line" (default: false); when set, highlight the line with the current cursor position.
 
 -- Prompt
-
-Support ARROW_LEFT, allow editing characters other than the last one.
 
 -- Commands
 
@@ -47,9 +43,18 @@ Save the contents of variables?  Maybe in a per-buffer file?
 
 atomic_lines should probably also apply to multiple cursors.
 
+-- Cursors
+
+Add "C!": set a cursor in every mark in the current file.
+
 -- VM
 
 Add support for templates, so that we can do "vector<string>".
+
+-- Client/server
+
+Allow a client to just disconnect.
+  This is currently hard because the server doesn't know which client issued the commands it processes.
 
 -- Misc
 
