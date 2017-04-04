@@ -53,8 +53,6 @@ src/repeat_mode.cc \
 src/run_command_handler.cc \
 src/run_cpp_command.cc \
 src/screen.h \
-src/screen_buffer.cc \
-src/screen_buffer.h \
 src/screen_curses.cc \
 src/screen_curses.h \
 src/screen_vm.cc \

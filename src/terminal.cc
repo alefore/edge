@@ -494,7 +494,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   screen->Move(0, 0);
 
   LineOutputReceiver screen_adapter(screen);
-  std::unique_ptr<OutputReceiverOptimizer> line_output_receiver(
+  std::unique_ptr<Line::OutputReceiverInterface> line_output_receiver(
       new OutputReceiverOptimizer(&screen_adapter));
 
   size_t lines_to_show = static_cast<size_t>(screen->lines());
@@ -514,8 +514,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
 
   while (lines_shown < lines_to_show) {
     if (current_line >= contents.size()) {
-      line_output_receiver = nullptr;
-      screen->WriteString(L"\n");
+      line_output_receiver->AddString(L"\n");
       lines_shown++;
       continue;
     }
