@@ -427,6 +427,7 @@ class InsertMode : public EditorMode {
         options_.scroll_behavior->End(editor_state, options_.buffer.get());
         return;
 
+      case Terminal::CHAR_EOF:  // Ctrl_D
       case Terminal::DELETE:
       case Terminal::BACKSPACE:
         {
