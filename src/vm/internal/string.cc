@@ -205,6 +205,18 @@ void RegisterStringType(Environment* environment) {
   }
 
   environment->DefineType(L"string", std::move(string_type));
+
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    callback->callback = [](vector<unique_ptr<Value>> args) {
+      CHECK_EQ(args.size(), 1);
+      CHECK_EQ(args[0]->type.type, VMType::VM_INTEGER);
+      return Value::NewString(std::to_wstring(args[0]->integer));
+    };
+    environment->Define(L"tostring", std::move(callback));
+  }
 }
 
 }  // namespace vm
