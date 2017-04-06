@@ -144,7 +144,15 @@ void Line::Output(const EditorState* editor_state,
 
     char info_char = '.';
     wstring additional_information;
-    if (marks.first != marks.second) {
+
+    auto target_buffer = environment_.Lookup(L"buffer");
+    if (target_buffer != nullptr
+        && target_buffer->type.type == VMType::OBJECT_TYPE
+        && target_buffer->type.object_type == L"Buffer") {
+      additional_information =
+          std::static_pointer_cast<OpenBuffer>(target_buffer->user_value)
+              ->FlagsString();
+    } else if (marks.first != marks.second) {
       receiver->AddModifier(Modifier::RED);
       info_char = '!';
 

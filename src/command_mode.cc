@@ -833,10 +833,29 @@ void ToggleBoolVariable(
     T* output) {
   wstring command =
       L"// Toggle buffer variable: " + variable_name + L"\n"
-      + L"CurrentBuffer().set_" + variable_name + L"("
-      + L"!CurrentBuffer()." + variable_name + L"()" + L"); "
-      + L"SetStatus(\"" + variable_name + L" := \" + (CurrentBuffer()."
+      + L"Buffer tmp_buffer = CurrentBuffer();"
+      + L"tmp_buffer.set_" + variable_name + L"("
+      + L"!tmp_buffer." + variable_name + L"()" + L"); "
+      + L"SetStatus(\"" + variable_name + L" := \" + (tmp_buffer."
       + variable_name + L"() ? \"ON\" : \"OFF\"));";
+  LOG(INFO) << "Command: " << command;
+  MapMode::RegisterEntry(binding,
+      NewCppCommand(editor_state->environment(), command).release(),
+      output);
+}
+
+template <typename T>
+void ToggleIntVariable(
+    EditorState* editor_state, wstring binding, wstring variable_name,
+    int default_value, T* output) {
+  wstring command =
+      L"// Toggle buffer variable: " + variable_name + L"\n"
+      + L"Buffer tmp_buffer = CurrentBuffer();"
+      + L"tmp_buffer.set_" + variable_name + L"("
+      + L"tmp_buffer." + variable_name + L"() != 0 ? 0 : "
+      + std::to_wstring(default_value) + L"); "
+      + L"SetStatus(\"" + variable_name + L" := \" + tostring(tmp_buffer."
+      + variable_name + L"()));";
   LOG(INFO) << "Command: " << command;
   MapMode::RegisterEntry(binding,
       NewCppCommand(editor_state->environment(), command).release(),
@@ -977,6 +996,8 @@ std::function<unique_ptr<EditorMode>(void)> NewCommandModeSupplier(
   ToggleBoolVariable(editor_state, L"vf", L"follow_end_of_file",
       commands_map.get());
   ToggleBoolVariable(editor_state, L"v/c", L"search_case_sensitive",
+      commands_map.get());
+  ToggleIntVariable(editor_state, L"vc", L"buffer_list_context_lines", 10,
       commands_map.get());
 
   Register(L"?",

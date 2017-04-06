@@ -172,8 +172,17 @@ Environment EditorState::BuildEditorEnvironment() {
     callback->type.type_arguments.push_back(VMType::ObjectType(L"Buffer"));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
-          assert(args.size() == 0);
-          return Value::NewObject(L"Buffer", current_buffer()->second);
+          CHECK_EQ(args.size(), 0);
+          auto buffer = current_buffer()->second;
+          CHECK(buffer != nullptr);
+          if (structure() == LINE) {
+            auto target_buffer = buffer->GetBufferFromCurrentLine();
+            ResetStructure();
+            if (target_buffer != nullptr) {
+              buffer = target_buffer;
+            }
+          }
+          return Value::NewObject(L"Buffer", buffer);
         };
     environment.Define(L"CurrentBuffer", std::move(callback));
   }
