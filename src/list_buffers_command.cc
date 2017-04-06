@@ -47,10 +47,8 @@ class ListBuffersBuffer : public OpenBuffer {
               0));
       auto context = LinesToShow(*it.second, context_lines_var);
 
-      wstring flags = it.second->FlagsString();
       std::shared_ptr<LazyString> name = NewCopyString(
-          (context.first == context.second ? L"" : L"╭──") + it.first
-          + (flags.empty() ? L"" : L"  ") + flags);
+          (context.first == context.second ? L"" : L"╭──") + it.first);
       if (context.first != context.second) {
         size_t width =
             target->read_int_variable(OpenBuffer::variable_line_width());
