@@ -22,6 +22,7 @@ class CppTreeParser : public TreeParser {
             ParseTree child;
             child.begin = position;
             child.end = AdvanceUntilEndOfLine(buffer, position);
+            child.modifiers.insert(Line::YELLOW);
             root->children.push_back(child);
 
             position = child.end;
@@ -42,7 +43,7 @@ class CppTreeParser : public TreeParser {
           {
             root->children.push_back(ParseTree());
             root->children.back().begin = position;
-            ConsumeBlock(buffer, &root->children.back(), root->end);
+            ConsumeBlock(buffer, &root->children.back(), root->end, 0);
             position = root->children.back().end;
           }
           continue;
@@ -59,8 +60,16 @@ class CppTreeParser : public TreeParser {
   }
 
  private:
+  bool IsReservedToken(const wstring& str) {
+    // TODO: Allow the buffer to specify this through a variable.
+    static const std::unordered_set<wstring> tokens = {
+        L"switch", L"if", L"else", L"for", L"while", L"do",
+        L"void", L"const", L"auto", L"int", L"double", L"string" };
+    return tokens.find(str) != tokens.end();
+  }
+
   void ConsumeBlock(const OpenBuffer& buffer, ParseTree* block,
-                    LineColumn limit) {
+                    LineColumn limit, int depth) {
     LOG(INFO) << "Parsing block at position: " << block->begin;
 
     auto c = buffer.character_at(block->begin);
@@ -72,10 +81,24 @@ class CppTreeParser : public TreeParser {
           [&id](wchar_t c) {
             return id.find(tolower(c)) == id.npos;
           });
+      if (block->begin.line == block->end.line) {
+        auto str = Substring(buffer.LineAt(block->begin.line)->contents(),
+            block->begin.column, block->end.column - block->begin.column)
+                ->ToString();
+        if (IsReservedToken(str)) {
+          block->modifiers.insert(Line::CYAN);
+        }
+      }
       return;
     }
 
     if (c == L'(' || c == L'{') {
+      ParseTree open_character;
+      open_character.begin = block->begin;
+      open_character.end = Advance(buffer, block->begin);
+      open_character.modifiers.insert(ModifierForNesting(depth));
+      block->children.push_back(open_character);
+
       auto position = Advance(buffer, block->begin);
       while (true) {
         // Skip spaces.
@@ -88,13 +111,19 @@ class CppTreeParser : public TreeParser {
 
         if ((c == L'(' && buffer.character_at(position) == L')')
             || (c == L'{' && buffer.character_at(position) == L'}')) {
-          block->end = Advance(buffer, position);
+          ParseTree close_character;
+          close_character.begin = position;
+          close_character.end = Advance(buffer, position);
+          close_character.modifiers = open_character.modifiers;
+          block->children.push_back(close_character);
+
+          block->end = close_character.end;
           return;
         }
 
         block->children.push_back(ParseTree());
         block->children.back().begin = position;
-        ConsumeBlock(buffer, &block->children.back(), limit);
+        ConsumeBlock(buffer, &block->children.back(), limit, depth + 1);
         if (position == block->children.back().end) {
           block->end = position;
           return;  // Didn't advance.
@@ -107,6 +136,7 @@ class CppTreeParser : public TreeParser {
 
     if (c == '/' && buffer.character_at(Advance(buffer, block->begin)) == '/') {
       block->end = AdvanceUntilEndOfLine(buffer, block->begin);
+      block->modifiers.insert(Line::BLUE);
       words_parser_->FindChildren(buffer, block);
       return;
     }
@@ -125,12 +155,14 @@ class CppTreeParser : public TreeParser {
       if (c == L'\"') {
         words_parser_->FindChildren(buffer, block);
       }
+      block->modifiers.insert(Line::YELLOW);
       return;
     }
 
     block->end = Advance(buffer, block->begin);
   }
 
+  // Return the position immediately after position.
   LineColumn Advance(const OpenBuffer& buffer, LineColumn position) {
     if (buffer.LineAt(position.line)->size() > position.column) {
       position.column++;
@@ -149,6 +181,15 @@ class CppTreeParser : public TreeParser {
       position.column = buffer.LineAt(position.line)->size();
       return position;
     }
+  }
+
+  Line::Modifier ModifierForNesting(int depth) {
+    switch (depth % 3) {
+      case 0: return Line::CYAN;
+      case 1: return Line::YELLOW;
+      case 2: return Line::RED;
+    }
+    CHECK(false);
   }
 
   LineColumn AdvanceUntil(const OpenBuffer& buffer,

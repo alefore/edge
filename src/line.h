@@ -42,6 +42,8 @@ class Line {
     GREEN,
     BLUE,
     CYAN,
+    YELLOW,
+    MAGENTA,
   };
 
   static string ModifierToString(Modifier modifier) {
@@ -56,6 +58,8 @@ class Line {
       case GREEN: return "GREEN";
       case BLUE: return "BLUE";
       case CYAN: return "CYAN";
+      case YELLOW: return "YELLOW";
+      case MAGENTA: return "MAGENTA";
     }
     return "UNKNOWN";
   }
@@ -71,6 +75,8 @@ class Line {
     if (modifier == "GREEN") return GREEN;
     if (modifier == "BLUE") return BLUE;
     if (modifier == "CYAN") return CYAN;
+    if (modifier == "YELLOW") return YELLOW;
+    if (modifier == "MAGENTA") return MAGENTA;
     return RESET;  // Ugh.
   }
 

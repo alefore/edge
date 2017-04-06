@@ -3,9 +3,11 @@
 
 #include <memory>
 #include <string>
+#include <unordered_set>
 
-#include "tree.h"
+#include "line.h"
 #include "line_column.h"
+#include "tree.h"
 
 namespace afc {
 namespace editor {
@@ -13,6 +15,7 @@ namespace editor {
 struct ParseTree {
   LineColumn begin;
   LineColumn end;
+  std::unordered_set<Line::Modifier, hash<int>> modifiers;
   Tree<ParseTree> children;
 };
 
