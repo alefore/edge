@@ -765,6 +765,8 @@ possible to select (with a mouse) parts of it (that are currently shown).  It
 will also allow you to paste text directly into the buffer (i.e. it will disable
 any smart "auto indenting").
 
+Paste mode can be quickly toggled with 'vp'.
+
 Default: false
 
 
