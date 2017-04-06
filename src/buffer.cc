@@ -2223,6 +2223,12 @@ wstring OpenBuffer::FlagsString() const {
       output += L" exit-status:" + to_wstring(child_exit_status_);
     }
   }
+
+  auto marks = GetLineMarksText(*editor_);
+  if (!marks.empty()) {
+    output += L" " + marks;
+  }
+
   return output;
 }
 
@@ -2816,7 +2822,7 @@ bool OpenBuffer::IsLineFiltered(size_t line_number) {
 }
 
 const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks(
-    const EditorState& editor_state) {
+    const EditorState& editor_state) const {
   auto marks = editor_state.line_marks();
   if (marks->updates > line_marks_last_updates_) {
     LOG(INFO) << name_ << ": Updating marks.";
@@ -2829,6 +2835,25 @@ const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks(
   }
   VLOG(10) << "Returning multimap with size: " << line_marks_.size();
   return &line_marks_;
+}
+
+wstring OpenBuffer::GetLineMarksText(const EditorState& editor_state) const {
+  const auto* marks = GetLineMarks(editor_state);
+  wstring output;
+  if (!marks->empty()) {
+    int expired_marks = 0;
+    for (const auto& mark : *marks) {
+      if (mark.second.IsExpired()) {
+        expired_marks++;
+      }
+    }
+    CHECK_LE(expired_marks, marks->size());
+    output = L"marks:" + to_wstring(marks->size() - expired_marks);
+    if (expired_marks > 0) {
+      output += L"(" + to_wstring(expired_marks) + L")";
+    }
+  }
+  return output;
 }
 
 std::shared_ptr<bool> OpenBuffer::BlockParseTreeUpdates() {

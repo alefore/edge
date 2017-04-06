@@ -424,7 +424,8 @@ class OpenBuffer {
   // Returns a multimap with all the marks for the current buffer, indexed by
   // the line they refer to. Each call may update the map.
   const multimap<size_t, LineMarks::Mark>*
-      GetLineMarks(const EditorState& editor_state);
+      GetLineMarks(const EditorState& editor_state) const;
+  wstring GetLineMarksText(const EditorState& editor_state) const;
 
   Environment* environment() { return &environment_; }
 
@@ -548,11 +549,13 @@ class OpenBuffer {
 
   // Index of the marks for the current buffer (i.e. Mark::target_buffer is the
   // current buffer). The key is the line (i.e. Mark::line).
-  multimap<size_t, LineMarks::Mark> line_marks_;
+  //
+  // mutable because GetLineMarks will always update it if needed.
+  mutable multimap<size_t, LineMarks::Mark> line_marks_;
   // The value that EditorState::marks_::updates had when we last computed
   // line_marks_. This allows us to avoid recomputing line_marks_ when no new
   // marks have been added.
-  size_t line_marks_last_updates_ = 0;
+  mutable size_t line_marks_last_updates_ = 0;
 
   // Contains a collection of positions that commands should be applied to.
   std::map<std::wstring, CursorsSet> cursors_;

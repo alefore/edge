@@ -113,20 +113,9 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
 
     status += L"] ";
 
-    auto marks = buffer->GetLineMarks(editor_state);
-    if (!marks->empty()) {
-      int expired_marks = 0;
-      for (const auto& mark : *marks) {
-        if (mark.second.IsExpired()) {
-          expired_marks++;
-        }
-      }
-      CHECK_LE(expired_marks, marks->size());
-      status += L" marks:" + to_wstring(marks->size() - expired_marks);
-      if (expired_marks > 0) {
-        status += L"(" + to_wstring(expired_marks) + L")";
-      }
-      status += L" ";
+    auto marks_text = buffer->GetLineMarksText(editor_state);
+    if (!marks_text.empty()) {
+      status += marks_text + L" ";
     }
 
     auto active_cursors = buffer->active_cursors()->size();
