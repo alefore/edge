@@ -43,7 +43,8 @@ class CppTreeParser : public TreeParser {
           {
             root->children.push_back(ParseTree());
             root->children.back().begin = position;
-            ConsumeBlock(buffer, &root->children.back(), root->end, 0);
+            int nesting = 0;
+            ConsumeBlock(buffer, &root->children.back(), root->end, &nesting);
             position = root->children.back().end;
           }
           continue;
@@ -69,7 +70,7 @@ class CppTreeParser : public TreeParser {
   }
 
   void ConsumeBlock(const OpenBuffer& buffer, ParseTree* block,
-                    LineColumn limit, int depth) {
+                    LineColumn limit, int* nesting) {
     LOG(INFO) << "Parsing block at position: " << block->begin;
 
     auto c = buffer.character_at(block->begin);
@@ -96,7 +97,7 @@ class CppTreeParser : public TreeParser {
       ParseTree open_character;
       open_character.begin = block->begin;
       open_character.end = Advance(buffer, block->begin);
-      open_character.modifiers.insert(ModifierForNesting(depth));
+      open_character.modifiers = ModifierForNesting((*nesting)++);
       block->children.push_back(open_character);
 
       auto position = Advance(buffer, block->begin);
@@ -123,7 +124,7 @@ class CppTreeParser : public TreeParser {
 
         block->children.push_back(ParseTree());
         block->children.back().begin = position;
-        ConsumeBlock(buffer, &block->children.back(), limit, depth + 1);
+        ConsumeBlock(buffer, &block->children.back(), limit, nesting);
         if (position == block->children.back().end) {
           block->end = position;
           return;  // Didn't advance.
@@ -183,13 +184,30 @@ class CppTreeParser : public TreeParser {
     }
   }
 
-  Line::Modifier ModifierForNesting(int depth) {
-    switch (depth % 3) {
-      case 0: return Line::CYAN;
-      case 1: return Line::YELLOW;
-      case 2: return Line::RED;
+  std::unordered_set<Line::Modifier, hash<int>> ModifierForNesting(
+      int nesting) {
+    std::unordered_set<Line::Modifier, hash<int>> output;
+    switch (nesting % 5) {
+      case 0:
+        output.insert(Line::CYAN);
+        break;
+      case 1:
+        output.insert(Line::YELLOW);
+        break;
+      case 2:
+        output.insert(Line::RED);
+        break;
+      case 3:
+        output.insert(Line::BLUE);
+        break;
+      case 4:
+        output.insert(Line::GREEN);
+        break;
     }
-    CHECK(false);
+    if (((nesting / 5) % 2) == 0) {
+      output.insert(Line::BOLD);
+    }
+    return output;
   }
 
   LineColumn AdvanceUntil(const OpenBuffer& buffer,
