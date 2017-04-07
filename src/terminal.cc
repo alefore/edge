@@ -493,13 +493,24 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
       Line::OutputReceiverInterface* delegate, const ParseTree* root,
       size_t line)
       : delegate_(delegate), root_(root), line_(line), current_({root}) {
-    RecomputeCurrent(LineColumn(line_, delegate_.position()));
+    UpdateCurrent(LineColumn(line_, delegate_.position()));
   }
 
   void AddCharacter(wchar_t c) override {
     LineColumn position(line_, delegate_.position());
     if (!current_.empty() && current_.back()->end <= position) {
-      RecomputeCurrent(position);
+      UpdateCurrent(position);
+    }
+    
+    AddModifier(Line::RESET);
+    if (!current_.empty()) {
+      for (auto& t : current_) {
+        if (t->begin <= position && position < t->end) {
+          for (auto& modifier : t->modifiers) {
+            AddModifier(modifier);
+          }
+        }
+      }
     }
 
     delegate_.AddCharacter(c);
@@ -519,9 +530,7 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
   }
 
  private:
-  void RecomputeCurrent(LineColumn position) {
-    AddModifier(Line::RESET);
-
+  void UpdateCurrent(LineColumn position) {
     // Go up the tree until we're at a root that includes position.
     while (!current_.empty() && current_.back()->end <= position) {
       current_.pop_back();
@@ -543,14 +552,7 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
         }
       }
       if (!advanced) {
-        LOG(INFO) << "Giving up.";
-        current_.clear();
         return;
-      }
-    }
-    for (auto& t : current_) {
-      for (auto& modifier : t->modifiers) {
-        AddModifier(modifier);
       }
     }
   }
