@@ -63,12 +63,16 @@ class CppTreeParser : public TreeParser {
   bool IsReservedToken(const wstring& str) {
     // TODO: Allow the buffer to specify this through a variable.
     static const std::unordered_set<wstring> tokens = {
-        L"switch", L"case", L"if", L"else", L"for", L"while", L"do",
-        L"return", L"static", L"void", L"const", L"auto",
-        L"using", L"typedef", L"namespace",
+        L"switch", L"case", L"default",
+        L"if", L"else",
+        L"for", L"while", L"do",
+        L"return", L"static", L"void", L"const", L"auto", L"extern",
+        L"using", L"typedef", L"namespace", L"sizeof",
         L"static_cast",
-        L"unique_ptr", L"shared_ptr",
-        L"int", L"double", L"float", L"string", L"bool" };
+        L"delete", L"new", L"unique_ptr", L"shared_ptr",
+        L"vector", L"list",
+        L"int", L"double", L"float", L"string", L"bool", L"char", L"wstring",
+        L"true", L"false", L"nullptr", L"NULL" };
     return tokens.find(str) != tokens.end();
   }
 
