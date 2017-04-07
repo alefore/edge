@@ -175,6 +175,15 @@ class CppTreeParser : public TreeParser {
       return;
     }
 
+    if (isdigit(c)) {
+      block->end = Advance(buffer, block->begin);
+      while (isdigit(buffer.character_at(block->end))) {
+        block->end = Advance(buffer, block->end);
+      }
+      block->modifiers.insert(Line::YELLOW);
+      return;
+    }
+
     block->end = Advance(buffer, block->begin);
   }
 
