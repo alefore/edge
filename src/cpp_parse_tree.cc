@@ -37,8 +37,7 @@ class CppTreeParser : public TreeParser {
         case 'h': case 'i': case 'j': case 'k': case 'l': case 'm': case 'n':
         case 'o': case 'p': case 'q': case 'r': case 's': case 't': case 'u':
         case 'v': case 'w': case 'x': case 'y': case 'z':
-        case '(':
-        case '{':
+        case '(': case '[': case '{':
         case '"':
           {
             root->children.push_back(ParseTree());
@@ -97,7 +96,7 @@ class CppTreeParser : public TreeParser {
       return;
     }
 
-    if (c == L'(' || c == L'{') {
+    if (c == L'(' || c == L'{' || c == L'[') {
       ParseTree open_character;
       open_character.begin = block->begin;
       open_character.end = Advance(buffer, block->begin);
@@ -105,6 +104,15 @@ class CppTreeParser : public TreeParser {
       block->children.push_back(open_character);
 
       auto position = Advance(buffer, block->begin);
+      wchar_t closing_character;
+      switch (c) {
+        case L'(': closing_character = L')'; break;
+        case L'{': closing_character = L'}'; break;
+        case L'[': closing_character = L']'; break;
+        default:
+          CHECK(false);
+      }
+
       while (true) {
         // Skip spaces.
         position = AdvanceUntil(
@@ -114,15 +122,14 @@ class CppTreeParser : public TreeParser {
           return;
         }
 
-        if ((c == L'(' && buffer.character_at(position) == L')')
-            || (c == L'{' && buffer.character_at(position) == L'}')) {
-          ParseTree close_character;
-          close_character.begin = position;
-          close_character.end = Advance(buffer, position);
-          close_character.modifiers = open_character.modifiers;
-          block->children.push_back(close_character);
+        if (buffer.character_at(position) == closing_character) {
+          ParseTree tree_end;
+          tree_end.begin = position;
+          tree_end.end = Advance(buffer, position);
+          tree_end.modifiers = open_character.modifiers;
+          block->children.push_back(tree_end);
 
-          block->end = close_character.end;
+          block->end = tree_end.end;
           return;
         }
 
