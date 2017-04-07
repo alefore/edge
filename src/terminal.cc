@@ -476,6 +476,66 @@ class ParseTreeHighlighter : public Line::OutputReceiverInterface {
   const size_t end_;
 };
 
+class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
+ public:
+  explicit ParseTreeHighlighterTokens(
+      Line::OutputReceiverInterface* delegate, const ParseTree* root,
+      size_t line)
+      : delegate_(delegate), root_(root), line_(line) {}
+
+  void AddCharacter(wchar_t c) override {
+    LineColumn position(line_, delegate_.position());
+    if (current_.empty() || current_.back()->end <= position) {
+      RecomputeCurrent(position);
+
+      AddModifier(Line::RESET);
+      for (auto& t : current_) {
+        for (auto& modifier : t->modifiers) {
+          AddModifier(modifier);
+        }
+      }
+    }
+
+    delegate_.AddCharacter(c);
+  }
+
+  void AddString(const wstring& str) override {
+    // TODO: Optimize.
+    if (str == L"\n") {
+      delegate_.AddString(str);
+      return;
+    }
+    for (auto& c : str) { AddCharacter(c); }
+  }
+
+  void AddModifier(Line::Modifier modifier) override {
+    delegate_.AddModifier(modifier);
+  }
+
+ private:
+  void RecomputeCurrent(LineColumn position) {
+    current_ = {root_};
+    while (true) {
+      bool advanced = false;
+      for (const auto& candidate : current_.back()->children) {
+        if (candidate.end > position) {
+          current_.push_back(&candidate);
+          advanced = true;
+          break;
+        }
+      }
+      if (!advanced) {
+        return;
+      }
+    }
+  }
+
+  ReceiverTrackingPosition delegate_;
+  const ParseTree* root_;
+  std::vector<const ParseTree*> current_;
+  const size_t line_;
+};
+
 void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   const shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
   const Tree<shared_ptr<Line>>& contents(*buffer->contents());
@@ -500,7 +560,6 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   }
 
   auto current_tree = buffer->current_tree();
-
   while (lines_shown < lines_to_show) {
     if (current_line >= contents.size()) {
       line_output_receiver->AddString(L"\n");
@@ -563,6 +622,10 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
                        : line->size();
       parse_tree_highlighter.reset(
           new ParseTreeHighlighter(receiver, begin, end));
+      receiver = parse_tree_highlighter.get();
+    } else if (!buffer->parse_tree()->children.empty()) {
+      parse_tree_highlighter.reset(new ParseTreeHighlighterTokens(
+          receiver, buffer->parse_tree(), current_line));
       receiver = parse_tree_highlighter.get();
     }
 
