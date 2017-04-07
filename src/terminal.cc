@@ -492,19 +492,14 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
   explicit ParseTreeHighlighterTokens(
       Line::OutputReceiverInterface* delegate, const ParseTree* root,
       size_t line)
-      : delegate_(delegate), root_(root), line_(line) {}
+      : delegate_(delegate), root_(root), line_(line), current_({root}) {
+    RecomputeCurrent(LineColumn(line_, delegate_.position()));
+  }
 
   void AddCharacter(wchar_t c) override {
     LineColumn position(line_, delegate_.position());
-    if (current_.empty() || current_.back()->end <= position) {
+    if (!current_.empty() && current_.back()->end <= position) {
       RecomputeCurrent(position);
-
-      AddModifier(Line::RESET);
-      for (auto& t : current_) {
-        for (auto& modifier : t->modifiers) {
-          AddModifier(modifier);
-        }
-      }
     }
 
     delegate_.AddCharacter(c);
@@ -525,8 +520,20 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
 
  private:
   void RecomputeCurrent(LineColumn position) {
-    current_ = {root_};
-    while (true) {
+    AddModifier(Line::RESET);
+
+    // Go up the tree until we're at a root that includes position.
+    while (!current_.empty() && current_.back()->end <= position) {
+      current_.pop_back();
+    }
+
+    if (current_.empty()) {
+      return;
+    }
+
+    // Go down the tree. At each position, pick the first children that ends
+    // after position (it may also start *after* position).
+    while (!current_.back()->children.empty()) {
       bool advanced = false;
       for (const auto& candidate : current_.back()->children) {
         if (candidate.end > position) {
@@ -536,15 +543,22 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
         }
       }
       if (!advanced) {
+        LOG(INFO) << "Giving up.";
+        current_.clear();
         return;
+      }
+    }
+    for (auto& t : current_) {
+      for (auto& modifier : t->modifiers) {
+        AddModifier(modifier);
       }
     }
   }
 
   ReceiverTrackingPosition delegate_;
   const ParseTree* root_;
-  std::vector<const ParseTree*> current_;
   const size_t line_;
+  std::vector<const ParseTree*> current_;
 };
 
 void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
@@ -677,7 +691,6 @@ void Terminal::AdjustPosition(
   }
   screen->Move(pos_y, pos_x);
 }
-
 
 }  // namespace afc
 }  // namespace editor
