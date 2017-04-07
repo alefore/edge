@@ -119,7 +119,6 @@ void Daemonize(const std::unordered_set<int>& surviving_fds) {
   }
 
   CHECK_GT(setsid(), 0);
-  signal(SIGCHLD, SIG_IGN);
   signal(SIGHUP, SIG_IGN);
 
   pid = fork();

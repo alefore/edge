@@ -113,20 +113,9 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
 
     status += L"] ";
 
-    auto marks = buffer->GetLineMarks(editor_state);
-    if (!marks->empty()) {
-      int expired_marks = 0;
-      for (const auto& mark : *marks) {
-        if (mark.second.IsExpired()) {
-          expired_marks++;
-        }
-      }
-      CHECK_LE(expired_marks, marks->size());
-      status += L" marks:" + to_wstring(marks->size() - expired_marks);
-      if (expired_marks > 0) {
-        status += L"(" + to_wstring(expired_marks) + L")";
-      }
-      status += L" ";
+    auto marks_text = buffer->GetLineMarksText(editor_state);
+    if (!marks_text.empty()) {
+      status += marks_text + L" ";
     }
 
     auto active_cursors = buffer->active_cursors()->size();
@@ -570,7 +559,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   screen->Move(0, 0);
 
   LineOutputReceiver screen_adapter(screen);
-  std::unique_ptr<OutputReceiverOptimizer> line_output_receiver(
+  std::unique_ptr<Line::OutputReceiverInterface> line_output_receiver(
       new OutputReceiverOptimizer(&screen_adapter));
 
   size_t lines_to_show = static_cast<size_t>(screen->lines());
@@ -589,8 +578,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   auto current_tree = buffer->current_tree();
   while (lines_shown < lines_to_show) {
     if (current_line >= contents.size()) {
-      line_output_receiver = nullptr;
-      screen->WriteString(L"\n");
+      line_output_receiver->AddString(L"\n");
       lines_shown++;
       continue;
     }

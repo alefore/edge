@@ -23,7 +23,6 @@ extern "C" {
 #include "file_link_mode.h"
 #include "run_command_handler.h"
 #include "screen.h"
-#include "screen_buffer.h"
 #include "screen_curses.h"
 #include "screen_vm.h"
 #include "server.h"
@@ -242,7 +241,7 @@ int main(int argc, const char** argv) {
   if (!args.server) {
     screen_curses = NewScreenCurses();
     screen =
-        args.client.empty() ? screen_curses : NewScreenBuffer(screen_curses);
+        args.client.empty() ? screen_curses : screen_curses;
   }
 
   RegisterScreenType(editor_state()->environment());

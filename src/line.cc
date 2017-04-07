@@ -206,37 +206,35 @@ OutputReceiverOptimizer::~OutputReceiverOptimizer() {
 }
 
 void OutputReceiverOptimizer::AddCharacter(wchar_t character) {
+  if (last_modifiers_ != modifiers_) {
+    Flush();
+  }
   buffer_.push_back(character);
 }
 
 void OutputReceiverOptimizer::AddString(const wstring& str) {
+  if (last_modifiers_ != modifiers_) {
+    Flush();
+  }
   buffer_.append(str);
 }
 
 void OutputReceiverOptimizer::AddModifier(Line::Modifier modifier) {
   if (modifier == Line::RESET) {
-    if (modifiers_.empty()) {
-      DVLOG(5) << "That was easy: reset, but modifiers were already empty.";
-      return;
-    }
-
-    Flush();
     modifiers_.clear();
-    return;
+  } else {
+    modifiers_.insert(modifier);
   }
-
-  if (modifiers_.find(modifier) != modifiers_.end()) {
-    DVLOG(5) << "That was easy: Modifier was already present.";
-    return;
-  }
-
-  Flush();
-  modifiers_.insert(modifier);
 }
 
 void OutputReceiverOptimizer::Flush() {
   DCHECK(modifiers_.find(Line::RESET) == modifiers_.end());
   DCHECK(last_modifiers_.find(Line::RESET) == last_modifiers_.end());
+
+  if (!buffer_.empty()) {
+    delegate_->AddString(buffer_);
+    buffer_.clear();
+  }
 
   if (!std::includes(modifiers_.begin(), modifiers_.end(),
                      last_modifiers_.begin(), last_modifiers_.end())) {
@@ -252,11 +250,6 @@ void OutputReceiverOptimizer::Flush() {
     }
   }
   DCHECK(last_modifiers_ == modifiers_);
-
-  if (!buffer_.empty()) {
-    delegate_->AddString(buffer_);
-    buffer_.clear();
-  }
 }
 
 }  // namespace editor

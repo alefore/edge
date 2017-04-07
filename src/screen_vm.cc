@@ -23,40 +23,44 @@ class ScreenVm : public Screen {
 
   ~ScreenVm() override {
     LOG(INFO) << "Sending terminate command to remote screen: fd: " << fd_;
-    Write("set_terminate(true);");
+    buffer_ += "set_terminate(true);";
+    Write();
   }
 
   void Flush() override {
-    Write("screen.Flush();");
+    buffer_ += "screen.Flush();";
+    Write();
   }
 
   void HardRefresh() override {
-    Write("screen.HardRefresh();");
+    buffer_ += "screen.HardRefresh();";
   }
 
   void Refresh() override {
-    Write("screen.Refresh();");
+    buffer_ += "screen.Refresh();";
   }
 
   void Clear() override {
-    Write("screen.Clear();");
+    buffer_ += "screen.Clear();";
   }
 
   void SetCursorVisibility(CursorVisibility cursor_visibility) override {
-    Write("screen.SetCursorVisibility(\""
-          + CursorVisibilityToString(cursor_visibility) + "\");");
+    buffer_ += "screen.SetCursorVisibility(\""
+        + CursorVisibilityToString(cursor_visibility) + "\");";
   }
 
   void Move(size_t y, size_t x) override {
-    Write("screen.Move(" + std::to_string(y) + ", " + std::to_string(x) + ");");
+    buffer_ +=
+        "screen.Move(" + std::to_string(y) + ", " + std::to_string(x) + ");";
   }
 
   void WriteString(const wstring& str) override {
-    Write("screen.WriteString(\"" + Escape(ToByteString(str)) + "\");");
+    buffer_ += "screen.WriteString(\"" + Escape(ToByteString(str)) + "\");";
   }
 
   void SetModifier(Line::Modifier modifier) override {
-    Write("screen.SetModifier(\"" + Line::ModifierToString(modifier) + "\");");
+    buffer_ +=
+        "screen.SetModifier(\"" + Line::ModifierToString(modifier) + "\");";
   }
 
   size_t columns() const { return columns_; }
@@ -79,6 +83,9 @@ class ScreenVm : public Screen {
         case '"':
           output += "\\\"";
           break;
+        case '\\':
+          output += "\\\\";
+          break;
         default:
           output += c;
       }
@@ -86,15 +93,17 @@ class ScreenVm : public Screen {
     return output;
   }
 
-  void Write(string command) {
-    command = command + "\n";
-    LOG(INFO) << "Sending command: " << command;
-    int result = write(fd_, command.c_str(), command.size());
-    if (result != static_cast<int>(command.size())) {
+  void Write() {
+    buffer_ += "\n";
+    LOG(INFO) << "Sending command: " << buffer_;
+    int result = write(fd_, buffer_.c_str(), buffer_.size());
+    if (result != static_cast<int>(buffer_.size())) {
       LOG(INFO) << "Remote screen update failed!";
     }
+    buffer_.clear();
   }
 
+  string buffer_;
   const int fd_;
   size_t columns_ = 80;
   size_t lines_ = 25;
