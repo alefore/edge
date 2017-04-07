@@ -84,34 +84,38 @@ class SearchCommand : public Command {
 
       default:
         SearchOptions search_options;
-        auto buffer = editor_state->current_buffer()->second;
-        search_options.case_sensitive = buffer->read_bool_variable(
-            OpenBuffer::variable_search_case_sensitive());
-        if (editor_state->structure() == CURSOR) {
-          if (!buffer->FindPartialRange(
-                   editor_state->modifiers(), buffer->position(),
-                   &search_options.starting_position,
-                   &search_options.limit_position) ||
-              search_options.starting_position ==
-                  search_options.limit_position) {
-            editor_state->SetStatus(L"Unable to extract region.");
-            return;
+        if (editor_state->current_buffer() != editor_state->buffers()->end()) {
+          auto buffer = editor_state->current_buffer()->second;
+          search_options.case_sensitive = buffer->read_bool_variable(
+              OpenBuffer::variable_search_case_sensitive());
+          if (editor_state->structure() == CURSOR) {
+            if (!buffer->FindPartialRange(
+                     editor_state->modifiers(), buffer->position(),
+                     &search_options.starting_position,
+                     &search_options.limit_position) ||
+                search_options.starting_position ==
+                    search_options.limit_position) {
+              editor_state->SetStatus(L"Unable to extract region.");
+              return;
+            }
+            CHECK_LE(search_options.starting_position,
+                     search_options.limit_position);
+            editor_state->ResetStructure();
+            if (editor_state->modifiers().direction == BACKWARDS) {
+              LOG(INFO) << "Swaping positions (backwards search).";
+              LineColumn tmp = search_options.starting_position;
+              search_options.starting_position = search_options.limit_position;
+              search_options.limit_position = tmp;
+            }
+            LOG(INFO) << "Searching region: " << search_options.starting_position
+                      << " to " << search_options.limit_position;
+            search_options.has_limit_position = true;
+          } else {
+            CHECK(editor_state->current_buffer() != editor_state->buffers()->end());
+            CHECK(editor_state->current_buffer()->second != nullptr);
+            search_options.starting_position =
+                editor_state->current_buffer()->second->position();
           }
-          CHECK_LE(search_options.starting_position,
-                   search_options.limit_position);
-          editor_state->ResetStructure();
-          if (editor_state->modifiers().direction == BACKWARDS) {
-            LOG(INFO) << "Swaping positions (backwards search).";
-            LineColumn tmp = search_options.starting_position;
-            search_options.starting_position = search_options.limit_position;
-            search_options.limit_position = tmp;
-          }
-          LOG(INFO) << "Searching region: " << search_options.starting_position
-                    << " to " << search_options.limit_position;
-          search_options.has_limit_position = true;
-        } else {
-          search_options.starting_position =
-              editor_state->current_buffer()->second->position();
         }
         PromptOptions options;
         options.prompt = L"/";
