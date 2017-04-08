@@ -2161,7 +2161,6 @@ void OpenBuffer::SetInputFiles(
   fd_error_.fd = input_error_fd;
   fd_error_.modifiers.clear();
   fd_error_.modifiers.insert(Line::RED);
-  fd_error_.modifiers.insert(Line::BOLD);
 
   CHECK_EQ(child_pid_, -1);
   fd_is_terminal_ = fd_is_terminal;
