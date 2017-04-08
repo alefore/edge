@@ -654,9 +654,16 @@ void EditorState::ProcessSignals() {
     switch (signal) {
       case SIGINT:
       case SIGTSTP:
-        if (has_current_buffer()) {
-          current_buffer()->second->PushSignal(this, signal);
+        if (!has_current_buffer()) {
+          return;
         }
+        auto buffer = current_buffer()->second;
+        CHECK(buffer != nullptr);
+        auto target_buffer = buffer->GetBufferFromCurrentLine();
+        if (target_buffer != nullptr) {
+          buffer = target_buffer;
+        }
+        buffer->PushSignal(this, signal);
     }
   }
 }
