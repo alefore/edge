@@ -94,7 +94,8 @@ class CppTreeParser : public TreeParser {
       block->end = AdvanceUntil(
           buffer, block->begin, limit,
           [&id](wchar_t c) {
-            return id.find(tolower(c)) == id.npos;
+            static const wstring id_continuation = id + L"0123456789";
+            return id_continuation.find(tolower(c)) == id.npos;
           });
       if (block->begin.line == block->end.line) {
         auto str = Substring(buffer.LineAt(block->begin.line)->contents(),
