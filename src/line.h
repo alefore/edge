@@ -44,6 +44,7 @@ class Line {
     CYAN,
     YELLOW,
     MAGENTA,
+    BG_RED,
   };
 
   static string ModifierToString(Modifier modifier) {
@@ -60,11 +61,13 @@ class Line {
       case CYAN: return "CYAN";
       case YELLOW: return "YELLOW";
       case MAGENTA: return "MAGENTA";
+      case BG_RED: return "BG_RED";
     }
     return "UNKNOWN";
   }
 
   static Modifier ModifierFromString(string modifier) {
+    // TODO: Turn into a map.
     if (modifier == "RESET") return RESET;
     if (modifier == "BOLD") return BOLD;
     if (modifier == "DIM") return DIM;
@@ -77,6 +80,7 @@ class Line {
     if (modifier == "CYAN") return CYAN;
     if (modifier == "YELLOW") return YELLOW;
     if (modifier == "MAGENTA") return MAGENTA;
+    if (modifier == "BG_RED") return BG_RED;
     return RESET;  // Ugh.
   }
 

@@ -108,11 +108,21 @@ class CppTreeParser : public TreeParser {
       return;
     }
 
+    if (c == L')' || c == L'}' || c == L']') {
+      LOG(INFO) << "Unmatched pair closing character.";
+      ParseTree child;
+      child.begin = block->begin;
+      child.end = Advance(buffer, child.begin);
+      child.modifiers = {Line::BG_RED, Line::BOLD};
+      block->children.push_back(child);
+    }
+
     if (c == L'(' || c == L'{' || c == L'[') {
       ParseTree open_character;
       open_character.begin = block->begin;
       open_character.end = Advance(buffer, block->begin);
-      open_character.modifiers = ModifierForNesting((*nesting)++);
+      open_character.modifiers = {Line::BG_RED, Line::BOLD};
+      CHECK(block->children.empty());
       block->children.push_back(open_character);
 
       auto position = Advance(buffer, block->begin);
@@ -140,6 +150,10 @@ class CppTreeParser : public TreeParser {
           tree_end.end = Advance(buffer, position);
           tree_end.modifiers = open_character.modifiers;
           block->children.push_back(tree_end);
+
+          auto modifiers = ModifierForNesting((*nesting)++);
+          block->children.front().modifiers = modifiers;
+          block->children.back().modifiers = modifiers;
 
           block->end = tree_end.end;
           return;
