@@ -668,5 +668,18 @@ void EditorState::ProcessSignals() {
   }
 }
 
+bool EditorState::handling_stop_signals() const {
+  if (!has_current_buffer()) {
+    return false;
+  }
+  auto buffer = current_buffer()->second;
+  CHECK(buffer != nullptr);
+  auto target_buffer = buffer->GetBufferFromCurrentLine();
+  if (target_buffer != nullptr) {
+    buffer = target_buffer;
+  }
+  return buffer->read_bool_variable(OpenBuffer::variable_pts());
+}
+
 }  // namespace editor
 }  // namespace afc

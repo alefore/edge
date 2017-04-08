@@ -203,6 +203,7 @@ class EditorState {
   void ProcessSignals();
   void StartHandlingInterrupts() { handling_interrupts_ = true; }
   bool handling_interrupts() const { return handling_interrupts_; }
+  bool handling_stop_signals() const;
 
  private:
   Environment BuildEditorEnvironment();

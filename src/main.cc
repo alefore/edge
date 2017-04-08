@@ -42,6 +42,7 @@ EditorState* editor_state() {
 }
 
 void (*default_interrupt_handler)(int sig);
+void (*default_stop_handler)(int sig);
 
 void SignalHandler(int sig) {
   if (sig == SIGINT) {
@@ -56,7 +57,15 @@ void SignalHandler(int sig) {
     // not consumed.
     editor_state()->SetWarningStatus(
         L"'Saq' to quit -- pending changes won't be saved.");
+  } else if (sig == SIGTSTP) {
+    if (!editor_state()->handling_stop_signals()) {
+      signal(SIGINT, default_stop_handler);
+      raise(SIGINT);
+      signal(SIGINT, &SignalHandler);
+      return;
+    }
   }
+
   editor_state()->PushSignal(sig);
 }
 
@@ -273,7 +282,7 @@ int main(int argc, const char** argv) {
   Terminal terminal;
   if (!args.server) {
     default_interrupt_handler = signal(SIGINT, &SignalHandler);
-    signal(SIGTSTP, &SignalHandler);
+    default_stop_handler = signal(SIGTSTP, &SignalHandler);
   }
 
   // This is only meaningful if we're running with args.client: it contains the
