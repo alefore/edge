@@ -354,6 +354,7 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
   options.name = L"- search paths";
   auto it = editor_state->buffers()->find(options.name);
   if (it != editor_state->buffers()->end()) {
+    LOG(INFO) << "search paths buffer already existed.";
     return it->second;
   }
   options.path = (*editor_state->edge_path().begin()) + L"/search_paths";
@@ -373,14 +374,16 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
 }
 
 void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
+  output->push_back(L"");
   auto search_paths_buffer = GetSearchPathsBuffer(editor_state);
   if (search_paths_buffer == nullptr) {
+    LOG(INFO) << "No search paths buffer.";
     return;
   }
-  output->push_back(L"");
   for (auto it : *search_paths_buffer->contents()) {
-    if (!it->size() > 0) {
-      output->push_back(it->ToString());
+    if (it->size() > 0) {
+      output->push_back(editor_state->expand_path(it->ToString()));
+      LOG(INFO) << "Pushed search path: " << output->back();
     }
   }
 }
