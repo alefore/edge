@@ -251,9 +251,8 @@ const wstring& PredictionsBufferName() {
 
 Predictor PrecomputedPredictor(const vector<wstring>& predictions,
                                wchar_t separator) {
-  // TODO: Use std::make_shared.
-  const shared_ptr<multimap<wstring, shared_ptr<LazyString>>> contents(
-      new multimap<wstring, shared_ptr<LazyString>>());
+  const auto contents =
+      std::make_shared<multimap<wstring, shared_ptr<LazyString>>>();
   for (const auto& prediction : predictions) {
     vector<wstring> variations;
     RegisterVariations(prediction, separator, &variations);
