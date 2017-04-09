@@ -141,6 +141,13 @@ class EditorState {
     mode()->ProcessInput(c, this);
   }
 
+  void UpdateBuffers() {
+    for (OpenBuffer* buffer : buffers_to_parse_) {
+      buffer->ResetParseTree();
+    }
+    buffers_to_parse_.clear();
+  }
+
   const LineMarks* line_marks() const { return &line_marks_; }
   LineMarks* line_marks() { return &line_marks_; }
 
@@ -205,8 +212,20 @@ class EditorState {
   bool handling_interrupts() const { return handling_interrupts_; }
   bool handling_stop_signals() const;
 
+  void ScheduleParseTreeUpdate(OpenBuffer* buffer) {
+    buffers_to_parse_.insert(buffer);
+  }
+  void UnscheduleParseTreeUpdate(OpenBuffer* buffer) {
+    buffers_to_parse_.erase(buffer);
+  }
+
  private:
   Environment BuildEditorEnvironment();
+
+  // While processing input, buffers add themselves here if they need to have
+  // their tree re-scanned. Once the chunk of input has been fully processed,
+  // we flush the updates. ~OpenBuffer removes entries from here.
+  std::unordered_set<OpenBuffer*> buffers_to_parse_;
 
   map<wstring, shared_ptr<OpenBuffer>> buffers_;
   map<wstring, shared_ptr<OpenBuffer>>::iterator current_buffer_;

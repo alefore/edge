@@ -358,7 +358,6 @@ using std::to_wstring;
             }
             line++;
           }
-          auto updater = buffer->BlockParseTreeUpdates();
           buffer->Apply(editor_state, std::move(transformation));
           return Value::NewVoid();
         };
@@ -422,7 +421,6 @@ using std::to_wstring;
           auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
           CHECK(buffer != nullptr);
 
-          auto updater = buffer->BlockParseTreeUpdates();
           DeleteOptions options;
           options.modifiers.repetitions = args[1]->integer;
           buffer->ApplyToCursors(NewDeleteCharactersTransformation(options));
@@ -462,7 +460,6 @@ using std::to_wstring;
                 editor_state, NewCopyString(line));
           }
 
-          auto updater = buffer->BlockParseTreeUpdates();
           buffer->ApplyToCursors(
               NewInsertBufferTransformation(buffer_to_insert, 1, END));
 
@@ -512,6 +509,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
 
 OpenBuffer::~OpenBuffer() {
   LOG(INFO) << "Buffer deleted: " << name_;
+  editor_->UnscheduleParseTreeUpdate(this);
 }
 
 bool OpenBuffer::PrepareToClose(EditorState* editor_state) {
@@ -579,7 +577,7 @@ void OpenBuffer::ClearContents(EditorState* editor_state) {
 void OpenBuffer::AppendEmptyLine(EditorState*) {
   contents_.emplace_back(new Line(Line::Options()));
   MaybeFollowToEndOfFile();
-  ResetParseTree();
+  editor_->ScheduleParseTreeUpdate(this);
 }
 
 void OpenBuffer::EndOfFile(EditorState* editor_state) {
@@ -686,7 +684,6 @@ vector<unordered_set<Line::Modifier, hash<int>>> ModifiersVector(
 void OpenBuffer::Input::ReadData(
     EditorState* editor_state, OpenBuffer* target) {
   LOG(INFO) << "Reading input from " << fd << " for buffer " << target->name();
-  auto updater = target->BlockParseTreeUpdates();
   static const size_t kLowBufferSize = 1024 * 60;
   if (low_buffer == nullptr) {
     CHECK_EQ(low_buffer_length, 0);
@@ -807,15 +804,10 @@ void OpenBuffer::UpdateTreeParser() {
   } else {
     tree_parser_ = NewNullTreeParser();
   }
-  ResetParseTree();
+  editor_->ScheduleParseTreeUpdate(this);
 }
 
 void OpenBuffer::ResetParseTree() {
-  if (block_parse_tree_updates_.lock() != nullptr) {
-    VLOG(9) << "Skipping parse tree update.";
-    pending_parse_tree_updates_ = true;
-    return;
-  }
   VLOG(5) << "Resetting parse tree.";
   parse_tree_.begin = LineColumn();
   if (contents_.empty()) {
@@ -828,7 +820,6 @@ void OpenBuffer::ResetParseTree() {
   if (this == editor_->current_buffer()->second.get()) {
     editor_->ScheduleRedraw();
   }
-  pending_parse_tree_updates_ = false;
   VLOG(6) << "Resulting tree: " << parse_tree_;
 }
 
@@ -928,7 +919,7 @@ Tree<shared_ptr<Line>>::const_iterator OpenBuffer::EraseLines(
   Tree<shared_ptr<Line>>::iterator first = contents_.begin() + delta_first;
   Tree<shared_ptr<Line>>::iterator last = contents_.begin() + delta_last;
   auto result = contents_.erase(first, last);
-  ResetParseTree();
+  editor_->ScheduleParseTreeUpdate(this);
   CHECK_LE(current_cursor_->line, contents_.size());
   return result;
 }
@@ -938,7 +929,7 @@ void OpenBuffer::ReplaceLine(
     shared_ptr<Line> line) {
   size_t delta = std::distance(contents_.cbegin(), position);
   *(contents_.begin() + delta) = line;
-  ResetParseTree();
+  editor_->ScheduleParseTreeUpdate(this);
 }
 
 void OpenBuffer::InsertLine(Tree<shared_ptr<Line>>::const_iterator position,
@@ -954,7 +945,7 @@ void OpenBuffer::InsertLine(Tree<shared_ptr<Line>>::const_iterator position,
         }
         return position;
       });
-  ResetParseTree();
+  editor_->ScheduleParseTreeUpdate(this);
 }
 
 void OpenBuffer::AppendLine(EditorState* editor_state,
@@ -991,7 +982,7 @@ void OpenBuffer::AppendRawLine(EditorState* editor,
 
 void OpenBuffer::AppendRawLine(EditorState*, shared_ptr<Line> line) {
   contents_.push_back(line);
-  ResetParseTree();
+  editor_->ScheduleParseTreeUpdate(this);
   set_modified(true);
   MaybeFollowToEndOfFile();
 }
@@ -1276,7 +1267,7 @@ void OpenBuffer::AppendToLastLine(
     options.modifiers.push_back(it);
   }
   *contents_.rbegin() = std::make_shared<Line>(options);
-  ResetParseTree();
+  editor_->ScheduleParseTreeUpdate(this);
 }
 
 unique_ptr<Expression> OpenBuffer::CompileString(EditorState*,
@@ -1354,8 +1345,7 @@ LineColumn OpenBuffer::InsertInPosition(
     const LineColumn& input_position) {
   if (insertion.empty()) { return input_position; }
   LineColumn position = input_position;
-  auto updater = BlockParseTreeUpdates();
-  ResetParseTree();
+  editor_->ScheduleParseTreeUpdate(this);
   set_modified(true);
   if (contents_.empty()) {
     contents_.emplace_back(new Line(Line::Options()));
@@ -2693,7 +2683,6 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
       NewSetCursorsTransformation(*active_cursors(), *current_cursor_));
 
   LOG(INFO) << "Applying transformation to cursors: " << cursors->size();
-  auto updater = BlockParseTreeUpdates();
   CHECK(already_applied_cursors_.empty());
   bool adjusted_current_cursor = false;
   while (!cursors->empty()) {
@@ -2739,7 +2728,6 @@ LineColumn OpenBuffer::Apply(
   CHECK(transformation != nullptr);
   CHECK(!transformations_past_.empty());
 
-  auto updater = BlockParseTreeUpdates();
   transformation->Apply(
       editor_state, this, transformations_past_.back().get());
   CHECK(!transformations_past_.empty());
@@ -2788,7 +2776,6 @@ void OpenBuffer::Undo(EditorState* editor_state) {
     source = &transformations_future_;
     target = &transformations_past_;
   }
-  auto updater = BlockParseTreeUpdates();
   for (size_t i = 0; i < editor_state->repetitions(); i++) {
     bool modified_buffer = false;
     while (!modified_buffer && !source->empty()) {
@@ -2852,22 +2839,6 @@ wstring OpenBuffer::GetLineMarksText(const EditorState& editor_state) const {
       output += L"(" + to_wstring(expired_marks) + L")";
     }
   }
-  return output;
-}
-
-std::shared_ptr<bool> OpenBuffer::BlockParseTreeUpdates() {
-  std::shared_ptr<bool> output = block_parse_tree_updates_.lock();
-  if (output != nullptr) {
-    return output;
-  }
-  output = std::shared_ptr<bool>(new bool(),
-      [this](bool* obj) {
-        delete obj;
-        if (pending_parse_tree_updates_) {
-          ResetParseTree();
-        }
-      });
-  block_parse_tree_updates_ = output;
   return output;
 }
 

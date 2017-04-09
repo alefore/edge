@@ -434,8 +434,6 @@ class OpenBuffer {
   size_t tree_depth() const { return tree_depth_; }
   void set_tree_depth(size_t tree_depth) { tree_depth_ = tree_depth; }
 
-  std::shared_ptr<bool> BlockParseTreeUpdates();
-
   LineColumn PositionBefore(LineColumn position) const {
     if (contents_.empty()) {
       position = LineColumn();
@@ -447,6 +445,10 @@ class OpenBuffer {
     }
     return position;
   }
+
+  // Only Editor::ProcessInputString should call this; everyone else should just
+  // call Editor::ScheduleParseTreeUpdate.
+  void ResetParseTree();
 
  protected:
   EditorState* editor_;
@@ -526,7 +528,6 @@ class OpenBuffer {
 
  private:
   void UpdateTreeParser();
-  void ResetParseTree();
 
   // Adds a new line. If there's a previous line, notifies various things about
   // it.
@@ -577,20 +578,6 @@ class OpenBuffer {
   std::unique_ptr<TreeParser> tree_parser_;
   ParseTree parse_tree_;
   size_t tree_depth_ = 0;
-
-  // When a caller wants to make multiple modifications and ensure that the
-  // update of the parse_tree_ only happens at the end, they should use
-  // BlockParseTreeUpdates() to obtain a pointer; no updates will take place
-  // while the pointer is held. When the pointer is released, the tree will be
-  // updated (unless other callers are also blocking updates). This allows
-  // multiple callers to block parsing, having it resume as soon as all drop
-  // their pointers. Callers must never keep these pointers longer than the life
-  // of their corresponding OpenBuffer.
-  std::weak_ptr<bool> block_parse_tree_updates_;
-  // Set to true if some tree update is blocked by block_parse_tree_updates_.
-  // That way, once the operations are done, we can avoid re-parsing when it's
-  // not needed.
-  bool pending_parse_tree_updates_ = false;
 
   // A stack of sets of cursors on which PushActiveCursors and PopActiveCursors
   // operate.

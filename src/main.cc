@@ -291,6 +291,7 @@ int main(int argc, const char** argv) {
   std::pair<size_t, size_t> last_screen_size = { -1, -1 };
 
   while (!editor_state()->terminate()) {
+    editor_state()->UpdateBuffers();
     if (screen != nullptr) {
       if (args.client.empty()) {
         terminal.Display(editor_state(), screen.get());

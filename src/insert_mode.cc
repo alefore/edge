@@ -373,8 +373,7 @@ bool StartCompletion(EditorState* editor_state,
 class InsertMode : public EditorMode {
  public:
   InsertMode(InsertModeOptions options)
-      : options_(std::move(options)),
-        parse_tree_updates_blocker_(options_.buffer->BlockParseTreeUpdates()) {
+      : options_(std::move(options)) {
     CHECK(options_.escape_handler);
   }
 
@@ -493,7 +492,6 @@ class InsertMode : public EditorMode {
 
  private:
   const InsertModeOptions options_;
-  const std::shared_ptr<bool> parse_tree_updates_blocker_;
 };
 
 class RawInputTypeMode : public EditorMode {

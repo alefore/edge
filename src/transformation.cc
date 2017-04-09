@@ -57,7 +57,6 @@ class InsertBufferTransformation : public Transformation {
 
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
-    auto updater = buffer->BlockParseTreeUpdates();
     LineColumn start_position = result->cursor;
     for (size_t i = 0; i < repetitions_; i++) {
       result->cursor = buffer->InsertInPosition(*buffer_to_insert_->contents(),
