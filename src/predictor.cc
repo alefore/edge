@@ -39,7 +39,6 @@ using std::wstring;
 
 class PredictionsBufferImpl : public OpenBuffer {
  public:
-  // TODO: Replace "- predictions" with a reference to the right variable.
   PredictionsBufferImpl(EditorState* editor_state,
                         Predictor predictor,
                         const wstring& input,
@@ -153,6 +152,7 @@ void FilePredictor(EditorState* editor_state,
     }
 
     for (const auto& search_path : search_paths) {
+      VLOG(4) << "Considering search path: " << search_path;
       if (!search_path.empty() && !path.empty() && path.front() == '/') {
         VLOG(5) << "Skipping non-empty search path for absolute path.";
         continue;
@@ -166,52 +166,44 @@ void FilePredictor(EditorState* editor_state,
       }
 
       string basename_prefix;
-      string dirname_prefix;
-      std::unique_ptr<DIR, decltype(&closedir)> dir(
-          opendir(ToByteString(path_with_prefix).c_str()), &closedir);
-      if (dir != nullptr) {
-        LOG(INFO) << "Exact match: " << path_with_prefix;
-        dirname_prefix = ToByteString(path_with_prefix);
-        if (dirname_prefix.back() != '/') {
-          dirname_prefix.push_back('/');
-          cout << dirname_prefix << "\n";
-          continue;
-        }
-      } else {
-        dirname_prefix = ToByteString(Dirname(path_with_prefix));
-        LOG(INFO) << "Inexact match, trying with dirname: " << dirname_prefix;
-        dir.reset(opendir(dirname_prefix.c_str()));
-        if (dir == nullptr) {
-          LOG(INFO) << "Unable to open, giving up current search path.";
-          continue;
-        }
-        if (dirname_prefix == ".") {
-          dirname_prefix = "";
-        } else if (dirname_prefix != "/") {
-          dirname_prefix += "/";
-        }
+      if (path_with_prefix.back() != '/') {
+        path_with_prefix = Dirname(path_with_prefix);
 
-        char* basename_copy = strdup(ToByteString(path).c_str());
-        basename_prefix = basename(basename_copy);
-        free(basename_copy);
+        char* path_copy = strdup(ToByteString(path).c_str());
+        basename_prefix = basename(path_copy);
+        free(path_copy);
       }
 
-      CHECK(dir != nullptr);
+      LOG(INFO) << "Reading directory: " << path_with_prefix;
+      std::unique_ptr<DIR, decltype(&closedir)> dir(
+          opendir(ToByteString(path_with_prefix).c_str()), &closedir);
+      if (dir == nullptr) {
+        LOG(INFO) << "Unable to open, giving up current search path.";
+        continue;
+      }
+
+      if (path_with_prefix == L".") {
+        path_with_prefix = L"";
+      } else if (path_with_prefix.back() != L'/') {
+        path_with_prefix += L"/";
+      }
+
 
       struct dirent* entry;
       while ((entry = readdir(dir.get())) != nullptr) {
         string entry_path = entry->d_name;
-        if (entry_path.size() < basename_prefix.size()
-            || entry_path.substr(0, basename_prefix.size()) != basename_prefix
+        if (!std::equal(basename_prefix.begin(), basename_prefix.end(),
+                        entry_path.begin())
             || entry_path == "."
             || entry_path == "..") {
+          VLOG(6) << "Skipping entry: " << entry_path;
           continue;
         }
-        string prediction = dirname_prefix + entry->d_name +
+        string prediction = ToByteString(path_with_prefix) + entry->d_name +
             (entry->d_type == DT_DIR ? "/" : "");
         if (!search_path.empty() &&
-            prediction.size() >= search_path.size() &&
-            prediction.substr(0, search_path.size()) == ToByteString(search_path)) {
+            std::equal(search_path.begin(), search_path.end(),
+                       FromByteString(prediction).begin())) {
           VLOG(6) << "Removing prefix from prediction: " << prediction;
           size_t start = prediction.find_first_not_of('/', search_path.size());
           if (start != prediction.npos) {
