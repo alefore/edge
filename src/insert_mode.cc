@@ -112,7 +112,6 @@ class InsertEmptyLineTransformation : public Transformation {
   Direction direction_;
 };
 
-
 class AutocompleteMode : public EditorMode {
  public:
   using Iterator = Tree<std::shared_ptr<Line>>::const_iterator;
@@ -144,9 +143,8 @@ class AutocompleteMode : public EditorMode {
 
     auto buffer_to_insert =
         std::make_shared<OpenBuffer>(editor_state, L"tmp buffer");
-    buffer_to_insert->AppendToLastLine(
-        editor_state,
-        StringAppend((*matches_current_)->contents(), NewCopyString(L" ")));
+    buffer_to_insert->AppendToLastLine(editor_state,
+                                       (*matches_current_)->contents());
     DLOG(INFO) << "Completion selected: " << buffer_to_insert->ToString();
 
     DeleteOptions delete_options;
@@ -163,7 +161,7 @@ class AutocompleteMode : public EditorMode {
     editor_state->ScheduleRedraw();
 
     LOG(INFO) << "Updating variables for next completion.";
-    word_length_ = (*matches_current_)->size() + 1;
+    word_length_ = (*matches_current_)->size();
     ++matches_current_;
     if (matches_current_ == options_.dictionary->contents()->end()) {
       matches_current_ = options_.matches_start;
