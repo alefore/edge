@@ -12,6 +12,7 @@ extern "C" {
 #include <glog/logging.h>
 
 #include "char_buffer.h"
+#include "command.h"
 #include "command_mode.h"
 #include "editable_string.h"
 #include "editor.h"
@@ -370,6 +371,19 @@ bool StartCompletion(EditorState* editor_state,
   return true;
 }
 
+class FindCompletionCommand : public Command {
+ public:
+  const wstring Description() {
+    return L"Autocompletes the current word.";
+  }
+
+  void ProcessInput(wint_t, EditorState* editor_state) {
+    if (!editor_state->has_current_buffer()) { return; }
+    auto buffer = editor_state->current_buffer()->second;
+    StartCompletion(editor_state, buffer);
+  }
+};
+
 class InsertMode : public EditorMode {
  public:
   InsertMode(InsertModeOptions options)
@@ -663,6 +677,10 @@ namespace editor {
 
 using std::unique_ptr;
 using std::shared_ptr;
+
+std::unique_ptr<Command> NewFindCompletionCommand() {
+  return std::unique_ptr<Command>(new FindCompletionCommand());
+}
 
 /* static */ shared_ptr<const ScrollBehavior> ScrollBehavior::Default() {
   return DefaultScrollBehavior::Get();

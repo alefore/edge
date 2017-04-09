@@ -991,6 +991,7 @@ std::function<unique_ptr<EditorMode>(void)> NewCommandModeSupplier(
   Register(L"~", new SwitchCaseCommand(), commands_map.get());
 
   Register(L"sr", NewRecordCommand().release(), commands_map.get());
+  Register(L"\t", NewFindCompletionCommand().release(), commands_map.get());
 
   Register(L".",
       NewCppCommand(editor_state->environment(),

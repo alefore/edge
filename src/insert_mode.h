@@ -3,12 +3,15 @@
 
 #include <memory>
 
+#include "command.h"
 #include "editor.h"
 
 namespace afc {
 namespace editor {
 
 using std::unique_ptr;
+
+std::unique_ptr<Command> NewFindCompletionCommand();
 
 class ScrollBehavior {
  public:
