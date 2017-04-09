@@ -75,6 +75,7 @@ class CommandBuffer : public OpenBuffer {
     int pipefd_err[2];
     static const int parent_fd = 0;
     static const int child_fd = 1;
+    time(&time_start_);
     if (read_bool_variable(variable_pts())) {
       int master_fd = posix_openpt(O_RDWR);
       if (master_fd == -1) {
@@ -199,10 +200,42 @@ class CommandBuffer : public OpenBuffer {
         editor_state, pipefd_out[parent_fd], pipefd_err[parent_fd],
         read_bool_variable(variable_pts()), child_pid);
     editor_state->ScheduleRedraw();
+    AddEndOfFileObserver([this]() { time(&time_end_); });
+  }
+
+  wstring FlagsString() const override {
+    wstring additional_information;
+    time_t now;
+    time(&now);
+    if (now > time_start_ && time_start_ > 0) {
+      time_t end = (child_pid_ != -1 || time_end_ < time_start_)
+          ? now
+          : time_end_;
+      additional_information += L" run:" + DurationToString(end - time_start_);
+    }
+    if (child_pid_ == -1 && now > time_end_) {
+      additional_information += L" done:" + DurationToString(now - time_end_);
+    }
+    return OpenBuffer::FlagsString() + additional_information;
   }
 
  private:
+  static wstring DurationToString(size_t duration) {
+    static const std::vector<std::pair<size_t, wstring>> time_units = {
+        {60, L"s"}, {60, L"m"}, {24, L"h"}, {99999999, L"d"}};
+    size_t factor = 1;
+    for (auto& entry : time_units) {
+      if (duration < factor * entry.first) {
+        return std::to_wstring(duration / factor) + entry.second;
+      }
+      factor *= entry.first;
+    }
+    return L"very-long";
+  }
+
   const map<wstring, wstring> environment_;
+  time_t time_start_ = 0;
+  time_t time_end_ = 0;
 };
 
 void RunCommand(

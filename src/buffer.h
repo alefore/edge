@@ -325,7 +325,7 @@ class OpenBuffer {
         || !WIFEXITED(child_exit_status_)
         || WEXITSTATUS(child_exit_status_) != 0;
   }
-  wstring FlagsString() const;
+  virtual wstring FlagsString() const;
 
   void PushSignal(EditorState* editor_state, int signal);
 
