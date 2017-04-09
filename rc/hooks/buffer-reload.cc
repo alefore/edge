@@ -50,6 +50,7 @@ if (path == "") {
   string basename = Basename(path);
   if (extension == "cc" || extension == "h" || extension == "c") {
     buffer.set_line_prefix_characters(" /*");
+    buffer.set_tree_parser("cpp");
     SetStatus("Loaded C file (" + extension + ")");
     return;
   }
