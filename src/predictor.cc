@@ -152,23 +152,21 @@ void FilePredictor(EditorState* editor_state,
       close(pipefd[child_fd]);
     }
 
-    for (const auto& search_path_it : search_paths) {
-      string basename_prefix;
-      string dirname_prefix;
-      wstring path_with_prefix;
-      if (search_path_it.empty()) {
-        path_with_prefix = path.empty() ? L"." : path;
-      } else {
-        path_with_prefix = search_path_it;
-        if (!path.empty() && path[0] == '/') {
-          VLOG(5) << "Skipping non-empty search path for absolute path.";
-          continue;
-        }
-        if (!path.empty()) {
-          path_with_prefix += L"/" + path;
-        }
+    for (const auto& search_path : search_paths) {
+      if (!search_path.empty() && !path.empty() && path.front() == '/') {
+        VLOG(5) << "Skipping non-empty search path for absolute path.";
+        continue;
       }
 
+      wstring path_with_prefix = search_path;
+      if (search_path.empty()) {
+        path_with_prefix = path.empty() ? L"." : path;
+      } else if (!path.empty()) {
+        path_with_prefix += L"/" + path;
+      }
+
+      string basename_prefix;
+      string dirname_prefix;
       std::unique_ptr<DIR, decltype(&closedir)> dir(
           opendir(ToByteString(path_with_prefix).c_str()), &closedir);
       if (dir != nullptr) {
@@ -211,11 +209,11 @@ void FilePredictor(EditorState* editor_state,
         }
         string prediction = dirname_prefix + entry->d_name +
             (entry->d_type == DT_DIR ? "/" : "");
-        if (!search_path_it.empty() &&
-            prediction.size() >= search_path_it.size() &&
-            prediction.substr(0, search_path_it.size()) == ToByteString(search_path_it)) {
+        if (!search_path.empty() &&
+            prediction.size() >= search_path.size() &&
+            prediction.substr(0, search_path.size()) == ToByteString(search_path)) {
           VLOG(6) << "Removing prefix from prediction: " << prediction;
-          size_t start = prediction.find_first_not_of('/', search_path_it.size());
+          size_t start = prediction.find_first_not_of('/', search_path.size());
           if (start != prediction.npos) {
             prediction = prediction.substr(start);
           }
