@@ -27,10 +27,15 @@ class OpenBuffer;
 // not at the beginning).
 typedef function<void(EditorState*, const wstring&, OpenBuffer*)> Predictor;
 
-shared_ptr<OpenBuffer> PredictionsBuffer(
+const wstring& PredictionsBufferName();
+
+// Create a new buffer running a given predictor on a given input. When that's
+// done, runs consumer on the results (on the longest unambiguous completion for
+// input).
+void Predict(
     EditorState* editor_state,
     Predictor predictor,
-    const wstring& input,
+    wstring input,
     function<void(const wstring&)> consumer);
 
 void FilePredictor(EditorState* editor_state,

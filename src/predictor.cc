@@ -44,7 +44,7 @@ class PredictionsBufferImpl : public OpenBuffer {
                         Predictor predictor,
                         const wstring& input,
                         function<void(wstring)> consumer)
-      : OpenBuffer(editor_state, L"- predictions"),
+      : OpenBuffer(editor_state, PredictionsBufferName()),
         predictor_(predictor),
         input_(input),
         consumer_(consumer) {
@@ -111,11 +111,19 @@ class PredictionsBufferImpl : public OpenBuffer {
 
 }  // namespace
 
-shared_ptr<OpenBuffer> PredictionsBuffer(
-    EditorState* editor_state, Predictor predictor, const wstring& input,
+void Predict(
+    EditorState* editor_state,
+    Predictor predictor,
+    wstring input,
     function<void(const wstring&)> consumer) {
-  return shared_ptr<OpenBuffer>(
-      new PredictionsBufferImpl(editor_state, predictor, input, consumer));
+  auto it = editor_state->buffers()
+      ->insert(make_pair(PredictionsBufferName(), nullptr));
+  it.first->second = std::make_shared<PredictionsBufferImpl>(
+      editor_state, std::move(predictor), std::move(input),
+      std::move(consumer));
+  it.first->second->Reload(editor_state);
+  it.first->second->set_current_position_line(0);
+  it.first->second->set_current_position_col(0);
 }
 
 void FilePredictor(EditorState* editor_state,
@@ -245,6 +253,11 @@ void RegisterVariations(const wstring& prediction, wchar_t separator,
 }
 
 }  // namespace
+
+const wstring& PredictionsBufferName() {
+  static wstring output = L"- predictions";
+  return output;
+}
 
 Predictor PrecomputedPredictor(const vector<wstring>& predictions,
                                wchar_t separator) {

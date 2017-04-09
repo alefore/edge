@@ -226,12 +226,15 @@ wstring GetAnonymousBufferName(size_t i) {
 }
 
 static bool FindPath(
-    vector<wstring> search_paths, const wstring& path, wstring* resolved_path,
-    vector<int>* positions, wstring* pattern) {
+    EditorState* editor_state, vector<wstring> search_paths,
+    const wstring& input_path, wstring* resolved_path, vector<int>* positions,
+    wstring* pattern) {
   if (find(search_paths.begin(), search_paths.end(), L"")
           == search_paths.end()) {
     search_paths.push_back(L"");
   }
+
+  wstring path = editor_state->expand_path(input_path);
 
   struct stat dummy;
 
@@ -385,11 +388,19 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
 bool ResolvePath(EditorState* editor_state, const wstring& path,
                  wstring* resolved_path,
                  vector<int>* positions, wstring* pattern) {
+  vector<int> positions_dummy;
+  if (positions == nullptr) {
+    positions = &positions_dummy;
+  }
+  wstring pattern_dummy;
+  if (pattern == nullptr) {
+    pattern = &pattern_dummy;
+  }
   vector<wstring> search_paths = { L"" };
   GetSearchPaths(editor_state, &search_paths);
   *positions = { 0, 0 };
-  return FindPath(
-      std::move(search_paths), path, resolved_path, positions, pattern);
+  return FindPath(editor_state, std::move(search_paths), path, resolved_path,
+                  positions, pattern);
 }
 
 map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
@@ -397,20 +408,20 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   EditorState* editor_state = options.editor_state;
   vector<int> tokens { 0, 0 };
   wstring pattern;
-  wstring expanded_path = editor_state->expand_path(options.path);
 
   vector<wstring> search_paths = options.initial_search_paths;
   if (options.use_search_paths) {
     GetSearchPaths(editor_state, &search_paths);
   }
   wstring actual_path;
-  FindPath(search_paths, expanded_path, &actual_path, &tokens, &pattern);
+  FindPath(editor_state, search_paths, options.path, &actual_path, &tokens,
+           &pattern);
 
   if (actual_path.empty()) {
     if (options.ignore_if_not_found) {
       return editor_state->buffers()->end();
     }
-    actual_path = expanded_path;
+    actual_path = options.path;
   }
 
   editor_state->PushCurrentPosition();

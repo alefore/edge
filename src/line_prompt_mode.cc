@@ -25,8 +25,6 @@ namespace {
 using std::make_pair;
 using std::numeric_limits;
 
-const wstring kPredictionsBufferName = L"- predictions";
-
 void UpdateStatus(EditorState* editor_state, OpenBuffer* buffer,
                   const wstring& prompt) {
   DCHECK(buffer != nullptr);
@@ -64,23 +62,6 @@ GetHistoryBuffer(EditorState* editor_state, const wstring& name) {
     editor_state->ScheduleRedraw();
   }
   return it;
-}
-
-map<wstring, shared_ptr<OpenBuffer>>::iterator
-GetPredictionsBuffer(
-    EditorState* editor_state,
-    Predictor predictor,
-    wstring input,
-    function<void(const wstring&)> consumer) {
-  auto it = editor_state->buffers()
-      ->insert(make_pair(kPredictionsBufferName, nullptr));
-  it.first->second = PredictionsBuffer(
-      editor_state, std::move(predictor), std::move(input),
-      std::move(consumer));
-  it.first->second->Reload(editor_state);
-  it.first->second->set_current_position_line(0);
-  it.first->second->set_current_position_col(0);
-  return it.first;
 }
 
 shared_ptr<OpenBuffer> GetPromptBuffer(EditorState* editor_state) {
@@ -180,7 +161,7 @@ class AutocompleteMode : public EditorMode {
       return;
     }
 
-    auto it = editor_state->buffers()->find(kPredictionsBufferName);
+    auto it = editor_state->buffers()->find(PredictionsBufferName());
     if (it == editor_state->buffers()->end()) {
       editor_state->SetStatus(L"Error: predictions buffer not found.");
       return;
@@ -287,7 +268,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
   insert_mode_options.start_completion = [editor_state, options, buffer]() {
     auto input = buffer->current_line()->contents()->ToString();
     LOG(INFO) << "Triggering predictions from: " << input;
-    GetPredictionsBuffer(
+    Predict(
         editor_state, options.predictor, input,
         [editor_state, options, buffer, input](const wstring& prediction) {
           if (input.size() < prediction.size()) {

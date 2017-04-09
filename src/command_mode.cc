@@ -717,6 +717,12 @@ class HardRedrawCommand : public Command {
 void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
   editor_state->ResetMode();
   if (!editor_state->has_current_buffer()) { return; }
+  wstring adjusted_input;
+  if (!ResolvePath(editor_state, input, &adjusted_input, nullptr, nullptr)) {
+    editor_state->SetStatus(L"File not found: " + input);
+    return;
+  }
+
   auto buffer = editor_state->current_buffer()->second;
   if (editor_state->structure() == LINE) {
     auto target = buffer->GetBufferFromCurrentLine();
@@ -726,7 +732,7 @@ void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
     editor_state->ResetModifiers();
   }
   for (size_t i = 0; i < editor_state->repetitions(); i++) {
-    buffer->EvaluateFile(editor_state, input);
+    buffer->EvaluateFile(editor_state, adjusted_input);
   }
   editor_state->ResetRepetitions();
 }
