@@ -30,6 +30,8 @@ class ListBuffersBuffer : public OpenBuffer {
     target->ClearContents(editor_state);
     bool show_in_buffers_list =
         read_bool_variable(variable_show_in_buffers_list());
+
+    vector<std::shared_ptr<OpenBuffer>> buffers_to_show;
     for (const auto& it : *editor_state->buffers()) {
       if (!show_in_buffers_list
           && !it.second->read_bool_variable(
@@ -41,14 +43,23 @@ class ListBuffersBuffer : public OpenBuffer {
         LOG(INFO) << "Skipping current buffer.";
         continue;
       }
+      buffers_to_show.push_back(it.second);
+    }
+
+    sort(buffers_to_show.begin(), buffers_to_show.end(),
+         [](const std::shared_ptr<OpenBuffer>& a,
+            const std::shared_ptr<OpenBuffer>& b) {
+           return a->last_visit() > b->last_visit();
+         });
+    for (const auto& buffer : buffers_to_show) {
       size_t context_lines_var = static_cast<size_t>(
-          max(it.second->read_int_variable(
+          max(buffer->read_int_variable(
                   OpenBuffer::variable_buffer_list_context_lines()),
               0));
-      auto context = LinesToShow(*it.second, context_lines_var);
+      auto context = LinesToShow(*buffer, context_lines_var);
 
       std::shared_ptr<LazyString> name = NewCopyString(
-          (context.first == context.second ? L"" : L"╭──") + it.first);
+          (context.first == context.second ? L"" : L"╭──") + buffer->name());
       if (context.first != context.second) {
         size_t width =
             target->read_int_variable(OpenBuffer::variable_line_width());
@@ -64,7 +75,7 @@ class ListBuffersBuffer : public OpenBuffer {
       } else {
         target->AppendLine(editor_state, std::move(name));
       }
-      AdjustLastLine(target, it.second);
+      AdjustLastLine(target, buffer);
 
       auto start = context.first;
       size_t index = 0;
@@ -82,7 +93,7 @@ class ListBuffersBuffer : public OpenBuffer {
           ++start;
         }
         target->AppendRawLine(editor_state, std::make_shared<Line>(options));
-        AdjustLastLine(target, it.second);
+        AdjustLastLine(target, buffer);
         ++index;
       }
     }
