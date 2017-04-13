@@ -217,7 +217,6 @@ class GotoCommand : public Command {
           advance(it, position);
           if (it != editor_state->current_buffer()) {
             editor_state->set_current_buffer(it);
-            it->second->Enter(editor_state);
           }
         }
         break;

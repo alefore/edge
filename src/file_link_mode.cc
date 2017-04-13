@@ -67,8 +67,8 @@ class FileBuffer : public OpenBuffer {
     set_string_variable(variable_path(), path);
   }
 
-  void Enter(EditorState* editor_state) {
-    OpenBuffer::Enter(editor_state);
+  void Visit(EditorState* editor_state) {
+    OpenBuffer::Visit(editor_state);
 
     LOG(INFO) << "Checking if file has changed.";
     const wstring path = GetPath();

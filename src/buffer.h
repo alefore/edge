@@ -58,7 +58,8 @@ class OpenBuffer {
   // end_of_file_observers_. Otherwise just calls the observer directly.
   void AddEndOfFileObserver(std::function<void()> observer);
 
-  virtual void Enter(EditorState* editor_state);
+  virtual void Visit(EditorState* editor_state);
+  time_t last_visit() const;
 
   void ClearContents(EditorState* editor_state);
   void AppendEmptyLine(EditorState* editor_state);
@@ -582,6 +583,9 @@ class OpenBuffer {
   // A stack of sets of cursors on which PushActiveCursors and PopActiveCursors
   // operate.
   std::list<std::vector<LineColumn>> cursors_stack_;
+
+  // The time when the buffer was last selected as active.
+  time_t last_visit_ = 0;
 };
 
 }  // namespace editor

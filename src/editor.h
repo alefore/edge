@@ -54,6 +54,10 @@ class EditorState {
 
   void set_current_buffer(map<wstring, shared_ptr<OpenBuffer>>::iterator it) {
     current_buffer_ = it;
+    if (current_buffer_ != buffers_.end() &&
+        current_buffer_->second != nullptr) {
+      current_buffer_->second->Visit(this);
+    }
   }
   bool has_current_buffer() const {
     return current_buffer_ != buffers_.end();

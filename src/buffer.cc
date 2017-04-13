@@ -553,12 +553,15 @@ void OpenBuffer::AddEndOfFileObserver(std::function<void()> observer) {
   end_of_file_observers_.push_back(observer);
 }
 
-void OpenBuffer::Enter(EditorState* editor_state) {
+void OpenBuffer::Visit(EditorState* editor_state) {
   if (read_bool_variable(variable_reload_on_enter())) {
     Reload(editor_state);
     CheckPosition();
   }
+  time(&last_visit_);
 }
+
+time_t OpenBuffer::last_visit() const { return last_visit_; }
 
 void OpenBuffer::ClearContents(EditorState* editor_state) {
   VLOG(5) << "Clear contents of buffer: " << name_;

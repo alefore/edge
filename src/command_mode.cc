@@ -188,7 +188,6 @@ class GotoPreviousPositionCommand : public Command {
                   << pos.position;
         editor_state->set_current_buffer(it);
         it->second->set_position(pos.position);
-        it->second->Enter(editor_state);
         editor_state->ScheduleRedraw();
         editor_state->set_repetitions(editor_state->repetitions() - 1);
       }
@@ -645,7 +644,6 @@ class ActivateLink : public Command {
       auto it = editor_state->buffers()->find(target->name());
       if (it == editor_state->buffers()->end()) { return; }
       editor_state->set_current_buffer(it);
-      target->Enter(editor_state);
       editor_state->PushCurrentPosition();
       editor_state->ScheduleRedraw();
       editor_state->ResetMode();

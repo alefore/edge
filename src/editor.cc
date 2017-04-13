@@ -445,7 +445,7 @@ bool EditorState::CloseBuffer(
     }
 
     if (current_buffer_ != buffers_.end()) {
-      current_buffer_->second->Enter(this);
+      current_buffer_->second->Visit(this);
     }
   }
 
@@ -492,7 +492,7 @@ void EditorState::MoveBufferForwards(size_t times) {
       current_buffer_ = buffers_.begin();
     }
   }
-  current_buffer_->second->Enter(this);
+  current_buffer_->second->Visit(this);
   PushCurrentPosition();
 }
 
@@ -509,7 +509,7 @@ void EditorState::MoveBufferBackwards(size_t times) {
     }
     current_buffer_--;
   }
-  current_buffer_->second->Enter(this);
+  current_buffer_->second->Visit(this);
   PushCurrentPosition();
 }
 
