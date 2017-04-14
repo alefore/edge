@@ -2063,9 +2063,6 @@ void OpenBuffer::PushSignal(EditorState* editor_state, int sig) {
         string sequence(1, 0x1a);
         write(fd_.fd, sequence.c_str(), sequence.size());
       }
-      // TODO(alejo): If not pts, we should pause ourselves.  This requires
-      // calling the signal handler installed by ncurses so that we don't end up
-      // with the terminal in a broken state.
       break;
 
     default:
