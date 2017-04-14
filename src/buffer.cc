@@ -914,11 +914,8 @@ void OpenBuffer::EraseLines(size_t first, size_t last) {
   CHECK_LE(current_cursor_->line, contents_.size());
 }
 
-void OpenBuffer::ReplaceLine(
-    Tree<shared_ptr<Line>>::const_iterator position,
-    shared_ptr<Line> line) {
-  size_t delta = std::distance(contents_.cbegin(), position);
-  *(contents_.begin() + delta) = line;
+void OpenBuffer::ReplaceLine(size_t line_position, shared_ptr<Line> line) {
+  *(contents_.begin() + line_position) = line;
   editor_->ScheduleParseTreeUpdate(this);
 }
 

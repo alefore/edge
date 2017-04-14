@@ -88,8 +88,7 @@ class OpenBuffer {
   void EraseLines(size_t first, size_t last);
 
   // Overwrites the line at a given position with a new line.
-  void ReplaceLine(Tree<shared_ptr<Line>>::const_iterator position,
-                   shared_ptr<Line> line);
+  void ReplaceLine(size_t line_position, shared_ptr<Line> line);
 
   // Inserts a new line into the buffer at a given position.
   void InsertLine(size_t line_position, shared_ptr<Line> line);

@@ -120,9 +120,7 @@ class DeleteCharactersTransformation : public Transformation {
     }
     AdjustCursors(buffer, line, preserved_contents->size(), chars_erase_line,
                   initial_line->size());
-    buffer->ReplaceLine(
-        buffer->contents()->begin() + line_end,
-        std::make_shared<Line>(options));
+    buffer->ReplaceLine(line_end, std::make_shared<Line>(options));
 
     buffer->EraseLines(line_begin, line_end);
     result->modified_buffer = true;
