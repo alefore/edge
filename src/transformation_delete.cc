@@ -56,9 +56,8 @@ class DeleteCharactersTransformation : public Transformation {
               << " would erase " << chars_erased << " characters.";
     chars_erased -= preserved_contents->size();
 
-    // The amount of characters that should be erased from the current line.
-    // Depending on the direction, we'll erase from the beginning.  If the line
-    // is the current line, this already includes characters in
+    // The amount of characters that should be erased from the current line. If
+    // the line is the current line, this already includes characters in
     // preserved_contents.
     size_t chars_erase_line = buffer->LineAt(line)->size() + 1
         - min(buffer->LineAt(line)->size(),
@@ -103,12 +102,10 @@ class DeleteCharactersTransformation : public Transformation {
 
     LOG(INFO) << "Storing new line (at position " << max(current_line, line)
               << ").";
-    auto initial_line = buffer->LineAt(line);
     Line::Options options;
     options.contents = StringAppend(
-        preserved_contents, initial_line->Substring(chars_erase_line));
-    AdjustCursors(buffer, line, preserved_contents->size(), chars_erase_line,
-                  initial_line->size());
+        preserved_contents, buffer->LineAt(line)->Substring(chars_erase_line));
+    AdjustCursors(buffer, line, preserved_contents->size(), chars_erase_line);
     buffer->ReplaceLine(line_end, std::make_shared<Line>(options));
 
     buffer->EraseLines(line_begin, line_end);
@@ -130,7 +127,7 @@ class DeleteCharactersTransformation : public Transformation {
   // chars_erase_line: the number of characters erased from current line
   // (includes preserved_contents).
   void AdjustCursors(OpenBuffer* buffer, size_t line, size_t preserved_contents,
-                     size_t chars_erase_line, size_t initial_line) const {
+                     size_t chars_erase_line) const {
     buffer->AdjustCursors(
         [line, preserved_contents, chars_erase_line](LineColumn cursor) {
           if (cursor.line == line) {
