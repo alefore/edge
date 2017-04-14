@@ -32,26 +32,14 @@ class GotoPositionTransformation : public Transformation {
   const LineColumn position_;
 };
 
-// TODO: Move this to be a method of BufferContents.
-size_t CountCharacters(const OpenBuffer& buffer) {
-  size_t output = 0;
-  buffer.ForEachLine([&output](size_t, const Line& line) {
-                       output += line.size() + 1;
-                       return true;
-                     });
-  if (output > 0) {
-    output--;  // Last line has no \n.
-  }
-  return output;
-}
-
 class InsertBufferTransformation : public Transformation {
  public:
   InsertBufferTransformation(
       shared_ptr<OpenBuffer> buffer_to_insert, size_t repetitions,
       InsertBufferTransformationPosition final_position)
       : buffer_to_insert_(buffer_to_insert),
-        buffer_to_insert_length_(CountCharacters(*buffer_to_insert)),
+        buffer_to_insert_length_(
+            buffer_to_insert->contents()->CountCharacters()),
         repetitions_(repetitions),
         final_position_(final_position) {
     CHECK(buffer_to_insert_ != nullptr);

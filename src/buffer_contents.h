@@ -68,14 +68,15 @@ class BufferContents {
     std::sort(lines_.begin() + first, lines_.begin() + last, compare);
   }
 
+  // Iterates: runs the callback on every line in the buffer, passing as the
+  // first argument the line count (starts counting at 0). Stops the iteration
+  // if the callback returns false. Returns true iff the callback always
+  // returned true.
   bool ForEach(const std::function<bool(size_t, const Line&)>& callback)
-      const {
-    size_t position = 0;
-    for (const auto& line : lines_) {
-      if (!callback(position++, *line)) { return false; }
-    }
-    return true;
-  }
+      const;
+
+  // Convenience wrappers of the above.
+  void ForEach(const std::function<void(const Line&)>& callback) const;
 
   void insert(size_t position, const BufferContents& source, size_t first_line,
               size_t last_line);
@@ -87,6 +88,8 @@ class BufferContents {
     auto it = std::upper_bound(lines_.begin(), lines_.end(), key, compare);
     return distance(lines_.begin(), it);
   }
+
+  size_t CountCharacters() const;
 
  private:
   Tree<shared_ptr<const Line>> lines_;

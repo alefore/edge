@@ -43,5 +43,33 @@ void BufferContents::insert(size_t position, const BufferContents& source,
                 source.lines_.begin() + last_line);
 }
 
+bool BufferContents::ForEach(
+    const std::function<bool(size_t, const Line&)>& callback) const {
+  size_t position = 0;
+  for (const auto& line : lines_) {
+    if (!callback(position++, *line)) { return false; }
+  }
+  return true;
+}
+
+void BufferContents::ForEach(
+    const std::function<void(const Line&)>& callback) const {
+  ForEach([callback](size_t, const Line& line) {
+            callback(line);
+            return true;
+          });
+}
+
+size_t BufferContents::CountCharacters() const {
+  size_t output = 0;
+  ForEach([&output](const Line& line) {
+    output += line.size() + 1;  // \n.
+  });
+  if (output > 0) {
+    output--;  // Last line has no \n.
+  }
+  return output;
+}
+
 }  // namespace editor
 }  // namespace afc
