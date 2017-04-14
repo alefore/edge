@@ -19,7 +19,8 @@ using std::hash;
 using std::unordered_set;
 
 Line::Line(const Options& options)
-    : environment_(options.parent_environment),
+    : environment_(options.environment == nullptr
+                       ? std::make_shared<Environment>() : options.environment),
       contents_(options.contents),
       modifiers_(options.modifiers),
       modified_(false),
@@ -80,11 +81,16 @@ void Line::SetCharacter(size_t position, int c,
   }
 }
 
+std::shared_ptr<vm::Environment> Line::environment() const {
+  CHECK(environment_ != nullptr);
+  return environment_;
+}
+
 void Line::Output(const EditorState* editor_state,
                   const shared_ptr<OpenBuffer>& buffer,
                   size_t line,
                   OutputReceiverInterface* receiver,
-                  size_t width) {
+                  size_t width) const {
   VLOG(5) << "Producing output of line: " << ToString();
   size_t output_column = 0;
   size_t input_column = buffer->view_start_column();
@@ -145,7 +151,8 @@ void Line::Output(const EditorState* editor_state,
     char info_char = '.';
     wstring additional_information;
 
-    auto target_buffer = environment_.Lookup(L"buffer");
+    CHECK(environment_ != nullptr);
+    auto target_buffer = environment_->Lookup(L"buffer");
     if (target_buffer != nullptr
         && target_buffer->type.type == VMType::OBJECT_TYPE
         && target_buffer->type.object_type == L"Buffer") {

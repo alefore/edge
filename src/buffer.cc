@@ -886,7 +886,8 @@ static void AddToParseTree(const shared_ptr<LazyString>& str_input) {
 }
 
 void OpenBuffer::SortContents(size_t first, size_t last,
-    std::function<bool(const shared_ptr<Line>&, const shared_ptr<Line>&)>
+    std::function<bool(const shared_ptr<const Line>&,
+                       const shared_ptr<const Line>&)>
         compare) {
   CHECK(first <= last);
   contents_.sort(first, last, compare);
@@ -980,7 +981,6 @@ void OpenBuffer::ProcessCommandInput(
   }
   CHECK_LT(position_pts_.line, contents_.size());
   auto current_line = contents_.at(position_pts_.line);
-
   std::unordered_set<Line::Modifier, hash<int>> modifiers;
 
   size_t read_index = 0;
@@ -1013,7 +1013,10 @@ void OpenBuffer::ProcessCommandInput(
       CHECK_LT(position_pts_.line, contents_.size());
       current_line = contents_.at(position_pts_.line);
     } else if (isprint(c) || c == '\t') {
-      current_line->SetCharacter(position_pts_.column, c, modifiers);
+      auto new_line = std::make_shared<Line>(*current_line);
+      new_line->SetCharacter(position_pts_.column, c, modifiers);
+      ReplaceLine(position_pts_.line, new_line);
+      current_line = new_line;
       position_pts_.column++;
       MaybeFollowToEndOfFile();
     } else {
@@ -1057,10 +1060,14 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
     read_index++;
     switch (c) {
       case '@':
-        // ich: insert character
-        DLOG(INFO) << "Terminal: ich: Insert character.";
-        current_line->InsertCharacterAtPosition(position_pts_.column);
-        return read_index;
+        {
+          // ich: insert character
+          DLOG(INFO) << "Terminal: ich: Insert character.";
+          auto new_line = std::make_shared<Line>(*current_line);
+          new_line->InsertCharacterAtPosition(position_pts_.column);
+          ReplaceLine(position_pts_.line, new_line);
+          return read_index;
+        }
 
       case 'l':
         if (sequence == "?1") {
@@ -1200,9 +1207,13 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         return read_index;
 
       case 'K':
-        // el: clear to end of line.
-        current_line->DeleteUntilEnd(position_pts_.column);
-        return read_index;
+        {
+          // el: clear to end of line.
+          auto new_line = std::make_shared<Line>(*current_line);
+          new_line->DeleteUntilEnd(position_pts_.column);
+          ReplaceLine(position_pts_.line, new_line);
+          return read_index;
+        }
 
       case 'M':
         // dl1: delete one line.
@@ -1214,10 +1225,12 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
 
       case 'P':
         {
-          current_line->DeleteCharacters(
+          auto new_line = std::make_shared<Line>(*current_line);
+          new_line->DeleteCharacters(
               position_pts_.column,
               min(static_cast<size_t>(atoi(sequence.c_str())),
                   current_line->size()));
+          ReplaceLine(position_pts_.line, new_line);
           return read_index;
         }
       default:
@@ -1342,7 +1355,7 @@ LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
   contents_.insert(position.line, buffer.contents_, 0,
                    buffer.contents_.size() - 1);
   for (size_t i = 1; i < buffer.lines_size() - 1; i++) {
-    contents_.at(position.line + i)->set_modified(true);
+    set_line_modified(position.line + i);
   }
   // The last line that was inserted.
   VLOG(4) << "Adjusting cursors.";
@@ -1380,7 +1393,7 @@ LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
     } else {
       contents_.set_line(position.line, std::make_shared<Line>(options));
     }
-    contents_.at(position.line)->set_modified(true);
+    set_line_modified(position.line);
     return LineColumn(position.line, head->size() + line_to_insert->size());
   }
   size_t line_end = position.line + buffer.lines_size() - 1;
@@ -1389,7 +1402,7 @@ LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
     options.contents = StringAppend(head, buffer.LineFront()->contents());
     contents_.set_line(position.line, std::make_shared<Line>(options));
     if (contents_.at(position.line)->contents() != head) {
-      contents_.at(position.line)->set_modified(true);
+      set_line_modified(position.line);
     }
   }
   {
@@ -1402,7 +1415,7 @@ LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
     }
   }
   if (head->size() > 0 || !contents_.back()->empty()) {
-    contents_.at(line_end)->set_modified(true);
+    set_line_modified(line_end);
   }
   return LineColumn(line_end,
       (buffer.lines_size() == 1 ? head->size() : 0)
@@ -2010,14 +2023,9 @@ bool OpenBuffer::FindRange(const Modifiers& modifiers,
       && FindRangeLast(modifiers_copy, *first, last);
 }
 
-const shared_ptr<Line> OpenBuffer::current_line() const {
+const shared_ptr<const Line> OpenBuffer::current_line() const {
   if (current_cursor_->line >= contents_.size()) { return nullptr; }
   return contents_.at(current_cursor_->line);
-}
-
-shared_ptr<Line> OpenBuffer::current_line() {
-  return std::const_pointer_cast<Line>(
-      const_cast<const OpenBuffer*>(this)->current_line());
 }
 
 std::shared_ptr<OpenBuffer> OpenBuffer::GetBufferFromCurrentLine() {
@@ -2142,6 +2150,15 @@ void OpenBuffer::set_current_position_col(size_t column) {
 
 const LineColumn OpenBuffer::position() const {
   return *current_cursor_;
+}
+
+void OpenBuffer::set_line_modified(size_t position) {
+  const auto& old_line = *LineAt(position);
+  if (old_line.modified()) { return; }
+  auto new_line = std::make_shared<Line>(old_line);
+  new_line->set_modified(true);
+  ReplaceLine(position, new_line);
+  set_modified(true);
 }
 
 void OpenBuffer::set_position(const LineColumn& position) {
@@ -2764,14 +2781,19 @@ bool OpenBuffer::IsLineFiltered(size_t line_number) {
   if (line_number >= contents_.size()) {
     return true;
   }
-  auto line = contents_.at(line_number);
-  if (line->filter_version() < filter_version_) {
-    vector<unique_ptr<Value>> args;
-    args.push_back(Value::NewString(line->ToString()));
-    bool filtered = filter_->callback(std::move(args))->boolean;
-    line->set_filtered(filtered, filter_version_);
+  const auto& old_line = *LineAt(line_number);
+  if (old_line.filter_version() >= filter_version_) {
+    return old_line.filtered();
   }
-  return line->filtered();
+
+  vector<unique_ptr<Value>> args;
+  args.push_back(Value::NewString(old_line.ToString()));
+  bool filtered = filter_->callback(std::move(args))->boolean;
+
+  auto new_line = std::make_shared<Line>(old_line);
+  new_line->set_filtered(filtered, filter_version_);
+  ReplaceLine(line_number, new_line);
+  return filtered;
 }
 
 const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks(

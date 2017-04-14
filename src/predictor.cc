@@ -61,7 +61,7 @@ class PredictionsBufferImpl : public OpenBuffer {
               << contents()->size();
     if (contents()->empty()) { return; }
     SortContents(0, contents()->size() - 1,
-        [](const shared_ptr<Line>& a, const shared_ptr<Line>& b) {
+        [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
           return *LowerCase(a->contents()) < *LowerCase(b->contents());
         });
     for (size_t line = 0; line < contents()->size();) {

@@ -22,35 +22,33 @@ class BufferContents {
 
   size_t size() const { return lines_.size(); }
 
-  shared_ptr<Line> at(size_t position) { return lines_.at(position); }
-
-  const shared_ptr<Line> at(size_t position) const {
+  shared_ptr<const Line> at(size_t position) const {
     return lines_.at(position);
   }
 
-  shared_ptr<Line> back() {
+  shared_ptr<const Line> back() {
     CHECK(!empty());
     return lines_.at(size() - 1);
   }
-  const shared_ptr<Line> back() const {
+  const shared_ptr<const Line> back() const {
     CHECK(!empty());
     return lines_.at(size() - 1);
   }
 
-  shared_ptr<Line> front() {
+  shared_ptr<const Line> front() {
     CHECK(!empty());
     return lines_.front();
   }
-  const shared_ptr<Line> front() const {
+  const shared_ptr<const Line> front() const {
     CHECK(!empty());
     return lines_.front();
   }
 
-  void insert_line(size_t line_position, shared_ptr<Line> line) {
+  void insert_line(size_t line_position, shared_ptr<const Line> line) {
     lines_.insert(lines_.begin() + line_position, line);
   }
 
-  void set_line(size_t position, shared_ptr<Line> line) {
+  void set_line(size_t position, shared_ptr<const Line> line) {
     CHECK_LE(position, size());
     lines_[position] = line;
   }
@@ -61,7 +59,7 @@ class BufferContents {
     lines_.erase(lines_.begin() + first, lines_.begin() + last);
   }
 
-  void push_back(shared_ptr<Line> line) {
+  void push_back(shared_ptr<const Line> line) {
     lines_.push_back(line);
   }
 
@@ -85,13 +83,13 @@ class BufferContents {
   wstring ToString() const;
 
   template <class C>
-  size_t upper_bound(std::shared_ptr<Line>& key, C compare) const {
+  size_t upper_bound(std::shared_ptr<const Line>& key, C compare) const {
     auto it = std::upper_bound(lines_.begin(), lines_.end(), key, compare);
     return distance(lines_.begin(), it);
   }
 
  private:
-  Tree<shared_ptr<Line>> lines_;
+  Tree<shared_ptr<const Line>> lines_;
 };
 
 }  // namespace editor

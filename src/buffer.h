@@ -83,7 +83,8 @@ class OpenBuffer {
 
   // Sort all lines in range [first, last) according to a compare function.
   void SortContents(size_t first, size_t last,
-      std::function<bool(const shared_ptr<Line>&, const shared_ptr<Line>&)>
+      std::function<bool(const shared_ptr<const Line>&,
+                         const shared_ptr<const Line>&)>
           compare);
 
   bool ForEachLine(std::function<bool(size_t, const Line&)> callback) const {
@@ -207,18 +208,17 @@ class OpenBuffer {
     LineColumn* end);
 
   // May return nullptr if the current_cursor is at the end of file.
-  const shared_ptr<Line> current_line() const;
-  shared_ptr<Line> current_line();
+  const shared_ptr<const Line> current_line() const;
 
-  shared_ptr<Line> LineFront() const {
+  shared_ptr<const Line> LineFront() const {
     CHECK(!contents_.empty());
     return LineAt(0);
   }
-  shared_ptr<Line> LineBack() const {
+  shared_ptr<const Line> LineBack() const {
     CHECK(!contents_.empty());
     return LineAt(lines_size() - 1);
   }
-  shared_ptr<Line> LineAt(size_t line_number) const {
+  shared_ptr<const Line> LineAt(size_t line_number) const {
     CHECK(!contents_.empty());
     if (line_number >= contents_.size()) {
       return nullptr;
@@ -325,6 +325,8 @@ class OpenBuffer {
 
   void set_position(const LineColumn& position);
 
+  void set_line_modified(size_t line);
+  // TODO: Remove this? Just use set_line_modified always?
   void set_modified(bool value) { modified_ = value; }
   bool modified() const { return modified_; }
 

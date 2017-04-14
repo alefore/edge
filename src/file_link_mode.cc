@@ -165,7 +165,7 @@ class FileBuffer : public OpenBuffer {
     closedir(dir);
 
     target->SortContents(1, target->contents()->size(),
-        [](const shared_ptr<Line>& a, const shared_ptr<Line>& b) {
+        [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
           return *a->contents() < *b->contents();
         });
     editor_state->CheckPosition();

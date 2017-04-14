@@ -119,7 +119,7 @@ class AutocompleteMode : public EditorMode {
   struct Options {
     std::unique_ptr<EditorMode> delegate;
 
-    std::shared_ptr<Line> prefix;
+    std::shared_ptr<const Line> prefix;
 
     // TODO: Make these shared_ptr weak_ptrs.
     std::shared_ptr<OpenBuffer> dictionary;
@@ -285,7 +285,7 @@ void FindCompletion(EditorState* editor_state,
   } else {
     options.column_start++;
   }
-  options.prefix = std::make_shared<Line>(Line::Options(NewCopyString(
+  options.prefix = std::make_shared<const Line>(Line::Options(NewCopyString(
       line.substr(options.column_start,
                   options.column_end - options.column_start))));
 
@@ -297,7 +297,7 @@ void FindCompletion(EditorState* editor_state,
             << "\" among options: " << dictionary->contents()->size();
   options.matches_start = dictionary->contents()->upper_bound(
       options.prefix,
-      [](const std::shared_ptr<Line>& a, const std::shared_ptr<Line>& b) {
+      [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
         return a->ToString() < b->ToString();
       });
 

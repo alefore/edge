@@ -91,12 +91,13 @@ class Line {
 
     vector<unordered_set<Modifier, hash<int>>> modifiers;
     shared_ptr<LazyString> contents;
-    vm::Environment* parent_environment = nullptr;
+    std::shared_ptr<vm::Environment> environment = nullptr;
   };
 
   Line(const Options& options);
+  Line(const Line& line) = default;
 
-  shared_ptr<LazyString> contents() { return contents_; }
+  shared_ptr<LazyString> contents() const { return contents_; }
   size_t size() const {
     CHECK(contents_ != nullptr);
     return contents_->size();
@@ -128,7 +129,7 @@ class Line {
   bool modified() const { return modified_; }
   void set_modified(bool modified) { modified_ = modified; }
 
-  vm::Environment* environment() { return &environment_; }
+  std::shared_ptr<vm::Environment> environment() const;
 
   bool filtered() const {
     return filtered_;
@@ -154,10 +155,10 @@ class Line {
               const shared_ptr<OpenBuffer>& buffer,
               size_t line,
               OutputReceiverInterface* receiver,
-              size_t width);
+              size_t width) const;
 
  private:
-  vm::Environment environment_;
+  std::shared_ptr<vm::Environment> environment_;
   shared_ptr<LazyString> contents_;
   vector<unordered_set<Modifier, hash<int>>> modifiers_;
   bool modified_;
