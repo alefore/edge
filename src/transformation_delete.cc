@@ -68,8 +68,10 @@ class DeleteCharactersTransformation : public Transformation {
       LOG(INFO) << "Adjusting for end of buffer.";
       CHECK_EQ(chars_erase_line, buffer->LineAt(line)->size() + 1);
       chars_erase_line = 0;
-      if (!AdvanceLine(buffer, &line)) {
+      if (line + 1 >= buffer->lines_size()) {
         chars_erase_line = buffer->LineAt(line)->size();
+      } else {
+        line++;
       }
     }
     LOG(INFO) << "Characters to erase from current line: " << chars_erase_line
@@ -193,19 +195,12 @@ class DeleteCharactersTransformation : public Transformation {
       if (*chars_erased >= chars_to_erase) {
         return line;
       }
-      if (!AdvanceLine(buffer, &line)) {
+      if (line + 1 >= buffer->lines_size()) {
         return line;
       }
+      line++;
       newlines = 1;
     }
-  }
-
-  bool AdvanceLine(const OpenBuffer* buffer, size_t* line) const {
-    if (*line + 1 < buffer->lines_size()) {
-      (*line)++;
-      return true;
-    }
-    return false;
   }
 
   const DeleteOptions options_;
