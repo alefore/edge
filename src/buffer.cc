@@ -885,16 +885,11 @@ static void AddToParseTree(const shared_ptr<LazyString>& str_input) {
   wstring str = str_input->ToString();
 }
 
-void OpenBuffer::SortContents(
-    const Tree<shared_ptr<Line>>::const_iterator& first,
-    const Tree<shared_ptr<Line>>::const_iterator& last,
+void OpenBuffer::SortContents(size_t first, size_t last,
     std::function<bool(const shared_ptr<Line>&, const shared_ptr<Line>&)>
         compare) {
   CHECK(first <= last);
-  size_t delta_first = std::distance(contents_.cbegin(), first);
-  size_t delta_last = std::distance(contents_.cbegin(), last);
-  sort(contents_.begin() + delta_first, contents_.begin() + delta_last,
-       compare);
+  sort(contents_.begin() + first, contents_.begin() + last, compare);
 }
 
 void OpenBuffer::EraseLines(size_t first, size_t last) {

@@ -81,9 +81,7 @@ class OpenBuffer {
   virtual void EndOfFile(EditorState* editor_state);
 
   // Sort all lines in range [first, last) according to a compare function.
-  void SortContents(
-      const Tree<shared_ptr<Line>>::const_iterator& first,
-      const Tree<shared_ptr<Line>>::const_iterator& last,
+  void SortContents(size_t first, size_t last,
       std::function<bool(const shared_ptr<Line>&, const shared_ptr<Line>&)>
           compare);
 

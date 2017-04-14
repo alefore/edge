@@ -60,7 +60,7 @@ class PredictionsBufferImpl : public OpenBuffer {
     LOG(INFO) << "Predictions buffer received end of file. Predictions: "
               << contents()->size();
     if (contents()->empty()) { return; }
-    SortContents(contents()->begin(), contents()->end() - 1,
+    SortContents(0, contents()->size() - 1,
         [](const shared_ptr<Line>& a, const shared_ptr<Line>& b) {
           return *LowerCase(a->contents()) < *LowerCase(b->contents());
         });
