@@ -510,8 +510,7 @@ class InsertMode : public EditorMode {
 class RawInputTypeMode : public EditorMode {
  public:
   RawInputTypeMode(shared_ptr<OpenBuffer> buffer)
-      : buffer_(buffer),
-        buffering_(false) {}
+      : buffer_(buffer) {}
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
     editor_state->ResetStatus();
@@ -612,15 +611,7 @@ class RawInputTypeMode : public EditorMode {
         break;
 
       case Terminal::BACKSPACE:
-        if (buffering_) {
-          if (line_buffer_.empty()) { return; }
-          line_buffer_.resize(line_buffer_.size() - 1);
-          auto last_line = buffer_->contents()->back();
-          buffer_->ReplaceLine(
-              buffer_->lines_size(),
-              std::make_shared<Line>(
-                  last_line->Substring(0, last_line->size() - 1)));
-        } else {
+        {
           string contents(1, 127);
           write(buffer_->fd(), contents.c_str(), contents.size());
         }
@@ -632,14 +623,8 @@ class RawInputTypeMode : public EditorMode {
         break;
 
       default:
-        if (buffering_) {
-          buffer_->AppendToLastLine(editor_state, NewCopyString(wstring(1, c)));
-          line_buffer_.push_back(c);
-          editor_state->ScheduleRedraw();
-        } else {
-          line_buffer_.push_back(c);
-          WriteLineBuffer(editor_state);
-        }
+        line_buffer_.push_back(c);
+        WriteLineBuffer(editor_state);
     };
   }
 
@@ -660,7 +645,6 @@ class RawInputTypeMode : public EditorMode {
   // The buffer that we will be insertint into.
   const shared_ptr<OpenBuffer> buffer_;
   string line_buffer_;
-  bool buffering_;
   bool literal_ = false;
 };
 
