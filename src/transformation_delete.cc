@@ -49,45 +49,42 @@ class DeleteCharactersTransformation : public Transformation {
         buffer->LineAt(current_line)->Substring(0, result->cursor.column);
 
     size_t chars_erased;
-    size_t line = SkipLinesToErase(
-        buffer, options_.modifiers.repetitions + preserved_contents->size(),
+    size_t line_end = SkipLinesToErase(
+        buffer, options_.modifiers.repetitions + result->cursor.column,
         result->cursor.line, &chars_erased);
-    LOG(INFO) << "Erasing from line " << current_line << " to line " << line
+    LOG(INFO) << "Erasing from line " << current_line << " to line " << line_end
               << " would erase " << chars_erased << " characters.";
-    chars_erased -= preserved_contents->size();
+    chars_erased -= result->cursor.column;
 
     // The amount of characters that should be erased from the current line. If
     // the line is the current line, this already includes characters in
     // preserved_contents.
-    size_t chars_erase_line = buffer->LineAt(line)->size() + 1
-        - min(buffer->LineAt(line)->size(),
+    size_t chars_erase_line = buffer->LineAt(line_end)->size() + 1
+        - min(buffer->LineAt(line_end)->size(),
               (options_.modifiers.repetitions < chars_erased
                    ? chars_erased - options_.modifiers.repetitions
                    : 0));
-    if (chars_erase_line > buffer->LineAt(line)->size()) {
+    if (chars_erase_line > buffer->LineAt(line_end)->size()) {
       LOG(INFO) << "Adjusting for end of buffer.";
-      CHECK_EQ(chars_erase_line, buffer->LineAt(line)->size() + 1);
+      CHECK_EQ(chars_erase_line, buffer->LineAt(line_end)->size() + 1);
       chars_erase_line = 0;
-      if (line + 1 >= buffer->lines_size()) {
-        chars_erase_line = buffer->LineAt(line)->size();
+      if (line_end + 1 >= buffer->lines_size()) {
+        chars_erase_line = buffer->LineAt(line_end)->size();
       } else {
-        line++;
+        line_end++;
       }
     }
     LOG(INFO) << "Characters to erase from current line: " << chars_erase_line
               << ", modifiers: " << options_.modifiers << ", chars_erased: "
               << chars_erased << ", preserved_contents size: "
               << preserved_contents->size() << ", actual length: "
-              << buffer->LineAt(line)->size();
+              << buffer->LineAt(line_end)->size();
 
     result->success = chars_erased >= options_.modifiers.repetitions;
     result->made_progress = chars_erased + chars_erase_line > 0;
 
-    size_t line_begin = min(line, current_line);
-    size_t line_end = max(line, current_line);
-
     shared_ptr<OpenBuffer> delete_buffer = GetDeletedTextBuffer(
-        editor_state, buffer, line_begin, line_end, preserved_contents,
+        editor_state, buffer, current_line, line_end, preserved_contents,
         chars_erase_line);
     if (options_.copy_to_paste_buffer) {
       VLOG(5) << "Preparing delete buffer.";
@@ -102,15 +99,16 @@ class DeleteCharactersTransformation : public Transformation {
       return;
     }
 
-    LOG(INFO) << "Storing new line (at position " << max(current_line, line)
-              << ").";
+    LOG(INFO) << "Storing new line (at position " << line_end << ").";
     Line::Options options;
     options.contents = StringAppend(
-        preserved_contents, buffer->LineAt(line)->Substring(chars_erase_line));
-    AdjustCursors(buffer, line, preserved_contents->size(), chars_erase_line);
+        preserved_contents,
+        buffer->LineAt(line_end)->Substring(chars_erase_line));
+    AdjustCursors(
+        buffer, line_end, preserved_contents->size(), chars_erase_line);
     buffer->ReplaceLine(line_end, std::make_shared<Line>(options));
 
-    buffer->EraseLines(line_begin, line_end);
+    buffer->EraseLines(current_line, line_end);
     result->modified_buffer = true;
 
     result->undo_stack->PushFront(TransformationAtPosition(result->cursor,
