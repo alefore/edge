@@ -44,10 +44,6 @@ class DeleteCharactersTransformation : public Transformation {
       return;
     }
 
-    // The initial prefix of the current line, before the initial position.
-    auto preserved_contents =
-        buffer->LineAt(current_line)->Substring(0, result->cursor.column);
-
     size_t chars_erased;
     size_t line_end = SkipLinesToErase(
         buffer, options_.modifiers.repetitions + result->cursor.column,
@@ -57,8 +53,8 @@ class DeleteCharactersTransformation : public Transformation {
     chars_erased -= result->cursor.column;
 
     // The amount of characters that should be erased from the current line. If
-    // the line is the current line, this already includes characters in
-    // preserved_contents.
+    // the line is the current line, this already includes characters in the
+    // prefix.
     size_t chars_erase_line = buffer->LineAt(line_end)->size() + 1
         - min(buffer->LineAt(line_end)->size(),
               (options_.modifiers.repetitions < chars_erased
@@ -76,15 +72,14 @@ class DeleteCharactersTransformation : public Transformation {
     }
     LOG(INFO) << "Characters to erase from current line: " << chars_erase_line
               << ", modifiers: " << options_.modifiers << ", chars_erased: "
-              << chars_erased << ", preserved_contents size: "
-              << preserved_contents->size() << ", actual length: "
+              << chars_erased << ", actual length: "
               << buffer->LineAt(line_end)->size();
 
     result->success = chars_erased >= options_.modifiers.repetitions;
     result->made_progress = chars_erased + chars_erase_line > 0;
 
     shared_ptr<OpenBuffer> delete_buffer = GetDeletedTextBuffer(
-        editor_state, buffer, current_line, line_end, preserved_contents,
+        editor_state, buffer, current_line, line_end, result->cursor.column,
         chars_erase_line);
     if (options_.copy_to_paste_buffer) {
       VLOG(5) << "Preparing delete buffer.";
@@ -102,10 +97,10 @@ class DeleteCharactersTransformation : public Transformation {
     LOG(INFO) << "Storing new line (at position " << line_end << ").";
     Line::Options options;
     options.contents = StringAppend(
-        preserved_contents,
+        buffer->LineAt(current_line)->Substring(0, result->cursor.column),
         buffer->LineAt(line_end)->Substring(chars_erase_line));
     AdjustCursors(
-        buffer, line_end, preserved_contents->size(), chars_erase_line);
+        buffer, line_end, result->cursor.column, chars_erase_line);
     buffer->ReplaceLine(line_end, std::make_shared<Line>(options));
 
     buffer->EraseLines(current_line, line_end);
@@ -143,14 +138,10 @@ class DeleteCharactersTransformation : public Transformation {
 
   shared_ptr<OpenBuffer> GetDeletedTextBuffer(
       EditorState* editor_state, OpenBuffer* buffer, size_t line_begin,
-      size_t line_end, const shared_ptr<LazyString>& preserved_contents,
-      size_t chars_erase_line) const {
+      size_t line_end, size_t start, size_t chars_erase_line) const {
     LOG(INFO) << "Preparing deleted text buffer.";
     auto delete_buffer =
         std::make_shared<OpenBuffer>(editor_state, OpenBuffer::kPasteBuffer);
-
-    // The length of the prefix we skip.
-    size_t start = preserved_contents->size();
     size_t end = line_begin != line_end
                      ? buffer->LineAt(line_begin)->size() - start
                      : chars_erase_line - start;
