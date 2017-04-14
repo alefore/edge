@@ -568,7 +568,7 @@ void OpenBuffer::ClearContents(EditorState* editor_state) {
   editor_state->line_marks()->RemoveExpiredMarksFromSource(name_);
   editor_state->line_marks()->ExpireMarksFromSource(*this, name_);
   editor_state->ScheduleRedraw();
-  EraseLines(contents_.begin(), contents_.end());
+  EraseLines(0, contents_.size());
   position_pts_ = LineColumn();
   last_transformation_ = NewNoopTransformation();
   last_transformation_stack_.clear();
@@ -897,31 +897,24 @@ void OpenBuffer::SortContents(
        compare);
 }
 
-void OpenBuffer::EraseLines(
-    Tree<shared_ptr<Line>>::const_iterator const_first,
-    Tree<shared_ptr<Line>>::const_iterator const_last) {
-  if (const_first == const_last) {
+void OpenBuffer::EraseLines(size_t first, size_t last) {
+  if (first == last) {
     return;  // That was easy.
   }
-  size_t delta_first = const_first - contents_.begin();
-  size_t delta_last = const_last - contents_.begin();
-  LOG(INFO) << "Erasing lines in range [" << delta_first << ", " << delta_last
-            << ").";
-  CHECK_GE(delta_last, delta_first);
+  LOG(INFO) << "Erasing lines in range [" << first << ", " << last << ").";
+  CHECK_GE(last, first);
   CHECK_LE(current_cursor_->line, contents_.size());
   AdjustCursors(
-      [delta_last, delta_first](LineColumn position) {
-        if (position.line >= delta_last) {
-          position.line -= delta_last - delta_first;
-        } else if (position.line >= delta_first) {
-          position.line = delta_first;
+      [last, first](LineColumn position) {
+        if (position.line >= last) {
+          position.line -= last - first;
+        } else if (position.line >= first) {
+          position.line = first;
         }
         return position;
       });
 
-  Tree<shared_ptr<Line>>::iterator first = contents_.begin() + delta_first;
-  Tree<shared_ptr<Line>>::iterator last = contents_.begin() + delta_last;
-  contents_.erase(first, last);
+  contents_.erase(contents_.begin() + first, contents_.begin() + last);
   editor_->ScheduleParseTreeUpdate(this);
   CHECK_LE(current_cursor_->line, contents_.size());
 }
@@ -1212,7 +1205,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
 
       case 'J':
         // ed: clear to end of screen.
-        EraseLines(contents_.begin() + position_pts_.line + 1, contents_.end());
+        EraseLines(position_pts_.line + 1, contents_.size());
         CHECK_LT(position_pts_.line, contents_.size());
         return read_index;
 
@@ -1224,8 +1217,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
       case 'M':
         // dl1: delete one line.
         {
-          auto it = contents_.begin() + position_pts_.line;
-          EraseLines(it, it + 1);
+          EraseLines(position_pts_.line, position_pts_.line + 1);
           CHECK_LT(position_pts_.line, contents_.size());
         }
         return read_index;

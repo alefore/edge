@@ -124,8 +124,7 @@ class DeleteCharactersTransformation : public Transformation {
         buffer->contents()->begin() + line_end,
         std::make_shared<Line>(options));
 
-    buffer->EraseLines(buffer->contents()->begin() + line_begin,
-                       buffer->contents()->begin() + line_end);
+    buffer->EraseLines(line_begin, line_end);
     result->modified_buffer = true;
 
     result->undo_stack->PushFront(TransformationAtPosition(result->cursor,

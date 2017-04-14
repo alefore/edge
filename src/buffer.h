@@ -87,8 +87,7 @@ class OpenBuffer {
       std::function<bool(const shared_ptr<Line>&, const shared_ptr<Line>&)>
           compare);
 
-  void EraseLines(Tree<shared_ptr<Line>>::const_iterator first,
-                  Tree<shared_ptr<Line>>::const_iterator last);
+  void EraseLines(size_t first, size_t last);
 
   // Overwrites the line at a given position with a new line.
   void ReplaceLine(Tree<shared_ptr<Line>>::const_iterator position,

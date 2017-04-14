@@ -69,8 +69,7 @@ class PredictionsBufferImpl : public OpenBuffer {
           || LineAt(line - 1)->ToString() != LineAt(line)->ToString()) {
         line++;
       } else {
-        auto it = contents()->cbegin() + line;
-        EraseLines(it, it + 1);
+        EraseLines(line, line + 1);
       }
     }
 
