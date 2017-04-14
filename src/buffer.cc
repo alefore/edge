@@ -922,14 +922,12 @@ void OpenBuffer::ReplaceLine(
   editor_->ScheduleParseTreeUpdate(this);
 }
 
-void OpenBuffer::InsertLine(Tree<shared_ptr<Line>>::const_iterator position,
-                            shared_ptr<Line> line) {
-  size_t delta = std::distance(contents_.cbegin(), position);
-  contents_.insert(contents_.begin() + delta, line);
-  LOG(INFO) << "Inserting line at position: " << delta;
+void OpenBuffer::InsertLine(size_t line_position, shared_ptr<Line> line) {
+  contents_.insert(contents_.begin() + line_position, line);
+  LOG(INFO) << "Inserting line at position: " << line_position;
   AdjustCursors(
-      [delta](LineColumn position) {
-        if (position.line >= delta) {
+      [line_position](LineColumn position) {
+        if (position.line >= line_position) {
           VLOG(5) << "Cursor moves down. Initial position: " << position.line;
           position.line++;
         }

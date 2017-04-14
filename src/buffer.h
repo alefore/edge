@@ -92,9 +92,7 @@ class OpenBuffer {
                    shared_ptr<Line> line);
 
   // Inserts a new line into the buffer at a given position.
-  void InsertLine(
-      Tree<shared_ptr<Line>>::const_iterator position,
-      shared_ptr<Line> line);
+  void InsertLine(size_t line_position, shared_ptr<Line> line);
 
   void AppendLazyString(EditorState* editor_state, shared_ptr<LazyString> input);
   void AppendLine(EditorState* editor_state, shared_ptr<LazyString> line);

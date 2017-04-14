@@ -549,9 +549,7 @@ void EditorState::PushPosition(LineColumn position) {
   shared_ptr<Line> line(new Line(Line::Options(
       NewCopyString(position.ToString() + L" " + current_buffer_->first))));
   buffer_it.first->second->InsertLine(
-      buffer_it.first->second->contents()->begin()
-          + buffer_it.first->second->current_position_line(),
-      line);
+      buffer_it.first->second->current_position_line(), line);
   CHECK_LE(buffer_it.first->second->position().line,
            buffer_it.first->second->contents()->size());
   if (buffer_it.first == current_buffer_) {
