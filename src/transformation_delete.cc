@@ -32,17 +32,21 @@ class DeleteCharactersTransformation : public Transformation {
       return;
     }
     buffer->AdjustLineColumn(&result->cursor);
+    if (options_.modifiers.direction == BACKWARDS) {
+      for (size_t i = 0; i < options_.modifiers.repetitions; i++) {
+        result->cursor = buffer->PositionBefore(result->cursor);
+      }
+    }
+
     size_t current_line = result->cursor.line;
     if (buffer->LineAt(current_line) == nullptr) {
       result->made_progress = false;
       return;
     }
 
-    // The initial prefix (or final suffix, if BACKWARDS) of the current line,
-    // before (or after) the initial position.
-    shared_ptr<LazyString> preserved_contents =
-        StartOfLine(buffer, current_line, result->cursor.column,
-                    options_.modifiers.direction);
+    // The initial prefix of the current line, before the initial position.
+    auto preserved_contents =
+        buffer->LineAt(current_line)->Substring(0, result->cursor.column);
 
     size_t chars_erased;
     size_t line = SkipLinesToErase(
@@ -53,11 +57,10 @@ class DeleteCharactersTransformation : public Transformation {
     chars_erased -= preserved_contents->size();
 
     // The amount of characters that should be erased from the current line.
-    // Depending on the direction, we'll erase from the beginning (FORWARDS) or
-    // the end of the current line (BACKWARDS).  If the line is the current
-    // line, this already includes characters in preserved_contents.
-    size_t chars_erase_line = buffer->LineAt(line)->size()
-        + (options_.modifiers.direction == FORWARDS ? 1 : 0)
+    // Depending on the direction, we'll erase from the beginning.  If the line
+    // is the current line, this already includes characters in
+    // preserved_contents.
+    size_t chars_erase_line = buffer->LineAt(line)->size() + 1
         - min(buffer->LineAt(line)->size(),
               (options_.modifiers.repetitions < chars_erased
                    ? chars_erased - options_.modifiers.repetitions
@@ -98,26 +101,12 @@ class DeleteCharactersTransformation : public Transformation {
       return;
     }
 
-    if (options_.modifiers.direction == BACKWARDS) {
-      result->cursor.line = line;
-      result->cursor.column = buffer->LineAt(line)->size() - chars_erase_line;
-    }
-
     LOG(INFO) << "Storing new line (at position " << max(current_line, line)
               << ").";
     auto initial_line = buffer->LineAt(line);
     Line::Options options;
-    switch (options_.modifiers.direction) {
-      case FORWARDS:
-        options.contents = StringAppend(
-            preserved_contents, initial_line->Substring(chars_erase_line));
-        break;
-      case BACKWARDS:
-        options.contents = StringAppend(
-            initial_line->Substring(0, initial_line->size() - chars_erase_line),
-            preserved_contents);
-        break;
-    }
+    options.contents = StringAppend(
+        preserved_contents, initial_line->Substring(chars_erase_line));
     AdjustCursors(buffer, line, preserved_contents->size(), chars_erase_line,
                   initial_line->size());
     buffer->ReplaceLine(line_end, std::make_shared<Line>(options));
@@ -142,31 +131,17 @@ class DeleteCharactersTransformation : public Transformation {
   // (includes preserved_contents).
   void AdjustCursors(OpenBuffer* buffer, size_t line, size_t preserved_contents,
                      size_t chars_erase_line, size_t initial_line) const {
-    if (options_.modifiers.direction == FORWARDS) {
-      buffer->AdjustCursors(
-          [line, preserved_contents, chars_erase_line](LineColumn cursor) {
-            if (cursor.line == line) {
-              if (cursor.column > chars_erase_line) {
-                cursor.column += preserved_contents - chars_erase_line;
-              } else if (cursor.column > preserved_contents) {
-                cursor.column = preserved_contents;
-              }
+    buffer->AdjustCursors(
+        [line, preserved_contents, chars_erase_line](LineColumn cursor) {
+          if (cursor.line == line) {
+            if (cursor.column > chars_erase_line) {
+              cursor.column += preserved_contents - chars_erase_line;
+            } else if (cursor.column > preserved_contents) {
+              cursor.column = preserved_contents;
             }
-            return cursor;
-          });
-    } else {
-      buffer->AdjustCursors(
-          [line, preserved_contents, chars_erase_line, initial_line](
-              LineColumn cursor) {
-            if (cursor.line == line
-                && cursor.column > initial_line - chars_erase_line) {
-              cursor.column =
-                  max(cursor.column - (chars_erase_line - preserved_contents),
-                      initial_line - chars_erase_line);
-            }
-            return cursor;
-          });
-    }
+          }
+          return cursor;
+        });
   }
 
   shared_ptr<OpenBuffer> GetDeletedTextBuffer(
@@ -178,12 +153,7 @@ class DeleteCharactersTransformation : public Transformation {
         std::make_shared<OpenBuffer>(editor_state, OpenBuffer::kPasteBuffer);
 
     // The length of the prefix we skip.
-    size_t start =
-        (options_.modifiers.direction == FORWARDS
-         || (options_.modifiers.direction == BACKWARDS
-             && line_begin == line_end))
-            ? preserved_contents->size()
-            : buffer->LineAt(line_begin)->size() - chars_erase_line;
+    size_t start = preserved_contents->size();
     size_t end = line_begin != line_end
                      ? buffer->LineAt(line_begin)->size() - start
                      : chars_erase_line - start;
@@ -194,9 +164,7 @@ class DeleteCharactersTransformation : public Transformation {
     for (size_t i = line_begin + 1; i <= line_end; i++) {
       auto line = buffer->LineAt(i)->contents();
       if (i == line_end) {
-        line = Substring(line, 0, options_.modifiers.direction == FORWARDS
-                                      ? chars_erase_line
-                                      : line->size() - preserved_contents->size());
+        line = Substring(line, 0, chars_erase_line);
       }
       delete_buffer->AppendLine(editor_state, line);
     }
@@ -204,35 +172,20 @@ class DeleteCharactersTransformation : public Transformation {
     return delete_buffer;
   }
 
-  static shared_ptr<LazyString> StartOfLine(
-      OpenBuffer* buffer, size_t line_number, size_t column,
-      Direction direction) {
-    auto line = buffer->LineAt(line_number);
-    switch (direction) {
-      case FORWARDS:
-        return line->Substring(0, column);
-      case BACKWARDS:
-        return line->Substring(column);
-    }
-    CHECK(false);
-    return nullptr;
-  }
-
-  // Find and return the nearest (to line) line A (moving in the direction
-  // given) such that if we erase all characters in every line (including \n
-  // separators) between the current line and A (including both), we will have
-  // erased at least as may characters as chars_to_erase.
+  // Find and return the nearest (to line) line A such that if we erase all
+  // characters in every line (including \n separators) between the current line
+  // and A (including both), we will have erased at least as may characters as
+  // chars_to_erase.
   //
   // chars_erased will be set to the total number of characters erased from the
   // current position until (including) line.
   size_t SkipLinesToErase(const OpenBuffer* buffer, size_t chars_to_erase,
                           size_t line, size_t* chars_erased) const {
     *chars_erased = 0;
-    if (options_.modifiers.direction == FORWARDS
-        && line == buffer->contents()->size()) {
+    if (line == buffer->contents()->size()) {
       return line;
     }
-    size_t newlines = options_.modifiers.direction == BACKWARDS ? 0 : 1;
+    size_t newlines = 1;
     while (true) {
       CHECK_LT(line, buffer->contents()->size());
       LOG(INFO) << "Iteration at line " << line << " having already erased "
@@ -251,17 +204,11 @@ class DeleteCharactersTransformation : public Transformation {
   }
 
   bool AdvanceLine(const OpenBuffer* buffer, size_t* line) const {
-    size_t old_value = *line;
-    switch (options_.modifiers.direction) {
-      case FORWARDS:
-        if (*line + 1 < buffer->contents()->size()) { (*line)++; }
-        break;
-      case BACKWARDS:
-        if (*line > 0) { (*line)--; }
-        break;
+    if (*line + 1 < buffer->lines_size()) {
+      (*line)++;
+      return true;
     }
-    CHECK_LT(*line, buffer->contents()->size());
-    return old_value != *line;
+    return false;
   }
 
   const DeleteOptions options_;
