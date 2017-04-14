@@ -16,16 +16,8 @@ namespace afc {
 namespace editor {
 
 wstring BufferContents::ToString() const {
-  size_t size = 0;
-  ForEach(
-      [&size](size_t, const Line& line) {
-        size += line.size() + 1;
-        return true;
-      });
-  size -= 1;  // Last line doesn't have EOL.
-
   wstring output;
-  output.reserve(size);
+  output.reserve(CountCharacters());
   ForEach([&output](size_t position, const Line& line) {
             output.append((position == 0 ? L"" : L"\n") + line.ToString());
             return true;
