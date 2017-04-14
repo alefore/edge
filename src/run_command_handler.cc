@@ -342,12 +342,10 @@ void RunMultipleCommandsHandler(const wstring& input,
   }
   auto buffer = editor_state->current_buffer()->second;
   buffer->ForEachLine(
-      [editor_state, input](size_t, const Line& line) {
-        wstring arg = line.ToString();
+      [editor_state, input](wstring arg) {
         map<wstring, wstring> environment = {{L"ARG", arg}};
         RunCommand(
             L"$ " + input + L" " + arg, input, environment, editor_state);
-        return true;
       });
 }
 
