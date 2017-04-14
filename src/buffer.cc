@@ -897,11 +897,11 @@ void OpenBuffer::SortContents(
        compare);
 }
 
-Tree<shared_ptr<Line>>::const_iterator OpenBuffer::EraseLines(
+void OpenBuffer::EraseLines(
     Tree<shared_ptr<Line>>::const_iterator const_first,
     Tree<shared_ptr<Line>>::const_iterator const_last) {
   if (const_first == const_last) {
-    return contents()->begin();  // That was easy...
+    return;  // That was easy.
   }
   size_t delta_first = const_first - contents_.begin();
   size_t delta_last = const_last - contents_.begin();
@@ -921,10 +921,9 @@ Tree<shared_ptr<Line>>::const_iterator OpenBuffer::EraseLines(
 
   Tree<shared_ptr<Line>>::iterator first = contents_.begin() + delta_first;
   Tree<shared_ptr<Line>>::iterator last = contents_.begin() + delta_last;
-  auto result = contents_.erase(first, last);
+  contents_.erase(first, last);
   editor_->ScheduleParseTreeUpdate(this);
   CHECK_LE(current_cursor_->line, contents_.size());
-  return result;
 }
 
 void OpenBuffer::ReplaceLine(
