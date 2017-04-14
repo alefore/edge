@@ -341,11 +341,14 @@ void RunMultipleCommandsHandler(const wstring& input,
     return;
   }
   auto buffer = editor_state->current_buffer()->second;
-  for (const auto& line : *buffer->contents()) {
-    wstring arg = line->ToString();
-    map<wstring, wstring> environment = {{L"ARG", arg}};
-    RunCommand(L"$ " + input + L" " + arg, input, environment, editor_state);
-  }
+  buffer->ForEachLine(
+      [editor_state, input](size_t, const Line& line) {
+        wstring arg = line.ToString();
+        map<wstring, wstring> environment = {{L"ARG", arg}};
+        RunCommand(
+            L"$ " + input + L" " + arg, input, environment, editor_state);
+        return true;
+      });
 }
 
 }  // namespace editor

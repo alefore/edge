@@ -80,12 +80,13 @@ vector<LineColumn> PerformSearch(const SearchOptions& options,
   }
 #endif
 
-  const auto first = buffer->contents()->begin();
-  for (auto line = first; line != buffer->contents()->end(); ++line) {
-    for (const auto& column : GetMatches((*line)->ToString(), pattern)) {
-      positions.push_back(LineColumn(line - first, column));
-    }
-  }
+  buffer->ForEachLine(
+      [&positions, &pattern](size_t position, const Line& line) {
+        for (const auto& column : GetMatches(line.ToString(), pattern)) {
+          positions.push_back(LineColumn(position, column));
+        }
+        return true;
+      });
   return positions;
 }
 

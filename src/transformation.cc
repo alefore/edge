@@ -32,11 +32,13 @@ class GotoPositionTransformation : public Transformation {
   const LineColumn position_;
 };
 
-size_t CountCharacters(OpenBuffer* buffer) {
+// TODO: Move this to be a method of BufferContents.
+size_t CountCharacters(const OpenBuffer& buffer) {
   size_t output = 0;
-  for (const auto& line : *buffer->contents()) {
-    output += line->size() + 1;
-  }
+  buffer.ForEachLine([&output](size_t, const Line& line) {
+                       output += line.size() + 1;
+                       return true;
+                     });
   if (output > 0) {
     output--;  // Last line has no \n.
   }
@@ -49,7 +51,7 @@ class InsertBufferTransformation : public Transformation {
       shared_ptr<OpenBuffer> buffer_to_insert, size_t repetitions,
       InsertBufferTransformationPosition final_position)
       : buffer_to_insert_(buffer_to_insert),
-        buffer_to_insert_length_(CountCharacters(buffer_to_insert.get())),
+        buffer_to_insert_length_(CountCharacters(*buffer_to_insert)),
         repetitions_(repetitions),
         final_position_(final_position) {
     CHECK(buffer_to_insert_ != nullptr);
@@ -59,8 +61,8 @@ class InsertBufferTransformation : public Transformation {
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     LineColumn start_position = result->cursor;
     for (size_t i = 0; i < repetitions_; i++) {
-      result->cursor = buffer->InsertInPosition(*buffer_to_insert_->contents(),
-                                                result->cursor);
+      result->cursor =
+          buffer->InsertInPosition(*buffer_to_insert_, result->cursor);
     }
     editor_state->ScheduleRedraw();
 

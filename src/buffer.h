@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "buffer_contents.h"
 #include "lazy_string.h"
 #include "line.h"
 #include "line_column.h"
@@ -85,6 +86,13 @@ class OpenBuffer {
       std::function<bool(const shared_ptr<Line>&, const shared_ptr<Line>&)>
           compare);
 
+  bool ForEachLine(std::function<bool(size_t, const Line&)> callback) const {
+    return contents_.ForEach(callback);
+  }
+
+  bool empty() const { return contents_.empty(); }
+  size_t lines_size() const { return contents_.size(); }
+
   void EraseLines(size_t first, size_t last);
 
   // Overwrites the line at a given position with a new line.
@@ -120,9 +128,8 @@ class OpenBuffer {
 
   const wstring& name() const { return name_; }
 
-  LineColumn InsertInCurrentPosition(const Tree<shared_ptr<Line>>& insertion);
-  LineColumn InsertInPosition(
-      const Tree<shared_ptr<Line>>& insertion, const LineColumn& position);
+  LineColumn InsertInPosition(const OpenBuffer& insertion,
+                              const LineColumn& position);
   // Checks that line column is in the expected range (between 0 and the length
   // of the current line).
   void AdjustLineColumn(LineColumn* output) const;
@@ -203,6 +210,14 @@ class OpenBuffer {
   const shared_ptr<Line> current_line() const;
   shared_ptr<Line> current_line();
 
+  shared_ptr<Line> LineFront() const {
+    CHECK(!contents_.empty());
+    return LineAt(0);
+  }
+  shared_ptr<Line> LineBack() const {
+    CHECK(!contents_.empty());
+    return LineAt(lines_size() - 1);
+  }
   shared_ptr<Line> LineAt(size_t line_number) const {
     CHECK(!contents_.empty());
     if (line_number >= contents_.size()) {
@@ -242,7 +257,7 @@ class OpenBuffer {
       CHECK(!contents_.empty());
       set_current_position_line(contents_.size() - 1);
     }
-    contents_[current_cursor_->line] = line;
+    contents_.set_line(current_cursor_->line, line);
   }
 
   int fd() const { return fd_.fd; }
@@ -250,7 +265,7 @@ class OpenBuffer {
 
   // We deliberately provide only a read view into our contents. All
   // modifications should be done through methods defined in this class.
-  const Tree<shared_ptr<Line>>* contents() const { return &contents_; }
+  const BufferContents* contents() const { return &contents_; }
 
   size_t view_start_line() const { return view_start_line_; }
   void set_view_start_line(size_t value) {
@@ -278,7 +293,7 @@ class OpenBuffer {
   // Returns the position of just after the last character of the current file.
   LineColumn end_position() const {
     if (contents_.empty()) { return LineColumn(0, 0); }
-    return LineColumn(contents_.size() - 1, (*contents_.rbegin())->size());
+    return LineColumn(contents_.size() - 1, contents_.back()->size());
   }
 
   bool at_last_line() const { return at_last_line(position()); }
@@ -487,7 +502,7 @@ class OpenBuffer {
 
   LineColumn position_pts_;
 
-  Tree<shared_ptr<Line>> contents_;
+  BufferContents contents_;
 
   size_t view_start_line_;
   size_t view_start_column_;

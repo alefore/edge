@@ -73,32 +73,32 @@ class PredictionsBufferImpl : public OpenBuffer {
       }
     }
 
-    wstring common_prefix =
-        (*contents()->begin())->contents()->ToString();
-    for (auto it = contents()->begin(); it != contents()->end(); ++it) {
-      if ((*it)->size() == 0) {
-        continue;
-      }
-      VLOG(5) << "Considering prediction: " << (*it)->ToString() << " (len: "
-              << (*it)->size() << ")";
-      size_t current_size = min(common_prefix.size(), (*it)->size());
-      wstring current =
-          (*it)->Substring(0, current_size)->ToString();
+    wstring common_prefix = contents_.front()->contents()->ToString();
+    bool results = contents_.ForEach(
+        [&common_prefix](size_t, const Line& line) {
+          if (line.empty()) { return true; }
+          VLOG(5) << "Considering prediction: " << line.ToString() << " (len: "
+                  << line.size() << ")";
+          size_t current_size = min(common_prefix.size(), line.size());
+          wstring current = line.Substring(0, current_size)->ToString();
 
-      auto prefix_end = mismatch(
-          common_prefix.begin(), common_prefix.end(), current.begin(),
-          [](wchar_t common_c, wchar_t current_c) {
-            return towlower(common_c) == towlower(current_c);
-          });
-      if (prefix_end.first != common_prefix.end()) {
-        if (prefix_end.first == common_prefix.begin()) {
-          LOG(INFO) << "Aborting completion.";
-          return;
-        }
-        common_prefix = wstring(common_prefix.begin(), prefix_end.first);
-      }
+          auto prefix_end = mismatch(
+              common_prefix.begin(), common_prefix.end(), current.begin(),
+              [](wchar_t common_c, wchar_t current_c) {
+                return towlower(common_c) == towlower(current_c);
+              });
+          if (prefix_end.first != common_prefix.end()) {
+            if (prefix_end.first == common_prefix.begin()) {
+              LOG(INFO) << "Aborting completion.";
+              return false;
+            }
+            common_prefix = wstring(common_prefix.begin(), prefix_end.first);
+          }
+          return true;
+        });
+    if (results) {
+      consumer_(common_prefix);
     }
-    consumer_(common_prefix);
   }
 
  private:

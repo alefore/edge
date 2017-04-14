@@ -554,8 +554,6 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
 
 void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   const shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-  const Tree<shared_ptr<Line>>& contents(*buffer->contents());
-
   screen->Move(0, 0);
 
   LineOutputReceiver screen_adapter(screen);
@@ -577,7 +575,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
 
   auto current_tree = buffer->current_tree();
   while (lines_shown < lines_to_show) {
-    if (current_line >= contents.size()) {
+    if (current_line >= buffer->lines_size()) {
       line_output_receiver->AddString(L"\n");
       lines_shown++;
       continue;
@@ -594,7 +592,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     std::unique_ptr<Line::OutputReceiverInterface> cursors_highlighter;
 
     lines_shown++;
-    const shared_ptr<Line> line(contents[current_line]);
+    auto line = buffer->LineAt(current_line);
     CHECK(line->contents() != nullptr);
     if (current_line == buffer->position().line
         && buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())) {
@@ -613,8 +611,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       }
       // Any cursors past the end of the line will just be silently moved to the
       // end of the line (just for displaying).
-      unsigned line_length =
-          (*(buffer->contents()->begin() + current_line))->size();
+      unsigned line_length = buffer->LineAt(current_line)->size();
       while (!options.columns.empty() &&
              *options.columns.rbegin() > line_length) {
         options.columns.erase(std::prev(options.columns.end()));
@@ -656,20 +653,19 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
 
 void Terminal::AdjustPosition(
     const shared_ptr<OpenBuffer> buffer, Screen* screen) {
-  const Tree<shared_ptr<Line>>& contents(*buffer->contents());
-  size_t position_line = min(buffer->position().line, contents.size() - 1);
+  size_t position_line = min(buffer->position().line, buffer->lines_size() - 1);
   size_t line_length;
-  if (contents.empty()) {
+  if (buffer->lines_size() == 0) {
     line_length = 0;
-  } else if (buffer->position().line >= contents.size()) {
-    line_length = (*contents.rbegin())->size();
+  } else if (buffer->position().line >= buffer->lines_size()) {
+    line_length = buffer->contents()->back()->size();
   } else if (!buffer->IsLineFiltered(buffer->position().line)) {
     line_length = 0;
   } else {
-    line_length = contents[position_line]->size();
+    line_length = buffer->LineAt(position_line)->size();
   }
   size_t pos_x = min(static_cast<size_t>(screen->columns()) - 1, line_length);
-  if (buffer->position().line < contents.size()) {
+  if (buffer->position().line < buffer->lines_size()) {
     pos_x = min(pos_x, buffer->position().column);
   }
 

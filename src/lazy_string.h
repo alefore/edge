@@ -10,6 +10,8 @@ namespace editor {
 using std::wstring;
 using std::shared_ptr;
 
+// An immutable string. Implementations must ensure that methods always return
+// the same values.
 class LazyString {
  public:
   virtual ~LazyString() {}

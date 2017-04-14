@@ -578,7 +578,7 @@ void OpenBuffer::ClearContents(EditorState* editor_state) {
 }
 
 void OpenBuffer::AppendEmptyLine(EditorState*) {
-  contents_.emplace_back(new Line(Line::Options()));
+  contents_.push_back(std::make_shared<Line>(Line::Options()));
   MaybeFollowToEndOfFile();
   editor_->ScheduleParseTreeUpdate(this);
 }
@@ -845,7 +845,7 @@ void OpenBuffer::StartNewLine(EditorState* editor_state) {
       editor_state->line_marks()->AddMark(mark);
     }
   }
-  contents_.emplace_back(new Line(Line::Options()));
+  contents_.push_back(std::make_shared<Line>(Line::Options()));
 }
 
 void OpenBuffer::Reload(EditorState* editor_state) {
@@ -889,7 +889,7 @@ void OpenBuffer::SortContents(size_t first, size_t last,
     std::function<bool(const shared_ptr<Line>&, const shared_ptr<Line>&)>
         compare) {
   CHECK(first <= last);
-  sort(contents_.begin() + first, contents_.begin() + last, compare);
+  contents_.sort(first, last, compare);
 }
 
 void OpenBuffer::EraseLines(size_t first, size_t last) {
@@ -909,18 +909,18 @@ void OpenBuffer::EraseLines(size_t first, size_t last) {
         return position;
       });
 
-  contents_.erase(contents_.begin() + first, contents_.begin() + last);
+  contents_.EraseLines(first, last);
   editor_->ScheduleParseTreeUpdate(this);
   CHECK_LE(current_cursor_->line, contents_.size());
 }
 
 void OpenBuffer::ReplaceLine(size_t line_position, shared_ptr<Line> line) {
-  *(contents_.begin() + line_position) = line;
+  contents_.set_line(line_position, line);
   editor_->ScheduleParseTreeUpdate(this);
 }
 
 void OpenBuffer::InsertLine(size_t line_position, shared_ptr<Line> line) {
-  contents_.insert(contents_.begin() + line_position, line);
+  contents_.insert_line(line_position, line);
   LOG(INFO) << "Inserting line at position: " << line_position;
   AdjustCursors(
       [line_position](LineColumn position) {
@@ -979,7 +979,7 @@ void OpenBuffer::ProcessCommandInput(
     position_pts_.line = contents_.size() - 1;
   }
   CHECK_LT(position_pts_.line, contents_.size());
-  auto current_line = contents_[position_pts_.line];
+  auto current_line = contents_.at(position_pts_.line);
 
   std::unordered_set<Line::Modifier, hash<int>> modifiers;
 
@@ -1002,16 +1002,16 @@ void OpenBuffer::ProcessCommandInput(
       position_pts_.line++;
       position_pts_.column = 0;
       if (position_pts_.line == contents_.size()) {
-        contents_.emplace_back(new Line(Line::Options()));
+        contents_.push_back(std::make_shared<Line>(Line::Options()));
       }
       CHECK_LT(position_pts_.line, contents_.size());
-      current_line = contents_[position_pts_.line];
+      current_line = contents_.at(position_pts_.line);
       MaybeFollowToEndOfFile();
     } else if (c == 0x1b) {
       read_index = ProcessTerminalEscapeSequence(
           editor_state, str, read_index, &modifiers);
       CHECK_LT(position_pts_.line, contents_.size());
-      current_line = contents_[position_pts_.line];
+      current_line = contents_.at(position_pts_.line);
     } else if (isprint(c) || c == '\t') {
       current_line->SetCharacter(position_pts_.column, c, modifiers);
       position_pts_.column++;
@@ -1050,7 +1050,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
   }
   read_index++;
   CHECK_LT(position_pts_.line, contents_.size());
-  auto current_line = contents_[position_pts_.line];
+  auto current_line = contents_.at(position_pts_.line);
   string sequence;
   while (read_index < str->size()) {
     int c = str->get(read_index);
@@ -1186,7 +1186,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
           position_pts_ =
               LineColumn(view_start_line_ + line_delta, column_delta);
           while (position_pts_.line >= contents_.size()) {
-            contents_.emplace_back(new Line(Line::Options()));
+            contents_.push_back(std::make_shared<Line>(Line::Options()));
           }
           MaybeFollowToEndOfFile();
           view_start_column_ = column_delta;
@@ -1240,17 +1240,19 @@ void OpenBuffer::AppendToLastLine(
   VLOG(6) << "Adding line of length: " << str->size();
   VLOG(7) << "Adding line: " << str->ToString();
   if (contents_.empty()) {
-    contents_.emplace_back(new Line(Line::Options()));
+    contents_.push_back(std::make_shared<Line>(Line::Options()));
     MaybeFollowToEndOfFile();
   }
-  CHECK((*contents_.rbegin())->contents() != nullptr);
+  CHECK(!contents_.empty());
+  auto last_line = contents_.back();
+  CHECK(last_line->contents() != nullptr);
   Line::Options options;
-  options.contents = StringAppend((*contents_.rbegin())->contents(), str);
-  options.modifiers = (*contents_.rbegin())->modifiers();
-  for (auto& it : modifiers) {
-    options.modifiers.push_back(it);
+  options.contents = StringAppend(last_line->contents(), str);
+  options.modifiers = last_line->modifiers();
+  for (auto& m : modifiers) {
+    options.modifiers.push_back(m);
   }
-  *contents_.rbegin() = std::make_shared<Line>(options);
+  contents_.set_line(contents_.size() - 1, std::make_shared<Line>(options));
   editor_->ScheduleParseTreeUpdate(this);
 }
 
@@ -1293,12 +1295,6 @@ unique_ptr<Value> OpenBuffer::EvaluateFile(EditorState* editor_state,
   return Evaluate(expression.get(), &environment_);
 }
 
-LineColumn OpenBuffer::InsertInCurrentPosition(
-    const Tree<shared_ptr<Line>>& insertion) {
-  MaybeAdjustPositionCol();
-  return InsertInPosition(insertion, position());
-}
-
 namespace {
 // Appends contents from source to output starting at position start and only
 // up to count elements. If start + count are outside of the boundaries of
@@ -1324,15 +1320,14 @@ void PushContents(size_t start, size_t count, const vector<Contents>& source,
 }
 }  // namespace
 
-LineColumn OpenBuffer::InsertInPosition(
-    const Tree<shared_ptr<Line>>& insertion,
-    const LineColumn& input_position) {
-  if (insertion.empty()) { return input_position; }
+LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
+                                        const LineColumn& input_position) {
+  if (buffer.empty()) { return input_position; }
   LineColumn position = input_position;
   editor_->ScheduleParseTreeUpdate(this);
   set_modified(true);
-  if (contents_.empty()) {
-    contents_.emplace_back(new Line(Line::Options()));
+  if (empty()) {
+    contents_.push_back(std::make_shared<Line>(Line::Options()));
   }
   if (position.line >= contents_.size()) {
     position.line = contents_.size() - 1;
@@ -1344,35 +1339,33 @@ LineColumn OpenBuffer::InsertInPosition(
   auto head = contents_.at(position.line)->Substring(0, position.column);
   auto tail = contents_.at(position.line)->Substring(position.column);
   auto modifiers = contents_.at(position.line)->modifiers();
-  contents_.insert(contents_.begin() + position.line, insertion.begin(),
-                   insertion.end() - 1);
-  for (size_t i = 1; i < insertion.size() - 1; i++) {
+  contents_.insert(position.line, buffer.contents_, 0,
+                   buffer.contents_.size() - 1);
+  for (size_t i = 1; i < buffer.lines_size() - 1; i++) {
     contents_.at(position.line + i)->set_modified(true);
   }
   // The last line that was inserted.
-  Tree<shared_ptr<Line>>::const_iterator line_it =
-      contents_.begin() + position.line + insertion.size() - 1;
   VLOG(4) << "Adjusting cursors.";
   AdjustCursors(
-      [position, insertion](LineColumn cursor) {
+      [position, &buffer](LineColumn cursor) {
         if (cursor < position) {
           VLOG(7) << "Skipping cursor: " << cursor;
           return cursor;
         }
         if (cursor.line == position.line) {
           CHECK_GE(cursor.column, position.column);
-          cursor.column += (*insertion.rbegin())->size();
-          if (insertion.size() > 1) {
+          cursor.column += buffer.LineBack()->size();
+          if (buffer.lines_size() > 1) {
             cursor.column -= position.column;
           }
         }
-        cursor.line += insertion.end() - insertion.begin() - 1;
+        cursor.line += buffer.lines_size() - 1;
         VLOG(6) << "Insertion shifts cursor to position: " << cursor;
         return cursor;
       });
-  if (insertion.size() == 1) {
-    if (insertion.at(0)->size() == 0) { return position; }
-    auto line_to_insert = insertion.at(0);
+  if (buffer.lines_size() == 1) {
+    if (buffer.LineFront()->size() == 0) { return position; }
+    auto line_to_insert = buffer.LineFront();
     Line::Options options;
     options.contents = StringAppend(head,
         StringAppend(line_to_insert->contents(), tail));
@@ -1383,37 +1376,37 @@ LineColumn OpenBuffer::InsertInPosition(
     PushContents(head->size(), tail->size(), modifiers, empty,
                  &options.modifiers);
     if (position.line >= contents_.size()) {
-      contents_.emplace_back(new Line(options));
+      contents_.push_back(std::make_shared<Line>(options));
     } else {
-      contents_.at(position.line) = std::make_shared<Line>(options);
+      contents_.set_line(position.line, std::make_shared<Line>(options));
     }
-    contents_[position.line]->set_modified(true);
+    contents_.at(position.line)->set_modified(true);
     return LineColumn(position.line, head->size() + line_to_insert->size());
   }
-  size_t line_end = position.line + insertion.size() - 1;
+  size_t line_end = position.line + buffer.lines_size() - 1;
   {
     Line::Options options;
-    options.contents = StringAppend(head, (*insertion.begin())->contents());
-    contents_.at(position.line) = std::make_shared<Line>(options);
+    options.contents = StringAppend(head, buffer.LineFront()->contents());
+    contents_.set_line(position.line, std::make_shared<Line>(options));
     if (contents_.at(position.line)->contents() != head) {
-      contents_[position.line]->set_modified(true);
+      contents_.at(position.line)->set_modified(true);
     }
   }
   {
-    Line::Options options;
-    options.contents = StringAppend((*insertion.rbegin())->contents(), tail);
+    auto line = std::make_shared<Line>(
+        Line::Options(StringAppend(buffer.LineBack()->contents(), tail)));
     if (line_end >= contents_.size()) {
-      contents_.emplace_back(new Line(options));
+      contents_.push_back(line);
     } else {
-      contents_.at(line_end) = std::make_shared<Line>(options);
+      contents_.set_line(line_end, line);
     }
   }
-  if (head->size() > 0 || (*insertion.rbegin())->size() > 0) {
-    contents_[line_end]->set_modified(true);
+  if (head->size() > 0 || !contents_.back()->empty()) {
+    contents_.at(line_end)->set_modified(true);
   }
   return LineColumn(line_end,
-      (insertion.size() == 1 ? head->size() : 0)
-      + (*insertion.rbegin())->size());
+      (buffer.lines_size() == 1 ? head->size() : 0)
+      + buffer.LineBack()->size());
 }
 
 void OpenBuffer::AdjustLineColumn(LineColumn* output) const {
@@ -2041,17 +2034,7 @@ std::shared_ptr<OpenBuffer> OpenBuffer::GetBufferFromCurrentLine() {
 }
 
 wstring OpenBuffer::ToString() const {
-  size_t size = 0;
-  for (auto& it : contents_) {
-    size += it->size() + 1;
-  }
-  wstring output;
-  output.reserve(size);
-  for (auto& it : contents_) {
-    output.append(it->ToString() + L"\n");
-  }
-  output = output.substr(0, output.size() - 1);
-  return output;
+  return contents_.ToString();
 }
 
 void OpenBuffer::PushSignal(EditorState* editor_state, int sig) {
@@ -2781,7 +2764,7 @@ bool OpenBuffer::IsLineFiltered(size_t line_number) {
   if (line_number >= contents_.size()) {
     return true;
   }
-  auto line = contents_[line_number];
+  auto line = contents_.at(line_number);
   if (line->filter_version() < filter_version_) {
     vector<unique_ptr<Value>> args;
     args.push_back(Value::NewString(line->ToString()));

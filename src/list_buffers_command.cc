@@ -58,9 +58,9 @@ class ListBuffersBuffer : public OpenBuffer {
               0));
       auto context = LinesToShow(*buffer, context_lines_var);
 
-      std::shared_ptr<LazyString> name = NewCopyString(
-          (context.first == context.second ? L"" : L"╭──") + buffer->name());
+      std::shared_ptr<LazyString> name = NewCopyString(buffer->name());
       if (context.first != context.second) {
+        name = StringAppend(NewCopyString(L"╭──"), name);
         size_t width =
             target->read_int_variable(OpenBuffer::variable_line_width());
         if (width > name->size()) {
@@ -77,20 +77,19 @@ class ListBuffersBuffer : public OpenBuffer {
       }
       AdjustLastLine(target, buffer);
 
-      auto start = context.first;
       size_t index = 0;
       while (index < context_lines_var) {
         Line::Options options;
         options.contents =
             NewCopyString(index + 1 == context_lines_var ? L"╰ " : L"│ ");
-        if (start < context.second) {
-          options.contents =
-              StringAppend(options.contents, (*start)->contents());
+        if (context.first < context.second) {
+          auto line = buffer->LineAt(context.first);
+          options.contents = StringAppend(options.contents, line->contents());
           options.modifiers.resize(2);
-          auto modifiers = (*start)->modifiers();
+          auto modifiers = line->modifiers();
           options.modifiers.insert(
               options.modifiers.end(), modifiers.begin(), modifiers.end());
-          ++start;
+          context.first++;
         }
         target->AppendRawLine(editor_state, std::make_shared<Line>(options));
         AdjustLastLine(target, buffer);
@@ -100,38 +99,32 @@ class ListBuffersBuffer : public OpenBuffer {
     editor_state->ScheduleRedraw();
   }
 
-  pair<Tree<std::shared_ptr<Line>>::const_iterator,
-       Tree<std::shared_ptr<Line>>::const_iterator>
-      LinesToShow(const OpenBuffer& buffer, size_t lines) {
+  pair<size_t, size_t> LinesToShow(const OpenBuffer& buffer, size_t lines) {
     lines = min(lines, buffer.contents()->size());
     VLOG(5) << buffer.name() << ": Context lines to show: " << lines;
     if (lines == 0) {
-      auto last = buffer.contents()->end();
+      auto last = buffer.lines_size();
       return make_pair(last, last);
     }
-    Tree<std::shared_ptr<Line>>::const_iterator start =
-        buffer.contents()->cbegin() + buffer.current_cursor()->line;
+    size_t start = buffer.current_cursor()->line;
     start -= min(buffer.current_cursor()->line,
                  max(lines / 2,
-                     lines - min(lines,
-                                 static_cast<size_t>(
-                                     buffer.contents()->cend() - start))));
-    Tree<std::shared_ptr<Line>>::const_iterator stop =
-        (static_cast<size_t>(buffer.contents()->end() - start) > lines)
-             ? start + lines : buffer.contents()->end();
+                     lines - min(lines, buffer.lines_size() - start)));
+    size_t stop = min(buffer.lines_size(), start + lines);
+    CHECK_LE(start, stop);
 
     // Scroll back if there's a bunch of empty lines.
-    while (start > buffer.contents()->cbegin() && (*(stop - 1))->size() == 0) {
+    while (start > 0 && buffer.LineAt(stop - 1)->empty()) {
       --stop;
       --start;
     }
-    CHECK(start <= stop);
+    CHECK_LE(start, stop);
     return make_pair(start, stop);
   }
 
  private:
   void AdjustLastLine(OpenBuffer* target, std::shared_ptr<OpenBuffer> buffer) {
-    (*target->contents()->rbegin())->environment()->Define(
+    target->contents()->back()->environment()->Define(
         L"buffer", Value::NewObject(L"Buffer", buffer));
   }
 };

@@ -101,13 +101,17 @@ class Line {
     CHECK(contents_ != nullptr);
     return contents_->size();
   }
+  bool empty() const {
+    CHECK(contents_ != nullptr);
+    return size() == 0;
+  }
   wint_t get(size_t column) const {
     CHECK_LT(column, contents_->size());
     return contents_->get(column);
   }
-  shared_ptr<LazyString> Substring(size_t pos, size_t length);
+  shared_ptr<LazyString> Substring(size_t pos, size_t length) const;
   // Returns the substring from pos to the end of the string.
-  shared_ptr<LazyString> Substring(size_t pos);
+  shared_ptr<LazyString> Substring(size_t pos) const;
   wstring ToString() const {
     return contents_->ToString();
   }

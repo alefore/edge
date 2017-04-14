@@ -124,7 +124,9 @@ class AutocompleteMode : public EditorMode {
     // TODO: Make these shared_ptr weak_ptrs.
     std::shared_ptr<OpenBuffer> dictionary;
     std::shared_ptr<OpenBuffer> buffer;
-    Iterator matches_start;
+
+    // The position where the matches begin.
+    size_t matches_start;
     size_t column_start;
     size_t column_end;
   };
@@ -141,10 +143,10 @@ class AutocompleteMode : public EditorMode {
       return;
     }
 
+    auto match = options_.dictionary->LineAt(matches_current_);
     auto buffer_to_insert =
         std::make_shared<OpenBuffer>(editor_state, L"tmp buffer");
-    buffer_to_insert->AppendToLastLine(editor_state,
-                                       (*matches_current_)->contents());
+    buffer_to_insert->AppendToLastLine(editor_state, match->contents());
     DLOG(INFO) << "Completion selected: " << buffer_to_insert->ToString();
 
     DeleteOptions delete_options;
@@ -161,16 +163,17 @@ class AutocompleteMode : public EditorMode {
     editor_state->ScheduleRedraw();
 
     LOG(INFO) << "Updating variables for next completion.";
-    word_length_ = (*matches_current_)->size();
+    word_length_ = match->size();
     ++matches_current_;
-    if (matches_current_ == options_.dictionary->contents()->end()) {
+    if (matches_current_ == options_.dictionary->lines_size()) {
       matches_current_ = options_.matches_start;
     }
   }
 
  private:
   Options options_;
-  Iterator matches_current_;
+  // The position of the line with the current match.
+  size_t matches_current_;
   // The number of characters that need to be erased (starting at
   // options_.column_start) for the next insertion. Initially, this is computed
   // from options_.column_start and options_.column_end; however, after an
@@ -292,16 +295,14 @@ void FindCompletion(EditorState* editor_state,
 
   LOG(INFO) << "Find completion for \"" << options.prefix->ToString()
             << "\" among options: " << dictionary->contents()->size();
-  options.matches_start = std::upper_bound(
-      dictionary->contents()->begin(),
-      dictionary->contents()->end(),
+  options.matches_start = dictionary->contents()->upper_bound(
       options.prefix,
       [](const std::shared_ptr<Line>& a, const std::shared_ptr<Line>& b) {
         return a->ToString() < b->ToString();
       });
 
-  if (options.matches_start == dictionary->contents()->end()) {
-    options.matches_start = dictionary->contents()->begin();
+  if (options.matches_start == dictionary->lines_size()) {
+    options.matches_start = 0;
   }
 
   editor_state->set_mode(unique_ptr<AutocompleteMode>(
@@ -614,9 +615,11 @@ class RawInputTypeMode : public EditorMode {
         if (buffering_) {
           if (line_buffer_.empty()) { return; }
           line_buffer_.resize(line_buffer_.size() - 1);
-          auto last_line = *buffer_->contents()->rbegin();
-          last_line.reset(
-              new Line(last_line->Substring(0, last_line->size() - 1)));
+          auto last_line = buffer_->contents()->back();
+          buffer_->ReplaceLine(
+              buffer_->lines_size(),
+              std::make_shared<Line>(
+                  last_line->Substring(0, last_line->size() - 1)));
         } else {
           string contents(1, 127);
           write(buffer_->fd(), contents.c_str(), contents.size());

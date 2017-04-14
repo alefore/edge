@@ -158,15 +158,12 @@ class FileBuffer : public OpenBuffer {
               return Value::NewVoid();
             };
 
-        (*target->contents()->rbegin())->environment()->Define(
+        target->contents()->back()->environment()->Define(
             L"EdgeLineDeleteHandler", std::move(callback));
       }
     }
     closedir(dir);
 
-    list<shared_ptr<Line>> test(
-        target->contents()->begin() + 1,
-        target->contents()->end());
     target->SortContents(1, target->contents()->size(),
         [](const shared_ptr<Line>& a, const shared_ptr<Line>& b) {
           return *a->contents() < *b->contents();
@@ -188,7 +185,7 @@ class FileBuffer : public OpenBuffer {
       return;
     }
 
-    if (!SaveContentsToFile(editor_state, this, path)) {
+    if (!SaveContentsToFile(editor_state, path)) {
       return;
     }
     set_modified(false);
@@ -207,6 +204,53 @@ class FileBuffer : public OpenBuffer {
   }
 
  private:
+  bool SaveContentsToFile(EditorState* editor_state, const wstring& path) {
+    string path_raw = ToByteString(path);
+    string tmp_path = path_raw + ".tmp";
+    // TODO: Make this non-blocking.
+    int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC,
+                  S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+    if (fd == -1) {
+      editor_state->SetStatus(
+          FromByteString(tmp_path) + L": open failed: "
+          + FromByteString(strerror(errno)));
+      return false;
+    }
+    bool result = SaveContentsToOpenFile(
+        editor_state, FromByteString(tmp_path), fd);
+    close(fd);
+    if (!result) {
+      return false;
+    }
+
+    // TODO: Make this non-blocking?
+    if (rename(tmp_path.c_str(), path_raw.c_str()) == -1) {
+      editor_state->SetStatus(
+          path + L": rename failed: " + FromByteString(strerror(errno)));
+      return false;
+    }
+
+    return true;
+  }
+
+  bool SaveContentsToOpenFile(
+      EditorState* editor_state, const wstring& path, int fd) {
+    // TODO: It'd be significant more efficient to do fewer (bigger) writes.
+    bool result;
+    return contents_.ForEach(
+        [editor_state, fd, &result, path](size_t position, const Line& line) {
+          string str = (position == 0 ? "" : "\n")
+              + ToByteString(line.ToString());
+          if (write(fd, str.c_str(), str.size()) == -1) {
+            editor_state->SetStatus(
+                path + L": write failed: " + std::to_wstring(fd) + L": "
+            + FromByteString(strerror(errno)));
+            return false;
+          }
+          return true;
+        });
+  }
+
   wstring GetPath() const {
     return read_string_variable(variable_path());
   }
@@ -293,60 +337,7 @@ static bool FindPath(
 
 using std::unique_ptr;
 
-bool SaveContentsToFile(
-    EditorState* editor_state, OpenBuffer* buffer, const wstring& path) {
-  assert(buffer != nullptr);
-  string path_raw = ToByteString(path);
-  string tmp_path = path_raw + ".tmp";
-  // TODO: Make this non-blocking.
-  int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC,
-                S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-  if (fd == -1) {
-    editor_state->SetStatus(
-        FromByteString(tmp_path) + L": open failed: "
-        + FromByteString(strerror(errno)));
-    return false;
-  }
-  bool result = SaveContentsToOpenFile(
-      editor_state, buffer, FromByteString(tmp_path), fd);
-  close(fd);
-  if (!result) {
-    return false;
-  }
-
-  // TODO: Make this non-blocking?
-  if (rename(tmp_path.c_str(), path_raw.c_str()) == -1) {
-    editor_state->SetStatus(
-        path + L": rename failed: " + FromByteString(strerror(errno)));
-    return false;
-  }
-
-  return true;
-}
-
-bool SaveContentsToOpenFile(
-    EditorState* editor_state, OpenBuffer* buffer, const wstring& path,
-    int fd) {
-  // TODO: It'd be significant more efficient to do fewer (bigger) writes.
-  for (auto it = buffer->contents()->begin(); it != buffer->contents()->end();
-       ++it) {
-    string str = ToByteString((*it)->contents()->ToString());
-    bool include_newline = it + 1 != buffer->contents()->end();
-    if (include_newline) {
-      str += "\n";
-    }
-    int write_result = write(fd, str.c_str(), str.size());
-    if (write_result == -1) {
-      editor_state->SetStatus(
-          path + L": write failed: " + std::to_wstring(fd) + L": "
-          + FromByteString(strerror(errno)));
-      return false;
-    }
-  }
-  return true;
-}
-
-shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
+  shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
   OpenFileOptions options;
   options.editor_state = editor_state;
   options.name = L"- search paths";
@@ -378,12 +369,14 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
     LOG(INFO) << "No search paths buffer.";
     return;
   }
-  for (auto it : *search_paths_buffer->contents()) {
-    if (it->size() > 0) {
-      output->push_back(editor_state->expand_path(it->ToString()));
-      LOG(INFO) << "Pushed search path: " << output->back();
-    }
-  }
+  search_paths_buffer->ForEachLine(
+      [editor_state, output](size_t, const Line& line) {
+        if (line.size() > 0) {
+          output->push_back(editor_state->expand_path(line.ToString()));
+          LOG(INFO) << "Pushed search path: " << output->back();
+        }
+        return true;
+      });
 }
 
 bool ResolvePath(EditorState* editor_state, const wstring& path,

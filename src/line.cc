@@ -28,11 +28,11 @@ Line::Line(const Options& options)
   CHECK(contents_ != nullptr);
 }
 
-shared_ptr<LazyString> Line::Substring(size_t pos, size_t length) {
+shared_ptr<LazyString> Line::Substring(size_t pos, size_t length) const {
   return afc::editor::Substring(contents_, pos, length);
 }
 
-shared_ptr<LazyString> Line::Substring(size_t pos) {
+shared_ptr<LazyString> Line::Substring(size_t pos) const {
   return afc::editor::Substring(contents_, pos);
 }
 
