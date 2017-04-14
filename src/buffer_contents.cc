@@ -52,6 +52,11 @@ void BufferContents::ForEach(
           });
 }
 
+void BufferContents::ForEach(const std::function<void(wstring)>& callback)
+    const {
+  ForEach([callback](const Line& line) { callback(line.ToString()); });
+}
+
 size_t BufferContents::CountCharacters() const {
   size_t output = 0;
   ForEach([&output](const Line& line) {

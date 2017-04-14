@@ -77,6 +77,7 @@ class BufferContents {
 
   // Convenience wrappers of the above.
   void ForEach(const std::function<void(const Line&)>& callback) const;
+  void ForEach(const std::function<void(wstring)>& callback) const;
 
   void insert(size_t position, const BufferContents& source, size_t first_line,
               size_t last_line);

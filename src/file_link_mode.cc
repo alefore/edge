@@ -370,12 +370,10 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
     return;
   }
   search_paths_buffer->ForEachLine(
-      [editor_state, output](size_t, const Line& line) {
-        if (line.size() > 0) {
-          output->push_back(editor_state->expand_path(line.ToString()));
-          LOG(INFO) << "Pushed search path: " << output->back();
-        }
-        return true;
+      [editor_state, output](wstring line) {
+        if (line.empty()) { return; }
+        output->push_back(editor_state->expand_path(line));
+        LOG(INFO) << "Pushed search path: " << output->back();
       });
 }
 
