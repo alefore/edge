@@ -33,6 +33,7 @@ void BufferContents::insert(size_t position, const BufferContents& source,
   CHECK_LE(last_line, source.size());
   lines_.insert(lines_.begin() + position, source.lines_.begin() + first_line,
                 source.lines_.begin() + last_line);
+  NotifyUpdateListeners();
 }
 
 bool BufferContents::ForEach(
@@ -86,6 +87,17 @@ void BufferContents::InsertCharacter(size_t line, size_t column) {
   auto new_line = std::make_shared<Line>(*at(line));
   new_line->InsertCharacterAtPosition(column);
   set_line(line, new_line);
+}
+
+void BufferContents::AddUpdateListener(std::function<void()> listener) {
+  CHECK(listener);
+  update_listeners_.push_back(listener);
+}
+
+void BufferContents::NotifyUpdateListeners() {
+  for (auto& l : update_listeners_) {
+    l();
+  }
 }
 
 }  // namespace editor

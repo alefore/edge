@@ -489,6 +489,10 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
       tree_parser_(NewNullTreeParser()) {
+  contents_.AddUpdateListener([this]() {
+                                editor_->ScheduleParseTreeUpdate(this);
+                                set_modified(true);
+                              });
   UpdateTreeParser();
   current_cursor_ = active_cursors()->insert(LineColumn());
 
@@ -580,7 +584,6 @@ void OpenBuffer::ClearContents(EditorState* editor_state) {
 void OpenBuffer::AppendEmptyLine(EditorState*) {
   contents_.push_back(std::make_shared<Line>());
   MaybeFollowToEndOfFile();
-  editor_->ScheduleParseTreeUpdate(this);
 }
 
 void OpenBuffer::EndOfFile(EditorState* editor_state) {
@@ -911,13 +914,11 @@ void OpenBuffer::EraseLines(size_t first, size_t last) {
       });
 
   contents_.EraseLines(first, last);
-  editor_->ScheduleParseTreeUpdate(this);
   CHECK_LE(current_cursor_->line, contents_.size());
 }
 
 void OpenBuffer::ReplaceLine(size_t line_position, shared_ptr<Line> line) {
   contents_.set_line(line_position, line);
-  editor_->ScheduleParseTreeUpdate(this);
 }
 
 void OpenBuffer::InsertLine(size_t line_position, shared_ptr<Line> line) {
@@ -931,7 +932,6 @@ void OpenBuffer::InsertLine(size_t line_position, shared_ptr<Line> line) {
         }
         return position;
       });
-  editor_->ScheduleParseTreeUpdate(this);
 }
 
 void OpenBuffer::AppendLine(EditorState* editor_state,
@@ -966,8 +966,6 @@ void OpenBuffer::AppendRawLine(EditorState* editor,
 
 void OpenBuffer::AppendRawLine(EditorState*, shared_ptr<Line> line) {
   contents_.push_back(line);
-  editor_->ScheduleParseTreeUpdate(this);
-  set_modified(true);
   MaybeFollowToEndOfFile();
 }
 
@@ -1224,7 +1222,6 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
                min(static_cast<size_t>(atoi(sequence.c_str())),
                    current_line->size()));
           current_line = LineAt(position_pts_.line);
-          editor_->ScheduleParseTreeUpdate(this);
           return read_index;
         }
       default:
@@ -1261,7 +1258,6 @@ void OpenBuffer::AppendToLastLine(
     options.modifiers.push_back(m);
   }
   contents_.set_line(contents_.size() - 1, std::make_shared<Line>(options));
-  editor_->ScheduleParseTreeUpdate(this);
 }
 
 unique_ptr<Expression> OpenBuffer::CompileString(EditorState*,
@@ -1307,8 +1303,6 @@ LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
                                         const LineColumn& input_position) {
   if (buffer.empty()) { return input_position; }
   LineColumn position = input_position;
-  editor_->ScheduleParseTreeUpdate(this);
-  set_modified(true);
   if (empty()) {
     contents_.push_back(std::make_shared<Line>());
   }
@@ -2137,7 +2131,6 @@ void OpenBuffer::set_line_modified(size_t position) {
   auto new_line = std::make_shared<Line>(old_line);
   new_line->set_modified(true);
   ReplaceLine(position, new_line);
-  set_modified(true);
 }
 
 void OpenBuffer::set_position(const LineColumn& position) {
