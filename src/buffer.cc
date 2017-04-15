@@ -489,10 +489,12 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
       tree_parser_(NewNullTreeParser()) {
-  contents_.AddUpdateListener([this]() {
-                                editor_->ScheduleParseTreeUpdate(this);
-                                modified_ = true;
-                              });
+  contents_.AddUpdateListener(
+      [this](const BufferContents::CursorAdjuster& cursor_adjuster) {
+        editor_->ScheduleParseTreeUpdate(this);
+        modified_ = true;
+        AdjustCursors(cursor_adjuster);
+      });
   UpdateTreeParser();
   current_cursor_ = active_cursors()->insert(LineColumn());
 
@@ -897,53 +899,16 @@ void OpenBuffer::SortContents(size_t first, size_t last,
 }
 
 void OpenBuffer::EraseLines(size_t first, size_t last) {
-  if (first == last) {
-    return;  // That was easy.
-  }
-  LOG(INFO) << "Erasing lines in range [" << first << ", " << last << ").";
-  CHECK_GE(last, first);
-  CHECK_LE(current_cursor_->line, contents_.size());
-  AdjustCursors(
-      [last, first](LineColumn position) {
-        if (position.line >= last) {
-          position.line -= last - first;
-        } else if (position.line >= first) {
-          position.line = first;
-        }
-        return position;
-      });
-
   contents_.EraseLines(first, last);
   CHECK_LE(current_cursor_->line, contents_.size());
 }
 
 void OpenBuffer::SplitLine(LineColumn split_position) {
   contents_.SplitLine(split_position.line, split_position.column);
-  AdjustCursors(
-      [split_position](LineColumn position) {
-        if (position.line > split_position.line) {
-          position.line++;
-        } else if (position >= split_position) {
-          position.line++;
-          position.column -= split_position.column;
-        }
-        return position;
-      });
 }
 
 void OpenBuffer::FoldNextLine(size_t line_position) {
-  size_t initial_size = LineAt(line_position)->size();
   contents_.FoldNextLine(line_position);
-  AdjustCursors(
-      [line_position, initial_size](LineColumn position) {
-        if (position.line == line_position + 1) {
-          position.column += initial_size;
-        }
-        if (position.line > line_position) {
-          position.line--;
-        }
-        return position;
-      });
 }
 
 void OpenBuffer::InsertLine(size_t line_position, shared_ptr<Line> line) {
@@ -1241,7 +1206,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
 
       case 'P':
         {
-          DeleteCharactersFromLine(
+          contents_.DeleteCharactersFromLine(
                position_pts_.line,
                position_pts_.column,
                min(static_cast<size_t>(atoi(sequence.c_str())),
@@ -1479,6 +1444,7 @@ void AdjustCursorsSet(const std::function<LineColumn(LineColumn)>& callback,
 }
 
 void OpenBuffer::AdjustCursors(std::function<LineColumn(LineColumn)> callback) {
+  if (!callback) { return; }
   VLOG(7) << "Before adjust cursors, current at: " << *current_cursor_;
   for (auto& cursors_set : cursors_) {
     AdjustCursorsSet(callback, &cursors_set.second, &current_cursor_);
@@ -1973,24 +1939,11 @@ wstring OpenBuffer::ToString() const {
 
 void OpenBuffer::DeleteCharactersFromLine(
     size_t line, size_t column, size_t amount) {
-  if (amount == 0) { return; }
-  CHECK_LE(column + amount, LineAt(line)->size());
-  AdjustCursors(
-      [line, column, amount](LineColumn position) {
-        if (position.line == line) {
-          if (position.column > column + amount) {
-            position.column -= amount;
-          } else if (position.column > column) {
-            position.column = column;
-          }
-        }
-        return position;
-      });
   contents_.DeleteCharactersFromLine(line, column, amount);
 }
 
 void OpenBuffer::DeleteUntilEnd(size_t line, size_t column) {
-  DeleteCharactersFromLine(line, column, LineAt(line)->size() - column);
+  contents_.DeleteCharactersFromLine(line, column);
 }
 
 void OpenBuffer::PushSignal(EditorState* editor_state, int sig) {

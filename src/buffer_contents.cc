@@ -33,7 +33,7 @@ void BufferContents::insert(size_t position, const BufferContents& source,
   CHECK_LE(last_line, source.size());
   lines_.insert(lines_.begin() + position, source.lines_.begin() + first_line,
                 source.lines_.begin() + last_line);
-  NotifyUpdateListeners();
+  NotifyUpdateListeners(nullptr);
 }
 
 bool BufferContents::ForEach(
@@ -71,9 +71,24 @@ size_t BufferContents::CountCharacters() const {
 
 void BufferContents::DeleteCharactersFromLine(
     size_t line, size_t column, size_t amount) {
+  if (amount == 0) { return; }
+  CHECK_LE(column + amount, at(line)->size());
+
   auto new_line = std::make_shared<Line>(*at(line));
   new_line->DeleteCharacters(column, amount);
   set_line(line, new_line);
+
+  NotifyUpdateListeners(
+      [line, column, amount](LineColumn position) {
+        if (position.line == line) {
+          if (position.column > column + amount) {
+            position.column -= amount;
+          } else if (position.column > column) {
+            position.column = column;
+          }
+        }
+        return position;
+      });
 }
 
 void BufferContents::DeleteCharactersFromLine(size_t line, size_t column) {
@@ -85,12 +100,14 @@ void BufferContents::SetCharacter(size_t line, size_t column, int c,
   auto new_line = std::make_shared<Line>(*at(line));
   new_line->SetCharacter(column, c, modifiers);
   set_line(line, new_line);
+  NotifyUpdateListeners(nullptr);
 }
 
 void BufferContents::InsertCharacter(size_t line, size_t column) {
   auto new_line = std::make_shared<Line>(*at(line));
   new_line->InsertCharacterAtPosition(column);
   set_line(line, new_line);
+  NotifyUpdateListeners(nullptr);
 }
 
 void BufferContents::AppendToLine(
@@ -103,12 +120,42 @@ void BufferContents::AppendToLine(
   auto line = std::make_shared<Line>(*at(position));
   line->Append(line_to_append);
   set_line(position, line);
+  NotifyUpdateListeners(nullptr);
+}
+
+void BufferContents::EraseLines(size_t first, size_t last) {
+  if (first == last) {
+    return;  // Optimization to avoid notifying listeners.
+  }
+  CHECK_LE(first, last);
+  CHECK_LE(last, size());
+  LOG(INFO) << "Erasing lines in range [" << first << ", " << last << ").";
+  lines_.erase(lines_.begin() + first, lines_.begin() + last);
+  NotifyUpdateListeners(
+      [last, first](LineColumn position) {
+        if (position.line >= last) {
+          position.line -= last - first;
+        } else if (position.line >= first) {
+          position.line = first;
+        }
+        return position;
+      });
 }
 
 void BufferContents::SplitLine(size_t line, size_t column) {
   auto tail = std::make_shared<Line>(*at(line));
   tail->DeleteCharacters(0, column);
   insert_line(line + 1, tail);
+  NotifyUpdateListeners(
+      [line, column](LineColumn position) {
+        if (position.line > line) {
+          position.line++;
+        } else if (position.line == line && position.column >= column) {
+          position.line++;
+          position.column -= column;
+        }
+        return position;
+      });
   DeleteCharactersFromLine(line, column);
 }
 
@@ -116,20 +163,29 @@ void BufferContents::FoldNextLine(size_t position) {
   if (position + 1 >= size()) {
     return;
   }
-  auto line = std::make_shared<Line>(*at(position));
-  line->Append(*at(position + 1));
-  set_line(position, line);
+  size_t initial_size = at(position)->size();
+  AppendToLine(position, *at(position + 1));
+  NotifyUpdateListeners(
+      [position, initial_size](LineColumn cursor) {
+        if (cursor.line == position + 1) {
+          cursor.line--;
+          cursor.column += initial_size;
+        }
+        return cursor;
+      });
   EraseLines(position + 1, position + 2);
 }
 
-void BufferContents::AddUpdateListener(std::function<void()> listener) {
+void BufferContents::AddUpdateListener(
+    std::function<void(const CursorAdjuster&)> listener) {
   CHECK(listener);
   update_listeners_.push_back(listener);
 }
 
-void BufferContents::NotifyUpdateListeners() {
+void BufferContents::NotifyUpdateListeners(
+    const CursorAdjuster& cursor_adjuster) {
   for (auto& l : update_listeners_) {
-    l();
+    l(cursor_adjuster);
   }
 }
 

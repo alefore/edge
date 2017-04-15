@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "src/line.h"
+#include "src/line_column.h"
 #include "src/tree.h"
 
 namespace afc {
@@ -16,6 +17,8 @@ using std::vector;
 
 class BufferContents {
  public:
+  using CursorAdjuster = std::function<LineColumn(LineColumn)>;
+
   BufferContents() = default;
 
   bool empty() const { return lines_.empty(); }
@@ -59,9 +62,10 @@ class BufferContents {
 
   void insert_line(size_t line_position, shared_ptr<const Line> line) {
     lines_.insert(lines_.begin() + line_position, line);
-    NotifyUpdateListeners();
+    NotifyUpdateListeners(nullptr);
   }
 
+  // Does not call NotifyUpdateListeners! That should be done by the caller.
   void set_line(size_t position, shared_ptr<const Line> line) {
     if (position >= size()) {
       return push_back(line);
@@ -69,13 +73,12 @@ class BufferContents {
 
     CHECK_LE(position, size());
     lines_[position] = line;
-    NotifyUpdateListeners();
   }
 
   template <class C>
   void sort(size_t first, size_t last, C compare) {
     std::sort(lines_.begin() + first, lines_.begin() + last, compare);
-    NotifyUpdateListeners();
+    NotifyUpdateListeners(nullptr);
   }
 
   void insert(size_t position_line, const BufferContents& source,
@@ -92,15 +95,7 @@ class BufferContents {
   void InsertCharacter(size_t line, size_t column);
   void AppendToLine(size_t line, const Line& line_to_append);
 
-  void EraseLines(size_t first, size_t last) {
-    CHECK_LE(first, last);
-    CHECK_LE(last, size());
-    if (first == last) {
-      return;  // Optimization to avoid notifying listeners.
-    }
-    lines_.erase(lines_.begin() + first, lines_.begin() + last);
-    NotifyUpdateListeners();
-  }
+  void EraseLines(size_t first, size_t last);
 
   void SplitLine(size_t line, size_t column);
 
@@ -110,16 +105,16 @@ class BufferContents {
 
   void push_back(shared_ptr<const Line> line) {
     lines_.push_back(line);
-    NotifyUpdateListeners();
+    NotifyUpdateListeners(nullptr);
   }
 
-  void AddUpdateListener(std::function<void()> listener);
+  void AddUpdateListener(std::function<void(const CursorAdjuster&)> listener);
 
  private:
-  void NotifyUpdateListeners();
+  void NotifyUpdateListeners(const CursorAdjuster& cursor_adjuster);
 
   Tree<shared_ptr<const Line>> lines_;
-  vector<std::function<void()>> update_listeners_;
+  vector<std::function<void(const CursorAdjuster&)>> update_listeners_;
 };
 
 }  // namespace editor
