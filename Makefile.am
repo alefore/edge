@@ -99,7 +99,11 @@ dist_doc_DATA = README
 
 edge_SOURCES = $(COMMON_SOURCES) src/main.cc
 
-test_SOURCES = $(COMMON_SOURCES) src/test.cc
+test_SOURCES = \
+$(COMMON_SOURCES) \
+src/test/line_test.cc \
+src/test/line_test.h \
+src/test.cc
 
 fuzz_test_SOURCES = $(COMMON_SOURCES) src/fuzz_test.cc
 

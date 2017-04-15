@@ -128,6 +128,9 @@ class Line {
   const vector<unordered_set<Modifier, hash<int>>> modifiers() const {
     return modifiers_;
   }
+  vector<unordered_set<Modifier, hash<int>>>& modifiers() {
+    return modifiers_;
+  }
 
   bool modified() const { return modified_; }
   void set_modified(bool modified) { modified_ = modified; }
