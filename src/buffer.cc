@@ -491,7 +491,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       tree_parser_(NewNullTreeParser()) {
   contents_.AddUpdateListener([this]() {
                                 editor_->ScheduleParseTreeUpdate(this);
-                                set_modified(true);
+                                modified_ = true;
                               });
   UpdateTreeParser();
   current_cursor_ = active_cursors()->insert(LineColumn());
@@ -861,8 +861,8 @@ void OpenBuffer::Reload(EditorState* editor_state) {
     EvaluateFile(editor_state, dir + L"/hooks/buffer-reload.cc");
   }
   desired_line_ = current_position_line();
+  ClearModified();
   ReloadInto(editor_state, this);
-  set_modified(false);
   CheckPosition();
 }
 
@@ -2095,14 +2095,6 @@ void OpenBuffer::set_current_position_col(size_t column) {
 
 const LineColumn OpenBuffer::position() const {
   return *current_cursor_;
-}
-
-void OpenBuffer::set_line_modified(size_t position) {
-  const auto& old_line = *LineAt(position);
-  if (old_line.modified()) { return; }
-  auto new_line = std::make_shared<Line>(old_line);
-  new_line->set_modified(true);
-  contents_.set_line(position, new_line);
 }
 
 void OpenBuffer::set_position(const LineColumn& position) {

@@ -159,7 +159,6 @@ class AutocompleteMode : public EditorMode {
                 NewDeleteCharactersTransformation(delete_options),
                 NewInsertBufferTransformation(buffer_to_insert, 1, END))));
 
-    options_.buffer->set_modified(true);
     editor_state->ScheduleRedraw();
 
     LOG(INFO) << "Updating variables for next completion.";
@@ -452,7 +451,6 @@ class InsertMode : public EditorMode {
           delete_options.copy_to_paste_buffer = false;
           options_.buffer->ApplyToCursors(
               NewDeleteCharactersTransformation(delete_options));
-          options_.buffer->set_modified(true);
           options_.modify_listener();
           editor_state->ScheduleRedraw();
         }
@@ -498,7 +496,6 @@ class InsertMode : public EditorMode {
           NewInsertBufferTransformation(insert, 1, END));
     }
 
-    options_.buffer->set_modified(true);
     options_.modify_listener();
     editor_state->ScheduleRedraw();
   }
@@ -710,7 +707,6 @@ void EnterInsertMode(InsertModeOptions options) {
     options.new_line_handler = [buffer, editor_state]() {
       buffer->ApplyToCursors(
           unique_ptr<Transformation>(new NewLineTransformation()));
-      buffer->set_modified(true);
       editor_state->ScheduleRedraw();
     };
   }

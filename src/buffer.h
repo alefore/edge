@@ -330,9 +330,7 @@ class OpenBuffer {
 
   void set_position(const LineColumn& position);
 
-  void set_line_modified(size_t line);
-  // TODO: Remove this? Just use set_line_modified always?
-  void set_modified(bool value) { modified_ = value; }
+  void ClearModified() { modified_ = false; }
   bool modified() const { return modified_; }
 
   bool dirty() const {

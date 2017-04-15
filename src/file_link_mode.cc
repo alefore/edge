@@ -188,7 +188,7 @@ class FileBuffer : public OpenBuffer {
     if (!SaveContentsToFile(editor_state, path)) {
       return;
     }
-    set_modified(false);
+    ClearModified();
     editor_state->SetStatus(L"Saved: " + path);
     for (const auto& dir : editor_state->edge_path()) {
       EvaluateFile(editor_state, dir + L"/hooks/buffer-save.cc");
