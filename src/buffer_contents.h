@@ -60,10 +60,7 @@ class BufferContents {
 
   size_t CountCharacters() const;
 
-  void insert_line(size_t line_position, shared_ptr<const Line> line) {
-    lines_.insert(lines_.begin() + line_position, line);
-    NotifyUpdateListeners(nullptr);
-  }
+  void insert_line(size_t line_position, shared_ptr<const Line> line);
 
   // Does not call NotifyUpdateListeners! That should be done by the caller.
   // Avoid calling this in general: prefer calling the other functions (that

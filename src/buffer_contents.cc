@@ -15,6 +15,30 @@
 namespace afc {
 namespace editor {
 
+class MoveCursors {
+ public:
+  MoveCursors& WithLineGE(size_t position) {
+    predicates_.push_back(
+        [position](const LineColumn& c) { return c >= position; });
+    return *this;
+  }
+
+  BufferContents::CursorAdjuster DownBy(size_t delta) {
+    return [this, delta](LineColumn position) {
+      for (auto& p : predicates_) {
+        if (!p(position)) {
+          return position;
+        }
+      }
+      position.line += delta;
+      return position;
+    };
+  }
+
+ private:
+  vector<std::function<bool(const LineColumn&)>> predicates_;
+};
+
 wstring BufferContents::ToString() const {
   wstring output;
   output.reserve(CountCharacters());
@@ -33,7 +57,8 @@ void BufferContents::insert(size_t position, const BufferContents& source,
   CHECK_LE(last_line, source.size());
   lines_.insert(lines_.begin() + position, source.lines_.begin() + first_line,
                 source.lines_.begin() + last_line);
-  NotifyUpdateListeners(nullptr);
+  NotifyUpdateListeners(
+      MoveCursors().WithLineGE(position).DownBy(last_line - first_line));
 }
 
 bool BufferContents::ForEach(
@@ -67,6 +92,13 @@ size_t BufferContents::CountCharacters() const {
     output--;  // Last line has no \n.
   }
   return output;
+}
+
+void BufferContents::insert_line(
+    size_t line_position, shared_ptr<const Line> line) {
+  LOG(INFO) << "Inserting line at position: " << line_position;
+  lines_.insert(lines_.begin() + line_position, line);
+  NotifyUpdateListeners(MoveCursors().WithLineGE(line_position).DownBy(1));
 }
 
 void BufferContents::DeleteCharactersFromLine(
@@ -148,9 +180,7 @@ void BufferContents::SplitLine(size_t line, size_t column) {
   insert_line(line + 1, tail);
   NotifyUpdateListeners(
       [line, column](LineColumn position) {
-        if (position.line > line) {
-          position.line++;
-        } else if (position.line == line && position.column >= column) {
+        if (position.line == line && position.column >= column) {
           position.line++;
           position.column -= column;
         }

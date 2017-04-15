@@ -913,15 +913,6 @@ void OpenBuffer::FoldNextLine(size_t line_position) {
 
 void OpenBuffer::InsertLine(size_t line_position, shared_ptr<Line> line) {
   contents_.insert_line(line_position, line);
-  LOG(INFO) << "Inserting line at position: " << line_position;
-  AdjustCursors(
-      [line_position](LineColumn position) {
-        if (position.line >= line_position) {
-          VLOG(5) << "Cursor moves down. Initial position: " << position.line;
-          position.line++;
-        }
-        return position;
-      });
 }
 
 void OpenBuffer::AppendLine(EditorState* editor_state,
@@ -1293,17 +1284,8 @@ LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
     position.column = contents_.at(position.line)->size();
   }
   SplitLine(position);
-
   contents_.insert(position.line + 1, buffer.contents_, 0,
                    buffer.contents_.size());
-  AdjustCursors(
-      [position, &buffer](LineColumn cursor) {
-        if (cursor.line >= position.line + 1) {
-          cursor.line += buffer.contents_.size();
-        }
-        return cursor;
-      });
-
   FoldNextLine(position.line);
 
   size_t last_line = position.line + buffer.contents_.size() - 1;
