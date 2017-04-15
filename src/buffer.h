@@ -96,6 +96,9 @@ class OpenBuffer {
   // Erases all lines in range [first, last).
   void EraseLines(size_t first, size_t last);
 
+  // Splits the line given by the position at the column given by the position
+  // into two lines.
+  void SplitLine(LineColumn split_position);
   void FoldNextLine(size_t line_position);
 
   // Inserts a new line into the buffer at a given position.

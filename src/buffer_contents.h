@@ -81,8 +81,10 @@ class BufferContents {
   void insert(size_t position_line, const BufferContents& source,
               size_t source_first_line, size_t source_last_line);
 
-  // Delete characters from the current line in range [column, column + amount).
+  // Delete characters from the given line in range [column, column + amount).
   void DeleteCharactersFromLine(size_t line, size_t column, size_t amount);
+  // Delete characters from the given line in range [column, ...).
+  void DeleteCharactersFromLine(size_t line, size_t column);
 
   void SetCharacter(size_t line, size_t column, int c,
       std::unordered_set<Line::Modifier, hash<int>> modifiers);
@@ -99,6 +101,8 @@ class BufferContents {
     lines_.erase(lines_.begin() + first, lines_.begin() + last);
     NotifyUpdateListeners();
   }
+
+  void SplitLine(size_t line, size_t column);
 
   // Appends the next line to the current line and removes the next line.
   // Essentially, removes the \n at the end of the current line.

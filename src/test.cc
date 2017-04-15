@@ -427,13 +427,13 @@ void TestCases() {
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "123\n456\n789");
   editor_state.ProcessInputString("+");  // Leave a cursor at 5.
-  editor_state.ProcessInputString("kll");
+  editor_state.ProcessInputString("kll");  // Leave cursor at end of first line.
   // Bugs happen here! Did the cursors get adjusted?
   editor_state.ProcessInputString("d");
   editor_state.ProcessInputString("_" "ix");
   editor_state.ProcessInput(Terminal::ESCAPE);
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
-           "123x4x56\n789x");
+           "123x4x56\n78x9");
 
   Clear(&editor_state);
 

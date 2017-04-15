@@ -76,6 +76,10 @@ void BufferContents::DeleteCharactersFromLine(
   set_line(line, new_line);
 }
 
+void BufferContents::DeleteCharactersFromLine(size_t line, size_t column) {
+  return DeleteCharactersFromLine(line, column, at(line)->size() - column);
+}
+
 void BufferContents::SetCharacter(size_t line, size_t column, int c,
     std::unordered_set<Line::Modifier, hash<int>> modifiers) {
   auto new_line = std::make_shared<Line>(*at(line));
@@ -99,6 +103,13 @@ void BufferContents::AppendToLine(
   auto line = std::make_shared<Line>(*at(position));
   line->Append(line_to_append);
   set_line(position, line);
+}
+
+void BufferContents::SplitLine(size_t line, size_t column) {
+  auto tail = std::make_shared<Line>(*at(line));
+  tail->DeleteCharacters(0, column);
+  insert_line(line + 1, tail);
+  DeleteCharactersFromLine(line, column);
 }
 
 void BufferContents::FoldNextLine(size_t position) {

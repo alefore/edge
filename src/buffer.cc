@@ -917,14 +917,30 @@ void OpenBuffer::EraseLines(size_t first, size_t last) {
   CHECK_LE(current_cursor_->line, contents_.size());
 }
 
+void OpenBuffer::SplitLine(LineColumn split_position) {
+  contents_.SplitLine(split_position.line, split_position.column);
+  AdjustCursors(
+      [split_position](LineColumn position) {
+        if (position.line > split_position.line) {
+          position.line++;
+        } else if (position >= split_position) {
+          position.line++;
+          position.column -= split_position.column;
+        }
+        return position;
+      });
+}
+
 void OpenBuffer::FoldNextLine(size_t line_position) {
   size_t initial_size = LineAt(line_position)->size();
   contents_.FoldNextLine(line_position);
   AdjustCursors(
       [line_position, initial_size](LineColumn position) {
         if (position.line == line_position + 1) {
-          position.line--;
           position.column += initial_size;
+        }
+        if (position.line > line_position) {
+          position.line--;
         }
         return position;
       });
@@ -1311,60 +1327,25 @@ LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
   if (position.column > contents_.at(position.line)->size()) {
     position.column = contents_.at(position.line)->size();
   }
-  auto head = std::make_shared<Line>(*contents_.at(position.line));
-  Line tail(*contents_.at(position.line));
-  head->DeleteCharacters(position.column);
-  tail.DeleteCharacters(0, position.column);
-  auto modifiers = contents_.at(position.line)->modifiers();
-  contents_.insert(position.line, buffer.contents_, 0,
-                   buffer.contents_.size() - 1);
-  for (size_t i = 1; i < buffer.lines_size() - 1; i++) {
-    set_line_modified(position.line + i);
-  }
-  // The last line that was inserted.
-  VLOG(4) << "Adjusting cursors.";
+  SplitLine(position);
+
+  contents_.insert(position.line + 1, buffer.contents_, 0,
+                   buffer.contents_.size());
   AdjustCursors(
       [position, &buffer](LineColumn cursor) {
-        if (cursor < position) {
-          VLOG(7) << "Skipping cursor: " << cursor;
-          return cursor;
+        if (cursor.line >= position.line + 1) {
+          cursor.line += buffer.contents_.size();
         }
-        if (cursor.line == position.line) {
-          CHECK_GE(cursor.column, position.column);
-          cursor.column += buffer.LineBack()->size();
-          if (buffer.lines_size() > 1) {
-            cursor.column -= position.column;
-          }
-        }
-        cursor.line += buffer.lines_size() - 1;
-        VLOG(6) << "Insertion shifts cursor to position: " << cursor;
         return cursor;
       });
-  if (buffer.lines_size() == 1) {
-    if (buffer.LineFront()->size() == 0) { return position; }
-    auto line_to_insert = buffer.LineFront();
-    head->Append(*buffer.LineFront());
-    head->Append(tail);
-    head->set_modified(true);
-    contents_.set_line(position.line, head);
-    return LineColumn(position.line, head->size() - tail.size());
-  }
-  size_t line_end = position.line + buffer.lines_size() - 1;
-  {
-    head->Append(*buffer.LineFront());
-    head->set_modified(true);
-    contents_.set_line(position.line, head);
-  }
-  {
-    auto line = std::make_shared<Line>(*buffer.LineBack());
-    line->Append(tail);
-    line->set_modified(true);
-    contents_.set_line(line_end, line);
-  }
-  if (head->size() > 0 || !contents_.back()->empty()) {
-    set_line_modified(line_end);
-  }
-  return LineColumn(line_end, buffer.LineBack()->size());
+
+  FoldNextLine(position.line);
+
+  size_t last_line = position.line + buffer.contents_.size() - 1;
+  size_t column = LineAt(last_line)->size();
+
+  FoldNextLine(last_line);
+  return LineColumn(last_line, column);
 }
 
 void OpenBuffer::AdjustLineColumn(LineColumn* output) const {
