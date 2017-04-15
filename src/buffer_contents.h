@@ -94,6 +94,11 @@ class BufferContents {
 
   void DeleteCharactersFromLine(size_t line, size_t column, size_t stop_column);
 
+  void SetCharacter(size_t line, size_t column, int c,
+      std::unordered_set<Line::Modifier, hash<int>> modifiers);
+
+  void InsertCharacter(size_t line, size_t column);
+
  private:
   Tree<shared_ptr<const Line>> lines_;
 };

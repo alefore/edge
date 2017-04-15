@@ -1011,10 +1011,9 @@ void OpenBuffer::ProcessCommandInput(
       CHECK_LT(position_pts_.line, contents_.size());
       current_line = contents_.at(position_pts_.line);
     } else if (isprint(c) || c == '\t') {
-      auto new_line = std::make_shared<Line>(*current_line);
-      new_line->SetCharacter(position_pts_.column, c, modifiers);
-      ReplaceLine(position_pts_.line, new_line);
-      current_line = new_line;
+      contents_.SetCharacter(
+          position_pts_.line, position_pts_.column, c, modifiers);
+      current_line = LineAt(position_pts_.line);
       position_pts_.column++;
       MaybeFollowToEndOfFile();
     } else {
@@ -1061,9 +1060,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         {
           // ich: insert character
           DLOG(INFO) << "Terminal: ich: Insert character.";
-          auto new_line = std::make_shared<Line>(*current_line);
-          new_line->InsertCharacterAtPosition(position_pts_.column);
-          ReplaceLine(position_pts_.line, new_line);
+          contents_.InsertCharacter(position_pts_.line, position_pts_.column);
           return read_index;
         }
 

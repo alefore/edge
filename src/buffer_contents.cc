@@ -75,5 +75,18 @@ void BufferContents::DeleteCharactersFromLine(
   set_line(line, new_line);
 }
 
+void BufferContents::SetCharacter(size_t line, size_t column, int c,
+    std::unordered_set<Line::Modifier, hash<int>> modifiers) {
+  auto new_line = std::make_shared<Line>(*at(line));
+  new_line->SetCharacter(column, c, modifiers);
+  set_line(line, new_line);
+}
+
+void BufferContents::InsertCharacter(size_t line, size_t column) {
+  auto new_line = std::make_shared<Line>(*at(line));
+  new_line->InsertCharacterAtPosition(column);
+  set_line(line, new_line);
+}
+
 }  // namespace editor
 }  // namespace afc
