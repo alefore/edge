@@ -86,7 +86,7 @@ class CppTreeParser : public TreeParser {
 
   void ConsumeBlock(const BufferContents& buffer, ParseTree* block,
                     LineColumn limit, int* nesting) {
-    LOG(INFO) << "Parsing block at position: " << block->begin;
+    VLOG(5) << "Parsing block at position: " << block->begin;
 
     auto c = buffer.character_at(block->begin);
     static const wstring id = L"_abcdefghijklmnopqrstuvwxyz";
@@ -110,7 +110,7 @@ class CppTreeParser : public TreeParser {
     }
 
     if (c == L')' || c == L'}' || c == L']') {
-      LOG(INFO) << "Unmatched pair closing character.";
+      VLOG(3) << "Unmatched pair closing character.";
       ParseTree child;
       child.begin = block->begin;
       child.end = Advance(buffer, child.begin);
