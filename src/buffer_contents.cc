@@ -89,6 +89,18 @@ void BufferContents::InsertCharacter(size_t line, size_t column) {
   set_line(line, new_line);
 }
 
+void BufferContents::AppendToLine(
+    size_t position, const Line& line_to_append) {
+  if (lines_.empty()) {
+    push_back(std::make_shared<Line>());
+  }
+  CHECK(!lines_.empty());
+  position = min(position, size() - 1);
+  auto line = std::make_shared<Line>(*at(position));
+  line->Append(line_to_append);
+  set_line(position, line);
+}
+
 void BufferContents::AddUpdateListener(std::function<void()> listener) {
   CHECK(listener);
   update_listeners_.push_back(listener);

@@ -83,6 +83,7 @@ class BufferContents {
       std::unordered_set<Line::Modifier, hash<int>> modifiers);
 
   void InsertCharacter(size_t line, size_t column);
+  void AppendToLine(size_t line, const Line& line_to_append);
 
   void EraseLines(size_t first, size_t last) {
     CHECK_LE(first, last);

@@ -1242,22 +1242,11 @@ void OpenBuffer::AppendToLastLine(
     EditorState*, shared_ptr<LazyString> str,
     const vector<unordered_set<Line::Modifier, hash<int>>>& modifiers) {
   CHECK_EQ(str->size(), modifiers.size());
-  VLOG(6) << "Adding line of length: " << str->size();
-  VLOG(7) << "Adding line: " << str->ToString();
-  if (contents_.empty()) {
-    contents_.push_back(std::make_shared<Line>());
-    MaybeFollowToEndOfFile();
-  }
-  CHECK(!contents_.empty());
-  auto last_line = contents_.back();
-  CHECK(last_line->contents() != nullptr);
   Line::Options options;
-  options.contents = StringAppend(last_line->contents(), str);
-  options.modifiers = last_line->modifiers();
-  for (auto& m : modifiers) {
-    options.modifiers.push_back(m);
-  }
-  contents_.set_line(contents_.size() - 1, std::make_shared<Line>(options));
+  options.contents = str;
+  options.modifiers = modifiers;
+  contents_.AppendToLine(contents_.size(), Line(options));
+  MaybeFollowToEndOfFile();
 }
 
 unique_ptr<Expression> OpenBuffer::CompileString(EditorState*,
