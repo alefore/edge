@@ -70,9 +70,9 @@ size_t BufferContents::CountCharacters() const {
 }
 
 void BufferContents::DeleteCharactersFromLine(
-    size_t line, size_t column, size_t stop_column) {
+    size_t line, size_t column, size_t amount) {
   auto new_line = std::make_shared<Line>(*at(line));
-  new_line->DeleteCharacters(column, stop_column);
+  new_line->DeleteCharacters(column, amount);
   set_line(line, new_line);
 }
 

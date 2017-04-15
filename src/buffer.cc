@@ -930,10 +930,6 @@ void OpenBuffer::FoldNextLine(size_t line_position) {
       });
 }
 
-void OpenBuffer::ReplaceLine(size_t line_position, shared_ptr<Line> line) {
-  contents_.set_line(line_position, line);
-}
-
 void OpenBuffer::InsertLine(size_t line_position, shared_ptr<Line> line) {
   contents_.insert_line(line_position, line);
   LOG(INFO) << "Inserting line at position: " << line_position;
@@ -1995,8 +1991,21 @@ wstring OpenBuffer::ToString() const {
 }
 
 void OpenBuffer::DeleteCharactersFromLine(
-    size_t line, size_t column, size_t stop_column) {
-  contents_.DeleteCharactersFromLine(line, column, stop_column);
+    size_t line, size_t column, size_t amount) {
+  if (amount == 0) { return; }
+  CHECK_LE(column + amount, LineAt(line)->size());
+  AdjustCursors(
+      [line, column, amount](LineColumn position) {
+        if (position.line == line) {
+          if (position.column > column + amount) {
+            position.column -= amount;
+          } else if (position.column > column) {
+            position.column = column;
+          }
+        }
+        return position;
+      });
+  contents_.DeleteCharactersFromLine(line, column, amount);
 }
 
 void OpenBuffer::DeleteUntilEnd(size_t line, size_t column) {
@@ -2112,7 +2121,7 @@ void OpenBuffer::set_line_modified(size_t position) {
   if (old_line.modified()) { return; }
   auto new_line = std::make_shared<Line>(old_line);
   new_line->set_modified(true);
-  ReplaceLine(position, new_line);
+  contents_.set_line(position, new_line);
 }
 
 void OpenBuffer::set_position(const LineColumn& position) {
@@ -2746,7 +2755,7 @@ bool OpenBuffer::IsLineFiltered(size_t line_number) {
 
   auto new_line = std::make_shared<Line>(old_line);
   new_line->set_filtered(filtered, filter_version_);
-  ReplaceLine(line_number, new_line);
+  contents_.set_line(line_number, new_line);
   return filtered;
 }
 

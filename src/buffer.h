@@ -98,9 +98,6 @@ class OpenBuffer {
 
   void FoldNextLine(size_t line_position);
 
-  // Overwrites the line at a given position with a new line.
-  void ReplaceLine(size_t line_position, shared_ptr<Line> line);
-
   // Inserts a new line into the buffer at a given position.
   void InsertLine(size_t line_position, shared_ptr<Line> line);
 
@@ -268,7 +265,8 @@ class OpenBuffer {
   // We deliberately provide only a read view into our contents. All
   // modifications should be done through methods defined in this class.
   const BufferContents* contents() const { return &contents_; }
-  void DeleteCharactersFromLine(size_t line, size_t column, size_t stop_column);
+  // Delete characters in [column, column + amount).
+  void DeleteCharactersFromLine(size_t line, size_t column, size_t amount);
   void DeleteUntilEnd(size_t line, size_t column);
 
   size_t view_start_line() const { return view_start_line_; }

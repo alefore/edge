@@ -105,8 +105,6 @@ class DeleteCharactersTransformation : public Transformation {
       buffer->EraseLines(current_line + 1, line_end);  // Lines in the middle.
       buffer->FoldNextLine(current_line);
     }
-    AdjustCursors(
-        buffer, line_end, result->cursor.column, chars_erase_line);
 
     result->modified_buffer = true;
 
@@ -121,25 +119,6 @@ class DeleteCharactersTransformation : public Transformation {
   }
 
  private:
-  // line: the position where the cursor was when the deletion started.
-  // preserved_contents: the part of line that survives the deletion.
-  // chars_erase_line: the number of characters erased from current line
-  // (includes preserved_contents).
-  void AdjustCursors(OpenBuffer* buffer, size_t line, size_t preserved_contents,
-                     size_t chars_erase_line) const {
-    buffer->AdjustCursors(
-        [line, preserved_contents, chars_erase_line](LineColumn cursor) {
-          if (cursor.line == line) {
-            if (cursor.column > chars_erase_line) {
-              cursor.column += preserved_contents - chars_erase_line;
-            } else if (cursor.column > preserved_contents) {
-              cursor.column = preserved_contents;
-            }
-          }
-          return cursor;
-        });
-  }
-
   shared_ptr<OpenBuffer> GetDeletedTextBuffer(
       EditorState* editor_state, OpenBuffer* buffer, size_t line_begin,
       size_t line_end, size_t start, size_t chars_erase_line) const {
