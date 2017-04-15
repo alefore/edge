@@ -1302,8 +1302,10 @@ LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
   if (position.column > contents_.at(position.line)->size()) {
     position.column = contents_.at(position.line)->size();
   }
-  auto head = contents_.at(position.line)->Substring(0, position.column);
-  auto tail = contents_.at(position.line)->Substring(position.column);
+  auto head = std::make_shared<Line>(*contents_.at(position.line));
+  Line tail(*contents_.at(position.line));
+  head->DeleteCharacters(position.column);
+  tail.DeleteCharacters(0, position.column);
   auto modifiers = contents_.at(position.line)->modifiers();
   contents_.insert(position.line, buffer.contents_, 0,
                    buffer.contents_.size() - 1);
@@ -1331,51 +1333,29 @@ LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
       });
   if (buffer.lines_size() == 1) {
     if (buffer.LineFront()->size() == 0) { return position; }
-    CHECK_EQ(LineAt(position.line)->modifiers().size(),
-             LineAt(position.line)->contents()->size());
     auto line_to_insert = buffer.LineFront();
-    CHECK_EQ(line_to_insert->contents()->size(),
-             line_to_insert->modifiers().size());
-    Line::Options options;
-    options.contents = StringAppend(head,
-        StringAppend(line_to_insert->contents(), tail));
-    options.modifiers = LineAt(position.line)->modifiers();
-    for (const auto& m : line_to_insert->modifiers()) {
-      options.modifiers.push_back(m);
-    }
-    options.modifiers.resize(options.contents->size());
-    CHECK_EQ(options.modifiers.size(), options.contents->size());
-    if (position.line >= contents_.size()) {
-      contents_.push_back(std::make_shared<Line>(options));
-    } else {
-      contents_.set_line(position.line, std::make_shared<Line>(options));
-    }
-    set_line_modified(position.line);
-    return LineColumn(position.line, head->size() + line_to_insert->size());
+    head->Append(*buffer.LineFront());
+    head->Append(tail);
+    head->set_modified(true);
+    contents_.set_line(position.line, head);
+    return LineColumn(position.line, head->size() - tail.size());
   }
   size_t line_end = position.line + buffer.lines_size() - 1;
   {
-    contents_.set_line(position.line, std::make_shared<Line>(
-        Line::Options(StringAppend(head, buffer.LineFront()->contents()))));
-    if (contents_.at(position.line)->contents() != head) {
-      set_line_modified(position.line);
-    }
+    head->Append(*buffer.LineFront());
+    head->set_modified(true);
+    contents_.set_line(position.line, head);
   }
   {
-    auto line = std::make_shared<Line>(
-        Line::Options(StringAppend(buffer.LineBack()->contents(), tail)));
-    if (line_end >= contents_.size()) {
-      contents_.push_back(line);
-    } else {
-      contents_.set_line(line_end, line);
-    }
+    auto line = std::make_shared<Line>(*buffer.LineBack());
+    line->Append(tail);
+    line->set_modified(true);
+    contents_.set_line(line_end, line);
   }
   if (head->size() > 0 || !contents_.back()->empty()) {
     set_line_modified(line_end);
   }
-  return LineColumn(line_end,
-      (buffer.lines_size() == 1 ? head->size() : 0)
-      + buffer.LineBack()->size());
+  return LineColumn(line_end, buffer.LineBack()->size());
 }
 
 void OpenBuffer::AdjustLineColumn(LineColumn* output) const {

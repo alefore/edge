@@ -386,7 +386,7 @@ void TestCases() {
   CHECK_EQ(editor_state.current_buffer()->second->position(), LineColumn(0));
 
   editor_state.ProcessInputString("w+");
-  editor_state.ProcessInputString("avmultiple_cursors\n");
+  editor_state.ProcessInputString("_");
   CHECK(editor_state.current_buffer()->second
             ->read_bool_variable(OpenBuffer::variable_multiple_cursors()));
 

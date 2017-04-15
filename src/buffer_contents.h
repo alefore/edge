@@ -63,6 +63,10 @@ class BufferContents {
   }
 
   void set_line(size_t position, shared_ptr<const Line> line) {
+    if (position >= size()) {
+      return push_back(line);
+    }
+
     CHECK_LE(position, size());
     lines_[position] = line;
     NotifyUpdateListeners();
@@ -74,7 +78,7 @@ class BufferContents {
     NotifyUpdateListeners();
   }
 
-  void insert(size_t position, const BufferContents& source,
+  void insert(size_t position_line, const BufferContents& source,
               size_t source_first_line, size_t source_last_line);
 
   void DeleteCharactersFromLine(size_t line, size_t column, size_t stop_column);
