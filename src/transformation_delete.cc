@@ -153,15 +153,18 @@ class DeleteCharactersTransformation : public Transformation {
                      ? buffer->LineAt(line_begin)->size() - start
                      : chars_erase_line - start;
 
+    auto first_line = std::make_shared<Line>(*buffer->LineAt(line_begin));
+    first_line->DeleteCharacters(0, start);
+    first_line->DeleteCharacters(end);
     delete_buffer->AppendToLastLine(editor_state,
-        buffer->LineAt(line_begin)->Substring(start, end));
+        first_line->contents(), first_line->modifiers());
 
     for (size_t i = line_begin + 1; i <= line_end; i++) {
-      auto line = buffer->LineAt(i)->contents();
+      auto line = std::make_shared<Line>(*buffer->LineAt(i));
       if (i == line_end) {
-        line = Substring(line, 0, chars_erase_line);
+        line->DeleteCharacters(chars_erase_line);
       }
-      delete_buffer->AppendLine(editor_state, line);
+      delete_buffer->AppendRawLine(editor_state, line);
     }
 
     return delete_buffer;

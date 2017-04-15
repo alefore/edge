@@ -121,6 +121,8 @@ class Line {
   }
   // Delete characters in [position, position + amount).
   void DeleteCharacters(size_t position, size_t amount);
+  // Delete characters from position until the end.
+  void DeleteCharacters(size_t position);
   void InsertCharacterAtPosition(size_t position);
   void SetCharacter(size_t position, int c,
                     const std::unordered_set<Modifier, hash<int>>& modifiers);

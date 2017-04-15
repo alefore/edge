@@ -62,6 +62,11 @@ void Line::DeleteCharacters(size_t position, size_t amount) {
   CHECK_EQ(contents_->size(), modifiers_.size());
 }
 
+void Line::DeleteCharacters(size_t position) {
+  CHECK_LE(position, size());
+  DeleteCharacters(position, size() - position);
+}
+
 void Line::InsertCharacterAtPosition(size_t position) {
   CHECK_EQ(contents_->size(), modifiers_.size());
   contents_ = StringAppend(
