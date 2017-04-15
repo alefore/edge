@@ -14,49 +14,10 @@ class CppTreeParser : public TreeParser {
     CHECK(root != nullptr);
     root->children.clear();
     LineColumn position = root->begin;
-    while (position < root->end) {
-      auto old_position = position;
-      switch (buffer.character_at(position)) {
-        case '#':
-          {
-            ParseTree child;
-            child.begin = position;
-            child.end = AdvanceUntilEndOfLine(buffer, position);
-            child.modifiers.insert(Line::YELLOW);
-            root->children.push_back(child);
-
-            position = child.end;
-          }
-          continue;
-
-        case 'A': case 'B': case 'C': case 'D': case 'E': case 'F': case 'G':
-        case 'H': case 'I': case 'J': case 'K': case 'L': case 'M': case 'N':
-        case 'O': case 'P': case 'Q': case 'R': case 'S': case 'T': case 'U':
-        case 'V': case 'W': case 'X': case 'Y': case 'Z':
-        case 'a': case 'b': case 'c': case 'd': case 'e': case 'f': case 'g':
-        case 'h': case 'i': case 'j': case 'k': case 'l': case 'm': case 'n':
-        case 'o': case 'p': case 'q': case 'r': case 's': case 't': case 'u':
-        case 'v': case 'w': case 'x': case 'y': case 'z':
-        case '(': case '[': case '{':
-        case '"':
-          {
-            root->children.push_back(ParseTree());
-            root->children.back().begin = position;
-            int nesting = 0;
-            ConsumeBlock(buffer, &root->children.back(), root->end, &nesting);
-            position = root->children.back().end;
-          }
-          continue;
-
-        case ' ':
-        case '\n':
-        default:
-          // TODO: Log if unexpected?
-          position = Advance(buffer, position);
-          continue;
-      }
-      CHECK_LT(old_position, position);
-    }
+    int nesting = 0;
+    ConsumeBlocksUntilBalanced(
+        buffer, root, &nesting, nullptr, nullptr, position, root->end, true);
+    return;
   }
 
  private:
@@ -77,6 +38,7 @@ class CppTreeParser : public TreeParser {
         L"void", L"const", L"auto",
         L"unique_ptr", L"shared_ptr",
         L"std", L"vector", L"list",
+        L"map", L"unordered_map", L"set", L"unordered_set"
         L"int", L"double", L"float", L"string", L"wstring", L"bool", L"char",
         L"size_t",
         // Values
@@ -126,7 +88,6 @@ class CppTreeParser : public TreeParser {
       CHECK(block->children.empty());
       block->children.push_back(open_character);
 
-      auto position = Advance(buffer, block->begin);
       wint_t closing_character;
       switch (c) {
         case L'(': closing_character = L')'; break;
@@ -135,41 +96,8 @@ class CppTreeParser : public TreeParser {
         default:
           CHECK(false);
       }
-
-      while (true) {
-        // Skip spaces.
-        position = AdvanceUntil(
-            buffer, position, limit, [](wchar_t c) { return !iswspace(c); });
-        if (position == limit) {
-          block->end = limit;
-          return;
-        }
-
-        if (buffer.character_at(position) == closing_character) {
-          ParseTree tree_end;
-          tree_end.begin = position;
-          tree_end.end = Advance(buffer, position);
-          tree_end.modifiers = open_character.modifiers;
-          block->children.push_back(tree_end);
-
-          auto modifiers = ModifierForNesting((*nesting)++);
-          block->children.front().modifiers = modifiers;
-          block->children.back().modifiers = modifiers;
-
-          block->end = tree_end.end;
-          return;
-        }
-
-        block->children.push_back(ParseTree());
-        block->children.back().begin = position;
-        ConsumeBlock(buffer, &block->children.back(), limit, nesting);
-        if (position == block->children.back().end) {
-          block->end = position;
-          return;  // Didn't advance.
-        }
-
-        position = block->children.back().end;
-      }
+      ConsumeBlocksUntilBalanced(buffer, block, nesting, &open_character,
+          &closing_character, Advance(buffer, block->begin), limit, false);
       return;
     }
 
@@ -208,6 +136,66 @@ class CppTreeParser : public TreeParser {
     }
 
     block->end = Advance(buffer, block->begin);
+  }
+
+  void ConsumeBlocksUntilBalanced(
+      const BufferContents& buffer, ParseTree* block, int* nesting,
+      ParseTree* open_character, wint_t* closing_character, LineColumn position,
+      LineColumn limit, bool after_newline) {
+    while (true) {
+      // Skip spaces.
+      position = AdvanceUntil(buffer, position, limit,
+          [](wchar_t c) { return !iswspace(c) || c == L'\n'; });
+
+      if (position >= limit) {
+        block->end = limit;
+        return;
+      }
+
+      auto c = buffer.character_at(position);
+      if (c == L'\n') {
+        position = Advance(buffer, position);
+        after_newline = true;
+        continue;
+      }
+
+      if (closing_character != nullptr && c == *closing_character) {
+        ParseTree tree_end;
+        tree_end.begin = position;
+        tree_end.end = Advance(buffer, position);
+        tree_end.modifiers = open_character->modifiers;
+        block->children.push_back(tree_end);
+
+        auto modifiers = ModifierForNesting((*nesting)++);
+        block->children.front().modifiers = modifiers;
+        block->children.back().modifiers = modifiers;
+
+        block->end = tree_end.end;
+        return;
+      }
+
+      if (after_newline && c == '#') {
+        ParseTree child;
+        child.begin = position;
+        child.end = AdvanceUntilEndOfLine(buffer, position);
+        child.modifiers.insert(Line::YELLOW);
+        block->children.push_back(child);
+
+        position = child.end;
+        continue;
+      }
+
+      block->children.push_back(ParseTree());
+      block->children.back().begin = position;
+      ConsumeBlock(buffer, &block->children.back(), limit, nesting);
+      if (position == block->children.back().end) {
+        block->end = position;
+        return;  // Didn't advance.
+      }
+
+      CHECK_LT(position, block->children.back().end);
+      position = block->children.back().end;
+    }
   }
 
   // Return the position immediately after position.
