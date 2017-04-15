@@ -999,6 +999,8 @@ std::function<unique_ptr<EditorMode>(void)> NewCommandModeSupplier(
       commands_map.get());
 
   ToggleBoolVariable(editor_state, L"vp", L"paste_mode", commands_map.get());
+  ToggleBoolVariable(editor_state, L"vs", L"show_in_buffers_list",
+      commands_map.get());
   ToggleBoolVariable(editor_state, L"vf", L"follow_end_of_file",
       commands_map.get());
   ToggleBoolVariable(editor_state, L"v/c", L"search_case_sensitive",
