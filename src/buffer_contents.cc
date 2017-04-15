@@ -101,6 +101,16 @@ void BufferContents::AppendToLine(
   set_line(position, line);
 }
 
+void BufferContents::FoldNextLine(size_t position) {
+  if (position + 1 >= size()) {
+    return;
+  }
+  auto line = std::make_shared<Line>(*at(position));
+  line->Append(*at(position + 1));
+  set_line(position, line);
+  EraseLines(position + 1, position + 2);
+}
+
 void BufferContents::AddUpdateListener(std::function<void()> listener) {
   CHECK(listener);
   update_listeners_.push_back(listener);

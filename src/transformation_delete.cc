@@ -102,10 +102,8 @@ class DeleteCharactersTransformation : public Transformation {
     } else {
       buffer->DeleteUntilEnd(current_line, result->cursor.column);
       buffer->DeleteCharactersFromLine(line_end, 0, chars_erase_line);
-      auto new_line = std::make_shared<Line>(*buffer->LineAt(current_line));
-      new_line->Append(*buffer->LineAt(line_end));
-      buffer->ReplaceLine(line_end, new_line);
-      buffer->EraseLines(current_line, line_end);
+      buffer->EraseLines(current_line + 1, line_end);  // Lines in the middle.
+      buffer->FoldNextLine(current_line);
     }
     AdjustCursors(
         buffer, line_end, result->cursor.column, chars_erase_line);

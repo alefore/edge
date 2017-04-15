@@ -96,6 +96,8 @@ class OpenBuffer {
   // Erases all lines in range [first, last).
   void EraseLines(size_t first, size_t last);
 
+  void FoldNextLine(size_t line_position);
+
   // Overwrites the line at a given position with a new line.
   void ReplaceLine(size_t line_position, shared_ptr<Line> line);
 

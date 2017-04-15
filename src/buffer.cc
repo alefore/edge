@@ -917,6 +917,19 @@ void OpenBuffer::EraseLines(size_t first, size_t last) {
   CHECK_LE(current_cursor_->line, contents_.size());
 }
 
+void OpenBuffer::FoldNextLine(size_t line_position) {
+  size_t initial_size = LineAt(line_position)->size();
+  contents_.FoldNextLine(line_position);
+  AdjustCursors(
+      [line_position, initial_size](LineColumn position) {
+        if (position.line == line_position + 1) {
+          position.line--;
+          position.column += initial_size;
+        }
+        return position;
+      });
+}
+
 void OpenBuffer::ReplaceLine(size_t line_position, shared_ptr<Line> line) {
   contents_.set_line(line_position, line);
 }

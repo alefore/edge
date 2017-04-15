@@ -418,6 +418,25 @@ void TestCases() {
 
   Clear(&editor_state);
 
+  editor_state.ProcessInputString("i123\n56\n789");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("h" "+");  // Leave a cursor at 9.
+  editor_state.ProcessInputString("khh");  // Cursor at 5.
+  editor_state.ProcessInputString("i4");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "123\n456\n789");
+  editor_state.ProcessInputString("+");  // Leave a cursor at 5.
+  editor_state.ProcessInputString("kll");
+  // Bugs happen here! Did the cursors get adjusted?
+  editor_state.ProcessInputString("d");
+  editor_state.ProcessInputString("_" "ix");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "123x4x56\n789x");
+
+  Clear(&editor_state);
+
   editor_state.ProcessInputString("ioo");
   editor_state.ProcessInput(Terminal::ESCAPE);
   editor_state.ProcessInputString("/o\n" "cl" "-");

@@ -99,6 +99,10 @@ class BufferContents {
     NotifyUpdateListeners();
   }
 
+  // Appends the next line to the current line and removes the next line.
+  // Essentially, removes the \n at the end of the current line.
+  void FoldNextLine(size_t line);
+
   void push_back(shared_ptr<const Line> line) {
     lines_.push_back(line);
     NotifyUpdateListeners();
