@@ -66,6 +66,8 @@ class BufferContents {
   }
 
   // Does not call NotifyUpdateListeners! That should be done by the caller.
+  // Avoid calling this in general: prefer calling the other functions (that
+  // have more semantic information about what you're doing).
   void set_line(size_t position, shared_ptr<const Line> line) {
     if (position >= size()) {
       return push_back(line);
