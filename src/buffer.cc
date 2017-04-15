@@ -471,6 +471,22 @@ using std::to_wstring;
   environment->DefineType(L"Buffer", std::move(buffer));
 }
 
+void AdjustCursorsSet(const std::function<LineColumn(LineColumn)>& callback,
+                      CursorsSet* cursors_set,
+                      CursorsSet::iterator* current_cursor) {
+  VLOG(8) << "Adjusting cursor set of size: " << cursors_set->size();
+  CursorsSet old_cursors;
+  cursors_set->swap(old_cursors);
+  for (auto it = old_cursors.begin(); it != old_cursors.end(); ++it) {
+    VLOG(9) << "Adjusting cursor: " << *it;
+    auto result = cursors_set->insert(callback(*it));
+    if (it == *current_cursor) {
+      VLOG(5) << "Updating current cursor: " << *result;
+      *current_cursor = result;
+    }
+  }
+}
+
 OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
     : editor_(editor_state),
       name_(name),
@@ -493,7 +509,20 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       [this](const BufferContents::CursorAdjuster& cursor_adjuster) {
         editor_->ScheduleParseTreeUpdate(this);
         modified_ = true;
-        AdjustCursors(cursor_adjuster);
+        if (!cursor_adjuster) { return; }
+        VLOG(7) << "Before adjust cursors, current at: " << *current_cursor_;
+        for (auto& cursors_set : cursors_) {
+          AdjustCursorsSet(
+              cursor_adjuster, &cursors_set.second, &current_cursor_);
+        }
+        AdjustCursorsSet(
+            cursor_adjuster, &already_applied_cursors_, &current_cursor_);
+        VLOG(7) << "After adjust cursors, current at: " << *current_cursor_;
+        for (auto& cursors_set : cursors_) {
+          for (auto cursor : cursors_set.second) {
+            VLOG(9) << "Cursor: " << cursor;
+          }
+        }
       });
   UpdateTreeParser();
   current_cursor_ = active_cursors()->insert(LineColumn());
@@ -1407,37 +1436,6 @@ void OpenBuffer::SetActiveCursorsToMarks() {
     cursors.push_back(it.second.target);
   }
   set_active_cursors(cursors);
-}
-
-void AdjustCursorsSet(const std::function<LineColumn(LineColumn)>& callback,
-                      CursorsSet* cursors_set,
-                      CursorsSet::iterator* current_cursor) {
-  VLOG(8) << "Adjusting cursor set of size: " << cursors_set->size();
-  CursorsSet old_cursors;
-  cursors_set->swap(old_cursors);
-  for (auto it = old_cursors.begin(); it != old_cursors.end(); ++it) {
-    VLOG(9) << "Adjusting cursor: " << *it;
-    auto result = cursors_set->insert(callback(*it));
-    if (it == *current_cursor) {
-      VLOG(5) << "Updating current cursor: " << *result;
-      *current_cursor = result;
-    }
-  }
-}
-
-void OpenBuffer::AdjustCursors(std::function<LineColumn(LineColumn)> callback) {
-  if (!callback) { return; }
-  VLOG(7) << "Before adjust cursors, current at: " << *current_cursor_;
-  for (auto& cursors_set : cursors_) {
-    AdjustCursorsSet(callback, &cursors_set.second, &current_cursor_);
-  }
-  AdjustCursorsSet(callback, &already_applied_cursors_, &current_cursor_);
-  VLOG(7) << "After adjust cursors, current at: " << *current_cursor_;
-  for (auto& cursors_set : cursors_) {
-    for (auto cursor : cursors_set.second) {
-      VLOG(9) << "Cursor: " << cursor;
-    }
-  }
 }
 
 void OpenBuffer::set_current_cursor(CursorsSet::value_type new_value) {

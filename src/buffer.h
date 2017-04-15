@@ -160,7 +160,6 @@ class OpenBuffer {
   // a mark (based on line_marks_).
   void SetActiveCursorsToMarks();
 
-  void AdjustCursors(std::function<LineColumn(LineColumn)> callback);
   void set_current_cursor(CursorsSet::value_type new_cursor);
   CursorsSet::iterator current_cursor();
   CursorsSet::const_iterator current_cursor() const;
