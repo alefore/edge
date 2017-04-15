@@ -2,9 +2,12 @@
 #define __AFC_EDITOR_BUFFER_H__
 
 #include <cassert>
+#include <condition_variable>
 #include <iterator>
 #include <map>
 #include <memory>
+#include <mutex>
+#include <thread>
 #include <vector>
 
 #include "buffer_contents.h"
@@ -169,7 +172,7 @@ class OpenBuffer {
   void DestroyCursor();
   void DestroyOtherCursors();
 
-  const ParseTree* current_tree() const;
+  const ParseTree* current_tree(const ParseTree* root) const;
 
   struct TreeSearchResult {
     // The parent containing the tree for the depth given at the position given.
@@ -180,8 +183,11 @@ class OpenBuffer {
     size_t depth;
   };
 
-  TreeSearchResult FindTreeInPosition(size_t depth, const LineColumn& position,
-                                      Direction direction) const;
+  // You should hold a copy of parse_tree_ and pass it. The results will only be
+  // valid as long as your copy is valid.
+  TreeSearchResult FindTreeInPosition(
+     size_t depth, const ParseTree* tree_root, const LineColumn& position,
+     Direction direction) const;
 
   // Returns the index of the first children of tree that ends in a position
   // greater than the one given.
@@ -227,12 +233,7 @@ class OpenBuffer {
     return contents_.at(line_number);
   }
   char character_at(LineColumn position) const {
-    auto line = LineAt(position.line);
-    if (line->size() > position.column) {
-      return line->get(position.column);
-    } else {
-      return L'\n';
-    }
+    return contents_.character_at(position);
   }
 
   // If there's a buffer associated with the current line (looking up the
@@ -442,7 +443,10 @@ class OpenBuffer {
 
   Environment* environment() { return &environment_; }
 
-  ParseTree* parse_tree() { return &parse_tree_; }
+  std::shared_ptr<const ParseTree> parse_tree() const {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return parse_tree_;
+  }
 
   size_t tree_depth() const { return tree_depth_; }
   void set_tree_depth(size_t tree_depth) { tree_depth_ = tree_depth; }
@@ -540,6 +544,7 @@ class OpenBuffer {
   size_t filter_version_;
 
  private:
+  void BackgroundThread();
   void UpdateTreeParser();
 
   // Adds a new line. If there's a previous line, notifies various things about
@@ -547,6 +552,13 @@ class OpenBuffer {
   void StartNewLine(EditorState* editor_state);
   void ProcessCommandInput(
       EditorState* editor_state, shared_ptr<LazyString> str);
+
+  // Whenever the contents are modified, we set this to the snapshot (after the
+  // modification). The background thread will react to this: it'll take the
+  // value out (and reset it to null). Once it's done, it'll update the parse
+  // tree.
+  std::unique_ptr<const BufferContents> contents_to_parse_;
+
   unique_ptr<Transformation> last_transformation_;
 
   // We allow the user to group many transformations in one.  They each get
@@ -588,8 +600,8 @@ class OpenBuffer {
   // that value here. Once we've read enough lines, we stay at this position.
   size_t desired_line_ = 0;
 
-  std::unique_ptr<TreeParser> tree_parser_;
-  ParseTree parse_tree_;
+  std::shared_ptr<const ParseTree> parse_tree_;
+  std::shared_ptr<TreeParser> tree_parser_;
   size_t tree_depth_ = 0;
 
   // A stack of sets of cursors on which PushActiveCursors and PopActiveCursors
@@ -598,6 +610,12 @@ class OpenBuffer {
 
   // The time when the buffer was last selected as active.
   time_t last_visit_ = 0;
+
+  // Protects all the variables that background thread may access.
+  mutable std::mutex mutex_;
+  std::condition_variable background_condition_;
+  std::thread background_thread_;
+  bool shutting_down_ = false;
 };
 
 }  // namespace editor

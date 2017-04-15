@@ -9,6 +9,7 @@
 #include "tree.h"
 #include "terminal.h"
 #include "wstring.h"
+#include "src/test/buffer_contents_test.h"
 #include "src/test/line_test.h"
 
 using namespace afc::editor;
@@ -608,6 +609,7 @@ int main(int, char** argv) {
   signal(SIGPIPE, SIG_IGN);
   google::InitGoogleLogging(argv[0]);
 
+  testing::BufferContentsTests();
   testing::LineTests();
   TestCases();
   TreeTestsLong();

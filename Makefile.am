@@ -101,6 +101,8 @@ edge_SOURCES = $(COMMON_SOURCES) src/main.cc
 
 test_SOURCES = \
 $(COMMON_SOURCES) \
+src/test/buffer_contents_test.cc \
+src/test/buffer_contents_test.h \
 src/test/line_test.cc \
 src/test/line_test.h \
 src/test.cc

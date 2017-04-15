@@ -22,7 +22,8 @@ class MoveTransformation : public Transformation {
   void Apply(
       EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
     CHECK(result);
-    auto current_tree = buffer->current_tree();
+    auto root = buffer->parse_tree();
+    auto current_tree = buffer->current_tree(root.get());
     LineColumn position;
     switch (modifiers_.structure) {
       case LINE:
@@ -81,7 +82,7 @@ class MoveTransformation : public Transformation {
       editor_state->PushPosition(result->cursor);
     }
     if (buffer->active_cursors()->size() > 1
-        || buffer->current_tree() != current_tree) {
+        || buffer->current_tree(root.get()) != current_tree) {
       editor_state->ScheduleRedraw();
     }
     editor_state->ResetRepetitions();

@@ -573,7 +573,10 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     }
   }
 
-  auto current_tree = buffer->current_tree();
+  // We don't use parse_tree, but we need to keep it around to ensure that the
+  // value of current_tree
+  auto root = buffer->parse_tree();
+  auto current_tree = buffer->current_tree(root.get());
   while (lines_shown < lines_to_show) {
     if (current_line >= buffer->lines_size()) {
       line_output_receiver->AddString(L"\n");
@@ -624,7 +627,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     }
 
     std::unique_ptr<Line::OutputReceiverInterface> parse_tree_highlighter;
-    if (current_tree != buffer->parse_tree()
+    if (current_tree != root.get()
         && current_line >= current_tree->begin.line
         && current_line <= current_tree->end.line) {
       size_t begin = current_line == current_tree->begin.line
@@ -638,7 +641,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       receiver = parse_tree_highlighter.get();
     } else if (!buffer->parse_tree()->children.empty()) {
       parse_tree_highlighter.reset(new ParseTreeHighlighterTokens(
-          receiver, buffer->parse_tree(), current_line));
+          receiver, root.get(), current_line));
       receiver = parse_tree_highlighter.get();
     }
 

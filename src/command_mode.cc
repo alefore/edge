@@ -312,7 +312,8 @@ const wstring LineDown::Description() {
             buffer->set_tree_depth(buffer->tree_depth() - 1);
           }
         } else if (editor_state->direction() == FORWARDS) {
-          const ParseTree* tree = buffer->current_tree();
+          auto root = buffer->parse_tree();
+          const ParseTree* tree = buffer->current_tree(root.get());
           if (!tree->children.empty()) {
             buffer->set_tree_depth(buffer->tree_depth() + 1);
           }

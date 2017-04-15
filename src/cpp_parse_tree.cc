@@ -6,11 +6,11 @@
 
 namespace afc {
 namespace editor {
-
 namespace {
+
 class CppTreeParser : public TreeParser {
  public:
-  void FindChildren(const OpenBuffer& buffer, ParseTree* root) override {
+  void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
     root->children.clear();
     LineColumn position = root->begin;
@@ -84,7 +84,7 @@ class CppTreeParser : public TreeParser {
     return tokens.find(str) != tokens.end();
   }
 
-  void ConsumeBlock(const OpenBuffer& buffer, ParseTree* block,
+  void ConsumeBlock(const BufferContents& buffer, ParseTree* block,
                     LineColumn limit, int* nesting) {
     LOG(INFO) << "Parsing block at position: " << block->begin;
 
@@ -94,12 +94,12 @@ class CppTreeParser : public TreeParser {
     if (id.find(tolower(c)) != id.npos) {
       block->end = AdvanceUntil(
           buffer, block->begin, limit,
-          [&id](wchar_t c) {
+          [](wchar_t c) {
             static const wstring id_continuation = id + L"0123456789";
             return id_continuation.find(tolower(c)) == id.npos;
           });
       if (block->begin.line == block->end.line) {
-        auto str = Substring(buffer.LineAt(block->begin.line)->contents(),
+        auto str = Substring(buffer.at(block->begin.line)->contents(),
             block->begin.column, block->end.column - block->begin.column)
                 ->ToString();
         if (IsReservedToken(str)) {
@@ -127,7 +127,7 @@ class CppTreeParser : public TreeParser {
       block->children.push_back(open_character);
 
       auto position = Advance(buffer, block->begin);
-      wchar_t closing_character;
+      wint_t closing_character;
       switch (c) {
         case L'(': closing_character = L')'; break;
         case L'{': closing_character = L'}'; break;
@@ -211,22 +211,22 @@ class CppTreeParser : public TreeParser {
   }
 
   // Return the position immediately after position.
-  LineColumn Advance(const OpenBuffer& buffer, LineColumn position) {
-    if (buffer.LineAt(position.line)->size() > position.column) {
+  LineColumn Advance(const BufferContents& buffer, LineColumn position) {
+    if (buffer.at(position.line)->size() > position.column) {
       position.column++;
-    } else if (buffer.contents()->size() > position.line + 1) {
+    } else if (buffer.size() > position.line + 1) {
       position.line++;
       position.column = 0;
     }
     return position;
   }
 
-  LineColumn AdvanceUntilEndOfLine(const OpenBuffer& buffer,
+  LineColumn AdvanceUntilEndOfLine(const BufferContents& buffer,
                                    LineColumn position) {
-    if (buffer.contents()->size() > position.line + 1) {
+    if (buffer.size() > position.line + 1) {
       return LineColumn(position.line + 1);
     } else {
-      position.column = buffer.LineAt(position.line)->size();
+      position.column = buffer.at(position.line)->size();
       return position;
     }
   }
@@ -257,7 +257,7 @@ class CppTreeParser : public TreeParser {
     return output;
   }
 
-  LineColumn AdvanceUntil(const OpenBuffer& buffer,
+  LineColumn AdvanceUntil(const BufferContents& buffer,
                           LineColumn position, LineColumn limit,
                           std::function<bool(wchar_t)> predicate) {
     wstring valid = L"abcdefghijklmnopqrstuvwxyz";

@@ -5,6 +5,7 @@
 #include <string>
 #include <unordered_set>
 
+#include "src/buffer_contents.h"
 #include "line.h"
 #include "line_column.h"
 #include "tree.h"
@@ -26,7 +27,7 @@ class OpenBuffer;
 class TreeParser {
  public:
   // Removes all children from root and re-scans it (from begin to end).
-  virtual void FindChildren(const OpenBuffer& buffer, ParseTree* root) = 0;
+  virtual void FindChildren(const BufferContents& lines, ParseTree* root) = 0;
 };
 
 std::unique_ptr<TreeParser> NewNullTreeParser();

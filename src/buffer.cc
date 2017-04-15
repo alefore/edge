@@ -1,6 +1,7 @@
 #include "buffer.h"
 
 #include <cassert>
+#include <condition_variable>
 #include <cstring>
 #include <iostream>
 #include <memory>
@@ -487,6 +488,41 @@ void AdjustCursorsSet(const std::function<LineColumn(LineColumn)>& callback,
   }
 }
 
+void OpenBuffer::BackgroundThread() {
+  while (true) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    background_condition_.wait(lock,
+        [this]() {
+          return shutting_down_ || contents_to_parse_ != nullptr;
+        });
+    if (shutting_down_) {
+      return;
+    }
+    std::unique_ptr<const BufferContents> contents =
+        std::move(contents_to_parse_);
+    CHECK(contents_to_parse_ == nullptr);
+    auto parser = tree_parser_;
+    lock.unlock();
+
+    if (contents != nullptr) {
+      auto parse_tree = std::make_shared<ParseTree>();
+      if (!contents->empty()) {
+        parse_tree->end.line = contents->size() - 1;
+        parse_tree->end.column = contents->back()->size();
+        parser->FindChildren(*contents, parse_tree.get());
+      }
+
+      if (this == editor_->current_buffer()->second.get()) {
+        // TODO: Wake up the editor somehow!
+        editor_->ScheduleRedraw();
+      }
+
+      std::unique_lock<std::mutex> lock(mutex_);
+      parse_tree_ = parse_tree;
+    }
+  }
+}
+
 OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
     : editor_(editor_state),
       name_(name),
@@ -504,7 +540,9 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       environment_(editor_state->environment()),
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
-      tree_parser_(NewNullTreeParser()) {
+      parse_tree_(std::make_shared<ParseTree>()),
+      tree_parser_(NewNullTreeParser()),
+      background_thread_([this]() { BackgroundThread(); }) {
   contents_.AddUpdateListener(
       [this](const BufferContents::CursorAdjuster& cursor_adjuster) {
         editor_->ScheduleParseTreeUpdate(this);
@@ -545,6 +583,13 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
 OpenBuffer::~OpenBuffer() {
   LOG(INFO) << "Buffer deleted: " << name_;
   editor_->UnscheduleParseTreeUpdate(this);
+
+  {
+    std::unique_lock<std::mutex> lock(mutex_);
+    shutting_down_ = true;
+  }
+  background_condition_.notify_all();
+  background_thread_.join();
 }
 
 bool OpenBuffer::PrepareToClose(EditorState* editor_state) {
@@ -832,6 +877,7 @@ void OpenBuffer::Input::ReadData(
 
 void OpenBuffer::UpdateTreeParser() {
   auto parser = read_string_variable(variable_tree_parser());
+  std::unique_lock<std::mutex> lock(mutex_);
   if (parser == L"text") {
     tree_parser_ = NewLineTreeParser(NewWordsTreeParser(
         read_string_variable(variable_word_characters()),
@@ -846,18 +892,9 @@ void OpenBuffer::UpdateTreeParser() {
 
 void OpenBuffer::ResetParseTree() {
   VLOG(5) << "Resetting parse tree.";
-  parse_tree_.begin = LineColumn();
-  if (contents_.empty()) {
-    parse_tree_.end = parse_tree_.begin;
-  } else {
-    parse_tree_.end.line = contents_.size() - 1;
-    parse_tree_.end.column = contents_.back()->size();
-    tree_parser_->FindChildren(*this, &parse_tree_);
-  }
-  if (this == editor_->current_buffer()->second.get()) {
-    editor_->ScheduleRedraw();
-  }
-  VLOG(6) << "Resulting tree: " << parse_tree_;
+  std::unique_lock<std::mutex> lock(mutex_);
+  contents_to_parse_ = contents_.copy();
+  background_condition_.notify_one();
 }
 
 void OpenBuffer::StartNewLine(EditorState* editor_state) {
@@ -1626,22 +1663,23 @@ bool OpenBuffer::FindPartialRange(
   return true;
 }
 
-const ParseTree* OpenBuffer::current_tree() const {
-  auto output = FindTreeInPosition(tree_depth_, position(), FORWARDS);
-  if (output.parent == nullptr) { return &parse_tree_; }
+const ParseTree* OpenBuffer::current_tree(const ParseTree* root) const {
+  auto output = FindTreeInPosition(tree_depth_, root, position(), FORWARDS);
+  if (output.parent == nullptr) { return root; }
   CHECK_GT(output.parent->children.size(), output.index);
   return &output.parent->children.at(output.index);
 }
 
 OpenBuffer::TreeSearchResult OpenBuffer::FindTreeInPosition(
-    size_t depth, const LineColumn& position, Direction direction) const {
+    size_t depth, const ParseTree* root, const LineColumn& position,
+    Direction direction) const {
   TreeSearchResult output;
   output.parent = nullptr;
   output.index = 0;
   output.depth = 0;
   while (output.depth < depth) {
     auto candidate = output.depth == 0
-                         ? &parse_tree_
+                         ? root
                          : &output.parent->children.at(output.index);
     if (candidate->children.empty()) { return output; }
     output.parent = candidate;
@@ -1795,11 +1833,12 @@ bool OpenBuffer::FindRangeFirst(
     case TREE:
       VLOG(5) << "FindRangeFirst: TREE.";
       {
-        auto parent_and_index =
-            FindTreeInPosition(tree_depth_, position, modifiers.direction);
+        auto tree_root = parse_tree();
+        auto parent_and_index = FindTreeInPosition(
+            tree_depth_, tree_root.get(), position, modifiers.direction);
         const ParseTree& tree =
             parent_and_index.parent == nullptr
-                ? parse_tree_
+                ? *tree_root
                 : parent_and_index.parent->children.at(parent_and_index.index);
         *output = tree.begin;
         return true;
@@ -1869,11 +1908,12 @@ bool OpenBuffer::FindRangeLast(
 
     case TREE:
       {
-        auto parent_and_index =
-            FindTreeInPosition(tree_depth_, position, modifiers.direction);
+        auto tree_root = parse_tree();
+        auto parent_and_index = FindTreeInPosition(
+            tree_depth_, tree_root.get(), position, modifiers.direction);
         const ParseTree& tree =
             parent_and_index.parent == nullptr
-                ? parse_tree_
+                ? *tree_root
                 : parent_and_index.parent->children.at(parent_and_index.index);
         *output = tree.end;
         return true;

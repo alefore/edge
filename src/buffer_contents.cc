@@ -39,6 +39,17 @@ class MoveCursors {
   vector<std::function<bool(const LineColumn&)>> predicates_;
 };
 
+std::unique_ptr<BufferContents> BufferContents::copy() const {
+  std::unique_ptr<BufferContents> output(new BufferContents());
+  output->lines_ = lines_;
+  return output;
+}
+
+wint_t BufferContents::character_at(const LineColumn& position) const {
+  auto line = at(position.line);
+  return position.column >= line->size() ? L'\n' : line->get(position.column);
+}
+
 wstring BufferContents::ToString() const {
   wstring output;
   output.reserve(CountCharacters());

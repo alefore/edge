@@ -354,7 +354,8 @@ bool StartCompletion(EditorState* editor_state,
   }
 
   std::set<wstring> words;
-  RegisterLeaves(*buffer, *buffer->current_tree(), &words);
+  auto root = buffer->parse_tree();
+  RegisterLeaves(*buffer, *buffer->current_tree(root.get()), &words);
   LOG(INFO) << "Leaves found: " << words.size();
   if (words.empty()) {
     return false;

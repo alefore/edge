@@ -25,7 +25,7 @@ std::ostream& operator<<(std::ostream& os, const ParseTree& t) {
 namespace {
 class NullTreeParser : public TreeParser {
  public:
-  void FindChildren(const OpenBuffer&, ParseTree* root) override {
+  void FindChildren(const BufferContents&, ParseTree* root) override {
     CHECK(root != nullptr);
     root->children.clear();
   }
@@ -33,12 +33,12 @@ class NullTreeParser : public TreeParser {
 
 class CharTreeParser : public TreeParser {
  public:
-  void FindChildren(const OpenBuffer& buffer, ParseTree* root) override {
+  void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
     root->children.clear();
     for (auto line = root->begin.line; line <= root->end.line; line++) {
-      CHECK_LT(line, buffer.contents()->size());
-      auto contents = buffer.contents()->at(line);
+      CHECK_LT(line, buffer.size());
+      auto contents = buffer.at(line);
       size_t end_column =
           line == root->end.line ? root->end.column : contents->size() + 1;
       for (size_t i = line == root->begin.line ? root->begin.column : 0;
@@ -59,11 +59,11 @@ class WordsTreeParser : public TreeParser {
                   std::unique_ptr<TreeParser> delegate)
       : word_characters_(word_characters), delegate_(std::move(delegate)) {}
 
-  void FindChildren(const OpenBuffer& buffer, ParseTree* root) override {
+  void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
     root->children.clear();
     for (auto line = root->begin.line; line <= root->end.line; line++) {
-      const auto& contents = *buffer.contents()->at(line);
+      const auto& contents = *buffer.at(line);
 
       size_t line_end = contents.size();
       if (line == root->end.line) {
@@ -103,12 +103,12 @@ class LineTreeParser : public TreeParser {
   LineTreeParser(std::unique_ptr<TreeParser> delegate)
       : delegate_(std::move(delegate)) {}
 
-  void FindChildren(const OpenBuffer& buffer, ParseTree* root) override {
+  void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
     root->children.clear();
     DVLOG(5) << "Finding lines: " << *root;
     for (auto line = root->begin.line; line <= root->end.line; line++) {
-      auto contents = buffer.contents()->at(line);
+      auto contents = buffer.at(line);
 
       ParseTree new_children;
       new_children.begin = LineColumn(line);

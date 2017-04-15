@@ -21,9 +21,15 @@ class BufferContents {
 
   BufferContents() = default;
 
+  wint_t character_at(const LineColumn& position) const;
+
   bool empty() const { return lines_.empty(); }
 
   size_t size() const { return lines_.size(); }
+
+  // Returns a copy of the contents of the tree. Complexity is linear to the
+  // number of lines (the lines themselves aren't actually copied).
+  std::unique_ptr<BufferContents> copy() const;
 
   shared_ptr<const Line> at(size_t position) const {
     return lines_.at(position);
