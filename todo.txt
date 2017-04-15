@@ -33,8 +33,6 @@ Create some "barriers" that limit the number of subprocesses.  Set a limit for e
 
 -- List of buffers
 
-Highlight how many marks each buffer has, as both source and target.
-
 -- Variables
 
 Save the contents of variables?  Maybe in a per-buffer file?
@@ -55,9 +53,9 @@ Allow a client to just disconnect.
 
 -- Misc
 
-When running nested edge on a file, pass its absolute path to the parent.
+When running nested Edge on a file, pass its absolute path to the parent.
 
-Allow running a nested edge sending a c++ (extension) command to the parent.
+Allow running a nested Edge sending a c++ (extension) command to the parent.
 
 Support variables scoped at the Editor level (i.e. not specific to a given buffer).
 
