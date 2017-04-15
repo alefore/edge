@@ -95,6 +95,7 @@ class Line {
     std::shared_ptr<vm::Environment> environment = nullptr;
   };
 
+  Line() : Line(Options()) {}
   Line(const Options& options);
   Line(const Line& line) = default;
 

@@ -578,7 +578,7 @@ void OpenBuffer::ClearContents(EditorState* editor_state) {
 }
 
 void OpenBuffer::AppendEmptyLine(EditorState*) {
-  contents_.push_back(std::make_shared<Line>(Line::Options()));
+  contents_.push_back(std::make_shared<Line>());
   MaybeFollowToEndOfFile();
   editor_->ScheduleParseTreeUpdate(this);
 }
@@ -845,7 +845,7 @@ void OpenBuffer::StartNewLine(EditorState* editor_state) {
       editor_state->line_marks()->AddMark(mark);
     }
   }
-  contents_.push_back(std::make_shared<Line>(Line::Options()));
+  contents_.push_back(std::make_shared<Line>());
 }
 
 void OpenBuffer::Reload(EditorState* editor_state) {
@@ -1000,7 +1000,7 @@ void OpenBuffer::ProcessCommandInput(
       position_pts_.line++;
       position_pts_.column = 0;
       if (position_pts_.line == contents_.size()) {
-        contents_.push_back(std::make_shared<Line>(Line::Options()));
+        contents_.push_back(std::make_shared<Line>());
       }
       CHECK_LT(position_pts_.line, contents_.size());
       current_line = contents_.at(position_pts_.line);
@@ -1188,7 +1188,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
           position_pts_ =
               LineColumn(view_start_line_ + line_delta, column_delta);
           while (position_pts_.line >= contents_.size()) {
-            contents_.push_back(std::make_shared<Line>(Line::Options()));
+            contents_.push_back(std::make_shared<Line>());
           }
           MaybeFollowToEndOfFile();
           view_start_column_ = column_delta;
@@ -1248,7 +1248,7 @@ void OpenBuffer::AppendToLastLine(
   VLOG(6) << "Adding line of length: " << str->size();
   VLOG(7) << "Adding line: " << str->ToString();
   if (contents_.empty()) {
-    contents_.push_back(std::make_shared<Line>(Line::Options()));
+    contents_.push_back(std::make_shared<Line>());
     MaybeFollowToEndOfFile();
   }
   CHECK(!contents_.empty());
@@ -1310,7 +1310,7 @@ LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
   editor_->ScheduleParseTreeUpdate(this);
   set_modified(true);
   if (empty()) {
-    contents_.push_back(std::make_shared<Line>(Line::Options()));
+    contents_.push_back(std::make_shared<Line>());
   }
   if (position.line >= contents_.size()) {
     position.line = contents_.size() - 1;
