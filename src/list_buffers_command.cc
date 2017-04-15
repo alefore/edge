@@ -82,15 +82,16 @@ class ListBuffersBuffer : public OpenBuffer {
         Line::Options options;
         options.contents =
             NewCopyString(index + 1 == context_lines_var ? L"╰ " : L"│ ");
+        options.modifiers.resize(options.contents->size());
         if (context.first < context.second) {
           auto line = buffer->LineAt(context.first);
           options.contents = StringAppend(options.contents, line->contents());
-          options.modifiers.resize(2);
-          auto modifiers = line->modifiers();
-          options.modifiers.insert(
-              options.modifiers.end(), modifiers.begin(), modifiers.end());
+          for (const auto& m : line->modifiers()) {
+            options.modifiers.push_back(m);
+          }
           context.first++;
         }
+        CHECK_EQ(options.contents->size(), options.modifiers.size());
         target->AppendRawLine(editor_state, std::make_shared<Line>(options));
         AdjustLastLine(target, buffer);
         ++index;

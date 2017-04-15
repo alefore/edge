@@ -95,15 +95,22 @@ class DeleteCharactersTransformation : public Transformation {
     }
 
     LOG(INFO) << "Storing new line (at position " << line_end << ").";
-    Line::Options options;
-    options.contents = StringAppend(
-        buffer->LineAt(current_line)->Substring(0, result->cursor.column),
-        buffer->LineAt(line_end)->Substring(chars_erase_line));
+    if (current_line == line_end) {
+      buffer->DeleteCharactersFromLine(
+          current_line, result->cursor.column,
+          chars_erase_line - result->cursor.column);
+    } else {
+      buffer->DeleteUntilEnd(current_line, result->cursor.column);
+      buffer->DeleteCharactersFromLine(line_end, 0, chars_erase_line);
+      Line::Options options;
+      options.AppendFromLine(*buffer->LineAt(current_line));
+      options.AppendFromLine(*buffer->LineAt(line_end));
+      buffer->ReplaceLine(line_end, std::make_shared<Line>(options));
+      buffer->EraseLines(current_line, line_end);
+    }
     AdjustCursors(
         buffer, line_end, result->cursor.column, chars_erase_line);
-    buffer->ReplaceLine(line_end, std::make_shared<Line>(options));
 
-    buffer->EraseLines(current_line, line_end);
     result->modified_buffer = true;
 
     result->undo_stack->PushFront(TransformationAtPosition(result->cursor,

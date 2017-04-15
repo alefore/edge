@@ -578,6 +578,10 @@ void TestCases() {
            "abababababababababababab");
 
   Clear(&editor_state);
+
+  editor_state.ProcessInputString("al");
+
+  Clear(&editor_state);
 }
 
 int main(int, char** argv) {

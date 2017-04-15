@@ -92,6 +92,8 @@ class BufferContents {
 
   size_t CountCharacters() const;
 
+  void DeleteCharactersFromLine(size_t line, size_t column, size_t stop_column);
+
  private:
   Tree<shared_ptr<const Line>> lines_;
 };

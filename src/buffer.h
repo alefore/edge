@@ -93,6 +93,7 @@ class OpenBuffer {
   bool empty() const { return contents_.empty(); }
   size_t lines_size() const { return contents_.size(); }
 
+  // Erases all lines in range [first, last).
   void EraseLines(size_t first, size_t last);
 
   // Overwrites the line at a given position with a new line.
@@ -265,6 +266,8 @@ class OpenBuffer {
   // We deliberately provide only a read view into our contents. All
   // modifications should be done through methods defined in this class.
   const BufferContents* contents() const { return &contents_; }
+  void DeleteCharactersFromLine(size_t line, size_t column, size_t stop_column);
+  void DeleteUntilEnd(size_t line, size_t column);
 
   size_t view_start_line() const { return view_start_line_; }
   void set_view_start_line(size_t value) {

@@ -68,5 +68,12 @@ size_t BufferContents::CountCharacters() const {
   return output;
 }
 
+void BufferContents::DeleteCharactersFromLine(
+    size_t line, size_t column, size_t stop_column) {
+  auto new_line = std::make_shared<Line>(*at(line));
+  new_line->DeleteCharacters(column, stop_column);
+  set_line(line, new_line);
+}
+
 }  // namespace editor
 }  // namespace afc

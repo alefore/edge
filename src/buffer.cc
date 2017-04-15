@@ -961,9 +961,7 @@ void OpenBuffer::AppendLine(EditorState* editor_state,
 
 void OpenBuffer::AppendRawLine(EditorState* editor,
                                shared_ptr<LazyString> str) {
-  Line::Options options;
-  options.contents = str;
-  AppendRawLine(editor, std::make_shared<Line>(options));
+  AppendRawLine(editor, std::make_shared<Line>(Line::Options(str)));
 }
 
 void OpenBuffer::AppendRawLine(EditorState*, shared_ptr<Line> line) {
@@ -1209,9 +1207,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
       case 'K':
         {
           // el: clear to end of line.
-          auto new_line = std::make_shared<Line>(*current_line);
-          new_line->DeleteUntilEnd(position_pts_.column);
-          ReplaceLine(position_pts_.line, new_line);
+          DeleteUntilEnd(position_pts_.line, position_pts_.column);
           return read_index;
         }
 
@@ -1225,12 +1221,13 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
 
       case 'P':
         {
-          auto new_line = std::make_shared<Line>(*current_line);
-          new_line->DeleteCharacters(
-              position_pts_.column,
-              min(static_cast<size_t>(atoi(sequence.c_str())),
-                  current_line->size()));
-          ReplaceLine(position_pts_.line, new_line);
+          DeleteCharactersFromLine(
+               position_pts_.line,
+               position_pts_.column,
+               min(static_cast<size_t>(atoi(sequence.c_str())),
+                   current_line->size()));
+          current_line = LineAt(position_pts_.line);
+          editor_->ScheduleParseTreeUpdate(this);
           return read_index;
         }
       default:
@@ -1243,13 +1240,14 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
 
 void OpenBuffer::AppendToLastLine(
     EditorState* editor_state, shared_ptr<LazyString> str) {
-  vector<unordered_set<Line::Modifier, hash<int>>> modifiers;
+  vector<unordered_set<Line::Modifier, hash<int>>> modifiers(str->size());
   AppendToLastLine(editor_state, str, modifiers);
 }
 
 void OpenBuffer::AppendToLastLine(
     EditorState*, shared_ptr<LazyString> str,
     const vector<unordered_set<Line::Modifier, hash<int>>>& modifiers) {
+  CHECK_EQ(str->size(), modifiers.size());
   VLOG(6) << "Adding line of length: " << str->size();
   VLOG(7) << "Adding line: " << str->ToString();
   if (contents_.empty()) {
@@ -1308,31 +1306,6 @@ unique_ptr<Value> OpenBuffer::EvaluateFile(EditorState* editor_state,
   return Evaluate(expression.get(), &environment_);
 }
 
-namespace {
-// Appends contents from source to output starting at position start and only
-// up to count elements. If start + count are outside of the boundaries of
-// source, pushes empty elements instead.
-template <typename Contents>
-void PushContents(size_t start, size_t count, const vector<Contents>& source,
-                  const Contents& empty, vector<Contents>* output) {
-  if (source.size() >= start + count) {
-    // Everything fits.
-    auto it_start = source.begin() + start;
-    output->insert(output->end(), it_start, it_start + count);
-    return;
-  }
-
-  size_t elements_left = count;
-  if (source.size() > start) {
-    // Partial fit.
-    elements_left -= source.size() - start;
-    output->insert(output->end(), source.begin() + start, source.end());
-  }
-
-  output->resize(output->size() + elements_left, empty);
-}
-}  // namespace
-
 LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
                                         const LineColumn& input_position) {
   if (buffer.empty()) { return input_position; }
@@ -1378,16 +1351,20 @@ LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
       });
   if (buffer.lines_size() == 1) {
     if (buffer.LineFront()->size() == 0) { return position; }
+    CHECK_EQ(LineAt(position.line)->modifiers().size(),
+             LineAt(position.line)->contents()->size());
     auto line_to_insert = buffer.LineFront();
+    CHECK_EQ(line_to_insert->contents()->size(),
+             line_to_insert->modifiers().size());
     Line::Options options;
     options.contents = StringAppend(head,
         StringAppend(line_to_insert->contents(), tail));
-    unordered_set<Line::Modifier, hash<int>> empty;
-    PushContents(0, head->size(), modifiers, empty, &options.modifiers);
-    PushContents(0, line_to_insert->size(), line_to_insert->modifiers(), empty,
-                 &options.modifiers);
-    PushContents(head->size(), tail->size(), modifiers, empty,
-                 &options.modifiers);
+    options.modifiers = LineAt(position.line)->modifiers();
+    for (const auto& m : line_to_insert->modifiers()) {
+      options.modifiers.push_back(m);
+    }
+    options.modifiers.resize(options.contents->size());
+    CHECK_EQ(options.modifiers.size(), options.contents->size());
     if (position.line >= contents_.size()) {
       contents_.push_back(std::make_shared<Line>(options));
     } else {
@@ -1398,9 +1375,8 @@ LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
   }
   size_t line_end = position.line + buffer.lines_size() - 1;
   {
-    Line::Options options;
-    options.contents = StringAppend(head, buffer.LineFront()->contents());
-    contents_.set_line(position.line, std::make_shared<Line>(options));
+    contents_.set_line(position.line, std::make_shared<Line>(
+        Line::Options(StringAppend(head, buffer.LineFront()->contents()))));
     if (contents_.at(position.line)->contents() != head) {
       set_line_modified(position.line);
     }
@@ -2043,6 +2019,15 @@ std::shared_ptr<OpenBuffer> OpenBuffer::GetBufferFromCurrentLine() {
 
 wstring OpenBuffer::ToString() const {
   return contents_.ToString();
+}
+
+void OpenBuffer::DeleteCharactersFromLine(
+    size_t line, size_t column, size_t stop_column) {
+  contents_.DeleteCharactersFromLine(line, column, stop_column);
+}
+
+void OpenBuffer::DeleteUntilEnd(size_t line, size_t column) {
+  DeleteCharactersFromLine(line, column, LineAt(line)->size() - column);
 }
 
 void OpenBuffer::PushSignal(EditorState* editor_state, int sig) {

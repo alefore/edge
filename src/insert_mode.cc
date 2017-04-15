@@ -60,15 +60,15 @@ class NewLineTransformation : public Transformation {
       }
     }
 
-    Line::Options continuation_options;
-    continuation_options.contents = line->Substring(0, prefix_end);
+    auto continuation_line = std::make_shared<Line>(*line);
+    continuation_line->DeleteCharacters(
+        prefix_end, continuation_line->size() - prefix_end);
 
     unique_ptr<TransformationStack> transformation(new TransformationStack);
     {
       shared_ptr<OpenBuffer> buffer_to_insert(
         new OpenBuffer(editor_state, L"- text inserted"));
-      buffer_to_insert->AppendRawLine(
-          editor_state, std::make_shared<Line>(continuation_options));
+      buffer_to_insert->AppendRawLine(editor_state, continuation_line);
       transformation->PushBack(
           NewInsertBufferTransformation(buffer_to_insert, 1, END));
     }

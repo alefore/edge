@@ -87,10 +87,13 @@ class Line {
   struct Options {
     Options() : contents(EmptyString()) {}
     Options(shared_ptr<LazyString> input_contents)
-        : contents(input_contents) {}
+        : contents(std::move(input_contents)),
+          modifiers(contents->size()) {}
 
-    vector<unordered_set<Modifier, hash<int>>> modifiers;
+    void AppendFromLine(const Line& line);
+
     shared_ptr<LazyString> contents;
+    vector<unordered_set<Modifier, hash<int>>> modifiers;
     std::shared_ptr<vm::Environment> environment = nullptr;
   };
 
@@ -116,7 +119,7 @@ class Line {
   wstring ToString() const {
     return contents_->ToString();
   }
-  void DeleteUntilEnd(size_t position);
+  // Delete characters in [position, position + amount).
   void DeleteCharacters(size_t position, size_t amount);
   void InsertCharacterAtPosition(size_t position);
   void SetCharacter(size_t position, int c,

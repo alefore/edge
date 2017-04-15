@@ -18,6 +18,18 @@ namespace editor {
 using std::hash;
 using std::unordered_set;
 
+void Line::Options::AppendFromLine(const Line& line) {
+  CHECK_EQ(contents->size(), modifiers.size());
+  CHECK_EQ(line.contents()->size(), line.modifiers().size());
+  contents = StringAppend(contents, line.contents());
+  DVLOG(5) << "Inserting into " << modifiers.size() << ": "
+           << line.modifiers().size();
+  for (auto& m : line.modifiers()) {
+    modifiers.push_back(m);
+  }
+  CHECK_EQ(contents->size(), modifiers.size());
+}
+
 Line::Line(const Options& options)
     : environment_(options.environment == nullptr
                        ? std::make_shared<Environment>() : options.environment),
@@ -27,6 +39,7 @@ Line::Line(const Options& options)
       filtered_(true),
       filter_version_(0) {
   CHECK(contents_ != nullptr);
+  CHECK_EQ(contents_->size(), modifiers_.size());
 }
 
 shared_ptr<LazyString> Line::Substring(size_t pos, size_t length) const {
@@ -37,18 +50,16 @@ shared_ptr<LazyString> Line::Substring(size_t pos) const {
   return afc::editor::Substring(contents_, pos);
 }
 
-void Line::DeleteUntilEnd(size_t position) {
-  if (position >= size()) { return; }
-  contents_ = afc::editor::Substring(contents_, 0, position);
-  modifiers_.resize(position);
-}
-
 void Line::DeleteCharacters(size_t position, size_t amount) {
+  CHECK_LE(position, size());
+  CHECK_LE(position + amount, size());
+  CHECK_EQ(contents_->size(), modifiers_.size());
   contents_ = StringAppend(
       Substring(0, position),
       Substring(position + amount));
   modifiers_.erase(modifiers_.begin() + position,
                    modifiers_.begin() + position + amount);
+  CHECK_EQ(contents_->size(), modifiers_.size());
 }
 
 void Line::InsertCharacterAtPosition(size_t position) {
@@ -66,6 +77,7 @@ void Line::InsertCharacterAtPosition(size_t position) {
 
 void Line::SetCharacter(size_t position, int c,
                         const unordered_set<Modifier, hash<int>>& modifiers) {
+  CHECK_EQ(contents_->size(), modifiers_.size());
   shared_ptr<LazyString> str = NewCopyString(wstring(1, c));
   if (position >= size()) {
     contents_ = StringAppend(contents_, str);
@@ -79,6 +91,7 @@ void Line::SetCharacter(size_t position, int c,
     }
     modifiers_[position] = modifiers;
   }
+  CHECK_EQ(contents_->size(), modifiers_.size());
 }
 
 std::shared_ptr<vm::Environment> Line::environment() const {
