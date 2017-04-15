@@ -102,10 +102,9 @@ class DeleteCharactersTransformation : public Transformation {
     } else {
       buffer->DeleteUntilEnd(current_line, result->cursor.column);
       buffer->DeleteCharactersFromLine(line_end, 0, chars_erase_line);
-      Line::Options options;
-      options.AppendFromLine(*buffer->LineAt(current_line));
-      options.AppendFromLine(*buffer->LineAt(line_end));
-      buffer->ReplaceLine(line_end, std::make_shared<Line>(options));
+      auto new_line = std::make_shared<Line>(*buffer->LineAt(current_line));
+      new_line->Append(*buffer->LineAt(line_end));
+      buffer->ReplaceLine(line_end, new_line);
       buffer->EraseLines(current_line, line_end);
     }
     AdjustCursors(
@@ -149,13 +148,11 @@ class DeleteCharactersTransformation : public Transformation {
     LOG(INFO) << "Preparing deleted text buffer.";
     auto delete_buffer =
         std::make_shared<OpenBuffer>(editor_state, OpenBuffer::kPasteBuffer);
-    size_t end = line_begin != line_end
-                     ? buffer->LineAt(line_begin)->size() - start
-                     : chars_erase_line - start;
-
     auto first_line = std::make_shared<Line>(*buffer->LineAt(line_begin));
+    if (line_begin == line_end) {
+      first_line->DeleteCharacters(chars_erase_line);
+    }
     first_line->DeleteCharacters(0, start);
-    first_line->DeleteCharacters(end);
     delete_buffer->AppendToLastLine(editor_state,
         first_line->contents(), first_line->modifiers());
 

@@ -90,8 +90,6 @@ class Line {
         : contents(std::move(input_contents)),
           modifiers(contents->size()) {}
 
-    void AppendFromLine(const Line& line);
-
     shared_ptr<LazyString> contents;
     vector<unordered_set<Modifier, hash<int>>> modifiers;
     std::shared_ptr<vm::Environment> environment = nullptr;
@@ -133,6 +131,8 @@ class Line {
 
   bool modified() const { return modified_; }
   void set_modified(bool modified) { modified_ = modified; }
+
+  void Append(const Line& line);
 
   std::shared_ptr<vm::Environment> environment() const;
 

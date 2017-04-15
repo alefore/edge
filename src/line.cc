@@ -18,18 +18,6 @@ namespace editor {
 using std::hash;
 using std::unordered_set;
 
-void Line::Options::AppendFromLine(const Line& line) {
-  CHECK_EQ(contents->size(), modifiers.size());
-  CHECK_EQ(line.contents()->size(), line.modifiers().size());
-  contents = StringAppend(contents, line.contents());
-  DVLOG(5) << "Inserting into " << modifiers.size() << ": "
-           << line.modifiers().size();
-  for (auto& m : line.modifiers()) {
-    modifiers.push_back(m);
-  }
-  CHECK_EQ(contents->size(), modifiers.size());
-}
-
 Line::Line(const Options& options)
     : environment_(options.environment == nullptr
                        ? std::make_shared<Environment>() : options.environment),
@@ -57,8 +45,8 @@ void Line::DeleteCharacters(size_t position, size_t amount) {
   contents_ = StringAppend(
       Substring(0, position),
       Substring(position + amount));
-  modifiers_.erase(modifiers_.begin() + position,
-                   modifiers_.begin() + position + amount);
+  auto it = modifiers_.begin() + position;
+  modifiers_.erase(it, it + amount);
   CHECK_EQ(contents_->size(), modifiers_.size());
 }
 
@@ -95,6 +83,17 @@ void Line::SetCharacter(size_t position, int c,
       modifiers_.resize(position + 1);
     }
     modifiers_[position] = modifiers;
+  }
+  CHECK_EQ(contents_->size(), modifiers_.size());
+}
+
+void Line::Append(const Line& line) {
+  CHECK_EQ(contents_->size(), modifiers_.size());
+  CHECK_EQ(line.contents_->size(), line.modifiers_.size());
+  CHECK(this != &line);
+  contents_ = StringAppend(contents_, line.contents_);
+  for (auto& m : line.modifiers_) {
+    modifiers_.push_back(m);
   }
   CHECK_EQ(contents_->size(), modifiers_.size());
 }
