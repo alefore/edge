@@ -171,7 +171,7 @@ class EditorState {
   void MoveBufferForwards(size_t times);
   void MoveBufferBackwards(size_t times);
 
-  void ScheduleRedraw() { screen_needs_redraw_ = true; }
+  void ScheduleRedraw();
   void set_screen_needs_redraw(bool value) { screen_needs_redraw_ = value; }
   bool screen_needs_redraw() const { return screen_needs_redraw_; }
   void set_screen_needs_hard_redraw(bool value) {

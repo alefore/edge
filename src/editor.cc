@@ -513,6 +513,10 @@ void EditorState::MoveBufferBackwards(size_t times) {
   PushCurrentPosition();
 }
 
+void EditorState::ScheduleRedraw() {
+  screen_needs_redraw_ = true;
+}
+
 // We will store the positions in a special buffer.  They will be sorted from
 // old (top) to new (bottom), one per line.  Each line will be of the form:
 //

@@ -359,8 +359,10 @@ int main(int argc, const char** argv) {
       buffers.push_back(nullptr);
     }
 
-    if (poll(fds, buffers.size(), -1) == -1) {
-      CHECK_EQ(errno, EINTR) << "poll failed, exiting: " << strerror(errno);
+    // TODO: Change to -1. Requires figuring out a way for background threads of
+    // buffers to trigger redraws.
+    if (poll(fds, buffers.size(), 100) == -1) {
+      CHECK_EQ(errno, EINTR) << "poll failed: " << strerror(errno);
 
       LOG(INFO) << "Received signals.";
       if (args.client.empty()) {
