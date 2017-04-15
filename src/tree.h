@@ -104,6 +104,11 @@ class Tree {
   typedef std::reverse_iterator<iterator> reverse_iterator;
   typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
+  Tree() = default;
+  Tree(const Tree& tree);
+  ~Tree() = default;
+  Tree<Item>& operator=(const Tree<Item>& tree);
+
   void clear();
 
   bool empty() const;
@@ -467,6 +472,18 @@ void Tree<Item>::ValidateInvariants() const {
   ValidateInvariants(root_);
   CHECK_EQ(root_ == nullptr, empty());
 #endif
+}
+
+template <typename Item>
+Tree<Item>::Tree(const Tree& tree) : Tree() {
+  *this = tree;
+}
+
+template <typename Item>
+Tree<Item>& Tree<Item>::operator=(const Tree& tree) {
+  clear();
+  insert(begin(), tree.cbegin(), tree.cend());
+  return *this;
 }
 
 template <typename Item>
