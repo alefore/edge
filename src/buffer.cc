@@ -2087,7 +2087,7 @@ wstring OpenBuffer::FlagsString() const {
   if (fd() != -1) {
     output += L"< l:" + to_wstring(contents_.size());
     if (read_bool_variable(variable_follow_end_of_file())) {
-      output += L" follow";
+      output += L" ↓";
     }
     wstring pts_path = read_string_variable(variable_pts_path());
     if (!pts_path.empty()) {
