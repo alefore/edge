@@ -37,7 +37,7 @@ class CppTreeParser : public TreeParser {
         // Types
         L"void", L"const", L"auto",
         L"unique_ptr", L"shared_ptr",
-        L"std", L"vector", L"list",
+        L"std", L"function", L"vector", L"list",
         L"map", L"unordered_map", L"set", L"unordered_set"
         L"int", L"double", L"float", L"string", L"wstring", L"bool", L"char",
         L"size_t",
