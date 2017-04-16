@@ -107,8 +107,8 @@ class ListBuffersBuffer : public OpenBuffer {
       auto last = buffer.lines_size();
       return make_pair(last, last);
     }
-    size_t start = buffer.current_cursor()->line;
-    start -= min(buffer.current_cursor()->line,
+    size_t start = buffer.current_position_line();
+    start -= min(start,
                  max(lines / 2,
                      lines - min(lines, buffer.lines_size() - start)));
     size_t stop = min(buffer.lines_size(), start + lines);

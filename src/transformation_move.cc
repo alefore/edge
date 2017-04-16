@@ -60,7 +60,7 @@ class MoveTransformation : public Transformation {
           VLOG(5) << "Moving cursor from " << *next_cursor << " to "
                   << original_cursor;
 
-          if (next_cursor != buffer->current_cursor()) {
+          if (*next_cursor != buffer->position()) {
             active_cursors->erase(next_cursor);
             active_cursors->insert(original_cursor);
           }

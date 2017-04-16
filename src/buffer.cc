@@ -472,22 +472,6 @@ using std::to_wstring;
   environment->DefineType(L"Buffer", std::move(buffer));
 }
 
-void AdjustCursorsSet(const std::function<LineColumn(LineColumn)>& callback,
-                      CursorsSet* cursors_set,
-                      CursorsSet::iterator* current_cursor) {
-  VLOG(8) << "Adjusting cursor set of size: " << cursors_set->size();
-  CursorsSet old_cursors;
-  cursors_set->swap(old_cursors);
-  for (auto it = old_cursors.begin(); it != old_cursors.end(); ++it) {
-    VLOG(9) << "Adjusting cursor: " << *it;
-    auto result = cursors_set->insert(callback(*it));
-    if (it == *current_cursor) {
-      VLOG(5) << "Updating current cursor: " << *result;
-      *current_cursor = result;
-    }
-  }
-}
-
 void OpenBuffer::BackgroundThread() {
   while (true) {
     std::unique_lock<std::mutex> lock(mutex_);
@@ -547,23 +531,9 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       [this](const BufferContents::CursorAdjuster& cursor_adjuster) {
         editor_->ScheduleParseTreeUpdate(this);
         modified_ = true;
-        if (!cursor_adjuster) { return; }
-        VLOG(7) << "Before adjust cursors, current at: " << *current_cursor_;
-        for (auto& cursors_set : cursors_) {
-          AdjustCursorsSet(
-              cursor_adjuster, &cursors_set.second, &current_cursor_);
-        }
-        AdjustCursorsSet(
-            cursor_adjuster, &already_applied_cursors_, &current_cursor_);
-        VLOG(7) << "After adjust cursors, current at: " << *current_cursor_;
-        for (auto& cursors_set : cursors_) {
-          for (auto cursor : cursors_set.second) {
-            VLOG(9) << "Cursor: " << cursor;
-          }
-        }
+        cursors_tracker_.AdjustCursors(cursor_adjuster);
       });
   UpdateTreeParser();
-  current_cursor_ = active_cursors()->insert(LineColumn());
 
   environment_.Define(L"buffer", Value::NewObject(
       L"Buffer", shared_ptr<void>(this, [](void*){})));
@@ -966,7 +936,7 @@ void OpenBuffer::SortContents(size_t first, size_t last,
 
 void OpenBuffer::EraseLines(size_t first, size_t last) {
   contents_.EraseLines(first, last);
-  CHECK_LE(current_cursor_->line, contents_.size());
+  CHECK_LE(position().line, lines_size());
 }
 
 void OpenBuffer::SplitLine(LineColumn split_position) {
@@ -1371,7 +1341,7 @@ void OpenBuffer::AdjustLineColumn(LineColumn* output) const {
 void OpenBuffer::MaybeAdjustPositionCol() {
   if (contents_.empty() || current_line() == nullptr) { return; }
   size_t line_length = current_line()->size();
-  if (current_cursor()->column > line_length) {
+  if (position().column > line_length) {
     set_current_position_col(line_length);
   }
 }
@@ -1383,7 +1353,7 @@ void OpenBuffer::CheckPosition() {
 }
 
 CursorsSet* OpenBuffer::FindCursors(const wstring& name) {
-  return &cursors_[name];
+  return cursors_tracker_.FindOrCreateCursors(name);
 }
 
 CursorsSet* OpenBuffer::active_cursors() {
@@ -1399,10 +1369,8 @@ void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
 
   // We find the first position (rather than just take cursors->begin()) so that
   // we start at the first requested position.
-  current_cursor_ = cursors->find(positions.front());
-  CHECK(current_cursor_ != cursors->end());
-  LOG(INFO) << "Current cursor set to: " << *current_cursor_;
-  CHECK_LE(current_cursor_->line, contents_.size());
+  cursors_tracker_.SetCurrentCursor(cursors, positions.front());
+  CHECK_LE(position().line, lines_size());
 
   editor_->ScheduleRedraw();
 }
@@ -1411,32 +1379,32 @@ void OpenBuffer::ToggleActiveCursors() {
   LineColumn desired_position = position();
 
   auto cursors = active_cursors();
-  auto old_cursors = FindCursors(kOldCursors);
-  LOG(INFO) << "Replacing " << cursors->size() << " with "
-            << old_cursors->size();
+  FindCursors(kOldCursors)->swap(*cursors);
 
-  cursors->swap(*old_cursors);
-
+  // TODO: Maybe it'd be best to pick the nearest after the cursor?
+  // TODO: This should probably be merged somewhat with set_active_cursors?
   for (auto it = cursors->begin(); it != cursors->end(); ++it) {
     if (desired_position == *it) {
       LOG(INFO) << "Desired position " << desired_position << " prevails.";
-      current_cursor_ = it;
-      CHECK_LE(current_cursor_->line, contents_.size());
+      cursors_tracker_.SetCurrentCursor(cursors, desired_position);
+      CHECK_LE(position().line, lines_size());
       return;
     }
   }
 
-  current_cursor_ = cursors->begin();
-  LOG(INFO) << "Picked up the first cursor: " << *current_cursor_;
-  CHECK_LE(current_cursor_->line, contents_.size());
+  cursors_tracker_.SetCurrentCursor(cursors, *cursors->begin());
+  LOG(INFO) << "Picked up the first cursor: " << position();
+  CHECK_LE(position().line, contents_.size());
+
+  editor_->ScheduleRedraw();
 }
 
 void OpenBuffer::PushActiveCursors() {
   std::vector<LineColumn> cursors;
-  cursors.push_back(*current_cursor_);
+  cursors.push_back(position());
   bool found = false;
   for (const auto& it : *active_cursors()) {
-    if (it == *current_cursor_ && !found) {
+    if (it == cursors.front() && !found) {
       found = true;
       continue;  // We already added it (at the start of the list).
     }
@@ -1477,21 +1445,15 @@ void OpenBuffer::SetActiveCursorsToMarks() {
 
 void OpenBuffer::set_current_cursor(CursorsSet::value_type new_value) {
   auto cursors = active_cursors();
-  auto it = cursors->find(*current_cursor_);
+  // Need to do find + erase because cursors is a multiset; we only want to
+  // erase one cursor, rather than all cursors with the current value.
+  auto it = cursors->find(position());
   if (it != cursors->end()) {
     cursors->erase(it);
   }
-  current_cursor_ = cursors->insert(new_value);
-  CHECK_LE(current_cursor_->line, contents_.size());
-}
-
-typename CursorsSet::iterator OpenBuffer::current_cursor() {
-  return current_cursor_;
-}
-
-typename CursorsSet::const_iterator OpenBuffer::current_cursor()
-    const {
-  return current_cursor_;
+  cursors->insert(new_value);
+  cursors_tracker_.SetCurrentCursor(cursors, new_value);
+  CHECK_LE(position().line, contents_.size());
 }
 
 void OpenBuffer::CreateCursor() {
@@ -1528,8 +1490,8 @@ void OpenBuffer::CreateCursor() {
       }
       break;
     default:
-      CHECK_LE(current_cursor_->line, contents_.size());
-      active_cursors()->insert(*current_cursor_);
+      CHECK_LE(position().line, contents_.size());
+      active_cursors()->insert(position());
   }
   editor_->SetStatus(L"Cursor created.");
   editor_->ScheduleRedraw();
@@ -1605,25 +1567,19 @@ void OpenBuffer::DestroyCursor() {
   size_t repetitions =
       min(editor_->modifiers().repetitions, cursors->size() - 1);
   for (size_t i = 0; i < repetitions; i++) {
-    active_cursors()->erase(current_cursor_++);
-    if (current_cursor_ == active_cursors()->end()) {
-      current_cursor_ = active_cursors()->begin();
-    }
+    cursors_tracker_.DeleteCurrentCursor(cursors);
   }
-  CHECK_LE(current_cursor_->line, contents_.size());
+  CHECK_LE(position().line, contents_.size());
   editor_->ScheduleRedraw();
 }
 
 void OpenBuffer::DestroyOtherCursors() {
-  CHECK_LE(current_cursor_->line, contents_.size());
+  auto position = this->position();
+  CHECK_LE(position, contents_.size());
   auto cursors = active_cursors();
-  for (auto it = cursors->begin(); it != cursors->end();) {
-    if (it != current_cursor_) {
-      cursors->erase(it++);
-    } else {
-      ++it;
-    }
-  }
+  cursors->clear();
+  cursors->insert(position);
+  cursors_tracker_.SetCurrentCursor(cursors, position);
   set_bool_variable(variable_multiple_cursors(), false);
   editor_->ScheduleRedraw();
 }
@@ -1715,10 +1671,10 @@ size_t OpenBuffer::FindChildrenForPosition(
 }
 
 bool OpenBuffer::FindRangeFirst(
-    const Modifiers& modifiers, const LineColumn& position,
+    const Modifiers& modifiers, const LineColumn& input,
     LineColumn* output) const {
   CHECK(output != nullptr);
-  *output = position;
+  *output = input;
   AdjustLineColumn(output);
 
   switch (modifiers.structure) {
@@ -1810,13 +1766,13 @@ bool OpenBuffer::FindRangeFirst(
         bool has_boundary = false;
         LineColumn boundary;
         if (modifiers.direction == FORWARDS) {
-          boundary = *current_cursor_;
+          boundary = position();
           has_boundary = true;
         } else {
-          auto cursors = cursors_.find(modifiers.active_cursors);
-          if (cursors == cursors_.end()) { return false; }
-          for (const auto& candidate : cursors->second) {
-            if (candidate < *current_cursor_
+          auto cursors = cursors_tracker_.FindCursors(modifiers.active_cursors);
+          CHECK(cursors != nullptr);
+          for (const auto& candidate : *cursors) {
+            if (candidate < position()
                 && (!has_boundary || candidate > boundary)) {
               has_boundary = true;
               boundary = candidate;
@@ -1835,7 +1791,7 @@ bool OpenBuffer::FindRangeFirst(
       {
         auto tree_root = parse_tree();
         auto parent_and_index = FindTreeInPosition(
-            tree_depth_, tree_root.get(), position, modifiers.direction);
+            tree_depth_, tree_root.get(), input, modifiers.direction);
         const ParseTree& tree =
             parent_and_index.parent == nullptr
                 ? *tree_root
@@ -1890,9 +1846,9 @@ bool OpenBuffer::FindRangeLast(
       {
         bool has_boundary = false;
         LineColumn boundary;
-        auto cursors = cursors_.find(modifiers.active_cursors);
-        if (cursors == cursors_.end()) { return false; }
-        for (const auto& candidate : cursors->second) {
+        auto cursors = cursors_tracker_.FindCursors(modifiers.active_cursors);
+        if (cursors == nullptr) { return false; }
+        for (const auto& candidate : *cursors) {
           if (candidate > *output
               && (!has_boundary || candidate < boundary)) {
             has_boundary = true;
@@ -1936,8 +1892,8 @@ bool OpenBuffer::FindRange(const Modifiers& modifiers,
 }
 
 const shared_ptr<const Line> OpenBuffer::current_line() const {
-  if (current_cursor_->line >= contents_.size()) { return nullptr; }
-  return contents_.at(current_cursor_->line);
+  if (position().line >= contents_.size()) { return nullptr; }
+  return contents_.at(position().line);
 }
 
 std::shared_ptr<OpenBuffer> OpenBuffer::GetBufferFromCurrentLine() {
@@ -2051,7 +2007,7 @@ void OpenBuffer::SetInputFiles(
 }
 
 size_t OpenBuffer::current_position_line() const {
-  return current_cursor_->line;
+  return position().line;
 }
 
 void OpenBuffer::set_current_position_line(size_t line) {
@@ -2059,15 +2015,15 @@ void OpenBuffer::set_current_position_line(size_t line) {
 }
 
 size_t OpenBuffer::current_position_col() const {
-  return current_cursor_->column;
+  return position().column;
 }
 
 void OpenBuffer::set_current_position_col(size_t column) {
-  set_current_cursor(LineColumn(current_cursor_->line, column));
+  set_current_cursor(LineColumn(position().line, column));
 }
 
 const LineColumn OpenBuffer::position() const {
-  return *current_cursor_;
+  return cursors_tracker_.position();
 }
 
 void OpenBuffer::set_position(const LineColumn& position) {
@@ -2552,15 +2508,6 @@ void OpenBuffer::set_value_variable(
 
 void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
   CHECK(transformation != nullptr);
-  CursorsSet single_cursor;
-  CursorsSet* cursors;
-  if (read_bool_variable(variable_multiple_cursors())) {
-    cursors = active_cursors();
-    CHECK(cursors != nullptr);
-  } else {
-    cursors = &single_cursor;
-    single_cursor.insert(*current_cursor_);
-  }
 
   if (!last_transformation_stack_.empty()) {
     CHECK(last_transformation_stack_.back() != nullptr);
@@ -2569,44 +2516,32 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
 
   transformations_past_.emplace_back(new Transformation::Result(editor_));
 
+  transformations_past_.back()->undo_stack->PushFront(
+      NewSetCursorsTransformation(*active_cursors(), position()));
+
   for (auto& position : *active_cursors()) {
     CHECK_LE(position.line, contents_.size());
   }
-  transformations_past_.back()->undo_stack->PushFront(
-      NewSetCursorsTransformation(*active_cursors(), *current_cursor_));
 
-  LOG(INFO) << "Applying transformation to cursors: " << cursors->size();
-  CHECK(already_applied_cursors_.empty());
-  bool adjusted_current_cursor = false;
-  while (!cursors->empty()) {
-    LineColumn old_position = *cursors->begin();
-
-    transformations_past_.back()->cursor = *cursors->begin();
+  if (read_bool_variable(variable_multiple_cursors())) {
+    CursorsSet single_cursor;
+    CursorsSet* cursors = active_cursors();
+    CHECK(cursors != nullptr);
+    cursors_tracker_.ApplyTransformationToCursors(
+        cursors,
+        [this, &transformation](LineColumn old_position) {
+          transformations_past_.back()->cursor = old_position;
+          auto new_position = Apply(editor_, transformation->Clone());
+          CHECK_LE(new_position.line, contents_.size());
+          return new_position;
+        });
+    CHECK_LE(position().line, lines_size());
+  } else {
+    transformations_past_.back()->cursor = position();
     auto new_position = Apply(editor_, transformation->Clone());
-    VLOG(5) << "Cursor went from " << old_position << " to " << new_position;
-    CHECK_LE(new_position.line, contents_.size());
-
-    if (cursors == &single_cursor) {
-      VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
-      active_cursors()->erase(current_cursor_);
-      current_cursor_ = active_cursors()->insert(new_position);
-      CHECK_LE(current_cursor_->line, contents_.size());
-      break;
-    }
-
-    auto insert_result = already_applied_cursors_.insert(new_position);
-    if (cursors->begin() == current_cursor_) {
-      VLOG(6) << "Adjusting default cursor (multiple): " << *insert_result;
-      current_cursor_ = insert_result;
-      adjusted_current_cursor = true;
-    }
-    cursors->erase(cursors->begin());
-  }
-  if (cursors != &single_cursor) {
-    cursors->swap(already_applied_cursors_);
-    CHECK(adjusted_current_cursor);
-    CHECK_LE(current_cursor_->line, contents_.size());
-    LOG(INFO) << "Current cursor at: " << *current_cursor_;
+    VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
+    cursors_tracker_.MoveCurrentCursor(active_cursors(), new_position);
+    CHECK_LE(position().line, lines_size());
   }
 
   transformations_future_.clear();

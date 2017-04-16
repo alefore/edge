@@ -232,6 +232,8 @@ class GotoCommand : public Command {
  private:
   void GotoCursor(EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
+    // TODO: Implement.
+#if 0
     auto buffer = editor_state->current_buffer()->second;
     auto cursors = buffer->active_cursors();
     auto modifiers = editor_state->modifiers();
@@ -240,6 +242,7 @@ class GotoCommand : public Command {
          i++) {
       --current;
     }
+#endif
   }
 
   const size_t calls_;

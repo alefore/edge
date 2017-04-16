@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "buffer_contents.h"
+#include "cursors.h"
 #include "lazy_string.h"
 #include "line.h"
 #include "line_column.h"
@@ -39,8 +40,6 @@ using std::multimap;
 using std::ostream;
 
 using namespace afc::vm;
-
-typedef std::multiset<LineColumn> CursorsSet;
 
 class OpenBuffer {
  public:
@@ -148,7 +147,6 @@ class OpenBuffer {
   // valid index for contents() (it may be just at the end).
   void CheckPosition();
 
-  std::map<std::wstring, CursorsSet>* cursors() { return &cursors_; }
   CursorsSet* FindCursors(const wstring& name);
   CursorsSet* active_cursors();
   // Removes all active cursors and replaces them with the ones given. The old
@@ -164,8 +162,6 @@ class OpenBuffer {
   void SetActiveCursorsToMarks();
 
   void set_current_cursor(CursorsSet::value_type new_cursor);
-  CursorsSet::iterator current_cursor();
-  CursorsSet::const_iterator current_cursor() const;
   void CreateCursor();
   CursorsSet::iterator FindPreviousCursor(LineColumn cursor);
   CursorsSet::iterator FindNextCursor(LineColumn cursor);
@@ -255,11 +251,11 @@ class OpenBuffer {
   wstring ToString() const;
 
   void replace_current_line(const shared_ptr<Line>& line) {
-    if (current_cursor_->line >= contents_.size()) {
+    if (cursors_tracker_.position().line >= contents_.size()) {
       CHECK(!contents_.empty());
       set_current_position_line(contents_.size() - 1);
     }
-    contents_.set_line(current_cursor_->line, line);
+    contents_.set_line(cursors_tracker_.position().line, line);
   }
 
   int fd() const { return fd_.fd; }
@@ -412,8 +408,6 @@ class OpenBuffer {
                           unique_ptr<Value> value);
 
   void ApplyToCursors(unique_ptr<Transformation> transformation);
-  LineColumn Apply(EditorState* editor_state,
-                   unique_ptr<Transformation> transformation);
   void RepeatLastTransformation();
 
   void PushTransformationStack();
@@ -544,6 +538,8 @@ class OpenBuffer {
   size_t filter_version_;
 
  private:
+  LineColumn Apply(EditorState* editor_state,
+                   unique_ptr<Transformation> transformation);
   void BackgroundThread();
   void UpdateTreeParser();
 
@@ -583,18 +579,7 @@ class OpenBuffer {
   // marks have been added.
   mutable size_t line_marks_last_updates_ = 0;
 
-  // Contains a collection of positions that commands should be applied to.
-  std::map<std::wstring, CursorsSet> cursors_;
-
-  CursorsSet::iterator current_cursor_;
-
-  // While we're applying a transformation to a set of cursors, we need to
-  // remember what cursors it has already been applied to. To do that, we
-  // gradually drain the original set of cursors and add them here as we apply
-  // the transformation to them. We can't just loop over the set of cursors
-  // since each transformation will likely reshuffle them. Once the source of
-  // cursors to modify is empty, we just swap it back with this.
-  CursorsSet already_applied_cursors_;
+  CursorsTracker cursors_tracker_;
 
   // If we get a request to open a buffer and jump to a given line, we store
   // that value here. Once we've read enough lines, we stay at this position.

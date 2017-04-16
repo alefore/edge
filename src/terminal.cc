@@ -609,8 +609,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       CursorsHighlighter::Options options;
       options.delegate = receiver;
       options.columns = current_cursors->second;
-      if (current_line == buffer->current_cursor()->line) {
-        options.columns.erase(buffer->current_cursor()->column);
+      if (current_line == buffer->current_position_line()) {
+        options.columns.erase(buffer->current_position_col());
       }
       // Any cursors past the end of the line will just be silently moved to the
       // end of the line (just for displaying).

@@ -148,11 +148,12 @@ class AutocompleteMode : public EditorMode {
         std::make_shared<OpenBuffer>(editor_state, L"tmp buffer");
     buffer_to_insert->AppendToLastLine(editor_state, match->contents());
     DLOG(INFO) << "Completion selected: " << buffer_to_insert->ToString();
-
     DeleteOptions delete_options;
     delete_options.modifiers.repetitions = word_length_;
     delete_options.copy_to_paste_buffer = false;
-    options_.buffer->Apply(editor_state,
+    // TODO: Somewhat wrong. Should find the autocompletion for each position.
+    // Also, should apply the deletions/insertions at the right positions.
+    options_.buffer->ApplyToCursors(
         TransformationAtPosition(
             LineColumn(options_.buffer->position().line, options_.column_start),
             ComposeTransformation(

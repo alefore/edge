@@ -19,6 +19,8 @@ src/cpp_parse_tree.h \
 src/char_buffer.cc \
 src/close_buffer_command.cc \
 src/command_mode.cc \
+src/cursors.cc \
+src/cursors.h \
 src/cursors_transformation.cc \
 src/cursors_transformation.h \
 src/dirname.cc \

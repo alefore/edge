@@ -1,0 +1,74 @@
+#ifndef __AFC_EDITOR_CURSORS_H__
+#define __AFC_EDITOR_CURSORS_H__
+
+#include <functional>
+#include <map>
+#include <memory>
+#include <set>
+#include <vector>
+
+#include "src/line_column.h"
+
+namespace afc {
+namespace editor {
+
+typedef std::multiset<LineColumn> CursorsSet;
+
+class CursorsTracker {
+ public:
+  CursorsTracker();
+
+  // Returns the position of the current cursor.
+  LineColumn position() const;
+
+  // cursors *must* be a value in cursors_ and position must already be a value
+  // in that set (we verify the later, not the former).
+  void SetCurrentCursor(CursorsSet* cursors, LineColumn position);
+
+  // Remove the current cursor from the set, add a new cursor at the position,
+  // and set that as the current cursor.
+  void MoveCurrentCursor(CursorsSet* cursors, LineColumn position);
+
+  // current_cursor_ must be a value in cursors. cursors must have at least two
+  // elements.
+  void DeleteCurrentCursor(CursorsSet* cursors);
+
+  CursorsSet* FindOrCreateCursors(const std::wstring& name) {
+    return &cursors_[name];
+  }
+
+  const CursorsSet* FindCursors(const std::wstring& name) const {
+    auto result = cursors_.find(name);
+    return result == cursors_.end() ? nullptr : &result->second;
+  }
+
+  // Applies the callback to every single cursor and leaves it at the returned
+  // position.
+  //
+  // TODO: Figure out a way to not pass current_cursor. Feels ugly.
+  void AdjustCursors(const std::function<LineColumn(LineColumn)>& callback);
+
+  void ApplyTransformationToCursors(
+      CursorsSet* cursors,
+      std::function<LineColumn(LineColumn)> callback);
+
+ private:
+  // Contains a family of cursors.
+  std::map<std::wstring, CursorsSet> cursors_;
+
+  // While we're applying a transformation to a set of cursors, we need to
+  // remember what cursors it has already been applied to. To do that, we
+  // gradually drain the original set of cursors and add them here as we apply
+  // the transformation to them. We can't just loop over the set of cursors
+  // since each transformation will likely reshuffle them. Once the source of
+  // cursors to modify is empty, we just swap it back with this.
+  CursorsSet already_applied_cursors_;
+
+  // Points to an entry in a value in cursors_.
+  CursorsSet::iterator current_cursor_;
+};
+
+}  // namespace editor
+}  // namespace afc
+
+#endif  // __AFC_EDITOR_CURSORS_H__
