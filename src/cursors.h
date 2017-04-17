@@ -114,7 +114,6 @@ class CursorsTracker {
   std::shared_ptr<bool> DelayTransformations();
 
  private:
-  void OptimizeTransformations();
   void ApplyTransformation(const Transformation& transformation);
 
   // Contains a family of cursors.

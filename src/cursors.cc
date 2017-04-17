@@ -88,8 +88,57 @@ void AdjustCursorsSet(const CursorsTracker::Transformation& transformation,
   }
 }
 
+bool IsNoop(const CursorsTracker::Transformation& t) {
+  return t.add_to_line == 0 && t.add_to_column == 0 && t.output_line_ge == 0 &&
+      t.output_column_ge == 0;
+}
+
 void CursorsTracker::AdjustCursors(const Transformation& transformation) {
   auto output = DelayTransformations();
+  if (IsNoop(transformation)) {
+    return;
+  }
+
+  if (transformations_.empty()) {
+    transformations_.push_back(transformation);
+    return;
+  }
+
+  auto& last = transformations_.back();
+  if (last.begin == transformation.begin &&
+      transformation.end <= min(last.end,
+          LineColumn(last.begin.line + last.add_to_line,
+                     last.begin.column + last.add_to_column))) {
+    // All cursors in transformation have been moved by last.
+    LOG(INFO) << "Removed: " << transformation;
+    return;
+  }
+
+  // Collapse:
+  // [[A:0], [B:MAX]), line: C, line_ge: 0, column: 0, column_ge: 0
+  // [[A:0], [B:MAX]), line: -C, line_ge: D, column: 0, column_ge: 0
+  //
+  // Into:
+  // [[A:0], [min(B, D):MAX]), line: C, line_ge: 0, column: 0, column_ge: 0
+  if (last.begin == transformation.begin &&
+      last.end == transformation.end &&
+      last.begin.column == 0 &&
+      last.end.column == std::numeric_limits<size_t>::max() &&
+      last.add_to_line + transformation.add_to_line == 0 &&
+      last.output_line_ge == 0 &&
+      last.output_column_ge == 0 &&
+      last.add_to_column == 0 &&
+      transformation.add_to_column == 0) {
+    last.end.line = min(last.end.line, transformation.output_line_ge);
+    last.add_to_line = min(last.add_to_line,
+        static_cast<int>(transformation.output_line_ge - last.begin.line));
+    if (IsNoop(last)) {
+      LOG(INFO) << "Removing no-op transformation: " << last;
+      transformations_.pop_back();
+    }
+    return;
+  }
+
   transformations_.push_back(transformation);
 }
 
@@ -141,8 +190,9 @@ std::shared_ptr<bool> CursorsTracker::DelayTransformations() {
         new bool(),
         [this](bool *value) {
           delete value;
-          OptimizeTransformations();
+          LOG(INFO) << "Transformations: " << transformations_.size();
           for (auto& t : transformations_) {
+            LOG(INFO) << "Applying transformation: " << t;
             ApplyTransformation(t);
           }
           transformations_.clear();
@@ -150,85 +200,6 @@ std::shared_ptr<bool> CursorsTracker::DelayTransformations() {
     delay_transformations_ = output;
   }
   return output;
-}
-
-bool Disjoint(const CursorsTracker::Transformation& a,
-              const CursorsTracker::Transformation& b) {
-  return a.end <= b.begin || a.begin >= b.end;
-}
-
-void AddToTransformation(
-    const CursorsTracker::Transformation delta,
-    CursorsTracker::Transformation* output) {
-  output->add_to_line += delta.add_to_line;
-  output->add_to_column += delta.add_to_column;
-}
-
-bool IsNoop(const CursorsTracker::Transformation& t) {
-  return t.add_to_line == 0 && t.add_to_column == 0 && t.output_line_ge == 0 &&
-      t.output_column_ge == 0;
-}
-
-void CursorsTracker::OptimizeTransformations() {
-  LOG(INFO) << "Optimize transformations.";
-  for (const auto& t : transformations_) {
-    LOG(INFO) << "T: " << t;
-  }
-
-  std::list<CursorsTracker::Transformation> new_transformations;
-  for (const auto& t : transformations_) {
-    if (IsNoop(t)) {
-      continue;
-    }
-    if (new_transformations.empty()) {
-      new_transformations.push_back(t);
-      continue;
-    }
-
-    auto& last = new_transformations.back();
-    if (last.begin == t.begin &&
-        t.end <= min(last.end,
-                     LineColumn(last.begin.line + last.add_to_line,
-                                last.begin.column + last.add_to_column))) {
-      // All cursors in t have been moved by last.
-      LOG(INFO) << "Removed: " << t;
-      continue;
-    }
-
-    // Collapse:
-    // [[A:0], [B:MAX]), line: C, line_ge: 0, column: 0, column_ge: 0
-    // [[A:0], [B:MAX]), line: -C, line_ge: D, column: 0, column_ge: 0
-    //
-    // Into:
-    // [[A:0], [min(B, D):MAX]), line: C, line_ge: 0, column: 0, column_ge: 0
-    if (last.begin == t.begin &&
-        last.end == t.end &&
-        last.begin.column == 0 &&
-        last.end.column == std::numeric_limits<size_t>::max() &&
-        last.add_to_line + t.add_to_line == 0 &&
-        last.output_line_ge == 0 &&
-        last.output_column_ge == 0 &&
-        last.add_to_column == 0 &&
-        t.add_to_column == 0) {
-      last.end.line = min(last.end.line, t.output_line_ge);
-      last.add_to_line = min(last.add_to_line,
-          static_cast<int>(t.output_line_ge - last.begin.line));
-      if (IsNoop(last)) {
-        LOG(INFO) << "Removing no-op transformation: " << last;
-        new_transformations.pop_back();
-      }
-      continue;
-    }
-
-    new_transformations.push_back(t);
-  }
-  transformations_.swap(new_transformations);
-
-  for (const auto& t : transformations_) {
-    LOG(INFO) << "Opt: " << t;
-  }
-
-  LOG(INFO) << "Total transformations: " << transformations_.size();
 }
 
 void CursorsTracker::ApplyTransformation(const Transformation& transformation) {
