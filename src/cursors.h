@@ -111,7 +111,12 @@ class CursorsTracker {
   // the size the stack had at the time the call was made.
   size_t Pop();
 
+  std::shared_ptr<bool> DelayTransformations();
+
  private:
+  void OptimizeTransformations();
+  void ApplyTransformation(const Transformation& transformation);
+
   // Contains a family of cursors.
   std::map<std::wstring, CursorsSet> cursors_;
 
@@ -129,7 +134,13 @@ class CursorsTracker {
   // A stack of sets of cursors on which PushActiveCursors and PopActiveCursors
   // operate.
   std::list<CursorsSet> cursors_stack_;
+
+  std::weak_ptr<bool> delay_transformations_;
+  std::list<Transformation> transformations_;
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         const CursorsTracker::Transformation& lc);
 
 }  // namespace editor
 }  // namespace afc

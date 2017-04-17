@@ -1307,6 +1307,7 @@ unique_ptr<Value> OpenBuffer::EvaluateFile(EditorState* editor_state,
 
 LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
                                         const LineColumn& input_position) {
+  auto blocker = cursors_tracker_.DelayTransformations();
   if (buffer.empty()) { return input_position; }
   LineColumn position = input_position;
   if (empty()) {
