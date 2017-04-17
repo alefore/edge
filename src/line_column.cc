@@ -4,7 +4,13 @@ namespace afc {
 namespace editor {
 
 std::ostream& operator<<(std::ostream& os, const LineColumn& lc) {
-    os << "[" << lc.line << ":" << lc.column << "]";
+    os << "["
+       << (lc.line == std::numeric_limits<size_t>::max()
+               ? "inf" : std::to_string(lc.line))
+       << ":"
+       << (lc.column == std::numeric_limits<size_t>::max()
+               ? "inf" : std::to_string(lc.column))
+       << "]";
     return os;
 }
 
