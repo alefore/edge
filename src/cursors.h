@@ -17,6 +17,10 @@ typedef std::multiset<LineColumn> CursorsSet;
 
 class CursorsTracker {
  public:
+  struct Transformation {
+    std::function<LineColumn(LineColumn)> callback;
+  };
+
   CursorsTracker();
 
   // Returns the position of the current cursor.
@@ -45,9 +49,7 @@ class CursorsTracker {
 
   // Applies the callback to every single cursor and leaves it at the returned
   // position.
-  //
-  // TODO: Figure out a way to not pass current_cursor. Feels ugly.
-  void AdjustCursors(const std::function<LineColumn(LineColumn)>& callback);
+  void AdjustCursors(const Transformation& transformation);
 
   void ApplyTransformationToCursors(
       CursorsSet* cursors,

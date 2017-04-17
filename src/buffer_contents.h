@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 
+#include "src/cursors.h"
 #include "src/line.h"
 #include "src/line_column.h"
 #include "src/tree.h"
@@ -17,8 +18,6 @@ using std::vector;
 
 class BufferContents {
  public:
-  using CursorAdjuster = std::function<LineColumn(LineColumn)>;
-
   BufferContents() = default;
 
   wint_t character_at(const LineColumn& position) const;
@@ -83,7 +82,7 @@ class BufferContents {
   template <class C>
   void sort(size_t first, size_t last, C compare) {
     std::sort(lines_.begin() + first, lines_.begin() + last, compare);
-    NotifyUpdateListeners(nullptr);
+    NotifyUpdateListeners(CursorsTracker::Transformation());
   }
 
   void insert(size_t position_line, const BufferContents& source,
@@ -110,16 +109,19 @@ class BufferContents {
 
   void push_back(shared_ptr<const Line> line) {
     lines_.push_back(line);
-    NotifyUpdateListeners(nullptr);
+    NotifyUpdateListeners(CursorsTracker::Transformation());
   }
 
-  void AddUpdateListener(std::function<void(const CursorAdjuster&)> listener);
+  void AddUpdateListener(
+      std::function<void(const CursorsTracker::Transformation&)> listener);
 
  private:
-  void NotifyUpdateListeners(const CursorAdjuster& cursor_adjuster);
+  void NotifyUpdateListeners(
+      const CursorsTracker::Transformation& cursor_adjuster);
 
   Tree<shared_ptr<const Line>> lines_;
-  vector<std::function<void(const CursorAdjuster&)>> update_listeners_;
+  vector<std::function<void(const CursorsTracker::Transformation&)>>
+      update_listeners_;
 };
 
 }  // namespace editor

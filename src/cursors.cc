@@ -46,7 +46,7 @@ void CursorsTracker::DeleteCurrentCursor(CursorsSet* cursors) {
   }
 }
 
-void AdjustCursorsSet(const std::function<LineColumn(LineColumn)>& callback,
+void AdjustCursorsSet(const CursorsTracker::Transformation& transformation,
                       CursorsSet* cursors_set,
                       CursorsSet::iterator* current_cursor) {
   VLOG(8) << "Adjusting cursor set of size: " << cursors_set->size();
@@ -54,7 +54,7 @@ void AdjustCursorsSet(const std::function<LineColumn(LineColumn)>& callback,
   cursors_set->swap(old_cursors);
   for (auto it = old_cursors.begin(); it != old_cursors.end(); ++it) {
     VLOG(9) << "Adjusting cursor: " << *it;
-    auto result = cursors_set->insert(callback(*it));
+    auto result = cursors_set->insert(transformation.callback(*it));
     if (it == *current_cursor) {
       VLOG(5) << "Updating current cursor: " << *result;
       *current_cursor = result;
@@ -62,16 +62,15 @@ void AdjustCursorsSet(const std::function<LineColumn(LineColumn)>& callback,
   }
 }
 
-void CursorsTracker::AdjustCursors(
-    const std::function<LineColumn(LineColumn)>& callback) {
-  if (!callback) { return; }
+void CursorsTracker::AdjustCursors(const Transformation& transformation) {
+  if (!transformation.callback) { return; }
   for (auto& cursors_set : cursors_) {
-    AdjustCursorsSet(callback, &cursors_set.second, &current_cursor_);
+    AdjustCursorsSet(transformation, &cursors_set.second, &current_cursor_);
   }
   for (auto& cursors_set : cursors_stack_) {
-    AdjustCursorsSet(callback, &cursors_set, &current_cursor_);
+    AdjustCursorsSet(transformation, &cursors_set, &current_cursor_);
   }
-  AdjustCursorsSet(callback, &already_applied_cursors_, &current_cursor_);
+  AdjustCursorsSet(transformation, &already_applied_cursors_, &current_cursor_);
 }
 
 void CursorsTracker::ApplyTransformationToCursors(

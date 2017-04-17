@@ -528,10 +528,10 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       tree_parser_(NewNullTreeParser()),
       background_thread_([this]() { BackgroundThread(); }) {
   contents_.AddUpdateListener(
-      [this](const BufferContents::CursorAdjuster& cursor_adjuster) {
+      [this](const CursorsTracker::Transformation& transformation) {
         editor_->ScheduleParseTreeUpdate(this);
         modified_ = true;
-        cursors_tracker_.AdjustCursors(cursor_adjuster);
+        cursors_tracker_.AdjustCursors(transformation);
       });
   UpdateTreeParser();
 

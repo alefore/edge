@@ -23,8 +23,8 @@ class MoveCursors {
     return *this;
   }
 
-  BufferContents::CursorAdjuster DownBy(size_t delta) {
-    return [this, delta](LineColumn position) {
+  CursorsTracker::Transformation DownBy(size_t delta) {
+    transformation.callback = [this, delta](LineColumn position) {
       for (auto& p : predicates_) {
         if (!p(position)) {
           return position;
@@ -33,9 +33,11 @@ class MoveCursors {
       position.line += delta;
       return position;
     };
+    return transformation;
   }
 
  private:
+  CursorsTracker::Transformation transformation;
   vector<std::function<bool(const LineColumn&)>> predicates_;
 };
 
@@ -112,6 +114,12 @@ void BufferContents::insert_line(
   NotifyUpdateListeners(MoveCursors().WithLineGE(line_position).DownBy(1));
 }
 
+CursorsTracker::Transformation TransformationFromCallback(
+    std::function<LineColumn(LineColumn)> callback) {
+  CursorsTracker::Transformation output;
+  output.callback = std::move(callback);
+  return output;
+}
 void BufferContents::DeleteCharactersFromLine(
     size_t line, size_t column, size_t amount) {
   if (amount == 0) { return; }
@@ -121,7 +129,7 @@ void BufferContents::DeleteCharactersFromLine(
   new_line->DeleteCharacters(column, amount);
   set_line(line, new_line);
 
-  NotifyUpdateListeners(
+  NotifyUpdateListeners(TransformationFromCallback(
       [line, column, amount](LineColumn position) {
         if (position.line == line) {
           if (position.column > column + amount) {
@@ -131,7 +139,7 @@ void BufferContents::DeleteCharactersFromLine(
           }
         }
         return position;
-      });
+      }));
 }
 
 void BufferContents::DeleteCharactersFromLine(size_t line, size_t column) {
@@ -143,14 +151,14 @@ void BufferContents::SetCharacter(size_t line, size_t column, int c,
   auto new_line = std::make_shared<Line>(*at(line));
   new_line->SetCharacter(column, c, modifiers);
   set_line(line, new_line);
-  NotifyUpdateListeners(nullptr);
+  NotifyUpdateListeners(CursorsTracker::Transformation());
 }
 
 void BufferContents::InsertCharacter(size_t line, size_t column) {
   auto new_line = std::make_shared<Line>(*at(line));
   new_line->InsertCharacterAtPosition(column);
   set_line(line, new_line);
-  NotifyUpdateListeners(nullptr);
+  NotifyUpdateListeners(CursorsTracker::Transformation());
 }
 
 void BufferContents::AppendToLine(
@@ -163,7 +171,7 @@ void BufferContents::AppendToLine(
   auto line = std::make_shared<Line>(*at(position));
   line->Append(line_to_append);
   set_line(position, line);
-  NotifyUpdateListeners(nullptr);
+  NotifyUpdateListeners(CursorsTracker::Transformation());
 }
 
 void BufferContents::EraseLines(size_t first, size_t last) {
@@ -174,7 +182,7 @@ void BufferContents::EraseLines(size_t first, size_t last) {
   CHECK_LE(last, size());
   LOG(INFO) << "Erasing lines in range [" << first << ", " << last << ").";
   lines_.erase(lines_.begin() + first, lines_.begin() + last);
-  NotifyUpdateListeners(
+  NotifyUpdateListeners(TransformationFromCallback(
       [last, first](LineColumn position) {
         if (position.line >= last) {
           position.line -= last - first;
@@ -182,21 +190,21 @@ void BufferContents::EraseLines(size_t first, size_t last) {
           position.line = first;
         }
         return position;
-      });
+      }));
 }
 
 void BufferContents::SplitLine(size_t line, size_t column) {
   auto tail = std::make_shared<Line>(*at(line));
   tail->DeleteCharacters(0, column);
   insert_line(line + 1, tail);
-  NotifyUpdateListeners(
+  NotifyUpdateListeners(TransformationFromCallback(
       [line, column](LineColumn position) {
         if (position.line == line && position.column >= column) {
           position.line++;
           position.column -= column;
         }
         return position;
-      });
+      }));
   DeleteCharactersFromLine(line, column);
 }
 
@@ -206,27 +214,27 @@ void BufferContents::FoldNextLine(size_t position) {
   }
   size_t initial_size = at(position)->size();
   AppendToLine(position, *at(position + 1));
-  NotifyUpdateListeners(
+  NotifyUpdateListeners(TransformationFromCallback(
       [position, initial_size](LineColumn cursor) {
         if (cursor.line == position + 1) {
           cursor.line--;
           cursor.column += initial_size;
         }
         return cursor;
-      });
+      }));
   EraseLines(position + 1, position + 2);
 }
 
 void BufferContents::AddUpdateListener(
-    std::function<void(const CursorAdjuster&)> listener) {
+    std::function<void(const CursorsTracker::Transformation&)> listener) {
   CHECK(listener);
   update_listeners_.push_back(listener);
 }
 
 void BufferContents::NotifyUpdateListeners(
-    const CursorAdjuster& cursor_adjuster) {
+    const CursorsTracker::Transformation& transformation) {
   for (auto& l : update_listeners_) {
-    l(cursor_adjuster);
+    l(transformation);
   }
 }
 
