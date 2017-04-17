@@ -479,6 +479,7 @@ void OpenBuffer::BackgroundThread() {
         [this]() {
           return shutting_down_ || contents_to_parse_ != nullptr;
         });
+    VLOG(5) << "Background thread is waking up.";
     if (shutting_down_) {
       return;
     }
