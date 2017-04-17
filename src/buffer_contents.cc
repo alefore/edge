@@ -50,7 +50,7 @@ void BufferContents::insert(size_t position, const BufferContents& source,
   NotifyUpdateListeners(
       CursorsTracker::Transformation()
           .WithBegin(LineColumn(position))
-          .DownBy(last_line - first_line));
+          .AddToLine(last_line - first_line));
 }
 
 bool BufferContents::ForEach(
@@ -93,7 +93,7 @@ void BufferContents::insert_line(
   NotifyUpdateListeners(
       CursorsTracker::Transformation()
           .WithBegin(LineColumn(line_position))
-          .DownBy(1));
+          .AddToLine(1));
 }
 
 void BufferContents::DeleteCharactersFromLine(
@@ -109,16 +109,8 @@ void BufferContents::DeleteCharactersFromLine(
       CursorsTracker::Transformation()
           .WithBegin(LineColumn(line, column))
           .WithEnd(LineColumn(line, std::numeric_limits<size_t>::max()))
-          .WithCallback(
-              [column, amount](LineColumn position) {
-                CHECK(position.column >= column);
-                if (position.column > column + amount) {
-                  position.column -= amount;
-                } else {
-                  position.column = column;
-                }
-                return position;
-              }));
+          .AddToColumn(-amount)
+          .OutputColumnGe(column));
 }
 
 void BufferContents::DeleteCharactersFromLine(size_t line, size_t column) {
@@ -164,16 +156,8 @@ void BufferContents::EraseLines(size_t first, size_t last) {
   NotifyUpdateListeners(
       CursorsTracker::Transformation()
           .WithBegin(LineColumn(first))
-          .WithCallback(
-              [last, first](LineColumn position) {
-                CHECK(position.line >= first);
-                if (position.line >= last) {
-                  position.line -= last - first;
-                } else {
-                  position.line = first;
-                }
-                return position;
-              }));
+          .AddToLine(first - last)
+          .OutputLineGe(first));
 }
 
 void BufferContents::SplitLine(size_t line, size_t column) {
@@ -185,12 +169,8 @@ void BufferContents::SplitLine(size_t line, size_t column) {
       CursorsTracker::Transformation()
           .WithBegin(LineColumn(line, column))
           .WithEnd(LineColumn(line, std::numeric_limits<size_t>::max()))
-          .WithCallback(
-              [column](LineColumn position) {
-                position.line++;
-                position.column -= column;
-                return position;
-              }));
+          .AddToLine(1)
+          .AddToColumn(-column));
   DeleteCharactersFromLine(line, column);
 }
 
@@ -204,12 +184,8 @@ void BufferContents::FoldNextLine(size_t position) {
   NotifyUpdateListeners(
       CursorsTracker::Transformation()
           .WithLineEq(position + 1)
-          .WithCallback(
-              [initial_size](LineColumn cursor) {
-                cursor.line--;
-                cursor.column += initial_size;
-                return cursor;
-              }));
+          .AddToLine(-1)
+          .AddToColumn(initial_size));
   EraseLines(position + 1, position + 2);
 }
 

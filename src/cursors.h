@@ -38,24 +38,37 @@ class CursorsTracker {
       return *this;
     }
 
-    CursorsTracker::Transformation DownBy(size_t delta) {
-      return WithCallback([delta](LineColumn position) {
-        position.line += delta;
-        return position;
-      });
+    CursorsTracker::Transformation AddToLine(size_t delta) {
+      add_to_line = delta;
+      return *this;
     }
 
-    CursorsTracker::Transformation WithCallback(
-        std::function<LineColumn(LineColumn)> callback) {
-      CHECK(!this->callback);
-      this->callback = std::move(callback);
+    CursorsTracker::Transformation OutputLineGe(size_t column) {
+      output_line_ge = column;
+      return *this;
+    }
+
+    CursorsTracker::Transformation AddToColumn(size_t delta) {
+      add_to_column = delta;
+      return *this;
+    }
+
+    CursorsTracker::Transformation OutputColumnGe(size_t column) {
+      output_column_ge = column;
       return *this;
     }
 
     LineColumn begin;
     LineColumn end = LineColumn::Max();
 
-    std::function<LineColumn(LineColumn)> callback;
+    int add_to_line = 0;
+    // If add_to_line would leave the output line at a value smaller than this
+    // one, goes with this one.
+    size_t output_line_ge = 0;
+
+    int add_to_column = 0;
+    // Same as output_line_ge but for column computations.
+    size_t output_column_ge = 0;
   };
 
   CursorsTracker();

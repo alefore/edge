@@ -46,6 +46,13 @@ void CursorsTracker::DeleteCurrentCursor(CursorsSet* cursors) {
   }
 }
 
+size_t TransformValue(size_t input, int delta, size_t clamp) {
+  if (delta < 0 && input <= clamp - delta) {
+    return clamp;
+  }
+  return input + delta;
+}
+
 void AdjustCursorsSet(const CursorsTracker::Transformation& transformation,
                       CursorsSet* cursors_set,
                       CursorsSet::iterator* current_cursor) {
@@ -65,7 +72,15 @@ void AdjustCursorsSet(const CursorsTracker::Transformation& transformation,
 
   // Apply the transformation and add the cursors back.
   for (auto it = cursors_affected.begin(); it != cursors_affected.end(); ++it) {
-    auto result = cursors_set->insert(transformation.callback(*it));
+    auto position = *it;
+    position.line = TransformValue(
+        position.line, transformation.add_to_line,
+        transformation.output_line_ge);
+    position.column = TransformValue(
+        position.column, transformation.add_to_column,
+        transformation.output_column_ge);
+
+    auto result = cursors_set->insert(position);
     if (it == *current_cursor) {
       *current_cursor = result;
     }
@@ -73,7 +88,9 @@ void AdjustCursorsSet(const CursorsTracker::Transformation& transformation,
 }
 
 void CursorsTracker::AdjustCursors(const Transformation& transformation) {
-  if (!transformation.callback) { return; }
+  if (transformation.add_to_line == 0 && transformation.add_to_column == 0) {
+    return;
+  }
   for (auto& cursors_set : cursors_) {
     AdjustCursorsSet(transformation, &cursors_set.second, &current_cursor_);
   }
