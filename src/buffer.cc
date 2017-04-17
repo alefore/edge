@@ -1500,43 +1500,13 @@ void OpenBuffer::CreateCursor() {
 CursorsSet::iterator OpenBuffer::FindPreviousCursor(
     LineColumn position) {
   LOG(INFO) << "Visiting previous cursor: " << editor_->modifiers();
-  if (editor_->modifiers().direction == BACKWARDS) {
-    editor_->set_direction(FORWARDS);
-    return FindNextCursor(position);
-  }
-  auto cursors = active_cursors();
-  if (cursors->empty()) { return cursors->end(); }
-
-  size_t index = 0;
-  auto output = cursors->begin();
-  while (output != cursors->end() && *output < position) {
-    ++output;
-    ++index;
-  }
-
-  size_t repetitions = editor_->modifiers().repetitions % cursors->size();
-  size_t final_position;
-  // Avoid the perils that come from unsigned integers...
-  if (index >= repetitions) {
-    final_position = index - repetitions;
-  } else {
-    final_position = cursors->size() - (repetitions - index);
-  }
-  if (final_position < index) {
-    output = cursors->begin();
-    index = 0;
-  }
-  std::advance(output, final_position - index);
-  return output;
+  editor_->set_direction(ReverseDirection(editor_->modifiers().direction));
+  return FindNextCursor(position);
 }
 
-CursorsSet::iterator OpenBuffer::FindNextCursor(
-    LineColumn position) {
+CursorsSet::iterator OpenBuffer::FindNextCursor(LineColumn position) {
   LOG(INFO) << "Visiting next cursor: " << editor_->modifiers();
-  if (editor_->modifiers().direction == BACKWARDS) {
-    editor_->set_direction(FORWARDS);
-    return FindPreviousCursor(position);
-  }
+  auto direction = editor_->modifiers().direction;
   auto cursors = active_cursors();
   if (cursors->empty()) { return cursors->end(); }
 
@@ -1544,20 +1514,25 @@ CursorsSet::iterator OpenBuffer::FindNextCursor(
   auto output = cursors->begin();
   while (output != cursors->end()
          && (*output < position
-             || (*output == position
+             || (direction == FORWARDS
+                 && *output == position
                  && std::next(output) != cursors->end()
                  && *std::next(output) == position))) {
     ++output;
     ++index;
   }
 
-  size_t final_position =
-      (index + editor_->modifiers().repetitions) % cursors->size();
-  if (final_position < index) {
-    output = cursors->begin();
-    index = 0;
+  size_t repetitions = editor_->modifiers().repetitions % cursors->size();
+  size_t final_position;  // From cursors->begin().
+  if (direction == FORWARDS) {
+    final_position = (index + repetitions) % cursors->size();
+  } else if (index >= repetitions) {
+    final_position = index - repetitions;
+  } else {
+    final_position = cursors->size() - (repetitions - index);
   }
-  std::advance(output, final_position - index);
+  output = cursors->begin();
+  std::advance(output, final_position);
   return output;
 }
 
