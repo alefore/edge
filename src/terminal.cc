@@ -29,13 +29,14 @@ constexpr int Terminal::CTRL_U;
 constexpr int Terminal::CTRL_K;
 constexpr int Terminal::CHAR_EOF;
 
-void Terminal::Display(EditorState* editor_state, Screen* screen) {
-  if (editor_state->screen_needs_hard_redraw()) {
+void Terminal::Display(EditorState* editor_state, Screen* screen,
+                       const EditorState::ScreenState& screen_state) {
+  if (screen_state.needs_hard_redraw) {
     screen->HardRefresh();
     editor_state->ScheduleRedraw();
   }
   if (!editor_state->has_current_buffer()) {
-    if (editor_state->screen_needs_redraw()) {
+    if (screen_state.needs_redraw) {
       screen->Clear();
     }
     ShowStatus(*editor_state, screen);
@@ -69,7 +70,7 @@ void Terminal::Display(EditorState* editor_state, Screen* screen) {
     editor_state->ScheduleRedraw();
   }
 
-  if (editor_state->screen_needs_redraw()) {
+  if (screen_state.needs_redraw) {
     ShowBuffer(editor_state, screen);
   }
   ShowStatus(*editor_state, screen);

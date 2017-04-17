@@ -33,6 +33,11 @@ using std::min;
 
 class EditorState {
  public:
+  struct ScreenState {
+    bool needs_redraw = false;
+    bool needs_hard_redraw = false;
+  };
+
   EditorState();
   ~EditorState();
 
@@ -172,12 +177,15 @@ class EditorState {
   void MoveBufferBackwards(size_t times);
 
   void ScheduleRedraw();
-  void set_screen_needs_redraw(bool value) { screen_needs_redraw_ = value; }
-  bool screen_needs_redraw() const { return screen_needs_redraw_; }
-  void set_screen_needs_hard_redraw(bool value) {
-    screen_needs_hard_redraw_ = value;
+  ScreenState FlushScreenState();
+  void set_screen_needs_redraw(bool value) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    screen_state_.needs_redraw = value;
   }
-  bool screen_needs_hard_redraw() const { return screen_needs_hard_redraw_; }
+  void set_screen_needs_hard_redraw(bool value) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    screen_state_.needs_hard_redraw = value;
+  }
 
   void PushCurrentPosition();
   void PushPosition(LineColumn position);
@@ -248,8 +256,8 @@ class EditorState {
   // Set by the terminal handler.
   size_t visible_lines_;
 
-  bool screen_needs_redraw_;
-  bool screen_needs_hard_redraw_;
+  std::mutex mutex_;
+  ScreenState screen_state_;
 
   bool status_prompt_;
   bool is_status_warning_ = false;

@@ -32,7 +32,8 @@ class Terminal {
   static constexpr int CTRL_E = -16;
   static constexpr int DELETE = -17;
 
-  void Display(EditorState* editor_state, Screen* screen);
+  void Display(EditorState* editor_state, Screen* screen,
+               const EditorState::ScreenState& screen_state);
 
  private:
   void ShowStatus(const EditorState& editor_state, Screen* screen);

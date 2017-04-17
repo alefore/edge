@@ -489,21 +489,20 @@ void OpenBuffer::BackgroundThread() {
     auto parser = tree_parser_;
     lock.unlock();
 
-    if (contents != nullptr) {
-      auto parse_tree = std::make_shared<ParseTree>();
-      if (!contents->empty()) {
-        parse_tree->end.line = contents->size() - 1;
-        parse_tree->end.column = contents->back()->size();
-        parser->FindChildren(*contents, parse_tree.get());
-      }
+    if (contents == nullptr) {
+      continue;
+    }
+    auto parse_tree = std::make_shared<ParseTree>();
+    if (!contents->empty()) {
+      parse_tree->end.line = contents->size() - 1;
+      parse_tree->end.column = contents->back()->size();
+      parser->FindChildren(*contents, parse_tree.get());
+    }
 
-      if (this == editor_->current_buffer()->second.get()) {
-        // TODO: Wake up the editor somehow!
-        editor_->ScheduleRedraw();
-      }
-
-      std::unique_lock<std::mutex> lock(mutex_);
-      parse_tree_ = parse_tree;
+    std::unique_lock<std::mutex> final_lock(mutex_);
+    parse_tree_ = parse_tree;
+    if (contents_to_parse_ == nullptr) {
+      editor_->ScheduleRedraw();
     }
   }
 }

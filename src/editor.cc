@@ -360,8 +360,6 @@ EditorState::EditorState()
       default_mode_supplier_(NewCommandModeSupplier(this)),
       mode_(default_mode_supplier_()),
       visible_lines_(1),
-      screen_needs_redraw_(false),
-      screen_needs_hard_redraw_(false),
       status_prompt_(false),
       status_(L"") {
   unique_ptr<ObjectType> line_column(new ObjectType(L"LineColumn"));
@@ -514,7 +512,15 @@ void EditorState::MoveBufferBackwards(size_t times) {
 }
 
 void EditorState::ScheduleRedraw() {
-  screen_needs_redraw_ = true;
+  std::unique_lock<std::mutex> lock(mutex_);
+  screen_state_.needs_redraw = true;
+}
+
+EditorState::ScreenState EditorState::FlushScreenState() {
+  std::unique_lock<std::mutex> lock(mutex_);
+  ScreenState output = screen_state_;
+  screen_state_ = ScreenState();
+  return output;
 }
 
 // We will store the positions in a special buffer.  They will be sorted from

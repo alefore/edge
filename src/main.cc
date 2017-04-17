@@ -292,9 +292,10 @@ int main(int argc, const char** argv) {
 
   while (!editor_state()->terminate()) {
     editor_state()->UpdateBuffers();
+    auto screen_state = editor_state()->FlushScreenState();
     if (screen != nullptr) {
       if (args.client.empty()) {
-        terminal.Display(editor_state(), screen.get());
+        terminal.Display(editor_state(), screen.get(), screen_state);
       } else {
         screen_curses->Refresh();  // Don't want this to be buffered!
         auto screen_size = std::make_pair(screen->columns(), screen->lines());
@@ -324,10 +325,8 @@ int main(int argc, const char** argv) {
         continue;
       }
       LOG(INFO) << "Remote screen for buffer: " << buffer.first;
-      terminal.Display(editor_state(), buffer_screen);
+      terminal.Display(editor_state(), buffer_screen, screen_state);
     }
-    editor_state()->set_screen_needs_hard_redraw(false);
-    editor_state()->set_screen_needs_redraw(false);
 
     std::vector<std::shared_ptr<OpenBuffer>> buffers;
 
