@@ -2,6 +2,7 @@
 #define __AFC_EDITOR_CURSORS_H__
 
 #include <functional>
+#include <list>
 #include <map>
 #include <memory>
 #include <set>
@@ -52,6 +53,12 @@ class CursorsTracker {
       CursorsSet* cursors,
       std::function<LineColumn(LineColumn)> callback);
 
+  // Push current cursors into cursors_stack_ and returns size of stack.
+  size_t Push();
+  // If cursors_stack_ isn't empty, pops from it into active cursors. Returns
+  // the size the stack had at the time the call was made.
+  size_t Pop();
+
  private:
   // Contains a family of cursors.
   std::map<std::wstring, CursorsSet> cursors_;
@@ -66,6 +73,10 @@ class CursorsTracker {
 
   // Points to an entry in a value in cursors_.
   CursorsSet::iterator current_cursor_;
+
+  // A stack of sets of cursors on which PushActiveCursors and PopActiveCursors
+  // operate.
+  std::list<CursorsSet> cursors_stack_;
 };
 
 }  // namespace editor

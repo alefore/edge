@@ -589,10 +589,6 @@ class OpenBuffer {
   std::shared_ptr<TreeParser> tree_parser_;
   size_t tree_depth_ = 0;
 
-  // A stack of sets of cursors on which PushActiveCursors and PopActiveCursors
-  // operate.
-  std::list<std::vector<LineColumn>> cursors_stack_;
-
   // The time when the buffer was last selected as active.
   time_t last_visit_ = 0;
 

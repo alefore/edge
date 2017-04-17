@@ -1400,33 +1400,17 @@ void OpenBuffer::ToggleActiveCursors() {
 }
 
 void OpenBuffer::PushActiveCursors() {
-  std::vector<LineColumn> cursors;
-  cursors.push_back(position());
-  bool found = false;
-  for (const auto& it : *active_cursors()) {
-    if (it == cursors.front() && !found) {
-      found = true;
-      continue;  // We already added it (at the start of the list).
-    }
-    cursors.push_back(it);
-  }
-  cursors_stack_.push_back(std::move(cursors));
-  editor_->SetStatus(
-      L"cursors stack (" + to_wstring(cursors_stack_.size())
-      + L"): +");
+  auto stack_size = cursors_tracker_.Push();
+  editor_->SetStatus(L"cursors stack (" + to_wstring(stack_size) + L"): +");
 }
 
 void OpenBuffer::PopActiveCursors() {
-  if (cursors_stack_.empty()) {
+  auto stack_size = cursors_tracker_.Pop();
+  if (stack_size == 0) {
     editor_->SetWarningStatus(L"cursors stack: -: Stack is empty!");
     return;
   }
-
-  set_active_cursors(cursors_stack_.back());
-  cursors_stack_.pop_back();
-  editor_->SetStatus(
-      L"cursors stack (" + to_wstring(cursors_stack_.size())
-      + L"): -");
+  editor_->SetStatus(L"cursors stack (" + to_wstring(stack_size - 1) + L"): -");
 }
 
 void OpenBuffer::SetActiveCursorsToMarks() {

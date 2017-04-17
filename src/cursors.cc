@@ -95,5 +95,22 @@ void CursorsTracker::ApplyTransformationToCursors(
   LOG(INFO) << "Current cursor at: " << *current_cursor_;
 }
 
+size_t CursorsTracker::Push() {
+  cursors_stack_.push_back(*FindCursors(L""));
+  return cursors_stack_.size();
+}
+
+size_t CursorsTracker::Pop() {
+  if (cursors_stack_.empty()) {
+    return 0;
+  }
+
+  cursors_[L""].swap(cursors_stack_.back());
+  cursors_stack_.pop_back();
+  current_cursor_ = cursors_[L""].begin();
+
+  return cursors_stack_.size() + 1;
+}
+
 }  // namespace editor
 }  // namespace afc
