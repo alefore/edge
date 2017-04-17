@@ -600,6 +600,19 @@ void TestCases() {
 
   Clear(&editor_state);
 
+  // Test that cursors in the stack of cursors are updated properly.
+  editor_state.ProcessInputString("i12345");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("/.\n");  // A cursor in every character.
+  editor_state.ProcessInputString("C+" "=" "eialejo");  // Add a new line.
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("C-" "_" "i-");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "alejo\n-1-2-3-4-5");
+
+  Clear(&editor_state);
+
   editor_state.ProcessInputString("al");
 
   Clear(&editor_state);

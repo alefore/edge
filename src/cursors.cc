@@ -68,6 +68,9 @@ void CursorsTracker::AdjustCursors(
   for (auto& cursors_set : cursors_) {
     AdjustCursorsSet(callback, &cursors_set.second, &current_cursor_);
   }
+  for (auto& cursors_set : cursors_stack_) {
+    AdjustCursorsSet(callback, &cursors_set, &current_cursor_);
+  }
   AdjustCursorsSet(callback, &already_applied_cursors_, &current_cursor_);
 }
 
