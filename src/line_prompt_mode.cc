@@ -23,7 +23,6 @@ namespace editor {
 namespace {
 
 using std::make_pair;
-using std::numeric_limits;
 
 void UpdateStatus(EditorState* editor_state, OpenBuffer* buffer,
                   const wstring& prompt) {
