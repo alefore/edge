@@ -50,13 +50,23 @@ void AdjustCursorsSet(const CursorsTracker::Transformation& transformation,
                       CursorsSet* cursors_set,
                       CursorsSet::iterator* current_cursor) {
   VLOG(8) << "Adjusting cursor set of size: " << cursors_set->size();
-  CursorsSet old_cursors;
-  cursors_set->swap(old_cursors);
-  for (auto it = old_cursors.begin(); it != old_cursors.end(); ++it) {
-    VLOG(9) << "Adjusting cursor: " << *it;
+
+  // Transfer all affected cursors from cursors into cursors_affected.
+  CursorsSet cursors_affected;
+  auto it = cursors_set->lower_bound(transformation.begin);
+  auto end = cursors_set->upper_bound(transformation.end);
+  while (it != end) {
+    auto result = cursors_affected.insert(*it);
+    if (it == *current_cursor) {
+      *current_cursor = result;
+    }
+    cursors_set->erase(it++);
+  }
+
+  // Apply the transformation and add the cursors back.
+  for (auto it = cursors_affected.begin(); it != cursors_affected.end(); ++it) {
     auto result = cursors_set->insert(transformation.callback(*it));
     if (it == *current_cursor) {
-      VLOG(5) << "Updating current cursor: " << *result;
       *current_cursor = result;
     }
   }

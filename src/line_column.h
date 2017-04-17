@@ -2,6 +2,7 @@
 #define __AFC_EDITOR_LINE_COLUMN_H__
 
 #include <iostream>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -16,6 +17,11 @@ struct LineColumn {
         column(pos.size() > 1 ? pos[1] : 0) {}
   LineColumn(size_t l) : LineColumn(l, 0) {}
   LineColumn(size_t l, size_t c) : line(l), column(c) {}
+
+  static LineColumn Max() {
+    return LineColumn(std::numeric_limits<size_t>::max(),
+                      std::numeric_limits<size_t>::max());
+  }
 
   bool operator!=(const LineColumn& other) const;
 

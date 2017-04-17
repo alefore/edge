@@ -17,28 +17,43 @@ namespace editor {
 
 class MoveCursors {
  public:
-  MoveCursors& WithLineGE(size_t position) {
-    predicates_.push_back(
-        [position](const LineColumn& c) { return c >= position; });
+  MoveCursors& WithBegin(LineColumn position) {
+    CHECK_EQ(transformation.begin, LineColumn());
+    transformation.begin = position;
     return *this;
   }
 
+  MoveCursors& WithEnd(LineColumn position) {
+    CHECK_EQ(transformation.end, LineColumn::Max());
+    transformation.end = position;
+    return *this;
+  }
+
+  MoveCursors& WithLineEq(size_t position) {
+    transformation.begin.line = position;
+    transformation.end.line = position;
+    return *this;
+  }
+
+  MoveCursors& WithLineGE(size_t position) {
+    return WithBegin(LineColumn(position));
+  }
+
   CursorsTracker::Transformation DownBy(size_t delta) {
-    transformation.callback = [this, delta](LineColumn position) {
-      for (auto& p : predicates_) {
-        if (!p(position)) {
-          return position;
-        }
-      }
+    return WithCallback([this, delta](LineColumn position) {
       position.line += delta;
       return position;
-    };
+    });
+  }
+
+  CursorsTracker::Transformation WithCallback(
+      std::function<LineColumn(LineColumn)> callback) {
+    transformation.callback = callback;
     return transformation;
   }
 
  private:
   CursorsTracker::Transformation transformation;
-  vector<std::function<bool(const LineColumn&)>> predicates_;
 };
 
 std::unique_ptr<BufferContents> BufferContents::copy() const {
@@ -68,6 +83,9 @@ void BufferContents::insert(size_t position, const BufferContents& source,
   CHECK_LT(first_line, source.size());
   CHECK_LE(first_line, last_line);
   CHECK_LE(last_line, source.size());
+  if (first_line == last_line) {
+    return;
+  }
   lines_.insert(lines_.begin() + position, source.lines_.begin() + first_line,
                 source.lines_.begin() + last_line);
   NotifyUpdateListeners(
@@ -114,12 +132,6 @@ void BufferContents::insert_line(
   NotifyUpdateListeners(MoveCursors().WithLineGE(line_position).DownBy(1));
 }
 
-CursorsTracker::Transformation TransformationFromCallback(
-    std::function<LineColumn(LineColumn)> callback) {
-  CursorsTracker::Transformation output;
-  output.callback = std::move(callback);
-  return output;
-}
 void BufferContents::DeleteCharactersFromLine(
     size_t line, size_t column, size_t amount) {
   if (amount == 0) { return; }
@@ -129,17 +141,20 @@ void BufferContents::DeleteCharactersFromLine(
   new_line->DeleteCharacters(column, amount);
   set_line(line, new_line);
 
-  NotifyUpdateListeners(TransformationFromCallback(
-      [line, column, amount](LineColumn position) {
-        if (position.line == line) {
-          if (position.column > column + amount) {
-            position.column -= amount;
-          } else if (position.column > column) {
-            position.column = column;
-          }
-        }
-        return position;
-      }));
+  NotifyUpdateListeners(
+      MoveCursors()
+          .WithBegin(LineColumn(line, column))
+          .WithEnd(LineColumn(line, std::numeric_limits<size_t>::max()))
+          .WithCallback(
+              [column, amount](LineColumn position) {
+                CHECK(position.column >= column);
+                if (position.column > column + amount) {
+                  position.column -= amount;
+                } else {
+                  position.column = column;
+                }
+                return position;
+              }));
 }
 
 void BufferContents::DeleteCharactersFromLine(size_t line, size_t column) {
@@ -182,29 +197,36 @@ void BufferContents::EraseLines(size_t first, size_t last) {
   CHECK_LE(last, size());
   LOG(INFO) << "Erasing lines in range [" << first << ", " << last << ").";
   lines_.erase(lines_.begin() + first, lines_.begin() + last);
-  NotifyUpdateListeners(TransformationFromCallback(
-      [last, first](LineColumn position) {
-        if (position.line >= last) {
-          position.line -= last - first;
-        } else if (position.line >= first) {
-          position.line = first;
-        }
-        return position;
-      }));
+  NotifyUpdateListeners(
+      MoveCursors()
+          .WithLineGE(first)
+          .WithCallback(
+              [last, first](LineColumn position) {
+                CHECK(position.line >= first);
+                if (position.line >= last) {
+                  position.line -= last - first;
+                } else {
+                  position.line = first;
+                }
+                return position;
+              }));
 }
 
 void BufferContents::SplitLine(size_t line, size_t column) {
   auto tail = std::make_shared<Line>(*at(line));
   tail->DeleteCharacters(0, column);
+  // TODO: Can maybe combine this with next for fewer updates.
   insert_line(line + 1, tail);
-  NotifyUpdateListeners(TransformationFromCallback(
-      [line, column](LineColumn position) {
-        if (position.line == line && position.column >= column) {
-          position.line++;
-          position.column -= column;
-        }
-        return position;
-      }));
+  NotifyUpdateListeners(
+      MoveCursors()
+          .WithBegin(LineColumn(line, column))
+          .WithEnd(LineColumn(line, std::numeric_limits<size_t>::max()))
+          .WithCallback(
+              [column](LineColumn position) {
+                position.line++;
+                position.column -= column;
+                return position;
+              }));
   DeleteCharactersFromLine(line, column);
 }
 
@@ -213,15 +235,17 @@ void BufferContents::FoldNextLine(size_t position) {
     return;
   }
   size_t initial_size = at(position)->size();
+  // TODO: Can maybe combine this with next for fewer updates.
   AppendToLine(position, *at(position + 1));
-  NotifyUpdateListeners(TransformationFromCallback(
-      [position, initial_size](LineColumn cursor) {
-        if (cursor.line == position + 1) {
-          cursor.line--;
-          cursor.column += initial_size;
-        }
-        return cursor;
-      }));
+  NotifyUpdateListeners(
+      MoveCursors()
+          .WithLineEq(position + 1)
+          .WithCallback(
+              [initial_size](LineColumn cursor) {
+                cursor.line--;
+                cursor.column += initial_size;
+                return cursor;
+              }));
   EraseLines(position + 1, position + 2);
 }
 

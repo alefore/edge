@@ -18,6 +18,9 @@ typedef std::multiset<LineColumn> CursorsSet;
 class CursorsTracker {
  public:
   struct Transformation {
+    LineColumn begin;
+    LineColumn end = LineColumn::Max();
+
     std::function<LineColumn(LineColumn)> callback;
   };
 
