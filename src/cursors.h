@@ -8,6 +8,8 @@
 #include <set>
 #include <vector>
 
+#include <glog/logging.h>
+
 #include "src/line_column.h"
 
 namespace afc {
@@ -18,6 +20,38 @@ typedef std::multiset<LineColumn> CursorsSet;
 class CursorsTracker {
  public:
   struct Transformation {
+    Transformation& WithBegin(LineColumn position) {
+      CHECK_EQ(begin, LineColumn());
+      begin = position;
+      return *this;
+    }
+
+    Transformation& WithEnd(LineColumn position) {
+      CHECK_EQ(end, LineColumn::Max());
+      end = position;
+      return *this;
+    }
+
+    Transformation& WithLineEq(size_t line) {
+      begin.line = line;
+      end.line = line;
+      return *this;
+    }
+
+    CursorsTracker::Transformation DownBy(size_t delta) {
+      return WithCallback([delta](LineColumn position) {
+        position.line += delta;
+        return position;
+      });
+    }
+
+    CursorsTracker::Transformation WithCallback(
+        std::function<LineColumn(LineColumn)> callback) {
+      CHECK(!this->callback);
+      this->callback = std::move(callback);
+      return *this;
+    }
+
     LineColumn begin;
     LineColumn end = LineColumn::Max();
 

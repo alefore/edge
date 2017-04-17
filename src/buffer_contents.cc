@@ -15,47 +15,6 @@
 namespace afc {
 namespace editor {
 
-class MoveCursors {
- public:
-  MoveCursors& WithBegin(LineColumn position) {
-    CHECK_EQ(transformation.begin, LineColumn());
-    transformation.begin = position;
-    return *this;
-  }
-
-  MoveCursors& WithEnd(LineColumn position) {
-    CHECK_EQ(transformation.end, LineColumn::Max());
-    transformation.end = position;
-    return *this;
-  }
-
-  MoveCursors& WithLineEq(size_t position) {
-    transformation.begin.line = position;
-    transformation.end.line = position;
-    return *this;
-  }
-
-  MoveCursors& WithLineGE(size_t position) {
-    return WithBegin(LineColumn(position));
-  }
-
-  CursorsTracker::Transformation DownBy(size_t delta) {
-    return WithCallback([this, delta](LineColumn position) {
-      position.line += delta;
-      return position;
-    });
-  }
-
-  CursorsTracker::Transformation WithCallback(
-      std::function<LineColumn(LineColumn)> callback) {
-    transformation.callback = callback;
-    return transformation;
-  }
-
- private:
-  CursorsTracker::Transformation transformation;
-};
-
 std::unique_ptr<BufferContents> BufferContents::copy() const {
   std::unique_ptr<BufferContents> output(new BufferContents());
   output->lines_ = lines_;
@@ -89,7 +48,9 @@ void BufferContents::insert(size_t position, const BufferContents& source,
   lines_.insert(lines_.begin() + position, source.lines_.begin() + first_line,
                 source.lines_.begin() + last_line);
   NotifyUpdateListeners(
-      MoveCursors().WithLineGE(position).DownBy(last_line - first_line));
+      CursorsTracker::Transformation()
+          .WithBegin(LineColumn(position))
+          .DownBy(last_line - first_line));
 }
 
 bool BufferContents::ForEach(
@@ -129,7 +90,10 @@ void BufferContents::insert_line(
     size_t line_position, shared_ptr<const Line> line) {
   LOG(INFO) << "Inserting line at position: " << line_position;
   lines_.insert(lines_.begin() + line_position, line);
-  NotifyUpdateListeners(MoveCursors().WithLineGE(line_position).DownBy(1));
+  NotifyUpdateListeners(
+      CursorsTracker::Transformation()
+          .WithBegin(LineColumn(line_position))
+          .DownBy(1));
 }
 
 void BufferContents::DeleteCharactersFromLine(
@@ -142,7 +106,7 @@ void BufferContents::DeleteCharactersFromLine(
   set_line(line, new_line);
 
   NotifyUpdateListeners(
-      MoveCursors()
+      CursorsTracker::Transformation()
           .WithBegin(LineColumn(line, column))
           .WithEnd(LineColumn(line, std::numeric_limits<size_t>::max()))
           .WithCallback(
@@ -198,8 +162,8 @@ void BufferContents::EraseLines(size_t first, size_t last) {
   LOG(INFO) << "Erasing lines in range [" << first << ", " << last << ").";
   lines_.erase(lines_.begin() + first, lines_.begin() + last);
   NotifyUpdateListeners(
-      MoveCursors()
-          .WithLineGE(first)
+      CursorsTracker::Transformation()
+          .WithBegin(LineColumn(first))
           .WithCallback(
               [last, first](LineColumn position) {
                 CHECK(position.line >= first);
@@ -218,7 +182,7 @@ void BufferContents::SplitLine(size_t line, size_t column) {
   // TODO: Can maybe combine this with next for fewer updates.
   insert_line(line + 1, tail);
   NotifyUpdateListeners(
-      MoveCursors()
+      CursorsTracker::Transformation()
           .WithBegin(LineColumn(line, column))
           .WithEnd(LineColumn(line, std::numeric_limits<size_t>::max()))
           .WithCallback(
@@ -238,7 +202,7 @@ void BufferContents::FoldNextLine(size_t position) {
   // TODO: Can maybe combine this with next for fewer updates.
   AppendToLine(position, *at(position + 1));
   NotifyUpdateListeners(
-      MoveCursors()
+      CursorsTracker::Transformation()
           .WithLineEq(position + 1)
           .WithCallback(
               [initial_size](LineColumn cursor) {
