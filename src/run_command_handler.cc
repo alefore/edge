@@ -204,6 +204,17 @@ class CommandBuffer : public OpenBuffer {
   }
 
   wstring FlagsString() const override {
+    wstring initial_information;
+    if (child_pid_ != -1) {
+      initial_information = L"… ";
+    } else if (!WIFEXITED(child_exit_status_)) {
+      initial_information = L"☠ ";
+    } else if (WEXITSTATUS(child_exit_status_) == 0) {
+      initial_information = L"✓ ";
+    } else {
+      initial_information = L"✗ ";
+    }
+
     wstring additional_information;
     time_t now;
     time(&now);
@@ -216,7 +227,8 @@ class CommandBuffer : public OpenBuffer {
     if (child_pid_ == -1 && now > time_end_) {
       additional_information += L" done:" + DurationToString(now - time_end_);
     }
-    return OpenBuffer::FlagsString() + additional_information;
+    return initial_information + OpenBuffer::FlagsString() +
+        additional_information;
   }
 
  private:
