@@ -108,7 +108,7 @@ void BufferContents::DeleteCharactersFromLine(
   NotifyUpdateListeners(
       CursorsTracker::Transformation()
           .WithBegin(LineColumn(line, column))
-          .WithEnd(LineColumn(line, std::numeric_limits<size_t>::max()))
+          .WithEnd(LineColumn(line + 1, 0))
           .AddToColumn(-amount)
           .OutputColumnGe(column));
 }
@@ -168,7 +168,7 @@ void BufferContents::SplitLine(size_t line, size_t column) {
   NotifyUpdateListeners(
       CursorsTracker::Transformation()
           .WithBegin(LineColumn(line, column))
-          .WithEnd(LineColumn(line, std::numeric_limits<size_t>::max()))
+          .WithEnd(LineColumn(line + 1, 0))
           .AddToLine(1)
           .AddToColumn(-column));
   DeleteCharactersFromLine(line, column);

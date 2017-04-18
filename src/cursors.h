@@ -17,6 +17,8 @@ namespace editor {
 
 typedef std::multiset<LineColumn> CursorsSet;
 
+class ExtendedTransformation;
+
 class CursorsTracker {
  public:
   struct Transformation {
@@ -33,8 +35,8 @@ class CursorsTracker {
     }
 
     Transformation& WithLineEq(size_t line) {
-      begin.line = line;
-      end.line = line;
+      begin = LineColumn(line);
+      end = LineColumn(line + 1);
       return *this;
     }
 
@@ -72,6 +74,7 @@ class CursorsTracker {
   };
 
   CursorsTracker();
+  ~CursorsTracker();
 
   // Returns the position of the current cursor.
   LineColumn position() const;
@@ -99,7 +102,7 @@ class CursorsTracker {
 
   // Applies the callback to every single cursor and leaves it at the returned
   // position.
-  void AdjustCursors(const Transformation& transformation);
+  void AdjustCursors(Transformation transformation);
 
   void ApplyTransformationToCursors(
       CursorsSet* cursors,
@@ -135,7 +138,7 @@ class CursorsTracker {
   std::list<CursorsSet> cursors_stack_;
 
   std::weak_ptr<bool> delay_transformations_;
-  std::list<Transformation> transformations_;
+  std::list<ExtendedTransformation> transformations_;
 };
 
 std::ostream& operator<<(std::ostream& os,
