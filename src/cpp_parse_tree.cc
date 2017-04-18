@@ -28,7 +28,7 @@ class CppTreeParser : public TreeParser {
         L"static", L"extern", L"override", L"virtual",
         L"class", L"struct", L"private", L"public",
         L"using", L"typedef", L"namespace", L"sizeof",
-        L"static_cast",
+        L"static_cast", L"dynamic_cast",
         L"delete", L"new",
         // Flow control.
         L"switch", L"case", L"default",
