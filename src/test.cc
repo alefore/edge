@@ -23,7 +23,7 @@ void Clear(EditorState* editor_state) {
   editor_state->ProcessInput(Terminal::ESCAPE);
   editor_state->set_current_buffer(
       editor_state->buffers()->find(L"[anonymous buffer 0]"));
-  editor_state->ProcessInputString("eeg99999999999999999999999d");
+  editor_state->ProcessInputString("eegdl999999999999999\n");
   editor_state->ProcessInput(Terminal::ESCAPE);
   editor_state->current_buffer()->second
       ->set_bool_variable(OpenBuffer::variable_multiple_cursors(), false);
@@ -177,7 +177,7 @@ void TestCases() {
   editor_state.ProcessInput(Terminal::ESCAPE);
   assert(editor_state.current_buffer()->second->current_line()->ToString()
          == L"alejo forero");
-  editor_state.ProcessInputString("ed");
+  editor_state.ProcessInputString("dl\n");
   CHECK(editor_state.current_buffer()->second->ToString().empty());
 
   editor_state.ProcessInputString("ialejandro\nforero\ncuervo");
@@ -209,7 +209,7 @@ void TestCases() {
   assert(editor_state.current_buffer()->second->current_position_line() == 0);
   assert(editor_state.current_buffer()->second->current_position_col() == 0);
 
-  editor_state.ProcessInputString("e2d");
+  editor_state.ProcessInputString("d2l\n");
   CHECK_EQ(editor_state.current_buffer()->second->contents()->size(), 1);
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->current_line()->ToString()),
            "cuervo");
@@ -226,13 +226,13 @@ void TestCases() {
   CHECK_EQ(editor_state.current_buffer()->second->current_position_line(), 1);
 
   editor_state.ProcessInput(Terminal::ESCAPE);
-  editor_state.ProcessInputString("3d");
+  editor_state.ProcessInputString("d3\n");
   assert(editor_state.current_buffer()->second->current_position_line() == 1);
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "alejandro\nero\nalejandro\nforero\ncuervo");
 
   // Clear it all.
-  editor_state.ProcessInputString("ege10d");
+  editor_state.ProcessInputString("egdl10\n");
   CHECK(editor_state.current_buffer()->second->ToString() == L"");
   CHECK_EQ(editor_state.current_buffer()->second->contents()->size(), 1);
 
@@ -271,12 +271,12 @@ void TestCases() {
   assert(editor_state.current_buffer()->second->position().line == 2);
   assert(editor_state.current_buffer()->second->position().column == 1);
 
-  editor_state.ProcessInputString("eg1000000000000000000d");
+  editor_state.ProcessInputString("egd1000000000000000000\n");
   assert(editor_state.current_buffer()->second->position().line == 0);
 
   editor_state.ProcessInputString("ialejo forero\n");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  editor_state.ProcessInputString("kg" "3d" "rg" "jp");
+  editor_state.ProcessInputString("kg" "d3\n" "rg" "jp");
   editor_state.ProcessInputString("krg" "j" "rfa");
 
   Clear(&editor_state);
@@ -325,7 +325,7 @@ void TestCases() {
   editor_state.ProcessInputString("egg");
   CHECK_EQ(editor_state.current_buffer()->second->position(), LineColumn(0, 0));
 
-  editor_state.ProcessInputString("e5d");
+  editor_state.ProcessInputString("dl5\n");
   CheckIsEmpty(&editor_state);
 
   editor_state.ProcessInput('u');
@@ -368,7 +368,7 @@ void TestCases() {
   editor_state.ProcessInputString("rg");
   CHECK_EQ(editor_state.current_buffer()->second->position(), LineColumn(0, 9));
 
-  editor_state.ProcessInputString("w[d");
+  editor_state.ProcessInputString("dbw\n");
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "alejandroforero cuervo");
 
@@ -411,7 +411,7 @@ void TestCases() {
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "al[ejandro fo[rero cu[ervo");
 
-  editor_state.ProcessInputString("d" "l" "rd" "l");
+  editor_state.ProcessInputString("d\n" "l" "dR\n" "l");
   editor_state.ProcessInputString("i)");
   editor_state.ProcessInput(Terminal::ESCAPE);
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
@@ -430,7 +430,7 @@ void TestCases() {
   editor_state.ProcessInputString("+");  // Leave a cursor at 5.
   editor_state.ProcessInputString("kll");  // Leave cursor at end of first line.
   // Bugs happen here! Did the cursors get adjusted?
-  editor_state.ProcessInputString("d");
+  editor_state.ProcessInputString("d\n");
   editor_state.ProcessInputString("_" "ix");
   editor_state.ProcessInput(Terminal::ESCAPE);
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
@@ -490,7 +490,7 @@ void TestCases() {
   editor_state.ProcessInputString("i01\n23\n45\n67\n89\n");
   editor_state.ProcessInput(Terminal::ESCAPE);
   editor_state.ProcessInputString("3k");  // Cursor at line "45".
-  editor_state.ProcessInputString("ed");
+  editor_state.ProcessInputString("dl\n");
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "01\n23\n67\n89\n");
   editor_state.ProcessInputString(".");
@@ -502,7 +502,7 @@ void TestCases() {
   editor_state.ProcessInputString("ia");
   editor_state.ProcessInput(Terminal::ESCAPE);
   editor_state.ProcessInputString("h");
-  editor_state.ProcessInputString("w[d");
+  editor_state.ProcessInputString("dwb\n");
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "a");
 
@@ -510,7 +510,7 @@ void TestCases() {
 
   editor_state.ProcessInputString("ia\nbcd");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  editor_state.ProcessInputString("k" "w[d");
+  editor_state.ProcessInputString("k" "dwb\n");
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "abcd");
 
@@ -550,7 +550,7 @@ void TestCases() {
 
   editor_state.ProcessInputString("ialejo");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  editor_state.ProcessInputString("wrd" "p" "3h");
+  editor_state.ProcessInputString("dwR\n" "p" "3h");
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "alejo");
   CHECK_EQ(editor_state.current_buffer()->second->position(), LineColumn(0, 2));
@@ -568,7 +568,7 @@ void TestCases() {
   editor_state.ProcessInput(Terminal::ESCAPE);
   // One cursor at beginning of each line.
   editor_state.ProcessInputString("g" "+" "k" "_");
-  editor_state.ProcessInputString("fo" "d");
+  editor_state.ProcessInputString("fo" "d\n");
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "alej\nfrero");
 
@@ -577,7 +577,7 @@ void TestCases() {
   // Tests that undoing a delete leaves the cursor at the original position.
   editor_state.ProcessInputString("ialejandro cuervo");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  editor_state.ProcessInputString("rf " "d" "g" "u" "i forero");
+  editor_state.ProcessInputString("rf " "d\n" "g" "u" "i forero");
   editor_state.ProcessInput(Terminal::ESCAPE);
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "alejandro forero cuervo");

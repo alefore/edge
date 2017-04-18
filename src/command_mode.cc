@@ -14,6 +14,7 @@
 #include "close_buffer_command.h"
 #include "command.h"
 #include "command_mode.h"
+#include "delete_mode.h"
 #include "dirname.h"
 #include "goto_command.h"
 #include "file_link_mode.h"
@@ -971,7 +972,8 @@ std::function<unique_ptr<EditorMode>(void)> NewCommandModeSupplier(
   Register(L"S", new SetStrengthCommand(
       Modifiers::STRONG, Modifiers::VERY_STRONG, L"strong"), commands_map.get());
 
-  Register(L"d", new Delete(DeleteOptions()), commands_map.get());
+  Register(L"D", new Delete(DeleteOptions()), commands_map.get());
+  Register(L"d", NewDeleteCommand().release(), commands_map.get());
   Register(L"p", new Paste(), commands_map.get());
 
   DeleteOptions copy_options;

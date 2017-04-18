@@ -10,38 +10,32 @@ std::ostream& operator<<(std::ostream& os, const BufferPosition& bp) {
   return os;
 }
 
-ostream& operator<<(ostream& os, const Modifiers& m) {
-  os << "[structure: ";
-  switch (m.structure) {
+wstring StructureToString(Structure structure) {
+  switch (structure) {
     case CHAR:
-      os << "CHAR";
-      break;
+      return L"char";
     case WORD:
-      os << "WORD";
-      break;
+      return L"word";
     case LINE:
-      os << "LINE";
-      break;
+      return L"line";
     case MARK:
-      os << "MARK";
-      break;
+      return L"mark";
     case PAGE:
-      os << "PAGE";
-      break;
+      return L"page";
     case SEARCH:
-      os << "SEARCH";
-      break;
+      return L"search";
     case TREE:
-      os << "TREE";
-      break;
+      return L"tree";
     case CURSOR:
-      os << "CURSOR";
-      break;
+      return L"cursor";
     case BUFFER:
-      os << "BUFFER";
-      break;
+      return L"buffer";
   }
-  os << "][strength: ";
+  CHECK(false);
+}
+
+ostream& operator<<(ostream& os, const Modifiers& m) {
+  os << "[structure: " << StructureToString(m.structure) << "][strength: ";
   switch (m.strength) {
     case Modifiers::VERY_WEAK:
       os << "very weak";

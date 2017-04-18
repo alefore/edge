@@ -23,6 +23,8 @@ src/cursors.cc \
 src/cursors.h \
 src/cursors_transformation.cc \
 src/cursors_transformation.h \
+src/delete_mode.cc \
+src/delete_mode.h \
 src/dirname.cc \
 src/dirname.h \
 src/direction.cc \

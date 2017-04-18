@@ -24,6 +24,7 @@ struct BufferPosition {
   LineColumn position;
 };
 
+std::wstring StructureToString(Structure structure);
 std::ostream& operator<<(std::ostream& os, const BufferPosition& bp);
 
 struct Modifiers {
