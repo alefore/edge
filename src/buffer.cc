@@ -1040,7 +1040,18 @@ void OpenBuffer::ProcessCommandInput(
         MaybeFollowToEndOfFile();
       }
     } else if (c == '\a') {
-      editor_state->SetStatus(L"beep!");
+      auto status = editor_state->status();
+      if (!all_of(status.begin(), status.end(),
+                  [](const wchar_t& c) {
+                    return c == L'♪' || c == L'♫' || c == L'…' || c == L' ' ||
+                           c == L'𝄞';
+                  })) {
+        status = L"𝄞";
+      } else if (status.size() >= 40) {
+        status = L"…" + status.substr(status.size() - 40, status.size());
+      }
+      editor_state->SetStatus(
+          status + L" " + (status.back() == L'♪' ? L"♫" : L"♪"));
     } else if (c == '\r') {
       position_pts_.column = 0;
       MaybeFollowToEndOfFile();

@@ -513,7 +513,6 @@ class RawInputTypeMode : public EditorMode {
       : buffer_(buffer) {}
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
-    editor_state->ResetStatus();
     bool old_literal = literal_;
     literal_ = false;
     switch (c) {
