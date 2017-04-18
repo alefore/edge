@@ -531,6 +531,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       [this](const CursorsTracker::Transformation& transformation) {
         editor_->ScheduleParseTreeUpdate(this);
         modified_ = true;
+        time(&last_action_);
         cursors_tracker_.AdjustCursors(transformation);
       });
   UpdateTreeParser();
@@ -603,9 +604,11 @@ void OpenBuffer::Visit(EditorState* editor_state) {
     CheckPosition();
   }
   time(&last_visit_);
+  time(&last_action_);
 }
 
 time_t OpenBuffer::last_visit() const { return last_visit_; }
+time_t OpenBuffer::last_action() const { return last_action_; }
 
 void OpenBuffer::ClearContents(EditorState* editor_state) {
   VLOG(5) << "Clear contents of buffer: " << name_;
@@ -627,6 +630,7 @@ void OpenBuffer::AppendEmptyLine(EditorState*) {
 }
 
 void OpenBuffer::EndOfFile(EditorState* editor_state) {
+  time(&last_action_);
   CHECK_EQ(fd_.fd, -1);
   CHECK_EQ(fd_error_.fd, -1);
   if (child_pid_ != -1) {

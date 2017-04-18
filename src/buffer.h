@@ -43,7 +43,6 @@ using namespace afc::vm;
 
 class OpenBuffer {
  public:
-
   // Name of a special buffer that shows the list of buffers.
   static const wstring kBuffersName;
   static const wstring kPasteBuffer;
@@ -63,6 +62,7 @@ class OpenBuffer {
 
   virtual void Visit(EditorState* editor_state);
   time_t last_visit() const;
+  time_t last_action() const;
 
   void ClearContents(EditorState* editor_state);
   void AppendEmptyLine(EditorState* editor_state);
@@ -594,6 +594,9 @@ class OpenBuffer {
 
   // The time when the buffer was last selected as active.
   time_t last_visit_ = 0;
+  // The time when the buffer last saw some action. This includes being visited,
+  // receiving input and probably other things.
+  time_t last_action_ = 0;
 
   // Protects all the variables that background thread may access.
   mutable std::mutex mutex_;
