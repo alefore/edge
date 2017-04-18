@@ -13,10 +13,11 @@ class CppTreeParser : public TreeParser {
   void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
     root->children.clear();
-    LineColumn position = root->begin;
+    LineColumn position = root->range.begin;
     int nesting = 0;
     ConsumeBlocksUntilBalanced(
-        buffer, root, &nesting, nullptr, nullptr, position, root->end, true);
+        buffer, root, &nesting, nullptr, nullptr, position, root->range.end,
+        true);
     return;
   }
 
@@ -48,22 +49,24 @@ class CppTreeParser : public TreeParser {
 
   void ConsumeBlock(const BufferContents& buffer, ParseTree* block,
                     LineColumn limit, int* nesting) {
-    VLOG(5) << "Parsing block at position: " << block->begin;
+    VLOG(5) << "Parsing block at position: " << block->range.begin;
 
-    auto c = buffer.character_at(block->begin);
+    auto c = buffer.character_at(block->range.begin);
     static const wstring id = L"_abcdefghijklmnopqrstuvwxyz";
 
     if (id.find(tolower(c)) != id.npos) {
-      block->end = AdvanceUntil(
-          buffer, block->begin, limit,
+      block->range.end = AdvanceUntil(
+          buffer, block->range.begin, limit,
           [](wchar_t c) {
             static const wstring id_continuation = id + L"0123456789";
             return id_continuation.find(tolower(c)) == id.npos;
           });
-      if (block->begin.line == block->end.line) {
-        auto str = Substring(buffer.at(block->begin.line)->contents(),
-            block->begin.column, block->end.column - block->begin.column)
-                ->ToString();
+      if (block->range.begin.line == block->range.end.line) {
+        auto str = Substring(
+                buffer.at(block->range.begin.line)->contents(),
+                block->range.begin.column, block->range.end.column
+                    - block->range.begin.column)
+            ->ToString();
         if (IsReservedToken(str)) {
           block->modifiers.insert(Line::CYAN);
         }
@@ -74,16 +77,16 @@ class CppTreeParser : public TreeParser {
     if (c == L')' || c == L'}' || c == L']') {
       VLOG(3) << "Unmatched pair closing character.";
       ParseTree child;
-      child.begin = block->begin;
-      child.end = Advance(buffer, child.begin);
+      child.range = Range(block->range.begin,
+                          Advance(buffer, block->range.begin));
       child.modifiers = {Line::BG_RED, Line::BOLD};
       block->children.push_back(child);
     }
 
     if (c == L'(' || c == L'{' || c == L'[') {
       ParseTree open_character;
-      open_character.begin = block->begin;
-      open_character.end = Advance(buffer, block->begin);
+      open_character.range =
+          Range(block->range.begin, Advance(buffer, block->range.begin));
       open_character.modifiers = {Line::BG_RED, Line::BOLD};
       CHECK(block->children.empty());
       block->children.push_back(open_character);
@@ -97,27 +100,30 @@ class CppTreeParser : public TreeParser {
           CHECK(false);
       }
       ConsumeBlocksUntilBalanced(buffer, block, nesting, &open_character,
-          &closing_character, Advance(buffer, block->begin), limit, false);
+          &closing_character, Advance(buffer, block->range.begin), limit,
+          false);
       return;
     }
 
-    if (c == '/' && buffer.character_at(Advance(buffer, block->begin)) == '/') {
-      block->end = AdvanceUntilEndOfLine(buffer, block->begin);
+    if (c == '/' &&
+        buffer.character_at(Advance(buffer, block->range.begin)) == '/') {
+      block->range.end = AdvanceUntilEndOfLine(buffer, block->range.begin);
       block->modifiers.insert(Line::BLUE);
       words_parser_->FindChildren(buffer, block);
       return;
     }
 
     if (c == L'"' || c == L'\'') {
-      block->end = Advance(buffer, block->begin);
-      while (buffer.character_at(block->end) != c && block->end < limit) {
-        if (buffer.character_at(block->end) == '\\') {
-          block->end = Advance(buffer, block->end);
+      block->range.end = Advance(buffer, block->range.begin);
+      while (buffer.character_at(block->range.end) != c &&
+             block->range.end < limit) {
+        if (buffer.character_at(block->range.end) == '\\') {
+          block->range.end = Advance(buffer, block->range.end);
         }
-        block->end = Advance(buffer, block->end);
+        block->range.end = Advance(buffer, block->range.end);
       }
-      if (block->end < limit) {
-        block->end = Advance(buffer, block->end);
+      if (block->range.end < limit) {
+        block->range.end = Advance(buffer, block->range.end);
       }
       if (c == L'\"') {
         words_parser_->FindChildren(buffer, block);
@@ -127,15 +133,15 @@ class CppTreeParser : public TreeParser {
     }
 
     if (isdigit(c)) {
-      block->end = Advance(buffer, block->begin);
-      while (isdigit(buffer.character_at(block->end))) {
-        block->end = Advance(buffer, block->end);
+      block->range.end = Advance(buffer, block->range.begin);
+      while (isdigit(buffer.character_at(block->range.end))) {
+        block->range.end = Advance(buffer, block->range.end);
       }
       block->modifiers.insert(Line::YELLOW);
       return;
     }
 
-    block->end = Advance(buffer, block->begin);
+    block->range.end = Advance(buffer, block->range.begin);
   }
 
   void ConsumeBlocksUntilBalanced(
@@ -148,7 +154,7 @@ class CppTreeParser : public TreeParser {
           [](wchar_t c) { return !iswspace(c) || c == L'\n'; });
 
       if (position >= limit) {
-        block->end = limit;
+        block->range.end = limit;
         return;
       }
 
@@ -161,8 +167,7 @@ class CppTreeParser : public TreeParser {
 
       if (closing_character != nullptr && c == *closing_character) {
         ParseTree tree_end;
-        tree_end.begin = position;
-        tree_end.end = Advance(buffer, position);
+        tree_end.range = Range(position, Advance(buffer, position));
         tree_end.modifiers = open_character->modifiers;
         block->children.push_back(tree_end);
 
@@ -170,31 +175,30 @@ class CppTreeParser : public TreeParser {
         block->children.front().modifiers = modifiers;
         block->children.back().modifiers = modifiers;
 
-        block->end = tree_end.end;
+        block->range.end = tree_end.range.end;
         return;
       }
 
       if (after_newline && c == '#') {
         ParseTree child;
-        child.begin = position;
-        child.end = AdvanceUntilEndOfLine(buffer, position);
+        child.range = Range(position, AdvanceUntilEndOfLine(buffer, position));
         child.modifiers.insert(Line::YELLOW);
         block->children.push_back(child);
 
-        position = child.end;
+        position = child.range.end;
         continue;
       }
 
       block->children.push_back(ParseTree());
-      block->children.back().begin = position;
+      block->children.back().range.begin = position;
       ConsumeBlock(buffer, &block->children.back(), limit, nesting);
-      if (position == block->children.back().end) {
-        block->end = position;
+      if (position == block->children.back().range.end) {
+        block->range.end = position;
         return;  // Didn't advance.
       }
 
-      CHECK_LT(position, block->children.back().end);
-      position = block->children.back().end;
+      CHECK_LT(position, block->children.back().range.end);
+      position = block->children.back().range.end;
     }
   }
 

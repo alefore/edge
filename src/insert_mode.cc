@@ -334,12 +334,13 @@ void StartCompletionFromDictionary(
 void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
                    std::set<wstring>* words) {
   DCHECK(words != nullptr);
-  if (tree.children.empty() && tree.begin.line == tree.end.line) {
-    CHECK_LE(tree.begin.column, tree.end.column);
-    auto line = buffer.LineAt(tree.begin.line);
-    CHECK_LE(tree.end.column, line->size());
+  if (tree.children.empty() && tree.range.begin.line == tree.range.end.line) {
+    CHECK_LE(tree.range.begin.column, tree.range.end.column);
+    auto line = buffer.LineAt(tree.range.begin.line);
+    CHECK_LE(tree.range.end.column, line->size());
     words->insert(line->Substring(
-        tree.begin.column, tree.end.column - tree.begin.column)->ToString());
+        tree.range.begin.column, tree.range.end.column
+            - tree.range.begin.column)->ToString());
   }
   for (auto& child : tree.children) {
     RegisterLeaves(buffer, child, words);

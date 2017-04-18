@@ -14,8 +14,16 @@ namespace afc {
 namespace editor {
 
 struct ParseTree {
-  LineColumn begin;
-  LineColumn end;
+  ParseTree() = default;
+
+  ParseTree(const ParseTree& other)
+      : range(other.range),
+        modifiers(other.modifiers),
+        children() {
+    children = other.children;
+  }
+
+  Range range;
   std::unordered_set<Line::Modifier, hash<int>> modifiers;
   Tree<ParseTree> children;
 };

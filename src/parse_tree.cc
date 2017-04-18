@@ -14,7 +14,7 @@ namespace afc {
 namespace editor {
 
 std::ostream& operator<<(std::ostream& os, const ParseTree& t) {
-    os << "[ParseTree: [" << t.begin << ", " << t.end << "), children: ";
+    os << "[ParseTree: " << t.range << ", children: ";
     for (auto& c : t.children) {
       os << c;
     }
@@ -36,16 +36,19 @@ class CharTreeParser : public TreeParser {
   void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
     root->children.clear();
-    for (auto line = root->begin.line; line <= root->end.line; line++) {
+    for (auto line = root->range.begin.line; line <= root->range.end.line;
+         line++) {
       CHECK_LT(line, buffer.size());
       auto contents = buffer.at(line);
-      size_t end_column =
-          line == root->end.line ? root->end.column : contents->size() + 1;
-      for (size_t i = line == root->begin.line ? root->begin.column : 0;
+      size_t end_column = line == root->range.end.line
+                              ? root->range.end.column
+                              : contents->size() + 1;
+      for (size_t i = line == root->range.begin.line
+                          ? root->range.begin.column
+                          : 0;
            i < end_column; i++) {
         ParseTree new_children;
-        new_children.begin = LineColumn(line, i);
-        new_children.end = LineColumn(line, i + 1);
+        new_children.range = Range::InLine(line, i, 1);
         DVLOG(7) << "Adding char: " << new_children;
         root->children.push_back(new_children);
       }
@@ -62,25 +65,25 @@ class WordsTreeParser : public TreeParser {
   void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
     root->children.clear();
-    for (auto line = root->begin.line; line <= root->end.line; line++) {
+    for (auto line = root->range.begin.line; line <= root->range.end.line; line++) {
       const auto& contents = *buffer.at(line);
 
       size_t line_end = contents.size();
-      if (line == root->end.line) {
-        line_end = min(line_end, root->end.column);
+      if (line == root->range.end.line) {
+        line_end = min(line_end, root->range.end.column);
       }
 
-      size_t column = line == root->begin.line ? root->begin.column : 0;
+      size_t column = line == root->range.begin.line ? root->range.begin.column : 0;
       while (column < line_end) {
         ParseTree new_children;
 
         while (column < line_end && IsSpace(contents, column)) { column++; }
-        new_children.begin = LineColumn(line, column);
+        new_children.range.begin = LineColumn(line, column);
 
         while (column < line_end && !IsSpace(contents, column)) { column++; }
-        new_children.end = LineColumn(line, column);
+        new_children.range.end = LineColumn(line, column);
 
-        if (new_children.begin == new_children.end) { return; }
+        if (new_children.range.IsEmpty()) { return; }
 
         DVLOG(6) << "Adding word: " << new_children;
         root->children.push_back(new_children);
@@ -107,12 +110,12 @@ class LineTreeParser : public TreeParser {
     CHECK(root != nullptr);
     root->children.clear();
     DVLOG(5) << "Finding lines: " << *root;
-    for (auto line = root->begin.line; line <= root->end.line; line++) {
+    for (auto line = root->range.begin.line; line <= root->range.end.line; line++) {
       auto contents = buffer.at(line);
 
       ParseTree new_children;
-      new_children.begin = LineColumn(line);
-      new_children.end = min(LineColumn(line + 1), root->end);
+      new_children.range.begin = LineColumn(line);
+      new_children.range.end = min(LineColumn(line + 1), root->range.end);
       DVLOG(5) << "Adding line: " << new_children;
       root->children.push_back(new_children);
       delegate_->FindChildren(buffer, &root->children.back());

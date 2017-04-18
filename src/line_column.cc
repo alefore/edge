@@ -18,5 +18,10 @@ bool LineColumn::operator!=(const LineColumn& other) const {
   return line != other.line || column != other.column;
 }
 
+std::ostream& operator<<(std::ostream& os, const Range& range) {
+  os << "[" << range.begin << ", " << range.end << ")";
+  return os;
+}
+
 } // namespace editor
 } // namespace afc

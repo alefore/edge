@@ -23,20 +23,20 @@ class CursorsTracker {
  public:
   struct Transformation {
     Transformation& WithBegin(LineColumn position) {
-      CHECK_EQ(begin, LineColumn());
-      begin = position;
+      CHECK_EQ(range.begin, LineColumn());
+      range.begin = position;
       return *this;
     }
 
     Transformation& WithEnd(LineColumn position) {
-      CHECK_EQ(end, LineColumn::Max());
-      end = position;
+      CHECK_EQ(range.end, LineColumn::Max());
+      range.end = position;
       return *this;
     }
 
     Transformation& WithLineEq(size_t line) {
-      begin = LineColumn(line);
-      end = LineColumn(line + 1);
+      range.begin = LineColumn(line);
+      range.end = LineColumn(line + 1);
       return *this;
     }
 
@@ -60,8 +60,10 @@ class CursorsTracker {
       return *this;
     }
 
-    LineColumn begin;
-    LineColumn end = LineColumn::Max();
+    LineColumn Transform(const LineColumn& position) const;
+    Range TransformRange(const Range& range) const;
+
+    Range range = Range(LineColumn(), LineColumn::Max());
 
     int add_to_line = 0;
     // If add_to_line would leave the output line at a value smaller than this

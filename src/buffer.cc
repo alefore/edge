@@ -494,8 +494,8 @@ void OpenBuffer::BackgroundThread() {
     }
     auto parse_tree = std::make_shared<ParseTree>();
     if (!contents->empty()) {
-      parse_tree->end.line = contents->size() - 1;
-      parse_tree->end.column = contents->back()->size();
+      parse_tree->range.end.line = contents->size() - 1;
+      parse_tree->range.end.column = contents->back()->size();
       parser->FindChildren(*contents, parse_tree.get());
     }
 
@@ -1616,12 +1616,13 @@ size_t OpenBuffer::FindChildrenForPosition(
   for (size_t i = 0; i < tree->children.size(); i++) {
     switch (direction) {
       case FORWARDS:
-        if (tree->children.at(i).end > position) {
+        if (tree->children.at(i).range.end > position) {
           return i;
         }
         break;
       case BACKWARDS:
-        if (tree->children.at(tree->children.size() - i - 1).end <= position) {
+        auto position = tree->children.size() - i - 1;
+        if (tree->children.at(position).range.end <= position) {
           return tree->children.size() - i - 1;
         }
         break;
@@ -1756,7 +1757,7 @@ bool OpenBuffer::FindRangeFirst(
             parent_and_index.parent == nullptr
                 ? *tree_root
                 : parent_and_index.parent->children.at(parent_and_index.index);
-        *output = tree.begin;
+        *output = tree.range.begin;
         return true;
       }
       break;
@@ -1831,7 +1832,7 @@ bool OpenBuffer::FindRangeLast(
             parent_and_index.parent == nullptr
                 ? *tree_root
                 : parent_and_index.parent->children.at(parent_and_index.index);
-        *output = tree.end;
+        *output = tree.range.end;
         return true;
       }
       break;

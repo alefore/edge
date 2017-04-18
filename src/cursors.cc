@@ -16,41 +16,9 @@
 namespace afc {
 namespace editor {
 
-struct Range {
-  Range() = default;
-  Range(LineColumn begin, LineColumn end) : begin(begin), end(end) {}
-  Range(const CursorsTracker::Transformation& t) : Range(t.begin, t.end) {}
-
-  LineColumn begin;
-  LineColumn end;
-
-  bool Contains(const Range& subset) {
-    return begin <= subset.begin && subset.end <= end;
-  }
-
-  bool Contains(const CursorsTracker::Transformation& transformation) {
-    return Contains(Range(transformation));
-  }
-
-  bool Disjoint(const Range& other) {
-    return end <= other.begin || other.end <= begin;
-  }
-
-  Range Intersection(const Range& other) {
-    if (Disjoint(other)) {
-      return Range();
-    }
-    return Range(max(begin, other.begin), min(end, other.end));
-  }
-
-  bool operator==(const Range& rhs) const {
-    return begin == rhs.begin && end == rhs.end;
-  }
-};
-
-std::ostream& operator<<(std::ostream& os, const Range& range) {
-  os << "[" << range.begin << ", " << range.end << ")";
-  return os;
+bool RangeContains(const Range& range,
+                   const CursorsTracker::Transformation& transformation) {
+  return range.Contains(transformation.range);
 }
 
 size_t TransformValue(size_t input, int delta, size_t clamp, bool is_end) {
@@ -63,9 +31,9 @@ size_t TransformValue(size_t input, int delta, size_t clamp, bool is_end) {
   return input + delta;
 }
 
-LineColumn Transform(const CursorsTracker::Transformation& transformation,
-                     LineColumn position,
-                     bool is_end) {
+LineColumn TransformLineColumn(
+    const CursorsTracker::Transformation& transformation, LineColumn position,
+    bool is_end) {
   position.line = TransformValue(
       position.line, transformation.add_to_line,
       transformation.output_line_ge,
@@ -77,9 +45,18 @@ LineColumn Transform(const CursorsTracker::Transformation& transformation,
   return position;
 }
 
+Range CursorsTracker::Transformation::TransformRange(const Range& range) const {
+  return Range(TransformLineColumn(*this, range.begin, false),
+               TransformLineColumn(*this, range.end, true));
+}
+
+LineColumn CursorsTracker::Transformation::Transform(const LineColumn& position)
+    const {
+  return TransformLineColumn(*this, position, false);
+}
+
 Range OutputOf(const CursorsTracker::Transformation& transformation) {
-  return Range(Transform(transformation, transformation.begin, false),
-               Transform(transformation, transformation.end, true));
+  return transformation.TransformRange(transformation.range);
 }
 
 // Contains a transformation along with additional information that can be used
@@ -89,12 +66,12 @@ struct ExtendedTransformation {
                          ExtendedTransformation* previous)
       : transformation(transformation) {
     if (transformation.add_to_line > 0) {
-      empty.begin = transformation.begin;
+      empty.begin = transformation.range.begin;
       empty.end = min(
-          transformation.end,
-          LineColumn(transformation.begin.line
+          transformation.range.end,
+          LineColumn(transformation.range.begin.line
                          + transformation.add_to_line,
-                     transformation.begin.column
+                     transformation.range.begin.column
                          + transformation.add_to_column));
     }
     if (previous != nullptr) {
@@ -160,8 +137,8 @@ void AdjustCursorsSet(const CursorsTracker::Transformation& transformation,
 
   // Transfer all affected cursors from cursors into cursors_affected.
   CursorsSet cursors_affected;
-  auto it = cursors_set->lower_bound(transformation.begin);
-  auto end = cursors_set->lower_bound(transformation.end);
+  auto it = cursors_set->lower_bound(transformation.range.begin);
+  auto end = cursors_set->lower_bound(transformation.range.end);
   while (it != end) {
     auto result = cursors_affected.insert(*it);
     if (it == *current_cursor) {
@@ -172,7 +149,7 @@ void AdjustCursorsSet(const CursorsTracker::Transformation& transformation,
 
   // Apply the transformation and add the cursors back.
   for (auto it = cursors_affected.begin(); it != cursors_affected.end(); ++it) {
-    auto position = Transform(transformation, *it, false);
+    auto position = transformation.Transform(*it);
 
     auto result = cursors_set->insert(position);
     if (it == *current_cursor) {
@@ -191,9 +168,9 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
 
   // Remove unnecessary output_line_ge.
   if (transformation.add_to_line == -1 && transformation.add_to_column == 0
-      && transformation.output_line_ge == transformation.begin.line) {
+      && transformation.output_line_ge == transformation.range.begin.line) {
     transformation.output_line_ge = 0;
-    transformation.begin.line++;
+    transformation.range.begin.line++;
   }
 
   if (IsNoop(transformation)) {
@@ -206,7 +183,7 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
   }
 
   auto& last = transformations_.back();
-  if (last.empty.Contains(transformation)) {
+  if (last.empty.Contains(transformation.range)) {
     // All cursors in transformation have been moved by last.
     LOG(INFO) << "Removed: " << transformation;
     return;
@@ -218,26 +195,28 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
   //
   // Into:
   // [[A:0], [min(B, D):MAX]), line: C, line_ge: 0, column: 0, column_ge: 0
-  if (last.transformation.begin == transformation.begin &&
-      last.transformation.end == transformation.end &&
-      last.transformation.begin.column == 0 &&
-      last.transformation.end.column == std::numeric_limits<size_t>::max() &&
+  if (last.transformation.range == transformation.range &&
+      last.transformation.range.begin.column == 0 &&
+      last.transformation.range.end.column
+          == std::numeric_limits<size_t>::max() &&
       last.transformation.add_to_line + transformation.add_to_line == 0 &&
       last.transformation.output_line_ge == 0 &&
       last.transformation.output_column_ge == 0 &&
       last.transformation.add_to_column == 0 &&
       transformation.add_to_column == 0) {
-    last.transformation.end.line = min(last.transformation.end.line, transformation.output_line_ge);
+    last.transformation.range.end.line =
+        min(last.transformation.range.end.line, transformation.output_line_ge);
     last.transformation.add_to_line = min(last.transformation.add_to_line,
-        static_cast<int>(transformation.output_line_ge - last.transformation.begin.line));
+        static_cast<int>(transformation.output_line_ge
+                             - last.transformation.range.begin.line));
     transformation = last.transformation;
     transformations_.pop_back();
     AdjustCursors(transformation);
     return;
   }
 
-  if (last.owned == Range(transformation) &&
-      Range(last.transformation).Contains(OutputOf(transformation)) &&
+  if (last.owned == transformation.range &&
+      last.transformation.range.Contains(OutputOf(transformation)) &&
       last.transformation.add_to_line + transformation.add_to_line == 0 &&
       last.transformation.add_to_line > 0 &&
       last.transformation.add_to_column < 0 &&
@@ -260,18 +239,19 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
   // Into:
   // [range: [[4:0], [inf:inf]), line: 1, line_ge: 0, column: 0, column_ge: 0.
   // [range: [[0:0], [4:0]), line: 0, line_ge: 0, column: A, column_ge: 0.
-  if (last.transformation.begin.line + last.transformation.add_to_line ==
-          transformation.begin.line &&
-      last.transformation.begin.column == 0 &&
-      transformation.end < LineColumn::Max() &&
-      transformation.begin.column == 0 &&
-      last.transformation.end == LineColumn::Max() &&
+  if (last.transformation.range.begin.line + last.transformation.add_to_line ==
+          transformation.range.begin.line &&
+      last.transformation.range.begin.column == 0 &&
+      transformation.range.end < LineColumn::Max() &&
+      transformation.range.begin.column == 0 &&
+      last.transformation.range.end == LineColumn::Max() &&
       last.transformation.add_to_line > 0 &&
       transformation.add_to_line == -last.transformation.add_to_line) {
     Transformation previous = last.transformation;
-    previous.begin.line = transformation.end.line + transformation.add_to_line;
-    transformation.begin = last.transformation.begin;
-    transformation.end.line += transformation.add_to_line;
+    previous.range.begin.line =
+        transformation.range.end.line + transformation.add_to_line;
+    transformation.range.begin = last.transformation.range.begin;
+    transformation.range.end.line += transformation.add_to_line;
     transformation.add_to_line = 0;
     transformations_.pop_back();
     AdjustCursors(transformation);
@@ -281,27 +261,27 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
 
   if (last.transformation.add_to_column == 0 &&
       last.transformation.output_column_ge == 0 &&
-      last.transformation.begin.column == 0 &&
+      last.transformation.range.begin.column == 0 &&
       transformation.add_to_column == 0 &&
       transformation.output_column_ge == 0 &&
-      transformation.begin.column == 0) {
+      transformation.range.begin.column == 0) {
     if (last.transformation.add_to_line > 0 &&
-        last.transformation.begin.line + last.transformation.add_to_line ==
-            transformation.begin.line &&
+        last.transformation.range.begin.line + last.transformation.add_to_line ==
+            transformation.range.begin.line &&
         transformation.add_to_line < 0 &&
         last.transformation.add_to_line >= -transformation.add_to_line &&
-        last.transformation.end == LineColumn::Max() &&
-        transformation.end == LineColumn::Max()) {
+        last.transformation.range.end == LineColumn::Max() &&
+        transformation.range.end == LineColumn::Max()) {
       last.transformation.add_to_line += transformation.add_to_line;
       transformation = last.transformation;
       transformations_.pop_back();
       AdjustCursors(transformation);
       return;
     }
-    if (transformation.end == last.transformation.begin
+    if (transformation.range.end == last.transformation.range.begin
         && transformation.add_to_line == last.transformation.add_to_line
         && transformation.add_to_line > 0) {
-      last.transformation.begin = transformation.begin;
+      last.transformation.range.begin = transformation.range.begin;
       transformation = last.transformation;
       transformations_.pop_back();
       AdjustCursors(transformation);
@@ -311,8 +291,8 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
     }
   }
 
-  if (transformation.end == last.transformation.begin &&
-      transformation.end.column == 0 &&
+  if (transformation.range.end == last.transformation.range.begin &&
+      transformation.range.end.column == 0 &&
       transformation.add_to_line == 0 &&
       last.transformation.add_to_line >= 0) {
     // Swap the order.
@@ -401,10 +381,9 @@ void CursorsTracker::ApplyTransformation(const Transformation& transformation) {
 
 std::ostream& operator<<(std::ostream& os,
                          const CursorsTracker::Transformation& t) {
-  os << "[range: [" << t.begin << ", " << t.end << "), line: " << t.add_to_line
-     << ", line_ge: " << t.output_line_ge << ", column: " << t.add_to_column
-     << ", column_ge: " << t.output_column_ge << ", range: " << Range(t)
-     << ", output: " << OutputOf(t) << "]";
+  os << "[range: " << t.range << ", line: " << t.add_to_line << ", line_ge: "
+     << t.output_line_ge << ", column: " << t.add_to_column  << ", column_ge: "
+     << t.output_column_ge << ", output: " << OutputOf(t) << "]";
   return os;
 }
 

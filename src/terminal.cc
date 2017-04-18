@@ -488,14 +488,14 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
 
   void AddCharacter(wchar_t c) override {
     LineColumn position(line_, delegate_.position());
-    if (!current_.empty() && current_.back()->end <= position) {
+    if (!current_.empty() && current_.back()->range.end <= position) {
       UpdateCurrent(position);
     }
     
     AddModifier(Line::RESET);
     if (!current_.empty()) {
       for (auto& t : current_) {
-        if (t->begin <= position && position < t->end) {
+        if (t->range.Contains(position)) {
           for (auto& modifier : t->modifiers) {
             AddModifier(modifier);
           }
@@ -522,7 +522,7 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
  private:
   void UpdateCurrent(LineColumn position) {
     // Go up the tree until we're at a root that includes position.
-    while (!current_.empty() && current_.back()->end <= position) {
+    while (!current_.empty() && current_.back()->range.end <= position) {
       current_.pop_back();
     }
 
@@ -535,7 +535,7 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
     while (!current_.back()->children.empty()) {
       bool advanced = false;
       for (const auto& candidate : current_.back()->children) {
-        if (candidate.end > position) {
+        if (candidate.range.end > position) {
           current_.push_back(&candidate);
           advanced = true;
           break;
@@ -629,13 +629,13 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
 
     std::unique_ptr<Line::OutputReceiverInterface> parse_tree_highlighter;
     if (current_tree != root.get()
-        && current_line >= current_tree->begin.line
-        && current_line <= current_tree->end.line) {
-      size_t begin = current_line == current_tree->begin.line
-                         ? current_tree->begin.column
+        && current_line >= current_tree->range.begin.line
+        && current_line <= current_tree->range.end.line) {
+      size_t begin = current_line == current_tree->range.begin.line
+                         ? current_tree->range.begin.column
                          : 0;
-      size_t end = current_line == current_tree->end.line
-                       ? current_tree->end.column
+      size_t end = current_line == current_tree->range.end.line
+                       ? current_tree->range.end.column
                        : line->size();
       parse_tree_highlighter.reset(
           new ParseTreeHighlighter(receiver, begin, end));

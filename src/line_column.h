@@ -60,6 +60,45 @@ struct LineColumn {
 
 std::ostream& operator<<(std::ostream& os, const LineColumn& lc);
 
+struct Range {
+  Range() = default;
+  Range(LineColumn begin, LineColumn end) : begin(begin), end(end) {}
+
+  static Range InLine(size_t line, size_t column, size_t size) {
+    return Range(LineColumn(line, column), LineColumn(line, column + size));
+  }
+
+  bool IsEmpty() const { return begin >= end; }
+
+  bool Contains(const Range& subset) const {
+    return begin <= subset.begin && subset.end <= end;
+  }
+
+  bool Contains(const LineColumn& position) const {
+    return begin <= position && position <= end;
+  }
+
+  bool Disjoint(const Range& other) const {
+    return end <= other.begin || other.end <= begin;
+  }
+
+  Range Intersection(const Range& other) const {
+    if (Disjoint(other)) {
+      return Range();
+    }
+    return Range(std::max(begin, other.begin), std::min(end, other.end));
+  }
+
+  bool operator==(const Range& rhs) const {
+    return begin == rhs.begin && end == rhs.end;
+  }
+
+  LineColumn begin;
+  LineColumn end;
+};
+
+std::ostream& operator<<(std::ostream& os, const Range& range);
+
 } // namespace editor
 } // namespace afc
 
