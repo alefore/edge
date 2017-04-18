@@ -128,6 +128,10 @@ class LineTreeParser : public TreeParser {
 
 }  // namespace
 
+/* static */ bool TreeParser::IsNull(TreeParser* parser) {
+  return dynamic_cast<NullTreeParser*>(parser) != nullptr;
+}
+
 std::unique_ptr<TreeParser> NewNullTreeParser() {
   return std::unique_ptr<TreeParser>(new NullTreeParser());
 }

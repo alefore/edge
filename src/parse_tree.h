@@ -34,6 +34,8 @@ class OpenBuffer;
 
 class TreeParser {
  public:
+  static bool IsNull(TreeParser*);
+
   // Removes all children from root and re-scans it (from begin to end).
   virtual void FindChildren(const BufferContents& lines, ParseTree* root) = 0;
 };

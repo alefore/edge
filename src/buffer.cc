@@ -477,10 +477,11 @@ void OpenBuffer::BackgroundThread() {
     std::unique_lock<std::mutex> lock(mutex_);
     background_condition_.wait(lock,
         [this]() {
-          return shutting_down_ || contents_to_parse_ != nullptr;
+          return background_thread_shutting_down_ ||
+                 contents_to_parse_ != nullptr;
         });
     VLOG(5) << "Background thread is waking up.";
-    if (shutting_down_) {
+    if (background_thread_shutting_down_) {
       return;
     }
     std::unique_ptr<const BufferContents> contents =
@@ -525,8 +526,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
       parse_tree_(std::make_shared<ParseTree>()),
-      tree_parser_(NewNullTreeParser()),
-      background_thread_([this]() { BackgroundThread(); }) {
+      tree_parser_(NewNullTreeParser()) {
   contents_.AddUpdateListener(
       [this](const CursorsTracker::Transformation& transformation) {
         editor_->ScheduleParseTreeUpdate(this);
@@ -553,13 +553,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
 OpenBuffer::~OpenBuffer() {
   LOG(INFO) << "Buffer deleted: " << name_;
   editor_->UnscheduleParseTreeUpdate(this);
-
-  {
-    std::unique_lock<std::mutex> lock(mutex_);
-    shutting_down_ = true;
-  }
-  background_condition_.notify_all();
-  background_thread_.join();
+  DestroyThreadIf([]() { return true; });
 }
 
 bool OpenBuffer::PrepareToClose(EditorState* editor_state) {
@@ -858,13 +852,48 @@ void OpenBuffer::UpdateTreeParser() {
     tree_parser_ = NewNullTreeParser();
   }
   editor_->ScheduleParseTreeUpdate(this);
+  lock.unlock();
+
+  DestroyThreadIf([this]() { return TreeParser::IsNull(tree_parser_.get()); });
 }
 
 void OpenBuffer::ResetParseTree() {
   VLOG(5) << "Resetting parse tree.";
-  std::unique_lock<std::mutex> lock(mutex_);
-  contents_to_parse_ = contents_.copy();
+  {
+    std::unique_lock<std::mutex> lock(mutex_);
+    if (TreeParser::IsNull(tree_parser_.get())) {
+      return;
+    }
+    contents_to_parse_ = contents_.copy();
+  }
+
+  {
+    std::unique_lock<std::mutex> lock(thread_creation_mutex_);
+    if (!background_thread_.joinable()) {
+      std::unique_lock<std::mutex> lock(mutex_);
+      background_thread_shutting_down_ = false;
+      background_thread_ = std::thread([this]() { BackgroundThread(); });
+    }
+  }
+
   background_condition_.notify_one();
+}
+
+void OpenBuffer::DestroyThreadIf(std::function<bool()> predicate) {
+  std::unique_lock<std::mutex> thread_creation_lock(thread_creation_mutex_);
+  if (!background_thread_.joinable()) {
+    return;
+  }
+
+  std::unique_lock<std::mutex> lock(mutex_);
+  if (!predicate()) {
+    return;
+  }
+  background_thread_shutting_down_ = true;
+  lock.unlock();
+  
+  background_condition_.notify_one();
+  background_thread_.join();
 }
 
 void OpenBuffer::StartNewLine(EditorState* editor_state) {

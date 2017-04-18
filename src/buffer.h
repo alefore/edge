@@ -541,6 +541,9 @@ class OpenBuffer {
   LineColumn Apply(EditorState* editor_state,
                    unique_ptr<Transformation> transformation);
   void BackgroundThread();
+  // Destroys the background thread if it's running and if a given predicate
+  // returns true. The predicate is evaluated with mutex_ held.
+  void DestroyThreadIf(std::function<bool()> predicate);
   void UpdateTreeParser();
 
   // Adds a new line. If there's a previous line, notifies various things about
@@ -595,8 +598,12 @@ class OpenBuffer {
   // Protects all the variables that background thread may access.
   mutable std::mutex mutex_;
   std::condition_variable background_condition_;
+  // Protects access to background_thread_ itself. Must never be acquired after
+  // mutex_ (only before). Anybody assigning to background_thread_shutting_down_
+  // must do so and join the thread while holding this mutex.
+  mutable std::mutex thread_creation_mutex_;
   std::thread background_thread_;
-  bool shutting_down_ = false;
+  bool background_thread_shutting_down_ = false;
 };
 
 }  // namespace editor
