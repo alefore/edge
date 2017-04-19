@@ -613,6 +613,14 @@ void TestCases() {
 
   Clear(&editor_state);
 
+  editor_state.ProcessInputString("ialejandro forero cuervo");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("g" "dw\n" "l" ".");
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "  cuervo");
+
+  Clear(&editor_state);
+
   editor_state.ProcessInputString("al");
 
   Clear(&editor_state);

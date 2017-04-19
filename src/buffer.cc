@@ -2552,8 +2552,8 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
   transformations_future_.clear();
   if (transformations_past_.back()->modified_buffer) {
     editor_->StartHandlingInterrupts();
+    last_transformation_ = std::move(transformation);
   }
-  last_transformation_ = std::move(transformation);
 }
 
 LineColumn OpenBuffer::Apply(
@@ -2587,7 +2587,7 @@ void OpenBuffer::RepeatLastTransformation() {
 }
 
 void OpenBuffer::PushTransformationStack() {
-  last_transformation_stack_.emplace_back(new TransformationStack);
+  last_transformation_stack_.emplace_back(new TransformationStack());
 }
 
 void OpenBuffer::PopTransformationStack() {
