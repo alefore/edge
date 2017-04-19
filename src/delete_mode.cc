@@ -12,20 +12,13 @@ namespace editor {
 namespace {
 class DeleteMode : public EditorMode {
  public:
-  DeleteMode(EditorState* editor_state) {
+  DeleteMode(EditorState* editor_state, std::shared_ptr<OpenBuffer> buffer)
+      : buffer_(buffer) {
     delete_options_.modifiers.repetitions = 0;
-    DescribeModifiers(editor_state);
+    Apply(editor_state, INITIAL);
   }
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
-    auto buffer = editor_state->current_buffer();
-    if (buffer == editor_state->buffers()->end()) {
-      LOG(INFO) << "DeleteMode gives up: No current buffer.";
-      editor_state->ResetMode();
-      editor_state->ProcessInput(c);
-      return;
-    }
-
     switch (c) {
       case '0':
       case '1':
@@ -39,13 +32,13 @@ class DeleteMode : public EditorMode {
       case '9':
         delete_options_.modifiers.repetitions =
             10 * delete_options_.modifiers.repetitions + c - '0';
-        DescribeModifiers(editor_state);
+        ModifiersUpdated(editor_state);
         break;
 
       case 'R':
         delete_options_.modifiers.direction =
             ReverseDirection(delete_options_.modifiers.direction);
-        DescribeModifiers(editor_state);
+        ModifiersUpdated(editor_state);
         break;
 
       case 'f':
@@ -54,7 +47,7 @@ class DeleteMode : public EditorMode {
                     == Modifiers::FROM_CURRENT_POSITION_TO_END
                 ? Modifiers::ENTIRE_STRUCTURE
                 : Modifiers::FROM_CURRENT_POSITION_TO_END;
-        DescribeModifiers(editor_state);
+        ModifiersUpdated(editor_state);
         break;
 
       case 'b':
@@ -63,7 +56,7 @@ class DeleteMode : public EditorMode {
                     == Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION
                 ? Modifiers::ENTIRE_STRUCTURE
                 : Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
-        DescribeModifiers(editor_state);
+        ModifiersUpdated(editor_state);
         break;
 
       case 'l':
@@ -78,22 +71,19 @@ class DeleteMode : public EditorMode {
         return SetStructure(editor_state, TREE);
 
       case '\n':
-        if (delete_options_.modifiers.repetitions == 0) {
-          delete_options_.modifiers.repetitions = 1;
-        }
-        buffer->second->ApplyToCursors(
-            NewDeleteTransformation(delete_options_));
+        Apply(editor_state, FINAL);
         editor_state->ResetMode();
         editor_state->ResetStatus();
         break;
 
       case Terminal::ESCAPE:
+        buffer_->Undo(editor_state);
         editor_state->ResetMode();
         editor_state->ResetStatus();
         break;
 
       default:
-        DescribeModifiers(editor_state, L"Invalid key");
+        ModifiersUpdated(editor_state, L"Invalid key");
     }
   }
 
@@ -101,14 +91,15 @@ class DeleteMode : public EditorMode {
   void SetStructure(EditorState* editor_state, Structure structure) {
     delete_options_.modifiers.structure =
         delete_options_.modifiers.structure == structure ? CHAR : structure;
-    DescribeModifiers(editor_state);
+    ModifiersUpdated(editor_state);
   }
 
-  void DescribeModifiers(EditorState* editor_state) {
-    DescribeModifiers(editor_state, L"");
+  void ModifiersUpdated(EditorState* editor_state) {
+    ModifiersUpdated(editor_state, L"");
   }
 
-  void DescribeModifiers(EditorState* editor_state, const wstring& additional) {
+  void ModifiersUpdated(EditorState* editor_state, const wstring& additional) {
+    CHECK(buffer_ != nullptr);
     wstring status = L"delete";
     if (delete_options_.modifiers.structure != CHAR) {
       status += L" " + StructureToString(delete_options_.modifiers.structure);
@@ -129,10 +120,35 @@ class DeleteMode : public EditorMode {
     if (!additional.empty()) {
       status += L" - " + additional;
     }
+
     editor_state->SetStatus(status);
+    Apply(editor_state, INTERNAL);
   }
 
+  enum ApplyMode {
+    INITIAL,  // The first call.
+    INTERNAL,  // Temporary calls.
+    FINAL,  // The final call.
+  };
+
+  void Apply(EditorState* editor_state, ApplyMode apply_mode) {
+    if (apply_mode != INITIAL) {
+      buffer_->Undo(editor_state, OpenBuffer::ONLY_UNDO_THE_LAST);
+    }
+
+    auto copy = delete_options_;
+    if (copy.modifiers.repetitions == 0) {
+      copy.modifiers.repetitions = 1;
+    }
+    copy.copy_to_paste_buffer = apply_mode == FINAL;
+    buffer_->PushTransformationStack();
+    buffer_->ApplyToCursors(NewDeleteTransformation(copy));
+    buffer_->PopTransformationStack();
+  }
+
+  const std::shared_ptr<OpenBuffer> buffer_;
   DeleteOptions delete_options_;
+  bool already_applied_ = false;
 };
 
 
@@ -145,8 +161,8 @@ class DeleteCommand : public Command {
     if (!editor_state->has_current_buffer()) {
       return;
     }
-    editor_state->set_mode(
-        std::unique_ptr<DeleteMode>(new DeleteMode(editor_state)));
+    editor_state->set_mode(std::unique_ptr<DeleteMode>(
+        new DeleteMode(editor_state, editor_state->current_buffer()->second)));
   }
 
  private:

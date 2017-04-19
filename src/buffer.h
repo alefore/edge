@@ -416,7 +416,14 @@ class OpenBuffer {
     return !last_transformation_stack_.empty();
   }
 
+  enum UndoMode {
+    // Default mode. Don't count transformations that didn't modify the buffer.
+    SKIP_IRRELEVANT,
+    // Count every transformation (even those that don't modify the buffer).
+    ONLY_UNDO_THE_LAST,
+  };
   void Undo(EditorState* editor_state);
+  void Undo(EditorState* editor_state, UndoMode undo_mode);
 
   void set_filter(unique_ptr<Value> filter);
   bool IsLineFiltered(size_t line);

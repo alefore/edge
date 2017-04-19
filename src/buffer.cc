@@ -2552,8 +2552,8 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
   transformations_future_.clear();
   if (transformations_past_.back()->modified_buffer) {
     editor_->StartHandlingInterrupts();
-    last_transformation_ = std::move(transformation);
   }
+  last_transformation_ = std::move(transformation);
 }
 
 LineColumn OpenBuffer::Apply(
@@ -2600,6 +2600,10 @@ void OpenBuffer::PopTransformationStack() {
 }
 
 void OpenBuffer::Undo(EditorState* editor_state) {
+  Undo(editor_state, SKIP_IRRELEVANT);
+};
+
+void OpenBuffer::Undo(EditorState* editor_state, UndoMode undo_mode) {
   list<unique_ptr<Transformation::Result>>* source;
   list<unique_ptr<Transformation::Result>>* target;
   if (editor_state->direction() == FORWARDS) {
@@ -2615,7 +2619,8 @@ void OpenBuffer::Undo(EditorState* editor_state) {
       target->emplace_back(new Transformation::Result(editor_state));
       source->back()->undo_stack->Apply(editor_state, this, target->back().get());
       source->pop_back();
-      modified_buffer = target->back()->modified_buffer;
+      modified_buffer =
+          target->back()->modified_buffer || undo_mode == ONLY_UNDO_THE_LAST;
     }
     if (source->empty()) { return; }
   }
