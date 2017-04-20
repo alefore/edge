@@ -56,7 +56,7 @@ class Delete : public Command {
   Delete(DeleteOptions delete_options) : delete_options_(delete_options) {}
 
   const wstring Description() {
-    if (delete_options_.delete_region) {
+    if (delete_options_.modifiers.delete_type == Modifiers::DELETE_CONTENTS) {
       return L"deletes the current item (char, word, line...)";
     }
     return L"copies current item (char, word, ...) to the paste buffer.";
@@ -977,7 +977,7 @@ std::function<unique_ptr<EditorMode>(void)> NewCommandModeSupplier(
   Register(L"p", new Paste(), commands_map.get());
 
   DeleteOptions copy_options;
-  copy_options.delete_region = false;
+  copy_options.modifiers.delete_type = Modifiers::PRESERVE_CONTENTS;
   Register(L"sc", new Delete(copy_options), commands_map.get());
   Register(L"u", new UndoCommand(), commands_map.get());
   Register(L"\n", new ActivateLink(), commands_map.get());

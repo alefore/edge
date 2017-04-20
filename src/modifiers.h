@@ -97,6 +97,12 @@ struct Modifiers {
 
   size_t repetitions = 1;
 
+  enum DeleteType {
+    DELETE_CONTENTS,
+    PRESERVE_CONTENTS,
+  };
+  DeleteType delete_type = DELETE_CONTENTS;
+
   // The currently active cursors.
   std::wstring active_cursors;
 };

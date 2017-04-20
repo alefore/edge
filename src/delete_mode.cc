@@ -65,11 +65,16 @@ class CommandWithModifiers : public EditorMode {
       additional_information = L"";
       switch (c) {
         case '+':
+          if (modifiers.repetitions == 0) {
+            modifiers.repetitions = 1;
+          }
           modifiers.repetitions++;
           break;
 
         case '-':
-          modifiers.repetitions--;
+          if (modifiers.repetitions > 0) {
+            modifiers.repetitions--;
+          }
           break;
 
         case '0':
@@ -125,6 +130,12 @@ class CommandWithModifiers : public EditorMode {
           SetStructure(TREE, &modifiers);
           break;
 
+        case 'p':
+          modifiers.delete_type =
+              modifiers.delete_type == Modifiers::DELETE_CONTENTS
+                  ? Modifiers::PRESERVE_CONTENTS : Modifiers::DELETE_CONTENTS;
+          break;
+
         default:
           additional_information = L"Invalid key: " + wstring(1, c);
       }
@@ -158,6 +169,9 @@ class CommandWithModifiers : public EditorMode {
     }
     if (modifiers.repetitions > 1) {
       status += L" " + std::to_wstring(modifiers.repetitions);
+    }
+    if (modifiers.delete_type == Modifiers::PRESERVE_CONTENTS) {
+      status += L" preserve";
     }
     if (!additional_information.empty()) {
       status += L" [" + additional_information + L"]";
