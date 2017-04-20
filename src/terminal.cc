@@ -101,17 +101,6 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
     status += L" of " + to_wstring(buffer->contents()->size()) + L", "
         + to_wstring(buffer->current_position_col() + 1);
 
-    if (modifiers.has_region_start) {
-      status += L" R:";
-      const auto& buffer_name = modifiers.region_start.buffer_name;
-      if (buffer_name != editor_state.current_buffer()->first) {
-        status += buffer_name + L":";
-      }
-      const auto& position = modifiers.region_start.position;
-      status += to_wstring(position.line + 1) + L":"
-          + to_wstring(position.column + 1);
-    }
-
     status += L"] ";
 
     auto marks_text = buffer->GetLineMarksText(editor_state);

@@ -97,11 +97,6 @@ struct Modifiers {
 
   size_t repetitions = 1;
 
-  // The start of the region. region_start is only defined if has_region_start
-  // is true.
-  bool has_region_start = false;
-  BufferPosition region_start;
-
   // The currently active cursors.
   std::wstring active_cursors;
 };
