@@ -4,8 +4,6 @@
 
 Implement delete of page.
 
-Implement new "delete" mode: modifiers should follow the key. Enter finishes.
-
 Let buffers "garbage collect" their contents: if they're clean and haven't been accessed in a while, just have them drop their contents.
   - Requires making them load them lazily.
   - Probably not too important? We can just let the OS page out appropriate pages.
