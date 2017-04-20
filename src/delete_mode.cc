@@ -32,6 +32,7 @@ class CommandWithModifiers : public EditorMode {
   void ProcessInput(wint_t c, EditorState* editor_state) {
     switch (c) {
       case '\n':
+      case ' ':
         RunCallback(editor_state, FINAL);
         break;
 
