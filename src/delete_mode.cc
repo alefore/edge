@@ -61,9 +61,17 @@ class CommandWithModifiers : public EditorMode {
     Modifiers modifiers;
     wstring additional_information;
     modifiers.repetitions = 0;
-    for (auto& c : modifiers_string_) {
+    for (const auto& c : modifiers_string_) {
       additional_information = L"";
       switch (c) {
+        case '+':
+          modifiers.repetitions++;
+          break;
+
+        case '-':
+          modifiers.repetitions--;
+          break;
+
         case '0':
         case '1':
         case '2':
@@ -118,7 +126,7 @@ class CommandWithModifiers : public EditorMode {
           break;
 
         default:
-          additional_information = L"Invalid key:" + c;
+          additional_information = L"Invalid key: " + wstring(1, c);
       }
     }
     if (modifiers.repetitions == 0) {
@@ -152,7 +160,7 @@ class CommandWithModifiers : public EditorMode {
       status += L" " + std::to_wstring(modifiers.repetitions);
     }
     if (!additional_information.empty()) {
-      status += L" : " + additional_information;
+      status += L" [" + additional_information + L"]";
     }
 
     editor_state->SetStatus(status);
