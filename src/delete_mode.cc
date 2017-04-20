@@ -1,4 +1,4 @@
-#include "close_buffer_command.h"
+#include "delete_mode.h"
 
 #include <memory>
 
@@ -10,147 +10,182 @@ namespace afc {
 namespace editor {
 
 namespace {
-class DeleteMode : public EditorMode {
+enum ApplyMode {
+  INITIAL,  // The first call.
+  INTERNAL,  // Temporary calls.
+  FINAL,  // The final call.
+  CANCEL,  // Cancel the whole operation.
+};
+
+class CommandWithModifiers : public EditorMode {
  public:
-  DeleteMode(EditorState* editor_state, std::shared_ptr<OpenBuffer> buffer)
-      : buffer_(buffer) {
-    delete_options_.modifiers.repetitions = 0;
-    Apply(editor_state, INITIAL);
+  using Callback = std::function<void(ApplyMode, Modifiers modifiers)>;
+
+  CommandWithModifiers(wstring name,
+                       EditorState* editor_state,
+                       Callback callback)
+      : name_(std::move(name)),
+        callback_(std::move(callback)) {
+    RunCallback(editor_state, INITIAL);
   }
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
     switch (c) {
-      case '0':
-      case '1':
-      case '2':
-      case '3':
-      case '4':
-      case '5':
-      case '6':
-      case '7':
-      case '8':
-      case '9':
-        delete_options_.modifiers.repetitions =
-            10 * delete_options_.modifiers.repetitions + c - '0';
-        ModifiersUpdated(editor_state);
-        break;
-
-      case 'R':
-        delete_options_.modifiers.direction =
-            ReverseDirection(delete_options_.modifiers.direction);
-        ModifiersUpdated(editor_state);
-        break;
-
-      case 'f':
-        delete_options_.modifiers.structure_range =
-            delete_options_.modifiers.structure_range
-                    == Modifiers::FROM_CURRENT_POSITION_TO_END
-                ? Modifiers::ENTIRE_STRUCTURE
-                : Modifiers::FROM_CURRENT_POSITION_TO_END;
-        ModifiersUpdated(editor_state);
-        break;
-
-      case 'b':
-        delete_options_.modifiers.structure_range =
-            delete_options_.modifiers.structure_range
-                    == Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION
-                ? Modifiers::ENTIRE_STRUCTURE
-                : Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
-        ModifiersUpdated(editor_state);
-        break;
-
-      case 'l':
-        return SetStructure(editor_state, LINE);
-      case 'w':
-        return SetStructure(editor_state, WORD);
-      case 'B':
-        return SetStructure(editor_state, BUFFER);
-      case 'c':
-        return SetStructure(editor_state, CURSOR);
-      case 'T':
-        return SetStructure(editor_state, TREE);
-
       case '\n':
-        Apply(editor_state, FINAL);
-        editor_state->ResetMode();
-        editor_state->ResetStatus();
+        RunCallback(editor_state, FINAL);
         break;
 
       case Terminal::ESCAPE:
-        buffer_->Undo(editor_state);
-        editor_state->ResetMode();
-        editor_state->ResetStatus();
+        RunCallback(editor_state, CANCEL);
+        break;
+
+      case Terminal::BACKSPACE:
+        if (!modifiers_string_.empty()) {
+          modifiers_string_.pop_back();
+        }
+        RunCallback(editor_state, INTERNAL);
         break;
 
       default:
-        ModifiersUpdated(editor_state, L"Invalid key");
+        modifiers_string_.push_back(c);
+        RunCallback(editor_state, INTERNAL);
     }
   }
 
  private:
-  void SetStructure(EditorState* editor_state, Structure structure) {
-    delete_options_.modifiers.structure =
-        delete_options_.modifiers.structure == structure ? CHAR : structure;
-    ModifiersUpdated(editor_state);
+  void RunCallback(EditorState* editor_state, ApplyMode apply_mode) {
+    callback_(apply_mode, BuildModifiers(editor_state));
   }
 
-  void ModifiersUpdated(EditorState* editor_state) {
-    ModifiersUpdated(editor_state, L"");
-  }
+  Modifiers BuildModifiers(EditorState* editor_state) {
+    Modifiers modifiers;
+    wstring additional_information;
+    modifiers.repetitions = 0;
+    for (auto& c : modifiers_string_) {
+      additional_information = L"";
+      switch (c) {
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+          modifiers.repetitions = 10 * modifiers.repetitions + c - '0';
+          break;
 
-  void ModifiersUpdated(EditorState* editor_state, const wstring& additional) {
-    CHECK(buffer_ != nullptr);
-    wstring status = L"delete";
-    if (delete_options_.modifiers.structure != CHAR) {
-      status += L" " + StructureToString(delete_options_.modifiers.structure);
+        case 'R':
+          modifiers.direction = ReverseDirection(modifiers.direction);
+          break;
+
+        case 'f':
+          modifiers.structure_range =
+              modifiers.structure_range
+                      == Modifiers::FROM_CURRENT_POSITION_TO_END
+                  ? Modifiers::ENTIRE_STRUCTURE
+                  : Modifiers::FROM_CURRENT_POSITION_TO_END;
+          break;
+
+        case 'b':
+          modifiers.structure_range =
+              modifiers.structure_range
+                      == Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION
+                  ? Modifiers::ENTIRE_STRUCTURE
+                  : Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
+          break;
+
+        case 'l':
+          SetStructure(LINE, &modifiers);
+          break;
+
+        case 'w':
+          SetStructure(WORD, &modifiers);
+          break;
+
+        case 'B':
+          SetStructure(BUFFER, &modifiers);
+          break;
+
+        case 'c':
+          SetStructure(CURSOR, &modifiers);
+          break;
+
+        case 'T':
+          SetStructure(TREE, &modifiers);
+          break;
+
+        default:
+          additional_information = L"Invalid key:" + c;
+      }
     }
-    if (delete_options_.modifiers.direction == BACKWARDS) {
+    if (modifiers.repetitions == 0) {
+      modifiers.repetitions = 1;
+    }
+    UpdateStatus(editor_state, modifiers, additional_information);
+    return modifiers;
+  }
+
+  void SetStructure(Structure structure, Modifiers* modifiers) {
+    modifiers->structure = modifiers->structure == structure ? CHAR : structure;
+  }
+
+  void UpdateStatus(EditorState* editor_state, const Modifiers& modifiers,
+                    const wstring& additional_information) {
+    wstring status = name_;
+    if (modifiers.structure != CHAR) {
+      status += L" " + StructureToString(modifiers.structure);
+    }
+    if (modifiers.direction == BACKWARDS) {
       status += L" reverse";
     }
-    if (delete_options_.modifiers.structure_range
+    if (modifiers.structure_range
             == Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION) {
       status += L" backward";
-    } else if (delete_options_.modifiers.structure_range
+    } else if (modifiers.structure_range
             == Modifiers::FROM_CURRENT_POSITION_TO_END) {
       status += L" forward";
     }
-    if (delete_options_.modifiers.repetitions > 1) {
-      status += L" " + std::to_wstring(delete_options_.modifiers.repetitions);
+    if (modifiers.repetitions > 1) {
+      status += L" " + std::to_wstring(modifiers.repetitions);
     }
-    if (!additional.empty()) {
-      status += L" - " + additional;
+    if (!additional_information.empty()) {
+      status += L" : " + additional_information;
     }
 
     editor_state->SetStatus(status);
-    Apply(editor_state, INTERNAL);
   }
 
-  enum ApplyMode {
-    INITIAL,  // The first call.
-    INTERNAL,  // Temporary calls.
-    FINAL,  // The final call.
-  };
-
-  void Apply(EditorState* editor_state, ApplyMode apply_mode) {
-    if (apply_mode != INITIAL) {
-      buffer_->Undo(editor_state, OpenBuffer::ONLY_UNDO_THE_LAST);
-    }
-
-    auto copy = delete_options_;
-    if (copy.modifiers.repetitions == 0) {
-      copy.modifiers.repetitions = 1;
-    }
-    copy.copy_to_paste_buffer = apply_mode == FINAL;
-    buffer_->PushTransformationStack();
-    buffer_->ApplyToCursors(NewDeleteTransformation(copy));
-    buffer_->PopTransformationStack();
-  }
-
-  const std::shared_ptr<OpenBuffer> buffer_;
-  DeleteOptions delete_options_;
-  bool already_applied_ = false;
+  const wstring name_;
+  const Callback callback_;
+  wstring modifiers_string_;
 };
 
+void ApplyDelete(EditorState* editor_state, OpenBuffer* buffer,
+                 ApplyMode apply_mode, Modifiers modifiers) {
+  CHECK(editor_state != nullptr);
+  CHECK(buffer != nullptr);
+  if (apply_mode != INITIAL) {
+    buffer->Undo(editor_state, OpenBuffer::ONLY_UNDO_THE_LAST);
+  }
+
+  if (apply_mode != CANCEL) {
+    DeleteOptions options;
+    options.modifiers = modifiers;
+    options.copy_to_paste_buffer = apply_mode == FINAL;
+
+    buffer->PushTransformationStack();
+    buffer->ApplyToCursors(NewDeleteTransformation(options));
+    buffer->PopTransformationStack();
+  }
+
+  if (apply_mode == CANCEL || apply_mode == FINAL) {
+    editor_state->ResetMode();
+    editor_state->ResetStatus();
+  }
+}
 
 class DeleteCommand : public Command {
   const wstring Description() {
@@ -161,8 +196,13 @@ class DeleteCommand : public Command {
     if (!editor_state->has_current_buffer()) {
       return;
     }
-    editor_state->set_mode(std::unique_ptr<DeleteMode>(
-        new DeleteMode(editor_state, editor_state->current_buffer()->second)));
+    std::shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
+    editor_state->set_mode(std::unique_ptr<CommandWithModifiers>(
+        new CommandWithModifiers(
+            L"delete", editor_state,
+            [editor_state, buffer](ApplyMode apply_mode, Modifiers modifiers) {
+              ApplyDelete(editor_state, buffer.get(), apply_mode, modifiers);
+            })));
   }
 
  private:
