@@ -72,11 +72,6 @@ class OpenBuffer {
 
   void MaybeFollowToEndOfFile();
 
-  // Returns the position immediately after end or before start (depending on
-  // the direction modifier).
-  LineColumn MovePosition(const Modifiers& modifiers, LineColumn start,
-                          LineColumn end);
-
   void ReadData(EditorState* editor_state);
   void ReadErrorData(EditorState* editor_state);
 

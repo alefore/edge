@@ -26,6 +26,7 @@ extern "C" {
 #include "run_command_handler.h"
 #include "lazy_string_append.h"
 #include "line_marks.h"
+#include "src/seek.h"
 #include "server.h"
 #include "substring.h"
 #include "transformation.h"
@@ -42,129 +43,6 @@ namespace {
 static const wchar_t* kOldCursors = L"old-cursors";
 
 using std::unordered_set;
-
-class Seek {
- public:
-  Seek(const OpenBuffer& buffer, LineColumn* position)
-      : buffer_(buffer), position_(position) {}
-
-  enum Result {
-    DONE,
-    UNABLE_TO_ADVANCE
-  };
-
-  Seek& WrappingLines() {
-    wrapping_lines_ = true;
-    return *this;
-  }
-
-  Seek& WithDirection(Direction direction) {
-    direction_ = direction;
-    return *this;
-  }
-
-  Seek& Backwards() { return WithDirection(BACKWARDS); }
-
-  Result Once() {
-    return Advance(position_) ? DONE : UNABLE_TO_ADVANCE;
-  }
-
-  Result UntilCurrentCharIn(const wstring& word_char) {
-    while (word_char.find(CurrentChar()) == word_char.npos) {
-      if (!Advance(position_)) {
-        return UNABLE_TO_ADVANCE;
-      }
-    }
-    return DONE;
-  }
-
-  Result UntilCurrentCharNotIn(const wstring& word_char) {
-    while (word_char.find(CurrentChar()) != word_char.npos) {
-      if (!Advance(position_)) {
-        return UNABLE_TO_ADVANCE;
-      }
-    }
-    return DONE;
-  }
-
-  Result UntilNextCharIn(const wstring& word_char) {
-    auto next_char = *position_;
-    if (!Advance(&next_char)) { return UNABLE_TO_ADVANCE; }
-    while (word_char.find(buffer_.character_at(next_char)) == word_char.npos) {
-      *position_ = next_char;
-      if (!Advance(&next_char)) {
-        return UNABLE_TO_ADVANCE;
-      }
-    }
-    return DONE;
-  }
-
-  Result UntilNextCharNotIn(const wstring& word_char) {
-    auto next_char = *position_;
-    if (!Advance(&next_char)) { return UNABLE_TO_ADVANCE; }
-    while (word_char.find(buffer_.character_at(next_char)) != word_char.npos) {
-      *position_ = next_char;
-      if (!Advance(&next_char)) {
-        return UNABLE_TO_ADVANCE;
-      }
-    }
-    return DONE;
-  }
-
- private:
-  wchar_t CurrentChar() {
-    return buffer_.character_at(*position_);
-  }
-
-  bool Consume() {
-    for (auto& p : predicates_) {
-      if (p() == STOP) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  bool Advance(LineColumn* position) {
-    switch (direction_) {
-      case FORWARDS:
-        if (buffer_.empty() || buffer_.at_end(*position)) {
-          return false;
-        } else if (!buffer_.at_end_of_line(*position)) {
-          position->column ++;
-        } else if (!wrapping_lines_) {
-          return false;
-        } else {
-          position->line++;
-          position->column = 0;
-        }
-        return true;
-
-      case BACKWARDS:
-        if (buffer_.empty() || *position == LineColumn()) {
-          return false;
-        } else if (position->column > 0) {
-          position->column--;
-        } else if (!wrapping_lines_) {
-          return false;
-        } else {
-          position->line = min(position->line - 1, buffer_.lines_size() - 1);
-          position->column = buffer_.LineAt(position->line)->size();
-        }
-        return true;
-    }
-    CHECK(false);
-    return false;
-  }
-
-  enum PredicateResult { ALLOW, STOP };
-  // All predicates must evaluate to true in order for the seek to continue.
-  std::vector<std::function<PredicateResult()>> predicates_;
-  bool wrapping_lines_ = false;
-  Direction direction_ = FORWARDS;
-  const OpenBuffer& buffer_;
-  LineColumn* const position_;
-};
 
 static void RegisterBufferFieldBool(EditorState* editor_state,
                                     afc::vm::ObjectType* object_type,
@@ -807,34 +685,6 @@ void OpenBuffer::MaybeFollowToEndOfFile() {
   } else {
     set_position(LineColumn(contents_.size()));
   }
-}
-
-LineColumn OpenBuffer::MovePosition(
-    const Modifiers& modifiers, LineColumn start, LineColumn end) {
-  LineColumn output;
-  switch (modifiers.direction) {
-    case FORWARDS:
-      output = end;
-      if (output.line >= contents()->size()) {
-        // Pass.
-      } else if (output.column < LineAt(output.line)->size()) {
-        output.column++;
-      } else {
-        output = LineColumn(output.line + 1);
-      }
-      break;
-    case BACKWARDS:
-      output = start;
-      if (output == LineColumn(0)) {
-        // Pass.
-      } else if (output.line >= contents()->size() || output.column == 0) {
-        size_t line = min(output.line, contents()->size()) - 1;
-        output = LineColumn(line, LineAt(line)->size());
-      } else {
-        output.column --;
-      }
-  }
-  return output;
 }
 
 void OpenBuffer::ReadData(EditorState* editor_state) {

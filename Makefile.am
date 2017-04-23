@@ -65,6 +65,8 @@ src/screen_vm.cc \
 src/screen_vm.h \
 src/search_command.cc \
 src/search_handler.cc \
+src/seek.cc \
+src/seek.h \
 src/send_end_of_file_command.cc \
 src/server.cc \
 src/set_variable_command.cc \
