@@ -107,7 +107,13 @@ class CommandWithModifiers : public EditorMode {
           break;
 
         case 'l':
-          modifiers.boundary_end = IncrementBoundary(modifiers.boundary_end);
+          if (modifiers.boundary_end == Modifiers::LIMIT_NEIGHBOR) {
+            modifiers.repetitions =
+                max(static_cast<size_t>(1), modifiers.repetitions) + 1;
+            modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
+          } else {
+            modifiers.boundary_end = IncrementBoundary(modifiers.boundary_end);
+          }
           break;
 
         case 'r':
