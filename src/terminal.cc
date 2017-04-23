@@ -359,102 +359,6 @@ class ModifiersMerger {
   Line::OutputReceiverInterface* const delegate_;
 };
 
-class CursorsHighlighter : public Line::OutputReceiverInterface {
- public:
-  struct Options {
-    Line::OutputReceiverInterface* delegate;
-
-    // A set with all the columns in the current line in which there are
-    // cursors that should be drawn. If the active cursor (i.e., the one exposed
-    // to the terminal) is in the line being outputted, its column should not be
-    // included (since we shouldn't do anything special when outputting its
-    // corresponding character: the terminal will take care of drawing the
-    // cursor).
-    set<size_t> columns;
-
-    bool multiple_cursors;
-  };
-
-  explicit CursorsHighlighter(Options options)
-      : options_(std::move(options)),
-        modifiers_merger_(options_.delegate),
-        next_cursor_(options_.columns.begin()) {
-    CheckInvariants();
-  }
-
-  void AddCharacter(wchar_t c) {
-    CheckInvariants();
-    bool at_cursor =
-        next_cursor_ != options_.columns.end() && *next_cursor_ == position_;
-    if (at_cursor) {
-      ++next_cursor_;
-      CHECK(next_cursor_ == options_.columns.end()
-            || *next_cursor_ > position_);
-      modifiers_merger_.AddParentModifier(Line::REVERSE);
-      modifiers_merger_.AddParentModifier(
-          options_.multiple_cursors ? Line::CYAN : Line::BLUE);
-    }
-
-    options_.delegate->AddCharacter(c);
-    position_++;
-
-    if (at_cursor) {
-      modifiers_merger_.AddParentModifier(Line::RESET);
-    }
-    CheckInvariants();
-  }
-
-  void AddString(const wstring& str) {
-    size_t str_pos = 0;
-    while (str_pos < str.size()) {
-      CheckInvariants();
-      DCHECK_GE(position_, str_pos);
-
-      // Compute the position of the next cursor relative to the start of this
-      // string.
-      size_t next_column = (next_cursor_ == options_.columns.end())
-          ? str.size() : *next_cursor_ + str_pos - position_;
-      if (next_column > str_pos) {
-        size_t len = next_column - str_pos;
-        options_.delegate->AddString(str.substr(str_pos, len));
-        str_pos += len;
-        position_ += len;
-      }
-
-      CheckInvariants();
-
-      if (str_pos < str.size()) {
-        CHECK(next_cursor_ != options_.columns.end());
-        CHECK_EQ(*next_cursor_, position_);
-        AddCharacter(str[str_pos]);
-        str_pos++;
-      }
-      CheckInvariants();
-    }
-  }
-
-  void AddModifier(Line::Modifier modifier) {
-    modifiers_merger_.AddChildrenModifier(modifier);
-  }
-
- private:
-  void CheckInvariants() {
-    if (next_cursor_ != options_.columns.end()) {
-      CHECK_GE(*next_cursor_, position_);
-    }
-  }
-
-  const Options options_;
-  ModifiersMerger modifiers_merger_;
-
-  // The last column that we've outputed.
-  size_t position_ = 0;
-
-  // Points to the first element in the set of columns (given by Options::first
-  // and Options::last) that is greater than or equal to position_.
-  set<size_t>::const_iterator next_cursor_;
-};
-
 class ReceiverTrackingPosition : public Line::OutputReceiverInterface {
  public:
   ReceiverTrackingPosition(Line::OutputReceiverInterface* delegate)
@@ -479,6 +383,100 @@ class ReceiverTrackingPosition : public Line::OutputReceiverInterface {
  private:
   Line::OutputReceiverInterface* const delegate_;
   size_t position_ = 0;
+};
+
+class CursorsHighlighter : public Line::OutputReceiverInterface {
+ public:
+  struct Options {
+    Line::OutputReceiverInterface* delegate;
+
+    // A set with all the columns in the current line in which there are
+    // cursors that should be drawn. If the active cursor (i.e., the one exposed
+    // to the terminal) is in the line being outputted, its column should not be
+    // included (since we shouldn't do anything special when outputting its
+    // corresponding character: the terminal will take care of drawing the
+    // cursor).
+    set<size_t> columns;
+
+    bool multiple_cursors;
+  };
+
+  explicit CursorsHighlighter(Options options)
+      : delegate_(options.delegate),
+        modifiers_merger_(&delegate_),
+        columns_(options.columns),
+        next_cursor_(columns_.begin()),
+        multiple_cursors_(options.multiple_cursors) {
+    CheckInvariants();
+  }
+
+  void AddCharacter(wchar_t c) {
+    CheckInvariants();
+    bool at_cursor =
+        next_cursor_ != columns_.end() && *next_cursor_ == delegate_.position();
+    if (at_cursor) {
+      ++next_cursor_;
+      CHECK(next_cursor_ == columns_.end()
+            || *next_cursor_ > delegate_.position());
+      modifiers_merger_.AddParentModifier(Line::REVERSE);
+      modifiers_merger_.AddParentModifier(
+          multiple_cursors_ ? Line::CYAN : Line::BLUE);
+    }
+
+    delegate_.AddCharacter(c);
+    if (at_cursor) {
+      modifiers_merger_.AddParentModifier(Line::RESET);
+    }
+    CheckInvariants();
+  }
+
+  void AddString(const wstring& str) {
+    size_t str_pos = 0;
+    while (str_pos < str.size()) {
+      CheckInvariants();
+      DCHECK_GE(delegate_.position(), str_pos);
+
+      // Compute the position of the next cursor relative to the start of this
+      // string.
+      size_t next_column = (next_cursor_ == columns_.end())
+          ? str.size() : *next_cursor_ + str_pos - delegate_.position();
+      if (next_column > str_pos) {
+        size_t len = next_column - str_pos;
+        delegate_.AddString(str.substr(str_pos, len));
+        str_pos += len;
+      }
+
+      CheckInvariants();
+
+      if (str_pos < str.size()) {
+        CHECK(next_cursor_ != columns_.end());
+        CHECK_EQ(*next_cursor_, delegate_.position());
+        AddCharacter(str[str_pos]);
+        str_pos++;
+      }
+      CheckInvariants();
+    }
+  }
+
+  void AddModifier(Line::Modifier modifier) {
+    modifiers_merger_.AddChildrenModifier(modifier);
+  }
+
+ private:
+  void CheckInvariants() {
+    if (next_cursor_ != columns_.end()) {
+      CHECK_GE(*next_cursor_, delegate_.position());
+    }
+  }
+
+  ReceiverTrackingPosition delegate_;
+  ModifiersMerger modifiers_merger_;
+
+  const set<size_t> columns_;
+  // Points to the first element in columns_ that is greater than or equal to
+  // the current position.
+  set<size_t>::const_iterator next_cursor_;
+  const bool multiple_cursors_;
 };
 
 class ParseTreeHighlighter : public Line::OutputReceiverInterface {
