@@ -38,6 +38,7 @@ class DeleteCharactersTransformation : public Transformation {
       VLOG(5) << "No repetitions.";
       return;
     }
+    const auto original_position = result->cursor;
     buffer->AdjustLineColumn(&result->cursor);
     if (options_.modifiers.direction == BACKWARDS) {
       for (size_t i = 0; i < options_.modifiers.repetitions; i++) {
@@ -96,6 +97,7 @@ class DeleteCharactersTransformation : public Transformation {
     if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS
         && !options_.preview) {
       LOG(INFO) << "Not actually deleting region.";
+      result->cursor = original_position;
       return;
     }
 
@@ -113,8 +115,8 @@ class DeleteCharactersTransformation : public Transformation {
     if (options_.preview) {
       LOG(INFO) << "Inserting preview at: " << result->cursor << " "
                 << delete_buffer->contents()->CountCharacters();
-      Line::ModifiersSet dim = {Line::UNDERLINE, Line::BLUE};
-      buffer->InsertInPosition(*delete_buffer, result->cursor, &dim);
+      Line::ModifiersSet modifiers = {Line::UNDERLINE, Line::BLUE};
+      buffer->InsertInPosition(*delete_buffer, result->cursor, &modifiers);
 
       DeleteOptions delete_options;
       delete_options.modifiers.repetitions =
@@ -123,6 +125,7 @@ class DeleteCharactersTransformation : public Transformation {
       result->undo_stack->PushFront(
           TransformationAtPosition(result->cursor,
               NewDeleteCharactersTransformation(delete_options)));
+      result->cursor = original_position;
     }
   }
 
@@ -232,6 +235,7 @@ class DeleteRegionTransformation : public Transformation {
         delete_options.modifiers.structure_range =
             Modifiers::FROM_CURRENT_POSITION_TO_END;
         delete_options.preview = options_.preview;
+        delete_options.copy_to_paste_buffer = options_.copy_to_paste_buffer;
         stack.PushBack(
             TransformationAtPosition(start,
                 NewDeleteLinesTransformation(delete_options)));
@@ -249,6 +253,7 @@ class DeleteRegionTransformation : public Transformation {
     CHECK_LE(start, end);
     CHECK_LE(start.column, end.column);
     DeleteOptions delete_options;
+    delete_options.copy_to_paste_buffer = options_.copy_to_paste_buffer;
     delete_options.modifiers.repetitions = end.column - start.column;
     delete_options.modifiers.delete_type = options_.modifiers.delete_type;
     delete_options.preview = options_.preview;
@@ -331,6 +336,7 @@ class DeleteLinesTransformation : public Transformation {
         }
       }
       DeleteOptions delete_options;
+      delete_options.copy_to_paste_buffer = options_.copy_to_paste_buffer;
       delete_options.modifiers.delete_type = options_.modifiers.delete_type;
       delete_options.modifiers.repetitions = end - start
           + (deletes_ends_of_lines && end == contents->size() ? 1 : 0);
@@ -359,41 +365,6 @@ class DeleteLinesTransformation : public Transformation {
   }
 
  private:
-  size_t FindStartOfLine(OpenBuffer* buffer, const Line* line) const {
-    if (options_.modifiers.strength == Modifiers::VERY_WEAK) {
-      return FindSoftStartOfLine(buffer, line);
-    }
-    return 0;
-  }
-  static size_t FindSoftStartOfLine(OpenBuffer* buffer, const Line* line) {
-    const wstring& word_chars =
-        buffer->read_string_variable(buffer->variable_word_characters());
-    size_t start = 0;
-    while (start < line->size()
-           && word_chars.find(line->get(start)) == wstring::npos) {
-      start++;
-    }
-    return start;
-  }
-
-  size_t FindLengthOfLine(OpenBuffer* buffer, const Line* line) const {
-    if (options_.modifiers.strength == Modifiers::VERY_WEAK) {
-      return FindSoftLengthOfLine(buffer, line);
-    }
-    return line->size();
-  }
-
-  static size_t FindSoftLengthOfLine(OpenBuffer* buffer, const Line* line) {
-    const wstring& word_chars =
-        buffer->read_string_variable(buffer->variable_word_characters());
-    size_t length = line->size();
-    while (length > 0
-           && word_chars.find(line->get(length - 1)) == wstring::npos) {
-      length--;
-    }
-    return length;
-  }
-
   const DeleteOptions options_;
 };
 

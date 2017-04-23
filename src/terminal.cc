@@ -307,6 +307,58 @@ class HighlightedLineOutputReceiver : public Line::OutputReceiverInterface {
   Line::OutputReceiverInterface* const delegate_;
 };
 
+// Class that merges modifiers produced at two different levels: a parent, and a
+// child. For any position where the parent has any modifiers active, those from
+// the child get ignored. A delegate OutputReceiverInterface is updated.
+class ModifiersMerger {
+ public:
+  ModifiersMerger(Line::OutputReceiverInterface* delegate)
+      : delegate_(delegate) {}
+
+  void AddParentModifier(Line::Modifier modifier) {
+    if (modifier == Line::RESET) {
+      if (!parent_modifiers_) {
+        return;
+      }
+      parent_modifiers_ = false;
+      delegate_->AddModifier(Line::RESET);
+      for (auto& m : children_modifiers_) {
+        CHECK(m != Line::RESET);
+        delegate_->AddModifier(m);
+      }
+      return;
+    }
+
+    if (!parent_modifiers_) {
+      if (!children_modifiers_.empty()) {
+        delegate_->AddModifier(Line::RESET);
+      }
+      parent_modifiers_ = true;
+    }
+    delegate_->AddModifier(modifier);
+  }
+
+  void AddChildrenModifier(Line::Modifier modifier) {
+    if (modifier == Line::RESET) {
+      children_modifiers_.clear();
+    } else {
+      children_modifiers_.insert(modifier);
+    }
+    if (!parent_modifiers_) {
+      delegate_->AddModifier(modifier);
+    }
+  }
+
+  bool has_parent_modifiers() {
+    return parent_modifiers_;
+  }
+
+ private:
+  bool parent_modifiers_ = false;
+  Line::ModifiersSet children_modifiers_;
+  Line::OutputReceiverInterface* const delegate_;
+};
+
 class CursorsHighlighter : public Line::OutputReceiverInterface {
  public:
   struct Options {
@@ -325,6 +377,7 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
 
   explicit CursorsHighlighter(Options options)
       : options_(std::move(options)),
+        modifiers_merger_(options_.delegate),
         next_cursor_(options_.columns.begin()) {
     CheckInvariants();
   }
@@ -337,15 +390,16 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
       ++next_cursor_;
       CHECK(next_cursor_ == options_.columns.end()
             || *next_cursor_ > position_);
-      AddModifier(Line::REVERSE);
-      AddModifier(options_.multiple_cursors ? Line::CYAN : Line::BLUE);
+      modifiers_merger_.AddParentModifier(Line::REVERSE);
+      modifiers_merger_.AddParentModifier(
+          options_.multiple_cursors ? Line::CYAN : Line::BLUE);
     }
 
     options_.delegate->AddCharacter(c);
     position_++;
 
     if (at_cursor) {
-      AddModifier(Line::RESET);
+      modifiers_merger_.AddParentModifier(Line::RESET);
     }
     CheckInvariants();
   }
@@ -380,7 +434,7 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
   }
 
   void AddModifier(Line::Modifier modifier) {
-    options_.delegate->AddModifier(modifier);
+    modifiers_merger_.AddChildrenModifier(modifier);
   }
 
  private:
@@ -391,6 +445,7 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
   }
 
   const Options options_;
+  ModifiersMerger modifiers_merger_;
 
   // The last column that we've outputed.
   size_t position_ = 0;
@@ -471,7 +526,11 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
   explicit ParseTreeHighlighterTokens(
       Line::OutputReceiverInterface* delegate, const ParseTree* root,
       size_t line)
-      : delegate_(delegate), root_(root), line_(line), current_({root}) {
+      : delegate_(delegate),
+        modifiers_merger_(&delegate_),
+        root_(root),
+        line_(line),
+        current_({root}) {
     UpdateCurrent(LineColumn(line_, delegate_.position()));
   }
 
@@ -480,23 +539,17 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
     if (!current_.empty() && current_.back()->range.end <= position) {
       UpdateCurrent(position);
     }
-    
-    delegate_.AddModifier(Line::RESET);
-    if (!current_.empty() && parent_modifiers_.empty()) {
+
+    modifiers_merger_.AddChildrenModifier(Line::RESET);
+    if (!current_.empty() && !modifiers_merger_.has_parent_modifiers()) {
       for (auto& t : current_) {
         if (t->range.Contains(position)) {
           for (auto& modifier : t->modifiers) {
-            if (parent_modifiers_.find(modifier) == parent_modifiers_.end()) {
-              delegate_.AddModifier(modifier);
-            }
+            modifiers_merger_.AddChildrenModifier(modifier);
           }
         }
       }
     }
-    for (auto& modifier : parent_modifiers_) {
-      delegate_.AddModifier(modifier);
-    }
-
     delegate_.AddCharacter(c);
   }
 
@@ -510,12 +563,7 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
   }
 
   void AddModifier(Line::Modifier modifier) override {
-    if (modifier == Line::RESET) {
-      parent_modifiers_.clear();
-    } else {
-      parent_modifiers_.insert(modifier);
-    }
-    delegate_.AddModifier(modifier);
+    modifiers_merger_.AddParentModifier(modifier);
   }
 
  private:
@@ -546,10 +594,10 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
     }
   }
 
+  ReceiverTrackingPosition delegate_;
   // Keeps track of the modifiers coming from the parent, so as to not lose that
   // information when we reset our own.
-  Line::ModifiersSet parent_modifiers_;
-  ReceiverTrackingPosition delegate_;
+  ModifiersMerger modifiers_merger_;
   const ParseTree* root_;
   const size_t line_;
   std::vector<const ParseTree*> current_;
