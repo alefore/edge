@@ -16,6 +16,8 @@ struct DeleteOptions {
   bool preview = false;
 };
 
+std::ostream& operator<<(std::ostream& os, const DeleteOptions& options);
+
 unique_ptr<Transformation> NewDeleteCharactersTransformation(
     DeleteOptions options);
 unique_ptr<Transformation> NewDeleteRegionTransformation(DeleteOptions options);
