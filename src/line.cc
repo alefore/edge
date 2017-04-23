@@ -87,6 +87,12 @@ void Line::SetCharacter(size_t position, int c,
   CHECK_EQ(contents_->size(), modifiers_.size());
 }
 
+void Line::SetAllModifiers(const ModifiersSet& modifiers) {
+  CHECK_EQ(contents_->size(), modifiers_.size());
+  modifiers_.assign(contents_->size(), modifiers);
+  CHECK_EQ(contents_->size(), modifiers_.size());
+}
+
 void Line::Append(const Line& line) {
   CHECK_EQ(contents_->size(), modifiers_.size());
   CHECK_EQ(line.contents_->size(), line.modifiers_.size());

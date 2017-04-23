@@ -50,7 +50,7 @@ class InsertBufferTransformation : public Transformation {
     LineColumn start_position = result->cursor;
     for (size_t i = 0; i < repetitions_; i++) {
       result->cursor =
-          buffer->InsertInPosition(*buffer_to_insert_, result->cursor);
+          buffer->InsertInPosition(*buffer_to_insert_, result->cursor, nullptr);
     }
     editor_state->ScheduleRedraw();
 

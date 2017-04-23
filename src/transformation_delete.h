@@ -11,6 +11,9 @@ using std::unique_ptr;
 struct DeleteOptions {
   Modifiers modifiers;
   bool copy_to_paste_buffer = true;
+
+  // If true, instead of deleting the region affected, just dim it.
+  bool preview = false;
 };
 
 unique_ptr<Transformation> NewDeleteCharactersTransformation(

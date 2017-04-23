@@ -239,6 +239,7 @@ void ApplyDelete(EditorState* editor_state, OpenBuffer* buffer,
     DeleteOptions options;
     options.modifiers = modifiers;
     options.copy_to_paste_buffer = apply_mode == FINAL;
+    options.preview = apply_mode != FINAL;
 
     buffer->PushTransformationStack();
     buffer->ApplyToCursors(NewDeleteTransformation(options));

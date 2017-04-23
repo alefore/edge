@@ -1325,7 +1325,8 @@ void OpenBuffer::DeleteRange(const Range& range) {
 }
 
 LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
-                                        const LineColumn& input_position) {
+                                        const LineColumn& input_position,
+                                        const Line::ModifiersSet* modifiers) {
   auto blocker = cursors_tracker_.DelayTransformations();
   if (buffer.empty()) { return input_position; }
   LineColumn position = input_position;
@@ -1340,8 +1341,7 @@ LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
     position.column = contents_.at(position.line)->size();
   }
   contents_.SplitLine(position);
-  contents_.insert(position.line + 1, buffer.contents_, 0,
-                   buffer.contents_.size());
+  contents_.insert(position.line + 1, buffer.contents_, modifiers);
   contents_.FoldNextLine(position.line);
 
   size_t last_line = position.line + buffer.contents_.size() - 1;

@@ -47,6 +47,8 @@ class Line {
     BG_RED,
   };
 
+  using ModifiersSet = unordered_set<Modifier, hash<int>>;
+
   static string ModifierToString(Modifier modifier) {
     switch (modifier) {
       case RESET: return "RESET";
@@ -91,7 +93,7 @@ class Line {
           modifiers(contents->size()) {}
 
     shared_ptr<LazyString> contents;
-    vector<unordered_set<Modifier, hash<int>>> modifiers;
+    vector<ModifiersSet> modifiers;
     std::shared_ptr<vm::Environment> environment = nullptr;
   };
 
@@ -123,13 +125,13 @@ class Line {
   // Delete characters from position until the end.
   void DeleteCharacters(size_t position);
   void InsertCharacterAtPosition(size_t position);
-  void SetCharacter(size_t position, int c,
-                    const std::unordered_set<Modifier, hash<int>>& modifiers);
+  void SetCharacter(size_t position, int c, const ModifiersSet& modifiers);
 
-  const vector<unordered_set<Modifier, hash<int>>> modifiers() const {
+  void SetAllModifiers(const ModifiersSet& modifiers);
+  const vector<Line::ModifiersSet> modifiers() const {
     return modifiers_;
   }
-  vector<unordered_set<Modifier, hash<int>>>& modifiers() {
+  vector<Line::ModifiersSet>& modifiers() {
     return modifiers_;
   }
 
@@ -169,7 +171,7 @@ class Line {
  private:
   std::shared_ptr<vm::Environment> environment_;
   shared_ptr<LazyString> contents_;
-  vector<unordered_set<Modifier, hash<int>>> modifiers_;
+  vector<ModifiersSet> modifiers_;
   bool modified_;
   bool filtered_;
   size_t filter_version_;
@@ -196,8 +198,8 @@ class OutputReceiverOptimizer : public Line::OutputReceiverInterface {
 
   Line::OutputReceiverInterface* const delegate_;
 
-  unordered_set<Line::Modifier, hash<int>> modifiers_;
-  unordered_set<Line::Modifier, hash<int>> last_modifiers_;
+  Line::ModifiersSet modifiers_;
+  Line::ModifiersSet last_modifiers_;
   wstring buffer_;
 };
 

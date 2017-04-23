@@ -86,7 +86,7 @@ class BufferContents {
   }
 
   void insert(size_t position_line, const BufferContents& source,
-              size_t source_first_line, size_t source_last_line);
+              const Line::ModifiersSet* modifiers);
 
   // Delete characters from the given line in range [column, column + amount).
   void DeleteCharactersFromLine(size_t line, size_t column, size_t amount);

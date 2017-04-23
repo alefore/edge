@@ -36,21 +36,24 @@ wstring BufferContents::ToString() const {
   return output;
 }
 
-void BufferContents::insert(size_t position, const BufferContents& source,
-                            size_t first_line, size_t last_line) {
-  CHECK_LT(position, size());
-  CHECK_LT(first_line, source.size());
-  CHECK_LE(first_line, last_line);
-  CHECK_LE(last_line, source.size());
-  if (first_line == last_line) {
-    return;
+void BufferContents::insert(size_t position_line, const BufferContents& source,
+                            const Line::ModifiersSet* modifiers) {
+  if (source.empty()) { return; }
+  CHECK_LT(position_line, size());
+  // No need to increment it since it'll move automatically.
+  auto insert_position = lines_.begin() + position_line;
+  for (auto line : source.lines_) {
+    if (modifiers != nullptr) {
+      auto replacement = std::make_shared<Line>(*line);
+      replacement->SetAllModifiers(*modifiers);
+      line = replacement;
+    }
+    lines_.insert(insert_position, line);
   }
-  lines_.insert(lines_.begin() + position, source.lines_.begin() + first_line,
-                source.lines_.begin() + last_line);
   NotifyUpdateListeners(
       CursorsTracker::Transformation()
-          .WithBegin(LineColumn(position))
-          .AddToLine(last_line - first_line));
+          .WithBegin(LineColumn(position_line))
+          .AddToLine(source.size()));
 }
 
 bool BufferContents::ForEach(
