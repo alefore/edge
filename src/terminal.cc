@@ -481,15 +481,20 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
       UpdateCurrent(position);
     }
     
-    AddModifier(Line::RESET);
-    if (!current_.empty()) {
+    delegate_.AddModifier(Line::RESET);
+    if (!current_.empty() && parent_modifiers_.empty()) {
       for (auto& t : current_) {
         if (t->range.Contains(position)) {
           for (auto& modifier : t->modifiers) {
-            AddModifier(modifier);
+            if (parent_modifiers_.find(modifier) == parent_modifiers_.end()) {
+              delegate_.AddModifier(modifier);
+            }
           }
         }
       }
+    }
+    for (auto& modifier : parent_modifiers_) {
+      delegate_.AddModifier(modifier);
     }
 
     delegate_.AddCharacter(c);
@@ -505,6 +510,11 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
   }
 
   void AddModifier(Line::Modifier modifier) override {
+    if (modifier == Line::RESET) {
+      parent_modifiers_.clear();
+    } else {
+      parent_modifiers_.insert(modifier);
+    }
     delegate_.AddModifier(modifier);
   }
 
@@ -536,6 +546,9 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
     }
   }
 
+  // Keeps track of the modifiers coming from the parent, so as to not lose that
+  // information when we reset our own.
+  Line::ModifiersSet parent_modifiers_;
   ReceiverTrackingPosition delegate_;
   const ParseTree* root_;
   const size_t line_;
