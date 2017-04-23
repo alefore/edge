@@ -69,7 +69,7 @@ enum InsertBufferTransformationPosition {
 };
 
 unique_ptr<Transformation> NewInsertBufferTransformation(
-    shared_ptr<OpenBuffer> buffer_to_insert, size_t repetitions,
+    shared_ptr<const OpenBuffer> buffer_to_insert, size_t repetitions,
     InsertBufferTransformationPosition insert_buffer_transformation_position);
 
 unique_ptr<Transformation> NewGotoPositionTransformation(

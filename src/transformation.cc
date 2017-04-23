@@ -35,7 +35,7 @@ class GotoPositionTransformation : public Transformation {
 class InsertBufferTransformation : public Transformation {
  public:
   InsertBufferTransformation(
-      shared_ptr<OpenBuffer> buffer_to_insert, size_t repetitions,
+      shared_ptr<const OpenBuffer> buffer_to_insert, size_t repetitions,
       InsertBufferTransformationPosition final_position)
       : buffer_to_insert_(buffer_to_insert),
         buffer_to_insert_length_(
@@ -85,7 +85,7 @@ class InsertBufferTransformation : public Transformation {
   }
 
  private:
-  shared_ptr<OpenBuffer> buffer_to_insert_;
+  shared_ptr<const OpenBuffer> buffer_to_insert_;
   size_t buffer_to_insert_length_;
   LineColumn position_;
   size_t repetitions_;
@@ -264,7 +264,7 @@ Transformation::Result::Result(EditorState* editor_state)
        delete_buffer(new OpenBuffer(editor_state, OpenBuffer::kPasteBuffer)) {}
 
 unique_ptr<Transformation> NewInsertBufferTransformation(
-    shared_ptr<OpenBuffer> buffer_to_insert, size_t repetitions,
+    shared_ptr<const OpenBuffer> buffer_to_insert, size_t repetitions,
     InsertBufferTransformationPosition final_position) {
   return unique_ptr<Transformation>(new InsertBufferTransformation(
       buffer_to_insert, repetitions, final_position));
