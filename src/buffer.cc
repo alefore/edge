@@ -697,11 +697,7 @@ void OpenBuffer::ReadErrorData(EditorState* editor_state) {
 
 vector<unordered_set<Line::Modifier, hash<int>>> ModifiersVector(
     const unordered_set<Line::Modifier, hash<int>>& input, size_t size) {
-  vector<unordered_set<Line::Modifier, hash<int>>> output;
-  for (size_t i = 0; i < size; i++) {
-    output.push_back(input);
-  }
-  return output;
+  return vector<unordered_set<Line::Modifier, hash<int>>>(size, input);
 }
 
 void OpenBuffer::Input::ReadData(
