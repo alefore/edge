@@ -46,21 +46,34 @@ void TestBufferInsertModifiers() {
   line->SetAllModifiers(Line::ModifiersSet({Line::DIM}));
   contents.push_back(line);
 
-  CHECK_EQ(contents.size(), 4);
+  for (int i = 0; i < 2; i++) {
+    LOG(INFO) << "Start iteration: " << i;
+    CHECK_EQ(contents.size(), 4);
 
-  CHECK(contents.at(0)->modifiers()[0] == Line::ModifiersSet({Line::CYAN}));
-  CHECK(contents.at(0)->modifiers()[1] == Line::ModifiersSet({Line::CYAN}));
-  CHECK(contents.at(0)->modifiers()[2] == Line::ModifiersSet({Line::CYAN}));
+    CHECK(contents.at(0)->modifiers()[0] == Line::ModifiersSet({Line::CYAN}));
+    CHECK(contents.at(0)->modifiers()[1] == Line::ModifiersSet({Line::CYAN}));
+    CHECK(contents.at(0)->modifiers()[2] == Line::ModifiersSet({Line::CYAN}));
 
-  CHECK(contents.at(1)->modifiers()[0] == Line::ModifiersSet({Line::CYAN}));
-  CHECK(contents.at(1)->modifiers()[2] == Line::ModifiersSet({Line::CYAN}));
+    CHECK(contents.at(1)->modifiers()[0] == Line::ModifiersSet({Line::CYAN}));
+    CHECK(contents.at(1)->modifiers()[2] == Line::ModifiersSet({Line::CYAN}));
 
-  CHECK(contents.at(2)->modifiers()[0] == Line::ModifiersSet({Line::CYAN}));
-  CHECK(contents.at(2)->modifiers()[2] ==
-            Line::ModifiersSet({Line::CYAN, Line::BOLD}));
+    CHECK(contents.at(2)->modifiers()[0] == Line::ModifiersSet({Line::CYAN}));
+    CHECK(contents.at(2)->modifiers()[2] ==
+              Line::ModifiersSet({Line::CYAN, Line::BOLD}));
 
-  CHECK(contents.at(3)->modifiers()[0] == Line::ModifiersSet({Line::DIM}));
-  CHECK(contents.at(3)->modifiers()[2] == Line::ModifiersSet({Line::DIM}));
+    CHECK(contents.at(3)->modifiers()[0] == Line::ModifiersSet({Line::DIM}));
+    CHECK(contents.at(3)->modifiers()[2] == Line::ModifiersSet({Line::DIM}));
+
+    contents.SplitLine(LineColumn(0, 2));
+    CHECK_EQ(contents.size(), 5);
+    contents.FoldNextLine(0);
+    CHECK_EQ(contents.size(), 4);
+
+    contents.SplitLine(LineColumn(3, 2));
+    CHECK_EQ(contents.size(), 5);
+    contents.FoldNextLine(3);
+    CHECK_EQ(contents.size(), 4);
+  }
 }
 }  // namespace
 
