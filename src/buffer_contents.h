@@ -101,7 +101,7 @@ class BufferContents {
 
   void EraseLines(size_t first, size_t last);
 
-  void SplitLine(size_t line, size_t column);
+  void SplitLine(LineColumn position);
 
   // Appends the next line to the current line and removes the next line.
   // Essentially, removes the \n at the end of the current line.

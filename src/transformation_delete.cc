@@ -95,16 +95,8 @@ class DeleteCharactersTransformation : public Transformation {
     }
 
     LOG(INFO) << "Storing new line (at position " << line_end << ").";
-    if (current_line == line_end) {
-      buffer->DeleteCharactersFromLine(
-          current_line, result->cursor.column,
-          chars_erase_line - result->cursor.column);
-    } else {
-      buffer->DeleteUntilEnd(current_line, result->cursor.column);
-      buffer->DeleteCharactersFromLine(line_end, 0, chars_erase_line);
-      buffer->EraseLines(current_line + 1, line_end);  // Lines in the middle.
-      buffer->FoldNextLine(current_line);
-    }
+    buffer->DeleteRange(Range(LineColumn(current_line, result->cursor.column),
+                              LineColumn(line_end, chars_erase_line)));
 
     result->modified_buffer = true;
 

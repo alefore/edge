@@ -941,14 +941,6 @@ void OpenBuffer::EraseLines(size_t first, size_t last) {
   CHECK_LE(position().line, lines_size());
 }
 
-void OpenBuffer::SplitLine(LineColumn split_position) {
-  contents_.SplitLine(split_position.line, split_position.column);
-}
-
-void OpenBuffer::FoldNextLine(size_t line_position) {
-  contents_.FoldNextLine(line_position);
-}
-
 void OpenBuffer::InsertLine(size_t line_position, shared_ptr<Line> line) {
   contents_.insert_line(line_position, line);
 }
@@ -1232,7 +1224,8 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
       case 'K':
         {
           // el: clear to end of line.
-          DeleteUntilEnd(position_pts_.line, position_pts_.column);
+          contents_.DeleteCharactersFromLine(
+              position_pts_.line, position_pts_.column);
           return read_index;
         }
 
@@ -1318,6 +1311,19 @@ unique_ptr<Value> OpenBuffer::EvaluateFile(EditorState* editor_state,
   return Evaluate(expression.get(), &environment_);
 }
 
+void OpenBuffer::DeleteRange(const Range& range) {
+  if (range.begin.line == range.end.line) {
+    contents_.DeleteCharactersFromLine(range.begin.line, range.begin.column,
+                                       range.end.column - range.begin.column);
+  } else {
+    contents_.DeleteCharactersFromLine(range.begin.line, range.begin.column);
+    contents_.DeleteCharactersFromLine(range.end.line, 0, range.end.column);
+    // Lines in the middle.
+    EraseLines(range.begin.line + 1, range.end.line);
+    contents_.FoldNextLine(range.begin.line);
+  }
+}
+
 LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
                                         const LineColumn& input_position) {
   auto blocker = cursors_tracker_.DelayTransformations();
@@ -1333,15 +1339,15 @@ LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
   if (position.column > contents_.at(position.line)->size()) {
     position.column = contents_.at(position.line)->size();
   }
-  SplitLine(position);
+  contents_.SplitLine(position);
   contents_.insert(position.line + 1, buffer.contents_, 0,
                    buffer.contents_.size());
-  FoldNextLine(position.line);
+  contents_.FoldNextLine(position.line);
 
   size_t last_line = position.line + buffer.contents_.size() - 1;
   size_t column = LineAt(last_line)->size();
 
-  FoldNextLine(last_line);
+  contents_.FoldNextLine(last_line);
   return LineColumn(last_line, column);
 }
 
@@ -1798,15 +1804,6 @@ std::shared_ptr<OpenBuffer> OpenBuffer::GetBufferFromCurrentLine() {
 
 wstring OpenBuffer::ToString() const {
   return contents_.ToString();
-}
-
-void OpenBuffer::DeleteCharactersFromLine(
-    size_t line, size_t column, size_t amount) {
-  contents_.DeleteCharactersFromLine(line, column, amount);
-}
-
-void OpenBuffer::DeleteUntilEnd(size_t line, size_t column) {
-  contents_.DeleteCharactersFromLine(line, column);
 }
 
 void OpenBuffer::PushSignal(EditorState* editor_state, int sig) {

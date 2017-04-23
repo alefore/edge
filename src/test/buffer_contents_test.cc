@@ -25,7 +25,7 @@ void TestBufferContentsSnapshot() {
   CHECK_EQ("alejandro\nforero\ncuervo",
            ToByteString(copy->ToString()));
 
-  contents.SplitLine(1, 3);
+  contents.SplitLine(LineColumn(1, 3));
   CHECK_EQ("alejandro\nfor\nero\ncuervo",
            ToByteString(contents.ToString()));
   CHECK_EQ("alejandro\nforero\ncuervo",

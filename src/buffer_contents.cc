@@ -160,18 +160,18 @@ void BufferContents::EraseLines(size_t first, size_t last) {
           .OutputLineGe(first));
 }
 
-void BufferContents::SplitLine(size_t line, size_t column) {
-  auto tail = std::make_shared<Line>(*at(line));
-  tail->DeleteCharacters(0, column);
+void BufferContents::SplitLine(LineColumn position) {
+  auto tail = std::make_shared<Line>(*at(position.line));
+  tail->DeleteCharacters(0, position.column);
   // TODO: Can maybe combine this with next for fewer updates.
-  insert_line(line + 1, tail);
+  insert_line(position.line + 1, tail);
   NotifyUpdateListeners(
       CursorsTracker::Transformation()
-          .WithBegin(LineColumn(line, column))
-          .WithEnd(LineColumn(line + 1, 0))
+          .WithBegin(position)
+          .WithEnd(LineColumn(position.line + 1, 0))
           .AddToLine(1)
-          .AddToColumn(-column));
-  DeleteCharactersFromLine(line, column);
+          .AddToColumn(-position.column));
+  DeleteCharactersFromLine(position.line, position.column);
 }
 
 void BufferContents::FoldNextLine(size_t position) {

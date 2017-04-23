@@ -93,11 +93,6 @@ class OpenBuffer {
   // Erases all lines in range [first, last).
   void EraseLines(size_t first, size_t last);
 
-  // Splits the line given by the position at the column given by the position
-  // into two lines.
-  void SplitLine(LineColumn split_position);
-  void FoldNextLine(size_t line_position);
-
   // Inserts a new line into the buffer at a given position.
   void InsertLine(size_t line_position, shared_ptr<Line> line);
 
@@ -127,6 +122,8 @@ class OpenBuffer {
                                  const wstring& path);
 
   const wstring& name() const { return name_; }
+
+  void DeleteRange(const Range& range);
 
   LineColumn InsertInPosition(const OpenBuffer& insertion,
                               const LineColumn& position);
@@ -264,8 +261,6 @@ class OpenBuffer {
   // modifications should be done through methods defined in this class.
   const BufferContents* contents() const { return &contents_; }
   // Delete characters in [column, column + amount).
-  void DeleteCharactersFromLine(size_t line, size_t column, size_t amount);
-  void DeleteUntilEnd(size_t line, size_t column);
 
   size_t view_start_line() const { return view_start_line_; }
   void set_view_start_line(size_t value) {
