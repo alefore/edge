@@ -150,45 +150,8 @@ class MoveTransformation : public Transformation {
       return position;
     }
 
-    LOG(INFO) << "Found range for " << position << ": [" << start << ", " << end
-              << ")";
-
-    switch (modifiers_.direction) {
-      case FORWARDS:
-        {
-          Modifiers modifiers_copy = modifiers_;
-          modifiers_copy.repetitions = 1;
-          if (start > position) {
-            end = buffer->PositionBefore(end);
-          }
-          if (!buffer->FindPartialRange(modifiers_copy, end, &start, &end)) {
-            LOG(INFO) << "Unable to find partial range (next): " << end;
-            return end;
-          }
-          LOG(INFO) << "Found range (next): [" << start << ", " << end << ")";
-        }
-        position = start;
-        break;
-
-      case BACKWARDS:
-        {
-          Modifiers modifiers_copy = modifiers_;
-          modifiers_copy.repetitions = 1;
-          modifiers_copy.direction = FORWARDS;
-          if (end > position) {
-            //start = buffer->PositionBefore(start);
-          }
-          if (!buffer->FindPartialRange(modifiers_copy, start, &start, &end)) {
-            LOG(INFO) << "Unable to find partial range (next): " << end;
-            return end;
-          }
-          LOG(INFO) << "Found range (prev): [" << start << ", " << end << ")";
-        }
-        position = buffer->PositionBefore(end);
-        break;
-    }
-
-    return position;
+    CHECK_LE(start, end);
+    return modifiers_.direction == FORWARDS ? end : start;
   }
 
   LineColumn MoveMark(EditorState* editor_state, OpenBuffer* buffer,

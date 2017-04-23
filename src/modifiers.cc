@@ -75,5 +75,17 @@ ostream& operator<<(ostream& os, const Modifiers& m) {
   return os;
 }
 
+Modifiers::Boundary IncrementBoundary(Modifiers::Boundary boundary) {
+  switch (boundary) {
+    case Modifiers::CURRENT_POSITION:
+      return Modifiers::LIMIT_CURRENT;
+    case Modifiers::LIMIT_CURRENT:
+      return Modifiers::LIMIT_NEIGHBOR;
+    case Modifiers::LIMIT_NEIGHBOR:
+      return Modifiers::CURRENT_POSITION;
+  }
+  CHECK(false);
+}
+
 }  // namespace editor
 }  // namespace afc

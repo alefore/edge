@@ -431,13 +431,9 @@ class DeleteTransformation : public Transformation {
       case WORD:
       case CURSOR:
       case TREE:
-        delegate = NewDeleteRegionTransformation(options_);
-        break;
       case LINE:
-        delegate = NewDeleteLinesTransformation(options_);
-        break;
       case BUFFER:
-        delegate = NewDeleteBufferTransformation(options_);
+        delegate = NewDeleteRegionTransformation(options_);
         break;
       case MARK:
       case PAGE:

@@ -103,9 +103,25 @@ struct Modifiers {
   };
   DeleteType delete_type = DELETE_CONTENTS;
 
+  enum Boundary {
+    // At the current cursor position.
+    CURRENT_POSITION,
+
+    // Strictly at the start/end of the current region.
+    LIMIT_CURRENT,
+
+    // At the start/end of the next region.
+    LIMIT_NEIGHBOR,
+  };
+
+  Boundary boundary_begin = CURRENT_POSITION;
+  Boundary boundary_end = LIMIT_CURRENT;
+
   // The currently active cursors.
   std::wstring active_cursors;
 };
+
+Modifiers::Boundary IncrementBoundary(Modifiers::Boundary boundary);
 
 ostream& operator<<(ostream& os, const Modifiers& m);
 

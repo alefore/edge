@@ -91,7 +91,26 @@ class CommandWithModifiers : public EditorMode {
           modifiers.repetitions = 10 * modifiers.repetitions + c - '0';
           break;
 
-        case 'R':
+        case 'k':
+          modifiers.boundary_begin = Modifiers::CURRENT_POSITION;
+          modifiers.boundary_end = Modifiers::CURRENT_POSITION;
+          break;
+
+        case 'j':
+          modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
+          modifiers.boundary_end = Modifiers::LIMIT_NEIGHBOR;
+          break;
+
+        case 'h':
+          modifiers.boundary_begin =
+              IncrementBoundary(modifiers.boundary_begin);
+          break;
+
+        case 'l':
+          modifiers.boundary_end = IncrementBoundary(modifiers.boundary_end);
+          break;
+
+        case 'r':
           modifiers.direction = ReverseDirection(modifiers.direction);
           break;
 
@@ -111,7 +130,7 @@ class CommandWithModifiers : public EditorMode {
                   : Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
           break;
 
-        case 'l':
+        case 'e':
           SetStructure(LINE, &modifiers);
           break;
 
@@ -174,10 +193,32 @@ class CommandWithModifiers : public EditorMode {
     if (modifiers.delete_type == Modifiers::PRESERVE_CONTENTS) {
       status += L" preserve";
     }
+
+    status += L" ";
+    switch (modifiers.boundary_begin) {
+      case Modifiers::LIMIT_NEIGHBOR:
+        status += L"<";
+        break;
+      case Modifiers::LIMIT_CURRENT:
+        status += L"(";
+        break;
+      case Modifiers::CURRENT_POSITION:
+        status += L"[";
+    }
+    switch (modifiers.boundary_end) {
+      case Modifiers::LIMIT_NEIGHBOR:
+        status += L">";
+        break;
+      case Modifiers::LIMIT_CURRENT:
+        status += L")";
+        break;
+      case Modifiers::CURRENT_POSITION:
+        status += L"]";
+    }
+
     if (!additional_information.empty()) {
       status += L" [" + additional_information + L"]";
     }
-
     editor_state->SetStatus(status);
   }
 

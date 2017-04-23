@@ -191,19 +191,23 @@ class OpenBuffer {
                                  const LineColumn& position,
                                  Direction direction) const;
 
-  bool FindRangeFirst(
-    const Modifiers& modifiers, const LineColumn& position,
-    LineColumn* output) const;
-  bool FindRangeLast(
-    const Modifiers& modifiers, const LineColumn& position,
-    LineColumn* output) const;
-
-  // Sets the positions pointed to by start and end to the beginning and end of
   // the structure at the position given.
   //
   // You probably want to call FindPartialRange instead.
   bool FindRange(const Modifiers& modifiers, const LineColumn& position,
                  LineColumn* first, LineColumn* last);
+
+  // Moves position in the specified direction until we're inside the structure
+  // of the type specified that starts after position. No-op if we're already
+  // inside the structure.
+  void SeekToStructure(
+      Structure structure, Direction direction, LineColumn* position);
+  // Moves position in the specified direction until we're just outside of the
+  // current structure of the type specified. No-op if we're already outside the
+  // structure. Returns a boolean indicating whether it successfully found a
+  // position outside of the structure.
+  bool SeekToLimit(
+      Structure structure, Direction direction, LineColumn* position);
 
   // Same as FindRange, but honors Modifiers::structure_range.
   bool FindPartialRange(

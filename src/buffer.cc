@@ -43,6 +43,129 @@ static const wchar_t* kOldCursors = L"old-cursors";
 
 using std::unordered_set;
 
+class Seek {
+ public:
+  Seek(const OpenBuffer& buffer, LineColumn* position)
+      : buffer_(buffer), position_(position) {}
+
+  enum Result {
+    DONE,
+    UNABLE_TO_ADVANCE
+  };
+
+  Seek& WrappingLines() {
+    wrapping_lines_ = true;
+    return *this;
+  }
+
+  Seek& WithDirection(Direction direction) {
+    direction_ = direction;
+    return *this;
+  }
+
+  Seek& Backwards() { return WithDirection(BACKWARDS); }
+
+  Result Once() {
+    return Advance(position_) ? DONE : UNABLE_TO_ADVANCE;
+  }
+
+  Result UntilCurrentCharIn(const wstring& word_char) {
+    while (word_char.find(CurrentChar()) == word_char.npos) {
+      if (!Advance(position_)) {
+        return UNABLE_TO_ADVANCE;
+      }
+    }
+    return DONE;
+  }
+
+  Result UntilCurrentCharNotIn(const wstring& word_char) {
+    while (word_char.find(CurrentChar()) != word_char.npos) {
+      if (!Advance(position_)) {
+        return UNABLE_TO_ADVANCE;
+      }
+    }
+    return DONE;
+  }
+
+  Result UntilNextCharIn(const wstring& word_char) {
+    auto next_char = *position_;
+    if (!Advance(&next_char)) { return UNABLE_TO_ADVANCE; }
+    while (word_char.find(buffer_.character_at(next_char)) == word_char.npos) {
+      *position_ = next_char;
+      if (!Advance(&next_char)) {
+        return UNABLE_TO_ADVANCE;
+      }
+    }
+    return DONE;
+  }
+
+  Result UntilNextCharNotIn(const wstring& word_char) {
+    auto next_char = *position_;
+    if (!Advance(&next_char)) { return UNABLE_TO_ADVANCE; }
+    while (word_char.find(buffer_.character_at(next_char)) != word_char.npos) {
+      *position_ = next_char;
+      if (!Advance(&next_char)) {
+        return UNABLE_TO_ADVANCE;
+      }
+    }
+    return DONE;
+  }
+
+ private:
+  wchar_t CurrentChar() {
+    return buffer_.character_at(*position_);
+  }
+
+  bool Consume() {
+    for (auto& p : predicates_) {
+      if (p() == STOP) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool Advance(LineColumn* position) {
+    switch (direction_) {
+      case FORWARDS:
+        if (buffer_.empty() || buffer_.at_end(*position)) {
+          return false;
+        } else if (!buffer_.at_end_of_line(*position)) {
+          position->column ++;
+        } else if (!wrapping_lines_) {
+          return false;
+        } else {
+          position->line++;
+          position->column = 0;
+        }
+        return true;
+
+      case BACKWARDS:
+        if (buffer_.empty() || *position == LineColumn()) {
+          return false;
+        } else if (position->column > 0) {
+          position->column--;
+        } else if (!wrapping_lines_) {
+          return false;
+        } else {
+          position->line = min(position->line - 1, buffer_.lines_size() - 1);
+          position->column = buffer_.LineAt(position->line)->size();
+        }
+        return true;
+    }
+    CHECK(false);
+    return false;
+  }
+
+  enum PredicateResult { ALLOW, STOP };
+  // All predicates must evaluate to true in order for the seek to continue.
+  std::vector<std::function<PredicateResult()>> predicates_;
+  bool wrapping_lines_ = false;
+  Direction direction_ = FORWARDS;
+  const OpenBuffer& buffer_;
+  LineColumn* const position_;
+};
+
 static void RegisterBufferFieldBool(EditorState* editor_state,
                                     afc::vm::ObjectType* object_type,
                                     const EdgeVariable<char>* variable) {
@@ -1490,31 +1613,27 @@ void OpenBuffer::CreateCursor() {
     case WORD:
     case LINE:
       {
+        auto structure = editor_->modifiers().structure;
         LineColumn first, last;
         Modifiers tmp_modifiers = editor_->modifiers();
         tmp_modifiers.structure = CURSOR;
-        if (!FindRange(tmp_modifiers, position(), &first, &last)) {
+        if (!FindPartialRange(tmp_modifiers, position(), &first, &last)) {
           return;
         }
         if (first == last) { return; }
         editor_->set_direction(FORWARDS);
         LOG(INFO) << "Range for cursors: [" << first << ", " << last << ")";
         while (first < last) {
-          LineColumn tmp_first, tmp_last;
-          if (!FindRange(editor_->modifiers(), first, &tmp_first, &tmp_last)
-              || tmp_first > last) {
-            break;
-          }
+          auto tmp_first = first;
+          SeekToStructure(structure, FORWARDS, &tmp_first);
           if (tmp_first > first && tmp_first < last) {
             VLOG(5) << "Creating cursor at: " << tmp_first;
             active_cursors()->insert(tmp_first);
           }
-          if (tmp_last == first) {
-            LOG(INFO) << "Didn't make progress.";
-            first = last;
-          } else {
-            first = tmp_last;
+          if (!SeekToLimit(structure, FORWARDS, &tmp_first)) {
+            break;
           }
+          first = tmp_first;
         }
       }
       break;
@@ -1588,38 +1707,176 @@ void OpenBuffer::DestroyOtherCursors() {
   editor_->ScheduleRedraw();
 }
 
+void OpenBuffer::SeekToStructure(
+    Structure structure, Direction direction, LineColumn* position) {
+  switch (structure) {
+    case BUFFER:
+    case CURSOR:
+    case CHAR:
+      break;
+    case LINE:
+      Seek(*this, position)
+          .WithDirection(direction)
+          .WrappingLines()
+          .UntilCurrentCharNotIn(L"\n");
+      break;
+
+    case WORD:
+      Seek(*this, position)
+          .WithDirection(direction)
+          .WrappingLines()
+          .UntilCurrentCharIn(read_string_variable(variable_word_characters()));
+  }
+}
+
+bool OpenBuffer::SeekToLimit(
+    Structure structure, Direction direction, LineColumn* position) {
+  if (empty()) {
+    *position = LineColumn();
+  } else {
+    position->line = min(lines_size() - 1, position->line);
+    position->column = min(LineAt(position->line)->size(), position->column);
+  }
+  switch (structure) {
+    case BUFFER:
+      if (empty() || direction == BACKWARDS) {
+        *position = LineColumn();
+      } else {
+        position->line = lines_size() - 1;
+        position->column = LineAt(position->line)->size();
+      }
+      return false;
+      break;
+
+    case CHAR:
+      return Seek(*this, position).WrappingLines().WithDirection(direction).Once()
+          == Seek::DONE;
+      break;
+
+    case LINE:
+      if (direction == BACKWARDS) {
+        position->column = 0;
+        return Seek(*this, position).WrappingLines().Backwards().Once()
+                   == Seek::DONE;
+      }
+      position->column = LineAt(position->line)->size();
+      return true;
+      break;
+
+    case WORD:
+      {
+        return Seek(*this, position)
+            .WithDirection(direction)
+            .WrappingLines()
+            .UntilCurrentCharNotIn(
+                    read_string_variable(variable_word_characters()))
+                == Seek::DONE;
+      }
+      break;
+
+    case CURSOR:
+      {
+        bool has_boundary = false;
+        LineColumn boundary;
+        auto cursors = cursors_tracker_.FindCursors(L"");
+        CHECK(cursors != nullptr);
+        for (const auto& candidate : *cursors) {
+          if (direction == FORWARDS
+                  ? (candidate > *position &&
+                     (!has_boundary || candidate < boundary))
+                  : (candidate < *position &&
+                     (!has_boundary || candidate > boundary))) {
+            boundary = candidate;
+            has_boundary = true;
+          }
+        }
+
+        if (!has_boundary) {
+          return false;
+        }
+        if (direction == BACKWARDS) {
+          Seek(*this, &boundary).WithDirection(direction).Once();
+        }
+        *position = boundary;
+     }
+  }
+  return false;
+}
+
 bool OpenBuffer::FindPartialRange(
     const Modifiers& modifiers, const LineColumn& initial_position,
     LineColumn* start, LineColumn* end) {
+  const auto forward = modifiers.direction;
+  const auto backward = ReverseDirection(forward);
+
   LineColumn position = initial_position;
-  *start = position;
-  *end = position;
-  for (size_t i = 0; i < modifiers.repetitions; i++) {
-    LineColumn current_start, current_end;
-    if (!FindRange(modifiers, position, &current_start, &current_end)) {
-      return false;
-    }
-    CHECK_LE(current_start, current_end);
-    if (i == 0 && modifiers.structure_range == Modifiers::ENTIRE_STRUCTURE) {
-      *start = current_start;
-      *end = current_end;
-    }
-    switch (modifiers.structure_range) {
-      case Modifiers::ENTIRE_STRUCTURE:
-        *start = min(*start, current_start);
-        *end = max(*end, current_end);
-        break;
-      case Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION:
-        *end = max(*start, current_start);
-        *start = min(*start, current_start);
-        break;
-      case Modifiers::FROM_CURRENT_POSITION_TO_END:
-        *start = min(*start, position);
-        *end = max(*end, current_end);
-        break;
-    }
-    position = modifiers.direction == FORWARDS ? current_end : current_start;
+  if (!empty()) {
+    position.line = min(lines_size() - 1, position.line);
+    position.column = min(LineAt(position.line)->size(), position.column);
   }
+  if (modifiers.direction == BACKWARDS) {
+    Seek(*this, &position).Backwards().WrappingLines().Once();
+  }
+
+  *start = position;
+  LOG(INFO) << "Initial position: " << position;
+  SeekToStructure(modifiers.structure, forward, start);
+  switch (modifiers.boundary_begin) {
+    case Modifiers::CURRENT_POSITION:
+      *start = modifiers.direction == FORWARDS
+                   ? max(position, *start) : min(position, *start);
+      break;
+
+    case Modifiers::LIMIT_CURRENT:
+      {
+        if (SeekToLimit(modifiers.structure, backward, start)) {
+          Seek(*this, start).WrappingLines().WithDirection(forward).Once();
+        }
+      }
+      break;
+
+    case Modifiers::LIMIT_NEIGHBOR:
+      if (SeekToLimit(modifiers.structure, backward, start)) {
+        SeekToStructure(modifiers.structure, backward, start);
+        SeekToLimit(modifiers.structure, forward, start);
+      }
+  }
+  LOG(INFO) << "After seek, initial position: " << *start;
+  *end = modifiers.direction == FORWARDS
+             ? max(position, *start) : min(position, *start);
+  bool move_start = true;
+  for (size_t i = 0; i < modifiers.repetitions - 1; i++) {
+    if (!SeekToLimit(modifiers.structure, forward, end)) {
+      move_start = false;
+      break;
+    }
+    SeekToStructure(modifiers.structure, forward, end);
+  }
+
+  switch (modifiers.boundary_end) {
+    case Modifiers::CURRENT_POSITION:
+      break;
+
+    case Modifiers::LIMIT_CURRENT:
+      move_start &= SeekToLimit(modifiers.structure, forward, end);
+      break;
+
+    case Modifiers::LIMIT_NEIGHBOR:
+      move_start &= SeekToLimit(modifiers.structure, forward, end);
+      SeekToStructure(modifiers.structure, forward, end);
+  }
+  LOG(INFO) << "After adjusting end: " << *start << " to " << *end;
+
+  if (*start > *end) {
+    CHECK(modifiers.direction == BACKWARDS);
+    auto tmp = *end;
+    *end = *start;
+    *start = tmp;
+    if (move_start) {
+      Seek(*this, start).WrappingLines().Once();
+    }
+  }
+  LOG(INFO) << "After wrap: " << *start << " to " << *end;
   return true;
 }
 
@@ -1675,227 +1932,6 @@ size_t OpenBuffer::FindChildrenForPosition(
   return direction == FORWARDS ? tree->children.size() - 1 : 0;
 }
 
-bool OpenBuffer::FindRangeFirst(
-    const Modifiers& modifiers, const LineColumn& input,
-    LineColumn* output) const {
-  CHECK(output != nullptr);
-  *output = input;
-  AdjustLineColumn(output);
-
-  switch (modifiers.structure) {
-    case CHAR:
-      VLOG(5) << "FindRangeFirst: CHAR.";
-      if (modifiers.direction == BACKWARDS) {
-        if (output->column > 0) {
-          output->column--;
-        } else if (output->line > 0) {
-          output->line--;
-          output->column = LineAt(output->line)->size();
-        } else {
-          return false;
-        }
-      }
-      return true;
-
-    case WORD:
-      VLOG(5) << "FindRangeFirst: WORD.";
-      {
-        const wstring& word_char =
-            read_string_variable(variable_word_characters());
-
-        switch (modifiers.direction) {
-          case FORWARDS:
-            // Seek forwards until we're at a word character. Typically, if we're
-            // already in a word character, this does nothing.
-            while (at_end_of_line(*output)
-                   || word_char.find(character_at(*output)) == word_char.npos) {
-              if (at_end(*output)) {
-                return false;
-              } else if (at_end_of_line(*output)) {
-                output->column = 0;
-                output->line++;
-              } else {
-                output->column ++;
-              }
-            }
-            break;
-
-          case BACKWARDS:
-            // Seek backwards until we're at a space (leave the current word).
-            while (!at_beginning_of_line(*output)
-                   && word_char.find(character_at(
-                          LineColumn(output->line, output->column)))
-                      != wstring::npos) {
-              CHECK_GT(output->column, 0);
-              output->column--;
-            }
-
-            // Seek backwards until we're at a word (or at start of file).
-            while (*output != LineColumn()
-                   && word_char.find(character_at(
-                          LineColumn(output->line, output->column)))
-                      == wstring::npos) {
-              *output = PositionBefore(*output);
-            }
-
-            break;
-        }
-
-        // Seek backwards until we're just after a space.
-        while (!at_beginning_of_line(*output)
-               && word_char.find(character_at(
-                      LineColumn(output->line, output->column - 1)))
-                  != wstring::npos) {
-          CHECK_GT(output->column, 0);
-          output->column--;
-        }
-
-        return true;
-      }
-
-    case LINE:
-      VLOG(5) << "FindRangeFirst: LINE.";
-      if (!at_end_of_line(*output)) {
-        output->column = 0;
-      } else if (at_end(*output)) {
-        return false;
-      } else {
-        output->column = 0;
-        output->line++;
-      }
-      return true;
-
-    case CURSOR:
-      VLOG(5) << "FindRangeFirst: CURSOR.";
-      {
-        bool has_boundary = false;
-        LineColumn boundary;
-        if (modifiers.direction == FORWARDS) {
-          boundary = position();
-          has_boundary = true;
-        } else {
-          auto cursors = cursors_tracker_.FindCursors(modifiers.active_cursors);
-          CHECK(cursors != nullptr);
-          for (const auto& candidate : *cursors) {
-            if (candidate < position()
-                && (!has_boundary || candidate > boundary)) {
-              has_boundary = true;
-              boundary = candidate;
-            }
-          }
-        }
-        if (!has_boundary) {
-          return false;
-        }
-        *output = boundary;
-        return true;
-      }
-
-    case TREE:
-      VLOG(5) << "FindRangeFirst: TREE.";
-      {
-        auto tree_root = parse_tree();
-        auto parent_and_index = FindTreeInPosition(
-            tree_depth_, tree_root.get(), input, modifiers.direction);
-        const ParseTree& tree =
-            parent_and_index.parent == nullptr
-                ? *tree_root
-                : parent_and_index.parent->children.at(parent_and_index.index);
-        *output = tree.range.begin;
-        return true;
-      }
-      break;
-
-    default:
-      return false;
-  }
-  return false;
-}
-
-bool OpenBuffer::FindRangeLast(
-    const Modifiers& modifiers, const LineColumn& position,
-    LineColumn* output) const {
-  *output = position;
-  switch (modifiers.structure) {
-    case CHAR:
-      if (modifiers.direction == FORWARDS) {
-        if (!at_end_of_line(*output)) {
-          output->column++;
-        } else if (at_end(*output)) {
-          return false;
-        } else {
-          output->line++;
-          output->column = 0;
-        }
-      }
-      return true;
-
-    case WORD:
-      {
-        const wstring& word_char =
-            read_string_variable(variable_word_characters());
-
-        // Seek forwards until the next space.
-        while (!at_end_of_line(*output)
-               && word_char.find(character_at(*output)) != wstring::npos) {
-          output->column++;
-        }
-        return true;
-      }
-
-    case LINE:
-      output->column = LineAt(output->line)->size();
-      return true;
-
-    case CURSOR:
-      {
-        bool has_boundary = false;
-        LineColumn boundary;
-        auto cursors = cursors_tracker_.FindCursors(modifiers.active_cursors);
-        if (cursors == nullptr) { return false; }
-        for (const auto& candidate : *cursors) {
-          if (candidate > *output
-              && (!has_boundary || candidate < boundary)) {
-            has_boundary = true;
-            boundary = candidate;
-          }
-        }
-        if (!has_boundary) {
-          return false;
-        }
-        *output = boundary;
-        return true;
-      }
-
-    case TREE:
-      {
-        auto tree_root = parse_tree();
-        auto parent_and_index = FindTreeInPosition(
-            tree_depth_, tree_root.get(), position, modifiers.direction);
-        const ParseTree& tree =
-            parent_and_index.parent == nullptr
-                ? *tree_root
-                : parent_and_index.parent->children.at(parent_and_index.index);
-        *output = tree.range.end;
-        return true;
-      }
-      break;
-
-    default:
-      return false;
-  }
-  return false;
-}
-
-bool OpenBuffer::FindRange(const Modifiers& modifiers,
-                           const LineColumn& position, LineColumn* first,
-                           LineColumn* last) {
-  Modifiers modifiers_copy = modifiers;
-  modifiers_copy.direction = FORWARDS;
-  return FindRangeFirst(modifiers, position, first)
-      && FindRangeLast(modifiers_copy, *first, last);
-}
-
 const shared_ptr<const Line> OpenBuffer::current_line() const {
   if (position().line >= contents_.size()) { return nullptr; }
   return contents_.at(position().line);
@@ -1932,7 +1968,7 @@ void OpenBuffer::PushSignal(EditorState* editor_state, int sig) {
     case SIGINT:
       if (read_bool_variable(variable_pts())) {
         string sequence(1, 0x03);
-        write(fd_.fd, sequence.c_str(), sequence.size());
+        (void) write(fd_.fd, sequence.c_str(), sequence.size());
         editor_state->SetStatus(L"SIGINT");
       } else if (child_pid_ != -1) {
         editor_state->SetStatus(L"SIGINT >> pid:" + to_wstring(child_pid_));
