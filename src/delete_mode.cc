@@ -10,9 +10,8 @@
 namespace afc {
 namespace editor {
 
-namespace {
-void ApplyDelete(EditorState* editor_state, OpenBuffer* buffer,
-                 CommandApplyMode apply_mode, Modifiers modifiers) {
+void ApplyDeleteCommand(EditorState* editor_state, OpenBuffer* buffer,
+                        CommandApplyMode apply_mode, Modifiers modifiers) {
   CHECK(editor_state != nullptr);
   CHECK(buffer != nullptr);
   DeleteOptions options;
@@ -23,12 +22,6 @@ void ApplyDelete(EditorState* editor_state, OpenBuffer* buffer,
   buffer->PushTransformationStack();
   buffer->ApplyToCursors(NewDeleteTransformation(options));
   buffer->PopTransformationStack();
-}
-}  // namespace
-
-std::unique_ptr<Command> NewDeleteCommand() {
-  return NewCommandWithModifiers(L"delete", L"starts a new delete command",
-                                 ApplyDelete);
 }
 
 }  // namespace afc

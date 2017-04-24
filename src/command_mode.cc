@@ -973,7 +973,11 @@ std::function<unique_ptr<EditorMode>(void)> NewCommandModeSupplier(
       Modifiers::STRONG, Modifiers::VERY_STRONG, L"strong"), commands_map.get());
 
   Register(L"D", new Delete(DeleteOptions()), commands_map.get());
-  Register(L"d", NewDeleteCommand().release(), commands_map.get());
+  Register(L"d",
+      NewCommandWithModifiers(
+              L"delete", L"starts a new delete command", ApplyDeleteCommand)
+          .release(),
+      commands_map.get());
   Register(L"p", new Paste(), commands_map.get());
 
   DeleteOptions copy_options;
