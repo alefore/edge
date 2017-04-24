@@ -3,13 +3,12 @@
 
 #include <memory>
 
-#include "command.h"
+#include "command_with_modifiers.h"
 
 namespace afc {
 namespace editor {
-
-std::unique_ptr<Command> NewDeleteCommand();
-
+void ApplyDeleteCommand(EditorState* editor_state, OpenBuffer* buffer,
+                        CommandApplyMode apply_mode, Modifiers modifiers);
 }  // namespace editor
 }  // namespace afc
 

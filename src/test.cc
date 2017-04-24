@@ -347,10 +347,10 @@ void TestCases() {
   // Test for uppercase switch
   editor_state.ProcessInputString("ialeJAnDRo\nfoRero");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  editor_state.ProcessInputString("kg5~");
+  editor_state.ProcessInputString("kg~5\n");
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "ALEjanDRo\nfoRero");
-  editor_state.ProcessInputString("w]~");
+  editor_state.ProcessInputString("~w\n");
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "ALEjaNdrO\nfoRero");
 
