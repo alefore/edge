@@ -115,17 +115,13 @@ class DeleteCharactersTransformation : public Transformation {
     if (options_.preview) {
       LOG(INFO) << "Inserting preview at: " << result->cursor << " "
                 << delete_buffer->contents()->CountCharacters();
-      Line::ModifiersSet modifiers = {Line::UNDERLINE, Line::BLUE};
-      buffer->InsertInPosition(*delete_buffer, result->cursor, &modifiers);
-
-      DeleteOptions delete_options;
-      delete_options.modifiers.repetitions =
-          delete_buffer->contents()->CountCharacters();
-      delete_options.copy_to_paste_buffer = false;
-      result->undo_stack->PushFront(
-          TransformationAtPosition(result->cursor,
-              NewDeleteCharactersTransformation(delete_options)));
-      result->cursor = original_position;
+      Line::ModifiersSet modifiers_set = {Line::UNDERLINE, Line::BLUE};
+      NewInsertBufferTransformation(
+              delete_buffer,
+              Modifiers(),
+              options_.modifiers.direction == BACKWARDS ? END : START,
+              &modifiers_set)
+          ->Apply(editor_state, buffer, result);
     }
   }
 
