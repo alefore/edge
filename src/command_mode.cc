@@ -758,12 +758,14 @@ class RunCppFileCommand : public Command {
 
 class SwitchCaseTransformation : public Transformation {
  public:
+  SwitchCaseTransformation(CommandApplyMode apply_mode, Modifiers modifiers)
+      : apply_mode_(apply_mode), modifiers_(modifiers) {}
+
   void Apply(EditorState* editor_state, OpenBuffer* buffer, Result* result)
       const override {
     buffer->AdjustLineColumn(&result->cursor);
     LineColumn start, end;
-    if (!buffer->FindPartialRange(
-            editor_state->modifiers(), result->cursor, &start, &end)) {
+    if (!buffer->FindPartialRange(modifiers_, result->cursor, &start, &end)) {
       editor_state->SetStatus(L"Structure not handled.");
       return;
     }
@@ -800,32 +802,38 @@ class SwitchCaseTransformation : public Transformation {
       // Increment i.
       i.column++;
     }
-    stack->PushBack(NewInsertBufferTransformation(buffer_to_insert, 1, END));
-    stack->PushBack(NewGotoPositionTransformation(
-        editor_state->direction() == FORWARDS ? end : start));
+    Line::ModifiersSet modifiers_set = {Line::UNDERLINE, Line::BLUE};
+    auto original_position = result->cursor;
+    stack->PushBack(NewInsertBufferTransformation(
+        buffer_to_insert,
+        Modifiers(),
+        modifiers_.direction == FORWARDS ? END : START,
+        apply_mode_ == APPLY_PREVIEW ? &modifiers_set : nullptr));
+    if (apply_mode_ == APPLY_PREVIEW) {
+      stack->PushBack(NewGotoPositionTransformation(original_position));
+    }
     stack->Apply(editor_state, buffer, result);
-    editor_state->ResetModifiers();
-    editor_state->ScheduleRedraw();
   }
 
   unique_ptr<Transformation> Clone() {
-    return unique_ptr<Transformation>(new SwitchCaseTransformation());
-  }
-};
-
-class SwitchCaseCommand : public Command {
- public:
-  const wstring Description() {
-    return L"Switches the case of the current character.";
+    return unique_ptr<Transformation>(
+        new SwitchCaseTransformation(apply_mode_, modifiers_));
   }
 
-  void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) { return; }
-    auto buffer = editor_state->current_buffer()->second;
-    editor_state->ApplyToCurrentBuffer(
-        unique_ptr<Transformation>(new SwitchCaseTransformation()));
-  }
+ private:
+  const CommandApplyMode apply_mode_;
+  const Modifiers modifiers_;
 };
+
+void ApplySwitchCaseCommand(EditorState* editor_state, OpenBuffer* buffer,
+                            CommandApplyMode apply_mode, Modifiers modifiers) {
+  CHECK(editor_state != nullptr);
+  CHECK(buffer != nullptr);
+  buffer->PushTransformationStack();
+  buffer->ApplyToCursors(std::unique_ptr<SwitchCaseTransformation>(
+      new SwitchCaseTransformation(apply_mode, modifiers)));
+  buffer->PopTransformationStack();
+}
 
 }  // namespace
 
@@ -993,7 +1001,12 @@ std::function<unique_ptr<EditorMode>(void)> NewCommandModeSupplier(
   Register(L"l", new MoveForwards(), commands_map.get());
   Register(L"h", new MoveBackwards(), commands_map.get());
 
-  Register(L"~", new SwitchCaseCommand(), commands_map.get());
+  Register(L"~",
+      NewCommandWithModifiers(
+              L"~~~~", L"Switches the case of the current character.",
+              ApplySwitchCaseCommand)
+          .release(),
+      commands_map.get());
 
   Register(L"sr", NewRecordCommand().release(), commands_map.get());
   Register(L"\t", NewFindCompletionCommand().release(), commands_map.get());
