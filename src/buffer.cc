@@ -706,9 +706,9 @@ void OpenBuffer::Input::ReadData(
   static const size_t kLowBufferSize = 1024 * 60;
   if (low_buffer == nullptr) {
     CHECK_EQ(low_buffer_length, 0);
-    low_buffer = static_cast<char*>(malloc(kLowBufferSize));
+    low_buffer.reset(new char[kLowBufferSize]);
   }
-  ssize_t characters_read = read(fd, low_buffer + low_buffer_length,
+  ssize_t characters_read = read(fd, low_buffer.get() + low_buffer_length,
                                  kLowBufferSize - low_buffer_length);
   LOG(INFO) << "Read returns: " << characters_read;
   if (characters_read == -1) {
@@ -734,17 +734,17 @@ void OpenBuffer::Input::ReadData(
   }
   low_buffer_length += characters_read;
 
-  const char* low_buffer_tmp = low_buffer;
+  const char* low_buffer_tmp = low_buffer.get();
   int output_characters =
       mbsnrtowcs(nullptr, &low_buffer_tmp, low_buffer_length, 0, nullptr);
   std::vector<wchar_t> buffer(
       output_characters == -1 ? low_buffer_length : output_characters);
 
-  low_buffer_tmp = low_buffer;
+  low_buffer_tmp = low_buffer.get();
   if (output_characters == -1) {
     low_buffer_tmp = nullptr;
     for (size_t i = 0; i < low_buffer_length; i++) {
-      buffer[i] = static_cast<wchar_t>(low_buffer[i]);
+      buffer[i] = static_cast<wchar_t>(*(low_buffer.get() + i));
     }
   } else {
     mbsnrtowcs(&buffer[0], &low_buffer_tmp, low_buffer_length, buffer.size(),
@@ -756,16 +756,15 @@ void OpenBuffer::Input::ReadData(
 
   size_t processed = low_buffer_tmp == nullptr
       ? low_buffer_length
-      : low_buffer_tmp - low_buffer;
+      : low_buffer_tmp - low_buffer.get();
   VLOG(5) << target->name() << ": Characters consumed: " << processed;
   VLOG(5) << target->name() << ": Characters produced: "
           << buffer_wrapper->size();
   CHECK_LE(processed, low_buffer_length);
-  memmove(low_buffer, low_buffer_tmp, low_buffer_length - processed);
+  memmove(low_buffer.get(), low_buffer_tmp, low_buffer_length - processed);
   low_buffer_length -= processed;
   if (low_buffer_length == 0) {
     LOG(INFO) << "Consumed all input.";
-    free(low_buffer);
     low_buffer = nullptr;
   }
 

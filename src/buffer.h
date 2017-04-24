@@ -481,7 +481,7 @@ class OpenBuffer {
     // We read directly into low_buffer_ and then drain from that into contents_.
     // It's possible that not all bytes read can be converted (for example, if the
     // reading stops in the middle of a wide character).
-    char* low_buffer = nullptr;
+    std::unique_ptr<char> low_buffer;
     size_t low_buffer_length = 0;
 
     Line::ModifiersSet modifiers;

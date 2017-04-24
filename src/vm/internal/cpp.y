@@ -116,6 +116,8 @@ function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME) LPAREN
       }
     }
   }
+  delete RETURN_TYPE;
+  delete NAME;
 }
 
 statement(A) ::= SEMICOLON . {
@@ -167,6 +169,8 @@ statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
 statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) SEMICOLON. {
   A = NewAssignExpression(compilation, TYPE->str, NAME->str,
                           unique_ptr<Expression>(VALUE)).release();
+  delete TYPE;
+  delete NAME;
   VALUE = nullptr;
 }
 
@@ -215,6 +219,8 @@ non_empty_function_declaration_arguments(OUT) ::= SYMBOL(TYPE) SYMBOL(NAME). {
     OUT = new vector<pair<VMType, wstring>>;
     OUT->push_back(make_pair(*type_def, NAME->str));
   }
+  delete TYPE;
+  delete NAME;
 }
 
 non_empty_function_declaration_arguments(OUT) ::=
@@ -232,6 +238,8 @@ non_empty_function_declaration_arguments(OUT) ::=
       LIST = nullptr;
     }
   }
+  delete TYPE;
+  delete NAME;
 }
 
 
@@ -260,6 +268,7 @@ expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
   OUT = NewAssignExpression(compilation, NAME->str,
                             unique_ptr<Expression>(VALUE)).release();
   VALUE = nullptr;
+  delete NAME;
 }
 
 expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
@@ -330,7 +339,6 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
           for (auto& arg : *ARGS) {
             args->push_back(std::move(arg));
           }
-          ARGS = nullptr;
           assert(field_copy != nullptr);
           OUT = NewFunctionCall(NewConstantExpression(std::move(field_copy)),
                                 std::move(args)).release();
@@ -338,6 +346,8 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
       }
     }
   }
+  delete FIELD;
+  delete ARGS;
 }
 
 expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
@@ -670,4 +680,5 @@ string(OUT) ::= string(A) STRING(B). {
 expr(OUT) ::= SYMBOL(S). {
   assert(S->type.type == VMType::VM_SYMBOL);
   OUT = NewVariableLookup(compilation, S->str).release();
+  delete S;
 }

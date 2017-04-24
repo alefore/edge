@@ -422,6 +422,7 @@ EditorState::EditorState()
 EditorState::~EditorState() {
   // TODO: Replace this with a custom deleter in the shared_ptr.  Simplify
   // CloseBuffer accordingly.
+  LOG(INFO) << "Closing buffers.";
   for (auto& buffer : buffers_) {
     buffer.second->Close(this);
   }
