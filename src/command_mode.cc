@@ -830,8 +830,10 @@ void ApplySwitchCaseCommand(EditorState* editor_state, OpenBuffer* buffer,
   CHECK(editor_state != nullptr);
   CHECK(buffer != nullptr);
   buffer->PushTransformationStack();
-  buffer->ApplyToCursors(std::unique_ptr<SwitchCaseTransformation>(
-      new SwitchCaseTransformation(apply_mode, modifiers)));
+  buffer->ApplyToCursors(
+      std::unique_ptr<SwitchCaseTransformation>(
+          new SwitchCaseTransformation(apply_mode, modifiers)),
+      modifiers.cursors_affected);
   buffer->PopTransformationStack();
 }
 
