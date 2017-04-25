@@ -20,7 +20,8 @@ void ApplyDeleteCommand(EditorState* editor_state, OpenBuffer* buffer,
   options.preview = apply_mode == APPLY_PREVIEW;
 
   buffer->PushTransformationStack();
-  buffer->ApplyToCursors(NewDeleteTransformation(options));
+  buffer->ApplyToCursors(NewDeleteTransformation(options),
+                         modifiers.cursors_affected);
   buffer->PopTransformationStack();
 }
 

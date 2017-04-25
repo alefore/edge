@@ -2390,6 +2390,14 @@ void OpenBuffer::set_value_variable(
 }
 
 void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
+  ApplyToCursors(std::move(transformation),
+                 read_bool_variable(variable_multiple_cursors())
+                     ? Modifiers::AFFECT_ALL_CURSORS
+                     : Modifiers::AFFECT_ONLY_CURRENT_CURSOR);
+}
+
+void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
+                                Modifiers::CursorsAffected cursors_affected) {
   CHECK(transformation != nullptr);
 
   if (!last_transformation_stack_.empty()) {
@@ -2406,7 +2414,7 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
     CHECK_LE(position.line, contents_.size());
   }
 
-  if (read_bool_variable(variable_multiple_cursors())) {
+  if (cursors_affected == Modifiers::AFFECT_ALL_CURSORS) {
     CursorsSet single_cursor;
     CursorsSet* cursors = active_cursors();
     CHECK(cursors != nullptr);

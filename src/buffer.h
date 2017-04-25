@@ -405,6 +405,8 @@ class OpenBuffer {
                           unique_ptr<Value> value);
 
   void ApplyToCursors(unique_ptr<Transformation> transformation);
+  void ApplyToCursors(unique_ptr<Transformation> transformation,
+                      Modifiers::CursorsAffected cursors_affected);
   void RepeatLastTransformation();
 
   void PushTransformationStack();

@@ -54,6 +54,10 @@ class CommandWithModifiersMode : public EditorMode {
 
   Modifiers BuildModifiers(EditorState* editor_state) {
     Modifiers modifiers;
+    modifiers.cursors_affected =
+        buffer_->read_bool_variable(OpenBuffer::variable_multiple_cursors())
+            ? Modifiers::AFFECT_ALL_CURSORS
+            : Modifiers::AFFECT_ONLY_CURRENT_CURSOR;
     wstring additional_information;
     modifiers.repetitions = 0;
     for (const auto& c : modifiers_string_) {
@@ -69,6 +73,18 @@ class CommandWithModifiersMode : public EditorMode {
         case '-':
           if (modifiers.repetitions > 0) {
             modifiers.repetitions--;
+          }
+          break;
+
+        case '*':
+          switch (modifiers.cursors_affected) {
+            case Modifiers::AFFECT_ONLY_CURRENT_CURSOR:
+              modifiers.cursors_affected = Modifiers::AFFECT_ALL_CURSORS;
+              break;
+            case Modifiers::AFFECT_ALL_CURSORS:
+              modifiers.cursors_affected =
+                  Modifiers::AFFECT_ONLY_CURRENT_CURSOR;
+              break;
           }
           break;
 
@@ -186,6 +202,9 @@ class CommandWithModifiersMode : public EditorMode {
     } else if (modifiers.structure_range
             == Modifiers::FROM_CURRENT_POSITION_TO_END) {
       status += L" forward";
+    }
+    if (modifiers.cursors_affected == Modifiers::AFFECT_ALL_CURSORS) {
+      status += L" cursors";
     }
     if (modifiers.repetitions > 1) {
       status += L" " + std::to_wstring(modifiers.repetitions);

@@ -117,6 +117,16 @@ struct Modifiers {
   Boundary boundary_begin = CURRENT_POSITION;
   Boundary boundary_end = LIMIT_CURRENT;
 
+  enum CursorsAffected {
+    // The transformation only affects the current cursor.
+    AFFECT_ONLY_CURRENT_CURSOR,
+
+    // The transformation affects all cursors.
+    AFFECT_ALL_CURSORS,
+  };
+
+  CursorsAffected cursors_affected = AFFECT_ONLY_CURRENT_CURSOR;
+
   // The currently active cursors.
   std::wstring active_cursors;
 };
