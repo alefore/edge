@@ -119,11 +119,45 @@ class Paste : public Command {
     if (!editor_state->has_current_buffer()) { return; }
     auto it = editor_state->buffers()->find(OpenBuffer::kPasteBuffer);
     if (it == editor_state->buffers()->end()) {
-      editor_state->SetStatus(L"No text to paste.");
+      const static wstring errors[] = {
+          L"No text to paste.",
+          L"Try deleting something first.",
+          L"You can't paste what you haven't deleted.",
+          L"First delete; then paste.",
+          L"I have nothing to paste.",
+          L"The paste buffer is empty.",
+          L"There's nothing to paste.",
+          L"Nope.",
+          L"Let's see, is there's something to paste? Nope.",
+          L"The paste buffer is desolate.",
+          L"Paste what?",
+          L"I'm sorry, Dave, I'm afraid I can't do that.",
+          L"",
+      };
+      static int current_message = 0;
+      editor_state->SetStatus(errors[current_message++]);
+      if (errors[current_message].empty()) {
+        current_message = 0;
+      }
       return;
     }
     if (it == editor_state->current_buffer()) {
-      editor_state->SetStatus(L"You shall not paste into the paste buffer.");
+      const static wstring errors[] = {
+          L"You shall not paste into the paste buffer.",
+          L"Nope.",
+          L"Bad things would happen if you pasted into the buffer.",
+          L"There could be endless loops if you pasted into this buffer.",
+          L"This is not supported.",
+          L"Go to a different buffer first?",
+          L"The paste buffer is not for pasting into.",
+          L"This editor is too important for me to allow you to jeopardize it.",
+          L"",
+      };
+      static int current_message = 0;
+      editor_state->SetStatus(errors[current_message++]);
+      if (errors[current_message].empty()) {
+        current_message = 0;
+      }
       return;
     }
     auto buffer = editor_state->current_buffer()->second;
