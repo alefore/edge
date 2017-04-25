@@ -171,12 +171,15 @@ class Tree {
   void RecomputeCounters(Node<Item>* node);
 
   // Rotates the tree to the right or to the left.
-  template <Node<Item>* Node<Item>::*Left, Node<Item>* Node<Item>::* Right>
+  template <std::unique_ptr<Node<Item>> Node<Item>::*Left,
+            std::unique_ptr<Node<Item>> Node<Item>::* Right>
   void Rotate(Node<Item>* node);
   // Takes old out of a tree, replacing it with new.
-  void ReplaceNode(const Node<Item>* old_node, Node<Item>* new_node);
+  std::unique_ptr<Node<Item>> ReplaceNode(const Node<Item>* old_node,
+                                          std::unique_ptr<Node<Item>> new_node);
 
-  template <Node<Item>* Node<Item>::*Left, Node<Item>* Node<Item>::*Right>
+  template <std::unique_ptr<Node<Item>> Node<Item>::*Left,
+            std::unique_ptr<Node<Item>> Node<Item>::*Right>
   bool MaybeRotateLeft(Node<Item>* node, bool insert);
 
   // Given a node where a subtree has been modified, ensure that it remains
@@ -191,11 +194,11 @@ class Tree {
 
   // Insert node as the right child of parent. parent must not already have a
   // right child.
-  void InsertRight(Node<Item>* parent, Node<Item>* node);
+  void InsertRight(Node<Item>* parent, std::unique_ptr<Node<Item>> node);
 
   // Inserts an element at level 0 at the position specified. node is the new
   // node to insert.
-  void insert(const iterator& position, Node<Item>* node);
+  void insert(const iterator& position, std::unique_ptr<Node<Item>> node);
 
   // Returns the left-most element under node. If node is nullptr, just returns
   // it.
@@ -204,8 +207,6 @@ class Tree {
   const Node<Item>* LastNode(const Node<Item>* node) const;
   Node<Item>* LastNode(Node<Item>* node);
 
-  // Deletes node and all its children recursively.
-  void DeleteNodes(Node<Item>* node);
   size_t FindPosition(const Node<Item>* node) const;
 
   friend class TreeIterator<Item, false>;
@@ -213,7 +214,7 @@ class Tree {
   friend std::ostream& operator<< <>(std::ostream& out, const Tree<Item>& tree);
   friend std::ostream& operator<< <>(std::ostream& out, const Node<Item>& tree);
 
-  Node<Item>* root_ = nullptr;
+  std::unique_ptr<Node<Item>> root_;
 };
 
 // --- Implementation details ---
@@ -251,8 +252,8 @@ struct Node {
   Item item;
 
   Node<Item>* parent = nullptr;
-  Node<Item>* left = nullptr;
-  Node<Item>* right = nullptr;
+  std::unique_ptr<Node<Item>> left;
+  std::unique_ptr<Node<Item>> right;
 
   operator Node<const Item>() const {
     Node<const Item> node(item);
@@ -316,7 +317,7 @@ TreeIterator<Item, IsConst>& TreeIterator<Item, IsConst>::operator+=(
 
   if (node_ == nullptr) {
     DCHECK_LE(delta, 0) << "Attempting to advance past end of tree.";
-    node_ = tree_->LastNode(tree_->root_);
+    node_ = tree_->LastNode(tree_->root_.get());
     if (node_ != nullptr) { delta++; }
     DVLOG(7) << "Adjusted: " << tree_->FindPosition(node_) << " and advance "
              << delta << " with " << tree_->size();
@@ -327,14 +328,14 @@ TreeIterator<Item, IsConst>& TreeIterator<Item, IsConst>::operator+=(
   // Go up one level in each iteration until we know we can go down.
   while (node_ != nullptr
          && ((delta > 0)
-                  ? delta > Tree<Item>::Count(node_->right)
-                  : -delta > Tree<Item>::Count(node_->left))) {
-    if (node_->parent == nullptr || node_->parent->left == node_) {
+                  ? delta > Tree<Item>::Count(node_->right.get())
+                  : -delta > Tree<Item>::Count(node_->left.get()))) {
+    if (node_->parent == nullptr || node_->parent->left.get() == node_) {
       DVLOG(7) << "Going up through left branch";
-      delta -= 1 + Tree<Item>::Count(node_->right);
+      delta -= 1 + Tree<Item>::Count(node_->right.get());
     } else {
       DVLOG(7) << "Going up through right branch";
-      delta += 1 + Tree<Item>::Count(node_->left);
+      delta += 1 + Tree<Item>::Count(node_->left.get());
     }
     node_ = node_->parent;
     DVLOG(7) << "After loop at " << tree_->FindPosition(node_)
@@ -349,12 +350,12 @@ TreeIterator<Item, IsConst>& TreeIterator<Item, IsConst>::operator+=(
              << " and advance " << delta << " with " << tree_->size();
     if (delta > 0) {
       DVLOG(6) << "Down the right branch.";
-      node_ = node_->right;
-      delta = delta - 1 - Tree<Item>::Count(node_->left);
+      node_ = node_->right.get();
+      delta = delta - 1 - Tree<Item>::Count(node_->left.get());
     } else {
       DVLOG(6) << "Down the left branch.";
-      node_ = node_->left;
-      delta = Tree<Item>::Count(node_->right) + delta + 1;
+      node_ = node_->left.get();
+      delta = Tree<Item>::Count(node_->right.get()) + delta + 1;
     }
     DVLOG(7) << "After down at " << tree_->FindPosition(node_)
              << " and advance " << delta << " with " << tree_->size();
@@ -444,23 +445,23 @@ void Tree<Item>::ValidateInvariants(const Node<Item>* node) const {
 #ifndef NDEBUG
   if (node == nullptr) { return; }
   if (node->parent == nullptr) {
-    DCHECK_EQ(node, root_);
+    DCHECK_EQ(node, root_.get());
   }
   DCHECK_EQ(node->count, 1
                          + (node->left == nullptr ? 0 : node->left->count)
                          + (node->right == nullptr ? 0 : node->right->count));
-  size_t left_height = Height(node->left);
-  size_t right_height = Height(node->right);
+  size_t left_height = Height(node->left.get());
+  size_t right_height = Height(node->right.get());
   DCHECK_LE(std::max(right_height, left_height),
             std::min(right_height, left_height) + 1);
 #ifdef REALLY_ALL
   if (node->left) {
     DCHECK_EQ(node->left->parent, node);
-    ValidateInvariants(node->left);
+    ValidateInvariants(node->left.get());
   }
   if (node->right) {
     DCHECK_EQ(node->right->parent, node);
-    ValidateInvariants(node->right);
+    ValidateInvariants(node->right.get());
   }
 #endif
 #endif
@@ -469,7 +470,7 @@ void Tree<Item>::ValidateInvariants(const Node<Item>* node) const {
 template <typename Item>
 void Tree<Item>::ValidateInvariants() const {
 #ifndef NDEBUG
-  ValidateInvariants(root_);
+  ValidateInvariants(root_.get());
   CHECK_EQ(root_ == nullptr, empty());
 #endif
 }
@@ -489,7 +490,6 @@ Tree<Item>& Tree<Item>::operator=(const Tree& tree) {
 template <typename Item>
 void Tree<Item>::clear() {
   ValidateInvariants();
-  DeleteNodes(root_);
   root_ = nullptr;
   ValidateInvariants();
 }
@@ -510,17 +510,17 @@ typename Tree<Item>::const_reference Tree<Item>::at(size_t position) const {
 
 template <typename Item>
 typename Tree<Item>::iterator Tree<Item>::begin() {
-  return iterator(this, FirstNode(root_));
+  return iterator(this, FirstNode(root_.get()));
 }
 
 template <typename Item>
 typename Tree<Item>::const_iterator Tree<Item>::cbegin() const {
-  return const_iterator(this, FirstNode(root_));
+  return const_iterator(this, FirstNode(root_.get()));
 }
 
 template <typename Item>
 typename Tree<Item>::const_iterator Tree<Item>::begin() const {
-  return const_iterator(this, FirstNode(root_));
+  return const_iterator(this, FirstNode(root_.get()));
 }
 
 template <typename Item>
@@ -597,7 +597,8 @@ Item& Tree<Item>::front() {
 template <typename Item>
 void Tree<Item>::insert(const iterator& position, Item item) {
   DVLOG(6) << "Calling: insert, building node.";
-  insert(position, new Node<Item>(std::move(item)));
+  insert(position,
+         std::unique_ptr<Node<Item>>(new Node<Item>(std::move(item))));
 }
 
 template <typename Item>
@@ -622,44 +623,59 @@ void Tree<Item>::RecomputeCounters(Node<Item>* node) {
   node->count = 1
       + (node->left == nullptr ? 0 : node->left->count)
       + (node->right == nullptr ? 0 : node->right->count);
-  node->height = std::max(Height(node->left), Height(node->right)) + 1;
+  node->height =
+      std::max(Height(node->left.get()), Height(node->right.get())) + 1;
 }
 
 // We give this description with the names of a left rotation. For a right
 // rotation, Left and Right are reversed.
+//
+// Goes from:
+// [D [B A C] [F E G]]
+// To:
+// [F [D [B A C] E] G]
 template <typename Item>
-template <Node<Item>* Node<Item>::*Left, Node<Item>* Node<Item>::*Right>
+template <std::unique_ptr<Node<Item>> Node<Item>::*Left,
+          std::unique_ptr<Node<Item>> Node<Item>::*Right>
 void Tree<Item>::Rotate(Node<Item>* node) {
   DVLOG(7) << "Rotate at " << *node << " starts as " << *root_;
 
-  auto new_parent = node->*Right;
-  auto moving_son = new_parent->*Left;
-
-  DCHECK_EQ(new_parent->parent, node);
-
-  new_parent->*Left = node;
-  new_parent->parent = node->parent;
+  std::unique_ptr<Node<Item>>* node_ptr;
   if (node->parent == nullptr) {
-    root_ = new_parent;
-  } else if (node->parent->*Left == node) {
-    node->parent->*Left = new_parent;
+    node_ptr = &root_;
+  } else if ((node->parent->*Left).get() == node) {
+    node_ptr = &(node->parent->*Left);
   } else {
-    DCHECK_EQ(node->parent->*Right, node);
-    node->parent->*Right = new_parent;
+    node_ptr = &(node->parent->*Right);
   }
+  DCHECK_EQ(node_ptr->get(), node);
+  // node: [D [B A C] [F E G]]
 
-  node->*Right = moving_son;
-  node->parent = new_parent;
+  std::unique_ptr<Node<Item>> new_parent = std::move(node->*Right);
+  new_parent->parent = node->parent;
+  // node: [D [B A C] -]
+  // new_parent: [F E G]
 
-  if (moving_son != nullptr) {
-    DCHECK_EQ(moving_son->parent, new_parent);
-    moving_son->parent = node;
+  node->*Right = std::move(new_parent.get()->*Left);
+  if (node->*Right != nullptr) {
+    DCHECK_EQ((node->*Right)->parent, new_parent.get());
+    (node->*Right)->parent = node;
   }
+  // node: [D [B A C] E]
+  // new_parent: [F - G]
+
+  new_parent.get()->*Left = std::move(*node_ptr);
+  node->parent = new_parent.get();
+  // node: -
+  // new_parent: [F [D [B A C] E] G]
+
+  // Now install new_parent where node was.
+  *node_ptr = std::move(new_parent);
 
   DVLOG(7) << "Rotate end: " << *root_;
 
   RecomputeCounters(node);
-  RecomputeCounters(new_parent);
+  RecomputeCounters(node_ptr->get());
 }
 
 template <typename Item>
@@ -668,18 +684,19 @@ size_t Height(Node<Item>* node) {
 }
 
 template <typename Item>
-template <Node<Item>* Node<Item>::*Left, Node<Item>* Node<Item>::*Right>
+template <std::unique_ptr<Node<Item>> Node<Item>::*Left,
+          std::unique_ptr<Node<Item>> Node<Item>::*Right>
 bool Tree<Item>::MaybeRotateLeft(Node<Item>* node, bool insert) {
   DVLOG(6) << "MaybeRotate at node: " << *node;
   DCHECK(node != nullptr);
-  DCHECK_GE(Height(node->*Right), Height(node->*Left));
-  if (Height(node->*Right) > Height(node->*Left) + 1) {
-    Node<Item>* right = node->*Right;
+  DCHECK_GE(Height((node->*Right).get()), Height((node->*Left).get()));
+  if (Height((node->*Right).get()) > Height((node->*Left).get()) + 1) {
+    Node<Item>* right = (node->*Right).get();
     bool finish = insert;
-    if (Height(right->*Left) > Height(right->*Right)) {
+    if (Height((right->*Left).get()) > Height((right->*Right).get())) {
       DVLOG(7) << "Rotate right.";
       Rotate<Right, Left>(right);
-    } else if (Height(right->*Left) == Height(right->*Right)) {
+    } else if (Height((right->*Left).get()) == Height((right->*Right).get())) {
       finish = true;
     }
     DVLOG(7) << "Rotate left.";
@@ -687,31 +704,31 @@ bool Tree<Item>::MaybeRotateLeft(Node<Item>* node, bool insert) {
     return finish;
   }
   // No need to keep going if the insertion rebalanced the tree.
-  return insert && Height(node->*Left) == Height(node->*Right);
+  return insert && Height((node->*Left).get()) == Height((node->*Right).get());
 }
 
 template <typename Item>
 void Tree<Item>::MaybeRebalance(Node<Item>* node, const Node<Item>* stop,
                                 bool insert) {
   if (node == nullptr) { return; }
-  ValidateInvariants(node->left);
-  ValidateInvariants(node->right);
+  ValidateInvariants(node->left.get());
+  ValidateInvariants(node->right.get());
   DVLOG(5) << "Maybe rebalance in tree " << *this << " at node " << *node;
   while (node != stop) {
     auto parent = node->parent;
     DCHECK(node->parent == nullptr
-           || node == parent->left
-           || node == parent->right);
+           || node == parent->left.get()
+           || node == parent->right.get());
     DVLOG(9) << "Starting maybe rebalance iteration at " << *node;
     RecomputeCounters(node);
-    if (Height(node->right) > Height(node->left)) {
+    if (Height(node->right.get()) > Height(node->left.get())) {
       DVLOG(5) << "Maybe rotate.";
       if (MaybeRotateLeft<&Node<Item>::left, &Node<Item>::right>(
               node, insert)) {
         VLOG(6) << "Stop";
         break;
       }
-    } else if (Height(node->left) > Height(node->right)) {
+    } else if (Height(node->left.get()) > Height(node->right.get())) {
       DVLOG(5) << "Maybe rotate flipped.";
       if (MaybeRotateLeft<&Node<Item>::right, &Node<Item>::left>(
               node, insert)) {
@@ -733,66 +750,71 @@ void Tree<Item>::MaybeRebalance(Node<Item>* node, const Node<Item>* stop,
 }
 
 template <typename Item>
-void Tree<Item>::InsertRight(Node<Item>* parent, Node<Item>* node) {
+void Tree<Item>::InsertRight(Node<Item>* parent,
+                             std::unique_ptr<Node<Item>> node) {
   DCHECK(parent->right == nullptr);
-  DVLOG(5) << "Insert right: " << node << " under " << parent;
+  DVLOG(5) << "Insert right: " << node.get() << " under " << parent;
   node->parent = parent;
-  parent->right = node;
-  ValidateInvariants(node);
+  parent->right = std::move(node);
+  ValidateInvariants(parent->right.get());
   MaybeRebalance(parent, nullptr, true);
 }
 
 template <typename Item>
-void Tree<Item>::insert(const iterator& position, Node<Item>* node) {
-  DVLOG(6) << "Insert with node begins: " << node << " position: "
+void Tree<Item>::insert(const iterator& position,
+                        std::unique_ptr<Node<Item>> node) {
+  DVLOG(6) << "Insert with node begins: " << node.get() << " position: "
            << position.node_;
   ValidateInvariants();
 
   if (position.node_ == nullptr) {  // Inserting after all elements.
     if (root_ == nullptr) {
-      root_ = node;
+      root_ = std::move(node);
     } else {
       Node<Item>* parent = (--end()).node_;
       DVLOG(8) << "Parent: " << parent;
       CHECK(parent != nullptr);
-      InsertRight(parent, node);
+      InsertRight(parent, std::move(node));
     }
   } else {
     auto parent = position.node_;
     if (!parent->left) {
-      DVLOG(5) << "Insert left: " << node << " under " << parent;
-      parent->left = node;
+      DVLOG(5) << "Insert left: " << node.get() << " under " << parent;
       node->parent = parent;
-      ValidateInvariants(node);
-      MaybeRebalance(node->parent, nullptr, true);
+      parent->left = std::move(node);
+      ValidateInvariants(parent->left.get());
+      MaybeRebalance(parent, nullptr, true);
     } else {
-      parent = parent->left;
+      parent = parent->left.get();
       while (parent->right != nullptr) {
-        parent = parent->right;
+        parent = parent->right.get();
       }
-      InsertRight(parent, node);
+      InsertRight(parent, std::move(node));
     }
   }
   ValidateInvariants();
 }
 
 template <typename Item>
-void Tree<Item>::ReplaceNode(const Node<Item>* old_node, Node<Item>* new_node) {
+std::unique_ptr<Node<Item>>
+Tree<Item>::ReplaceNode(const Node<Item>* old_node,
+                        std::unique_ptr<Node<Item>> new_node) {
   DCHECK(old_node != nullptr);
-  DCHECK(old_node != new_node);
-  Node<Item>* parent = old_node->parent;
-  if (parent == nullptr) {
-    DCHECK(root_ == old_node);
-    root_ = new_node;
-  } else if (parent->left == old_node) {
-    parent->left = new_node;
+  DCHECK(old_node != new_node.get());
+  if (new_node != nullptr) {
+    new_node->parent = old_node->parent;
+  }
+  std::unique_ptr<Node<Item>>* source;
+  if (old_node->parent == nullptr) {
+    source = &root_;
+  } else if (old_node->parent->left.get() == old_node) {
+    source = &old_node->parent->left;
   } else {
-    DCHECK(parent->right == old_node);
-    parent->right = new_node;
+    source = &old_node->parent->right;
   }
-  if (new_node) {
-    new_node->parent = parent;
-  }
+  DCHECK(source->get() == old_node);
+  new_node.swap(*source);
+  return std::move(new_node);
 }
 
 template <typename Item>
@@ -800,36 +822,42 @@ typename Tree<Item>::iterator Tree<Item>::erase(iterator position) {
   ValidateInvariants();
 
   // The node to remove.
-  const Node<Item>* node = position.node_;
+  Node<Item>* node = position.node_;
   DCHECK(node != nullptr) << "Attempt to erase from tree past the end.";
 
   // The node that will replace the old node.
   Node<Item>* next_node;
 
   if (node->right == nullptr) {
-    next_node = node->left;
-    ReplaceNode(node, next_node);
-    MaybeRebalance(node->parent, nullptr, false);
+    next_node = node->left.get();
+    auto old_node = ReplaceNode(node, std::move(node->left));
+    MaybeRebalance(old_node->parent, nullptr, false);
   } else {
     // Find the first element after node.
-    next_node = node->right;
+    next_node = node->right.get();
     while (next_node->left != nullptr) {
-      next_node = next_node->left;
+      next_node = next_node->left.get();
     }
-    ReplaceNode(next_node, next_node->right);
-    MaybeRebalance(next_node->parent, node, false);
+    auto tmp = next_node->right.get();
+    auto old_node = ReplaceNode(next_node, std::move(next_node->right));
+    next_node = tmp;
+    MaybeRebalance(old_node->parent, node, false);
 
-    next_node->left = node->left;
-    if (next_node->left) { next_node->left->parent = next_node; }
-    next_node->right = node->right;
-    if (next_node->right) { next_node->right->parent = next_node; }
+    old_node->left = std::move(node->left);
+    if (old_node->left) {
+      old_node->left->parent = old_node.get();
+    }
+    old_node->right = std::move(node->right);
+    if (old_node->right) {
+      old_node->right->parent = old_node.get();
+    }
 
     DCHECK(node != nullptr);
-    ReplaceNode(node, next_node);
-    MaybeRebalance(next_node, nullptr, false);
+    tmp = old_node.get();
+    ReplaceNode(node, std::move(old_node));
+    MaybeRebalance(tmp, nullptr, false);
   }
 
-  delete node;
   ValidateInvariants();
   return iterator(this, next_node);
 }
@@ -858,7 +886,7 @@ const Node<Item>* Tree<Item>::FirstNode(const Node<Item>* node) const {
   ValidateInvariants();
   if (node != nullptr) {
     while (node->left != nullptr) {
-      node = node->left;
+      node = node->left.get();
     }
   }
   return node;
@@ -875,18 +903,10 @@ const Node<Item>* Tree<Item>::LastNode(const Node<Item>* node) const {
   ValidateInvariants();
   if (node != nullptr) {
     while (node->right != nullptr) {
-      node = node->right;
+      node = node->right.get();
     }
   }
   return node;
-}
-
-template <typename Item>
-void Tree<Item>::DeleteNodes(Node<Item>* node) {
-  if (node == nullptr) { return; }
-  DeleteNodes(node->left);
-  DeleteNodes(node->right);
-  delete node;
 }
 
 template <typename Item>
@@ -894,10 +914,10 @@ size_t Tree<Item>::FindPosition(const Node<Item>* node) const {
   if (node == nullptr) {
     return root_ == nullptr ? 0 : root_->count;
   }
-  int count = Count(node->left);
+  int count = Count(node->left.get());
   while (node->parent != nullptr) {
-    if (node->parent->right == node) {
-      count += 1 + Count(node->parent->left);
+    if (node->parent->right.get() == node) {
+      count += 1 + Count(node->parent->left.get());
     }
     node = node->parent;
   }
