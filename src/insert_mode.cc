@@ -147,7 +147,9 @@ class AutocompleteMode : public EditorMode {
     auto buffer_to_insert =
         std::make_shared<OpenBuffer>(editor_state, L"tmp buffer");
     buffer_to_insert->AppendToLastLine(editor_state, match->contents());
-    DLOG(INFO) << "Completion selected: " << buffer_to_insert->ToString();
+    DLOG(INFO) << "Completion selected: " << buffer_to_insert->ToString()
+               << " (len: " << match->size() << ", word_length: "
+               << word_length_ << ").";
     DeleteOptions delete_options;
     delete_options.modifiers.repetitions = word_length_;
     delete_options.copy_to_paste_buffer = false;
@@ -274,17 +276,23 @@ void FindCompletion(EditorState* editor_state,
 
   AutocompleteMode::Options options;
 
-  auto line = buffer->current_line()->ToString();
-  LOG(INFO) << "Extracting token from line: " << line;
   options.column_end = buffer->position().column;
+  if (options.column_end == 0) {
+    LOG(INFO) << "No completion at very beginning of line.";
+    return;
+  }
+
+  auto line = buffer->current_line()->ToString();
   options.column_start = line.find_last_not_of(
       buffer->read_string_variable(OpenBuffer::variable_word_characters()),
-      options.column_end);
+      options.column_end - 1);
   if (options.column_start == wstring::npos) {
     options.column_start = 0;
   } else {
     options.column_start++;
   }
+  LOG(INFO) << "Positions: start: " << options.column_start << ", end: "
+            << options.column_end;
   options.prefix = std::make_shared<const Line>(Line::Options(NewCopyString(
       line.substr(options.column_start,
                   options.column_end - options.column_start))));
@@ -338,9 +346,11 @@ void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
     CHECK_LE(tree.range.begin.column, tree.range.end.column);
     auto line = buffer.LineAt(tree.range.begin.line);
     CHECK_LE(tree.range.end.column, line->size());
-    words->insert(line->Substring(
+    auto word = line->Substring(
         tree.range.begin.column, tree.range.end.column
-            - tree.range.begin.column)->ToString());
+            - tree.range.begin.column)->ToString();
+    DVLOG(5) << "Found leave: " << word;
+    words->insert(word);
   }
   for (auto& child : tree.children) {
     RegisterLeaves(buffer, child, words);
