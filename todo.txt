@@ -20,8 +20,6 @@ Add a "margin_lines" integer variable.
 
 Add a boolean variable "highlight_current_line" (default: false); when set, highlight the line with the current cursor position.
 
-When Enter doesn't find a file, if there's an open file with a basename that matches, go there?
-
 ActivateLink: if a path starts with /, don't use search paths?
 
 -- Prompt

@@ -873,16 +873,16 @@ void OpenBuffer::StartNewLine(EditorState* editor_state) {
     DVLOG(5) << "Line is completed: " << contents_.back()->ToString();
 
     wstring path;
-    vector<int> positions;
+    LineColumn position;
     wstring pattern;
     if (read_bool_variable(variable_contains_line_marks())
         && ResolvePath(editor_state, contents_.back()->ToString(), &path,
-                       &positions, &pattern)) {
+                       &position, &pattern)) {
       LineMarks::Mark mark;
       mark.source = name_;
       mark.source_line = contents_.size() - 1;
       mark.target_buffer = path;
-      mark.target = LineColumn(positions);
+      mark.target = position;
       LOG(INFO) << "Found a mark: " << mark;
       editor_state->line_marks()->AddMark(mark);
     }
