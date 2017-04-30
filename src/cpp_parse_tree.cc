@@ -14,11 +14,10 @@ class CppTreeParser : public TreeParser {
     CHECK(root != nullptr);
     root->children.clear();
     root->depth = 0;
-    LineColumn position = root->range.begin;
     int nesting = 0;
     ConsumeBlocksUntilBalanced(
-        buffer, root, &nesting, nullptr, nullptr, position, root->range.end,
-        true);
+        buffer, root, &nesting, nullptr, nullptr, root->range.begin,
+        root->range.end, true);
     return;
   }
 
@@ -163,6 +162,15 @@ class CppTreeParser : public TreeParser {
         continue;
       }
 
+      if (after_newline && c == '#') {
+        auto child = PushChild(block);
+        child->range = Range(position, AdvanceUntilEndOfLine(buffer, position));
+        child->modifiers.insert(Line::YELLOW);
+        position = child->range.end;
+        continue;
+      }
+
+      after_newline = false;
       if (closing_character != nullptr && c == *closing_character) {
         auto tree_end = PushChild(block);
         tree_end->range = Range(position, Advance(buffer, position));
@@ -174,14 +182,6 @@ class CppTreeParser : public TreeParser {
 
         block->range.end = tree_end->range.end;
         return;
-      }
-
-      if (after_newline && c == '#') {
-        auto child = PushChild(block);
-        child->range = Range(position, AdvanceUntilEndOfLine(buffer, position));
-        child->modifiers.insert(Line::YELLOW);
-        position = child->range.end;
-        continue;
       }
 
       auto child = PushChild(block);
@@ -210,12 +210,8 @@ class CppTreeParser : public TreeParser {
 
   LineColumn AdvanceUntilEndOfLine(const BufferContents& buffer,
                                    LineColumn position) {
-    if (buffer.size() > position.line + 1) {
-      return LineColumn(position.line + 1);
-    } else {
-      position.column = buffer.at(position.line)->size();
-      return position;
-    }
+    position.column = buffer.at(position.line)->size();
+    return position;
   }
 
   std::unordered_set<Line::Modifier, hash<int>> ModifierForNesting(

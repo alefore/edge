@@ -123,11 +123,20 @@ void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
           : connect_final_char;
 }
 
-wstring DrawTree(int line, const ParseTree& root) {
-  auto route_begin =
-      MapRoute(root, FindRouteToPosition(root, LineColumn(line)));
-  auto route_end =
-      MapRoute(root, FindRouteToPosition(root, LineColumn(line + 1)));
+wstring DrawTree(size_t line, size_t lines_size, const ParseTree& root) {
+  vector<const ParseTree*> route_begin;
+  if (line > 0) {
+    route_begin = MapRoute(root,
+        FindRouteToPosition(root,
+            LineColumn(line - 1, std::numeric_limits<size_t>::max())));
+  }
+
+  vector<const ParseTree*> route_end;
+  if (line < lines_size - 1) {
+    route_end = MapRoute(root,
+        FindRouteToPosition(root,
+            LineColumn(line, std::numeric_limits<size_t>::max())));
+  }
 
   wstring output(root.depth + 1, L' ');
   size_t index_begin = 0;
@@ -282,7 +291,7 @@ void Line::Output(const EditorState* editor_state,
 
     auto root = buffer->parse_tree();
     if (additional_information.empty() && root != nullptr) {
-      additional_information = DrawTree(line, *root);
+      additional_information = DrawTree(line, buffer->lines_size(), *root);
     }
 
     additional_information = additional_information.substr(

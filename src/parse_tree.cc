@@ -165,12 +165,17 @@ class LineTreeParser : public TreeParser {
     CHECK(root != nullptr);
     root->children.clear();
     DVLOG(5) << "Finding lines: " << *root;
-    for (auto line = root->range.begin.line; line <= root->range.end.line; line++) {
+    for (auto line = root->range.begin.line;
+         line <= root->range.end.line; line++) {
       auto contents = buffer.at(line);
+      if (contents->empty()) {
+        continue;
+      }
 
       auto new_children = PushChild(root);
       new_children->range.begin = LineColumn(line);
-      new_children->range.end = min(LineColumn(line + 1), root->range.end);
+      new_children->range.end =
+          min(LineColumn(line, contents->size()), root->range.end);
       DVLOG(5) << "Adding line: " << *new_children;
       delegate_->FindChildren(buffer, new_children.get());
     }
