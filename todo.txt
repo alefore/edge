@@ -20,8 +20,6 @@ Add a "margin_lines" integer variable.
 
 Add a boolean variable "highlight_current_line" (default: false); when set, highlight the line with the current cursor position.
 
-ActivateLink: if a path starts with /, don't use search paths?
-
 -- Prompt
 
 -- Syntax
@@ -42,6 +40,8 @@ When running subcommands with aC, actually set variables "ARG0", "ARG1", "ARG2",
 
 Create some "barriers" that limit the number of subprocesses.  Set a limit for each.  Maybe as a special type of buffer?  Let it reload to show the state?
   Commands should by default go against a shared barrier, but should have a variable that specifies what barrier to use.
+
+Persist undo history?
 
 -- List of buffers
 
