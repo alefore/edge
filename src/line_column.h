@@ -75,7 +75,7 @@ struct Range {
   }
 
   bool Contains(const LineColumn& position) const {
-    return begin <= position && position <= end;
+    return begin <= position && position < end;
   }
 
   bool Disjoint(const Range& other) const {
