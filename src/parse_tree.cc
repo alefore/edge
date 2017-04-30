@@ -31,6 +31,16 @@ PushChild(ParseTree* parent) {  parent->children.emplace_back();
       });
 }
 
+void SimplifyTree(const ParseTree& tree, ParseTree* output) {
+  output->range = tree.range;
+  for (const auto& child : tree.children) {
+    if (child.range.begin.line == child.range.end.line) {
+      continue;
+    }
+    auto new_child = PushChild(output);
+    SimplifyTree(child, new_child.get());
+  }
+}
 
 // Returns the first children of tree that ends after a given position.
 size_t FindChildrenForPosition(const ParseTree* tree,

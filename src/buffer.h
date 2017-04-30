@@ -421,6 +421,11 @@ class OpenBuffer {
     return parse_tree_;
   }
 
+  std::shared_ptr<const ParseTree> simplified_parse_tree() const {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return simplified_parse_tree_;
+  }
+
   size_t tree_depth() const { return tree_depth_; }
   void set_tree_depth(size_t tree_depth) { tree_depth_ = tree_depth; }
 
@@ -453,9 +458,9 @@ class OpenBuffer {
     // -1 means "no file descriptor" (i.e. not currently loading this).
     int fd = -1;
 
-    // We read directly into low_buffer_ and then drain from that into contents_.
-    // It's possible that not all bytes read can be converted (for example, if the
-    // reading stops in the middle of a wide character).
+    // We read directly into low_buffer_ and then drain from that into
+    // contents_. It's possible that not all bytes read can be converted (for
+    // example, if the reading stops in the middle of a wide character).
     std::unique_ptr<char> low_buffer;
     size_t low_buffer_length = 0;
 
@@ -568,6 +573,7 @@ class OpenBuffer {
   size_t desired_line_ = 0;
 
   std::shared_ptr<const ParseTree> parse_tree_;
+  std::shared_ptr<const ParseTree> simplified_parse_tree_;
   std::shared_ptr<TreeParser> tree_parser_;
   size_t tree_depth_ = 0;
 

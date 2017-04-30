@@ -43,6 +43,10 @@ struct ParseTree {
 std::unique_ptr<ParseTree, std::function<void(ParseTree*)>>
 PushChild(ParseTree* parent);
 
+// Returns a copy of tree that only includes children that cross line
+// boundaries. This is useful to reduce the noise shown in the tree.
+void SimplifyTree(const ParseTree& tree, ParseTree* output);
+
 // Find the route down a given parse tree always selecting the first children
 // that ends after the current position. The children selected at each step may
 // not include the position (it may start after the position).

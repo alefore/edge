@@ -500,9 +500,12 @@ void OpenBuffer::BackgroundThread() {
       parse_tree->range.end.column = contents->back()->size();
       parser->FindChildren(*contents, parse_tree.get());
     }
+    auto simplified_parse_tree = std::make_shared<ParseTree>();
+    SimplifyTree(*parse_tree, simplified_parse_tree.get());
 
     std::unique_lock<std::mutex> final_lock(mutex_);
     parse_tree_ = parse_tree;
+    simplified_parse_tree_ = simplified_parse_tree;
     if (contents_to_parse_ == nullptr) {
       editor_->ScheduleRedraw();
     }
