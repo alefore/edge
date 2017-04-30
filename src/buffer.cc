@@ -1567,7 +1567,9 @@ void OpenBuffer::SeekToStructure(
     case BUFFER:
     case CURSOR:
     case CHAR:
+    case TREE:
       break;
+
     case LINE:
       Seek(*this, position)
           .WithDirection(direction)
@@ -1605,6 +1607,43 @@ bool OpenBuffer::SeekToLimit(
     case CHAR:
       return Seek(*this, position).WrappingLines().WithDirection(direction).Once()
           == Seek::DONE;
+      break;
+
+    case TREE:
+      {
+        auto root = parse_tree();
+        if (root == nullptr) {
+          return false;
+        }
+        auto route = MapRoute(*root, FindRouteToPosition(*root, *position));
+        if (tree_depth() <= 0 || route.size() <= tree_depth() - 1) {
+          return false;
+        }
+        bool has_boundary = false;
+        LineColumn boundary;
+        for (const auto& candidate : route[tree_depth() - 1]->children) {
+          if (direction == FORWARDS) {
+            if (candidate.range.begin > *position &&
+                (!has_boundary || candidate.range.begin < boundary)) {
+              boundary = candidate.range.begin;
+              has_boundary = true;
+            }
+          } else {
+            if (candidate.range.end < *position &&
+                (!has_boundary || candidate.range.end > boundary)) {
+              boundary = candidate.range.end;
+              has_boundary = true;
+            }
+          }
+        }
+        if (!has_boundary) {
+          return false;
+        }
+        if (direction == BACKWARDS) {
+          Seek(*this, &boundary).WithDirection(direction).Once();
+        }
+        *position = boundary;
+      }
       break;
 
     case LINE:
