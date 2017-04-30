@@ -44,9 +44,9 @@ thus not very difficult to learn) language that is very expressive.
   * Supports running commands (e.g. "ls -lR"), capturing their output into a
     buffer (that can be navigated just as normal "text" buffers).
 
-  * Use of a pts can be enabled or disabled for buffers with underlying commands.
-    For example, one can run a shell process (or even some other text editor)
-    inside Edge.
+  * Use of a pts can be enabled or disabled for buffers with underlying
+    commands. For example, one can run a shell process (or even some other text
+    editor) inside Edge.
 
 * Buffer are read asynchronously. Edge (almost) never blocks while waiting for
   input.
