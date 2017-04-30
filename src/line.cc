@@ -109,6 +109,68 @@ std::shared_ptr<vm::Environment> Line::environment() const {
   return environment_;
 }
 
+namespace {
+void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
+          wchar_t connect_final_char, wstring* output) {
+  CHECK_LT(pos, output->size());
+  for (size_t i = 0; i < pos; i++) {
+    output->at(i) = padding_char;
+  }
+  output->at(pos) =
+      (pos + 1 == output->size() || output->at(pos + 1) == L' ' ||
+       output->at(pos + 1) == L'│')
+          ? final_char
+          : connect_final_char;
+}
+
+wstring DrawTree(int line, const ParseTree& root) {
+  auto route_begin =
+      MapRoute(root, FindRouteToPosition(root, LineColumn(line)));
+  auto route_end =
+      MapRoute(root, FindRouteToPosition(root, LineColumn(line + 1)));
+
+  wstring output(root.depth + 1, L' ');
+  size_t index_begin = 0;
+  size_t index_end = 0;
+  while (index_begin < route_begin.size() || index_end < route_end.size()) {
+    if (index_begin == route_begin.size()) {
+      Draw(route_end[index_end]->depth, L'─', L'┐', L'┬', &output);
+      index_end++;
+      continue;
+    }
+    if (index_end == route_end.size()) {
+      Draw(route_begin[index_begin]->depth, L'─', L'┘', L'┴', &output);
+      index_begin++;
+      continue;
+    }
+
+    if (route_begin[index_begin]->depth > route_end[index_end]->depth) {
+      Draw(route_begin[index_begin]->depth, L'─', L'┘', L'┴', &output);
+      index_begin++;
+      continue;
+    }
+
+    if (route_end[index_end]->depth > route_begin[index_begin]->depth) {
+      Draw(route_end[index_end]->depth, L'─', L'┐', L'┬', &output);
+      index_end++;
+      continue;
+    }
+
+    if (route_begin[index_begin] == route_end[index_end]) {
+      output[route_begin[index_begin]->depth] = L'│';
+      index_begin ++;
+      index_end ++;
+      continue;
+    }
+
+    Draw(route_end[index_end]->depth, L'─', L'┤', L'┼', &output);
+    index_begin ++;
+    index_end ++;
+  }
+  return output;
+}
+}
+
 void Line::Output(const EditorState* editor_state,
                   const shared_ptr<OpenBuffer>& buffer,
                   size_t line,
@@ -217,6 +279,11 @@ void Line::Output(const EditorState* editor_state,
     receiver->AddModifier(Modifier::RESET);
     output_column += padding + 1;
     CHECK_LE(output_column, width);
+
+    auto root = buffer->parse_tree();
+    if (additional_information.empty() && root != nullptr) {
+      additional_information = DrawTree(line, *root);
+    }
 
     additional_information = additional_information.substr(
         0, min(additional_information.size(), width - output_column));

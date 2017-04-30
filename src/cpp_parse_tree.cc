@@ -13,6 +13,7 @@ class CppTreeParser : public TreeParser {
   void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
     root->children.clear();
+    root->depth = 0;
     LineColumn position = root->range.begin;
     int nesting = 0;
     ConsumeBlocksUntilBalanced(
@@ -76,21 +77,18 @@ class CppTreeParser : public TreeParser {
 
     if (c == L')' || c == L'}' || c == L']') {
       VLOG(3) << "Unmatched pair closing character.";
-      ParseTree child;
-      child.range = Range(block->range.begin,
-                          Advance(buffer, block->range.begin));
-      child.modifiers = {Line::BG_RED, Line::BOLD};
-      block->children.push_back(child);
+      auto child = PushChild(block);
+      child->range = Range(block->range.begin,
+                           Advance(buffer, block->range.begin));
+      child->modifiers = {Line::BG_RED, Line::BOLD};
     }
 
     if (c == L'(' || c == L'{' || c == L'[') {
-      ParseTree open_character;
-      open_character.range =
-          Range(block->range.begin, Advance(buffer, block->range.begin));
-      open_character.modifiers = {Line::BG_RED, Line::BOLD};
       CHECK(block->children.empty());
-      block->children.push_back(open_character);
-
+      auto open_character = PushChild(block);
+      open_character->range =
+          Range(block->range.begin, Advance(buffer, block->range.begin));
+      open_character->modifiers = {Line::BG_RED, Line::BOLD};
       wint_t closing_character;
       switch (c) {
         case L'(': closing_character = L')'; break;
@@ -99,7 +97,7 @@ class CppTreeParser : public TreeParser {
         default:
           CHECK(false);
       }
-      ConsumeBlocksUntilBalanced(buffer, block, nesting, &open_character,
+      ConsumeBlocksUntilBalanced(buffer, block, nesting, open_character.get(),
           &closing_character, Advance(buffer, block->range.begin), limit,
           false);
       return;
@@ -146,8 +144,8 @@ class CppTreeParser : public TreeParser {
 
   void ConsumeBlocksUntilBalanced(
       const BufferContents& buffer, ParseTree* block, int* nesting,
-      ParseTree* open_character, wint_t* closing_character, LineColumn position,
-      LineColumn limit, bool after_newline) {
+      const ParseTree* open_character, wint_t* closing_character,
+      LineColumn position, LineColumn limit, bool after_newline) {
     while (true) {
       // Skip spaces.
       position = AdvanceUntil(buffer, position, limit,
@@ -166,39 +164,36 @@ class CppTreeParser : public TreeParser {
       }
 
       if (closing_character != nullptr && c == *closing_character) {
-        ParseTree tree_end;
-        tree_end.range = Range(position, Advance(buffer, position));
-        tree_end.modifiers = open_character->modifiers;
-        block->children.push_back(tree_end);
+        auto tree_end = PushChild(block);
+        tree_end->range = Range(position, Advance(buffer, position));
+        tree_end->modifiers = open_character->modifiers;
 
         auto modifiers = ModifierForNesting((*nesting)++);
         block->children.front().modifiers = modifiers;
         block->children.back().modifiers = modifiers;
 
-        block->range.end = tree_end.range.end;
+        block->range.end = tree_end->range.end;
         return;
       }
 
       if (after_newline && c == '#') {
-        ParseTree child;
-        child.range = Range(position, AdvanceUntilEndOfLine(buffer, position));
-        child.modifiers.insert(Line::YELLOW);
-        block->children.push_back(child);
-
-        position = child.range.end;
+        auto child = PushChild(block);
+        child->range = Range(position, AdvanceUntilEndOfLine(buffer, position));
+        child->modifiers.insert(Line::YELLOW);
+        position = child->range.end;
         continue;
       }
 
-      block->children.push_back(ParseTree());
-      block->children.back().range.begin = position;
-      ConsumeBlock(buffer, &block->children.back(), limit, nesting);
-      if (position == block->children.back().range.end) {
+      auto child = PushChild(block);
+      child->range.begin = position;
+      ConsumeBlock(buffer, child.get(), limit, nesting);
+      if (position == child->range.end) {
         block->range.end = position;
         return;  // Didn't advance.
       }
 
-      CHECK_LT(position, block->children.back().range.end);
-      position = block->children.back().range.end;
+      CHECK_LT(position, child->range.end);
+      position = child->range.end;
     }
   }
 

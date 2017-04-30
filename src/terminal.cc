@@ -622,8 +622,6 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     }
   }
 
-  // We don't use parse_tree, but we need to keep it around to ensure that the
-  // value of current_tree
   auto root = buffer->parse_tree();
   auto current_tree = buffer->current_tree(root.get());
   while (lines_shown < lines_to_show) {

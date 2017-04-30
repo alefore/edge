@@ -165,33 +165,6 @@ class OpenBuffer {
 
   const ParseTree* current_tree(const ParseTree* root) const;
 
-  struct TreeSearchResult {
-    // The parent containing the tree for the depth given at the position given.
-    const ParseTree* parent;
-    // The index of the children of parent for the tree.
-    size_t index;
-    // The depth of the parent.
-    size_t depth;
-  };
-
-  // You should hold a copy of parse_tree_ and pass it. The results will only be
-  // valid as long as your copy is valid.
-  TreeSearchResult FindTreeInPosition(
-     size_t depth, const ParseTree* tree_root, const LineColumn& position,
-     Direction direction) const;
-
-  // Returns the index of the first children of tree that ends in a position
-  // greater than the one given.
-  size_t FindChildrenForPosition(const ParseTree* tree,
-                                 const LineColumn& position,
-                                 Direction direction) const;
-
-  // the structure at the position given.
-  //
-  // You probably want to call FindPartialRange instead.
-  bool FindRange(const Modifiers& modifiers, const LineColumn& position,
-                 LineColumn* first, LineColumn* last);
-
   // Moves position in the specified direction until we're inside the structure
   // of the type specified that starts after position. No-op if we're already
   // inside the structure.
@@ -204,7 +177,7 @@ class OpenBuffer {
   bool SeekToLimit(
       Structure structure, Direction direction, LineColumn* position);
 
-  // Same as FindRange, but honors Modifiers::structure_range.
+  // TODO: Change start and end to be a Range?
   bool FindPartialRange(
     const Modifiers& modifiers, const LineColumn& position, LineColumn* start,
     LineColumn* end);

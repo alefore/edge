@@ -1732,55 +1732,14 @@ bool OpenBuffer::FindPartialRange(
 }
 
 const ParseTree* OpenBuffer::current_tree(const ParseTree* root) const {
-  auto output = FindTreeInPosition(tree_depth_, root, position(), FORWARDS);
-  if (output.parent == nullptr) { return root; }
-  CHECK_GT(output.parent->children.size(), output.index);
-  return &output.parent->children.at(output.index);
-}
-
-OpenBuffer::TreeSearchResult OpenBuffer::FindTreeInPosition(
-    size_t depth, const ParseTree* root, const LineColumn& position,
-    Direction direction) const {
-  TreeSearchResult output;
-  output.parent = nullptr;
-  output.index = 0;
-  output.depth = 0;
-  while (output.depth < depth) {
-    auto candidate = output.depth == 0
-                         ? root
-                         : &output.parent->children.at(output.index);
-    if (candidate->children.empty()) { return output; }
-    output.parent = candidate;
-    // We only want to head backwards if we're already at the right depth.
-    output.index = FindChildrenForPosition(
-        output.parent, position,
-        output.depth == depth - 1 ? direction : FORWARDS);
-    output.depth++;
+  auto route = FindRouteToPosition(*root, position());
+  if (route.size() < tree_depth_) {
+    return root;
   }
-  return output;
-}
-
-// Returns the first children of tree that ends after a given position.
-size_t OpenBuffer::FindChildrenForPosition(
-    const ParseTree* tree, const LineColumn& position, Direction direction)
-    const {
-  if (tree->children.empty()) { return 0; }
-  for (size_t i = 0; i < tree->children.size(); i++) {
-    switch (direction) {
-      case FORWARDS:
-        if (tree->children.at(i).range.end > position) {
-          return i;
-        }
-        break;
-      case BACKWARDS:
-        auto position = tree->children.size() - i - 1;
-        if (tree->children.at(position).range.end <= position) {
-          return tree->children.size() - i - 1;
-        }
-        break;
-    }
+  if (route.size() > tree_depth_) {
+    route.resize(tree_depth_);
   }
-  return direction == FORWARDS ? tree->children.size() - 1 : 0;
+  return FollowRoute(*root, route);
 }
 
 const shared_ptr<const Line> OpenBuffer::current_line() const {

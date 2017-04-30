@@ -22,6 +22,60 @@ std::ostream& operator<<(std::ostream& os, const ParseTree& t) {
     return os;
 }
 
+std::unique_ptr<ParseTree, std::function<void(ParseTree*)>>
+PushChild(ParseTree* parent) {  parent->children.emplace_back();
+  return std::unique_ptr<ParseTree, std::function<void(ParseTree*)>>(
+      &parent->children.back(),
+      [parent](ParseTree* child) {
+        parent->depth = max(parent->depth, child->depth + 1);
+      });
+}
+
+
+// Returns the first children of tree that ends after a given position.
+size_t FindChildrenForPosition(const ParseTree* tree,
+                               const LineColumn& position) {
+  for (size_t i = 0; i < tree->children.size(); i++) {
+    if (tree->children.at(i).range.Contains(position)) {
+      return i;
+    }
+  }
+  return tree->children.size();
+}
+
+ParseTree::Route FindRouteToPosition(
+    const ParseTree& root, const LineColumn& position) {
+  ParseTree::Route output;
+  auto tree = &root;
+  for (;;) {
+    size_t index = FindChildrenForPosition(tree, position);
+    if (index == tree->children.size()) {
+      return output;
+    }
+    output.push_back(index);
+    tree = &tree->children.at(index);
+  }
+}
+
+std::vector<const ParseTree*> MapRoute(
+    const ParseTree& root, const ParseTree::Route& route) {
+  std::vector<const ParseTree*> output = { &root };
+  for (auto& index : route) {
+    output.push_back(&output.back()->children.at(index));
+  }
+  return output;
+}
+
+const ParseTree* FollowRoute(const ParseTree& root,
+                             const ParseTree::Route& route) {
+  auto tree = &root;
+  for (auto& index : route) {
+    CHECK_LT(index, tree->children.size());
+    tree = &tree->children.at(index);
+  }
+  return tree;
+}
+
 namespace {
 class NullTreeParser : public TreeParser {
  public:
@@ -65,7 +119,8 @@ class WordsTreeParser : public TreeParser {
   void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
     root->children.clear();
-    for (auto line = root->range.begin.line; line <= root->range.end.line; line++) {
+    for (auto line = root->range.begin.line;
+         line <= root->range.end.line; line++) {
       const auto& contents = *buffer.at(line);
 
       size_t line_end = contents.size();
@@ -73,21 +128,21 @@ class WordsTreeParser : public TreeParser {
         line_end = min(line_end, root->range.end.column);
       }
 
-      size_t column = line == root->range.begin.line ? root->range.begin.column : 0;
+      size_t column =
+          line == root->range.begin.line ? root->range.begin.column : 0;
       while (column < line_end) {
-        ParseTree new_children;
+        auto new_children = PushChild(root);
 
         while (column < line_end && IsSpace(contents, column)) { column++; }
-        new_children.range.begin = LineColumn(line, column);
+        new_children->range.begin = LineColumn(line, column);
 
         while (column < line_end && !IsSpace(contents, column)) { column++; }
-        new_children.range.end = LineColumn(line, column);
+        new_children->range.end = LineColumn(line, column);
 
-        if (new_children.range.IsEmpty()) { return; }
+        if (new_children->range.IsEmpty()) { return; }
 
-        DVLOG(6) << "Adding word: " << new_children;
-        root->children.push_back(new_children);
-        delegate_->FindChildren(buffer, &root->children.back());
+        DVLOG(6) << "Adding word: " << *new_children;
+        delegate_->FindChildren(buffer, new_children.get());
       }
     }
   }
@@ -113,12 +168,11 @@ class LineTreeParser : public TreeParser {
     for (auto line = root->range.begin.line; line <= root->range.end.line; line++) {
       auto contents = buffer.at(line);
 
-      ParseTree new_children;
-      new_children.range.begin = LineColumn(line);
-      new_children.range.end = min(LineColumn(line + 1), root->range.end);
-      DVLOG(5) << "Adding line: " << new_children;
-      root->children.push_back(new_children);
-      delegate_->FindChildren(buffer, &root->children.back());
+      auto new_children = PushChild(root);
+      new_children->range.begin = LineColumn(line);
+      new_children->range.end = min(LineColumn(line + 1), root->range.end);
+      DVLOG(5) << "Adding line: " << *new_children;
+      delegate_->FindChildren(buffer, new_children.get());
     }
   }
 
