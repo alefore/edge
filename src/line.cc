@@ -110,6 +110,19 @@ std::shared_ptr<vm::Environment> Line::environment() const {
 }
 
 namespace {
+// Returns a copy of tree that only includes children that cross line
+// boundaries. This is useful to reduce the noise shown in the tree.
+void SimplifyTree(const ParseTree& tree, ParseTree* output) {
+  output->range = tree.range;
+  for (const auto& child : tree.children) {
+    if (child.range.begin.line == child.range.end.line) {
+      continue;
+    }
+    auto new_child = PushChild(output);
+    SimplifyTree(child, new_child.get());
+  }
+}
+
 void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
           wchar_t connect_final_char, wstring* output) {
   CHECK_LT(pos, output->size());
@@ -291,7 +304,10 @@ void Line::Output(const EditorState* editor_state,
 
     auto root = buffer->parse_tree();
     if (additional_information.empty() && root != nullptr) {
-      additional_information = DrawTree(line, buffer->lines_size(), *root);
+      ParseTree simple_root;
+      SimplifyTree(*root, &simple_root);
+      additional_information =
+          DrawTree(line, buffer->lines_size(), simple_root);
     }
 
     additional_information = additional_information.substr(
