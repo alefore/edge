@@ -303,7 +303,7 @@ Environment EditorState::BuildEditorEnvironment() {
           assert(args[0]->type == VMType::VM_STRING);
           ForkCommandOptions options;
           options.command = args[0]->str;
-          options.enter = true;
+          options.enter = false;
           ForkCommand(this, options);
           return std::move(Value::NewVoid());
         };
