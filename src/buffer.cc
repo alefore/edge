@@ -2329,6 +2329,8 @@ OpenBuffer::variable_tree_parser() {
     // Trigger registration of all fields.
     OpenBuffer::variable_line_width();
     OpenBuffer::variable_buffer_list_context_lines();
+    OpenBuffer::variable_margin_lines();
+    OpenBuffer::variable_margin_columns();
   }
   return output;
 }
@@ -2348,6 +2350,26 @@ OpenBuffer::variable_tree_parser() {
       L"Number of lines of context from this buffer to show in the list of "
       L"buffers.",
       0);
+  return variable;
+}
+
+/* static */ EdgeVariable<int>*
+    OpenBuffer::variable_margin_lines() {
+  static EdgeVariable<int>* variable = IntStruct()->AddVariable(
+      L"margin_lines",
+      L"Number of lines of context to display at the top/bottom of the current "
+      L"position.",
+      2);
+  return variable;
+}
+
+/* static */ EdgeVariable<int>*
+    OpenBuffer::variable_margin_columns() {
+  static EdgeVariable<int>* variable = IntStruct()->AddVariable(
+      L"margin_columns",
+      L"Number of characters of context to display at the left/right of the "
+      L"current position.",
+      2);
   return variable;
 }
 

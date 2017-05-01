@@ -13,10 +13,7 @@ Let buffers "garbage collect" their contents: if they're clean and haven't been 
 Improve "g", the current behavior is kind of annoying:
   There should be a way (other than pressing it again) to specify if it should ignore space.  Maybe a modifier can do it?
 
-Add a "margin_lines" integer variable.
-  Scroll the file automatically to always keep that number of entries visible above/below cursor.
-    Unless at the beginning/end.
-  Also "margin_columns", consistent.
+Honor the "margin_columns" variable.
 
 Add a boolean variable "highlight_current_line" (default: false); when set, highlight the line with the current cursor position.
 

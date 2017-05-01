@@ -360,6 +360,8 @@ class OpenBuffer {
   static EdgeStruct<int>* IntStruct();
   static EdgeVariable<int>* variable_line_width();
   static EdgeVariable<int>* variable_buffer_list_context_lines();
+  static EdgeVariable<int>* variable_margin_lines();
+  static EdgeVariable<int>* variable_margin_columns();
 
   // No variables currently, but we'll likely add some later.
   static EdgeStruct<unique_ptr<Value>>* ValueStruct();

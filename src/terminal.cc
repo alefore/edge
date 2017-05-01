@@ -49,13 +49,17 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   if (buffer->read_bool_variable(OpenBuffer::variable_reload_on_display())) {
     buffer->Reload(editor_state);
   }
-  size_t line =
-      min(buffer->current_position_line(), buffer->contents()->size() - 1);
-  if (buffer->view_start_line() > line) {
-    buffer->set_view_start_line(line);
+  size_t line = min(buffer->position().line, buffer->contents()->size() - 1);
+  size_t margin_lines =
+       max(buffer->read_int_variable(OpenBuffer::variable_margin_lines()), 0);
+  margin_lines = min(margin_lines, static_cast<size_t>(screen_lines) / 2 - 1);
+  if (buffer->view_start_line() > line - min(margin_lines, line)) {
+    buffer->set_view_start_line(line - min(margin_lines, line));
     editor_state->ScheduleRedraw();
-  } else if (buffer->view_start_line() + screen_lines - 1 <= line) {
-    buffer->set_view_start_line(line - screen_lines + 2);
+  } else if (buffer->view_start_line() + screen_lines - 1 <=
+                 min(buffer->lines_size() - 1, line + margin_lines)) {
+    buffer->set_view_start_line(
+        min(buffer->lines_size() - 1, line + margin_lines) - screen_lines + 2);
     editor_state->ScheduleRedraw();
   }
 
