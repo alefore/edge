@@ -153,8 +153,15 @@ class FileBuffer : public OpenBuffer {
     }
     contents.push_back(L"");
 
-
+    contents.push_back(L"// Bool variables");
+    for (const auto& variable : OpenBuffer::BoolStruct()->variables()) {
+      contents.push_back(
+          L"buffer.set_" + variable.first + L"(" +
+          (read_bool_variable(variable.second.get()) ? L"true" : L"false")
+          + L");");
+    }
     contents.push_back(L"");
+
     return SaveContentsToFile(editor_, path, contents);
   }
 
