@@ -16,6 +16,7 @@ extern "C" {
 #include <glog/logging.h>
 
 #include "char_buffer.h"
+#include "dirname.h"
 #include "editor.h"
 #include "file_link_mode.h"
 #include "run_command_handler.h"
@@ -546,24 +547,32 @@ void EditorState::PushPosition(LineColumn position) {
               OpenBuffer::variable_push_positions_to_history())) {
     return;
   }
-  auto buffer_it = buffers_.insert({kPositionsBufferName, nullptr});
-  if (buffer_it.second) {
-    // Inserted a new entry into the list of buffers.
-    buffer_it.first->second = shared_ptr<OpenBuffer>(
-        new OpenBuffer(this, kPositionsBufferName));
+  auto buffer_it = buffers_.find(kPositionsBufferName);
+  if (buffer_it == buffers_.end()) {
+    // Insert a new entry into the list of buffers.
+    OpenFileOptions options;
+    options.editor_state = this;
+    options.name = kPositionsBufferName;
+    options.path = PathJoin(*edge_path().begin(), L"positions");
+    options.make_current_buffer = false;
+    buffer_it = OpenFile(options);
+    CHECK(buffer_it != buffers()->end());
+    CHECK(buffer_it->second != nullptr);
+    buffer_it->second->set_bool_variable(
+        OpenBuffer::variable_save_on_close(), true);
+    buffer_it->second->set_bool_variable(
+        OpenBuffer::variable_show_in_buffers_list(), false);
   }
-  CHECK(buffer_it.first->second != nullptr);
-  buffer_it.first->second->set_bool_variable(
-      OpenBuffer::variable_show_in_buffers_list(), false);
-  CHECK_LE(buffer_it.first->second->position().line,
-           buffer_it.first->second->contents()->size());
-  shared_ptr<Line> line(new Line(Line::Options(
-      NewCopyString(position.ToString() + L" " + current_buffer_->first))));
-  buffer_it.first->second->InsertLine(
-      buffer_it.first->second->current_position_line(), line);
-  CHECK_LE(buffer_it.first->second->position().line,
-           buffer_it.first->second->contents()->size());
-  if (buffer_it.first == current_buffer_) {
+  CHECK(buffer_it->second != nullptr);
+  CHECK_LE(buffer_it->second->position().line,
+           buffer_it->second->contents()->size());
+  buffer_it->second->InsertLine(
+      buffer_it->second->current_position_line(),
+      std::make_shared<Line>(
+          position.ToString() + L" " + current_buffer_->first));
+  CHECK_LE(buffer_it->second->position().line,
+           buffer_it->second->contents()->size());
+  if (buffer_it == current_buffer_) {
     ScheduleRedraw();
   }
 }

@@ -451,7 +451,7 @@ static bool FindPath(
 
 using std::unique_ptr;
 
-  shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
+shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
   OpenFileOptions options;
   options.editor_state = editor_state;
   options.name = L"- search paths";
@@ -528,6 +528,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
       DCHECK(!path.empty());
       for (auto it = editor_state->buffers()->begin();
            it != editor_state->buffers()->end(); ++it) {
+        CHECK(it->second != nullptr);
         auto buffer_path =
             it->second->read_string_variable(OpenBuffer::variable_path());
         if (buffer_path.size() >= path.size() &&
@@ -555,7 +556,6 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     actual_path = options.path;
   }
 
-  editor_state->PushCurrentPosition();
   shared_ptr<OpenBuffer> buffer;
   wstring name;
   if (!options.name.empty()) {
@@ -567,7 +567,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
       count++;
     }
     name = GetAnonymousBufferName(count);
-    buffer.reset(new FileBuffer(editor_state, actual_path, name));
+    buffer = std::make_shared<FileBuffer>(editor_state, actual_path, name);
   } else {
     name = actual_path;
   }
@@ -579,6 +579,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     }
     it.first->second->Reload(editor_state);
   }
+  editor_state->PushCurrentPosition();
   it.first->second->set_position(position);
   if (options.make_current_buffer) {
     editor_state->set_current_buffer(it.first);

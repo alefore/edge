@@ -163,6 +163,7 @@ class ServerBuffer : public OpenBuffer {
     set_bool_variable(variable_clear_on_reload(), false);
     set_bool_variable(variable_vm_exec(), true);
     set_bool_variable(variable_show_in_buffers_list(), false);
+    set_bool_variable(variable_allow_dirty_delete(), true);
   }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
