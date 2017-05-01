@@ -52,6 +52,8 @@ struct LineColumn {
     return rhs <= *this;
   }
 
+  std::wstring ToCppString() const;
+
   size_t line;
   size_t column;
 

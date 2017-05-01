@@ -132,6 +132,10 @@ class FileBuffer : public OpenBuffer {
     contents.push_back(L"// State of file: " + path);
     contents.push_back(L"");
 
+    contents.push_back(
+        L"buffer.set_position(" + position().ToCppString() + L");");
+    contents.push_back(L"");
+
     contents.push_back(L"// String variables");
     for (const auto& variable : OpenBuffer::StringStruct()->variables()) {
       contents.push_back(

@@ -23,5 +23,10 @@ std::ostream& operator<<(std::ostream& os, const Range& range) {
   return os;
 }
 
+std::wstring LineColumn::ToCppString() const {
+  return L"LineColumn(" + std::to_wstring(line) + L", " +
+      std::to_wstring(column) + L")";
+}
+
 } // namespace editor
 } // namespace afc
