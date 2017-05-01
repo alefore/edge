@@ -685,6 +685,7 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
 
 void OpenBuffer::MaybeFollowToEndOfFile() {
   if (desired_line_ < contents_.size()) {
+    VLOG(5) << "Desired_line_ is realized: " << desired_line_;
     set_current_position_line(desired_line_);
     desired_line_ = std::numeric_limits<decltype(desired_line_)>::max();
   }
@@ -918,7 +919,11 @@ void OpenBuffer::Reload(EditorState* editor_state) {
     }
     EvaluateFile(editor_state, state_path);
   }
-  desired_line_ = current_position_line();
+  if (desired_line_ == std::numeric_limits<decltype(desired_line_)>::max()) {
+    VLOG(5) << "Setting desired_line_ to current position: "
+            << current_position_line();
+    desired_line_ = current_position_line();
+  }
   ClearModified();
   ReloadInto(editor_state, this);
   CheckPosition();
@@ -1928,11 +1933,11 @@ const LineColumn OpenBuffer::position() const {
 
 void OpenBuffer::set_position(const LineColumn& position) {
   if (position.line > contents_.size()) {
+    VLOG(5) << "Setting desired_line_: " << position.line;
     desired_line_ = position.line;
   }
-  set_current_cursor(
-      LineColumn(min(position.line, contents_.size()),
-                 position.column));
+  set_current_cursor(LineColumn(min(position.line, contents_.size()),
+                                position.column));
 }
 
 wstring OpenBuffer::FlagsString() const {
