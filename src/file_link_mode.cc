@@ -577,7 +577,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   if (it.second) {
     if (it.first->second.get() == nullptr) {
       it.first->second =
-          std::make_shared<FileBuffer>(editor_state, actual_path, actual_path);
+          std::make_shared<FileBuffer>(editor_state, actual_path, name);
     }
     it.first->second->Reload(editor_state);
   }

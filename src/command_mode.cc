@@ -676,6 +676,7 @@ class ActivateLink : public Command {
 
     auto target = buffer->GetBufferFromCurrentLine();
     if (target != nullptr && target != buffer) {
+      LOG(INFO) << "Visiting buffer: " << target->name();
       editor_state->ResetStatus();
       auto it = editor_state->buffers()->find(target->name());
       if (it == editor_state->buffers()->end()) { return; }
