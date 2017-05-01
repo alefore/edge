@@ -793,6 +793,7 @@ void OpenBuffer::Input::ReadData(
     editor_state->ScheduleRedraw();
   } else {
     size_t line_start = 0;
+    bool previous_modified = target->modified();
     for (size_t i = 0; i < buffer_wrapper->size(); i++) {
       if (buffer_wrapper->get(i) == '\n') {
         auto line = Substring(buffer_wrapper, line_start, i - line_start);
@@ -817,6 +818,9 @@ void OpenBuffer::Input::ReadData(
                             buffer_wrapper->size() - line_start);
       target->AppendToLastLine(
           editor_state, line, ModifiersVector(modifiers, line->size()));
+    }
+    if (!previous_modified) {
+      target->ClearModified();  // These changes don't count.
     }
   }
   if (editor_state->has_current_buffer()
@@ -1898,6 +1902,7 @@ void OpenBuffer::SetInputFiles(
     bool fd_is_terminal, pid_t child_pid) {
   if (read_bool_variable(variable_clear_on_reload())) {
     ClearContents(editor_state);
+    ClearModified();
     fd_.Reset();
     fd_error_.Reset();
   }

@@ -166,6 +166,7 @@ class FileBuffer : public OpenBuffer {
   }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
+    CHECK(!target->modified());
     const wstring path = GetPath();
     LOG(INFO) << "ReloadInto: " << path;
     const string path_raw = ToByteString(path);
@@ -175,6 +176,7 @@ class FileBuffer : public OpenBuffer {
 
     if (target->read_bool_variable(OpenBuffer::variable_clear_on_reload())) {
       target->ClearContents(editor_state);
+      target->ClearModified();
     }
 
     editor_state->ScheduleRedraw();
