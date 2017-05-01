@@ -788,12 +788,12 @@ void OpenBuffer::Input::ReadData(
     target->EvaluateString(editor_state, buffer_wrapper->ToString());
   }
 
+  bool previous_modified = target->modified();
   if (target->read_bool_variable(OpenBuffer::variable_pts())) {
     target->ProcessCommandInput(editor_state, buffer_wrapper);
     editor_state->ScheduleRedraw();
   } else {
     size_t line_start = 0;
-    bool previous_modified = target->modified();
     for (size_t i = 0; i < buffer_wrapper->size(); i++) {
       if (buffer_wrapper->get(i) == '\n') {
         auto line = Substring(buffer_wrapper, line_start, i - line_start);
@@ -819,9 +819,9 @@ void OpenBuffer::Input::ReadData(
       target->AppendToLastLine(
           editor_state, line, ModifiersVector(modifiers, line->size()));
     }
-    if (!previous_modified) {
-      target->ClearModified();  // These changes don't count.
-    }
+  }
+  if (!previous_modified) {
+    target->ClearModified();  // These changes don't count.
   }
   if (editor_state->has_current_buffer()
       && editor_state->current_buffer()->first == kBuffersName) {
