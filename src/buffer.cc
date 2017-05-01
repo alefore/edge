@@ -564,6 +564,11 @@ OpenBuffer::~OpenBuffer() {
 }
 
 bool OpenBuffer::PrepareToClose(EditorState* editor_state) {
+  if (!PersistState() &&
+      editor_state->modifiers().strength <= Modifiers::DEFAULT) {
+    LOG(INFO) << "Unable to persist state: " << name_;
+    return false;
+  }
   if (!dirty()) {
     LOG(INFO) << name_ << ": clean, skipping.";
     return true;
