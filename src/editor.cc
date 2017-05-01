@@ -299,12 +299,15 @@ Environment EditorState::BuildEditorEnvironment() {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
     callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
     callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::VM_STRING);
+          CHECK_EQ(args.size(), 2);
+          CHECK_EQ(args[0]->type, VMType::VM_STRING);
+          CHECK_EQ(args[1]->type, VMType::VM_BOOLEAN);
           ForkCommandOptions options;
           options.command = args[0]->str;
-          options.enter = false;
+          options.enter = args[1]->boolean;
           ForkCommand(this, options);
           return std::move(Value::NewVoid());
         };

@@ -84,7 +84,7 @@ struct Args {
   string client = "";
 };
 
-static const char* kDefaultCommandsToRun = "ForkCommand(\"sh -l\");";
+static const char* kDefaultCommandsToRun = "ForkCommand(\"sh -l\", true);";
 
 string CommandsToRun(Args args) {
   string commands_to_run = args.commands_to_run;
@@ -92,7 +92,8 @@ string CommandsToRun(Args args) {
     commands_to_run += "OpenFile(\"" + string(path) + "\");\n";
   }
   for (auto& command_to_fork : args.commands_to_fork) {
-    commands_to_run += "ForkCommand(\"" + string(command_to_fork) + "\");\n";
+    commands_to_run +=
+        "ForkCommand(\"" + string(command_to_fork) + "\", true);\n";
   }
   if (!args.client.empty()) {
     commands_to_run += "Screen screen = RemoteScreen(\""
