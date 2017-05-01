@@ -541,6 +541,10 @@ class OpenBuffer {
   void ProcessCommandInput(
       EditorState* editor_state, shared_ptr<LazyString> str);
 
+  // Returns true if the position given is set to a value other than
+  // LineColumn::Max and the buffer has read past that position.
+  bool IsPastPosition(LineColumn position) const;
+
   // Whenever the contents are modified, we set this to the snapshot (after the
   // modification). The background thread will react to this: it'll take the
   // value out (and reset it to null). Once it's done, it'll update the parse
@@ -574,8 +578,9 @@ class OpenBuffer {
   CursorsTracker cursors_tracker_;
 
   // If we get a request to open a buffer and jump to a given line, we store
-  // that value here. Once we've read enough lines, we stay at this position.
-  size_t desired_line_ = 0;
+  // that value here. Once we've read enough, we stay at this position. It can
+  // be set to LineColumn::Max to signify "no desired position".
+  LineColumn desired_position_;
 
   std::shared_ptr<const ParseTree> parse_tree_;
   std::shared_ptr<const ParseTree> simplified_parse_tree_;

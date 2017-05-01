@@ -684,10 +684,10 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
 }
 
 void OpenBuffer::MaybeFollowToEndOfFile() {
-  if (desired_line_ < contents_.size()) {
-    VLOG(5) << "Desired_line_ is realized: " << desired_line_;
-    set_current_position_line(desired_line_);
-    desired_line_ = std::numeric_limits<decltype(desired_line_)>::max();
+  if (IsPastPosition(desired_position_)) {
+    VLOG(5) << "desired_position_ is realized: " << desired_position_;
+    set_position(desired_position_);
+    desired_position_ = LineColumn::Max();
   }
   if (!read_bool_variable(variable_follow_end_of_file())) { return; }
   if (read_bool_variable(variable_pts())) {
@@ -919,10 +919,9 @@ void OpenBuffer::Reload(EditorState* editor_state) {
     }
     EvaluateFile(editor_state, state_path);
   }
-  if (desired_line_ == std::numeric_limits<decltype(desired_line_)>::max()) {
-    VLOG(5) << "Setting desired_line_ to current position: "
-            << current_position_line();
-    desired_line_ = current_position_line();
+  if (desired_position_ == LineColumn::Max()) {
+    VLOG(5) << "Setting desired_position_ to current position: " << position();
+    desired_position_ = position();
   }
   ClearModified();
   ReloadInto(editor_state, this);
@@ -1932,9 +1931,9 @@ const LineColumn OpenBuffer::position() const {
 }
 
 void OpenBuffer::set_position(const LineColumn& position) {
-  if (position.line > contents_.size()) {
-    VLOG(5) << "Setting desired_line_: " << position.line;
-    desired_line_ = position.line;
+  if (!IsPastPosition(position)) {
+    VLOG(5) << "Setting desired_position_: " << position;
+    desired_position_ = position;
   }
   set_current_cursor(LineColumn(min(position.line, contents_.size()),
                                 position.column));
@@ -2591,6 +2590,13 @@ wstring OpenBuffer::GetLineMarksText(const EditorState& editor_state) const {
     }
   }
   return output;
+}
+
+bool OpenBuffer::IsPastPosition(LineColumn position) const {
+  return position != LineColumn::Max() &&
+         (position.line + 1 < contents_.size() ||
+          (position.line + 1 == contents_.size() &&
+           position.column <= LineAt(position.line)->size()));
 }
 
 }  // namespace editor
