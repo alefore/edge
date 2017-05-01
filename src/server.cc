@@ -35,6 +35,27 @@ using std::string;
 
 struct Environment;
 
+wstring CppEscapeString(wstring input) {
+  wstring output;
+  output.reserve(input.size() * 2);
+  for (wchar_t c : input) {
+    switch (c) {
+      case '\n':
+        output += L"\\n";
+        break;
+      case '"':
+        output += L"\\\"";
+        break;
+      case '\\':
+        output += L"\\\\";
+        break;
+      default:
+        output += c;
+    }
+  }
+  return output;
+}
+
 bool CreateFifo(wstring input_path, wstring* output, wstring* error) {
   while (true) {
     char* path_str = input_path.empty()

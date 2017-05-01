@@ -98,7 +98,8 @@ class Line {
   };
 
   Line() : Line(Options()) {}
-  Line(const Options& options);
+  explicit Line(const Options& options);
+  explicit Line(wstring text);
   Line(const Line& line) = default;
 
   shared_ptr<LazyString> contents() const { return contents_; }

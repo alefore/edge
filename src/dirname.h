@@ -1,6 +1,7 @@
 #ifndef __AFC_EDITOR_DIRNAME_H__
 #define __AFC_EDITOR_DIRNAME_H__
 
+#include <list>
 #include <memory>
 #include <wchar.h>
 
@@ -10,6 +11,9 @@ namespace afc {
 namespace editor {
 
 std::wstring Dirname(std::wstring path);
+std::wstring Basename(std::wstring path);
+bool DirectorySplit(std::wstring path, std::list<std::wstring>* output);
+std::wstring PathJoin(const std::wstring& a, const std::wstring& b);
 
 }  // namespace editor
 }  // namespace afc

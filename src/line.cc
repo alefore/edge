@@ -17,6 +17,9 @@ namespace editor {
 
 using std::hash;
 using std::unordered_set;
+using std::wstring;
+
+Line::Line(wstring x) : Line(Line::Options(NewCopyString(std::move(x)))) {}
 
 Line::Line(const Options& options)
     : environment_(options.environment == nullptr

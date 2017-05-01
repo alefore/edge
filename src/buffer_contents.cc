@@ -192,6 +192,10 @@ void BufferContents::FoldNextLine(size_t position) {
   EraseLines(position + 1, position + 2);
 }
 
+void BufferContents::push_back(wstring str) {
+  return push_back(std::make_shared<Line>(std::move(str)));
+}
+
 void BufferContents::AddUpdateListener(
     std::function<void(const CursorsTracker::Transformation&)> listener) {
   CHECK(listener);

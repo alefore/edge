@@ -64,6 +64,11 @@ class OpenBuffer {
   time_t last_visit() const;
   time_t last_action() const;
 
+  // Saves state of this buffer (not including contents). Currently that means
+  // the values of variables, but in the future it could include other things.
+  // Returns true if the state could be persisted successfully.
+  virtual bool PersistState() const;
+
   void ClearContents(EditorState* editor_state);
   void AppendEmptyLine(EditorState* editor_state);
 

@@ -11,6 +11,7 @@
 #include <string>
 
 extern "C" {
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -21,6 +22,7 @@ extern "C" {
 #include "char_buffer.h"
 #include "cpp_parse_tree.h"
 #include "cursors_transformation.h"
+#include "dirname.h"
 #include "editor.h"
 #include "file_link_mode.h"
 #include "run_command_handler.h"
@@ -614,6 +616,10 @@ void OpenBuffer::Visit(EditorState* editor_state) {
 time_t OpenBuffer::last_visit() const { return last_visit_; }
 time_t OpenBuffer::last_action() const { return last_action_; }
 
+bool OpenBuffer::PersistState() const {
+  return true;
+}
+
 void OpenBuffer::ClearContents(EditorState* editor_state) {
   VLOG(5) << "Clear contents of buffer: " << name_;
   editor_state->line_marks()->RemoveExpiredMarksFromSource(name_);
@@ -900,7 +906,17 @@ void OpenBuffer::Reload(EditorState* editor_state) {
     return;
   }
   for (const auto& dir : editor_state->edge_path()) {
-    EvaluateFile(editor_state, dir + L"/hooks/buffer-reload.cc");
+    EvaluateFile(editor_state, PathJoin(dir, L"hooks/buffer-reload.cc"));
+  }
+  auto buffer_path = read_string_variable(variable_path());
+  for (const auto& dir : editor_state->edge_path()) {
+    auto state_path = PathJoin(PathJoin(dir, L"state"),
+                               PathJoin(buffer_path, L".edge_state"));
+    struct stat stat_buffer;
+    if (stat(ToByteString(state_path).c_str(), &stat_buffer) == -1) {
+      continue;
+    }
+    EvaluateFile(editor_state, state_path);
   }
   desired_line_ = current_position_line();
   ClearModified();

@@ -13,11 +13,46 @@ extern "C" {
 namespace afc {
 namespace editor {
 
-std::wstring Dirname(std::wstring path) {
+using std::list;
+using std::wstring;
+
+wstring Dirname(wstring path) {
   VLOG(5) << "Dirname: " << path;
   std::unique_ptr<char> tmp(strdup(ToByteString(path).c_str()));
   CHECK(tmp != nullptr);
   return FromByteString(dirname(tmp.get()));
+}
+
+wstring Basename(wstring path) {
+  VLOG(5) << "Pathname: " << path;
+  std::unique_ptr<char> tmp(strdup(ToByteString(path).c_str()));
+  CHECK(tmp != nullptr);
+  return FromByteString(basename(tmp.get()));
+}
+
+bool DirectorySplit(wstring path, list<wstring>* output) {
+  output->clear();
+  while (!path.empty() && path != L"/") {
+    output->push_front(Basename(path));
+    auto tmp = Dirname(path);
+    if (tmp.size() >= path.size()) {
+      LOG(INFO) << "Unable to advance: " << path << " -> " << tmp;
+      return false;
+    }
+    path = tmp;
+  }
+  return true;
+}
+
+wstring PathJoin(const wstring& a, const wstring& b) {
+  if (a.empty()) {
+    return b;
+  }
+  if (b.empty()) {
+    return a;
+  }
+  bool has_slash = a[a.size() - 1] == L'/' || b[0] == L'/';
+  return a + (has_slash ? L"" : L"/") + b;
 }
 
 }  // namespace editor

@@ -20,10 +20,12 @@ extern "C" {
 }
 
 #include "char_buffer.h"
+#include "dirname.h"
 #include "editor.h"
 #include "line_prompt_mode.h"
 #include "run_command_handler.h"
 #include "search_handler.h"
+#include "server.h"
 #include "vm/public/value.h"
 #include "wstring.h"
 
@@ -81,6 +83,75 @@ class FileBuffer : public OpenBuffer {
       editor_state->SetWarningStatus(
           L"WARNING: File (in disk) changed since last read.");
     }
+  }
+
+  bool PersistState() const override {
+    auto path_vector = editor_->edge_path();
+    if (path_vector.empty()) {
+      LOG(INFO) << "Empty edge path.";
+      return false;
+    }
+
+    auto file_path = read_string_variable(variable_path());
+    list<wstring> file_path_components;
+    if (file_path.empty() || file_path[0] != '/') {
+      LOG(INFO) << "Empty edge path.";
+      return false;
+    }
+
+    if (!DirectorySplit(file_path, &file_path_components)) {
+      LOG(INFO) << "Unable to split path: " << file_path;
+      return false;
+    }
+
+    file_path_components.push_front(L"state");
+
+    wstring path = path_vector[0];
+    LOG(INFO) << "PersistState: Preparing directory for state: " << path;
+    for (auto& component : file_path_components) {
+      path = PathJoin(path, component);
+      struct stat stat_buffer;
+      auto path_byte_string = ToByteString(path);
+      if (stat(path_byte_string.c_str(), &stat_buffer) != -1) {
+        if (S_ISDIR(stat_buffer.st_mode)) {
+          continue;
+        }
+        LOG(INFO) << "Ooops, exists, but is not a directory: " << path;
+        return false;
+      }
+      if (mkdir(path_byte_string.c_str(), 0700)) {
+        editor_->SetStatus(
+            L"mkdir: " + FromByteString(strerror(errno)) + L": " + path);
+        return false;
+      }
+    }
+
+    path = PathJoin(path, L".edge_state");
+    LOG(INFO) << "PersistState: Preparing state file: " << path;
+    BufferContents contents;
+    contents.push_back(L"// State of file: " + path);
+    contents.push_back(L"");
+
+    contents.push_back(L"// String variables");
+    for (const auto& variable : OpenBuffer::StringStruct()->variables()) {
+      contents.push_back(
+          L"buffer.set_" + variable.first + L"(\"" +
+          CppEscapeString(read_string_variable(variable.second.get()))
+          + L"\");");
+    }
+    contents.push_back(L"");
+
+    contents.push_back(L"// Int variables");
+    for (const auto& variable : OpenBuffer::IntStruct()->variables()) {
+      contents.push_back(
+          L"buffer.set_" + variable.first + L"(" +
+          std::to_wstring(read_int_variable(variable.second.get())) + L");");
+    }
+    contents.push_back(L"");
+
+
+    contents.push_back(L"");
+    return SaveContentsToFile(editor_, path, contents);
   }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
@@ -185,7 +256,8 @@ class FileBuffer : public OpenBuffer {
       return;
     }
 
-    if (!SaveContentsToFile(editor_state, path)) {
+    if (!SaveContentsToFile(editor_state, path, contents_) || !PersistState()) {
+      LOG(INFO) << "Saving failed.";
       return;
     }
     ClearModified();
@@ -204,7 +276,9 @@ class FileBuffer : public OpenBuffer {
   }
 
  private:
-  bool SaveContentsToFile(EditorState* editor_state, const wstring& path) {
+  static bool SaveContentsToFile(
+      EditorState* editor_state,
+      const wstring& path, const BufferContents& contents) {
     string path_raw = ToByteString(path);
     string tmp_path = path_raw + ".tmp";
     // TODO: Make this non-blocking.
@@ -217,7 +291,7 @@ class FileBuffer : public OpenBuffer {
       return false;
     }
     bool result = SaveContentsToOpenFile(
-        editor_state, FromByteString(tmp_path), fd);
+        editor_state, FromByteString(tmp_path), fd, contents);
     close(fd);
     if (!result) {
       return false;
@@ -233,12 +307,12 @@ class FileBuffer : public OpenBuffer {
     return true;
   }
 
-  bool SaveContentsToOpenFile(
-      EditorState* editor_state, const wstring& path, int fd) {
+  static bool SaveContentsToOpenFile(
+      EditorState* editor_state, const wstring& path, int fd,
+      const BufferContents& contents) {
     // TODO: It'd be significant more efficient to do fewer (bigger) writes.
-    bool result;
-    return contents_.ForEach(
-        [editor_state, fd, &result, path](size_t position, const Line& line) {
+    return contents.ForEach(
+        [editor_state, fd, path](size_t position, const Line& line) {
           string str = (position == 0 ? "" : "\n")
               + ToByteString(line.ToString());
           if (write(fd, str.c_str(), str.size()) == -1) {

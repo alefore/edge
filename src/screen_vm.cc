@@ -55,7 +55,8 @@ class ScreenVm : public Screen {
   }
 
   void WriteString(const wstring& str) override {
-    buffer_ += "screen.WriteString(\"" + Escape(ToByteString(str)) + "\");";
+    buffer_ +=
+        "screen.WriteString(\"" + ToByteString(CppEscapeString(str)) + "\");";
   }
 
   void SetModifier(Line::Modifier modifier) override {
@@ -72,27 +73,6 @@ class ScreenVm : public Screen {
   }
 
  private:
-  string Escape(string input) {
-    string output;
-    output.reserve(input.size() * 2);
-    for (char c : input) {
-      switch (c) {
-        case '\n':
-          output += "\\n";
-          break;
-        case '"':
-          output += "\\\"";
-          break;
-        case '\\':
-          output += "\\\\";
-          break;
-        default:
-          output += c;
-      }
-    }
-    return output;
-  }
-
   void Write() {
     buffer_ += "\n";
     LOG(INFO) << "Sending command: " << buffer_;
