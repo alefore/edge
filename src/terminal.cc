@@ -578,17 +578,15 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
     // Go down the tree. At each position, pick the first children that ends
     // after position (it may also start *after* position).
     while (!current_.back()->children.empty()) {
-      bool advanced = false;
-      for (const auto& candidate : current_.back()->children) {
-        if (candidate.range.end > position) {
-          current_.push_back(&candidate);
-          advanced = true;
-          break;
-        }
-      }
-      if (!advanced) {
+      auto it = current_.back()->children.UpperBound(
+          position,
+          [](const LineColumn& position, const ParseTree& candidate) {
+            return position < candidate.range.end;
+          });
+      if (it == current_.back()->children.end()) {
         return;
       }
+      current_.push_back(&*it);
     }
   }
 

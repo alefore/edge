@@ -161,6 +161,15 @@ class Tree {
   // TODO: Current implementation has linear runtime to end - start.
   iterator erase(iterator start, iterator end);
 
+  // Similar to std::upper_bound(begin(), end(), val, compare), but drastically
+  // more efficient. Requires that the elements in the tree are sorted
+  // (according to the compare value given).
+  template <typename T, typename Compare>
+  iterator UpperBound(const T& val, Compare compare);
+  template <typename T, typename Compare>
+  const_iterator UpperBound(const T& val, Compare compare) const;
+
+
  private:
   static size_t Count(Node<Item>* node);
   static size_t Height(const Node<Item>* node);
@@ -873,6 +882,33 @@ typename Tree<Item>::iterator Tree<Item>::erase(iterator start, iterator end) {
     start = next;
   }
   return end;
+}
+
+template <typename Item>
+template <typename T, typename Compare>
+typename Tree<Item>::iterator Tree<Item>::UpperBound(
+    const T& val, Compare compare) {
+  return iterator(this, const_cast<Node<Item>*>(
+      const_cast<const Tree<Item>*>(this)->UpperBound(val, compare)->node_));
+}
+
+template <typename Item>
+template <typename T, typename Compare>
+typename Tree<Item>::const_iterator Tree<Item>::UpperBound(
+    const T& val, Compare compare) const {
+  const Node<Item>* node = root_.get();
+  const Node<Item>* smallest_bound_found = nullptr;
+  while (node != nullptr) {
+    if (!compare(val, node->item)) {
+      // Recurse to the right if we're at a smaller or equal element.
+      node = node->right.get();
+    } else {
+      // We're at a larger node. Find the upper bound at the left node.
+      smallest_bound_found = node;
+      node = node->left.get();
+    }
+  }
+  return const_iterator(this, smallest_bound_found);
 }
 
 template <typename Item>
