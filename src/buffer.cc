@@ -46,175 +46,67 @@ static const wchar_t* kOldCursors = L"old-cursors";
 
 using std::unordered_set;
 
-static void RegisterBufferFieldBool(EditorState* editor_state,
-                                    afc::vm::ObjectType* object_type,
-                                    const EdgeVariable<char>* variable) {
-  using namespace afc::vm;
-  assert(variable != nullptr);
+bool FromVmBool(const Value& value) { return value.boolean; }
+wstring FromVmString(const Value& value) { return value.str; }
+int FromVmInt(const Value& value) { return value.integer; }
 
-  // Getter.
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
-    callback->type.type_arguments.push_back(VMType::ObjectType(object_type));
-    callback->callback =
-        [variable](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::OBJECT_TYPE);
-          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          assert(buffer != nullptr);
-          return Value::NewBool(buffer->read_bool_variable(variable));
-        };
-    object_type->AddField(variable->name(), std::move(callback));
-  }
-
-  // Setter.
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    callback->type.type_arguments.push_back(VMType::ObjectType(object_type));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
-    callback->callback =
-        [editor_state, variable](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::OBJECT_TYPE);
-          assert(args[1]->type == VMType::VM_BOOLEAN);
-          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          assert(buffer != nullptr);
-          buffer->set_bool_variable(variable, args[1]->boolean);
-          editor_state->ScheduleRedraw();
-          return std::move(Value::NewVoid());
-        };
-    object_type->AddField(L"set_" + variable->name(), std::move(callback));
-  }
-}
-
-static void RegisterBufferFieldString(EditorState* editor_state,
-                                      afc::vm::ObjectType* object_type,
-                                      const EdgeVariable<wstring>* variable) {
-  using namespace afc::vm;
-  assert(variable != nullptr);
-
-  // Getter.
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(VMType::ObjectType(object_type));
-    callback->callback =
-        [variable](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::OBJECT_TYPE);
-          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          assert(buffer != nullptr);
-          return Value::NewString(buffer->read_string_variable(variable));
-        };
-    object_type->AddField(variable->name(), std::move(callback));
-  }
-
-  // Setter.
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    callback->type.type_arguments.push_back(VMType::ObjectType(object_type));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->callback =
-        [editor_state, variable](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::OBJECT_TYPE);
-          assert(args[1]->type == VMType::VM_STRING);
-          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          assert(buffer != nullptr);
-          buffer->set_string_variable(variable, args[1]->str);
-          editor_state->ScheduleRedraw();
-          return std::move(Value::NewVoid());
-        };
-    object_type->AddField(L"set_" + variable->name(), std::move(callback));
-  }
-}
-
-static void RegisterBufferFieldInt(EditorState* editor_state,
-                                   afc::vm::ObjectType* object_type,
-                                   const EdgeVariable<int>* variable) {
-  using namespace afc::vm;
-  assert(variable != nullptr);
-
-  // Getter.
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->type.type_arguments.push_back(VMType::ObjectType(object_type));
-    callback->callback =
-        [variable](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::OBJECT_TYPE);
-          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          assert(buffer != nullptr);
-          return Value::NewInteger(buffer->read_int_variable(variable));
-        };
-    object_type->AddField(variable->name(), std::move(callback));
-  }
-
-  // Setter.
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    callback->type.type_arguments.push_back(VMType::ObjectType(object_type));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->callback =
-        [editor_state, variable](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::OBJECT_TYPE);
-          assert(args[1]->type == VMType::VM_INTEGER);
-          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          assert(buffer != nullptr);
-          buffer->set_int_variable(variable, args[1]->integer);
-          editor_state->ScheduleRedraw();
-          return std::move(Value::NewVoid());
-        };
-    object_type->AddField(L"set_" + variable->name(), std::move(callback));
-  }
-}
-
-static void RegisterBufferFieldValue(
+template <typename EdgeStruct, typename FieldValue, typename InnerValue>
+void RegisterBufferFields(
     EditorState* editor_state,
+    EdgeStruct* edge_struct,
+    const VMType& field_type,
     afc::vm::ObjectType* object_type,
-    const EdgeVariable<unique_ptr<Value>>* variable) {
-  using namespace afc::vm;
-  assert(variable != nullptr);
+    const FieldValue& (OpenBuffer::*reader)(
+        const EdgeVariable<InnerValue>*) const,
+    void (OpenBuffer::*setter)(const EdgeVariable<InnerValue>*, FieldValue),
+    std::unique_ptr<Value> (*to_vm_value)(FieldValue),
+    FieldValue (*from_vm_value)(const Value& value)) {
+  VMType buffer_type = VMType::ObjectType(object_type);
 
-  // Getter.
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(variable->type());
-    callback->type.type_arguments.push_back(VMType::ObjectType(object_type));
-    callback->callback =
-        [editor_state, variable](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::OBJECT_TYPE);
-          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          assert(buffer != nullptr);
-          unique_ptr<Value> value = Value::NewVoid();
-          *value = *buffer->read_value_variable(variable);
-          return value;
-        };
-    object_type->AddField(variable->name(), std::move(callback));
-  }
+  vector<wstring> variable_names;
+  edge_struct->RegisterVariableNames(&variable_names);
+  for (const wstring& name : variable_names) {
+    auto variable = edge_struct->find_variable(name);
+    CHECK(variable != nullptr);
 
-  // Setter.
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    callback->type.type_arguments.push_back(VMType::ObjectType(object_type));
-    callback->type.type_arguments.push_back(variable->type());
-    callback->callback =
-        [editor_state, variable](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::OBJECT_TYPE);
-          assert(args[1]->type == variable->type());
-          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          assert(buffer != nullptr);
-          unique_ptr<Value> value = Value::NewVoid();
-          *value = *args[1];
-          buffer->set_value_variable(variable, std::move(value));
-          editor_state->ScheduleRedraw();
-          return std::move(Value::NewVoid());
-        };
-    object_type->AddField(L"set_" + variable->name(), std::move(callback));
+    // Getter.
+    {
+      unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+      callback->type.type_arguments.push_back(field_type);
+      callback->type.type_arguments.push_back(buffer_type);
+      callback->callback =
+          [variable, reader, to_vm_value](vector<unique_ptr<Value>> args) {
+            CHECK_EQ(args.size(), 1);
+            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+            auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+            CHECK(buffer != nullptr);
+            return to_vm_value((buffer->*reader)(variable));
+          };
+      object_type->AddField(variable->name(), std::move(callback));
+    }
+
+    // Setter.
+    {
+      unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+      callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+      callback->type.type_arguments.push_back(buffer_type);
+      callback->type.type_arguments.push_back(field_type);
+      callback->callback =
+          [editor_state, field_type, variable, setter, from_vm_value](
+              vector<unique_ptr<Value>> args) {
+            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+            auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+            CHECK(buffer != nullptr);
+
+            CHECK_EQ(args[1]->type, field_type);
+            (buffer->*setter)(variable, from_vm_value(*args[1]));
+            editor_state->ScheduleRedraw();
+            return Value::NewVoid();
+          };
+      object_type->AddField(L"set_" + variable->name(), std::move(callback));
+    }
   }
 }
-
 }  // namespace
 
 using namespace afc::vm;
@@ -227,41 +119,20 @@ using std::to_wstring;
     EditorState* editor_state, afc::vm::Environment* environment) {
   unique_ptr<ObjectType> buffer(new ObjectType(L"Buffer"));
 
-  {
-    vector<wstring> variable_names;
-    StringStruct()->RegisterVariableNames(&variable_names);
-    for (const wstring& name : variable_names) {
-      RegisterBufferFieldString(
-          editor_state, buffer.get(), StringStruct()->find_variable(name));
-    }
-  }
+  RegisterBufferFields(
+      editor_state, BoolStruct(), VMType(VMType::VM_BOOLEAN), buffer.get(),
+      &OpenBuffer::read_bool_variable, &OpenBuffer::set_bool_variable,
+      &Value::NewBool, &FromVmBool);
 
-  {
-    vector<wstring> variable_names;
-    BoolStruct()->RegisterVariableNames(&variable_names);
-    for (const wstring& name : variable_names) {
-      RegisterBufferFieldBool(
-          editor_state, buffer.get(), BoolStruct()->find_variable(name));
-    }
-  }
+  RegisterBufferFields(
+      editor_state, StringStruct(), VMType(VMType::VM_STRING), buffer.get(),
+      &OpenBuffer::read_string_variable, &OpenBuffer::set_string_variable,
+      &Value::NewString, &FromVmString);
 
-  {
-    vector<wstring> variable_names;
-    IntStruct()->RegisterVariableNames(&variable_names);
-    for (const wstring& name : variable_names) {
-      RegisterBufferFieldInt(
-          editor_state, buffer.get(), IntStruct()->find_variable(name));
-    }
-  }
-
-  {
-    vector<wstring> variable_names;
-    ValueStruct()->RegisterVariableNames(&variable_names);
-    for (const wstring& name : variable_names) {
-      RegisterBufferFieldValue(
-          editor_state, buffer.get(), ValueStruct()->find_variable(name));
-    }
-  }
+  RegisterBufferFields(
+      editor_state, IntStruct(), VMType(VMType::VM_INTEGER), buffer.get(),
+      &OpenBuffer::read_int_variable, &OpenBuffer::set_int_variable,
+      &Value::NewInteger, &FromVmInt);
 
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
@@ -527,7 +398,6 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       bool_variables_(BoolStruct()->NewInstance()),
       string_variables_(StringStruct()->NewInstance()),
       int_variables_(IntStruct()->NewInstance()),
-      function_variables_(ValueStruct()->NewInstance()),
       environment_(editor_state->environment()),
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
@@ -784,7 +654,8 @@ void OpenBuffer::Input::ReadData(
   }
 
   if (target->read_bool_variable(OpenBuffer::variable_vm_exec())) {
-    LOG(INFO) << "Evaluating VM code: " << buffer_wrapper->ToString();
+    LOG(INFO) << target->name() << "Evaluating VM code: "
+              << buffer_wrapper->ToString();
     target->EvaluateString(editor_state, buffer_wrapper->ToString());
   }
 
@@ -1984,10 +1855,10 @@ wstring OpenBuffer::FlagsString() const {
   return output;
 }
 
-/* static */ EdgeStruct<char>* OpenBuffer::BoolStruct() {
-  static EdgeStruct<char>* output = nullptr;
+/* static */ EdgeStruct<bool>* OpenBuffer::BoolStruct() {
+  static EdgeStruct<bool>* output = nullptr;
   if (output == nullptr) {
-    output = new EdgeStruct<char>;
+    output = new EdgeStruct<bool>();
     // Trigger registration of all fields.
     OpenBuffer::variable_pts();
     OpenBuffer::variable_vm_exec();
@@ -2014,8 +1885,8 @@ wstring OpenBuffer::FlagsString() const {
   return output;
 }
 
-/* static */ EdgeVariable<char>* OpenBuffer::variable_pts() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+/* static */ EdgeVariable<bool>* OpenBuffer::variable_pts() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"pts",
       L"If a command is forked that writes to this buffer, should it be run "
       L"with its own pseudoterminal?",
@@ -2023,16 +1894,16 @@ wstring OpenBuffer::FlagsString() const {
   return variable;
 }
 
-/* static */ EdgeVariable<char>* OpenBuffer::variable_vm_exec() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+/* static */ EdgeVariable<bool>* OpenBuffer::variable_vm_exec() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"vm_exec",
       L"If set, all input read into this buffer will be executed.",
       false);
   return variable;
 }
 
-/* static */ EdgeVariable<char>* OpenBuffer::variable_close_after_clean_exit() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+/* static */ EdgeVariable<bool>* OpenBuffer::variable_close_after_clean_exit() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"close_after_clean_exit",
       L"If a command is forked that writes to this buffer, should the buffer be "
       L"closed when the command exits with a successful status code?",
@@ -2040,9 +1911,9 @@ wstring OpenBuffer::FlagsString() const {
   return variable;
 }
 
-/* static */ EdgeVariable<char>*
+/* static */ EdgeVariable<bool>*
 OpenBuffer::variable_allow_dirty_delete() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"allow_dirty_delete",
       L"Allow this buffer to be deleted even if it's dirty (i.e. if it has "
       L"unsaved changes or an underlying process that's still running).",
@@ -2050,8 +1921,8 @@ OpenBuffer::variable_allow_dirty_delete() {
   return variable;
 }
 
-/* static */ EdgeVariable<char>* OpenBuffer::variable_reload_after_exit() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+/* static */ EdgeVariable<bool>* OpenBuffer::variable_reload_after_exit() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"reload_after_exit",
       L"If a forked command that writes to this buffer exits, should Edge "
       L"reload the buffer?",
@@ -2059,8 +1930,8 @@ OpenBuffer::variable_allow_dirty_delete() {
   return variable;
 }
 
-/* static */ EdgeVariable<char>* OpenBuffer::variable_default_reload_after_exit() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+/* static */ EdgeVariable<bool>* OpenBuffer::variable_default_reload_after_exit() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"default_reload_after_exit",
       L"If a forked command that writes to this buffer exits and "
       L"reload_after_exit is set, what should Edge set reload_after_exit just "
@@ -2069,16 +1940,16 @@ OpenBuffer::variable_allow_dirty_delete() {
   return variable;
 }
 
-/* static */ EdgeVariable<char>* OpenBuffer::variable_reload_on_enter() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+/* static */ EdgeVariable<bool>* OpenBuffer::variable_reload_on_enter() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"reload_on_enter",
       L"Should this buffer be reloaded automatically when visited?",
       false);
   return variable;
 }
 
-/* static */ EdgeVariable<char>* OpenBuffer::variable_atomic_lines() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+/* static */ EdgeVariable<bool>* OpenBuffer::variable_atomic_lines() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"atomic_lines",
       L"If true, lines can't be joined (e.g. you can't delete the last "
       L"character in a line unless the line is empty).  This is used by certain "
@@ -2088,16 +1959,16 @@ OpenBuffer::variable_allow_dirty_delete() {
   return variable;
 }
 
-/* static */ EdgeVariable<char>* OpenBuffer::variable_save_on_close() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+/* static */ EdgeVariable<bool>* OpenBuffer::variable_save_on_close() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"save_on_close",
       L"Should this buffer be saved automatically when it's closed?",
       false);
   return variable;
 }
 
-/* static */ EdgeVariable<char>* OpenBuffer::variable_clear_on_reload() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+/* static */ EdgeVariable<bool>* OpenBuffer::variable_clear_on_reload() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"clear_on_reload",
       L"Should any previous contents be discarded when this buffer is reloaded? "
       L"If false, previous contents will be preserved and new contents will be "
@@ -2106,8 +1977,8 @@ OpenBuffer::variable_allow_dirty_delete() {
   return variable;
 }
 
-/* static */ EdgeVariable<char>* OpenBuffer::variable_paste_mode() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+/* static */ EdgeVariable<bool>* OpenBuffer::variable_paste_mode() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"paste_mode",
       L"When paste_mode is enabled in a buffer, it will be displayed in a way "
       L"that makes it possible to select (with a mouse) parts of it (that are "
@@ -2117,16 +1988,16 @@ OpenBuffer::variable_allow_dirty_delete() {
   return variable;
 }
 
-/* static */ EdgeVariable<char>* OpenBuffer::variable_follow_end_of_file() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+/* static */ EdgeVariable<bool>* OpenBuffer::variable_follow_end_of_file() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"follow_end_of_file",
       L"Should the cursor stay at the end of the file?",
       false);
   return variable;
 }
 
-/* static */ EdgeVariable<char>* OpenBuffer::variable_commands_background_mode() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+/* static */ EdgeVariable<bool>* OpenBuffer::variable_commands_background_mode() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"commands_background_mode",
       L"Should new commands forked from this buffer be started in background "
       L"mode?  If false, we will switch to them automatically.",
@@ -2134,8 +2005,8 @@ OpenBuffer::variable_allow_dirty_delete() {
   return variable;
 }
 
-/* static */ EdgeVariable<char>* OpenBuffer::variable_reload_on_buffer_write() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+/* static */ EdgeVariable<bool>* OpenBuffer::variable_reload_on_buffer_write() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"reload_on_buffer_write",
       L"Should the current buffer (on which this variable is set) be reloaded "
       L"when any buffer is written?  This is useful mainly for command buffers "
@@ -2144,16 +2015,16 @@ OpenBuffer::variable_allow_dirty_delete() {
   return variable;
 }
 
-/* static */ EdgeVariable<char>* OpenBuffer::variable_contains_line_marks() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+/* static */ EdgeVariable<bool>* OpenBuffer::variable_contains_line_marks() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"contains_line_marks",
       L"If set to true, this buffer will be scanned for line marks.",
       false);
   return variable;
 }
 
-/* static */ EdgeVariable<char>* OpenBuffer::variable_multiple_cursors() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+/* static */ EdgeVariable<bool>* OpenBuffer::variable_multiple_cursors() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"multiple_cursors",
       L"If set to true, operations in this buffer apply to all cursors defined "
       L"on it.",
@@ -2161,8 +2032,8 @@ OpenBuffer::variable_allow_dirty_delete() {
   return variable;
 }
 
-/* static */ EdgeVariable<char>* OpenBuffer::variable_reload_on_display() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+/* static */ EdgeVariable<bool>* OpenBuffer::variable_reload_on_display() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"reload_on_display",
       L"If set to true, a buffer will always be reloaded before being "
       L"displayed.",
@@ -2170,18 +2041,18 @@ OpenBuffer::variable_allow_dirty_delete() {
   return variable;
 }
 
-/* static */ EdgeVariable<char>*
+/* static */ EdgeVariable<bool>*
 OpenBuffer::variable_show_in_buffers_list() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"show_in_buffers_list",
       L"If set to true, includes this in the list of buffers.",
       true);
   return variable;
 }
 
-/* static */ EdgeVariable<char>*
+/* static */ EdgeVariable<bool>*
 OpenBuffer::variable_push_positions_to_history() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"push_positions_to_history",
       L"If set to true, movement in this buffer result in positions being "
       L"pushed to the history of positions.",
@@ -2189,9 +2060,9 @@ OpenBuffer::variable_push_positions_to_history() {
   return variable;
 }
 
-/* static */ EdgeVariable<char>*
+/* static */ EdgeVariable<bool>*
 OpenBuffer::variable_delete_into_paste_buffer() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"delete_into_paste_buffer",
       L"If set to true, deletions from this buffer will go into the shared "
       L"paste buffer.",
@@ -2199,9 +2070,9 @@ OpenBuffer::variable_delete_into_paste_buffer() {
   return variable;
 }
 
-/* static */ EdgeVariable<char>*
+/* static */ EdgeVariable<bool>*
 OpenBuffer::variable_search_case_sensitive() {
-  static EdgeVariable<char>* variable = BoolStruct()->AddVariable(
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"search_case_sensitive",
       L"If set to true, search (through \"/\") is case sensitive.",
       false);
@@ -2383,26 +2254,17 @@ OpenBuffer::variable_tree_parser() {
   return variable;
 }
 
-/* static */ EdgeStruct<unique_ptr<Value>>* OpenBuffer::ValueStruct() {
-  static EdgeStruct<unique_ptr<Value>>* output = nullptr;
-  if (output == nullptr) {
-    output = new EdgeStruct<unique_ptr<Value>>;
-    // Trigger registration of all fields.
-    // ... except there are no fields yet.
-  }
-  return output;
-}
-
-bool OpenBuffer::read_bool_variable(const EdgeVariable<char>* variable) const {
-  return static_cast<bool>(bool_variables_.Get(variable));
+const bool& OpenBuffer::read_bool_variable(
+    const EdgeVariable<bool>* variable) const {
+  return bool_variables_.Get(variable);
 }
 
 void OpenBuffer::set_bool_variable(
-    const EdgeVariable<char>* variable, bool value) {
-  bool_variables_.Set(variable, static_cast<char>(value));
+    const EdgeVariable<bool>* variable, bool value) {
+  bool_variables_.Set(variable, value);
 }
 
-void OpenBuffer::toggle_bool_variable(const EdgeVariable<char>* variable) {
+void OpenBuffer::toggle_bool_variable(const EdgeVariable<bool>* variable) {
   set_bool_variable(variable, !read_bool_variable(variable));
 }
 
@@ -2412,7 +2274,7 @@ const wstring& OpenBuffer::read_string_variable(
 }
 
 void OpenBuffer::set_string_variable(
-    const EdgeVariable<wstring>* variable, const wstring& value) {
+    const EdgeVariable<wstring>* variable, wstring value) {
   string_variables_.Set(variable, value);
 
   // TODO: This should be in the variable definition, not here. Ugh.
@@ -2428,18 +2290,8 @@ const int& OpenBuffer::read_int_variable(
 }
 
 void OpenBuffer::set_int_variable(
-    const EdgeVariable<int>* variable, const int& value) {
+    const EdgeVariable<int>* variable, int value) {
   int_variables_.Set(variable, value);
-}
-
-const Value* OpenBuffer::read_value_variable(
-    const EdgeVariable<unique_ptr<Value>>* variable) const {
-  return function_variables_.Get(variable);
-}
-
-void OpenBuffer::set_value_variable(
-    const EdgeVariable<unique_ptr<Value>>* variable, unique_ptr<Value> value) {
-  function_variables_.Set(variable, std::move(value));
 }
 
 void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {

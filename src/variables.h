@@ -1,6 +1,7 @@
 #ifndef __AFC_EDITOR_VARIABLES_H__
 #define __AFC_EDITOR_VARIABLES_H__
 
+#include <deque>
 #include <map>
 #include <memory>
 #include <string>
@@ -15,7 +16,6 @@ namespace editor {
 using std::map;
 using std::string;
 using std::unique_ptr;
-using std::vector;
 
 template <typename T>
 class EdgeStruct;
@@ -90,13 +90,15 @@ class EdgeStructInstance {
  public:
   void CopyFrom(const EdgeStructInstance<T>& src);
   const T& Get(const EdgeVariable<T>* variable) const;
-  void Set(const EdgeVariable<T>* variable, const T& value);
+  void Set(const EdgeVariable<T>* variable, T value);
 
  private:
   // Instantiate it through EdgeStruct::NewInstance.
   EdgeStructInstance() {}
 
-  vector<T> values_;
+  // We use deque to workaround the fact that std::vector<bool> (doesn't return
+  // references).
+  std::deque<T> values_;
 
   friend class EdgeStruct<T>;
 };
@@ -112,7 +114,7 @@ class EdgeStructInstance<unique_ptr<T>> {
   // Instantiate it through EdgeStruct::NewInstance.
   EdgeStructInstance() {}
 
-  vector<unique_ptr<T>> values_;
+  std::deque<unique_ptr<T>> values_;
 
   friend class EdgeStruct<unique_ptr<T>>;
 };
@@ -211,10 +213,9 @@ const T* EdgeStructInstance<unique_ptr<T>>::Get(
 }
 
 template <typename T>
-void EdgeStructInstance<T>::Set(
-    const EdgeVariable<T>* variable, const T& value) {
+void EdgeStructInstance<T>::Set(const EdgeVariable<T>* variable, T value) {
   assert(variable->position() <= values_.size());
-  values_[variable->position()] = value;
+  values_[variable->position()] = std::move(value);
 }
 
 template <typename T>

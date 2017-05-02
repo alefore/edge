@@ -322,28 +322,28 @@ class OpenBuffer {
       EditorState* editor_state, int input_fd, int input_fd_error,
       bool fd_is_terminal, pid_t child_pid);
 
-  static EdgeStruct<char>* BoolStruct();
-  static EdgeVariable<char>* variable_pts();
-  static EdgeVariable<char>* variable_vm_exec();
-  static EdgeVariable<char>* variable_close_after_clean_exit();
-  static EdgeVariable<char>* variable_allow_dirty_delete();
-  static EdgeVariable<char>* variable_reload_after_exit();
-  static EdgeVariable<char>* variable_default_reload_after_exit();
-  static EdgeVariable<char>* variable_reload_on_enter();
-  static EdgeVariable<char>* variable_atomic_lines();
-  static EdgeVariable<char>* variable_save_on_close();
-  static EdgeVariable<char>* variable_clear_on_reload();
-  static EdgeVariable<char>* variable_paste_mode();
-  static EdgeVariable<char>* variable_follow_end_of_file();
-  static EdgeVariable<char>* variable_commands_background_mode();
-  static EdgeVariable<char>* variable_reload_on_buffer_write();
-  static EdgeVariable<char>* variable_contains_line_marks();
-  static EdgeVariable<char>* variable_multiple_cursors();
-  static EdgeVariable<char>* variable_reload_on_display();
-  static EdgeVariable<char>* variable_show_in_buffers_list();
-  static EdgeVariable<char>* variable_push_positions_to_history();
-  static EdgeVariable<char>* variable_delete_into_paste_buffer();
-  static EdgeVariable<char>* variable_search_case_sensitive();
+  static EdgeStruct<bool>* BoolStruct();
+  static EdgeVariable<bool>* variable_pts();
+  static EdgeVariable<bool>* variable_vm_exec();
+  static EdgeVariable<bool>* variable_close_after_clean_exit();
+  static EdgeVariable<bool>* variable_allow_dirty_delete();
+  static EdgeVariable<bool>* variable_reload_after_exit();
+  static EdgeVariable<bool>* variable_default_reload_after_exit();
+  static EdgeVariable<bool>* variable_reload_on_enter();
+  static EdgeVariable<bool>* variable_atomic_lines();
+  static EdgeVariable<bool>* variable_save_on_close();
+  static EdgeVariable<bool>* variable_clear_on_reload();
+  static EdgeVariable<bool>* variable_paste_mode();
+  static EdgeVariable<bool>* variable_follow_end_of_file();
+  static EdgeVariable<bool>* variable_commands_background_mode();
+  static EdgeVariable<bool>* variable_reload_on_buffer_write();
+  static EdgeVariable<bool>* variable_contains_line_marks();
+  static EdgeVariable<bool>* variable_multiple_cursors();
+  static EdgeVariable<bool>* variable_reload_on_display();
+  static EdgeVariable<bool>* variable_show_in_buffers_list();
+  static EdgeVariable<bool>* variable_push_positions_to_history();
+  static EdgeVariable<bool>* variable_delete_into_paste_buffer();
+  static EdgeVariable<bool>* variable_search_case_sensitive();
 
   static EdgeStruct<wstring>* StringStruct();
   static EdgeVariable<wstring>* variable_word_characters();
@@ -366,23 +366,17 @@ class OpenBuffer {
   // No variables currently, but we'll likely add some later.
   static EdgeStruct<unique_ptr<Value>>* ValueStruct();
 
-  bool read_bool_variable(const EdgeVariable<char>* variable) const;
-  void set_bool_variable(const EdgeVariable<char>* variable, bool value);
-  void toggle_bool_variable(const EdgeVariable<char>* variable);
+  const bool& read_bool_variable(const EdgeVariable<bool>* variable) const;
+  void set_bool_variable(const EdgeVariable<bool>* variable, bool value);
+  void toggle_bool_variable(const EdgeVariable<bool>* variable);
 
   const wstring& read_string_variable(const EdgeVariable<wstring>* variable)
       const;
   void set_string_variable(const EdgeVariable<wstring>* variable,
-                           const wstring& value);
+                           wstring value);
 
   const int& read_int_variable(const EdgeVariable<int>* variable) const;
-  void set_int_variable(const EdgeVariable<int>* variable,
-                        const int& value);
-
-  const Value* read_value_variable(
-      const EdgeVariable<unique_ptr<Value>>* variable) const;
-  void set_value_variable(const EdgeVariable<unique_ptr<Value>>* variable,
-                          unique_ptr<Value> value);
+  void set_int_variable(const EdgeVariable<int>* variable, int value);
 
   void ApplyToCursors(unique_ptr<Transformation> transformation);
   void ApplyToCursors(unique_ptr<Transformation> transformation,
@@ -503,15 +497,9 @@ class OpenBuffer {
   bool modified_;
   bool reading_from_parser_;
 
-  // This uses char rather than bool because vector<bool>::iterator does not
-  // yield a bool& when dereferenced, which makes EdgeStructInstance<bool>
-  // incompatible with other template specializations
-  // (EdgeStructInstance<bool>::Get would be returning a reference to a
-  // temporary variable).
-  EdgeStructInstance<char> bool_variables_;
+  EdgeStructInstance<bool> bool_variables_;
   EdgeStructInstance<wstring> string_variables_;
   EdgeStructInstance<int> int_variables_;
-  EdgeStructInstance<unique_ptr<Value>> function_variables_;
 
   // When a transformation is done, we append its result to
   // transformations_past_, so that it can be undone.

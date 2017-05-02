@@ -24,7 +24,7 @@ struct Value {
   static unique_ptr<Value> NewVoid();
   static unique_ptr<Value> NewBool(bool value);
   static unique_ptr<Value> NewInteger(int value);
-  static unique_ptr<Value> NewString(const wstring& value);
+  static unique_ptr<Value> NewString(wstring value);
   static unique_ptr<Value> NewObject(const wstring& name,
                                      const shared_ptr<void>& value);
 

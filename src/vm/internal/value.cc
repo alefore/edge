@@ -20,9 +20,9 @@ namespace vm {
   return std::move(output);
 }
 
-/* static */ unique_ptr<Value> Value::NewString(const wstring& value) {
+/* static */ unique_ptr<Value> Value::NewString(wstring value) {
   unique_ptr<Value> output(new Value(VMType::String()));
-  output->str = value;
+  output->str = std::move(value);
   return std::move(output);
 }
 
