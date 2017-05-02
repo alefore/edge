@@ -50,15 +50,15 @@ bool FromVmBool(const Value& value) { return value.boolean; }
 wstring FromVmString(const Value& value) { return value.str; }
 int FromVmInt(const Value& value) { return value.integer; }
 
-template <typename EdgeStruct, typename FieldValue, typename InnerValue>
+template <typename EdgeStruct, typename FieldValue>
 void RegisterBufferFields(
     EditorState* editor_state,
     EdgeStruct* edge_struct,
     const VMType& field_type,
     afc::vm::ObjectType* object_type,
     const FieldValue& (OpenBuffer::*reader)(
-        const EdgeVariable<InnerValue>*) const,
-    void (OpenBuffer::*setter)(const EdgeVariable<InnerValue>*, FieldValue),
+        const EdgeVariable<FieldValue>*) const,
+    void (OpenBuffer::*setter)(const EdgeVariable<FieldValue>*, FieldValue),
     std::unique_ptr<Value> (*to_vm_value)(FieldValue),
     FieldValue (*from_vm_value)(const Value& value)) {
   VMType buffer_type = VMType::ObjectType(object_type);
