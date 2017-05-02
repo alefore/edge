@@ -54,7 +54,6 @@ template <typename EdgeStruct, typename FieldValue>
 void RegisterBufferFields(
     EditorState* editor_state,
     EdgeStruct* edge_struct,
-    const VMType& field_type,
     afc::vm::ObjectType* object_type,
     const FieldValue& (OpenBuffer::*reader)(
         const EdgeVariable<FieldValue>*) const,
@@ -68,6 +67,7 @@ void RegisterBufferFields(
   for (const wstring& name : variable_names) {
     auto variable = edge_struct->find_variable(name);
     CHECK(variable != nullptr);
+    VMType field_type = to_vm_value(variable->default_value())->type;
 
     // Getter.
     {
@@ -120,17 +120,17 @@ using std::to_wstring;
   unique_ptr<ObjectType> buffer(new ObjectType(L"Buffer"));
 
   RegisterBufferFields(
-      editor_state, BoolStruct(), VMType(VMType::VM_BOOLEAN), buffer.get(),
+      editor_state, BoolStruct(), buffer.get(),
       &OpenBuffer::read_bool_variable, &OpenBuffer::set_bool_variable,
       &Value::NewBool, &FromVmBool);
 
   RegisterBufferFields(
-      editor_state, StringStruct(), VMType(VMType::VM_STRING), buffer.get(),
+      editor_state, StringStruct(), buffer.get(),
       &OpenBuffer::read_string_variable, &OpenBuffer::set_string_variable,
       &Value::NewString, &FromVmString);
 
   RegisterBufferFields(
-      editor_state, IntStruct(), VMType(VMType::VM_INTEGER), buffer.get(),
+      editor_state, IntStruct(), buffer.get(),
       &OpenBuffer::read_int_variable, &OpenBuffer::set_int_variable,
       &Value::NewInteger, &FromVmInt);
 
