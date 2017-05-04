@@ -131,7 +131,7 @@ using std::to_wstring;
 
   RegisterBufferFields(
       editor_state, IntStruct(), buffer.get(),
-      &OpenBuffer::read_int_variable, &OpenBuffer::set_int_variable,
+      &OpenBuffer::Read, &OpenBuffer::set_int_variable,
       &Value::NewInteger, &FromVmInt);
 
   {
@@ -391,8 +391,6 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       child_pid_(-1),
       child_exit_status_(0),
       position_pts_(LineColumn(0, 0)),
-      view_start_line_(0),
-      view_start_column_(0),
       modified_(false),
       reading_from_parser_(false),
       bool_variables_(BoolStruct()->NewInstance()),
@@ -677,7 +675,8 @@ void OpenBuffer::Input::ReadData(
         if (editor_state->has_current_buffer()
             && editor_state->current_buffer()->second.get() == target
             && target->contents()->size() <=
-                   target->view_start_line() + editor_state->visible_lines()) {
+                   target->Read(OpenBuffer::variable_view_start_line())
+                   + editor_state->visible_lines()) {
           editor_state->ScheduleRedraw();
         }
       }
@@ -959,8 +958,9 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         position_pts_.line--;
         position_pts_.column = 0;
         MaybeFollowToEndOfFile();
-        if (view_start_line_ > position_pts_.line) {
-          view_start_line_ = position_pts_.line;
+        if (static_cast<size_t>(Read(variable_view_start_line()))
+                > position_pts_.line) {
+          set_int_variable(variable_view_start_line(), position_pts_.line);
         }
       }
       return read_index + 1;
@@ -1107,13 +1107,14 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
           }
           DLOG(INFO) << "Move cursor home: line: " << line_delta << ", column: "
                      << column_delta;
-          position_pts_ =
-              LineColumn(view_start_line_ + line_delta, column_delta);
+          position_pts_ = LineColumn(
+              Read(variable_view_start_line()) + line_delta,
+              column_delta);
           while (position_pts_.line >= contents_.size()) {
             contents_.push_back(std::make_shared<Line>());
           }
           MaybeFollowToEndOfFile();
-          view_start_column_ = column_delta;
+          set_int_variable(variable_view_start_column(), column_delta);
         }
         return read_index;
 
@@ -2212,6 +2213,8 @@ OpenBuffer::variable_tree_parser() {
     OpenBuffer::variable_buffer_list_context_lines();
     OpenBuffer::variable_margin_lines();
     OpenBuffer::variable_margin_columns();
+    OpenBuffer::variable_view_start_line();
+    OpenBuffer::variable_view_start_column();
   }
   return output;
 }
@@ -2254,6 +2257,27 @@ OpenBuffer::variable_tree_parser() {
   return variable;
 }
 
+/* static */ EdgeVariable<int>*
+    OpenBuffer::variable_view_start_line() {
+  static EdgeVariable<int>* variable = IntStruct()->AddVariable(
+      L"view_start_line",
+      L"The desired line to show at the beginning of the screen (at the "
+      L"top-most position). This is adjusted automatically as the cursor moves "
+      L"around in the buffer.",
+      0);
+  return variable;
+}
+
+/* static */ EdgeVariable<int>*
+    OpenBuffer::variable_view_start_column() {
+  static EdgeVariable<int>* variable = IntStruct()->AddVariable(
+      L"view_start_column",
+      L"The desired column to show at the left-most part of the screen. This "
+      L"is adjusted automatically as the cursor moves around in the buffer.",
+      0);
+  return variable;
+}
+
 const bool& OpenBuffer::read_bool_variable(
     const EdgeVariable<bool>* variable) const {
   return bool_variables_.Get(variable);
@@ -2284,8 +2308,7 @@ void OpenBuffer::set_string_variable(
   }
 }
 
-const int& OpenBuffer::read_int_variable(
-    const EdgeVariable<int>* variable) const {
+const int& OpenBuffer::Read(const EdgeVariable<int>* variable) const {
   return int_variables_.Get(variable);
 }
 

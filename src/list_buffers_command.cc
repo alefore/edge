@@ -54,16 +54,14 @@ class ListBuffersBuffer : public OpenBuffer {
          });
     for (const auto& buffer : buffers_to_show) {
       size_t context_lines_var = static_cast<size_t>(
-          max(buffer->read_int_variable(
-                  OpenBuffer::variable_buffer_list_context_lines()),
+          max(buffer->Read(OpenBuffer::variable_buffer_list_context_lines()),
               0));
       auto context = LinesToShow(*buffer, context_lines_var);
 
       std::shared_ptr<LazyString> name = NewCopyString(buffer->name());
       if (context.first != context.second) {
         name = StringAppend(NewCopyString(L"╭──"), name);
-        size_t width =
-            target->read_int_variable(OpenBuffer::variable_line_width());
+        size_t width = target->Read(OpenBuffer::variable_line_width());
         if (width > name->size()) {
           name = StringAppend(
               name,

@@ -190,7 +190,7 @@ void Line::Output(const EditorState* editor_state,
                   size_t width) const {
   VLOG(5) << "Producing output of line: " << ToString();
   size_t output_column = 0;
-  size_t input_column = buffer->view_start_column();
+  size_t input_column = buffer->Read(buffer->variable_view_start_column());
   unordered_set<Line::Modifier, hash<int>> current_modifiers;
   while (input_column < size() && output_column < width) {
     wint_t c = get(input_column);
@@ -231,15 +231,16 @@ void Line::Output(const EditorState* editor_state,
     input_column++;
   }
 
-  size_t line_width =
-      buffer->read_int_variable(OpenBuffer::variable_line_width());
+  size_t line_width = buffer->Read(OpenBuffer::variable_line_width());
 
+  auto view_start = static_cast<size_t>(
+      max(0, buffer->Read(OpenBuffer::variable_view_start_column())));
   if (!buffer->read_bool_variable(OpenBuffer::variable_paste_mode())
       && line_width != 0
-      && buffer->view_start_column() < line_width
-      && output_column <= line_width - buffer->view_start_column()
-      && line_width - buffer->view_start_column() < width) {
-    size_t padding = line_width - buffer->view_start_column() - output_column;
+      && view_start < line_width
+      && output_column <= line_width - view_start
+      && line_width - view_start < width) {
+    size_t padding = line_width - view_start - output_column;
     receiver->AddString(wstring(padding, L' '));
 
     auto all_marks = buffer->GetLineMarks(*editor_state);

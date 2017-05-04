@@ -87,7 +87,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
       PromptOptions options;
       options.prompt = name + L" := ",
       options.history_file = L"values",
-      options.initial_value = std::to_wstring(buffer->read_int_variable(var));
+      options.initial_value = std::to_wstring(buffer->Read(var));
       options.handler =
           [var, buffer](const wstring& input, EditorState* editor_state) {
             try {

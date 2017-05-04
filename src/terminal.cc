@@ -51,22 +51,28 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   }
   size_t line = min(buffer->position().line, buffer->contents()->size() - 1);
   size_t margin_lines =
-       max(buffer->read_int_variable(OpenBuffer::variable_margin_lines()), 0);
+      max(buffer->Read(OpenBuffer::variable_margin_lines()), 0);
   margin_lines = min(margin_lines, static_cast<size_t>(screen_lines) / 2 - 1);
-  if (buffer->view_start_line() > line - min(margin_lines, line)) {
-    buffer->set_view_start_line(line - min(margin_lines, line));
+  size_t view_start = static_cast<size_t>(
+      max(0, buffer->Read(OpenBuffer::variable_view_start_line())));
+  if (view_start > line - min(margin_lines, line)) {
+    buffer->set_int_variable(OpenBuffer::variable_view_start_line(),
+        line - min(margin_lines, line));
     editor_state->ScheduleRedraw();
-  } else if (buffer->view_start_line() + screen_lines - 1 <=
-                 min(buffer->lines_size() - 1, line + margin_lines)) {
-    buffer->set_view_start_line(
+  } else if (view_start + screen_lines - 1
+                 <= min(buffer->lines_size() - 1, line + margin_lines)) {
+    buffer->set_int_variable(OpenBuffer::variable_view_start_line(),
         min(buffer->lines_size() - 1, line + margin_lines) - screen_lines + 2);
     editor_state->ScheduleRedraw();
   }
 
   size_t desired_start_column = buffer->current_position_col()
       - min(buffer->current_position_col(), screen->columns() - 1);
-  if (buffer->view_start_column() != desired_start_column) {
-    buffer->set_view_start_column(desired_start_column);
+  if (static_cast<size_t>(
+              max(0, buffer->Read(OpenBuffer::variable_view_start_column())))
+          != desired_start_column) {
+    buffer->set_int_variable(OpenBuffer::variable_view_start_column(),
+                             desired_start_column);
     editor_state->ScheduleRedraw();
   }
   if (buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())
@@ -612,7 +618,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       new OutputReceiverOptimizer(&screen_adapter));
 
   size_t lines_to_show = static_cast<size_t>(screen->lines());
-  size_t current_line = buffer->view_start_line();
+  size_t current_line = static_cast<size_t>(
+      max(0, buffer->Read(OpenBuffer::variable_view_start_line())));
   size_t lines_shown = 0;
   buffer->set_last_highlighted_line(-1);
 
@@ -722,7 +729,9 @@ void Terminal::AdjustPosition(
   }
 
   size_t pos_y = 0;
-  for (size_t line = buffer->view_start_line(); line < position_line; line++) {
+  for (size_t line = static_cast<size_t>(
+           max(0, buffer->Read(OpenBuffer::variable_view_start_line())));
+       line < position_line; line++) {
     if (buffer->IsLineFiltered(line)) {
       pos_y++;
     }

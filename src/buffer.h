@@ -243,14 +243,6 @@ class OpenBuffer {
   const BufferContents* contents() const { return &contents_; }
   // Delete characters in [column, column + amount).
 
-  size_t view_start_line() const { return view_start_line_; }
-  void set_view_start_line(size_t value) {
-    view_start_line_ = value;
-  }
-  size_t view_start_column() const { return view_start_column_; }
-  void set_view_start_column(size_t value) {
-    view_start_column_ = value;
-  }
   bool at_beginning() const {
     if (contents_.empty()) { return true; }
     return position().at_beginning();
@@ -362,6 +354,8 @@ class OpenBuffer {
   static EdgeVariable<int>* variable_buffer_list_context_lines();
   static EdgeVariable<int>* variable_margin_lines();
   static EdgeVariable<int>* variable_margin_columns();
+  static EdgeVariable<int>* variable_view_start_line();
+  static EdgeVariable<int>* variable_view_start_column();
 
   // No variables currently, but we'll likely add some later.
   static EdgeStruct<unique_ptr<Value>>* ValueStruct();
@@ -375,7 +369,7 @@ class OpenBuffer {
   void set_string_variable(const EdgeVariable<wstring>* variable,
                            wstring value);
 
-  const int& read_int_variable(const EdgeVariable<int>* variable) const;
+  const int& Read(const EdgeVariable<int>* variable) const;
   void set_int_variable(const EdgeVariable<int>* variable, int value);
 
   void ApplyToCursors(unique_ptr<Transformation> transformation);
@@ -490,9 +484,6 @@ class OpenBuffer {
   LineColumn position_pts_;
 
   BufferContents contents_;
-
-  size_t view_start_line_;
-  size_t view_start_column_;
 
   bool modified_;
   bool reading_from_parser_;

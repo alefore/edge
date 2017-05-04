@@ -239,6 +239,7 @@ EdgeVariable<T>* EdgeStruct<T>::AddVariable(
       name,
       unique_ptr<EdgeVariable<T>>(new EdgeVariable<T>(
           name, description, default_value, variables_.size(), predictor))));
+  CHECK(it.second);
   return it.first->second.get();
 }
 

@@ -149,7 +149,7 @@ class FileBuffer : public OpenBuffer {
     for (const auto& variable : OpenBuffer::IntStruct()->variables()) {
       contents.push_back(
           L"buffer.set_" + variable.first + L"(" +
-          std::to_wstring(read_int_variable(variable.second.get())) + L");");
+          std::to_wstring(Read(variable.second.get())) + L");");
     }
     contents.push_back(L"");
 
