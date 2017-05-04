@@ -113,6 +113,11 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
 
     status += L"] ";
 
+    if (editor_state.ShouldDisplayProgress()) {
+      static const std::vector<wstring> chars = {L"◜ ", L" ◝", L" ◞", L"◟ "};
+      status += chars[editor_state.progress() % chars.size()] + L" ";
+    }
+
     auto marks_text = buffer->GetLineMarksText(editor_state);
     if (!marks_text.empty()) {
       status += marks_text + L" ";

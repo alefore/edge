@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <ctime>
 #include <vector>
 
 #include "buffer.h"
@@ -231,6 +232,10 @@ class EditorState {
     buffers_to_parse_.erase(buffer);
   }
 
+  void RegisterProgress();
+  bool ShouldDisplayProgress() const;
+  size_t progress() const { return progress_; }
+
  private:
   Environment BuildEditorEnvironment();
 
@@ -273,6 +278,9 @@ class EditorState {
 
   Modifiers modifiers_;
   LineMarks line_marks_;
+
+  struct timespec last_progress_update_ = {0, 0};
+  size_t progress_ = 0;
 };
 
 }  // namespace editor

@@ -570,6 +570,10 @@ void OpenBuffer::MaybeFollowToEndOfFile() {
   }
 }
 
+bool OpenBuffer::ShouldDisplayProgress() const {
+  return fd_.fd !=-1 || fd_error_.fd != -1;
+}
+
 void OpenBuffer::ReadData(EditorState* editor_state) {
   fd_.ReadData(editor_state, this);
 }
@@ -598,6 +602,7 @@ void OpenBuffer::Input::ReadData(
     if (errno == EAGAIN) {
       return;
     }
+    editor_state->RegisterProgress();
     Close();
     Reset();
     if (target->fd_.fd == -1 && target->fd_error_.fd == -1) {
@@ -610,6 +615,7 @@ void OpenBuffer::Input::ReadData(
   if (characters_read == 0) {
     Close();
     Reset();
+    editor_state->RegisterProgress();
     if (target->fd_.fd == -1 && target->fd_error_.fd == -1) {
       target->EndOfFile(editor_state);
     }
@@ -657,6 +663,7 @@ void OpenBuffer::Input::ReadData(
     target->EvaluateString(editor_state, buffer_wrapper->ToString());
   }
 
+  editor_state->RegisterProgress();
   bool previous_modified = target->modified();
   if (target->read_bool_variable(OpenBuffer::variable_pts())) {
     target->ProcessCommandInput(editor_state, buffer_wrapper);

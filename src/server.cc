@@ -179,6 +179,10 @@ class ServerBuffer : public OpenBuffer {
 
     editor_state->ScheduleRedraw();
   }
+
+  bool ShouldDisplayProgress() const override {
+    return false;
+  }
 };
 
 wstring GetBufferName(const wstring& prefix, size_t count) {

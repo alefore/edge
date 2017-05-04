@@ -77,6 +77,7 @@ class OpenBuffer {
 
   void MaybeFollowToEndOfFile();
 
+  virtual bool ShouldDisplayProgress() const;
   void ReadData(EditorState* editor_state);
   void ReadErrorData(EditorState* editor_state);
 

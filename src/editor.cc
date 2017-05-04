@@ -93,6 +93,30 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
 
 }  // namespace
 
+void EditorState::RegisterProgress() {
+  struct timespec now;
+  if (clock_gettime(0, &now) == -1) {
+    return;
+  }
+  double ms_elapsed =
+      (now.tv_sec - last_progress_update_.tv_sec) * 1000
+      + (now.tv_nsec - last_progress_update_.tv_nsec) / 1000000;
+  if (ms_elapsed < 200) {
+    return;
+  }
+  last_progress_update_ = now;
+  progress_++;
+}
+
+bool EditorState::ShouldDisplayProgress() const {
+  for (auto& buffer : buffers_) {
+    if (buffer.second->ShouldDisplayProgress()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 Environment EditorState::BuildEditorEnvironment() {
   Environment environment(afc::vm::Environment::GetDefault());
 
