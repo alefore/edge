@@ -4,6 +4,7 @@
 #include <cassert>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <unordered_set>
 #include <string>
 #include <vector>
@@ -30,6 +31,7 @@ using std::unique_ptr;
 using std::unordered_set;
 using std::vector;
 
+// This class is thread-safe.
 class Line {
  public:
   struct Options {
@@ -46,26 +48,29 @@ class Line {
   Line() : Line(Options()) {}
   explicit Line(const Options& options);
   explicit Line(wstring text);
-  Line(const Line& line) = default;
+  Line(const Line& line);
 
-  shared_ptr<LazyString> contents() const { return contents_; }
+  shared_ptr<LazyString> contents() const {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return contents_;
+  }
   size_t size() const {
-    CHECK(contents_ != nullptr);
-    return contents_->size();
+    CHECK(contents() != nullptr);
+    return contents()->size();
   }
   bool empty() const {
-    CHECK(contents_ != nullptr);
+    CHECK(contents() != nullptr);
     return size() == 0;
   }
   wint_t get(size_t column) const {
-    CHECK_LT(column, contents_->size());
-    return contents_->get(column);
+    CHECK_LT(column, contents()->size());
+    return contents()->get(column);
   }
   shared_ptr<LazyString> Substring(size_t pos, size_t length) const;
   // Returns the substring from pos to the end of the string.
   shared_ptr<LazyString> Substring(size_t pos) const;
   wstring ToString() const {
-    return contents_->ToString();
+    return contents()->ToString();
   }
   // Delete characters in [position, position + amount).
   void DeleteCharacters(size_t position, size_t amount);
@@ -76,26 +81,37 @@ class Line {
 
   void SetAllModifiers(const LineModifierSet& modifiers);
   const vector<LineModifierSet> modifiers() const {
+    std::unique_lock<std::mutex> lock(mutex_);
     return modifiers_;
   }
   vector<LineModifierSet>& modifiers() {
+    std::unique_lock<std::mutex> lock(mutex_);
     return modifiers_;
   }
 
-  bool modified() const { return modified_; }
-  void set_modified(bool modified) { modified_ = modified; }
+  bool modified() const {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return modified_;
+  }
+  void set_modified(bool modified) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    modified_ = modified;
+  }
 
   void Append(const Line& line);
 
   std::shared_ptr<vm::Environment> environment() const;
 
   bool filtered() const {
+    std::unique_lock<std::mutex> lock(mutex_);
     return filtered_;
   }
   bool filter_version() const {
+    std::unique_lock<std::mutex> lock(mutex_);
     return filter_version_;
   }
   void set_filtered(bool filtered, size_t filter_version) {
+    std::unique_lock<std::mutex> lock(mutex_);
     filtered_ = filtered;
     filter_version_ = filter_version;
   }
@@ -116,12 +132,13 @@ class Line {
               size_t width) const;
 
  private:
+  mutable std::mutex mutex_;
   std::shared_ptr<vm::Environment> environment_;
   shared_ptr<LazyString> contents_;
   vector<LineModifierSet> modifiers_;
-  bool modified_;
-  bool filtered_;
-  size_t filter_version_;
+  bool modified_ = false;
+  bool filtered_ = true;
+  size_t filter_version_ = 0;
 };
 
 // Wrapper of a Line::OutputReceiverInterface that coallesces multiple calls to
