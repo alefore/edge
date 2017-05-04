@@ -40,6 +40,9 @@ src/insert_mode.cc \
 src/lazy_string.cc \
 src/lazy_string_append.cc \
 src/line.cc \
+src/line.h \
+src/line_modifier.cc \
+src/line_modifier.h \
 src/line_column.cc \
 src/line_marks.cc \
 src/line_prompt_mode.cc \

@@ -37,7 +37,7 @@ wstring BufferContents::ToString() const {
 }
 
 void BufferContents::insert(size_t position_line, const BufferContents& source,
-                            const Line::ModifiersSet* modifiers) {
+                            const LineModifierSet* modifiers) {
   if (source.empty()) { return; }
   CHECK_LT(position_line, size());
   // No need to increment it since it'll move automatically.
@@ -121,7 +121,7 @@ void BufferContents::DeleteCharactersFromLine(size_t line, size_t column) {
 }
 
 void BufferContents::SetCharacter(size_t line, size_t column, int c,
-    std::unordered_set<Line::Modifier, hash<int>> modifiers) {
+    std::unordered_set<LineModifier, hash<int>> modifiers) {
   auto new_line = std::make_shared<Line>(*at(line));
   new_line->SetCharacter(column, c, modifiers);
   set_line(line, new_line);

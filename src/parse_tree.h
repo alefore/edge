@@ -28,7 +28,7 @@ struct ParseTree {
   }
 
   Range range;
-  std::unordered_set<Line::Modifier, hash<int>> modifiers;
+  std::unordered_set<LineModifier, hash<int>> modifiers;
   Tree<ParseTree> children;
   size_t depth = 0;
 };

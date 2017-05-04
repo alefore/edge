@@ -23,19 +23,19 @@ void CheckSingleton(C const container, V value) {
 void TestLineDeleteCharacters() {
   // Preparation.
   Line line(Line::Options(NewCopyCharBuffer(L"alejo")));
-  line.modifiers()[0].insert(Line::RED);
-  line.modifiers()[1].insert(Line::GREEN);
-  line.modifiers()[2].insert(Line::BLUE);
-  line.modifiers()[3].insert(Line::BOLD);
-  line.modifiers()[4].insert(Line::DIM);
+  line.modifiers()[0].insert(LineModifier::RED);
+  line.modifiers()[1].insert(LineModifier::GREEN);
+  line.modifiers()[2].insert(LineModifier::BLUE);
+  line.modifiers()[3].insert(LineModifier::BOLD);
+  line.modifiers()[4].insert(LineModifier::DIM);
 
   {
     Line line_copy(line);
     line_copy.DeleteCharacters(2);
     CHECK_EQ(ToByteString(line_copy.contents()->ToString()), "al");
     CHECK_EQ(line_copy.modifiers().size(), 2);
-    CheckSingleton(line_copy.modifiers()[0], Line::RED);
-    CheckSingleton(line_copy.modifiers()[1], Line::GREEN);
+    CheckSingleton(line_copy.modifiers()[0], LineModifier::RED);
+    CheckSingleton(line_copy.modifiers()[1], LineModifier::GREEN);
   }
 
   {
@@ -43,19 +43,19 @@ void TestLineDeleteCharacters() {
     line_copy.DeleteCharacters(1, 2);
     CHECK_EQ(ToByteString(line_copy.contents()->ToString()), "ajo");
     CHECK_EQ(line_copy.modifiers().size(), 3);
-    CheckSingleton(line_copy.modifiers()[0], Line::RED);
-    CheckSingleton(line_copy.modifiers()[1], Line::BOLD);
-    CheckSingleton(line_copy.modifiers()[2], Line::DIM);
+    CheckSingleton(line_copy.modifiers()[0], LineModifier::RED);
+    CheckSingleton(line_copy.modifiers()[1], LineModifier::BOLD);
+    CheckSingleton(line_copy.modifiers()[2], LineModifier::DIM);
   }
 
   // Original isn't modified.
   CHECK_EQ(line.size(), 5);
   CHECK_EQ(line.modifiers().size(), 5);
-  CheckSingleton(line.modifiers()[0], Line::RED);
-  CheckSingleton(line.modifiers()[1], Line::GREEN);
-  CheckSingleton(line.modifiers()[2], Line::BLUE);
-  CheckSingleton(line.modifiers()[3], Line::BOLD);
-  CheckSingleton(line.modifiers()[4], Line::DIM);
+  CheckSingleton(line.modifiers()[0], LineModifier::RED);
+  CheckSingleton(line.modifiers()[1], LineModifier::GREEN);
+  CheckSingleton(line.modifiers()[2], LineModifier::BLUE);
+  CheckSingleton(line.modifiers()[3], LineModifier::BOLD);
+  CheckSingleton(line.modifiers()[4], LineModifier::DIM);
 }
 }  // namespace
 

@@ -49,7 +49,7 @@ class Screen {
   virtual void Move(size_t y, size_t x) = 0;
   virtual void WriteString(const wstring& str) = 0;
 
-  virtual void SetModifier(Line::Modifier modifier) = 0;
+  virtual void SetModifier(LineModifier modifier) = 0;
 
   virtual size_t columns() const = 0;
   virtual size_t lines() const = 0;

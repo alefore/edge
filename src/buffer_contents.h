@@ -86,7 +86,7 @@ class BufferContents {
   }
 
   void insert(size_t position_line, const BufferContents& source,
-              const Line::ModifiersSet* modifiers);
+              const LineModifierSet* modifiers);
 
   // Delete characters from the given line in range [column, column + amount).
   void DeleteCharactersFromLine(size_t line, size_t column, size_t amount);
@@ -94,7 +94,7 @@ class BufferContents {
   void DeleteCharactersFromLine(size_t line, size_t column);
 
   void SetCharacter(size_t line, size_t column, int c,
-      std::unordered_set<Line::Modifier, hash<int>> modifiers);
+      std::unordered_set<LineModifier, hash<int>> modifiers);
 
   void InsertCharacter(size_t line, size_t column);
   void AppendToLine(size_t line, const Line& line_to_append);

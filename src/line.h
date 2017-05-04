@@ -11,6 +11,7 @@
 #include <glog/logging.h>
 
 #include "lazy_string.h"
+#include "src/line_modifier.h"
 #include "src/vm/public/environment.h"
 
 namespace afc {
@@ -31,61 +32,6 @@ using std::vector;
 
 class Line {
  public:
-  enum Modifier {
-    RESET,
-    BOLD,
-    DIM,
-    UNDERLINE,
-    REVERSE,
-    BLACK,
-    RED,
-    GREEN,
-    BLUE,
-    CYAN,
-    YELLOW,
-    MAGENTA,
-    BG_RED,
-  };
-
-  using ModifiersSet = unordered_set<Modifier, hash<int>>;
-
-  static string ModifierToString(Modifier modifier) {
-    switch (modifier) {
-      case RESET: return "RESET";
-      case BOLD: return "BOLD";
-      case DIM: return "DIM";
-      case UNDERLINE: return "UNDERLINE";
-      case REVERSE: return "REVERSE";
-      case BLACK: return "BLACK";
-      case RED: return "RED";
-      case GREEN: return "GREEN";
-      case BLUE: return "BLUE";
-      case CYAN: return "CYAN";
-      case YELLOW: return "YELLOW";
-      case MAGENTA: return "MAGENTA";
-      case BG_RED: return "BG_RED";
-    }
-    return "UNKNOWN";
-  }
-
-  static Modifier ModifierFromString(string modifier) {
-    // TODO: Turn into a map.
-    if (modifier == "RESET") return RESET;
-    if (modifier == "BOLD") return BOLD;
-    if (modifier == "DIM") return DIM;
-    if (modifier == "UNDERLINE") return UNDERLINE;
-    if (modifier == "REVERSE") return REVERSE;
-    if (modifier == "BLACK") return BLACK;
-    if (modifier == "RED") return RED;
-    if (modifier == "GREEN") return GREEN;
-    if (modifier == "BLUE") return BLUE;
-    if (modifier == "CYAN") return CYAN;
-    if (modifier == "YELLOW") return YELLOW;
-    if (modifier == "MAGENTA") return MAGENTA;
-    if (modifier == "BG_RED") return BG_RED;
-    return RESET;  // Ugh.
-  }
-
   struct Options {
     Options() : contents(EmptyString()) {}
     Options(shared_ptr<LazyString> input_contents)
@@ -93,7 +39,7 @@ class Line {
           modifiers(contents->size()) {}
 
     shared_ptr<LazyString> contents;
-    vector<ModifiersSet> modifiers;
+    vector<LineModifierSet> modifiers;
     std::shared_ptr<vm::Environment> environment = nullptr;
   };
 
@@ -126,13 +72,13 @@ class Line {
   // Delete characters from position until the end.
   void DeleteCharacters(size_t position);
   void InsertCharacterAtPosition(size_t position);
-  void SetCharacter(size_t position, int c, const ModifiersSet& modifiers);
+  void SetCharacter(size_t position, int c, const LineModifierSet& modifiers);
 
-  void SetAllModifiers(const ModifiersSet& modifiers);
-  const vector<Line::ModifiersSet> modifiers() const {
+  void SetAllModifiers(const LineModifierSet& modifiers);
+  const vector<LineModifierSet> modifiers() const {
     return modifiers_;
   }
-  vector<Line::ModifiersSet>& modifiers() {
+  vector<LineModifierSet>& modifiers() {
     return modifiers_;
   }
 
@@ -160,7 +106,7 @@ class Line {
 
     virtual void AddCharacter(wchar_t character) = 0;
     virtual void AddString(const wstring& str) = 0;
-    virtual void AddModifier(Modifier modifier) = 0;
+    virtual void AddModifier(LineModifier modifier) = 0;
   };
 
   void Output(const EditorState* editor_state,
@@ -172,7 +118,7 @@ class Line {
  private:
   std::shared_ptr<vm::Environment> environment_;
   shared_ptr<LazyString> contents_;
-  vector<ModifiersSet> modifiers_;
+  vector<LineModifierSet> modifiers_;
   bool modified_;
   bool filtered_;
   size_t filter_version_;
@@ -192,15 +138,15 @@ class OutputReceiverOptimizer : public Line::OutputReceiverInterface {
 
   void AddCharacter(wchar_t character) override;
   void AddString(const wstring& str) override;
-  void AddModifier(Line::Modifier modifier) override;
+  void AddModifier(LineModifier modifier) override;
 
  private:
   void Flush();
 
   Line::OutputReceiverInterface* const delegate_;
 
-  Line::ModifiersSet modifiers_;
-  Line::ModifiersSet last_modifiers_;
+  LineModifierSet modifiers_;
+  LineModifierSet last_modifiers_;
   wstring buffer_;
 };
 

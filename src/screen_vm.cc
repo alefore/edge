@@ -59,9 +59,8 @@ class ScreenVm : public Screen {
         "screen.WriteString(\"" + ToByteString(CppEscapeString(str)) + "\");";
   }
 
-  void SetModifier(Line::Modifier modifier) override {
-    buffer_ +=
-        "screen.SetModifier(\"" + Line::ModifierToString(modifier) + "\");";
+  void SetModifier(LineModifier modifier) override {
+    buffer_ += "screen.SetModifier(\"" + ModifierToString(modifier) + "\");";
   }
 
   size_t columns() const { return columns_; }
@@ -295,8 +294,7 @@ void RegisterScreenType(Environment* environment) {
 
           CHECK_EQ(args[1]->type, VMType::VM_STRING);
 
-          screen->SetModifier(
-              Line::ModifierFromString(ToByteString(args[1]->str)));
+          screen->SetModifier(ModifierFromString(ToByteString(args[1]->str)));
           return Value::NewVoid();
         };
     screen_type->AddField(L"SetModifier", std::move(callback));

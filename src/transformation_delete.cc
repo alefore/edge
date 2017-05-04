@@ -115,7 +115,8 @@ class DeleteCharactersTransformation : public Transformation {
     if (options_.preview) {
       LOG(INFO) << "Inserting preview at: " << result->cursor << " "
                 << delete_buffer->contents()->CountCharacters();
-      Line::ModifiersSet modifiers_set = {Line::UNDERLINE, Line::BLUE};
+      LineModifierSet modifiers_set =
+          {LineModifier::UNDERLINE, LineModifier::BLUE};
       NewInsertBufferTransformation(
               delete_buffer,
               Modifiers(),

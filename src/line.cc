@@ -65,14 +65,15 @@ void Line::InsertCharacterAtPosition(size_t position) {
                    NewCopyString(L" ")),
       Substring(position));
 
-  modifiers_.push_back(unordered_set<Modifier, hash<int>>());
+  modifiers_.push_back(unordered_set<LineModifier, hash<int>>());
   for (size_t i = modifiers_.size() - 1; i > position; i--) {
     modifiers_[i] = modifiers_[i - 1];
   }
 }
 
-void Line::SetCharacter(size_t position, int c,
-                        const unordered_set<Modifier, hash<int>>& modifiers) {
+void Line::SetCharacter(
+    size_t position, int c,
+    const unordered_set<LineModifier, hash<int>>& modifiers) {
   CHECK_EQ(contents_->size(), modifiers_.size());
   shared_ptr<LazyString> str = NewCopyString(wstring(1, c));
   if (position >= size()) {
@@ -90,7 +91,7 @@ void Line::SetCharacter(size_t position, int c,
   CHECK_EQ(contents_->size(), modifiers_.size());
 }
 
-void Line::SetAllModifiers(const ModifiersSet& modifiers) {
+void Line::SetAllModifiers(const LineModifierSet& modifiers) {
   CHECK_EQ(contents_->size(), modifiers_.size());
   modifiers_.assign(contents_->size(), modifiers);
   CHECK_EQ(contents_->size(), modifiers_.size());
@@ -191,15 +192,15 @@ void Line::Output(const EditorState* editor_state,
   VLOG(5) << "Producing output of line: " << ToString();
   size_t output_column = 0;
   size_t input_column = buffer->Read(buffer->variable_view_start_column());
-  unordered_set<Line::Modifier, hash<int>> current_modifiers;
+  unordered_set<LineModifier, hash<int>> current_modifiers;
   while (input_column < size() && output_column < width) {
     wint_t c = get(input_column);
     CHECK(c != '\n');
     // TODO: Optimize.
     if (input_column >= modifiers_.size()) {
-      receiver->AddModifier(Line::RESET);
+      receiver->AddModifier(LineModifier::RESET);
     } else if (modifiers_[input_column] != current_modifiers) {
-      receiver->AddModifier(Line::RESET);
+      receiver->AddModifier(LineModifier::RESET);
       current_modifiers = modifiers_[input_column];
       for (auto it : current_modifiers) {
         receiver->AddModifier(it);
@@ -258,7 +259,7 @@ void Line::Output(const EditorState* editor_state,
           std::static_pointer_cast<OpenBuffer>(target_buffer->user_value)
               ->FlagsString();
     } else if (marks.first != marks.second) {
-      receiver->AddModifier(Modifier::RED);
+      receiver->AddModifier(LineModifier::RED);
       info_char = '!';
 
       // Prefer fresh over expired marks.
@@ -275,7 +276,7 @@ void Line::Output(const EditorState* editor_state,
         auto source = editor_state->buffers()->find(mark.source);
         if (source != editor_state->buffers()->end()
             && source->second->contents()->size() > mark.source_line) {
-          receiver->AddModifier(Modifier::BOLD);
+          receiver->AddModifier(LineModifier::BOLD);
           additional_information =
               source->second->contents()->at(mark.source_line)->ToString();
         } else {
@@ -283,13 +284,13 @@ void Line::Output(const EditorState* editor_state,
         }
       }
     } else if (modified()) {
-      receiver->AddModifier(Modifier::GREEN);
+      receiver->AddModifier(LineModifier::GREEN);
       info_char = L'•';
     } else {
-      receiver->AddModifier(Modifier::DIM);
+      receiver->AddModifier(LineModifier::DIM);
     }
     receiver->AddCharacter(info_char);
-    receiver->AddModifier(Modifier::RESET);
+    receiver->AddModifier(LineModifier::RESET);
     output_column += padding + 1;
     CHECK_LE(output_column, width);
 
@@ -305,7 +306,7 @@ void Line::Output(const EditorState* editor_state,
   }
 
   if (output_column < width) {
-    receiver->AddModifier(Line::RESET);
+    receiver->AddModifier(LineModifier::RESET);
     VLOG(6) << "Adding newline characters.";
     receiver->AddString(L"\n");
   }
@@ -329,8 +330,8 @@ void OutputReceiverOptimizer::AddString(const wstring& str) {
   buffer_.append(str);
 }
 
-void OutputReceiverOptimizer::AddModifier(Line::Modifier modifier) {
-  if (modifier == Line::RESET) {
+void OutputReceiverOptimizer::AddModifier(LineModifier modifier) {
+  if (modifier == LineModifier::RESET) {
     modifiers_.clear();
   } else {
     modifiers_.insert(modifier);
@@ -338,8 +339,8 @@ void OutputReceiverOptimizer::AddModifier(Line::Modifier modifier) {
 }
 
 void OutputReceiverOptimizer::Flush() {
-  DCHECK(modifiers_.find(Line::RESET) == modifiers_.end());
-  DCHECK(last_modifiers_.find(Line::RESET) == last_modifiers_.end());
+  DCHECK(modifiers_.find(LineModifier::RESET) == modifiers_.end());
+  DCHECK(last_modifiers_.find(LineModifier::RESET) == last_modifiers_.end());
 
   if (!buffer_.empty()) {
     delegate_->AddString(buffer_);
@@ -349,7 +350,7 @@ void OutputReceiverOptimizer::Flush() {
   if (!std::includes(modifiers_.begin(), modifiers_.end(),
                      last_modifiers_.begin(), last_modifiers_.end())) {
     DVLOG(5) << "Last modifiers not contained in new modifiers.";
-    delegate_->AddModifier(Line::RESET);
+    delegate_->AddModifier(LineModifier::RESET);
     last_modifiers_.clear();
   }
 

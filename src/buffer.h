@@ -111,11 +111,11 @@ class OpenBuffer {
 
   size_t ProcessTerminalEscapeSequence(
       EditorState* editor_state, shared_ptr<LazyString> str, size_t read_index,
-      Line::ModifiersSet* modifiers);
+      LineModifierSet* modifiers);
   void AppendToLastLine(EditorState* editor_state, shared_ptr<LazyString> str);
   void AppendToLastLine(
       EditorState* editor_state, shared_ptr<LazyString> str,
-      const vector<Line::ModifiersSet>&modifiers);
+      const vector<LineModifierSet>&modifiers);
 
   unique_ptr<Expression> CompileString(EditorState* editor_state,
                                        const wstring& str,
@@ -135,7 +135,7 @@ class OpenBuffer {
   // the input). Otherwise, uses modifiers for every character inserted.
   LineColumn InsertInPosition(const OpenBuffer& insertion,
                               const LineColumn& position,
-                              const Line::ModifiersSet* modifiers);
+                              const LineModifierSet* modifiers);
   // Checks that line column is in the expected range (between 0 and the length
   // of the current line).
   void AdjustLineColumn(LineColumn* output) const;
@@ -460,7 +460,7 @@ class OpenBuffer {
     std::unique_ptr<char> low_buffer;
     size_t low_buffer_length = 0;
 
-    Line::ModifiersSet modifiers;
+    LineModifierSet modifiers;
   };
 
   Input fd_;

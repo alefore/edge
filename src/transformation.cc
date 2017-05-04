@@ -37,7 +37,7 @@ class InsertBufferTransformation : public Transformation {
   InsertBufferTransformation(
       shared_ptr<const OpenBuffer> buffer_to_insert, Modifiers modifiers,
       InsertBufferTransformationPosition final_position,
-      Line::ModifiersSet* modifiers_set)
+      LineModifierSet* modifiers_set)
       : buffer_to_insert_(buffer_to_insert),
         buffer_to_insert_length_(
             buffer_to_insert->contents()->CountCharacters()),
@@ -91,7 +91,7 @@ class InsertBufferTransformation : public Transformation {
   size_t buffer_to_insert_length_;
   Modifiers modifiers_;
   InsertBufferTransformationPosition final_position_;
-  Line::ModifiersSet* modifiers_set_;
+  LineModifierSet* modifiers_set_;
 };
 
 class NoopTransformation : public Transformation {
@@ -268,7 +268,7 @@ Transformation::Result::Result(EditorState* editor_state)
 unique_ptr<Transformation> NewInsertBufferTransformation(
     shared_ptr<const OpenBuffer> buffer_to_insert, Modifiers modifiers,
     InsertBufferTransformationPosition final_position,
-    Line::ModifiersSet* modifiers_set) {
+    LineModifierSet* modifiers_set) {
   return unique_ptr<Transformation>(new InsertBufferTransformation(
       buffer_to_insert, modifiers, final_position, modifiers_set));
 }

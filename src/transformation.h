@@ -72,7 +72,7 @@ enum InsertBufferTransformationPosition {
 unique_ptr<Transformation> NewInsertBufferTransformation(
     shared_ptr<const OpenBuffer> buffer_to_insert, Modifiers modifiers,
     InsertBufferTransformationPosition insert_buffer_transformation_position,
-    Line::ModifiersSet* modifiers_set);
+    LineModifierSet* modifiers_set);
 
 unique_ptr<Transformation> NewInsertBufferTransformation(
     shared_ptr<const OpenBuffer> buffer_to_insert, size_t repetitions,

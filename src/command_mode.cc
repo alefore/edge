@@ -669,7 +669,7 @@ class ActivateLink : public Command {
     return L"activates the current link (if any)";
   }
 
-  void ProcessInput(wint_t c, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
     if (buffer->current_line() == nullptr) { return; }
@@ -837,7 +837,8 @@ class SwitchCaseTransformation : public Transformation {
       // Increment i.
       i.column++;
     }
-    Line::ModifiersSet modifiers_set = {Line::UNDERLINE, Line::BLUE};
+    LineModifierSet modifiers_set =
+        {LineModifier::UNDERLINE, LineModifier::BLUE};
     auto original_position = result->cursor;
     stack->PushBack(NewInsertBufferTransformation(
         buffer_to_insert,

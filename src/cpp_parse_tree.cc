@@ -68,7 +68,7 @@ class CppTreeParser : public TreeParser {
                     - block->range.begin.column)
             ->ToString();
         if (IsReservedToken(str)) {
-          block->modifiers.insert(Line::CYAN);
+          block->modifiers.insert(LineModifier::CYAN);
         }
       }
       return;
@@ -79,7 +79,7 @@ class CppTreeParser : public TreeParser {
       auto child = PushChild(block);
       child->range = Range(block->range.begin,
                            Advance(buffer, block->range.begin));
-      child->modifiers = {Line::BG_RED, Line::BOLD};
+      child->modifiers = {LineModifier::BG_RED, LineModifier::BOLD};
     }
 
     if (c == L'(' || c == L'{' || c == L'[') {
@@ -87,7 +87,7 @@ class CppTreeParser : public TreeParser {
       auto open_character = PushChild(block);
       open_character->range =
           Range(block->range.begin, Advance(buffer, block->range.begin));
-      open_character->modifiers = {Line::BG_RED, Line::BOLD};
+      open_character->modifiers = {LineModifier::BG_RED, LineModifier::BOLD};
       wint_t closing_character;
       switch (c) {
         case L'(': closing_character = L')'; break;
@@ -105,7 +105,7 @@ class CppTreeParser : public TreeParser {
     if (c == '/' &&
         buffer.character_at(Advance(buffer, block->range.begin)) == '/') {
       block->range.end = AdvanceUntilEndOfLine(buffer, block->range.begin);
-      block->modifiers.insert(Line::BLUE);
+      block->modifiers.insert(LineModifier::BLUE);
       words_parser_->FindChildren(buffer, block);
       return;
     }
@@ -125,7 +125,7 @@ class CppTreeParser : public TreeParser {
       if (c == L'\"') {
         words_parser_->FindChildren(buffer, block);
       }
-      block->modifiers.insert(Line::YELLOW);
+      block->modifiers.insert(LineModifier::YELLOW);
       return;
     }
 
@@ -134,7 +134,7 @@ class CppTreeParser : public TreeParser {
       while (isdigit(buffer.character_at(block->range.end))) {
         block->range.end = Advance(buffer, block->range.end);
       }
-      block->modifiers.insert(Line::YELLOW);
+      block->modifiers.insert(LineModifier::YELLOW);
       return;
     }
 
@@ -165,7 +165,7 @@ class CppTreeParser : public TreeParser {
       if (after_newline && c == '#') {
         auto child = PushChild(block);
         child->range = Range(position, AdvanceUntilEndOfLine(buffer, position));
-        child->modifiers.insert(Line::YELLOW);
+        child->modifiers.insert(LineModifier::YELLOW);
         position = child->range.end;
         continue;
       }
@@ -214,28 +214,28 @@ class CppTreeParser : public TreeParser {
     return position;
   }
 
-  std::unordered_set<Line::Modifier, hash<int>> ModifierForNesting(
+  std::unordered_set<LineModifier, hash<int>> ModifierForNesting(
       int nesting) {
-    std::unordered_set<Line::Modifier, hash<int>> output;
+    std::unordered_set<LineModifier, hash<int>> output;
     switch (nesting % 5) {
       case 0:
-        output.insert(Line::CYAN);
+        output.insert(LineModifier::CYAN);
         break;
       case 1:
-        output.insert(Line::YELLOW);
+        output.insert(LineModifier::YELLOW);
         break;
       case 2:
-        output.insert(Line::RED);
+        output.insert(LineModifier::RED);
         break;
       case 3:
-        output.insert(Line::BLUE);
+        output.insert(LineModifier::BLUE);
         break;
       case 4:
-        output.insert(Line::GREEN);
+        output.insert(LineModifier::GREEN);
         break;
     }
     if (((nesting / 5) % 2) == 0) {
-      output.insert(Line::BOLD);
+      output.insert(LineModifier::BOLD);
     }
     return output;
   }

@@ -582,9 +582,9 @@ void OpenBuffer::ReadErrorData(EditorState* editor_state) {
   fd_error_.ReadData(editor_state, this);
 }
 
-vector<unordered_set<Line::Modifier, hash<int>>> ModifiersVector(
-    const unordered_set<Line::Modifier, hash<int>>& input, size_t size) {
-  return vector<unordered_set<Line::Modifier, hash<int>>>(size, input);
+vector<unordered_set<LineModifier, hash<int>>> ModifiersVector(
+    const unordered_set<LineModifier, hash<int>>& input, size_t size) {
+  return vector<unordered_set<LineModifier, hash<int>>>(size, input);
 }
 
 void OpenBuffer::Input::ReadData(
@@ -896,7 +896,7 @@ void OpenBuffer::ProcessCommandInput(
   }
   CHECK_LT(position_pts_.line, contents_.size());
   auto current_line = contents_.at(position_pts_.line);
-  std::unordered_set<Line::Modifier, hash<int>> modifiers;
+  std::unordered_set<LineModifier, hash<int>> modifiers;
 
   size_t read_index = 0;
   VLOG(5) << "Terminal input: " << str->ToString();
@@ -952,7 +952,7 @@ void OpenBuffer::ProcessCommandInput(
 
 size_t OpenBuffer::ProcessTerminalEscapeSequence(
     EditorState* editor_state, shared_ptr<LazyString> str, size_t read_index,
-    std::unordered_set<Line::Modifier, hash<int>>* modifiers) {
+    std::unordered_set<LineModifier, hash<int>>* modifiers) {
   if (str->size() <= read_index) {
     LOG(INFO) << "Unhandled character sequence: "
               << Substring(str, read_index)->ToString() << ")\n";
@@ -1027,39 +1027,39 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         } else if (sequence == "0") {
           modifiers->clear();
         } else if (sequence == "1") {
-          modifiers->insert(Line::BOLD);
+          modifiers->insert(LineModifier::BOLD);
         } else if (sequence == "3") {
           // TODO(alejo): Support italic on.
         } else if (sequence == "4") {
-          modifiers->insert(Line::UNDERLINE);
+          modifiers->insert(LineModifier::UNDERLINE);
         } else if (sequence == "23") {
           // Fraktur off, italic off.  No need to do anything for now.
         } else if (sequence == "24") {
-          modifiers->erase(Line::UNDERLINE);
+          modifiers->erase(LineModifier::UNDERLINE);
         } else if (sequence == "31") {
           modifiers->clear();
-          modifiers->insert(Line::RED);
+          modifiers->insert(LineModifier::RED);
         } else if (sequence == "32") {
           modifiers->clear();
-          modifiers->insert(Line::GREEN);
+          modifiers->insert(LineModifier::GREEN);
         } else if (sequence == "36") {
           modifiers->clear();
-          modifiers->insert(Line::CYAN);
+          modifiers->insert(LineModifier::CYAN);
         } else if (sequence == "1;30") {
           modifiers->clear();
-          modifiers->insert(Line::BOLD);
-          modifiers->insert(Line::BLACK);
+          modifiers->insert(LineModifier::BOLD);
+          modifiers->insert(LineModifier::BLACK);
         } else if (sequence == "1;31") {
           modifiers->clear();
-          modifiers->insert(Line::BOLD);
-          modifiers->insert(Line::RED);
+          modifiers->insert(LineModifier::BOLD);
+          modifiers->insert(LineModifier::RED);
         } else if (sequence == "1;36") {
           modifiers->clear();
-          modifiers->insert(Line::BOLD);
-          modifiers->insert(Line::CYAN);
+          modifiers->insert(LineModifier::BOLD);
+          modifiers->insert(LineModifier::CYAN);
         } else if (sequence == "0;36") {
           modifiers->clear();
-          modifiers->insert(Line::CYAN);
+          modifiers->insert(LineModifier::CYAN);
         } else {
           LOG(INFO) << "Unhandled character sequence: (" << sequence;
         }
@@ -1167,13 +1167,13 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
 
 void OpenBuffer::AppendToLastLine(
     EditorState* editor_state, shared_ptr<LazyString> str) {
-  vector<unordered_set<Line::Modifier, hash<int>>> modifiers(str->size());
+  vector<unordered_set<LineModifier, hash<int>>> modifiers(str->size());
   AppendToLastLine(editor_state, str, modifiers);
 }
 
 void OpenBuffer::AppendToLastLine(
     EditorState*, shared_ptr<LazyString> str,
-    const vector<unordered_set<Line::Modifier, hash<int>>>& modifiers) {
+    const vector<unordered_set<LineModifier, hash<int>>>& modifiers) {
   CHECK_EQ(str->size(), modifiers.size());
   Line::Options options;
   options.contents = str;
@@ -1236,7 +1236,7 @@ void OpenBuffer::DeleteRange(const Range& range) {
 
 LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
                                         const LineColumn& input_position,
-                                        const Line::ModifiersSet* modifiers) {
+                                        const LineModifierSet* modifiers) {
   auto blocker = cursors_tracker_.DelayTransformations();
   if (buffer.empty()) { return input_position; }
   LineColumn position = input_position;
@@ -1792,7 +1792,7 @@ void OpenBuffer::SetInputFiles(
   fd_error_.Close();
   fd_error_.fd = input_error_fd;
   fd_error_.modifiers.clear();
-  fd_error_.modifiers.insert(Line::RED);
+  fd_error_.modifiers.insert(LineModifier::RED);
 
   CHECK_EQ(child_pid_, -1);
   fd_is_terminal_ = fd_is_terminal;

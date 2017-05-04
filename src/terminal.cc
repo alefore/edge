@@ -253,12 +253,12 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
   }
   screen->Move(screen->lines() - 1, 0);
   if (editor_state.is_status_warning()) {
-    screen->SetModifier(Line::RED);
-    screen->SetModifier(Line::BOLD);
+    screen->SetModifier(LineModifier::RED);
+    screen->SetModifier(LineModifier::BOLD);
   }
   screen->WriteString(status.c_str());
   if (editor_state.is_status_warning()) {
-    screen->SetModifier(Line::RESET);
+    screen->SetModifier(LineModifier::RESET);
   }
   if (editor_state.status_prompt()) {
     status_column += editor_state.status_prompt_column();
@@ -292,7 +292,7 @@ class LineOutputReceiver : public Line::OutputReceiverInterface {
   void AddString(const wstring& str) {
     screen_->WriteString(str);
   }
-  void AddModifier(Line::Modifier modifier) {
+  void AddModifier(LineModifier modifier) {
     screen_->SetModifier(modifier);
   }
  private:
@@ -303,16 +303,16 @@ class HighlightedLineOutputReceiver : public Line::OutputReceiverInterface {
  public:
   HighlightedLineOutputReceiver(Line::OutputReceiverInterface* delegate)
       : delegate_(delegate) {
-    delegate_->AddModifier(Line::REVERSE);
+    delegate_->AddModifier(LineModifier::REVERSE);
   }
 
   void AddCharacter(wchar_t c) { delegate_->AddCharacter(c); }
   void AddString(const wstring& str) { delegate_->AddString(str); }
-  void AddModifier(Line::Modifier modifier) {
+  void AddModifier(LineModifier modifier) {
     switch (modifier) {
-      case Line::RESET:
-        delegate_->AddModifier(Line::RESET);
-        delegate_->AddModifier(Line::REVERSE);
+      case LineModifier::RESET:
+        delegate_->AddModifier(LineModifier::RESET);
+        delegate_->AddModifier(LineModifier::REVERSE);
         break;
       default:
         delegate_->AddModifier(modifier);
@@ -330,15 +330,15 @@ class ModifiersMerger {
   ModifiersMerger(Line::OutputReceiverInterface* delegate)
       : delegate_(delegate) {}
 
-  void AddParentModifier(Line::Modifier modifier) {
-    if (modifier == Line::RESET) {
+  void AddParentModifier(LineModifier modifier) {
+    if (modifier == LineModifier::RESET) {
       if (!parent_modifiers_) {
         return;
       }
       parent_modifiers_ = false;
-      delegate_->AddModifier(Line::RESET);
+      delegate_->AddModifier(LineModifier::RESET);
       for (auto& m : children_modifiers_) {
-        CHECK(m != Line::RESET);
+        CHECK(m != LineModifier::RESET);
         delegate_->AddModifier(m);
       }
       return;
@@ -346,15 +346,15 @@ class ModifiersMerger {
 
     if (!parent_modifiers_) {
       if (!children_modifiers_.empty()) {
-        delegate_->AddModifier(Line::RESET);
+        delegate_->AddModifier(LineModifier::RESET);
       }
       parent_modifiers_ = true;
     }
     delegate_->AddModifier(modifier);
   }
 
-  void AddChildrenModifier(Line::Modifier modifier) {
-    if (modifier == Line::RESET) {
+  void AddChildrenModifier(LineModifier modifier) {
+    if (modifier == LineModifier::RESET) {
       children_modifiers_.clear();
     } else {
       children_modifiers_.insert(modifier);
@@ -370,7 +370,7 @@ class ModifiersMerger {
 
  private:
   bool parent_modifiers_ = false;
-  Line::ModifiersSet children_modifiers_;
+  LineModifierSet children_modifiers_;
   Line::OutputReceiverInterface* const delegate_;
 };
 
@@ -391,7 +391,7 @@ class ReceiverTrackingPosition : public Line::OutputReceiverInterface {
     delegate_->AddString(str);
   }
 
-  void AddModifier(Line::Modifier modifier) override {
+  void AddModifier(LineModifier modifier) override {
     delegate_->AddModifier(modifier);
   }
 
@@ -433,14 +433,14 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
       ++next_cursor_;
       CHECK(next_cursor_ == columns_.end()
             || *next_cursor_ > delegate_.position());
-      modifiers_merger_.AddParentModifier(Line::REVERSE);
+      modifiers_merger_.AddParentModifier(LineModifier::REVERSE);
       modifiers_merger_.AddParentModifier(
-          multiple_cursors_ ? Line::CYAN : Line::BLUE);
+          multiple_cursors_ ? LineModifier::CYAN : LineModifier::BLUE);
     }
 
     delegate_.AddCharacter(c);
     if (at_cursor) {
-      modifiers_merger_.AddParentModifier(Line::RESET);
+      modifiers_merger_.AddParentModifier(LineModifier::RESET);
     }
     CheckInvariants();
   }
@@ -473,7 +473,7 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
     }
   }
 
-  void AddModifier(Line::Modifier modifier) {
+  void AddModifier(LineModifier modifier) {
     modifiers_merger_.AddChildrenModifier(modifier);
   }
 
@@ -504,14 +504,14 @@ class ParseTreeHighlighter : public Line::OutputReceiverInterface {
     size_t position = delegate_.position();
     // TODO: Optimize: Don't add it for each character, just at the start.
     if (begin_ <= position && position < end_) {
-      AddModifier(Line::BLUE);
+      AddModifier(LineModifier::BLUE);
     }
 
     delegate_.AddCharacter(c);
 
     // TODO: Optimize: Don't add it for each character, just at the end.
     if (c != L'\n') {
-      AddModifier(Line::RESET);
+      AddModifier(LineModifier::RESET);
     }
   }
 
@@ -524,7 +524,7 @@ class ParseTreeHighlighter : public Line::OutputReceiverInterface {
     for (auto& c : str) { AddCharacter(c); }
   }
 
-  void AddModifier(Line::Modifier modifier) override {
+  void AddModifier(LineModifier modifier) override {
     delegate_.AddModifier(modifier);
   }
 
@@ -553,7 +553,7 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
       UpdateCurrent(position);
     }
 
-    modifiers_merger_.AddChildrenModifier(Line::RESET);
+    modifiers_merger_.AddChildrenModifier(LineModifier::RESET);
     if (!current_.empty() && !modifiers_merger_.has_parent_modifiers()) {
       for (auto& t : current_) {
         if (t->range.Contains(position)) {
@@ -575,7 +575,7 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
     for (auto& c : str) { AddCharacter(c); }
   }
 
-  void AddModifier(Line::Modifier modifier) override {
+  void AddModifier(LineModifier modifier) override {
     modifiers_merger_.AddParentModifier(modifier);
   }
 
@@ -710,7 +710,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
                  screen->columns());
     // Need to do this for atomic lines, since they override the Reset modifier
     // with Reset + Reverse.
-    line_output_receiver->AddModifier(Line::RESET);
+    line_output_receiver->AddModifier(LineModifier::RESET);
     current_line ++;
   }
 }

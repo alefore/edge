@@ -60,9 +60,9 @@ class ScreenCurses : public Screen {
   void Move(size_t y, size_t x) override { move(y, x); }
   void WriteString(const wstring& s) override { addwstr(s.c_str()); }
 
-  void SetModifier(Line::Modifier modifier) override {
+  void SetModifier(LineModifier modifier) override {
     switch (modifier) {
-      case Line::RESET:
+      case LineModifier::RESET:
         attroff(A_BOLD);
         attroff(A_DIM);
         attroff(A_UNDERLINE);
@@ -76,40 +76,40 @@ class ScreenCurses : public Screen {
         attroff(COLOR_PAIR(7));
         attroff(COLOR_PAIR(8));
         break;
-      case Line::BOLD:
+      case LineModifier::BOLD:
         attron(A_BOLD);
         break;
-      case Line::DIM:
+      case LineModifier::DIM:
         attron(A_DIM);
         break;
-      case Line::UNDERLINE:
+      case LineModifier::UNDERLINE:
         attron(A_UNDERLINE);
         break;
-      case Line::REVERSE:
+      case LineModifier::REVERSE:
         attron(A_REVERSE);
         break;
-      case Line::BLACK:
+      case LineModifier::BLACK:
         attron(COLOR_PAIR(1));
         break;
-      case Line::RED:
+      case LineModifier::RED:
         attron(COLOR_PAIR(2));
         break;
-      case Line::GREEN:
+      case LineModifier::GREEN:
         attron(COLOR_PAIR(3));
         break;
-      case Line::BLUE:
+      case LineModifier::BLUE:
         attron(COLOR_PAIR(4));
         break;
-      case Line::YELLOW:
+      case LineModifier::YELLOW:
         attron(COLOR_PAIR(5));
         break;
-      case Line::MAGENTA:
+      case LineModifier::MAGENTA:
         attron(COLOR_PAIR(6));
         break;
-      case Line::CYAN:
+      case LineModifier::CYAN:
         attron(COLOR_PAIR(7));
         break;
-      case Line::BG_RED:
+      case LineModifier::BG_RED:
         attron(COLOR_PAIR(8));
         break;
     }
