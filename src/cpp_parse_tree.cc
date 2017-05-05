@@ -11,9 +11,10 @@ namespace {
 enum State {
   DEFAULT_AT_START_OF_LINE,
   DEFAULT,
+  AFTER_SLASH,
+
   PREPROCESSOR_DIRECTIVE,
   IDENTIFIER,
-  AFTER_SLASH,
   COMMENT_TO_END_OF_LINE,
   LITERAL_STRING,
   LITERAL_CHARACTER,
@@ -39,6 +40,7 @@ class ParseResult {
       : buffer_(buffer),
         trees_({root}),
         states_({initial_state}),
+        position_(root->range.begin),
         limit_(root->range.end) {}
 
   void CheckInvariants() const {
@@ -46,27 +48,49 @@ class ParseResult {
     CHECK(empty() || tree() != nullptr);
   }
 
+  const BufferContents& buffer() const {
+    return buffer_;
+  }
+
+  LineColumn position() const {
+    return position_;
+  }
+
+  void set_position(LineColumn position) {
+    CHECK_LE(position, limit_);
+    position_ = position;
+  }
+
   bool reached_final_position() const {
-    return position >= limit_;
+    return position_ >= limit_;
   }
 
   void AdvancePosition() {
     if (reached_final_position()) { return; }
-    if (buffer_.at(position.line)->size() > position.column) {
-      position.column++;
-    } else if (buffer_.size() > position.line + 1) {
-      position.line++;
-      position.column = 0;
+    if (buffer_.at(position_.line)->size() > position_.column) {
+      position_.column++;
+    } else if (buffer_.size() > position_.line + 1) {
+      position_.line++;
+      position_.column = 0;
     }
   }
 
   void AdvancePositionUntilEndOfLine() {
-    position.column = buffer_.at(position.line)->size();
-    position = min(limit_, position);
+    position_.column = buffer_.at(position_.line)->size();
+    position_ = min(limit_, position_);
+  }
+
+  void AdvancePositionUntil(std::function<bool(wchar_t)> predicate) {
+    wstring valid = L"abcdefghijklmnopqrstuvwxyz";
+    while (!predicate(read()) && !reached_final_position()) {
+      auto old_position = position_;
+      AdvancePosition();
+      CHECK_LT(old_position, position());
+    }
   }
 
   wchar_t read() const {
-    return buffer_.character_at(position);
+    return buffer_.character_at(position_);
   }
 
   State state() const {
@@ -93,7 +117,7 @@ class ParseResult {
     CheckInvariants();
     CHECK(!trees_.empty());
     auto output = trees_.back();
-    output->range.end = min(position, limit_);
+    output->range.end = min(position_, limit_);
     states_.pop_back();
     trees_.pop_back();
     return output;
@@ -103,18 +127,18 @@ class ParseResult {
     CheckInvariants();
     states_.push_back(nested_state);
     trees_.push_back(PushChild(trees_.back()).release());
-    trees_.back()->range.begin = position;
-    CHECK_GE(position.column, rewind_column);
+    trees_.back()->range.begin = position_;
+    CHECK_GE(position_.column, rewind_column);
     trees_.back()->range.begin.column -= rewind_column;
     CheckInvariants();
     return tree();
   }
 
-  LineColumn position;
  private:
   const BufferContents& buffer_;
   std::vector<ParseTree*> trees_;
   std::vector<State> states_;
+  LineColumn position_;
   LineColumn limit_;
 };
 
@@ -126,14 +150,13 @@ class CppTreeParser : public TreeParser {
     root->depth = 0;
 
     ParseResult result(buffer, root, DEFAULT_AT_START_OF_LINE);
-    result.position = root->range.begin;
 
     int nesting = 0;
     while (!result.empty()) {
       result.CheckInvariants();
 
       // Skip spaces.
-      AdvancePositionUntil(&result,
+      result.AdvancePositionUntil(
           [](wchar_t c) { return !iswspace(c) || c == L'\n'; });
 
       if (result.reached_final_position()) {
@@ -143,7 +166,7 @@ class CppTreeParser : public TreeParser {
       }
 
       // Only used for validation:
-      LineColumn original_position = result.position;
+      LineColumn original_position = result.position();
 
       switch (result.state()) {
         case DEFAULT_AT_START_OF_LINE:
@@ -183,7 +206,7 @@ class CppTreeParser : public TreeParser {
           break;
 
         case IDENTIFIER:
-          Identifier(buffer, &result);
+          Identifier(&result);
           break;
 
         case AFTER_SLASH:
@@ -200,11 +223,11 @@ class CppTreeParser : public TreeParser {
           break;
 
         case COMMENT_TO_END_OF_LINE:
-          CommentToEndOfLine(buffer, &result);
+          CommentToEndOfLine(&result);
           break;
 
         case LITERAL_STRING:
-          LiteralString(buffer, &result);
+          LiteralString(&result);
           break;
 
         case LITERAL_CHARACTER:
@@ -216,7 +239,7 @@ class CppTreeParser : public TreeParser {
           break;
       }
 
-      CHECK_LE(original_position, result.position);
+      CHECK_LE(original_position, result.position());
     }
   }
 
@@ -257,15 +280,15 @@ class CppTreeParser : public TreeParser {
     result->AdvancePosition();
   }
 
-  void CommentToEndOfLine(const BufferContents& buffer, ParseResult* result) {
+  void CommentToEndOfLine(ParseResult* result) {
     result->AdvancePositionUntilEndOfLine();
     auto comment_tree = result->PopBack();
     comment_tree->modifiers.insert(LineModifier::BLUE);
-    words_parser_->FindChildren(buffer, comment_tree);
+    words_parser_->FindChildren(result->buffer(), comment_tree);
   }
 
   void LiteralCharacter(ParseResult* result) {
-    auto original_position = result->position;
+    auto original_position = result->position();
     if (result->read() == '\\') {
       result->AdvancePosition();
     }
@@ -274,16 +297,15 @@ class CppTreeParser : public TreeParser {
       result->AdvancePosition();
       result->PopBack()->modifiers = {LineModifier::YELLOW};
     } else {
-      result->position = original_position;
+      result->set_position(original_position);
       result->PopBack();
     }
   }
 
-  void LiteralString(const BufferContents& buffer, ParseResult* result) {
-    auto original_position = result->position;
-    while (buffer.character_at(result->position) != L'"' &&
-           !result->reached_final_position()) {
-      if (buffer.character_at(result->position) == '\\') {
+  void LiteralString(ParseResult* result) {
+    auto original_position = result->position();
+    while (result->read() != L'"' && !result->reached_final_position()) {
+      if (result->read() == '\\') {
        result->AdvancePosition();
       }
       result->AdvancePosition();
@@ -292,15 +314,15 @@ class CppTreeParser : public TreeParser {
       result->AdvancePosition();  // Skip the closing character.
       auto tree = result->PopBack();
       tree->modifiers = {LineModifier::YELLOW};
-      words_parser_->FindChildren(buffer, tree);
+      words_parser_->FindChildren(result->buffer(), tree);
     } else {
-      result->position = original_position;
+      result->set_position(original_position);
       result->PopBack();
     }
   }
 
-  void Identifier(const BufferContents& buffer, ParseResult* result) {
-    AdvancePositionUntil(result,
+  void Identifier(ParseResult* result) {
+    result->AdvancePositionUntil(
         [](wchar_t c) {
           static const wstring cont = identifier_chars + L"0123456789";
           return cont.find(tolower(c)) == cont.npos;
@@ -308,7 +330,7 @@ class CppTreeParser : public TreeParser {
     auto tree = result->PopBack();
     if (tree->range.begin.line == tree->range.end.line) {
       auto str = Substring(
-              buffer.at(tree->range.begin.line)->contents(),
+              result->buffer().at(tree->range.begin.line)->contents(),
               tree->range.begin.column,
               tree->range.end.column - tree->range.begin.column);
       if (IsReservedToken(str->ToString())) {
@@ -318,7 +340,7 @@ class CppTreeParser : public TreeParser {
   }
 
   void LiteralNumber(ParseResult* result) {
-    AdvancePositionUntil(result, [](wchar_t c) { return !isdigit(c); });
+    result->AdvancePositionUntil([](wchar_t c) { return !isdigit(c); });
     result->PopBack()->modifiers.insert(LineModifier::YELLOW);
   }
 
@@ -329,10 +351,10 @@ class CppTreeParser : public TreeParser {
     // The most common transition (but sometimes overriden below).
     result->SetState(state_default);
 
-    auto original_position = result->position;
+    auto original_position = result->position();
     auto c = result->read();
     result->AdvancePosition();
-    CHECK_GT(result->position, original_position);
+    CHECK_GT(result->position(), original_position);
 
     if (c == L'\n') {
       result->SetState(state_default_at_start_of_line);
@@ -368,7 +390,7 @@ class CppTreeParser : public TreeParser {
     if (c == L'{' || c == L'(') {
       result->Push(c == L'{' ? BRACKET_DEFAULT : PARENS_DEFAULT, 0);
       auto first_child = result->PushTree();
-      first_child->range = Range(original_position, result->position);
+      first_child->range = Range(original_position, result->position());
       first_child->modifiers = BAD_PARSE_MODIFIERS;
       return;
     }
@@ -378,12 +400,12 @@ class CppTreeParser : public TreeParser {
           (c == L')' && state_default == PARENS_DEFAULT)) {
         auto modifiers = ModifierForNesting((*nesting)++);
         auto tree = result->PopBack();
-        PushChild(tree)->range = Range(original_position, result->position);
+        PushChild(tree)->range = Range(original_position, result->position());
         tree->children.front().modifiers = modifiers;
         tree->children.back().modifiers = modifiers;
       } else {
         auto tree_end = result->PushTree();
-        tree_end->range = Range(original_position, result->position);
+        tree_end->range = Range(original_position, result->position());
         tree_end->modifiers = BAD_PARSE_MODIFIERS;
       }
       return;
@@ -395,9 +417,8 @@ class CppTreeParser : public TreeParser {
     }
   }
 
-  std::unordered_set<LineModifier, hash<int>> ModifierForNesting(
-      int nesting) {
-    std::unordered_set<LineModifier, hash<int>> output;
+  LineModifierSet ModifierForNesting(int nesting) {
+    LineModifierSet output;
     switch (nesting % 5) {
       case 0:
         output.insert(LineModifier::CYAN);
@@ -419,19 +440,6 @@ class CppTreeParser : public TreeParser {
       output.insert(LineModifier::BOLD);
     }
     return output;
-  }
-
-  void AdvancePositionUntil(ParseResult* result,
-                            std::function<bool(wchar_t)> predicate) {
-    wstring valid = L"abcdefghijklmnopqrstuvwxyz";
-    while (!predicate(result->read())) {
-      auto old_position = result->position;
-      result->AdvancePosition();
-      if (result->position == old_position ||
-          result->reached_final_position()) {
-        return;
-      }
-    }
   }
 
   std::unique_ptr<TreeParser> words_parser_ =
