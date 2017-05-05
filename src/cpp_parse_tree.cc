@@ -61,6 +61,10 @@ class ParseResult {
     position_ = position;
   }
 
+  void set_limit(LineColumn limit) {
+    limit_ = limit;
+  }
+
   bool reached_final_position() const {
     return position_ >= limit_;
   }
@@ -95,6 +99,10 @@ class ParseResult {
 
   wchar_t read() const {
     return buffer_.character_at(position_);
+  }
+
+  int AddAndGetNesting() {
+    return nesting_++;
   }
 
   State state() const {
@@ -144,6 +152,7 @@ class ParseResult {
   std::vector<State> states_;
   LineColumn position_;
   LineColumn limit_;
+  int nesting_ = 0;
 };
 
 class CppTreeParser : public TreeParser {
@@ -154,92 +163,93 @@ class CppTreeParser : public TreeParser {
     root->depth = 0;
 
     ParseResult result(buffer, root, DEFAULT_AT_START_OF_LINE);
+    for (size_t i = root->range.begin.line; i < root->range.end.line; i++) {
+      result.set_position(max(LineColumn(i, 0), root->range.begin));
+      result.set_limit(min(LineColumn(i + 1, 0), root->range.end));
+      ParseLine(&result);
+    }
 
-    int nesting = 0;
     while (!result.empty()) {
+      result.PopBack();
       result.CheckInvariants();
+    }
+  }
 
-      if (result.reached_final_position()) {
-        result.PopBack();
-        result.CheckInvariants();
-        continue;
-      }
+  void ParseLine(ParseResult* result) {
+    while (!result->reached_final_position()) {
+      result->CheckInvariants();
+      LineColumn original_position = result->position();  // For validation.
 
-      // Only used for validation:
-      LineColumn original_position = result.position();
-
-      switch (result.state()) {
+      switch (result->state()) {
         case DEFAULT_AT_START_OF_LINE:
           DefaultState(DEFAULT, DEFAULT_AT_START_OF_LINE, AFTER_SLASH,
-                       &nesting, true, &result);
+                       true, result);
           break;
 
         case BRACKET_DEFAULT_AT_START_OF_LINE:
           DefaultState(BRACKET_DEFAULT, BRACKET_DEFAULT_AT_START_OF_LINE,
-                       BRACKET_AFTER_SLASH, &nesting, true, &result);
+                       BRACKET_AFTER_SLASH, true, result);
           break;
 
         case PARENS_DEFAULT_AT_START_OF_LINE:
           DefaultState(PARENS_DEFAULT, PARENS_DEFAULT_AT_START_OF_LINE,
-                       PARENS_AFTER_SLASH, &nesting, true, &result);
+                       PARENS_AFTER_SLASH, true, result);
           break;
 
         case DEFAULT:
           DefaultState(DEFAULT, DEFAULT_AT_START_OF_LINE, AFTER_SLASH,
-                       &nesting, false, &result);
+                       false, result);
           break;
 
         case BRACKET_DEFAULT:
           DefaultState(BRACKET_DEFAULT, BRACKET_DEFAULT_AT_START_OF_LINE,
-                       BRACKET_AFTER_SLASH, &nesting, false, &result);
+                       BRACKET_AFTER_SLASH, false, result);
           break;
 
         case PARENS_DEFAULT:
           DefaultState(PARENS_DEFAULT, PARENS_DEFAULT_AT_START_OF_LINE,
-                       PARENS_AFTER_SLASH, &nesting, false, &result);
+                       PARENS_AFTER_SLASH, false, result);
           break;
 
         case PREPROCESSOR_DIRECTIVE:
-          result.AdvancePositionUntilEndOfLine();
-          result.tree()->modifiers.insert(LineModifier::YELLOW);
-          result.PopBack();
+          PreprocessorDirective(result);
           break;
 
         case IDENTIFIER:
-          Identifier(&result);
+          Identifier(result);
           break;
 
         case AFTER_SLASH:
-          AfterSlash(DEFAULT, DEFAULT_AT_START_OF_LINE, &result);
+          AfterSlash(DEFAULT, DEFAULT_AT_START_OF_LINE, result);
           break;
 
         case BRACKET_AFTER_SLASH:
           AfterSlash(BRACKET_DEFAULT, BRACKET_DEFAULT_AT_START_OF_LINE,
-                     &result);
+                     result);
           break;
 
         case PARENS_AFTER_SLASH:
-          AfterSlash(PARENS_DEFAULT, PARENS_DEFAULT_AT_START_OF_LINE, &result);
+          AfterSlash(PARENS_DEFAULT, PARENS_DEFAULT_AT_START_OF_LINE, result);
           break;
 
         case COMMENT_TO_END_OF_LINE:
-          CommentToEndOfLine(&result);
+          CommentToEndOfLine(result);
           break;
 
         case LITERAL_STRING:
-          LiteralString(&result);
+          LiteralString(result);
           break;
 
         case LITERAL_CHARACTER:
-          LiteralCharacter(&result);
+          LiteralCharacter(result);
           break;
 
         case LITERAL_NUMBER:
-          LiteralNumber(&result);
+          LiteralNumber(result);
           break;
       }
 
-      CHECK_LE(original_position, result.position());
+      CHECK_LE(original_position, result->position());
     }
   }
 
@@ -322,6 +332,12 @@ class CppTreeParser : public TreeParser {
     }
   }
 
+  void PreprocessorDirective(ParseResult* result) {
+    result->AdvancePositionUntilEndOfLine();
+    result->tree()->modifiers.insert(LineModifier::YELLOW);
+    result->PopBack();
+  }
+
   void Identifier(ParseResult* result) {
     result->AdvancePositionUntil(
         [](wchar_t c) {
@@ -347,8 +363,7 @@ class CppTreeParser : public TreeParser {
 
   void DefaultState(
       State state_default, State state_default_at_start_of_line,
-      State state_after_slash, int* nesting,
-      bool after_newline, ParseResult* result) {
+      State state_after_slash, bool after_newline, ParseResult* result) {
     // The most common transition (but sometimes overriden below).
     result->SetState(state_default);
     result->SkipSpaces();
@@ -400,7 +415,7 @@ class CppTreeParser : public TreeParser {
     if (c == L'}' || c == ')') {
       if ((c == L'}' && state_default == BRACKET_DEFAULT) ||
           (c == L')' && state_default == PARENS_DEFAULT)) {
-        auto modifiers = ModifierForNesting((*nesting)++);
+        auto modifiers = ModifierForNesting(result->AddAndGetNesting());
         auto tree = result->PopBack();
         PushChild(tree)->range = Range(original_position, result->position());
         tree->children.front().modifiers = modifiers;
