@@ -304,7 +304,8 @@ class CppTreeParser : public TreeParser {
 
   void LiteralString(ParseResult* result) {
     auto original_position = result->position();
-    while (result->read() != L'"' && !result->reached_final_position()) {
+    while (result->read() != L'"' && result->read() != L'\n' &&
+           !result->reached_final_position()) {
       if (result->read() == '\\') {
        result->AdvancePosition();
       }
