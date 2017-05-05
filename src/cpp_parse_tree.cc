@@ -14,10 +14,8 @@ enum State {
   AFTER_SLASH,
 
   PREPROCESSOR_DIRECTIVE,
-  IDENTIFIER,
   COMMENT_TO_END_OF_LINE,
   LITERAL_STRING,
-  LITERAL_CHARACTER,
   LITERAL_NUMBER,
 
   BRACKET_DEFAULT_AT_START_OF_LINE,
@@ -173,6 +171,12 @@ class ParseResult {
     CheckInvariants();
   }
 
+  void PushAndPop(size_t rewind_column, LineModifierSet modifiers) {
+    State ignored_state = DEFAULT;
+    Push(ignored_state, rewind_column, std::move(modifiers));
+    PopBack();
+  }
+
  private:
   const BufferContents& buffer_;
   std::vector<ParseTree*> trees_;
@@ -243,10 +247,6 @@ class CppTreeParser : public TreeParser {
           PreprocessorDirective(result);
           break;
 
-        case IDENTIFIER:
-          Identifier(result);
-          break;
-
         case AFTER_SLASH:
           AfterSlash(DEFAULT, DEFAULT_AT_START_OF_LINE, result);
           break;
@@ -266,10 +266,6 @@ class CppTreeParser : public TreeParser {
 
         case LITERAL_STRING:
           LiteralString(result);
-          break;
-
-        case LITERAL_CHARACTER:
-          LiteralCharacter(result);
           break;
 
         case LITERAL_NUMBER:
@@ -325,17 +321,23 @@ class CppTreeParser : public TreeParser {
   }
 
   void LiteralCharacter(ParseResult* result) {
+    size_t rewind_column = 1;
     auto original_position = result->position();
     if (result->read() == '\\') {
       result->AdvancePosition();
+      rewind_column++;
     }
+
     result->AdvancePosition();  // Skip the character.
+    rewind_column++;
+
     if (result->read() == '\'') {
       result->AdvancePosition();
-      result->PopBack()->modifiers = {LineModifier::YELLOW};
+      rewind_column++;
+      result->PushAndPop(rewind_column, {LineModifier::YELLOW});
     } else {
       result->set_position(original_position);
-      result->PopBack();
+      result->PushAndPop(1, BAD_PARSE_MODIFIERS);
     }
   }
 
@@ -365,21 +367,27 @@ class CppTreeParser : public TreeParser {
   }
 
   void Identifier(ParseResult* result) {
+    LineColumn original_position = result->position();
+    CHECK_GE(original_position.column, 1);
+    original_position.column--;
+
     result->AdvancePositionUntil(
         [](wchar_t c) {
           static const wstring cont = identifier_chars + L"0123456789";
           return cont.find(tolower(c)) == cont.npos;
         });
-    auto tree = result->PopBack();
-    if (tree->range.begin.line == tree->range.end.line) {
-      auto str = Substring(
-              result->buffer().at(tree->range.begin.line)->contents(),
-              tree->range.begin.column,
-              tree->range.end.column - tree->range.begin.column);
-      if (IsReservedToken(str->ToString())) {
-        tree->modifiers.insert(LineModifier::CYAN);
-      }
+
+    CHECK_EQ(original_position.line, result->position().line);
+    CHECK_GT(result->position().column, original_position.column);
+    auto length = result->position().column - original_position.column;
+    auto str = Substring(
+        result->buffer().at(original_position.line)->contents(),
+        original_position.column, length);
+    LineModifierSet modifiers;
+    if (IsReservedToken(str->ToString())) {
+      modifiers.insert(LineModifier::CYAN);
     }
+    result->PushAndPop(length, std::move(modifiers));
   }
 
   void LiteralNumber(ParseResult* result) {
@@ -411,7 +419,7 @@ class CppTreeParser : public TreeParser {
     }
 
     if (identifier_chars.find(tolower(c)) != identifier_chars.npos) {
-      result->Push(IDENTIFIER, 1, {});
+      Identifier(result);
       return;
     }
 
@@ -426,16 +434,13 @@ class CppTreeParser : public TreeParser {
     }
 
     if (c == L'\'') {
-      result->Push(LITERAL_CHARACTER, 1, BAD_PARSE_MODIFIERS);
+      LiteralCharacter(result);
       return;
     }
 
     if (c == L'{' || c == L'(') {
       result->Push(c == L'{' ? BRACKET_DEFAULT : PARENS_DEFAULT, 0, {});
-
-      State ignored_state = DEFAULT;
-      result->Push(ignored_state, 1, BAD_PARSE_MODIFIERS);
-      result->PopBack();
+      result->PushAndPop(1, BAD_PARSE_MODIFIERS);
       return;
     }
 
@@ -443,16 +448,10 @@ class CppTreeParser : public TreeParser {
       if ((c == L'}' && state_default == BRACKET_DEFAULT) ||
           (c == L')' && state_default == PARENS_DEFAULT)) {
         auto modifiers = ModifierForNesting(result->AddAndGetNesting());
-
-        State ignored_state = DEFAULT;
-        result->Push(ignored_state, 1, modifiers);
-        result->PopBack();
-
+        result->PushAndPop(1, modifiers);
         result->PopBack()->children.front().modifiers = modifiers;
       } else {
-        State ignored_state = DEFAULT;
-        result->Push(ignored_state, 1, BAD_PARSE_MODIFIERS);
-        result->PopBack();
+        result->PushAndPop(1, BAD_PARSE_MODIFIERS);
       }
       return;
     }
