@@ -9,7 +9,6 @@ namespace editor {
 namespace {
 
 enum State {
-  FINISH,
   DEFAULT_AT_START_OF_LINE,
   DEFAULT,
   PREPROCESSOR_DIRECTIVE,
@@ -30,6 +29,94 @@ enum State {
 };
 
 static const wstring identifier_chars = L"_abcdefghijklmnopqrstuvwxyz";
+static const LineModifierSet BAD_PARSE_MODIFIERS =
+    LineModifierSet({LineModifier::BG_RED, LineModifier::BOLD});
+
+class ParseResult {
+ public:
+  ParseResult(const BufferContents& buffer, ParseTree* root,
+              State initial_state)
+      : buffer_(buffer),
+        trees_({root}),
+        states_({initial_state}),
+        limit_(root->range.end) {}
+
+  void CheckInvariants() const {
+    CHECK_EQ(states_.size(), trees_.size());
+    CHECK(empty() || tree() != nullptr);
+  }
+
+  bool reached_final_position() const {
+    return position >= limit_;
+  }
+
+  void AdvancePosition() {
+    if (reached_final_position()) { return; }
+    if (buffer_.at(position.line)->size() > position.column) {
+      position.column++;
+    } else if (buffer_.size() > position.line + 1) {
+      position.line++;
+      position.column = 0;
+    }
+  }
+
+  void AdvancePositionUntilEndOfLine() {
+    position.column = buffer_.at(position.line)->size();
+    position = min(limit_, position);
+  }
+
+  wchar_t read() const {
+    return buffer_.character_at(position);
+  }
+
+  State state() const {
+    return states_.back();
+  }
+
+  void SetState(State state) {
+    states_.back() = state;
+  }
+
+  ParseTree* tree() const {
+    return trees_.back();
+  }
+
+  ParseTree* PushTree() {
+    return PushChild(trees_.back()).release();
+  }
+
+  bool empty() const {
+    return trees_.empty();
+  }
+
+  ParseTree* PopBack() {
+    CheckInvariants();
+    CHECK(!trees_.empty());
+    auto output = trees_.back();
+    output->range.end = min(position, limit_);
+    states_.pop_back();
+    trees_.pop_back();
+    return output;
+  }
+
+  ParseTree* Push(State nested_state, size_t rewind_column) {
+    CheckInvariants();
+    states_.push_back(nested_state);
+    trees_.push_back(PushChild(trees_.back()).release());
+    trees_.back()->range.begin = position;
+    CHECK_GE(position.column, rewind_column);
+    trees_.back()->range.begin.column -= rewind_column;
+    CheckInvariants();
+    return tree();
+  }
+
+  LineColumn position;
+ private:
+  const BufferContents& buffer_;
+  std::vector<ParseTree*> trees_;
+  std::vector<State> states_;
+  LineColumn limit_;
+};
 
 class CppTreeParser : public TreeParser {
  public:
@@ -37,75 +124,62 @@ class CppTreeParser : public TreeParser {
     CHECK(root != nullptr);
     root->children.clear();
     root->depth = 0;
-    LineColumn position = root->range.begin;
-    LineColumn limit = root->range.end;
-    int nesting = 0;
-    std::vector<State> states = {DEFAULT_AT_START_OF_LINE};
-    std::vector<ParseTree*> trees = {root};
-    while (!trees.empty()) {
-      CHECK_EQ(states.size(), trees.size());
-      CHECK(trees.back() != nullptr);
 
-      ParseResult result;
-      result.position = position;
-      result.limit = limit;
-      result.tree = trees.back();
+    ParseResult result(buffer, root, DEFAULT_AT_START_OF_LINE);
+    result.position = root->range.begin;
+
+    int nesting = 0;
+    while (!result.empty()) {
+      result.CheckInvariants();
 
       // Skip spaces.
-      AdvancePositionUntil(buffer, &result,
+      AdvancePositionUntil(&result,
           [](wchar_t c) { return !iswspace(c) || c == L'\n'; });
 
-      if (result.position >= result.limit) {
-        trees.back()->range.end = limit;
-        states.pop_back();
-        trees.pop_back();
-        CHECK(trees.empty() || trees.back() != nullptr);
-        position = result.position;
+      if (result.reached_final_position()) {
+        result.PopBack();
+        result.CheckInvariants();
         continue;
       }
 
-      switch (states.back()) {
-        case FINISH:
-          states.pop_back();
-          trees.pop_back();
-          CHECK(trees.empty() || trees.back() != nullptr);
-          continue;
+      // Only used for validation:
+      LineColumn original_position = result.position;
 
+      switch (result.state()) {
         case DEFAULT_AT_START_OF_LINE:
           DefaultState(DEFAULT, DEFAULT_AT_START_OF_LINE, AFTER_SLASH,
-                       buffer, &nesting, true, &result);
+                       &nesting, true, &result);
           break;
 
         case BRACKET_DEFAULT_AT_START_OF_LINE:
           DefaultState(BRACKET_DEFAULT, BRACKET_DEFAULT_AT_START_OF_LINE,
-                       BRACKET_AFTER_SLASH, buffer, &nesting, true, &result);
+                       BRACKET_AFTER_SLASH, &nesting, true, &result);
           break;
 
         case PARENS_DEFAULT_AT_START_OF_LINE:
           DefaultState(PARENS_DEFAULT, PARENS_DEFAULT_AT_START_OF_LINE,
-                       PARENS_AFTER_SLASH, buffer, &nesting, true, &result);
+                       PARENS_AFTER_SLASH, &nesting, true, &result);
           break;
 
         case DEFAULT:
           DefaultState(DEFAULT, DEFAULT_AT_START_OF_LINE, AFTER_SLASH,
-                       buffer, &nesting, false, &result);
+                       &nesting, false, &result);
           break;
 
         case BRACKET_DEFAULT:
           DefaultState(BRACKET_DEFAULT, BRACKET_DEFAULT_AT_START_OF_LINE,
-                       BRACKET_AFTER_SLASH, buffer, &nesting, false, &result);
+                       BRACKET_AFTER_SLASH, &nesting, false, &result);
           break;
 
         case PARENS_DEFAULT:
           DefaultState(PARENS_DEFAULT, PARENS_DEFAULT_AT_START_OF_LINE,
-                       PARENS_AFTER_SLASH, buffer, &nesting, false, &result);
+                       PARENS_AFTER_SLASH, &nesting, false, &result);
           break;
 
         case PREPROCESSOR_DIRECTIVE:
-          AdvanceUntilEndOfLine(buffer, &result);
-          trees.back()->range.end = result.position;
-          trees.back()->modifiers.insert(LineModifier::YELLOW);
-          result.state = FINISH;
+          result.AdvancePositionUntilEndOfLine();
+          result.tree()->modifiers.insert(LineModifier::YELLOW);
+          result.PopBack();
           break;
 
         case IDENTIFIER:
@@ -113,17 +187,16 @@ class CppTreeParser : public TreeParser {
           break;
 
         case AFTER_SLASH:
-          AfterSlash(DEFAULT, DEFAULT_AT_START_OF_LINE, buffer, &result);
+          AfterSlash(DEFAULT, DEFAULT_AT_START_OF_LINE, &result);
           break;
 
         case BRACKET_AFTER_SLASH:
-          AfterSlash(BRACKET_DEFAULT, BRACKET_DEFAULT_AT_START_OF_LINE, buffer,
+          AfterSlash(BRACKET_DEFAULT, BRACKET_DEFAULT_AT_START_OF_LINE,
                      &result);
           break;
 
         case PARENS_AFTER_SLASH:
-          AfterSlash(PARENS_DEFAULT, PARENS_DEFAULT_AT_START_OF_LINE, buffer,
-                     &result);
+          AfterSlash(PARENS_DEFAULT, PARENS_DEFAULT_AT_START_OF_LINE, &result);
           break;
 
         case COMMENT_TO_END_OF_LINE:
@@ -135,31 +208,15 @@ class CppTreeParser : public TreeParser {
           break;
 
         case LITERAL_CHARACTER:
-          LiteralCharacter(buffer, &result);
+          LiteralCharacter(&result);
           break;
 
         case LITERAL_NUMBER:
-          LiteralNumber(buffer, &result);
+          LiteralNumber(&result);
           break;
       }
 
-      states.back() = result.state;
-      CHECK_LE(position, result.position);
-      position = result.position;
-      if (result.has_nested_state) {
-        states.push_back(result.nested_state);
-        trees.push_back(PushChild(trees.back()).release());
-        CHECK(trees.back() != nullptr);
-        trees.back()->range.begin = position;
-        CHECK_GE(position.column, result.nested_state_rewind_column);
-        trees.back()->range.begin.column -= result.nested_state_rewind_column;
-
-        if (result.has_first_child) {
-          auto first_child = PushChild(trees.back());
-          first_child->range = result.first_child_range;
-          first_child->modifiers = result.first_child_modifiers;
-        }
-      }
+      CHECK_LE(original_position, result.position);
     }
   }
 
@@ -189,212 +246,153 @@ class CppTreeParser : public TreeParser {
     return tokens.find(str) != tokens.end();
   }
 
-  struct ParseResult {
-    // Input/output parameters:
-    LineColumn position;
-    LineColumn limit;
-    ParseTree* tree;
-
-    // Output parameters:
-    State state = DEFAULT;
-    bool has_nested_state = false;
-    State nested_state = DEFAULT;
-    size_t nested_state_rewind_column = 0;
-
-    // Only checked if has_nested_state is true:
-    bool has_first_child = false;
-    Range first_child_range;
-    LineModifierSet first_child_modifiers;
-  };
-
   void AfterSlash(State state_default, State state_default_at_start_of_line,
-                  const BufferContents& buffer, ParseResult* result) {
-    auto c = buffer.character_at(result->position);
-    AdvancePosition(buffer, result);
-    if (c == '/') {
-      result->state = state_default_at_start_of_line;
-      result->has_nested_state = true;
-      result->nested_state = COMMENT_TO_END_OF_LINE;
-      result->nested_state_rewind_column = 2;
+                  ParseResult* result) {
+    if (result->read() == '/') {
+      result->SetState(state_default_at_start_of_line);
+      result->Push(COMMENT_TO_END_OF_LINE, 1);
     } else {
-      result->state = state_default;
+      result->SetState(state_default);
     }
+    result->AdvancePosition();
   }
 
   void CommentToEndOfLine(const BufferContents& buffer, ParseResult* result) {
-    AdvanceUntilEndOfLine(buffer, result);
-    result->tree->modifiers.insert(LineModifier::BLUE);
-    result->tree->range.end = result->position;
-    words_parser_->FindChildren(buffer, result->tree);
-    result->state = FINISH;
+    result->AdvancePositionUntilEndOfLine();
+    auto comment_tree = result->PopBack();
+    comment_tree->modifiers.insert(LineModifier::BLUE);
+    words_parser_->FindChildren(buffer, comment_tree);
   }
 
-  void LiteralCharacter(const BufferContents& buffer, ParseResult* result) {
+  void LiteralCharacter(ParseResult* result) {
     auto original_position = result->position;
-    if (buffer.character_at(result->position) == '\\') {
-      AdvancePosition(buffer, result);
+    if (result->read() == '\\') {
+      result->AdvancePosition();
     }
-    AdvancePosition(buffer, result);
-    if (buffer.character_at(result->position) == '\'') {
-      result->tree->modifiers = {LineModifier::YELLOW};
-      AdvancePosition(buffer, result);
+    result->AdvancePosition();  // Skip the character.
+    if (result->read() == '\'') {
+      result->AdvancePosition();
+      result->PopBack()->modifiers = {LineModifier::YELLOW};
     } else {
       result->position = original_position;
-      result->tree->modifiers = {LineModifier::BG_RED, LineModifier::BOLD};
+      result->PopBack();
     }
-    result->tree->range.end = result->position;
-    result->state = FINISH;
   }
 
   void LiteralString(const BufferContents& buffer, ParseResult* result) {
+    auto original_position = result->position;
     while (buffer.character_at(result->position) != L'"' &&
-           result->position < result->limit) {
+           !result->reached_final_position()) {
       if (buffer.character_at(result->position) == '\\') {
-       AdvancePosition(buffer, result);
+       result->AdvancePosition();
       }
-      AdvancePosition(buffer, result);
+      result->AdvancePosition();
     }
-    AdvancePosition(buffer, result);  // Skip the closing character.
-    result->tree->range.end = result->position;
-    words_parser_->FindChildren(buffer, result->tree);
-    result->tree->modifiers.insert(LineModifier::YELLOW);
-    result->state = FINISH;
+    if (result->read() == L'"') {
+      result->AdvancePosition();  // Skip the closing character.
+      auto tree = result->PopBack();
+      tree->modifiers = {LineModifier::YELLOW};
+      words_parser_->FindChildren(buffer, tree);
+    } else {
+      result->position = original_position;
+      result->PopBack();
+    }
   }
 
   void Identifier(const BufferContents& buffer, ParseResult* result) {
-    AdvancePositionUntil(buffer, result,
+    AdvancePositionUntil(result,
         [](wchar_t c) {
           static const wstring cont = identifier_chars + L"0123456789";
           return cont.find(tolower(c)) == cont.npos;
         });
-    auto* range = &result->tree->range;
-    range->end = result->position;
-    if (range->begin.line == range->end.line) {
+    auto tree = result->PopBack();
+    if (tree->range.begin.line == tree->range.end.line) {
       auto str = Substring(
-              buffer.at(range->begin.line)->contents(),
-              range->begin.column, range->end.column - range->begin.column)
-          ->ToString();
-      if (IsReservedToken(str)) {
-        result->tree->modifiers.insert(LineModifier::CYAN);
+              buffer.at(tree->range.begin.line)->contents(),
+              tree->range.begin.column,
+              tree->range.end.column - tree->range.begin.column);
+      if (IsReservedToken(str->ToString())) {
+        tree->modifiers.insert(LineModifier::CYAN);
       }
     }
-    result->state = FINISH;
   }
 
-  void LiteralNumber(const BufferContents& buffer, ParseResult* result) {
-    AdvancePositionUntil(buffer, result, [](wchar_t c) { return !isdigit(c); });
-    result->tree->range.end = result->position;
-    result->tree->modifiers.insert(LineModifier::YELLOW);
-    result->state = FINISH;
+  void LiteralNumber(ParseResult* result) {
+    AdvancePositionUntil(result, [](wchar_t c) { return !isdigit(c); });
+    result->PopBack()->modifiers.insert(LineModifier::YELLOW);
   }
 
   void DefaultState(
       State state_default, State state_default_at_start_of_line,
-      State state_after_slash, const BufferContents& buffer, int* nesting,
+      State state_after_slash, int* nesting,
       bool after_newline, ParseResult* result) {
+    // The most common transition (but sometimes overriden below).
+    result->SetState(state_default);
+
     auto original_position = result->position;
-    auto c = buffer.character_at(result->position);
-    AdvancePosition(buffer, result);
+    auto c = result->read();
+    result->AdvancePosition();
+    CHECK_GT(result->position, original_position);
 
     if (c == L'\n') {
-      result->state = state_default_at_start_of_line;
+      result->SetState(state_default_at_start_of_line);
       return;
     }
 
     if (after_newline && c == '#') {
-      result->state = state_default_at_start_of_line;
-      result->has_nested_state = true;
-      result->nested_state = PREPROCESSOR_DIRECTIVE;
-      result->nested_state_rewind_column = 1;
+      result->SetState(state_default_at_start_of_line);
+      result->Push(PREPROCESSOR_DIRECTIVE, 1);
       return;
     }
 
     if (identifier_chars.find(tolower(c)) != identifier_chars.npos) {
-      result->state = state_default;
-      result->has_nested_state = true;
-      result->nested_state = IDENTIFIER;
-      result->nested_state_rewind_column = 1;
+      result->Push(IDENTIFIER, 1);
       return;
     }
 
     if (c == '/') {
-      result->state = state_after_slash;
+      result->SetState(state_after_slash);
       return;
     }
 
     if (c == L'"') {
-      result->state = state_default;
-      result->has_nested_state = true;
-      result->nested_state = LITERAL_STRING;
-      result->nested_state_rewind_column = 1;
+      result->Push(LITERAL_STRING, 1)->modifiers = BAD_PARSE_MODIFIERS;
       return;
     }
 
     if (c == L'\'') {
-      result->state = state_default;
-      result->has_nested_state = true;
-      result->nested_state = LITERAL_CHARACTER;
-      result->nested_state_rewind_column = 1;
+      result->Push(LITERAL_CHARACTER, 1)->modifiers = BAD_PARSE_MODIFIERS;
       return;
     }
 
     if (c == L'{' || c == L'(') {
-      result->state = state_default;
-      result->has_nested_state = true;
-      result->nested_state = c == L'{' ? BRACKET_DEFAULT : PARENS_DEFAULT;
-      result->has_first_child = true;
-      result->first_child_range = Range(original_position, result->position);
-      result->first_child_modifiers =
-          {LineModifier::BG_RED, LineModifier::BOLD};
+      result->Push(c == L'{' ? BRACKET_DEFAULT : PARENS_DEFAULT, 0);
+      auto first_child = result->PushTree();
+      first_child->range = Range(original_position, result->position);
+      first_child->modifiers = BAD_PARSE_MODIFIERS;
       return;
     }
 
     if (c == L'}' || c == ')') {
       if ((c == L'}' && state_default == BRACKET_DEFAULT) ||
           (c == L')' && state_default == PARENS_DEFAULT)) {
-        auto tree_end = PushChild(result->tree);
-        tree_end->range = Range(original_position, result->position);
-
         auto modifiers = ModifierForNesting((*nesting)++);
-        result->tree->children.front().modifiers = modifiers;
-        result->tree->children.back().modifiers = modifiers;
-
-        result->state = FINISH;
-        result->tree->range.end = result->position;
-        result->state = FINISH;
+        auto tree = result->PopBack();
+        PushChild(tree)->range = Range(original_position, result->position);
+        tree->children.front().modifiers = modifiers;
+        tree->children.back().modifiers = modifiers;
       } else {
-        auto tree_end = PushChild(result->tree);
+        auto tree_end = result->PushTree();
         tree_end->range = Range(original_position, result->position);
-        tree_end->modifiers = {LineModifier::BG_RED, LineModifier::BOLD};
+        tree_end->modifiers = BAD_PARSE_MODIFIERS;
       }
       return;
     }
 
     if (isdigit(c)) {
-      result->state = state_default;
-      result->has_nested_state = true;
-      result->nested_state = LITERAL_NUMBER;
-      result->nested_state_rewind_column = 1;
+      result->Push(LITERAL_NUMBER, 1);
       return;
     }
-
-    result->state = state_default;
-  }
-
-  void AdvancePosition(const BufferContents& buffer, ParseResult* result) {
-    if (result->position >= result->limit) { return; }
-    if (buffer.at(result->position.line)->size() > result->position.column) {
-      result->position.column++;
-    } else if (buffer.size() > result->position.line + 1) {
-      result->position.line++;
-      result->position.column = 0;
-    }
-  }
-
-  void AdvanceUntilEndOfLine(
-      const BufferContents& buffer, ParseResult* result) {
-    result->position.column = buffer.at(result->position.line)->size();
-    result->position = min(result->limit, result->position);
   }
 
   std::unordered_set<LineModifier, hash<int>> ModifierForNesting(
@@ -423,15 +421,14 @@ class CppTreeParser : public TreeParser {
     return output;
   }
 
-  void AdvancePositionUntil(const BufferContents& buffer,
-                            ParseResult* result,
+  void AdvancePositionUntil(ParseResult* result,
                             std::function<bool(wchar_t)> predicate) {
     wstring valid = L"abcdefghijklmnopqrstuvwxyz";
-    while (!predicate(buffer.character_at(result->position))) {
+    while (!predicate(result->read())) {
       auto old_position = result->position;
-      AdvancePosition(buffer, result);
+      result->AdvancePosition();
       if (result->position == old_position ||
-          result->position >= result->limit) {
+          result->reached_final_position()) {
         return;
       }
     }
