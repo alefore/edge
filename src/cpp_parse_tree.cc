@@ -33,6 +33,19 @@ static const wstring identifier_chars = L"_abcdefghijklmnopqrstuvwxyz";
 static const LineModifierSet BAD_PARSE_MODIFIERS =
     LineModifierSet({LineModifier::BG_RED, LineModifier::BOLD});
 
+struct Action {
+  LineColumn position;
+
+  enum ActionType {
+    PUSH,
+    POP,
+  };
+
+  ActionType action_type = PUSH;
+
+  LineModifierSet push_modifiers;
+};
+
 class ParseResult {
  public:
   ParseResult(const BufferContents& buffer, ParseTree* root,
@@ -117,10 +130,6 @@ class ParseResult {
     return trees_.back();
   }
 
-  ParseTree* PushTree() {
-    return PushChild(trees_.back()).release();
-  }
-
   bool empty() const {
     return trees_.empty();
   }
@@ -128,22 +137,40 @@ class ParseResult {
   ParseTree* PopBack() {
     CheckInvariants();
     CHECK(!trees_.empty());
+    states_.pop_back();
+
+    Action action;
+    action.position = position_;
+    action.action_type = Action::POP;
+    log_.push_back(action);
+
     auto output = trees_.back();
     output->range.end = min(position_, limit_);
-    states_.pop_back();
+
     trees_.pop_back();
     return output;
   }
 
-  ParseTree* Push(State nested_state, size_t rewind_column) {
+  void Push(State nested_state, size_t rewind_column,
+            LineModifierSet modifiers) {
     CheckInvariants();
+    CHECK_GE(position_.column, rewind_column);
+
     states_.push_back(nested_state);
+
+    Action action;
+    action.position = position_;
+    action.position.column -= rewind_column;
+    action.action_type = Action::PUSH;
+    action.push_modifiers = modifiers;
+    log_.push_back(action);
+
     trees_.push_back(PushChild(trees_.back()).release());
     trees_.back()->range.begin = position_;
-    CHECK_GE(position_.column, rewind_column);
     trees_.back()->range.begin.column -= rewind_column;
+    trees_.back()->modifiers = std::move(modifiers);
+
     CheckInvariants();
-    return tree();
   }
 
  private:
@@ -153,6 +180,7 @@ class ParseResult {
   LineColumn position_;
   LineColumn limit_;
   int nesting_ = 0;
+  std::vector<Action> log_;
 };
 
 class CppTreeParser : public TreeParser {
@@ -283,7 +311,7 @@ class CppTreeParser : public TreeParser {
                   ParseResult* result) {
     if (result->read() == '/') {
       result->SetState(state_default_at_start_of_line);
-      result->Push(COMMENT_TO_END_OF_LINE, 1);
+      result->Push(COMMENT_TO_END_OF_LINE, 1, {LineModifier::BLUE});
     } else {
       result->SetState(state_default);
     }
@@ -293,7 +321,6 @@ class CppTreeParser : public TreeParser {
   void CommentToEndOfLine(ParseResult* result) {
     result->AdvancePositionUntilEndOfLine();
     auto comment_tree = result->PopBack();
-    comment_tree->modifiers.insert(LineModifier::BLUE);
     words_parser_->FindChildren(result->buffer(), comment_tree);
   }
 
@@ -334,7 +361,6 @@ class CppTreeParser : public TreeParser {
 
   void PreprocessorDirective(ParseResult* result) {
     result->AdvancePositionUntilEndOfLine();
-    result->tree()->modifiers.insert(LineModifier::YELLOW);
     result->PopBack();
   }
 
@@ -358,7 +384,7 @@ class CppTreeParser : public TreeParser {
 
   void LiteralNumber(ParseResult* result) {
     result->AdvancePositionUntil([](wchar_t c) { return !isdigit(c); });
-    result->PopBack()->modifiers.insert(LineModifier::YELLOW);
+    result->PopBack();
   }
 
   void DefaultState(
@@ -380,12 +406,12 @@ class CppTreeParser : public TreeParser {
 
     if (after_newline && c == '#') {
       result->SetState(state_default_at_start_of_line);
-      result->Push(PREPROCESSOR_DIRECTIVE, 1);
+      result->Push(PREPROCESSOR_DIRECTIVE, 1, {LineModifier::YELLOW});
       return;
     }
 
     if (identifier_chars.find(tolower(c)) != identifier_chars.npos) {
-      result->Push(IDENTIFIER, 1);
+      result->Push(IDENTIFIER, 1, {});
       return;
     }
 
@@ -395,20 +421,21 @@ class CppTreeParser : public TreeParser {
     }
 
     if (c == L'"') {
-      result->Push(LITERAL_STRING, 1)->modifiers = BAD_PARSE_MODIFIERS;
+      result->Push(LITERAL_STRING, 1, BAD_PARSE_MODIFIERS);
       return;
     }
 
     if (c == L'\'') {
-      result->Push(LITERAL_CHARACTER, 1)->modifiers = BAD_PARSE_MODIFIERS;
+      result->Push(LITERAL_CHARACTER, 1, BAD_PARSE_MODIFIERS);
       return;
     }
 
     if (c == L'{' || c == L'(') {
-      result->Push(c == L'{' ? BRACKET_DEFAULT : PARENS_DEFAULT, 0);
-      auto first_child = result->PushTree();
-      first_child->range = Range(original_position, result->position());
-      first_child->modifiers = BAD_PARSE_MODIFIERS;
+      result->Push(c == L'{' ? BRACKET_DEFAULT : PARENS_DEFAULT, 0, {});
+
+      State ignored_state = DEFAULT;
+      result->Push(ignored_state, 1, BAD_PARSE_MODIFIERS);
+      result->PopBack();
       return;
     }
 
@@ -416,20 +443,22 @@ class CppTreeParser : public TreeParser {
       if ((c == L'}' && state_default == BRACKET_DEFAULT) ||
           (c == L')' && state_default == PARENS_DEFAULT)) {
         auto modifiers = ModifierForNesting(result->AddAndGetNesting());
-        auto tree = result->PopBack();
-        PushChild(tree)->range = Range(original_position, result->position());
-        tree->children.front().modifiers = modifiers;
-        tree->children.back().modifiers = modifiers;
+
+        State ignored_state = DEFAULT;
+        result->Push(ignored_state, 1, modifiers);
+        result->PopBack();
+
+        result->PopBack()->children.front().modifiers = modifiers;
       } else {
-        auto tree_end = result->PushTree();
-        tree_end->range = Range(original_position, result->position());
-        tree_end->modifiers = BAD_PARSE_MODIFIERS;
+        State ignored_state = DEFAULT;
+        result->Push(ignored_state, 1, BAD_PARSE_MODIFIERS);
+        result->PopBack();
       }
       return;
     }
 
     if (isdigit(c)) {
-      result->Push(LITERAL_NUMBER, 1);
+      result->Push(LITERAL_NUMBER, 1, {LineModifier::YELLOW});
       return;
     }
   }
