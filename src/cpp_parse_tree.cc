@@ -37,63 +37,11 @@ class CppTreeParser : public TreeParser {
     CHECK(root != nullptr);
     root->children.clear();
     root->depth = 0;
+    LineColumn position = root->range.begin;
+    LineColumn limit = root->range.end;
     int nesting = 0;
-    Consume(DEFAULT_AT_START_OF_LINE, buffer, root, &nesting, nullptr, nullptr,
-            root->range.begin, root->range.end);
-    return;
-  }
-
- private:
-  bool IsReservedToken(const wstring& str) {
-    // TODO: Allow the buffer to specify this through a variable.
-    static const std::unordered_set<wstring> tokens = {
-        L"static", L"extern", L"override", L"virtual",
-        L"class", L"struct", L"private", L"public",
-        L"using", L"typedef", L"namespace", L"sizeof",
-        L"static_cast", L"dynamic_cast",
-        L"delete", L"new",
-        // Flow control.
-        L"switch", L"case", L"default",
-        L"if", L"else",
-        L"for", L"while", L"do",
-        L"return",
-        // Types
-        L"void", L"const", L"auto",
-        L"unique_ptr", L"shared_ptr",
-        L"std", L"function", L"vector", L"list",
-        L"map", L"unordered_map", L"set", L"unordered_set",
-        L"int", L"double", L"float", L"string", L"wstring", L"bool", L"char",
-        L"size_t",
-        // Values
-        L"true", L"false", L"nullptr", L"NULL" };
-    return tokens.find(str) != tokens.end();
-  }
-
-  struct ParseResult {
-    // Input/output parameters:
-    LineColumn position;
-    LineColumn limit;
-    ParseTree* tree;
-
-    // Output parameters:
-    State state = DEFAULT;
-    bool has_nested_state = false;
-    State nested_state = DEFAULT;
-    size_t nested_state_rewind_column = 0;
-
-    // Only checked if has_nested_state is true:
-    bool has_first_child = false;
-    Range first_child_range;
-    LineModifierSet first_child_modifiers;
-  };
-
-  void Consume(
-      State state, const BufferContents& buffer, ParseTree* block, int* nesting,
-      const ParseTree* open_character, wint_t* closing_character,
-      LineColumn position, LineColumn limit) {
-    CHECK(block != nullptr);
-    std::vector<State> states = {state};
-    std::vector<ParseTree*> trees = {block};
+    std::vector<State> states = {DEFAULT_AT_START_OF_LINE};
+    std::vector<ParseTree*> trees = {root};
     while (!trees.empty()) {
       CHECK_EQ(states.size(), trees.size());
       CHECK(trees.back() != nullptr);
@@ -125,32 +73,32 @@ class CppTreeParser : public TreeParser {
 
         case DEFAULT_AT_START_OF_LINE:
           DefaultState(DEFAULT, DEFAULT_AT_START_OF_LINE, AFTER_SLASH,
-                       buffer, nesting, true, &result);
+                       buffer, &nesting, true, &result);
           break;
 
         case BRACKET_DEFAULT_AT_START_OF_LINE:
           DefaultState(BRACKET_DEFAULT, BRACKET_DEFAULT_AT_START_OF_LINE,
-                       BRACKET_AFTER_SLASH, buffer, nesting, true, &result);
+                       BRACKET_AFTER_SLASH, buffer, &nesting, true, &result);
           break;
 
         case PARENS_DEFAULT_AT_START_OF_LINE:
           DefaultState(PARENS_DEFAULT, PARENS_DEFAULT_AT_START_OF_LINE,
-                       PARENS_AFTER_SLASH, buffer, nesting, true, &result);
+                       PARENS_AFTER_SLASH, buffer, &nesting, true, &result);
           break;
 
         case DEFAULT:
           DefaultState(DEFAULT, DEFAULT_AT_START_OF_LINE, AFTER_SLASH,
-                       buffer, nesting, false, &result);
+                       buffer, &nesting, false, &result);
           break;
 
         case BRACKET_DEFAULT:
           DefaultState(BRACKET_DEFAULT, BRACKET_DEFAULT_AT_START_OF_LINE,
-                       BRACKET_AFTER_SLASH, buffer, nesting, false, &result);
+                       BRACKET_AFTER_SLASH, buffer, &nesting, false, &result);
           break;
 
         case PARENS_DEFAULT:
           DefaultState(PARENS_DEFAULT, PARENS_DEFAULT_AT_START_OF_LINE,
-                       PARENS_AFTER_SLASH, buffer, nesting, false, &result);
+                       PARENS_AFTER_SLASH, buffer, &nesting, false, &result);
           break;
 
         case PREPROCESSOR_DIRECTIVE:
@@ -214,6 +162,50 @@ class CppTreeParser : public TreeParser {
       }
     }
   }
+
+ private:
+  bool IsReservedToken(const wstring& str) {
+    // TODO: Allow the buffer to specify this through a variable.
+    static const std::unordered_set<wstring> tokens = {
+        L"static", L"extern", L"override", L"virtual",
+        L"class", L"struct", L"private", L"public",
+        L"using", L"typedef", L"namespace", L"sizeof",
+        L"static_cast", L"dynamic_cast",
+        L"delete", L"new",
+        // Flow control.
+        L"switch", L"case", L"default",
+        L"if", L"else",
+        L"for", L"while", L"do",
+        L"return",
+        // Types
+        L"void", L"const", L"auto",
+        L"unique_ptr", L"shared_ptr",
+        L"std", L"function", L"vector", L"list",
+        L"map", L"unordered_map", L"set", L"unordered_set",
+        L"int", L"double", L"float", L"string", L"wstring", L"bool", L"char",
+        L"size_t",
+        // Values
+        L"true", L"false", L"nullptr", L"NULL" };
+    return tokens.find(str) != tokens.end();
+  }
+
+  struct ParseResult {
+    // Input/output parameters:
+    LineColumn position;
+    LineColumn limit;
+    ParseTree* tree;
+
+    // Output parameters:
+    State state = DEFAULT;
+    bool has_nested_state = false;
+    State nested_state = DEFAULT;
+    size_t nested_state_rewind_column = 0;
+
+    // Only checked if has_nested_state is true:
+    bool has_first_child = false;
+    Range first_child_range;
+    LineModifierSet first_child_modifiers;
+  };
 
   void AfterSlash(State state_default, State state_default_at_start_of_line,
                   const BufferContents& buffer, ParseResult* result) {
