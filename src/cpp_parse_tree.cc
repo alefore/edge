@@ -16,7 +16,6 @@ enum State {
   PREPROCESSOR_DIRECTIVE,
   COMMENT_TO_END_OF_LINE,
   LITERAL_STRING,
-  LITERAL_NUMBER,
 
   BRACKET_DEFAULT_AT_START_OF_LINE,
   BRACKET_DEFAULT,
@@ -267,10 +266,6 @@ class CppTreeParser : public TreeParser {
         case LITERAL_STRING:
           LiteralString(result);
           break;
-
-        case LITERAL_NUMBER:
-          LiteralNumber(result);
-          break;
       }
 
       CHECK_LE(original_position, result->position());
@@ -391,8 +386,16 @@ class CppTreeParser : public TreeParser {
   }
 
   void LiteralNumber(ParseResult* result) {
+    CHECK_GE(result->position().column, 1);
+    LineColumn original_position = result->position();
+    original_position.column--;
+
     result->AdvancePositionUntil([](wchar_t c) { return !isdigit(c); });
-    result->PopBack();
+    CHECK_EQ(result->position().line, original_position.line);
+    CHECK_GT(result->position(), original_position);
+
+    result->PushAndPop(result->position().column - original_position.column,
+                       {LineModifier::YELLOW});
   }
 
   void DefaultState(
@@ -457,7 +460,7 @@ class CppTreeParser : public TreeParser {
     }
 
     if (isdigit(c)) {
-      result->Push(LITERAL_NUMBER, 1, {LineModifier::YELLOW});
+      LiteralNumber(result);
       return;
     }
   }
