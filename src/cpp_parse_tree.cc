@@ -89,6 +89,10 @@ class ParseResult {
     }
   }
 
+  void SkipSpaces() {
+    AdvancePositionUntil([](wchar_t c) { return !iswspace(c) || c == L'\n'; });
+  }
+
   wchar_t read() const {
     return buffer_.character_at(position_);
   }
@@ -154,10 +158,6 @@ class CppTreeParser : public TreeParser {
     int nesting = 0;
     while (!result.empty()) {
       result.CheckInvariants();
-
-      // Skip spaces.
-      result.AdvancePositionUntil(
-          [](wchar_t c) { return !iswspace(c) || c == L'\n'; });
 
       if (result.reached_final_position()) {
         result.PopBack();
@@ -351,6 +351,7 @@ class CppTreeParser : public TreeParser {
       bool after_newline, ParseResult* result) {
     // The most common transition (but sometimes overriden below).
     result->SetState(state_default);
+    result->SkipSpaces();
 
     auto original_position = result->position();
     auto c = result->read();
