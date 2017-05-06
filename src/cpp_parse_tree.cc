@@ -343,7 +343,6 @@ class CppTreeParser : public TreeParser {
     } else {
       result->set_position(original_position);
       result->PushAndPop(1, BAD_PARSE_MODIFIERS);
-      result->PopBack();
     }
   }
 
