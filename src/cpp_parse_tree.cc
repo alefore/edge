@@ -13,10 +13,6 @@ enum State {
   DEFAULT,
   AFTER_SLASH,
 
-  PREPROCESSOR_DIRECTIVE,
-  COMMENT_TO_END_OF_LINE,
-  LITERAL_STRING,
-
   BRACKET_DEFAULT_AT_START_OF_LINE,
   BRACKET_DEFAULT,
   BRACKET_AFTER_SLASH,
@@ -242,10 +238,6 @@ class CppTreeParser : public TreeParser {
                        PARENS_AFTER_SLASH, false, result);
           break;
 
-        case PREPROCESSOR_DIRECTIVE:
-          PreprocessorDirective(result);
-          break;
-
         case AFTER_SLASH:
           AfterSlash(DEFAULT, DEFAULT_AT_START_OF_LINE, result);
           break;
@@ -257,14 +249,6 @@ class CppTreeParser : public TreeParser {
 
         case PARENS_AFTER_SLASH:
           AfterSlash(PARENS_DEFAULT, PARENS_DEFAULT_AT_START_OF_LINE, result);
-          break;
-
-        case COMMENT_TO_END_OF_LINE:
-          CommentToEndOfLine(result);
-          break;
-
-        case LITERAL_STRING:
-          LiteralString(result);
           break;
       }
 
@@ -302,17 +286,19 @@ class CppTreeParser : public TreeParser {
                   ParseResult* result) {
     if (result->read() == '/') {
       result->SetState(state_default_at_start_of_line);
-      result->Push(COMMENT_TO_END_OF_LINE, 1, {LineModifier::BLUE});
+      CommentToEndOfLine(result);
     } else {
       result->SetState(state_default);
     }
-    result->AdvancePosition();
   }
 
   void CommentToEndOfLine(ParseResult* result) {
+    LineColumn original_position = result->position();
+    CHECK_GT(original_position.column, 0);
     result->AdvancePositionUntilEndOfLine();
-    auto comment_tree = result->PopBack();
-    words_parser_->FindChildren(result->buffer(), comment_tree);
+    result->PushAndPop(result->position().column - original_position.column + 1,
+                       {LineModifier::BLUE});
+    // TODO: words_parser_->FindChildren(result->buffer(), comment_tree);
   }
 
   void LiteralCharacter(ParseResult* result) {
@@ -338,27 +324,40 @@ class CppTreeParser : public TreeParser {
 
   void LiteralString(ParseResult* result) {
     auto original_position = result->position();
+    CHECK_GT(original_position.column, 0);
+
     while (result->read() != L'"' && result->read() != L'\n' &&
            !result->reached_final_position()) {
       if (result->read() == '\\') {
-       result->AdvancePosition();
+        result->AdvancePosition();
       }
       result->AdvancePosition();
     }
     if (result->read() == L'"') {
-      result->AdvancePosition();  // Skip the closing character.
-      auto tree = result->PopBack();
-      tree->modifiers = {LineModifier::YELLOW};
-      words_parser_->FindChildren(result->buffer(), tree);
+      result->AdvancePosition();
+      CHECK_EQ(result->position().line, original_position.line);
+      result->PushAndPop(
+          result->position().column - original_position.column + 1,
+          {LineModifier::YELLOW});
+      // TODO: words_parser_->FindChildren(result->buffer(), tree);
     } else {
       result->set_position(original_position);
+      result->PushAndPop(1, BAD_PARSE_MODIFIERS);
       result->PopBack();
     }
   }
 
-  void PreprocessorDirective(ParseResult* result) {
+  void PreprocessorDirective(State state, ParseResult* result) {
+    result->SetState(state);
+
+    LineColumn original_position = result->position();
+    CHECK_GE(original_position.column, 1);
+    original_position.column--;
+
     result->AdvancePositionUntilEndOfLine();
-    result->PopBack();
+    CHECK_GT(result->position().column, original_position.column);
+    result->PushAndPop(result->position().column - original_position.column,
+                       {LineModifier::YELLOW});
   }
 
   void Identifier(ParseResult* result) {
@@ -416,8 +415,7 @@ class CppTreeParser : public TreeParser {
     }
 
     if (after_newline && c == '#') {
-      result->SetState(state_default_at_start_of_line);
-      result->Push(PREPROCESSOR_DIRECTIVE, 1, {LineModifier::YELLOW});
+      PreprocessorDirective(state_default_at_start_of_line, result);
       return;
     }
 
@@ -432,7 +430,7 @@ class CppTreeParser : public TreeParser {
     }
 
     if (c == L'"') {
-      result->Push(LITERAL_STRING, 1, BAD_PARSE_MODIFIERS);
+      LiteralString(result);
       return;
     }
 
