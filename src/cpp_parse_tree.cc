@@ -27,16 +27,58 @@ static const LineModifierSet BAD_PARSE_MODIFIERS =
     LineModifierSet({LineModifier::BG_RED, LineModifier::BOLD});
 
 struct Action {
-  LineColumn position;
+  static Action Push(LineColumn position, LineModifierSet modifiers) {
+    return Action(PUSH, position, std::move(modifiers));
+  }
+
+  static Action Pop(LineColumn position) {
+    return Action(POP, position, {});
+  }
+
+  static Action SetFirstChildModifiers(LineColumn position,
+                                       LineModifierSet modifiers) {
+    return Action(SET_FIRST_CHILD_MODIFIERS, position, std::move(modifiers));
+  }
+
+  void Execute(std::vector<ParseTree*>* trees) {
+    switch (action_type) {
+      case PUSH:
+        trees->push_back(PushChild(trees->back()).release());
+        trees->back()->range.begin = position;
+        trees->back()->modifiers = modifiers;
+        break;
+
+      case POP:
+        trees->back()->range.end = position;
+        trees->pop_back();
+        break;
+
+      case SET_FIRST_CHILD_MODIFIERS:
+        trees->back()->children.front().modifiers = modifiers;
+        break;
+    }
+  }
 
   enum ActionType {
     PUSH,
     POP,
+
+    // Set the modifiers of the first child of the current tree.
+    SET_FIRST_CHILD_MODIFIERS,
   };
 
   ActionType action_type = PUSH;
 
-  LineModifierSet push_modifiers;
+  LineColumn position;
+
+  // Used by PUSH and by SET_FIRST_CHILD_MODIFIERS.
+  LineModifierSet modifiers;
+
+ private:
+  Action(ActionType action_type, LineColumn position, LineModifierSet modifiers)
+      : action_type(action_type),
+        position(position),
+        modifiers(std::move(modifiers)) {}
 };
 
 class ParseResult {
@@ -44,15 +86,9 @@ class ParseResult {
   ParseResult(const BufferContents& buffer, ParseTree* root,
               State initial_state)
       : buffer_(buffer),
-        trees_({root}),
         states_({initial_state}),
         position_(root->range.begin),
         limit_(root->range.end) {}
-
-  void CheckInvariants() const {
-    CHECK_EQ(states_.size(), trees_.size());
-    CHECK(empty() || trees_.back() != nullptr);
-  }
 
   const BufferContents& buffer() const {
     return buffer_;
@@ -120,46 +156,27 @@ class ParseResult {
   }
 
   bool empty() const {
-    return trees_.empty();
+    return states_.empty();
   }
 
-  ParseTree* PopBack() {
-    CheckInvariants();
-    CHECK(!trees_.empty());
+  void SetFirstChildModifiers(LineModifierSet modifiers) {
+    log_.push_back(Action::SetFirstChildModifiers(position_, modifiers));
+  }
+
+  void PopBack() {
     states_.pop_back();
-
-    Action action;
-    action.position = position_;
-    action.action_type = Action::POP;
-    log_.push_back(action);
-
-    auto output = trees_.back();
-    output->range.end = min(position_, limit_);
-
-    trees_.pop_back();
-    return output;
+    log_.push_back(Action::Pop(min(position_, limit_)));
   }
 
   void Push(State nested_state, size_t rewind_column,
             LineModifierSet modifiers) {
-    CheckInvariants();
     CHECK_GE(position_.column, rewind_column);
 
     states_.push_back(nested_state);
 
-    Action action;
-    action.position = position_;
-    action.position.column -= rewind_column;
-    action.action_type = Action::PUSH;
-    action.push_modifiers = modifiers;
-    log_.push_back(action);
-
-    trees_.push_back(PushChild(trees_.back()).release());
-    trees_.back()->range.begin = position_;
-    trees_.back()->range.begin.column -= rewind_column;
-    trees_.back()->modifiers = std::move(modifiers);
-
-    CheckInvariants();
+    log_.push_back(Action::Push(
+        LineColumn(position_.line, position_.column - rewind_column),
+        modifiers));
   }
 
   void PushAndPop(size_t rewind_column, LineModifierSet modifiers) {
@@ -168,9 +185,14 @@ class ParseResult {
     PopBack();
   }
 
+  std::vector<Action> FlushLog() {
+    std::vector<Action> output;
+    output.swap(log_);
+    return std::move(output);
+  }
+
  private:
   const BufferContents& buffer_;
-  std::vector<ParseTree*> trees_;
   std::vector<State> states_;
   LineColumn position_;
   LineColumn limit_;
@@ -194,13 +216,16 @@ class CppTreeParser : public TreeParser {
 
     while (!result.empty()) {
       result.PopBack();
-      result.CheckInvariants();
+    }
+
+    vector<ParseTree*> trees = {root};
+    for (auto& action : result.FlushLog()) {
+      action.Execute(&trees);
     }
   }
 
   void ParseLine(ParseResult* result) {
     while (!result->reached_final_position()) {
-      result->CheckInvariants();
       LineColumn original_position = result->position();  // For validation.
 
       switch (result->state()) {
@@ -445,7 +470,8 @@ class CppTreeParser : public TreeParser {
           (c == L')' && state_default == PARENS_DEFAULT)) {
         auto modifiers = ModifierForNesting(result->AddAndGetNesting());
         result->PushAndPop(1, modifiers);
-        result->PopBack()->children.front().modifiers = modifiers;
+        result->SetFirstChildModifiers(modifiers);
+        result->PopBack();
       } else {
         result->PushAndPop(1, BAD_PARSE_MODIFIERS);
       }
