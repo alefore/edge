@@ -51,7 +51,7 @@ class ParseResult {
 
   void CheckInvariants() const {
     CHECK_EQ(states_.size(), trees_.size());
-    CHECK(empty() || tree() != nullptr);
+    CHECK(empty() || trees_.back() != nullptr);
   }
 
   const BufferContents& buffer() const {
@@ -117,10 +117,6 @@ class ParseResult {
 
   void SetState(State state) {
     states_.back() = state;
-  }
-
-  ParseTree* tree() const {
-    return trees_.back();
   }
 
   bool empty() const {
