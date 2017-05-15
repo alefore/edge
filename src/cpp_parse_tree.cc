@@ -81,15 +81,23 @@ struct Action {
         modifiers(std::move(modifiers)) {}
 };
 
-class ParseResult {
+struct ParseResults {
+  std::vector<size_t> states_stack;
+  std::vector<Action> actions;
+};
+
+class ParseData {
  public:
-  ParseResult(const BufferContents& buffer, State initial_state)
-      : buffer_(buffer),
-        states_({initial_state}) {}
+  ParseData(const BufferContents& buffer, std::vector<size_t> initial_states)
+      : buffer_(buffer) {
+    parse_results_.states_stack = std::move(initial_states);
+  }
 
   const BufferContents& buffer() const {
     return buffer_;
   }
+
+  ParseResults* parse_results() { return &parse_results_; }
 
   LineColumn position() const {
     return position_;
@@ -144,34 +152,35 @@ class ParseResult {
     return nesting_++;
   }
 
-  State state() const {
-    return states_.back();
+  size_t state() const {
+    return parse_results_.states_stack.back();
   }
 
   void SetState(State state) {
-    states_.back() = state;
+    parse_results_.states_stack.back() = state;
   }
 
   bool empty() const {
-    return states_.empty();
+    return parse_results_.states_stack.empty();
   }
 
   void SetFirstChildModifiers(LineModifierSet modifiers) {
-    log_.push_back(Action::SetFirstChildModifiers(position_, modifiers));
+    parse_results_.actions.push_back(
+        Action::SetFirstChildModifiers(position_, modifiers));
   }
 
   void PopBack() {
-    states_.pop_back();
-    log_.push_back(Action::Pop(min(position_, limit_)));
+    parse_results_.states_stack.pop_back();
+    parse_results_.actions.push_back(Action::Pop(min(position_, limit_)));
   }
 
   void Push(State nested_state, size_t rewind_column,
             LineModifierSet modifiers) {
     CHECK_GE(position_.column, rewind_column);
 
-    states_.push_back(nested_state);
+    parse_results_.states_stack.push_back(nested_state);
 
-    log_.push_back(Action::Push(
+    parse_results_.actions.push_back(Action::Push(
         LineColumn(position_.line, position_.column - rewind_column),
         modifiers));
   }
@@ -182,19 +191,12 @@ class ParseResult {
     PopBack();
   }
 
-  std::vector<Action> FlushLog() {
-    std::vector<Action> output;
-    output.swap(log_);
-    return std::move(output);
-  }
-
  private:
   const BufferContents& buffer_;
-  std::vector<State> states_;
+  ParseResults parse_results_;
   LineColumn position_;
   LineColumn limit_;
   int nesting_ = 0;
-  std::vector<Action> log_;
 };
 
 class CppTreeParser : public TreeParser {
@@ -204,24 +206,22 @@ class CppTreeParser : public TreeParser {
     root->children.clear();
     root->depth = 0;
 
-    ParseResult result(buffer, DEFAULT_AT_START_OF_LINE);
+    std::vector<size_t> states_stack = { DEFAULT_AT_START_OF_LINE };
+    std::vector<ParseTree*> trees = {root};
     for (size_t i = root->range.begin.line; i < root->range.end.line; i++) {
-      result.set_position(max(LineColumn(i, 0), root->range.begin));
-      result.set_limit(min(LineColumn(i + 1, 0), root->range.end));
-      ParseLine(&result);
-    }
+      ParseData data(buffer, std::move(states_stack));
+      data.set_limit(min(LineColumn(i + 1, 0), root->range.end));
+      data.set_position(max(LineColumn(i, 0), root->range.begin));
+      ParseLine(&data);
+      states_stack = std::move(data.parse_results()->states_stack);
 
-    while (!result.empty()) {
-      result.PopBack();
-    }
-
-    vector<ParseTree*> trees = {root};
-    for (auto& action : result.FlushLog()) {
-      action.Execute(&trees);
+      for (auto& action : data.parse_results()->actions) {
+        action.Execute(&trees);
+      }
     }
   }
 
-  void ParseLine(ParseResult* result) {
+  void ParseLine(ParseData* result) {
     while (!result->reached_final_position()) {
       LineColumn original_position = result->position();  // For validation.
 
@@ -301,7 +301,7 @@ class CppTreeParser : public TreeParser {
   }
 
   void AfterSlash(State state_default, State state_default_at_start_of_line,
-                  ParseResult* result) {
+                  ParseData* result) {
     if (result->read() == '/') {
       result->SetState(state_default_at_start_of_line);
       CommentToEndOfLine(result);
@@ -310,7 +310,7 @@ class CppTreeParser : public TreeParser {
     }
   }
 
-  void CommentToEndOfLine(ParseResult* result) {
+  void CommentToEndOfLine(ParseData* result) {
     LineColumn original_position = result->position();
     CHECK_GT(original_position.column, 0);
     result->AdvancePositionUntilEndOfLine();
@@ -319,7 +319,7 @@ class CppTreeParser : public TreeParser {
     // TODO: words_parser_->FindChildren(result->buffer(), comment_tree);
   }
 
-  void LiteralCharacter(ParseResult* result) {
+  void LiteralCharacter(ParseData* result) {
     size_t rewind_column = 1;
     auto original_position = result->position();
     if (result->read() == '\\') {
@@ -340,7 +340,7 @@ class CppTreeParser : public TreeParser {
     }
   }
 
-  void LiteralString(ParseResult* result) {
+  void LiteralString(ParseData* result) {
     auto original_position = result->position();
     CHECK_GT(original_position.column, 0);
 
@@ -364,7 +364,7 @@ class CppTreeParser : public TreeParser {
     }
   }
 
-  void PreprocessorDirective(State state, ParseResult* result) {
+  void PreprocessorDirective(State state, ParseData* result) {
     result->SetState(state);
 
     LineColumn original_position = result->position();
@@ -377,7 +377,7 @@ class CppTreeParser : public TreeParser {
                        {LineModifier::YELLOW});
   }
 
-  void Identifier(ParseResult* result) {
+  void Identifier(ParseData* result) {
     LineColumn original_position = result->position();
     CHECK_GE(original_position.column, 1);
     original_position.column--;
@@ -401,7 +401,7 @@ class CppTreeParser : public TreeParser {
     result->PushAndPop(length, std::move(modifiers));
   }
 
-  void LiteralNumber(ParseResult* result) {
+  void LiteralNumber(ParseData* result) {
     CHECK_GE(result->position().column, 1);
     LineColumn original_position = result->position();
     original_position.column--;
@@ -416,7 +416,7 @@ class CppTreeParser : public TreeParser {
 
   void DefaultState(
       State state_default, State state_default_at_start_of_line,
-      State state_after_slash, bool after_newline, ParseResult* result) {
+      State state_after_slash, bool after_newline, ParseData* result) {
     // The most common transition (but sometimes overriden below).
     result->SetState(state_default);
     result->SkipSpaces();
