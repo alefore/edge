@@ -333,7 +333,7 @@ int main(int argc, const char** argv) {
 
     // The file descriptor at position i will be either fd or fd_error of
     // buffers[i]. The exception to this is fd 0 (at the end).
-    struct pollfd fds[editor_state()->buffers()->size() * 2 + 2];
+    struct pollfd fds[editor_state()->buffers()->size() * 2 + 3];
     buffers.reserve(sizeof(fds) / sizeof(fds[0]));
 
     for (auto& buffer : *editor_state()->buffers()) {
@@ -358,6 +358,10 @@ int main(int argc, const char** argv) {
       fds[buffers.size()].events = POLLIN | POLLPRI;
       buffers.push_back(nullptr);
     }
+
+    fds[buffers.size()].fd = editor_state()->fd_to_detect_internal_events();
+    fds[buffers.size()].events = POLLIN | POLLPRI;
+    buffers.push_back(nullptr);
 
     // TODO: Change to -1. Requires figuring out a way for background threads of
     // buffers to trigger redraws.
@@ -397,7 +401,16 @@ int main(int argc, const char** argv) {
         continue;
       }
 
+      if (fds[i].fd == editor_state()->fd_to_detect_internal_events()) {
+        char buffer[4096];
+        VLOG(5) << "Internal events detected.";
+        while (read(fds[i].fd, buffer, sizeof(buffer)) > 0)
+          continue;
+        continue;
+      }
+
       CHECK_LE(i, buffers.size());
+      CHECK(buffers[i] != nullptr);
       if (buffers[i] && fds[i].fd == buffers[i]->fd()) {
         LOG(INFO) << "Reading (normal): " << buffers[i]->name();
         buffers[i]->ReadData(editor_state());

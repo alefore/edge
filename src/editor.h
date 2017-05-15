@@ -236,6 +236,12 @@ class EditorState {
   bool ShouldDisplayProgress() const;
   size_t progress() const { return progress_; }
 
+  int fd_to_detect_internal_events() const {
+    return pipe_to_communicate_internal_events_.first;
+  }
+
+  void NotifyInternalEvent();
+
  private:
   Environment BuildEditorEnvironment();
 
@@ -281,6 +287,11 @@ class EditorState {
 
   struct timespec last_progress_update_ = {0, 0};
   size_t progress_ = 0;
+
+  // Each editor has a pipe. The customer of the editor can read from the read
+  // end, to detect the need to redraw the screen. Internally, background
+  // threads write to the write end to trigger that.
+  const std::pair<int, int> pipe_to_communicate_internal_events_;
 };
 
 }  // namespace editor

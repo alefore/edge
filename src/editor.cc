@@ -11,6 +11,7 @@ extern "C" {
 #include <pwd.h>
 #include <signal.h>
 #include <unistd.h>
+#include <fcntl.h>
 }
 
 #include <glog/logging.h>
@@ -115,6 +116,13 @@ bool EditorState::ShouldDisplayProgress() const {
     }
   }
   return false;
+}
+
+void EditorState::NotifyInternalEvent() {
+  VLOG(5) << "Internal event notification!";
+  if (write(pipe_to_communicate_internal_events_.second, " ", 1) == -1) {
+    SetStatus(L"Write to internal pipe failed!");
+  }
 }
 
 Environment EditorState::BuildEditorEnvironment() {
@@ -380,6 +388,14 @@ Environment EditorState::BuildEditorEnvironment() {
   return environment;
 }
 
+std::pair<int, int> BuildPipe() {
+  int output[2];
+  if (pipe2(output, O_NONBLOCK) == -1) {
+    return {-1, -1};
+  }
+  return {output[0], output[1]};
+}
+
 EditorState::EditorState()
     : current_buffer_(buffers_.end()),
       home_directory_(GetHomeDirectory()),
@@ -389,7 +405,8 @@ EditorState::EditorState()
       mode_(default_mode_supplier_()),
       visible_lines_(1),
       status_prompt_(false),
-      status_(L"") {
+      status_(L""),
+      pipe_to_communicate_internal_events_(BuildPipe()) {
   unique_ptr<ObjectType> line_column(new ObjectType(L"LineColumn"));
 
   // Methods for LineColumn.
