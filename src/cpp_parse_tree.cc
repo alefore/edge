@@ -83,12 +83,9 @@ struct Action {
 
 class ParseResult {
  public:
-  ParseResult(const BufferContents& buffer, ParseTree* root,
-              State initial_state)
+  ParseResult(const BufferContents& buffer, State initial_state)
       : buffer_(buffer),
-        states_({initial_state}),
-        position_(root->range.begin),
-        limit_(root->range.end) {}
+        states_({initial_state}) {}
 
   const BufferContents& buffer() const {
     return buffer_;
@@ -207,7 +204,7 @@ class CppTreeParser : public TreeParser {
     root->children.clear();
     root->depth = 0;
 
-    ParseResult result(buffer, root, DEFAULT_AT_START_OF_LINE);
+    ParseResult result(buffer, DEFAULT_AT_START_OF_LINE);
     for (size_t i = root->range.begin.line; i < root->range.end.line; i++) {
       result.set_position(max(LineColumn(i, 0), root->range.begin));
       result.set_limit(min(LineColumn(i + 1, 0), root->range.end));
