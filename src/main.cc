@@ -361,7 +361,7 @@ int main(int argc, const char** argv) {
 
     // TODO: Change to -1. Requires figuring out a way for background threads of
     // buffers to trigger redraws.
-    if (poll(fds, buffers.size(), 100) == -1) {
+    if (poll(fds, buffers.size(), 1000) == -1) {
       CHECK_EQ(errno, EINTR) << "poll failed: " << strerror(errno);
 
       LOG(INFO) << "Received signals.";
