@@ -11,219 +11,210 @@
 namespace afc {
 namespace vm {
 
-void RegisterStringType(Environment* environment) {
-  unique_ptr<ObjectType> string_type(new ObjectType(VMType::String()));
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->callback = [](vector<unique_ptr<Value>> args) {
-          assert(args.size() == 1);
-          assert(args[0]->type == VMType::VM_STRING);
-          return Value::NewInteger(args[0]->str.size());
-        };
-    string_type->AddField(L"size", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->callback = [](vector<unique_ptr<Value>> args) {
-          assert(args.size() == 1);
-          assert(args[0]->type == VMType::VM_STRING);
-          return Value::NewInteger(args[0]->str.size());
-        };
-    string_type->AddField(L"match", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->callback = [](vector<unique_ptr<Value>> args) {
-          assert(args.size() == 3);
-          assert(args[0]->type == VMType::VM_STRING);
-          if (args[1]->integer < 0
-              || args[2]->integer < 0
-              || (static_cast<size_t>(args[1]->integer + args[2]->integer)
-                  > args[0]->str.size())) {
-            return Value::NewString(L"");
-          }
-          return Value::NewString(
-              args[0]->str.substr(args[1]->integer, args[2]->integer));
-        };
-    string_type->AddField(L"substr", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->callback = [](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::VM_STRING);
-          return Value::NewBool(args[0]->str.empty());
-        };
-    string_type->AddField(L"empty", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->callback = [](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::VM_STRING);
-          assert(args[1]->type == VMType::VM_STRING);
-          return Value::NewBool(
-              args[1]->str.size() <= args[0]->str.size()
-              && (std::mismatch(args[1]->str.begin(),
-                                args[1]->str.end(),
-                                args[0]->str.begin()).first
-                  == args[1]->str.end()));
-        };
-    string_type->AddField(L"starts_with", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->callback = [](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::VM_STRING);
-          assert(args[1]->type == VMType::VM_STRING);
-          assert(args[2]->type == VMType::VM_INTEGER);
-          size_t pos = args[0]->str.find(args[1]->str, args[2]->integer);
-          if (pos == wstring::npos) {
-            return Value::NewInteger(-1);
-          }
-          return Value::NewInteger(pos);
-        };
-    string_type->AddField(L"find", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->callback = [](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::VM_STRING);
-          assert(args[1]->type == VMType::VM_STRING);
-          assert(args[2]->type == VMType::VM_INTEGER);
-          size_t pos = args[0]->str.find_last_of(args[1]->str, args[2]->integer);
-          if (pos == wstring::npos) {
-            return Value::NewInteger(-1);
-          }
-          return Value::NewInteger(pos);
-        };
-    string_type->AddField(L"find_last_of", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->callback = [](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::VM_STRING);
-          assert(args[1]->type == VMType::VM_STRING);
-          assert(args[2]->type == VMType::VM_INTEGER);
-          size_t pos = args[0]->str.find_last_not_of(args[1]->str, args[2]->integer);
-          if (pos == wstring::npos) {
-            return Value::NewInteger(-1);
-          }
-          return Value::NewInteger(pos);
-        };
-    string_type->AddField(L"find_last_not_of", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->callback = [](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::VM_STRING);
-          assert(args[1]->type == VMType::VM_STRING);
-          assert(args[2]->type == VMType::VM_INTEGER);
-          size_t pos =
-              args[0]->str.find_first_of(args[1]->str, args[2]->integer);
-          if (pos == wstring::npos) {
-            return Value::NewInteger(-1);
-          }
-          return Value::NewInteger(pos);
-        };
-    string_type->AddField(L"find_first_of", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->callback = [](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::VM_STRING);
-          assert(args[1]->type == VMType::VM_STRING);
-          assert(args[2]->type == VMType::VM_INTEGER);
-          size_t pos = args[0]->str.find_first_not_of(args[1]->str, args[2]->integer);
-          if (pos == wstring::npos) {
-            return Value::NewInteger(-1);
-          }
-          return Value::NewInteger(pos);
-        };
-    string_type->AddField(L"find_first_not_of", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->callback = [](vector<unique_ptr<Value>> args) {
-      CHECK_EQ(args.size(), 1);
-      CHECK_EQ(args[0]->type.type, VMType::VM_STRING);
-      auto output = Value::NewString(std::move(args[0]->str));
-      for (auto& i : output->str) {
-        i = std::tolower(i, std::locale(""));
-      }
-      return std::move(output);
-    };
-    string_type->AddField(L"tolower", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->callback = [](vector<unique_ptr<Value>> args) {
-      CHECK_EQ(args.size(), 1);
-      CHECK_EQ(args[0]->type.type, VMType::VM_STRING);
-      auto output = Value::NewString(std::move(args[0]->str));
-      for (auto& i : output->str) {
-        i = std::toupper(i, std::locale(""));
-      }
-      return std::move(output);
-    };
-    string_type->AddField(L"toupper", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->callback = [](vector<unique_ptr<Value>> args) {
-      CHECK_EQ(args.size(), 1);
-      CHECK_EQ(args[0]->type.type, VMType::VM_STRING);
-      wstring output;
-      output.push_back(L'\'');
-      for (auto c : args[0]->str) {
-        if (c == L'\'') {
-          output.push_back('\\');
-        }
-        output.push_back(c);
-      }
-      output.push_back(L'\'');
-      return Value::NewString(std::move(output));
-    };
-    string_type->AddField(L"shell_escape", std::move(callback));
+template<class T>
+struct VMTypeMapper {};
+
+template<>
+struct VMTypeMapper<bool> {
+  static std::unique_ptr<Value> New(bool value) {
+    return Value::NewBool(value);
   }
 
+  static const VMType vmtype;
+};
+
+const VMType VMTypeMapper<bool>::vmtype = VMType(VMType::VM_BOOLEAN);
+
+template<>
+struct VMTypeMapper<int> {
+  static int get(Value* value) {
+    return value->integer;
+  }
+
+  static std::unique_ptr<Value> New(int value) {
+    return Value::NewInteger(value);
+  }
+
+  static const VMType vmtype;
+};
+
+const VMType VMTypeMapper<int>::vmtype = VMType(VMType::VM_INTEGER);
+
+template<>
+struct VMTypeMapper<wstring> {
+  static wstring get(Value* value) {
+    return std::move(value->str);
+  }
+
+  static std::unique_ptr<Value> New(wstring value) {
+    return Value::NewString(value);
+  }
+
+  static const VMType vmtype;
+};
+
+const VMType VMTypeMapper<wstring>::vmtype = VMType(VMType::VM_STRING);
+
+template <typename... Args>
+struct AddArgs {
+  // Terminates the recursion.
+  static void Run(std::vector<VMType>*) {}
+};
+
+template <typename Arg0, typename... Args>
+struct AddArgs<Arg0, Args...> {
+  static void Run(std::vector<VMType>* output) {
+    output->push_back(VMTypeMapper<Arg0>::vmtype);
+    AddArgs<Args...>::Run(output);
+  }
+};
+
+template <typename ReturnType>
+std::unique_ptr<Value> RunCallback(
+    std::function<ReturnType(wstring)> callback,
+    const vector<unique_ptr<Value>>& args) {
+  CHECK_EQ(args.size(), 1);
+  return VMTypeMapper<ReturnType>::New(callback(std::move(args[0]->str)));
+}
+
+template <typename ReturnType, typename A0>
+std::unique_ptr<Value> RunCallback(
+    std::function<ReturnType(wstring, A0)> callback,
+    const vector<unique_ptr<Value>>& args) {
+  CHECK_EQ(args.size(), 2);
+  return VMTypeMapper<ReturnType>::New(callback(
+      std::move(args[0]->str),
+      VMTypeMapper<A0>::get(args[1].get())));
+}
+
+template <typename ReturnType, typename A0, typename A1>
+std::unique_ptr<Value> RunCallback(
+    std::function<ReturnType(wstring, A0, A1)> callback,
+    const vector<unique_ptr<Value>>& args) {
+  CHECK_EQ(args.size(), 3);
+  return VMTypeMapper<ReturnType>::New(callback(
+      std::move(args[0]->str),
+      VMTypeMapper<A0>::get(args[1].get()),
+      VMTypeMapper<A1>::get(args[2].get())));
+}
+
+template <typename ReturnType, typename ...Args>
+void AddMethod(const wstring& name,
+               std::function<ReturnType(wstring, Args...)> callback,
+               ObjectType* string_type) {
+  unique_ptr<Value> callback_wrapper(new Value(VMType::FUNCTION));
+  callback_wrapper->type.type_arguments.push_back(
+      VMTypeMapper<ReturnType>().vmtype);
+  callback_wrapper->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+  AddArgs<Args...>::Run(&callback_wrapper->type.type_arguments);
+  callback_wrapper->callback = [callback](vector<unique_ptr<Value>> args) {
+    CHECK_EQ(args[0]->type, VMType::VM_STRING);
+    return RunCallback<ReturnType, Args...>(callback, args);
+  };
+  string_type->AddField(name, std::move(callback_wrapper));
+}
+
+void RegisterStringType(Environment* environment) {
+  unique_ptr<ObjectType> string_type(new ObjectType(VMType::String()));
+  AddMethod<int>(L"size",
+                 std::function<int(wstring)>(
+                     [](wstring str) { return str.size(); }),
+                 string_type.get());
+  AddMethod<bool>(L"empty",
+                  std::function<bool(wstring)>(
+                      [](wstring str) { return str.empty(); }),
+                  string_type.get());
+  AddMethod<wstring>(L"tolower",
+                     std::function<wstring(wstring)>([](wstring str) {
+                       for (auto& i : str) {
+                         i = std::tolower(i, std::locale(""));
+                       }
+                       return str;
+                     }),
+                     string_type.get());
+  AddMethod<wstring>(L"toupper",
+                     std::function<wstring(wstring)>([](wstring str) {
+                       for (auto& i : str) {
+                         i = std::toupper(i, std::locale(""));
+                       }
+                       return str;
+                     }),
+                     string_type.get());
+  AddMethod<wstring>(L"shell_escape",
+                     std::function<wstring(wstring)>([](wstring str) {
+                       wstring output;
+                       output.push_back(L'\'');
+                       for (auto c : str) {
+                         if (c == L'\'') {
+                           output.push_back('\\');
+                         }
+                         output.push_back(c);
+                       }
+                       output.push_back(L'\'');
+                       return output;
+                     }),
+                     string_type.get());
+  AddMethod<wstring, int, int>(
+      L"substr",
+      std::function<wstring(wstring, int, int)>(
+        [](const wstring& str, int pos, int len) -> wstring {
+          if (pos < 0 || len < 0
+              || (static_cast<size_t>(pos + len) > str.size())) {
+            return L"";
+          }
+          return str.substr(pos, len);
+        }),
+      string_type.get());
+  AddMethod<bool, wstring>(
+      L"starts_with",
+      std::function<bool(wstring, wstring)>(
+          [](wstring str, wstring prefix) {
+            return prefix.size() <= str.size()
+                && (std::mismatch(prefix.begin(), prefix.end(),
+                                  str.begin()).first
+                    == prefix.end());
+          }),
+      string_type.get());
+  AddMethod<int, wstring, int>(
+      L"find",
+      std::function<int(wstring, wstring, int)>(
+          [](wstring str, wstring pattern, int start_pos) {
+            size_t pos = str.find(pattern, start_pos);
+            return pos == wstring::npos ? -1 : pos;
+          }),
+      string_type.get());
+  AddMethod<int, wstring, int>(
+      L"find_last_of",
+      std::function<int(wstring, wstring, int)>(
+          [](wstring str, wstring pattern, int start_pos) {
+            size_t pos = str.find_last_of(pattern, start_pos);
+            return pos == wstring::npos ? -1 : pos;
+          }),
+      string_type.get());
+  AddMethod<int, wstring, int>(
+      L"find_last_not_of",
+      std::function<int(wstring, wstring, int)>(
+          [](wstring str, wstring pattern, int start_pos) {
+            size_t pos = str.find_last_not_of(pattern, start_pos);
+            return pos == wstring::npos ? -1 : pos;
+          }),
+      string_type.get());
+  AddMethod<int, wstring, int>(
+      L"find_first_of",
+      std::function<int(wstring, wstring, int)>(
+          [](wstring str, wstring pattern, int start_pos) {
+            size_t pos = str.find_first_of(pattern, start_pos);
+            return pos == wstring::npos ? -1 : pos;
+          }),
+      string_type.get());
+  AddMethod<int, wstring, int>(
+      L"find_first_not_of",
+      std::function<int(wstring, wstring, int)>(
+          [](wstring str, wstring pattern, int start_pos) {
+            size_t pos = str.find_first_not_of(pattern, start_pos);
+            return pos == wstring::npos ? -1 : pos;
+          }),
+      string_type.get());
   environment->DefineType(L"string", std::move(string_type));
 
   {
