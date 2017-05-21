@@ -58,6 +58,8 @@ wstring CppEscapeString(wstring input) {
 
 bool CreateFifo(wstring input_path, wstring* output, wstring* error) {
   while (true) {
+    // Using mktemp here is secure: if the attacker creates the file, mkfifo
+    // will fail.
     char* path_str = input_path.empty()
         ? mktemp(strdup("/tmp/edge-server-XXXXXX"))
         : strdup(ToByteString(input_path).c_str());
