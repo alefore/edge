@@ -1,0 +1,12 @@
+void JavaMode() {
+  buffer.set_line_prefix_characters(" /*");
+  buffer.set_line_width(100);
+  buffer.set_language_keywords(
+      "class interface extends implements "
+      "public private protected "
+      "final "
+      "void "
+      // Values
+      "true false null");
+  buffer.set_tree_parser("cpp");
+}

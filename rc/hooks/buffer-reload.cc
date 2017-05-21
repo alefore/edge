@@ -1,3 +1,6 @@
+#include "../editor_commands/cpp-mode"
+#include "../editor_commands/java-mode"
+
 string ProcessCCInputLine(string line) {
   SetStatus("Got: " + line);
   return line;
@@ -49,44 +52,13 @@ if (path == "") {
   string extension = dot == -1 ? "" : path.substr(dot + 1, path.size() - dot - 1);
   string basename = Basename(path);
   if (extension == "cc" || extension == "h" || extension == "c") {
-    buffer.set_line_prefix_characters(" /*");
-    buffer.set_language_keywords(
-        "static extern override virtual "
-        "class struct private public "
-        "using typedef namespace "
-        "sizeof "
-        "static_cast dynamic_cast "
-        "delete new "
-        // Flow control.
-        "switch case default "
-        "if else "
-        "for while do "
-        "return "
-        // Types
-        "void const auto "
-        "unique_ptr shared_ptr "
-        "std function vector list "
-        "map unordered_map set unordered_set "
-        "int double float string wstring bool char "
-        "size_t "
-        // Values
-        "true false nullptr NULL");
-    buffer.set_tree_parser("cpp");
+    CppMode();
     SetStatus("Loaded C file (" + extension + ")");
     return;
   }
 
   if (extension == "java") {
-    buffer.set_line_prefix_characters(" /*");
-    buffer.set_line_width(100);
-    buffer.set_language_keywords(
-        "class interface extends implements "
-        "public private protected "
-        "final "
-        "void "
-        // Values
-        "true false null");
-    buffer.set_tree_parser("cpp");
+    JavaMode();
     SetStatus("Loaded Java file (" + extension + ")");
     return;
   }

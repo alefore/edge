@@ -1,0 +1,3 @@
+// Convenience wrapper, making it easy to activate directly from the editor.
+#include "java-mode"
+JavaMode();
