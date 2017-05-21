@@ -12,6 +12,7 @@ enum State {
   DEFAULT_AT_START_OF_LINE,
   DEFAULT,
   AFTER_SLASH,
+  COMMENT,
 
   BRACKET_DEFAULT_AT_START_OF_LINE,
   BRACKET_DEFAULT,
@@ -261,12 +262,16 @@ class CppTreeParser : public TreeParser {
           break;
 
         case BRACKET_AFTER_SLASH:
-          AfterSlash(BRACKET_DEFAULT, BRACKET_DEFAULT_AT_START_OF_LINE,
-                     result);
+          AfterSlash(BRACKET_DEFAULT, BRACKET_DEFAULT_AT_START_OF_LINE, result);
           break;
 
         case PARENS_AFTER_SLASH:
-          AfterSlash(PARENS_DEFAULT, PARENS_DEFAULT_AT_START_OF_LINE, result);
+          AfterSlash(PARENS_DEFAULT, PARENS_DEFAULT_AT_START_OF_LINE,
+                     result);
+          break;
+
+        case COMMENT:
+          InsideComment(result);
           break;
       }
 
@@ -302,11 +307,17 @@ class CppTreeParser : public TreeParser {
 
   void AfterSlash(State state_default, State state_default_at_start_of_line,
                   ParseData* result) {
-    if (result->read() == '/') {
-      result->SetState(state_default_at_start_of_line);
-      CommentToEndOfLine(result);
-    } else {
-      result->SetState(state_default);
+    switch (result->read()) {
+      case '/':
+        result->SetState(state_default_at_start_of_line);
+        CommentToEndOfLine(result);
+        break;
+      case '*':
+        result->Push(COMMENT, 1, {LineModifier::BLUE});
+        result->AdvancePosition();
+        break;
+      default:
+        result->SetState(state_default);
     }
   }
 
@@ -317,6 +328,15 @@ class CppTreeParser : public TreeParser {
     result->PushAndPop(result->position().column - original_position.column + 1,
                        {LineModifier::BLUE});
     // TODO: words_parser_->FindChildren(result->buffer(), comment_tree);
+  }
+
+  void InsideComment(ParseData* result) {
+    auto c = result->read();
+    result->AdvancePosition();
+    if (c == '*' && result->read() == '/') {
+      result->AdvancePosition();
+      result->PopBack();
+    }
   }
 
   void LiteralCharacter(ParseData* result) {
