@@ -203,6 +203,26 @@ void RegisterStringType(Environment* environment) {
     };
     string_type->AddField(L"toupper", std::move(callback));
   }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
+    callback->callback = [](vector<unique_ptr<Value>> args) {
+      CHECK_EQ(args.size(), 1);
+      CHECK_EQ(args[0]->type.type, VMType::VM_STRING);
+      wstring output;
+      output.push_back(L'\'');
+      for (auto c : args[0]->str) {
+        if (c == L'\'') {
+          output.push_back('\\');
+        }
+        output.push_back(c);
+      }
+      output.push_back(L'\'');
+      return Value::NewString(std::move(output));
+    };
+    string_type->AddField(L"shell_escape", std::move(callback));
+  }
 
   environment->DefineType(L"string", std::move(string_type));
 
