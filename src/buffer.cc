@@ -342,6 +342,23 @@ using std::to_wstring;
         };
     buffer->AddField(L"InsertText", std::move(callback));
   }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    // Returns nothing.
+    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+    // The buffer to modify.
+    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
+    callback->callback =
+        [editor_state](vector<unique_ptr<Value>> args) {
+          CHECK_EQ(args.size(), 1);
+          CHECK(args[0]->type == VMType::OBJECT_TYPE);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          CHECK(buffer != nullptr);
+          buffer->Save(editor_state);
+          return Value::NewVoid();
+        };
+    buffer->AddField(L"Save", std::move(callback));
+  }
 
   environment->DefineType(L"Buffer", std::move(buffer));
 }
