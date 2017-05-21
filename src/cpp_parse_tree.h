@@ -2,13 +2,15 @@
 #define __AFC_EDITOR_CPP_PARSE_TREE_H__
 
 #include <memory>
+#include <unordered_set>
 
 #include "parse_tree.h"
 
 namespace afc {
 namespace editor {
 
-std::unique_ptr<TreeParser> NewCppTreeParser();
+std::unique_ptr<TreeParser> NewCppTreeParser(
+    std::unordered_set<std::wstring> keywords);
 
 }  // namespace editor
 }  // namespace afc

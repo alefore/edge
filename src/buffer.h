@@ -349,6 +349,7 @@ class OpenBuffer {
   static EdgeVariable<wstring>* variable_line_suffix_superfluous_characters();
   static EdgeVariable<wstring>* variable_dictionary();
   static EdgeVariable<wstring>* variable_tree_parser();
+  static EdgeVariable<wstring>* variable_language_keywords();
 
   static EdgeStruct<int>* IntStruct();
   static EdgeVariable<int>* variable_line_width();

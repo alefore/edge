@@ -716,7 +716,11 @@ void OpenBuffer::UpdateTreeParser() {
         read_string_variable(variable_word_characters()),
         NewNullTreeParser()));
   } else if (parser == L"cpp") {
-    tree_parser_ = NewCppTreeParser();
+    std::wistringstream keywords(
+        read_string_variable(variable_language_keywords()));
+    tree_parser_ = NewCppTreeParser(std::unordered_set<wstring>(
+        std::istream_iterator<wstring, wchar_t>(keywords),
+        std::istream_iterator<wstring, wchar_t>()));
   } else {
     tree_parser_ = NewNullTreeParser();
   }
@@ -2103,6 +2107,7 @@ OpenBuffer::variable_search_case_sensitive() {
     OpenBuffer::variable_line_suffix_superfluous_characters();
     OpenBuffer::variable_dictionary();
     OpenBuffer::variable_tree_parser();
+    OpenBuffer::variable_language_keywords();
   }
   return output;
 }
@@ -2212,6 +2217,16 @@ OpenBuffer::variable_tree_parser() {
   return variable;
 }
 
+/* static */ EdgeVariable<wstring>*
+OpenBuffer::variable_language_keywords() {
+  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
+      L"language_keywords",
+      L"Space separated list of keywords that should be highlighted by the "
+      L"\"cpp\" tree parser (see variable tree_parser).",
+      L"");
+  return variable;
+}
+
 /* static */ EdgeStruct<int>* OpenBuffer::IntStruct() {
   static EdgeStruct<int>* output = nullptr;
   if (output == nullptr) {
@@ -2311,7 +2326,8 @@ void OpenBuffer::set_string_variable(
 
   // TODO: This should be in the variable definition, not here. Ugh.
   if (variable == variable_word_characters()
-      || variable == variable_tree_parser()) {
+      || variable == variable_tree_parser()
+      || variable == variable_language_keywords()) {
     UpdateTreeParser();
   }
 }

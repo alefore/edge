@@ -202,6 +202,9 @@ class ParseData {
 
 class CppTreeParser : public TreeParser {
  public:
+  CppTreeParser(std::unordered_set<wstring> keywords)
+      : keywords_(std::move(keywords)) {}
+
   void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
     root->children.clear();
@@ -280,31 +283,6 @@ class CppTreeParser : public TreeParser {
   }
 
  private:
-  bool IsReservedToken(const wstring& str) {
-    // TODO: Allow the buffer to specify this through a variable.
-    static const std::unordered_set<wstring> tokens = {
-        L"static", L"extern", L"override", L"virtual",
-        L"class", L"struct", L"private", L"public",
-        L"using", L"typedef", L"namespace", L"sizeof",
-        L"static_cast", L"dynamic_cast",
-        L"delete", L"new",
-        // Flow control.
-        L"switch", L"case", L"default",
-        L"if", L"else",
-        L"for", L"while", L"do",
-        L"return",
-        // Types
-        L"void", L"const", L"auto",
-        L"unique_ptr", L"shared_ptr",
-        L"std", L"function", L"vector", L"list",
-        L"map", L"unordered_map", L"set", L"unordered_set",
-        L"int", L"double", L"float", L"string", L"wstring", L"bool", L"char",
-        L"size_t",
-        // Values
-        L"true", L"false", L"nullptr", L"NULL" };
-    return tokens.find(str) != tokens.end();
-  }
-
   void AfterSlash(State state_default, State state_default_at_start_of_line,
                   ParseData* result) {
     switch (result->read()) {
@@ -415,7 +393,7 @@ class CppTreeParser : public TreeParser {
         result->buffer().at(original_position.line)->contents(),
         original_position.column, length);
     LineModifierSet modifiers;
-    if (IsReservedToken(str->ToString())) {
+    if (keywords_.find(str->ToString()) != keywords_.end()) {
       modifiers.insert(LineModifier::CYAN);
     }
     result->PushAndPop(length, std::move(modifiers));
@@ -526,16 +504,19 @@ class CppTreeParser : public TreeParser {
     return output;
   }
 
-  std::unique_ptr<TreeParser> words_parser_ =
+  const std::unique_ptr<TreeParser> words_parser_ =
       NewWordsTreeParser(
            L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
            NewNullTreeParser());
+
+  const std::unordered_set<wstring> keywords_;
 };
 
 }  // namespace
 
-std::unique_ptr<TreeParser> NewCppTreeParser() {
-  return std::unique_ptr<TreeParser>(new CppTreeParser());
+std::unique_ptr<TreeParser> NewCppTreeParser(
+    std::unordered_set<wstring> keywords) {
+  return std::unique_ptr<TreeParser>(new CppTreeParser(std::move(keywords)));
 }
 
 }  // namespace editor
