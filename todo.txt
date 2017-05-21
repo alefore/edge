@@ -50,8 +50,6 @@ Persist undo history?
 
 -- Variables
 
-Save the contents of variables?  Maybe in a per-buffer file?
-
 atomic_lines should probably also apply to multiple cursors.
 
 -- VM
