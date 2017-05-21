@@ -1,0 +1,13 @@
+string original_path = buffer.path();
+
+// TODO: Get this from mkstemp.
+string tmp_path = "/tmp/edge-file-diff";
+
+buffer.set_path(tmp_path);
+buffer.Save();
+buffer.set_path(original_path);
+
+ForkCommand("diff -Naur " + original_path.shell_escape() + " "
+                + tmp_path.shell_escape(),
+            true);
+
