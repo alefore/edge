@@ -232,10 +232,6 @@ class EditorState {
     buffers_to_parse_.erase(buffer);
   }
 
-  void RegisterProgress();
-  bool ShouldDisplayProgress() const;
-  size_t progress() const { return progress_; }
-
   int fd_to_detect_internal_events() const {
     return pipe_to_communicate_internal_events_.first;
   }
@@ -284,9 +280,6 @@ class EditorState {
 
   Modifiers modifiers_;
   LineMarks line_marks_;
-
-  struct timespec last_progress_update_ = {0, 0};
-  size_t progress_ = 0;
 
   // Each editor has a pipe. The customer of the editor can read from the read
   // end, to detect the need to redraw the screen. Internally, background

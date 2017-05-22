@@ -592,6 +592,21 @@ bool OpenBuffer::ShouldDisplayProgress() const {
   return fd_.fd !=-1 || fd_error_.fd != -1;
 }
 
+void OpenBuffer::RegisterProgress() {
+  struct timespec now;
+  if (clock_gettime(0, &now) == -1) {
+    return;
+  }
+  double ms_elapsed =
+      (now.tv_sec - last_progress_update_.tv_sec) * 1000
+      + (now.tv_nsec - last_progress_update_.tv_nsec) / 1000000;
+  if (ms_elapsed < 200) {
+    return;
+  }
+  last_progress_update_ = now;
+  set_int_variable(variable_progress(), Read(variable_progress()) + 1);
+}
+
 void OpenBuffer::ReadData(EditorState* editor_state) {
   fd_.ReadData(editor_state, this);
 }
@@ -620,7 +635,7 @@ void OpenBuffer::Input::ReadData(
     if (errno == EAGAIN) {
       return;
     }
-    editor_state->RegisterProgress();
+    target->RegisterProgress();
     Close();
     Reset();
     if (target->fd_.fd == -1 && target->fd_error_.fd == -1) {
@@ -633,7 +648,7 @@ void OpenBuffer::Input::ReadData(
   if (characters_read == 0) {
     Close();
     Reset();
-    editor_state->RegisterProgress();
+    target->RegisterProgress();
     if (target->fd_.fd == -1 && target->fd_error_.fd == -1) {
       target->EndOfFile(editor_state);
     }
@@ -681,7 +696,7 @@ void OpenBuffer::Input::ReadData(
     target->EvaluateString(editor_state, buffer_wrapper->ToString());
   }
 
-  editor_state->RegisterProgress();
+  target->RegisterProgress();
   bool previous_modified = target->modified();
   if (target->read_bool_variable(OpenBuffer::variable_pts())) {
     target->ProcessCommandInput(editor_state, buffer_wrapper);
@@ -2255,6 +2270,7 @@ OpenBuffer::variable_language_keywords() {
     OpenBuffer::variable_margin_columns();
     OpenBuffer::variable_view_start_line();
     OpenBuffer::variable_view_start_column();
+    OpenBuffer::variable_progress();
   }
   return output;
 }
@@ -2314,6 +2330,18 @@ OpenBuffer::variable_language_keywords() {
       L"view_start_column",
       L"The desired column to show at the left-most part of the screen. This "
       L"is adjusted automatically as the cursor moves around in the buffer.",
+      0);
+  return variable;
+}
+
+/* static */ EdgeVariable<int>*
+    OpenBuffer::variable_progress() {
+  static EdgeVariable<int>* variable = IntStruct()->AddVariable(
+      L"progress",
+      L"Counter of the number of times this buffer has made progress. This is "
+      L"defined somewhat ambiguously, but roughly consists of new information "
+      L"being read into the buffer. This is used to display progress for the "
+      L"buffer.",
       0);
   return variable;
 }
