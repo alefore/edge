@@ -2,10 +2,17 @@ void JavaMode() {
   buffer.set_line_prefix_characters(" /*");
   buffer.set_line_width(100);
   buffer.set_language_keywords(
-      "class interface extends implements "
-      "public private protected "
+      "class interface extends implements this new "
+      "public private protected static "
       "final "
       "void "
+      // Flow control.
+      "switch case default "
+      "if else "
+      "for while do "
+      "return "
+      // Types
+      "double long int String Object "
       // Values
       "true false null");
   buffer.set_tree_parser("cpp");
