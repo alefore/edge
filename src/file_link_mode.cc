@@ -292,11 +292,20 @@ class FileBuffer : public OpenBuffer {
   static bool SaveContentsToFile(
       EditorState* editor_state,
       const wstring& path, const BufferContents& contents) {
-    string path_raw = ToByteString(path);
-    string tmp_path = path_raw + ".tmp";
+    const string path_raw = ToByteString(path);
+    const string tmp_path = path_raw + ".tmp";
+
+    struct stat original_stat;
+    if (stat(path_raw.c_str(), &original_stat) == -1) {
+      LOG(INFO) << "Unable to stat file (using default permissions): "
+                << path_raw;
+      original_stat.st_mode =
+          S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+    }
+
     // TODO: Make this non-blocking.
     int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC,
-                  S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+                  original_stat.st_mode);
     if (fd == -1) {
       editor_state->SetStatus(
           FromByteString(tmp_path) + L": open failed: "
