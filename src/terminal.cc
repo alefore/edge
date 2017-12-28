@@ -113,9 +113,18 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
 
     status += L"] ";
 
-    if (editor_state.ShouldDisplayProgress()) {
-      static const std::vector<wstring> chars = {L"◜ ", L" ◝", L" ◞", L"◟ "};
-      status += chars[editor_state.progress() % chars.size()] + L" ";
+    for (auto& it : *editor_state.buffers()) {
+      if (it.second->ShouldDisplayProgress()) {
+        static const std::vector<wstring> begin = {L"◜", L" ", L" ", L"◟"};
+        static const std::vector<wstring> end = {L" ", L"◝", L"◞", L" "};
+        int progress = it.second->Read(OpenBuffer::variable_progress()) % 4;
+        auto name = it.second->name();
+        if (name.size() > 2 && name[0] == L'$' && name[1] == L' ') {
+          name = name.substr(2, 1);
+        }
+        status += begin[progress] + (name.empty() ? L'…' : name[0])
+            + end[progress] + L" ";
+      }
     }
 
     auto marks_text = buffer->GetLineMarksText(editor_state);

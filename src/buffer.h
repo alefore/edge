@@ -78,6 +78,8 @@ class OpenBuffer {
   void MaybeFollowToEndOfFile();
 
   virtual bool ShouldDisplayProgress() const;
+  void RegisterProgress();
+
   void ReadData(EditorState* editor_state);
   void ReadErrorData(EditorState* editor_state);
 
@@ -358,6 +360,7 @@ class OpenBuffer {
   static EdgeVariable<int>* variable_margin_columns();
   static EdgeVariable<int>* variable_view_start_line();
   static EdgeVariable<int>* variable_view_start_column();
+  static EdgeVariable<int>* variable_progress();
 
   // No variables currently, but we'll likely add some later.
   static EdgeStruct<unique_ptr<Value>>* ValueStruct();
@@ -585,6 +588,11 @@ class OpenBuffer {
   mutable std::mutex thread_creation_mutex_;
   std::thread background_thread_;
   bool background_thread_shutting_down_ = false;
+
+  // The time when variable_progress was last incremented.
+  //
+  // TODO: Add a Time type to the VM and expose this?
+  struct timespec last_progress_update_ = {0, 0};
 };
 
 }  // namespace editor
