@@ -5,6 +5,7 @@
 #include <cctype>
 #include <iostream>
 
+#include "dirname.h"
 #include "line_marks.h"
 
 namespace afc {
@@ -97,6 +98,31 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   editor_state->set_visible_lines(static_cast<size_t>(screen_lines - 1));
 }
 
+// Adjust the name of a buffer to a string suitable to be shown in the Status
+// with progress indicators surrounding it.
+//
+// Empty strings -> "…"
+// "$ xyz" -> "xyz"
+// "$ abc/def/ghi" -> "ghi"
+//
+// The thinking is to return at most a single-character, and pick the most
+// meaningful.
+wstring TransformCommandNameForStatus(wstring name) {
+  size_t index = 0;
+  if (name.size() > 2 && name[0] == L'$' && name[1] == L' ') {
+    index = 2;
+  }
+
+  index = name.find_first_not_of(L' ', index);  // Skip spaces.
+  if (index == string::npos) {
+    static const wchar_t* const kDefaultName = L"…";
+    return kDefaultName;
+  }
+  size_t end = name.find_first_of(L' ', index);
+  return Basename(
+      name.substr(index, end == string::npos ? string::npos : end - index));
+}
+
 void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
   wstring status;
   if (editor_state.has_current_buffer() && !editor_state.is_status_warning()) {
@@ -119,10 +145,7 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
         static const std::vector<wstring> end = {L" ", L"◝", L"◞", L" "};
         int progress = it.second->Read(OpenBuffer::variable_progress()) % 4;
         auto name = it.second->name();
-        if (name.size() > 2 && name[0] == L'$' && name[1] == L' ') {
-          name = name.substr(2, 1);
-        }
-        status += begin[progress] + (name.empty() ? L'…' : name[0])
+        status += begin[progress] + TransformCommandNameForStatus(name)
             + end[progress] + L" ";
       }
     }
