@@ -108,6 +108,9 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
 // The thinking is to return at most a single-character, and pick the most
 // meaningful.
 wstring TransformCommandNameForStatus(wstring name) {
+  static const wstring kDefaultName = L"…";
+  static const size_t kMaxLength = 5;
+
   size_t index = 0;
   if (name.size() > 2 && name[0] == L'$' && name[1] == L' ') {
     index = 2;
@@ -115,12 +118,16 @@ wstring TransformCommandNameForStatus(wstring name) {
 
   index = name.find_first_not_of(L' ', index);  // Skip spaces.
   if (index == string::npos) {
-    static const wchar_t* const kDefaultName = L"…";
     return kDefaultName;
   }
   size_t end = name.find_first_of(L' ', index);
-  return Basename(
+  wstring output = Basename(
       name.substr(index, end == string::npos ? string::npos : end - index));
+
+  if (output.size() > kMaxLength) {
+    output = output.substr(0, kMaxLength - kDefaultName.size()) + kDefaultName;
+  }
+  return output;
 }
 
 void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
