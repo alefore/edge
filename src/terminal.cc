@@ -148,12 +148,26 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
 
     for (auto& it : *editor_state.buffers()) {
       if (it.second->ShouldDisplayProgress()) {
-        static const std::vector<wstring> begin = {L"◜", L" ", L" ", L"◟"};
-        static const std::vector<wstring> end = {L" ", L"◝", L"◞", L" "};
-        int progress = it.second->Read(OpenBuffer::variable_progress()) % 4;
-        auto name = it.second->name();
-        status += begin[progress] + TransformCommandNameForStatus(name)
-            + end[progress] + L" ";
+        auto name = TransformCommandNameForStatus(it.second->name());
+        size_t progress = it.second->Read(OpenBuffer::variable_progress())
+            % (4 + 2 * name.size());
+        if (progress == 0 || progress == 1) {
+          static const std::vector<wstring> begin = {L"◟", L"◜"};
+          status += begin[progress] + name + L" ";
+        } else if (progress < 2 + name.size()) {
+          int split = progress - 2;
+          status += L" "
+              + name.substr(0, split + 1) + L"̅" + name.substr(split + 1)
+              + L" ";
+        } else if (progress < 2 + name.size() + 2) {
+          static const std::vector<wstring> end = {L"◝", L"◞"};
+          status += L" " + name + end[progress - 2 - name.size()];
+        } else {
+          int split = name.size() - (progress - 2 - name.size() - 2) - 1;
+          status += L" "
+              + name.substr(0, split + 1) + L"̲" + name.substr(split + 1)
+              + L" ";
+        }
       }
     }
 
