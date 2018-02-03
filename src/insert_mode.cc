@@ -140,6 +140,21 @@ class AutocompleteMode : public EditorMode {
                 ->Substring(options_.column_start, word_length_)) {}
 
   void DrawCurrentMatch(EditorState* editor_state) {
+    wstring status;
+    const size_t kPrefixLength = 3;
+    size_t start = matches_current_ > options_.matches_start + kPrefixLength
+                       ? matches_current_ - kPrefixLength
+                       : options_.matches_start;
+    for (size_t i = 0; i < 10 && start + i < options_.dictionary->lines_size();
+         i++) {
+      bool is_current = start + i == matches_current_;
+      status += wstring(status.empty() ? L"" : L" ")
+          + wstring(is_current ? L"[" : L"")
+          + options_.dictionary->LineAt(start + i)->ToString()
+          + wstring(is_current ? L"]" : L"");
+    }
+    editor_state->SetStatus(status);
+
     ReplaceCurrentText(editor_state,
         options_.dictionary->LineAt(matches_current_)->contents());
   }
