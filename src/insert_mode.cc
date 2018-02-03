@@ -445,6 +445,12 @@ bool StartCompletion(EditorState* editor_state,
   auto root = buffer->parse_tree();
   RegisterLeaves(*buffer, *buffer->current_tree(root.get()), &words);
   LOG(INFO) << "Leaves found: " << words.size();
+
+  std::wistringstream keywords(
+      buffer->read_string_variable(OpenBuffer::variable_language_keywords()));
+  words.insert(std::istream_iterator<wstring, wchar_t>(keywords),
+               std::istream_iterator<wstring, wchar_t>());
+
   if (words.empty()) {
     return false;
   }
