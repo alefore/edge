@@ -148,8 +148,13 @@ class AutocompleteMode : public EditorMode {
     for (size_t i = 0; i < 10 && start + i < options_.dictionary->lines_size();
          i++) {
       bool is_current = start + i == matches_current_;
+      wstring number_prefix;
+      if (start + i > matches_current_) {
+        number_prefix = std::to_wstring(start + i - matches_current_) + L":";
+      }
       status += wstring(status.empty() ? L"" : L" ")
           + wstring(is_current ? L"[" : L"")
+          + number_prefix
           + options_.dictionary->LineAt(start + i)->ToString()
           + wstring(is_current ? L"]" : L"");
     }
@@ -180,6 +185,21 @@ class AutocompleteMode : public EditorMode {
           matches_current_ = options_.dictionary->lines_size() - 1;
         } else {
           matches_current_--;
+        }
+        break;
+
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+      case '6':
+      case '7':
+      case '8':
+      case '9':
+        matches_current_ += c - '0';
+        if (matches_current_ >= options_.dictionary->lines_size()) {
+          matches_current_ = options_.matches_start;
         }
         break;
 
