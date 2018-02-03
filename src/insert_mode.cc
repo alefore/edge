@@ -392,7 +392,6 @@ void FindCompletion(EditorState* editor_state,
       new AutocompleteMode(std::move(options)));
   autocomplete_mode->DrawCurrentMatch(editor_state);
   editor_state->set_mode(std::move(autocomplete_mode));
-  editor_state->ProcessInput('\t');
 }
 
 void StartCompletionFromDictionary(
