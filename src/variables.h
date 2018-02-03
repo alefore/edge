@@ -192,6 +192,10 @@ class EdgeStruct<unique_ptr<T>> {
     }
   }
 
+  const map<wstring, unique_ptr<EdgeVariable<T>>>& variables() const {
+    return variables_;
+  }
+
  private:
   map<wstring, unique_ptr<EdgeVariable<unique_ptr<T>>>> variables_;
 };
