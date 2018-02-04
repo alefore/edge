@@ -284,6 +284,8 @@ class FileBuffer : public OpenBuffer {
       CHECK(it.second != nullptr);
       if (it.second->read_bool_variable(
               OpenBuffer::variable_reload_on_buffer_write())) {
+        LOG(INFO) << "Write of " << path << " triggers reload: "
+                  << it.second->name();
         it.second->Reload(editor_state);
       }
     }
