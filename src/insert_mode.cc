@@ -134,21 +134,100 @@ class AutocompleteMode : public EditorMode {
   AutocompleteMode(Options options)
       : options_(std::move(options)),
         matches_current_(options_.matches_start),
-        word_length_(options_.column_end - options_.column_start) {}
+        word_length_(options_.column_end - options_.column_start),
+        original_text_(
+            options_.buffer->LineAt(options_.buffer->position().line)
+                ->Substring(options_.column_start, word_length_)) {}
+
+  void DrawCurrentMatch(EditorState* editor_state) {
+    wstring status;
+    const size_t kPrefixLength = 3;
+    size_t start = matches_current_ > options_.matches_start + kPrefixLength
+                       ? matches_current_ - kPrefixLength
+                       : options_.matches_start;
+    for (size_t i = 0; i < 10 && start + i < options_.dictionary->lines_size();
+         i++) {
+      bool is_current = start + i == matches_current_;
+      wstring number_prefix;
+      if (start + i > matches_current_) {
+        number_prefix = std::to_wstring(start + i - matches_current_) + L":";
+      }
+      status += wstring(status.empty() ? L"" : L" ")
+          + wstring(is_current ? L"[" : L"")
+          + number_prefix
+          + options_.dictionary->LineAt(start + i)->ToString()
+          + wstring(is_current ? L"]" : L"");
+    }
+    editor_state->SetStatus(status);
+
+    ReplaceCurrentText(editor_state,
+        options_.dictionary->LineAt(matches_current_)->contents());
+  }
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
-    if (c != '\t') {
-      editor_state->set_mode(std::move(options_.delegate));
-      editor_state->ProcessInput(c);
-      return;
+    switch (c) {
+      case '\t':
+      case 'j':
+      case 'l':
+      case Terminal::DOWN_ARROW:
+      case Terminal::RIGHT_ARROW:
+        matches_current_++;
+        if (matches_current_ == options_.dictionary->lines_size()) {
+          matches_current_ = options_.matches_start;
+        }
+        break;
+
+      case 'k':
+      case 'h':
+      case Terminal::UP_ARROW:
+      case Terminal::LEFT_ARROW:
+        if (matches_current_ <= options_.matches_start) {
+          matches_current_ = options_.dictionary->lines_size() - 1;
+        } else {
+          matches_current_--;
+        }
+        break;
+
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+      case '6':
+      case '7':
+      case '8':
+      case '9':
+        matches_current_ += c - '0';
+        if (matches_current_ >= options_.dictionary->lines_size()) {
+          matches_current_ = options_.matches_start;
+        }
+        break;
+
+      case Terminal::ESCAPE:
+        CHECK(original_text_ != nullptr);
+        LOG(INFO) << "Inserting original text: " << original_text_->ToString();
+        ReplaceCurrentText(editor_state, original_text_);
+        // Pass through.
+
+      default:
+        editor_state->set_mode(std::move(options_.delegate));
+        editor_state->ResetStatus();
+        editor_state->ProcessInput(c);
+        return;
     }
 
-    auto match = options_.dictionary->LineAt(matches_current_);
+    DrawCurrentMatch(editor_state);
+    LOG(INFO) << "Updating variables for next completion.";
+  }
+
+ private:
+  void ReplaceCurrentText(
+      EditorState* editor_state, std::shared_ptr<LazyString> insert) {
     auto buffer_to_insert =
         std::make_shared<OpenBuffer>(editor_state, L"tmp buffer");
-    buffer_to_insert->AppendToLastLine(editor_state, match->contents());
+    buffer_to_insert->AppendToLastLine(editor_state, insert);
     DLOG(INFO) << "Completion selected: " << buffer_to_insert->ToString()
-               << " (len: " << match->size() << ", word_length: "
+               << " (len: " << insert->size() << ", word_length: "
                << word_length_ << ").";
     DeleteOptions delete_options;
     delete_options.modifiers.repetitions = word_length_;
@@ -163,24 +242,21 @@ class AutocompleteMode : public EditorMode {
                 NewInsertBufferTransformation(buffer_to_insert, 1, END))));
 
     editor_state->ScheduleRedraw();
-
-    LOG(INFO) << "Updating variables for next completion.";
-    word_length_ = match->size();
-    ++matches_current_;
-    if (matches_current_ == options_.dictionary->lines_size()) {
-      matches_current_ = options_.matches_start;
-    }
+    word_length_ = insert->size();
   }
 
- private:
   Options options_;
   // The position of the line with the current match.
   size_t matches_current_;
+
   // The number of characters that need to be erased (starting at
   // options_.column_start) for the next insertion. Initially, this is computed
   // from options_.column_start and options_.column_end; however, after an
   // insertion, it gets updated with the length of the insertion.
   size_t word_length_;
+
+  // The original text (that the autocompletion is replacing).
+  const std::shared_ptr<LazyString> original_text_;
 };
 
 class JumpTransformation : public Transformation {
@@ -313,9 +389,10 @@ void FindCompletion(EditorState* editor_state,
     options.matches_start = 0;
   }
 
-  editor_state->set_mode(unique_ptr<AutocompleteMode>(
-      new AutocompleteMode(std::move(options))));
-  editor_state->ProcessInput('\t');
+  unique_ptr<AutocompleteMode> autocomplete_mode(
+      new AutocompleteMode(std::move(options)));
+  autocomplete_mode->DrawCurrentMatch(editor_state);
+  editor_state->set_mode(std::move(autocomplete_mode));
 }
 
 void StartCompletionFromDictionary(
@@ -369,6 +446,12 @@ bool StartCompletion(EditorState* editor_state,
   auto root = buffer->parse_tree();
   RegisterLeaves(*buffer, *buffer->current_tree(root.get()), &words);
   LOG(INFO) << "Leaves found: " << words.size();
+
+  std::wistringstream keywords(
+      buffer->read_string_variable(OpenBuffer::variable_language_keywords()));
+  words.insert(std::istream_iterator<wstring, wchar_t>(keywords),
+               std::istream_iterator<wstring, wchar_t>());
+
   if (words.empty()) {
     return false;
   }

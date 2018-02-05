@@ -199,6 +199,7 @@ class FileBuffer : public OpenBuffer {
     }
 
     set_bool_variable(variable_atomic_lines(), true);
+    set_bool_variable(variable_allow_dirty_delete(), true);
     target->AppendToLastLine(editor_state,
         NewCopyString(L"File listing: " + path));
 
@@ -252,6 +253,7 @@ class FileBuffer : public OpenBuffer {
         [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
           return *a->contents() < *b->contents();
         });
+    target->ClearModified();
     editor_state->CheckPosition();
     editor_state->PushCurrentPosition();
   }
@@ -282,6 +284,8 @@ class FileBuffer : public OpenBuffer {
       CHECK(it.second != nullptr);
       if (it.second->read_bool_variable(
               OpenBuffer::variable_reload_on_buffer_write())) {
+        LOG(INFO) << "Write of " << path << " triggers reload: "
+                  << it.second->name();
         it.second->Reload(editor_state);
       }
     }

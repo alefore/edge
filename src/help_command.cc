@@ -6,6 +6,7 @@
 
 #include "char_buffer.h"
 #include "editor.h"
+#include "lazy_string_append.h"
 
 namespace afc {
 namespace editor {
@@ -54,6 +55,19 @@ class HelpCommand : public Command {
         buffer->AppendLine(editor_state, std::move(NewCopyString(
           DescribeSequence(it.first) + L" - " + it.second->Description())));
       }
+
+      DescribeVariables(editor_state, L"bool", buffer.get(),
+                        OpenBuffer::BoolStruct(),
+                        [](const bool& value) {
+                          return value ? L"true" : L"false";
+                        });
+      DescribeVariables(editor_state, L"string", buffer.get(),
+                        OpenBuffer::StringStruct(),
+                        [](const std::wstring& value) { return value; });
+      DescribeVariables(editor_state, L"int", buffer.get(),
+                        OpenBuffer::IntStruct(),
+                        [](const int& value) { return std::to_wstring(value); });
+
       it.first->second = buffer;
     }
     it.first->second->set_current_position_line(0);
@@ -64,6 +78,26 @@ class HelpCommand : public Command {
   }
 
  private:
+  template <typename T, typename C>
+  void DescribeVariables(
+      EditorState* editor_state, wstring type_name, OpenBuffer* buffer,
+      EdgeStruct<T>* variables, /*std::function<std::wstring(const T&)>*/ C print) {
+    buffer->AppendEmptyLine(editor_state);
+    buffer->AppendLine(editor_state,
+                       NewCopyString(L"Variables (" + type_name + L"):"));
+    for (const auto& variable : variables->variables()) {
+      buffer->AppendLine(editor_state,
+                         NewCopyString(variable.second->name()));
+      buffer->AppendLine(
+          editor_state,
+          StringAppend(NewCopyString(L"    "),
+                       NewCopyString(variable.second->description())));
+      buffer->AppendLine(editor_state,
+          StringAppend(NewCopyString(L"    Default: "),
+                       NewCopyString(print(variable.second->default_value()))));
+    }
+  }
+
   const map<vector<wint_t>, Command*> commands_;
   const wstring mode_description_;
 };
