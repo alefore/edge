@@ -161,12 +161,22 @@ class Paste : public Command {
       return;
     }
     auto buffer = editor_state->current_buffer()->second;
-    buffer->CheckPosition();
-    buffer->MaybeAdjustPositionCol();
-    editor_state->ApplyToCurrentBuffer(NewInsertBufferTransformation(
-        it->second, editor_state->repetitions(), END));
+    if (buffer->fd() != -1) {
+      string text = ToByteString(it->second->ToString());
+      for (size_t i = 0; i < editor_state->repetitions(); i++) {
+        if (write(buffer->fd(), text.c_str(), text.size()) == -1) {
+          editor_state->SetStatus(L"Unable to paste.");
+          break;
+        }
+      }
+    } else {
+      buffer->CheckPosition();
+      buffer->MaybeAdjustPositionCol();
+      editor_state->ApplyToCurrentBuffer(NewInsertBufferTransformation(
+          it->second, editor_state->repetitions(), END));
+      editor_state->ResetInsertionModifier();
+    }
     editor_state->ResetRepetitions();
-    editor_state->ResetInsertionModifier();
     editor_state->ScheduleRedraw();
   }
 };
