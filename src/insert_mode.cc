@@ -212,7 +212,9 @@ class AutocompleteMode : public EditorMode {
       default:
         editor_state->set_mode(std::move(options_.delegate));
         editor_state->ResetStatus();
-        editor_state->ProcessInput(c);
+        if (c != '\n') {
+          editor_state->ProcessInput(c);
+        }
         return;
     }
 
