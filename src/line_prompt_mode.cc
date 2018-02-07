@@ -119,17 +119,18 @@ class HistoryScrollBehavior : public ScrollBehavior {
     auto insert =
         std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
 
-    auto history = GetHistoryBuffer(editor_state, history_file_)->second;
-    if (history != nullptr && history->contents()->size() > 1) {
-      LineColumn position = history->position();
+    auto history = GetHistoryBuffer(editor_state, history_file_);
+    if (history->second != nullptr && history->second->contents()->size() > 1) {
+      editor_state->set_current_buffer(history);
+      LineColumn position = history->second->position();
       position.line += delta;
-      if (position.line <= history->contents()->size() &&
+      if (position.line <= history->second->contents()->size() &&
           position.line > 0) {
-        history->set_position(position);
+        history->second->set_position(position);
       }
-      if (history->current_line() != nullptr) {
+      if (history->second->current_line() != nullptr) {
         insert->AppendToLastLine(
-            editor_state, history->current_line()->contents());
+            editor_state, history->second->current_line()->contents());
       }
     }
 
@@ -223,16 +224,20 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
   insert_mode_options.editor_state = editor_state;
   insert_mode_options.buffer = buffer;
 
-  insert_mode_options.modify_listener = [editor_state, buffer, options]() {
-    UpdateStatus(editor_state, buffer.get(), options.prompt);
-  };
+  auto original_buffer = editor_state->current_buffer();
+  insert_mode_options.modify_listener =
+      [editor_state, original_buffer, buffer, options]() {
+        editor_state->set_current_buffer(original_buffer);
+        UpdateStatus(editor_state, buffer.get(), options.prompt);
+      };
 
   insert_mode_options.scroll_behavior = std::make_shared<HistoryScrollBehavior>(
       options.history_file, options.prompt);
 
   insert_mode_options.escape_handler =
-      [editor_state, options, original_modifiers]() {
+      [editor_state, options, original_buffer, original_modifiers]() {
         LOG(INFO) << "Running escape_handler from Prompt.";
+        editor_state->set_current_buffer(original_buffer);
         editor_state->set_modifiers(original_modifiers);
         editor_state->set_status_prompt(false);
         if (options.cancel_handler) {
@@ -245,7 +250,8 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
       };
 
   insert_mode_options.new_line_handler =
-      [editor_state, options, buffer, original_modifiers]() {
+      [editor_state, options, buffer, original_buffer, original_modifiers]() {
+        editor_state->set_current_buffer(original_buffer);
         auto input = buffer->current_line()->contents();
         if (input->size() != 0) {
           auto history =
