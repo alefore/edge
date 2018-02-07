@@ -55,6 +55,8 @@ GetHistoryBuffer(EditorState* editor_state, const wstring& name) {
       OpenBuffer::variable_save_on_close(), true);
   it->second->set_bool_variable(
       OpenBuffer::variable_show_in_buffers_list(), false);
+  it->second->set_bool_variable(
+      OpenBuffer::variable_atomic_lines(), true);
   if (!editor_state->has_current_buffer()) {
     // Seems lame, but what can we do?
     editor_state->set_current_buffer(it);
