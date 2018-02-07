@@ -115,14 +115,13 @@ void Predict(
     Predictor predictor,
     wstring input,
     function<void(const wstring&)> consumer) {
-  auto it = editor_state->buffers()
-      ->insert(make_pair(PredictionsBufferName(), nullptr));
-  it.first->second = std::make_shared<PredictionsBufferImpl>(
+  auto& predictions_buffer =
+      (*editor_state->buffers())[PredictionsBufferName()];
+  predictions_buffer = std::make_shared<PredictionsBufferImpl>(
       editor_state, std::move(predictor), std::move(input),
       std::move(consumer));
-  it.first->second->Reload(editor_state);
-  it.first->second->set_current_position_line(0);
-  it.first->second->set_current_position_col(0);
+  predictions_buffer->Reload(editor_state);
+  predictions_buffer->set_current_cursor(LineColumn());
 }
 
 void FilePredictor(EditorState* editor_state,
