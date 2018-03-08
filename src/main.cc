@@ -279,7 +279,7 @@ int main(int argc, const char** argv) {
     SendCommandsToParent(self_fd, commands_to_run);
   }
 
-  std::mbstate_t mbstate;
+  std::mbstate_t mbstate = std::mbstate_t();
   Terminal terminal;
   if (!args.server) {
     default_interrupt_handler = signal(SIGINT, &SignalHandler);

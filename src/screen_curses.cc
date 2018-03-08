@@ -131,6 +131,7 @@ wint_t ReadChar(std::mbstate_t* mbstate) {
     }
     wchar_t output;
     char input[1] = { static_cast<char>(c) };
+    CHECK(mbstate != nullptr);
     switch (mbrtowc(&output, input, 1, mbstate)) {
       case 1:
         VLOG(4) << "Finished reading wide character: " << output;
