@@ -1,5 +1,7 @@
 #include "goto_command.h"
 
+#include <cmath>
+
 #include "buffer.h"
 #include "command.h"
 #include "editor.h"

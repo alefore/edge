@@ -337,8 +337,8 @@ TreeIterator<Item, IsConst>& TreeIterator<Item, IsConst>::operator+=(
   // Go up one level in each iteration until we know we can go down.
   while (node_ != nullptr
          && ((delta > 0)
-                  ? delta > Tree<Item>::Count(node_->right.get())
-                  : -delta > Tree<Item>::Count(node_->left.get()))) {
+                  ? static_cast<size_t>(delta) > Tree<Item>::Count(node_->right.get())
+                  : static_cast<size_t>(-delta) > Tree<Item>::Count(node_->left.get()))) {
     if (node_->parent == nullptr || node_->parent->left.get() == node_) {
       DVLOG(7) << "Going up through left branch";
       delta -= 1 + Tree<Item>::Count(node_->right.get());
