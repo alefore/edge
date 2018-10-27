@@ -1,6 +1,7 @@
 #ifndef __AFC_EDITOR_PREDICTOR_H__
 #define __AFC_EDITOR_PREDICTOR_H__
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
