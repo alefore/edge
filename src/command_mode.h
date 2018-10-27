@@ -1,6 +1,7 @@
 #ifndef __AFC_EDITOR_COMMAND_MODE_H__
 #define __AFC_EDITOR_COMMAND_MODE_H__
 
+#include <functional>
 #include <list>
 #include <memory>
 #include <string>
