@@ -1,6 +1,7 @@
 #ifndef __AFC_VM_NEGATE_EXPRESSION_H__
 #define __AFC_VM_NEGATE_EXPRESSION_H__
 
+#include <functional>
 #include <memory>
 
 namespace afc {
