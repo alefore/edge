@@ -24,6 +24,7 @@ struct Value {
   static unique_ptr<Value> NewVoid();
   static unique_ptr<Value> NewBool(bool value);
   static unique_ptr<Value> NewInteger(int value);
+  static unique_ptr<Value> NewDouble(double value);
   static unique_ptr<Value> NewString(wstring value);
   static unique_ptr<Value> NewObject(const wstring& name,
                                      const shared_ptr<void>& value);
@@ -32,6 +33,7 @@ struct Value {
 
   bool boolean;
   int integer;
+  double double_value;
   wstring str;
   function<unique_ptr<Value>(vector<unique_ptr<Value>>)> callback;
   shared_ptr<void> user_value;

@@ -266,12 +266,28 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
       case '7':
       case '8':
       case '9':
-        token = INTEGER;
-        input = new Value(VMType::VM_INTEGER);
-        input->integer = 0;
-        while (pos < str.size() && isdigit(str.at(pos))) {
-          input->integer = input->integer * 10 + str.at(pos) - '0';
-          pos++;
+        {
+          int decimal = 0;
+          while (pos < str.size() && isdigit(str.at(pos))) {
+            decimal = decimal * 10 + str.at(pos) - '0';
+            pos++;
+          }
+          if (pos < str.size() && str.at(pos) == '.') {
+            pos++;
+            double value = decimal;
+            double current_fraction = 1;
+            while (pos < str.size() && isdigit(str.at(pos))) {
+              current_fraction /= 10;
+              value += current_fraction * (str.at(pos) - '0');
+              pos++;
+            }
+            token = DOUBLE;
+            input = Value::NewDouble(value).release();
+            input->double_value = decimal;
+          } else {
+            token = INTEGER;
+            input = Value::NewInteger(decimal).release();
+          }
         }
         break;
 

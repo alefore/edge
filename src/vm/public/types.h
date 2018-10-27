@@ -23,6 +23,7 @@ struct VMType {
     VM_INTEGER,
     VM_STRING,
     VM_SYMBOL,
+    VM_DOUBLE,
     ENVIRONMENT,
     FUNCTION,
     OBJECT_TYPE,
@@ -35,6 +36,7 @@ struct VMType {
   static const VMType& Bool();
   static const VMType& Integer();
   static const VMType& String();
+  static const VMType& Double();
 
   static VMType ObjectType(ObjectType* type);
   static VMType ObjectType(const wstring& name);

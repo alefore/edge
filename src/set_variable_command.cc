@@ -105,6 +105,33 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
       return;
     }
   }
+  {
+    auto var = OpenBuffer::DoubleStruct()->find_variable(name);
+    if (var != nullptr) {
+      PromptOptions options;
+      options.prompt = name + L" := ",
+      options.history_file = L"values",
+      options.initial_value = std::to_wstring(buffer->Read(var));
+      options.handler =
+          [var, buffer](const wstring& input, EditorState* editor_state) {
+            std::wstringstream ss(input);
+            double value;
+            ss >> value;
+            if (ss.eof() && !ss.fail()) {
+              buffer->set_double_variable(var, value);
+            } else {
+              editor_state->SetStatus(
+                  L"Invalid value for double value “" + var->name() + L"”: " +
+                  input);
+            }
+            // ResetMode causes the prompt to be deleted, and the captures of
+            // this lambda go away with it.
+            editor_state->ResetMode();
+          };
+      Prompt(editor_state, std::move(options));
+      return;
+    }
+  }
   editor_state->SetStatus(L"Unknown variable: " + name);
 }
 

@@ -31,6 +31,11 @@ bool operator==(const VMType& lhs, const VMType& rhs) {
   return type;
 }
 
+/* static */ const VMType& VMType::Double() {
+  static VMType type(VMType::VM_DOUBLE);
+  return type;
+}
+
 /* static */ VMType VMType::ObjectType(afc::vm::ObjectType* type) {
   return ObjectType(type->type().object_type);
 }
@@ -48,6 +53,7 @@ wstring VMType::ToString() const {
     case VM_INTEGER: return L"int";
     case VM_STRING: return L"string";
     case VM_SYMBOL: return L"symbol";
+    case VM_DOUBLE: return L"double";
     case ENVIRONMENT: return L"environment";
     case FUNCTION:
       {

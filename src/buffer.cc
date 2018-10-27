@@ -49,6 +49,7 @@ using std::unordered_set;
 bool FromVmBool(const Value& value) { return value.boolean; }
 wstring FromVmString(const Value& value) { return value.str; }
 int FromVmInt(const Value& value) { return value.integer; }
+double FromVmDouble(const Value& value) { return value.double_value; }
 
 template <typename EdgeStruct, typename FieldValue>
 void RegisterBufferFields(
@@ -133,6 +134,11 @@ using std::to_wstring;
       editor_state, IntStruct(), buffer.get(),
       &OpenBuffer::Read, &OpenBuffer::set_int_variable,
       &Value::NewInteger, &FromVmInt);
+
+  RegisterBufferFields(
+      editor_state, DoubleStruct(), buffer.get(),
+      &OpenBuffer::Read, &OpenBuffer::set_double_variable,
+      &Value::NewDouble, &FromVmDouble);
 
   {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
@@ -414,6 +420,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       bool_variables_(BoolStruct()->NewInstance()),
       string_variables_(StringStruct()->NewInstance()),
       int_variables_(IntStruct()->NewInstance()),
+      double_variables_(DoubleStruct()->NewInstance()),
       environment_(editor_state->environment()),
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
@@ -2350,6 +2357,26 @@ OpenBuffer::variable_language_keywords() {
   return variable;
 }
 
+/* static */ EdgeStruct<double>* OpenBuffer::DoubleStruct() {
+  static EdgeStruct<double>* output = nullptr;
+  if (output == nullptr) {
+    output = new EdgeStruct<double>;
+    // Trigger registration of all fields.
+    OpenBuffer::variable_margin_lines_ratio();
+  }
+  return output;
+}
+
+/* static */ EdgeVariable<double>* OpenBuffer::variable_margin_lines_ratio() {
+  static EdgeVariable<double>* variable = DoubleStruct()->AddVariable(
+      L"margin_lines_ratio",
+      L"Ratio of the number of lines in the screen reserved to display context "
+      L"around the current position in the current buffer at the top/bottom of "
+      L"the screen. See also variable `margin_lines`.",
+      0.0);
+  return variable;
+}
+
 const bool& OpenBuffer::read_bool_variable(
     const EdgeVariable<bool>* variable) const {
   return bool_variables_.Get(variable);
@@ -2388,6 +2415,15 @@ const int& OpenBuffer::Read(const EdgeVariable<int>* variable) const {
 void OpenBuffer::set_int_variable(
     const EdgeVariable<int>* variable, int value) {
   int_variables_.Set(variable, value);
+}
+
+const double& OpenBuffer::Read(const EdgeVariable<double>* variable) const {
+  return double_variables_.Get(variable);
+}
+
+void OpenBuffer::set_double_variable(
+    const EdgeVariable<double>* variable, double value) {
+  double_variables_.Set(variable, value);
 }
 
 void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {

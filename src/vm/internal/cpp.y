@@ -655,6 +655,11 @@ expr(OUT) ::= INTEGER(I). {
   I = nullptr;
 }
 
+expr(OUT) ::= DOUBLE(I). {
+  OUT = NewConstantExpression(unique_ptr<Value>(I)).release();
+  I = nullptr;
+}
+
 %type string { Value* }
 %destructor string { delete $$; }
 

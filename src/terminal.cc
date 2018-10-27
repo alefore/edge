@@ -52,7 +52,11 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   }
   size_t line = min(buffer->position().line, buffer->contents()->size() - 1);
   size_t margin_lines =
-      max(buffer->Read(OpenBuffer::variable_margin_lines()), 0);
+      min(screen_lines / 2,
+          max(static_cast<int>(ceil(
+                  buffer->Read(buffer->variable_margin_lines_ratio()) *
+                  screen_lines)),
+              max(buffer->Read(buffer->variable_margin_lines()), 0)));
   margin_lines = min(margin_lines, static_cast<size_t>(screen_lines) / 2 - 1);
   size_t view_start = static_cast<size_t>(
       max(0, buffer->Read(OpenBuffer::variable_view_start_line())));

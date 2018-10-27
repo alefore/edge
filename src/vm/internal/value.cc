@@ -20,6 +20,12 @@ namespace vm {
   return std::move(output);
 }
 
+/* static */ unique_ptr<Value> Value::NewDouble(double value) {
+  unique_ptr<Value> output(new Value(VMType::Double()));
+  output->double_value = value;
+  return std::move(output);
+}
+
 /* static */ unique_ptr<Value> Value::NewString(wstring value) {
   unique_ptr<Value> output(new Value(VMType::String()));
   output->str = std::move(value);

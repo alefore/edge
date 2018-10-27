@@ -362,6 +362,9 @@ class OpenBuffer {
   static EdgeVariable<int>* variable_view_start_column();
   static EdgeVariable<int>* variable_progress();
 
+  static EdgeStruct<double>* DoubleStruct();
+  static EdgeVariable<double>* variable_margin_lines_ratio();
+
   // No variables currently, but we'll likely add some later.
   static EdgeStruct<unique_ptr<Value>>* ValueStruct();
 
@@ -376,6 +379,9 @@ class OpenBuffer {
 
   const int& Read(const EdgeVariable<int>* variable) const;
   void set_int_variable(const EdgeVariable<int>* variable, int value);
+
+  const double& Read(const EdgeVariable<double>* variable) const;
+  void set_double_variable(const EdgeVariable<double>* variable, double value);
 
   void ApplyToCursors(unique_ptr<Transformation> transformation);
   void ApplyToCursors(unique_ptr<Transformation> transformation,
@@ -496,6 +502,7 @@ class OpenBuffer {
   EdgeStructInstance<bool> bool_variables_;
   EdgeStructInstance<wstring> string_variables_;
   EdgeStructInstance<int> int_variables_;
+  EdgeStructInstance<double> double_variables_;
 
   // When a transformation is done, we append its result to
   // transformations_past_, so that it can be undone.
