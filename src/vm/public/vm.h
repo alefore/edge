@@ -3,6 +3,7 @@
 
 #include <map>
 #include <memory>
+#include <functional>
 #include <string>
 #include <utility>
 #include <vector>
