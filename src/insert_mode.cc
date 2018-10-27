@@ -747,6 +747,11 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
   options.editor_state->SetStatus(L"type");
   options.editor_state->set_mode(
       unique_ptr<EditorMode>(new InsertMode(options)));
+  if (options.buffer->active_cursors()->size() > 1 &&
+      options.buffer->read_bool_variable(
+          OpenBuffer::variable_multiple_cursors())) {
+    GenerateBeep(options.editor_state->audio_player(), 900);
+  }
 }
 
 }  // namespace

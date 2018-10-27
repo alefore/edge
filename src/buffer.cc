@@ -548,6 +548,13 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
   editor_state->ScheduleRedraw();
 
   child_pid_ = -1;
+
+  vector<std::function<void()>> observers;
+  observers.swap(end_of_file_observers_);
+  for (auto& observer : observers) {
+    observer();
+  }
+
   if (read_bool_variable(variable_reload_after_exit())) {
     set_bool_variable(variable_reload_after_exit(),
         read_bool_variable(variable_default_reload_after_exit()));
@@ -565,12 +572,6 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
   if (editor_state->has_current_buffer()
       && editor_state->current_buffer()->first == kBuffersName) {
     editor_state->current_buffer()->second->Reload(editor_state);
-  }
-
-  vector<std::function<void()>> observers;
-  observers.swap(end_of_file_observers_);
-  for (auto& observer : observers) {
-    observer();
   }
 }
 
@@ -825,6 +826,7 @@ void OpenBuffer::StartNewLine(EditorState* editor_state) {
 
 void OpenBuffer::Reload(EditorState* editor_state) {
   if (child_pid_ != -1) {
+    LOG(INFO) << "Sending SIGTERM.";
     kill(-child_pid_, SIGTERM);
     set_bool_variable(variable_reload_after_exit(), true);
     return;
@@ -847,6 +849,7 @@ void OpenBuffer::Reload(EditorState* editor_state) {
     desired_position_ = position();
   }
   ClearModified();
+  LOG(INFO) << "Starting reload: " << name_;
   ReloadInto(editor_state, this);
   CheckPosition();
 }
@@ -958,6 +961,7 @@ void OpenBuffer::ProcessCommandInput(
       }
       editor_state->SetStatus(
           status + L" " + (status.back() == L'♪' ? L"♫" : L"♪"));
+      GenerateBeep(editor_state->audio_player(), 900);
     } else if (c == '\r') {
       position_pts_.column = 0;
       MaybeFollowToEndOfFile();

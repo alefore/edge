@@ -372,7 +372,7 @@ std::pair<int, int> BuildPipe() {
   return {output[0], output[1]};
 }
 
-EditorState::EditorState()
+EditorState::EditorState(AudioPlayer* audio_player)
     : current_buffer_(buffers_.end()),
       home_directory_(GetHomeDirectory()),
       edge_path_(GetEdgeConfigPath(home_directory_)),
@@ -382,7 +382,8 @@ EditorState::EditorState()
       visible_lines_(1),
       status_prompt_(false),
       status_(L""),
-      pipe_to_communicate_internal_events_(BuildPipe()) {
+      pipe_to_communicate_internal_events_(BuildPipe()),
+      audio_player_(audio_player) {
   unique_ptr<ObjectType> line_column(new ObjectType(L"LineColumn"));
 
   // Methods for LineColumn.

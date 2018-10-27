@@ -8,6 +8,7 @@
 #include <ctime>
 #include <vector>
 
+#include "audio.h"
 #include "buffer.h"
 #include "editor_mode.h"
 #include "command_mode.h"
@@ -39,7 +40,7 @@ class EditorState {
     bool needs_hard_redraw = false;
   };
 
-  EditorState();
+  EditorState(AudioPlayer* audio_player);
   ~EditorState();
 
   void CheckPosition() {
@@ -238,6 +239,8 @@ class EditorState {
 
   void NotifyInternalEvent();
 
+  AudioPlayer* audio_player() const { return audio_player_; }
+
  private:
   Environment BuildEditorEnvironment();
 
@@ -285,6 +288,8 @@ class EditorState {
   // end, to detect the need to redraw the screen. Internally, background
   // threads write to the write end to trigger that.
   const std::pair<int, int> pipe_to_communicate_internal_events_;
+
+  AudioPlayer* const audio_player_;
 };
 
 }  // namespace editor

@@ -200,7 +200,12 @@ class CommandBuffer : public OpenBuffer {
         editor_state, pipefd_out[parent_fd], pipefd_err[parent_fd],
         read_bool_variable(variable_pts()), child_pid);
     editor_state->ScheduleRedraw();
-    AddEndOfFileObserver([this]() { time(&time_end_); });
+    AddEndOfFileObserver(
+        [this, editor_state]() {
+          LOG(INFO) << "End of file notification.";
+          GenerateBeep(editor_state->audio_player(), 440);
+          time(&time_end_);
+        });
   }
 
   wstring FlagsString() const override {

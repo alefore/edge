@@ -5,6 +5,7 @@
 
 #include <glog/logging.h>
 
+#include "audio.h"
 #include "editor.h"
 #include "tree.h"
 #include "terminal.h"
@@ -166,7 +167,8 @@ void TreeTestsBasic() {
 }
 
 void TestCases() {
-  EditorState editor_state;
+  auto audio_player = NewNullAudioPlayer();
+  EditorState editor_state(audio_player.get());
   assert(!editor_state.has_current_buffer());
 
   editor_state.ProcessInputString("i");

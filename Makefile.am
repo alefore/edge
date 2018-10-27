@@ -10,6 +10,8 @@ EXTRA_DIST = \
 src/vm/internal/cpp.y
 
 COMMON_SOURCES = \
+src/audio.cc \
+src/audio.h \
 src/buffer_contents.cc \
 src/buffer_contents.h \
 src/buffer.cc \

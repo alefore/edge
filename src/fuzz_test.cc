@@ -5,6 +5,7 @@
 
 #include <glog/logging.h>
 
+#include "audio.h"
 #include "editor.h"
 #include "tree.h"
 #include "terminal.h"
@@ -36,7 +37,8 @@ int main(int, char** argv) {
   LOG(INFO) << "Seed: " << seed;
   std::cout << "Seed: " << seed << std::endl;
   srand(seed);
-  EditorState editor_state;
+  auto audio_player = NewNullAudioPlayer();
+  EditorState editor_state(audio_player.get());
   editor_state.ProcessInputString("i");
   editor_state.ProcessInput(Terminal::ESCAPE);
   for (int i = 0; i < 1000 || getenv("EDGE_TEST_STDIN") != nullptr; i++) {

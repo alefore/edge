@@ -16,6 +16,7 @@ AC_PROG_MAKE_SET
 # Checks for libraries.
 AC_CHECK_LIB([ncursesw], [addwstr])
 AC_CHECK_LIB([pthread], [pthread_create])
+AC_CHECK_LIB([ao], [ao_play])
 
 # Checks for header files.
 AC_CHECK_HEADERS([fcntl.h limits.h stdlib.h string.h sys/ioctl.h sys/socket.h unistd.h ncursesw/curses.h])

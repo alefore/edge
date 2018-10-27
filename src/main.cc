@@ -18,6 +18,7 @@ extern "C" {
 
 #include "config.h"
 
+#include "audio.h"
 #include "editor.h"
 #include "lazy_string.h"
 #include "file_link_mode.h"
@@ -35,10 +36,10 @@ namespace {
 using namespace afc::editor;
 
 static const char* kEdgeParentAddress = "EDGE_PARENT_ADDRESS";
+static std::unique_ptr<EditorState> global_editor_state;
 
 EditorState* editor_state() {
-  static EditorState editor_state;
-  return &editor_state;
+  return global_editor_state.get();
 }
 
 void (*default_interrupt_handler)(int sig);
@@ -82,6 +83,8 @@ struct Args {
 
   // If non-empty, path of the server to connect to.
   string client = "";
+
+  bool mute = false;
 };
 
 static const char* kDefaultCommandsToRun = "ForkCommand(\"sh -l\", true);";
@@ -117,7 +120,7 @@ Args ParseArgs(int* argc, const char*** argv) {
       "  --run <vmcmd>          Runs a VM command\n"
       "  -s, --server <path>    Runs in daemon mode at path given\n"
       "  -c, --client <path>    Connects to daemon at path given\n"
-      "\nReport bugs to <alefore@gmail.com>\n";
+      "  --mute                 Disables audio output\n";
 
   Args output;
   auto pop_argument = [argc, argv, &output]() {
@@ -164,6 +167,8 @@ Args ParseArgs(int* argc, const char*** argv) {
              << std::endl;
         exit(1);
       }
+    } else if (cmd == "--mute") {
+      output.mute = true;
     } else {
       cerr << output.binary_name << ": Invalid flag: " << cmd << std::endl;
       exit(1);
@@ -223,6 +228,10 @@ int main(int argc, const char** argv) {
   LOG(INFO) << "Using locale: " << locale;
 
   Args args = ParseArgs(&argc, &argv);
+
+  auto audio_player = args.mute ? NewNullAudioPlayer() : NewAudioPlayer();
+  global_editor_state =
+      std::unique_ptr<EditorState>(new EditorState(audio_player.get()));
 
   int remote_server_fd = -1;
   if (!args.client.empty()) {
