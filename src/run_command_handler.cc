@@ -203,7 +203,14 @@ class CommandBuffer : public OpenBuffer {
     AddEndOfFileObserver(
         [this, editor_state]() {
           LOG(INFO) << "End of file notification.";
-          GenerateBeep(editor_state->audio_player(), 440);
+          int success = WIFEXITED(child_exit_status_) &&
+              WEXITSTATUS(child_exit_status_) == 0;
+          double frequency = Read(success
+                                      ? variable_beep_frequency_success()
+                                      : variable_beep_frequency_failure());
+          if (frequency > 0.0001) {
+            GenerateBeep(editor_state->audio_player(), frequency);
+          }
           time(&time_end_);
         });
   }

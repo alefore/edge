@@ -364,6 +364,8 @@ class OpenBuffer {
 
   static EdgeStruct<double>* DoubleStruct();
   static EdgeVariable<double>* variable_margin_lines_ratio();
+  static EdgeVariable<double>* variable_beep_frequency_success();
+  static EdgeVariable<double>* variable_beep_frequency_failure();
 
   // No variables currently, but we'll likely add some later.
   static EdgeStruct<unique_ptr<Value>>* ValueStruct();

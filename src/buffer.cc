@@ -2363,6 +2363,8 @@ OpenBuffer::variable_language_keywords() {
     output = new EdgeStruct<double>;
     // Trigger registration of all fields.
     OpenBuffer::variable_margin_lines_ratio();
+    OpenBuffer::variable_beep_frequency_success();
+    OpenBuffer::variable_beep_frequency_failure();
   }
   return output;
 }
@@ -2374,6 +2376,24 @@ OpenBuffer::variable_language_keywords() {
       L"around the current position in the current buffer at the top/bottom of "
       L"the screen. See also variable `margin_lines`.",
       0.0);
+  return variable;
+}
+
+/* static */ EdgeVariable<double>* OpenBuffer::variable_beep_frequency_success() {
+  static EdgeVariable<double>* variable = DoubleStruct()->AddVariable(
+      L"beep_frequency_success",
+      L"Frequency of the beep to play when a command buffer exits "
+      L"successfully. If 0, disables the beep.",
+      900.0);
+  return variable;
+}
+
+/* static */ EdgeVariable<double>* OpenBuffer::variable_beep_frequency_failure() {
+  static EdgeVariable<double>* variable = DoubleStruct()->AddVariable(
+      L"beep_frequency_failure",
+      L"Frequency of the beep to play when a command buffer exits with an "
+      L"error. If 0, disables the beep.",
+      440.0);
   return variable;
 }
 
