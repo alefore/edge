@@ -132,7 +132,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
       return;
     }
   }
-  editor_state->SetStatus(L"Unknown variable: " + name);
+  editor_state->SetWarningStatus(L"Unknown variable: " + name);
 }
 
 }  // namespace
