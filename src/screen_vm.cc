@@ -1,3 +1,5 @@
+#include "screen_vm.h"
+
 #include <memory>
 
 #include <glog/logging.h>
@@ -323,6 +325,38 @@ void RegisterScreenType(Environment* environment) {
           return Value::NewVoid();
         };
     screen_type->AddField(L"set_size", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    callback->type.type_arguments.push_back(
+        VMType::ObjectType(screen_type.get()));
+
+    callback->callback =
+        [](vector<unique_ptr<Value>> args) {
+          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+          auto screen = static_cast<ScreenVm*>(args[0]->user_value.get());
+          CHECK(screen != nullptr);
+          return Value::NewInteger(screen->columns());
+        };
+    screen_type->AddField(L"columns", std::move(callback));
+  }
+  {
+    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
+    callback->type.type_arguments.push_back(
+        VMType::ObjectType(screen_type.get()));
+
+    callback->callback =
+        [](vector<unique_ptr<Value>> args) {
+          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+          auto screen = static_cast<ScreenVm*>(args[0]->user_value.get());
+          CHECK(screen != nullptr);
+          return Value::NewInteger(screen->lines());
+        };
+    screen_type->AddField(L"lines", std::move(callback));
   }
   environment->DefineType(L"Screen", std::move(screen_type));
 }
