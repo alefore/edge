@@ -12,6 +12,7 @@ extern "C" {
 }
 #endif
 
+#include "audio.h"
 #include "char_buffer.h"
 #include "editor.h"
 #include "wstring.h"
@@ -154,6 +155,14 @@ vector<LineColumn> PerformSearchWithDirection(
     head.push_back(candidate);
   }
 
+  if (head.empty()) {
+    BeepFrequencies(editor_state->audio_player(),
+                    {523.25, 261.63, 261.63});
+  } else {
+    vector<double> frequencies = {261.63, 329.63, 392.0, 523.25, 659.25};
+    frequencies.resize(min(frequencies.size(), head.size() + 1));
+    BeepFrequencies(editor_state->audio_player(), frequencies);
+  }
   return head;
 }
 
