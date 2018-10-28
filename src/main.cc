@@ -256,16 +256,12 @@ int main(int argc, const char** argv) {
   }
 
   std::shared_ptr<Screen> screen_curses;
-  std::shared_ptr<Screen> screen;
   if (!args.server) {
     screen_curses = NewScreenCurses();
-    screen =
-        args.client.empty() ? screen_curses : screen_curses;
   }
-
   RegisterScreenType(editor_state()->environment());
   editor_state()->environment()->Define(
-      L"screen", afc::vm::Value::NewObject(L"Screen", screen));
+      L"screen", afc::vm::Value::NewObject(L"Screen", screen_curses));
 
   auto server_path = StartServer(args);
 
@@ -303,12 +299,13 @@ int main(int argc, const char** argv) {
   while (!editor_state()->terminate()) {
     editor_state()->UpdateBuffers();
     auto screen_state = editor_state()->FlushScreenState();
-    if (screen != nullptr) {
+    if (screen_curses != nullptr) {
       if (args.client.empty()) {
-        terminal.Display(editor_state(), screen.get(), screen_state);
+        terminal.Display(editor_state(), screen_curses.get(), screen_state);
       } else {
         screen_curses->Refresh();  // Don't want this to be buffered!
-        auto screen_size = std::make_pair(screen->columns(), screen->lines());
+        auto screen_size =
+            std::make_pair(screen_curses->columns(), screen_curses->lines());
         if (screen_size != last_screen_size) {
           LOG(INFO) << "Sending screen size update to server.";
           SendCommandsToParent(
@@ -331,7 +328,7 @@ int main(int argc, const char** argv) {
       if (buffer_screen == nullptr) {
         continue;
       }
-      if (buffer_screen == screen.get()) {
+      if (buffer_screen == screen_curses.get()) {
         continue;
       }
       LOG(INFO) << "Remote screen for buffer: " << buffer.first;
@@ -362,7 +359,7 @@ int main(int argc, const char** argv) {
       }
     }
 
-    if (screen != nullptr) {
+    if (screen_curses != nullptr) {
       fds[buffers.size()].fd = 0;
       fds[buffers.size()].events = POLLIN | POLLPRI;
       buffers.push_back(nullptr);
@@ -395,7 +392,7 @@ int main(int argc, const char** argv) {
         continue;
       }
       if (fds[i].fd == 0) {
-        CHECK(screen != nullptr);
+        CHECK(screen_curses != nullptr);
         wint_t c;
         while ((c = ReadChar(&mbstate)) != static_cast<wint_t>(-1)) {
           if (remote_server_fd == -1) {
