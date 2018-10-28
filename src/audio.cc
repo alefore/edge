@@ -43,6 +43,7 @@ class AudioPlayerImpl : public AudioPlayer {
   AudioPlayerImpl(ao_device* device, ao_sample_format format)
       : device_(device),
         format_(std::move(format)),
+        empty_frame_(NewFrame()),
         background_thread_([this]() { PlayAudio(); }) {}
 
   ~AudioPlayerImpl() override {
@@ -82,13 +83,18 @@ class AudioPlayerImpl : public AudioPlayer {
   }
 
  private:
-  void PlayAudio() {
-    while (PlayNextFrame(0.01)) { /* Pass. */ }
+  std::unique_ptr<Frame> NewFrame() {
+    return std::unique_ptr<Frame>(new Frame(
+        frame_length_ * format_.bits / 8 * format_.channels * format_.rate));
   }
 
-  bool PlayNextFrame(double length) {
-    Frame frame(length * format_.bits / 8 * format_.channels * format_.rate);
-    int iterations = length * format_.rate;
+  void PlayAudio() {
+    while (PlayNextFrame()) { /* Pass. */ }
+  }
+
+  bool PlayNextFrame() {
+    std::unique_ptr<Frame> new_frame;
+    int iterations = frame_length_ * format_.rate;
     double delta = 1.0 / format_.rate;
     {
       std::unique_lock<std::mutex> lock(mutex_);
@@ -96,37 +102,45 @@ class AudioPlayerImpl : public AudioPlayer {
         return false;
       }
       bool clean_up_needed = false;
-      for (int i = 0; i < iterations; i++, time_ += delta) {
-        for (auto& generator : generators_) {
-          if (generator != nullptr) {
-            int output = 0;
-            if (generator(time_, &output) == STOP) {
-              generator = nullptr;
-              clean_up_needed = true;
+      if (!generators_.empty()) {  // Optimization.
+        new_frame = NewFrame();
+        for (int i = 0; i < iterations; i++, time_ += delta) {
+          for (auto& generator : generators_) {
+            if (generator != nullptr) {
+              int output = 0;
+              if (generator(time_, &output) == STOP) {
+                generator = nullptr;
+                clean_up_needed = true;
+              }
+              new_frame->Add(i, output);
             }
-            frame.Add(i, output);
           }
         }
-      }
-      if (clean_up_needed) {
-        std::vector<Generator> next_generators;
-        for (auto& generator : generators_) {
-          if (generator != nullptr) {
-            next_generators.push_back(std::move(generator));
+        if (clean_up_needed) {
+          std::vector<Generator> next_generators;
+          for (auto& generator : generators_) {
+            if (generator != nullptr) {
+              next_generators.push_back(std::move(generator));
+            }
           }
+          generators_.swap(next_generators);
         }
-        generators_.swap(next_generators);
       }
     }
+    auto& frame = new_frame == nullptr ? *empty_frame_ : *new_frame;
     ao_play(device_, const_cast<char*>(frame.buffer()), frame.size());
     return true;
   }
 
+  const double frame_length_ = 0.01;
   ao_device* const device_;
   const ao_sample_format format_;
+  const std::unique_ptr<Frame> empty_frame_;
+
   std::vector<Generator> generators_;
   double time_ = 0.0;
   mutable std::mutex mutex_;
+
   bool shutting_down_ = false;
   std::thread background_thread_;
 };
