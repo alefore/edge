@@ -354,9 +354,7 @@ std::shared_ptr<bool> CursorsTracker::DelayTransformations() {
         new bool(),
         [this](bool *value) {
           delete value;
-          LOG(INFO) << "Transformations: " << transformations_.size();
           for (auto& t : transformations_) {
-            LOG(INFO) << "Applying transformation: " << t;
             ApplyTransformation(t.transformation);
           }
           transformations_.clear();
