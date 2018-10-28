@@ -968,7 +968,7 @@ void OpenBuffer::ProcessCommandInput(
       }
       editor_state->SetStatus(
           status + L" " + (status.back() == L'♪' ? L"♫" : L"♪"));
-      GenerateBeep(editor_state->audio_player(), 900);
+      GenerateBeep(editor_state->audio_player(), 880);
     } else if (c == '\r') {
       position_pts_.column = 0;
       MaybeFollowToEndOfFile();
@@ -2384,7 +2384,7 @@ OpenBuffer::variable_language_keywords() {
       L"beep_frequency_success",
       L"Frequency of the beep to play when a command buffer exits "
       L"successfully. If 0, disables the beep.",
-      900.0);
+      880.0);
   return variable;
 }
 
