@@ -84,16 +84,17 @@ class ListBuffersBuffer : public OpenBuffer {
               << ", screen_lines: " << screen_lines;
       size_t free_lines = screen_lines - sum_lines_to_show;
       size_t lines_per_buffer = free_lines / buffers_with_context;
-      size_t extra_line =
-          lines_per_buffer * buffers_with_context < free_lines ? 1 : 0;
-      CHECK_EQ(lines_per_buffer * buffers_with_context + extra_line,
-               free_lines);
+      size_t extra_lines = free_lines - lines_per_buffer * buffers_with_context;
       for (auto& it : lines_to_show) {
         if (it.second > 1) {
-          it.second += free_lines / buffers_with_context + extra_line;
-          extra_line = 0;
+          it.second += free_lines / buffers_with_context;
+          if (extra_lines > 0) {
+            it.second++;
+            extra_lines--;
+          }
         }
       }
+      CHECK_EQ(extra_lines, size_t(0));
     }
     for (const auto& buffer : buffers_to_show) {
       size_t context_lines_var = lines_to_show[buffer.get()] - 1;
