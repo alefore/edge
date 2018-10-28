@@ -7,6 +7,7 @@
 #include "insert_mode.h"
 #include "lazy_string_append.h"
 #include "line_prompt_mode.h"
+#include "screen.h"
 #include "send_end_of_file_command.h"
 #include "wstring.h"
 
@@ -32,6 +33,16 @@ class ListBuffersBuffer : public OpenBuffer {
     bool show_in_buffers_list =
         read_bool_variable(variable_show_in_buffers_list());
 
+    size_t screen_lines = 0;
+    auto screen_value = environment()->Lookup(L"screen");
+    if (screen_value != nullptr && screen_value->type == VMType::OBJECT_TYPE &&
+        screen_value->user_value != nullptr) {
+      auto screen = static_cast<Screen*>(screen_value->user_value.get());
+      const size_t reserved_lines = 1;  // For the status.
+      screen_lines = static_cast<size_t>(max(size_t(0),
+                                             screen->lines() - reserved_lines));
+    }
+
     vector<std::shared_ptr<OpenBuffer>> buffers_to_show;
     for (const auto& it : *editor_state->buffers()) {
       if (!show_in_buffers_list
@@ -52,12 +63,41 @@ class ListBuffersBuffer : public OpenBuffer {
             const std::shared_ptr<OpenBuffer>& b) {
            return a->last_visit() > b->last_visit();
          });
+
+    // How many context lines should we show for each buffer? Includes one line
+    // for the name of the buffer.
+    std::unordered_map<OpenBuffer*, size_t> lines_to_show;
+    size_t sum_lines_to_show = 0;
+    size_t buffers_with_context = 0;
     for (const auto& buffer : buffers_to_show) {
-      size_t context_lines_var = static_cast<size_t>(
+      size_t value = 1 + static_cast<size_t>(
           max(buffer->Read(OpenBuffer::variable_buffer_list_context_lines()),
               0));
+      lines_to_show[buffer.get()] = value;
+      sum_lines_to_show += value;
+      buffers_with_context += value > 1 ? 1 : 0;
+    }
+    if (screen_lines > sum_lines_to_show && buffers_with_context) {
+      VLOG(4) << "Expanding buffers with context to show the screen. "
+              << "buffers_with_context: " << buffers_with_context
+              << ", sum_lines_to_show: " << sum_lines_to_show
+              << ", screen_lines: " << screen_lines;
+      size_t free_lines = screen_lines - sum_lines_to_show;
+      size_t lines_per_buffer = free_lines / buffers_with_context;
+      size_t extra_line =
+          lines_per_buffer * buffers_with_context < free_lines ? 1 : 0;
+      CHECK_EQ(lines_per_buffer * buffers_with_context + extra_line,
+               free_lines);
+      for (auto& it : lines_to_show) {
+        if (it.second > 1) {
+          it.second += free_lines / buffers_with_context + extra_line;
+          extra_line = 0;
+        }
+      }
+    }
+    for (const auto& buffer : buffers_to_show) {
+      size_t context_lines_var = lines_to_show[buffer.get()] - 1;
       auto context = LinesToShow(*buffer, context_lines_var);
-
       std::shared_ptr<LazyString> name = NewCopyString(buffer->name());
       if (context.first != context.second) {
         name = StringAppend(NewCopyString(L"╭──"), name);
@@ -119,7 +159,7 @@ class ListBuffersBuffer : public OpenBuffer {
       --start;
     }
     CHECK_LE(start, stop);
-    return make_pair(start, stop);
+    return {start, stop};
   }
 
  private:
