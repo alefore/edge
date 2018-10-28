@@ -968,7 +968,7 @@ void OpenBuffer::ProcessCommandInput(
       }
       editor_state->SetStatus(
           status + L" " + (status.back() == L'♪' ? L"♫" : L"♪"));
-      GenerateBeep(editor_state->audio_player(), 880);
+      BeepFrequencies(editor_state->audio_player(), {783.99, 523.25, 659.25});
     } else if (c == '\r') {
       position_pts_.column = 0;
       MaybeFollowToEndOfFile();
