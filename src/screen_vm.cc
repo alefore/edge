@@ -336,7 +336,7 @@ void RegisterScreenType(Environment* environment) {
         [](vector<unique_ptr<Value>> args) {
           CHECK_EQ(args.size(), 1);
           CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-          auto screen = static_cast<ScreenVm*>(args[0]->user_value.get());
+          auto screen = static_cast<Screen*>(args[0]->user_value.get());
           CHECK(screen != nullptr);
           return Value::NewInteger(screen->columns());
         };
@@ -352,7 +352,7 @@ void RegisterScreenType(Environment* environment) {
         [](vector<unique_ptr<Value>> args) {
           CHECK_EQ(args.size(), 1);
           CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-          auto screen = static_cast<ScreenVm*>(args[0]->user_value.get());
+          auto screen = static_cast<Screen*>(args[0]->user_value.get());
           CHECK(screen != nullptr);
           return Value::NewInteger(screen->lines());
         };
