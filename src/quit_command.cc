@@ -17,7 +17,7 @@ class QuitCommand : public Command {
   void ProcessInput(wint_t, EditorState* editor_state) {
     wstring error_description;
     if (!editor_state->AttemptTermination(&error_description)) {
-      editor_state->SetStatus(error_description);
+      editor_state->SetWarningStatus(error_description);
       editor_state->ResetMode();
     }
   }

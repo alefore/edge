@@ -16,6 +16,7 @@ extern "C" {
 
 #include <glog/logging.h>
 
+#include "audio.h"
 #include "char_buffer.h"
 #include "dirname.h"
 #include "editor.h"
@@ -453,7 +454,7 @@ EditorState::~EditorState() {
 bool EditorState::CloseBuffer(
     map<wstring, shared_ptr<OpenBuffer>>::iterator buffer) {
   if (!buffer->second->PrepareToClose(this)) {
-    SetStatus(L"Dirty buffers (“Sad” to ignore): " + buffer->first);
+    SetWarningStatus(L"Dirty buffers (“Sad” to ignore): " + buffer->first);
     return false;
   }
   ScheduleRedraw();
@@ -632,6 +633,7 @@ void EditorState::SetStatus(const wstring& status) {
 void EditorState::SetWarningStatus(const wstring& status) {
   SetStatus(status);
   is_status_warning_ = true;
+  GenerateAlert(audio_player_);
 }
 
 bool EditorState::HasPositionsInStack() {
