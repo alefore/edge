@@ -750,7 +750,7 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
   if (options.buffer->active_cursors()->size() > 1 &&
       options.buffer->read_bool_variable(
           OpenBuffer::variable_multiple_cursors())) {
-    GenerateBeep(options.editor_state->audio_player(), 880);
+    BeepFrequencies(options.editor_state->audio_player(), {659.25, 1046.50});
   }
 }
 
