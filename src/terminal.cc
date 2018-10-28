@@ -695,6 +695,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
 
   auto root = buffer->parse_tree();
   auto current_tree = buffer->current_tree(root.get());
+  std::unordered_set<OpenBuffer*> buffers_shown;
   while (lines_shown < lines_to_show) {
     if (current_line >= buffer->lines_size()) {
       line_output_receiver->AddString(L"\n");
@@ -764,7 +765,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     }
 
     line->Output(editor_state, buffer, current_line, receiver,
-                 screen->columns());
+                 screen->columns(), &buffers_shown);
     // Need to do this for atomic lines, since they override the Reset modifier
     // with Reset + Reverse.
     line_output_receiver->AddModifier(LineModifier::RESET);

@@ -198,7 +198,8 @@ void Line::Output(const EditorState* editor_state,
                   const shared_ptr<OpenBuffer>& buffer,
                   size_t line,
                   OutputReceiverInterface* receiver,
-                  size_t width) const {
+                  size_t width,
+                  std::unordered_set<OpenBuffer*>* buffers_shown) const {
   std::unique_lock<std::mutex> lock(mutex_);
   VLOG(5) << "Producing output of line: " << ToString();
   size_t output_column = 0;
@@ -273,7 +274,9 @@ void Line::Output(const EditorState* editor_state,
     wstring additional_information;
 
     if (target_buffer != buffer) {
-      additional_information = target_buffer->FlagsString();
+      if (buffers_shown->insert(target_buffer.get()).second) {
+        additional_information = target_buffer->FlagsString();
+      }
     } else if (marks.first != marks.second) {
       receiver->AddModifier(LineModifier::RED);
       info_char = '!';

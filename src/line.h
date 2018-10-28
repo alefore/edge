@@ -129,7 +129,8 @@ class Line {
               const shared_ptr<OpenBuffer>& buffer,
               size_t line,
               OutputReceiverInterface* receiver,
-              size_t width) const;
+              size_t width,
+              std::unordered_set<OpenBuffer*>* buffers_shown) const;
 
  private:
   mutable std::mutex mutex_;
