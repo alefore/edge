@@ -243,11 +243,22 @@ void Line::Output(const EditorState* editor_state,
     input_column++;
   }
 
-  size_t line_width = buffer->Read(OpenBuffer::variable_line_width());
+  CHECK(environment_ != nullptr);
+  auto target_buffer_value = environment_->Lookup(L"buffer");
+  const auto target_buffer =
+      (target_buffer_value != nullptr
+       && target_buffer_value->type.type == VMType::OBJECT_TYPE
+       && target_buffer_value->type.object_type == L"Buffer"
+       && target_buffer_value->user_value != nullptr)
+          ? std::static_pointer_cast<OpenBuffer>(
+                target_buffer_value->user_value)
+          : buffer;
+  size_t line_width = target_buffer->Read(OpenBuffer::variable_line_width());
 
   auto view_start = static_cast<size_t>(
       max(0, buffer->Read(OpenBuffer::variable_view_start_column())));
-  if (!buffer->read_bool_variable(OpenBuffer::variable_paste_mode())
+  if ((!target_buffer->read_bool_variable(OpenBuffer::variable_paste_mode())
+       || target_buffer != buffer)
       && line_width != 0
       && view_start < line_width
       && output_column <= line_width - view_start
@@ -261,14 +272,8 @@ void Line::Output(const EditorState* editor_state,
     wchar_t info_char = L'•';
     wstring additional_information;
 
-    CHECK(environment_ != nullptr);
-    auto target_buffer = environment_->Lookup(L"buffer");
-    if (target_buffer != nullptr
-        && target_buffer->type.type == VMType::OBJECT_TYPE
-        && target_buffer->type.object_type == L"Buffer") {
-      additional_information =
-          std::static_pointer_cast<OpenBuffer>(target_buffer->user_value)
-              ->FlagsString();
+    if (target_buffer != buffer) {
+      additional_information = target_buffer->FlagsString();
     } else if (marks.first != marks.second) {
       receiver->AddModifier(LineModifier::RED);
       info_char = '!';
