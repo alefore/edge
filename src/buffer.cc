@@ -1248,7 +1248,7 @@ unique_ptr<Value> OpenBuffer::EvaluateString(EditorState* editor_state,
   unique_ptr<Expression> expression =
       CompileString(editor_state, code, &error_description);
   if (expression == nullptr) {
-    editor_state->SetStatus(L"Compilation error: " + error_description);
+    editor_state->SetWarningStatus(L"Compilation error: " + error_description);
     return nullptr;
   }
   LOG(INFO) << "Code compiled, evaluating.";

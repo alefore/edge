@@ -135,7 +135,7 @@ class Paste : public Command {
           L"",
       };
       static int current_message = 0;
-      editor_state->SetStatus(errors[current_message++]);
+      editor_state->SetWarningStatus(errors[current_message++]);
       if (errors[current_message].empty()) {
         current_message = 0;
       }
@@ -154,7 +154,7 @@ class Paste : public Command {
           L"",
       };
       static int current_message = 0;
-      editor_state->SetStatus(errors[current_message++]);
+      editor_state->SetWarningStatus(errors[current_message++]);
       if (errors[current_message].empty()) {
         current_message = 0;
       }
@@ -165,7 +165,7 @@ class Paste : public Command {
       string text = ToByteString(it->second->ToString());
       for (size_t i = 0; i < editor_state->repetitions(); i++) {
         if (write(buffer->fd(), text.c_str(), text.size()) == -1) {
-          editor_state->SetStatus(L"Unable to paste.");
+          editor_state->SetWarningStatus(L"Unable to paste.");
           break;
         }
       }
@@ -774,7 +774,7 @@ void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
   if (!editor_state->has_current_buffer()) { return; }
   wstring adjusted_input;
   if (!ResolvePath(editor_state, input, &adjusted_input, nullptr, nullptr)) {
-    editor_state->SetStatus(L"File not found: " + input);
+    editor_state->SetWarningStatus(L"File not found: " + input);
     return;
   }
 
