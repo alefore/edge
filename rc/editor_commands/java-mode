@@ -12,7 +12,7 @@ void JavaMode() {
       "for while do "
       "return "
       // Types
-      "double long int String Object "
+      "double long int String Object Integer Boolean Double "
       // Values
       "true false null");
   buffer.set_tree_parser("cpp");
