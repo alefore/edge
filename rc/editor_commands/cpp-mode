@@ -13,7 +13,7 @@ void CppMode() {
       "for while do "
       "return "
       // Types
-      "void const auto "
+      "void const mutable auto "
       "unique_ptr shared_ptr "
       "std function vector list "
       "map unordered_map set unordered_set "
