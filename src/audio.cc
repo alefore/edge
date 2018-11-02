@@ -209,7 +209,7 @@ void GenerateBeep(AudioPlayer* audio_player, double frequency) {
   auto lock = audio_player->lock();
   double start = lock->time();
   double duration = 0.1;
-  lock->Add(Volume(SmoothVolume(0.1, start, start + duration, 0.01),
+  lock->Add(Volume(SmoothVolume(0.3, start, start + duration, 0.01),
                    Expiration(start + duration, Frequency(frequency))));
 }
 
@@ -218,7 +218,7 @@ void BeepFrequencies(AudioPlayer* audio_player,
   auto lock = audio_player->lock();
   for (size_t i = 0; i < frequencies.size(); i++) {
     double start = lock->time() + i * 0.1;
-    lock->Add(Volume(SmoothVolume(0.1, start, start + 0.03, 0.01),
+    lock->Add(Volume(SmoothVolume(0.3, start, start + 0.03, 0.01),
                      Expiration(start + 0.03, Frequency(frequencies[i]))));
   }
 }
