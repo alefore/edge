@@ -301,7 +301,7 @@ class CppTreeParser : public TreeParser {
 
   void CommentToEndOfLine(ParseData* result) {
     LineColumn original_position = result->position();
-    CHECK_GT(original_position.column, 0);
+    CHECK_GT(original_position.column, size_t(0));
     result->AdvancePositionUntilEndOfLine();
     result->PushAndPop(result->position().column - original_position.column + 1,
                        {LineModifier::BLUE});
