@@ -19,7 +19,6 @@
 #include "goto_command.h"
 #include "file_link_mode.h"
 #include "find_mode.h"
-#include "help_command.h"
 #include "insert_mode.h"
 #include "lazy_string_append.h"
 #include "line_prompt_mode.h"
@@ -899,10 +898,9 @@ namespace afc {
 namespace editor {
 
 namespace {
-template <typename T>
 void ToggleBoolVariable(
     EditorState* editor_state, wstring binding, wstring variable_name,
-    T* output) {
+    MapMode* map_mode) {
   wstring command =
       L"// Toggle buffer variable: " + variable_name + L"\n"
       + L"Buffer tmp_buffer = CurrentBuffer();"
@@ -911,15 +909,13 @@ void ToggleBoolVariable(
       + L"SetStatus(\"" + variable_name + L" := \" + (tmp_buffer."
       + variable_name + L"() ? \"ON\" : \"OFF\"));";
   LOG(INFO) << "Command: " << command;
-  MapMode::RegisterEntry(binding,
-      NewCppCommand(editor_state->environment(), command).release(),
-      output);
+  map_mode->Add(binding,
+      NewCppCommand(editor_state->environment(), command).release());
 }
 
-template <typename T>
 void ToggleIntVariable(
     EditorState* editor_state, wstring binding, wstring variable_name,
-    int default_value, T* output) {
+    int default_value, MapMode* map_mode) {
   wstring command =
       L"// Toggle buffer variable: " + variable_name + L"\n"
       + L"Buffer tmp_buffer = CurrentBuffer();"
@@ -929,9 +925,8 @@ void ToggleIntVariable(
       + L"SetStatus(\"" + variable_name + L" := \" + tostring(tmp_buffer."
       + variable_name + L"()));";
   LOG(INFO) << "Command: " << command;
-  MapMode::RegisterEntry(binding,
-      NewCppCommand(editor_state->environment(), command).release(),
-      output);
+  map_mode->Add(binding,
+      NewCppCommand(editor_state->environment(), command).release());
 }
 }  // namespace
 
@@ -940,183 +935,165 @@ using std::unique_ptr;
 
 std::function<unique_ptr<EditorMode>(void)> NewCommandModeSupplier(
     EditorState* editor_state) {
-  auto commands_map = std::make_shared<map<vector<wint_t>, Command*>>();
-  auto Register = MapMode::RegisterEntry;
-  Register(L"aq", NewQuitCommand().release(), commands_map.get());
-  Register(L"ad", NewCloseBufferCommand().release(), commands_map.get());
-  Register(L"aw",
+  auto map_mode = std::make_shared<MapMode>(NoopCommand());
+  map_mode->Add(L"aq", NewQuitCommand().release());
+  map_mode->Add(L"ad", NewCloseBufferCommand().release());
+  map_mode->Add(L"aw",
       NewCppCommand(editor_state->environment(),
           L"// Save the current buffer.\n"
-          L"editor.SaveCurrentBuffer();").release(),
-      commands_map.get());
-  Register(L"av", NewSetVariableCommand().release(), commands_map.get());
-  Register(L"ac", new RunCppFileCommand(), commands_map.get());
-  Register(L"aC", NewRunCppCommand().release(), commands_map.get());
-  Register(L"a.", NewOpenDirectoryCommand().release(), commands_map.get());
-  Register(L"al", NewListBuffersCommand().release(), commands_map.get());
-  Register(L"ar",
+          L"editor.SaveCurrentBuffer();").release());
+  map_mode->Add(L"av", NewSetVariableCommand().release());
+  map_mode->Add(L"ac", new RunCppFileCommand());
+  map_mode->Add(L"aC", NewRunCppCommand().release());
+  map_mode->Add(L"a.", NewOpenDirectoryCommand().release());
+  map_mode->Add(L"al", NewListBuffersCommand().release());
+  map_mode->Add(L"ar",
       NewCppCommand(editor_state->environment(),
           L"// Reload the current buffer.\n"
-          L"editor.ReloadCurrentBuffer();").release(),
-      commands_map.get());
-  Register(L"ae", NewSendEndOfFileCommand().release(), commands_map.get());
-  Register(L"ao", NewOpenFileCommand().release(), commands_map.get());
+          L"editor.ReloadCurrentBuffer();").release());
+  map_mode->Add(L"ae", NewSendEndOfFileCommand().release());
+  map_mode->Add(L"ao", NewOpenFileCommand().release());
   {
     PromptOptions options;
     options.prompt = L"...$ ";
     options.history_file = L"commands";
     options.handler = RunMultipleCommandsHandler;
-    Register(L"aF",
+    map_mode->Add(L"aF",
         NewLinePromptCommand(
             L"forks a command for each line in the current buffer",
-            [options](EditorState*) { return options; }).release(),
-        commands_map.get());
+            [options](EditorState*) { return options; }).release());
   }
-  Register(L"af", NewForkCommand().release(), commands_map.get());
+  map_mode->Add(L"af", NewForkCommand().release());
 
-  Register(L"+",
+  map_mode->Add(L"+",
       NewCppCommand(editor_state->environment(),
           L"// Create a new cursor at the current position.\n"
-          L"editor.CreateCursor();").release(),
-      commands_map.get());
-  Register(L"-",
+          L"editor.CreateCursor();").release());
+  map_mode->Add(L"-",
       NewCppCommand(editor_state->environment(),
           L"// Destroy current cursor(s) and jump to next.\n"
-          L"editor.DestroyCursor();").release(),
-      commands_map.get());
-  Register(L"=",
+          L"editor.DestroyCursor();").release());
+  map_mode->Add(L"=",
       NewCppCommand(editor_state->environment(),
           L"// Destroy cursors other than the current one.\n"
-          L"editor.DestroyOtherCursors();").release(),
-      commands_map.get());
-  Register(L"_",
+          L"editor.DestroyOtherCursors();").release());
+  map_mode->Add(L"_",
       NewCppCommand(editor_state->environment(),
           L"// Toggles whether operations apply to all cursors.\n"
           L"CurrentBuffer().set_multiple_cursors(\n"
-          L"    !CurrentBuffer().multiple_cursors());").release(),
-      commands_map.get());
-  Register(L"Ct",
+          L"    !CurrentBuffer().multiple_cursors());").release());
+  map_mode->Add(L"Ct",
       NewCppCommand(editor_state->environment(),
           L"// Toggles the active cursors with the previous set.\n"
-          L"editor.ToggleActiveCursors();").release(),
-      commands_map.get());
-  Register(L"C+",
+          L"editor.ToggleActiveCursors();").release());
+  map_mode->Add(L"C+",
       NewCppCommand(editor_state->environment(),
           L"// Pushes the active cursors to the stack.\n"
-          L"editor.PushActiveCursors();").release(),
-      commands_map.get());
-  Register(L"C-",
+          L"editor.PushActiveCursors();").release());
+  map_mode->Add(L"C-",
       NewCppCommand(editor_state->environment(),
           L"// Pops active cursors from the stack.\n"
-          L"editor.PopActiveCursors();").release(),
-      commands_map.get());
-  Register(L"C!",
+          L"editor.PopActiveCursors();").release());
+  map_mode->Add(L"C!",
       NewCppCommand(editor_state->environment(),
           L"// Set active cursors to the marks on this buffer.\n"
-          L"editor.SetActiveCursorsToMarks();").release(),
-      commands_map.get());
+          L"editor.SetActiveCursorsToMarks();").release());
 
-  Register(L"i", new EnterInsertModeCommand(), commands_map.get());
-  Register(L"f", new EnterFindMode(), commands_map.get());
-  Register(L"r", new ReverseDirectionCommand(), commands_map.get());
-  Register(L"R", new InsertionModifierCommand(), commands_map.get());
+  map_mode->Add(L"i", new EnterInsertModeCommand());
+  map_mode->Add(L"f", new EnterFindMode());
+  map_mode->Add(L"r", new ReverseDirectionCommand());
+  map_mode->Add(L"R", new InsertionModifierCommand());
 
-  Register(L"/", NewSearchCommand().release(), commands_map.get());
-  Register(L"g", NewGotoCommand().release(), commands_map.get());
+  map_mode->Add(L"/", NewSearchCommand().release());
+  map_mode->Add(L"g", NewGotoCommand().release());
 
-  Register(L"w", new SetStructureCommand(WORD, L"word"), commands_map.get());
-  Register(L"e", new SetStructureCommand(LINE, L"line"), commands_map.get());
-  Register(L"E", new SetStructureCommand(PAGE, L"page"), commands_map.get());
-  Register(L"F", new SetStructureCommand(SEARCH, L"search"), commands_map.get());
-  Register(L"c", new SetStructureCommand(CURSOR, L"cursor"), commands_map.get());
-  Register(L"B", new SetStructureCommand(BUFFER, L"buffer"), commands_map.get());
-  Register(L"!", new SetStructureCommand(MARK, L"mark"), commands_map.get());
-  Register(L"t", new SetStructureCommand(TREE, L"tree"), commands_map.get());
+  map_mode->Add(L"w", new SetStructureCommand(WORD, L"word"));
+  map_mode->Add(L"e", new SetStructureCommand(LINE, L"line"));
+  map_mode->Add(L"E", new SetStructureCommand(PAGE, L"page"));
+  map_mode->Add(L"F", new SetStructureCommand(SEARCH, L"search"));
+  map_mode->Add(L"c", new SetStructureCommand(CURSOR, L"cursor"));
+  map_mode->Add(L"B", new SetStructureCommand(BUFFER, L"buffer"));
+  map_mode->Add(L"!", new SetStructureCommand(MARK, L"mark"));
+  map_mode->Add(L"t", new SetStructureCommand(TREE, L"tree"));
 
-  Register(L"W", new SetStrengthCommand(
-      Modifiers::WEAK, Modifiers::VERY_WEAK, L"weak"), commands_map.get());
-  Register(L"S", new SetStrengthCommand(
-      Modifiers::STRONG, Modifiers::VERY_STRONG, L"strong"), commands_map.get());
+  map_mode->Add(L"W", new SetStrengthCommand(
+      Modifiers::WEAK, Modifiers::VERY_WEAK, L"weak"));
+  map_mode->Add(L"S", new SetStrengthCommand(
+      Modifiers::STRONG, Modifiers::VERY_STRONG, L"strong"));
 
-  Register(L"D", new Delete(DeleteOptions()), commands_map.get());
-  Register(L"d",
+  map_mode->Add(L"D", new Delete(DeleteOptions()));
+  map_mode->Add(L"d",
       NewCommandWithModifiers(
               L"delete", L"starts a new delete command", ApplyDeleteCommand)
-          .release(),
-      commands_map.get());
-  Register(L"p", new Paste(), commands_map.get());
+          .release());
+  map_mode->Add(L"p", new Paste());
 
   DeleteOptions copy_options;
   copy_options.modifiers.delete_type = Modifiers::PRESERVE_CONTENTS;
-  Register(L"sc", new Delete(copy_options), commands_map.get());
-  Register(L"u", new UndoCommand(), commands_map.get());
-  Register(L"\n", new ActivateLink(), commands_map.get());
+  map_mode->Add(L"sc", new Delete(copy_options));
+  map_mode->Add(L"u", new UndoCommand());
+  map_mode->Add(L"\n", new ActivateLink());
 
-  Register(L"b", new GotoPreviousPositionCommand(), commands_map.get());
-  Register(L"n", NewNavigateCommand().release(), commands_map.get());
-  Register(L"j", new LineDown(), commands_map.get());
-  Register(L"k", new LineUp(), commands_map.get());
-  Register(L"l", new MoveForwards(), commands_map.get());
-  Register(L"h", new MoveBackwards(), commands_map.get());
+  map_mode->Add(L"b", new GotoPreviousPositionCommand());
+  map_mode->Add(L"n", NewNavigateCommand().release());
+  map_mode->Add(L"j", new LineDown());
+  map_mode->Add(L"k", new LineUp());
+  map_mode->Add(L"l", new MoveForwards());
+  map_mode->Add(L"h", new MoveBackwards());
 
-  Register(L"~",
+  map_mode->Add(L"~",
       NewCommandWithModifiers(
               L"~~~~", L"Switches the case of the current character.",
               ApplySwitchCaseCommand)
-          .release(),
-      commands_map.get());
+          .release());
 
-  Register(L"sr", NewRecordCommand().release(), commands_map.get());
-  Register(L"\t", NewFindCompletionCommand().release(), commands_map.get());
+  map_mode->Add(L"sr", NewRecordCommand().release());
+  map_mode->Add(L"\t", NewFindCompletionCommand().release());
 
-  Register(L".",
+  map_mode->Add(L".",
       NewCppCommand(editor_state->environment(),
           L"// Repeats the last command.\n"
-          L"editor.RepeatLastTransformation();").release(),
-      commands_map.get());
+          L"editor.RepeatLastTransformation();").release());
 
-  ToggleBoolVariable(editor_state, L"vp", L"paste_mode", commands_map.get());
+  ToggleBoolVariable(editor_state, L"vp", L"paste_mode", map_mode.get());
   ToggleBoolVariable(editor_state, L"vs", L"show_in_buffers_list",
-      commands_map.get());
+      map_mode.get());
+      
   ToggleBoolVariable(editor_state, L"vf", L"follow_end_of_file",
-      commands_map.get());
+      map_mode.get());
   ToggleBoolVariable(editor_state, L"v/c", L"search_case_sensitive",
-      commands_map.get());
+      map_mode.get());
   ToggleIntVariable(editor_state, L"vc", L"buffer_list_context_lines", 10,
-      commands_map.get());
+      map_mode.get());
 
-  Register(L"?",
-      NewHelpCommand(*commands_map,
-                     L"command mode").release(), commands_map.get());
+  map_mode->Add({Terminal::ESCAPE}, new ResetStateCommand());
 
-  Register({Terminal::ESCAPE}, new ResetStateCommand(), commands_map.get());
-
-  Register(L"[", new SetStructureModifierCommand(
+  map_mode->Add(L"[", new SetStructureModifierCommand(
       Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION,
-      L"from the beggining to the current position"), commands_map.get());
-  Register(L"]", new SetStructureModifierCommand(
+      L"from the beggining to the current position"));
+  map_mode->Add(L"]", new SetStructureModifierCommand(
       Modifiers::FROM_CURRENT_POSITION_TO_END,
-      L"from the current position to the end"), commands_map.get());
-  Register({Terminal::CTRL_L}, new HardRedrawCommand(), commands_map.get());
-  Register(L"0", new NumberMode(SetRepetitions), commands_map.get());
-  Register(L"1", new NumberMode(SetRepetitions), commands_map.get());
-  Register(L"2", new NumberMode(SetRepetitions), commands_map.get());
-  Register(L"3", new NumberMode(SetRepetitions), commands_map.get());
-  Register(L"4", new NumberMode(SetRepetitions), commands_map.get());
-  Register(L"5", new NumberMode(SetRepetitions), commands_map.get());
-  Register(L"6", new NumberMode(SetRepetitions), commands_map.get());
-  Register(L"7", new NumberMode(SetRepetitions), commands_map.get());
-  Register(L"8", new NumberMode(SetRepetitions), commands_map.get());
-  Register(L"9", new NumberMode(SetRepetitions), commands_map.get());
-  Register({Terminal::DOWN_ARROW}, new LineDown(), commands_map.get());
-  Register({Terminal::UP_ARROW}, new LineUp(), commands_map.get());
-  Register({Terminal::LEFT_ARROW}, new MoveBackwards(), commands_map.get());
-  Register({Terminal::RIGHT_ARROW}, new MoveForwards(), commands_map.get());
-  Register({Terminal::PAGE_DOWN}, new PageDown(), commands_map.get());
-  Register({Terminal::PAGE_UP}, new PageUp(), commands_map.get());
+      L"from the current position to the end"));
+  map_mode->Add({Terminal::CTRL_L}, new HardRedrawCommand());
+  map_mode->Add(L"0", new NumberMode(SetRepetitions));
+  map_mode->Add(L"1", new NumberMode(SetRepetitions));
+  map_mode->Add(L"2", new NumberMode(SetRepetitions));
+  map_mode->Add(L"3", new NumberMode(SetRepetitions));
+  map_mode->Add(L"4", new NumberMode(SetRepetitions));
+  map_mode->Add(L"5", new NumberMode(SetRepetitions));
+  map_mode->Add(L"6", new NumberMode(SetRepetitions));
+  map_mode->Add(L"7", new NumberMode(SetRepetitions));
+  map_mode->Add(L"8", new NumberMode(SetRepetitions));
+  map_mode->Add(L"9", new NumberMode(SetRepetitions));
+  map_mode->Add({Terminal::DOWN_ARROW}, new LineDown());
+  map_mode->Add({Terminal::UP_ARROW}, new LineUp());
+  map_mode->Add({Terminal::LEFT_ARROW}, new MoveBackwards());
+  map_mode->Add({Terminal::RIGHT_ARROW}, new MoveForwards());
+  map_mode->Add({Terminal::PAGE_DOWN}, new PageDown());
+  map_mode->Add({Terminal::PAGE_UP}, new PageUp());
 
-  return [commands_map]() {
-    return unique_ptr<MapMode>(new MapMode(commands_map, NoopCommand()));
+  return [map_mode]() {
+    return std::unique_ptr<MapMode>(new MapMode(map_mode));
   };
 }
 
