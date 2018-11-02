@@ -296,6 +296,8 @@ int main(int argc, const char** argv) {
   // changes to the server).
   std::pair<size_t, size_t> last_screen_size = { -1, -1 };
 
+  BeepFrequencies(audio_player.get(), { 783.99, 723.25, 783.99 });
+
   while (!editor_state()->terminate()) {
     editor_state()->UpdateBuffers();
     auto screen_state = editor_state()->FlushScreenState();
