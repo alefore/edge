@@ -340,7 +340,7 @@ class CppTreeParser : public TreeParser {
 
   void LiteralString(ParseData* result) {
     auto original_position = result->position();
-    CHECK_GT(original_position.column, 0);
+    CHECK_GT(original_position.column, size_t(0));
 
     while (result->read() != L'"' && result->read() != L'\n' &&
            !result->reached_final_position()) {
