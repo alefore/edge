@@ -938,9 +938,9 @@ void ToggleIntVariable(
 using std::map;
 using std::unique_ptr;
 
-std::function<unique_ptr<EditorMode>(void)> NewCommandModeSupplier(
+unique_ptr<EditorMode> NewCommandMode(
     EditorState* editor_state, std::shared_ptr<EditorMode> parent_mode) {
-  auto map_mode = std::make_shared<MapMode>(parent_mode);
+  auto map_mode = std::unique_ptr<MapMode>(new MapMode(parent_mode));
   map_mode->Add(L"aq", NewQuitCommand().release());
   map_mode->Add(L"ad", NewCloseBufferCommand().release());
   map_mode->Add(L"aw",
@@ -1097,9 +1097,7 @@ std::function<unique_ptr<EditorMode>(void)> NewCommandModeSupplier(
   map_mode->Add({Terminal::PAGE_DOWN}, new PageDown());
   map_mode->Add({Terminal::PAGE_UP}, new PageUp());
 
-  return [map_mode]() {
-    return std::unique_ptr<MapMode>(new MapMode(map_mode));
-  };
+  return std::move(map_mode);
 }
 
 }  // namespace afc

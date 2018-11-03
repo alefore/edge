@@ -99,12 +99,12 @@ class OpenBuffer {
   size_t lines_size() const { return contents_.size(); }
 
   EditorMode* mode() const { return mode_.get(); }
-  std::unique_ptr<EditorMode> ResetMode() {
+  std::shared_ptr<EditorMode> ResetMode() {
     auto copy = std::move(mode_);
-    mode_ = default_mode_supplier_();
+    mode_ = default_mode_;
     return copy;
   }
-  void set_mode(unique_ptr<EditorMode> mode) {
+  void set_mode(std::shared_ptr<EditorMode> mode) {
     mode_ = std::move(mode);
   }
 
@@ -592,8 +592,8 @@ class OpenBuffer {
   std::shared_ptr<TreeParser> tree_parser_;
   size_t tree_depth_ = 0;
 
-  const std::function<unique_ptr<EditorMode>()> default_mode_supplier_;
-  unique_ptr<EditorMode> mode_;
+  const std::shared_ptr<EditorMode> default_mode_;
+  std::shared_ptr<EditorMode> mode_;
 
   // The time when the buffer was last selected as active.
   time_t last_visit_ = 0;

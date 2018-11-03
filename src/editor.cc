@@ -322,7 +322,7 @@ EditorState::EditorState(AudioPlayer* audio_player)
       home_directory_(GetHomeDirectory()),
       edge_path_(GetEdgeConfigPath(home_directory_)),
       environment_(BuildEditorEnvironment()),
-      mode_(NewCommandModeSupplier(this, nullptr)()),
+      mode_(NewCommandMode(this, nullptr)),
       visible_lines_(1),
       status_prompt_(false),
       status_(L""),

@@ -30,6 +30,7 @@ void MapMode::Populate(const MapMode* input, std::vector<const Map*>* output) {
 }
 
 void MapMode::Add(wstring name, Command* value) {
+  CHECK(value != nullptr);
   vector<wint_t> key;
   for (wchar_t c : name) {
     key.push_back(c);

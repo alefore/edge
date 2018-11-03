@@ -117,7 +117,7 @@ class AutocompleteMode : public EditorMode {
   using Iterator = Tree<std::shared_ptr<Line>>::const_iterator;
 
   struct Options {
-    std::unique_ptr<EditorMode> delegate;
+    std::shared_ptr<EditorMode> delegate;
 
     std::shared_ptr<const Line> prefix;
 
@@ -207,8 +207,7 @@ class AutocompleteMode : public EditorMode {
         CHECK(original_text_ != nullptr);
         LOG(INFO) << "Inserting original text: " << original_text_->ToString();
         ReplaceCurrentText(editor_state, original_text_);
-        // Pass through.
-
+        // Fall through.
       default:
         editor_state->current_buffer()->second->set_mode(
             std::move(options_.delegate));
@@ -551,7 +550,7 @@ class InsertMode : public EditorMode {
           LOG(INFO) << "Handling backspace in insert mode.";
           buffer->MaybeAdjustPositionCol();
           DeleteOptions delete_options;
-          if (c == Terminal::BACKSPACE) {
+          if (c == wint_t(Terminal::BACKSPACE)) {
             delete_options.modifiers.direction = BACKWARDS;
           }
           delete_options.copy_to_paste_buffer = false;

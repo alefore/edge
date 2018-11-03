@@ -28,6 +28,7 @@ extern "C" {
 #include "run_command_handler.h"
 #include "lazy_string_append.h"
 #include "line_marks.h"
+#include "map_mode.h"
 #include "src/seek.h"
 #include "server.h"
 #include "substring.h"
@@ -426,8 +427,8 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       last_transformation_(NewNoopTransformation()),
       parse_tree_(std::make_shared<ParseTree>()),
       tree_parser_(NewNullTreeParser()),
-      default_mode_supplier_(NewCommandModeSupplier(editor_, editor_->mode())),
-      mode_(default_mode_supplier_()) {
+      default_mode_(std::make_shared<MapMode>(editor_->mode())),
+      mode_(default_mode_) {
   contents_.AddUpdateListener(
       [this](const CursorsTracker::Transformation& transformation) {
         editor_->ScheduleParseTreeUpdate(this);
