@@ -75,7 +75,7 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
   callback->type.type_arguments.push_back(VMType::ObjectType(editor_type));
   callback->callback =
       [method](vector<unique_ptr<Value>> args) {
-        CHECK_EQ(args.size(), 1);
+        CHECK_EQ(args.size(), size_t(1));
         CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
 
         auto editor = static_cast<EditorState*>(args[0]->user_value.get());
@@ -118,7 +118,7 @@ Environment EditorState::BuildEditorEnvironment() {
         VMType::ObjectType(editor_type.get()));
     callback->callback =
         [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args.size(), size_t(1));
           CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
 
           auto editor = static_cast<EditorState*>(args[0]->user_value.get());
@@ -150,7 +150,7 @@ Environment EditorState::BuildEditorEnvironment() {
         VMType::ObjectType(editor_type.get()));
     callback->callback =
         [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args.size(), size_t(1));
           CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
 
           auto editor = static_cast<EditorState*>(args[0]->user_value.get());
@@ -182,7 +182,7 @@ Environment EditorState::BuildEditorEnvironment() {
     callback->type.type_arguments.push_back(VMType::ObjectType(L"Buffer"));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 0);
+          CHECK_EQ(args.size(), size_t(0));
           auto buffer = current_buffer()->second;
           CHECK(buffer != nullptr);
           if (structure() == LINE) {
@@ -205,7 +205,7 @@ Environment EditorState::BuildEditorEnvironment() {
     callback->type.type_arguments.push_back(VMType::Integer());
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args.size(), size_t(1));
           CHECK_EQ(args[0]->type, VMType::VM_INTEGER);
           ProcessInput(args[0]->integer);
           return Value::NewVoid();
@@ -218,7 +218,7 @@ Environment EditorState::BuildEditorEnvironment() {
     connect_to_function->type.type_arguments.push_back(VMType(VMType::VM_STRING));
     connect_to_function->callback =
         [this](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::VM_STRING);
+          CHECK_EQ(args[0]->type, VMType::VM_STRING);
           OpenServerBuffer(this, args[0]->str);
           return std::move(Value::NewVoid());
         };
@@ -232,7 +232,7 @@ Environment EditorState::BuildEditorEnvironment() {
         VMType(VMType::VM_STRING));
     set_status_function->callback =
         [this](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::VM_STRING);
+          CHECK_EQ(args[0]->type, VMType::VM_STRING);
           SetStatus(args[0]->str);
           return std::move(Value::NewVoid());
         };
@@ -255,7 +255,7 @@ Environment EditorState::BuildEditorEnvironment() {
     callback->type.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args.size(), size_t(1));
           CHECK_EQ(args[0]->type, VMType::VM_BOOLEAN);
           set_screen_needs_hard_redraw(args[0]->boolean);
           return std::move(Value::NewVoid());
@@ -268,7 +268,7 @@ Environment EditorState::BuildEditorEnvironment() {
     callback->type.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args.size(), size_t(1));
           CHECK_EQ(args[0]->type, VMType::VM_BOOLEAN);
           terminate_ = args[0]->boolean;
           return std::move(Value::NewVoid());
@@ -281,9 +281,10 @@ Environment EditorState::BuildEditorEnvironment() {
     callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
+          CHECK_EQ(args.size(), size_t(1));
+          CHECK_EQ(args[0]->type, VMType::VM_INTEGER);
           if (!has_current_buffer()) { return Value::NewVoid(); }
           auto buffer = current_buffer()->second;
-          assert(args[0]->type == VMType::VM_INTEGER);
           buffer->set_position(
               LineColumn(buffer->position().line, args[0]->integer));
           return Value::NewVoid();
@@ -294,7 +295,8 @@ Environment EditorState::BuildEditorEnvironment() {
     unique_ptr<Value> callback(new Value(VMType::FUNCTION));
     callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
     callback->callback =
-        [this](vector<unique_ptr<Value>>) {
+        [this](vector<unique_ptr<Value>> args) {
+          CHECK(args.empty());
           if (!has_current_buffer()) { return Value::NewVoid(); }
           auto buffer = current_buffer()->second;
           unique_ptr<Value> output(new Value(VMType::VM_STRING));
@@ -310,7 +312,7 @@ Environment EditorState::BuildEditorEnvironment() {
     callback->type.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 2);
+          CHECK_EQ(args.size(), size_t(2));
           CHECK_EQ(args[0]->type, VMType::VM_STRING);
           CHECK_EQ(args[1]->type, VMType::VM_BOOLEAN);
           ForkCommandOptions options;
@@ -327,7 +329,8 @@ Environment EditorState::BuildEditorEnvironment() {
     callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::VM_STRING);
+          CHECK_EQ(args.size(), size_t(1));
+          CHECK_EQ(args[0]->type, VMType::VM_STRING);
           OpenFileOptions options;
           options.editor_state = this;
           options.path = args[0]->str;
@@ -393,9 +396,9 @@ EditorState::EditorState(AudioPlayer* audio_player)
     callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
-          assert(args.size() == 2);
-          assert(args[0]->type == VMType::VM_INTEGER);
-          assert(args[1]->type == VMType::VM_INTEGER);
+          CHECK_EQ(args.size(), size_t(2));
+          CHECK_EQ(args[0]->type, VMType::VM_INTEGER);
+          CHECK_EQ(args[1]->type, VMType::VM_INTEGER);
           return Value::NewObject(L"LineColumn", shared_ptr<LineColumn>(
               new LineColumn(args[0]->integer, args[1]->integer)));
         };
@@ -408,10 +411,11 @@ EditorState::EditorState(AudioPlayer* audio_player)
         VMType::ObjectType(line_column.get()));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::OBJECT_TYPE);
+          CHECK_EQ(args.size(), size_t(1));
+          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
           auto line_column =
               static_cast<LineColumn*>(args[0]->user_value.get());
-          assert(line_column != nullptr);
+          CHECK(line_column != nullptr);
           unique_ptr<Value> output(new Value(VMType::VM_INTEGER));
           output->integer = line_column->line;
           return output;
@@ -425,10 +429,11 @@ EditorState::EditorState(AudioPlayer* audio_player)
         VMType::ObjectType(line_column.get()));
     callback->callback =
         [this](vector<unique_ptr<Value>> args) {
-          assert(args[0]->type == VMType::OBJECT_TYPE);
+          CHECK_EQ(args.size(), size_t(1));
+          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
           auto line_column =
               static_cast<LineColumn*>(args[0]->user_value.get());
-          assert(line_column != nullptr);
+          CHECK(line_column != nullptr);
           unique_ptr<Value> output(new Value(VMType::VM_INTEGER));
           output->integer = line_column->column;
           return output;
@@ -436,7 +441,6 @@ EditorState::EditorState(AudioPlayer* audio_player)
     line_column->AddField(L"column", std::move(callback));
   }
   environment_.DefineType(L"LineColumn", std::move(line_column));
-
 }
 
 EditorState::~EditorState() {
@@ -659,7 +663,7 @@ bool EditorState::HasPositionsInStack() {
 }
 
 BufferPosition EditorState::ReadPositionsStack() {
-  assert(HasPositionsInStack());
+  CHECK(HasPositionsInStack());
   auto buffer = buffers_.find(kPositionsBufferName)->second;
   return PositionFromLine(buffer->current_line()->ToString());
 }
@@ -668,7 +672,7 @@ bool EditorState::MovePositionsStack(Direction direction) {
   // The directions here are somewhat counterintuitive: FORWARDS means the user
   // is actually going "back" in the history, which means we have to decrement
   // the line counter.
-  assert(HasPositionsInStack());
+  CHECK(HasPositionsInStack());
   auto buffer = buffers_.find(kPositionsBufferName)->second;
   if (direction == BACKWARDS) {
     if (buffer->current_position_line() + 1 >= buffer->contents()->size()) {
@@ -688,7 +692,7 @@ bool EditorState::MovePositionsStack(Direction direction) {
 void EditorState::ApplyToCurrentBuffer(
     unique_ptr<Transformation> transformation) {
   CHECK(transformation != nullptr);
-  assert(has_current_buffer());
+  CHECK(has_current_buffer());
   current_buffer_->second->ApplyToCursors(std::move(transformation));
 }
 
