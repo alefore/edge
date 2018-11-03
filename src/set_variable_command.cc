@@ -131,22 +131,24 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
   editor_state->SetWarningStatus(L"Unknown variable: " + name);
 }
 
+Predictor VariablesPredictor() {
+  vector<wstring> variables;
+  OpenBuffer::BoolStruct()->RegisterVariableNames(&variables);
+  OpenBuffer::StringStruct()->RegisterVariableNames(&variables);
+  OpenBuffer::IntStruct()->RegisterVariableNames(&variables);
+  OpenBuffer::DoubleStruct()->RegisterVariableNames(&variables);
+  return PrecomputedPredictor(variables, '_');
+}
 }  // namespace
 
 unique_ptr<Command> NewSetVariableCommand() {
-  static vector<wstring> variables;
-  if (variables.empty()) {
-    OpenBuffer::BoolStruct()->RegisterVariableNames(&variables);
-    OpenBuffer::StringStruct()->RegisterVariableNames(&variables);
-    OpenBuffer::IntStruct()->RegisterVariableNames(&variables);
-  }
-
+  static Predictor variables_predictor = VariablesPredictor();
   PromptOptions options;
   options.prompt = L"var ";
   options.history_file = L"variables";
   options.handler = SetVariableHandler;
   options.cancel_handler = [](EditorState*) { /* Nothing. */ };
-  options.predictor = PrecomputedPredictor(variables, '_');
+  options.predictor = variables_predictor;
   return NewLinePromptCommand(L"assigns to a variable",
                               [options](EditorState*) { return options; });
 }
