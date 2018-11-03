@@ -189,12 +189,9 @@ using std::to_wstring;
         return Value::NewString(buffer->contents()->at(line)->ToString());
       }));
 
-  VMType string_to_string_function(VMType::FUNCTION);
-  string_to_string_function.type_arguments.push_back(VMType::String());
-  string_to_string_function.type_arguments.push_back(VMType::String());
   buffer->AddField(L"Map", Value::NewFunction(
       { VMType::Void(), VMType::ObjectType(buffer.get()),
-        string_to_string_function },
+        VMType::Function({ VMType::String(), VMType::String() })},
       [editor_state](vector<unique_ptr<Value>> args) {
         CHECK_EQ(args.size(), size_t(2));
         CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
@@ -227,24 +224,19 @@ using std::to_wstring;
 
   buffer->AddField(L"AddKeyboardTextTransformer", Value::NewFunction(
       { VMType::Bool(), VMType::ObjectType(buffer.get()),
-        string_to_string_function },
-      [editor_state, string_to_string_function](vector<unique_ptr<Value>> args) {
+        VMType::Function({ VMType::String(), VMType::String() })},
+      [editor_state](vector<unique_ptr<Value>> args) {
         CHECK_EQ(args.size(), size_t(2));
         CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
         auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
         CHECK(buffer != nullptr);
-        CHECK_EQ(args[1]->type, string_to_string_function);
         return Value::NewBool(buffer->AddKeyboardTextTransformer(
             editor_state, std::move(args[1])));
       }));
 
-  VMType string_to_boolean_function(VMType::FUNCTION);
-  string_to_boolean_function.type_arguments =
-      { VMType::Bool(), VMType::String() };
-
   buffer->AddField(L"Filter", Value::NewFunction(
       { VMType::Void(), VMType::ObjectType(buffer.get()),
-        string_to_boolean_function },
+        VMType::Function({VMType::Bool(), VMType::String()}) },
       [editor_state](vector<unique_ptr<Value>> args) {
         CHECK_EQ(args.size(), size_t(2));
         CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
