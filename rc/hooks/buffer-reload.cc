@@ -59,6 +59,8 @@ if (path == "") {
     CppMode();
     buffer.AddBindingToFile(
         "sh", buffer.editor_commands_path() + "header");
+    buffer.AddBindingToFile(
+        "si", buffer.editor_commands_path() + "include");
     SetStatus("Loaded C file (" + extension + ")");
     return;
   }
