@@ -57,6 +57,8 @@ if (path == "") {
 
   if (extension == "cc" || extension == "h" || extension == "c") {
     CppMode();
+    buffer.AddBindingToFile(
+        "sh", buffer.editor_commands_path() + "header");
     SetStatus("Loaded C file (" + extension + ")");
     return;
   }
