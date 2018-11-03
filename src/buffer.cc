@@ -1546,6 +1546,13 @@ void OpenBuffer::SeekToStructure(
     case TREE:
       break;
 
+    case PARAGRAPH:
+      Seek(*this, position)
+          .WithDirection(direction)
+          .UntilNextLineIsNotSubsetOf(
+              read_string_variable(variable_line_prefix_characters()));
+      break;
+
     case LINE:
       Seek(*this, position)
           .WithDirection(direction)
@@ -1620,6 +1627,15 @@ bool OpenBuffer::SeekToLimit(
         }
         *position = boundary;
       }
+      break;
+
+    case PARAGRAPH:
+      return Seek(*this, position)
+          .WithDirection(direction)
+          .WrappingLines()
+          .UntilNextLineIsSubsetOf(
+              read_string_variable(variable_line_prefix_characters()))
+                  == Seek::DONE;
       break;
 
     case LINE:

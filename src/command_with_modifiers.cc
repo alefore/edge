@@ -166,6 +166,10 @@ class CommandWithModifiersMode : public EditorMode {
           SetStructure(TREE, &modifiers);
           break;
 
+        case 'P':
+          SetStructure(PARAGRAPH, &modifiers);
+          break;
+
         case 'p':
           modifiers.delete_type =
               modifiers.delete_type == Modifiers::DELETE_CONTENTS

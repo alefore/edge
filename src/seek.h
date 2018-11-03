@@ -25,10 +25,14 @@ class Seek {
   Result UntilCurrentCharNotIn(const wstring& word_char) const;
   Result UntilNextCharIn(const wstring& word_char) const;
   Result UntilNextCharNotIn(const wstring& word_char) const;
+  Result UntilNextLineIsSubsetOf(const wstring& allowed_chars) const;
+  Result UntilNextLineIsNotSubsetOf(const wstring& allowed_chars) const;
+  Result UntilLine(std::function<bool(const Line& line)> predicate) const;
 
  private:
   wchar_t CurrentChar() const;
   bool Advance(LineColumn* position) const;
+  bool AdvanceLine(LineColumn* position) const;
 
   bool wrapping_lines_ = false;
   Direction direction_ = FORWARDS;
