@@ -72,6 +72,12 @@ wstring VMType::ToString() const {
   return L"unknown";
 }
 
+/* static */ VMType VMType::Function(vector<VMType> arguments) {
+  VMType output(VMType::FUNCTION);
+  output.type_arguments = arguments;
+  return output;
+}
+
 ObjectType::ObjectType(const VMType& type)
     : type_(type),
       fields_(new map<wstring, unique_ptr<Value>>) {}
