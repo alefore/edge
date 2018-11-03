@@ -777,7 +777,11 @@ void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
   auto buffer = editor_state->current_buffer()->second;
   buffer->ResetMode();
   wstring adjusted_input;
-  if (!ResolvePath(editor_state, input, &adjusted_input, nullptr, nullptr)) {
+  ResolvePathOptions options;
+  options.editor_state = editor_state;
+  options.path = input;
+  options.output_path = &adjusted_input;
+  if (!ResolvePath(options)) {
     editor_state->SetWarningStatus(L"File not found: " + input);
     return;
   }

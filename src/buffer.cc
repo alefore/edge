@@ -340,7 +340,11 @@ using std::to_wstring;
             args[1]->str,
             [editor_state, buffer, path]() {
               wstring resolved_path;
-              if (!ResolvePath(editor_state, path, &resolved_path, nullptr, nullptr)) {
+              ResolvePathOptions options;
+              options.editor_state = editor_state;
+              options.path = path;
+              options.output_path = &resolved_path;
+              if (!ResolvePath(options)) {
                 editor_state->SetWarningStatus(L"Unable to resolve: " + path);
               } else {
                 buffer->EvaluateFile(editor_state, resolved_path);
@@ -813,19 +817,25 @@ void OpenBuffer::StartNewLine(EditorState* editor_state) {
   if (!contents_.empty()) {
     DVLOG(5) << "Line is completed: " << contents_.back()->ToString();
 
-    wstring path;
-    LineColumn position;
-    wstring pattern;
-    if (read_bool_variable(variable_contains_line_marks())
-        && ResolvePath(editor_state, contents_.back()->ToString(), &path,
-                       &position, &pattern)) {
-      LineMarks::Mark mark;
-      mark.source = name_;
-      mark.source_line = contents_.size() - 1;
-      mark.target_buffer = path;
-      mark.target = position;
-      LOG(INFO) << "Found a mark: " << mark;
-      editor_state->line_marks()->AddMark(mark);
+    if (read_bool_variable(variable_contains_line_marks())) {
+      wstring path;
+      LineColumn position;
+      wstring pattern;
+      ResolvePathOptions options;
+      options.editor_state = editor_state;
+      options.path = contents_.back()->ToString();
+      options.output_path = &path;
+      options.output_position = &position;
+      options.output_pattern = &pattern;
+      if (ResolvePath(options)) {
+        LineMarks::Mark mark;
+        mark.source = name_;
+        mark.source_line = contents_.size() - 1;
+        mark.target_buffer = path;
+        mark.target = position;
+        LOG(INFO) << "Found a mark: " << mark;
+        editor_state->line_marks()->AddMark(mark);
+      }
     }
   }
   contents_.push_back(std::make_shared<Line>());

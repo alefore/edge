@@ -508,21 +508,13 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
       });
 }
 
-bool ResolvePath(EditorState* editor_state, const wstring& path,
-                 wstring* resolved_path, LineColumn* position,
-                 wstring* pattern) {
-  return ResolvePath(editor_state, path, CanStatPath, resolved_path, position,
-                     pattern);
-}
-
-bool ResolvePath(EditorState* editor_state, const wstring& path,
-                 std::function<bool(const wstring&)> validator,
-                 wstring* resolved_path, LineColumn* position,
-                 wstring* pattern) {
+bool ResolvePath(ResolvePathOptions options) {
   vector<wstring> search_paths;
-  GetSearchPaths(editor_state, &search_paths);
-  return FindPath(editor_state, std::move(search_paths), path, validator,
-                  resolved_path, position, pattern);
+  GetSearchPaths(options.editor_state, &search_paths);
+  return FindPath(options.editor_state, std::move(search_paths), options.path,
+                  options.validator ? options.validator : CanStatPath,
+                  options.output_path, options.output_position,
+                  options.output_pattern);
 }
 
 map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
