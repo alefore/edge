@@ -16,6 +16,7 @@
 #include "line.h"
 #include "line_column.h"
 #include "line_marks.h"
+#include "map_mode.h"
 #include "parse_tree.h"
 #include "substring.h"
 #include "transformation.h"
@@ -592,7 +593,7 @@ class OpenBuffer {
   std::shared_ptr<TreeParser> tree_parser_;
   size_t tree_depth_ = 0;
 
-  const std::shared_ptr<EditorMode> default_mode_;
+  const std::shared_ptr<MapMode> default_mode_;
   std::shared_ptr<EditorMode> mode_;
 
   // The time when the buffer was last selected as active.
