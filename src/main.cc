@@ -92,7 +92,9 @@ static const char* kDefaultCommandsToRun = "ForkCommand(\"sh -l\", true);";
 string CommandsToRun(Args args) {
   string commands_to_run = args.commands_to_run;
   for (auto& path : args.files_to_open) {
-    commands_to_run += "OpenFile(\"" + string(path) + "\");\n";
+    char* dir = get_current_dir_name();
+    commands_to_run += "OpenFile(\"" + string(dir) + "/" + path + "\");\n";
+    free(dir);
   }
   for (auto& command_to_fork : args.commands_to_fork) {
     commands_to_run +=
