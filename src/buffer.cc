@@ -90,7 +90,7 @@ void RegisterBufferFields(
     // Setter.
     {
       unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-      callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+      callback->type.type_arguments.push_back(VMType::Void());
       callback->type.type_arguments.push_back(buffer_type);
       callback->type.type_arguments.push_back(field_type);
       callback->callback =
@@ -141,231 +141,180 @@ using std::to_wstring;
       &OpenBuffer::Read, &OpenBuffer::set_double_variable,
       &Value::NewDouble, &FromVmDouble);
 
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          assert(args.size() == 1);
-          assert(args[0]->type == VMType::OBJECT_TYPE);
-          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          assert(buffer != nullptr);
-          return Value::NewInteger(buffer->contents()->size());
-        };
-    buffer->AddField(L"line_count", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
-    callback->type.type_arguments.push_back(VMType::ObjectType(L"LineColumn"));
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          assert(args.size() == 2);
-          assert(args[0]->type == VMType::OBJECT_TYPE);
-          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          assert(buffer != nullptr);
-          buffer->set_position(
-              *static_cast<LineColumn*>(args[1]->user_value.get()));
-          return Value::NewVoid();
-        };
-    buffer->AddField(L"set_position", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType::ObjectType(L"LineColumn"));
-    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          assert(args.size() == 1);
-          assert(args[0]->type == VMType::OBJECT_TYPE);
-          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          assert(buffer != nullptr);
-          return Value::NewObject(L"LineColumn", shared_ptr<LineColumn>(
-              new LineColumn(buffer->position())));
-        };
-    buffer->AddField(L"position", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), size_t(2));
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-          CHECK_EQ(args[1]->type, VMType::VM_INTEGER);
-          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          CHECK(buffer != nullptr);
-          auto line = min(static_cast<size_t>(max(args[1]->integer, 0)),
-                          buffer->contents()->size() - 1);
-          return Value::NewString(buffer->contents()->at(line)->ToString());
-        };
-    buffer->AddField(L"line", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
-    VMType function_argument(VMType::FUNCTION);
-    function_argument.type_arguments.push_back(VMType(VMType::VM_STRING));
-    function_argument.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(function_argument);
-    callback->callback =
-        [editor_state](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), size_t(2));
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          CHECK(buffer != nullptr);
-          size_t line = 0;
-          unique_ptr<TransformationStack> transformation(
-              new TransformationStack());
-          while (line + 1 < buffer->contents()->size()) {
-            wstring current_line = buffer->LineAt(line)->ToString();
-            vector<unique_ptr<Value>> line_args;
-            line_args.push_back(Value::NewString(current_line));
-            unique_ptr<Value> result = args[1]->callback(std::move(line_args));
-            if (result->str != current_line) {
-              DeleteOptions options;
-              options.copy_to_paste_buffer = false;
-              transformation->PushBack(NewDeleteLinesTransformation(options));
-              shared_ptr<OpenBuffer> buffer_to_insert(
-                  new OpenBuffer(editor_state, L"tmp buffer"));
-              buffer_to_insert->AppendLine(
-                  editor_state, NewCopyString(result->str));
-              transformation->PushBack(
-                  NewInsertBufferTransformation(buffer_to_insert, 1, END));
-            }
-            line++;
+  buffer->AddField(L"line_count", Value::NewFunction(
+      { VMType::Integer(), VMType::ObjectType(buffer.get()) },
+      [](vector<unique_ptr<Value>> args) {
+        assert(args.size() == 1);
+        assert(args[0]->type == VMType::OBJECT_TYPE);
+        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+        assert(buffer != nullptr);
+        return Value::NewInteger(buffer->contents()->size());
+      }));
+
+  buffer->AddField(L"set_position", Value::NewFunction(
+      { VMType::Void(), VMType::ObjectType(buffer.get()),
+        VMType::ObjectType(L"LineColumn") },
+      [](vector<unique_ptr<Value>> args) {
+        assert(args.size() == 2);
+        assert(args[0]->type == VMType::OBJECT_TYPE);
+        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+        assert(buffer != nullptr);
+        buffer->set_position(
+            *static_cast<LineColumn*>(args[1]->user_value.get()));
+        return Value::NewVoid();
+      }));
+
+  buffer->AddField(L"position", Value::NewFunction(
+      { VMType::ObjectType(L"LineColumn"), VMType::ObjectType(buffer.get()) },
+      [](vector<unique_ptr<Value>> args) {
+        assert(args.size() == 1);
+        assert(args[0]->type == VMType::OBJECT_TYPE);
+        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+        assert(buffer != nullptr);
+        return Value::NewObject(L"LineColumn", shared_ptr<LineColumn>(
+            new LineColumn(buffer->position())));
+      }));
+
+  buffer->AddField(L"line", Value::NewFunction(
+      { VMType::String(), VMType::ObjectType(buffer.get()),
+        VMType::Integer() },
+      [](vector<unique_ptr<Value>> args) {
+        CHECK_EQ(args.size(), size_t(2));
+        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+        CHECK_EQ(args[1]->type, VMType::VM_INTEGER);
+        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+        CHECK(buffer != nullptr);
+        auto line = min(static_cast<size_t>(max(args[1]->integer, 0)),
+                        buffer->contents()->size() - 1);
+        return Value::NewString(buffer->contents()->at(line)->ToString());
+      }));
+
+  VMType string_to_string_function(VMType::FUNCTION);
+  string_to_string_function.type_arguments.push_back(VMType::String());
+  string_to_string_function.type_arguments.push_back(VMType::String());
+  buffer->AddField(L"Map", Value::NewFunction(
+      { VMType::Void(), VMType::ObjectType(buffer.get()),
+        string_to_string_function },
+      [editor_state](vector<unique_ptr<Value>> args) {
+        CHECK_EQ(args.size(), size_t(2));
+        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+        CHECK(buffer != nullptr);
+        size_t line = 0;
+        unique_ptr<TransformationStack> transformation(
+            new TransformationStack());
+        while (line + 1 < buffer->contents()->size()) {
+          wstring current_line = buffer->LineAt(line)->ToString();
+          vector<unique_ptr<Value>> line_args;
+          line_args.push_back(Value::NewString(current_line));
+          unique_ptr<Value> result = args[1]->callback(std::move(line_args));
+          if (result->str != current_line) {
+            DeleteOptions options;
+            options.copy_to_paste_buffer = false;
+            transformation->PushBack(NewDeleteLinesTransformation(options));
+            shared_ptr<OpenBuffer> buffer_to_insert(
+                new OpenBuffer(editor_state, L"tmp buffer"));
+            buffer_to_insert->AppendLine(
+                editor_state, NewCopyString(result->str));
+            transformation->PushBack(
+                NewInsertBufferTransformation(buffer_to_insert, 1, END));
           }
-          buffer->Apply(editor_state, std::move(transformation));
-          return Value::NewVoid();
-        };
-    buffer->AddField(L"Map", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
-    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
+          line++;
+        }
+        buffer->Apply(editor_state, std::move(transformation));
+        return Value::NewVoid();
+      }));
 
-    VMType function_type(VMType::FUNCTION);
-    function_type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    function_type.type_arguments.push_back(VMType(VMType::VM_STRING));
+  buffer->AddField(L"AddKeyboardTextTransformer", Value::NewFunction(
+      { VMType::Bool(), VMType::ObjectType(buffer.get()),
+        string_to_string_function },
+      [editor_state, string_to_string_function](vector<unique_ptr<Value>> args) {
+        CHECK_EQ(args.size(), size_t(2));
+        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+        CHECK(buffer != nullptr);
+        CHECK_EQ(args[1]->type, string_to_string_function);
+        return Value::NewBool(buffer->AddKeyboardTextTransformer(
+            editor_state, std::move(args[1])));
+      }));
 
-    callback->type.type_arguments.push_back(function_type);
+  VMType string_to_boolean_function(VMType::FUNCTION);
+  string_to_boolean_function.type_arguments =
+      { VMType::Bool(), VMType::String() };
 
-    callback->callback =
-        [editor_state, function_type](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), size_t(2));
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          CHECK(buffer != nullptr);
-          CHECK_EQ(args[1]->type, function_type);
-          return Value::NewBool(buffer->AddKeyboardTextTransformer(
-              editor_state, std::move(args[1])));
-        };
-    buffer->AddField(L"AddKeyboardTextTransformer", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
-    VMType function_argument(VMType::FUNCTION);
-    function_argument.type_arguments.push_back(VMType(VMType::VM_BOOLEAN));
-    function_argument.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(function_argument);
-    callback->callback =
-        [editor_state](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), size_t(2));
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          CHECK(buffer != nullptr);
-          buffer->set_filter(std::move(args[1]));
-          editor_state->ScheduleRedraw();
-          return Value::NewVoid();
-        };
-    buffer->AddField(L"Filter", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    // Returns nothing.
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    // The buffer to modify.
-    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
-    // The number of characters to delete.
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->callback =
-        [editor_state](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), size_t(2));
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          CHECK(buffer != nullptr);
+  buffer->AddField(L"Filter", Value::NewFunction(
+      { VMType::Void(), VMType::ObjectType(buffer.get()),
+        string_to_boolean_function },
+      [editor_state](vector<unique_ptr<Value>> args) {
+        CHECK_EQ(args.size(), size_t(2));
+        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+        CHECK(buffer != nullptr);
+        buffer->set_filter(std::move(args[1]));
+        editor_state->ScheduleRedraw();
+        return Value::NewVoid();
+      }));
 
-          DeleteOptions options;
-          options.modifiers.repetitions = args[1]->integer;
-          buffer->ApplyToCursors(NewDeleteCharactersTransformation(options));
-          return Value::NewVoid();
-        };
-    buffer->AddField(L"DeleteCharacters", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    // Returns nothing.
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    // The buffer to modify.
-    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
-    // The text to insert.
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->callback =
-        [editor_state](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), size_t(2));
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          CHECK(buffer != nullptr);
+  buffer->AddField(L"DeleteCharacters", Value::NewFunction(
+      { VMType::Void(),                    // Returns nothing.
+        VMType::ObjectType(buffer.get()),  // Buffer to modify.
+        VMType::Integer() },               // Number of characters to delete.
+      [editor_state](vector<unique_ptr<Value>> args) {
+        CHECK_EQ(args.size(), size_t(2));
+        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+        CHECK(buffer != nullptr);
 
-          shared_ptr<OpenBuffer> buffer_to_insert(
-              new OpenBuffer(editor_state, L"tmp buffer"));
+        DeleteOptions options;
+        options.modifiers.repetitions = args[1]->integer;
+        buffer->ApplyToCursors(NewDeleteCharactersTransformation(options));
+        return Value::NewVoid();
+      }));
 
-          // getline will silently eat the last (empty) line.
-          std::wistringstream text_stream(args[1]->str + L"\n");
-          std::wstring line;
-          bool insert_separator = false;
-          while (std::getline(text_stream, line, wchar_t('\n'))) {
-            if (insert_separator) {
-              buffer_to_insert->AppendEmptyLine(editor_state);
-            } else {
-              insert_separator = true;
-            }
-            buffer_to_insert->AppendToLastLine(
-                editor_state, NewCopyString(line));
+  buffer->AddField(L"InsertText", Value::NewFunction(
+      { VMType::Void(),                    // Returns nothing.
+        VMType::ObjectType(buffer.get()),  // Buffer to modify.
+        VMType::String() },                // The text to insert.
+      [editor_state](vector<unique_ptr<Value>> args) {
+        CHECK_EQ(args.size(), size_t(2));
+        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+        CHECK(buffer != nullptr);
+
+        shared_ptr<OpenBuffer> buffer_to_insert(
+            new OpenBuffer(editor_state, L"tmp buffer"));
+
+        // getline will silently eat the last (empty) line.
+        std::wistringstream text_stream(args[1]->str + L"\n");
+        std::wstring line;
+        bool insert_separator = false;
+        while (std::getline(text_stream, line, wchar_t('\n'))) {
+          if (insert_separator) {
+            buffer_to_insert->AppendEmptyLine(editor_state);
+          } else {
+            insert_separator = true;
           }
+          buffer_to_insert->AppendToLastLine(
+              editor_state, NewCopyString(line));
+        }
 
-          buffer->ApplyToCursors(
-              NewInsertBufferTransformation(buffer_to_insert, 1, END));
+        buffer->ApplyToCursors(
+            NewInsertBufferTransformation(buffer_to_insert, 1, END));
 
-          return Value::NewVoid();
-        };
-    buffer->AddField(L"InsertText", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    // Returns nothing.
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-    // The buffer to modify.
-    callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
-    callback->callback =
-        [editor_state](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), size_t(1));
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          CHECK(buffer != nullptr);
-          buffer->Save(editor_state);
-          return Value::NewVoid();
-        };
-    buffer->AddField(L"Save", std::move(callback));
-  }
+        return Value::NewVoid();
+      }));
+
+  buffer->AddField(L"Save", Value::NewFunction(
+      { VMType::Void(),                      // Returns nothing.
+        VMType::ObjectType(buffer.get()) },  // Buffer to save.
+      [editor_state](vector<unique_ptr<Value>> args) {
+        CHECK_EQ(args.size(), size_t(1));
+        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+        CHECK(buffer != nullptr);
+        buffer->Save(editor_state);
+        return Value::NewVoid();
+      }));
 
   environment->DefineType(L"Buffer", std::move(buffer));
 }
