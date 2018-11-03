@@ -215,6 +215,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
         editor_state->set_current_buffer(original_buffer);
         editor_state->set_modifiers(original_modifiers);
         editor_state->set_status_prompt(false);
+        editor_state->ScheduleRedraw();
 
         // We make a copy in case cancel_handler or handler delete us.
         auto buffer = original_buffer->second;

@@ -30,15 +30,7 @@ wstring TrimWhitespace(const wstring& in) {
   return in.substr(begin, end - begin + 1);
 }
 
-void SetVariableCancelHandler(EditorState* editor_state) {
-  if (editor_state->has_current_buffer()) {
-    editor_state->current_buffer()->second->ResetMode();
-  }
-  editor_state->ScheduleRedraw();
-}
-
 void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
-  SetVariableCancelHandler(editor_state);
   wstring name = TrimWhitespace(input_name);
   if (name.empty()) { return; }
 
@@ -68,6 +60,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
             // this lambda go away with it.
             buffer->ResetMode();
           };
+      options.cancel_handler = [](EditorState*) { /* Nothing. */ };
       options.predictor = var->predictor();
       Prompt(editor_state, std::move(options));
       return;
@@ -102,6 +95,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
             // this lambda go away with it.
             buffer->ResetMode();
           };
+      options.cancel_handler = [](EditorState*) { /* Nothing. */ };
       Prompt(editor_state, std::move(options));
       return;
     }
@@ -129,6 +123,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
             // this lambda go away with it.
             buffer->ResetMode();
           };
+      options.cancel_handler = [](EditorState*) { /* Nothing. */ };
       Prompt(editor_state, std::move(options));
       return;
     }
@@ -150,7 +145,7 @@ unique_ptr<Command> NewSetVariableCommand() {
   options.prompt = L"var ";
   options.history_file = L"variables";
   options.handler = SetVariableHandler;
-  options.cancel_handler = SetVariableCancelHandler;
+  options.cancel_handler = [](EditorState*) { /* Nothing. */ };
   options.predictor = PrecomputedPredictor(variables, '_');
   return NewLinePromptCommand(L"assigns to a variable",
                               [options](EditorState*) { return options; });
