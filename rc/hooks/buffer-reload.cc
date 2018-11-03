@@ -51,6 +51,10 @@ if (path == "") {
   int dot = path.find_last_of(".", path.size());
   string extension = dot == -1 ? "" : path.substr(dot + 1, path.size() - dot - 1);
   string basename = Basename(path);
+
+  buffer.AddBindingToFile(
+      "J", buffer.editor_commands_path() + "fold-next-line");
+
   if (extension == "cc" || extension == "h" || extension == "c") {
     CppMode();
     SetStatus("Loaded C file (" + extension + ")");
@@ -69,7 +73,6 @@ if (path == "") {
   }
 
   if (extension == "py") {
-    buffer.set_editor_commands_path("~/.edge/editor_commands/");
     buffer.set_line_prefix_characters(" #");
     SetStatus("Loaded Python file (" + extension + ")");
   }
