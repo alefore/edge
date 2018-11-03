@@ -13,9 +13,9 @@ namespace editor {
 namespace {
 static void DoSearch(EditorState* editor_state,
                      const SearchOptions& options) {
-  editor_state->current_buffer()
-      ->second->set_active_cursors(SearchHandler(editor_state, options));
-  editor_state->ResetMode();
+  auto buffer = editor_state->current_buffer()->second;
+  buffer->set_active_cursors(SearchHandler(editor_state, options));
+  buffer->ResetMode();
   editor_state->ResetDirection();
   editor_state->ResetStructure();
   editor_state->ScheduleRedraw();
@@ -75,7 +75,7 @@ class SearchCommand : public Command {
             DoSearch(editor_state, options);
           }
 
-          editor_state->ResetMode();
+          buffer->ResetMode();
           editor_state->ResetDirection();
           editor_state->ResetStructure();
           editor_state->ScheduleRedraw();

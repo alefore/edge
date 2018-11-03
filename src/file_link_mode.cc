@@ -55,7 +55,9 @@ void StartDeleteFile(EditorState* editor_state, wstring path) {
       // in the other case.
       editor_state->SetStatus(L"Ignored.");
     }
-    editor_state->ResetMode();
+    if (editor_state->has_current_buffer()) {
+      editor_state->current_buffer()->second->ResetMode();
+    }
   };
   options.predictor = PrecomputedPredictor({L"no", L"yes"}, '/');
   Prompt(editor_state, std::move(options));
@@ -593,6 +595,8 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
           std::make_shared<FileBuffer>(editor_state, actual_path, name);
     }
     it.first->second->Reload(editor_state);
+  } else {
+    it.first->second->ResetMode();
   }
   editor_state->PushCurrentPosition();
   it.first->second->set_position(position);

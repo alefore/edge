@@ -18,7 +18,9 @@ class QuitCommand : public Command {
     wstring error_description;
     if (!editor_state->AttemptTermination(&error_description)) {
       editor_state->SetWarningStatus(error_description);
-      editor_state->ResetMode();
+    }
+    if (editor_state->has_current_buffer()) {
+      editor_state->current_buffer()->second->ResetMode();
     }
   }
 };

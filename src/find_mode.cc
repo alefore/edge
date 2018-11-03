@@ -77,8 +77,8 @@ class FindMode : public EditorMode {
       auto buffer = editor_state->current_buffer()->second;
       buffer->ApplyToCursors(std::unique_ptr<Transformation>(
           new FindTransformation(c, editor_state->modifiers())));
+      buffer->ResetMode();
     }
-    editor_state->ResetMode();
     editor_state->ResetRepetitions();
     editor_state->ResetDirection();
   }

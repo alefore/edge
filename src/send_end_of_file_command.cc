@@ -55,9 +55,10 @@ class SendEndOfFileCommand : public Command {
   }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->ResetMode();
     if (!editor_state->has_current_buffer()) { return; }
-    SendEndOfFileToBuffer(editor_state, editor_state->current_buffer()->second);
+    auto buffer = editor_state->current_buffer()->second;
+    buffer->ResetMode();
+    SendEndOfFileToBuffer(editor_state, buffer);
   }
 };
 

@@ -8,6 +8,7 @@ namespace editor {
 
 struct EditorState;
 
+// Rename to something like 'KeyboardHandler'.
 class EditorMode {
  public:
   virtual ~EditorMode() {}

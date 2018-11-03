@@ -207,8 +207,7 @@ Environment EditorState::BuildEditorEnvironment() {
         [this](vector<unique_ptr<Value>> args) {
           CHECK_EQ(args.size(), 1);
           CHECK_EQ(args[0]->type, VMType::VM_INTEGER);
-          DCHECK(mode() != nullptr);
-          mode()->ProcessInput(args[0]->integer, this);
+          ProcessInput(args[0]->integer);
           return Value::NewVoid();
         };
     environment.Define(L"ProcessInput", std::move(callback));
@@ -333,7 +332,6 @@ Environment EditorState::BuildEditorEnvironment() {
           options.editor_state = this;
           options.path = args[0]->str;
           set_current_buffer(OpenFile(options));
-          ResetMode();
           ScheduleRedraw();
           return Value::NewObject(L"Buffer", current_buffer()->second);
         };
@@ -378,8 +376,7 @@ EditorState::EditorState(AudioPlayer* audio_player)
       home_directory_(GetHomeDirectory()),
       edge_path_(GetEdgeConfigPath(home_directory_)),
       environment_(BuildEditorEnvironment()),
-      default_mode_supplier_(NewCommandModeSupplier(this)),
-      mode_(default_mode_supplier_()),
+      mode_(NewCommandModeSupplier(this, nullptr)()),
       visible_lines_(1),
       status_prompt_(false),
       status_(L""),

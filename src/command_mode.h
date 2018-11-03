@@ -16,8 +16,9 @@ class EditorState;
 
 using std::unique_ptr;
 
+// parent_mode may be nullptr.
 std::function<unique_ptr<EditorMode>(void)> NewCommandModeSupplier(
-    EditorState* editor_state);
+    EditorState* editor_state, std::shared_ptr<EditorMode> parent_mode);
 
 }  // namespace editor
 }  // namespace afc

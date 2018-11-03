@@ -29,7 +29,6 @@ class OpenDirectoryCommand : public Command {
     }
     options.editor_state = editor_state;
     OpenFile(options);
-    editor_state->ResetMode();
   }
 };
 

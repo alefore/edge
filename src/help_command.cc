@@ -82,9 +82,9 @@ class HelpCommand : public Command {
       it.first->second = buffer;
     }
     it.first->second->set_current_position_line(0);
+    it.first->second->ResetMode();
 
     editor_state->ScheduleRedraw();
-    editor_state->ResetMode();
     editor_state->ResetRepetitions();
   }
 

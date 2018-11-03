@@ -44,8 +44,10 @@ void MapMode::ProcessInput(wint_t c, EditorState* editor_state) {
   if (it == commands_.end()
       || !std::equal(input.begin(), input.end(), it->first.begin())) {
     current_input_ = {};
-    for (wint_t c : input) {
-      delegate_->ProcessInput(c, editor_state);
+    if (delegate_ != nullptr) {
+      for (wint_t c : input) {
+        delegate_->ProcessInput(c, editor_state);
+      }
     }
     return;
   }

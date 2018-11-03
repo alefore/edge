@@ -98,6 +98,16 @@ class OpenBuffer {
   bool empty() const { return contents_.empty(); }
   size_t lines_size() const { return contents_.size(); }
 
+  EditorMode* mode() const { return mode_.get(); }
+  std::unique_ptr<EditorMode> ResetMode() {
+    auto copy = std::move(mode_);
+    mode_ = default_mode_supplier_();
+    return copy;
+  }
+  void set_mode(unique_ptr<EditorMode> mode) {
+    mode_ = std::move(mode);
+  }
+
   // Erases all lines in range [first, last).
   void EraseLines(size_t first, size_t last);
 
@@ -581,6 +591,9 @@ class OpenBuffer {
   std::shared_ptr<const ParseTree> simplified_parse_tree_;
   std::shared_ptr<TreeParser> tree_parser_;
   size_t tree_depth_ = 0;
+
+  const std::function<unique_ptr<EditorMode>()> default_mode_supplier_;
+  unique_ptr<EditorMode> mode_;
 
   // The time when the buffer was last selected as active.
   time_t last_visit_ = 0;

@@ -29,7 +29,7 @@ class CommandWithModifiersMode : public EditorMode {
         RunHandler(editor_state, APPLY_FINAL);
         // Pass.
       case Terminal::ESCAPE:
-        editor_state->ResetMode();
+        buffer_->ResetMode();
         editor_state->ResetStatus();
         break;
 
@@ -260,9 +260,9 @@ class CommandWithModifiers : public Command {
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (editor_state->has_current_buffer()) {
-      editor_state->set_mode(std::unique_ptr<CommandWithModifiersMode>(
-          new CommandWithModifiersMode(
-              name_, editor_state, handler_)));
+      editor_state->current_buffer()->second->set_mode(
+          std::unique_ptr<CommandWithModifiersMode>(
+              new CommandWithModifiersMode(name_, editor_state, handler_)));
     }
   }
 

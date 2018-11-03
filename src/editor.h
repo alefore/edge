@@ -79,7 +79,9 @@ class EditorState {
   bool AttemptTermination(wstring* error_description);
 
   void ResetModifiers() {
-    ResetMode();
+    if (has_current_buffer()) {
+      current_buffer()->second->ResetMode();
+    }
     modifiers_.ResetSoft();
   }
 
@@ -149,7 +151,8 @@ class EditorState {
   }
 
   void ProcessInput(int c) {
-    mode()->ProcessInput(c, this);
+    (has_current_buffer() ? current_buffer()->second->mode() : mode_.get())
+        ->ProcessInput(c, this);
   }
 
   void UpdateBuffers() {
@@ -162,15 +165,7 @@ class EditorState {
   const LineMarks* line_marks() const { return &line_marks_; }
   LineMarks* line_marks() { return &line_marks_; }
 
-  EditorMode* mode() const { return mode_.get(); }
-  std::unique_ptr<EditorMode> ResetMode() {
-    auto copy = std::move(mode_);
-    mode_ = default_mode_supplier_();
-    return copy;
-  }
-  void set_mode(unique_ptr<EditorMode> mode) {
-    mode_ = std::move(mode);
-  }
+  std::shared_ptr<EditorMode> mode() const { return mode_; }
 
   size_t visible_lines() const { return visible_lines_; }
   void set_visible_lines(size_t value) { visible_lines_ = value; }
@@ -260,8 +255,8 @@ class EditorState {
 
   wstring last_search_query_;
 
-  const std::function<unique_ptr<EditorMode>()> default_mode_supplier_;
-  unique_ptr<EditorMode> mode_;
+  // Should only be directly used when the editor has no buffer.
+  const std::shared_ptr<EditorMode> mode_;
 
   // Set by the terminal handler.
   size_t visible_lines_;

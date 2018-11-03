@@ -31,7 +31,9 @@ wstring TrimWhitespace(const wstring& in) {
 }
 
 void SetVariableCancelHandler(EditorState* editor_state) {
-  editor_state->ResetMode();
+  if (editor_state->has_current_buffer()) {
+    editor_state->current_buffer()->second->ResetMode();
+  }
   editor_state->ScheduleRedraw();
 }
 
@@ -59,13 +61,12 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
       options.history_file = L"values";
       options.initial_value = buffer->read_string_variable(var);
       options.handler =
-          [var, buffer](const wstring& input, EditorState* editor_state) {
-            if (buffer != nullptr) {
-              buffer->set_string_variable(var, input);
-            }
+          [var, buffer](const wstring& input, EditorState*) {
+            if (buffer == nullptr) { return; }
+            buffer->set_string_variable(var, input);
             // ResetMode causes the prompt to be deleted, and the captures of
             // this lambda go away with it.
-            editor_state->ResetMode();
+            buffer->ResetMode();
           };
       options.predictor = var->predictor();
       Prompt(editor_state, std::move(options));
@@ -99,7 +100,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
             }
             // ResetMode causes the prompt to be deleted, and the captures of
             // this lambda go away with it.
-            editor_state->ResetMode();
+            buffer->ResetMode();
           };
       Prompt(editor_state, std::move(options));
       return;
@@ -126,7 +127,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
             }
             // ResetMode causes the prompt to be deleted, and the captures of
             // this lambda go away with it.
-            editor_state->ResetMode();
+            buffer->ResetMode();
           };
       Prompt(editor_state, std::move(options));
       return;

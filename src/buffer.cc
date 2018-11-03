@@ -425,7 +425,9 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
       parse_tree_(std::make_shared<ParseTree>()),
-      tree_parser_(NewNullTreeParser()) {
+      tree_parser_(NewNullTreeParser()),
+      default_mode_supplier_(NewCommandModeSupplier(editor_, editor_->mode())),
+      mode_(default_mode_supplier_()) {
   contents_.AddUpdateListener(
       [this](const CursorsTracker::Transformation& transformation) {
         editor_->ScheduleParseTreeUpdate(this);

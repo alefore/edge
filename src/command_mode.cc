@@ -364,8 +364,8 @@ const wstring LineDown::Description() {
         } else {
           CHECK(false) << "Invalid direction: " << editor_state->direction();
         }
+        buffer->ResetMode();
       }
-      editor_state->ResetMode();
       editor_state->ResetDirection();
       editor_state->ResetStructure();
       editor_state->ScheduleRedraw();
@@ -434,13 +434,13 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
 
     case SEARCH:
       {
+        auto buffer = editor_state->current_buffer()->second;
         SearchOptions options;
         options.search_query = editor_state->last_search_query();
-        options.starting_position =
-            editor_state->current_buffer()->second->position();
+        options.starting_position = buffer->position();
         JumpToNextMatch(editor_state, options);
+        buffer->ResetMode();
       }
-      editor_state->ResetMode();
       editor_state->ResetDirection();
       editor_state->ResetStructure();
       editor_state->ScheduleRedraw();
@@ -486,13 +486,13 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
     case SEARCH:
       editor_state->set_direction(BACKWARDS);
       {
+        auto buffer = editor_state->current_buffer()->second;
         SearchOptions options;
         options.search_query = editor_state->last_search_query();
-        options.starting_position =
-            editor_state->current_buffer()->second->position();
+        options.starting_position = buffer->position();
         JumpToNextMatch(editor_state, options);
+        buffer->ResetMode();
       }
-      editor_state->ResetMode();
       editor_state->ResetDirection();
       editor_state->ResetStructure();
       editor_state->ScheduleRedraw();
@@ -523,7 +523,8 @@ class EnterFindMode : public Command {
   }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->set_mode(NewFindMode());
+    if (!editor_state->has_current_buffer()) { return; }
+    editor_state->current_buffer()->second->set_mode(NewFindMode());
   }
 };
 
@@ -662,9 +663,11 @@ class NumberMode : public Command {
   }
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
-    editor_state->set_mode(NewRepeatMode(consumer_));
+    if (!editor_state->has_current_buffer()) { return; }
+    auto buffer = editor_state->current_buffer()->second;
+    buffer->set_mode(NewRepeatMode(consumer_));
     if (c < '0' || c > '9') { return; }
-    editor_state->mode()->ProcessInput(c, editor_state);
+    buffer->mode()->ProcessInput(c, editor_state);
   }
 
  private:
@@ -692,7 +695,8 @@ class ActivateLink : public Command {
       editor_state->set_current_buffer(it);
       editor_state->PushCurrentPosition();
       editor_state->ScheduleRedraw();
-      editor_state->ResetMode();
+      buffer->ResetMode();
+      target->ResetMode();
       return;
     }
 
@@ -769,19 +773,20 @@ class HardRedrawCommand : public Command {
 };
 
 void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
-  editor_state->ResetMode();
   if (!editor_state->has_current_buffer()) { return; }
+  auto buffer = editor_state->current_buffer()->second;
+  buffer->ResetMode();
   wstring adjusted_input;
   if (!ResolvePath(editor_state, input, &adjusted_input, nullptr, nullptr)) {
     editor_state->SetWarningStatus(L"File not found: " + input);
     return;
   }
 
-  auto buffer = editor_state->current_buffer()->second;
   if (editor_state->structure() == LINE) {
     auto target = buffer->GetBufferFromCurrentLine();
     if (target != nullptr) {
       buffer = target;
+      target->ResetMode();
     }
     editor_state->ResetModifiers();
   }
@@ -934,8 +939,8 @@ using std::map;
 using std::unique_ptr;
 
 std::function<unique_ptr<EditorMode>(void)> NewCommandModeSupplier(
-    EditorState* editor_state) {
-  auto map_mode = std::make_shared<MapMode>(NoopCommand());
+    EditorState* editor_state, std::shared_ptr<EditorMode> parent_mode) {
+  auto map_mode = std::make_shared<MapMode>(parent_mode);
   map_mode->Add(L"aq", NewQuitCommand().release());
   map_mode->Add(L"ad", NewCloseBufferCommand().release());
   map_mode->Add(L"aw",

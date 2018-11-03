@@ -99,13 +99,13 @@ class GotoCommand : public Command {
   }
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
+    if (!editor_state->has_current_buffer()) { return; }
+    auto buffer = editor_state->current_buffer()->second;
     if (c != 'g') {
-      editor_state->ResetMode();
+      buffer->ResetMode();
       editor_state->ProcessInput(c);
       return;
     }
-    if (!editor_state->has_current_buffer()) { return; }
-    shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
     switch (editor_state->structure()) {
       case CHAR:
         buffer->ApplyToCursors(std::unique_ptr<Transformation>(
@@ -228,7 +228,7 @@ class GotoCommand : public Command {
     editor_state->ResetStructure();
     editor_state->ResetDirection();
     editor_state->ResetRepetitions();
-    editor_state->set_mode(unique_ptr<Command>(new GotoCommand(calls_ + 1)));
+    buffer->set_mode(unique_ptr<Command>(new GotoCommand(calls_ + 1)));
   }
 
  private:
