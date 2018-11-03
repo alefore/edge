@@ -77,7 +77,7 @@ void RegisterBufferFields(
       callback->type.type_arguments.push_back(buffer_type);
       callback->callback =
           [variable, reader, to_vm_value](vector<unique_ptr<Value>> args) {
-            CHECK_EQ(args.size(), 1);
+            CHECK_EQ(args.size(), size_t(1));
             CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
             auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
             CHECK(buffer != nullptr);
@@ -193,7 +193,7 @@ using std::to_wstring;
     callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
     callback->callback =
         [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 2);
+          CHECK_EQ(args.size(), size_t(2));
           CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
           CHECK_EQ(args[1]->type, VMType::VM_INTEGER);
           auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
@@ -214,10 +214,10 @@ using std::to_wstring;
     callback->type.type_arguments.push_back(function_argument);
     callback->callback =
         [editor_state](vector<unique_ptr<Value>> args) {
-          assert(args.size() == 2);
-          assert(args[0]->type == VMType::OBJECT_TYPE);
+          CHECK_EQ(args.size(), size_t(2));
+          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
           auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          assert(buffer != nullptr);
+          CHECK(buffer != nullptr);
           size_t line = 0;
           unique_ptr<TransformationStack> transformation(
               new TransformationStack());
@@ -257,7 +257,7 @@ using std::to_wstring;
 
     callback->callback =
         [editor_state, function_type](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 2);
+          CHECK_EQ(args.size(), size_t(2));
           CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
           auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
           CHECK(buffer != nullptr);
@@ -277,10 +277,10 @@ using std::to_wstring;
     callback->type.type_arguments.push_back(function_argument);
     callback->callback =
         [editor_state](vector<unique_ptr<Value>> args) {
-          assert(args.size() == 2);
-          assert(args[0]->type == VMType::OBJECT_TYPE);
+          CHECK_EQ(args.size(), size_t(2));
+          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
           auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-          assert(buffer != nullptr);
+          CHECK(buffer != nullptr);
           buffer->set_filter(std::move(args[1]));
           editor_state->ScheduleRedraw();
           return Value::NewVoid();
@@ -297,8 +297,8 @@ using std::to_wstring;
     callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
     callback->callback =
         [editor_state](vector<unique_ptr<Value>> args) {
-          CHECK(args.size() == 2);
-          CHECK(args[0]->type == VMType::OBJECT_TYPE);
+          CHECK_EQ(args.size(), size_t(2));
+          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
           auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
           CHECK(buffer != nullptr);
 
@@ -319,8 +319,8 @@ using std::to_wstring;
     callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
     callback->callback =
         [editor_state](vector<unique_ptr<Value>> args) {
-          CHECK(args.size() == 2);
-          CHECK(args[0]->type == VMType::OBJECT_TYPE);
+          CHECK_EQ(args.size(), size_t(2));
+          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
           auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
           CHECK(buffer != nullptr);
 
@@ -356,8 +356,8 @@ using std::to_wstring;
     callback->type.type_arguments.push_back(VMType::ObjectType(buffer.get()));
     callback->callback =
         [editor_state](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1);
-          CHECK(args[0]->type == VMType::OBJECT_TYPE);
+          CHECK_EQ(args.size(), size_t(1));
+          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
           auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
           CHECK(buffer != nullptr);
           buffer->Save(editor_state);
@@ -635,7 +635,7 @@ void OpenBuffer::Input::ReadData(
   LOG(INFO) << "Reading input from " << fd << " for buffer " << target->name();
   static const size_t kLowBufferSize = 1024 * 60;
   if (low_buffer == nullptr) {
-    CHECK_EQ(low_buffer_length, 0);
+    CHECK_EQ(low_buffer_length, size_t(0));
     low_buffer.reset(new char[kLowBufferSize]);
   }
   ssize_t characters_read = read(fd, low_buffer.get() + low_buffer_length,
@@ -654,7 +654,7 @@ void OpenBuffer::Input::ReadData(
     return;
   }
   CHECK_GE(characters_read, 0);
-  CHECK_LE(characters_read, kLowBufferSize - low_buffer_length);
+  CHECK_LE(characters_read, ssize_t(kLowBufferSize - low_buffer_length));
   if (characters_read == 0) {
     Close();
     Reset();
@@ -2615,7 +2615,7 @@ wstring OpenBuffer::GetLineMarksText(const EditorState& editor_state) const {
   const auto* marks = GetLineMarks(editor_state);
   wstring output;
   if (!marks->empty()) {
-    int expired_marks = 0;
+    size_t expired_marks = 0;
     for (const auto& mark : *marks) {
       if (mark.second.IsExpired()) {
         expired_marks++;
