@@ -99,6 +99,17 @@ class PredictionsBufferImpl : public OpenBuffer {
         });
     if (results) {
       consumer_(common_prefix);
+    } else {
+      auto it = editor_state->buffers()->find(PredictionsBufferName());
+      if (it == editor_state->buffers()->end()) {
+        editor_state->SetWarningStatus(
+            L"Error: predictions buffer not found.");
+      } else {
+        CHECK_EQ(this, it->second.get());
+        it->second->set_current_position_line(0);
+        editor_state->set_current_buffer(it);
+        editor_state->ScheduleRedraw();
+      }
     }
   }
 
