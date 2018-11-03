@@ -240,7 +240,7 @@ class FileBuffer : public OpenBuffer {
         callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
         callback->callback =
             [editor_state, path](vector<unique_ptr<Value>> args) {
-              CHECK_EQ(args.size(), 0);
+              CHECK_EQ(args.size(), size_t(0));
               StartDeleteFile(editor_state, path);
               return Value::NewVoid();
             };
