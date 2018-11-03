@@ -90,16 +90,6 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
       };
   editor_type->AddField(name, std::move(callback));
 }
-
-std::unique_ptr<Value> NewCallback(
-    std::vector<VMType> arguments,
-    std::function<std::unique_ptr<Value>(std::vector<std::unique_ptr<Value>>)>
-        callback) {
-  std::unique_ptr<Value> output(new Value(VMType::FUNCTION));
-  output->type.type_arguments = std::move(arguments);
-  output->callback = std::move(callback);
-  return std::move(output);
-}
 }  // namespace
 
 void EditorState::NotifyInternalEvent() {
@@ -115,7 +105,7 @@ Environment EditorState::BuildEditorEnvironment() {
   unique_ptr<ObjectType> editor_type(new ObjectType(L"Editor"));
 
   // Methods for Editor.
-  editor_type->AddField(L"ReloadCurrentBuffer", NewCallback(
+  editor_type->AddField(L"ReloadCurrentBuffer", Value::NewFunction(
       { VMType(VMType::VM_VOID), VMType::ObjectType(editor_type.get()) },
       [](vector<unique_ptr<Value>> args) {
         CHECK_EQ(args.size(), size_t(1));
@@ -139,7 +129,7 @@ Environment EditorState::BuildEditorEnvironment() {
         return Value::NewVoid();
       }));
 
-  editor_type->AddField(L"SaveCurrentBuffer", NewCallback(
+  editor_type->AddField(L"SaveCurrentBuffer", Value::NewFunction(
       { VMType(VMType::VM_VOID), VMType::ObjectType(editor_type.get()) },
       [](vector<unique_ptr<Value>> args) {
         CHECK_EQ(args.size(), size_t(1));
@@ -168,7 +158,7 @@ Environment EditorState::BuildEditorEnvironment() {
   // still compile code that will depend (at run time) on getting the current
   // buffer. Otherwise we could just use the "buffer" variable (that is declared
   // in the environment of each buffer).
-  environment.Define(L"CurrentBuffer", NewCallback(
+  environment.Define(L"CurrentBuffer", Value::NewFunction(
       { VMType::ObjectType(L"Buffer") },
       [this](vector<unique_ptr<Value>> args) {
         CHECK_EQ(args.size(), size_t(0));
@@ -184,7 +174,7 @@ Environment EditorState::BuildEditorEnvironment() {
         return Value::NewObject(L"Buffer", buffer);
       }));
 
-  environment.Define(L"ProcessInput", NewCallback(
+  environment.Define(L"ProcessInput", Value::NewFunction(
       { VMType(VMType::VM_VOID), VMType::Integer() },
       [this](vector<unique_ptr<Value>> args) {
         CHECK_EQ(args.size(), size_t(1));
@@ -193,7 +183,7 @@ Environment EditorState::BuildEditorEnvironment() {
         return Value::NewVoid();
       }));
 
-  environment.Define(L"ConnectTo", NewCallback(
+  environment.Define(L"ConnectTo", Value::NewFunction(
      { VMType(VMType::VM_VOID), VMType(VMType::VM_STRING) },
       [this](vector<unique_ptr<Value>> args) {
         CHECK_EQ(args[0]->type, VMType::VM_STRING);
@@ -201,7 +191,7 @@ Environment EditorState::BuildEditorEnvironment() {
         return std::move(Value::NewVoid());
       }));
 
-  environment.Define(L"SetStatus", NewCallback(
+  environment.Define(L"SetStatus", Value::NewFunction(
       { VMType(VMType::VM_VOID), VMType(VMType::VM_STRING) },
       [this](vector<unique_ptr<Value>> args) {
         CHECK_EQ(args[0]->type, VMType::VM_STRING);
@@ -209,14 +199,14 @@ Environment EditorState::BuildEditorEnvironment() {
         return std::move(Value::NewVoid());
       }));
 
-  environment.Define(L"ScheduleRedraw", NewCallback(
+  environment.Define(L"ScheduleRedraw", Value::NewFunction(
       { VMType(VMType::VM_VOID) },
       [this](vector<unique_ptr<Value>> args) {
         CHECK(args.empty());
         ScheduleRedraw();
         return std::move(Value::NewVoid());
       }));
-  environment.Define(L"set_screen_needs_hard_redraw", NewCallback(
+  environment.Define(L"set_screen_needs_hard_redraw", Value::NewFunction(
       { VMType(VMType::VM_VOID), VMType(VMType::VM_BOOLEAN) },
       [this](vector<unique_ptr<Value>> args) {
         CHECK_EQ(args.size(), size_t(1));
@@ -225,7 +215,7 @@ Environment EditorState::BuildEditorEnvironment() {
         return std::move(Value::NewVoid());
       }));
 
-  environment.Define(L"set_terminate", NewCallback(
+  environment.Define(L"set_terminate", Value::NewFunction(
       { VMType(VMType::VM_VOID), VMType(VMType::VM_BOOLEAN) },
       [this](vector<unique_ptr<Value>> args) {
         CHECK_EQ(args.size(), size_t(1));
@@ -234,7 +224,7 @@ Environment EditorState::BuildEditorEnvironment() {
         return std::move(Value::NewVoid());
       }));
 
-  environment.Define(L"SetPositionColumn", NewCallback(
+  environment.Define(L"SetPositionColumn", Value::NewFunction(
       { VMType(VMType::VM_VOID), VMType(VMType::VM_INTEGER) },
       [this](vector<unique_ptr<Value>> args) {
         CHECK_EQ(args.size(), size_t(1));
@@ -246,7 +236,7 @@ Environment EditorState::BuildEditorEnvironment() {
         return Value::NewVoid();
       }));
 
-  environment.Define(L"Line", NewCallback(
+  environment.Define(L"Line", Value::NewFunction(
       { VMType(VMType::VM_VOID), VMType(VMType::VM_STRING) },
       [this](vector<unique_ptr<Value>> args) {
         CHECK(args.empty());
@@ -257,7 +247,7 @@ Environment EditorState::BuildEditorEnvironment() {
         return output;
       }));
 
-  environment.Define(L"ForkCommand", NewCallback(
+  environment.Define(L"ForkCommand", Value::NewFunction(
       { VMType(VMType::VM_VOID), VMType(VMType::VM_STRING),
         VMType(VMType::VM_BOOLEAN) },
       [this](vector<unique_ptr<Value>> args) {
@@ -271,7 +261,7 @@ Environment EditorState::BuildEditorEnvironment() {
         return std::move(Value::NewVoid());
       }));
 
-  environment.Define(L"OpenFile", NewCallback(
+  environment.Define(L"OpenFile", Value::NewFunction(
       { VMType::ObjectType(L"Buffer"), VMType(VMType::VM_STRING) },
       [this](vector<unique_ptr<Value>> args) {
         CHECK_EQ(args.size(), size_t(1));

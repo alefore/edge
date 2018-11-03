@@ -28,7 +28,10 @@ struct Value {
   static unique_ptr<Value> NewString(wstring value);
   static unique_ptr<Value> NewObject(const wstring& name,
                                      const shared_ptr<void>& value);
-
+  static unique_ptr<Value> NewFunction(
+      std::vector<VMType> arguments,
+      std::function<std::unique_ptr<Value>(std::vector<std::unique_ptr<Value>>)>
+          callback);
   VMType type;
 
   bool boolean;
