@@ -273,6 +273,16 @@ using std::to_wstring;
         auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
         CHECK(buffer != nullptr);
 
+        if (buffer->fd() != -1) {
+          auto str = ToByteString(args[1]->str);
+          LOG(INFO) << "Insert text: " << str.size();
+          if (write(buffer->fd(), str.c_str(), str.size()) == -1) {
+            editor_state->SetWarningStatus(
+                L"Write failed: " + FromByteString(strerror(errno)));
+          }
+          return Value::NewVoid();
+        }
+
         shared_ptr<OpenBuffer> buffer_to_insert(
             new OpenBuffer(editor_state, L"tmp buffer"));
 
