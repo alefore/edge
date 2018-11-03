@@ -499,6 +499,26 @@ bool EditorState::AttemptTermination(wstring* error_description) {
   return false;
 }
 
+void EditorState::ProcessInput(int c) {
+
+  EditorMode* handler = keyboard_redirect().get();
+  if (handler != nullptr) {
+    // Pass.
+  } else if (has_current_buffer()) {
+    handler = current_buffer()->second->mode();
+  } else {
+    handler = mode_.get();
+  }
+  handler->ProcessInput(c, this);
+}
+
+void EditorState::UpdateBuffers() {
+  for (OpenBuffer* buffer : buffers_to_parse_) {
+    buffer->ResetParseTree();
+  }
+  buffers_to_parse_.clear();
+}
+
 void EditorState::MoveBufferForwards(size_t times) {
   if (current_buffer_ == buffers_.end()) {
     if (buffers_.empty()) { return; }

@@ -151,36 +151,6 @@ class HistoryScrollBehavior : public ScrollBehavior {
   const wstring prompt_;
 };
 
-class AutocompleteMode : public EditorMode {
- public:
-  AutocompleteMode(map<wstring, shared_ptr<OpenBuffer>>::iterator buffer)
-      : delegate_(buffer->second->ResetMode()),
-        buffer_(buffer) {}
-
-  void ProcessInput(wint_t c, EditorState* editor_state) {
-    if (c != '\t') {
-      editor_state->set_current_buffer(buffer_);
-      buffer_->second->set_mode(std::move(delegate_));
-      editor_state->ProcessInput(c);
-      return;
-    }
-
-    auto it = editor_state->buffers()->find(PredictionsBufferName());
-    if (it == editor_state->buffers()->end()) {
-      editor_state->SetStatus(L"Error: predictions buffer not found.");
-      return;
-    }
-    it->second->set_current_position_line(0);
-    it->second->set_mode(editor_state->current_buffer()->second->ResetMode());
-    editor_state->set_current_buffer(it);
-    editor_state->ScheduleRedraw();
-  }
-
- private:
-  std::unique_ptr<EditorMode> delegate_;
-  const map<wstring, shared_ptr<OpenBuffer>>::iterator buffer_;
-};
-
 class LinePromptCommand : public Command {
  public:
   LinePromptCommand(wstring description,
@@ -256,6 +226,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
           options.handler(L"", editor_state);
         }
         buffer->ResetMode();
+        editor_state->set_keyboard_redirect(nullptr);
       };
 
   insert_mode_options.new_line_handler =
@@ -273,10 +244,13 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
             history->AppendLine(editor_state, input);
           }
         }
+        auto ensure_survival_of_current_closure = editor_state->keyboard_redirect();
+        editor_state->set_keyboard_redirect(nullptr);
         editor_state->set_status_prompt(false);
         editor_state->ResetStatus();
         editor_state->set_modifiers(original_modifiers);
         options.handler(input->ToString(), editor_state);
+        (void) ensure_survival_of_current_closure;
       };
 
   insert_mode_options.start_completion = [editor_state, options, buffer]() {
@@ -304,9 +278,15 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
             editor_state->ScheduleRedraw();
           } else {
             LOG(INFO) << "Prediction didn't advance.";
-            auto target_buffer = editor_state->current_buffer();
-            target_buffer->second->set_mode(unique_ptr<AutocompleteMode>(
-                new AutocompleteMode(target_buffer)));
+            auto it = editor_state->buffers()->find(PredictionsBufferName());
+            if (it == editor_state->buffers()->end()) {
+              editor_state->SetWarningStatus(
+                  L"Error: predictions buffer not found.");
+            } else {
+              it->second->set_current_position_line(0);
+              editor_state->set_current_buffer(it);
+              editor_state->ScheduleRedraw();
+            }
           }
         });
     return true;

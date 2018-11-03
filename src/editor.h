@@ -150,17 +150,8 @@ class EditorState {
     }
   }
 
-  void ProcessInput(int c) {
-    (has_current_buffer() ? current_buffer()->second->mode() : mode_.get())
-        ->ProcessInput(c, this);
-  }
-
-  void UpdateBuffers() {
-    for (OpenBuffer* buffer : buffers_to_parse_) {
-      buffer->ResetParseTree();
-    }
-    buffers_to_parse_.clear();
-  }
+  void ProcessInput(int c);
+  void UpdateBuffers();
 
   const LineMarks* line_marks() const { return &line_marks_; }
   LineMarks* line_marks() { return &line_marks_; }
@@ -236,6 +227,14 @@ class EditorState {
 
   AudioPlayer* audio_player() const { return audio_player_; }
 
+  // Can return null.
+  std::shared_ptr<EditorMode> keyboard_redirect() const {
+    return keyboard_redirect_;
+  }
+  void set_keyboard_redirect(std::shared_ptr<EditorMode> keyboard_redirect) {
+    keyboard_redirect_ = std::move(keyboard_redirect);
+  }
+
  private:
   Environment BuildEditorEnvironment();
 
@@ -257,6 +256,7 @@ class EditorState {
 
   // Should only be directly used when the editor has no buffer.
   const std::shared_ptr<EditorMode> mode_;
+  std::shared_ptr<EditorMode> keyboard_redirect_;
 
   // Set by the terminal handler.
   size_t visible_lines_;

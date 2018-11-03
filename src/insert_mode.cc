@@ -513,7 +513,11 @@ class InsertMode : public EditorMode {
         options_.escape_handler();  // Probably deletes us.
         editor_state->ResetRepetitions();
         editor_state->ResetInsertionModifier();
-        buffer->ResetMode();
+        if (buffer == editor_state->current_buffer()->second) {
+          buffer->ResetMode();
+        } else {
+          editor_state->set_keyboard_redirect(nullptr);
+        }
         return;
 
       case Terminal::UP_ARROW:
@@ -667,7 +671,11 @@ class RawInputTypeMode : public EditorMode {
           line_buffer_.push_back(27);
           WriteLineBuffer(editor_state);
         } else {
-          buffer_->ResetMode();
+          if (buffer_ == editor_state->current_buffer()->second) {
+            buffer_->ResetMode();
+          } else {
+            editor_state->set_keyboard_redirect(nullptr);
+          }
           editor_state->ResetStatus();
         }
         break;
@@ -749,8 +757,15 @@ class RawInputTypeMode : public EditorMode {
 void EnterInsertCharactersMode(InsertModeOptions options) {
   options.buffer->MaybeAdjustPositionCol();
   options.editor_state->SetStatus(L"type");
-  options.editor_state->current_buffer()->second->set_mode(
-      unique_ptr<EditorMode>(new InsertMode(options)));
+
+  unique_ptr<EditorMode> handler(new InsertMode(options));
+  if (options.editor_state->current_buffer()->second == options.buffer) {
+    options.editor_state->current_buffer()->second->set_mode(
+        std::move(handler));
+  } else {
+    options.editor_state->set_keyboard_redirect(std::move(handler));
+  }
+
   if (options.buffer->active_cursors()->size() > 1 &&
       options.buffer->read_bool_variable(
           OpenBuffer::variable_multiple_cursors())) {
