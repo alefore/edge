@@ -339,7 +339,12 @@ using std::to_wstring;
         buffer->default_mode_->Add(
             args[1]->str,
             [editor_state, buffer, path]() {
-              buffer->EvaluateFile(editor_state, path);
+              wstring resolved_path;
+              if (!ResolvePath(editor_state, path, &resolved_path, nullptr, nullptr)) {
+                editor_state->SetWarningStatus(L"Unable to resolve: " + path);
+              } else {
+                buffer->EvaluateFile(editor_state, resolved_path);
+              }
             },
             L"Load file: " + path);
         return Value::NewVoid();
