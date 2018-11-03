@@ -8,6 +8,7 @@
 
 #include "editor_mode.h"
 #include "command.h"
+#include "vm/public/value.h"
 
 namespace afc {
 namespace editor {
@@ -26,6 +27,8 @@ class MapMode : public EditorMode {
 
   // Adds an entry mapping a given string to a given command.
   void Add(wstring name, Command* value);
+  void Add(wstring name, std::unique_ptr<vm::Value> value);
+  void Add(wstring name, std::function<void()> value, wstring description);
 
  private:
   static void Populate(const MapMode* input, std::vector<const Map*>* output);

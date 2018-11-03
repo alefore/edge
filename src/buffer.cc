@@ -308,6 +308,57 @@ using std::to_wstring;
         return Value::NewVoid();
       }));
 
+  buffer->AddField(L"AddBinding", Value::NewFunction(
+      { VMType::Void(),
+        VMType::ObjectType(buffer.get()),
+        VMType::String(),
+        VMType::Function({VMType::Void()})},
+      [editor_state](vector<unique_ptr<Value>> args) {
+        CHECK_EQ(args.size(), 3u);
+        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+        CHECK_EQ(args[1]->type, VMType::VM_STRING);
+        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+        CHECK(buffer != nullptr);
+        buffer->default_mode_->Add(args[1]->str, std::move(args[2]));
+        return Value::NewVoid();
+      }));
+
+  buffer->AddField(L"AddBindingToFile", Value::NewFunction(
+      { VMType::Void(),
+        VMType::ObjectType(buffer.get()),
+        VMType::String(),
+        VMType::String() },
+      [editor_state](vector<unique_ptr<Value>> args) {
+        CHECK_EQ(args.size(), 3u);
+        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+        CHECK_EQ(args[1]->type, VMType::VM_STRING);
+        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+        CHECK(buffer != nullptr);
+        CHECK_EQ(args[2]->type, VMType::VM_STRING);
+        wstring path = args[2]->str;
+        buffer->default_mode_->Add(
+            args[1]->str,
+            [editor_state, buffer, path]() {
+              buffer->EvaluateFile(editor_state, path);
+            },
+            L"Load file: " + path);
+        return Value::NewVoid();
+      }));
+
+  buffer->AddField(L"EvaluateFile", Value::NewFunction(
+      { VMType::Void(),
+        VMType::ObjectType(buffer.get()),
+        VMType::String() },
+      [editor_state](std::vector<std::unique_ptr<Value>> args) {
+        CHECK_EQ(args.size(), 2u);
+        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+        CHECK(buffer != nullptr);
+        CHECK_EQ(args[1]->type, VMType::VM_STRING);
+        buffer->EvaluateFile(editor_state, args[1]->str);
+        return Value::NewVoid();
+      }));
+
   environment->DefineType(L"Buffer", std::move(buffer));
 }
 
