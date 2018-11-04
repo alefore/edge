@@ -408,7 +408,6 @@ bool EditorState::CloseBuffer(
 
   buffer->second->Close(this);
   buffers_.erase(buffer);
-  CHECK(current_buffer_ != buffers_.end());
   return true;
 }
 
@@ -444,8 +443,8 @@ void EditorState::ProcessInput(int c) {
   } else if (has_current_buffer()) {
     handler = current_buffer()->second->mode();
   } else {
-    SetWarningStatus(L"No buffer! Ignoring input.");
-    return;
+    handler = OpenAnonymousBuffer(this)->second->mode();
+    CHECK(has_current_buffer());
   }
   handler->ProcessInput(c, this);
 }

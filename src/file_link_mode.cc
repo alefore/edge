@@ -605,10 +605,11 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   return it.first;
 }
 
-void OpenAnonymousBuffer(EditorState* editor_state) {
+map<wstring, shared_ptr<OpenBuffer>>::iterator OpenAnonymousBuffer(
+    EditorState* editor_state) {
   OpenFileOptions options;
   options.editor_state = editor_state;
-  OpenFile(options);
+  return OpenFile(options);
 }
 
 }  // namespace afc
