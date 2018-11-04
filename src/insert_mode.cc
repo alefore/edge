@@ -512,11 +512,8 @@ class InsertMode : public EditorMode {
         options_.escape_handler();  // Probably deletes us.
         editor_state->ResetRepetitions();
         editor_state->ResetInsertionModifier();
-        if (buffer == editor_state->current_buffer()->second) {
-          buffer->ResetMode();
-        } else {
-          editor_state->set_keyboard_redirect(nullptr);
-        }
+        editor_state->current_buffer()->second->ResetMode();
+        editor_state->set_keyboard_redirect(nullptr);
         return;
 
       case Terminal::UP_ARROW:
@@ -670,11 +667,8 @@ class RawInputTypeMode : public EditorMode {
           line_buffer_.push_back(27);
           WriteLineBuffer(editor_state);
         } else {
-          if (buffer_ == editor_state->current_buffer()->second) {
-            buffer_->ResetMode();
-          } else {
-            editor_state->set_keyboard_redirect(nullptr);
-          }
+          editor_state->current_buffer()->second->ResetMode();
+          editor_state->set_keyboard_redirect(nullptr);
           editor_state->ResetStatus();
         }
         break;
