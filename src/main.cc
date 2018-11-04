@@ -120,6 +120,7 @@ Args ParseArgs(int* argc, const char*** argv) {
       "  -f, --fork <shellcmd>  Creates a buffer running a shell command\n"
       "  -h, --help             Displays this message\n"
       "  --run <vmcmd>          Runs a VM command\n"
+      "  --load <path>          Loads a file with VM commands\n"
       "  -s, --server <path>    Runs in daemon mode at path given\n"
       "  -c, --client <path>    Connects to daemon at path given\n"
       "  --mute                 Disables audio output\n";
@@ -157,6 +158,14 @@ Args ParseArgs(int* argc, const char*** argv) {
           << output.binary_name << ": " << cmd
           << ": Expected command to run.\n";
       output.commands_to_run += pop_argument();
+    } else if (cmd == "--load" || cmd == "-l") {
+      CHECK_GT(*argc, 0)
+          << output.binary_name << ": " << cmd
+          << ": Expected path to VM commands to run.\n";
+      output.commands_to_run +=
+          "buffer.EvaluateFile(\""
+          + ToByteString(CppEscapeString(FromByteString(pop_argument())))
+          + "\");";
     } else if (cmd == "--server" || cmd == "-s") {
       output.server = true;
       if (*argc > 0) {

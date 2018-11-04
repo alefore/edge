@@ -370,10 +370,13 @@ using std::to_wstring;
         VMType::String() },
       [editor_state](std::vector<std::unique_ptr<Value>> args) {
         CHECK_EQ(args.size(), 2u);
+        CHECK(args[0] != nullptr);
         CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
         auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
         CHECK(buffer != nullptr);
+        CHECK(args[1] != nullptr);
         CHECK_EQ(args[1]->type, VMType::VM_STRING);
+        LOG(INFO) << "Evaluating file: " << args[1]->str;
         buffer->EvaluateFile(editor_state, args[1]->str);
         return Value::NewVoid();
       }));
@@ -713,7 +716,7 @@ void OpenBuffer::Input::ReadData(
   }
 
   if (target->read_bool_variable(OpenBuffer::variable_vm_exec())) {
-    LOG(INFO) << target->name() << "Evaluating VM code: "
+    LOG(INFO) << target->name() << ": Evaluating VM code: "
               << buffer_wrapper->ToString();
     target->EvaluateString(editor_state, buffer_wrapper->ToString());
   }
