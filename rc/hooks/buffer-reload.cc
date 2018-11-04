@@ -60,13 +60,21 @@ if (path == "") {
     buffer.AddBindingToFile(
         "sh", buffer.editor_commands_path() + "header");
     buffer.AddBindingToFile(
-        "si", buffer.editor_commands_path() + "include");
+        "sI", buffer.editor_commands_path() + "include");
+    buffer.AddBindingToFile(
+        "si", buffer.editor_commands_path() + "indent");
+    buffer.AddBindingToFile(
+        "sR", buffer.editor_commands_path() + "reflow");
     SetStatus("Loaded C file (" + extension + ")");
     return;
   }
 
   if (extension == "java") {
     JavaMode();
+    buffer.AddBindingToFile(
+        "si", buffer.editor_commands_path() + "indent");
+    buffer.AddBindingToFile(
+        "sR", buffer.editor_commands_path() + "reflow");
     SetStatus("Loaded Java file (" + extension + ")");
     return;
   }
@@ -78,6 +86,8 @@ if (path == "") {
 
   if (extension == "py") {
     buffer.set_line_prefix_characters(" #");
+    buffer.AddBindingToFile(
+        "si", buffer.editor_commands_path() + "indent");
     SetStatus("Loaded Python file (" + extension + ")");
   }
 }
