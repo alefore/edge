@@ -34,6 +34,7 @@
 #include "repeat_mode.h"
 #include "run_command_handler.h"
 #include "run_cpp_command.h"
+#include "run_cpp_file.h"
 #include "search_command.h"
 #include "search_handler.h"
 #include "send_end_of_file_command.h"
@@ -773,53 +774,6 @@ class HardRedrawCommand : public Command {
   }
 };
 
-void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
-  if (!editor_state->has_current_buffer()) { return; }
-  auto buffer = editor_state->current_buffer()->second;
-  buffer->ResetMode();
-  wstring adjusted_input;
-  ResolvePathOptions options;
-  options.editor_state = editor_state;
-  options.path = input;
-  options.output_path = &adjusted_input;
-  if (!ResolvePath(options)) {
-    editor_state->SetWarningStatus(L"File not found: " + input);
-    return;
-  }
-
-  if (editor_state->structure() == LINE) {
-    auto target = buffer->GetBufferFromCurrentLine();
-    if (target != nullptr) {
-      buffer = target;
-      target->ResetMode();
-    }
-    editor_state->ResetModifiers();
-  }
-  for (size_t i = 0; i < editor_state->repetitions(); i++) {
-    buffer->EvaluateFile(editor_state, adjusted_input);
-  }
-  editor_state->ResetRepetitions();
-}
-
-class RunCppFileCommand : public Command {
-  const wstring Description() {
-    return L"runs a command from a file";
-  }
-
-  void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) { return; }
-    auto buffer = editor_state->current_buffer()->second;
-    PromptOptions options;
-    options.prompt = L"cmd ";
-    options.history_file = L"editor_commands";
-    options.initial_value = buffer->read_string_variable(
-        OpenBuffer::variable_editor_commands_path()),
-    options.handler = RunCppFileHandler;
-    options.predictor = FilePredictor;
-    Prompt(editor_state, std::move(options));
-  }
-};
-
 class SwitchCaseTransformation : public Transformation {
  public:
   SwitchCaseTransformation(CommandApplyMode apply_mode, Modifiers modifiers)
@@ -953,7 +907,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(
           L"// Save the current buffer.\n"
           L"editor.SaveCurrentBuffer();").release());
   commands->Add(L"av", NewSetVariableCommand().release());
-  commands->Add(L"ac", new RunCppFileCommand());
+  commands->Add(L"ac", NewRunCppFileCommand().release());
   commands->Add(L"aC", NewRunCppCommand().release());
   commands->Add(L"a.", NewOpenDirectoryCommand().release());
   commands->Add(L"al", NewListBuffersCommand().release());
