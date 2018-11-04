@@ -32,36 +32,40 @@ class CommandFromFunction : public Command {
   const std::function<void()> callback_;
   const wstring description_;
 };
+
 }  // namespace
 
 struct EditorState;
-
-MapMode::MapMode(std::shared_ptr<EditorMode> delegate)
-    : delegate_(std::move(delegate)) {
-  std::vector<const Map*> commands_vector;
-  Populate(this, &commands_vector);
-  Add(L"?",
-      NewHelpCommand(std::move(commands_vector), L"command mode").release());
+MapModeCommands::MapModeCommands()
+    : commands_({std::make_shared<map<wstring, Command*>>()}) {
+  Add(L"?", NewHelpCommand(this, L"command mode").release());
 }
 
-// static
-void MapMode::Populate(const MapMode* input, std::vector<const Map*>* output) {
-  while (input != nullptr) {
-    output->push_back(&input->commands_);
-    input = dynamic_cast<MapMode*>(input->delegate_.get());
+std::unique_ptr<MapModeCommands> MapModeCommands::NewChild() {
+  std::unique_ptr<MapModeCommands> output(new MapModeCommands());
+  output->commands_ = commands_;
+  output->commands_.push_front(std::make_shared<map<wstring, Command*>>());
+  return std::move(output);
+}
+
+std::map<wstring, Command*> MapModeCommands::Coallesce() const {
+  std::map<wstring, Command*> output;
+  for (const auto& node : commands_) {
+    for (const auto& it : *node) {
+      if (output.count(it.first) == 0) {
+        output.insert({it.first, it.second});
+      }
+    }
   }
+  return output;
 }
 
-void MapMode::Add(wstring name, Command* value) {
+void MapModeCommands::Add(wstring name, Command* value) {
   CHECK(value != nullptr);
-  vector<wint_t> key;
-  for (wchar_t c : name) {
-    key.push_back(c);
-  }
-  commands_.insert({std::move(key), value});
+  commands_.front()->insert({name, value});
 }
 
-void MapMode::Add(wstring name, std::unique_ptr<Value> value) {
+void MapModeCommands::Add(wstring name, std::unique_ptr<Value> value) {
   CHECK(value != nullptr);
   CHECK_EQ(value->type.type, VMType::FUNCTION);
   CHECK(value->type.type_arguments == std::vector<VMType>({ VMType::Void() }));
@@ -71,34 +75,38 @@ void MapMode::Add(wstring name, std::unique_ptr<Value> value) {
                                     L"C++ VM function"));
 }
 
-void MapMode::Add(wstring name, std::function<void()> callback,
-                  wstring description) {
+void MapModeCommands::Add(wstring name, std::function<void()> callback,
+                          wstring description) {
   // TODO: Don't leak it!
   Add(name, new CommandFromFunction(std::move(callback), description));
 }
 
+MapMode::MapMode(std::shared_ptr<MapModeCommands> commands)
+    : commands_(std::move(commands)) {}
+
+
 void MapMode::ProcessInput(wint_t c, EditorState* editor_state) {
-  vector<wint_t> input = current_input_;
-  input.push_back(c);
-  auto it = commands_.lower_bound(input);
-  if (it == commands_.end()
-      || !std::equal(input.begin(), input.end(), it->first.begin())) {
-    current_input_ = {};
-    if (delegate_ != nullptr) {
-      for (wint_t c : input) {
-        delegate_->ProcessInput(c, editor_state);
+  current_input_.push_back(c);
+
+  bool reset_input = true;
+  for (const auto& node : commands_->commands_) {
+    auto it = node->lower_bound(current_input_);
+    if (it != node->end()
+        && std::equal(current_input_.begin(), current_input_.end(),
+                      it->first.begin())) {
+      if (current_input_ == it->first) {
+        CHECK(it->second);
+        current_input_ = L"";
+        it->second->ProcessInput(c, editor_state);
+        return;
       }
+      reset_input = false;
     }
-    return;
-  }
-  if (input != it->first) {
-    current_input_ = std::move(input);
-    return;
   }
 
-  current_input_ = {};
-  CHECK(it->second);
-  it->second->ProcessInput(c, editor_state);
+  if (reset_input) {
+    current_input_ = L"";
+  }
 }
 
 }  // namespace editor

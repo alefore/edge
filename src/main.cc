@@ -400,7 +400,6 @@ int main(int argc, const char** argv) {
         wint_t c;
         while ((c = ReadChar(&mbstate)) != static_cast<wint_t>(-1)) {
           if (remote_server_fd == -1) {
-            DCHECK(editor_state()->mode() != nullptr);
             editor_state()->ProcessInput(c);
           } else {
             SendCommandsToParent(

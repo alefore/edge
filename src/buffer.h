@@ -102,7 +102,7 @@ class OpenBuffer {
   EditorMode* mode() const { return mode_.get(); }
   std::shared_ptr<EditorMode> ResetMode() {
     auto copy = std::move(mode_);
-    mode_ = default_mode_;
+    mode_.reset(new MapMode(default_commands_));
     return copy;
   }
   void set_mode(std::shared_ptr<EditorMode> mode) {
@@ -593,7 +593,7 @@ class OpenBuffer {
   std::shared_ptr<TreeParser> tree_parser_;
   size_t tree_depth_ = 0;
 
-  const std::shared_ptr<MapMode> default_mode_;
+  std::shared_ptr<MapModeCommands> default_commands_;
   std::shared_ptr<EditorMode> mode_;
 
   // The time when the buffer was last selected as active.

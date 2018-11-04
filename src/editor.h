@@ -156,7 +156,9 @@ class EditorState {
   const LineMarks* line_marks() const { return &line_marks_; }
   LineMarks* line_marks() { return &line_marks_; }
 
-  std::shared_ptr<EditorMode> mode() const { return mode_; }
+  std::shared_ptr<MapModeCommands> default_commands() const {
+    return default_commands_;
+  }
 
   size_t visible_lines() const { return visible_lines_; }
   void set_visible_lines(size_t value) { visible_lines_ = value; }
@@ -255,7 +257,7 @@ class EditorState {
   wstring last_search_query_;
 
   // Should only be directly used when the editor has no buffer.
-  const std::shared_ptr<EditorMode> mode_;
+  std::shared_ptr<MapModeCommands> default_commands_;
   std::shared_ptr<EditorMode> keyboard_redirect_;
 
   // Set by the terminal handler.

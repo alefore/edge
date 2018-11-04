@@ -16,7 +16,7 @@ using std::unique_ptr;
 using std::shared_ptr;
 
 namespace {
-wstring DescribeSequence(const vector<wint_t> input) {
+wstring DescribeSequence(wstring input) {
   wstring output;
   for (wint_t c : input) {
     if (c == '\n') {
@@ -30,15 +30,9 @@ wstring DescribeSequence(const vector<wint_t> input) {
 
 class HelpCommand : public Command {
  public:
-  HelpCommand(std::vector<const map<vector<wint_t>, Command*>*> commands,
+  HelpCommand(const MapModeCommands* commands,
               const wstring& mode_description)
-      : commands_(std::move(commands)), mode_description_(mode_description) {
-    for (const auto& m : commands_) {
-      for (const auto& it : *m) {
-        DCHECK(it.second);
-      }
-    }
-  }
+      : commands_(commands), mode_description_(mode_description) {}
 
   const wstring Description() {
     return L"shows help about commands.";
@@ -53,18 +47,11 @@ class HelpCommand : public Command {
       buffer->AppendToLastLine(
           editor_state,
           NewCopyString(L"Help: " + mode_description_));
-      std::map<wstring, wstring> descriptions;
-      for (const auto& m : commands_) {
-        for (const auto& it : *m) {
-          auto key = DescribeSequence(it.first);
-          if (descriptions.count(key) == 0) {
-            descriptions.insert({key, it.second->Description()});
-          }
-        }
-      }
+      std::map<wstring, Command*> descriptions = commands_->Coallesce();
       for (const auto& it : descriptions) {
         buffer->AppendLine(editor_state,
-                           NewCopyString(it.first + L" - " + it.second));
+                           NewCopyString(DescribeSequence(it.first) + L" - "
+                                         + it.second->Description()));
       }
 
       DescribeVariables(editor_state, L"bool", buffer.get(),
@@ -109,16 +96,15 @@ class HelpCommand : public Command {
     }
   }
 
-  const std::vector<const map<vector<wint_t>, Command*>*> commands_;
+  const MapModeCommands* const commands_;
   const wstring mode_description_;
 };
 }  // namespace
 
 unique_ptr<Command> NewHelpCommand(
-    std::vector<const map<vector<wint_t>, Command*>*> commands,
-    const wstring& mode_description) {
+    const MapModeCommands* commands, const wstring& mode_description) {
   return unique_ptr<Command>(
-      new HelpCommand(std::move(commands), mode_description));
+      new HelpCommand(commands, mode_description));
 }
 
 }  // namespace editor

@@ -329,7 +329,7 @@ using std::to_wstring;
         CHECK_EQ(args[1]->type, VMType::VM_STRING);
         auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
         CHECK(buffer != nullptr);
-        buffer->default_mode_->Add(args[1]->str, std::move(args[2]));
+        buffer->default_commands_->Add(args[1]->str, std::move(args[2]));
         return Value::NewVoid();
       }));
 
@@ -346,7 +346,7 @@ using std::to_wstring;
         CHECK(buffer != nullptr);
         CHECK_EQ(args[2]->type, VMType::VM_STRING);
         wstring path = args[2]->str;
-        buffer->default_mode_->Add(
+        buffer->default_commands_->Add(
             args[1]->str,
             [editor_state, buffer, path]() {
               wstring resolved_path;
@@ -438,8 +438,8 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       last_transformation_(NewNoopTransformation()),
       parse_tree_(std::make_shared<ParseTree>()),
       tree_parser_(NewNullTreeParser()),
-      default_mode_(std::make_shared<MapMode>(editor_->mode())),
-      mode_(default_mode_) {
+      default_commands_(editor_->default_commands()->NewChild()),
+      mode_(new MapMode(default_commands_)) {
   contents_.AddUpdateListener(
       [this](const CursorsTracker::Transformation& transformation) {
         editor_->ScheduleParseTreeUpdate(this);

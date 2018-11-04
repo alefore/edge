@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "command.h"
+#include "map_mode.h"
 
 namespace afc {
 namespace editor {
@@ -16,13 +17,8 @@ using std::unique_ptr;
 using std::vector;
 using std::wstring;
 
-// The reason this takes a vector of maps (rather than just a single map) is to
-// allow hierachies of delegating MapMode (the main customer of this class),
-// where each instance may modify its bindings (after this instance has been
-// built).
-unique_ptr<Command> NewHelpCommand(
-    std::vector<const map<vector<wint_t>, Command*>*> commands,
-    const std::wstring& mode_description);
+std::unique_ptr<Command> NewHelpCommand(const MapModeCommands* commands,
+                                        const std::wstring& mode_description);
 
 }  // namespace editor
 }  // namespace afc

@@ -27,7 +27,7 @@ class CommandWithModifiersMode : public EditorMode {
       case '\n':
       case ' ':
         RunHandler(editor_state, APPLY_FINAL);
-        // Pass.
+        // Fall through.
       case Terminal::ESCAPE:
         buffer_->ResetMode();
         editor_state->ResetStatus();

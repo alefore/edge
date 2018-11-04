@@ -1,3 +1,5 @@
+#include "editor.h"
+
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -19,7 +21,6 @@ extern "C" {
 #include "audio.h"
 #include "char_buffer.h"
 #include "dirname.h"
-#include "editor.h"
 #include "file_link_mode.h"
 #include "run_command_handler.h"
 #include "server.h"
@@ -312,7 +313,7 @@ EditorState::EditorState(AudioPlayer* audio_player)
       home_directory_(GetHomeDirectory()),
       edge_path_(GetEdgeConfigPath(home_directory_)),
       environment_(BuildEditorEnvironment()),
-      mode_(NewCommandMode(this, nullptr)),
+      default_commands_(NewCommandMode(this)),
       visible_lines_(1),
       status_prompt_(false),
       status_(L""),
@@ -437,14 +438,14 @@ bool EditorState::AttemptTermination(wstring* error_description) {
 }
 
 void EditorState::ProcessInput(int c) {
-
   EditorMode* handler = keyboard_redirect().get();
   if (handler != nullptr) {
     // Pass.
   } else if (has_current_buffer()) {
     handler = current_buffer()->second->mode();
   } else {
-    handler = mode_.get();
+    SetWarningStatus(L"No buffer! Ignoring input.");
+    return;
   }
   handler->ProcessInput(c, this);
 }
