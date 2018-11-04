@@ -225,6 +225,21 @@ wstring StartServer(const Args& args) {
   return actual_address;
 }
 
+std::wstring GetGreetingMessage() {
+  static std::vector<wstring> errors({
+      L"Welcome to Edge!",
+      L"Edge, your favorite text editor.",
+      L"It looks like you're writing a letter. Would you like help?",
+      L"Edge, a text editor.",
+      L"All modules are now active.",
+      L"Booting up Edge. . . . . . . . . . . . . DONE",
+      L"What are you up to today?",
+      L"The trouble is, you think you have time.",
+      L"Happiness is here, and now.",
+      L"The journey of a thousand miles begins with a single step.",
+  });
+  return errors[rand() % errors.size()];
+}
 }  // namespace
 
 int main(int argc, const char** argv) {
@@ -234,6 +249,8 @@ int main(int argc, const char** argv) {
 
   google::InitGoogleLogging(argv[0]);
   google::InstallFailureSignalHandler();
+
+  srand(time(NULL));
 
   string locale = std::setlocale(LC_ALL, "");
   LOG(INFO) << "Using locale: " << locale;
@@ -308,6 +325,7 @@ int main(int argc, const char** argv) {
   std::pair<size_t, size_t> last_screen_size = { -1, -1 };
 
   BeepFrequencies(audio_player.get(), { 783.99, 723.25, 783.99 });
+  editor_state()->SetStatus(GetGreetingMessage());
 
   while (!editor_state()->terminate()) {
     editor_state()->UpdateBuffers();

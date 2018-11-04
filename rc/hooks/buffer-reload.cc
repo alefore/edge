@@ -27,7 +27,6 @@ if (path == "") {
   int space = command.find_first_of(" ", 0);
   string base_command = space == -1 ? command : command.substr(0, space);
   if (base_command != "") {
-    SetStatus("Running command: [" + base_command + "]");
     if (base_command == "bash" || base_command == "python"
         || base_command == "sh") {
       buffer.set_pts(true);
