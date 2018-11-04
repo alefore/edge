@@ -19,6 +19,8 @@ Honor the "margin_columns" variable.
 
 Add a boolean variable "highlight_current_line" (default: false); when set, highlight the line with the current cursor position.
 
+Display a scroll bar that represents visually what percentage of the file is currently shown (and how far up we are).
+
 -- Prompt
 
 -- Syntax
