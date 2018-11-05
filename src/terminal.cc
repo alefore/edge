@@ -765,7 +765,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     }
 
     line->Output(editor_state, buffer, current_line, receiver,
-                 screen->columns(), &buffers_shown);
+                 lines_to_show, screen->columns(), &buffers_shown);
     // Need to do this for atomic lines, since they override the Reset modifier
     // with Reset + Reverse.
     line_output_receiver->AddModifier(LineModifier::RESET);
