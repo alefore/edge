@@ -8,6 +8,8 @@ Let buffers "garbage collect" their contents: if they're clean and haven't been 
   - Requires making them load them lazily.
   - Probably not too important? We can just let the OS page out appropriate pages.
 
+For 'd': Add '?' (show modifiers available).
+
 -- Navigation
 
 Improve "g", the current behavior is kind of annoying:
