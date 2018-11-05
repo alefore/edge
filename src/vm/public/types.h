@@ -41,6 +41,8 @@ struct VMType {
   static VMType ObjectType(ObjectType* type);
   static VMType ObjectType(const wstring& name);
 
+  static VMType Function(vector<VMType> arguments);
+
   wstring ToString() const;
 
   Type type;

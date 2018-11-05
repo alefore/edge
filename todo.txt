@@ -10,6 +10,8 @@ Let buffers "garbage collect" their contents: if they're clean and haven't been 
 
 For 'd': Add '?' (show modifiers available).
 
+Add "pipe" command: select the region (similar to delete: line, paragraph, buffer...), and then prompt for a command. Pipe the contents of the region to the command, and replace them with the output of the command.
+
 -- Navigation
 
 Improve "g", the current behavior is kind of annoying:
@@ -18,6 +20,8 @@ Improve "g", the current behavior is kind of annoying:
 Honor the "margin_columns" variable.
 
 Add a boolean variable "highlight_current_line" (default: false); when set, highlight the line with the current cursor position.
+
+Change the tree generation: just display the structure of the entire file, fit into the screen (similar to the scroll bar).
 
 -- Prompt
 
@@ -60,16 +64,14 @@ Add support for templates, so that we can do "vector<string>".
 Support polymorphism: same name for multiple symbols with different type.
   Requires adjusting lookup and all callers.
 
+Support in-line functions and/or lambda forms. Tricky.
+
 -- Client/server
 
 Allow a client to just disconnect.
   This is currently hard because the server doesn't know which client issued the commands it processes.
 
 -- Misc
-
-When running nested Edge on a file, pass its absolute path to the parent.
-
-Allow running a nested Edge sending a c++ (extension) command to the parent.
 
 Support variables scoped at the Editor level (i.e. not specific to a given buffer).
 

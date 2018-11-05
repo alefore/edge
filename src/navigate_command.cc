@@ -24,8 +24,6 @@ class NavigateMode : public EditorMode {
     auto buffer = editor_state->current_buffer();
     if (buffer == editor_state->buffers()->end()) {
       LOG(INFO) << "NavigateMode gives up: No current buffer.";
-      editor_state->ResetMode();
-      editor_state->ProcessInput(c);
       return;
     }
 
@@ -39,7 +37,7 @@ class NavigateMode : public EditorMode {
         break;
 
       default:
-        editor_state->ResetMode();
+        buffer->second->ResetMode();
         editor_state->ProcessInput(c);
     }
   }
@@ -194,25 +192,26 @@ class NavigateCommand : public Command {
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
     auto structure = editor_state->modifiers().structure;
+    auto buffer = editor_state->current_buffer()->second;
     switch (structure) {
       case CHAR:
-        editor_state->set_mode(std::unique_ptr<NavigateMode>(
+        buffer->set_mode(std::unique_ptr<NavigateMode>(
             new NavigateModeChar(editor_state->modifiers())));
         break;
 
       case WORD:
-        editor_state->set_mode(std::unique_ptr<NavigateMode>(
+        buffer->set_mode(std::unique_ptr<NavigateMode>(
             new NavigateModeWord(editor_state->modifiers())));
         break;
 
       case LINE:
-        editor_state->set_mode(std::unique_ptr<NavigateMode>(
+        buffer->set_mode(std::unique_ptr<NavigateMode>(
             new NavigateModeLine(editor_state->modifiers())));
         break;
 
       default:
         editor_state->SetStatus(L"Navigate not handled for current mode.");
-        editor_state->ResetMode();
+        buffer->ResetMode();
     }
   }
 

@@ -107,7 +107,7 @@ void RegisterScreenType(Environment* environment) {
 
     callback->callback =
         [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args.size(), 1u);
           CHECK_EQ(args[0]->type, VMType::VM_STRING);
           wstring error;
           int fd = MaybeConnectToServer(ToByteString(args[0]->str), &error);
@@ -128,7 +128,7 @@ void RegisterScreenType(Environment* environment) {
 
     callback->callback =
         [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args.size(), 1u);
           CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
           auto screen = static_cast<Screen*>(args[0]->user_value.get());
           CHECK(screen != nullptr);
@@ -149,7 +149,7 @@ void RegisterScreenType(Environment* environment) {
 
     callback->callback =
         [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args.size(), 1u);
           CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
           auto screen = static_cast<Screen*>(args[0]->user_value.get());
           CHECK(screen != nullptr);
@@ -170,7 +170,7 @@ void RegisterScreenType(Environment* environment) {
 
     callback->callback =
         [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args.size(), 1u);
           CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
           auto screen = static_cast<Screen*>(args[0]->user_value.get());
           CHECK(screen != nullptr);
@@ -191,7 +191,7 @@ void RegisterScreenType(Environment* environment) {
 
     callback->callback =
         [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args.size(), 1u);
           CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
           auto screen = static_cast<Screen*>(args[0]->user_value.get());
           CHECK(screen != nullptr);
@@ -213,7 +213,7 @@ void RegisterScreenType(Environment* environment) {
 
     callback->callback =
         [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 2);
+          CHECK_EQ(args.size(), 2u);
           CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
           auto screen = static_cast<Screen*>(args[0]->user_value.get());
           CHECK(screen != nullptr);
@@ -239,7 +239,7 @@ void RegisterScreenType(Environment* environment) {
 
     callback->callback =
         [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 3);
+          CHECK_EQ(args.size(), 3u);
           CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
           auto screen = static_cast<Screen*>(args[0]->user_value.get());
           CHECK(screen != nullptr);
@@ -264,7 +264,7 @@ void RegisterScreenType(Environment* environment) {
 
     callback->callback =
         [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 2);
+          CHECK_EQ(args.size(), 2u);
           CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
           auto screen = static_cast<Screen*>(args[0]->user_value.get());
           CHECK(screen != nullptr);
@@ -289,7 +289,7 @@ void RegisterScreenType(Environment* environment) {
 
     callback->callback =
         [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 2);
+          CHECK_EQ(args.size(), 2u);
           CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
           auto screen = static_cast<Screen*>(args[0]->user_value.get());
           CHECK(screen != nullptr);
@@ -314,7 +314,7 @@ void RegisterScreenType(Environment* environment) {
 
     callback->callback =
         [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 3);
+          CHECK_EQ(args.size(), 3u);
           CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
           CHECK_EQ(args[1]->type, VMType::VM_INTEGER);
           CHECK_EQ(args[2]->type, VMType::VM_INTEGER);
@@ -334,7 +334,7 @@ void RegisterScreenType(Environment* environment) {
 
     callback->callback =
         [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args.size(), 1u);
           CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
           auto screen = static_cast<Screen*>(args[0]->user_value.get());
           CHECK(screen != nullptr);
@@ -350,7 +350,7 @@ void RegisterScreenType(Environment* environment) {
 
     callback->callback =
         [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1);
+          CHECK_EQ(args.size(), 1u);
           CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
           auto screen = static_cast<Screen*>(args[0]->user_value.get());
           CHECK(screen != nullptr);

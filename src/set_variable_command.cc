@@ -30,13 +30,7 @@ wstring TrimWhitespace(const wstring& in) {
   return in.substr(begin, end - begin + 1);
 }
 
-void SetVariableCancelHandler(EditorState* editor_state) {
-  editor_state->ResetMode();
-  editor_state->ScheduleRedraw();
-}
-
 void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
-  SetVariableCancelHandler(editor_state);
   wstring name = TrimWhitespace(input_name);
   if (name.empty()) { return; }
 
@@ -59,14 +53,14 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
       options.history_file = L"values";
       options.initial_value = buffer->read_string_variable(var);
       options.handler =
-          [var, buffer](const wstring& input, EditorState* editor_state) {
-            if (buffer != nullptr) {
-              buffer->set_string_variable(var, input);
-            }
+          [var, buffer](const wstring& input, EditorState*) {
+            if (buffer == nullptr) { return; }
+            buffer->set_string_variable(var, input);
             // ResetMode causes the prompt to be deleted, and the captures of
             // this lambda go away with it.
-            editor_state->ResetMode();
+            buffer->ResetMode();
           };
+      options.cancel_handler = [](EditorState*) { /* Nothing. */ };
       options.predictor = var->predictor();
       Prompt(editor_state, std::move(options));
       return;
@@ -99,8 +93,9 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
             }
             // ResetMode causes the prompt to be deleted, and the captures of
             // this lambda go away with it.
-            editor_state->ResetMode();
+            buffer->ResetMode();
           };
+      options.cancel_handler = [](EditorState*) { /* Nothing. */ };
       Prompt(editor_state, std::move(options));
       return;
     }
@@ -126,8 +121,9 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
             }
             // ResetMode causes the prompt to be deleted, and the captures of
             // this lambda go away with it.
-            editor_state->ResetMode();
+            buffer->ResetMode();
           };
+      options.cancel_handler = [](EditorState*) { /* Nothing. */ };
       Prompt(editor_state, std::move(options));
       return;
     }
@@ -135,22 +131,24 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
   editor_state->SetWarningStatus(L"Unknown variable: " + name);
 }
 
+Predictor VariablesPredictor() {
+  vector<wstring> variables;
+  OpenBuffer::BoolStruct()->RegisterVariableNames(&variables);
+  OpenBuffer::StringStruct()->RegisterVariableNames(&variables);
+  OpenBuffer::IntStruct()->RegisterVariableNames(&variables);
+  OpenBuffer::DoubleStruct()->RegisterVariableNames(&variables);
+  return PrecomputedPredictor(variables, '_');
+}
 }  // namespace
 
 unique_ptr<Command> NewSetVariableCommand() {
-  static vector<wstring> variables;
-  if (variables.empty()) {
-    OpenBuffer::BoolStruct()->RegisterVariableNames(&variables);
-    OpenBuffer::StringStruct()->RegisterVariableNames(&variables);
-    OpenBuffer::IntStruct()->RegisterVariableNames(&variables);
-  }
-
+  static Predictor variables_predictor = VariablesPredictor();
   PromptOptions options;
   options.prompt = L"var ";
   options.history_file = L"variables";
   options.handler = SetVariableHandler;
-  options.cancel_handler = SetVariableCancelHandler;
-  options.predictor = PrecomputedPredictor(variables, '_');
+  options.cancel_handler = [](EditorState*) { /* Nothing. */ };
+  options.predictor = variables_predictor;
   return NewLinePromptCommand(L"assigns to a variable",
                               [options](EditorState*) { return options; });
 }

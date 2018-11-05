@@ -17,9 +17,8 @@ class NoopCommandImpl : public Command {
 namespace afc {
 namespace editor {
 
-Command* NoopCommand() {
-  static auto output = new NoopCommandImpl();
-  return output;
+std::shared_ptr<Command> NoopCommand() {
+  return std::make_shared<NoopCommandImpl>();
 }
 
 }  // namespace editor

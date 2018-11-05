@@ -266,7 +266,9 @@ void RunCommand(
     const wstring& name, const wstring& input,
     const map<wstring, wstring> environment, EditorState* editor_state) {
   if (input.empty()) {
-    editor_state->ResetMode();
+    if (editor_state->has_current_buffer()) {
+      editor_state->current_buffer()->second->ResetMode();
+    }
     editor_state->ResetStatus();
     editor_state->ScheduleRedraw();
     return;
@@ -280,8 +282,6 @@ void RunCommand(
               OpenBuffer::variable_commands_background_mode());
   options.environment = environment;
   ForkCommand(editor_state, options);
-
-  editor_state->ResetMode();
 }
 
 class ForkEditorCommand : public Command {
@@ -338,6 +338,8 @@ void ForkCommand(EditorState* editor_state, const ForkCommandOptions& options) {
     it.first->second->set_string_variable(
         OpenBuffer::variable_command(), options.command);
     it.first->second->set_string_variable(OpenBuffer::variable_path(), L"");
+  } else {
+    it.first->second->ResetMode();
   }
   if (options.enter) {
     editor_state->set_current_buffer(it.first);
@@ -359,7 +361,6 @@ void RunCommandHandler(const wstring& input, EditorState* editor_state) {
 void RunMultipleCommandsHandler(const wstring& input,
                                 EditorState* editor_state) {
   if (input.empty() || !editor_state->has_current_buffer()) {
-    editor_state->ResetMode();
     editor_state->ResetStatus();
     editor_state->ScheduleRedraw();
     return;

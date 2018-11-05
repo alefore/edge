@@ -92,7 +92,9 @@ static const char* kDefaultCommandsToRun = "ForkCommand(\"sh -l\", true);";
 string CommandsToRun(Args args) {
   string commands_to_run = args.commands_to_run;
   for (auto& path : args.files_to_open) {
-    commands_to_run += "OpenFile(\"" + string(path) + "\");\n";
+    char* dir = get_current_dir_name();
+    commands_to_run += "OpenFile(\"" + string(dir) + "/" + path + "\");\n";
+    free(dir);
   }
   for (auto& command_to_fork : args.commands_to_fork) {
     commands_to_run +=
@@ -118,6 +120,7 @@ Args ParseArgs(int* argc, const char*** argv) {
       "  -f, --fork <shellcmd>  Creates a buffer running a shell command\n"
       "  -h, --help             Displays this message\n"
       "  --run <vmcmd>          Runs a VM command\n"
+      "  --load <path>          Loads a file with VM commands\n"
       "  -s, --server <path>    Runs in daemon mode at path given\n"
       "  -c, --client <path>    Connects to daemon at path given\n"
       "  --mute                 Disables audio output\n";
@@ -155,6 +158,14 @@ Args ParseArgs(int* argc, const char*** argv) {
           << output.binary_name << ": " << cmd
           << ": Expected command to run.\n";
       output.commands_to_run += pop_argument();
+    } else if (cmd == "--load" || cmd == "-l") {
+      CHECK_GT(*argc, 0)
+          << output.binary_name << ": " << cmd
+          << ": Expected path to VM commands to run.\n";
+      output.commands_to_run +=
+          "buffer.EvaluateFile(\""
+          + ToByteString(CppEscapeString(FromByteString(pop_argument())))
+          + "\");";
     } else if (cmd == "--server" || cmd == "-s") {
       output.server = true;
       if (*argc > 0) {
@@ -214,6 +225,21 @@ wstring StartServer(const Args& args) {
   return actual_address;
 }
 
+std::wstring GetGreetingMessage() {
+  static std::vector<wstring> errors({
+      L"Welcome to Edge!",
+      L"Edge, your favorite text editor.",
+      L"It looks like you're writing a letter. Would you like help?",
+      L"Edge, a text editor.",
+      L"All modules are now active.",
+      L"Booting up Edge. . . . . . . . . . . . . DONE",
+      L"What are you up to today?",
+      L"The trouble is, you think you have time.",
+      L"Happiness is here, and now.",
+      L"The journey of a thousand miles begins with a single step.",
+  });
+  return errors[rand() % errors.size()];
+}
 }  // namespace
 
 int main(int argc, const char** argv) {
@@ -223,6 +249,8 @@ int main(int argc, const char** argv) {
 
   google::InitGoogleLogging(argv[0]);
   google::InstallFailureSignalHandler();
+
+  srand(time(NULL));
 
   string locale = std::setlocale(LC_ALL, "");
   LOG(INFO) << "Using locale: " << locale;
@@ -295,6 +323,9 @@ int main(int argc, const char** argv) {
   // last observed size of our screen (to detect that we need to propagate
   // changes to the server).
   std::pair<size_t, size_t> last_screen_size = { -1, -1 };
+
+  BeepFrequencies(audio_player.get(), { 783.99, 723.25, 783.99 });
+  editor_state()->SetStatus(GetGreetingMessage());
 
   while (!editor_state()->terminate()) {
     editor_state()->UpdateBuffers();
@@ -396,7 +427,6 @@ int main(int argc, const char** argv) {
         wint_t c;
         while ((c = ReadChar(&mbstate)) != static_cast<wint_t>(-1)) {
           if (remote_server_fd == -1) {
-            DCHECK(editor_state()->mode() != nullptr);
             editor_state()->ProcessInput(c);
           } else {
             SendCommandsToParent(

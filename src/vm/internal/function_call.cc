@@ -1,7 +1,5 @@
 #include "function_call.h"
 
-#include <cassert>
-
 #include <glog/logging.h>
 
 #include "evaluation.h"
@@ -18,8 +16,8 @@ class FunctionCall : public Expression {
   FunctionCall(unique_ptr<Expression> func,
                unique_ptr<vector<unique_ptr<Expression>>> args)
       : func_(std::move(func)), args_(std::move(args)) {
-    assert(func_ != nullptr);
-    assert(args_ != nullptr);
+    CHECK(func_ != nullptr);
+    CHECK(args_ != nullptr);
   }
 
   const VMType& type() {
@@ -31,13 +29,15 @@ class FunctionCall : public Expression {
     auto advancer = evaluation->advancer;
     evaluation->advancer =
         [this, advancer](OngoingEvaluation* inner_evaluation) {
-          DVLOG(5) << "Evaluating function parameters.";
-          assert(inner_evaluation->value != nullptr);
+          DVLOG(5) << "Evaluating function parameters, args: " << args_->size();
+          CHECK(inner_evaluation->value != nullptr);
           auto func = std::move(inner_evaluation->value);
+          CHECK_EQ(func->type.type, VMType::FUNCTION);
+          CHECK(func->callback);
           if (args_->empty()) {
+            DVLOG(6) << "No parameters; running directly.";
             inner_evaluation->advancer = advancer;
-            inner_evaluation->value =
-                func->callback(vector<unique_ptr<Value>>());
+            inner_evaluation->value = func->callback({});
             return;
           }
           inner_evaluation->advancer = CaptureArgs(

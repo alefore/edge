@@ -1,36 +1,50 @@
 #ifndef __AFC_EDITOR_MAP_MODE_H__
 #define __AFC_EDITOR_MAP_MODE_H__
 
+#include <list>
 #include <memory>
 #include <map>
 #include <string>
-#include <vector>
 
 #include "editor_mode.h"
 #include "command.h"
+#include "vm/public/value.h"
 
 namespace afc {
 namespace editor {
 
 using std::map;
 using std::unique_ptr;
-using std::vector;
 using std::wstring;
+
+class MapMode;
+
+class MapModeCommands {
+ public:
+  MapModeCommands();
+  std::unique_ptr<MapModeCommands> NewChild();
+
+  std::map<wstring, Command*> Coallesce() const;
+
+  // Adds an entry mapping a given string to a given command.
+  void Add(wstring name, Command* value);
+  void Add(wstring name, std::unique_ptr<vm::Value> value);
+  void Add(wstring name, std::function<void()> value, wstring description);
+
+ private:
+  friend class MapMode;
+  std::list<std::shared_ptr<std::map<std::wstring, Command*>>> commands_;
+};
 
 class MapMode : public EditorMode {
  public:
-  using Map = map<vector<wint_t>, Command*>;
-  // Adds to output an entry mapping a given string to a given command.
-  static void RegisterEntry(wstring name, Command* value, Map* output);
+  MapMode(std::shared_ptr<MapModeCommands> commands);
 
-  MapMode(std::shared_ptr<const Map> commands, Command* default_command);
-
-  void ProcessInput(wint_t c, EditorState* editor_state);
+  void ProcessInput(wint_t c, EditorState* editor_state) override;
 
  private:
-  vector<wint_t> current_input_;
-  const std::shared_ptr<const Map> commands_;
-  Command* const default_command_;
+  wstring current_input_;
+  std::shared_ptr<MapModeCommands> commands_;
 };
 
 }  // namespace editor

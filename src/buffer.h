@@ -16,6 +16,7 @@
 #include "line.h"
 #include "line_column.h"
 #include "line_marks.h"
+#include "map_mode.h"
 #include "parse_tree.h"
 #include "substring.h"
 #include "transformation.h"
@@ -97,6 +98,16 @@ class OpenBuffer {
 
   bool empty() const { return contents_.empty(); }
   size_t lines_size() const { return contents_.size(); }
+
+  EditorMode* mode() const { return mode_.get(); }
+  std::shared_ptr<EditorMode> ResetMode() {
+    auto copy = std::move(mode_);
+    mode_.reset(new MapMode(default_commands_));
+    return copy;
+  }
+  void set_mode(std::shared_ptr<EditorMode> mode) {
+    mode_ = std::move(mode);
+  }
 
   // Erases all lines in range [first, last).
   void EraseLines(size_t first, size_t last);
@@ -581,6 +592,9 @@ class OpenBuffer {
   std::shared_ptr<const ParseTree> simplified_parse_tree_;
   std::shared_ptr<TreeParser> tree_parser_;
   size_t tree_depth_ = 0;
+
+  std::shared_ptr<MapModeCommands> default_commands_;
+  std::shared_ptr<EditorMode> mode_;
 
   // The time when the buffer was last selected as active.
   time_t last_visit_ = 0;

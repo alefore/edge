@@ -190,7 +190,7 @@ class ListBuffersCommand : public Command {
     it.first->second->Reload(editor_state);
     editor_state->PushCurrentPosition();
     editor_state->ScheduleRedraw();
-    editor_state->ResetMode();
+    it.first->second->ResetMode();
     editor_state->ResetRepetitions();
   }
 };

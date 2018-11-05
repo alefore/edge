@@ -16,7 +16,7 @@ using std::unique_ptr;
 using std::shared_ptr;
 
 namespace {
-wstring DescribeSequence(const vector<wint_t> input) {
+wstring DescribeSequence(wstring input) {
   wstring output;
   for (wint_t c : input) {
     if (c == '\n') {
@@ -30,13 +30,9 @@ wstring DescribeSequence(const vector<wint_t> input) {
 
 class HelpCommand : public Command {
  public:
-  HelpCommand(const map<vector<wint_t>, Command*>& commands,
+  HelpCommand(const MapModeCommands* commands,
               const wstring& mode_description)
-      : commands_(commands), mode_description_(mode_description) {
-    for (auto& it : commands_) {
-      DCHECK(it.second);
-    }
-  }
+      : commands_(commands), mode_description_(mode_description) {}
 
   const wstring Description() {
     return L"shows help about commands.";
@@ -51,9 +47,11 @@ class HelpCommand : public Command {
       buffer->AppendToLastLine(
           editor_state,
           NewCopyString(L"Help: " + mode_description_));
-      for (const auto& it : commands_) {
-        buffer->AppendLine(editor_state, std::move(NewCopyString(
-          DescribeSequence(it.first) + L" - " + it.second->Description())));
+      std::map<wstring, Command*> descriptions = commands_->Coallesce();
+      for (const auto& it : descriptions) {
+        buffer->AppendLine(editor_state,
+                           NewCopyString(DescribeSequence(it.first) + L" - "
+                                         + it.second->Description()));
       }
 
       DescribeVariables(editor_state, L"bool", buffer.get(),
@@ -71,9 +69,9 @@ class HelpCommand : public Command {
       it.first->second = buffer;
     }
     it.first->second->set_current_position_line(0);
+    it.first->second->ResetMode();
 
     editor_state->ScheduleRedraw();
-    editor_state->ResetMode();
     editor_state->ResetRepetitions();
   }
 
@@ -98,15 +96,15 @@ class HelpCommand : public Command {
     }
   }
 
-  const map<vector<wint_t>, Command*> commands_;
+  const MapModeCommands* const commands_;
   const wstring mode_description_;
 };
 }  // namespace
 
 unique_ptr<Command> NewHelpCommand(
-    const map<vector<wint_t>, Command*>& commands,
-    const wstring& mode_description) {
-  return unique_ptr<Command>(new HelpCommand(commands, mode_description));
+    const MapModeCommands* commands, const wstring& mode_description) {
+  return unique_ptr<Command>(
+      new HelpCommand(commands, mode_description));
 }
 
 }  // namespace editor

@@ -425,6 +425,7 @@ class DeleteTransformation : public Transformation {
       case TREE:
       case LINE:
       case BUFFER:
+      case PARAGRAPH:
         delegate = NewDeleteRegionTransformation(options_);
         break;
       case MARK:

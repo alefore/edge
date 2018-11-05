@@ -1,8 +1,8 @@
 Buffer b = CurrentBuffer();
-string line = Line();
+LineColumn position = b.position();
+string line = b.line(position.line());
 SetStatus(line);
 
-LineColumn position = b.position();
 if (line == "#include <>") {
   b.set_position(LineColumn(position.line(), 9));
   b.DeleteCharacters(2);
@@ -17,5 +17,4 @@ if (line == "#include <>") {
   b.set_position(LineColumn(position.line(), 0));
   b.InsertText("#include <>\n");
   b.set_position(LineColumn(position.line(), 10));
-  SetStatus("Done");
 }

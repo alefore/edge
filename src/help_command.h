@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "command.h"
+#include "map_mode.h"
 
 namespace afc {
 namespace editor {
@@ -16,9 +17,8 @@ using std::unique_ptr;
 using std::vector;
 using std::wstring;
 
-unique_ptr<Command> NewHelpCommand(
-    const map<vector<wint_t>, Command*>& commands,
-    const std::wstring& mode_description);
+std::unique_ptr<Command> NewHelpCommand(const MapModeCommands* commands,
+                                        const std::wstring& mode_description);
 
 }  // namespace editor
 }  // namespace afc

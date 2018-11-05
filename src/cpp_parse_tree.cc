@@ -301,7 +301,7 @@ class CppTreeParser : public TreeParser {
 
   void CommentToEndOfLine(ParseData* result) {
     LineColumn original_position = result->position();
-    CHECK_GT(original_position.column, 0);
+    CHECK_GT(original_position.column, size_t(0));
     result->AdvancePositionUntilEndOfLine();
     result->PushAndPop(result->position().column - original_position.column + 1,
                        {LineModifier::BLUE});
@@ -340,7 +340,7 @@ class CppTreeParser : public TreeParser {
 
   void LiteralString(ParseData* result) {
     auto original_position = result->position();
-    CHECK_GT(original_position.column, 0);
+    CHECK_GT(original_position.column, size_t(0));
 
     while (result->read() != L'"' && result->read() != L'\n' &&
            !result->reached_final_position()) {
@@ -366,7 +366,7 @@ class CppTreeParser : public TreeParser {
     result->SetState(state);
 
     LineColumn original_position = result->position();
-    CHECK_GE(original_position.column, 1);
+    CHECK_GE(original_position.column, 1u);
     original_position.column--;
 
     result->AdvancePositionUntilEndOfLine();
@@ -377,7 +377,7 @@ class CppTreeParser : public TreeParser {
 
   void Identifier(ParseData* result) {
     LineColumn original_position = result->position();
-    CHECK_GE(original_position.column, 1);
+    CHECK_GE(original_position.column, 1u);
     original_position.column--;
 
     result->AdvancePositionUntil(
@@ -400,7 +400,7 @@ class CppTreeParser : public TreeParser {
   }
 
   void LiteralNumber(ParseData* result) {
-    CHECK_GE(result->position().column, 1);
+    CHECK_GE(result->position().column, 1u);
     LineColumn original_position = result->position();
     original_position.column--;
 

@@ -55,7 +55,9 @@ void StartDeleteFile(EditorState* editor_state, wstring path) {
       // in the other case.
       editor_state->SetStatus(L"Ignored.");
     }
-    editor_state->ResetMode();
+    if (editor_state->has_current_buffer()) {
+      editor_state->current_buffer()->second->ResetMode();
+    }
   };
   options.predictor = PrecomputedPredictor({L"no", L"yes"}, '/');
   Prompt(editor_state, std::move(options));
@@ -238,7 +240,7 @@ class FileBuffer : public OpenBuffer {
         callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
         callback->callback =
             [editor_state, path](vector<unique_ptr<Value>> args) {
-              CHECK_EQ(args.size(), 0);
+              CHECK_EQ(args.size(), size_t(0));
               StartDeleteFile(editor_state, path);
               return Value::NewVoid();
             };
@@ -506,21 +508,13 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
       });
 }
 
-bool ResolvePath(EditorState* editor_state, const wstring& path,
-                 wstring* resolved_path, LineColumn* position,
-                 wstring* pattern) {
-  return ResolvePath(editor_state, path, CanStatPath, resolved_path, position,
-                     pattern);
-}
-
-bool ResolvePath(EditorState* editor_state, const wstring& path,
-                 std::function<bool(const wstring&)> validator,
-                 wstring* resolved_path, LineColumn* position,
-                 wstring* pattern) {
+bool ResolvePath(ResolvePathOptions options) {
   vector<wstring> search_paths;
-  GetSearchPaths(editor_state, &search_paths);
-  return FindPath(editor_state, std::move(search_paths), path, validator,
-                  resolved_path, position, pattern);
+  GetSearchPaths(options.editor_state, &search_paths);
+  return FindPath(options.editor_state, std::move(search_paths), options.path,
+                  options.validator ? options.validator : CanStatPath,
+                  options.output_path, options.output_position,
+                  options.output_pattern);
 }
 
 map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
@@ -593,6 +587,8 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
           std::make_shared<FileBuffer>(editor_state, actual_path, name);
     }
     it.first->second->Reload(editor_state);
+  } else {
+    it.first->second->ResetMode();
   }
   editor_state->PushCurrentPosition();
   it.first->second->set_position(position);
@@ -609,10 +605,11 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   return it.first;
 }
 
-void OpenAnonymousBuffer(EditorState* editor_state) {
+map<wstring, shared_ptr<OpenBuffer>>::iterator OpenAnonymousBuffer(
+    EditorState* editor_state) {
   OpenFileOptions options;
   options.editor_state = editor_state;
-  OpenFile(options);
+  return OpenFile(options);
 }
 
 }  // namespace afc

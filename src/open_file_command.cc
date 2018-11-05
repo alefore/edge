@@ -20,7 +20,6 @@ void OpenFileHandler(const wstring& name, EditorState* editor_state) {
   options.editor_state = editor_state;
   options.path = name;
   OpenFile(options);
-  editor_state->ResetMode();
 }
 
 }  // namespace
@@ -31,7 +30,9 @@ std::unique_ptr<Command> NewOpenFileCommand() {
   options.history_file = L"files";
   options.handler = OpenFileHandler;
   options.cancel_handler = [](EditorState* editor_state) {
-    editor_state->ResetMode();
+    if (editor_state->has_current_buffer()) {
+      editor_state->current_buffer()->second->ResetMode();
+    }
   };
   options.predictor = FilePredictor;
   return NewLinePromptCommand(

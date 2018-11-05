@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "editor_mode.h"
+#include "map_mode.h"
 
 namespace afc {
 namespace editor {
@@ -16,8 +17,7 @@ class EditorState;
 
 using std::unique_ptr;
 
-std::function<unique_ptr<EditorMode>(void)> NewCommandModeSupplier(
-    EditorState* editor_state);
+std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state);
 
 }  // namespace editor
 }  // namespace afc

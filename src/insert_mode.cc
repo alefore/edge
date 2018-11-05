@@ -117,7 +117,7 @@ class AutocompleteMode : public EditorMode {
   using Iterator = Tree<std::shared_ptr<Line>>::const_iterator;
 
   struct Options {
-    std::unique_ptr<EditorMode> delegate;
+    std::shared_ptr<EditorMode> delegate;
 
     std::shared_ptr<const Line> prefix;
 
@@ -207,10 +207,10 @@ class AutocompleteMode : public EditorMode {
         CHECK(original_text_ != nullptr);
         LOG(INFO) << "Inserting original text: " << original_text_->ToString();
         ReplaceCurrentText(editor_state, original_text_);
-        // Pass through.
-
+        // Fall through.
       default:
-        editor_state->set_mode(std::move(options_.delegate));
+        editor_state->current_buffer()->second->set_mode(
+            std::move(options_.delegate));
         editor_state->ResetStatus();
         if (c != '\n') {
           editor_state->ProcessInput(c);
@@ -375,7 +375,7 @@ void FindCompletion(EditorState* editor_state,
       line.substr(options.column_start,
                   options.column_end - options.column_start))));
 
-  options.delegate = editor_state->ResetMode();
+  options.delegate = buffer->ResetMode();
   options.dictionary = dictionary;
   options.buffer = buffer;
 
@@ -394,7 +394,8 @@ void FindCompletion(EditorState* editor_state,
   unique_ptr<AutocompleteMode> autocomplete_mode(
       new AutocompleteMode(std::move(options)));
   autocomplete_mode->DrawCurrentMatch(editor_state);
-  editor_state->set_mode(std::move(autocomplete_mode));
+  editor_state->current_buffer()->second->set_mode(
+      std::move(autocomplete_mode));
 }
 
 void StartCompletionFromDictionary(
@@ -488,6 +489,8 @@ class InsertMode : public EditorMode {
   }
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
+    auto buffer = options_.buffer;
+    CHECK(buffer != nullptr);
     switch (c) {
       case '\t':
         if (options_.start_completion()) {
@@ -497,43 +500,44 @@ class InsertMode : public EditorMode {
         break;
 
       case Terminal::ESCAPE:
-        options_.buffer->MaybeAdjustPositionCol();
-        options_.buffer->ApplyToCursors(NewDeleteSuffixSuperfluousCharacters());
-        options_.buffer->PopTransformationStack();
+        buffer->MaybeAdjustPositionCol();
+        buffer->ApplyToCursors(NewDeleteSuffixSuperfluousCharacters());
+        buffer->PopTransformationStack();
         editor_state->set_repetitions(editor_state->repetitions() - 1);
-        options_.buffer->RepeatLastTransformation();
-        options_.buffer->PopTransformationStack();
+        buffer->RepeatLastTransformation();
+        buffer->PopTransformationStack();
         editor_state->PushCurrentPosition();
         editor_state->ResetStatus();
         CHECK(options_.escape_handler);
-        options_.escape_handler();
-        editor_state->ResetMode();
+        options_.escape_handler();  // Probably deletes us.
         editor_state->ResetRepetitions();
         editor_state->ResetInsertionModifier();
+        editor_state->current_buffer()->second->ResetMode();
+        editor_state->set_keyboard_redirect(nullptr);
         return;
 
       case Terminal::UP_ARROW:
-        options_.scroll_behavior->Up(editor_state, options_.buffer.get());
+        options_.scroll_behavior->Up(editor_state, buffer.get());
         return;
 
       case Terminal::DOWN_ARROW:
-        options_.scroll_behavior->Down(editor_state, options_.buffer.get());
+        options_.scroll_behavior->Down(editor_state, buffer.get());
         return;
 
       case Terminal::LEFT_ARROW:
-        options_.scroll_behavior->Left(editor_state, options_.buffer.get());
+        options_.scroll_behavior->Left(editor_state, buffer.get());
         return;
 
       case Terminal::RIGHT_ARROW:
-        options_.scroll_behavior->Right(editor_state, options_.buffer.get());
+        options_.scroll_behavior->Right(editor_state, buffer.get());
         return;
 
       case Terminal::CTRL_A:
-        options_.scroll_behavior->Begin(editor_state, options_.buffer.get());
+        options_.scroll_behavior->Begin(editor_state, buffer.get());
         return;
 
       case Terminal::CTRL_E:
-        options_.scroll_behavior->End(editor_state, options_.buffer.get());
+        options_.scroll_behavior->End(editor_state, buffer.get());
         return;
 
       case Terminal::CHAR_EOF:  // Ctrl_D
@@ -541,13 +545,13 @@ class InsertMode : public EditorMode {
       case Terminal::BACKSPACE:
         {
           LOG(INFO) << "Handling backspace in insert mode.";
-          options_.buffer->MaybeAdjustPositionCol();
+          buffer->MaybeAdjustPositionCol();
           DeleteOptions delete_options;
-          if (c == Terminal::BACKSPACE) {
+          if (c == wint_t(Terminal::BACKSPACE)) {
             delete_options.modifiers.direction = BACKWARDS;
           }
           delete_options.copy_to_paste_buffer = false;
-          options_.buffer->ApplyToCursors(
+          buffer->ApplyToCursors(
               NewDeleteCharactersTransformation(delete_options));
           options_.modify_listener();
           editor_state->ScheduleRedraw();
@@ -564,7 +568,7 @@ class InsertMode : public EditorMode {
           delete_options.modifiers.structure_range =
               Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
           delete_options.copy_to_paste_buffer = false;
-          options_.buffer->ApplyToCursors(
+          buffer->ApplyToCursors(
               NewDeleteLinesTransformation(delete_options));
           options_.modify_listener();
           editor_state->ScheduleRedraw();
@@ -577,7 +581,7 @@ class InsertMode : public EditorMode {
           delete_options.modifiers.structure_range =
               Modifiers::FROM_CURRENT_POSITION_TO_END;
           delete_options.copy_to_paste_buffer = false;
-          options_.buffer->ApplyToCursors(
+          buffer->ApplyToCursors(
               NewDeleteLinesTransformation(delete_options));
           options_.modify_listener();
           editor_state->ScheduleRedraw();
@@ -589,8 +593,8 @@ class InsertMode : public EditorMode {
       shared_ptr<OpenBuffer> insert(
           new OpenBuffer(editor_state, L"- text inserted"));
       insert->AppendToLastLine(editor_state,
-          NewCopyString(options_.buffer->TransformKeyboardText(wstring(1, c))));
-      options_.buffer->ApplyToCursors(
+          NewCopyString(buffer->TransformKeyboardText(wstring(1, c))));
+      buffer->ApplyToCursors(
           NewInsertBufferTransformation(insert, 1, END));
     }
 
@@ -663,7 +667,8 @@ class RawInputTypeMode : public EditorMode {
           line_buffer_.push_back(27);
           WriteLineBuffer(editor_state);
         } else {
-          editor_state->ResetMode();
+          editor_state->current_buffer()->second->ResetMode();
+          editor_state->set_keyboard_redirect(nullptr);
           editor_state->ResetStatus();
         }
         break;
@@ -745,8 +750,15 @@ class RawInputTypeMode : public EditorMode {
 void EnterInsertCharactersMode(InsertModeOptions options) {
   options.buffer->MaybeAdjustPositionCol();
   options.editor_state->SetStatus(L"type");
-  options.editor_state->set_mode(
-      unique_ptr<EditorMode>(new InsertMode(options)));
+
+  unique_ptr<EditorMode> handler(new InsertMode(options));
+  if (options.editor_state->current_buffer()->second == options.buffer) {
+    options.editor_state->current_buffer()->second->set_mode(
+        std::move(handler));
+  } else {
+    options.editor_state->set_keyboard_redirect(std::move(handler));
+  }
+
   if (options.buffer->active_cursors()->size() > 1 &&
       options.buffer->read_bool_variable(
           OpenBuffer::variable_multiple_cursors())) {
@@ -825,7 +837,7 @@ void EnterInsertMode(InsertModeOptions options) {
 
   if (options.buffer->fd() != -1) {
     editor_state->SetStatus(L"type (raw)");
-    editor_state->set_mode(
+    editor_state->current_buffer()->second->set_mode(
         unique_ptr<EditorMode>(new RawInputTypeMode(options.buffer)));
   } else if (editor_state->structure() == CHAR) {
     options.buffer->CheckPosition();

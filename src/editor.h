@@ -79,7 +79,9 @@ class EditorState {
   bool AttemptTermination(wstring* error_description);
 
   void ResetModifiers() {
-    ResetMode();
+    if (has_current_buffer()) {
+      current_buffer()->second->ResetMode();
+    }
     modifiers_.ResetSoft();
   }
 
@@ -148,28 +150,14 @@ class EditorState {
     }
   }
 
-  void ProcessInput(int c) {
-    mode()->ProcessInput(c, this);
-  }
-
-  void UpdateBuffers() {
-    for (OpenBuffer* buffer : buffers_to_parse_) {
-      buffer->ResetParseTree();
-    }
-    buffers_to_parse_.clear();
-  }
+  void ProcessInput(int c);
+  void UpdateBuffers();
 
   const LineMarks* line_marks() const { return &line_marks_; }
   LineMarks* line_marks() { return &line_marks_; }
 
-  EditorMode* mode() const { return mode_.get(); }
-  std::unique_ptr<EditorMode> ResetMode() {
-    auto copy = std::move(mode_);
-    mode_ = default_mode_supplier_();
-    return copy;
-  }
-  void set_mode(unique_ptr<EditorMode> mode) {
-    mode_ = std::move(mode);
+  std::shared_ptr<MapModeCommands> default_commands() const {
+    return default_commands_;
   }
 
   size_t visible_lines() const { return visible_lines_; }
@@ -241,6 +229,14 @@ class EditorState {
 
   AudioPlayer* audio_player() const { return audio_player_; }
 
+  // Can return null.
+  std::shared_ptr<EditorMode> keyboard_redirect() const {
+    return keyboard_redirect_;
+  }
+  void set_keyboard_redirect(std::shared_ptr<EditorMode> keyboard_redirect) {
+    keyboard_redirect_ = std::move(keyboard_redirect);
+  }
+
  private:
   Environment BuildEditorEnvironment();
 
@@ -260,8 +256,9 @@ class EditorState {
 
   wstring last_search_query_;
 
-  const std::function<unique_ptr<EditorMode>()> default_mode_supplier_;
-  unique_ptr<EditorMode> mode_;
+  // Should only be directly used when the editor has no buffer.
+  std::shared_ptr<MapModeCommands> default_commands_;
+  std::shared_ptr<EditorMode> keyboard_redirect_;
 
   // Set by the terminal handler.
   size_t visible_lines_;

@@ -26,5 +26,7 @@ if (line != buffer.line_count()) {
   int column = buffer.line(line).size();
   buffer.set_position(LineColumn(line, column));
   buffer.DeleteCharacters(1 + LeadingPrefix(buffer.line(line + 1)).size());
-  buffer.InsertText(" ");
+  if (buffer.line(line).size() > column) {
+    buffer.InsertText(" ");
+  }
 }

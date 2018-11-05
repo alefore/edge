@@ -14,6 +14,7 @@ enum Structure {
   SEARCH,
   TREE,
   CURSOR,
+  PARAGRAPH,
   BUFFER,
 };
 

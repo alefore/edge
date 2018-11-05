@@ -30,6 +30,8 @@ wstring StructureToString(Structure structure) {
       return L"cursor";
     case BUFFER:
       return L"buffer";
+    case PARAGRAPH:
+      return L"paragraph";
   }
   CHECK(false);
 }

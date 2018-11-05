@@ -51,19 +51,31 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output);
 // Takes a specification of a path (which can be absolute or relative) and, if
 // relative, looks it up in the search paths. If a file is found, returns an
 // absolute path pointing to it.
-bool ResolvePath(EditorState* editor_state, const wstring& path,
-                 std::function<bool(const wstring&)> validator,
-                 wstring* resolved_path, LineColumn* position,
-                 wstring* pattern);
-bool ResolvePath(EditorState* editor_state, const wstring& path,
-                 wstring* resolved_path, LineColumn* position,
-                 wstring* pattern);
+struct ResolvePathOptions {
+  EditorState* editor_state;
+  wstring path;
+
+  // Optional.
+  std::function<bool(const wstring&)> validator;
+
+  // Where to write the results: the absolute path pointing to the file.
+  wstring* output_path;
+
+  // Optional.
+  LineColumn* output_position = nullptr;
+
+  // Optional.
+  wstring* output_pattern = nullptr;
+};
+
+bool ResolvePath(ResolvePathOptions options);
 
 // Creates a new buffer for the file at the path given.
 map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     const OpenFileOptions& options);
 
-void OpenAnonymousBuffer(EditorState* editor_state);
+map<wstring, shared_ptr<OpenBuffer>>::iterator OpenAnonymousBuffer(
+    EditorState* editor_state);
 
 }  // namespace editor
 }  // namespace afc

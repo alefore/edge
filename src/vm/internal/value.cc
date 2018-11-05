@@ -39,6 +39,16 @@ namespace vm {
   return std::move(output);
 }
 
+/* static */ unique_ptr<Value> Value::NewFunction(
+    std::vector<VMType> arguments,
+    std::function<std::unique_ptr<Value>(std::vector<std::unique_ptr<Value>>)>
+        callback) {
+  std::unique_ptr<Value> output(new Value(VMType::FUNCTION));
+  output->type.type_arguments = std::move(arguments);
+  output->callback = std::move(callback);
+  return std::move(output);
+}
+
 std::ostream& operator<<(std::ostream& os, const Value& value) {
   os << "[" << value.type.ToString();
   if (value.type == VMType::Integer()) {

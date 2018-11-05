@@ -21,6 +21,7 @@ src/cpp_parse_tree.h \
 src/char_buffer.cc \
 src/close_buffer_command.cc \
 src/command_mode.cc \
+src/command_mode.h \
 src/command_with_modifiers.cc \
 src/command_with_modifiers.h \
 src/cursors.cc \
@@ -65,6 +66,9 @@ src/record_command.cc \
 src/repeat_mode.cc \
 src/run_command_handler.cc \
 src/run_cpp_command.cc \
+src/run_cpp_command.h \
+src/run_cpp_file.cc \
+src/run_cpp_file.h \
 src/screen.h \
 src/screen_curses.cc \
 src/screen_curses.h \

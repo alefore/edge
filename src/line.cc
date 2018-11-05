@@ -192,12 +192,42 @@ wstring DrawTree(size_t line, size_t lines_size, const ParseTree& root) {
   }
   return output;
 }
+
+wstring ComputeScrollBarCharacter(
+    size_t line, size_t lines_size, size_t view_start, size_t lines_to_show) {
+  // Each line is split into two units (upper and bottom halves). All units in
+  // this function are halves (of a line).
+  DCHECK_GE(line, view_start);
+  DCHECK_LT(line - view_start, lines_to_show);
+  DCHECK_LT(view_start, lines_size);
+  size_t halves_to_show = lines_to_show * 2;
+
+  // Number of halves the bar should take.
+  size_t bar_size = max(size_t(1),
+      size_t(halves_to_show * static_cast<double>(lines_to_show) / lines_size));
+
+  // Bar will be shown in lines in interval [bar, end] (units are halves).
+  size_t start = halves_to_show * static_cast<double>(view_start) / lines_size;
+  size_t end = start + bar_size;
+
+  size_t current = 2 * (line - view_start);
+  if (current < start - (start % 2) || current >= end) {
+    return L" ";
+  } else if (start == current + 1) {
+    return L"▄";
+  } else if (current + 1 == end) {
+    return L"▀";
+  } else {
+    return L"█";
+  }
 }
+}  // namespace
 
 void Line::Output(const EditorState* editor_state,
                   const shared_ptr<OpenBuffer>& buffer,
                   size_t line,
                   OutputReceiverInterface* receiver,
+                  size_t lines_to_show,
                   size_t width,
                   std::unordered_set<OpenBuffer*>* buffers_shown) const {
   std::unique_lock<std::mutex> lock(mutex_);
@@ -310,6 +340,12 @@ void Line::Output(const EditorState* editor_state,
     }
     receiver->AddCharacter(info_char);
     receiver->AddModifier(LineModifier::RESET);
+
+    receiver->AddString(ComputeScrollBarCharacter(
+        line, buffer->lines_size(),
+        buffer->Read(OpenBuffer::variable_view_start_line()),
+        lines_to_show));
+
     output_column += padding + 1;
     CHECK_LE(output_column, width);
 

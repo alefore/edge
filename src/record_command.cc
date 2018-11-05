@@ -26,15 +26,15 @@ class RecordCommand : public Command {
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) { return; }
-    auto buffer = editor_state->current_buffer();
-    if (buffer->second->HasTransformationStack()) {
-      buffer->second->PopTransformationStack();
+    auto buffer = editor_state->current_buffer()->second;
+    if (buffer->HasTransformationStack()) {
+      buffer->PopTransformationStack();
       editor_state->SetStatus(L"Recording: stop");
     } else {
-      buffer->second->PushTransformationStack();
+      buffer->PushTransformationStack();
       editor_state->SetStatus(L"Recording: start");
     }
-    editor_state->ResetMode();
+    buffer->ResetMode();
   }
 };
 

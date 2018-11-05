@@ -123,7 +123,10 @@ class HistoryScrollBehavior : public ScrollBehavior {
 
     auto history = GetHistoryBuffer(editor_state, history_file_);
     if (history->second != nullptr && history->second->contents()->size() > 1) {
+      auto previous_buffer = editor_state->current_buffer()->second;
       editor_state->set_current_buffer(history);
+      history->second->set_mode(previous_buffer->ResetMode());
+
       LineColumn position = history->second->position();
       position.line += delta;
       if (position.line <= history->second->contents()->size() &&
@@ -146,36 +149,6 @@ class HistoryScrollBehavior : public ScrollBehavior {
 
   const wstring history_file_;
   const wstring prompt_;
-};
-
-class AutocompleteMode : public EditorMode {
- public:
-  AutocompleteMode(std::unique_ptr<EditorMode> delegate,
-                   map<wstring, shared_ptr<OpenBuffer>>::iterator buffer)
-      : delegate_(std::move(delegate)),
-        buffer_(buffer) {}
-
-  void ProcessInput(wint_t c, EditorState* editor_state) {
-    if (c != '\t') {
-      editor_state->set_current_buffer(buffer_);
-      editor_state->set_mode(std::move(delegate_));
-      editor_state->ProcessInput(c);
-      return;
-    }
-
-    auto it = editor_state->buffers()->find(PredictionsBufferName());
-    if (it == editor_state->buffers()->end()) {
-      editor_state->SetStatus(L"Error: predictions buffer not found.");
-      return;
-    }
-    it->second->set_current_position_line(0);
-    editor_state->set_current_buffer(it);
-    editor_state->ScheduleRedraw();
-  }
-
- private:
-  std::unique_ptr<EditorMode> delegate_;
-  const map<wstring, shared_ptr<OpenBuffer>>::iterator buffer_;
 };
 
 class LinePromptCommand : public Command {
@@ -242,6 +215,10 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
         editor_state->set_current_buffer(original_buffer);
         editor_state->set_modifiers(original_modifiers);
         editor_state->set_status_prompt(false);
+        editor_state->ScheduleRedraw();
+
+        // We make a copy in case cancel_handler or handler delete us.
+        auto buffer = original_buffer->second;
         if (options.cancel_handler) {
           VLOG(5) << "Running cancel handler.";
           options.cancel_handler(editor_state);
@@ -249,6 +226,8 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
           VLOG(5) << "Running handler on empty input.";
           options.handler(L"", editor_state);
         }
+        buffer->ResetMode();
+        editor_state->set_keyboard_redirect(nullptr);
       };
 
   insert_mode_options.new_line_handler =
@@ -266,10 +245,13 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
             history->AppendLine(editor_state, input);
           }
         }
+        auto ensure_survival_of_current_closure = editor_state->keyboard_redirect();
+        editor_state->set_keyboard_redirect(nullptr);
         editor_state->set_status_prompt(false);
         editor_state->ResetStatus();
         editor_state->set_modifiers(original_modifiers);
         options.handler(input->ToString(), editor_state);
+        (void) ensure_survival_of_current_closure;
       };
 
   insert_mode_options.start_completion = [editor_state, options, buffer]() {
@@ -297,9 +279,15 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
             editor_state->ScheduleRedraw();
           } else {
             LOG(INFO) << "Prediction didn't advance.";
-            editor_state->set_mode(unique_ptr<AutocompleteMode>(
-                new AutocompleteMode(std::move(editor_state->ResetMode()),
-                                     editor_state->current_buffer())));
+            auto it = editor_state->buffers()->find(PredictionsBufferName());
+            if (it == editor_state->buffers()->end()) {
+              editor_state->SetWarningStatus(
+                  L"Error: predictions buffer not found.");
+            } else {
+              it->second->set_current_position_line(0);
+              editor_state->set_current_buffer(it);
+              editor_state->ScheduleRedraw();
+            }
           }
         });
     return true;

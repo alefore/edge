@@ -27,7 +27,6 @@ if (path == "") {
   int space = command.find_first_of(" ", 0);
   string base_command = space == -1 ? command : command.substr(0, space);
   if (base_command != "") {
-    SetStatus("Running command: [" + base_command + "]");
     if (base_command == "bash" || base_command == "python"
         || base_command == "sh") {
       buffer.set_pts(true);
@@ -51,14 +50,30 @@ if (path == "") {
   int dot = path.find_last_of(".", path.size());
   string extension = dot == -1 ? "" : path.substr(dot + 1, path.size() - dot - 1);
   string basename = Basename(path);
+
+  buffer.AddBindingToFile(
+      "J", buffer.editor_commands_path() + "fold-next-line");
+
   if (extension == "cc" || extension == "h" || extension == "c") {
     CppMode();
+    buffer.AddBindingToFile(
+        "sh", buffer.editor_commands_path() + "header");
+    buffer.AddBindingToFile(
+        "sI", buffer.editor_commands_path() + "include");
+    buffer.AddBindingToFile(
+        "si", buffer.editor_commands_path() + "indent");
+    buffer.AddBindingToFile(
+        "sR", buffer.editor_commands_path() + "reflow");
     SetStatus("Loaded C file (" + extension + ")");
     return;
   }
 
   if (extension == "java") {
     JavaMode();
+    buffer.AddBindingToFile(
+        "si", buffer.editor_commands_path() + "indent");
+    buffer.AddBindingToFile(
+        "sR", buffer.editor_commands_path() + "reflow");
     SetStatus("Loaded Java file (" + extension + ")");
     return;
   }
@@ -69,8 +84,9 @@ if (path == "") {
   }
 
   if (extension == "py") {
-    buffer.set_editor_commands_path("~/.edge/editor_commands/");
     buffer.set_line_prefix_characters(" #");
+    buffer.AddBindingToFile(
+        "si", buffer.editor_commands_path() + "indent");
     SetStatus("Loaded Python file (" + extension + ")");
   }
 }
