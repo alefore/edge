@@ -1975,6 +1975,7 @@ wstring OpenBuffer::FlagsString() const {
     OpenBuffer::variable_show_in_buffers_list();
     OpenBuffer::variable_push_positions_to_history();
     OpenBuffer::variable_delete_into_paste_buffer();
+    OpenBuffer::variable_scrollbar();
     OpenBuffer::variable_search_case_sensitive();
   }
   return output;
@@ -2161,6 +2162,15 @@ OpenBuffer::variable_delete_into_paste_buffer() {
       L"delete_into_paste_buffer",
       L"If set to true, deletions from this buffer will go into the shared "
       L"paste buffer.",
+      true);
+  return variable;
+}
+
+/* static */ EdgeVariable<bool>*
+OpenBuffer::variable_scrollbar() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
+      L"scrollbar",
+      L"If set to true, the scrollbar will be shown.",
       true);
   return variable;
 }

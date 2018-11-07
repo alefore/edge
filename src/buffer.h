@@ -349,6 +349,7 @@ class OpenBuffer {
   static EdgeVariable<bool>* variable_show_in_buffers_list();
   static EdgeVariable<bool>* variable_push_positions_to_history();
   static EdgeVariable<bool>* variable_delete_into_paste_buffer();
+  static EdgeVariable<bool>* variable_scrollbar();
   static EdgeVariable<bool>* variable_search_case_sensitive();
 
   static EdgeStruct<wstring>* StringStruct();

@@ -341,13 +341,14 @@ void Line::Output(const EditorState* editor_state,
     receiver->AddCharacter(info_char);
     receiver->AddModifier(LineModifier::RESET);
 
-    receiver->AddString(ComputeScrollBarCharacter(
-        line, buffer->lines_size(),
-        buffer->Read(OpenBuffer::variable_view_start_line()),
-        lines_to_show));
-
-    output_column += padding + 1;
-    CHECK_LE(output_column, width);
+    if (buffer->read_bool_variable(OpenBuffer::variable_scrollbar())) {
+      receiver->AddString(ComputeScrollBarCharacter(
+          line, buffer->lines_size(),
+          buffer->Read(OpenBuffer::variable_view_start_line()),
+          lines_to_show));
+      output_column += padding + 1;
+      CHECK_LE(output_column, width);
+    }
 
     auto root = buffer->simplified_parse_tree();
     if (additional_information.empty() && root != nullptr) {
