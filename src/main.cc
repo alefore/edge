@@ -92,9 +92,17 @@ static const char* kDefaultCommandsToRun = "ForkCommand(\"sh -l\", true);";
 string CommandsToRun(Args args) {
   string commands_to_run = args.commands_to_run;
   for (auto& path : args.files_to_open) {
-    char* dir = get_current_dir_name();
-    commands_to_run += "OpenFile(\"" + string(dir) + "/" + path + "\");\n";
-    free(dir);
+    string full_path;
+    if (!path.empty() && string("/~").find(path[0]) != string::npos) {
+      LOG(INFO) << "Will open an absolute path: " << path;
+      full_path = path;
+    } else {
+      LOG(INFO) << "Will open a relative path: " << path;
+      char* dir = get_current_dir_name();
+      full_path = string(dir) + "/" + path;
+      free(dir);
+    }
+    commands_to_run += "OpenFile(\"" + full_path + "\");\n";
   }
   for (auto& command_to_fork : args.commands_to_fork) {
     commands_to_run +=

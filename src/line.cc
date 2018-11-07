@@ -193,7 +193,7 @@ wstring DrawTree(size_t line, size_t lines_size, const ParseTree& root) {
   return output;
 }
 
-wstring ComputeScrollBarCharacter(
+wchar_t ComputeScrollBarCharacter(
     size_t line, size_t lines_size, size_t view_start, size_t lines_to_show) {
   // Each line is split into two units (upper and bottom halves). All units in
   // this function are halves (of a line).
@@ -212,13 +212,13 @@ wstring ComputeScrollBarCharacter(
 
   size_t current = 2 * (line - view_start);
   if (current < start - (start % 2) || current >= end) {
-    return L" ";
+    return L' ';
   } else if (start == current + 1) {
-    return L"▄";
+    return L'▄';
   } else if (current + 1 == end) {
-    return L"▀";
+    return L'▀';
   } else {
-    return L"█";
+    return L'█';
   }
 }
 }  // namespace
@@ -348,7 +348,7 @@ void Line::Output(const EditorState* editor_state,
 
     if (buffer->read_bool_variable(OpenBuffer::variable_scrollbar()) &&
         output_column < width) {
-      receiver->AddString(ComputeScrollBarCharacter(
+      receiver->AddCharacter(ComputeScrollBarCharacter(
           line, buffer->lines_size(),
           buffer->Read(OpenBuffer::variable_view_start_line()),
           lines_to_show));
