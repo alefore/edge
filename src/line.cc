@@ -296,6 +296,8 @@ void Line::Output(const EditorState* editor_state,
       && line_width - view_start < width) {
     size_t padding = line_width - view_start - output_column;
     receiver->AddString(wstring(padding, L' '));
+    output_column += padding;
+    CHECK_LE(output_column, width);
 
     auto all_marks = buffer->GetLineMarks(*editor_state);
     auto marks = all_marks->equal_range(line);
@@ -338,15 +340,19 @@ void Line::Output(const EditorState* editor_state,
     } else {
       receiver->AddModifier(LineModifier::DIM);
     }
-    receiver->AddCharacter(info_char);
+    if (output_column < width) {
+      receiver->AddCharacter(info_char);
+      output_column ++;
+    }
     receiver->AddModifier(LineModifier::RESET);
 
-    if (buffer->read_bool_variable(OpenBuffer::variable_scrollbar())) {
+    if (buffer->read_bool_variable(OpenBuffer::variable_scrollbar()) &&
+        output_column < width) {
       receiver->AddString(ComputeScrollBarCharacter(
           line, buffer->lines_size(),
           buffer->Read(OpenBuffer::variable_view_start_line()),
           lines_to_show));
-      output_column += padding + 1;
+      output_column ++;
       CHECK_LE(output_column, width);
     }
 
