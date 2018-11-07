@@ -301,6 +301,8 @@ void Line::Output(const EditorState* editor_state,
 
     auto all_marks = buffer->GetLineMarks(*editor_state);
     auto marks = all_marks->equal_range(line);
+    const auto view_start_line =
+        buffer->Read(OpenBuffer::variable_view_start_line());
 
     wchar_t info_char = L'•';
     wstring additional_information;
@@ -349,15 +351,20 @@ void Line::Output(const EditorState* editor_state,
     if (buffer->read_bool_variable(OpenBuffer::variable_scrollbar()) &&
         output_column < width) {
       receiver->AddCharacter(ComputeScrollBarCharacter(
-          line, buffer->lines_size(),
-          buffer->Read(OpenBuffer::variable_view_start_line()),
-          lines_to_show));
+          line, buffer->lines_size(), view_start_line, lines_to_show));
       output_column ++;
       CHECK_LE(output_column, width);
     }
 
     auto root = buffer->simplified_parse_tree();
-    if (additional_information.empty() && root != nullptr) {
+    if (root == nullptr || !additional_information.empty()) {
+      // Pass.
+    } else if (true) {
+      auto adjusted_root =
+          ZoomOutTree(*root, buffer->lines_size(), lines_to_show);
+      additional_information =
+          DrawTree(line - view_start_line, lines_to_show, adjusted_root);
+    } else {
       additional_information = DrawTree(line, buffer->lines_size(), *root);
     }
 

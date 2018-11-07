@@ -34,12 +34,32 @@ PushChild(ParseTree* parent) {  parent->children.emplace_back();
 void SimplifyTree(const ParseTree& tree, ParseTree* output) {
   output->range = tree.range;
   for (const auto& child : tree.children) {
-    if (child.range.begin.line == child.range.end.line) {
-      continue;
+    if (child.range.begin.line != child.range.end.line) {
+      SimplifyTree(child, PushChild(output).get());
     }
-    auto new_child = PushChild(output);
-    SimplifyTree(child, new_child.get());
   }
+}
+
+namespace {
+void ZoomOutTree(const ParseTree& input, double ratio, ParseTree* output) {
+  output->range = input.range;
+  output->range.begin.line *= ratio;
+  output->range.end.line *= ratio;
+  for (const auto& child : input.children) {
+    ZoomOutTree(child, ratio, PushChild(output).get());
+  }
+}
+}  // namespace
+
+ParseTree ZoomOutTree(
+    const ParseTree& input, size_t input_lines, size_t output_lines) {
+  LOG(INFO) << "Zooming out: " << input_lines << " to " << output_lines;
+  ParseTree first_pass;
+  ZoomOutTree(input, static_cast<double>(output_lines) / input_lines,
+              &first_pass);
+  ParseTree output;
+  SimplifyTree(first_pass, &output);
+  return output;
 }
 
 // Returns the first children of tree that ends after a given position.

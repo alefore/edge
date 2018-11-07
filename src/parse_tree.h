@@ -47,6 +47,12 @@ PushChild(ParseTree* parent);
 // boundaries. This is useful to reduce the noise shown in the tree.
 void SimplifyTree(const ParseTree& tree, ParseTree* output);
 
+// Produces simplified (by SimplifyTree) copy of a simplified tree, where lines
+// are remapped from an input of `input_lines` lines to an output of exactly
+// `output_lines`.
+ParseTree ZoomOutTree(
+    const ParseTree& input, size_t input_lines, size_t output_lines);
+
 // Find the route down a given parse tree always selecting the first children
 // that ends after the current position. The children selected at each step may
 // not include the position (it may start after the position).
