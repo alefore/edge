@@ -12,7 +12,7 @@
 #include <glog/logging.h>
 
 #include "lazy_string.h"
-#include "src/line_modifier.h"
+#include "src/parse_tree.h"
 #include "src/vm/public/environment.h"
 
 namespace afc {
@@ -126,12 +126,13 @@ class Line {
   };
 
   struct OutputOptions {
-    const EditorState* editor_state;
-    const OpenBuffer* buffer;
+    const EditorState* editor_state = nullptr;
+    const OpenBuffer* buffer = nullptr;
     size_t line;
     size_t lines_to_show;
     size_t width;
-    OutputReceiverInterface* output_receiver;
+    ParseTree full_file_parse_tree;
+    OutputReceiverInterface* output_receiver = nullptr;
     std::unordered_set<const OpenBuffer*>* output_buffers_shown;
   };
   void Output(const OutputOptions& options) const;

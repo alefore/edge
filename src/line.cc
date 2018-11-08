@@ -224,8 +224,8 @@ wchar_t ComputeScrollBarCharacter(
 }  // namespace
 
 void Line::Output(const Line::OutputOptions& options) const {
-//                  size_t line,
-//                  size_t width,
+  CHECK(options.editor_state != nullptr);
+  CHECK(options.buffer != nullptr);
   std::unique_lock<std::mutex> lock(mutex_);
   VLOG(5) << "Producing output of line: " << ToString();
   size_t output_column = 0;
@@ -344,26 +344,23 @@ void Line::Output(const Line::OutputOptions& options) const {
     }
     options.output_receiver->AddModifier(LineModifier::RESET);
 
-    if (options.buffer->read_bool_variable(OpenBuffer::variable_scrollbar()) &&
-        output_column < options.width) {
-      options.output_receiver->AddCharacter(ComputeScrollBarCharacter(
-          options.line, options.buffer->lines_size(), view_start_line,
-          options.lines_to_show));
-      output_column ++;
-      CHECK_LE(output_column, options.width);
-    }
-
-    auto root = options.buffer->simplified_parse_tree();
-    if (root == nullptr || !additional_information.empty()) {
-      // Pass.
-    } else if (true) {
-      auto adjusted_root = ZoomOutTree(
-          *root, options.buffer->lines_size(), options.lines_to_show);
-      additional_information = DrawTree(
-          options.line - view_start_line, options.lines_to_show, adjusted_root);
-    } else {
-      additional_information =
-          DrawTree(options.line, options.buffer->lines_size(), *root);
+    if (additional_information.empty()) {
+      auto parse_tree = options.buffer->simplified_parse_tree();
+      if (parse_tree != nullptr) {
+        additional_information +=
+            DrawTree(options.line, options.buffer->lines_size(), *parse_tree);
+      }
+      if (options.buffer->read_bool_variable(
+              OpenBuffer::variable_scrollbar())) {
+        additional_information += ComputeScrollBarCharacter(
+            options.line, options.buffer->lines_size(), view_start_line,
+            options.lines_to_show);
+      }
+      if (!options.full_file_parse_tree.children.empty()) {
+        additional_information += DrawTree(
+            options.line - view_start_line, options.lines_to_show,
+            options.full_file_parse_tree);
+      }
     }
 
     additional_information = additional_information.substr(

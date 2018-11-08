@@ -7,6 +7,7 @@
 
 #include "dirname.h"
 #include "line_marks.h"
+#include "src/parse_tree.h"
 
 namespace afc {
 namespace editor {
@@ -695,7 +696,22 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
 
   auto root = buffer->parse_tree();
   auto current_tree = buffer->current_tree(root.get());
+
+  Line::OutputOptions line_output_options;
+  line_output_options.editor_state = editor_state;
+  line_output_options.buffer = buffer.get();
+  line_output_options.lines_to_show = lines_to_show;
+  line_output_options.width = screen->columns();
+  auto simplified_parse_tree = buffer->simplified_parse_tree();
+  if (simplified_parse_tree != nullptr) {
+    line_output_options.full_file_parse_tree =
+        ZoomOutTree(*simplified_parse_tree, buffer->lines_size(),
+        lines_to_show);
+  }
+
   std::unordered_set<const OpenBuffer*> buffers_shown;
+  line_output_options.output_buffers_shown = &buffers_shown;
+
   while (lines_shown < lines_to_show) {
     if (current_line >= buffer->lines_size()) {
       line_output_receiver->AddString(L"\n");
@@ -764,15 +780,10 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       receiver = parse_tree_highlighter.get();
     }
 
-    Line::OutputOptions options;
-    options.editor_state = editor_state;
-    options.buffer = buffer.get();
-    options.line = current_line;
-    options.lines_to_show = lines_to_show;
-    options.width = screen->columns();
-    options.output_receiver = receiver;
-    options.output_buffers_shown = &buffers_shown;
-    line->Output(options);
+    line_output_options.line = current_line;
+    line_output_options.output_receiver = receiver;
+
+    line->Output(line_output_options);
 
     // Need to do this for atomic lines, since they override the Reset modifier
     // with Reset + Reverse.

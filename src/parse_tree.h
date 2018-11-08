@@ -1,17 +1,19 @@
 #ifndef __AFC_EDITOR_PARSE_TREE_H__
 #define __AFC_EDITOR_PARSE_TREE_H__
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <unordered_set>
 
-#include "src/buffer_contents.h"
-#include "line.h"
+#include "src/line_modifier.h"
 #include "line_column.h"
 #include "tree.h"
 
 namespace afc {
 namespace editor {
+
+class BufferContents;
 
 struct ParseTree {
   // The empty route just means "stop at the root". Otherwise, it means to go
@@ -23,12 +25,12 @@ struct ParseTree {
   ParseTree(const ParseTree& other)
       : range(other.range),
         modifiers(other.modifiers),
-        children() {
-    children = other.children;
+        children(other.children),
+        depth(other.depth) {
   }
 
   Range range;
-  std::unordered_set<LineModifier, hash<int>> modifiers;
+  std::unordered_set<LineModifier, std::hash<int>> modifiers;
   Tree<ParseTree> children;
   size_t depth = 0;
 };
