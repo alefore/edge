@@ -125,13 +125,16 @@ class Line {
     virtual void AddModifier(LineModifier modifier) = 0;
   };
 
-  void Output(const EditorState* editor_state,
-              const shared_ptr<OpenBuffer>& buffer,
-              size_t line,
-              OutputReceiverInterface* receiver,
-              size_t lines_to_show,
-              size_t width,
-              std::unordered_set<OpenBuffer*>* buffers_shown) const;
+  struct OutputOptions {
+    const EditorState* editor_state;
+    const OpenBuffer* buffer;
+    size_t line;
+    size_t lines_to_show;
+    size_t width;
+    OutputReceiverInterface* output_receiver;
+    std::unordered_set<const OpenBuffer*>* output_buffers_shown;
+  };
+  void Output(const OutputOptions& options) const;
 
  private:
   mutable std::mutex mutex_;
