@@ -22,7 +22,7 @@ wstring GetDescriptionString(wstring code) {
     return code;
   }
   auto first_line = code.substr(0, end);
-  VLOG(5) << "First line: " << first_line;
+  DVLOG(5) << "First line: " << first_line;
   wstring prefix = L"// ";
   if (first_line.size() < prefix.size() || first_line.substr(0, 3) != prefix) {
     return first_line;
@@ -42,7 +42,11 @@ class CppCommand : public Command {
   const std::wstring Description() override { return description_; }
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
-    Evaluate(expression_.get(), editor_state->environment());
+    DVLOG(4) << "CppCommand starting (" << description_ << ")";
+    Evaluate(expression_.get(), editor_state->environment(),
+             [](std::unique_ptr<Value>) {
+               DVLOG(5) << "CppCommand finished.";
+             });
   }
 
  private:

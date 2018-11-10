@@ -29,20 +29,16 @@ class IfExpression : public Expression {
   }
 
   void Evaluate(OngoingEvaluation* evaluation) {
-    auto advancer = evaluation->advancer;
-    evaluation->advancer =
-        [this, advancer](OngoingEvaluation* inner_evaluation) {
-          inner_evaluation->advancer = advancer;
-          (inner_evaluation->value->boolean ? true_case_ : false_case_)
-              ->Evaluate(inner_evaluation);
-        };
-    cond_->Evaluate(evaluation);
+    EvaluateExpression(evaluation, cond_.get(),
+        [this, evaluation](std::unique_ptr<Value> result) {
+          (result->boolean ? true_case_ : false_case_)->Evaluate(evaluation);
+        });
   }
 
  private:
-  unique_ptr<Expression> cond_;
-  unique_ptr<Expression> true_case_;
-  unique_ptr<Expression> false_case_;
+  const std::unique_ptr<Expression> cond_;
+  const std::unique_ptr<Expression> true_case_;
+  const std::unique_ptr<Expression> false_case_;
 };
 
 }

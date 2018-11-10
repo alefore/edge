@@ -19,12 +19,13 @@ class ReturnExpression : public Expression {
   const VMType& type() { return expr_->type(); }
 
   void Evaluate(OngoingEvaluation* evaluation) {
-    evaluation->advancer = evaluation->return_advancer;
-    expr_->Evaluate(evaluation);
+    evaluation->consumer = evaluation->return_consumer;
+    LOG(INFO) << "XXXX Preparing return...";
+    evaluation->expression_for_trampoline = expr_.get();
   }
 
  private:
-  unique_ptr<Expression> expr_;
+  const std::unique_ptr<Expression> expr_;
 };
 
 }  // namespace

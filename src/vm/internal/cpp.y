@@ -67,14 +67,35 @@ statement(OUT) ::= function_declaration_params(FUNC)
     const vector<wstring> argument_names(FUNC->argument_names);
 
     unique_ptr<Value> value(new Value(FUNC->type));
-    value->callback = [compilation, body, func_environment, argument_names]
-        (vector<unique_ptr<Value>> args) {
-          assert(args.size() == argument_names.size());
-          for (size_t i = 0; i < args.size(); i++) {
-            func_environment->Define(argument_names[i], std::move(args[i]));
-          }
-          return Evaluate(body.get(), func_environment.get());
-        };
+    value->callback = [compilation, body, func_environment, argument_names](
+        vector<unique_ptr<Value>> args, OngoingEvaluation* evaluation) {
+      CHECK_EQ(args.size(), argument_names.size());
+      for (size_t i = 0; i < args.size(); i++) {
+        func_environment->Define(argument_names[i], std::move(args[i]));
+      }
+      std::unique_ptr<Value> result;
+      auto original_environment = evaluation->environment;
+      auto original_consumer = evaluation->consumer;
+      auto original_return_consumer = evaluation->return_consumer;
+      evaluation->environment = func_environment.get();
+      evaluation->return_consumer =
+          [evaluation, original_environment, original_consumer,
+              original_return_consumer](std::unique_ptr<Value> value) {
+            CHECK(value != nullptr);
+            evaluation->environment = original_environment;
+            // Make copies before overriding the consumers, since that may
+            // delete us.
+            auto evaluation_copy = evaluation;
+            auto consumer_copy = original_consumer;
+            auto return_consumer_copy = original_return_consumer;
+            // Deletes us.
+            evaluation_copy->return_consumer = return_consumer_copy;
+            evaluation_copy->consumer = consumer_copy;
+            evaluation_copy->return_consumer(std::move(value));
+          };
+      evaluation->consumer = evaluation->return_consumer;
+      evaluation->expression_for_trampoline = body.get();
+    };
     compilation->environment->Define(FUNC->name, std::move(value));
     OUT = NewVoidExpression().release();
   }

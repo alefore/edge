@@ -1,4 +1,5 @@
 #include "../public/value.h"
+#include "../public/vm.h"
 #include "wstring.h"
 
 namespace afc {
@@ -40,13 +41,20 @@ namespace vm {
 }
 
 /* static */ unique_ptr<Value> Value::NewFunction(
-    std::vector<VMType> arguments,
-    std::function<std::unique_ptr<Value>(std::vector<std::unique_ptr<Value>>)>
-        callback) {
+    std::vector<VMType> arguments, Value::Callback callback) {
   std::unique_ptr<Value> output(new Value(VMType::FUNCTION));
   output->type.type_arguments = std::move(arguments);
   output->callback = std::move(callback);
   return std::move(output);
+}
+
+/* static */ unique_ptr<Value> Value::NewFunction(
+    std::vector<VMType> arguments,
+    std::function<Value::Ptr(std::vector<Value::Ptr>)> callback) {
+  return NewFunction(arguments, [callback](
+      std::vector<Ptr> args, OngoingEvaluation* evaluation) {
+    evaluation->return_consumer(callback(std::move(args)));
+  });
 }
 
 std::ostream& operator<<(std::ostream& os, const Value& value) {

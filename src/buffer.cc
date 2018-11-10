@@ -34,6 +34,8 @@ extern "C" {
 #include "substring.h"
 #include "transformation.h"
 #include "transformation_delete.h"
+#include "vm/public/constant_expression.h"
+#include "vm/public/function_call.h"
 #include "vm/public/value.h"
 #include "vm/public/vm.h"
 #include "wstring.h"
@@ -72,41 +74,33 @@ void RegisterBufferFields(
     VMType field_type = to_vm_value(variable->default_value())->type;
 
     // Getter.
-    {
-      unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-      callback->type.type_arguments.push_back(field_type);
-      callback->type.type_arguments.push_back(buffer_type);
-      callback->callback =
-          [variable, reader, to_vm_value](vector<unique_ptr<Value>> args) {
-            CHECK_EQ(args.size(), size_t(1));
-            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-            auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-            CHECK(buffer != nullptr);
-            return to_vm_value((buffer->*reader)(variable));
-          };
-      object_type->AddField(variable->name(), std::move(callback));
-    }
+    object_type->AddField(variable->name(), Value::NewFunction(
+        {field_type, buffer_type},
+        [variable, reader, to_vm_value](
+            vector<Value::Ptr> args, OngoingEvaluation* evaluation) {
+          CHECK_EQ(args.size(), size_t(1));
+          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          CHECK(buffer != nullptr);
+          DVLOG(5) << "Buffer field reader is returning.";
+          evaluation->return_consumer(
+              to_vm_value((buffer->*reader)(variable)));
+        }));
 
     // Setter.
-    {
-      unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-      callback->type.type_arguments.push_back(VMType::Void());
-      callback->type.type_arguments.push_back(buffer_type);
-      callback->type.type_arguments.push_back(field_type);
-      callback->callback =
-          [editor_state, field_type, variable, setter, from_vm_value](
-              vector<unique_ptr<Value>> args) {
-            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-            auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-            CHECK(buffer != nullptr);
+    object_type->AddField(L"set_" + variable->name(), Value::NewFunction(
+        {VMType::Void(), buffer_type, field_type},
+        [editor_state, field_type, variable, setter, from_vm_value](
+            vector<Value::Ptr> args, OngoingEvaluation* evaluation) {
+          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+          auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+          CHECK(buffer != nullptr);
 
-            CHECK_EQ(args[1]->type, field_type);
-            (buffer->*setter)(variable, from_vm_value(*args[1]));
-            editor_state->ScheduleRedraw();
-            return Value::NewVoid();
-          };
-      object_type->AddField(L"set_" + variable->name(), std::move(callback));
-    }
+          CHECK_EQ(args[1]->type, field_type);
+          (buffer->*setter)(variable, from_vm_value(*args[1]));
+          editor_state->ScheduleRedraw();
+          evaluation->return_consumer(Value::NewVoid());
+        }));
   }
 }
 }  // namespace
@@ -116,6 +110,46 @@ using std::to_wstring;
 
 /* static */ const wstring OpenBuffer::kBuffersName = L"- buffers";
 /* static */ const wstring OpenBuffer::kPasteBuffer = L"- paste buffer";
+
+// TODO: Once we can capture std::unique_ptr, turn transformation into one.
+void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
+    size_t line, Value::Callback map_callback,
+    TransformationStack* transformation, OngoingEvaluation* evaluation) {
+  if (line + 1 >= buffer->contents()->size()) {
+    buffer->Apply(editor, std::unique_ptr<Transformation>(transformation));
+    evaluation->return_consumer(Value::NewVoid());
+    return;
+  }
+  wstring current_line = buffer->LineAt(line)->ToString();
+
+  std::unique_ptr<std::vector<std::unique_ptr<vm::Expression>>> args_expr(
+      new std::vector<std::unique_ptr<vm::Expression>>());
+  args_expr->push_back(
+      vm::NewConstantExpression(Value::NewString(std::move(current_line))));
+  std::shared_ptr<vm::Expression> map_line = vm::NewFunctionCall(
+      vm::NewConstantExpression(
+          Value::NewFunction({ VMType::String() }, map_callback)),
+      std::move(args_expr));
+
+  Evaluate(
+      map_line.get(),
+      evaluation->environment,
+      [editor, buffer, line, map_callback, transformation, evaluation,
+       current_line](Value::Ptr value) {
+        if (value->str != current_line) {
+          DeleteOptions options;
+          options.copy_to_paste_buffer = false;
+          transformation->PushBack(NewDeleteLinesTransformation(options));
+          shared_ptr<OpenBuffer> buffer_to_insert(
+              new OpenBuffer(editor, L"tmp buffer"));
+          buffer_to_insert->AppendLine(editor, NewCopyString(value->str));
+          transformation->PushBack(
+              NewInsertBufferTransformation(buffer_to_insert, 1, END));
+        }
+        EvaluateMap(editor, buffer, line + 1, std::move(map_callback),
+                    transformation, evaluation);
+      });
+}
 
 /* static */ void OpenBuffer::RegisterBufferType(
     EditorState* editor_state, afc::vm::Environment* environment) {
@@ -155,12 +189,14 @@ using std::to_wstring;
       { VMType::Void(), VMType::ObjectType(buffer.get()),
         VMType::ObjectType(L"LineColumn") },
       [](vector<unique_ptr<Value>> args) {
-        assert(args.size() == 2);
-        assert(args[0]->type == VMType::OBJECT_TYPE);
+        CHECK_EQ(args.size(), 2);
+        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
         auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-        assert(buffer != nullptr);
-        buffer->set_position(
-            *static_cast<LineColumn*>(args[1]->user_value.get()));
+        CHECK(buffer != nullptr);
+        CHECK_EQ(args[1]->type, VMType::OBJECT_TYPE);
+        auto line_column = static_cast<LineColumn*>(args[1]->user_value.get());
+        CHECK(line_column != nullptr);
+        buffer->set_position(*line_column);
         return Value::NewVoid();
       }));
 
@@ -192,34 +228,14 @@ using std::to_wstring;
   buffer->AddField(L"Map", Value::NewFunction(
       { VMType::Void(), VMType::ObjectType(buffer.get()),
         VMType::Function({ VMType::String(), VMType::String() })},
-      [editor_state](vector<unique_ptr<Value>> args) {
+      [editor_state](vector<unique_ptr<Value>> args,
+          OngoingEvaluation* evaluation) {
         CHECK_EQ(args.size(), size_t(2));
         CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-        CHECK(buffer != nullptr);
-        size_t line = 0;
-        unique_ptr<TransformationStack> transformation(
-            new TransformationStack());
-        while (line + 1 < buffer->contents()->size()) {
-          wstring current_line = buffer->LineAt(line)->ToString();
-          vector<unique_ptr<Value>> line_args;
-          line_args.push_back(Value::NewString(current_line));
-          unique_ptr<Value> result = args[1]->callback(std::move(line_args));
-          if (result->str != current_line) {
-            DeleteOptions options;
-            options.copy_to_paste_buffer = false;
-            transformation->PushBack(NewDeleteLinesTransformation(options));
-            shared_ptr<OpenBuffer> buffer_to_insert(
-                new OpenBuffer(editor_state, L"tmp buffer"));
-            buffer_to_insert->AppendLine(
-                editor_state, NewCopyString(result->str));
-            transformation->PushBack(
-                NewInsertBufferTransformation(buffer_to_insert, 1, END));
-          }
-          line++;
-        }
-        buffer->Apply(editor_state, std::move(transformation));
-        return Value::NewVoid();
+        EvaluateMap(
+            editor_state,
+            static_cast<OpenBuffer*>(args[0]->user_value.get()),
+            0, args[1]->callback, new TransformationStack(), evaluation);
       }));
 
   buffer->AddField(L"AddKeyboardTextTransformer", Value::NewFunction(
@@ -346,6 +362,7 @@ using std::to_wstring;
         CHECK(buffer != nullptr);
         CHECK_EQ(args[2]->type, VMType::VM_STRING);
         wstring path = args[2]->str;
+        LOG(INFO) << "AddBindingToFile: " << args[1]->str << " -> " << path;
         buffer->default_commands_->Add(
             args[1]->str,
             [editor_state, buffer, path]() {
@@ -718,7 +735,8 @@ void OpenBuffer::Input::ReadData(
   if (target->read_bool_variable(OpenBuffer::variable_vm_exec())) {
     LOG(INFO) << target->name() << ": Evaluating VM code: "
               << buffer_wrapper->ToString();
-    target->EvaluateString(editor_state, buffer_wrapper->ToString());
+    target->EvaluateString(
+        editor_state, buffer_wrapper->ToString(), [](std::unique_ptr<Value>){});
   }
 
   target->RegisterProgress();
@@ -821,7 +839,7 @@ void OpenBuffer::DestroyThreadIf(std::function<bool()> predicate) {
   }
   background_thread_shutting_down_ = true;
   lock.unlock();
-  
+
   background_condition_.notify_one();
   background_thread_.join();
 }
@@ -1259,37 +1277,37 @@ unique_ptr<Expression> OpenBuffer::CompileString(EditorState*,
   return afc::vm::CompileString(code, &environment_, error_description);
 }
 
-unique_ptr<Value> OpenBuffer::EvaluateExpression(EditorState*,
-                                                 Expression* expr) {
-  return Evaluate(expr, &environment_);
+void OpenBuffer::EvaluateExpression(EditorState*, Expression* expr,
+    std::function<void(std::unique_ptr<Value>)> consumer) {
+  Evaluate(expr, &environment_, consumer);
 }
 
-unique_ptr<Value> OpenBuffer::EvaluateString(EditorState* editor_state,
-                                             const wstring& code) {
+bool OpenBuffer::EvaluateString(
+    EditorState* editor_state, const wstring& code,
+    std::function<void(std::unique_ptr<Value>)> consumer) {
   wstring error_description;
   LOG(INFO) << "Compiling code.";
   unique_ptr<Expression> expression =
       CompileString(editor_state, code, &error_description);
   if (expression == nullptr) {
     editor_state->SetWarningStatus(L"Compilation error: " + error_description);
-    return nullptr;
+    return false;
   }
   LOG(INFO) << "Code compiled, evaluating.";
-  auto result = EvaluateExpression(editor_state, expression.get());
-  LOG(INFO) << "Done evaluating compiled code.";
-  return result;
+  EvaluateExpression(editor_state, expression.get(), consumer);
+  return true;
 }
 
-unique_ptr<Value> OpenBuffer::EvaluateFile(EditorState* editor_state,
-                                           const wstring& path) {
+bool OpenBuffer::EvaluateFile(EditorState* editor_state, const wstring& path) {
   wstring error_description;
   unique_ptr<Expression> expression(
       CompileFile(ToByteString(path), &environment_, &error_description));
   if (expression == nullptr) {
     editor_state->SetStatus(path + L": error: " + error_description);
-    return nullptr;
+    return false;
   }
-  return Evaluate(expression.get(), &environment_);
+  Evaluate(expression.get(), &environment_, [](std::unique_ptr<Value>) {});
+  return true;
 }
 
 void OpenBuffer::DeleteRange(const Range& range) {
@@ -1828,12 +1846,12 @@ void OpenBuffer::PushSignal(EditorState* editor_state, int sig) {
 
 wstring OpenBuffer::TransformKeyboardText(wstring input) {
   using afc::vm::VMType;
-  for (auto& t : keyboard_text_transformers_) {
-    vector<unique_ptr<Value>> args;
-    args.push_back(afc::vm::Value::NewString(std::move(input)));
-    auto result = t->callback(std::move(args));
-    CHECK_EQ(result->type.type, VMType::VM_STRING);
-    input = std::move(result->str);
+  for (Value::Ptr& t : keyboard_text_transformers_) {
+    vector<Value::Ptr> args;
+    args.push_back(Value::NewString(std::move(input)));
+    Call(t.get(),
+         std::move(args),
+         [&input](Value::Ptr value) { input = std::move(value->str); });
   }
   return input;
 }
@@ -2632,9 +2650,11 @@ bool OpenBuffer::IsLineFiltered(size_t line_number) {
     return old_line.filtered();
   }
 
-  vector<unique_ptr<Value>> args;
+  bool filtered;
+  vector<Value::Ptr> args;
   args.push_back(Value::NewString(old_line.ToString()));
-  bool filtered = filter_->callback(std::move(args))->boolean;
+  Call(filter_.get(), std::move(args),
+       [&filtered](Value::Ptr value) { filtered = value->boolean; });
 
   auto new_line = std::make_shared<Line>(old_line);
   new_line->set_filtered(filtered, filter_version_);

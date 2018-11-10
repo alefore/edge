@@ -29,8 +29,12 @@ class VariableLookup : public Expression {
     // TODO: Enable this logging.
     // DVLOG(5) << "Look up symbol: " << symbol_;
     Value* result = evaluation->environment->Lookup(symbol_);
-    assert(result != nullptr);
-    evaluation->value = unique_ptr<Value>(new Value(*result));
+    CHECK(result != nullptr);
+    CHECK(evaluation != nullptr);
+    CHECK(evaluation->consumer != nullptr);
+    DVLOG(5) << "Variable lookup: " << *result;
+    evaluation->consumer(
+        std::unique_ptr<Value>(new Value(*result)));
   }
 
  private:

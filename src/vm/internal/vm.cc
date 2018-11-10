@@ -18,9 +18,9 @@
 #include "assign_expression.h"
 #include "binary_operator.h"
 #include "compilation.h"
-#include "constant_expression.h"
+#include "../public/constant_expression.h"
 #include "evaluation.h"
-#include "function_call.h"
+#include "../public/function_call.h"
 #include "if_expression.h"
 #include "logical_expression.h"
 #include "negate_expression.h"
@@ -474,32 +474,44 @@ unique_ptr<Expression> CompileString(
   return ResultsFromCompilation(&compilation, error_description);
 }
 
-unique_ptr<Value> Evaluate(Expression* expr, Environment* environment) {
+void EvaluateExpression(
+    OngoingEvaluation* evaluation,
+    Expression* expression,
+    std::function<void(std::unique_ptr<Value>)> customer_consumer) {
+  auto original_consumer = std::move(evaluation->consumer);
+  evaluation->consumer = [evaluation, original_consumer, customer_consumer](
+      std::unique_ptr<Value> value) {
+    // Make sure we stay alive until we're done.
+    auto old_consumer = std::move(evaluation->consumer);
+    evaluation->consumer = std::move(original_consumer);
+    customer_consumer(std::move(value));
+  };
+  DVLOG(6) << "Deferring evaluation for trampoline.";
+  evaluation->expression_for_trampoline = expression;
+}
+
+void Evaluate(Expression* expr, Environment* environment,
+              std::function<void(std::unique_ptr<Value>)> consumer) {
   assert(expr != nullptr);
   unique_ptr<Value> result;
-  bool done = false;
 
   OngoingEvaluation evaluation;
-  evaluation.return_advancer =
-      [&result, &done](OngoingEvaluation* evaluation) {
-        DVLOG(4) << "Evaluation done.";
-        DVLOG(5) << "Result: " << *evaluation->value;
-        assert(!done);
-        done = true;
-        result = std::move(evaluation->value);
-      };
-  evaluation.advancer = evaluation.return_advancer;
   evaluation.environment = environment;
-
-  expr->Evaluate(&evaluation);
-  while (!done) {
+  evaluation.return_consumer =
+      [consumer](std::unique_ptr<Value> value) {
+        DVLOG(4) << "Evaluation done.";
+        DVLOG(5) << "Result: " << *value;
+        consumer(std::move(value));
+      };
+  evaluation.consumer = evaluation.return_consumer;
+  evaluation.expression_for_trampoline = expr;
+  while (evaluation.expression_for_trampoline) {
     DVLOG(7) << "Jumping in the evaluation trampoline...";
-    auto advancer = evaluation.advancer;
-    advancer(&evaluation);
+    expr = evaluation.expression_for_trampoline;
+    evaluation.expression_for_trampoline = nullptr;
+    expr->Evaluate(&evaluation);
     DVLOG(10) << "Landed in the evaluation trampoline...";
   }
-
-  return result;
 }
 
 }  // namespace vm

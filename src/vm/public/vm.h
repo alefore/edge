@@ -26,25 +26,22 @@ class Environment;
 class Evaluation;
 class VMType;
 
+class Expression;
+
 struct OngoingEvaluation {
-  // The function to run to advance the evaluation.
-  //
-  // When this is run, the advancer field in the passed instance will be used
-  // both as an input and output paremeter: as an output parameter, the advancer
-  // sets the next piece of code that should run; as an input parameter, the
-  // advancer can signal that the computation is done (by just leaving it
-  // unmodified).
-  std::function<void(OngoingEvaluation*)> advancer;
-
-  // The function to run to halt the evaluation and return a value to the parent
-  // scope.
-  std::function<void(OngoingEvaluation*)> return_advancer;
-
-  Environment* environment;
+  Environment* environment = nullptr;
 
   // The current value, intended to be consumed by the advancer.
-  unique_ptr<Value> value;
+  std::function<void(std::unique_ptr<Value>)> consumer;
+  std::function<void(std::unique_ptr<Value>)> return_consumer;
+
+  Expression* expression_for_trampoline = nullptr;
 };
+
+void EvaluateExpression(
+    OngoingEvaluation* evaluation,
+    Expression* expression,
+    std::function<void(std::unique_ptr<Value>)> consumer);
 
 class Expression {
  public:
@@ -76,7 +73,10 @@ unique_ptr<Expression> CompileString(
     wstring* error_description,
     const VMType& return_type);
 
-unique_ptr<Value> Evaluate(Expression* expr, Environment* environment);
+void Evaluate(
+    Expression* expr,
+    Environment* environment,
+    std::function<void(std::unique_ptr<Value>)> consumer);
 
 }  // namespace vm
 }  // namespace afc

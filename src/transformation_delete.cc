@@ -9,6 +9,9 @@
 #include "modifiers.h"
 #include "transformation.h"
 #include "transformation_move.h"
+#include "src/vm/public/constant_expression.h"
+#include "src/vm/public/function_call.h"
+#include "src/vm/public/environment.h"
 #include "wstring.h"
 
 namespace afc {
@@ -319,7 +322,7 @@ class DeleteLinesTransformation : public Transformation {
         }
 
         if (buffer->LineAt(result->cursor.line) != nullptr) {
-          auto callback =
+          Value* callback =
               buffer->LineAt(result->cursor.line)
                   ->environment()
                   ->Lookup(L"EdgeLineDeleteHandler");
@@ -328,7 +331,12 @@ class DeleteLinesTransformation : public Transformation {
               && callback->type.type_arguments.size() == 1
               && callback->type.type_arguments.at(0) == vm::VMType::VM_VOID) {
             LOG(INFO) << "Running EdgeLineDeleteHandler.";
-            callback->callback({});
+            std::shared_ptr<vm::Expression> expr = vm::NewFunctionCall(
+                vm::NewConstantExpression(
+                    std::unique_ptr<Value>(new Value(*callback))),
+                std::unique_ptr<std::vector<std::unique_ptr<vm::Expression>>>(
+                    new std::vector<std::unique_ptr<vm::Expression>>()));
+            Evaluate(expr.get(), buffer->environment(), [](Value::Ptr) {});
           }
         }
       }

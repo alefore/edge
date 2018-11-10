@@ -17,18 +17,15 @@ class AppendExpression : public Expression {
   const VMType& type() { return e1_->type(); }
 
   void Evaluate(OngoingEvaluation* evaluation) {
-    auto advancer = evaluation->advancer;
-    evaluation->advancer =
-        [this, advancer](OngoingEvaluation* inner_evaluation) {
-          inner_evaluation->advancer = advancer;
-          e1_->Evaluate(inner_evaluation);
-        };
-    e0_->Evaluate(evaluation);
+    EvaluateExpression(evaluation, e0_.get(),
+        [this, evaluation](std::unique_ptr<Value>) {
+          e1_->Evaluate(evaluation);
+        });
   }
 
  private:
-  unique_ptr<Expression> e0_;
-  unique_ptr<Expression> e1_;
+  const unique_ptr<Expression> e0_;
+  const unique_ptr<Expression> e1_;
 };
 
 }  // namespace

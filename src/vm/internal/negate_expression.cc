@@ -20,13 +20,11 @@ class NegateExpression : public Expression {
   const VMType& type() { return expr_->type(); }
 
   void Evaluate(OngoingEvaluation* evaluation) {
-    auto advancer = evaluation->advancer;
-    evaluation->advancer =
-        [this, advancer](OngoingEvaluation* inner_evaluation) {
-          negate_(inner_evaluation->value.get());
-          inner_evaluation->advancer = advancer;
-        };
-    expr_->Evaluate(evaluation);
+    EvaluateExpression(evaluation, expr_.get(),
+        [this, evaluation](std::unique_ptr<Value> value) {
+          negate_(value.get());
+          evaluation->consumer(std::move(value));
+        });
   }
 
  private:

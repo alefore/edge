@@ -22,17 +22,13 @@ class AssignExpression : public Expression {
   const VMType& type() { return value_->type(); }
 
   void Evaluate(OngoingEvaluation* evaluation) {
-    auto advancer = evaluation->advancer;
-    evaluation->advancer =
-        [this, advancer](OngoingEvaluation* inner_evaluation) {
+    EvaluateExpression(evaluation, value_.get(),
+        [this, evaluation](std::unique_ptr<Value> value) {
           DVLOG(3) << "Setting value for: " << symbol_;
-          DVLOG(4) << "Value: " << *inner_evaluation->value;
-          inner_evaluation->environment->Define(
-              symbol_,
-              unique_ptr<Value>(new Value(*inner_evaluation->value)));
-          inner_evaluation->advancer = advancer;
-        };
-    value_->Evaluate(evaluation);
+          DVLOG(4) << "Value: " << *value;
+          evaluation->environment->Define(symbol_, std::move(value));
+          evaluation->consumer(Value::NewVoid());
+        });
   }
 
  private:

@@ -27,30 +27,24 @@ class WhileExpression : public Expression {
   }
 
   void Evaluate(OngoingEvaluation* evaluation) {
-    auto advancer = evaluation->advancer;
-    evaluation->advancer =
-        [advancer, this](OngoingEvaluation* evaluation) {
-          Iteration(advancer, evaluation);
-        };
     DVLOG(4) << "Evaluating condition...";
-    return condition_->Evaluate(evaluation);
+    EvaluateExpression(evaluation, condition_.get(),
+        [this, evaluation](std::unique_ptr<Value> value) {
+          Iteration(evaluation, value->boolean);
+        });
   }
  private:
 
-  void Iteration(std::function<void(OngoingEvaluation* evaluation)> advancer,
-                 OngoingEvaluation* evaluation) {
-    if (!evaluation->value->boolean) {
+  void Iteration(OngoingEvaluation* evaluation, bool cond_value) {
+    if (!cond_value) {
       DVLOG(3) << "Iteration is done.";
-      evaluation->value = Value::NewVoid();
-      evaluation->advancer = advancer;
+      evaluation->consumer(Value::NewVoid());
       return;
     }
+
     DVLOG(5) << "Iterating...";
-    evaluation->advancer = [advancer, this](OngoingEvaluation* post_loop) {
-      post_loop->advancer = advancer;
-      Evaluate(post_loop);
-    };
-    body_->Evaluate(evaluation);
+    EvaluateExpression(evaluation, body_.get(),
+        [this, evaluation](std::unique_ptr<Value>) { Evaluate(evaluation); });
   }
 
   unique_ptr<Expression> condition_;

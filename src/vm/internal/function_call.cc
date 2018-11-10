@@ -1,8 +1,9 @@
-#include "function_call.h"
+#include "../public/function_call.h"
 
 #include <glog/logging.h>
 
 #include "evaluation.h"
+#include "../public/constant_expression.h"
 #include "../public/value.h"
 #include "../public/vm.h"
 
@@ -26,46 +27,55 @@ class FunctionCall : public Expression {
 
   void Evaluate(OngoingEvaluation* evaluation) {
     DVLOG(3) << "Function call evaluation starts.";
-    auto advancer = evaluation->advancer;
-    evaluation->advancer =
-        [this, advancer](OngoingEvaluation* inner_evaluation) {
-          DVLOG(5) << "Evaluating function parameters, args: " << args_->size();
-          CHECK(inner_evaluation->value != nullptr);
-          auto func = std::move(inner_evaluation->value);
-          CHECK_EQ(func->type.type, VMType::FUNCTION);
-          CHECK(func->callback);
-          if (args_->empty()) {
-            DVLOG(6) << "No parameters; running directly.";
-            inner_evaluation->advancer = advancer;
-            inner_evaluation->value = func->callback({});
-            return;
-          }
-          inner_evaluation->advancer = CaptureArgs(
-              advancer, new vector<unique_ptr<Value>>(),
-              shared_ptr<Value>(func.release()));
-          args_->at(0)->Evaluate(inner_evaluation);
-        };
-    func_->Evaluate(evaluation);
+    EvaluateExpression(evaluation, func_.get(),
+        [this, evaluation](std::unique_ptr<Value> callback) {
+          DVLOG(6) << "Got function: " << *callback;
+          CaptureArgs(evaluation, std::make_shared<vector<unique_ptr<Value>>>(),
+              std::move(callback));
+        });
   }
 
  private:
-  std::function<void(OngoingEvaluation*)> CaptureArgs(
-      std::function<void(OngoingEvaluation*)> advancer,
-      vector<unique_ptr<Value>>* values, shared_ptr<Value> func) {
-    return [this, advancer, values, func]
-        (OngoingEvaluation* evaluation) {
-          DVLOG(5) << "Received results of parameter: " << values->size() + 1;
-          values->push_back(std::move(evaluation->value));
-          if (values->size() == args_->size()) {
-            DVLOG(4) << "No more parameters, performing function call.";
-            evaluation->advancer = advancer;
-            evaluation->value = func->callback(std::move(*values));
-            delete values;
-            return;
-          }
-          evaluation->advancer = CaptureArgs(advancer, values, func);
-          args_->at(values->size())->Evaluate(evaluation);
-        };
+  void CaptureArgs(OngoingEvaluation* evaluation,
+      std::shared_ptr<vector<unique_ptr<Value>>> values,
+      std::shared_ptr<Value> callback) {
+    CHECK(callback != nullptr);
+    CHECK_EQ(callback->type.type, VMType::FUNCTION);
+    CHECK(callback->callback);
+
+    DVLOG(5) << "Evaluating function parameters, args: " << args_->size();
+    if (values->size() == args_->size()) {
+      DVLOG(4) << "No more parameters, performing function call.";
+      auto original_consumer = std::move(evaluation->consumer);
+      auto original_return_consumer = std::move(evaluation->return_consumer);
+      evaluation->return_consumer =
+          [evaluation, original_consumer, original_return_consumer](
+              Value::Ptr value) {
+            LOG(INFO) << "Got returned value: " << *value;
+            auto evaluation_copy = evaluation;
+            auto consumer_copy = original_consumer;
+            auto return_consumer_copy = original_return_consumer;
+
+            evaluation_copy->consumer = consumer_copy;
+            evaluation_copy->return_consumer = return_consumer_copy;
+            evaluation_copy->consumer(std::move(value));
+          };
+      evaluation->consumer = evaluation->return_consumer;
+      callback->callback(std::move(*values), evaluation);
+      return;
+    }
+    EvaluateExpression(evaluation, args_->at(values->size()).get(),
+        [this, evaluation, values, callback](std::unique_ptr<Value> value) {
+          CHECK(values != nullptr);
+          DVLOG(5) << "Received results of parameter " << values->size() + 1
+                   << ": " << *value;
+          values->push_back(std::move(value));
+          DVLOG(6) << "Recursive call.";
+          CHECK(callback != nullptr);
+          CHECK_EQ(callback->type.type, VMType::FUNCTION);
+          CHECK(callback->callback);
+          CaptureArgs(evaluation, values, callback);
+        });
   }
 
   unique_ptr<Expression> func_;
@@ -79,6 +89,23 @@ unique_ptr<Expression> NewFunctionCall(
     unique_ptr<vector<unique_ptr<Expression>>> args) {
   return unique_ptr<Expression>(
       new FunctionCall(std::move(func), std::move(args)));
+}
+
+void Call(Value* func, vector<Value::Ptr> args,
+          std::function<void(Value::Ptr)> consumer) {
+  std::unique_ptr<std::vector<std::unique_ptr<Expression>>> args_expr(
+      new std::vector<std::unique_ptr<Expression>>());
+  for (auto& a : args) {
+    args_expr->push_back(NewConstantExpression(std::move(a)));
+  }
+  shared_ptr<Expression> function_expr = NewFunctionCall(
+      NewConstantExpression(Value::NewFunction(func->type.type_arguments,
+                                               func->callback)),
+      std::move(args_expr));
+  Evaluate(function_expr.get(), nullptr,
+           [function_expr, consumer](Value::Ptr value) {
+             consumer(std::move(value));
+           });
 }
 
 }  // namespace vm

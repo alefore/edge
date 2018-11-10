@@ -1,4 +1,4 @@
-#include "constant_expression.h"
+#include "../public/constant_expression.h"
 
 #include <cassert>
 
@@ -23,11 +23,11 @@ class ConstantExpression : public Expression {
 
   void Evaluate(OngoingEvaluation* evaluation) {
     DVLOG(5) << "Evaluating constant value: " << *value_;
-    evaluation->value.reset(new Value(*value_));
+    evaluation->consumer(std::unique_ptr<Value>(new Value(*value_)));
   }
 
  private:
-  unique_ptr<Value> value_;
+  const std::unique_ptr<Value> value_;
 };
 
 }  // namespace

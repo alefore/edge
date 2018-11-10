@@ -7,6 +7,7 @@
 #include "../public/environment.h"
 #include "../public/types.h"
 #include "../public/value.h"
+#include "../public/vm.h"
 
 namespace afc {
 namespace vm {
@@ -107,9 +108,11 @@ void AddMethod(const wstring& name,
       VMTypeMapper<ReturnType>().vmtype);
   callback_wrapper->type.type_arguments.push_back(VMType(VMType::VM_STRING));
   AddArgs<Args...>::Run(&callback_wrapper->type.type_arguments);
-  callback_wrapper->callback = [callback](vector<unique_ptr<Value>> args) {
+  callback_wrapper->callback = [callback](
+      vector<unique_ptr<Value>> args, OngoingEvaluation* evaluation) {
     CHECK_EQ(args[0]->type, VMType::VM_STRING);
-    return RunCallback<ReturnType, Args...>(callback, args);
+    evaluation->return_consumer(
+        RunCallback<ReturnType, Args...>(callback, args));
   };
   string_type->AddField(name, std::move(callback_wrapper));
 }
@@ -217,17 +220,13 @@ void RegisterStringType(Environment* environment) {
       string_type.get());
   environment->DefineType(L"string", std::move(string_type));
 
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->callback = [](vector<unique_ptr<Value>> args) {
-      CHECK_EQ(args.size(), 1);
-      CHECK_EQ(args[0]->type.type, VMType::VM_INTEGER);
-      return Value::NewString(std::to_wstring(args[0]->integer));
-    };
-    environment->Define(L"tostring", std::move(callback));
-  }
+  environment->Define(L"tostring", Value::NewFunction(
+      {VMType::String(), VMType::Integer()},
+      [](vector<unique_ptr<Value>> args) {
+        CHECK_EQ(args.size(), 1);
+        CHECK_EQ(args[0]->type.type, VMType::VM_INTEGER);
+        return Value::NewString(std::to_wstring(args[0]->integer));
+      }));
 }
 
 }  // namespace vm

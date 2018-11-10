@@ -15,7 +15,8 @@ namespace {
 void RunCppCommandHandler(const wstring& name, EditorState* editor_state) {
   if (!editor_state->has_current_buffer()) { return; }
   editor_state->current_buffer()->second->ResetMode();
-  editor_state->current_buffer()->second->EvaluateString(editor_state, name);
+  editor_state->current_buffer()->second->EvaluateString(
+      editor_state, name, [](std::unique_ptr<Value>) { /* Nothing. */ });
 }
 
 class RunCppCommand : public Command {

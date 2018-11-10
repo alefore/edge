@@ -234,20 +234,14 @@ class FileBuffer : public OpenBuffer {
           NewCopyString(
               path + (type_it == types.end() ? L"" : type_it->second))));
 
-      {
-        unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-        // Returns nothing.
-        callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-        callback->callback =
-            [editor_state, path](vector<unique_ptr<Value>> args) {
-              CHECK_EQ(args.size(), size_t(0));
-              StartDeleteFile(editor_state, path);
-              return Value::NewVoid();
-            };
-
-        target->contents()->back()->environment()->Define(
-            L"EdgeLineDeleteHandler", std::move(callback));
-      }
+      target->contents()->back()->environment()->Define(
+          L"EdgeLineDeleteHandler", Value::NewFunction({ VMType::Void() },
+              [editor_state, path](
+                  vector<Value::Ptr> args, OngoingEvaluation *evaluation) {
+                CHECK_EQ(args.size(), size_t(0));
+                StartDeleteFile(editor_state, path);
+                evaluation->return_consumer(Value::NewVoid());
+              }));
     }
     closedir(dir);
 

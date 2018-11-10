@@ -27,22 +27,21 @@ class LogicalExpression : public Expression {
   const VMType& type() { return VMType::Bool(); }
 
   void Evaluate(OngoingEvaluation* evaluation) {
-    auto advancer = evaluation->advancer;
-    evaluation->advancer =
-        [this, advancer](OngoingEvaluation* inner_evaluation) {
-          CHECK_EQ(VMType::VM_BOOLEAN, inner_evaluation->value->type.type);
-          inner_evaluation->advancer = advancer;
-          if (inner_evaluation->value->boolean == identity_) {
-            expr_b_->Evaluate(inner_evaluation);
+    EvaluateExpression(evaluation, expr_a_.get(),
+        [this, evaluation](std::unique_ptr<Value> value) {
+          CHECK_EQ(VMType::VM_BOOLEAN, value->type.type);
+          if (value->boolean == identity_) {
+            expr_b_->Evaluate(evaluation);
+          } else {
+            evaluation->consumer(std::move(value));
           }
-        };
-    expr_a_->Evaluate(evaluation);
+        });
   }
 
  private:
-  bool identity_;
-  unique_ptr<Expression> expr_a_;
-  unique_ptr<Expression> expr_b_;
+  const bool identity_;
+  const std::unique_ptr<Expression> expr_a_;
+  const std::unique_ptr<Expression> expr_b_;
 };
 
 }

@@ -5,20 +5,26 @@
 
 #include "command.h"
 #include "help_command.h"
+#include "vm/public/constant_expression.h"
 #include "vm/public/types.h"
 #include "vm/public/value.h"
+#include "vm/public/function_call.h"
+#include "vm/public/vm.h"
 
 namespace afc {
 namespace editor {
 
 using vm::VMType;
 using vm::Value;
+using vm::Expression;
 
 namespace {
 class CommandFromFunction : public Command {
  public:
   CommandFromFunction(std::function<void()> callback, wstring description)
-      : callback_(std::move(callback)), description_(std::move(description)) {}
+      : callback_(std::move(callback)), description_(std::move(description)) {
+    CHECK(callback_ != nullptr);
+  }
 
   const std::wstring Description() override {
     return description_;
@@ -69,10 +75,20 @@ void MapModeCommands::Add(wstring name, std::unique_ptr<Value> value) {
   CHECK(value != nullptr);
   CHECK_EQ(value->type.type, VMType::FUNCTION);
   CHECK(value->type.type_arguments == std::vector<VMType>({ VMType::Void() }));
-  auto callback = std::move(value->callback);
+  std::shared_ptr<vm::Expression> expression = NewFunctionCall(
+      NewConstantExpression(std::move(value)),
+      unique_ptr<vector<unique_ptr<vm::Expression>>>(
+          new vector<unique_ptr<Expression>>()));
   // TODO: Don't leak it!
-  Add(name, new CommandFromFunction([callback]() { callback({}); },
-                                    L"C++ VM function"));
+  Add(name,
+      new CommandFromFunction(
+          [expression]() {
+            LOG(INFO) << "Evaluating expression...";
+            Evaluate(expression.get(),
+                     nullptr,
+                     [](Value::Ptr) { LOG(INFO) << "Done evaluating."; });
+          },
+          L"C++ VM function"));
 }
 
 void MapModeCommands::Add(wstring name, std::function<void()> callback,

@@ -133,12 +133,12 @@ class OpenBuffer {
   unique_ptr<Expression> CompileString(EditorState* editor_state,
                                        const wstring& str,
                                        wstring* error_description);
-  unique_ptr<Value> EvaluateExpression(EditorState* editor_state,
-                                       Expression* expr);
-  unique_ptr<Value> EvaluateString(EditorState* editor_state,
-                                   const wstring& str);
-  unique_ptr<Value> EvaluateFile(EditorState* editor_state,
-                                 const wstring& path);
+  void EvaluateExpression(
+      EditorState* editor_state, Expression* expr,
+      std::function<void(std::unique_ptr<Value>)> consumer);
+  bool EvaluateString(EditorState* editor_state, const wstring& str,
+      std::function<void(std::unique_ptr<Value>)> consumer);
+  bool EvaluateFile(EditorState* editor_state, const wstring& path);
 
   const wstring& name() const { return name_; }
 
@@ -534,6 +534,9 @@ class OpenBuffer {
   size_t filter_version_;
 
  private:
+  static void EvaluateMap(EditorState* editor, OpenBuffer* buffer, size_t line,
+      Value::Callback map_callback, TransformationStack* transformation,
+      OngoingEvaluation* evaluation);
   LineColumn Apply(EditorState* editor_state,
                    unique_ptr<Transformation> transformation);
   void BackgroundThread();
