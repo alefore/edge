@@ -37,12 +37,44 @@ extern "C" {
 #include "vm/public/constant_expression.h"
 #include "vm/public/function_call.h"
 #include "vm/public/value.h"
+#include "vm/public/types.h"
 #include "vm/public/vm.h"
+#include "vm/public/callbacks.h"
 #include "wstring.h"
 
 namespace afc {
-namespace editor {
+namespace vm {
+template<>
+struct VMTypeMapper<editor::OpenBuffer*> {
+  static editor::OpenBuffer* get(Value* value) {
+    return static_cast<editor::OpenBuffer*>(value->user_value.get());
+  }
 
+  static const VMType vmtype;
+};
+
+const VMType VMTypeMapper<editor::OpenBuffer*>::vmtype =
+    VMType::ObjectType(L"Buffer");
+
+template<>
+struct VMTypeMapper<editor::LineColumn> {
+  static editor::LineColumn get(Value* value) {
+    return *static_cast<editor::LineColumn*>(value->user_value.get());
+  }
+
+  static Value::Ptr New(editor::LineColumn value) {
+    return Value::NewObject(L"LineColumn", shared_ptr<void>(
+        new editor::LineColumn(value),
+        [](void* v){ delete static_cast<editor::LineColumn*>(v); }));
+  }
+
+  static const VMType vmtype;
+};
+
+const VMType VMTypeMapper<editor::LineColumn>::vmtype =
+    VMType::ObjectType(L"LineColumn");
+}  // namespace
+namespace editor {
 namespace {
 
 static const wchar_t* kOldCursors = L"old-cursors";
@@ -175,41 +207,22 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
       &OpenBuffer::Read, &OpenBuffer::set_double_variable,
       &Value::NewDouble, &FromVmDouble);
 
-  buffer->AddField(L"line_count", Value::NewFunction(
-      { VMType::Integer(), VMType::ObjectType(buffer.get()) },
-      [](vector<unique_ptr<Value>> args) {
-        assert(args.size() == 1);
-        assert(args[0]->type == VMType::OBJECT_TYPE);
-        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-        assert(buffer != nullptr);
-        return Value::NewInteger(buffer->contents()->size());
-      }));
+  buffer->AddField(L"line_count", vm::NewCallback(
+      std::function<int(OpenBuffer*)>([](OpenBuffer* buffer) {
+        return int(buffer->contents()->size());
+      })));
 
-  buffer->AddField(L"set_position", Value::NewFunction(
-      { VMType::Void(), VMType::ObjectType(buffer.get()),
-        VMType::ObjectType(L"LineColumn") },
-      [](vector<unique_ptr<Value>> args) {
-        CHECK_EQ(args.size(), 2);
-        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-        CHECK(buffer != nullptr);
-        CHECK_EQ(args[1]->type, VMType::OBJECT_TYPE);
-        auto line_column = static_cast<LineColumn*>(args[1]->user_value.get());
-        CHECK(line_column != nullptr);
-        buffer->set_position(*line_column);
-        return Value::NewVoid();
-      }));
+  buffer->AddField(L"set_position", vm::NewCallback(
+      std::function<void(OpenBuffer*, LineColumn)>(
+          [](OpenBuffer* buffer, LineColumn position) {
+            buffer->set_position(position);
+          })));
 
-  buffer->AddField(L"position", Value::NewFunction(
-      { VMType::ObjectType(L"LineColumn"), VMType::ObjectType(buffer.get()) },
-      [](vector<unique_ptr<Value>> args) {
-        assert(args.size() == 1);
-        assert(args[0]->type == VMType::OBJECT_TYPE);
-        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-        assert(buffer != nullptr);
-        return Value::NewObject(L"LineColumn", shared_ptr<LineColumn>(
-            new LineColumn(buffer->position())));
-      }));
+  buffer->AddField(L"position", vm::NewCallback(
+      std::function<LineColumn(OpenBuffer*)>(
+          [](OpenBuffer* buffer) {
+            return LineColumn(buffer->position());
+          })));
 
   buffer->AddField(L"line", Value::NewFunction(
       { VMType::String(), VMType::ObjectType(buffer.get()),

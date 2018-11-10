@@ -87,6 +87,7 @@ src/terminal.cc \
 src/transformation.cc \
 src/transformation_delete.cc \
 src/transformation_move.cc \
+src/vm/internal/callbacks.cc \
 src/vm/internal/vm.cc \
 src/vm/internal/value.cc \
 src/vm/internal/string.cc \
