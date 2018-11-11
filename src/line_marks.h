@@ -58,7 +58,7 @@ struct LineMarks {
 
   // First key is the source, second key is the target_buffer.
   std::unordered_map<std::wstring, std::multimap<std::wstring, Mark>> marks;
-  size_t updates;
+  size_t updates = 0;
 };
 
 std::ostream& operator<<(std::ostream& os, const LineMarks::Mark& lc);
