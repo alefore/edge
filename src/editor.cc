@@ -355,6 +355,18 @@ bool EditorState::CloseBuffer(
   return true;
 }
 
+wstring GetBufferName(const wstring& prefix, size_t count) {
+  return prefix + L" " + std::to_wstring(count);
+}
+
+wstring EditorState::GetUnusedBufferName(const wstring& prefix) {
+  size_t count = 0;
+  while (buffers()->find(GetBufferName(prefix, count)) != buffers()->end()) {
+    count++;
+  }
+  return GetBufferName(prefix, count);
+}
+
 bool EditorState::AttemptTermination(wstring* error_description) {
   LOG(INFO) << "Checking buffers for termination.";
   vector<wstring> buffers_with_problems;

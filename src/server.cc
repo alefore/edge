@@ -187,20 +187,6 @@ class ServerBuffer : public OpenBuffer {
   }
 };
 
-wstring GetBufferName(const wstring& prefix, size_t count) {
-  return prefix + L" " + std::to_wstring(count);
-}
-
-// TODO: Reuse this for anonymous buffers.
-wstring GetUnusedBufferName(EditorState* editor_state, const wstring& prefix) {
-  size_t count = 0;
-  while (editor_state->buffers()->find(GetBufferName(prefix, count))
-         != editor_state->buffers()->end()) {
-    count++;
-  }
-  return GetBufferName(prefix, count);
-}
-
 bool StartServer(EditorState* editor_state, wstring address,
                  wstring* actual_address, wstring* error) {
   wstring dummy;
@@ -225,9 +211,8 @@ bool StartServer(EditorState* editor_state, wstring address,
 
 shared_ptr<OpenBuffer>
 OpenServerBuffer(EditorState* editor_state, const wstring& address) {
-  shared_ptr<OpenBuffer> buffer(
-      new ServerBuffer(editor_state,
-                       GetUnusedBufferName(editor_state, L"- server")));
+  auto buffer = std::make_shared<ServerBuffer>(
+      editor_state, editor_state->GetUnusedBufferName(L"- server"));
   buffer->set_string_variable(OpenBuffer::variable_path(), address);
   editor_state->buffers()->insert(make_pair(buffer->name(), buffer));
   buffer->Reload(editor_state);

@@ -358,10 +358,6 @@ static wstring realpath_safe(const wstring& path) {
   return result == nullptr ? path : FromByteString(result);
 }
 
-wstring GetAnonymousBufferName(size_t i) {
-  return L"[anonymous buffer " + std::to_wstring(i) + L"]";
-}
-
 static bool CanStatPath(const wstring& path) {
   CHECK(!path.empty());
   VLOG(5) << "Considering path: " << path;
@@ -563,12 +559,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   if (!options.name.empty()) {
     name = options.name;
   } else if (actual_path.empty()) {
-    size_t count = 0;
-    while (editor_state->buffers()->find(GetAnonymousBufferName(count))
-           != editor_state->buffers()->end()) {
-      count++;
-    }
-    name = GetAnonymousBufferName(count);
+    name = editor_state->GetUnusedBufferName(L"anonymous buffer");
     buffer = std::make_shared<FileBuffer>(editor_state, actual_path, name);
   } else {
     name = actual_path;

@@ -23,7 +23,7 @@ void CheckIsEmpty(EditorState* editor_state) {
 void Clear(EditorState* editor_state) {
   editor_state->ProcessInput(Terminal::ESCAPE);
   editor_state->set_current_buffer(
-      editor_state->buffers()->find(L"[anonymous buffer 0]"));
+      editor_state->buffers()->find(L"anonymous buffer 0"));
   editor_state->ProcessInputString("eegdl999999999999999\n");
   editor_state->ProcessInput(Terminal::ESCAPE);
   editor_state->current_buffer()->second
