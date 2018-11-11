@@ -22,7 +22,7 @@ void AddMethod(const wstring& name,
 }
 
 void RegisterStringType(Environment* environment) {
-  unique_ptr<ObjectType> string_type(new ObjectType(VMType::String()));
+  auto string_type = std::make_unique<ObjectType>(VMType::String());
   AddMethod<int>(L"size",
                  std::function<int(wstring)>(
                      [](wstring str) { return str.size(); }),

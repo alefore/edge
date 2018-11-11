@@ -83,7 +83,7 @@ class GotoCharTransformation : public Transformation {
   }
 
   std::unique_ptr<Transformation> Clone() {
-    return std::unique_ptr<Transformation>(new GotoCharTransformation(calls_));
+    return std::make_unique<GotoCharTransformation>(calls_);
   }
 
  private:
@@ -108,8 +108,8 @@ class GotoCommand : public Command {
     }
     switch (editor_state->structure()) {
       case CHAR:
-        buffer->ApplyToCursors(std::unique_ptr<Transformation>(
-            new GotoCharTransformation(calls_)));
+        buffer->ApplyToCursors(
+            std::make_unique<GotoCharTransformation>(calls_));
         break;
 
       case WORD:
@@ -228,7 +228,7 @@ class GotoCommand : public Command {
     editor_state->ResetStructure();
     editor_state->ResetDirection();
     editor_state->ResetRepetitions();
-    buffer->set_mode(unique_ptr<Command>(new GotoCommand(calls_ + 1)));
+    buffer->set_mode(std::make_unique<GotoCommand>(calls_ + 1));
   }
 
  private:
@@ -253,7 +253,7 @@ class GotoCommand : public Command {
 }  // namespace
 
 std::unique_ptr<Command> NewGotoCommand() {
-  return std::unique_ptr<Command>(new GotoCommand(0));
+  return std::make_unique<GotoCommand>(0);
 }
 
 }  // namespace afc

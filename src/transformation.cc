@@ -262,15 +262,16 @@ Transformation::Result::Result(EditorState* editor_state)
      : success(true),
        made_progress(false),
        modified_buffer(false),
-       undo_stack(new TransformationStack()),
-       delete_buffer(new OpenBuffer(editor_state, OpenBuffer::kPasteBuffer)) {}
+       undo_stack(std::make_unique<TransformationStack>()),
+       delete_buffer(std::make_shared<OpenBuffer>(
+                         editor_state, OpenBuffer::kPasteBuffer)) {}
 
 unique_ptr<Transformation> NewInsertBufferTransformation(
     shared_ptr<const OpenBuffer> buffer_to_insert, Modifiers modifiers,
     InsertBufferTransformationPosition final_position,
     LineModifierSet* modifiers_set) {
-  return unique_ptr<Transformation>(new InsertBufferTransformation(
-      buffer_to_insert, modifiers, final_position, modifiers_set));
+  return std::make_unique<InsertBufferTransformation>(
+      buffer_to_insert, modifiers, final_position, modifiers_set);
 }
 
 unique_ptr<Transformation> NewInsertBufferTransformation(
@@ -283,18 +284,18 @@ unique_ptr<Transformation> NewInsertBufferTransformation(
 
 }
 
-unique_ptr<Transformation> NewGotoPositionTransformation(
+std::unique_ptr<Transformation> NewGotoPositionTransformation(
     const LineColumn& position) {
-  return unique_ptr<Transformation>(new GotoPositionTransformation(position));
+  return std::make_unique<GotoPositionTransformation>(position);
 }
 
-unique_ptr<Transformation> NewNoopTransformation() {
-  return unique_ptr<Transformation>(new NoopTransformation());
+std::unique_ptr<Transformation> NewNoopTransformation() {
+  return std::make_unique<NoopTransformation>();
 }
 
-unique_ptr<Transformation> ComposeTransformation(
-    unique_ptr<Transformation> a, unique_ptr<Transformation> b) {
-  unique_ptr<TransformationStack> stack(new TransformationStack());
+std::unique_ptr<Transformation> ComposeTransformation(
+    std::unique_ptr<Transformation> a, std::unique_ptr<Transformation> b) {
+  auto stack = std::make_unique<TransformationStack>();
   stack->PushBack(std::move(a));
   stack->PushBack(std::move(b));
   return std::move(stack);
@@ -306,34 +307,34 @@ unique_ptr<Transformation> TransformationAtPosition(
       NewGotoPositionTransformation(position), std::move(transformation));
 }
 
-unique_ptr<Transformation> NewDeleteSuffixSuperfluousCharacters() {
-  return unique_ptr<Transformation>(new DeleteSuffixSuperfluousCharacters());
+std::unique_ptr<Transformation> NewDeleteSuffixSuperfluousCharacters() {
+  return std::make_unique<DeleteSuffixSuperfluousCharacters>();
 }
 
-unique_ptr<Transformation> NewSetRepetitionsTransformation(
+std::unique_ptr<Transformation> NewSetRepetitionsTransformation(
+    size_t repetitions, std::unique_ptr<Transformation> transformation) {
+  return std::make_unique<SetRepetitionsTransformation>(
+      repetitions, std::move(transformation));
+}
+
+std::unique_ptr<Transformation> NewApplyRepetitionsTransformation(
     size_t repetitions, unique_ptr<Transformation> transformation) {
-  return unique_ptr<Transformation>(
-      new SetRepetitionsTransformation(repetitions, std::move(transformation)));
+  return std::make_unique<ApplyRepetitionsTransformation>(
+      repetitions, std::move(transformation));
 }
 
-unique_ptr<Transformation> NewApplyRepetitionsTransformation(
-    size_t repetitions, unique_ptr<Transformation> transformation) {
-  return unique_ptr<Transformation>(new ApplyRepetitionsTransformation(
-      repetitions, std::move(transformation)));
+std::unique_ptr<Transformation> NewDirectionTransformation(
+    Direction direction, std::unique_ptr<Transformation> transformation) {
+  return std::make_unique<DirectionTransformation>(
+      direction, std::move(transformation));
 }
 
-unique_ptr<Transformation> NewDirectionTransformation(
-    Direction direction, unique_ptr<Transformation> transformation) {
-  return unique_ptr<Transformation>(
-      new DirectionTransformation(direction, std::move(transformation)));
-}
-
-unique_ptr<Transformation> NewStructureTransformation(
+std::unique_ptr<Transformation> NewStructureTransformation(
     Structure structure,
     Modifiers::StructureRange structure_range,
-    unique_ptr<Transformation> transformation) {
-  return unique_ptr<Transformation>(new StructureTransformation(
-      structure, structure_range, std::move(transformation)));
+    std::unique_ptr<Transformation> transformation) {
+  return std::make_unique<StructureTransformation>(
+      structure, structure_range, std::move(transformation));
 }
 
 }  // namespace editor

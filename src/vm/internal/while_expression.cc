@@ -16,7 +16,8 @@ namespace {
 
 class WhileExpression : public Expression {
  public:
-  WhileExpression(unique_ptr<Expression> condition, unique_ptr<Expression> body)
+  WhileExpression(std::unique_ptr<Expression> condition,
+                  std::unique_ptr<Expression> body)
       : condition_(std::move(condition)), body_(std::move(body)) {
     CHECK(condition_ != nullptr);
     CHECK(body_ != nullptr);
@@ -33,8 +34,8 @@ class WhileExpression : public Expression {
           Iteration(trampoline, value->boolean);
         });
   }
- private:
 
+ private:
   void Iteration(Trampoline* trampoline, bool cond_value) {
     if (!cond_value) {
       DVLOG(3) << "Iteration is done.";
@@ -49,15 +50,15 @@ class WhileExpression : public Expression {
         });
   }
 
-  unique_ptr<Expression> condition_;
-  unique_ptr<Expression> body_;
+  std::unique_ptr<Expression> condition_;
+  std::unique_ptr<Expression> body_;
 };
 
 }  // namespace
 
-unique_ptr<Expression> NewWhileExpression(
-    Compilation* compilation, unique_ptr<Expression> condition,
-    unique_ptr<Expression> body) {
+std::unique_ptr<Expression> NewWhileExpression(
+    Compilation* compilation, std::unique_ptr<Expression> condition,
+    std::unique_ptr<Expression> body) {
   if (condition == nullptr || body == nullptr) {
     return nullptr;
   }
@@ -68,8 +69,8 @@ unique_ptr<Expression> NewWhileExpression(
     return nullptr;
   }
 
-  return unique_ptr<Expression>(
-      new WhileExpression(std::move(condition), std::move(body)));
+  return std::make_unique<WhileExpression>(
+      std::move(condition), std::move(body));
 }
 
 }  // namespace vm

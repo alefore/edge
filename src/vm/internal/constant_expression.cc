@@ -23,7 +23,7 @@ class ConstantExpression : public Expression {
 
   void Evaluate(Trampoline* trampoline) {
     DVLOG(5) << "Evaluating constant value: " << *value_;
-    trampoline->Continue(std::unique_ptr<Value>(new Value(*value_)));
+    trampoline->Continue(std::make_unique<Value>(*value_));
   }
 
  private:
@@ -32,13 +32,14 @@ class ConstantExpression : public Expression {
 
 }  // namespace
 
-unique_ptr<Expression> NewVoidExpression() {
-  return unique_ptr<Expression>(new ConstantExpression(Value::NewVoid()));
+std::unique_ptr<Expression> NewVoidExpression() {
+  return NewConstantExpression(Value::NewVoid());
 }
 
-unique_ptr<Expression> NewConstantExpression(unique_ptr<Value> value) {
-  assert(value != nullptr);
-  return unique_ptr<Expression>(new ConstantExpression(std::move(value)));
+std::unique_ptr<Expression> NewConstantExpression(
+    std::unique_ptr<Value> value) {
+  CHECK(value != nullptr);
+  return std::make_unique<ConstantExpression>(std::move(value));
 }
 
 

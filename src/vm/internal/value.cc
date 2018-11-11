@@ -5,50 +5,50 @@
 namespace afc {
 namespace vm {
 
-/* static */ unique_ptr<Value> Value::NewVoid() {
-  return unique_ptr<Value>(new Value(VMType::VM_VOID));
+/* static */ std::unique_ptr<Value> Value::NewVoid() {
+  return std::make_unique<Value>(VMType::VM_VOID);
 }
 
-/* static */ unique_ptr<Value> Value::NewBool(bool value) {
-  unique_ptr<Value> output(new Value(VMType::Bool()));
+/* static */ std::unique_ptr<Value> Value::NewBool(bool value) {
+  auto output = std::make_unique<Value>(VMType::Bool());
   output->boolean = value;
   return std::move(output);
 }
 
-/* static */ unique_ptr<Value> Value::NewInteger(int value) {
-  unique_ptr<Value> output(new Value(VMType::Integer()));
+/* static */ std::unique_ptr<Value> Value::NewInteger(int value) {
+  auto output = std::make_unique<Value>(VMType::Integer());
   output->integer = value;
   return std::move(output);
 }
 
-/* static */ unique_ptr<Value> Value::NewDouble(double value) {
-  unique_ptr<Value> output(new Value(VMType::Double()));
+/* static */ std::unique_ptr<Value> Value::NewDouble(double value) {
+  auto output = std::make_unique<Value>(VMType::Double());
   output->double_value = value;
   return std::move(output);
 }
 
-/* static */ unique_ptr<Value> Value::NewString(wstring value) {
-  unique_ptr<Value> output(new Value(VMType::String()));
+/* static */ std::unique_ptr<Value> Value::NewString(wstring value) {
+  auto output = std::make_unique<Value>(VMType::String());
   output->str = std::move(value);
   return std::move(output);
 }
 
-/* static */ unique_ptr<Value> Value::NewObject(
+/* static */ std::unique_ptr<Value> Value::NewObject(
     const wstring& name, const shared_ptr<void>& value) {
-  unique_ptr<Value> output(new Value(VMType::ObjectType(name)));
+  auto output = std::make_unique<Value>(VMType::ObjectType(name));
   output->user_value = value;
   return std::move(output);
 }
 
-/* static */ unique_ptr<Value> Value::NewFunction(
+/* static */ std::unique_ptr<Value> Value::NewFunction(
     std::vector<VMType> arguments, Value::Callback callback) {
-  std::unique_ptr<Value> output(new Value(VMType::FUNCTION));
+  auto output = std::make_unique<Value>(VMType::FUNCTION);
   output->type.type_arguments = std::move(arguments);
   output->callback = std::move(callback);
   return std::move(output);
 }
 
-/* static */ unique_ptr<Value> Value::NewFunction(
+/* static */ std::unique_ptr<Value> Value::NewFunction(
     std::vector<VMType> arguments,
     std::function<Value::Ptr(std::vector<Value::Ptr>)> callback) {
   return NewFunction(arguments, [callback](

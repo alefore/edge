@@ -11,7 +11,8 @@ namespace {
 
 class AppendExpression : public Expression {
  public:
-  AppendExpression(unique_ptr<Expression> e0, unique_ptr<Expression> e1)
+  AppendExpression(std::unique_ptr<Expression> e0,
+                   std::unique_ptr<Expression> e1)
       : e0_(std::move(e0)), e1_(std::move(e1)) {}
 
   const VMType& type() { return e1_->type(); }
@@ -24,19 +25,18 @@ class AppendExpression : public Expression {
   }
 
  private:
-  const unique_ptr<Expression> e0_;
-  const unique_ptr<Expression> e1_;
+  const std::unique_ptr<Expression> e0_;
+  const std::unique_ptr<Expression> e1_;
 };
 
 }  // namespace
 
-unique_ptr<Expression> NewAppendExpression(
-    unique_ptr<Expression> a, unique_ptr<Expression> b) {
+std::unique_ptr<Expression> NewAppendExpression(
+    std::unique_ptr<Expression> a, std::unique_ptr<Expression> b) {
   if (a == nullptr || b == nullptr) {
     return nullptr;
   }
-  return unique_ptr<Expression>(
-      new AppendExpression(std::move(a), std::move(b)));
+  return std::make_unique<AppendExpression>(std::move(a), std::move(b));
 }
 
 }  // namespace

@@ -34,11 +34,11 @@ class NegateExpression : public Expression {
 
 }  // namespace
 
-unique_ptr<Expression> NewNegateExpression(
+std::unique_ptr<Expression> NewNegateExpression(
     std::function<void(Value*)> negate,
     const VMType& expected_type,
     Compilation* compilation,
-    unique_ptr<Expression> expr) {
+    std::unique_ptr<Expression> expr) {
   if (expr == nullptr) {
     return nullptr;
   }
@@ -48,8 +48,7 @@ unique_ptr<Expression> NewNegateExpression(
         + L"\"");
     return nullptr;
   }
-  return unique_ptr<Expression>(
-      new NegateExpression(negate, std::move(expr)));
+  return std::make_unique<NegateExpression>(negate, std::move(expr));
 }
 
 }  // namespace vm

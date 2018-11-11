@@ -39,7 +39,7 @@ class RecordCommand : public Command {
 };
 
 std::unique_ptr<Command> NewRecordCommand() {
-  return std::unique_ptr<Command>(new RecordCommand());
+  return std::make_unique<RecordCommand>();
 }
 
 }  // namespace afc

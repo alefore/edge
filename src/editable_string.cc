@@ -23,12 +23,12 @@ shared_ptr<EditableString> EditableString::New(
 shared_ptr<EditableString> EditableString::New(
     const shared_ptr<LazyString>& base, size_t position,
     const wstring& editable_part) {
-  return shared_ptr<EditableString>(
-      new EditableString(base, position, editable_part));
+  return std::make_shared<EditableString>(
+      ConstructorAccessTag(), base, position, editable_part);
 }
 
 EditableString::EditableString(
-    const shared_ptr<LazyString>& base, size_t position,
+    ConstructorAccessTag, const shared_ptr<LazyString>& base, size_t position,
     const wstring& editable_part)
     : base_(base), position_(position), editable_part_(editable_part) {
   assert(position_ <= base_->size());

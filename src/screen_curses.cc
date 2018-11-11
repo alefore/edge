@@ -215,7 +215,7 @@ wint_t ReadChar(std::mbstate_t* mbstate) {
 }
 
 std::unique_ptr<Screen> NewScreenCurses() {
-  return std::unique_ptr<Screen>(new ScreenCurses());
+  return std::make_unique<ScreenCurses>();
 }
 
 }  // namespace editor

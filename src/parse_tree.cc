@@ -222,22 +222,22 @@ class LineTreeParser : public TreeParser {
 }
 
 std::unique_ptr<TreeParser> NewNullTreeParser() {
-  return std::unique_ptr<TreeParser>(new NullTreeParser());
+  return std::make_unique<NullTreeParser>();
 }
 
 std::unique_ptr<TreeParser> NewCharTreeParser() {
-  return std::unique_ptr<TreeParser>(new CharTreeParser());
+  return std::make_unique<CharTreeParser>();
 }
 
 std::unique_ptr<TreeParser> NewWordsTreeParser(
     wstring word_characters, std::unique_ptr<TreeParser> delegate) {
-  return std::unique_ptr<TreeParser>(
-      new WordsTreeParser(word_characters, std::move(delegate)));
+  return std::make_unique<WordsTreeParser>(
+      word_characters, std::move(delegate));
 }
 
 std::unique_ptr<TreeParser> NewLineTreeParser(
     std::unique_ptr<TreeParser> delegate) {
-  return std::unique_ptr<TreeParser>(new LineTreeParser(std::move(delegate)));
+  return std::make_unique<LineTreeParser>(std::move(delegate));
 }
 
 }  // namespace editor

@@ -49,7 +49,7 @@ class RunCppCommand : public Command {
 }  // namespace
 
 std::unique_ptr<Command> NewRunCppCommand() {
-  return std::unique_ptr<Command>(new RunCppCommand());
+  return std::make_unique<RunCppCommand>();
 }
 
 }  // namespace afc

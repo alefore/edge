@@ -64,10 +64,10 @@ class NewLineTransformation : public Transformation {
     continuation_line->DeleteCharacters(
         prefix_end, continuation_line->size() - prefix_end);
 
-    unique_ptr<TransformationStack> transformation(new TransformationStack);
+    auto transformation = std::make_unique<TransformationStack>();
     {
-      shared_ptr<OpenBuffer> buffer_to_insert(
-        new OpenBuffer(editor_state, L"- text inserted"));
+      auto buffer_to_insert =
+          std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
       buffer_to_insert->AppendRawLine(editor_state, continuation_line);
       transformation->PushBack(
           NewInsertBufferTransformation(buffer_to_insert, 1, END));
@@ -82,7 +82,7 @@ class NewLineTransformation : public Transformation {
   }
 
   unique_ptr<Transformation> Clone() {
-    return unique_ptr<Transformation>(new NewLineTransformation());
+    return std::make_unique<NewLineTransformation>();
   }
 };
 
@@ -97,15 +97,13 @@ class InsertEmptyLineTransformation : public Transformation {
     }
     result->cursor.column = 0;
     buffer->AdjustLineColumn(&result->cursor);
-    return ComposeTransformation(
-        unique_ptr<Transformation>(new NewLineTransformation()),
-        NewGotoPositionTransformation(result->cursor))
-            ->Apply(editor_state, buffer, result);
+    return ComposeTransformation(std::make_unique<NewLineTransformation>(),
+                                 NewGotoPositionTransformation(result->cursor))
+               ->Apply(editor_state, buffer, result);
   }
 
-  unique_ptr<Transformation> Clone() {
-    return unique_ptr<Transformation>(
-        new InsertEmptyLineTransformation(direction_));
+  std::unique_ptr<Transformation> Clone() {
+    return std::make_unique<InsertEmptyLineTransformation>(direction_);
   }
 
  private:
@@ -292,8 +290,8 @@ class JumpTransformation : public Transformation {
     editor_state->ResetDirection();
   }
 
-  unique_ptr<Transformation> Clone() {
-    return std::unique_ptr<Transformation>(new JumpTransformation(direction_));
+  std::unique_ptr<Transformation> Clone() {
+    return std::make_unique<JumpTransformation>(direction_);
   }
 
  private:
@@ -334,13 +332,11 @@ class DefaultScrollBehavior : public ScrollBehavior {
   }
 
   void Begin(EditorState*, OpenBuffer* buffer) const override {
-    buffer->ApplyToCursors(
-        std::unique_ptr<Transformation>(new JumpTransformation(BACKWARDS)));
+    buffer->ApplyToCursors(std::make_unique<JumpTransformation>(BACKWARDS));
   }
 
   void End(EditorState*, OpenBuffer* buffer) const override {
-    buffer->ApplyToCursors(
-        std::unique_ptr<Transformation>(new JumpTransformation(FORWARDS)));
+    buffer->ApplyToCursors(std::make_unique<JumpTransformation>(FORWARDS));
   }
 };
 
@@ -403,8 +399,8 @@ void FindCompletion(EditorState* editor_state,
     options.matches_start = 0;
   }
 
-  unique_ptr<AutocompleteMode> autocomplete_mode(
-      new AutocompleteMode(std::move(options)));
+  auto autocomplete_mode =
+      std::make_unique<AutocompleteMode>(std::move(options));
   autocomplete_mode->DrawCurrentMatch(editor_state);
   editor_state->current_buffer()->second->set_mode(
       std::move(autocomplete_mode));
@@ -600,8 +596,8 @@ class InsertMode : public EditorMode {
     }
 
     {
-      shared_ptr<OpenBuffer> insert(
-          new OpenBuffer(editor_state, L"- text inserted"));
+      auto insert =
+          std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
       insert->AppendToLastLine(editor_state,
           NewCopyString(buffer->TransformKeyboardText(wstring(1, c))));
       buffer->ApplyToCursors(
@@ -761,7 +757,7 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
   options.buffer->MaybeAdjustPositionCol();
   options.editor_state->SetStatus(L"type");
 
-  unique_ptr<EditorMode> handler(new InsertMode(options));
+  auto handler = std::make_unique<InsertMode>(options);
   if (options.editor_state->current_buffer()->second == options.buffer) {
     options.editor_state->current_buffer()->second->set_mode(
         std::move(handler));
@@ -785,7 +781,7 @@ using std::unique_ptr;
 using std::shared_ptr;
 
 std::unique_ptr<Command> NewFindCompletionCommand() {
-  return std::unique_ptr<Command>(new FindCompletionCommand());
+  return std::make_unique<FindCompletionCommand>();
 }
 
 /* static */ shared_ptr<const ScrollBehavior> ScrollBehavior::Default() {
@@ -829,8 +825,7 @@ void EnterInsertMode(InsertModeOptions options) {
   if (!options.new_line_handler) {
     auto buffer = options.buffer;
     options.new_line_handler = [buffer, editor_state]() {
-      buffer->ApplyToCursors(
-          unique_ptr<Transformation>(new NewLineTransformation()));
+      buffer->ApplyToCursors(std::make_unique<NewLineTransformation>());
       editor_state->ScheduleRedraw();
     };
   }
@@ -848,7 +843,7 @@ void EnterInsertMode(InsertModeOptions options) {
   if (options.buffer->fd() != -1) {
     editor_state->SetStatus(L"type (raw)");
     editor_state->current_buffer()->second->set_mode(
-        unique_ptr<EditorMode>(new RawInputTypeMode(options.buffer)));
+        std::make_unique<RawInputTypeMode>(options.buffer));
   } else if (editor_state->structure() == CHAR) {
     options.buffer->CheckPosition();
     options.buffer->PushTransformationStack();
@@ -859,8 +854,8 @@ void EnterInsertMode(InsertModeOptions options) {
     options.buffer->PushTransformationStack();
     options.buffer->PushTransformationStack();
     options.buffer->ApplyToCursors(
-        unique_ptr<Transformation>(
-            new InsertEmptyLineTransformation(editor_state->direction())));
+        std::make_unique<InsertEmptyLineTransformation>(
+            editor_state->direction()));
     EnterInsertCharactersMode(options);
     editor_state->ScheduleRedraw();
   }

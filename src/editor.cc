@@ -69,7 +69,7 @@ static vector<wstring> GetEdgeConfigPath(const wstring& home) {
 
 void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
                           void (OpenBuffer::*method)(void)) {
-  unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+  auto callback = std::make_unique<Value>(VMType::FUNCTION);
   // Returns nothing.
   callback->type.type_arguments =
       { VMType(VMType::VM_VOID), VMType::ObjectType(editor_type) };
@@ -105,7 +105,7 @@ void EditorState::NotifyInternalEvent() {
 Environment EditorState::BuildEditorEnvironment() {
   Environment environment(afc::vm::Environment::GetDefault());
 
-  unique_ptr<ObjectType> editor_type(new ObjectType(L"Editor"));
+  auto editor_type = std::make_unique<ObjectType>(L"Editor");
 
   // Methods for Editor.
   editor_type->AddField(L"ReloadCurrentBuffer", Value::NewFunction(
@@ -280,7 +280,7 @@ EditorState::EditorState(AudioPlayer* audio_player)
       status_(L""),
       pipe_to_communicate_internal_events_(BuildPipe()),
       audio_player_(audio_player) {
-  unique_ptr<ObjectType> line_column(new ObjectType(L"LineColumn"));
+  auto line_column = std::make_unique<ObjectType>(L"LineColumn");
 
   // Methods for LineColumn.
   environment_.Define(L"LineColumn", Value::NewFunction(
@@ -301,9 +301,7 @@ EditorState::EditorState(AudioPlayer* audio_player)
         CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
         auto line_column = static_cast<LineColumn*>(args[0]->user_value.get());
         CHECK(line_column != nullptr);
-        unique_ptr<Value> output(new Value(VMType::VM_INTEGER));
-        output->integer = line_column->line;
-        return output;
+        return Value::NewInteger(line_column->line);
       }));
 
   line_column->AddField(L"column", Value::NewFunction(
@@ -313,9 +311,7 @@ EditorState::EditorState(AudioPlayer* audio_player)
         CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
         auto line_column = static_cast<LineColumn*>(args[0]->user_value.get());
         CHECK(line_column != nullptr);
-        unique_ptr<Value> output(new Value(VMType::VM_INTEGER));
-        output->integer = line_column->column;
-        return output;
+        return Value::NewInteger(line_column->column);
       }));
 
   environment_.DefineType(L"LineColumn", std::move(line_column));
@@ -526,8 +522,8 @@ void EditorState::SetStatus(const wstring& status) {
   auto status_buffer_it = buffers_.insert(make_pair(L"- console", nullptr));
   if (status_buffer_it.second) {
     // Inserted the entry.
-    status_buffer_it.first->second = shared_ptr<OpenBuffer>(
-        new OpenBuffer(this, status_buffer_it.first->first));
+    status_buffer_it.first->second =
+        std::make_shared<OpenBuffer>(this, status_buffer_it.first->first);
     status_buffer_it.first->second->set_bool_variable(
         OpenBuffer::variable_allow_dirty_delete(), true);
     status_buffer_it.first->second->set_bool_variable(

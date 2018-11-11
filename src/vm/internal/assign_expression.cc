@@ -50,15 +50,15 @@ unique_ptr<Expression> NewAssignExpression(
     compilation->errors.push_back(L"Unknown type: \"" + symbol + L"\"");
     return nullptr;
   }
-  compilation->environment
-      ->Define(symbol, unique_ptr<Value>(new Value(value->type())));
+  compilation->environment->Define(symbol,
+                                   std::make_unique<Value>(value->type()));
   if (!(*type_def == value->type())) {
     compilation->errors.push_back(
         L"Unable to assign a value of type \"" + value->type().ToString()
         + L"\" to a variable of type \"" + type_def->ToString() + L"\".");
     return nullptr;
   }
-  return unique_ptr<Expression>(new AssignExpression(symbol, std::move(value)));
+  return std::make_unique<AssignExpression>(symbol, std::move(value));
 }
 
 unique_ptr<Expression> NewAssignExpression(
@@ -79,7 +79,7 @@ unique_ptr<Expression> NewAssignExpression(
     return nullptr;
   }
 
-  return unique_ptr<Expression>(new AssignExpression(symbol, std::move(value)));
+  return std::make_unique<AssignExpression>(symbol, std::move(value));
 }
 
 }  // namespace vm

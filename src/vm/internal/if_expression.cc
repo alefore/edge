@@ -44,11 +44,11 @@ class IfExpression : public Expression {
 
 }
 
-unique_ptr<Expression> NewIfExpression(
+std::unique_ptr<Expression> NewIfExpression(
     Compilation* compilation,
-    unique_ptr<Expression> condition,
-    unique_ptr<Expression> true_case,
-    unique_ptr<Expression> false_case) {
+    std::unique_ptr<Expression> condition,
+    std::unique_ptr<Expression> true_case,
+    std::unique_ptr<Expression> false_case) {
   if (condition == nullptr || true_case == nullptr || false_case == nullptr) {
     return nullptr;
   }
@@ -68,8 +68,8 @@ unique_ptr<Expression> NewIfExpression(
     return nullptr;
   }
 
-  return unique_ptr<Expression>(new IfExpression(
-      std::move(condition), std::move(true_case), std::move(false_case)));
+  return std::make_unique<IfExpression>(
+      std::move(condition), std::move(true_case), std::move(false_case));
 }
 
 }  // namespace afc

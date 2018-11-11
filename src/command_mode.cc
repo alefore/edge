@@ -788,10 +788,10 @@ class SwitchCaseTransformation : public Transformation {
       return;
     }
     CHECK_LE(start, end);
-    unique_ptr<TransformationStack> stack(new TransformationStack());
+    auto stack = std::make_unique<TransformationStack>();
     stack->PushBack(NewGotoPositionTransformation(start));
-    shared_ptr<OpenBuffer> buffer_to_insert(
-        new OpenBuffer(editor_state, L"- text inserted"));
+    auto buffer_to_insert =
+        std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
     VLOG(5) << "Switch Case Transformation at " << result->cursor << ": "
             << editor_state->modifiers() << ": Range [" << start << ", "
             << end << ")";
@@ -835,8 +835,7 @@ class SwitchCaseTransformation : public Transformation {
   }
 
   unique_ptr<Transformation> Clone() {
-    return unique_ptr<Transformation>(
-        new SwitchCaseTransformation(apply_mode_, modifiers_));
+    return std::make_unique<SwitchCaseTransformation>(apply_mode_, modifiers_);
   }
 
  private:
@@ -850,8 +849,7 @@ void ApplySwitchCaseCommand(EditorState* editor_state, OpenBuffer* buffer,
   CHECK(buffer != nullptr);
   buffer->PushTransformationStack();
   buffer->ApplyToCursors(
-      std::unique_ptr<SwitchCaseTransformation>(
-          new SwitchCaseTransformation(apply_mode, modifiers)),
+      std::make_unique<SwitchCaseTransformation>(apply_mode, modifiers),
       modifiers.cursors_affected);
   buffer->PopTransformationStack();
 }
@@ -897,7 +895,7 @@ using std::unique_ptr;
 
 std::unique_ptr<MapModeCommands> NewCommandMode(
     EditorState* editor_state) {
-  std::unique_ptr<MapModeCommands> commands(new MapModeCommands());
+  auto commands = std::make_unique<MapModeCommands>();
   commands->Add(L"aq", NewQuitCommand());
   commands->Add(L"ad", NewCloseBufferCommand());
   commands->Add(L"aw",
@@ -961,45 +959,45 @@ std::unique_ptr<MapModeCommands> NewCommandMode(
           L"// Set active cursors to the marks on this buffer.\n"
           L"editor.SetActiveCursorsToMarks();"));
 
-  commands->Add(L"i", std::unique_ptr<Command>(new EnterInsertModeCommand()));
-  commands->Add(L"f", std::unique_ptr<Command>(new EnterFindMode()));
-  commands->Add(L"r", std::unique_ptr<Command>(new ReverseDirectionCommand()));
-  commands->Add(L"R", std::unique_ptr<Command>(new InsertionModifierCommand()));
+  commands->Add(L"i", std::make_unique<EnterInsertModeCommand>());
+  commands->Add(L"f", std::make_unique<EnterFindMode>());
+  commands->Add(L"r", std::make_unique<ReverseDirectionCommand>());
+  commands->Add(L"R", std::make_unique<InsertionModifierCommand>());
 
   commands->Add(L"/", NewSearchCommand());
   commands->Add(L"g", NewGotoCommand());
 
-  commands->Add(L"w", std::unique_ptr<Command>(new SetStructureCommand(WORD, L"word")));
-  commands->Add(L"e", std::unique_ptr<Command>(new SetStructureCommand(LINE, L"line")));
-  commands->Add(L"E", std::unique_ptr<Command>(new SetStructureCommand(PAGE, L"page")));
-  commands->Add(L"F", std::unique_ptr<Command>(new SetStructureCommand(SEARCH, L"search")));
-  commands->Add(L"c", std::unique_ptr<Command>(new SetStructureCommand(CURSOR, L"cursor")));
-  commands->Add(L"B", std::unique_ptr<Command>(new SetStructureCommand(BUFFER, L"buffer")));
-  commands->Add(L"!", std::unique_ptr<Command>(new SetStructureCommand(MARK, L"mark")));
-  commands->Add(L"t", std::unique_ptr<Command>(new SetStructureCommand(TREE, L"tree")));
+  commands->Add(L"w", std::make_unique<SetStructureCommand>(WORD, L"word"));
+  commands->Add(L"e", std::make_unique<SetStructureCommand>(LINE, L"line"));
+  commands->Add(L"E", std::make_unique<SetStructureCommand>(PAGE, L"page"));
+  commands->Add(L"F", std::make_unique<SetStructureCommand>(SEARCH, L"search"));
+  commands->Add(L"c", std::make_unique<SetStructureCommand>(CURSOR, L"cursor"));
+  commands->Add(L"B", std::make_unique<SetStructureCommand>(BUFFER, L"buffer"));
+  commands->Add(L"!", std::make_unique<SetStructureCommand>(MARK, L"mark"));
+  commands->Add(L"t", std::make_unique<SetStructureCommand>(TREE, L"tree"));
 
-  commands->Add(L"W", std::unique_ptr<Command>(new SetStrengthCommand(
-      Modifiers::WEAK, Modifiers::VERY_WEAK, L"weak")));
-  commands->Add(L"S", std::unique_ptr<Command>(new SetStrengthCommand(
-      Modifiers::STRONG, Modifiers::VERY_STRONG, L"strong")));
+  commands->Add(L"W", std::make_unique<SetStrengthCommand>(
+      Modifiers::WEAK, Modifiers::VERY_WEAK, L"weak"));
+  commands->Add(L"S", std::make_unique<SetStrengthCommand>(
+      Modifiers::STRONG, Modifiers::VERY_STRONG, L"strong"));
 
-  commands->Add(L"D", std::unique_ptr<Command>(new Delete(DeleteOptions())));
+  commands->Add(L"D", std::make_unique<Delete>(DeleteOptions()));
   commands->Add(L"d",
       NewCommandWithModifiers(
               L"delete", L"starts a new delete command", ApplyDeleteCommand));
-  commands->Add(L"p", std::unique_ptr<Command>(new Paste()));
+  commands->Add(L"p", std::make_unique<Paste>());
 
   DeleteOptions copy_options;
   copy_options.modifiers.delete_type = Modifiers::PRESERVE_CONTENTS;
-  commands->Add(L"u", std::unique_ptr<Command>(new UndoCommand()));
-  commands->Add(L"\n", std::unique_ptr<Command>(new ActivateLink()));
+  commands->Add(L"u", std::make_unique<UndoCommand>());
+  commands->Add(L"\n", std::make_unique<ActivateLink>());
 
-  commands->Add(L"b", std::unique_ptr<Command>(new GotoPreviousPositionCommand()));
+  commands->Add(L"b", std::make_unique<GotoPreviousPositionCommand>());
   commands->Add(L"n", NewNavigateCommand());
-  commands->Add(L"j", std::unique_ptr<Command>(new LineDown()));
-  commands->Add(L"k", std::unique_ptr<Command>(new LineUp()));
-  commands->Add(L"l", std::unique_ptr<Command>(new MoveForwards()));
-  commands->Add(L"h", std::unique_ptr<Command>(new MoveBackwards()));
+  commands->Add(L"j", std::make_unique<LineDown>());
+  commands->Add(L"k", std::make_unique<LineUp>());
+  commands->Add(L"l", std::make_unique<MoveForwards>());
+  commands->Add(L"h", std::make_unique<MoveBackwards>());
 
   commands->Add(L"~",
       NewCommandWithModifiers(
@@ -1026,31 +1024,31 @@ std::unique_ptr<MapModeCommands> NewCommandMode(
   ToggleIntVariable(editor_state, L"vc", L"buffer_list_context_lines", 10,
       commands.get());
 
-  commands->Add({Terminal::ESCAPE}, std::unique_ptr<Command>(new ResetStateCommand()));
+  commands->Add({Terminal::ESCAPE}, std::make_unique<ResetStateCommand>());
 
-  commands->Add(L"[", std::unique_ptr<Command>(new SetStructureModifierCommand(
+  commands->Add(L"[", std::make_unique<SetStructureModifierCommand>(
       Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION,
-      L"from the beggining to the current position")));
-  commands->Add(L"]", std::unique_ptr<Command>(new SetStructureModifierCommand(
+      L"from the beggining to the current position"));
+  commands->Add(L"]", std::make_unique<SetStructureModifierCommand>(
       Modifiers::FROM_CURRENT_POSITION_TO_END,
-      L"from the current position to the end")));
-  commands->Add({Terminal::CTRL_L}, std::unique_ptr<Command>(new HardRedrawCommand()));
-  commands->Add(L"0", std::unique_ptr<Command>(new NumberMode(SetRepetitions)));
-  commands->Add(L"1", std::unique_ptr<Command>(new NumberMode(SetRepetitions)));
-  commands->Add(L"2", std::unique_ptr<Command>(new NumberMode(SetRepetitions)));
-  commands->Add(L"3", std::unique_ptr<Command>(new NumberMode(SetRepetitions)));
-  commands->Add(L"4", std::unique_ptr<Command>(new NumberMode(SetRepetitions)));
-  commands->Add(L"5", std::unique_ptr<Command>(new NumberMode(SetRepetitions)));
-  commands->Add(L"6", std::unique_ptr<Command>(new NumberMode(SetRepetitions)));
-  commands->Add(L"7", std::unique_ptr<Command>(new NumberMode(SetRepetitions)));
-  commands->Add(L"8", std::unique_ptr<Command>(new NumberMode(SetRepetitions)));
-  commands->Add(L"9", std::unique_ptr<Command>(new NumberMode(SetRepetitions)));
-  commands->Add({Terminal::DOWN_ARROW}, std::unique_ptr<Command>(new LineDown()));
-  commands->Add({Terminal::UP_ARROW}, std::unique_ptr<Command>(new LineUp()));
-  commands->Add({Terminal::LEFT_ARROW}, std::unique_ptr<Command>(new MoveBackwards()));
-  commands->Add({Terminal::RIGHT_ARROW}, std::unique_ptr<Command>(new MoveForwards()));
-  commands->Add({Terminal::PAGE_DOWN}, std::unique_ptr<Command>(new PageDown()));
-  commands->Add({Terminal::PAGE_UP}, std::unique_ptr<Command>(new PageUp()));
+      L"from the current position to the end"));
+  commands->Add({Terminal::CTRL_L}, std::make_unique<HardRedrawCommand>());
+  commands->Add(L"0", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add(L"1", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add(L"2", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add(L"3", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add(L"4", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add(L"5", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add(L"6", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add(L"7", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add(L"8", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add(L"9", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add({Terminal::DOWN_ARROW}, std::make_unique<LineDown>());
+  commands->Add({Terminal::UP_ARROW}, std::make_unique<LineUp>());
+  commands->Add({Terminal::LEFT_ARROW}, std::make_unique<MoveBackwards>());
+  commands->Add({Terminal::RIGHT_ARROW}, std::make_unique<MoveForwards>());
+  commands->Add({Terminal::PAGE_DOWN}, std::make_unique<PageDown>());
+  commands->Add({Terminal::PAGE_UP}, std::make_unique<PageUp>());
 
   return commands;
 }

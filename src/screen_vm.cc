@@ -92,7 +92,7 @@ class ScreenVm : public Screen {
 }  // namespace
 
 void RegisterScreenType(Environment* environment) {
-  unique_ptr<ObjectType> screen_type(new ObjectType(L"Screen"));
+  auto screen_type = std::make_unique<ObjectType>(L"Screen");
 
   // Constructors.
   environment->Define(L"RemoteScreen", Value::NewFunction(
@@ -256,7 +256,7 @@ void RegisterScreenType(Environment* environment) {
 }
 
 std::unique_ptr<Screen> NewScreenVm(int fd) {
-  return std::unique_ptr<Screen>(new ScreenVm(fd));
+  return std::make_unique<ScreenVm>(fd);
 }
 
 }  // namespace editor

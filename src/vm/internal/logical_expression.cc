@@ -46,15 +46,16 @@ class LogicalExpression : public Expression {
 
 }
 
-unique_ptr<Expression> NewLogicalExpression(
-    bool identity, unique_ptr<Expression> a, unique_ptr<Expression> b) {
+std::unique_ptr<Expression> NewLogicalExpression(
+    bool identity, std::unique_ptr<Expression> a,
+    std::unique_ptr<Expression> b) {
   if (a == nullptr || b == nullptr
       || a->type().type != VMType::VM_BOOLEAN
       || b->type().type != VMType::VM_BOOLEAN) {
     return nullptr;
   }
-  return unique_ptr<Expression>(
-      new LogicalExpression(identity, std::move(a), std::move(b)));
+  return std::make_unique<LogicalExpression>(
+      identity, std::move(a), std::move(b));
 }
 
 }  // namespace vm

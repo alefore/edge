@@ -48,7 +48,7 @@ MapModeCommands::MapModeCommands()
 }
 
 std::unique_ptr<MapModeCommands> MapModeCommands::NewChild() {
-  std::unique_ptr<MapModeCommands> output(new MapModeCommands());
+  auto output = std::make_unique<MapModeCommands>();
   output->commands_ = commands_;
   output->commands_.push_front(
       std::make_shared<map<wstring, std::unique_ptr<Command>>>());
@@ -79,20 +79,20 @@ void MapModeCommands::Add(wstring name, std::unique_ptr<Value> value) {
   std::shared_ptr<vm::Expression> expression = NewFunctionCall(
       NewConstantExpression(std::move(value)), {});
   Add(name,
-      std::unique_ptr<Command>(new CommandFromFunction(
+      std::make_unique<CommandFromFunction>(
           [expression]() {
             LOG(INFO) << "Evaluating expression...";
             Evaluate(expression.get(),
                      nullptr,
                      [](Value::Ptr) { LOG(INFO) << "Done evaluating."; });
           },
-          L"C++ VM function")));
+          L"C++ VM function"));
 }
 
 void MapModeCommands::Add(wstring name, std::function<void()> callback,
                           wstring description) {
-  Add(name, std::unique_ptr<Command>(
-                new CommandFromFunction(std::move(callback), description)));
+  Add(name, std::make_unique<CommandFromFunction>(std::move(callback),
+                                                  std::move(description)));
 }
 
 MapMode::MapMode(std::shared_ptr<MapModeCommands> commands)

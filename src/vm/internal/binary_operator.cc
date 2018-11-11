@@ -21,7 +21,7 @@ void BinaryOperator::Evaluate(Trampoline* trampoline) {
         trampoline->Bounce(b_.get(),
             [this, a_value_shared](std::unique_ptr<Value> b_value,
                                    Trampoline* trampoline) {
-              std::unique_ptr<Value> output(new Value(type_));
+              auto output = std::make_unique<Value>(type_);
               operator_(*a_value_shared, *b_value, output.get());
               trampoline->Continue(std::move(output));
             });

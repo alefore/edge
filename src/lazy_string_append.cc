@@ -38,8 +38,7 @@ shared_ptr<LazyString> StringAppend(const shared_ptr<LazyString>& a,
   assert(b.get() != nullptr);
   if (a->size() == 0) { return b; }
   if (b->size() == 0) { return a; }
-  shared_ptr<LazyString> output(new StringAppendImpl(a, b));
-  return output;
+  return std::make_shared<StringAppendImpl>(a, b);
 }
 
 }  // namespace editor

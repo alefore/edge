@@ -151,8 +151,8 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
           DeleteOptions options;
           options.copy_to_paste_buffer = false;
           transformation->PushBack(NewDeleteLinesTransformation(options));
-          shared_ptr<OpenBuffer> buffer_to_insert(
-              new OpenBuffer(editor, L"tmp buffer"));
+          auto buffer_to_insert =
+              std::make_shared<OpenBuffer>(editor, L"tmp buffer");
           buffer_to_insert->AppendLine(editor, NewCopyString(value->str));
           transformation->PushBack(
               NewInsertBufferTransformation(buffer_to_insert, 1, END));
@@ -164,7 +164,7 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
 
 /* static */ void OpenBuffer::RegisterBufferType(
     EditorState* editor_state, afc::vm::Environment* environment) {
-  unique_ptr<ObjectType> buffer(new ObjectType(L"Buffer"));
+  auto buffer = std::make_unique<ObjectType>(L"Buffer");
 
   RegisterBufferFields(
       editor_state, BoolStruct(), buffer.get(),
@@ -214,7 +214,8 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
         EvaluateMap(
             editor_state,
             static_cast<OpenBuffer*>(args[0]->user_value.get()),
-            0, args[1]->callback, new TransformationStack(), evaluation);
+            0, args[1]->callback,
+            std::make_unique<TransformationStack>().release(), evaluation);
       }));
 
   buffer->AddField(L"AddKeyboardTextTransformer", Value::NewFunction(
@@ -261,8 +262,8 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
                     L"Write failed: " + FromByteString(strerror(errno)));
               }
             }
-            shared_ptr<OpenBuffer> buffer_to_insert(
-                new OpenBuffer(editor_state, L"tmp buffer"));
+            auto buffer_to_insert = std::make_shared<OpenBuffer>(
+                editor_state, L"tmp buffer");
 
             // getline will silently eat the last (empty) line.
             std::wistringstream text_stream(text + L"\n");
@@ -392,7 +393,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       parse_tree_(std::make_shared<ParseTree>()),
       tree_parser_(NewNullTreeParser()),
       default_commands_(editor_->default_commands()->NewChild()),
-      mode_(new MapMode(default_commands_)) {
+      mode_(std::make_unique<MapMode>(default_commands_)) {
   contents_.AddUpdateListener(
       [this](const CursorsTracker::Transformation& transformation) {
         editor_->ScheduleParseTreeUpdate(this);
@@ -2462,7 +2463,8 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
     last_transformation_stack_.back()->PushBack(transformation->Clone());
   }
 
-  transformations_past_.emplace_back(new Transformation::Result(editor_));
+  transformations_past_.push_back(
+      std::make_unique<Transformation::Result>(editor_));
 
   transformations_past_.back()->undo_stack->PushFront(
       NewSetCursorsTransformation(*active_cursors(), position()));
@@ -2530,7 +2532,8 @@ void OpenBuffer::RepeatLastTransformation() {
 }
 
 void OpenBuffer::PushTransformationStack() {
-  last_transformation_stack_.emplace_back(new TransformationStack());
+  last_transformation_stack_.emplace_back(
+      std::make_unique<TransformationStack>());
 }
 
 void OpenBuffer::PopTransformationStack() {
@@ -2559,7 +2562,8 @@ void OpenBuffer::Undo(EditorState* editor_state, UndoMode undo_mode) {
   for (size_t i = 0; i < editor_state->repetitions(); i++) {
     bool modified_buffer = false;
     while (!modified_buffer && !source->empty()) {
-      target->emplace_back(new Transformation::Result(editor_state));
+      target->emplace_back(
+          std::make_unique<Transformation::Result>(editor_state));
       source->back()->undo_stack->Apply(editor_state, this, target->back().get());
       source->pop_back();
       modified_buffer =

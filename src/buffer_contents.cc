@@ -16,7 +16,7 @@ namespace afc {
 namespace editor {
 
 std::unique_ptr<BufferContents> BufferContents::copy() const {
-  std::unique_ptr<BufferContents> output(new BufferContents());
+  auto output = std::make_unique<BufferContents>();
   output->lines_ = lines_;
   return output;
 }

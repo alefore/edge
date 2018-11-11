@@ -44,8 +44,7 @@ class SetCursorsTransformation : public Transformation {
 
 unique_ptr<Transformation> NewSetCursorsTransformation(
     CursorsSet cursors, LineColumn active) {
-  return unique_ptr<Transformation>(
-      new SetCursorsTransformation(cursors, active));
+  return std::make_unique<SetCursorsTransformation>(cursors, active);
 }
 
 }  // namespace editor

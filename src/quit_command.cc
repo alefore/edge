@@ -28,7 +28,7 @@ class QuitCommand : public Command {
 }  // namespace
 
 std::unique_ptr<Command> NewQuitCommand() {
-  return std::unique_ptr<Command>(new QuitCommand());
+  return std::make_unique<QuitCommand>();
 }
 
 }  // namespace afc

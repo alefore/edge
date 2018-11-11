@@ -32,7 +32,7 @@ class VariableLookup : public Expression {
     CHECK(result != nullptr);
     CHECK(trampoline != nullptr);
     DVLOG(5) << "Variable lookup: " << *result;
-    trampoline->Continue(std::unique_ptr<Value>(new Value(*result)));
+    trampoline->Continue(std::make_unique<Value>(*result));
   }
 
  private:
@@ -42,14 +42,14 @@ class VariableLookup : public Expression {
 
 }  // namespace
 
-unique_ptr<Expression> NewVariableLookup(
+std::unique_ptr<Expression> NewVariableLookup(
     Compilation* compilation, const wstring& symbol) {
   Value* result = compilation->environment->Lookup(symbol);
   if (result == nullptr) {
     compilation->AddError(L"Variable not found: \"" + symbol + L"\"");
     return nullptr;
   }
-  return unique_ptr<Expression>(new VariableLookup(symbol, result->type));
+  return std::make_unique<VariableLookup>(symbol, result->type);
 }
 
 }  // namespace

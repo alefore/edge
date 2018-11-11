@@ -141,8 +141,8 @@ glog-0.3.3/libglog_la-raw_logging.o \
 glog-0.3.3/libglog_la-utilities.o \
 glog-0.3.3/libglog_la-vlog_is_on.o
 
-AM_CPPFLAGS=-std=c++0x -g -Wall -Wextra -Iglog-0.3.3/src -DDOCDIR='"$(docdir)"'
-AM_LDFLAGS=-std=c++0x -g
+AM_CPPFLAGS=-std=c++14 -g -Wall -Wextra -Iglog-0.3.3/src -DDOCDIR='"$(docdir)"'
+AM_LDFLAGS=-std=c++14 -g
 edge_LDADD=glog-0.3.3/libglog.la
 test_LDADD=glog-0.3.3/libglog.la
 fuzz_test_LDADD=glog-0.3.3/libglog.la

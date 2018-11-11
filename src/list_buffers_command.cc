@@ -181,8 +181,8 @@ class ListBuffersCommand : public Command {
         make_pair(OpenBuffer::kBuffersName, nullptr));
     editor_state->set_current_buffer(it.first);
     if (it.second) {
-      it.first->second.reset(
-          new ListBuffersBuffer(editor_state, OpenBuffer::kBuffersName));
+      it.first->second =
+          std::make_unique<ListBuffersBuffer>(editor_state, OpenBuffer::kBuffersName);
       it.first->second->set_bool_variable(
           OpenBuffer::variable_reload_on_enter(), true);
     }
@@ -197,9 +197,7 @@ class ListBuffersCommand : public Command {
 
 }  // namespace
 
-std::unique_ptr<Command> NewListBuffersCommand() {
-  return std::unique_ptr<Command>(new ListBuffersCommand());
-}
+std::unique_ptr<Command> NewListBuffersCommand() { return std::make_unique<ListBuffersCommand>(); }
 
 }  // namespace afc
 }  // namespace editor

@@ -677,8 +677,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   screen->Move(0, 0);
 
   LineOutputReceiver screen_adapter(screen);
-  std::unique_ptr<Line::OutputReceiverInterface> line_output_receiver(
-      new OutputReceiverOptimizer(&screen_adapter));
+  auto line_output_receiver =
+      std::make_unique<OutputReceiverOptimizer>(&screen_adapter);
 
   size_t lines_to_show = static_cast<size_t>(screen->lines());
   size_t current_line = static_cast<size_t>(
@@ -735,8 +735,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     if (current_line == buffer->position().line
         && buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())) {
       buffer->set_last_highlighted_line(current_line);
-      atomic_lines_highlighter.reset(
-          new HighlightedLineOutputReceiver(receiver));
+      atomic_lines_highlighter =
+          std::make_unique<HighlightedLineOutputReceiver>(receiver);
       receiver = atomic_lines_highlighter.get();
     } else if (current_cursors != cursors.end()) {
       LOG(INFO) << "Cursors in current line: "
@@ -757,7 +757,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       }
       options.multiple_cursors =
           buffer->read_bool_variable(buffer->variable_multiple_cursors());
-      cursors_highlighter.reset(new CursorsHighlighter(options));
+      cursors_highlighter = std::make_unique<CursorsHighlighter>(options);
       receiver = cursors_highlighter.get();
     }
 
@@ -771,12 +771,12 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       size_t end = current_line == current_tree->range.end.line
                        ? current_tree->range.end.column
                        : line->size();
-      parse_tree_highlighter.reset(
-          new ParseTreeHighlighter(receiver, begin, end));
+      parse_tree_highlighter =
+          std::make_unique<ParseTreeHighlighter>(receiver, begin, end);
       receiver = parse_tree_highlighter.get();
     } else if (!buffer->parse_tree()->children.empty()) {
-      parse_tree_highlighter.reset(new ParseTreeHighlighterTokens(
-          receiver, root.get(), current_line));
+      parse_tree_highlighter = std::make_unique<ParseTreeHighlighterTokens>(
+          receiver, root.get(), current_line);
       receiver = parse_tree_highlighter.get();
     }
 

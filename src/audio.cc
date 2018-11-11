@@ -78,14 +78,14 @@ class AudioPlayerImpl : public AudioPlayer {
   };
 
   std::unique_ptr<AudioPlayer::Lock> lock() override {
-    return std::unique_ptr<AudioPlayer::Lock>(
-        new AudioPlayerImplLock(&mutex_, &time_, &generators_));
+    return std::make_unique<AudioPlayerImplLock>(
+        &mutex_, &time_, &generators_);
   }
 
  private:
   std::unique_ptr<Frame> NewFrame() {
-    return std::unique_ptr<Frame>(new Frame(
-        frame_length_ * format_.bits / 8 * format_.channels * format_.rate));
+    return std::make_unique<Frame>(
+        frame_length_ * format_.bits / 8 * format_.channels * format_.rate);
   }
 
   void PlayAudio() {
@@ -152,13 +152,13 @@ class NullAudioPlayer : public AudioPlayer {
   };
 
   std::unique_ptr<AudioPlayer::Lock> lock() override {
-    return std::unique_ptr<AudioPlayer::Lock>(new NullLock());
+    return std::make_unique<NullLock>();
   }
 };
 }  // namespace
 
 std::unique_ptr<AudioPlayer> NewNullAudioPlayer() {
-  return std::unique_ptr<AudioPlayer>(new NullAudioPlayer());
+  return std::make_unique<NullAudioPlayer>();
 }
 
 std::unique_ptr<AudioPlayer> NewAudioPlayer() {
@@ -175,7 +175,7 @@ std::unique_ptr<AudioPlayer> NewAudioPlayer() {
     fprintf(stderr, "Error opening device.\n");
     return NewNullAudioPlayer();
   }
-  return std::unique_ptr<AudioPlayer>(new AudioPlayerImpl(device, format));
+  return std::make_unique<AudioPlayerImpl>(device, format);
 }
 
 AudioPlayer::Generator Smooth(double weight, int end_interval_samples,

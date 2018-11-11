@@ -78,10 +78,10 @@ class FunctionCall : public Expression {
 
 }  // namespace
 
-unique_ptr<Expression> NewFunctionCall(unique_ptr<Expression> func,
-                                       vector<unique_ptr<Expression>> args) {
-  return unique_ptr<Expression>(
-      new FunctionCall(std::move(func), std::move(args)));
+std::unique_ptr<Expression> NewFunctionCall(
+    std::unique_ptr<Expression> func,
+    vector<std::unique_ptr<Expression>> args) {
+  return std::make_unique<FunctionCall>(std::move(func), std::move(args));
 }
 
 void Call(Value* func, vector<Value::Ptr> args,

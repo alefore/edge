@@ -297,10 +297,10 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
   insert_mode_options.modify_listener();
 }
 
-unique_ptr<Command> NewLinePromptCommand(
+std::unique_ptr<Command> NewLinePromptCommand(
     wstring description, std::function<PromptOptions(EditorState*)> options) {
-  return std::move(unique_ptr<Command>(new LinePromptCommand(
-      std::move(description), std::move(options))));
+  return std::make_unique<LinePromptCommand>(std::move(description),
+                                             std::move(options));
 }
 
 }  // namespace afc

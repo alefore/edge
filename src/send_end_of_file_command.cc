@@ -63,7 +63,7 @@ class SendEndOfFileCommand : public Command {
 };
 
 std::unique_ptr<Command> NewSendEndOfFileCommand() {
-  return std::unique_ptr<Command>(new SendEndOfFileCommand());
+  return std::make_unique<SendEndOfFileCommand>();
 }
 
 }  // namespace afc

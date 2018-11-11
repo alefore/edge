@@ -67,8 +67,7 @@ std::unique_ptr<Command> NewCppCommand(afc::vm::Environment* environment,
     return nullptr;
   }
 
-  return std::unique_ptr<Command>(
-      new CppCommand(std::move(expr), std::move(code)));
+  return std::make_unique<CppCommand>(std::move(expr), std::move(code));
 }
 
 }  // namespace editor

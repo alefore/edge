@@ -195,18 +195,18 @@ class NavigateCommand : public Command {
     auto buffer = editor_state->current_buffer()->second;
     switch (structure) {
       case CHAR:
-        buffer->set_mode(std::unique_ptr<NavigateMode>(
-            new NavigateModeChar(editor_state->modifiers())));
+        buffer->set_mode(
+            std::make_unique<NavigateModeChar>(editor_state->modifiers()));
         break;
 
       case WORD:
-        buffer->set_mode(std::unique_ptr<NavigateMode>(
-            new NavigateModeWord(editor_state->modifiers())));
+        buffer->set_mode(
+            std::make_unique<NavigateModeWord>(editor_state->modifiers()));
         break;
 
       case LINE:
-        buffer->set_mode(std::unique_ptr<NavigateMode>(
-            new NavigateModeLine(editor_state->modifiers())));
+        buffer->set_mode(
+            std::make_unique<NavigateModeLine>(editor_state->modifiers()));
         break;
 
       default:
@@ -223,7 +223,7 @@ class NavigateCommand : public Command {
 }  // namespace
 
 std::unique_ptr<Command> NewNavigateCommand() {
-  return std::unique_ptr<NavigateCommand>(new NavigateCommand());
+  return std::make_unique<NavigateCommand>();
 }
 
 }  // namespace editor
