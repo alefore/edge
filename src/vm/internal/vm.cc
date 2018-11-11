@@ -494,8 +494,23 @@ void Trampoline::Enter(Expression* start_expression) {
   DVLOG(4) << "Leaving evaluation trampoline...";
 }
 
-void
-Trampoline::Bounce(Expression* new_expression, Continuation new_continuation) {
+std::function<void(Value::Ptr)> Trampoline::Interrupt() {
+  DVLOG(5) << "Interrupting trampoline.";
+  CHECK(expression_ == nullptr);
+  auto state = Save();
+  return [state](Value::Ptr value) {
+    DVLOG(5) << "Resuming trampoline.";
+    Trampoline trampoline(nullptr, nullptr);
+    state(&trampoline);
+    trampoline.Continue(std::move(value));
+    if (trampoline.expression_) {
+      trampoline.Enter(trampoline.expression_);
+    }
+  };
+}
+
+void Trampoline::Bounce(Expression* new_expression,
+    Continuation new_continuation) {
   DVLOG(6) << "Bouncing in the trampoline.";
   CHECK(expression_ == nullptr);
   Continuation original_continuation = std::move(continuation_);
@@ -518,11 +533,17 @@ void Trampoline::Return(std::unique_ptr<Value> value) {
 }
 
 std::function<void(Trampoline*)> Trampoline::Save() {
+  DVLOG(5) << "Saving trampoline state.";
   auto original_environment = environment_;
   auto original_continuation = continuation_;
   auto original_return_continuation = return_continuation_;
-  return [original_environment, original_continuation, original_return_continuation](
+  CHECK(original_environment != nullptr);
+  CHECK(original_continuation != nullptr);
+  CHECK(original_return_continuation != nullptr);
+  return [original_environment, original_continuation,
+          original_return_continuation](
       Trampoline* trampoline) {
+    DVLOG(5) << "Restoring trampoline state.";
     // Make copies before overriding the continuations, since it may delete us.
     auto continuation_copy = original_continuation;
     auto return_continuation_copy = original_return_continuation;
@@ -530,6 +551,9 @@ std::function<void(Trampoline*)> Trampoline::Save() {
     trampoline->environment_ = original_environment;
     trampoline->return_continuation_ = return_continuation_copy;
     trampoline->continuation_ = continuation_copy;
+    CHECK(trampoline->environment_ != nullptr);
+    CHECK(trampoline->continuation_ != nullptr);
+    CHECK(trampoline->return_continuation_ != nullptr);
   };
 }
 
@@ -561,7 +585,6 @@ void Evaluate(Expression* expr, Environment* environment,
                consumer(std::move(value));
              })
       .Enter(expr);
-
 }
 
 }  // namespace vm

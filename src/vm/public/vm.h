@@ -55,11 +55,18 @@ class Trampoline {
   // Saves the state (continuations ane environment) of the current trampoline
   // and returns a callback that can be used to restore it into a trampoline.
   std::function<void(Trampoline*)> Save();
+
   void SetEnvironment(Environment* environment);
   Environment* environment() const;
+
   void SetReturnContinuation(Continuation continuation);
   Continuation return_continuation() const;
+
   void SetContinuation(Continuation continuation);
+
+  // Returns the function that can resume. Roughly equivalent to Continue, but
+  // allows us to return and resume continuation later.
+  std::function<void(std::unique_ptr<Value>)> Interrupt();
 
   void Bounce(Expression* new_expression, Continuation new_continuation);
   void Return(std::unique_ptr<Value> value);
