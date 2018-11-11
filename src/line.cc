@@ -244,10 +244,11 @@ void Line::Output(const Line::OutputOptions& options) const {
   const auto view_start_line =
       options.buffer->Read(OpenBuffer::variable_view_start_line());
   const size_t initial_column =
-      std::to_wstring(target_buffer->lines_size()).size() + 1;
+      std::to_wstring(options.buffer->lines_size()).size() + 1;
   if (!target_buffer->read_bool_variable(OpenBuffer::variable_paste_mode())) {
     auto number = std::to_wstring(options.line + 1);
-    CHECK_LE(number.size() + 1, initial_column);
+    CHECK_LE(number.size() + 1, initial_column)
+        << "Buffer has lines: " << target_buffer->lines_size();
     options.output_receiver->AddModifier(LineModifier::DIM);
     options.output_receiver->AddString(
         wstring(initial_column - number.size() - 1, L' ') + number + L':');
