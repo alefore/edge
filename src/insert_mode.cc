@@ -360,6 +360,18 @@ void FindCompletion(EditorState* editor_state,
     return;
   }
 
+  if (dictionary->contents()->size() <= 1) {
+    static std::vector<wstring> errors({
+      L"No completions are available.",
+      L"The autocomplete dictionary is empty.",
+      L"Maybe set the `dictionary` variable?",
+    });
+    editor_state->SetStatus(errors[rand() % errors.size()]);
+    return;
+  }
+
+  LOG(INFO) << "Dictionary size: " << dictionary->contents()->size();
+
   auto line = buffer->current_line()->ToString();
   options.column_start = line.find_last_not_of(
       buffer->read_string_variable(OpenBuffer::variable_word_characters()),
@@ -429,8 +441,10 @@ void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
     auto word = line->Substring(
         tree.range.begin.column, tree.range.end.column
             - tree.range.begin.column)->ToString();
-    DVLOG(5) << "Found leave: " << word;
-    words->insert(word);
+    if (!word.empty()) {
+      DVLOG(5) << "Found leave: " << word;
+      words->insert(word);
+    }
   }
   for (auto& child : tree.children) {
     RegisterLeaves(buffer, child, words);
@@ -454,10 +468,6 @@ bool StartCompletion(EditorState* editor_state,
       buffer->read_string_variable(OpenBuffer::variable_language_keywords()));
   words.insert(std::istream_iterator<wstring, wchar_t>(keywords),
                std::istream_iterator<wstring, wchar_t>());
-
-  if (words.empty()) {
-    return false;
-  }
 
   auto dictionary = std::make_shared<OpenBuffer>(editor_state, L"Dictionary");
   for (auto& word : words) {

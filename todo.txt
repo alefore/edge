@@ -12,8 +12,6 @@ For 'd': Add '?' (show modifiers available).
 
 Add "pipe" command: select the region (similar to delete: line, paragraph, buffer...), and then prompt for a command. Pipe the contents of the region to the command, and replace them with the output of the command.
 
-In autocompletion, don't try to autocomplete if there are no completions possible.
-
 -- Navigation
 
 Improve "g", the current behavior is kind of annoying:
