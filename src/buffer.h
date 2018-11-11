@@ -481,7 +481,7 @@ class OpenBuffer {
     // We read directly into low_buffer_ and then drain from that into
     // contents_. It's possible that not all bytes read can be converted (for
     // example, if the reading stops in the middle of a wide character).
-    std::unique_ptr<char> low_buffer;
+    std::unique_ptr<char[]> low_buffer;
     size_t low_buffer_length = 0;
 
     LineModifierSet modifiers;
@@ -573,7 +573,7 @@ class OpenBuffer {
 
   // If variable_atomic_lines is true, this will be set to the last line that
   // was highlighted.
-  size_t last_highlighted_line_;
+  size_t last_highlighted_line_ = 0;
 
   // Index of the marks for the current buffer (i.e. Mark::target_buffer is the
   // current buffer). The key is the line (i.e. Mark::line).
