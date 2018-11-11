@@ -484,7 +484,7 @@ void Trampoline::Enter(Expression* start_expression) {
   expression_ = start_expression;
   while (expression_) {
     DVLOG(7) << "Jumping in the evaluation trampoline...";
-    auto current_expression = expression_;
+    Expression* current_expression = expression_;
     expression_ = nullptr;
     current_expression->Evaluate(this);
     DVLOG(10) << "Landed in the evaluation trampoline...";
@@ -502,13 +502,13 @@ std::function<void(Value::Ptr)> Trampoline::Interrupt() {
     state(&trampoline);
     trampoline.Continue(std::move(value));
     if (trampoline.expression_) {
-      trampoline.Enter(trampoline.expression_);
+      trampoline.Enter(std::move(trampoline.expression_));
     }
   };
 }
 
 void Trampoline::Bounce(Expression* new_expression,
-    Continuation new_continuation) {
+                        Continuation new_continuation) {
   DVLOG(6) << "Bouncing in the trampoline.";
   CHECK(expression_ == nullptr);
   Continuation original_continuation = std::move(continuation_);

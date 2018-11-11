@@ -12,9 +12,9 @@ namespace {
 
 class IfExpression : public Expression {
  public:
-  IfExpression(
-      unique_ptr<Expression> cond, unique_ptr<Expression> true_case,
-      unique_ptr<Expression> false_case)
+  IfExpression(std::shared_ptr<Expression> cond,
+               std::shared_ptr<Expression> true_case,
+               std::shared_ptr<Expression> false_case)
       : cond_(std::move(cond)),
         true_case_(std::move(true_case)),
         false_case_(std::move(false_case)) {
@@ -28,22 +28,24 @@ class IfExpression : public Expression {
   }
 
   void Evaluate(Trampoline* trampoline) {
-    trampoline->Bounce(
-        cond_.get(),
-        [this](std::unique_ptr<Value> result, Trampoline* trampoline) {
-          (result->boolean ? true_case_ : false_case_)->Evaluate(trampoline);
+    auto cond_copy = cond_;
+    auto true_copy = true_case_;
+    auto false_copy = false_case_;
+    trampoline->Bounce(cond_.get(),
+        [cond_copy, true_copy, false_copy](std::unique_ptr<Value> result,
+                                           Trampoline* trampoline) {
+          (result->boolean ? true_copy : false_copy)->Evaluate(trampoline);
         });
   }
 
   std::unique_ptr<Expression> Clone() override {
-    return std::make_unique<IfExpression>(
-        cond_->Clone(), true_case_->Clone(), false_case_->Clone());
+    return std::make_unique<IfExpression>(cond_, true_case_, false_case_);
   }
 
  private:
-  const std::unique_ptr<Expression> cond_;
-  const std::unique_ptr<Expression> true_case_;
-  const std::unique_ptr<Expression> false_case_;
+  const std::shared_ptr<Expression> cond_;
+  const std::shared_ptr<Expression> true_case_;
+  const std::shared_ptr<Expression> false_case_;
 };
 
 }

@@ -17,9 +17,11 @@ class AppendExpression : public Expression {
   const VMType& type() { return e1_->type(); }
 
   void Evaluate(Trampoline* trampoline) override {
+    // TODO: Use unique_ptr and capture by std::move.
+    std::shared_ptr<Expression> e1_copy = e1_->Clone();
     trampoline->Bounce(e0_.get(),
-        [this](std::unique_ptr<Value>, Trampoline* trampoline) {
-          e1_->Evaluate(trampoline);
+        [e1_copy](std::unique_ptr<Value>, Trampoline* trampoline) {
+          e1_copy->Evaluate(trampoline);
         });
   }
 

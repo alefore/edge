@@ -57,7 +57,7 @@ statement(OUT) ::= function_declaration_params(FUNC)
     OUT = nullptr;
   } else {
     // TODO: Use unique_ptr rather than shared_ptr when lambda capture works.
-    shared_ptr<Expression> body(BODY);
+    std::shared_ptr<Expression> body(BODY);
     BODY = nullptr;
 
     shared_ptr<Environment> func_environment(compilation->environment);
@@ -73,7 +73,6 @@ statement(OUT) ::= function_declaration_params(FUNC)
       for (size_t i = 0; i < args.size(); i++) {
         func_environment->Define(argument_names[i], std::move(args[i]));
       }
-      std::unique_ptr<Value> result;
       std::function<void(Trampoline*)> original_state = trampoline->Save();
       trampoline->SetEnvironment(func_environment.get());
       trampoline->SetReturnContinuation(
@@ -83,7 +82,11 @@ statement(OUT) ::= function_declaration_params(FUNC)
             original_state(trampoline);
             trampoline->Return(std::move(value));
           });
-      trampoline->Bounce(body.get(), trampoline->return_continuation());
+      trampoline->Bounce(
+          body.get(),
+          [body](Value::Ptr value, Trampoline* trampoline) {
+            trampoline->Return(std::move(value));
+          });
     };
     compilation->environment->Define(FUNC->name, std::move(value));
     OUT = NewVoidExpression().release();
@@ -342,11 +345,12 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
         } else {
           unique_ptr<Value> field_copy(new Value(field->type.type));
           *field_copy = *field;
-          vector<unique_ptr<Expression>> args;
-          args.emplace_back(OBJ);
+          auto args =
+              std::make_shared<std::vector<std::unique_ptr<Expression>>>();
+          args->emplace_back(OBJ);
           OBJ = nullptr;
           for (auto& arg : *ARGS) {
-            args.push_back(std::move(arg));
+            args->push_back(std::move(arg));
           }
           CHECK(field_copy != nullptr);
           OUT = NewFunctionCall(NewConstantExpression(std::move(field_copy)),
@@ -386,7 +390,10 @@ expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
           + L"\" but found \"" + ARGS->at(argument)->type().ToString() + L"\"");
       OUT = nullptr;
     } else {
-      OUT = NewFunctionCall(unique_ptr<Expression>(B), std::move(*ARGS))
+      OUT = NewFunctionCall(
+                    std::unique_ptr<Expression>(B),
+                    std::make_shared<std::vector<std::unique_ptr<Expression>>>(
+                        std::move(*ARGS)))
                 .release();
       B = nullptr;
       ARGS = nullptr;

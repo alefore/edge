@@ -4,6 +4,7 @@
 
 #include "compilation.h"
 #include "../public/value.h"
+#include "../public/vm.h"
 
 namespace afc {
 namespace vm {
@@ -12,21 +13,25 @@ namespace {
 
 class ReturnExpression : public Expression {
  public:
-  ReturnExpression(unique_ptr<Expression> expr)
-      : expr_(std::move(expr)) {}
+  ReturnExpression(std::shared_ptr<Expression> expr) : expr_(std::move(expr)) {}
 
   const VMType& type() { return expr_->type(); }
 
   void Evaluate(Trampoline* trampoline) override {
-    trampoline->Bounce(expr_.get(), trampoline->return_continuation());
+    auto expr = expr_;
+    trampoline->Bounce(expr.get(),
+        // We do this silly dance just to capture expr.
+        [expr](Value::Ptr value, Trampoline* trampoline) {
+          trampoline->Return(std::move(value));
+        });
   }
 
   std::unique_ptr<Expression> Clone() override {
-    return std::make_unique<ReturnExpression>(expr_->Clone());
+    return std::make_unique<ReturnExpression>(expr_);
   }
 
  private:
-  const std::unique_ptr<Expression> expr_;
+  const std::shared_ptr<Expression> expr_;
 };
 
 }  // namespace

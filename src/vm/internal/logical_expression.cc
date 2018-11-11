@@ -13,10 +13,8 @@ namespace {
 
 class LogicalExpression : public Expression {
  public:
-  LogicalExpression(
-      bool identity,
-      unique_ptr<Expression> expr_a,
-      unique_ptr<Expression> expr_b)
+  LogicalExpression(bool identity, std::shared_ptr<Expression> expr_a,
+                    std::shared_ptr<Expression> expr_b)
       : identity_(identity),
         expr_a_(std::move(expr_a)),
         expr_b_(std::move(expr_b)) {}
@@ -24,11 +22,15 @@ class LogicalExpression : public Expression {
   const VMType& type() { return VMType::Bool(); }
 
   void Evaluate(Trampoline* trampoline) {
-    trampoline->Bounce(expr_a_.get(),
-        [this](std::unique_ptr<Value> value, Trampoline* trampoline) {
+    auto identity = identity_;
+    auto expr_a_copy = expr_a_;
+    auto expr_b_copy = expr_b_;
+    trampoline->Bounce(expr_a_copy.get(),
+        [identity, expr_a_copy, expr_b_copy](std::unique_ptr<Value> value,
+                                             Trampoline* trampoline) {
           CHECK_EQ(VMType::VM_BOOLEAN, value->type.type);
-          if (value->boolean == identity_) {
-            expr_b_->Evaluate(trampoline);
+          if (value->boolean == identity) {
+            expr_b_copy->Evaluate(trampoline);
           } else {
             trampoline->Continue(std::move(value));
           }
@@ -36,14 +38,13 @@ class LogicalExpression : public Expression {
   }
 
   std::unique_ptr<Expression> Clone() override {
-    return std::make_unique<LogicalExpression>(
-        identity_, expr_a_->Clone(), expr_b_->Clone());
+    return std::make_unique<LogicalExpression>(identity_, expr_a_, expr_b_);
   }
 
  private:
   const bool identity_;
-  const std::unique_ptr<Expression> expr_a_;
-  const std::unique_ptr<Expression> expr_b_;
+  const std::shared_ptr<Expression> expr_a_;
+  const std::shared_ptr<Expression> expr_b_;
 };
 
 }

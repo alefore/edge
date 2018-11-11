@@ -43,14 +43,15 @@ class CppCommand : public Command {
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
     DVLOG(4) << "CppCommand starting (" << description_ << ")";
+    auto expression = expression_;
     Evaluate(expression_.get(), editor_state->environment(),
-             [](std::unique_ptr<Value>) {
+             [expression](std::unique_ptr<Value>) {
                DVLOG(5) << "CppCommand finished.";
              });
   }
 
  private:
-  const std::unique_ptr<afc::vm::Expression> expression_;
+  const std::shared_ptr<afc::vm::Expression> expression_;
   const wstring code_;
   const wstring description_;
 };

@@ -19,9 +19,11 @@ class NegateExpression : public Expression {
   const VMType& type() { return expr_->type(); }
 
   void Evaluate(Trampoline* trampoline) {
+    auto negate = negate_;
+    auto expr = expr_;
     trampoline->Bounce(expr_.get(),
-        [this](std::unique_ptr<Value> value, Trampoline* trampoline) {
-          negate_(value.get());
+        [negate, expr](std::unique_ptr<Value> value, Trampoline* trampoline) {
+          negate(value.get());
           trampoline->Continue(std::move(value));
         });
   }
@@ -31,8 +33,8 @@ class NegateExpression : public Expression {
   }
 
  private:
-  std::function<void(Value*)> negate_;
-  unique_ptr<Expression> expr_;
+  const std::function<void(Value*)> negate_;
+  const std::shared_ptr<Expression> expr_;
 };
 
 }  // namespace

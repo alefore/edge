@@ -133,9 +133,11 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
   }
   wstring current_line = buffer->LineAt(line)->ToString();
 
-  std::vector<std::unique_ptr<vm::Expression>> args_expr;
-  args_expr.push_back(
+  auto args_expr =
+      std::make_shared<std::vector<std::unique_ptr<vm::Expression>>>();
+  args_expr->push_back(
       vm::NewConstantExpression(Value::NewString(std::move(current_line))));
+  // TODO: Use unique_ptr and capture by value.
   std::shared_ptr<vm::Expression> map_line = vm::NewFunctionCall(
       vm::NewConstantExpression(
           Value::NewFunction({ VMType::String() }, map_callback)),
@@ -145,7 +147,7 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
       map_line.get(),
       trampoline->environment(),
       [editor, buffer, line, map_callback, transformation, trampoline,
-       current_line](Value::Ptr value) {
+       current_line, map_line](Value::Ptr value) {
         if (value->str != current_line) {
           DeleteOptions options;
           options.copy_to_paste_buffer = false;
@@ -1220,26 +1222,30 @@ bool OpenBuffer::EvaluateString(
     std::function<void(std::unique_ptr<Value>)> consumer) {
   wstring error_description;
   LOG(INFO) << "Compiling code.";
-  unique_ptr<Expression> expression =
+  // TODO: Use unique_ptr and capture by value.
+  std::shared_ptr<Expression> expression =
       CompileString(editor_state, code, &error_description);
   if (expression == nullptr) {
     editor_state->SetWarningStatus(L"Compilation error: " + error_description);
     return false;
   }
   LOG(INFO) << "Code compiled, evaluating.";
-  EvaluateExpression(editor_state, expression.get(), consumer);
+  EvaluateExpression(editor_state, expression.get(),
+      [expression, consumer](Value::Ptr value) { consumer(std::move(value)); });
   return true;
 }
 
 bool OpenBuffer::EvaluateFile(EditorState* editor_state, const wstring& path) {
   wstring error_description;
-  unique_ptr<Expression> expression(
-      CompileFile(ToByteString(path), &environment_, &error_description));
+  // TODO: Use unique_ptr and capture by value.
+  std::shared_ptr<Expression> expression =
+      CompileFile(ToByteString(path), &environment_, &error_description);
   if (expression == nullptr) {
     editor_state->SetStatus(path + L": error: " + error_description);
     return false;
   }
-  Evaluate(expression.get(), &environment_, [](std::unique_ptr<Value>) {});
+  Evaluate(expression.get(), &environment_,
+           [expression](std::unique_ptr<Value>) {});
   return true;
 }
 

@@ -331,10 +331,10 @@ class DeleteLinesTransformation : public Transformation {
               && callback->type.type_arguments.size() == 1
               && callback->type.type_arguments.at(0) == vm::VMType::VM_VOID) {
             LOG(INFO) << "Running EdgeLineDeleteHandler.";
-            std::shared_ptr<vm::Expression> expr = vm::NewFunctionCall(
+            std::shared_ptr<Expression> expr = vm::NewFunctionCall(
                 vm::NewConstantExpression(std::make_unique<Value>(*callback)),
                 {});
-            Evaluate(expr.get(), buffer->environment(), [](Value::Ptr) {});
+            Evaluate(expr.get(), buffer->environment(), [expr](Value::Ptr) {});
           }
         }
       }

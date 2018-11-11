@@ -22,11 +22,14 @@ class AssignExpression : public Expression {
   const VMType& type() { return value_->type(); }
 
   void Evaluate(Trampoline* trampoline) override {
-    trampoline->Bounce(value_.get(),
-        [this](std::unique_ptr<Value> value, Trampoline* trampoline) {
-          DVLOG(3) << "Setting value for: " << symbol_;
+    auto expression = value_;
+    auto symbol = symbol_;
+    trampoline->Bounce(expression.get(),
+        [expression, symbol](std::unique_ptr<Value> value,
+                             Trampoline* trampoline) {
+          DVLOG(3) << "Setting value for: " << symbol;
           DVLOG(4) << "Value: " << *value;
-          trampoline->environment()->Define(symbol_, std::move(value));
+          trampoline->environment()->Define(symbol, std::move(value));
           trampoline->Continue(Value::NewVoid());
         });
   }
@@ -37,7 +40,7 @@ class AssignExpression : public Expression {
 
  private:
   const wstring symbol_;
-  unique_ptr<Expression> value_;
+  const std::shared_ptr<Expression> value_;
 };
 
 }

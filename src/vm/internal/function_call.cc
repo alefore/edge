@@ -13,7 +13,8 @@ namespace {
 
 class FunctionCall : public Expression {
  public:
-  FunctionCall(unique_ptr<Expression> func, vector<unique_ptr<Expression>> args)
+  FunctionCall(std::shared_ptr<Expression> func,
+               std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args)
       : func_(std::move(func)), args_(std::move(args)) {
     CHECK(func_ != nullptr);
   }
@@ -24,33 +25,34 @@ class FunctionCall : public Expression {
 
   void Evaluate(Trampoline* trampoline) {
     DVLOG(3) << "Function call evaluation starts.";
+    auto args_types = args_;
+    auto func = func_;
     trampoline->Bounce(func_.get(),
-        [this](std::unique_ptr<Value> callback, Trampoline* trampoline) {
+        [func, args_types](std::unique_ptr<Value> callback,
+                           Trampoline* trampoline) {
           DVLOG(6) << "Got function: " << *callback;
-          CaptureArgs(trampoline, std::make_shared<vector<unique_ptr<Value>>>(),
-              std::move(callback));
+          CaptureArgs(trampoline, args_types,
+                      std::make_shared<vector<unique_ptr<Value>>>(),
+                      std::move(callback));
         });
   }
 
   std::unique_ptr<Expression> Clone() override {
-    std::vector<std::unique_ptr<Expression>> args_clone;
-    for (auto& arg : args_) {
-      args_clone.push_back(arg->Clone());
-    }
-    return std::make_unique<FunctionCall>(func_->Clone(),
-                                          std::move(args_clone));
+    return std::make_unique<FunctionCall>(func_, args_);
   }
 
  private:
-  void CaptureArgs(Trampoline* trampoline,
-                   std::shared_ptr<vector<unique_ptr<Value>>> values,
-                   std::shared_ptr<Value> callback) {
+  static void CaptureArgs(
+      Trampoline* trampoline,
+      std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args_types,
+      std::shared_ptr<std::vector<unique_ptr<Value>>> values,
+      std::shared_ptr<Value> callback) {
     CHECK(callback != nullptr);
     CHECK_EQ(callback->type.type, VMType::FUNCTION);
     CHECK(callback->callback);
 
-    DVLOG(5) << "Evaluating function parameters, args: " << args_.size();
-    if (values->size() == args_.size()) {
+    DVLOG(5) << "Evaluating function parameters, args: " << args_types->size();
+    if (values->size() == args_types->size()) {
       DVLOG(4) << "No more parameters, performing function call.";
       std::function<void(Trampoline*)> original_state = trampoline->Save();
       trampoline->SetReturnContinuation(
@@ -65,40 +67,41 @@ class FunctionCall : public Expression {
       callback->callback(std::move(*values), trampoline);
       return;
     }
-    trampoline->Bounce(args_.at(values->size()).get(),
-        [this, values, callback](std::unique_ptr<Value> value,
-                                 Trampoline* trampoline) {
+    trampoline->Bounce(args_types->at(values->size()).get(),
+        [args_types, values, callback](std::unique_ptr<Value> value,
+                                       Trampoline* trampoline) {
           CHECK(values != nullptr);
           DVLOG(5) << "Received results of parameter " << values->size() + 1
-                   << " (of " << args_.size() << "): " << *value;
+                   << " (of " << args_types->size() << "): " << *value;
           values->push_back(std::move(value));
           DVLOG(6) << "Recursive call.";
           CHECK(callback != nullptr);
           CHECK_EQ(callback->type.type, VMType::FUNCTION);
           CHECK(callback->callback);
-          CaptureArgs(trampoline, values, callback);
+          CaptureArgs(trampoline, args_types, values, callback);
         });
   }
 
-  const std::unique_ptr<Expression> func_;
-  const std::vector<std::unique_ptr<Expression>> args_;
+  const std::shared_ptr<Expression> func_;
+  const std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args_;
 };
 
 }  // namespace
 
 std::unique_ptr<Expression> NewFunctionCall(
     std::unique_ptr<Expression> func,
-    vector<std::unique_ptr<Expression>> args) {
+    std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args) {
   return std::make_unique<FunctionCall>(std::move(func), std::move(args));
 }
 
 void Call(Value* func, vector<Value::Ptr> args,
           std::function<void(Value::Ptr)> consumer) {
-  std::vector<std::unique_ptr<Expression>> args_expr;
+  auto args_expr = std::make_shared<std::vector<std::unique_ptr<Expression>>>();
   for (auto& a : args) {
-    args_expr.push_back(NewConstantExpression(std::move(a)));
+    args_expr->push_back(NewConstantExpression(std::move(a)));
   }
-  shared_ptr<Expression> function_expr = NewFunctionCall(
+  // TODO: Use unique_ptr and capture by std::move.
+  std::shared_ptr<Expression> function_expr = NewFunctionCall(
       NewConstantExpression(Value::NewFunction(func->type.type_arguments,
                                                func->callback)),
       std::move(args_expr));

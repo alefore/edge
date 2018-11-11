@@ -76,15 +76,15 @@ void MapModeCommands::Add(wstring name, std::unique_ptr<Value> value) {
   CHECK(value != nullptr);
   CHECK_EQ(value->type.type, VMType::FUNCTION);
   CHECK(value->type.type_arguments == std::vector<VMType>({ VMType::Void() }));
+  // TODO: Make a unique_ptr (once capture of unique_ptr is feasible).
   std::shared_ptr<vm::Expression> expression = NewFunctionCall(
       NewConstantExpression(std::move(value)), {});
   Add(name,
       std::make_unique<CommandFromFunction>(
           [expression]() {
             LOG(INFO) << "Evaluating expression...";
-            Evaluate(expression.get(),
-                     nullptr,
-                     [](Value::Ptr) { LOG(INFO) << "Done evaluating."; });
+            Evaluate(expression.get(), nullptr,
+                [expression](Value::Ptr) { LOG(INFO) << "Done evaluating."; });
           },
           L"C++ VM function"));
 }

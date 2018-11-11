@@ -13,47 +13,48 @@ namespace {
 
 class WhileExpression : public Expression {
  public:
-  WhileExpression(std::unique_ptr<Expression> condition,
-                  std::unique_ptr<Expression> body)
+  WhileExpression(std::shared_ptr<Expression> condition,
+                  std::shared_ptr<Expression> body)
       : condition_(std::move(condition)), body_(std::move(body)) {
     CHECK(condition_ != nullptr);
     CHECK(body_ != nullptr);
   }
 
-  const VMType& type() {
-    return VMType::Void();
-  }
+  const VMType& type() { return VMType::Void(); }
 
-  void Evaluate(Trampoline* trampoline) {
+  void Evaluate(Trampoline* trampoline) override {
     DVLOG(4) << "Evaluating condition...";
-    trampoline->Bounce(condition_.get(),
-        [this](std::unique_ptr<Value> value, Trampoline* trampoline) {
-          Iteration(trampoline, value->boolean);
-        });
+    Iterate(trampoline, condition_, body_);
   }
 
   std::unique_ptr<Expression> Clone() override {
-    return std::make_unique<WhileExpression>(condition_->Clone(),
-                                             body_->Clone());
+    return std::make_unique<WhileExpression>(condition_, body_);
   }
 
  private:
-  void Iteration(Trampoline* trampoline, bool cond_value) {
-    if (!cond_value) {
-      DVLOG(3) << "Iteration is done.";
-      trampoline->Continue(Value::NewVoid());
-      return;
-    }
+  static void Iterate(
+      Trampoline* trampoline, std::shared_ptr<Expression> condition,
+      std::shared_ptr<Expression> body) {
+    trampoline->Bounce(condition.get(),
+        [condition, body](std::unique_ptr<Value> cond_value,
+                          Trampoline* trampoline) {
+          if (!cond_value->boolean) {
+            DVLOG(3) << "Iteration is done.";
+            trampoline->Continue(Value::NewVoid());
+            return;
+          }
 
-    DVLOG(5) << "Iterating...";
-    trampoline->Bounce(body_.get(),
-        [this](std::unique_ptr<Value>, Trampoline* trampoline) {
-          Evaluate(trampoline);
+          DVLOG(5) << "Iterating...";
+          trampoline->Bounce(body.get(),
+              [condition, body](std::unique_ptr<Value>,
+                                Trampoline* trampoline) {
+                Iterate(trampoline, condition, body);
+              });
         });
   }
 
-  const std::unique_ptr<Expression> condition_;
-  const std::unique_ptr<Expression> body_;
+  const std::shared_ptr<Expression> condition_;
+  const std::shared_ptr<Expression> body_;
 };
 
 }  // namespace

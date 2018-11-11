@@ -50,6 +50,7 @@ class Trampoline {
 
   Trampoline(Environment* environment, Continuation return_continuation);
 
+  // Must ensure it lives until return_continuation is called.
   void Enter(Expression* expression);
 
   // Saves the state (continuations ane environment) of the current trampoline
@@ -68,7 +69,9 @@ class Trampoline {
   // allows us to return and resume continuation later.
   std::function<void(std::unique_ptr<Value>)> Interrupt();
 
-  void Bounce(Expression* new_expression, Continuation new_continuation);
+  // Must ensure new_expression lives until new_contination is called.
+  void Bounce(Expression* new_expression,
+              Continuation new_continuation);
   void Return(std::unique_ptr<Value> value);
   void Continue(std::unique_ptr<Value> value);
 
@@ -79,7 +82,7 @@ class Trampoline {
   Continuation continuation_;
 
   // Set by Bounce (and Enter), read by Enter.
-  Expression* expression_ = nullptr;
+  Expression* expression_;
 };
 
 class Expression {
@@ -114,6 +117,7 @@ unique_ptr<Expression> CompileString(
     wstring* error_description,
     const VMType& return_type);
 
+// Caller must make sure expr lives until consumer runs.
 void Evaluate(
     Expression* expr,
     Environment* environment,
