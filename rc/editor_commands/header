@@ -1,6 +1,31 @@
+string SubstituteComponent(string path) {
+  int last_slash = path.find_last_of("/", path.size());
+  if (last_slash <= 0) {
+    return path;
+  }
+  int second_to_last_slash = path.find_last_of("/", last_slash - 1);
+  if (second_to_last_slash == -1) {
+    return path;
+  }
+  string last_component = path.substr(
+      second_to_last_slash + 1, last_slash - second_to_last_slash - 1);
+  SetStatus("last: " + last_component);
+  if (last_component == "public") {
+    return path.substr(0, second_to_last_slash)
+        + "/internal"
+        + path.substr(last_slash, path.size() - last_slash);
+  } else if (last_component == "internal") {
+    SetStatus("XXX");
+    return path.substr(0, second_to_last_slash)
+        + "/public"
+        + path.substr(last_slash, path.size() - last_slash);
+  }
+  return path;
+}
+
 void LoadFileWithExtension(string old_path, int dot, string extension) {
   string new_path = old_path.substr(0, dot + 1) + extension;
-  OpenFile(new_path);
+  OpenFile(SubstituteComponent(new_path));
   SetStatus(new_path);
 }
 
