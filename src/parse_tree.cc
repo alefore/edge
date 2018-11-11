@@ -41,12 +41,17 @@ void SimplifyTree(const ParseTree& tree, ParseTree* output) {
 }
 
 namespace {
-void ZoomOutTree(const ParseTree& input, double ratio, ParseTree* output) {
-  output->range = input.range;
-  output->range.begin.line *= ratio;
-  output->range.end.line *= ratio;
+void ZoomOutTree(const ParseTree& input, double ratio, ParseTree* parent) {
+  Range range = input.range;
+  range.begin.line *= ratio;
+  range.end.line *= ratio;
+  if (range.begin.line == range.end.line) {
+    return;
+  }
+  auto output = PushChild(parent);
+  output->range = range;
   for (const auto& child : input.children) {
-    ZoomOutTree(child, ratio, PushChild(output).get());
+    ZoomOutTree(child, ratio, output.get());
   }
 }
 }  // namespace
