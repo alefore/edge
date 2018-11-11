@@ -253,8 +253,9 @@ void Line::Output(const Line::OutputOptions& options) const {
               8 * static_cast<size_t>(
                   1 + floor(static_cast<double>(output_column) / 8.0)));
           CHECK_GT(new_output_column, output_column);
-          CHECK_LE(new_output_column - output_column, 8);
-          options.output_receiver->AddString(wstring(new_output_column - output_column, ' '));
+          CHECK_LE(new_output_column - output_column, 8u);
+          options.output_receiver->AddString(
+              wstring(new_output_column - output_column, ' '));
           output_column = new_output_column;
         }
         break;
