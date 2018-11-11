@@ -382,9 +382,11 @@ void Line::Output(const Line::OutputOptions& options) const {
           min(additional_information.size(),
               output_column - line_width - initial_column));
     }
-    additional_information = additional_information.substr(
-        0, min(additional_information.size(),
-               options.width + initial_column - output_column));
+    if (options.width > output_column) {
+      additional_information = additional_information.substr(
+          0, min(additional_information.size(),
+                 options.width - output_column));
+    }
     options.output_receiver->AddString(additional_information);
     output_column += additional_information.size();
   }
