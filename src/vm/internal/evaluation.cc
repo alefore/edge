@@ -10,7 +10,7 @@ namespace vm {
 
 namespace {
 
-void Crash(OngoingEvaluation*) { assert(false); }
+void Crash(Trampoline*) { assert(false); }
 
 }
 

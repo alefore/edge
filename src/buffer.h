@@ -536,7 +536,7 @@ class OpenBuffer {
  private:
   static void EvaluateMap(EditorState* editor, OpenBuffer* buffer, size_t line,
       Value::Callback map_callback, TransformationStack* transformation,
-      OngoingEvaluation* evaluation);
+      Trampoline* trampoline);
   LineColumn Apply(EditorState* editor_state,
                    unique_ptr<Transformation> transformation);
   void BackgroundThread();

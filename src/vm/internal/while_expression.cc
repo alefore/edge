@@ -26,25 +26,27 @@ class WhileExpression : public Expression {
     return VMType::Void();
   }
 
-  void Evaluate(OngoingEvaluation* evaluation) {
+  void Evaluate(Trampoline* trampoline) {
     DVLOG(4) << "Evaluating condition...";
-    EvaluateExpression(evaluation, condition_.get(),
-        [this, evaluation](std::unique_ptr<Value> value) {
-          Iteration(evaluation, value->boolean);
+    trampoline->Bounce(condition_.get(),
+        [this](std::unique_ptr<Value> value, Trampoline* trampoline) {
+          Iteration(trampoline, value->boolean);
         });
   }
  private:
 
-  void Iteration(OngoingEvaluation* evaluation, bool cond_value) {
+  void Iteration(Trampoline* trampoline, bool cond_value) {
     if (!cond_value) {
       DVLOG(3) << "Iteration is done.";
-      evaluation->consumer(Value::NewVoid());
+      trampoline->Continue(Value::NewVoid());
       return;
     }
 
     DVLOG(5) << "Iterating...";
-    EvaluateExpression(evaluation, body_.get(),
-        [this, evaluation](std::unique_ptr<Value>) { Evaluate(evaluation); });
+    trampoline->Bounce(body_.get(),
+        [this](std::unique_ptr<Value>, Trampoline* trampoline) {
+          Evaluate(trampoline);
+        });
   }
 
   unique_ptr<Expression> condition_;

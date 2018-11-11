@@ -16,10 +16,10 @@ class AppendExpression : public Expression {
 
   const VMType& type() { return e1_->type(); }
 
-  void Evaluate(OngoingEvaluation* evaluation) {
-    EvaluateExpression(evaluation, e0_.get(),
-        [this, evaluation](std::unique_ptr<Value>) {
-          e1_->Evaluate(evaluation);
+  void Evaluate(Trampoline* trampoline) {
+    trampoline->Bounce(e0_.get(),
+        [this](std::unique_ptr<Value>, Trampoline* trampoline) {
+          e1_->Evaluate(trampoline);
         });
   }
 

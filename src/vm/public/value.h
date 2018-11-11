@@ -17,7 +17,7 @@ using std::shared_ptr;
 using std::string;
 using std::vector;
 
-class OngoingEvaluation;
+class Trampoline;
 
 struct Value {
   using Ptr = std::unique_ptr<Value>;
@@ -25,7 +25,7 @@ struct Value {
   Value(const VMType::Type& t) : type(t) {}
   Value(const VMType& t) : type(t) {}
 
-  using Callback = std::function<void(std::vector<Ptr>, OngoingEvaluation*)>;
+  using Callback = std::function<void(std::vector<Ptr>, Trampoline*)>;
   static unique_ptr<Value> NewVoid();
   static unique_ptr<Value> NewBool(bool value);
   static unique_ptr<Value> NewInteger(int value);

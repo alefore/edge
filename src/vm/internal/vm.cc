@@ -474,44 +474,94 @@ unique_ptr<Expression> CompileString(
   return ResultsFromCompilation(&compilation, error_description);
 }
 
-void EvaluateExpression(
-    OngoingEvaluation* evaluation,
-    Expression* expression,
-    std::function<void(std::unique_ptr<Value>)> customer_consumer) {
-  auto original_consumer = std::move(evaluation->consumer);
-  evaluation->consumer = [evaluation, original_consumer, customer_consumer](
-      std::unique_ptr<Value> value) {
-    // Make sure we stay alive until we're done.
-    auto old_consumer = std::move(evaluation->consumer);
-    evaluation->consumer = std::move(original_consumer);
-    customer_consumer(std::move(value));
+Trampoline::Trampoline(
+    Environment* environment,
+    Continuation final_continuation)
+    : environment_(environment),
+      return_continuation_(std::move(final_continuation)),
+      continuation_(return_continuation_) {}
+
+void Trampoline::Enter(Expression* start_expression) {
+  CHECK(start_expression != nullptr);
+  expression_ = start_expression;
+  while (expression_) {
+    DVLOG(7) << "Jumping in the evaluation trampoline...";
+    auto current_expression = expression_;
+    expression_ = nullptr;
+    current_expression->Evaluate(this);
+    DVLOG(10) << "Landed in the evaluation trampoline...";
+  }
+  DVLOG(4) << "Leaving evaluation trampoline...";
+}
+
+void
+Trampoline::Bounce(Expression* new_expression, Continuation new_continuation) {
+  DVLOG(6) << "Bouncing in the trampoline.";
+  CHECK(expression_ == nullptr);
+  Continuation original_continuation = std::move(continuation_);
+  expression_ = new_expression;
+  continuation_ = [original_continuation, new_continuation](
+      Value::Ptr value, Trampoline* trampoline) {
+    // We do this copy because the assignment below may delete us.
+    auto new_continuation_copy = std::move(new_continuation);
+    trampoline->continuation_ = std::move(original_continuation);
+    new_continuation_copy(std::move(value), trampoline);
   };
-  DVLOG(6) << "Deferring evaluation for trampoline.";
-  evaluation->expression_for_trampoline = expression;
+}
+
+void Trampoline::Continue(std::unique_ptr<Value> value) {
+  continuation_(std::move(value), this);
+}
+
+void Trampoline::Return(std::unique_ptr<Value> value) {
+  return_continuation_(std::move(value), this);
+}
+
+std::function<void(Trampoline*)> Trampoline::Save() {
+  auto original_environment = environment_;
+  auto original_continuation = continuation_;
+  auto original_return_continuation = return_continuation_;
+  return [original_environment, original_continuation, original_return_continuation](
+      Trampoline* trampoline) {
+    // Make copies before overriding the continuations, since it may delete us.
+    auto continuation_copy = original_continuation;
+    auto return_continuation_copy = original_return_continuation;
+
+    trampoline->environment_ = original_environment;
+    trampoline->return_continuation_ = return_continuation_copy;
+    trampoline->continuation_ = continuation_copy;
+  };
+}
+
+void Trampoline::SetEnvironment(Environment* environment) {
+  environment_ = environment;
+}
+
+Environment* Trampoline::environment() const { return environment_; }
+
+void Trampoline::SetReturnContinuation(Continuation continuation) {
+  return_continuation_ = continuation;
+}
+
+Trampoline::Continuation Trampoline::return_continuation() const {
+  return return_continuation_;
+}
+
+void Trampoline::SetContinuation(Continuation continuation) {
+  continuation_ = continuation;
 }
 
 void Evaluate(Expression* expr, Environment* environment,
               std::function<void(std::unique_ptr<Value>)> consumer) {
-  assert(expr != nullptr);
-  unique_ptr<Value> result;
+  CHECK(expr != nullptr);
+  Trampoline(environment,
+             [consumer](std::unique_ptr<Value> value, Trampoline*) {
+               DVLOG(4) << "Evaluation done.";
+               DVLOG(5) << "Result: " << *value;
+               consumer(std::move(value));
+             })
+      .Enter(expr);
 
-  OngoingEvaluation evaluation;
-  evaluation.environment = environment;
-  evaluation.return_consumer =
-      [consumer](std::unique_ptr<Value> value) {
-        DVLOG(4) << "Evaluation done.";
-        DVLOG(5) << "Result: " << *value;
-        consumer(std::move(value));
-      };
-  evaluation.consumer = evaluation.return_consumer;
-  evaluation.expression_for_trampoline = expr;
-  while (evaluation.expression_for_trampoline) {
-    DVLOG(7) << "Jumping in the evaluation trampoline...";
-    expr = evaluation.expression_for_trampoline;
-    evaluation.expression_for_trampoline = nullptr;
-    expr->Evaluate(&evaluation);
-    DVLOG(10) << "Landed in the evaluation trampoline...";
-  }
 }
 
 }  // namespace vm

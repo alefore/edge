@@ -1,6 +1,6 @@
 #include "return_expression.h"
 
-#include <cassert>
+#include <glog/logging.h>
 
 #include "compilation.h"
 #include "evaluation.h"
@@ -18,10 +18,8 @@ class ReturnExpression : public Expression {
 
   const VMType& type() { return expr_->type(); }
 
-  void Evaluate(OngoingEvaluation* evaluation) {
-    evaluation->consumer = evaluation->return_consumer;
-    LOG(INFO) << "XXXX Preparing return...";
-    evaluation->expression_for_trampoline = expr_.get();
+  void Evaluate(Trampoline* trampoline) {
+    trampoline->Bounce(expr_.get(), trampoline->return_continuation());
   }
 
  private:
@@ -36,7 +34,7 @@ unique_ptr<Expression> NewReturnExpression(
     return nullptr;
   }
 
-  assert(!compilation->return_types.empty());
+  CHECK(!compilation->return_types.empty());
   const VMType& expected_type = compilation->return_types.back();
   if (!(expected_type == expr->type())) {
     compilation->errors.push_back(

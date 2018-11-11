@@ -25,20 +25,20 @@ class FunctionCall : public Expression {
     return func_->type().type_arguments[0];
   }
 
-  void Evaluate(OngoingEvaluation* evaluation) {
+  void Evaluate(Trampoline* trampoline) {
     DVLOG(3) << "Function call evaluation starts.";
-    EvaluateExpression(evaluation, func_.get(),
-        [this, evaluation](std::unique_ptr<Value> callback) {
+    trampoline->Bounce(func_.get(),
+        [this](std::unique_ptr<Value> callback, Trampoline* trampoline) {
           DVLOG(6) << "Got function: " << *callback;
-          CaptureArgs(evaluation, std::make_shared<vector<unique_ptr<Value>>>(),
+          CaptureArgs(trampoline, std::make_shared<vector<unique_ptr<Value>>>(),
               std::move(callback));
         });
   }
 
  private:
-  void CaptureArgs(OngoingEvaluation* evaluation,
-      std::shared_ptr<vector<unique_ptr<Value>>> values,
-      std::shared_ptr<Value> callback) {
+  void CaptureArgs(Trampoline* trampoline,
+                   std::shared_ptr<vector<unique_ptr<Value>>> values,
+                   std::shared_ptr<Value> callback) {
     CHECK(callback != nullptr);
     CHECK_EQ(callback->type.type, VMType::FUNCTION);
     CHECK(callback->callback);
@@ -46,26 +46,22 @@ class FunctionCall : public Expression {
     DVLOG(5) << "Evaluating function parameters, args: " << args_->size();
     if (values->size() == args_->size()) {
       DVLOG(4) << "No more parameters, performing function call.";
-      auto original_consumer = std::move(evaluation->consumer);
-      auto original_return_consumer = std::move(evaluation->return_consumer);
-      evaluation->return_consumer =
-          [evaluation, original_consumer, original_return_consumer](
-              Value::Ptr value) {
+      std::function<void(Trampoline*)> original_state = trampoline->Save();
+      trampoline->SetReturnContinuation(
+          [original_state](std::unique_ptr<Value> value,
+                           Trampoline* trampoline) {
+            CHECK(value != nullptr);
             LOG(INFO) << "Got returned value: " << *value;
-            auto evaluation_copy = evaluation;
-            auto consumer_copy = original_consumer;
-            auto return_consumer_copy = original_return_consumer;
-
-            evaluation_copy->consumer = consumer_copy;
-            evaluation_copy->return_consumer = return_consumer_copy;
-            evaluation_copy->consumer(std::move(value));
-          };
-      evaluation->consumer = evaluation->return_consumer;
-      callback->callback(std::move(*values), evaluation);
+            original_state(trampoline);
+            trampoline->Continue(std::move(value));
+          });
+      trampoline->SetContinuation(trampoline->return_continuation());
+      callback->callback(std::move(*values), trampoline);
       return;
     }
-    EvaluateExpression(evaluation, args_->at(values->size()).get(),
-        [this, evaluation, values, callback](std::unique_ptr<Value> value) {
+    trampoline->Bounce(args_->at(values->size()).get(),
+        [this, values, callback](std::unique_ptr<Value> value,
+                                 Trampoline* trampoline) {
           CHECK(values != nullptr);
           DVLOG(5) << "Received results of parameter " << values->size() + 1
                    << ": " << *value;
@@ -74,7 +70,7 @@ class FunctionCall : public Expression {
           CHECK(callback != nullptr);
           CHECK_EQ(callback->type.type, VMType::FUNCTION);
           CHECK(callback->callback);
-          CaptureArgs(evaluation, values, callback);
+          CaptureArgs(trampoline, values, callback);
         });
   }
 

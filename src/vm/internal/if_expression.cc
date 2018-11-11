@@ -28,10 +28,11 @@ class IfExpression : public Expression {
     return true_case_->type();
   }
 
-  void Evaluate(OngoingEvaluation* evaluation) {
-    EvaluateExpression(evaluation, cond_.get(),
-        [this, evaluation](std::unique_ptr<Value> result) {
-          (result->boolean ? true_case_ : false_case_)->Evaluate(evaluation);
+  void Evaluate(Trampoline* trampoline) {
+    trampoline->Bounce(
+        cond_.get(),
+        [this](std::unique_ptr<Value> result, Trampoline* trampoline) {
+          (result->boolean ? true_case_ : false_case_)->Evaluate(trampoline);
         });
   }
 

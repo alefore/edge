@@ -174,9 +174,8 @@ Value::Ptr NewCallback(std::function<ReturnType(Args...)> callback) {
       VMTypeMapper<ReturnType>().vmtype);
   AddArgs<Args...>::Run(&callback_wrapper->type.type_arguments);
   callback_wrapper->callback = [callback](
-      vector<Value::Ptr> args, OngoingEvaluation* evaluation) {
-    evaluation->return_consumer(
-        RunCallback<ReturnType, Args...>(callback, args));
+      vector<Value::Ptr> args, Trampoline* trampoline) {
+    trampoline->Return(RunCallback<ReturnType, Args...>(callback, args));
   };
   return std::move(callback_wrapper);
 }

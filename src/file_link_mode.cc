@@ -26,6 +26,7 @@ extern "C" {
 #include "run_command_handler.h"
 #include "search_handler.h"
 #include "server.h"
+#include "vm/public/callbacks.h"
 #include "vm/public/value.h"
 #include "wstring.h"
 
@@ -235,13 +236,11 @@ class FileBuffer : public OpenBuffer {
               path + (type_it == types.end() ? L"" : type_it->second))));
 
       target->contents()->back()->environment()->Define(
-          L"EdgeLineDeleteHandler", Value::NewFunction({ VMType::Void() },
-              [editor_state, path](
-                  vector<Value::Ptr> args, OngoingEvaluation *evaluation) {
-                CHECK_EQ(args.size(), size_t(0));
-                StartDeleteFile(editor_state, path);
-                evaluation->return_consumer(Value::NewVoid());
-              }));
+          L"EdgeLineDeleteHandler", vm::NewCallback(
+              std::function<void()>(
+                [editor_state, path]() {
+                  StartDeleteFile(editor_state, path);
+                })));
     }
     closedir(dir);
 

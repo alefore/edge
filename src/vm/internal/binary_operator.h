@@ -19,7 +19,7 @@ class BinaryOperator : public Expression {
 
   const VMType& type();
 
-  void Evaluate(OngoingEvaluation* evaluation);
+  void Evaluate(Trampoline* evaluation);
 
  private:
   unique_ptr<Expression> a_;

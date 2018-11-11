@@ -13,16 +13,17 @@ BinaryOperator::BinaryOperator(
 
 const VMType& BinaryOperator::type() { return type_; }
 
-void BinaryOperator::Evaluate(OngoingEvaluation* evaluation) {
-  EvaluateExpression(evaluation, a_.get(),
-      [this, evaluation](std::unique_ptr<Value> a_value) {
+void BinaryOperator::Evaluate(Trampoline* trampoline) {
+  trampoline->Bounce(a_.get(),
+      [this](std::unique_ptr<Value> a_value, Trampoline* trampoline) {
         // TODO: Remove shared_ptr when we can correctly capture a unique_ptr.
         std::shared_ptr<Value> a_value_shared(std::move(a_value));
-        EvaluateExpression(evaluation, b_.get(),
-            [this, evaluation, a_value_shared](std::unique_ptr<Value> b_value) {
+        trampoline->Bounce(b_.get(),
+            [this, a_value_shared](std::unique_ptr<Value> b_value,
+                                   Trampoline* trampoline) {
               std::unique_ptr<Value> output(new Value(type_));
               operator_(*a_value_shared, *b_value, output.get());
-              evaluation->consumer(std::move(output));
+              trampoline->Continue(std::move(output));
             });
       });
 }

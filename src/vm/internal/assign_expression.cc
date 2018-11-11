@@ -21,13 +21,13 @@ class AssignExpression : public Expression {
 
   const VMType& type() { return value_->type(); }
 
-  void Evaluate(OngoingEvaluation* evaluation) {
-    EvaluateExpression(evaluation, value_.get(),
-        [this, evaluation](std::unique_ptr<Value> value) {
+  void Evaluate(Trampoline* trampoline) {
+    trampoline->Bounce(value_.get(),
+        [this](std::unique_ptr<Value> value, Trampoline* trampoline) {
           DVLOG(3) << "Setting value for: " << symbol_;
           DVLOG(4) << "Value: " << *value;
-          evaluation->environment->Define(symbol_, std::move(value));
-          evaluation->consumer(Value::NewVoid());
+          trampoline->environment()->Define(symbol_, std::move(value));
+          trampoline->Continue(Value::NewVoid());
         });
   }
 

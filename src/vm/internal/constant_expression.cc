@@ -21,9 +21,9 @@ class ConstantExpression : public Expression {
 
   const VMType& type() { return value_->type; }
 
-  void Evaluate(OngoingEvaluation* evaluation) {
+  void Evaluate(Trampoline* trampoline) {
     DVLOG(5) << "Evaluating constant value: " << *value_;
-    evaluation->consumer(std::unique_ptr<Value>(new Value(*value_)));
+    trampoline->Continue(std::unique_ptr<Value>(new Value(*value_)));
   }
 
  private:

@@ -26,14 +26,14 @@ class LogicalExpression : public Expression {
 
   const VMType& type() { return VMType::Bool(); }
 
-  void Evaluate(OngoingEvaluation* evaluation) {
-    EvaluateExpression(evaluation, expr_a_.get(),
-        [this, evaluation](std::unique_ptr<Value> value) {
+  void Evaluate(Trampoline* trampoline) {
+    trampoline->Bounce(expr_a_.get(),
+        [this](std::unique_ptr<Value> value, Trampoline* trampoline) {
           CHECK_EQ(VMType::VM_BOOLEAN, value->type.type);
           if (value->boolean == identity_) {
-            expr_b_->Evaluate(evaluation);
+            expr_b_->Evaluate(trampoline);
           } else {
-            evaluation->consumer(std::move(value));
+            trampoline->Continue(std::move(value));
           }
         });
   }

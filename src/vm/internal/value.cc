@@ -52,8 +52,8 @@ namespace vm {
     std::vector<VMType> arguments,
     std::function<Value::Ptr(std::vector<Value::Ptr>)> callback) {
   return NewFunction(arguments, [callback](
-      std::vector<Ptr> args, OngoingEvaluation* evaluation) {
-    evaluation->return_consumer(callback(std::move(args)));
+      std::vector<Ptr> args, Trampoline* trampoline) {
+    trampoline->Return(callback(std::move(args)));
   });
 }
 

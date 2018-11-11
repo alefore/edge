@@ -125,10 +125,10 @@ using std::to_wstring;
 // TODO: Once we can capture std::unique_ptr, turn transformation into one.
 void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
     size_t line, Value::Callback map_callback,
-    TransformationStack* transformation, OngoingEvaluation* evaluation) {
+    TransformationStack* transformation, Trampoline* trampoline) {
   if (line + 1 >= buffer->contents()->size()) {
     buffer->Apply(editor, std::unique_ptr<Transformation>(transformation));
-    evaluation->return_consumer(Value::NewVoid());
+    trampoline->Return(Value::NewVoid());
     return;
   }
   wstring current_line = buffer->LineAt(line)->ToString();
@@ -144,8 +144,8 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
 
   Evaluate(
       map_line.get(),
-      evaluation->environment,
-      [editor, buffer, line, map_callback, transformation, evaluation,
+      trampoline->environment(),
+      [editor, buffer, line, map_callback, transformation, trampoline,
        current_line](Value::Ptr value) {
         if (value->str != current_line) {
           DeleteOptions options;
@@ -158,7 +158,7 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
               NewInsertBufferTransformation(buffer_to_insert, 1, END));
         }
         EvaluateMap(editor, buffer, line + 1, std::move(map_callback),
-                    transformation, evaluation);
+                    transformation, trampoline);
       });
 }
 
@@ -208,7 +208,7 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
       { VMType::Void(), VMType::ObjectType(buffer.get()),
         VMType::Function({ VMType::String(), VMType::String() })},
       [editor_state](vector<unique_ptr<Value>> args,
-          OngoingEvaluation* evaluation) {
+          Trampoline* evaluation) {
         CHECK_EQ(args.size(), size_t(2));
         CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
         EvaluateMap(

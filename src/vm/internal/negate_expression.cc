@@ -19,11 +19,11 @@ class NegateExpression : public Expression {
 
   const VMType& type() { return expr_->type(); }
 
-  void Evaluate(OngoingEvaluation* evaluation) {
-    EvaluateExpression(evaluation, expr_.get(),
-        [this, evaluation](std::unique_ptr<Value> value) {
+  void Evaluate(Trampoline* trampoline) {
+    trampoline->Bounce(expr_.get(),
+        [this](std::unique_ptr<Value> value, Trampoline* trampoline) {
           negate_(value.get());
-          evaluation->consumer(std::move(value));
+          trampoline->Continue(std::move(value));
         });
   }
 

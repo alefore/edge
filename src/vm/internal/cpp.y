@@ -68,33 +68,22 @@ statement(OUT) ::= function_declaration_params(FUNC)
 
     unique_ptr<Value> value(new Value(FUNC->type));
     value->callback = [compilation, body, func_environment, argument_names](
-        vector<unique_ptr<Value>> args, OngoingEvaluation* evaluation) {
+        vector<unique_ptr<Value>> args, Trampoline* trampoline) {
       CHECK_EQ(args.size(), argument_names.size());
       for (size_t i = 0; i < args.size(); i++) {
         func_environment->Define(argument_names[i], std::move(args[i]));
       }
       std::unique_ptr<Value> result;
-      auto original_environment = evaluation->environment;
-      auto original_consumer = evaluation->consumer;
-      auto original_return_consumer = evaluation->return_consumer;
-      evaluation->environment = func_environment.get();
-      evaluation->return_consumer =
-          [evaluation, original_environment, original_consumer,
-              original_return_consumer](std::unique_ptr<Value> value) {
+      std::function<void(Trampoline*)> original_state = trampoline->Save();
+      trampoline->SetEnvironment(func_environment.get());
+      trampoline->SetReturnContinuation(
+          [original_state](std::unique_ptr<Value> value,
+                           Trampoline* trampoline) {
             CHECK(value != nullptr);
-            evaluation->environment = original_environment;
-            // Make copies before overriding the consumers, since that may
-            // delete us.
-            auto evaluation_copy = evaluation;
-            auto consumer_copy = original_consumer;
-            auto return_consumer_copy = original_return_consumer;
-            // Deletes us.
-            evaluation_copy->return_consumer = return_consumer_copy;
-            evaluation_copy->consumer = consumer_copy;
-            evaluation_copy->return_consumer(std::move(value));
-          };
-      evaluation->consumer = evaluation->return_consumer;
-      evaluation->expression_for_trampoline = body.get();
+            original_state(trampoline);
+            trampoline->Return(std::move(value));
+          });
+      trampoline->Bounce(body.get(), trampoline->return_continuation());
     };
     compilation->environment->Define(FUNC->name, std::move(value));
     OUT = NewVoidExpression().release();

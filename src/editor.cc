@@ -74,7 +74,7 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
   callback->type.type_arguments =
       { VMType(VMType::VM_VOID), VMType::ObjectType(editor_type) };
   callback->callback =
-      [method](vector<unique_ptr<Value>> args, OngoingEvaluation* evaluation) {
+      [method](vector<unique_ptr<Value>> args, Trampoline* trampoline) {
         CHECK_EQ(args.size(), size_t(1));
         CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
 
@@ -89,7 +89,7 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
           editor->ResetModifiers();
           editor->ScheduleRedraw();
         }
-        evaluation->return_consumer(Value::NewVoid());
+        trampoline->Return(Value::NewVoid());
       };
   editor_type->AddField(name, std::move(callback));
 }

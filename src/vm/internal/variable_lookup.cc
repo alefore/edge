@@ -25,16 +25,14 @@ class VariableLookup : public Expression {
     return type_;
   }
 
-  void Evaluate(OngoingEvaluation* evaluation) {
+  void Evaluate(Trampoline* trampoline) {
     // TODO: Enable this logging.
     // DVLOG(5) << "Look up symbol: " << symbol_;
-    Value* result = evaluation->environment->Lookup(symbol_);
+    Value* result = trampoline->environment()->Lookup(symbol_);
     CHECK(result != nullptr);
-    CHECK(evaluation != nullptr);
-    CHECK(evaluation->consumer != nullptr);
+    CHECK(trampoline != nullptr);
     DVLOG(5) << "Variable lookup: " << *result;
-    evaluation->consumer(
-        std::unique_ptr<Value>(new Value(*result)));
+    trampoline->Continue(std::unique_ptr<Value>(new Value(*result)));
   }
 
  private:
