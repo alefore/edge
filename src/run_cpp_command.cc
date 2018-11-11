@@ -40,6 +40,7 @@ class RunCppCommand : public Command {
         options.prompt = L"cpp ";
         options.history_file = L"cpp";
         options.handler = RunCppCommandHandler;
+        options.cancel_handler = [](EditorState*) { /* Nothing. */ };
         Prompt(editor_state, options);
     }
   }
