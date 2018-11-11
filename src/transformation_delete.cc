@@ -334,8 +334,7 @@ class DeleteLinesTransformation : public Transformation {
             std::shared_ptr<vm::Expression> expr = vm::NewFunctionCall(
                 vm::NewConstantExpression(
                     std::unique_ptr<Value>(new Value(*callback))),
-                std::unique_ptr<std::vector<std::unique_ptr<vm::Expression>>>(
-                    new std::vector<std::unique_ptr<vm::Expression>>()));
+                {});
             Evaluate(expr.get(), buffer->environment(), [](Value::Ptr) {});
           }
         }

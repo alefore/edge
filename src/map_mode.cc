@@ -76,9 +76,7 @@ void MapModeCommands::Add(wstring name, std::unique_ptr<Value> value) {
   CHECK_EQ(value->type.type, VMType::FUNCTION);
   CHECK(value->type.type_arguments == std::vector<VMType>({ VMType::Void() }));
   std::shared_ptr<vm::Expression> expression = NewFunctionCall(
-      NewConstantExpression(std::move(value)),
-      unique_ptr<vector<unique_ptr<vm::Expression>>>(
-          new vector<unique_ptr<Expression>>()));
+      NewConstantExpression(std::move(value)), {});
   // TODO: Don't leak it!
   Add(name,
       new CommandFromFunction(

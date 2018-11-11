@@ -20,6 +20,7 @@ extern "C" {
 #include <glog/logging.h>
 
 #include "char_buffer.h"
+#include "command_with_modifiers.h"
 #include "cpp_parse_tree.h"
 #include "cursors_transformation.h"
 #include "dirname.h"
@@ -133,9 +134,8 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
   }
   wstring current_line = buffer->LineAt(line)->ToString();
 
-  std::unique_ptr<std::vector<std::unique_ptr<vm::Expression>>> args_expr(
-      new std::vector<std::unique_ptr<vm::Expression>>());
-  args_expr->push_back(
+  std::vector<std::unique_ptr<vm::Expression>> args_expr;
+  args_expr.push_back(
       vm::NewConstantExpression(Value::NewString(std::move(current_line))));
   std::shared_ptr<vm::Expression> map_line = vm::NewFunctionCall(
       vm::NewConstantExpression(

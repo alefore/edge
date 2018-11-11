@@ -342,14 +342,13 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
         } else {
           unique_ptr<Value> field_copy(new Value(field->type.type));
           *field_copy = *field;
-          unique_ptr<vector<unique_ptr<Expression>>> args(
-              new vector<unique_ptr<Expression>>);
-          args->push_back(unique_ptr<Expression>(OBJ));
+          vector<unique_ptr<Expression>> args;
+          args.emplace_back(OBJ);
           OBJ = nullptr;
           for (auto& arg : *ARGS) {
-            args->push_back(std::move(arg));
+            args.push_back(std::move(arg));
           }
-          assert(field_copy != nullptr);
+          CHECK(field_copy != nullptr);
           OUT = NewFunctionCall(NewConstantExpression(std::move(field_copy)),
                                 std::move(args)).release();
         }
@@ -387,9 +386,8 @@ expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
           + L"\" but found \"" + ARGS->at(argument)->type().ToString() + L"\"");
       OUT = nullptr;
     } else {
-      OUT = NewFunctionCall(
-          unique_ptr<Expression>(B),
-          unique_ptr<vector<unique_ptr<Expression>>>(ARGS)).release();
+      OUT = NewFunctionCall(unique_ptr<Expression>(B), std::move(*ARGS))
+                .release();
       B = nullptr;
       ARGS = nullptr;
     }
