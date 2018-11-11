@@ -18,14 +18,16 @@ using std::wstring;
 
 wstring Dirname(wstring path) {
   VLOG(5) << "Dirname: " << path;
-  std::unique_ptr<char> tmp(strdup(ToByteString(path).c_str()));
+  std::unique_ptr<char, decltype(&std::free)> tmp(
+      strdup(ToByteString(path).c_str()), &std::free);
   CHECK(tmp != nullptr);
   return FromByteString(dirname(tmp.get()));
 }
 
 wstring Basename(wstring path) {
   VLOG(5) << "Pathname: " << path;
-  std::unique_ptr<char> tmp(strdup(ToByteString(path).c_str()));
+  std::unique_ptr<char, decltype(&std::free)> tmp(
+      strdup(ToByteString(path).c_str()), &std::free);
   CHECK(tmp != nullptr);
   return FromByteString(basename(tmp.get()));
 }
