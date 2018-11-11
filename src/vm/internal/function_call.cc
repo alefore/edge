@@ -32,6 +32,15 @@ class FunctionCall : public Expression {
         });
   }
 
+  std::unique_ptr<Expression> Clone() override {
+    std::vector<std::unique_ptr<Expression>> args_clone;
+    for (auto& arg : args_) {
+      args_clone.push_back(arg->Clone());
+    }
+    return std::make_unique<FunctionCall>(func_->Clone(),
+                                          std::move(args_clone));
+  }
+
  private:
   void CaptureArgs(Trampoline* trampoline,
                    std::shared_ptr<vector<unique_ptr<Value>>> values,

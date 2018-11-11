@@ -35,6 +35,11 @@ class LogicalExpression : public Expression {
         });
   }
 
+  std::unique_ptr<Expression> Clone() override {
+    return std::make_unique<LogicalExpression>(
+        identity_, expr_a_->Clone(), expr_b_->Clone());
+  }
+
  private:
   const bool identity_;
   const std::unique_ptr<Expression> expr_a_;

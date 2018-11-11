@@ -27,5 +27,11 @@ void BinaryOperator::Evaluate(Trampoline* trampoline) {
       });
 }
 
+std::unique_ptr<Expression> BinaryOperator::Clone() {
+  return std::make_unique<BinaryOperator>(
+      a_->Clone(), b_->Clone(), type_, operator_);
+}
+
+
 }  // namespace vm
 }  // namespace afc

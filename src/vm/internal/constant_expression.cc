@@ -23,6 +23,11 @@ class ConstantExpression : public Expression {
     trampoline->Continue(std::make_unique<Value>(*value_));
   }
 
+  std::unique_ptr<Expression> Clone() override {
+    return std::make_unique<ConstantExpression>(
+        std::make_unique<Value>(*value_));
+  }
+
  private:
   const std::unique_ptr<Value> value_;
 };

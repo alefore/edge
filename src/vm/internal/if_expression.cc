@@ -35,6 +35,11 @@ class IfExpression : public Expression {
         });
   }
 
+  std::unique_ptr<Expression> Clone() override {
+    return std::make_unique<IfExpression>(
+        cond_->Clone(), true_case_->Clone(), false_case_->Clone());
+  }
+
  private:
   const std::unique_ptr<Expression> cond_;
   const std::unique_ptr<Expression> true_case_;

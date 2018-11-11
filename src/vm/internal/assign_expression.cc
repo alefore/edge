@@ -21,7 +21,7 @@ class AssignExpression : public Expression {
 
   const VMType& type() { return value_->type(); }
 
-  void Evaluate(Trampoline* trampoline) {
+  void Evaluate(Trampoline* trampoline) override {
     trampoline->Bounce(value_.get(),
         [this](std::unique_ptr<Value> value, Trampoline* trampoline) {
           DVLOG(3) << "Setting value for: " << symbol_;
@@ -29,6 +29,10 @@ class AssignExpression : public Expression {
           trampoline->environment()->Define(symbol_, std::move(value));
           trampoline->Continue(Value::NewVoid());
         });
+  }
+
+  std::unique_ptr<Expression> Clone() override {
+    return std::make_unique<AssignExpression>(symbol_, value_->Clone());
   }
 
  private:

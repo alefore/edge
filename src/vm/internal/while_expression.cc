@@ -32,6 +32,11 @@ class WhileExpression : public Expression {
         });
   }
 
+  std::unique_ptr<Expression> Clone() override {
+    return std::make_unique<WhileExpression>(condition_->Clone(),
+                                             body_->Clone());
+  }
+
  private:
   void Iteration(Trampoline* trampoline, bool cond_value) {
     if (!cond_value) {
@@ -47,8 +52,8 @@ class WhileExpression : public Expression {
         });
   }
 
-  std::unique_ptr<Expression> condition_;
-  std::unique_ptr<Expression> body_;
+  const std::unique_ptr<Expression> condition_;
+  const std::unique_ptr<Expression> body_;
 };
 
 }  // namespace

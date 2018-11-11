@@ -32,6 +32,10 @@ class VariableLookup : public Expression {
     trampoline->Continue(std::make_unique<Value>(*result));
   }
 
+  std::unique_ptr<Expression> Clone() override {
+    return std::make_unique<VariableLookup>(symbol_, type_);
+  }
+
  private:
   const wstring symbol_;
   const VMType type_;

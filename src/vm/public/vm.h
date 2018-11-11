@@ -87,6 +87,9 @@ class Expression {
   virtual ~Expression() {}
   virtual const VMType& type() = 0;
 
+  // Returns a new copy of this expression.
+  virtual std::unique_ptr<Expression> Clone() = 0;
+
   // Implementation details, not relevant for customers.
   // TODO: Figure out a nice way to hide this.
 

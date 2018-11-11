@@ -21,6 +21,8 @@ class BinaryOperator : public Expression {
 
   void Evaluate(Trampoline* evaluation);
 
+  std::unique_ptr<Expression> Clone() override;
+
  private:
   unique_ptr<Expression> a_;
   unique_ptr<Expression> b_;

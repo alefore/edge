@@ -17,8 +17,12 @@ class ReturnExpression : public Expression {
 
   const VMType& type() { return expr_->type(); }
 
-  void Evaluate(Trampoline* trampoline) {
+  void Evaluate(Trampoline* trampoline) override {
     trampoline->Bounce(expr_.get(), trampoline->return_continuation());
+  }
+
+  std::unique_ptr<Expression> Clone() override {
+    return std::make_unique<ReturnExpression>(expr_->Clone());
   }
 
  private:

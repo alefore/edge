@@ -26,6 +26,10 @@ class NegateExpression : public Expression {
         });
   }
 
+  std::unique_ptr<Expression> Clone() override {
+    return std::make_unique<NegateExpression>(negate_, expr_->Clone());
+  }
+
  private:
   std::function<void(Value*)> negate_;
   unique_ptr<Expression> expr_;

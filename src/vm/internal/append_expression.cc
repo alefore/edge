@@ -16,11 +16,15 @@ class AppendExpression : public Expression {
 
   const VMType& type() { return e1_->type(); }
 
-  void Evaluate(Trampoline* trampoline) {
+  void Evaluate(Trampoline* trampoline) override {
     trampoline->Bounce(e0_.get(),
         [this](std::unique_ptr<Value>, Trampoline* trampoline) {
           e1_->Evaluate(trampoline);
         });
+  }
+
+  std::unique_ptr<Expression> Clone() override {
+    return std::make_unique<AppendExpression>(e0_->Clone(), e1_->Clone());
   }
 
  private:
