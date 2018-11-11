@@ -64,7 +64,7 @@ class FunctionCall : public Expression {
                                  Trampoline* trampoline) {
           CHECK(values != nullptr);
           DVLOG(5) << "Received results of parameter " << values->size() + 1
-                   << ": " << *value;
+                   << " (of " << args_->size() << "): " << *value;
           values->push_back(std::move(value));
           DVLOG(6) << "Recursive call.";
           CHECK(callback != nullptr);
@@ -74,8 +74,8 @@ class FunctionCall : public Expression {
         });
   }
 
-  unique_ptr<Expression> func_;
-  unique_ptr<vector<unique_ptr<Expression>>> args_;
+  const unique_ptr<Expression> func_;
+  const unique_ptr<vector<unique_ptr<Expression>>> args_;
 };
 
 }  // namespace
