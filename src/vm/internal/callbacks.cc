@@ -1,10 +1,6 @@
 #include "../public/callbacks.h"
 #include "../public/types.h"
 
-#include <cassert>
-
-#include <glog/logging.h>
-
 namespace afc {
 namespace vm {
 

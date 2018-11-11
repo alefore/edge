@@ -1,9 +1,10 @@
 #include "terminal.h"
 
 #include <algorithm>
-#include <cassert>
 #include <cctype>
 #include <iostream>
+
+#include <glog/logging.h>
 
 #include "dirname.h"
 #include "line_marks.h"

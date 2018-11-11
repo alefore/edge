@@ -1,7 +1,6 @@
 #include "insert_mode.h"
 
 #include <algorithm>
-#include <cassert>
 #include <memory>
 #include <vector>
 

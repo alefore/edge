@@ -1,6 +1,5 @@
 #include "buffer.h"
 
-#include <cassert>
 #include <condition_variable>
 #include <cstring>
 #include <iostream>
@@ -912,7 +911,7 @@ void OpenBuffer::AppendRawLine(EditorState*, shared_ptr<Line> line) {
 
 void OpenBuffer::ProcessCommandInput(
     EditorState* editor_state, shared_ptr<LazyString> str) {
-  assert(read_bool_variable(variable_pts()));
+  CHECK(read_bool_variable(variable_pts()));
   if (position_pts_.line >= contents_.size()) {
     position_pts_.line = contents_.size() - 1;
   }

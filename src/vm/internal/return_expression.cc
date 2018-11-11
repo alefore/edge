@@ -3,7 +3,6 @@
 #include <glog/logging.h>
 
 #include "compilation.h"
-#include "evaluation.h"
 #include "../public/value.h"
 
 namespace afc {

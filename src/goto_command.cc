@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+#include <glog/logging.h>
+
 #include "buffer.h"
 #include "command.h"
 #include "editor.h"
@@ -214,7 +216,7 @@ class GotoCommand : public Command {
               0, buffers, buffers, editor_state->direction(),
               editor_state->repetitions(), editor_state->structure_range(),
               calls_);
-          assert(position < editor_state->buffers()->size());
+          CHECK_LT(position, editor_state->buffers()->size());
           auto it = editor_state->buffers()->begin();
           advance(it, position);
           if (it != editor_state->current_buffer()) {

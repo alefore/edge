@@ -2,7 +2,6 @@
 
 #include <glog/logging.h>
 
-#include "evaluation.h"
 #include "../public/constant_expression.h"
 #include "../public/value.h"
 #include "../public/vm.h"

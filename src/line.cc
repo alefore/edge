@@ -1,7 +1,6 @@
 #include "line.h"
 
 #include <algorithm>
-#include <cassert>
 #include <cmath>
 #include <iostream>
 #include <unordered_set>
@@ -253,8 +252,8 @@ void Line::Output(const Line::OutputOptions& options) const {
           size_t new_output_column = min(options.width,
               8 * static_cast<size_t>(
                   1 + floor(static_cast<double>(output_column) / 8.0)));
-          assert(new_output_column > output_column);
-          assert(new_output_column - output_column <= 8);
+          CHECK_GT(new_output_column, output_column);
+          CHECK_LE(new_output_column - output_column, 8);
           options.output_receiver->AddString(wstring(new_output_column - output_column, ' '));
           output_column = new_output_column;
         }

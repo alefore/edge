@@ -1,10 +1,9 @@
 #include "if_expression.h"
 
-#include <cassert>
+#include <glog/logging.h>
 
 #include "../public/value.h"
 #include "../internal/compilation.h"
-#include "../internal/evaluation.h"
 
 namespace afc {
 namespace vm {
@@ -19,9 +18,9 @@ class IfExpression : public Expression {
       : cond_(std::move(cond)),
         true_case_(std::move(true_case)),
         false_case_(std::move(false_case)) {
-    assert(cond_ != nullptr);
-    assert(true_case_ != nullptr);
-    assert(false_case_ != nullptr);
+    CHECK(cond_ != nullptr);
+    CHECK(true_case_ != nullptr);
+    CHECK(false_case_ != nullptr);
   }
 
   const VMType& type() {

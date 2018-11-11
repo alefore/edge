@@ -1,6 +1,5 @@
 #include "file_link_mode.h"
 
-#include <cassert>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -18,6 +17,8 @@ extern "C" {
 #include <sys/stat.h>
 #include <fcntl.h>
 }
+
+#include <glog/logging.h>
 
 #include "char_buffer.h"
 #include "dirname.h"
@@ -470,8 +471,8 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
   options.make_current_buffer = false;
   options.use_search_paths = false;
   it = OpenFile(options);
-  assert(it != editor_state->buffers()->end());
-  assert(it->second != nullptr);
+  CHECK(it != editor_state->buffers()->end());
+  CHECK(it->second != nullptr);
   it->second->set_bool_variable(OpenBuffer::variable_save_on_close(), true);
   it->second->set_bool_variable(
       OpenBuffer::variable_show_in_buffers_list(), false);

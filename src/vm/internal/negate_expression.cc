@@ -1,7 +1,6 @@
 #include "negate_expression.h"
 
 #include "compilation.h"
-#include "evaluation.h"
 #include "../public/value.h"
 #include "../public/vm.h"
 

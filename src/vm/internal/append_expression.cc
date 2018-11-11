@@ -1,6 +1,5 @@
 #include "append_expression.h"
 
-#include "evaluation.h"
 #include "../public/value.h"
 #include "../public/vm.h"
 

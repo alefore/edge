@@ -1,10 +1,7 @@
 #include "../public/constant_expression.h"
 
-#include <cassert>
-
 #include <glog/logging.h>
 
-#include "evaluation.h"
 #include "../public/value.h"
 #include "../public/vm.h"
 
@@ -16,7 +13,7 @@ namespace {
 class ConstantExpression : public Expression {
  public:
   ConstantExpression(unique_ptr<Value> value) : value_(std::move(value)) {
-    assert(value_ != nullptr);
+    CHECK(value_ != nullptr);
   }
 
   const VMType& type() { return value_->type; }

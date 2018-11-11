@@ -1,6 +1,5 @@
 #include "binary_operator.h"
 
-#include "../internal/evaluation.h"
 #include "../public/value.h"
 
 namespace afc {

@@ -1,7 +1,6 @@
 #ifndef __AFC_EDITOR_LINE_H__
 #define __AFC_EDITOR_LINE_H__
 
-#include <cassert>
 #include <map>
 #include <memory>
 #include <mutex>

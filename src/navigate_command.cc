@@ -1,8 +1,9 @@
 #include "navigate_command.h"
 
-#include <cassert>
 #include <memory>
 #include <map>
+
+#include <glog/logging.h>
 
 #include "char_buffer.h"
 #include "direction.h"

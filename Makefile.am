@@ -104,7 +104,6 @@ src/vm/internal/append_expression.cc \
 src/vm/internal/negate_expression.cc \
 src/vm/internal/logical_expression.cc \
 src/vm/internal/variable_lookup.cc \
-src/vm/internal/evaluation.cc \
 src/vm/internal/wstring.cc \
 src/wstring.cc
 

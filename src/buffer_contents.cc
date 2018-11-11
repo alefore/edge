@@ -1,7 +1,6 @@
 #include "buffer_contents.h"
 
 #include <algorithm>
-#include <cassert>
 #include <cmath>
 #include <iostream>
 #include <unordered_set>

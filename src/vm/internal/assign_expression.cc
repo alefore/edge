@@ -3,9 +3,9 @@
 #include <glog/logging.h>
 
 #include "compilation.h"
-#include "evaluation.h"
 #include "../public/environment.h"
 #include "../public/value.h"
+#include "../public/vm.h"
 #include "wstring.h"
 
 namespace afc {

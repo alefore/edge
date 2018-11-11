@@ -1,10 +1,7 @@
 #include "logical_expression.h"
 
-#include <cassert>
-
 #include <glog/logging.h>
 
-#include "evaluation.h"
 #include "../public/types.h"
 #include "../public/value.h"
 #include "../public/vm.h"

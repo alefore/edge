@@ -1,11 +1,8 @@
 #include "while_expression.h"
 
-#include <cassert>
-
 #include <glog/logging.h>
 
 #include "compilation.h"
-#include "evaluation.h"
 #include "../public/vm.h"
 #include "../public/value.h"
 

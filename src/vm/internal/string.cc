@@ -1,7 +1,5 @@
 #include "string.h"
 
-#include <cassert>
-
 #include <glog/logging.h>
 
 #include "../public/callbacks.h"

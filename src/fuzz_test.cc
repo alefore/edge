@@ -1,4 +1,3 @@
-#include <cassert>
 #include <csignal>
 #include <iostream>
 #include <string>

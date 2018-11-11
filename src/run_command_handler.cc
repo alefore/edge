@@ -14,6 +14,8 @@ extern "C" {
 #include <fcntl.h>
 }
 
+#include <glog/logging.h>
+
 #include "char_buffer.h"
 #include "command_mode.h"
 #include "editor.h"
@@ -177,7 +179,7 @@ class CommandBuffer : public OpenBuffer {
       size_t position = 0;
       for (const auto& it : environment) {
         string str = it.first + "=" + it.second;
-        assert(position < environment.size());
+        CHECK_LT(position, environment.size());
         envp[position++] = strdup(str.c_str());
       }
       envp[position++] = nullptr;

@@ -1,7 +1,6 @@
 #ifndef __AFC_EDITOR_BUFFER_H__
 #define __AFC_EDITOR_BUFFER_H__
 
-#include <cassert>
 #include <condition_variable>
 #include <iterator>
 #include <map>
@@ -9,6 +8,8 @@
 #include <mutex>
 #include <thread>
 #include <vector>
+
+#include <glog/logging.h>
 
 #include "buffer_contents.h"
 #include "cursors.h"
@@ -290,11 +291,11 @@ class OpenBuffer {
     return position.column >= LineAt(position.line)->size();
   }
   char current_character() const {
-    assert(current_position_col() < current_line()->size());
+    CHECK_LT(current_position_col(), current_line()->size());
     return current_line()->get(current_position_col());
   }
   char previous_character() const {
-    assert(current_position_col() > 0);
+    CHECK_GT(current_position_col(), 0u);
     return current_line()->get(current_position_col() - 1);
   }
 

@@ -1,4 +1,3 @@
-#include <cassert>
 #include <cstring>
 #include <string>
 
@@ -31,7 +30,7 @@ class MoveableCharBuffer : public LazyString {
       : buffer_(buffer), size_(input_size) {}
 
   wchar_t get(size_t pos) const {
-    assert(pos < size_);
+    CHECK_LT(pos, size_);
     return (*buffer_)[pos];
   }
   size_t size() const { return size_; }
