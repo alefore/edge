@@ -135,7 +135,7 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
   int token;
   while (pos < str.size()) {
     VLOG(5) << "Compiling from character: " << str.at(pos);
-    Value* input = nullptr;
+    std::unique_ptr<Value> input;
     switch (str.at(pos)) {
       case '/':
         if (pos + 1 < str.size() && str.at(pos + 1) == '/') {
@@ -282,11 +282,11 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
               pos++;
             }
             token = DOUBLE;
-            input = Value::NewDouble(value).release();
+            input = Value::NewDouble(value);
             input->double_value = decimal;
           } else {
             token = INTEGER;
-            input = Value::NewInteger(decimal).release();
+            input = Value::NewInteger(decimal);
           }
         }
         break;
@@ -294,7 +294,7 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
       case '"':
         {
           token = STRING;
-          input = new Value(VMType::VM_STRING);
+          input = std::make_unique<Value>(VMType::VM_STRING);
           pos++;
           input->str = L"";
           for (; pos < str.size(); pos++) {
@@ -356,12 +356,10 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
           wstring symbol = str.substr(start, pos - start);
           if (symbol == L"true") {
             token = BOOL;
-            input = new Value(VMType::VM_BOOLEAN);
-            input->boolean = true;
+            input = Value::NewBool(true);
           } else if (symbol == L"false") {
             token = BOOL;
-            input = new Value(VMType::VM_BOOLEAN);
-            input->boolean = false;
+            input = Value::NewBool(false);
           } else if (symbol == L"while") {
             token = WHILE;
           } else if (symbol == L"if") {
@@ -372,7 +370,7 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
             token = RETURN;
           } else {
             token = SYMBOL;
-            input = new Value(VMType::VM_SYMBOL);
+            input = std::make_unique<Value>(VMType::VM_SYMBOL);
             input->str = symbol;
           }
         }
@@ -410,7 +408,7 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
             || input->type == VMType::VM_STRING);
       compilation->last_token = input->str;
     }
-    Cpp(parser, token, input, compilation);
+    Cpp(parser, token, input.release(), compilation);
   }
 }
 
