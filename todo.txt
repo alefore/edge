@@ -59,6 +59,9 @@ atomic_lines should probably also apply to multiple cursors.
 
 -- VM
 
+Turn it into true continuation-passing style.
+  Currently, it's not really. Various parts assume that the OngoingEvaluation instance continues to live, past escapes to the trampoline.
+
 Add support for templates, so that we can do "vector<string>".
 
 Support polymorphism: same name for multiple symbols with different type.
