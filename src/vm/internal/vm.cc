@@ -190,11 +190,19 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
       case '<':
         token = LESS_THAN;
         pos++;
+        if (pos < str.size() && str.at(pos) == '=') {
+          pos++;
+          token = LESS_OR_EQUAL;
+        }
         break;
 
       case '>':
         token = GREATER_THAN;
         pos++;
+        if (pos < str.size() && str.at(pos) == '=') {
+          pos++;
+          token = GREATER_OR_EQUAL;
+        }
         break;
 
       case ';':

@@ -10,7 +10,7 @@
 %left OR.
 %left AND.
 %left EQUALS NOT_EQUALS.
-%left LESS_THAN GREATER_THAN.
+%left LESS_THAN LESS_OR_EQUAL GREATER_THAN GREATER_OR_EQUAL.
 %left PLUS MINUS.
 %left DIVIDE TIMES.
 %right NOT.
@@ -537,6 +537,26 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
   }
 }
 
+expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
+  if (A == nullptr
+      || B == nullptr
+      || A->type().type != VMType::VM_INTEGER
+      || B->type().type != VMType::VM_INTEGER) {
+    OUT = nullptr;
+  } else {
+    // TODO: Don't evaluate B if not needed.
+    OUT = new BinaryOperator(
+        unique_ptr<Expression>(A),
+        unique_ptr<Expression>(B),
+        VMType::Bool(),
+        [](const Value& a, const Value& b, Value* output) {
+          output->boolean = a.integer <= b.integer;
+        });
+    A = nullptr;
+    B = nullptr;
+  }
+}
+
 expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
   if (A == nullptr
       || B == nullptr
@@ -551,6 +571,26 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
         VMType::Bool(),
         [](const Value& a, const Value& b, Value* output) {
           output->boolean = a.integer > b.integer;
+        });
+    A = nullptr;
+    B = nullptr;
+  }
+}
+
+expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
+  if (A == nullptr
+      || B == nullptr
+      || A->type().type != VMType::VM_INTEGER
+      || B->type().type != VMType::VM_INTEGER) {
+    OUT = nullptr;
+  } else {
+    // TODO: Don't evaluate B if not needed.
+    OUT = new BinaryOperator(
+        unique_ptr<Expression>(A),
+        unique_ptr<Expression>(B),
+        VMType::Bool(),
+        [](const Value& a, const Value& b, Value* output) {
+          output->boolean = a.integer >= b.integer;
         });
     A = nullptr;
     B = nullptr;
