@@ -556,11 +556,19 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
 class ParseTreeHighlighter : public Line::OutputReceiverInterface {
  public:
   explicit ParseTreeHighlighter(
-      Line::OutputReceiverInterface* delegate, size_t begin, size_t end)
-      : delegate_(delegate), begin_(begin), end_(end) {}
+      Line::OutputReceiverInterface* delegate, size_t columns_to_skip,
+      size_t begin, size_t end)
+      : delegate_(delegate), columns_to_skip_(columns_to_skip), begin_(begin),
+        end_(end) {}
 
   void AddCharacter(wchar_t c) override {
     size_t position = delegate_.position();
+    if (position < columns_to_skip_) {
+      delegate_.AddCharacter(c);
+      return;
+    }
+
+    position -= columns_to_skip_;
     // TODO: Optimize: Don't add it for each character, just at the start.
     if (begin_ <= position && position < end_) {
       AddModifier(LineModifier::BLUE);
@@ -589,25 +597,28 @@ class ParseTreeHighlighter : public Line::OutputReceiverInterface {
 
  private:
   ReceiverTrackingPosition delegate_;
+  const size_t columns_to_skip_;
   const size_t begin_;
   const size_t end_;
 };
 
 class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
  public:
-  explicit ParseTreeHighlighterTokens(
-      Line::OutputReceiverInterface* delegate, const ParseTree* root,
-      size_t line)
-      : delegate_(delegate),
-        modifiers_merger_(&delegate_),
-        root_(root),
-        line_(line),
-        current_({root}) {
+  ParseTreeHighlighterTokens(
+      Line::OutputReceiverInterface* delegate, size_t columns_to_skip,
+      const ParseTree* root, size_t line)
+      : delegate_(delegate), modifiers_merger_(&delegate_), root_(root),
+        columns_to_skip_(columns_to_skip), line_(line), current_({root}) {
     UpdateCurrent(LineColumn(line_, delegate_.position()));
   }
 
   void AddCharacter(wchar_t c) override {
     LineColumn position(line_, delegate_.position());
+    if (position.column < columns_to_skip_) {
+      delegate_.AddCharacter(c);
+      return;
+    }
+    position.column -= columns_to_skip_;
     if (!current_.empty() && current_.back()->range.end <= position) {
       UpdateCurrent(position);
     }
@@ -669,6 +680,7 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
   // information when we reset our own.
   ModifiersMerger modifiers_merger_;
   const ParseTree* root_;
+  const size_t columns_to_skip_;
   const size_t line_;
   std::vector<const ParseTree*> current_;
 };
@@ -703,6 +715,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   line_output_options.buffer = buffer.get();
   line_output_options.lines_to_show = lines_to_show;
   line_output_options.width = screen->columns();
+  line_output_options.paste_mode =
+      buffer->read_bool_variable(OpenBuffer::variable_paste_mode());
   auto simplified_parse_tree = buffer->simplified_parse_tree();
   if (simplified_parse_tree != nullptr) {
     line_output_options.full_file_parse_tree =
@@ -732,6 +746,11 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
 
     lines_shown++;
     auto line = buffer->LineAt(current_line);
+
+    size_t columns_to_skip =
+        line_output_options.paste_mode
+            ? 0
+            : 1 + std::to_wstring(buffer->lines_size()).size();
     CHECK(line->contents() != nullptr);
     if (current_line == buffer->position().line
         && buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())) {
@@ -758,6 +777,14 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       }
       options.multiple_cursors =
           buffer->read_bool_variable(buffer->variable_multiple_cursors());
+
+      LOG(INFO) << "Applying columns_to_skip: " << columns_to_skip;
+      std::set<size_t> adjusted_columns;
+      for (const auto& column : options.columns) {
+        adjusted_columns.insert(column + columns_to_skip);
+      }
+      options.columns = std::move(adjusted_columns);
+
       cursors_highlighter = std::make_unique<CursorsHighlighter>(options);
       receiver = cursors_highlighter.get();
     }
@@ -772,12 +799,12 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       size_t end = current_line == current_tree->range.end.line
                        ? current_tree->range.end.column
                        : line->size();
-      parse_tree_highlighter =
-          std::make_unique<ParseTreeHighlighter>(receiver, begin, end);
+      parse_tree_highlighter = std::make_unique<ParseTreeHighlighter>(
+          receiver, columns_to_skip, begin, end);
       receiver = parse_tree_highlighter.get();
     } else if (!buffer->parse_tree()->children.empty()) {
       parse_tree_highlighter = std::make_unique<ParseTreeHighlighterTokens>(
-          receiver, root.get(), current_line);
+          receiver, columns_to_skip, root.get(), current_line);
       receiver = parse_tree_highlighter.get();
     }
 
@@ -819,7 +846,11 @@ void Terminal::AdjustPosition(
       pos_y++;
     }
   }
-  screen->Move(pos_y, pos_x);
+  size_t columns_to_skip =
+      buffer->read_bool_variable(OpenBuffer::variable_paste_mode())
+          ? 0
+          : 1 + std::to_wstring(buffer->lines_size()).size();
+  screen->Move(pos_y, pos_x + columns_to_skip);
 }
 
 }  // namespace afc

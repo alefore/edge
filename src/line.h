@@ -130,6 +130,7 @@ class Line {
     size_t line;
     size_t lines_to_show;
     size_t width;
+    bool paste_mode;
     ParseTree full_file_parse_tree;
     OutputReceiverInterface* output_receiver = nullptr;
     std::unordered_set<const OpenBuffer*>* output_buffers_shown;

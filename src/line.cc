@@ -231,6 +231,30 @@ void Line::Output(const Line::OutputOptions& options) const {
   size_t input_column = options.buffer->Read(
       options.buffer->variable_view_start_column());
   unordered_set<LineModifier, hash<int>> current_modifiers;
+
+  CHECK(environment_ != nullptr);
+  auto target_buffer_value = environment_->Lookup(L"buffer");
+  const auto target_buffer =
+      (target_buffer_value != nullptr
+       && target_buffer_value->type.type == VMType::OBJECT_TYPE
+       && target_buffer_value->type.object_type == L"Buffer"
+       && target_buffer_value->user_value != nullptr)
+          ? static_cast<OpenBuffer*>(target_buffer_value->user_value.get())
+          : options.buffer;
+  const auto view_start_line =
+      options.buffer->Read(OpenBuffer::variable_view_start_line());
+  const size_t initial_column =
+      std::to_wstring(target_buffer->lines_size()).size() + 1;
+  if (!target_buffer->read_bool_variable(OpenBuffer::variable_paste_mode())) {
+    auto number = std::to_wstring(options.line + 1);
+    CHECK_LE(number.size() + 1, initial_column);
+    options.output_receiver->AddModifier(LineModifier::DIM);
+    options.output_receiver->AddString(
+        wstring(initial_column - number.size() - 1, L' ') + number + L':');
+    options.output_receiver->AddModifier(LineModifier::RESET);
+    output_column += initial_column;
+  }
+
   while (input_column < contents_->size() && output_column < options.width) {
     wint_t c = contents_->get(input_column);
     CHECK(c != '\n');
@@ -271,15 +295,6 @@ void Line::Output(const Line::OutputOptions& options) const {
     input_column++;
   }
 
-  CHECK(environment_ != nullptr);
-  auto target_buffer_value = environment_->Lookup(L"buffer");
-  const auto target_buffer =
-      (target_buffer_value != nullptr
-       && target_buffer_value->type.type == VMType::OBJECT_TYPE
-       && target_buffer_value->type.object_type == L"Buffer"
-       && target_buffer_value->user_value != nullptr)
-          ? static_cast<OpenBuffer*>(target_buffer_value->user_value.get())
-          : options.buffer;
   size_t line_width = target_buffer->Read(OpenBuffer::variable_line_width());
 
   auto view_start = static_cast<size_t>(
@@ -288,17 +303,16 @@ void Line::Output(const Line::OutputOptions& options) const {
        || target_buffer != options.buffer)
       && line_width != 0
       && view_start < line_width
-      && output_column <= line_width - view_start
-      && line_width - view_start < options.width) {
-    size_t padding = line_width - view_start - output_column;
-    options.output_receiver->AddString(wstring(padding, L' '));
-    output_column += padding;
-    CHECK_LE(output_column, options.width);
+      && line_width + initial_column - view_start < options.width) {
+    if (line_width + initial_column > view_start + output_column) {
+      size_t padding = line_width + initial_column - view_start - output_column;
+      options.output_receiver->AddString(wstring(padding, L' '));
+      output_column += padding;
+      CHECK_LE(output_column, options.width);
+    }
 
     auto all_marks = options.buffer->GetLineMarks(*options.editor_state);
     auto marks = all_marks->equal_range(options.line);
-    const auto view_start_line =
-        options.buffer->Read(OpenBuffer::variable_view_start_line());
 
     wchar_t info_char = L'•';
     wstring additional_information;
@@ -338,9 +352,9 @@ void Line::Output(const Line::OutputOptions& options) const {
     } else {
       options.output_receiver->AddModifier(LineModifier::DIM);
     }
-    if (output_column < options.width) {
+    if (output_column <= line_width + initial_column) {
       options.output_receiver->AddCharacter(info_char);
-      output_column ++;
+      output_column++;
     }
     options.output_receiver->AddModifier(LineModifier::RESET);
 
@@ -363,8 +377,14 @@ void Line::Output(const Line::OutputOptions& options) const {
       }
     }
 
+    if (output_column > line_width + initial_column) {
+      additional_information = additional_information.substr(
+          min(additional_information.size(),
+              output_column - line_width - initial_column));
+    }
     additional_information = additional_information.substr(
-        0, min(additional_information.size(), options.width - output_column));
+        0, min(additional_information.size(),
+               options.width + initial_column - output_column));
     options.output_receiver->AddString(additional_information);
     output_column += additional_information.size();
   }
