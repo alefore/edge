@@ -29,6 +29,10 @@ Change the tree generation: just display the structure of the entire file, fit i
 
 Correctly handle: '\000'
 
+Support more languages:
+  - Markdown
+  - Python
+
 Adjust the syntax parsing to not have to re-parse if it lands on a line in the same state as previously parsed.
   This would drastically reduce the number of times that large buffers need to be reparsed.
   Each line remembers: had I already been parsed starting at state X? If so, results are Y and, afterwards, state is Z.
