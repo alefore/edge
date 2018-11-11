@@ -43,14 +43,15 @@ class CommandFromFunction : public Command {
 
 struct EditorState;
 MapModeCommands::MapModeCommands()
-    : commands_({std::make_shared<map<wstring, Command*>>()}) {
-  Add(L"?", NewHelpCommand(this, L"command mode").release());
+    : commands_({std::make_shared<map<wstring, std::unique_ptr<Command>>>()}) {
+  Add(L"?", NewHelpCommand(this, L"command mode"));
 }
 
 std::unique_ptr<MapModeCommands> MapModeCommands::NewChild() {
   std::unique_ptr<MapModeCommands> output(new MapModeCommands());
   output->commands_ = commands_;
-  output->commands_.push_front(std::make_shared<map<wstring, Command*>>());
+  output->commands_.push_front(
+      std::make_shared<map<wstring, std::unique_ptr<Command>>>());
   return std::move(output);
 }
 
@@ -59,16 +60,16 @@ std::map<wstring, Command*> MapModeCommands::Coallesce() const {
   for (const auto& node : commands_) {
     for (const auto& it : *node) {
       if (output.count(it.first) == 0) {
-        output.insert({it.first, it.second});
+        output.insert({it.first, it.second.get()});
       }
     }
   }
   return output;
 }
 
-void MapModeCommands::Add(wstring name, Command* value) {
+void MapModeCommands::Add(wstring name, std::unique_ptr<Command> value) {
   CHECK(value != nullptr);
-  commands_.front()->insert({name, value});
+  commands_.front()->insert({name, std::move(value)});
 }
 
 void MapModeCommands::Add(wstring name, std::unique_ptr<Value> value) {
@@ -77,27 +78,25 @@ void MapModeCommands::Add(wstring name, std::unique_ptr<Value> value) {
   CHECK(value->type.type_arguments == std::vector<VMType>({ VMType::Void() }));
   std::shared_ptr<vm::Expression> expression = NewFunctionCall(
       NewConstantExpression(std::move(value)), {});
-  // TODO: Don't leak it!
   Add(name,
-      new CommandFromFunction(
+      std::unique_ptr<Command>(new CommandFromFunction(
           [expression]() {
             LOG(INFO) << "Evaluating expression...";
             Evaluate(expression.get(),
                      nullptr,
                      [](Value::Ptr) { LOG(INFO) << "Done evaluating."; });
           },
-          L"C++ VM function"));
+          L"C++ VM function")));
 }
 
 void MapModeCommands::Add(wstring name, std::function<void()> callback,
                           wstring description) {
-  // TODO: Don't leak it!
-  Add(name, new CommandFromFunction(std::move(callback), description));
+  Add(name, std::unique_ptr<Command>(
+                new CommandFromFunction(std::move(callback), description)));
 }
 
 MapMode::MapMode(std::shared_ptr<MapModeCommands> commands)
     : commands_(std::move(commands)) {}
-
 
 void MapMode::ProcessInput(wint_t c, EditorState* editor_state) {
   current_input_.push_back(c);

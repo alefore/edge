@@ -27,13 +27,14 @@ class MapModeCommands {
   std::map<wstring, Command*> Coallesce() const;
 
   // Adds an entry mapping a given string to a given command.
-  void Add(wstring name, Command* value);
+  void Add(wstring name, std::unique_ptr<Command> value);
   void Add(wstring name, std::unique_ptr<vm::Value> value);
   void Add(wstring name, std::function<void()> value, wstring description);
 
  private:
   friend class MapMode;
-  std::list<std::shared_ptr<std::map<std::wstring, Command*>>> commands_;
+  std::list<std::shared_ptr<std::map<std::wstring, std::unique_ptr<Command>>>>
+      commands_;
 };
 
 class MapMode : public EditorMode {
