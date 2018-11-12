@@ -4,6 +4,8 @@
 #include <limits>
 #include <string>
 
+#include <glog/logging.h>
+
 #include "buffer.h"
 #include "char_buffer.h"
 #include "command.h"
@@ -49,8 +51,8 @@ GetHistoryBuffer(EditorState* editor_state, const wstring& name) {
       (*editor_state->edge_path().begin()) + L"/" + name + L"_history";
   options.make_current_buffer = false;
   it = OpenFile(options);
-  assert(it != editor_state->buffers()->end());
-  assert(it->second != nullptr);
+  CHECK(it != editor_state->buffers()->end());
+  CHECK(it->second != nullptr);
   it->second->set_bool_variable(
       OpenBuffer::variable_save_on_close(), true);
   it->second->set_bool_variable(
@@ -297,10 +299,10 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
   insert_mode_options.modify_listener();
 }
 
-unique_ptr<Command> NewLinePromptCommand(
+std::unique_ptr<Command> NewLinePromptCommand(
     wstring description, std::function<PromptOptions(EditorState*)> options) {
-  return std::move(unique_ptr<Command>(new LinePromptCommand(
-      std::move(description), std::move(options))));
+  return std::make_unique<LinePromptCommand>(std::move(description),
+                                             std::move(options));
 }
 
 }  // namespace afc

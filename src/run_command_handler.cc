@@ -14,6 +14,8 @@ extern "C" {
 #include <fcntl.h>
 }
 
+#include <glog/logging.h>
+
 #include "char_buffer.h"
 #include "command_mode.h"
 #include "editor.h"
@@ -177,7 +179,7 @@ class CommandBuffer : public OpenBuffer {
       size_t position = 0;
       for (const auto& it : environment) {
         string str = it.first + "=" + it.second;
-        assert(position < environment.size());
+        CHECK_LT(position, environment.size());
         envp[position++] = strdup(str.c_str());
       }
       envp[position++] = nullptr;
@@ -333,8 +335,8 @@ void ForkCommand(EditorState* editor_state, const ForkCommandOptions& options) {
       : options.buffer_name;
   auto it = editor_state->buffers()->insert(make_pair(buffer_name, nullptr));
   if (it.second) {
-    it.first->second.reset(new CommandBuffer(
-        editor_state, buffer_name, options.command, options.environment));
+    it.first->second = std::make_shared<CommandBuffer>(
+        editor_state, buffer_name, options.command, options.environment);
     it.first->second->set_string_variable(
         OpenBuffer::variable_command(), options.command);
     it.first->second->set_string_variable(OpenBuffer::variable_path(), L"");
@@ -349,8 +351,8 @@ void ForkCommand(EditorState* editor_state, const ForkCommandOptions& options) {
   it.first->second->set_current_position_line(0);
 }
 
-unique_ptr<Command> NewForkCommand() {
-  return unique_ptr<Command>(new ForkEditorCommand());
+std::unique_ptr<Command> NewForkCommand() {
+  return std::make_unique<ForkEditorCommand>();
 }
 
 void RunCommandHandler(const wstring& input, EditorState* editor_state) {

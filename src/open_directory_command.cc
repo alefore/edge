@@ -35,7 +35,7 @@ class OpenDirectoryCommand : public Command {
 }  // namespace
 
 std::unique_ptr<Command> NewOpenDirectoryCommand() {
-  return std::unique_ptr<Command>(new OpenDirectoryCommand());
+  return std::make_unique<OpenDirectoryCommand>();
 }
 
 }  // namespace afc

@@ -8,7 +8,6 @@ namespace afc {
 namespace editor {
 
 namespace {
-
 class CloseBufferCommand : public Command {
   const wstring Description() {
     return L"closes the current buffer";
@@ -22,11 +21,10 @@ class CloseBufferCommand : public Command {
     editor_state->ResetModifiers();
   }
 };
-
 }  // namespace
 
 std::unique_ptr<Command> NewCloseBufferCommand() {
-  return unique_ptr<Command>(new CloseBufferCommand());
+  return std::make_unique<CloseBufferCommand>();
 }
 
 }  // namespace afc

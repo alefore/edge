@@ -1,6 +1,5 @@
 #include "binary_operator.h"
 
-#include "../internal/evaluation.h"
 #include "../public/value.h"
 
 namespace afc {
@@ -13,25 +12,31 @@ BinaryOperator::BinaryOperator(
 
 const VMType& BinaryOperator::type() { return type_; }
 
-void BinaryOperator::Evaluate(OngoingEvaluation* evaluation) {
-  auto advancer = evaluation->advancer;
+void BinaryOperator::Evaluate(Trampoline* trampoline) {
+  // TODO: Bunch of things here can be turned to unique_ptr.
+  auto type_copy = type_;
+  auto operator_copy = operator_;
+  std::shared_ptr<Expression> b_shared = b_;
 
-  evaluation->advancer =
-      [this, advancer](OngoingEvaluation* evaluation_after_a) {
-        // TODO: Remove shared_ptr when we can correctly capture a unique_ptr.
-        shared_ptr<Value> a_value_shared(evaluation_after_a->value.release());
-        evaluation_after_a->advancer =
-            [this, a_value_shared, advancer]
-            (OngoingEvaluation* evaluation_after_b) {
-              unique_ptr<Value> output(new Value(type_));
-              operator_(*a_value_shared, *evaluation_after_b->value, output.get());
-              evaluation_after_b->value = std::move(output);
-              evaluation_after_b->advancer = advancer;
-            };
-        b_->Evaluate(evaluation_after_a);
-      };
-  a_->Evaluate(evaluation);
+  trampoline->Bounce(a_.get(),
+      [b_shared, type_copy, operator_copy](
+          std::unique_ptr<Value> a_value, Trampoline* trampoline) {
+        std::shared_ptr<Value> a_value_shared(std::move(a_value));
+        trampoline->Bounce(b_shared.get(),
+            [a_value_shared, type_copy, operator_copy](
+                std::unique_ptr<Value> b_value, Trampoline* trampoline) {
+              auto output = std::make_unique<Value>(type_copy);
+              operator_copy(*a_value_shared, *b_value, output.get());
+              trampoline->Continue(std::move(output));
+            });
+      });
 }
+
+std::unique_ptr<Expression> BinaryOperator::Clone() {
+  return std::make_unique<BinaryOperator>(
+      a_->Clone(), b_->Clone(), type_, operator_);
+}
+
 
 }  // namespace vm
 }  // namespace afc

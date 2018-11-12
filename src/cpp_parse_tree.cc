@@ -516,7 +516,7 @@ class CppTreeParser : public TreeParser {
 
 std::unique_ptr<TreeParser> NewCppTreeParser(
     std::unordered_set<wstring> keywords) {
-  return std::unique_ptr<TreeParser>(new CppTreeParser(std::move(keywords)));
+  return std::make_unique<CppTreeParser>(std::move(keywords));
 }
 
 }  // namespace editor

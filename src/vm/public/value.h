@@ -17,10 +17,15 @@ using std::shared_ptr;
 using std::string;
 using std::vector;
 
+class Trampoline;
+
 struct Value {
+  using Ptr = std::unique_ptr<Value>;
+
   Value(const VMType::Type& t) : type(t) {}
   Value(const VMType& t) : type(t) {}
 
+  using Callback = std::function<void(std::vector<Ptr>, Trampoline*)>;
   static unique_ptr<Value> NewVoid();
   static unique_ptr<Value> NewBool(bool value);
   static unique_ptr<Value> NewInteger(int value);
@@ -28,17 +33,19 @@ struct Value {
   static unique_ptr<Value> NewString(wstring value);
   static unique_ptr<Value> NewObject(const wstring& name,
                                      const shared_ptr<void>& value);
+  static unique_ptr<Value> NewFunction(std::vector<VMType> arguments,
+                                       Callback callback);
+  // Convenience wrapper.
   static unique_ptr<Value> NewFunction(
       std::vector<VMType> arguments,
-      std::function<std::unique_ptr<Value>(std::vector<std::unique_ptr<Value>>)>
-          callback);
+      std::function<Ptr(std::vector<Ptr>)> callback);
   VMType type;
 
   bool boolean;
   int integer;
   double double_value;
   wstring str;
-  function<unique_ptr<Value>(vector<unique_ptr<Value>>)> callback;
+  Callback callback;
   shared_ptr<void> user_value;
 };
 

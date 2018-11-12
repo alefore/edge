@@ -1,7 +1,6 @@
 #ifndef __AFC_EDITOR_BUFFER_H__
 #define __AFC_EDITOR_BUFFER_H__
 
-#include <cassert>
 #include <condition_variable>
 #include <iterator>
 #include <map>
@@ -9,6 +8,8 @@
 #include <mutex>
 #include <thread>
 #include <vector>
+
+#include <glog/logging.h>
 
 #include "buffer_contents.h"
 #include "cursors.h"
@@ -133,12 +134,12 @@ class OpenBuffer {
   unique_ptr<Expression> CompileString(EditorState* editor_state,
                                        const wstring& str,
                                        wstring* error_description);
-  unique_ptr<Value> EvaluateExpression(EditorState* editor_state,
-                                       Expression* expr);
-  unique_ptr<Value> EvaluateString(EditorState* editor_state,
-                                   const wstring& str);
-  unique_ptr<Value> EvaluateFile(EditorState* editor_state,
-                                 const wstring& path);
+  void EvaluateExpression(
+      EditorState* editor_state, Expression* expr,
+      std::function<void(std::unique_ptr<Value>)> consumer);
+  bool EvaluateString(EditorState* editor_state, const wstring& str,
+      std::function<void(std::unique_ptr<Value>)> consumer);
+  bool EvaluateFile(EditorState* editor_state, const wstring& path);
 
   const wstring& name() const { return name_; }
 
@@ -290,11 +291,11 @@ class OpenBuffer {
     return position.column >= LineAt(position.line)->size();
   }
   char current_character() const {
-    assert(current_position_col() < current_line()->size());
+    CHECK_LT(current_position_col(), current_line()->size());
     return current_line()->get(current_position_col());
   }
   char previous_character() const {
-    assert(current_position_col() > 0);
+    CHECK_GT(current_position_col(), 0u);
     return current_line()->get(current_position_col() - 1);
   }
 
@@ -481,7 +482,7 @@ class OpenBuffer {
     // We read directly into low_buffer_ and then drain from that into
     // contents_. It's possible that not all bytes read can be converted (for
     // example, if the reading stops in the middle of a wide character).
-    std::unique_ptr<char> low_buffer;
+    std::unique_ptr<char[]> low_buffer;
     size_t low_buffer_length = 0;
 
     LineModifierSet modifiers;
@@ -534,6 +535,9 @@ class OpenBuffer {
   size_t filter_version_;
 
  private:
+  static void EvaluateMap(EditorState* editor, OpenBuffer* buffer, size_t line,
+      Value::Callback map_callback, TransformationStack* transformation,
+      Trampoline* trampoline);
   LineColumn Apply(EditorState* editor_state,
                    unique_ptr<Transformation> transformation);
   void BackgroundThread();
@@ -570,7 +574,7 @@ class OpenBuffer {
 
   // If variable_atomic_lines is true, this will be set to the last line that
   // was highlighted.
-  size_t last_highlighted_line_;
+  size_t last_highlighted_line_ = 0;
 
   // Index of the marks for the current buffer (i.e. Mark::target_buffer is the
   // current buffer). The key is the line (i.e. Mark::line).

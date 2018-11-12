@@ -5,20 +5,26 @@
 
 #include "command.h"
 #include "help_command.h"
+#include "vm/public/constant_expression.h"
 #include "vm/public/types.h"
 #include "vm/public/value.h"
+#include "vm/public/function_call.h"
+#include "vm/public/vm.h"
 
 namespace afc {
 namespace editor {
 
 using vm::VMType;
 using vm::Value;
+using vm::Expression;
 
 namespace {
 class CommandFromFunction : public Command {
  public:
   CommandFromFunction(std::function<void()> callback, wstring description)
-      : callback_(std::move(callback)), description_(std::move(description)) {}
+      : callback_(std::move(callback)), description_(std::move(description)) {
+    CHECK(callback_ != nullptr);
+  }
 
   const std::wstring Description() override {
     return description_;
@@ -37,14 +43,15 @@ class CommandFromFunction : public Command {
 
 struct EditorState;
 MapModeCommands::MapModeCommands()
-    : commands_({std::make_shared<map<wstring, Command*>>()}) {
-  Add(L"?", NewHelpCommand(this, L"command mode").release());
+    : commands_({std::make_shared<map<wstring, std::unique_ptr<Command>>>()}) {
+  Add(L"?", NewHelpCommand(this, L"command mode"));
 }
 
 std::unique_ptr<MapModeCommands> MapModeCommands::NewChild() {
-  std::unique_ptr<MapModeCommands> output(new MapModeCommands());
+  auto output = std::make_unique<MapModeCommands>();
   output->commands_ = commands_;
-  output->commands_.push_front(std::make_shared<map<wstring, Command*>>());
+  output->commands_.push_front(
+      std::make_shared<map<wstring, std::unique_ptr<Command>>>());
   return std::move(output);
 }
 
@@ -53,37 +60,43 @@ std::map<wstring, Command*> MapModeCommands::Coallesce() const {
   for (const auto& node : commands_) {
     for (const auto& it : *node) {
       if (output.count(it.first) == 0) {
-        output.insert({it.first, it.second});
+        output.insert({it.first, it.second.get()});
       }
     }
   }
   return output;
 }
 
-void MapModeCommands::Add(wstring name, Command* value) {
+void MapModeCommands::Add(wstring name, std::unique_ptr<Command> value) {
   CHECK(value != nullptr);
-  commands_.front()->insert({name, value});
+  commands_.front()->insert({name, std::move(value)});
 }
 
 void MapModeCommands::Add(wstring name, std::unique_ptr<Value> value) {
   CHECK(value != nullptr);
   CHECK_EQ(value->type.type, VMType::FUNCTION);
   CHECK(value->type.type_arguments == std::vector<VMType>({ VMType::Void() }));
-  auto callback = std::move(value->callback);
-  // TODO: Don't leak it!
-  Add(name, new CommandFromFunction([callback]() { callback({}); },
-                                    L"C++ VM function"));
+  // TODO: Make a unique_ptr (once capture of unique_ptr is feasible).
+  std::shared_ptr<vm::Expression> expression = NewFunctionCall(
+      NewConstantExpression(std::move(value)), {});
+  Add(name,
+      std::make_unique<CommandFromFunction>(
+          [expression]() {
+            LOG(INFO) << "Evaluating expression...";
+            Evaluate(expression.get(), nullptr,
+                [expression](Value::Ptr) { LOG(INFO) << "Done evaluating."; });
+          },
+          L"C++ VM function"));
 }
 
 void MapModeCommands::Add(wstring name, std::function<void()> callback,
                           wstring description) {
-  // TODO: Don't leak it!
-  Add(name, new CommandFromFunction(std::move(callback), description));
+  Add(name, std::make_unique<CommandFromFunction>(std::move(callback),
+                                                  std::move(description)));
 }
 
 MapMode::MapMode(std::shared_ptr<MapModeCommands> commands)
     : commands_(std::move(commands)) {}
-
 
 void MapMode::ProcessInput(wint_t c, EditorState* editor_state) {
   current_input_.push_back(c);

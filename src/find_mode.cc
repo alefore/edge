@@ -33,8 +33,7 @@ class FindTransformation : public Transformation {
   }
 
   std::unique_ptr<Transformation> Clone() {
-    return std::unique_ptr<Transformation>(
-        new FindTransformation(c_, modifiers_));
+    return std::make_unique<FindTransformation>(c_, modifiers_);
   }
 
  private:
@@ -75,8 +74,8 @@ class FindMode : public EditorMode {
     editor_state->PushCurrentPosition();
     if (editor_state->has_current_buffer()) {
       auto buffer = editor_state->current_buffer()->second;
-      buffer->ApplyToCursors(std::unique_ptr<Transformation>(
-          new FindTransformation(c, editor_state->modifiers())));
+      buffer->ApplyToCursors(std::make_unique<FindTransformation>(
+          c, editor_state->modifiers()));
       buffer->ResetMode();
     }
     editor_state->ResetRepetitions();
@@ -84,8 +83,8 @@ class FindMode : public EditorMode {
   }
 };
 
-unique_ptr<EditorMode> NewFindMode() {
-  return std::move(unique_ptr<EditorMode>(new FindMode()));
+std::unique_ptr<EditorMode> NewFindMode() {
+  return std::make_unique<FindMode>();
 }
 
 }  // namespace afc

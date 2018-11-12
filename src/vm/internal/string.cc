@@ -1,121 +1,26 @@
 #include "string.h"
 
-#include <cassert>
-
 #include <glog/logging.h>
 
+#include "../public/callbacks.h"
 #include "../public/environment.h"
 #include "../public/types.h"
 #include "../public/value.h"
+#include "../public/vm.h"
 
 namespace afc {
 namespace vm {
 
-template<class T>
-struct VMTypeMapper {};
-
-template<>
-struct VMTypeMapper<bool> {
-  static std::unique_ptr<Value> New(bool value) {
-    return Value::NewBool(value);
-  }
-
-  static const VMType vmtype;
-};
-
-const VMType VMTypeMapper<bool>::vmtype = VMType(VMType::VM_BOOLEAN);
-
-template<>
-struct VMTypeMapper<int> {
-  static int get(Value* value) {
-    return value->integer;
-  }
-
-  static std::unique_ptr<Value> New(int value) {
-    return Value::NewInteger(value);
-  }
-
-  static const VMType vmtype;
-};
-
-const VMType VMTypeMapper<int>::vmtype = VMType(VMType::VM_INTEGER);
-
-template<>
-struct VMTypeMapper<wstring> {
-  static wstring get(Value* value) {
-    return std::move(value->str);
-  }
-
-  static std::unique_ptr<Value> New(wstring value) {
-    return Value::NewString(value);
-  }
-
-  static const VMType vmtype;
-};
-
-const VMType VMTypeMapper<wstring>::vmtype = VMType(VMType::VM_STRING);
-
-template <typename... Args>
-struct AddArgs {
-  // Terminates the recursion.
-  static void Run(std::vector<VMType>*) {}
-};
-
-template <typename Arg0, typename... Args>
-struct AddArgs<Arg0, Args...> {
-  static void Run(std::vector<VMType>* output) {
-    output->push_back(VMTypeMapper<Arg0>::vmtype);
-    AddArgs<Args...>::Run(output);
-  }
-};
-
-template <typename ReturnType>
-std::unique_ptr<Value> RunCallback(
-    std::function<ReturnType(wstring)> callback,
-    const vector<unique_ptr<Value>>& args) {
-  CHECK_EQ(args.size(), 1);
-  return VMTypeMapper<ReturnType>::New(callback(std::move(args[0]->str)));
-}
-
-template <typename ReturnType, typename A0>
-std::unique_ptr<Value> RunCallback(
-    std::function<ReturnType(wstring, A0)> callback,
-    const vector<unique_ptr<Value>>& args) {
-  CHECK_EQ(args.size(), 2);
-  return VMTypeMapper<ReturnType>::New(callback(
-      std::move(args[0]->str),
-      VMTypeMapper<A0>::get(args[1].get())));
-}
-
-template <typename ReturnType, typename A0, typename A1>
-std::unique_ptr<Value> RunCallback(
-    std::function<ReturnType(wstring, A0, A1)> callback,
-    const vector<unique_ptr<Value>>& args) {
-  CHECK_EQ(args.size(), 3);
-  return VMTypeMapper<ReturnType>::New(callback(
-      std::move(args[0]->str),
-      VMTypeMapper<A0>::get(args[1].get()),
-      VMTypeMapper<A1>::get(args[2].get())));
-}
 
 template <typename ReturnType, typename ...Args>
 void AddMethod(const wstring& name,
                std::function<ReturnType(wstring, Args...)> callback,
                ObjectType* string_type) {
-  unique_ptr<Value> callback_wrapper(new Value(VMType::FUNCTION));
-  callback_wrapper->type.type_arguments.push_back(
-      VMTypeMapper<ReturnType>().vmtype);
-  callback_wrapper->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-  AddArgs<Args...>::Run(&callback_wrapper->type.type_arguments);
-  callback_wrapper->callback = [callback](vector<unique_ptr<Value>> args) {
-    CHECK_EQ(args[0]->type, VMType::VM_STRING);
-    return RunCallback<ReturnType, Args...>(callback, args);
-  };
-  string_type->AddField(name, std::move(callback_wrapper));
+  string_type->AddField(name, NewCallback(callback));
 }
 
 void RegisterStringType(Environment* environment) {
-  unique_ptr<ObjectType> string_type(new ObjectType(VMType::String()));
+  auto string_type = std::make_unique<ObjectType>(VMType::String());
   AddMethod<int>(L"size",
                  std::function<int(wstring)>(
                      [](wstring str) { return str.size(); }),
@@ -217,17 +122,13 @@ void RegisterStringType(Environment* environment) {
       string_type.get());
   environment->DefineType(L"string", std::move(string_type));
 
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->callback = [](vector<unique_ptr<Value>> args) {
-      CHECK_EQ(args.size(), 1);
-      CHECK_EQ(args[0]->type.type, VMType::VM_INTEGER);
-      return Value::NewString(std::to_wstring(args[0]->integer));
-    };
-    environment->Define(L"tostring", std::move(callback));
-  }
+  environment->Define(L"tostring", Value::NewFunction(
+      {VMType::String(), VMType::Integer()},
+      [](vector<unique_ptr<Value>> args) {
+        CHECK_EQ(args.size(), 1);
+        CHECK_EQ(args[0]->type.type, VMType::VM_INTEGER);
+        return Value::NewString(std::to_wstring(args[0]->integer));
+      }));
 }
 
 }  // namespace vm

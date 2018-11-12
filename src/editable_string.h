@@ -11,7 +11,14 @@ namespace editor {
 using std::shared_ptr;
 
 class EditableString : public LazyString {
+ private:
+  struct ConstructorAccessTag {};
+
  public:
+  EditableString(ConstructorAccessTag tag,
+                 const shared_ptr<LazyString>& base, size_t position,
+                 const wstring& editable_part);
+
   static shared_ptr<EditableString> New(const wstring& editable_part);
 
   static shared_ptr<EditableString> New(
@@ -32,9 +39,6 @@ class EditableString : public LazyString {
   bool Backspace();
 
  private:
-  EditableString(const shared_ptr<LazyString>& base, size_t position,
-                 const wstring& editable_part);
-
   shared_ptr<LazyString> base_;
   size_t position_;
   wstring editable_part_;

@@ -788,10 +788,10 @@ class SwitchCaseTransformation : public Transformation {
       return;
     }
     CHECK_LE(start, end);
-    unique_ptr<TransformationStack> stack(new TransformationStack());
+    auto stack = std::make_unique<TransformationStack>();
     stack->PushBack(NewGotoPositionTransformation(start));
-    shared_ptr<OpenBuffer> buffer_to_insert(
-        new OpenBuffer(editor_state, L"- text inserted"));
+    auto buffer_to_insert =
+        std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
     VLOG(5) << "Switch Case Transformation at " << result->cursor << ": "
             << editor_state->modifiers() << ": Range [" << start << ", "
             << end << ")";
@@ -835,8 +835,7 @@ class SwitchCaseTransformation : public Transformation {
   }
 
   unique_ptr<Transformation> Clone() {
-    return unique_ptr<Transformation>(
-        new SwitchCaseTransformation(apply_mode_, modifiers_));
+    return std::make_unique<SwitchCaseTransformation>(apply_mode_, modifiers_);
   }
 
  private:
@@ -850,8 +849,7 @@ void ApplySwitchCaseCommand(EditorState* editor_state, OpenBuffer* buffer,
   CHECK(buffer != nullptr);
   buffer->PushTransformationStack();
   buffer->ApplyToCursors(
-      std::unique_ptr<SwitchCaseTransformation>(
-          new SwitchCaseTransformation(apply_mode, modifiers)),
+      std::make_unique<SwitchCaseTransformation>(apply_mode, modifiers),
       modifiers.cursors_affected);
   buffer->PopTransformationStack();
 }
@@ -873,8 +871,7 @@ void ToggleBoolVariable(
       + L"SetStatus(\"" + variable_name + L" := \" + (tmp_buffer."
       + variable_name + L"() ? \"ON\" : \"OFF\"));";
   LOG(INFO) << "Command: " << command;
-  map_mode->Add(binding,
-      NewCppCommand(editor_state->environment(), command).release());
+  map_mode->Add(binding, NewCppCommand(editor_state->environment(), command));
 }
 
 void ToggleIntVariable(
@@ -889,8 +886,7 @@ void ToggleIntVariable(
       + L"SetStatus(\"" + variable_name + L" := \" + tostring(tmp_buffer."
       + variable_name + L"()));";
   LOG(INFO) << "Command: " << command;
-  map_mode->Add(binding,
-      NewCppCommand(editor_state->environment(), command).release());
+  map_mode->Add(binding, NewCppCommand(editor_state->environment(), command));
 }
 }  // namespace
 
@@ -899,24 +895,24 @@ using std::unique_ptr;
 
 std::unique_ptr<MapModeCommands> NewCommandMode(
     EditorState* editor_state) {
-  std::unique_ptr<MapModeCommands> commands(new MapModeCommands());
-  commands->Add(L"aq", NewQuitCommand().release());
-  commands->Add(L"ad", NewCloseBufferCommand().release());
+  auto commands = std::make_unique<MapModeCommands>();
+  commands->Add(L"aq", NewQuitCommand());
+  commands->Add(L"ad", NewCloseBufferCommand());
   commands->Add(L"aw",
       NewCppCommand(editor_state->environment(),
           L"// Save the current buffer.\n"
-          L"editor.SaveCurrentBuffer();").release());
-  commands->Add(L"av", NewSetVariableCommand().release());
-  commands->Add(L"ac", NewRunCppFileCommand().release());
-  commands->Add(L"aC", NewRunCppCommand().release());
-  commands->Add(L"a.", NewOpenDirectoryCommand().release());
-  commands->Add(L"al", NewListBuffersCommand().release());
+          L"editor.SaveCurrentBuffer();"));
+  commands->Add(L"av", NewSetVariableCommand());
+  commands->Add(L"ac", NewRunCppFileCommand());
+  commands->Add(L"aC", NewRunCppCommand());
+  commands->Add(L"a.", NewOpenDirectoryCommand());
+  commands->Add(L"al", NewListBuffersCommand());
   commands->Add(L"ar",
       NewCppCommand(editor_state->environment(),
           L"// Reload the current buffer.\n"
-          L"editor.ReloadCurrentBuffer();").release());
-  commands->Add(L"ae", NewSendEndOfFileCommand().release());
-  commands->Add(L"ao", NewOpenFileCommand().release());
+          L"editor.ReloadCurrentBuffer();"));
+  commands->Add(L"ae", NewSendEndOfFileCommand());
+  commands->Add(L"ao", NewOpenFileCommand());
   {
     PromptOptions options;
     options.prompt = L"...$ ";
@@ -925,99 +921,96 @@ std::unique_ptr<MapModeCommands> NewCommandMode(
     commands->Add(L"aF",
         NewLinePromptCommand(
             L"forks a command for each line in the current buffer",
-            [options](EditorState*) { return options; }).release());
+            [options](EditorState*) { return options; }));
   }
-  commands->Add(L"af", NewForkCommand().release());
+  commands->Add(L"af", NewForkCommand());
 
   commands->Add(L"+",
       NewCppCommand(editor_state->environment(),
           L"// Create a new cursor at the current position.\n"
-          L"editor.CreateCursor();").release());
+          L"editor.CreateCursor();"));
   commands->Add(L"-",
       NewCppCommand(editor_state->environment(),
           L"// Destroy current cursor(s) and jump to next.\n"
-          L"editor.DestroyCursor();").release());
+          L"editor.DestroyCursor();"));
   commands->Add(L"=",
       NewCppCommand(editor_state->environment(),
           L"// Destroy cursors other than the current one.\n"
-          L"editor.DestroyOtherCursors();").release());
+          L"editor.DestroyOtherCursors();"));
   commands->Add(L"_",
       NewCppCommand(editor_state->environment(),
           L"// Toggles whether operations apply to all cursors.\n"
           L"CurrentBuffer().set_multiple_cursors(\n"
-          L"    !CurrentBuffer().multiple_cursors());").release());
+          L"    !CurrentBuffer().multiple_cursors());"));
   commands->Add(L"Ct",
       NewCppCommand(editor_state->environment(),
           L"// Toggles the active cursors with the previous set.\n"
-          L"editor.ToggleActiveCursors();").release());
+          L"editor.ToggleActiveCursors();"));
   commands->Add(L"C+",
       NewCppCommand(editor_state->environment(),
           L"// Pushes the active cursors to the stack.\n"
-          L"editor.PushActiveCursors();").release());
+          L"editor.PushActiveCursors();"));
   commands->Add(L"C-",
       NewCppCommand(editor_state->environment(),
           L"// Pops active cursors from the stack.\n"
-          L"editor.PopActiveCursors();").release());
+          L"editor.PopActiveCursors();"));
   commands->Add(L"C!",
       NewCppCommand(editor_state->environment(),
           L"// Set active cursors to the marks on this buffer.\n"
-          L"editor.SetActiveCursorsToMarks();").release());
+          L"editor.SetActiveCursorsToMarks();"));
 
-  commands->Add(L"i", new EnterInsertModeCommand());
-  commands->Add(L"f", new EnterFindMode());
-  commands->Add(L"r", new ReverseDirectionCommand());
-  commands->Add(L"R", new InsertionModifierCommand());
+  commands->Add(L"i", std::make_unique<EnterInsertModeCommand>());
+  commands->Add(L"f", std::make_unique<EnterFindMode>());
+  commands->Add(L"r", std::make_unique<ReverseDirectionCommand>());
+  commands->Add(L"R", std::make_unique<InsertionModifierCommand>());
 
-  commands->Add(L"/", NewSearchCommand().release());
-  commands->Add(L"g", NewGotoCommand().release());
+  commands->Add(L"/", NewSearchCommand());
+  commands->Add(L"g", NewGotoCommand());
 
-  commands->Add(L"w", new SetStructureCommand(WORD, L"word"));
-  commands->Add(L"e", new SetStructureCommand(LINE, L"line"));
-  commands->Add(L"E", new SetStructureCommand(PAGE, L"page"));
-  commands->Add(L"F", new SetStructureCommand(SEARCH, L"search"));
-  commands->Add(L"c", new SetStructureCommand(CURSOR, L"cursor"));
-  commands->Add(L"B", new SetStructureCommand(BUFFER, L"buffer"));
-  commands->Add(L"!", new SetStructureCommand(MARK, L"mark"));
-  commands->Add(L"t", new SetStructureCommand(TREE, L"tree"));
+  commands->Add(L"w", std::make_unique<SetStructureCommand>(WORD, L"word"));
+  commands->Add(L"e", std::make_unique<SetStructureCommand>(LINE, L"line"));
+  commands->Add(L"E", std::make_unique<SetStructureCommand>(PAGE, L"page"));
+  commands->Add(L"F", std::make_unique<SetStructureCommand>(SEARCH, L"search"));
+  commands->Add(L"c", std::make_unique<SetStructureCommand>(CURSOR, L"cursor"));
+  commands->Add(L"B", std::make_unique<SetStructureCommand>(BUFFER, L"buffer"));
+  commands->Add(L"!", std::make_unique<SetStructureCommand>(MARK, L"mark"));
+  commands->Add(L"t", std::make_unique<SetStructureCommand>(TREE, L"tree"));
 
-  commands->Add(L"W", new SetStrengthCommand(
+  commands->Add(L"W", std::make_unique<SetStrengthCommand>(
       Modifiers::WEAK, Modifiers::VERY_WEAK, L"weak"));
-  commands->Add(L"S", new SetStrengthCommand(
+  commands->Add(L"S", std::make_unique<SetStrengthCommand>(
       Modifiers::STRONG, Modifiers::VERY_STRONG, L"strong"));
 
-  commands->Add(L"D", new Delete(DeleteOptions()));
+  commands->Add(L"D", std::make_unique<Delete>(DeleteOptions()));
   commands->Add(L"d",
       NewCommandWithModifiers(
-              L"delete", L"starts a new delete command", ApplyDeleteCommand)
-          .release());
-  commands->Add(L"p", new Paste());
+              L"delete", L"starts a new delete command", ApplyDeleteCommand));
+  commands->Add(L"p", std::make_unique<Paste>());
 
   DeleteOptions copy_options;
   copy_options.modifiers.delete_type = Modifiers::PRESERVE_CONTENTS;
-  commands->Add(L"sc", new Delete(copy_options));
-  commands->Add(L"u", new UndoCommand());
-  commands->Add(L"\n", new ActivateLink());
+  commands->Add(L"u", std::make_unique<UndoCommand>());
+  commands->Add(L"\n", std::make_unique<ActivateLink>());
 
-  commands->Add(L"b", new GotoPreviousPositionCommand());
-  commands->Add(L"n", NewNavigateCommand().release());
-  commands->Add(L"j", new LineDown());
-  commands->Add(L"k", new LineUp());
-  commands->Add(L"l", new MoveForwards());
-  commands->Add(L"h", new MoveBackwards());
+  commands->Add(L"b", std::make_unique<GotoPreviousPositionCommand>());
+  commands->Add(L"n", NewNavigateCommand());
+  commands->Add(L"j", std::make_unique<LineDown>());
+  commands->Add(L"k", std::make_unique<LineUp>());
+  commands->Add(L"l", std::make_unique<MoveForwards>());
+  commands->Add(L"h", std::make_unique<MoveBackwards>());
 
   commands->Add(L"~",
       NewCommandWithModifiers(
               L"~~~~", L"Switches the case of the current character.",
-              ApplySwitchCaseCommand)
-          .release());
+              ApplySwitchCaseCommand));
 
-  commands->Add(L"sr", NewRecordCommand().release());
-  commands->Add(L"\t", NewFindCompletionCommand().release());
+  commands->Add(L"sr", NewRecordCommand());
+  commands->Add(L"\t", NewFindCompletionCommand());
 
   commands->Add(L".",
       NewCppCommand(editor_state->environment(),
           L"// Repeats the last command.\n"
-          L"editor.RepeatLastTransformation();").release());
+          L"editor.RepeatLastTransformation();"));
 
   ToggleBoolVariable(editor_state, L"vp", L"paste_mode", commands.get());
   ToggleBoolVariable(editor_state, L"vS", L"scrollbar", commands.get());
@@ -1031,31 +1024,31 @@ std::unique_ptr<MapModeCommands> NewCommandMode(
   ToggleIntVariable(editor_state, L"vc", L"buffer_list_context_lines", 10,
       commands.get());
 
-  commands->Add({Terminal::ESCAPE}, new ResetStateCommand());
+  commands->Add({Terminal::ESCAPE}, std::make_unique<ResetStateCommand>());
 
-  commands->Add(L"[", new SetStructureModifierCommand(
+  commands->Add(L"[", std::make_unique<SetStructureModifierCommand>(
       Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION,
       L"from the beggining to the current position"));
-  commands->Add(L"]", new SetStructureModifierCommand(
+  commands->Add(L"]", std::make_unique<SetStructureModifierCommand>(
       Modifiers::FROM_CURRENT_POSITION_TO_END,
       L"from the current position to the end"));
-  commands->Add({Terminal::CTRL_L}, new HardRedrawCommand());
-  commands->Add(L"0", new NumberMode(SetRepetitions));
-  commands->Add(L"1", new NumberMode(SetRepetitions));
-  commands->Add(L"2", new NumberMode(SetRepetitions));
-  commands->Add(L"3", new NumberMode(SetRepetitions));
-  commands->Add(L"4", new NumberMode(SetRepetitions));
-  commands->Add(L"5", new NumberMode(SetRepetitions));
-  commands->Add(L"6", new NumberMode(SetRepetitions));
-  commands->Add(L"7", new NumberMode(SetRepetitions));
-  commands->Add(L"8", new NumberMode(SetRepetitions));
-  commands->Add(L"9", new NumberMode(SetRepetitions));
-  commands->Add({Terminal::DOWN_ARROW}, new LineDown());
-  commands->Add({Terminal::UP_ARROW}, new LineUp());
-  commands->Add({Terminal::LEFT_ARROW}, new MoveBackwards());
-  commands->Add({Terminal::RIGHT_ARROW}, new MoveForwards());
-  commands->Add({Terminal::PAGE_DOWN}, new PageDown());
-  commands->Add({Terminal::PAGE_UP}, new PageUp());
+  commands->Add({Terminal::CTRL_L}, std::make_unique<HardRedrawCommand>());
+  commands->Add(L"0", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add(L"1", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add(L"2", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add(L"3", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add(L"4", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add(L"5", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add(L"6", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add(L"7", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add(L"8", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add(L"9", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add({Terminal::DOWN_ARROW}, std::make_unique<LineDown>());
+  commands->Add({Terminal::UP_ARROW}, std::make_unique<LineUp>());
+  commands->Add({Terminal::LEFT_ARROW}, std::make_unique<MoveBackwards>());
+  commands->Add({Terminal::RIGHT_ARROW}, std::make_unique<MoveForwards>());
+  commands->Add({Terminal::PAGE_DOWN}, std::make_unique<PageDown>());
+  commands->Add({Terminal::PAGE_UP}, std::make_unique<PageUp>());
 
   return commands;
 }

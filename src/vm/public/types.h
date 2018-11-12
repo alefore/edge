@@ -66,14 +66,13 @@ class ObjectType {
   void AddField(const wstring& name, unique_ptr<Value> field);
 
   Value* LookupField(const wstring& name) const {
-    auto it = fields_->find(name);
-    return it == fields_->end() ? nullptr : it->second.get();
+    auto it = fields_.find(name);
+    return it == fields_.end() ? nullptr : it->second.get();
   }
 
  private:
   VMType type_;
-  // TODO: Consider not making it a pointer?
-  map<wstring, unique_ptr<Value>>* fields_;
+  map<wstring, unique_ptr<Value>> fields_;
 };
 
 }  // namespace vm

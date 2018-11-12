@@ -177,8 +177,9 @@ class MoveTransformation : public Transformation {
 
 }  // namespace
 
-unique_ptr<Transformation> NewMoveTransformation(const Modifiers& modifiers) {
-  return unique_ptr<Transformation>(new MoveTransformation(modifiers));
+std::unique_ptr<Transformation> NewMoveTransformation(
+    const Modifiers& modifiers) {
+  return std::make_unique<MoveTransformation>(modifiers);
 }
 
 }  // namespace editor

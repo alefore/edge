@@ -27,6 +27,7 @@ class RunCppFileCommand : public Command {
     options.initial_value = buffer->read_string_variable(
         OpenBuffer::variable_editor_commands_path()),
     options.handler = RunCppFileHandler;
+    options.cancel_handler = [](EditorState*) { /* Nothing. */ };
     options.predictor = FilePredictor;
     Prompt(editor_state, std::move(options));
   }
@@ -62,7 +63,7 @@ void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
 }
 
 std::unique_ptr<Command> NewRunCppFileCommand() {
-  return std::unique_ptr<Command>(new RunCppFileCommand());
+  return std::make_unique<RunCppFileCommand>();
 }
 
 }  // namespace afc

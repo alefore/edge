@@ -10,7 +10,7 @@
 %left OR.
 %left AND.
 %left EQUALS NOT_EQUALS.
-%left LESS_THAN GREATER_THAN.
+%left LESS_THAN LESS_OR_EQUAL GREATER_THAN GREATER_OR_EQUAL.
 %left PLUS MINUS.
 %left DIVIDE TIMES.
 %right NOT.
@@ -57,7 +57,7 @@ statement(OUT) ::= function_declaration_params(FUNC)
     OUT = nullptr;
   } else {
     // TODO: Use unique_ptr rather than shared_ptr when lambda capture works.
-    shared_ptr<Expression> body(BODY);
+    std::shared_ptr<Expression> body(BODY);
     BODY = nullptr;
 
     shared_ptr<Environment> func_environment(compilation->environment);
@@ -67,14 +67,27 @@ statement(OUT) ::= function_declaration_params(FUNC)
     const vector<wstring> argument_names(FUNC->argument_names);
 
     unique_ptr<Value> value(new Value(FUNC->type));
-    value->callback = [compilation, body, func_environment, argument_names]
-        (vector<unique_ptr<Value>> args) {
-          assert(args.size() == argument_names.size());
-          for (size_t i = 0; i < args.size(); i++) {
-            func_environment->Define(argument_names[i], std::move(args[i]));
-          }
-          return Evaluate(body.get(), func_environment.get());
-        };
+    value->callback = [compilation, body, func_environment, argument_names](
+        vector<unique_ptr<Value>> args, Trampoline* trampoline) {
+      CHECK_EQ(args.size(), argument_names.size());
+      for (size_t i = 0; i < args.size(); i++) {
+        func_environment->Define(argument_names[i], std::move(args[i]));
+      }
+      std::function<void(Trampoline*)> original_state = trampoline->Save();
+      trampoline->SetEnvironment(func_environment.get());
+      trampoline->SetReturnContinuation(
+          [original_state](std::unique_ptr<Value> value,
+                           Trampoline* trampoline) {
+            CHECK(value != nullptr);
+            original_state(trampoline);
+            trampoline->Return(std::move(value));
+          });
+      trampoline->Bounce(
+          body.get(),
+          [body](Value::Ptr value, Trampoline* trampoline) {
+            trampoline->Return(std::move(value));
+          });
+    };
     compilation->environment->Define(FUNC->name, std::move(value));
     OUT = NewVoidExpression().release();
   }
@@ -332,14 +345,14 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
         } else {
           unique_ptr<Value> field_copy(new Value(field->type.type));
           *field_copy = *field;
-          unique_ptr<vector<unique_ptr<Expression>>> args(
-              new vector<unique_ptr<Expression>>);
-          args->push_back(unique_ptr<Expression>(OBJ));
+          auto args =
+              std::make_shared<std::vector<std::unique_ptr<Expression>>>();
+          args->emplace_back(OBJ);
           OBJ = nullptr;
           for (auto& arg : *ARGS) {
             args->push_back(std::move(arg));
           }
-          assert(field_copy != nullptr);
+          CHECK(field_copy != nullptr);
           OUT = NewFunctionCall(NewConstantExpression(std::move(field_copy)),
                                 std::move(args)).release();
         }
@@ -378,8 +391,10 @@ expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
       OUT = nullptr;
     } else {
       OUT = NewFunctionCall(
-          unique_ptr<Expression>(B),
-          unique_ptr<vector<unique_ptr<Expression>>>(ARGS)).release();
+                    std::unique_ptr<Expression>(B),
+                    std::make_shared<std::vector<std::unique_ptr<Expression>>>(
+                        std::move(*ARGS)))
+                .release();
       B = nullptr;
       ARGS = nullptr;
     }
@@ -522,6 +537,26 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
   }
 }
 
+expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
+  if (A == nullptr
+      || B == nullptr
+      || A->type().type != VMType::VM_INTEGER
+      || B->type().type != VMType::VM_INTEGER) {
+    OUT = nullptr;
+  } else {
+    // TODO: Don't evaluate B if not needed.
+    OUT = new BinaryOperator(
+        unique_ptr<Expression>(A),
+        unique_ptr<Expression>(B),
+        VMType::Bool(),
+        [](const Value& a, const Value& b, Value* output) {
+          output->boolean = a.integer <= b.integer;
+        });
+    A = nullptr;
+    B = nullptr;
+  }
+}
+
 expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
   if (A == nullptr
       || B == nullptr
@@ -536,6 +571,26 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
         VMType::Bool(),
         [](const Value& a, const Value& b, Value* output) {
           output->boolean = a.integer > b.integer;
+        });
+    A = nullptr;
+    B = nullptr;
+  }
+}
+
+expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
+  if (A == nullptr
+      || B == nullptr
+      || A->type().type != VMType::VM_INTEGER
+      || B->type().type != VMType::VM_INTEGER) {
+    OUT = nullptr;
+  } else {
+    // TODO: Don't evaluate B if not needed.
+    OUT = new BinaryOperator(
+        unique_ptr<Expression>(A),
+        unique_ptr<Expression>(B),
+        VMType::Bool(),
+        [](const Value& a, const Value& b, Value* output) {
+          output->boolean = a.integer >= b.integer;
         });
     A = nullptr;
     B = nullptr;

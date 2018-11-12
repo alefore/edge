@@ -1,10 +1,7 @@
-#include "constant_expression.h"
-
-#include <cassert>
+#include "../public/constant_expression.h"
 
 #include <glog/logging.h>
 
-#include "evaluation.h"
 #include "../public/value.h"
 #include "../public/vm.h"
 
@@ -16,29 +13,35 @@ namespace {
 class ConstantExpression : public Expression {
  public:
   ConstantExpression(unique_ptr<Value> value) : value_(std::move(value)) {
-    assert(value_ != nullptr);
+    CHECK(value_ != nullptr);
   }
 
   const VMType& type() { return value_->type; }
 
-  void Evaluate(OngoingEvaluation* evaluation) {
+  void Evaluate(Trampoline* trampoline) {
     DVLOG(5) << "Evaluating constant value: " << *value_;
-    evaluation->value.reset(new Value(*value_));
+    trampoline->Continue(std::make_unique<Value>(*value_));
+  }
+
+  std::unique_ptr<Expression> Clone() override {
+    return std::make_unique<ConstantExpression>(
+        std::make_unique<Value>(*value_));
   }
 
  private:
-  unique_ptr<Value> value_;
+  const std::unique_ptr<Value> value_;
 };
 
 }  // namespace
 
-unique_ptr<Expression> NewVoidExpression() {
-  return unique_ptr<Expression>(new ConstantExpression(Value::NewVoid()));
+std::unique_ptr<Expression> NewVoidExpression() {
+  return NewConstantExpression(Value::NewVoid());
 }
 
-unique_ptr<Expression> NewConstantExpression(unique_ptr<Value> value) {
-  assert(value != nullptr);
-  return unique_ptr<Expression>(new ConstantExpression(std::move(value)));
+std::unique_ptr<Expression> NewConstantExpression(
+    std::unique_ptr<Value> value) {
+  CHECK(value != nullptr);
+  return std::make_unique<ConstantExpression>(std::move(value));
 }
 
 

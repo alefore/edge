@@ -6,11 +6,25 @@
 
 #include "screen.h"
 #include "server.h"
+#include "vm/public/callbacks.h"
 #include "vm/public/environment.h"
 #include "vm/public/value.h"
 #include "wstring.h"
 
 namespace afc {
+namespace vm {
+template<>
+struct VMTypeMapper<editor::Screen*> {
+  static editor::Screen* get(Value* value) {
+    return static_cast<editor::Screen*>(value->user_value.get());
+  }
+
+  static const VMType vmtype;
+};
+
+const VMType VMTypeMapper<editor::Screen*>::vmtype =
+    VMType::ObjectType(L"Screen");
+}  // namespace vm
 namespace editor {
 
 using vm::Environment;
@@ -92,277 +106,102 @@ class ScreenVm : public Screen {
 }  // namespace
 
 void RegisterScreenType(Environment* environment) {
-  unique_ptr<ObjectType> screen_type(new ObjectType(L"Screen"));
+  auto screen_type = std::make_unique<ObjectType>(L"Screen");
 
   // Constructors.
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-
-    // Returns nothing.
-    callback->type.type_arguments.push_back(
-        VMType::ObjectType(screen_type.get()));
-
-    // Address.
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1u);
-          CHECK_EQ(args[0]->type, VMType::VM_STRING);
-          wstring error;
-          int fd = MaybeConnectToServer(ToByteString(args[0]->str), &error);
-          return Value::NewObject(L"Screen", std::make_shared<ScreenVm>(fd));
-        };
-    environment->Define(L"RemoteScreen", std::move(callback));
-  }
+  environment->Define(L"RemoteScreen", Value::NewFunction(
+      { VMType::ObjectType(screen_type.get()), VMType::String() },
+      [](vector<unique_ptr<Value>> args) {
+        CHECK_EQ(args.size(), 1u);
+        CHECK_EQ(args[0]->type, VMType::VM_STRING);
+        wstring error;
+        int fd = MaybeConnectToServer(ToByteString(args[0]->str), &error);
+        return Value::NewObject(L"Screen", std::make_shared<ScreenVm>(fd));
+      }));
 
   // Methods for Screen.
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+  screen_type->AddField(L"Flush", vm::NewCallback(std::function<void(Screen*)>(
+      [](Screen* screen) {
+        CHECK(screen != nullptr);
+        screen->Flush();
+      })));
 
-    // Returns nothing.
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+  screen_type->AddField(L"HardRefresh", vm::NewCallback(
+      std::function<void(Screen*)>(
+          [](Screen* screen) {
+            CHECK(screen != nullptr);
+            screen->HardRefresh();
+          })));
 
-    callback->type.type_arguments.push_back(
-        VMType::ObjectType(screen_type.get()));
+  screen_type->AddField(L"Refresh", vm::NewCallback(
+      std::function<void(Screen*)>(
+          [](Screen* screen) {
+            CHECK(screen != nullptr);
+            screen->Refresh();
+          })));
 
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1u);
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-          auto screen = static_cast<Screen*>(args[0]->user_value.get());
-          CHECK(screen != nullptr);
+  screen_type->AddField(L"Clear", vm::NewCallback(
+      std::function<void(Screen*)>(
+          [](Screen* screen) {
+            CHECK(screen != nullptr);
+            screen->Clear();
+          })));
 
-          screen->Flush();
-          return Value::NewVoid();
-        };
-    screen_type->AddField(L"Flush", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+  screen_type->AddField(L"SetCursorVisibility", vm::NewCallback(
+      std::function<void(Screen*, wstring)>(
+          [](Screen* screen, wstring cursor_visibility) {
+            CHECK(screen != nullptr);
+            screen->SetCursorVisibility(Screen::CursorVisibilityFromString(
+                ToByteString(cursor_visibility)));
+          })));
 
-    // Returns nothing.
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+  screen_type->AddField(L"Move", vm::NewCallback(
+      std::function<void(Screen*, int, int)>(
+          [](Screen* screen, int y, int x) {
+            CHECK(screen != nullptr);
+            screen->Move(y, x);
+          })));
 
-    callback->type.type_arguments.push_back(
-        VMType::ObjectType(screen_type.get()));
+  screen_type->AddField(L"WriteString", vm::NewCallback(
+      std::function<void(Screen*, wstring)>(
+          [](Screen* screen, wstring str) {
+            CHECK(screen != nullptr);
+            DVLOG(5) << "Writing string: " << str;
+            screen->WriteString(str);
+          })));
 
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1u);
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-          auto screen = static_cast<Screen*>(args[0]->user_value.get());
-          CHECK(screen != nullptr);
+  screen_type->AddField(L"SetModifier", vm::NewCallback(
+      std::function<void(Screen*, wstring)>(
+          [](Screen* screen, wstring str) {
+            CHECK(screen != nullptr);
+            screen->SetModifier(ModifierFromString(ToByteString(str)));
+          })));
 
-          screen->HardRefresh();
-          return Value::NewVoid();
-        };
-    screen_type->AddField(L"HardRefresh", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
+  screen_type->AddField(L"set_size", vm::NewCallback(
+      std::function<void(Screen*, int, int)>(
+          [](Screen* screen, int columns, int lines) {
+            ScreenVm* screen_vm = dynamic_cast<ScreenVm*>(screen);
+            CHECK(screen != nullptr);
+            screen_vm->set_size(columns, lines);
+          })));
 
-    // Returns nothing.
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
+  screen_type->AddField(L"columns", vm::NewCallback(std::function<int(Screen*)>(
+      [](Screen* screen) {
+        CHECK(screen != nullptr);
+        return screen->columns();
+      })));
 
-    callback->type.type_arguments.push_back(
-        VMType::ObjectType(screen_type.get()));
+  screen_type->AddField(L"lines", vm::NewCallback(std::function<int(Screen*)>(
+      [](Screen* screen) {
+        CHECK(screen != nullptr);
+        return screen->lines();
+      })));
 
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1u);
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-          auto screen = static_cast<Screen*>(args[0]->user_value.get());
-          CHECK(screen != nullptr);
-
-          screen->Refresh();
-          return Value::NewVoid();
-        };
-    screen_type->AddField(L"Refresh", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-
-    // Returns nothing.
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-
-    callback->type.type_arguments.push_back(
-        VMType::ObjectType(screen_type.get()));
-
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1u);
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-          auto screen = static_cast<Screen*>(args[0]->user_value.get());
-          CHECK(screen != nullptr);
-
-          screen->Clear();
-          return Value::NewVoid();
-        };
-    screen_type->AddField(L"Clear", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-
-    // Returns nothing.
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-
-    callback->type.type_arguments.push_back(
-        VMType::ObjectType(screen_type.get()));
-    callback->type.type_arguments.push_back(VMType::VM_STRING);
-
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 2u);
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-          auto screen = static_cast<Screen*>(args[0]->user_value.get());
-          CHECK(screen != nullptr);
-
-          CHECK_EQ(args[1]->type, VMType::VM_STRING);
-
-          screen->SetCursorVisibility(
-              Screen::CursorVisibilityFromString(ToByteString(args[1]->str)));
-          return Value::NewVoid();
-        };
-    screen_type->AddField(L"SetCursorVisibility", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-
-    // Returns nothing.
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-
-    callback->type.type_arguments.push_back(
-        VMType::ObjectType(screen_type.get()));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 3u);
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-          auto screen = static_cast<Screen*>(args[0]->user_value.get());
-          CHECK(screen != nullptr);
-
-          CHECK_EQ(args[1]->type, VMType::VM_INTEGER);
-          CHECK_EQ(args[2]->type, VMType::VM_INTEGER);
-
-          screen->Move(args[1]->integer, args[2]->integer);
-          return Value::NewVoid();
-        };
-    screen_type->AddField(L"Move", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-
-    // Returns nothing.
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-
-    callback->type.type_arguments.push_back(
-        VMType::ObjectType(screen_type.get()));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_STRING));
-
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 2u);
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-          auto screen = static_cast<Screen*>(args[0]->user_value.get());
-          CHECK(screen != nullptr);
-
-          CHECK_EQ(args[1]->type, VMType::VM_STRING);
-
-          DVLOG(5) << "Writing string: " << args[1]->str;
-          screen->WriteString(args[1]->str);
-          return Value::NewVoid();
-        };
-    screen_type->AddField(L"WriteString", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-
-    // Returns nothing.
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-
-    callback->type.type_arguments.push_back(
-        VMType::ObjectType(screen_type.get()));
-    callback->type.type_arguments.push_back(VMType::VM_STRING);
-
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 2u);
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-          auto screen = static_cast<Screen*>(args[0]->user_value.get());
-          CHECK(screen != nullptr);
-
-          CHECK_EQ(args[1]->type, VMType::VM_STRING);
-
-          screen->SetModifier(ModifierFromString(ToByteString(args[1]->str)));
-          return Value::NewVoid();
-        };
-    screen_type->AddField(L"SetModifier", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-
-    // Returns nothing.
-    callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-
-    callback->type.type_arguments.push_back(
-        VMType::ObjectType(screen_type.get()));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 3u);
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-          CHECK_EQ(args[1]->type, VMType::VM_INTEGER);
-          CHECK_EQ(args[2]->type, VMType::VM_INTEGER);
-          auto screen = static_cast<ScreenVm*>(args[0]->user_value.get());
-          CHECK(screen != nullptr);
-
-          screen->set_size(args[1]->integer, args[2]->integer);
-          return Value::NewVoid();
-        };
-    screen_type->AddField(L"set_size", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->type.type_arguments.push_back(
-        VMType::ObjectType(screen_type.get()));
-
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1u);
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-          auto screen = static_cast<Screen*>(args[0]->user_value.get());
-          CHECK(screen != nullptr);
-          return Value::NewInteger(screen->columns());
-        };
-    screen_type->AddField(L"columns", std::move(callback));
-  }
-  {
-    unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-    callback->type.type_arguments.push_back(VMType(VMType::VM_INTEGER));
-    callback->type.type_arguments.push_back(
-        VMType::ObjectType(screen_type.get()));
-
-    callback->callback =
-        [](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), 1u);
-          CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-          auto screen = static_cast<Screen*>(args[0]->user_value.get());
-          CHECK(screen != nullptr);
-          return Value::NewInteger(screen->lines());
-        };
-    screen_type->AddField(L"lines", std::move(callback));
-  }
   environment->DefineType(L"Screen", std::move(screen_type));
 }
 
 std::unique_ptr<Screen> NewScreenVm(int fd) {
-  return std::unique_ptr<Screen>(new ScreenVm(fd));
+  return std::make_unique<ScreenVm>(fd);
 }
 
 }  // namespace editor

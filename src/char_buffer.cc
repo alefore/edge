@@ -1,4 +1,3 @@
-#include <cassert>
 #include <cstring>
 #include <string>
 
@@ -31,7 +30,7 @@ class MoveableCharBuffer : public LazyString {
       : buffer_(buffer), size_(input_size) {}
 
   wchar_t get(size_t pos) const {
-    assert(pos < size_);
+    CHECK_LT(pos, size_);
     return (*buffer_)[pos];
   }
   size_t size() const { return size_; }
@@ -60,22 +59,22 @@ class CharBufferWithOwnership : public CharBuffer {
 
 unique_ptr<LazyString> NewMoveableCharBuffer(
     const wchar_t* const* buffer, size_t size) {
-  return unique_ptr<LazyString>(new MoveableCharBuffer(buffer, size));
+  return std::make_unique<MoveableCharBuffer>(buffer, size);
 }
 
 unique_ptr<LazyString> NewCharBuffer(
     const wchar_t* buffer, size_t size) {
-  return unique_ptr<LazyString>(new CharBuffer(buffer, size));
+  return std::make_unique<CharBuffer>(buffer, size);
 }
 
 unique_ptr<LazyString> NewCharBufferWithOwnership(
     const wchar_t* buffer, size_t size) {
-  return unique_ptr<LazyString>(new CharBufferWithOwnership(buffer, size));
+  return std::make_unique<CharBufferWithOwnership>(buffer, size);
 }
 
 unique_ptr<LazyString> NewCopyCharBuffer(const wchar_t* buffer) {
-  return unique_ptr<LazyString>(
-      new CharBufferWithOwnership(wcsdup(buffer), wcslen(buffer)));
+  return std::make_unique<CharBufferWithOwnership>(
+      wcsdup(buffer), wcslen(buffer));
 }
 
 unique_ptr<LazyString> NewCopyString(const wstring& buffer) {
@@ -83,7 +82,7 @@ unique_ptr<LazyString> NewCopyString(const wstring& buffer) {
 }
 
 unique_ptr<LazyString> NewStringFromVector(vector<wchar_t> data) {
-  return unique_ptr<LazyString>(new StringFromVector(std::move(data)));
+  return std::make_unique<StringFromVector>(std::move(data));
 }
 
 }  // namespace editor

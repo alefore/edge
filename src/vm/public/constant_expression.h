@@ -3,6 +3,8 @@
 
 #include <memory>
 
+#include "src/vm/public/value.h"
+
 namespace afc {
 namespace vm {
 
@@ -12,7 +14,7 @@ class Expression;
 class Value;
 
 unique_ptr<Expression> NewVoidExpression();
-unique_ptr<Expression> NewConstantExpression(unique_ptr<Value> value);
+unique_ptr<Expression> NewConstantExpression(Value::Ptr value);
 
 }  // namespace vm
 }  // namespace afc

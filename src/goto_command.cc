@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+#include <glog/logging.h>
+
 #include "buffer.h"
 #include "command.h"
 #include "editor.h"
@@ -83,7 +85,7 @@ class GotoCharTransformation : public Transformation {
   }
 
   std::unique_ptr<Transformation> Clone() {
-    return std::unique_ptr<Transformation>(new GotoCharTransformation(calls_));
+    return std::make_unique<GotoCharTransformation>(calls_);
   }
 
  private:
@@ -108,8 +110,8 @@ class GotoCommand : public Command {
     }
     switch (editor_state->structure()) {
       case CHAR:
-        buffer->ApplyToCursors(std::unique_ptr<Transformation>(
-            new GotoCharTransformation(calls_)));
+        buffer->ApplyToCursors(
+            std::make_unique<GotoCharTransformation>(calls_));
         break;
 
       case WORD:
@@ -214,7 +216,7 @@ class GotoCommand : public Command {
               0, buffers, buffers, editor_state->direction(),
               editor_state->repetitions(), editor_state->structure_range(),
               calls_);
-          assert(position < editor_state->buffers()->size());
+          CHECK_LT(position, editor_state->buffers()->size());
           auto it = editor_state->buffers()->begin();
           advance(it, position);
           if (it != editor_state->current_buffer()) {
@@ -228,7 +230,7 @@ class GotoCommand : public Command {
     editor_state->ResetStructure();
     editor_state->ResetDirection();
     editor_state->ResetRepetitions();
-    buffer->set_mode(unique_ptr<Command>(new GotoCommand(calls_ + 1)));
+    buffer->set_mode(std::make_unique<GotoCommand>(calls_ + 1));
   }
 
  private:
@@ -253,7 +255,7 @@ class GotoCommand : public Command {
 }  // namespace
 
 std::unique_ptr<Command> NewGotoCommand() {
-  return std::unique_ptr<Command>(new GotoCommand(0));
+  return std::make_unique<GotoCommand>(0);
 }
 
 }  // namespace afc

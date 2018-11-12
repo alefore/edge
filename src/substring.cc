@@ -1,7 +1,5 @@
 #include "substring.h"
 
-#include <cassert>
-
 #include <glog/logging.h>
 
 namespace afc {
@@ -34,14 +32,13 @@ shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
 shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
                                  size_t pos,
                                  size_t size) {
-  assert(input.get());
+  CHECK(input != nullptr);
   if (pos == 0 && size == input->size()) {
     return input;  // Optimization.
   }
   CHECK_LE(pos, input->size());
   CHECK_LE(pos + size, input->size());
-  shared_ptr<LazyString> output(new SubstringImpl(input, pos, size));
-  return output;
+  return std::make_shared<SubstringImpl>(input, pos, size);
 }
 
 }  // namespace editor

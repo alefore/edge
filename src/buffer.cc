@@ -1,6 +1,5 @@
 #include "buffer.h"
 
-#include <cassert>
 #include <condition_variable>
 #include <cstring>
 #include <iostream>
@@ -20,6 +19,7 @@ extern "C" {
 #include <glog/logging.h>
 
 #include "char_buffer.h"
+#include "command_with_modifiers.h"
 #include "cpp_parse_tree.h"
 #include "cursors_transformation.h"
 #include "dirname.h"
@@ -34,23 +34,52 @@ extern "C" {
 #include "substring.h"
 #include "transformation.h"
 #include "transformation_delete.h"
+#include "vm/public/constant_expression.h"
+#include "vm/public/function_call.h"
 #include "vm/public/value.h"
+#include "vm/public/types.h"
 #include "vm/public/vm.h"
+#include "vm/public/callbacks.h"
 #include "wstring.h"
 
 namespace afc {
-namespace editor {
+namespace vm {
+template<>
+struct VMTypeMapper<editor::OpenBuffer*> {
+  static editor::OpenBuffer* get(Value* value) {
+    return static_cast<editor::OpenBuffer*>(value->user_value.get());
+  }
 
+  static const VMType vmtype;
+};
+
+const VMType VMTypeMapper<editor::OpenBuffer*>::vmtype =
+    VMType::ObjectType(L"Buffer");
+
+template<>
+struct VMTypeMapper<editor::LineColumn> {
+  static editor::LineColumn get(Value* value) {
+    return *static_cast<editor::LineColumn*>(value->user_value.get());
+  }
+
+  static Value::Ptr New(editor::LineColumn value) {
+    return Value::NewObject(L"LineColumn", shared_ptr<void>(
+        new editor::LineColumn(value),
+        [](void* v){ delete static_cast<editor::LineColumn*>(v); }));
+  }
+
+  static const VMType vmtype;
+};
+
+const VMType VMTypeMapper<editor::LineColumn>::vmtype =
+    VMType::ObjectType(L"LineColumn");
+}  // namespace
+namespace editor {
 namespace {
 
 static const wchar_t* kOldCursors = L"old-cursors";
 
 using std::unordered_set;
-
-bool FromVmBool(const Value& value) { return value.boolean; }
-wstring FromVmString(const Value& value) { return value.str; }
-int FromVmInt(const Value& value) { return value.integer; }
-double FromVmDouble(const Value& value) { return value.double_value; }
 
 template <typename EdgeStruct, typename FieldValue>
 void RegisterBufferFields(
@@ -59,9 +88,7 @@ void RegisterBufferFields(
     afc::vm::ObjectType* object_type,
     const FieldValue& (OpenBuffer::*reader)(
         const EdgeVariable<FieldValue>*) const,
-    void (OpenBuffer::*setter)(const EdgeVariable<FieldValue>*, FieldValue),
-    std::unique_ptr<Value> (*to_vm_value)(FieldValue),
-    FieldValue (*from_vm_value)(const Value& value)) {
+    void (OpenBuffer::*setter)(const EdgeVariable<FieldValue>*, FieldValue)) {
   VMType buffer_type = VMType::ObjectType(object_type);
 
   vector<wstring> variable_names;
@@ -69,44 +96,22 @@ void RegisterBufferFields(
   for (const wstring& name : variable_names) {
     auto variable = edge_struct->find_variable(name);
     CHECK(variable != nullptr);
-    VMType field_type = to_vm_value(variable->default_value())->type;
-
     // Getter.
-    {
-      unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-      callback->type.type_arguments.push_back(field_type);
-      callback->type.type_arguments.push_back(buffer_type);
-      callback->callback =
-          [variable, reader, to_vm_value](vector<unique_ptr<Value>> args) {
-            CHECK_EQ(args.size(), size_t(1));
-            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-            auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-            CHECK(buffer != nullptr);
-            return to_vm_value((buffer->*reader)(variable));
-          };
-      object_type->AddField(variable->name(), std::move(callback));
-    }
+    object_type->AddField(variable->name(), vm::NewCallback(
+        std::function<FieldValue(OpenBuffer*)>(
+            [reader, variable](OpenBuffer* buffer) {
+              DVLOG(4) << "Buffer field reader is returning.";
+              return (buffer->*reader)(variable);
+            })));
 
     // Setter.
-    {
-      unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-      callback->type.type_arguments.push_back(VMType::Void());
-      callback->type.type_arguments.push_back(buffer_type);
-      callback->type.type_arguments.push_back(field_type);
-      callback->callback =
-          [editor_state, field_type, variable, setter, from_vm_value](
-              vector<unique_ptr<Value>> args) {
-            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-            auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-            CHECK(buffer != nullptr);
-
-            CHECK_EQ(args[1]->type, field_type);
-            (buffer->*setter)(variable, from_vm_value(*args[1]));
-            editor_state->ScheduleRedraw();
-            return Value::NewVoid();
-          };
-      object_type->AddField(L"set_" + variable->name(), std::move(callback));
-    }
+    object_type->AddField(L"set_" + variable->name(), vm::NewCallback(
+        std::function<void(OpenBuffer*, FieldValue)>(
+            [editor_state, variable, setter](
+                OpenBuffer* buffer, FieldValue value) {
+              (buffer->*setter)(variable, value);
+              editor_state->ScheduleRedraw();
+            })));
   }
 }
 }  // namespace
@@ -117,109 +122,101 @@ using std::to_wstring;
 /* static */ const wstring OpenBuffer::kBuffersName = L"- buffers";
 /* static */ const wstring OpenBuffer::kPasteBuffer = L"- paste buffer";
 
+// TODO: Once we can capture std::unique_ptr, turn transformation into one.
+void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
+    size_t line, Value::Callback map_callback,
+    TransformationStack* transformation, Trampoline* trampoline) {
+  if (line + 1 >= buffer->contents()->size()) {
+    buffer->Apply(editor, std::unique_ptr<Transformation>(transformation));
+    trampoline->Return(Value::NewVoid());
+    return;
+  }
+  wstring current_line = buffer->LineAt(line)->ToString();
+
+  auto args_expr =
+      std::make_shared<std::vector<std::unique_ptr<vm::Expression>>>();
+  args_expr->push_back(
+      vm::NewConstantExpression(Value::NewString(std::move(current_line))));
+  // TODO: Use unique_ptr and capture by value.
+  std::shared_ptr<vm::Expression> map_line = vm::NewFunctionCall(
+      vm::NewConstantExpression(
+          Value::NewFunction({ VMType::String() }, map_callback)),
+      std::move(args_expr));
+
+  Evaluate(
+      map_line.get(),
+      trampoline->environment(),
+      [editor, buffer, line, map_callback, transformation, trampoline,
+       current_line, map_line](Value::Ptr value) {
+        if (value->str != current_line) {
+          DeleteOptions options;
+          options.copy_to_paste_buffer = false;
+          transformation->PushBack(NewDeleteLinesTransformation(options));
+          auto buffer_to_insert =
+              std::make_shared<OpenBuffer>(editor, L"tmp buffer");
+          buffer_to_insert->AppendLine(editor, NewCopyString(value->str));
+          transformation->PushBack(
+              NewInsertBufferTransformation(buffer_to_insert, 1, END));
+        }
+        EvaluateMap(editor, buffer, line + 1, std::move(map_callback),
+                    transformation, trampoline);
+      });
+}
+
 /* static */ void OpenBuffer::RegisterBufferType(
     EditorState* editor_state, afc::vm::Environment* environment) {
-  unique_ptr<ObjectType> buffer(new ObjectType(L"Buffer"));
+  auto buffer = std::make_unique<ObjectType>(L"Buffer");
 
   RegisterBufferFields(
       editor_state, BoolStruct(), buffer.get(),
-      &OpenBuffer::read_bool_variable, &OpenBuffer::set_bool_variable,
-      &Value::NewBool, &FromVmBool);
-
+      &OpenBuffer::read_bool_variable, &OpenBuffer::set_bool_variable);
   RegisterBufferFields(
       editor_state, StringStruct(), buffer.get(),
-      &OpenBuffer::read_string_variable, &OpenBuffer::set_string_variable,
-      &Value::NewString, &FromVmString);
-
+      &OpenBuffer::read_string_variable, &OpenBuffer::set_string_variable);
   RegisterBufferFields(
       editor_state, IntStruct(), buffer.get(),
-      &OpenBuffer::Read, &OpenBuffer::set_int_variable,
-      &Value::NewInteger, &FromVmInt);
-
+      &OpenBuffer::Read, &OpenBuffer::set_int_variable);
   RegisterBufferFields(
       editor_state, DoubleStruct(), buffer.get(),
-      &OpenBuffer::Read, &OpenBuffer::set_double_variable,
-      &Value::NewDouble, &FromVmDouble);
+      &OpenBuffer::Read, &OpenBuffer::set_double_variable);
 
-  buffer->AddField(L"line_count", Value::NewFunction(
-      { VMType::Integer(), VMType::ObjectType(buffer.get()) },
-      [](vector<unique_ptr<Value>> args) {
-        assert(args.size() == 1);
-        assert(args[0]->type == VMType::OBJECT_TYPE);
-        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-        assert(buffer != nullptr);
-        return Value::NewInteger(buffer->contents()->size());
-      }));
+  buffer->AddField(L"line_count", vm::NewCallback(
+      std::function<int(OpenBuffer*)>([](OpenBuffer* buffer) {
+        return int(buffer->contents()->size());
+      })));
 
-  buffer->AddField(L"set_position", Value::NewFunction(
-      { VMType::Void(), VMType::ObjectType(buffer.get()),
-        VMType::ObjectType(L"LineColumn") },
-      [](vector<unique_ptr<Value>> args) {
-        assert(args.size() == 2);
-        assert(args[0]->type == VMType::OBJECT_TYPE);
-        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-        assert(buffer != nullptr);
-        buffer->set_position(
-            *static_cast<LineColumn*>(args[1]->user_value.get()));
-        return Value::NewVoid();
-      }));
+  buffer->AddField(L"set_position", vm::NewCallback(
+      std::function<void(OpenBuffer*, LineColumn)>(
+          [](OpenBuffer* buffer, LineColumn position) {
+            buffer->set_position(position);
+          })));
 
-  buffer->AddField(L"position", Value::NewFunction(
-      { VMType::ObjectType(L"LineColumn"), VMType::ObjectType(buffer.get()) },
-      [](vector<unique_ptr<Value>> args) {
-        assert(args.size() == 1);
-        assert(args[0]->type == VMType::OBJECT_TYPE);
-        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-        assert(buffer != nullptr);
-        return Value::NewObject(L"LineColumn", shared_ptr<LineColumn>(
-            new LineColumn(buffer->position())));
-      }));
+  buffer->AddField(L"position", vm::NewCallback(
+      std::function<LineColumn(OpenBuffer*)>(
+          [](OpenBuffer* buffer) {
+            return LineColumn(buffer->position());
+          })));
 
-  buffer->AddField(L"line", Value::NewFunction(
-      { VMType::String(), VMType::ObjectType(buffer.get()),
-        VMType::Integer() },
-      [](vector<unique_ptr<Value>> args) {
-        CHECK_EQ(args.size(), size_t(2));
-        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-        CHECK_EQ(args[1]->type, VMType::VM_INTEGER);
-        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-        CHECK(buffer != nullptr);
-        auto line = min(static_cast<size_t>(max(args[1]->integer, 0)),
-                        buffer->contents()->size() - 1);
-        return Value::NewString(buffer->contents()->at(line)->ToString());
-      }));
+  buffer->AddField(L"line", vm::NewCallback(
+      std::function<wstring(OpenBuffer*, int)>(
+          [](OpenBuffer* buffer, int line) {
+            size_t line_size_t = min(size_t(max(line, 0)),
+                                     buffer->contents()->size() - 1);
+            return buffer->contents()->at(line_size_t)->ToString();
+          })));
 
   buffer->AddField(L"Map", Value::NewFunction(
       { VMType::Void(), VMType::ObjectType(buffer.get()),
         VMType::Function({ VMType::String(), VMType::String() })},
-      [editor_state](vector<unique_ptr<Value>> args) {
+      [editor_state](vector<unique_ptr<Value>> args,
+          Trampoline* evaluation) {
         CHECK_EQ(args.size(), size_t(2));
         CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-        CHECK(buffer != nullptr);
-        size_t line = 0;
-        unique_ptr<TransformationStack> transformation(
-            new TransformationStack());
-        while (line + 1 < buffer->contents()->size()) {
-          wstring current_line = buffer->LineAt(line)->ToString();
-          vector<unique_ptr<Value>> line_args;
-          line_args.push_back(Value::NewString(current_line));
-          unique_ptr<Value> result = args[1]->callback(std::move(line_args));
-          if (result->str != current_line) {
-            DeleteOptions options;
-            options.copy_to_paste_buffer = false;
-            transformation->PushBack(NewDeleteLinesTransformation(options));
-            shared_ptr<OpenBuffer> buffer_to_insert(
-                new OpenBuffer(editor_state, L"tmp buffer"));
-            buffer_to_insert->AppendLine(
-                editor_state, NewCopyString(result->str));
-            transformation->PushBack(
-                NewInsertBufferTransformation(buffer_to_insert, 1, END));
-          }
-          line++;
-        }
-        buffer->Apply(editor_state, std::move(transformation));
-        return Value::NewVoid();
+        EvaluateMap(
+            editor_state,
+            static_cast<OpenBuffer*>(args[0]->user_value.get()),
+            0, args[1]->callback,
+            std::make_unique<TransformationStack>().release(), evaluation);
       }));
 
   buffer->AddField(L"AddKeyboardTextTransformer", Value::NewFunction(
@@ -247,76 +244,51 @@ using std::to_wstring;
         return Value::NewVoid();
       }));
 
-  buffer->AddField(L"DeleteCharacters", Value::NewFunction(
-      { VMType::Void(),                    // Returns nothing.
-        VMType::ObjectType(buffer.get()),  // Buffer to modify.
-        VMType::Integer() },               // Number of characters to delete.
-      [editor_state](vector<unique_ptr<Value>> args) {
-        CHECK_EQ(args.size(), size_t(2));
-        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-        CHECK(buffer != nullptr);
+  buffer->AddField(L"DeleteCharacters", vm::NewCallback(
+      std::function<void(OpenBuffer*, int)>(
+          [editor_state](OpenBuffer* buffer, int count) {
+            DeleteOptions options;
+            options.modifiers.repetitions = count;
+            buffer->ApplyToCursors(NewDeleteCharactersTransformation(options));
+          })));
 
-        DeleteOptions options;
-        options.modifiers.repetitions = args[1]->integer;
-        buffer->ApplyToCursors(NewDeleteCharactersTransformation(options));
-        return Value::NewVoid();
-      }));
+  buffer->AddField(L"InsertText", vm::NewCallback(
+      std::function<void(OpenBuffer*, wstring)>(
+          [editor_state](OpenBuffer* buffer, wstring text) {
+            if (buffer->fd() != -1) {
+              auto str = ToByteString(text);
+              LOG(INFO) << "Insert text: " << str.size();
+              if (write(buffer->fd(), str.c_str(), str.size()) == -1) {
+                editor_state->SetWarningStatus(
+                    L"Write failed: " + FromByteString(strerror(errno)));
+              }
+            }
+            auto buffer_to_insert = std::make_shared<OpenBuffer>(
+                editor_state, L"tmp buffer");
 
-  buffer->AddField(L"InsertText", Value::NewFunction(
-      { VMType::Void(),                    // Returns nothing.
-        VMType::ObjectType(buffer.get()),  // Buffer to modify.
-        VMType::String() },                // The text to insert.
-      [editor_state](vector<unique_ptr<Value>> args) {
-        CHECK_EQ(args.size(), size_t(2));
-        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-        CHECK(buffer != nullptr);
+            // getline will silently eat the last (empty) line.
+            std::wistringstream text_stream(text + L"\n");
+            std::wstring line;
+            bool insert_separator = false;
+            while (std::getline(text_stream, line, wchar_t('\n'))) {
+              if (insert_separator) {
+                buffer_to_insert->AppendEmptyLine(editor_state);
+              } else {
+                insert_separator = true;
+              }
+              buffer_to_insert->AppendToLastLine(
+                  editor_state, NewCopyString(line));
+            }
 
-        if (buffer->fd() != -1) {
-          auto str = ToByteString(args[1]->str);
-          LOG(INFO) << "Insert text: " << str.size();
-          if (write(buffer->fd(), str.c_str(), str.size()) == -1) {
-            editor_state->SetWarningStatus(
-                L"Write failed: " + FromByteString(strerror(errno)));
-          }
-          return Value::NewVoid();
-        }
+            buffer->ApplyToCursors(
+                NewInsertBufferTransformation(buffer_to_insert, 1, END));
+          })));
 
-        shared_ptr<OpenBuffer> buffer_to_insert(
-            new OpenBuffer(editor_state, L"tmp buffer"));
-
-        // getline will silently eat the last (empty) line.
-        std::wistringstream text_stream(args[1]->str + L"\n");
-        std::wstring line;
-        bool insert_separator = false;
-        while (std::getline(text_stream, line, wchar_t('\n'))) {
-          if (insert_separator) {
-            buffer_to_insert->AppendEmptyLine(editor_state);
-          } else {
-            insert_separator = true;
-          }
-          buffer_to_insert->AppendToLastLine(
-              editor_state, NewCopyString(line));
-        }
-
-        buffer->ApplyToCursors(
-            NewInsertBufferTransformation(buffer_to_insert, 1, END));
-
-        return Value::NewVoid();
-      }));
-
-  buffer->AddField(L"Save", Value::NewFunction(
-      { VMType::Void(),                      // Returns nothing.
-        VMType::ObjectType(buffer.get()) },  // Buffer to save.
-      [editor_state](vector<unique_ptr<Value>> args) {
-        CHECK_EQ(args.size(), size_t(1));
-        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-        CHECK(buffer != nullptr);
-        buffer->Save(editor_state);
-        return Value::NewVoid();
-      }));
+  buffer->AddField(L"Save", vm::NewCallback(
+      std::function<void(OpenBuffer*)>(
+          [editor_state](OpenBuffer* buffer) {
+            buffer->Save(editor_state);
+          })));
 
   buffer->AddField(L"AddBinding", Value::NewFunction(
       { VMType::Void(),
@@ -333,53 +305,33 @@ using std::to_wstring;
         return Value::NewVoid();
       }));
 
-  buffer->AddField(L"AddBindingToFile", Value::NewFunction(
-      { VMType::Void(),
-        VMType::ObjectType(buffer.get()),
-        VMType::String(),
-        VMType::String() },
-      [editor_state](vector<unique_ptr<Value>> args) {
-        CHECK_EQ(args.size(), 3u);
-        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-        CHECK_EQ(args[1]->type, VMType::VM_STRING);
-        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-        CHECK(buffer != nullptr);
-        CHECK_EQ(args[2]->type, VMType::VM_STRING);
-        wstring path = args[2]->str;
-        buffer->default_commands_->Add(
-            args[1]->str,
-            [editor_state, buffer, path]() {
-              wstring resolved_path;
-              ResolvePathOptions options;
-              options.editor_state = editor_state;
-              options.path = path;
-              options.output_path = &resolved_path;
-              if (!ResolvePath(options)) {
-                editor_state->SetWarningStatus(L"Unable to resolve: " + path);
-              } else {
-                buffer->EvaluateFile(editor_state, resolved_path);
-              }
-            },
-            L"Load file: " + path);
-        return Value::NewVoid();
-      }));
+  buffer->AddField(L"AddBindingToFile", vm::NewCallback(
+      std::function<void(OpenBuffer*, wstring, wstring)>(
+          [editor_state](OpenBuffer* buffer, wstring keys, wstring path) {
+            LOG(INFO) << "AddBindingToFile: " << keys << " -> " << path;
+            buffer->default_commands_->Add(keys,
+                [editor_state, buffer, path]() {
+                  wstring resolved_path;
+                  ResolvePathOptions options;
+                  options.editor_state = editor_state;
+                  options.path = path;
+                  options.output_path = &resolved_path;
+                  if (!ResolvePath(options)) {
+                    editor_state->SetWarningStatus(
+                        L"Unable to resolve: " + path);
+                  } else {
+                    buffer->EvaluateFile(editor_state, resolved_path);
+                  }
+                },
+                L"Load file: " + path);
+          })));
 
-  buffer->AddField(L"EvaluateFile", Value::NewFunction(
-      { VMType::Void(),
-        VMType::ObjectType(buffer.get()),
-        VMType::String() },
-      [editor_state](std::vector<std::unique_ptr<Value>> args) {
-        CHECK_EQ(args.size(), 2u);
-        CHECK(args[0] != nullptr);
-        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-        CHECK(buffer != nullptr);
-        CHECK(args[1] != nullptr);
-        CHECK_EQ(args[1]->type, VMType::VM_STRING);
-        LOG(INFO) << "Evaluating file: " << args[1]->str;
-        buffer->EvaluateFile(editor_state, args[1]->str);
-        return Value::NewVoid();
-      }));
+  buffer->AddField(L"EvaluateFile", vm::NewCallback(
+      std::function<void(OpenBuffer*, wstring)>(
+          [editor_state](OpenBuffer* buffer, wstring path) {
+            LOG(INFO) << "Evaluating file: " << path;
+            buffer->EvaluateFile(editor_state, path);
+          })));
 
   environment->DefineType(L"Buffer", std::move(buffer));
 }
@@ -442,7 +394,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       parse_tree_(std::make_shared<ParseTree>()),
       tree_parser_(NewNullTreeParser()),
       default_commands_(editor_->default_commands()->NewChild()),
-      mode_(new MapMode(default_commands_)) {
+      mode_(std::make_unique<MapMode>(default_commands_)) {
   contents_.AddUpdateListener(
       [this](const CursorsTracker::Transformation& transformation) {
         editor_->ScheduleParseTreeUpdate(this);
@@ -718,7 +670,8 @@ void OpenBuffer::Input::ReadData(
   if (target->read_bool_variable(OpenBuffer::variable_vm_exec())) {
     LOG(INFO) << target->name() << ": Evaluating VM code: "
               << buffer_wrapper->ToString();
-    target->EvaluateString(editor_state, buffer_wrapper->ToString());
+    target->EvaluateString(
+        editor_state, buffer_wrapper->ToString(), [](std::unique_ptr<Value>){});
   }
 
   target->RegisterProgress();
@@ -821,7 +774,7 @@ void OpenBuffer::DestroyThreadIf(std::function<bool()> predicate) {
   }
   background_thread_shutting_down_ = true;
   lock.unlock();
-  
+
   background_condition_.notify_one();
   background_thread_.join();
 }
@@ -960,7 +913,7 @@ void OpenBuffer::AppendRawLine(EditorState*, shared_ptr<Line> line) {
 
 void OpenBuffer::ProcessCommandInput(
     EditorState* editor_state, shared_ptr<LazyString> str) {
-  assert(read_bool_variable(variable_pts()));
+  CHECK(read_bool_variable(variable_pts()));
   if (position_pts_.line >= contents_.size()) {
     position_pts_.line = contents_.size() - 1;
   }
@@ -1259,37 +1212,41 @@ unique_ptr<Expression> OpenBuffer::CompileString(EditorState*,
   return afc::vm::CompileString(code, &environment_, error_description);
 }
 
-unique_ptr<Value> OpenBuffer::EvaluateExpression(EditorState*,
-                                                 Expression* expr) {
-  return Evaluate(expr, &environment_);
+void OpenBuffer::EvaluateExpression(EditorState*, Expression* expr,
+    std::function<void(std::unique_ptr<Value>)> consumer) {
+  Evaluate(expr, &environment_, consumer);
 }
 
-unique_ptr<Value> OpenBuffer::EvaluateString(EditorState* editor_state,
-                                             const wstring& code) {
+bool OpenBuffer::EvaluateString(
+    EditorState* editor_state, const wstring& code,
+    std::function<void(std::unique_ptr<Value>)> consumer) {
   wstring error_description;
   LOG(INFO) << "Compiling code.";
-  unique_ptr<Expression> expression =
+  // TODO: Use unique_ptr and capture by value.
+  std::shared_ptr<Expression> expression =
       CompileString(editor_state, code, &error_description);
   if (expression == nullptr) {
     editor_state->SetWarningStatus(L"Compilation error: " + error_description);
-    return nullptr;
+    return false;
   }
   LOG(INFO) << "Code compiled, evaluating.";
-  auto result = EvaluateExpression(editor_state, expression.get());
-  LOG(INFO) << "Done evaluating compiled code.";
-  return result;
+  EvaluateExpression(editor_state, expression.get(),
+      [expression, consumer](Value::Ptr value) { consumer(std::move(value)); });
+  return true;
 }
 
-unique_ptr<Value> OpenBuffer::EvaluateFile(EditorState* editor_state,
-                                           const wstring& path) {
+bool OpenBuffer::EvaluateFile(EditorState* editor_state, const wstring& path) {
   wstring error_description;
-  unique_ptr<Expression> expression(
-      CompileFile(ToByteString(path), &environment_, &error_description));
+  // TODO: Use unique_ptr and capture by value.
+  std::shared_ptr<Expression> expression =
+      CompileFile(ToByteString(path), &environment_, &error_description);
   if (expression == nullptr) {
     editor_state->SetStatus(path + L": error: " + error_description);
-    return nullptr;
+    return false;
   }
-  return Evaluate(expression.get(), &environment_);
+  Evaluate(expression.get(), &environment_,
+           [expression](std::unique_ptr<Value>) {});
+  return true;
 }
 
 void OpenBuffer::DeleteRange(const Range& range) {
@@ -1828,12 +1785,12 @@ void OpenBuffer::PushSignal(EditorState* editor_state, int sig) {
 
 wstring OpenBuffer::TransformKeyboardText(wstring input) {
   using afc::vm::VMType;
-  for (auto& t : keyboard_text_transformers_) {
-    vector<unique_ptr<Value>> args;
-    args.push_back(afc::vm::Value::NewString(std::move(input)));
-    auto result = t->callback(std::move(args));
-    CHECK_EQ(result->type.type, VMType::VM_STRING);
-    input = std::move(result->str);
+  for (Value::Ptr& t : keyboard_text_transformers_) {
+    vector<Value::Ptr> args;
+    args.push_back(Value::NewString(std::move(input)));
+    Call(t.get(),
+         std::move(args),
+         [&input](Value::Ptr value) { input = std::move(value->str); });
   }
   return input;
 }
@@ -2511,7 +2468,8 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
     last_transformation_stack_.back()->PushBack(transformation->Clone());
   }
 
-  transformations_past_.emplace_back(new Transformation::Result(editor_));
+  transformations_past_.push_back(
+      std::make_unique<Transformation::Result>(editor_));
 
   transformations_past_.back()->undo_stack->PushFront(
       NewSetCursorsTransformation(*active_cursors(), position()));
@@ -2579,7 +2537,8 @@ void OpenBuffer::RepeatLastTransformation() {
 }
 
 void OpenBuffer::PushTransformationStack() {
-  last_transformation_stack_.emplace_back(new TransformationStack());
+  last_transformation_stack_.emplace_back(
+      std::make_unique<TransformationStack>());
 }
 
 void OpenBuffer::PopTransformationStack() {
@@ -2608,7 +2567,8 @@ void OpenBuffer::Undo(EditorState* editor_state, UndoMode undo_mode) {
   for (size_t i = 0; i < editor_state->repetitions(); i++) {
     bool modified_buffer = false;
     while (!modified_buffer && !source->empty()) {
-      target->emplace_back(new Transformation::Result(editor_state));
+      target->emplace_back(
+          std::make_unique<Transformation::Result>(editor_state));
       source->back()->undo_stack->Apply(editor_state, this, target->back().get());
       source->pop_back();
       modified_buffer =
@@ -2632,9 +2592,11 @@ bool OpenBuffer::IsLineFiltered(size_t line_number) {
     return old_line.filtered();
   }
 
-  vector<unique_ptr<Value>> args;
+  bool filtered;
+  vector<Value::Ptr> args;
   args.push_back(Value::NewString(old_line.ToString()));
-  bool filtered = filter_->callback(std::move(args))->boolean;
+  Call(filter_.get(), std::move(args),
+       [&filtered](Value::Ptr value) { filtered = value->boolean; });
 
   auto new_line = std::make_shared<Line>(old_line);
   new_line->set_filtered(filtered, filter_version_);

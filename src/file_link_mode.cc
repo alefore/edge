@@ -1,6 +1,5 @@
 #include "file_link_mode.h"
 
-#include <cassert>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -19,6 +18,8 @@ extern "C" {
 #include <fcntl.h>
 }
 
+#include <glog/logging.h>
+
 #include "char_buffer.h"
 #include "dirname.h"
 #include "editor.h"
@@ -26,6 +27,7 @@ extern "C" {
 #include "run_command_handler.h"
 #include "search_handler.h"
 #include "server.h"
+#include "vm/public/callbacks.h"
 #include "vm/public/value.h"
 #include "wstring.h"
 
@@ -234,20 +236,12 @@ class FileBuffer : public OpenBuffer {
           NewCopyString(
               path + (type_it == types.end() ? L"" : type_it->second))));
 
-      {
-        unique_ptr<Value> callback(new Value(VMType::FUNCTION));
-        // Returns nothing.
-        callback->type.type_arguments.push_back(VMType(VMType::VM_VOID));
-        callback->callback =
-            [editor_state, path](vector<unique_ptr<Value>> args) {
-              CHECK_EQ(args.size(), size_t(0));
-              StartDeleteFile(editor_state, path);
-              return Value::NewVoid();
-            };
-
-        target->contents()->back()->environment()->Define(
-            L"EdgeLineDeleteHandler", std::move(callback));
-      }
+      target->contents()->back()->environment()->Define(
+          L"EdgeLineDeleteHandler", vm::NewCallback(
+              std::function<void()>(
+                [editor_state, path]() {
+                  StartDeleteFile(editor_state, path);
+                })));
     }
     closedir(dir);
 
@@ -365,10 +359,6 @@ static wstring realpath_safe(const wstring& path) {
   return result == nullptr ? path : FromByteString(result);
 }
 
-wstring GetAnonymousBufferName(size_t i) {
-  return L"[anonymous buffer " + std::to_wstring(i) + L"]";
-}
-
 static bool CanStatPath(const wstring& path) {
   CHECK(!path.empty());
   VLOG(5) << "Considering path: " << path;
@@ -481,8 +471,8 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
   options.make_current_buffer = false;
   options.use_search_paths = false;
   it = OpenFile(options);
-  assert(it != editor_state->buffers()->end());
-  assert(it->second != nullptr);
+  CHECK(it != editor_state->buffers()->end());
+  CHECK(it->second != nullptr);
   it->second->set_bool_variable(OpenBuffer::variable_save_on_close(), true);
   it->second->set_bool_variable(
       OpenBuffer::variable_show_in_buffers_list(), false);
@@ -570,12 +560,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   if (!options.name.empty()) {
     name = options.name;
   } else if (actual_path.empty()) {
-    size_t count = 0;
-    while (editor_state->buffers()->find(GetAnonymousBufferName(count))
-           != editor_state->buffers()->end()) {
-      count++;
-    }
-    name = GetAnonymousBufferName(count);
+    name = editor_state->GetUnusedBufferName(L"anonymous buffer");
     buffer = std::make_shared<FileBuffer>(editor_state, actual_path, name);
   } else {
     name = actual_path;

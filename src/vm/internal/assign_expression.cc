@@ -3,9 +3,9 @@
 #include <glog/logging.h>
 
 #include "compilation.h"
-#include "evaluation.h"
 #include "../public/environment.h"
 #include "../public/value.h"
+#include "../public/vm.h"
 #include "wstring.h"
 
 namespace afc {
@@ -21,23 +21,26 @@ class AssignExpression : public Expression {
 
   const VMType& type() { return value_->type(); }
 
-  void Evaluate(OngoingEvaluation* evaluation) {
-    auto advancer = evaluation->advancer;
-    evaluation->advancer =
-        [this, advancer](OngoingEvaluation* inner_evaluation) {
-          DVLOG(3) << "Setting value for: " << symbol_;
-          DVLOG(4) << "Value: " << *inner_evaluation->value;
-          inner_evaluation->environment->Define(
-              symbol_,
-              unique_ptr<Value>(new Value(*inner_evaluation->value)));
-          inner_evaluation->advancer = advancer;
-        };
-    value_->Evaluate(evaluation);
+  void Evaluate(Trampoline* trampoline) override {
+    auto expression = value_;
+    auto symbol = symbol_;
+    trampoline->Bounce(expression.get(),
+        [expression, symbol](std::unique_ptr<Value> value,
+                             Trampoline* trampoline) {
+          DVLOG(3) << "Setting value for: " << symbol;
+          DVLOG(4) << "Value: " << *value;
+          trampoline->environment()->Define(symbol, std::move(value));
+          trampoline->Continue(Value::NewVoid());
+        });
+  }
+
+  std::unique_ptr<Expression> Clone() override {
+    return std::make_unique<AssignExpression>(symbol_, value_->Clone());
   }
 
  private:
   const wstring symbol_;
-  unique_ptr<Expression> value_;
+  const std::shared_ptr<Expression> value_;
 };
 
 }
@@ -54,15 +57,15 @@ unique_ptr<Expression> NewAssignExpression(
     compilation->errors.push_back(L"Unknown type: \"" + symbol + L"\"");
     return nullptr;
   }
-  compilation->environment
-      ->Define(symbol, unique_ptr<Value>(new Value(value->type())));
+  compilation->environment->Define(symbol,
+                                   std::make_unique<Value>(value->type()));
   if (!(*type_def == value->type())) {
     compilation->errors.push_back(
         L"Unable to assign a value of type \"" + value->type().ToString()
         + L"\" to a variable of type \"" + type_def->ToString() + L"\".");
     return nullptr;
   }
-  return unique_ptr<Expression>(new AssignExpression(symbol, std::move(value)));
+  return std::make_unique<AssignExpression>(symbol, std::move(value));
 }
 
 unique_ptr<Expression> NewAssignExpression(
@@ -83,7 +86,7 @@ unique_ptr<Expression> NewAssignExpression(
     return nullptr;
   }
 
-  return unique_ptr<Expression>(new AssignExpression(symbol, std::move(value)));
+  return std::make_unique<AssignExpression>(symbol, std::move(value));
 }
 
 }  // namespace vm

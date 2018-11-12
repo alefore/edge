@@ -41,12 +41,17 @@ void SimplifyTree(const ParseTree& tree, ParseTree* output) {
 }
 
 namespace {
-void ZoomOutTree(const ParseTree& input, double ratio, ParseTree* output) {
-  output->range = input.range;
-  output->range.begin.line *= ratio;
-  output->range.end.line *= ratio;
+void ZoomOutTree(const ParseTree& input, double ratio, ParseTree* parent) {
+  Range range = input.range;
+  range.begin.line *= ratio;
+  range.end.line *= ratio;
+  if (range.begin.line == range.end.line) {
+    return;
+  }
+  auto output = PushChild(parent);
+  output->range = range;
   for (const auto& child : input.children) {
-    ZoomOutTree(child, ratio, PushChild(output).get());
+    ZoomOutTree(child, ratio, output.get());
   }
 }
 }  // namespace
@@ -222,22 +227,22 @@ class LineTreeParser : public TreeParser {
 }
 
 std::unique_ptr<TreeParser> NewNullTreeParser() {
-  return std::unique_ptr<TreeParser>(new NullTreeParser());
+  return std::make_unique<NullTreeParser>();
 }
 
 std::unique_ptr<TreeParser> NewCharTreeParser() {
-  return std::unique_ptr<TreeParser>(new CharTreeParser());
+  return std::make_unique<CharTreeParser>();
 }
 
 std::unique_ptr<TreeParser> NewWordsTreeParser(
     wstring word_characters, std::unique_ptr<TreeParser> delegate) {
-  return std::unique_ptr<TreeParser>(
-      new WordsTreeParser(word_characters, std::move(delegate)));
+  return std::make_unique<WordsTreeParser>(
+      word_characters, std::move(delegate));
 }
 
 std::unique_ptr<TreeParser> NewLineTreeParser(
     std::unique_ptr<TreeParser> delegate) {
-  return std::unique_ptr<TreeParser>(new LineTreeParser(std::move(delegate)));
+  return std::make_unique<LineTreeParser>(std::move(delegate));
 }
 
 }  // namespace editor

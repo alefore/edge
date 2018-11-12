@@ -9,6 +9,9 @@
 #include "modifiers.h"
 #include "transformation.h"
 #include "transformation_move.h"
+#include "src/vm/public/constant_expression.h"
+#include "src/vm/public/function_call.h"
+#include "src/vm/public/environment.h"
 #include "wstring.h"
 
 namespace afc {
@@ -285,8 +288,8 @@ class DeleteLinesTransformation : public Transformation {
     const LineColumn adjusted_original_cursor = result->cursor;
     size_t repetitions = min(options_.modifiers.repetitions,
                              buffer->contents()->size() - result->cursor.line);
-    shared_ptr<OpenBuffer> delete_buffer(
-        new OpenBuffer(editor_state, OpenBuffer::kPasteBuffer));
+    auto delete_buffer =
+        std::make_shared<OpenBuffer>(editor_state, OpenBuffer::kPasteBuffer);
 
     LOG(INFO) << "Erasing lines " << repetitions << " starting at line "
          << result->cursor.line << " in a buffer with size "
@@ -319,7 +322,7 @@ class DeleteLinesTransformation : public Transformation {
         }
 
         if (buffer->LineAt(result->cursor.line) != nullptr) {
-          auto callback =
+          Value* callback =
               buffer->LineAt(result->cursor.line)
                   ->environment()
                   ->Lookup(L"EdgeLineDeleteHandler");
@@ -328,7 +331,10 @@ class DeleteLinesTransformation : public Transformation {
               && callback->type.type_arguments.size() == 1
               && callback->type.type_arguments.at(0) == vm::VMType::VM_VOID) {
             LOG(INFO) << "Running EdgeLineDeleteHandler.";
-            callback->callback({});
+            std::shared_ptr<Expression> expr = vm::NewFunctionCall(
+                vm::NewConstantExpression(std::make_unique<Value>(*callback)),
+                {});
+            Evaluate(expr.get(), buffer->environment(), [expr](Value::Ptr) {});
           }
         }
       }
@@ -448,28 +454,29 @@ class DeleteTransformation : public Transformation {
 
 }  // namespace
 
-unique_ptr<Transformation> NewDeleteCharactersTransformation(
+std::unique_ptr<Transformation> NewDeleteCharactersTransformation(
     DeleteOptions options) {
-  return unique_ptr<Transformation>(
-      new DeleteCharactersTransformation(options));
+  return std::make_unique<DeleteCharactersTransformation>(options);
 }
 
-unique_ptr<Transformation> NewDeleteRegionTransformation(
+std::unique_ptr<Transformation> NewDeleteRegionTransformation(
     DeleteOptions options) {
-  return unique_ptr<Transformation>(new DeleteRegionTransformation(options));
+  return std::make_unique<DeleteRegionTransformation>(options);
 }
 
-unique_ptr<Transformation> NewDeleteLinesTransformation(DeleteOptions options) {
-  return unique_ptr<Transformation>(new DeleteLinesTransformation(options));
-}
-
-unique_ptr<Transformation> NewDeleteBufferTransformation(
+std::unique_ptr<Transformation> NewDeleteLinesTransformation(
     DeleteOptions options) {
-  return unique_ptr<Transformation>(new DeleteBufferTransformation(options));
+  return std::make_unique<DeleteLinesTransformation>(options);
 }
 
-unique_ptr<Transformation> NewDeleteTransformation(DeleteOptions options) {
-  return unique_ptr<Transformation>(new DeleteTransformation(options));
+std::unique_ptr<Transformation> NewDeleteBufferTransformation(
+    DeleteOptions options) {
+  return std::make_unique<DeleteBufferTransformation>(options);
+}
+
+std::unique_ptr<Transformation> NewDeleteTransformation(
+    DeleteOptions options) {
+  return std::make_unique<DeleteTransformation>(options);
 }
 
 }  // namespace editor

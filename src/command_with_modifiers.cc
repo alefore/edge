@@ -265,8 +265,8 @@ class CommandWithModifiers : public Command {
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (editor_state->has_current_buffer()) {
       editor_state->current_buffer()->second->set_mode(
-          std::unique_ptr<CommandWithModifiersMode>(
-              new CommandWithModifiersMode(name_, editor_state, handler_)));
+          std::make_unique<CommandWithModifiersMode>(
+              name_, editor_state, handler_));
     }
   }
 
@@ -282,8 +282,8 @@ std::unique_ptr<Command> NewCommandWithModifiers(
     wstring name,
     wstring description,
     CommandWithModifiersHandler handler) {
-  return unique_ptr<Command>(new CommandWithModifiers(
-      std::move(name), std::move(description), std::move(handler)));
+  return std::make_unique<CommandWithModifiers>(
+      std::move(name), std::move(description), std::move(handler));
 }
 
 }  // namespace afc

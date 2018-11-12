@@ -79,16 +79,13 @@ wstring VMType::ToString() const {
 }
 
 ObjectType::ObjectType(const VMType& type)
-    : type_(type),
-      fields_(new map<wstring, unique_ptr<Value>>) {}
+    : type_(type) {}
 
 ObjectType::ObjectType(const wstring& type_name)
-    : type_(VMType::ObjectType(type_name)),
-      fields_(new map<wstring, unique_ptr<Value>>) {}
+    : ObjectType(VMType::ObjectType(type_name)) {}
 
-void ObjectType::AddField(const wstring& name, unique_ptr<Value> field) {
-  auto it = fields_->insert(make_pair(name, nullptr));
-  it.first->second = std::move(field);
+void ObjectType::AddField(const wstring& name, std::unique_ptr<Value> field) {
+  fields_.insert({name, std::move(field)});
 }
 
 }  // namespace vm

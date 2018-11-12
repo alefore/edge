@@ -1,7 +1,8 @@
 #include "editable_string.h"
 
-#include <cassert>
 #include <memory>
+
+#include <glog/logging.h>
 
 #include "editor.h"
 #include "lazy_string_append.h"
@@ -23,15 +24,15 @@ shared_ptr<EditableString> EditableString::New(
 shared_ptr<EditableString> EditableString::New(
     const shared_ptr<LazyString>& base, size_t position,
     const wstring& editable_part) {
-  return shared_ptr<EditableString>(
-      new EditableString(base, position, editable_part));
+  return std::make_shared<EditableString>(
+      ConstructorAccessTag(), base, position, editable_part);
 }
 
 EditableString::EditableString(
-    const shared_ptr<LazyString>& base, size_t position,
+    ConstructorAccessTag, const shared_ptr<LazyString>& base, size_t position,
     const wstring& editable_part)
     : base_(base), position_(position), editable_part_(editable_part) {
-  assert(position_ <= base_->size());
+  CHECK_LE(position_, base_->size());
 }
 
 wchar_t EditableString::get(size_t pos) const {
@@ -49,7 +50,7 @@ size_t EditableString::size() const {
 }
 
 void EditableString::Insert(int c) {
-  assert(c != '\n');
+  CHECK(c != '\n');
   editable_part_ += static_cast<char>(c);
 }
 

@@ -1,10 +1,9 @@
 #include "if_expression.h"
 
-#include <cassert>
+#include <glog/logging.h>
 
 #include "../public/value.h"
 #include "../internal/compilation.h"
-#include "../internal/evaluation.h"
 
 namespace afc {
 namespace vm {
@@ -13,45 +12,49 @@ namespace {
 
 class IfExpression : public Expression {
  public:
-  IfExpression(
-      unique_ptr<Expression> cond, unique_ptr<Expression> true_case,
-      unique_ptr<Expression> false_case)
+  IfExpression(std::shared_ptr<Expression> cond,
+               std::shared_ptr<Expression> true_case,
+               std::shared_ptr<Expression> false_case)
       : cond_(std::move(cond)),
         true_case_(std::move(true_case)),
         false_case_(std::move(false_case)) {
-    assert(cond_ != nullptr);
-    assert(true_case_ != nullptr);
-    assert(false_case_ != nullptr);
+    CHECK(cond_ != nullptr);
+    CHECK(true_case_ != nullptr);
+    CHECK(false_case_ != nullptr);
   }
 
   const VMType& type() {
     return true_case_->type();
   }
 
-  void Evaluate(OngoingEvaluation* evaluation) {
-    auto advancer = evaluation->advancer;
-    evaluation->advancer =
-        [this, advancer](OngoingEvaluation* inner_evaluation) {
-          inner_evaluation->advancer = advancer;
-          (inner_evaluation->value->boolean ? true_case_ : false_case_)
-              ->Evaluate(inner_evaluation);
-        };
-    cond_->Evaluate(evaluation);
+  void Evaluate(Trampoline* trampoline) {
+    auto cond_copy = cond_;
+    auto true_copy = true_case_;
+    auto false_copy = false_case_;
+    trampoline->Bounce(cond_.get(),
+        [cond_copy, true_copy, false_copy](std::unique_ptr<Value> result,
+                                           Trampoline* trampoline) {
+          (result->boolean ? true_copy : false_copy)->Evaluate(trampoline);
+        });
+  }
+
+  std::unique_ptr<Expression> Clone() override {
+    return std::make_unique<IfExpression>(cond_, true_case_, false_case_);
   }
 
  private:
-  unique_ptr<Expression> cond_;
-  unique_ptr<Expression> true_case_;
-  unique_ptr<Expression> false_case_;
+  const std::shared_ptr<Expression> cond_;
+  const std::shared_ptr<Expression> true_case_;
+  const std::shared_ptr<Expression> false_case_;
 };
 
 }
 
-unique_ptr<Expression> NewIfExpression(
+std::unique_ptr<Expression> NewIfExpression(
     Compilation* compilation,
-    unique_ptr<Expression> condition,
-    unique_ptr<Expression> true_case,
-    unique_ptr<Expression> false_case) {
+    std::unique_ptr<Expression> condition,
+    std::unique_ptr<Expression> true_case,
+    std::unique_ptr<Expression> false_case) {
   if (condition == nullptr || true_case == nullptr || false_case == nullptr) {
     return nullptr;
   }
@@ -71,8 +74,8 @@ unique_ptr<Expression> NewIfExpression(
     return nullptr;
   }
 
-  return unique_ptr<Expression>(new IfExpression(
-      std::move(condition), std::move(true_case), std::move(false_case)));
+  return std::make_unique<IfExpression>(
+      std::move(condition), std::move(true_case), std::move(false_case));
 }
 
 }  // namespace afc

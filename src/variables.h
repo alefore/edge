@@ -218,14 +218,14 @@ const T* EdgeStructInstance<unique_ptr<T>>::Get(
 
 template <typename T>
 void EdgeStructInstance<T>::Set(const EdgeVariable<T>* variable, T value) {
-  assert(variable->position() <= values_.size());
+  CHECK_LE(variable->position(), values_.size());
   values_[variable->position()] = std::move(value);
 }
 
 template <typename T>
 void EdgeStructInstance<unique_ptr<T>>::Set(
     const EdgeVariable<unique_ptr<T>>* variable, unique_ptr<T> value) {
-  assert(variable->position() <= values_.size());
+  CHECK_GE(variable->position(), values_.size());
   values_[variable->position()] = std::move(value);
 }
 

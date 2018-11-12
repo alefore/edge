@@ -1,8 +1,9 @@
 #include "help_command.h"
 
-#include <cassert>
 #include <memory>
 #include <map>
+
+#include <glog/logging.h>
 
 #include "char_buffer.h"
 #include "editor.h"
@@ -43,7 +44,7 @@ class HelpCommand : public Command {
     auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
     editor_state->set_current_buffer(it.first);
     if (it.second) {
-      shared_ptr<OpenBuffer> buffer(new OpenBuffer(editor_state, name));
+      auto buffer = std::make_shared<OpenBuffer>(editor_state, name);
       buffer->AppendToLastLine(
           editor_state,
           NewCopyString(L"Help: " + mode_description_));
@@ -103,8 +104,7 @@ class HelpCommand : public Command {
 
 unique_ptr<Command> NewHelpCommand(
     const MapModeCommands* commands, const wstring& mode_description) {
-  return unique_ptr<Command>(
-      new HelpCommand(commands, mode_description));
+  return std::make_unique<HelpCommand>(commands, mode_description);
 }
 
 }  // namespace editor

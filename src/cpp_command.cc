@@ -22,7 +22,7 @@ wstring GetDescriptionString(wstring code) {
     return code;
   }
   auto first_line = code.substr(0, end);
-  VLOG(5) << "First line: " << first_line;
+  DVLOG(5) << "First line: " << first_line;
   wstring prefix = L"// ";
   if (first_line.size() < prefix.size() || first_line.substr(0, 3) != prefix) {
     return first_line;
@@ -42,11 +42,16 @@ class CppCommand : public Command {
   const std::wstring Description() override { return description_; }
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
-    Evaluate(expression_.get(), editor_state->environment());
+    DVLOG(4) << "CppCommand starting (" << description_ << ")";
+    auto expression = expression_;
+    Evaluate(expression_.get(), editor_state->environment(),
+             [expression](std::unique_ptr<Value>) {
+               DVLOG(5) << "CppCommand finished.";
+             });
   }
 
  private:
-  const std::unique_ptr<afc::vm::Expression> expression_;
+  const std::shared_ptr<afc::vm::Expression> expression_;
   const wstring code_;
   const wstring description_;
 };
@@ -63,8 +68,7 @@ std::unique_ptr<Command> NewCppCommand(afc::vm::Environment* environment,
     return nullptr;
   }
 
-  return std::unique_ptr<Command>(
-      new CppCommand(std::move(expr), std::move(code)));
+  return std::make_unique<CppCommand>(std::move(expr), std::move(code));
 }
 
 }  // namespace editor

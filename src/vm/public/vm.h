@@ -26,24 +26,63 @@ class Environment;
 class Evaluation;
 class VMType;
 
-struct OngoingEvaluation {
-  // The function to run to advance the evaluation.
+class Expression;
+
+class Trampoline {
+ public:
+  // A consumer of a value receives the value and an ongoing evaluation.
   //
-  // When this is run, the advancer field in the passed instance will be used
-  // both as an input and output paremeter: as an output parameter, the advancer
-  // sets the next piece of code that should run; as an input parameter, the
-  // advancer can signal that the computation is done (by just leaving it
-  // unmodified).
-  std::function<void(OngoingEvaluation*)> advancer;
+  // We allow "trampoline" style execution. Suppose we need to evaluate
+  // F(G(value)). This means we'd feed the value to G' (a continuation bound to)
+  // G, which would already know that its continuation is F'. Without
+  // OngoingEvaluation, this means we could have a long chain of recursive
+  // calls. Instead, G' receives the value, transforms it (applies G), and then
+  // just adjusts `consumer` and `expression_for_trampoline` in its
+  // continuation.
+  //
+  // G may be an asynchronous transformation. In this case, G' will start its
+  // execution and return (leaving `expression_for_trampoline` as nullptr and
+  // thus effectively jumping out of the trampoline). When G(value) becomes
+  // available, G' will need to create a new trampoline. Thus when G' resumes
+  // F', the Trampoline may be different than when F' was created by G'. And
+  // this is the reason the Continuation receives the Trampoline.
+  using Continuation = std::function<void(std::unique_ptr<Value>, Trampoline*)>;
 
-  // The function to run to halt the evaluation and return a value to the parent
-  // scope.
-  std::function<void(OngoingEvaluation*)> return_advancer;
+  Trampoline(Environment* environment, Continuation return_continuation);
 
-  Environment* environment;
+  // Must ensure it lives until return_continuation is called.
+  void Enter(Expression* expression);
 
-  // The current value, intended to be consumed by the advancer.
-  unique_ptr<Value> value;
+  // Saves the state (continuations ane environment) of the current trampoline
+  // and returns a callback that can be used to restore it into a trampoline.
+  std::function<void(Trampoline*)> Save();
+
+  void SetEnvironment(Environment* environment);
+  Environment* environment() const;
+
+  void SetReturnContinuation(Continuation continuation);
+  Continuation return_continuation() const;
+
+  void SetContinuation(Continuation continuation);
+
+  // Returns the function that can resume. Roughly equivalent to Continue, but
+  // allows us to return and resume continuation later.
+  std::function<void(std::unique_ptr<Value>)> Interrupt();
+
+  // Must ensure new_expression lives until new_contination is called.
+  void Bounce(Expression* new_expression,
+              Continuation new_continuation);
+  void Return(std::unique_ptr<Value> value);
+  void Continue(std::unique_ptr<Value> value);
+
+ private:
+  Environment* environment_ = nullptr;
+
+  Continuation return_continuation_;
+  Continuation continuation_;
+
+  // Set by Bounce (and Enter), read by Enter.
+  Expression* expression_;
 };
 
 class Expression {
@@ -51,13 +90,15 @@ class Expression {
   virtual ~Expression() {}
   virtual const VMType& type() = 0;
 
+  // Returns a new copy of this expression.
+  virtual std::unique_ptr<Expression> Clone() = 0;
+
   // Implementation details, not relevant for customers.
   // TODO: Figure out a nice way to hide this.
 
-  // Should adjust OngoingEvaluation to evaluate the current expression and
-  // ensure that eventually (after advancing the evaluation) the value of the
-  // expression will be received by the current advancer.
-  virtual void Evaluate(OngoingEvaluation* evaluation) = 0;
+  // Must arrange for either Trampoline::Return, Trampoline::Continue, or
+  // Trampoline::Bounce to be called (whether before or after returning).
+  virtual void Evaluate(Trampoline* evaluation) = 0;
 };
 
 unique_ptr<Expression> CompileFile(
@@ -76,7 +117,11 @@ unique_ptr<Expression> CompileString(
     wstring* error_description,
     const VMType& return_type);
 
-unique_ptr<Value> Evaluate(Expression* expr, Environment* environment);
+// Caller must make sure expr lives until consumer runs.
+void Evaluate(
+    Expression* expr,
+    Environment* environment,
+    std::function<void(std::unique_ptr<Value>)> consumer);
 
 }  // namespace vm
 }  // namespace afc

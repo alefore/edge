@@ -135,7 +135,7 @@ class SearchCommand : public Command {
 }  // namespace
 
 std::unique_ptr<Command> NewSearchCommand() {
-  return std::unique_ptr<Command>(new SearchCommand());
+  return std::make_unique<SearchCommand>();
 }
 
 }  // namespace afc

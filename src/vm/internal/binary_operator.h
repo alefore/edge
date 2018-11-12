@@ -19,11 +19,13 @@ class BinaryOperator : public Expression {
 
   const VMType& type();
 
-  void Evaluate(OngoingEvaluation* evaluation);
+  void Evaluate(Trampoline* evaluation);
+
+  std::unique_ptr<Expression> Clone() override;
 
  private:
-  unique_ptr<Expression> a_;
-  unique_ptr<Expression> b_;
+  std::shared_ptr<Expression> a_;
+  std::shared_ptr<Expression> b_;
   VMType type_;
   std::function<void(const Value&, const Value&, Value*)> operator_;
 };

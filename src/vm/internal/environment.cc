@@ -10,12 +10,12 @@ namespace vm {
 namespace {
 
 std::unique_ptr<Environment> BuildDefaultEnvironment() {
-  std::unique_ptr<Environment> environment(new Environment());
+  auto environment = std::make_unique<Environment>();
   RegisterStringType(environment.get());
-  environment->DefineType(
-      L"bool", unique_ptr<ObjectType>(new ObjectType(VMType::Bool())));
-  environment->DefineType(
-      L"int", unique_ptr<ObjectType>(new ObjectType(VMType::Integer())));
+  environment->DefineType(L"bool",
+                          std::make_unique<ObjectType>(VMType::Bool()));
+  environment->DefineType(L"int",
+                          std::make_unique<ObjectType>(VMType::Integer()));
   return environment;
 }
 

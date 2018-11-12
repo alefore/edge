@@ -75,6 +75,7 @@ class EditorState {
   map<wstring, shared_ptr<OpenBuffer>>::const_iterator current_buffer() const {
     return current_buffer_;
   }
+  wstring GetUnusedBufferName(const wstring& prefix);
   bool terminate() const { return terminate_; }
   bool AttemptTermination(wstring* error_description);
 
