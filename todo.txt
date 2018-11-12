@@ -23,6 +23,8 @@ Add a boolean variable "highlight_current_line" (default: false); when set, high
 
 Change the tree generation: just display the structure of the entire file, fit into the screen (similar to the scroll bar).
 
+If the buffer doesn't fit in the screen, don't show the scroll bar (or show it in a different way).
+
 -- Prompt
 
 -- Syntax
