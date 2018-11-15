@@ -1,5 +1,11 @@
 #include "line_column.h"
 
+#include <glog/logging.h>
+
+#include "vm/public/environment.h"
+#include "vm/public/value.h"
+#include "wstring.h"
+
 namespace afc {
 namespace editor {
 
@@ -28,12 +34,17 @@ std::wstring LineColumn::ToCppString() const {
       std::to_wstring(column) + L")";
 }
 
-static void LineColumn::Register(vm::Environment* environment) {
+/* static */ void LineColumn::Register(vm::Environment* environment) {
+  using vm::Value;
+  using vm::VMType;
+  using vm::ObjectType;
+  auto line_column = std::make_unique<ObjectType>(L"LineColumn");
+
   // Methods for LineColumn.
-  environment.Define(L"LineColumn", Value::NewFunction(
+  environment->Define(L"LineColumn", Value::NewFunction(
       { VMType::ObjectType(line_column.get()), VMType::Integer(),
         VMType::Integer() },
-        [this](vector<unique_ptr<Value>> args) {
+        [](std::vector<Value::Ptr> args) {
           CHECK_EQ(args.size(), size_t(2));
           CHECK_EQ(args[0]->type, VMType::VM_INTEGER);
           CHECK_EQ(args[1]->type, VMType::VM_INTEGER);
@@ -43,7 +54,7 @@ static void LineColumn::Register(vm::Environment* environment) {
 
   line_column->AddField(L"line", Value::NewFunction(
       { VMType::Integer(), VMType::ObjectType(line_column.get()) },
-      [this](vector<unique_ptr<Value>> args) {
+      [](std::vector<Value::Ptr> args) {
         CHECK_EQ(args.size(), size_t(1));
         CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
         auto line_column = static_cast<LineColumn*>(args[0]->user_value.get());
@@ -53,7 +64,7 @@ static void LineColumn::Register(vm::Environment* environment) {
 
   line_column->AddField(L"column", Value::NewFunction(
       { VMType::Integer(), VMType::ObjectType(line_column.get()) },
-      [this](vector<unique_ptr<Value>> args) {
+      [](std::vector<Value::Ptr> args) {
         CHECK_EQ(args.size(), size_t(1));
         CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
         auto line_column = static_cast<LineColumn*>(args[0]->user_value.get());
@@ -61,7 +72,7 @@ static void LineColumn::Register(vm::Environment* environment) {
         return Value::NewInteger(line_column->column);
       }));
 
-  environment.DefineType(L"LineColumn", std::move(line_column));
+  environment->DefineType(L"LineColumn", std::move(line_column));
 }
 
 } // namespace editor

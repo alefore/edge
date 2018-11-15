@@ -280,9 +280,7 @@ EditorState::EditorState(AudioPlayer* audio_player)
       status_(L""),
       pipe_to_communicate_internal_events_(BuildPipe()),
       audio_player_(audio_player) {
-  auto line_column = std::make_unique<ObjectType>(L"LineColumn");
-
-  LineColumn::Register(environment_);
+  LineColumn::Register(&environment_);
 }
 
 EditorState::~EditorState() {

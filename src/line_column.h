@@ -13,6 +13,8 @@ namespace editor {
 
 // A position in a text buffer.
 struct LineColumn {
+  static void Register(vm::Environment* environment);
+
   LineColumn() : LineColumn(0, 0) {}
   LineColumn(std::vector<int> pos)
       : line(pos.size() > 0 ? pos[0] : 0),
@@ -65,8 +67,6 @@ struct LineColumn {
 std::ostream& operator<<(std::ostream& os, const LineColumn& lc);
 
 struct Range {
-  static void Register(vm::Environment* environment);
-
   Range() = default;
   Range(LineColumn begin, LineColumn end) : begin(begin), end(end) {}
 
