@@ -15,7 +15,7 @@ namespace editor {
 struct LineColumn {
   static void Register(vm::Environment* environment);
 
-  LineColumn() : LineColumn(0, 0) {}
+  LineColumn() {}
   LineColumn(std::vector<int> pos)
       : line(pos.size() > 0 ? pos[0] : 0),
         column(pos.size() > 1 ? pos[1] : 0) {}
@@ -58,8 +58,8 @@ struct LineColumn {
 
   std::wstring ToCppString() const;
 
-  size_t line;
-  size_t column;
+  size_t line = 0;
+  size_t column = 0;
 
   friend std::ostream& operator<<(std::ostream& os, const LineColumn& lc);
 };
