@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "src/vm/public/environment.h"
+
 namespace afc {
 namespace editor {
 
@@ -63,6 +65,8 @@ struct LineColumn {
 std::ostream& operator<<(std::ostream& os, const LineColumn& lc);
 
 struct Range {
+  static void Register(vm::Environment* environment);
+
   Range() = default;
   Range(LineColumn begin, LineColumn end) : begin(begin), end(end) {}
 
