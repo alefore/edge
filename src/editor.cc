@@ -214,14 +214,16 @@ Environment EditorState::BuildEditorEnvironment() {
         return buffer->current_line()->ToString();
       })));
 
-  environment.Define(L"ForkCommand", vm::NewCallback(
-      std::function<void(wstring, bool)>(
-          [this](wstring command, bool enter) {
-            ForkCommandOptions options;
-            options.command = command;
-            options.enter = enter;
-            ForkCommand(this, options);
-          })));
+  environment.Define(L"ForkCommand", Value::NewFunction(
+      { VMType::ObjectType(L"Buffer"), VMType::VM_STRING, VMType::VM_BOOLEAN },
+      [this](vector<Value::Ptr> args) {
+        CHECK_EQ(args.size(), 2u);
+        CHECK_EQ(args[0]->type, VMType::VM_STRING);
+        ForkCommandOptions options;
+        options.command = args[0]->str;
+        options.enter = args[1]->boolean;
+        return Value::NewObject(L"Buffer", ForkCommand(this, options));
+      }));
 
   environment.Define(L"OpenFile", Value::NewFunction(
       { VMType::ObjectType(L"Buffer"), VMType(VMType::VM_STRING) },
