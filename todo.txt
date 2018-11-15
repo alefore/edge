@@ -12,7 +12,11 @@ For 'd': Add '?' (show modifiers available).
 
 Add "pipe" command: select the region (similar to delete: line, paragraph, buffer...), and then prompt for a command. Pipe the contents of the region to the command, and replace them with the output of the command.
 
+Add an autocomplete mode that autocompletes based on the path.
+
 -- Navigation
+
+When line numbers are shown, highlight those with cursors.
 
 Improve "g", the current behavior is kind of annoying:
   There should be a way (other than pressing it again) to specify if it should ignore space.  Maybe a modifier can do it?
@@ -25,7 +29,19 @@ Change the tree generation: just display the structure of the entire file, fit i
 
 If the buffer doesn't fit in the screen, don't show the scroll bar (or show it in a different way).
 
+Add a command that creates a "navigation" or "zoom out" view of the current buffer based on the parse tree.
+  Should show the parse tree (somehow). Optimized to make it easy to navigate.
+  Scrolling on it and pressing Return should take the user back to the original buffer.
+  show_in_buffers_list=false by default
+  If the buffer is a view of another buffer, do a view of the view.
+
 -- Prompt
+
+Improve the history functionality for commands.
+  For "af": Perhaps have a directory with a file per-command, that keeps all history for that command.
+    The command would be the basename of the first token given to an "af" command?
+    It may back-fire with some commands (shell commands, like "for a in $(seq 0 10); do echo $a; done"), but it's probably OK.
+    Then improve somehow the completion or history iteration logic?
 
 -- Syntax
 
@@ -56,6 +72,8 @@ Create some "barriers" that limit the number of subprocesses.  Set a limit for e
   Commands should by default go against a shared barrier, but should have a variable that specifies what barrier to use.
 
 Persist undo history?
+
+Make follow_end_of_file the default.
 
 -- List of buffers
 
