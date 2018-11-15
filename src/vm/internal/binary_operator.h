@@ -24,8 +24,8 @@ class BinaryOperator : public Expression {
   std::unique_ptr<Expression> Clone() override;
 
  private:
-  std::shared_ptr<Expression> a_;
-  std::shared_ptr<Expression> b_;
+  const std::shared_ptr<Expression> a_;
+  const std::shared_ptr<Expression> b_;
   VMType type_;
   std::function<void(const Value&, const Value&, Value*)> operator_;
 };
