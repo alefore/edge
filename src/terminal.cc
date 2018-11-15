@@ -742,6 +742,12 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     std::unique_ptr<Line::OutputReceiverInterface> atomic_lines_highlighter;
 
     auto current_cursors = cursors.find(current_line);
+    line_output_options.has_active_cursor =
+        current_line == buffer->current_position_line() ||
+        (current_cursors != cursors.end() &&
+         buffer->read_bool_variable(buffer->variable_multiple_cursors()));
+    line_output_options.has_cursor = current_cursors != cursors.end();
+
     std::unique_ptr<Line::OutputReceiverInterface> cursors_highlighter;
 
     lines_shown++;

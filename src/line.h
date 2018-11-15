@@ -133,6 +133,8 @@ class Line {
     bool paste_mode;
     ParseTree full_file_parse_tree;
     OutputReceiverInterface* output_receiver = nullptr;
+    bool has_active_cursor = false;
+    bool has_cursor = false;
     std::unordered_set<const OpenBuffer*>* output_buffers_shown;
   };
   void Output(const OutputOptions& options) const;
