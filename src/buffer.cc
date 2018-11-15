@@ -301,6 +301,7 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
                 editor_state->SetWarningStatus(
                     L"Write failed: " + FromByteString(strerror(errno)));
               }
+              return;
             }
             auto buffer_to_insert = std::make_shared<OpenBuffer>(
                 editor_state, L"tmp buffer");
