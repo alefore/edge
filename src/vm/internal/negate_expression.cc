@@ -21,7 +21,7 @@ class NegateExpression : public Expression {
   void Evaluate(Trampoline* trampoline) {
     auto negate = negate_;
     auto expr = expr_;
-    trampoline->Bounce(expr_.get(),
+    trampoline->Bounce(expr.get(),
         [negate, expr](std::unique_ptr<Value> value, Trampoline* trampoline) {
           negate(value.get());
           trampoline->Continue(std::move(value));
