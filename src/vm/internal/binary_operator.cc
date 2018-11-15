@@ -8,7 +8,10 @@ namespace vm {
 BinaryOperator::BinaryOperator(
     unique_ptr<Expression> a, unique_ptr<Expression> b, const VMType type,
     function<void(const Value&, const Value&, Value*)> callback)
-    : a_(std::move(a)), b_(std::move(b)), type_(type), operator_(callback) {}
+    : a_(std::move(a)), b_(std::move(b)), type_(type), operator_(callback) {
+  CHECK(a_ != nullptr);
+  CHECK(b_ != nullptr);
+}
 
 const VMType& BinaryOperator::type() { return type_; }
 
