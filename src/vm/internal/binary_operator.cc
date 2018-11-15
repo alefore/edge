@@ -21,14 +21,15 @@ void BinaryOperator::Evaluate(Trampoline* trampoline) {
   // TODO: Bunch of things here can be turned to unique_ptr.
   auto type_copy = type_;
   auto operator_copy = operator_;
+  std::shared_ptr<Expression> a_shared = a_;
   std::shared_ptr<Expression> b_shared = b_;
 
-  trampoline->Bounce(a_.get(),
-      [b_shared, type_copy, operator_copy](
+  trampoline->Bounce(a_shared.get(),
+      [a_shared, b_shared, type_copy, operator_copy](
           std::unique_ptr<Value> a_value, Trampoline* trampoline) {
         std::shared_ptr<Value> a_value_shared(std::move(a_value));
         trampoline->Bounce(b_shared.get(),
-            [a_value_shared, type_copy, operator_copy](
+            [a_value_shared, b_shared, type_copy, operator_copy](
                 std::unique_ptr<Value> b_value, Trampoline* trampoline) {
               auto output = std::make_unique<Value>(type_copy);
               operator_copy(*a_value_shared, *b_value, output.get());
