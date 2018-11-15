@@ -281,6 +281,7 @@ EditorState::EditorState(AudioPlayer* audio_player)
       pipe_to_communicate_internal_events_(BuildPipe()),
       audio_player_(audio_player) {
   LineColumn::Register(&environment_);
+  Range::Register(&environment_);
 }
 
 EditorState::~EditorState() {
