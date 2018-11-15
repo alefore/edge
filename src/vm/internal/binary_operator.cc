@@ -1,5 +1,7 @@
 #include "binary_operator.h"
 
+#include <glog/logging.h>
+
 #include "../public/value.h"
 
 namespace afc {
