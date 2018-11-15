@@ -82,7 +82,7 @@ class Trampoline {
   Continuation continuation_;
 
   // Set by Bounce (and Enter), read by Enter.
-  Expression* expression_;
+  Expression* expression_ = nullptr;
 };
 
 class Expression {
