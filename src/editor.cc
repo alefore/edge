@@ -214,14 +214,16 @@ Environment EditorState::BuildEditorEnvironment() {
         return buffer->current_line()->ToString();
       })));
 
-  environment.Define(L"ForkCommand", vm::NewCallback(
-      std::function<void(wstring, bool)>(
-          [this](wstring command, bool enter) {
-            ForkCommandOptions options;
-            options.command = command;
-            options.enter = enter;
-            ForkCommand(this, options);
-          })));
+  environment.Define(L"ForkCommand", Value::NewFunction(
+      { VMType::ObjectType(L"Buffer"), VMType::VM_STRING, VMType::VM_BOOLEAN },
+      [this](vector<Value::Ptr> args) {
+        CHECK_EQ(args.size(), 2u);
+        CHECK_EQ(args[0]->type, VMType::VM_STRING);
+        ForkCommandOptions options;
+        options.command = args[0]->str;
+        options.enter = args[1]->boolean;
+        return Value::NewObject(L"Buffer", ForkCommand(this, options));
+      }));
 
   environment.Define(L"OpenFile", Value::NewFunction(
       { VMType::ObjectType(L"Buffer"), VMType(VMType::VM_STRING) },
@@ -280,41 +282,8 @@ EditorState::EditorState(AudioPlayer* audio_player)
       status_(L""),
       pipe_to_communicate_internal_events_(BuildPipe()),
       audio_player_(audio_player) {
-  auto line_column = std::make_unique<ObjectType>(L"LineColumn");
-
-  // Methods for LineColumn.
-  environment_.Define(L"LineColumn", Value::NewFunction(
-      { VMType::ObjectType(line_column.get()), VMType::Integer(),
-        VMType::Integer() },
-        [this](vector<unique_ptr<Value>> args) {
-          CHECK_EQ(args.size(), size_t(2));
-          CHECK_EQ(args[0]->type, VMType::VM_INTEGER);
-          CHECK_EQ(args[1]->type, VMType::VM_INTEGER);
-          return Value::NewObject(L"LineColumn", std::make_shared<LineColumn>(
-              args[0]->integer, args[1]->integer));
-        }));
-
-  line_column->AddField(L"line", Value::NewFunction(
-      { VMType::Integer(), VMType::ObjectType(line_column.get()) },
-      [this](vector<unique_ptr<Value>> args) {
-        CHECK_EQ(args.size(), size_t(1));
-        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-        auto line_column = static_cast<LineColumn*>(args[0]->user_value.get());
-        CHECK(line_column != nullptr);
-        return Value::NewInteger(line_column->line);
-      }));
-
-  line_column->AddField(L"column", Value::NewFunction(
-      { VMType::Integer(), VMType::ObjectType(line_column.get()) },
-      [this](vector<unique_ptr<Value>> args) {
-        CHECK_EQ(args.size(), size_t(1));
-        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-        auto line_column = static_cast<LineColumn*>(args[0]->user_value.get());
-        CHECK(line_column != nullptr);
-        return Value::NewInteger(line_column->column);
-      }));
-
-  environment_.DefineType(L"LineColumn", std::move(line_column));
+  LineColumn::Register(&environment_);
+  Range::Register(&environment_);
 }
 
 EditorState::~EditorState() {

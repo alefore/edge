@@ -6,12 +6,16 @@
 #include <string>
 #include <vector>
 
+#include "src/vm/public/environment.h"
+
 namespace afc {
 namespace editor {
 
 // A position in a text buffer.
 struct LineColumn {
-  LineColumn() : LineColumn(0, 0) {}
+  static void Register(vm::Environment* environment);
+
+  LineColumn() {}
   LineColumn(std::vector<int> pos)
       : line(pos.size() > 0 ? pos[0] : 0),
         column(pos.size() > 1 ? pos[1] : 0) {}
@@ -54,8 +58,8 @@ struct LineColumn {
 
   std::wstring ToCppString() const;
 
-  size_t line;
-  size_t column;
+  size_t line = 0;
+  size_t column = 0;
 
   friend std::ostream& operator<<(std::ostream& os, const LineColumn& lc);
 };
@@ -63,6 +67,8 @@ struct LineColumn {
 std::ostream& operator<<(std::ostream& os, const LineColumn& lc);
 
 struct Range {
+  static void Register(vm::Environment* environment);
+
   Range() = default;
   Range(LineColumn begin, LineColumn end) : begin(begin), end(end) {}
 

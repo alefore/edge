@@ -219,6 +219,45 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
             std::make_unique<TransformationStack>().release(), evaluation);
       }));
 
+  buffer->AddField(L"GetRegion", Value::NewFunction(
+      {VMType::ObjectType(L"Range"), VMType::ObjectType(buffer.get()),
+       VMType::String()},
+      [editor_state](vector<Value::Ptr> args, Trampoline* trampoline) {
+        CHECK_EQ(args.size(), 2u);
+        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+        CHECK_EQ(args[1]->type, VMType::VM_STRING);
+        // TODO: Don't ignore the buffer! Apply it to it!
+        //auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+        auto resume = trampoline->Interrupt();
+        NewCommandWithModifiers(args[1]->str, L"Selects a region",
+                [resume](EditorState*, OpenBuffer* buffer,
+                         CommandApplyMode mode, Modifiers modifiers) {
+                  // TODO: Apply this to all cursors. That's tricky, because we
+                  // don't know what effect each transformation will have, and
+                  // because we can't call `resume` more than once (it will
+                  // likely free things when we call it).
+                  if (mode == APPLY_FINAL) {
+                    LOG(INFO) << "GetRegion: Resuming.";
+                    LineColumn start, end;
+                    buffer->FindPartialRange(modifiers, buffer->position(),
+                                             &start, &end);
+                    resume(Value::NewObject(
+                        L"Range", std::make_shared<Range>(start, end)));
+                  } else {
+                    buffer->PushTransformationStack();
+                    DeleteOptions options;
+                    options.modifiers = modifiers;
+                    options.copy_to_paste_buffer = false;
+                    options.preview = true;
+                    buffer->ApplyToCursors(
+                        NewDeleteTransformation(options),
+                        Modifiers::AFFECT_ONLY_CURRENT_CURSOR);
+                    buffer->PopTransformationStack();
+                  }
+                })
+            ->ProcessInput(L'\n', editor_state);
+      }));
+
   buffer->AddField(L"AddKeyboardTextTransformer", Value::NewFunction(
       { VMType::Bool(), VMType::ObjectType(buffer.get()),
         VMType::Function({ VMType::String(), VMType::String() })},
@@ -262,6 +301,7 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
                 editor_state->SetWarningStatus(
                     L"Write failed: " + FromByteString(strerror(errno)));
               }
+              return;
             }
             auto buffer_to_insert = std::make_shared<OpenBuffer>(
                 editor_state, L"tmp buffer");
@@ -2569,7 +2609,8 @@ void OpenBuffer::Undo(EditorState* editor_state, UndoMode undo_mode) {
     while (!modified_buffer && !source->empty()) {
       target->emplace_back(
           std::make_unique<Transformation::Result>(editor_state));
-      source->back()->undo_stack->Apply(editor_state, this, target->back().get());
+      source->back()->undo_stack
+          ->Apply(editor_state, this, target->back().get());
       source->pop_back();
       modified_buffer =
           target->back()->modified_buffer || undo_mode == ONLY_UNDO_THE_LAST;

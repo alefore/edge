@@ -249,7 +249,13 @@ void Line::Output(const Line::OutputOptions& options) const {
     auto number = std::to_wstring(options.line + 1);
     CHECK_LE(number.size() + 1, initial_column)
         << "Buffer has lines: " << target_buffer->lines_size();
-    options.output_receiver->AddModifier(LineModifier::DIM);
+    if (options.has_active_cursor) {
+      options.output_receiver->AddModifier(LineModifier::CYAN);
+    } else if (options.has_cursor) {
+      options.output_receiver->AddModifier(LineModifier::BLUE);
+    } else {
+      options.output_receiver->AddModifier(LineModifier::DIM);
+    }
     options.output_receiver->AddString(
         wstring(initial_column - number.size() - 1, L' ') + number + L':');
     options.output_receiver->AddModifier(LineModifier::RESET);

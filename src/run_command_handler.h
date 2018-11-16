@@ -34,7 +34,11 @@ struct ForkCommandOptions {
 
 unique_ptr<Command> NewForkCommand();
 
-void ForkCommand(EditorState* editor_state, const ForkCommandOptions& options);
+class OpenBuffer;
+
+std::shared_ptr<OpenBuffer> ForkCommand(
+    EditorState* editor_state, const ForkCommandOptions& options);
+
 void RunCommandHandler(const wstring& input, EditorState* editor_state);
 void RunMultipleCommandsHandler(const wstring& input,
                                 EditorState* editor_state);

@@ -488,6 +488,7 @@ Trampoline::Trampoline(
       continuation_(return_continuation_) {}
 
 void Trampoline::Enter(Expression* start_expression) {
+  CHECK(expression_ == nullptr);
   CHECK(start_expression != nullptr);
   expression_ = start_expression;
   while (expression_) {
@@ -508,9 +509,12 @@ std::function<void(Value::Ptr)> Trampoline::Interrupt() {
     DVLOG(5) << "Resuming trampoline.";
     Trampoline trampoline(nullptr, nullptr);
     state(&trampoline);
+    CHECK(trampoline.expression_ == nullptr);
     trampoline.Continue(std::move(value));
-    if (trampoline.expression_) {
-      trampoline.Enter(std::move(trampoline.expression_));
+    if (trampoline.expression_ != nullptr) {
+      Expression* expression_copy = trampoline.expression_;
+      trampoline.expression_ = nullptr;
+      trampoline.Enter(expression_copy);
     }
   };
 }

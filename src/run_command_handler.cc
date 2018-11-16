@@ -222,11 +222,11 @@ class CommandBuffer : public OpenBuffer {
     if (child_pid_ != -1) {
       initial_information = L"… ";
     } else if (!WIFEXITED(child_exit_status_)) {
-      initial_information = L"☠ ";
+      initial_information = L" ";
     } else if (WEXITSTATUS(child_exit_status_) == 0) {
-      initial_information = L"✓ ";
+      initial_information = L" ";
     } else {
-      initial_information = L"✗ ";
+      initial_information = L" ";
     }
 
     wstring additional_information;
@@ -329,7 +329,8 @@ class ForkEditorCommand : public Command {
 namespace afc {
 namespace editor {
 
-void ForkCommand(EditorState* editor_state, const ForkCommandOptions& options) {
+std::shared_ptr<OpenBuffer>
+ForkCommand(EditorState* editor_state, const ForkCommandOptions& options) {
   wstring buffer_name = options.buffer_name.empty()
       ? (L"$ " + options.command)
       : options.buffer_name;
@@ -349,6 +350,7 @@ void ForkCommand(EditorState* editor_state, const ForkCommandOptions& options) {
   }
   it.first->second->Reload(editor_state);
   it.first->second->set_current_position_line(0);
+  return it.first->second;
 }
 
 std::unique_ptr<Command> NewForkCommand() {

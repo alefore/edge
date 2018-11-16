@@ -18,8 +18,6 @@ buffer.set_editor_commands_path("~/.edge/editor_commands/");
 
 string path = buffer.path();
 if (path == "") {
-  buffer.set_follow_end_of_file(false);
-
   string command = buffer.command();
   if (command != "") {
     buffer.set_paste_mode(true);
@@ -32,16 +30,16 @@ if (path == "") {
       buffer.set_pts(true);
       buffer.set_follow_end_of_file(true);
       buffer.set_buffer_list_context_lines(5);
-    }
-    if (base_command == "make") {
+    } else if (base_command == "make") {
       buffer.set_contains_line_marks(true);
       buffer.set_reload_on_buffer_write(true);
       buffer.set_follow_end_of_file(true);
       buffer.set_buffer_list_context_lines(5);
-    }
-    if (base_command == "grep") {
+    } else if (base_command == "grep") {
       buffer.set_contains_line_marks(true);
       buffer.set_allow_dirty_delete(true);
+    } else {
+      buffer.set_follow_end_of_file(buffer.pts());
     }
     buffer.set_atomic_lines(false);
     buffer.set_reload_on_enter(false);
