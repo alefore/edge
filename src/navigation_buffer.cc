@@ -25,7 +25,6 @@ class NavigationBuffer : public OpenBuffer {
       : OpenBuffer(editor_state, std::move(name)),
         source_(source) {
     editor_state->StartHandlingInterrupts();
-    set_bool_variable(variable_reload_on_display(), true);
     set_bool_variable(variable_show_in_buffers_list(), false);
     set_bool_variable(variable_push_positions_to_history(), false);
     set_bool_variable(variable_allow_dirty_delete(), true);
