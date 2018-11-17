@@ -66,6 +66,26 @@ class NavigationBuffer : public OpenBuffer {
                    size_t depth_left, const ParseTree& tree,
                    std::shared_ptr<LazyString> padding, OpenBuffer* target) {
     for (auto& child : tree.children) {
+      if (child.range.begin.line + 1 == child.range.end.line ||
+          depth_left == 0 ||
+          child.children.empty()) {
+        Line::Options options;
+        options.contents = padding;
+        options.modifiers.resize(padding->size());
+        AddContents(source, *source->LineAt(child.range.begin.line), &options);
+        if (child.range.begin.line + 1 < child.range.end.line) {
+          options.contents =
+              StringAppend(options.contents, NewCopyString(L" ... "));
+        } else {
+          options.contents =
+              StringAppend(options.contents, NewCopyString(L" "));
+        }
+        AddContents(source, *source->LineAt(child.range.end.line), &options);
+        target->AppendRawLine(editor_state, std::make_shared<Line>(options));
+        AdjustLastLine(target, source, child.range.begin);
+        continue;
+      }
+
       AppendLine(editor_state, source, padding, child.range.begin, target);
       if (depth_left > 0) {
         DisplayTree(editor_state, source, depth_left - 1, child,
@@ -79,23 +99,30 @@ class NavigationBuffer : public OpenBuffer {
                   const std::shared_ptr<OpenBuffer>& source,
                   std::shared_ptr<LazyString> padding,
                   LineColumn position, OpenBuffer* target) {
-    const Line& input = *source->LineAt(position.line);
+    Line::Options options;
+    options.contents = padding;
+    options.modifiers.resize(padding->size());
+    AddContents(source, *source->LineAt(position.line), &options);
+    target->AppendRawLine(editor_state, std::make_shared<Line>(options));
+    AdjustLastLine(target, source, position);
+  }
+
+  void AddContents(const std::shared_ptr<OpenBuffer>& source,
+                   const Line& input, Line::Options* line_options) {
     auto trim = StringTrimLeft(input.contents(),
         source->read_string_variable(
             OpenBuffer::variable_line_prefix_characters()));
     CHECK_LE(trim->size(), input.contents()->size());
-    size_t characters_removed = input.contents()->size() - trim->size();
-    Line::Options options;
-    options.contents = StringAppend(padding, trim);
-    options.modifiers.resize(options.contents->size());
+    size_t characters_trimmed = input.contents()->size() - trim->size();
+    size_t initial_length = line_options->contents->size();
+    line_options->contents = StringAppend(line_options->contents, trim);
+    line_options->modifiers.resize(line_options->contents->size());
     for (size_t i = 0; i < input.modifiers().size(); i++) {
-      if (i >= characters_removed) {
-        options.modifiers[padding->size() + i - characters_removed] =
+      if (i >= characters_trimmed) {
+        line_options->modifiers[initial_length + i - characters_trimmed] =
             input.modifiers()[i];
       }
     }
-    target->AppendRawLine(editor_state, std::make_shared<Line>(options));
-    AdjustLastLine(target, source, position);
   }
 
   void AdjustLastLine(OpenBuffer* buffer, std::shared_ptr<OpenBuffer> link_to,
