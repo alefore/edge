@@ -290,6 +290,12 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
             buffer->ApplyToCursors(NewDeleteCharactersTransformation(options));
           })));
 
+  buffer->AddField(L"Reload", vm::NewCallback(
+      std::function<void(OpenBuffer*)>(
+          [editor_state](OpenBuffer* buffer) {
+            buffer->Reload(editor_state);
+          })));
+
   buffer->AddField(L"InsertText", vm::NewCallback(
       std::function<void(OpenBuffer*, wstring)>(
           [editor_state](OpenBuffer* buffer, wstring text) {
