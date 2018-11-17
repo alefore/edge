@@ -17,6 +17,7 @@ class FunctionCall : public Expression {
                std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args)
       : func_(std::move(func)), args_(std::move(args)) {
     CHECK(func_ != nullptr);
+    CHECK(args_ != nullptr);
   }
 
   const VMType& type() {
@@ -47,6 +48,8 @@ class FunctionCall : public Expression {
       std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args_types,
       std::shared_ptr<std::vector<unique_ptr<Value>>> values,
       std::shared_ptr<Value> callback) {
+    CHECK(args_types != nullptr);
+    CHECK(values != nullptr);
     CHECK(callback != nullptr);
     CHECK_EQ(callback->type.type, VMType::FUNCTION);
     CHECK(callback->callback);
@@ -90,15 +93,18 @@ class FunctionCall : public Expression {
 
 std::unique_ptr<Expression> NewFunctionCall(
     std::unique_ptr<Expression> func,
-    std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args) {
-  return std::make_unique<FunctionCall>(std::move(func), std::move(args));
+    std::vector<std::unique_ptr<Expression>> args) {
+  return std::make_unique<FunctionCall>(
+      std::move(func),
+      std::make_shared<std::vector<std::unique_ptr<Expression>>>(
+          std::move(args)));
 }
 
 void Call(Value* func, vector<Value::Ptr> args,
           std::function<void(Value::Ptr)> consumer) {
-  auto args_expr = std::make_shared<std::vector<std::unique_ptr<Expression>>>();
+  std::vector<std::unique_ptr<Expression>> args_expr;
   for (auto& a : args) {
-    args_expr->push_back(NewConstantExpression(std::move(a)));
+    args_expr.push_back(NewConstantExpression(std::move(a)));
   }
   // TODO: Use unique_ptr and capture by std::move.
   std::shared_ptr<Expression> function_expr = NewFunctionCall(

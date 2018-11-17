@@ -15,7 +15,7 @@ class Expression;
 
 std::unique_ptr<Expression> NewFunctionCall(
     std::unique_ptr<Expression> func,
-    std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args);
+    std::vector<std::unique_ptr<Expression>> args);
 
 void Call(Value* func, vector<Value::Ptr> args,
           std::function<void(Value::Ptr)> consumer);
