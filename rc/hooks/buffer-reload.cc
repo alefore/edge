@@ -79,6 +79,8 @@ if (path == "") {
   if (basename == "COMMIT_EDITMSG") {
     buffer.set_line_prefix_characters(" #");
     SetStatus("GIT commit msg");
+    buffer.AddBindingToFile(
+        "sR", buffer.editor_commands_path() + "reflow");
   }
 
   if (extension == "py") {
