@@ -25,6 +25,7 @@
 #include "line_prompt_mode.h"
 #include "list_buffers_command.h"
 #include "map_mode.h"
+#include "navigation_buffer.h"
 #include "navigate_command.h"
 #include "noop_command.h"
 #include "open_directory_command.h"
@@ -695,6 +696,14 @@ class ActivateLink : public Command {
       auto it = editor_state->buffers()->find(target->name());
       if (it == editor_state->buffers()->end()) { return; }
       editor_state->set_current_buffer(it);
+      auto target_position =
+          buffer->current_line()->environment()->Lookup(L"buffer_position");
+      if (target_position != nullptr &&
+          target_position->type.type == VMType::OBJECT_TYPE &&
+          target_position->type.object_type == L"LineColumn") {
+        it->second->set_position(
+            *static_cast<LineColumn*>(target_position->user_value.get()));
+      }
       editor_state->PushCurrentPosition();
       editor_state->ScheduleRedraw();
       buffer->ResetMode();
@@ -959,6 +968,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(
           L"// Set active cursors to the marks on this buffer.\n"
           L"editor.SetActiveCursorsToMarks();"));
 
+  commands->Add(L"N", NewNavigationBufferCommand());
   commands->Add(L"i", std::make_unique<EnterInsertModeCommand>());
   commands->Add(L"f", std::make_unique<EnterFindMode>());
   commands->Add(L"r", std::make_unique<ReverseDirectionCommand>());
