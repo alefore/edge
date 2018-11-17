@@ -32,6 +32,7 @@ class Environment {
 
   Value* Lookup(const wstring& symbol);
   void Define(const wstring& symbol, unique_ptr<Value> value);
+  void Assign(const wstring& symbol, unique_ptr<Value> value);
 
  private:
   map<wstring, unique_ptr<ObjectType>> object_types_;

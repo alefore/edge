@@ -1,5 +1,7 @@
 #include "../public/environment.h"
 
+#include <glog/logging.h>
+
 #include "string.h"
 #include "../public/types.h"
 #include "../public/value.h"
@@ -77,6 +79,21 @@ Value* Environment::Lookup(const wstring& symbol) {
 
 void Environment::Define(const wstring& symbol, unique_ptr<Value> value) {
   table_[symbol] = std::move(value);
+}
+
+void Environment::Assign(const wstring& symbol, unique_ptr<Value> value) {
+  auto it = table_.find(symbol);
+  if (it == table_.end()) {
+    // TODO: Show the symbol.
+    CHECK(parent_environment_ != nullptr)
+        << "Environment::parent_environment_ is nullptr while trying to assign "
+        << "a new value to a symbol `" << "..." << "`. This likely means that "
+        << "the symbol is undefined (which the caller should have validated as "
+        << "part of the compilation process).";
+    parent_environment_->Assign(symbol, std::move(value));
+    return;
+  }
+  it->second = std::move(value);
 }
 
 }  // namespace vm

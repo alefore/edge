@@ -29,7 +29,7 @@ class AssignExpression : public Expression {
                              Trampoline* trampoline) {
           DVLOG(3) << "Setting value for: " << symbol;
           DVLOG(4) << "Value: " << *value;
-          trampoline->environment()->Define(symbol, std::move(value));
+          trampoline->environment()->Assign(symbol, std::move(value));
           trampoline->Continue(Value::NewVoid());
         });
   }
