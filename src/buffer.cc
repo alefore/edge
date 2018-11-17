@@ -341,7 +341,8 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
         CHECK_EQ(args[1]->type, VMType::VM_STRING);
         auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
         CHECK(buffer != nullptr);
-        buffer->default_commands_->Add(args[1]->str, std::move(args[2]));
+        buffer->default_commands_->Add(
+            args[1]->str, std::move(args[2]), &buffer->environment_);
         return Value::NewVoid();
       }));
 

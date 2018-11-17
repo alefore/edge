@@ -8,6 +8,7 @@
 
 #include "editor_mode.h"
 #include "command.h"
+#include "vm/public/environment.h"
 #include "vm/public/value.h"
 
 namespace afc {
@@ -28,7 +29,8 @@ class MapModeCommands {
 
   // Adds an entry mapping a given string to a given command.
   void Add(wstring name, std::unique_ptr<Command> value);
-  void Add(wstring name, std::unique_ptr<vm::Value> value);
+  void Add(wstring name, std::unique_ptr<vm::Value> value,
+           vm::Environment* environment);
   void Add(wstring name, std::function<void()> value, wstring description);
 
  private:
