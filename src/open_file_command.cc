@@ -4,6 +4,7 @@ extern "C" {
 #include <sys/stat.h>
 }
 
+#include "buffer_variables.h"
 #include "editor.h"
 #include "dirname.h"
 #include "file_link_mode.h"
@@ -42,7 +43,7 @@ std::unique_ptr<Command> NewOpenFileCommand() {
         if (editor_state->has_current_buffer()) {
           wstring path =
               editor_state->current_buffer()->second->read_string_variable(
-                  OpenBuffer::variable_path());
+                  buffer_variables::path());
           struct stat stat_buffer;
           if (stat(ToByteString(path).c_str(), &stat_buffer) == -1
               || !S_ISDIR(stat_buffer.st_mode)) {

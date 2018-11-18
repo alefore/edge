@@ -5,6 +5,7 @@
 
 #include <glog/logging.h>
 
+#include "buffer_variables.h"
 #include "char_buffer.h"
 #include "direction.h"
 #include "editor.h"
@@ -128,7 +129,7 @@ class NavigateModeWord : public NavigateMode {
   size_t InitialStart(OpenBuffer* buffer) override {
     wstring contents = buffer->current_line()->ToString();
     size_t previous_space = contents.find_last_not_of(
-        buffer->read_string_variable(OpenBuffer::variable_word_characters()),
+        buffer->read_string_variable(buffer_variables::word_characters()),
         buffer->position().column);
     if (previous_space == wstring::npos) {
       return 0;
@@ -139,7 +140,7 @@ class NavigateModeWord : public NavigateMode {
   size_t InitialEnd(OpenBuffer* buffer) override {
     wstring contents = buffer->current_line()->ToString();
     size_t next_space = contents.find_first_not_of(
-        buffer->read_string_variable(OpenBuffer::variable_word_characters()),
+        buffer->read_string_variable(buffer_variables::word_characters()),
         buffer->position().column);
     if (next_space == wstring::npos) {
       return buffer->current_line()->size();

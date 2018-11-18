@@ -19,6 +19,7 @@ extern "C" {
 #include <glog/logging.h>
 
 #include "audio.h"
+#include "src/buffer_variables.h"
 #include "char_buffer.h"
 #include "dirname.h"
 #include "file_link_mode.h"
@@ -441,7 +442,7 @@ void EditorState::PushCurrentPosition() {
 void EditorState::PushPosition(LineColumn position) {
   if (!has_current_buffer()
       || !current_buffer_->second->read_bool_variable(
-              OpenBuffer::variable_push_positions_to_history())) {
+              buffer_variables::push_positions_to_history())) {
     return;
   }
   auto buffer_it = buffers_.find(kPositionsBufferName);
@@ -456,9 +457,9 @@ void EditorState::PushPosition(LineColumn position) {
     CHECK(buffer_it != buffers()->end());
     CHECK(buffer_it->second != nullptr);
     buffer_it->second->set_bool_variable(
-        OpenBuffer::variable_save_on_close(), true);
+        buffer_variables::save_on_close(), true);
     buffer_it->second->set_bool_variable(
-        OpenBuffer::variable_show_in_buffers_list(), false);
+        buffer_variables::show_in_buffers_list(), false);
   }
   CHECK(buffer_it->second != nullptr);
   CHECK_LE(buffer_it->second->position().line,
@@ -494,9 +495,9 @@ void EditorState::SetStatus(const wstring& status) {
     status_buffer_it.first->second =
         std::make_shared<OpenBuffer>(this, status_buffer_it.first->first);
     status_buffer_it.first->second->set_bool_variable(
-        OpenBuffer::variable_allow_dirty_delete(), true);
+        buffer_variables::allow_dirty_delete(), true);
     status_buffer_it.first->second->set_bool_variable(
-        OpenBuffer::variable_show_in_buffers_list(), false);
+        buffer_variables::show_in_buffers_list(), false);
   }
   status_buffer_it.first->second
       ->AppendLazyString(this, NewCopyString(status));
@@ -594,7 +595,7 @@ bool EditorState::handling_stop_signals() const {
   if (target_buffer != nullptr) {
     buffer = target_buffer;
   }
-  return buffer->read_bool_variable(OpenBuffer::variable_pts());
+  return buffer->read_bool_variable(buffer_variables::pts());
 }
 
 }  // namespace editor

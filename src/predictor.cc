@@ -14,6 +14,7 @@ extern "C" {
 }
 
 #include "buffer.h"
+#include "buffer_variables.h"
 #include "char_buffer.h"
 #include "dirname.h"
 #include "editor.h"
@@ -47,8 +48,8 @@ class PredictionsBufferImpl : public OpenBuffer {
         predictor_(predictor),
         input_(input),
         consumer_(consumer) {
-    set_bool_variable(variable_show_in_buffers_list(), false);
-    set_bool_variable(variable_allow_dirty_delete(), true);
+    set_bool_variable(buffer_variables::show_in_buffers_list(), false);
+    set_bool_variable(buffer_variables::allow_dirty_delete(), true);
   }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* buffer) {

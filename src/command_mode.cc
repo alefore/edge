@@ -11,6 +11,7 @@
 
 #include <glog/logging.h>
 
+#include "buffer_variables.h"
 #include "cpp_command.h"
 #include "char_buffer.h"
 #include "close_buffer_command.h"
@@ -715,7 +716,7 @@ class ActivateLink : public Command {
     wstring line = buffer->current_line()->ToString();
 
     const wstring& path_characters =
-        buffer->read_string_variable(buffer->variable_path_characters());
+        buffer->read_string_variable(buffer_variables::path_characters());
 
     // Scroll back to the first non-path character. If we're in a non-path
     // character, this is a no-op.
@@ -750,7 +751,7 @@ class ActivateLink : public Command {
     options.initial_search_paths.clear();
     // Works if the current buffer is a directory listing:
     options.initial_search_paths.push_back(
-        buffer->read_string_variable(buffer->variable_path()));
+        buffer->read_string_variable(buffer_variables::path()));
     // And a fall-back for the current buffer being a file:
     options.initial_search_paths.push_back(
         Dirname(options.initial_search_paths[0]));

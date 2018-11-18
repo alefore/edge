@@ -4,6 +4,7 @@ extern "C" {
 #include <sys/socket.h>
 }
 
+#include "buffer_variables.h"
 #include "command.h"
 #include "editor.h"
 #include "file_link_mode.h"
@@ -30,7 +31,7 @@ void SendEndOfFileToBuffer(EditorState* editor_state,
     editor_state->SetStatus(L"No active subprocess for current buffer.");
     return;
   }
-  if (buffer->read_bool_variable(OpenBuffer::variable_pts())) {
+  if (buffer->read_bool_variable(buffer_variables::pts())) {
     char str[1] = { 4 };
     if (write(buffer->fd(), str, sizeof(str)) == -1) {
       editor_state->SetStatus(

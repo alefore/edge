@@ -20,6 +20,7 @@ extern "C" {
 
 #include <glog/logging.h>
 
+#include "buffer_variables.h"
 #include "char_buffer.h"
 #include "dirname.h"
 #include "editor.h"
@@ -70,7 +71,7 @@ class FileBuffer : public OpenBuffer {
   FileBuffer(EditorState* editor_state, const wstring& path,
              const wstring& name)
       : OpenBuffer(editor_state, name) {
-    set_string_variable(variable_path(), path);
+    set_string_variable(buffer_variables::path(), path);
   }
 
   void Visit(EditorState* editor_state) {
@@ -96,7 +97,7 @@ class FileBuffer : public OpenBuffer {
       return false;
     }
 
-    auto file_path = read_string_variable(variable_path());
+    auto file_path = read_string_variable(buffer_variables::path());
     list<wstring> file_path_components;
     if (file_path.empty() || file_path[0] != '/') {
       LOG(INFO) << "Empty edge path.";
@@ -141,7 +142,7 @@ class FileBuffer : public OpenBuffer {
     contents.push_back(L"");
 
     contents.push_back(L"// String variables");
-    for (const auto& variable : OpenBuffer::StringStruct()->variables()) {
+    for (const auto& variable : buffer_variables::StringStruct()->variables()) {
       contents.push_back(
           L"buffer.set_" + variable.first + L"(\"" +
           CppEscapeString(read_string_variable(variable.second.get()))
@@ -150,7 +151,7 @@ class FileBuffer : public OpenBuffer {
     contents.push_back(L"");
 
     contents.push_back(L"// Int variables");
-    for (const auto& variable : OpenBuffer::IntStruct()->variables()) {
+    for (const auto& variable : buffer_variables::IntStruct()->variables()) {
       contents.push_back(
           L"buffer.set_" + variable.first + L"(" +
           std::to_wstring(Read(variable.second.get())) + L");");
@@ -158,7 +159,7 @@ class FileBuffer : public OpenBuffer {
     contents.push_back(L"");
 
     contents.push_back(L"// Bool variables");
-    for (const auto& variable : OpenBuffer::BoolStruct()->variables()) {
+    for (const auto& variable : buffer_variables::BoolStruct()->variables()) {
       contents.push_back(
           L"buffer.set_" + variable.first + L"(" +
           (read_bool_variable(variable.second.get()) ? L"true" : L"false")
@@ -178,7 +179,7 @@ class FileBuffer : public OpenBuffer {
       return;
     }
 
-    if (target->read_bool_variable(OpenBuffer::variable_clear_on_reload())) {
+    if (target->read_bool_variable(buffer_variables::clear_on_reload())) {
       target->ClearContents(editor_state);
       target->ClearModified();
     }
@@ -202,8 +203,8 @@ class FileBuffer : public OpenBuffer {
       return;
     }
 
-    set_bool_variable(variable_atomic_lines(), true);
-    set_bool_variable(variable_allow_dirty_delete(), true);
+    set_bool_variable(buffer_variables::atomic_lines(), true);
+    set_bool_variable(buffer_variables::allow_dirty_delete(), true);
     target->AppendToLastLine(editor_state,
         NewCopyString(L"File listing: " + path));
 
@@ -279,7 +280,7 @@ class FileBuffer : public OpenBuffer {
     for (auto& it : *editor_state->buffers()) {
       CHECK(it.second != nullptr);
       if (it.second->read_bool_variable(
-              OpenBuffer::variable_reload_on_buffer_write())) {
+              buffer_variables::reload_on_buffer_write())) {
         LOG(INFO) << "Write of " << path << " triggers reload: "
                   << it.second->name();
         it.second->Reload(editor_state);
@@ -348,7 +349,7 @@ class FileBuffer : public OpenBuffer {
   }
 
   wstring GetPath() const {
-    return read_string_variable(variable_path());
+    return read_string_variable(buffer_variables::path());
   }
 
   struct stat stat_buffer_;
@@ -473,9 +474,9 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
   it = OpenFile(options);
   CHECK(it != editor_state->buffers()->end());
   CHECK(it->second != nullptr);
-  it->second->set_bool_variable(OpenBuffer::variable_save_on_close(), true);
+  it->second->set_bool_variable(buffer_variables::save_on_close(), true);
   it->second->set_bool_variable(
-      OpenBuffer::variable_show_in_buffers_list(), false);
+      buffer_variables::show_in_buffers_list(), false);
   if (!editor_state->has_current_buffer()) {
     editor_state->set_current_buffer(it);
     editor_state->ScheduleRedraw();
@@ -529,7 +530,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
            it != editor_state->buffers()->end(); ++it) {
         CHECK(it->second != nullptr);
         auto buffer_path =
-            it->second->read_string_variable(OpenBuffer::variable_path());
+            it->second->read_string_variable(buffer_variables::path());
         if (buffer_path.size() >= path.size() &&
             buffer_path.substr(buffer_path.size() - path.size()) == path &&
             (buffer_path.size() == path.size() ||

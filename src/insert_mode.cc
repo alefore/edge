@@ -10,6 +10,7 @@ extern "C" {
 
 #include <glog/logging.h>
 
+#include "buffer_variables.h"
 #include "char_buffer.h"
 #include "command.h"
 #include "command_mode.h"
@@ -40,7 +41,7 @@ class NewLineTransformation : public Transformation {
       return;
     }
 
-    if (buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())
+    if (buffer->read_bool_variable(buffer_variables::atomic_lines())
         && column != 0
         && column != line->size()) {
       result->made_progress = false;
@@ -48,10 +49,10 @@ class NewLineTransformation : public Transformation {
     }
 
     const wstring& line_prefix_characters(buffer->read_string_variable(
-        OpenBuffer::variable_line_prefix_characters()));
+        buffer_variables::line_prefix_characters()));
     size_t prefix_end = 0;
     if (line != nullptr
-        && !buffer->read_bool_variable(OpenBuffer::variable_paste_mode())) {
+        && !buffer->read_bool_variable(buffer_variables::paste_mode())) {
       while (prefix_end < column
              && (line_prefix_characters.find(line->get(prefix_end))
                  != line_prefix_characters.npos)) {
@@ -369,7 +370,7 @@ void FindCompletion(EditorState* editor_state,
 
   auto line = buffer->current_line()->ToString();
   options.column_start = line.find_last_not_of(
-      buffer->read_string_variable(OpenBuffer::variable_word_characters()),
+      buffer->read_string_variable(buffer_variables::word_characters()),
       options.column_end - 1);
   if (options.column_start == wstring::npos) {
     options.column_start = 0;
@@ -415,7 +416,7 @@ void StartCompletionFromDictionary(
   options.make_current_buffer = false;
   auto file = OpenFile(options);
   file->second->set_bool_variable(
-      OpenBuffer::variable_show_in_buffers_list(), false);
+      buffer_variables::show_in_buffers_list(), false);
   LOG(INFO) << "Loading dictionary.";
   std::weak_ptr<OpenBuffer> weak_dictionary = file->second;
   std::weak_ptr<OpenBuffer> weak_buffer = buffer;
@@ -448,7 +449,7 @@ void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
 
 bool StartCompletion(EditorState* editor_state,
                      std::shared_ptr<OpenBuffer> buffer) {
-  auto path = buffer->read_string_variable(OpenBuffer::variable_dictionary());
+  auto path = buffer->read_string_variable(buffer_variables::dictionary());
   if (!path.empty()) {
     StartCompletionFromDictionary(editor_state, buffer, path);
     return true;
@@ -460,7 +461,7 @@ bool StartCompletion(EditorState* editor_state,
   LOG(INFO) << "Leaves found: " << words.size();
 
   std::wistringstream keywords(
-      buffer->read_string_variable(OpenBuffer::variable_language_keywords()));
+      buffer->read_string_variable(buffer_variables::language_keywords()));
   words.insert(std::istream_iterator<wstring, wchar_t>(keywords),
                std::istream_iterator<wstring, wchar_t>());
 
@@ -766,7 +767,7 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
 
   if (options.buffer->active_cursors()->size() > 1 &&
       options.buffer->read_bool_variable(
-          OpenBuffer::variable_multiple_cursors())) {
+          buffer_variables::multiple_cursors())) {
     BeepFrequencies(options.editor_state->audio_player(), {659.25, 1046.50});
   }
 }

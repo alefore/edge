@@ -1,5 +1,6 @@
 #include "src/navigation_buffer.h"
 
+#include "buffer_variables.h"
 #include "char_buffer.h"
 #include "command.h"
 #include "dirname.h"
@@ -25,9 +26,9 @@ class NavigationBuffer : public OpenBuffer {
       : OpenBuffer(editor_state, std::move(name)),
         source_(source) {
     editor_state->StartHandlingInterrupts();
-    set_bool_variable(variable_show_in_buffers_list(), false);
-    set_bool_variable(variable_push_positions_to_history(), false);
-    set_bool_variable(variable_allow_dirty_delete(), true);
+    set_bool_variable(buffer_variables::show_in_buffers_list(), false);
+    set_bool_variable(buffer_variables::push_positions_to_history(), false);
+    set_bool_variable(buffer_variables::allow_dirty_delete(), true);
     environment()->Define(kDepthSymbol, Value::NewInteger(3));
   }
 
@@ -111,7 +112,7 @@ class NavigationBuffer : public OpenBuffer {
                    const Line& input, Line::Options* line_options) {
     auto trim = StringTrimLeft(input.contents(),
         source->read_string_variable(
-            OpenBuffer::variable_line_prefix_characters()));
+            buffer_variables::line_prefix_characters()));
     CHECK_LE(trim->size(), input.contents()->size());
     size_t characters_trimmed = input.contents()->size() - trim->size();
     size_t initial_length = line_options->contents->size();
@@ -159,7 +160,7 @@ class NavigationBufferCommand : public Command {
       it.first->second = std::make_shared<NavigationBuffer>(
           editor_state, name, std::move(source));
       it.first->second->set_bool_variable(
-          OpenBuffer::variable_reload_on_enter(), true);
+          buffer_variables::reload_on_enter(), true);
     }
     editor_state->ResetStatus();
     it.first->second->Reload(editor_state);

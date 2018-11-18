@@ -13,6 +13,7 @@ extern "C" {
 #endif
 
 #include "audio.h"
+#include "buffer_variables.h"
 #include "char_buffer.h"
 #include "editor.h"
 #include "wstring.h"
@@ -173,7 +174,7 @@ void SearchHandlerPredictor(
   SearchOptions options;
   options.search_query = input;
   options.case_sensitive = buffer->read_bool_variable(
-      OpenBuffer::variable_search_case_sensitive());
+      buffer_variables::search_case_sensitive());
   options.starting_position = buffer->position();
   auto positions = PerformSearchWithDirection(editor_state, options);
 

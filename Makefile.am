@@ -15,6 +15,8 @@ src/audio.h \
 src/buffer_contents.cc \
 src/buffer_contents.h \
 src/buffer.cc \
+src/buffer_variables.cc \
+src/buffer_variables.h \
 src/cpp_command.cc \
 src/cpp_parse_tree.cc \
 src/cpp_parse_tree.h \

@@ -1,5 +1,6 @@
 #include "list_buffers_command.h"
 
+#include "buffer_variables.h"
 #include "char_buffer.h"
 #include "command.h"
 #include "editor.h"
@@ -21,17 +22,17 @@ class ListBuffersBuffer : public OpenBuffer {
   ListBuffersBuffer(EditorState* editor_state, const wstring& name)
       : OpenBuffer(editor_state, name) {
     editor_state->StartHandlingInterrupts();
-    set_bool_variable(variable_atomic_lines(), true);
-    set_bool_variable(variable_reload_on_display(), true);
-    set_bool_variable(variable_show_in_buffers_list(), false);
-    set_bool_variable(variable_push_positions_to_history(), false);
-    set_bool_variable(variable_allow_dirty_delete(), true);
+    set_bool_variable(buffer_variables::atomic_lines(), true);
+    set_bool_variable(buffer_variables::reload_on_display(), true);
+    set_bool_variable(buffer_variables::show_in_buffers_list(), false);
+    set_bool_variable(buffer_variables::push_positions_to_history(), false);
+    set_bool_variable(buffer_variables::allow_dirty_delete(), true);
   }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     target->ClearContents(editor_state);
     bool show_in_buffers_list =
-        read_bool_variable(variable_show_in_buffers_list());
+        read_bool_variable(buffer_variables::show_in_buffers_list());
 
     size_t screen_lines = 0;
     auto screen_value = environment()->Lookup(L"screen");
@@ -47,7 +48,7 @@ class ListBuffersBuffer : public OpenBuffer {
     for (const auto& it : *editor_state->buffers()) {
       if (!show_in_buffers_list
           && !it.second->read_bool_variable(
-                  OpenBuffer::variable_show_in_buffers_list())) {
+                  buffer_variables::show_in_buffers_list())) {
         LOG(INFO) << "Skipping buffer (!show_in_buffers_list).";
         continue;
       }
@@ -71,7 +72,7 @@ class ListBuffersBuffer : public OpenBuffer {
     size_t buffers_with_context = 0;
     for (const auto& buffer : buffers_to_show) {
       size_t value = 1 + static_cast<size_t>(
-          max(buffer->Read(OpenBuffer::variable_buffer_list_context_lines()),
+          max(buffer->Read(buffer_variables::buffer_list_context_lines()),
               0));
       lines_to_show[buffer.get()] = value;
       sum_lines_to_show += value;
@@ -102,7 +103,7 @@ class ListBuffersBuffer : public OpenBuffer {
       std::shared_ptr<LazyString> name = NewCopyString(buffer->name());
       if (context.first != context.second) {
         name = StringAppend(NewCopyString(L"╭──"), name);
-        size_t width = target->Read(OpenBuffer::variable_line_width());
+        size_t width = target->Read(buffer_variables::line_width());
         if (width > name->size()) {
           name = StringAppend(
               name,
@@ -184,7 +185,7 @@ class ListBuffersCommand : public Command {
       it.first->second =
           std::make_unique<ListBuffersBuffer>(editor_state, OpenBuffer::kBuffersName);
       it.first->second->set_bool_variable(
-          OpenBuffer::variable_reload_on_enter(), true);
+          buffer_variables::reload_on_enter(), true);
     }
     editor_state->ResetStatus();
     it.first->second->Reload(editor_state);

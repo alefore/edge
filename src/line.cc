@@ -5,6 +5,7 @@
 #include <iostream>
 #include <unordered_set>
 
+#include "buffer_variables.h"
 #include "char_buffer.h"
 #include "editor.h"
 #include "lazy_string_append.h"
@@ -235,7 +236,7 @@ void Line::Output(const Line::OutputOptions& options) const {
   VLOG(5) << "Producing output of line: " << ToString();
   size_t output_column = 0;
   size_t input_column = options.buffer->Read(
-      options.buffer->variable_view_start_column());
+      buffer_variables::view_start_column());
   unordered_set<LineModifier, hash<int>> current_modifiers;
 
   CHECK(environment_ != nullptr);
@@ -248,10 +249,10 @@ void Line::Output(const Line::OutputOptions& options) const {
           ? static_cast<OpenBuffer*>(target_buffer_value->user_value.get())
           : options.buffer;
   const auto view_start_line =
-      options.buffer->Read(OpenBuffer::variable_view_start_line());
+      options.buffer->Read(buffer_variables::view_start_line());
   const size_t initial_column =
       std::to_wstring(options.buffer->lines_size()).size() + 1;
-  if (!target_buffer->read_bool_variable(OpenBuffer::variable_paste_mode())) {
+  if (!target_buffer->read_bool_variable(buffer_variables::paste_mode())) {
     auto number = std::to_wstring(options.line + 1);
     CHECK_LE(number.size() + 1, initial_column)
         << "Buffer has lines: " << target_buffer->lines_size();
@@ -308,11 +309,11 @@ void Line::Output(const Line::OutputOptions& options) const {
     input_column++;
   }
 
-  size_t line_width = target_buffer->Read(OpenBuffer::variable_line_width());
+  size_t line_width = target_buffer->Read(buffer_variables::line_width());
 
   auto view_start = static_cast<size_t>(
-      max(0, options.buffer->Read(OpenBuffer::variable_view_start_column())));
-  if ((!target_buffer->read_bool_variable(OpenBuffer::variable_paste_mode())
+      max(0, options.buffer->Read(buffer_variables::view_start_column())));
+  if ((!target_buffer->read_bool_variable(buffer_variables::paste_mode())
        || target_buffer != options.buffer)
       && line_width != 0
       && view_start < line_width
@@ -378,7 +379,7 @@ void Line::Output(const Line::OutputOptions& options) const {
             DrawTree(options.line, options.buffer->lines_size(), *parse_tree);
       }
       if (options.buffer->read_bool_variable(
-              OpenBuffer::variable_scrollbar())) {
+              buffer_variables::scrollbar())) {
         additional_information += ComputeScrollBarCharacter(
             options.line, options.buffer->lines_size(), view_start_line,
             options.lines_to_show);

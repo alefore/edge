@@ -3,6 +3,7 @@
 #include <string>
 
 #include "buffer.h"
+#include "buffer_variables.h"
 #include "command_mode.h"
 #include "editor.h"
 #include "line_prompt_mode.h"
@@ -46,7 +47,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
   }
 
   {
-    auto var = OpenBuffer::StringStruct()->find_variable(name);
+    auto var = buffer_variables::StringStruct()->find_variable(name);
     if (var != nullptr) {
       PromptOptions options;
       options.prompt = name + L" := ";
@@ -67,7 +68,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
     }
   }
   {
-    auto var = OpenBuffer::BoolStruct()->find_variable(name);
+    auto var = buffer_variables::BoolStruct()->find_variable(name);
     if (var != nullptr) {
       buffer->toggle_bool_variable(var);
       editor_state->SetStatus(
@@ -76,7 +77,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
     }
   }
   {
-    auto var = OpenBuffer::IntStruct()->find_variable(name);
+    auto var = buffer_variables::IntStruct()->find_variable(name);
     if (var != nullptr) {
       PromptOptions options;
       options.prompt = name + L" := ",
@@ -101,7 +102,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
     }
   }
   {
-    auto var = OpenBuffer::DoubleStruct()->find_variable(name);
+    auto var = buffer_variables::DoubleStruct()->find_variable(name);
     if (var != nullptr) {
       PromptOptions options;
       options.prompt = name + L" := ",
@@ -133,10 +134,10 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
 
 Predictor VariablesPredictor() {
   vector<wstring> variables;
-  OpenBuffer::BoolStruct()->RegisterVariableNames(&variables);
-  OpenBuffer::StringStruct()->RegisterVariableNames(&variables);
-  OpenBuffer::IntStruct()->RegisterVariableNames(&variables);
-  OpenBuffer::DoubleStruct()->RegisterVariableNames(&variables);
+  buffer_variables::BoolStruct()->RegisterVariableNames(&variables);
+  buffer_variables::StringStruct()->RegisterVariableNames(&variables);
+  buffer_variables::IntStruct()->RegisterVariableNames(&variables);
+  buffer_variables::DoubleStruct()->RegisterVariableNames(&variables);
   return PrecomputedPredictor(variables, '_');
 }
 }  // namespace

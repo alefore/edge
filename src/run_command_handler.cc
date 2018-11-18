@@ -16,6 +16,7 @@ extern "C" {
 
 #include <glog/logging.h>
 
+#include "buffer_variables.h"
 #include "char_buffer.h"
 #include "command_mode.h"
 #include "editor.h"
@@ -78,7 +79,7 @@ class CommandBuffer : public OpenBuffer {
     static const int parent_fd = 0;
     static const int child_fd = 1;
     time(&time_start_);
-    if (read_bool_variable(variable_pts())) {
+    if (read_bool_variable(buffer_variables::pts())) {
       int master_fd = posix_openpt(O_RDWR);
       if (master_fd == -1) {
         cerr << "posix_openpt failed: " << string(strerror(errno));
@@ -106,7 +107,7 @@ class CommandBuffer : public OpenBuffer {
       pipefd_out[parent_fd] = master_fd;
       char* pts_path = ptsname(master_fd);
       target->set_string_variable(
-          variable_pts_path(), FromByteString(pts_path));
+          buffer_variables::pts_path(), FromByteString(pts_path));
       pipefd_out[child_fd] = open(pts_path, O_RDWR);
       if (pipefd_out[child_fd] == -1) {
         cerr << "open failed: " << pts_path << ": " << string(strerror(errno));
@@ -189,7 +190,7 @@ class CommandBuffer : public OpenBuffer {
           strdup("sh"),
           strdup("-c"),
           strdup(
-              ToByteString(read_string_variable(variable_command())).c_str()),
+              ToByteString(read_string_variable(buffer_variables::command())).c_str()),
           nullptr};
       int status = execve("/bin/sh", argv, envp);
       exit(WIFEXITED(status) ? WEXITSTATUS(status) : 1);
@@ -200,7 +201,7 @@ class CommandBuffer : public OpenBuffer {
               << pipefd_err[parent_fd];
     target->SetInputFiles(
         editor_state, pipefd_out[parent_fd], pipefd_err[parent_fd],
-        read_bool_variable(variable_pts()), child_pid);
+        read_bool_variable(buffer_variables::pts()), child_pid);
     editor_state->ScheduleRedraw();
     AddEndOfFileObserver(
         [this, editor_state]() {
@@ -208,8 +209,8 @@ class CommandBuffer : public OpenBuffer {
           int success = WIFEXITED(child_exit_status_) &&
               WEXITSTATUS(child_exit_status_) == 0;
           double frequency = Read(success
-                                      ? variable_beep_frequency_success()
-                                      : variable_beep_frequency_failure());
+                                      ? buffer_variables::beep_frequency_success()
+                                      : buffer_variables::beep_frequency_failure());
           if (frequency > 0.0001) {
             GenerateBeep(editor_state->audio_player(), frequency);
           }
@@ -281,7 +282,7 @@ void RunCommand(
   options.buffer_name = name;
   options.enter = !editor_state->has_current_buffer()
       || !editor_state->current_buffer()->second->read_bool_variable(
-              OpenBuffer::variable_commands_background_mode());
+              buffer_variables::commands_background_mode());
   options.environment = environment;
   ForkCommand(editor_state, options);
 }
@@ -339,8 +340,8 @@ ForkCommand(EditorState* editor_state, const ForkCommandOptions& options) {
     it.first->second = std::make_shared<CommandBuffer>(
         editor_state, buffer_name, options.command, options.environment);
     it.first->second->set_string_variable(
-        OpenBuffer::variable_command(), options.command);
-    it.first->second->set_string_variable(OpenBuffer::variable_path(), L"");
+        buffer_variables::command(), options.command);
+    it.first->second->set_string_variable(buffer_variables::path(), L"");
   } else {
     it.first->second->ResetMode();
   }

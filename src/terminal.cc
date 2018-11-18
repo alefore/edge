@@ -6,6 +6,7 @@
 
 #include <glog/logging.h>
 
+#include "buffer_variables.h"
 #include "dirname.h"
 #include "line_marks.h"
 #include "src/parse_tree.h"
@@ -49,26 +50,26 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   }
   int screen_lines = screen->lines();
   auto& buffer = editor_state->current_buffer()->second;
-  if (buffer->read_bool_variable(OpenBuffer::variable_reload_on_display())) {
+  if (buffer->read_bool_variable(buffer_variables::reload_on_display())) {
     buffer->Reload(editor_state);
   }
   size_t line = min(buffer->position().line, buffer->contents()->size() - 1);
   size_t margin_lines =
       min(screen_lines / 2,
           max(static_cast<int>(ceil(
-                  buffer->Read(buffer->variable_margin_lines_ratio()) *
+                  buffer->Read(buffer_variables::margin_lines_ratio()) *
                   screen_lines)),
-              max(buffer->Read(buffer->variable_margin_lines()), 0)));
+              max(buffer->Read(buffer_variables::margin_lines()), 0)));
   margin_lines = min(margin_lines, static_cast<size_t>(screen_lines) / 2 - 1);
   size_t view_start = static_cast<size_t>(
-      max(0, buffer->Read(OpenBuffer::variable_view_start_line())));
+      max(0, buffer->Read(buffer_variables::view_start_line())));
   if (view_start > line - min(margin_lines, line)) {
-    buffer->set_int_variable(OpenBuffer::variable_view_start_line(),
+    buffer->set_int_variable(buffer_variables::view_start_line(),
         line - min(margin_lines, line));
     editor_state->ScheduleRedraw();
   } else if (view_start + screen_lines - 1
                  <= min(buffer->lines_size() - 1, line + margin_lines)) {
-    buffer->set_int_variable(OpenBuffer::variable_view_start_line(),
+    buffer->set_int_variable(buffer_variables::view_start_line(),
         min(buffer->lines_size() - 1, line + margin_lines) - screen_lines + 2);
     editor_state->ScheduleRedraw();
   }
@@ -76,13 +77,13 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   size_t desired_start_column = buffer->current_position_col()
       - min(buffer->current_position_col(), screen->columns() - 1);
   if (static_cast<size_t>(
-              max(0, buffer->Read(OpenBuffer::variable_view_start_column())))
+              max(0, buffer->Read(buffer_variables::view_start_column())))
           != desired_start_column) {
-    buffer->set_int_variable(OpenBuffer::variable_view_start_column(),
+    buffer->set_int_variable(buffer_variables::view_start_column(),
                              desired_start_column);
     editor_state->ScheduleRedraw();
   }
-  if (buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())
+  if (buffer->read_bool_variable(buffer_variables::atomic_lines())
       && buffer->last_highlighted_line() != buffer->position().line) {
     editor_state->ScheduleRedraw();
   }
@@ -93,7 +94,7 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   ShowStatus(*editor_state, screen);
   if (editor_state->status_prompt()) {
     screen->SetCursorVisibility(Screen::NORMAL);
-  } else if (buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())) {
+  } else if (buffer->read_bool_variable(buffer_variables::atomic_lines())) {
     screen->SetCursorVisibility(Screen::INVISIBLE);
   } else {
     screen->SetCursorVisibility(Screen::NORMAL);
@@ -155,7 +156,7 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
     for (auto& it : *editor_state.buffers()) {
       if (it.second->ShouldDisplayProgress()) {
         auto name = TransformCommandNameForStatus(it.second->name());
-        size_t progress = it.second->Read(OpenBuffer::variable_progress())
+        size_t progress = it.second->Read(buffer_variables::progress())
             % (4 + 2 * name.size());
         if (progress == 0 || progress == 1) {
           static const std::vector<wstring> begin = {L"◟", L"◜"};
@@ -185,7 +186,7 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
     auto active_cursors = buffer->active_cursors()->size();
     if (active_cursors != 1) {
       status += L" "
-          + (buffer->read_bool_variable(buffer->variable_multiple_cursors())
+          + (buffer->read_bool_variable(buffer_variables::multiple_cursors())
                  ? wstring(L"CURSORS") : wstring(L"cursors"))
           + L":" + to_wstring(active_cursors) + L" ";
     }
@@ -695,7 +696,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
 
   size_t lines_to_show = static_cast<size_t>(screen->lines());
   size_t current_line = static_cast<size_t>(
-      max(0, buffer->Read(OpenBuffer::variable_view_start_line())));
+      max(0, buffer->Read(buffer_variables::view_start_line())));
   size_t lines_shown = 0;
   buffer->set_last_highlighted_line(-1);
 
@@ -716,7 +717,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   line_output_options.lines_to_show = lines_to_show;
   line_output_options.width = screen->columns();
   line_output_options.paste_mode =
-      buffer->read_bool_variable(OpenBuffer::variable_paste_mode());
+      buffer->read_bool_variable(buffer_variables::paste_mode());
   auto simplified_parse_tree = buffer->simplified_parse_tree();
   if (simplified_parse_tree != nullptr) {
     line_output_options.full_file_parse_tree =
@@ -745,7 +746,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     line_output_options.has_active_cursor =
         current_line == buffer->current_position_line() ||
         (current_cursors != cursors.end() &&
-         buffer->read_bool_variable(buffer->variable_multiple_cursors()));
+         buffer->read_bool_variable(buffer_variables::multiple_cursors()));
     line_output_options.has_cursor = current_cursors != cursors.end();
 
     std::unique_ptr<Line::OutputReceiverInterface> cursors_highlighter;
@@ -759,7 +760,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
             : 1 + std::to_wstring(buffer->lines_size()).size();
     CHECK(line->contents() != nullptr);
     if (current_line == buffer->position().line
-        && buffer->read_bool_variable(OpenBuffer::variable_atomic_lines())) {
+        && buffer->read_bool_variable(buffer_variables::atomic_lines())) {
       buffer->set_last_highlighted_line(current_line);
       atomic_lines_highlighter =
           std::make_unique<HighlightedLineOutputReceiver>(receiver);
@@ -782,7 +783,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
         options.columns.insert(line_length);
       }
       options.multiple_cursors =
-          buffer->read_bool_variable(buffer->variable_multiple_cursors());
+          buffer->read_bool_variable(buffer_variables::multiple_cursors());
 
       LOG(INFO) << "Applying columns_to_skip: " << columns_to_skip;
       std::set<size_t> adjusted_columns;
@@ -846,14 +847,14 @@ void Terminal::AdjustPosition(
 
   size_t pos_y = 0;
   for (size_t line = static_cast<size_t>(
-           max(0, buffer->Read(OpenBuffer::variable_view_start_line())));
+           max(0, buffer->Read(buffer_variables::view_start_line())));
        line < position_line; line++) {
     if (buffer->IsLineFiltered(line)) {
       pos_y++;
     }
   }
   size_t columns_to_skip =
-      buffer->read_bool_variable(OpenBuffer::variable_paste_mode())
+      buffer->read_bool_variable(buffer_variables::paste_mode())
           ? 0
           : 1 + std::to_wstring(buffer->lines_size()).size();
   screen->Move(pos_y, pos_x + columns_to_skip);

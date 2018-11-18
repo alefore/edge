@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "buffer.h"
+#include "buffer_variables.h"
 #include "command.h"
 #include "editor.h"
 #include "file_link_mode.h"
@@ -24,8 +25,8 @@ class RunCppFileCommand : public Command {
     PromptOptions options;
     options.prompt = L"cmd ";
     options.history_file = L"editor_commands";
-    options.initial_value = buffer->read_string_variable(
-        OpenBuffer::variable_editor_commands_path()),
+    options.initial_value =
+        buffer->read_string_variable(buffer_variables::editor_commands_path());
     options.handler = RunCppFileHandler;
     options.cancel_handler = [](EditorState*) { /* Nothing. */ };
     options.predictor = FilePredictor;
