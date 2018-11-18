@@ -59,11 +59,9 @@ void ZoomOutTree(const ParseTree& input, double ratio, ParseTree* parent) {
 ParseTree ZoomOutTree(
     const ParseTree& input, size_t input_lines, size_t output_lines) {
   LOG(INFO) << "Zooming out: " << input_lines << " to " << output_lines;
-  ParseTree first_pass;
-  ZoomOutTree(input, static_cast<double>(output_lines) / input_lines,
-              &first_pass);
   ParseTree output;
-  SimplifyTree(first_pass, &output);
+  ZoomOutTree(input, static_cast<double>(output_lines) / input_lines,
+              &output);
   return output;
 }
 
