@@ -137,21 +137,27 @@ void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
 }
 
 wstring DrawTree(size_t line, size_t lines_size, const ParseTree& root) {
+  // Route along the tree where each child ends after previous line.
   vector<const ParseTree*> route_begin;
   if (line > 0) {
     route_begin = MapRoute(root,
         FindRouteToPosition(root,
             LineColumn(line - 1, std::numeric_limits<size_t>::max())));
+    CHECK(!route_begin.empty() && *route_begin.begin() == &root);
+    route_begin.erase(route_begin.begin());
   }
 
+  // Route along the tree where each child ends after current line.
   vector<const ParseTree*> route_end;
   if (line < lines_size - 1) {
     route_end = MapRoute(root,
         FindRouteToPosition(root,
             LineColumn(line, std::numeric_limits<size_t>::max())));
+    CHECK(!route_end.empty() && *route_end.begin() == &root);
+    route_end.erase(route_end.begin());
   }
 
-  wstring output(root.depth + 1, L' ');
+  wstring output(root.depth, L' ');
   size_t index_begin = 0;
   size_t index_end = 0;
   while (index_begin < route_begin.size() || index_end < route_end.size()) {
