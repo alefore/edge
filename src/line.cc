@@ -390,10 +390,10 @@ void Line::Output(const Line::OutputOptions& options) const {
       }
     }
 
-    if (output_column > line_width + initial_column) {
+    if (output_column > line_width + initial_column + 1) {
       additional_information = additional_information.substr(
           min(additional_information.size(),
-              output_column - line_width - initial_column));
+              output_column - (line_width + initial_column + 1)));
     }
     if (options.width > output_column) {
       additional_information = additional_information.substr(
