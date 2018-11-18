@@ -62,7 +62,12 @@ ParseTree ZoomOutTree(
   ParseTree output;
   ZoomOutTree(input, static_cast<double>(output_lines) / input_lines,
               &output);
-  return output;
+  if (output.children.empty()) {
+    return ParseTree();
+  }
+
+  CHECK_EQ(output.children.size(), 1);
+  return std::move(output.children.at(0));
 }
 
 // Returns the first children of tree that ends after a given position.
