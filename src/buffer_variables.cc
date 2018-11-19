@@ -467,7 +467,7 @@ EdgeVariable<double>* margin_lines_ratio() {
       L"Ratio of the number of lines in the screen reserved to display context "
       L"around the current position in the current buffer at the top/bottom of "
       L"the screen. See also variable `margin_lines`.",
-      0.0);
+      0.07);
   return variable;
 }
 
