@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include "buffer.h"
+#include "buffer_variables.h"
 #include "editor.h"
 #include "lazy_string_append.h"
 #include "transformation_delete.h"
@@ -106,7 +107,7 @@ class DeleteSuffixSuperfluousCharacters : public Transformation {
   void Apply(EditorState* editor_state, OpenBuffer* buffer, Result* result)
       const override {
     const wstring& superfluous_characters(buffer->read_string_variable(
-        OpenBuffer::variable_line_suffix_superfluous_characters()));
+        buffer_variables::line_suffix_superfluous_characters()));
     const auto line = buffer->LineAt(result->cursor.line);
     if (line == nullptr) {
       result->made_progress = false;

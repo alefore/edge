@@ -7,6 +7,7 @@
 #include <glog/logging.h>
 
 #include "buffer.h"
+#include "buffer_variables.h"
 #include "char_buffer.h"
 #include "command.h"
 #include "command_mode.h"
@@ -53,12 +54,10 @@ GetHistoryBuffer(EditorState* editor_state, const wstring& name) {
   it = OpenFile(options);
   CHECK(it != editor_state->buffers()->end());
   CHECK(it->second != nullptr);
+  it->second->set_bool_variable(buffer_variables::save_on_close(), true);
   it->second->set_bool_variable(
-      OpenBuffer::variable_save_on_close(), true);
-  it->second->set_bool_variable(
-      OpenBuffer::variable_show_in_buffers_list(), false);
-  it->second->set_bool_variable(
-      OpenBuffer::variable_atomic_lines(), true);
+      buffer_variables::show_in_buffers_list(), false);
+  it->second->set_bool_variable(buffer_variables::atomic_lines(), true);
   if (!editor_state->has_current_buffer()) {
     // Seems lame, but what can we do?
     editor_state->set_current_buffer(it);
@@ -73,11 +72,11 @@ shared_ptr<OpenBuffer> GetPromptBuffer(EditorState* editor_state) {
   if (element.second == nullptr) {
     element.second = std::make_shared<OpenBuffer>(editor_state, element.first);
     element.second->set_bool_variable(
-        OpenBuffer::variable_allow_dirty_delete(), true);
+        buffer_variables::allow_dirty_delete(), true);
     element.second->set_bool_variable(
-        OpenBuffer::variable_show_in_buffers_list(), false);
+        buffer_variables::show_in_buffers_list(), false);
     element.second->set_bool_variable(
-        OpenBuffer::variable_delete_into_paste_buffer(), false);
+        buffer_variables::delete_into_paste_buffer(), false);
   } else {
     element.second->ClearContents(editor_state);
   }

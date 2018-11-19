@@ -17,6 +17,7 @@ extern "C" {
 }
 
 #include "buffer.h"
+#include "buffer_variables.h"
 #include "editor.h"
 #include "file_link_mode.h"
 #include "lazy_string.h"
@@ -162,14 +163,14 @@ class ServerBuffer : public OpenBuffer {
  public:
   ServerBuffer(EditorState* editor_state, const wstring& name)
       : OpenBuffer(editor_state, name) {
-    set_bool_variable(variable_clear_on_reload(), false);
-    set_bool_variable(variable_vm_exec(), true);
-    set_bool_variable(variable_show_in_buffers_list(), false);
-    set_bool_variable(variable_allow_dirty_delete(), true);
+    set_bool_variable(buffer_variables::clear_on_reload(), false);
+    set_bool_variable(buffer_variables::vm_exec(), true);
+    set_bool_variable(buffer_variables::show_in_buffers_list(), false);
+    set_bool_variable(buffer_variables::allow_dirty_delete(), true);
   }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
-    wstring address = read_string_variable(variable_path());
+    wstring address = read_string_variable(buffer_variables::path());
     int fd = open(ToByteString(address).c_str(), O_RDONLY | O_NDELAY);
     if (fd == -1) {
       cerr << address << ": ReloadInto: open failed: " << strerror(errno);
@@ -202,8 +203,8 @@ bool StartServer(EditorState* editor_state, wstring address,
   LOG(INFO) << "Starting server: " << *actual_address;
   setenv("EDGE_PARENT_ADDRESS", ToByteString(*actual_address).c_str(), 1);
   auto buffer = OpenServerBuffer(editor_state, *actual_address);
-  buffer->set_bool_variable(OpenBuffer::variable_reload_after_exit(), true);
-  buffer->set_bool_variable(OpenBuffer::variable_default_reload_after_exit(),
+  buffer->set_bool_variable(buffer_variables::reload_after_exit(), true);
+  buffer->set_bool_variable(buffer_variables::default_reload_after_exit(),
                             true);
 
   return true;
@@ -213,7 +214,7 @@ shared_ptr<OpenBuffer>
 OpenServerBuffer(EditorState* editor_state, const wstring& address) {
   auto buffer = std::make_shared<ServerBuffer>(
       editor_state, editor_state->GetUnusedBufferName(L"- server"));
-  buffer->set_string_variable(OpenBuffer::variable_path(), address);
+  buffer->set_string_variable(buffer_variables::path(), address);
   editor_state->buffers()->insert(make_pair(buffer->name(), buffer));
   buffer->Reload(editor_state);
   return buffer;

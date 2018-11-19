@@ -329,60 +329,6 @@ class OpenBuffer {
       EditorState* editor_state, int input_fd, int input_fd_error,
       bool fd_is_terminal, pid_t child_pid);
 
-  static EdgeStruct<bool>* BoolStruct();
-  static EdgeVariable<bool>* variable_pts();
-  static EdgeVariable<bool>* variable_vm_exec();
-  static EdgeVariable<bool>* variable_close_after_clean_exit();
-  static EdgeVariable<bool>* variable_allow_dirty_delete();
-  static EdgeVariable<bool>* variable_reload_after_exit();
-  static EdgeVariable<bool>* variable_default_reload_after_exit();
-  static EdgeVariable<bool>* variable_reload_on_enter();
-  static EdgeVariable<bool>* variable_atomic_lines();
-  static EdgeVariable<bool>* variable_save_on_close();
-  static EdgeVariable<bool>* variable_clear_on_reload();
-  static EdgeVariable<bool>* variable_paste_mode();
-  static EdgeVariable<bool>* variable_follow_end_of_file();
-  static EdgeVariable<bool>* variable_commands_background_mode();
-  static EdgeVariable<bool>* variable_reload_on_buffer_write();
-  static EdgeVariable<bool>* variable_contains_line_marks();
-  static EdgeVariable<bool>* variable_multiple_cursors();
-  static EdgeVariable<bool>* variable_reload_on_display();
-  static EdgeVariable<bool>* variable_show_in_buffers_list();
-  static EdgeVariable<bool>* variable_push_positions_to_history();
-  static EdgeVariable<bool>* variable_delete_into_paste_buffer();
-  static EdgeVariable<bool>* variable_scrollbar();
-  static EdgeVariable<bool>* variable_search_case_sensitive();
-
-  static EdgeStruct<wstring>* StringStruct();
-  static EdgeVariable<wstring>* variable_word_characters();
-  static EdgeVariable<wstring>* variable_path_characters();
-  static EdgeVariable<wstring>* variable_path();
-  static EdgeVariable<wstring>* variable_pts_path();
-  static EdgeVariable<wstring>* variable_command();
-  static EdgeVariable<wstring>* variable_editor_commands_path();
-  static EdgeVariable<wstring>* variable_line_prefix_characters();
-  static EdgeVariable<wstring>* variable_line_suffix_superfluous_characters();
-  static EdgeVariable<wstring>* variable_dictionary();
-  static EdgeVariable<wstring>* variable_tree_parser();
-  static EdgeVariable<wstring>* variable_language_keywords();
-
-  static EdgeStruct<int>* IntStruct();
-  static EdgeVariable<int>* variable_line_width();
-  static EdgeVariable<int>* variable_buffer_list_context_lines();
-  static EdgeVariable<int>* variable_margin_lines();
-  static EdgeVariable<int>* variable_margin_columns();
-  static EdgeVariable<int>* variable_view_start_line();
-  static EdgeVariable<int>* variable_view_start_column();
-  static EdgeVariable<int>* variable_progress();
-
-  static EdgeStruct<double>* DoubleStruct();
-  static EdgeVariable<double>* variable_margin_lines_ratio();
-  static EdgeVariable<double>* variable_beep_frequency_success();
-  static EdgeVariable<double>* variable_beep_frequency_failure();
-
-  // No variables currently, but we'll likely add some later.
-  static EdgeStruct<unique_ptr<Value>>* ValueStruct();
-
   const bool& read_bool_variable(const EdgeVariable<bool>* variable) const;
   void set_bool_variable(const EdgeVariable<bool>* variable, bool value);
   void toggle_bool_variable(const EdgeVariable<bool>* variable);

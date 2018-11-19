@@ -5,6 +5,7 @@
 #include <iostream>
 #include <unordered_set>
 
+#include "buffer_variables.h"
 #include "char_buffer.h"
 #include "editor.h"
 #include "lazy_string_append.h"
@@ -137,21 +138,27 @@ void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
 }
 
 wstring DrawTree(size_t line, size_t lines_size, const ParseTree& root) {
+  // Route along the tree where each child ends after previous line.
   vector<const ParseTree*> route_begin;
   if (line > 0) {
     route_begin = MapRoute(root,
         FindRouteToPosition(root,
             LineColumn(line - 1, std::numeric_limits<size_t>::max())));
+    CHECK(!route_begin.empty() && *route_begin.begin() == &root);
+    route_begin.erase(route_begin.begin());
   }
 
+  // Route along the tree where each child ends after current line.
   vector<const ParseTree*> route_end;
   if (line < lines_size - 1) {
     route_end = MapRoute(root,
         FindRouteToPosition(root,
             LineColumn(line, std::numeric_limits<size_t>::max())));
+    CHECK(!route_end.empty() && *route_end.begin() == &root);
+    route_end.erase(route_end.begin());
   }
 
-  wstring output(root.depth + 1, L' ');
+  wstring output(root.depth, L' ');
   size_t index_begin = 0;
   size_t index_end = 0;
   while (index_begin < route_begin.size() || index_end < route_end.size()) {
@@ -229,7 +236,7 @@ void Line::Output(const Line::OutputOptions& options) const {
   VLOG(5) << "Producing output of line: " << ToString();
   size_t output_column = 0;
   size_t input_column = options.buffer->Read(
-      options.buffer->variable_view_start_column());
+      buffer_variables::view_start_column());
   unordered_set<LineModifier, hash<int>> current_modifiers;
 
   CHECK(environment_ != nullptr);
@@ -242,10 +249,10 @@ void Line::Output(const Line::OutputOptions& options) const {
           ? static_cast<OpenBuffer*>(target_buffer_value->user_value.get())
           : options.buffer;
   const auto view_start_line =
-      options.buffer->Read(OpenBuffer::variable_view_start_line());
+      options.buffer->Read(buffer_variables::view_start_line());
   const size_t initial_column =
       std::to_wstring(options.buffer->lines_size()).size() + 1;
-  if (!target_buffer->read_bool_variable(OpenBuffer::variable_paste_mode())) {
+  if (!target_buffer->read_bool_variable(buffer_variables::paste_mode())) {
     auto number = std::to_wstring(options.line + 1);
     CHECK_LE(number.size() + 1, initial_column)
         << "Buffer has lines: " << target_buffer->lines_size();
@@ -302,11 +309,11 @@ void Line::Output(const Line::OutputOptions& options) const {
     input_column++;
   }
 
-  size_t line_width = target_buffer->Read(OpenBuffer::variable_line_width());
+  size_t line_width = target_buffer->Read(buffer_variables::line_width());
 
   auto view_start = static_cast<size_t>(
-      max(0, options.buffer->Read(OpenBuffer::variable_view_start_column())));
-  if ((!target_buffer->read_bool_variable(OpenBuffer::variable_paste_mode())
+      max(0, options.buffer->Read(buffer_variables::view_start_column())));
+  if ((!target_buffer->read_bool_variable(buffer_variables::paste_mode())
        || target_buffer != options.buffer)
       && line_width != 0
       && view_start < line_width
@@ -372,7 +379,7 @@ void Line::Output(const Line::OutputOptions& options) const {
             DrawTree(options.line, options.buffer->lines_size(), *parse_tree);
       }
       if (options.buffer->read_bool_variable(
-              OpenBuffer::variable_scrollbar())) {
+              buffer_variables::scrollbar())) {
         additional_information += ComputeScrollBarCharacter(
             options.line, options.buffer->lines_size(), view_start_line,
             options.lines_to_show);
@@ -384,10 +391,10 @@ void Line::Output(const Line::OutputOptions& options) const {
       }
     }
 
-    if (output_column > line_width + initial_column) {
+    if (output_column > line_width + initial_column + 1) {
       additional_information = additional_information.substr(
           min(additional_information.size(),
-              output_column - line_width - initial_column));
+              output_column - (line_width + initial_column + 1)));
     }
     if (options.width > output_column) {
       additional_information = additional_information.substr(

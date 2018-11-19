@@ -5,6 +5,7 @@
 #include <glog/logging.h>
 
 #include "buffer.h"
+#include "buffer_variables.h"
 #include "command.h"
 #include "editor.h"
 #include "transformation.h"
@@ -58,7 +59,7 @@ class GotoCharTransformation : public Transformation {
   void Apply(EditorState* editor, OpenBuffer* buffer, Result* result)
       const override {
     const wstring& line_prefix_characters = buffer->read_string_variable(
-        OpenBuffer::variable_line_prefix_characters());
+        buffer_variables::line_prefix_characters());
     const auto& line = buffer->LineAt(result->cursor.line);
     if (line == nullptr) {
       result->success = false;

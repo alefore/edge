@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
+#include <glog/logging.h>
+
 #include "predictor.h"
 #include "vm/public/types.h"
 

@@ -5,6 +5,7 @@
 
 #include <glog/logging.h>
 
+#include "buffer_variables.h"
 #include "char_buffer.h"
 #include "editor.h"
 #include "lazy_string_append.h"
@@ -56,15 +57,15 @@ class HelpCommand : public Command {
       }
 
       DescribeVariables(editor_state, L"bool", buffer.get(),
-                        OpenBuffer::BoolStruct(),
+                        buffer_variables::BoolStruct(),
                         [](const bool& value) {
                           return value ? L"true" : L"false";
                         });
       DescribeVariables(editor_state, L"string", buffer.get(),
-                        OpenBuffer::StringStruct(),
+                        buffer_variables::StringStruct(),
                         [](const std::wstring& value) { return value; });
       DescribeVariables(editor_state, L"int", buffer.get(),
-                        OpenBuffer::IntStruct(),
+                        buffer_variables::IntStruct(),
                         [](const int& value) { return std::to_wstring(value); });
 
       it.first->second = buffer;

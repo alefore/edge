@@ -15,6 +15,8 @@ src/audio.h \
 src/buffer_contents.cc \
 src/buffer_contents.h \
 src/buffer.cc \
+src/buffer_variables.cc \
+src/buffer_variables.h \
 src/cpp_command.cc \
 src/cpp_parse_tree.cc \
 src/cpp_parse_tree.h \
@@ -42,6 +44,8 @@ src/help_command.cc \
 src/insert_mode.cc \
 src/lazy_string.cc \
 src/lazy_string_append.cc \
+src/lazy_string_trim.cc \
+src/lazy_string_trim.h \
 src/line.cc \
 src/line.h \
 src/line_modifier.cc \
@@ -54,6 +58,8 @@ src/lowercase.cc \
 src/map_mode.cc \
 src/modifiers.cc \
 src/modifiers.h \
+src/navigation_buffer.cc \
+src/navigation_buffer.h \
 src/navigate_command.cc \
 src/noop_command.cc \
 src/open_directory_command.cc \

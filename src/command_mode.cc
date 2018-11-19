@@ -11,6 +11,7 @@
 
 #include <glog/logging.h>
 
+#include "buffer_variables.h"
 #include "cpp_command.h"
 #include "char_buffer.h"
 #include "close_buffer_command.h"
@@ -25,6 +26,7 @@
 #include "line_prompt_mode.h"
 #include "list_buffers_command.h"
 #include "map_mode.h"
+#include "navigation_buffer.h"
 #include "navigate_command.h"
 #include "noop_command.h"
 #include "open_directory_command.h"
@@ -695,6 +697,14 @@ class ActivateLink : public Command {
       auto it = editor_state->buffers()->find(target->name());
       if (it == editor_state->buffers()->end()) { return; }
       editor_state->set_current_buffer(it);
+      auto target_position =
+          buffer->current_line()->environment()->Lookup(L"buffer_position");
+      if (target_position != nullptr &&
+          target_position->type.type == VMType::OBJECT_TYPE &&
+          target_position->type.object_type == L"LineColumn") {
+        it->second->set_position(
+            *static_cast<LineColumn*>(target_position->user_value.get()));
+      }
       editor_state->PushCurrentPosition();
       editor_state->ScheduleRedraw();
       buffer->ResetMode();
@@ -706,7 +716,7 @@ class ActivateLink : public Command {
     wstring line = buffer->current_line()->ToString();
 
     const wstring& path_characters =
-        buffer->read_string_variable(buffer->variable_path_characters());
+        buffer->read_string_variable(buffer_variables::path_characters());
 
     // Scroll back to the first non-path character. If we're in a non-path
     // character, this is a no-op.
@@ -741,7 +751,7 @@ class ActivateLink : public Command {
     options.initial_search_paths.clear();
     // Works if the current buffer is a directory listing:
     options.initial_search_paths.push_back(
-        buffer->read_string_variable(buffer->variable_path()));
+        buffer->read_string_variable(buffer_variables::path()));
     // And a fall-back for the current buffer being a file:
     options.initial_search_paths.push_back(
         Dirname(options.initial_search_paths[0]));
@@ -959,6 +969,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(
           L"// Set active cursors to the marks on this buffer.\n"
           L"editor.SetActiveCursorsToMarks();"));
 
+  commands->Add(L"N", NewNavigationBufferCommand());
   commands->Add(L"i", std::make_unique<EnterInsertModeCommand>());
   commands->Add(L"f", std::make_unique<EnterFindMode>());
   commands->Add(L"r", std::make_unique<ReverseDirectionCommand>());

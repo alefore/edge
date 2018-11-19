@@ -59,12 +59,15 @@ void ZoomOutTree(const ParseTree& input, double ratio, ParseTree* parent) {
 ParseTree ZoomOutTree(
     const ParseTree& input, size_t input_lines, size_t output_lines) {
   LOG(INFO) << "Zooming out: " << input_lines << " to " << output_lines;
-  ParseTree first_pass;
-  ZoomOutTree(input, static_cast<double>(output_lines) / input_lines,
-              &first_pass);
   ParseTree output;
-  SimplifyTree(first_pass, &output);
-  return output;
+  ZoomOutTree(input, static_cast<double>(output_lines) / input_lines,
+              &output);
+  if (output.children.empty()) {
+    return ParseTree();
+  }
+
+  CHECK_EQ(output.children.size(), 1);
+  return std::move(output.children.at(0));
 }
 
 // Returns the first children of tree that ends after a given position.

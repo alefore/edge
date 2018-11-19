@@ -345,12 +345,11 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
         } else {
           unique_ptr<Value> field_copy(new Value(field->type.type));
           *field_copy = *field;
-          auto args =
-              std::make_shared<std::vector<std::unique_ptr<Expression>>>();
-          args->emplace_back(OBJ);
+          std::vector<std::unique_ptr<Expression>> args;
+          args.emplace_back(OBJ);
           OBJ = nullptr;
           for (auto& arg : *ARGS) {
-            args->push_back(std::move(arg));
+            args.push_back(std::move(arg));
           }
           CHECK(field_copy != nullptr);
           OUT = NewFunctionCall(NewConstantExpression(std::move(field_copy)),
@@ -392,8 +391,7 @@ expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
     } else {
       OUT = NewFunctionCall(
                     std::unique_ptr<Expression>(B),
-                    std::make_shared<std::vector<std::unique_ptr<Expression>>>(
-                        std::move(*ARGS)))
+                    std::move(*ARGS))
                 .release();
       B = nullptr;
       ARGS = nullptr;

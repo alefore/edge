@@ -2,10 +2,9 @@
 
 #include <glog/logging.h>
 
+namespace afc {
+namespace editor {
 namespace {
-
-using namespace afc::editor;
-
 class StringAppendImpl : public LazyString {
  public:
   StringAppendImpl(const shared_ptr<LazyString>& a,
@@ -26,20 +25,15 @@ class StringAppendImpl : public LazyString {
   const shared_ptr<LazyString> a_;
   const shared_ptr<LazyString> b_;
 };
-
 }  // namespace
-
-namespace afc {
-namespace editor {
 
 shared_ptr<LazyString> StringAppend(const shared_ptr<LazyString>& a,
                                     const shared_ptr<LazyString>& b) {
-  CHECK(a.get() != nullptr);
-  CHECK(b.get() != nullptr);
+  CHECK(a != nullptr);
+  CHECK(b != nullptr);
   if (a->size() == 0) { return b; }
   if (b->size() == 0) { return a; }
   return std::make_shared<StringAppendImpl>(a, b);
 }
-
 }  // namespace editor
 }  // namespace afc
