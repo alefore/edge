@@ -84,6 +84,7 @@ struct Args {
   string client = "";
 
   bool mute = false;
+  bool background = false;
 };
 
 static const char* kDefaultCommandsToRun = "ForkCommand(\"sh -l\", true);";
@@ -105,7 +106,8 @@ string CommandsToRun(Args args) {
   }
   for (auto& command_to_fork : args.commands_to_fork) {
     commands_to_run +=
-        "ForkCommand(\"" + string(command_to_fork) + "\", true);\n";
+        "ForkCommand(\"" + string(command_to_fork) + "\", " +
+        (args.background ? "false" : "true") + ");\n";
   }
   if (!args.client.empty()) {
     commands_to_run += "Screen screen = RemoteScreen(\""
@@ -130,7 +132,8 @@ Args ParseArgs(int* argc, const char*** argv) {
       "  --load <path>          Loads a file with VM commands\n"
       "  -s, --server <path>    Runs in daemon mode at path given\n"
       "  -c, --client <path>    Connects to daemon at path given\n"
-      "  --mute                 Disables audio output\n";
+      "  --mute                 Disables audio output\n"
+      "  --bg                   -f opens buffers in background\n";
 
   Args output;
   auto pop_argument = [argc, argv, &output]() {
@@ -187,6 +190,8 @@ Args ParseArgs(int* argc, const char*** argv) {
       }
     } else if (cmd == "--mute") {
       output.mute = true;
+    } else if (cmd == "--bg") {
+      output.background = true;
     } else {
       cerr << output.binary_name << ": Invalid flag: " << cmd << std::endl;
       exit(1);
