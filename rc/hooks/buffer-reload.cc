@@ -25,8 +25,8 @@ if (path == "") {
   int space = command.find_first_of(" ", 0);
   string base_command = space == -1 ? command : command.substr(0, space);
   if (base_command != "") {
-    if (base_command == "bash" || base_command == "python"
-        || base_command == "sh") {
+    if (base_command == "bash" || base_command == "python" ||
+        base_command == "sh") {
       buffer.set_pts(true);
       buffer.set_follow_end_of_file(true);
       buffer.set_buffer_list_context_lines(5);
@@ -38,6 +38,10 @@ if (path == "") {
     } else if (base_command == "grep") {
       buffer.set_contains_line_marks(true);
       buffer.set_allow_dirty_delete(true);
+    } else if (base_command == "clang-format") {
+      buffer.set_show_in_buffers_list(true);
+      buffer.set_close_after_clean_exit(true);
+      buffer.set_allow_dirty_delete(true);
     } else {
       buffer.set_follow_end_of_file(buffer.pts());
     }
@@ -46,32 +50,27 @@ if (path == "") {
   }
 } else {
   int dot = path.find_last_of(".", path.size());
-  string extension = dot == -1 ? "" : path.substr(dot + 1, path.size() - dot - 1);
+  string extension =
+      dot == -1 ? "" : path.substr(dot + 1, path.size() - dot - 1);
   string basename = Basename(path);
 
-  buffer.AddBindingToFile(
-      "J", buffer.editor_commands_path() + "fold-next-line");
+  buffer.AddBindingToFile("J",
+                          buffer.editor_commands_path() + "fold-next-line");
 
   if (extension == "cc" || extension == "h" || extension == "c") {
     CppMode();
-    buffer.AddBindingToFile(
-        "sh", buffer.editor_commands_path() + "header");
-    buffer.AddBindingToFile(
-        "sI", buffer.editor_commands_path() + "include");
-    buffer.AddBindingToFile(
-        "si", buffer.editor_commands_path() + "indent");
-    buffer.AddBindingToFile(
-        "sR", buffer.editor_commands_path() + "reflow");
+    buffer.AddBindingToFile("sh", buffer.editor_commands_path() + "header");
+    buffer.AddBindingToFile("sI", buffer.editor_commands_path() + "include");
+    buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
+    buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
     SetStatus("Loaded C file (" + extension + ")");
     return;
   }
 
   if (extension == "java") {
     JavaMode();
-    buffer.AddBindingToFile(
-        "si", buffer.editor_commands_path() + "indent");
-    buffer.AddBindingToFile(
-        "sR", buffer.editor_commands_path() + "reflow");
+    buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
+    buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
     SetStatus("Loaded Java file (" + extension + ")");
     return;
   }
@@ -79,14 +78,12 @@ if (path == "") {
   if (basename == "COMMIT_EDITMSG") {
     buffer.set_line_prefix_characters(" #");
     SetStatus("GIT commit msg");
-    buffer.AddBindingToFile(
-        "sR", buffer.editor_commands_path() + "reflow");
+    buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
   }
 
   if (extension == "py") {
     buffer.set_line_prefix_characters(" #");
-    buffer.AddBindingToFile(
-        "si", buffer.editor_commands_path() + "indent");
+    buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
     SetStatus("Loaded Python file (" + extension + ")");
   }
 }
