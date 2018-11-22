@@ -728,8 +728,12 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       buffer->simplified_parse_tree();
   if (simplified_parse_tree != last_simplified_parse_tree_.lock()) {
     last_simplified_parse_tree_ = simplified_parse_tree;
-    full_file_parse_tree_ = std::make_shared<ParseTree>(ZoomOutTree(
-        *simplified_parse_tree, buffer->lines_size(), lines_to_show));
+    if (simplified_parse_tree == nullptr) {
+      full_file_parse_tree_ = nullptr;
+    } else {
+      full_file_parse_tree_ = std::make_shared<ParseTree>(ZoomOutTree(
+          *simplified_parse_tree, buffer->lines_size(), lines_to_show));
+    }
   }
 
   line_output_options.full_file_parse_tree = full_file_parse_tree_.get();
