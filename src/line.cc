@@ -383,10 +383,11 @@ void Line::Output(const Line::OutputOptions& options) const {
             options.line, options.buffer->lines_size(), view_start_line,
             options.lines_to_show);
       }
-      if (!options.full_file_parse_tree.children.empty()) {
+      if (options.full_file_parse_tree != nullptr &&
+          !options.full_file_parse_tree->children.empty()) {
         additional_information +=
             DrawTree(options.line - view_start_line, options.lines_to_show,
-                     options.full_file_parse_tree);
+                     *options.full_file_parse_tree);
       }
     }
 

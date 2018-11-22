@@ -128,7 +128,7 @@ class Line {
     size_t lines_to_show;
     size_t width;
     bool paste_mode;
-    ParseTree full_file_parse_tree;
+    const ParseTree* full_file_parse_tree = nullptr;
     OutputReceiverInterface* output_receiver = nullptr;
     bool has_active_cursor = false;
     bool has_cursor = false;
