@@ -2,8 +2,8 @@
 #define __AFC_EDITOR_TERMINAL_H__
 
 #include <cwchar>
-#include <memory>
 #include <list>
+#include <memory>
 #include <string>
 
 #include "editor.h"
@@ -11,7 +11,6 @@
 
 namespace afc {
 namespace editor {
-
 
 class Terminal {
  public:
@@ -37,9 +36,8 @@ class Terminal {
 
  private:
   void ShowStatus(const EditorState& editor_state, Screen* screen);
-  wstring GetBufferContext(
-      const EditorState& editor_state,
-      const shared_ptr<OpenBuffer>& buffer);
+  wstring GetBufferContext(const EditorState& editor_state,
+                           const shared_ptr<OpenBuffer>& buffer);
   void ShowBuffer(const EditorState* editor_state, Screen* screen);
   void AdjustPosition(const shared_ptr<OpenBuffer> buffer, Screen* screen);
 };

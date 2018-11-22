@@ -56,35 +56,37 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   size_t line = min(buffer->position().line, buffer->contents()->size() - 1);
   size_t margin_lines =
       min(screen_lines / 2,
-          max(static_cast<int>(ceil(
-                  buffer->Read(buffer_variables::margin_lines_ratio()) *
-                  screen_lines)),
+          max(static_cast<int>(
+                  ceil(buffer->Read(buffer_variables::margin_lines_ratio()) *
+                       screen_lines)),
               max(buffer->Read(buffer_variables::margin_lines()), 0)));
   margin_lines = min(margin_lines, static_cast<size_t>(screen_lines) / 2 - 1);
   size_t view_start = static_cast<size_t>(
       max(0, buffer->Read(buffer_variables::view_start_line())));
   if (view_start > line - min(margin_lines, line)) {
     buffer->set_int_variable(buffer_variables::view_start_line(),
-        line - min(margin_lines, line));
+                             line - min(margin_lines, line));
     editor_state->ScheduleRedraw();
-  } else if (view_start + screen_lines - 1
-                 <= min(buffer->lines_size() - 1, line + margin_lines)) {
-    buffer->set_int_variable(buffer_variables::view_start_line(),
+  } else if (view_start + screen_lines - 1 <=
+             min(buffer->lines_size() - 1, line + margin_lines)) {
+    buffer->set_int_variable(
+        buffer_variables::view_start_line(),
         min(buffer->lines_size() - 1, line + margin_lines) - screen_lines + 2);
     editor_state->ScheduleRedraw();
   }
 
-  size_t desired_start_column = buffer->current_position_col()
-      - min(buffer->current_position_col(), screen->columns() - 1);
+  size_t desired_start_column =
+      buffer->current_position_col() -
+      min(buffer->current_position_col(), screen->columns() - 1);
   if (static_cast<size_t>(
-              max(0, buffer->Read(buffer_variables::view_start_column())))
-          != desired_start_column) {
+          max(0, buffer->Read(buffer_variables::view_start_column()))) !=
+      desired_start_column) {
     buffer->set_int_variable(buffer_variables::view_start_column(),
                              desired_start_column);
     editor_state->ScheduleRedraw();
   }
-  if (buffer->read_bool_variable(buffer_variables::atomic_lines())
-      && buffer->last_highlighted_line() != buffer->position().line) {
+  if (buffer->read_bool_variable(buffer_variables::atomic_lines()) &&
+      buffer->last_highlighted_line() != buffer->position().line) {
     editor_state->ScheduleRedraw();
   }
 
@@ -148,32 +150,30 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
     } else {
       status += to_wstring(buffer->current_position_line() + 1);
     }
-    status += L" of " + to_wstring(buffer->contents()->size()) + L", "
-        + to_wstring(buffer->current_position_col() + 1);
+    status += L" of " + to_wstring(buffer->contents()->size()) + L", " +
+              to_wstring(buffer->current_position_col() + 1);
 
     status += L"] ";
 
     for (auto& it : *editor_state.buffers()) {
       if (it.second->ShouldDisplayProgress()) {
         auto name = TransformCommandNameForStatus(it.second->name());
-        size_t progress = it.second->Read(buffer_variables::progress())
-            % (4 + 2 * name.size());
+        size_t progress = it.second->Read(buffer_variables::progress()) %
+                          (4 + 2 * name.size());
         if (progress == 0 || progress == 1) {
           static const std::vector<wstring> begin = {L"◟", L"◜"};
           status += begin[progress] + name + L" ";
         } else if (progress < 2 + name.size()) {
           int split = progress - 2;
-          status += L" "
-              + name.substr(0, split + 1) + L"̅" + name.substr(split + 1)
-              + L" ";
+          status += L" " + name.substr(0, split + 1) + L"̅" +
+                    name.substr(split + 1) + L" ";
         } else if (progress < 2 + name.size() + 2) {
           static const std::vector<wstring> end = {L"◝", L"◞"};
           status += L" " + name + end[progress - 2 - name.size()];
         } else {
           int split = name.size() - (progress - 2 - name.size() - 2) - 1;
-          status += L" "
-              + name.substr(0, split + 1) + L"̲" + name.substr(split + 1)
-              + L" ";
+          status += L" " + name.substr(0, split + 1) + L"̲" +
+                    name.substr(split + 1) + L" ";
         }
       }
     }
@@ -185,10 +185,12 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
 
     auto active_cursors = buffer->active_cursors()->size();
     if (active_cursors != 1) {
-      status += L" "
-          + (buffer->read_bool_variable(buffer_variables::multiple_cursors())
-                 ? wstring(L"CURSORS") : wstring(L"cursors"))
-          + L":" + to_wstring(active_cursors) + L" ";
+      status +=
+          L" " +
+          (buffer->read_bool_variable(buffer_variables::multiple_cursors())
+               ? wstring(L"CURSORS")
+               : wstring(L"cursors")) +
+          L":" + to_wstring(active_cursors) + L" ";
     }
 
     wstring flags = buffer->FlagsString();
@@ -326,16 +328,15 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
   }
 }
 
-wstring Terminal::GetBufferContext(
-    const EditorState& editor_state,
-    const shared_ptr<OpenBuffer>& buffer) {
+wstring Terminal::GetBufferContext(const EditorState& editor_state,
+                                   const shared_ptr<OpenBuffer>& buffer) {
   auto marks = buffer->GetLineMarks(editor_state);
   auto current_line_marks = marks->find(buffer->position().line);
   if (current_line_marks != marks->end()) {
     auto mark = current_line_marks->second;
     auto source = editor_state.buffers()->find(mark.source);
-    if (source != editor_state.buffers()->end()
-        && source->second->contents()->size() > mark.source_line) {
+    if (source != editor_state.buffers()->end() &&
+        source->second->contents()->size() > mark.source_line) {
       return source->second->contents()->at(mark.source_line)->ToString();
     }
   }
@@ -346,15 +347,10 @@ class LineOutputReceiver : public Line::OutputReceiverInterface {
  public:
   LineOutputReceiver(Screen* screen) : screen_(screen) {}
 
-  void AddCharacter(wchar_t c) {
-    screen_->WriteString(wstring(1, c));
-  }
-  void AddString(const wstring& str) {
-    screen_->WriteString(str);
-  }
-  void AddModifier(LineModifier modifier) {
-    screen_->SetModifier(modifier);
-  }
+  void AddCharacter(wchar_t c) { screen_->WriteString(wstring(1, c)); }
+  void AddString(const wstring& str) { screen_->WriteString(str); }
+  void AddModifier(LineModifier modifier) { screen_->SetModifier(modifier); }
+
  private:
   Screen* const screen_;
 };
@@ -378,6 +374,7 @@ class HighlightedLineOutputReceiver : public Line::OutputReceiverInterface {
         delegate_->AddModifier(modifier);
     }
   }
+
  private:
   Line::OutputReceiverInterface* const delegate_;
 };
@@ -424,9 +421,7 @@ class ModifiersMerger {
     }
   }
 
-  bool has_parent_modifiers() {
-    return parent_modifiers_;
-  }
+  bool has_parent_modifiers() { return parent_modifiers_; }
 
  private:
   bool parent_modifiers_ = false;
@@ -447,7 +442,7 @@ class ReceiverTrackingPosition : public Line::OutputReceiverInterface {
   }
 
   void AddString(const wstring& str) override {
-    position_+= str.size();
+    position_ += str.size();
     delegate_->AddString(str);
   }
 
@@ -491,8 +486,8 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
         next_cursor_ != columns_.end() && *next_cursor_ == delegate_.position();
     if (at_cursor) {
       ++next_cursor_;
-      CHECK(next_cursor_ == columns_.end()
-            || *next_cursor_ > delegate_.position());
+      CHECK(next_cursor_ == columns_.end() ||
+            *next_cursor_ > delegate_.position());
       modifiers_merger_.AddParentModifier(LineModifier::REVERSE);
       modifiers_merger_.AddParentModifier(
           multiple_cursors_ ? LineModifier::CYAN : LineModifier::BLUE);
@@ -514,7 +509,8 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
       // Compute the position of the next cursor relative to the start of this
       // string.
       size_t next_column = (next_cursor_ == columns_.end())
-          ? str.size() : *next_cursor_ + str_pos - delegate_.position();
+                               ? str.size()
+                               : *next_cursor_ + str_pos - delegate_.position();
       if (next_column > str_pos) {
         size_t len = next_column - str_pos;
         delegate_.AddString(str.substr(str_pos, len));
@@ -556,10 +552,12 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
 
 class ParseTreeHighlighter : public Line::OutputReceiverInterface {
  public:
-  explicit ParseTreeHighlighter(
-      Line::OutputReceiverInterface* delegate, size_t columns_to_skip,
-      size_t begin, size_t end)
-      : delegate_(delegate), columns_to_skip_(columns_to_skip), begin_(begin),
+  explicit ParseTreeHighlighter(Line::OutputReceiverInterface* delegate,
+                                size_t columns_to_skip, size_t begin,
+                                size_t end)
+      : delegate_(delegate),
+        columns_to_skip_(columns_to_skip),
+        begin_(begin),
         end_(end) {}
 
   void AddCharacter(wchar_t c) override {
@@ -589,7 +587,9 @@ class ParseTreeHighlighter : public Line::OutputReceiverInterface {
       delegate_.AddString(str);
       return;
     }
-    for (auto& c : str) { AddCharacter(c); }
+    for (auto& c : str) {
+      AddCharacter(c);
+    }
   }
 
   void AddModifier(LineModifier modifier) override {
@@ -605,11 +605,15 @@ class ParseTreeHighlighter : public Line::OutputReceiverInterface {
 
 class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
  public:
-  ParseTreeHighlighterTokens(
-      Line::OutputReceiverInterface* delegate, size_t columns_to_skip,
-      const ParseTree* root, size_t line)
-      : delegate_(delegate), modifiers_merger_(&delegate_), root_(root),
-        columns_to_skip_(columns_to_skip), line_(line), current_({root}) {
+  ParseTreeHighlighterTokens(Line::OutputReceiverInterface* delegate,
+                             size_t columns_to_skip, const ParseTree* root,
+                             size_t line)
+      : delegate_(delegate),
+        modifiers_merger_(&delegate_),
+        root_(root),
+        columns_to_skip_(columns_to_skip),
+        line_(line),
+        current_({root}) {
     UpdateCurrent(LineColumn(line_, delegate_.position()));
   }
 
@@ -643,7 +647,9 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
       delegate_.AddString(str);
       return;
     }
-    for (auto& c : str) { AddCharacter(c); }
+    for (auto& c : str) {
+      AddCharacter(c);
+    }
   }
 
   void AddModifier(LineModifier modifier) override {
@@ -665,8 +671,7 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
     // after position (it may also start *after* position).
     while (!current_.back()->children.empty()) {
       auto it = current_.back()->children.UpperBound(
-          position,
-          [](const LineColumn& position, const ParseTree& candidate) {
+          position, [](const LineColumn& position, const ParseTree& candidate) {
             return position < candidate.range.end;
           });
       if (it == current_.back()->children.end()) {
@@ -720,9 +725,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       buffer->read_bool_variable(buffer_variables::paste_mode());
   auto simplified_parse_tree = buffer->simplified_parse_tree();
   if (simplified_parse_tree != nullptr) {
-    line_output_options.full_file_parse_tree =
-        ZoomOutTree(*simplified_parse_tree, buffer->lines_size(),
-        lines_to_show);
+    line_output_options.full_file_parse_tree = ZoomOutTree(
+        *simplified_parse_tree, buffer->lines_size(), lines_to_show);
   }
 
   std::unordered_set<const OpenBuffer*> buffers_shown;
@@ -735,7 +739,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       continue;
     }
     if (!buffer->IsLineFiltered(current_line)) {
-      current_line ++;
+      current_line++;
       continue;
     }
 
@@ -759,8 +763,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
             ? 0
             : 1 + std::to_wstring(buffer->lines_size()).size();
     CHECK(line->contents() != nullptr);
-    if (current_line == buffer->position().line
-        && buffer->read_bool_variable(buffer_variables::atomic_lines())) {
+    if (current_line == buffer->position().line &&
+        buffer->read_bool_variable(buffer_variables::atomic_lines())) {
       buffer->set_last_highlighted_line(current_line);
       atomic_lines_highlighter =
           std::make_unique<HighlightedLineOutputReceiver>(receiver);
@@ -797,9 +801,9 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     }
 
     std::unique_ptr<Line::OutputReceiverInterface> parse_tree_highlighter;
-    if (current_tree != root.get()
-        && current_line >= current_tree->range.begin.line
-        && current_line <= current_tree->range.end.line) {
+    if (current_tree != root.get() &&
+        current_line >= current_tree->range.begin.line &&
+        current_line <= current_tree->range.end.line) {
       size_t begin = current_line == current_tree->range.begin.line
                          ? current_tree->range.begin.column
                          : 0;
@@ -823,12 +827,12 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     // Need to do this for atomic lines, since they override the Reset modifier
     // with Reset + Reverse.
     line_output_receiver->AddModifier(LineModifier::RESET);
-    current_line ++;
+    current_line++;
   }
 }
 
-void Terminal::AdjustPosition(
-    const shared_ptr<OpenBuffer> buffer, Screen* screen) {
+void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer,
+                              Screen* screen) {
   size_t position_line = min(buffer->position().line, buffer->lines_size() - 1);
   size_t line_length;
   if (buffer->lines_size() == 0) {
@@ -860,5 +864,5 @@ void Terminal::AdjustPosition(
   screen->Move(pos_y, pos_x + columns_to_skip);
 }
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc
