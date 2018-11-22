@@ -25,15 +25,7 @@ Honor the "margin_columns" variable.
 
 Add a boolean variable "highlight_current_line" (default: false); when set, highlight the line with the current cursor position.
 
-Change the tree generation: just display the structure of the entire file, fit into the screen (similar to the scroll bar).
-
 If the buffer doesn't fit in the screen, don't show the scroll bar (or show it in a different way).
-
-Add a command that creates a "navigation" or "zoom out" view of the current buffer based on the parse tree.
-  Should show the parse tree (somehow). Optimized to make it easy to navigate.
-  Scrolling on it and pressing Return should take the user back to the original buffer.
-  show_in_buffers_list=false by default
-  If the buffer is a view of another buffer, do a view of the view.
 
 -- Prompt
 
@@ -82,9 +74,6 @@ Make follow_end_of_file the default.
 atomic_lines should probably also apply to multiple cursors.
 
 -- VM
-
-Turn it into true continuation-passing style.
-  Currently, it's not really. Various parts assume that the OngoingEvaluation instance continues to live, past escapes to the trampoline.
 
 Add support for templates, so that we can do "vector<string>".
 

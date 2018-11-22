@@ -43,8 +43,7 @@ class MoveableCharBuffer : public LazyString {
 class CharBuffer : public MoveableCharBuffer {
  public:
   CharBuffer(const wchar_t* buffer, size_t input_size)
-      : MoveableCharBuffer(&location_, input_size),
-        location_(buffer) {}
+      : MoveableCharBuffer(&location_, input_size), location_(buffer) {}
 
  protected:
   const wchar_t* location_;
@@ -57,24 +56,23 @@ class CharBufferWithOwnership : public CharBuffer {
   ~CharBufferWithOwnership() { free(const_cast<wchar_t*>(location_)); }
 };
 
-unique_ptr<LazyString> NewMoveableCharBuffer(
-    const wchar_t* const* buffer, size_t size) {
+unique_ptr<LazyString> NewMoveableCharBuffer(const wchar_t* const* buffer,
+                                             size_t size) {
   return std::make_unique<MoveableCharBuffer>(buffer, size);
 }
 
-unique_ptr<LazyString> NewCharBuffer(
-    const wchar_t* buffer, size_t size) {
+unique_ptr<LazyString> NewCharBuffer(const wchar_t* buffer, size_t size) {
   return std::make_unique<CharBuffer>(buffer, size);
 }
 
-unique_ptr<LazyString> NewCharBufferWithOwnership(
-    const wchar_t* buffer, size_t size) {
+unique_ptr<LazyString> NewCharBufferWithOwnership(const wchar_t* buffer,
+                                                  size_t size) {
   return std::make_unique<CharBufferWithOwnership>(buffer, size);
 }
 
 unique_ptr<LazyString> NewCopyCharBuffer(const wchar_t* buffer) {
-  return std::make_unique<CharBufferWithOwnership>(
-      wcsdup(buffer), wcslen(buffer));
+  return std::make_unique<CharBufferWithOwnership>(wcsdup(buffer),
+                                                   wcslen(buffer));
 }
 
 unique_ptr<LazyString> NewCopyString(const wstring& buffer) {
