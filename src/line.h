@@ -4,8 +4,8 @@
 #include <map>
 #include <memory>
 #include <mutex>
-#include <unordered_set>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include <glog/logging.h>
@@ -25,10 +25,10 @@ class OpenBuffer;
 using std::hash;
 using std::shared_ptr;
 using std::string;
-using std::wstring;
 using std::unique_ptr;
 using std::unordered_set;
 using std::vector;
+using std::wstring;
 
 // This class is thread-safe.
 class Line {
@@ -36,8 +36,7 @@ class Line {
   struct Options {
     Options() : contents(EmptyString()) {}
     Options(shared_ptr<LazyString> input_contents)
-        : contents(std::move(input_contents)),
-          modifiers(contents->size()) {}
+        : contents(std::move(input_contents)), modifiers(contents->size()) {}
 
     shared_ptr<LazyString> contents;
     vector<LineModifierSet> modifiers;
@@ -68,9 +67,7 @@ class Line {
   shared_ptr<LazyString> Substring(size_t pos, size_t length) const;
   // Returns the substring from pos to the end of the string.
   shared_ptr<LazyString> Substring(size_t pos) const;
-  wstring ToString() const {
-    return contents()->ToString();
-  }
+  wstring ToString() const { return contents()->ToString(); }
   // Delete characters in [position, position + amount).
   void DeleteCharacters(size_t position, size_t amount);
   // Delete characters from position until the end.

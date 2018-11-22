@@ -23,7 +23,8 @@ Line::Line(wstring x) : Line(Line::Options(NewCopyString(std::move(x)))) {}
 
 Line::Line(const Options& options)
     : environment_(options.environment == nullptr
-                       ? std::make_shared<Environment>() : options.environment),
+                       ? std::make_shared<Environment>()
+                       : options.environment),
       contents_(options.contents),
       modifiers_(options.modifiers) {
   CHECK(contents_ != nullptr);
@@ -50,9 +51,9 @@ void Line::DeleteCharacters(size_t position, size_t amount) {
   CHECK_LE(position, contents_->size());
   CHECK_LE(position + amount, contents_->size());
   CHECK_EQ(contents_->size(), modifiers_.size());
-  contents_ = StringAppend(
-      afc::editor::Substring(contents_, 0, position),
-      afc::editor::Substring(contents_, position + amount));
+  contents_ =
+      StringAppend(afc::editor::Substring(contents_, 0, position),
+                   afc::editor::Substring(contents_, position + amount));
   auto it = modifiers_.begin() + position;
   modifiers_.erase(it, it + amount);
   CHECK_EQ(contents_->size(), modifiers_.size());
@@ -66,10 +67,10 @@ void Line::DeleteCharacters(size_t position) {
 void Line::InsertCharacterAtPosition(size_t position) {
   std::unique_lock<std::mutex> lock(mutex_);
   CHECK_EQ(contents_->size(), modifiers_.size());
-  contents_ = StringAppend(
-      StringAppend(afc::editor::Substring(contents_, 0, position),
-                   NewCopyString(L" ")),
-      afc::editor::Substring(contents_, position));
+  contents_ =
+      StringAppend(StringAppend(afc::editor::Substring(contents_, 0, position),
+                                NewCopyString(L" ")),
+                   afc::editor::Substring(contents_, position));
 
   modifiers_.push_back(unordered_set<LineModifier, hash<int>>());
   for (size_t i = modifiers_.size() - 1; i > position; i--) {
@@ -130,20 +131,20 @@ void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
   for (size_t i = 0; i < pos; i++) {
     output->at(i) = padding_char;
   }
-  output->at(pos) =
-      (pos + 1 == output->size() || output->at(pos + 1) == L' ' ||
-       output->at(pos + 1) == L'│')
-          ? final_char
-          : connect_final_char;
+  output->at(pos) = (pos + 1 == output->size() || output->at(pos + 1) == L' ' ||
+                     output->at(pos + 1) == L'│')
+                        ? final_char
+                        : connect_final_char;
 }
 
 wstring DrawTree(size_t line, size_t lines_size, const ParseTree& root) {
   // Route along the tree where each child ends after previous line.
   vector<const ParseTree*> route_begin;
   if (line > 0) {
-    route_begin = MapRoute(root,
-        FindRouteToPosition(root,
-            LineColumn(line - 1, std::numeric_limits<size_t>::max())));
+    route_begin = MapRoute(
+        root,
+        FindRouteToPosition(
+            root, LineColumn(line - 1, std::numeric_limits<size_t>::max())));
     CHECK(!route_begin.empty() && *route_begin.begin() == &root);
     route_begin.erase(route_begin.begin());
   }
@@ -151,9 +152,9 @@ wstring DrawTree(size_t line, size_t lines_size, const ParseTree& root) {
   // Route along the tree where each child ends after current line.
   vector<const ParseTree*> route_end;
   if (line < lines_size - 1) {
-    route_end = MapRoute(root,
-        FindRouteToPosition(root,
-            LineColumn(line, std::numeric_limits<size_t>::max())));
+    route_end = MapRoute(
+        root, FindRouteToPosition(
+                  root, LineColumn(line, std::numeric_limits<size_t>::max())));
     CHECK(!route_end.empty() && *route_end.begin() == &root);
     route_end.erase(route_end.begin());
   }
@@ -187,20 +188,20 @@ wstring DrawTree(size_t line, size_t lines_size, const ParseTree& root) {
 
     if (route_begin[index_begin] == route_end[index_end]) {
       output[route_begin[index_begin]->depth] = L'│';
-      index_begin ++;
-      index_end ++;
+      index_begin++;
+      index_end++;
       continue;
     }
 
     Draw(route_end[index_end]->depth, L'─', L'┤', L'┼', &output);
-    index_begin ++;
-    index_end ++;
+    index_begin++;
+    index_end++;
   }
   return output;
 }
 
-wchar_t ComputeScrollBarCharacter(
-    size_t line, size_t lines_size, size_t view_start, size_t lines_to_show) {
+wchar_t ComputeScrollBarCharacter(size_t line, size_t lines_size,
+                                  size_t view_start, size_t lines_to_show) {
   // Each line is split into two units (upper and bottom halves). All units in
   // this function are halves (of a line).
   DCHECK_GE(line, view_start);
@@ -209,7 +210,8 @@ wchar_t ComputeScrollBarCharacter(
   size_t halves_to_show = lines_to_show * 2;
 
   // Number of halves the bar should take.
-  size_t bar_size = max(size_t(1),
+  size_t bar_size = max(
+      size_t(1),
       size_t(halves_to_show * static_cast<double>(lines_to_show) / lines_size));
 
   // Bar will be shown in lines in interval [bar, end] (units are halves).
@@ -235,17 +237,17 @@ void Line::Output(const Line::OutputOptions& options) const {
   std::unique_lock<std::mutex> lock(mutex_);
   VLOG(5) << "Producing output of line: " << ToString();
   size_t output_column = 0;
-  size_t input_column = options.buffer->Read(
-      buffer_variables::view_start_column());
+  size_t input_column =
+      options.buffer->Read(buffer_variables::view_start_column());
   unordered_set<LineModifier, hash<int>> current_modifiers;
 
   CHECK(environment_ != nullptr);
   auto target_buffer_value = environment_->Lookup(L"buffer");
   const auto target_buffer =
-      (target_buffer_value != nullptr
-       && target_buffer_value->type.type == VMType::OBJECT_TYPE
-       && target_buffer_value->type.object_type == L"Buffer"
-       && target_buffer_value->user_value != nullptr)
+      (target_buffer_value != nullptr &&
+       target_buffer_value->type.type == VMType::OBJECT_TYPE &&
+       target_buffer_value->type.object_type == L"Buffer" &&
+       target_buffer_value->user_value != nullptr)
           ? static_cast<OpenBuffer*>(target_buffer_value->user_value.get())
           : options.buffer;
   const auto view_start_line =
@@ -285,18 +287,17 @@ void Line::Output(const Line::OutputOptions& options) const {
     switch (c) {
       case '\r':
         break;
-      case '\t':
-        {
-          size_t new_output_column = min(options.width,
-              8 * static_cast<size_t>(
-                  1 + floor(static_cast<double>(output_column) / 8.0)));
-          CHECK_GT(new_output_column, output_column);
-          CHECK_LE(new_output_column - output_column, 8u);
-          options.output_receiver->AddString(
-              wstring(new_output_column - output_column, ' '));
-          output_column = new_output_column;
-        }
-        break;
+      case '\t': {
+        size_t new_output_column =
+            min(options.width,
+                8 * static_cast<size_t>(
+                        1 + floor(static_cast<double>(output_column) / 8.0)));
+        CHECK_GT(new_output_column, output_column);
+        CHECK_LE(new_output_column - output_column, 8u);
+        options.output_receiver->AddString(
+            wstring(new_output_column - output_column, ' '));
+        output_column = new_output_column;
+      } break;
       default:
         if (iswprint(c)) {
           VLOG(8) << "Print character: " << c;
@@ -313,11 +314,10 @@ void Line::Output(const Line::OutputOptions& options) const {
 
   auto view_start = static_cast<size_t>(
       max(0, options.buffer->Read(buffer_variables::view_start_column())));
-  if ((!target_buffer->read_bool_variable(buffer_variables::paste_mode())
-       || target_buffer != options.buffer)
-      && line_width != 0
-      && view_start < line_width
-      && line_width + initial_column - view_start < options.width) {
+  if ((!target_buffer->read_bool_variable(buffer_variables::paste_mode()) ||
+       target_buffer != options.buffer) &&
+      line_width != 0 && view_start < line_width &&
+      line_width + initial_column - view_start < options.width) {
     if (line_width + initial_column > view_start + output_column) {
       size_t padding = line_width + initial_column - view_start - output_column;
       options.output_receiver->AddString(wstring(padding, L' '));
@@ -340,8 +340,8 @@ void Line::Output(const Line::OutputOptions& options) const {
       info_char = '!';
 
       // Prefer fresh over expired marks.
-      while (next(marks.first) != marks.second
-             && marks.first->second.IsExpired()) {
+      while (next(marks.first) != marks.second &&
+             marks.first->second.IsExpired()) {
         ++marks.first;
       }
 
@@ -351,8 +351,8 @@ void Line::Output(const Line::OutputOptions& options) const {
             L"(old) " + mark.source_line_content->ToString();
       } else {
         auto source = options.editor_state->buffers()->find(mark.source);
-        if (source != options.editor_state->buffers()->end()
-            && source->second->contents()->size() > mark.source_line) {
+        if (source != options.editor_state->buffers()->end() &&
+            source->second->contents()->size() > mark.source_line) {
           options.output_receiver->AddModifier(LineModifier::BOLD);
           additional_information =
               source->second->contents()->at(mark.source_line)->ToString();
@@ -378,16 +378,15 @@ void Line::Output(const Line::OutputOptions& options) const {
         additional_information +=
             DrawTree(options.line, options.buffer->lines_size(), *parse_tree);
       }
-      if (options.buffer->read_bool_variable(
-              buffer_variables::scrollbar())) {
+      if (options.buffer->read_bool_variable(buffer_variables::scrollbar())) {
         additional_information += ComputeScrollBarCharacter(
             options.line, options.buffer->lines_size(), view_start_line,
             options.lines_to_show);
       }
       if (!options.full_file_parse_tree.children.empty()) {
-        additional_information += DrawTree(
-            options.line - view_start_line, options.lines_to_show,
-            options.full_file_parse_tree);
+        additional_information +=
+            DrawTree(options.line - view_start_line, options.lines_to_show,
+                     options.full_file_parse_tree);
       }
     }
 
@@ -398,8 +397,7 @@ void Line::Output(const Line::OutputOptions& options) const {
     }
     if (options.width > output_column) {
       additional_information = additional_information.substr(
-          0, min(additional_information.size(),
-                 options.width - output_column));
+          0, min(additional_information.size(), options.width - output_column));
     }
     options.output_receiver->AddString(additional_information);
     output_column += additional_information.size();
@@ -412,9 +410,7 @@ void Line::Output(const Line::OutputOptions& options) const {
   }
 }
 
-OutputReceiverOptimizer::~OutputReceiverOptimizer() {
-  Flush();
-}
+OutputReceiverOptimizer::~OutputReceiverOptimizer() { Flush(); }
 
 void OutputReceiverOptimizer::AddCharacter(wchar_t character) {
   if (last_modifiers_ != modifiers_) {
