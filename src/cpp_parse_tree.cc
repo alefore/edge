@@ -32,9 +32,7 @@ struct Action {
     return Action(PUSH, position, std::move(modifiers));
   }
 
-  static Action Pop(LineColumn position) {
-    return Action(POP, position, {});
-  }
+  static Action Pop(LineColumn position) { return Action(POP, position, {}); }
 
   static Action SetFirstChildModifiers(LineColumn position,
                                        LineModifierSet modifiers) {
@@ -94,31 +92,25 @@ class ParseData {
     parse_results_.states_stack = std::move(initial_states);
   }
 
-  const BufferContents& buffer() const {
-    return buffer_;
-  }
+  const BufferContents& buffer() const { return buffer_; }
 
   ParseResults* parse_results() { return &parse_results_; }
 
-  LineColumn position() const {
-    return position_;
-  }
+  LineColumn position() const { return position_; }
 
   void set_position(LineColumn position) {
     CHECK_LE(position, limit_);
     position_ = position;
   }
 
-  void set_limit(LineColumn limit) {
-    limit_ = limit;
-  }
+  void set_limit(LineColumn limit) { limit_ = limit; }
 
-  bool reached_final_position() const {
-    return position_ >= limit_;
-  }
+  bool reached_final_position() const { return position_ >= limit_; }
 
   void AdvancePosition() {
-    if (reached_final_position()) { return; }
+    if (reached_final_position()) {
+      return;
+    }
     if (buffer_.at(position_.line)->size() > position_.column) {
       position_.column++;
     } else if (buffer_.size() > position_.line + 1) {
@@ -145,25 +137,15 @@ class ParseData {
     AdvancePositionUntil([](wchar_t c) { return !iswspace(c) || c == L'\n'; });
   }
 
-  wchar_t read() const {
-    return buffer_.character_at(position_);
-  }
+  wchar_t read() const { return buffer_.character_at(position_); }
 
-  int AddAndGetNesting() {
-    return nesting_++;
-  }
+  int AddAndGetNesting() { return nesting_++; }
 
-  size_t state() const {
-    return parse_results_.states_stack.back();
-  }
+  size_t state() const { return parse_results_.states_stack.back(); }
 
-  void SetState(State state) {
-    parse_results_.states_stack.back() = state;
-  }
+  void SetState(State state) { parse_results_.states_stack.back() = state; }
 
-  bool empty() const {
-    return parse_results_.states_stack.empty();
-  }
+  bool empty() const { return parse_results_.states_stack.empty(); }
 
   void SetFirstChildModifiers(LineModifierSet modifiers) {
     parse_results_.actions.push_back(
@@ -210,7 +192,7 @@ class CppTreeParser : public TreeParser {
     root->children.clear();
     root->depth = 0;
 
-    std::vector<size_t> states_stack = { DEFAULT_AT_START_OF_LINE };
+    std::vector<size_t> states_stack = {DEFAULT_AT_START_OF_LINE};
     std::vector<ParseTree*> trees = {root};
     for (size_t i = root->range.begin.line; i < root->range.end.line; i++) {
       ParseData data(buffer, std::move(states_stack));
@@ -231,8 +213,8 @@ class CppTreeParser : public TreeParser {
 
       switch (result->state()) {
         case DEFAULT_AT_START_OF_LINE:
-          DefaultState(DEFAULT, DEFAULT_AT_START_OF_LINE, AFTER_SLASH,
-                       true, result);
+          DefaultState(DEFAULT, DEFAULT_AT_START_OF_LINE, AFTER_SLASH, true,
+                       result);
           break;
 
         case BRACKET_DEFAULT_AT_START_OF_LINE:
@@ -246,8 +228,8 @@ class CppTreeParser : public TreeParser {
           break;
 
         case DEFAULT:
-          DefaultState(DEFAULT, DEFAULT_AT_START_OF_LINE, AFTER_SLASH,
-                       false, result);
+          DefaultState(DEFAULT, DEFAULT_AT_START_OF_LINE, AFTER_SLASH, false,
+                       result);
           break;
 
         case BRACKET_DEFAULT:
@@ -269,8 +251,7 @@ class CppTreeParser : public TreeParser {
           break;
 
         case PARENS_AFTER_SLASH:
-          AfterSlash(PARENS_DEFAULT, PARENS_DEFAULT_AT_START_OF_LINE,
-                     result);
+          AfterSlash(PARENS_DEFAULT, PARENS_DEFAULT_AT_START_OF_LINE, result);
           break;
 
         case COMMENT:
@@ -380,18 +361,17 @@ class CppTreeParser : public TreeParser {
     CHECK_GE(original_position.column, 1u);
     original_position.column--;
 
-    result->AdvancePositionUntil(
-        [](wchar_t c) {
-          static const wstring cont = identifier_chars + L"0123456789";
-          return cont.find(tolower(c)) == cont.npos;
-        });
+    result->AdvancePositionUntil([](wchar_t c) {
+      static const wstring cont = identifier_chars + L"0123456789";
+      return cont.find(tolower(c)) == cont.npos;
+    });
 
     CHECK_EQ(original_position.line, result->position().line);
     CHECK_GT(result->position().column, original_position.column);
     auto length = result->position().column - original_position.column;
-    auto str = Substring(
-        result->buffer().at(original_position.line)->contents(),
-        original_position.column, length);
+    auto str =
+        Substring(result->buffer().at(original_position.line)->contents(),
+                  original_position.column, length);
     LineModifierSet modifiers;
     if (keywords_.find(str->ToString()) != keywords_.end()) {
       modifiers.insert(LineModifier::CYAN);
@@ -412,9 +392,9 @@ class CppTreeParser : public TreeParser {
                        {LineModifier::YELLOW});
   }
 
-  void DefaultState(
-      State state_default, State state_default_at_start_of_line,
-      State state_after_slash, bool after_newline, ParseData* result) {
+  void DefaultState(State state_default, State state_default_at_start_of_line,
+                    State state_after_slash, bool after_newline,
+                    ParseData* result) {
     // The most common transition (but sometimes overriden below).
     result->SetState(state_default);
     result->SkipSpaces();
@@ -504,10 +484,9 @@ class CppTreeParser : public TreeParser {
     return output;
   }
 
-  const std::unique_ptr<TreeParser> words_parser_ =
-      NewWordsTreeParser(
-           L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
-           NewNullTreeParser());
+  const std::unique_ptr<TreeParser> words_parser_ = NewWordsTreeParser(
+      L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+      NewNullTreeParser());
 
   const std::unordered_set<wstring> keywords_;
 };
