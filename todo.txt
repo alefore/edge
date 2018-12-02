@@ -16,8 +16,6 @@ Add an autocomplete mode that autocompletes based on the path.
 
 -- Navigation
 
-When line numbers are shown, highlight those with cursors.
-
 Improve "g", the current behavior is kind of annoying:
   There should be a way (other than pressing it again) to specify if it should ignore space.  Maybe a modifier can do it?
 
