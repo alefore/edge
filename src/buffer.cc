@@ -4,10 +4,10 @@
 #include <cstring>
 #include <iostream>
 #include <memory>
-#include <unordered_set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <unordered_set>
 
 extern "C" {
 #include <sys/stat.h>
@@ -26,26 +26,26 @@ extern "C" {
 #include "dirname.h"
 #include "editor.h"
 #include "file_link_mode.h"
-#include "run_command_handler.h"
 #include "lazy_string_append.h"
 #include "line_marks.h"
 #include "map_mode.h"
-#include "src/seek.h"
+#include "run_command_handler.h"
 #include "server.h"
+#include "src/seek.h"
 #include "substring.h"
 #include "transformation.h"
 #include "transformation_delete.h"
+#include "vm/public/callbacks.h"
 #include "vm/public/constant_expression.h"
 #include "vm/public/function_call.h"
-#include "vm/public/value.h"
 #include "vm/public/types.h"
+#include "vm/public/value.h"
 #include "vm/public/vm.h"
-#include "vm/public/callbacks.h"
 #include "wstring.h"
 
 namespace afc {
 namespace vm {
-template<>
+template <>
 struct VMTypeMapper<editor::OpenBuffer*> {
   static editor::OpenBuffer* get(Value* value) {
     return static_cast<editor::OpenBuffer*>(value->user_value.get());
@@ -57,16 +57,18 @@ struct VMTypeMapper<editor::OpenBuffer*> {
 const VMType VMTypeMapper<editor::OpenBuffer*>::vmtype =
     VMType::ObjectType(L"Buffer");
 
-template<>
+template <>
 struct VMTypeMapper<editor::LineColumn> {
   static editor::LineColumn get(Value* value) {
     return *static_cast<editor::LineColumn*>(value->user_value.get());
   }
 
   static Value::Ptr New(editor::LineColumn value) {
-    return Value::NewObject(L"LineColumn", shared_ptr<void>(
-        new editor::LineColumn(value),
-        [](void* v){ delete static_cast<editor::LineColumn*>(v); }));
+    return Value::NewObject(
+        L"LineColumn",
+        shared_ptr<void>(new editor::LineColumn(value), [](void* v) {
+          delete static_cast<editor::LineColumn*>(v);
+        }));
   }
 
   static const VMType vmtype;
@@ -74,7 +76,7 @@ struct VMTypeMapper<editor::LineColumn> {
 
 const VMType VMTypeMapper<editor::LineColumn>::vmtype =
     VMType::ObjectType(L"LineColumn");
-}  // namespace
+}  // namespace vm
 namespace editor {
 namespace {
 
@@ -84,11 +86,10 @@ using std::unordered_set;
 
 template <typename EdgeStruct, typename FieldValue>
 void RegisterBufferFields(
-    EditorState* editor_state,
-    EdgeStruct* edge_struct,
+    EditorState* editor_state, EdgeStruct* edge_struct,
     afc::vm::ObjectType* object_type,
-    const FieldValue& (OpenBuffer::*reader)(
-        const EdgeVariable<FieldValue>*) const,
+    const FieldValue& (OpenBuffer::*reader)(const EdgeVariable<FieldValue>*)
+        const,
     void (OpenBuffer::*setter)(const EdgeVariable<FieldValue>*, FieldValue)) {
   VMType buffer_type = VMType::ObjectType(object_type);
 
@@ -98,18 +99,20 @@ void RegisterBufferFields(
     auto variable = edge_struct->find_variable(name);
     CHECK(variable != nullptr);
     // Getter.
-    object_type->AddField(variable->name(), vm::NewCallback(
-        std::function<FieldValue(OpenBuffer*)>(
+    object_type->AddField(
+        variable->name(),
+        vm::NewCallback(std::function<FieldValue(OpenBuffer*)>(
             [reader, variable](OpenBuffer* buffer) {
               DVLOG(4) << "Buffer field reader is returning.";
               return (buffer->*reader)(variable);
             })));
 
     // Setter.
-    object_type->AddField(L"set_" + variable->name(), vm::NewCallback(
-        std::function<void(OpenBuffer*, FieldValue)>(
-            [editor_state, variable, setter](
-                OpenBuffer* buffer, FieldValue value) {
+    object_type->AddField(
+        L"set_" + variable->name(),
+        vm::NewCallback(std::function<void(OpenBuffer*, FieldValue)>(
+            [editor_state, variable, setter](OpenBuffer* buffer,
+                                             FieldValue value) {
               (buffer->*setter)(variable, value);
               editor_state->ScheduleRedraw();
             })));
@@ -125,8 +128,9 @@ using std::to_wstring;
 
 // TODO: Once we can capture std::unique_ptr, turn transformation into one.
 void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
-    size_t line, Value::Callback map_callback,
-    TransformationStack* transformation, Trampoline* trampoline) {
+                             size_t line, Value::Callback map_callback,
+                             TransformationStack* transformation,
+                             Trampoline* trampoline) {
   if (line + 1 >= buffer->contents()->size()) {
     buffer->Apply(editor, std::unique_ptr<Transformation>(transformation));
     trampoline->Return(Value::NewVoid());
@@ -138,98 +142,101 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
   args_expr.emplace_back(
       vm::NewConstantExpression(Value::NewString(std::move(current_line))));
   // TODO: Use unique_ptr and capture by value.
-  std::shared_ptr<vm::Expression> map_line = vm::NewFunctionCall(
-      vm::NewConstantExpression(
-          Value::NewFunction({ VMType::String() }, map_callback)),
-      std::move(args_expr));
+  std::shared_ptr<vm::Expression> map_line =
+      vm::NewFunctionCall(vm::NewConstantExpression(Value::NewFunction(
+                              {VMType::String()}, map_callback)),
+                          std::move(args_expr));
 
-  Evaluate(
-      map_line.get(),
-      trampoline->environment(),
-      [editor, buffer, line, map_callback, transformation, trampoline,
-       current_line, map_line](Value::Ptr value) {
-        if (value->str != current_line) {
-          DeleteOptions options;
-          options.copy_to_paste_buffer = false;
-          transformation->PushBack(NewDeleteLinesTransformation(options));
-          auto buffer_to_insert =
-              std::make_shared<OpenBuffer>(editor, L"tmp buffer");
-          buffer_to_insert->AppendLine(editor, NewCopyString(value->str));
-          transformation->PushBack(
-              NewInsertBufferTransformation(buffer_to_insert, 1, END));
-        }
-        EvaluateMap(editor, buffer, line + 1, std::move(map_callback),
-                    transformation, trampoline);
-      });
+  Evaluate(map_line.get(), trampoline->environment(),
+           [editor, buffer, line, map_callback, transformation, trampoline,
+            current_line, map_line](Value::Ptr value) {
+             if (value->str != current_line) {
+               DeleteOptions options;
+               options.copy_to_paste_buffer = false;
+               transformation->PushBack(NewDeleteLinesTransformation(options));
+               auto buffer_to_insert =
+                   std::make_shared<OpenBuffer>(editor, L"tmp buffer");
+               buffer_to_insert->AppendLine(editor, NewCopyString(value->str));
+               transformation->PushBack(
+                   NewInsertBufferTransformation(buffer_to_insert, 1, END));
+             }
+             EvaluateMap(editor, buffer, line + 1, std::move(map_callback),
+                         transformation, trampoline);
+           });
 }
 
 /* static */ void OpenBuffer::RegisterBufferType(
     EditorState* editor_state, afc::vm::Environment* environment) {
   auto buffer = std::make_unique<ObjectType>(L"Buffer");
 
-  RegisterBufferFields(
-      editor_state, buffer_variables::BoolStruct(), buffer.get(),
-      &OpenBuffer::read_bool_variable, &OpenBuffer::set_bool_variable);
-  RegisterBufferFields(
-      editor_state, buffer_variables::StringStruct(), buffer.get(),
-      &OpenBuffer::read_string_variable, &OpenBuffer::set_string_variable);
-  RegisterBufferFields(
-      editor_state, buffer_variables::IntStruct(), buffer.get(),
-      &OpenBuffer::Read, &OpenBuffer::set_int_variable);
-  RegisterBufferFields(
-      editor_state, buffer_variables::DoubleStruct(), buffer.get(),
-      &OpenBuffer::Read, &OpenBuffer::set_double_variable);
+  RegisterBufferFields(editor_state, buffer_variables::BoolStruct(),
+                       buffer.get(), &OpenBuffer::read_bool_variable,
+                       &OpenBuffer::set_bool_variable);
+  RegisterBufferFields(editor_state, buffer_variables::StringStruct(),
+                       buffer.get(), &OpenBuffer::read_string_variable,
+                       &OpenBuffer::set_string_variable);
+  RegisterBufferFields(editor_state, buffer_variables::IntStruct(),
+                       buffer.get(), &OpenBuffer::Read,
+                       &OpenBuffer::set_int_variable);
+  RegisterBufferFields(editor_state, buffer_variables::DoubleStruct(),
+                       buffer.get(), &OpenBuffer::Read,
+                       &OpenBuffer::set_double_variable);
 
-  buffer->AddField(L"line_count", vm::NewCallback(
-      std::function<int(OpenBuffer*)>([](OpenBuffer* buffer) {
-        return int(buffer->contents()->size());
-      })));
+  buffer->AddField(
+      L"line_count",
+      vm::NewCallback(std::function<int(OpenBuffer*)>(
+          [](OpenBuffer* buffer) { return int(buffer->contents()->size()); })));
 
-  buffer->AddField(L"set_position", vm::NewCallback(
-      std::function<void(OpenBuffer*, LineColumn)>(
-          [](OpenBuffer* buffer, LineColumn position) {
-            buffer->set_position(position);
-          })));
+  buffer->AddField(L"set_position",
+                   vm::NewCallback(std::function<void(OpenBuffer*, LineColumn)>(
+                       [](OpenBuffer* buffer, LineColumn position) {
+                         buffer->set_position(position);
+                       })));
 
-  buffer->AddField(L"position", vm::NewCallback(
-      std::function<LineColumn(OpenBuffer*)>(
-          [](OpenBuffer* buffer) {
-            return LineColumn(buffer->position());
-          })));
+  buffer->AddField(
+      L"position",
+      vm::NewCallback(std::function<LineColumn(OpenBuffer*)>(
+          [](OpenBuffer* buffer) { return LineColumn(buffer->position()); })));
 
-  buffer->AddField(L"line", vm::NewCallback(
-      std::function<wstring(OpenBuffer*, int)>(
-          [](OpenBuffer* buffer, int line) {
-            size_t line_size_t = min(size_t(max(line, 0)),
-                                     buffer->contents()->size() - 1);
-            return buffer->contents()->at(line_size_t)->ToString();
-          })));
+  buffer->AddField(
+      L"line", vm::NewCallback(std::function<wstring(OpenBuffer*, int)>(
+                   [](OpenBuffer* buffer, int line) {
+                     size_t line_size_t = min(size_t(max(line, 0)),
+                                              buffer->contents()->size() - 1);
+                     return buffer->contents()->at(line_size_t)->ToString();
+                   })));
 
-  buffer->AddField(L"Map", Value::NewFunction(
-      { VMType::Void(), VMType::ObjectType(buffer.get()),
-        VMType::Function({ VMType::String(), VMType::String() })},
-      [editor_state](vector<unique_ptr<Value>> args,
-          Trampoline* evaluation) {
-        CHECK_EQ(args.size(), size_t(2));
-        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-        EvaluateMap(
-            editor_state,
-            static_cast<OpenBuffer*>(args[0]->user_value.get()),
-            0, args[1]->callback,
-            std::make_unique<TransformationStack>().release(), evaluation);
-      }));
+  buffer->AddField(
+      L"Map", Value::NewFunction(
+                  {VMType::Void(), VMType::ObjectType(buffer.get()),
+                   VMType::Function({VMType::String(), VMType::String()})},
+                  [editor_state](vector<unique_ptr<Value>> args,
+                                 Trampoline* evaluation) {
+                    CHECK_EQ(args.size(), size_t(2));
+                    CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+                    EvaluateMap(
+                        editor_state,
+                        static_cast<OpenBuffer*>(args[0]->user_value.get()), 0,
+                        args[1]->callback,
+                        std::make_unique<TransformationStack>().release(),
+                        evaluation);
+                  }));
 
-  buffer->AddField(L"GetRegion", Value::NewFunction(
-      {VMType::ObjectType(L"Range"), VMType::ObjectType(buffer.get()),
-       VMType::String()},
-      [editor_state](vector<Value::Ptr> args, Trampoline* trampoline) {
-        CHECK_EQ(args.size(), 2u);
-        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-        CHECK_EQ(args[1]->type, VMType::VM_STRING);
-        // TODO: Don't ignore the buffer! Apply it to it!
-        //auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-        auto resume = trampoline->Interrupt();
-        NewCommandWithModifiers(args[1]->str, L"Selects a region",
+  buffer->AddField(
+      L"GetRegion",
+      Value::NewFunction(
+          {VMType::ObjectType(L"Range"), VMType::ObjectType(buffer.get()),
+           VMType::String()},
+          [editor_state](vector<Value::Ptr> args, Trampoline* trampoline) {
+            CHECK_EQ(args.size(), 2u);
+            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+            CHECK_EQ(args[1]->type, VMType::VM_STRING);
+            // TODO: Don't ignore the buffer! Apply it to it!
+            // auto buffer =
+            // static_cast<OpenBuffer*>(args[0]->user_value.get());
+            auto resume = trampoline->Interrupt();
+            NewCommandWithModifiers(
+                args[1]->str, L"Selects a region",
                 [resume](EditorState*, OpenBuffer* buffer,
                          CommandApplyMode mode, Modifiers modifiers) {
                   // TODO: Apply this to all cursors. That's tricky, because we
@@ -255,62 +262,67 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
                     buffer->PopTransformationStack();
                   }
                 })
-            ->ProcessInput(L'\n', editor_state);
-      }));
+                ->ProcessInput(L'\n', editor_state);
+          }));
 
-  buffer->AddField(L"AddKeyboardTextTransformer", Value::NewFunction(
-      { VMType::Bool(), VMType::ObjectType(buffer.get()),
-        VMType::Function({ VMType::String(), VMType::String() })},
-      [editor_state](vector<unique_ptr<Value>> args) {
-        CHECK_EQ(args.size(), size_t(2));
-        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-        CHECK(buffer != nullptr);
-        return Value::NewBool(buffer->AddKeyboardTextTransformer(
-            editor_state, std::move(args[1])));
-      }));
+  buffer->AddField(
+      L"AddKeyboardTextTransformer",
+      Value::NewFunction(
+          {VMType::Bool(), VMType::ObjectType(buffer.get()),
+           VMType::Function({VMType::String(), VMType::String()})},
+          [editor_state](vector<unique_ptr<Value>> args) {
+            CHECK_EQ(args.size(), size_t(2));
+            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+            auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+            CHECK(buffer != nullptr);
+            return Value::NewBool(buffer->AddKeyboardTextTransformer(
+                editor_state, std::move(args[1])));
+          }));
 
-  buffer->AddField(L"Filter", Value::NewFunction(
-      { VMType::Void(), VMType::ObjectType(buffer.get()),
-        VMType::Function({VMType::Bool(), VMType::String()}) },
-      [editor_state](vector<unique_ptr<Value>> args) {
-        CHECK_EQ(args.size(), size_t(2));
-        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-        CHECK(buffer != nullptr);
-        buffer->set_filter(std::move(args[1]));
-        editor_state->ScheduleRedraw();
-        return Value::NewVoid();
-      }));
+  buffer->AddField(
+      L"Filter", Value::NewFunction(
+                     {VMType::Void(), VMType::ObjectType(buffer.get()),
+                      VMType::Function({VMType::Bool(), VMType::String()})},
+                     [editor_state](vector<unique_ptr<Value>> args) {
+                       CHECK_EQ(args.size(), size_t(2));
+                       CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+                       auto buffer =
+                           static_cast<OpenBuffer*>(args[0]->user_value.get());
+                       CHECK(buffer != nullptr);
+                       buffer->set_filter(std::move(args[1]));
+                       editor_state->ScheduleRedraw();
+                       return Value::NewVoid();
+                     }));
 
-  buffer->AddField(L"DeleteCharacters", vm::NewCallback(
-      std::function<void(OpenBuffer*, int)>(
+  buffer->AddField(
+      L"DeleteCharacters",
+      vm::NewCallback(std::function<void(OpenBuffer*, int)>(
           [editor_state](OpenBuffer* buffer, int count) {
             DeleteOptions options;
             options.modifiers.repetitions = count;
             buffer->ApplyToCursors(NewDeleteCharactersTransformation(options));
           })));
 
-  buffer->AddField(L"Reload", vm::NewCallback(
-      std::function<void(OpenBuffer*)>(
-          [editor_state](OpenBuffer* buffer) {
-            buffer->Reload(editor_state);
-          })));
+  buffer->AddField(L"Reload", vm::NewCallback(std::function<void(OpenBuffer*)>(
+                                  [editor_state](OpenBuffer* buffer) {
+                                    buffer->Reload(editor_state);
+                                  })));
 
-  buffer->AddField(L"InsertText", vm::NewCallback(
-      std::function<void(OpenBuffer*, wstring)>(
+  buffer->AddField(
+      L"InsertText",
+      vm::NewCallback(std::function<void(OpenBuffer*, wstring)>(
           [editor_state](OpenBuffer* buffer, wstring text) {
             if (buffer->fd() != -1) {
               auto str = ToByteString(text);
               LOG(INFO) << "Insert text: " << str.size();
               if (write(buffer->fd(), str.c_str(), str.size()) == -1) {
-                editor_state->SetWarningStatus(
-                    L"Write failed: " + FromByteString(strerror(errno)));
+                editor_state->SetWarningStatus(L"Write failed: " +
+                                               FromByteString(strerror(errno)));
               }
               return;
             }
-            auto buffer_to_insert = std::make_shared<OpenBuffer>(
-                editor_state, L"tmp buffer");
+            auto buffer_to_insert =
+                std::make_shared<OpenBuffer>(editor_state, L"tmp buffer");
 
             // getline will silently eat the last (empty) line.
             std::wistringstream text_stream(text + L"\n");
@@ -322,41 +334,42 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
               } else {
                 insert_separator = true;
               }
-              buffer_to_insert->AppendToLastLine(
-                  editor_state, NewCopyString(line));
+              buffer_to_insert->AppendToLastLine(editor_state,
+                                                 NewCopyString(line));
             }
 
             buffer->ApplyToCursors(
                 NewInsertBufferTransformation(buffer_to_insert, 1, END));
           })));
 
-  buffer->AddField(L"Save", vm::NewCallback(
-      std::function<void(OpenBuffer*)>(
-          [editor_state](OpenBuffer* buffer) {
-            buffer->Save(editor_state);
-          })));
+  buffer->AddField(
+      L"Save",
+      vm::NewCallback(std::function<void(OpenBuffer*)>(
+          [editor_state](OpenBuffer* buffer) { buffer->Save(editor_state); })));
 
-  buffer->AddField(L"AddBinding", Value::NewFunction(
-      { VMType::Void(),
-        VMType::ObjectType(buffer.get()),
-        VMType::String(),
-        VMType::Function({VMType::Void()})},
-      [editor_state](vector<unique_ptr<Value>> args) {
-        CHECK_EQ(args.size(), 3u);
-        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-        CHECK_EQ(args[1]->type, VMType::VM_STRING);
-        auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
-        CHECK(buffer != nullptr);
-        buffer->default_commands_->Add(
-            args[1]->str, std::move(args[2]), &buffer->environment_);
-        return Value::NewVoid();
-      }));
+  buffer->AddField(
+      L"AddBinding",
+      Value::NewFunction(
+          {VMType::Void(), VMType::ObjectType(buffer.get()), VMType::String(),
+           VMType::Function({VMType::Void()})},
+          [editor_state](vector<unique_ptr<Value>> args) {
+            CHECK_EQ(args.size(), 3u);
+            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+            CHECK_EQ(args[1]->type, VMType::VM_STRING);
+            auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+            CHECK(buffer != nullptr);
+            buffer->default_commands_->Add(args[1]->str, std::move(args[2]),
+                                           &buffer->environment_);
+            return Value::NewVoid();
+          }));
 
-  buffer->AddField(L"AddBindingToFile", vm::NewCallback(
-      std::function<void(OpenBuffer*, wstring, wstring)>(
+  buffer->AddField(
+      L"AddBindingToFile",
+      vm::NewCallback(std::function<void(OpenBuffer*, wstring, wstring)>(
           [editor_state](OpenBuffer* buffer, wstring keys, wstring path) {
             LOG(INFO) << "AddBindingToFile: " << keys << " -> " << path;
-            buffer->default_commands_->Add(keys,
+            buffer->default_commands_->Add(
+                keys,
                 [editor_state, buffer, path]() {
                   wstring resolved_path;
                   ResolvePathOptions options;
@@ -364,8 +377,8 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
                   options.path = path;
                   options.output_path = &resolved_path;
                   if (!ResolvePath(options)) {
-                    editor_state->SetWarningStatus(
-                        L"Unable to resolve: " + path);
+                    editor_state->SetWarningStatus(L"Unable to resolve: " +
+                                                   path);
                   } else {
                     buffer->EvaluateFile(editor_state, resolved_path);
                   }
@@ -373,12 +386,12 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
                 L"Load file: " + path);
           })));
 
-  buffer->AddField(L"EvaluateFile", vm::NewCallback(
-      std::function<void(OpenBuffer*, wstring)>(
-          [editor_state](OpenBuffer* buffer, wstring path) {
-            LOG(INFO) << "Evaluating file: " << path;
-            buffer->EvaluateFile(editor_state, path);
-          })));
+  buffer->AddField(L"EvaluateFile",
+                   vm::NewCallback(std::function<void(OpenBuffer*, wstring)>(
+                       [editor_state](OpenBuffer* buffer, wstring path) {
+                         LOG(INFO) << "Evaluating file: " << path;
+                         buffer->EvaluateFile(editor_state, path);
+                       })));
 
   environment->DefineType(L"Buffer", std::move(buffer));
 }
@@ -386,11 +399,9 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
 void OpenBuffer::BackgroundThread() {
   while (true) {
     std::unique_lock<std::mutex> lock(mutex_);
-    background_condition_.wait(lock,
-        [this]() {
-          return background_thread_shutting_down_ ||
-                 contents_to_parse_ != nullptr;
-        });
+    background_condition_.wait(lock, [this]() {
+      return background_thread_shutting_down_ || contents_to_parse_ != nullptr;
+    });
     VLOG(5) << "Background thread is waking up.";
     if (background_thread_shutting_down_) {
       return;
@@ -451,8 +462,9 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       });
   UpdateTreeParser();
 
-  environment_.Define(L"buffer", Value::NewObject(
-      L"Buffer", shared_ptr<void>(this, [](void*){})));
+  environment_.Define(
+      L"buffer",
+      Value::NewObject(L"Buffer", shared_ptr<void>(this, [](void*) {})));
 
   set_string_variable(buffer_variables::path(), L"");
   set_string_variable(buffer_variables::pts_path(), L"");
@@ -530,9 +542,7 @@ void OpenBuffer::Visit(EditorState* editor_state) {
 time_t OpenBuffer::last_visit() const { return last_visit_; }
 time_t OpenBuffer::last_action() const { return last_action_; }
 
-bool OpenBuffer::PersistState() const {
-  return true;
-}
+bool OpenBuffer::PersistState() const { return true; }
 
 void OpenBuffer::ClearContents(EditorState* editor_state) {
   VLOG(5) << "Clear contents of buffer: " << name_;
@@ -559,8 +569,8 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
   CHECK_EQ(fd_error_.fd, -1);
   if (child_pid_ != -1) {
     if (waitpid(child_pid_, &child_exit_status_, 0) == -1) {
-      editor_state->SetStatus(
-          L"waitpid failed: " + FromByteString(strerror(errno)));
+      editor_state->SetStatus(L"waitpid failed: " +
+                              FromByteString(strerror(errno)));
       return;
     }
   }
@@ -579,21 +589,21 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
   }
 
   if (read_bool_variable(buffer_variables::reload_after_exit())) {
-    set_bool_variable(buffer_variables::reload_after_exit(),
+    set_bool_variable(
+        buffer_variables::reload_after_exit(),
         read_bool_variable(buffer_variables::default_reload_after_exit()));
     Reload(editor_state);
   }
-  if (read_bool_variable(buffer_variables::close_after_clean_exit())
-      && WIFEXITED(child_exit_status_)
-      && WEXITSTATUS(child_exit_status_) == 0) {
+  if (read_bool_variable(buffer_variables::close_after_clean_exit()) &&
+      WIFEXITED(child_exit_status_) && WEXITSTATUS(child_exit_status_) == 0) {
     auto it = editor_state->buffers()->find(name_);
     if (it != editor_state->buffers()->end()) {
       editor_state->CloseBuffer(it);
     }
   }
 
-  if (editor_state->has_current_buffer()
-      && editor_state->current_buffer()->first == kBuffersName) {
+  if (editor_state->has_current_buffer() &&
+      editor_state->current_buffer()->first == kBuffersName) {
     editor_state->current_buffer()->second->Reload(editor_state);
   }
 }
@@ -604,7 +614,9 @@ void OpenBuffer::MaybeFollowToEndOfFile() {
     set_position(desired_position_);
     desired_position_ = LineColumn::Max();
   }
-  if (!read_bool_variable(buffer_variables::follow_end_of_file())) { return; }
+  if (!read_bool_variable(buffer_variables::follow_end_of_file())) {
+    return;
+  }
   if (read_bool_variable(buffer_variables::pts())) {
     set_position(position_pts_);
   } else {
@@ -613,7 +625,7 @@ void OpenBuffer::MaybeFollowToEndOfFile() {
 }
 
 bool OpenBuffer::ShouldDisplayProgress() const {
-  return fd_.fd !=-1 || fd_error_.fd != -1;
+  return fd_.fd != -1 || fd_error_.fd != -1;
 }
 
 void OpenBuffer::RegisterProgress() {
@@ -621,14 +633,14 @@ void OpenBuffer::RegisterProgress() {
   if (clock_gettime(0, &now) == -1) {
     return;
   }
-  double ms_elapsed =
-      (now.tv_sec - last_progress_update_.tv_sec) * 1000
-      + (now.tv_nsec - last_progress_update_.tv_nsec) / 1000000;
+  double ms_elapsed = (now.tv_sec - last_progress_update_.tv_sec) * 1000 +
+                      (now.tv_nsec - last_progress_update_.tv_nsec) / 1000000;
   if (ms_elapsed < 200) {
     return;
   }
   last_progress_update_ = now;
-  set_int_variable(buffer_variables::progress(), Read(buffer_variables::progress()) + 1);
+  set_int_variable(buffer_variables::progress(),
+                   Read(buffer_variables::progress()) + 1);
 }
 
 void OpenBuffer::ReadData(EditorState* editor_state) {
@@ -644,8 +656,8 @@ vector<unordered_set<LineModifier, hash<int>>> ModifiersVector(
   return vector<unordered_set<LineModifier, hash<int>>>(size, input);
 }
 
-void OpenBuffer::Input::ReadData(
-    EditorState* editor_state, OpenBuffer* target) {
+void OpenBuffer::Input::ReadData(EditorState* editor_state,
+                                 OpenBuffer* target) {
   LOG(INFO) << "Reading input from " << fd << " for buffer " << target->name();
   static const size_t kLowBufferSize = 1024 * 60;
   if (low_buffer == nullptr) {
@@ -683,8 +695,8 @@ void OpenBuffer::Input::ReadData(
   const char* low_buffer_tmp = low_buffer.get();
   int output_characters =
       mbsnrtowcs(nullptr, &low_buffer_tmp, low_buffer_length, 0, nullptr);
-  std::vector<wchar_t> buffer(
-      output_characters == -1 ? low_buffer_length : output_characters);
+  std::vector<wchar_t> buffer(output_characters == -1 ? low_buffer_length
+                                                      : output_characters);
 
   low_buffer_tmp = low_buffer.get();
   if (output_characters == -1) {
@@ -701,11 +713,11 @@ void OpenBuffer::Input::ReadData(
   VLOG(5) << "Input: [" << buffer_wrapper->ToString() << "]";
 
   size_t processed = low_buffer_tmp == nullptr
-      ? low_buffer_length
-      : low_buffer_tmp - low_buffer.get();
+                         ? low_buffer_length
+                         : low_buffer_tmp - low_buffer.get();
   VLOG(5) << target->name() << ": Characters consumed: " << processed;
-  VLOG(5) << target->name() << ": Characters produced: "
-          << buffer_wrapper->size();
+  VLOG(5) << target->name()
+          << ": Characters produced: " << buffer_wrapper->size();
   CHECK_LE(processed, low_buffer_length);
   memmove(low_buffer.get(), low_buffer_tmp, low_buffer_length - processed);
   low_buffer_length -= processed;
@@ -715,10 +727,10 @@ void OpenBuffer::Input::ReadData(
   }
 
   if (target->read_bool_variable(buffer_variables::vm_exec())) {
-    LOG(INFO) << target->name() << ": Evaluating VM code: "
-              << buffer_wrapper->ToString();
-    target->EvaluateString(
-        editor_state, buffer_wrapper->ToString(), [](std::unique_ptr<Value>){});
+    LOG(INFO) << target->name()
+              << ": Evaluating VM code: " << buffer_wrapper->ToString();
+    target->EvaluateString(editor_state, buffer_wrapper->ToString(),
+                           [](std::unique_ptr<Value>) {});
   }
 
   target->RegisterProgress();
@@ -737,11 +749,11 @@ void OpenBuffer::Input::ReadData(
         target->StartNewLine(editor_state);
         target->MaybeFollowToEndOfFile();
         line_start = i + 1;
-        if (editor_state->has_current_buffer()
-            && editor_state->current_buffer()->second.get() == target
-            && target->contents()->size() <=
-                   target->Read(buffer_variables::view_start_line())
-                   + editor_state->visible_lines()) {
+        if (editor_state->has_current_buffer() &&
+            editor_state->current_buffer()->second.get() == target &&
+            target->contents()->size() <=
+                target->Read(buffer_variables::view_start_line()) +
+                    editor_state->visible_lines()) {
           editor_state->ScheduleRedraw();
         }
       }
@@ -751,15 +763,15 @@ void OpenBuffer::Input::ReadData(
               << buffer_wrapper->size();
       auto line = Substring(buffer_wrapper, line_start,
                             buffer_wrapper->size() - line_start);
-      target->AppendToLastLine(
-          editor_state, line, ModifiersVector(modifiers, line->size()));
+      target->AppendToLastLine(editor_state, line,
+                               ModifiersVector(modifiers, line->size()));
     }
   }
   if (!previous_modified) {
     target->ClearModified();  // These changes don't count.
   }
-  if (editor_state->has_current_buffer()
-      && editor_state->current_buffer()->first == kBuffersName) {
+  if (editor_state->has_current_buffer() &&
+      editor_state->current_buffer()->first == kBuffersName) {
     editor_state->current_buffer()->second->Reload(editor_state);
   }
   editor_state->ScheduleRedraw();
@@ -889,8 +901,8 @@ void OpenBuffer::Save(EditorState* editor_state) {
   editor_state->SetStatus(L"Buffer can't be saved.");
 }
 
-void OpenBuffer::AppendLazyString(
-    EditorState* editor_state, shared_ptr<LazyString> input) {
+void OpenBuffer::AppendLazyString(EditorState* editor_state,
+                                  shared_ptr<LazyString> input) {
   size_t size = input->size();
   size_t start = 0;
   for (size_t i = 0; i < size; i++) {
@@ -907,9 +919,9 @@ static void AddToParseTree(const shared_ptr<LazyString>& str_input) {
 }
 
 void OpenBuffer::SortContents(size_t first, size_t last,
-    std::function<bool(const shared_ptr<const Line>&,
-                       const shared_ptr<const Line>&)>
-        compare) {
+                              std::function<bool(const shared_ptr<const Line>&,
+                                                 const shared_ptr<const Line>&)>
+                                  compare) {
   CHECK(first <= last);
   contents_.sort(first, last, compare);
 }
@@ -958,8 +970,8 @@ void OpenBuffer::AppendRawLine(EditorState*, shared_ptr<Line> line) {
   MaybeFollowToEndOfFile();
 }
 
-void OpenBuffer::ProcessCommandInput(
-    EditorState* editor_state, shared_ptr<LazyString> str) {
+void OpenBuffer::ProcessCommandInput(EditorState* editor_state,
+                                     shared_ptr<LazyString> str) {
   CHECK(read_bool_variable(buffer_variables::pts()));
   if (position_pts_.line >= contents_.size()) {
     position_pts_.line = contents_.size() - 1;
@@ -980,17 +992,16 @@ void OpenBuffer::ProcessCommandInput(
       }
     } else if (c == '\a') {
       auto status = editor_state->status();
-      if (!all_of(status.begin(), status.end(),
-                  [](const wchar_t& c) {
-                    return c == L'♪' || c == L'♫' || c == L'…' || c == L' ' ||
-                           c == L'𝄞';
-                  })) {
+      if (!all_of(status.begin(), status.end(), [](const wchar_t& c) {
+            return c == L'♪' || c == L'♫' || c == L'…' || c == L' ' ||
+                   c == L'𝄞';
+          })) {
         status = L"𝄞";
       } else if (status.size() >= 40) {
         status = L"…" + status.substr(status.size() - 40, status.size());
       }
-      editor_state->SetStatus(
-          status + L" " + (status.back() == L'♪' ? L"♫" : L"♪"));
+      editor_state->SetStatus(status + L" " +
+                              (status.back() == L'♪' ? L"♫" : L"♪"));
       BeepFrequencies(editor_state->audio_player(), {783.99, 523.25, 659.25});
     } else if (c == '\r') {
       position_pts_.column = 0;
@@ -1005,13 +1016,13 @@ void OpenBuffer::ProcessCommandInput(
       current_line = contents_.at(position_pts_.line);
       MaybeFollowToEndOfFile();
     } else if (c == 0x1b) {
-      read_index = ProcessTerminalEscapeSequence(
-          editor_state, str, read_index, &modifiers);
+      read_index = ProcessTerminalEscapeSequence(editor_state, str, read_index,
+                                                 &modifiers);
       CHECK_LT(position_pts_.line, contents_.size());
       current_line = contents_.at(position_pts_.line);
     } else if (isprint(c) || c == '\t') {
-      contents_.SetCharacter(
-          position_pts_.line, position_pts_.column, c, modifiers);
+      contents_.SetCharacter(position_pts_.line, position_pts_.column, c,
+                             modifiers);
       current_line = LineAt(position_pts_.line);
       position_pts_.column++;
       MaybeFollowToEndOfFile();
@@ -1036,9 +1047,10 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         position_pts_.line--;
         position_pts_.column = 0;
         MaybeFollowToEndOfFile();
-        if (static_cast<size_t>(Read(buffer_variables::view_start_line()))
-                > position_pts_.line) {
-          set_int_variable(buffer_variables::view_start_line(), position_pts_.line);
+        if (static_cast<size_t>(Read(buffer_variables::view_start_line())) >
+            position_pts_.line) {
+          set_int_variable(buffer_variables::view_start_line(),
+                           position_pts_.line);
         }
       }
       return read_index + 1;
@@ -1056,13 +1068,12 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
     int c = str->get(read_index);
     read_index++;
     switch (c) {
-      case '@':
-        {
-          // ich: insert character
-          DLOG(INFO) << "Terminal: ich: Insert character.";
-          contents_.InsertCharacter(position_pts_.line, position_pts_.column);
-          return read_index;
-        }
+      case '@': {
+        // ich: insert character
+        DLOG(INFO) << "Terminal: ich: Insert character.";
+        contents_.InsertCharacter(position_pts_.line, position_pts_.column);
+        return read_index;
+      }
 
       case 'l':
         if (sequence == "?1") {
@@ -1174,20 +1185,22 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
             if (pos != wstring::npos) {
               line_delta = pos == 0 ? 0 : stoul(sequence.substr(0, pos)) - 1;
               column_delta = pos == sequence.size() - 1
-                  ? 0 : stoul(sequence.substr(pos + 1)) - 1;
+                                 ? 0
+                                 : stoul(sequence.substr(pos + 1)) - 1;
             } else if (!sequence.empty()) {
               line_delta = stoul(sequence);
             }
           } catch (const std::invalid_argument& ia) {
             editor_state->SetStatus(
-                L"Unable to parse sequence from terminal in 'home' command: \""
-                + FromByteString(sequence) + L"\"");
+                L"Unable to parse sequence from terminal in 'home' command: "
+                L"\"" +
+                FromByteString(sequence) + L"\"");
           }
-          DLOG(INFO) << "Move cursor home: line: " << line_delta << ", column: "
-                     << column_delta;
-          position_pts_ = LineColumn(
-              Read(buffer_variables::view_start_line()) + line_delta,
-              column_delta);
+          DLOG(INFO) << "Move cursor home: line: " << line_delta
+                     << ", column: " << column_delta;
+          position_pts_ =
+              LineColumn(Read(buffer_variables::view_start_line()) + line_delta,
+                         column_delta);
           while (position_pts_.line >= contents_.size()) {
             contents_.push_back(std::make_shared<Line>());
           }
@@ -1202,13 +1215,12 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         CHECK_LT(position_pts_.line, contents_.size());
         return read_index;
 
-      case 'K':
-        {
-          // el: clear to end of line.
-          contents_.DeleteCharactersFromLine(
-              position_pts_.line, position_pts_.column);
-          return read_index;
-        }
+      case 'K': {
+        // el: clear to end of line.
+        contents_.DeleteCharactersFromLine(position_pts_.line,
+                                           position_pts_.column);
+        return read_index;
+      }
 
       case 'M':
         // dl1: delete one line.
@@ -1218,16 +1230,14 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         }
         return read_index;
 
-      case 'P':
-        {
-          contents_.DeleteCharactersFromLine(
-               position_pts_.line,
-               position_pts_.column,
-               min(static_cast<size_t>(atoi(sequence.c_str())),
-                   current_line->size()));
-          current_line = LineAt(position_pts_.line);
-          return read_index;
-        }
+      case 'P': {
+        contents_.DeleteCharactersFromLine(
+            position_pts_.line, position_pts_.column,
+            min(static_cast<size_t>(atoi(sequence.c_str())),
+                current_line->size()));
+        current_line = LineAt(position_pts_.line);
+        return read_index;
+      }
       default:
         sequence.push_back(c);
     }
@@ -1236,8 +1246,8 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
   return read_index;
 }
 
-void OpenBuffer::AppendToLastLine(
-    EditorState* editor_state, shared_ptr<LazyString> str) {
+void OpenBuffer::AppendToLastLine(EditorState* editor_state,
+                                  shared_ptr<LazyString> str) {
   vector<unordered_set<LineModifier, hash<int>>> modifiers(str->size());
   AppendToLastLine(editor_state, str, modifiers);
 }
@@ -1259,7 +1269,8 @@ unique_ptr<Expression> OpenBuffer::CompileString(EditorState*,
   return afc::vm::CompileString(code, &environment_, error_description);
 }
 
-void OpenBuffer::EvaluateExpression(EditorState*, Expression* expr,
+void OpenBuffer::EvaluateExpression(
+    EditorState*, Expression* expr,
     std::function<void(std::unique_ptr<Value>)> consumer) {
   Evaluate(expr, &environment_, consumer);
 }
@@ -1277,7 +1288,8 @@ bool OpenBuffer::EvaluateString(
     return false;
   }
   LOG(INFO) << "Code compiled, evaluating.";
-  EvaluateExpression(editor_state, expression.get(),
+  EvaluateExpression(
+      editor_state, expression.get(),
       [expression, consumer](Value::Ptr value) { consumer(std::move(value)); });
   return true;
 }
@@ -1313,7 +1325,9 @@ LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
                                         const LineColumn& input_position,
                                         const LineModifierSet* modifiers) {
   auto blocker = cursors_tracker_.DelayTransformations();
-  if (buffer.empty()) { return input_position; }
+  if (buffer.empty()) {
+    return input_position;
+  }
   LineColumn position = input_position;
   if (empty()) {
     contents_.push_back(std::make_shared<Line>());
@@ -1344,7 +1358,9 @@ void OpenBuffer::AdjustLineColumn(LineColumn* output) const {
 }
 
 void OpenBuffer::MaybeAdjustPositionCol() {
-  if (contents_.empty() || current_line() == nullptr) { return; }
+  if (contents_.empty() || current_line() == nullptr) {
+    return;
+  }
   size_t line_length = current_line()->size();
   if (position().column > line_length) {
     set_current_position_col(line_length);
@@ -1366,7 +1382,9 @@ CursorsSet* OpenBuffer::active_cursors() {
 }
 
 void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
-  if (positions.empty()) { return; }
+  if (positions.empty()) {
+    return;
+  }
   auto cursors = active_cursors();
   FindCursors(kOldCursors)->swap(*cursors);
   cursors->clear();
@@ -1448,32 +1466,32 @@ void OpenBuffer::set_current_cursor(CursorsSet::value_type new_value) {
 void OpenBuffer::CreateCursor() {
   switch (editor_->modifiers().structure) {
     case WORD:
-    case LINE:
-      {
-        auto structure = editor_->modifiers().structure;
-        LineColumn first, last;
-        Modifiers tmp_modifiers = editor_->modifiers();
-        tmp_modifiers.structure = CURSOR;
-        if (!FindPartialRange(tmp_modifiers, position(), &first, &last)) {
-          return;
-        }
-        if (first == last) { return; }
-        editor_->set_direction(FORWARDS);
-        LOG(INFO) << "Range for cursors: [" << first << ", " << last << ")";
-        while (first < last) {
-          auto tmp_first = first;
-          SeekToStructure(structure, FORWARDS, &tmp_first);
-          if (tmp_first > first && tmp_first < last) {
-            VLOG(5) << "Creating cursor at: " << tmp_first;
-            active_cursors()->insert(tmp_first);
-          }
-          if (!SeekToLimit(structure, FORWARDS, &tmp_first)) {
-            break;
-          }
-          first = tmp_first;
-        }
+    case LINE: {
+      auto structure = editor_->modifiers().structure;
+      LineColumn first, last;
+      Modifiers tmp_modifiers = editor_->modifiers();
+      tmp_modifiers.structure = CURSOR;
+      if (!FindPartialRange(tmp_modifiers, position(), &first, &last)) {
+        return;
       }
-      break;
+      if (first == last) {
+        return;
+      }
+      editor_->set_direction(FORWARDS);
+      LOG(INFO) << "Range for cursors: [" << first << ", " << last << ")";
+      while (first < last) {
+        auto tmp_first = first;
+        SeekToStructure(structure, FORWARDS, &tmp_first);
+        if (tmp_first > first && tmp_first < last) {
+          VLOG(5) << "Creating cursor at: " << tmp_first;
+          active_cursors()->insert(tmp_first);
+        }
+        if (!SeekToLimit(structure, FORWARDS, &tmp_first)) {
+          break;
+        }
+        first = tmp_first;
+      }
+    } break;
     default:
       CHECK_LE(position().line, contents_.size());
       active_cursors()->insert(position());
@@ -1482,8 +1500,7 @@ void OpenBuffer::CreateCursor() {
   editor_->ScheduleRedraw();
 }
 
-CursorsSet::iterator OpenBuffer::FindPreviousCursor(
-    LineColumn position) {
+CursorsSet::iterator OpenBuffer::FindPreviousCursor(LineColumn position) {
   LOG(INFO) << "Visiting previous cursor: " << editor_->modifiers();
   editor_->set_direction(ReverseDirection(editor_->modifiers().direction));
   return FindNextCursor(position);
@@ -1493,16 +1510,16 @@ CursorsSet::iterator OpenBuffer::FindNextCursor(LineColumn position) {
   LOG(INFO) << "Visiting next cursor: " << editor_->modifiers();
   auto direction = editor_->modifiers().direction;
   auto cursors = active_cursors();
-  if (cursors->empty()) { return cursors->end(); }
+  if (cursors->empty()) {
+    return cursors->end();
+  }
 
   size_t index = 0;
   auto output = cursors->begin();
-  while (output != cursors->end()
-         && (*output < position
-             || (direction == FORWARDS
-                 && *output == position
-                 && std::next(output) != cursors->end()
-                 && *std::next(output) == position))) {
+  while (output != cursors->end() &&
+         (*output < position || (direction == FORWARDS && *output == position &&
+                                 std::next(output) != cursors->end() &&
+                                 *std::next(output) == position))) {
     ++output;
     ++index;
   }
@@ -1523,7 +1540,9 @@ CursorsSet::iterator OpenBuffer::FindNextCursor(LineColumn position) {
 
 void OpenBuffer::DestroyCursor() {
   auto cursors = active_cursors();
-  if (cursors->size() <= 1) { return; }
+  if (cursors->size() <= 1) {
+    return;
+  }
   size_t repetitions =
       min(editor_->modifiers().repetitions, cursors->size() - 1);
   for (size_t i = 0; i < repetitions; i++) {
@@ -1544,8 +1563,8 @@ void OpenBuffer::DestroyOtherCursors() {
   editor_->ScheduleRedraw();
 }
 
-void OpenBuffer::SeekToStructure(
-    Structure structure, Direction direction, LineColumn* position) {
+void OpenBuffer::SeekToStructure(Structure structure, Direction direction,
+                                 LineColumn* position) {
   switch (structure) {
     case BUFFER:
     case CURSOR:
@@ -1571,12 +1590,13 @@ void OpenBuffer::SeekToStructure(
       Seek(*this, position)
           .WithDirection(direction)
           .WrappingLines()
-          .UntilCurrentCharIn(read_string_variable(buffer_variables::word_characters()));
+          .UntilCurrentCharIn(
+              read_string_variable(buffer_variables::word_characters()));
   }
 }
 
-bool OpenBuffer::SeekToLimit(
-    Structure structure, Direction direction, LineColumn* position) {
+bool OpenBuffer::SeekToLimit(Structure structure, Direction direction,
+                             LineColumn* position) {
   if (empty()) {
     *position = LineColumn();
   } else {
@@ -1595,109 +1615,103 @@ bool OpenBuffer::SeekToLimit(
       break;
 
     case CHAR:
-      return Seek(*this, position).WrappingLines().WithDirection(direction).Once()
-          == Seek::DONE;
+      return Seek(*this, position)
+                 .WrappingLines()
+                 .WithDirection(direction)
+                 .Once() == Seek::DONE;
       break;
 
-    case TREE:
-      {
-        auto root = parse_tree();
-        if (root == nullptr) {
-          return false;
-        }
-        auto route = MapRoute(*root, FindRouteToPosition(*root, *position));
-        if (tree_depth() <= 0 || route.size() <= tree_depth() - 1) {
-          return false;
-        }
-        bool has_boundary = false;
-        LineColumn boundary;
-        for (const auto& candidate : route[tree_depth() - 1]->children) {
-          if (direction == FORWARDS) {
-            if (candidate.range.begin > *position &&
-                (!has_boundary || candidate.range.begin < boundary)) {
-              boundary = candidate.range.begin;
-              has_boundary = true;
-            }
-          } else {
-            if (candidate.range.end < *position &&
-                (!has_boundary || candidate.range.end > boundary)) {
-              boundary = candidate.range.end;
-              has_boundary = true;
-            }
+    case TREE: {
+      auto root = parse_tree();
+      if (root == nullptr) {
+        return false;
+      }
+      auto route = MapRoute(*root, FindRouteToPosition(*root, *position));
+      if (tree_depth() <= 0 || route.size() <= tree_depth() - 1) {
+        return false;
+      }
+      bool has_boundary = false;
+      LineColumn boundary;
+      for (const auto& candidate : route[tree_depth() - 1]->children) {
+        if (direction == FORWARDS) {
+          if (candidate.range.begin > *position &&
+              (!has_boundary || candidate.range.begin < boundary)) {
+            boundary = candidate.range.begin;
+            has_boundary = true;
+          }
+        } else {
+          if (candidate.range.end < *position &&
+              (!has_boundary || candidate.range.end > boundary)) {
+            boundary = candidate.range.end;
+            has_boundary = true;
           }
         }
-        if (!has_boundary) {
-          return false;
-        }
-        if (direction == BACKWARDS) {
-          Seek(*this, &boundary).WithDirection(direction).Once();
-        }
-        *position = boundary;
       }
-      break;
+      if (!has_boundary) {
+        return false;
+      }
+      if (direction == BACKWARDS) {
+        Seek(*this, &boundary).WithDirection(direction).Once();
+      }
+      *position = boundary;
+    } break;
 
     case PARAGRAPH:
       return Seek(*this, position)
-          .WithDirection(direction)
-          .WrappingLines()
-          .UntilNextLineIsSubsetOf(
-              read_string_variable(buffer_variables::line_prefix_characters()))
-                  == Seek::DONE;
+                 .WithDirection(direction)
+                 .WrappingLines()
+                 .UntilNextLineIsSubsetOf(read_string_variable(
+                     buffer_variables::line_prefix_characters())) == Seek::DONE;
       break;
 
     case LINE:
       if (direction == BACKWARDS) {
         position->column = 0;
-        return Seek(*this, position).WrappingLines().Backwards().Once()
-                   == Seek::DONE;
+        return Seek(*this, position).WrappingLines().Backwards().Once() ==
+               Seek::DONE;
       }
       position->column = LineAt(position->line)->size();
       return true;
       break;
 
-    case WORD:
-      {
-        return Seek(*this, position)
-            .WithDirection(direction)
-            .WrappingLines()
-            .UntilCurrentCharNotIn(
-                    read_string_variable(buffer_variables::word_characters()))
-                == Seek::DONE;
+    case WORD: {
+      return Seek(*this, position)
+                 .WithDirection(direction)
+                 .WrappingLines()
+                 .UntilCurrentCharNotIn(read_string_variable(
+                     buffer_variables::word_characters())) == Seek::DONE;
+    } break;
+
+    case CURSOR: {
+      bool has_boundary = false;
+      LineColumn boundary;
+      auto cursors = cursors_tracker_.FindCursors(L"");
+      CHECK(cursors != nullptr);
+      for (const auto& candidate : *cursors) {
+        if (direction == FORWARDS ? (candidate > *position &&
+                                     (!has_boundary || candidate < boundary))
+                                  : (candidate < *position &&
+                                     (!has_boundary || candidate > boundary))) {
+          boundary = candidate;
+          has_boundary = true;
+        }
       }
-      break;
 
-    case CURSOR:
-      {
-        bool has_boundary = false;
-        LineColumn boundary;
-        auto cursors = cursors_tracker_.FindCursors(L"");
-        CHECK(cursors != nullptr);
-        for (const auto& candidate : *cursors) {
-          if (direction == FORWARDS
-                  ? (candidate > *position &&
-                     (!has_boundary || candidate < boundary))
-                  : (candidate < *position &&
-                     (!has_boundary || candidate > boundary))) {
-            boundary = candidate;
-            has_boundary = true;
-          }
-        }
-
-        if (!has_boundary) {
-          return false;
-        }
-        if (direction == BACKWARDS) {
-          Seek(*this, &boundary).WithDirection(direction).Once();
-        }
-        *position = boundary;
-     }
+      if (!has_boundary) {
+        return false;
+      }
+      if (direction == BACKWARDS) {
+        Seek(*this, &boundary).WithDirection(direction).Once();
+      }
+      *position = boundary;
+    }
   }
   return false;
 }
 
-bool OpenBuffer::FindPartialRange(
-    const Modifiers& modifiers, const LineColumn& initial_position,
-    LineColumn* start, LineColumn* end) {
+bool OpenBuffer::FindPartialRange(const Modifiers& modifiers,
+                                  const LineColumn& initial_position,
+                                  LineColumn* start, LineColumn* end) {
   const auto forward = modifiers.direction;
   const auto backward = ReverseDirection(forward);
 
@@ -1715,17 +1729,15 @@ bool OpenBuffer::FindPartialRange(
   SeekToStructure(modifiers.structure, forward, start);
   switch (modifiers.boundary_begin) {
     case Modifiers::CURRENT_POSITION:
-      *start = modifiers.direction == FORWARDS
-                   ? max(position, *start) : min(position, *start);
+      *start = modifiers.direction == FORWARDS ? max(position, *start)
+                                               : min(position, *start);
       break;
 
-    case Modifiers::LIMIT_CURRENT:
-      {
-        if (SeekToLimit(modifiers.structure, backward, start)) {
-          Seek(*this, start).WrappingLines().WithDirection(forward).Once();
-        }
+    case Modifiers::LIMIT_CURRENT: {
+      if (SeekToLimit(modifiers.structure, backward, start)) {
+        Seek(*this, start).WrappingLines().WithDirection(forward).Once();
       }
-      break;
+    } break;
 
     case Modifiers::LIMIT_NEIGHBOR:
       if (SeekToLimit(modifiers.structure, backward, start)) {
@@ -1734,8 +1746,8 @@ bool OpenBuffer::FindPartialRange(
       }
   }
   LOG(INFO) << "After seek, initial position: " << *start;
-  *end = modifiers.direction == FORWARDS
-             ? max(position, *start) : min(position, *start);
+  *end = modifiers.direction == FORWARDS ? max(position, *start)
+                                         : min(position, *start);
   bool move_start = true;
   for (size_t i = 0; i < modifiers.repetitions - 1; i++) {
     if (!SeekToLimit(modifiers.structure, forward, end)) {
@@ -1784,7 +1796,9 @@ const ParseTree* OpenBuffer::current_tree(const ParseTree* root) const {
 }
 
 const shared_ptr<const Line> OpenBuffer::current_line() const {
-  if (position().line >= contents_.size()) { return nullptr; }
+  if (position().line >= contents_.size()) {
+    return nullptr;
+  }
   return contents_.at(position().line);
 }
 
@@ -1793,24 +1807,21 @@ std::shared_ptr<OpenBuffer> OpenBuffer::GetBufferFromCurrentLine() {
     return nullptr;
   }
   auto target = current_line()->environment()->Lookup(L"buffer");
-  if (target == nullptr
-      || target->type.type != VMType::OBJECT_TYPE
-      || target->type.object_type != L"Buffer") {
+  if (target == nullptr || target->type.type != VMType::OBJECT_TYPE ||
+      target->type.object_type != L"Buffer") {
     return nullptr;
   }
   return std::static_pointer_cast<OpenBuffer>(target->user_value);
 }
 
-wstring OpenBuffer::ToString() const {
-  return contents_.ToString();
-}
+wstring OpenBuffer::ToString() const { return contents_.ToString(); }
 
 void OpenBuffer::PushSignal(EditorState* editor_state, int sig) {
   switch (sig) {
     case SIGINT:
       if (read_bool_variable(buffer_variables::pts())) {
         string sequence(1, 0x03);
-        (void) write(fd_.fd, sequence.c_str(), sequence.size());
+        (void)write(fd_.fd, sequence.c_str(), sequence.size());
         editor_state->SetStatus(L"SIGINT");
       } else if (child_pid_ != -1) {
         editor_state->SetStatus(L"SIGINT >> pid:" + to_wstring(child_pid_));
@@ -1826,7 +1837,8 @@ void OpenBuffer::PushSignal(EditorState* editor_state, int sig) {
       break;
 
     default:
-      editor_state->SetStatus(L"Unexpected signal received: " + to_wstring(sig));
+      editor_state->SetStatus(L"Unexpected signal received: " +
+                              to_wstring(sig));
   }
 }
 
@@ -1835,8 +1847,7 @@ wstring OpenBuffer::TransformKeyboardText(wstring input) {
   for (Value::Ptr& t : keyboard_text_transformers_) {
     vector<Value::Ptr> args;
     args.push_back(Value::NewString(std::move(input)));
-    Call(t.get(),
-         std::move(args),
+    Call(t.get(), std::move(args),
          [&input](Value::Ptr value) { input = std::move(value->str); });
   }
   return input;
@@ -1844,11 +1855,10 @@ wstring OpenBuffer::TransformKeyboardText(wstring input) {
 
 bool OpenBuffer::AddKeyboardTextTransformer(EditorState* editor_state,
                                             unique_ptr<Value> transformer) {
-  if (transformer == nullptr
-      || transformer->type.type != VMType::FUNCTION
-      || transformer->type.type_arguments.size() != 2
-      || transformer->type.type_arguments[0].type != VMType::VM_STRING
-      || transformer->type.type_arguments[1].type != VMType::VM_STRING) {
+  if (transformer == nullptr || transformer->type.type != VMType::FUNCTION ||
+      transformer->type.type_arguments.size() != 2 ||
+      transformer->type.type_arguments[0].type != VMType::VM_STRING ||
+      transformer->type.type_arguments[1].type != VMType::VM_STRING) {
     editor_state->SetStatus(
         L": Unexpected type for keyboard text transformer: " +
         transformer->type.ToString());
@@ -1864,12 +1874,15 @@ void OpenBuffer::Input::Reset() {
 }
 
 void OpenBuffer::Input::Close() {
-  if (fd != -1) { close(fd); fd = -1; }
+  if (fd != -1) {
+    close(fd);
+    fd = -1;
+  }
 }
 
-void OpenBuffer::SetInputFiles(
-    EditorState* editor_state, int input_fd, int input_error_fd,
-    bool fd_is_terminal, pid_t child_pid) {
+void OpenBuffer::SetInputFiles(EditorState* editor_state, int input_fd,
+                               int input_error_fd, bool fd_is_terminal,
+                               pid_t child_pid) {
   if (read_bool_variable(buffer_variables::clear_on_reload())) {
     ClearContents(editor_state);
     ClearModified();
@@ -1890,17 +1903,13 @@ void OpenBuffer::SetInputFiles(
   child_pid_ = child_pid;
 }
 
-size_t OpenBuffer::current_position_line() const {
-  return position().line;
-}
+size_t OpenBuffer::current_position_line() const { return position().line; }
 
 void OpenBuffer::set_current_position_line(size_t line) {
   set_current_cursor(LineColumn(min(line, contents_.size())));
 }
 
-size_t OpenBuffer::current_position_col() const {
-  return position().column;
-}
+size_t OpenBuffer::current_position_col() const { return position().column; }
 
 void OpenBuffer::set_current_position_col(size_t column) {
   set_current_cursor(LineColumn(position().line, column));
@@ -1915,8 +1924,8 @@ void OpenBuffer::set_position(const LineColumn& position) {
     VLOG(5) << "Setting desired_position_: " << position;
     desired_position_ = position;
   }
-  set_current_cursor(LineColumn(min(position.line, contents_.size()),
-                                position.column));
+  set_current_cursor(
+      LineColumn(min(position.line, contents_.size()), position.column));
 }
 
 wstring OpenBuffer::FlagsString() const {
@@ -1954,14 +1963,13 @@ wstring OpenBuffer::FlagsString() const {
   return output;
 }
 
-
 const bool& OpenBuffer::read_bool_variable(
     const EdgeVariable<bool>* variable) const {
   return bool_variables_.Get(variable);
 }
 
-void OpenBuffer::set_bool_variable(
-    const EdgeVariable<bool>* variable, bool value) {
+void OpenBuffer::set_bool_variable(const EdgeVariable<bool>* variable,
+                                   bool value) {
   bool_variables_.Set(variable, value);
 }
 
@@ -1974,14 +1982,14 @@ const wstring& OpenBuffer::read_string_variable(
   return string_variables_.Get(variable);
 }
 
-void OpenBuffer::set_string_variable(
-    const EdgeVariable<wstring>* variable, wstring value) {
+void OpenBuffer::set_string_variable(const EdgeVariable<wstring>* variable,
+                                     wstring value) {
   string_variables_.Set(variable, value);
 
   // TODO: This should be in the variable definition, not here. Ugh.
-  if (variable == buffer_variables::word_characters()
-      || variable == buffer_variables::tree_parser()
-      || variable == buffer_variables::language_keywords()) {
+  if (variable == buffer_variables::word_characters() ||
+      variable == buffer_variables::tree_parser() ||
+      variable == buffer_variables::language_keywords()) {
     UpdateTreeParser();
   }
 }
@@ -1990,8 +1998,8 @@ const int& OpenBuffer::Read(const EdgeVariable<int>* variable) const {
   return int_variables_.Get(variable);
 }
 
-void OpenBuffer::set_int_variable(
-    const EdgeVariable<int>* variable, int value) {
+void OpenBuffer::set_int_variable(const EdgeVariable<int>* variable,
+                                  int value) {
   int_variables_.Set(variable, value);
 }
 
@@ -1999,8 +2007,8 @@ const double& OpenBuffer::Read(const EdgeVariable<double>* variable) const {
   return double_variables_.Get(variable);
 }
 
-void OpenBuffer::set_double_variable(
-    const EdgeVariable<double>* variable, double value) {
+void OpenBuffer::set_double_variable(const EdgeVariable<double>* variable,
+                                     double value) {
   double_variables_.Set(variable, value);
 }
 
@@ -2035,8 +2043,7 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
     CursorsSet* cursors = active_cursors();
     CHECK(cursors != nullptr);
     cursors_tracker_.ApplyTransformationToCursors(
-        cursors,
-        [this, &transformation](LineColumn old_position) {
+        cursors, [this, &transformation](LineColumn old_position) {
           transformations_past_.back()->cursor = old_position;
           auto new_position = Apply(editor_, transformation->Clone());
           CHECK_LE(new_position.line, contents_.size());
@@ -2058,20 +2065,19 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
   }
 }
 
-LineColumn OpenBuffer::Apply(
-    EditorState* editor_state, unique_ptr<Transformation> transformation) {
+LineColumn OpenBuffer::Apply(EditorState* editor_state,
+                             unique_ptr<Transformation> transformation) {
   CHECK(transformation != nullptr);
   CHECK(!transformations_past_.empty());
 
-  transformation->Apply(
-      editor_state, this, transformations_past_.back().get());
+  transformation->Apply(editor_state, this, transformations_past_.back().get());
   CHECK(!transformations_past_.empty());
 
   auto delete_buffer = transformations_past_.back()->delete_buffer;
   CHECK(delete_buffer != nullptr);
-  if ((delete_buffer->contents()->size() > 1
-       || delete_buffer->LineAt(0)->size() > 0)
-      && read_bool_variable(buffer_variables::delete_into_paste_buffer())) {
+  if ((delete_buffer->contents()->size() > 1 ||
+       delete_buffer->LineAt(0)->size() > 0) &&
+      read_bool_variable(buffer_variables::delete_into_paste_buffer())) {
     auto insert_result = editor_state->buffers()->insert(
         make_pair(delete_buffer->name(), delete_buffer));
     if (!insert_result.second) {
@@ -2121,13 +2127,15 @@ void OpenBuffer::Undo(EditorState* editor_state, UndoMode undo_mode) {
     while (!modified_buffer && !source->empty()) {
       target->emplace_back(
           std::make_unique<Transformation::Result>(editor_state));
-      source->back()->undo_stack
-          ->Apply(editor_state, this, target->back().get());
+      source->back()->undo_stack->Apply(editor_state, this,
+                                        target->back().get());
       source->pop_back();
       modified_buffer =
           target->back()->modified_buffer || undo_mode == ONLY_UNDO_THE_LAST;
     }
-    if (source->empty()) { return; }
+    if (source->empty()) {
+      return;
+    }
   }
 }
 
