@@ -6,7 +6,9 @@ namespace afc {
 namespace editor {
 
 Seek::Seek(const OpenBuffer& buffer, LineColumn* position)
-    : buffer_(buffer), position_(position) {}
+    : buffer_(buffer),
+      position_(position),
+      range_(LineColumn(), LineColumn(buffer_.lines_size(), 0)) {}
 
 Seek& Seek::WrappingLines() {
   wrapping_lines_ = true;
@@ -19,6 +21,11 @@ Seek& Seek::WithDirection(Direction direction) {
 }
 
 Seek& Seek::Backwards() { return WithDirection(BACKWARDS); }
+
+Seek& Seek::WithRange(Range range) {
+  range_ = range;
+  return *this;
+}
 
 Seek::Result Seek::Once() const {
   return Advance(position_) ? DONE : UNABLE_TO_ADVANCE;
@@ -119,7 +126,7 @@ wchar_t Seek::CurrentChar() const { return buffer_.character_at(*position_); }
 bool Seek::AdvanceLine(LineColumn* position) const {
   switch (direction_) {
     case FORWARDS:
-      if (position->line + 1 >= buffer_.lines_size()) {
+      if (position->line + 1 >= range_.end.line) {
         return false;
       }
       position->column = 0;
@@ -127,7 +134,7 @@ bool Seek::AdvanceLine(LineColumn* position) const {
       return true;
 
     case BACKWARDS:
-      if (position->line == 0) {
+      if (position->line == range_.begin.line) {
         return false;
       }
       position->column = 0;
@@ -142,7 +149,7 @@ bool Seek::AdvanceLine(LineColumn* position) const {
 bool Seek::Advance(LineColumn* position) const {
   switch (direction_) {
     case FORWARDS:
-      if (buffer_.empty() || buffer_.at_end(*position)) {
+      if (buffer_.empty() || *position >= range_.end) {
         return false;
       } else if (!buffer_.at_end_of_line(*position)) {
         position->column++;
@@ -155,7 +162,7 @@ bool Seek::Advance(LineColumn* position) const {
       return true;
 
     case BACKWARDS:
-      if (buffer_.empty() || *position == LineColumn()) {
+      if (buffer_.empty() || *position <= range_.begin) {
         return false;
       } else if (position->column > 0) {
         position->column--;

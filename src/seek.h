@@ -12,10 +12,9 @@ class Seek {
   enum Result { DONE, UNABLE_TO_ADVANCE };
 
   Seek& WrappingLines();
-
   Seek& WithDirection(Direction direction);
-
   Seek& Backwards();
+  Seek& WithRange(Range range);
 
   Result Once() const;
   Result UntilCurrentCharIn(const wstring& word_char) const;
@@ -31,10 +30,14 @@ class Seek {
   bool Advance(LineColumn* position) const;
   bool AdvanceLine(LineColumn* position) const;
 
-  bool wrapping_lines_ = false;
-  Direction direction_ = FORWARDS;
   const OpenBuffer& buffer_;
   LineColumn* const position_;
+
+  bool wrapping_lines_ = false;
+  Direction direction_ = FORWARDS;
+
+  // Ensures that position will never move outside of this range.
+  Range range_;
 };
 
 }  // namespace editor
