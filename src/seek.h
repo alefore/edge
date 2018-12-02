@@ -9,10 +9,7 @@ class Seek {
  public:
   Seek(const OpenBuffer& buffer, LineColumn* position);
 
-  enum Result {
-    DONE,
-    UNABLE_TO_ADVANCE
-  };
+  enum Result { DONE, UNABLE_TO_ADVANCE };
 
   Seek& WrappingLines();
 
