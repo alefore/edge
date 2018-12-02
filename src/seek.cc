@@ -5,10 +5,10 @@
 namespace afc {
 namespace editor {
 
-Seek::Seek(const OpenBuffer& buffer, LineColumn* position)
-    : buffer_(buffer),
+Seek::Seek(const BufferContents& contents, LineColumn* position)
+    : contents_(contents),
       position_(position),
-      range_(LineColumn(), LineColumn(buffer_.lines_size(), 0)) {}
+      range_(LineColumn(), LineColumn(contents_.size(), 0)) {}
 
 Seek& Seek::WrappingLines() {
   wrapping_lines_ = true;
@@ -54,7 +54,7 @@ Seek::Result Seek::UntilNextCharIn(const wstring& word_char) const {
   if (!Advance(&next_char)) {
     return UNABLE_TO_ADVANCE;
   }
-  while (word_char.find(buffer_.character_at(next_char)) == word_char.npos) {
+  while (word_char.find(contents_.character_at(next_char)) == word_char.npos) {
     *position_ = next_char;
     if (!Advance(&next_char)) {
       return UNABLE_TO_ADVANCE;
@@ -68,7 +68,7 @@ Seek::Result Seek::UntilNextCharNotIn(const wstring& word_char) const {
   if (!Advance(&next_char)) {
     return UNABLE_TO_ADVANCE;
   }
-  while (word_char.find(buffer_.character_at(next_char)) != word_char.npos) {
+  while (word_char.find(contents_.character_at(next_char)) != word_char.npos) {
     *position_ = next_char;
     if (!Advance(&next_char)) {
       return UNABLE_TO_ADVANCE;
@@ -86,9 +86,9 @@ Seek::Result Seek::UntilLine(
     }
     advance = true;
 
-    if (predicate(*buffer_.LineAt(position_->line))) {
+    if (predicate(*contents_.at(position_->line))) {
       if (direction_ == BACKWARDS) {
-        position_->column = buffer_.LineAt(position_->line)->size();
+        position_->column = contents_.at(position_->line)->size();
       }
       return DONE;
     }
@@ -121,7 +121,7 @@ Seek::Result Seek::UntilNextLineIsNotSubsetOf(
   return UntilLine(Negate(IsLineSubsetOf(allowed_chars)));
 }
 
-wchar_t Seek::CurrentChar() const { return buffer_.character_at(*position_); }
+wchar_t Seek::CurrentChar() const { return contents_.character_at(*position_); }
 
 bool Seek::AdvanceLine(LineColumn* position) const {
   switch (direction_) {
@@ -149,9 +149,9 @@ bool Seek::AdvanceLine(LineColumn* position) const {
 bool Seek::Advance(LineColumn* position) const {
   switch (direction_) {
     case FORWARDS:
-      if (buffer_.empty() || *position >= range_.end) {
+      if (contents_.empty() || *position >= range_.end) {
         return false;
-      } else if (!buffer_.at_end_of_line(*position)) {
+      } else if (position->column < contents_.at(position->line)->size()) {
         position->column++;
       } else if (!wrapping_lines_) {
         return false;
@@ -162,15 +162,15 @@ bool Seek::Advance(LineColumn* position) const {
       return true;
 
     case BACKWARDS:
-      if (buffer_.empty() || *position <= range_.begin) {
+      if (contents_.empty() || *position <= range_.begin) {
         return false;
       } else if (position->column > 0) {
         position->column--;
       } else if (!wrapping_lines_) {
         return false;
       } else {
-        position->line = min(position->line - 1, buffer_.lines_size() - 1);
-        position->column = buffer_.LineAt(position->line)->size();
+        position->line = std::min(position->line - 1, contents_.size() - 1);
+        position->column = contents_.at(position->line)->size();
       }
       return true;
   }

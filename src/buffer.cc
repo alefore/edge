@@ -1573,21 +1573,21 @@ void OpenBuffer::SeekToStructure(Structure structure, Direction direction,
       break;
 
     case PARAGRAPH:
-      Seek(*this, position)
+      Seek(contents_, position)
           .WithDirection(direction)
           .UntilNextLineIsNotSubsetOf(
               read_string_variable(buffer_variables::line_prefix_characters()));
       break;
 
     case LINE:
-      Seek(*this, position)
+      Seek(contents_, position)
           .WithDirection(direction)
           .WrappingLines()
           .UntilCurrentCharNotIn(L"\n");
       break;
 
     case WORD:
-      Seek(*this, position)
+      Seek(contents_, position)
           .WithDirection(direction)
           .WrappingLines()
           .UntilCurrentCharIn(
@@ -1615,7 +1615,7 @@ bool OpenBuffer::SeekToLimit(Structure structure, Direction direction,
       break;
 
     case CHAR:
-      return Seek(*this, position)
+      return Seek(contents_, position)
                  .WrappingLines()
                  .WithDirection(direction)
                  .Once() == Seek::DONE;
@@ -1651,13 +1651,13 @@ bool OpenBuffer::SeekToLimit(Structure structure, Direction direction,
         return false;
       }
       if (direction == BACKWARDS) {
-        Seek(*this, &boundary).WithDirection(direction).Once();
+        Seek(contents_, &boundary).WithDirection(direction).Once();
       }
       *position = boundary;
     } break;
 
     case PARAGRAPH:
-      return Seek(*this, position)
+      return Seek(contents_, position)
                  .WithDirection(direction)
                  .WrappingLines()
                  .UntilNextLineIsSubsetOf(read_string_variable(
@@ -1667,7 +1667,7 @@ bool OpenBuffer::SeekToLimit(Structure structure, Direction direction,
     case LINE:
       if (direction == BACKWARDS) {
         position->column = 0;
-        return Seek(*this, position).WrappingLines().Backwards().Once() ==
+        return Seek(contents_, position).WrappingLines().Backwards().Once() ==
                Seek::DONE;
       }
       position->column = LineAt(position->line)->size();
@@ -1675,7 +1675,7 @@ bool OpenBuffer::SeekToLimit(Structure structure, Direction direction,
       break;
 
     case WORD: {
-      return Seek(*this, position)
+      return Seek(contents_, position)
                  .WithDirection(direction)
                  .WrappingLines()
                  .UntilCurrentCharNotIn(read_string_variable(
@@ -1701,7 +1701,7 @@ bool OpenBuffer::SeekToLimit(Structure structure, Direction direction,
         return false;
       }
       if (direction == BACKWARDS) {
-        Seek(*this, &boundary).WithDirection(direction).Once();
+        Seek(contents_, &boundary).WithDirection(direction).Once();
       }
       *position = boundary;
     }
@@ -1721,7 +1721,7 @@ bool OpenBuffer::FindPartialRange(const Modifiers& modifiers,
     position.column = min(LineAt(position.line)->size(), position.column);
   }
   if (modifiers.direction == BACKWARDS) {
-    Seek(*this, &position).Backwards().WrappingLines().Once();
+    Seek(contents_, &position).Backwards().WrappingLines().Once();
   }
 
   *start = position;
@@ -1735,7 +1735,7 @@ bool OpenBuffer::FindPartialRange(const Modifiers& modifiers,
 
     case Modifiers::LIMIT_CURRENT: {
       if (SeekToLimit(modifiers.structure, backward, start)) {
-        Seek(*this, start).WrappingLines().WithDirection(forward).Once();
+        Seek(contents_, start).WrappingLines().WithDirection(forward).Once();
       }
     } break;
 
@@ -1777,7 +1777,7 @@ bool OpenBuffer::FindPartialRange(const Modifiers& modifiers,
     *end = *start;
     *start = tmp;
     if (move_start) {
-      Seek(*this, start).WrappingLines().Once();
+      Seek(contents_, start).WrappingLines().Once();
     }
   }
   LOG(INFO) << "After wrap: " << *start << " to " << *end;

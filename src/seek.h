@@ -1,4 +1,4 @@
-#include "src/buffer.h"
+#include "src/buffer_contents.h"
 #include "src/line_column.h"
 #include "src/modifiers.h"
 
@@ -7,7 +7,7 @@ namespace editor {
 
 class Seek {
  public:
-  Seek(const OpenBuffer& buffer, LineColumn* position);
+  Seek(const BufferContents& contents, LineColumn* position);
 
   enum Result { DONE, UNABLE_TO_ADVANCE };
 
@@ -30,7 +30,7 @@ class Seek {
   bool Advance(LineColumn* position) const;
   bool AdvanceLine(LineColumn* position) const;
 
-  const OpenBuffer& buffer_;
+  const BufferContents& contents_;
   LineColumn* const position_;
 
   bool wrapping_lines_ = false;
