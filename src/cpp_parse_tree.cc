@@ -125,7 +125,6 @@ class ParseData {
   }
 
   void AdvancePositionUntil(std::function<bool(wchar_t)> predicate) {
-    wstring valid = L"abcdefghijklmnopqrstuvwxyz";
     while (!predicate(read()) && !reached_final_position()) {
       auto old_position = position_;
       AdvancePosition();
