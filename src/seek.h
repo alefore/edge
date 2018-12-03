@@ -21,6 +21,7 @@ class Seek {
   Result UntilCurrentCharNotIn(const wstring& word_char) const;
   Result UntilNextCharIn(const wstring& word_char) const;
   Result UntilNextCharNotIn(const wstring& word_char) const;
+  Result ToEndOfLine() const;
   Result UntilNextLineIsSubsetOf(const wstring& allowed_chars) const;
   Result UntilNextLineIsNotSubsetOf(const wstring& allowed_chars) const;
   Result UntilLine(std::function<bool(const Line& line)> predicate) const;

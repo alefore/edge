@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include "buffer.h"
+#include "src/seek.h"
 
 namespace afc {
 namespace editor {
@@ -24,6 +25,7 @@ enum State {
 };
 
 static const wstring identifier_chars = L"_abcdefghijklmnopqrstuvwxyz";
+static const wstring digit_chars = L"1234567890";
 static const LineModifierSet BAD_PARSE_MODIFIERS =
     LineModifierSet({LineModifier::BG_RED, LineModifier::BOLD});
 
@@ -107,33 +109,10 @@ class ParseData {
 
   bool reached_final_position() const { return position_ >= limit_; }
 
-  void AdvancePosition() {
-    if (reached_final_position()) {
-      return;
-    }
-    if (buffer_.at(position_.line)->size() > position_.column) {
-      position_.column++;
-    } else if (buffer_.size() > position_.line + 1) {
-      position_.line++;
-      position_.column = 0;
-    }
-  }
-
-  void AdvancePositionUntilEndOfLine() {
-    position_.column = buffer_.at(position_.line)->size();
-    position_ = min(limit_, position_);
-  }
-
-  void AdvancePositionUntil(std::function<bool(wchar_t)> predicate) {
-    while (!predicate(read()) && !reached_final_position()) {
-      auto old_position = position_;
-      AdvancePosition();
-      CHECK_LT(old_position, position());
-    }
-  }
-
-  void SkipSpaces() {
-    AdvancePositionUntil([](wchar_t c) { return !iswspace(c) || c == L'\n'; });
+  Seek Advance() {
+    return Seek(buffer_, &position_)
+        .WithRange(Range(LineColumn(), limit_))
+        .WrappingLines();
   }
 
   wchar_t read() const { return buffer_.character_at(position_); }
@@ -272,7 +251,7 @@ class CppTreeParser : public TreeParser {
         break;
       case '*':
         result->Push(COMMENT, 1, {LineModifier::BLUE});
-        result->AdvancePosition();
+        result->Advance().Once();
         break;
       default:
         result->SetState(state_default);
@@ -282,34 +261,36 @@ class CppTreeParser : public TreeParser {
   void CommentToEndOfLine(ParseData* result) {
     LineColumn original_position = result->position();
     CHECK_GT(original_position.column, size_t(0));
-    result->AdvancePositionUntilEndOfLine();
+    result->Advance().ToEndOfLine();
     result->PushAndPop(result->position().column - original_position.column + 1,
                        {LineModifier::BLUE});
     // TODO: words_parser_->FindChildren(result->buffer(), comment_tree);
   }
 
   void InsideComment(ParseData* result) {
+    auto advance = result->Advance();
     auto c = result->read();
-    result->AdvancePosition();
+    advance.Once();
     if (c == '*' && result->read() == '/') {
-      result->AdvancePosition();
+      advance.Once();
       result->PopBack();
     }
   }
 
   void LiteralCharacter(ParseData* result) {
+    Seek advance = result->Advance();
     size_t rewind_column = 1;
     auto original_position = result->position();
     if (result->read() == '\\') {
-      result->AdvancePosition();
+      advance.Once();
       rewind_column++;
     }
 
-    result->AdvancePosition();  // Skip the character.
+    advance.Once();  // Skip the character.
     rewind_column++;
 
     if (result->read() == '\'') {
-      result->AdvancePosition();
+      advance.Once();
       rewind_column++;
       result->PushAndPop(rewind_column, {LineModifier::YELLOW});
     } else {
@@ -322,15 +303,16 @@ class CppTreeParser : public TreeParser {
     auto original_position = result->position();
     CHECK_GT(original_position.column, size_t(0));
 
+    Seek advance = result->Advance();
     while (result->read() != L'"' && result->read() != L'\n' &&
            !result->reached_final_position()) {
       if (result->read() == '\\') {
-        result->AdvancePosition();
+        advance.Once();
       }
-      result->AdvancePosition();
+      advance.Once();
     }
     if (result->read() == L'"') {
-      result->AdvancePosition();
+      advance.Once();
       CHECK_EQ(result->position().line, original_position.line);
       result->PushAndPop(
           result->position().column - original_position.column + 1,
@@ -349,7 +331,7 @@ class CppTreeParser : public TreeParser {
     CHECK_GE(original_position.column, 1u);
     original_position.column--;
 
-    result->AdvancePositionUntilEndOfLine();
+    result->Advance().ToEndOfLine();
     CHECK_GT(result->position().column, original_position.column);
     result->PushAndPop(result->position().column - original_position.column,
                        {LineModifier::YELLOW});
@@ -360,10 +342,8 @@ class CppTreeParser : public TreeParser {
     CHECK_GE(original_position.column, 1u);
     original_position.column--;
 
-    result->AdvancePositionUntil([](wchar_t c) {
-      static const wstring cont = identifier_chars + L"0123456789";
-      return cont.find(tolower(c)) == cont.npos;
-    });
+    static const wstring cont = identifier_chars + digit_chars;
+    result->Advance().UntilCurrentCharNotIn(cont);
 
     CHECK_EQ(original_position.line, result->position().line);
     CHECK_GT(result->position().column, original_position.column);
@@ -383,7 +363,7 @@ class CppTreeParser : public TreeParser {
     LineColumn original_position = result->position();
     original_position.column--;
 
-    result->AdvancePositionUntil([](wchar_t c) { return !isdigit(c); });
+    result->Advance().UntilCurrentCharNotIn(digit_chars);
     CHECK_EQ(result->position().line, original_position.line);
     CHECK_GT(result->position(), original_position);
 
@@ -394,13 +374,15 @@ class CppTreeParser : public TreeParser {
   void DefaultState(State state_default, State state_default_at_start_of_line,
                     State state_after_slash, bool after_newline,
                     ParseData* result) {
+    Seek advance = result->Advance();
+
     // The most common transition (but sometimes overriden below).
     result->SetState(state_default);
-    result->SkipSpaces();
+    advance.UntilCurrentCharNotIn(L" \t");
 
     auto original_position = result->position();
     auto c = result->read();
-    result->AdvancePosition();
+    advance.Once();
     CHECK_GT(result->position(), original_position);
 
     if (c == L'\n') {

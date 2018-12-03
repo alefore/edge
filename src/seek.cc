@@ -77,6 +77,17 @@ Seek::Result Seek::UntilNextCharNotIn(const wstring& word_char) const {
   return DONE;
 }
 
+Seek::Result Seek::ToEndOfLine() const {
+  auto original_position = *position_;
+  if (contents_.empty()) {
+    *position_ = LineColumn();
+  } else {
+    position_->column = contents_.at(position_->line)->size();
+    *position_ = std::min(range_.end, *position_);
+  }
+  return *position_ > original_position ? DONE : UNABLE_TO_ADVANCE;
+}
+
 Seek::Result Seek::UntilLine(
     std::function<bool(const Line& line)> predicate) const {
   bool advance = direction_ == BACKWARDS;
