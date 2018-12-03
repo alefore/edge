@@ -98,7 +98,7 @@ class ParseData {
 
   const BufferContents& buffer() const { return buffer_; }
 
-  Seek& Advance() { return seek_; }
+  Seek& seek() { return seek_; }
 
   ParseResults* parse_results() { return &parse_results_; }
 
@@ -174,7 +174,7 @@ class CppTreeParser : public TreeParser {
   }
 
   void ParseLine(ParseData* result) {
-    while (!result->Advance().AtRangeEnd()) {
+    while (!result->seek().AtRangeEnd()) {
       LineColumn original_position = result->position();  // For validation.
 
       switch (result->state()) {
@@ -232,15 +232,15 @@ class CppTreeParser : public TreeParser {
  private:
   void AfterSlash(State state_default, State state_default_at_start_of_line,
                   ParseData* result) {
-    auto advance = result->Advance();
-    switch (advance.read()) {
+    auto seek = result->seek();
+    switch (seek.read()) {
       case '/':
         result->SetState(state_default_at_start_of_line);
         CommentToEndOfLine(result);
         break;
       case '*':
         result->Push(COMMENT, 1, {LineModifier::BLUE});
-        advance.Once();
+        seek.Once();
         break;
       default:
         result->SetState(state_default);
@@ -250,36 +250,36 @@ class CppTreeParser : public TreeParser {
   void CommentToEndOfLine(ParseData* result) {
     LineColumn original_position = result->position();
     CHECK_GT(original_position.column, size_t(0));
-    result->Advance().ToEndOfLine();
+    result->seek().ToEndOfLine();
     result->PushAndPop(result->position().column - original_position.column + 1,
                        {LineModifier::BLUE});
     // TODO: words_parser_->FindChildren(result->buffer(), comment_tree);
   }
 
   void InsideComment(ParseData* result) {
-    auto advance = result->Advance();
-    auto c = advance.read();
-    advance.Once();
-    if (c == '*' && advance.read() == '/') {
-      advance.Once();
+    auto seek = result->seek();
+    auto c = seek.read();
+    seek.Once();
+    if (c == '*' && seek.read() == '/') {
+      seek.Once();
       result->PopBack();
     }
   }
 
   void LiteralCharacter(ParseData* result) {
-    Seek advance = result->Advance();
+    Seek seek = result->seek();
     size_t rewind_column = 1;
     auto original_position = result->position();
-    if (advance.read() == '\\') {
-      advance.Once();
+    if (seek.read() == '\\') {
+      seek.Once();
       rewind_column++;
     }
 
-    advance.Once();  // Skip the character.
+    seek.Once();  // Skip the character.
     rewind_column++;
 
-    if (advance.read() == '\'') {
-      advance.Once();
+    if (seek.read() == '\'') {
+      seek.Once();
       rewind_column++;
       result->PushAndPop(rewind_column, {LineModifier::YELLOW});
     } else {
@@ -292,16 +292,15 @@ class CppTreeParser : public TreeParser {
     auto original_position = result->position();
     CHECK_GT(original_position.column, size_t(0));
 
-    Seek advance = result->Advance();
-    while (advance.read() != L'"' && advance.read() != L'\n' &&
-           !advance.AtRangeEnd()) {
-      if (advance.read() == '\\') {
-        advance.Once();
+    Seek seek = result->seek();
+    while (seek.read() != L'"' && seek.read() != L'\n' && !seek.AtRangeEnd()) {
+      if (seek.read() == '\\') {
+        seek.Once();
       }
-      advance.Once();
+      seek.Once();
     }
-    if (advance.read() == L'"') {
-      advance.Once();
+    if (seek.read() == L'"') {
+      seek.Once();
       CHECK_EQ(result->position().line, original_position.line);
       result->PushAndPop(
           result->position().column - original_position.column + 1,
@@ -320,7 +319,7 @@ class CppTreeParser : public TreeParser {
     CHECK_GE(original_position.column, 1u);
     original_position.column--;
 
-    result->Advance().ToEndOfLine();
+    result->seek().ToEndOfLine();
     CHECK_GT(result->position().column, original_position.column);
     result->PushAndPop(result->position().column - original_position.column,
                        {LineModifier::YELLOW});
@@ -332,7 +331,7 @@ class CppTreeParser : public TreeParser {
     original_position.column--;
 
     static const wstring cont = identifier_chars + digit_chars;
-    result->Advance().UntilCurrentCharNotIn(cont);
+    result->seek().UntilCurrentCharNotIn(cont);
 
     CHECK_EQ(original_position.line, result->position().line);
     CHECK_GT(result->position().column, original_position.column);
@@ -352,7 +351,7 @@ class CppTreeParser : public TreeParser {
     LineColumn original_position = result->position();
     original_position.column--;
 
-    result->Advance().UntilCurrentCharNotIn(digit_chars);
+    result->seek().UntilCurrentCharNotIn(digit_chars);
     CHECK_EQ(result->position().line, original_position.line);
     CHECK_GT(result->position(), original_position);
 
@@ -363,15 +362,15 @@ class CppTreeParser : public TreeParser {
   void DefaultState(State state_default, State state_default_at_start_of_line,
                     State state_after_slash, bool after_newline,
                     ParseData* result) {
-    Seek advance = result->Advance();
+    Seek seek = result->seek();
 
     // The most common transition (but sometimes overriden below).
     result->SetState(state_default);
-    advance.UntilCurrentCharNotIn(L" \t");
+    seek.UntilCurrentCharNotIn(L" \t");
 
     auto original_position = result->position();
-    auto c = advance.read();
-    advance.Once();
+    auto c = seek.read();
+    seek.Once();
     CHECK_GT(result->position(), original_position);
 
     if (c == L'\n') {
