@@ -16,6 +16,11 @@ class Seek {
   Seek& Backwards();
   Seek& WithRange(Range range);
 
+  Range range() const;
+  bool AtRangeEnd() const;
+
+  wchar_t read() const;
+
   Result Once() const;
   Result UntilCurrentCharIn(const wstring& word_char) const;
   Result UntilCurrentCharNotIn(const wstring& word_char) const;
@@ -27,7 +32,6 @@ class Seek {
   Result UntilLine(std::function<bool(const Line& line)> predicate) const;
 
  private:
-  wchar_t CurrentChar() const;
   bool Advance(LineColumn* position) const;
   bool AdvanceLine(LineColumn* position) const;
 

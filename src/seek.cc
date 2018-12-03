@@ -27,12 +27,17 @@ Seek& Seek::WithRange(Range range) {
   return *this;
 }
 
+Range Seek::range() const { return range_; }
+bool Seek::AtRangeEnd() const { return *position_ >= range_.end; }
+
+wchar_t Seek::read() const { return contents_.character_at(*position_); }
+
 Seek::Result Seek::Once() const {
   return Advance(position_) ? DONE : UNABLE_TO_ADVANCE;
 }
 
 Seek::Result Seek::UntilCurrentCharIn(const wstring& word_char) const {
-  while (word_char.find(CurrentChar()) == word_char.npos) {
+  while (word_char.find(read()) == word_char.npos) {
     if (!Advance(position_)) {
       return UNABLE_TO_ADVANCE;
     }
@@ -41,7 +46,7 @@ Seek::Result Seek::UntilCurrentCharIn(const wstring& word_char) const {
 }
 
 Seek::Result Seek::UntilCurrentCharNotIn(const wstring& word_char) const {
-  while (word_char.find(CurrentChar()) != word_char.npos) {
+  while (word_char.find(read()) != word_char.npos) {
     if (!Advance(position_)) {
       return UNABLE_TO_ADVANCE;
     }
@@ -131,8 +136,6 @@ Seek::Result Seek::UntilNextLineIsNotSubsetOf(
     const wstring& allowed_chars) const {
   return UntilLine(Negate(IsLineSubsetOf(allowed_chars)));
 }
-
-wchar_t Seek::CurrentChar() const { return contents_.character_at(*position_); }
 
 bool Seek::AdvanceLine(LineColumn* position) const {
   switch (direction_) {

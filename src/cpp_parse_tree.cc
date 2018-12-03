@@ -89,41 +89,28 @@ struct ParseResults {
 
 class ParseData {
  public:
-  ParseData(const BufferContents& buffer, std::vector<size_t> initial_states)
-      : buffer_(buffer) {
+  ParseData(const BufferContents& buffer, std::vector<size_t> initial_states,
+            LineColumn limit)
+      : buffer_(buffer), seek_(buffer_, &position_) {
     parse_results_.states_stack = std::move(initial_states);
+    seek_.WithRange(Range(LineColumn(), limit)).WrappingLines();
   }
 
   const BufferContents& buffer() const { return buffer_; }
+
+  Seek& Advance() { return seek_; }
 
   ParseResults* parse_results() { return &parse_results_; }
 
   LineColumn position() const { return position_; }
 
-  void set_position(LineColumn position) {
-    CHECK_LE(position, limit_);
-    position_ = position;
-  }
-
-  void set_limit(LineColumn limit) { limit_ = limit; }
-
-  bool reached_final_position() const { return position_ >= limit_; }
-
-  Seek Advance() {
-    return Seek(buffer_, &position_)
-        .WithRange(Range(LineColumn(), limit_))
-        .WrappingLines();
-  }
-
-  wchar_t read() const { return buffer_.character_at(position_); }
+  void set_position(LineColumn position) { position_ = position; }
 
   int AddAndGetNesting() { return nesting_++; }
 
   size_t state() const { return parse_results_.states_stack.back(); }
 
   void SetState(State state) { parse_results_.states_stack.back() = state; }
-
-  bool empty() const { return parse_results_.states_stack.empty(); }
 
   void SetFirstChildModifiers(LineModifierSet modifiers) {
     parse_results_.actions.push_back(
@@ -132,7 +119,8 @@ class ParseData {
 
   void PopBack() {
     parse_results_.states_stack.pop_back();
-    parse_results_.actions.push_back(Action::Pop(min(position_, limit_)));
+    parse_results_.actions.push_back(
+        Action::Pop(min(position_, seek_.range().end)));
   }
 
   void Push(State nested_state, size_t rewind_column,
@@ -156,7 +144,7 @@ class ParseData {
   const BufferContents& buffer_;
   ParseResults parse_results_;
   LineColumn position_;
-  LineColumn limit_;
+  Seek seek_;
   int nesting_ = 0;
 };
 
@@ -173,8 +161,8 @@ class CppTreeParser : public TreeParser {
     std::vector<size_t> states_stack = {DEFAULT_AT_START_OF_LINE};
     std::vector<ParseTree*> trees = {root};
     for (size_t i = root->range.begin.line; i < root->range.end.line; i++) {
-      ParseData data(buffer, std::move(states_stack));
-      data.set_limit(min(LineColumn(i + 1, 0), root->range.end));
+      ParseData data(buffer, std::move(states_stack),
+                     min(LineColumn(i + 1, 0), root->range.end));
       data.set_position(max(LineColumn(i, 0), root->range.begin));
       ParseLine(&data);
       states_stack = std::move(data.parse_results()->states_stack);
@@ -186,7 +174,7 @@ class CppTreeParser : public TreeParser {
   }
 
   void ParseLine(ParseData* result) {
-    while (!result->reached_final_position()) {
+    while (!result->Advance().AtRangeEnd()) {
       LineColumn original_position = result->position();  // For validation.
 
       switch (result->state()) {
@@ -244,14 +232,15 @@ class CppTreeParser : public TreeParser {
  private:
   void AfterSlash(State state_default, State state_default_at_start_of_line,
                   ParseData* result) {
-    switch (result->read()) {
+    auto advance = result->Advance();
+    switch (advance.read()) {
       case '/':
         result->SetState(state_default_at_start_of_line);
         CommentToEndOfLine(result);
         break;
       case '*':
         result->Push(COMMENT, 1, {LineModifier::BLUE});
-        result->Advance().Once();
+        advance.Once();
         break;
       default:
         result->SetState(state_default);
@@ -269,9 +258,9 @@ class CppTreeParser : public TreeParser {
 
   void InsideComment(ParseData* result) {
     auto advance = result->Advance();
-    auto c = result->read();
+    auto c = advance.read();
     advance.Once();
-    if (c == '*' && result->read() == '/') {
+    if (c == '*' && advance.read() == '/') {
       advance.Once();
       result->PopBack();
     }
@@ -281,7 +270,7 @@ class CppTreeParser : public TreeParser {
     Seek advance = result->Advance();
     size_t rewind_column = 1;
     auto original_position = result->position();
-    if (result->read() == '\\') {
+    if (advance.read() == '\\') {
       advance.Once();
       rewind_column++;
     }
@@ -289,7 +278,7 @@ class CppTreeParser : public TreeParser {
     advance.Once();  // Skip the character.
     rewind_column++;
 
-    if (result->read() == '\'') {
+    if (advance.read() == '\'') {
       advance.Once();
       rewind_column++;
       result->PushAndPop(rewind_column, {LineModifier::YELLOW});
@@ -304,14 +293,14 @@ class CppTreeParser : public TreeParser {
     CHECK_GT(original_position.column, size_t(0));
 
     Seek advance = result->Advance();
-    while (result->read() != L'"' && result->read() != L'\n' &&
-           !result->reached_final_position()) {
-      if (result->read() == '\\') {
+    while (advance.read() != L'"' && advance.read() != L'\n' &&
+           !advance.AtRangeEnd()) {
+      if (advance.read() == '\\') {
         advance.Once();
       }
       advance.Once();
     }
-    if (result->read() == L'"') {
+    if (advance.read() == L'"') {
       advance.Once();
       CHECK_EQ(result->position().line, original_position.line);
       result->PushAndPop(
@@ -381,7 +370,7 @@ class CppTreeParser : public TreeParser {
     advance.UntilCurrentCharNotIn(L" \t");
 
     auto original_position = result->position();
-    auto c = result->read();
+    auto c = advance.read();
     advance.Once();
     CHECK_GT(result->position(), original_position);
 
