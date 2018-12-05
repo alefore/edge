@@ -32,14 +32,14 @@ namespace editor {
 
 using std::iterator;
 using std::list;
-using std::shared_ptr;
-using std::unique_ptr;
-using std::vector;
 using std::map;
 using std::max;
 using std::min;
 using std::multimap;
 using std::ostream;
+using std::shared_ptr;
+using std::unique_ptr;
+using std::vector;
 
 using namespace afc::vm;
 
@@ -90,12 +90,14 @@ class OpenBuffer {
 
   // Sort all lines in range [first, last) according to a compare function.
   void SortContents(size_t first, size_t last,
-      std::function<bool(const shared_ptr<const Line>&,
-                         const shared_ptr<const Line>&)>
-          compare);
+                    std::function<bool(const shared_ptr<const Line>&,
+                                       const shared_ptr<const Line>&)>
+                        compare);
 
   template <typename T>
-  void ForEachLine(T callback) const { contents_.ForEach(callback); }
+  void ForEachLine(T callback) const {
+    contents_.ForEach(callback);
+  }
 
   bool empty() const { return contents_.empty(); }
   size_t lines_size() const { return contents_.size(); }
@@ -106,9 +108,7 @@ class OpenBuffer {
     mode_.reset(new MapMode(default_commands_));
     return copy;
   }
-  void set_mode(std::shared_ptr<EditorMode> mode) {
-    mode_ = std::move(mode);
-  }
+  void set_mode(std::shared_ptr<EditorMode> mode) { mode_ = std::move(mode); }
 
   // Erases all lines in range [first, last).
   void EraseLines(size_t first, size_t last);
@@ -116,29 +116,30 @@ class OpenBuffer {
   // Inserts a new line into the buffer at a given position.
   void InsertLine(size_t line_position, shared_ptr<Line> line);
 
-  void AppendLazyString(EditorState* editor_state, shared_ptr<LazyString> input);
+  void AppendLazyString(EditorState* editor_state,
+                        shared_ptr<LazyString> input);
   void AppendLine(EditorState* editor_state, shared_ptr<LazyString> line);
-  virtual void AppendRawLine(EditorState* editor_state, shared_ptr<LazyString> str);
+  virtual void AppendRawLine(EditorState* editor_state,
+                             shared_ptr<LazyString> str);
 
   // Insert a line at the end of the buffer.
   void AppendRawLine(EditorState* editor, shared_ptr<Line> line);
 
-  size_t ProcessTerminalEscapeSequence(
-      EditorState* editor_state, shared_ptr<LazyString> str, size_t read_index,
-      LineModifierSet* modifiers);
+  size_t ProcessTerminalEscapeSequence(EditorState* editor_state,
+                                       shared_ptr<LazyString> str,
+                                       size_t read_index,
+                                       LineModifierSet* modifiers);
   void AppendToLastLine(EditorState* editor_state, shared_ptr<LazyString> str);
-  void AppendToLastLine(
-      EditorState* editor_state, shared_ptr<LazyString> str,
-      const vector<LineModifierSet>&modifiers);
+  void AppendToLastLine(EditorState* editor_state, shared_ptr<LazyString> str,
+                        const vector<LineModifierSet>& modifiers);
 
   unique_ptr<Expression> CompileString(EditorState* editor_state,
                                        const wstring& str,
                                        wstring* error_description);
-  void EvaluateExpression(
-      EditorState* editor_state, Expression* expr,
-      std::function<void(std::unique_ptr<Value>)> consumer);
+  void EvaluateExpression(EditorState* editor_state, Expression* expr,
+                          std::function<void(std::unique_ptr<Value>)> consumer);
   bool EvaluateString(EditorState* editor_state, const wstring& str,
-      std::function<void(std::unique_ptr<Value>)> consumer);
+                      std::function<void(std::unique_ptr<Value>)> consumer);
   bool EvaluateFile(EditorState* editor_state, const wstring& path);
 
   const wstring& name() const { return name_; }
@@ -188,19 +189,18 @@ class OpenBuffer {
   // Moves position in the specified direction until we're inside the structure
   // of the type specified that starts after position. No-op if we're already
   // inside the structure.
-  void SeekToStructure(
-      Structure structure, Direction direction, LineColumn* position);
+  void SeekToStructure(Structure structure, Direction direction,
+                       LineColumn* position);
   // Moves position in the specified direction until we're just outside of the
   // current structure of the type specified. No-op if we're already outside the
   // structure. Returns a boolean indicating whether it successfully found a
   // position outside of the structure.
-  bool SeekToLimit(
-      Structure structure, Direction direction, LineColumn* position);
+  bool SeekToLimit(Structure structure, Direction direction,
+                   LineColumn* position);
 
   // TODO: Change start and end to be a Range?
-  bool FindPartialRange(
-    const Modifiers& modifiers, const LineColumn& position, LineColumn* start,
-    LineColumn* end);
+  bool FindPartialRange(const Modifiers& modifiers, const LineColumn& position,
+                        LineColumn* start, LineColumn* end);
 
   // May return nullptr if the current_cursor is at the end of file.
   const shared_ptr<const Line> current_line() const;
@@ -259,23 +259,31 @@ class OpenBuffer {
   // Delete characters in [column, column + amount).
 
   bool at_beginning() const {
-    if (contents_.empty()) { return true; }
+    if (contents_.empty()) {
+      return true;
+    }
     return position().at_beginning();
   }
   bool at_beginning_of_line() const { return at_beginning_of_line(position()); }
   bool at_beginning_of_line(const LineColumn& position) const {
-    if (contents_.empty()) { return true; }
+    if (contents_.empty()) {
+      return true;
+    }
     return position.at_beginning_of_line();
   }
   bool at_end() const { return at_end(position()); }
   bool at_end(const LineColumn& position) const {
-    if (contents_.empty()) { return true; }
+    if (contents_.empty()) {
+      return true;
+    }
     return at_last_line(position) && at_end_of_line(position);
   }
 
   // Returns the position of just after the last character of the current file.
   LineColumn end_position() const {
-    if (contents_.empty()) { return LineColumn(0, 0); }
+    if (contents_.empty()) {
+      return LineColumn(0, 0);
+    }
     return LineColumn(contents_.size() - 1, contents_.back()->size());
   }
 
@@ -283,11 +291,11 @@ class OpenBuffer {
   bool at_last_line(const LineColumn& position) const {
     return position.line == contents_.size() - 1;
   }
-  bool at_end_of_line() const {
-    return at_end_of_line(position());
-  }
+  bool at_end_of_line() const { return at_end_of_line(position()); }
   bool at_end_of_line(const LineColumn& position) const {
-    if (contents_.empty()) { return true; }
+    if (contents_.empty()) {
+      return true;
+    }
     return position.column >= LineAt(position.line)->size();
   }
   char current_character() const {
@@ -312,10 +320,8 @@ class OpenBuffer {
   bool modified() const { return modified_; }
 
   bool dirty() const {
-    return modified_
-        || child_pid_ != -1
-        || !WIFEXITED(child_exit_status_)
-        || WEXITSTATUS(child_exit_status_) != 0;
+    return modified_ || child_pid_ != -1 || !WIFEXITED(child_exit_status_) ||
+           WEXITSTATUS(child_exit_status_) != 0;
   }
   virtual wstring FlagsString() const;
 
@@ -325,16 +331,15 @@ class OpenBuffer {
   bool AddKeyboardTextTransformer(EditorState* editor_state,
                                   unique_ptr<Value> transformer);
 
-  void SetInputFiles(
-      EditorState* editor_state, int input_fd, int input_fd_error,
-      bool fd_is_terminal, pid_t child_pid);
+  void SetInputFiles(EditorState* editor_state, int input_fd,
+                     int input_fd_error, bool fd_is_terminal, pid_t child_pid);
 
   const bool& read_bool_variable(const EdgeVariable<bool>* variable) const;
   void set_bool_variable(const EdgeVariable<bool>* variable, bool value);
   void toggle_bool_variable(const EdgeVariable<bool>* variable);
 
-  const wstring& read_string_variable(const EdgeVariable<wstring>* variable)
-      const;
+  const wstring& read_string_variable(
+      const EdgeVariable<wstring>* variable) const;
   void set_string_variable(const EdgeVariable<wstring>* variable,
                            wstring value);
 
@@ -377,8 +382,8 @@ class OpenBuffer {
 
   // Returns a multimap with all the marks for the current buffer, indexed by
   // the line they refer to. Each call may update the map.
-  const multimap<size_t, LineMarks::Mark>*
-      GetLineMarks(const EditorState& editor_state) const;
+  const multimap<size_t, LineMarks::Mark>* GetLineMarks(
+      const EditorState& editor_state) const;
   wstring GetLineMarksText(const EditorState& editor_state) const;
 
   Environment* environment() { return &environment_; }
@@ -482,8 +487,9 @@ class OpenBuffer {
 
  private:
   static void EvaluateMap(EditorState* editor, OpenBuffer* buffer, size_t line,
-      Value::Callback map_callback, TransformationStack* transformation,
-      Trampoline* trampoline);
+                          Value::Callback map_callback,
+                          TransformationStack* transformation,
+                          Trampoline* trampoline);
   LineColumn Apply(EditorState* editor_state,
                    unique_ptr<Transformation> transformation);
   void BackgroundThread();
@@ -495,8 +501,8 @@ class OpenBuffer {
   // Adds a new line. If there's a previous line, notifies various things about
   // it.
   void StartNewLine(EditorState* editor_state);
-  void ProcessCommandInput(
-      EditorState* editor_state, shared_ptr<LazyString> str);
+  void ProcessCommandInput(EditorState* editor_state,
+                           shared_ptr<LazyString> str);
 
   // Returns true if the position given is set to a value other than
   // LineColumn::Max and the buffer has read past that position.
