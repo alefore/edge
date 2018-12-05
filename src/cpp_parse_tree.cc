@@ -30,27 +30,26 @@ static const LineModifierSet BAD_PARSE_MODIFIERS =
     LineModifierSet({LineModifier::BG_RED, LineModifier::BOLD});
 
 struct Action {
-  static Action Push(LineColumn position, LineModifierSet modifiers) {
-    return Action(PUSH, position, std::move(modifiers));
+  static Action Push(size_t column, LineModifierSet modifiers) {
+    return Action(PUSH, column, std::move(modifiers));
   }
 
-  static Action Pop(LineColumn position) { return Action(POP, position, {}); }
+  static Action Pop(size_t column) { return Action(POP, column, {}); }
 
-  static Action SetFirstChildModifiers(LineColumn position,
-                                       LineModifierSet modifiers) {
-    return Action(SET_FIRST_CHILD_MODIFIERS, position, std::move(modifiers));
+  static Action SetFirstChildModifiers(LineModifierSet modifiers) {
+    return Action(SET_FIRST_CHILD_MODIFIERS, 0, std::move(modifiers));
   }
 
-  void Execute(std::vector<ParseTree*>* trees) {
+  void Execute(std::vector<ParseTree*>* trees, size_t line) {
     switch (action_type) {
       case PUSH:
         trees->push_back(PushChild(trees->back()).release());
-        trees->back()->range.begin = position;
+        trees->back()->range.begin = LineColumn(line, column);
         trees->back()->modifiers = modifiers;
         break;
 
       case POP:
-        trees->back()->range.end = position;
+        trees->back()->range.end = LineColumn(line, column);
         trees->pop_back();
         break;
 
@@ -70,15 +69,15 @@ struct Action {
 
   ActionType action_type = PUSH;
 
-  LineColumn position;
+  size_t column;
 
   // Used by PUSH and by SET_FIRST_CHILD_MODIFIERS.
   LineModifierSet modifiers;
 
  private:
-  Action(ActionType action_type, LineColumn position, LineModifierSet modifiers)
+  Action(ActionType action_type, size_t column, LineModifierSet modifiers)
       : action_type(action_type),
-        position(position),
+        column(column),
         modifiers(std::move(modifiers)) {}
 };
 
@@ -113,14 +112,12 @@ class ParseData {
   void SetState(State state) { parse_results_.states_stack.back() = state; }
 
   void SetFirstChildModifiers(LineModifierSet modifiers) {
-    parse_results_.actions.push_back(
-        Action::SetFirstChildModifiers(position_, modifiers));
+    parse_results_.actions.push_back(Action::SetFirstChildModifiers(modifiers));
   }
 
   void PopBack() {
     parse_results_.states_stack.pop_back();
-    parse_results_.actions.push_back(
-        Action::Pop(min(position_, seek_.range().end)));
+    parse_results_.actions.push_back(Action::Pop(position_.column));
   }
 
   void Push(State nested_state, size_t rewind_column,
@@ -129,9 +126,8 @@ class ParseData {
 
     parse_results_.states_stack.push_back(nested_state);
 
-    parse_results_.actions.push_back(Action::Push(
-        LineColumn(position_.line, position_.column - rewind_column),
-        modifiers));
+    parse_results_.actions.push_back(
+        Action::Push(position_.column - rewind_column, modifiers));
   }
 
   void PushAndPop(size_t rewind_column, LineModifierSet modifiers) {
@@ -158,18 +154,25 @@ class CppTreeParser : public TreeParser {
     root->children.clear();
     root->depth = 0;
 
+    // TODO: Does this actually clean up expired references? Probably not?
+    cache_.erase(std::weak_ptr<LazyString>());
+
     std::vector<size_t> states_stack = {DEFAULT_AT_START_OF_LINE};
     std::vector<ParseTree*> trees = {root};
     for (size_t i = root->range.begin.line; i < root->range.end.line; i++) {
-      ParseData data(buffer, std::move(states_stack),
-                     min(LineColumn(i + 1, 0), root->range.end));
-      data.set_position(max(LineColumn(i, 0), root->range.begin));
-      ParseLine(&data);
-      states_stack = std::move(data.parse_results()->states_stack);
-
-      for (auto& action : data.parse_results()->actions) {
-        action.Execute(&trees);
+      auto insert_results = cache_[buffer.at(i)->contents()].insert(
+          {states_stack, ParseResults()});
+      if (insert_results.second) {
+        ParseData data(buffer, std::move(states_stack),
+                       min(LineColumn(i + 1, 0), root->range.end));
+        data.set_position(max(LineColumn(i, 0), root->range.begin));
+        ParseLine(&data);
+        insert_results.first->second = *data.parse_results();
       }
+      for (auto& action : insert_results.first->second.actions) {
+        action.Execute(&trees, i);
+      }
+      states_stack = insert_results.first->second.states_stack;
     }
   }
 
@@ -458,6 +461,11 @@ class CppTreeParser : public TreeParser {
       NewNullTreeParser());
 
   const std::unordered_set<wstring> keywords_;
+
+  std::map<std::weak_ptr<LazyString>,
+           std::map<std::vector<size_t>, ParseResults>,
+           std::owner_less<std::weak_ptr<LazyString>>>
+      cache_;
 };
 
 }  // namespace
