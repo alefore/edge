@@ -725,7 +725,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       buffer->read_bool_variable(buffer_variables::paste_mode());
 
   std::shared_ptr<const ParseTree> simplified_parse_tree =
-      buffer->simplified_parse_tree();
+      line_output_options.paste_mode ? nullptr
+                                     : buffer->simplified_parse_tree();
   if (simplified_parse_tree != last_simplified_parse_tree_.lock()) {
     last_simplified_parse_tree_ = simplified_parse_tree;
     if (simplified_parse_tree == nullptr) {
