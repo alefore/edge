@@ -40,9 +40,6 @@ class Terminal {
                            const shared_ptr<OpenBuffer>& buffer);
   void ShowBuffer(const EditorState* editor_state, Screen* screen);
   void AdjustPosition(const shared_ptr<OpenBuffer> buffer, Screen* screen);
-
-  std::weak_ptr<const ParseTree> last_simplified_parse_tree_;
-  std::shared_ptr<const ParseTree> full_file_parse_tree_;
 };
 
 }  // namespace editor

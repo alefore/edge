@@ -185,6 +185,8 @@ class OpenBuffer {
   void DestroyOtherCursors();
 
   const ParseTree* current_tree(const ParseTree* root) const;
+  void set_lines_for_zoomed_out_tree(size_t lines);
+  std::shared_ptr<const ParseTree> zoomed_out_tree() const;
 
   // Moves position in the specified direction until we're inside the structure
   // of the type specified that starts after position. No-op if we're already
@@ -549,6 +551,8 @@ class OpenBuffer {
   std::shared_ptr<const ParseTree> simplified_parse_tree_;
   std::shared_ptr<TreeParser> tree_parser_;
   size_t tree_depth_ = 0;
+  size_t lines_for_zoomed_out_tree_ = 0;
+  std::shared_ptr<const ParseTree> zoomed_out_tree_;
 
   std::shared_ptr<MapModeCommands> default_commands_;
   std::shared_ptr<EditorMode> mode_;

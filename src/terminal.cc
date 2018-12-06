@@ -724,20 +724,9 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   line_output_options.paste_mode =
       buffer->read_bool_variable(buffer_variables::paste_mode());
 
-  std::shared_ptr<const ParseTree> simplified_parse_tree =
-      line_output_options.paste_mode ? nullptr
-                                     : buffer->simplified_parse_tree();
-  if (simplified_parse_tree != last_simplified_parse_tree_.lock()) {
-    last_simplified_parse_tree_ = simplified_parse_tree;
-    if (simplified_parse_tree == nullptr) {
-      full_file_parse_tree_ = nullptr;
-    } else {
-      full_file_parse_tree_ = std::make_shared<ParseTree>(ZoomOutTree(
-          *simplified_parse_tree, buffer->lines_size(), lines_to_show));
-    }
-  }
-
-  line_output_options.full_file_parse_tree = full_file_parse_tree_.get();
+  buffer->set_lines_for_zoomed_out_tree(lines_to_show);
+  auto zoomed_out_tree = buffer->zoomed_out_tree();
+  line_output_options.full_file_parse_tree = zoomed_out_tree.get();
 
   std::unordered_set<const OpenBuffer*> buffers_shown;
   line_output_options.output_buffers_shown = &buffers_shown;

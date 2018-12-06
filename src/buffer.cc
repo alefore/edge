@@ -410,6 +410,7 @@ void OpenBuffer::BackgroundThread() {
         std::move(contents_to_parse_);
     CHECK(contents_to_parse_ == nullptr);
     auto parser = tree_parser_;
+    size_t lines_for_zoomed_out_tree = lines_for_zoomed_out_tree_;
     lock.unlock();
 
     if (contents == nullptr) {
@@ -424,9 +425,16 @@ void OpenBuffer::BackgroundThread() {
     auto simplified_parse_tree = std::make_shared<ParseTree>();
     SimplifyTree(*parse_tree, simplified_parse_tree.get());
 
+    std::shared_ptr<const ParseTree> zoomed_out_tree;
+    if (lines_for_zoomed_out_tree != 0) {
+      zoomed_out_tree = std::make_shared<ParseTree>(ZoomOutTree(
+          *simplified_parse_tree, contents->size(), lines_for_zoomed_out_tree));
+    }
+
     std::unique_lock<std::mutex> final_lock(mutex_);
     parse_tree_ = parse_tree;
     simplified_parse_tree_ = simplified_parse_tree;
+    zoomed_out_tree_ = zoomed_out_tree;
     editor_->ScheduleRedraw();
     final_lock.unlock();
 
@@ -1793,6 +1801,24 @@ const ParseTree* OpenBuffer::current_tree(const ParseTree* root) const {
     route.resize(tree_depth_);
   }
   return FollowRoute(*root, route);
+}
+
+void OpenBuffer::set_lines_for_zoomed_out_tree(size_t lines) {
+  std::unique_lock<std::mutex> lock(mutex_);
+  if (lines == lines_for_zoomed_out_tree_) {
+    return;
+  }
+
+  lines_for_zoomed_out_tree_ = lines;
+  zoomed_out_tree_ = nullptr;
+  lock.unlock();
+
+  editor_->ScheduleParseTreeUpdate(this);
+}
+
+std::shared_ptr<const ParseTree> OpenBuffer::zoomed_out_tree() const {
+  std::unique_lock<std::mutex> lock(mutex_);
+  return zoomed_out_tree_;
 }
 
 const shared_ptr<const Line> OpenBuffer::current_line() const {
