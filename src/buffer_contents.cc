@@ -21,6 +21,7 @@ std::unique_ptr<BufferContents> BufferContents::copy() const {
 }
 
 wint_t BufferContents::character_at(const LineColumn& position) const {
+  CHECK_LT(position.line, size());
   auto line = at(position.line);
   return position.column >= line->size() ? L'\n' : line->get(position.column);
 }
