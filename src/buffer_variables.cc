@@ -46,8 +46,7 @@ EdgeVariable<bool>* pts() {
 
 EdgeVariable<bool>* vm_exec() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"vm_exec",
-      L"If set, all input read into this buffer will be executed.",
+      L"vm_exec", L"If set, all input read into this buffer will be executed.",
       false);
   return variable;
 }
@@ -55,7 +54,8 @@ EdgeVariable<bool>* vm_exec() {
 EdgeVariable<bool>* close_after_clean_exit() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"close_after_clean_exit",
-      L"If a command is forked that writes to this buffer, should the buffer be "
+      L"If a command is forked that writes to this buffer, should the buffer "
+      L"be "
       L"closed when the command exits with a successful status code?",
       false);
   return variable;
@@ -92,8 +92,7 @@ EdgeVariable<bool>* default_reload_after_exit() {
 EdgeVariable<bool>* reload_on_enter() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"reload_on_enter",
-      L"Should this buffer be reloaded automatically when visited?",
-      false);
+      L"Should this buffer be reloaded automatically when visited?", false);
   return variable;
 }
 
@@ -101,7 +100,8 @@ EdgeVariable<bool>* atomic_lines() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"atomic_lines",
       L"If true, lines can't be joined (e.g. you can't delete the last "
-      L"character in a line unless the line is empty).  This is used by certain "
+      L"character in a line unless the line is empty).  This is used by "
+      L"certain "
       L"buffers that represent lists of things (each represented as a line), "
       L"for which this is a natural behavior.",
       false);
@@ -111,15 +111,15 @@ EdgeVariable<bool>* atomic_lines() {
 EdgeVariable<bool>* save_on_close() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"save_on_close",
-      L"Should this buffer be saved automatically when it's closed?",
-      false);
+      L"Should this buffer be saved automatically when it's closed?", false);
   return variable;
 }
 
 EdgeVariable<bool>* clear_on_reload() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"clear_on_reload",
-      L"Should any previous contents be discarded when this buffer is reloaded? "
+      L"Should any previous contents be discarded when this buffer is "
+      L"reloaded? "
       L"If false, previous contents will be preserved and new contents will be "
       L"appended at the end.",
       true);
@@ -139,8 +139,7 @@ EdgeVariable<bool>* paste_mode() {
 
 EdgeVariable<bool>* follow_end_of_file() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"follow_end_of_file",
-      L"Should the cursor stay at the end of the file?",
+      L"follow_end_of_file", L"Should the cursor stay at the end of the file?",
       false);
   return variable;
 }
@@ -167,8 +166,7 @@ EdgeVariable<bool>* reload_on_buffer_write() {
 EdgeVariable<bool>* contains_line_marks() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"contains_line_marks",
-      L"If set to true, this buffer will be scanned for line marks.",
-      false);
+      L"If set to true, this buffer will be scanned for line marks.", false);
   return variable;
 }
 
@@ -193,8 +191,7 @@ EdgeVariable<bool>* reload_on_display() {
 EdgeVariable<bool>* show_in_buffers_list() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"show_in_buffers_list",
-      L"If set to true, includes this in the list of buffers.",
-      true);
+      L"If set to true, includes this in the list of buffers.", true);
   return variable;
 }
 
@@ -218,17 +215,14 @@ EdgeVariable<bool>* delete_into_paste_buffer() {
 
 EdgeVariable<bool>* scrollbar() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"scrollbar",
-      L"If set to true, the scrollbar will be shown.",
-      true);
+      L"scrollbar", L"If set to true, the scrollbar will be shown.", true);
   return variable;
 }
 
 EdgeVariable<bool>* search_case_sensitive() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"search_case_sensitive",
-      L"If set to true, search (through \"/\") is case sensitive.",
-      false);
+      L"If set to true, search (through \"/\") is case sensitive.", false);
   return variable;
 }
 
@@ -272,9 +266,7 @@ EdgeVariable<wstring>* path_characters() {
 
 EdgeVariable<wstring>* path() {
   static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
-      L"path",
-      L"String with the path of the current file.",
-      L"",
+      L"path", L"String with the path of the current file.", L"",
       FilePredictor);
   return variable;
 }
@@ -284,8 +276,7 @@ EdgeVariable<wstring>* pts_path() {
       L"pts_path",
       L"String with the path of the terminal used by the current buffer (or "
       L"empty if the user is not using a terminal).",
-      L"",
-      FilePredictor);
+      L"", FilePredictor);
   return variable;
 }
 
@@ -294,8 +285,7 @@ EdgeVariable<wstring>* command() {
       L"command",
       L"String with the current command. Empty if the buffer is not a "
       L"sub-process (e.g. a regular file).",
-      L"",
-      FilePredictor);
+      L"", FilePredictor);
   return variable;
 }
 
@@ -303,8 +293,7 @@ EdgeVariable<wstring>* editor_commands_path() {
   static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
       L"editor_commands_path",
       L"String with the path to the initial directory for editor commands.",
-      L"",
-      FilePredictor);
+      L"", FilePredictor);
   return variable;
 }
 
@@ -315,7 +304,8 @@ EdgeVariable<wstring>* line_prefix_characters() {
       L"the actual contents of a line.  When a new line is created, the prefix "
       L"of the previous line (the sequence of all characters at the start of "
       L"the previous line that are listed in line_prefix_characters) is copied "
-      L"to the new line.  The order of characters in line_prefix_characters has "
+      L"to the new line.  The order of characters in line_prefix_characters "
+      L"has "
       L"no effect.",
       L" ");
   return variable;
@@ -380,14 +370,11 @@ EdgeStruct<int>* IntStruct() {
 
 EdgeVariable<int>* line_width() {
   static EdgeVariable<int>* variable = IntStruct()->AddVariable(
-      L"line_width",
-      L"Desired maximum width of a line.",
-      80);
+      L"line_width", L"Desired maximum width of a line.", 80);
   return variable;
 }
 
-EdgeVariable<int>*
-    buffer_list_context_lines() {
+EdgeVariable<int>* buffer_list_context_lines() {
   static EdgeVariable<int>* variable = IntStruct()->AddVariable(
       L"buffer_list_context_lines",
       L"Number of lines of context from this buffer to show in the list of "
@@ -396,8 +383,7 @@ EdgeVariable<int>*
   return variable;
 }
 
-EdgeVariable<int>*
-    margin_lines() {
+EdgeVariable<int>* margin_lines() {
   static EdgeVariable<int>* variable = IntStruct()->AddVariable(
       L"margin_lines",
       L"Number of lines of context to display at the top/bottom of the current "
@@ -406,8 +392,7 @@ EdgeVariable<int>*
   return variable;
 }
 
-EdgeVariable<int>*
-    margin_columns() {
+EdgeVariable<int>* margin_columns() {
   static EdgeVariable<int>* variable = IntStruct()->AddVariable(
       L"margin_columns",
       L"Number of characters of context to display at the left/right of the "
@@ -416,8 +401,7 @@ EdgeVariable<int>*
   return variable;
 }
 
-EdgeVariable<int>*
-    view_start_line() {
+EdgeVariable<int>* view_start_line() {
   static EdgeVariable<int>* variable = IntStruct()->AddVariable(
       L"view_start_line",
       L"The desired line to show at the beginning of the screen (at the "
@@ -427,8 +411,7 @@ EdgeVariable<int>*
   return variable;
 }
 
-EdgeVariable<int>*
-    view_start_column() {
+EdgeVariable<int>* view_start_column() {
   static EdgeVariable<int>* variable = IntStruct()->AddVariable(
       L"view_start_column",
       L"The desired column to show at the left-most part of the screen. This "
@@ -437,8 +420,7 @@ EdgeVariable<int>*
   return variable;
 }
 
-EdgeVariable<int>*
-    progress() {
+EdgeVariable<int>* progress() {
   static EdgeVariable<int>* variable = IntStruct()->AddVariable(
       L"progress",
       L"Counter of the number of times this buffer has made progress. This is "
