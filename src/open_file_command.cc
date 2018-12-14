@@ -5,8 +5,8 @@ extern "C" {
 }
 
 #include "buffer_variables.h"
-#include "editor.h"
 #include "dirname.h"
+#include "editor.h"
 #include "file_link_mode.h"
 #include "line_prompt_mode.h"
 #include "wstring.h"
@@ -37,16 +37,15 @@ std::unique_ptr<Command> NewOpenFileCommand() {
   };
   options.predictor = FilePredictor;
   return NewLinePromptCommand(
-      L"loads a file",
-      [options](EditorState* editor_state) {
+      L"loads a file", [options](EditorState* editor_state) {
         PromptOptions options_copy = options;
         if (editor_state->has_current_buffer()) {
           wstring path =
               editor_state->current_buffer()->second->read_string_variable(
                   buffer_variables::path());
           struct stat stat_buffer;
-          if (stat(ToByteString(path).c_str(), &stat_buffer) == -1
-              || !S_ISDIR(stat_buffer.st_mode)) {
+          if (stat(ToByteString(path).c_str(), &stat_buffer) == -1 ||
+              !S_ISDIR(stat_buffer.st_mode)) {
             LOG(INFO) << "Taking dirname for prompt: " << path;
             path = Dirname(path);
           }
@@ -61,5 +60,5 @@ std::unique_ptr<Command> NewOpenFileCommand() {
       });
 }
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc

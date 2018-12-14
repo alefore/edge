@@ -12,8 +12,7 @@ namespace editor {
 namespace {
 class CommandWithModifiersMode : public EditorMode {
  public:
-  CommandWithModifiersMode(wstring name,
-                           EditorState* editor_state,
+  CommandWithModifiersMode(wstring name, EditorState* editor_state,
                            CommandWithModifiersHandler handler)
       : name_(std::move(name)),
         buffer_(editor_state->current_buffer()->second),
@@ -133,16 +132,16 @@ class CommandWithModifiersMode : public EditorMode {
 
         case 'f':
           modifiers.structure_range =
-              modifiers.structure_range
-                      == Modifiers::FROM_CURRENT_POSITION_TO_END
+              modifiers.structure_range ==
+                      Modifiers::FROM_CURRENT_POSITION_TO_END
                   ? Modifiers::ENTIRE_STRUCTURE
                   : Modifiers::FROM_CURRENT_POSITION_TO_END;
           break;
 
         case 'b':
           modifiers.structure_range =
-              modifiers.structure_range
-                      == Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION
+              modifiers.structure_range ==
+                      Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION
                   ? Modifiers::ENTIRE_STRUCTURE
                   : Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
           break;
@@ -174,7 +173,8 @@ class CommandWithModifiersMode : public EditorMode {
         case 'p':
           modifiers.delete_type =
               modifiers.delete_type == Modifiers::DELETE_CONTENTS
-                  ? Modifiers::PRESERVE_CONTENTS : Modifiers::DELETE_CONTENTS;
+                  ? Modifiers::PRESERVE_CONTENTS
+                  : Modifiers::DELETE_CONTENTS;
           break;
 
         default:
@@ -201,11 +201,11 @@ class CommandWithModifiersMode : public EditorMode {
     if (modifiers.direction == BACKWARDS) {
       status += L" reverse";
     }
-    if (modifiers.structure_range
-            == Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION) {
+    if (modifiers.structure_range ==
+        Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION) {
       status += L" backward";
-    } else if (modifiers.structure_range
-            == Modifiers::FROM_CURRENT_POSITION_TO_END) {
+    } else if (modifiers.structure_range ==
+               Modifiers::FROM_CURRENT_POSITION_TO_END) {
       status += L" forward";
     }
     if (modifiers.cursors_affected == Modifiers::AFFECT_ALL_CURSORS) {
@@ -254,20 +254,17 @@ class CommandWithModifiersMode : public EditorMode {
 
 class CommandWithModifiers : public Command {
  public:
-  CommandWithModifiers(wstring name,
-                       wstring description,
+  CommandWithModifiers(wstring name, wstring description,
                        CommandWithModifiersHandler handler)
       : name_(name), description_(description), handler_(handler) {}
 
-  const wstring Description() {
-    return description_;
-  }
+  const wstring Description() { return description_; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (editor_state->has_current_buffer()) {
       editor_state->current_buffer()->second->set_mode(
-          std::make_unique<CommandWithModifiersMode>(
-              name_, editor_state, handler_));
+          std::make_unique<CommandWithModifiersMode>(name_, editor_state,
+                                                     handler_));
     }
   }
 
@@ -280,12 +277,10 @@ class CommandWithModifiers : public Command {
 }  // namespace
 
 std::unique_ptr<Command> NewCommandWithModifiers(
-    wstring name,
-    wstring description,
-    CommandWithModifiersHandler handler) {
+    wstring name, wstring description, CommandWithModifiersHandler handler) {
   return std::make_unique<CommandWithModifiers>(
       std::move(name), std::move(description), std::move(handler));
 }
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc

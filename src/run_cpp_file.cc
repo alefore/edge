@@ -15,12 +15,12 @@ namespace editor {
 namespace {
 class RunCppFileCommand : public Command {
  public:
-  const wstring Description() {
-    return L"runs a command from a file";
-  }
+  const wstring Description() { return L"runs a command from a file"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) { return; }
+    if (!editor_state->has_current_buffer()) {
+      return;
+    }
     auto buffer = editor_state->current_buffer()->second;
     PromptOptions options;
     options.prompt = L"cmd ";
@@ -36,7 +36,9 @@ class RunCppFileCommand : public Command {
 }  // namespace
 
 void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
-  if (!editor_state->has_current_buffer()) { return; }
+  if (!editor_state->has_current_buffer()) {
+    return;
+  }
   OpenBuffer* buffer = editor_state->current_buffer()->second.get();
   if (editor_state->structure() == LINE) {
     auto target = buffer->GetBufferFromCurrentLine().get();
@@ -67,5 +69,5 @@ std::unique_ptr<Command> NewRunCppFileCommand() {
   return std::make_unique<RunCppFileCommand>();
 }
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc

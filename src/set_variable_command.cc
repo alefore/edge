@@ -33,9 +33,13 @@ wstring TrimWhitespace(const wstring& in) {
 
 void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
   wstring name = TrimWhitespace(input_name);
-  if (name.empty()) { return; }
+  if (name.empty()) {
+    return;
+  }
 
-  if (!editor_state->has_current_buffer()) { return; }
+  if (!editor_state->has_current_buffer()) {
+    return;
+  }
   auto buffer = editor_state->current_buffer()->second;
   CHECK(buffer != nullptr);
   if (editor_state->modifiers().structure == LINE) {
@@ -53,14 +57,15 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
       options.prompt = name + L" := ";
       options.history_file = L"values";
       options.initial_value = buffer->read_string_variable(var);
-      options.handler =
-          [var, buffer](const wstring& input, EditorState*) {
-            if (buffer == nullptr) { return; }
-            buffer->set_string_variable(var, input);
-            // ResetMode causes the prompt to be deleted, and the captures of
-            // this lambda go away with it.
-            buffer->ResetMode();
-          };
+      options.handler = [var, buffer](const wstring& input, EditorState*) {
+        if (buffer == nullptr) {
+          return;
+        }
+        buffer->set_string_variable(var, input);
+        // ResetMode causes the prompt to be deleted, and the captures of
+        // this lambda go away with it.
+        buffer->ResetMode();
+      };
       options.cancel_handler = [](EditorState*) { /* Nothing. */ };
       options.predictor = var->predictor();
       Prompt(editor_state, std::move(options));
@@ -80,22 +85,21 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
     auto var = buffer_variables::IntStruct()->find_variable(name);
     if (var != nullptr) {
       PromptOptions options;
-      options.prompt = name + L" := ",
-      options.history_file = L"values",
+      options.prompt = name + L" := ", options.history_file = L"values",
       options.initial_value = std::to_wstring(buffer->Read(var));
-      options.handler =
-          [var, buffer](const wstring& input, EditorState* editor_state) {
-            try {
-              buffer->set_int_variable(var, stoi(input));
-            } catch (const std::invalid_argument& ia) {
-              editor_state->SetStatus(
-                  L"Invalid value for integer value “" + var->name() + L"”: " +
-                  FromByteString(ia.what()));
-            }
-            // ResetMode causes the prompt to be deleted, and the captures of
-            // this lambda go away with it.
-            buffer->ResetMode();
-          };
+      options.handler = [var, buffer](const wstring& input,
+                                      EditorState* editor_state) {
+        try {
+          buffer->set_int_variable(var, stoi(input));
+        } catch (const std::invalid_argument& ia) {
+          editor_state->SetStatus(L"Invalid value for integer value “" +
+                                  var->name() + L"”: " +
+                                  FromByteString(ia.what()));
+        }
+        // ResetMode causes the prompt to be deleted, and the captures of
+        // this lambda go away with it.
+        buffer->ResetMode();
+      };
       options.cancel_handler = [](EditorState*) { /* Nothing. */ };
       Prompt(editor_state, std::move(options));
       return;
@@ -105,25 +109,23 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
     auto var = buffer_variables::DoubleStruct()->find_variable(name);
     if (var != nullptr) {
       PromptOptions options;
-      options.prompt = name + L" := ",
-      options.history_file = L"values",
+      options.prompt = name + L" := ", options.history_file = L"values",
       options.initial_value = std::to_wstring(buffer->Read(var));
-      options.handler =
-          [var, buffer](const wstring& input, EditorState* editor_state) {
-            std::wstringstream ss(input);
-            double value;
-            ss >> value;
-            if (ss.eof() && !ss.fail()) {
-              buffer->set_double_variable(var, value);
-            } else {
-              editor_state->SetStatus(
-                  L"Invalid value for double value “" + var->name() + L"”: " +
-                  input);
-            }
-            // ResetMode causes the prompt to be deleted, and the captures of
-            // this lambda go away with it.
-            buffer->ResetMode();
-          };
+      options.handler = [var, buffer](const wstring& input,
+                                      EditorState* editor_state) {
+        std::wstringstream ss(input);
+        double value;
+        ss >> value;
+        if (ss.eof() && !ss.fail()) {
+          buffer->set_double_variable(var, value);
+        } else {
+          editor_state->SetStatus(L"Invalid value for double value “" +
+                                  var->name() + L"”: " + input);
+        }
+        // ResetMode causes the prompt to be deleted, and the captures of
+        // this lambda go away with it.
+        buffer->ResetMode();
+      };
       options.cancel_handler = [](EditorState*) { /* Nothing. */ };
       Prompt(editor_state, std::move(options));
       return;
@@ -154,5 +156,5 @@ unique_ptr<Command> NewSetVariableCommand() {
                               [options](EditorState*) { return options; });
 }
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc

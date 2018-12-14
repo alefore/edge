@@ -1,21 +1,21 @@
 #include "file_link_mode.h"
 
+#include <algorithm>
 #include <cstring>
 #include <memory>
-#include <string>
-#include <algorithm>
 #include <stdexcept>
+#include <string>
 #include <unordered_map>
 
 extern "C" {
 #include <dirent.h>
+#include <fcntl.h>
 #include <libgen.h>
 #include <limits.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
+#include <sys/types.h>
+#include <unistd.h>
 }
 
 #include <glog/logging.h>
@@ -37,22 +37,20 @@ namespace editor {
 namespace {
 using std::make_pair;
 using std::shared_ptr;
-using std::unique_ptr;
 using std::sort;
+using std::unique_ptr;
 
 void StartDeleteFile(EditorState* editor_state, wstring path) {
   PromptOptions options;
   options.prompt = L"unlink " + path + L"? [yes/no] ",
   options.history_file = L"confirmation";
-  options.handler = [path](const wstring input,
-                           EditorState* editor_state) {
+  options.handler = [path](const wstring input, EditorState* editor_state) {
     if (input == L"yes") {
       int result = unlink(ToByteString(path).c_str());
       editor_state->SetStatus(
-          path + L": unlink: "
-          + (result == 0
-             ? L"done"
-             : L"ERROR: " + FromByteString(strerror(errno))));
+          path + L": unlink: " +
+          (result == 0 ? L"done"
+                       : L"ERROR: " + FromByteString(strerror(errno))));
     } else {
       // TODO: insert it again?  Actually, only let it be erased
       // in the other case.
@@ -125,8 +123,8 @@ class FileBuffer : public OpenBuffer {
         return false;
       }
       if (mkdir(path_byte_string.c_str(), 0700)) {
-        editor_->SetStatus(
-            L"mkdir: " + FromByteString(strerror(errno)) + L": " + path);
+        editor_->SetStatus(L"mkdir: " + FromByteString(strerror(errno)) +
+                           L": " + path);
         return false;
       }
     }
@@ -137,24 +135,23 @@ class FileBuffer : public OpenBuffer {
     contents.push_back(L"// State of file: " + path);
     contents.push_back(L"");
 
-    contents.push_back(
-        L"buffer.set_position(" + position().ToCppString() + L");");
+    contents.push_back(L"buffer.set_position(" + position().ToCppString() +
+                       L");");
     contents.push_back(L"");
 
     contents.push_back(L"// String variables");
     for (const auto& variable : buffer_variables::StringStruct()->variables()) {
       contents.push_back(
           L"buffer.set_" + variable.first + L"(\"" +
-          CppEscapeString(read_string_variable(variable.second.get()))
-          + L"\");");
+          CppEscapeString(read_string_variable(variable.second.get())) +
+          L"\");");
     }
     contents.push_back(L"");
 
     contents.push_back(L"// Int variables");
     for (const auto& variable : buffer_variables::IntStruct()->variables()) {
-      contents.push_back(
-          L"buffer.set_" + variable.first + L"(" +
-          std::to_wstring(Read(variable.second.get())) + L");");
+      contents.push_back(L"buffer.set_" + variable.first + L"(" +
+                         std::to_wstring(Read(variable.second.get())) + L");");
     }
     contents.push_back(L"");
 
@@ -162,8 +159,8 @@ class FileBuffer : public OpenBuffer {
     for (const auto& variable : buffer_variables::BoolStruct()->variables()) {
       contents.push_back(
           L"buffer.set_" + variable.first + L"(" +
-          (read_bool_variable(variable.second.get()) ? L"true" : L"false")
-          + L");");
+          (read_bool_variable(variable.second.get()) ? L"true" : L"false") +
+          L");");
     }
     contents.push_back(L"");
 
@@ -206,47 +203,43 @@ class FileBuffer : public OpenBuffer {
     set_bool_variable(buffer_variables::atomic_lines(), true);
     set_bool_variable(buffer_variables::allow_dirty_delete(), true);
     target->AppendToLastLine(editor_state,
-        NewCopyString(L"File listing: " + path));
+                             NewCopyString(L"File listing: " + path));
 
     DIR* dir = opendir(path_raw.c_str());
     if (dir == nullptr) {
       auto description =
           L"Unable to open directory: " + FromByteString(strerror(errno));
       editor_state->SetStatus(description);
-      target->AppendLine(
-          editor_state, shared_ptr<LazyString>(NewCopyString(description)));
+      target->AppendLine(editor_state,
+                         shared_ptr<LazyString>(NewCopyString(description)));
       return;
     }
     struct dirent* entry;
     while ((entry = readdir(dir)) != nullptr) {
       static std::unordered_map<int, wstring> types = {
-          { DT_BLK, L" (block dev)" },
-          { DT_CHR, L" (char dev)" },
-          { DT_DIR, L"/" },
-          { DT_FIFO, L" (named pipe)" },
-          { DT_LNK, L"@" },
-          { DT_REG, L"" },
-          { DT_SOCK, L" (unix sock)" }
-      };
+          {DT_BLK, L" (block dev)"},   {DT_CHR, L" (char dev)"}, {DT_DIR, L"/"},
+          {DT_FIFO, L" (named pipe)"}, {DT_LNK, L"@"},           {DT_REG, L""},
+          {DT_SOCK, L" (unix sock)"}};
       if (strcmp(entry->d_name, ".") == 0) {
         continue;  // Showing the link to itself is rather pointless.
       }
       auto type_it = types.find(entry->d_type);
       auto path = FromByteString(entry->d_name);
-      target->AppendLine(editor_state, shared_ptr<LazyString>(
-          NewCopyString(
+      target->AppendLine(
+          editor_state,
+          shared_ptr<LazyString>(NewCopyString(
               path + (type_it == types.end() ? L"" : type_it->second))));
 
       target->contents()->back()->environment()->Define(
-          L"EdgeLineDeleteHandler", vm::NewCallback(
-              std::function<void()>(
-                [editor_state, path]() {
-                  StartDeleteFile(editor_state, path);
-                })));
+          L"EdgeLineDeleteHandler",
+          vm::NewCallback(std::function<void()>([editor_state, path]() {
+            StartDeleteFile(editor_state, path);
+          })));
     }
     closedir(dir);
 
-    target->SortContents(1, target->contents()->size(),
+    target->SortContents(
+        1, target->contents()->size(),
         [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
           return *a->contents() < *b->contents();
         });
@@ -281,8 +274,8 @@ class FileBuffer : public OpenBuffer {
       CHECK(it.second != nullptr);
       if (it.second->read_bool_variable(
               buffer_variables::reload_on_buffer_write())) {
-        LOG(INFO) << "Write of " << path << " triggers reload: "
-                  << it.second->name();
+        LOG(INFO) << "Write of " << path
+                  << " triggers reload: " << it.second->name();
         it.second->Reload(editor_state);
       }
     }
@@ -290,9 +283,8 @@ class FileBuffer : public OpenBuffer {
   }
 
  private:
-  static bool SaveContentsToFile(
-      EditorState* editor_state,
-      const wstring& path, const BufferContents& contents) {
+  static bool SaveContentsToFile(EditorState* editor_state, const wstring& path,
+                                 const BufferContents& contents) {
     const string path_raw = ToByteString(path);
     const string tmp_path = path_raw + ".tmp";
 
@@ -308,13 +300,12 @@ class FileBuffer : public OpenBuffer {
     int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC,
                   original_stat.st_mode);
     if (fd == -1) {
-      editor_state->SetStatus(
-          FromByteString(tmp_path) + L": open failed: "
-          + FromByteString(strerror(errno)));
+      editor_state->SetStatus(FromByteString(tmp_path) + L": open failed: " +
+                              FromByteString(strerror(errno)));
       return false;
     }
-    bool result = SaveContentsToOpenFile(
-        editor_state, FromByteString(tmp_path), fd, contents);
+    bool result = SaveContentsToOpenFile(editor_state, FromByteString(tmp_path),
+                                         fd, contents);
     close(fd);
     if (!result) {
       return false;
@@ -322,30 +313,29 @@ class FileBuffer : public OpenBuffer {
 
     // TODO: Make this non-blocking?
     if (rename(tmp_path.c_str(), path_raw.c_str()) == -1) {
-      editor_state->SetStatus(
-          path + L": rename failed: " + FromByteString(strerror(errno)));
+      editor_state->SetStatus(path + L": rename failed: " +
+                              FromByteString(strerror(errno)));
       return false;
     }
 
     return true;
   }
 
-  static bool SaveContentsToOpenFile(
-      EditorState* editor_state, const wstring& path, int fd,
-      const BufferContents& contents) {
+  static bool SaveContentsToOpenFile(EditorState* editor_state,
+                                     const wstring& path, int fd,
+                                     const BufferContents& contents) {
     // TODO: It'd be significant more efficient to do fewer (bigger) writes.
-    return contents.ForEach(
-        [editor_state, fd, path](size_t position, const Line& line) {
-          string str = (position == 0 ? "" : "\n")
-              + ToByteString(line.ToString());
-          if (write(fd, str.c_str(), str.size()) == -1) {
-            editor_state->SetStatus(
-                path + L": write failed: " + std::to_wstring(fd) + L": "
-            + FromByteString(strerror(errno)));
-            return false;
-          }
-          return true;
-        });
+    return contents.ForEach([editor_state, fd, path](size_t position,
+                                                     const Line& line) {
+      string str = (position == 0 ? "" : "\n") + ToByteString(line.ToString());
+      if (write(fd, str.c_str(), str.size()) == -1) {
+        editor_state->SetStatus(path + L": write failed: " +
+                                std::to_wstring(fd) + L": " +
+                                FromByteString(strerror(errno)));
+        return false;
+      }
+      return true;
+    });
   }
 
   wstring GetPath() const {
@@ -372,10 +362,9 @@ static bool CanStatPath(const wstring& path) {
   return true;
 }
 
-bool FindPath(
-    EditorState* editor_state, vector<wstring> search_paths,
-    wstring path, std::function<bool(const wstring&)> validator,
-    wstring* resolved_path, LineColumn* position, wstring* pattern) {
+bool FindPath(EditorState* editor_state, vector<wstring> search_paths,
+              wstring path, std::function<bool(const wstring&)> validator,
+              wstring* resolved_path, LineColumn* position, wstring* pattern) {
   LineColumn position_dummy;
   if (position == nullptr) {
     position = &position_dummy;
@@ -386,8 +375,8 @@ bool FindPath(
     pattern = &pattern_dummy;
   }
 
-  if (find(search_paths.begin(), search_paths.end(), L"")
-          == search_paths.end()) {
+  if (find(search_paths.begin(), search_paths.end(), L"") ==
+      search_paths.end()) {
     search_paths.push_back(L"");
   }
 
@@ -396,15 +385,15 @@ bool FindPath(
     search_paths = {L""};
   }
   for (auto search_path_it = search_paths.begin();
-       search_path_it != search_paths.end();
-       ++search_path_it) {
+       search_path_it != search_paths.end(); ++search_path_it) {
     for (size_t str_end = path.size(); str_end != path.npos && str_end != 0;
          str_end = path.find_last_of(':', str_end - 1)) {
       wstring path_with_prefix =
-          *search_path_it
-          + (!search_path_it->empty() && *search_path_it->rbegin() != L'/'
-                 ? L"/" : L"")
-          + path.substr(0, str_end);
+          *search_path_it +
+          (!search_path_it->empty() && *search_path_it->rbegin() != L'/'
+               ? L"/"
+               : L"") +
+          path.substr(0, str_end);
 
       if (!validator(path_with_prefix)) {
         continue;
@@ -416,7 +405,9 @@ bool FindPath(
         while (str_end < path.size() && ':' == path[str_end]) {
           str_end++;
         }
-        if (str_end == path.size()) { break; }
+        if (str_end == path.size()) {
+          break;
+        }
         size_t next_str_end = path.find(':', str_end);
         const wstring arg = path.substr(str_end, next_str_end);
         if (i == 0 && arg.size() > 0 && arg[0] == '/') {
@@ -426,7 +417,9 @@ bool FindPath(
           size_t value;
           try {
             value = stoi(arg);
-            if (value > 0) {value--; }
+            if (value > 0) {
+              value--;
+            }
           } catch (const std::invalid_argument& ia) {
             LOG(INFO) << "stoi failed: invalid argument: " << arg;
             break;
@@ -437,7 +430,9 @@ bool FindPath(
           (i == 0 ? position->line : position->column) = value;
         }
         str_end = next_str_end;
-        if (str_end == path.npos) { break; }
+        if (str_end == path.npos) {
+          break;
+        }
       }
       *resolved_path = realpath_safe(path_with_prefix);
       VLOG(4) << "Resolved path: " << *resolved_path;
@@ -447,10 +442,9 @@ bool FindPath(
   return false;
 }
 
-static bool FindPath(
-    EditorState* editor_state, vector<wstring> search_paths,
-    const wstring& path, wstring* resolved_path, LineColumn* position,
-    wstring* pattern) {
+static bool FindPath(EditorState* editor_state, vector<wstring> search_paths,
+                     const wstring& path, wstring* resolved_path,
+                     LineColumn* position, wstring* pattern) {
   return FindPath(editor_state, search_paths, path, CanStatPath, resolved_path,
                   position, pattern);
 }
@@ -475,8 +469,8 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
   CHECK(it != editor_state->buffers()->end());
   CHECK(it->second != nullptr);
   it->second->set_bool_variable(buffer_variables::save_on_close(), true);
-  it->second->set_bool_variable(
-      buffer_variables::show_in_buffers_list(), false);
+  it->second->set_bool_variable(buffer_variables::show_in_buffers_list(),
+                                false);
   if (!editor_state->has_current_buffer()) {
     editor_state->set_current_buffer(it);
     editor_state->ScheduleRedraw();
@@ -491,12 +485,13 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
     LOG(INFO) << "No search paths buffer.";
     return;
   }
-  search_paths_buffer->ForEachLine(
-      [editor_state, output](wstring line) {
-        if (line.empty()) { return; }
-        output->push_back(editor_state->expand_path(line));
-        LOG(INFO) << "Pushed search path: " << output->back();
-      });
+  search_paths_buffer->ForEachLine([editor_state, output](wstring line) {
+    if (line.empty()) {
+      return;
+    }
+    output->push_back(editor_state->expand_path(line));
+    LOG(INFO) << "Pushed search path: " << output->back();
+  });
 }
 
 bool ResolvePath(ResolvePathOptions options) {
@@ -533,8 +528,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
             it->second->read_string_variable(buffer_variables::path());
         if (buffer_path.size() >= path.size() &&
             buffer_path.substr(buffer_path.size() - path.size()) == path &&
-            (buffer_path.size() == path.size() ||
-             path[0] == L'/' ||
+            (buffer_path.size() == path.size() || path[0] == L'/' ||
              buffer_path[buffer_path.size() - path.size() - 1] == L'/')) {
           buffer = it;
           return true;
@@ -542,8 +536,8 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
       }
       return false;
     };
-    if (FindPath(editor_state, {L""}, options.path, validator,
-                 &actual_path, &position, &pattern)) {
+    if (FindPath(editor_state, {L""}, options.path, validator, &actual_path,
+                 &position, &pattern)) {
       editor_state->set_current_buffer(buffer);
       buffer->second->set_position(position);
       // TODO: Apply pattern.
@@ -598,5 +592,5 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenAnonymousBuffer(
   return OpenFile(options);
 }
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc

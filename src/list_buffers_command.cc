@@ -40,15 +40,15 @@ class ListBuffersBuffer : public OpenBuffer {
         screen_value->user_value != nullptr) {
       auto screen = static_cast<Screen*>(screen_value->user_value.get());
       const size_t reserved_lines = 1;  // For the status.
-      screen_lines = static_cast<size_t>(max(size_t(0),
-                                             screen->lines() - reserved_lines));
+      screen_lines =
+          static_cast<size_t>(max(size_t(0), screen->lines() - reserved_lines));
     }
 
     vector<std::shared_ptr<OpenBuffer>> buffers_to_show;
     for (const auto& it : *editor_state->buffers()) {
-      if (!show_in_buffers_list
-          && !it.second->read_bool_variable(
-                  buffer_variables::show_in_buffers_list())) {
+      if (!show_in_buffers_list &&
+          !it.second->read_bool_variable(
+              buffer_variables::show_in_buffers_list())) {
         LOG(INFO) << "Skipping buffer (!show_in_buffers_list).";
         continue;
       }
@@ -71,9 +71,10 @@ class ListBuffersBuffer : public OpenBuffer {
     size_t sum_lines_to_show = 0;
     size_t buffers_with_context = 0;
     for (const auto& buffer : buffers_to_show) {
-      size_t value = 1 + static_cast<size_t>(
-          max(buffer->Read(buffer_variables::buffer_list_context_lines()),
-              0));
+      size_t value =
+          1 +
+          static_cast<size_t>(max(
+              buffer->Read(buffer_variables::buffer_list_context_lines()), 0));
       lines_to_show[buffer.get()] = value;
       sum_lines_to_show += value;
       buffers_with_context += value > 1 ? 1 : 0;
@@ -110,8 +111,8 @@ class ListBuffersBuffer : public OpenBuffer {
               NewCopyString(wstring(width - (name->size() + 1), L'─') + L"╮"));
         }
       }
-      if (target->contents()->size() == 1
-          && target->contents()->at(0)->size() == 0) {
+      if (target->contents()->size() == 1 &&
+          target->contents()->at(0)->size() == 0) {
         target->AppendToLastLine(editor_state, std::move(name));
       } else {
         target->AppendLine(editor_state, std::move(name));
@@ -149,9 +150,8 @@ class ListBuffersBuffer : public OpenBuffer {
       return make_pair(last, last);
     }
     size_t start = buffer.current_position_line();
-    start -= min(start,
-                 max(lines / 2,
-                     lines - min(lines, buffer.lines_size() - start)));
+    start -= min(
+        start, max(lines / 2, lines - min(lines, buffer.lines_size() - start)));
     size_t stop = min(buffer.lines_size(), start + lines);
     CHECK_LE(start, stop);
 
@@ -173,19 +173,17 @@ class ListBuffersBuffer : public OpenBuffer {
 
 class ListBuffersCommand : public Command {
  public:
-  const wstring Description() {
-    return L"lists all open buffers";
-  }
+  const wstring Description() { return L"lists all open buffers"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     auto it = editor_state->buffers()->insert(
         make_pair(OpenBuffer::kBuffersName, nullptr));
     editor_state->set_current_buffer(it.first);
     if (it.second) {
-      it.first->second =
-          std::make_unique<ListBuffersBuffer>(editor_state, OpenBuffer::kBuffersName);
-      it.first->second->set_bool_variable(
-          buffer_variables::reload_on_enter(), true);
+      it.first->second = std::make_unique<ListBuffersBuffer>(
+          editor_state, OpenBuffer::kBuffersName);
+      it.first->second->set_bool_variable(buffer_variables::reload_on_enter(),
+                                          true);
     }
     editor_state->ResetStatus();
     it.first->second->Reload(editor_state);
@@ -198,7 +196,9 @@ class ListBuffersCommand : public Command {
 
 }  // namespace
 
-std::unique_ptr<Command> NewListBuffersCommand() { return std::make_unique<ListBuffersCommand>(); }
+std::unique_ptr<Command> NewListBuffersCommand() {
+  return std::make_unique<ListBuffersCommand>();
+}
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc

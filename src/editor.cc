@@ -2,29 +2,29 @@
 
 #include <fstream>
 #include <iostream>
-#include <memory>
 #include <list>
-#include <string>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
+#include <string>
 
 extern "C" {
-#include <sys/types.h>
+#include <fcntl.h>
 #include <pwd.h>
 #include <signal.h>
+#include <sys/types.h>
 #include <unistd.h>
-#include <fcntl.h>
 }
 
 #include <glog/logging.h>
 
 #include "audio.h"
-#include "src/buffer_variables.h"
 #include "char_buffer.h"
 #include "dirname.h"
 #include "file_link_mode.h"
 #include "run_command_handler.h"
 #include "server.h"
+#include "src/buffer_variables.h"
 #include "substring.h"
 #include "transformation_delete.h"
 #include "vm/public/callbacks.h"
@@ -46,9 +46,13 @@ using std::wstring;
 
 static wstring GetHomeDirectory() {
   char* env = getenv("HOME");
-  if (env != nullptr) { return FromByteString(env); }
+  if (env != nullptr) {
+    return FromByteString(env);
+  }
   struct passwd* entry = getpwuid(getuid());
-  if (entry != nullptr) { return FromByteString(entry->pw_dir); }
+  if (entry != nullptr) {
+    return FromByteString(entry->pw_dir);
+  }
   return L"/";  // What else?
 }
 
@@ -72,26 +76,26 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
                           void (OpenBuffer::*method)(void)) {
   auto callback = std::make_unique<Value>(VMType::FUNCTION);
   // Returns nothing.
-  callback->type.type_arguments =
-      { VMType(VMType::VM_VOID), VMType::ObjectType(editor_type) };
-  callback->callback =
-      [method](vector<unique_ptr<Value>> args, Trampoline* trampoline) {
-        CHECK_EQ(args.size(), size_t(1));
-        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+  callback->type.type_arguments = {VMType(VMType::VM_VOID),
+                                   VMType::ObjectType(editor_type)};
+  callback->callback = [method](vector<unique_ptr<Value>> args,
+                                Trampoline* trampoline) {
+    CHECK_EQ(args.size(), size_t(1));
+    CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
 
-        auto editor = static_cast<EditorState*>(args[0]->user_value.get());
-        CHECK(editor != nullptr);
+    auto editor = static_cast<EditorState*>(args[0]->user_value.get());
+    CHECK(editor != nullptr);
 
-        if (editor->has_current_buffer()) {
-          auto buffer = editor->current_buffer()->second;
-          CHECK(buffer != nullptr);
+    if (editor->has_current_buffer()) {
+      auto buffer = editor->current_buffer()->second;
+      CHECK(buffer != nullptr);
 
-          (*buffer.*method)();
-          editor->ResetModifiers();
-          editor->ScheduleRedraw();
-        }
-        trampoline->Return(Value::NewVoid());
-      };
+      (*buffer.*method)();
+      editor->ResetModifiers();
+      editor->ScheduleRedraw();
+    }
+    trampoline->Return(Value::NewVoid());
+  };
   editor_type->AddField(name, std::move(callback));
 }
 }  // namespace
@@ -109,135 +113,157 @@ Environment EditorState::BuildEditorEnvironment() {
   auto editor_type = std::make_unique<ObjectType>(L"Editor");
 
   // Methods for Editor.
-  editor_type->AddField(L"ReloadCurrentBuffer", Value::NewFunction(
-      { VMType(VMType::VM_VOID), VMType::ObjectType(editor_type.get()) },
-      [](vector<unique_ptr<Value>> args) {
-        CHECK_EQ(args.size(), size_t(1));
-        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+  editor_type->AddField(
+      L"ReloadCurrentBuffer",
+      Value::NewFunction(
+          {VMType(VMType::VM_VOID), VMType::ObjectType(editor_type.get())},
+          [](vector<unique_ptr<Value>> args) {
+            CHECK_EQ(args.size(), size_t(1));
+            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
 
-        auto editor = static_cast<EditorState*>(args[0]->user_value.get());
-        CHECK(editor != nullptr);
+            auto editor = static_cast<EditorState*>(args[0]->user_value.get());
+            CHECK(editor != nullptr);
 
-        if (!editor->has_current_buffer()) { return Value::NewVoid(); }
-        auto buffer = editor->current_buffer()->second;
-        CHECK(buffer != nullptr);
+            if (!editor->has_current_buffer()) {
+              return Value::NewVoid();
+            }
+            auto buffer = editor->current_buffer()->second;
+            CHECK(buffer != nullptr);
 
-        if (editor->structure() == LINE) {
-          auto target_buffer = buffer->GetBufferFromCurrentLine();
-          if (target_buffer != nullptr) {
-            buffer = target_buffer;
-          }
-        }
-        buffer->Reload(editor);
-        editor->ResetModifiers();
-        return Value::NewVoid();
-      }));
+            if (editor->structure() == LINE) {
+              auto target_buffer = buffer->GetBufferFromCurrentLine();
+              if (target_buffer != nullptr) {
+                buffer = target_buffer;
+              }
+            }
+            buffer->Reload(editor);
+            editor->ResetModifiers();
+            return Value::NewVoid();
+          }));
 
-  editor_type->AddField(L"SaveCurrentBuffer", Value::NewFunction(
-      { VMType(VMType::VM_VOID), VMType::ObjectType(editor_type.get()) },
-      [](vector<unique_ptr<Value>> args) {
-        CHECK_EQ(args.size(), size_t(1));
-        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+  editor_type->AddField(
+      L"SaveCurrentBuffer",
+      Value::NewFunction(
+          {VMType(VMType::VM_VOID), VMType::ObjectType(editor_type.get())},
+          [](vector<unique_ptr<Value>> args) {
+            CHECK_EQ(args.size(), size_t(1));
+            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
 
-        auto editor = static_cast<EditorState*>(args[0]->user_value.get());
-        CHECK(editor != nullptr);
+            auto editor = static_cast<EditorState*>(args[0]->user_value.get());
+            CHECK(editor != nullptr);
 
-        if (!editor->has_current_buffer()) { return Value::NewVoid(); }
-        auto buffer = editor->current_buffer()->second;
-        CHECK(buffer != nullptr);
+            if (!editor->has_current_buffer()) {
+              return Value::NewVoid();
+            }
+            auto buffer = editor->current_buffer()->second;
+            CHECK(buffer != nullptr);
 
-        if (editor->structure() == LINE) {
-          auto target_buffer = buffer->GetBufferFromCurrentLine();
-          if (target_buffer != nullptr) {
-            buffer = target_buffer;
-          }
-        }
-        buffer->Save(editor);
-        editor->ResetModifiers();
-        return Value::NewVoid();
-      }));
+            if (editor->structure() == LINE) {
+              auto target_buffer = buffer->GetBufferFromCurrentLine();
+              if (target_buffer != nullptr) {
+                buffer = target_buffer;
+              }
+            }
+            buffer->Save(editor);
+            editor->ResetModifiers();
+            return Value::NewVoid();
+          }));
 
   // A callback to return the current buffer. This is needed so that at a time
   // when there's no current buffer (i.e. EditorState is being created) we can
   // still compile code that will depend (at run time) on getting the current
   // buffer. Otherwise we could just use the "buffer" variable (that is declared
   // in the environment of each buffer).
-  environment.Define(L"CurrentBuffer", Value::NewFunction(
-      { VMType::ObjectType(L"Buffer") },
-      [this](vector<unique_ptr<Value>> args) {
-        CHECK_EQ(args.size(), size_t(0));
-        auto buffer = current_buffer()->second;
-        CHECK(buffer != nullptr);
-        if (structure() == LINE) {
-          auto target_buffer = buffer->GetBufferFromCurrentLine();
-          ResetStructure();
-          if (target_buffer != nullptr) {
-            buffer = target_buffer;
-          }
+  environment.Define(
+      L"CurrentBuffer",
+      Value::NewFunction({VMType::ObjectType(L"Buffer")},
+                         [this](vector<unique_ptr<Value>> args) {
+                           CHECK_EQ(args.size(), size_t(0));
+                           auto buffer = current_buffer()->second;
+                           CHECK(buffer != nullptr);
+                           if (structure() == LINE) {
+                             auto target_buffer =
+                                 buffer->GetBufferFromCurrentLine();
+                             ResetStructure();
+                             if (target_buffer != nullptr) {
+                               buffer = target_buffer;
+                             }
+                           }
+                           return Value::NewObject(L"Buffer", buffer);
+                         }));
+
+  environment.Define(L"ProcessInput", vm::NewCallback(std::function<void(int)>(
+                                          [this](int c) { ProcessInput(c); })));
+
+  environment.Define(
+      L"ConnectTo",
+      vm::NewCallback(std::function<void(wstring)>(
+          [this](wstring target) { OpenServerBuffer(this, target); })));
+
+  environment.Define(L"SetStatus", vm::NewCallback(std::function<void(wstring)>(
+                                       [this](wstring s) { SetStatus(s); })));
+
+  environment.Define(
+      L"ScheduleRedraw",
+      vm::NewCallback(std::function<void()>([this]() { ScheduleRedraw(); })));
+
+  environment.Define(
+      L"set_screen_needs_hard_redraw",
+      vm::NewCallback(std::function<void(bool)>(
+          [this](bool value) { set_screen_needs_hard_redraw(value); })));
+
+  environment.Define(L"set_terminate",
+                     vm::NewCallback(std::function<void(bool)>(
+                         [this](bool value) { terminate_ = value; })));
+
+  environment.Define(
+      L"SetPositionColumn",
+      vm::NewCallback(std::function<void(int)>([this](int value) {
+        if (!has_current_buffer()) {
+          return;
         }
-        return Value::NewObject(L"Buffer", buffer);
-      }));
-
-  environment.Define(L"ProcessInput", vm::NewCallback(
-      std::function<void(int)>([this](int c) { ProcessInput(c); })));
-
-  environment.Define(L"ConnectTo", vm::NewCallback(
-      std::function<void(wstring)>([this](wstring target) {
-        OpenServerBuffer(this, target);
+        auto buffer = current_buffer()->second;
+        buffer->set_position(LineColumn(buffer->position().line, value));
       })));
 
-  environment.Define(L"SetStatus", vm::NewCallback(
-      std::function<void(wstring)>([this](wstring s) { SetStatus(s); })));
-
-  environment.Define(L"ScheduleRedraw", vm::NewCallback(
-      std::function<void()>([this]() { ScheduleRedraw(); })));
-
-  environment.Define(L"set_screen_needs_hard_redraw", vm::NewCallback(
-      std::function<void(bool)>([this](bool value) {
-        set_screen_needs_hard_redraw(value);
-      })));
-
-  environment.Define(L"set_terminate", vm::NewCallback(
-      std::function<void(bool)>([this](bool value) { terminate_ = value; })));
-
-  environment.Define(L"SetPositionColumn", vm::NewCallback(
-      std::function<void(int)>(
-          [this](int value) {
-            if (!has_current_buffer()) { return; }
-            auto buffer = current_buffer()->second;
-            buffer->set_position(LineColumn(buffer->position().line, value));
-          })));
-
-  environment.Define(L"Line", vm::NewCallback(
-      std::function<wstring(void)>([this]() -> wstring {
-        if (!has_current_buffer()) { return L""; }
+  environment.Define(
+      L"Line",
+      vm::NewCallback(std::function<wstring(void)>([this]() -> wstring {
+        if (!has_current_buffer()) {
+          return L"";
+        }
         auto buffer = current_buffer()->second;
         return buffer->current_line()->ToString();
       })));
 
-  environment.Define(L"ForkCommand", Value::NewFunction(
-      { VMType::ObjectType(L"Buffer"), VMType::VM_STRING, VMType::VM_BOOLEAN },
-      [this](vector<Value::Ptr> args) {
-        CHECK_EQ(args.size(), 2u);
-        CHECK_EQ(args[0]->type, VMType::VM_STRING);
-        ForkCommandOptions options;
-        options.command = args[0]->str;
-        options.enter = args[1]->boolean;
-        return Value::NewObject(L"Buffer", ForkCommand(this, options));
-      }));
+  environment.Define(
+      L"ForkCommand",
+      Value::NewFunction({VMType::ObjectType(L"Buffer"), VMType::VM_STRING,
+                          VMType::VM_BOOLEAN},
+                         [this](vector<Value::Ptr> args) {
+                           CHECK_EQ(args.size(), 2u);
+                           CHECK_EQ(args[0]->type, VMType::VM_STRING);
+                           ForkCommandOptions options;
+                           options.command = args[0]->str;
+                           options.enter = args[1]->boolean;
+                           return Value::NewObject(L"Buffer",
+                                                   ForkCommand(this, options));
+                         }));
 
-  environment.Define(L"OpenFile", Value::NewFunction(
-      { VMType::ObjectType(L"Buffer"), VMType(VMType::VM_STRING) },
-      [this](vector<unique_ptr<Value>> args) {
-        CHECK_EQ(args.size(), size_t(1));
-        CHECK_EQ(args[0]->type, VMType::VM_STRING);
-        OpenFileOptions options;
-        options.editor_state = this;
-        options.path = args[0]->str;
-        set_current_buffer(OpenFile(options));
-        ScheduleRedraw();
-        return Value::NewObject(L"Buffer", current_buffer()->second);
-      }));
+  environment.Define(
+      L"OpenFile",
+      Value::NewFunction(
+          {VMType::ObjectType(L"Buffer"), VMType(VMType::VM_STRING)},
+          [this](vector<unique_ptr<Value>> args) {
+            CHECK_EQ(args.size(), size_t(1));
+            CHECK_EQ(args[0]->type, VMType::VM_STRING);
+            OpenFileOptions options;
+            options.editor_state = this;
+            options.path = args[0]->str;
+            set_current_buffer(OpenFile(options));
+            ScheduleRedraw();
+            return Value::NewObject(L"Buffer", current_buffer()->second);
+          }));
 
   RegisterBufferMethod(editor_type.get(), L"ToggleActiveCursors",
                        &OpenBuffer::ToggleActiveCursors);
@@ -257,8 +283,9 @@ Environment EditorState::BuildEditorEnvironment() {
                        &OpenBuffer::RepeatLastTransformation);
   environment.DefineType(L"Editor", std::move(editor_type));
 
-  environment.Define(L"editor", Value::NewObject(
-      L"Editor", shared_ptr<void>(this, [](void*){})));
+  environment.Define(
+      L"editor",
+      Value::NewObject(L"Editor", shared_ptr<void>(this, [](void*) {})));
 
   OpenBuffer::RegisterBufferType(this, &environment);
   return environment;
@@ -380,7 +407,9 @@ void EditorState::UpdateBuffers() {
 
 void EditorState::MoveBufferForwards(size_t times) {
   if (current_buffer_ == buffers_.end()) {
-    if (buffers_.empty()) { return; }
+    if (buffers_.empty()) {
+      return;
+    }
     current_buffer_ = buffers_.begin();
   }
   times = times % buffers_.size();
@@ -396,7 +425,9 @@ void EditorState::MoveBufferForwards(size_t times) {
 
 void EditorState::MoveBufferBackwards(size_t times) {
   if (current_buffer_ == buffers_.end()) {
-    if (buffers_.empty()) { return; }
+    if (buffers_.empty()) {
+      return;
+    }
     current_buffer_ = buffers_.end();
     current_buffer_--;
   }
@@ -440,9 +471,9 @@ void EditorState::PushCurrentPosition() {
 }
 
 void EditorState::PushPosition(LineColumn position) {
-  if (!has_current_buffer()
-      || !current_buffer_->second->read_bool_variable(
-              buffer_variables::push_positions_to_history())) {
+  if (!has_current_buffer() ||
+      !current_buffer_->second->read_bool_variable(
+          buffer_variables::push_positions_to_history())) {
     return;
   }
   auto buffer_it = buffers_.find(kPositionsBufferName);
@@ -456,8 +487,8 @@ void EditorState::PushPosition(LineColumn position) {
     buffer_it = OpenFile(options);
     CHECK(buffer_it != buffers()->end());
     CHECK(buffer_it->second != nullptr);
-    buffer_it->second->set_bool_variable(
-        buffer_variables::save_on_close(), true);
+    buffer_it->second->set_bool_variable(buffer_variables::save_on_close(),
+                                         true);
     buffer_it->second->set_bool_variable(
         buffer_variables::show_in_buffers_list(), false);
   }
@@ -466,8 +497,8 @@ void EditorState::PushPosition(LineColumn position) {
            buffer_it->second->contents()->size());
   buffer_it->second->InsertLine(
       buffer_it->second->current_position_line(),
-      std::make_shared<Line>(
-          position.ToString() + L" " + current_buffer_->first));
+      std::make_shared<Line>(position.ToString() + L" " +
+                             current_buffer_->first));
   CHECK_LE(buffer_it->second->position().line,
            buffer_it->second->contents()->size());
   if (buffer_it == current_buffer_) {
@@ -488,7 +519,9 @@ void EditorState::SetStatus(const wstring& status) {
   LOG(INFO) << "SetStatus: " << status;
   status_ = status;
   is_status_warning_ = false;
-  if (status_prompt_ || status.empty()) { return; }
+  if (status_prompt_ || status.empty()) {
+    return;
+  }
   auto status_buffer_it = buffers_.insert(make_pair(L"- console", nullptr));
   if (status_buffer_it.second) {
     // Inserted the entry.
@@ -499,8 +532,7 @@ void EditorState::SetStatus(const wstring& status) {
     status_buffer_it.first->second->set_bool_variable(
         buffer_variables::show_in_buffers_list(), false);
   }
-  status_buffer_it.first->second
-      ->AppendLazyString(this, NewCopyString(status));
+  status_buffer_it.first->second->AppendLazyString(this, NewCopyString(status));
   if (current_buffer_ == status_buffer_it.first) {
     ScheduleRedraw();
   }
@@ -564,7 +596,9 @@ wstring EditorState::expand_path(const wstring& path) {
 }
 
 void EditorState::ProcessSignals() {
-  if (pending_signals_.empty()) { return; }
+  if (pending_signals_.empty()) {
+    return;
+  }
   vector<int> signals;
   signals.swap(pending_signals_);
   for (int signal : signals) {

@@ -23,8 +23,7 @@ class NavigationBuffer : public OpenBuffer {
  public:
   NavigationBuffer(EditorState* editor_state, wstring name,
                    std::shared_ptr<OpenBuffer> source)
-      : OpenBuffer(editor_state, std::move(name)),
-        source_(source) {
+      : OpenBuffer(editor_state, std::move(name)), source_(source) {
     editor_state->StartHandlingInterrupts();
     set_bool_variable(buffer_variables::show_in_buffers_list(), false);
     set_bool_variable(buffer_variables::push_positions_to_history(), false);
@@ -47,8 +46,8 @@ class NavigationBuffer : public OpenBuffer {
 
     auto tree = source->simplified_parse_tree();
     if (tree == nullptr) {
-      target->AppendToLastLine(
-          editor_state, NewCopyString(L"Target has no tree."));
+      target->AppendToLastLine(editor_state,
+                               NewCopyString(L"Target has no tree."));
       return;
     }
 
@@ -63,13 +62,12 @@ class NavigationBuffer : public OpenBuffer {
 
  private:
   void DisplayTree(EditorState* editor_state,
-                   const std::shared_ptr<OpenBuffer>& source,
-                   size_t depth_left, const ParseTree& tree,
-                   std::shared_ptr<LazyString> padding, OpenBuffer* target) {
+                   const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
+                   const ParseTree& tree, std::shared_ptr<LazyString> padding,
+                   OpenBuffer* target) {
     for (auto& child : tree.children) {
       if (child.range.begin.line + 1 == child.range.end.line ||
-          depth_left == 0 ||
-          child.children.empty()) {
+          depth_left == 0 || child.children.empty()) {
         Line::Options options;
         options.contents = padding;
         options.modifiers.resize(padding->size());
@@ -98,8 +96,8 @@ class NavigationBuffer : public OpenBuffer {
 
   void AppendLine(EditorState* editor_state,
                   const std::shared_ptr<OpenBuffer>& source,
-                  std::shared_ptr<LazyString> padding,
-                  LineColumn position, OpenBuffer* target) {
+                  std::shared_ptr<LazyString> padding, LineColumn position,
+                  OpenBuffer* target) {
     Line::Options options;
     options.contents = padding;
     options.modifiers.resize(padding->size());
@@ -108,11 +106,11 @@ class NavigationBuffer : public OpenBuffer {
     AdjustLastLine(target, source, position);
   }
 
-  void AddContents(const std::shared_ptr<OpenBuffer>& source,
-                   const Line& input, Line::Options* line_options) {
+  void AddContents(const std::shared_ptr<OpenBuffer>& source, const Line& input,
+                   Line::Options* line_options) {
     auto trim = StringTrimLeft(input.contents(),
-        source->read_string_variable(
-            buffer_variables::line_prefix_characters()));
+                               source->read_string_variable(
+                                   buffer_variables::line_prefix_characters()));
     CHECK_LE(trim->size(), input.contents()->size());
     size_t characters_trimmed = input.contents()->size() - trim->size();
     size_t initial_length = line_options->contents->size();
@@ -157,10 +155,10 @@ class NavigationBufferCommand : public Command {
     auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
     editor_state->set_current_buffer(it.first);
     if (it.second) {
-      it.first->second = std::make_shared<NavigationBuffer>(
-          editor_state, name, std::move(source));
-      it.first->second->set_bool_variable(
-          buffer_variables::reload_on_enter(), true);
+      it.first->second = std::make_shared<NavigationBuffer>(editor_state, name,
+                                                            std::move(source));
+      it.first->second->set_bool_variable(buffer_variables::reload_on_enter(),
+                                          true);
     }
     editor_state->ResetStatus();
     it.first->second->Reload(editor_state);
@@ -176,5 +174,5 @@ std::unique_ptr<Command> NewNavigationBufferCommand() {
   return std::make_unique<NavigationBufferCommand>();
 }
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc

@@ -31,8 +31,8 @@ namespace {
 using namespace afc::editor;
 
 class NewLineTransformation : public Transformation {
-  void Apply(EditorState* editor_state, OpenBuffer* buffer, Result* result)
-      const override {
+  void Apply(EditorState* editor_state, OpenBuffer* buffer,
+             Result* result) const override {
     buffer->AdjustLineColumn(&result->cursor);
     const size_t column = result->cursor.column;
     auto line = buffer->LineAt(result->cursor.line);
@@ -41,9 +41,8 @@ class NewLineTransformation : public Transformation {
       return;
     }
 
-    if (buffer->read_bool_variable(buffer_variables::atomic_lines())
-        && column != 0
-        && column != line->size()) {
+    if (buffer->read_bool_variable(buffer_variables::atomic_lines()) &&
+        column != 0 && column != line->size()) {
       result->made_progress = false;
       return;
     }
@@ -51,18 +50,18 @@ class NewLineTransformation : public Transformation {
     const wstring& line_prefix_characters(buffer->read_string_variable(
         buffer_variables::line_prefix_characters()));
     size_t prefix_end = 0;
-    if (line != nullptr
-        && !buffer->read_bool_variable(buffer_variables::paste_mode())) {
-      while (prefix_end < column
-             && (line_prefix_characters.find(line->get(prefix_end))
-                 != line_prefix_characters.npos)) {
+    if (line != nullptr &&
+        !buffer->read_bool_variable(buffer_variables::paste_mode())) {
+      while (prefix_end < column &&
+             (line_prefix_characters.find(line->get(prefix_end)) !=
+              line_prefix_characters.npos)) {
         prefix_end++;
       }
     }
 
     auto continuation_line = std::make_shared<Line>(*line);
-    continuation_line->DeleteCharacters(
-        prefix_end, continuation_line->size() - prefix_end);
+    continuation_line->DeleteCharacters(prefix_end,
+                                        continuation_line->size() - prefix_end);
 
     auto transformation = std::make_unique<TransformationStack>();
     {
@@ -90,8 +89,8 @@ class InsertEmptyLineTransformation : public Transformation {
  public:
   InsertEmptyLineTransformation(Direction direction) : direction_(direction) {}
 
-  void Apply(
-      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
+  void Apply(EditorState* editor_state, OpenBuffer* buffer,
+             Result* result) const {
     if (direction_ == BACKWARDS) {
       result->cursor.line++;
     }
@@ -99,7 +98,7 @@ class InsertEmptyLineTransformation : public Transformation {
     buffer->AdjustLineColumn(&result->cursor);
     return ComposeTransformation(std::make_unique<NewLineTransformation>(),
                                  NewGotoPositionTransformation(result->cursor))
-               ->Apply(editor_state, buffer, result);
+        ->Apply(editor_state, buffer, result);
   }
 
   std::unique_ptr<Transformation> Clone() {
@@ -133,9 +132,8 @@ class AutocompleteMode : public EditorMode {
       : options_(std::move(options)),
         matches_current_(options_.matches_start),
         word_length_(options_.column_end - options_.column_start),
-        original_text_(
-            options_.buffer->LineAt(options_.buffer->position().line)
-                ->Substring(options_.column_start, word_length_)) {}
+        original_text_(options_.buffer->LineAt(options_.buffer->position().line)
+                           ->Substring(options_.column_start, word_length_)) {}
 
   void DrawCurrentMatch(EditorState* editor_state) {
     wstring status;
@@ -150,15 +148,15 @@ class AutocompleteMode : public EditorMode {
       if (start + i > matches_current_) {
         number_prefix = std::to_wstring(start + i - matches_current_) + L":";
       }
-      status += wstring(status.empty() ? L"" : L" ")
-          + wstring(is_current ? L"[" : L"")
-          + number_prefix
-          + options_.dictionary->LineAt(start + i)->ToString()
-          + wstring(is_current ? L"]" : L"");
+      status += wstring(status.empty() ? L"" : L" ") +
+                wstring(is_current ? L"[" : L"") + number_prefix +
+                options_.dictionary->LineAt(start + i)->ToString() +
+                wstring(is_current ? L"]" : L"");
     }
     editor_state->SetStatus(status);
 
-    ReplaceCurrentText(editor_state,
+    ReplaceCurrentText(
+        editor_state,
         options_.dictionary->LineAt(matches_current_)->contents());
   }
 
@@ -221,25 +219,24 @@ class AutocompleteMode : public EditorMode {
   }
 
  private:
-  void ReplaceCurrentText(
-      EditorState* editor_state, std::shared_ptr<LazyString> insert) {
+  void ReplaceCurrentText(EditorState* editor_state,
+                          std::shared_ptr<LazyString> insert) {
     auto buffer_to_insert =
         std::make_shared<OpenBuffer>(editor_state, L"tmp buffer");
     buffer_to_insert->AppendToLastLine(editor_state, insert);
     DLOG(INFO) << "Completion selected: " << buffer_to_insert->ToString()
-               << " (len: " << insert->size() << ", word_length: "
-               << word_length_ << ").";
+               << " (len: " << insert->size()
+               << ", word_length: " << word_length_ << ").";
     DeleteOptions delete_options;
     delete_options.modifiers.repetitions = word_length_;
     delete_options.copy_to_paste_buffer = false;
     // TODO: Somewhat wrong. Should find the autocompletion for each position.
     // Also, should apply the deletions/insertions at the right positions.
-    options_.buffer->ApplyToCursors(
-        TransformationAtPosition(
-            LineColumn(options_.buffer->position().line, options_.column_start),
-            ComposeTransformation(
-                NewDeleteCharactersTransformation(delete_options),
-                NewInsertBufferTransformation(buffer_to_insert, 1, END))));
+    options_.buffer->ApplyToCursors(TransformationAtPosition(
+        LineColumn(options_.buffer->position().line, options_.column_start),
+        ComposeTransformation(
+            NewDeleteCharactersTransformation(delete_options),
+            NewInsertBufferTransformation(buffer_to_insert, 1, END))));
 
     editor_state->ScheduleRedraw();
     word_length_ = insert->size();
@@ -263,8 +260,8 @@ class JumpTransformation : public Transformation {
  public:
   JumpTransformation(Direction direction) : direction_(direction) {}
 
-  void Apply(EditorState* editor_state, OpenBuffer* buffer, Result* result)
-      const override {
+  void Apply(EditorState* editor_state, OpenBuffer* buffer,
+             Result* result) const override {
     CHECK(result);
     if (buffer->LineAt(result->cursor.line) == nullptr) {
       result->made_progress = false;
@@ -279,8 +276,8 @@ class JumpTransformation : public Transformation {
         position.column = 0;
         break;
     }
-    NewGotoPositionTransformation(position)
-        ->Apply(editor_state, buffer, result);
+    NewGotoPositionTransformation(position)->Apply(editor_state, buffer,
+                                                   result);
     // TODO: This probabily doesn't belong here.
     if (buffer->active_cursors()->size() > 1) {
       editor_state->ScheduleRedraw();
@@ -358,9 +355,9 @@ void FindCompletion(EditorState* editor_state,
 
   if (dictionary->contents()->size() <= 1) {
     static std::vector<wstring> errors({
-      L"No completions are available.",
-      L"The autocomplete dictionary is empty.",
-      L"Maybe set the `dictionary` variable?",
+        L"No completions are available.",
+        L"The autocomplete dictionary is empty.",
+        L"Maybe set the `dictionary` variable?",
     });
     editor_state->SetStatus(errors[rand() % errors.size()]);
     return;
@@ -377,11 +374,11 @@ void FindCompletion(EditorState* editor_state,
   } else {
     options.column_start++;
   }
-  LOG(INFO) << "Positions: start: " << options.column_start << ", end: "
-            << options.column_end;
-  options.prefix = std::make_shared<const Line>(Line::Options(NewCopyString(
-      line.substr(options.column_start,
-                  options.column_end - options.column_start))));
+  LOG(INFO) << "Positions: start: " << options.column_start
+            << ", end: " << options.column_end;
+  options.prefix =
+      std::make_shared<const Line>(Line::Options(NewCopyString(line.substr(
+          options.column_start, options.column_end - options.column_start))));
 
   options.delegate = buffer->ResetMode();
   options.dictionary = dictionary;
@@ -406,37 +403,36 @@ void FindCompletion(EditorState* editor_state,
       std::move(autocomplete_mode));
 }
 
-void StartCompletionFromDictionary(
-    EditorState* editor_state, std::shared_ptr<OpenBuffer> buffer,
-    wstring path) {
+void StartCompletionFromDictionary(EditorState* editor_state,
+                                   std::shared_ptr<OpenBuffer> buffer,
+                                   wstring path) {
   OpenFileOptions options;
   options.path = path;
   DCHECK(!options.path.empty());
   options.editor_state = editor_state;
   options.make_current_buffer = false;
   auto file = OpenFile(options);
-  file->second->set_bool_variable(
-      buffer_variables::show_in_buffers_list(), false);
+  file->second->set_bool_variable(buffer_variables::show_in_buffers_list(),
+                                  false);
   LOG(INFO) << "Loading dictionary.";
   std::weak_ptr<OpenBuffer> weak_dictionary = file->second;
   std::weak_ptr<OpenBuffer> weak_buffer = buffer;
-  file->second->AddEndOfFileObserver(
-      [editor_state, weak_buffer, weak_dictionary]() {
-        FindCompletion(
-            editor_state, weak_buffer.lock(), weak_dictionary.lock());
-      });
+  file->second->AddEndOfFileObserver([editor_state, weak_buffer,
+                                      weak_dictionary]() {
+    FindCompletion(editor_state, weak_buffer.lock(), weak_dictionary.lock());
+  });
 }
 
 void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
-                   std::set<wstring>* words) {
+                    std::set<wstring>* words) {
   DCHECK(words != nullptr);
   if (tree.children.empty() && tree.range.begin.line == tree.range.end.line) {
     CHECK_LE(tree.range.begin.column, tree.range.end.column);
     auto line = buffer.LineAt(tree.range.begin.line);
     CHECK_LE(tree.range.end.column, line->size());
-    auto word = line->Substring(
-        tree.range.begin.column, tree.range.end.column
-            - tree.range.begin.column)->ToString();
+    auto word = line->Substring(tree.range.begin.column,
+                                tree.range.end.column - tree.range.begin.column)
+                    ->ToString();
     if (!word.empty()) {
       DVLOG(5) << "Found leave: " << word;
       words->insert(word);
@@ -476,12 +472,12 @@ bool StartCompletion(EditorState* editor_state,
 
 class FindCompletionCommand : public Command {
  public:
-  const wstring Description() {
-    return L"Autocompletes the current word.";
-  }
+  const wstring Description() { return L"Autocompletes the current word."; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) { return; }
+    if (!editor_state->has_current_buffer()) {
+      return;
+    }
     auto buffer = editor_state->current_buffer()->second;
     StartCompletion(editor_state, buffer);
   }
@@ -489,8 +485,7 @@ class FindCompletionCommand : public Command {
 
 class InsertMode : public EditorMode {
  public:
-  InsertMode(InsertModeOptions options)
-      : options_(std::move(options)) {
+  InsertMode(InsertModeOptions options) : options_(std::move(options)) {
     CHECK(options_.escape_handler);
   }
 
@@ -548,60 +543,55 @@ class InsertMode : public EditorMode {
 
       case Terminal::CHAR_EOF:  // Ctrl_D
       case Terminal::DELETE:
-      case Terminal::BACKSPACE:
-        {
-          LOG(INFO) << "Handling backspace in insert mode.";
-          buffer->MaybeAdjustPositionCol();
-          DeleteOptions delete_options;
-          if (c == wint_t(Terminal::BACKSPACE)) {
-            delete_options.modifiers.direction = BACKWARDS;
-          }
-          delete_options.copy_to_paste_buffer = false;
-          buffer->ApplyToCursors(
-              NewDeleteCharactersTransformation(delete_options));
-          options_.modify_listener();
-          editor_state->ScheduleRedraw();
+      case Terminal::BACKSPACE: {
+        LOG(INFO) << "Handling backspace in insert mode.";
+        buffer->MaybeAdjustPositionCol();
+        DeleteOptions delete_options;
+        if (c == wint_t(Terminal::BACKSPACE)) {
+          delete_options.modifiers.direction = BACKWARDS;
         }
+        delete_options.copy_to_paste_buffer = false;
+        buffer->ApplyToCursors(
+            NewDeleteCharactersTransformation(delete_options));
+        options_.modify_listener();
+        editor_state->ScheduleRedraw();
+      }
         return;
 
       case '\n':
         options_.new_line_handler();
         return;
 
-      case Terminal::CTRL_U:
-        {
-          DeleteOptions delete_options;
-          delete_options.modifiers.structure_range =
-              Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
-          delete_options.copy_to_paste_buffer = false;
-          buffer->ApplyToCursors(
-              NewDeleteLinesTransformation(delete_options));
-          options_.modify_listener();
-          editor_state->ScheduleRedraw();
-          return;
-        }
+      case Terminal::CTRL_U: {
+        DeleteOptions delete_options;
+        delete_options.modifiers.structure_range =
+            Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
+        delete_options.copy_to_paste_buffer = false;
+        buffer->ApplyToCursors(NewDeleteLinesTransformation(delete_options));
+        options_.modify_listener();
+        editor_state->ScheduleRedraw();
+        return;
+      }
 
-      case Terminal::CTRL_K:
-        {
-          DeleteOptions delete_options;
-          delete_options.modifiers.structure_range =
-              Modifiers::FROM_CURRENT_POSITION_TO_END;
-          delete_options.copy_to_paste_buffer = false;
-          buffer->ApplyToCursors(
-              NewDeleteLinesTransformation(delete_options));
-          options_.modify_listener();
-          editor_state->ScheduleRedraw();
-          return;
-        }
+      case Terminal::CTRL_K: {
+        DeleteOptions delete_options;
+        delete_options.modifiers.structure_range =
+            Modifiers::FROM_CURRENT_POSITION_TO_END;
+        delete_options.copy_to_paste_buffer = false;
+        buffer->ApplyToCursors(NewDeleteLinesTransformation(delete_options));
+        options_.modify_listener();
+        editor_state->ScheduleRedraw();
+        return;
+      }
     }
 
     {
       auto insert =
           std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
-      insert->AppendToLastLine(editor_state,
+      insert->AppendToLastLine(
+          editor_state,
           NewCopyString(buffer->TransformKeyboardText(wstring(1, c))));
-      buffer->ApplyToCursors(
-          NewInsertBufferTransformation(insert, 1, END));
+      buffer->ApplyToCursors(NewInsertBufferTransformation(insert, 1, END));
     }
 
     options_.modify_listener();
@@ -614,8 +604,7 @@ class InsertMode : public EditorMode {
 
 class RawInputTypeMode : public EditorMode {
  public:
-  RawInputTypeMode(shared_ptr<OpenBuffer> buffer)
-      : buffer_(buffer) {}
+  RawInputTypeMode(shared_ptr<OpenBuffer> buffer) : buffer_(buffer) {}
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
     bool old_literal = literal_;
@@ -715,12 +704,10 @@ class RawInputTypeMode : public EditorMode {
         WriteLineBuffer(editor_state);
         break;
 
-      case Terminal::BACKSPACE:
-        {
-          string contents(1, 127);
-          write(buffer_->fd(), contents.c_str(), contents.size());
-        }
-        break;
+      case Terminal::BACKSPACE: {
+        string contents(1, 127);
+        write(buffer_->fd(), contents.c_str(), contents.size());
+      } break;
 
       case '\n':
         line_buffer_.push_back('\n');
@@ -737,10 +724,10 @@ class RawInputTypeMode : public EditorMode {
   void WriteLineBuffer(EditorState* editor_state) {
     if (buffer_->fd() == -1) {
       editor_state->SetStatus(L"Warning: Process exited.");
-    } else if (write(buffer_->fd(), line_buffer_.c_str(), line_buffer_.size())
-                   == -1) {
-      editor_state->SetStatus(
-          L"Write failed: " + FromByteString(strerror(errno)));
+    } else if (write(buffer_->fd(), line_buffer_.c_str(),
+                     line_buffer_.size()) == -1) {
+      editor_state->SetStatus(L"Write failed: " +
+                              FromByteString(strerror(errno)));
     } else {
       editor_state->StartHandlingInterrupts();
     }
@@ -777,8 +764,8 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
 namespace afc {
 namespace editor {
 
-using std::unique_ptr;
 using std::shared_ptr;
+using std::unique_ptr;
 
 std::unique_ptr<Command> NewFindCompletionCommand() {
   return std::make_unique<FindCompletionCommand>();

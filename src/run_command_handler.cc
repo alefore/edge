@@ -1,17 +1,17 @@
 #include "run_command_handler.h"
 
+#include <cstring>
 #include <fstream>
 #include <iostream>
-#include <cstring>
 
 extern "C" {
-#include <sys/types.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <sys/ioctl.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 }
 
 #include <glog/logging.h>
@@ -34,9 +34,13 @@ map<wstring, wstring> LoadEnvironmentVariables(
     map<wstring, wstring> environment) {
   static const wstring whitespace = L"\t ";
   size_t start = full_command.find_first_not_of(whitespace);
-  if (start == full_command.npos) { return environment; }
+  if (start == full_command.npos) {
+    return environment;
+  }
   size_t end = full_command.find_first_of(whitespace, start);
-  if (end == full_command.npos || end <= start) { return environment; }
+  if (end == full_command.npos || end <= start) {
+    return environment;
+  }
   wstring command = full_command.substr(start, end - start);
   for (auto dir : path) {
     wstring full_path = dir + L"/commands/" + command + L"/environment";
@@ -53,9 +57,8 @@ map<wstring, wstring> LoadEnvironmentVariables(
       if (equals == line.npos) {
         continue;
       }
-      environment.insert(
-          make_pair(FromByteString(line.substr(0, equals)),
-                    FromByteString(line.substr(equals + 1))));
+      environment.insert(make_pair(FromByteString(line.substr(0, equals)),
+                                   FromByteString(line.substr(equals + 1))));
     }
   }
   return environment;
@@ -63,15 +66,11 @@ map<wstring, wstring> LoadEnvironmentVariables(
 
 class CommandBuffer : public OpenBuffer {
  public:
-  CommandBuffer(EditorState* editor_state,
-                const wstring& name,
-                const wstring& command,
-                map<wstring, wstring> environment)
+  CommandBuffer(EditorState* editor_state, const wstring& name,
+                const wstring& command, map<wstring, wstring> environment)
       : OpenBuffer(editor_state, name),
         environment_(LoadEnvironmentVariables(
-            editor_state->edge_path(),
-            command,
-            std::move(environment))) {}
+            editor_state->edge_path(), command, std::move(environment))) {}
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     int pipefd_out[2];
@@ -106,8 +105,8 @@ class CommandBuffer : public OpenBuffer {
       }
       pipefd_out[parent_fd] = master_fd;
       char* pts_path = ptsname(master_fd);
-      target->set_string_variable(
-          buffer_variables::pts_path(), FromByteString(pts_path));
+      target->set_string_variable(buffer_variables::pts_path(),
+                                  FromByteString(pts_path));
       pipefd_out[child_fd] = open(pts_path, O_RDWR);
       if (pipefd_out[child_fd] == -1) {
         cerr << "open failed: " << pts_path << ": " << string(strerror(errno));
@@ -115,16 +114,16 @@ class CommandBuffer : public OpenBuffer {
       }
       pipefd_err[parent_fd] = -1;
       pipefd_err[child_fd] = -1;
-    } else if (socketpair(PF_LOCAL, SOCK_STREAM, 0, pipefd_out) == -1
-               || socketpair(PF_LOCAL, SOCK_STREAM, 0, pipefd_err) == -1) {
+    } else if (socketpair(PF_LOCAL, SOCK_STREAM, 0, pipefd_out) == -1 ||
+               socketpair(PF_LOCAL, SOCK_STREAM, 0, pipefd_err) == -1) {
       LOG(FATAL) << "socketpair failed: " << strerror(errno);
       exit(1);
     }
 
     pid_t child_pid = fork();
     if (child_pid == -1) {
-      editor_state->SetStatus(
-          L"fork failed: " + FromByteString(strerror(errno)));
+      editor_state->SetStatus(L"fork failed: " +
+                              FromByteString(strerror(errno)));
       return;
     }
     if (child_pid == 0) {
@@ -136,22 +135,19 @@ class CommandBuffer : public OpenBuffer {
         exit(1);
       }
 
-      if (dup2(pipefd_out[child_fd], 0) == -1
-          || dup2(pipefd_out[child_fd], 1) == -1
-          || dup2(pipefd_err[child_fd] == -1
-                      ? pipefd_out[child_fd]
-                      : pipefd_err[child_fd],
-                  2) == -1) {
+      if (dup2(pipefd_out[child_fd], 0) == -1 ||
+          dup2(pipefd_out[child_fd], 1) == -1 ||
+          dup2(pipefd_err[child_fd] == -1 ? pipefd_out[child_fd]
+                                          : pipefd_err[child_fd],
+               2) == -1) {
         LOG(FATAL) << "dup2 failed!";
       }
-      if (pipefd_out[child_fd] != 0
-          && pipefd_out[child_fd] != 1
-          && pipefd_out[child_fd] != 2) {
+      if (pipefd_out[child_fd] != 0 && pipefd_out[child_fd] != 1 &&
+          pipefd_out[child_fd] != 2) {
         close(pipefd_out[child_fd]);
       }
-      if (pipefd_err[child_fd] != 0
-          && pipefd_err[child_fd] != 1
-          && pipefd_err[child_fd] != 2) {
+      if (pipefd_err[child_fd] != 0 && pipefd_err[child_fd] != 1 &&
+          pipefd_err[child_fd] != 2) {
         close(pipefd_err[child_fd]);
       }
 
@@ -187,10 +183,9 @@ class CommandBuffer : public OpenBuffer {
       CHECK_EQ(position, environment.size() + 1);
 
       char* argv[] = {
-          strdup("sh"),
-          strdup("-c"),
-          strdup(
-              ToByteString(read_string_variable(buffer_variables::command())).c_str()),
+          strdup("sh"), strdup("-c"),
+          strdup(ToByteString(read_string_variable(buffer_variables::command()))
+                     .c_str()),
           nullptr};
       int status = execve("/bin/sh", argv, envp);
       exit(WIFEXITED(status) ? WEXITSTATUS(status) : 1);
@@ -203,19 +198,18 @@ class CommandBuffer : public OpenBuffer {
         editor_state, pipefd_out[parent_fd], pipefd_err[parent_fd],
         read_bool_variable(buffer_variables::pts()), child_pid);
     editor_state->ScheduleRedraw();
-    AddEndOfFileObserver(
-        [this, editor_state]() {
-          LOG(INFO) << "End of file notification.";
-          int success = WIFEXITED(child_exit_status_) &&
-              WEXITSTATUS(child_exit_status_) == 0;
-          double frequency = Read(success
-                                      ? buffer_variables::beep_frequency_success()
-                                      : buffer_variables::beep_frequency_failure());
-          if (frequency > 0.0001) {
-            GenerateBeep(editor_state->audio_player(), frequency);
-          }
-          time(&time_end_);
-        });
+    AddEndOfFileObserver([this, editor_state]() {
+      LOG(INFO) << "End of file notification.";
+      int success =
+          WIFEXITED(child_exit_status_) && WEXITSTATUS(child_exit_status_) == 0;
+      double frequency =
+          Read(success ? buffer_variables::beep_frequency_success()
+                       : buffer_variables::beep_frequency_failure());
+      if (frequency > 0.0001) {
+        GenerateBeep(editor_state->audio_player(), frequency);
+      }
+      time(&time_end_);
+    });
   }
 
   wstring FlagsString() const override {
@@ -234,16 +228,15 @@ class CommandBuffer : public OpenBuffer {
     time_t now;
     time(&now);
     if (now > time_start_ && time_start_ > 0) {
-      time_t end = (child_pid_ != -1 || time_end_ < time_start_)
-          ? now
-          : time_end_;
+      time_t end =
+          (child_pid_ != -1 || time_end_ < time_start_) ? now : time_end_;
       additional_information += L" run:" + DurationToString(end - time_start_);
     }
     if (child_pid_ == -1 && now > time_end_) {
       additional_information += L" done:" + DurationToString(now - time_end_);
     }
     return initial_information + OpenBuffer::FlagsString() +
-        additional_information;
+           additional_information;
   }
 
  private:
@@ -265,9 +258,9 @@ class CommandBuffer : public OpenBuffer {
   time_t time_end_ = 0;
 };
 
-void RunCommand(
-    const wstring& name, const wstring& input,
-    const map<wstring, wstring> environment, EditorState* editor_state) {
+void RunCommand(const wstring& name, const wstring& input,
+                const map<wstring, wstring> environment,
+                EditorState* editor_state) {
   if (input.empty()) {
     if (editor_state->has_current_buffer()) {
       editor_state->current_buffer()->second->ResetMode();
@@ -280,43 +273,36 @@ void RunCommand(
   ForkCommandOptions options;
   options.command = input;
   options.buffer_name = name;
-  options.enter = !editor_state->has_current_buffer()
-      || !editor_state->current_buffer()->second->read_bool_variable(
-              buffer_variables::commands_background_mode());
+  options.enter = !editor_state->has_current_buffer() ||
+                  !editor_state->current_buffer()->second->read_bool_variable(
+                      buffer_variables::commands_background_mode());
   options.environment = environment;
   ForkCommand(editor_state, options);
 }
 
 class ForkEditorCommand : public Command {
  public:
-  const wstring Description() {
-    return L"forks a subprocess";
-  }
+  const wstring Description() { return L"forks a subprocess"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     switch (editor_state->structure()) {
-      case CHAR:
-        {
-          PromptOptions options;
-          options.prompt = L"$ ";
-          options.history_file = L"commands";
-          options.handler = RunCommandHandler;
-          Prompt(editor_state, options);
-        }
-        break;
+      case CHAR: {
+        PromptOptions options;
+        options.prompt = L"$ ";
+        options.history_file = L"commands";
+        options.handler = RunCommandHandler;
+        Prompt(editor_state, options);
+      } break;
 
-      case LINE:
-        {
-          if (!editor_state->has_current_buffer()
-              || editor_state->current_buffer()->second->current_line() == nullptr) {
-            return;
-          }
-          RunCommandHandler(
-              editor_state->current_buffer()->second->current_line()
-                  ->ToString(),
-              editor_state);
+      case LINE: {
+        if (!editor_state->has_current_buffer() ||
+            editor_state->current_buffer()->second->current_line() == nullptr) {
+          return;
         }
-        break;
+        RunCommandHandler(
+            editor_state->current_buffer()->second->current_line()->ToString(),
+            editor_state);
+      } break;
 
       default:
         editor_state->SetStatus(L"Oops, that structure is not handled.");
@@ -330,17 +316,16 @@ class ForkEditorCommand : public Command {
 namespace afc {
 namespace editor {
 
-std::shared_ptr<OpenBuffer>
-ForkCommand(EditorState* editor_state, const ForkCommandOptions& options) {
-  wstring buffer_name = options.buffer_name.empty()
-      ? (L"$ " + options.command)
-      : options.buffer_name;
+std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
+                                        const ForkCommandOptions& options) {
+  wstring buffer_name = options.buffer_name.empty() ? (L"$ " + options.command)
+                                                    : options.buffer_name;
   auto it = editor_state->buffers()->insert(make_pair(buffer_name, nullptr));
   if (it.second) {
     it.first->second = std::make_shared<CommandBuffer>(
         editor_state, buffer_name, options.command, options.environment);
-    it.first->second->set_string_variable(
-        buffer_variables::command(), options.command);
+    it.first->second->set_string_variable(buffer_variables::command(),
+                                          options.command);
     it.first->second->set_string_variable(buffer_variables::path(), L"");
   } else {
     it.first->second->ResetMode();
@@ -371,12 +356,10 @@ void RunMultipleCommandsHandler(const wstring& input,
     return;
   }
   auto buffer = editor_state->current_buffer()->second;
-  buffer->ForEachLine(
-      [editor_state, input](wstring arg) {
-        map<wstring, wstring> environment = {{L"ARG", arg}};
-        RunCommand(
-            L"$ " + input + L" " + arg, input, environment, editor_state);
-      });
+  buffer->ForEachLine([editor_state, input](wstring arg) {
+    map<wstring, wstring> environment = {{L"ARG", arg}};
+    RunCommand(L"$ " + input + L" " + arg, input, environment, editor_state);
+  });
 }
 
 }  // namespace editor

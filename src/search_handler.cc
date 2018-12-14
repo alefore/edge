@@ -7,8 +7,8 @@
 #include <regex>
 #else
 extern "C" {
-#include <sys/types.h>
 #include <regex.h>
+#include <sys/types.h>
 }
 #endif
 
@@ -52,7 +52,9 @@ vector<size_t> GetMatches(const wstring& line, const RegexPattern& pattern) {
     }
 #endif
 
-    if (match == wstring::npos) { return output; }
+    if (match == wstring::npos) {
+      return output;
+    }
     output.push_back(start + match);
     start += match + 1;
   }
@@ -66,9 +68,8 @@ vector<LineColumn> PerformSearch(const SearchOptions& options,
 
 #if CPP_REGEX
   // TODO: Get rid of ToByteString. Ugh.
-  std::regex pattern(
-      ToByteString(options.search_query),
-      options.case_sensitive ? 0 : std::regex_constants::icase);
+  std::regex pattern(ToByteString(options.search_query),
+                     options.case_sensitive ? 0 : std::regex_constants::icase);
 #else
   regex_t pattern;
   int cflags = 0;
@@ -76,8 +77,8 @@ vector<LineColumn> PerformSearch(const SearchOptions& options,
     cflags |= REG_ICASE;
   }
   // TODO: Get rid of ToByteString. Ugh.
-  if (regcomp(&pattern, ToByteString(options.search_query).c_str(),
-              cflags) != 0) {
+  if (regcomp(&pattern, ToByteString(options.search_query).c_str(), cflags) !=
+      0) {
     return positions;
   }
 #endif
@@ -116,8 +117,8 @@ wstring RegexEscape(shared_ptr<LazyString> str) {
 
 // Returns all matches starting at start. If end is not nullptr, only matches
 // in the region enclosed by start and *end will be returned.
-vector<LineColumn> PerformSearchWithDirection(
-    EditorState* editor_state, const SearchOptions& options) {
+vector<LineColumn> PerformSearchWithDirection(EditorState* editor_state,
+                                              const SearchOptions& options) {
   auto buffer = editor_state->current_buffer()->second;
   auto direction = editor_state->modifiers().direction;
   vector<LineColumn> candidates = PerformSearch(options, buffer.get());
@@ -131,8 +132,8 @@ vector<LineColumn> PerformSearchWithDirection(
   if (options.has_limit_position) {
     auto start = min(options.starting_position, options.limit_position);
     auto end = max(options.starting_position, options.limit_position);
-    LOG(INFO) << "Removing elements outside of the range: " << start
-              << " to " << end;
+    LOG(INFO) << "Removing elements outside of the range: " << start << " to "
+              << end;
     vector<LineColumn> valid_candidates;
     for (auto& candidate : candidates) {
       if (candidate >= start && candidate < end) {
@@ -144,10 +145,10 @@ vector<LineColumn> PerformSearchWithDirection(
 
   // Split them into head and tail depending on the current direction.
   for (auto& candidate : candidates) {
-    ((direction == FORWARDS
-          ? candidate > options.starting_position
-          : candidate < options.starting_position)
-         ? head : tail)
+    ((direction == FORWARDS ? candidate > options.starting_position
+                            : candidate < options.starting_position)
+         ? head
+         : tail)
         .push_back(candidate);
   }
 
@@ -157,8 +158,7 @@ vector<LineColumn> PerformSearchWithDirection(
   }
 
   if (head.empty()) {
-    BeepFrequencies(editor_state->audio_player(),
-                    {523.25, 261.63, 261.63});
+    BeepFrequencies(editor_state->audio_player(), {523.25, 261.63, 261.63});
   } else {
     vector<double> frequencies = {261.63, 329.63, 392.0, 523.25, 659.25};
     frequencies.resize(min(frequencies.size(), head.size() + 1));
@@ -167,21 +167,21 @@ vector<LineColumn> PerformSearchWithDirection(
   return head;
 }
 
-void SearchHandlerPredictor(
-    EditorState* editor_state, const wstring& input,
-    OpenBuffer* predictions_buffer) {
+void SearchHandlerPredictor(EditorState* editor_state, const wstring& input,
+                            OpenBuffer* predictions_buffer) {
   auto buffer = editor_state->current_buffer()->second;
   SearchOptions options;
   options.search_query = input;
-  options.case_sensitive = buffer->read_bool_variable(
-      buffer_variables::search_case_sensitive());
+  options.case_sensitive =
+      buffer->read_bool_variable(buffer_variables::search_case_sensitive());
   options.starting_position = buffer->position();
   auto positions = PerformSearchWithDirection(editor_state, options);
 
   // Get the first kMatchesLimit matches:
   const int kMatchesLimit = 100;
   std::set<wstring> matches;
-  for (size_t i = 0; i < positions.size() && matches.size() < kMatchesLimit; i++) {
+  for (size_t i = 0; i < positions.size() && matches.size() < kMatchesLimit;
+       i++) {
     if (i == 0) {
       buffer->set_position(positions[0]);
       editor_state->set_status_prompt(false);
@@ -200,8 +200,8 @@ void SearchHandlerPredictor(
   predictions_buffer->EndOfFile(editor_state);
 }
 
-vector<LineColumn> SearchHandler(
-    EditorState* editor_state, const SearchOptions& options) {
+vector<LineColumn> SearchHandler(EditorState* editor_state,
+                                 const SearchOptions& options) {
   editor_state->set_last_search_query(options.search_query);
   if (!editor_state->has_current_buffer() || options.search_query.empty()) {
     return {};
@@ -210,8 +210,7 @@ vector<LineColumn> SearchHandler(
   return PerformSearchWithDirection(editor_state, options);
 }
 
-void JumpToNextMatch(
-    EditorState* editor_state, const SearchOptions& options) {
+void JumpToNextMatch(EditorState* editor_state, const SearchOptions& options) {
   auto results = SearchHandler(editor_state, options);
   if (results.empty()) {
     editor_state->SetStatus(L"No matches: " + options.search_query);

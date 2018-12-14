@@ -1,7 +1,7 @@
 #include "navigate_command.h"
 
-#include <memory>
 #include <map>
+#include <memory>
 
 #include <glog/logging.h>
 
@@ -102,9 +102,7 @@ class NavigateModeChar : public NavigateMode {
   NavigateModeChar(Modifiers modifiers) : NavigateMode(modifiers) {}
 
  protected:
-  size_t InitialStart(OpenBuffer*) override {
-    return 0;
-  }
+  size_t InitialStart(OpenBuffer*) override { return 0; }
 
   size_t InitialEnd(OpenBuffer* buffer) override {
     return buffer->current_line()->size();
@@ -164,9 +162,7 @@ class NavigateModeLine : public NavigateMode {
   NavigateModeLine(Modifiers modifiers) : NavigateMode(modifiers) {}
 
  protected:
-  size_t InitialStart(OpenBuffer*) override {
-    return 0;
-  }
+  size_t InitialStart(OpenBuffer*) override { return 0; }
 
   size_t InitialEnd(OpenBuffer* buffer) override {
     return buffer->contents()->size();
@@ -187,12 +183,12 @@ class NavigateCommand : public Command {
  public:
   NavigateCommand() {}
 
-  const wstring Description() {
-    return L"activates navigate mode.";
-  }
+  const wstring Description() { return L"activates navigate mode."; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) { return; }
+    if (!editor_state->has_current_buffer()) {
+      return;
+    }
     auto structure = editor_state->modifiers().structure;
     auto buffer = editor_state->current_buffer()->second;
     switch (structure) {

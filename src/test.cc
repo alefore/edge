@@ -2,22 +2,23 @@
 #include <iostream>
 #include <string>
 
-#include "wstring.h"
 #include <glog/logging.h>
+#include "wstring.h"
 
 #include "audio.h"
 #include "buffer_variables.h"
 #include "editor.h"
-#include "tree.h"
-#include "terminal.h"
 #include "src/test/buffer_contents_test.h"
 #include "src/test/line_test.h"
+#include "terminal.h"
+#include "tree.h"
 
 using namespace afc::editor;
 
 void CheckIsEmpty(EditorState* editor_state) {
   CHECK_EQ(editor_state->current_buffer()->second->contents()->size(), 1);
-  CHECK_EQ(editor_state->current_buffer()->second->contents()->at(0)->size(), 0);
+  CHECK_EQ(editor_state->current_buffer()->second->contents()->at(0)->size(),
+           0);
 }
 
 void Clear(EditorState* editor_state) {
@@ -26,8 +27,8 @@ void Clear(EditorState* editor_state) {
       editor_state->buffers()->find(L"anonymous buffer 0"));
   editor_state->ProcessInputString("eegdl999999999999999\n");
   editor_state->ProcessInput(Terminal::ESCAPE);
-  editor_state->current_buffer()->second
-      ->set_bool_variable(buffer_variables::multiple_cursors(), false);
+  editor_state->current_buffer()->second->set_bool_variable(
+      buffer_variables::multiple_cursors(), false);
   editor_state->current_buffer()->second->DestroyOtherCursors();
   editor_state->current_buffer()->second->set_position(LineColumn());
   CheckIsEmpty(editor_state);
@@ -35,7 +36,9 @@ void Clear(EditorState* editor_state) {
 
 void ShowList(list<int> l) {
   std::cout << "List:";
-  for (auto i : l) { std::cout << " " << i; }
+  for (auto i : l) {
+    std::cout << " " << i;
+  }
   std::cout << "\n";
 }
 
@@ -178,7 +181,7 @@ void TestCases() {
   editor_state.ProcessInputString("i forero");
   editor_state.ProcessInput(Terminal::ESCAPE);
   CHECK(editor_state.current_buffer()->second->current_line()->ToString() ==
-           L"alejo forero");
+        L"alejo forero");
   editor_state.ProcessInputString("gde\n");
   CHECK(editor_state.current_buffer()->second->ToString().empty());
 
@@ -189,8 +192,7 @@ void TestCases() {
   CHECK_EQ(editor_state.current_buffer()->second->current_position_col(),
            sizeof("cuervo") - 1);
   editor_state.ProcessInputString("ehhh");
-  CHECK_EQ(editor_state.current_buffer()->second->current_position_line(),
-           1);
+  CHECK_EQ(editor_state.current_buffer()->second->current_position_line(), 1);
   CHECK_EQ(editor_state.current_buffer()->second->current_position_col(),
            sizeof("cuervo") - 1 - 2);
 
@@ -218,9 +220,10 @@ void TestCases() {
 
   editor_state.ProcessInputString("d2el\n");
   CHECK_EQ(editor_state.current_buffer()->second->contents()->size(), 1);
-  CHECK_EQ(ToByteString(editor_state.current_buffer()
-                            ->second->current_line()->ToString()),
-           "cuervo");
+  CHECK_EQ(
+      ToByteString(
+          editor_state.current_buffer()->second->current_line()->ToString()),
+      "cuervo");
 
   editor_state.ProcessInputString("pp");
   CHECK_EQ(editor_state.current_buffer()->second->contents()->size(), 5);
@@ -284,8 +287,15 @@ void TestCases() {
 
   editor_state.ProcessInputString("ialejo forero\n");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  editor_state.ProcessInputString("kg" "d3\n" "rg" "jp");
-  editor_state.ProcessInputString("krg" "j" "rfa");
+  editor_state.ProcessInputString(
+      "kg"
+      "d3\n"
+      "rg"
+      "jp");
+  editor_state.ProcessInputString(
+      "krg"
+      "j"
+      "rfa");
 
   Clear(&editor_state);
 
@@ -323,7 +333,6 @@ void TestCases() {
 
   Clear(&editor_state);
 
-
   // Test for undo after normal delete line.
   editor_state.ProcessInputString("i12345\n67890");
   editor_state.ProcessInput(Terminal::ESCAPE);
@@ -342,7 +351,6 @@ void TestCases() {
 
   Clear(&editor_state);
 
-
   // Test for insertion at EOF.
   CHECK_EQ(editor_state.current_buffer()->second->contents()->size(), 1);
   editor_state.ProcessInputString("55ji\n");
@@ -350,7 +358,6 @@ void TestCases() {
   CHECK_EQ(editor_state.current_buffer()->second->contents()->size(), 2);
 
   Clear(&editor_state);
-
 
   // Test for uppercase switch
   editor_state.ProcessInputString("ialeJAnDRo\nfoRero");
@@ -396,8 +403,8 @@ void TestCases() {
 
   editor_state.ProcessInputString("w+");
   editor_state.ProcessInputString("_");
-  CHECK(editor_state.current_buffer()->second
-            ->read_bool_variable(buffer_variables::multiple_cursors()));
+  CHECK(editor_state.current_buffer()->second->read_bool_variable(
+      buffer_variables::multiple_cursors()));
 
   editor_state.ProcessInputString("i1234 ");
   editor_state.ProcessInput(Terminal::ESCAPE);
@@ -419,7 +426,11 @@ void TestCases() {
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "al[ejandro fo[rero cu[ervo");
 
-  editor_state.ProcessInputString("d\n" "l" "dr\n" "l");
+  editor_state.ProcessInputString(
+      "d\n"
+      "l"
+      "dr\n"
+      "l");
   editor_state.ProcessInputString("i)");
   editor_state.ProcessInput(Terminal::ESCAPE);
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
@@ -429,17 +440,21 @@ void TestCases() {
 
   editor_state.ProcessInputString("i123\n56\n789");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  editor_state.ProcessInputString("h" "+");  // Leave a cursor at 9.
+  editor_state.ProcessInputString(
+      "h"
+      "+");                                // Leave a cursor at 9.
   editor_state.ProcessInputString("khh");  // Cursor at 5.
   editor_state.ProcessInputString("i4");
   editor_state.ProcessInput(Terminal::ESCAPE);
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "123\n456\n789");
-  editor_state.ProcessInputString("+");  // Leave a cursor at 5.
+  editor_state.ProcessInputString("+");    // Leave a cursor at 5.
   editor_state.ProcessInputString("kll");  // Leave cursor at end of first line.
   // Bugs happen here! Did the cursors get adjusted?
   editor_state.ProcessInputString("d\n");
-  editor_state.ProcessInputString("_" "ix");
+  editor_state.ProcessInputString(
+      "_"
+      "ix");
   editor_state.ProcessInput(Terminal::ESCAPE);
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "123x4x56\n78x9");
@@ -448,13 +463,18 @@ void TestCases() {
 
   editor_state.ProcessInputString("ioo");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  editor_state.ProcessInputString("/o\n" "cl" "-");
+  editor_state.ProcessInputString(
+      "/o\n"
+      "cl"
+      "-");
 
   Clear(&editor_state);
 
   editor_state.ProcessInputString("i\n");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  editor_state.ProcessInputString("k" "~");
+  editor_state.ProcessInputString(
+      "k"
+      "~");
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "\n");
 
@@ -477,7 +497,9 @@ void TestCases() {
   editor_state.ProcessInput(Terminal::ESCAPE);
   editor_state.ProcessInputString("g");
   editor_state.ProcessInputString("+");  // Cursors: 0, *0
-  editor_state.ProcessInputString("2l" "+");  // Cursors: 0, 2, *2
+  editor_state.ProcessInputString(
+      "2l"
+      "+");                               // Cursors: 0, 2, *2
   editor_state.ProcessInputString("2l");  // Cursors: 0, 2, *4
   editor_state.ProcessInputString("ch");  // Cursors: 0, *2, 4
   editor_state.ProcessInputString("i-");
@@ -518,7 +540,9 @@ void TestCases() {
 
   editor_state.ProcessInputString("ia\nbcd");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  editor_state.ProcessInputString("k" "dwk\n");
+  editor_state.ProcessInputString(
+      "k"
+      "dwk\n");
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "abcd");
 
@@ -558,7 +582,10 @@ void TestCases() {
 
   editor_state.ProcessInputString("ialejo");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  editor_state.ProcessInputString("dwr\n" "p" "3h");
+  editor_state.ProcessInputString(
+      "dwr\n"
+      "p"
+      "3h");
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "alejo");
   CHECK_EQ(editor_state.current_buffer()->second->position(), LineColumn(0, 2));
@@ -575,8 +602,14 @@ void TestCases() {
   editor_state.ProcessInputString("ialejo\nforero");
   editor_state.ProcessInput(Terminal::ESCAPE);
   // One cursor at beginning of each line.
-  editor_state.ProcessInputString("g" "+" "k" "_");
-  editor_state.ProcessInputString("fo" "d\n");
+  editor_state.ProcessInputString(
+      "g"
+      "+"
+      "k"
+      "_");
+  editor_state.ProcessInputString(
+      "fo"
+      "d\n");
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "alej\nfrero");
 
@@ -585,7 +618,12 @@ void TestCases() {
   // Tests that undoing a delete leaves the cursor at the original position.
   editor_state.ProcessInputString("ialejandro cuervo");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  editor_state.ProcessInputString("rf " "d\n" "g" "u" "i forero");
+  editor_state.ProcessInputString(
+      "rf "
+      "d\n"
+      "g"
+      "u"
+      "i forero");
   editor_state.ProcessInput(Terminal::ESCAPE);
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "alejandro forero cuervo");
@@ -612,9 +650,15 @@ void TestCases() {
   editor_state.ProcessInputString("i12345");
   editor_state.ProcessInput(Terminal::ESCAPE);
   editor_state.ProcessInputString("/.\n");  // A cursor in every character.
-  editor_state.ProcessInputString("C+" "=" "eialejo");  // Add a new line.
+  editor_state.ProcessInputString(
+      "C+"
+      "="
+      "eialejo");  // Add a new line.
   editor_state.ProcessInput(Terminal::ESCAPE);
-  editor_state.ProcessInputString("C-" "_" "i-");
+  editor_state.ProcessInputString(
+      "C-"
+      "_"
+      "i-");
   editor_state.ProcessInput(Terminal::ESCAPE);
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "alejo\n-1-2-3-4-5");
@@ -623,7 +667,11 @@ void TestCases() {
 
   editor_state.ProcessInputString("ialejandro forero cuervo");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  editor_state.ProcessInputString("g" "dw\n" "l" ".");
+  editor_state.ProcessInputString(
+      "g"
+      "dw\n"
+      "l"
+      ".");
   CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
            "  cuervo");
 

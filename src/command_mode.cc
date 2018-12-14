@@ -2,32 +2,32 @@
 
 #include <algorithm>
 #include <cmath>
-#include <functional>
 #include <fstream>
+#include <functional>
 #include <iostream>
-#include <memory>
 #include <map>
+#include <memory>
 #include <string>
 
 #include <glog/logging.h>
 
 #include "buffer_variables.h"
-#include "cpp_command.h"
 #include "char_buffer.h"
 #include "close_buffer_command.h"
 #include "command.h"
+#include "cpp_command.h"
 #include "delete_mode.h"
 #include "dirname.h"
-#include "goto_command.h"
 #include "file_link_mode.h"
 #include "find_mode.h"
+#include "goto_command.h"
 #include "insert_mode.h"
 #include "lazy_string_append.h"
 #include "line_prompt_mode.h"
 #include "list_buffers_command.h"
 #include "map_mode.h"
-#include "navigation_buffer.h"
 #include "navigate_command.h"
+#include "navigation_buffer.h"
 #include "noop_command.h"
 #include "open_directory_command.h"
 #include "open_file_command.h"
@@ -41,12 +41,12 @@
 #include "search_handler.h"
 #include "send_end_of_file_command.h"
 #include "set_variable_command.h"
+#include "src/wstring.h"
 #include "substring.h"
 #include "terminal.h"
 #include "transformation.h"
 #include "transformation_delete.h"
 #include "transformation_move.h"
-#include "src/wstring.h"
 
 namespace {
 using std::advance;
@@ -66,7 +66,9 @@ class Delete : public Command {
   }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) { return; }
+    if (!editor_state->has_current_buffer()) {
+      return;
+    }
     shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
 
     switch (editor_state->structure()) {
@@ -114,12 +116,12 @@ class Delete : public Command {
 // TODO: Replace with insert.  Insert should be called 'type'.
 class Paste : public Command {
  public:
-  const wstring Description() {
-    return L"pastes the last deleted text";
-  }
+  const wstring Description() { return L"pastes the last deleted text"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) { return; }
+    if (!editor_state->has_current_buffer()) {
+      return;
+    }
     auto it = editor_state->buffers()->find(OpenBuffer::kPasteBuffer);
     if (it == editor_state->buffers()->end()) {
       const static wstring errors[] = {
@@ -191,7 +193,9 @@ class UndoCommand : public Command {
   }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) { return; }
+    if (!editor_state->has_current_buffer()) {
+      return;
+    }
     editor_state->current_buffer()->second->Undo(editor_state);
     editor_state->ResetRepetitions();
     editor_state->ResetDirection();
@@ -201,9 +205,7 @@ class UndoCommand : public Command {
 
 class GotoPreviousPositionCommand : public Command {
  public:
-  const wstring Description() {
-    return L"go back to previous position";
-  }
+  const wstring Description() { return L"go back to previous position"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     Go(editor_state);
@@ -226,12 +228,12 @@ class GotoPreviousPositionCommand : public Command {
       auto it = editor_state->buffers()->find(pos.buffer_name);
       const LineColumn current_position =
           editor_state->current_buffer()->second->position();
-      if (it != editor_state->buffers()->end()
-          && (pos.buffer_name != editor_state->current_buffer()->first
-              || (editor_state->structure() <= LINE
-                  && pos.position.line != current_position.line)
-              || (editor_state->structure() <= CHAR
-                  && pos.position.column != current_position.column))) {
+      if (it != editor_state->buffers()->end() &&
+          (pos.buffer_name != editor_state->current_buffer()->first ||
+           (editor_state->structure() <= LINE &&
+            pos.position.line != current_position.line) ||
+           (editor_state->structure() <= CHAR &&
+            pos.position.column != current_position.column))) {
         LOG(INFO) << "Jumping to position: " << it->second->name() << " "
                   << pos.position;
         editor_state->set_current_buffer(it);
@@ -284,18 +286,18 @@ class MoveBackwards : public Command {
   static void Move(int c, EditorState* editor_state);
 };
 
-const wstring LineUp::Description() {
-  return L"moves up one line";
-}
+const wstring LineUp::Description() { return L"moves up one line"; }
 
-/* static */ void LineUp::Move(
-    int c, EditorState* editor_state, Structure structure) {
+/* static */ void LineUp::Move(int c, EditorState* editor_state,
+                               Structure structure) {
   if (editor_state->direction() == BACKWARDS || structure == TREE) {
     editor_state->set_direction(ReverseDirection(editor_state->direction()));
     LineDown::Move(c, editor_state, structure);
     return;
   }
-  if (!editor_state->has_current_buffer()) { return; }
+  if (!editor_state->has_current_buffer()) {
+    return;
+  }
   switch (structure) {
     case CHAR:
       editor_state->set_structure(LINE);
@@ -304,8 +306,8 @@ const wstring LineUp::Description() {
 
     case WORD:
       // Move in whole pages.
-      editor_state->set_repetitions(
-          editor_state->repetitions() * editor_state->visible_lines());
+      editor_state->set_repetitions(editor_state->repetitions() *
+                                    editor_state->visible_lines());
       Move(c, editor_state, CHAR);
       break;
 
@@ -326,18 +328,18 @@ void LineUp::ProcessInput(wint_t c, EditorState* editor_state) {
   Move(c, editor_state, editor_state->structure());
 }
 
-const wstring LineDown::Description() {
-  return L"moves down one line";
-}
+const wstring LineDown::Description() { return L"moves down one line"; }
 
-/* static */ void LineDown::Move(
-    int c, EditorState* editor_state, Structure structure) {
+/* static */ void LineDown::Move(int c, EditorState* editor_state,
+                                 Structure structure) {
   if (editor_state->direction() == BACKWARDS && structure != TREE) {
     editor_state->set_direction(FORWARDS);
     LineUp::Move(c, editor_state, structure);
     return;
   }
-  if (!editor_state->has_current_buffer()) { return; }
+  if (!editor_state->has_current_buffer()) {
+    return;
+  }
   switch (structure) {
     case CHAR:
       editor_state->set_structure(LINE);
@@ -346,30 +348,31 @@ const wstring LineDown::Description() {
 
     case WORD:
       // Move in whole pages.
-      editor_state->set_repetitions(
-          editor_state->repetitions() * editor_state->visible_lines());
+      editor_state->set_repetitions(editor_state->repetitions() *
+                                    editor_state->visible_lines());
       Move(c, editor_state, CHAR);
       break;
 
-    case TREE:
-      {
-        if (!editor_state->has_current_buffer()) { return; }
-        auto buffer = editor_state->current_buffer()->second;
-        if (editor_state->direction() == BACKWARDS) {
-          if (buffer->tree_depth() > 0) {
-            buffer->set_tree_depth(buffer->tree_depth() - 1);
-          }
-        } else if (editor_state->direction() == FORWARDS) {
-          auto root = buffer->parse_tree();
-          const ParseTree* tree = buffer->current_tree(root.get());
-          if (!tree->children.empty()) {
-            buffer->set_tree_depth(buffer->tree_depth() + 1);
-          }
-        } else {
-          CHECK(false) << "Invalid direction: " << editor_state->direction();
-        }
-        buffer->ResetMode();
+    case TREE: {
+      if (!editor_state->has_current_buffer()) {
+        return;
       }
+      auto buffer = editor_state->current_buffer()->second;
+      if (editor_state->direction() == BACKWARDS) {
+        if (buffer->tree_depth() > 0) {
+          buffer->set_tree_depth(buffer->tree_depth() - 1);
+        }
+      } else if (editor_state->direction() == FORWARDS) {
+        auto root = buffer->parse_tree();
+        const ParseTree* tree = buffer->current_tree(root.get());
+        if (!tree->children.empty()) {
+          buffer->set_tree_depth(buffer->tree_depth() + 1);
+        }
+      } else {
+        CHECK(false) << "Invalid direction: " << editor_state->direction();
+      }
+      buffer->ResetMode();
+    }
       editor_state->ResetDirection();
       editor_state->ResetStructure();
       editor_state->ScheduleRedraw();
@@ -388,31 +391,25 @@ void LineDown::ProcessInput(wint_t c, EditorState* editor_state) {
   Move(c, editor_state, editor_state->structure());
 }
 
-const wstring PageUp::Description() {
-  return L"moves up one page";
-}
+const wstring PageUp::Description() { return L"moves up one page"; }
 
 void PageUp::ProcessInput(wint_t c, EditorState* editor_state) {
-  editor_state->set_repetitions(
-      editor_state->repetitions() * editor_state->visible_lines());
+  editor_state->set_repetitions(editor_state->repetitions() *
+                                editor_state->visible_lines());
   editor_state->ResetStructure();
   LineUp::Move(c, editor_state, editor_state->structure());
 }
 
-const wstring PageDown::Description() {
-  return L"moves down one page";
-}
+const wstring PageDown::Description() { return L"moves down one page"; }
 
 void PageDown::ProcessInput(wint_t c, EditorState* editor_state) {
-  editor_state->set_repetitions(
-      editor_state->repetitions() * editor_state->visible_lines());
+  editor_state->set_repetitions(editor_state->repetitions() *
+                                editor_state->visible_lines());
   editor_state->ResetStructure();
   LineDown::Move(c, editor_state, editor_state->structure());
 }
 
-const wstring MoveForwards::Description() {
-  return L"moves forwards";
-}
+const wstring MoveForwards::Description() { return L"moves forwards"; }
 
 void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
   Move(c, editor_state);
@@ -425,26 +422,25 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
     case LINE:
     case MARK:
     case CURSOR:
-    case TREE:
-      {
-        if (!editor_state->has_current_buffer()) { return; }
-        editor_state->ApplyToCurrentBuffer(
-            NewMoveTransformation(editor_state->modifiers()));
-        editor_state->ResetRepetitions();
-        editor_state->ResetStructure();
-        editor_state->ResetDirection();
+    case TREE: {
+      if (!editor_state->has_current_buffer()) {
+        return;
       }
-      break;
+      editor_state->ApplyToCurrentBuffer(
+          NewMoveTransformation(editor_state->modifiers()));
+      editor_state->ResetRepetitions();
+      editor_state->ResetStructure();
+      editor_state->ResetDirection();
+    } break;
 
-    case SEARCH:
-      {
-        auto buffer = editor_state->current_buffer()->second;
-        SearchOptions options;
-        options.search_query = editor_state->last_search_query();
-        options.starting_position = buffer->position();
-        JumpToNextMatch(editor_state, options);
-        buffer->ResetMode();
-      }
+    case SEARCH: {
+      auto buffer = editor_state->current_buffer()->second;
+      SearchOptions options;
+      options.search_query = editor_state->last_search_query();
+      options.starting_position = buffer->position();
+      JumpToNextMatch(editor_state, options);
+      buffer->ResetMode();
+    }
       editor_state->ResetDirection();
       editor_state->ResetStructure();
       editor_state->ScheduleRedraw();
@@ -452,14 +448,11 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
 
     default:
       LineDown::Move(c, editor_state,
-          LowerStructure(
-              LowerStructure(editor_state->structure())));
+                     LowerStructure(LowerStructure(editor_state->structure())));
   }
 }
 
-const wstring MoveBackwards::Description() {
-  return L"moves backwards";
-}
+const wstring MoveBackwards::Description() { return L"moves backwards"; }
 
 void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
   Move(c, editor_state);
@@ -477,15 +470,14 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
     case LINE:
     case MARK:
     case CURSOR:
-    case TREE:
-      {
-        if (!editor_state->has_current_buffer()) { return; }
-        editor_state->set_direction(
-            ReverseDirection(editor_state->direction()));
-        MoveForwards::Move(c, editor_state);
+    case TREE: {
+      if (!editor_state->has_current_buffer()) {
         return;
       }
-      break;
+      editor_state->set_direction(ReverseDirection(editor_state->direction()));
+      MoveForwards::Move(c, editor_state);
+      return;
+    } break;
 
     case SEARCH:
       editor_state->set_direction(BACKWARDS);
@@ -504,16 +496,13 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
 
     default:
       LineUp::Move(c, editor_state,
-          LowerStructure(
-              LowerStructure(editor_state->structure())));
+                   LowerStructure(LowerStructure(editor_state->structure())));
   }
 }
 
 class EnterInsertModeCommand : public Command {
  public:
-  const wstring Description() {
-    return L"enters insert mode";
-  }
+  const wstring Description() { return L"enters insert mode"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     EnterInsertMode(editor_state);
@@ -522,12 +511,12 @@ class EnterInsertModeCommand : public Command {
 
 class EnterFindMode : public Command {
  public:
-  const wstring Description() {
-    return L"finds occurrences of a character";
-  }
+  const wstring Description() { return L"finds occurrences of a character"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) { return; }
+    if (!editor_state->has_current_buffer()) {
+      return;
+    }
     editor_state->current_buffer()->second->set_mode(NewFindMode());
   }
 };
@@ -541,7 +530,8 @@ class InsertionModifierCommand : public Command {
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (editor_state->insertion_modifier() == Modifiers::INSERT) {
       editor_state->set_insertion_modifier(Modifiers::REPLACE);
-    } else if (editor_state->default_insertion_modifier() == Modifiers::INSERT) {
+    } else if (editor_state->default_insertion_modifier() ==
+               Modifiers::INSERT) {
       editor_state->set_default_insertion_modifier(Modifiers::REPLACE);
     } else {
       editor_state->set_default_insertion_modifier(Modifiers::INSERT);
@@ -558,7 +548,7 @@ class ReverseDirectionCommand : public Command {
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     VLOG(3) << "Setting reverse direction. [previous modifiers: "
-        << editor_state->modifiers();
+            << editor_state->modifiers();
     if (editor_state->direction() == FORWARDS) {
       editor_state->set_direction(BACKWARDS);
     } else if (editor_state->default_direction() == FORWARDS) {
@@ -580,9 +570,7 @@ class SetStructureCommand : public Command {
   SetStructureCommand(Structure value, const wstring& description)
       : value_(value), description_(description) {}
 
-  const wstring Description() {
-    return L"sets the structure: " + description_;
-  }
+  const wstring Description() { return L"sets the structure: " + description_; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (editor_state->structure() != value_) {
@@ -606,12 +594,11 @@ class SetStrengthCommand : public Command {
   SetStrengthCommand(Modifiers::Strength value,
                      Modifiers::Strength extreme_value,
                      const wstring& description)
-      : value_(value), extreme_value_(extreme_value),
+      : value_(value),
+        extreme_value_(extreme_value),
         description_(description) {}
 
-  const wstring Description() {
-    return L"sets the strength: " + description_;
-  }
+  const wstring Description() { return L"sets the strength: " + description_; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     Modifiers modifiers(editor_state->modifiers());
@@ -633,8 +620,8 @@ class SetStrengthCommand : public Command {
 
 class SetStructureModifierCommand : public Command {
  public:
-  SetStructureModifierCommand(
-      Modifiers::StructureRange value, const wstring& description)
+  SetStructureModifierCommand(Modifiers::StructureRange value,
+                              const wstring& description)
       : value_(value), description_(description) {}
 
   const wstring Description() {
@@ -642,10 +629,9 @@ class SetStructureModifierCommand : public Command {
   }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->set_structure_range(
-        editor_state->structure_range() == value_
-            ? Modifiers::ENTIRE_STRUCTURE
-            : value_);
+    editor_state->set_structure_range(editor_state->structure_range() == value_
+                                          ? Modifiers::ENTIRE_STRUCTURE
+                                          : value_);
   }
 
  private:
@@ -658,19 +644,21 @@ class NumberMode : public Command {
   NumberMode(function<void(EditorState*, int)> consumer)
       : description_(L""), consumer_(consumer) {}
 
-  NumberMode(
-      const wstring& description, function<void(EditorState*, int)> consumer)
+  NumberMode(const wstring& description,
+             function<void(EditorState*, int)> consumer)
       : description_(description), consumer_(consumer) {}
 
-  const wstring Description() {
-    return description_;
-  }
+  const wstring Description() { return description_; }
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) { return; }
+    if (!editor_state->has_current_buffer()) {
+      return;
+    }
     auto buffer = editor_state->current_buffer()->second;
     buffer->set_mode(NewRepeatMode(consumer_));
-    if (c < '0' || c > '9') { return; }
+    if (c < '0' || c > '9') {
+      return;
+    }
     buffer->mode()->ProcessInput(c, editor_state);
   }
 
@@ -681,21 +669,25 @@ class NumberMode : public Command {
 
 class ActivateLink : public Command {
  public:
-  const wstring Description() {
-    return L"activates the current link (if any)";
-  }
+  const wstring Description() { return L"activates the current link (if any)"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) { return; }
+    if (!editor_state->has_current_buffer()) {
+      return;
+    }
     shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-    if (buffer->current_line() == nullptr) { return; }
+    if (buffer->current_line() == nullptr) {
+      return;
+    }
 
     auto target = buffer->GetBufferFromCurrentLine();
     if (target != nullptr && target != buffer) {
       LOG(INFO) << "Visiting buffer: " << target->name();
       editor_state->ResetStatus();
       auto it = editor_state->buffers()->find(target->name());
-      if (it == editor_state->buffers()->end()) { return; }
+      if (it == editor_state->buffers()->end()) {
+        return;
+      }
       editor_state->set_current_buffer(it);
       auto target_position =
           buffer->current_line()->environment()->Lookup(L"buffer_position");
@@ -720,8 +712,8 @@ class ActivateLink : public Command {
 
     // Scroll back to the first non-path character. If we're in a non-path
     // character, this is a no-op.
-    size_t start = line.find_last_not_of(
-        path_characters, buffer->current_position_col());
+    size_t start =
+        line.find_last_not_of(path_characters, buffer->current_position_col());
     if (start == line.npos) {
       start = 0;
     }
@@ -763,9 +755,7 @@ class ActivateLink : public Command {
 
 class ResetStateCommand : public Command {
  public:
-  const wstring Description() {
-    return L"Resets the state of the editor.";
-  }
+  const wstring Description() { return L"Resets the state of the editor."; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->ResetStatus();
@@ -775,9 +765,7 @@ class ResetStateCommand : public Command {
 
 class HardRedrawCommand : public Command {
  public:
-  const wstring Description() {
-    return L"Redraws the screen";
-  }
+  const wstring Description() { return L"Redraws the screen"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->set_screen_needs_hard_redraw(true);
@@ -789,8 +777,8 @@ class SwitchCaseTransformation : public Transformation {
   SwitchCaseTransformation(CommandApplyMode apply_mode, Modifiers modifiers)
       : apply_mode_(apply_mode), modifiers_(modifiers) {}
 
-  void Apply(EditorState* editor_state, OpenBuffer* buffer, Result* result)
-      const override {
+  void Apply(EditorState* editor_state, OpenBuffer* buffer,
+             Result* result) const override {
     buffer->AdjustLineColumn(&result->cursor);
     LineColumn start, end;
     if (!buffer->FindPartialRange(modifiers_, result->cursor, &start, &end)) {
@@ -803,8 +791,8 @@ class SwitchCaseTransformation : public Transformation {
     auto buffer_to_insert =
         std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
     VLOG(5) << "Switch Case Transformation at " << result->cursor << ": "
-            << editor_state->modifiers() << ": Range [" << start << ", "
-            << end << ")";
+            << editor_state->modifiers() << ": Range [" << start << ", " << end
+            << ")";
     LineColumn i = start;
     while (i < end) {
       auto line = buffer->LineAt(i.line);
@@ -821,7 +809,8 @@ class SwitchCaseTransformation : public Transformation {
         continue;
       }
       wchar_t c = line->get(i.column);
-      buffer_to_insert->AppendToLastLine(editor_state,
+      buffer_to_insert->AppendToLastLine(
+          editor_state,
           NewCopyString(wstring(1, iswupper(c) ? towlower(c) : towupper(c))));
       DeleteOptions options;
       options.copy_to_paste_buffer = false;
@@ -830,12 +819,11 @@ class SwitchCaseTransformation : public Transformation {
       // Increment i.
       i.column++;
     }
-    LineModifierSet modifiers_set =
-        {LineModifier::UNDERLINE, LineModifier::BLUE};
+    LineModifierSet modifiers_set = {LineModifier::UNDERLINE,
+                                     LineModifier::BLUE};
     auto original_position = result->cursor;
     stack->PushBack(NewInsertBufferTransformation(
-        buffer_to_insert,
-        Modifiers(),
+        buffer_to_insert, Modifiers(),
         modifiers_.direction == FORWARDS ? END : START,
         apply_mode_ == APPLY_PREVIEW ? &modifiers_set : nullptr));
     if (apply_mode_ == APPLY_PREVIEW) {
@@ -870,31 +858,28 @@ namespace afc {
 namespace editor {
 
 namespace {
-void ToggleBoolVariable(
-    EditorState* editor_state, wstring binding, wstring variable_name,
-    MapModeCommands* map_mode) {
-  wstring command =
-      L"// Toggle buffer variable: " + variable_name + L"\n"
-      + L"Buffer tmp_buffer = CurrentBuffer();"
-      + L"tmp_buffer.set_" + variable_name + L"("
-      + L"!tmp_buffer." + variable_name + L"()" + L"); "
-      + L"SetStatus(\"" + variable_name + L" := \" + (tmp_buffer."
-      + variable_name + L"() ? \"ON\" : \"OFF\"));";
+void ToggleBoolVariable(EditorState* editor_state, wstring binding,
+                        wstring variable_name, MapModeCommands* map_mode) {
+  wstring command = L"// Toggle buffer variable: " + variable_name + L"\n" +
+                    L"Buffer tmp_buffer = CurrentBuffer();" +
+                    L"tmp_buffer.set_" + variable_name + L"(" +
+                    L"!tmp_buffer." + variable_name + L"()" + L"); " +
+                    L"SetStatus(\"" + variable_name + L" := \" + (tmp_buffer." +
+                    variable_name + L"() ? \"ON\" : \"OFF\"));";
   LOG(INFO) << "Command: " << command;
   map_mode->Add(binding, NewCppCommand(editor_state->environment(), command));
 }
 
-void ToggleIntVariable(
-    EditorState* editor_state, wstring binding, wstring variable_name,
-    int default_value, MapModeCommands* map_mode) {
-  wstring command =
-      L"// Toggle buffer variable: " + variable_name + L"\n"
-      + L"Buffer tmp_buffer = CurrentBuffer();"
-      + L"tmp_buffer.set_" + variable_name + L"("
-      + L"tmp_buffer." + variable_name + L"() != 0 ? 0 : "
-      + std::to_wstring(default_value) + L"); "
-      + L"SetStatus(\"" + variable_name + L" := \" + tostring(tmp_buffer."
-      + variable_name + L"()));";
+void ToggleIntVariable(EditorState* editor_state, wstring binding,
+                       wstring variable_name, int default_value,
+                       MapModeCommands* map_mode) {
+  wstring command = L"// Toggle buffer variable: " + variable_name + L"\n" +
+                    L"Buffer tmp_buffer = CurrentBuffer();" +
+                    L"tmp_buffer.set_" + variable_name + L"(" + L"tmp_buffer." +
+                    variable_name + L"() != 0 ? 0 : " +
+                    std::to_wstring(default_value) + L"); " + L"SetStatus(\"" +
+                    variable_name + L" := \" + tostring(tmp_buffer." +
+                    variable_name + L"()));";
   LOG(INFO) << "Command: " << command;
   map_mode->Add(binding, NewCppCommand(editor_state->environment(), command));
 }
@@ -903,24 +888,21 @@ void ToggleIntVariable(
 using std::map;
 using std::unique_ptr;
 
-std::unique_ptr<MapModeCommands> NewCommandMode(
-    EditorState* editor_state) {
+std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   auto commands = std::make_unique<MapModeCommands>();
   commands->Add(L"aq", NewQuitCommand());
   commands->Add(L"ad", NewCloseBufferCommand());
-  commands->Add(L"aw",
-      NewCppCommand(editor_state->environment(),
-          L"// Save the current buffer.\n"
-          L"editor.SaveCurrentBuffer();"));
+  commands->Add(L"aw", NewCppCommand(editor_state->environment(),
+                                     L"// Save the current buffer.\n"
+                                     L"editor.SaveCurrentBuffer();"));
   commands->Add(L"av", NewSetVariableCommand());
   commands->Add(L"ac", NewRunCppFileCommand());
   commands->Add(L"aC", NewRunCppCommand());
   commands->Add(L"a.", NewOpenDirectoryCommand());
   commands->Add(L"al", NewListBuffersCommand());
-  commands->Add(L"ar",
-      NewCppCommand(editor_state->environment(),
-          L"// Reload the current buffer.\n"
-          L"editor.ReloadCurrentBuffer();"));
+  commands->Add(L"ar", NewCppCommand(editor_state->environment(),
+                                     L"// Reload the current buffer.\n"
+                                     L"editor.ReloadCurrentBuffer();"));
   commands->Add(L"ae", NewSendEndOfFileCommand());
   commands->Add(L"ao", NewOpenFileCommand());
   {
@@ -929,45 +911,47 @@ std::unique_ptr<MapModeCommands> NewCommandMode(
     options.history_file = L"commands";
     options.handler = RunMultipleCommandsHandler;
     commands->Add(L"aF",
-        NewLinePromptCommand(
-            L"forks a command for each line in the current buffer",
-            [options](EditorState*) { return options; }));
+                  NewLinePromptCommand(
+                      L"forks a command for each line in the current buffer",
+                      [options](EditorState*) { return options; }));
   }
   commands->Add(L"af", NewForkCommand());
 
-  commands->Add(L"+",
+  commands->Add(
+      L"+", NewCppCommand(editor_state->environment(),
+                          L"// Create a new cursor at the current position.\n"
+                          L"editor.CreateCursor();"));
+  commands->Add(
+      L"-", NewCppCommand(editor_state->environment(),
+                          L"// Destroy current cursor(s) and jump to next.\n"
+                          L"editor.DestroyCursor();"));
+  commands->Add(
+      L"=", NewCppCommand(editor_state->environment(),
+                          L"// Destroy cursors other than the current one.\n"
+                          L"editor.DestroyOtherCursors();"));
+  commands->Add(
+      L"_",
       NewCppCommand(editor_state->environment(),
-          L"// Create a new cursor at the current position.\n"
-          L"editor.CreateCursor();"));
-  commands->Add(L"-",
+                    L"// Toggles whether operations apply to all cursors.\n"
+                    L"CurrentBuffer().set_multiple_cursors(\n"
+                    L"    !CurrentBuffer().multiple_cursors());"));
+  commands->Add(
+      L"Ct",
       NewCppCommand(editor_state->environment(),
-          L"// Destroy current cursor(s) and jump to next.\n"
-          L"editor.DestroyCursor();"));
-  commands->Add(L"=",
-      NewCppCommand(editor_state->environment(),
-          L"// Destroy cursors other than the current one.\n"
-          L"editor.DestroyOtherCursors();"));
-  commands->Add(L"_",
-      NewCppCommand(editor_state->environment(),
-          L"// Toggles whether operations apply to all cursors.\n"
-          L"CurrentBuffer().set_multiple_cursors(\n"
-          L"    !CurrentBuffer().multiple_cursors());"));
-  commands->Add(L"Ct",
-      NewCppCommand(editor_state->environment(),
-          L"// Toggles the active cursors with the previous set.\n"
-          L"editor.ToggleActiveCursors();"));
+                    L"// Toggles the active cursors with the previous set.\n"
+                    L"editor.ToggleActiveCursors();"));
   commands->Add(L"C+",
+                NewCppCommand(editor_state->environment(),
+                              L"// Pushes the active cursors to the stack.\n"
+                              L"editor.PushActiveCursors();"));
+  commands->Add(L"C-", NewCppCommand(editor_state->environment(),
+                                     L"// Pops active cursors from the stack.\n"
+                                     L"editor.PopActiveCursors();"));
+  commands->Add(
+      L"C!",
       NewCppCommand(editor_state->environment(),
-          L"// Pushes the active cursors to the stack.\n"
-          L"editor.PushActiveCursors();"));
-  commands->Add(L"C-",
-      NewCppCommand(editor_state->environment(),
-          L"// Pops active cursors from the stack.\n"
-          L"editor.PopActiveCursors();"));
-  commands->Add(L"C!",
-      NewCppCommand(editor_state->environment(),
-          L"// Set active cursors to the marks on this buffer.\n"
-          L"editor.SetActiveCursorsToMarks();"));
+                    L"// Set active cursors to the marks on this buffer.\n"
+                    L"editor.SetActiveCursorsToMarks();"));
 
   commands->Add(L"N", NewNavigationBufferCommand());
   commands->Add(L"i", std::make_unique<EnterInsertModeCommand>());
@@ -988,14 +972,15 @@ std::unique_ptr<MapModeCommands> NewCommandMode(
   commands->Add(L"t", std::make_unique<SetStructureCommand>(TREE, L"tree"));
 
   commands->Add(L"W", std::make_unique<SetStrengthCommand>(
-      Modifiers::WEAK, Modifiers::VERY_WEAK, L"weak"));
-  commands->Add(L"S", std::make_unique<SetStrengthCommand>(
-      Modifiers::STRONG, Modifiers::VERY_STRONG, L"strong"));
+                          Modifiers::WEAK, Modifiers::VERY_WEAK, L"weak"));
+  commands->Add(L"S",
+                std::make_unique<SetStrengthCommand>(
+                    Modifiers::STRONG, Modifiers::VERY_STRONG, L"strong"));
 
   commands->Add(L"D", std::make_unique<Delete>(DeleteOptions()));
-  commands->Add(L"d",
-      NewCommandWithModifiers(
-              L"delete", L"starts a new delete command", ApplyDeleteCommand));
+  commands->Add(
+      L"d", NewCommandWithModifiers(L"delete", L"starts a new delete command",
+                                    ApplyDeleteCommand));
   commands->Add(L"p", std::make_unique<Paste>());
 
   DeleteOptions copy_options;
@@ -1011,38 +996,37 @@ std::unique_ptr<MapModeCommands> NewCommandMode(
   commands->Add(L"h", std::make_unique<MoveBackwards>());
 
   commands->Add(L"~",
-      NewCommandWithModifiers(
-              L"~~~~", L"Switches the case of the current character.",
-              ApplySwitchCaseCommand));
+                NewCommandWithModifiers(
+                    L"~~~~", L"Switches the case of the current character.",
+                    ApplySwitchCaseCommand));
 
   commands->Add(L"sr", NewRecordCommand());
   commands->Add(L"\t", NewFindCompletionCommand());
 
-  commands->Add(L".",
-      NewCppCommand(editor_state->environment(),
-          L"// Repeats the last command.\n"
-          L"editor.RepeatLastTransformation();"));
+  commands->Add(L".", NewCppCommand(editor_state->environment(),
+                                    L"// Repeats the last command.\n"
+                                    L"editor.RepeatLastTransformation();"));
 
   ToggleBoolVariable(editor_state, L"vp", L"paste_mode", commands.get());
   ToggleBoolVariable(editor_state, L"vS", L"scrollbar", commands.get());
   ToggleBoolVariable(editor_state, L"vs", L"show_in_buffers_list",
-      commands.get());
-      
+                     commands.get());
+
   ToggleBoolVariable(editor_state, L"vf", L"follow_end_of_file",
-      commands.get());
+                     commands.get());
   ToggleBoolVariable(editor_state, L"v/c", L"search_case_sensitive",
-      commands.get());
+                     commands.get());
   ToggleIntVariable(editor_state, L"vc", L"buffer_list_context_lines", 10,
-      commands.get());
+                    commands.get());
 
   commands->Add({Terminal::ESCAPE}, std::make_unique<ResetStateCommand>());
 
   commands->Add(L"[", std::make_unique<SetStructureModifierCommand>(
-      Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION,
-      L"from the beggining to the current position"));
+                          Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION,
+                          L"from the beggining to the current position"));
   commands->Add(L"]", std::make_unique<SetStructureModifierCommand>(
-      Modifiers::FROM_CURRENT_POSITION_TO_END,
-      L"from the current position to the end"));
+                          Modifiers::FROM_CURRENT_POSITION_TO_END,
+                          L"from the current position to the end"));
   commands->Add({Terminal::CTRL_L}, std::make_unique<HardRedrawCommand>());
   commands->Add(L"0", std::make_unique<NumberMode>(SetRepetitions));
   commands->Add(L"1", std::make_unique<NumberMode>(SetRepetitions));
@@ -1064,5 +1048,5 @@ std::unique_ptr<MapModeCommands> NewCommandMode(
   return commands;
 }
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc

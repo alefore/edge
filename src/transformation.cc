@@ -35,10 +35,10 @@ class GotoPositionTransformation : public Transformation {
 
 class InsertBufferTransformation : public Transformation {
  public:
-  InsertBufferTransformation(
-      shared_ptr<const OpenBuffer> buffer_to_insert, Modifiers modifiers,
-      InsertBufferTransformationPosition final_position,
-      LineModifierSet* modifiers_set)
+  InsertBufferTransformation(shared_ptr<const OpenBuffer> buffer_to_insert,
+                             Modifiers modifiers,
+                             InsertBufferTransformationPosition final_position,
+                             LineModifierSet* modifiers_set)
       : buffer_to_insert_(buffer_to_insert),
         buffer_to_insert_length_(
             buffer_to_insert->contents()->CountCharacters()),
@@ -48,12 +48,12 @@ class InsertBufferTransformation : public Transformation {
     CHECK(buffer_to_insert_ != nullptr);
   }
 
-  void Apply(
-      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
+  void Apply(EditorState* editor_state, OpenBuffer* buffer,
+             Result* result) const {
     LineColumn start_position = result->cursor;
     for (size_t i = 0; i < modifiers_.repetitions; i++) {
-      result->cursor = buffer->InsertInPosition(
-          *buffer_to_insert_, result->cursor, modifiers_set_);
+      result->cursor = buffer->InsertInPosition(*buffer_to_insert_,
+                                                result->cursor, modifiers_set_);
     }
     editor_state->ScheduleRedraw();
 
@@ -61,8 +61,8 @@ class InsertBufferTransformation : public Transformation {
     DeleteOptions delete_options;
     delete_options.modifiers.repetitions = chars_inserted;
     delete_options.copy_to_paste_buffer = false;
-    result->undo_stack->PushFront(TransformationAtPosition(start_position,
-        NewDeleteCharactersTransformation(delete_options)));
+    result->undo_stack->PushFront(TransformationAtPosition(
+        start_position, NewDeleteCharactersTransformation(delete_options)));
 
     if (modifiers_.insertion == Modifiers::REPLACE) {
       Result current_result(editor_state);
@@ -83,8 +83,8 @@ class InsertBufferTransformation : public Transformation {
   }
 
   unique_ptr<Transformation> Clone() {
-    return NewInsertBufferTransformation(
-        buffer_to_insert_, modifiers_, final_position_, modifiers_set_);
+    return NewInsertBufferTransformation(buffer_to_insert_, modifiers_,
+                                         final_position_, modifiers_set_);
   }
 
  private:
@@ -104,8 +104,8 @@ class NoopTransformation : public Transformation {
 
 class DeleteSuffixSuperfluousCharacters : public Transformation {
  public:
-  void Apply(EditorState* editor_state, OpenBuffer* buffer, Result* result)
-      const override {
+  void Apply(EditorState* editor_state, OpenBuffer* buffer,
+             Result* result) const override {
     const wstring& superfluous_characters(buffer->read_string_variable(
         buffer_variables::line_suffix_superfluous_characters()));
     const auto line = buffer->LineAt(result->cursor.line);
@@ -114,8 +114,8 @@ class DeleteSuffixSuperfluousCharacters : public Transformation {
       return;
     }
     size_t pos = line->size();
-    while (pos > 0
-           && superfluous_characters.find(line->get(pos - 1)) != string::npos) {
+    while (pos > 0 &&
+           superfluous_characters.find(line->get(pos - 1)) != string::npos) {
       pos--;
     }
     if (pos == line->size()) {
@@ -126,9 +126,9 @@ class DeleteSuffixSuperfluousCharacters : public Transformation {
     delete_options.modifiers.repetitions = line->size() - pos;
     delete_options.copy_to_paste_buffer = false;
     return TransformationAtPosition(
-        LineColumn(result->cursor.line, pos),
-        NewDeleteCharactersTransformation(delete_options))
-            ->Apply(editor_state, buffer, result);
+               LineColumn(result->cursor.line, pos),
+               NewDeleteCharactersTransformation(delete_options))
+        ->Apply(editor_state, buffer, result);
   }
 
   unique_ptr<Transformation> Clone() {
@@ -140,11 +140,10 @@ class SetRepetitionsTransformation : public Transformation {
  public:
   SetRepetitionsTransformation(int repetitions,
                                unique_ptr<Transformation> delegate)
-      : repetitions_(repetitions),
-        delegate_(std::move(delegate)) {}
+      : repetitions_(repetitions), delegate_(std::move(delegate)) {}
 
-  void Apply(
-      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
+  void Apply(EditorState* editor_state, OpenBuffer* buffer,
+             Result* result) const {
     auto original_repetitions = editor_state->repetitions();
     editor_state->set_repetitions(repetitions_);
     delegate_->Apply(editor_state, buffer, result);
@@ -164,11 +163,10 @@ class ApplyRepetitionsTransformation : public Transformation {
  public:
   ApplyRepetitionsTransformation(int repetitions,
                                  unique_ptr<Transformation> delegate)
-      : repetitions_(repetitions),
-        delegate_(std::move(delegate)) {}
+      : repetitions_(repetitions), delegate_(std::move(delegate)) {}
 
-  void Apply(EditorState* editor_state, OpenBuffer* buffer, Result* result)
-      const override {
+  void Apply(EditorState* editor_state, OpenBuffer* buffer,
+             Result* result) const override {
     for (size_t i = 0; i < repetitions_; i++) {
       Result current_result(editor_state);
       current_result.delete_buffer = result->delete_buffer;
@@ -203,11 +201,10 @@ class DirectionTransformation : public Transformation {
  public:
   DirectionTransformation(Direction direction,
                           unique_ptr<Transformation> delegate)
-      : direction_(direction),
-        delegate_(std::move(delegate)) {}
+      : direction_(direction), delegate_(std::move(delegate)) {}
 
-  void Apply(
-      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
+  void Apply(EditorState* editor_state, OpenBuffer* buffer,
+             Result* result) const {
     auto original_direction = editor_state->direction();
     editor_state->set_direction(direction_);
     delegate_->Apply(editor_state, buffer, result);
@@ -232,8 +229,8 @@ class StructureTransformation : public Transformation {
         structure_range_(structure_range),
         delegate_(std::move(delegate)) {}
 
-  void Apply(
-      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
+  void Apply(EditorState* editor_state, OpenBuffer* buffer,
+             Result* result) const {
     auto original_structure = editor_state->structure();
     auto original_structure_range = editor_state->structure_range();
     editor_state->set_structure(structure_);
@@ -244,8 +241,8 @@ class StructureTransformation : public Transformation {
   }
 
   unique_ptr<Transformation> Clone() {
-    return NewStructureTransformation(
-        structure_, structure_range_, delegate_->Clone());
+    return NewStructureTransformation(structure_, structure_range_,
+                                      delegate_->Clone());
   }
 
  private:
@@ -260,12 +257,12 @@ namespace afc {
 namespace editor {
 
 Transformation::Result::Result(EditorState* editor_state)
-     : success(true),
-       made_progress(false),
-       modified_buffer(false),
-       undo_stack(std::make_unique<TransformationStack>()),
-       delete_buffer(std::make_shared<OpenBuffer>(
-                         editor_state, OpenBuffer::kPasteBuffer)) {}
+    : success(true),
+      made_progress(false),
+      modified_buffer(false),
+      undo_stack(std::make_unique<TransformationStack>()),
+      delete_buffer(std::make_shared<OpenBuffer>(editor_state,
+                                                 OpenBuffer::kPasteBuffer)) {}
 
 unique_ptr<Transformation> NewInsertBufferTransformation(
     shared_ptr<const OpenBuffer> buffer_to_insert, Modifiers modifiers,
@@ -280,9 +277,8 @@ unique_ptr<Transformation> NewInsertBufferTransformation(
     InsertBufferTransformationPosition final_position) {
   Modifiers modifiers;
   modifiers.repetitions = repetitions;
-  return NewInsertBufferTransformation(
-      buffer_to_insert, modifiers, final_position, nullptr);
-
+  return NewInsertBufferTransformation(buffer_to_insert, modifiers,
+                                       final_position, nullptr);
 }
 
 std::unique_ptr<Transformation> NewGotoPositionTransformation(
@@ -304,8 +300,8 @@ std::unique_ptr<Transformation> ComposeTransformation(
 
 unique_ptr<Transformation> TransformationAtPosition(
     const LineColumn& position, unique_ptr<Transformation> transformation) {
-  return ComposeTransformation(
-      NewGotoPositionTransformation(position), std::move(transformation));
+  return ComposeTransformation(NewGotoPositionTransformation(position),
+                               std::move(transformation));
 }
 
 std::unique_ptr<Transformation> NewDeleteSuffixSuperfluousCharacters() {
@@ -326,16 +322,15 @@ std::unique_ptr<Transformation> NewApplyRepetitionsTransformation(
 
 std::unique_ptr<Transformation> NewDirectionTransformation(
     Direction direction, std::unique_ptr<Transformation> transformation) {
-  return std::make_unique<DirectionTransformation>(
-      direction, std::move(transformation));
+  return std::make_unique<DirectionTransformation>(direction,
+                                                   std::move(transformation));
 }
 
 std::unique_ptr<Transformation> NewStructureTransformation(
-    Structure structure,
-    Modifiers::StructureRange structure_range,
+    Structure structure, Modifiers::StructureRange structure_range,
     std::unique_ptr<Transformation> transformation) {
-  return std::make_unique<StructureTransformation>(
-      structure, structure_range, std::move(transformation));
+  return std::make_unique<StructureTransformation>(structure, structure_range,
+                                                   std::move(transformation));
 }
 
 }  // namespace editor

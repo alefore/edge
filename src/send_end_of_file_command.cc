@@ -19,9 +19,8 @@ void SendEndOfFileToBuffer(EditorState* editor_state,
   if (editor_state->structure() == LINE) {
     auto target_buffer = buffer->GetBufferFromCurrentLine();
     if (target_buffer != nullptr) {
-      LOG(INFO) << "Sending EOF to line: "
-                << buffer->current_line()->ToString() << ": "
-                << buffer->name();
+      LOG(INFO) << "Sending EOF to line: " << buffer->current_line()->ToString()
+                << ": " << buffer->name();
       buffer = target_buffer;
     }
     editor_state->ResetModifiers();
@@ -32,17 +31,17 @@ void SendEndOfFileToBuffer(EditorState* editor_state,
     return;
   }
   if (buffer->read_bool_variable(buffer_variables::pts())) {
-    char str[1] = { 4 };
+    char str[1] = {4};
     if (write(buffer->fd(), str, sizeof(str)) == -1) {
-      editor_state->SetStatus(
-          L"Sending EOF failed: " + FromByteString(strerror(errno)));
+      editor_state->SetStatus(L"Sending EOF failed: " +
+                              FromByteString(strerror(errno)));
       return;
     }
     editor_state->SetStatus(L"EOF sent");
   } else {
     if (shutdown(buffer->fd(), SHUT_WR) == -1) {
-      editor_state->SetStatus(
-          L"shutdown(SHUT_WR) failed: " + FromByteString(strerror(errno)));
+      editor_state->SetStatus(L"shutdown(SHUT_WR) failed: " +
+                              FromByteString(strerror(errno)));
       return;
     }
     editor_state->SetStatus(L"shutdown sent");
@@ -56,7 +55,9 @@ class SendEndOfFileCommand : public Command {
   }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) { return; }
+    if (!editor_state->has_current_buffer()) {
+      return;
+    }
     auto buffer = editor_state->current_buffer()->second;
     buffer->ResetMode();
     SendEndOfFileToBuffer(editor_state, buffer);
@@ -67,5 +68,5 @@ std::unique_ptr<Command> NewSendEndOfFileCommand() {
   return std::make_unique<SendEndOfFileCommand>();
 }
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc
