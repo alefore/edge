@@ -10,13 +10,9 @@ class SubstringImpl : public LazyString {
   SubstringImpl(const shared_ptr<LazyString>& input, size_t pos, size_t size)
       : buffer_(input), pos_(pos), size_(size) {}
 
-  wchar_t get(size_t pos) const {
-    return buffer_->get(pos_ + pos);
-  }
+  wchar_t get(size_t pos) const { return buffer_->get(pos_ + pos); }
 
-  size_t size() const {
-    return size_;
-  }
+  size_t size() const { return size_; }
 
  private:
   const shared_ptr<LazyString> buffer_;
@@ -30,8 +26,7 @@ shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
 }
 
 shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
-                                 size_t pos,
-                                 size_t size) {
+                                 size_t pos, size_t size) {
   CHECK(input != nullptr);
   if (pos == 0 && size == input->size()) {
     return input;  // Optimization.
