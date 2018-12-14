@@ -254,7 +254,7 @@ void Line::Output(const Line::OutputOptions& options) const {
       options.buffer->Read(buffer_variables::view_start_line());
   const size_t initial_column =
       std::to_wstring(options.buffer->lines_size()).size() + 1;
-  if (!target_buffer->read_bool_variable(buffer_variables::paste_mode())) {
+  if (!target_buffer->Read(buffer_variables::paste_mode())) {
     auto number = std::to_wstring(options.line + 1);
     CHECK_LE(number.size() + 1, initial_column)
         << "Buffer has lines: " << target_buffer->lines_size();
@@ -314,7 +314,7 @@ void Line::Output(const Line::OutputOptions& options) const {
 
   auto view_start = static_cast<size_t>(
       max(0, options.buffer->Read(buffer_variables::view_start_column())));
-  if ((!target_buffer->read_bool_variable(buffer_variables::paste_mode()) ||
+  if ((!target_buffer->Read(buffer_variables::paste_mode()) ||
        target_buffer != options.buffer) &&
       line_width != 0 && view_start < line_width &&
       line_width + initial_column - view_start < options.width) {
@@ -378,7 +378,7 @@ void Line::Output(const Line::OutputOptions& options) const {
         additional_information +=
             DrawTree(options.line, options.buffer->lines_size(), *parse_tree);
       }
-      if (options.buffer->read_bool_variable(buffer_variables::scrollbar())) {
+      if (options.buffer->Read(buffer_variables::scrollbar())) {
         additional_information += ComputeScrollBarCharacter(
             options.line, options.buffer->lines_size(), view_start_line,
             options.lines_to_show);

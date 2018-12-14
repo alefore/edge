@@ -31,8 +31,7 @@ class ListBuffersBuffer : public OpenBuffer {
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     target->ClearContents(editor_state);
-    bool show_in_buffers_list =
-        read_bool_variable(buffer_variables::show_in_buffers_list());
+    bool show_in_buffers_list = Read(buffer_variables::show_in_buffers_list());
 
     size_t screen_lines = 0;
     auto screen_value = environment()->Lookup(L"screen");
@@ -47,8 +46,7 @@ class ListBuffersBuffer : public OpenBuffer {
     vector<std::shared_ptr<OpenBuffer>> buffers_to_show;
     for (const auto& it : *editor_state->buffers()) {
       if (!show_in_buffers_list &&
-          !it.second->read_bool_variable(
-              buffer_variables::show_in_buffers_list())) {
+          !it.second->Read(buffer_variables::show_in_buffers_list())) {
         LOG(INFO) << "Skipping buffer (!show_in_buffers_list).";
         continue;
       }

@@ -95,7 +95,7 @@ class FileBuffer : public OpenBuffer {
       return false;
     }
 
-    auto file_path = read_string_variable(buffer_variables::path());
+    auto file_path = Read(buffer_variables::path());
     list<wstring> file_path_components;
     if (file_path.empty() || file_path[0] != '/') {
       LOG(INFO) << "Empty edge path.";
@@ -141,10 +141,9 @@ class FileBuffer : public OpenBuffer {
 
     contents.push_back(L"// String variables");
     for (const auto& variable : buffer_variables::StringStruct()->variables()) {
-      contents.push_back(
-          L"buffer.set_" + variable.first + L"(\"" +
-          CppEscapeString(read_string_variable(variable.second.get())) +
-          L"\");");
+      contents.push_back(L"buffer.set_" + variable.first + L"(\"" +
+                         CppEscapeString(Read(variable.second.get())) +
+                         L"\");");
     }
     contents.push_back(L"");
 
@@ -157,10 +156,9 @@ class FileBuffer : public OpenBuffer {
 
     contents.push_back(L"// Bool variables");
     for (const auto& variable : buffer_variables::BoolStruct()->variables()) {
-      contents.push_back(
-          L"buffer.set_" + variable.first + L"(" +
-          (read_bool_variable(variable.second.get()) ? L"true" : L"false") +
-          L");");
+      contents.push_back(L"buffer.set_" + variable.first + L"(" +
+                         (Read(variable.second.get()) ? L"true" : L"false") +
+                         L");");
     }
     contents.push_back(L"");
 
@@ -176,7 +174,7 @@ class FileBuffer : public OpenBuffer {
       return;
     }
 
-    if (target->read_bool_variable(buffer_variables::clear_on_reload())) {
+    if (target->Read(buffer_variables::clear_on_reload())) {
       target->ClearContents(editor_state);
       target->ClearModified();
     }
@@ -272,8 +270,7 @@ class FileBuffer : public OpenBuffer {
     }
     for (auto& it : *editor_state->buffers()) {
       CHECK(it.second != nullptr);
-      if (it.second->read_bool_variable(
-              buffer_variables::reload_on_buffer_write())) {
+      if (it.second->Read(buffer_variables::reload_on_buffer_write())) {
         LOG(INFO) << "Write of " << path
                   << " triggers reload: " << it.second->name();
         it.second->Reload(editor_state);
@@ -338,9 +335,7 @@ class FileBuffer : public OpenBuffer {
     });
   }
 
-  wstring GetPath() const {
-    return read_string_variable(buffer_variables::path());
-  }
+  wstring GetPath() const { return Read(buffer_variables::path()); }
 
   struct stat stat_buffer_;
 };
@@ -524,8 +519,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
       for (auto it = editor_state->buffers()->begin();
            it != editor_state->buffers()->end(); ++it) {
         CHECK(it->second != nullptr);
-        auto buffer_path =
-            it->second->read_string_variable(buffer_variables::path());
+        auto buffer_path = it->second->Read(buffer_variables::path());
         if (buffer_path.size() >= path.size() &&
             buffer_path.substr(buffer_path.size() - path.size()) == path &&
             (buffer_path.size() == path.size() || path[0] == L'/' ||

@@ -173,7 +173,7 @@ void SearchHandlerPredictor(EditorState* editor_state, const wstring& input,
   SearchOptions options;
   options.search_query = input;
   options.case_sensitive =
-      buffer->read_bool_variable(buffer_variables::search_case_sensitive());
+      buffer->Read(buffer_variables::search_case_sensitive());
   options.starting_position = buffer->position();
   auto positions = PerformSearchWithDirection(editor_state, options);
 

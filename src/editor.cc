@@ -472,7 +472,7 @@ void EditorState::PushCurrentPosition() {
 
 void EditorState::PushPosition(LineColumn position) {
   if (!has_current_buffer() ||
-      !current_buffer_->second->read_bool_variable(
+      !current_buffer_->second->Read(
           buffer_variables::push_positions_to_history())) {
     return;
   }
@@ -629,7 +629,7 @@ bool EditorState::handling_stop_signals() const {
   if (target_buffer != nullptr) {
     buffer = target_buffer;
   }
-  return buffer->read_bool_variable(buffer_variables::pts());
+  return buffer->Read(buffer_variables::pts());
 }
 
 }  // namespace editor

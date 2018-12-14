@@ -56,7 +56,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
       PromptOptions options;
       options.prompt = name + L" := ";
       options.history_file = L"values";
-      options.initial_value = buffer->read_string_variable(var);
+      options.initial_value = buffer->Read(var);
       options.handler = [var, buffer](const wstring& input, EditorState*) {
         if (buffer == nullptr) {
           return;
@@ -76,8 +76,8 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
     auto var = buffer_variables::BoolStruct()->find_variable(name);
     if (var != nullptr) {
       buffer->toggle_bool_variable(var);
-      editor_state->SetStatus(
-          name + L" := " + (buffer->read_bool_variable(var) ? L"ON" : L"OFF"));
+      editor_state->SetStatus(name + L" := " +
+                              (buffer->Read(var) ? L"ON" : L"OFF"));
       return;
     }
   }

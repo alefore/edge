@@ -403,7 +403,7 @@ void TestCases() {
 
   editor_state.ProcessInputString("w+");
   editor_state.ProcessInputString("_");
-  CHECK(editor_state.current_buffer()->second->read_bool_variable(
+  CHECK(editor_state.current_buffer()->second->Read(
       buffer_variables::multiple_cursors()));
 
   editor_state.ProcessInputString("i1234 ");

@@ -78,7 +78,7 @@ class CommandBuffer : public OpenBuffer {
     static const int parent_fd = 0;
     static const int child_fd = 1;
     time(&time_start_);
-    if (read_bool_variable(buffer_variables::pts())) {
+    if (Read(buffer_variables::pts())) {
       int master_fd = posix_openpt(O_RDWR);
       if (master_fd == -1) {
         cerr << "posix_openpt failed: " << string(strerror(errno));
@@ -184,8 +184,7 @@ class CommandBuffer : public OpenBuffer {
 
       char* argv[] = {
           strdup("sh"), strdup("-c"),
-          strdup(ToByteString(read_string_variable(buffer_variables::command()))
-                     .c_str()),
+          strdup(ToByteString(Read(buffer_variables::command())).c_str()),
           nullptr};
       int status = execve("/bin/sh", argv, envp);
       exit(WIFEXITED(status) ? WEXITSTATUS(status) : 1);
@@ -194,9 +193,9 @@ class CommandBuffer : public OpenBuffer {
     close(pipefd_err[child_fd]);
     LOG(INFO) << "Setting input files: " << pipefd_out[parent_fd] << ", "
               << pipefd_err[parent_fd];
-    target->SetInputFiles(
-        editor_state, pipefd_out[parent_fd], pipefd_err[parent_fd],
-        read_bool_variable(buffer_variables::pts()), child_pid);
+    target->SetInputFiles(editor_state, pipefd_out[parent_fd],
+                          pipefd_err[parent_fd], Read(buffer_variables::pts()),
+                          child_pid);
     editor_state->ScheduleRedraw();
     AddEndOfFileObserver([this, editor_state]() {
       LOG(INFO) << "End of file notification.";
@@ -274,7 +273,7 @@ void RunCommand(const wstring& name, const wstring& input,
   options.command = input;
   options.buffer_name = name;
   options.enter = !editor_state->has_current_buffer() ||
-                  !editor_state->current_buffer()->second->read_bool_variable(
+                  !editor_state->current_buffer()->second->Read(
                       buffer_variables::commands_background_mode());
   options.environment = environment;
   ForkCommand(editor_state, options);

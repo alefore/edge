@@ -336,12 +336,11 @@ class OpenBuffer {
   void SetInputFiles(EditorState* editor_state, int input_fd,
                      int input_fd_error, bool fd_is_terminal, pid_t child_pid);
 
-  const bool& read_bool_variable(const EdgeVariable<bool>* variable) const;
+  const bool& Read(const EdgeVariable<bool>* variable) const;
   void set_bool_variable(const EdgeVariable<bool>* variable, bool value);
   void toggle_bool_variable(const EdgeVariable<bool>* variable);
 
-  const wstring& read_string_variable(
-      const EdgeVariable<wstring>* variable) const;
+  const wstring& Read(const EdgeVariable<wstring>* variable) const;
   void set_string_variable(const EdgeVariable<wstring>* variable,
                            wstring value);
 

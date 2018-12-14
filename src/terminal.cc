@@ -50,7 +50,7 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   }
   int screen_lines = screen->lines();
   auto& buffer = editor_state->current_buffer()->second;
-  if (buffer->read_bool_variable(buffer_variables::reload_on_display())) {
+  if (buffer->Read(buffer_variables::reload_on_display())) {
     buffer->Reload(editor_state);
   }
   size_t line = min(buffer->position().line, buffer->contents()->size() - 1);
@@ -85,7 +85,7 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
                              desired_start_column);
     editor_state->ScheduleRedraw();
   }
-  if (buffer->read_bool_variable(buffer_variables::atomic_lines()) &&
+  if (buffer->Read(buffer_variables::atomic_lines()) &&
       buffer->last_highlighted_line() != buffer->position().line) {
     editor_state->ScheduleRedraw();
   }
@@ -96,7 +96,7 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   ShowStatus(*editor_state, screen);
   if (editor_state->status_prompt()) {
     screen->SetCursorVisibility(Screen::NORMAL);
-  } else if (buffer->read_bool_variable(buffer_variables::atomic_lines())) {
+  } else if (buffer->Read(buffer_variables::atomic_lines())) {
     screen->SetCursorVisibility(Screen::INVISIBLE);
   } else {
     screen->SetCursorVisibility(Screen::NORMAL);
@@ -185,12 +185,11 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
 
     auto active_cursors = buffer->active_cursors()->size();
     if (active_cursors != 1) {
-      status +=
-          L" " +
-          (buffer->read_bool_variable(buffer_variables::multiple_cursors())
-               ? wstring(L"CURSORS")
-               : wstring(L"cursors")) +
-          L":" + to_wstring(active_cursors) + L" ";
+      status += L" " +
+                (buffer->Read(buffer_variables::multiple_cursors())
+                     ? wstring(L"CURSORS")
+                     : wstring(L"cursors")) +
+                L":" + to_wstring(active_cursors) + L" ";
     }
 
     wstring flags = buffer->FlagsString();
@@ -721,8 +720,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   line_output_options.buffer = buffer.get();
   line_output_options.lines_to_show = lines_to_show;
   line_output_options.width = screen->columns();
-  line_output_options.paste_mode =
-      buffer->read_bool_variable(buffer_variables::paste_mode());
+  line_output_options.paste_mode = buffer->Read(buffer_variables::paste_mode());
 
   buffer->set_lines_for_zoomed_out_tree(lines_to_show);
   auto zoomed_out_tree = buffer->zoomed_out_tree();
@@ -749,7 +747,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     line_output_options.has_active_cursor =
         current_line == buffer->current_position_line() ||
         (current_cursors != cursors.end() &&
-         buffer->read_bool_variable(buffer_variables::multiple_cursors()));
+         buffer->Read(buffer_variables::multiple_cursors()));
     line_output_options.has_cursor = current_cursors != cursors.end();
 
     std::unique_ptr<Line::OutputReceiverInterface> cursors_highlighter;
@@ -763,7 +761,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
             : 1 + std::to_wstring(buffer->lines_size()).size();
     CHECK(line->contents() != nullptr);
     if (current_line == buffer->position().line &&
-        buffer->read_bool_variable(buffer_variables::atomic_lines())) {
+        buffer->Read(buffer_variables::atomic_lines())) {
       buffer->set_last_highlighted_line(current_line);
       atomic_lines_highlighter =
           std::make_unique<HighlightedLineOutputReceiver>(receiver);
@@ -786,7 +784,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
         options.columns.insert(line_length);
       }
       options.multiple_cursors =
-          buffer->read_bool_variable(buffer_variables::multiple_cursors());
+          buffer->Read(buffer_variables::multiple_cursors());
 
       LOG(INFO) << "Applying columns_to_skip: " << columns_to_skip;
       std::set<size_t> adjusted_columns;
@@ -857,7 +855,7 @@ void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer,
     }
   }
   size_t columns_to_skip =
-      buffer->read_bool_variable(buffer_variables::paste_mode())
+      buffer->Read(buffer_variables::paste_mode())
           ? 0
           : 1 + std::to_wstring(buffer->lines_size()).size();
   screen->Move(pos_y, pos_x + columns_to_skip);

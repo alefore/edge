@@ -108,9 +108,9 @@ class NavigationBuffer : public OpenBuffer {
 
   void AddContents(const std::shared_ptr<OpenBuffer>& source, const Line& input,
                    Line::Options* line_options) {
-    auto trim = StringTrimLeft(input.contents(),
-                               source->read_string_variable(
-                                   buffer_variables::line_prefix_characters()));
+    auto trim = StringTrimLeft(
+        input.contents(),
+        source->Read(buffer_variables::line_prefix_characters()));
     CHECK_LE(trim->size(), input.contents()->size());
     size_t characters_trimmed = input.contents()->size() - trim->size();
     size_t initial_length = line_options->contents->size();

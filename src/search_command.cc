@@ -69,8 +69,8 @@ class SearchCommand : public Command {
                   ->Substring(start.column, end.column - start.column)
                   ->ToString();
           options.starting_position = buffer->position();
-          options.case_sensitive = buffer->read_bool_variable(
-              buffer_variables::search_case_sensitive());
+          options.case_sensitive =
+              buffer->Read(buffer_variables::search_case_sensitive());
           DoSearch(editor_state, options);
         }
 
@@ -84,8 +84,8 @@ class SearchCommand : public Command {
         SearchOptions search_options;
         if (editor_state->current_buffer() != editor_state->buffers()->end()) {
           auto buffer = editor_state->current_buffer()->second;
-          search_options.case_sensitive = buffer->read_bool_variable(
-              buffer_variables::search_case_sensitive());
+          search_options.case_sensitive =
+              buffer->Read(buffer_variables::search_case_sensitive());
           if (editor_state->structure() == CURSOR) {
             if (!buffer->FindPartialRange(editor_state->modifiers(),
                                           buffer->position(),

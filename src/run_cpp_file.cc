@@ -26,7 +26,7 @@ class RunCppFileCommand : public Command {
     options.prompt = L"cmd ";
     options.history_file = L"editor_commands";
     options.initial_value =
-        buffer->read_string_variable(buffer_variables::editor_commands_path());
+        buffer->Read(buffer_variables::editor_commands_path());
     options.handler = RunCppFileHandler;
     options.cancel_handler = [](EditorState*) { /* Nothing. */ };
     options.predictor = FilePredictor;

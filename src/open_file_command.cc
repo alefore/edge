@@ -40,9 +40,8 @@ std::unique_ptr<Command> NewOpenFileCommand() {
       L"loads a file", [options](EditorState* editor_state) {
         PromptOptions options_copy = options;
         if (editor_state->has_current_buffer()) {
-          wstring path =
-              editor_state->current_buffer()->second->read_string_variable(
-                  buffer_variables::path());
+          wstring path = editor_state->current_buffer()->second->Read(
+              buffer_variables::path());
           struct stat stat_buffer;
           if (stat(ToByteString(path).c_str(), &stat_buffer) == -1 ||
               !S_ISDIR(stat_buffer.st_mode)) {

@@ -30,7 +30,7 @@ void SendEndOfFileToBuffer(EditorState* editor_state,
     editor_state->SetStatus(L"No active subprocess for current buffer.");
     return;
   }
-  if (buffer->read_bool_variable(buffer_variables::pts())) {
+  if (buffer->Read(buffer_variables::pts())) {
     char str[1] = {4};
     if (write(buffer->fd(), str, sizeof(str)) == -1) {
       editor_state->SetStatus(L"Sending EOF failed: " +
