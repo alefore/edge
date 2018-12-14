@@ -242,6 +242,7 @@ EdgeStruct<wstring>* StringStruct() {
     dictionary();
     tree_parser();
     language_keywords();
+    typos();
   }
   return output;
 }
@@ -348,6 +349,16 @@ EdgeVariable<wstring>* language_keywords() {
       L"language_keywords",
       L"Space separated list of keywords that should be highlighted by the "
       L"\"cpp\" tree parser (see variable tree_parser).",
+      L"");
+  return variable;
+}
+
+EdgeVariable<wstring>* typos() {
+  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
+      L"typos",
+      L"Space separated list of keywords that should be highlighted by the "
+      L"tree parser as errors. This is only honored by a few tree parser types "
+      L"(see variable tree_parser).",
       L"");
   return variable;
 }

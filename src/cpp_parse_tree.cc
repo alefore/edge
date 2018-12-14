@@ -146,8 +146,13 @@ class ParseData {
 
 class CppTreeParser : public TreeParser {
  public:
-  CppTreeParser(std::unordered_set<wstring> keywords)
-      : keywords_(std::move(keywords)) {}
+  CppTreeParser(std::unordered_set<wstring> keywords,
+                std::unordered_set<wstring> typos)
+      : words_parser_(NewWordsTreeParser(
+            L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", typos,
+            NewNullTreeParser())),
+        keywords_(std::move(keywords)),
+        typos_(std::move(typos)) {}
 
   void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
@@ -345,6 +350,8 @@ class CppTreeParser : public TreeParser {
     LineModifierSet modifiers;
     if (keywords_.find(str->ToString()) != keywords_.end()) {
       modifiers.insert(LineModifier::CYAN);
+    } else if (typos_.find(str->ToString()) != typos_.end()) {
+      modifiers.insert(LineModifier::RED);
     }
     result->PushAndPop(length, std::move(modifiers));
   }
@@ -456,11 +463,9 @@ class CppTreeParser : public TreeParser {
     return output;
   }
 
-  const std::unique_ptr<TreeParser> words_parser_ = NewWordsTreeParser(
-      L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
-      NewNullTreeParser());
-
+  const std::unique_ptr<TreeParser> words_parser_;
   const std::unordered_set<wstring> keywords_;
+  const std::unordered_set<wstring> typos_;
 
   std::map<std::weak_ptr<LazyString>,
            std::map<std::vector<size_t>, ParseResults>,
@@ -471,8 +476,8 @@ class CppTreeParser : public TreeParser {
 }  // namespace
 
 std::unique_ptr<TreeParser> NewCppTreeParser(
-    std::unordered_set<wstring> keywords) {
-  return std::make_unique<CppTreeParser>(std::move(keywords));
+    std::unordered_set<wstring> keywords, std::unordered_set<wstring> typos) {
+  return std::make_unique<CppTreeParser>(std::move(keywords), std::move(typos));
 }
 
 }  // namespace editor

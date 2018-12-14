@@ -786,15 +786,23 @@ void OpenBuffer::Input::ReadData(EditorState* editor_state,
 
 void OpenBuffer::UpdateTreeParser() {
   auto parser = Read(buffer_variables::tree_parser());
+  std::wistringstream typos_stream(Read(buffer_variables::typos()));
+  std::unordered_set<wstring> typos_set{
+      std::istream_iterator<std::wstring, wchar_t>(typos_stream),
+      std::istream_iterator<std::wstring, wchar_t>()};
+
   std::unique_lock<std::mutex> lock(mutex_);
   if (parser == L"text") {
-    tree_parser_ = NewLineTreeParser(NewWordsTreeParser(
-        Read(buffer_variables::word_characters()), NewNullTreeParser()));
+    tree_parser_ = NewLineTreeParser(
+        NewWordsTreeParser(Read(buffer_variables::word_characters()), typos_set,
+                           NewNullTreeParser()));
   } else if (parser == L"cpp") {
     std::wistringstream keywords(Read(buffer_variables::language_keywords()));
-    tree_parser_ = NewCppTreeParser(std::unordered_set<wstring>(
-        std::istream_iterator<wstring, wchar_t>(keywords),
-        std::istream_iterator<wstring, wchar_t>()));
+    tree_parser_ =
+        NewCppTreeParser(std::unordered_set<wstring>(
+                             std::istream_iterator<wstring, wchar_t>(keywords),
+                             std::istream_iterator<wstring, wchar_t>()),
+                         std::move(typos_set));
   } else {
     tree_parser_ = NewNullTreeParser();
   }
@@ -2009,7 +2017,8 @@ void OpenBuffer::set_string_variable(const EdgeVariable<wstring>* variable,
   // TODO: This should be in the variable definition, not here. Ugh.
   if (variable == buffer_variables::word_characters() ||
       variable == buffer_variables::tree_parser() ||
-      variable == buffer_variables::language_keywords()) {
+      variable == buffer_variables::language_keywords() ||
+      variable == buffer_variables::typos()) {
     UpdateTreeParser();
   }
 }

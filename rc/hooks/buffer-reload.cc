@@ -57,6 +57,8 @@ if (path == "") {
   buffer.AddBindingToFile("J",
                           buffer.editor_commands_path() + "fold-next-line");
 
+  buffer.set_typos("overriden");
+
   if (extension == "cc" || extension == "h" || extension == "c") {
     CppMode();
     buffer.AddBindingToFile("sh", buffer.editor_commands_path() + "header");

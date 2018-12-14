@@ -148,8 +148,11 @@ class CharTreeParser : public TreeParser {
 class WordsTreeParser : public TreeParser {
  public:
   WordsTreeParser(std::wstring word_characters,
+                  std::unordered_set<wstring> typos,
                   std::unique_ptr<TreeParser> delegate)
-      : word_characters_(word_characters), delegate_(std::move(delegate)) {}
+      : word_characters_(word_characters),
+        typos_(typos),
+        delegate_(std::move(delegate)) {}
 
   void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
@@ -182,6 +185,16 @@ class WordsTreeParser : public TreeParser {
           return;
         }
 
+        CHECK_GT(new_children->range.end.column,
+                 new_children->range.begin.column);
+        auto keyword =
+            Substring(contents.contents(), new_children->range.begin.column,
+                      new_children->range.end.column -
+                          new_children->range.begin.column)
+                ->ToString();
+        if (typos_.find(keyword) != typos_.end()) {
+          new_children->modifiers.insert(LineModifier::RED);
+        }
         DVLOG(6) << "Adding word: " << *new_children;
         delegate_->FindChildren(buffer, new_children.get());
       }
@@ -194,6 +207,7 @@ class WordsTreeParser : public TreeParser {
   }
 
   const std::wstring word_characters_;
+  const std::unordered_set<wstring> typos_;
   const std::unique_ptr<TreeParser> delegate_;
 };
 
@@ -241,9 +255,10 @@ std::unique_ptr<TreeParser> NewCharTreeParser() {
 }
 
 std::unique_ptr<TreeParser> NewWordsTreeParser(
-    wstring word_characters, std::unique_ptr<TreeParser> delegate) {
-  return std::make_unique<WordsTreeParser>(word_characters,
-                                           std::move(delegate));
+    wstring word_characters, std::unordered_set<wstring> typos,
+    std::unique_ptr<TreeParser> delegate) {
+  return std::make_unique<WordsTreeParser>(
+      std::move(word_characters), std::move(typos), std::move(delegate));
 }
 
 std::unique_ptr<TreeParser> NewLineTreeParser(

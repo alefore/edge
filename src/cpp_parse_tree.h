@@ -10,7 +10,8 @@ namespace afc {
 namespace editor {
 
 std::unique_ptr<TreeParser> NewCppTreeParser(
-    std::unordered_set<std::wstring> keywords);
+    std::unordered_set<std::wstring> keywords,
+    std::unordered_set<std::wstring> typos);
 
 }  // namespace editor
 }  // namespace afc

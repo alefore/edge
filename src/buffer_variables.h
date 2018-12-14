@@ -45,6 +45,7 @@ EdgeVariable<wstring>* line_suffix_superfluous_characters();
 EdgeVariable<wstring>* dictionary();
 EdgeVariable<wstring>* tree_parser();
 EdgeVariable<wstring>* language_keywords();
+EdgeVariable<wstring>* typos();
 
 EdgeStruct<int>* IntStruct();
 EdgeVariable<int>* line_width();

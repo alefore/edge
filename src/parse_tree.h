@@ -6,8 +6,8 @@
 #include <string>
 #include <unordered_set>
 
-#include "src/line_modifier.h"
 #include "line_column.h"
+#include "src/line_modifier.h"
 #include "tree.h"
 
 namespace afc {
@@ -26,8 +26,7 @@ struct ParseTree {
       : range(other.range),
         modifiers(other.modifiers),
         children(other.children),
-        depth(other.depth) {
-  }
+        depth(other.depth) {}
 
   Range range;
   std::unordered_set<LineModifier, std::hash<int>> modifiers;
@@ -42,8 +41,8 @@ struct ParseTree {
 // the child goes out of scope. The standard use is that changes to the child
 // will be done through the returned unique_ptr, so that these changes are
 // taken into account to adjust the depth of the parent.
-std::unique_ptr<ParseTree, std::function<void(ParseTree*)>>
-PushChild(ParseTree* parent);
+std::unique_ptr<ParseTree, std::function<void(ParseTree*)>> PushChild(
+    ParseTree* parent);
 
 // Returns a copy of tree that only includes children that cross line
 // boundaries. This is useful to reduce the noise shown in the tree.
@@ -52,17 +51,17 @@ void SimplifyTree(const ParseTree& tree, ParseTree* output);
 // Produces simplified (by SimplifyTree) copy of a simplified tree, where lines
 // are remapped from an input of `input_lines` lines to an output of exactly
 // `output_lines`.
-ParseTree ZoomOutTree(
-    const ParseTree& input, size_t input_lines, size_t output_lines);
+ParseTree ZoomOutTree(const ParseTree& input, size_t input_lines,
+                      size_t output_lines);
 
 // Find the route down a given parse tree always selecting the first children
 // that ends after the current position. The children selected at each step may
 // not include the position (it may start after the position).
-ParseTree::Route FindRouteToPosition(
-    const ParseTree& root, const LineColumn& position);
+ParseTree::Route FindRouteToPosition(const ParseTree& root,
+                                     const LineColumn& position);
 
-std::vector<const ParseTree*> MapRoute(
-    const ParseTree& root, const ParseTree::Route& route);
+std::vector<const ParseTree*> MapRoute(const ParseTree& root,
+                                       const ParseTree::Route& route);
 
 const ParseTree* FollowRoute(const ParseTree& root,
                              const ParseTree::Route& route);
@@ -82,7 +81,7 @@ class TreeParser {
 std::unique_ptr<TreeParser> NewNullTreeParser();
 std::unique_ptr<TreeParser> NewCharTreeParser();
 std::unique_ptr<TreeParser> NewWordsTreeParser(
-    std::wstring word_characters,
+    std::wstring word_characters, std::unordered_set<wstring> typos,
     std::unique_ptr<TreeParser> delegate);
 std::unique_ptr<TreeParser> NewLineTreeParser(
     std::unique_ptr<TreeParser> delegate);
