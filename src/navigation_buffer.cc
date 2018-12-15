@@ -65,7 +65,8 @@ class NavigationBuffer : public OpenBuffer {
                    const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
                    const ParseTree& tree, std::shared_ptr<LazyString> padding,
                    OpenBuffer* target) {
-    for (auto& child : tree.children) {
+    for (size_t i = 0; i < tree.children.size(); i++) {
+      auto& child = tree.children[i];
       if (child.range.begin.line + 1 == child.range.end.line ||
           depth_left == 0 || child.children.empty()) {
         Line::Options options;
@@ -90,7 +91,10 @@ class NavigationBuffer : public OpenBuffer {
         DisplayTree(editor_state, source, depth_left - 1, child,
                     StringAppend(NewCopyString(L"  "), padding), target);
       }
-      AppendLine(editor_state, source, padding, child.range.end, target);
+      if (i + 1 >= tree.children.size() ||
+          child.range.end.line != tree.children[i + 1].range.begin.line) {
+        AppendLine(editor_state, source, padding, child.range.end, target);
+      }
     }
   }
 
