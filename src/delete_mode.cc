@@ -16,8 +16,8 @@ void ApplyDeleteCommand(EditorState* editor_state, OpenBuffer* buffer,
   CHECK(buffer != nullptr);
   DeleteOptions options;
   options.modifiers = modifiers;
-  options.copy_to_paste_buffer = apply_mode == APPLY_FINAL;
-  options.preview = apply_mode == APPLY_PREVIEW;
+  options.copy_to_paste_buffer = apply_mode == CommandApplyMode::FINAL;
+  options.preview = apply_mode == CommandApplyMode::PREVIEW;
 
   buffer->PushTransformationStack();
   buffer->ApplyToCursors(NewDeleteTransformation(options),

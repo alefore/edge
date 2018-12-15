@@ -245,7 +245,7 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
                   // don't know what effect each transformation will have, and
                   // because we can't call `resume` more than once (it will
                   // likely free things when we call it).
-                  if (mode == APPLY_FINAL) {
+                  if (mode == CommandApplyMode::FINAL) {
                     LOG(INFO) << "GetRegion: Resuming.";
                     LineColumn start, end;
                     buffer->FindPartialRange(modifiers, buffer->position(),

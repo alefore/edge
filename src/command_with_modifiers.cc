@@ -18,7 +18,7 @@ class CommandWithModifiersMode : public EditorMode {
         buffer_(editor_state->current_buffer()->second),
         handler_(std::move(handler)) {
     CHECK(buffer_ != nullptr);
-    RunHandler(editor_state, APPLY_PREVIEW);
+    RunHandler(editor_state, CommandApplyMode::PREVIEW);
   }
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
@@ -26,7 +26,7 @@ class CommandWithModifiersMode : public EditorMode {
     switch (c) {
       case '\n':
       case ' ':
-        RunHandler(editor_state, APPLY_FINAL);
+        RunHandler(editor_state, CommandApplyMode::FINAL);
         // Fall through.
       case Terminal::ESCAPE:
         buffer_->ResetMode();
@@ -37,12 +37,12 @@ class CommandWithModifiersMode : public EditorMode {
         if (!modifiers_string_.empty()) {
           modifiers_string_.pop_back();
         }
-        RunHandler(editor_state, APPLY_PREVIEW);
+        RunHandler(editor_state, CommandApplyMode::PREVIEW);
         break;
 
       default:
         modifiers_string_.push_back(c);
-        RunHandler(editor_state, APPLY_PREVIEW);
+        RunHandler(editor_state, CommandApplyMode::PREVIEW);
     }
   }
 

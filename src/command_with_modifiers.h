@@ -10,12 +10,12 @@
 namespace afc {
 namespace editor {
 
-enum CommandApplyMode {
+enum class CommandApplyMode {
   // Just preview what this transformation would do. Don't apply any
   // long-lasting effects.
-  APPLY_PREVIEW,
+  PREVIEW,
   // Apply the transformation.
-  APPLY_FINAL,
+  FINAL,
 };
 
 using CommandWithModifiersHandler =

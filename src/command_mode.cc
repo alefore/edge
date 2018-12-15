@@ -825,8 +825,8 @@ class SwitchCaseTransformation : public Transformation {
     stack->PushBack(NewInsertBufferTransformation(
         buffer_to_insert, Modifiers(),
         modifiers_.direction == FORWARDS ? END : START,
-        apply_mode_ == APPLY_PREVIEW ? &modifiers_set : nullptr));
-    if (apply_mode_ == APPLY_PREVIEW) {
+        apply_mode_ == CommandApplyMode::PREVIEW ? &modifiers_set : nullptr));
+    if (apply_mode_ == CommandApplyMode::PREVIEW) {
       stack->PushBack(NewGotoPositionTransformation(original_position));
     }
     stack->Apply(editor_state, buffer, result);
