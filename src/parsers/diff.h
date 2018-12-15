@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_DIFF_H__
-#define __AFC_EDITOR_DIFF_H__
+#ifndef __AFC_EDITOR_PARSERS_DIFF_H__
+#define __AFC_EDITOR_PARSERS_DIFF_H__
 
 #include <memory>
 
@@ -13,4 +13,4 @@ std::unique_ptr<TreeParser> NewDiffTreeParser();
 }  // namespace editor
 }  // namespace afc
 
-#endif  // __AFC_EDITOR_DIFF_H__
+#endif  // __AFC_EDITOR_PARSERS_DIFF_H__
