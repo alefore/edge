@@ -11,8 +11,7 @@
 namespace afc {
 namespace vm {
 
-
-template <typename ReturnType, typename ...Args>
+template <typename ReturnType, typename... Args>
 void AddMethod(const wstring& name,
                std::function<ReturnType(wstring, Args...)> callback,
                ObjectType* string_type) {
@@ -21,13 +20,13 @@ void AddMethod(const wstring& name,
 
 void RegisterStringType(Environment* environment) {
   auto string_type = std::make_unique<ObjectType>(VMType::String());
-  AddMethod<int>(L"size",
-                 std::function<int(wstring)>(
-                     [](wstring str) { return str.size(); }),
+  AddMethod<int>(L"size", std::function<int(wstring)>([](wstring str) {
+                   return str.size();
+                 }),
                  string_type.get());
-  AddMethod<bool>(L"empty",
-                  std::function<bool(wstring)>(
-                      [](wstring str) { return str.empty(); }),
+  AddMethod<bool>(L"empty", std::function<bool(wstring)>([](wstring str) {
+                    return str.empty();
+                  }),
                   string_type.get());
   AddMethod<wstring>(L"tolower",
                      std::function<wstring(wstring)>([](wstring str) {
@@ -62,23 +61,21 @@ void RegisterStringType(Environment* environment) {
   AddMethod<wstring, int, int>(
       L"substr",
       std::function<wstring(wstring, int, int)>(
-        [](const wstring& str, int pos, int len) -> wstring {
-          if (pos < 0 || len < 0
-              || (static_cast<size_t>(pos + len) > str.size())) {
-            return L"";
-          }
-          return str.substr(pos, len);
-        }),
+          [](const wstring& str, int pos, int len) -> wstring {
+            if (pos < 0 || len < 0 ||
+                (static_cast<size_t>(pos + len) > str.size())) {
+              return L"";
+            }
+            return str.substr(pos, len);
+          }),
       string_type.get());
   AddMethod<bool, wstring>(
       L"starts_with",
-      std::function<bool(wstring, wstring)>(
-          [](wstring str, wstring prefix) {
-            return prefix.size() <= str.size()
-                && (std::mismatch(prefix.begin(), prefix.end(),
-                                  str.begin()).first
-                    == prefix.end());
-          }),
+      std::function<bool(wstring, wstring)>([](wstring str, wstring prefix) {
+        return prefix.size() <= str.size() &&
+               (std::mismatch(prefix.begin(), prefix.end(), str.begin())
+                    .first == prefix.end());
+      }),
       string_type.get());
   AddMethod<int, wstring, int>(
       L"find",
@@ -122,13 +119,15 @@ void RegisterStringType(Environment* environment) {
       string_type.get());
   environment->DefineType(L"string", std::move(string_type));
 
-  environment->Define(L"tostring", Value::NewFunction(
-      {VMType::String(), VMType::Integer()},
-      [](vector<unique_ptr<Value>> args) {
-        CHECK_EQ(args.size(), 1);
-        CHECK_EQ(args[0]->type.type, VMType::VM_INTEGER);
-        return Value::NewString(std::to_wstring(args[0]->integer));
-      }));
+  environment->Define(
+      L"tostring", Value::NewFunction({VMType::String(), VMType::Integer()},
+                                      [](vector<unique_ptr<Value>> args) {
+                                        CHECK_EQ(args.size(), 1);
+                                        CHECK_EQ(args[0]->type.type,
+                                                 VMType::VM_INTEGER);
+                                        return Value::NewString(
+                                            std::to_wstring(args[0]->integer));
+                                      }));
 }
 
 }  // namespace vm

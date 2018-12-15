@@ -7,8 +7,8 @@
 namespace afc {
 namespace editor {
 
-using std::wstring;
 using std::shared_ptr;
+using std::wstring;
 
 // An immutable string. Implementations must ensure that methods always return
 // the same values.

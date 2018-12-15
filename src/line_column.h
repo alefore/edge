@@ -48,13 +48,9 @@ struct LineColumn {
     return *this < rhs || *this == rhs;
   }
 
-  bool operator>(const LineColumn& rhs) const {
-    return rhs < *this;
-  }
+  bool operator>(const LineColumn& rhs) const { return rhs < *this; }
 
-  bool operator>=(const LineColumn& rhs) const {
-    return rhs <= *this;
-  }
+  bool operator>=(const LineColumn& rhs) const { return rhs <= *this; }
 
   std::wstring ToCppString() const;
 
@@ -107,7 +103,7 @@ struct Range {
 
 std::ostream& operator<<(std::ostream& os, const Range& range);
 
-} // namespace editor
-} // namespace afc
+}  // namespace editor
+}  // namespace afc
 
 #endif

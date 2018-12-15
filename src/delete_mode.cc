@@ -2,9 +2,9 @@
 
 #include <memory>
 
+#include "command_with_modifiers.h"
 #include "editor.h"
 #include "terminal.h"
-#include "command_with_modifiers.h"
 #include "transformation_delete.h"
 
 namespace afc {
@@ -25,5 +25,5 @@ void ApplyDeleteCommand(EditorState* editor_state, OpenBuffer* buffer,
   buffer->PopTransformationStack();
 }
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc

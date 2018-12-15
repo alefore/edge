@@ -1,9 +1,9 @@
 #ifndef __AFC_EDITOR_DIRNAME_H__
 #define __AFC_EDITOR_DIRNAME_H__
 
+#include <wchar.h>
 #include <list>
 #include <memory>
-#include <wchar.h>
 
 #include "command.h"
 

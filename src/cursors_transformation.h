@@ -6,14 +6,14 @@
 
 #include <glog/logging.h>
 
-#include "transformation.h"
 #include "buffer.h"
+#include "transformation.h"
 
 namespace afc {
 namespace editor {
 
-std::unique_ptr<Transformation> NewSetCursorsTransformation(
-    CursorsSet cursors, LineColumn active);
+std::unique_ptr<Transformation> NewSetCursorsTransformation(CursorsSet cursors,
+                                                            LineColumn active);
 
 }  // namespace editor
 }  // namespace afc

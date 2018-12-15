@@ -50,5 +50,5 @@ wstring FromByteString(string input) {
   return output_string;
 }
 
-} // namespace editor
-} // namespace afc
+}  // namespace editor
+}  // namespace afc

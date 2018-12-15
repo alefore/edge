@@ -11,9 +11,9 @@ using std::unique_ptr;
 class Expression;
 class Compilation;
 
-unique_ptr<Expression> NewWhileExpression(
-    Compilation* compilation, unique_ptr<Expression> cond,
-    unique_ptr<Expression> body);
+unique_ptr<Expression> NewWhileExpression(Compilation* compilation,
+                                          unique_ptr<Expression> cond,
+                                          unique_ptr<Expression> body);
 
 }  // namespace vm
 }  // namespace afc

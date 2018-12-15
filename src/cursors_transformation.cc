@@ -19,7 +19,7 @@ class SetCursorsTransformation : public Transformation {
   void Apply(EditorState*, OpenBuffer* buffer, Result* result) const {
     CHECK(buffer != nullptr);
     CHECK(result != nullptr);
-    vector<LineColumn> positions = { active_ };
+    vector<LineColumn> positions = {active_};
     bool skipped = false;
     for (auto& cursor : cursors_) {
       if (!skipped && cursor == active_) {
@@ -42,8 +42,8 @@ class SetCursorsTransformation : public Transformation {
 
 }  // namespace
 
-unique_ptr<Transformation> NewSetCursorsTransformation(
-    CursorsSet cursors, LineColumn active) {
+unique_ptr<Transformation> NewSetCursorsTransformation(CursorsSet cursors,
+                                                       LineColumn active) {
   return std::make_unique<SetCursorsTransformation>(cursors, active);
 }
 

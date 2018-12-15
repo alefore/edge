@@ -38,5 +38,5 @@ std::unique_ptr<Command> NewOpenDirectoryCommand() {
   return std::make_unique<OpenDirectoryCommand>();
 }
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc

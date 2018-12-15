@@ -12,9 +12,9 @@ namespace afc {
 namespace vm {
 
 using std::list;
+using std::string;
 using std::unique_ptr;
 using std::vector;
-using std::string;
 using std::wstring;
 
 class VMType;

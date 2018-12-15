@@ -1,18 +1,18 @@
 #ifndef __AFC_EDITOR_EDITOR_H__
 #define __AFC_EDITOR_EDITOR_H__
 
+#include <ctime>
 #include <list>
 #include <map>
 #include <memory>
 #include <string>
-#include <ctime>
 #include <vector>
 
 #include "audio.h"
 #include "buffer.h"
-#include "editor_mode.h"
 #include "command_mode.h"
 #include "direction.h"
+#include "editor_mode.h"
 #include "lazy_string.h"
 #include "line_marks.h"
 #include "modifiers.h"
@@ -25,13 +25,13 @@ namespace editor {
 
 using namespace afc::vm;
 
-using std::shared_ptr;
-using std::unique_ptr;
-using std::vector;
 using std::list;
 using std::map;
 using std::max;
 using std::min;
+using std::shared_ptr;
+using std::unique_ptr;
+using std::vector;
 
 class EditorState {
  public:
@@ -55,9 +55,7 @@ class EditorState {
     return &buffers_;
   }
 
-  map<wstring, shared_ptr<OpenBuffer>>* buffers() {
-    return &buffers_;
-  }
+  map<wstring, shared_ptr<OpenBuffer>>* buffers() { return &buffers_; }
 
   void set_current_buffer(map<wstring, shared_ptr<OpenBuffer>>::iterator it) {
     current_buffer_ = it;
@@ -66,9 +64,7 @@ class EditorState {
       current_buffer_->second->Visit(this);
     }
   }
-  bool has_current_buffer() const {
-    return current_buffer_ != buffers_.end();
-  }
+  bool has_current_buffer() const { return current_buffer_ != buffers_.end(); }
   map<wstring, shared_ptr<OpenBuffer>>::iterator current_buffer() {
     return current_buffer_;
   }
@@ -134,9 +130,7 @@ class EditorState {
   void set_insertion_modifier(Modifiers::Insertion insertion_modifier) {
     modifiers_.insertion = insertion_modifier;
   }
-  void ResetInsertionModifier() {
-    modifiers_.ResetInsertion();
-  }
+  void ResetInsertionModifier() { modifiers_.ResetInsertion(); }
   Modifiers::Insertion default_insertion_modifier() const {
     return modifiers_.default_insertion;
   }

@@ -27,24 +27,15 @@ class ScreenCurses : public Screen {
     init_pair(8, COLOR_WHITE, COLOR_RED);
   }
 
-  ~ScreenCurses() {
-    endwin();
-  }
+  ~ScreenCurses() { endwin(); }
 
-  void Flush() override {
-  }
+  void Flush() override {}
 
-  void HardRefresh() override {
-    wrefresh(curscr);
-  }
+  void HardRefresh() override { wrefresh(curscr); }
 
-  void Refresh() override {
-    refresh();
-  }
+  void Refresh() override { refresh(); }
 
-  void Clear() override {
-    clear();
-  }
+  void Clear() override { clear(); }
 
   void SetCursorVisibility(CursorVisibility cursor_visibility) override {
     switch (cursor_visibility) {
@@ -130,7 +121,7 @@ wint_t ReadChar(std::mbstate_t* mbstate) {
       return KEY_RESIZE;
     }
     wchar_t output;
-    char input[1] = { static_cast<char>(c) };
+    char input[1] = {static_cast<char>(c)};
     CHECK(mbstate != nullptr);
     switch (mbrtowc(&output, input, 1, mbstate)) {
       case 1:
@@ -170,43 +161,41 @@ wint_t ReadChar(std::mbstate_t* mbstate) {
       case 22:
         return Terminal::CTRL_V;
 
-      case 27:
-        {
-          int next = getch();
-          // cerr << "Read next: " << next << "\n";
-          switch (next) {
-            case -1:
-              return Terminal::ESCAPE;
+      case 27: {
+        int next = getch();
+        // cerr << "Read next: " << next << "\n";
+        switch (next) {
+          case -1:
+            return Terminal::ESCAPE;
 
-            case '[':
-              {
-                int next2 = getch();
-                //cerr << "Read next2: " << next2 << "\n";
-                switch (next2) {
-                  case 51:
-                    getch();
-                    return Terminal::DELETE;
-                  case 53:
-                    getch();
-                    return Terminal::PAGE_UP;
-                  case 54:
-                    getch();
-                    return Terminal::PAGE_DOWN;
-                  case 'A':
-                    return Terminal::UP_ARROW;
-                  case 'B':
-                    return Terminal::DOWN_ARROW;
-                  case 'C':
-                    return Terminal::RIGHT_ARROW;
-                  case 'D':
-                    return Terminal::LEFT_ARROW;
-                }
-              }
-              return -1;
+          case '[': {
+            int next2 = getch();
+            // cerr << "Read next2: " << next2 << "\n";
+            switch (next2) {
+              case 51:
+                getch();
+                return Terminal::DELETE;
+              case 53:
+                getch();
+                return Terminal::PAGE_UP;
+              case 54:
+                getch();
+                return Terminal::PAGE_DOWN;
+              case 'A':
+                return Terminal::UP_ARROW;
+              case 'B':
+                return Terminal::DOWN_ARROW;
+              case 'C':
+                return Terminal::RIGHT_ARROW;
+              case 'D':
+                return Terminal::LEFT_ARROW;
+            }
           }
-          // cerr << "Unget: " << next << "\n";
-          ungetch(next);
+            return -1;
         }
+        // cerr << "Unget: " << next << "\n";
+        ungetch(next);
+      }
         return Terminal::ESCAPE;
       default:
         return output;

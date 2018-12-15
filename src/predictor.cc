@@ -1,16 +1,16 @@
 #include "predictor.h"
 
 #include <algorithm>
-#include <iostream>
-#include <memory>
-#include <list>
-#include <string>
 #include <cstring>
+#include <iostream>
+#include <list>
+#include <memory>
+#include <string>
 
 extern "C" {
+#include <dirent.h>
 #include <libgen.h>
 #include <sys/types.h>
-#include <dirent.h>
 }
 
 #include "buffer.h"
@@ -40,10 +40,8 @@ using std::wstring;
 
 class PredictionsBufferImpl : public OpenBuffer {
  public:
-  PredictionsBufferImpl(EditorState* editor_state,
-                        Predictor predictor,
-                        const wstring& input,
-                        function<void(wstring)> consumer)
+  PredictionsBufferImpl(EditorState* editor_state, Predictor predictor,
+                        const wstring& input, function<void(wstring)> consumer)
       : OpenBuffer(editor_state, PredictionsBufferName()),
         predictor_(predictor),
         input_(input),
@@ -61,14 +59,17 @@ class PredictionsBufferImpl : public OpenBuffer {
     OpenBuffer::EndOfFile(editor_state);
     LOG(INFO) << "Predictions buffer received end of file. Predictions: "
               << contents()->size();
-    if (contents()->empty()) { return; }
-    SortContents(0, contents()->size() - 1,
+    if (contents()->empty()) {
+      return;
+    }
+    SortContents(
+        0, contents()->size() - 1,
         [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
           return *LowerCase(a->contents()) < *LowerCase(b->contents());
         });
     for (size_t line = 0; line < contents()->size();) {
-      if (line == 0
-          || LineAt(line - 1)->ToString() != LineAt(line)->ToString()) {
+      if (line == 0 ||
+          LineAt(line - 1)->ToString() != LineAt(line)->ToString()) {
         line++;
       } else {
         EraseLines(line, line + 1);
@@ -76,11 +77,13 @@ class PredictionsBufferImpl : public OpenBuffer {
     }
 
     wstring common_prefix = contents_.front()->contents()->ToString();
-    bool results = contents_.ForEach(
-        [&common_prefix](size_t, const Line& line) {
-          if (line.empty()) { return true; }
-          VLOG(5) << "Considering prediction: " << line.ToString() << " (len: "
-                  << line.size() << ")";
+    bool results =
+        contents_.ForEach([&common_prefix](size_t, const Line& line) {
+          if (line.empty()) {
+            return true;
+          }
+          VLOG(5) << "Considering prediction: " << line.ToString()
+                  << " (len: " << line.size() << ")";
           size_t current_size = min(common_prefix.size(), line.size());
           wstring current = line.Substring(0, current_size)->ToString();
 
@@ -103,8 +106,7 @@ class PredictionsBufferImpl : public OpenBuffer {
     } else {
       auto it = editor_state->buffers()->find(PredictionsBufferName());
       if (it == editor_state->buffers()->end()) {
-        editor_state->SetWarningStatus(
-            L"Error: predictions buffer not found.");
+        editor_state->SetWarningStatus(L"Error: predictions buffer not found.");
       } else {
         CHECK_EQ(this, it->second.get());
         it->second->set_current_position_line(0);
@@ -122,11 +124,8 @@ class PredictionsBufferImpl : public OpenBuffer {
 
 }  // namespace
 
-void Predict(
-    EditorState* editor_state,
-    Predictor predictor,
-    wstring input,
-    function<void(const wstring&)> consumer) {
+void Predict(EditorState* editor_state, Predictor predictor, wstring input,
+             function<void(const wstring&)> consumer) {
   auto& predictions_buffer =
       (*editor_state->buffers())[PredictionsBufferName()];
   predictions_buffer = std::make_shared<PredictionsBufferImpl>(
@@ -136,8 +135,7 @@ void Predict(
   predictions_buffer->set_current_cursor(LineColumn());
 }
 
-void FilePredictor(EditorState* editor_state,
-                   const wstring& input,
+void FilePredictor(EditorState* editor_state, const wstring& input,
                    OpenBuffer* buffer) {
   LOG(INFO) << "Generating predictions for: " << input;
 
@@ -186,14 +184,13 @@ void FilePredictor(EditorState* editor_state,
     while ((entry = readdir(dir.get())) != nullptr) {
       string entry_path = entry->d_name;
       if (!std::equal(basename_prefix.begin(), basename_prefix.end(),
-                      entry_path.begin())
-          || entry_path == "."
-          || entry_path == "..") {
+                      entry_path.begin()) ||
+          entry_path == "." || entry_path == "..") {
         VLOG(6) << "Skipping entry: " << entry_path;
         continue;
       }
       string prediction = ToByteString(path_with_prefix) + entry->d_name +
-          (entry->d_type == DT_DIR ? "/" : "");
+                          (entry->d_type == DT_DIR ? "/" : "");
       if (!search_path.empty() &&
           std::equal(search_path.begin(), search_path.end(),
                      FromByteString(prediction).begin())) {
@@ -213,24 +210,28 @@ void FilePredictor(EditorState* editor_state,
   buffer->EndOfFile(editor_state);
 }
 
-void EmptyPredictor(
-    EditorState* editor_state, const wstring&, OpenBuffer* buffer) {
+void EmptyPredictor(EditorState* editor_state, const wstring&,
+                    OpenBuffer* buffer) {
   buffer->EndOfFile(editor_state);
 }
 
 namespace {
 
 void RegisterVariations(const wstring& prediction, wchar_t separator,
-                         vector<wstring>* output) {
+                        vector<wstring>* output) {
   size_t start = 0;
   DVLOG(5) << "Generating predictions for: " << prediction;
   while (true) {
     start = prediction.find_first_not_of(separator, start);
-    if (start == wstring::npos) { return; }
+    if (start == wstring::npos) {
+      return;
+    }
     output->push_back(prediction.substr(start));
     DVLOG(6) << "Prediction: " << output->back();
     start = prediction.find_first_of(separator, start);
-    if (start == wstring::npos) { return; }
+    if (start == wstring::npos) {
+      return;
+    }
   }
 }
 
@@ -268,5 +269,5 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
   };
 }
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc

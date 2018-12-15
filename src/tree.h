@@ -169,7 +169,6 @@ class Tree {
   template <typename T, typename Compare>
   const_iterator UpperBound(const T& val, Compare compare) const;
 
-
  private:
   static size_t Count(Node<Item>* node);
   static size_t Height(const Node<Item>* node);
@@ -181,7 +180,7 @@ class Tree {
 
   // Rotates the tree to the right or to the left.
   template <std::unique_ptr<Node<Item>> Node<Item>::*Left,
-            std::unique_ptr<Node<Item>> Node<Item>::* Right>
+            std::unique_ptr<Node<Item>> Node<Item>::*Right>
   void Rotate(Node<Item>* node);
   // Takes old out of a tree, replacing it with new.
   std::unique_ptr<Node<Item>> ReplaceNode(const Node<Item>* old_node,
@@ -220,8 +219,8 @@ class Tree {
 
   friend class TreeIterator<Item, false>;
   friend class TreeIterator<Item, true>;
-  friend std::ostream& operator<< <>(std::ostream& out, const Tree<Item>& tree);
-  friend std::ostream& operator<< <>(std::ostream& out, const Node<Item>& tree);
+  friend std::ostream& operator<<<>(std::ostream& out, const Tree<Item>& tree);
+  friend std::ostream& operator<<<>(std::ostream& out, const Node<Item>& tree);
 
   std::unique_ptr<Node<Item>> root_;
 };
@@ -231,8 +230,12 @@ class Tree {
 template <typename Item>
 std::ostream& operator<<(std::ostream& out, const Node<Item>& node) {
   out << "(" << node.item;
-  if (node.left) { out << " l:" << *node.left; }
-  if (node.right) { out << " r:" << *node.right; }
+  if (node.left) {
+    out << " l:" << *node.left;
+  }
+  if (node.right) {
+    out << " r:" << *node.right;
+  }
   out << ")";
   return out;
 }
@@ -327,7 +330,9 @@ TreeIterator<Item, IsConst>& TreeIterator<Item, IsConst>::operator+=(
   if (node_ == nullptr) {
     DCHECK_LE(delta, 0) << "Attempting to advance past end of tree.";
     node_ = tree_->LastNode(tree_->root_.get());
-    if (node_ != nullptr) { delta++; }
+    if (node_ != nullptr) {
+      delta++;
+    }
     DVLOG(7) << "Adjusted: " << tree_->FindPosition(node_) << " and advance "
              << delta << " with " << tree_->size();
   } else {
@@ -335,10 +340,11 @@ TreeIterator<Item, IsConst>& TreeIterator<Item, IsConst>::operator+=(
   }
 
   // Go up one level in each iteration until we know we can go down.
-  while (node_ != nullptr
-         && ((delta > 0)
-                  ? static_cast<size_t>(delta) > Tree<Item>::Count(node_->right.get())
-                  : static_cast<size_t>(-delta) > Tree<Item>::Count(node_->left.get()))) {
+  while (node_ != nullptr &&
+         ((delta > 0) ? static_cast<size_t>(delta) >
+                            Tree<Item>::Count(node_->right.get())
+                      : static_cast<size_t>(-delta) >
+                            Tree<Item>::Count(node_->left.get()))) {
     if (node_->parent == nullptr || node_->parent->left.get() == node_) {
       DVLOG(7) << "Going up through left branch";
       delta -= 1 + Tree<Item>::Count(node_->right.get());
@@ -436,8 +442,8 @@ bool TreeIterator<Item, IsConst>::operator>=(
 }
 
 template <typename Item, bool IsConst>
-typename TreeIterator<Item, IsConst>::reference
-    TreeIterator<Item, IsConst>::operator*() const {
+typename TreeIterator<Item, IsConst>::reference TreeIterator<Item, IsConst>::
+operator*() const {
   VLOG(5) << "Dereference object at: " << tree_->FindPosition(node_);
   CHECK(node_ != nullptr)
       << "Attempt to dereference iterator past end of tree.";
@@ -452,13 +458,14 @@ TreeIterator<Item, IsConst>::operator TreeIterator<Item, true>() const {
 template <typename Item>
 void Tree<Item>::ValidateInvariants(const Node<Item>* node) const {
 #ifndef NDEBUG
-  if (node == nullptr) { return; }
+  if (node == nullptr) {
+    return;
+  }
   if (node->parent == nullptr) {
     DCHECK_EQ(node, root_.get());
   }
-  DCHECK_EQ(node->count, 1
-                         + (node->left == nullptr ? 0 : node->left->count)
-                         + (node->right == nullptr ? 0 : node->right->count));
+  DCHECK_EQ(node->count, 1 + (node->left == nullptr ? 0 : node->left->count) +
+                             (node->right == nullptr ? 0 : node->right->count));
   size_t left_height = Height(node->left.get());
   size_t right_height = Height(node->right.get());
   DCHECK_LE(std::max(right_height, left_height),
@@ -504,12 +511,13 @@ void Tree<Item>::clear() {
 }
 
 template <typename Item>
-bool Tree<Item>::empty() const { return root_ == nullptr; }
+bool Tree<Item>::empty() const {
+  return root_ == nullptr;
+}
 
 template <typename Item>
 typename Tree<Item>::reference Tree<Item>::at(size_t position) {
-  return *const_cast<Item*>(
-      &const_cast<const Tree<Item>*>(this)->at(position));
+  return *const_cast<Item*>(&const_cast<const Tree<Item>*>(this)->at(position));
 }
 
 template <typename Item>
@@ -629,9 +637,8 @@ template <typename Item>
 void Tree<Item>::RecomputeCounters(Node<Item>* node) {
   DVLOG(8) << "Recomputing counters for: " << node;
   DCHECK(node != nullptr);
-  node->count = 1
-      + (node->left == nullptr ? 0 : node->left->count)
-      + (node->right == nullptr ? 0 : node->right->count);
+  node->count = 1 + (node->left == nullptr ? 0 : node->left->count) +
+                (node->right == nullptr ? 0 : node->right->count);
   node->height =
       std::max(Height(node->left.get()), Height(node->right.get())) + 1;
 }
@@ -719,28 +726,29 @@ bool Tree<Item>::MaybeRotateLeft(Node<Item>* node, bool insert) {
 template <typename Item>
 void Tree<Item>::MaybeRebalance(Node<Item>* node, const Node<Item>* stop,
                                 bool insert) {
-  if (node == nullptr) { return; }
+  if (node == nullptr) {
+    return;
+  }
   ValidateInvariants(node->left.get());
   ValidateInvariants(node->right.get());
   DVLOG(5) << "Maybe rebalance in tree " << *this << " at node " << *node;
   while (node != stop) {
     auto parent = node->parent;
-    DCHECK(node->parent == nullptr
-           || node == parent->left.get()
-           || node == parent->right.get());
+    DCHECK(node->parent == nullptr || node == parent->left.get() ||
+           node == parent->right.get());
     DVLOG(9) << "Starting maybe rebalance iteration at " << *node;
     RecomputeCounters(node);
     if (Height(node->right.get()) > Height(node->left.get())) {
       DVLOG(5) << "Maybe rotate.";
-      if (MaybeRotateLeft<&Node<Item>::left, &Node<Item>::right>(
-              node, insert)) {
+      if (MaybeRotateLeft<&Node<Item>::left, &Node<Item>::right>(node,
+                                                                 insert)) {
         VLOG(6) << "Stop";
         break;
       }
     } else if (Height(node->left.get()) > Height(node->right.get())) {
       DVLOG(5) << "Maybe rotate flipped.";
-      if (MaybeRotateLeft<&Node<Item>::right, &Node<Item>::left>(
-              node, insert)) {
+      if (MaybeRotateLeft<&Node<Item>::right, &Node<Item>::left>(node,
+                                                                 insert)) {
         VLOG(6) << "Stop (flipped)";
         break;
       }
@@ -772,8 +780,8 @@ void Tree<Item>::InsertRight(Node<Item>* parent,
 template <typename Item>
 void Tree<Item>::insert(const iterator& position,
                         std::unique_ptr<Node<Item>> node) {
-  DVLOG(6) << "Insert with node begins: " << node.get() << " position: "
-           << position.node_;
+  DVLOG(6) << "Insert with node begins: " << node.get()
+           << " position: " << position.node_;
   ValidateInvariants();
 
   if (position.node_ == nullptr) {  // Inserting after all elements.
@@ -805,9 +813,8 @@ void Tree<Item>::insert(const iterator& position,
 }
 
 template <typename Item>
-std::unique_ptr<Node<Item>>
-Tree<Item>::ReplaceNode(const Node<Item>* old_node,
-                        std::unique_ptr<Node<Item>> new_node) {
+std::unique_ptr<Node<Item>> Tree<Item>::ReplaceNode(
+    const Node<Item>* old_node, std::unique_ptr<Node<Item>> new_node) {
   DCHECK(old_node != nullptr);
   DCHECK(old_node != new_node.get());
   if (new_node != nullptr) {
@@ -886,10 +893,12 @@ typename Tree<Item>::iterator Tree<Item>::erase(iterator start, iterator end) {
 
 template <typename Item>
 template <typename T, typename Compare>
-typename Tree<Item>::iterator Tree<Item>::UpperBound(
-    const T& val, Compare compare) {
-  return iterator(this, const_cast<Node<Item>*>(
-      const_cast<const Tree<Item>*>(this)->UpperBound(val, compare)->node_));
+typename Tree<Item>::iterator Tree<Item>::UpperBound(const T& val,
+                                                     Compare compare) {
+  return iterator(this,
+                  const_cast<Node<Item>*>(const_cast<const Tree<Item>*>(this)
+                                              ->UpperBound(val, compare)
+                                              ->node_));
 }
 
 template <typename Item>

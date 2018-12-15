@@ -18,9 +18,7 @@ namespace editor {
 
 class AudioPlayer {
  public:
-  enum GeneratorContinuation {
-    STOP, CONTINUE
-  };
+  enum GeneratorContinuation { STOP, CONTINUE };
 
   using Generator = std::function<GeneratorContinuation(double, int*)>;
 
@@ -46,10 +44,11 @@ void BeepFrequencies(AudioPlayer* audio_player,
 AudioPlayer::Generator Frequency(double freq);
 AudioPlayer::Generator Volume(std::function<double(double)> volume,
                               AudioPlayer::Generator generator);
-std::function<double(double)> SmoothVolume(
-    double baseline, double start, double end, double smooth_interval);
+std::function<double(double)> SmoothVolume(double baseline, double start,
+                                           double end, double smooth_interval);
 AudioPlayer::Generator Volume(double volume, AudioPlayer::Generator generator);
-AudioPlayer::Generator Expiration(double expiration, AudioPlayer::Generator delegate);
+AudioPlayer::Generator Expiration(double expiration,
+                                  AudioPlayer::Generator delegate);
 
 }  // namespace editor
 }  // namespace afc

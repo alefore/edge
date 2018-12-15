@@ -2,10 +2,10 @@
 
 #include <glog/logging.h>
 
-#include "compilation.h"
 #include "../public/environment.h"
 #include "../public/value.h"
 #include "../public/vm.h"
+#include "compilation.h"
 
 namespace afc {
 namespace vm {
@@ -18,9 +18,7 @@ class VariableLookup : public Expression {
   VariableLookup(const wstring& symbol, const VMType& type)
       : symbol_(symbol), type_(type) {}
 
-  const VMType& type() {
-    return type_;
-  }
+  const VMType& type() { return type_; }
 
   void Evaluate(Trampoline* trampoline) {
     // TODO: Enable this logging.
@@ -43,8 +41,8 @@ class VariableLookup : public Expression {
 
 }  // namespace
 
-std::unique_ptr<Expression> NewVariableLookup(
-    Compilation* compilation, const wstring& symbol) {
+std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
+                                              const wstring& symbol) {
   Value* result = compilation->environment->Lookup(symbol);
   if (result == nullptr) {
     compilation->AddError(L"Variable not found: \"" + symbol + L"\"");
@@ -53,5 +51,5 @@ std::unique_ptr<Expression> NewVariableLookup(
   return std::make_unique<VariableLookup>(symbol, result->type);
 }
 
-}  // namespace
+}  // namespace vm
 }  // namespace afc

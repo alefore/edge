@@ -1,7 +1,7 @@
 #ifndef __AFC_EDITOR_MODIFIERS_H__
 #define __AFC_EDITOR_MODIFIERS_H__
 
-#include <iostream> 
+#include <iostream>
 #include <map>
 #include <set>
 #include <string>

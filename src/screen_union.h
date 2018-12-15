@@ -4,9 +4,7 @@ class ScreenUnion : public Screen {
     screens_.push_back(std::move(screen));
   }
 
-  bool Empty() const {
-    return screens_.empty();
-  };
+  bool Empty() const { return screens_.empty(); };
 
  private:
   std::list<std::unique_ptr<Screen>> screens_;

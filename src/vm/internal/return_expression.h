@@ -9,8 +9,8 @@ namespace vm {
 class Compilation;
 class Expression;
 
-unique_ptr<Expression> NewReturnExpression(
-    Compilation* compilation, unique_ptr<Expression> expr);
+unique_ptr<Expression> NewReturnExpression(Compilation* compilation,
+                                           unique_ptr<Expression> expr);
 
 }  // namespace vm
 }  // namespace afc

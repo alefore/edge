@@ -107,8 +107,7 @@ class CursorsTracker {
   void AdjustCursors(Transformation transformation);
 
   void ApplyTransformationToCursors(
-      CursorsSet* cursors,
-      std::function<LineColumn(LineColumn)> callback);
+      CursorsSet* cursors, std::function<LineColumn(LineColumn)> callback);
 
   // Push current cursors into cursors_stack_ and returns size of stack.
   size_t Push();

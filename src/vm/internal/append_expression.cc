@@ -20,7 +20,8 @@ class AppendExpression : public Expression {
     // TODO: Use unique_ptr and capture by std::move.
     std::shared_ptr<Expression> e0_copy = e0_;
     std::shared_ptr<Expression> e1_copy = e1_;
-    trampoline->Bounce(e0_copy.get(),
+    trampoline->Bounce(
+        e0_copy.get(),
         [e0_copy, e1_copy](std::unique_ptr<Value>, Trampoline* trampoline) {
           e1_copy->Evaluate(trampoline);
         });
@@ -37,13 +38,13 @@ class AppendExpression : public Expression {
 
 }  // namespace
 
-std::unique_ptr<Expression> NewAppendExpression(
-    std::unique_ptr<Expression> a, std::unique_ptr<Expression> b) {
+std::unique_ptr<Expression> NewAppendExpression(std::unique_ptr<Expression> a,
+                                                std::unique_ptr<Expression> b) {
   if (a == nullptr || b == nullptr) {
     return nullptr;
   }
   return std::make_unique<AppendExpression>(std::move(a), std::move(b));
 }
 
-}  // namespace
+}  // namespace vm
 }  // namespace afc

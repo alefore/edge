@@ -58,7 +58,7 @@ class ObjectType {
  public:
   ObjectType(const VMType& type);
   ObjectType(const wstring& type_name);
-  ~ObjectType() {};
+  ~ObjectType(){};
 
   const VMType& type() const { return type_; }
   wstring ToString() const { return type_.ToString(); }

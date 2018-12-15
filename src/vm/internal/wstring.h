@@ -1,10 +1,10 @@
 #ifndef __AFC_EDITOR_VM_INTERNAL_WSTRING_H__
 #define __AFC_EDITOR_VM_INTERNAL_WSTRING_H__
 
+#include <wchar.h>
 #include <iostream>
 #include <string>
 #include <vector>
-#include <wchar.h>
 
 namespace afc {
 namespace vm {
@@ -27,7 +27,7 @@ inline std::ostream& operator<<(std::ostream& out, const std::wstring& str) {
   return operator<<(out, str.c_str());
 }
 
-} // namespace vm
-} // namespace afc
+}  // namespace vm
+}  // namespace afc
 
-#endif // __AFC_EDITOR_VM_INTERNAL_WSTRING_H__
+#endif  // __AFC_EDITOR_VM_INTERNAL_WSTRING_H__

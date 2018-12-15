@@ -33,10 +33,8 @@ struct EdgeVariable {
 
  private:
   // Instantiate it through EdgeStruct::AddVariable.
-  EdgeVariable(const wstring& name,
-               const wstring& description,
-               const T& default_value,
-               size_t position,
+  EdgeVariable(const wstring& name, const wstring& description,
+               const T& default_value, size_t position,
                const Predictor& predictor)
       : name_(name),
         description_(description),
@@ -66,10 +64,8 @@ struct EdgeVariable<unique_ptr<T>> {
 
  private:
   // Instantiate it through EdgeStruct::AddVariable.
-  EdgeVariable(const wstring& name,
-               const wstring& description,
-               const afc::vm::VMType& type,
-               size_t position,
+  EdgeVariable(const wstring& name, const wstring& description,
+               const afc::vm::VMType& type, size_t position,
                const Predictor& predictor)
       : name_(name),
         description_(description),
@@ -126,18 +122,19 @@ using std::make_pair;
 template <typename T>
 class EdgeStruct {
  public:
-  EdgeVariable<T>* AddVariable(
-      const wstring& name, const wstring& description, const T& default_value);
+  EdgeVariable<T>* AddVariable(const wstring& name, const wstring& description,
+                               const T& default_value);
 
-  EdgeVariable<T>* AddVariable(
-      const wstring& name, const wstring& description, const T& default_value,
-      const Predictor& predictor);
+  EdgeVariable<T>* AddVariable(const wstring& name, const wstring& description,
+                               const T& default_value,
+                               const Predictor& predictor);
 
   EdgeStructInstance<T> NewInstance() {
     EdgeStructInstance<T> instance;
     instance.values_.resize(variables_.size());
     for (const auto& v : variables_) {
-      VLOG(5) << "Initializing variable: " << v.first << " = " << v.second->default_value();
+      VLOG(5) << "Initializing variable: " << v.first << " = "
+              << v.second->default_value();
       instance.values_[v.second->position()] = v.second->default_value();
     }
     return instance;
@@ -165,13 +162,14 @@ class EdgeStruct {
 template <typename T>
 class EdgeStruct<unique_ptr<T>> {
  public:
-  EdgeVariable<unique_ptr<T>>* AddVariable(
-      const wstring& name, const wstring& description,
-      const afc::vm::VMType& type);
+  EdgeVariable<unique_ptr<T>>* AddVariable(const wstring& name,
+                                           const wstring& description,
+                                           const afc::vm::VMType& type);
 
-  EdgeVariable<unique_ptr<T>>* AddVariable(
-      const wstring& name, const wstring& description,
-      const afc::vm::VMType& type, const Predictor& predictor);
+  EdgeVariable<unique_ptr<T>>* AddVariable(const wstring& name,
+                                           const wstring& description,
+                                           const afc::vm::VMType& type,
+                                           const Predictor& predictor);
 
   EdgeStructInstance<unique_ptr<T>> NewInstance() {
     EdgeStructInstance<unique_ptr<T>> instance;
@@ -232,15 +230,17 @@ void EdgeStructInstance<unique_ptr<T>>::Set(
 }
 
 template <typename T>
-EdgeVariable<T>* EdgeStruct<T>::AddVariable(
-    const wstring& name, const wstring& description, const T& default_value) {
+EdgeVariable<T>* EdgeStruct<T>::AddVariable(const wstring& name,
+                                            const wstring& description,
+                                            const T& default_value) {
   return AddVariable(name, description, default_value, EmptyPredictor);
 }
 
 template <typename T>
-EdgeVariable<T>* EdgeStruct<T>::AddVariable(
-    const wstring& name, const wstring& description, const T& default_value,
-    const Predictor& predictor) {
+EdgeVariable<T>* EdgeStruct<T>::AddVariable(const wstring& name,
+                                            const wstring& description,
+                                            const T& default_value,
+                                            const Predictor& predictor) {
   auto it = variables_.emplace(make_pair(
       name,
       unique_ptr<EdgeVariable<T>>(new EdgeVariable<T>(
@@ -260,12 +260,12 @@ template <typename T>
 EdgeVariable<unique_ptr<T>>* EdgeStruct<unique_ptr<T>>::AddVariable(
     const wstring& name, const wstring& description,
     const afc::vm::VMType& type, const Predictor& predictor) {
-  return variables_.emplace(
-      make_pair(
-          name,
-          unique_ptr<EdgeVariable<unique_ptr<T>>>(
-              new EdgeVariable<unique_ptr<T>>(name, description, type,
-                  variables_.size(), predictor)))).first->second.get();
+  return variables_
+      .emplace(make_pair(name, unique_ptr<EdgeVariable<unique_ptr<T>>>(
+                                   new EdgeVariable<unique_ptr<T>>(
+                                       name, description, type,
+                                       variables_.size(), predictor))))
+      .first->second.get();
 }
 
 }  // namespace editor

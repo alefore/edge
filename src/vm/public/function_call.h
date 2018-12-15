@@ -20,8 +20,7 @@ std::unique_ptr<Expression> NewFunctionCall(
 void Call(Value* func, vector<Value::Ptr> args,
           std::function<void(Value::Ptr)> consumer);
 
-
-}  // namespace
+}  // namespace vm
 }  // namespace afc
 
 #endif  // __AFC_VM_FUNCTION_CALL_H__

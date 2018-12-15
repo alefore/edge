@@ -6,17 +6,17 @@
 #include "command.h"
 #include "help_command.h"
 #include "vm/public/constant_expression.h"
+#include "vm/public/function_call.h"
 #include "vm/public/types.h"
 #include "vm/public/value.h"
-#include "vm/public/function_call.h"
 #include "vm/public/vm.h"
 
 namespace afc {
 namespace editor {
 
-using vm::VMType;
-using vm::Value;
 using vm::Expression;
+using vm::Value;
+using vm::VMType;
 
 namespace {
 class CommandFromFunction : public Command {
@@ -26,13 +26,9 @@ class CommandFromFunction : public Command {
     CHECK(callback_ != nullptr);
   }
 
-  const std::wstring Description() override {
-    return description_;
-  }
+  const std::wstring Description() override { return description_; }
 
-  void ProcessInput(wint_t, EditorState*) override {
-    callback_();
-  }
+  void ProcessInput(wint_t, EditorState*) override { callback_(); }
 
  private:
   const std::function<void()> callback_;
@@ -72,22 +68,23 @@ void MapModeCommands::Add(wstring name, std::unique_ptr<Command> value) {
   commands_.front()->insert({name, std::move(value)});
 }
 
-void MapModeCommands::Add(
-    wstring name, std::unique_ptr<Value> value, vm::Environment* environment) {
+void MapModeCommands::Add(wstring name, std::unique_ptr<Value> value,
+                          vm::Environment* environment) {
   CHECK(value != nullptr);
   CHECK_EQ(value->type.type, VMType::FUNCTION);
-  CHECK(value->type.type_arguments == std::vector<VMType>({ VMType::Void() }));
+  CHECK(value->type.type_arguments == std::vector<VMType>({VMType::Void()}));
   // TODO: Make a unique_ptr (once capture of unique_ptr is feasible).
-  std::shared_ptr<vm::Expression> expression = NewFunctionCall(
-      NewConstantExpression(std::move(value)), {});
-  Add(name,
-      std::make_unique<CommandFromFunction>(
-          [expression, environment]() {
-            LOG(INFO) << "Evaluating expression from Value::Ptr...";
-            Evaluate(expression.get(), environment,
-                [expression](Value::Ptr) { LOG(INFO) << "Done evaluating."; });
-          },
-          L"C++ VM function"));
+  std::shared_ptr<vm::Expression> expression =
+      NewFunctionCall(NewConstantExpression(std::move(value)), {});
+  Add(name, std::make_unique<CommandFromFunction>(
+                [expression, environment]() {
+                  LOG(INFO) << "Evaluating expression from Value::Ptr...";
+                  Evaluate(expression.get(), environment,
+                           [expression](Value::Ptr) {
+                             LOG(INFO) << "Done evaluating.";
+                           });
+                },
+                L"C++ VM function"));
 }
 
 void MapModeCommands::Add(wstring name, std::function<void()> callback,
@@ -105,9 +102,9 @@ void MapMode::ProcessInput(wint_t c, EditorState* editor_state) {
   bool reset_input = true;
   for (const auto& node : commands_->commands_) {
     auto it = node->lower_bound(current_input_);
-    if (it != node->end()
-        && std::equal(current_input_.begin(), current_input_.end(),
-                      it->first.begin())) {
+    if (it != node->end() &&
+        std::equal(current_input_.begin(), current_input_.end(),
+                   it->first.begin())) {
       if (current_input_ == it->first) {
         CHECK(it->second);
         current_input_ = L"";

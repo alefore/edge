@@ -9,9 +9,7 @@ namespace editor {
 
 namespace {
 class CloseBufferCommand : public Command {
-  const wstring Description() {
-    return L"closes the current buffer";
-  }
+  const wstring Description() { return L"closes the current buffer"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) {
@@ -27,5 +25,5 @@ std::unique_ptr<Command> NewCloseBufferCommand() {
   return std::make_unique<CloseBufferCommand>();
 }
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc

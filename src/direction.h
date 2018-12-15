@@ -6,10 +6,7 @@
 namespace afc {
 namespace editor {
 
-enum Direction {
-  BACKWARDS,
-  FORWARDS
-};
+enum Direction { BACKWARDS, FORWARDS };
 
 Direction ReverseDirection(Direction direction);
 

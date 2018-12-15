@@ -1,10 +1,10 @@
 #ifndef __AFC_EDITOR_WSTRING_H__
 #define __AFC_EDITOR_WSTRING_H__
 
+#include <wchar.h>
 #include <iostream>
 #include <string>
 #include <vector>
-#include <wchar.h>
 
 namespace afc {
 namespace editor {
@@ -27,7 +27,7 @@ inline std::ostream& operator<<(std::ostream& out, const std::wstring& str) {
   return operator<<(out, str.c_str());
 }
 
-} // namespace editor
-} // namespace afc
+}  // namespace editor
+}  // namespace afc
 
-#endif // __AFC_EDITOR_WSTRING_H__
+#endif  // __AFC_EDITOR_WSTRING_H__

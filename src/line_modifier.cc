@@ -5,19 +5,32 @@ namespace editor {
 
 std::string ModifierToString(LineModifier modifier) {
   switch (modifier) {
-    case RESET: return "RESET";
-    case BOLD: return "BOLD";
-    case DIM: return "DIM";
-    case UNDERLINE: return "UNDERLINE";
-    case REVERSE: return "REVERSE";
-    case BLACK: return "BLACK";
-    case RED: return "RED";
-    case GREEN: return "GREEN";
-    case BLUE: return "BLUE";
-    case CYAN: return "CYAN";
-    case YELLOW: return "YELLOW";
-    case MAGENTA: return "MAGENTA";
-    case BG_RED: return "BG_RED";
+    case RESET:
+      return "RESET";
+    case BOLD:
+      return "BOLD";
+    case DIM:
+      return "DIM";
+    case UNDERLINE:
+      return "UNDERLINE";
+    case REVERSE:
+      return "REVERSE";
+    case BLACK:
+      return "BLACK";
+    case RED:
+      return "RED";
+    case GREEN:
+      return "GREEN";
+    case BLUE:
+      return "BLUE";
+    case CYAN:
+      return "CYAN";
+    case YELLOW:
+      return "YELLOW";
+    case MAGENTA:
+      return "MAGENTA";
+    case BG_RED:
+      return "BG_RED";
   }
   return "UNKNOWN";
 }

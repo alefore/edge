@@ -48,8 +48,7 @@ class BufferContents {
   // first argument the line count (starts counting at 0). Stops the iteration
   // if the callback returns false. Returns true iff the callback always
   // returned true.
-  bool ForEach(const std::function<bool(size_t, const Line&)>& callback)
-      const;
+  bool ForEach(const std::function<bool(size_t, const Line&)>& callback) const;
 
   // Convenience wrappers of the above.
   void ForEach(const std::function<void(const Line&)>& callback) const;
@@ -94,7 +93,7 @@ class BufferContents {
   void DeleteCharactersFromLine(size_t line, size_t column);
 
   void SetCharacter(size_t line, size_t column, int c,
-      std::unordered_set<LineModifier, hash<int>> modifiers);
+                    std::unordered_set<LineModifier, hash<int>> modifiers);
 
   void InsertCharacter(size_t line, size_t column);
   void AppendToLine(size_t line, const Line& line_to_append);

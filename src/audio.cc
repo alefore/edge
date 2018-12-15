@@ -23,9 +23,7 @@ class Frame {
     buffer_[4 * position + 1] = buffer_[4 * position + 3] = (value >> 8) & 0xff;
   }
 
-  void Add(int position, int value) {
-    Set(position, value + Get(position));
-  }
+  void Add(int position, int value) { Set(position, value + Get(position)); }
 
   int Get(size_t position) {
     unsigned char low = static_cast<unsigned char>(buffer_[4 * position]);
@@ -59,17 +57,13 @@ class AudioPlayerImpl : public AudioPlayer {
    public:
     AudioPlayerImplLock(std::mutex* mutex, double* clock,
                         std::vector<Generator>* generators)
-        : lock_(*mutex),
-          clock_(clock),
-          generators_(generators) {}
+        : lock_(*mutex), clock_(clock), generators_(generators) {}
 
     void Add(Generator generator) override {
       generators_->push_back(std::move(generator));
     }
 
-    double time() const override {
-      return *clock_;
-    }
+    double time() const override { return *clock_; }
 
    private:
     std::unique_lock<std::mutex> lock_;
@@ -78,18 +72,18 @@ class AudioPlayerImpl : public AudioPlayer {
   };
 
   std::unique_ptr<AudioPlayer::Lock> lock() override {
-    return std::make_unique<AudioPlayerImplLock>(
-        &mutex_, &time_, &generators_);
+    return std::make_unique<AudioPlayerImplLock>(&mutex_, &time_, &generators_);
   }
 
  private:
   std::unique_ptr<Frame> NewFrame() {
-    return std::make_unique<Frame>(
-        frame_length_ * format_.bits / 8 * format_.channels * format_.rate);
+    return std::make_unique<Frame>(frame_length_ * format_.bits / 8 *
+                                   format_.channels * format_.rate);
   }
 
   void PlayAudio() {
-    while (PlayNextFrame()) { /* Pass. */ }
+    while (PlayNextFrame()) { /* Pass. */
+    }
   }
 
   bool PlayNextFrame() {
@@ -199,8 +193,8 @@ AudioPlayer::Generator Smooth(double weight, int end_interval_samples,
     }
     data->mean = data->mean * (1.0 - weight) + tmp * weight;
     *output = static_cast<int>(data->mean);
-    return data->done_cycles > end_interval_samples
-               ? AudioPlayer::STOP : AudioPlayer::CONTINUE;
+    return data->done_cycles > end_interval_samples ? AudioPlayer::STOP
+                                                    : AudioPlayer::CONTINUE;
   };
 }
 
@@ -225,7 +219,7 @@ void BeepFrequencies(AudioPlayer* audio_player,
 
 void GenerateAlert(AudioPlayer* audio_player) {
   VLOG(5) << "Generating Beep";
-  BeepFrequencies(audio_player, { 523.25, 659.25, 783.99 });
+  BeepFrequencies(audio_player, {523.25, 659.25, 783.99});
 }
 
 AudioPlayer::Generator Frequency(double freq) {
@@ -236,7 +230,7 @@ AudioPlayer::Generator Frequency(double freq) {
 }
 
 AudioPlayer::Generator Volume(std::function<double(double)> volume,
-                         AudioPlayer::Generator generator) {
+                              AudioPlayer::Generator generator) {
   return [volume, generator](double time, int* output) {
     int tmp;
     auto result = generator(time, &tmp);
@@ -245,8 +239,8 @@ AudioPlayer::Generator Volume(std::function<double(double)> volume,
   };
 }
 
-std::function<double(double)> SmoothVolume(
-    double volume, double start, double end, double smooth_interval) {
+std::function<double(double)> SmoothVolume(double volume, double start,
+                                           double end, double smooth_interval) {
   return [volume, start, end, smooth_interval](double time) {
     if (time < start || time > end) {
       return 0.0;
@@ -260,14 +254,15 @@ std::function<double(double)> SmoothVolume(
 }
 
 AudioPlayer::Generator Volume(double volume, AudioPlayer::Generator generator) {
-  return Volume([volume](double) { return volume; },
-                std::move(generator));
+  return Volume([volume](double) { return volume; }, std::move(generator));
 }
 
-AudioPlayer::Generator Expiration(double expiration, AudioPlayer::Generator delegate) {
+AudioPlayer::Generator Expiration(double expiration,
+                                  AudioPlayer::Generator delegate) {
   return [expiration, delegate](double time, int* output) {
     return delegate(time, output) == AudioPlayer::CONTINUE && time < expiration
-        ? AudioPlayer::CONTINUE : AudioPlayer::STOP;
+               ? AudioPlayer::CONTINUE
+               : AudioPlayer::STOP;
   };
 }
 

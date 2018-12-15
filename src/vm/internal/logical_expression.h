@@ -10,8 +10,9 @@ using std::unique_ptr;
 
 class Expression;
 
-unique_ptr<Expression> NewLogicalExpression(
-    bool identity, unique_ptr<Expression> a, unique_ptr<Expression> b);
+unique_ptr<Expression> NewLogicalExpression(bool identity,
+                                            unique_ptr<Expression> a,
+                                            unique_ptr<Expression> b);
 
 }  // namespace vm
 }  // namespace afc

@@ -1,10 +1,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
-#include <string>
-#include <sstream>
 #include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
 
 extern "C" {
 #include <fcntl.h>
@@ -19,8 +19,8 @@ extern "C" {
 
 #include "audio.h"
 #include "editor.h"
-#include "lazy_string.h"
 #include "file_link_mode.h"
+#include "lazy_string.h"
 #include "run_command_handler.h"
 #include "screen.h"
 #include "screen_curses.h"
@@ -37,9 +37,7 @@ using namespace afc::editor;
 static const char* kEdgeParentAddress = "EDGE_PARENT_ADDRESS";
 static std::unique_ptr<EditorState> global_editor_state;
 
-EditorState* editor_state() {
-  return global_editor_state.get();
-}
+EditorState* editor_state() { return global_editor_state.get(); }
 
 void (*default_interrupt_handler)(int sig);
 void (*default_stop_handler)(int sig);
@@ -105,14 +103,12 @@ string CommandsToRun(Args args) {
     commands_to_run += "OpenFile(\"" + full_path + "\");\n";
   }
   for (auto& command_to_fork : args.commands_to_fork) {
-    commands_to_run +=
-        "ForkCommand(\"" + string(command_to_fork) + "\", " +
-        (args.background ? "false" : "true") + ");\n";
+    commands_to_run += "ForkCommand(\"" + string(command_to_fork) + "\", " +
+                       (args.background ? "false" : "true") + ");\n";
   }
   if (!args.client.empty()) {
-    commands_to_run += "Screen screen = RemoteScreen(\""
-        + string(getenv(kEdgeParentAddress))
-        + "\");\n";
+    commands_to_run += "Screen screen = RemoteScreen(\"" +
+                       string(getenv(kEdgeParentAddress)) + "\");\n";
   }
   if (commands_to_run.empty()) {
     return kDefaultCommandsToRun;
@@ -121,10 +117,11 @@ string CommandsToRun(Args args) {
 }
 
 Args ParseArgs(int* argc, const char*** argv) {
-  using std::cout;
   using std::cerr;
+  using std::cout;
 
-  string kHelpString = "Usage: edge [OPTION]... [FILE]...\n"
+  string kHelpString =
+      "Usage: edge [OPTION]... [FILE]...\n"
       "Open the files given.\n\nEdge supports the following options:\n"
       "  -f, --fork <shellcmd>  Creates a buffer running a shell command\n"
       "  -h, --help             Displays this message\n"
@@ -159,23 +156,20 @@ Args ParseArgs(int* argc, const char*** argv) {
       cout << kHelpString;
       exit(0);
     } else if (cmd == "--fork" || cmd == "-f") {
-      CHECK_GT(*argc, 0)
-          << output.binary_name << ": " << cmd
-          << ": Expected command to fork.\n";
+      CHECK_GT(*argc, 0) << output.binary_name << ": " << cmd
+                         << ": Expected command to fork.\n";
       output.commands_to_fork.push_back(pop_argument());
     } else if (cmd == "--run") {
-      CHECK_GT(*argc, 0)
-          << output.binary_name << ": " << cmd
-          << ": Expected command to run.\n";
+      CHECK_GT(*argc, 0) << output.binary_name << ": " << cmd
+                         << ": Expected command to run.\n";
       output.commands_to_run += pop_argument();
     } else if (cmd == "--load" || cmd == "-l") {
-      CHECK_GT(*argc, 0)
-          << output.binary_name << ": " << cmd
-          << ": Expected path to VM commands to run.\n";
+      CHECK_GT(*argc, 0) << output.binary_name << ": " << cmd
+                         << ": Expected path to VM commands to run.\n";
       output.commands_to_run +=
-          "buffer.EvaluateFile(\""
-          + ToByteString(CppEscapeString(FromByteString(pop_argument())))
-          + "\");";
+          "buffer.EvaluateFile(\"" +
+          ToByteString(CppEscapeString(FromByteString(pop_argument()))) +
+          "\");";
     } else if (cmd == "--server" || cmd == "-s") {
       output.server = true;
       if (*argc > 0) {
@@ -256,8 +250,8 @@ std::wstring GetGreetingMessage() {
 
 int main(int argc, const char** argv) {
   using namespace afc::editor;
-  using std::unique_ptr;
   using std::cerr;
+  using std::unique_ptr;
 
   google::InitGoogleLogging(argv[0]);
   google::InstallFailureSignalHandler();
@@ -277,8 +271,9 @@ int main(int argc, const char** argv) {
     wstring parent_server_error;
     remote_server_fd = MaybeConnectToServer(args.client, &parent_server_error);
     if (remote_server_fd == -1) {
-      cerr << args.binary_name << ": Unable to connect to remote server: "
-           << parent_server_error << std::endl;
+      cerr << args.binary_name
+           << ": Unable to connect to remote server: " << parent_server_error
+           << std::endl;
       exit(1);
     }
   } else {
@@ -287,8 +282,7 @@ int main(int argc, const char** argv) {
       SendCommandsToParent(remote_server_fd, CommandsToRun(args));
       cerr << args.binary_name << ": Waiting for EOF ...\n";
       char buffer[4096];
-      while (read(0, buffer, sizeof(buffer)) > 0)
-        continue;
+      while (read(0, buffer, sizeof(buffer)) > 0) continue;
       cerr << args.binary_name << ": EOF received, exiting.\n";
       exit(0);
     }
@@ -333,9 +327,9 @@ int main(int argc, const char** argv) {
   // This is only meaningful if we're running with args.client: it contains the
   // last observed size of our screen (to detect that we need to propagate
   // changes to the server).
-  std::pair<size_t, size_t> last_screen_size = { -1, -1 };
+  std::pair<size_t, size_t> last_screen_size = {-1, -1};
 
-  BeepFrequencies(audio_player.get(), { 783.99, 723.25, 783.99 });
+  BeepFrequencies(audio_player.get(), {783.99, 723.25, 783.99});
   editor_state()->SetStatus(GetGreetingMessage());
 
   while (!editor_state()->terminate()) {
@@ -350,11 +344,11 @@ int main(int argc, const char** argv) {
             std::make_pair(screen_curses->columns(), screen_curses->lines());
         if (screen_size != last_screen_size) {
           LOG(INFO) << "Sending screen size update to server.";
-          SendCommandsToParent(
-              remote_server_fd,
-              "screen.set_size(" + std::to_string(screen_size.first) + ","
-              + std::to_string(screen_size.second) + ");"
-              + "set_screen_needs_hard_redraw(true);\n");
+          SendCommandsToParent(remote_server_fd,
+                               "screen.set_size(" +
+                                   std::to_string(screen_size.first) + "," +
+                                   std::to_string(screen_size.second) + ");" +
+                                   "set_screen_needs_hard_redraw(true);\n");
           last_screen_size = screen_size;
         }
       }
@@ -362,8 +356,8 @@ int main(int argc, const char** argv) {
     VLOG(5) << "Updating remote screens.";
     for (auto& buffer : *editor_state()->buffers()) {
       auto value = buffer.second->environment()->Lookup(L"screen");
-      if (value->type.type != VMType::OBJECT_TYPE
-          || value->type.object_type != L"Screen") {
+      if (value->type.type != VMType::OBJECT_TYPE ||
+          value->type.object_type != L"Screen") {
         continue;
       }
       auto buffer_screen = static_cast<Screen*>(value->user_value.get());
@@ -386,15 +380,15 @@ int main(int argc, const char** argv) {
 
     for (auto& buffer : *editor_state()->buffers()) {
       if (buffer.second->fd() != -1) {
-        VLOG(5) << buffer.first << ": Installing (out) fd: "
-                << buffer.second->fd();
+        VLOG(5) << buffer.first
+                << ": Installing (out) fd: " << buffer.second->fd();
         fds[buffers.size()].fd = buffer.second->fd();
         fds[buffers.size()].events = POLLIN | POLLPRI;
         buffers.push_back(buffer.second);
       }
       if (buffer.second->fd_error() != -1) {
-        VLOG(5) << buffer.first << ": Installing (err) fd: "
-                << buffer.second->fd();
+        VLOG(5) << buffer.first
+                << ": Installing (err) fd: " << buffer.second->fd();
         fds[buffers.size()].fd = buffer.second->fd_error();
         fds[buffers.size()].events = POLLIN | POLLPRI;
         buffers.push_back(buffer.second);
@@ -440,9 +434,8 @@ int main(int argc, const char** argv) {
           if (remote_server_fd == -1) {
             editor_state()->ProcessInput(c);
           } else {
-            SendCommandsToParent(
-                remote_server_fd,
-                "ProcessInput(" + std::to_string(c) + ");\n");
+            SendCommandsToParent(remote_server_fd,
+                                 "ProcessInput(" + std::to_string(c) + ");\n");
           }
         }
         continue;
@@ -451,8 +444,7 @@ int main(int argc, const char** argv) {
       if (fds[i].fd == editor_state()->fd_to_detect_internal_events()) {
         char buffer[4096];
         VLOG(5) << "Internal events detected.";
-        while (read(fds[i].fd, buffer, sizeof(buffer)) > 0)
-          continue;
+        while (read(fds[i].fd, buffer, sizeof(buffer)) > 0) continue;
         continue;
       }
 

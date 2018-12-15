@@ -48,26 +48,33 @@ bool operator==(const VMType& lhs, const VMType& rhs) {
 
 wstring VMType::ToString() const {
   switch (type) {
-    case VM_VOID: return L"void";
-    case VM_BOOLEAN: return L"bool";
-    case VM_INTEGER: return L"int";
-    case VM_STRING: return L"string";
-    case VM_SYMBOL: return L"symbol";
-    case VM_DOUBLE: return L"double";
-    case ENVIRONMENT: return L"environment";
-    case FUNCTION:
-      {
-        CHECK(!type_arguments.empty());
-        wstring output = L"function<" + type_arguments[0].ToString() + L"(";
-        wstring separator = L"";
-        for (size_t i = 1; i < type_arguments.size(); i++) {
-          output += separator + type_arguments[i].ToString();
-          separator = L", ";
-        }
-        output += L")>";
-        return output;
+    case VM_VOID:
+      return L"void";
+    case VM_BOOLEAN:
+      return L"bool";
+    case VM_INTEGER:
+      return L"int";
+    case VM_STRING:
+      return L"string";
+    case VM_SYMBOL:
+      return L"symbol";
+    case VM_DOUBLE:
+      return L"double";
+    case ENVIRONMENT:
+      return L"environment";
+    case FUNCTION: {
+      CHECK(!type_arguments.empty());
+      wstring output = L"function<" + type_arguments[0].ToString() + L"(";
+      wstring separator = L"";
+      for (size_t i = 1; i < type_arguments.size(); i++) {
+        output += separator + type_arguments[i].ToString();
+        separator = L", ";
       }
-    case OBJECT_TYPE: return object_type;
+      output += L")>";
+      return output;
+    }
+    case OBJECT_TYPE:
+      return object_type;
   }
   return L"unknown";
 }
@@ -78,8 +85,7 @@ wstring VMType::ToString() const {
   return output;
 }
 
-ObjectType::ObjectType(const VMType& type)
-    : type_(type) {}
+ObjectType::ObjectType(const VMType& type) : type_(type) {}
 
 ObjectType::ObjectType(const wstring& type_name)
     : ObjectType(VMType::ObjectType(type_name)) {}

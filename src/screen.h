@@ -30,8 +30,10 @@ class Screen {
 
   static string CursorVisibilityToString(CursorVisibility cursor_visibility) {
     switch (cursor_visibility) {
-      case INVISIBLE: return "INVISIBLE";
-      case NORMAL: return "NORMAL";
+      case INVISIBLE:
+        return "INVISIBLE";
+      case NORMAL:
+        return "NORMAL";
     }
     LOG(WARNING) << "Invalid cursor visibility: " << cursor_visibility;
     return "UNKNOWN";
@@ -55,7 +57,7 @@ class Screen {
   virtual size_t lines() const = 0;
 };
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc
 
 #endif  // __AFC_EDITOR_SCREEN_H__

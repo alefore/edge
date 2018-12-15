@@ -7,15 +7,24 @@ namespace editor {
 
 Structure LowerStructure(Structure s) {
   switch (s) {
-    case CHAR: return CHAR;
-    case WORD: return CHAR;
-    case LINE: return WORD;
-    case MARK: return LINE;
-    case PAGE: return MARK;
-    case SEARCH: return PAGE;
-    case CURSOR: return SEARCH;
-    case BUFFER: return CURSOR;
-    case TREE: return TREE;
+    case CHAR:
+      return CHAR;
+    case WORD:
+      return CHAR;
+    case LINE:
+      return WORD;
+    case MARK:
+      return LINE;
+    case PAGE:
+      return MARK;
+    case SEARCH:
+      return PAGE;
+    case CURSOR:
+      return SEARCH;
+    case BUFFER:
+      return CURSOR;
+    case TREE:
+      return TREE;
   }
   CHECK(false) << "Structure type not handled by LowerStructure.";
 }

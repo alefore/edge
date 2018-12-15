@@ -20,17 +20,15 @@ class FunctionCall : public Expression {
     CHECK(args_ != nullptr);
   }
 
-  const VMType& type() {
-    return func_->type().type_arguments[0];
-  }
+  const VMType& type() { return func_->type().type_arguments[0]; }
 
   void Evaluate(Trampoline* trampoline) {
     DVLOG(3) << "Function call evaluation starts.";
     auto args_types = args_;
     auto func = func_;
-    trampoline->Bounce(func_.get(),
-        [func, args_types](std::unique_ptr<Value> callback,
-                           Trampoline* trampoline) {
+    trampoline->Bounce(
+        func_.get(), [func, args_types](std::unique_ptr<Value> callback,
+                                        Trampoline* trampoline) {
           DVLOG(6) << "Got function: " << *callback;
           CaptureArgs(trampoline, args_types,
                       std::make_shared<vector<unique_ptr<Value>>>(),
@@ -70,7 +68,8 @@ class FunctionCall : public Expression {
       callback->callback(std::move(*values), trampoline);
       return;
     }
-    trampoline->Bounce(args_types->at(values->size()).get(),
+    trampoline->Bounce(
+        args_types->at(values->size()).get(),
         [args_types, values, callback](std::unique_ptr<Value> value,
                                        Trampoline* trampoline) {
           CHECK(values != nullptr);
@@ -107,10 +106,10 @@ void Call(Value* func, vector<Value::Ptr> args,
     args_expr.push_back(NewConstantExpression(std::move(a)));
   }
   // TODO: Use unique_ptr and capture by std::move.
-  std::shared_ptr<Expression> function_expr = NewFunctionCall(
-      NewConstantExpression(Value::NewFunction(func->type.type_arguments,
-                                               func->callback)),
-      std::move(args_expr));
+  std::shared_ptr<Expression> function_expr =
+      NewFunctionCall(NewConstantExpression(Value::NewFunction(
+                          func->type.type_arguments, func->callback)),
+                      std::move(args_expr));
   Evaluate(function_expr.get(), nullptr,
            [function_expr, consumer](Value::Ptr value) {
              consumer(std::move(value));

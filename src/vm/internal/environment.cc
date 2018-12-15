@@ -2,9 +2,9 @@
 
 #include <glog/logging.h>
 
-#include "string.h"
 #include "../public/types.h"
 #include "../public/value.h"
+#include "string.h"
 
 namespace afc {
 namespace vm {
@@ -59,8 +59,8 @@ const VMType* Environment::LookupType(const wstring& symbol) {
   return object_type == nullptr ? nullptr : &object_type->type();
 }
 
-void Environment::DefineType(
-    const wstring& name, unique_ptr<ObjectType> value) {
+void Environment::DefineType(const wstring& name,
+                             unique_ptr<ObjectType> value) {
   auto it = object_types_.insert(make_pair(name, nullptr));
   it.first->second = std::move(value);
 }
@@ -87,7 +87,9 @@ void Environment::Assign(const wstring& symbol, unique_ptr<Value> value) {
     // TODO: Show the symbol.
     CHECK(parent_environment_ != nullptr)
         << "Environment::parent_environment_ is nullptr while trying to assign "
-        << "a new value to a symbol `" << "..." << "`. This likely means that "
+        << "a new value to a symbol `"
+        << "..."
+        << "`. This likely means that "
         << "the symbol is undefined (which the caller should have validated as "
         << "part of the compilation process).";
     parent_environment_->Assign(symbol, std::move(value));

@@ -1,8 +1,8 @@
 #ifndef __AFC_EDITOR_LINE_MARKS_H__
 #define __AFC_EDITOR_LINE_MARKS_H__
 
-#include <memory>
 #include <map>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>

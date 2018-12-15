@@ -1,7 +1,7 @@
 #include "line_prompt_mode.h"
 
-#include <memory>
 #include <limits>
+#include <memory>
 #include <string>
 
 #include <glog/logging.h>
@@ -17,8 +17,8 @@
 #include "file_link_mode.h"
 #include "insert_mode.h"
 #include "predictor.h"
-#include "transformation_delete.h"
 #include "terminal.h"
+#include "transformation_delete.h"
 #include "wstring.h"
 
 namespace afc {
@@ -35,12 +35,11 @@ void UpdateStatus(EditorState* editor_state, OpenBuffer* buffer,
   editor_state->SetStatus(prompt + input);
   editor_state->set_status_prompt(true);
   editor_state->set_status_prompt_column(
-      prompt.size()
-      + min(input.size(), buffer->current_position_col()));
+      prompt.size() + min(input.size(), buffer->current_position_col()));
 }
 
-map<wstring, shared_ptr<OpenBuffer>>::iterator
-GetHistoryBuffer(EditorState* editor_state, const wstring& name) {
+map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
+    EditorState* editor_state, const wstring& name) {
   OpenFileOptions options;
   options.editor_state = editor_state;
   options.name = L"- history: " + name;
@@ -55,8 +54,8 @@ GetHistoryBuffer(EditorState* editor_state, const wstring& name) {
   CHECK(it != editor_state->buffers()->end());
   CHECK(it->second != nullptr);
   it->second->set_bool_variable(buffer_variables::save_on_close(), true);
-  it->second->set_bool_variable(
-      buffer_variables::show_in_buffers_list(), false);
+  it->second->set_bool_variable(buffer_variables::show_in_buffers_list(),
+                                false);
   it->second->set_bool_variable(buffer_variables::atomic_lines(), true);
   if (!editor_state->has_current_buffer()) {
     // Seems lame, but what can we do?
@@ -71,10 +70,10 @@ shared_ptr<OpenBuffer> GetPromptBuffer(EditorState* editor_state) {
       *editor_state->buffers()->insert(make_pair(L"- prompt", nullptr)).first;
   if (element.second == nullptr) {
     element.second = std::make_shared<OpenBuffer>(editor_state, element.first);
-    element.second->set_bool_variable(
-        buffer_variables::allow_dirty_delete(), true);
-    element.second->set_bool_variable(
-        buffer_variables::show_in_buffers_list(), false);
+    element.second->set_bool_variable(buffer_variables::allow_dirty_delete(),
+                                      true);
+    element.second->set_bool_variable(buffer_variables::show_in_buffers_list(),
+                                      false);
     element.second->set_bool_variable(
         buffer_variables::delete_into_paste_buffer(), false);
   } else {
@@ -86,8 +85,7 @@ shared_ptr<OpenBuffer> GetPromptBuffer(EditorState* editor_state) {
 class HistoryScrollBehavior : public ScrollBehavior {
  public:
   HistoryScrollBehavior(wstring history_file, wstring prompt)
-      : history_file_(history_file),
-        prompt_(prompt) {}
+      : history_file_(history_file), prompt_(prompt) {}
 
   void Up(EditorState* editor_state, OpenBuffer* buffer) const override {
     ScrollHistory(editor_state, buffer, -1);
@@ -118,7 +116,8 @@ class HistoryScrollBehavior : public ScrollBehavior {
   }
 
  private:
-  void ScrollHistory(EditorState* editor_state, OpenBuffer* buffer, int delta) const {
+  void ScrollHistory(EditorState* editor_state, OpenBuffer* buffer,
+                     int delta) const {
     auto insert =
         std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
 
@@ -135,8 +134,8 @@ class HistoryScrollBehavior : public ScrollBehavior {
         history->second->set_position(position);
       }
       if (history->second->current_line() != nullptr) {
-        insert->AppendToLastLine(
-            editor_state, history->second->current_line()->contents());
+        insert->AppendToLastLine(editor_state,
+                                 history->second->current_line()->contents());
       }
     }
 
@@ -156,12 +155,9 @@ class LinePromptCommand : public Command {
  public:
   LinePromptCommand(wstring description,
                     std::function<PromptOptions(EditorState*)> options)
-      : description_(std::move(description)),
-        options_(std::move(options)) {}
+      : description_(std::move(description)), options_(std::move(options)) {}
 
-  const wstring Description() {
-    return description_;
-  }
+  const wstring Description() { return description_; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     Prompt(editor_state, options_(editor_state));
@@ -172,11 +168,10 @@ class LinePromptCommand : public Command {
   std::function<PromptOptions(EditorState*)> options_;
 };
 
-
 }  // namespace
 
-using std::unique_ptr;
 using std::shared_ptr;
+using std::unique_ptr;
 
 void Prompt(EditorState* editor_state, PromptOptions options) {
   CHECK(options.handler);
@@ -201,59 +196,60 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
   insert_mode_options.buffer = buffer;
 
   auto original_buffer = editor_state->current_buffer();
-  insert_mode_options.modify_listener =
-      [editor_state, original_buffer, buffer, options]() {
-        editor_state->set_current_buffer(original_buffer);
-        UpdateStatus(editor_state, buffer.get(), options.prompt);
-      };
+  insert_mode_options.modify_listener = [editor_state, original_buffer, buffer,
+                                         options]() {
+    editor_state->set_current_buffer(original_buffer);
+    UpdateStatus(editor_state, buffer.get(), options.prompt);
+  };
 
   insert_mode_options.scroll_behavior = std::make_shared<HistoryScrollBehavior>(
       options.history_file, options.prompt);
 
-  insert_mode_options.escape_handler =
-      [editor_state, options, original_buffer, original_modifiers]() {
-        LOG(INFO) << "Running escape_handler from Prompt.";
-        editor_state->set_current_buffer(original_buffer);
-        editor_state->set_modifiers(original_modifiers);
-        editor_state->set_status_prompt(false);
-        editor_state->ScheduleRedraw();
+  insert_mode_options.escape_handler = [editor_state, options, original_buffer,
+                                        original_modifiers]() {
+    LOG(INFO) << "Running escape_handler from Prompt.";
+    editor_state->set_current_buffer(original_buffer);
+    editor_state->set_modifiers(original_modifiers);
+    editor_state->set_status_prompt(false);
+    editor_state->ScheduleRedraw();
 
-        // We make a copy in case cancel_handler or handler delete us.
-        auto buffer = original_buffer->second;
-        if (options.cancel_handler) {
-          VLOG(5) << "Running cancel handler.";
-          options.cancel_handler(editor_state);
-        } else {
-          VLOG(5) << "Running handler on empty input.";
-          options.handler(L"", editor_state);
-        }
-        buffer->ResetMode();
-        editor_state->set_keyboard_redirect(nullptr);
-      };
+    // We make a copy in case cancel_handler or handler delete us.
+    auto buffer = original_buffer->second;
+    if (options.cancel_handler) {
+      VLOG(5) << "Running cancel handler.";
+      options.cancel_handler(editor_state);
+    } else {
+      VLOG(5) << "Running handler on empty input.";
+      options.handler(L"", editor_state);
+    }
+    buffer->ResetMode();
+    editor_state->set_keyboard_redirect(nullptr);
+  };
 
-  insert_mode_options.new_line_handler =
-      [editor_state, options, buffer, original_buffer, original_modifiers]() {
-        editor_state->set_current_buffer(original_buffer);
-        auto input = buffer->current_line()->contents();
-        if (input->size() != 0) {
-          auto history =
-              GetHistoryBuffer(editor_state, options.history_file)->second;
-          CHECK(history != nullptr);
-          if (history->contents()->size() == 0
-              || (history->contents()->at(history->contents()->size() - 1)
-                      ->ToString()
-                  != input->ToString())) {
-            history->AppendLine(editor_state, input);
-          }
-        }
-        auto ensure_survival_of_current_closure = editor_state->keyboard_redirect();
-        editor_state->set_keyboard_redirect(nullptr);
-        editor_state->set_status_prompt(false);
-        editor_state->ResetStatus();
-        editor_state->set_modifiers(original_modifiers);
-        options.handler(input->ToString(), editor_state);
-        (void) ensure_survival_of_current_closure;
-      };
+  insert_mode_options.new_line_handler = [editor_state, options, buffer,
+                                          original_buffer,
+                                          original_modifiers]() {
+    editor_state->set_current_buffer(original_buffer);
+    auto input = buffer->current_line()->contents();
+    if (input->size() != 0) {
+      auto history =
+          GetHistoryBuffer(editor_state, options.history_file)->second;
+      CHECK(history != nullptr);
+      if (history->contents()->size() == 0 ||
+          (history->contents()
+               ->at(history->contents()->size() - 1)
+               ->ToString() != input->ToString())) {
+        history->AppendLine(editor_state, input);
+      }
+    }
+    auto ensure_survival_of_current_closure = editor_state->keyboard_redirect();
+    editor_state->set_keyboard_redirect(nullptr);
+    editor_state->set_status_prompt(false);
+    editor_state->ResetStatus();
+    editor_state->set_modifiers(original_modifiers);
+    options.handler(input->ToString(), editor_state);
+    (void)ensure_survival_of_current_closure;
+  };
 
   insert_mode_options.start_completion = [editor_state, options, buffer]() {
     auto input = buffer->current_line()->contents()->ToString();
@@ -304,5 +300,5 @@ std::unique_ptr<Command> NewLinePromptCommand(
                                              std::move(options));
 }
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc

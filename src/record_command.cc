@@ -1,8 +1,8 @@
 #include "record_command.h"
 
+#include <unistd.h>
 #include <cerrno>
 #include <cstring>
-#include <unistd.h>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -25,7 +25,9 @@ class RecordCommand : public Command {
   }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) { return; }
+    if (!editor_state->has_current_buffer()) {
+      return;
+    }
     auto buffer = editor_state->current_buffer()->second;
     if (buffer->HasTransformationStack()) {
       buffer->PopTransformationStack();
@@ -42,5 +44,5 @@ std::unique_ptr<Command> NewRecordCommand() {
   return std::make_unique<RecordCommand>();
 }
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc

@@ -105,5 +105,5 @@ std::ostream& operator<<(std::ostream& os, const LineMarks::Mark& lm) {
   return os;
 }
 
-} // namespace editor
-} // namespace afc
+}  // namespace editor
+}  // namespace afc

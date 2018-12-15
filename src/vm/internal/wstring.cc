@@ -1,9 +1,9 @@
 #include "wstring.h"
 
+#include <wchar.h>
 #include <iostream>
 #include <string>
 #include <vector>
-#include <wchar.h>
 
 namespace afc {
 namespace vm {
@@ -43,5 +43,5 @@ wstring FromByteString(string input) {
   return output_string;
 }
 
-} // namespace vm
-} // namespace afc
+}  // namespace vm
+}  // namespace afc

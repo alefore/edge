@@ -15,18 +15,17 @@ class EditableString : public LazyString {
   struct ConstructorAccessTag {};
 
  public:
-  EditableString(ConstructorAccessTag tag,
-                 const shared_ptr<LazyString>& base, size_t position,
-                 const wstring& editable_part);
+  EditableString(ConstructorAccessTag tag, const shared_ptr<LazyString>& base,
+                 size_t position, const wstring& editable_part);
 
   static shared_ptr<EditableString> New(const wstring& editable_part);
 
-  static shared_ptr<EditableString> New(
-      const shared_ptr<LazyString>& base, size_t position);
+  static shared_ptr<EditableString> New(const shared_ptr<LazyString>& base,
+                                        size_t position);
 
-  static shared_ptr<EditableString> New(
-    const shared_ptr<LazyString>& base, size_t position,
-    const wstring& editable_part);
+  static shared_ptr<EditableString> New(const shared_ptr<LazyString>& base,
+                                        size_t position,
+                                        const wstring& editable_part);
 
   virtual wchar_t get(size_t pos) const;
 

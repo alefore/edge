@@ -1,9 +1,9 @@
 #ifndef __AFC_VM_PUBLIC_VM_H__
 #define __AFC_VM_PUBLIC_VM_H__
 
+#include <functional>
 #include <map>
 #include <memory>
-#include <functional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -70,8 +70,7 @@ class Trampoline {
   std::function<void(std::unique_ptr<Value>)> Interrupt();
 
   // Must ensure new_expression lives until new_contination is called.
-  void Bounce(Expression* new_expression,
-              Continuation new_continuation);
+  void Bounce(Expression* new_expression, Continuation new_continuation);
   void Return(std::unique_ptr<Value> value);
   void Continue(std::unique_ptr<Value> value);
 
@@ -101,27 +100,21 @@ class Expression {
   virtual void Evaluate(Trampoline* evaluation) = 0;
 };
 
-unique_ptr<Expression> CompileFile(
-    const string& path,
-    Environment* environment,
-    wstring* error_description);
+unique_ptr<Expression> CompileFile(const string& path, Environment* environment,
+                                   wstring* error_description);
 
-unique_ptr<Expression> CompileString(
-    const wstring& str,
-    Environment* environment,
-    wstring* error_description);
+unique_ptr<Expression> CompileString(const wstring& str,
+                                     Environment* environment,
+                                     wstring* error_description);
 
-unique_ptr<Expression> CompileString(
-    const wstring& str,
-    Environment* environment,
-    wstring* error_description,
-    const VMType& return_type);
+unique_ptr<Expression> CompileString(const wstring& str,
+                                     Environment* environment,
+                                     wstring* error_description,
+                                     const VMType& return_type);
 
 // Caller must make sure expr lives until consumer runs.
-void Evaluate(
-    Expression* expr,
-    Environment* environment,
-    std::function<void(std::unique_ptr<Value>)> consumer);
+void Evaluate(Expression* expr, Environment* environment,
+              std::function<void(std::unique_ptr<Value>)> consumer);
 
 }  // namespace vm
 }  // namespace afc

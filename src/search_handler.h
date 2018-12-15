@@ -15,10 +15,8 @@ struct EditorState;
 class OpenBuffer;
 class LineColumn;
 
-void SearchHandlerPredictor(
-    EditorState* editor_state,
-    const wstring& current_query,
-    OpenBuffer* target);
+void SearchHandlerPredictor(EditorState* editor_state,
+                            const wstring& current_query, OpenBuffer* target);
 
 struct SearchOptions {
   // The position in which to start searching for positions.
@@ -35,8 +33,8 @@ struct SearchOptions {
   LineColumn limit_position;
 };
 
-std::vector<LineColumn> SearchHandler(
-    EditorState* editor_state, const SearchOptions& options);
+std::vector<LineColumn> SearchHandler(EditorState* editor_state,
+                                      const SearchOptions& options);
 
 void JumpToNextMatch(EditorState* editor_state, const SearchOptions& options);
 

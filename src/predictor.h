@@ -11,8 +11,8 @@ namespace editor {
 
 using std::function;
 using std::shared_ptr;
-using std::wstring;
 using std::vector;
+using std::wstring;
 
 class EditorState;
 class OpenBuffer;
@@ -33,18 +33,13 @@ const wstring& PredictionsBufferName();
 // Create a new buffer running a given predictor on a given input. When that's
 // done, runs consumer on the results (on the longest unambiguous completion for
 // input).
-void Predict(
-    EditorState* editor_state,
-    Predictor predictor,
-    wstring input,
-    function<void(const wstring&)> consumer);
+void Predict(EditorState* editor_state, Predictor predictor, wstring input,
+             function<void(const wstring&)> consumer);
 
-void FilePredictor(EditorState* editor_state,
-                   const wstring& input,
+void FilePredictor(EditorState* editor_state, const wstring& input,
                    OpenBuffer* buffer);
 
-void EmptyPredictor(EditorState* editor_state,
-                    const wstring& input,
+void EmptyPredictor(EditorState* editor_state, const wstring& input,
                     OpenBuffer* buffer);
 
 Predictor PrecomputedPredictor(const vector<wstring>& predictions,

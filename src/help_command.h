@@ -1,8 +1,8 @@
 #ifndef __AFC_EDITOR_HELP_COMMAND_H__
 #define __AFC_EDITOR_HELP_COMMAND_H__
 
-#include <memory>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 

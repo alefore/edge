@@ -13,7 +13,9 @@ namespace editor {
 namespace {
 
 void RunCppCommandHandler(const wstring& name, EditorState* editor_state) {
-  if (!editor_state->has_current_buffer()) { return; }
+  if (!editor_state->has_current_buffer()) {
+    return;
+  }
   editor_state->current_buffer()->second->ResetMode();
   editor_state->current_buffer()->second->EvaluateString(
       editor_state, name, [](std::unique_ptr<Value>) { /* Nothing. */ });
@@ -26,7 +28,9 @@ class RunCppCommand : public Command {
   }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) { return; }
+    if (!editor_state->has_current_buffer()) {
+      return;
+    }
     switch (editor_state->structure()) {
       case LINE:
         editor_state->ResetStructure();
@@ -52,5 +56,5 @@ std::unique_ptr<Command> NewRunCppCommand() {
   return std::make_unique<RunCppCommand>();
 }
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc

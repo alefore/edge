@@ -2,10 +2,10 @@
 
 #include <glog/logging.h>
 
-#include "compilation.h"
 #include "../public/environment.h"
 #include "../public/value.h"
 #include "../public/vm.h"
+#include "compilation.h"
 #include "wstring.h"
 
 namespace afc {
@@ -24,9 +24,9 @@ class AssignExpression : public Expression {
   void Evaluate(Trampoline* trampoline) override {
     auto expression = value_;
     auto symbol = symbol_;
-    trampoline->Bounce(expression.get(),
-        [expression, symbol](std::unique_ptr<Value> value,
-                             Trampoline* trampoline) {
+    trampoline->Bounce(
+        expression.get(), [expression, symbol](std::unique_ptr<Value> value,
+                                               Trampoline* trampoline) {
           DVLOG(3) << "Setting value for: " << symbol;
           DVLOG(4) << "Value: " << *value;
           trampoline->environment()->Assign(symbol, std::move(value));
@@ -43,12 +43,13 @@ class AssignExpression : public Expression {
   const std::shared_ptr<Expression> value_;
 };
 
-}
+}  // namespace
 
 // TODO: Don't pass type/symbol by const reference.
-unique_ptr<Expression> NewAssignExpression(
-    Compilation* compilation, const wstring& type, const wstring& symbol,
-    unique_ptr<Expression> value) {
+unique_ptr<Expression> NewAssignExpression(Compilation* compilation,
+                                           const wstring& type,
+                                           const wstring& symbol,
+                                           unique_ptr<Expression> value) {
   if (value == nullptr) {
     return nullptr;
   }
@@ -61,16 +62,16 @@ unique_ptr<Expression> NewAssignExpression(
                                    std::make_unique<Value>(value->type()));
   if (!(*type_def == value->type())) {
     compilation->errors.push_back(
-        L"Unable to assign a value of type \"" + value->type().ToString()
-        + L"\" to a variable of type \"" + type_def->ToString() + L"\".");
+        L"Unable to assign a value of type \"" + value->type().ToString() +
+        L"\" to a variable of type \"" + type_def->ToString() + L"\".");
     return nullptr;
   }
   return std::make_unique<AssignExpression>(symbol, std::move(value));
 }
 
-unique_ptr<Expression> NewAssignExpression(
-    Compilation* compilation, const wstring& symbol,
-    unique_ptr<Expression> value) {
+unique_ptr<Expression> NewAssignExpression(Compilation* compilation,
+                                           const wstring& symbol,
+                                           unique_ptr<Expression> value) {
   if (value == nullptr) {
     return nullptr;
   }
@@ -81,8 +82,8 @@ unique_ptr<Expression> NewAssignExpression(
   }
   if (!(obj->type == value->type())) {
     compilation->errors.push_back(
-        L"Unable to assign a value of type \"" + value->type().ToString()
-        + L"\" to a variable of type \"" + obj->type.ToString() + L"\".");
+        L"Unable to assign a value of type \"" + value->type().ToString() +
+        L"\" to a variable of type \"" + obj->type.ToString() + L"\".");
     return nullptr;
   }
 

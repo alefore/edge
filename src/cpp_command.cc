@@ -73,4 +73,3 @@ std::unique_ptr<Command> NewCppCommand(afc::vm::Environment* environment,
 
 }  // namespace editor
 }  // namespace afc
-

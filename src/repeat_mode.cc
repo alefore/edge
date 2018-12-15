@@ -27,11 +27,12 @@ class RepeatMode : public EditorMode {
     result_ = 10 * result_ + c - '0';
     consumer_(editor_state, result_);
   }
+
  private:
   function<void(EditorState*, int)> consumer_;
   int result_;
 };
-}
+}  // namespace
 
 namespace afc {
 namespace editor {
@@ -41,5 +42,5 @@ std::unique_ptr<EditorMode> NewRepeatMode(
   return std::make_unique<RepeatMode>(std::move(consumer));
 }
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc

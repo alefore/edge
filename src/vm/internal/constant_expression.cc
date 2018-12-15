@@ -44,6 +44,5 @@ std::unique_ptr<Expression> NewConstantExpression(
   return std::make_unique<ConstantExpression>(std::move(value));
 }
 
-
 }  // namespace vm
 }  // namespace afc

@@ -2,9 +2,9 @@
 
 #include <glog/logging.h>
 
-#include "compilation.h"
-#include "../public/vm.h"
 #include "../public/value.h"
+#include "../public/vm.h"
+#include "compilation.h"
 
 namespace afc {
 namespace vm {
@@ -32,25 +32,24 @@ class WhileExpression : public Expression {
   }
 
  private:
-  static void Iterate(
-      Trampoline* trampoline, std::shared_ptr<Expression> condition,
-      std::shared_ptr<Expression> body) {
-    trampoline->Bounce(condition.get(),
-        [condition, body](std::unique_ptr<Value> cond_value,
-                          Trampoline* trampoline) {
-          if (!cond_value->boolean) {
-            DVLOG(3) << "Iteration is done.";
-            trampoline->Continue(Value::NewVoid());
-            return;
-          }
+  static void Iterate(Trampoline* trampoline,
+                      std::shared_ptr<Expression> condition,
+                      std::shared_ptr<Expression> body) {
+    trampoline->Bounce(condition.get(), [condition, body](
+                                            std::unique_ptr<Value> cond_value,
+                                            Trampoline* trampoline) {
+      if (!cond_value->boolean) {
+        DVLOG(3) << "Iteration is done.";
+        trampoline->Continue(Value::NewVoid());
+        return;
+      }
 
-          DVLOG(5) << "Iterating...";
-          trampoline->Bounce(body.get(),
-              [condition, body](std::unique_ptr<Value>,
-                                Trampoline* trampoline) {
-                Iterate(trampoline, condition, body);
-              });
-        });
+      DVLOG(5) << "Iterating...";
+      trampoline->Bounce(body.get(), [condition, body](std::unique_ptr<Value>,
+                                                       Trampoline* trampoline) {
+        Iterate(trampoline, condition, body);
+      });
+    });
   }
 
   const std::shared_ptr<Expression> condition_;
@@ -67,13 +66,13 @@ std::unique_ptr<Expression> NewWhileExpression(
   }
   if (condition->type().type != VMType::VM_BOOLEAN) {
     compilation->errors.push_back(
-        L"Expected bool value for condition of \"while\" loop but found \""
-        + condition->type().ToString() + L"\".");
+        L"Expected bool value for condition of \"while\" loop but found \"" +
+        condition->type().ToString() + L"\".");
     return nullptr;
   }
 
-  return std::make_unique<WhileExpression>(
-      std::move(condition), std::move(body));
+  return std::make_unique<WhileExpression>(std::move(condition),
+                                           std::move(body));
 }
 
 }  // namespace vm

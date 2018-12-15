@@ -2,12 +2,12 @@
 #define __AFC_EDITOR_MAP_MODE_H__
 
 #include <list>
-#include <memory>
 #include <map>
+#include <memory>
 #include <string>
 
-#include "editor_mode.h"
 #include "command.h"
+#include "editor_mode.h"
 #include "vm/public/environment.h"
 #include "vm/public/value.h"
 

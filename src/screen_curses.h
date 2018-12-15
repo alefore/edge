@@ -12,7 +12,7 @@ wint_t ReadChar(std::mbstate_t* mbstate);
 
 std::unique_ptr<Screen> NewScreenCurses();
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc
 
 #endif  // __AFC_EDITOR_SCREEN_CURSES_H__

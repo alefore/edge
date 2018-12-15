@@ -15,4 +15,4 @@ std::shared_ptr<LazyString> StringTrimLeft(std::shared_ptr<LazyString> a,
 }  // namespace editor
 }  // namespace afc
 
-#endif // __AFC_EDITOR_LAZY_STRING_TRIM_H__
+#endif  // __AFC_EDITOR_LAZY_STRING_TRIM_H__

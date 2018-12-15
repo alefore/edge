@@ -1,8 +1,8 @@
 #include "negate_expression.h"
 
-#include "compilation.h"
 #include "../public/value.h"
 #include "../public/vm.h"
+#include "compilation.h"
 
 namespace afc {
 namespace vm {
@@ -13,19 +13,18 @@ class NegateExpression : public Expression {
  public:
   NegateExpression(std::function<void(Value*)> negate,
                    unique_ptr<Expression> expr)
-      : negate_(negate),
-        expr_(std::move(expr)) {}
+      : negate_(negate), expr_(std::move(expr)) {}
 
   const VMType& type() { return expr_->type(); }
 
   void Evaluate(Trampoline* trampoline) {
     auto negate = negate_;
     auto expr = expr_;
-    trampoline->Bounce(expr.get(),
-        [negate, expr](std::unique_ptr<Value> value, Trampoline* trampoline) {
-          negate(value.get());
-          trampoline->Continue(std::move(value));
-        });
+    trampoline->Bounce(expr.get(), [negate, expr](std::unique_ptr<Value> value,
+                                                  Trampoline* trampoline) {
+      negate(value.get());
+      trampoline->Continue(std::move(value));
+    });
   }
 
   std::unique_ptr<Expression> Clone() override {
@@ -40,17 +39,14 @@ class NegateExpression : public Expression {
 }  // namespace
 
 std::unique_ptr<Expression> NewNegateExpression(
-    std::function<void(Value*)> negate,
-    const VMType& expected_type,
-    Compilation* compilation,
-    std::unique_ptr<Expression> expr) {
+    std::function<void(Value*)> negate, const VMType& expected_type,
+    Compilation* compilation, std::unique_ptr<Expression> expr) {
   if (expr == nullptr) {
     return nullptr;
   }
   if (!(expr->type() == expected_type)) {
-    compilation->errors.push_back(
-        L"Can't negate an expression of type: \"" + expr->type().ToString()
-        + L"\"");
+    compilation->errors.push_back(L"Can't negate an expression of type: \"" +
+                                  expr->type().ToString() + L"\"");
     return nullptr;
   }
   return std::make_unique<NegateExpression>(negate, std::move(expr));

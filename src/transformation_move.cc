@@ -19,8 +19,8 @@ class MoveTransformation : public Transformation {
  public:
   MoveTransformation(const Modifiers& modifiers) : modifiers_(modifiers) {}
 
-  void Apply(
-      EditorState* editor_state, OpenBuffer* buffer, Result* result) const {
+  void Apply(EditorState* editor_state, OpenBuffer* buffer,
+             Result* result) const {
     CHECK(result);
     auto root = buffer->parse_tree();
     auto current_tree = buffer->current_tree(root.get());
@@ -76,13 +76,13 @@ class MoveTransformation : public Transformation {
     }
     LOG(INFO) << "Move from " << result->cursor << " to " << position << " "
               << modifiers_;
-    NewGotoPositionTransformation(position)
-        ->Apply(editor_state, buffer, result);
+    NewGotoPositionTransformation(position)->Apply(editor_state, buffer,
+                                                   result);
     if (modifiers_.repetitions > 1) {
       editor_state->PushPosition(result->cursor);
     }
-    if (buffer->active_cursors()->size() > 1
-        || buffer->current_tree(root.get()) != current_tree) {
+    if (buffer->active_cursors()->size() > 1 ||
+        buffer->current_tree(root.get()) != current_tree) {
       editor_state->ScheduleRedraw();
     }
     editor_state->ResetRepetitions();
@@ -100,9 +100,9 @@ class MoveTransformation : public Transformation {
   }
 
   template <typename Iterator>
-  static LineColumn GetMarkPosition(
-      Iterator it_begin, Iterator it_end, LineColumn current,
-      const Modifiers& modifiers) {
+  static LineColumn GetMarkPosition(Iterator it_begin, Iterator it_end,
+                                    LineColumn current,
+                                    const Modifiers& modifiers) {
     using P = pair<const size_t, LineMarks::Mark>;
     Iterator it = std::upper_bound(
         it_begin, it_end, P(current.line, LineMarks::Mark()),
@@ -113,7 +113,7 @@ class MoveTransformation : public Transformation {
       return current;
     }
 
-    for (size_t i = 1; i < modifiers.repetitions; i ++) {
+    for (size_t i = 1; i < modifiers.repetitions; i++) {
       size_t position = it->first;
       ++it;
       // Skip more marks for the same line.
@@ -141,8 +141,8 @@ class MoveTransformation : public Transformation {
     return position;
   }
 
-  LineColumn MoveRange(EditorState*, OpenBuffer* buffer, LineColumn position)
-      const {
+  LineColumn MoveRange(EditorState*, OpenBuffer* buffer,
+                       LineColumn position) const {
     LineColumn start, end;
 
     if (!buffer->FindPartialRange(modifiers_, position, &start, &end)) {
@@ -161,12 +161,12 @@ class MoveTransformation : public Transformation {
 
     switch (modifiers_.direction) {
       case FORWARDS:
-        return GetMarkPosition(
-            marks->begin(), marks->end(), position, modifiers_);
+        return GetMarkPosition(marks->begin(), marks->end(), position,
+                               modifiers_);
         break;
       case BACKWARDS:
-        return GetMarkPosition(
-            marks->rbegin(), marks->rend(), position, modifiers_);
+        return GetMarkPosition(marks->rbegin(), marks->rend(), position,
+                               modifiers_);
     }
     CHECK(false);
     return LineColumn();

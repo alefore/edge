@@ -24,13 +24,13 @@ shared_ptr<EditableString> EditableString::New(
 shared_ptr<EditableString> EditableString::New(
     const shared_ptr<LazyString>& base, size_t position,
     const wstring& editable_part) {
-  return std::make_shared<EditableString>(
-      ConstructorAccessTag(), base, position, editable_part);
+  return std::make_shared<EditableString>(ConstructorAccessTag(), base,
+                                          position, editable_part);
 }
 
-EditableString::EditableString(
-    ConstructorAccessTag, const shared_ptr<LazyString>& base, size_t position,
-    const wstring& editable_part)
+EditableString::EditableString(ConstructorAccessTag,
+                               const shared_ptr<LazyString>& base,
+                               size_t position, const wstring& editable_part)
     : base_(base), position_(position), editable_part_(editable_part) {
   CHECK_LE(position_, base_->size());
 }
@@ -67,5 +67,5 @@ void EditableString::Clear() {
   base_ = EmptyString();
 }
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc

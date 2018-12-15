@@ -7,16 +7,16 @@
 #include <glog/logging.h>
 
 #include "direction.h"
-#include "modifiers.h"
 #include "line.h"
+#include "modifiers.h"
 #include "structure.h"
 
 namespace afc {
 namespace editor {
 
 using std::list;
-using std::unique_ptr;
 using std::shared_ptr;
+using std::unique_ptr;
 
 class EditorState;
 class OpenBuffer;
@@ -55,8 +55,8 @@ class Transformation {
   };
 
   virtual ~Transformation() {}
-  virtual void Apply(
-      EditorState* editor_state, OpenBuffer* buffer, Result* result) const = 0;
+  virtual void Apply(EditorState* editor_state, OpenBuffer* buffer,
+                     Result* result) const = 0;
   // TODO: Add const qualifier.
   virtual unique_ptr<Transformation> Clone() = 0;
 };
@@ -87,8 +87,8 @@ unique_ptr<Transformation> NewNoopTransformation();
 unique_ptr<Transformation> TransformationAtPosition(
     const LineColumn& position, unique_ptr<Transformation> transformation);
 
-unique_ptr<Transformation> ComposeTransformation(
-    unique_ptr<Transformation> a, unique_ptr<Transformation> b);
+unique_ptr<Transformation> ComposeTransformation(unique_ptr<Transformation> a,
+                                                 unique_ptr<Transformation> b);
 
 // Returns a transformation that deletes superfluous characters (based on
 // OpenBuffer::variable_line_suffix_superfluous_characters) from the current
@@ -109,8 +109,7 @@ unique_ptr<Transformation> NewDirectionTransformation(
     Direction direction, unique_ptr<Transformation> transformation);
 
 unique_ptr<Transformation> NewStructureTransformation(
-    Structure structure,
-    Modifiers::StructureRange structure_modifier,
+    Structure structure, Modifiers::StructureRange structure_modifier,
     unique_ptr<Transformation> transformation);
 
 class TransformationStack : public Transformation {
@@ -123,8 +122,8 @@ class TransformationStack : public Transformation {
     stack_.push_front(std::move(transformation));
   }
 
-  void Apply(EditorState* editor_state, OpenBuffer* buffer, Result* result)
-      const override {
+  void Apply(EditorState* editor_state, OpenBuffer* buffer,
+             Result* result) const override {
     CHECK(result != nullptr);
     for (auto& it : stack_) {
       Result it_result(editor_state);

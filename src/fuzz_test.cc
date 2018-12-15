@@ -6,8 +6,8 @@
 
 #include "audio.h"
 #include "editor.h"
-#include "tree.h"
 #include "terminal.h"
+#include "tree.h"
 #include "wstring.h"
 
 using namespace afc::editor;
@@ -19,9 +19,11 @@ unsigned int NextRandom() {
   }
   char buffer[2];
   std::cin.read(buffer, 2);
-  if (std::cin.eof()) { exit(0); }
-  return (static_cast<unsigned int>(buffer[0]) << 8)
-      + static_cast<unsigned int>(buffer[1]);
+  if (std::cin.eof()) {
+    exit(0);
+  }
+  return (static_cast<unsigned int>(buffer[0]) << 8) +
+         static_cast<unsigned int>(buffer[1]);
 }
 
 std::ostream& operator<<(std::ostream& out, const Node<int>& node);
@@ -88,16 +90,14 @@ int main(int, char** argv) {
         editor_state.ProcessInputString("l");
         break;
 
-      case 4:
-        {
-          vector<string> strings = { " ", "blah", "\n", "a", "1234567890" };
-          auto s = strings[NextRandom() % strings.size()];
-          VLOG(5) << "Command: insert: " << s;
-          editor_state.ProcessInputString("i");
-          editor_state.ProcessInputString(s);
-          editor_state.ProcessInput(Terminal::ESCAPE);
-        }
-        break;
+      case 4: {
+        vector<string> strings = {" ", "blah", "\n", "a", "1234567890"};
+        auto s = strings[NextRandom() % strings.size()];
+        VLOG(5) << "Command: insert: " << s;
+        editor_state.ProcessInputString("i");
+        editor_state.ProcessInputString(s);
+        editor_state.ProcessInput(Terminal::ESCAPE);
+      } break;
 
       case 5:
         VLOG(5) << "Command: d";

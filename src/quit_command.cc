@@ -10,9 +10,7 @@ namespace {
 
 class QuitCommand : public Command {
  public:
-  const wstring Description() {
-    return L"quits";
-  }
+  const wstring Description() { return L"quits"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     wstring error_description;
@@ -31,5 +29,5 @@ std::unique_ptr<Command> NewQuitCommand() {
   return std::make_unique<QuitCommand>();
 }
 
-}  // namespace afc
 }  // namespace editor
+}  // namespace afc

@@ -2,9 +2,9 @@
 
 #include <glog/logging.h>
 
-#include "compilation.h"
 #include "../public/value.h"
 #include "../public/vm.h"
+#include "compilation.h"
 
 namespace afc {
 namespace vm {
@@ -20,10 +20,10 @@ class ReturnExpression : public Expression {
   void Evaluate(Trampoline* trampoline) override {
     auto expr = expr_;
     trampoline->Bounce(expr.get(),
-        // We do this silly dance just to capture expr.
-        [expr](Value::Ptr value, Trampoline* trampoline) {
-          trampoline->Return(std::move(value));
-        });
+                       // We do this silly dance just to capture expr.
+                       [expr](Value::Ptr value, Trampoline* trampoline) {
+                         trampoline->Return(std::move(value));
+                       });
   }
 
   std::unique_ptr<Expression> Clone() override {
@@ -46,8 +46,8 @@ std::unique_ptr<Expression> NewReturnExpression(
   const VMType& expected_type = compilation->return_types.back();
   if (!(expected_type == expr->type())) {
     compilation->errors.push_back(
-        L"Returning value of type \"" + expr->type().ToString()
-        + L"\" but expected \"" + expected_type.ToString() + L"\"");
+        L"Returning value of type \"" + expr->type().ToString() +
+        L"\" but expected \"" + expected_type.ToString() + L"\"");
     return nullptr;
   }
   return std::make_unique<ReturnExpression>(std::move(expr));

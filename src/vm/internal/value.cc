@@ -51,10 +51,10 @@ namespace vm {
 /* static */ std::unique_ptr<Value> Value::NewFunction(
     std::vector<VMType> arguments,
     std::function<Value::Ptr(std::vector<Value::Ptr>)> callback) {
-  return NewFunction(arguments, [callback](
-      std::vector<Ptr> args, Trampoline* trampoline) {
-    trampoline->Return(callback(std::move(args)));
-  });
+  return NewFunction(arguments,
+                     [callback](std::vector<Ptr> args, Trampoline* trampoline) {
+                       trampoline->Return(callback(std::move(args)));
+                     });
 }
 
 std::ostream& operator<<(std::ostream& os, const Value& value) {

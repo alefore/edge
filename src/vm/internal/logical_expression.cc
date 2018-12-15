@@ -25,16 +25,16 @@ class LogicalExpression : public Expression {
     auto identity = identity_;
     auto expr_a_copy = expr_a_;
     auto expr_b_copy = expr_b_;
-    trampoline->Bounce(expr_a_copy.get(),
-        [identity, expr_a_copy, expr_b_copy](std::unique_ptr<Value> value,
-                                             Trampoline* trampoline) {
-          CHECK_EQ(VMType::VM_BOOLEAN, value->type.type);
-          if (value->boolean == identity) {
-            expr_b_copy->Evaluate(trampoline);
-          } else {
-            trampoline->Continue(std::move(value));
-          }
-        });
+    trampoline->Bounce(expr_a_copy.get(), [identity, expr_a_copy, expr_b_copy](
+                                              std::unique_ptr<Value> value,
+                                              Trampoline* trampoline) {
+      CHECK_EQ(VMType::VM_BOOLEAN, value->type.type);
+      if (value->boolean == identity) {
+        expr_b_copy->Evaluate(trampoline);
+      } else {
+        trampoline->Continue(std::move(value));
+      }
+    });
   }
 
   std::unique_ptr<Expression> Clone() override {
@@ -47,18 +47,17 @@ class LogicalExpression : public Expression {
   const std::shared_ptr<Expression> expr_b_;
 };
 
-}
+}  // namespace
 
 std::unique_ptr<Expression> NewLogicalExpression(
     bool identity, std::unique_ptr<Expression> a,
     std::unique_ptr<Expression> b) {
-  if (a == nullptr || b == nullptr
-      || a->type().type != VMType::VM_BOOLEAN
-      || b->type().type != VMType::VM_BOOLEAN) {
+  if (a == nullptr || b == nullptr || a->type().type != VMType::VM_BOOLEAN ||
+      b->type().type != VMType::VM_BOOLEAN) {
     return nullptr;
   }
-  return std::make_unique<LogicalExpression>(
-      identity, std::move(a), std::move(b));
+  return std::make_unique<LogicalExpression>(identity, std::move(a),
+                                             std::move(b));
 }
 
 }  // namespace vm

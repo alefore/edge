@@ -27,8 +27,8 @@ class EditorState;
 bool StartServer(EditorState* editor_state, wstring address,
                  wstring* actual_address, wstring* error);
 
-shared_ptr<OpenBuffer>
-OpenServerBuffer(EditorState* editor_state, const wstring& address);
+shared_ptr<OpenBuffer> OpenServerBuffer(EditorState* editor_state,
+                                        const wstring& address);
 
 }  // namespace editor
 }  // namespace afc
