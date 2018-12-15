@@ -53,7 +53,6 @@ Improve "af":
   Add more structures to "af":
     BUFFER> run a command with the whole contents of the buffer
       (another possibility: run a command for each line in buffer (prompt))
-  Handle repetitions?  Maybe for line, run multiple lines in separate buffers?
   Switch it to use the "new" enter-applies-command (similar to "d") mode.
 
 When running subcommands with aC, actually set variables "ARG0", "ARG1", "ARG2", "ARG3", with words in line...

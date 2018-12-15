@@ -36,10 +36,11 @@ unique_ptr<Command> NewForkCommand();
 
 class OpenBuffer;
 
-std::shared_ptr<OpenBuffer> ForkCommand(
-    EditorState* editor_state, const ForkCommandOptions& options);
+std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
+                                        const ForkCommandOptions& options);
 
-void RunCommandHandler(const wstring& input, EditorState* editor_state);
+void RunCommandHandler(const wstring& input, EditorState* editor_state,
+                       std::map<wstring, wstring> environment);
 void RunMultipleCommandsHandler(const wstring& input,
                                 EditorState* editor_state);
 

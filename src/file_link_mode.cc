@@ -188,7 +188,7 @@ class FileBuffer : public OpenBuffer {
     if (!S_ISDIR(stat_buffer_.st_mode)) {
       char* tmp = strdup(path_raw.c_str());
       if (0 == strcmp(basename(tmp), "passwd")) {
-        RunCommandHandler(L"parsers/passwd <" + path, editor_state);
+        RunCommandHandler(L"parsers/passwd <" + path, editor_state, {});
       } else {
         int fd = open(ToByteString(path).c_str(), O_RDONLY | O_NONBLOCK);
         target->SetInputFiles(editor_state, fd, -1, false, -1);

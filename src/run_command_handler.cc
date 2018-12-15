@@ -258,8 +258,7 @@ class CommandBuffer : public OpenBuffer {
 };
 
 void RunCommand(const wstring& name, const wstring& input,
-                const map<wstring, wstring> environment,
-                EditorState* editor_state) {
+                map<wstring, wstring> environment, EditorState* editor_state) {
   if (input.empty()) {
     if (editor_state->has_current_buffer()) {
       editor_state->current_buffer()->second->ResetMode();
@@ -275,8 +274,23 @@ void RunCommand(const wstring& name, const wstring& input,
   options.enter = !editor_state->has_current_buffer() ||
                   !editor_state->current_buffer()->second->Read(
                       buffer_variables::commands_background_mode());
-  options.environment = environment;
+  options.environment = std::move(environment);
   ForkCommand(editor_state, options);
+}
+
+void RunCommandHandler(const wstring& input, EditorState* editor_state,
+                       size_t i, size_t n) {
+  map<wstring, wstring> environment = {{L"EDGE_RUN", std::to_wstring(i)},
+                                       {L"EDGE_RUNS", std::to_wstring(n)}};
+  wstring name = L"$";
+  if (n > 1) {
+    for (auto& it : environment) {
+      name += L" " + it.first + L"=" + it.second;
+    }
+  }
+  name += L" " + input;
+  editor_state->SetStatus(L"Fork: " + name);
+  RunCommand(name, input, environment, editor_state);
 }
 
 class ForkEditorCommand : public Command {
@@ -289,7 +303,9 @@ class ForkEditorCommand : public Command {
         PromptOptions options;
         options.prompt = L"$ ";
         options.history_file = L"commands";
-        options.handler = RunCommandHandler;
+        options.handler = [](const wstring& name, EditorState* editor_state) {
+          RunCommandHandler(name, editor_state, 0, 1);
+        };
         Prompt(editor_state, options);
       } break;
 
@@ -298,9 +314,11 @@ class ForkEditorCommand : public Command {
             editor_state->current_buffer()->second->current_line() == nullptr) {
           return;
         }
-        RunCommandHandler(
-            editor_state->current_buffer()->second->current_line()->ToString(),
-            editor_state);
+        auto line =
+            editor_state->current_buffer()->second->current_line()->ToString();
+        for (size_t i = 0; i < editor_state->repetitions(); ++i) {
+          RunCommandHandler(line, editor_state, i, editor_state->repetitions());
+        }
       } break;
 
       default:
@@ -342,9 +360,9 @@ std::unique_ptr<Command> NewForkCommand() {
   return std::make_unique<ForkEditorCommand>();
 }
 
-void RunCommandHandler(const wstring& input, EditorState* editor_state) {
-  map<wstring, wstring> empty_environment;
-  RunCommand(L"$ " + input, input, empty_environment, editor_state);
+void RunCommandHandler(const wstring& input, EditorState* editor_state,
+                       map<wstring, wstring> environment) {
+  RunCommand(L"$ " + input, input, environment, editor_state);
 }
 
 void RunMultipleCommandsHandler(const wstring& input,
