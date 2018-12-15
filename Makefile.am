@@ -64,6 +64,8 @@ src/navigate_command.cc \
 src/noop_command.cc \
 src/open_directory_command.cc \
 src/open_file_command.cc \
+src/parse_tools.cc \
+src/parse_tools.h \
 src/parse_tree.cc \
 src/parse_tree.h \
 src/predictor.cc \

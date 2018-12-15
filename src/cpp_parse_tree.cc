@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include "buffer.h"
+#include "src/parse_tools.h"
 #include "src/seek.h"
 
 namespace afc {
@@ -28,121 +29,6 @@ static const wstring identifier_chars = L"_abcdefghijklmnopqrstuvwxyz";
 static const wstring digit_chars = L"1234567890";
 static const LineModifierSet BAD_PARSE_MODIFIERS =
     LineModifierSet({LineModifier::BG_RED, LineModifier::BOLD});
-
-struct Action {
-  static Action Push(size_t column, LineModifierSet modifiers) {
-    return Action(PUSH, column, std::move(modifiers));
-  }
-
-  static Action Pop(size_t column) { return Action(POP, column, {}); }
-
-  static Action SetFirstChildModifiers(LineModifierSet modifiers) {
-    return Action(SET_FIRST_CHILD_MODIFIERS, 0, std::move(modifiers));
-  }
-
-  void Execute(std::vector<ParseTree*>* trees, size_t line) {
-    switch (action_type) {
-      case PUSH:
-        trees->push_back(PushChild(trees->back()).release());
-        trees->back()->range.begin = LineColumn(line, column);
-        trees->back()->modifiers = modifiers;
-        break;
-
-      case POP:
-        trees->back()->range.end = LineColumn(line, column);
-        trees->pop_back();
-        break;
-
-      case SET_FIRST_CHILD_MODIFIERS:
-        trees->back()->children.front().modifiers = modifiers;
-        break;
-    }
-  }
-
-  enum ActionType {
-    PUSH,
-    POP,
-
-    // Set the modifiers of the first child of the current tree.
-    SET_FIRST_CHILD_MODIFIERS,
-  };
-
-  ActionType action_type = PUSH;
-
-  size_t column;
-
-  // Used by PUSH and by SET_FIRST_CHILD_MODIFIERS.
-  LineModifierSet modifiers;
-
- private:
-  Action(ActionType action_type, size_t column, LineModifierSet modifiers)
-      : action_type(action_type),
-        column(column),
-        modifiers(std::move(modifiers)) {}
-};
-
-struct ParseResults {
-  std::vector<size_t> states_stack;
-  std::vector<Action> actions;
-};
-
-class ParseData {
- public:
-  ParseData(const BufferContents& buffer, std::vector<size_t> initial_states,
-            LineColumn limit)
-      : buffer_(buffer), seek_(buffer_, &position_) {
-    parse_results_.states_stack = std::move(initial_states);
-    seek_.WithRange(Range(LineColumn(), limit)).WrappingLines();
-  }
-
-  const BufferContents& buffer() const { return buffer_; }
-
-  Seek& seek() { return seek_; }
-
-  ParseResults* parse_results() { return &parse_results_; }
-
-  LineColumn position() const { return position_; }
-
-  void set_position(LineColumn position) { position_ = position; }
-
-  int AddAndGetNesting() { return nesting_++; }
-
-  size_t state() const { return parse_results_.states_stack.back(); }
-
-  void SetState(State state) { parse_results_.states_stack.back() = state; }
-
-  void SetFirstChildModifiers(LineModifierSet modifiers) {
-    parse_results_.actions.push_back(Action::SetFirstChildModifiers(modifiers));
-  }
-
-  void PopBack() {
-    parse_results_.states_stack.pop_back();
-    parse_results_.actions.push_back(Action::Pop(position_.column));
-  }
-
-  void Push(State nested_state, size_t rewind_column,
-            LineModifierSet modifiers) {
-    CHECK_GE(position_.column, rewind_column);
-
-    parse_results_.states_stack.push_back(nested_state);
-
-    parse_results_.actions.push_back(
-        Action::Push(position_.column - rewind_column, modifiers));
-  }
-
-  void PushAndPop(size_t rewind_column, LineModifierSet modifiers) {
-    State ignored_state = DEFAULT;
-    Push(ignored_state, rewind_column, std::move(modifiers));
-    PopBack();
-  }
-
- private:
-  const BufferContents& buffer_;
-  ParseResults parse_results_;
-  LineColumn position_;
-  Seek seek_;
-  int nesting_ = 0;
-};
 
 class CppTreeParser : public TreeParser {
  public:
