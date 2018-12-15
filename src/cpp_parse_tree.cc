@@ -182,7 +182,7 @@ class CppTreeParser : public TreeParser {
   }
 
   void ParseLine(ParseData* result) {
-    while (!result->seek().AtRangeEnd()) {
+    while (result->seek().read() != L'\n') {
       LineColumn original_position = result->position();  // For validation.
 
       switch (result->state()) {
@@ -320,9 +320,7 @@ class CppTreeParser : public TreeParser {
     }
   }
 
-  void PreprocessorDirective(State state, ParseData* result) {
-    result->SetState(state);
-
+  void PreprocessorDirective(ParseData* result) {
     LineColumn original_position = result->position();
     CHECK_GE(original_position.column, 1u);
     original_position.column--;
@@ -381,15 +379,16 @@ class CppTreeParser : public TreeParser {
     auto original_position = result->position();
     auto c = seek.read();
     seek.Once();
-    CHECK_GT(result->position(), original_position);
-
     if (c == L'\n') {
       result->SetState(state_default_at_start_of_line);
       return;
     }
 
+    CHECK_GT(result->position(), original_position);
+
     if (after_newline && c == '#') {
-      PreprocessorDirective(state_default_at_start_of_line, result);
+      PreprocessorDirective(result);
+      result->SetState(state_default_at_start_of_line);
       return;
     }
 

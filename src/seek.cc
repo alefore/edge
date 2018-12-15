@@ -37,6 +37,7 @@ Seek::Result Seek::Once() const {
 }
 
 Seek::Result Seek::UntilCurrentCharIn(const wstring& word_char) const {
+  CHECK_LT(position_->line, contents_.size());
   while (word_char.find(read()) == word_char.npos) {
     if (!Advance(position_)) {
       return UNABLE_TO_ADVANCE;
@@ -169,9 +170,10 @@ bool Seek::Advance(LineColumn* position) const {
         position->column++;
       } else if (!wrapping_lines_) {
         return false;
+      } else if (LineColumn(position->line + 1) == range_.end) {
+        return false;
       } else {
-        position->line++;
-        position->column = 0;
+        *position = LineColumn(position->line + 1);
       }
       return true;
 
