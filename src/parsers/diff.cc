@@ -123,11 +123,6 @@ class DiffParser : public TreeParser {
     }
     AdvanceLine(result, modifiers);
   }
-
-  std::map<std::weak_ptr<LazyString>,
-           std::map<std::vector<size_t>, ParseResults>,
-           std::owner_less<std::weak_ptr<LazyString>>>
-      cache_;
 };
 
 }  // namespace
