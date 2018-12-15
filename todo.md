@@ -42,12 +42,6 @@ Support more languages:
 
 Improve support for Markdown syntax.
 
-Adjust the syntax parsing to not have to re-parse if it lands on a line in the same state as previously parsed.
-  This would drastically reduce the number of times that large buffers need to be reparsed.
-  Each line remembers: had I already been parsed starting at state X? If so, results are Y and, afterwards, state is Z.
-  When a line is modified, we just discard its parsing data and trigger reparsing from the final state of the previous line.
-    If the state is identical as before, we can skip reparsing the whole rest of the buffer.
-
 ## Commands
 
 Improve "af":
