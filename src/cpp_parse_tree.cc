@@ -42,6 +42,9 @@ class CppTreeParser : public TreeParser {
 
   void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
+    if (buffer.empty()) {
+      return;
+    }
     root->children.clear();
     root->depth = 0;
 
@@ -64,6 +67,20 @@ class CppTreeParser : public TreeParser {
         action.Execute(&trees, i);
       }
       states_stack = insert_results.first->second.states_stack;
+    }
+
+    auto final_position = LineColumn(buffer.size() - 1, buffer.back()->size());
+    if (final_position >= root->range.end) {
+      DVLOG(5) << "Draining final states: " << states_stack.size();
+      ParseData data(
+          buffer, std::move(states_stack),
+          std::min(LineColumn(buffer.size() + 1, 0), root->range.end));
+      while (!data.parse_results()->states_stack.empty()) {
+        data.PopBack();
+      }
+      for (auto& action : data.parse_results()->actions) {
+        action.Execute(&trees, final_position.line);
+      }
     }
   }
 
@@ -352,6 +369,7 @@ class CppTreeParser : public TreeParser {
   const std::unordered_set<wstring> keywords_;
   const std::unordered_set<wstring> typos_;
 
+  // Allows us to avoid reparsing previously parsed lines.
   std::map<std::weak_ptr<LazyString>,
            std::map<std::vector<size_t>, ParseResults>,
            std::owner_less<std::weak_ptr<LazyString>>>
