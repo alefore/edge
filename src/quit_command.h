@@ -7,9 +7,7 @@
 
 namespace afc {
 namespace editor {
-
-std::unique_ptr<Command> NewQuitCommand();
-
+std::unique_ptr<Command> NewQuitCommand(int exit_value);
 }  // namespace editor
 }  // namespace afc
 

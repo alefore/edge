@@ -74,7 +74,7 @@ class EditorState {
   wstring GetUnusedBufferName(const wstring& prefix);
   bool terminate() const { return terminate_; }
   int exit_value() const { return exit_value_; }
-  bool AttemptTermination(wstring* error_description);
+  bool AttemptTermination(wstring* error_description, int exit_value);
 
   void ResetModifiers() {
     if (has_current_buffer()) {

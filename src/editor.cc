@@ -363,7 +363,8 @@ wstring EditorState::GetUnusedBufferName(const wstring& prefix) {
   return GetBufferName(prefix, count);
 }
 
-bool EditorState::AttemptTermination(wstring* error_description) {
+bool EditorState::AttemptTermination(wstring* error_description,
+                                     int exit_value) {
   LOG(INFO) << "Checking buffers for termination.";
   vector<wstring> buffers_with_problems;
   for (auto& it : buffers_) {
@@ -374,6 +375,7 @@ bool EditorState::AttemptTermination(wstring* error_description) {
   if (buffers_with_problems.empty()) {
     LOG(INFO) << "Terminating.";
     terminate_ = true;
+    exit_value_ = exit_value;
     return true;
   }
 

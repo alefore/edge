@@ -890,7 +890,8 @@ using std::unique_ptr;
 
 std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   auto commands = std::make_unique<MapModeCommands>();
-  commands->Add(L"aq", NewQuitCommand());
+  commands->Add(L"aq", NewQuitCommand(0));
+  commands->Add(L"aQ", NewQuitCommand(1));
   commands->Add(L"ad", NewCloseBufferCommand());
   commands->Add(L"aw", NewCppCommand(editor_state->environment(),
                                      L"// Save the current buffer.\n"
