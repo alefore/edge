@@ -6,12 +6,24 @@ string ProcessCCInputLine(string line) {
   return line;
 }
 
+void DiffMode() { buffer.set_tree_parser("diff"); }
+
 string Basename(string path) {
   int last_slash = path.find_last_of("/", path.size());
   if (last_slash == -1) {
     return path;
   }
   return path.substr(last_slash + 1, path.size() - (last_slash + 1));
+}
+
+string SkipInitialSpaces(string text) {
+  int start = text.find_first_not_of(" ", 0);
+  return start > 0 ? text.substr(start, text.size() - start) : text;
+}
+
+string BaseCommand(string command) {
+  int space = command.find_first_of(" ", 0);
+  return space == -1 ? command : command.substr(0, space);
 }
 
 buffer.set_editor_commands_path("~/.edge/editor_commands/");
@@ -22,8 +34,9 @@ if (path == "") {
   if (command != "") {
     buffer.set_paste_mode(true);
   }
-  int space = command.find_first_of(" ", 0);
-  string base_command = space == -1 ? command : command.substr(0, space);
+
+  command = SkipInitialSpaces(command);
+  string base_command = BaseCommand(command);
   if (base_command != "") {
     if (base_command == "bash" || base_command == "python" ||
         base_command == "sh") {
@@ -43,7 +56,13 @@ if (path == "") {
       buffer.set_close_after_clean_exit(true);
       buffer.set_allow_dirty_delete(true);
     } else if (base_command == "diff") {
-      buffer.set_tree_parser("diff");
+      DiffMode();
+    } else if (base_command == "git") {
+      string next = BaseCommand(SkipInitialSpaces(command.substr(
+          base_command.size(), command.size() - base_command.size())));
+      if (next == "diff") {
+        DiffMode();
+      }
     } else {
       buffer.set_follow_end_of_file(buffer.pts());
     }
