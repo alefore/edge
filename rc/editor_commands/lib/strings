@@ -1,0 +1,4 @@
+string SkipInitialSpaces(string text) {
+  int start = text.find_first_not_of(" ", 0);
+  return start > 0 ? text.substr(start, text.size() - start) : text;
+}

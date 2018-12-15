@@ -1,5 +1,7 @@
 #include "../editor_commands/cpp-mode"
 #include "../editor_commands/java-mode"
+#include "../editor_commands/lib/paths"
+#include "../editor_commands/lib/strings"
 
 string ProcessCCInputLine(string line) {
   SetStatus("Got: " + line);
@@ -7,19 +9,6 @@ string ProcessCCInputLine(string line) {
 }
 
 void DiffMode() { buffer.set_tree_parser("diff"); }
-
-string Basename(string path) {
-  int last_slash = path.find_last_of("/", path.size());
-  if (last_slash == -1) {
-    return path;
-  }
-  return path.substr(last_slash + 1, path.size() - (last_slash + 1));
-}
-
-string SkipInitialSpaces(string text) {
-  int start = text.find_first_not_of(" ", 0);
-  return start > 0 ? text.substr(start, text.size() - start) : text;
-}
 
 string BaseCommand(string command) {
   int space = command.find_first_of(" ", 0);
