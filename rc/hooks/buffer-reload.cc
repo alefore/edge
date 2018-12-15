@@ -42,6 +42,8 @@ if (path == "") {
       buffer.set_show_in_buffers_list(true);
       buffer.set_close_after_clean_exit(true);
       buffer.set_allow_dirty_delete(true);
+    } else if (base_command == "diff") {
+      buffer.set_tree_parser("diff");
     } else {
       buffer.set_follow_end_of_file(buffer.pts());
     }
