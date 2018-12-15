@@ -155,6 +155,11 @@ class NavigationBufferCommand : public Command {
     }
     auto source = editor_state->current_buffer()->second;
     CHECK(source != nullptr);
+    if (source->simplified_parse_tree() == nullptr) {
+      editor_state->SetStatus(L"Current buffer has no tree.");
+      return;
+    }
+
     auto name = L"Navigation: " + source->name();
     auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
     editor_state->set_current_buffer(it.first);
