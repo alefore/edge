@@ -1,3 +1,6 @@
+#ifndef __AFC_EDITOR_SEEK_H__
+#define __AFC_EDITOR_SEEK_H__
+
 #include "src/buffer_contents.h"
 #include "src/line_column.h"
 #include "src/modifiers.h"
@@ -47,3 +50,5 @@ class Seek {
 
 }  // namespace editor
 }  // namespace afc
+
+#endif  // __AFC_EDITOR_SEEK_H__
