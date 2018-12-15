@@ -98,4 +98,11 @@ if (path == "") {
     buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
     SetStatus("Loaded Python file (" + extension + ")");
   }
+
+  if (extension == "md") {
+    buffer.set_tree_parser("md");
+    buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
+    buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
+    SetStatus("Loaded Markdown file (" + extension + ")");
+  }
 }
