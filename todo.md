@@ -1,6 +1,6 @@
--- Display
+## Display
 
--- Editing
+## Editing
 
 Implement delete of page.
 
@@ -14,7 +14,7 @@ Add "pipe" command: select the region (similar to delete: line, paragraph, buffe
 
 Add an autocomplete mode that autocompletes based on the path.
 
--- Navigation
+## Navigation
 
 Improve "g", the current behavior is kind of annoying:
   There should be a way (other than pressing it again) to specify if it should ignore space.  Maybe a modifier can do it?
@@ -25,7 +25,7 @@ Add a boolean variable "highlight_current_line" (default: false); when set, high
 
 If the buffer doesn't fit in the screen, don't show the scroll bar (or show it in a different way).
 
--- Prompt
+## Prompt
 
 Improve the history functionality for commands.
   For "af": Perhaps have a directory with a file per-command, that keeps all history for that command.
@@ -33,13 +33,14 @@ Improve the history functionality for commands.
     It may back-fire with some commands (shell commands, like "for a in $(seq 0 10); do echo $a; done"), but it's probably OK.
     Then improve somehow the completion or history iteration logic?
 
--- Syntax
+## Syntax
 
 Correctly handle: '\000'
 
 Support more languages:
-  - Markdown
   - Python
+
+Improve support for Markdown syntax.
 
 Adjust the syntax parsing to not have to re-parse if it lands on a line in the same state as previously parsed.
   This would drastically reduce the number of times that large buffers need to be reparsed.
@@ -47,7 +48,7 @@ Adjust the syntax parsing to not have to re-parse if it lands on a line in the s
   When a line is modified, we just discard its parsing data and trigger reparsing from the final state of the previous line.
     If the state is identical as before, we can skip reparsing the whole rest of the buffer.
 
--- Commands
+## Commands
 
 Improve "af":
   Add more structures to "af":
@@ -64,13 +65,13 @@ Persist undo history?
 
 Make follow_end_of_file the default.
 
--- List of buffers
+## List of buffers
 
--- Variables
+## Variables
 
 atomic_lines should probably also apply to multiple cursors.
 
--- VM
+## VM
 
 Add support for templates, so that we can do "vector<string>".
 
@@ -79,12 +80,12 @@ Support polymorphism: same name for multiple symbols with different type.
 
 Support in-line functions and/or lambda forms. Tricky.
 
--- Client/server
+## Client/server
 
 Allow a client to just disconnect.
   This is currently hard because the server doesn't know which client issued the commands it processes.
 
--- Misc
+## Misc
 
 Support variables scoped at the Editor level (i.e. not specific to a given buffer).
 

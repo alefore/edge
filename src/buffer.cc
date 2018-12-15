@@ -32,6 +32,7 @@ extern "C" {
 #include "run_command_handler.h"
 #include "server.h"
 #include "src/parsers/diff.h"
+#include "src/parsers/markdown.h"
 #include "src/seek.h"
 #include "substring.h"
 #include "transformation.h"
@@ -806,6 +807,8 @@ void OpenBuffer::UpdateTreeParser() {
                          std::move(typos_set));
   } else if (parser == L"diff") {
     tree_parser_ = parsers::NewDiffTreeParser();
+  } else if (parser == L"md") {
+    tree_parser_ = parsers::NewMarkdownTreeParser();
   } else {
     tree_parser_ = NewNullTreeParser();
   }
