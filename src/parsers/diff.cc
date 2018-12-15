@@ -57,13 +57,20 @@ class DiffParser : public TreeParser {
         return;
 
       case L'+':
+      case L'>':
         result->PushAndPop(result->position().column - original_column,
                            {LineModifier::GREEN});
         return;
 
       case L'-':
+      case L'<':
         result->PushAndPop(result->position().column - original_column,
                            {LineModifier::RED});
+        return;
+
+      case L'@':
+        result->PushAndPop(result->position().column - original_column,
+                           {LineModifier::CYAN});
         return;
 
       default:
