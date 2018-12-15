@@ -13,74 +13,117 @@ namespace editor {
 namespace parsers {
 namespace {
 
-enum State {
-  DEFAULT,
-};
+enum State { DEFAULT, HEADERS, SECTION, CONTENTS };
 
 class DiffParser : public TreeParser {
  public:
   void FindChildren(const BufferContents& buffer, ParseTree* root) override {
+    if (buffer.empty()) {
+      return;
+    }
     CHECK(root != nullptr);
     root->children.clear();
     root->depth = 0;
 
-    // TODO: Does this actually clean up expired references? Probably not?
-    cache_.erase(std::weak_ptr<LazyString>());
-
     std::vector<size_t> states_stack = {DEFAULT};
     std::vector<ParseTree*> trees = {root};
     for (size_t i = root->range.begin.line; i < root->range.end.line; i++) {
-      auto insert_results = cache_[buffer.at(i)->contents()].insert(
-          {states_stack, ParseResults()});
-      if (insert_results.second) {
-        ParseData data(buffer, std::move(states_stack),
-                       std::min(LineColumn(i + 1, 0), root->range.end));
-        data.set_position(std::max(LineColumn(i, 0), root->range.begin));
-        ParseLine(&data);
-        insert_results.first->second = *data.parse_results();
-      }
-      for (auto& action : insert_results.first->second.actions) {
+      ParseData data(buffer, std::move(states_stack),
+                     std::min(LineColumn(i + 1, 0), root->range.end));
+      data.set_position(std::max(LineColumn(i, 0), root->range.begin));
+      ParseLine(&data);
+      for (auto& action : data.parse_results()->actions) {
         action.Execute(&trees, i);
       }
-      states_stack = insert_results.first->second.states_stack;
+      states_stack = data.parse_results()->states_stack;
+    }
+
+    auto final_position = LineColumn(buffer.size() - 1, buffer.back()->size());
+    if (final_position >= root->range.end) {
+      DVLOG(5) << "Draining final states: " << states_stack.size();
+      ParseData data(
+          buffer, std::move(states_stack),
+          std::min(LineColumn(buffer.size() + 1, 0), root->range.end));
+      while (data.state() != DEFAULT) {
+        data.PopBack();
+      }
+      for (auto& action : data.parse_results()->actions) {
+        action.Execute(&trees, final_position.line);
+      }
     }
   }
 
   void ParseLine(ParseData* result) {
-    Seek seek = result->seek();
-    auto original_column = result->position().column;
-    auto c = seek.read();
-    result->seek().ToEndOfLine();
-    switch (c) {
+    switch (result->seek().read()) {
       case L'\n':
       case L' ':
+        InContents(result, {});
         return;
 
       case L'+':
+        if (result->state() == HEADERS) {
+          AdvanceLine(result, {LineModifier::BOLD});
+          return;
+        }
+        // Fall through.
       case L'>':
-        result->PushAndPop(result->position().column - original_column,
-                           {LineModifier::GREEN});
+        InContents(result, {LineModifier::GREEN});
         return;
 
       case L'-':
+        if (result->state() == HEADERS) {
+          AdvanceLine(result, {LineModifier::BOLD});
+          return;
+        }
+        // Fall through.
       case L'<':
-        result->PushAndPop(result->position().column - original_column,
-                           {LineModifier::RED});
+        InContents(result, {LineModifier::RED});
         return;
 
       case L'@':
-        result->PushAndPop(result->position().column - original_column,
-                           {LineModifier::CYAN});
+        if (result->state() == CONTENTS) {
+          result->PopBack();
+        }
+        if (result->state() == SECTION) {
+          result->PopBack();
+        }
+        result->Push(SECTION, 0, {});
+        AdvanceLine(result, {LineModifier::CYAN});
         return;
 
       default:
-        result->PushAndPop(result->position().column - original_column,
-                           {LineModifier::BOLD});
+        if (result->state() != HEADERS) {
+          if (result->state() == CONTENTS) {
+            result->PopBack();
+          }
+          if (result->state() == SECTION) {
+            result->PopBack();
+          }
+          if (result->state() == HEADERS) {
+            result->PopBack();
+          }
+          result->Push(HEADERS, 0, {});
+        }
+        AdvanceLine(result, {LineModifier::BOLD});
         return;
     }
   }
 
  private:
+  void AdvanceLine(ParseData* result, LineModifierSet modifiers) {
+    auto original_column = result->position().column;
+    result->seek().ToEndOfLine();
+    result->PushAndPop(result->position().column - original_column,
+                       {modifiers});
+  }
+
+  void InContents(ParseData* result, LineModifierSet modifiers) {
+    if (result->state() != CONTENTS) {
+      result->Push(CONTENTS, 0, {});
+    }
+    AdvanceLine(result, modifiers);
+  }
+
   std::map<std::weak_ptr<LazyString>,
            std::map<std::vector<size_t>, ParseResults>,
            std::owner_less<std::weak_ptr<LazyString>>>
