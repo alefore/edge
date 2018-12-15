@@ -80,6 +80,7 @@ class ParseData {
   }
 
   void PopBack() {
+    CHECK(!parse_results_.states_stack.empty());
     parse_results_.states_stack.pop_back();
     parse_results_.actions.push_back(Action::Pop(position_.column));
   }
