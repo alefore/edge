@@ -39,7 +39,7 @@ class ScreenVm : public Screen {
 
   ~ScreenVm() override {
     LOG(INFO) << "Sending terminate command to remote screen: fd: " << fd_;
-    buffer_ += "set_terminate(true);";
+    buffer_ += "set_terminate(0);";
     Write();
   }
 

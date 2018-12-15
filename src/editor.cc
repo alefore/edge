@@ -212,9 +212,12 @@ Environment EditorState::BuildEditorEnvironment() {
       vm::NewCallback(std::function<void(bool)>(
           [this](bool value) { set_screen_needs_hard_redraw(value); })));
 
-  environment.Define(L"set_terminate",
-                     vm::NewCallback(std::function<void(bool)>(
-                         [this](bool value) { terminate_ = value; })));
+  environment.Define(
+      L"set_terminate",
+      vm::NewCallback(std::function<void(int)>([this](int exit_value) {
+        terminate_ = true;
+        exit_value_ = exit_value;
+      })));
 
   environment.Define(
       L"SetPositionColumn",

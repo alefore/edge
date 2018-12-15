@@ -73,6 +73,7 @@ class EditorState {
   }
   wstring GetUnusedBufferName(const wstring& prefix);
   bool terminate() const { return terminate_; }
+  int exit_value() const { return exit_value_; }
   bool AttemptTermination(wstring* error_description);
 
   void ResetModifiers() {
@@ -242,7 +243,9 @@ class EditorState {
 
   map<wstring, shared_ptr<OpenBuffer>> buffers_;
   map<wstring, shared_ptr<OpenBuffer>>::iterator current_buffer_;
+  // TODO: Turn exit_value_ into a std::optional<int> and get rid of terminate_.
   bool terminate_ = false;
+  int exit_value_ = 0;
 
   wstring home_directory_;
   vector<wstring> edge_path_;

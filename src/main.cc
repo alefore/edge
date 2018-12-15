@@ -464,4 +464,5 @@ int main(int argc, const char** argv) {
 
   LOG(INFO) << "Removing server file: " << server_path;
   unlink(ToByteString(server_path).c_str());
+  return editor_state()->exit_value();
 }
