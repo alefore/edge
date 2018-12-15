@@ -31,6 +31,7 @@ extern "C" {
 #include "map_mode.h"
 #include "run_command_handler.h"
 #include "server.h"
+#include "src/parsers/diff.h"
 #include "src/seek.h"
 #include "substring.h"
 #include "transformation.h"
@@ -803,6 +804,8 @@ void OpenBuffer::UpdateTreeParser() {
                              std::istream_iterator<wstring, wchar_t>(keywords),
                              std::istream_iterator<wstring, wchar_t>()),
                          std::move(typos_set));
+  } else if (parser == L"diff") {
+    tree_parser_ = parsers::NewDiffTreeParser();
   } else {
     tree_parser_ = NewNullTreeParser();
   }

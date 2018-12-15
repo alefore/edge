@@ -68,6 +68,8 @@ src/parse_tools.cc \
 src/parse_tools.h \
 src/parse_tree.cc \
 src/parse_tree.h \
+src/parsers/diff.cc \
+src/parsers/diff.h \
 src/predictor.cc \
 src/quit_command.cc \
 src/record_command.cc \
