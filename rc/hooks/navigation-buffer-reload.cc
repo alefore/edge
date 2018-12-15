@@ -1,5 +1,15 @@
 SetStatus("Enjoy your navigation.");
 
+void SetDepthToZero() {
+  if (navigation_buffer_depth == 0) {
+    SetStatus("We're already at the surface.");
+    return;
+  }
+  navigation_buffer_depth = 0;
+  buffer.Reload();
+  SetStatus("Thought is the wind, and knowledge the sail.");
+}
+
 void IncrementDepth() {
   navigation_buffer_depth = navigation_buffer_depth + 1;
   buffer.Reload();
@@ -16,5 +26,6 @@ void DecrementDepth() {
   SetStatus("Simplifying view (" + tostring(navigation_buffer_depth) + ")");
 }
 
-buffer.AddBinding("sj", IncrementDepth);
-buffer.AddBinding("sk", DecrementDepth);
+buffer.AddBinding("sk", SetDepthToZero);
+buffer.AddBinding("sh", DecrementDepth);
+buffer.AddBinding("sl", IncrementDepth);
