@@ -44,7 +44,7 @@ class DiffParser : public TreeParser {
       ParseData data(
           buffer, std::move(states_stack),
           std::min(LineColumn(buffer.size() + 1, 0), root->range.end));
-      while (data.state() != DEFAULT) {
+      while (!data.parse_results()->states_stack.empty()) {
         data.PopBack();
       }
       for (auto& action : data.parse_results()->actions) {
