@@ -82,7 +82,3 @@ Allow a client to just disconnect.
 ## Misc
 
 Support variables scoped at the Editor level (i.e. not specific to a given buffer).
-
-Add a variable to set the exit status?
-  Should probably be an int, default to 0.
-  Maybe add a quick way of setting it to -1? "aE"?
