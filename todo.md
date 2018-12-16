@@ -1,5 +1,15 @@
 ## Display
 
+### Syntax
+
+Correctly handle: '\000'
+
+Support more languages:
+  - Python
+
+Improve support for Markdown syntax.
+  Support bold.
+
 ## Editing
 
 Implement delete of page.
@@ -25,6 +35,8 @@ Add a boolean variable "highlight_current_line" (default: false); when set, high
 
 If the buffer doesn't fit in the screen, don't show the scroll bar (or show it in a different way).
 
+### List of buffers
+
 ## Prompt
 
 Improve the history functionality for commands.
@@ -32,16 +44,6 @@ Improve the history functionality for commands.
     The command would be the basename of the first token given to an "af" command?
     It may back-fire with some commands (shell commands, like "for a in $(seq 0 10); do echo $a; done"), but it's probably OK.
     Then improve somehow the completion or history iteration logic?
-
-## Syntax
-
-Correctly handle: '\000'
-
-Support more languages:
-  - Python
-
-Improve support for Markdown syntax.
-  Support bold.
 
 ## Commands
 
@@ -60,8 +62,6 @@ Persist undo history?
 
 Make follow_end_of_file the default.
 
-## List of buffers
-
 ## Variables
 
 atomic_lines should probably also apply to multiple cursors.
@@ -75,7 +75,7 @@ Support polymorphism: same name for multiple symbols with different type.
 
 Support in-line functions and/or lambda forms. Tricky.
 
-## Client/server
+### Client/server
 
 Allow a client to just disconnect.
   This is currently hard because the server doesn't know which client issued the commands it processes.
