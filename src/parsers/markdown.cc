@@ -20,7 +20,8 @@ enum State {
   SECTION_2,
   SECTION_3,
   SECTION_4,
-  SECTION_5
+  SECTION_5,
+  EM,
 };
 
 class MarkdownParser : public TreeParser {
@@ -68,12 +69,31 @@ class MarkdownParser : public TreeParser {
         return;
 
       default:
-        result->seek().ToEndOfLine();
+        HandleNormalLine(result);
         return;
     }
   }
 
  private:
+  void HandleNormalLine(ParseData* result) {
+    auto seek = result->seek();
+    while (seek.read() != L'\n') {
+      switch (seek.read()) {
+        case L'*':
+          if (result->state() == EM) {
+            seek.Once();
+            result->PopBack();
+          } else {
+            result->Push(EM, 0, {LineModifier::ITALIC});
+            seek.Once();
+          }
+          break;
+        default:
+          seek.Once();
+      }
+    }
+  }
+
   void HandleHeader(ParseData* result) {
     const auto position = result->position();
     auto seek = result->seek();
@@ -88,7 +108,8 @@ class MarkdownParser : public TreeParser {
     result->set_position(position);
 
     while (result->state() != DEFAULT &&
-           StateToDepth(static_cast<State>(result->state())) >= depth) {
+           (result->state() == EM ||
+            StateToDepth(static_cast<State>(result->state())) >= depth)) {
       result->PopBack();
     }
 

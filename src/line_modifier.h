@@ -12,6 +12,7 @@ namespace editor {
 enum LineModifier {
   RESET,
   BOLD,
+  ITALIC,
   DIM,
   UNDERLINE,
   REVERSE,

@@ -55,6 +55,7 @@ class ScreenCurses : public Screen {
     switch (modifier) {
       case LineModifier::RESET:
         attroff(A_BOLD);
+        attroff(A_ITALIC);
         attroff(A_DIM);
         attroff(A_UNDERLINE);
         attroff(A_REVERSE);
@@ -69,6 +70,9 @@ class ScreenCurses : public Screen {
         break;
       case LineModifier::BOLD:
         attron(A_BOLD);
+        break;
+      case LineModifier::ITALIC:
+        attron(A_ITALIC);
         break;
       case LineModifier::DIM:
         attron(A_DIM);

@@ -9,6 +9,8 @@ std::string ModifierToString(LineModifier modifier) {
       return "RESET";
     case BOLD:
       return "BOLD";
+    case ITALIC:
+      return "ITALIC";
     case DIM:
       return "DIM";
     case UNDERLINE:
@@ -39,6 +41,7 @@ LineModifier ModifierFromString(std::string modifier) {
   // TODO: Turn into a map.
   if (modifier == "RESET") return RESET;
   if (modifier == "BOLD") return BOLD;
+  if (modifier == "ITALIC") return ITALIC;
   if (modifier == "DIM") return DIM;
   if (modifier == "UNDERLINE") return UNDERLINE;
   if (modifier == "REVERSE") return REVERSE;
