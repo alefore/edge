@@ -85,9 +85,10 @@ class CppTreeParser : public TreeParser {
   }
 
   void ParseLine(ParseData* result) {
-    while (result->seek().read() != L'\n') {
+    bool done = false;
+    while (!done) {
       LineColumn original_position = result->position();  // For validation.
-
+      done = result->seek().read() == L'\n';
       switch (result->state()) {
         case DEFAULT_AT_START_OF_LINE:
           DefaultState(DEFAULT, DEFAULT_AT_START_OF_LINE, AFTER_SLASH, true,
@@ -277,13 +278,15 @@ class CppTreeParser : public TreeParser {
 
     // The most common transition (but sometimes overriden below).
     result->SetState(state_default);
-    seek.UntilCurrentCharNotIn(L" \t");
 
     auto original_position = result->position();
     auto c = seek.read();
     seek.Once();
     if (c == L'\n') {
       result->SetState(state_default_at_start_of_line);
+      return;
+    }
+    if (c == L'\t' || c == L' ') {
       return;
     }
 
