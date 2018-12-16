@@ -41,6 +41,7 @@ Support more languages:
   - Python
 
 Improve support for Markdown syntax.
+  Support bold.
 
 ## Commands
 
