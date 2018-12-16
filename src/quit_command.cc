@@ -11,7 +11,9 @@ namespace {
 class QuitCommand : public Command {
  public:
   QuitCommand(int exit_value) : exit_value_(exit_value) {}
-  const wstring Description() { return L"quits"; }
+  const wstring Description() {
+    return L"quits (exit value: " + std::to_wstring(exit_value_) + L")";
+  }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     wstring error_description;
