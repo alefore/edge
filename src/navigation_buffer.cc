@@ -80,7 +80,11 @@ class NavigationBuffer : public OpenBuffer {
           options.contents =
               StringAppend(options.contents, NewCopyString(L" "));
         }
-        AddContents(source, *source->LineAt(child.range.end.line), &options);
+        if (i + 1 >= tree.children.size() ||
+            child.range.end.line != tree.children[i + 1].range.begin.line) {
+          AddContents(source, *source->LineAt(child.range.end.line), &options);
+        }
+        options.modifiers.resize(options.contents->size());
         target->AppendRawLine(editor_state, std::make_shared<Line>(options));
         AdjustLastLine(target, source, child.range.begin);
         continue;
@@ -110,6 +114,7 @@ class NavigationBuffer : public OpenBuffer {
     AdjustLastLine(target, source, position);
   }
 
+  // Modifles line_options.contents, appending to it from input.
   void AddContents(const std::shared_ptr<OpenBuffer>& source, const Line& input,
                    Line::Options* line_options) {
     auto trim = StringTrimLeft(
