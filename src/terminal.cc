@@ -33,6 +33,44 @@ constexpr int Terminal::CTRL_U;
 constexpr int Terminal::CTRL_K;
 constexpr int Terminal::CHAR_EOF;
 
+namespace {
+// Returns the number of initial columns to skip, corresponding to output that
+// prefixes the actual line contents.
+size_t GetInitialColumnsToSkip(const OpenBuffer& buffer) {
+  return buffer.Read(buffer_variables::paste_mode())
+             ? 0
+             : 1 + std::to_wstring(buffer.lines_size()).size();
+}
+
+size_t GetCurrentColumn(OpenBuffer* buffer) {
+  if (buffer->lines_size() == 0) {
+    return 0;
+  } else if (buffer->position().line >= buffer->lines_size()) {
+    return buffer->contents()->back()->size();
+  } else if (!buffer->IsLineFiltered(buffer->position().line)) {
+    return 0;
+  } else {
+    return min(buffer->position().column,
+               buffer->LineAt(buffer->position().line)->size());
+  }
+}
+
+void SetViewStartColumn(EditorState* editor_state, Screen* screen,
+                        OpenBuffer* buffer) {
+  size_t effective_size = screen->columns() - 1;
+  effective_size -= min(effective_size, GetInitialColumnsToSkip(*buffer));
+  size_t column = GetCurrentColumn(buffer);
+  size_t desired_start_column = column - min(column, effective_size);
+  if (static_cast<size_t>(
+          max(0, buffer->Read(buffer_variables::view_start_column()))) !=
+      desired_start_column) {
+    buffer->set_int_variable(buffer_variables::view_start_column(),
+                             desired_start_column);
+    editor_state->ScheduleRedraw();
+  }
+}
+}  // namespace
+
 void Terminal::Display(EditorState* editor_state, Screen* screen,
                        const EditorState::ScreenState& screen_state) {
   if (screen_state.needs_hard_redraw) {
@@ -75,16 +113,7 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
     editor_state->ScheduleRedraw();
   }
 
-  size_t desired_start_column =
-      buffer->current_position_col() -
-      min(buffer->current_position_col(), screen->columns() - 1);
-  if (static_cast<size_t>(
-          max(0, buffer->Read(buffer_variables::view_start_column()))) !=
-      desired_start_column) {
-    buffer->set_int_variable(buffer_variables::view_start_column(),
-                             desired_start_column);
-    editor_state->ScheduleRedraw();
-  }
+  SetViewStartColumn(editor_state, screen, buffer.get());
   if (buffer->Read(buffer_variables::atomic_lines()) &&
       buffer->last_highlighted_line() != buffer->position().line) {
     editor_state->ScheduleRedraw();
@@ -831,21 +860,10 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
 void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer,
                               Screen* screen) {
   size_t position_line = min(buffer->position().line, buffer->lines_size() - 1);
-  size_t line_length;
-  if (buffer->lines_size() == 0) {
-    line_length = 0;
-  } else if (buffer->position().line >= buffer->lines_size()) {
-    line_length = buffer->contents()->back()->size();
-  } else if (!buffer->IsLineFiltered(buffer->position().line)) {
-    line_length = 0;
-  } else {
-    line_length = buffer->LineAt(position_line)->size();
-  }
-  size_t pos_x = min(static_cast<size_t>(screen->columns()) - 1, line_length);
-  if (buffer->position().line < buffer->lines_size()) {
-    pos_x = min(pos_x, buffer->position().column);
-  }
-
+  auto pos_x = GetCurrentColumn(buffer.get());
+  pos_x -= min(pos_x, static_cast<size_t>(
+                          buffer->Read(buffer_variables::view_start_column())));
+  pos_x += GetInitialColumnsToSkip(*buffer);
   size_t pos_y = 0;
   for (size_t line = static_cast<size_t>(
            max(0, buffer->Read(buffer_variables::view_start_line())));
@@ -854,11 +872,7 @@ void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer,
       pos_y++;
     }
   }
-  size_t columns_to_skip =
-      buffer->Read(buffer_variables::paste_mode())
-          ? 0
-          : 1 + std::to_wstring(buffer->lines_size()).size();
-  screen->Move(pos_y, pos_x + columns_to_skip);
+  screen->Move(pos_y, min(static_cast<size_t>(screen->columns()) - 1, pos_x));
 }
 
 }  // namespace editor

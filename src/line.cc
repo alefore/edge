@@ -265,8 +265,11 @@ void Line::Output(const Line::OutputOptions& options) const {
     } else {
       options.output_receiver->AddModifier(LineModifier::DIM);
     }
-    options.output_receiver->AddString(
-        wstring(initial_column - number.size() - 1, L' ') + number + L':');
+    wstring output_string =
+        wstring(initial_column - number.size() - 1, L' ') + number + L':';
+    CHECK_EQ(output_string.size(), initial_column);
+    options.output_receiver->AddString(output_string);
+
     options.output_receiver->AddModifier(LineModifier::RESET);
     output_column += initial_column;
   }
@@ -364,9 +367,10 @@ void Line::Output(const Line::OutputOptions& options) const {
       options.output_receiver->AddModifier(LineModifier::GREEN);
       info_char = L'•';
     } else {
-      options.output_receiver->AddModifier(LineModifier::DIM);
+      options.output_receiver->AddModxifier(LineModifier::DIM);
     }
-    if (output_column <= line_width + initial_column) {
+    if (output_column <= line_width + initial_column &&
+        output_column < options.width) {
       options.output_receiver->AddCharacter(info_char);
       output_column++;
     }
@@ -392,11 +396,13 @@ void Line::Output(const Line::OutputOptions& options) const {
     }
 
     if (output_column > line_width + initial_column + 1) {
+      VLOG(6) << "Trimming the beginning of additional_information.";
       additional_information = additional_information.substr(
           min(additional_information.size(),
               output_column - (line_width + initial_column + 1)));
     }
-    if (options.width > output_column) {
+    if (options.width >= output_column) {
+      VLOG(6) << "Trimming the end of additional_information.";
       additional_information = additional_information.substr(
           0, min(additional_information.size(), options.width - output_column));
     }
