@@ -124,10 +124,7 @@ class Line {
   struct OutputOptions {
     const EditorState* editor_state = nullptr;
     const OpenBuffer* buffer = nullptr;
-    size_t line;
-    // If non-zero, skip this number of characters from the beginning of the
-    // line.
-    size_t start_character = 0;
+    LineColumn position;
     size_t lines_to_show;
     size_t width;
     bool paste_mode;

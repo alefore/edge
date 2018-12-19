@@ -237,7 +237,7 @@ void Line::Output(const Line::OutputOptions& options) const {
   std::unique_lock<std::mutex> lock(mutex_);
   VLOG(5) << "Producing output of line: " << ToString();
   size_t output_column = 0;
-  size_t input_column = options.start_character;
+  size_t input_column = options.position.column;
   unordered_set<LineModifier, hash<int>> current_modifiers;
 
   CHECK(environment_ != nullptr);
@@ -307,7 +307,7 @@ void Line::Output(const Line::OutputOptions& options) const {
     }
 
     auto all_marks = options.buffer->GetLineMarks(*options.editor_state);
-    auto marks = all_marks->equal_range(options.line);
+    auto marks = all_marks->equal_range(options.position.line);
 
     wchar_t info_char = L'•';
     wstring additional_information;
@@ -356,19 +356,19 @@ void Line::Output(const Line::OutputOptions& options) const {
     if (additional_information.empty()) {
       auto parse_tree = options.buffer->simplified_parse_tree();
       if (parse_tree != nullptr) {
-        additional_information +=
-            DrawTree(options.line, options.buffer->lines_size(), *parse_tree);
+        additional_information += DrawTree(
+            options.position.line, options.buffer->lines_size(), *parse_tree);
       }
       if (options.buffer->Read(buffer_variables::scrollbar())) {
         additional_information += ComputeScrollBarCharacter(
-            options.line, options.buffer->lines_size(), view_start_line,
-            options.lines_to_show);
+            options.position.line, options.buffer->lines_size(),
+            view_start_line, options.lines_to_show);
       }
       if (options.full_file_parse_tree != nullptr &&
           !options.full_file_parse_tree->children.empty()) {
         additional_information +=
-            DrawTree(options.line - view_start_line, options.lines_to_show,
-                     *options.full_file_parse_tree);
+            DrawTree(options.position.line - view_start_line,
+                     options.lines_to_show, *options.full_file_parse_tree);
       }
     }
 
