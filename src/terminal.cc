@@ -792,6 +792,16 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     line_output_options.output_receiver = line_output_receiver.get();
     std::unique_ptr<Line::OutputReceiverInterface> atomic_lines_highlighter;
 
+    bool at_start_of_line =
+        static_cast<int>(line_output_options.position.column) ==
+        buffer->Read(buffer_variables::view_start_column());
+    wstring number_prefix =
+        GetInitialPrefix(*buffer, line_output_options.position.line);
+    if (!number_prefix.empty() && !at_start_of_line) {
+      number_prefix = wstring(number_prefix.size() - 1, L' ') + L':';
+    }
+    line_output_options.width = screen->columns() - number_prefix.size();
+
     auto current_cursors = cursors.find(line_output_options.position.line);
     line_output_options.has_active_cursor =
         line_output_options.position.line == buffer->current_position_line() ||
@@ -803,9 +813,6 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
 
     lines_shown++;
     auto line = buffer->LineAt(line_output_options.position.line);
-
-    auto number_prefix =
-        GetInitialPrefix(*buffer, line_output_options.position.line);
 
     CHECK(line->contents() != nullptr);
     if (line_output_options.position.line == buffer->position().line &&
@@ -869,7 +876,6 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       line_output_options.output_receiver = parse_tree_highlighter.get();
     }
 
-    line_output_options.width = screen->columns() - number_prefix.size();
     if (!number_prefix.empty()) {
       if (line_output_options.has_active_cursor) {
         line_output_options.output_receiver->AddModifier(LineModifier::CYAN);
