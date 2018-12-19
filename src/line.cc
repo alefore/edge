@@ -237,8 +237,7 @@ void Line::Output(const Line::OutputOptions& options) const {
   std::unique_lock<std::mutex> lock(mutex_);
   VLOG(5) << "Producing output of line: " << ToString();
   size_t output_column = 0;
-  size_t input_column =
-      options.buffer->Read(buffer_variables::view_start_column());
+  size_t input_column = options.start_column;
   unordered_set<LineModifier, hash<int>> current_modifiers;
 
   CHECK(environment_ != nullptr);
@@ -252,27 +251,6 @@ void Line::Output(const Line::OutputOptions& options) const {
           : options.buffer;
   const auto view_start_line =
       options.buffer->Read(buffer_variables::view_start_line());
-  const size_t initial_column =
-      std::to_wstring(options.buffer->lines_size()).size() + 1;
-  if (!target_buffer->Read(buffer_variables::paste_mode())) {
-    auto number = std::to_wstring(options.line + 1);
-    CHECK_LE(number.size() + 1, initial_column)
-        << "Buffer has lines: " << target_buffer->lines_size();
-    if (options.has_active_cursor) {
-      options.output_receiver->AddModifier(LineModifier::CYAN);
-    } else if (options.has_cursor) {
-      options.output_receiver->AddModifier(LineModifier::BLUE);
-    } else {
-      options.output_receiver->AddModifier(LineModifier::DIM);
-    }
-    wstring output_string =
-        wstring(initial_column - number.size() - 1, L' ') + number + L':';
-    CHECK_EQ(output_string.size(), initial_column);
-    options.output_receiver->AddString(output_string);
-
-    options.output_receiver->AddModifier(LineModifier::RESET);
-    output_column += initial_column;
-  }
 
   while (input_column < contents_->size() && output_column < options.width) {
     wint_t c = contents_->get(input_column);
@@ -320,9 +298,9 @@ void Line::Output(const Line::OutputOptions& options) const {
   if ((!target_buffer->Read(buffer_variables::paste_mode()) ||
        target_buffer != options.buffer) &&
       line_width != 0 && view_start < line_width &&
-      line_width + initial_column - view_start < options.width) {
-    if (line_width + initial_column > view_start + output_column) {
-      size_t padding = line_width + initial_column - view_start - output_column;
+      line_width - view_start < options.width) {
+    if (line_width > view_start + output_column) {
+      size_t padding = line_width - view_start - output_column;
       options.output_receiver->AddString(wstring(padding, L' '));
       output_column += padding;
       CHECK_LE(output_column, options.width);
@@ -367,10 +345,9 @@ void Line::Output(const Line::OutputOptions& options) const {
       options.output_receiver->AddModifier(LineModifier::GREEN);
       info_char = L'•';
     } else {
-      options.output_receiver->AddModxifier(LineModifier::DIM);
+      options.output_receiver->AddModifier(LineModifier::DIM);
     }
-    if (output_column <= line_width + initial_column &&
-        output_column < options.width) {
+    if (output_column <= line_width && output_column < options.width) {
       options.output_receiver->AddCharacter(info_char);
       output_column++;
     }
@@ -395,11 +372,10 @@ void Line::Output(const Line::OutputOptions& options) const {
       }
     }
 
-    if (output_column > line_width + initial_column + 1) {
+    if (output_column > line_width + 1) {
       VLOG(6) << "Trimming the beginning of additional_information.";
       additional_information = additional_information.substr(
-          min(additional_information.size(),
-              output_column - (line_width + initial_column + 1)));
+          min(additional_information.size(), output_column - (line_width + 1)));
     }
     if (options.width >= output_column) {
       VLOG(6) << "Trimming the end of additional_information.";

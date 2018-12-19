@@ -125,6 +125,7 @@ class Line {
     const EditorState* editor_state = nullptr;
     const OpenBuffer* buffer = nullptr;
     size_t line;
+    size_t start_column = 0;
     size_t lines_to_show;
     size_t width;
     bool paste_mode;
