@@ -31,6 +31,7 @@ EdgeStruct<bool>* BoolStruct() {
     delete_into_paste_buffer();
     scrollbar();
     search_case_sensitive();
+    wrap_long_lines();
   }
   return output;
 }
@@ -223,6 +224,15 @@ EdgeVariable<bool>* search_case_sensitive() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"search_case_sensitive",
       L"If set to true, search (through \"/\") is case sensitive.", false);
+  return variable;
+}
+
+EdgeVariable<bool>* wrap_long_lines() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
+      L"wrap_long_lines",
+      L"If set to true, long lines will be wrapped (only for displaying). "
+      L"Otherwise, they get trimmed at the end.",
+      true);
   return variable;
 }
 

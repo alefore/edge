@@ -55,19 +55,14 @@ size_t GetCurrentColumn(OpenBuffer* buffer) {
   }
 }
 
-void SetViewStartColumn(EditorState* editor_state, Screen* screen,
-                        OpenBuffer* buffer) {
+size_t GetDesiredViewStartColumn(Screen* screen, OpenBuffer* buffer) {
+  if (buffer->Read(buffer_variables::wrap_long_lines())) {
+    return 0;
+  }
   size_t effective_size = screen->columns() - 1;
   effective_size -= min(effective_size, GetInitialPrefixSize(*buffer));
   size_t column = GetCurrentColumn(buffer);
-  size_t desired_start_column = column - min(column, effective_size);
-  if (static_cast<size_t>(
-          max(0, buffer->Read(buffer_variables::view_start_column()))) !=
-      desired_start_column) {
-    buffer->set_int_variable(buffer_variables::view_start_column(),
-                             desired_start_column);
-    editor_state->ScheduleRedraw();
-  }
+  return column - min(column, effective_size);
 }
 
 std::wstring GetInitialPrefix(const OpenBuffer& buffer, int line) {
@@ -120,7 +115,15 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
     editor_state->ScheduleRedraw();
   }
 
-  SetViewStartColumn(editor_state, screen, buffer.get());
+  auto view_start_column = GetDesiredViewStartColumn(screen, buffer.get());
+  if (static_cast<size_t>(
+          max(0, buffer->Read(buffer_variables::view_start_column()))) !=
+      view_start_column) {
+    buffer->set_int_variable(buffer_variables::view_start_column(),
+                             view_start_column);
+    editor_state->ScheduleRedraw();
+  }
+
   if (buffer->Read(buffer_variables::atomic_lines()) &&
       buffer->last_highlighted_line() != buffer->position().line) {
     editor_state->ScheduleRedraw();
@@ -141,7 +144,7 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   screen->Refresh();
   screen->Flush();
   editor_state->set_visible_lines(static_cast<size_t>(screen_lines - 1));
-}
+}  // namespace editor
 
 // Adjust the name of a buffer to a string suitable to be shown in the Status
 // with progress indicators surrounding it.
@@ -754,8 +757,6 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   Line::OutputOptions line_output_options_template;
   line_output_options_template.editor_state = editor_state;
   line_output_options_template.buffer = buffer.get();
-  line_output_options_template.start_column =
-      buffer->Read(buffer_variables::view_start_column());
   line_output_options_template.lines_to_show = lines_to_show;
   line_output_options_template.width = screen->columns();
   line_output_options_template.paste_mode =
@@ -768,14 +769,17 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   std::unordered_set<const OpenBuffer*> buffers_shown;
   line_output_options_template.output_buffers_shown = &buffers_shown;
 
+  size_t start_character = buffer->Read(buffer_variables::view_start_column());
   while (lines_shown < lines_to_show) {
     if (current_line >= buffer->lines_size()) {
       line_output_receiver->AddString(L"\n");
       lines_shown++;
+      start_character = buffer->Read(buffer_variables::view_start_column());
       continue;
     }
     if (!buffer->IsLineFiltered(current_line)) {
       current_line++;
+      start_character = buffer->Read(buffer_variables::view_start_column());
       continue;
     }
 
@@ -800,6 +804,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
             ? 0
             : 1 + std::to_wstring(buffer->lines_size()).size();
     CHECK(line->contents() != nullptr);
+    unsigned line_length = buffer->LineAt(current_line)->size();
     if (current_line == buffer->position().line &&
         buffer->Read(buffer_variables::atomic_lines())) {
       buffer->set_last_highlighted_line(current_line);
@@ -818,7 +823,6 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       }
       // Any cursors past the end of the line will just be silently moved to the
       // end of the line (just for displaying).
-      unsigned line_length = buffer->LineAt(current_line)->size();
       while (!options.columns.empty() &&
              *options.columns.rbegin() > line_length) {
         options.columns.erase(std::prev(options.columns.end()));
@@ -859,8 +863,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     }
 
     line_output_options.line = current_line;
+    line_output_options.start_character = start_character;
 
-    size_t prefix_length = 0;
     if (!line_output_options.paste_mode) {
       if (line_output_options.has_active_cursor) {
         line_output_options.output_receiver->AddModifier(LineModifier::CYAN);
@@ -880,7 +884,12 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     // Need to do this for atomic lines, since they override the Reset modifier
     // with Reset + Reverse.
     line_output_receiver->AddModifier(LineModifier::RESET);
-    current_line++;
+    start_character += line_output_options.width;
+    if (start_character >= line_length ||
+        !buffer->Read(buffer_variables::wrap_long_lines())) {
+      current_line++;
+      start_character = buffer->Read(buffer_variables::view_start_column());
+    }
   }
 }
 

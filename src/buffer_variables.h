@@ -32,6 +32,7 @@ EdgeVariable<bool>* push_positions_to_history();
 EdgeVariable<bool>* delete_into_paste_buffer();
 EdgeVariable<bool>* scrollbar();
 EdgeVariable<bool>* search_case_sensitive();
+EdgeVariable<bool>* wrap_long_lines();
 
 EdgeStruct<wstring>* StringStruct();
 EdgeVariable<wstring>* word_characters();

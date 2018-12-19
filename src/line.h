@@ -125,7 +125,9 @@ class Line {
     const EditorState* editor_state = nullptr;
     const OpenBuffer* buffer = nullptr;
     size_t line;
-    size_t start_column = 0;
+    // If non-zero, skip this number of characters from the beginning of the
+    // line.
+    size_t start_character = 0;
     size_t lines_to_show;
     size_t width;
     bool paste_mode;
