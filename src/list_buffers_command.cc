@@ -27,6 +27,7 @@ class ListBuffersBuffer : public OpenBuffer {
     set_bool_variable(buffer_variables::show_in_buffers_list(), false);
     set_bool_variable(buffer_variables::push_positions_to_history(), false);
     set_bool_variable(buffer_variables::allow_dirty_delete(), true);
+    set_bool_variable(buffer_variables::wrap_long_lines(), false);
   }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
