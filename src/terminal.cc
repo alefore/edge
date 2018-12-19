@@ -66,6 +66,9 @@ size_t GetDesiredViewStartColumn(Screen* screen, OpenBuffer* buffer) {
 }
 
 std::wstring GetInitialPrefix(const OpenBuffer& buffer, int line) {
+  if (buffer.Read(buffer_variables::paste_mode())) {
+    return L"";
+  }
   std::wstring number = std::to_wstring(line + 1);
   std::wstring padding(GetInitialPrefixSize(buffer) - number.size() - 1, L' ');
   return padding + number + L':';
@@ -801,7 +804,9 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     lines_shown++;
     auto line = buffer->LineAt(line_output_options.position.line);
 
-    size_t columns_to_skip = GetInitialPrefixSize(*buffer);
+    auto number_prefix =
+        GetInitialPrefix(*buffer, line_output_options.position.line);
+
     CHECK(line->contents() != nullptr);
     if (line_output_options.position.line == buffer->position().line &&
         buffer->Read(buffer_variables::atomic_lines())) {
@@ -830,10 +835,10 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       options.multiple_cursors =
           buffer->Read(buffer_variables::multiple_cursors());
 
-      LOG(INFO) << "Applying columns_to_skip: " << columns_to_skip;
+      LOG(INFO) << "Skipping columns for prefix: " << number_prefix.size();
       std::set<size_t> adjusted_columns;
       for (const auto& column : options.columns) {
-        adjusted_columns.insert(column + columns_to_skip);
+        adjusted_columns.insert(column + number_prefix.size());
       }
       options.columns = std::move(adjusted_columns);
 
@@ -854,18 +859,18 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
               ? current_tree->range.end.column
               : line->size();
       parse_tree_highlighter = std::make_unique<ParseTreeHighlighter>(
-          line_output_options.output_receiver, columns_to_skip, begin, end);
+          line_output_options.output_receiver, number_prefix.size(), begin,
+          end);
       line_output_options.output_receiver = parse_tree_highlighter.get();
     } else if (!buffer->parse_tree()->children.empty()) {
       parse_tree_highlighter = std::make_unique<ParseTreeHighlighterTokens>(
-          line_output_options.output_receiver, columns_to_skip, root.get(),
+          line_output_options.output_receiver, number_prefix.size(), root.get(),
           line_output_options.position.line);
       line_output_options.output_receiver = parse_tree_highlighter.get();
     }
 
-    line_output_options.width = screen->columns();
-
-    if (!line_output_options.paste_mode) {
+    line_output_options.width = screen->columns() - number_prefix.size();
+    if (!number_prefix.empty()) {
       if (line_output_options.has_active_cursor) {
         line_output_options.output_receiver->AddModifier(LineModifier::CYAN);
       } else if (line_output_options.has_cursor) {
@@ -873,13 +878,9 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       } else {
         line_output_options.output_receiver->AddModifier(LineModifier::DIM);
       }
-      auto number_prefix =
-          GetInitialPrefix(*buffer, line_output_options.position.line);
       line_output_options.output_receiver->AddString(number_prefix);
       line_output_options.output_receiver->AddModifier(LineModifier::RESET);
-      line_output_options.width -= number_prefix.size();
     }
-
     line->Output(line_output_options);
 
     // Need to do this for atomic lines, since they override the Reset modifier
