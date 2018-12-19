@@ -289,7 +289,6 @@ void RunCommandHandler(const wstring& input, EditorState* editor_state,
     }
   }
   name += L" " + input;
-  editor_state->SetStatus(L"Fork: " + name);
   RunCommand(name, input, environment, editor_state);
 }
 
