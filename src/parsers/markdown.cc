@@ -118,15 +118,17 @@ class MarkdownParser : public TreeParser {
     }
 
     LineModifierSet modifiers;
-    if (depth < 4) {
-      if (depth < 2) {
-        if (depth == 0) {
-          modifiers.insert(LineModifier::UNDERLINE);
-        }
-        modifiers.insert(LineModifier::CYAN);
+    if (depth < 2) {
+      if (depth == 0) {
+        modifiers.insert(LineModifier::UNDERLINE);
       }
       modifiers.insert(LineModifier::BOLD);
+    } else if (depth == 2) {
+      modifiers.insert(LineModifier::YELLOW);
+    } else if (depth == 3) {
+      modifiers.insert(LineModifier::CYAN);
     }
+
     AdvanceLine(result, std::move(modifiers));
   }
 
