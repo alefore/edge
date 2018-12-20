@@ -22,6 +22,7 @@ enum State {
   SECTION_4,
   SECTION_5,
   EM,
+  STRONG,
 };
 
 class MarkdownParser : public TreeParser {
@@ -80,16 +81,31 @@ class MarkdownParser : public TreeParser {
     while (seek.read() != L'\n') {
       switch (seek.read()) {
         case L'*':
-          if (result->state() == EM) {
-            seek.Once();
-            result->PopBack();
-          } else {
-            result->Push(EM, 0, {LineModifier::ITALIC});
-            seek.Once();
-          }
+          HandleStar(result);
           break;
         default:
           seek.Once();
+      }
+    }
+  }
+
+  void HandleStar(ParseData* result) {
+    auto seek = result->seek();
+    seek.Once();
+    if (seek.read() == L'*') {
+      if (result->state() == STRONG) {
+        seek.Once();
+        result->PopBack();
+      } else {
+        result->Push(STRONG, 1, {LineModifier::BOLD});
+        seek.Once();
+      }
+    } else {
+      if (result->state() == EM) {
+        result->PopBack();
+      } else {
+        result->Push(EM, 1, {LineModifier::ITALIC});
+        seek.Once();
       }
     }
   }
@@ -108,7 +124,7 @@ class MarkdownParser : public TreeParser {
     result->set_position(position);
 
     while (result->state() != DEFAULT &&
-           (result->state() == EM ||
+           (result->state() == EM || result->state() == STRONG ||
             StateToDepth(static_cast<State>(result->state())) >= depth)) {
       result->PopBack();
     }
