@@ -26,6 +26,30 @@ unsigned int NextRandom() {
          static_cast<unsigned int>(buffer[1]);
 }
 
+void SendInput(EditorState* editor_state, string input) {
+  VLOG(5) << "Input: " << input;
+  editor_state->ProcessInputString(input);
+}
+
+void RandomModifiers(EditorState* editor_state) {
+  switch (NextRandom() % 5) {
+    case 0:
+      break;
+    case 1:
+      SendInput(editor_state, "w");
+      break;
+    case 2:
+      SendInput(editor_state, "e");
+      break;
+    case 3:
+      SendInput(editor_state, "c");
+      break;
+    case 4:
+      SendInput(editor_state, "P");
+      break;
+  }
+}
+
 std::ostream& operator<<(std::ostream& out, const Node<int>& node);
 
 int main(int, char** argv) {
@@ -44,29 +68,10 @@ int main(int, char** argv) {
   editor_state.ProcessInput(Terminal::ESCAPE);
   for (int i = 0; i < 1000 || getenv("EDGE_TEST_STDIN") != nullptr; i++) {
     LOG(INFO) << "Iteration: " << i;
-    switch (NextRandom() % 4) {
-      case 0:
-        break;
-      case 1:
-        VLOG(5) << "WORD";
-        editor_state.ProcessInputString("w");
-        break;
-      case 2:
-        VLOG(5) << "LINE";
-        editor_state.ProcessInputString("e");
-        break;
-      case 3:
-        VLOG(5) << "CURSOR";
-        editor_state.ProcessInputString("c");
-        break;
-    }
     if (NextRandom() % 3 == 0) {
-      VLOG(5) << "REPETITIONS";
-      editor_state.ProcessInputString(std::to_string(1 + NextRandom() % 5));
-    }
-    if (NextRandom() % 3 == 0) {
-      VLOG(5) << "REVERSE";
-      editor_state.ProcessInputString("r");
+      auto rep = std::to_string(1 + NextRandom() % 5);
+      VLOG(5) << "REPETITIONS: " << rep;
+      editor_state.ProcessInputString(rep);
     }
     unsigned int value = NextRandom();
     switch (value % 28) {
@@ -102,6 +107,8 @@ int main(int, char** argv) {
       case 5:
         VLOG(5) << "Command: d";
         editor_state.ProcessInputString("d");
+        RandomModifiers(&editor_state);
+        editor_state.ProcessInputString("\n");
         break;
 
       case 6:
@@ -139,14 +146,15 @@ int main(int, char** argv) {
         editor_state.ProcessInputString("=");
         break;
 
-      case 13:
-        VLOG(5) << "Command: i BACKSPACES";
+      case 13: {
+        int times = NextRandom() % 5;
+        VLOG(5) << "Command: i BACKSPACES: " << times;
         editor_state.ProcessInputString("i");
-        for (int i = NextRandom() % 5; i > 0; --i) {
+        for (int i = 0; i < times; i++) {
           editor_state.ProcessInput(Terminal::BACKSPACE);
         }
         editor_state.ProcessInput(Terminal::ESCAPE);
-        break;
+      } break;
 
       case 14:
         VLOG(5) << "Command: g";
@@ -156,6 +164,8 @@ int main(int, char** argv) {
       case 15:
         VLOG(5) << "Command: ~";
         editor_state.ProcessInputString("~");
+        RandomModifiers(&editor_state);
+        editor_state.ProcessInputString("\n");
         break;
 
       case 16:
@@ -213,7 +223,7 @@ int main(int, char** argv) {
         break;
 
       case 26:
-        VLOG(5) << "Command: vf";
+        VLOG(5) << "Command: vf erg";
         editor_state.ProcessInputString("vf");
         editor_state.ProcessInputString("erg");
         break;
