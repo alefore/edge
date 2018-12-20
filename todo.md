@@ -25,7 +25,7 @@ Add "pipe" command: select the region (similar to delete: line, paragraph, buffe
 Add an autocomplete mode that autocompletes based on the path.
 
 Improve logic around wrap_long_lines.
-  Cursors are off.
+  Cursors (other than active cursor) are off.
 
 ## Navigation
 
