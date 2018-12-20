@@ -1387,8 +1387,8 @@ void OpenBuffer::MaybeAdjustPositionCol() {
 }
 
 void OpenBuffer::CheckPosition() {
-  if (position().line > contents_.size()) {
-    set_current_position_line(contents_.size());
+  if (position().line >= contents_.size()) {
+    set_position(LineColumn(contents_.size()));
   }
 }
 
@@ -1572,6 +1572,7 @@ void OpenBuffer::DestroyCursor() {
 }
 
 void OpenBuffer::DestroyOtherCursors() {
+  CheckPosition();
   auto position = this->position();
   CHECK_LE(position, contents_.size());
   auto cursors = active_cursors();
