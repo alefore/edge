@@ -64,174 +64,157 @@ int main(int, char** argv) {
   srand(seed);
   auto audio_player = NewNullAudioPlayer();
   EditorState editor_state(audio_player.get());
-  editor_state.ProcessInputString("i");
+  SendInput(&editor_state, "i");
   editor_state.ProcessInput(Terminal::ESCAPE);
   for (int i = 0; i < 1000 || getenv("EDGE_TEST_STDIN") != nullptr; i++) {
     LOG(INFO) << "Iteration: " << i;
     if (NextRandom() % 3 == 0) {
-      auto rep = std::to_string(1 + NextRandom() % 5);
-      VLOG(5) << "REPETITIONS: " << rep;
-      editor_state.ProcessInputString(rep);
+      SendInput(&editor_state, std::to_string(1 + NextRandom() % 5));
     }
     unsigned int value = NextRandom();
-    switch (value % 28) {
+    switch (value % 29) {
       case 0:
-        VLOG(5) << "Command: h";
-        editor_state.ProcessInputString("h");
+        SendInput(&editor_state, "h");
         break;
 
       case 1:
-        VLOG(5) << "Command: j";
-        editor_state.ProcessInputString("j");
+        SendInput(&editor_state, "j");
         break;
 
       case 2:
         VLOG(5) << "Command: k";
-        editor_state.ProcessInputString("k");
+        SendInput(&editor_state, "k");
         break;
 
       case 3:
         VLOG(5) << "Command: l";
-        editor_state.ProcessInputString("l");
+        SendInput(&editor_state, "l");
         break;
 
       case 4: {
-        vector<string> strings = {" ", "blah", "\n", "a", "1234567890"};
+        vector<string> strings = {" ",   "{",   "}",         "(", ")",
+                                  "\n+", "\n-", "\n@",       "*", "blah",
+                                  "\n",  "a",   "1234567890"};
         auto s = strings[NextRandom() % strings.size()];
-        VLOG(5) << "Command: insert: " << s;
-        editor_state.ProcessInputString("i");
-        editor_state.ProcessInputString(s);
+        SendInput(&editor_state, "i" + s);
+        VLOG(5) << "String was: [" << s << "]";
         editor_state.ProcessInput(Terminal::ESCAPE);
       } break;
 
       case 5:
-        VLOG(5) << "Command: d";
-        editor_state.ProcessInputString("d");
+        SendInput(&editor_state, "d");
         RandomModifiers(&editor_state);
-        editor_state.ProcessInputString("\n");
+        SendInput(&editor_state, "\n");
         break;
 
       case 6:
-        VLOG(5) << "Command: u";
-        editor_state.ProcessInputString("u");
+        SendInput(&editor_state, "u");
         break;
 
       case 7:
-        VLOG(5) << "Command: .";
-        editor_state.ProcessInputString(".");
+        SendInput(&editor_state, ".");
         break;
 
       case 8:
-        VLOG(5) << "Command: p";
-        editor_state.ProcessInputString("p");
+        SendInput(&editor_state, "p");
         break;
 
       case 9:
-        VLOG(5) << "Command: +";
-        editor_state.ProcessInputString("+");
+        SendInput(&editor_state, "+");
         break;
 
       case 10:
-        VLOG(5) << "Command: -";
-        editor_state.ProcessInputString("-");
+        SendInput(&editor_state, "-");
         break;
 
       case 11:
-        VLOG(5) << "Command: _";
-        editor_state.ProcessInputString("_");
+        SendInput(&editor_state, "_");
         break;
 
       case 12:
-        VLOG(5) << "Command: =";
-        editor_state.ProcessInputString("=");
+        SendInput(&editor_state, "=");
         break;
 
       case 13: {
         int times = NextRandom() % 5;
         VLOG(5) << "Command: i BACKSPACES: " << times;
-        editor_state.ProcessInputString("i");
+        SendInput(&editor_state, "i");
         for (int i = 0; i < times; i++) {
           editor_state.ProcessInput(Terminal::BACKSPACE);
         }
+        VLOG(5) << "Escape.";
         editor_state.ProcessInput(Terminal::ESCAPE);
       } break;
 
       case 14:
-        VLOG(5) << "Command: g";
-        editor_state.ProcessInputString("g");
+        SendInput(&editor_state, "g");
         break;
 
       case 15:
         VLOG(5) << "Command: ~";
-        editor_state.ProcessInputString("~");
+        SendInput(&editor_state, "~");
         RandomModifiers(&editor_state);
-        editor_state.ProcessInputString("\n");
+        SendInput(&editor_state, "\n");
         break;
 
       case 16:
-        VLOG(5) << "Command: /blah.*5";
-        editor_state.ProcessInputString("/blah.*5");
+        SendInput(&editor_state, "/blah.*5");
         break;
 
       case 17:
-        VLOG(5) << "Command: \\n";
-        editor_state.ProcessInputString("\n");
+        SendInput(&editor_state, "\n");
         break;
 
       case 18:
-        VLOG(5) << "Command: al";
-        editor_state.ProcessInputString("al");
+        SendInput(&editor_state, "al");
         break;
 
       case 19:
-        VLOG(5) << "Command: b";
-        editor_state.ProcessInputString("b");
+        SendInput(&editor_state, "b");
         break;
 
       case 20:
-        VLOG(5) << "Command: ar";
-        editor_state.ProcessInputString("ar");
+        SendInput(&editor_state, "ar");
         break;
 
       case 21:
-        VLOG(5) << "Command: afdate";
         editor_state.ProcessInput(Terminal::ESCAPE);
         editor_state.ProcessInput(Terminal::ESCAPE);
-        editor_state.ProcessInputString("afdate\n");
+        SendInput(&editor_state, "afdate\n");
         break;
 
       case 22:
-        VLOG(5) << "Command: afcat";
         editor_state.ProcessInput(Terminal::ESCAPE);
         editor_state.ProcessInput(Terminal::ESCAPE);
-        editor_state.ProcessInputString("afcat\n");
+        SendInput(&editor_state, "afcat\n");
         break;
 
       case 23:
-        VLOG(5) << "Command: ae";
-        editor_state.ProcessInputString("ae\n");
+        SendInput(&editor_state, "ae\n");
         break;
 
       case 24:
-        VLOG(5) << "Command: fa";
-        editor_state.ProcessInputString("fa");
+        SendInput(&editor_state, "fa");
         break;
 
       case 25:
-        VLOG(5) << "Command: f5";
-        editor_state.ProcessInputString("f5");
+        SendInput(&editor_state, "f5");
         break;
 
       case 26:
-        VLOG(5) << "Command: vf erg";
-        editor_state.ProcessInputString("vf");
-        editor_state.ProcessInputString("erg");
+        SendInput(&editor_state, "vf");
+        SendInput(&editor_state, "erg");
         break;
 
       case 27:
-        VLOG(5) << "Command: vp";
-        editor_state.ProcessInputString("vp");
+        SendInput(&editor_state, "vp");
         break;
+
+      case 28: {
+        vector<string> parsers = {"cpp", "markdown", "diff"};
+        auto parser = parsers[NextRandom() % parsers.size()];
+        SendInput(&editor_state, "vtree_parser\n" + parser + "\n");
+      } break;
 
       default:
         CHECK(false) << "Ugh: " << value % 24;
