@@ -74,10 +74,9 @@ std::wstring GetInitialPrefix(const OpenBuffer& buffer, int line) {
   return padding + number + L':';
 }
 
-void AdvanceToNextLine(Line::OutputOptions* options) {
-  options->position =
-      LineColumn(options->position.line + 1,
-                 options->buffer->Read(buffer_variables::view_start_column()));
+void AdvanceToNextLine(const OpenBuffer& buffer, LineColumn* position) {
+  position->line++;
+  position->column = buffer.Read(buffer_variables::view_start_column());
 }
 }  // namespace
 
@@ -137,8 +136,9 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
     editor_state->ScheduleRedraw();
   }
 
+  auto screen_lines_positions = GetScreenLinePositions(editor_state, screen);
   if (screen_state.needs_redraw) {
-    ShowBuffer(editor_state, screen);
+    ShowBuffer(editor_state, screen, screen_lines_positions);
   }
   ShowStatus(*editor_state, screen);
   if (editor_state->status_prompt()) {
@@ -147,7 +147,7 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
     screen->SetCursorVisibility(Screen::INVISIBLE);
   } else {
     screen->SetCursorVisibility(Screen::NORMAL);
-    AdjustPosition(buffer, screen);
+    AdjustPosition(buffer, screen, screen_lines_positions);
   }
   screen->Refresh();
   screen->Flush();
@@ -737,16 +737,52 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
   std::vector<const ParseTree*> current_;
 };
 
-void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
+std::vector<LineColumn> Terminal::GetScreenLinePositions(
+    EditorState* editor_state, Screen* screen) {
+  std::vector<LineColumn> output;
+
+  OpenBuffer* buffer = editor_state->current_buffer()->second.get();
+  size_t lines_to_show = static_cast<size_t>(screen->lines());
+
+  LineColumn position(
+      static_cast<size_t>(
+          max(0, buffer->Read(buffer_variables::view_start_line()))),
+      buffer->Read(buffer_variables::view_start_column()));
+
+  size_t width = screen->columns() - GetInitialPrefixSize(*buffer);
+  while (output.size() < lines_to_show) {
+    if (position.line >= buffer->lines_size()) {
+      output.push_back(position);
+      continue;
+    }
+    if (!buffer->IsLineFiltered(position.line)) {
+      AdvanceToNextLine(*buffer, &position);
+      continue;
+    }
+
+    output.push_back(position);
+
+    position.column += width;
+    if (position.column >= buffer->LineAt(position.line)->size() ||
+        !buffer->Read(buffer_variables::wrap_long_lines())) {
+      AdvanceToNextLine(*buffer, &position);
+    }
+  }
+  return output;
+}
+
+void Terminal::ShowBuffer(
+    const EditorState* editor_state, Screen* screen,
+    const std::vector<LineColumn>& screen_line_positions) {
   const shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
+  size_t lines_to_show = static_cast<size_t>(screen->lines());
+
   screen->Move(0, 0);
 
   LineOutputReceiver screen_adapter(screen);
   auto line_output_receiver =
       std::make_unique<OutputReceiverOptimizer>(&screen_adapter);
 
-  size_t lines_to_show = static_cast<size_t>(screen->lines());
-  size_t lines_shown = 0;
   buffer->set_last_highlighted_line(-1);
 
   // Key is line number.
@@ -763,10 +799,6 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   Line::OutputOptions line_output_options;
   line_output_options.editor_state = editor_state;
   line_output_options.buffer = buffer.get();
-  line_output_options.position =
-      LineColumn(static_cast<size_t>(
-                     max(0, buffer->Read(buffer_variables::view_start_line()))),
-                 buffer->Read(buffer_variables::view_start_column()));
   line_output_options.lines_to_show = lines_to_show;
   line_output_options.paste_mode = buffer->Read(buffer_variables::paste_mode());
 
@@ -777,47 +809,44 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   std::unordered_set<const OpenBuffer*> buffers_shown;
   line_output_options.output_buffers_shown = &buffers_shown;
 
-  while (lines_shown < lines_to_show) {
-    if (line_output_options.position.line >= buffer->lines_size()) {
+  size_t last_line = std::numeric_limits<size_t>::max();
+  for (size_t i = 0; i < screen_line_positions.size(); i++) {
+    auto position = screen_line_positions[i];
+    auto next_position = i + 1 < screen_line_positions.size()
+                             ? screen_line_positions[i + 1]
+                             : LineColumn(std::numeric_limits<size_t>::max());
+    if (position.line >= buffer->lines_size()) {
       line_output_receiver->AddString(L"\n");
-      lines_shown++;
-      AdvanceToNextLine(&line_output_options);
       continue;
     }
-    if (!buffer->IsLineFiltered(line_output_options.position.line)) {
-      AdvanceToNextLine(&line_output_options);
-      continue;
-    }
+
+    line_output_options.position = position;
 
     line_output_options.output_receiver = line_output_receiver.get();
     std::unique_ptr<Line::OutputReceiverInterface> atomic_lines_highlighter;
 
-    bool at_start_of_line =
-        static_cast<int>(line_output_options.position.column) ==
-        buffer->Read(buffer_variables::view_start_column());
-    wstring number_prefix =
-        GetInitialPrefix(*buffer, line_output_options.position.line);
-    if (!number_prefix.empty() && !at_start_of_line) {
+    wstring number_prefix = GetInitialPrefix(*buffer, position.line);
+    if (!number_prefix.empty() && last_line == position.line) {
       number_prefix = wstring(number_prefix.size() - 1, L' ') + L':';
     }
     line_output_options.width = screen->columns() - number_prefix.size();
 
-    auto current_cursors = cursors.find(line_output_options.position.line);
+    auto current_cursors = cursors.find(position.line);
     line_output_options.has_active_cursor =
-        line_output_options.position.line == buffer->current_position_line() ||
+        (buffer->position() >= position &&
+         buffer->position() < next_position) ||
         (current_cursors != cursors.end() &&
          buffer->Read(buffer_variables::multiple_cursors()));
     line_output_options.has_cursor = current_cursors != cursors.end();
 
     std::unique_ptr<Line::OutputReceiverInterface> cursors_highlighter;
 
-    lines_shown++;
-    auto line = buffer->LineAt(line_output_options.position.line);
+    auto line = buffer->LineAt(position.line);
 
     CHECK(line->contents() != nullptr);
-    if (line_output_options.position.line == buffer->position().line &&
+    if (position.line == buffer->position().line &&
         buffer->Read(buffer_variables::atomic_lines())) {
-      buffer->set_last_highlighted_line(line_output_options.position.line);
+      buffer->set_last_highlighted_line(position.line);
       atomic_lines_highlighter =
           std::make_unique<HighlightedLineOutputReceiver>(
               line_output_options.output_receiver);
@@ -828,8 +857,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       CursorsHighlighter::Options options;
       options.delegate = line_output_options.output_receiver;
       options.columns = current_cursors->second;
-      if (line_output_options.position.line ==
-          buffer->current_position_line()) {
+      if (position.line == buffer->current_position_line()) {
         options.columns.erase(buffer->current_position_col());
       }
       // Any cursors past the end of the line will just be silently moved to the
@@ -855,16 +883,14 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
 
     std::unique_ptr<Line::OutputReceiverInterface> parse_tree_highlighter;
     if (current_tree != root.get() &&
-        line_output_options.position.line >= current_tree->range.begin.line &&
-        line_output_options.position.line <= current_tree->range.end.line) {
-      size_t begin =
-          line_output_options.position.line == current_tree->range.begin.line
-              ? current_tree->range.begin.column
-              : 0;
-      size_t end =
-          line_output_options.position.line == current_tree->range.end.line
-              ? current_tree->range.end.column
-              : line->size();
+        position.line >= current_tree->range.begin.line &&
+        position.line <= current_tree->range.end.line) {
+      size_t begin = position.line == current_tree->range.begin.line
+                         ? current_tree->range.begin.column
+                         : 0;
+      size_t end = position.line == current_tree->range.end.line
+                       ? current_tree->range.end.column
+                       : line->size();
       parse_tree_highlighter = std::make_unique<ParseTreeHighlighter>(
           line_output_options.output_receiver, number_prefix.size(), begin,
           end);
@@ -872,7 +898,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     } else if (!buffer->parse_tree()->children.empty()) {
       parse_tree_highlighter = std::make_unique<ParseTreeHighlighterTokens>(
           line_output_options.output_receiver, number_prefix.size(), root.get(),
-          line_output_options.position.line);
+          position.line);
       line_output_options.output_receiver = parse_tree_highlighter.get();
     }
 
@@ -892,32 +918,34 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     // Need to do this for atomic lines, since they override the Reset modifier
     // with Reset + Reverse.
     line_output_receiver->AddModifier(LineModifier::RESET);
-    line_output_options.position.column += line_output_options.width;
-    if (line_output_options.position.column >= line->size() ||
-        !buffer->Read(buffer_variables::wrap_long_lines())) {
-      AdvanceToNextLine(&line_output_options);
-      continue;
-    }
+    last_line = position.line;
   }
 }
 
-void Terminal::AdjustPosition(const shared_ptr<OpenBuffer> buffer,
-                              Screen* screen) {
-  size_t position_line = min(buffer->position().line, buffer->lines_size() - 1);
-  auto pos_x = GetCurrentColumn(buffer.get());
-  pos_x -= min(pos_x, static_cast<size_t>(
-                          buffer->Read(buffer_variables::view_start_column())));
-  pos_x += GetInitialPrefixSize(*buffer);
-  size_t pos_y = 0;
-  for (size_t line = static_cast<size_t>(
-           max(0, buffer->Read(buffer_variables::view_start_line())));
-       line < position_line; line++) {
-    if (buffer->IsLineFiltered(line)) {
-      pos_y++;
-    }
+void Terminal::AdjustPosition(
+    const shared_ptr<OpenBuffer> buffer, Screen* screen,
+    const std::vector<LineColumn>& screen_line_positions) {
+  CHECK(!screen_line_positions.empty());
+  LineColumn position;
+  if (buffer->contents()->empty()) {
+    position = LineColumn();
+  } else if (position.line > buffer->lines_size() - 1) {
+    position = LineColumn(buffer->lines_size() - 1);
+  } else {
+    position = buffer->position();
   }
+
+  auto screen_line = std::upper_bound(screen_line_positions.begin(),
+                                      screen_line_positions.end(), position);
+  if (screen_line != screen_line_positions.begin()) {
+    --screen_line;
+  }
+  auto pos_x = GetCurrentColumn(buffer.get());
+  pos_x -= min(pos_x, screen_line->column);
+  pos_x += GetInitialPrefixSize(*buffer);
+  size_t pos_y = std::distance(screen_line_positions.begin(), screen_line);
   screen->Move(pos_y, min(static_cast<size_t>(screen->columns()) - 1, pos_x));
-}
+}  // namespace editor
 
 }  // namespace editor
 }  // namespace afc
