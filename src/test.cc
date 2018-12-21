@@ -25,6 +25,7 @@ void Clear(EditorState* editor_state) {
   editor_state->ProcessInput(Terminal::ESCAPE);
   editor_state->set_current_buffer(
       editor_state->buffers()->find(L"anonymous buffer 0"));
+
   editor_state->ProcessInputString("eegdl999999999999999\n");
   editor_state->ProcessInput(Terminal::ESCAPE);
   editor_state->current_buffer()->second->set_bool_variable(
@@ -243,9 +244,7 @@ void TestCases() {
            "alejandro\nero\nalejandro\nforero\ncuervo");
 
   // Clear it all.
-  editor_state.ProcessInputString("egde10\n");
-  CHECK(editor_state.current_buffer()->second->ToString() == L"");
-  CHECK_EQ(editor_state.current_buffer()->second->contents()->size(), 1);
+  Clear(&editor_state);
 
   editor_state.ProcessInputString("ialejandro forero cuervo\n\n");
   editor_state.ProcessInputString("0123456789abcdefghijklmnopqrstuvwxyz");
@@ -262,9 +261,6 @@ void TestCases() {
 
   editor_state.ProcessInputString("2rb");
   CHECK_EQ(editor_state.current_buffer()->second->position().column, 8);
-
-  editor_state.ProcessInputString("200000000rb");
-  CHECK_EQ(editor_state.current_buffer()->second->position().column, 10);
 
   editor_state.ProcessInputString("eb");
   CHECK_EQ(editor_state.current_buffer()->second->position().line, 2);
