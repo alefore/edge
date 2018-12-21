@@ -213,7 +213,7 @@ int main(int, char** argv) {
       case 28: {
         vector<string> parsers = {"cpp", "markdown", "diff"};
         auto parser = parsers[NextRandom() % parsers.size()];
-        SendInput(&editor_state, "vtree_parser\n" + parser + "\n");
+        SendInput(&editor_state, "avtree_parser\n" + parser + "\n");
       } break;
 
       default:
