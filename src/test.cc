@@ -25,6 +25,7 @@ void Clear(EditorState* editor_state) {
   editor_state->ProcessInput(Terminal::ESCAPE);
   editor_state->set_current_buffer(
       editor_state->buffers()->find(L"anonymous buffer 0"));
+
   editor_state->ProcessInputString("eegdl999999999999999\n");
   editor_state->ProcessInput(Terminal::ESCAPE);
   editor_state->current_buffer()->second->set_bool_variable(
@@ -174,6 +175,33 @@ void TestCases() {
   EditorState editor_state(audio_player.get());
   CHECK(!editor_state.has_current_buffer());
 
+  editor_state.ProcessInputString("i\n");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("ib");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("k");
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "\nb");
+  editor_state.ProcessInputString(".u");
+  CHECK_EQ(ToByteString(editor_state.current_buffer()->second->ToString()),
+           "\nb");
+
+  // Caused a crash (found by fuzz testing).
+  editor_state.ProcessInputString("5i\n");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("+");
+  editor_state.ProcessInputString("3k");
+  editor_state.ProcessInputString("iblah");
+  editor_state.ProcessInput(Terminal::ESCAPE);
+  editor_state.ProcessInputString("+_");
+  editor_state.ProcessInputString("j.");
+  editor_state.ProcessInputString("u");
+  editor_state.ProcessInputString("i");
+  editor_state.ProcessInput(Terminal::BACKSPACE);
+  editor_state.ProcessInput(Terminal::ESCAPE);
+
+  Clear(&editor_state);
+
   editor_state.ProcessInputString("i");
   CHECK(editor_state.has_current_buffer());
   editor_state.ProcessInputString("alejo");
@@ -243,9 +271,7 @@ void TestCases() {
            "alejandro\nero\nalejandro\nforero\ncuervo");
 
   // Clear it all.
-  editor_state.ProcessInputString("egde10\n");
-  CHECK(editor_state.current_buffer()->second->ToString() == L"");
-  CHECK_EQ(editor_state.current_buffer()->second->contents()->size(), 1);
+  Clear(&editor_state);
 
   editor_state.ProcessInputString("ialejandro forero cuervo\n\n");
   editor_state.ProcessInputString("0123456789abcdefghijklmnopqrstuvwxyz");
@@ -262,9 +288,6 @@ void TestCases() {
 
   editor_state.ProcessInputString("2rb");
   CHECK_EQ(editor_state.current_buffer()->second->position().column, 8);
-
-  editor_state.ProcessInputString("200000000rb");
-  CHECK_EQ(editor_state.current_buffer()->second->position().column, 10);
 
   editor_state.ProcessInputString("eb");
   CHECK_EQ(editor_state.current_buffer()->second->position().line, 2);

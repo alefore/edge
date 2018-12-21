@@ -51,6 +51,7 @@ class InsertBufferTransformation : public Transformation {
   void Apply(EditorState* editor_state, OpenBuffer* buffer,
              Result* result) const {
     LineColumn start_position = result->cursor;
+    buffer->AdjustLineColumn(&start_position);
     for (size_t i = 0; i < modifiers_.repetitions; i++) {
       result->cursor = buffer->InsertInPosition(*buffer_to_insert_,
                                                 result->cursor, modifiers_set_);
