@@ -6,7 +6,7 @@
 namespace afc {
 namespace editor {
 
-struct EditorState;
+class EditorState;
 
 // Rename to something like 'KeyboardHandler'.
 class EditorMode {

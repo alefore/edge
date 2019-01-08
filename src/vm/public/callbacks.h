@@ -15,7 +15,7 @@ namespace vm {
 using std::unique_ptr;
 
 class Expression;
-class Value;
+struct Value;
 
 template <class T>
 struct VMTypeMapper {};
@@ -152,7 +152,7 @@ Value::Ptr NewCallback(std::function<ReturnType(Args...)> callback) {
                                           Trampoline* trampoline) {
     trampoline->Return(RunCallback<ReturnType, Args...>(callback, args));
   };
-  return std::move(callback_wrapper);
+  return callback_wrapper;
 }
 
 }  // namespace vm

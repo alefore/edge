@@ -20,7 +20,7 @@ using std::unique_ptr;
 
 class EditorState;
 class OpenBuffer;
-class LineColumn;
+struct LineColumn;
 
 class TransformationStack;
 
@@ -145,7 +145,7 @@ class TransformationStack : public Transformation {
     }
   }
 
-  unique_ptr<Transformation> Clone() {
+  unique_ptr<Transformation> Clone() override {
     unique_ptr<TransformationStack> output(new TransformationStack());
     for (auto& it : stack_) {
       output->PushBack(it->Clone());

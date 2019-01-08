@@ -37,7 +37,7 @@ class CommandFromFunction : public Command {
 
 }  // namespace
 
-struct EditorState;
+class EditorState;
 MapModeCommands::MapModeCommands()
     : commands_({std::make_shared<map<wstring, std::unique_ptr<Command>>>()}) {
   Add(L"?", NewHelpCommand(this, L"command mode"));

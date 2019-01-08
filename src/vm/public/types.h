@@ -52,7 +52,7 @@ struct VMType {
 
 bool operator==(const VMType& lhs, const VMType& rhs);
 
-class Value;
+struct Value;
 
 class ObjectType {
  public:

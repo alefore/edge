@@ -11,7 +11,7 @@ namespace vm {
 using std::unique_ptr;
 
 class Expression;
-class Value;
+struct Value;
 
 unique_ptr<Expression> NewVoidExpression();
 unique_ptr<Expression> NewConstantExpression(Value::Ptr value);

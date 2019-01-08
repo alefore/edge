@@ -24,7 +24,7 @@ using std::wstring;
 
 class Environment;
 class Evaluation;
-class VMType;
+struct VMType;
 
 class Expression;
 

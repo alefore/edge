@@ -11,9 +11,9 @@ namespace editor {
 
 using std::wstring;
 
-struct EditorState;
+class EditorState;
 class OpenBuffer;
-class LineColumn;
+struct LineColumn;
 
 void SearchHandlerPredictor(EditorState* editor_state,
                             const wstring& current_query, OpenBuffer* target);

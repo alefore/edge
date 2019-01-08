@@ -17,7 +17,7 @@ namespace editor {
 
 typedef std::multiset<LineColumn> CursorsSet;
 
-class ExtendedTransformation;
+struct ExtendedTransformation;
 
 class CursorsTracker {
  public:

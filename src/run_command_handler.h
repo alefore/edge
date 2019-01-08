@@ -15,7 +15,7 @@ using std::string;
 using std::unique_ptr;
 using std::wstring;
 
-struct EditorState;
+class EditorState;
 
 struct ForkCommandOptions {
   ForkCommandOptions() : enter(false) {}

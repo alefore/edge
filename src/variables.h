@@ -10,6 +10,7 @@
 #include <glog/logging.h>
 
 #include "predictor.h"
+#include "wstring.h"
 #include "vm/public/types.h"
 
 namespace afc {

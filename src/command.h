@@ -8,7 +8,7 @@
 namespace afc {
 namespace editor {
 
-struct EditorState;
+class EditorState;
 
 class Command : public EditorMode {
  public:
