@@ -23,7 +23,7 @@ class CommandWithModifiersMode : public EditorMode {
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
     buffer_->Undo(editor_state, OpenBuffer::ONLY_UNDO_THE_LAST);
-    switch (c) {
+    switch (static_cast<int>(c)) {
       case '\n':
       case ' ':
         RunHandler(editor_state, CommandApplyMode::FINAL);
