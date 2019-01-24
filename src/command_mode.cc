@@ -1010,6 +1010,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
 
   ToggleBoolVariable(editor_state, L"vp", L"paste_mode", commands.get());
   ToggleBoolVariable(editor_state, L"vS", L"scrollbar", commands.get());
+  ToggleBoolVariable(editor_state, L"vw", L"wrap_long_lines", commands.get());
   ToggleBoolVariable(editor_state, L"vs", L"show_in_buffers_list",
                      commands.get());
 
