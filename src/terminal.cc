@@ -352,7 +352,10 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
     }
   }
 
-  size_t status_column = status.size();
+  size_t status_column = 0;
+  for (size_t i = 0; i < status.size(); i++) {
+    status_column += wcwidth(status[i]);
+  }
   status += editor_state.status();
   if (status.size() < screen->columns()) {
     status += wstring(screen->columns() - status.size(), ' ');
