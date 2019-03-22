@@ -2,6 +2,7 @@
 
 #include <glog/logging.h>
 
+#include "../public/callbacks.h"
 #include "../public/types.h"
 #include "../public/value.h"
 #include "string.h"
@@ -14,10 +15,24 @@ namespace {
 std::unique_ptr<Environment> BuildDefaultEnvironment() {
   auto environment = std::make_unique<Environment>();
   RegisterStringType(environment.get());
-  environment->DefineType(L"bool",
-                          std::make_unique<ObjectType>(VMType::Bool()));
-  environment->DefineType(L"int",
-                          std::make_unique<ObjectType>(VMType::Integer()));
+
+  auto bool_type = std::make_unique<ObjectType>(VMType::Bool());
+  bool_type->AddField(L"tostring",
+                      NewCallback(std::function<wstring(bool)>(
+                          [](bool v) { return v ? L"true" : L"false"; })));
+  environment->DefineType(L"bool", std::move(bool_type));
+
+  auto int_type = std::make_unique<ObjectType>(VMType::Integer());
+  int_type->AddField(L"tostring",
+                     NewCallback(std::function<std::wstring(int)>(
+                         [](int value) { return std::to_wstring(value); })));
+  environment->DefineType(L"int", std::move(int_type));
+
+  auto double_type = std::make_unique<ObjectType>(VMType::Double());
+  double_type->AddField(
+      L"tostring", NewCallback(std::function<std::wstring(double)>(
+                       [](double value) { return std::to_wstring(value); })));
+  environment->DefineType(L"double", std::move(double_type));
   return environment;
 }
 
