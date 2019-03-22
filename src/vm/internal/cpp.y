@@ -287,27 +287,36 @@ expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
 expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
   if (OBJ == nullptr || ARGS == nullptr) {
     OUT = nullptr;
-  } else if (OBJ->type().type != VMType::OBJECT_TYPE
-             && OBJ->type().type != VMType::VM_STRING) {
-    compilation->errors.push_back(
-        L"Expected an object type, found a primitive type: \""
-        + OBJ->type().ToString() + L"\"");
-    OUT = nullptr;
   } else {
     wstring object_type_name;
     switch (OBJ->type().type) {
       case VMType::VM_STRING:
         object_type_name = L"string";
         break;
+      case VMType::VM_BOOLEAN:
+        object_type_name = L"bool";
+        break;
+      case VMType::VM_DOUBLE:
+        object_type_name = L"double";
+        break;
+      case VMType::VM_INTEGER:
+        object_type_name = L"int";
+        break;
       case VMType::OBJECT_TYPE:
         object_type_name = OBJ->type().object_type;
         break;
       default:
-        assert(false);
+        break;
     }
-    const ObjectType* object_type =
-        compilation->environment->LookupObjectType(object_type_name);
-    if (object_type == nullptr) {
+    const ObjectType* object_type = object_type_name.empty()
+        ? nullptr
+        : compilation->environment->LookupObjectType(object_type_name);
+    if (object_type_name.empty()) {
+      compilation->errors.push_back(
+          L"Unable to call methods on primitive type: \""
+          + OBJ->type().ToString() + L"\"");
+      OUT = nullptr;
+    } else if (object_type == nullptr) {
       compilation->errors.push_back(
           L"Unknown type: \"" + OBJ->type().ToString() + L"\"");
       OUT = nullptr;
