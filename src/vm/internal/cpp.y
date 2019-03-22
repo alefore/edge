@@ -525,82 +525,150 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
 }
 
 expr(OUT) ::= expr(A) LESS_THAN expr(B). {
-  if (A == nullptr
-      || B == nullptr
-      || A->type().type != VMType::VM_INTEGER
-      || B->type().type != VMType::VM_INTEGER) {
+  if (A == nullptr || B == nullptr) {
     OUT = nullptr;
-  } else {
-    // TODO: Don't evaluate B if not needed.
+  } else if ((A->type().type == VMType::VM_INTEGER
+              || A->type().type == VMType::VM_DOUBLE)
+             && (B->type().type != VMType::VM_INTEGER
+                 || B->type().type != VMType::VM_DOUBLE)) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
         VMType::Bool(),
         [](const Value& a, const Value& b, Value* output) {
-          output->boolean = a.integer < b.integer;
+          if (a.type.type == VMType::VM_INTEGER && b.type.type == VMType::VM_INTEGER) {
+            output->boolean = a.integer < b.integer;
+            return;
+          }
+          auto to_double = [](const Value& x) {
+            if (x.type.type == VMType::VM_INTEGER) {
+              return static_cast<double>(x.integer);
+            } else if (x.type.type == VMType::VM_DOUBLE) {
+              return x.double_value;
+            } else {
+              CHECK(false) << "Unexpected value.";
+            }
+          };
+          output->boolean = to_double(a) < to_double(b);
         });
     A = nullptr;
     B = nullptr;
+  } else {
+    compilation->errors.push_back(
+        L"Unable to compare types: \"" + A->type().ToString()
+        + L"\" < \"" + B->type().ToString() + L"\"");
+    OUT = nullptr;
   }
 }
 
 expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
-  if (A == nullptr
-      || B == nullptr
-      || A->type().type != VMType::VM_INTEGER
-      || B->type().type != VMType::VM_INTEGER) {
+  if (A == nullptr || B == nullptr) {
     OUT = nullptr;
-  } else {
-    // TODO: Don't evaluate B if not needed.
+  } else if ((A->type().type == VMType::VM_INTEGER
+              || A->type().type == VMType::VM_DOUBLE)
+             && (B->type().type != VMType::VM_INTEGER
+                 || B->type().type != VMType::VM_DOUBLE)) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
         VMType::Bool(),
         [](const Value& a, const Value& b, Value* output) {
-          output->boolean = a.integer <= b.integer;
+          if (a.type.type == VMType::VM_INTEGER && b.type.type == VMType::VM_INTEGER) {
+            output->boolean = a.integer <= b.integer;
+            return;
+          }
+          auto to_double = [](const Value& x) {
+            if (x.type.type == VMType::VM_INTEGER) {
+              return static_cast<double>(x.integer);
+            } else if (x.type.type == VMType::VM_DOUBLE) {
+              return x.double_value;
+            } else {
+              CHECK(false) << "Unexpected value.";
+            }
+          };
+          output->boolean = to_double(a) <= to_double(b);
         });
     A = nullptr;
     B = nullptr;
+  } else {
+    compilation->errors.push_back(
+        L"Unable to compare types: \"" + A->type().ToString()
+        + L"\" < \"" + B->type().ToString() + L"\"");
+    OUT = nullptr;
   }
 }
 
 expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
-  if (A == nullptr
-      || B == nullptr
-      || A->type().type != VMType::VM_INTEGER
-      || B->type().type != VMType::VM_INTEGER) {
+  if (A == nullptr || B == nullptr) {
     OUT = nullptr;
-  } else {
-    // TODO: Don't evaluate B if not needed.
+  } else if ((A->type().type == VMType::VM_INTEGER
+              || A->type().type == VMType::VM_DOUBLE)
+             && (B->type().type != VMType::VM_INTEGER
+                 || B->type().type != VMType::VM_DOUBLE)) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
         VMType::Bool(),
         [](const Value& a, const Value& b, Value* output) {
-          output->boolean = a.integer > b.integer;
+          if (a.type.type == VMType::VM_INTEGER && b.type.type == VMType::VM_INTEGER) {
+            output->boolean = a.integer > b.integer;
+            return;
+          }
+          auto to_double = [](const Value& x) {
+            if (x.type.type == VMType::VM_INTEGER) {
+              return static_cast<double>(x.integer);
+            } else if (x.type.type == VMType::VM_DOUBLE) {
+              return x.double_value;
+            } else {
+              CHECK(false) << "Unexpected value.";
+            }
+          };
+          output->boolean = to_double(a) > to_double(b);
         });
     A = nullptr;
     B = nullptr;
+  } else {
+    compilation->errors.push_back(
+        L"Unable to compare types: \"" + A->type().ToString()
+        + L"\" < \"" + B->type().ToString() + L"\"");
+    OUT = nullptr;
   }
 }
 
 expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
-  if (A == nullptr
-      || B == nullptr
-      || A->type().type != VMType::VM_INTEGER
-      || B->type().type != VMType::VM_INTEGER) {
+  if (A == nullptr || B == nullptr) {
     OUT = nullptr;
-  } else {
-    // TODO: Don't evaluate B if not needed.
+  } else if ((A->type().type == VMType::VM_INTEGER
+              || A->type().type == VMType::VM_DOUBLE)
+             && (B->type().type != VMType::VM_INTEGER
+                 || B->type().type != VMType::VM_DOUBLE)) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
         VMType::Bool(),
         [](const Value& a, const Value& b, Value* output) {
-          output->boolean = a.integer >= b.integer;
+          if (a.type.type == VMType::VM_INTEGER && b.type.type == VMType::VM_INTEGER) {
+            output->boolean = a.integer >= b.integer;
+            return;
+          }
+          auto to_double = [](const Value& x) {
+            if (x.type.type == VMType::VM_INTEGER) {
+              return static_cast<double>(x.integer);
+            } else if (x.type.type == VMType::VM_DOUBLE) {
+              return x.double_value;
+            } else {
+              CHECK(false) << "Unexpected value.";
+            }
+          };
+          output->boolean = to_double(a) >= to_double(b);
         });
     A = nullptr;
     B = nullptr;
+  } else {
+    compilation->errors.push_back(
+        L"Unable to compare types: \"" + A->type().ToString()
+        + L"\" < \"" + B->type().ToString() + L"\"");
+    OUT = nullptr;
   }
 }
 
