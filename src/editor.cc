@@ -25,6 +25,7 @@ extern "C" {
 #include "run_command_handler.h"
 #include "server.h"
 #include "src/buffer_variables.h"
+#include "src/shapes.h"
 #include "substring.h"
 #include "transformation_delete.h"
 #include "vm/public/callbacks.h"
@@ -291,6 +292,8 @@ Environment EditorState::BuildEditorEnvironment() {
       Value::NewObject(L"Editor", shared_ptr<void>(this, [](void*) {})));
 
   OpenBuffer::RegisterBufferType(this, &environment);
+
+  InitShapes(&environment);
   return environment;
 }
 

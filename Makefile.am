@@ -93,6 +93,8 @@ src/seek.h \
 src/send_end_of_file_command.cc \
 src/server.cc \
 src/set_variable_command.cc \
+src/shapes.cc \
+src/shapes.h \
 src/structure.cc \
 src/substring.cc \
 src/terminal.cc \
