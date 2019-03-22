@@ -289,7 +289,6 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
           }
           token = DOUBLE;
           input = Value::NewDouble(value);
-          input->double_value = decimal;
         } else {
           token = INTEGER;
           input = Value::NewInteger(decimal);
