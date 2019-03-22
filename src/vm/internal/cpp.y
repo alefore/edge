@@ -610,9 +610,9 @@ expr(OUT) ::= expr(A) AND expr(B). {
 }
 
 expr(A) ::= expr(B) PLUS expr(C). {
-  if (B == nullptr || C == nullptr || !(B->type() == C->type())) {
+  if (B == nullptr || C == nullptr) {
     A = nullptr;
-  } else if (B->type().type == VMType::VM_STRING) {
+  } else if (B->type().type == VMType::VM_STRING && C->type().type == VMType::VM_STRING) {
     A = new BinaryOperator(
         unique_ptr<Expression>(B),
         unique_ptr<Expression>(C),
@@ -622,7 +622,7 @@ expr(A) ::= expr(B) PLUS expr(C). {
         });
     B = nullptr;
     C = nullptr;
-  } else if (B->type().type == VMType::VM_INTEGER) {
+  } else if (B->type().type == VMType::VM_INTEGER && C->type().type == VMType::VM_INTEGER) {
     A = new BinaryOperator(
         unique_ptr<Expression>(B),
         unique_ptr<Expression>(C),
@@ -632,19 +632,41 @@ expr(A) ::= expr(B) PLUS expr(C). {
         });
     B = nullptr;
     C = nullptr;
+  } else if ((B->type().type == VMType::VM_INTEGER
+              || B->type().type == VMType::VM_DOUBLE)
+             && (C->type().type == VMType::VM_INTEGER
+                 || C->type().type == VMType::VM_DOUBLE)) {
+    A = new BinaryOperator(
+        unique_ptr<Expression>(B),
+        unique_ptr<Expression>(C),
+        VMType::Double(),
+        [](const Value& a, const Value& b, Value* output) {
+          auto to_double = [](const Value& x) {
+            if (x.type.type == VMType::VM_INTEGER) {
+              return static_cast<double>(x.integer);
+            } else if (x.type.type == VMType::VM_DOUBLE) {
+              return x.double_value;
+            } else {
+              CHECK(false) << "Unexpected value.";
+            }
+          };
+          output->double_value = to_double(a) + to_double(b);
+        });
+    B = nullptr;
+    C = nullptr;
   } else {
+    compilation->errors.push_back(
+        L"Unable to add types: \"" + B->type().ToString()
+        + L"\" + \"" + C->type().ToString() + L"\"");
     A = nullptr;
   }
 }
 
+
 expr(A) ::= expr(B) MINUS expr(C). {
   if (B == nullptr || C == nullptr) {
     A = nullptr;
-  } else if (!(B->type() == C->type())) {
-    compilation->errors.push_back(
-        L"Unable to subtract different types: \"" + B->type().ToString() +
-        L"\" and \"" + C->type().ToString() + L"\"");
-  } else if (B->type().type == VMType::VM_INTEGER) {
+  } else if (B->type().type == VMType::VM_INTEGER && C->type().type == VMType::VM_INTEGER) {
     A = new BinaryOperator(
         unique_ptr<Expression>(B),
         unique_ptr<Expression>(C),
@@ -654,10 +676,33 @@ expr(A) ::= expr(B) MINUS expr(C). {
         });
     B = nullptr;
     C = nullptr;
+  } else if ((B->type().type == VMType::VM_INTEGER
+              || B->type().type == VMType::VM_DOUBLE)
+             && (C->type().type == VMType::VM_INTEGER
+                 || C->type().type == VMType::VM_DOUBLE)) {
+    A = new BinaryOperator(
+        unique_ptr<Expression>(B),
+        unique_ptr<Expression>(C),
+        VMType::Double(),
+        [](const Value& a, const Value& b, Value* output) {
+          auto to_double = [](const Value& x) {
+            if (x.type.type == VMType::VM_INTEGER) {
+              return static_cast<double>(x.integer);
+            } else if (x.type.type == VMType::VM_DOUBLE) {
+              return x.double_value;
+            } else {
+              CHECK(false) << "Unexpected value.";
+            }
+          };
+          output->double_value = to_double(a) - to_double(b);
+        });
+    B = nullptr;
+    C = nullptr;
   } else {
     compilation->errors.push_back(
-        L"Unable to subtract objects of type: \"" + B->type().ToString()
-        + L"\"");
+        L"Unable to subtract types: \"" + B->type().ToString()
+        + L"\" - \"" + C->type().ToString() + L"\"");
+    A = nullptr;
   }
 }
 
@@ -669,9 +714,9 @@ expr(OUT) ::= MINUS expr(A). {
 }
 
 expr(A) ::= expr(B) TIMES expr(C). {
-  if (B == nullptr || C == nullptr || !(B->type() == C->type())) {
+  if (B == nullptr || C == nullptr) {
     A = nullptr;
-  } else if (B->type().type == VMType::VM_INTEGER) {
+  } else if (B->type().type == VMType::VM_INTEGER && C->type().type == VMType::VM_INTEGER) {
     A = new BinaryOperator(
         unique_ptr<Expression>(B),
         unique_ptr<Expression>(C),
@@ -681,20 +726,78 @@ expr(A) ::= expr(B) TIMES expr(C). {
         });
     B = nullptr;
     C = nullptr;
+  } else if ((B->type().type == VMType::VM_INTEGER
+              || B->type().type == VMType::VM_DOUBLE)
+             && (C->type().type == VMType::VM_INTEGER
+                 || C->type().type == VMType::VM_DOUBLE)) {
+    A = new BinaryOperator(
+        unique_ptr<Expression>(B),
+        unique_ptr<Expression>(C),
+        VMType::Double(),
+        [](const Value& a, const Value& b, Value* output) {
+          auto to_double = [](const Value& x) {
+            if (x.type.type == VMType::VM_INTEGER) {
+              return static_cast<double>(x.integer);
+            } else if (x.type.type == VMType::VM_DOUBLE) {
+              return x.double_value;
+            } else {
+              CHECK(false) << "Unexpected value.";
+            }
+          };
+          output->double_value = to_double(a) * to_double(b);
+        });
+    B = nullptr;
+    C = nullptr;
   } else {
+    compilation->errors.push_back(
+        L"Unable to multiply types: \"" + B->type().ToString()
+        + L"\" * \"" + C->type().ToString() + L"\"");
     A = nullptr;
   }
 }
 
-//expr(A) ::= expr(B) DIVIDE expr(C). {
-//  A = new Value(VMType::VM_INTEGER);
-//  if (C->integer != 0) {
-//    A->integer = B->integer / C->integer;
-//  } else {
-//    std::cout << "divide by zero" << std::endl;
-//  }
-//}  /* end of DIVIDE */
-
+expr(A) ::= expr(B) DIVIDE expr(C). {
+  if (B == nullptr || C == nullptr) {
+    A = nullptr;
+  } else if (B->type().type == VMType::VM_INTEGER && C->type().type == VMType::VM_INTEGER) {
+    A = new BinaryOperator(
+        unique_ptr<Expression>(B),
+        unique_ptr<Expression>(C),
+        VMType::Integer(),
+        [](const Value& a, const Value& b, Value* output) {
+          output->integer = a.integer / b.integer;
+        });
+    B = nullptr;
+    C = nullptr;
+  } else if ((B->type().type == VMType::VM_INTEGER
+              || B->type().type == VMType::VM_DOUBLE)
+             && (C->type().type == VMType::VM_INTEGER
+                 || C->type().type == VMType::VM_DOUBLE)) {
+    A = new BinaryOperator(
+        unique_ptr<Expression>(B),
+        unique_ptr<Expression>(C),
+        VMType::Double(),
+        [](const Value& a, const Value& b, Value* output) {
+          auto to_double = [](const Value& x) {
+            if (x.type.type == VMType::VM_INTEGER) {
+              return static_cast<double>(x.integer);
+            } else if (x.type.type == VMType::VM_DOUBLE) {
+              return x.double_value;
+            } else {
+              CHECK(false) << "Unexpected value.";
+            }
+          };
+          output->double_value = to_double(a) / to_double(b);
+        });
+    B = nullptr;
+    C = nullptr;
+  } else {
+    compilation->errors.push_back(
+        L"Unable to divide types: \"" + B->type().ToString()
+        + L"\" / \"" + C->type().ToString() + L"\"");
+    A = nullptr;
+  }
+}
 
 // Atomic types
 
