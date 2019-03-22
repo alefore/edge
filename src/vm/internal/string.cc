@@ -128,6 +128,15 @@ void RegisterStringType(Environment* environment) {
                                         return Value::NewString(
                                             std::to_wstring(args[0]->integer));
                                       }));
+  environment->Define(
+      L"doubletostring",
+      Value::NewFunction({VMType::String(), VMType::Double()},
+                         [](vector<unique_ptr<Value>> args) {
+                           CHECK_EQ(args.size(), 1);
+                           CHECK_EQ(args[0]->type.type, VMType::VM_DOUBLE);
+                           return Value::NewString(
+                               std::to_wstring(args[0]->double_value));
+                         }));
 }
 
 }  // namespace vm
