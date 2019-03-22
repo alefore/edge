@@ -47,7 +47,7 @@ struct VMTypeMapper<int> {
 
 template <>
 struct VMTypeMapper<double> {
-  static int get(Value* value) { return value->double_value; }
+  static double get(Value* value) { return value->double_value; }
 
   static Value::Ptr New(double value) { return Value::NewDouble(value); }
 
