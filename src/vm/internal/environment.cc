@@ -32,6 +32,9 @@ std::unique_ptr<Environment> BuildDefaultEnvironment() {
   double_type->AddField(
       L"tostring", NewCallback(std::function<std::wstring(double)>(
                        [](double value) { return std::to_wstring(value); })));
+  double_type->AddField(
+      L"round", NewCallback(std::function<int(double)>(
+                    [](double value) { return static_cast<int>(value); })));
   environment->DefineType(L"double", std::move(double_type));
   return environment;
 }
