@@ -151,4 +151,22 @@ std::wstring LineColumn::ToCppString() const {
 }
 
 }  // namespace editor
+namespace vm {
+/* static */
+editor::LineColumn VMTypeMapper<editor::LineColumn>::get(Value* value) {
+  return *static_cast<editor::LineColumn*>(value->user_value.get());
+}
+
+/* static */
+Value::Ptr VMTypeMapper<editor::LineColumn>::New(editor::LineColumn value) {
+  return Value::NewObject(
+      L"LineColumn",
+      shared_ptr<void>(new editor::LineColumn(value), [](void* v) {
+        delete static_cast<editor::LineColumn*>(v);
+      }));
+}
+
+const VMType VMTypeMapper<editor::LineColumn>::vmtype =
+    VMType::ObjectType(L"LineColumn");
+}  // namespace vm
 }  // namespace afc

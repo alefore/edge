@@ -59,25 +59,6 @@ struct VMTypeMapper<editor::OpenBuffer*> {
 const VMType VMTypeMapper<editor::OpenBuffer*>::vmtype =
     VMType::ObjectType(L"Buffer");
 
-template <>
-struct VMTypeMapper<editor::LineColumn> {
-  static editor::LineColumn get(Value* value) {
-    return *static_cast<editor::LineColumn*>(value->user_value.get());
-  }
-
-  static Value::Ptr New(editor::LineColumn value) {
-    return Value::NewObject(
-        L"LineColumn",
-        shared_ptr<void>(new editor::LineColumn(value), [](void* v) {
-          delete static_cast<editor::LineColumn*>(v);
-        }));
-  }
-
-  static const VMType vmtype;
-};
-
-const VMType VMTypeMapper<editor::LineColumn>::vmtype =
-    VMType::ObjectType(L"LineColumn");
 }  // namespace vm
 namespace editor {
 namespace {
