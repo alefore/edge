@@ -81,6 +81,20 @@ std::wstring LineColumn::ToCppString() const {
                        return Value::NewInteger(line_column->column);
                      }));
 
+  line_column->AddField(
+      L"tostring",
+      Value::NewFunction(
+          {VMType::String(), VMType::ObjectType(line_column.get())},
+          [](std::vector<Value::Ptr> args) {
+            CHECK_EQ(args.size(), size_t(1));
+            CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
+            auto line_column =
+                static_cast<LineColumn*>(args[0]->user_value.get());
+            CHECK(line_column != nullptr);
+            return Value::NewString(std::to_wstring(line_column->line) + L", " +
+                                    std::to_wstring(line_column->column));
+          }));
+
   environment->DefineType(L"LineColumn", std::move(line_column));
 }
 
