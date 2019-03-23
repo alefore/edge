@@ -1,0 +1,214 @@
+double total_columns = 80.0;
+double total_lines = 25.0;
+
+ShapesPoint last_point = ShapesPoint(0.0, 1.0);
+
+ShapesLineVector lines = ShapesLineVector();
+ShapesLineVector squares = ShapesLineVector();
+
+string PointToString(ShapesPoint p) {
+  return p.x().tostring() + ", " + p.y().tostring();
+}
+
+ShapesPoint PositionToPoint(LineColumn position) {
+  return ShapesPoint(position.column() / total_columns,
+                     (total_lines - position.line()) / total_lines);
+}
+
+LineColumn PointToPosition(ShapesPoint point) {
+  double column = point.x() * total_columns;
+  double line = total_lines - point.y() * total_lines;
+  return LineColumn(line.round(), column.round());
+}
+
+double Abs(double x) {
+  if (x >= 0.0)
+    return x;
+  else
+    return 0.0 - x;
+}
+
+void DrawPosition(LineColumn position, string text) {
+  SetStatus("Drawing: " + position.tostring());
+  string line = buffer.line(position.line());
+  if (line.size() < position.column()) {
+    buffer.set_position(LineColumn(position.line(), line.size()));
+    int insertions = position.column() - line.size();
+    while (insertions > 0) {
+      buffer.InsertText(" ");
+      insertions = insertions - 1;
+    }
+  } else {
+    buffer.set_position(position);
+    if (line.size() > position.column()) {
+      buffer.DeleteCharacters(1);
+    }
+  }
+  buffer.InsertText(text);
+}
+
+string GetCode(bool up, bool down, bool left, bool right) {
+  if (up && down && left && right) {
+    return "┼";
+  } else if (up && down && left) {
+    return "┤";
+  } else if (up && down && right) {
+    return "├";
+  } else if (up && left && right) {
+    return "┴";
+  } else if (down && left && right) {
+    return "┬";
+  } else if (up && down) {
+    return "│";
+  } else if (left && right) {
+    return "─";
+  } else if (up && left) {
+    return "╯";
+  } else if (up && right) {
+    return "╰";
+  } else if (down && left) {
+    return "╮";
+  } else if (down && right) {
+    return "╭";
+  } else if (up || down) {
+    return "│";
+  } else if (left || right) {
+    return "─";
+  }
+  return "*";
+}
+
+void GetPointsToDraw(ShapesLineColumnSet right, ShapesLineColumnSet down,
+                     ShapesLineColumnSet output) {
+  int i = 0;
+  while (i < right.size()) {
+    LineColumn point = right.get(i);
+    output.insert(point);
+    output.insert(LineColumn(point.line(), point.column() + 1));
+    i = i + 1;
+  }
+
+  i = 0;
+  while (i < down.size()) {
+    LineColumn point = down.get(i);
+    output.insert(point);
+    output.insert(LineColumn(point.line() + 1, point.column()));
+    i = i + 1;
+  }
+}
+
+void DrawLineColumns(ShapesLineColumnSet line_column_right,
+                     ShapesLineColumnSet line_column_down) {
+  ShapesLineColumnSet points = ShapesLineColumnSet();
+  GetPointsToDraw(line_column_right, line_column_down, points);
+  SetStatus("Points to draw: " + points.size().tostring());
+  int i = 0;
+  while (i < points.size()) {
+    LineColumn position = points.get(i);
+    string current_line = buffer.line(position.line());
+    bool left =
+        position.column() > 0 && line_column_right.contains(LineColumn(
+                                     position.line(), position.column() - 1));
+    bool up =
+        position.line() > 0 && line_column_down.contains(LineColumn(
+                                   position.line() - 1, position.column()));
+    bool right = line_column_right.contains(position);
+    bool down = line_column_down.contains(position);
+
+    DrawPosition(points.get(i), GetCode(up, down, left, right));
+    i = i + 1;
+  }
+}
+
+// output_right contains LineColumn(i, j) if there's a line cross into
+// LineColumn(i, j + 1). output_down if there's a line crossing into
+// LineColumn(i + 1, j).
+void FindBoundariesLine(ShapesLine line, ShapesLineColumnSet output_right,
+                        ShapesLineColumnSet output_down) {
+  ShapesPoint a = line.start();
+  ShapesPoint b = line.end();
+  if (line.start().x() > line.end().x()) {
+    a = line.end();
+    b = line.start();
+  }
+  double delta_x = b.x() - a.x();
+  double delta_y = b.y() - a.y();
+  double aspect_ratio = total_columns / total_lines;
+  LineColumn start = PointToPosition(a);
+  LineColumn end = PointToPosition(b);
+  double delta_error = 0.0 - delta_y / (delta_x * aspect_ratio);
+  double error = delta_error / 2.0;
+  while (start.column() < end.column() ||
+         (delta_error >= 0 ? start.line() < end.line()
+                           : start.line() > end.line())) {
+    if (error > 0.5) {
+      error = error - 1.0;
+      output_down.insert(start);
+      start = LineColumn(start.line() + 1, start.column());
+    } else if (error < 0.0 - 0.5) {
+      error = error + 1.0;
+      start = LineColumn(start.line() - 1, start.column());
+      output_down.insert(start);
+    } else {
+      error = error + delta_error;
+      output_right.insert(start);
+      start = LineColumn(start.line(), start.column() + 1);
+    }
+  }
+}
+
+void FindBoundariesSquare(ShapesLine line, ShapesLineColumnSet output_right,
+                          ShapesLineColumnSet output_down) {
+  FindBoundariesLine(
+      ShapesLine(line.start(), ShapesPoint(line.start().x(), line.end().y())),
+      output_right, output_down);
+  FindBoundariesLine(
+      ShapesLine(line.start(), ShapesPoint(line.end().x(), line.start().y())),
+      output_right, output_down);
+  FindBoundariesLine(
+      ShapesLine(line.end(), ShapesPoint(line.end().x(), line.start().y())),
+      output_right, output_down);
+  FindBoundariesLine(
+      ShapesLine(line.end(), ShapesPoint(line.start().x(), line.end().y())),
+      output_right, output_down);
+}
+
+void Draw() {
+  ShapesLineColumnSet right = ShapesLineColumnSet();
+  ShapesLineColumnSet down = ShapesLineColumnSet();
+  int i = 0;
+  while (i < lines.size()) {
+    FindBoundariesLine(lines.get(i), right, down);
+    i = i + 1;
+  }
+  i = 0;
+  while (i < squares.size()) {
+    FindBoundariesSquare(squares.get(i), right, down);
+    i = i + 1;
+  }
+  DrawLineColumns(right, down);
+}
+
+void ShapesAddSquare() {
+  LineColumn position = buffer.position();
+  ShapesPoint next_point = PositionToPoint(position);
+  squares.push_back(ShapesLine(last_point, next_point));
+  Draw();
+  buffer.set_position(position);
+  last_point = next_point;
+}
+
+void ShapesAddLine() {
+  LineColumn position = buffer.position();
+  ShapesPoint next_point = PositionToPoint(position);
+  lines.push_back(ShapesLine(last_point, next_point));
+  Draw();
+  buffer.set_position(position);
+  last_point = next_point;
+}
+
+void ShapesSet() { last_point = PositionToPoint(buffer.position()); }
+
+buffer.AddBinding("sl", ShapesAddLine);
+buffer.AddBinding("sq", ShapesAddSquare);
+buffer.AddBinding("s=", ShapesSet);
