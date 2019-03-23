@@ -227,6 +227,11 @@ void DefineLineVector(Environment* environment) {
       L"get", vm::NewCallback(std::function<Line(LineVector*, int)>(
                   [](LineVector* s, int i) { return s->lines.at(i); })));
   line_vector_type->AddField(
+      L"erase", vm::NewCallback(std::function<void(LineVector*, int)>(
+                    [](LineVector* s, int i) {
+                      return s->lines.erase(s->lines.begin() + i);
+                    })));
+  line_vector_type->AddField(
       L"push_back", vm::NewCallback(std::function<void(LineVector*, Line)>(
                         [](LineVector* s, Line e) { s->lines.push_back(e); })));
   environment->DefineType(L"ShapesLineVector", std::move(line_vector_type));
