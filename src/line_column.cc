@@ -154,6 +154,10 @@ std::wstring LineColumn::ToCppString() const {
 namespace vm {
 /* static */
 editor::LineColumn VMTypeMapper<editor::LineColumn>::get(Value* value) {
+  CHECK(value != nullptr);
+  CHECK(value->type.type == VMType::OBJECT_TYPE);
+  CHECK(value->type.object_type == L"LineColumn");
+  CHECK(value->user_value != nullptr);
   return *static_cast<editor::LineColumn*>(value->user_value.get());
 }
 
