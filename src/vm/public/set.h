@@ -48,6 +48,9 @@ struct VMTypeMapper<std::set<T>*> {
     set_type->AddField(L"size",
                        vm::NewCallback(std::function<int(std::set<T>*)>(
                            [](std::set<T>* v) { return v->size(); })));
+    set_type->AddField(L"empty",
+                       vm::NewCallback(std::function<bool(std::set<T>*)>(
+                           [](std::set<T>* v) { return v->empty(); })));
     set_type->AddField(
         L"contains", vm::NewCallback(std::function<bool(std::set<T>*, T)>(
                          [](std::set<T>* v, T e) { return v->count(e) > 0; })));
