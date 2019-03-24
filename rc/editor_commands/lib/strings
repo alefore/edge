@@ -11,3 +11,22 @@ string SkipFinalSpaces(string text) {
 string SkipSpaces(string text) {
   return SkipFinalSpaces(SkipInitialSpaces(text));
 }
+
+VectorString BreakWords(string text) {
+  VectorString output = VectorString();
+  int start = 0;
+  while (start < text.size()) {
+    start = text.find_first_not_of(" ", start);
+    if (start != -1) {
+      int word_end = text.find_first_of(" ", start);
+      if (word_end == -1) {
+        word_end = text.size();
+      }
+      output.push_back(text.substr(start, word_end - start));
+      start = word_end;
+    } else {
+      start = text.size();
+    }
+  }
+  return output;
+}
