@@ -1,41 +1,30 @@
-Edge - A text editor.
+# Edge - A text editor.
 
 
-1. Introduction
+## 1. Introduction
 
-Think vim + tmux + subset of C++ extension language.
+Think vim + tmux, extensible in a subset of C.
 
 Edge is a text editor and terminal handler. Edge uses a "buffer" to represent an
-open files or a process (which might still be running). As its extension
+open file or a process (which might still be running). As its extension
 language, Edge uses a small subset of C++/Java.
 
-To quit Edge, press "Saq".
-
-Edge is under active development and many of its bindings and/or general
-interface is likely to change soon.
-
-This document describes the use of Edge. Edge is an editor with "modes", where
-commands are typically executed by typing their associated character sequences.
-These sequences are given in this document between quotes. Pressing "?" shows
-you the sequences in the current mode.
+This document describes the use of Edge. In Edge, key sequences are bond to
+specific commands. These sequences are given in this document between quotes.
+Pressing "?" shows you the sequences/commands in the current buffer.
 
 To get the most out of Edge, you should probably familiarize yourself with the
 modifiers (section 6) and the navigation (section 3) and editing (section 4)
 commands.  We'd also strongly recommend learning the commands for controlling
 buffers (section 5).
 
-Edge will probably be relatively hard to use for the first few hours but you
-might be surprised by how fast your fingers will start picking up the new
-bindings and how well the modifiers-based language works: it is a small (and
-thus not very difficult to learn) language that is very expressive.
 
-
-1.1. Features
+### 1.1. Features
 
 * Extensibility:
 
   * Uses a subset of C++ as its extension language. Extensions are interpreted
-    (though type errors are detected statically).
+    (type errors are detected statically).
 
   * All buffers have several "variables" that control their behavior.
 
@@ -58,61 +47,64 @@ thus not very difficult to learn) language that is very expressive.
     cursor position). One can toggle whether edit commands apply to all cursors
     or just to the "current" one.
 
+  * Supports syntax highlighting for a few programming languages (C++, Java) and
+    file formats (Markdown).
 
-2. Running Edge
+
+## 2. Running Edge
 
 If you run Edge on a file, it will open it and display it:
 
   $ edge README.txt
 
 
-2.1. Example commands
+### 2.1. Example commands
 
 Example commands:
 
-  "aq" - Quit (short for "Advanced > Quit").
+*     "aq" - Quit (short for "Advanced > Quit").
 
-  "?" - Shows help.
+*     "?" - Shows help.
 
-  "i" - Insert (type to the buffer), until Escape is pressed.  See section 4.1.
+*     "i" - Insert (type to the buffer), until Escape is pressed.  See section 4.1.
 
-  "5d" - Delete 5 characters.  Delete is covered in section 4.2.
+*     "d5\n" - Delete 5 characters.  Delete is covered in section 4.2.
 
-  "ed" - Delete a lines (Line; Delete).  Section 6.1 explains the Line modifier
-      (and other structure modifiers).
+*     "de\n" - Delete until the end of line (Delete; Line).  Section 6.1 explains
+      the Line modifier (and other structure modifiers).
 
-  "w]d" - Delete until the end of the word (Word; from current position to end;
-      Delete).  The word modifier is covered in section 6.1 and the "]" modifier
-      in section 6.2.
+*     "dwj\n" - Delete until the end of the word (Word; from beginning to end).  The
+      word modifier is covered in section 6.1.
 
-  "p" - Paste the previously deleted sequence.  See section 4.3.
+*     "p" - Paste the previously deleted sequence.  See section 4.3.
 
-  "u" - Undo the last command.  See section 4.4.
+*     "u" - Undo the last command.  See section 4.4.
 
-  "af make" + Enter - Open a new buffer with the output of a given command.
-      "af" is short for "Advanced > Fork" and is covered in section 5.3.
+*     "af make\n" - Open a new buffer with the output of a given command. "af" is
+      short for "Advanced > Fork" and is covered in section 5.3.
 
-  "ar" - Reload the current buffer.  See section 5.2.
+*     "ar" - Reload the current buffer.  See section 5.2.
 
-  "al" - Shows the list of buffers currently open.  See section 5.1.
+*     "al" - Shows the list of buffers currently open.  See section 5.1.
 
-  "a." - Show the list of files in the current directory.  See section 5.5.
+*     "a." - Show the list of files in the current directory.  See section 5.5.
 
-  "+" - Creates a new cursor (at the same position as the current one). See
+*   "+" - Creates a new cursor (at the same position as the current one). See
         section 8.1.
 
-  "_" - Toggles whether all cursors apply transformations (or just the current
+*   "_" - Toggles whether all cursors apply transformations (or just the current
         one). See section 8.3.
 
-2.2. Command line arguments
+
+### 2.2. Command line arguments
 
 
-2.2.1. --help
+#### 2.2.1. --help
 
 Causes Edge to display a list of command-line arguments and exit.
 
 
-2.2.2. --fork <command>
+#### 2.2.2. --fork <command>
 
 The --fork command-line argument must be followed by a shell command.  Edge will
 create a buffer running that command.
@@ -125,7 +117,7 @@ If Edge is running nested (inside an existing Edge), it will cause the parent
 instance to open those buffers.
 
 
-2.2.3. --run <command>
+#### 2.2.3. --run <command>
 
 The --run command-line argument must be followed by a string with a VM command
 to run.
@@ -137,7 +129,7 @@ Example:
 See section 9 for more information on the syntax supported.
 
 
-2.2.4. --server <path> and --client <path>
+#### 2.2.4. --server <path> and --client <path>
 
 The --server command-line argument causes Edge to run in "background" mode:
 without reading any input from stdin nor producing any output to stdout.
@@ -164,24 +156,29 @@ If your session is terminated (e.g. your SSH connection dies), you can run the
 client command again.
 
 
-3. Navigating a buffer
+#### 2.2.5. --mute
+
+Disables use of the audio device.
 
 
-3.1 Basic navigation
+## 3. Navigating a buffer
+
+
+### 3.1 Basic navigation
 
 The cursor will start at the beginning of the file.  You can use "h", "j", "k",
 "l" or the arrow keys to move it around.
 
 The current structure alters the behavior of "h" and "l" thus:
 
-- Word: Goes to the next (previous) word. If advancing, the cursor is left at
-      the start of the next word; if going backwards, at the end.
-- Line: Goes to the next (previous) line.
-- Mark: Goes to the next (previous) mark in the current buffer. See section
-      7.2.23 for details about line marks.
+*   Word: Goes to the next (previous) word. If advancing, the cursor is left at
+    the start of the next word; if going backwards, at the end.
+*   Line: Goes to the next (previous) line.
+*   Mark: Goes to the next (previous) mark in the current buffer. See section
+    7.2.23 for details about line marks.
 
 
-3.2 Search for a regular expression
+### 3.2 Search for a regular expression
 
 You can search for a string with "/": Edge will prompt you for a regular
 expression to search for and pressing Enter will take you to its first match
@@ -200,7 +197,7 @@ regular expression: it will, instead, just search for the word under the cursor.
 To search backwards, use the Reverse modifier (section 6.3).
 
 
-3.3. Search for a character
+### 3.3. Search for a character
 
 You can search for a character with "f": this will take you to the next
 occurrence of the next character you type.  This is roughly equivalent to typing
@@ -209,7 +206,7 @@ occurrence of the next character you type.  This is roughly equivalent to typing
 To search backwards, use the Reverse modifier (section 6.3).
 
 
-3.4. History of positions
+### 3.4. History of positions
 
 Edge keeps a history of the positions in which you've been.  You can go back to
 the previous position with "b".
@@ -221,7 +218,7 @@ This behavior is affected by variable push_positions_to_history (section 7.2.25)
 TODO: Describe the effect of structures.
 
 
-3.5. Goto beginning
+### 3.5. Goto beginning
 
 Use "g" to go to the first character in the current line.  Press "g" again to go
 to the last character in the current line.
@@ -231,12 +228,12 @@ in the current line".
 
 The current structure alters the behavior thus:
 
-- Word: Goes to the i-th word from the beginning of the current line.
-- Line: Goes to the i-th line from the beginning of the current buffer.
-- Mark: Goes to the i-th mark from the beginning of the current buffer. See
-      section 7.2.23 for details about line marks.
-- Page: Goes to the i-th page from the beginning of the current buffer.
-- Buffer: Goes to the i-th buffer (in the list of buffers).
+*   Word: Goes to the i-th word from the beginning of the current line.
+*   Line: Goes to the i-th line from the beginning of the current buffer.
+*   Mark: Goes to the i-th mark from the beginning of the current buffer. See
+    section 7.2.23 for details about line marks.
+*   Page: Goes to the i-th page from the beginning of the current buffer.
+*   Buffer: Goes to the i-th buffer (in the list of buffers).
 
 If the Reverse modifier is enabled, moves backwards from the end.
 
@@ -248,7 +245,7 @@ cancel out).
 repeated presses, but we'll likely change it to do this.)
 
 
-3.6. Go to file
+### 3.6. Go to file
 
 If the cursor is over a path that exists in the filesystem, pressing Enter
 creates a new buffer with the contents of that file (or, if a buffer for the
@@ -257,7 +254,7 @@ file already exists, just takes you to it).
 See section 5.5 for more commands to open a file.
 
 
-3.7. Navigation mode
+### 3.7. Navigation mode
 
 If you press "n", you activate a special navigation mode, which uses binary
 search to help you very quickly land in the character (in the current line)
@@ -281,10 +278,10 @@ The current structure alters the behaviors thus:
 You exit navigation mode by pressing any character other than "l" or "h".
 
 
-4. Editing a buffer
+## 4. Editing a buffer
 
 
-4.1. Inserting characters
+### 4.1. Inserting characters
 
 To type some text into a buffer, use "i".  This enters insert mode, which is
 indicated at the bottom of the screen by the word "type" (of "type (raw)" if the
@@ -303,7 +300,7 @@ While inserting to a terminal, press ctrl+v to activate "literal" insertion: the
 next character will be inserted literally.  This is mainly useful to insert an
 Esc code (instead of having Esc take you out of insert mode).
 
-4.1.1. Autocomplete
+### 4.1.1. Autocomplete
 
 If the dictionary variable is set to a non-empty string, pressing Tab will cause
 that string to be interpreted as the path to the dictionary file. The contents
@@ -312,82 +309,40 @@ Pressing Tab again will iterate through the entries in the dictionary following
 the first completion. See section 7.2.22 for more information on how to create a
 dictionary file.
 
-4.2. Deleting contents
+### 4.2. Deleting contents
 
-Press "d" to delete the current character.
+Press "d" to enter delete mode. The section to be deleted will be highlighted.
+Press "\n" to confirm and execute the deletion, or Esc to abort it and leave the
+buffer unmodified.
 
-The actual meaning varies depending on the active structure (section 6.1) as
-described in the subsections.
+You can select modifiers in the delete mode (before pressing "\n"). For example:
 
-The "[" or "]" modifiers (section 6.2) alter this behavior, causing "d" to only
-delete until the beginning or end of the current structure.  For "[", we say
-that we're deleting "backwards"; for "]", "forwards"; if neither "[" nor "]" are
-active, we say that we're both deleting backwards and forwards.
+*   To delete from the current position to the end of line, use: "e"
+*   To delete the next 5 words (starting from the current position(, use: "5w"
 
-For example:
+#### 4.2.1. Deleting words
 
-- To delete from the current position to the end of line, use: "e]d"
-- With the cursor in a series of space characters, to delete until the beginning
-  of the next workd, use: "w[d"
+When deleting words, the contents of variable `word_characters` section 7.2.xxx)
+are used to specify the list of characters that are considered part of a word.
+If the cursor position is in a non-word character, characters will be deleted
+until the beginning of the word, and then the "delete word" command will run).
 
-4.2.1. Deleting words
-
-When the structure is set to Word, "d" deletes the current word.  The contents
-of variable word_characters section 7.2.xxx) are used to specify the list of
-characters that are considered part of a word.  If the cursor position is in a
-non-word character, characters will be deleted until the beginning of the word,
-and then the "delete word" command will run).
-
-4.2.1. Deleting line
-
-When the structure is set to Line, "d" deletes the current line.
-
-The strength modifier affects the behavior as follows.  The word_characters
-variable of the buffer is used to decide which characters are considered spaces.
-
-- Very weak: Stops deleting after the first (last) sequence of non-word
-      characters from the beginning (end) of the line.
-
-- Weak: Similar to Default, but does not delete the newline character that
-      follows the line.
-
-- Default: If we're deleting backwards, deletes until the beginning of the line
-      (including any initial spaces).  The newline character from the preceeding
-      line is preserved.
-
-      If we're deleting forwards, deletes until (including) the newline
-      character that follows the current line.
-
-- Strong: If we're deleting backwards, deletes everything from (including) the
-      newline character from the preceeding line.
-
-      Like Default, if we're deleting forwards, deletes until the newline
-      character that follows the current line.
-
-- Very strong: Similar to Strong but both forwards and backwards keeps deleting
-      non-word characters from adjacent lines.
-
-4.2.3. Deleting a buffer
-
-Buffer: deletes the contents of the current buffer.  If you want to close the
-current buffer, see section 5.8.
-
-
-4.3. Pasting characters
+### 4.3. Pasting characters
 
 Press "p" to paste the last contents deleted by the delete command.
 
 Whenever "d" deletes some contents, they go to a special buffer called "- paste
-buffer".  You could modify the contents in this buffer directly to alter what
-"p" will paste.
+buffer".  You can modify the contents in this buffer directly to alter what "p"
+will paste.
 
 The insertion modifier (section 6.5) will specify if insert should preserve the
 contents that follow the cursor (default) or replace them as you type.
 
-This behavior is affected by variable delete_into_paste_buffer (section 7.2.26).
+This behavior is affected by variable `delete_into_paste_buffer` (section
+7.2.26).
 
 
-4.4. Undo & Redo
+### 4.4. Undo & Redo
 
 Edge maintains full undo history.  Press "u" to undo the last edition.
 Navigation commands (that only alter the cursor position but not the contents of
@@ -396,7 +351,7 @@ the buffer) are ignored: undo will revert the last transformation.
 To "re do" activate the Reverse modifier (section 6.3).
 
 
-4.5. Repeat the last command
+### 4.5. Repeat the last command
 
 You can repeat the last transformation at the current position by pressing ".".
 
@@ -406,20 +361,16 @@ pressing "sr" again.  If you then press ".", you will repeat all the commands
 in the sequence.
 
 
-4.6 Capitals swap
+### 4.6 Capitals swap
 
 Press "~" to convert the current character from upper case to lower case (and
-viceversa) and advance by one position.
-
-If the reverse modifier is enabled, will move backwards instead of advancing.
-
-This operation correctly handles the word and line modifiers. It doesn't
-currently handle any other structures nor repetitions, but it should.
+viceversa) and advance by one position. Similar to deleting, you'll have to
+confirm the operation by pressing "\n".
 
 
-5. Buffers
+## 5. Buffers
 
-5.1. List of buffers
+### 5.1. List of buffers
 
 Press "al" ("Advanced > List") to open a buffer that contains the list of
 buffers.  Each line in this buffer represents a buffer: an open file or the
@@ -434,7 +385,7 @@ or as they make progress (e.g. it will show the number of lines that have been
 read from a command that's currently running).
 
 
-5.2. Reload a buffer
+### 5.2. Reload a buffer
 
 You can reload a buffer with "ar".  If the buffer is a file, this discards any
 unsaved changes.  If the buffer is a command (section 5.3), this will kill it
@@ -448,7 +399,7 @@ successfully (since the list of buffers will be updated dynamically as they make
 progress).
 
 
-5.3. Run a command
+### 5.3. Run a command
 
 You can run a command with "af" ("Advanced > Fork").  Edge will prompt you for a
 command to run and will create a buffer in which it will run this command.  If a
@@ -470,14 +421,14 @@ should be done automatically through the buffer-reload.cc script (which we'll
 start distributing soon).
 
 
-5.4. Running many commands.
+### 5.4. Running many commands.
 
 TODO: Describe aF
 
 
-5.5. Open a file
+### 5.5. Open a file
 
-5.5.1. Advanced > Open ("ao")
+#### 5.5.1. Advanced > Open ("ao")
 
 Use "ao" ("Advanced > Open") to open a file. Edge will prompt you for the
 filename. Tab will autocomplete (and pressing Tab again will show all the
@@ -490,22 +441,22 @@ files.  We also tend to navigate across files by moving the cursor over to a
 path and pressing Enter (section 3.6).
 
 
-5.5.2. Path suffixes
+#### 5.5.2. Path suffixes
 
 Edge will look for an optional suffix to the path indicating the position in the
 file, which is mostly compatible with the output of GCC and other similar
 compilers.  The following examples show the supported forms:
 
-- file.cc:54 takes you to line 54 of file.cc.
-- file.cc:54:12 additionally takes you to column 12.
-- file.cc:/XXX takes you to the first match in file.cc for the regular
-  expression "XXX".
+*   `file.cc:54` takes you to line 54 of `file.cc`.
+*   `file.cc:54:12` additionally takes you to column 12.
+*   `file.cc:/XXX` takes you to the first match in `file.cc` for the regular
+    expression "XXX".
 
 These suffixes can be given anywhere where Edge opens a file (e.g. they also
 work for files specified through the command line).
 
 
-5.5.3. Anonymous buffers
+#### 5.5.3. Anonymous buffers
 
 If you open a buffer with an empty path (i.e. you press Return immediately after
 pressing "ao"), you'll create an anonymous buffer.  Anonymous buffers can't be
@@ -513,7 +464,7 @@ saved unless you give them a path (by assigning to the path variable, described
 in section 7.2.15).
 
 
-5.6. Files view
+### 5.6. Files view
 
 If you press "a." ("Advanced > Current directory") in a buffer, a new buffer
 will be created (unless it already existed) displaying the contents of the
@@ -521,65 +472,67 @@ directory containing the current buffer, one file (or directory) per line.
 
 Like the list of buffers (section 5.1), this is a special buffer:
 
-- Deleting lines (with "ed") from this buffer will, after prompting you for
-  confirmation, delete the underlying files from the file system. See section
-  5.8 for more details on the logic of deleting buffers.
+*   Deleting lines (with "ed") from this buffer will, after prompting you for
+    confirmation, delete the underlying files from the file system. See section
+    5.8 for more details on the logic of deleting buffers.
 
-- Pressing Enter on the line for a given file will create a buffer for that file
-  (unless one already existed, in which case it'll just take you to it).
+*   Pressing Enter on the line for a given file will create a buffer for that
+    file (unless one already existed, in which case it'll just take you to it).
 
 
-5.7. Save a file
+### 5.7. Save a file
 
 Use "aw" ("Advanced > Write") in a buffer to save its contents.
 
 Some buffers can't be saved and will display an error in the status.
 
 
-5.8. Delete a buffer
+### 5.8. Delete a buffer
 
 Press "ad" ("Advanced > Delete") to delete (close) the current buffer.
 
 A buffer is said to be dirty if any of these conditions holds:
 
-- It has unsaved modifications.
-- It has a running process.
-- It had a running process which was killed or exited with a non-zero status.
+*   It has unsaved modifications.
+*   It has a running process.
+*   It had a running process which was killed or exited with a non-zero status.
 
 If you attempt to close a dirty buffer:
 
-- If variable save_on_close (section 7.2.7) is set, Edge will attempt to save
-  the buffer.
-- If the buffer is still dirty, Edge will prevent you from deleting the buffer,
-  unless variable allow_dirty_delete (section 7.2.8) is set to true or the
-  strength modifier is set above Default.
+*   If variable `save_on_close` (section 7.2.7) is set, Edge will attempt to
+    save the buffer.
+*   If the buffer is still dirty, Edge will prevent you from deleting the
+    buffer, unless variable `allow_dirty_delete` (section 7.2.8) is set to true
+    or the strength modifier is set above Default.
 
 See section 5.1 for another mechanism for closing buffers, by deleting lines
 from the list of buffers.
 
 
-6. Structures & structure modifiers
+## 6. Structures & structure modifiers
 
 Edge has a notion of "modifiers" that alter the behavior of commands.  There are
 various kinds of modifiers, described in this section.
 
+TODO: This section is somewhat obsolete.
 
-6.1. Logical structures
+
+### 6.1. Logical structures
 
 The most important type of modifier is the logical "structure" that the next
 command will affect.  To set the structure, press any of the following keys:
 
-"w" - Word: Affect the current word.
-"e" - Line: Affect the current line.
-"c" - Cursor: Affect the region from the current cursor to the next.
-"!" - Mark: Use the marks for lines in the current buffer. See section 7.2.23
+*   "w" - Word: Affect the current word.
+*   "e" - Line: Affect the current line.
+*   "c" - Cursor: Affect the region from the current cursor to the next.
+*   "!" - Mark: Use the marks for lines in the current buffer. See section 7.2.23
       for details about marks.
-"F" - Search: The region affected is based on the next match to the last search
+*   "F" - Search: The region affected is based on the next match to the last search
       query (performed with "/", section 3.2).  This structure is somewhat
       different to the others and relatively fewer commands recognize it.
-"E" - Page: Affect the current page.  The size of a page is computed dynamically
+*   "E" - Page: Affect the current page.  The size of a page is computed dynamically
       based on the current screen size.
-"B" - Buffer: Affect the current buffer.
+*   "B" - Buffer: Affect the current buffer.
 
 The default structure is the current character.  The current structure will be
 shown at the bottom of the screen (unless the structure is set to the default
@@ -601,7 +554,7 @@ Here are some examples:
   "h" or "l".
 
 
-6.2. Sub-structure modifiers ("[" and "]")
+### 6.2. Sub-structure modifiers ("[" and "]")
 
 When the structure is set to anything other than character, "[" changes the
 semantics to mean "apply the command to the part of the structure from its
@@ -616,7 +569,7 @@ the delete command, where e.g. "]ed" could be used to delete to the beginning
 of the current line.
 
 
-6.3. Reverse modifier ("r")
+### 6.3. Reverse modifier ("r")
 
 Pressing "r" will reverse the direction in which the command is applied.  Most
 commands set the direction back to the default value (forwards), but if you
@@ -624,7 +577,7 @@ press "rr", you'll activate sticky reverse mode.  Press Esc to leave sticky
 mode.
 
 
-6.4. Repetitions
+### 6.4. Repetitions
 
 You can type a number to set an amount of repetitions that affects the next
 command.
@@ -634,7 +587,7 @@ commands simply repeat the command the given number of times.  Other commands
 may have their behavior altered in different ways.
 
 
-6.5. Insertion Modifier ("R")
+### 6.5. Insertion Modifier ("R")
 
 By default, commands that insert text will "push" existing contents after the
 current cursor position back.  Press "R" to activate "replace" mode, which will
@@ -644,9 +597,9 @@ you'll activate sticky replace mode.  Press Esc to go back to the default
 behavior.
 
 
-7. Variables
+## 7. Variables
 
-7.1. Setting variables
+### 7.1. Setting variables
 
 Type "av" to set the value of a given variable. You will be promoted for the
 variable you want to set. You can press Tab twice to see a list of all options
@@ -661,10 +614,10 @@ type "line_width" (or a shorter prefix of that and use Tab to autocomplete),
 then Enter, then edit the current value, and then press Enter.
 
 
-7.2. List of variables
+### 7.2. List of variables
 
 
-7.2.1. pts (bool)
+#### 7.2.1. `pts` (bool)
 
 If a command is forked that writes to this buffer, should it be run with its own
 pseudoterminal?
@@ -672,7 +625,7 @@ pseudoterminal?
 Default: false.
 
 
-7.2.2. close_after_clean_exit (bool)
+#### 7.2.2. `close_after_clean_exit` (bool)
 
 If this buffer is a command buffer (e.g. it was started with "af", as described
 in section 5.3), should the buffer be closed when the command exists with a
@@ -684,7 +637,7 @@ care for their output unless they fail.
 Default: false
 
 
-7.2.3. reload_after_exit (bool)
+#### 7.2.3. `reload_after_exit` (bool)
 
 If this buffer is a command buffer (e.g. it was started with "af", as described
 in section 5.3), should the buffer be reloaded automatically when the command
@@ -696,7 +649,7 @@ default_reload_after_exit (section 7.2.4).
 Default: false
 
 
-7.2.4. default_reload_after_exit (bool)
+#### 7.2.4. `default_reload_after_exit` (bool)
 
 If this buffer is a command buffer (e.g. it was started with "af", as described
 in section 5.3), what should reload_after_exit (section 7.2.3) be set to as the
@@ -705,14 +658,14 @@ buffer is reloaded?
 Default: false
 
 
-7.2.5. reload_on_enter (bool)
+#### 7.2.5. `reload_on_enter` (bool)
 
 Should this buffer be reloaded automatically when visited?
 
 Default: false
 
 
-7.2.6. atomic_lines (bool)
+#### 7.2.6. `atomic_lines` (bool)
 
 If true, lines can't be joined (e.g. you can't delete the last character in a
 line unless the line is empty).  In this case, instead of displaying the cursor,
@@ -725,7 +678,7 @@ natural behavior.
 Default: false
 
 
-7.2.7. save_on_close (bool)
+#### 7.2.7. `save_on_close` (bool)
 
 Should this buffer be saved automatically when it's closed?  See section 5.8 for
 details.
@@ -736,7 +689,7 @@ section 5.8) or when Edge exits.
 Default: false
 
 
-7.2.8. allow_dirty_delete (bool)
+#### 7.2.8. `allow_dirty_delete` (bool)
 
 Can this buffer be deleted if it's dirty?  See section 5.8 for details.
 
@@ -746,7 +699,7 @@ section 5.8) or when Edge exits.
 Default: false
 
 
-7.2.9. clear_on_reload (bool)
+#### 7.2.9. `clear_on_reload` (bool)
 
 Should any previous contents be discarded when this buffer is reloaded? If
 false, previous contents will be preserved and new contents will be appended at
@@ -758,7 +711,7 @@ want to discard the output of previous runs as you reload the buffer.
 Default: true
 
 
-7.2.10. paste_mode (bool)
+#### 7.2.10. `paste_mode` (bool)
 
 When paste_mode is true in a buffer, it will be displayed in a way that makes it
 possible to select (with a mouse) parts of it (that are currently shown).  It
@@ -770,7 +723,7 @@ Paste mode can be quickly toggled with 'vp'.
 Default: false
 
 
-7.2.11. commands_background_mode (bool)
+#### 7.2.11. `commands_background_mode` (bool)
 
 Should new commands forked from this buffer be started in background mode?  If
 false, we will switch to them automatically.
@@ -781,7 +734,7 @@ new buffer; it has no effect whatsoever in the command.
 Default: false
 
 
-7.2.12. reload_on_buffer_write (bool)
+#### 7.2.12. `reload_on_buffer_write` (bool)
 
 Should the buffer on which this variable is set be reloaded automatically when
 any buffer is written?
@@ -794,7 +747,7 @@ If you set this on a buffer, you may want to also set contains_line_marks
 Default: false
 
 
-7.2.13. word_characters (string)
+#### 7.2.13. `word_characters` (string)
 
 String with all the characters that should be considered part of a word.  This
 affects commands such as "wd" (delete word).
@@ -802,21 +755,21 @@ affects commands such as "wd" (delete word).
 Default: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_"
 
 
-7.2.14. path_characters (string)
+#### 7.2.14. `path_characters` (string)
 
 String with all the characters that should be considered part of a path.
 
 Default: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-.*:/"
 
 
-7.2.15. path (string)
+#### 7.2.15. `path` (string)
 
 String with the path of the current file.
 
 Default: ""
 
 
-7.2.16. pts_path (string)
+#### 7.2.16. `pts_path` (string)
 
 String with the path of the terminal used by the current buffer (or empty if the
 buffer is not using a terminal).
@@ -824,14 +777,14 @@ buffer is not using a terminal).
 Default: ""
 
 
-7.2.17. command (string)
+#### 7.2.17. `command` (string)
 
 String with the current command (or empty).
 
 Default: ""
 
 
-7.2.18. editor_commands_path (string)
+#### 7.2.18. `editor_commands_path` (string)
 
 String with the path to the initial directory for editor commands ("c", see
 section 9.2).
@@ -839,14 +792,14 @@ section 9.2).
 Default: ""
 
 
-7.2.19. line_width (int)
+#### 7.2.19. `line_width` (int)
 
 Desired maximum width of a line.
 
 Default: 80
 
 
-7.2.20. line_prefix_characters (string)
+#### 7.2.20. `line_prefix_characters` (string)
 
 String with all the characters that should be considered the prefix of the
 actual contents of a line.  When a new line is created, the prefix of the
@@ -858,7 +811,7 @@ The order of characters in line_prefix_characters has no effect.
 Default: " "
 
 
-7.2.21. line_suffix_superfluous_characters (string)
+#### 7.2.21. `line_suffix_superfluous_characters` (string)
 
 String with all the characters that should be removed from the suffix of a line
 (after editing it).
@@ -868,7 +821,7 @@ The order of characters in line_suffix_superfluous_characters has no effect.
 Default: " "
 
 
-7.2.22. dictionary (string)
+#### 7.2.22. `dictionary` (string)
 
 If the dictionary variable is non-empty, pressing Tab while in Insert mode in a
 buffer that contains a file (i.e. not in a buffer that runs a command) will
@@ -882,7 +835,7 @@ See section 4.1. for more details.
 Default: ""
 
 
-7.2.23. contains_line_marks (bool)
+#### 7.2.23. `contains_line_marks` (bool)
 
 contains_line_marks indicates whether the current buffer should be scanned for
 "marks": lines that start with a prefix of the form "path:line" (e.g.
@@ -902,7 +855,7 @@ If you set this on a buffer, you may want to also set reload_on_buffer_write
 Default: false
 
 
-7.2.24. multiple_cursors (bool)
+#### 7.2.24. `multiple_cursors` (bool)
 
 If true, all commands apply to all cursors (see section 8 for more information
 on multiple cursors) in the current document. If false, they only apply to the
@@ -914,7 +867,7 @@ to quickly toggle this variable (section 8.3).
 Default: false
 
 
-7.2.25. push_positions_to_history (bool)
+#### 7.2.25. `push_positions_to_history` (bool)
 
 If true, cursor moves in the current buffer will be pushed into the history of
 positions (3.4 section).
@@ -925,7 +878,7 @@ history.
 Default: true
 
 
-7.2.26. delete_into_paste_buffer (bool)
+#### 7.2.26. `delete_into_paste_buffer` (bool)
 
 If true, deletions longer than one character from this buffer will go into the
 shared paste buffer (section 4.3).
@@ -935,7 +888,7 @@ A few buffers, such as prompt buffers, default this to false.
 Default: true
 
 
-8. Cursors
+## 8. Cursors
 
 One important feature of Edge is the support for multiple cursors.  This allows
 the user to apply edit commands at various parts of a document simultaneously.
@@ -979,7 +932,7 @@ given region in a document:
   7. Press "=" to remove all cursors but one.
 
 
-8.1. Creating new cursors
+### 8.1. Creating new cursors
 
 This section describes the various ways a user can create new cursors.
 
@@ -1000,7 +953,7 @@ a new cursor at every position in a document (or in a region) that matches a
 given regular expression.
 
 
-8.2. Deleting cursors
+### 8.2. Deleting cursors
 
 Pressing "-" will delete the current cursor (and immediately jump to the next,
 or to the first cursor when deleting the last cursor in the buffer).
@@ -1010,14 +963,14 @@ created many cursors (for example, with a search query), this is a quicker way
 to discard them than through "-".
 
 
-8.3. Toggling active cursors
+### 8.3. Toggling active cursors
 
 Pressing "_" makes Edge toggle the value of boolean variable "multiple_cursors"
 (section 7.2.24), toggling between making commands apply to all cursors or only
 to the active one.
 
 
-8.4. Push and Pop
+### 8.4. Push and Pop
 
 Each buffer has a stack of sets of cursors. This can be a handy way to store a
 set of cursors, apply some transformation elsewhere, and restore the set.
@@ -1029,15 +982,15 @@ Press "C-" to pop: you'll be replacing the set of active cursors with the last
 entry pushed into the stack, and removing that entry from the stack.
 
 
-9. Extension language
+## 9. Extension language
 
 
-9.1. Running commands
+### 9.1. Running commands
 
 TODO: "ac"
 
 
-9.2. Running scripts
+### 9.2. Running scripts
 
 You can press "c" to run a script. Edge will prompt you for the path to the
 script, starting at the path set in the variable editor_commands_path (section
@@ -1047,11 +1000,11 @@ The contents at that path will be compiled and the resulting expression will be
 evaluated in the environment of the buffer.
 
 
-9.3. Syntax supported
+### 9.3. Syntax supported
 
-9.4. Programming interface
+### 9.4. Programming interface
 
-9.4.1. string
+#### 9.4.1. string
 
 String represents a string of characters.
 
@@ -1061,63 +1014,63 @@ The following is an example:
   return s.substr(3, 5);  // Returns: "jandr"
 
 
-9.4.1.1. int string::size()
+##### 9.4.1.1. int string::size()
 
 Returns an integer with the number of characters in the string.
 
 
-9.4.1.2. string::substr(int start, int len)
+##### 9.4.1.2. string::substr(int start, int len)
 
 
-9.4.1.3. bool string::empty()
+##### 9.4.1.3. bool string::empty()
 
 Returns a boolean value indicating if the string is empty.
 
 
-9.4.1.4. bool string::starts_with(string prefix)
+##### 9.4.1.4. bool string::starts_with(string prefix)
 
 Returns a boolean value indicating if the string starts with a given prefix.
 
 
-9.4.1.5. int string::find(string prefix, int start)
+##### 9.4.1.5. int string::find(string prefix, int start)
 
 
-9.4.1.6. int string::find_last_of(string chars, int start)
+##### 9.4.1.6. int string::find_last_of(string chars, int start)
 
 
-9.4.1.7. int string::find_last_not_of(string chars, int start)
+##### 9.4.1.7. int string::find_last_not_of(string chars, int start)
 
 
-9.4.1.8. int string::find_first_of(string chars, int start)
+##### 9.4.1.8. int string::find_first_of(string chars, int start)
 
 
-9.4.1.9. int string::find_first_not_of(string chars, int start)
+##### 9.4.1.9. int string::find_first_not_of(string chars, int start)
 
 
-9.4.1.10. string string::toupper()
+##### 9.4.1.10. string string::toupper()
 
 Returns a copy of the string, with all characters converted to uppercase.
 
 Example:
 
-  string x = "Alejandro";
-  x.toupper();  // Returns: "ALEJANDRO"
+    string x = "Alejandro";
+    x.toupper();  // Returns: "ALEJANDRO"
 
 
-9.4.1.11. string string::tolower()
+##### 9.4.1.11. string string::tolower()
 
 Returns a copy of the string, with all characters converted to lowercase.
 
 Example:
 
-  string x = "Alejandro";
-  x.toupper();  // Returns: "alejandro"
+    string x = "Alejandro";
+    x.toupper();  // Returns: "alejandro"
 
 
-9.4.2. Buffer
+#### 9.4.2. Buffer
 
 
-9.4.2.1. bool Buffer::AddKeyboardTextTransformer(function<string(string)> transformer)
+##### 9.4.2.1. bool Buffer::AddKeyboardTextTransformer(function<string(string)> transformer)
 
 If you pass a function mapping a string to a string, it'll be called by Edge on
 every character that the user attempts to insert (by typing "i", section 4.1.).
@@ -1135,7 +1088,7 @@ TODO: Document the integration points (e.g. buffer-reload.cc).
 TODO: Useful examples
 
 
-10. Limitations
+## 10. Limitations
 
 Edge is very incomplete and many features are missing. It is currently
 relatively unstable and crashes often. We are likely going to change the API of
