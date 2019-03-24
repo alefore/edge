@@ -55,45 +55,45 @@ buffers (section 5).
 
 If you run Edge on a file, it will open it and display it:
 
-  $ edge README.txt
+    $ edge README.txt
 
 
 ### 2.1. Example commands
 
 Example commands:
 
-*     "aq" - Quit (short for "Advanced > Quit").
+* "aq" - Quit (short for "Advanced > Quit").
 
-*     "?" - Shows help.
+* "?" - Shows help.
 
-*     "i" - Insert (type to the buffer), until Escape is pressed.  See section 4.1.
+* "i" - Insert (type to the buffer), until Escape is pressed.  See section 4.1.
 
-*     "d5\n" - Delete 5 characters.  Delete is covered in section 4.2.
+* "d5\n" - Delete 5 characters.  Delete is covered in section 4.2.
 
-*     "de\n" - Delete until the end of line (Delete; Line).  Section 6.1 explains
-      the Line modifier (and other structure modifiers).
+* "de\n" - Delete until the end of line (Delete; Line).  Section 6.1 explains
+  the Line modifier (and other structure modifiers).
 
-*     "dwj\n" - Delete until the end of the word (Word; from beginning to end).  The
-      word modifier is covered in section 6.1.
+* "dwj\n" - Delete until the end of the word (Word; from beginning to end).  The
+  word modifier is covered in section 6.1.
 
-*     "p" - Paste the previously deleted sequence.  See section 4.3.
+* "p" - Paste the previously deleted sequence.  See section 4.3.
 
-*     "u" - Undo the last command.  See section 4.4.
+* "u" - Undo the last command.  See section 4.4.
 
-*     "af make\n" - Open a new buffer with the output of a given command. "af" is
-      short for "Advanced > Fork" and is covered in section 5.3.
+* "af make\n" - Open a new buffer with the output of a given command. "af" is
+  short for "Advanced > Fork" and is covered in section 5.3.
 
-*     "ar" - Reload the current buffer.  See section 5.2.
+* "ar" - Reload the current buffer.  See section 5.2.
 
-*     "al" - Shows the list of buffers currently open.  See section 5.1.
+* "al" - Shows the list of buffers currently open.  See section 5.1.
 
-*     "a." - Show the list of files in the current directory.  See section 5.5.
+* "a." - Show the list of files in the current directory.  See section 5.5.
 
-*   "+" - Creates a new cursor (at the same position as the current one). See
-        section 8.1.
+* "+" - Creates a new cursor (at the same position as the current one). See
+  section 8.1.
 
-*   "_" - Toggles whether all cursors apply transformations (or just the current
-        one). See section 8.3.
+* "_" - Toggles whether all cursors apply transformations (or just the current
+  one). See section 8.3.
 
 
 ### 2.2. Command line arguments
@@ -111,7 +111,7 @@ create a buffer running that command.
 
 Example:
 
-  edge --fork "ls -lR /tmp" --fork "make"
+    $ edge --fork "ls -lR /tmp" --fork "make"
 
 If Edge is running nested (inside an existing Edge), it will cause the parent
 instance to open those buffers.
@@ -124,7 +124,7 @@ to run.
 
 Example:
 
-  edge --run 'string flags = "-R"; ForkCommand("ls " + flags);'
+    $ edge --run 'string flags = "-R"; ForkCommand("ls " + flags);'
 
 See section 9 for more information on the syntax supported.
 
@@ -146,11 +146,11 @@ mode than to say that this is "server" mode. However, we decided to use
 
 For example, you'd start the server thus:
 
-  $ edge --server /tmp/edge-server-blah
+    $ edge --server /tmp/edge-server-blah
 
 You can then connect a client:
 
-  $ edge --client /tmp/edge-server-blah
+    $ edge --client /tmp/edge-server-blah
 
 If your session is terminated (e.g. your SSH connection dies), you can run the
 client command again.
@@ -1086,10 +1086,3 @@ ones.
 TODO: SetStatus("foo");
 TODO: Document the integration points (e.g. buffer-reload.cc).
 TODO: Useful examples
-
-
-## 10. Limitations
-
-Edge is very incomplete and many features are missing. It is currently
-relatively unstable and crashes often. We are likely going to change the API of
-of the extension language in the future.
