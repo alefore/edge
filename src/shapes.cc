@@ -58,6 +58,10 @@ const VMType VMTypeMapper<std::set<editor::LineColumn>*>::vmtype =
     VMType::ObjectType(L"ShapesLineColumnSet");
 
 template <>
+const VMType VMTypeMapper<std::vector<editor::LineColumn>*>::vmtype =
+    VMType::ObjectType(L"ShapesVectorLineColumn");
+
+template <>
 struct VMTypeMapper<editor::Line> {
   static editor::Line get(Value* value) {
     CHECK(value != nullptr);
@@ -201,6 +205,7 @@ void InitShapes(vm::Environment* environment) {
   DefineLine(environment);
   VMTypeMapper<std::vector<editor::Line>*>::Export(environment);
   VMTypeMapper<std::set<editor::LineColumn>*>::Export(environment);
+  VMTypeMapper<std::vector<editor::LineColumn>*>::Export(environment);
   environment->Define(
       L"ShapesReflow",
       Value::NewFunction(
