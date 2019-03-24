@@ -1,19 +1,20 @@
+#include "lib/strings"
+
 double total_columns = 80.0;
 double total_lines = 25.0;
 
-bool simple_characters = true;
+bool simple_characters = false;
+bool delete_mode = false;
+bool bold_mode = false;
 
 ShapesPoint last_point = ShapesPoint(0.0, 1.0);
-
-ShapesLineVector lines = ShapesLineVector();
-ShapesLineVector squares = ShapesLineVector();
 
 // Updated in `Draw`.
 ShapesLineColumnSet right = ShapesLineColumnSet();
 ShapesLineColumnSet down = ShapesLineColumnSet();
 
-string PointToString(ShapesPoint p) {
-  return p.x().tostring() + ", " + p.y().tostring();
+void ShapesSetStatus(string description) {
+  SetStatus("Shapes: " + description);
 }
 
 ShapesPoint PositionToPoint(LineColumn position) {
@@ -52,10 +53,14 @@ void DrawPosition(LineColumn position, string text) {
   buffer.InsertText(text);
 }
 
-string GetCode(bool up, bool down, bool left, bool right) {
+string GetCode(bool up, bool down, bool left, bool right, bool up_bold,
+               bool down_bold, bool left_bold, bool right_bold) {
   if (simple_characters) {
-    int count = (up ? 1 : 0) + (down ? 1 : 0) + (left ? 1 : 0) + (right ? 1 : 0);
-    if (!up && !down) {
+    int count =
+        (up ? 1 : 0) + (down ? 1 : 0) + (left ? 1 : 0) + (right ? 1 : 0);
+    if (!up && !down && !left && !right) {
+      return " ";
+    } else if (!up && !down) {
       return "-";
     } else if (!left && !right) {
       return "|";
@@ -70,6 +75,144 @@ string GetCode(bool up, bool down, bool left, bool right) {
     } else {
       return "+";
     }
+  }
+
+  if (up_bold && down_bold && left_bold && right_bold) {
+    return "╋";
+  } else if (up_bold && down_bold && left_bold && right) {
+    return "╉";
+  } else if (up_bold && down_bold && left && right_bold) {
+    return "╊";
+  } else if (up_bold && down && left_bold && right_bold) {
+    return "╇";
+  } else if (up && down_bold && left_bold && right_bold) {
+    return "╈";
+  }
+
+  if (up && down && left_bold && right_bold) {
+    return "┿";
+  } else if (up && down_bold && left && right_bold) {
+    return "╆";
+  } else if (up && down_bold && left_bold && right) {
+    return "╅";
+  } else if (up_bold && down && left && right_bold) {
+    return "╄";
+  } else if (up_bold && down && left_bold && right) {
+    return "╃";
+  } else if (up_bold && down_bold && left && right) {
+    return "╂";
+  }
+
+  if (up_bold && down && left && right) {
+    return "╀";
+  } else if (up && down_bold && left && right) {
+    return "╁";
+  } else if (up && down && left_bold && right) {
+    return "┽";
+  } else if (up && down && left && right_bold) {
+    return "┾";
+  }
+
+  if (up_bold && down_bold && left_bold) {
+    return "┫";
+  } else if (up_bold && down_bold && right_bold) {
+    return "┣";
+  } else if (up_bold && left_bold && right_bold) {
+    return "┻";
+  } else if (down_bold && left_bold && right_bold) {
+    return "┳";
+  }
+
+  if (up_bold && down_bold && left) {
+    return "┨";
+  } else if (up_bold && down_bold && right) {
+    return "┠";
+  } else if (up_bold && left_bold && right) {
+    return "┹";
+  } else if (up_bold && left_bold && down) {
+    return "┩";
+  } else if (up_bold && right_bold && left) {
+    return "┺";
+  } else if (up_bold && right_bold && down) {
+    return "┡";
+  } else if (down_bold && left_bold && up) {
+    return "┪";
+  } else if (down_bold && left_bold && right) {
+    return "┱";
+  } else if (down_bold && right_bold && up) {
+    return "┢";
+  } else if (down_bold && right_bold && left) {
+    return "┲";
+  } else if (left_bold && right_bold && up) {
+    return "┷";
+  } else if (left_bold && right_bold && down) {
+    return "┯";
+  }
+
+  if (up_bold && down && left) {
+    return "┦";
+  } else if (up_bold && down && right) {
+    return "┞";
+  } else if (up_bold && left && right) {
+    return "┸";
+  } else if (down_bold && up && left) {
+    return "┧";
+  } else if (down_bold && up && right) {
+    return "┟";
+  } else if (down_bold && left && right) {
+    return "┰";
+  } else if (left_bold && up && down) {
+    return "┥";
+  } else if (left_bold && up && right) {
+    return "┵";
+  } else if (left_bold && down && right) {
+    return "┭";
+  } else if (right_bold && up && down) {
+    return "┝";
+  } else if (right_bold && up && left) {
+    return "┶";
+  } else if (right_bold && down && left) {
+    return "┮";
+  }
+
+  if (up_bold && down_bold) {
+    return "┃";
+  } else if (up_bold && left_bold) {
+    return "┛";
+  } else if (up_bold && right_bold) {
+    return "┗";
+  } else if (down_bold && left_bold) {
+    return "┓";
+  } else if (down_bold && right_bold) {
+    return "┏";
+  } else if (left_bold && right_bold) {
+    return "━";
+  }
+
+  if (up_bold && down) {
+    return "╿";
+  } else if (up_bold && left) {
+    return "┚";
+  } else if (up_bold && right) {
+    return "┖";
+  } else if (down_bold && up) {
+    return "╽";
+  } else if (down_bold && left) {
+    return "┒";
+  } else if (down_bold && right) {
+    return "┎";
+  } else if (left_bold && up) {
+    return "┙";
+  } else if (left_bold && down) {
+    return "┑";
+  } else if (left_bold && right) {
+    return "╾";
+  } else if (right_bold && up) {
+    return "┕";
+  } else if (right_bold && down) {
+    return "┍";
+  } else if (right_bold && left) {
+    return "╼";
   }
 
   if (up && down && left && right) {
@@ -94,12 +237,21 @@ string GetCode(bool up, bool down, bool left, bool right) {
     return "╮";
   } else if (down && right) {
     return "╭";
-  } else if (up || down) {
+  } else if (up && down) {
     return "│";
-  } else if (left || right) {
+  } else if (left && right) {
     return "─";
+  } else if (up) {
+    return "╵";
+  } else if (down) {
+    return "╷";
   }
-  return "*";
+  if (left) {
+    return "╴";
+  } else if (right) {
+    return "╶";
+  }
+  return " ";
 }
 
 void GetPointsToDraw(ShapesLineColumnSet right, ShapesLineColumnSet down,
@@ -121,26 +273,110 @@ void GetPointsToDraw(ShapesLineColumnSet right, ShapesLineColumnSet down,
   }
 }
 
+bool IsMovingLeft(string c) {
+  return ("─-´╯.╮+┼┤┴┬╊╆╄╂╀╁┾┨┺┲┦┸┧┰┶┮┚┒╼").find(c, 0) != -1;
+}
+
+bool IsMovingLeftBold(string c) {
+  return ("╋╉╇╈┿╅╃┽┫┻┳┹┩┪┱┷┯┥┵┭┛┓━┙┑╾").find(c, 0) != -1;
+}
+
+bool IsMovingUp(string c) {
+  return ("│|`╰´╯+┼┤├┴╵╈┿╆╅╁┽┾┪┢┷┧┟┥┵┝┶╽┙┕").find(c, 0) != -1;
+}
+
+bool IsMovingUpBold(string c) {
+  return ("╋╉╊╇╄╃╂╀┫┣┻┨┠┹┩┺┡┦┞┸┃┛┗╿┚┖").find(c, 0) != -1;
+}
+
+bool IsMovingRight(string c) {
+  return ("─-`╰,╭+┼├┴┬╉╅╃╂╀╁┽┠┹┱┞┸┟┰┵┭┖┎╾").find(c, 0) != -1;
+}
+
+bool IsMovingRightBold(string c) {
+  return ("╋╊╇╈┿╆╄┾┣┻┳┺┡┢┲┷┯┝┶┮┗┏┕┍╼").find(c, 0) != -1;
+}
+
+bool IsMovingDown(string c) {
+  return ("│|,╭.╮+┼┤├┬╷╇┿╄╃╀┽┾┩┡┯┦┞┥┭┝┮╿┑┍").find(c, 0) != -1;
+}
+
+bool IsMovingDownBold(string c) {
+  return ("╋╉╊╈╆╅╂╁┫┣┳┨┠┪┱┢┲┧┟┰┃┓┏━╽┒┎").find(c, 0) != -1;
+}
+
 void DrawLineColumns(ShapesLineColumnSet line_column_right,
                      ShapesLineColumnSet line_column_down, string code) {
   ShapesLineColumnSet points = ShapesLineColumnSet();
   GetPointsToDraw(line_column_right, line_column_down, points);
-  SetStatus("Points to draw: " + points.size().tostring());
+  ShapesSetStatus("Points to draw: " + points.size().tostring());
   int i = 0;
   while (i < points.size()) {
     LineColumn position = points.get(i);
     string current_code = code;
     if (current_code.empty()) {
       string current_line = buffer.line(position.line());
-      bool left =
-          position.column() > 0 && line_column_right.contains(LineColumn(
-                                       position.line(), position.column() - 1));
-      bool up =
-          position.line() > 0 && line_column_down.contains(LineColumn(
-                                     position.line() - 1, position.column()));
-      bool right = line_column_right.contains(position);
-      bool down = line_column_down.contains(position);
-      current_code = GetCode(up, down, left, right);
+      string current_char = position.column() < current_line.size()
+                                ? current_line.substr(position.column(), 1)
+                                : " ";
+
+      bool left = IsMovingLeft(current_char);
+      bool left_bold = IsMovingLeftBold(current_char);
+      if (position.column() > 0 &&
+          line_column_right.contains(
+              LineColumn(position.line(), position.column() - 1))) {
+        if (delete_mode) {
+          left = false;
+          left_bold = false;
+        } else if (bold_mode) {
+          left_bold = true;
+        } else {
+          left = true;
+        }
+      }
+
+      bool up = IsMovingUp(current_char);
+      bool up_bold = IsMovingUpBold(current_char);
+      if (position.line() > 0 && line_column_down.contains(LineColumn(
+                                     position.line() - 1, position.column()))) {
+        if (delete_mode) {
+          up = false;
+          up_bold = false;
+        } else if (bold_mode) {
+          up_bold = true;
+        } else {
+          up = true;
+        }
+      }
+
+      bool right = IsMovingRight(current_char);
+      bool right_bold = IsMovingRightBold(current_char);
+      if (line_column_right.contains(position)) {
+        if (delete_mode) {
+          right = false;
+          right_bold = false;
+        } else if (bold_mode) {
+          right_bold = true;
+        } else {
+          right = true;
+        }
+      }
+
+      bool down = IsMovingDown(current_char);
+      bool down_bold = IsMovingDownBold(current_char);
+      if (line_column_down.contains(position)) {
+        if (delete_mode) {
+          down = false;
+          down_bold = false;
+        } else if (bold_mode) {
+          down_bold = true;
+        } else {
+          down = true;
+        }
+      }
+
+      current_code = GetCode(up, down, left, right, up_bold, down_bold,
+                             left_bold, right_bold);
     }
     DrawPosition(points.get(i), current_code);
     i = i + 1;
@@ -200,97 +436,97 @@ void FindBoundariesSquare(ShapesLine line, ShapesLineColumnSet output_right,
       output_right, output_down);
 }
 
-void Draw() {
-  SetStatus("Starting redraw.");
-  right = ShapesLineColumnSet();
-  down = ShapesLineColumnSet();
-  int i = 0;
-  while (i < lines.size()) {
-    FindBoundariesLine(lines.get(i), right, down);
-    i = i + 1;
-  }
-  i = 0;
-  while (i < squares.size()) {
-    FindBoundariesSquare(squares.get(i), right, down);
-    i = i + 1;
-  }
-  DrawLineColumns(right, down, "");
-}
-
 void ShapesAddSquare() {
   LineColumn position = buffer.position();
-  ShapesPoint next_point = PositionToPoint(position);
-  ShapesLine square = ShapesLine(last_point, next_point);
-  FindBoundariesSquare(square, right, down);
-  DrawLineColumns(right, down, "");
-  squares.push_back(square);
+  ShapesLine square = ShapesLine(last_point, PositionToPoint(position));
+  ShapesLineColumnSet output_right = ShapesLineColumnSet();
+  ShapesLineColumnSet output_down = ShapesLineColumnSet();
+  FindBoundariesSquare(square, output_right, output_down);
+  DrawLineColumns(output_right, output_down, "");
   buffer.set_position(position);
-  last_point = next_point;
+  last_point = square.end();
+}
+
+int Min(int x, int y) { return x <= y ? x : y; }
+int Max(int x, int y) { return x >= y ? x : y; }
+
+bool IsActualContent(string c) {
+  string additional = "()";
+  return buffer.word_characters().find(c, 0) != -1 ||
+         additional.find(c, 0) != -1;
+}
+
+string TrimLine(string line) {
+  int start = 0;
+  while (start < line.size() && !IsActualContent(line.substr(start, 1))) {
+    start = start + 1;
+  }
+  if (start == line.size()) {
+    return "";
+  }
+  int end = line.size() - 1;
+  while (end > start && !IsActualContent(line.substr(end, 1))) {
+    end = end - 1;
+  }
+  return line.substr(start, end - start + 1);
+}
+
+string GetSquareContents(LineColumn start, LineColumn end) {
+  string output = "";
+  while (start.line() <= end.line() && start.line() < buffer.line_count()) {
+    string line = buffer.line(start.line());
+    if (line.size() > start.column()) {
+      string part = TrimLine(line.substr(
+          start.column(), Min(end.column(), line.size()) - start.column()));
+      output = output + (!output.empty() && !part.empty() ? " " : "") + part;
+    }
+    start = LineColumn(start.line() + 1, start.column());
+  }
+  return output;
+}
+
+void ShapesSquareCenter() {
+  LineColumn a = buffer.position();
+  LineColumn b = PointToPosition(last_point);
+  int border_delta = 1;
+  LineColumn start = LineColumn(Min(a.line(), b.line()) + border_delta,
+                                Min(a.column(), b.column()) + border_delta);
+  LineColumn end = LineColumn(Max(a.line(), b.line()) - border_delta,
+                              Max(a.column(), b.column()) - border_delta);
+  if (start.line() >= end.line() || start.column() >= end.column()) {
+    ShapesSetStatus("Square is too small.");
+    return;
+  }
+  string contents = GetSquareContents(start, end);
+  ShapesSetStatus("Contents: " + contents);
 }
 
 void ShapesAddLine() {
   LineColumn position = buffer.position();
-  ShapesPoint next_point = PositionToPoint(position);
-  ShapesLine line = ShapesLine(last_point, next_point);
-  FindBoundariesLine(line, right, down);
-  DrawLineColumns(right, down, "");
-  lines.push_back(line);
+  ShapesLine line = ShapesLine(last_point, PositionToPoint(position));
+  ShapesLineColumnSet output_right = ShapesLineColumnSet();
+  ShapesLineColumnSet output_down = ShapesLineColumnSet();
+  FindBoundariesLine(line, output_right, output_down);
+  DrawLineColumns(output_right, output_down, "");
   buffer.set_position(position);
-  last_point = next_point;
+  last_point = line.end();
 }
 
-// Delete all shapes that draw under this line.
-void ShapesDelete() {
-  LineColumn position = buffer.position();
-
-  int i = 0;
-  while (i < lines.size()) {
-    ShapesLineColumnSet line_right = ShapesLineColumnSet();
-    ShapesLineColumnSet line_down = ShapesLineColumnSet();
-    FindBoundariesLine(lines.get(i), line_right, line_down);
-    ShapesLineColumnSet points = ShapesLineColumnSet();
-    GetPointsToDraw(line_right, line_down, points);
-    if (points.contains(position)) {
-      lines.erase(i);
-      DrawLineColumns(line_right, line_down, " ");
-    } else {
-      i = i + 1;
-    }
-  }
-
-  i = 0;
-  while (i < squares.size()) {
-    ShapesLineColumnSet line_right = ShapesLineColumnSet();
-    ShapesLineColumnSet line_down = ShapesLineColumnSet();
-    FindBoundariesSquare(squares.get(i), line_right, line_down);
-    ShapesLineColumnSet points = ShapesLineColumnSet();
-    GetPointsToDraw(line_right, line_down, points);
-    if (points.contains(position)) {
-      squares.erase(i);
-      DrawLineColumns(line_right, line_down, " ");
-    } else {
-      i = i + 1;
-    }
-  }
-
-  Draw();
+void ShapesToggleDeleteMode() {
+  delete_mode = !delete_mode;
+  ShapesSetStatus(delete_mode ? "Delete" : "Insert");
 }
 
-void ShapesZoom(double ratio) {
-  ShapesLineColumnSet points_to_discard = ShapesLineColumnSet();
-  DrawLineColumns(right, down, " ");
-  total_columns = total_columns * ratio;
-  total_lines = total_lines * ratio;
-  Draw();
+void ShapesToggleBoldMode() {
+  bold_mode = !bold_mode;
+  ShapesSetStatus(bold_mode ? "Bold" : "Normal");
 }
 
-void ShapesZoomIn() { ShapesZoom(1.2); }
-void ShapesZoomOut() { ShapesZoom(1.0 / 1.2); }
 void ShapesSet() { last_point = PositionToPoint(buffer.position()); }
 
 buffer.AddBinding("sl", ShapesAddLine);
 buffer.AddBinding("sq", ShapesAddSquare);
-buffer.AddBinding("sd", ShapesDelete);
+buffer.AddBinding("sc", ShapesSquareCenter);
+buffer.AddBinding("sd", ShapesToggleDeleteMode);
 buffer.AddBinding("s=", ShapesSet);
-buffer.AddBinding("s+", ShapesZoomIn);
-buffer.AddBinding("s-", ShapesZoomOut);
+buffer.AddBinding("sb", ShapesToggleBoldMode);
