@@ -22,7 +22,7 @@ namespace vm {
 //
 // Then initialize it in an environment:
 //
-//     DefineVectorType<MyType>(&environment, L"VectorMyType");
+//     VMTypeMapper<std::vector<MyType>*>::Export(&environment);
 template <typename T>
 struct VMTypeMapper<std::vector<T>*> {
   static std::vector<T>* get(Value* value) {
