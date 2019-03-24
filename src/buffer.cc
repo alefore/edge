@@ -1370,8 +1370,13 @@ void OpenBuffer::MaybeAdjustPositionCol() {
 }
 
 void OpenBuffer::MaybeExtendLine(LineColumn position) {
+  CHECK_LT(position.line, contents_.size());
   auto line = std::make_shared<Line>(*LineAt(position.line));
-  line->Append(Line(wstring(position.column - line->size() + 1, L' ')));
+  if (line->size() > position.column + 1) {
+    return;
+  }
+  wstring padding(position.column - line->size() + 1, L' ');
+  line->Append(Line(padding));
   contents_.set_line(position.line, line);
 }
 
