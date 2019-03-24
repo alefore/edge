@@ -29,6 +29,8 @@ struct VMTypeMapper<std::vector<T>*> {
     return static_cast<std::vector<T>*>(value->user_value.get());
   }
 
+  static Value::Ptr New(std::vector<T> value) { return Value::NewInteger(0); }
+
   static const VMType vmtype;
 
   static void Export(Environment* environment) {
