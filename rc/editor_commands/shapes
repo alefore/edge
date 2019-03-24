@@ -509,14 +509,14 @@ void ShapesSquareCenter() {
                                 Min(a.column(), b.column()) + border_delta);
   LineColumn end = LineColumn(Max(a.line(), b.line()) - border_delta,
                               Max(a.column(), b.column()) - border_delta);
-  if (start.line() >= end.line() || start.column() >= end.column()) {
+  if (start.line() > end.line() || start.column() > end.column()) {
     ShapesSetStatus("Square is too small.");
     return;
   }
-  VectorString contents = ShapesReflow(
-      BreakWords(GetSquareContents(start, end)), end.column() - start.column());
-  int i = 0;
   int width = end.column() - start.column() + 1;
+  VectorString contents =
+      ShapesReflow(BreakWords(GetSquareContents(start, end)), width);
+  int i = 0;
   int start_contents = (end.line() - start.line() + 1 - contents.size()) / 2;
   while (start.line() + i <= end.line()) {
     string input = "";
@@ -563,6 +563,7 @@ void ShapesSet() {
 buffer.AddBinding("sl", "shapes: line: draw", ShapesAddLine);
 buffer.AddBinding("sq", "shapes: square: draw", ShapesAddSquare);
 buffer.AddBinding("sc", "shapes: square: center contents", ShapesSquareCenter);
-buffer.AddBinding("sd", "shapes: delete_mode = !delete_mode", ShapesToggleDeleteMode);
+buffer.AddBinding("sd", "shapes: delete_mode = !delete_mode",
+                  ShapesToggleDeleteMode);
 buffer.AddBinding("s=", "shapes: set point", ShapesSet);
 buffer.AddBinding("sb", "shapes: bold_mode = !bold_mode", ShapesToggleBoldMode);
