@@ -8,6 +8,7 @@
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/types.h"
 #include "src/vm/public/value.h"
+#include "src/vm/public/vector.h"
 
 namespace afc {
 namespace editor {
@@ -26,9 +27,6 @@ struct Line {
   Point end;
 };
 
-struct LineVector {
-  std::vector<Line> lines;
-};
 }  // namespace editor
 namespace vm {
 template <>
@@ -94,16 +92,9 @@ const VMType VMTypeMapper<editor::Line>::vmtype =
     VMType::ObjectType(L"ShapesLine");
 
 template <>
-struct VMTypeMapper<editor::LineVector*> {
-  static editor::LineVector* get(Value* value) {
-    return static_cast<editor::LineVector*>(value->user_value.get());
-  }
-
-  static const VMType vmtype;
-};
-
-const VMType VMTypeMapper<editor::LineVector*>::vmtype =
+const VMType VMTypeMapper<std::vector<editor::Line>*>::vmtype =
     VMType::ObjectType(L"ShapesLineVector");
+
 }  // namespace vm
 namespace editor {
 
@@ -207,41 +198,11 @@ void DefineLineColumnSet(Environment* environment) {
                           std::move(line_column_set_type));
 }
 
-void DefineLineVector(Environment* environment) {
-  auto line_vector_type = std::make_unique<ObjectType>(L"ShapesLineVector");
-
-  environment->Define(
-      L"ShapesLineVector",
-      Value::NewFunction({VMType::ObjectType(line_vector_type.get())},
-                         [](std::vector<Value::Ptr> args) {
-                           CHECK(args.empty());
-                           return Value::NewObject(
-                               L"ShapesLineVector",
-                               std::make_shared<LineVector>());
-                         }));
-
-  line_vector_type->AddField(
-      L"size", vm::NewCallback(std::function<int(LineVector*)>(
-                   [](LineVector* s) { return s->lines.size(); })));
-  line_vector_type->AddField(
-      L"get", vm::NewCallback(std::function<Line(LineVector*, int)>(
-                  [](LineVector* s, int i) { return s->lines.at(i); })));
-  line_vector_type->AddField(
-      L"erase", vm::NewCallback(std::function<void(LineVector*, int)>(
-                    [](LineVector* s, int i) {
-                      return s->lines.erase(s->lines.begin() + i);
-                    })));
-  line_vector_type->AddField(
-      L"push_back", vm::NewCallback(std::function<void(LineVector*, Line)>(
-                        [](LineVector* s, Line e) { s->lines.push_back(e); })));
-  environment->DefineType(L"ShapesLineVector", std::move(line_vector_type));
-}
-
 void InitShapes(vm::Environment* environment) {
   DefinePoint(environment);
   DefineLineColumnSet(environment);
   DefineLine(environment);
-  DefineLineVector(environment);
+  VMTypeMapper<std::vector<editor::Line>*>::Export(environment);
 }
 
 }  // namespace editor
