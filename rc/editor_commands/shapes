@@ -28,6 +28,9 @@ LineColumn PointToPosition(ShapesPoint point) {
   return LineColumn(line.round(), column.round());
 }
 
+int Min(int x, int y) { return x <= y ? x : y; }
+int Max(int x, int y) { return x >= y ? x : y; }
+
 double Abs(double x) {
   if (x >= 0.0)
     return x;
@@ -47,7 +50,8 @@ void DrawPosition(LineColumn position, string text) {
   } else {
     buffer.set_position(position);
     if (line.size() > position.column()) {
-      buffer.DeleteCharacters(1);
+      buffer.DeleteCharacters(
+          Min(line.size() - position.column(), text.size()));
     }
   }
   buffer.InsertText(text);
@@ -447,9 +451,6 @@ void ShapesAddSquare() {
   last_point = square.end();
 }
 
-int Min(int x, int y) { return x <= y ? x : y; }
-int Max(int x, int y) { return x >= y ? x : y; }
-
 bool IsActualContent(string c) {
   string additional = "()";
   return buffer.word_characters().find(c, 0) != -1 ||
@@ -477,10 +478,29 @@ string GetSquareContents(LineColumn start, LineColumn end) {
     string line = buffer.line(start.line());
     if (line.size() > start.column()) {
       string part = TrimLine(line.substr(
-          start.column(), Min(end.column(), line.size()) - start.column()));
+          start.column(), Min(end.column() + 1, line.size()) - start.column()));
       output = output + (!output.empty() && !part.empty() ? " " : "") + part;
     }
     start = LineColumn(start.line() + 1, start.column());
+  }
+  return output;
+}
+
+string JoinLines(VectorString v) {
+  string output = "";
+  int i = 0;
+  while (i < v.size()) {
+    output = output + "[" + v.get(i) + "]";
+    i = i + 1;
+  }
+  return output;
+}
+
+string BuildPadding(int size, string c) {
+  string output = "";
+  while (size > 0) {
+    output = output + c;
+    size = size - 1;
   }
   return output;
 }
@@ -497,8 +517,25 @@ void ShapesSquareCenter() {
     ShapesSetStatus("Square is too small.");
     return;
   }
-  string contents = GetSquareContents(start, end);
-  ShapesSetStatus("Contents: " + contents);
+  VectorString contents = ShapesReflow(
+      BreakWords(GetSquareContents(start, end)), end.column() - start.column());
+  int i = 0;
+  int width = end.column() - start.column() + 1;
+  int start_contents = (end.line() - start.line() + 1 - contents.size()) / 2;
+  while (start.line() + i <= end.line()) {
+    string input = "";
+    if (i >= start_contents && i - start_contents < contents.size()) {
+      input = contents.get(i - start_contents);
+      int padding = (width - input.size()) / 2;
+      input = BuildPadding(padding, " ") + input +
+              BuildPadding(width - padding - input.size(), " ");
+    } else {
+      input = BuildPadding(width, " ");
+    }
+    DrawPosition(LineColumn(start.line() + i, start.column()), input);
+    i = i + 1;
+  }
+  buffer.set_position(a);
 }
 
 void ShapesAddLine() {
