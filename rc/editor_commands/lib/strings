@@ -2,3 +2,12 @@ string SkipInitialSpaces(string text) {
   int start = text.find_first_not_of(" ", 0);
   return start > 0 ? text.substr(start, text.size() - start) : text;
 }
+
+string SkipFinalSpaces(string text) {
+  int end = text.find_last_not_of(" ", text.size());
+  return end > 0 ? text.substr(0, end + 1) : text;
+}
+
+string SkipSpaces(string text) {
+  return SkipFinalSpaces(SkipInitialSpaces(text));
+}
