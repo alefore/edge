@@ -334,14 +334,16 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
       L"AddBinding",
       Value::NewFunction(
           {VMType::Void(), VMType::ObjectType(buffer.get()), VMType::String(),
-           VMType::Function({VMType::Void()})},
+           VMType::String(), VMType::Function({VMType::Void()})},
           [editor_state](vector<unique_ptr<Value>> args) {
-            CHECK_EQ(args.size(), 3u);
+            CHECK_EQ(args.size(), 4u);
             CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
             CHECK_EQ(args[1]->type, VMType::VM_STRING);
+            CHECK_EQ(args[2]->type, VMType::VM_STRING);
             auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
             CHECK(buffer != nullptr);
-            buffer->default_commands_->Add(args[1]->str, std::move(args[2]),
+            buffer->default_commands_->Add(args[1]->str, args[2]->str,
+                                           std::move(args[3]),
                                            &buffer->environment_);
             return Value::NewVoid();
           }));

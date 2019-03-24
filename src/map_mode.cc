@@ -72,7 +72,8 @@ void MapModeCommands::Add(wstring name, std::unique_ptr<Command> value) {
   commands_.front()->insert({name, std::move(value)});
 }
 
-void MapModeCommands::Add(wstring name, std::unique_ptr<Value> value,
+void MapModeCommands::Add(wstring name, wstring description,
+                          std::unique_ptr<Value> value,
                           vm::Environment* environment) {
   CHECK(value != nullptr);
   CHECK_EQ(value->type.type, VMType::FUNCTION);
@@ -88,7 +89,7 @@ void MapModeCommands::Add(wstring name, std::unique_ptr<Value> value,
                              LOG(INFO) << "Done evaluating.";
                            });
                 },
-                L"C++ VM function"));
+                description));
 }
 
 void MapModeCommands::Add(wstring name, std::function<void()> callback,

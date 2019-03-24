@@ -560,9 +560,9 @@ void ShapesSet() {
   last_point = PositionToPoint(buffer.position());
 }
 
-buffer.AddBinding("sl", ShapesAddLine);
-buffer.AddBinding("sq", ShapesAddSquare);
-buffer.AddBinding("sc", ShapesSquareCenter);
-buffer.AddBinding("sd", ShapesToggleDeleteMode);
-buffer.AddBinding("s=", ShapesSet);
-buffer.AddBinding("sb", ShapesToggleBoldMode);
+buffer.AddBinding("sl", "shapes: line: draw", ShapesAddLine);
+buffer.AddBinding("sq", "shapes: square: draw", ShapesAddSquare);
+buffer.AddBinding("sc", "shapes: square: center contents", ShapesSquareCenter);
+buffer.AddBinding("sd", "shapes: delete_mode = !delete_mode", ShapesToggleDeleteMode);
+buffer.AddBinding("s=", "shapes: set point", ShapesSet);
+buffer.AddBinding("sb", "shapes: bold_mode = !bold_mode", ShapesToggleBoldMode);

@@ -26,6 +26,6 @@ void DecrementDepth() {
   SetStatus("Simplifying view (" + tostring(navigation_buffer_depth) + ")");
 }
 
-buffer.AddBinding("sk", SetDepthToZero);
-buffer.AddBinding("sh", DecrementDepth);
-buffer.AddBinding("sl", IncrementDepth);
+buffer.AddBinding("sk", "navigation_depth := 0", SetDepthToZero);
+buffer.AddBinding("sh", "navigation_depth--", DecrementDepth);
+buffer.AddBinding("sl", "navigation_depth++", IncrementDepth);

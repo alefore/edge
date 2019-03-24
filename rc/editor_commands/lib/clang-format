@@ -23,4 +23,4 @@ if (extension == "cc" || extension == "h" || extension == "java") {
   ClangFormatToggle();
 }
 
-buffer.AddBinding("sC", ClangFormatToggle);
+buffer.AddBinding("sC", "clang_format = !clang_format", ClangFormatToggle);
