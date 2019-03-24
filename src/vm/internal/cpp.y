@@ -108,7 +108,7 @@ function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME) LPAREN
         compilation->environment->LookupType(RETURN_TYPE->str);
     if (return_type_def == nullptr) {
       compilation->errors.push_back(
-          L"Unknown type: \"" + RETURN_TYPE->str + L"\"");
+          L"Unknown return type: \"" + RETURN_TYPE->str + L"\"");
       OUT = nullptr;
     } else {
       OUT = new UserFunction();
