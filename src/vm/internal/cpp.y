@@ -784,10 +784,25 @@ expr(A) ::= expr(B) MINUS expr(C). {
 }
 
 expr(OUT) ::= MINUS expr(A). {
-  OUT = NewNegateExpression(
-      [](Value* value) { value->integer = -value->integer; },
-      VMType::Integer(),
-      compilation, unique_ptr<Expression>(A)).release();
+  if (A == nullptr) {
+    OUT = nullptr;
+  } else if (A->type().type == VMType::VM_INTEGER) {
+    OUT = NewNegateExpression(
+        [](Value* value) { value->integer = -value->integer; },
+        VMType::Integer(),
+        compilation, unique_ptr<Expression>(A)).release();
+    A = nullptr;
+  } else if (A->type().type == VMType::VM_DOUBLE) {
+    OUT = NewNegateExpression(
+        [](Value* value) { value->double_value = -value->double_value; },
+        VMType::Double(),
+        compilation, unique_ptr<Expression>(A)).release();
+    A = nullptr;
+  } else {
+    compilation->errors.push_back(
+        L"Invalid expression: -" + A->type().ToString());
+    OUT = nullptr;
+  }
 }
 
 expr(A) ::= expr(B) TIMES expr(C). {
