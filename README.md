@@ -1083,6 +1083,33 @@ which they've been added. Each transfomer will see the output of the previous
 ones.
 
 
+## 10. Internals
+
+
+                                    ╭───────╮
+                              ╭─────> Parse ├───────╮
+    ╭──────────╮   ╭──────────┴─╮   │ Tree  │       │
+    │ Commands │   │ Background │   ╰───^───╯       │
+    │(bindings)<─╮ │   Thread   <──╮    │           │
+    ╰───┬──────╯ │ ╰────────────╯  │    │           │
+        │        ╰──────────────╮  │    │           │
+        │  ┏━━━━━━━━━━━━━┓    ┏━┷━━┷━━━━┷━━┓    ╭───V────────────╮
+        │  ┃ EditorState ┠────> OpenBuffer ┠────> BufferContents │
+        │  ┗━━━━┯━━━━━━━━┛    ┗━┯━━━━━━━┯━━┛    ╰───────┬────────╯
+        │       │               │       │               │
+        │       │     ╭─────────╯       │            ╭──V───╮   ╭───────────╮
+        │   ╭───V─────V─╮   ╭───────────V──╮ ╭───<───┤ Line ├───> Modifiers │
+        ╰───>Environment│   │ Process Info │ │       ╰──┬───╯   │ (colors…) │
+            │  (cpp)    <─╮ │  (fd, pid…)  │ │          │       ╰───────────╯
+            ╰─────┬─────╯ │ ╰──────────────╯ │   ╭────────V───╮
+                  │       │                  │   │ LazyString │
+            ╭─────V─────╮ ╰──<─────<─────<───╯   ╰───┬────────╯
+            │ EdgeStruct│                            │
+            │Instance<…>│                            ├╴> EditableString
+            ╰───────────╯                            ├╴> StringAppend
+                                                     ├╴> Substring
+                                                     ╰╴> MoveableCharBuffer
+
 TODO: SetStatus("foo");
 TODO: Document the integration points (e.g. buffer-reload.cc).
 TODO: Useful examples
