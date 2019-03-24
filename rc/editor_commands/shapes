@@ -9,10 +9,6 @@ bool bold_mode = false;
 
 ShapesPoint last_point = ShapesPoint(0.0, 1.0);
 
-// Updated in `Draw`.
-ShapesLineColumnSet right = ShapesLineColumnSet();
-ShapesLineColumnSet down = ShapesLineColumnSet();
-
 void ShapesSetStatus(string description) {
   SetStatus("Shapes: " + description);
 }
@@ -559,7 +555,10 @@ void ShapesToggleBoldMode() {
   ShapesSetStatus(bold_mode ? "Bold" : "Normal");
 }
 
-void ShapesSet() { last_point = PositionToPoint(buffer.position()); }
+void ShapesSet() {
+  ShapesSetStatus("Set target point.");
+  last_point = PositionToPoint(buffer.position());
+}
 
 buffer.AddBinding("sl", ShapesAddLine);
 buffer.AddBinding("sq", ShapesAddSquare);
