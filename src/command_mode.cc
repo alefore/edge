@@ -878,8 +878,8 @@ void ToggleIntVariable(EditorState* editor_state, wstring binding,
                     L"tmp_buffer.set_" + variable_name + L"(" + L"tmp_buffer." +
                     variable_name + L"() != 0 ? 0 : " +
                     std::to_wstring(default_value) + L"); " + L"SetStatus(\"" +
-                    variable_name + L" := \" + tostring(tmp_buffer." +
-                    variable_name + L"()));";
+                    variable_name + L" := \" + tmp_buffer." +
+                    variable_name + L"().tostring());";
   LOG(INFO) << "Command: " << command;
   map_mode->Add(binding, NewCppCommand(editor_state->environment(), command));
 }
