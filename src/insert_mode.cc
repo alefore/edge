@@ -740,7 +740,11 @@ class RawInputTypeMode : public EditorMode {
 };
 
 void EnterInsertCharactersMode(InsertModeOptions options) {
-  options.buffer->MaybeAdjustPositionCol();
+  if (options.buffer->Read(buffer_variables::extend_lines())) {
+    options.buffer->MaybeExtendLine(options.buffer->position());
+  } else {
+    options.buffer->MaybeAdjustPositionCol();
+  }
   options.editor_state->SetStatus(L"type");
 
   auto handler = std::make_unique<InsertMode>(options);

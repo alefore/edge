@@ -1369,6 +1369,12 @@ void OpenBuffer::MaybeAdjustPositionCol() {
   }
 }
 
+void OpenBuffer::MaybeExtendLine(LineColumn position) {
+  auto line = std::make_shared<Line>(*LineAt(position.line));
+  line->Append(Line(wstring(position.column - line->size() + 1, L' ')));
+  contents_.set_line(position.line, line);
+}
+
 void OpenBuffer::CheckPosition() {
   if (position().line >= contents_.size()) {
     set_position(LineColumn(contents_.size()));
@@ -1603,7 +1609,13 @@ bool OpenBuffer::SeekToLimit(Structure structure, Direction direction,
     *position = LineColumn();
   } else {
     position->line = min(lines_size() - 1, position->line);
-    position->column = min(LineAt(position->line)->size(), position->column);
+    if (position->column >= LineAt(position->line)->size()) {
+      if (Read(buffer_variables::extend_lines())) {
+        MaybeExtendLine(*position);
+      } else {
+        position->column = LineAt(position->line)->size();
+      }
+    }
   }
   switch (structure) {
     case BUFFER:
@@ -1720,7 +1732,13 @@ bool OpenBuffer::FindPartialRange(const Modifiers& modifiers,
   LineColumn position = initial_position;
   if (!empty()) {
     position.line = min(lines_size() - 1, position.line);
-    position.column = min(LineAt(position.line)->size(), position.column);
+    if (position.column > LineAt(position.line)->size()) {
+      if (Read(buffer_variables::extend_lines())) {
+        MaybeExtendLine(position);
+      } else {
+        position.column = LineAt(position.line)->size();
+      }
+    }
   }
   if (modifiers.direction == BACKWARDS) {
     Seek(contents_, &position).Backwards().WrappingLines().Once();

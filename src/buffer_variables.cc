@@ -32,6 +32,7 @@ EdgeStruct<bool>* BoolStruct() {
     scrollbar();
     search_case_sensitive();
     wrap_long_lines();
+    extend_lines();
   }
   return output;
 }
@@ -233,6 +234,15 @@ EdgeVariable<bool>* wrap_long_lines() {
       L"If set to true, long lines will be wrapped (only for displaying). "
       L"Otherwise, they get trimmed at the end.",
       true);
+  return variable;
+}
+
+EdgeVariable<bool>* extend_lines() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
+      L"extend_lines",
+      L"If set to true, lines should be extended automatically as the cursor "
+      L"advances past their end.",
+      false);
   return variable;
 }
 
