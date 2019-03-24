@@ -48,6 +48,10 @@ std::unique_ptr<MapModeCommands> MapModeCommands::NewChild() {
   output->commands_ = commands_;
   output->commands_.push_front(
       std::make_shared<map<wstring, std::unique_ptr<Command>>>());
+
+  // Override the parent's help command, so that bindings added to the child are
+  // visible.
+  output->Add(L"?", NewHelpCommand(output.get(), L"command mode"));
   return std::move(output);
 }
 
