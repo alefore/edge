@@ -55,7 +55,8 @@ unique_ptr<Expression> NewAssignExpression(Compilation* compilation,
   }
   const VMType* type_def = compilation->environment->LookupType(type);
   if (type_def == nullptr) {
-    compilation->errors.push_back(L"Unknown type: \"" + symbol + L"\"");
+    compilation->errors.push_back(L"Unknown type: \"" + type +
+                                  L"\" for symbol \"" + symbol + L"\".");
     return nullptr;
   }
   compilation->environment->Define(symbol,

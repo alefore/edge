@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "src/vm/public/callbacks.h"
 #include "src/vm/public/environment.h"
 
 namespace afc {
@@ -104,6 +105,14 @@ struct Range {
 std::ostream& operator<<(std::ostream& os, const Range& range);
 
 }  // namespace editor
+namespace vm {
+template <>
+struct VMTypeMapper<editor::LineColumn> {
+  static editor::LineColumn get(Value* value);
+  static Value::Ptr New(editor::LineColumn value);
+  static const VMType vmtype;
+};
+}  // namespace vm
 }  // namespace afc
 
 #endif

@@ -1,0 +1,569 @@
+#include "lib/strings"
+
+double total_columns = 80.0;
+double total_lines = 25.0;
+
+bool simple_characters = false;
+bool delete_mode = false;
+bool bold_mode = false;
+
+ShapesPoint last_point = ShapesPoint(0.0, 1.0);
+
+void ShapesSetStatus(string description) {
+  SetStatus("Shapes: " + description);
+}
+
+ShapesPoint PositionToPoint(LineColumn position) {
+  return ShapesPoint(position.column() / total_columns,
+                     (total_lines - position.line()) / total_lines);
+}
+
+LineColumn PointToPosition(ShapesPoint point) {
+  double column = point.x() * total_columns;
+  double line = total_lines - point.y() * total_lines;
+  return LineColumn(line.round(), column.round());
+}
+
+int Min(int x, int y) { return x <= y ? x : y; }
+int Max(int x, int y) { return x >= y ? x : y; }
+
+double Abs(double x) {
+  if (x >= 0.0)
+    return x;
+  else
+    return -x;
+}
+
+void DrawPosition(LineColumn position, string text) {
+  string line = buffer.line(position.line());
+  if (line.size() < position.column()) {
+    buffer.set_position(LineColumn(position.line(), line.size()));
+    int insertions = position.column() - line.size();
+    while (insertions > 0) {
+      buffer.InsertText(" ");
+      insertions = insertions - 1;
+    }
+  } else {
+    buffer.set_position(position);
+    if (line.size() > position.column()) {
+      buffer.DeleteCharacters(
+          Min(line.size() - position.column(), text.size()));
+    }
+  }
+  buffer.InsertText(text);
+}
+
+string GetCode(bool up, bool down, bool left, bool right, bool up_bold,
+               bool down_bold, bool left_bold, bool right_bold) {
+  if (simple_characters) {
+    int count =
+        (up ? 1 : 0) + (down ? 1 : 0) + (left ? 1 : 0) + (right ? 1 : 0);
+    if (!up && !down && !left && !right) {
+      return " ";
+    } else if (!up && !down) {
+      return "-";
+    } else if (!left && !right) {
+      return "|";
+    } else if (count == 2 && up && right) {
+      return "`";
+    } else if (count == 2 && down && right) {
+      return ",";
+    } else if (count == 2 && up && left) {
+      return "´";
+    } else if (count == 2 && down && left) {
+      return ".";
+    } else {
+      return "+";
+    }
+  }
+
+  if (up_bold && down_bold && left_bold && right_bold) {
+    return "╋";
+  } else if (up_bold && down_bold && left_bold && right) {
+    return "╉";
+  } else if (up_bold && down_bold && left && right_bold) {
+    return "╊";
+  } else if (up_bold && down && left_bold && right_bold) {
+    return "╇";
+  } else if (up && down_bold && left_bold && right_bold) {
+    return "╈";
+  }
+
+  if (up && down && left_bold && right_bold) {
+    return "┿";
+  } else if (up && down_bold && left && right_bold) {
+    return "╆";
+  } else if (up && down_bold && left_bold && right) {
+    return "╅";
+  } else if (up_bold && down && left && right_bold) {
+    return "╄";
+  } else if (up_bold && down && left_bold && right) {
+    return "╃";
+  } else if (up_bold && down_bold && left && right) {
+    return "╂";
+  }
+
+  if (up_bold && down && left && right) {
+    return "╀";
+  } else if (up && down_bold && left && right) {
+    return "╁";
+  } else if (up && down && left_bold && right) {
+    return "┽";
+  } else if (up && down && left && right_bold) {
+    return "┾";
+  }
+
+  if (up_bold && down_bold && left_bold) {
+    return "┫";
+  } else if (up_bold && down_bold && right_bold) {
+    return "┣";
+  } else if (up_bold && left_bold && right_bold) {
+    return "┻";
+  } else if (down_bold && left_bold && right_bold) {
+    return "┳";
+  }
+
+  if (up_bold && down_bold && left) {
+    return "┨";
+  } else if (up_bold && down_bold && right) {
+    return "┠";
+  } else if (up_bold && left_bold && right) {
+    return "┹";
+  } else if (up_bold && left_bold && down) {
+    return "┩";
+  } else if (up_bold && right_bold && left) {
+    return "┺";
+  } else if (up_bold && right_bold && down) {
+    return "┡";
+  } else if (down_bold && left_bold && up) {
+    return "┪";
+  } else if (down_bold && left_bold && right) {
+    return "┱";
+  } else if (down_bold && right_bold && up) {
+    return "┢";
+  } else if (down_bold && right_bold && left) {
+    return "┲";
+  } else if (left_bold && right_bold && up) {
+    return "┷";
+  } else if (left_bold && right_bold && down) {
+    return "┯";
+  }
+
+  if (up_bold && down && left) {
+    return "┦";
+  } else if (up_bold && down && right) {
+    return "┞";
+  } else if (up_bold && left && right) {
+    return "┸";
+  } else if (down_bold && up && left) {
+    return "┧";
+  } else if (down_bold && up && right) {
+    return "┟";
+  } else if (down_bold && left && right) {
+    return "┰";
+  } else if (left_bold && up && down) {
+    return "┥";
+  } else if (left_bold && up && right) {
+    return "┵";
+  } else if (left_bold && down && right) {
+    return "┭";
+  } else if (right_bold && up && down) {
+    return "┝";
+  } else if (right_bold && up && left) {
+    return "┶";
+  } else if (right_bold && down && left) {
+    return "┮";
+  }
+
+  if (up_bold && down_bold) {
+    return "┃";
+  } else if (up_bold && left_bold) {
+    return "┛";
+  } else if (up_bold && right_bold) {
+    return "┗";
+  } else if (down_bold && left_bold) {
+    return "┓";
+  } else if (down_bold && right_bold) {
+    return "┏";
+  } else if (left_bold && right_bold) {
+    return "━";
+  }
+
+  if (up_bold && down) {
+    return "╿";
+  } else if (up_bold && left) {
+    return "┚";
+  } else if (up_bold && right) {
+    return "┖";
+  } else if (down_bold && up) {
+    return "╽";
+  } else if (down_bold && left) {
+    return "┒";
+  } else if (down_bold && right) {
+    return "┎";
+  } else if (left_bold && up) {
+    return "┙";
+  } else if (left_bold && down) {
+    return "┑";
+  } else if (left_bold && right) {
+    return "╾";
+  } else if (right_bold && up) {
+    return "┕";
+  } else if (right_bold && down) {
+    return "┍";
+  } else if (right_bold && left) {
+    return "╼";
+  }
+
+  if (up && down && left && right) {
+    return "┼";
+  } else if (up && down && left) {
+    return "┤";
+  } else if (up && down && right) {
+    return "├";
+  } else if (up && left && right) {
+    return "┴";
+  } else if (down && left && right) {
+    return "┬";
+  } else if (up && down) {
+    return "│";
+  } else if (left && right) {
+    return "─";
+  } else if (up && left) {
+    return "╯";
+  } else if (up && right) {
+    return "╰";
+  } else if (down && left) {
+    return "╮";
+  } else if (down && right) {
+    return "╭";
+  } else if (up && down) {
+    return "│";
+  } else if (left && right) {
+    return "─";
+  } else if (up) {
+    return "╵";
+  } else if (down) {
+    return "╷";
+  }
+  if (left) {
+    return "╴";
+  } else if (right) {
+    return "╶";
+  }
+  return " ";
+}
+
+void GetPointsToDraw(ShapesLineColumnSet right, ShapesLineColumnSet down,
+                     ShapesLineColumnSet output) {
+  int i = 0;
+  while (i < right.size()) {
+    LineColumn point = right.get(i);
+    output.insert(point);
+    output.insert(LineColumn(point.line(), point.column() + 1));
+    i = i + 1;
+  }
+
+  i = 0;
+  while (i < down.size()) {
+    LineColumn point = down.get(i);
+    output.insert(point);
+    output.insert(LineColumn(point.line() + 1, point.column()));
+    i = i + 1;
+  }
+}
+
+bool IsMovingLeft(string c) {
+  return ("╴─-´╯.╮+┼┤┴┬╊╆╄╂╀╁┾┨┺┲┦┸┧┰┶┮┚┒╼").find(c, 0) != -1;
+}
+
+bool IsMovingLeftBold(string c) {
+  return ("╋╉╇╈┿╅╃┽┫┻┳┹┩┪┱┷┯┥┵┭┛┓━┙┑╾").find(c, 0) != -1;
+}
+
+bool IsMovingUp(string c) {
+  return ("│|`╰´╯+┼┤├┴╵╈┿╆╅╁┽┾┪┢┷┧┟┥┵┝┶╽┙┕").find(c, 0) != -1;
+}
+
+bool IsMovingUpBold(string c) {
+  return ("╋╉╊╇╄╃╂╀┫┣┻┨┠┹┩┺┡┦┞┸┃┛┗╿┚┖").find(c, 0) != -1;
+}
+
+bool IsMovingRight(string c) {
+  return ("╶─-`╰,╭+┼├┴┬╉╅╃╂╀╁┽┠┹┱┞┸┟┰┵┭┖┎╾").find(c, 0) != -1;
+}
+
+bool IsMovingRightBold(string c) {
+  return ("╋╊╇╈┿╆╄┾┣┻┳┺┡┢┲┷┯┝┶┮┗┏┕┍╼━").find(c, 0) != -1;
+}
+
+bool IsMovingDown(string c) {
+  return ("│|,╭.╮+┼┤├┬╷╇┿╄╃╀┽┾┩┡┯┦┞┥┭┝┮╿┑┍").find(c, 0) != -1;
+}
+
+bool IsMovingDownBold(string c) {
+  return ("╋╉╊╈╆╅╂╁┫┣┳┨┠┪┱┢┲┧┟┰┃┓┏╽┒┎").find(c, 0) != -1;
+}
+
+void DrawLineColumns(ShapesLineColumnSet line_column_right,
+                     ShapesLineColumnSet line_column_down, string code) {
+  ShapesLineColumnSet points = ShapesLineColumnSet();
+  GetPointsToDraw(line_column_right, line_column_down, points);
+  ShapesSetStatus("Points to draw: " + points.size().tostring());
+  int i = 0;
+  while (i < points.size()) {
+    LineColumn position = points.get(i);
+    string current_code = code;
+    if (current_code.empty()) {
+      string current_line = buffer.line(position.line());
+      string current_char = position.column() < current_line.size()
+                                ? current_line.substr(position.column(), 1)
+                                : " ";
+
+      bool left = IsMovingLeft(current_char);
+      bool left_bold = IsMovingLeftBold(current_char);
+      if (position.column() > 0 &&
+          line_column_right.contains(
+              LineColumn(position.line(), position.column() - 1))) {
+        if (delete_mode) {
+          left = false;
+          left_bold = false;
+        } else if (bold_mode) {
+          left_bold = true;
+        } else {
+          left = true;
+        }
+      }
+
+      bool up = IsMovingUp(current_char);
+      bool up_bold = IsMovingUpBold(current_char);
+      if (position.line() > 0 && line_column_down.contains(LineColumn(
+                                     position.line() - 1, position.column()))) {
+        if (delete_mode) {
+          up = false;
+          up_bold = false;
+        } else if (bold_mode) {
+          up_bold = true;
+        } else {
+          up = true;
+        }
+      }
+
+      bool right = IsMovingRight(current_char);
+      bool right_bold = IsMovingRightBold(current_char);
+      if (line_column_right.contains(position)) {
+        if (delete_mode) {
+          right = false;
+          right_bold = false;
+        } else if (bold_mode) {
+          right_bold = true;
+        } else {
+          right = true;
+        }
+      }
+
+      bool down = IsMovingDown(current_char);
+      bool down_bold = IsMovingDownBold(current_char);
+      if (line_column_down.contains(position)) {
+        if (delete_mode) {
+          down = false;
+          down_bold = false;
+        } else if (bold_mode) {
+          down_bold = true;
+        } else {
+          down = true;
+        }
+      }
+
+      current_code = GetCode(up, down, left, right, up_bold, down_bold,
+                             left_bold, right_bold);
+    }
+    DrawPosition(points.get(i), current_code);
+    i = i + 1;
+  }
+}
+
+// output_right contains LineColumn(i, j) if there's a line cross into
+// LineColumn(i, j + 1). output_down if there's a line crossing into
+// LineColumn(i + 1, j).
+void FindBoundariesLine(ShapesLine line, ShapesLineColumnSet output_right,
+                        ShapesLineColumnSet output_down) {
+  ShapesPoint a = line.start();
+  ShapesPoint b = line.end();
+  if (line.start().x() > line.end().x()) {
+    a = line.end();
+    b = line.start();
+  }
+  double delta_x = b.x() - a.x();
+  double delta_y = b.y() - a.y();
+  double aspect_ratio = total_columns / total_lines;
+  LineColumn start = PointToPosition(a);
+  LineColumn end = PointToPosition(b);
+  double delta_error = -delta_y / (delta_x * aspect_ratio);
+  double error = delta_error / 2.0;
+  while (start.column() < end.column() ||
+         (delta_error >= 0 ? start.line() < end.line()
+                           : start.line() > end.line())) {
+    if (error > 0.5) {
+      error = error - 1.0;
+      output_down.insert(start);
+      start = LineColumn(start.line() + 1, start.column());
+    } else if (error < -0.5) {
+      error = error + 1.0;
+      start = LineColumn(start.line() - 1, start.column());
+      output_down.insert(start);
+    } else {
+      error = error + delta_error;
+      output_right.insert(start);
+      start = LineColumn(start.line(), start.column() + 1);
+    }
+  }
+}
+
+void FindBoundariesSquare(ShapesLine line, ShapesLineColumnSet output_right,
+                          ShapesLineColumnSet output_down) {
+  FindBoundariesLine(
+      ShapesLine(line.start(), ShapesPoint(line.start().x(), line.end().y())),
+      output_right, output_down);
+  FindBoundariesLine(
+      ShapesLine(line.start(), ShapesPoint(line.end().x(), line.start().y())),
+      output_right, output_down);
+  FindBoundariesLine(
+      ShapesLine(line.end(), ShapesPoint(line.end().x(), line.start().y())),
+      output_right, output_down);
+  FindBoundariesLine(
+      ShapesLine(line.end(), ShapesPoint(line.start().x(), line.end().y())),
+      output_right, output_down);
+}
+
+void ShapesAddSquare() {
+  LineColumn position = buffer.position();
+  ShapesLine square = ShapesLine(last_point, PositionToPoint(position));
+  ShapesLineColumnSet output_right = ShapesLineColumnSet();
+  ShapesLineColumnSet output_down = ShapesLineColumnSet();
+  FindBoundariesSquare(square, output_right, output_down);
+  DrawLineColumns(output_right, output_down, "");
+  buffer.set_position(position);
+  last_point = square.end();
+}
+
+bool IsActualContent(string c) {
+  string additional = "()";
+  return buffer.word_characters().find(c, 0) != -1 ||
+         additional.find(c, 0) != -1;
+}
+
+string TrimLine(string line) {
+  int start = 0;
+  while (start < line.size() && !IsActualContent(line.substr(start, 1))) {
+    start = start + 1;
+  }
+  if (start == line.size()) {
+    return "";
+  }
+  int end = line.size() - 1;
+  while (end > start && !IsActualContent(line.substr(end, 1))) {
+    end = end - 1;
+  }
+  return line.substr(start, end - start + 1);
+}
+
+string GetSquareContents(LineColumn start, LineColumn end) {
+  string output = "";
+  while (start.line() <= end.line() && start.line() < buffer.line_count()) {
+    string line = buffer.line(start.line());
+    if (line.size() > start.column()) {
+      string part = TrimLine(line.substr(
+          start.column(), Min(end.column() + 1, line.size()) - start.column()));
+      output = output + (!output.empty() && !part.empty() ? " " : "") + part;
+    }
+    start = LineColumn(start.line() + 1, start.column());
+  }
+  return output;
+}
+
+string JoinLines(VectorString v) {
+  string output = "";
+  int i = 0;
+  while (i < v.size()) {
+    output = output + "[" + v.get(i) + "]";
+    i = i + 1;
+  }
+  return output;
+}
+
+string BuildPadding(int size, string c) {
+  string output = "";
+  while (size > 0) {
+    output = output + c;
+    size = size - 1;
+  }
+  return output;
+}
+
+void ShapesSquareCenter() {
+  LineColumn a = buffer.position();
+  LineColumn b = PointToPosition(last_point);
+  int border_delta = 1;
+  LineColumn start = LineColumn(Min(a.line(), b.line()) + border_delta,
+                                Min(a.column(), b.column()) + border_delta);
+  LineColumn end = LineColumn(Max(a.line(), b.line()) - border_delta,
+                              Max(a.column(), b.column()) - border_delta);
+  if (start.line() > end.line() || start.column() > end.column()) {
+    ShapesSetStatus("Square is too small.");
+    return;
+  }
+  int width = end.column() - start.column() + 1;
+  VectorString contents =
+      ShapesReflow(BreakWords(GetSquareContents(start, end)), width);
+  int i = 0;
+  int start_contents = (end.line() - start.line() + 1 - contents.size()) / 2;
+  while (start.line() + i <= end.line()) {
+    string input = "";
+    if (i >= start_contents && i - start_contents < contents.size()) {
+      input = contents.get(i - start_contents);
+      int padding = (width - input.size()) / 2;
+      input = BuildPadding(padding, " ") + input +
+              BuildPadding(width - padding - input.size(), " ");
+    } else {
+      input = BuildPadding(width, " ");
+    }
+    DrawPosition(LineColumn(start.line() + i, start.column()), input);
+    i = i + 1;
+  }
+  buffer.set_position(a);
+}
+
+void ShapesAddLine() {
+  LineColumn position = buffer.position();
+  ShapesLine line = ShapesLine(last_point, PositionToPoint(position));
+  ShapesLineColumnSet output_right = ShapesLineColumnSet();
+  ShapesLineColumnSet output_down = ShapesLineColumnSet();
+  FindBoundariesLine(line, output_right, output_down);
+  DrawLineColumns(output_right, output_down, "");
+  buffer.set_position(position);
+  last_point = line.end();
+}
+
+void ShapesToggleDeleteMode() {
+  delete_mode = !delete_mode;
+  ShapesSetStatus(delete_mode ? "Delete" : "Insert");
+}
+
+void ShapesToggleBoldMode() {
+  bold_mode = !bold_mode;
+  ShapesSetStatus(bold_mode ? "Bold" : "Normal");
+}
+
+void ShapesSet() {
+  ShapesSetStatus("Set target point.");
+  last_point = PositionToPoint(buffer.position());
+}
+
+buffer.AddBinding("sl", "shapes: line: draw", ShapesAddLine);
+buffer.AddBinding("sq", "shapes: square: draw", ShapesAddSquare);
+buffer.AddBinding("sc", "shapes: square: center contents", ShapesSquareCenter);
+buffer.AddBinding("sd", "shapes: delete_mode = !delete_mode",
+                  ShapesToggleDeleteMode);
+buffer.AddBinding("s=", "shapes: set point", ShapesSet);
+buffer.AddBinding("sb", "shapes: bold_mode = !bold_mode", ShapesToggleBoldMode);

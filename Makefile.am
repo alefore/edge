@@ -93,12 +93,16 @@ src/seek.h \
 src/send_end_of_file_command.cc \
 src/server.cc \
 src/set_variable_command.cc \
+src/shapes.cc \
+src/shapes.h \
 src/structure.cc \
 src/substring.cc \
 src/terminal.cc \
 src/transformation.cc \
 src/transformation_delete.cc \
 src/transformation_move.cc \
+src/vm/public/set.h \
+src/vm/public/vector.h \
 src/vm/internal/callbacks.cc \
 src/vm/internal/vm.cc \
 src/vm/internal/value.cc \

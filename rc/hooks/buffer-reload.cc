@@ -1,5 +1,6 @@
 #include "../editor_commands/cpp-mode"
 #include "../editor_commands/java-mode"
+#include "../editor_commands/lib/clang-format"
 #include "../editor_commands/lib/paths"
 #include "../editor_commands/lib/strings"
 

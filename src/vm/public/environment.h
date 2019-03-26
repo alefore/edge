@@ -12,8 +12,8 @@ using std::map;
 using std::unique_ptr;
 using std::wstring;
 
-class Value;
-class VMType;
+struct Value;
+struct VMType;
 class ObjectType;
 
 class Environment {

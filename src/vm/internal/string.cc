@@ -6,10 +6,15 @@
 #include "../public/environment.h"
 #include "../public/types.h"
 #include "../public/value.h"
+#include "../public/vector.h"
 #include "../public/vm.h"
 
 namespace afc {
 namespace vm {
+
+template <>
+const VMType VMTypeMapper<std::vector<wstring>*>::vmtype =
+    VMType::ObjectType(L"VectorString");
 
 template <typename ReturnType, typename... Args>
 void AddMethod(const wstring& name,
@@ -119,15 +124,7 @@ void RegisterStringType(Environment* environment) {
       string_type.get());
   environment->DefineType(L"string", std::move(string_type));
 
-  environment->Define(
-      L"tostring", Value::NewFunction({VMType::String(), VMType::Integer()},
-                                      [](vector<unique_ptr<Value>> args) {
-                                        CHECK_EQ(args.size(), 1);
-                                        CHECK_EQ(args[0]->type.type,
-                                                 VMType::VM_INTEGER);
-                                        return Value::NewString(
-                                            std::to_wstring(args[0]->integer));
-                                      }));
+  VMTypeMapper<std::vector<wstring>*>::Export(environment);
 }
 
 }  // namespace vm

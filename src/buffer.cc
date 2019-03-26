@@ -59,25 +59,6 @@ struct VMTypeMapper<editor::OpenBuffer*> {
 const VMType VMTypeMapper<editor::OpenBuffer*>::vmtype =
     VMType::ObjectType(L"Buffer");
 
-template <>
-struct VMTypeMapper<editor::LineColumn> {
-  static editor::LineColumn get(Value* value) {
-    return *static_cast<editor::LineColumn*>(value->user_value.get());
-  }
-
-  static Value::Ptr New(editor::LineColumn value) {
-    return Value::NewObject(
-        L"LineColumn",
-        shared_ptr<void>(new editor::LineColumn(value), [](void* v) {
-          delete static_cast<editor::LineColumn*>(v);
-        }));
-  }
-
-  static const VMType vmtype;
-};
-
-const VMType VMTypeMapper<editor::LineColumn>::vmtype =
-    VMType::ObjectType(L"LineColumn");
 }  // namespace vm
 namespace editor {
 namespace {
@@ -353,14 +334,16 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
       L"AddBinding",
       Value::NewFunction(
           {VMType::Void(), VMType::ObjectType(buffer.get()), VMType::String(),
-           VMType::Function({VMType::Void()})},
+           VMType::String(), VMType::Function({VMType::Void()})},
           [editor_state](vector<unique_ptr<Value>> args) {
-            CHECK_EQ(args.size(), 3u);
+            CHECK_EQ(args.size(), 4u);
             CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
             CHECK_EQ(args[1]->type, VMType::VM_STRING);
+            CHECK_EQ(args[2]->type, VMType::VM_STRING);
             auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
             CHECK(buffer != nullptr);
-            buffer->default_commands_->Add(args[1]->str, std::move(args[2]),
+            buffer->default_commands_->Add(args[1]->str, args[2]->str,
+                                           std::move(args[3]),
                                            &buffer->environment_);
             return Value::NewVoid();
           }));
@@ -1386,6 +1369,17 @@ void OpenBuffer::MaybeAdjustPositionCol() {
   }
 }
 
+void OpenBuffer::MaybeExtendLine(LineColumn position) {
+  CHECK_LT(position.line, contents_.size());
+  auto line = std::make_shared<Line>(*LineAt(position.line));
+  if (line->size() > position.column + 1) {
+    return;
+  }
+  wstring padding(position.column - line->size() + 1, L' ');
+  line->Append(Line(padding));
+  contents_.set_line(position.line, line);
+}
+
 void OpenBuffer::CheckPosition() {
   if (position().line >= contents_.size()) {
     set_position(LineColumn(contents_.size()));
@@ -1620,7 +1614,13 @@ bool OpenBuffer::SeekToLimit(Structure structure, Direction direction,
     *position = LineColumn();
   } else {
     position->line = min(lines_size() - 1, position->line);
-    position->column = min(LineAt(position->line)->size(), position->column);
+    if (position->column >= LineAt(position->line)->size()) {
+      if (Read(buffer_variables::extend_lines())) {
+        MaybeExtendLine(*position);
+      } else {
+        position->column = LineAt(position->line)->size();
+      }
+    }
   }
   switch (structure) {
     case BUFFER:
@@ -1737,7 +1737,13 @@ bool OpenBuffer::FindPartialRange(const Modifiers& modifiers,
   LineColumn position = initial_position;
   if (!empty()) {
     position.line = min(lines_size() - 1, position.line);
-    position.column = min(LineAt(position.line)->size(), position.column);
+    if (position.column > LineAt(position.line)->size()) {
+      if (Read(buffer_variables::extend_lines())) {
+        MaybeExtendLine(position);
+      } else {
+        position.column = LineAt(position.line)->size();
+      }
+    }
   }
   if (modifiers.direction == BACKWARDS) {
     Seek(contents_, &position).Backwards().WrappingLines().Once();

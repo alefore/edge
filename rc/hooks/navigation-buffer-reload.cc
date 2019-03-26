@@ -13,7 +13,7 @@ void SetDepthToZero() {
 void IncrementDepth() {
   navigation_buffer_depth = navigation_buffer_depth + 1;
   buffer.Reload();
-  SetStatus("We must go deeper (" + tostring(navigation_buffer_depth) + ")");
+  SetStatus("We must go deeper (" + navigation_buffer_depth.tostring() + ")");
 }
 
 void DecrementDepth() {
@@ -23,9 +23,9 @@ void DecrementDepth() {
   }
   navigation_buffer_depth = navigation_buffer_depth - 1;
   buffer.Reload();
-  SetStatus("Simplifying view (" + tostring(navigation_buffer_depth) + ")");
+  SetStatus("Simplifying view (" + navigation_buffer_depth.tostring() + ")");
 }
 
-buffer.AddBinding("sk", SetDepthToZero);
-buffer.AddBinding("sh", DecrementDepth);
-buffer.AddBinding("sl", IncrementDepth);
+buffer.AddBinding("sk", "navigation_depth := 0", SetDepthToZero);
+buffer.AddBinding("sh", "navigation_depth--", DecrementDepth);
+buffer.AddBinding("sl", "navigation_depth++", IncrementDepth);

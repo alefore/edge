@@ -157,6 +157,9 @@ class OpenBuffer {
 
   // Like AdjustLineColumn but for the current cursor.
   void MaybeAdjustPositionCol();
+  // If the line referenced is shorter than the position.column, extend it with
+  // spaces.
+  void MaybeExtendLine(LineColumn position);
 
   // Makes sure that the current line (position) is not greater than the number
   // of elements in contents().  Note that after this, it may still not be a

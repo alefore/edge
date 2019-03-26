@@ -15,7 +15,7 @@ namespace vm {
 using std::unique_ptr;
 
 class Expression;
-class Value;
+struct Value;
 
 template <class T>
 struct VMTypeMapper {};
@@ -47,7 +47,7 @@ struct VMTypeMapper<int> {
 
 template <>
 struct VMTypeMapper<double> {
-  static int get(Value* value) { return value->double_value; }
+  static double get(Value* value) { return value->double_value; }
 
   static Value::Ptr New(double value) { return Value::NewDouble(value); }
 
@@ -152,7 +152,7 @@ Value::Ptr NewCallback(std::function<ReturnType(Args...)> callback) {
                                           Trampoline* trampoline) {
     trampoline->Return(RunCallback<ReturnType, Args...>(callback, args));
   };
-  return std::move(callback_wrapper);
+  return callback_wrapper;
 }
 
 }  // namespace vm

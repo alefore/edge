@@ -160,7 +160,7 @@ class AutocompleteMode : public EditorMode {
   }
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
-    switch (c) {
+    switch (static_cast<int>(c)) {
       case '\t':
       case 'j':
       case 'l':
@@ -491,7 +491,7 @@ class InsertMode : public EditorMode {
   void ProcessInput(wint_t c, EditorState* editor_state) {
     auto buffer = options_.buffer;
     CHECK(buffer != nullptr);
-    switch (c) {
+    switch (static_cast<int>(c)) {
       case '\t':
         if (options_.start_completion()) {
           LOG(INFO) << "Completion has started, avoid inserting '\\t'.";
@@ -608,7 +608,7 @@ class RawInputTypeMode : public EditorMode {
   void ProcessInput(wint_t c, EditorState* editor_state) {
     bool old_literal = literal_;
     literal_ = false;
-    switch (c) {
+    switch (static_cast<int>(c)) {
       case Terminal::CHAR_EOF:
         line_buffer_.push_back(4);
         WriteLineBuffer(editor_state);
@@ -740,7 +740,11 @@ class RawInputTypeMode : public EditorMode {
 };
 
 void EnterInsertCharactersMode(InsertModeOptions options) {
-  options.buffer->MaybeAdjustPositionCol();
+  if (options.buffer->Read(buffer_variables::extend_lines())) {
+    options.buffer->MaybeExtendLine(options.buffer->position());
+  } else {
+    options.buffer->MaybeAdjustPositionCol();
+  }
   options.editor_state->SetStatus(L"type");
 
   auto handler = std::make_unique<InsertMode>(options);

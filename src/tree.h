@@ -10,7 +10,7 @@ namespace afc {
 namespace editor {
 
 template <typename Item>
-class Node;
+struct Node;
 template <typename Item>
 class Tree;
 

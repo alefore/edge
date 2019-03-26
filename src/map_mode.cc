@@ -37,7 +37,7 @@ class CommandFromFunction : public Command {
 
 }  // namespace
 
-struct EditorState;
+class EditorState;
 MapModeCommands::MapModeCommands()
     : commands_({std::make_shared<map<wstring, std::unique_ptr<Command>>>()}) {
   Add(L"?", NewHelpCommand(this, L"command mode"));
@@ -48,6 +48,10 @@ std::unique_ptr<MapModeCommands> MapModeCommands::NewChild() {
   output->commands_ = commands_;
   output->commands_.push_front(
       std::make_shared<map<wstring, std::unique_ptr<Command>>>());
+
+  // Override the parent's help command, so that bindings added to the child are
+  // visible.
+  output->Add(L"?", NewHelpCommand(output.get(), L"command mode"));
   return std::move(output);
 }
 
@@ -68,7 +72,8 @@ void MapModeCommands::Add(wstring name, std::unique_ptr<Command> value) {
   commands_.front()->insert({name, std::move(value)});
 }
 
-void MapModeCommands::Add(wstring name, std::unique_ptr<Value> value,
+void MapModeCommands::Add(wstring name, wstring description,
+                          std::unique_ptr<Value> value,
                           vm::Environment* environment) {
   CHECK(value != nullptr);
   CHECK_EQ(value->type.type, VMType::FUNCTION);
@@ -84,7 +89,7 @@ void MapModeCommands::Add(wstring name, std::unique_ptr<Value> value,
                              LOG(INFO) << "Done evaluating.";
                            });
                 },
-                L"C++ VM function"));
+                description));
 }
 
 void MapModeCommands::Add(wstring name, std::function<void()> callback,
