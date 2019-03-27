@@ -65,6 +65,35 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
   return it;
 }
 
+shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
+                                     OpenBuffer* history_buffer,
+                                     wstring filter) {
+  CHECK(!filter.empty());
+  CHECK(history_buffer != nullptr);
+  auto name = L"- history filter: " + history_buffer->name() + L": " + filter;
+  auto element = editor_state->buffers()->insert({name, nullptr}).first;
+  if (element->second == nullptr) {
+    auto filter_buffer = std::make_shared<OpenBuffer>(editor_state, name);
+    filter_buffer->set_bool_variable(buffer_variables::allow_dirty_delete(),
+                                     true);
+    filter_buffer->set_bool_variable(buffer_variables::show_in_buffers_list(),
+                                     false);
+    filter_buffer->set_bool_variable(
+        buffer_variables::delete_into_paste_buffer(), false);
+    filter_buffer->set_bool_variable(buffer_variables::atomic_lines(), true);
+
+    std::set<wstring> previous_lines;
+    history_buffer->ForEachLine([&](const Line& line) {
+      wstring s = line.ToString();
+      if (s.find(filter) != wstring::npos && previous_lines.insert(s).second) {
+        filter_buffer->AppendLine(editor_state, line.contents());
+      }
+    });
+    element->second = std::move(filter_buffer);
+  }
+  return element->second;
+}
+
 shared_ptr<OpenBuffer> GetPromptBuffer(EditorState* editor_state) {
   auto& element =
       *editor_state->buffers()->insert(make_pair(L"- prompt", nullptr)).first;
@@ -84,34 +113,34 @@ shared_ptr<OpenBuffer> GetPromptBuffer(EditorState* editor_state) {
 
 class HistoryScrollBehavior : public ScrollBehavior {
  public:
-  HistoryScrollBehavior(wstring history_file, wstring prompt)
-      : history_file_(history_file), prompt_(prompt) {}
+  HistoryScrollBehavior(std::shared_ptr<OpenBuffer> history, wstring prompt)
+      : history_(std::move(history)), prompt_(std::move(prompt)) {}
 
-  void Up(EditorState* editor_state, OpenBuffer* buffer) const override {
+  void Up(EditorState* editor_state, OpenBuffer* buffer) override {
     ScrollHistory(editor_state, buffer, -1);
   }
 
-  void Down(EditorState* editor_state, OpenBuffer* buffer) const override {
+  void Down(EditorState* editor_state, OpenBuffer* buffer) override {
     ScrollHistory(editor_state, buffer, +1);
   }
 
-  void Left(EditorState* editor_state, OpenBuffer* buffer) const override {
-    ScrollBehavior::Default()->Left(editor_state, buffer);
+  void Left(EditorState* editor_state, OpenBuffer* buffer) override {
+    DefaultScrollBehavior().Left(editor_state, buffer);
     UpdateStatus(editor_state, buffer, prompt_);
   }
 
-  void Right(EditorState* editor_state, OpenBuffer* buffer) const override {
-    ScrollBehavior::Default()->Right(editor_state, buffer);
+  void Right(EditorState* editor_state, OpenBuffer* buffer) override {
+    DefaultScrollBehavior().Right(editor_state, buffer);
     UpdateStatus(editor_state, buffer, prompt_);
   }
 
-  void Begin(EditorState* editor_state, OpenBuffer* buffer) const override {
-    ScrollBehavior::Default()->Begin(editor_state, buffer);
+  void Begin(EditorState* editor_state, OpenBuffer* buffer) override {
+    DefaultScrollBehavior().Begin(editor_state, buffer);
     UpdateStatus(editor_state, buffer, prompt_);
   }
 
-  void End(EditorState* editor_state, OpenBuffer* buffer) const override {
-    ScrollBehavior::Default()->End(editor_state, buffer);
+  void End(EditorState* editor_state, OpenBuffer* buffer) override {
+    DefaultScrollBehavior().End(editor_state, buffer);
     UpdateStatus(editor_state, buffer, prompt_);
   }
 
@@ -121,21 +150,21 @@ class HistoryScrollBehavior : public ScrollBehavior {
     auto insert =
         std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
 
-    auto history = GetHistoryBuffer(editor_state, history_file_);
-    if (history->second != nullptr && history->second->contents()->size() > 1) {
+    if (history_ != nullptr && history_->contents()->size() > 1) {
       auto previous_buffer = editor_state->current_buffer()->second;
-      editor_state->set_current_buffer(history);
-      history->second->set_mode(previous_buffer->ResetMode());
+      auto history_it = editor_state->buffers()->find(history_->name());
+      CHECK(history_it != editor_state->buffers()->end());
+      editor_state->set_current_buffer(history_it);
+      history_->set_mode(previous_buffer->ResetMode());
 
-      LineColumn position = history->second->position();
+      LineColumn position = history_->position();
       position.line += delta;
-      if (position.line <= history->second->contents()->size() &&
-          position.line > 0) {
-        history->second->set_position(position);
+      if (position.line <= history_->contents()->size() && position.line > 0) {
+        history_->set_position(position);
       }
-      if (history->second->current_line() != nullptr) {
+      if (history_->current_line() != nullptr) {
         insert->AppendToLastLine(editor_state,
-                                 history->second->current_line()->contents());
+                                 history_->current_line()->contents());
       }
     }
 
@@ -147,8 +176,36 @@ class HistoryScrollBehavior : public ScrollBehavior {
     UpdateStatus(editor_state, buffer, prompt_);
   }
 
-  const wstring history_file_;
+  std::shared_ptr<OpenBuffer> history_;
   const wstring prompt_;
+};
+
+class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
+ public:
+  HistoryScrollBehaviorFactory(EditorState* editor_state, wstring prompt,
+                               std::shared_ptr<OpenBuffer> history,
+                               std::shared_ptr<OpenBuffer> buffer)
+      : editor_state_(editor_state),
+        prompt_(std::move(prompt)),
+        history_(std::move(history)),
+        buffer_(std::move(buffer)) {}
+
+  std::unique_ptr<ScrollBehavior> Build() override {
+    auto history = history_;
+    if (buffer_->lines_size() > 0 && !buffer_->LineAt(0)->empty()) {
+      history = FilterHistory(editor_state_, history.get(),
+                              buffer_->LineAt(0)->ToString());
+    }
+
+    history->set_current_position_line(history->contents()->size());
+    return std::make_unique<HistoryScrollBehavior>(history, prompt_);
+  }
+
+ private:
+  EditorState* const editor_state_;
+  const wstring prompt_;
+  const std::shared_ptr<OpenBuffer> history_;
+  const std::shared_ptr<OpenBuffer> buffer_;
 };
 
 class LinePromptCommand : public Command {
@@ -175,9 +232,8 @@ using std::unique_ptr;
 
 void Prompt(EditorState* editor_state, PromptOptions options) {
   CHECK(options.handler);
-  auto history = GetHistoryBuffer(editor_state, options.history_file);
-  history->second->set_current_position_line(
-      history->second->contents()->size());
+  auto history = GetHistoryBuffer(editor_state, options.history_file)->second;
+  history->set_current_position_line(history->contents()->size());
 
   auto buffer = GetPromptBuffer(editor_state);
   Modifiers original_modifiers = editor_state->modifiers();
@@ -202,8 +258,9 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
     UpdateStatus(editor_state, buffer.get(), options.prompt);
   };
 
-  insert_mode_options.scroll_behavior = std::make_shared<HistoryScrollBehavior>(
-      options.history_file, options.prompt);
+  insert_mode_options.scroll_behavior =
+      std::make_unique<HistoryScrollBehaviorFactory>(
+          editor_state, options.prompt, history, buffer);
 
   insert_mode_options.escape_handler = [editor_state, options, original_buffer,
                                         original_modifiers]() {

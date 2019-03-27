@@ -48,12 +48,6 @@ If the buffer doesn't fit in the screen, don't show the scroll bar (or show it i
 
 ## Prompt
 
-Improve the history functionality for commands.
-  For "af": Perhaps have a directory with a file per-command, that keeps all history for that command.
-    The command would be the basename of the first token given to an "af" command?
-    It may back-fire with some commands (shell commands, like "for a in $(seq 0 10); do echo $a; done"), but it's probably OK.
-    Then improve somehow the completion or history iteration logic?
-
 ## Commands
 
 Improve "af":
