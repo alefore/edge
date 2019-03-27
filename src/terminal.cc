@@ -110,7 +110,8 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   margin_lines = min(margin_lines, static_cast<size_t>(screen_lines) / 2 - 1);
   size_t view_start = static_cast<size_t>(
       max(0, buffer->Read(buffer_variables::view_start_line())));
-  if (view_start > line - min(margin_lines, line)) {
+  if (view_start > line - min(margin_lines, line) &&
+      (buffer->child_pid() != -1 || buffer->fd() == -1)) {
     buffer->set_int_variable(buffer_variables::view_start_line(),
                              line - min(margin_lines, line));
     editor_state->ScheduleRedraw();
