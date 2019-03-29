@@ -18,6 +18,13 @@ string BaseCommand(string command) {
 
 buffer.set_editor_commands_path("~/.edge/editor_commands/");
 
+// It would be ideal to not have to do this, but since currently all cursors
+// but the main one get reshuffled on reload, it's probably best to just remove
+// them.
+if (!buffer.reload_on_display()) {
+  editor.DestroyOtherCursors();
+}
+
 string path = buffer.path();
 if (path == "") {
   string command = buffer.command();
