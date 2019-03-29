@@ -70,8 +70,6 @@ Make follow_end_of_file the default.
 
 atomic_lines should probably also apply to multiple cursors.
 
-Add a variable `children-path` or such, that can override the directory used by child (fork) commands.
-
 ## VM
 
 Add support for templates, so that we can do "vector<string>".
