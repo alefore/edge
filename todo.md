@@ -33,6 +33,9 @@ Add an autocomplete mode that autocompletes based on the path.
 Improve logic around wrap_long_lines.
   Cursors (other than active cursor) are off.
 
+Reloading the file should reset the cursors.
+  Since it shifts them to the top anyway.
+
 ## Navigation
 
 Improve "g", the current behavior is kind of annoying:
