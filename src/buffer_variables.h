@@ -40,6 +40,7 @@ EdgeVariable<wstring>* word_characters();
 EdgeVariable<wstring>* path_characters();
 EdgeVariable<wstring>* path();
 EdgeVariable<wstring>* pts_path();
+EdgeVariable<wstring>* children_path();
 EdgeVariable<wstring>* command();
 EdgeVariable<wstring>* editor_commands_path();
 EdgeVariable<wstring>* line_prefix_characters();

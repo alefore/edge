@@ -67,10 +67,12 @@ map<wstring, wstring> LoadEnvironmentVariables(
 class CommandBuffer : public OpenBuffer {
  public:
   CommandBuffer(EditorState* editor_state, const wstring& name,
-                const wstring& command, map<wstring, wstring> environment)
+                const wstring& command, map<wstring, wstring> environment,
+                const wstring& children_path)
       : OpenBuffer(editor_state, name),
-        environment_(LoadEnvironmentVariables(
-            editor_state->edge_path(), command, std::move(environment))) {}
+        environment_(LoadEnvironmentVariables(editor_state->edge_path(),
+                                              command, std::move(environment))),
+        children_path_(children_path) {}
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
     int pipefd_out[2];
@@ -127,6 +129,8 @@ class CommandBuffer : public OpenBuffer {
       return;
     }
     if (child_pid == 0) {
+      LOG(INFO) << "I am the children. Life is beautiful!";
+
       close(pipefd_out[parent_fd]);
       close(pipefd_err[parent_fd]);
 
@@ -149,6 +153,12 @@ class CommandBuffer : public OpenBuffer {
       if (pipefd_err[child_fd] != 0 && pipefd_err[child_fd] != 1 &&
           pipefd_err[child_fd] != 2) {
         close(pipefd_err[child_fd]);
+      }
+
+      if (!children_path_.empty() &&
+          chdir(ToByteString(children_path_).c_str()) == -1) {
+        LOG(FATAL) << children_path_
+                   << ": chdir failed: " << string(strerror(errno));
       }
 
       map<string, string> environment;
@@ -253,12 +263,14 @@ class CommandBuffer : public OpenBuffer {
   }
 
   const map<wstring, wstring> environment_;
+  const wstring children_path_;
   time_t time_start_ = 0;
   time_t time_end_ = 0;
 };
 
 void RunCommand(const wstring& name, const wstring& input,
-                map<wstring, wstring> environment, EditorState* editor_state) {
+                map<wstring, wstring> environment, EditorState* editor_state,
+                wstring children_path) {
   if (input.empty()) {
     if (editor_state->has_current_buffer()) {
       editor_state->current_buffer()->second->ResetMode();
@@ -274,22 +286,30 @@ void RunCommand(const wstring& name, const wstring& input,
   options.enter = !editor_state->has_current_buffer() ||
                   !editor_state->current_buffer()->second->Read(
                       buffer_variables::commands_background_mode());
+  options.children_path = children_path;
   options.environment = std::move(environment);
   ForkCommand(editor_state, options);
 }
 
 void RunCommandHandler(const wstring& input, EditorState* editor_state,
-                       size_t i, size_t n) {
+                       size_t i, size_t n, wstring children_path) {
   map<wstring, wstring> environment = {{L"EDGE_RUN", std::to_wstring(i)},
                                        {L"EDGE_RUNS", std::to_wstring(n)}};
-  wstring name = L"$";
+  wstring name = children_path + L"$";
   if (n > 1) {
     for (auto& it : environment) {
       name += L" " + it.first + L"=" + it.second;
     }
   }
   name += L" " + input;
-  RunCommand(name, input, environment, editor_state);
+  RunCommand(name, input, environment, editor_state, std::move(children_path));
+}
+
+wstring GetChildrenPath(EditorState* editor_state) {
+  return editor_state->has_current_buffer()
+             ? editor_state->current_buffer()->second->Read(
+                   buffer_variables::children_path())
+             : L"";
 }
 
 class ForkEditorCommand : public Command {
@@ -300,10 +320,12 @@ class ForkEditorCommand : public Command {
     switch (editor_state->structure()) {
       case CHAR: {
         PromptOptions options;
-        options.prompt = L"$ ";
+        wstring children_path = GetChildrenPath(editor_state);
+        options.prompt = children_path + L"$ ";
         options.history_file = L"commands";
-        options.handler = [](const wstring& name, EditorState* editor_state) {
-          RunCommandHandler(name, editor_state, 0, 1);
+        options.handler = [children_path](const wstring& name,
+                                          EditorState* editor_state) {
+          RunCommandHandler(name, editor_state, 0, 1, children_path);
         };
         Prompt(editor_state, options);
       } break;
@@ -313,10 +335,12 @@ class ForkEditorCommand : public Command {
             editor_state->current_buffer()->second->current_line() == nullptr) {
           return;
         }
+        auto children_path = GetChildrenPath(editor_state);
         auto line =
             editor_state->current_buffer()->second->current_line()->ToString();
         for (size_t i = 0; i < editor_state->repetitions(); ++i) {
-          RunCommandHandler(line, editor_state, i, editor_state->repetitions());
+          RunCommandHandler(line, editor_state, i, editor_state->repetitions(),
+                            children_path);
         }
       } break;
 
@@ -339,7 +363,8 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
   auto it = editor_state->buffers()->insert(make_pair(buffer_name, nullptr));
   if (it.second) {
     it.first->second = std::make_shared<CommandBuffer>(
-        editor_state, buffer_name, options.command, options.environment);
+        editor_state, buffer_name, options.command, options.environment,
+        options.children_path);
     it.first->second->set_string_variable(buffer_variables::command(),
                                           options.command);
     it.first->second->set_string_variable(buffer_variables::path(), L"");
@@ -361,7 +386,8 @@ std::unique_ptr<Command> NewForkCommand() {
 
 void RunCommandHandler(const wstring& input, EditorState* editor_state,
                        map<wstring, wstring> environment) {
-  RunCommand(L"$ " + input, input, environment, editor_state);
+  RunCommand(L"$ " + input, input, environment, editor_state,
+             GetChildrenPath(editor_state));
 }
 
 void RunMultipleCommandsHandler(const wstring& input,
@@ -374,7 +400,8 @@ void RunMultipleCommandsHandler(const wstring& input,
   auto buffer = editor_state->current_buffer()->second;
   buffer->ForEachLine([editor_state, input](wstring arg) {
     map<wstring, wstring> environment = {{L"ARG", arg}};
-    RunCommand(L"$ " + input + L" " + arg, input, environment, editor_state);
+    RunCommand(L"$ " + input + L" " + arg, input, environment, editor_state,
+               GetChildrenPath(editor_state));
   });
 }
 
