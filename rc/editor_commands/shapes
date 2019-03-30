@@ -587,12 +587,16 @@ void ShapesSquareCenter() {
   buffer.set_position(a);
 }
 
-void ShapesAddLine() {
-  LineColumn position = buffer.position();
+void ShapesAddLineToPosition(LineColumn a, LineColumn b) {
   SetLineColumn output_right = SetLineColumn();
   SetLineColumn output_down = SetLineColumn();
-  FindBoundariesLine(source, position, output_right, output_down);
+  FindBoundariesLine(a, b, output_right, output_down);
   DrawLineColumns(output_right, output_down, "");
+}
+
+void ShapesAddLine() {
+  LineColumn position = buffer.position();
+  ShapesAddLineToPosition(position, source);
   buffer.set_position(position);
   source = position;
 }
@@ -623,7 +627,8 @@ int GetDiagramInputLinesCount() {
   return i;
 }
 
-SetString GetDiagramNouns(int lines) {
+VectorString GetDiagramNouns(int lines) {
+  // Use a set to eliminate repetitions.
   SetString nouns = SetString();
   int i = 0;
   while (i < lines) {
@@ -636,16 +641,54 @@ SetString GetDiagramNouns(int lines) {
       if (colon == -1) {
         nouns.insert(line);
       } else {
-        nouns.insert(line.substr(colon + 1, line.size() - (colon + 1)));
+        nouns.insert(
+            SkipSpaces(line.substr(colon + 1, line.size() - (colon + 1))));
       }
     }
     i = i + 1;
   }
 
-  return nouns;
+  i = 0;
+  VectorString output = VectorString();
+  while (i < nouns.size()) {
+    output.push_back(nouns.get(i));
+    i = i + 1;
+  }
+
+  return output;
 }
 
-int GetMaxNounWidth(SetString nouns) {
+VectorInt DiagramGetEdges(int lines, string a, VectorString nouns) {
+  string source = "";
+  SetString edges = SetString();
+  int i = 0;
+  while (i < lines) {
+    string line = buffer.line(i);
+    if (line.substr(0, 1) != " ") {
+      source = line;
+    } else if (source == a) {
+      line = SkipSpaces(line);
+      int colon = line.find(":", 0);
+      if (colon != -1) {
+        line = SkipSpaces(line.substr(colon + 1, line.size() - (colon + 1)));
+      }
+      edges.insert(line);
+    }
+    i = i + 1;
+  }
+
+  VectorInt output = VectorInt();
+  int i = 0;
+  while (i < nouns.size()) {
+    if (edges.contains(nouns.get(i))) {
+      output.push_back(i);
+    }
+    i = i + 1;
+  }
+  return output;
+}
+
+int GetMaxNounWidth(VectorString nouns) {
   int output = 0;
   int i = 0;
   while (i < nouns.size()) {
@@ -655,7 +698,7 @@ int GetMaxNounWidth(SetString nouns) {
   return output;
 }
 
-int GetMaxNounSize(SetString nouns) {
+int GetMaxNounSize(VectorString nouns) {
   int output = 0;
   int i = 0;
   while (i < nouns.size()) {
@@ -694,13 +737,63 @@ VectorLineColumn DiagramGetPositions(int nouns) {
   return output;
 }
 
-void DrawNouns(SetString nouns, int column_width, int lines_per_noun) {
+LineColumn DiagramPositionForNoun(int start, int i, int column_width,
+                                  int lines_per_noun) {
+  int row = i / 3;
+  int column = i - row * 3;
+  return LineColumn(start + (row * lines_per_noun), column_width * column);
+}
+
+void DiagramDrawEdge(int start, VectorString nouns, int i, int j,
+                     int column_width, int lines_per_noun) {
+  LineColumn position_i =
+      DiagramPositionForNoun(start, i, column_width, lines_per_noun);
+  LineColumn position_j =
+      DiagramPositionForNoun(start, j, column_width, lines_per_noun);
+
+  VectorString noun_lines_i = NounLines(nouns.get(i));
+  VectorString noun_lines_j = NounLines(nouns.get(j));
+
+  ShapesAddLineToPosition(
+      LineColumn(
+          position_i.line() + (position_i.line() >= position_j.line()
+                                   ? 0
+                                   : noun_lines_i.size() + 2),
+          position_i.column() + (position_i.column() >= position_j.column()
+                                     ? 0
+                                     : NounWidth(noun_lines_i))),
+
+      LineColumn(
+          position_j.line() + (position_j.line() >= position_i.line()
+                                   ? 0
+                                   : noun_lines_j.size() + 2),
+          position_j.column() + (position_j.column() >= position_i.column()
+                                     ? 0
+                                     : NounWidth(noun_lines_j))));
+}
+
+void DiagramDrawEdges(int lines, int start, VectorString nouns,
+                      int column_width, int lines_per_noun) {
+  int i = 0;
+  while (i < nouns.size()) {
+    VectorInt edges = DiagramGetEdges(lines, nouns.get(i), nouns);
+    int j = 0;
+    while (j < edges.size()) {
+      SetStatus("Connected: " + nouns.get(i) + "->" + nouns.get(j));
+      DiagramDrawEdge(start, nouns, i, edges.get(j), column_width,
+                      lines_per_noun);
+      j = j + 1;
+    }
+    i = i + 1;
+  }
+}
+
+void DrawNouns(int start, VectorString nouns, int column_width,
+               int lines_per_noun) {
   int columns = 3;
 
   int row = 0;
   int column = 0;
-
-  int start = buffer.position().line();
 
   int noun = 0;
   SetStatus("Writing nouns");
@@ -735,11 +828,15 @@ void DrawNouns(SetString nouns, int column_width, int lines_per_noun) {
 
 void ShapesDrawDiagramInner() {
   int lines = GetDiagramInputLinesCount();
-  SetString nouns = GetDiagramNouns(lines);
+  VectorString nouns = GetDiagramNouns(lines);
 
   buffer.set_position(LineColumn(buffer.line_count(), 0));
 
-  DrawNouns(nouns, GetMaxNounWidth(nouns) + 6, GetMaxNounSize(nouns) + 6);
+  int start = buffer.position().line();
+  int column_width = GetMaxNounWidth(nouns) + 6;
+  int row_width = GetMaxNounSize(nouns) + 6;
+  DrawNouns(start, nouns, column_width, row_width);
+  DiagramDrawEdges(lines, start, nouns, column_width, row_width);
 }
 
 void ShapesDrawDiagram() { ShapesDrawDiagramInner(); }
