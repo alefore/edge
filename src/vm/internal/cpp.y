@@ -67,9 +67,11 @@ statement(OUT) ::= function_declaration_params(FUNC)
     const vector<wstring> argument_names(FUNC->argument_names);
 
     unique_ptr<Value> value(new Value(FUNC->type));
-    value->callback = [compilation, body, func_environment, argument_names](
+    auto name = FUNC->name;
+    value->callback = [compilation, name, body, func_environment, argument_names](
         vector<unique_ptr<Value>> args, Trampoline* trampoline) {
-      CHECK_EQ(args.size(), argument_names.size());
+      CHECK_EQ(args.size(), argument_names.size())
+          << "Invalid number of arguments for function: " << name;
       for (size_t i = 0; i < args.size(); i++) {
         func_environment->Define(argument_names[i], std::move(args[i]));
       }
