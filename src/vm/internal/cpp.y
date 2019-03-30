@@ -298,93 +298,6 @@ expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
   delete NAME;
 }
 
-expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
-  if (OBJ == nullptr || ARGS == nullptr) {
-    OUT = nullptr;
-  } else {
-    wstring object_type_name;
-    switch (OBJ->type().type) {
-      case VMType::VM_STRING:
-        object_type_name = L"string";
-        break;
-      case VMType::VM_BOOLEAN:
-        object_type_name = L"bool";
-        break;
-      case VMType::VM_DOUBLE:
-        object_type_name = L"double";
-        break;
-      case VMType::VM_INTEGER:
-        object_type_name = L"int";
-        break;
-      case VMType::OBJECT_TYPE:
-        object_type_name = OBJ->type().object_type;
-        break;
-      default:
-        break;
-    }
-    const ObjectType* object_type = object_type_name.empty()
-        ? nullptr
-        : compilation->environment->LookupObjectType(object_type_name);
-    if (object_type_name.empty()) {
-      compilation->errors.push_back(
-          L"Unable to call methods on primitive type: \""
-          + OBJ->type().ToString() + L"\"");
-      OUT = nullptr;
-    } else if (object_type == nullptr) {
-      compilation->errors.push_back(
-          L"Unknown type: \"" + OBJ->type().ToString() + L"\"");
-      OUT = nullptr;
-    } else {
-      auto field = object_type->LookupField(FIELD->str);
-      if (field == nullptr) {
-        compilation->errors.push_back(
-            L"Unknown method: \"" + object_type->ToString() + L"::"
-            + FIELD->str + L"\"");
-        OUT = nullptr;
-      } else if (field->type.type_arguments.size() != 2 + ARGS->size()) {
-        compilation->errors.push_back(
-            L"Invalid number of arguments provided for method \""
-            + object_type->ToString() + L"::" + FIELD->str + L"\": Expected "
-            + to_wstring(field->type.type_arguments.size() - 2) + L" but found "
-            + to_wstring(ARGS->size()));
-        OUT = nullptr;
-      } else {
-        assert(field->type.type_arguments[1] == OBJ->type());
-        size_t argument = 0;
-        while (argument < ARGS->size()
-               && (field->type.type_arguments[2 + argument]
-                   == ARGS->at(argument)->type())) {
-          argument++;
-        }
-        if (argument < ARGS->size()) {
-          compilation->errors.push_back(
-              L"Type mismatch in argument " + to_wstring(argument)
-              + L" to method \"" + object_type->ToString() + L"::" + FIELD->str
-              + L"\": Expected \""
-              + field->type.type_arguments[2 + argument].ToString()
-              + L"\" but found \"" + ARGS->at(argument)->type().ToString()
-              + L"\"");
-          OUT = nullptr;
-        } else {
-          unique_ptr<Value> field_copy(new Value(field->type.type));
-          *field_copy = *field;
-          std::vector<std::unique_ptr<Expression>> args;
-          args.emplace_back(OBJ);
-          OBJ = nullptr;
-          for (auto& arg : *ARGS) {
-            args.push_back(std::move(arg));
-          }
-          CHECK(field_copy != nullptr);
-          OUT = NewFunctionCall(NewConstantExpression(std::move(field_copy)),
-                                std::move(args)).release();
-        }
-      }
-    }
-  }
-  delete FIELD;
-  delete ARGS;
-}
-
 expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
   if (B == nullptr || ARGS == nullptr) {
     OUT = nullptr;
@@ -962,4 +875,114 @@ expr(OUT) ::= SYMBOL(S). {
   assert(S->type.type == VMType::VM_SYMBOL);
   OUT = NewVariableLookup(compilation, S->str).release();
   delete S;
+}
+
+expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD). {
+  if (OBJ == nullptr) {
+    OUT = nullptr;
+  } else {
+    wstring object_type_name;
+    switch (OBJ->type().type) {
+      case VMType::VM_STRING:
+        object_type_name = L"string";
+        break;
+      case VMType::VM_BOOLEAN:
+        object_type_name = L"bool";
+        break;
+      case VMType::VM_DOUBLE:
+        object_type_name = L"double";
+        break;
+      case VMType::VM_INTEGER:
+        object_type_name = L"int";
+        break;
+      case VMType::OBJECT_TYPE:
+        object_type_name = OBJ->type().object_type;
+        break;
+      default:
+        break;
+    }
+    const ObjectType* object_type = object_type_name.empty()
+        ? nullptr
+        : compilation->environment->LookupObjectType(object_type_name);
+    if (object_type_name.empty()) {
+      compilation->errors.push_back(
+          L"Unable to find methods on primitive type: \""
+          + OBJ->type().ToString() + L"\"");
+      OUT = nullptr;
+    } else if (object_type == nullptr) {
+      compilation->errors.push_back(
+          L"Unknown type: \"" + OBJ->type().ToString() + L"\"");
+      OUT = nullptr;
+    } else {
+      auto field = object_type->LookupField(FIELD->str);
+      if (field == nullptr) {
+        compilation->errors.push_back(
+            L"Unknown method: \"" + object_type->ToString() + L"::"
+            + FIELD->str + L"\"");
+        OUT = nullptr;
+      } else {
+        // When evaluated, evaluates first `obj_expr` and then returns a
+        // callback that wraps `delegate`, inserting the value that `obj_expr`
+        // evaluated to.
+        class BindObjectExpression : public Expression {
+         public:
+          BindObjectExpression(std::unique_ptr<Expression> obj_expr,
+                               Value* delegate)
+              : type_(
+                    [=]() {
+                      auto output = std::make_shared<VMType>(delegate->type);
+                      output->type_arguments.erase(
+                          output->type_arguments.begin() + 1);
+                      return output;
+                    }()),
+                obj_expr_(std::move(obj_expr)),
+                delegate_(delegate) {}
+
+          const VMType& type() { return *type_; }
+
+          std::unique_ptr<Expression> Clone() override {
+            return std::make_unique<BindObjectExpression>(obj_expr_->Clone(),
+                                                          delegate_);
+          }
+
+          void Evaluate(Trampoline* evaluation) override {
+            auto shared_type = type_;
+            auto shared_obj_expr = obj_expr_;
+            auto shared_delegate = delegate_;
+            evaluation->Bounce(
+                shared_obj_expr.get(),
+                [shared_type, shared_obj_expr, shared_delegate](
+                    Value::Ptr obj, Trampoline* trampoline) {
+                  // TODO: Avoid shared_ptr and Clone below.
+                  std::shared_ptr<Value> obj_shared = std::move(obj);
+                  trampoline->Continue(Value::NewFunction(
+                      shared_type->type_arguments,
+                      [obj_shared, shared_delegate](
+                          std::vector<Value::Ptr> args,
+                          Trampoline* trampoline) {
+                        args.emplace(args.begin(),
+                                     std::make_unique<Value>(*obj_shared));
+                        shared_delegate->callback(std::move(args),
+                                                  trampoline);
+                      }));
+                });
+          }
+
+         private:
+          const std::shared_ptr<VMType> type_;
+          const std::shared_ptr<Expression> obj_expr_;
+          Value* const delegate_;
+        };
+
+        CHECK(field->type.type == VMType::FUNCTION);
+        CHECK_GE(field->type.type_arguments.size(), 2);
+        CHECK_EQ(field->type.type_arguments[1], OBJ->type());
+
+        OUT = std::make_unique<BindObjectExpression>(
+            OBJ->Clone(), field).release();
+        OBJ = nullptr;
+      }
+    }
+  }
+  delete FIELD;
 }
