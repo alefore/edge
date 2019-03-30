@@ -4,6 +4,7 @@
 
 #include "../public/callbacks.h"
 #include "../public/environment.h"
+#include "../public/set.h"
 #include "../public/types.h"
 #include "../public/value.h"
 #include "../public/vector.h"
@@ -15,6 +16,10 @@ namespace vm {
 template <>
 const VMType VMTypeMapper<std::vector<wstring>*>::vmtype =
     VMType::ObjectType(L"VectorString");
+
+template <>
+const VMType VMTypeMapper<std::set<wstring>*>::vmtype =
+    VMType::ObjectType(L"SetString");
 
 template <typename ReturnType, typename... Args>
 void AddMethod(const wstring& name,
@@ -125,6 +130,7 @@ void RegisterStringType(Environment* environment) {
   environment->DefineType(L"string", std::move(string_type));
 
   VMTypeMapper<std::vector<wstring>*>::Export(environment);
+  VMTypeMapper<std::set<wstring>*>::Export(environment);
 }
 
 }  // namespace vm
