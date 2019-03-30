@@ -6,7 +6,7 @@
 
 %left COMMA.
 %left QUESTION_MARK.
-%left EQ PLUS_EQ.
+%left EQ PLUS_EQ MINUS_EQ TIMES_EQ DIVIDE_EQ.
 %left OR.
 %left AND.
 %left EQUALS NOT_EQUALS.
@@ -299,9 +299,58 @@ expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
 
 expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
   OUT = NewAssignExpression(
-            compilation, NAME->str, NewAdditionExpression(
+            compilation, NAME->str, NewBinaryExpression(
                 compilation, NewVariableLookup(compilation, NAME->str),
-                std::unique_ptr<Expression>(VALUE))).release();
+                std::unique_ptr<Expression>(VALUE),
+                [](wstring a, wstring b) { return a + b; },
+                [](int a, int b) { return a + b; },
+                [](double a, double b) { return a + b; },
+                nullptr)).release();
+  NAME = nullptr;
+  VALUE = nullptr;
+}
+
+expr(OUT) ::= SYMBOL(NAME) MINUS_EQ expr(VALUE). {
+  OUT = NewAssignExpression(
+            compilation, NAME->str, NewBinaryExpression(
+                compilation, NewVariableLookup(compilation, NAME->str),
+                std::unique_ptr<Expression>(VALUE),
+                nullptr,
+                [](int a, int b) { return a - b; },
+                [](double a, double b) { return a - b; },
+                nullptr)).release();
+  NAME = nullptr;
+  VALUE = nullptr;
+}
+
+expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
+  OUT = NewAssignExpression(
+            compilation, NAME->str, NewBinaryExpression(
+                compilation, NewVariableLookup(compilation, NAME->str),
+                std::unique_ptr<Expression>(VALUE),
+                nullptr,
+                [](int a, int b) { return a * b; },
+                [](double a, double b) { return a * b; },
+                [](wstring a, int b) {
+                  wstring output;
+                  for(int i = 0; i < b; i++) {
+                    output += a;
+                  }
+                  return output;
+                })).release();
+  NAME = nullptr;
+  VALUE = nullptr;
+}
+
+expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
+  OUT = NewAssignExpression(
+            compilation, NAME->str, NewBinaryExpression(
+                compilation, NewVariableLookup(compilation, NAME->str),
+                std::unique_ptr<Expression>(VALUE),
+                nullptr,
+                [](int a, int b) { return a / b; },
+                [](double a, double b) { return a / b; },
+                nullptr)).release();
   NAME = nullptr;
   VALUE = nullptr;
 }
@@ -621,56 +670,28 @@ expr(OUT) ::= expr(A) AND expr(B). {
   B = nullptr;
 }
 
-expr(A) ::= expr(B) PLUS expr(C). {
-  A = NewAdditionExpression(
-      compilation, std::unique_ptr<Expression>(B),
-      std::unique_ptr<Expression>(C)).release();
+expr(OUT) ::= expr(A) PLUS expr(B). {
+  OUT = NewBinaryExpression(
+            compilation, std::unique_ptr<Expression>(A),
+            std::unique_ptr<Expression>(B),
+            [](wstring a, wstring b) { return a + b; },
+            [](int a, int b) { return a + b; },
+            [](double a, double b) { return a + b; },
+            nullptr).release();
+  A = nullptr;
   B = nullptr;
-  C = nullptr;
 }
 
 
-expr(A) ::= expr(B) MINUS expr(C). {
-  if (B == nullptr || C == nullptr) {
-    A = nullptr;
-  } else if (B->type().type == VMType::VM_INTEGER && C->type().type == VMType::VM_INTEGER) {
-    A = new BinaryOperator(
-        unique_ptr<Expression>(B),
-        unique_ptr<Expression>(C),
-        VMType::Integer(),
-        [](const Value& a, const Value& b, Value* output) {
-          output->integer = a.integer - b.integer;
-        });
-    B = nullptr;
-    C = nullptr;
-  } else if ((B->type().type == VMType::VM_INTEGER
-              || B->type().type == VMType::VM_DOUBLE)
-             && (C->type().type == VMType::VM_INTEGER
-                 || C->type().type == VMType::VM_DOUBLE)) {
-    A = new BinaryOperator(
-        unique_ptr<Expression>(B),
-        unique_ptr<Expression>(C),
-        VMType::Double(),
-        [](const Value& a, const Value& b, Value* output) {
-          auto to_double = [](const Value& x) {
-            if (x.type.type == VMType::VM_INTEGER) {
-              return static_cast<double>(x.integer);
-            } else if (x.type.type == VMType::VM_DOUBLE) {
-              return x.double_value;
-            } else {
-              CHECK(false) << "Unexpected value.";
-            }
-          };
-          output->double_value = to_double(a) - to_double(b);
-        });
-    B = nullptr;
-    C = nullptr;
-  } else {
-    compilation->errors.push_back(
-        L"Unable to subtract types: \"" + B->type().ToString()
-        + L"\" - \"" + C->type().ToString() + L"\"");
-    A = nullptr;
-  }
+expr(OUT) ::= expr(A) MINUS expr(B). {
+  OUT = NewBinaryExpression(
+            compilation, std::unique_ptr<Expression>(A),
+            std::unique_ptr<Expression>(B), nullptr,
+            [](int a, int b) { return a - b; },
+            [](double a, double b) { return a - b; },
+            nullptr).release();
+  A = nullptr;
+  B = nullptr;
 }
 
 expr(OUT) ::= MINUS expr(A). {
@@ -695,102 +716,32 @@ expr(OUT) ::= MINUS expr(A). {
   }
 }
 
-expr(A) ::= expr(B) TIMES expr(C). {
-  if (B == nullptr || C == nullptr) {
-    A = nullptr;
-  } else if (B->type().type == VMType::VM_INTEGER && C->type().type == VMType::VM_INTEGER) {
-    A = new BinaryOperator(
-        unique_ptr<Expression>(B),
-        unique_ptr<Expression>(C),
-        VMType::Integer(),
-        [](const Value& a, const Value& b, Value* output) {
-          output->integer = a.integer * b.integer;
-        });
-    B = nullptr;
-    C = nullptr;
-  } else if (B->type().type == VMType::VM_STRING && C->type().type == VMType::VM_INTEGER) {
-    A = new BinaryOperator(
-        unique_ptr<Expression>(B),
-        unique_ptr<Expression>(C),
-        VMType::String(),
-        [](const Value& b, const Value& c, Value* output) {
-          for(int i = 0; i < c.integer; i++) {
-            output->str += b.str;
-          }
-        });
-    B = nullptr;
-    C = nullptr;
-  } else if ((B->type().type == VMType::VM_INTEGER
-              || B->type().type == VMType::VM_DOUBLE)
-             && (C->type().type == VMType::VM_INTEGER
-                 || C->type().type == VMType::VM_DOUBLE)) {
-    A = new BinaryOperator(
-        unique_ptr<Expression>(B),
-        unique_ptr<Expression>(C),
-        VMType::Double(),
-        [](const Value& a, const Value& b, Value* output) {
-          auto to_double = [](const Value& x) {
-            if (x.type.type == VMType::VM_INTEGER) {
-              return static_cast<double>(x.integer);
-            } else if (x.type.type == VMType::VM_DOUBLE) {
-              return x.double_value;
-            } else {
-              CHECK(false) << "Unexpected value.";
-            }
-          };
-          output->double_value = to_double(a) * to_double(b);
-        });
-    B = nullptr;
-    C = nullptr;
-  } else {
-    compilation->errors.push_back(
-        L"Unable to multiply types: \"" + B->type().ToString()
-        + L"\" * \"" + C->type().ToString() + L"\"");
-    A = nullptr;
-  }
+expr(OUT) ::= expr(A) TIMES expr(B). {
+  OUT = NewBinaryExpression(
+            compilation, std::unique_ptr<Expression>(A),
+            std::unique_ptr<Expression>(B), nullptr,
+            [](int a, int b) { return a * b; },
+            [](double a, double b) { return a * b; },
+            [](wstring a, int b) {
+              wstring output;
+              for(int i = 0; i < b; i++) {
+                output += a;
+              }
+              return output;
+            }).release();
+  A = nullptr;
+  B = nullptr;
 }
 
-expr(A) ::= expr(B) DIVIDE expr(C). {
-  if (B == nullptr || C == nullptr) {
-    A = nullptr;
-  } else if (B->type().type == VMType::VM_INTEGER && C->type().type == VMType::VM_INTEGER) {
-    A = new BinaryOperator(
-        unique_ptr<Expression>(B),
-        unique_ptr<Expression>(C),
-        VMType::Integer(),
-        [](const Value& a, const Value& b, Value* output) {
-          output->integer = a.integer / b.integer;
-        });
-    B = nullptr;
-    C = nullptr;
-  } else if ((B->type().type == VMType::VM_INTEGER
-              || B->type().type == VMType::VM_DOUBLE)
-             && (C->type().type == VMType::VM_INTEGER
-                 || C->type().type == VMType::VM_DOUBLE)) {
-    A = new BinaryOperator(
-        unique_ptr<Expression>(B),
-        unique_ptr<Expression>(C),
-        VMType::Double(),
-        [](const Value& a, const Value& b, Value* output) {
-          auto to_double = [](const Value& x) {
-            if (x.type.type == VMType::VM_INTEGER) {
-              return static_cast<double>(x.integer);
-            } else if (x.type.type == VMType::VM_DOUBLE) {
-              return x.double_value;
-            } else {
-              CHECK(false) << "Unexpected value.";
-            }
-          };
-          output->double_value = to_double(a) / to_double(b);
-        });
-    B = nullptr;
-    C = nullptr;
-  } else {
-    compilation->errors.push_back(
-        L"Unable to divide types: \"" + B->type().ToString()
-        + L"\" / \"" + C->type().ToString() + L"\"");
-    A = nullptr;
-  }
+expr(OUT) ::= expr(A) DIVIDE expr(B). {
+  OUT = NewBinaryExpression(
+            compilation, std::unique_ptr<Expression>(A),
+            std::unique_ptr<Expression>(B), nullptr,
+            [](int a, int b) { return a / b; },
+            [](double a, double b) { return a / b; },
+            nullptr).release();
+  A = nullptr;
+  B = nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
