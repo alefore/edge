@@ -89,6 +89,11 @@ class Expression {
   virtual ~Expression() {}
   virtual const VMType& type() = 0;
 
+  bool IsBool() { return type().type == VMType::VM_BOOLEAN; };
+  bool IsInteger() { return type().type == VMType::VM_INTEGER; };
+  bool IsDouble() { return type().type == VMType::VM_DOUBLE; };
+  bool IsString() { return type().type == VMType::VM_STRING; };
+
   // Returns a new copy of this expression.
   virtual std::unique_ptr<Expression> Clone() = 0;
 
