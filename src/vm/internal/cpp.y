@@ -41,9 +41,8 @@ program(OUT) ::= statement_list(A). {
 %type statement_list { Expression * }
 %destructor statement_list { delete $$; }
 
-statement_list(L) ::= statement(A). {
-  L = A;
-  A = nullptr;
+statement_list(L) ::= . {
+  L = NewVoidExpression().release();
 }
 
 statement_list(OUT) ::= statement_list(A) statement(B). {
