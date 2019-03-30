@@ -258,6 +258,9 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
         if (pos < str.size() && str.at(pos) == '=') {
           pos++;
           token = PLUS_EQ;
+        } else if (pos < str.size() && str.at(pos) == '+') {
+          pos++;
+          token = PLUS_PLUS;
         } else {
           token = PLUS;
         }
@@ -268,6 +271,9 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
         if (pos < str.size() && str.at(pos) == '=') {
           pos++;
           token = MINUS_EQ;
+        } else if (pos < str.size() && str.at(pos) == '-') {
+          pos++;
+          token = MINUS_MINUS;
         } else {
           token = MINUS;
         }

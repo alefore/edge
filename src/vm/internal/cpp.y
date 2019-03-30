@@ -6,7 +6,7 @@
 
 %left COMMA.
 %left QUESTION_MARK.
-%left EQ PLUS_EQ MINUS_EQ TIMES_EQ DIVIDE_EQ.
+%left EQ PLUS_EQ MINUS_EQ TIMES_EQ DIVIDE_EQ PLUS_PLUS MINUS_MINUS.
 %left OR.
 %left AND.
 %left EQUALS NOT_EQUALS.
@@ -353,6 +353,56 @@ expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
                 nullptr)).release();
   NAME = nullptr;
   VALUE = nullptr;
+}
+
+expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
+  auto var = NewVariableLookup(compilation, NAME->str);
+  auto type = var->type();
+  if (var->IsInteger() || var->IsDouble()) {
+    OUT = NewAssignExpression(
+              compilation, NAME->str,
+              std::make_unique<BinaryOperator>(
+                  NewVoidExpression(),
+                  std::move(var),
+                  type,
+                  type.type == VMType::VM_INTEGER
+                      ? [](const Value&, const Value& a, Value* output) {
+                          output->integer = a.integer + 1;
+                        }
+                      : [](const Value&, const Value& a, Value* output) {
+                          output->double_value = a.double_value + 1.0;
+                        })).release();
+  } else {
+    compilation->errors.push_back(
+        L"++: Type not supported: " + type.ToString());
+    OUT = nullptr;
+  }
+  NAME = nullptr;
+}
+
+expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
+  auto var = NewVariableLookup(compilation, NAME->str);
+  auto type = var->type();
+  if (var->IsInteger() || var->IsDouble()) {
+    OUT = NewAssignExpression(
+              compilation, NAME->str,
+              std::make_unique<BinaryOperator>(
+                  NewVoidExpression(),
+                  std::move(var),
+                  type,
+                  type.type == VMType::VM_INTEGER
+                      ? [](const Value&, const Value& a, Value* output) {
+                          output->integer = a.integer - 1;
+                        }
+                      : [](const Value&, const Value& a, Value* output) {
+                          output->double_value = a.double_value - 1.0;
+                        })).release();
+  } else {
+    compilation->errors.push_back(
+        L"--: Type not supported: " + type.ToString());
+    OUT = nullptr;
+  }
+  NAME = nullptr;
 }
 
 expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
