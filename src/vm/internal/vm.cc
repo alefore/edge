@@ -251,6 +251,10 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
       case '+':
         token = PLUS;
         pos++;
+        if (pos < str.size() && str.at(pos) == '=') {
+          pos++;
+          token = PLUS_EQ;
+        }
         break;
 
       case '-':

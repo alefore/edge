@@ -6,7 +6,7 @@
 
 %left COMMA.
 %left QUESTION_MARK.
-%left EQ.
+%left EQ PLUS_EQ.
 %left OR.
 %left AND.
 %left EQUALS NOT_EQUALS.
@@ -295,6 +295,15 @@ expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
                             unique_ptr<Expression>(VALUE)).release();
   VALUE = nullptr;
   delete NAME;
+}
+
+expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
+  OUT = NewAssignExpression(
+            compilation, NAME->str, NewAdditionExpression(
+                compilation, NewVariableLookup(compilation, NAME->str),
+                std::unique_ptr<Expression>(VALUE))).release();
+  NAME = nullptr;
+  VALUE = nullptr;
 }
 
 expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
