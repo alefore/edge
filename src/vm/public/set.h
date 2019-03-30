@@ -2,6 +2,7 @@
 #define __AFC_VM_PUBLIC_SET_H__
 
 #include <memory>
+#include <set>
 #include <type_traits>
 
 #include <glog/logging.h>
