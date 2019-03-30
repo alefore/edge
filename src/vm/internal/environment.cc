@@ -1,16 +1,29 @@
 #include "../public/environment.h"
 
+#include <map>
+#include <set>
+
 #include <glog/logging.h>
 
 #include "../public/callbacks.h"
+#include "../public/set.h"
 #include "../public/types.h"
 #include "../public/value.h"
+#include "../public/vector.h"
 #include "string.h"
 
 namespace afc {
 namespace vm {
 
 namespace {
+
+template <>
+const VMType VMTypeMapper<std::vector<int>*>::vmtype =
+    VMType::ObjectType(L"VectorInt");
+
+template <>
+const VMType VMTypeMapper<std::set<int>*>::vmtype =
+    VMType::ObjectType(L"SetInt");
 
 std::unique_ptr<Environment> BuildDefaultEnvironment() {
   auto environment = std::make_unique<Environment>();
@@ -36,6 +49,9 @@ std::unique_ptr<Environment> BuildDefaultEnvironment() {
       L"round", NewCallback(std::function<int(double)>(
                     [](double value) { return static_cast<int>(value); })));
   environment->DefineType(L"double", std::move(double_type));
+
+  VMTypeMapper<std::vector<int>*>::Export(environment.get());
+  VMTypeMapper<std::set<int>*>::Export(environment.get());
   return environment;
 }
 
