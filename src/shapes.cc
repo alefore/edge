@@ -19,10 +19,6 @@ struct Point {
   double y;
 };
 
-struct LineColumnSet {
-  std::set<LineColumn> positions;
-};
-
 struct Line {
   Point start;
   Point end;
@@ -52,14 +48,6 @@ struct VMTypeMapper<editor::Point> {
 
 const VMType VMTypeMapper<editor::Point>::vmtype =
     VMType::ObjectType(L"ShapesPoint");
-
-template <>
-const VMType VMTypeMapper<std::set<editor::LineColumn>*>::vmtype =
-    VMType::ObjectType(L"ShapesLineColumnSet");
-
-template <>
-const VMType VMTypeMapper<std::vector<editor::LineColumn>*>::vmtype =
-    VMType::ObjectType(L"ShapesVectorLineColumn");
 
 template <>
 struct VMTypeMapper<editor::Line> {

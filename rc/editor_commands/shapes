@@ -39,8 +39,7 @@ void DrawPosition(LineColumn position, string text) {
   string line = buffer.line(position.line());
   PadToLineColumn(position);
   if (line.size() > position.column()) {
-    buffer.DeleteCharacters(
-        Min(line.size() - position.column(), text.size()));
+    buffer.DeleteCharacters(Min(line.size() - position.column(), text.size()));
   }
   buffer.InsertText(text);
 }
@@ -90,7 +89,7 @@ string GetCode(bool up, bool down, bool left, bool right, bool up_bold,
       } else {
         if (right_bold) {
           return "┣";
-        } if (right) {
+        } else if (right) {
           return "┠";
         } else {
           return "┃";
@@ -237,7 +236,7 @@ string GetCode(bool up, bool down, bool left, bool right, bool up_bold,
         } else if (right) {
           return "┱";
         } else {
-         return "┓";
+          return "┓";
         }
       } else if (left) {
         if (right_bold) {
@@ -312,8 +311,8 @@ string GetCode(bool up, bool down, bool left, bool right, bool up_bold,
   }
 }
 
-void GetLineColumnsToDraw(ShapesLineColumnSet right, ShapesLineColumnSet down,
-                          ShapesLineColumnSet output) {
+void GetLineColumnsToDraw(SetLineColumn right, SetLineColumn down,
+                          SetLineColumn output) {
   int i = 0;
   while (i < right.size()) {
     LineColumn position = right.get(i);
@@ -363,9 +362,9 @@ bool IsMovingDownBold(string c) {
   return ("╋╉╊╈╆╅╂╁┫┣┳┨┠┪┱┢┲┧┟┰┃┓┏╽┒┎").find(c, 0) != -1;
 }
 
-void DrawLineColumns(ShapesLineColumnSet line_column_right,
-                     ShapesLineColumnSet line_column_down, string code) {
-  ShapesLineColumnSet line_columns = ShapesLineColumnSet();
+void DrawLineColumns(SetLineColumn line_column_right,
+                     SetLineColumn line_column_down, string code) {
+  SetLineColumn line_columns = SetLineColumn();
   GetLineColumnsToDraw(line_column_right, line_column_down, line_columns);
   ShapesSetStatus("Positions to draw: " + line_columns.size().tostring());
   int i = 0;
@@ -445,8 +444,7 @@ void DrawLineColumns(ShapesLineColumnSet line_column_right,
 // LineColumn(i, j + 1). output_down if there's a line crossing into
 // LineColumn(i + 1, j).
 void FindBoundariesLine(LineColumn start, LineColumn end,
-                        ShapesLineColumnSet output_right,
-                        ShapesLineColumnSet output_down) {
+                        SetLineColumn output_right, SetLineColumn output_down) {
   if (start.column() > end.column()) {
     LineColumn tmp = start;
     start = end;
@@ -476,8 +474,8 @@ void FindBoundariesLine(LineColumn start, LineColumn end,
 }
 
 void FindBoundariesSquare(LineColumn start, LineColumn end,
-                          ShapesLineColumnSet output_right,
-                          ShapesLineColumnSet output_down) {
+                          SetLineColumn output_right,
+                          SetLineColumn output_down) {
   FindBoundariesLine(start, LineColumn(start.line(), end.column()),
                      output_right, output_down);
   FindBoundariesLine(start, LineColumn(end.line(), start.column()),
@@ -489,8 +487,8 @@ void FindBoundariesSquare(LineColumn start, LineColumn end,
 }
 
 void ShapesAddSquareInPositions(LineColumn a, LineColumn b) {
-  ShapesLineColumnSet output_right = ShapesLineColumnSet();
-  ShapesLineColumnSet output_down = ShapesLineColumnSet();
+  SetLineColumn output_right = SetLineColumn();
+  SetLineColumn output_down = SetLineColumn();
   FindBoundariesSquare(a, b, output_right, output_down);
   DrawLineColumns(output_right, output_down, "");
 }
@@ -591,8 +589,8 @@ void ShapesSquareCenter() {
 
 void ShapesAddLine() {
   LineColumn position = buffer.position();
-  ShapesLineColumnSet output_right = ShapesLineColumnSet();
-  ShapesLineColumnSet output_down = ShapesLineColumnSet();
+  SetLineColumn output_right = SetLineColumn();
+  SetLineColumn output_down = SetLineColumn();
   FindBoundariesLine(source, position, output_right, output_down);
   DrawLineColumns(output_right, output_down, "");
   buffer.set_position(position);
@@ -688,6 +686,11 @@ int NounWidth(VectorString noun_lines) {
     output = Max(output, noun_lines.get(i).size());
     i = i + 1;
   }
+  return output;
+}
+
+VectorLineColumn DiagramGetPositions(int nouns) {
+  VectorLineColumn output = VectorLineColumn();
   return output;
 }
 
