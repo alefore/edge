@@ -7,21 +7,10 @@ bool simple_characters = false;
 bool delete_mode = false;
 bool bold_mode = false;
 
-ShapesPoint last_point = ShapesPoint(0.0, 1.0);
+LineColumn source = LineColumn(0, 0);
 
 void ShapesSetStatus(string description) {
   SetStatus("Shapes: " + description);
-}
-
-ShapesPoint PositionToPoint(LineColumn position) {
-  return ShapesPoint(position.column() / total_columns,
-                     (total_lines - position.line()) / total_lines);
-}
-
-LineColumn PointToPosition(ShapesPoint point) {
-  double column = point.x() * total_columns;
-  double line = total_lines - point.y() * total_lines;
-  return LineColumn(line.round(), column.round());
 }
 
 int Min(int x, int y) { return x <= y ? x : y; }
@@ -34,15 +23,22 @@ double Abs(double x) {
     return -x;
 }
 
+void PadToLineColumn(LineColumn position) {
+  buffer.set_position(position);
+  if (buffer.line_count() <= position.line()) {
+    buffer.set_position(LineColumn(buffer.line_count(), 0));
+    buffer.InsertText("\n" * (position.line() + 1 - buffer.line_count()));
+  }
+  string line = buffer.line(position.line());
+  int insertions = position.column() - line.size();
+  buffer.set_position(position);
+  buffer.InsertText(" " * insertions);
+}
+
 void DrawPosition(LineColumn position, string text) {
   string line = buffer.line(position.line());
   if (line.size() < position.column()) {
-    buffer.set_position(LineColumn(position.line(), line.size()));
-    int insertions = position.column() - line.size();
-    while (insertions > 0) {
-      buffer.InsertText(" ");
-      insertions = insertions - 1;
-    }
+    PadToLineColumn(position);
   } else {
     buffer.set_position(position);
     if (line.size() > position.column()) {
@@ -254,21 +250,21 @@ string GetCode(bool up, bool down, bool left, bool right, bool up_bold,
   return " ";
 }
 
-void GetPointsToDraw(ShapesLineColumnSet right, ShapesLineColumnSet down,
-                     ShapesLineColumnSet output) {
+void GetLineColumnsToDraw(ShapesLineColumnSet right, ShapesLineColumnSet down,
+                          ShapesLineColumnSet output) {
   int i = 0;
   while (i < right.size()) {
-    LineColumn point = right.get(i);
-    output.insert(point);
-    output.insert(LineColumn(point.line(), point.column() + 1));
+    LineColumn position = right.get(i);
+    output.insert(position);
+    output.insert(LineColumn(position.line(), position.column() + 1));
     i = i + 1;
   }
 
   i = 0;
   while (i < down.size()) {
-    LineColumn point = down.get(i);
-    output.insert(point);
-    output.insert(LineColumn(point.line() + 1, point.column()));
+    LineColumn position = down.get(i);
+    output.insert(position);
+    output.insert(LineColumn(position.line() + 1, position.column()));
     i = i + 1;
   }
 }
@@ -307,12 +303,12 @@ bool IsMovingDownBold(string c) {
 
 void DrawLineColumns(ShapesLineColumnSet line_column_right,
                      ShapesLineColumnSet line_column_down, string code) {
-  ShapesLineColumnSet points = ShapesLineColumnSet();
-  GetPointsToDraw(line_column_right, line_column_down, points);
-  ShapesSetStatus("Points to draw: " + points.size().tostring());
+  ShapesLineColumnSet line_columns = ShapesLineColumnSet();
+  GetLineColumnsToDraw(line_column_right, line_column_down, line_columns);
+  ShapesSetStatus("Positions to draw: " + line_columns.size().tostring());
   int i = 0;
-  while (i < points.size()) {
-    LineColumn position = points.get(i);
+  while (i < line_columns.size()) {
+    LineColumn position = line_columns.get(i);
     string current_code = code;
     if (current_code.empty()) {
       string current_line = buffer.line(position.line());
@@ -378,7 +374,7 @@ void DrawLineColumns(ShapesLineColumnSet line_column_right,
       current_code = GetCode(up, down, left, right, up_bold, down_bold,
                              left_bold, right_bold);
     }
-    DrawPosition(points.get(i), current_code);
+    DrawPosition(line_columns.get(i), current_code);
     i = i + 1;
   }
 }
@@ -386,20 +382,17 @@ void DrawLineColumns(ShapesLineColumnSet line_column_right,
 // output_right contains LineColumn(i, j) if there's a line cross into
 // LineColumn(i, j + 1). output_down if there's a line crossing into
 // LineColumn(i + 1, j).
-void FindBoundariesLine(ShapesLine line, ShapesLineColumnSet output_right,
+void FindBoundariesLine(LineColumn start, LineColumn end,
+                        ShapesLineColumnSet output_right,
                         ShapesLineColumnSet output_down) {
-  ShapesPoint a = line.start();
-  ShapesPoint b = line.end();
-  if (line.start().x() > line.end().x()) {
-    a = line.end();
-    b = line.start();
+  if (start.column() > end.column()) {
+    LineColumn tmp = start;
+    start = end;
+    end = tmp;
   }
-  double delta_x = b.x() - a.x();
-  double delta_y = b.y() - a.y();
-  double aspect_ratio = total_columns / total_lines;
-  LineColumn start = PointToPosition(a);
-  LineColumn end = PointToPosition(b);
-  double delta_error = -delta_y / (delta_x * aspect_ratio);
+  int delta_x = end.column() - start.column();
+  int delta_y = end.line() - start.line();
+  double delta_error = (0.0 + delta_y) / delta_x;
   double error = delta_error / 2.0;
   while (start.column() < end.column() ||
          (delta_error >= 0 ? start.line() < end.line()
@@ -420,31 +413,27 @@ void FindBoundariesLine(ShapesLine line, ShapesLineColumnSet output_right,
   }
 }
 
-void FindBoundariesSquare(ShapesLine line, ShapesLineColumnSet output_right,
+void FindBoundariesSquare(LineColumn start, LineColumn end,
+                          ShapesLineColumnSet output_right,
                           ShapesLineColumnSet output_down) {
-  FindBoundariesLine(
-      ShapesLine(line.start(), ShapesPoint(line.start().x(), line.end().y())),
-      output_right, output_down);
-  FindBoundariesLine(
-      ShapesLine(line.start(), ShapesPoint(line.end().x(), line.start().y())),
-      output_right, output_down);
-  FindBoundariesLine(
-      ShapesLine(line.end(), ShapesPoint(line.end().x(), line.start().y())),
-      output_right, output_down);
-  FindBoundariesLine(
-      ShapesLine(line.end(), ShapesPoint(line.start().x(), line.end().y())),
-      output_right, output_down);
+  FindBoundariesLine(start, LineColumn(start.line(), end.column()),
+                     output_right, output_down);
+  FindBoundariesLine(start, LineColumn(end.line(), start.column()),
+                     output_right, output_down);
+  FindBoundariesLine(end, LineColumn(start.line(), end.column()), output_right,
+                     output_down);
+  FindBoundariesLine(end, LineColumn(end.line(), start.column()), output_right,
+                     output_down);
 }
 
 void ShapesAddSquare() {
   LineColumn position = buffer.position();
-  ShapesLine square = ShapesLine(last_point, PositionToPoint(position));
   ShapesLineColumnSet output_right = ShapesLineColumnSet();
   ShapesLineColumnSet output_down = ShapesLineColumnSet();
-  FindBoundariesSquare(square, output_right, output_down);
+  FindBoundariesSquare(source, position, output_right, output_down);
   DrawLineColumns(output_right, output_down, "");
   buffer.set_position(position);
-  last_point = square.end();
+  source = position;
 }
 
 bool IsActualContent(string c) {
@@ -503,7 +492,7 @@ string BuildPadding(int size, string c) {
 
 void ShapesSquareCenter() {
   LineColumn a = buffer.position();
-  LineColumn b = PointToPosition(last_point);
+  LineColumn b = source;
   int border_delta = 1;
   LineColumn start = LineColumn(Min(a.line(), b.line()) + border_delta,
                                 Min(a.column(), b.column()) + border_delta);
@@ -536,13 +525,12 @@ void ShapesSquareCenter() {
 
 void ShapesAddLine() {
   LineColumn position = buffer.position();
-  ShapesLine line = ShapesLine(last_point, PositionToPoint(position));
   ShapesLineColumnSet output_right = ShapesLineColumnSet();
   ShapesLineColumnSet output_down = ShapesLineColumnSet();
-  FindBoundariesLine(line, output_right, output_down);
+  FindBoundariesLine(source, position, output_right, output_down);
   DrawLineColumns(output_right, output_down, "");
   buffer.set_position(position);
-  last_point = line.end();
+  source = position;
 }
 
 void ShapesToggleDeleteMode() {
@@ -556,14 +544,126 @@ void ShapesToggleBoldMode() {
 }
 
 void ShapesSet() {
-  ShapesSetStatus("Set target point.");
-  last_point = PositionToPoint(buffer.position());
+  ShapesSetStatus("Set source position.");
+  source = buffer.position();
 }
+
+int GetDiagramInputLinesCount() {
+  int i = 0;
+  while (i < buffer.line_count()) {
+    i = i + 1;
+    if (SkipSpaces(buffer.line(i)) == "") {
+      return i;
+    }
+  }
+  return i;
+}
+
+SetString GetDiagramNouns(int lines) {
+  SetString nouns = SetString();
+  int i = 0;
+  while (i < lines) {
+    string line = buffer.line(i);
+    if (line.substr(0, 1) != " ") {
+      nouns.insert(line);
+    } else {
+      line = SkipSpaces(line);
+      int colon = line.find(":", 0);
+      if (colon == -1) {
+        nouns.insert(line);
+      } else {
+        nouns.insert(line.substr(colon + 1, line.size() - (colon + 1)));
+      }
+    }
+    i = i + 1;
+  }
+
+  return nouns;
+}
+
+int GetMaxNounSize(SetString nouns) {
+  int output = 0;
+  int i = 0;
+  while (i < nouns.size()) {
+    output = Max(output, nouns.get(i).size());
+    i = i + 1;
+  }
+  return output;
+}
+
+VectorString NounLines(string noun) {
+  VectorString output = VectorString();
+  int start = 0;
+  while (start < noun.size()) {
+    int next = noun.find(" ", start);
+    if (next == -1) {
+      next = noun.size();
+    }
+    output.push_back(noun.substr(start, next - start));
+    start = next + 1;
+  }
+  return output;
+}
+
+int NounWidth(VectorString noun_lines) {
+  int output = noun_lines.get(0).size();
+  int i = 1;
+  while (i < noun_lines.size()) {
+    output = Max(output, noun_lines.get(i).size());
+    i = i + 1;
+  }
+  return output;
+}
+
+void DrawNouns(SetString nouns, int column_width, int lines_per_noun) {
+  int columns = 3;
+
+  int row = 0;
+  int column = 0;
+
+  int start = buffer.position().line();
+
+  int noun = 0;
+  while (noun < nouns.size()) {
+    VectorString noun_lines = NounLines(nouns.get(noun));
+    int line = 0;
+    while (line < noun_lines.size()) {
+      LineColumn position = LineColumn(start + (row * lines_per_noun) + line,
+                                       column_width * column + 1);
+      PadToLineColumn(position);
+      SetStatus("noun [" + noun_lines.get(line) + "] at " +
+                position.tostring());
+      buffer.InsertText(noun_lines.get(line));
+      line = line + 1;
+    }
+
+    NounWidth(noun_lines);
+    column = column + 1;
+    if (column >= columns) {
+      column = 0;
+      row = row + 1;
+    }
+
+    noun = noun + 1;
+  }
+}
+
+void ShapesDrawDiagramInner() {
+  int lines = GetDiagramInputLinesCount();
+  SetString nouns = GetDiagramNouns(lines);
+
+  buffer.set_position(LineColumn(buffer.line_count(), 0));
+
+  DrawNouns(nouns, GetMaxNounSize(nouns) + 6, 4);
+}
+
+void ShapesDrawDiagram() { ShapesDrawDiagramInner(); }
 
 buffer.AddBinding("sl", "shapes: line: draw", ShapesAddLine);
 buffer.AddBinding("sq", "shapes: square: draw", ShapesAddSquare);
 buffer.AddBinding("sc", "shapes: square: center contents", ShapesSquareCenter);
 buffer.AddBinding("sd", "shapes: delete_mode = !delete_mode",
                   ShapesToggleDeleteMode);
-buffer.AddBinding("s=", "shapes: set point", ShapesSet);
+buffer.AddBinding("s=", "shapes: set source", ShapesSet);
 buffer.AddBinding("sb", "shapes: bold_mode = !bold_mode", ShapesToggleBoldMode);
+buffer.AddBinding("sD", "shapes: Draw a diagram", ShapesDrawDiagram);
