@@ -546,7 +546,7 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
             } else if (x.type.type == VMType::VM_DOUBLE) {
               return x.double_value;
             } else {
-              CHECK(false) << "Unexpected value.";
+              LOG(FATAL) << "Unexpected value of type: " << x.type.ToString();
             }
           };
           output->boolean = to_double(a) < to_double(b);
@@ -583,7 +583,7 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
             } else if (x.type.type == VMType::VM_DOUBLE) {
               return x.double_value;
             } else {
-              CHECK(false) << "Unexpected value.";
+              LOG(FATAL) << "Unexpected value of type: " << x.type.ToString();
             }
           };
           output->boolean = to_double(a) <= to_double(b);
@@ -815,6 +815,18 @@ expr(A) ::= expr(B) TIMES expr(C). {
         VMType::Integer(),
         [](const Value& a, const Value& b, Value* output) {
           output->integer = a.integer * b.integer;
+        });
+    B = nullptr;
+    C = nullptr;
+  } else if (B->type().type == VMType::VM_STRING && C->type().type == VMType::VM_INTEGER) {
+    A = new BinaryOperator(
+        unique_ptr<Expression>(B),
+        unique_ptr<Expression>(C),
+        VMType::String(),
+        [](const Value& b, const Value& c, Value* output) {
+          for(int i = 0; i < c.integer; i++) {
+            output->str += b.str;
+          }
         });
     B = nullptr;
     C = nullptr;
