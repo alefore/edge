@@ -10,6 +10,7 @@ namespace vm {
 using std::unique_ptr;
 
 class Evaluation;
+class Compilation;
 
 class BinaryOperator : public Expression {
  public:
@@ -29,6 +30,11 @@ class BinaryOperator : public Expression {
   VMType type_;
   std::function<void(const Value&, const Value&, Value*)> operator_;
 };
+
+// Returns an expression that evaluates A and B and returns their addition.
+std::unique_ptr<Expression> NewAdditionExpression(
+    Compilation* compilation, std::unique_ptr<Expression> a,
+    std::unique_ptr<Expression> b);
 
 }  // namespace vm
 }  // namespace afc
