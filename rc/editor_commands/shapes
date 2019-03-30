@@ -318,7 +318,7 @@ void GetLineColumnsToDraw(SetLineColumn right, SetLineColumn down,
     LineColumn position = right.get(i);
     output.insert(position);
     output.insert(LineColumn(position.line(), position.column() + 1));
-    i = i + 1;
+    i++;
   }
 
   i = 0;
@@ -326,7 +326,7 @@ void GetLineColumnsToDraw(SetLineColumn right, SetLineColumn down,
     LineColumn position = down.get(i);
     output.insert(position);
     output.insert(LineColumn(position.line() + 1, position.column()));
-    i = i + 1;
+    i++;
   }
 }
 
@@ -436,7 +436,7 @@ void DrawLineColumns(SetLineColumn line_column_right,
                              left_bold, right_bold);
     }
     DrawPosition(line_columns.get(i), current_code);
-    i = i + 1;
+    i++;
   }
 }
 
@@ -509,7 +509,7 @@ bool IsActualContent(string c) {
 string TrimLine(string line) {
   int start = 0;
   while (start < line.size() && !IsActualContent(line.substr(start, 1))) {
-    start = start + 1;
+    start++;
   }
   if (start == line.size()) {
     return "";
@@ -540,7 +540,7 @@ string JoinLines(VectorString v) {
   int i = 0;
   while (i < v.size()) {
     output = output + "[" + v.get(i) + "]";
-    i = i + 1;
+    i++;
   }
   return output;
 }
@@ -582,7 +582,7 @@ void ShapesSquareCenter() {
       input = BuildPadding(width, " ");
     }
     DrawPosition(LineColumn(start.line() + i, start.column()), input);
-    i = i + 1;
+    i++;
   }
   buffer.set_position(a);
 }
@@ -619,7 +619,7 @@ void ShapesSet() {
 int GetDiagramInputLinesCount() {
   int i = 0;
   while (i < buffer.line_count()) {
-    i = i + 1;
+    i++;
     if (SkipSpaces(buffer.line(i)) == "") {
       return i;
     }
@@ -645,14 +645,14 @@ VectorString GetDiagramNouns(int lines) {
             SkipSpaces(line.substr(colon + 1, line.size() - (colon + 1))));
       }
     }
-    i = i + 1;
+    i++;
   }
 
   i = 0;
   VectorString output = VectorString();
   while (i < nouns.size()) {
     output.push_back(nouns.get(i));
-    i = i + 1;
+    i++;
   }
 
   return output;
@@ -674,7 +674,7 @@ VectorInt DiagramGetEdges(int lines, string a, VectorString nouns) {
       }
       edges.insert(line);
     }
-    i = i + 1;
+    i++;
   }
 
   VectorInt output = VectorInt();
@@ -683,7 +683,7 @@ VectorInt DiagramGetEdges(int lines, string a, VectorString nouns) {
     if (edges.contains(nouns.get(i))) {
       output.push_back(i);
     }
-    i = i + 1;
+    i++;
   }
   return output;
 }
@@ -693,7 +693,7 @@ int GetMaxNounWidth(VectorString nouns) {
   int i = 0;
   while (i < nouns.size()) {
     output = Max(output, nouns.get(i).size());
-    i = i + 1;
+    i++;
   }
   return output;
 }
@@ -703,7 +703,7 @@ int GetMaxNounSize(VectorString nouns) {
   int i = 0;
   while (i < nouns.size()) {
     output = Max(output, nouns.size());
-    i = i + 1;
+    i++;
   }
   return output;
 }
@@ -727,7 +727,7 @@ int NounWidth(VectorString noun_lines) {
   int i = 1;
   while (i < noun_lines.size()) {
     output = Max(output, noun_lines.get(i).size());
-    i = i + 1;
+    i++;
   }
   return output;
 }
@@ -782,9 +782,9 @@ void DiagramDrawEdges(int lines, int start, VectorString nouns,
       SetStatus("Connected: " + nouns.get(i) + "->" + nouns.get(j));
       DiagramDrawEdge(start, nouns, i, edges.get(j), column_width,
                       lines_per_noun);
-      j = j + 1;
+      j++;
     }
-    i = i + 1;
+    i++;
   }
 }
 
@@ -808,7 +808,7 @@ void DrawNouns(int start, VectorString nouns, int column_width,
                                        base_position.column() + 1);
       PadToLineColumn(position);
       buffer.InsertText(noun_lines.get(line));
-      line = line + 1;
+      line++;
     }
 
     ShapesAddSquareInPositions(
@@ -816,13 +816,13 @@ void DrawNouns(int start, VectorString nouns, int column_width,
         LineColumn(base_position.line() + noun_lines.size() + 1,
                    base_position.column() + NounWidth(noun_lines) + 2));
 
-    column = column + 1;
+    column++;
     if (column >= columns) {
       column = 0;
-      row = row + 1;
+      row++;
     }
 
-    noun = noun + 1;
+    noun++;
   }
 }
 
