@@ -295,6 +295,9 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
       L"InsertText",
       vm::NewCallback(std::function<void(OpenBuffer*, wstring)>(
           [editor_state](OpenBuffer* buffer, wstring text) {
+            if (text.empty()) {
+              return;  // Optimization.
+            }
             if (buffer->fd() != -1) {
               auto str = ToByteString(text);
               LOG(INFO) << "Insert text: " << str.size();
