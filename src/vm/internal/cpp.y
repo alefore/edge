@@ -529,8 +529,8 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
     OUT = nullptr;
   } else if ((A->type().type == VMType::VM_INTEGER
               || A->type().type == VMType::VM_DOUBLE)
-             && (B->type().type != VMType::VM_INTEGER
-                 || B->type().type != VMType::VM_DOUBLE)) {
+             && (B->type().type == VMType::VM_INTEGER
+                 || B->type().type == VMType::VM_DOUBLE)) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
@@ -566,8 +566,8 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
     OUT = nullptr;
   } else if ((A->type().type == VMType::VM_INTEGER
               || A->type().type == VMType::VM_DOUBLE)
-             && (B->type().type != VMType::VM_INTEGER
-                 || B->type().type != VMType::VM_DOUBLE)) {
+             && (B->type().type == VMType::VM_INTEGER
+                 || B->type().type == VMType::VM_DOUBLE)) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
@@ -603,8 +603,8 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
     OUT = nullptr;
   } else if ((A->type().type == VMType::VM_INTEGER
               || A->type().type == VMType::VM_DOUBLE)
-             && (B->type().type != VMType::VM_INTEGER
-                 || B->type().type != VMType::VM_DOUBLE)) {
+             && (B->type().type == VMType::VM_INTEGER
+                 || B->type().type == VMType::VM_DOUBLE)) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
@@ -620,7 +620,7 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
             } else if (x.type.type == VMType::VM_DOUBLE) {
               return x.double_value;
             } else {
-              CHECK(false) << "Unexpected value.";
+              LOG(FATAL) << "Unexpected value of type: " << x.type.ToString();
             }
           };
           output->boolean = to_double(a) > to_double(b);
@@ -640,8 +640,8 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
     OUT = nullptr;
   } else if ((A->type().type == VMType::VM_INTEGER
               || A->type().type == VMType::VM_DOUBLE)
-             && (B->type().type != VMType::VM_INTEGER
-                 || B->type().type != VMType::VM_DOUBLE)) {
+             && (B->type().type == VMType::VM_INTEGER
+                 || B->type().type == VMType::VM_DOUBLE)) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
@@ -657,7 +657,7 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
             } else if (x.type.type == VMType::VM_DOUBLE) {
               return x.double_value;
             } else {
-              CHECK(false) << "Unexpected value.";
+              LOG(FATAL) << "Unexpected value of type: " << x.type.ToString();
             }
           };
           output->boolean = to_double(a) >= to_double(b);
