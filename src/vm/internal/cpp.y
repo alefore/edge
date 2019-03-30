@@ -34,6 +34,29 @@ program(OUT) ::= statement_list(A). {
   A = nullptr;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Statement list
+////////////////////////////////////////////////////////////////////////////////
+
+%type statement_list { Expression * }
+%destructor statement_list { delete $$; }
+
+statement_list(L) ::= statement(A). {
+  L = A;
+  A = nullptr;
+}
+
+statement_list(OUT) ::= statement_list(A) statement(B). {
+  OUT = NewAppendExpression(unique_ptr<Expression>(A),
+                            unique_ptr<Expression>(B)).release();
+  A = nullptr;
+  B = nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Statements
+////////////////////////////////////////////////////////////////////////////////
+
 %type statement { Expression* }
 %destructor statement { delete $$; }
 
@@ -95,45 +118,6 @@ statement(OUT) ::= function_declaration_params(FUNC)
   }
 }
 
-%type function_declaration_params { UserFunction* }
-%destructor function_declaration_params { delete $$; }
-
-function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME) LPAREN
-    function_declaration_arguments(ARGS) RPAREN . {
-  assert(RETURN_TYPE->type == VMType::VM_SYMBOL);
-  assert(NAME->type == VMType::VM_SYMBOL);
-
-  if (ARGS == nullptr) {
-    OUT = nullptr;
-  } else {
-    const VMType* return_type_def =
-        compilation->environment->LookupType(RETURN_TYPE->str);
-    if (return_type_def == nullptr) {
-      compilation->errors.push_back(
-          L"Unknown return type: \"" + RETURN_TYPE->str + L"\"");
-      OUT = nullptr;
-    } else {
-      OUT = new UserFunction();
-      OUT->name = NAME->str;
-      OUT->type.type = VMType::FUNCTION;
-      OUT->type.type_arguments.push_back(*return_type_def);
-      for (pair<VMType, wstring> arg : *ARGS) {
-        OUT->type.type_arguments.push_back(arg.first);
-        OUT->argument_names.push_back(arg.second);
-      }
-      compilation->environment->Define(
-          NAME->str, unique_ptr<Value>(new Value(OUT->type)));
-      compilation->environment = new Environment(compilation->environment);
-      compilation->return_types.push_back(*return_type_def);
-      for (pair<VMType, wstring> arg : *ARGS) {
-        compilation->environment
-            ->Define(arg.second, unique_ptr<Value>(new Value(arg.first)));
-      }
-    }
-  }
-  delete RETURN_TYPE;
-  delete NAME;
-}
 
 statement(A) ::= SEMICOLON . {
   A = NewVoidExpression().release();
@@ -189,21 +173,48 @@ statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) SEMICOLON. {
   VALUE = nullptr;
 }
 
-// Statement list.
+////////////////////////////////////////////////////////////////////////////////
+// Function declaration
+////////////////////////////////////////////////////////////////////////////////
 
-%type statement_list { Expression * }
-%destructor statement_list { delete $$; }
+%type function_declaration_params { UserFunction* }
+%destructor function_declaration_params { delete $$; }
 
-statement_list(L) ::= statement(A). {
-  L = A;
-  A = nullptr;
-}
+function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME) LPAREN
+    function_declaration_arguments(ARGS) RPAREN . {
+  assert(RETURN_TYPE->type == VMType::VM_SYMBOL);
+  assert(NAME->type == VMType::VM_SYMBOL);
 
-statement_list(OUT) ::= statement_list(A) statement(B). {
-  OUT = NewAppendExpression(unique_ptr<Expression>(A),
-                            unique_ptr<Expression>(B)).release();
-  A = nullptr;
-  B = nullptr;
+  if (ARGS == nullptr) {
+    OUT = nullptr;
+  } else {
+    const VMType* return_type_def =
+        compilation->environment->LookupType(RETURN_TYPE->str);
+    if (return_type_def == nullptr) {
+      compilation->errors.push_back(
+          L"Unknown return type: \"" + RETURN_TYPE->str + L"\"");
+      OUT = nullptr;
+    } else {
+      OUT = new UserFunction();
+      OUT->name = NAME->str;
+      OUT->type.type = VMType::FUNCTION;
+      OUT->type.type_arguments.push_back(*return_type_def);
+      for (pair<VMType, wstring> arg : *ARGS) {
+        OUT->type.type_arguments.push_back(arg.first);
+        OUT->argument_names.push_back(arg.second);
+      }
+      compilation->environment->Define(
+          NAME->str, unique_ptr<Value>(new Value(OUT->type)));
+      compilation->environment = new Environment(compilation->environment);
+      compilation->return_types.push_back(*return_type_def);
+      for (pair<VMType, wstring> arg : *ARGS) {
+        compilation->environment
+            ->Define(arg.second, unique_ptr<Value>(new Value(arg.first)));
+      }
+    }
+  }
+  delete RETURN_TYPE;
+  delete NAME;
 }
 
 // Arguments in the declaration of a function
@@ -257,8 +268,9 @@ non_empty_function_declaration_arguments(OUT) ::=
   delete NAME;
 }
 
-
+////////////////////////////////////////////////////////////////////////////////
 // Expressions
+////////////////////////////////////////////////////////////////////////////////
 
 %type expr { Expression* }
 %destructor expr { delete $$; }
@@ -905,7 +917,9 @@ expr(A) ::= expr(B) DIVIDE expr(C). {
   }
 }
 
-// Atomic types
+////////////////////////////////////////////////////////////////////////////////
+// Atomic Expressions
+////////////////////////////////////////////////////////////////////////////////
 
 expr(OUT) ::= BOOL(B). {
   OUT = NewConstantExpression(unique_ptr<Value>(B)).release();
