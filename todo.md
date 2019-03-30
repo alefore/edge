@@ -79,6 +79,11 @@ Support polymorphism: same name for multiple symbols with different type.
 
 Support in-line functions and/or lambda forms. Tricky.
 
+Support `for (...)` forms. Right now we have to use `while` everywhere, which is cumbersome.
+
+Support `i++` and `i--` and `i+=...`, `*=`, `-=`, `/=`.
+  Right now we have to use `i = i + 1` everywhere, which is cumbersome.
+
 ### Client/server
 
 Allow a client to just disconnect.
