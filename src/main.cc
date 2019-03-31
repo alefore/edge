@@ -174,7 +174,7 @@ int main(int argc, const char** argv) {
   Args args = ParseArgs(argc, argv);
 
   auto audio_player = args.mute ? NewNullAudioPlayer() : NewAudioPlayer();
-  global_editor_state = std::make_unique<EditorState>(audio_player.get());
+  global_editor_state = std::make_unique<EditorState>(args, audio_player.get());
 
   int remote_server_fd = -1;
   if (!args.client.empty()) {

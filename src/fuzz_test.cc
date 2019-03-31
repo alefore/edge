@@ -63,7 +63,7 @@ int main(int, char** argv) {
   std::cout << "Seed: " << seed << std::endl;
   srand(seed);
   auto audio_player = NewNullAudioPlayer();
-  EditorState editor_state(audio_player.get());
+  EditorState editor_state(Args(), audio_player.get());
   SendInput(&editor_state, "i");
   editor_state.ProcessInput(Terminal::ESCAPE);
   for (int i = 0; i < 1000 || getenv("EDGE_TEST_STDIN") != nullptr; i++) {

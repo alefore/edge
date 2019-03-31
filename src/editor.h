@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "args.h"
 #include "audio.h"
 #include "buffer.h"
 #include "command_mode.h"
@@ -40,7 +41,7 @@ class EditorState {
     bool needs_hard_redraw = false;
   };
 
-  EditorState(AudioPlayer* audio_player);
+  EditorState(Args args, AudioPlayer* audio_player);
   ~EditorState();
 
   void CheckPosition() {

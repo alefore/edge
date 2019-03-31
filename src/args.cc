@@ -3,6 +3,14 @@
 #include <iostream>
 #include <string>
 
+extern "C" {
+#include <fcntl.h>
+#include <pwd.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <unistd.h>
+}
+
 #include <glog/logging.h>
 
 #include "src/server.h"
@@ -11,7 +19,38 @@
 namespace afc {
 namespace editor {
 
-using std::string;
+using std::wstring;
+
+namespace {
+static wstring GetHomeDirectory() {
+  char* env = getenv("HOME");
+  if (env != nullptr) {
+    return FromByteString(env);
+  }
+  struct passwd* entry = getpwuid(getuid());
+  if (entry != nullptr) {
+    return FromByteString(entry->pw_dir);
+  }
+  return L"/";  // What else?
+}
+
+static vector<wstring> GetEdgeConfigPath(const wstring& home) {
+  // TODO: Don't add repeated paths?
+  vector<wstring> output;
+  output.push_back(home + L"/.edge");
+  LOG(INFO) << "Pushing config path: " << output[0];
+  char* env = getenv("EDGE_PATH");
+  if (env != nullptr) {
+    std::istringstream text_stream(string(env) + ";");
+    std::string dir;
+    // TODO: stat it and don't add it if it doesn't exist.
+    while (std::getline(text_stream, dir, ';')) {
+      output.push_back(FromByteString(dir));
+    }
+  }
+  return output;
+}
+}  // namespace
 
 Args ParseArgs(int argc, const char** argv) {
   using std::cerr;
@@ -30,6 +69,10 @@ Args ParseArgs(int argc, const char** argv) {
       "  --bg                   -f opens buffers in background\n";
 
   Args output;
+
+  output.home_directory = GetHomeDirectory();
+  output.config_paths = GetEdgeConfigPath(output.home_directory);
+
   auto pop_argument = [&argc, &argv, &output]() {
     if (argc == 0) {
       cerr << output.binary_name << ": Parameters missing." << std::endl;

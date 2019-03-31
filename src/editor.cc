@@ -45,34 +45,6 @@ using std::to_string;
 using std::vector;
 using std::wstring;
 
-static wstring GetHomeDirectory() {
-  char* env = getenv("HOME");
-  if (env != nullptr) {
-    return FromByteString(env);
-  }
-  struct passwd* entry = getpwuid(getuid());
-  if (entry != nullptr) {
-    return FromByteString(entry->pw_dir);
-  }
-  return L"/";  // What else?
-}
-
-static vector<wstring> GetEdgeConfigPath(const wstring& home) {
-  vector<wstring> output;
-  output.push_back(home + L"/.edge");
-  LOG(INFO) << "Pushing config path: " << output[0];
-  char* env = getenv("EDGE_PATH");
-  if (env != nullptr) {
-    std::istringstream text_stream(string(env) + ";");
-    std::string dir;
-    // TODO: stat it and don't add it if it doesn't exist.
-    while (std::getline(text_stream, dir, ';')) {
-      output.push_back(FromByteString(dir));
-    }
-  }
-  return output;
-}
-
 void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
                           void (OpenBuffer::*method)(void)) {
   auto callback = std::make_unique<Value>(VMType::FUNCTION);
@@ -305,10 +277,10 @@ std::pair<int, int> BuildPipe() {
   return {output[0], output[1]};
 }
 
-EditorState::EditorState(AudioPlayer* audio_player)
+EditorState::EditorState(Args args, AudioPlayer* audio_player)
     : current_buffer_(buffers_.end()),
-      home_directory_(GetHomeDirectory()),
-      edge_path_(GetEdgeConfigPath(home_directory_)),
+      home_directory_(args.home_directory),
+      edge_path_(args.config_paths),
       environment_(BuildEditorEnvironment()),
       default_commands_(NewCommandMode(this)),
       visible_lines_(1),

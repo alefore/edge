@@ -10,9 +10,14 @@ namespace afc {
 namespace editor {
 
 using std::string;
+using std::wstring;
 
+// TODO: Convert all to wstring.
 struct Args {
   string binary_name;
+  wstring home_directory;
+  std::vector<wstring> config_paths;
+
   std::vector<string> files_to_open;
   std::vector<string> commands_to_fork;
 
