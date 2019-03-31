@@ -26,6 +26,7 @@ extern "C" {
 #include "screen_curses.h"
 #include "screen_vm.h"
 #include "server.h"
+#include "src/args.h"
 #include "terminal.h"
 #include "vm/public/value.h"
 #include "wstring.h"
@@ -67,24 +68,6 @@ void SignalHandler(int sig) {
   editor_state()->PushSignal(sig);
 }
 
-struct Args {
-  string binary_name;
-  vector<string> files_to_open;
-  vector<string> commands_to_fork;
-
-  // Contains C++ (VM) code to execute.
-  string commands_to_run;
-
-  bool server = false;
-  string server_path = "";
-
-  // If non-empty, path of the server to connect to.
-  string client = "";
-
-  bool mute = false;
-  bool background = false;
-};
-
 static const char* kDefaultCommandsToRun = "ForkCommand(\"sh -l\", true);";
 
 string CommandsToRun(Args args) {
@@ -116,82 +99,9 @@ string CommandsToRun(Args args) {
   return commands_to_run;
 }
 
-Args ParseArgs(int* argc, const char*** argv) {
-  using std::cerr;
-  using std::cout;
-
-  string kHelpString =
-      "Usage: edge [OPTION]... [FILE]...\n"
-      "Open the files given.\n\nEdge supports the following options:\n"
-      "  -f, --fork <shellcmd>  Creates a buffer running a shell command\n"
-      "  -h, --help             Displays this message\n"
-      "  --run <vmcmd>          Runs a VM command\n"
-      "  --load <path>          Loads a file with VM commands\n"
-      "  -s, --server <path>    Runs in daemon mode at path given\n"
-      "  -c, --client <path>    Connects to daemon at path given\n"
-      "  --mute                 Disables audio output\n"
-      "  --bg                   -f opens buffers in background\n";
-
-  Args output;
-  auto pop_argument = [argc, argv, &output]() {
-    if (*argc == 0) {
-      cerr << output.binary_name << ": Parameters missing." << std::endl;
-      exit(1);
-    }
-    (*argv)++;
-    (*argc)--;
-    return (*argv)[-1];
-  };
-
-  output.binary_name = pop_argument();
-
-  while (*argc > 0) {
-    string cmd = pop_argument();
-    if (cmd.empty()) {
-      continue;
-    }
-    if (cmd[0] != '-') {
-      output.files_to_open.push_back(cmd);
-    } else if (cmd == "--help" || cmd == "-h") {
-      cout << kHelpString;
-      exit(0);
-    } else if (cmd == "--fork" || cmd == "-f") {
-      CHECK_GT(*argc, 0) << output.binary_name << ": " << cmd
-                         << ": Expected command to fork.\n";
-      output.commands_to_fork.push_back(pop_argument());
-    } else if (cmd == "--run") {
-      CHECK_GT(*argc, 0) << output.binary_name << ": " << cmd
-                         << ": Expected command to run.\n";
-      output.commands_to_run += pop_argument();
-    } else if (cmd == "--load" || cmd == "-l") {
-      CHECK_GT(*argc, 0) << output.binary_name << ": " << cmd
-                         << ": Expected path to VM commands to run.\n";
-      output.commands_to_run +=
-          "buffer.EvaluateFile(\"" +
-          ToByteString(CppEscapeString(FromByteString(pop_argument()))) +
-          "\");";
-    } else if (cmd == "--server" || cmd == "-s") {
-      output.server = true;
-      if (*argc > 0) {
-        output.server_path = pop_argument();
-      }
-    } else if (cmd == "--client" || cmd == "-c") {
-      output.client = pop_argument();
-      if (output.client.empty()) {
-        cerr << output.binary_name << ": --client: Missing server path."
-             << std::endl;
-        exit(1);
-      }
-    } else if (cmd == "--mute") {
-      output.mute = true;
-    } else if (cmd == "--bg") {
-      output.background = true;
-    } else {
-      cerr << output.binary_name << ": Invalid flag: " << cmd << std::endl;
-      exit(1);
-    }
-  }
-
+std::list<string> ReadArguments() {
+  std::list<string> output;
+  std::ifstream in("file.txt");
   return output;
 }
 
@@ -261,7 +171,7 @@ int main(int argc, const char** argv) {
   string locale = std::setlocale(LC_ALL, "");
   LOG(INFO) << "Using locale: " << locale;
 
-  Args args = ParseArgs(&argc, &argv);
+  Args args = ParseArgs(argc, argv);
 
   auto audio_player = args.mute ? NewNullAudioPlayer() : NewAudioPlayer();
   global_editor_state = std::make_unique<EditorState>(audio_player.get());
