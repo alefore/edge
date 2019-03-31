@@ -1,5 +1,6 @@
 #include "src/args.h"
 
+#include <fstream>
 #include <iostream>
 #include <string>
 
@@ -52,13 +53,11 @@ static vector<wstring> GetEdgeConfigPath(const wstring& home) {
 }
 }  // namespace
 
-Args ParseArgs(int argc, const char** argv) {
-  using std::cerr;
-  using std::cout;
-
+void Help(string) {
   string kHelpString =
       "Usage: edge [OPTION]... [FILE]...\n"
-      "Open the files given.\n\nEdge supports the following options:\n"
+      "Open the files given.\n\n"
+      "Edge supports the following options:\n"
       "  -f, --fork <shellcmd>  Creates a buffer running a shell command\n"
       "  -h, --help             Displays this message\n"
       "  --run <vmcmd>          Runs a VM command\n"
@@ -67,69 +66,123 @@ Args ParseArgs(int argc, const char** argv) {
       "  -c, --client <path>    Connects to daemon at path given\n"
       "  --mute                 Disables audio output\n"
       "  --bg                   -f opens buffers in background\n";
+  std::cout << kHelpString;
+  exit(0);
+}
+
+Args ParseArgs(int argc, const char** argv) {
+  using std::cerr;
+  using std::cout;
 
   Args output;
 
   output.home_directory = GetHomeDirectory();
   output.config_paths = GetEdgeConfigPath(output.home_directory);
 
-  auto pop_argument = [&argc, &argv, &output]() {
-    if (argc == 0) {
-      cerr << output.binary_name << ": Parameters missing." << std::endl;
-      exit(1);
+  std::list<string> inputs;
+  for (auto config_path : output.config_paths) {
+    auto flags_path = config_path + L"/flags.txt";
+    LOG(INFO) << "Attempting to load additional flags from: " << flags_path;
+    std::wifstream flags_stream(ToByteString(flags_path));
+    flags_stream.imbue(std::locale(""));
+    if (flags_stream.fail()) {
+      LOG(INFO) << "Unable to open file, skipping";
+      continue;
     }
-    argv++;
-    argc--;
-    return argv[-1];
+    std::wstring line;
+    while (std::getline(flags_stream, line)) {
+      inputs.push_back(ToByteString(line));
+    }
+  }
+
+  CHECK_GT(argc, 0);
+  output.binary_name = argv[0];
+  for (int i = 1; i < argc; i++) {
+    inputs.push_back(argv[i]);
+  }
+
+  auto WithArgument = [&](string name, std::function<void(string)> delegate) {
+    return [name, delegate, &inputs, &output](string cmd) {
+      if (inputs.empty()) {
+        std::cerr << output.binary_name << ": " << cmd
+                  << ": Expected argument: " << name << std::endl;
+        exit(1);
+      }
+      delegate(inputs.front());
+      inputs.pop_front();
+    };
+  };
+  auto WithOptionalArgument = [&](std::function<void(string*)> delegate) {
+    return [delegate, &inputs](string) {
+      if (inputs.empty()) {
+        delegate(nullptr);
+      } else {
+        delegate(&inputs.front());
+        inputs.pop_front();
+      }
+    };
+  };
+  auto PushInto = [&](string name, std::vector<string>* v) {
+    return WithArgument(name, [v](string x) { v->push_back(x); });
+  };
+  auto AppendString = [&](string name, string* s) {
+    return WithArgument(name, [s](string x) { *s += x; });
   };
 
-  output.binary_name = pop_argument();
+  struct Handler {
+    std::vector<string> aliases;
+    std::function<void(string)> callback;
+  };
 
-  while (argc > 0) {
-    string cmd = pop_argument();
+  std::vector<Handler> handlers = {
+      {{"-h", "--help"}, Help},
+      {{"-f", "--fork"}, PushInto("Command to fork", &output.commands_to_fork)},
+      {{"--run"}, AppendString("Command to run", &output.commands_to_run)},
+      {{"-l", "--load"},
+       WithArgument("Path to VM commands to run",
+                    [&](string value) {
+                      output.commands_to_run +=
+                          "buffer.EvaluateFile(\"" +
+                          ToByteString(CppEscapeString(FromByteString(value))) +
+                          "\");";
+                    })},
+      {{"-s", "--server"}, WithOptionalArgument([&](string* value) {
+         output.server = true;
+         if (value != nullptr) {
+           output.server_path = *value;
+         }
+       })},
+      {{"-c", "--client"},
+       WithArgument("Server path (given to -s)",
+                    [&](string v) { output.client = v; })},
+      {{"--mute"}, [&](string) { output.mute = true; }},
+      {{"--bg"}, [&](string) { output.background = true; }}};
+
+  std::map<string, int> handlers_map;
+  for (size_t i = 0; i < handlers.size(); i++) {
+    for (auto& alias : handlers[i].aliases) {
+      handlers_map[alias] = i;
+    }
+  }
+
+  while (!inputs.empty()) {
+    string cmd = inputs.front();
+    inputs.pop_front();
     if (cmd.empty()) {
       continue;
     }
+
     if (cmd[0] != '-') {
       output.files_to_open.push_back(cmd);
-    } else if (cmd == "--help" || cmd == "-h") {
-      cout << kHelpString;
-      exit(0);
-    } else if (cmd == "--fork" || cmd == "-f") {
-      CHECK_GT(argc, 0) << output.binary_name << ": " << cmd
-                        << ": Expected command to fork.\n";
-      output.commands_to_fork.push_back(pop_argument());
-    } else if (cmd == "--run") {
-      CHECK_GT(argc, 0) << output.binary_name << ": " << cmd
-                        << ": Expected command to run.\n";
-      output.commands_to_run += pop_argument();
-    } else if (cmd == "--load" || cmd == "-l") {
-      CHECK_GT(argc, 0) << output.binary_name << ": " << cmd
-                        << ": Expected path to VM commands to run.\n";
-      output.commands_to_run +=
-          "buffer.EvaluateFile(\"" +
-          ToByteString(CppEscapeString(FromByteString(pop_argument()))) +
-          "\");";
-    } else if (cmd == "--server" || cmd == "-s") {
-      output.server = true;
-      if (argc > 0) {
-        output.server_path = pop_argument();
-      }
-    } else if (cmd == "--client" || cmd == "-c") {
-      output.client = pop_argument();
-      if (output.client.empty()) {
-        cerr << output.binary_name << ": --client: Missing server path."
-             << std::endl;
-        exit(1);
-      }
-    } else if (cmd == "--mute") {
-      output.mute = true;
-    } else if (cmd == "--bg") {
-      output.background = true;
-    } else {
+      continue;
+    }
+
+    auto it = handlers_map.find(cmd);
+    if (it == handlers_map.end()) {
       cerr << output.binary_name << ": Invalid flag: " << cmd << std::endl;
       exit(1);
     }
+    handlers[it->second].callback(cmd);
   }
 
   return output;
