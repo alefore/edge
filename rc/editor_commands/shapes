@@ -360,6 +360,7 @@ bool IsMovingDownBold(string c) {
 
 void DrawLineColumns(SetLineColumn line_column_right,
                      SetLineColumn line_column_down, string code) {
+  buffer.PushTransformationStack();
   SetLineColumn line_columns = SetLineColumn();
   GetLineColumnsToDraw(line_column_right, line_column_down, line_columns);
   ShapesSetStatus("Positions to draw: " + line_columns.size().tostring());
@@ -432,6 +433,7 @@ void DrawLineColumns(SetLineColumn line_column_right,
     }
     DrawPosition(line_columns.get(i), current_code);
   }
+  buffer.PopTransformationStack();
 }
 
 // output_right contains LineColumn(i, j) if there's a line cross into

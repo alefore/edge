@@ -248,6 +248,18 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
                 ->ProcessInput(L'\n', editor_state);
           }));
 
+  buffer->AddField(L"PushTransformationStack",
+                   vm::NewCallback(std::function<void(OpenBuffer*)>(
+                       [editor_state](OpenBuffer* buffer) {
+                         buffer->PushTransformationStack();
+                       })));
+
+  buffer->AddField(L"PopTransformationStack",
+                   vm::NewCallback(std::function<void(OpenBuffer*)>(
+                       [editor_state](OpenBuffer* buffer) {
+                         buffer->PopTransformationStack();
+                       })));
+
   buffer->AddField(
       L"AddKeyboardTextTransformer",
       Value::NewFunction(
@@ -2071,10 +2083,10 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
   if (!last_transformation_stack_.empty()) {
     CHECK(last_transformation_stack_.back() != nullptr);
     last_transformation_stack_.back()->PushBack(transformation->Clone());
+  } else {
+    transformations_past_.push_back(
+        std::make_unique<Transformation::Result>(editor_));
   }
-
-  transformations_past_.push_back(
-      std::make_unique<Transformation::Result>(editor_));
 
   transformations_past_.back()->undo_stack->PushFront(
       NewSetCursorsTransformation(*active_cursors(), position()));
@@ -2140,6 +2152,10 @@ void OpenBuffer::RepeatLastTransformation() {
 }
 
 void OpenBuffer::PushTransformationStack() {
+  if (last_transformation_stack_.empty()) {
+    transformations_past_.push_back(
+        std::make_unique<Transformation::Result>(editor_));
+  }
   last_transformation_stack_.emplace_back(
       std::make_unique<TransformationStack>());
 }

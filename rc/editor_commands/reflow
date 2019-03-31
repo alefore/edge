@@ -86,6 +86,8 @@ void BreakLineByLineWidth(string prefix) {
   }
 }
 
+buffer.PushTransformationStack();
+
 string prefix = GetPrefix(b.line(b.position().line()));
 SetStatus("Paragraph prefix: '" + prefix + "'");
 
@@ -102,3 +104,5 @@ b.set_position(starting_position);
 
 BreakLineByLineWidth(prefix);
 b.set_position(starting_position);
+
+buffer.PopTransformationStack();

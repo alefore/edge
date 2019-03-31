@@ -20,7 +20,7 @@ string LeadingPrefix(string text) {
   }
 }
 
-Buffer buffer = CurrentBuffer();
+buffer.PushTransformationStack();
 int line = buffer.position().line();
 if (line != buffer.line_count()) {
   int column = buffer.line(line).size();
@@ -30,3 +30,4 @@ if (line != buffer.line_count()) {
     buffer.InsertText(" ");
   }
 }
+buffer.PopTransformationStack();
