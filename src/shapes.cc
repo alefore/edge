@@ -13,133 +13,8 @@
 
 namespace afc {
 namespace editor {
-// Coordinates are in range [0.0, 1.0).
-struct Point {
-  double x;
-  double y;
-};
-
-struct Line {
-  Point start;
-  Point end;
-};
-
-}  // namespace editor
-namespace vm {
-template <>
-struct VMTypeMapper<editor::Point> {
-  static editor::Point get(Value* value) {
-    CHECK(value != nullptr);
-    CHECK(value->type.type == VMType::OBJECT_TYPE);
-    CHECK(value->type.object_type == L"ShapesPoint");
-    CHECK(value->user_value != nullptr);
-    return *static_cast<editor::Point*>(value->user_value.get());
-  }
-
-  static Value::Ptr New(editor::Point value) {
-    return Value::NewObject(
-        L"ShapesPoint", shared_ptr<void>(new editor::Point(value), [](void* v) {
-          delete static_cast<editor::Point*>(v);
-        }));
-  }
-
-  static const VMType vmtype;
-};
-
-const VMType VMTypeMapper<editor::Point>::vmtype =
-    VMType::ObjectType(L"ShapesPoint");
-
-template <>
-struct VMTypeMapper<editor::Line> {
-  static editor::Line get(Value* value) {
-    CHECK(value != nullptr);
-    CHECK(value->type.type == VMType::OBJECT_TYPE);
-    CHECK(value->type.object_type == L"ShapesLine");
-    CHECK(value->user_value != nullptr);
-    return *static_cast<editor::Line*>(value->user_value.get());
-  }
-
-  static Value::Ptr New(editor::Line value) {
-    return Value::NewObject(
-        L"ShapesLine", shared_ptr<void>(new editor::Line(value), [](void* v) {
-          delete static_cast<editor::Line*>(v);
-        }));
-  }
-
-  static const VMType vmtype;
-};
-
-const VMType VMTypeMapper<editor::Line>::vmtype =
-    VMType::ObjectType(L"ShapesLine");
-
-template <>
-const VMType VMTypeMapper<std::vector<editor::Line>*>::vmtype =
-    VMType::ObjectType(L"ShapesLineVector");
-
-}  // namespace vm
-namespace editor {
 
 using namespace afc::vm;
-
-void DefinePoint(Environment* environment) {
-  auto point_type = std::make_unique<ObjectType>(L"ShapesPoint");
-
-  environment->Define(
-      L"ShapesPoint",
-      Value::NewFunction({VMType::ObjectType(point_type.get()),
-                          VMType::Double(), VMType::Double()},
-                         [](std::vector<Value::Ptr> args) {
-                           CHECK_EQ(args.size(), size_t(2));
-                           CHECK_EQ(args[0]->type, VMType::VM_DOUBLE);
-                           CHECK_EQ(args[1]->type, VMType::VM_DOUBLE);
-                           auto point = std::make_shared<Point>();
-                           point->x = args[0]->double_value;
-                           point->y = args[1]->double_value;
-                           return Value::NewObject(L"ShapesPoint", point);
-                         }));
-
-  point_type->AddField(
-      L"x", Value::NewFunction(
-                {VMType::Double(), VMType::ObjectType(point_type.get())},
-                [](std::vector<Value::Ptr> args) {
-                  CHECK_EQ(args.size(), size_t(1));
-                  CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-                  auto point = static_cast<Point*>(args[0]->user_value.get());
-                  CHECK(point != nullptr);
-                  return Value::NewDouble(point->x);
-                }));
-
-  point_type->AddField(
-      L"y", Value::NewFunction(
-                {VMType::Double(), VMType::ObjectType(point_type.get())},
-                [](std::vector<Value::Ptr> args) {
-                  CHECK_EQ(args.size(), size_t(1));
-                  CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
-                  auto point = static_cast<Point*>(args[0]->user_value.get());
-                  CHECK(point != nullptr);
-                  return Value::NewDouble(point->y);
-                }));
-
-  environment->DefineType(L"ShapesPoint", std::move(point_type));
-}
-
-void DefineLine(Environment* environment) {
-  auto line_type = std::make_unique<ObjectType>(L"ShapesLine");
-
-  environment->Define(L"ShapesLine",
-                      vm::NewCallback(std::function<Line(Point, Point)>(
-                          [](Point start, Point end) {
-                            Line output = {start, end};
-                            return output;
-                          })));
-
-  line_type->AddField(L"start", vm::NewCallback(std::function<Point(Line)>(
-                                    [](Line line) { return line.start; })));
-  line_type->AddField(L"end", vm::NewCallback(std::function<Point(Line)>(
-                                  [](Line line) { return line.end; })));
-
-  environment->DefineType(L"ShapesLine", std::move(line_type));
-}
 
 std::vector<wstring> Justify(std::vector<wstring> input, int width) {
   LOG(INFO) << "Evaluating breaks with inputs: " << input.size();
@@ -189,11 +64,6 @@ std::vector<wstring> Justify(std::vector<wstring> input, int width) {
 }
 
 void InitShapes(vm::Environment* environment) {
-  DefinePoint(environment);
-  DefineLine(environment);
-  VMTypeMapper<std::vector<editor::Line>*>::Export(environment);
-  VMTypeMapper<std::set<editor::LineColumn>*>::Export(environment);
-  VMTypeMapper<std::vector<editor::LineColumn>*>::Export(environment);
   environment->Define(
       L"ShapesReflow",
       Value::NewFunction(
