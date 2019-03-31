@@ -33,6 +33,8 @@ extern "C" {
 #include "server.h"
 #include "src/parsers/diff.h"
 #include "src/parsers/markdown.h"
+#include "src/screen.h"
+#include "src/screen_vm.h"
 #include "src/seek.h"
 #include "substring.h"
 #include "transformation.h"
@@ -62,6 +64,14 @@ const VMType VMTypeMapper<editor::OpenBuffer*>::vmtype =
 }  // namespace vm
 namespace editor {
 namespace {
+Screen* GetScreen(OpenBuffer* buffer) {
+  auto screen_value = buffer->environment()->Lookup(L"screen");
+  if (screen_value == nullptr || !(screen_value->type == GetScreenVmType()) ||
+      screen_value->user_value == nullptr) {
+    return nullptr;
+  }
+  return static_cast<Screen*>(screen_value->user_value.get());
+}
 
 static const wchar_t* kOldCursors = L"old-cursors";
 
@@ -994,7 +1004,6 @@ void OpenBuffer::ProcessCommandInput(EditorState* editor_state,
     position_pts_.line = contents_.size() - 1;
   }
   CHECK_LT(position_pts_.line, contents_.size());
-  auto current_line = contents_.at(position_pts_.line);
   std::unordered_set<LineModifier, hash<int>> modifiers;
 
   size_t read_index = 0;
@@ -1003,11 +1012,13 @@ void OpenBuffer::ProcessCommandInput(EditorState* editor_state,
     int c = str->get(read_index);
     read_index++;
     if (c == '\b') {
+      VLOG(8) << "Received \\b";
       if (position_pts_.column > 0) {
         position_pts_.column--;
         MaybeFollowToEndOfFile();
       }
     } else if (c == '\a') {
+      VLOG(8) << "Received \\a";
       auto status = editor_state->status();
       if (!all_of(status.begin(), status.end(), [](const wchar_t& c) {
             return c == L'♪' || c == L'♫' || c == L'…' || c == L' ' ||
@@ -1021,32 +1032,41 @@ void OpenBuffer::ProcessCommandInput(EditorState* editor_state,
                               (status.back() == L'♪' ? L"♫" : L"♪"));
       BeepFrequencies(editor_state->audio_player(), {783.99, 523.25, 659.25});
     } else if (c == '\r') {
+      VLOG(8) << "Received \\r";
       position_pts_.column = 0;
       MaybeFollowToEndOfFile();
     } else if (c == '\n') {
-      position_pts_.line++;
-      position_pts_.column = 0;
-      if (position_pts_.line == contents_.size()) {
-        contents_.push_back(std::make_shared<Line>());
-      }
-      CHECK_LT(position_pts_.line, contents_.size());
-      current_line = contents_.at(position_pts_.line);
-      MaybeFollowToEndOfFile();
+      VLOG(8) << "Received \\n";
+      PtsMoveToNextLine();
     } else if (c == 0x1b) {
+      VLOG(8) << "Received 0x1b";
       read_index = ProcessTerminalEscapeSequence(editor_state, str, read_index,
                                                  &modifiers);
       CHECK_LT(position_pts_.line, contents_.size());
-      current_line = contents_.at(position_pts_.line);
     } else if (isprint(c) || c == '\t') {
+      VLOG(8) << "Received printable or tab: " << c;
+      auto screen = GetScreen(this);
+      if (screen != nullptr && position_pts_.column >= screen->columns()) {
+        PtsMoveToNextLine();
+      }
       contents_.SetCharacter(position_pts_.line, position_pts_.column, c,
                              modifiers);
-      current_line = LineAt(position_pts_.line);
       position_pts_.column++;
       MaybeFollowToEndOfFile();
     } else {
       LOG(INFO) << "Unknown character: [" << c << "]\n";
     }
   }
+}
+
+void OpenBuffer::PtsMoveToNextLine() {
+  position_pts_.line++;
+  position_pts_.column = 0;
+  if (position_pts_.line == contents_.size()) {
+    contents_.push_back(std::make_shared<Line>());
+  }
+  CHECK_LT(position_pts_.line, contents_.size());
+  MaybeFollowToEndOfFile();
 }
 
 size_t OpenBuffer::ProcessTerminalEscapeSequence(

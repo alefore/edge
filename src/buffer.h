@@ -507,6 +507,8 @@ class OpenBuffer {
   void StartNewLine(EditorState* editor_state);
   void ProcessCommandInput(EditorState* editor_state,
                            shared_ptr<LazyString> str);
+  // Advances the pts position to the next line (possibly inserting a new line).
+  void PtsMoveToNextLine();
 
   // Returns true if the position given is set to a value other than
   // LineColumn::Max and the buffer has read past that position.

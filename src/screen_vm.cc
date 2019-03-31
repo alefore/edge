@@ -204,5 +204,10 @@ std::unique_ptr<Screen> NewScreenVm(int fd) {
   return std::make_unique<ScreenVm>(fd);
 }
 
+const VMType& GetScreenVmType() {
+  static const VMType* const output = new VMType(VMType::ObjectType(L"Screen"));
+  return *output;
+}
+
 }  // namespace editor
 }  // namespace afc
