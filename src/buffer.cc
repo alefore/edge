@@ -1082,7 +1082,6 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
       VLOG(9) << "Received: cuu1: Up one line.";
       if (position_pts_.line > 0) {
         position_pts_.line--;
-        position_pts_.column = 0;
         MaybeFollowToEndOfFile();
         if (static_cast<size_t>(Read(buffer_variables::view_start_line())) >
             position_pts_.line) {
@@ -1275,10 +1274,13 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
 
       case 'P': {
         VLOG(9) << "Terminal: P";
-        contents_.DeleteCharactersFromLine(
-            position_pts_.line, position_pts_.column,
-            min(static_cast<size_t>(atoi(sequence.c_str())),
-                current_line->size()));
+        size_t chars_to_erase = static_cast<size_t>(atoi(sequence.c_str()));
+        size_t length = contents_.at(position_pts_.line)->size();
+        if (position_pts_.column < length) {
+          contents_.DeleteCharactersFromLine(
+              position_pts_.line, position_pts_.column,
+              min(chars_to_erase, length - position_pts_.column));
+        }
         current_line = LineAt(position_pts_.line);
         return read_index;
       }
