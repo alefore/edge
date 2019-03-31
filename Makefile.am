@@ -130,7 +130,7 @@ CLEANFILES = src/vm/internal/cpp.cc src/vm/internal/cpp.h
 BUILT_SOURCES = src/vm/internal/cpp.cc src/vm/internal/cpp.h
 
 docdir = $(prefix)/share/doc/$(PACKAGE)-$(VERSION)
-dist_doc_DATA = README
+dist_doc_DATA = README.md
 
 edge_SOURCES = $(COMMON_SOURCES) src/main.cc
 
