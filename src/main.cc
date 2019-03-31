@@ -153,6 +153,8 @@ std::wstring GetGreetingMessage() {
       L"The trouble is, you think you have time.",
       L"Happiness is here, and now.",
       L"The journey of a thousand miles begins with a single step.",
+      L"Every moment is a fresh beginning.",
+      L"Action is the foundational key to all success.",
   });
   return errors[rand() % errors.size()];
 }
