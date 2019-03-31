@@ -436,38 +436,6 @@ void DrawLineColumns(SetLineColumn line_column_right,
   buffer.PopTransformationStack();
 }
 
-// output_right contains LineColumn(i, j) if there's a line cross into
-// LineColumn(i, j + 1). output_down if there's a line crossing into
-// LineColumn(i + 1, j).
-void FindBoundariesLine(LineColumn start, LineColumn end,
-                        SetLineColumn output_right, SetLineColumn output_down) {
-  if (start.column() > end.column()) {
-    LineColumn tmp = start;
-    start = end;
-    end = tmp;
-  }
-  int delta_x = end.column() - start.column();
-  int delta_y = end.line() - start.line();
-  double delta_error = (0.0 + delta_y) / delta_x;
-  double error = delta_error / 2.0;
-  while (start.column() < end.column() ||
-         (delta_error >= 0 ? start.line() < end.line()
-                           : start.line() > end.line())) {
-    if (error > 0.5) {
-      error = error - 1.0;
-      output_down.insert(start);
-      start = LineColumn(start.line() + 1, start.column());
-    } else if (error < -0.5) {
-      error = error + 1.0;
-      start = LineColumn(start.line() - 1, start.column());
-      output_down.insert(start);
-    } else {
-      error = error + delta_error;
-      output_right.insert(start);
-      start = LineColumn(start.line(), start.column() + 1);
-    }
-  }
-}
 
 void FindBoundariesSquare(LineColumn start, LineColumn end,
                           SetLineColumn output_right,

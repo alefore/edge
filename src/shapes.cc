@@ -63,6 +63,45 @@ std::vector<wstring> Justify(std::vector<wstring> input, int width) {
   return output;
 }
 
+// output_right contains LineColumn(i, j) if there's a line cross into
+// LineColumn(i, j + 1). output_down if there's a line crossing into
+// LineColumn(i + 1, j).
+void FindBoundariesLine(LineColumn start, LineColumn end,
+                        std::set<LineColumn>* output_right,
+                        std::set<LineColumn>* output_down) {
+  if (start.column > end.column) {
+    LineColumn tmp = start;
+    start = end;
+    end = tmp;
+  }
+  double delta_x =
+      static_cast<double>(end.column) - static_cast<double>(start.column);
+  double delta_y =
+      static_cast<double>(end.line) - static_cast<double>(start.line);
+  double delta_error = delta_x == 0.0
+                           ? delta_y * std::numeric_limits<double>::max()
+                           : delta_y / delta_x;
+  double error = delta_error / 2.0;
+  LOG(INFO) << "delta_error " << delta_error << " from " << delta_x << " and "
+            << delta_y;
+  while (start.column < end.column ||
+         (delta_error >= 0 ? start.line < end.line : start.line > end.line)) {
+    if (error > 0.5) {
+      error -= 1.0;
+      output_down->insert(start);
+      start.line++;
+    } else if (error < -0.5) {
+      error += 1.0;
+      start.line--;
+      output_down->insert(start);
+    } else {
+      error += delta_error;
+      output_right->insert(start);
+      start.column++;
+    }
+  }
+}
+
 void InitShapes(vm::Environment* environment) {
   environment->Define(
       L"ShapesReflow",
@@ -80,6 +119,11 @@ void InitShapes(vm::Environment* environment) {
                                     std::make_shared<std::vector<wstring>>(
                                         Justify(*input, args[1]->integer)));
           }));
+  environment->Define(
+      L"FindBoundariesLine",
+      vm::NewCallback(
+          std::function<void(LineColumn, LineColumn, std::set<LineColumn>*,
+                             std::set<LineColumn>*)>(&FindBoundariesLine)));
 }
 
 }  // namespace editor
