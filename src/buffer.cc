@@ -1079,7 +1079,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
   }
   switch (str->get(read_index)) {
     case 'M':
-      // cuu1: Up one line.
+      VLOG(9) << "Received: cuu1: Up one line.";
       if (position_pts_.line > 0) {
         position_pts_.line--;
         position_pts_.column = 0;
@@ -1092,6 +1092,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
       }
       return read_index + 1;
     case '[':
+      VLOG(9) << "Received: [";
       break;
     default:
       LOG(INFO) << "Unhandled character sequence: "
@@ -1106,19 +1107,20 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
     read_index++;
     switch (c) {
       case '@': {
-        // ich: insert character
-        DLOG(INFO) << "Terminal: ich: Insert character.";
+        VLOG(9) << "Terminal: ich: Insert character.";
         contents_.InsertCharacter(position_pts_.line, position_pts_.column);
         return read_index;
       }
 
       case 'l':
+        VLOG(9) << "Terminal: l";
         if (sequence == "?1") {
+          VLOG(9) << "Terminal: ?1";
           sequence.push_back(c);
           continue;
         }
         if (sequence == "?1049") {
-          // rmcup
+          VLOG(9) << "Terminal: ?1049: rmcup";
         } else if (sequence == "?25") {
           LOG(INFO) << "Ignoring: Make cursor invisible";
         } else {
@@ -1127,6 +1129,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         return read_index;
 
       case 'h':
+        VLOG(9) << "Terminal: h";
         if (sequence == "?1") {
           sequence.push_back(c);
           continue;
@@ -1141,6 +1144,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         return read_index;
 
       case 'm':
+        VLOG(9) << "Terminal: m";
         if (sequence == "") {
           modifiers->clear();
         } else if (sequence == "0") {
@@ -1185,6 +1189,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         return read_index;
 
       case '>':
+        VLOG(9) << "Terminal: >";
         if (sequence == "?1l\E") {
           // rmkx: leave 'keyboard_transmit' mode
           // TODO(alejo): Handle it.
@@ -1195,6 +1200,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         break;
 
       case '=':
+        VLOG(9) << "Terminal: =";
         if (sequence == "?1h\E") {
           // smkx: enter 'keyboard_transmit' mode
           // TODO(alejo): Handle it.
@@ -1205,7 +1211,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         break;
 
       case 'C':
-        // cuf1: non-destructive space (move right one space)
+        VLOG(9) << "Terminal: cuf1: non-destructive space (move right 1 space)";
         if (position_pts_.column >= current_line->size()) {
           return read_index;
         }
@@ -1214,7 +1220,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         return read_index;
 
       case 'H':
-        // home: move cursor home.
+        VLOG(9) << "Terminal: home: move cursor home.";
         {
           size_t line_delta = 0, column_delta = 0;
           size_t pos = sequence.find(';');
@@ -1247,20 +1253,20 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         return read_index;
 
       case 'J':
-        // ed: clear to end of screen.
+        VLOG(9) << "Terminal: ed: clear to end of screen.";
         EraseLines(position_pts_.line + 1, contents_.size());
         CHECK_LT(position_pts_.line, contents_.size());
         return read_index;
 
       case 'K': {
-        // el: clear to end of line.
+        VLOG(9) << "Terminal: el: clear to end of line.";
         contents_.DeleteCharactersFromLine(position_pts_.line,
                                            position_pts_.column);
         return read_index;
       }
 
       case 'M':
-        // dl1: delete one line.
+        VLOG(9) << "Terminal: dl1: delete one line.";
         {
           EraseLines(position_pts_.line, position_pts_.line + 1);
           CHECK_LT(position_pts_.line, contents_.size());
@@ -1268,6 +1274,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         return read_index;
 
       case 'P': {
+        VLOG(9) << "Terminal: P";
         contents_.DeleteCharactersFromLine(
             position_pts_.line, position_pts_.column,
             min(static_cast<size_t>(atoi(sequence.c_str())),
