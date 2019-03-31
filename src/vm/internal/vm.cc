@@ -435,6 +435,8 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
           input = Value::NewBool(false);
         } else if (symbol == L"while") {
           token = WHILE;
+        } else if (symbol == L"for") {
+          token = FOR;
         } else if (symbol == L"if") {
           token = IF;
         } else if (symbol == L"else") {

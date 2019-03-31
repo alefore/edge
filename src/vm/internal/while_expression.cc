@@ -4,6 +4,7 @@
 
 #include "../public/value.h"
 #include "../public/vm.h"
+#include "append_expression.h"
 #include "compilation.h"
 
 namespace afc {
@@ -73,6 +74,22 @@ std::unique_ptr<Expression> NewWhileExpression(
 
   return std::make_unique<WhileExpression>(std::move(condition),
                                            std::move(body));
+}
+
+std::unique_ptr<Expression> NewForExpression(
+    Compilation* compilation, std::unique_ptr<Expression> init,
+    std::unique_ptr<Expression> condition, std::unique_ptr<Expression> update,
+    std::unique_ptr<Expression> body) {
+  if (init == nullptr || condition == nullptr || update == nullptr ||
+      body == nullptr) {
+    compilation->errors.push_back(L"XXX giving up");
+    return nullptr;
+  }
+  return NewAppendExpression(
+      std::move(init),
+      NewWhileExpression(
+          compilation, std::move(condition),
+          NewAppendExpression(std::move(body), std::move(update))));
 }
 
 }  // namespace vm
