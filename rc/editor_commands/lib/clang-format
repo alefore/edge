@@ -7,8 +7,8 @@ void ClangFormatOnSave() {
   }
   SetStatus("Launching");
   ForkCommand("clang-format -i " + path.shell_escape() +
-                  "; sleep 1 | edge --run 'OpenFile(\"" + path.shell_escape() +
-                  "\"); CurrentBuffer().Reload();'",
+                  "; edge --run 'OpenFile(\"" + path.shell_escape() +
+                  "\", false).Reload();'",
               false);
 }
 

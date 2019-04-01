@@ -85,7 +85,7 @@ string CommandsToRun(Args args) {
       full_path = string(dir) + "/" + path;
       free(dir);
     }
-    commands_to_run += "OpenFile(\"" + full_path + "\");\n";
+    commands_to_run += "OpenFile(\"" + full_path + "\", true);\n";
     buffers_to_watch.push_back(full_path);
   }
   for (auto& command_to_fork : args.commands_to_fork) {

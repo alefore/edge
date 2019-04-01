@@ -25,7 +25,7 @@ string SubstituteComponent(string path) {
 
 void LoadFileWithExtension(string old_path, int dot, string extension) {
   string new_path = old_path.substr(0, dot + 1) + extension;
-  OpenFile(SubstituteComponent(new_path));
+  OpenFile(SubstituteComponent(new_path), true);
   SetStatus(new_path);
 }
 
