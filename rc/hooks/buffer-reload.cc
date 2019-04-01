@@ -111,6 +111,8 @@ if (path == "") {
     buffer.set_tree_parser("md");
     buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
     buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
+    buffer.set_paragraph_line_prefix_characters("*-# ");
+    buffer.set_line_prefix_characters(" ");
     SetStatus("Loaded Markdown file (" + extension + ")");
   }
 }
