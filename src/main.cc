@@ -71,7 +71,9 @@ void SignalHandler(int sig) {
 static const char* kDefaultCommandsToRun = "ForkCommand(\"sh -l\", true);";
 
 string CommandsToRun(Args args) {
+  // TODO: Escape paths here!
   string commands_to_run = args.commands_to_run;
+  std::vector<string> buffers_to_watch;
   for (auto& path : args.files_to_open) {
     string full_path;
     if (!path.empty() && string("/~").find(path[0]) != string::npos) {
@@ -84,6 +86,7 @@ string CommandsToRun(Args args) {
       free(dir);
     }
     commands_to_run += "OpenFile(\"" + full_path + "\");\n";
+    buffers_to_watch.push_back(full_path);
   }
   for (auto& command_to_fork : args.commands_to_fork) {
     commands_to_run += "ForkCommand(\"" + string(command_to_fork) + "\", " +
@@ -92,17 +95,17 @@ string CommandsToRun(Args args) {
   if (!args.client.empty()) {
     commands_to_run += "Screen screen = RemoteScreen(\"" +
                        string(getenv(kEdgeParentAddress)) + "\");\n";
+  } else if (!buffers_to_watch.empty()) {
+    commands_to_run += "SetString buffers_to_watch = SetString();\n";
+    for (auto& block : buffers_to_watch) {
+      commands_to_run += "buffers_to_watch.insert(\"" + block + "\");\n";
+    }
+    commands_to_run += "WaitForClose(buffers_to_watch);\n";
   }
   if (commands_to_run.empty()) {
     return kDefaultCommandsToRun;
   }
   return commands_to_run;
-}
-
-std::list<string> ReadArguments() {
-  std::list<string> output;
-  std::ifstream in("file.txt");
-  return output;
 }
 
 void SendCommandsToParent(int fd, const string commands_to_run) {
@@ -115,7 +118,7 @@ void SendCommandsToParent(int fd, const string commands_to_run) {
   }
 }
 
-wstring StartServer(const Args& args) {
+wstring StartServer(const Args& args, bool connected_to_parent) {
   LOG(INFO) << "Starting server.";
 
   wstring address;
@@ -132,8 +135,10 @@ wstring StartServer(const Args& args) {
     LOG(FATAL) << args.binary_name << ": Unable to start server: " << error;
   }
   if (args.server) {
-    std::cout << args.binary_name << ": Server starting at: " << actual_address
-              << std::endl;
+    if (!connected_to_parent) {
+      std::cout << args.binary_name
+                << ": Server starting at: " << actual_address << std::endl;
+    }
     for (int fd : surviving_fds) {
       close(fd);
     }
@@ -179,6 +184,7 @@ int main(int argc, const char** argv) {
   global_editor_state = std::make_unique<EditorState>(args, audio_player.get());
 
   int remote_server_fd = -1;
+  bool connected_to_parent = false;
   if (!args.client.empty()) {
     wstring parent_server_error;
     remote_server_fd = MaybeConnectToServer(args.client, &parent_server_error);
@@ -191,12 +197,8 @@ int main(int argc, const char** argv) {
   } else {
     remote_server_fd = MaybeConnectToParentServer(nullptr);
     if (remote_server_fd != -1) {
-      SendCommandsToParent(remote_server_fd, CommandsToRun(args));
-      cerr << args.binary_name << ": Waiting for EOF ...\n";
-      char buffer[4096];
-      while (read(0, buffer, sizeof(buffer)) > 0) continue;
-      cerr << args.binary_name << ": EOF received, exiting.\n";
-      exit(0);
+      args.server = true;
+      connected_to_parent = true;
     }
   }
 
@@ -208,10 +210,15 @@ int main(int argc, const char** argv) {
   editor_state()->environment()->Define(
       L"screen", afc::vm::Value::NewObject(L"Screen", screen_curses));
 
-  auto server_path = StartServer(args);
+  auto server_path = StartServer(args, connected_to_parent);
 
   auto commands_to_run = CommandsToRun(args);
   if (!commands_to_run.empty()) {
+    if (connected_to_parent) {
+      commands_to_run += string("SetStatus(\"exit remote\");\nSendExitTo(\"") +
+                         ToByteString(server_path) + string("\");");
+    }
+
     int self_fd;
     wstring errors;
     if (remote_server_fd != -1) {
