@@ -5,7 +5,7 @@ void ClangFormatOnSave() {
   if (!clang_format) {
     return;
   }
-  SetStatus("Launching");
+  SetStatus("clang-format ...");
   ForkCommand("clang-format -i " + path.shell_escape() +
                   "; edge --run 'OpenFile(\"" + path.shell_escape() +
                   "\", false).Reload();'",
