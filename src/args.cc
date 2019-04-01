@@ -65,7 +65,8 @@ void Help(string) {
       "  -s, --server <path>    Runs in daemon mode at path given\n"
       "  -c, --client <path>    Connects to daemon at path given\n"
       "  --mute                 Disables audio output\n"
-      "  --bg                   -f opens buffers in background\n";
+      "  --bg                   -f opens buffers in background\n"
+      "  -X                     If nested, exit early.\n";
   std::cout << kHelpString;
   exit(0);
 }
@@ -135,10 +136,10 @@ Args ParseArgs(int argc, const char** argv) {
   };
 
   std::vector<Handler> handlers = {
-      {{"-h", "--help"}, Help},
-      {{"-f", "--fork"}, PushInto("Command to fork", &output.commands_to_fork)},
-      {{"--run"}, AppendString("Command to run", &output.commands_to_run)},
-      {{"-l", "--load"},
+      {{"h", "help"}, Help},
+      {{"f", "fork"}, PushInto("Command to fork", &output.commands_to_fork)},
+      {{"run"}, AppendString("Command to run", &output.commands_to_run)},
+      {{"l", "load"},
        WithArgument("Path to VM commands to run",
                     [&](string value) {
                       output.commands_to_run +=
@@ -146,22 +147,26 @@ Args ParseArgs(int argc, const char** argv) {
                           ToByteString(CppEscapeString(FromByteString(value))) +
                           "\");";
                     })},
-      {{"-s", "--server"}, WithOptionalArgument([&](string* value) {
+      {{"s", "server"}, WithOptionalArgument([&](string* value) {
          output.server = true;
          if (value != nullptr) {
            output.server_path = *value;
          }
        })},
-      {{"-c", "--client"},
+      {{"c", "client"},
        WithArgument("Server path (given to -s)",
                     [&](string v) { output.client = v; })},
-      {{"--mute"}, [&](string) { output.mute = true; }},
-      {{"--bg"}, [&](string) { output.background = true; }}};
+      {{"mute"}, [&](string) { output.mute = true; }},
+      {{"bg"}, [&](string) { output.background = true; }},
+      {{"X"}, [&](string) {
+         output.nested_edge_behavior = Args::NestedEdgeBehavior::kExitEarly;
+       }}};
 
   std::map<string, int> handlers_map;
   for (size_t i = 0; i < handlers.size(); i++) {
     for (auto& alias : handlers[i].aliases) {
-      handlers_map[alias] = i;
+      handlers_map["-" + alias] = i;
+      handlers_map["--" + alias] = i;
     }
   }
 

@@ -95,7 +95,9 @@ string CommandsToRun(Args args) {
   if (!args.client.empty()) {
     commands_to_run += "Screen screen = RemoteScreen(\"" +
                        string(getenv(kEdgeParentAddress)) + "\");\n";
-  } else if (!buffers_to_watch.empty()) {
+  } else if (!buffers_to_watch.empty() &&
+             args.nested_edge_behavior ==
+                 Args::NestedEdgeBehavior::kWaitForClose) {
     commands_to_run += "SetString buffers_to_watch = SetString();\n";
     for (auto& block : buffers_to_watch) {
       commands_to_run += "buffers_to_watch.insert(\"" + block + "\");\n";

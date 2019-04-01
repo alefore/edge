@@ -32,6 +32,16 @@ struct Args {
 
   bool mute = false;
   bool background = false;
+
+  enum class NestedEdgeBehavior {
+    // Wait until the buffers we open have been closed in the parent.
+    kWaitForClose,
+    // Exit as soon as we know that we've successfully communicated with the
+    // parent.
+    kExitEarly,
+  };
+
+  NestedEdgeBehavior nested_edge_behavior = NestedEdgeBehavior::kWaitForClose;
 };
 
 Args ParseArgs(int argc, const char** argv);
