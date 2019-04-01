@@ -294,48 +294,6 @@ class JumpTransformation : public Transformation {
   const Direction direction_;
 };
 
-class DefaultScrollBehavior : public ScrollBehavior {
- public:
-  static shared_ptr<const ScrollBehavior> Get() {
-    static const auto output = std::make_shared<DefaultScrollBehavior>();
-    return output;
-  }
-
-  // Public for make_shared, but prefer DefaultScrollBehavior::Get.
-  DefaultScrollBehavior() = default;
-
-  void Up(EditorState*, OpenBuffer* buffer) const override {
-    Modifiers modifiers;
-    modifiers.direction = BACKWARDS;
-    modifiers.structure = LINE;
-    buffer->ApplyToCursors(NewMoveTransformation(modifiers));
-  }
-
-  void Down(EditorState*, OpenBuffer* buffer) const override {
-    Modifiers modifiers;
-    modifiers.structure = LINE;
-    buffer->ApplyToCursors(NewMoveTransformation(modifiers));
-  }
-
-  void Left(EditorState*, OpenBuffer* buffer) const override {
-    Modifiers modifiers;
-    modifiers.direction = BACKWARDS;
-    buffer->ApplyToCursors(NewMoveTransformation(modifiers));
-  }
-
-  void Right(EditorState*, OpenBuffer* buffer) const override {
-    buffer->ApplyToCursors(NewMoveTransformation(Modifiers()));
-  }
-
-  void Begin(EditorState*, OpenBuffer* buffer) const override {
-    buffer->ApplyToCursors(std::make_unique<JumpTransformation>(BACKWARDS));
-  }
-
-  void End(EditorState*, OpenBuffer* buffer) const override {
-    buffer->ApplyToCursors(std::make_unique<JumpTransformation>(FORWARDS));
-  }
-};
-
 void FindCompletion(EditorState* editor_state,
                     std::shared_ptr<OpenBuffer> buffer,
                     std::shared_ptr<OpenBuffer> dictionary) {
@@ -493,6 +451,7 @@ class InsertMode : public EditorMode {
     CHECK(buffer != nullptr);
     switch (static_cast<int>(c)) {
       case '\t':
+        ResetScrollBehavior();
         if (options_.start_completion()) {
           LOG(INFO) << "Completion has started, avoid inserting '\\t'.";
           return;
@@ -500,6 +459,7 @@ class InsertMode : public EditorMode {
         break;
 
       case Terminal::ESCAPE:
+        ResetScrollBehavior();
         buffer->MaybeAdjustPositionCol();
         buffer->ApplyToCursors(NewDeleteSuffixSuperfluousCharacters());
         buffer->PopTransformationStack();
@@ -517,32 +477,33 @@ class InsertMode : public EditorMode {
         return;
 
       case Terminal::UP_ARROW:
-        options_.scroll_behavior->Up(editor_state, buffer.get());
+        GetScrollBehavior()->Up(editor_state, buffer.get());
         return;
 
       case Terminal::DOWN_ARROW:
-        options_.scroll_behavior->Down(editor_state, buffer.get());
+        GetScrollBehavior()->Down(editor_state, buffer.get());
         return;
 
       case Terminal::LEFT_ARROW:
-        options_.scroll_behavior->Left(editor_state, buffer.get());
+        GetScrollBehavior()->Left(editor_state, buffer.get());
         return;
 
       case Terminal::RIGHT_ARROW:
-        options_.scroll_behavior->Right(editor_state, buffer.get());
+        GetScrollBehavior()->Right(editor_state, buffer.get());
         return;
 
       case Terminal::CTRL_A:
-        options_.scroll_behavior->Begin(editor_state, buffer.get());
+        GetScrollBehavior()->Begin(editor_state, buffer.get());
         return;
 
       case Terminal::CTRL_E:
-        options_.scroll_behavior->End(editor_state, buffer.get());
+        GetScrollBehavior()->End(editor_state, buffer.get());
         return;
 
       case Terminal::CHAR_EOF:  // Ctrl_D
       case Terminal::DELETE:
       case Terminal::BACKSPACE: {
+        ResetScrollBehavior();
         LOG(INFO) << "Handling backspace in insert mode.";
         buffer->MaybeAdjustPositionCol();
         DeleteOptions delete_options;
@@ -558,10 +519,12 @@ class InsertMode : public EditorMode {
         return;
 
       case '\n':
+        ResetScrollBehavior();
         options_.new_line_handler();
         return;
 
       case Terminal::CTRL_U: {
+        ResetScrollBehavior();
         DeleteOptions delete_options;
         delete_options.modifiers.structure_range =
             Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
@@ -573,6 +536,7 @@ class InsertMode : public EditorMode {
       }
 
       case Terminal::CTRL_K: {
+        ResetScrollBehavior();
         DeleteOptions delete_options;
         delete_options.modifiers.structure_range =
             Modifiers::FROM_CURRENT_POSITION_TO_END;
@@ -582,6 +546,9 @@ class InsertMode : public EditorMode {
         editor_state->ScheduleRedraw();
         return;
       }
+
+      default:
+        ResetScrollBehavior();
     }
 
     {
@@ -598,7 +565,18 @@ class InsertMode : public EditorMode {
   }
 
  private:
+  ScrollBehavior* GetScrollBehavior() {
+    if (scroll_behavior_ == nullptr) {
+      CHECK(options_.scroll_behavior != nullptr);
+      scroll_behavior_ = options_.scroll_behavior->Build();
+    }
+    return scroll_behavior_.get();
+  }
+
+  void ResetScrollBehavior() { scroll_behavior_ = nullptr; }
+
   const InsertModeOptions options_;
+  std::unique_ptr<ScrollBehavior> scroll_behavior_;
 };
 
 class RawInputTypeMode : public EditorMode {
@@ -769,12 +747,50 @@ namespace editor {
 using std::shared_ptr;
 using std::unique_ptr;
 
+void DefaultScrollBehavior::Up(EditorState*, OpenBuffer* buffer) {
+  Modifiers modifiers;
+  modifiers.direction = BACKWARDS;
+  modifiers.structure = LINE;
+  buffer->ApplyToCursors(NewMoveTransformation(modifiers));
+}
+
+void DefaultScrollBehavior::Down(EditorState*, OpenBuffer* buffer) {
+  Modifiers modifiers;
+  modifiers.structure = LINE;
+  buffer->ApplyToCursors(NewMoveTransformation(modifiers));
+}
+
+void DefaultScrollBehavior::Left(EditorState*, OpenBuffer* buffer) {
+  Modifiers modifiers;
+  modifiers.direction = BACKWARDS;
+  buffer->ApplyToCursors(NewMoveTransformation(modifiers));
+}
+
+void DefaultScrollBehavior::Right(EditorState*, OpenBuffer* buffer) {
+  buffer->ApplyToCursors(NewMoveTransformation(Modifiers()));
+}
+
+void DefaultScrollBehavior::Begin(EditorState*, OpenBuffer* buffer) {
+  buffer->ApplyToCursors(std::make_unique<JumpTransformation>(BACKWARDS));
+}
+
+void DefaultScrollBehavior::End(EditorState*, OpenBuffer* buffer) {
+  buffer->ApplyToCursors(std::make_unique<JumpTransformation>(FORWARDS));
+}
+
 std::unique_ptr<Command> NewFindCompletionCommand() {
   return std::make_unique<FindCompletionCommand>();
 }
 
-/* static */ shared_ptr<const ScrollBehavior> ScrollBehavior::Default() {
-  return DefaultScrollBehavior::Get();
+/* static */ std::unique_ptr<ScrollBehaviorFactory>
+ScrollBehaviorFactory::Default() {
+  class DefaultScrollBehaviorFactory : public ScrollBehaviorFactory {
+    std::unique_ptr<ScrollBehavior> Build() override {
+      return std::make_unique<DefaultScrollBehavior>();
+    }
+  };
+
+  return std::make_unique<DefaultScrollBehaviorFactory>();
 }
 
 void EnterInsertMode(EditorState* editor_state) {
@@ -804,7 +820,7 @@ void EnterInsertMode(InsertModeOptions options) {
   }
 
   if (options.scroll_behavior == nullptr) {
-    options.scroll_behavior = DefaultScrollBehavior::Get();
+    options.scroll_behavior = ScrollBehaviorFactory::Default();
   }
 
   if (!options.escape_handler) {

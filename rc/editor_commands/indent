@@ -32,4 +32,6 @@ int InsertSpacesAtBeginningOfLine() {
   buffer.set_position(LineColumn(line, desired_column));
 }
 
+buffer.PushTransformationStack();
 InsertSpacesAtBeginningOfLine();
+buffer.PopTransformationStack();

@@ -30,6 +30,9 @@ struct ForkCommandOptions {
 
   // Should we make it the active buffer?
   bool enter;
+
+  // If non-empty, change to this directory in the children. Ignored if empty.
+  wstring children_path;
 };
 
 unique_ptr<Command> NewForkCommand();

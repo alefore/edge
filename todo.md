@@ -32,6 +32,7 @@ Add an autocomplete mode that autocompletes based on the path.
 
 Improve logic around wrap_long_lines.
   Cursors (other than active cursor) are off.
+  Also scrolling to the end of file doesn't quite work.
 
 Reloading the file should reset the cursors.
   Since it shifts them to the top anyway.
@@ -50,12 +51,6 @@ If the buffer doesn't fit in the screen, don't show the scroll bar (or show it i
 ### List of buffers
 
 ## Prompt
-
-Improve the history functionality for commands.
-  For "af": Perhaps have a directory with a file per-command, that keeps all history for that command.
-    The command would be the basename of the first token given to an "af" command?
-    It may back-fire with some commands (shell commands, like "for a in $(seq 0 10); do echo $a; done"), but it's probably OK.
-    Then improve somehow the completion or history iteration logic?
 
 ## Commands
 
@@ -78,8 +73,6 @@ Make follow_end_of_file the default.
 
 atomic_lines should probably also apply to multiple cursors.
 
-Add a variable `children-path` or such, that can override the directory used by child (fork) commands.
-
 ## VM
 
 Add support for templates, so that we can do "vector<string>".
@@ -88,6 +81,8 @@ Support polymorphism: same name for multiple symbols with different type.
   Requires adjusting lookup and all callers.
 
 Support in-line functions and/or lambda forms. Tricky.
+
+Improve support for `for`: the environments aren't properly nested as they should be.
 
 ### Client/server
 

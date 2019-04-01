@@ -15,14 +15,31 @@ std::unique_ptr<Command> NewFindCompletionCommand();
 
 class ScrollBehavior {
  public:
-  static shared_ptr<const ScrollBehavior> Default();
   virtual ~ScrollBehavior() = default;
-  virtual void Up(EditorState* editor_state, OpenBuffer* buffer) const = 0;
-  virtual void Down(EditorState* editor_state, OpenBuffer* buffer) const = 0;
-  virtual void Left(EditorState* editor_state, OpenBuffer* buffer) const = 0;
-  virtual void Right(EditorState* editor_state, OpenBuffer* buffer) const = 0;
-  virtual void Begin(EditorState* editor_state, OpenBuffer* buffer) const = 0;
-  virtual void End(EditorState* editor_state, OpenBuffer* buffer) const = 0;
+  virtual void Up(EditorState* editor_state, OpenBuffer* buffer) = 0;
+  virtual void Down(EditorState* editor_state, OpenBuffer* buffer) = 0;
+  virtual void Left(EditorState* editor_state, OpenBuffer* buffer) = 0;
+  virtual void Right(EditorState* editor_state, OpenBuffer* buffer) = 0;
+  virtual void Begin(EditorState* editor_state, OpenBuffer* buffer) = 0;
+  virtual void End(EditorState* editor_state, OpenBuffer* buffer) = 0;
+};
+
+class DefaultScrollBehavior : public ScrollBehavior {
+ public:
+  DefaultScrollBehavior() = default;
+  void Up(EditorState* editor_state, OpenBuffer* buffer) override;
+  void Down(EditorState* editor_state, OpenBuffer* buffer) override;
+  void Left(EditorState* editor_state, OpenBuffer* buffer) override;
+  void Right(EditorState* editor_state, OpenBuffer* buffer) override;
+  void Begin(EditorState* editor_state, OpenBuffer* buffer) override;
+  void End(EditorState* editor_state, OpenBuffer* buffer) override;
+};
+
+class ScrollBehaviorFactory {
+ public:
+  static std::unique_ptr<ScrollBehaviorFactory> Default();
+  virtual ~ScrollBehaviorFactory() = default;
+  virtual std::unique_ptr<ScrollBehavior> Build() = 0;
 };
 
 struct InsertModeOptions {
@@ -34,7 +51,8 @@ struct InsertModeOptions {
   // Optional function to run whenever the contents of the buffer are modified.
   std::function<void()> modify_listener;
 
-  shared_ptr<const ScrollBehavior> scroll_behavior = ScrollBehavior::Default();
+  std::shared_ptr<ScrollBehaviorFactory> scroll_behavior =
+      ScrollBehaviorFactory::Default();
 
   // Optional function to run when escape is pressed (and thus insert mode is
   // exited). Defaults to resetting the mode back to the default.

@@ -39,6 +39,12 @@ struct Value {
   static unique_ptr<Value> NewFunction(
       std::vector<VMType> arguments,
       std::function<Ptr(std::vector<Ptr>)> callback);
+
+  bool IsBool() const { return type.type == VMType::VM_BOOLEAN; };
+  bool IsInteger() const { return type.type == VMType::VM_INTEGER; };
+  bool IsDouble() const { return type.type == VMType::VM_DOUBLE; };
+  bool IsString() const { return type.type == VMType::VM_STRING; };
+
   VMType type;
 
   bool boolean;

@@ -169,6 +169,29 @@ class ServerBuffer : public OpenBuffer {
     set_bool_variable(buffer_variables::vm_exec(), true);
     set_bool_variable(buffer_variables::show_in_buffers_list(), false);
     set_bool_variable(buffer_variables::allow_dirty_delete(), true);
+
+    environment()->Define(
+        L"SendExitTo",
+        Value::NewFunction(
+            {VMType::Void(), VMType::String()},
+            [this, editor_state](vector<unique_ptr<Value>> args) {
+              CHECK_EQ(args.size(), 1u);
+              int fd = open(ToByteString(args[0]->str).c_str(), O_WRONLY);
+              string command = "Exit(0);\n";
+              write(fd, command.c_str(), command.size());
+              close(fd);
+              return Value::NewVoid();
+            }));
+
+    environment()->Define(
+        L"Exit", Value::NewFunction(
+                     {VMType::Void(), VMType::Integer()},
+                     [this, editor_state](vector<unique_ptr<Value>> args) {
+                       CHECK_EQ(args.size(), 1u);
+                       LOG(INFO) << "Exit: " << args[0]->integer;
+                       exit(args[0]->integer);
+                       return Value::NewVoid();
+                     }));
   }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {

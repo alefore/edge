@@ -164,24 +164,24 @@ wstring DrawTree(size_t line, size_t lines_size, const ParseTree& root) {
   size_t index_end = 0;
   while (index_begin < route_begin.size() || index_end < route_end.size()) {
     if (index_begin == route_begin.size()) {
-      Draw(route_end[index_end]->depth, L'─', L'┐', L'┬', &output);
+      Draw(route_end[index_end]->depth, L'─', L'╮', L'┬', &output);
       index_end++;
       continue;
     }
     if (index_end == route_end.size()) {
-      Draw(route_begin[index_begin]->depth, L'─', L'┘', L'┴', &output);
+      Draw(route_begin[index_begin]->depth, L'─', L'╯', L'┴', &output);
       index_begin++;
       continue;
     }
 
     if (route_begin[index_begin]->depth > route_end[index_end]->depth) {
-      Draw(route_begin[index_begin]->depth, L'─', L'┘', L'┴', &output);
+      Draw(route_begin[index_begin]->depth, L'─', L'╯', L'┴', &output);
       index_begin++;
       continue;
     }
 
     if (route_end[index_end]->depth > route_begin[index_begin]->depth) {
-      Draw(route_end[index_end]->depth, L'─', L'┐', L'┬', &output);
+      Draw(route_end[index_end]->depth, L'─', L'╮', L'┬', &output);
       index_end++;
       continue;
     }

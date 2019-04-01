@@ -45,34 +45,6 @@ using std::to_string;
 using std::vector;
 using std::wstring;
 
-static wstring GetHomeDirectory() {
-  char* env = getenv("HOME");
-  if (env != nullptr) {
-    return FromByteString(env);
-  }
-  struct passwd* entry = getpwuid(getuid());
-  if (entry != nullptr) {
-    return FromByteString(entry->pw_dir);
-  }
-  return L"/";  // What else?
-}
-
-static vector<wstring> GetEdgeConfigPath(const wstring& home) {
-  vector<wstring> output;
-  output.push_back(home + L"/.edge");
-  LOG(INFO) << "Pushing config path: " << output[0];
-  char* env = getenv("EDGE_PATH");
-  if (env != nullptr) {
-    std::istringstream text_stream(string(env) + ";");
-    std::string dir;
-    // TODO: stat it and don't add it if it doesn't exist.
-    while (std::getline(text_stream, dir, ';')) {
-      output.push_back(FromByteString(dir));
-    }
-  }
-  return output;
-}
-
 void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
                           void (OpenBuffer::*method)(void)) {
   auto callback = std::make_unique<Value>(VMType::FUNCTION);
@@ -201,6 +173,37 @@ Environment EditorState::BuildEditorEnvironment() {
       vm::NewCallback(std::function<void(wstring)>(
           [this](wstring target) { OpenServerBuffer(this, target); })));
 
+  environment.Define(
+      L"WaitForClose",
+      Value::NewFunction(
+          {VMType::Void(), VMType::ObjectType(L"SetString")},
+          [this](vector<Value::Ptr> args, Trampoline* trampoline) {
+            CHECK_EQ(args.size(), 1u);
+            const auto& buffers_to_wait =
+                *static_cast<std::set<wstring>*>(args[0]->user_value.get());
+
+            auto pending = std::make_shared<int>(0);
+            auto continuation = trampoline->Interrupt();
+            for (const auto& buffer_name : buffers_to_wait) {
+              auto buffer_it = buffers()->find(buffer_name);
+              if (buffer_it == buffers()->end()) {
+                continue;
+              }
+              (*pending)++;
+              buffer_it->second->AddCloseObserver([pending, continuation]() {
+                LOG(INFO) << "Buffer is closing, with: " << *pending;
+                CHECK_GT(*pending, 0);
+                if (--(*pending) == 0) {
+                  LOG(INFO) << "Resuming!";
+                  continuation(Value::NewVoid());
+                }
+              });
+            }
+            if (pending == 0) {
+              trampoline->Return(Value::NewVoid());
+            }
+          }));
+
   environment.Define(L"SetStatus", vm::NewCallback(std::function<void(wstring)>(
                                        [this](wstring s) { SetStatus(s); })));
 
@@ -305,10 +308,10 @@ std::pair<int, int> BuildPipe() {
   return {output[0], output[1]};
 }
 
-EditorState::EditorState(AudioPlayer* audio_player)
+EditorState::EditorState(Args args, AudioPlayer* audio_player)
     : current_buffer_(buffers_.end()),
-      home_directory_(GetHomeDirectory()),
-      edge_path_(GetEdgeConfigPath(home_directory_)),
+      home_directory_(args.home_directory),
+      edge_path_(args.config_paths),
       environment_(BuildEditorEnvironment()),
       default_commands_(NewCommandMode(this)),
       visible_lines_(1),

@@ -255,6 +255,7 @@ EdgeStruct<wstring>* StringStruct() {
     path_characters();
     path();
     pts_path();
+    children_path();
     command();
     editor_commands_path();
     line_prefix_characters();
@@ -297,6 +298,16 @@ EdgeVariable<wstring>* pts_path() {
       L"pts_path",
       L"String with the path of the terminal used by the current buffer (or "
       L"empty if the user is not using a terminal).",
+      L"", FilePredictor);
+  return variable;
+}
+
+EdgeVariable<wstring>* children_path() {
+  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
+      L"children_path",
+      L"If non-empty, string with the path of the directory used when forking "
+      L"a new command from the current buffer. If empty, the new command will "
+      L"inherit the current working directory that Edge was run in.",
       L"", FilePredictor);
   return variable;
 }

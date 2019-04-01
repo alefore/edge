@@ -10,6 +10,7 @@ namespace vm {
 using std::unique_ptr;
 
 class Evaluation;
+class Compilation;
 
 class BinaryOperator : public Expression {
  public:
@@ -17,9 +18,9 @@ class BinaryOperator : public Expression {
                  const VMType type,
                  function<void(const Value&, const Value&, Value*)> callback);
 
-  const VMType& type();
+  const VMType& type() override;
 
-  void Evaluate(Trampoline* evaluation);
+  void Evaluate(Trampoline* evaluation) override;
 
   std::unique_ptr<Expression> Clone() override;
 
@@ -29,6 +30,16 @@ class BinaryOperator : public Expression {
   VMType type_;
   std::function<void(const Value&, const Value&, Value*)> operator_;
 };
+
+// A convenience wrapper of BinaryOperator that combines primitive types
+// according to the functions given.
+std::unique_ptr<Expression> NewBinaryExpression(
+    Compilation* compilation, std::unique_ptr<Expression> a,
+    std::unique_ptr<Expression> b,
+    std::function<wstring(wstring, wstring)> str_operator,
+    std::function<int(int, int)> int_operator,
+    std::function<double(double, double)> double_operator,
+    std::function<wstring(wstring, int)> str_int_operator);
 
 }  // namespace vm
 }  // namespace afc

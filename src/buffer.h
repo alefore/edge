@@ -61,6 +61,7 @@ class OpenBuffer {
   // If the buffer is still being read (fd_ != -1), adds an observer to
   // end_of_file_observers_. Otherwise just calls the observer directly.
   void AddEndOfFileObserver(std::function<void()> observer);
+  void AddCloseObserver(std::function<void()> observer);
 
   virtual void Visit(EditorState* editor_state);
   time_t last_visit() const;
@@ -458,6 +459,9 @@ class OpenBuffer {
   // reloaded.
   vector<std::function<void()>> end_of_file_observers_;
 
+  // Functions to call when this buffer is deleted.
+  std::vector<std::function<void()>> close_observers_;
+
   // -1 means "no child process"
   pid_t child_pid_;
   int child_exit_status_;
@@ -507,6 +511,8 @@ class OpenBuffer {
   void StartNewLine(EditorState* editor_state);
   void ProcessCommandInput(EditorState* editor_state,
                            shared_ptr<LazyString> str);
+  // Advances the pts position to the next line (possibly inserting a new line).
+  void PtsMoveToNextLine();
 
   // Returns true if the position given is set to a value other than
   // LineColumn::Max and the buffer has read past that position.

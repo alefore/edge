@@ -53,7 +53,7 @@ class Trampoline {
   // Must ensure it lives until return_continuation is called.
   void Enter(Expression* expression);
 
-  // Saves the state (continuations ane environment) of the current trampoline
+  // Saves the state (continuations and environment) of the current trampoline
   // and returns a callback that can be used to restore it into a trampoline.
   std::function<void(Trampoline*)> Save();
 
@@ -88,6 +88,11 @@ class Expression {
  public:
   virtual ~Expression() {}
   virtual const VMType& type() = 0;
+
+  bool IsBool() { return type().type == VMType::VM_BOOLEAN; };
+  bool IsInteger() { return type().type == VMType::VM_INTEGER; };
+  bool IsDouble() { return type().type == VMType::VM_DOUBLE; };
+  bool IsString() { return type().type == VMType::VM_STRING; };
 
   // Returns a new copy of this expression.
   virtual std::unique_ptr<Expression> Clone() = 0;

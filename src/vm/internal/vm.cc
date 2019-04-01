@@ -141,8 +141,13 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
           pos = str.size();
           continue;
         } else {
-          token = DIVIDE;
           pos++;
+          if (pos < str.size() && str.at(pos) == '=') {
+            pos++;
+            token = DIVIDE_EQ;
+          } else {
+            token = DIVIDE;
+          }
         }
         break;
 
@@ -249,18 +254,39 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
         break;
 
       case '+':
-        token = PLUS;
         pos++;
+        if (pos < str.size() && str.at(pos) == '=') {
+          pos++;
+          token = PLUS_EQ;
+        } else if (pos < str.size() && str.at(pos) == '+') {
+          pos++;
+          token = PLUS_PLUS;
+        } else {
+          token = PLUS;
+        }
         break;
 
       case '-':
-        token = MINUS;
         pos++;
+        if (pos < str.size() && str.at(pos) == '=') {
+          pos++;
+          token = MINUS_EQ;
+        } else if (pos < str.size() && str.at(pos) == '-') {
+          pos++;
+          token = MINUS_MINUS;
+        } else {
+          token = MINUS;
+        }
         break;
 
       case '*':
-        token = TIMES;
         pos++;
+        if (pos < str.size() && str.at(pos) == '=') {
+          pos++;
+          token = TIMES_EQ;
+        } else {
+          token = TIMES;
+        }
         break;
 
       case '0':
@@ -409,6 +435,8 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
           input = Value::NewBool(false);
         } else if (symbol == L"while") {
           token = WHILE;
+        } else if (symbol == L"for") {
+          token = FOR;
         } else if (symbol == L"if") {
           token = IF;
         } else if (symbol == L"else") {

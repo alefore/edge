@@ -1,12 +1,26 @@
 #include "line_column.h"
 
+#include <set>
+#include <vector>
+
 #include <glog/logging.h>
 
+#include "src/vm/public/set.h"
+#include "src/vm/public/vector.h"
 #include "vm/public/environment.h"
 #include "vm/public/value.h"
 #include "wstring.h"
 
 namespace afc {
+namespace vm {
+template <>
+const VMType VMTypeMapper<std::vector<editor::LineColumn>*>::vmtype =
+    VMType::ObjectType(L"VectorLineColumn");
+
+template <>
+const VMType VMTypeMapper<std::set<editor::LineColumn>*>::vmtype =
+    VMType::ObjectType(L"SetLineColumn");
+}  // namespace vm
 namespace editor {
 
 std::ostream& operator<<(std::ostream& os, const LineColumn& lc) {
@@ -148,6 +162,8 @@ std::wstring LineColumn::ToCppString() const {
           }));
 
   environment->DefineType(L"Range", std::move(range));
+  vm::VMTypeMapper<std::vector<LineColumn>*>::Export(environment);
+  vm::VMTypeMapper<std::set<LineColumn>*>::Export(environment);
 }
 
 }  // namespace editor

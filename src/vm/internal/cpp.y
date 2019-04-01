@@ -6,7 +6,7 @@
 
 %left COMMA.
 %left QUESTION_MARK.
-%left EQ.
+%left EQ PLUS_EQ MINUS_EQ TIMES_EQ DIVIDE_EQ PLUS_PLUS MINUS_MINUS.
 %left OR.
 %left AND.
 %left EQUALS NOT_EQUALS.
@@ -34,10 +34,32 @@ program(OUT) ::= statement_list(A). {
   A = nullptr;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Statement list
+////////////////////////////////////////////////////////////////////////////////
+
+%type statement_list { Expression * }
+%destructor statement_list { delete $$; }
+
+statement_list(L) ::= . {
+  L = NewVoidExpression().release();
+}
+
+statement_list(OUT) ::= statement_list(A) statement(B). {
+  OUT = NewAppendExpression(unique_ptr<Expression>(A),
+                            unique_ptr<Expression>(B)).release();
+  A = nullptr;
+  B = nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Statements
+////////////////////////////////////////////////////////////////////////////////
+
 %type statement { Expression* }
 %destructor statement { delete $$; }
 
-statement(A) ::= expr(B) SEMICOLON . {
+statement(A) ::= assignment_statement(B) . {
   A = B;
   B = nullptr;
 }
@@ -67,9 +89,11 @@ statement(OUT) ::= function_declaration_params(FUNC)
     const vector<wstring> argument_names(FUNC->argument_names);
 
     unique_ptr<Value> value(new Value(FUNC->type));
-    value->callback = [compilation, body, func_environment, argument_names](
+    auto name = FUNC->name;
+    value->callback = [compilation, name, body, func_environment, argument_names](
         vector<unique_ptr<Value>> args, Trampoline* trampoline) {
-      CHECK_EQ(args.size(), argument_names.size());
+      CHECK_EQ(args.size(), argument_names.size())
+          << "Invalid number of arguments for function: " << name;
       for (size_t i = 0; i < args.size(); i++) {
         func_environment->Define(argument_names[i], std::move(args[i]));
       }
@@ -92,6 +116,86 @@ statement(OUT) ::= function_declaration_params(FUNC)
     OUT = NewVoidExpression().release();
   }
 }
+
+
+statement(A) ::= SEMICOLON . {
+  A = NewVoidExpression().release();
+}
+
+statement(A) ::= LBRACKET statement_list(L) RBRACKET. {
+  A = L;
+  L = nullptr;
+}
+
+statement(OUT) ::= WHILE LPAREN expr(CONDITION) RPAREN statement(BODY). {
+  OUT = NewWhileExpression(compilation, unique_ptr<Expression>(CONDITION),
+                           unique_ptr<Expression>(BODY)).release();
+  CONDITION = nullptr;
+  BODY = nullptr;
+}
+
+statement(OUT) ::=
+    FOR LPAREN assignment_statement(INIT) expr(CONDITION) SEMICOLON expr(UPDATE)
+    RPAREN statement(BODY). {
+  OUT = NewForExpression(compilation, std::unique_ptr<Expression>(INIT),
+                         std::unique_ptr<Expression>(CONDITION),
+                         std::unique_ptr<Expression>(UPDATE),
+                         std::unique_ptr<Expression>(BODY)).release();
+  INIT = nullptr;
+  CONDITION = nullptr;
+  UPDATE = nullptr;
+  BODY = nullptr;
+}
+
+statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
+    ELSE statement(FALSE_CASE). {
+  A = NewIfExpression(
+      compilation,
+      unique_ptr<Expression>(CONDITION),
+      NewAppendExpression(
+          unique_ptr<Expression>(TRUE_CASE),
+          NewVoidExpression()),
+      NewAppendExpression(
+          unique_ptr<Expression>(FALSE_CASE),
+          NewVoidExpression()))
+      .release();
+  CONDITION = nullptr;
+  TRUE_CASE = nullptr;
+  FALSE_CASE = nullptr;
+}
+
+statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
+  A = NewIfExpression(
+      compilation,
+      unique_ptr<Expression>(CONDITION),
+      NewAppendExpression(
+          unique_ptr<Expression>(TRUE_CASE),
+          NewVoidExpression()),
+      NewVoidExpression())
+      .release();
+  CONDITION = nullptr;
+  TRUE_CASE = nullptr;
+}
+
+%type assignment_statement { Expression* }
+%destructor assignment_statement { delete $$; }
+
+assignment_statement(A) ::= expr(VALUE) SEMICOLON. {
+  A = VALUE;
+  VALUE = nullptr;
+}
+
+assignment_statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) SEMICOLON. {
+  A = NewAssignExpression(compilation, TYPE->str, NAME->str,
+                          unique_ptr<Expression>(VALUE)).release();
+  delete TYPE;
+  delete NAME;
+  VALUE = nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Function declaration
+////////////////////////////////////////////////////////////////////////////////
 
 %type function_declaration_params { UserFunction* }
 %destructor function_declaration_params { delete $$; }
@@ -131,77 +235,6 @@ function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME) LPAREN
   }
   delete RETURN_TYPE;
   delete NAME;
-}
-
-statement(A) ::= SEMICOLON . {
-  A = NewVoidExpression().release();
-}
-
-statement(A) ::= LBRACKET statement_list(L) RBRACKET. {
-  A = L;
-  L = nullptr;
-}
-
-statement(OUT) ::= WHILE LPAREN expr(CONDITION) RPAREN statement(BODY). {
-  OUT = NewWhileExpression(compilation, unique_ptr<Expression>(CONDITION),
-                           unique_ptr<Expression>(BODY)).release();
-  CONDITION = nullptr;
-  BODY = nullptr;
-}
-
-statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE)
-    ELSE statement(FALSE_CASE). {
-  A = NewIfExpression(
-      compilation,
-      unique_ptr<Expression>(CONDITION),
-      NewAppendExpression(
-          unique_ptr<Expression>(TRUE_CASE),
-          NewVoidExpression()),
-      NewAppendExpression(
-          unique_ptr<Expression>(FALSE_CASE),
-          NewVoidExpression()))
-      .release();
-  CONDITION = nullptr;
-  TRUE_CASE = nullptr;
-  FALSE_CASE = nullptr;
-}
-
-statement(A) ::= IF LPAREN expr(CONDITION) RPAREN statement(TRUE_CASE). {
-  A = NewIfExpression(
-      compilation,
-      unique_ptr<Expression>(CONDITION),
-      NewAppendExpression(
-          unique_ptr<Expression>(TRUE_CASE),
-          NewVoidExpression()),
-      NewVoidExpression())
-      .release();
-  CONDITION = nullptr;
-  TRUE_CASE = nullptr;
-}
-
-statement(A) ::= SYMBOL(TYPE) SYMBOL(NAME) EQ expr(VALUE) SEMICOLON. {
-  A = NewAssignExpression(compilation, TYPE->str, NAME->str,
-                          unique_ptr<Expression>(VALUE)).release();
-  delete TYPE;
-  delete NAME;
-  VALUE = nullptr;
-}
-
-// Statement list.
-
-%type statement_list { Expression * }
-%destructor statement_list { delete $$; }
-
-statement_list(L) ::= statement(A). {
-  L = A;
-  A = nullptr;
-}
-
-statement_list(OUT) ::= statement_list(A) statement(B). {
-  OUT = NewAppendExpression(unique_ptr<Expression>(A),
-                            unique_ptr<Expression>(B)).release();
-  A = nullptr;
-  B = nullptr;
 }
 
 // Arguments in the declaration of a function
@@ -255,8 +288,9 @@ non_empty_function_declaration_arguments(OUT) ::=
   delete NAME;
 }
 
-
+////////////////////////////////////////////////////////////////////////////////
 // Expressions
+////////////////////////////////////////////////////////////////////////////////
 
 %type expr { Expression* }
 %destructor expr { delete $$; }
@@ -284,91 +318,112 @@ expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
   delete NAME;
 }
 
-expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD) LPAREN arguments_list(ARGS) RPAREN. {
-  if (OBJ == nullptr || ARGS == nullptr) {
-    OUT = nullptr;
+expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
+  OUT = NewAssignExpression(
+            compilation, NAME->str, NewBinaryExpression(
+                compilation, NewVariableLookup(compilation, NAME->str),
+                std::unique_ptr<Expression>(VALUE),
+                [](wstring a, wstring b) { return a + b; },
+                [](int a, int b) { return a + b; },
+                [](double a, double b) { return a + b; },
+                nullptr)).release();
+  NAME = nullptr;
+  VALUE = nullptr;
+}
+
+expr(OUT) ::= SYMBOL(NAME) MINUS_EQ expr(VALUE). {
+  OUT = NewAssignExpression(
+            compilation, NAME->str, NewBinaryExpression(
+                compilation, NewVariableLookup(compilation, NAME->str),
+                std::unique_ptr<Expression>(VALUE),
+                nullptr,
+                [](int a, int b) { return a - b; },
+                [](double a, double b) { return a - b; },
+                nullptr)).release();
+  NAME = nullptr;
+  VALUE = nullptr;
+}
+
+expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
+  OUT = NewAssignExpression(
+            compilation, NAME->str, NewBinaryExpression(
+                compilation, NewVariableLookup(compilation, NAME->str),
+                std::unique_ptr<Expression>(VALUE),
+                nullptr,
+                [](int a, int b) { return a * b; },
+                [](double a, double b) { return a * b; },
+                [](wstring a, int b) {
+                  wstring output;
+                  for(int i = 0; i < b; i++) {
+                    output += a;
+                  }
+                  return output;
+                })).release();
+  NAME = nullptr;
+  VALUE = nullptr;
+}
+
+expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
+  OUT = NewAssignExpression(
+            compilation, NAME->str, NewBinaryExpression(
+                compilation, NewVariableLookup(compilation, NAME->str),
+                std::unique_ptr<Expression>(VALUE),
+                nullptr,
+                [](int a, int b) { return a / b; },
+                [](double a, double b) { return a / b; },
+                nullptr)).release();
+  NAME = nullptr;
+  VALUE = nullptr;
+}
+
+expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
+  auto var = NewVariableLookup(compilation, NAME->str);
+  auto type = var->type();
+  if (var->IsInteger() || var->IsDouble()) {
+    OUT = NewAssignExpression(
+              compilation, NAME->str,
+              std::make_unique<BinaryOperator>(
+                  NewVoidExpression(),
+                  std::move(var),
+                  type,
+                  type.type == VMType::VM_INTEGER
+                      ? [](const Value&, const Value& a, Value* output) {
+                          output->integer = a.integer + 1;
+                        }
+                      : [](const Value&, const Value& a, Value* output) {
+                          output->double_value = a.double_value + 1.0;
+                        })).release();
   } else {
-    wstring object_type_name;
-    switch (OBJ->type().type) {
-      case VMType::VM_STRING:
-        object_type_name = L"string";
-        break;
-      case VMType::VM_BOOLEAN:
-        object_type_name = L"bool";
-        break;
-      case VMType::VM_DOUBLE:
-        object_type_name = L"double";
-        break;
-      case VMType::VM_INTEGER:
-        object_type_name = L"int";
-        break;
-      case VMType::OBJECT_TYPE:
-        object_type_name = OBJ->type().object_type;
-        break;
-      default:
-        break;
-    }
-    const ObjectType* object_type = object_type_name.empty()
-        ? nullptr
-        : compilation->environment->LookupObjectType(object_type_name);
-    if (object_type_name.empty()) {
-      compilation->errors.push_back(
-          L"Unable to call methods on primitive type: \""
-          + OBJ->type().ToString() + L"\"");
-      OUT = nullptr;
-    } else if (object_type == nullptr) {
-      compilation->errors.push_back(
-          L"Unknown type: \"" + OBJ->type().ToString() + L"\"");
-      OUT = nullptr;
-    } else {
-      auto field = object_type->LookupField(FIELD->str);
-      if (field == nullptr) {
-        compilation->errors.push_back(
-            L"Unknown method: \"" + object_type->ToString() + L"::"
-            + FIELD->str + L"\"");
-        OUT = nullptr;
-      } else if (field->type.type_arguments.size() != 2 + ARGS->size()) {
-        compilation->errors.push_back(
-            L"Invalid number of arguments provided for method \""
-            + object_type->ToString() + L"::" + FIELD->str + L"\": Expected "
-            + to_wstring(field->type.type_arguments.size() - 2) + L" but found "
-            + to_wstring(ARGS->size()));
-        OUT = nullptr;
-      } else {
-        assert(field->type.type_arguments[1] == OBJ->type());
-        size_t argument = 0;
-        while (argument < ARGS->size()
-               && (field->type.type_arguments[2 + argument]
-                   == ARGS->at(argument)->type())) {
-          argument++;
-        }
-        if (argument < ARGS->size()) {
-          compilation->errors.push_back(
-              L"Type mismatch in argument " + to_wstring(argument)
-              + L" to method \"" + object_type->ToString() + L"::" + FIELD->str
-              + L"\": Expected \""
-              + field->type.type_arguments[2 + argument].ToString()
-              + L"\" but found \"" + ARGS->at(argument)->type().ToString()
-              + L"\"");
-          OUT = nullptr;
-        } else {
-          unique_ptr<Value> field_copy(new Value(field->type.type));
-          *field_copy = *field;
-          std::vector<std::unique_ptr<Expression>> args;
-          args.emplace_back(OBJ);
-          OBJ = nullptr;
-          for (auto& arg : *ARGS) {
-            args.push_back(std::move(arg));
-          }
-          CHECK(field_copy != nullptr);
-          OUT = NewFunctionCall(NewConstantExpression(std::move(field_copy)),
-                                std::move(args)).release();
-        }
-      }
-    }
+    compilation->errors.push_back(
+        L"++: Type not supported: " + type.ToString());
+    OUT = nullptr;
   }
-  delete FIELD;
-  delete ARGS;
+  NAME = nullptr;
+}
+
+expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
+  auto var = NewVariableLookup(compilation, NAME->str);
+  auto type = var->type();
+  if (var->IsInteger() || var->IsDouble()) {
+    OUT = NewAssignExpression(
+              compilation, NAME->str,
+              std::make_unique<BinaryOperator>(
+                  NewVoidExpression(),
+                  std::move(var),
+                  type,
+                  type.type == VMType::VM_INTEGER
+                      ? [](const Value&, const Value& a, Value* output) {
+                          output->integer = a.integer - 1;
+                        }
+                      : [](const Value&, const Value& a, Value* output) {
+                          output->double_value = a.double_value - 1.0;
+                        })).release();
+  } else {
+    compilation->errors.push_back(
+        L"--: Type not supported: " + type.ToString());
+    OUT = nullptr;
+  }
+  NAME = nullptr;
 }
 
 expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
@@ -529,8 +584,8 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
     OUT = nullptr;
   } else if ((A->type().type == VMType::VM_INTEGER
               || A->type().type == VMType::VM_DOUBLE)
-             && (B->type().type != VMType::VM_INTEGER
-                 || B->type().type != VMType::VM_DOUBLE)) {
+             && (B->type().type == VMType::VM_INTEGER
+                 || B->type().type == VMType::VM_DOUBLE)) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
@@ -546,7 +601,7 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
             } else if (x.type.type == VMType::VM_DOUBLE) {
               return x.double_value;
             } else {
-              CHECK(false) << "Unexpected value.";
+              LOG(FATAL) << "Unexpected value of type: " << x.type.ToString();
             }
           };
           output->boolean = to_double(a) < to_double(b);
@@ -566,8 +621,8 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
     OUT = nullptr;
   } else if ((A->type().type == VMType::VM_INTEGER
               || A->type().type == VMType::VM_DOUBLE)
-             && (B->type().type != VMType::VM_INTEGER
-                 || B->type().type != VMType::VM_DOUBLE)) {
+             && (B->type().type == VMType::VM_INTEGER
+                 || B->type().type == VMType::VM_DOUBLE)) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
@@ -583,7 +638,7 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
             } else if (x.type.type == VMType::VM_DOUBLE) {
               return x.double_value;
             } else {
-              CHECK(false) << "Unexpected value.";
+              LOG(FATAL) << "Unexpected value of type: " << x.type.ToString();
             }
           };
           output->boolean = to_double(a) <= to_double(b);
@@ -603,8 +658,8 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
     OUT = nullptr;
   } else if ((A->type().type == VMType::VM_INTEGER
               || A->type().type == VMType::VM_DOUBLE)
-             && (B->type().type != VMType::VM_INTEGER
-                 || B->type().type != VMType::VM_DOUBLE)) {
+             && (B->type().type == VMType::VM_INTEGER
+                 || B->type().type == VMType::VM_DOUBLE)) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
@@ -620,7 +675,7 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
             } else if (x.type.type == VMType::VM_DOUBLE) {
               return x.double_value;
             } else {
-              CHECK(false) << "Unexpected value.";
+              LOG(FATAL) << "Unexpected value of type: " << x.type.ToString();
             }
           };
           output->boolean = to_double(a) > to_double(b);
@@ -640,8 +695,8 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
     OUT = nullptr;
   } else if ((A->type().type == VMType::VM_INTEGER
               || A->type().type == VMType::VM_DOUBLE)
-             && (B->type().type != VMType::VM_INTEGER
-                 || B->type().type != VMType::VM_DOUBLE)) {
+             && (B->type().type == VMType::VM_INTEGER
+                 || B->type().type == VMType::VM_DOUBLE)) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
@@ -657,7 +712,7 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
             } else if (x.type.type == VMType::VM_DOUBLE) {
               return x.double_value;
             } else {
-              CHECK(false) << "Unexpected value.";
+              LOG(FATAL) << "Unexpected value of type: " << x.type.ToString();
             }
           };
           output->boolean = to_double(a) >= to_double(b);
@@ -686,101 +741,28 @@ expr(OUT) ::= expr(A) AND expr(B). {
   B = nullptr;
 }
 
-expr(A) ::= expr(B) PLUS expr(C). {
-  if (B == nullptr || C == nullptr) {
-    A = nullptr;
-  } else if (B->type().type == VMType::VM_STRING && C->type().type == VMType::VM_STRING) {
-    A = new BinaryOperator(
-        unique_ptr<Expression>(B),
-        unique_ptr<Expression>(C),
-        VMType::String(),
-        [](const Value& a, const Value& b, Value* output) {
-          output->str = a.str + b.str;
-        });
-    B = nullptr;
-    C = nullptr;
-  } else if (B->type().type == VMType::VM_INTEGER && C->type().type == VMType::VM_INTEGER) {
-    A = new BinaryOperator(
-        unique_ptr<Expression>(B),
-        unique_ptr<Expression>(C),
-        VMType::Integer(),
-        [](const Value& a, const Value& b, Value* output) {
-          output->integer = a.integer + b.integer;
-        });
-    B = nullptr;
-    C = nullptr;
-  } else if ((B->type().type == VMType::VM_INTEGER
-              || B->type().type == VMType::VM_DOUBLE)
-             && (C->type().type == VMType::VM_INTEGER
-                 || C->type().type == VMType::VM_DOUBLE)) {
-    A = new BinaryOperator(
-        unique_ptr<Expression>(B),
-        unique_ptr<Expression>(C),
-        VMType::Double(),
-        [](const Value& a, const Value& b, Value* output) {
-          auto to_double = [](const Value& x) {
-            if (x.type.type == VMType::VM_INTEGER) {
-              return static_cast<double>(x.integer);
-            } else if (x.type.type == VMType::VM_DOUBLE) {
-              return x.double_value;
-            } else {
-              CHECK(false) << "Unexpected value.";
-            }
-          };
-          output->double_value = to_double(a) + to_double(b);
-        });
-    B = nullptr;
-    C = nullptr;
-  } else {
-    compilation->errors.push_back(
-        L"Unable to add types: \"" + B->type().ToString()
-        + L"\" + \"" + C->type().ToString() + L"\"");
-    A = nullptr;
-  }
+expr(OUT) ::= expr(A) PLUS expr(B). {
+  OUT = NewBinaryExpression(
+            compilation, std::unique_ptr<Expression>(A),
+            std::unique_ptr<Expression>(B),
+            [](wstring a, wstring b) { return a + b; },
+            [](int a, int b) { return a + b; },
+            [](double a, double b) { return a + b; },
+            nullptr).release();
+  A = nullptr;
+  B = nullptr;
 }
 
 
-expr(A) ::= expr(B) MINUS expr(C). {
-  if (B == nullptr || C == nullptr) {
-    A = nullptr;
-  } else if (B->type().type == VMType::VM_INTEGER && C->type().type == VMType::VM_INTEGER) {
-    A = new BinaryOperator(
-        unique_ptr<Expression>(B),
-        unique_ptr<Expression>(C),
-        VMType::Integer(),
-        [](const Value& a, const Value& b, Value* output) {
-          output->integer = a.integer - b.integer;
-        });
-    B = nullptr;
-    C = nullptr;
-  } else if ((B->type().type == VMType::VM_INTEGER
-              || B->type().type == VMType::VM_DOUBLE)
-             && (C->type().type == VMType::VM_INTEGER
-                 || C->type().type == VMType::VM_DOUBLE)) {
-    A = new BinaryOperator(
-        unique_ptr<Expression>(B),
-        unique_ptr<Expression>(C),
-        VMType::Double(),
-        [](const Value& a, const Value& b, Value* output) {
-          auto to_double = [](const Value& x) {
-            if (x.type.type == VMType::VM_INTEGER) {
-              return static_cast<double>(x.integer);
-            } else if (x.type.type == VMType::VM_DOUBLE) {
-              return x.double_value;
-            } else {
-              CHECK(false) << "Unexpected value.";
-            }
-          };
-          output->double_value = to_double(a) - to_double(b);
-        });
-    B = nullptr;
-    C = nullptr;
-  } else {
-    compilation->errors.push_back(
-        L"Unable to subtract types: \"" + B->type().ToString()
-        + L"\" - \"" + C->type().ToString() + L"\"");
-    A = nullptr;
-  }
+expr(OUT) ::= expr(A) MINUS expr(B). {
+  OUT = NewBinaryExpression(
+            compilation, std::unique_ptr<Expression>(A),
+            std::unique_ptr<Expression>(B), nullptr,
+            [](int a, int b) { return a - b; },
+            [](double a, double b) { return a - b; },
+            nullptr).release();
+  A = nullptr;
+  B = nullptr;
 }
 
 expr(OUT) ::= MINUS expr(A). {
@@ -805,93 +787,37 @@ expr(OUT) ::= MINUS expr(A). {
   }
 }
 
-expr(A) ::= expr(B) TIMES expr(C). {
-  if (B == nullptr || C == nullptr) {
-    A = nullptr;
-  } else if (B->type().type == VMType::VM_INTEGER && C->type().type == VMType::VM_INTEGER) {
-    A = new BinaryOperator(
-        unique_ptr<Expression>(B),
-        unique_ptr<Expression>(C),
-        VMType::Integer(),
-        [](const Value& a, const Value& b, Value* output) {
-          output->integer = a.integer * b.integer;
-        });
-    B = nullptr;
-    C = nullptr;
-  } else if ((B->type().type == VMType::VM_INTEGER
-              || B->type().type == VMType::VM_DOUBLE)
-             && (C->type().type == VMType::VM_INTEGER
-                 || C->type().type == VMType::VM_DOUBLE)) {
-    A = new BinaryOperator(
-        unique_ptr<Expression>(B),
-        unique_ptr<Expression>(C),
-        VMType::Double(),
-        [](const Value& a, const Value& b, Value* output) {
-          auto to_double = [](const Value& x) {
-            if (x.type.type == VMType::VM_INTEGER) {
-              return static_cast<double>(x.integer);
-            } else if (x.type.type == VMType::VM_DOUBLE) {
-              return x.double_value;
-            } else {
-              CHECK(false) << "Unexpected value.";
-            }
-          };
-          output->double_value = to_double(a) * to_double(b);
-        });
-    B = nullptr;
-    C = nullptr;
-  } else {
-    compilation->errors.push_back(
-        L"Unable to multiply types: \"" + B->type().ToString()
-        + L"\" * \"" + C->type().ToString() + L"\"");
-    A = nullptr;
-  }
+expr(OUT) ::= expr(A) TIMES expr(B). {
+  OUT = NewBinaryExpression(
+            compilation, std::unique_ptr<Expression>(A),
+            std::unique_ptr<Expression>(B), nullptr,
+            [](int a, int b) { return a * b; },
+            [](double a, double b) { return a * b; },
+            [](wstring a, int b) {
+              wstring output;
+              for(int i = 0; i < b; i++) {
+                output += a;
+              }
+              return output;
+            }).release();
+  A = nullptr;
+  B = nullptr;
 }
 
-expr(A) ::= expr(B) DIVIDE expr(C). {
-  if (B == nullptr || C == nullptr) {
-    A = nullptr;
-  } else if (B->type().type == VMType::VM_INTEGER && C->type().type == VMType::VM_INTEGER) {
-    A = new BinaryOperator(
-        unique_ptr<Expression>(B),
-        unique_ptr<Expression>(C),
-        VMType::Integer(),
-        [](const Value& a, const Value& b, Value* output) {
-          output->integer = a.integer / b.integer;
-        });
-    B = nullptr;
-    C = nullptr;
-  } else if ((B->type().type == VMType::VM_INTEGER
-              || B->type().type == VMType::VM_DOUBLE)
-             && (C->type().type == VMType::VM_INTEGER
-                 || C->type().type == VMType::VM_DOUBLE)) {
-    A = new BinaryOperator(
-        unique_ptr<Expression>(B),
-        unique_ptr<Expression>(C),
-        VMType::Double(),
-        [](const Value& a, const Value& b, Value* output) {
-          auto to_double = [](const Value& x) {
-            if (x.type.type == VMType::VM_INTEGER) {
-              return static_cast<double>(x.integer);
-            } else if (x.type.type == VMType::VM_DOUBLE) {
-              return x.double_value;
-            } else {
-              CHECK(false) << "Unexpected value.";
-            }
-          };
-          output->double_value = to_double(a) / to_double(b);
-        });
-    B = nullptr;
-    C = nullptr;
-  } else {
-    compilation->errors.push_back(
-        L"Unable to divide types: \"" + B->type().ToString()
-        + L"\" / \"" + C->type().ToString() + L"\"");
-    A = nullptr;
-  }
+expr(OUT) ::= expr(A) DIVIDE expr(B). {
+  OUT = NewBinaryExpression(
+            compilation, std::unique_ptr<Expression>(A),
+            std::unique_ptr<Expression>(B), nullptr,
+            [](int a, int b) { return a / b; },
+            [](double a, double b) { return a / b; },
+            nullptr).release();
+  A = nullptr;
+  B = nullptr;
 }
 
-// Atomic types
+////////////////////////////////////////////////////////////////////////////////
+// Atomic Expressions
+////////////////////////////////////////////////////////////////////////////////
 
 expr(OUT) ::= BOOL(B). {
   OUT = NewConstantExpression(unique_ptr<Value>(B)).release();
@@ -934,4 +860,114 @@ expr(OUT) ::= SYMBOL(S). {
   assert(S->type.type == VMType::VM_SYMBOL);
   OUT = NewVariableLookup(compilation, S->str).release();
   delete S;
+}
+
+expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD). {
+  if (OBJ == nullptr) {
+    OUT = nullptr;
+  } else {
+    wstring object_type_name;
+    switch (OBJ->type().type) {
+      case VMType::VM_STRING:
+        object_type_name = L"string";
+        break;
+      case VMType::VM_BOOLEAN:
+        object_type_name = L"bool";
+        break;
+      case VMType::VM_DOUBLE:
+        object_type_name = L"double";
+        break;
+      case VMType::VM_INTEGER:
+        object_type_name = L"int";
+        break;
+      case VMType::OBJECT_TYPE:
+        object_type_name = OBJ->type().object_type;
+        break;
+      default:
+        break;
+    }
+    const ObjectType* object_type = object_type_name.empty()
+        ? nullptr
+        : compilation->environment->LookupObjectType(object_type_name);
+    if (object_type_name.empty()) {
+      compilation->errors.push_back(
+          L"Unable to find methods on primitive type: \""
+          + OBJ->type().ToString() + L"\"");
+      OUT = nullptr;
+    } else if (object_type == nullptr) {
+      compilation->errors.push_back(
+          L"Unknown type: \"" + OBJ->type().ToString() + L"\"");
+      OUT = nullptr;
+    } else {
+      auto field = object_type->LookupField(FIELD->str);
+      if (field == nullptr) {
+        compilation->errors.push_back(
+            L"Unknown method: \"" + object_type->ToString() + L"::"
+            + FIELD->str + L"\"");
+        OUT = nullptr;
+      } else {
+        // When evaluated, evaluates first `obj_expr` and then returns a
+        // callback that wraps `delegate`, inserting the value that `obj_expr`
+        // evaluated to.
+        class BindObjectExpression : public Expression {
+         public:
+          BindObjectExpression(std::unique_ptr<Expression> obj_expr,
+                               Value* delegate)
+              : type_(
+                    [=]() {
+                      auto output = std::make_shared<VMType>(delegate->type);
+                      output->type_arguments.erase(
+                          output->type_arguments.begin() + 1);
+                      return output;
+                    }()),
+                obj_expr_(std::move(obj_expr)),
+                delegate_(delegate) {}
+
+          const VMType& type() { return *type_; }
+
+          std::unique_ptr<Expression> Clone() override {
+            return std::make_unique<BindObjectExpression>(obj_expr_->Clone(),
+                                                          delegate_);
+          }
+
+          void Evaluate(Trampoline* evaluation) override {
+            auto shared_type = type_;
+            auto shared_obj_expr = obj_expr_;
+            auto shared_delegate = delegate_;
+            evaluation->Bounce(
+                shared_obj_expr.get(),
+                [shared_type, shared_obj_expr, shared_delegate](
+                    Value::Ptr obj, Trampoline* trampoline) {
+                  // TODO: Avoid shared_ptr and Clone below.
+                  std::shared_ptr<Value> obj_shared = std::move(obj);
+                  trampoline->Continue(Value::NewFunction(
+                      shared_type->type_arguments,
+                      [obj_shared, shared_delegate](
+                          std::vector<Value::Ptr> args,
+                          Trampoline* trampoline) {
+                        args.emplace(args.begin(),
+                                     std::make_unique<Value>(*obj_shared));
+                        shared_delegate->callback(std::move(args),
+                                                  trampoline);
+                      }));
+                });
+          }
+
+         private:
+          const std::shared_ptr<VMType> type_;
+          const std::shared_ptr<Expression> obj_expr_;
+          Value* const delegate_;
+        };
+
+        CHECK(field->type.type == VMType::FUNCTION);
+        CHECK_GE(field->type.type_arguments.size(), 2);
+        CHECK_EQ(field->type.type_arguments[1], OBJ->type());
+
+        OUT = std::make_unique<BindObjectExpression>(
+            OBJ->Clone(), field).release();
+        OBJ = nullptr;
+      }
+    }
+  }
+  delete FIELD;
 }

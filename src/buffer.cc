@@ -33,6 +33,8 @@ extern "C" {
 #include "server.h"
 #include "src/parsers/diff.h"
 #include "src/parsers/markdown.h"
+#include "src/screen.h"
+#include "src/screen_vm.h"
 #include "src/seek.h"
 #include "substring.h"
 #include "transformation.h"
@@ -62,6 +64,14 @@ const VMType VMTypeMapper<editor::OpenBuffer*>::vmtype =
 }  // namespace vm
 namespace editor {
 namespace {
+Screen* GetScreen(OpenBuffer* buffer) {
+  auto screen_value = buffer->environment()->Lookup(L"screen");
+  if (screen_value == nullptr || !(screen_value->type == GetScreenVmType()) ||
+      screen_value->user_value == nullptr) {
+    return nullptr;
+  }
+  return static_cast<Screen*>(screen_value->user_value.get());
+}
 
 static const wchar_t* kOldCursors = L"old-cursors";
 
@@ -248,6 +258,18 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
                 ->ProcessInput(L'\n', editor_state);
           }));
 
+  buffer->AddField(L"PushTransformationStack",
+                   vm::NewCallback(std::function<void(OpenBuffer*)>(
+                       [editor_state](OpenBuffer* buffer) {
+                         buffer->PushTransformationStack();
+                       })));
+
+  buffer->AddField(L"PopTransformationStack",
+                   vm::NewCallback(std::function<void(OpenBuffer*)>(
+                       [editor_state](OpenBuffer* buffer) {
+                         buffer->PopTransformationStack();
+                       })));
+
   buffer->AddField(
       L"AddKeyboardTextTransformer",
       Value::NewFunction(
@@ -295,6 +317,9 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
       L"InsertText",
       vm::NewCallback(std::function<void(OpenBuffer*, wstring)>(
           [editor_state](OpenBuffer* buffer, wstring text) {
+            if (text.empty()) {
+              return;  // Optimization.
+            }
             if (buffer->fd() != -1) {
               auto str = ToByteString(text);
               LOG(INFO) << "Insert text: " << str.size();
@@ -513,6 +538,9 @@ void OpenBuffer::Close(EditorState* editor_state) {
     LOG(INFO) << "Saving buffer: " << name_;
     Save(editor_state);
   }
+  for (auto& observer : close_observers_) {
+    observer();
+  }
 }
 
 void OpenBuffer::AddEndOfFileObserver(std::function<void()> observer) {
@@ -520,7 +548,11 @@ void OpenBuffer::AddEndOfFileObserver(std::function<void()> observer) {
     observer();
     return;
   }
-  end_of_file_observers_.push_back(observer);
+  end_of_file_observers_.push_back(std::move(observer));
+}
+
+void OpenBuffer::AddCloseObserver(std::function<void()> observer) {
+  close_observers_.push_back(std::move(observer));
 }
 
 void OpenBuffer::Visit(EditorState* editor_state) {
@@ -979,7 +1011,6 @@ void OpenBuffer::ProcessCommandInput(EditorState* editor_state,
     position_pts_.line = contents_.size() - 1;
   }
   CHECK_LT(position_pts_.line, contents_.size());
-  auto current_line = contents_.at(position_pts_.line);
   std::unordered_set<LineModifier, hash<int>> modifiers;
 
   size_t read_index = 0;
@@ -988,11 +1019,13 @@ void OpenBuffer::ProcessCommandInput(EditorState* editor_state,
     int c = str->get(read_index);
     read_index++;
     if (c == '\b') {
+      VLOG(8) << "Received \\b";
       if (position_pts_.column > 0) {
         position_pts_.column--;
         MaybeFollowToEndOfFile();
       }
     } else if (c == '\a') {
+      VLOG(8) << "Received \\a";
       auto status = editor_state->status();
       if (!all_of(status.begin(), status.end(), [](const wchar_t& c) {
             return c == L'♪' || c == L'♫' || c == L'…' || c == L' ' ||
@@ -1006,32 +1039,41 @@ void OpenBuffer::ProcessCommandInput(EditorState* editor_state,
                               (status.back() == L'♪' ? L"♫" : L"♪"));
       BeepFrequencies(editor_state->audio_player(), {783.99, 523.25, 659.25});
     } else if (c == '\r') {
+      VLOG(8) << "Received \\r";
       position_pts_.column = 0;
       MaybeFollowToEndOfFile();
     } else if (c == '\n') {
-      position_pts_.line++;
-      position_pts_.column = 0;
-      if (position_pts_.line == contents_.size()) {
-        contents_.push_back(std::make_shared<Line>());
-      }
-      CHECK_LT(position_pts_.line, contents_.size());
-      current_line = contents_.at(position_pts_.line);
-      MaybeFollowToEndOfFile();
+      VLOG(8) << "Received \\n";
+      PtsMoveToNextLine();
     } else if (c == 0x1b) {
+      VLOG(8) << "Received 0x1b";
       read_index = ProcessTerminalEscapeSequence(editor_state, str, read_index,
                                                  &modifiers);
       CHECK_LT(position_pts_.line, contents_.size());
-      current_line = contents_.at(position_pts_.line);
     } else if (isprint(c) || c == '\t') {
+      VLOG(8) << "Received printable or tab: " << c;
+      auto screen = GetScreen(this);
+      if (screen != nullptr && position_pts_.column >= screen->columns()) {
+        PtsMoveToNextLine();
+      }
       contents_.SetCharacter(position_pts_.line, position_pts_.column, c,
                              modifiers);
-      current_line = LineAt(position_pts_.line);
       position_pts_.column++;
       MaybeFollowToEndOfFile();
     } else {
       LOG(INFO) << "Unknown character: [" << c << "]\n";
     }
   }
+}
+
+void OpenBuffer::PtsMoveToNextLine() {
+  position_pts_.line++;
+  position_pts_.column = 0;
+  if (position_pts_.line == contents_.size()) {
+    contents_.push_back(std::make_shared<Line>());
+  }
+  CHECK_LT(position_pts_.line, contents_.size());
+  MaybeFollowToEndOfFile();
 }
 
 size_t OpenBuffer::ProcessTerminalEscapeSequence(
@@ -1044,10 +1086,9 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
   }
   switch (str->get(read_index)) {
     case 'M':
-      // cuu1: Up one line.
+      VLOG(9) << "Received: cuu1: Up one line.";
       if (position_pts_.line > 0) {
         position_pts_.line--;
-        position_pts_.column = 0;
         MaybeFollowToEndOfFile();
         if (static_cast<size_t>(Read(buffer_variables::view_start_line())) >
             position_pts_.line) {
@@ -1057,6 +1098,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
       }
       return read_index + 1;
     case '[':
+      VLOG(9) << "Received: [";
       break;
     default:
       LOG(INFO) << "Unhandled character sequence: "
@@ -1071,19 +1113,20 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
     read_index++;
     switch (c) {
       case '@': {
-        // ich: insert character
-        DLOG(INFO) << "Terminal: ich: Insert character.";
+        VLOG(9) << "Terminal: ich: Insert character.";
         contents_.InsertCharacter(position_pts_.line, position_pts_.column);
         return read_index;
       }
 
       case 'l':
+        VLOG(9) << "Terminal: l";
         if (sequence == "?1") {
+          VLOG(9) << "Terminal: ?1";
           sequence.push_back(c);
           continue;
         }
         if (sequence == "?1049") {
-          // rmcup
+          VLOG(9) << "Terminal: ?1049: rmcup";
         } else if (sequence == "?25") {
           LOG(INFO) << "Ignoring: Make cursor invisible";
         } else {
@@ -1092,6 +1135,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         return read_index;
 
       case 'h':
+        VLOG(9) << "Terminal: h";
         if (sequence == "?1") {
           sequence.push_back(c);
           continue;
@@ -1106,6 +1150,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         return read_index;
 
       case 'm':
+        VLOG(9) << "Terminal: m";
         if (sequence == "") {
           modifiers->clear();
         } else if (sequence == "0") {
@@ -1150,6 +1195,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         return read_index;
 
       case '>':
+        VLOG(9) << "Terminal: >";
         if (sequence == "?1l\E") {
           // rmkx: leave 'keyboard_transmit' mode
           // TODO(alejo): Handle it.
@@ -1160,6 +1206,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         break;
 
       case '=':
+        VLOG(9) << "Terminal: =";
         if (sequence == "?1h\E") {
           // smkx: enter 'keyboard_transmit' mode
           // TODO(alejo): Handle it.
@@ -1170,7 +1217,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         break;
 
       case 'C':
-        // cuf1: non-destructive space (move right one space)
+        VLOG(9) << "Terminal: cuf1: non-destructive space (move right 1 space)";
         if (position_pts_.column >= current_line->size()) {
           return read_index;
         }
@@ -1179,7 +1226,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         return read_index;
 
       case 'H':
-        // home: move cursor home.
+        VLOG(9) << "Terminal: home: move cursor home.";
         {
           size_t line_delta = 0, column_delta = 0;
           size_t pos = sequence.find(';');
@@ -1212,20 +1259,20 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         return read_index;
 
       case 'J':
-        // ed: clear to end of screen.
+        VLOG(9) << "Terminal: ed: clear to end of screen.";
         EraseLines(position_pts_.line + 1, contents_.size());
         CHECK_LT(position_pts_.line, contents_.size());
         return read_index;
 
       case 'K': {
-        // el: clear to end of line.
+        VLOG(9) << "Terminal: el: clear to end of line.";
         contents_.DeleteCharactersFromLine(position_pts_.line,
                                            position_pts_.column);
         return read_index;
       }
 
       case 'M':
-        // dl1: delete one line.
+        VLOG(9) << "Terminal: dl1: delete one line.";
         {
           EraseLines(position_pts_.line, position_pts_.line + 1);
           CHECK_LT(position_pts_.line, contents_.size());
@@ -1233,10 +1280,14 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         return read_index;
 
       case 'P': {
-        contents_.DeleteCharactersFromLine(
-            position_pts_.line, position_pts_.column,
-            min(static_cast<size_t>(atoi(sequence.c_str())),
-                current_line->size()));
+        VLOG(9) << "Terminal: P";
+        size_t chars_to_erase = static_cast<size_t>(atoi(sequence.c_str()));
+        size_t length = contents_.at(position_pts_.line)->size();
+        if (position_pts_.column < length) {
+          contents_.DeleteCharactersFromLine(
+              position_pts_.line, position_pts_.column,
+              min(chars_to_erase, length - position_pts_.column));
+        }
         current_line = LineAt(position_pts_.line);
         return read_index;
       }
@@ -2068,10 +2119,10 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
   if (!last_transformation_stack_.empty()) {
     CHECK(last_transformation_stack_.back() != nullptr);
     last_transformation_stack_.back()->PushBack(transformation->Clone());
+  } else {
+    transformations_past_.push_back(
+        std::make_unique<Transformation::Result>(editor_));
   }
-
-  transformations_past_.push_back(
-      std::make_unique<Transformation::Result>(editor_));
 
   transformations_past_.back()->undo_stack->PushFront(
       NewSetCursorsTransformation(*active_cursors(), position()));
@@ -2137,6 +2188,10 @@ void OpenBuffer::RepeatLastTransformation() {
 }
 
 void OpenBuffer::PushTransformationStack() {
+  if (last_transformation_stack_.empty()) {
+    transformations_past_.push_back(
+        std::make_unique<Transformation::Result>(editor_));
+  }
   last_transformation_stack_.emplace_back(
       std::make_unique<TransformationStack>());
 }

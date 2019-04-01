@@ -7,21 +7,10 @@ bool simple_characters = false;
 bool delete_mode = false;
 bool bold_mode = false;
 
-ShapesPoint last_point = ShapesPoint(0.0, 1.0);
+LineColumn source = LineColumn(0, 0);
 
 void ShapesSetStatus(string description) {
   SetStatus("Shapes: " + description);
-}
-
-ShapesPoint PositionToPoint(LineColumn position) {
-  return ShapesPoint(position.column() / total_columns,
-                     (total_lines - position.line()) / total_lines);
-}
-
-LineColumn PointToPosition(ShapesPoint point) {
-  double column = point.x() * total_columns;
-  double line = total_lines - point.y() * total_lines;
-  return LineColumn(line.round(), column.round());
 }
 
 int Min(int x, int y) { return x <= y ? x : y; }
@@ -34,21 +23,23 @@ double Abs(double x) {
     return -x;
 }
 
+void PadToLineColumn(LineColumn position) {
+  buffer.set_position(position);
+  if (buffer.line_count() <= position.line()) {
+    buffer.set_position(LineColumn(buffer.line_count(), 0));
+    buffer.InsertText("\n" * (position.line() + 1 - buffer.line_count()));
+  }
+  string line = buffer.line(position.line());
+  int insertions = Max(0, position.column() - line.size());
+  buffer.set_position(position);
+  buffer.InsertText(" " * insertions);
+}
+
 void DrawPosition(LineColumn position, string text) {
   string line = buffer.line(position.line());
-  if (line.size() < position.column()) {
-    buffer.set_position(LineColumn(position.line(), line.size()));
-    int insertions = position.column() - line.size();
-    while (insertions > 0) {
-      buffer.InsertText(" ");
-      insertions = insertions - 1;
-    }
-  } else {
-    buffer.set_position(position);
-    if (line.size() > position.column()) {
-      buffer.DeleteCharacters(
-          Min(line.size() - position.column(), text.size()));
-    }
+  PadToLineColumn(position);
+  if (line.size() > position.column()) {
+    buffer.DeleteCharacters(Min(line.size() - position.column(), text.size()));
   }
   buffer.InsertText(text);
 }
@@ -77,199 +68,261 @@ string GetCode(bool up, bool down, bool left, bool right, bool up_bold,
     }
   }
 
-  if (up_bold && down_bold && left_bold && right_bold) {
-    return "╋";
-  } else if (up_bold && down_bold && left_bold && right) {
-    return "╉";
-  } else if (up_bold && down_bold && left && right_bold) {
-    return "╊";
-  } else if (up_bold && down && left_bold && right_bold) {
-    return "╇";
-  } else if (up && down_bold && left_bold && right_bold) {
-    return "╈";
-  }
-
-  if (up && down && left_bold && right_bold) {
-    return "┿";
-  } else if (up && down_bold && left && right_bold) {
-    return "╆";
-  } else if (up && down_bold && left_bold && right) {
-    return "╅";
-  } else if (up_bold && down && left && right_bold) {
-    return "╄";
-  } else if (up_bold && down && left_bold && right) {
-    return "╃";
-  } else if (up_bold && down_bold && left && right) {
-    return "╂";
-  }
-
-  if (up_bold && down && left && right) {
-    return "╀";
-  } else if (up && down_bold && left && right) {
-    return "╁";
-  } else if (up && down && left_bold && right) {
-    return "┽";
-  } else if (up && down && left && right_bold) {
-    return "┾";
-  }
-
-  if (up_bold && down_bold && left_bold) {
-    return "┫";
-  } else if (up_bold && down_bold && right_bold) {
-    return "┣";
-  } else if (up_bold && left_bold && right_bold) {
-    return "┻";
-  } else if (down_bold && left_bold && right_bold) {
-    return "┳";
-  }
-
-  if (up_bold && down_bold && left) {
-    return "┨";
-  } else if (up_bold && down_bold && right) {
-    return "┠";
-  } else if (up_bold && left_bold && right) {
-    return "┹";
-  } else if (up_bold && left_bold && down) {
-    return "┩";
-  } else if (up_bold && right_bold && left) {
-    return "┺";
-  } else if (up_bold && right_bold && down) {
-    return "┡";
-  } else if (down_bold && left_bold && up) {
-    return "┪";
-  } else if (down_bold && left_bold && right) {
-    return "┱";
-  } else if (down_bold && right_bold && up) {
-    return "┢";
-  } else if (down_bold && right_bold && left) {
-    return "┲";
-  } else if (left_bold && right_bold && up) {
-    return "┷";
-  } else if (left_bold && right_bold && down) {
-    return "┯";
-  }
-
-  if (up_bold && down && left) {
-    return "┦";
-  } else if (up_bold && down && right) {
-    return "┞";
-  } else if (up_bold && left && right) {
-    return "┸";
-  } else if (down_bold && up && left) {
-    return "┧";
-  } else if (down_bold && up && right) {
-    return "┟";
-  } else if (down_bold && left && right) {
-    return "┰";
-  } else if (left_bold && up && down) {
-    return "┥";
-  } else if (left_bold && up && right) {
-    return "┵";
-  } else if (left_bold && down && right) {
-    return "┭";
-  } else if (right_bold && up && down) {
-    return "┝";
-  } else if (right_bold && up && left) {
-    return "┶";
-  } else if (right_bold && down && left) {
-    return "┮";
-  }
-
-  if (up_bold && down_bold) {
-    return "┃";
-  } else if (up_bold && left_bold) {
-    return "┛";
-  } else if (up_bold && right_bold) {
-    return "┗";
-  } else if (down_bold && left_bold) {
-    return "┓";
-  } else if (down_bold && right_bold) {
-    return "┏";
-  } else if (left_bold && right_bold) {
-    return "━";
-  }
-
-  if (up_bold && down) {
-    return "╿";
-  } else if (up_bold && left) {
-    return "┚";
-  } else if (up_bold && right) {
-    return "┖";
-  } else if (down_bold && up) {
-    return "╽";
-  } else if (down_bold && left) {
-    return "┒";
-  } else if (down_bold && right) {
-    return "┎";
-  } else if (left_bold && up) {
-    return "┙";
-  } else if (left_bold && down) {
-    return "┑";
-  } else if (left_bold && right) {
-    return "╾";
-  } else if (right_bold && up) {
-    return "┕";
-  } else if (right_bold && down) {
-    return "┍";
-  } else if (right_bold && left) {
-    return "╼";
-  }
-
-  if (up && down && left && right) {
-    return "┼";
-  } else if (up && down && left) {
-    return "┤";
-  } else if (up && down && right) {
-    return "├";
-  } else if (up && left && right) {
-    return "┴";
-  } else if (down && left && right) {
-    return "┬";
-  } else if (up && down) {
-    return "│";
-  } else if (left && right) {
-    return "─";
-  } else if (up && left) {
-    return "╯";
-  } else if (up && right) {
-    return "╰";
-  } else if (down && left) {
-    return "╮";
-  } else if (down && right) {
-    return "╭";
-  } else if (up && down) {
-    return "│";
-  } else if (left && right) {
-    return "─";
+  if (up_bold) {
+    if (down_bold) {
+      if (left_bold) {
+        if (right_bold) {
+          return "╋";
+        } else if (right) {
+          return "╉";
+        } else {
+          return "┫";
+        }
+      } else if (left) {
+        if (right_bold) {
+          return "╊";
+        } else if (right) {
+          return "╂";
+        } else {
+          return "┨";
+        }
+      } else {
+        if (right_bold) {
+          return "┣";
+        } else if (right) {
+          return "┠";
+        } else {
+          return "┃";
+        }
+      }
+    } else if (down) {
+      if (left_bold) {
+        if (right_bold) {
+          return "╇";
+        } else if (right) {
+          return "╃";
+        } else {
+          return "┩";
+        }
+      } else if (left) {
+        if (right_bold) {
+          return "╄";
+        } else if (right) {
+          return "╀";
+        } else {
+          return "┦";
+        }
+      } else {
+        if (right_bold) {
+          return "┡";
+        } else if (right) {
+          return "┞";
+        } else {
+          return "╿";
+        }
+      }
+    } else {
+      if (left_bold) {
+        if (right_bold) {
+          return "┻";
+        } else if (right) {
+          return "┹";
+        } else {
+          return "┛";
+        }
+      } else if (left) {
+        if (right_bold) {
+          return "┺";
+        } else if (right) {
+          return "┸";
+        } else {
+          return "┚";
+        }
+      } else {
+        if (right_bold) {
+          return "┗";
+        } else if (right) {
+          return "┖";
+        } else {
+          return "╵";  // Best fit.
+        }
+      }
+    }
   } else if (up) {
-    return "╵";
-  } else if (down) {
-    return "╷";
+    if (down_bold) {
+      if (left_bold) {
+        if (right_bold) {
+          return "╈";
+        } else if (right) {
+          return "╅";
+        } else {
+          return "┪";
+        }
+      } else if (left) {
+        if (right_bold) {
+          return "╆";
+        } else if (right) {
+          return "╁";
+        } else {
+          return "┧";
+        }
+      } else {
+        if (right_bold) {
+          return "┢";
+        } else if (right) {
+          return "┟";
+        } else {
+          return "╽";
+        }
+      }
+    } else if (down) {
+      if (left_bold) {
+        if (right_bold) {
+          return "┿";
+        } else if (right) {
+          return "┽";
+        } else {
+          return "┥";
+        }
+      } else if (left) {
+        if (right_bold) {
+          return "┾";
+        } else if (right) {
+          return "┼";
+        } else {
+          return "┤";
+        }
+      } else {
+        if (right_bold) {
+          return "┝";
+        } else if (right) {
+          return "├";
+        } else {
+          return "│";
+        }
+      }
+    } else {
+      if (left_bold) {
+        if (right_bold) {
+          return "┷";
+        } else if (right) {
+          return "┵";
+        } else {
+          return "┙";
+        }
+      } else if (left) {
+        if (right_bold) {
+          return "┶";
+        } else if (right) {
+          return "┴";
+        } else {
+          return "╯";
+        }
+      } else {
+        if (right_bold) {
+          return "┕";
+        } else if (right) {
+          return "╰";
+        } else {
+          return "╵";
+        }
+      }
+    }
+  } else {
+    if (down_bold) {
+      if (left_bold) {
+        if (right_bold) {
+          return "┳";
+        } else if (right) {
+          return "┱";
+        } else {
+          return "┓";
+        }
+      } else if (left) {
+        if (right_bold) {
+          return "┲";
+        } else if (right) {
+          return "┰";
+        } else {
+          return "┒";
+        }
+      } else {
+        if (right_bold) {
+          return "┏";
+        } else if (right) {
+          return "┎";
+        } else {
+          return "╷";  // Best fit.
+        }
+      }
+    } else if (down) {
+      if (left_bold) {
+        if (right_bold) {
+          return "┯";
+        } else if (right) {
+          return "┭";
+        } else {
+          return "┑";
+        }
+      } else if (left) {
+        if (right_bold) {
+          return "┮";
+        } else if (right) {
+          return "┬";
+        } else {
+          return "╮";
+        }
+      } else {
+        if (right_bold) {
+          return "┍";
+        } else if (right) {
+          return "╭";
+        } else {
+          return "╷";
+        }
+      }
+    } else {
+      if (left_bold) {
+        if (right_bold) {
+          return "━";
+        } else if (right) {
+          return "╾";
+        } else {
+          return "╶";  // Best fit.
+        }
+      } else if (left) {
+        if (right_bold) {
+          return "╼";
+        } else if (right) {
+          return "─";
+        } else {
+          return "╴";
+        }
+      } else {
+        if (right_bold) {
+          return "╶";  // Best fit.
+        } else if (right) {
+          return "╶";
+        } else {
+          return " ";
+        }
+      }
+    }
   }
-  if (left) {
-    return "╴";
-  } else if (right) {
-    return "╶";
-  }
-  return " ";
 }
 
-void GetPointsToDraw(ShapesLineColumnSet right, ShapesLineColumnSet down,
-                     ShapesLineColumnSet output) {
-  int i = 0;
-  while (i < right.size()) {
-    LineColumn point = right.get(i);
-    output.insert(point);
-    output.insert(LineColumn(point.line(), point.column() + 1));
-    i = i + 1;
+void GetLineColumnsToDraw(SetLineColumn right, SetLineColumn down,
+                          SetLineColumn output) {
+  for (int i = 0; i < right.size(); i++) {
+    LineColumn position = right.get(i);
+    output.insert(position);
+    output.insert(LineColumn(position.line(), position.column() + 1));
   }
 
-  i = 0;
-  while (i < down.size()) {
-    LineColumn point = down.get(i);
-    output.insert(point);
-    output.insert(LineColumn(point.line() + 1, point.column()));
-    i = i + 1;
+  for (int i = 0; i < down.size(); i++) {
+    LineColumn position = down.get(i);
+    output.insert(position);
+    output.insert(LineColumn(position.line() + 1, position.column()));
   }
 }
 
@@ -305,14 +358,14 @@ bool IsMovingDownBold(string c) {
   return ("╋╉╊╈╆╅╂╁┫┣┳┨┠┪┱┢┲┧┟┰┃┓┏╽┒┎").find(c, 0) != -1;
 }
 
-void DrawLineColumns(ShapesLineColumnSet line_column_right,
-                     ShapesLineColumnSet line_column_down, string code) {
-  ShapesLineColumnSet points = ShapesLineColumnSet();
-  GetPointsToDraw(line_column_right, line_column_down, points);
-  ShapesSetStatus("Points to draw: " + points.size().tostring());
-  int i = 0;
-  while (i < points.size()) {
-    LineColumn position = points.get(i);
+void DrawLineColumns(SetLineColumn line_column_right,
+                     SetLineColumn line_column_down, string code) {
+  buffer.PushTransformationStack();
+  SetLineColumn line_columns = SetLineColumn();
+  GetLineColumnsToDraw(line_column_right, line_column_down, line_columns);
+  ShapesSetStatus("Positions to draw: " + line_columns.size().tostring());
+  for (int i = 0; i < line_columns.size(); i++) {
+    LineColumn position = line_columns.get(i);
     string current_code = code;
     if (current_code.empty()) {
       string current_line = buffer.line(position.line());
@@ -378,73 +431,37 @@ void DrawLineColumns(ShapesLineColumnSet line_column_right,
       current_code = GetCode(up, down, left, right, up_bold, down_bold,
                              left_bold, right_bold);
     }
-    DrawPosition(points.get(i), current_code);
-    i = i + 1;
+    DrawPosition(line_columns.get(i), current_code);
   }
+  buffer.PopTransformationStack();
 }
 
-// output_right contains LineColumn(i, j) if there's a line cross into
-// LineColumn(i, j + 1). output_down if there's a line crossing into
-// LineColumn(i + 1, j).
-void FindBoundariesLine(ShapesLine line, ShapesLineColumnSet output_right,
-                        ShapesLineColumnSet output_down) {
-  ShapesPoint a = line.start();
-  ShapesPoint b = line.end();
-  if (line.start().x() > line.end().x()) {
-    a = line.end();
-    b = line.start();
-  }
-  double delta_x = b.x() - a.x();
-  double delta_y = b.y() - a.y();
-  double aspect_ratio = total_columns / total_lines;
-  LineColumn start = PointToPosition(a);
-  LineColumn end = PointToPosition(b);
-  double delta_error = -delta_y / (delta_x * aspect_ratio);
-  double error = delta_error / 2.0;
-  while (start.column() < end.column() ||
-         (delta_error >= 0 ? start.line() < end.line()
-                           : start.line() > end.line())) {
-    if (error > 0.5) {
-      error = error - 1.0;
-      output_down.insert(start);
-      start = LineColumn(start.line() + 1, start.column());
-    } else if (error < -0.5) {
-      error = error + 1.0;
-      start = LineColumn(start.line() - 1, start.column());
-      output_down.insert(start);
-    } else {
-      error = error + delta_error;
-      output_right.insert(start);
-      start = LineColumn(start.line(), start.column() + 1);
-    }
-  }
+
+void FindBoundariesSquare(LineColumn start, LineColumn end,
+                          SetLineColumn output_right,
+                          SetLineColumn output_down) {
+  FindBoundariesLine(start, LineColumn(start.line(), end.column()),
+                     output_right, output_down);
+  FindBoundariesLine(start, LineColumn(end.line(), start.column()),
+                     output_right, output_down);
+  FindBoundariesLine(end, LineColumn(start.line(), end.column()), output_right,
+                     output_down);
+  FindBoundariesLine(end, LineColumn(end.line(), start.column()), output_right,
+                     output_down);
 }
 
-void FindBoundariesSquare(ShapesLine line, ShapesLineColumnSet output_right,
-                          ShapesLineColumnSet output_down) {
-  FindBoundariesLine(
-      ShapesLine(line.start(), ShapesPoint(line.start().x(), line.end().y())),
-      output_right, output_down);
-  FindBoundariesLine(
-      ShapesLine(line.start(), ShapesPoint(line.end().x(), line.start().y())),
-      output_right, output_down);
-  FindBoundariesLine(
-      ShapesLine(line.end(), ShapesPoint(line.end().x(), line.start().y())),
-      output_right, output_down);
-  FindBoundariesLine(
-      ShapesLine(line.end(), ShapesPoint(line.start().x(), line.end().y())),
-      output_right, output_down);
+void ShapesAddSquareInPositions(LineColumn a, LineColumn b) {
+  SetLineColumn output_right = SetLineColumn();
+  SetLineColumn output_down = SetLineColumn();
+  FindBoundariesSquare(a, b, output_right, output_down);
+  DrawLineColumns(output_right, output_down, "");
 }
 
 void ShapesAddSquare() {
   LineColumn position = buffer.position();
-  ShapesLine square = ShapesLine(last_point, PositionToPoint(position));
-  ShapesLineColumnSet output_right = ShapesLineColumnSet();
-  ShapesLineColumnSet output_down = ShapesLineColumnSet();
-  FindBoundariesSquare(square, output_right, output_down);
-  DrawLineColumns(output_right, output_down, "");
+  ShapesAddSquareInPositions(position, source);
   buffer.set_position(position);
-  last_point = square.end();
+  source = position;
 }
 
 bool IsActualContent(string c) {
@@ -456,7 +473,7 @@ bool IsActualContent(string c) {
 string TrimLine(string line) {
   int start = 0;
   while (start < line.size() && !IsActualContent(line.substr(start, 1))) {
-    start = start + 1;
+    start++;
   }
   if (start == line.size()) {
     return "";
@@ -484,26 +501,23 @@ string GetSquareContents(LineColumn start, LineColumn end) {
 
 string JoinLines(VectorString v) {
   string output = "";
-  int i = 0;
-  while (i < v.size()) {
+  for (int i = 0; i < v.size(); i++) {
     output = output + "[" + v.get(i) + "]";
-    i = i + 1;
   }
   return output;
 }
 
 string BuildPadding(int size, string c) {
   string output = "";
-  while (size > 0) {
+  for (int i = 0; i < size; i++) {
     output = output + c;
-    size = size - 1;
   }
   return output;
 }
 
 void ShapesSquareCenter() {
   LineColumn a = buffer.position();
-  LineColumn b = PointToPosition(last_point);
+  LineColumn b = source;
   int border_delta = 1;
   LineColumn start = LineColumn(Min(a.line(), b.line()) + border_delta,
                                 Min(a.column(), b.column()) + border_delta);
@@ -516,9 +530,8 @@ void ShapesSquareCenter() {
   int width = end.column() - start.column() + 1;
   VectorString contents =
       ShapesReflow(BreakWords(GetSquareContents(start, end)), width);
-  int i = 0;
   int start_contents = (end.line() - start.line() + 1 - contents.size()) / 2;
-  while (start.line() + i <= end.line()) {
+  for (int i = 0; start.line() + i <= end.line(); i++) {
     string input = "";
     if (i >= start_contents && i - start_contents < contents.size()) {
       input = contents.get(i - start_contents);
@@ -529,20 +542,22 @@ void ShapesSquareCenter() {
       input = BuildPadding(width, " ");
     }
     DrawPosition(LineColumn(start.line() + i, start.column()), input);
-    i = i + 1;
   }
   buffer.set_position(a);
 }
 
+void ShapesAddLineToPosition(LineColumn a, LineColumn b) {
+  SetLineColumn output_right = SetLineColumn();
+  SetLineColumn output_down = SetLineColumn();
+  FindBoundariesLine(a, b, output_right, output_down);
+  DrawLineColumns(output_right, output_down, "");
+}
+
 void ShapesAddLine() {
   LineColumn position = buffer.position();
-  ShapesLine line = ShapesLine(last_point, PositionToPoint(position));
-  ShapesLineColumnSet output_right = ShapesLineColumnSet();
-  ShapesLineColumnSet output_down = ShapesLineColumnSet();
-  FindBoundariesLine(line, output_right, output_down);
-  DrawLineColumns(output_right, output_down, "");
+  ShapesAddLineToPosition(position, source);
   buffer.set_position(position);
-  last_point = line.end();
+  source = position;
 }
 
 void ShapesToggleDeleteMode() {
@@ -556,14 +571,215 @@ void ShapesToggleBoldMode() {
 }
 
 void ShapesSet() {
-  ShapesSetStatus("Set target point.");
-  last_point = PositionToPoint(buffer.position());
+  ShapesSetStatus("Set source position.");
+  source = buffer.position();
 }
+
+int GetDiagramInputLinesCount() {
+  for (int i = 0; i < buffer.line_count(); i++) {
+    if (SkipSpaces(buffer.line(i + 1)) == "") {
+      return i;
+    }
+  }
+  return i;
+}
+
+VectorString GetDiagramNouns(int lines) {
+  // Use a set to eliminate repetitions.
+  SetString nouns = SetString();
+  for (int i = 0; i < lines; i++) {
+    string line = buffer.line(i);
+    if (line.substr(0, 1) != " ") {
+      nouns.insert(line);
+    } else {
+      line = SkipSpaces(line);
+      int colon = line.find(":", 0);
+      if (colon == -1) {
+        nouns.insert(line);
+      } else {
+        nouns.insert(
+            SkipSpaces(line.substr(colon + 1, line.size() - (colon + 1))));
+      }
+    }
+  }
+
+  VectorString output = VectorString();
+  for (int i = 0; i < nouns.size(); i++) {
+    output.push_back(nouns.get(i));
+  }
+
+  return output;
+}
+
+VectorInt DiagramGetEdges(int lines, string a, VectorString nouns) {
+  string source = "";
+  SetString edges = SetString();
+  for (int i = 0; i < lines; i++) {
+    string line = buffer.line(i);
+    if (line.substr(0, 1) != " ") {
+      source = line;
+    } else if (source == a) {
+      line = SkipSpaces(line);
+      int colon = line.find(":", 0);
+      if (colon != -1) {
+        line = SkipSpaces(line.substr(colon + 1, line.size() - (colon + 1)));
+      }
+      edges.insert(line);
+    }
+  }
+
+  VectorInt output = VectorInt();
+  for (int i = 0; i < nouns.size(); i++) {
+    if (edges.contains(nouns.get(i))) {
+      output.push_back(i);
+    }
+  }
+  return output;
+}
+
+int GetMaxNounWidth(VectorString nouns) {
+  int output = 0;
+  for (int i = 0; i < nouns.size(); i++) {
+    output = Max(output, nouns.get(i).size());
+  }
+  return output;
+}
+
+int GetMaxNounSize(VectorString nouns) {
+  int output = 0;
+  for (int i = 0; i < nouns.size(); i++) {
+    output = Max(output, nouns.size());
+  }
+  return output;
+}
+
+VectorString NounLines(string noun) {
+  VectorString output = VectorString();
+  int start = 0;
+  while (start < noun.size()) {
+    int next = noun.find(" ", start);
+    if (next == -1) {
+      next = noun.size();
+    }
+    output.push_back(noun.substr(start, next - start));
+    start = next + 1;
+  }
+  return output;
+}
+
+int NounWidth(VectorString noun_lines) {
+  int output = noun_lines.get(0).size();
+  for (int i = 1; i < noun_lines.size(); i++) {
+    output = Max(output, noun_lines.get(i).size());
+  }
+  return output;
+}
+
+VectorLineColumn DiagramGetPositions(int nouns) {
+  VectorLineColumn output = VectorLineColumn();
+  return output;
+}
+
+LineColumn DiagramPositionForNoun(int start, int i, int column_width,
+                                  int lines_per_noun) {
+  int row = i / 3;
+  int column = i - row * 3;
+  return LineColumn(start + (row * lines_per_noun), column_width * column);
+}
+
+void DiagramDrawEdge(int start, VectorString nouns, int i, int j,
+                     int column_width, int lines_per_noun) {
+  LineColumn position_i =
+      DiagramPositionForNoun(start, i, column_width, lines_per_noun);
+  LineColumn position_j =
+      DiagramPositionForNoun(start, j, column_width, lines_per_noun);
+
+  VectorString noun_lines_i = NounLines(nouns.get(i));
+  VectorString noun_lines_j = NounLines(nouns.get(j));
+
+  ShapesAddLineToPosition(
+      LineColumn(
+          position_i.line() + (position_i.line() >= position_j.line()
+                                   ? 0
+                                   : noun_lines_i.size() + 2),
+          position_i.column() + (position_i.column() >= position_j.column()
+                                     ? 0
+                                     : NounWidth(noun_lines_i))),
+
+      LineColumn(
+          position_j.line() + (position_j.line() >= position_i.line()
+                                   ? 0
+                                   : noun_lines_j.size() + 2),
+          position_j.column() + (position_j.column() >= position_i.column()
+                                     ? 0
+                                     : NounWidth(noun_lines_j))));
+}
+
+void DiagramDrawEdges(int lines, int start, VectorString nouns,
+                      int column_width, int lines_per_noun) {
+  for (int i = 0; i < nouns.size(); i++) {
+    VectorInt edges = DiagramGetEdges(lines, nouns.get(i), nouns);
+    for (int j = 0; j < edges.size(); j++) {
+      SetStatus("Connected: " + nouns.get(i) + "->" + nouns.get(j));
+      DiagramDrawEdge(start, nouns, i, edges.get(j), column_width,
+                      lines_per_noun);
+    }
+  }
+}
+
+void DrawNouns(int start, VectorString nouns, int column_width,
+               int lines_per_noun) {
+  int columns = 3;
+
+  int row = 0;
+  int column = 0;
+
+  SetStatus("Writing nouns");
+  for (int noun = 0; noun < nouns.size(); noun++) {
+    VectorString noun_lines = NounLines(nouns.get(noun));
+    LineColumn base_position =
+        LineColumn(start + (row * lines_per_noun), column_width * column);
+
+    for (int line = 0; line < noun_lines.size(); line++) {
+      LineColumn position = LineColumn(base_position.line() + line + 1,
+                                       base_position.column() + 1);
+      PadToLineColumn(position);
+      buffer.InsertText(noun_lines.get(line));
+    }
+
+    ShapesAddSquareInPositions(
+        base_position,
+        LineColumn(base_position.line() + noun_lines.size() + 1,
+                   base_position.column() + NounWidth(noun_lines) + 2));
+
+    column++;
+    if (column >= columns) {
+      column = 0;
+      row++;
+    }
+  }
+}
+
+void ShapesDrawDiagramInner() {
+  int lines = GetDiagramInputLinesCount();
+  VectorString nouns = GetDiagramNouns(lines);
+
+  buffer.set_position(LineColumn(buffer.line_count(), 0));
+
+  int start = buffer.position().line();
+  int column_width = GetMaxNounWidth(nouns) + 6;
+  int row_width = GetMaxNounSize(nouns) + 6;
+  DrawNouns(start, nouns, column_width, row_width);
+  DiagramDrawEdges(lines, start, nouns, column_width, row_width);
+}
+
+void ShapesDrawDiagram() { ShapesDrawDiagramInner(); }
 
 buffer.AddBinding("sl", "shapes: line: draw", ShapesAddLine);
 buffer.AddBinding("sq", "shapes: square: draw", ShapesAddSquare);
 buffer.AddBinding("sc", "shapes: square: center contents", ShapesSquareCenter);
 buffer.AddBinding("sd", "shapes: delete_mode = !delete_mode",
                   ShapesToggleDeleteMode);
-buffer.AddBinding("s=", "shapes: set point", ShapesSet);
+buffer.AddBinding("s=", "shapes: set source", ShapesSet);
 buffer.AddBinding("sb", "shapes: bold_mode = !bold_mode", ShapesToggleBoldMode);
+buffer.AddBinding("sD", "shapes: Draw a diagram", ShapesDrawDiagram);

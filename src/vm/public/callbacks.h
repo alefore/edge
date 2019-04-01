@@ -142,6 +142,32 @@ Value::Ptr RunCallback(std::function<void(A0, A1, A2)> callback,
   return Value::NewVoid();
 }
 
+template <typename ReturnType, typename A0, typename A1, typename A2,
+          typename A3>
+Value::Ptr RunCallback(
+    std::function<ReturnType(A0, A1, A2, A3)> callback,
+    const vector<Value::Ptr>& args,
+    typename std::enable_if<!std::is_void<ReturnType>::value>::type* = 0) {
+  CHECK_EQ(args.size(), 4u);
+  return VMTypeMapper<ReturnType>::New(
+      callback(VMTypeMapper<A0>::get(args[0].get()),
+               VMTypeMapper<A1>::get(args[1].get()),
+               VMTypeMapper<A2>::get(args[2].get()),
+               VMTypeMapper<A3>::get(args[3].get())));
+}
+
+template <typename ReturnType, typename A0, typename A1, typename A2,
+          typename A3>
+Value::Ptr RunCallback(std::function<void(A0, A1, A2, A3)> callback,
+                       const vector<Value::Ptr>& args) {
+  CHECK_EQ(args.size(), 4u);
+  callback(VMTypeMapper<A0>::get(args[0].get()),
+           VMTypeMapper<A1>::get(args[1].get()),
+           VMTypeMapper<A2>::get(args[2].get()),
+           VMTypeMapper<A3>::get(args[3].get()));
+  return Value::NewVoid();
+}
+
 template <typename ReturnType, typename... Args>
 Value::Ptr NewCallback(std::function<ReturnType(Args...)> callback) {
   Value::Ptr callback_wrapper(new Value(VMType::FUNCTION));

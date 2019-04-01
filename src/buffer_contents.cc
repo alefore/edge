@@ -120,7 +120,9 @@ void BufferContents::DeleteCharactersFromLine(size_t line, size_t column,
 }
 
 void BufferContents::DeleteCharactersFromLine(size_t line, size_t column) {
-  return DeleteCharactersFromLine(line, column, at(line)->size() - column);
+  if (column < at(line)->size()) {
+    return DeleteCharactersFromLine(line, column, at(line)->size() - column);
+  }
 }
 
 void BufferContents::SetCharacter(
