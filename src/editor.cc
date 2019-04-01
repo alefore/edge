@@ -173,6 +173,37 @@ Environment EditorState::BuildEditorEnvironment() {
       vm::NewCallback(std::function<void(wstring)>(
           [this](wstring target) { OpenServerBuffer(this, target); })));
 
+  environment.Define(
+      L"WaitForClose",
+      Value::NewFunction(
+          {VMType::Void(), VMType::ObjectType(L"SetString")},
+          [this](vector<Value::Ptr> args, Trampoline* trampoline) {
+            CHECK_EQ(args.size(), 1u);
+            const auto& buffers_to_wait =
+                *static_cast<std::set<wstring>*>(args[0]->user_value.get());
+
+            auto pending = std::make_shared<int>(0);
+            auto continuation = trampoline->Interrupt();
+            for (const auto& buffer_name : buffers_to_wait) {
+              auto buffer_it = buffers()->find(buffer_name);
+              if (buffer_it == buffers()->end()) {
+                continue;
+              }
+              (*pending)++;
+              buffer_it->second->AddCloseObserver([pending, continuation]() {
+                LOG(INFO) << "Buffer is closing, with: " << *pending;
+                CHECK_GT(*pending, 0);
+                if (--(*pending) == 0) {
+                  LOG(INFO) << "Resuming!";
+                  continuation(Value::NewVoid());
+                }
+              });
+            }
+            if (pending == 0) {
+              trampoline->Return(Value::NewVoid());
+            }
+          }));
+
   environment.Define(L"SetStatus", vm::NewCallback(std::function<void(wstring)>(
                                        [this](wstring s) { SetStatus(s); })));
 
