@@ -61,6 +61,7 @@ class OpenBuffer {
   // If the buffer is still being read (fd_ != -1), adds an observer to
   // end_of_file_observers_. Otherwise just calls the observer directly.
   void AddEndOfFileObserver(std::function<void()> observer);
+  void AddCloseObserver(std::function<void()> observer);
 
   virtual void Visit(EditorState* editor_state);
   time_t last_visit() const;
@@ -457,6 +458,9 @@ class OpenBuffer {
   // be called at most once (so they won't be notified if the buffer is
   // reloaded.
   vector<std::function<void()>> end_of_file_observers_;
+
+  // Functions to call when this buffer is deleted.
+  std::vector<std::function<void()>> close_observers_;
 
   // -1 means "no child process"
   pid_t child_pid_;

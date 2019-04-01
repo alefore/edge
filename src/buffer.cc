@@ -538,6 +538,9 @@ void OpenBuffer::Close(EditorState* editor_state) {
     LOG(INFO) << "Saving buffer: " << name_;
     Save(editor_state);
   }
+  for (auto& observer : close_observers_) {
+    observer();
+  }
 }
 
 void OpenBuffer::AddEndOfFileObserver(std::function<void()> observer) {
@@ -545,7 +548,11 @@ void OpenBuffer::AddEndOfFileObserver(std::function<void()> observer) {
     observer();
     return;
   }
-  end_of_file_observers_.push_back(observer);
+  end_of_file_observers_.push_back(std::move(observer));
+}
+
+void OpenBuffer::AddCloseObserver(std::function<void()> observer) {
+  close_observers_.push_back(std::move(observer));
 }
 
 void OpenBuffer::Visit(EditorState* editor_state) {
