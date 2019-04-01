@@ -267,9 +267,7 @@ Environment EditorState::BuildEditorEnvironment() {
             OpenFileOptions options;
             options.editor_state = this;
             options.path = args[0]->str;
-            set_current_buffer(OpenFile(options));
-            ScheduleRedraw();
-            return Value::NewObject(L"Buffer", current_buffer()->second);
+            return Value::NewObject(L"Buffer", OpenFile(options)->second);
           }));
 
   RegisterBufferMethod(editor_type.get(), L"ToggleActiveCursors",
