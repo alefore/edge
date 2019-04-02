@@ -37,6 +37,8 @@ Improve logic around wrap_long_lines.
 Reloading the file should reset the cursors.
   Since it shifts them to the top anyway.
 
+Search: Should make sure to disable multi active cursors.
+
 ## Navigation
 
 Improve "g", the current behavior is kind of annoying:
@@ -48,9 +50,14 @@ Add a boolean variable "highlight_current_line" (default: false); when set, high
 
 If the buffer doesn't fit in the screen, don't show the scroll bar (or show it in a different way).
 
+When searching, display in the Status the count of matches (especially when there were zero matches).
+
 ### List of buffers
 
 ## Prompt
+
+When autocompletion of files fails, have a fail back:
+  A second TAB that doesn't advance should do a deeper search: search in every path on which we have an open file.
 
 ## Commands
 
