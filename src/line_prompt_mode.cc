@@ -82,13 +82,30 @@ shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
         buffer_variables::delete_into_paste_buffer(), false);
     filter_buffer->set_bool_variable(buffer_variables::atomic_lines(), true);
 
-    std::set<wstring> previous_lines;
-    history_buffer->ForEachLine([&](const Line& line) {
-      wstring s = line.ToString();
-      if (s.find(filter) != wstring::npos && previous_lines.insert(s).second) {
-        filter_buffer->AppendLine(editor_state, line.contents());
+    // Second value is the sum of the line positions at which it occurs. If it
+    // only occurs once, it'll be just the position in which it occurred. This
+    // is a simple way to try to put more relevant things towards the bottom:
+    // things that have been used more frequently and more recently.
+    std::map<wstring, size_t> previous_lines;
+    history_buffer->ForEachLine([&](size_t position, const Line& line) {
+      auto s = line.ToString();
+      if (s.find(filter) != wstring::npos) {
+        previous_lines[line.ToString()] += position;
       }
+      return true;
     });
+
+    // For sorting.
+    std::vector<std::pair<double, wstring>> previous_lines_vector;
+    for (auto& line : previous_lines) {
+      previous_lines_vector.push_back({line.second, line.first});
+    }
+    sort(previous_lines_vector.begin(), previous_lines_vector.end());
+
+    for (auto& line : previous_lines_vector) {
+      filter_buffer->AppendLine(editor_state, NewCopyString(line.second));
+    }
+
     element->second = std::move(filter_buffer);
   }
   return element->second;
