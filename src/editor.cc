@@ -259,18 +259,19 @@ Environment EditorState::BuildEditorEnvironment() {
 
   environment.Define(
       L"OpenFile",
-      Value::NewFunction(
-          {VMType::ObjectType(L"Buffer"), VMType(VMType::VM_STRING)},
-          [this](vector<unique_ptr<Value>> args) {
-            CHECK_EQ(args.size(), size_t(1));
-            CHECK_EQ(args[0]->type, VMType::VM_STRING);
-            OpenFileOptions options;
-            options.editor_state = this;
-            options.path = args[0]->str;
-            set_current_buffer(OpenFile(options));
-            ScheduleRedraw();
-            return Value::NewObject(L"Buffer", current_buffer()->second);
-          }));
+      Value::NewFunction({VMType::ObjectType(L"Buffer"), VMType::VM_STRING,
+                          VMType::VM_BOOLEAN},
+                         [this](vector<unique_ptr<Value>> args) {
+                           CHECK_EQ(args.size(), 2u);
+                           CHECK(args[0]->IsString());
+                           CHECK(args[1]->IsBool());
+                           OpenFileOptions options;
+                           options.editor_state = this;
+                           options.path = args[0]->str;
+                           options.make_current_buffer = args[1]->boolean;
+                           return Value::NewObject(L"Buffer",
+                                                   OpenFile(options)->second);
+                         }));
 
   RegisterBufferMethod(editor_type.get(), L"ToggleActiveCursors",
                        &OpenBuffer::ToggleActiveCursors);

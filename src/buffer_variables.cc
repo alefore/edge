@@ -259,6 +259,7 @@ EdgeStruct<wstring>* StringStruct() {
     command();
     editor_commands_path();
     line_prefix_characters();
+    paragraph_line_prefix_characters();
     line_suffix_superfluous_characters();
     dictionary();
     tree_parser();
@@ -339,6 +340,16 @@ EdgeVariable<wstring>* line_prefix_characters() {
       L"to the new line.  The order of characters in line_prefix_characters "
       L"has "
       L"no effect.",
+      L" ");
+  return variable;
+}
+
+EdgeVariable<wstring>* paragraph_line_prefix_characters() {
+  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
+      L"paragraph_line_prefix_characters",
+      L"Similar to line_prefix_characters, but contains additional characters "
+      L"that are allowed in the prefix of the first line of a paragraph (but "
+      L"wouldn't be allowed in continuation lines).",
       L" ");
   return variable;
 }

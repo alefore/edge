@@ -44,6 +44,7 @@ EdgeVariable<wstring>* children_path();
 EdgeVariable<wstring>* command();
 EdgeVariable<wstring>* editor_commands_path();
 EdgeVariable<wstring>* line_prefix_characters();
+EdgeVariable<wstring>* paragraph_line_prefix_characters();
 EdgeVariable<wstring>* line_suffix_superfluous_characters();
 EdgeVariable<wstring>* dictionary();
 EdgeVariable<wstring>* tree_parser();
