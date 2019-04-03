@@ -132,5 +132,15 @@ void Environment::Assign(const wstring& symbol, unique_ptr<Value> value) {
   it->second = std::move(value);
 }
 
+void Environment::ForEach(
+    std::function<void(const wstring&, Value*)> callback) {
+  if (parent_environment_ != nullptr) {
+    parent_environment_->ForEach(callback);
+  }
+  for (auto& entry : table_) {
+    callback(entry.first, entry.second.get());
+  }
+}
+
 }  // namespace vm
 }  // namespace afc

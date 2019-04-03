@@ -1,6 +1,7 @@
 #ifndef __AFC_VM_PUBLIC_ENVIRONMENT_H__
 #define __AFC_VM_PUBLIC_ENVIRONMENT_H__
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -33,6 +34,8 @@ class Environment {
   Value* Lookup(const wstring& symbol);
   void Define(const wstring& symbol, unique_ptr<Value> value);
   void Assign(const wstring& symbol, unique_ptr<Value> value);
+
+  void ForEach(std::function<void(const wstring&, Value*)> callback);
 
  private:
   map<wstring, unique_ptr<ObjectType>> object_types_;
