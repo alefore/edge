@@ -132,6 +132,16 @@ void Environment::Assign(const wstring& symbol, unique_ptr<Value> value) {
   it->second = std::move(value);
 }
 
+void Environment::ForEachType(
+    std::function<void(const wstring&, ObjectType*)> callback) {
+  if (parent_environment_ != nullptr) {
+    parent_environment_->ForEachType(callback);
+  }
+  for (auto& entry : object_types_) {
+    callback(entry.first, entry.second.get());
+  }
+}
+
 void Environment::ForEach(
     std::function<void(const wstring&, Value*)> callback) {
   if (parent_environment_ != nullptr) {

@@ -35,6 +35,7 @@ class Environment {
   void Define(const wstring& symbol, unique_ptr<Value> value);
   void Assign(const wstring& symbol, unique_ptr<Value> value);
 
+  void ForEachType(std::function<void(const wstring&, ObjectType*)> callback);
   void ForEach(std::function<void(const wstring&, Value*)> callback);
 
  private:
