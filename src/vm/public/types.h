@@ -1,6 +1,7 @@
 #ifndef __AFC_VM_PUBLIC_TYPES_H__
 #define __AFC_VM_PUBLIC_TYPES_H__
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -69,6 +70,8 @@ class ObjectType {
     auto it = fields_.find(name);
     return it == fields_.end() ? nullptr : it->second.get();
   }
+
+  void ForEachField(std::function<void(const wstring&, Value*)> callback);
 
  private:
   VMType type_;

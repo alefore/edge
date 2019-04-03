@@ -94,5 +94,12 @@ void ObjectType::AddField(const wstring& name, std::unique_ptr<Value> field) {
   fields_.insert({name, std::move(field)});
 }
 
+void ObjectType::ForEachField(
+    std::function<void(const wstring&, Value*)> callback) {
+  for (auto& it : fields_) {
+    callback(it.first, it.second.get());
+  }
+}
+
 }  // namespace vm
 }  // namespace afc
