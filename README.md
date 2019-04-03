@@ -3,11 +3,11 @@
 
 ## 1. Introduction
 
-Think vim + tmux, extensible in a subset of C.
+Edge is a text editor and terminal handler uses (a subset of) C as its extension
+language.
 
-Edge is a text editor and terminal handler. Edge uses a "buffer" to represent an
-open file or a process (which might still be running). As its extension
-language, Edge uses a small subset of C++/Java.
+Edge uses *buffers* to represent an open file or a process, which might still be
+running and which may or may not have a full terminal (PTS).
 
 This document describes the use of Edge. In Edge, key sequences are bond to
 specific commands. These sequences are given in this document between quotes.
