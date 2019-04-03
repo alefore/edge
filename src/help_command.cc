@@ -38,6 +38,7 @@ class HelpCommand : public Command {
   const wstring Description() { return L"shows help about commands."; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
+    auto original_buffer = editor_state->current_buffer()->second;
     const wstring name = L"- help: " + mode_description_;
     auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
     editor_state->set_current_buffer(it.first);
@@ -51,6 +52,8 @@ class HelpCommand : public Command {
                            NewCopyString(DescribeSequence(it.first) + L" - " +
                                          it.second->Description()));
       }
+
+      ShowEnvironment(editor_state, original_buffer.get(), buffer.get());
 
       DescribeVariables(
           editor_state, L"bool", buffer.get(), buffer_variables::BoolStruct(),
@@ -72,6 +75,62 @@ class HelpCommand : public Command {
   }
 
  private:
+  void ShowEnvironment(EditorState* editor_state, OpenBuffer* original_buffer,
+                       OpenBuffer* output) {
+    output->AppendEmptyLine(editor_state);
+
+    auto environment = original_buffer->environment();
+    CHECK(environment != nullptr);
+
+    output->AppendLine(editor_state, NewCopyString(L"Environment types:"));
+    environment->ForEachType([editor_state, output](const wstring& name,
+                                                    ObjectType* type) {
+      CHECK(type != nullptr);
+      output->AppendLine(editor_state,
+                         StringAppend(NewCopyString(L"  "), NewCopyString(name),
+                                      NewCopyString(L":")));
+      type->ForEachField([editor_state, output](const wstring& field_name,
+                                                Value* value) {
+        CHECK(value != nullptr);
+        std::stringstream value_stream;
+        value_stream << *value;
+        const static int kPaddingSize = 40;
+        wstring padding(field_name.size() > kPaddingSize
+                            ? 0
+                            : kPaddingSize - field_name.size(),
+                        L' ');
+
+        output->AppendLine(
+            editor_state,
+            StringAppend(NewCopyString(L"      ."), NewCopyString(field_name),
+                         NewCopyString(padding),
+                         NewCopyString(FromByteString(value_stream.str()))));
+      });
+      output->AppendEmptyLine(editor_state);
+    });
+
+    output->AppendLine(editor_state, NewCopyString(L"Environment symbols:"));
+    environment->ForEach([editor_state, output](const wstring& name,
+                                                Value* value) {
+      const static int kPaddingSize = 40;
+      wstring padding(
+          name.size() >= kPaddingSize ? 1 : kPaddingSize - name.size(), L' ');
+
+      std::stringstream value_stream;
+      if (value == nullptr) {
+        value_stream << "(nullptr)";
+      } else {
+        value_stream << *value;
+      }
+
+      output->AppendLine(
+          editor_state,
+          StringAppend(NewCopyString(L"  "), NewCopyString(name),
+                       NewCopyString(padding),
+                       NewCopyString(FromByteString(value_stream.str()))));
+    });
+  }
+
   template <typename T, typename C>
   void DescribeVariables(EditorState* editor_state, wstring type_name,
                          OpenBuffer* buffer, EdgeStruct<T>* variables,
