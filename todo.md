@@ -13,9 +13,6 @@ Support more languages:
          - text:cc,h,py,md,sh binary:o
          - Not sure the best way to do this is syntax highlighting. Maybe the buffer should do it, based also on `stat` results (e.g. permissions, symlink, subdir...)
 
-Improve support for Markdown syntax.
-  Support lists.
-
 ## Editing
 
 Implement delete of page.
