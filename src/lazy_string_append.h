@@ -16,6 +16,10 @@ std::shared_ptr<LazyString> StringAppend(const shared_ptr<LazyString>& a,
 std::shared_ptr<LazyString> StringAppend(const shared_ptr<LazyString>& a,
                                          const shared_ptr<LazyString>& b,
                                          const shared_ptr<LazyString>& c);
+std::shared_ptr<LazyString> StringAppend(const shared_ptr<LazyString>& a,
+                                         const shared_ptr<LazyString>& b,
+                                         const shared_ptr<LazyString>& c,
+                                         const shared_ptr<LazyString>& d);
 
 }  // namespace editor
 }  // namespace afc
