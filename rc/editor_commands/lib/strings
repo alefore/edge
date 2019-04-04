@@ -30,3 +30,65 @@ VectorString BreakWords(string text) {
   }
   return output;
 }
+
+// Returns a substring of text from the start, up until (excluding) the first
+// character not in prefix_characters.
+string GetPrefix(string text, string prefix_characters) {
+  int pos_start = text.find_first_not_of(prefix_characters, 0);
+  if (pos_start == -1) {
+    return text;
+  }
+  return text.substr(0, pos_start);
+}
+
+// Checks if a given line starts with the prefix. The line must have an
+// additional character after the prefix for this to be true (in other words,
+// this is false if the line is just equal to the prefix).
+bool LineHasPrefix(string prefix, int line) {
+  string contents = buffer.line(line);
+  return contents.starts_with(prefix) && contents.size() > prefix.size();
+}
+
+bool LineIsInParagraph(string prefix, int line) {
+  string contents = buffer.line(line);
+  return GetPrefix(contents, buffer.paragraph_line_prefix_characters()).size() >=
+             prefix.size() &&
+         contents.size() > prefix.size();
+}
+
+// Moves the current position to the first line that follows a line that doesn't
+// have a given prefix.
+//
+// We use `LineIsInParagraph` to allow the first line in the paragraph to have a
+// different prefix.
+//
+// For example, in Markdown, with the cursor at "hey":
+//
+//   * alejandro
+//     forero
+//     cuervo
+//   * bar
+//     foo
+//     hey
+//
+// We want this result:
+//
+//   * alejandro
+//     forero
+//     cuervo
+//   * bar foo hey
+//
+// That is: the paragraph begins at "bar", not at "foo" nor at "alejandro".
+void ScrollBackToBeginningOfParagraph(string prefix) {
+  SetStatus("Scrolling back to beginning of paragraph.");
+  int line = buffer.position().line();
+  while (line > 0 && LineHasPrefix(prefix, line - 1)) {
+    line--;
+  }
+
+  if (line > 0 && LineIsInParagraph(prefix, line - 1)) {
+    line--;
+  }
+
+  buffer.set_position(LineColumn(line, 0));
+}
