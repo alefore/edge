@@ -96,12 +96,14 @@ if (path == "") {
   }
 
   if (basename == "COMMIT_EDITMSG") {
+    buffer.set_paragraph_line_prefix_characters(" #");
     buffer.set_line_prefix_characters(" #");
     SetStatus("GIT commit msg");
     buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
   }
 
   if (extension == "py") {
+    buffer.set_paragraph_line_prefix_characters(" #");
     buffer.set_line_prefix_characters(" #");
     buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
     SetStatus("Loaded Python file (" + extension + ")");
