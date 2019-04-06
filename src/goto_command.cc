@@ -95,9 +95,10 @@ class GotoCommand : public Command {
  public:
   GotoCommand(size_t calls) : calls_(calls % 4) {}
 
-  const wstring Description() {
+  wstring Description() const override {
     return L"goes to Rth structure from the beginning";
   }
+  wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) {

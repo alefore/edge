@@ -207,9 +207,10 @@ class LinePromptCommand : public Command {
                     std::function<PromptOptions(EditorState*)> options)
       : description_(std::move(description)), options_(std::move(options)) {}
 
-  const wstring Description() { return description_; }
+  wstring Description() const override { return description_; }
+  wstring Category() const override { return L"Prompt"; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) override {
     Prompt(editor_state, options_(editor_state));
   }
 

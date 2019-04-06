@@ -63,7 +63,6 @@ src/modifiers.h \
 src/navigation_buffer.cc \
 src/navigation_buffer.h \
 src/navigate_command.cc \
-src/noop_command.cc \
 src/open_directory_command.cc \
 src/open_file_command.cc \
 src/parse_tools.cc \

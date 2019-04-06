@@ -148,11 +148,12 @@ class NavigationBuffer : public OpenBuffer {
 
 class NavigationBufferCommand : public Command {
  public:
-  const wstring Description() {
+  wstring Description() const override {
     return L"displays a navigation view of the current buffer";
   }
+  wstring Category() const override { return L"Navigate"; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) override {
     if (!editor_state->has_current_buffer()) {
       editor_state->SetWarningStatus(
           L"NavigationBuffer needs an existing buffer.");

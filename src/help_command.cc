@@ -35,7 +35,8 @@ class HelpCommand : public Command {
   HelpCommand(const MapModeCommands* commands, const wstring& mode_description)
       : commands_(commands), mode_description_(mode_description) {}
 
-  const wstring Description() { return L"shows documentation."; }
+  wstring Description() const override { return L"Shows documentation."; }
+  wstring Category() const override { return L"Editor"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     auto original_buffer = editor_state->current_buffer()->second;
@@ -81,12 +82,15 @@ class HelpCommand : public Command {
 
   void ShowCommands(EditorState* editor_state, OpenBuffer* output_buffer) {
     StartSection(L"### Commands", editor_state, output_buffer);
-    for (const auto& it : commands_->Coallesce()) {
-      output_buffer->AppendLine(
-          editor_state, NewCopyString(DescribeSequence(it.first) + L" - " +
-                                      it.second->Description()));
+    for (const auto& category : commands_->Coallesce()) {
+      StartSection(L"#### " + category.first, editor_state, output_buffer);
+      for (const auto& it : category.second) {
+        output_buffer->AppendLine(
+            editor_state, NewCopyString(DescribeSequence(it.first) + L" - " +
+                                        it.second->Description()));
+      }
+      output_buffer->AppendEmptyLine(editor_state);
     }
-    output_buffer->AppendEmptyLine(editor_state);
   }
 
   void ShowEnvironment(EditorState* editor_state, OpenBuffer* original_buffer,

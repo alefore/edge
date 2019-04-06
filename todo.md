@@ -63,6 +63,8 @@ Persist undo history?
 
 Make follow_end_of_file the default.
 
+Set dirty delete on help.
+
 ## Variables
 
 atomic_lines should probably also apply to multiple cursors.

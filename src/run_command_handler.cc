@@ -313,7 +313,10 @@ wstring GetChildrenPath(EditorState* editor_state) {
 
 class ForkEditorCommand : public Command {
  public:
-  const wstring Description() { return L"forks a subprocess"; }
+  wstring Description() const override {
+    return L"Prompts for a command and creates a new buffer running it.";
+  }
+  wstring Category() const override { return L"Buffers"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     switch (editor_state->structure()) {

@@ -25,7 +25,9 @@ class MapModeCommands {
   MapModeCommands();
   std::unique_ptr<MapModeCommands> NewChild();
 
-  std::map<wstring, Command*> Coallesce() const;
+  // Flattens the set of commands (in the entire list), grouped by category (as
+  // the key of the outer map).
+  std::map<wstring, std::map<wstring, Command*>> Coallesce() const;
 
   // Adds an entry mapping a given string to a given command.
   void Add(wstring name, std::unique_ptr<Command> value);

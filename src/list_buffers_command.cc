@@ -172,9 +172,10 @@ class ListBuffersBuffer : public OpenBuffer {
 
 class ListBuffersCommand : public Command {
  public:
-  const wstring Description() { return L"lists all open buffers"; }
+  wstring Description() const override { return L"lists all open buffers"; }
+  wstring Category() const override { return L"Buffers"; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) override {
     auto it = editor_state->buffers()->insert(
         make_pair(OpenBuffer::kBuffersName, nullptr));
     editor_state->set_current_buffer(it.first);

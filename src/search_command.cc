@@ -23,7 +23,8 @@ static void DoSearch(EditorState* editor_state, const SearchOptions& options) {
 
 class SearchCommand : public Command {
  public:
-  const wstring Description() { return L"Searches for a string."; }
+  wstring Description() const override { return L"Searches for a string."; }
+  wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     switch (editor_state->structure()) {

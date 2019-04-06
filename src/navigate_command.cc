@@ -183,7 +183,8 @@ class NavigateCommand : public Command {
  public:
   NavigateCommand() {}
 
-  const wstring Description() { return L"activates navigate mode."; }
+  wstring Description() const override { return L"activates navigate mode."; }
+  wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) {

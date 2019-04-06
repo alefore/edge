@@ -21,7 +21,7 @@ class CommandWithModifiersMode : public EditorMode {
     RunHandler(editor_state, CommandApplyMode::PREVIEW);
   }
 
-  void ProcessInput(wint_t c, EditorState* editor_state) {
+  void ProcessInput(wint_t c, EditorState* editor_state) override {
     buffer_->Undo(editor_state, OpenBuffer::ONLY_UNDO_THE_LAST);
     switch (static_cast<int>(c)) {
       case '\n':
@@ -258,9 +258,10 @@ class CommandWithModifiers : public Command {
                        CommandWithModifiersHandler handler)
       : name_(name), description_(description), handler_(handler) {}
 
-  const wstring Description() { return description_; }
+  wstring Description() const override { return description_; }
+  wstring Category() const override { return L"Edit"; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) override {
     if (editor_state->has_current_buffer()) {
       editor_state->current_buffer()->second->set_mode(
           std::make_unique<CommandWithModifiersMode>(name_, editor_state,

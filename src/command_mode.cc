@@ -28,7 +28,6 @@
 #include "map_mode.h"
 #include "navigate_command.h"
 #include "navigation_buffer.h"
-#include "noop_command.h"
 #include "open_directory_command.h"
 #include "open_file_command.h"
 #include "quit_command.h"
@@ -58,12 +57,14 @@ class Delete : public Command {
  public:
   Delete(DeleteOptions delete_options) : delete_options_(delete_options) {}
 
-  const wstring Description() {
+  wstring Description() const override {
     if (delete_options_.modifiers.delete_type == Modifiers::DELETE_CONTENTS) {
       return L"deletes the current item (char, word, line...)";
     }
     return L"copies current item (char, word, ...) to the paste buffer.";
   }
+
+  wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) {
@@ -116,7 +117,10 @@ class Delete : public Command {
 // TODO: Replace with insert.  Insert should be called 'type'.
 class Paste : public Command {
  public:
-  const wstring Description() { return L"pastes the last deleted text"; }
+  wstring Description() const override {
+    return L"pastes the last deleted text";
+  }
+  wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) {
@@ -188,11 +192,12 @@ class Paste : public Command {
 
 class UndoCommand : public Command {
  public:
-  const wstring Description() {
+  wstring Description() const override {
     return L"undoes the last change to the current buffer";
   }
+  wstring Category() const override { return L"Edit"; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) override {
     if (!editor_state->has_current_buffer()) {
       return;
     }
@@ -205,7 +210,10 @@ class UndoCommand : public Command {
 
 class GotoPreviousPositionCommand : public Command {
  public:
-  const wstring Description() { return L"go back to previous position"; }
+  wstring Description() const override {
+    return L"go back to previous position";
+  }
+  wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     Go(editor_state);
@@ -247,46 +255,52 @@ class GotoPreviousPositionCommand : public Command {
 
 class LineUp : public Command {
  public:
-  const wstring Description();
+  wstring Description() const override;
+  wstring Category() const override { return L"Navigate"; }
   static void Move(int c, EditorState* editor_state, Structure structure);
-  void ProcessInput(wint_t c, EditorState* editor_state);
+  void ProcessInput(wint_t c, EditorState* editor_state) override;
 };
 
 class LineDown : public Command {
  public:
-  const wstring Description();
+  wstring Description() const override;
+  wstring Category() const override { return L"Navigate"; }
   static void Move(int c, EditorState* editor_state, Structure structure);
-  void ProcessInput(wint_t c, EditorState* editor_state);
+  void ProcessInput(wint_t c, EditorState* editor_state) override;
 };
 
 class PageUp : public Command {
  public:
-  const wstring Description();
+  wstring Description() const override;
+  wstring Category() const override { return L"Navigate"; }
   static void Move(int c, EditorState* editor_state);
-  void ProcessInput(wint_t c, EditorState* editor_state);
+  void ProcessInput(wint_t c, EditorState* editor_state) override;
 };
 
 class PageDown : public Command {
  public:
-  const wstring Description();
-  void ProcessInput(wint_t c, EditorState* editor_state);
+  wstring Description() const override;
+  wstring Category() const override { return L"Navigate"; }
+  void ProcessInput(wint_t c, EditorState* editor_state) override;
 };
 
 class MoveForwards : public Command {
  public:
-  const wstring Description();
-  void ProcessInput(wint_t c, EditorState* editor_state);
+  wstring Description() const override;
+  wstring Category() const override { return L"Navigate"; }
+  void ProcessInput(wint_t c, EditorState* editor_state) override;
   static void Move(int c, EditorState* editor_state);
 };
 
 class MoveBackwards : public Command {
  public:
-  const wstring Description();
-  void ProcessInput(wint_t c, EditorState* editor_state);
+  wstring Description() const override;
+  wstring Category() const override { return L"Navigate"; }
+  void ProcessInput(wint_t c, EditorState* editor_state) override;
   static void Move(int c, EditorState* editor_state);
 };
 
-const wstring LineUp::Description() { return L"moves up one line"; }
+wstring LineUp::Description() const { return L"moves up one line"; }
 
 /* static */ void LineUp::Move(int c, EditorState* editor_state,
                                Structure structure) {
@@ -328,7 +342,7 @@ void LineUp::ProcessInput(wint_t c, EditorState* editor_state) {
   Move(c, editor_state, editor_state->structure());
 }
 
-const wstring LineDown::Description() { return L"moves down one line"; }
+wstring LineDown::Description() const { return L"moves down one line"; }
 
 /* static */ void LineDown::Move(int c, EditorState* editor_state,
                                  Structure structure) {
@@ -391,7 +405,7 @@ void LineDown::ProcessInput(wint_t c, EditorState* editor_state) {
   Move(c, editor_state, editor_state->structure());
 }
 
-const wstring PageUp::Description() { return L"moves up one page"; }
+wstring PageUp::Description() const { return L"moves up one page"; }
 
 void PageUp::ProcessInput(wint_t c, EditorState* editor_state) {
   editor_state->set_repetitions(editor_state->repetitions() *
@@ -400,7 +414,7 @@ void PageUp::ProcessInput(wint_t c, EditorState* editor_state) {
   LineUp::Move(c, editor_state, editor_state->structure());
 }
 
-const wstring PageDown::Description() { return L"moves down one page"; }
+wstring PageDown::Description() const { return L"moves down one page"; }
 
 void PageDown::ProcessInput(wint_t c, EditorState* editor_state) {
   editor_state->set_repetitions(editor_state->repetitions() *
@@ -409,7 +423,7 @@ void PageDown::ProcessInput(wint_t c, EditorState* editor_state) {
   LineDown::Move(c, editor_state, editor_state->structure());
 }
 
-const wstring MoveForwards::Description() { return L"moves forwards"; }
+wstring MoveForwards::Description() const { return L"moves forwards"; }
 
 void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
   Move(c, editor_state);
@@ -452,7 +466,7 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
   }
 }
 
-const wstring MoveBackwards::Description() { return L"moves backwards"; }
+wstring MoveBackwards::Description() const { return L"moves backwards"; }
 
 void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
   Move(c, editor_state);
@@ -502,7 +516,8 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
 
 class EnterInsertModeCommand : public Command {
  public:
-  const wstring Description() { return L"enters insert mode"; }
+  wstring Description() const override { return L"enters insert mode"; }
+  wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     EnterInsertMode(editor_state);
@@ -511,7 +526,11 @@ class EnterInsertModeCommand : public Command {
 
 class EnterFindMode : public Command {
  public:
-  const wstring Description() { return L"finds occurrences of a character"; }
+  wstring Description() const override {
+    return L"Waits for a character to be typed and moves the cursor to its "
+           L"next occurrence in the current line.";
+  }
+  wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) {
@@ -523,9 +542,10 @@ class EnterFindMode : public Command {
 
 class InsertionModifierCommand : public Command {
  public:
-  const wstring Description() {
+  wstring Description() const override {
     return L"activates replace modifier (overwrites text on insertions)";
   }
+  wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (editor_state->insertion_modifier() == Modifiers::INSERT) {
@@ -542,9 +562,10 @@ class InsertionModifierCommand : public Command {
 
 class ReverseDirectionCommand : public Command {
  public:
-  const wstring Description() {
+  wstring Description() const override {
     return L"reverses the direction of the next command";
   }
+  wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     VLOG(3) << "Setting reverse direction. [previous modifiers: "
@@ -570,7 +591,10 @@ class SetStructureCommand : public Command {
   SetStructureCommand(Structure value, const wstring& description)
       : value_(value), description_(description) {}
 
-  const wstring Description() { return L"sets the structure: " + description_; }
+  wstring Description() const override {
+    return L"sets the structure: " + description_;
+  }
+  wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (editor_state->structure() != value_) {
@@ -598,7 +622,10 @@ class SetStrengthCommand : public Command {
         extreme_value_(extreme_value),
         description_(description) {}
 
-  const wstring Description() { return L"sets the strength: " + description_; }
+  wstring Description() const override {
+    return L"sets the strength: " + description_;
+  }
+  wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     Modifiers modifiers(editor_state->modifiers());
@@ -624,9 +651,10 @@ class SetStructureModifierCommand : public Command {
                               const wstring& description)
       : value_(value), description_(description) {}
 
-  const wstring Description() {
+  wstring Description() const override {
     return L"sets the structure modifier: " + description_;
   }
+  wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->set_structure_range(editor_state->structure_range() == value_
@@ -648,7 +676,8 @@ class NumberMode : public Command {
              function<void(EditorState*, int)> consumer)
       : description_(description), consumer_(consumer) {}
 
-  const wstring Description() { return description_; }
+  wstring Description() const override { return description_; }
+  wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) {
@@ -669,7 +698,10 @@ class NumberMode : public Command {
 
 class ActivateLink : public Command {
  public:
-  const wstring Description() { return L"activates the current link (if any)"; }
+  wstring Description() const override {
+    return L"activates the current link (if any)";
+  }
+  wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) {
@@ -755,7 +787,10 @@ class ActivateLink : public Command {
 
 class ResetStateCommand : public Command {
  public:
-  const wstring Description() { return L"Resets the state of the editor."; }
+  wstring Description() const override {
+    return L"Resets the state of the editor.";
+  }
+  wstring Category() const override { return L"Editor"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->ResetStatus();
@@ -765,7 +800,8 @@ class ResetStateCommand : public Command {
 
 class HardRedrawCommand : public Command {
  public:
-  const wstring Description() { return L"Redraws the screen"; }
+  wstring Description() const override { return L"Redraws the screen"; }
+  wstring Category() const override { return L"View"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     editor_state->set_screen_needs_hard_redraw(true);
@@ -878,8 +914,8 @@ void ToggleIntVariable(EditorState* editor_state, wstring binding,
                     L"tmp_buffer.set_" + variable_name + L"(" + L"tmp_buffer." +
                     variable_name + L"() != 0 ? 0 : " +
                     std::to_wstring(default_value) + L"); " + L"SetStatus(\"" +
-                    variable_name + L" := \" + tmp_buffer." +
-                    variable_name + L"().tostring());";
+                    variable_name + L" := \" + tmp_buffer." + variable_name +
+                    L"().tostring());";
   LOG(INFO) << "Command: " << command;
   map_mode->Add(binding, NewCppCommand(editor_state->environment(), command));
 }
@@ -894,7 +930,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"aQ", NewQuitCommand(1));
   commands->Add(L"ad", NewCloseBufferCommand());
   commands->Add(L"aw", NewCppCommand(editor_state->environment(),
-                                     L"// Save the current buffer.\n"
+                                     L"// Buffers: Save the current buffer.\n"
                                      L"editor.SaveCurrentBuffer();"));
   commands->Add(L"av", NewSetVariableCommand());
   commands->Add(L"ac", NewRunCppFileCommand());
@@ -902,7 +938,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"a.", NewOpenDirectoryCommand());
   commands->Add(L"al", NewListBuffersCommand());
   commands->Add(L"ar", NewCppCommand(editor_state->environment(),
-                                     L"// Reload the current buffer.\n"
+                                     L"// Buffers: Reload the current buffer.\n"
                                      L"editor.ReloadCurrentBuffer();"));
   commands->Add(L"ae", NewSendEndOfFileCommand());
   commands->Add(L"ao", NewOpenFileCommand());
@@ -919,40 +955,48 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"af", NewForkCommand());
 
   commands->Add(
-      L"+", NewCppCommand(editor_state->environment(),
-                          L"// Create a new cursor at the current position.\n"
-                          L"editor.CreateCursor();"));
+      L"+", NewCppCommand(
+                editor_state->environment(),
+                L"// Cursors: Create a new cursor at the current position.\n"
+                L"editor.CreateCursor();"));
   commands->Add(
-      L"-", NewCppCommand(editor_state->environment(),
-                          L"// Destroy current cursor(s) and jump to next.\n"
-                          L"editor.DestroyCursor();"));
+      L"-",
+      NewCppCommand(editor_state->environment(),
+                    L"// Cursors: Destroy current cursor(s) and jump to next.\n"
+                    L"editor.DestroyCursor();"));
   commands->Add(
-      L"=", NewCppCommand(editor_state->environment(),
-                          L"// Destroy cursors other than the current one.\n"
-                          L"editor.DestroyOtherCursors();"));
+      L"=",
+      NewCppCommand(editor_state->environment(),
+                    L"// Cursors: Destroy cursors other than the current one.\n"
+                    L"editor.DestroyOtherCursors();"));
   commands->Add(
       L"_",
-      NewCppCommand(editor_state->environment(),
-                    L"// Toggles whether operations apply to all cursors.\n"
-                    L"CurrentBuffer().set_multiple_cursors(\n"
-                    L"    !CurrentBuffer().multiple_cursors());"));
+      NewCppCommand(
+          editor_state->environment(),
+          L"// Cursors: Toggles whether operations apply to all cursors.\n"
+          L"CurrentBuffer().set_multiple_cursors(\n"
+          L"    !CurrentBuffer().multiple_cursors());"));
   commands->Add(
       L"Ct",
+      NewCppCommand(
+          editor_state->environment(),
+          L"// Cursors: Toggles the active cursors with the previous set.\n"
+          L"editor.ToggleActiveCursors();"));
+  commands->Add(
+      L"C+",
       NewCppCommand(editor_state->environment(),
-                    L"// Toggles the active cursors with the previous set.\n"
-                    L"editor.ToggleActiveCursors();"));
-  commands->Add(L"C+",
-                NewCppCommand(editor_state->environment(),
-                              L"// Pushes the active cursors to the stack.\n"
-                              L"editor.PushActiveCursors();"));
-  commands->Add(L"C-", NewCppCommand(editor_state->environment(),
-                                     L"// Pops active cursors from the stack.\n"
-                                     L"editor.PopActiveCursors();"));
+                    L"// Cursors: Pushes the active cursors to the stack.\n"
+                    L"editor.PushActiveCursors();"));
+  commands->Add(
+      L"C-", NewCppCommand(editor_state->environment(),
+                           L"// Cursors: Pops active cursors from the stack.\n"
+                           L"editor.PopActiveCursors();"));
   commands->Add(
       L"C!",
-      NewCppCommand(editor_state->environment(),
-                    L"// Set active cursors to the marks on this buffer.\n"
-                    L"editor.SetActiveCursorsToMarks();"));
+      NewCppCommand(
+          editor_state->environment(),
+          L"// Cursors: Set active cursors to the marks on this buffer.\n"
+          L"editor.SetActiveCursorsToMarks();"));
 
   commands->Add(L"N", NewNavigationBufferCommand());
   commands->Add(L"i", std::make_unique<EnterInsertModeCommand>());
@@ -1005,7 +1049,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"\t", NewFindCompletionCommand());
 
   commands->Add(L".", NewCppCommand(editor_state->environment(),
-                                    L"// Repeats the last command.\n"
+                                    L"// Edit: Repeats the last command.\n"
                                     L"editor.RepeatLastTransformation();"));
 
   ToggleBoolVariable(editor_state, L"vp", L"paste_mode", commands.get());

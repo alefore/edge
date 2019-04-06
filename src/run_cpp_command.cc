@@ -23,11 +23,12 @@ void RunCppCommandHandler(const wstring& name, EditorState* editor_state) {
 
 class RunCppCommand : public Command {
  public:
-  const wstring Description() {
+  wstring Description() const override {
     return L"prompts for a command (a C string) and runs it";
   }
+  wstring Category() const override { return L"Extensions"; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) override {
     if (!editor_state->has_current_buffer()) {
       return;
     }

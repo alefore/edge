@@ -16,7 +16,7 @@ using std::wstring;
 
 namespace {
 
-wstring GetDescriptionString(wstring code) {
+wstring GetFirstLine(wstring code) {
   size_t end = code.find(L'\n');
   if (end == code.npos) {
     return code;
@@ -30,16 +30,30 @@ wstring GetDescriptionString(wstring code) {
   return first_line.substr(prefix.size());
 }
 
+wstring GetDescriptionString(wstring code) {
+  auto first_line = GetFirstLine(code);
+  auto colon = first_line.find(L':');
+  return colon == wstring::npos ? first_line : first_line.substr(colon + 1);
+}
+
+wstring GetCategoryString(wstring code) {
+  auto first_line = GetFirstLine(code);
+  auto colon = first_line.find(L':');
+  return colon == wstring::npos ? L"Unknown" : first_line.substr(0, colon);
+}
+
 class CppCommand : public Command {
  public:
   CppCommand(std::unique_ptr<afc::vm::Expression> expression, wstring code)
       : expression_(std::move(expression)),
         code_(std::move(code)),
-        description_(GetDescriptionString(code_)) {
+        description_(GetDescriptionString(code_)),
+        category_(GetCategoryString(code_)) {
     CHECK(expression_ != nullptr);
   }
 
-  const std::wstring Description() override { return description_; }
+  std::wstring Description() const override { return description_; }
+  std::wstring Category() const override { return category_; }
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
     DVLOG(4) << "CppCommand starting (" << description_ << ")";
@@ -54,6 +68,7 @@ class CppCommand : public Command {
   const std::shared_ptr<afc::vm::Expression> expression_;
   const wstring code_;
   const wstring description_;
+  const wstring category_;
 };
 
 }  // namespace

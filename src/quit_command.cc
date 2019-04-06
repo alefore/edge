@@ -11,11 +11,13 @@ namespace {
 class QuitCommand : public Command {
  public:
   QuitCommand(int exit_value) : exit_value_(exit_value) {}
-  const wstring Description() {
-    return L"quits (exit value: " + std::to_wstring(exit_value_) + L")";
+  wstring Description() const override {
+    return L"Quits Edge (with an exit value of " +
+           std::to_wstring(exit_value_) + L").";
   }
+  wstring Category() const override { return L"Editor"; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) override {
     wstring error_description;
     if (!editor_state->AttemptTermination(&error_description, exit_value_)) {
       editor_state->SetWarningStatus(error_description);

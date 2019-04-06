@@ -428,7 +428,10 @@ bool StartCompletion(EditorState* editor_state,
 
 class FindCompletionCommand : public Command {
  public:
-  const wstring Description() { return L"Autocompletes the current word."; }
+  wstring Description() const override {
+    return L"Autocompletes the current word.";
+  }
+  wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) {
