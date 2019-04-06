@@ -14,21 +14,21 @@ using std::wstring;
 
 // TODO: Convert all to wstring.
 struct Args {
-  string binary_name;
+  wstring binary_name;
   wstring home_directory;
   std::vector<wstring> config_paths;
 
-  std::vector<string> files_to_open;
-  std::vector<string> commands_to_fork;
+  std::vector<wstring> files_to_open;
+  std::vector<wstring> commands_to_fork;
 
   // Contains C++ (VM) code to execute.
-  string commands_to_run;
+  wstring commands_to_run;
 
   bool server = false;
-  string server_path = "";
+  wstring server_path = L"";
 
   // If non-empty, path of the server to connect to.
-  string client = "";
+  wstring client = L"";
 
   bool mute = false;
   bool background = false;
