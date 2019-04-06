@@ -65,7 +65,12 @@ class MarkdownParser : public TreeParser {
   }
 
   void ParseLine(ParseData* result) {
-    switch (result->seek().read()) {
+    auto seek = result->seek();
+    while (seek.read() == L' ') {
+      seek.Once();
+    }
+
+    switch (seek.read()) {
       case L'#':
         HandleHeader(result);
         return;
