@@ -7,9 +7,8 @@ namespace editor {
 namespace {
 class StringAppendImpl : public LazyString {
  public:
-  StringAppendImpl(const shared_ptr<LazyString>& a,
-                   const shared_ptr<LazyString>& b)
-      : size_(a->size() + b->size()), a_(a), b_(b) {}
+  StringAppendImpl(std::shared_ptr<LazyString> a, std::shared_ptr<LazyString> b)
+      : size_(a->size() + b->size()), a_(std::move(a)), b_(std::move(b)) {}
 
   wchar_t get(size_t pos) const {
     if (pos < a_->size()) {
@@ -22,13 +21,13 @@ class StringAppendImpl : public LazyString {
 
  private:
   const int size_;
-  const shared_ptr<LazyString> a_;
-  const shared_ptr<LazyString> b_;
+  const std::shared_ptr<LazyString> a_;
+  const std::shared_ptr<LazyString> b_;
 };
 }  // namespace
 
-shared_ptr<LazyString> StringAppend(const shared_ptr<LazyString>& a,
-                                    const shared_ptr<LazyString>& b) {
+std::shared_ptr<LazyString> StringAppend(std::shared_ptr<LazyString> a,
+                                         std::shared_ptr<LazyString> b) {
   CHECK(a != nullptr);
   CHECK(b != nullptr);
   if (a->size() == 0) {
@@ -37,20 +36,21 @@ shared_ptr<LazyString> StringAppend(const shared_ptr<LazyString>& a,
   if (b->size() == 0) {
     return a;
   }
-  return std::make_shared<StringAppendImpl>(a, b);
+  return std::make_shared<StringAppendImpl>(std::move(a), std::move(b));
 }
 
-std::shared_ptr<LazyString> StringAppend(const shared_ptr<LazyString>& a,
-                                         const shared_ptr<LazyString>& b,
-                                         const shared_ptr<LazyString>& c) {
-  return StringAppend(a, StringAppend(b, c));
+std::shared_ptr<LazyString> StringAppend(std::shared_ptr<LazyString> a,
+                                         std::shared_ptr<LazyString> b,
+                                         std::shared_ptr<LazyString> c) {
+  return StringAppend(std::move(a), StringAppend(std::move(b), std::move(c)));
 }
 
-std::shared_ptr<LazyString> StringAppend(const shared_ptr<LazyString>& a,
-                                         const shared_ptr<LazyString>& b,
-                                         const shared_ptr<LazyString>& c,
-                                         const shared_ptr<LazyString>& d) {
-  return StringAppend(StringAppend(a, b), StringAppend(c, d));
+std::shared_ptr<LazyString> StringAppend(std::shared_ptr<LazyString> a,
+                                         std::shared_ptr<LazyString> b,
+                                         std::shared_ptr<LazyString> c,
+                                         std::shared_ptr<LazyString> d) {
+  return StringAppend(StringAppend(std::move(a), std::move(b)),
+                      StringAppend(std::move(c), std::move(d)));
 }
 
 }  // namespace editor
