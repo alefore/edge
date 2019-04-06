@@ -152,6 +152,7 @@ class MarkdownParser : public TreeParser {
 
     while (result->state() != DEFAULT &&
            (result->state() == EM || result->state() == STRONG ||
+            result->state() == CODE ||
             StateToDepth(static_cast<State>(result->state())) >= depth)) {
       result->PopBack();
     }
