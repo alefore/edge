@@ -113,10 +113,6 @@ class EditorState {
   Modifiers::StructureRange structure_range() const {
     return modifiers_.structure_range;
   }
-  // TODO: Erase; it's now replaced by set_structure_range.
-  void set_structure_modifier(Modifiers::StructureRange structure_range) {
-    set_structure_range(structure_range);
-  }
   void set_structure_range(Modifiers::StructureRange structure_range) {
     modifiers_.structure_range = structure_range;
   }
