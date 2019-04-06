@@ -3,42 +3,40 @@
 
 ## 1. Introduction
 
-Edge is a text editor and terminal handler uses (a subset of) C as its extension
-language.
-
-Edge uses *buffers* to represent an open file or a process, which might still be
-running and which may or may not have a full terminal (PTS).
+Edge is a terminal-based text editor.
 
 This document describes the use of Edge. In Edge, key sequences are bond to
 specific commands. These sequences are given in this document between quotes.
-Pressing "?" shows you the sequences/commands in the current buffer.
+Pressing `?` shows you the sequences/commands in the current buffer.
 
-To get the most out of Edge, you should probably familiarize yourself with the
-modifiers (section 6) and the navigation (section 3) and editing (section 4)
-commands.  We'd also strongly recommend learning the commands for controlling
-buffers (section 5).
-
-
-### 1.1. Features
+Edge uses *buffers* to represent an open file or a process, which might still be
+running and which may or may not have a full terminal (pts).
 
 * Extensibility:
 
-  * Uses a subset of C++ as its extension language. Extensions are interpreted
-    (type errors are detected statically).
+  * Edge Uses a subset of C++ as its extension language. Extensions are
+    interpreted (type errors are detected statically). See
+    [buffer-reload.cc|https://github.com/alefore/edge/blob/master/rc/hooks/buffer-reload.cc]
+    for an example.
 
-  * All buffers have several "variables" that control their behavior.
+  * All buffers have *variables* that control their behavior. For
+    example, variable `scrollbar` controls whether the scrollbar should be shown
+    in the current buffer. In the extension language, this can be set with
+    `buffer.set_scrollbar(!buffer.scrollbar());`
 
-* Commands:
+* Shell commands (external processes):
 
-  * Supports running commands (e.g. "ls -lR"), capturing their output into a
-    buffer (that can be navigated just as normal "text" buffers).
+  * Supports running external commands (e.g. "ls -lR"), capturing their output
+    into a buffer (that the user can interact with just as with normal "text"
+    buffers). To do this, the user would type `af` (short for "advanced" and
+    "fork") to be prompted for a shell command to run.
 
-  * Use of a pts can be enabled or disabled for buffers with underlying
-    commands. For example, one can run a shell process (or even some other text
-    editor) inside Edge.
+  * Use of a pts can be enabled or disabled for buffers with underlying commands
+    (this is controlled by buffer's variable `pts`). For example, one can run a
+    shell process (or even some other text editor) inside Edge.
 
-* Buffer are read asynchronously. Edge (almost) never blocks while waiting for
-  input.
+* All buffers are read asynchronously. Edge (almost) never blocks while waiting
+  for input.
 
 * Editing:
 
@@ -48,7 +46,7 @@ buffers (section 5).
     or just to the "current" one.
 
   * Supports syntax highlighting for a few programming languages (C++, Java) and
-    file formats (Markdown).
+    file formats (Markdown, diff/patch).
 
 
 ## 2. Running Edge
