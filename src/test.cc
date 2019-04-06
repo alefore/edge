@@ -172,7 +172,8 @@ void TreeTestsBasic() {
 
 void TestCases() {
   auto audio_player = NewNullAudioPlayer();
-  EditorState editor_state(Args(), audio_player.get());
+  EditorState editor_state(command_line_arguments::Values(),
+                           audio_player.get());
   CHECK(!editor_state.has_current_buffer());
 
   editor_state.ProcessInputString("i\n");

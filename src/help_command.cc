@@ -71,6 +71,7 @@ class HelpCommand : public Command {
           editor_state, L"int", buffer.get(), buffer_variables::IntStruct(),
           [](const int& value) { return std::to_wstring(value); });
 
+      CommandLineVariables(editor_state, buffer.get());
       it.first->second = buffer;
     }
     it.first->second->set_current_position_line(0);
@@ -151,7 +152,8 @@ class HelpCommand : public Command {
         editor_state,
         NewCopyString(
             L"The following are all variables defined in the environment "
-            L"associated with your buffer, and thus available to extensions."));
+            L"associated with your buffer, and thus available to "
+            L"extensions."));
     output->AppendEmptyLine(editor_state);
 
     environment->ForEach([editor_state, output](const wstring& name,
@@ -195,6 +197,41 @@ class HelpCommand : public Command {
     buffer->AppendEmptyLine(editor_state);
   }
 
+  void CommandLineVariables(EditorState* editor_state, OpenBuffer* buffer) {
+    StartSection(L"### Command line arguments", editor_state, buffer);
+    using command_line_arguments::Handler;
+    auto handlers = command_line_arguments::Handlers();
+    for (auto& h : handlers) {
+      StartSection(L"#### " + h.aliases()[0], editor_state, buffer);
+      switch (h.argument_type()) {
+        case Handler::VariableType::kRequired:
+          buffer->AppendLine(
+              editor_state,
+              NewCopyString(L"Required argument: " + h.argument() + L": " +
+                            h.argument_description()));
+          buffer->AppendEmptyLine(editor_state);
+          break;
+
+        case Handler::VariableType::kOptional:
+          buffer->AppendLine(
+              editor_state,
+              NewCopyString(L"Optional argument: " + h.argument() + L": " +
+                            h.argument_description()));
+          buffer->AppendEmptyLine(editor_state);
+          break;
+
+        case Handler::VariableType::kNone:
+          break;
+      }
+      std::wstringstream help(h.help());
+      std::wstring line;
+
+      while (std::getline(help, line, L'\n')) {
+        buffer->AppendLine(editor_state, NewCopyString(line));
+      }
+      buffer->AppendEmptyLine(editor_state);
+    }
+  }
   const MapModeCommands* const commands_;
   const wstring mode_description_;
 };

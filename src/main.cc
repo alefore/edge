@@ -70,7 +70,7 @@ void SignalHandler(int sig) {
 
 static const wchar_t* kDefaultCommandsToRun = L"ForkCommand(\"sh -l\", true);";
 
-wstring CommandsToRun(Args args) {
+wstring CommandsToRun(command_line_arguments::Values args) {
   // TODO: Escape paths here!
   wstring commands_to_run = args.commands_to_run;
   std::vector<wstring> buffers_to_watch;
@@ -97,7 +97,8 @@ wstring CommandsToRun(Args args) {
                        FromByteString(getenv(kEdgeParentAddress)) + L"\");\n";
   } else if (!buffers_to_watch.empty() &&
              args.nested_edge_behavior ==
-                 Args::NestedEdgeBehavior::kWaitForClose) {
+                 command_line_arguments::Values::NestedEdgeBehavior::
+                     kWaitForClose) {
     commands_to_run += L"SetString buffers_to_watch = SetString();\n";
     for (auto& block : buffers_to_watch) {
       commands_to_run += L"buffers_to_watch.insert(\"" + block + L"\");\n";
@@ -120,7 +121,8 @@ void SendCommandsToParent(int fd, const string commands_to_run) {
   }
 }
 
-wstring StartServer(const Args& args, bool connected_to_parent) {
+wstring StartServer(const command_line_arguments::Values& args,
+                    bool connected_to_parent) {
   LOG(INFO) << "Starting server.";
 
   wstring address;
@@ -180,7 +182,7 @@ int main(int argc, const char** argv) {
   string locale = std::setlocale(LC_ALL, "");
   LOG(INFO) << "Using locale: " << locale;
 
-  Args args = ParseArgs(argc, argv);
+  auto args = command_line_arguments::Parse(argc, argv);
 
   auto audio_player = args.mute ? NewNullAudioPlayer() : NewAudioPlayer();
   global_editor_state = std::make_unique<EditorState>(args, audio_player.get());

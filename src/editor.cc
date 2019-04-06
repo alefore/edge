@@ -326,7 +326,8 @@ std::pair<int, int> BuildPipe() {
   return {output[0], output[1]};
 }
 
-EditorState::EditorState(Args args, AudioPlayer* audio_player)
+EditorState::EditorState(command_line_arguments::Values args,
+                         AudioPlayer* audio_player)
     : current_buffer_(buffers_.end()),
       home_directory_(args.home_directory),
       edge_path_(args.config_paths),

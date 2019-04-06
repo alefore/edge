@@ -19,124 +19,87 @@ extern "C" {
 
 namespace afc {
 namespace editor {
-
+namespace command_line_arguments {
 using std::wstring;
 
-namespace {
 struct ParsingData {
   std::list<wstring> input;
-  Args output;
+  Values output;
 };
 
-struct Handler {
-  using Callback = std::function<void(ParsingData*)>;
-  enum class VariableType { kRequired, kOptional, kNone };
+Handler::Handler(std::vector<std::wstring> aliases, std::wstring short_help)
+    : aliases_(aliases), short_help_(short_help) {}
 
-  Handler(std::vector<wstring> aliases, wstring short_help)
-      : aliases_(aliases), short_help_(short_help) {}
+Handler& Handler::Transform(
+    std::function<std::wstring(std::wstring)> transform) {
+  transform_ = std::move(transform);
+  return *this;
+}
 
-  Handler& Transform(std::function<wstring(wstring)> transform) {
-    transform_ = std::move(transform);
-    return *this;
-  }
-
-  Handler& PushBackTo(std::vector<wstring> Args::*field) {
-    return PushDelegate([field](wstring* value, Args* args) {
-      if (value != nullptr) {
-        (args->*field).push_back(*value);
-      }
-    });
-  }
-
-  Handler& AppendTo(wstring(Args::*field)) {
-    return PushDelegate([field](wstring* value, Args* args) {
-      if (value != nullptr) {
-        (args->*field) += *value;
-      }
-    });
-  }
-
-  template <typename Type>
-  Handler& Set(Type Args::*field, Type value) {
-    return PushDelegate(
-        [field, value](wstring*, Args* args) { (args->*field) = value; });
-  }
-
-  Handler& Set(wstring Args::*field) {
-    return PushDelegate([field](wstring* value, Args* args) {
-      if (value != nullptr) {
-        (args->*field) = *value;
-      }
-    });
-  }
-
-  Handler& Run(std::function<void()> callback) {
-    return PushDelegate([callback](wstring*, Args*) { callback(); });
-  }
-
-  Handler& Run(std::function<void(Args*)> callback) {
-    return PushDelegate([callback](wstring*, Args* data) { callback(data); });
-  }
-
-  void Execute(ParsingData* data) const {
-    auto cmd = data->input.front();
-    data->input.pop_front();
-
-    if (type_ == VariableType::kNone || data->input.empty()) {
-      if (type_ == VariableType::kRequired) {
-        std::cerr << data->output.binary_name << ": " << cmd
-                  << ": Expected argument: " << name_ << ": " << description_
-                  << std::endl;
-        exit(1);
-      } else {
-        delegate_(nullptr, &data->output);
-      }
-    } else {
-      wstring input = transform_(data->input.front());
-      delegate_(&input, &data->output);
-      data->input.pop_front();
+Handler& Handler::PushBackTo(std::vector<std::wstring> Values::*field) {
+  return PushDelegate([field](std::wstring* value, Values* args) {
+    if (value != nullptr) {
+      (args->*field).push_back(*value);
     }
+  });
+}
+
+Handler& Handler::AppendTo(std::wstring(Values::*field)) {
+  return PushDelegate([field](std::wstring* value, Values* args) {
+    if (value != nullptr) {
+      (args->*field) += *value;
+    }
+  });
+}
+
+Handler& Handler::Set(std::wstring Values::*field) {
+  return PushDelegate([field](std::wstring* value, Values* args) {
+    if (value != nullptr) {
+      (args->*field) = *value;
+    }
+  });
+}
+
+Handler& Handler::Run(std::function<void()> callback) {
+  return PushDelegate([callback](std::wstring*, Values*) { callback(); });
+}
+
+Handler& Handler::Run(std::function<void(Values*)> callback) {
+  return PushDelegate(
+      [callback](std::wstring*, Values* data) { callback(data); });
+}
+
+void Handler::Execute(ParsingData* data) const {
+  auto cmd = data->input.front();
+  data->input.pop_front();
+
+  if (type_ == VariableType::kNone || data->input.empty()) {
+    if (type_ == VariableType::kRequired) {
+      std::cerr << data->output.binary_name << ": " << cmd
+                << ": Expected argument: " << name_ << ": "
+                << argument_description_ << std::endl;
+      exit(1);
+    } else {
+      delegate_(nullptr, &data->output);
+    }
+  } else {
+    wstring input = transform_(data->input.front());
+    delegate_(&input, &data->output);
+    data->input.pop_front();
   }
+}
 
-  Handler& Require(wstring name, wstring description) {
-    type_ = VariableType::kRequired;
-    name_ = name;
-    description_ = description;
-    return *this;
-  }
+Handler& Handler::PushDelegate(
+    std::function<void(std::wstring*, Values*)> delegate) {
+  auto old_delegate = std::move(delegate_);
+  delegate_ = [old_delegate, delegate](std::wstring* value, Values* args) {
+    old_delegate(value, args);
+    delegate(value, args);
+  };
+  return *this;
+}
 
-  Handler& Accept(wstring name, wstring description) {
-    type_ = VariableType::kOptional;
-    name_ = name;
-    description_ = description;
-    return *this;
-  }
-
-  const std::vector<wstring>& aliases() const { return aliases_; }
-  const wstring& short_help() const { return short_help_; }
-  wstring argument() const { return name_; }
-  VariableType argument_type() const { return type_; }
-
- private:
-  Handler& PushDelegate(std::function<void(wstring*, Args*)> delegate) {
-    auto old_delegate = std::move(delegate_);
-    delegate_ = [old_delegate, delegate](wstring* value, Args* args) {
-      old_delegate(value, args);
-      delegate(value, args);
-    };
-    return *this;
-  }
-
-  std::vector<wstring> aliases_;
-  wstring short_help_;
-
-  VariableType type_ = VariableType::kNone;
-  wstring name_;
-  wstring description_;
-  std::function<wstring(wstring)> transform_ = [](wstring x) { return x; };
-  std::function<void(wstring*, Args*)> delegate_ = [](wstring*, Args*) {};
-};
-
+namespace {
 static wstring GetHomeDirectory() {
   char* env = getenv("HOME");
   if (env != nullptr) {
@@ -169,33 +132,79 @@ static vector<wstring> GetEdgeConfigPath(const wstring& home) {
 
 void Help();
 
-const std::vector<Handler> handlers(
-    {Handler({L"h", L"help"}, L"Display help and exit").Run(Help),
-     Handler({L"f", L"fork"}, L"Create a buffer running a shell command")
-         .Require(L"shellcmd", L"Shell command to run")
-         .PushBackTo(&Args::commands_to_fork),
-     Handler({L"run"}, L"Run a VM command")
-         .Require(L"vmcmd", L"VM command to run")
-         .AppendTo(&Args::commands_to_run),
-     Handler({L"l", L"load"}, L"Load a file with VM commands")
-         .Require(L"path", L"Path to file containing VM commands to run")
-         .Transform([](wstring value) {
-           return L"buffer.EvaluateFile(\"" + CppEscapeString(value) + L"\");";
-         })
-         .AppendTo(&Args::commands_to_run),
-     Handler({L"s", L"server"}, L"Run in daemon mode (at an optional path)")
-         .Accept(L"path", L"Path to the pipe in which to run the server")
-         .Set(&Args::server_path)
-         .Set(&Args::server, true),
-     Handler({L"c", L"client"}, L"Connect to daemon at a given path")
-         .Require(L"path", L"Path to the pipe in which the daemon is listening")
-         .Set(&Args::client),
-     Handler({L"mute"}, L"Disable audio output").Set(&Args::mute, true),
-     Handler({L"bg"}, L"Open buffers given to -f in background")
-         .Set(&Args::background, true),
-     Handler({L"X"}, L"If nested, exit early")
-         .Set(&Args::nested_edge_behavior,
-              Args::NestedEdgeBehavior::kExitEarly)});
+const std::vector<Handler>& Handlers() {
+  static const std::vector<Handler> handlers = {
+      Handler({L"help", L"h"}, L"Display help and exit").Run(Help),
+
+      Handler({L"fork", L"f"}, L"Create a buffer running a shell command")
+          .SetHelp(
+              L"The --fork command-line argument must be followed by a shell "
+              L"command. Edge will create a buffer running that command.\n\n"
+              L"Example:\n\n"
+              L"    edge --fork \"ls -lR /tmp\" --fork \"make\"\n\n"
+              L"If Edge is running nested (inside an existing Edge), it will "
+              L"cause the parent instance to open those buffers.")
+          .Require(L"shellcmd", L"Shell command to run")
+          .PushBackTo(&Values::commands_to_fork),
+
+      Handler({L"run"}, L"Run a VM command")
+          .SetHelp(
+              L"The --run command-line argument must be followed by a string "
+              L"with a VM command to run.\n\n"
+              L"Example:\n\n"
+              L"    edge --run 'string flags = \"-R\"; ForkCommand(\"ls \" + "
+              L"flags, true);'\n\n")
+          .Require(L"vmcmd", L"VM command to run")
+          .AppendTo(&Values::commands_to_run),
+
+      Handler({L"load", L"l"}, L"Load a file with VM commands")
+          .Require(L"path", L"Path to file containing VM commands to run")
+          .Transform([](wstring value) {
+            return L"buffer.EvaluateFile(\"" + CppEscapeString(value) + L"\");";
+          })
+          .AppendTo(&Values::commands_to_run),
+
+      Handler({L"server", L"s"}, L"Run in daemon mode (at an optional path)")
+          .SetHelp(
+              L"The --server command-line argument causes Edge to run in "
+              L"*background* mode: without reading any input from stdin nor "
+              L"producing any output to stdout. Instead, Edge will wait for "
+              L"connections to the path given.\n\n"
+              L"If you pass an empty string (or no argument), Edge generates "
+              L"a temporary file. Otherwise, the path given must not currently "
+              L"exist.\n\n"
+              L"Edge always runs with a server, even when this flag is not "
+              L"used. Passing this flag merely causes Edge to daemonize itself "
+              L"and not use the current terminal. Technically, it's more "
+              L"correct to say that this is \"background\" or \"headless\" "
+              L"mode than to say that this is \"server\" mode. However, we "
+              L"decided to use \"--server\" (instead of some other flag) for "
+              L"symmetry with \"--client\".\n\n"
+              L"For example, you'd start the server thus:\n\n"
+              L"    edge --server /tmp/edge-server-blah\n\n"
+              L"You can then connect a client:\n\n"
+              L"    edge --client /tmp/edge-server-blah"
+              L"If your session is terminated (e.g. your SSH connection dies), "
+              L"you can run the client command again.")
+          .Accept(L"path", L"Path to the pipe in which to run the server")
+          .Set(&Values::server_path)
+          .Set(&Values::server, true),
+
+      Handler({L"client", L"c"}, L"Connect to daemon at a given path")
+          .Require(L"path",
+                   L"Path to the pipe in which the daemon is listening")
+          .Set(&Values::client),
+
+      Handler({L"mute"}, L"Disable audio output").Set(&Values::mute, true),
+
+      Handler({L"bg"}, L"Open buffers given to -f in background")
+          .Set(&Values::background, true),
+
+      Handler({L"X"}, L"If nested, exit early")
+          .Set(&Values::nested_edge_behavior,
+               Values::NestedEdgeBehavior::kExitEarly)};
+  return handlers;
+}  // namespace command_line_arguments
 
 void Help() {
   std::cout << L"Usage: edge [OPTION]... [FILE]...\n"
@@ -203,7 +212,7 @@ void Help() {
                L"Edge supports the following options:\n";
 
   std::vector<wstring> initial_table;
-  for (auto& handler : handlers) {
+  for (auto& handler : Handlers()) {
     std::wstringbuf buffer;
     std::wostream os(&buffer);
     wstring prefix = L"  ";
@@ -232,18 +241,20 @@ void Help() {
   }
 
   size_t padding = max_length + 2;
-  for (size_t i = 0; i < handlers.size(); i++) {
+
+  for (size_t i = 0; i < Handlers().size(); i++) {
+    auto& handler = Handlers()[i];
     std::cout << initial_table[i]
               << wstring(padding > initial_table[i].size()
                              ? padding - initial_table[i].size()
                              : 1,
                          L' ')
-              << handlers[i].short_help() << std::endl;
+              << handler.short_help() << "\n";
   }
   exit(0);
 }
 
-Args ParseArgs(int argc, const char** argv) {
+Values Parse(int argc, const char** argv) {
   using std::cerr;
   using std::cout;
 
@@ -275,8 +286,8 @@ Args ParseArgs(int argc, const char** argv) {
   }
 
   std::map<wstring, int> handlers_map;
-  for (size_t i = 0; i < handlers.size(); i++) {
-    for (auto& alias : handlers[i].aliases()) {
+  for (size_t i = 0; i < Handlers().size(); i++) {
+    for (auto& alias : Handlers()[i].aliases()) {
       handlers_map[L"-" + alias] = i;
       handlers_map[L"--" + alias] = i;
     }
@@ -301,11 +312,12 @@ Args ParseArgs(int argc, const char** argv) {
            << std::endl;
       exit(1);
     }
-    handlers[it->second].Execute(&args_data);
+    Handlers()[it->second].Execute(&args_data);
   }
 
   return args_data.output;
 }
 
+}  // namespace command_line_arguments
 }  // namespace editor
 }  // namespace afc
