@@ -83,7 +83,7 @@ class GotoCharTransformation : public Transformation {
     result->cursor.column = position;
   }
 
-  std::unique_ptr<Transformation> Clone() {
+  std::unique_ptr<Transformation> Clone() const override {
     return std::make_unique<GotoCharTransformation>(calls_);
   }
 

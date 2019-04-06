@@ -136,7 +136,7 @@ class DeleteCharactersTransformation : public Transformation {
     }
   }
 
-  unique_ptr<Transformation> Clone() {
+  unique_ptr<Transformation> Clone() const override {
     return NewDeleteCharactersTransformation(options_);
   }
 
@@ -275,7 +275,7 @@ class DeleteRegionTransformation : public Transformation {
     stack.Apply(editor_state, buffer, result);
   }
 
-  unique_ptr<Transformation> Clone() {
+  unique_ptr<Transformation> Clone() const override {
     return NewDeleteRegionTransformation(options_);
   }
 
@@ -368,7 +368,7 @@ class DeleteLinesTransformation : public Transformation {
     stack.Apply(editor_state, buffer, result);
   }
 
-  unique_ptr<Transformation> Clone() {
+  unique_ptr<Transformation> Clone() const override {
     return NewDeleteLinesTransformation(options_);
   }
 
@@ -410,7 +410,7 @@ class DeleteBufferTransformation : public Transformation {
         ->Apply(editor_state, buffer, result);
   }
 
-  unique_ptr<Transformation> Clone() {
+  unique_ptr<Transformation> Clone() const override {
     return NewDeleteBufferTransformation(options_);
   }
 
@@ -449,7 +449,7 @@ class DeleteTransformation : public Transformation {
     return delegate->Apply(editor_state, buffer, result);
   }
 
-  unique_ptr<Transformation> Clone() {
+  unique_ptr<Transformation> Clone() const override {
     return NewDeleteTransformation(options_);
   }
 

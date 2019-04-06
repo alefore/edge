@@ -57,8 +57,7 @@ class Transformation {
   virtual ~Transformation() {}
   virtual void Apply(EditorState* editor_state, OpenBuffer* buffer,
                      Result* result) const = 0;
-  // TODO: Add const qualifier.
-  virtual unique_ptr<Transformation> Clone() = 0;
+  virtual unique_ptr<Transformation> Clone() const = 0;
 };
 
 enum InsertBufferTransformationPosition {
@@ -145,8 +144,8 @@ class TransformationStack : public Transformation {
     }
   }
 
-  unique_ptr<Transformation> Clone() override {
-    unique_ptr<TransformationStack> output(new TransformationStack());
+  unique_ptr<Transformation> Clone() const override {
+    auto output = std::make_unique<TransformationStack>();
     for (auto& it : stack_) {
       output->PushBack(it->Clone());
     }

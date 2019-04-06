@@ -868,7 +868,7 @@ class SwitchCaseTransformation : public Transformation {
     stack->Apply(editor_state, buffer, result);
   }
 
-  unique_ptr<Transformation> Clone() {
+  std::unique_ptr<Transformation> Clone() const override {
     return std::make_unique<SwitchCaseTransformation>(apply_mode_, modifiers_);
   }
 

@@ -80,7 +80,7 @@ class NewLineTransformation : public Transformation {
     return transformation->Apply(editor_state, buffer, result);
   }
 
-  unique_ptr<Transformation> Clone() {
+  unique_ptr<Transformation> Clone() const override {
     return std::make_unique<NewLineTransformation>();
   }
 };
@@ -90,7 +90,7 @@ class InsertEmptyLineTransformation : public Transformation {
   InsertEmptyLineTransformation(Direction direction) : direction_(direction) {}
 
   void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const {
+             Result* result) const override {
     if (direction_ == BACKWARDS) {
       result->cursor.line++;
     }
@@ -101,7 +101,7 @@ class InsertEmptyLineTransformation : public Transformation {
         ->Apply(editor_state, buffer, result);
   }
 
-  std::unique_ptr<Transformation> Clone() {
+  std::unique_ptr<Transformation> Clone() const override {
     return std::make_unique<InsertEmptyLineTransformation>(direction_);
   }
 
@@ -287,7 +287,7 @@ class JumpTransformation : public Transformation {
     editor_state->ResetDirection();
   }
 
-  std::unique_ptr<Transformation> Clone() {
+  std::unique_ptr<Transformation> Clone() const override {
     return std::make_unique<JumpTransformation>(direction_);
   }
 
