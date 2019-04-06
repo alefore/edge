@@ -39,3 +39,19 @@ string BaseCommand(string command) {
   int space = command.find_first_of(" ", 0);
   return space == -1 ? command : command.substr(0, space);
 }
+
+// Returns a substring of text from the start, up until (excluding) the first
+// character not in line_prefix_characters.
+//
+// For example,
+//     GetPrefix("  // For example,", " /")
+// returns
+//     "  // ");
+string GetPrefix(string text, string prefix_characters) {
+  int pos_start = text.find_first_not_of(prefix_characters, 0);
+  if (pos_start == -1) {
+    return text;
+  }
+  return text.substr(0, pos_start);
+}
+
