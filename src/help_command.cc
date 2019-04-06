@@ -54,6 +54,13 @@ class HelpCommand : public Command {
       ShowEnvironment(editor_state, original_buffer.get(), buffer.get());
 
       StartSection(L"### Buffer Variables", editor_state, buffer.get());
+      buffer->AppendLine(
+          editor_state,
+          NewCopyString(
+              L"The following are all the buffer variables defined for your "
+              L"buffer."));
+      buffer->AppendEmptyLine(editor_state);
+
       DescribeVariables(
           editor_state, L"bool", buffer.get(), buffer_variables::BoolStruct(),
           [](const bool& value) { return value ? L"true" : L"false"; });
@@ -82,6 +89,13 @@ class HelpCommand : public Command {
 
   void ShowCommands(EditorState* editor_state, OpenBuffer* output_buffer) {
     StartSection(L"### Commands", editor_state, output_buffer);
+
+    output_buffer->AppendLine(
+        editor_state,
+        NewCopyString(L"The following is a list of all commands available in "
+                      L"your buffer, grouped by category."));
+    output_buffer->AppendEmptyLine(editor_state);
+
     for (const auto& category : commands_->Coallesce()) {
       StartSection(L"#### " + category.first, editor_state, output_buffer);
       for (const auto& it : category.second) {
@@ -101,6 +115,15 @@ class HelpCommand : public Command {
     CHECK(environment != nullptr);
 
     StartSection(L"#### Types & methods", editor_state, output);
+
+    output->AppendLine(
+        editor_state,
+        NewCopyString(
+            L"This section contains a list of all types available to Edge "
+            L"extensions running in your buffer. For each, a list of all their "
+            L"available methods is given."));
+    output->AppendEmptyLine(editor_state);
+
     environment->ForEachType([&](const wstring& name, ObjectType* type) {
       CHECK(type != nullptr);
       StartSection(L"##### " + name, editor_state, output);
@@ -123,6 +146,13 @@ class HelpCommand : public Command {
     output->AppendEmptyLine(editor_state);
 
     StartSection(L"#### Variables", editor_state, output);
+
+    output->AppendLine(
+        editor_state,
+        NewCopyString(
+            L"The following are all variables defined in the environment "
+            L"associated with your buffer, and thus available to extensions."));
+    output->AppendEmptyLine(editor_state);
 
     environment->ForEach([editor_state, output](const wstring& name,
                                                 Value* value) {
