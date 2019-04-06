@@ -55,9 +55,15 @@ class DeleteCharactersTransformation : public Transformation {
     }
 
     size_t chars_erased;
-    size_t line_end = SkipLinesToErase(
-        buffer, options_.modifiers.repetitions + result->cursor.column,
-        result->cursor.line, &chars_erased);
+    size_t line_end;
+    if (options_.line_end_behavior == DeleteOptions::LineEndBehavior::kDelete) {
+      line_end = SkipLinesToErase(
+          buffer, options_.modifiers.repetitions + result->cursor.column,
+          result->cursor.line, &chars_erased);
+    } else {
+      line_end = result->cursor.line;
+      chars_erased = buffer->LineAt(result->cursor.line)->size() + 1;
+    }
     LOG(INFO) << "Erasing from line " << result->cursor.line << " to line "
               << line_end << " would erase " << chars_erased << " characters.";
     chars_erased -= result->cursor.column;
@@ -75,7 +81,8 @@ class DeleteCharactersTransformation : public Transformation {
       LOG(INFO) << "Adjusting for end of buffer.";
       CHECK_EQ(chars_erase_line, buffer->LineAt(line_end)->size() + 1);
       chars_erase_line = 0;
-      if (line_end + 1 >= buffer->lines_size()) {
+      if (line_end + 1 >= buffer->lines_size() ||
+          options_.line_end_behavior == DeleteOptions::LineEndBehavior::kStop) {
         chars_erase_line = buffer->LineAt(line_end)->size();
       } else {
         line_end++;

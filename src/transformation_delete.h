@@ -14,6 +14,9 @@ struct DeleteOptions {
 
   // If true, instead of deleting the region affected, just dim it.
   bool preview = false;
+
+  enum class LineEndBehavior { kStop, kDelete };
+  LineEndBehavior line_end_behavior = LineEndBehavior::kDelete;
 };
 
 std::ostream& operator<<(std::ostream& os, const DeleteOptions& options);

@@ -21,6 +21,7 @@ extern "C" {
 #include "lazy_string_append.h"
 #include "substring.h"
 #include "terminal.h"
+#include "transformation.h"
 #include "transformation_delete.h"
 #include "transformation_move.h"
 #include "tree.h"
@@ -559,7 +560,11 @@ class InsertMode : public EditorMode {
       insert->AppendToLastLine(
           editor_state,
           NewCopyString(buffer->TransformKeyboardText(wstring(1, c))));
-      buffer->ApplyToCursors(NewInsertBufferTransformation(insert, 1, END));
+
+      Modifiers modifiers;
+      modifiers.insertion = editor_state->modifiers().insertion;
+      buffer->ApplyToCursors(
+          NewInsertBufferTransformation(insert, modifiers, END, nullptr));
     }
 
     options_.modify_listener();

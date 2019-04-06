@@ -70,7 +70,9 @@ class InsertBufferTransformation : public Transformation {
       DeleteOptions delete_options;
       delete_options.modifiers.repetitions = chars_inserted;
       delete_options.copy_to_paste_buffer = false;
-      NewDeleteCharactersTransformation(delete_options)
+      delete_options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
+      TransformationAtPosition(
+          result->cursor, NewDeleteCharactersTransformation(delete_options))
           ->Apply(editor_state, buffer, &current_result);
       result->undo_stack->PushFront(std::move(current_result.undo_stack));
     }
