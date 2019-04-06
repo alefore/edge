@@ -86,3 +86,5 @@ Allow a client to just disconnect.
 ## Misc
 
 Support variables scoped at the Editor level (i.e. not specific to a given buffer).
+
+Don't do any blocking operations.
