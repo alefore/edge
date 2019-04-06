@@ -57,8 +57,7 @@ EdgeVariable<bool>* close_after_clean_exit() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"close_after_clean_exit",
       L"If a command is forked that writes to this buffer, should the buffer "
-      L"be "
-      L"closed when the command exits with a successful status code?",
+      L"be closed when the command exits with a successful status code?",
       false);
   return variable;
 }
