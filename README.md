@@ -7,7 +7,6 @@ Edge is a terminal-based text editor.
 
 This document describes the use of Edge. In Edge, key sequences are bond to
 specific commands. These sequences are given in this document between quotes.
-Pressing `?` shows you the sequences/commands in the current buffer.
 
 Edge uses *buffers* to represent an open file or a process, which might still be
 running and which may or may not have a full terminal (pts).
@@ -49,48 +48,64 @@ running and which may or may not have a full terminal (pts).
     file formats (Markdown, diff/patch).
 
 
-## 2. Running Edge
+## 2. Getting started
 
-If you run Edge on a file, it will open it and display it:
+### 2.1. Running Edge
 
-    $ edge README.txt
+By default, Edge will create a buffer running a nested shell. If you run Edge on
+a file, it will open it and display it:
+
+    $ edge README.md
+
+You can see the documentation for command line arguments if you run Edge with
+`--help`:
+
+    $ edge --help
 
 
 ### 2.1. Example commands
 
-Example commands:
+The following are a few example commands:
 
-* "aq" - Quit (short for "Advanced > Quit").
+*  `?` Shows you the sequences/commands in the current buffer.
 
-* "?" - Shows help.
+* `aq` - Quit (short for "Advanced > Quit"). At the beginning of the execution
+  of Edge, Ctrl+c will also quit (until the moment when you start editing any
+  buffer).
 
-* "i" - Insert (type to the buffer), until Escape is pressed.  See section 4.1.
+* `?` - Shows help.
 
-* "d5\n" - Delete 5 characters.  Delete is covered in section 4.2.
+* `i` - Insert (type to the buffer), until Escape is pressed.  See section 4.1.
 
-* "de\n" - Delete until the end of line (Delete; Line).  Section 6.1 explains
-  the Line modifier (and other structure modifiers).
+* `d\n` - Delete the current character.
 
-* "dwj\n" - Delete until the end of the word (Word; from beginning to end).  The
-  word modifier is covered in section 6.1.
+  * `d5\n` - Delete 5 characters.  Delete is covered in section 4.2.
 
-* "p" - Paste the previously deleted sequence.  See section 4.3.
+  * `de\n` - Delete until the end of line (Delete; Line).  Section 6.1 explains
+    the Line modifier (and other structure modifiers).
 
-* "u" - Undo the last command.  See section 4.4.
+  * `dwj\n` - Delete until the end of the word (Word; from beginning to end).
+    The word modifier is covered in section 6.1.
 
-* "af make\n" - Open a new buffer with the output of a given command. "af" is
+  * `d5wj\n` - Delete five words (starting at the current position).
+
+* `p` - Paste the previously deleted sequence.  See section 4.3.
+
+* `u` - Undo the last command.  See section 4.4.
+
+* `af make\n` - Open a new buffer with the output of a given command. `af` is
   short for "Advanced > Fork" and is covered in section 5.3.
 
-* "ar" - Reload the current buffer.  See section 5.2.
+* `ar` - Reload the current buffer.  See section 5.2.
 
-* "al" - Shows the list of buffers currently open.  See section 5.1.
+* `al` - Shows the list of buffers currently open.  See section 5.1.
 
-* "a." - Show the list of files in the current directory.  See section 5.5.
+* `a.` - Show the list of files in the current directory.  See section 5.5.
 
-* "+" - Creates a new cursor (at the same position as the current one). See
+* `+` - Creates a new cursor (at the same position as the current one). See
   section 8.1.
 
-* "_" - Toggles whether all cursors apply transformations (or just the current
+* `_` - Toggles whether all cursors apply transformations (or just the current
   one). See section 8.3.
 
 
