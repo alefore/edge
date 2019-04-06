@@ -34,8 +34,20 @@ extern "C" {
 #include "wstring.h"
 
 namespace afc {
-namespace editor {
+namespace vm {
+template <>
+struct VMTypeMapper<editor::EditorState*> {
+  static editor::EditorState* get(Value* value) {
+    return static_cast<editor::EditorState*>(value->user_value.get());
+  }
 
+  static const VMType vmtype;
+};
+
+const VMType VMTypeMapper<editor::EditorState*>::vmtype =
+    VMType::ObjectType(L"Editor");
+}  // namespace vm
+namespace editor {
 namespace {
 
 using std::make_pair;
@@ -141,6 +153,11 @@ Environment EditorState::BuildEditorEnvironment() {
             editor->ResetModifiers();
             return Value::NewVoid();
           }));
+
+  editor_type->AddField(
+      L"home",
+      vm::NewCallback(std::function<wstring(EditorState*)>(
+          [](EditorState* editor) { return editor->home_directory(); })));
 
   // A callback to return the current buffer. This is needed so that at a time
   // when there's no current buffer (i.e. EditorState is being created) we can
