@@ -35,7 +35,7 @@ class HelpCommand : public Command {
   HelpCommand(const MapModeCommands* commands, const wstring& mode_description)
       : commands_(commands), mode_description_(mode_description) {}
 
-  const wstring Description() { return L"shows help about commands."; }
+  const wstring Description() { return L"shows documentation."; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     auto original_buffer = editor_state->current_buffer()->second;
@@ -44,17 +44,15 @@ class HelpCommand : public Command {
     editor_state->set_current_buffer(it.first);
     if (it.second) {
       auto buffer = std::make_shared<OpenBuffer>(editor_state, name);
-      buffer->AppendToLastLine(editor_state,
-                               NewCopyString(L"Help: " + mode_description_));
-      std::map<wstring, Command*> descriptions = commands_->Coallesce();
-      for (const auto& it : descriptions) {
-        buffer->AppendLine(editor_state,
-                           NewCopyString(DescribeSequence(it.first) + L" - " +
-                                         it.second->Description()));
-      }
+      buffer->set_string_variable(buffer_variables::tree_parser(), L"md");
 
+      buffer->AppendToLastLine(editor_state, NewCopyString(L"## Edge - Help"));
+      buffer->AppendEmptyLine(editor_state);
+
+      ShowCommands(editor_state, buffer.get());
       ShowEnvironment(editor_state, original_buffer.get(), buffer.get());
 
+      StartSection(L"### Buffer Variables", editor_state, buffer.get());
       DescribeVariables(
           editor_state, L"bool", buffer.get(), buffer_variables::BoolStruct(),
           [](const bool& value) { return value ? L"true" : L"false"; });
@@ -75,22 +73,34 @@ class HelpCommand : public Command {
   }
 
  private:
+  void StartSection(const wstring& section, EditorState* editor_state,
+                    OpenBuffer* buffer) {
+    buffer->AppendLine(editor_state, NewCopyString(section));
+    buffer->AppendEmptyLine(editor_state);
+  }
+
+  void ShowCommands(EditorState* editor_state, OpenBuffer* output_buffer) {
+    StartSection(L"### Commands", editor_state, output_buffer);
+    for (const auto& it : commands_->Coallesce()) {
+      output_buffer->AppendLine(
+          editor_state, NewCopyString(DescribeSequence(it.first) + L" - " +
+                                      it.second->Description()));
+    }
+    output_buffer->AppendEmptyLine(editor_state);
+  }
+
   void ShowEnvironment(EditorState* editor_state, OpenBuffer* original_buffer,
                        OpenBuffer* output) {
-    output->AppendEmptyLine(editor_state);
+    StartSection(L"### Environment", editor_state, output);
 
     auto environment = original_buffer->environment();
     CHECK(environment != nullptr);
 
-    output->AppendLine(editor_state, NewCopyString(L"Environment types:"));
-    environment->ForEachType([editor_state, output](const wstring& name,
-                                                    ObjectType* type) {
+    StartSection(L"#### Types & methods", editor_state, output);
+    environment->ForEachType([&](const wstring& name, ObjectType* type) {
       CHECK(type != nullptr);
-      output->AppendLine(editor_state,
-                         StringAppend(NewCopyString(L"  "), NewCopyString(name),
-                                      NewCopyString(L":")));
-      type->ForEachField([editor_state, output](const wstring& field_name,
-                                                Value* value) {
+      StartSection(L"##### " + name, editor_state, output);
+      type->ForEachField([&](const wstring& field_name, Value* value) {
         CHECK(value != nullptr);
         std::stringstream value_stream;
         value_stream << *value;
@@ -99,17 +109,17 @@ class HelpCommand : public Command {
                             ? 0
                             : kPaddingSize - field_name.size(),
                         L' ');
-
         output->AppendLine(
             editor_state,
-            StringAppend(NewCopyString(L"      ."), NewCopyString(field_name),
-                         NewCopyString(padding),
+            StringAppend(NewCopyString(field_name), NewCopyString(padding),
                          NewCopyString(FromByteString(value_stream.str()))));
       });
       output->AppendEmptyLine(editor_state);
     });
+    output->AppendEmptyLine(editor_state);
 
-    output->AppendLine(editor_state, NewCopyString(L"Environment symbols:"));
+    StartSection(L"#### Variables", editor_state, output);
+
     environment->ForEach([editor_state, output](const wstring& name,
                                                 Value* value) {
       const static int kPaddingSize = 40;
@@ -129,15 +139,14 @@ class HelpCommand : public Command {
                        NewCopyString(padding),
                        NewCopyString(FromByteString(value_stream.str()))));
     });
+    output->AppendEmptyLine(editor_state);
   }
 
   template <typename T, typename C>
   void DescribeVariables(EditorState* editor_state, wstring type_name,
                          OpenBuffer* buffer, EdgeStruct<T>* variables,
                          /*std::function<std::wstring(const T&)>*/ C print) {
-    buffer->AppendEmptyLine(editor_state);
-    buffer->AppendLine(editor_state,
-                       NewCopyString(L"Variables (" + type_name + L"):"));
+    StartSection(L"#### " + type_name, editor_state, buffer);
     for (const auto& variable : variables->variables()) {
       buffer->AppendLine(editor_state, NewCopyString(variable.second->name()));
       buffer->AppendLine(
@@ -149,6 +158,7 @@ class HelpCommand : public Command {
           StringAppend(NewCopyString(L"    Default: "),
                        NewCopyString(print(variable.second->default_value()))));
     }
+    buffer->AppendEmptyLine(editor_state);
   }
 
   const MapModeCommands* const commands_;
