@@ -1,20 +1,16 @@
+// buffer-reload.cc: Edge is loading the contents of a buffer.
+//
+// This program mainly sets several buffer variables depending on properties
+// of the buffer (such as the extension of the file being loaded).
+
 #include "../editor_commands/cpp-mode"
 #include "../editor_commands/java-mode"
 #include "../editor_commands/lib/clang-format"
 #include "../editor_commands/lib/paths"
 #include "../editor_commands/lib/strings"
 
-string ProcessCCInputLine(string line) {
-  SetStatus("Got: " + line);
-  return line;
-}
-
+// Optimizes the buffer for visualizing a patch (output of a `diff` command).
 void DiffMode() { buffer.set_tree_parser("diff"); }
-
-string BaseCommand(string command) {
-  int space = command.find_first_of(" ", 0);
-  return space == -1 ? command : command.substr(0, space);
-}
 
 buffer.set_editor_commands_path("~/.edge/editor_commands/");
 
@@ -27,6 +23,7 @@ if (!buffer.reload_on_display()) {
 
 string path = buffer.path();
 if (path == "") {
+  // If path is empty, this buffer is running a command.
   string command = buffer.command();
   if (command != "") {
     buffer.set_paste_mode(true);
@@ -37,6 +34,7 @@ if (path == "") {
   if (base_command != "") {
     if (base_command == "bash" || base_command == "python" ||
         base_command == "sh") {
+      // These are interactive commands, that get a full pts.
       buffer.set_pts(true);
       buffer.set_follow_end_of_file(true);
       buffer.set_buffer_list_context_lines(5);
@@ -67,6 +65,7 @@ if (path == "") {
     buffer.set_reload_on_enter(false);
   }
 } else {
+  // If path is non-empty, this buffer is loading a file.
   int dot = path.find_last_of(".", path.size());
   string extension =
       dot == -1 ? "" : path.substr(dot + 1, path.size() - dot - 1);
@@ -74,6 +73,7 @@ if (path == "") {
 
   buffer.AddBindingToFile("J",
                           buffer.editor_commands_path() + "fold-next-line");
+  buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
 
   buffer.set_typos("overriden");
 
@@ -82,7 +82,6 @@ if (path == "") {
     buffer.AddBindingToFile("sh", buffer.editor_commands_path() + "header");
     buffer.AddBindingToFile("sI", buffer.editor_commands_path() + "include");
     buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
-    buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
     SetStatus("Loaded C file (" + extension + ")");
     return;
   }

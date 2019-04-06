@@ -30,3 +30,12 @@ VectorString BreakWords(string text) {
   }
   return output;
 }
+
+// Extracts the first argument in a shell command.
+//
+// For example, `BaseCommand("cp foo.txt bar.txt")` returns `"cp"`.
+string BaseCommand(string command) {
+  command = SkipInitialSpaces(command);
+  int space = command.find_first_of(" ", 0);
+  return space == -1 ? command : command.substr(0, space);
+}
