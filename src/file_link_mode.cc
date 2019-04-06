@@ -69,7 +69,7 @@ class FileBuffer : public OpenBuffer {
   FileBuffer(EditorState* editor_state, const wstring& path,
              const wstring& name)
       : OpenBuffer(editor_state, name) {
-    set_string_variable(buffer_variables::path(), path);
+    Set(buffer_variables::path(), path);
   }
 
   void Visit(EditorState* editor_state) {
@@ -198,8 +198,8 @@ class FileBuffer : public OpenBuffer {
       return;
     }
 
-    set_bool_variable(buffer_variables::atomic_lines(), true);
-    set_bool_variable(buffer_variables::allow_dirty_delete(), true);
+    Set(buffer_variables::atomic_lines(), true);
+    Set(buffer_variables::allow_dirty_delete(), true);
     target->AppendToLastLine(editor_state,
                              NewCopyString(L"File listing: " + path));
 
@@ -463,9 +463,8 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
   it = OpenFile(options);
   CHECK(it != editor_state->buffers()->end());
   CHECK(it->second != nullptr);
-  it->second->set_bool_variable(buffer_variables::save_on_close(), true);
-  it->second->set_bool_variable(buffer_variables::show_in_buffers_list(),
-                                false);
+  it->second->Set(buffer_variables::save_on_close(), true);
+  it->second->Set(buffer_variables::show_in_buffers_list(), false);
   if (!editor_state->has_current_buffer()) {
     editor_state->set_current_buffer(it);
     editor_state->ScheduleRedraw();

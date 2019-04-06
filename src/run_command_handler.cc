@@ -107,8 +107,7 @@ class CommandBuffer : public OpenBuffer {
       }
       pipefd_out[parent_fd] = master_fd;
       char* pts_path = ptsname(master_fd);
-      target->set_string_variable(buffer_variables::pts_path(),
-                                  FromByteString(pts_path));
+      target->Set(buffer_variables::pts_path(), FromByteString(pts_path));
       pipefd_out[child_fd] = open(pts_path, O_RDWR);
       if (pipefd_out[child_fd] == -1) {
         cerr << "open failed: " << pts_path << ": " << string(strerror(errno));
@@ -365,9 +364,8 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
     it.first->second = std::make_shared<CommandBuffer>(
         editor_state, buffer_name, options.command, options.environment,
         options.children_path);
-    it.first->second->set_string_variable(buffer_variables::command(),
-                                          options.command);
-    it.first->second->set_string_variable(buffer_variables::path(), L"");
+    it.first->second->Set(buffer_variables::command(), options.command);
+    it.first->second->Set(buffer_variables::path(), L"");
   } else {
     it.first->second->ResetMode();
   }

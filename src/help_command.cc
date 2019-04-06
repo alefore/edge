@@ -44,7 +44,7 @@ class HelpCommand : public Command {
     editor_state->set_current_buffer(it.first);
     if (it.second) {
       auto buffer = std::make_shared<OpenBuffer>(editor_state, name);
-      buffer->set_string_variable(buffer_variables::tree_parser(), L"md");
+      buffer->Set(buffer_variables::tree_parser(), L"md");
 
       buffer->AppendToLastLine(editor_state, NewCopyString(L"## Edge - Help"));
       buffer->AppendEmptyLine(editor_state);

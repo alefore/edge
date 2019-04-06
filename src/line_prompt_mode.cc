@@ -53,10 +53,9 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
   it = OpenFile(options);
   CHECK(it != editor_state->buffers()->end());
   CHECK(it->second != nullptr);
-  it->second->set_bool_variable(buffer_variables::save_on_close(), true);
-  it->second->set_bool_variable(buffer_variables::show_in_buffers_list(),
-                                false);
-  it->second->set_bool_variable(buffer_variables::atomic_lines(), true);
+  it->second->Set(buffer_variables::save_on_close(), true);
+  it->second->Set(buffer_variables::show_in_buffers_list(), false);
+  it->second->Set(buffer_variables::atomic_lines(), true);
   if (!editor_state->has_current_buffer()) {
     // Seems lame, but what can we do?
     editor_state->set_current_buffer(it);
@@ -74,13 +73,10 @@ shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
   auto element = editor_state->buffers()->insert({name, nullptr}).first;
   if (element->second == nullptr) {
     auto filter_buffer = std::make_shared<OpenBuffer>(editor_state, name);
-    filter_buffer->set_bool_variable(buffer_variables::allow_dirty_delete(),
-                                     true);
-    filter_buffer->set_bool_variable(buffer_variables::show_in_buffers_list(),
-                                     false);
-    filter_buffer->set_bool_variable(
-        buffer_variables::delete_into_paste_buffer(), false);
-    filter_buffer->set_bool_variable(buffer_variables::atomic_lines(), true);
+    filter_buffer->Set(buffer_variables::allow_dirty_delete(), true);
+    filter_buffer->Set(buffer_variables::show_in_buffers_list(), false);
+    filter_buffer->Set(buffer_variables::delete_into_paste_buffer(), false);
+    filter_buffer->Set(buffer_variables::atomic_lines(), true);
 
     std::set<wstring> previous_lines;
     history_buffer->ForEachLine([&](const Line& line) {
@@ -99,12 +95,9 @@ shared_ptr<OpenBuffer> GetPromptBuffer(EditorState* editor_state) {
       *editor_state->buffers()->insert(make_pair(L"- prompt", nullptr)).first;
   if (element.second == nullptr) {
     element.second = std::make_shared<OpenBuffer>(editor_state, element.first);
-    element.second->set_bool_variable(buffer_variables::allow_dirty_delete(),
-                                      true);
-    element.second->set_bool_variable(buffer_variables::show_in_buffers_list(),
-                                      false);
-    element.second->set_bool_variable(
-        buffer_variables::delete_into_paste_buffer(), false);
+    element.second->Set(buffer_variables::allow_dirty_delete(), true);
+    element.second->Set(buffer_variables::show_in_buffers_list(), false);
+    element.second->Set(buffer_variables::delete_into_paste_buffer(), false);
   } else {
     element.second->ClearContents(editor_state);
   }

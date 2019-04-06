@@ -369,8 +369,7 @@ void StartCompletionFromDictionary(EditorState* editor_state,
   options.editor_state = editor_state;
   options.make_current_buffer = false;
   auto file = OpenFile(options);
-  file->second->set_bool_variable(buffer_variables::show_in_buffers_list(),
-                                  false);
+  file->second->Set(buffer_variables::show_in_buffers_list(), false);
   LOG(INFO) << "Loading dictionary.";
   std::weak_ptr<OpenBuffer> weak_dictionary = file->second;
   std::weak_ptr<OpenBuffer> weak_buffer = buffer;

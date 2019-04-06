@@ -516,10 +516,8 @@ void EditorState::PushPosition(LineColumn position) {
     buffer_it = OpenFile(options);
     CHECK(buffer_it != buffers()->end());
     CHECK(buffer_it->second != nullptr);
-    buffer_it->second->set_bool_variable(buffer_variables::save_on_close(),
-                                         true);
-    buffer_it->second->set_bool_variable(
-        buffer_variables::show_in_buffers_list(), false);
+    buffer_it->second->Set(buffer_variables::save_on_close(), true);
+    buffer_it->second->Set(buffer_variables::show_in_buffers_list(), false);
   }
   CHECK(buffer_it->second != nullptr);
   CHECK_LE(buffer_it->second->position().line,
@@ -556,9 +554,9 @@ void EditorState::SetStatus(const wstring& status) {
     // Inserted the entry.
     status_buffer_it.first->second =
         std::make_shared<OpenBuffer>(this, status_buffer_it.first->first);
-    status_buffer_it.first->second->set_bool_variable(
-        buffer_variables::allow_dirty_delete(), true);
-    status_buffer_it.first->second->set_bool_variable(
+    status_buffer_it.first->second->Set(buffer_variables::allow_dirty_delete(),
+                                        true);
+    status_buffer_it.first->second->Set(
         buffer_variables::show_in_buffers_list(), false);
   }
   status_buffer_it.first->second->AppendLazyString(this, NewCopyString(status));

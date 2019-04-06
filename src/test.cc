@@ -28,7 +28,7 @@ void Clear(EditorState* editor_state) {
 
   editor_state->ProcessInputString("eegdl999999999999999\n");
   editor_state->ProcessInput(Terminal::ESCAPE);
-  editor_state->current_buffer()->second->set_bool_variable(
+  editor_state->current_buffer()->second->Set(
       buffer_variables::multiple_cursors(), false);
   editor_state->current_buffer()->second->DestroyOtherCursors();
   editor_state->current_buffer()->second->set_position(LineColumn());

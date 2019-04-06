@@ -61,7 +61,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
         if (buffer == nullptr) {
           return;
         }
-        buffer->set_string_variable(var, input);
+        buffer->Set(var, input);
         // ResetMode causes the prompt to be deleted, and the captures of
         // this lambda go away with it.
         buffer->ResetMode();
@@ -90,7 +90,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
       options.handler = [var, buffer](const wstring& input,
                                       EditorState* editor_state) {
         try {
-          buffer->set_int_variable(var, stoi(input));
+          buffer->Set(var, stoi(input));
         } catch (const std::invalid_argument& ia) {
           editor_state->SetStatus(L"Invalid value for integer value “" +
                                   var->name() + L"”: " +
@@ -117,7 +117,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
         double value;
         ss >> value;
         if (ss.eof() && !ss.fail()) {
-          buffer->set_double_variable(var, value);
+          buffer->Set(var, value);
         } else {
           editor_state->SetStatus(L"Invalid value for double value “" +
                                   var->name() + L"”: " + input);

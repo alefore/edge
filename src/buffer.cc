@@ -162,18 +162,18 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
     EditorState* editor_state, afc::vm::Environment* environment) {
   auto buffer = std::make_unique<ObjectType>(L"Buffer");
 
-  RegisterBufferFields(editor_state, buffer_variables::BoolStruct(),
-                       buffer.get(), &OpenBuffer::Read,
-                       &OpenBuffer::set_bool_variable);
-  RegisterBufferFields(editor_state, buffer_variables::StringStruct(),
-                       buffer.get(), &OpenBuffer::Read,
-                       &OpenBuffer::set_string_variable);
-  RegisterBufferFields(editor_state, buffer_variables::IntStruct(),
-                       buffer.get(), &OpenBuffer::Read,
-                       &OpenBuffer::set_int_variable);
-  RegisterBufferFields(editor_state, buffer_variables::DoubleStruct(),
-                       buffer.get(), &OpenBuffer::Read,
-                       &OpenBuffer::set_double_variable);
+  RegisterBufferFields<EdgeStruct<bool>, bool>(
+      editor_state, buffer_variables::BoolStruct(), buffer.get(),
+      &OpenBuffer::Read, &OpenBuffer::Set);
+  RegisterBufferFields<EdgeStruct<wstring>, wstring>(
+      editor_state, buffer_variables::StringStruct(), buffer.get(),
+      &OpenBuffer::Read, &OpenBuffer::Set);
+  RegisterBufferFields<EdgeStruct<int>, int>(
+      editor_state, buffer_variables::IntStruct(), buffer.get(),
+      &OpenBuffer::Read, &OpenBuffer::Set);
+  RegisterBufferFields<EdgeStruct<double>, double>(
+      editor_state, buffer_variables::DoubleStruct(), buffer.get(),
+      &OpenBuffer::Read, &OpenBuffer::Set);
 
   buffer->AddField(
       L"line_count",
@@ -484,14 +484,14 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       L"buffer",
       Value::NewObject(L"Buffer", shared_ptr<void>(this, [](void*) {})));
 
-  set_string_variable(buffer_variables::path(), L"");
-  set_string_variable(buffer_variables::pts_path(), L"");
-  set_string_variable(buffer_variables::command(), L"");
-  set_bool_variable(buffer_variables::reload_after_exit(), false);
+  Set(buffer_variables::path(), L"");
+  Set(buffer_variables::pts_path(), L"");
+  Set(buffer_variables::command(), L"");
+  Set(buffer_variables::reload_after_exit(), false);
   if (name_ == kPasteBuffer) {
-    set_bool_variable(buffer_variables::allow_dirty_delete(), true);
-    set_bool_variable(buffer_variables::show_in_buffers_list(), false);
-    set_bool_variable(buffer_variables::delete_into_paste_buffer(), false);
+    Set(buffer_variables::allow_dirty_delete(), true);
+    Set(buffer_variables::show_in_buffers_list(), false);
+    Set(buffer_variables::delete_into_paste_buffer(), false);
   }
   ClearContents(editor_state);
 }
@@ -614,8 +614,8 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
   }
 
   if (Read(buffer_variables::reload_after_exit())) {
-    set_bool_variable(buffer_variables::reload_after_exit(),
-                      Read(buffer_variables::default_reload_after_exit()));
+    Set(buffer_variables::reload_after_exit(),
+        Read(buffer_variables::default_reload_after_exit()));
     Reload(editor_state);
   }
   if (Read(buffer_variables::close_after_clean_exit()) &&
@@ -663,8 +663,7 @@ void OpenBuffer::RegisterProgress() {
     return;
   }
   last_progress_update_ = now;
-  set_int_variable(buffer_variables::progress(),
-                   Read(buffer_variables::progress()) + 1);
+  Set(buffer_variables::progress(), Read(buffer_variables::progress()) + 1);
 }
 
 void OpenBuffer::ReadData(EditorState* editor_state) {
@@ -904,7 +903,7 @@ void OpenBuffer::Reload(EditorState* editor_state) {
   if (child_pid_ != -1) {
     LOG(INFO) << "Sending SIGTERM.";
     kill(-child_pid_, SIGTERM);
-    set_bool_variable(buffer_variables::reload_after_exit(), true);
+    Set(buffer_variables::reload_after_exit(), true);
     return;
   }
   for (const auto& dir : editor_state->edge_path()) {
@@ -1092,8 +1091,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
         MaybeFollowToEndOfFile();
         if (static_cast<size_t>(Read(buffer_variables::view_start_line())) >
             position_pts_.line) {
-          set_int_variable(buffer_variables::view_start_line(),
-                           position_pts_.line);
+          Set(buffer_variables::view_start_line(), position_pts_.line);
         }
       }
       return read_index + 1;
@@ -1254,7 +1252,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
             contents_.push_back(std::make_shared<Line>());
           }
           MaybeFollowToEndOfFile();
-          set_int_variable(buffer_variables::view_start_column(), column_delta);
+          Set(buffer_variables::view_start_column(), column_delta);
         }
         return read_index;
 
@@ -1624,7 +1622,7 @@ void OpenBuffer::DestroyOtherCursors() {
   cursors->clear();
   cursors->insert(position);
   cursors_tracker_.SetCurrentCursor(cursors, position);
-  set_bool_variable(buffer_variables::multiple_cursors(), false);
+  Set(buffer_variables::multiple_cursors(), false);
   editor_->ScheduleRedraw();
 }
 
@@ -2061,21 +2059,19 @@ const bool& OpenBuffer::Read(const EdgeVariable<bool>* variable) const {
   return bool_variables_.Get(variable);
 }
 
-void OpenBuffer::set_bool_variable(const EdgeVariable<bool>* variable,
-                                   bool value) {
+void OpenBuffer::Set(const EdgeVariable<bool>* variable, bool value) {
   bool_variables_.Set(variable, value);
 }
 
 void OpenBuffer::toggle_bool_variable(const EdgeVariable<bool>* variable) {
-  set_bool_variable(variable, !Read(variable));
+  Set(variable, !Read(variable));
 }
 
 const wstring& OpenBuffer::Read(const EdgeVariable<wstring>* variable) const {
   return string_variables_.Get(variable);
 }
 
-void OpenBuffer::set_string_variable(const EdgeVariable<wstring>* variable,
-                                     wstring value) {
+void OpenBuffer::Set(const EdgeVariable<wstring>* variable, wstring value) {
   string_variables_.Set(variable, value);
 
   // TODO: This should be in the variable definition, not here. Ugh.
@@ -2091,8 +2087,7 @@ const int& OpenBuffer::Read(const EdgeVariable<int>* variable) const {
   return int_variables_.Get(variable);
 }
 
-void OpenBuffer::set_int_variable(const EdgeVariable<int>* variable,
-                                  int value) {
+void OpenBuffer::Set(const EdgeVariable<int>* variable, int value) {
   int_variables_.Set(variable, value);
 }
 
@@ -2100,8 +2095,7 @@ const double& OpenBuffer::Read(const EdgeVariable<double>* variable) const {
   return double_variables_.Get(variable);
 }
 
-void OpenBuffer::set_double_variable(const EdgeVariable<double>* variable,
-                                     double value) {
+void OpenBuffer::Set(const EdgeVariable<double>* variable, double value) {
   double_variables_.Set(variable, value);
 }
 
