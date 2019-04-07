@@ -12,6 +12,22 @@
 // Optimizes the buffer for visualizing a patch (output of a `diff` command).
 void DiffMode() { buffer.set_tree_parser("diff"); }
 
+void GoToBeginningOfLine() {
+  buffer.set_position(LineColumn(buffer.position().line(), 0));
+}
+
+void GoToEndOfLine() {
+  int current_line = buffer.position().line();
+  buffer.set_position(
+      LineColumn(buffer.position().line(), buffer.line(current_line).size()));
+}
+
+void DeleteCurrentLine() {
+  int current_line = buffer.position().line();
+  buffer.set_position(LineColumn(current_line, 0));
+  buffer.DeleteCharacters(buffer.line(current_line).size() + 1);
+}
+
 buffer.set_editor_commands_path("~/.edge/editor_commands/");
 
 // It would be ideal to not have to do this, but since currently all cursors
@@ -71,9 +87,13 @@ if (path == "") {
       dot == -1 ? "" : path.substr(dot + 1, path.size() - dot - 1);
   string basename = Basename(path);
 
+  buffer.AddBinding("^", "Go to the beginning of the current line",
+                    GoToBeginningOfLine);
+  buffer.AddBinding("$", "Go to the end of the current line", GoToEndOfLine);
   buffer.AddBindingToFile("J",
                           buffer.editor_commands_path() + "fold-next-line");
-  buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
+  buffer.AddBinding("K", "Delete the current line", DeleteCurrentLine);
+  buffer.AddBindingToFile("#", buffer.editor_commands_path() + "reflow");
 
   buffer.set_typos("overriden");
 
