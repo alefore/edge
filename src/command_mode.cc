@@ -38,6 +38,7 @@
 #include "run_cpp_file.h"
 #include "search_command.h"
 #include "search_handler.h"
+#include "seek.h"
 #include "send_end_of_file_command.h"
 #include "set_variable_command.h"
 #include "src/wstring.h"
@@ -888,6 +889,69 @@ void ApplySwitchCaseCommand(EditorState* editor_state, OpenBuffer* buffer,
   buffer->PopTransformationStack();
 }
 
+class TreeNavigate : public Transformation {
+  void Apply(EditorState*, OpenBuffer* buffer, Result* result) const override {
+    auto root = buffer->parse_tree();
+    if (root == nullptr) {
+      result->success = false;
+      return;
+    }
+    const ParseTree* tree = root.get();
+    auto next_position = result->cursor;
+    Seek(*buffer->contents(), &next_position).Once();
+    while (true) {
+      size_t child = 0;
+      while (child < tree->children.size() &&
+             (tree->children[child].range.end <= result->cursor ||
+              tree->children[child].children.empty())) {
+        child++;
+      }
+      if (child < tree->children.size()) {
+        bool descend = false;
+        auto candidate = &tree->children[child];
+        if (tree->range.begin < result->cursor) {
+          descend = true;
+        } else if (tree->range.end == next_position) {
+          descend = candidate->range.end == next_position;
+        }
+
+        if (descend) {
+          tree = candidate;
+          continue;
+        }
+      }
+
+      auto last_position = tree->range.end;
+      Seek(*buffer->contents(), &last_position).Backwards().Once();
+
+      auto original_cursor = result->cursor;
+      result->cursor =
+          result->cursor < tree->range.begin || result->cursor == last_position
+              ? tree->range.begin
+              : last_position;
+      result->success = original_cursor != result->cursor;
+      return;
+    }
+  }
+
+  std::unique_ptr<Transformation> Clone() const override {
+    return std::make_unique<TreeNavigate>();
+  }
+};
+
+class TreeNavigateCommand : public Command {
+ public:
+  wstring Description() const override {
+    return L"Navigates to the start/end of the current children of the syntax "
+           L"tree";
+  }
+  wstring Category() const override { return L"Navigate"; }
+
+  void ProcessInput(wint_t, EditorState* editor_state) {
+    editor_state->ApplyToCurrentBuffer(std::make_unique<TreeNavigate>());
+  }
+};
+
 }  // namespace
 
 namespace afc {
@@ -1045,6 +1109,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
                     L"~~~~", L"Switches the case of the current character.",
                     ApplySwitchCaseCommand));
 
+  commands->Add(L"%", std::make_unique<TreeNavigateCommand>());
   commands->Add(L"sr", NewRecordCommand());
   commands->Add(L"\t", NewFindCompletionCommand());
 
