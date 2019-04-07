@@ -1,4 +1,4 @@
-// buffer-reload.cc: Edge is loading the contents of a buffer.
+// buffer-reload.cc: Prepare for a buffer being reload.
 //
 // This program mainly sets several buffer variables depending on properties
 // of the buffer (such as the extension of the file being loaded).
@@ -28,6 +28,21 @@ void DeleteCurrentLine() {
   buffer.DeleteCharacters(buffer.line(current_line).size() + 1);
 }
 
+void CenterScreenAroundCurrentLine() {
+  int size = screen.lines();
+  size--;  // The status line doesn't count.
+  int line = buffer.position().line();
+  int start_line = line - size / 2;
+  if (start_line < 0) {
+    SetStatus("Near beginning of file.");
+    start_line = 0;
+  } else if (start_line + size > buffer.line_count()) {
+    SetStatus("Near end of file.");
+    start_line = (buffer.line_count() > size ? buffer.line_count() - size : 0);
+  }
+  buffer.set_view_start_line(start_line);
+}
+
 buffer.set_editor_commands_path("~/.edge/editor_commands/");
 
 // It would be ideal to not have to do this, but since currently all cursors
@@ -35,6 +50,48 @@ buffer.set_editor_commands_path("~/.edge/editor_commands/");
 // them.
 if (!buffer.reload_on_display()) {
   editor.DestroyOtherCursors();
+}
+
+void HandleFileTypes(string basename, string extension) {
+  if (extension == "cc" || extension == "h" || extension == "c") {
+    CppMode();
+    buffer.AddBindingToFile("sh", buffer.editor_commands_path() + "header");
+    buffer.AddBindingToFile("sI", buffer.editor_commands_path() + "include");
+    buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
+    SetStatus("Loaded C file (" + extension + ")");
+    return;
+  }
+
+  if (extension == "java") {
+    JavaMode();
+    buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
+    buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
+    SetStatus("Loaded Java file (" + extension + ")");
+    return;
+  }
+
+  if (basename == "COMMIT_EDITMSG") {
+    buffer.set_line_prefix_characters(" #");
+    SetStatus("GIT commit msg");
+    buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
+    return;
+  }
+
+  if (extension == "py") {
+    buffer.set_line_prefix_characters(" #");
+    buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
+    SetStatus("Loaded Python file (" + extension + ")");
+    return;
+  }
+
+  if (extension == "md") {
+    buffer.set_tree_parser("md");
+    buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
+    buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
+    buffer.set_paragraph_line_prefix_characters("*-# ");
+    buffer.set_line_prefix_characters(" ");
+    SetStatus("Loaded Markdown file (" + extension + ")");
+  }
 }
 
 string path = buffer.path();
@@ -97,41 +154,10 @@ if (path == "") {
 
   buffer.set_typos("overriden");
 
-  if (extension == "cc" || extension == "h" || extension == "c") {
-    CppMode();
-    buffer.AddBindingToFile("sh", buffer.editor_commands_path() + "header");
-    buffer.AddBindingToFile("sI", buffer.editor_commands_path() + "include");
-    buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
-    SetStatus("Loaded C file (" + extension + ")");
-    return;
-  }
+  HandleFileTypes(basename, extension);
+}
 
-  if (extension == "java") {
-    JavaMode();
-    buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
-    buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
-    SetStatus("Loaded Java file (" + extension + ")");
-    return;
-  }
-
-  if (basename == "COMMIT_EDITMSG") {
-    buffer.set_line_prefix_characters(" #");
-    SetStatus("GIT commit msg");
-    buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
-  }
-
-  if (extension == "py") {
-    buffer.set_line_prefix_characters(" #");
-    buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
-    SetStatus("Loaded Python file (" + extension + ")");
-  }
-
-  if (extension == "md") {
-    buffer.set_tree_parser("md");
-    buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
-    buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
-    buffer.set_paragraph_line_prefix_characters("*-# ");
-    buffer.set_line_prefix_characters(" ");
-    SetStatus("Loaded Markdown file (" + extension + ")");
-  }
+if (!buffer.pts()) {
+  buffer.AddBinding("M", "Center the screen around the current line.",
+                    CenterScreenAroundCurrentLine);
 }
