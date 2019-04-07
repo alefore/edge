@@ -84,13 +84,16 @@ statement(OUT) ::= function_declaration_params(FUNC)
 
     shared_ptr<Environment> func_environment(compilation->environment);
     compilation->environment = compilation->environment->parent_environment();
+
+    VMType return_type = compilation->return_types.back();
     compilation->return_types.pop_back();
 
     const vector<wstring> argument_names(FUNC->argument_names);
 
     unique_ptr<Value> value(new Value(FUNC->type));
     auto name = FUNC->name;
-    value->callback = [compilation, name, body, func_environment, argument_names](
+    value->callback = [compilation, return_type, name, body, func_environment,
+                       argument_names](
         vector<unique_ptr<Value>> args, Trampoline* trampoline) {
       CHECK_EQ(args.size(), argument_names.size())
           << "Invalid number of arguments for function: " << name;
@@ -107,7 +110,7 @@ statement(OUT) ::= function_declaration_params(FUNC)
             trampoline->Return(std::move(value));
           });
       trampoline->Bounce(
-          body.get(),
+          body.get(), body->Types()[0],
           [body](Value::Ptr value, Trampoline* trampoline) {
             trampoline->Return(std::move(value));
           });

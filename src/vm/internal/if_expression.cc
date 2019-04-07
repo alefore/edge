@@ -19,6 +19,7 @@ class IfExpression : public Expression {
         true_case_(std::move(true_case)),
         false_case_(std::move(false_case)) {
     CHECK(cond_ != nullptr);
+    CHECK(cond_->IsBool());
     CHECK(true_case_ != nullptr);
     CHECK(false_case_ != nullptr);
   }
@@ -29,11 +30,13 @@ class IfExpression : public Expression {
     auto cond_copy = cond_;
     auto true_copy = true_case_;
     auto false_copy = false_case_;
-    trampoline->Bounce(cond_.get(), [type, cond_copy, true_copy, false_copy](
-                                        std::unique_ptr<Value> result,
-                                        Trampoline* trampoline) {
-      (result->boolean ? true_copy : false_copy)->Evaluate(trampoline, type);
-    });
+    trampoline->Bounce(
+        cond_.get(), VMType::Bool(),
+        [type, cond_copy, true_copy, false_copy](std::unique_ptr<Value> result,
+                                                 Trampoline* trampoline) {
+          (result->boolean ? true_copy : false_copy)
+              ->Evaluate(trampoline, type);
+        });
   }
 
   std::unique_ptr<Expression> Clone() override {

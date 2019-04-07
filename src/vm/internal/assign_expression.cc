@@ -21,18 +21,19 @@ class AssignExpression : public Expression {
 
   std::vector<VMType> Types() override { return value_->Types(); }
 
-  void Evaluate(Trampoline* trampoline, const VMType&) override {
+  void Evaluate(Trampoline* trampoline, const VMType& type) override {
     auto expression = value_;
     auto symbol = symbol_;
-    trampoline->Bounce(
-        expression.get(), [expression, symbol](std::unique_ptr<Value> value,
-                                               Trampoline* trampoline) {
-          DVLOG(3) << "Setting value for: " << symbol;
-          DVLOG(4) << "Value: " << *value;
-          trampoline->environment()->Assign(symbol, std::move(value));
-          // TODO: This seems wrong: shouldn't it be `value`?
-          trampoline->Continue(Value::NewVoid());
-        });
+    trampoline->Bounce(expression.get(), type,
+                       [expression, symbol](std::unique_ptr<Value> value,
+                                            Trampoline* trampoline) {
+                         DVLOG(3) << "Setting value for: " << symbol;
+                         DVLOG(4) << "Value: " << *value;
+                         trampoline->environment()->Assign(symbol,
+                                                           std::move(value));
+                         // TODO: This seems wrong: shouldn't it be `value`?
+                         trampoline->Continue(Value::NewVoid());
+                       });
   }
 
   std::unique_ptr<Expression> Clone() override {

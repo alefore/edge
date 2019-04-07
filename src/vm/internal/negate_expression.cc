@@ -20,11 +20,12 @@ class NegateExpression : public Expression {
   void Evaluate(Trampoline* trampoline, const VMType&) override {
     auto negate = negate_;
     auto expr = expr_;
-    trampoline->Bounce(expr.get(), [negate, expr](std::unique_ptr<Value> value,
-                                                  Trampoline* trampoline) {
-      negate(value.get());
-      trampoline->Continue(std::move(value));
-    });
+    trampoline->Bounce(
+        expr.get(), expr->Types()[0],
+        [negate, expr](std::unique_ptr<Value> value, Trampoline* trampoline) {
+          negate(value.get());
+          trampoline->Continue(std::move(value));
+        });
   }
 
   std::unique_ptr<Expression> Clone() override {

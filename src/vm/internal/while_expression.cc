@@ -36,21 +36,23 @@ class WhileExpression : public Expression {
   static void Iterate(Trampoline* trampoline,
                       std::shared_ptr<Expression> condition,
                       std::shared_ptr<Expression> body) {
-    trampoline->Bounce(condition.get(), [condition, body](
-                                            std::unique_ptr<Value> cond_value,
-                                            Trampoline* trampoline) {
-      if (!cond_value->boolean) {
-        DVLOG(3) << "Iteration is done.";
-        trampoline->Continue(Value::NewVoid());
-        return;
-      }
+    trampoline->Bounce(condition.get(), VMType::Bool(),
+                       [condition, body](std::unique_ptr<Value> cond_value,
+                                         Trampoline* trampoline) {
+                         if (!cond_value->boolean) {
+                           DVLOG(3) << "Iteration is done.";
+                           trampoline->Continue(Value::NewVoid());
+                           return;
+                         }
 
-      DVLOG(5) << "Iterating...";
-      trampoline->Bounce(body.get(), [condition, body](std::unique_ptr<Value>,
-                                                       Trampoline* trampoline) {
-        Iterate(trampoline, condition, body);
-      });
-    });
+                         DVLOG(5) << "Iterating...";
+                         trampoline->Bounce(
+                             body.get(), body->Types()[0],
+                             [condition, body](std::unique_ptr<Value>,
+                                               Trampoline* trampoline) {
+                               Iterate(trampoline, condition, body);
+                             });
+                       });
   }
 
   const std::shared_ptr<Expression> condition_;

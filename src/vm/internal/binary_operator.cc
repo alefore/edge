@@ -27,12 +27,12 @@ void BinaryOperator::Evaluate(Trampoline* trampoline, const VMType& type) {
   std::shared_ptr<Expression> b_shared = b_;
 
   trampoline->Bounce(
-      a_shared.get(),
+      a_shared.get(), a_shared->Types()[0],
       [a_shared, b_shared, type_copy, operator_copy](
           std::unique_ptr<Value> a_value, Trampoline* trampoline) {
         std::shared_ptr<Value> a_value_shared(std::move(a_value));
         trampoline->Bounce(
-            b_shared.get(),
+            b_shared.get(), b_shared->Types()[0],
             [a_value_shared, b_shared, type_copy, operator_copy](
                 std::unique_ptr<Value> b_value, Trampoline* trampoline) {
               auto output = std::make_unique<Value>(type_copy);

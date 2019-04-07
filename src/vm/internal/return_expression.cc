@@ -19,7 +19,7 @@ class ReturnExpression : public Expression {
 
   void Evaluate(Trampoline* trampoline, const VMType&) override {
     auto expr = expr_;
-    trampoline->Bounce(expr.get(),
+    trampoline->Bounce(expr.get(), expr->Types()[0],
                        // We do this silly dance just to capture expr.
                        [expr](Value::Ptr value, Trampoline* trampoline) {
                          trampoline->Return(std::move(value));

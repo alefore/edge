@@ -14,36 +14,83 @@ namespace afc {
 namespace vm {
 
 namespace {
+bool TypeMatchesArguments(const VMType& type,
+                          const std::vector<std::unique_ptr<Expression>>& args,
+                          wstring* error) {
+  wstring dummy_error;
+  if (error == nullptr) {
+    error = &dummy_error;
+  }
+
+  if (type.type != VMType::FUNCTION) {
+    *error = L"Expected function but found: `" + type.ToString() + L"`.";
+    return false;
+  }
+
+  if (type.type_arguments.size() != args.size() + 1) {
+    *error = L"Invalid number of arguments: Expected " +
+             std::to_wstring(type.type_arguments.size() - 1) + L" but found " +
+             std::to_wstring(args.size());
+    return false;
+  }
+
+  for (size_t argument = 0; argument < args.size(); argument++) {
+    if (!args[argument]->SupportsType(type.type_arguments[1 + argument])) {
+      *error = L"Type mismatch in argument " + std::to_wstring(argument) +
+               L": Expected \"" + type.type_arguments[1 + argument].ToString() +
+               L"\" but found \"" + TypesToString(args[argument]->Types()) +
+               L"\"";
+      return false;
+    }
+  }
+
+  return true;
+}
+
+std::vector<VMType> DeduceTypes(
+    Expression* func, const std::vector<std::unique_ptr<Expression>>& args) {
+  CHECK(func != nullptr);
+  std::unordered_set<VMType> output;
+  for (auto& type : func->Types()) {
+    if (TypeMatchesArguments(type, args, nullptr)) {
+      output.insert(type.type_arguments[0]);
+    }
+  }
+  return std::vector<VMType>(output.begin(), output.end());
+}
 
 class FunctionCall : public Expression {
  public:
   FunctionCall(std::shared_ptr<Expression> func,
                std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args)
-      : func_(std::move(func)), args_(std::move(args)) {
+      : func_(std::move(func)),
+        args_(std::move(args)),
+        types_(DeduceTypes(func_.get(), *args_)) {
     CHECK(func_ != nullptr);
     CHECK(args_ != nullptr);
   }
 
-  std::vector<VMType> Types() override {
-    std::unordered_set<VMType> output;
-    for (auto& type : func_->Types()) {
-      output.insert(type.type_arguments[0]);
-    }
-    return std::vector<VMType>(output.begin(), output.end());
-  }
+  std::vector<VMType> Types() override { return types_; }
 
-  void Evaluate(Trampoline* trampoline, const VMType&) {
+  void Evaluate(Trampoline* trampoline, const VMType& type) {
     DVLOG(3) << "Function call evaluation starts.";
     auto args_types = args_;
     auto func = func_;
-    trampoline->Bounce(
-        func_.get(), [func, args_types](std::unique_ptr<Value> callback,
-                                        Trampoline* trampoline) {
-          DVLOG(6) << "Got function: " << *callback;
-          CaptureArgs(trampoline, args_types,
-                      std::make_shared<vector<unique_ptr<Value>>>(),
-                      std::move(callback));
-        });
+
+    std::vector<VMType> type_arguments = {type};
+    for (auto& arg : *args_) {
+      type_arguments.push_back(arg->Types()[0]);
+    }
+
+    trampoline->Bounce(func_.get(), VMType::Function(std::move(type_arguments)),
+                       [func, args_types](std::unique_ptr<Value> callback,
+                                          Trampoline* trampoline) {
+                         DVLOG(6) << "Got function: " << *callback;
+                         CaptureArgs(
+                             trampoline, args_types,
+                             std::make_shared<vector<unique_ptr<Value>>>(),
+                             std::move(callback));
+                       });
   }
 
   std::unique_ptr<Expression> Clone() override {
@@ -78,8 +125,9 @@ class FunctionCall : public Expression {
       callback->callback(std::move(*values), trampoline);
       return;
     }
+    auto arg = args_types->at(values->size()).get();
     trampoline->Bounce(
-        args_types->at(values->size()).get(),
+        arg, arg->Types()[0],
         [args_types, values, callback](std::unique_ptr<Value> value,
                                        Trampoline* trampoline) {
           CHECK(values != nullptr);
@@ -96,6 +144,7 @@ class FunctionCall : public Expression {
 
   const std::shared_ptr<Expression> func_;
   const std::shared_ptr<std::vector<std::unique_ptr<Expression>>> args_;
+  const std::vector<VMType> types_;
 };
 
 }  // namespace
@@ -115,40 +164,15 @@ std::unique_ptr<Expression> NewFunctionCall(
   std::vector<wstring> errors;
   wstring errors_separator;
   for (auto& type : func->Types()) {
-    if (type.type != VMType::FUNCTION) {
-      errors.push_back(errors_separator + L"Expected function but found: \"" +
-                       type.ToString() + L"\".");
-      errors_separator = L", ";
-      continue;
+    wstring error;
+    if (TypeMatchesArguments(type, args, &error)) {
+      return NewFunctionCall(std::move(func), std::move(args));
     }
-
-    if (type.type_arguments.size() != 1 + args.size()) {
-      errors.push_back(errors_separator +
-                       L"Invalid number of arguments: Expected " +
-                       std::to_wstring(type.type_arguments.size() - 1) +
-                       L" but found " + std::to_wstring(args.size()));
-      errors_separator = L", ";
-      continue;
-    }
-
-    size_t argument = 0;
-    while (argument < args.size() &&
-           args[argument]->SupportsType(type.type_arguments[1 + argument])) {
-      argument++;
-    }
-
-    if (argument < args.size()) {
-      errors.push_back(
-          L"Type mismatch in argument " + std::to_wstring(argument) +
-          L": Expected \"" + type.type_arguments[1 + argument].ToString() +
-          L"\" but found \"" + TypesToString(args[argument]->Types()) + L"\"");
-      errors_separator = L", ";
-      continue;
-    }
-
-    return NewFunctionCall(std::move(func), std::move(args));
+    errors.push_back(errors_separator + error);
+    errors_separator = L", ";
   }
 
+  CHECK(!errors.empty());
   compilation->errors.push_back(errors[0]);
   return nullptr;
 }
@@ -226,7 +250,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
         auto shared_obj_expr = obj_expr_;
         auto shared_delegate = delegate_;
         evaluation->Bounce(
-            shared_obj_expr.get(),
+            shared_obj_expr.get(), shared_obj_expr->Types()[0],
             [type, shared_type, shared_obj_expr, shared_delegate](
                 Value::Ptr obj, Trampoline* trampoline) {
               // TODO: Avoid shared_ptr and Clone below.
@@ -254,6 +278,10 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
 
     return std::make_unique<BindObjectExpression>(object->Clone(), field);
   }
+
+  CHECK(!errors.empty());
+  compilation->errors.push_back(errors[0]);
+  return nullptr;
 }
 
 void Call(Value* func, vector<Value::Ptr> args,

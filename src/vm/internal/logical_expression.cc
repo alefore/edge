@@ -27,10 +27,9 @@ class LogicalExpression : public Expression {
     auto expr_a_copy = expr_a_;
     auto expr_b_copy = expr_b_;
     trampoline->Bounce(
-        expr_a_copy.get(),
+        expr_a_copy.get(), VMType::Bool(),
         [type, identity, expr_a_copy, expr_b_copy](std::unique_ptr<Value> value,
                                                    Trampoline* trampoline) {
-          CHECK_EQ(VMType::VM_BOOLEAN, value->type.type);
           if (value->boolean == identity) {
             expr_b_copy->Evaluate(trampoline, type);
           } else {

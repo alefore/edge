@@ -20,7 +20,7 @@ class AppendExpression : public Expression {
     // TODO: Use unique_ptr and capture by std::move.
     std::shared_ptr<Expression> e0_copy = e0_;
     std::shared_ptr<Expression> e1_copy = e1_;
-    trampoline->Bounce(e0_copy.get(),
+    trampoline->Bounce(e0_copy.get(), e0_copy->Types()[0],
                        [e0_copy, e1_copy, type](std::unique_ptr<Value>,
                                                 Trampoline* trampoline) {
                          e1_copy->Evaluate(trampoline, type);

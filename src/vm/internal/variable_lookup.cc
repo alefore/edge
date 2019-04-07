@@ -51,12 +51,14 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
     compilation->AddError(L"Variable not found: \"" + symbol + L"\"");
     return nullptr;
   }
-  std::unordered_set<VMType> types;
+  std::vector<VMType> types;
+  std::unordered_set<VMType> types_already_seen;
   for (auto& v : result) {
-    types.insert(v->type);
+    if (types_already_seen.insert(v->type).second) {
+      types.push_back(v->type);
+    }
   }
-  return std::make_unique<VariableLookup>(
-      symbol, std::vector<VMType>(types.begin(), types.end()));
+  return std::make_unique<VariableLookup>(symbol, types);
 }
 
 }  // namespace vm
