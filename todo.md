@@ -78,6 +78,8 @@ Support in-line functions and/or lambda forms. Tricky.
 
 Improve support for `for`: the environments aren't properly nested as they should be.
 
+Don't crash on this: buffer.set_view_start_line(-1);
+
 ### Client/server
 
 Allow a client to just disconnect.
