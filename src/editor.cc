@@ -272,6 +272,15 @@ Environment EditorState::BuildEditorEnvironment() {
                                                    ForkCommand(this, options));
                          }));
 
+  environment.Define(L"repetitions",
+                     vm::NewCallback(std::function<int()>([this]() {
+                       return static_cast<int>(repetitions());
+                     })));
+
+  environment.Define(L"set_repetitions",
+                     vm::NewCallback(std::function<void(int)>(
+                         [this](int times) { set_repetitions(times); })));
+
   environment.Define(
       L"OpenFile",
       Value::NewFunction({VMType::ObjectType(L"Buffer"), VMType::VM_STRING,
