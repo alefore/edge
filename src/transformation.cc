@@ -176,6 +176,7 @@ class ApplyRepetitionsTransformation : public Transformation {
       Result current_result(editor_state);
       current_result.delete_buffer = result->delete_buffer;
       current_result.cursor = result->cursor;
+      current_result.mode = result->mode;
       delegate_->Apply(editor_state, buffer, &current_result);
       result->cursor = current_result.cursor;
       if (current_result.modified_buffer) {
@@ -183,10 +184,13 @@ class ApplyRepetitionsTransformation : public Transformation {
       }
       result->undo_stack->PushFront(std::move(current_result.undo_stack));
       if (!current_result.success) {
+        result->success = false;
         LOG(INFO) << "Application " << i << " didn't succeed, giving up.";
         break;
       }
-      if (!current_result.made_progress) {
+      if (current_result.made_progress) {
+        result->made_progress = true;
+      } else {
         LOG(INFO) << "Application " << i << " didn't make progress, giving up.";
         break;
       }
