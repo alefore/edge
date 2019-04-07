@@ -19,7 +19,8 @@ enum class CommandApplyMode {
 };
 
 using CommandWithModifiersHandler =
-    std::function<void(EditorState*, OpenBuffer*, CommandApplyMode, Modifiers)>;
+    std::function<std::unique_ptr<Transformation>(EditorState*, OpenBuffer*,
+                                                  Modifiers)>;
 
 std::unique_ptr<Command> NewCommandWithModifiers(
     wstring name, wstring description, CommandWithModifiersHandler handler);

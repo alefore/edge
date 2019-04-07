@@ -814,8 +814,7 @@ class HardRedrawCommand : public Command {
 
 class SwitchCaseTransformation : public Transformation {
  public:
-  SwitchCaseTransformation(CommandApplyMode apply_mode, Modifiers modifiers)
-      : apply_mode_(apply_mode), modifiers_(modifiers) {}
+  SwitchCaseTransformation(Modifiers modifiers) : modifiers_(modifiers) {}
 
   void Apply(EditorState* editor_state, OpenBuffer* buffer,
              Result* result) const override {
@@ -844,7 +843,9 @@ class SwitchCaseTransformation : public Transformation {
         i = LineColumn(i.line + 1);
         DeleteOptions options;
         options.copy_to_paste_buffer = false;
-        stack->PushBack(NewDeleteCharactersTransformation(options));
+        stack->PushBack(std::make_unique<TransformationWithMode>(
+            Transformation::Result::Mode::kFinal,
+            NewDeleteCharactersTransformation(options)));
         buffer_to_insert->AppendEmptyLine(editor_state);
         continue;
       }
@@ -854,7 +855,9 @@ class SwitchCaseTransformation : public Transformation {
           NewCopyString(wstring(1, iswupper(c) ? towlower(c) : towupper(c))));
       DeleteOptions options;
       options.copy_to_paste_buffer = false;
-      stack->PushBack(NewDeleteCharactersTransformation(options));
+      stack->PushBack(std::make_unique<TransformationWithMode>(
+          Transformation::Result::Mode::kFinal,
+          NewDeleteCharactersTransformation(options)));
 
       // Increment i.
       i.column++;
@@ -865,31 +868,27 @@ class SwitchCaseTransformation : public Transformation {
     stack->PushBack(NewInsertBufferTransformation(
         buffer_to_insert, Modifiers(),
         modifiers_.direction == FORWARDS ? END : START,
-        apply_mode_ == CommandApplyMode::PREVIEW ? &modifiers_set : nullptr));
-    if (apply_mode_ == CommandApplyMode::PREVIEW) {
+        result->mode == Transformation::Result::Mode::kPreview ? &modifiers_set
+                                                               : nullptr));
+    if (result->mode == Transformation::Result::Mode::kPreview) {
       stack->PushBack(NewGotoPositionTransformation(original_position));
     }
     stack->Apply(editor_state, buffer, result);
   }
 
   std::unique_ptr<Transformation> Clone() const override {
-    return std::make_unique<SwitchCaseTransformation>(apply_mode_, modifiers_);
+    return std::make_unique<SwitchCaseTransformation>(modifiers_);
   }
 
  private:
-  const CommandApplyMode apply_mode_;
   const Modifiers modifiers_;
 };
 
-void ApplySwitchCaseCommand(EditorState* editor_state, OpenBuffer* buffer,
-                            CommandApplyMode apply_mode, Modifiers modifiers) {
+std::unique_ptr<Transformation> ApplySwitchCaseCommand(
+    EditorState* editor_state, OpenBuffer* buffer, Modifiers modifiers) {
   CHECK(editor_state != nullptr);
   CHECK(buffer != nullptr);
-  buffer->PushTransformationStack();
-  buffer->ApplyToCursors(
-      std::make_unique<SwitchCaseTransformation>(apply_mode, modifiers),
-      modifiers.cursors_affected);
-  buffer->PopTransformationStack();
+  return std::make_unique<SwitchCaseTransformation>(modifiers);
 }
 
 class TreeNavigate : public Transformation {

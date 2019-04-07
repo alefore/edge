@@ -29,6 +29,17 @@ class Transformation {
   struct Result {
     Result(EditorState* editor_state);
 
+    // Input parameter.
+    enum class Mode {
+      // Just preview what this transformation would do. Don't apply any
+      // long-lasting effects.
+      kPreview,
+      // Apply the transformation.
+      kFinal,
+    };
+    // Input parameter.
+    Mode mode = Mode::kFinal;
+
     // Did the transformation run to completion?  If it only run partially, this
     // should be false.
     bool success;
@@ -126,6 +137,7 @@ class TransformationStack : public Transformation {
     CHECK(result != nullptr);
     for (auto& it : stack_) {
       Result it_result(editor_state);
+      it_result.mode = result->mode;
       it_result.delete_buffer = result->delete_buffer;
       it_result.cursor = result->cursor;
       it->Apply(editor_state, buffer, &it_result);
@@ -154,6 +166,51 @@ class TransformationStack : public Transformation {
 
  private:
   list<unique_ptr<Transformation>> stack_;
+};
+
+class RunIfModeTransformation : public Transformation {
+ public:
+  RunIfModeTransformation(Transformation::Result::Mode mode,
+                          std::unique_ptr<Transformation> delegate)
+      : mode_(mode), delegate_(std::move(delegate)) {}
+
+  void Apply(EditorState* editor_state, OpenBuffer* buffer,
+             Result* result) const override {
+    if (result->mode == mode_) {
+      delegate_->Apply(editor_state, buffer, result);
+    }
+  }
+
+  std::unique_ptr<Transformation> Clone() const override {
+    return std::make_unique<RunIfModeTransformation>(mode_, delegate_->Clone());
+  }
+
+ private:
+  const Transformation::Result::Mode mode_;
+  const std::unique_ptr<Transformation> delegate_;
+};
+
+class TransformationWithMode : public Transformation {
+ public:
+  TransformationWithMode(Transformation::Result::Mode mode,
+                         std::unique_ptr<Transformation> delegate)
+      : mode_(mode), delegate_(std::move(delegate)) {}
+
+  void Apply(EditorState* editor_state, OpenBuffer* buffer,
+             Result* result) const override {
+    auto original_mode = result->mode;
+    result->mode = mode_;
+    delegate_->Apply(editor_state, buffer, result);
+    result->mode = original_mode;
+  }
+
+  std::unique_ptr<Transformation> Clone() const override {
+    return std::make_unique<TransformationWithMode>(mode_, delegate_->Clone());
+  }
+
+ private:
+  const Transformation::Result::Mode mode_;
+  const std::unique_ptr<Transformation> delegate_;
 };
 
 }  // namespace editor

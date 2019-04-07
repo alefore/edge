@@ -209,6 +209,7 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
                         evaluation);
                   }));
 
+#if 0
   buffer->AddField(
       L"GetRegion",
       Value::NewFunction(
@@ -242,15 +243,16 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
                     DeleteOptions options;
                     options.modifiers = modifiers;
                     options.copy_to_paste_buffer = false;
-                    options.preview = true;
                     buffer->ApplyToCursors(
                         NewDeleteTransformation(options),
-                        Modifiers::AFFECT_ONLY_CURRENT_CURSOR);
+                        Modifiers::AFFECT_ONLY_CURRENT_CURSOR,
+                        Transformation::Result::Mode::kPreview);
                     buffer->PopTransformationStack();
                   }
                 })
                 ->ProcessInput(L'\n', editor_state);
           }));
+#endif
 
   buffer->AddField(L"PushTransformationStack",
                    vm::NewCallback(std::function<void(OpenBuffer*)>(
@@ -2097,11 +2099,13 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
   ApplyToCursors(std::move(transformation),
                  Read(buffer_variables::multiple_cursors())
                      ? Modifiers::AFFECT_ALL_CURSORS
-                     : Modifiers::AFFECT_ONLY_CURRENT_CURSOR);
+                     : Modifiers::AFFECT_ONLY_CURRENT_CURSOR,
+                 Transformation::Result::Mode::kFinal);
 }
 
 void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
-                                Modifiers::CursorsAffected cursors_affected) {
+                                Modifiers::CursorsAffected cursors_affected,
+                                Transformation::Result::Mode mode) {
   CHECK(transformation != nullptr);
 
   if (!last_transformation_stack_.empty()) {
@@ -2115,6 +2119,8 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
   transformations_past_.back()->undo_stack->PushFront(
       NewSetCursorsTransformation(*active_cursors(), position()));
 
+  transformations_past_.back()->mode = mode;
+
   for (auto& position : *active_cursors()) {
     CHECK_LE(position.line, contents_.size());
   }
@@ -2124,7 +2130,7 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
     CursorsSet* cursors = active_cursors();
     CHECK(cursors != nullptr);
     cursors_tracker_.ApplyTransformationToCursors(
-        cursors, [this, &transformation](LineColumn old_position) {
+        cursors, [this, &transformation, mode](LineColumn old_position) {
           transformations_past_.back()->cursor = old_position;
           auto new_position = Apply(editor_, transformation->Clone());
           CHECK_LE(new_position.line, contents_.size());
