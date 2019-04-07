@@ -36,5 +36,5 @@ AC_FUNC_STRTOD
 AC_CHECK_FUNCS([dup2 floor memset mkfifo munmap realpath regcomp setenv strchr strdup strerror strrchr strtol])
 
 AC_CONFIG_FILES([Makefile])
-AC_CONFIG_SUBDIRS([glog-0.3.3])
+AC_CONFIG_SUBDIRS([glog-0.4.0])
 AC_OUTPUT

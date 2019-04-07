@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS = subdir-objects
 
-SUBDIRS = glog-0.3.3
+SUBDIRS = glog-0.4.0
 
 bin_PROGRAMS = edge test fuzz_test
 
@@ -150,15 +150,15 @@ src/vm/internal/cpp.h: src/vm/internal/cpp.y lemon
 
 src/vm/internal/cpp.cc: src/vm/internal/cpp.h
 
-GLOG=glog-0.3.3/libglog_la-demangle.o \
-glog-0.3.3/libglog_la-logging.o \
-glog-0.3.3/libglog_la-symbolize.o \
-glog-0.3.3/libglog_la-raw_logging.o \
-glog-0.3.3/libglog_la-utilities.o \
-glog-0.3.3/libglog_la-vlog_is_on.o
+GLOG=glog-0.4.0/libglog_la-demangle.o \
+glog-0.4.0/libglog_la-logging.o \
+glog-0.4.0/libglog_la-symbolize.o \
+glog-0.4.0/libglog_la-raw_logging.o \
+glog-0.4.0/libglog_la-utilities.o \
+glog-0.4.0/libglog_la-vlog_is_on.o
 
-AM_CPPFLAGS=-std=c++17 -g -Wall -Wextra -Iglog-0.3.3/src -DDOCDIR='"$(docdir)"'
+AM_CPPFLAGS=-std=c++17 -g -Wall -Wextra -Iglog-0.4.0/src -DDOCDIR='"$(docdir)"'
 AM_LDFLAGS=-std=c++17 -g
-edge_LDADD=glog-0.3.3/libglog.la
-test_LDADD=glog-0.3.3/libglog.la
-fuzz_test_LDADD=glog-0.3.3/libglog.la
+edge_LDADD=glog-0.4.0/libglog.la
+test_LDADD=glog-0.4.0/libglog.la
+fuzz_test_LDADD=glog-0.4.0/libglog.la
