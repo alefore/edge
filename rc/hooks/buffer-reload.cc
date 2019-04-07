@@ -23,9 +23,14 @@ void GoToEndOfLine() {
 }
 
 void DeleteCurrentLine() {
-  int current_line = buffer.position().line();
-  buffer.set_position(LineColumn(current_line, 0));
-  buffer.DeleteCharacters(buffer.line(current_line).size() + 1);
+  buffer.PushTransformationStack();
+  for (int i = 0; i == 0 || i < repetitions(); i++) {
+    int current_line = buffer.position().line();
+    buffer.set_position(LineColumn(current_line, 0));
+    buffer.DeleteCharacters(buffer.line(current_line).size() + 1);
+  }
+  buffer.PushTransformationStack();
+  set_repetitions(1);
 }
 
 void CenterScreenAroundCurrentLine() {
