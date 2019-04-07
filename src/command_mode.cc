@@ -185,8 +185,11 @@ class Paste : public Command {
     } else {
       buffer->CheckPosition();
       buffer->MaybeAdjustPositionCol();
-      editor_state->ApplyToCurrentBuffer(NewInsertBufferTransformation(
-          it->second, editor_state->repetitions(), END));
+      Modifiers modifiers;
+      modifiers.insertion = editor_state->modifiers().insertion;
+      modifiers.repetitions = editor_state->repetitions();
+      editor_state->ApplyToCurrentBuffer(
+          NewInsertBufferTransformation(it->second, modifiers, END, nullptr));
       editor_state->ResetInsertionModifier();
     }
     editor_state->ResetRepetitions();
