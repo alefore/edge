@@ -54,6 +54,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
   CHECK(it != editor_state->buffers()->end());
   CHECK(it->second != nullptr);
   it->second->Set(buffer_variables::save_on_close(), true);
+  it->second->Set(buffer_variables::trigger_reload_on_buffer_write(), false);
   it->second->Set(buffer_variables::show_in_buffers_list(), false);
   it->second->Set(buffer_variables::atomic_lines(), true);
   if (!editor_state->has_current_buffer()) {

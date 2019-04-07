@@ -268,12 +268,14 @@ class FileBuffer : public OpenBuffer {
     for (const auto& dir : editor_state->edge_path()) {
       EvaluateFile(editor_state, dir + L"/hooks/buffer-save.cc");
     }
-    for (auto& it : *editor_state->buffers()) {
-      CHECK(it.second != nullptr);
-      if (it.second->Read(buffer_variables::reload_on_buffer_write())) {
-        LOG(INFO) << "Write of " << path
-                  << " triggers reload: " << it.second->name();
-        it.second->Reload(editor_state);
+    if (Read(buffer_variables::trigger_reload_on_buffer_write())) {
+      for (auto& it : *editor_state->buffers()) {
+        CHECK(it.second != nullptr);
+        if (it.second->Read(buffer_variables::reload_on_buffer_write())) {
+          LOG(INFO) << "Write of " << path
+                    << " triggers reload: " << it.second->name();
+          it.second->Reload(editor_state);
+        }
       }
     }
     stat(ToByteString(path).c_str(), &stat_buffer_);
@@ -464,6 +466,7 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
   CHECK(it != editor_state->buffers()->end());
   CHECK(it->second != nullptr);
   it->second->Set(buffer_variables::save_on_close(), true);
+  it->second->Set(buffer_variables::trigger_reload_on_buffer_write(), false);
   it->second->Set(buffer_variables::show_in_buffers_list(), false);
   if (!editor_state->has_current_buffer()) {
     editor_state->set_current_buffer(it);

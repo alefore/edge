@@ -24,6 +24,7 @@ EdgeVariable<bool>* paste_mode();
 EdgeVariable<bool>* follow_end_of_file();
 EdgeVariable<bool>* commands_background_mode();
 EdgeVariable<bool>* reload_on_buffer_write();
+EdgeVariable<bool>* trigger_reload_on_buffer_write();
 EdgeVariable<bool>* contains_line_marks();
 EdgeVariable<bool>* multiple_cursors();
 EdgeVariable<bool>* reload_on_display();

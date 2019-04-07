@@ -515,6 +515,8 @@ void EditorState::PushPosition(LineColumn position) {
     CHECK(buffer_it != buffers()->end());
     CHECK(buffer_it->second != nullptr);
     buffer_it->second->Set(buffer_variables::save_on_close(), true);
+    buffer_it->second->Set(buffer_variables::trigger_reload_on_buffer_write(),
+                           false);
     buffer_it->second->Set(buffer_variables::show_in_buffers_list(), false);
   }
   CHECK(buffer_it->second != nullptr);
