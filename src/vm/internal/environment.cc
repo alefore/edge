@@ -99,20 +99,32 @@ void Environment::DefineType(const wstring& name,
   it.first->second = std::move(value);
 }
 
-Value* Environment::Lookup(const wstring& symbol) {
-  auto it = table_.find(symbol);
-  if (it != table_.end()) {
-    return it->second.get();
+Value* Environment::Lookup(const wstring& symbol, VMType expected_type) {
+  std::vector<Value*> values;
+  PolyLookup(symbol, &values);
+  for (auto& value : values) {
+    if (value->type == expected_type) {
+      return value;
+    }
   }
-  if (parent_environment_ != nullptr) {
-    return parent_environment_->Lookup(symbol);
-  }
-
   return nullptr;
 }
 
+void Environment::PolyLookup(const wstring& symbol,
+                             std::vector<Value*>* output) {
+  auto it = table_.find(symbol);
+  if (it != table_.end()) {
+    for (auto& entry : it->second) {
+      output->push_back(entry.second.get());
+    }
+  }
+  if (parent_environment_ != nullptr) {
+    parent_environment_->PolyLookup(symbol, output);
+  }
+}
+
 void Environment::Define(const wstring& symbol, unique_ptr<Value> value) {
-  table_[symbol] = std::move(value);
+  table_[symbol][value->type] = std::move(value);
 }
 
 void Environment::Assign(const wstring& symbol, unique_ptr<Value> value) {
@@ -129,7 +141,7 @@ void Environment::Assign(const wstring& symbol, unique_ptr<Value> value) {
     parent_environment_->Assign(symbol, std::move(value));
     return;
   }
-  it->second = std::move(value);
+  it->second[value->type] = std::move(value);
 }
 
 void Environment::ForEachType(
@@ -147,8 +159,10 @@ void Environment::ForEach(
   if (parent_environment_ != nullptr) {
     parent_environment_->ForEach(callback);
   }
-  for (auto& entry : table_) {
-    callback(entry.first, entry.second.get());
+  for (auto& symbol_entry : table_) {
+    for (auto& type_entry : symbol_entry.second) {
+      callback(symbol_entry.first, type_entry.second.get());
+    }
   }
 }
 

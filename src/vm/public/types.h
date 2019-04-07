@@ -81,4 +81,11 @@ class ObjectType {
 }  // namespace vm
 }  // namespace afc
 
+namespace std {
+template <>
+struct hash<afc::vm::VMType> {
+  size_t operator()(const afc::vm::VMType& x) const;
+};
+}  // namespace std
+
 #endif  // __AFC_VM_PUBLIC_TYPES_H__

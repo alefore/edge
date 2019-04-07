@@ -49,14 +49,9 @@ extern "C" {
 
 namespace afc {
 namespace vm {
-template <>
-struct VMTypeMapper<editor::OpenBuffer*> {
-  static editor::OpenBuffer* get(Value* value) {
-    return static_cast<editor::OpenBuffer*>(value->user_value.get());
-  }
-
-  static const VMType vmtype;
-};
+editor::OpenBuffer* VMTypeMapper<editor::OpenBuffer*>::get(Value* value) {
+  return static_cast<editor::OpenBuffer*>(value->user_value.get());
+}
 
 const VMType VMTypeMapper<editor::OpenBuffer*>::vmtype =
     VMType::ObjectType(L"Buffer");
@@ -65,12 +60,11 @@ const VMType VMTypeMapper<editor::OpenBuffer*>::vmtype =
 namespace editor {
 namespace {
 Screen* GetScreen(OpenBuffer* buffer) {
-  auto screen_value = buffer->environment()->Lookup(L"screen");
-  if (screen_value == nullptr || !(screen_value->type == GetScreenVmType()) ||
-      screen_value->user_value == nullptr) {
+  auto screen = buffer->environment()->Lookup(L"screen", GetScreenVmType());
+  if (screen == nullptr || screen->user_value == nullptr) {
     return nullptr;
   }
-  return static_cast<Screen*>(screen_value->user_value.get());
+  return static_cast<Screen*>(screen->user_value.get());
 }
 
 static const wchar_t* kOldCursors = L"old-cursors";
@@ -1898,9 +1892,9 @@ std::shared_ptr<OpenBuffer> OpenBuffer::GetBufferFromCurrentLine() {
   if (contents()->empty() || current_line() == nullptr) {
     return nullptr;
   }
-  auto target = current_line()->environment()->Lookup(L"buffer");
-  if (target == nullptr || target->type.type != VMType::OBJECT_TYPE ||
-      target->type.object_type != L"Buffer") {
+  auto target = current_line()->environment()->Lookup(
+      L"buffer", vm::VMTypeMapper<editor::OpenBuffer*>::vmtype);
+  if (target == nullptr) {
     return nullptr;
   }
   return std::static_pointer_cast<OpenBuffer>(target->user_value);

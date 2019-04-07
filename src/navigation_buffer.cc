@@ -52,11 +52,10 @@ class NavigationBuffer : public OpenBuffer {
     }
 
     target->AppendToLastLine(editor_state, NewCopyString(source->name()));
-    auto depth_value = target->environment()->Lookup(kDepthSymbol);
+    auto depth_value =
+        target->environment()->Lookup(kDepthSymbol, VMType::Integer());
     int depth =
-        depth_value == nullptr || depth_value->type.type != VMType::VM_INTEGER
-            ? 3
-            : size_t(max(0, depth_value->integer));
+        depth_value == nullptr ? 3 : size_t(max(0, depth_value->integer));
     DisplayTree(editor_state, source, depth, *tree, EmptyString(), target);
   }
 

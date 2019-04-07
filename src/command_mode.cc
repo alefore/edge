@@ -23,6 +23,7 @@
 #include "goto_command.h"
 #include "insert_mode.h"
 #include "lazy_string_append.h"
+#include "line_column.h"
 #include "line_prompt_mode.h"
 #include "list_buffers_command.h"
 #include "map_mode.h"
@@ -48,10 +49,12 @@
 #include "transformation_delete.h"
 #include "transformation_move.h"
 
+// TODO: Fix the namespace.
 namespace {
 using std::advance;
 using std::ceil;
 using std::make_pair;
+using namespace afc;
 using namespace afc::editor;
 
 class Delete : public Command {
@@ -722,8 +725,8 @@ class ActivateLink : public Command {
         return;
       }
       editor_state->set_current_buffer(it);
-      auto target_position =
-          buffer->current_line()->environment()->Lookup(L"buffer_position");
+      auto target_position = buffer->current_line()->environment()->Lookup(
+          L"buffer_position", vm::VMTypeMapper<LineColumn>::vmtype);
       if (target_position != nullptr &&
           target_position->type.type == VMType::OBJECT_TYPE &&
           target_position->type.object_type == L"LineColumn") {

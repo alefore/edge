@@ -31,7 +31,8 @@ class Environment {
   const VMType* LookupType(const wstring& symbol);
   void DefineType(const wstring& name, unique_ptr<ObjectType> value);
 
-  Value* Lookup(const wstring& symbol);
+  Value* Lookup(const wstring& symbol, VMType expected_type);
+  void PolyLookup(const wstring& symbol, std::vector<Value*>* output);
   void Define(const wstring& symbol, unique_ptr<Value> value);
   void Assign(const wstring& symbol, unique_ptr<Value> value);
 
@@ -40,7 +41,7 @@ class Environment {
 
  private:
   map<wstring, unique_ptr<ObjectType>> object_types_;
-  map<wstring, unique_ptr<Value>> table_;
+  map<wstring, std::unordered_map<VMType, unique_ptr<Value>>> table_;
   Environment* parent_environment_;
 };
 

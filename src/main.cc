@@ -279,7 +279,8 @@ int main(int argc, const char** argv) {
     }
     VLOG(5) << "Updating remote screens.";
     for (auto& buffer : *editor_state()->buffers()) {
-      auto value = buffer.second->environment()->Lookup(L"screen");
+      auto value =
+          buffer.second->environment()->Lookup(L"screen", GetScreenVmType());
       if (value->type.type != VMType::OBJECT_TYPE ||
           value->type.object_type != L"Screen") {
         continue;

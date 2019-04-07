@@ -4,6 +4,15 @@
 
 #include "../public/value.h"
 
+namespace std {
+size_t hash<afc::vm::VMType>::operator()(const afc::vm::VMType& x) const {
+  size_t output = hash<int>()(x.type) ^ hash<wstring>()(x.object_type);
+  for (const auto& a : x.type_arguments) {
+    output ^= hash()(a);
+  }
+  return output;
+}
+}  // namespace std
 namespace afc {
 namespace vm {
 

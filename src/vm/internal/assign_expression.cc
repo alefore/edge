@@ -76,19 +76,30 @@ unique_ptr<Expression> NewAssignExpression(Compilation* compilation,
   if (value == nullptr) {
     return nullptr;
   }
-  auto obj = compilation->environment->Lookup(symbol);
-  if (obj == nullptr) {
+  auto variable = compilation->environment->Lookup(symbol, value->type());
+  if (variable != nullptr) {
+    return std::make_unique<AssignExpression>(symbol, std::move(value));
+  }
+
+  std::vector<Value*> variables;
+  compilation->environment->PolyLookup(symbol, &variables);
+  if (variables.empty()) {
     compilation->errors.push_back(L"Variable not found: \"" + symbol + L"\"");
     return nullptr;
   }
-  if (!(obj->type == value->type())) {
-    compilation->errors.push_back(
-        L"Unable to assign a value of type \"" + value->type().ToString() +
-        L"\" to a variable of type \"" + obj->type.ToString() + L"\".");
-    return nullptr;
-  }
 
-  return std::make_unique<AssignExpression>(symbol, std::move(value));
+  DVLOG(5) << "Producing friendly error message.";
+  wstring available_types;
+  wstring separator = L"";
+  for (auto& v : variables) {
+    available_types += separator + L"\"" + v->type.ToString() + L"\"";
+    separator = L", ";
+  }
+  compilation->errors.push_back(L"Unable to assign a value of type \"" +
+                                value->type().ToString() +
+                                L"\" to variable \"" + symbol +
+                                L"\". Types found: " + available_types + L".");
+  return nullptr;
 }
 
 }  // namespace vm

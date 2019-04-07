@@ -241,11 +241,10 @@ void Line::Output(const Line::OutputOptions& options) const {
   unordered_set<LineModifier, hash<int>> current_modifiers;
 
   CHECK(environment_ != nullptr);
-  auto target_buffer_value = environment_->Lookup(L"buffer");
+  auto target_buffer_value =
+      environment_->Lookup(L"buffer", vm::VMTypeMapper<OpenBuffer*>::vmtype);
   const auto target_buffer =
       (target_buffer_value != nullptr &&
-       target_buffer_value->type.type == VMType::OBJECT_TYPE &&
-       target_buffer_value->type.object_type == L"Buffer" &&
        target_buffer_value->user_value != nullptr)
           ? static_cast<OpenBuffer*>(target_buffer_value->user_value.get())
           : options.buffer;

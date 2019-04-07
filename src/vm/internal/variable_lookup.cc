@@ -23,7 +23,7 @@ class VariableLookup : public Expression {
   void Evaluate(Trampoline* trampoline) {
     // TODO: Enable this logging.
     // DVLOG(5) << "Look up symbol: " << symbol_;
-    Value* result = trampoline->environment()->Lookup(symbol_);
+    Value* result = trampoline->environment()->Lookup(symbol_, type_);
     CHECK(result != nullptr);
     CHECK(trampoline != nullptr);
     DVLOG(5) << "Variable lookup: " << *result;
@@ -43,12 +43,13 @@ class VariableLookup : public Expression {
 
 std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
                                               const wstring& symbol) {
-  Value* result = compilation->environment->Lookup(symbol);
-  if (result == nullptr) {
+  std::vector<Value*> result;
+  compilation->environment->PolyLookup(symbol, &result);
+  if (result.empty()) {
     compilation->AddError(L"Variable not found: \"" + symbol + L"\"");
     return nullptr;
   }
-  return std::make_unique<VariableLookup>(symbol, result->type);
+  return std::make_unique<VariableLookup>(symbol, result[0]->type);
 }
 
 }  // namespace vm

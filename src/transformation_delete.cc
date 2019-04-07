@@ -330,11 +330,9 @@ class DeleteLinesTransformation : public Transformation {
         if (buffer->LineAt(result->cursor.line) != nullptr) {
           Value* callback = buffer->LineAt(result->cursor.line)
                                 ->environment()
-                                ->Lookup(L"EdgeLineDeleteHandler");
-          if (callback != nullptr &&
-              callback->type.type == vm::VMType::FUNCTION &&
-              callback->type.type_arguments.size() == 1 &&
-              callback->type.type_arguments.at(0) == vm::VMType::VM_VOID) {
+                                ->Lookup(L"EdgeLineDeleteHandler",
+                                         VMType::Function({VMType::Void()}));
+          if (callback != nullptr) {
             LOG(INFO) << "Running EdgeLineDeleteHandler.";
             std::shared_ptr<Expression> expr = vm::NewFunctionCall(
                 vm::NewConstantExpression(std::make_unique<Value>(*callback)),

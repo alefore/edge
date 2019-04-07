@@ -587,6 +587,13 @@ class OpenBuffer {
 };
 
 }  // namespace editor
+namespace vm {
+template <>
+struct VMTypeMapper<editor::OpenBuffer*> {
+  static editor::OpenBuffer* get(Value* value);
+  static const VMType vmtype;
+};
+}  // namespace vm
 }  // namespace afc
 
 #endif

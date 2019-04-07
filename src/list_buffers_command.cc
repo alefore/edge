@@ -10,6 +10,7 @@
 #include "line_prompt_mode.h"
 #include "screen.h"
 #include "send_end_of_file_command.h"
+#include "src/screen_vm.h"
 #include "wstring.h"
 
 namespace afc {
@@ -35,7 +36,7 @@ class ListBuffersBuffer : public OpenBuffer {
     bool show_in_buffers_list = Read(buffer_variables::show_in_buffers_list());
 
     size_t screen_lines = 0;
-    auto screen_value = environment()->Lookup(L"screen");
+    auto screen_value = environment()->Lookup(L"screen", GetScreenVmType());
     if (screen_value != nullptr && screen_value->type == VMType::OBJECT_TYPE &&
         screen_value->user_value != nullptr) {
       auto screen = static_cast<Screen*>(screen_value->user_value.get());
