@@ -65,9 +65,10 @@ class HelpCommand : public Command {
       DescribeVariables(
           editor_state, L"bool", buffer.get(), buffer_variables::BoolStruct(),
           [](const bool& value) { return value ? L"true" : L"false"; });
-      DescribeVariables(editor_state, L"string", buffer.get(),
-                        buffer_variables::StringStruct(),
-                        [](const std::wstring& value) { return value; });
+      DescribeVariables(
+          editor_state, L"string", buffer.get(),
+          buffer_variables::StringStruct(),
+          [](const std::wstring& value) { return L"\"" + value + L"\""; });
       DescribeVariables(
           editor_state, L"int", buffer.get(), buffer_variables::IntStruct(),
           [](const int& value) { return std::to_wstring(value); });
