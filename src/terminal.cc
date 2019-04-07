@@ -948,7 +948,7 @@ void Terminal::AdjustPosition(
   pos_x += GetInitialPrefixSize(*buffer);
   size_t pos_y = std::distance(screen_line_positions.begin(), screen_line);
   screen->Move(pos_y, min(static_cast<size_t>(screen->columns()) - 1, pos_x));
-}  // namespace editor
+}
 
 }  // namespace editor
 }  // namespace afc
