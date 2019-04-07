@@ -81,10 +81,9 @@ Improve support for `for`: the environments aren't properly nested as they shoul
 
 Don't crash on this: buffer.set_view_start_line(-1);
 
-### Client/server
+Allow extensions to define classes or structures.
 
-Allow a client to just disconnect.
-  This is currently hard because the server doesn't know which client issued the commands it processes.
+### Client/server
 
 ## Misc
 
