@@ -309,7 +309,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
     Predict(
         editor_state, options.predictor, input,
         [editor_state, options, buffer, input](const wstring& prediction) {
-          if (input.size() < prediction.size()) {
+          if (input != prediction && !prediction.empty()) {
             LOG(INFO) << "Prediction advanced from " << input << " to "
                       << prediction;
 

@@ -138,7 +138,6 @@ void Predict(EditorState* editor_state, Predictor predictor, wstring input,
 void FilePredictor(EditorState* editor_state, const wstring& input,
                    OpenBuffer* buffer) {
   LOG(INFO) << "Generating predictions for: " << input;
-
   wstring path = editor_state->expand_path(input);
   vector<wstring> search_paths;
   GetSearchPaths(editor_state, &search_paths);
@@ -167,6 +166,17 @@ void FilePredictor(EditorState* editor_state, const wstring& input,
     }
 
     LOG(INFO) << "Reading directory: " << path_with_prefix;
+
+    wstring resolved_path;
+    ResolvePathOptions options;
+    options.editor_state = editor_state;
+    options.path = path_with_prefix;
+    options.output_path = &path_with_prefix;
+    if (!ResolvePath(std::move(options))) {
+      LOG(INFO) << "Unable to resolve, giving up current search path.";
+      continue;
+    }
+
     std::unique_ptr<DIR, decltype(&closedir)> dir(
         opendir(ToByteString(path_with_prefix).c_str()), &closedir);
     if (dir == nullptr) {
