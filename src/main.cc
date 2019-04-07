@@ -256,7 +256,7 @@ int main(int argc, const char** argv) {
   BeepFrequencies(audio_player.get(), {783.99, 723.25, 783.99});
   editor_state()->SetStatus(GetGreetingMessage());
 
-  while (!editor_state()->terminate()) {
+  while (!editor_state()->exit_value().has_value()) {
     editor_state()->UpdateBuffers();
     auto screen_state = editor_state()->FlushScreenState();
     if (screen_curses != nullptr) {
@@ -388,5 +388,5 @@ int main(int argc, const char** argv) {
 
   LOG(INFO) << "Removing server file: " << server_path;
   unlink(ToByteString(server_path).c_str());
-  return editor_state()->exit_value();
+  return editor_state()->exit_value().value();
 }

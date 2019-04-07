@@ -234,11 +234,9 @@ Environment EditorState::BuildEditorEnvironment() {
           [this](bool value) { set_screen_needs_hard_redraw(value); })));
 
   environment.Define(
-      L"set_terminate",
-      vm::NewCallback(std::function<void(int)>([this](int exit_value) {
-        terminate_ = true;
-        exit_value_ = exit_value;
-      })));
+      L"set_exit_value",
+      vm::NewCallback(std::function<void(int)>(
+          [this](int exit_value) { exit_value_ = exit_value; })));
 
   environment.Define(
       L"SetPositionColumn",
@@ -399,7 +397,6 @@ bool EditorState::AttemptTermination(wstring* error_description,
   }
   if (buffers_with_problems.empty()) {
     LOG(INFO) << "Terminating.";
-    terminate_ = true;
     exit_value_ = exit_value;
     return true;
   }
