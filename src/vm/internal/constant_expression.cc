@@ -16,9 +16,10 @@ class ConstantExpression : public Expression {
     CHECK(value_ != nullptr);
   }
 
-  const VMType& type() { return value_->type; }
+  std::vector<VMType> Types() { return {value_->type}; }
 
-  void Evaluate(Trampoline* trampoline) {
+  void Evaluate(Trampoline* trampoline, const VMType& type) {
+    CHECK(type == value_->type);
     DVLOG(5) << "Evaluating constant value: " << *value_;
     trampoline->Continue(std::make_unique<Value>(*value_));
   }

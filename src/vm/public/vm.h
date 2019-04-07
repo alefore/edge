@@ -87,12 +87,16 @@ class Trampoline {
 class Expression {
  public:
   virtual ~Expression() {}
-  virtual const VMType& type() = 0;
+  virtual std::vector<VMType> Types() = 0;
 
-  bool IsBool() { return type().type == VMType::VM_BOOLEAN; };
-  bool IsInteger() { return type().type == VMType::VM_INTEGER; };
-  bool IsDouble() { return type().type == VMType::VM_DOUBLE; };
-  bool IsString() { return type().type == VMType::VM_STRING; };
+  bool SupportsType(const VMType& type) {
+    auto types = Types();
+    return std::find(types.begin(), types.end(), type) != types.end();
+  }
+  bool IsBool() { return SupportsType(VMType::Bool()); }
+  bool IsInteger() { return SupportsType(VMType::Integer()); };
+  bool IsDouble() { return SupportsType(VMType::Double()); };
+  bool IsString() { return SupportsType(VMType::String()); };
 
   // Returns a new copy of this expression.
   virtual std::unique_ptr<Expression> Clone() = 0;
@@ -102,7 +106,7 @@ class Expression {
 
   // Must arrange for either Trampoline::Return, Trampoline::Continue, or
   // Trampoline::Bounce to be called (whether before or after returning).
-  virtual void Evaluate(Trampoline* evaluation) = 0;
+  virtual void Evaluate(Trampoline* evaluation, const VMType& type) = 0;
 };
 
 unique_ptr<Expression> CompileFile(const string& path, Environment* environment,

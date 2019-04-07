@@ -23,16 +23,16 @@ class IfExpression : public Expression {
     CHECK(false_case_ != nullptr);
   }
 
-  const VMType& type() { return true_case_->type(); }
+  std::vector<VMType> Types() { return true_case_->Types(); }
 
-  void Evaluate(Trampoline* trampoline) {
+  void Evaluate(Trampoline* trampoline, const VMType& type) {
     auto cond_copy = cond_;
     auto true_copy = true_case_;
     auto false_copy = false_case_;
-    trampoline->Bounce(cond_.get(), [cond_copy, true_copy, false_copy](
+    trampoline->Bounce(cond_.get(), [type, cond_copy, true_copy, false_copy](
                                         std::unique_ptr<Value> result,
                                         Trampoline* trampoline) {
-      (result->boolean ? true_copy : false_copy)->Evaluate(trampoline);
+      (result->boolean ? true_copy : false_copy)->Evaluate(trampoline, type);
     });
   }
 
@@ -56,18 +56,18 @@ std::unique_ptr<Expression> NewIfExpression(
     return nullptr;
   }
 
-  if (condition->type().type != VMType::VM_BOOLEAN) {
+  if (!condition->IsBool()) {
     compilation->errors.push_back(
-        L"Expected bool value for condition of \"if\" expression but found \"" +
-        condition->type().ToString() + L"\".");
+        L"Expected bool value for condition of \"if\" expression but found " +
+        TypesToString(condition->Types()) + L".");
     return nullptr;
   }
 
-  if (!(true_case->type() == false_case->type())) {
+  if (!(true_case->Types() == false_case->Types())) {
     compilation->errors.push_back(
-        L"Type mismatch between branches of conditional expression: \"" +
-        true_case->type().ToString() + L"\" and \"" +
-        false_case->type().ToString() + L"\"");
+        L"Type mismatch between branches of conditional expression: " +
+        TypesToString(true_case->Types()) + L" and " +
+        TypesToString(false_case->Types()) + L".");
     return nullptr;
   }
 

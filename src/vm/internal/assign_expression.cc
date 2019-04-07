@@ -19,9 +19,9 @@ class AssignExpression : public Expression {
   AssignExpression(const wstring& symbol, unique_ptr<Expression> value)
       : symbol_(symbol), value_(std::move(value)) {}
 
-  const VMType& type() { return value_->type(); }
+  std::vector<VMType> Types() override { return value_->Types(); }
 
-  void Evaluate(Trampoline* trampoline) override {
+  void Evaluate(Trampoline* trampoline, const VMType&) override {
     auto expression = value_;
     auto symbol = symbol_;
     trampoline->Bounce(
@@ -30,6 +30,7 @@ class AssignExpression : public Expression {
           DVLOG(3) << "Setting value for: " << symbol;
           DVLOG(4) << "Value: " << *value;
           trampoline->environment()->Assign(symbol, std::move(value));
+          // TODO: This seems wrong: shouldn't it be `value`?
           trampoline->Continue(Value::NewVoid());
         });
   }
@@ -59,14 +60,14 @@ unique_ptr<Expression> NewAssignExpression(Compilation* compilation,
                                   L"\" for symbol \"" + symbol + L"\".");
     return nullptr;
   }
-  compilation->environment->Define(symbol,
-                                   std::make_unique<Value>(value->type()));
-  if (!(*type_def == value->type())) {
+  if (!value->SupportsType(*type_def)) {
     compilation->errors.push_back(
-        L"Unable to assign a value of type \"" + value->type().ToString() +
-        L"\" to a variable of type \"" + type_def->ToString() + L"\".");
+        L"Unable to assign a value to a variable of type \"" +
+        type_def->ToString() + L"\". Value types: " +
+        TypesToString(value->Types()));
     return nullptr;
   }
+  compilation->environment->Define(symbol, std::make_unique<Value>(*type_def));
   return std::make_unique<AssignExpression>(symbol, std::move(value));
 }
 
@@ -76,29 +77,29 @@ unique_ptr<Expression> NewAssignExpression(Compilation* compilation,
   if (value == nullptr) {
     return nullptr;
   }
-  auto variable = compilation->environment->Lookup(symbol, value->type());
-  if (variable != nullptr) {
-    return std::make_unique<AssignExpression>(symbol, std::move(value));
-  }
-
   std::vector<Value*> variables;
   compilation->environment->PolyLookup(symbol, &variables);
+  for (auto& v : variables) {
+    if (value->SupportsType(v->type)) {
+      return std::make_unique<AssignExpression>(symbol, std::move(value));
+    }
+  }
+
   if (variables.empty()) {
     compilation->errors.push_back(L"Variable not found: \"" + symbol + L"\"");
     return nullptr;
   }
 
-  DVLOG(5) << "Producing friendly error message.";
-  wstring available_types;
-  wstring separator = L"";
+  std::vector<VMType> variable_types;
   for (auto& v : variables) {
-    available_types += separator + L"\"" + v->type.ToString() + L"\"";
-    separator = L", ";
+    variable_types.push_back(v->type);
   }
-  compilation->errors.push_back(L"Unable to assign a value of type \"" +
-                                value->type().ToString() +
-                                L"\" to variable \"" + symbol +
-                                L"\". Types found: " + available_types + L".");
+
+  compilation->errors.push_back(
+      L"Unable to assign a value to a variable supporting types: \"" +
+      TypesToString(value->Types()) + L"\". Value types: " +
+      TypesToString(variable_types));
+
   return nullptr;
 }
 

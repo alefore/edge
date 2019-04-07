@@ -31,6 +31,8 @@ Improve logic around wrap_long_lines.
   Cursors (other than active cursor) are off.
   Also scrolling to the end of file doesn't quite work.
 
+Have a 'weak-word' region very similar to word, but breaking at camel-case or underscore.
+
 ## Navigation
 
 Improve "g", the current behavior is kind of annoying:

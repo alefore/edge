@@ -117,7 +117,6 @@ statement(OUT) ::= function_declaration_params(FUNC)
   }
 }
 
-
 statement(A) ::= SEMICOLON . {
   A = NewVoidExpression().release();
 }
@@ -380,42 +379,42 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_PLUS. {
   auto var = NewVariableLookup(compilation, NAME->str);
   if (var == nullptr) {
     OUT = nullptr;
-  } else {
-    auto type = var->type();
-    if (var->IsInteger() || var->IsDouble()) {
-      OUT = NewAssignExpression(
-                compilation, NAME->str,
-                std::make_unique<BinaryOperator>(
-                    NewVoidExpression(),
-                    std::move(var),
-                    type,
-                    type.type == VMType::VM_INTEGER
-                        ? [](const Value&, const Value& a, Value* output) {
-                            output->integer = a.integer + 1;
-                          }
-                        : [](const Value&, const Value& a, Value* output) {
-                            output->double_value = a.double_value + 1.0;
-                          })).release();
-    } else {
-      compilation->errors.push_back(
-          L"++: Type not supported: " + type.ToString());
-      OUT = nullptr;
-    }
-  }
-  NAME = nullptr;
-}
-
-expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
-  auto var = NewVariableLookup(compilation, NAME->str);
-  auto type = var->type();
-  if (var->IsInteger() || var->IsDouble()) {
+  } else if (var->IsInteger() || var->IsDouble()) {
+    auto type = var->IsInteger() ? VMType::Integer() : VMType::Double();
     OUT = NewAssignExpression(
               compilation, NAME->str,
               std::make_unique<BinaryOperator>(
                   NewVoidExpression(),
                   std::move(var),
                   type,
-                  type.type == VMType::VM_INTEGER
+                  var->IsInteger()
+                      ? [](const Value&, const Value& a, Value* output) {
+                          output->integer = a.integer + 1;
+                        }
+                      : [](const Value&, const Value& a, Value* output) {
+                          output->double_value = a.double_value + 1.0;
+                        })).release();
+  } else {
+    compilation->errors.push_back(
+        L"++: Type not supported: " + TypesToString(var->Types()));
+    OUT = nullptr;
+  }
+  NAME = nullptr;
+}
+
+expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
+  auto var = NewVariableLookup(compilation, NAME->str);
+  if (var == nullptr) {
+    OUT = nullptr;
+  } else if (var->IsInteger() || var->IsDouble()) {
+    auto type = var->IsInteger() ? VMType::Integer() : VMType::Double();
+    OUT = NewAssignExpression(
+              compilation, NAME->str,
+              std::make_unique<BinaryOperator>(
+                  NewVoidExpression(),
+                  std::move(var),
+                  type,
+                  var->IsInteger()
                       ? [](const Value&, const Value& a, Value* output) {
                           output->integer = a.integer - 1;
                         }
@@ -424,7 +423,7 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
                         })).release();
   } else {
     compilation->errors.push_back(
-        L"--: Type not supported: " + type.ToString());
+        L"--: Type not supported: " + TypesToString(var->Types()));
     OUT = nullptr;
   }
   NAME = nullptr;
@@ -433,37 +432,13 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_MINUS. {
 expr(OUT) ::= expr(B) LPAREN arguments_list(ARGS) RPAREN. {
   if (B == nullptr || ARGS == nullptr) {
     OUT = nullptr;
-  } else if (B->type().type != VMType::FUNCTION) {
-    compilation->errors.push_back(
-        L"Expected function but found: \"" + B->type().ToString() + L"\"");
-    OUT = nullptr;
-  } else if (B->type().type_arguments.size() != 1 + ARGS->size()) {
-    compilation->errors.push_back(
-        L"Invalid number of arguments: Expected "
-        + to_wstring(B->type().type_arguments.size() - 1) + L" but found "
-        + to_wstring(ARGS->size()));
-    OUT = nullptr;
   } else {
-    size_t argument = 0;
-    while (argument < ARGS->size()
-           && (B->type().type_arguments[1 + argument]
-               == ARGS->at(argument)->type())) {
-      argument++;
-    }
-    if (argument < ARGS->size()) {
-      compilation->errors.push_back(
-          L"Type mismatch in argument " + to_wstring(argument)
-          + L": Expected \"" + B->type().type_arguments[1 + argument].ToString()
-          + L"\" but found \"" + ARGS->at(argument)->type().ToString() + L"\"");
-      OUT = nullptr;
-    } else {
-      OUT = NewFunctionCall(
+      OUT = NewFunctionCall(compilation,
                     std::unique_ptr<Expression>(B),
                     std::move(*ARGS))
                 .release();
       B = nullptr;
       ARGS = nullptr;
-    }
   }
 }
 
@@ -520,8 +495,7 @@ expr(OUT) ::= NOT expr(A). {
 expr(OUT) ::= expr(A) EQUALS expr(B). {
   if (A == nullptr || B == nullptr) {
     OUT = nullptr;
-  } else if (A->type().type == VMType::VM_STRING
-             && B->type().type == VMType::VM_STRING) {
+  } else if (A->IsString() && B->IsString()) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
@@ -531,8 +505,7 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
         });
     A = nullptr;
     B = nullptr;
-  } else if (A->type().type == VMType::VM_INTEGER
-             && B->type().type == VMType::VM_INTEGER) {
+  } else if (A->IsInteger() && B->IsInteger()) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
@@ -544,8 +517,8 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
     B = nullptr;
   } else {
     compilation->errors.push_back(
-        L"Unable to compare types: \"" + A->type().ToString()
-        + L"\" == \"" + B->type().ToString() + L"\"");
+        L"Unable to compare types: " + TypesToString(A->Types())
+        + L" and " + TypesToString(B->Types()) + L".");
     OUT = nullptr;
   }
 }
@@ -553,8 +526,7 @@ expr(OUT) ::= expr(A) EQUALS expr(B). {
 expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
   if (A == nullptr || B == nullptr) {
     OUT = nullptr;
-  } else if (A->type().type == VMType::VM_STRING
-             && B->type().type == VMType::VM_STRING) {
+  } else if (A->IsString() && B->IsString()) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
@@ -564,8 +536,7 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
         });
     A = nullptr;
     B = nullptr;
-  } else if (A->type().type == VMType::VM_INTEGER
-             && B->type().type == VMType::VM_INTEGER) {
+  } else if (A->IsInteger() && B->IsInteger()) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
@@ -577,8 +548,8 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
     B = nullptr;
   } else {
     compilation->errors.push_back(
-        L"Unable to compare types: \"" + A->type().ToString()
-        + L"\" != \"" + B->type().ToString() + L"\"");
+        L"Unable to compare types: " + TypesToString(A->Types())
+        + L" and " + TypesToString(B->Types()) + L".");
     OUT = nullptr;
   }
 }
@@ -586,10 +557,8 @@ expr(OUT) ::= expr(A) NOT_EQUALS expr(B). {
 expr(OUT) ::= expr(A) LESS_THAN expr(B). {
   if (A == nullptr || B == nullptr) {
     OUT = nullptr;
-  } else if ((A->type().type == VMType::VM_INTEGER
-              || A->type().type == VMType::VM_DOUBLE)
-             && (B->type().type == VMType::VM_INTEGER
-                 || B->type().type == VMType::VM_DOUBLE)) {
+  } else if ((A->IsInteger() || A->IsDouble())
+             && (B->IsInteger() || B->IsDouble())) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
@@ -606,6 +575,7 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
               return x.double_value;
             } else {
               LOG(FATAL) << "Unexpected value of type: " << x.type.ToString();
+              return 0.0;
             }
           };
           output->boolean = to_double(a) < to_double(b);
@@ -614,8 +584,8 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
     B = nullptr;
   } else {
     compilation->errors.push_back(
-        L"Unable to compare types: \"" + A->type().ToString()
-        + L"\" < \"" + B->type().ToString() + L"\"");
+        L"Unable to compare types: " + TypesToString(A->Types())
+        + L" and " + TypesToString(B->Types()) + L".");
     OUT = nullptr;
   }
 }
@@ -623,10 +593,8 @@ expr(OUT) ::= expr(A) LESS_THAN expr(B). {
 expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
   if (A == nullptr || B == nullptr) {
     OUT = nullptr;
-  } else if ((A->type().type == VMType::VM_INTEGER
-              || A->type().type == VMType::VM_DOUBLE)
-             && (B->type().type == VMType::VM_INTEGER
-                 || B->type().type == VMType::VM_DOUBLE)) {
+  } else if ((A->IsInteger() || A->IsDouble())
+             && (B->IsInteger() || B->IsDouble())) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
@@ -643,6 +611,7 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
               return x.double_value;
             } else {
               LOG(FATAL) << "Unexpected value of type: " << x.type.ToString();
+              return 0.0;
             }
           };
           output->boolean = to_double(a) <= to_double(b);
@@ -651,8 +620,8 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
     B = nullptr;
   } else {
     compilation->errors.push_back(
-        L"Unable to compare types: \"" + A->type().ToString()
-        + L"\" < \"" + B->type().ToString() + L"\"");
+        L"Unable to compare types: " + TypesToString(A->Types())
+        + L" and " + TypesToString(B->Types()) + L".");
     OUT = nullptr;
   }
 }
@@ -660,10 +629,8 @@ expr(OUT) ::= expr(A) LESS_OR_EQUAL expr(B). {
 expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
   if (A == nullptr || B == nullptr) {
     OUT = nullptr;
-  } else if ((A->type().type == VMType::VM_INTEGER
-              || A->type().type == VMType::VM_DOUBLE)
-             && (B->type().type == VMType::VM_INTEGER
-                 || B->type().type == VMType::VM_DOUBLE)) {
+  } else if ((A->IsInteger() || A->IsDouble())
+             && (B->IsInteger() || B->IsDouble())) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
@@ -680,6 +647,7 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
               return x.double_value;
             } else {
               LOG(FATAL) << "Unexpected value of type: " << x.type.ToString();
+              return 0.0;
             }
           };
           output->boolean = to_double(a) > to_double(b);
@@ -688,8 +656,8 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
     B = nullptr;
   } else {
     compilation->errors.push_back(
-        L"Unable to compare types: \"" + A->type().ToString()
-        + L"\" < \"" + B->type().ToString() + L"\"");
+        L"Unable to compare types: " + TypesToString(A->Types())
+        + L" and " + TypesToString(B->Types()) + L".");
     OUT = nullptr;
   }
 }
@@ -697,10 +665,8 @@ expr(OUT) ::= expr(A) GREATER_THAN expr(B). {
 expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
   if (A == nullptr || B == nullptr) {
     OUT = nullptr;
-  } else if ((A->type().type == VMType::VM_INTEGER
-              || A->type().type == VMType::VM_DOUBLE)
-             && (B->type().type == VMType::VM_INTEGER
-                 || B->type().type == VMType::VM_DOUBLE)) {
+  } else if ((A->IsInteger() || A->IsDouble())
+             && (B->IsInteger() || B->IsDouble())) {
     OUT = new BinaryOperator(
         unique_ptr<Expression>(A),
         unique_ptr<Expression>(B),
@@ -717,6 +683,7 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
               return x.double_value;
             } else {
               LOG(FATAL) << "Unexpected value of type: " << x.type.ToString();
+              return 0.0;
             }
           };
           output->boolean = to_double(a) >= to_double(b);
@@ -725,8 +692,8 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
     B = nullptr;
   } else {
     compilation->errors.push_back(
-        L"Unable to compare types: \"" + A->type().ToString()
-        + L"\" < \"" + B->type().ToString() + L"\"");
+        L"Unable to compare types: " + TypesToString(A->Types())
+        + L" and " + TypesToString(B->Types()) + L".");
     OUT = nullptr;
   }
 }
@@ -772,13 +739,13 @@ expr(OUT) ::= expr(A) MINUS expr(B). {
 expr(OUT) ::= MINUS expr(A). {
   if (A == nullptr) {
     OUT = nullptr;
-  } else if (A->type().type == VMType::VM_INTEGER) {
+  } else if (A->IsInteger()) {
     OUT = NewNegateExpression(
         [](Value* value) { value->integer = -value->integer; },
         VMType::Integer(),
         compilation, unique_ptr<Expression>(A)).release();
     A = nullptr;
-  } else if (A->type().type == VMType::VM_DOUBLE) {
+  } else if (A->IsDouble()) {
     OUT = NewNegateExpression(
         [](Value* value) { value->double_value = -value->double_value; },
         VMType::Double(),
@@ -786,7 +753,7 @@ expr(OUT) ::= MINUS expr(A). {
     A = nullptr;
   } else {
     compilation->errors.push_back(
-        L"Invalid expression: -" + A->type().ToString());
+        L"Invalid expression: -: " + TypesToString(A->Types()));
     OUT = nullptr;
   }
 }
@@ -870,108 +837,9 @@ expr(OUT) ::= expr(OBJ) DOT SYMBOL(FIELD). {
   if (OBJ == nullptr) {
     OUT = nullptr;
   } else {
-    wstring object_type_name;
-    switch (OBJ->type().type) {
-      case VMType::VM_STRING:
-        object_type_name = L"string";
-        break;
-      case VMType::VM_BOOLEAN:
-        object_type_name = L"bool";
-        break;
-      case VMType::VM_DOUBLE:
-        object_type_name = L"double";
-        break;
-      case VMType::VM_INTEGER:
-        object_type_name = L"int";
-        break;
-      case VMType::OBJECT_TYPE:
-        object_type_name = OBJ->type().object_type;
-        break;
-      default:
-        break;
-    }
-    const ObjectType* object_type = object_type_name.empty()
-        ? nullptr
-        : compilation->environment->LookupObjectType(object_type_name);
-    if (object_type_name.empty()) {
-      compilation->errors.push_back(
-          L"Unable to find methods on primitive type: \""
-          + OBJ->type().ToString() + L"\"");
-      OUT = nullptr;
-    } else if (object_type == nullptr) {
-      compilation->errors.push_back(
-          L"Unknown type: \"" + OBJ->type().ToString() + L"\"");
-      OUT = nullptr;
-    } else {
-      auto field = object_type->LookupField(FIELD->str);
-      if (field == nullptr) {
-        compilation->errors.push_back(
-            L"Unknown method: \"" + object_type->ToString() + L"::"
-            + FIELD->str + L"\"");
-        OUT = nullptr;
-      } else {
-        // When evaluated, evaluates first `obj_expr` and then returns a
-        // callback that wraps `delegate`, inserting the value that `obj_expr`
-        // evaluated to.
-        class BindObjectExpression : public Expression {
-         public:
-          BindObjectExpression(std::unique_ptr<Expression> obj_expr,
-                               Value* delegate)
-              : type_(
-                    [=]() {
-                      auto output = std::make_shared<VMType>(delegate->type);
-                      output->type_arguments.erase(
-                          output->type_arguments.begin() + 1);
-                      return output;
-                    }()),
-                obj_expr_(std::move(obj_expr)),
-                delegate_(delegate) {}
-
-          const VMType& type() { return *type_; }
-
-          std::unique_ptr<Expression> Clone() override {
-            return std::make_unique<BindObjectExpression>(obj_expr_->Clone(),
-                                                          delegate_);
-          }
-
-          void Evaluate(Trampoline* evaluation) override {
-            auto shared_type = type_;
-            auto shared_obj_expr = obj_expr_;
-            auto shared_delegate = delegate_;
-            evaluation->Bounce(
-                shared_obj_expr.get(),
-                [shared_type, shared_obj_expr, shared_delegate](
-                    Value::Ptr obj, Trampoline* trampoline) {
-                  // TODO: Avoid shared_ptr and Clone below.
-                  std::shared_ptr<Value> obj_shared = std::move(obj);
-                  trampoline->Continue(Value::NewFunction(
-                      shared_type->type_arguments,
-                      [obj_shared, shared_delegate](
-                          std::vector<Value::Ptr> args,
-                          Trampoline* trampoline) {
-                        args.emplace(args.begin(),
-                                     std::make_unique<Value>(*obj_shared));
-                        shared_delegate->callback(std::move(args),
-                                                  trampoline);
-                      }));
-                });
-          }
-
-         private:
-          const std::shared_ptr<VMType> type_;
-          const std::shared_ptr<Expression> obj_expr_;
-          Value* const delegate_;
-        };
-
-        CHECK(field->type.type == VMType::FUNCTION);
-        CHECK_GE(field->type.type_arguments.size(), 2);
-        CHECK_EQ(field->type.type_arguments[1], OBJ->type());
-
-        OUT = std::make_unique<BindObjectExpression>(
-            OBJ->Clone(), field).release();
-        OBJ = nullptr;
-      }
-    }
+    OUT = NewMethodLookup(compilation, std::unique_ptr<Expression>(OBJ),
+                          FIELD->str).release();
+    OBJ = nullptr;
   }
   delete FIELD;
 }

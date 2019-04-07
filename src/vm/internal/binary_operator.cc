@@ -16,9 +16,10 @@ BinaryOperator::BinaryOperator(
   CHECK(b_ != nullptr);
 }
 
-const VMType& BinaryOperator::type() { return type_; }
+std::vector<VMType> BinaryOperator::Types() { return {type_}; }
 
-void BinaryOperator::Evaluate(Trampoline* trampoline) {
+void BinaryOperator::Evaluate(Trampoline* trampoline, const VMType& type) {
+  CHECK(type_ == type);
   // TODO: Bunch of things here can be turned to unique_ptr.
   auto type_copy = type_;
   auto operator_copy = operator_;
@@ -103,9 +104,10 @@ std::unique_ptr<Expression> NewBinaryExpression(
         });
   }
 
-  compilation->errors.push_back(L"Unable to add types: \"" +
+  // TODO: Find a way to support this.
+  compilation->errors.push_back(L"Unable to add types" /*: \"" +
                                 a->type().ToString() + L"\" + \"" +
-                                b->type().ToString() + L"\"");
+                                b->type().ToString() + L"\""*/);
   return nullptr;
 }
 

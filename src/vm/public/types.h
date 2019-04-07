@@ -51,6 +51,8 @@ struct VMType {
   wstring object_type;
 };
 
+wstring TypesToString(const std::vector<VMType>& types);
+
 bool operator==(const VMType& lhs, const VMType& rhs);
 
 struct Value;

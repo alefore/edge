@@ -1,5 +1,7 @@
 #include "variable_lookup.h"
 
+#include <unordered_set>
+
 #include <glog/logging.h>
 
 #include "../public/environment.h"
@@ -15,15 +17,15 @@ namespace {
 // TODO: Don't pass symbol by const reference.
 class VariableLookup : public Expression {
  public:
-  VariableLookup(const wstring& symbol, const VMType& type)
-      : symbol_(symbol), type_(type) {}
+  VariableLookup(const wstring& symbol, std::vector<VMType> types)
+      : symbol_(symbol), types_(types) {}
 
-  const VMType& type() { return type_; }
+  std::vector<VMType> Types() override { return types_; }
 
-  void Evaluate(Trampoline* trampoline) {
+  void Evaluate(Trampoline* trampoline, const VMType& type) override {
     // TODO: Enable this logging.
     // DVLOG(5) << "Look up symbol: " << symbol_;
-    Value* result = trampoline->environment()->Lookup(symbol_, type_);
+    Value* result = trampoline->environment()->Lookup(symbol_, type);
     CHECK(result != nullptr);
     CHECK(trampoline != nullptr);
     DVLOG(5) << "Variable lookup: " << *result;
@@ -31,12 +33,12 @@ class VariableLookup : public Expression {
   }
 
   std::unique_ptr<Expression> Clone() override {
-    return std::make_unique<VariableLookup>(symbol_, type_);
+    return std::make_unique<VariableLookup>(symbol_, types_);
   }
 
  private:
   const wstring symbol_;
-  const VMType type_;
+  const std::vector<VMType> types_;
 };
 
 }  // namespace
@@ -49,7 +51,12 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
     compilation->AddError(L"Variable not found: \"" + symbol + L"\"");
     return nullptr;
   }
-  return std::make_unique<VariableLookup>(symbol, result[0]->type);
+  std::unordered_set<VMType> types;
+  for (auto& v : result) {
+    types.insert(v->type);
+  }
+  return std::make_unique<VariableLookup>(
+      symbol, std::vector<VMType>(types.begin(), types.end()));
 }
 
 }  // namespace vm

@@ -45,6 +45,16 @@ bool operator==(const VMType& lhs, const VMType& rhs) {
   return type;
 }
 
+wstring TypesToString(const std::vector<VMType>& types) {
+  wstring output;
+  wstring separator = L"";
+  for (auto& t : types) {
+    output += separator + L"\"" + t.ToString() + L"\"";
+    separator = L", ";
+  }
+  return output;
+}
+
 /* static */ VMType VMType::ObjectType(afc::vm::ObjectType* type) {
   return ObjectType(type->type().object_type);
 }

@@ -560,7 +560,7 @@ void Trampoline::Enter(Expression* start_expression) {
     DVLOG(7) << "Jumping in the evaluation trampoline...";
     Expression* current_expression = expression_;
     expression_ = nullptr;
-    current_expression->Evaluate(this);
+    current_expression->Evaluate(this, current_expression->Types()[0]);
     DVLOG(10) << "Landed in the evaluation trampoline...";
   }
   DVLOG(4) << "Leaving evaluation trampoline...";

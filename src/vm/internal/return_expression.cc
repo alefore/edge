@@ -15,9 +15,9 @@ class ReturnExpression : public Expression {
  public:
   ReturnExpression(std::shared_ptr<Expression> expr) : expr_(std::move(expr)) {}
 
-  const VMType& type() { return expr_->type(); }
+  std::vector<VMType> Types() { return expr_->Types(); }
 
-  void Evaluate(Trampoline* trampoline) override {
+  void Evaluate(Trampoline* trampoline, const VMType&) override {
     auto expr = expr_;
     trampoline->Bounce(expr.get(),
                        // We do this silly dance just to capture expr.
@@ -44,10 +44,10 @@ std::unique_ptr<Expression> NewReturnExpression(
 
   CHECK(!compilation->return_types.empty());
   const VMType& expected_type = compilation->return_types.back();
-  if (!(expected_type == expr->type())) {
-    compilation->errors.push_back(
-        L"Returning value of type \"" + expr->type().ToString() +
-        L"\" but expected \"" + expected_type.ToString() + L"\"");
+  if (!expr->SupportsType(expected_type)) {
+    compilation->errors.push_back(L"Expected return type of " +
+                                  expected_type.ToString() + L"but found " +
+                                  TypesToString(expr->Types()));
     return nullptr;
   }
   return std::make_unique<ReturnExpression>(std::move(expr));
