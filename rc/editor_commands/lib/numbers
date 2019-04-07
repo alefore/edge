@@ -1,0 +1,14 @@
+// Various functions for handling numbers.
+
+int max(int a, int b) { return a >= b ? a : b; }
+double max(double a, double b) { return a >= b ? a : b; }
+double max(int a, double b) { return a >= b ? a + 0.0 : b; }
+double max(double a, int b) { return a >= b ? a : b + 0.0; }
+
+int min(int a, int b) { return a <= b ? a : b; }
+double min(double a, double b) { return a <= b ? a : b; }
+double min(int a, double b) { return a <= b ? a + 0.0 : b; }
+double min(double a, int b) { return a <= b ? a : b + 0.0; }
+
+int abs(int a) { return a < 0 ? -a : a; }
+double abs(double a) { return a < 0 ? -a : a; }
