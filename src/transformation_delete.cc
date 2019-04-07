@@ -49,6 +49,7 @@ class DeleteCharactersTransformation : public Transformation {
     }
 
     if (buffer->LineAt(result->cursor.line) == nullptr) {
+      LOG(INFO) << "Can't make progress: Empty line.";
       result->made_progress = false;
       return;
     }
