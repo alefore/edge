@@ -2176,9 +2176,10 @@ LineColumn OpenBuffer::Apply(EditorState* editor_state,
 }
 
 void OpenBuffer::RepeatLastTransformation() {
-  for (size_t i = 0; i < editor_->repetitions(); i++) {
-    ApplyToCursors(last_transformation_->Clone());
-  }
+  int repetitions = editor_->repetitions();
+  editor_->ResetRepetitions();
+  ApplyToCursors(NewApplyRepetitionsTransformation(
+      repetitions, last_transformation_->Clone()));
 }
 
 void OpenBuffer::PushTransformationStack() {
