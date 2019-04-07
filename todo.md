@@ -73,8 +73,7 @@ atomic_lines should probably also apply to multiple cursors.
 
 Add support for templates, so that we can do "vector<string>".
 
-Support polymorphism: same name for multiple symbols with different type.
-  Requires adjusting lookup and all callers.
+Improve polymorphism: support polymorphic methods (rather than only global functions).
 
 Support in-line functions and/or lambda forms. Tricky.
 
