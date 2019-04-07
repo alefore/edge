@@ -5,6 +5,7 @@
 #include "../public/types.h"
 #include "../public/value.h"
 #include "../public/vm.h"
+#include "src/vm/internal/compilation.h"
 
 namespace afc {
 namespace vm {
@@ -51,13 +52,19 @@ class LogicalExpression : public Expression {
 }  // namespace
 
 std::unique_ptr<Expression> NewLogicalExpression(
-    bool identity, std::unique_ptr<Expression> a,
+    Compilation* compilation, bool identity, std::unique_ptr<Expression> a,
     std::unique_ptr<Expression> b) {
   if (a == nullptr || b == nullptr) {
     return nullptr;
   }
-  if (!a->IsBool() || !b->IsBool()) {
-    // TODO: Pass compilation and add an error here.
+  if (!a->IsBool()) {
+    compilation->errors.push_back(L"Expected `bool` value but found: " +
+                                  TypesToString(a->Types()));
+    return nullptr;
+  }
+  if (!b->IsBool()) {
+    compilation->errors.push_back(L"Expected `bool` value but found: " +
+                                  TypesToString(b->Types()));
     return nullptr;
   }
   return std::make_unique<LogicalExpression>(identity, std::move(a),

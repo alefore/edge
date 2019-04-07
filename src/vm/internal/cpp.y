@@ -699,15 +699,17 @@ expr(OUT) ::= expr(A) GREATER_OR_EQUAL expr(B). {
 }
 
 expr(OUT) ::= expr(A) OR expr(B). {
-  OUT = NewLogicalExpression(
-      false, unique_ptr<Expression>(A), unique_ptr<Expression>(B)).release();
+  OUT = NewLogicalExpression(compilation, false, unique_ptr<Expression>(A),
+                             unique_ptr<Expression>(B))
+            .release();
   A = nullptr;
   B = nullptr;
 }
 
 expr(OUT) ::= expr(A) AND expr(B). {
-  OUT = NewLogicalExpression(
-      true, unique_ptr<Expression>(A), unique_ptr<Expression>(B)).release();
+  OUT = NewLogicalExpression(compilation, true, unique_ptr<Expression>(A),
+                             unique_ptr<Expression>(B))
+            .release();
   A = nullptr;
   B = nullptr;
 }
