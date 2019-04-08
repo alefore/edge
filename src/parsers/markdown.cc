@@ -23,6 +23,7 @@ enum State {
   SECTION_5,
   EM,
   STRONG,
+  CODE,
 };
 
 class MarkdownParser : public TreeParser {
@@ -64,9 +65,18 @@ class MarkdownParser : public TreeParser {
   }
 
   void ParseLine(ParseData* result) {
-    switch (result->seek().read()) {
+    auto seek = result->seek();
+    while (seek.read() == L' ') {
+      seek.Once();
+    }
+
+    switch (seek.read()) {
       case L'#':
         HandleHeader(result);
+        return;
+
+      case L'*':
+        HandleList(result);
         return;
 
       default:
@@ -83,9 +93,27 @@ class MarkdownParser : public TreeParser {
         case L'*':
           HandleStar(result);
           break;
+        case L'`':
+          HandleBackTick(result);
+          break;
         default:
           seek.Once();
       }
+    }
+  }
+
+  void HandleList(ParseData* result) {
+    result->seek().Once();
+    HandleNormalLine(result);
+  }
+
+  void HandleBackTick(ParseData* result) {
+    auto seek = result->seek();
+    seek.Once();
+    if (result->state() == CODE) {
+      result->PopBack();
+    } else {
+      result->Push(CODE, 1, {LineModifier::CYAN});
     }
   }
 
@@ -105,7 +133,6 @@ class MarkdownParser : public TreeParser {
         result->PopBack();
       } else {
         result->Push(EM, 1, {LineModifier::ITALIC});
-        seek.Once();
       }
     }
   }
@@ -125,6 +152,7 @@ class MarkdownParser : public TreeParser {
 
     while (result->state() != DEFAULT &&
            (result->state() == EM || result->state() == STRONG ||
+            result->state() == CODE ||
             StateToDepth(static_cast<State>(result->state())) >= depth)) {
       result->PopBack();
     }

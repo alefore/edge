@@ -23,6 +23,7 @@ EdgeStruct<bool>* BoolStruct() {
     follow_end_of_file();
     commands_background_mode();
     reload_on_buffer_write();
+    trigger_reload_on_buffer_write();
     contains_line_marks();
     multiple_cursors();
     reload_on_display();
@@ -57,8 +58,7 @@ EdgeVariable<bool>* close_after_clean_exit() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"close_after_clean_exit",
       L"If a command is forked that writes to this buffer, should the buffer "
-      L"be "
-      L"closed when the command exits with a successful status code?",
+      L"be closed when the command exits with a successful status code?",
       false);
   return variable;
 }
@@ -162,6 +162,17 @@ EdgeVariable<bool>* reload_on_buffer_write() {
       L"when any buffer is written?  This is useful mainly for command buffers "
       L"like 'make' or 'git diff'.",
       false);
+  return variable;
+}
+
+EdgeVariable<bool>* trigger_reload_on_buffer_write() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
+      L"trigger_reload_on_buffer_write",
+      L"Does a write of this buffer trigger a reload of other buffers that "
+      L"have variable `reload_on_buffer_write` set? This is mainly useful to "
+      L"ensure that *internal* buffers (such as prompt history) don't trigger "
+      L"reload of user-visible buffers (such as compilers) on quit.",
+      true);
   return variable;
 }
 

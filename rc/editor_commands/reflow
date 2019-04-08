@@ -1,82 +1,91 @@
+// Reflows the current paragraph, based on variables `line_prefix_characters`
+// and `paragraph_line_prefix_characters`, to make each line (save for the last
+// one) as long as possible but shorter than the value of variable `line_width`.
+
 #include "lib/strings"
 
-// Reflows the current paragraph, based on variable line_prefix_characters, to
-// make each line as long as possible but shorter than the value of variable
-// line_width.
+// Should words longer than `line_width` be broken? If false, we'll only break
+// lines at spaces (never breaking a word). If true, we'll never let lines
+// exceed the desired `line_width`.
+bool break_words = false;
 
-Buffer b = CurrentBuffer();
-
-// Runs a while loop, folding into the current line all lines in the current
-// paragraph (by LineHasPrefix).
+// Folds into the current line all lines in the current paragraph (according to
+// LineHasPrefix). The end result is that the current line will contain the
+// entire paragraph (probably being far larger than `buffer.line_width()`).
 void FoldNextLineWhilePrefixIs(string prefix) {
   SetStatus("Folding paragraph into a single line.");
-  int line = b.position().line();
-  while (line + 1 < b.line_count() && LineHasPrefix(prefix, line + 1)) {
-    b.set_position(LineColumn(line, b.line(line).size()));
-    if (b.position().column() > prefix.size()) {
-      b.InsertText(" ");  // To avoid a space in the first line.
+  int line = buffer.position().line();
+  while (line + 1 < buffer.line_count() && LineHasPrefix(prefix, line + 1)) {
+    buffer.set_position(LineColumn(line, buffer.line(line).size()));
+    if (buffer.position().column() > prefix.size()) {
+      buffer.InsertText(" ");  // To avoid a space in the first line.
     }
     int prefix_to_delete =
-        b.line(line + 1).find_first_not_of(" ", prefix.size());
-    b.DeleteCharacters(1 + prefix_to_delete);
+        buffer.line(line + 1).find_first_not_of(" ", prefix.size());
+    buffer.DeleteCharacters(1 + prefix_to_delete);
   }
 }
 
-// Deletes length characters starting at start and inserts a break.
+// Deletes length characters starting at start and breaks the line.
 void BreakAt(string prefix, int start, int length) {
-  b.set_position(LineColumn(b.position().line(), start));
-  b.DeleteCharacters(length);
-  b.InsertText("\n" + prefix);
+  buffer.set_position(LineColumn(buffer.position().line(), start));
+  buffer.DeleteCharacters(length);
+  buffer.InsertText("\n" + prefix);
 }
 
-void BreakLineByLineWidth(string prefix) {
-  SetStatus("Breaking line by line width.");
-  while (b.line(b.position().line()).size() > b.line_width()) {
-    string s = b.line(b.position().line());
-    int last_space = s.find_last_of(" ", b.line_width());
+void BreakLine(string prefix, int line_width) {
+  SetStatus("Breaking line by line width: " + line_width.tostring());
+  while (buffer.line(buffer.position().line()).size() > line_width) {
+    string s = buffer.line(buffer.position().line());
+
+    // The last space before line_width.
+    int last_space = s.find_last_of(" ", line_width);
     if (last_space != -1 && last_space > prefix.size()) {
+      // We were able to find a space after the prefix.
+      //
+      // Find the last non-space character preceeding it.
       int last_char = s.find_last_not_of(" ", last_space);
       if (last_char == -1) {
         SetStatus("Giving up: couldn't find start of break.");
         return;
       }
       BreakAt(prefix, last_char + 1, last_space - last_char);
-    } else {
-      // We'll have to leave a line longer than line_width.
-      int first_space = s.find_first_not_of(" ", b.line_width());
-      if (first_space == -1) {
-        SetStatus("Giving up: Couldn't find end of line.");
+    } else {  // No space found after the prefix and before line_width.
+      // Find the first non-space character after line_width.
+      int break_at =
+          break_words ? line_width : s.find_first_of(" ", line_width);
+      if (break_at == -1) {
+        SetStatus("We're done: No space remains.");
         return;
       }
-      int next_char = s.find_first_of(b.word_characters(), first_space);
+      int next_char = s.find_first_of(buffer.word_characters(), break_at);
       if (next_char == -1) {
-        SetStatus("Giving up: Couldn't find next character.");
+        SetStatus("We're done: Only spaces now.");
         return;
       }
-      BreakAt(prefix, first_space, next_char - first_space);
+      BreakAt(prefix, break_at, next_char - break_at);
     }
   }
 }
 
 buffer.PushTransformationStack();
 
-string prefix =
-    GetPrefix(b.line(b.position().line()), buffer.line_prefix_characters());
-SetStatus("Paragraph prefix: '" + prefix + "'");
+string prefix = GetPrefix(buffer.line(buffer.position().line()),
+                          buffer.line_prefix_characters());
 
 ScrollBackToBeginningOfParagraph(prefix);
-LineColumn starting_position = b.position();
+LineColumn starting_position = buffer.position();
 
 // This is in case the first line in the paragraph has spaces that should be
 // removed.
-b.set_position(LineColumn(starting_position.line(), prefix.size()));
-b.InsertText("\n" + prefix);
-b.set_position(starting_position);
+buffer.set_position(LineColumn(starting_position.line(), prefix.size()));
+buffer.InsertText("\n" + prefix);
+buffer.set_position(starting_position);
 
 FoldNextLineWhilePrefixIs(prefix);
-b.set_position(starting_position);
+buffer.set_position(starting_position);
 
-BreakLineByLineWidth(prefix);
-b.set_position(starting_position);
+BreakLine(prefix, buffer.line_width());
+buffer.set_position(starting_position);
 
 buffer.PopTransformationStack();

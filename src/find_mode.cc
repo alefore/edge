@@ -32,7 +32,7 @@ class FindTransformation : public Transformation {
     }
   }
 
-  std::unique_ptr<Transformation> Clone() {
+  std::unique_ptr<Transformation> Clone() const override {
     return std::make_unique<FindTransformation>(c_, modifiers_);
   }
 

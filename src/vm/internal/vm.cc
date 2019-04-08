@@ -556,11 +556,12 @@ void Trampoline::Enter(Expression* start_expression) {
   CHECK(expression_ == nullptr);
   CHECK(start_expression != nullptr);
   expression_ = start_expression;
+  desired_type_ = start_expression->Types()[0];
   while (expression_) {
     DVLOG(7) << "Jumping in the evaluation trampoline...";
     Expression* current_expression = expression_;
     expression_ = nullptr;
-    current_expression->Evaluate(this);
+    current_expression->Evaluate(this, desired_type_);
     DVLOG(10) << "Landed in the evaluation trampoline...";
   }
   DVLOG(4) << "Leaving evaluation trampoline...";
@@ -584,12 +585,14 @@ std::function<void(Value::Ptr)> Trampoline::Interrupt() {
   };
 }
 
-void Trampoline::Bounce(Expression* new_expression,
+void Trampoline::Bounce(Expression* new_expression, VMType type,
                         Continuation new_continuation) {
   DVLOG(6) << "Bouncing in the trampoline.";
   CHECK(expression_ == nullptr);
   Continuation original_continuation = std::move(continuation_);
   expression_ = new_expression;
+  desired_type_ = std::move(type);
+  CHECK(expression_->SupportsType(desired_type_));
   continuation_ = [original_continuation, new_continuation](
                       Value::Ptr value, Trampoline* trampoline) {
     // We do this copy because the assignment below may delete us.

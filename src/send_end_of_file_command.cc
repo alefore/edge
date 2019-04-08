@@ -50,11 +50,12 @@ void SendEndOfFileToBuffer(EditorState* editor_state,
 
 class SendEndOfFileCommand : public Command {
  public:
-  const wstring Description() {
+  wstring Description() const override {
     return L"stops writing to a subprocess (effectively sending EOF).";
   }
+  wstring Category() const override { return L"Subprocess"; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) override {
     if (!editor_state->has_current_buffer()) {
       return;
     }

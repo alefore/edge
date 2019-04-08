@@ -15,9 +15,10 @@ namespace editor {
 namespace {
 class RunCppFileCommand : public Command {
  public:
-  const wstring Description() { return L"runs a command from a file"; }
+  wstring Description() const override { return L"runs a command from a file"; }
+  wstring Category() const override { return L"Extensions"; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) override {
     if (!editor_state->has_current_buffer()) {
       return;
     }

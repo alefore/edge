@@ -78,12 +78,15 @@ struct AddArgs<Arg0, Args...> {
 };
 
 template <typename ReturnType>
-Value::Ptr RunCallback(std::function<void()> callback,
+Value::Ptr RunCallback(std::function<ReturnType()> callback,
                        const vector<Value::Ptr>& args) {
   CHECK(args.empty());
-  callback();
-  return Value::NewVoid();
+  return VMTypeMapper<ReturnType>::New(callback());
 }
+
+template <>
+Value::Ptr RunCallback(std::function<void()> callback,
+                       const vector<Value::Ptr>& args);
 
 template <typename ReturnType, typename A0>
 Value::Ptr RunCallback(std::function<ReturnType(A0)> callback,

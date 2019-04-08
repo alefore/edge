@@ -1,5 +1,7 @@
 #include "map_mode.h"
+
 #include <memory>
+#include <set>
 
 #include <glog/logging.h>
 
@@ -26,7 +28,10 @@ class CommandFromFunction : public Command {
     CHECK(callback_ != nullptr);
   }
 
-  const std::wstring Description() override { return description_; }
+  std::wstring Description() const override { return description_; }
+  std::wstring Category() const override {
+    return L"C++ Functions (Extensions)";
+  }
 
   void ProcessInput(wint_t, EditorState*) override { callback_(); }
 
@@ -55,12 +60,14 @@ std::unique_ptr<MapModeCommands> MapModeCommands::NewChild() {
   return std::move(output);
 }
 
-std::map<wstring, Command*> MapModeCommands::Coallesce() const {
-  std::map<wstring, Command*> output;
+std::map<wstring, std::map<wstring, Command*>> MapModeCommands::Coallesce()
+    const {
+  std::map<wstring, std::map<wstring, Command*>> output;
+  std::set<wstring> already_seen;  // Avoid showing unreachable commands.
   for (const auto& node : commands_) {
     for (const auto& it : *node) {
-      if (output.count(it.first) == 0) {
-        output.insert({it.first, it.second.get()});
+      if (already_seen.insert(it.first).second) {
+        output[it.second->Category()][it.first] = it.second.get();
       }
     }
   }

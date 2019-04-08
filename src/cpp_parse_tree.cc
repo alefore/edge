@@ -279,7 +279,6 @@ class CppTreeParser : public TreeParser {
     // The most common transition (but sometimes overriden below).
     result->SetState(state_default);
 
-    auto original_position = result->position();
     auto c = seek.read();
     seek.Once();
     if (c == L'\n') {
@@ -289,8 +288,6 @@ class CppTreeParser : public TreeParser {
     if (c == L'\t' || c == L' ') {
       return;
     }
-
-    CHECK_GT(result->position(), original_position);
 
     if (after_newline && c == '#') {
       PreprocessorDirective(result);
@@ -319,7 +316,7 @@ class CppTreeParser : public TreeParser {
     }
 
     if (c == L'{' || c == L'(') {
-      result->Push(c == L'{' ? BRACKET_DEFAULT : PARENS_DEFAULT, 0, {});
+      result->Push(c == L'{' ? BRACKET_DEFAULT : PARENS_DEFAULT, 1, {});
       result->PushAndPop(1, BAD_PARSE_MODIFIERS);
       return;
     }

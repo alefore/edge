@@ -341,22 +341,22 @@ class OpenBuffer {
                      int input_fd_error, bool fd_is_terminal, pid_t child_pid);
 
   const bool& Read(const EdgeVariable<bool>* variable) const;
-  void set_bool_variable(const EdgeVariable<bool>* variable, bool value);
+  void Set(const EdgeVariable<bool>* variable, bool value);
   void toggle_bool_variable(const EdgeVariable<bool>* variable);
 
   const wstring& Read(const EdgeVariable<wstring>* variable) const;
-  void set_string_variable(const EdgeVariable<wstring>* variable,
-                           wstring value);
+  void Set(const EdgeVariable<wstring>* variable, wstring value);
 
   const int& Read(const EdgeVariable<int>* variable) const;
-  void set_int_variable(const EdgeVariable<int>* variable, int value);
+  void Set(const EdgeVariable<int>* variable, int value);
 
   const double& Read(const EdgeVariable<double>* variable) const;
-  void set_double_variable(const EdgeVariable<double>* variable, double value);
+  void Set(const EdgeVariable<double>* variable, double value);
 
   void ApplyToCursors(unique_ptr<Transformation> transformation);
   void ApplyToCursors(unique_ptr<Transformation> transformation,
-                      Modifiers::CursorsAffected cursors_affected);
+                      Modifiers::CursorsAffected cursors_affected,
+                      Transformation::Result::Mode mode);
   void RepeatLastTransformation();
 
   void PushTransformationStack();
@@ -588,6 +588,13 @@ class OpenBuffer {
 };
 
 }  // namespace editor
+namespace vm {
+template <>
+struct VMTypeMapper<editor::OpenBuffer*> {
+  static editor::OpenBuffer* get(Value* value);
+  static const VMType vmtype;
+};
+}  // namespace vm
 }  // namespace afc
 
 #endif

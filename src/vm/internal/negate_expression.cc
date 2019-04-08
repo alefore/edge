@@ -15,16 +15,17 @@ class NegateExpression : public Expression {
                    unique_ptr<Expression> expr)
       : negate_(negate), expr_(std::move(expr)) {}
 
-  const VMType& type() { return expr_->type(); }
+  std::vector<VMType> Types() override { return expr_->Types(); }
 
-  void Evaluate(Trampoline* trampoline) {
+  void Evaluate(Trampoline* trampoline, const VMType&) override {
     auto negate = negate_;
     auto expr = expr_;
-    trampoline->Bounce(expr.get(), [negate, expr](std::unique_ptr<Value> value,
-                                                  Trampoline* trampoline) {
-      negate(value.get());
-      trampoline->Continue(std::move(value));
-    });
+    trampoline->Bounce(
+        expr.get(), expr->Types()[0],
+        [negate, expr](std::unique_ptr<Value> value, Trampoline* trampoline) {
+          negate(value.get());
+          trampoline->Continue(std::move(value));
+        });
   }
 
   std::unique_ptr<Expression> Clone() override {
@@ -44,9 +45,9 @@ std::unique_ptr<Expression> NewNegateExpression(
   if (expr == nullptr) {
     return nullptr;
   }
-  if (!(expr->type() == expected_type)) {
+  if (!expr->SupportsType(expected_type)) {
     compilation->errors.push_back(L"Can't negate an expression of type: \"" +
-                                  expr->type().ToString() + L"\"");
+                                  TypesToString(expr->Types()) + L"\"");
     return nullptr;
   }
   return std::make_unique<NegateExpression>(negate, std::move(expr));

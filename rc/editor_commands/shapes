@@ -1,4 +1,5 @@
 #include "lib/strings"
+#include "lib/numbers"
 
 double total_columns = 80.0;
 double total_lines = 25.0;
@@ -13,16 +14,6 @@ void ShapesSetStatus(string description) {
   SetStatus("Shapes: " + description);
 }
 
-int Min(int x, int y) { return x <= y ? x : y; }
-int Max(int x, int y) { return x >= y ? x : y; }
-
-double Abs(double x) {
-  if (x >= 0.0)
-    return x;
-  else
-    return -x;
-}
-
 void PadToLineColumn(LineColumn position) {
   buffer.set_position(position);
   if (buffer.line_count() <= position.line()) {
@@ -30,7 +21,7 @@ void PadToLineColumn(LineColumn position) {
     buffer.InsertText("\n" * (position.line() + 1 - buffer.line_count()));
   }
   string line = buffer.line(position.line());
-  int insertions = Max(0, position.column() - line.size());
+  int insertions = max(0, position.column() - line.size());
   buffer.set_position(position);
   buffer.InsertText(" " * insertions);
 }
@@ -39,7 +30,7 @@ void DrawPosition(LineColumn position, string text) {
   string line = buffer.line(position.line());
   PadToLineColumn(position);
   if (line.size() > position.column()) {
-    buffer.DeleteCharacters(Min(line.size() - position.column(), text.size()));
+    buffer.DeleteCharacters(min(line.size() - position.column(), text.size()));
   }
   buffer.InsertText(text);
 }
@@ -491,7 +482,7 @@ string GetSquareContents(LineColumn start, LineColumn end) {
     string line = buffer.line(start.line());
     if (line.size() > start.column()) {
       string part = TrimLine(line.substr(
-          start.column(), Min(end.column() + 1, line.size()) - start.column()));
+          start.column(), min(end.column() + 1, line.size()) - start.column()));
       output = output + (!output.empty() && !part.empty() ? " " : "") + part;
     }
     start = LineColumn(start.line() + 1, start.column());
@@ -519,10 +510,10 @@ void ShapesSquareCenter() {
   LineColumn a = buffer.position();
   LineColumn b = source;
   int border_delta = 1;
-  LineColumn start = LineColumn(Min(a.line(), b.line()) + border_delta,
-                                Min(a.column(), b.column()) + border_delta);
-  LineColumn end = LineColumn(Max(a.line(), b.line()) - border_delta,
-                              Max(a.column(), b.column()) - border_delta);
+  LineColumn start = LineColumn(min(a.line(), b.line()) + border_delta,
+                                min(a.column(), b.column()) + border_delta);
+  LineColumn end = LineColumn(max(a.line(), b.line()) - border_delta,
+                              max(a.column(), b.column()) - border_delta);
   if (start.line() > end.line() || start.column() > end.column()) {
     ShapesSetStatus("Square is too small.");
     return;
@@ -640,7 +631,7 @@ VectorInt DiagramGetEdges(int lines, string a, VectorString nouns) {
 int GetMaxNounWidth(VectorString nouns) {
   int output = 0;
   for (int i = 0; i < nouns.size(); i++) {
-    output = Max(output, nouns.get(i).size());
+    output = max(output, nouns.get(i).size());
   }
   return output;
 }
@@ -648,7 +639,7 @@ int GetMaxNounWidth(VectorString nouns) {
 int GetMaxNounSize(VectorString nouns) {
   int output = 0;
   for (int i = 0; i < nouns.size(); i++) {
-    output = Max(output, nouns.size());
+    output = max(output, nouns.size());
   }
   return output;
 }
@@ -670,7 +661,7 @@ VectorString NounLines(string noun) {
 int NounWidth(VectorString noun_lines) {
   int output = noun_lines.get(0).size();
   for (int i = 1; i < noun_lines.size(); i++) {
-    output = Max(output, noun_lines.get(i).size());
+    output = max(output, noun_lines.get(i).size());
   }
   return output;
 }

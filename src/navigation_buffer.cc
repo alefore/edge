@@ -25,9 +25,9 @@ class NavigationBuffer : public OpenBuffer {
                    std::shared_ptr<OpenBuffer> source)
       : OpenBuffer(editor_state, std::move(name)), source_(source) {
     editor_state->StartHandlingInterrupts();
-    set_bool_variable(buffer_variables::show_in_buffers_list(), false);
-    set_bool_variable(buffer_variables::push_positions_to_history(), false);
-    set_bool_variable(buffer_variables::allow_dirty_delete(), true);
+    Set(buffer_variables::show_in_buffers_list(), false);
+    Set(buffer_variables::push_positions_to_history(), false);
+    Set(buffer_variables::allow_dirty_delete(), true);
     environment()->Define(kDepthSymbol, Value::NewInteger(3));
   }
 
@@ -52,11 +52,10 @@ class NavigationBuffer : public OpenBuffer {
     }
 
     target->AppendToLastLine(editor_state, NewCopyString(source->name()));
-    auto depth_value = target->environment()->Lookup(kDepthSymbol);
+    auto depth_value =
+        target->environment()->Lookup(kDepthSymbol, VMType::Integer());
     int depth =
-        depth_value == nullptr || depth_value->type.type != VMType::VM_INTEGER
-            ? 3
-            : size_t(max(0, depth_value->integer));
+        depth_value == nullptr ? 3 : size_t(max(0, depth_value->integer));
     DisplayTree(editor_state, source, depth, *tree, EmptyString(), target);
   }
 
@@ -148,11 +147,12 @@ class NavigationBuffer : public OpenBuffer {
 
 class NavigationBufferCommand : public Command {
  public:
-  const wstring Description() {
+  wstring Description() const override {
     return L"displays a navigation view of the current buffer";
   }
+  wstring Category() const override { return L"Navigate"; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) override {
     if (!editor_state->has_current_buffer()) {
       editor_state->SetWarningStatus(
           L"NavigationBuffer needs an existing buffer.");
@@ -171,8 +171,7 @@ class NavigationBufferCommand : public Command {
     if (it.second) {
       it.first->second = std::make_shared<NavigationBuffer>(editor_state, name,
                                                             std::move(source));
-      it.first->second->set_bool_variable(buffer_variables::reload_on_enter(),
-                                          true);
+      it.first->second->Set(buffer_variables::reload_on_enter(), true);
     }
     editor_state->ResetStatus();
     it.first->second->Reload(editor_state);

@@ -13,9 +13,6 @@ Support more languages:
          - text:cc,h,py,md,sh binary:o
          - Not sure the best way to do this is syntax highlighting. Maybe the buffer should do it, based also on `stat` results (e.g. permissions, symlink, subdir...)
 
-Improve support for Markdown syntax.
-  Support lists.
-
 ## Editing
 
 Implement delete of page.
@@ -38,6 +35,8 @@ Reloading the file should reset the cursors.
   Since it shifts them to the top anyway.
 
 Search: Should make sure to disable multi active cursors.
+
+Have a 'weak-word' region very similar to word, but breaking at camel-case or underscore.
 
 ## Navigation
 
@@ -84,18 +83,20 @@ atomic_lines should probably also apply to multiple cursors.
 
 Add support for templates, so that we can do "vector<string>".
 
-Support polymorphism: same name for multiple symbols with different type.
-  Requires adjusting lookup and all callers.
+Improve polymorphism: support polymorphic methods (rather than only global functions).
 
 Support in-line functions and/or lambda forms. Tricky.
 
 Improve support for `for`: the environments aren't properly nested as they should be.
 
-### Client/server
+Don't crash on this: buffer.set_view_start_line(-1);
 
-Allow a client to just disconnect.
-  This is currently hard because the server doesn't know which client issued the commands it processes.
+Allow extensions to define classes or structures.
+
+### Client/server
 
 ## Misc
 
 Support variables scoped at the Editor level (i.e. not specific to a given buffer).
+
+Don't do any blocking operations.

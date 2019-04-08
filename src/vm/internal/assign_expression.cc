@@ -19,19 +19,21 @@ class AssignExpression : public Expression {
   AssignExpression(const wstring& symbol, unique_ptr<Expression> value)
       : symbol_(symbol), value_(std::move(value)) {}
 
-  const VMType& type() { return value_->type(); }
+  std::vector<VMType> Types() override { return value_->Types(); }
 
-  void Evaluate(Trampoline* trampoline) override {
+  void Evaluate(Trampoline* trampoline, const VMType& type) override {
     auto expression = value_;
     auto symbol = symbol_;
-    trampoline->Bounce(
-        expression.get(), [expression, symbol](std::unique_ptr<Value> value,
-                                               Trampoline* trampoline) {
-          DVLOG(3) << "Setting value for: " << symbol;
-          DVLOG(4) << "Value: " << *value;
-          trampoline->environment()->Assign(symbol, std::move(value));
-          trampoline->Continue(Value::NewVoid());
-        });
+    trampoline->Bounce(expression.get(), type,
+                       [expression, symbol](std::unique_ptr<Value> value,
+                                            Trampoline* trampoline) {
+                         DVLOG(3) << "Setting value for: " << symbol;
+                         DVLOG(4) << "Value: " << *value;
+                         trampoline->environment()->Assign(symbol,
+                                                           std::move(value));
+                         // TODO: This seems wrong: shouldn't it be `value`?
+                         trampoline->Continue(Value::NewVoid());
+                       });
   }
 
   std::unique_ptr<Expression> Clone() override {
@@ -59,14 +61,14 @@ unique_ptr<Expression> NewAssignExpression(Compilation* compilation,
                                   L"\" for symbol \"" + symbol + L"\".");
     return nullptr;
   }
-  compilation->environment->Define(symbol,
-                                   std::make_unique<Value>(value->type()));
-  if (!(*type_def == value->type())) {
+  if (!value->SupportsType(*type_def)) {
     compilation->errors.push_back(
-        L"Unable to assign a value of type \"" + value->type().ToString() +
-        L"\" to a variable of type \"" + type_def->ToString() + L"\".");
+        L"Unable to assign a value to a variable of type \"" +
+        type_def->ToString() + L"\". Value types: " +
+        TypesToString(value->Types()));
     return nullptr;
   }
+  compilation->environment->Define(symbol, std::make_unique<Value>(*type_def));
   return std::make_unique<AssignExpression>(symbol, std::move(value));
 }
 
@@ -76,19 +78,30 @@ unique_ptr<Expression> NewAssignExpression(Compilation* compilation,
   if (value == nullptr) {
     return nullptr;
   }
-  auto obj = compilation->environment->Lookup(symbol);
-  if (obj == nullptr) {
+  std::vector<Value*> variables;
+  compilation->environment->PolyLookup(symbol, &variables);
+  for (auto& v : variables) {
+    if (value->SupportsType(v->type)) {
+      return std::make_unique<AssignExpression>(symbol, std::move(value));
+    }
+  }
+
+  if (variables.empty()) {
     compilation->errors.push_back(L"Variable not found: \"" + symbol + L"\"");
     return nullptr;
   }
-  if (!(obj->type == value->type())) {
-    compilation->errors.push_back(
-        L"Unable to assign a value of type \"" + value->type().ToString() +
-        L"\" to a variable of type \"" + obj->type.ToString() + L"\".");
-    return nullptr;
+
+  std::vector<VMType> variable_types;
+  for (auto& v : variables) {
+    variable_types.push_back(v->type);
   }
 
-  return std::make_unique<AssignExpression>(symbol, std::move(value));
+  compilation->errors.push_back(
+      L"Unable to assign a value to a variable supporting types: \"" +
+      TypesToString(value->Types()) + L"\". Value types: " +
+      TypesToString(variable_types));
+
+  return nullptr;
 }
 
 }  // namespace vm

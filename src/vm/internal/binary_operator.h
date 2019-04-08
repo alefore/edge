@@ -18,9 +18,9 @@ class BinaryOperator : public Expression {
                  const VMType type,
                  function<void(const Value&, const Value&, Value*)> callback);
 
-  const VMType& type() override;
+  std::vector<VMType> Types() override;
 
-  void Evaluate(Trampoline* evaluation) override;
+  void Evaluate(Trampoline* evaluation, const VMType& type) override;
 
   std::unique_ptr<Expression> Clone() override;
 

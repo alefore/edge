@@ -68,41 +68,42 @@ void SignalHandler(int sig) {
   editor_state()->PushSignal(sig);
 }
 
-static const char* kDefaultCommandsToRun = "ForkCommand(\"sh -l\", true);";
+static const wchar_t* kDefaultCommandsToRun = L"ForkCommand(\"sh -l\", true);";
 
-string CommandsToRun(Args args) {
+wstring CommandsToRun(command_line_arguments::Values args) {
   // TODO: Escape paths here!
-  string commands_to_run = args.commands_to_run;
-  std::vector<string> buffers_to_watch;
+  wstring commands_to_run = args.commands_to_run;
+  std::vector<wstring> buffers_to_watch;
   for (auto& path : args.files_to_open) {
-    string full_path;
-    if (!path.empty() && string("/~").find(path[0]) != string::npos) {
-      LOG(INFO) << "Will open an absolute path: " << path;
+    wstring full_path;
+    if (!path.empty() && wstring(L"/~").find(path[0]) != wstring::npos) {
+      LOG(INFO) << L"Will open an absolute path: " << path;
       full_path = path;
     } else {
-      LOG(INFO) << "Will open a relative path: " << path;
+      LOG(INFO) << L"Will open a relative path: " << path;
       char* dir = get_current_dir_name();
-      full_path = string(dir) + "/" + path;
+      full_path = FromByteString(dir) + L"/" + path;
       free(dir);
     }
-    commands_to_run += "OpenFile(\"" + full_path + "\", true);\n";
+    commands_to_run += L"OpenFile(\"" + full_path + L"\", true);\n";
     buffers_to_watch.push_back(full_path);
   }
   for (auto& command_to_fork : args.commands_to_fork) {
-    commands_to_run += "ForkCommand(\"" + string(command_to_fork) + "\", " +
-                       (args.background ? "false" : "true") + ");\n";
+    commands_to_run += L"ForkCommand(\"" + command_to_fork + L"\", " +
+                       (args.background ? L"false" : L"true") + L");\n";
   }
   if (!args.client.empty()) {
-    commands_to_run += "Screen screen = RemoteScreen(\"" +
-                       string(getenv(kEdgeParentAddress)) + "\");\n";
+    commands_to_run += L"Screen screen = RemoteScreen(\"" +
+                       FromByteString(getenv(kEdgeParentAddress)) + L"\");\n";
   } else if (!buffers_to_watch.empty() &&
              args.nested_edge_behavior ==
-                 Args::NestedEdgeBehavior::kWaitForClose) {
-    commands_to_run += "SetString buffers_to_watch = SetString();\n";
+                 command_line_arguments::Values::NestedEdgeBehavior::
+                     kWaitForClose) {
+    commands_to_run += L"SetString buffers_to_watch = SetString();\n";
     for (auto& block : buffers_to_watch) {
-      commands_to_run += "buffers_to_watch.insert(\"" + block + "\");\n";
+      commands_to_run += L"buffers_to_watch.insert(\"" + block + L"\");\n";
     }
-    commands_to_run += "WaitForClose(buffers_to_watch);\n";
+    commands_to_run += L"WaitForClose(buffers_to_watch);\n";
   }
   if (commands_to_run.empty()) {
     return kDefaultCommandsToRun;
@@ -120,13 +121,14 @@ void SendCommandsToParent(int fd, const string commands_to_run) {
   }
 }
 
-wstring StartServer(const Args& args, bool connected_to_parent) {
+wstring StartServer(const command_line_arguments::Values& args,
+                    bool connected_to_parent) {
   LOG(INFO) << "Starting server.";
 
   wstring address;
   std::unordered_set<int> surviving_fds = {1, 2};
   if (args.server && !args.server_path.empty()) {
-    address = FromByteString(args.server_path);
+    address = args.server_path;
     // We can't close stdout until we've printed the address in which the server
     // will run.
     Daemonize(surviving_fds);
@@ -180,7 +182,7 @@ int main(int argc, const char** argv) {
   string locale = std::setlocale(LC_ALL, "");
   LOG(INFO) << "Using locale: " << locale;
 
-  Args args = ParseArgs(argc, argv);
+  auto args = command_line_arguments::Parse(argc, argv);
 
   auto audio_player = args.mute ? NewNullAudioPlayer() : NewAudioPlayer();
   global_editor_state = std::make_unique<EditorState>(args, audio_player.get());
@@ -189,7 +191,8 @@ int main(int argc, const char** argv) {
   bool connected_to_parent = false;
   if (!args.client.empty()) {
     wstring parent_server_error;
-    remote_server_fd = MaybeConnectToServer(args.client, &parent_server_error);
+    remote_server_fd =
+        MaybeConnectToServer(ToByteString(args.client), &parent_server_error);
     if (remote_server_fd == -1) {
       cerr << args.binary_name
            << ": Unable to connect to remote server: " << parent_server_error
@@ -217,8 +220,8 @@ int main(int argc, const char** argv) {
   auto commands_to_run = CommandsToRun(args);
   if (!commands_to_run.empty()) {
     if (connected_to_parent) {
-      commands_to_run += string("SetStatus(\"exit remote\");\nSendExitTo(\"") +
-                         ToByteString(server_path) + string("\");");
+      commands_to_run +=
+          L"SetStatus(\"exit remote\");\nSendExitTo(\"" + server_path + L"\");";
     }
 
     int self_fd;
@@ -226,7 +229,7 @@ int main(int argc, const char** argv) {
     if (remote_server_fd != -1) {
       self_fd = remote_server_fd;
     } else if (args.server && !args.server_path.empty()) {
-      self_fd = MaybeConnectToServer(args.server_path, &errors);
+      self_fd = MaybeConnectToServer(ToByteString(args.server_path), &errors);
     } else {
       self_fd = MaybeConnectToParentServer(&errors);
     }
@@ -235,7 +238,7 @@ int main(int argc, const char** argv) {
       exit(1);
     }
     CHECK_NE(self_fd, -1);
-    SendCommandsToParent(self_fd, commands_to_run);
+    SendCommandsToParent(self_fd, ToByteString(commands_to_run));
   }
 
   std::mbstate_t mbstate = std::mbstate_t();
@@ -253,7 +256,7 @@ int main(int argc, const char** argv) {
   BeepFrequencies(audio_player.get(), {783.99, 723.25, 783.99});
   editor_state()->SetStatus(GetGreetingMessage());
 
-  while (!editor_state()->terminate()) {
+  while (!editor_state()->exit_value().has_value()) {
     editor_state()->UpdateBuffers();
     auto screen_state = editor_state()->FlushScreenState();
     if (screen_curses != nullptr) {
@@ -276,7 +279,8 @@ int main(int argc, const char** argv) {
     }
     VLOG(5) << "Updating remote screens.";
     for (auto& buffer : *editor_state()->buffers()) {
-      auto value = buffer.second->environment()->Lookup(L"screen");
+      auto value =
+          buffer.second->environment()->Lookup(L"screen", GetScreenVmType());
       if (value->type.type != VMType::OBJECT_TYPE ||
           value->type.object_type != L"Screen") {
         continue;
@@ -385,5 +389,5 @@ int main(int argc, const char** argv) {
 
   LOG(INFO) << "Removing server file: " << server_path;
   unlink(ToByteString(server_path).c_str());
-  return editor_state()->exit_value();
+  return editor_state()->exit_value().value();
 }

@@ -5,6 +5,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -41,7 +42,7 @@ class EditorState {
     bool needs_hard_redraw = false;
   };
 
-  EditorState(Args args, AudioPlayer* audio_player);
+  EditorState(command_line_arguments::Values args, AudioPlayer* audio_player);
   ~EditorState();
 
   void CheckPosition() {
@@ -73,8 +74,7 @@ class EditorState {
     return current_buffer_;
   }
   wstring GetUnusedBufferName(const wstring& prefix);
-  bool terminate() const { return terminate_; }
-  int exit_value() const { return exit_value_; }
+  std::optional<int> exit_value() const { return exit_value_; }
   bool AttemptTermination(wstring* error_description, int exit_value);
 
   void ResetModifiers() {
@@ -112,10 +112,6 @@ class EditorState {
 
   Modifiers::StructureRange structure_range() const {
     return modifiers_.structure_range;
-  }
-  // TODO: Erase; it's now replaced by set_structure_range.
-  void set_structure_modifier(Modifiers::StructureRange structure_range) {
-    set_structure_range(structure_range);
   }
   void set_structure_range(Modifiers::StructureRange structure_range) {
     modifiers_.structure_range = structure_range;
@@ -244,9 +240,7 @@ class EditorState {
 
   map<wstring, shared_ptr<OpenBuffer>> buffers_;
   map<wstring, shared_ptr<OpenBuffer>>::iterator current_buffer_;
-  // TODO: Turn exit_value_ into a std::optional<int> and get rid of terminate_.
-  bool terminate_ = false;
-  int exit_value_ = 0;
+  std::optional<int> exit_value_;
 
   wstring home_directory_;
   vector<wstring> edge_path_;

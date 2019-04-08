@@ -19,8 +19,7 @@ namespace editor {
 
 std::ostream& operator<<(std::ostream& os, const DeleteOptions& options) {
   os << "[DeleteOptions: copy_to_paste_buffer:" << options.copy_to_paste_buffer
-     << ", preview:" << options.preview << ", modifiers:" << options.modifiers
-     << "]";
+     << ", modifiers:" << options.modifiers << "]";
   return os;
 }
 
@@ -50,14 +49,21 @@ class DeleteCharactersTransformation : public Transformation {
     }
 
     if (buffer->LineAt(result->cursor.line) == nullptr) {
+      LOG(INFO) << "Can't make progress: Empty line.";
       result->made_progress = false;
       return;
     }
 
     size_t chars_erased;
-    size_t line_end = SkipLinesToErase(
-        buffer, options_.modifiers.repetitions + result->cursor.column,
-        result->cursor.line, &chars_erased);
+    size_t line_end;
+    if (options_.line_end_behavior == DeleteOptions::LineEndBehavior::kDelete) {
+      line_end = SkipLinesToErase(
+          buffer, options_.modifiers.repetitions + result->cursor.column,
+          result->cursor.line, &chars_erased);
+    } else {
+      line_end = result->cursor.line;
+      chars_erased = buffer->LineAt(result->cursor.line)->size() + 1;
+    }
     LOG(INFO) << "Erasing from line " << result->cursor.line << " to line "
               << line_end << " would erase " << chars_erased << " characters.";
     chars_erased -= result->cursor.column;
@@ -75,7 +81,8 @@ class DeleteCharactersTransformation : public Transformation {
       LOG(INFO) << "Adjusting for end of buffer.";
       CHECK_EQ(chars_erase_line, buffer->LineAt(line_end)->size() + 1);
       chars_erase_line = 0;
-      if (line_end + 1 >= buffer->lines_size()) {
+      if (line_end + 1 >= buffer->lines_size() ||
+          options_.line_end_behavior == DeleteOptions::LineEndBehavior::kStop) {
         chars_erase_line = buffer->LineAt(line_end)->size();
       } else {
         line_end++;
@@ -90,7 +97,8 @@ class DeleteCharactersTransformation : public Transformation {
 
     shared_ptr<OpenBuffer> delete_buffer = GetDeletedTextBuffer(
         editor_state, buffer, result->cursor, line_end, chars_erase_line);
-    if (options_.copy_to_paste_buffer) {
+    if (options_.copy_to_paste_buffer &&
+        result->mode == Transformation::Result::Mode::kFinal) {
       VLOG(5) << "Preparing delete buffer.";
       result->delete_buffer->ApplyToCursors(TransformationAtPosition(
           result->delete_buffer->position(),
@@ -98,7 +106,7 @@ class DeleteCharactersTransformation : public Transformation {
     }
 
     if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS &&
-        !options_.preview) {
+        result->mode == Transformation::Result::Mode::kFinal) {
       LOG(INFO) << "Not actually deleting region.";
       result->cursor = original_position;
       return;
@@ -116,7 +124,7 @@ class DeleteCharactersTransformation : public Transformation {
             delete_buffer, 1,
             options_.modifiers.direction == FORWARDS ? START : END)));
 
-    if (options_.preview) {
+    if (result->mode == Transformation::Result::Mode::kPreview) {
       LOG(INFO) << "Inserting preview at: " << result->cursor << " "
                 << delete_buffer->contents()->CountCharacters();
       LineModifierSet modifiers_set = {LineModifier::UNDERLINE,
@@ -129,7 +137,7 @@ class DeleteCharactersTransformation : public Transformation {
     }
   }
 
-  unique_ptr<Transformation> Clone() {
+  unique_ptr<Transformation> Clone() const override {
     return NewDeleteCharactersTransformation(options_);
   }
 
@@ -235,12 +243,11 @@ class DeleteRegionTransformation : public Transformation {
         delete_options.modifiers.delete_type = options_.modifiers.delete_type;
         delete_options.modifiers.structure_range =
             Modifiers::FROM_CURRENT_POSITION_TO_END;
-        delete_options.preview = options_.preview;
         delete_options.copy_to_paste_buffer = options_.copy_to_paste_buffer;
         stack.PushBack(TransformationAtPosition(
             start, NewDeleteLinesTransformation(delete_options)));
         if (options_.modifiers.delete_type == Modifiers::DELETE_CONTENTS &&
-            !options_.preview) {
+            result->mode == Transformation::Result::Mode::kFinal) {
           end.line--;
         } else {
           start.line++;
@@ -256,19 +263,21 @@ class DeleteRegionTransformation : public Transformation {
     delete_options.copy_to_paste_buffer = options_.copy_to_paste_buffer;
     delete_options.modifiers.repetitions = end.column - start.column;
     delete_options.modifiers.delete_type = options_.modifiers.delete_type;
-    delete_options.preview = options_.preview;
     LOG(INFO) << "Deleting characters at: " << start << ": "
               << options_.modifiers.repetitions;
     stack.PushBack(TransformationAtPosition(
         start, NewDeleteCharactersTransformation(delete_options)));
-    if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS ||
-        options_.preview) {
+    if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS) {
       stack.PushBack(NewGotoPositionTransformation(adjusted_original_cursor));
+    } else {
+      stack.PushBack(std::make_unique<RunIfModeTransformation>(
+          Transformation::Result::Mode::kPreview,
+          NewGotoPositionTransformation(adjusted_original_cursor)));
     }
     stack.Apply(editor_state, buffer, result);
   }
 
-  unique_ptr<Transformation> Clone() {
+  unique_ptr<Transformation> Clone() const override {
     return NewDeleteRegionTransformation(options_);
   }
 
@@ -311,7 +320,7 @@ class DeleteLinesTransformation : public Transformation {
       size_t end = forwards ? contents->size() : result->cursor.column;
       if (start == 0 && end == contents->size() &&
           options_.modifiers.delete_type == Modifiers::DELETE_CONTENTS &&
-          !options_.preview) {
+          result->mode == Transformation::Result::Mode::kFinal) {
         auto target_buffer = buffer->GetBufferFromCurrentLine();
         if (target_buffer.get() != buffer && target_buffer != nullptr) {
           auto it = editor_state->buffers()->find(target_buffer->name());
@@ -323,11 +332,9 @@ class DeleteLinesTransformation : public Transformation {
         if (buffer->LineAt(result->cursor.line) != nullptr) {
           Value* callback = buffer->LineAt(result->cursor.line)
                                 ->environment()
-                                ->Lookup(L"EdgeLineDeleteHandler");
-          if (callback != nullptr &&
-              callback->type.type == vm::VMType::FUNCTION &&
-              callback->type.type_arguments.size() == 1 &&
-              callback->type.type_arguments.at(0) == vm::VMType::VM_VOID) {
+                                ->Lookup(L"EdgeLineDeleteHandler",
+                                         VMType::Function({VMType::Void()}));
+          if (callback != nullptr) {
             LOG(INFO) << "Running EdgeLineDeleteHandler.";
             std::shared_ptr<Expression> expr = vm::NewFunctionCall(
                 vm::NewConstantExpression(std::make_unique<Value>(*callback)),
@@ -342,11 +349,10 @@ class DeleteLinesTransformation : public Transformation {
       delete_options.modifiers.repetitions =
           end - start +
           (deletes_ends_of_lines && end == contents->size() ? 1 : 0);
-      delete_options.preview = options_.preview;
       LineColumn position(line, start);
       if (!deletes_ends_of_lines ||
           options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS ||
-          options_.preview) {
+          result->mode == Transformation::Result::Mode::kPreview) {
         position.line += i;
       }
       DVLOG(6) << "Modifiers for line: " << delete_options.modifiers;
@@ -355,13 +361,13 @@ class DeleteLinesTransformation : public Transformation {
           position, NewDeleteCharactersTransformation(delete_options)));
     }
     if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS ||
-        options_.preview) {
+        result->mode == Transformation::Result::Mode::kPreview) {
       stack.PushBack(NewGotoPositionTransformation(adjusted_original_cursor));
     }
     stack.Apply(editor_state, buffer, result);
   }
 
-  unique_ptr<Transformation> Clone() {
+  unique_ptr<Transformation> Clone() const override {
     return NewDeleteLinesTransformation(options_);
   }
 
@@ -403,7 +409,7 @@ class DeleteBufferTransformation : public Transformation {
         ->Apply(editor_state, buffer, result);
   }
 
-  unique_ptr<Transformation> Clone() {
+  unique_ptr<Transformation> Clone() const override {
     return NewDeleteBufferTransformation(options_);
   }
 
@@ -442,7 +448,7 @@ class DeleteTransformation : public Transformation {
     return delegate->Apply(editor_state, buffer, result);
   }
 
-  unique_ptr<Transformation> Clone() {
+  unique_ptr<Transformation> Clone() const override {
     return NewDeleteTransformation(options_);
   }
 

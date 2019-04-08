@@ -20,7 +20,7 @@ class MoveTransformation : public Transformation {
   MoveTransformation(const Modifiers& modifiers) : modifiers_(modifiers) {}
 
   void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const {
+             Result* result) const override {
     CHECK(result);
     auto root = buffer->parse_tree();
     auto current_tree = buffer->current_tree(root.get());
@@ -90,7 +90,7 @@ class MoveTransformation : public Transformation {
     editor_state->ResetDirection();
   }
 
-  unique_ptr<Transformation> Clone() {
+  unique_ptr<Transformation> Clone() const override {
     return NewMoveTransformation(modifiers_);
   }
 

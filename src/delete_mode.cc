@@ -10,19 +10,16 @@
 namespace afc {
 namespace editor {
 
-void ApplyDeleteCommand(EditorState* editor_state, OpenBuffer* buffer,
-                        CommandApplyMode apply_mode, Modifiers modifiers) {
+std::unique_ptr<Transformation> ApplyDeleteCommand(EditorState* editor_state,
+                                                   OpenBuffer* buffer,
+                                                   Modifiers modifiers) {
   CHECK(editor_state != nullptr);
   CHECK(buffer != nullptr);
   DeleteOptions options;
   options.modifiers = modifiers;
-  options.copy_to_paste_buffer = apply_mode == CommandApplyMode::FINAL;
-  options.preview = apply_mode == CommandApplyMode::PREVIEW;
+  options.copy_to_paste_buffer = true;
 
-  buffer->PushTransformationStack();
-  buffer->ApplyToCursors(NewDeleteTransformation(options),
-                         modifiers.cursors_affected);
-  buffer->PopTransformationStack();
+  return NewDeleteTransformation(options);
 }
 
 }  // namespace editor

@@ -9,8 +9,10 @@ namespace vm {
 using std::unique_ptr;
 
 class Expression;
+class Compilation;
 
-unique_ptr<Expression> NewLogicalExpression(bool identity,
+unique_ptr<Expression> NewLogicalExpression(Compilation* compilation,
+                                            bool identity,
                                             unique_ptr<Expression> a,
                                             unique_ptr<Expression> b);
 

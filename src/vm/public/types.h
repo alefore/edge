@@ -1,6 +1,7 @@
 #ifndef __AFC_VM_PUBLIC_TYPES_H__
 #define __AFC_VM_PUBLIC_TYPES_H__
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -50,6 +51,8 @@ struct VMType {
   wstring object_type;
 };
 
+wstring TypesToString(const std::vector<VMType>& types);
+
 bool operator==(const VMType& lhs, const VMType& rhs);
 
 struct Value;
@@ -70,6 +73,8 @@ class ObjectType {
     return it == fields_.end() ? nullptr : it->second.get();
   }
 
+  void ForEachField(std::function<void(const wstring&, Value*)> callback);
+
  private:
   VMType type_;
   map<wstring, unique_ptr<Value>> fields_;
@@ -77,5 +82,12 @@ class ObjectType {
 
 }  // namespace vm
 }  // namespace afc
+
+namespace std {
+template <>
+struct hash<afc::vm::VMType> {
+  size_t operator()(const afc::vm::VMType& x) const;
+};
+}  // namespace std
 
 #endif  // __AFC_VM_PUBLIC_TYPES_H__

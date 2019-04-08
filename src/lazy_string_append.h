@@ -7,11 +7,15 @@
 namespace afc {
 namespace editor {
 
-using std::shared_ptr;
-using std::unique_ptr;
-
-std::shared_ptr<LazyString> StringAppend(const shared_ptr<LazyString>& a,
-                                         const shared_ptr<LazyString>& b);
+std::shared_ptr<LazyString> StringAppend(std::shared_ptr<LazyString> a,
+                                         std::shared_ptr<LazyString> b);
+std::shared_ptr<LazyString> StringAppend(std::shared_ptr<LazyString> a,
+                                         std::shared_ptr<LazyString> b,
+                                         std::shared_ptr<LazyString> c);
+std::shared_ptr<LazyString> StringAppend(std::shared_ptr<LazyString> a,
+                                         std::shared_ptr<LazyString> b,
+                                         std::shared_ptr<LazyString> c,
+                                         std::shared_ptr<LazyString> d);
 
 }  // namespace editor
 }  // namespace afc

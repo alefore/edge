@@ -18,16 +18,12 @@ class CommandWithModifiersMode : public EditorMode {
         buffer_(editor_state->current_buffer()->second),
         handler_(std::move(handler)) {
     CHECK(buffer_ != nullptr);
-    RunHandler(editor_state, CommandApplyMode::PREVIEW);
+    RunHandler(editor_state, Transformation::Result::Mode::kPreview);
   }
 
-  void ProcessInput(wint_t c, EditorState* editor_state) {
+  void ProcessInput(wint_t c, EditorState* editor_state) override {
     buffer_->Undo(editor_state, OpenBuffer::ONLY_UNDO_THE_LAST);
     switch (static_cast<int>(c)) {
-      case '\n':
-      case ' ':
-        RunHandler(editor_state, CommandApplyMode::FINAL);
-        // Fall through.
       case Terminal::ESCAPE:
         buffer_->ResetMode();
         editor_state->ResetStatus();
@@ -37,19 +33,30 @@ class CommandWithModifiersMode : public EditorMode {
         if (!modifiers_string_.empty()) {
           modifiers_string_.pop_back();
         }
-        RunHandler(editor_state, CommandApplyMode::PREVIEW);
+        RunHandler(editor_state, Transformation::Result::Mode::kPreview);
         break;
 
       default:
-        modifiers_string_.push_back(c);
-        RunHandler(editor_state, CommandApplyMode::PREVIEW);
+        if (!ApplyChar(c, nullptr)) {
+          RunHandler(editor_state, Transformation::Result::Mode::kFinal);
+          buffer_->ResetMode();
+          editor_state->ResetStatus();
+          if (c != L'\n') {
+            editor_state->ProcessInput(c);
+          }
+        } else {
+          modifiers_string_.push_back(c);
+          RunHandler(editor_state, Transformation::Result::Mode::kPreview);
+        }
     }
   }
 
  private:
-  void RunHandler(EditorState* editor_state, CommandApplyMode apply_mode) {
-    handler_(editor_state, buffer_.get(), apply_mode,
-             BuildModifiers(editor_state));
+  void RunHandler(EditorState* editor_state,
+                  Transformation::Result::Mode apply_mode) {
+    Modifiers modifiers = BuildModifiers(editor_state);
+    buffer_->ApplyToCursors(handler_(editor_state, buffer_.get(), modifiers),
+                            modifiers.cursors_affected, apply_mode);
   }
 
   Modifiers BuildModifiers(EditorState* editor_state) {
@@ -58,142 +65,146 @@ class CommandWithModifiersMode : public EditorMode {
         buffer_->Read(buffer_variables::multiple_cursors())
             ? Modifiers::AFFECT_ALL_CURSORS
             : Modifiers::AFFECT_ONLY_CURRENT_CURSOR;
-    wstring additional_information;
     modifiers.repetitions = 0;
     for (const auto& c : modifiers_string_) {
-      additional_information = L"";
-      switch (c) {
-        case '+':
-          if (modifiers.repetitions == 0) {
-            modifiers.repetitions = 1;
-          }
-          modifiers.repetitions++;
-          break;
-
-        case '-':
-          if (modifiers.repetitions > 0) {
-            modifiers.repetitions--;
-          }
-          break;
-
-        case '*':
-          switch (modifiers.cursors_affected) {
-            case Modifiers::AFFECT_ONLY_CURRENT_CURSOR:
-              modifiers.cursors_affected = Modifiers::AFFECT_ALL_CURSORS;
-              break;
-            case Modifiers::AFFECT_ALL_CURSORS:
-              modifiers.cursors_affected =
-                  Modifiers::AFFECT_ONLY_CURRENT_CURSOR;
-              break;
-          }
-          break;
-
-        case '0':
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7':
-        case '8':
-        case '9':
-          modifiers.repetitions = 10 * modifiers.repetitions + c - '0';
-          break;
-
-        case 'k':
-          modifiers.boundary_begin = Modifiers::CURRENT_POSITION;
-          modifiers.boundary_end = Modifiers::CURRENT_POSITION;
-          break;
-
-        case 'j':
-          modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
-          modifiers.boundary_end = Modifiers::LIMIT_NEIGHBOR;
-          break;
-
-        case 'h':
-          modifiers.boundary_begin =
-              IncrementBoundary(modifiers.boundary_begin);
-          break;
-
-        case 'l':
-          if (modifiers.boundary_end == Modifiers::LIMIT_NEIGHBOR) {
-            modifiers.repetitions =
-                max(static_cast<size_t>(1), modifiers.repetitions) + 1;
-            modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
-          } else {
-            modifiers.boundary_end = IncrementBoundary(modifiers.boundary_end);
-          }
-          break;
-
-        case 'r':
-          modifiers.direction = ReverseDirection(modifiers.direction);
-          break;
-
-        case 'f':
-          modifiers.structure_range =
-              modifiers.structure_range ==
-                      Modifiers::FROM_CURRENT_POSITION_TO_END
-                  ? Modifiers::ENTIRE_STRUCTURE
-                  : Modifiers::FROM_CURRENT_POSITION_TO_END;
-          break;
-
-        case 'b':
-          modifiers.structure_range =
-              modifiers.structure_range ==
-                      Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION
-                  ? Modifiers::ENTIRE_STRUCTURE
-                  : Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
-          break;
-
-        case 'e':
-          SetStructure(LINE, &modifiers);
-          break;
-
-        case 'w':
-          SetStructure(WORD, &modifiers);
-          break;
-
-        case 'B':
-          SetStructure(BUFFER, &modifiers);
-          break;
-
-        case 'c':
-          SetStructure(CURSOR, &modifiers);
-          break;
-
-        case 'T':
-          SetStructure(TREE, &modifiers);
-          break;
-
-        case 'P':
-          SetStructure(PARAGRAPH, &modifiers);
-          break;
-
-        case 'p':
-          modifiers.delete_type =
-              modifiers.delete_type == Modifiers::DELETE_CONTENTS
-                  ? Modifiers::PRESERVE_CONTENTS
-                  : Modifiers::DELETE_CONTENTS;
-          break;
-
-        default:
-          additional_information = L"Invalid key: " + wstring(1, c);
-      }
+      ApplyChar(c, &modifiers);
     }
     if (modifiers.repetitions == 0) {
       modifiers.repetitions = 1;
     }
-    editor_state->SetStatus(BuildStatus(modifiers, additional_information));
+    editor_state->SetStatus(BuildStatus(modifiers));
     return modifiers;
   }
 
-  void SetStructure(Structure structure, Modifiers* modifiers) {
+  static bool ApplyChar(wchar_t c, Modifiers* modifiers) {
+    Modifiers dummy;
+    if (modifiers == nullptr) {
+      modifiers = &dummy;
+    }
+    switch (c) {
+      case '+':
+        if (modifiers->repetitions == 0) {
+          modifiers->repetitions = 1;
+        }
+        modifiers->repetitions++;
+        break;
+
+      case '-':
+        if (modifiers->repetitions > 0) {
+          modifiers->repetitions--;
+        }
+        break;
+
+      case '*':
+        switch (modifiers->cursors_affected) {
+          case Modifiers::AFFECT_ONLY_CURRENT_CURSOR:
+            modifiers->cursors_affected = Modifiers::AFFECT_ALL_CURSORS;
+            break;
+          case Modifiers::AFFECT_ALL_CURSORS:
+            modifiers->cursors_affected = Modifiers::AFFECT_ONLY_CURRENT_CURSOR;
+            break;
+        }
+        break;
+
+      case '0':
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+      case '6':
+      case '7':
+      case '8':
+      case '9':
+        modifiers->repetitions = 10 * modifiers->repetitions + c - '0';
+        break;
+
+      case '(':
+        modifiers->boundary_begin = Modifiers::CURRENT_POSITION;
+        break;
+
+      case '[':
+        modifiers->boundary_begin = Modifiers::LIMIT_CURRENT;
+        break;
+
+      case '{':
+        modifiers->boundary_begin = Modifiers::LIMIT_NEIGHBOR;
+        break;
+
+      case ')':
+        modifiers->boundary_end = Modifiers::CURRENT_POSITION;
+        break;
+
+      case ']':
+        modifiers->boundary_end = Modifiers::LIMIT_CURRENT;
+        break;
+
+      case '}':
+        modifiers->boundary_end = Modifiers::LIMIT_NEIGHBOR;
+        break;
+
+      case 'r':
+        modifiers->direction = ReverseDirection(modifiers->direction);
+        break;
+
+      case 'f':
+        modifiers->structure_range =
+            modifiers->structure_range ==
+                    Modifiers::FROM_CURRENT_POSITION_TO_END
+                ? Modifiers::ENTIRE_STRUCTURE
+                : Modifiers::FROM_CURRENT_POSITION_TO_END;
+        break;
+
+      case 'b':
+        modifiers->structure_range =
+            modifiers->structure_range ==
+                    Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION
+                ? Modifiers::ENTIRE_STRUCTURE
+                : Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
+        break;
+
+      case 'e':
+        SetStructure(LINE, modifiers);
+        break;
+
+      case 'w':
+        SetStructure(WORD, modifiers);
+        break;
+
+      case 'B':
+        SetStructure(BUFFER, modifiers);
+        break;
+
+      case 'c':
+        SetStructure(CURSOR, modifiers);
+        break;
+
+      case 'T':
+        SetStructure(TREE, modifiers);
+        break;
+
+      case 'P':
+        SetStructure(PARAGRAPH, modifiers);
+        break;
+
+      case 'p':
+        modifiers->delete_type =
+            modifiers->delete_type == Modifiers::DELETE_CONTENTS
+                ? Modifiers::PRESERVE_CONTENTS
+                : Modifiers::DELETE_CONTENTS;
+        break;
+
+      default:
+        return false;
+    }
+    return true;
+  }
+
+  static void SetStructure(Structure structure, Modifiers* modifiers) {
     modifiers->structure = modifiers->structure == structure ? CHAR : structure;
   }
 
-  wstring BuildStatus(const Modifiers& modifiers,
-                      const wstring& additional_information) {
+  wstring BuildStatus(const Modifiers& modifiers) {
     wstring status = name_;
     if (modifiers.structure != CHAR) {
       status += L" " + StructureToString(modifiers.structure);
@@ -240,9 +251,6 @@ class CommandWithModifiersMode : public EditorMode {
         status += L"]";
     }
 
-    if (!additional_information.empty()) {
-      status += L" [" + additional_information + L"]";
-    }
     return status;
   }
 
@@ -258,9 +266,10 @@ class CommandWithModifiers : public Command {
                        CommandWithModifiersHandler handler)
       : name_(name), description_(description), handler_(handler) {}
 
-  const wstring Description() { return description_; }
+  wstring Description() const override { return description_; }
+  wstring Category() const override { return L"Edit"; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) override {
     if (editor_state->has_current_buffer()) {
       editor_state->current_buffer()->second->set_mode(
           std::make_unique<CommandWithModifiersMode>(name_, editor_state,

@@ -112,12 +112,12 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
       max(0, buffer->Read(buffer_variables::view_start_line())));
   if (view_start > line - min(margin_lines, line) &&
       (buffer->child_pid() != -1 || buffer->fd() == -1)) {
-    buffer->set_int_variable(buffer_variables::view_start_line(),
-                             line - min(margin_lines, line));
+    buffer->Set(buffer_variables::view_start_line(),
+                line - min(margin_lines, line));
     editor_state->ScheduleRedraw();
   } else if (view_start + screen_lines - 1 <=
              min(buffer->lines_size() - 1, line + margin_lines)) {
-    buffer->set_int_variable(
+    buffer->Set(
         buffer_variables::view_start_line(),
         min(buffer->lines_size() - 1, line + margin_lines) - screen_lines + 2);
     editor_state->ScheduleRedraw();
@@ -127,8 +127,7 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   if (static_cast<size_t>(
           max(0, buffer->Read(buffer_variables::view_start_column()))) !=
       view_start_column) {
-    buffer->set_int_variable(buffer_variables::view_start_column(),
-                             view_start_column);
+    buffer->Set(buffer_variables::view_start_column(), view_start_column);
     editor_state->ScheduleRedraw();
   }
 
@@ -949,7 +948,7 @@ void Terminal::AdjustPosition(
   pos_x += GetInitialPrefixSize(*buffer);
   size_t pos_y = std::distance(screen_line_positions.begin(), screen_line);
   screen->Move(pos_y, min(static_cast<size_t>(screen->columns()) - 1, pos_x));
-}  // namespace editor
+}
 
 }  // namespace editor
 }  // namespace afc

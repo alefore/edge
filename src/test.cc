@@ -28,7 +28,7 @@ void Clear(EditorState* editor_state) {
 
   editor_state->ProcessInputString("eegdl999999999999999\n");
   editor_state->ProcessInput(Terminal::ESCAPE);
-  editor_state->current_buffer()->second->set_bool_variable(
+  editor_state->current_buffer()->second->Set(
       buffer_variables::multiple_cursors(), false);
   editor_state->current_buffer()->second->DestroyOtherCursors();
   editor_state->current_buffer()->second->set_position(LineColumn());
@@ -172,7 +172,8 @@ void TreeTestsBasic() {
 
 void TestCases() {
   auto audio_player = NewNullAudioPlayer();
-  EditorState editor_state(Args(), audio_player.get());
+  EditorState editor_state(command_line_arguments::Values(),
+                           audio_player.get());
   CHECK(!editor_state.has_current_buffer());
 
   editor_state.ProcessInputString("i\n");

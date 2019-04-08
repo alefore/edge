@@ -21,6 +21,7 @@ extern "C" {
 #include "lazy_string_append.h"
 #include "substring.h"
 #include "terminal.h"
+#include "transformation.h"
 #include "transformation_delete.h"
 #include "transformation_move.h"
 #include "tree.h"
@@ -79,7 +80,7 @@ class NewLineTransformation : public Transformation {
     return transformation->Apply(editor_state, buffer, result);
   }
 
-  unique_ptr<Transformation> Clone() {
+  unique_ptr<Transformation> Clone() const override {
     return std::make_unique<NewLineTransformation>();
   }
 };
@@ -89,7 +90,7 @@ class InsertEmptyLineTransformation : public Transformation {
   InsertEmptyLineTransformation(Direction direction) : direction_(direction) {}
 
   void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const {
+             Result* result) const override {
     if (direction_ == BACKWARDS) {
       result->cursor.line++;
     }
@@ -100,7 +101,7 @@ class InsertEmptyLineTransformation : public Transformation {
         ->Apply(editor_state, buffer, result);
   }
 
-  std::unique_ptr<Transformation> Clone() {
+  std::unique_ptr<Transformation> Clone() const override {
     return std::make_unique<InsertEmptyLineTransformation>(direction_);
   }
 
@@ -286,7 +287,7 @@ class JumpTransformation : public Transformation {
     editor_state->ResetDirection();
   }
 
-  std::unique_ptr<Transformation> Clone() {
+  std::unique_ptr<Transformation> Clone() const override {
     return std::make_unique<JumpTransformation>(direction_);
   }
 
@@ -369,8 +370,7 @@ void StartCompletionFromDictionary(EditorState* editor_state,
   options.editor_state = editor_state;
   options.make_current_buffer = false;
   auto file = OpenFile(options);
-  file->second->set_bool_variable(buffer_variables::show_in_buffers_list(),
-                                  false);
+  file->second->Set(buffer_variables::show_in_buffers_list(), false);
   LOG(INFO) << "Loading dictionary.";
   std::weak_ptr<OpenBuffer> weak_dictionary = file->second;
   std::weak_ptr<OpenBuffer> weak_buffer = buffer;
@@ -429,7 +429,10 @@ bool StartCompletion(EditorState* editor_state,
 
 class FindCompletionCommand : public Command {
  public:
-  const wstring Description() { return L"Autocompletes the current word."; }
+  wstring Description() const override {
+    return L"Autocompletes the current word.";
+  }
+  wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) {
@@ -557,7 +560,11 @@ class InsertMode : public EditorMode {
       insert->AppendToLastLine(
           editor_state,
           NewCopyString(buffer->TransformKeyboardText(wstring(1, c))));
-      buffer->ApplyToCursors(NewInsertBufferTransformation(insert, 1, END));
+
+      Modifiers modifiers;
+      modifiers.insertion = editor_state->modifiers().insertion;
+      buffer->ApplyToCursors(
+          NewInsertBufferTransformation(insert, modifiers, END, nullptr));
     }
 
     options_.modify_listener();

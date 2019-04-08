@@ -17,7 +17,7 @@ class GotoPositionTransformation : public Transformation {
   GotoPositionTransformation(const LineColumn& position)
       : position_(position) {}
 
-  void Apply(EditorState*, OpenBuffer* buffer, Result* result) const {
+  void Apply(EditorState*, OpenBuffer* buffer, Result* result) const override {
     CHECK(buffer != nullptr);
     CHECK(result != nullptr);
     result->undo_stack->PushFront(
@@ -25,7 +25,7 @@ class GotoPositionTransformation : public Transformation {
     result->cursor = position_;
   }
 
-  unique_ptr<Transformation> Clone() {
+  std::unique_ptr<Transformation> Clone() const override {
     return NewGotoPositionTransformation(position_);
   }
 
@@ -49,7 +49,7 @@ class InsertBufferTransformation : public Transformation {
   }
 
   void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const {
+             Result* result) const override {
     LineColumn start_position = result->cursor;
     buffer->AdjustLineColumn(&start_position);
     for (size_t i = 0; i < modifiers_.repetitions; i++) {
@@ -70,7 +70,9 @@ class InsertBufferTransformation : public Transformation {
       DeleteOptions delete_options;
       delete_options.modifiers.repetitions = chars_inserted;
       delete_options.copy_to_paste_buffer = false;
-      NewDeleteCharactersTransformation(delete_options)
+      delete_options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
+      TransformationAtPosition(
+          result->cursor, NewDeleteCharactersTransformation(delete_options))
           ->Apply(editor_state, buffer, &current_result);
       result->undo_stack->PushFront(std::move(current_result.undo_stack));
     }
@@ -83,7 +85,7 @@ class InsertBufferTransformation : public Transformation {
     result->made_progress = true;
   }
 
-  unique_ptr<Transformation> Clone() {
+  unique_ptr<Transformation> Clone() const override {
     return NewInsertBufferTransformation(buffer_to_insert_, modifiers_,
                                          final_position_, modifiers_set_);
   }
@@ -98,9 +100,11 @@ class InsertBufferTransformation : public Transformation {
 
 class NoopTransformation : public Transformation {
  public:
-  void Apply(EditorState*, OpenBuffer*, Result*) const {}
+  void Apply(EditorState*, OpenBuffer*, Result*) const override {}
 
-  unique_ptr<Transformation> Clone() { return NewNoopTransformation(); }
+  unique_ptr<Transformation> Clone() const override {
+    return NewNoopTransformation();
+  }
 };
 
 class DeleteSuffixSuperfluousCharacters : public Transformation {
@@ -132,7 +136,7 @@ class DeleteSuffixSuperfluousCharacters : public Transformation {
         ->Apply(editor_state, buffer, result);
   }
 
-  unique_ptr<Transformation> Clone() {
+  unique_ptr<Transformation> Clone() const override {
     return NewDeleteSuffixSuperfluousCharacters();
   }
 };
@@ -144,14 +148,14 @@ class SetRepetitionsTransformation : public Transformation {
       : repetitions_(repetitions), delegate_(std::move(delegate)) {}
 
   void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const {
+             Result* result) const override {
     auto original_repetitions = editor_state->repetitions();
     editor_state->set_repetitions(repetitions_);
     delegate_->Apply(editor_state, buffer, result);
     editor_state->set_repetitions(original_repetitions);
   }
 
-  unique_ptr<Transformation> Clone() {
+  unique_ptr<Transformation> Clone() const override {
     return NewSetRepetitionsTransformation(repetitions_, delegate_->Clone());
   }
 
@@ -172,6 +176,7 @@ class ApplyRepetitionsTransformation : public Transformation {
       Result current_result(editor_state);
       current_result.delete_buffer = result->delete_buffer;
       current_result.cursor = result->cursor;
+      current_result.mode = result->mode;
       delegate_->Apply(editor_state, buffer, &current_result);
       result->cursor = current_result.cursor;
       if (current_result.modified_buffer) {
@@ -179,17 +184,20 @@ class ApplyRepetitionsTransformation : public Transformation {
       }
       result->undo_stack->PushFront(std::move(current_result.undo_stack));
       if (!current_result.success) {
+        result->success = false;
         LOG(INFO) << "Application " << i << " didn't succeed, giving up.";
         break;
       }
-      if (!current_result.made_progress) {
+      if (current_result.made_progress) {
+        result->made_progress = true;
+      } else {
         LOG(INFO) << "Application " << i << " didn't make progress, giving up.";
         break;
       }
     }
   }
 
-  unique_ptr<Transformation> Clone() {
+  unique_ptr<Transformation> Clone() const override {
     return NewApplyRepetitionsTransformation(repetitions_, delegate_->Clone());
   }
 
@@ -205,14 +213,14 @@ class DirectionTransformation : public Transformation {
       : direction_(direction), delegate_(std::move(delegate)) {}
 
   void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const {
+             Result* result) const override {
     auto original_direction = editor_state->direction();
     editor_state->set_direction(direction_);
     delegate_->Apply(editor_state, buffer, result);
     editor_state->set_direction(original_direction);
   }
 
-  unique_ptr<Transformation> Clone() {
+  unique_ptr<Transformation> Clone() const override {
     return NewDirectionTransformation(direction_, delegate_->Clone());
   }
 
@@ -231,7 +239,7 @@ class StructureTransformation : public Transformation {
         delegate_(std::move(delegate)) {}
 
   void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const {
+             Result* result) const override {
     auto original_structure = editor_state->structure();
     auto original_structure_range = editor_state->structure_range();
     editor_state->set_structure(structure_);
@@ -241,7 +249,7 @@ class StructureTransformation : public Transformation {
     editor_state->set_structure_range(original_structure_range);
   }
 
-  unique_ptr<Transformation> Clone() {
+  unique_ptr<Transformation> Clone() const override {
     return NewStructureTransformation(structure_, structure_range_,
                                       delegate_->Clone());
   }

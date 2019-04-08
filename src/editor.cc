@@ -34,8 +34,20 @@ extern "C" {
 #include "wstring.h"
 
 namespace afc {
-namespace editor {
+namespace vm {
+template <>
+struct VMTypeMapper<editor::EditorState*> {
+  static editor::EditorState* get(Value* value) {
+    return static_cast<editor::EditorState*>(value->user_value.get());
+  }
 
+  static const VMType vmtype;
+};
+
+const VMType VMTypeMapper<editor::EditorState*>::vmtype =
+    VMType::ObjectType(L"Editor");
+}  // namespace vm
+namespace editor {
 namespace {
 
 using std::make_pair;
@@ -142,6 +154,11 @@ Environment EditorState::BuildEditorEnvironment() {
             return Value::NewVoid();
           }));
 
+  editor_type->AddField(
+      L"home",
+      vm::NewCallback(std::function<wstring(EditorState*)>(
+          [](EditorState* editor) { return editor->home_directory(); })));
+
   // A callback to return the current buffer. This is needed so that at a time
   // when there's no current buffer (i.e. EditorState is being created) we can
   // still compile code that will depend (at run time) on getting the current
@@ -217,11 +234,9 @@ Environment EditorState::BuildEditorEnvironment() {
           [this](bool value) { set_screen_needs_hard_redraw(value); })));
 
   environment.Define(
-      L"set_terminate",
-      vm::NewCallback(std::function<void(int)>([this](int exit_value) {
-        terminate_ = true;
-        exit_value_ = exit_value;
-      })));
+      L"set_exit_value",
+      vm::NewCallback(std::function<void(int)>(
+          [this](int exit_value) { exit_value_ = exit_value; })));
 
   environment.Define(
       L"SetPositionColumn",
@@ -256,6 +271,15 @@ Environment EditorState::BuildEditorEnvironment() {
                            return Value::NewObject(L"Buffer",
                                                    ForkCommand(this, options));
                          }));
+
+  environment.Define(L"repetitions",
+                     vm::NewCallback(std::function<int()>([this]() {
+                       return static_cast<int>(repetitions());
+                     })));
+
+  environment.Define(L"set_repetitions",
+                     vm::NewCallback(std::function<void(int)>(
+                         [this](int times) { set_repetitions(times); })));
 
   environment.Define(
       L"OpenFile",
@@ -309,7 +333,8 @@ std::pair<int, int> BuildPipe() {
   return {output[0], output[1]};
 }
 
-EditorState::EditorState(Args args, AudioPlayer* audio_player)
+EditorState::EditorState(command_line_arguments::Values args,
+                         AudioPlayer* audio_player)
     : current_buffer_(buffers_.end()),
       home_directory_(args.home_directory),
       edge_path_(args.config_paths),
@@ -381,7 +406,6 @@ bool EditorState::AttemptTermination(wstring* error_description,
   }
   if (buffers_with_problems.empty()) {
     LOG(INFO) << "Terminating.";
-    terminate_ = true;
     exit_value_ = exit_value;
     return true;
   }
@@ -499,10 +523,10 @@ void EditorState::PushPosition(LineColumn position) {
     buffer_it = OpenFile(options);
     CHECK(buffer_it != buffers()->end());
     CHECK(buffer_it->second != nullptr);
-    buffer_it->second->set_bool_variable(buffer_variables::save_on_close(),
-                                         true);
-    buffer_it->second->set_bool_variable(
-        buffer_variables::show_in_buffers_list(), false);
+    buffer_it->second->Set(buffer_variables::save_on_close(), true);
+    buffer_it->second->Set(buffer_variables::trigger_reload_on_buffer_write(),
+                           false);
+    buffer_it->second->Set(buffer_variables::show_in_buffers_list(), false);
   }
   CHECK(buffer_it->second != nullptr);
   CHECK_LE(buffer_it->second->position().line,
@@ -539,9 +563,9 @@ void EditorState::SetStatus(const wstring& status) {
     // Inserted the entry.
     status_buffer_it.first->second =
         std::make_shared<OpenBuffer>(this, status_buffer_it.first->first);
-    status_buffer_it.first->second->set_bool_variable(
-        buffer_variables::allow_dirty_delete(), true);
-    status_buffer_it.first->second->set_bool_variable(
+    status_buffer_it.first->second->Set(buffer_variables::allow_dirty_delete(),
+                                        true);
+    status_buffer_it.first->second->Set(
         buffer_variables::show_in_buffers_list(), false);
   }
   status_buffer_it.first->second->AppendLazyString(this, NewCopyString(status));

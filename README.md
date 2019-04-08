@@ -3,42 +3,39 @@
 
 ## 1. Introduction
 
-Think vim + tmux, extensible in a subset of C.
-
-Edge is a text editor and terminal handler. Edge uses a "buffer" to represent an
-open file or a process (which might still be running). As its extension
-language, Edge uses a small subset of C++/Java.
+Edge is a terminal-based text editor.
 
 This document describes the use of Edge. In Edge, key sequences are bond to
 specific commands. These sequences are given in this document between quotes.
-Pressing "?" shows you the sequences/commands in the current buffer.
 
-To get the most out of Edge, you should probably familiarize yourself with the
-modifiers (section 6) and the navigation (section 3) and editing (section 4)
-commands.  We'd also strongly recommend learning the commands for controlling
-buffers (section 5).
-
-
-### 1.1. Features
+Edge uses *buffers* to represent an open file or a process, which might still be
+running and which may or may not have a full terminal (pts).
 
 * Extensibility:
 
-  * Uses a subset of C++ as its extension language. Extensions are interpreted
-    (type errors are detected statically).
+  * Edge Uses a subset of C++ as its extension language. Extensions are
+    interpreted (type errors are detected statically). See
+    [buffer-reload.cc|https://github.com/alefore/edge/blob/master/rc/hooks/buffer-reload.cc]
+    for an example.
 
-  * All buffers have several "variables" that control their behavior.
+  * All buffers have *variables* that control their behavior. For
+    example, variable `scrollbar` controls whether the scrollbar should be shown
+    in the current buffer. In the extension language, this can be set with
+    `buffer.set_scrollbar(!buffer.scrollbar());`
 
-* Commands:
+* Shell commands (external processes):
 
-  * Supports running commands (e.g. "ls -lR"), capturing their output into a
-    buffer (that can be navigated just as normal "text" buffers).
+  * Supports running external commands (e.g. "ls -lR"), capturing their output
+    into a buffer (that the user can interact with just as with normal "text"
+    buffers). To do this, the user would type `af` (short for "advanced" and
+    "fork") to be prompted for a shell command to run.
 
-  * Use of a pts can be enabled or disabled for buffers with underlying
-    commands. For example, one can run a shell process (or even some other text
-    editor) inside Edge.
+  * Use of a pts can be enabled or disabled for buffers with underlying commands
+    (this is controlled by buffer's variable `pts`). For example, one can run a
+    shell process (or even some other text editor) inside Edge.
 
-* Buffer are read asynchronously. Edge (almost) never blocks while waiting for
-  input.
+* All buffers are read asynchronously. Edge (almost) never blocks while waiting
+  for input.
 
 * Editing:
 
@@ -48,117 +45,68 @@ buffers (section 5).
     or just to the "current" one.
 
   * Supports syntax highlighting for a few programming languages (C++, Java) and
-    file formats (Markdown).
+    file formats (Markdown, diff/patch).
 
 
-## 2. Running Edge
+## 2. Getting started
 
-If you run Edge on a file, it will open it and display it:
+### 2.1. Running Edge
 
-    $ edge README.txt
+By default, Edge will create a buffer running a nested shell. If you run Edge on
+a file, it will open it and display it:
+
+    $ edge README.md
+
+You can see the documentation for command line arguments if you run Edge with
+`--help`:
+
+    $ edge --help
 
 
 ### 2.1. Example commands
 
-Example commands:
+The following are a few example commands:
 
-* "aq" - Quit (short for "Advanced > Quit").
+*  `?` Shows you the sequences/commands in the current buffer.
 
-* "?" - Shows help.
+* `aq` - Quit (short for "Advanced > Quit"). At the beginning of the execution
+  of Edge, Ctrl+c will also quit (until the moment when you start editing any
+  buffer).
 
-* "i" - Insert (type to the buffer), until Escape is pressed.  See section 4.1.
+* `?` - Shows help.
 
-* "d5\n" - Delete 5 characters.  Delete is covered in section 4.2.
+* `i` - Insert (type to the buffer), until Escape is pressed.  See section 4.1.
 
-* "de\n" - Delete until the end of line (Delete; Line).  Section 6.1 explains
-  the Line modifier (and other structure modifiers).
+* `d\n` - Delete the current character.
 
-* "dwj\n" - Delete until the end of the word (Word; from beginning to end).  The
-  word modifier is covered in section 6.1.
+  * `d5\n` - Delete 5 characters.  Delete is covered in section 4.2.
 
-* "p" - Paste the previously deleted sequence.  See section 4.3.
+  * `de\n` - Delete until the end of line (Delete; Line).  Section 6.1 explains
+    the Line modifier (and other structure modifiers).
 
-* "u" - Undo the last command.  See section 4.4.
+  * `dwj\n` - Delete until the end of the word (Word; from beginning to end).
+    The word modifier is covered in section 6.1.
 
-* "af make\n" - Open a new buffer with the output of a given command. "af" is
+  * `d5wj\n` - Delete five words (starting at the current position).
+
+* `p` - Paste the previously deleted sequence.  See section 4.3.
+
+* `u` - Undo the last command.  See section 4.4.
+
+* `af make\n` - Open a new buffer with the output of a given command. `af` is
   short for "Advanced > Fork" and is covered in section 5.3.
 
-* "ar" - Reload the current buffer.  See section 5.2.
+* `ar` - Reload the current buffer.  See section 5.2.
 
-* "al" - Shows the list of buffers currently open.  See section 5.1.
+* `al` - Shows the list of buffers currently open.  See section 5.1.
 
-* "a." - Show the list of files in the current directory.  See section 5.5.
+* `a.` - Show the list of files in the current directory.  See section 5.5.
 
-* "+" - Creates a new cursor (at the same position as the current one). See
+* `+` - Creates a new cursor (at the same position as the current one). See
   section 8.1.
 
-* "_" - Toggles whether all cursors apply transformations (or just the current
+* `_` - Toggles whether all cursors apply transformations (or just the current
   one). See section 8.3.
-
-
-### 2.2. Command line arguments
-
-
-#### 2.2.1. --help
-
-Causes Edge to display a list of command-line arguments and exit.
-
-
-#### 2.2.2. --fork <command>
-
-The --fork command-line argument must be followed by a shell command.  Edge will
-create a buffer running that command.
-
-Example:
-
-    $ edge --fork "ls -lR /tmp" --fork "make"
-
-If Edge is running nested (inside an existing Edge), it will cause the parent
-instance to open those buffers.
-
-
-#### 2.2.3. --run <command>
-
-The --run command-line argument must be followed by a string with a VM command
-to run.
-
-Example:
-
-    $ edge --run 'string flags = "-R"; ForkCommand("ls " + flags);'
-
-See section 9 for more information on the syntax supported.
-
-
-#### 2.2.4. --server <path> and --client <path>
-
-The --server command-line argument causes Edge to run in "background" mode:
-without reading any input from stdin nor producing any output to stdout.
-Instead, Edge will wait for connections (see --client) to the path given.
-
-You can pass an empty string as the path to let Edge generate a temporary file
-automatically. Otherwise, the path given must not currently exist.
-
-Edge always runs with a server, even when this flag is not used. Passing this
-flag merely causes Edge to daemonize itself and not use the current terminal.
-Technically, it's more correct to say that this is "background" or "headless"
-mode than to say that this is "server" mode. However, we decided to use
-"--server" (instead of some other flag) for symmetry with "--client".
-
-For example, you'd start the server thus:
-
-    $ edge --server /tmp/edge-server-blah
-
-You can then connect a client:
-
-    $ edge --client /tmp/edge-server-blah
-
-If your session is terminated (e.g. your SSH connection dies), you can run the
-client command again.
-
-
-#### 2.2.5. --mute
-
-Disables use of the audio device.
 
 
 ## 3. Navigating a buffer

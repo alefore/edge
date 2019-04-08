@@ -16,11 +16,12 @@ namespace editor {
 namespace {
 
 class OpenDirectoryCommand : public Command {
-  const wstring Description() {
+  wstring Description() const override {
     return L"opens a view of the current directory";
   }
+  wstring Category() const override { return L"Buffers"; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) override {
     OpenFileOptions options;
     if (!editor_state->has_current_buffer()) {
       options.path = L".";

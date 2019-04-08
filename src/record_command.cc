@@ -20,11 +20,12 @@ namespace afc {
 namespace editor {
 
 class RecordCommand : public Command {
-  const wstring Description() {
+  wstring Description() const override {
     return L"starts/stops recording a transformation";
   }
+  wstring Category() const override { return L"Edit"; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) override {
     if (!editor_state->has_current_buffer()) {
       return;
     }

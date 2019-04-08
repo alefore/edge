@@ -10,5 +10,13 @@ const VMType VMTypeMapper<int>::vmtype = VMType(VMType::VM_INTEGER);
 const VMType VMTypeMapper<double>::vmtype = VMType(VMType::VM_DOUBLE);
 const VMType VMTypeMapper<wstring>::vmtype = VMType(VMType::VM_STRING);
 
+template <>
+Value::Ptr RunCallback(std::function<void()> callback,
+                       const vector<Value::Ptr>& args) {
+  CHECK(args.empty());
+  callback();
+  return Value::NewVoid();
+}
+
 }  // namespace vm
 }  // namespace afc

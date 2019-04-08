@@ -16,9 +16,10 @@ BinaryOperator::BinaryOperator(
   CHECK(b_ != nullptr);
 }
 
-const VMType& BinaryOperator::type() { return type_; }
+std::vector<VMType> BinaryOperator::Types() { return {type_}; }
 
-void BinaryOperator::Evaluate(Trampoline* trampoline) {
+void BinaryOperator::Evaluate(Trampoline* trampoline, const VMType& type) {
+  CHECK(type_ == type);
   // TODO: Bunch of things here can be turned to unique_ptr.
   auto type_copy = type_;
   auto operator_copy = operator_;
@@ -26,12 +27,12 @@ void BinaryOperator::Evaluate(Trampoline* trampoline) {
   std::shared_ptr<Expression> b_shared = b_;
 
   trampoline->Bounce(
-      a_shared.get(),
+      a_shared.get(), a_shared->Types()[0],
       [a_shared, b_shared, type_copy, operator_copy](
           std::unique_ptr<Value> a_value, Trampoline* trampoline) {
         std::shared_ptr<Value> a_value_shared(std::move(a_value));
         trampoline->Bounce(
-            b_shared.get(),
+            b_shared.get(), b_shared->Types()[0],
             [a_value_shared, b_shared, type_copy, operator_copy](
                 std::unique_ptr<Value> b_value, Trampoline* trampoline) {
               auto output = std::make_unique<Value>(type_copy);
@@ -103,9 +104,10 @@ std::unique_ptr<Expression> NewBinaryExpression(
         });
   }
 
-  compilation->errors.push_back(L"Unable to add types: \"" +
+  // TODO: Find a way to support this.
+  compilation->errors.push_back(L"Unable to add types" /*: \"" +
                                 a->type().ToString() + L"\" + \"" +
-                                b->type().ToString() + L"\"");
+                                b->type().ToString() + L"\""*/);
   return nullptr;
 }
 

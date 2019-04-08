@@ -9,9 +9,10 @@ namespace editor {
 
 namespace {
 class CloseBufferCommand : public Command {
-  const wstring Description() { return L"closes the current buffer"; }
+  wstring Description() const override { return L"closes the current buffer"; }
+  wstring Category() const override { return L"Buffers"; }
 
-  void ProcessInput(wint_t, EditorState* editor_state) {
+  void ProcessInput(wint_t, EditorState* editor_state) override {
     if (!editor_state->has_current_buffer()) {
       return;
     }

@@ -21,9 +21,9 @@ class WhileExpression : public Expression {
     CHECK(body_ != nullptr);
   }
 
-  const VMType& type() { return VMType::Void(); }
+  std::vector<VMType> Types() { return {VMType::Void()}; }
 
-  void Evaluate(Trampoline* trampoline) override {
+  void Evaluate(Trampoline* trampoline, const VMType&) override {
     DVLOG(4) << "Evaluating condition...";
     Iterate(trampoline, condition_, body_);
   }
@@ -36,21 +36,23 @@ class WhileExpression : public Expression {
   static void Iterate(Trampoline* trampoline,
                       std::shared_ptr<Expression> condition,
                       std::shared_ptr<Expression> body) {
-    trampoline->Bounce(condition.get(), [condition, body](
-                                            std::unique_ptr<Value> cond_value,
-                                            Trampoline* trampoline) {
-      if (!cond_value->boolean) {
-        DVLOG(3) << "Iteration is done.";
-        trampoline->Continue(Value::NewVoid());
-        return;
-      }
+    trampoline->Bounce(condition.get(), VMType::Bool(),
+                       [condition, body](std::unique_ptr<Value> cond_value,
+                                         Trampoline* trampoline) {
+                         if (!cond_value->boolean) {
+                           DVLOG(3) << "Iteration is done.";
+                           trampoline->Continue(Value::NewVoid());
+                           return;
+                         }
 
-      DVLOG(5) << "Iterating...";
-      trampoline->Bounce(body.get(), [condition, body](std::unique_ptr<Value>,
-                                                       Trampoline* trampoline) {
-        Iterate(trampoline, condition, body);
-      });
-    });
+                         DVLOG(5) << "Iterating...";
+                         trampoline->Bounce(
+                             body.get(), body->Types()[0],
+                             [condition, body](std::unique_ptr<Value>,
+                                               Trampoline* trampoline) {
+                               Iterate(trampoline, condition, body);
+                             });
+                       });
   }
 
   const std::shared_ptr<Expression> condition_;
@@ -65,10 +67,10 @@ std::unique_ptr<Expression> NewWhileExpression(
   if (condition == nullptr || body == nullptr) {
     return nullptr;
   }
-  if (condition->type().type != VMType::VM_BOOLEAN) {
+  if (!condition->IsBool()) {
     compilation->errors.push_back(
-        L"Expected bool value for condition of \"while\" loop but found \"" +
-        condition->type().ToString() + L"\".");
+        L"Expected bool value for condition of \"while\" loop but found: " +
+        TypesToString(condition->Types()) + L".");
     return nullptr;
   }
 
@@ -82,7 +84,6 @@ std::unique_ptr<Expression> NewForExpression(
     std::unique_ptr<Expression> body) {
   if (init == nullptr || condition == nullptr || update == nullptr ||
       body == nullptr) {
-    compilation->errors.push_back(L"XXX giving up");
     return nullptr;
   }
   return NewAppendExpression(

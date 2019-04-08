@@ -83,7 +83,7 @@ class GotoCharTransformation : public Transformation {
     result->cursor.column = position;
   }
 
-  std::unique_ptr<Transformation> Clone() {
+  std::unique_ptr<Transformation> Clone() const override {
     return std::make_unique<GotoCharTransformation>(calls_);
   }
 
@@ -95,9 +95,10 @@ class GotoCommand : public Command {
  public:
   GotoCommand(size_t calls) : calls_(calls % 4) {}
 
-  const wstring Description() {
+  wstring Description() const override {
     return L"goes to Rth structure from the beginning";
   }
+  wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
     if (!editor_state->has_current_buffer()) {

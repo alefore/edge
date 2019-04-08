@@ -4,6 +4,15 @@
 
 #include "../public/value.h"
 
+namespace std {
+size_t hash<afc::vm::VMType>::operator()(const afc::vm::VMType& x) const {
+  size_t output = hash<int>()(x.type) ^ hash<wstring>()(x.object_type);
+  for (const auto& a : x.type_arguments) {
+    output ^= hash()(a);
+  }
+  return output;
+}
+}  // namespace std
 namespace afc {
 namespace vm {
 
@@ -34,6 +43,16 @@ bool operator==(const VMType& lhs, const VMType& rhs) {
 /* static */ const VMType& VMType::Double() {
   static VMType type(VMType::VM_DOUBLE);
   return type;
+}
+
+wstring TypesToString(const std::vector<VMType>& types) {
+  wstring output;
+  wstring separator = L"";
+  for (auto& t : types) {
+    output += separator + L"\"" + t.ToString() + L"\"";
+    separator = L", ";
+  }
+  return output;
 }
 
 /* static */ VMType VMType::ObjectType(afc::vm::ObjectType* type) {
@@ -92,6 +111,13 @@ ObjectType::ObjectType(const wstring& type_name)
 
 void ObjectType::AddField(const wstring& name, std::unique_ptr<Value> field) {
   fields_.insert({name, std::move(field)});
+}
+
+void ObjectType::ForEachField(
+    std::function<void(const wstring&, Value*)> callback) {
+  for (auto& it : fields_) {
+    callback(it.first, it.second.get());
+  }
 }
 
 }  // namespace vm

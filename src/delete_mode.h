@@ -7,8 +7,9 @@
 
 namespace afc {
 namespace editor {
-void ApplyDeleteCommand(EditorState* editor_state, OpenBuffer* buffer,
-                        CommandApplyMode apply_mode, Modifiers modifiers);
+std::unique_ptr<Transformation> ApplyDeleteCommand(EditorState* editor_state,
+                                                   OpenBuffer* buffer,
+                                                   Modifiers modifiers);
 }  // namespace editor
 }  // namespace afc
 
