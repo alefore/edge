@@ -627,34 +627,21 @@ class SetStructureCommand : public Command {
 
 class SetStrengthCommand : public Command {
  public:
-  SetStrengthCommand(Modifiers::Strength value,
-                     Modifiers::Strength extreme_value,
-                     const wstring& description)
-      : value_(value),
-        extreme_value_(extreme_value),
-        description_(description) {}
-
-  wstring Description() const override {
-    return L"sets the strength: " + description_;
-  }
+  wstring Description() const override { return L"Toggles the strength."; }
   wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     Modifiers modifiers(editor_state->modifiers());
-    if (modifiers.strength == value_) {
-      modifiers.strength = extreme_value_;
-    } else if (modifiers.strength == extreme_value_) {
-      modifiers.strength = Modifiers::DEFAULT;
-    } else {
-      modifiers.strength = value_;
+    switch (modifiers.strength) {
+      case Modifiers::Strength::kNormal:
+        modifiers.strength = Modifiers::Strength::kStrong;
+        break;
+      case Modifiers::Strength::kStrong:
+        modifiers.strength = Modifiers::Strength::kNormal;
+        break;
     }
     editor_state->set_modifiers(modifiers);
   }
-
- private:
-  Modifiers::Strength value_;
-  Modifiers::Strength extreme_value_;
-  const wstring description_;
 };
 
 class SetStructureModifierCommand : public Command {
@@ -1144,6 +1131,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
                           Modifiers::FROM_CURRENT_POSITION_TO_END,
                           L"from the current position to the end"));
   commands->Add({Terminal::CTRL_L}, std::make_unique<HardRedrawCommand>());
+  commands->Add(L"*", std::make_unique<SetStrengthCommand>());
   commands->Add(L"0", std::make_unique<NumberMode>(SetRepetitions));
   commands->Add(L"1", std::make_unique<NumberMode>(SetRepetitions));
   commands->Add(L"2", std::make_unique<NumberMode>(SetRepetitions));

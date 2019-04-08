@@ -39,25 +39,7 @@ wstring StructureToString(Structure structure) {
 }
 
 ostream& operator<<(ostream& os, const Modifiers& m) {
-  os << "[structure: " << StructureToString(m.structure) << "][strength: ";
-  switch (m.strength) {
-    case Modifiers::VERY_WEAK:
-      os << "very weak";
-      break;
-    case Modifiers::WEAK:
-      os << "weak";
-      break;
-    case Modifiers::DEFAULT:
-      os << "default";
-      break;
-    case Modifiers::STRONG:
-      os << "strong";
-      break;
-    case Modifiers::VERY_STRONG:
-      os << "very strong";
-      break;
-  }
-  os << "][direction: ";
+  os << "[structure: " << StructureToString(m.structure) << "][direction: ";
   switch (m.direction) {
     case FORWARDS:
       os << "forwards";

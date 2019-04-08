@@ -37,12 +37,9 @@ struct Modifiers {
     FROM_CURRENT_POSITION_TO_END,
   };
 
-  enum Strength {
-    VERY_WEAK,
-    WEAK,
-    DEFAULT,
-    STRONG,
-    VERY_STRONG,
+  enum class Strength {
+    kNormal,
+    kStrong,
   };
 
   enum Insertion {
@@ -66,8 +63,8 @@ struct Modifiers {
   // unline ResetHard, abides by stickyness.
   void ResetSoft() {
     ResetStructure();
-    strength = DEFAULT;
     ResetDirection();
+    strength = Strength::kNormal;
     ResetInsertion();
     ResetRepetitions();
   }
@@ -90,7 +87,7 @@ struct Modifiers {
   StructureRange structure_range = ENTIRE_STRUCTURE;
   bool sticky_structure = false;
 
-  Strength strength = DEFAULT;
+  Strength strength = Strength::kNormal;
 
   Direction direction = FORWARDS;
   Direction default_direction = FORWARDS;

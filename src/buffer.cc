@@ -508,7 +508,7 @@ OpenBuffer::~OpenBuffer() {
 
 bool OpenBuffer::PrepareToClose(EditorState* editor_state) {
   if (!PersistState() &&
-      editor_state->modifiers().strength <= Modifiers::DEFAULT) {
+      editor_state->modifiers().strength == Modifiers::Strength::kNormal) {
     LOG(INFO) << "Unable to persist state: " << name_;
     return false;
   }
@@ -529,7 +529,7 @@ bool OpenBuffer::PrepareToClose(EditorState* editor_state) {
     LOG(INFO) << name_ << ": allows dirty delete, skipping.";
     return true;
   }
-  if (editor_state->modifiers().strength > Modifiers::DEFAULT) {
+  if (editor_state->modifiers().strength > Modifiers::Strength::kNormal) {
     LOG(INFO) << name_ << ": Deleting due to modifiers.";
     return true;
   }

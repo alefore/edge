@@ -255,21 +255,8 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
       flags += L" replace";
     }
 
-    switch (modifiers.strength) {
-      case Modifiers::WEAK:
-        flags += L" w";
-        break;
-      case Modifiers::VERY_WEAK:
-        flags += L" W";
-        break;
-      case Modifiers::STRONG:
-        flags += L" s";
-        break;
-      case Modifiers::VERY_STRONG:
-        flags += L" S";
-        break;
-      case Modifiers::DEFAULT:
-        break;
+    if (modifiers.strength == Modifiers::Strength::kStrong) {
+      flags += L" strong";
     }
 
     wstring structure;

@@ -15,9 +15,8 @@ extern "C" {
 
 #include <glog/logging.h>
 
-#include "config.h"
-
 #include "audio.h"
+#include "config.h"
 #include "editor.h"
 #include "file_link_mode.h"
 #include "lazy_string.h"
@@ -55,7 +54,7 @@ void SignalHandler(int sig) {
     // status right away. So we just put a default message in case the signal is
     // not consumed.
     editor_state()->SetWarningStatus(
-        L"'Saq' to quit -- pending changes won't be saved.");
+        L"'*aq' to quit -- pending changes won't be saved.");
   } else if (sig == SIGTSTP) {
     if (!editor_state()->handling_stop_signals()) {
       signal(SIGINT, default_stop_handler);

@@ -309,7 +309,6 @@ class DeleteLinesTransformation : public Transformation {
     bool backwards = options_.modifiers.structure_range !=
                      Modifiers::FROM_CURRENT_POSITION_TO_END;
 
-    bool deletes_ends_of_lines = options_.modifiers.strength > Modifiers::WEAK;
     TransformationStack stack;
 
     size_t line = result->cursor.line;
@@ -347,11 +346,9 @@ class DeleteLinesTransformation : public Transformation {
       delete_options.copy_to_paste_buffer = options_.copy_to_paste_buffer;
       delete_options.modifiers.delete_type = options_.modifiers.delete_type;
       delete_options.modifiers.repetitions =
-          end - start +
-          (deletes_ends_of_lines && end == contents->size() ? 1 : 0);
+          end - start + (end == contents->size() ? 1 : 0);
       LineColumn position(line, start);
-      if (!deletes_ends_of_lines ||
-          options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS ||
+      if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS ||
           result->mode == Transformation::Result::Mode::kPreview) {
         position.line += i;
       }
