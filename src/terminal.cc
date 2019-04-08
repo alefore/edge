@@ -276,6 +276,9 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
     switch (editor_state.structure()) {
       case CHAR:
         break;
+      case WORD:
+        structure = L"word";
+        break;
       case SYMBOL:
         structure = L"symbol";
         break;

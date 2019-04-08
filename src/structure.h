@@ -7,6 +7,7 @@ namespace editor {
 // TODO: Move to Modifiers.
 enum Structure {
   CHAR,
+  WORD,
   SYMBOL,
   LINE,
   MARK,

@@ -1532,6 +1532,7 @@ void OpenBuffer::set_current_cursor(CursorsSet::value_type new_value) {
 void OpenBuffer::CreateCursor() {
   switch (editor_->modifiers().structure) {
     case SYMBOL:
+    case WORD:
     case LINE: {
       auto structure = editor_->modifiers().structure;
       LineColumn first, last;
@@ -1647,11 +1648,19 @@ void OpenBuffer::SeekToStructure(Structure structure, Direction direction,
               Read(buffer_variables::line_prefix_characters()));
       break;
 
+    case WORD:
+      Seek(contents_, position)
+          .WithDirection(direction)
+          .WrappingLines()
+          .UntilCurrentCharIsAlpha();
+      break;
+
     case SYMBOL:
       Seek(contents_, position)
           .WithDirection(direction)
           .WrappingLines()
           .UntilCurrentCharIn(Read(buffer_variables::symbol_characters()));
+      break;
   }
 }
 
@@ -1728,7 +1737,6 @@ bool OpenBuffer::SeekToLimit(Structure structure, Direction direction,
                  .WrappingLines()
                  .UntilNextLineIsSubsetOf(Read(
                      buffer_variables::line_prefix_characters())) == Seek::DONE;
-      break;
 
     case LINE:
       position->column =
@@ -1737,15 +1745,30 @@ bool OpenBuffer::SeekToLimit(Structure structure, Direction direction,
                  .WrappingLines()
                  .WithDirection(direction)
                  .Once() == Seek::DONE;
-      break;
 
-    case SYMBOL: {
+    case WORD: {
+      auto seek =
+          Seek(contents_, position).WithDirection(direction).WrappingLines();
+      if (direction == FORWARDS && iswupper(seek.read()) &&
+          seek.Once() != Seek::DONE) {
+        return false;
+      }
+      if (seek.WhileCurrentCharIsLower() != Seek::DONE) {
+        return false;
+      }
+      if (direction == BACKWARDS && iswupper(seek.read()) &&
+          seek.Once() != Seek::DONE) {
+        return false;
+      }
+      return true;
+    }
+
+    case SYMBOL:
       return Seek(contents_, position)
                  .WithDirection(direction)
                  .WrappingLines()
                  .UntilCurrentCharNotIn(
                      Read(buffer_variables::symbol_characters())) == Seek::DONE;
-    } break;
 
     case CURSOR: {
       bool has_boundary = false;

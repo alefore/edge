@@ -32,6 +32,7 @@ class MoveTransformation : public Transformation {
       case CHAR:
       case TREE:
       case SYMBOL:
+      case WORD:
         position = MoveRange(editor_state, buffer, result->cursor);
         break;
       case MARK:

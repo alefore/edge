@@ -63,9 +63,9 @@ class Delete : public Command {
 
   wstring Description() const override {
     if (delete_options_.modifiers.delete_type == Modifiers::DELETE_CONTENTS) {
-      return L"deletes the current item (char, SYMBOL, line...)";
+      return L"deletes the current item (char, word, line...)";
     }
-    return L"copies current item (char, SYMBOL, ...) to the paste buffer.";
+    return L"copies current item (char, word, ...) to the paste buffer.";
   }
 
   wstring Category() const override { return L"Edit"; }
@@ -78,6 +78,7 @@ class Delete : public Command {
 
     switch (editor_state->structure()) {
       case CHAR:
+      case WORD:
       case SYMBOL:
       case LINE:
       case BUFFER:
@@ -325,6 +326,7 @@ wstring LineUp::Description() const { return L"moves up one line"; }
       MoveBackwards::Move(c, editor_state);
       break;
 
+    case WORD:
     case SYMBOL:
       // Move in whole pages.
       editor_state->set_repetitions(editor_state->repetitions() *
@@ -367,6 +369,7 @@ wstring LineDown::Description() const { return L"moves down one line"; }
       MoveForwards::Move(c, editor_state);
       break;
 
+    case WORD:
     case SYMBOL:
       // Move in whole pages.
       editor_state->set_repetitions(editor_state->repetitions() *
@@ -439,6 +442,7 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
 /* static */ void MoveForwards::Move(int c, EditorState* editor_state) {
   switch (editor_state->structure()) {
     case CHAR:
+    case WORD:
     case SYMBOL:
     case LINE:
     case MARK:
@@ -487,6 +491,7 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
   }
   switch (editor_state->structure()) {
     case CHAR:
+    case WORD:
     case SYMBOL:
     case LINE:
     case MARK:
@@ -1076,7 +1081,8 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"/", NewSearchCommand());
   commands->Add(L"g", NewGotoCommand());
 
-  commands->Add(L"w", std::make_unique<SetStructureCommand>(SYMBOL, L"SYMBOL"));
+  commands->Add(L"W", std::make_unique<SetStructureCommand>(SYMBOL, L"symbol"));
+  commands->Add(L"w", std::make_unique<SetStructureCommand>(WORD, L"word"));
   commands->Add(L"e", std::make_unique<SetStructureCommand>(LINE, L"line"));
   commands->Add(L"E", std::make_unique<SetStructureCommand>(PAGE, L"page"));
   commands->Add(L"F", std::make_unique<SetStructureCommand>(SEARCH, L"search"));
@@ -1084,12 +1090,6 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"B", std::make_unique<SetStructureCommand>(BUFFER, L"buffer"));
   commands->Add(L"!", std::make_unique<SetStructureCommand>(MARK, L"mark"));
   commands->Add(L"t", std::make_unique<SetStructureCommand>(TREE, L"tree"));
-
-  commands->Add(L"W", std::make_unique<SetStrengthCommand>(
-                          Modifiers::WEAK, Modifiers::VERY_WEAK, L"weak"));
-  commands->Add(L"S",
-                std::make_unique<SetStrengthCommand>(
-                    Modifiers::STRONG, Modifiers::VERY_STRONG, L"strong"));
 
   commands->Add(L"D", std::make_unique<Delete>(DeleteOptions()));
   commands->Add(
