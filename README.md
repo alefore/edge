@@ -15,7 +15,7 @@ running and which may or may not have a full terminal (pts).
 
   * Edge Uses a subset of C++ as its extension language. Extensions are
     interpreted (type errors are detected statically). See
-    [buffer-reload.cc|https://github.com/alefore/edge/blob/master/rc/hooks/buffer-reload.cc]
+    [buffer-reload.cc](https://github.com/alefore/edge/blob/master/rc/hooks/buffer-reload.cc)
     for an example.
 
   * All buffers have *variables* that control their behavior. For
