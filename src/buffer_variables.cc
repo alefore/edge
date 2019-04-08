@@ -262,6 +262,7 @@ EdgeStruct<wstring>* StringStruct() {
   if (output == nullptr) {
     output = new EdgeStruct<wstring>;
     // Trigger registration of all fields.
+    name();
     symbol_characters();
     path_characters();
     path();
@@ -278,6 +279,12 @@ EdgeStruct<wstring>* StringStruct() {
     typos();
   }
   return output;
+}
+
+EdgeVariable<wstring>* name() {
+  static EdgeVariable<wstring>* variable =
+      StringStruct()->AddVariable(L"name", L"Name of the current buffer.", L"");
+  return variable;
 }
 
 EdgeVariable<wstring>* symbol_characters() {

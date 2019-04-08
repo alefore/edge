@@ -458,7 +458,6 @@ void OpenBuffer::BackgroundThread() {
 
 OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
     : editor_(editor_state),
-      name_(name),
       child_pid_(-1),
       child_exit_status_(0),
       position_pts_(LineColumn(0, 0)),
@@ -488,11 +487,12 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       L"buffer",
       Value::NewObject(L"Buffer", shared_ptr<void>(this, [](void*) {})));
 
+  Set(buffer_variables::name(), name);
   Set(buffer_variables::path(), L"");
   Set(buffer_variables::pts_path(), L"");
   Set(buffer_variables::command(), L"");
   Set(buffer_variables::reload_after_exit(), false);
-  if (name_ == kPasteBuffer) {
+  if (Read(buffer_variables::name()) == kPasteBuffer) {
     Set(buffer_variables::allow_dirty_delete(), true);
     Set(buffer_variables::show_in_buffers_list(), false);
     Set(buffer_variables::delete_into_paste_buffer(), false);
@@ -501,7 +501,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
 }
 
 OpenBuffer::~OpenBuffer() {
-  LOG(INFO) << "Buffer deleted: " << name_;
+  LOG(INFO) << "Buffer deleted: " << Read(buffer_variables::name());
   editor_->UnscheduleParseTreeUpdate(this);
   DestroyThreadIf([]() { return true; });
 }
@@ -509,37 +509,40 @@ OpenBuffer::~OpenBuffer() {
 bool OpenBuffer::PrepareToClose(EditorState* editor_state) {
   if (!PersistState() &&
       editor_state->modifiers().strength == Modifiers::Strength::kNormal) {
-    LOG(INFO) << "Unable to persist state: " << name_;
+    LOG(INFO) << "Unable to persist state: " << Read(buffer_variables::name());
     return false;
   }
   if (!dirty()) {
-    LOG(INFO) << name_ << ": clean, skipping.";
+    LOG(INFO) << Read(buffer_variables::name()) << ": clean, skipping.";
     return true;
   }
   if (Read(buffer_variables::save_on_close())) {
-    LOG(INFO) << name_ << ": attempting to save buffer.";
+    LOG(INFO) << Read(buffer_variables::name())
+              << ": attempting to save buffer.";
     // TODO(alejo): Let Save give us status?
     Save(editor_state);
     if (!dirty()) {
-      LOG(INFO) << name_ << ": successful save.";
+      LOG(INFO) << Read(buffer_variables::name()) << ": successful save.";
       return true;
     }
   }
   if (Read(buffer_variables::allow_dirty_delete())) {
-    LOG(INFO) << name_ << ": allows dirty delete, skipping.";
+    LOG(INFO) << Read(buffer_variables::name())
+              << ": allows dirty delete, skipping.";
     return true;
   }
   if (editor_state->modifiers().strength > Modifiers::Strength::kNormal) {
-    LOG(INFO) << name_ << ": Deleting due to modifiers.";
+    LOG(INFO) << Read(buffer_variables::name())
+              << ": Deleting due to modifiers.";
     return true;
   }
   return false;
 }
 
 void OpenBuffer::Close(EditorState* editor_state) {
-  LOG(INFO) << "Closing buffer: " << name_;
+  LOG(INFO) << "Closing buffer: " << Read(buffer_variables::name());
   if (dirty() && Read(buffer_variables::save_on_close())) {
-    LOG(INFO) << "Saving buffer: " << name_;
+    LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name());
     Save(editor_state);
   }
   for (auto& observer : close_observers_) {
@@ -574,9 +577,11 @@ time_t OpenBuffer::last_action() const { return last_action_; }
 bool OpenBuffer::PersistState() const { return true; }
 
 void OpenBuffer::ClearContents(EditorState* editor_state) {
-  VLOG(5) << "Clear contents of buffer: " << name_;
-  editor_state->line_marks()->RemoveExpiredMarksFromSource(name_);
-  editor_state->line_marks()->ExpireMarksFromSource(*this, name_);
+  VLOG(5) << "Clear contents of buffer: " << Read(buffer_variables::name());
+  editor_state->line_marks()->RemoveExpiredMarksFromSource(
+      Read(buffer_variables::name()));
+  editor_state->line_marks()->ExpireMarksFromSource(
+      *this, Read(buffer_variables::name()));
   editor_state->ScheduleRedraw();
   EraseLines(0, contents_.size());
   position_pts_ = LineColumn();
@@ -606,7 +611,8 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
 
   // We can remove expired marks now. We know that the set of fresh marks is now
   // complete.
-  editor_state->line_marks()->RemoveExpiredMarksFromSource(name_);
+  editor_state->line_marks()->RemoveExpiredMarksFromSource(
+      Read(buffer_variables::name()));
   editor_state->ScheduleRedraw();
 
   child_pid_ = -1;
@@ -624,7 +630,7 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
   }
   if (Read(buffer_variables::close_after_clean_exit()) &&
       WIFEXITED(child_exit_status_) && WEXITSTATUS(child_exit_status_) == 0) {
-    auto it = editor_state->buffers()->find(name_);
+    auto it = editor_state->buffers()->find(Read(buffer_variables::name()));
     if (it != editor_state->buffers()->end()) {
       editor_state->CloseBuffer(it);
     }
@@ -891,7 +897,7 @@ void OpenBuffer::StartNewLine(EditorState* editor_state) {
       options.output_pattern = &pattern;
       if (ResolvePath(options)) {
         LineMarks::Mark mark;
-        mark.source = name_;
+        mark.source = Read(buffer_variables::name());
         mark.source_line = contents_.size() - 1;
         mark.target_buffer = path;
         mark.target = position;
@@ -928,13 +934,13 @@ void OpenBuffer::Reload(EditorState* editor_state) {
     desired_position_ = position();
   }
   ClearModified();
-  LOG(INFO) << "Starting reload: " << name_;
+  LOG(INFO) << "Starting reload: " << Read(buffer_variables::name());
   ReloadInto(editor_state, this);
   CheckPosition();
 }
 
 void OpenBuffer::Save(EditorState* editor_state) {
-  LOG(INFO) << "Saving buffer: " << name_;
+  LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name());
   editor_state->SetStatus(L"Buffer can't be saved.");
 }
 
@@ -1361,6 +1367,10 @@ bool OpenBuffer::EvaluateFile(EditorState* editor_state, const wstring& path) {
   Evaluate(expression.get(), &environment_,
            [expression](std::unique_ptr<Value>) {});
   return true;
+}
+
+const wstring& OpenBuffer::name() const {
+  return Read(buffer_variables::name());
 }
 
 void OpenBuffer::DeleteRange(const Range& range) {
@@ -2295,9 +2305,10 @@ const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks(
     const EditorState& editor_state) const {
   auto marks = editor_state.line_marks();
   if (marks->updates > line_marks_last_updates_) {
-    LOG(INFO) << name_ << ": Updating marks.";
+    LOG(INFO) << Read(buffer_variables::name()) << ": Updating marks.";
     line_marks_.clear();
-    auto relevant_marks = marks->GetMarksForTargetBuffer(name_);
+    auto relevant_marks =
+        marks->GetMarksForTargetBuffer(Read(buffer_variables::name()));
     for (auto& mark : relevant_marks) {
       line_marks_.insert(make_pair(mark.target.line, mark));
     }

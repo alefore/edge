@@ -143,7 +143,7 @@ class OpenBuffer {
                       std::function<void(std::unique_ptr<Value>)> consumer);
   bool EvaluateFile(EditorState* editor_state, const wstring& path);
 
-  const wstring& name() const { return name_; }
+  const wstring& name() const;
 
   void DeleteRange(const Range& range);
 
@@ -421,8 +421,6 @@ class OpenBuffer {
 
  protected:
   EditorState* editor_;
-
-  wstring name_;
 
   struct Input {
     void Close();

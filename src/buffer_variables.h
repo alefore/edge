@@ -36,6 +36,7 @@ EdgeVariable<bool>* wrap_long_lines();
 EdgeVariable<bool>* extend_lines();
 
 EdgeStruct<wstring>* StringStruct();
+EdgeVariable<wstring>* name();
 EdgeVariable<wstring>* symbol_characters();
 EdgeVariable<wstring>* path_characters();
 EdgeVariable<wstring>* path();
