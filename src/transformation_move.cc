@@ -1,8 +1,8 @@
 #include "transformation_move.h"
 
-#include <algorithm>
-
 #include <glog/logging.h>
+
+#include <algorithm>
 
 #include "buffer.h"
 #include "direction.h"
@@ -31,7 +31,7 @@ class MoveTransformation : public Transformation {
         break;
       case CHAR:
       case TREE:
-      case WORD:
+      case SYMBOL:
         position = MoveRange(editor_state, buffer, result->cursor);
         break;
       case MARK:

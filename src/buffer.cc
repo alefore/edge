@@ -814,8 +814,8 @@ void OpenBuffer::UpdateTreeParser() {
   std::unique_lock<std::mutex> lock(mutex_);
   if (parser == L"text") {
     tree_parser_ = NewLineTreeParser(
-        NewWordsTreeParser(Read(buffer_variables::word_characters()), typos_set,
-                           NewNullTreeParser()));
+        NewWordsTreeParser(Read(buffer_variables::symbol_characters()),
+                           typos_set, NewNullTreeParser()));
   } else if (parser == L"cpp") {
     std::wistringstream keywords(Read(buffer_variables::language_keywords()));
     tree_parser_ =
@@ -1531,7 +1531,7 @@ void OpenBuffer::set_current_cursor(CursorsSet::value_type new_value) {
 
 void OpenBuffer::CreateCursor() {
   switch (editor_->modifiers().structure) {
-    case WORD:
+    case SYMBOL:
     case LINE: {
       auto structure = editor_->modifiers().structure;
       LineColumn first, last;
@@ -1647,11 +1647,11 @@ void OpenBuffer::SeekToStructure(Structure structure, Direction direction,
               Read(buffer_variables::line_prefix_characters()));
       break;
 
-    case WORD:
+    case SYMBOL:
       Seek(contents_, position)
           .WithDirection(direction)
           .WrappingLines()
-          .UntilCurrentCharIn(Read(buffer_variables::word_characters()));
+          .UntilCurrentCharIn(Read(buffer_variables::symbol_characters()));
   }
 }
 
@@ -1739,12 +1739,12 @@ bool OpenBuffer::SeekToLimit(Structure structure, Direction direction,
                  .Once() == Seek::DONE;
       break;
 
-    case WORD: {
+    case SYMBOL: {
       return Seek(contents_, position)
                  .WithDirection(direction)
                  .WrappingLines()
                  .UntilCurrentCharNotIn(
-                     Read(buffer_variables::word_characters())) == Seek::DONE;
+                     Read(buffer_variables::symbol_characters())) == Seek::DONE;
     } break;
 
     case CURSOR: {
@@ -2072,7 +2072,7 @@ void OpenBuffer::Set(const EdgeVariable<wstring>* variable, wstring value) {
   string_variables_.Set(variable, value);
 
   // TODO: This should be in the variable definition, not here. Ugh.
-  if (variable == buffer_variables::word_characters() ||
+  if (variable == buffer_variables::symbol_characters() ||
       variable == buffer_variables::tree_parser() ||
       variable == buffer_variables::language_keywords() ||
       variable == buffer_variables::typos()) {

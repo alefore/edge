@@ -9,10 +9,10 @@ Structure LowerStructure(Structure s) {
   switch (s) {
     case CHAR:
       return CHAR;
-    case WORD:
+    case SYMBOL:
       return CHAR;
     case LINE:
-      return WORD;
+      return SYMBOL;
     case MARK:
       return LINE;
     case PAGE:

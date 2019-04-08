@@ -1,10 +1,10 @@
 #include "terminal.h"
 
+#include <glog/logging.h>
+
 #include <algorithm>
 #include <cctype>
 #include <iostream>
-
-#include <glog/logging.h>
 
 #include "buffer_variables.h"
 #include "dirname.h"
@@ -276,8 +276,8 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
     switch (editor_state.structure()) {
       case CHAR:
         break;
-      case WORD:
-        structure = L"word";
+      case SYMBOL:
+        structure = L"symbol";
         break;
       case LINE:
         structure = L"line";

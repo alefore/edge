@@ -14,8 +14,8 @@ wstring StructureToString(Structure structure) {
   switch (structure) {
     case CHAR:
       return L"char";
-    case WORD:
-      return L"word";
+    case SYMBOL:
+      return L"symbol";
     case LINE:
       return L"line";
     case MARK:

@@ -262,7 +262,7 @@ EdgeStruct<wstring>* StringStruct() {
   if (output == nullptr) {
     output = new EdgeStruct<wstring>;
     // Trigger registration of all fields.
-    word_characters();
+    symbol_characters();
     path_characters();
     path();
     pts_path();
@@ -280,11 +280,11 @@ EdgeStruct<wstring>* StringStruct() {
   return output;
 }
 
-EdgeVariable<wstring>* word_characters() {
+EdgeVariable<wstring>* symbol_characters() {
   static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
-      L"word_characters",
+      L"symbol_characters",
       L"String with all the characters that should be considered part of a "
-      L"word.",
+      L"symbol.",
       L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
   return variable;
 }

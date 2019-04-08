@@ -1,5 +1,7 @@
 #include "command_mode.h"
 
+#include <glog/logging.h>
+
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -8,8 +10,6 @@
 #include <map>
 #include <memory>
 #include <string>
-
-#include <glog/logging.h>
 
 #include "buffer_variables.h"
 #include "char_buffer.h"
@@ -63,9 +63,9 @@ class Delete : public Command {
 
   wstring Description() const override {
     if (delete_options_.modifiers.delete_type == Modifiers::DELETE_CONTENTS) {
-      return L"deletes the current item (char, word, line...)";
+      return L"deletes the current item (char, SYMBOL, line...)";
     }
-    return L"copies current item (char, word, ...) to the paste buffer.";
+    return L"copies current item (char, SYMBOL, ...) to the paste buffer.";
   }
 
   wstring Category() const override { return L"Edit"; }
@@ -78,7 +78,7 @@ class Delete : public Command {
 
     switch (editor_state->structure()) {
       case CHAR:
-      case WORD:
+      case SYMBOL:
       case LINE:
       case BUFFER:
       case CURSOR:
@@ -325,7 +325,7 @@ wstring LineUp::Description() const { return L"moves up one line"; }
       MoveBackwards::Move(c, editor_state);
       break;
 
-    case WORD:
+    case SYMBOL:
       // Move in whole pages.
       editor_state->set_repetitions(editor_state->repetitions() *
                                     editor_state->visible_lines());
@@ -367,7 +367,7 @@ wstring LineDown::Description() const { return L"moves down one line"; }
       MoveForwards::Move(c, editor_state);
       break;
 
-    case WORD:
+    case SYMBOL:
       // Move in whole pages.
       editor_state->set_repetitions(editor_state->repetitions() *
                                     editor_state->visible_lines());
@@ -439,7 +439,7 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
 /* static */ void MoveForwards::Move(int c, EditorState* editor_state) {
   switch (editor_state->structure()) {
     case CHAR:
-    case WORD:
+    case SYMBOL:
     case LINE:
     case MARK:
     case CURSOR:
@@ -487,7 +487,7 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
   }
   switch (editor_state->structure()) {
     case CHAR:
-    case WORD:
+    case SYMBOL:
     case LINE:
     case MARK:
     case CURSOR:
@@ -1076,7 +1076,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"/", NewSearchCommand());
   commands->Add(L"g", NewGotoCommand());
 
-  commands->Add(L"w", std::make_unique<SetStructureCommand>(WORD, L"word"));
+  commands->Add(L"w", std::make_unique<SetStructureCommand>(SYMBOL, L"SYMBOL"));
   commands->Add(L"e", std::make_unique<SetStructureCommand>(LINE, L"line"));
   commands->Add(L"E", std::make_unique<SetStructureCommand>(PAGE, L"page"));
   commands->Add(L"F", std::make_unique<SetStructureCommand>(SEARCH, L"search"));

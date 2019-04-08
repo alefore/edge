@@ -167,8 +167,8 @@ class CommandWithModifiersMode : public EditorMode {
         SetStructure(LINE, modifiers);
         break;
 
-      case 'w':
-        SetStructure(WORD, modifiers);
+      case 'W':
+        SetStructure(SYMBOL, modifiers);
         break;
 
       case 'B':

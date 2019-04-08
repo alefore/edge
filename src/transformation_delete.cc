@@ -430,7 +430,7 @@ class DeleteTransformation : public Transformation {
       case CHAR:
         delegate = NewDeleteCharactersTransformation(options_);
         break;
-      case WORD:
+      case SYMBOL:
       case CURSOR:
       case TREE:
       case LINE:

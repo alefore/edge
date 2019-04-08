@@ -457,7 +457,7 @@ void ShapesAddSquare() {
 
 bool IsActualContent(string c) {
   string additional = "()";
-  return buffer.word_characters().find(c, 0) != -1 ||
+  return buffer.symbol_characters().find(c, 0) != -1 ||
          additional.find(c, 0) != -1;
 }
 

@@ -28,7 +28,7 @@ class SearchCommand : public Command {
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     switch (editor_state->structure()) {
-      case WORD: {
+      case SYMBOL: {
         if (!editor_state->has_current_buffer()) {
           return;
         }

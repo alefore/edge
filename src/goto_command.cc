@@ -1,8 +1,8 @@
 #include "goto_command.h"
 
-#include <cmath>
-
 #include <glog/logging.h>
+
+#include <cmath>
 
 #include "buffer.h"
 #include "buffer_variables.h"
@@ -116,14 +116,14 @@ class GotoCommand : public Command {
             std::make_unique<GotoCharTransformation>(calls_));
         break;
 
-      case WORD: {
+      case SYMBOL: {
         LineColumn position(buffer->position().line);
         buffer->AdjustLineColumn(&position);
         if (editor_state->direction() == BACKWARDS) {
           position.column = buffer->LineAt(position.line)->size();
         }
 
-        VLOG(4) << "Start WORD GotoCommand: " << editor_state->modifiers();
+        VLOG(4) << "Start SYMBOL GotoCommand: " << editor_state->modifiers();
         LineColumn start, end;
         if (buffer->FindPartialRange(editor_state->modifiers(), position,
                                      &start, &end)) {
