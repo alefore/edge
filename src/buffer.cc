@@ -2111,6 +2111,7 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
   if (!last_transformation_stack_.empty()) {
     CHECK(last_transformation_stack_.back() != nullptr);
     last_transformation_stack_.back()->PushBack(transformation->Clone());
+    CHECK(!transformations_past_.empty());
   } else {
     transformations_past_.push_back(
         std::make_unique<Transformation::Result>(editor_));
