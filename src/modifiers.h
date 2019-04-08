@@ -9,6 +9,7 @@
 
 #include "direction.h"
 #include "line_column.h"
+#include "src/vm/public/environment.h"
 #include "structure.h"
 #include "tree.h"
 
@@ -28,6 +29,8 @@ std::wstring StructureToString(Structure structure);
 std::ostream& operator<<(std::ostream& os, const BufferPosition& bp);
 
 struct Modifiers {
+  static void Register(vm::Environment* environment);
+
   enum StructureRange {
     ENTIRE_STRUCTURE,
     FROM_BEGINNING_TO_CURRENT_POSITION,
@@ -136,6 +139,14 @@ Modifiers::Boundary IncrementBoundary(Modifiers::Boundary boundary);
 ostream& operator<<(ostream& os, const Modifiers& m);
 
 }  // namespace editor
+namespace vm {
+template <>
+struct VMTypeMapper<editor::Modifiers*> {
+  static editor::Modifiers* get(Value* value);
+  static Value::Ptr New(editor::Modifiers* value);
+  static const VMType vmtype;
+};
+}  // namespace vm
 }  // namespace afc
 
 #endif  // __AFC_EDITOR_MODIFIERS_H__

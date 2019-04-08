@@ -31,6 +31,7 @@ extern "C" {
 #include "vm/public/callbacks.h"
 #include "vm/public/environment.h"
 #include "vm/public/value.h"
+#include "vm_transformation.h"
 #include "wstring.h"
 
 namespace afc {
@@ -322,6 +323,8 @@ Environment EditorState::BuildEditorEnvironment() {
   OpenBuffer::RegisterBufferType(this, &environment);
 
   InitShapes(&environment);
+  RegisterTransformations(&environment);
+  Modifiers::Register(&environment);
   return environment;
 }
 

@@ -45,6 +45,7 @@ extern "C" {
 #include "vm/public/types.h"
 #include "vm/public/value.h"
 #include "vm/public/vm.h"
+#include "vm_transformation.h"
 #include "wstring.h"
 
 namespace afc {
@@ -192,6 +193,13 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
                                               buffer->contents()->size() - 1);
                      return buffer->contents()->at(line_size_t)->ToString();
                    })));
+
+  buffer->AddField(
+      L"ApplyTransformation",
+      vm::NewCallback(std::function<void(OpenBuffer*, Transformation*)>(
+          [](OpenBuffer* buffer, Transformation* transformation) {
+            return buffer->ApplyToCursors(transformation->Clone());
+          })));
 
   buffer->AddField(
       L"Map", Value::NewFunction(
@@ -1629,6 +1637,7 @@ void OpenBuffer::SeekToStructure(Structure structure, Direction direction,
     case CURSOR:
     case CHAR:
     case TREE:
+    case LINE:
       break;
 
     case PARAGRAPH:
@@ -1636,13 +1645,6 @@ void OpenBuffer::SeekToStructure(Structure structure, Direction direction,
           .WithDirection(direction)
           .UntilNextLineIsNotSubsetOf(
               Read(buffer_variables::line_prefix_characters()));
-      break;
-
-    case LINE:
-      Seek(contents_, position)
-          .WithDirection(direction)
-          .WrappingLines()
-          .UntilCurrentCharNotIn(L"\n");
       break;
 
     case WORD:
@@ -1729,13 +1731,12 @@ bool OpenBuffer::SeekToLimit(Structure structure, Direction direction,
       break;
 
     case LINE:
-      if (direction == BACKWARDS) {
-        position->column = 0;
-        return Seek(contents_, position).WrappingLines().Backwards().Once() ==
-               Seek::DONE;
-      }
-      position->column = LineAt(position->line)->size();
-      return true;
+      position->column =
+          direction == BACKWARDS ? 0 : LineAt(position->line)->size();
+      return Seek(contents_, position)
+                 .WrappingLines()
+                 .WithDirection(direction)
+                 .Once() == Seek::DONE;
       break;
 
     case WORD: {

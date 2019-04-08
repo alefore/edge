@@ -102,6 +102,8 @@ src/terminal.cc \
 src/transformation.cc \
 src/transformation_delete.cc \
 src/transformation_move.cc \
+src/vm_transformation.cc \
+src/vm_transformation.h \
 src/vm/public/set.h \
 src/vm/public/vector.h \
 src/vm/internal/callbacks.cc \

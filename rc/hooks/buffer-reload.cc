@@ -24,11 +24,13 @@ void GoToEndOfLine() {
 
 void DeleteCurrentLine() {
   buffer.PushTransformationStack();
-  for (int i = 0; i == 0 || i < repetitions(); i++) {
-    int current_line = buffer.position().line();
-    buffer.set_position(LineColumn(current_line, 0));
-    buffer.DeleteCharacters(buffer.line(current_line).size() + 1);
-  }
+  buffer.ApplyTransformation(TransformationGoToColumn(0));
+
+  Modifiers modifiers = Modifiers();
+  modifiers.set_line();
+  modifiers.set_repetitions(repetitions());
+  buffer.ApplyTransformation(TransformationDelete(modifiers));
+
   buffer.PopTransformationStack();
   set_repetitions(1);
 }
