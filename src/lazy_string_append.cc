@@ -2,41 +2,64 @@
 
 #include <glog/logging.h>
 
+#include "src/tree.h"
+
 namespace afc {
 namespace editor {
 namespace {
 class StringAppendImpl : public LazyString {
  public:
-  StringAppendImpl(std::shared_ptr<LazyString> a, std::shared_ptr<LazyString> b)
-      : size_(a->size() + b->size()), a_(std::move(a)), b_(std::move(b)) {}
+  StringAppendImpl(Tree<wchar_t> tree) : tree_(tree) {}
 
-  wchar_t get(size_t pos) const {
-    if (pos < a_->size()) {
-      return a_->get(pos);
-    }
-    return b_->get(pos - a_->size());
-  }
+  wchar_t get(size_t pos) const { return tree_.at(pos); }
 
-  size_t size() const { return size_; }
+  size_t size() const { return tree_.size(); }
+
+  const Tree<wchar_t>& tree() const { return tree_; }
 
  private:
-  const int size_;
-  const std::shared_ptr<LazyString> a_;
-  const std::shared_ptr<LazyString> b_;
+  const Tree<wchar_t> tree_;
 };
+
+void InsertToTree(LazyString* source, Tree<wchar_t>* tree,
+                  Tree<wchar_t>::iterator position) {
+  for (size_t i = 0; i < source->size(); i++) {
+    tree->insert(position, source->get(i));
+  }
+}
 }  // namespace
 
 std::shared_ptr<LazyString> StringAppend(std::shared_ptr<LazyString> a,
                                          std::shared_ptr<LazyString> b) {
   CHECK(a != nullptr);
   CHECK(b != nullptr);
+
   if (a->size() == 0) {
-    return b;
+    return std::move(b);
   }
   if (b->size() == 0) {
-    return a;
+    return std::move(a);
   }
-  return std::make_shared<StringAppendImpl>(std::move(a), std::move(b));
+
+  auto a_cast = dynamic_cast<StringAppendImpl*>(a.get());
+  auto b_cast = dynamic_cast<StringAppendImpl*>(b.get());
+  Tree<wchar_t> tree;
+  if (a_cast != nullptr && (b_cast == nullptr || b->size() <= a->size())) {
+    tree = a_cast->tree();
+    InsertToTree(b.get(), &tree, tree.end());
+    CHECK_EQ(a->size() + b->size(), tree.size());
+  } else if (b_cast != nullptr &&
+             (a_cast == nullptr || a->size() <= b->size())) {
+    tree = b_cast->tree();
+    InsertToTree(a.get(), &tree, tree.begin());
+    CHECK_EQ(a->size() + b->size(), tree.size());
+  } else {
+    InsertToTree(a.get(), &tree, tree.end());
+    InsertToTree(b.get(), &tree, tree.end());
+    CHECK_EQ(a->size() + b->size(), tree.size());
+  }
+
+  return std::make_shared<StringAppendImpl>(tree);
 }
 
 std::shared_ptr<LazyString> StringAppend(std::shared_ptr<LazyString> a,
