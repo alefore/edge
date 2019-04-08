@@ -29,7 +29,7 @@ void DeleteCurrentLine() {
     buffer.set_position(LineColumn(current_line, 0));
     buffer.DeleteCharacters(buffer.line(current_line).size() + 1);
   }
-  buffer.PushTransformationStack();
+  buffer.PopTransformationStack();
   set_repetitions(1);
 }
 
