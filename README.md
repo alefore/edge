@@ -3,7 +3,7 @@
 
 ## 1. Introduction
 
-Edge is a terminal-based text editor.
+Edge is a terminal-based text editor for GNU/Linux.
 
 This document describes the use of Edge. In Edge, key sequences are bond to
 specific commands. These sequences are given in this document between quotes.
@@ -65,10 +65,14 @@ You can see the documentation for command line arguments if you run Edge with
 
 ### 1.1. Installing
 
-$ git clone https://github.com/alefore/edge.git
-$ cd edge
-$ ./autogen.sh && ./glog-0.4.0/autogen.sh && ./configure
-$ make
+The following commands download, configure, and build Edge:
+
+    $ git clone https://github.com/alefore/edge.git
+    $ cd edge
+    $ ./autogen.sh && ./glog-0.4.0/autogen.sh && ./configure
+    $ make
+
+TODO: Document the list of dependencies.
 
 
 ### 2.1. Example commands
