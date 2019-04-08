@@ -14,7 +14,6 @@ extern "C" {
 #include "char_buffer.h"
 #include "command.h"
 #include "command_mode.h"
-#include "editable_string.h"
 #include "editor.h"
 #include "editor_mode.h"
 #include "file_link_mode.h"

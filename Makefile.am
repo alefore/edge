@@ -37,7 +37,6 @@ src/delete_mode.h \
 src/dirname.cc \
 src/dirname.h \
 src/direction.cc \
-src/editable_string.cc \
 src/editor.cc \
 src/file_link_mode.cc \
 src/find_mode.cc \
