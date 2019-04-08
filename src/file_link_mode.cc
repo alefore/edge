@@ -98,8 +98,10 @@ class FileBuffer : public OpenBuffer {
     auto file_path = Read(buffer_variables::path());
     list<wstring> file_path_components;
     if (file_path.empty() || file_path[0] != '/') {
-      LOG(INFO) << "Empty edge path.";
-      return false;
+      editor_->SetWarningStatus(L"Unable to persist buffer with empty path: " +
+                                name() + (dirty() ? L" (dirty)" : L" (clean)") +
+                                (modified_ ? L"modified" : L"not modi"));
+      return !dirty();
     }
 
     if (!DirectorySplit(file_path, &file_path_components)) {

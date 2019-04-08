@@ -2040,6 +2040,15 @@ void OpenBuffer::set_position(const LineColumn& position) {
       LineColumn(min(position.line, contents_.size()), position.column));
 }
 
+bool OpenBuffer::dirty() const {
+  return (modified_ && (!Read(buffer_variables::path()).empty() ||
+                        !contents()->ForEach([](size_t, const Line& l) {
+                          return l.empty();
+                        }))) ||
+         child_pid_ != -1 || !WIFEXITED(child_exit_status_) ||
+         WEXITSTATUS(child_exit_status_) != 0;
+}
+
 wstring OpenBuffer::FlagsString() const {
   wstring output;
   if (modified()) {

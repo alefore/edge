@@ -1,6 +1,8 @@
 #ifndef __AFC_EDITOR_BUFFER_H__
 #define __AFC_EDITOR_BUFFER_H__
 
+#include <glog/logging.h>
+
 #include <condition_variable>
 #include <iterator>
 #include <map>
@@ -8,8 +10,6 @@
 #include <mutex>
 #include <thread>
 #include <vector>
-
-#include <glog/logging.h>
 
 #include "buffer_contents.h"
 #include "cursors.h"
@@ -325,10 +325,7 @@ class OpenBuffer {
   void ClearModified() { modified_ = false; }
   bool modified() const { return modified_; }
 
-  bool dirty() const {
-    return modified_ || child_pid_ != -1 || !WIFEXITED(child_exit_status_) ||
-           WEXITSTATUS(child_exit_status_) != 0;
-  }
+  bool dirty() const;
   virtual wstring FlagsString() const;
 
   void PushSignal(EditorState* editor_state, int signal);
