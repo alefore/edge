@@ -1,9 +1,9 @@
 #include "help_command.h"
 
+#include <glog/logging.h>
+
 #include <map>
 #include <memory>
-
-#include <glog/logging.h>
 
 #include "buffer_variables.h"
 #include "char_buffer.h"
@@ -43,41 +43,41 @@ class HelpCommand : public Command {
     const wstring name = L"- help: " + mode_description_;
     auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
     editor_state->set_current_buffer(it.first);
-    if (it.second) {
-      auto buffer = std::make_shared<OpenBuffer>(editor_state, name);
-      buffer->Set(buffer_variables::tree_parser(), L"md");
-      buffer->Set(buffer_variables::allow_dirty_delete(), true);
 
-      buffer->AppendToLastLine(editor_state, NewCopyString(L"## Edge - Help"));
-      buffer->AppendEmptyLine(editor_state);
+    auto buffer = std::make_shared<OpenBuffer>(editor_state, name);
+    buffer->Set(buffer_variables::tree_parser(), L"md");
+    buffer->Set(buffer_variables::allow_dirty_delete(), true);
+    buffer->Set(buffer_variables::show_in_buffers_list(), false);
 
-      ShowCommands(editor_state, buffer.get());
-      ShowEnvironment(editor_state, original_buffer.get(), buffer.get());
+    buffer->AppendToLastLine(editor_state, NewCopyString(L"## Edge - Help"));
+    buffer->AppendEmptyLine(editor_state);
 
-      StartSection(L"### Buffer Variables", editor_state, buffer.get());
-      buffer->AppendLine(
-          editor_state,
-          NewCopyString(
-              L"The following are all the buffer variables defined for your "
-              L"buffer."));
-      buffer->AppendEmptyLine(editor_state);
+    ShowCommands(editor_state, buffer.get());
+    ShowEnvironment(editor_state, original_buffer.get(), buffer.get());
 
-      DescribeVariables(
-          editor_state, L"bool", buffer.get(), buffer_variables::BoolStruct(),
-          [](const bool& value) { return value ? L"true" : L"false"; });
-      DescribeVariables(
-          editor_state, L"string", buffer.get(),
-          buffer_variables::StringStruct(),
-          [](const std::wstring& value) { return L"\"" + value + L"\""; });
-      DescribeVariables(
-          editor_state, L"int", buffer.get(), buffer_variables::IntStruct(),
-          [](const int& value) { return std::to_wstring(value); });
+    StartSection(L"### Buffer Variables", editor_state, buffer.get());
+    buffer->AppendLine(
+        editor_state,
+        NewCopyString(
+            L"The following are all the buffer variables defined for your "
+            L"buffer."));
+    buffer->AppendEmptyLine(editor_state);
 
-      CommandLineVariables(editor_state, buffer.get());
-      it.first->second = buffer;
-    }
-    it.first->second->set_current_position_line(0);
-    it.first->second->ResetMode();
+    DescribeVariables(
+        editor_state, L"bool", buffer.get(), buffer_variables::BoolStruct(),
+        [](const bool& value) { return value ? L"true" : L"false"; });
+    DescribeVariables(
+        editor_state, L"string", buffer.get(), buffer_variables::StringStruct(),
+        [](const std::wstring& value) { return L"\"" + value + L"\""; });
+    DescribeVariables(editor_state, L"int", buffer.get(),
+                      buffer_variables::IntStruct(),
+                      [](const int& value) { return std::to_wstring(value); });
+
+    CommandLineVariables(editor_state, buffer.get());
+    buffer->set_current_position_line(0);
+    buffer->ResetMode();
+
+    it.first->second = buffer;
 
     editor_state->ScheduleRedraw();
     editor_state->ResetRepetitions();
