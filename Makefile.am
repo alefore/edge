@@ -162,5 +162,3 @@ AM_LDFLAGS=-std=c++17 -g
 edge_LDADD=glog-0.4.0/libglog.la
 test_LDADD=glog-0.4.0/libglog.la
 fuzz_test_LDADD=glog-0.4.0/libglog.la
-
-README: README.md

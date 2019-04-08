@@ -63,6 +63,14 @@ You can see the documentation for command line arguments if you run Edge with
     $ edge --help
 
 
+### 1.1. Installing
+
+$ git clone https://github.com/alefore/edge.git
+$ cd edge
+$ ./autogen.sh && ./glog-0.4.0/autogen.sh && ./configure
+$ make
+
+
 ### 2.1. Example commands
 
 The following are a few example commands:
