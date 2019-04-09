@@ -1841,7 +1841,9 @@ bool OpenBuffer::FindPartialRange(const Modifiers& modifiers,
 
   *start = position;
   LOG(INFO) << "Initial position: " << position;
-  SeekToStructure(modifiers.structure, forward, start);
+  if (modifiers.structure != LINE) {
+    SeekToStructure(modifiers.structure, forward, start);
+  }
   switch (modifiers.boundary_begin) {
     case Modifiers::CURRENT_POSITION:
       *start = modifiers.direction == FORWARDS ? max(position, *start)
