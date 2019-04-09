@@ -37,7 +37,6 @@ src/delete_mode.h \
 src/dirname.cc \
 src/dirname.h \
 src/direction.cc \
-src/editable_string.cc \
 src/editor.cc \
 src/file_link_mode.cc \
 src/find_mode.cc \
@@ -102,6 +101,8 @@ src/terminal.cc \
 src/transformation.cc \
 src/transformation_delete.cc \
 src/transformation_move.cc \
+src/vm_transformation.cc \
+src/vm_transformation.h \
 src/vm/public/set.h \
 src/vm/public/vector.h \
 src/vm/internal/callbacks.cc \

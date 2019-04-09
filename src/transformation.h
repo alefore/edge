@@ -1,10 +1,10 @@
 #ifndef __AFC_EDITOR_TRANSFORMATION_H__
 #define __AFC_EDITOR_TRANSFORMATION_H__
 
+#include <glog/logging.h>
+
 #include <list>
 #include <memory>
-
-#include <glog/logging.h>
 
 #include "direction.h"
 #include "line.h"
@@ -88,6 +88,7 @@ unique_ptr<Transformation> NewInsertBufferTransformation(
     shared_ptr<const OpenBuffer> buffer_to_insert, size_t repetitions,
     InsertBufferTransformationPosition insert_buffer_transformation_position);
 
+unique_ptr<Transformation> NewGotoColumnTransformation(size_t column);
 unique_ptr<Transformation> NewGotoPositionTransformation(
     const LineColumn& position);
 

@@ -147,10 +147,10 @@ class CharTreeParser : public TreeParser {
 
 class WordsTreeParser : public TreeParser {
  public:
-  WordsTreeParser(std::wstring word_characters,
+  WordsTreeParser(std::wstring symbol_characters,
                   std::unordered_set<wstring> typos,
                   std::unique_ptr<TreeParser> delegate)
-      : word_characters_(word_characters),
+      : symbol_characters_(symbol_characters),
         typos_(typos),
         delegate_(std::move(delegate)) {}
 
@@ -203,10 +203,10 @@ class WordsTreeParser : public TreeParser {
 
  private:
   bool IsSpace(const Line& line, size_t column) {
-    return word_characters_.find(line.get(column)) == word_characters_.npos;
+    return symbol_characters_.find(line.get(column)) == symbol_characters_.npos;
   }
 
-  const std::wstring word_characters_;
+  const std::wstring symbol_characters_;
   const std::unordered_set<wstring> typos_;
   const std::unique_ptr<TreeParser> delegate_;
 };
@@ -255,10 +255,10 @@ std::unique_ptr<TreeParser> NewCharTreeParser() {
 }
 
 std::unique_ptr<TreeParser> NewWordsTreeParser(
-    wstring word_characters, std::unordered_set<wstring> typos,
+    wstring symbol_characters, std::unordered_set<wstring> typos,
     std::unique_ptr<TreeParser> delegate) {
   return std::make_unique<WordsTreeParser>(
-      std::move(word_characters), std::move(typos), std::move(delegate));
+      std::move(symbol_characters), std::move(typos), std::move(delegate));
 }
 
 std::unique_ptr<TreeParser> NewLineTreeParser(

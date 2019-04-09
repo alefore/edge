@@ -12,6 +12,27 @@ namespace {
 
 using namespace afc::editor;
 
+class GotoColumnTransformation : public Transformation {
+ public:
+  GotoColumnTransformation(size_t column) : column_(column) {}
+
+  void Apply(EditorState*, OpenBuffer* buffer, Result* result) const override {
+    CHECK(buffer != nullptr);
+    CHECK(result != nullptr);
+    result->undo_stack->PushFront(
+        NewGotoColumnTransformation(result->cursor.column));
+    result->cursor.column = column_;
+    result->success = true;
+  }
+
+  std::unique_ptr<Transformation> Clone() const override {
+    return NewGotoColumnTransformation(column_);
+  }
+
+ private:
+  const size_t column_;
+};
+
 class GotoPositionTransformation : public Transformation {
  public:
   GotoPositionTransformation(const LineColumn& position)
@@ -23,6 +44,7 @@ class GotoPositionTransformation : public Transformation {
     result->undo_stack->PushFront(
         NewGotoPositionTransformation(result->cursor));
     result->cursor = position_;
+    result->success = true;
   }
 
   std::unique_ptr<Transformation> Clone() const override {
@@ -288,6 +310,10 @@ unique_ptr<Transformation> NewInsertBufferTransformation(
   modifiers.repetitions = repetitions;
   return NewInsertBufferTransformation(buffer_to_insert, modifiers,
                                        final_position, nullptr);
+}
+
+std::unique_ptr<Transformation> NewGotoColumnTransformation(size_t column) {
+  return std::make_unique<GotoColumnTransformation>(column);
 }
 
 std::unique_ptr<Transformation> NewGotoPositionTransformation(

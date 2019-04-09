@@ -1,9 +1,8 @@
 #ifndef __AFC_EDITOR_BUFFER_VARIABLES_H__
 #define __AFC_EDITOR_BUFFER_VARIABLES_H__
 
-#include "vm/public/value.h"
-
 #include "variables.h"
+#include "vm/public/value.h"
 
 namespace afc {
 namespace editor {
@@ -37,7 +36,8 @@ EdgeVariable<bool>* wrap_long_lines();
 EdgeVariable<bool>* extend_lines();
 
 EdgeStruct<wstring>* StringStruct();
-EdgeVariable<wstring>* word_characters();
+EdgeVariable<wstring>* name();
+EdgeVariable<wstring>* symbol_characters();
 EdgeVariable<wstring>* path_characters();
 EdgeVariable<wstring>* path();
 EdgeVariable<wstring>* pts_path();

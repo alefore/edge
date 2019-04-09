@@ -36,6 +36,51 @@ Seek::Result Seek::Once() const {
   return Advance(position_) ? DONE : UNABLE_TO_ADVANCE;
 }
 
+Seek::Result Seek::WhileCurrentCharIsLower() const {
+  while (iswlower(read())) {
+    if (!Advance(position_)) {
+      return UNABLE_TO_ADVANCE;
+    }
+  }
+  return DONE;
+}
+
+Seek::Result Seek::UntilCurrentCharIsUpper() const {
+  while (!iswupper(read())) {
+    if (!Advance(position_)) {
+      return UNABLE_TO_ADVANCE;
+    }
+  }
+  return DONE;
+}
+
+Seek::Result Seek::UntilCurrentCharNotIsUpper() const {
+  while (iswupper(read())) {
+    if (!Advance(position_)) {
+      return UNABLE_TO_ADVANCE;
+    }
+  }
+  return DONE;
+}
+
+Seek::Result Seek::UntilCurrentCharIsAlpha() const {
+  while (!iswalpha(read())) {
+    if (!Advance(position_)) {
+      return UNABLE_TO_ADVANCE;
+    }
+  }
+  return DONE;
+}
+
+Seek::Result Seek::UntilCurrentCharNotIsAlpha() const {
+  while (iswalpha(read())) {
+    if (!Advance(position_)) {
+      return UNABLE_TO_ADVANCE;
+    }
+  }
+  return DONE;
+}
+
 Seek::Result Seek::UntilCurrentCharIn(const wstring& word_char) const {
   CHECK_LT(position_->line, contents_.size());
   while (word_char.find(read()) == word_char.npos) {

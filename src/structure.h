@@ -8,6 +8,7 @@ namespace editor {
 enum Structure {
   CHAR,
   WORD,
+  SYMBOL,
   LINE,
   MARK,
   PAGE,

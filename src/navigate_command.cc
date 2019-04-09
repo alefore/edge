@@ -1,9 +1,9 @@
 #include "navigate_command.h"
 
+#include <glog/logging.h>
+
 #include <map>
 #include <memory>
-
-#include <glog/logging.h>
 
 #include "buffer_variables.h"
 #include "char_buffer.h"
@@ -119,15 +119,15 @@ class NavigateModeChar : public NavigateMode {
   }
 };
 
-class NavigateModeWord : public NavigateMode {
+class NavigateModeSymbol : public NavigateMode {
  public:
-  NavigateModeWord(Modifiers modifiers) : NavigateMode(modifiers) {}
+  NavigateModeSymbol(Modifiers modifiers) : NavigateMode(modifiers) {}
 
  protected:
   size_t InitialStart(OpenBuffer* buffer) override {
     wstring contents = buffer->current_line()->ToString();
     size_t previous_space = contents.find_last_not_of(
-        buffer->Read(buffer_variables::word_characters()),
+        buffer->Read(buffer_variables::symbol_characters()),
         buffer->position().column);
     if (previous_space == wstring::npos) {
       return 0;
@@ -138,7 +138,7 @@ class NavigateModeWord : public NavigateMode {
   size_t InitialEnd(OpenBuffer* buffer) override {
     wstring contents = buffer->current_line()->ToString();
     size_t next_space = contents.find_first_not_of(
-        buffer->Read(buffer_variables::word_characters()),
+        buffer->Read(buffer_variables::symbol_characters()),
         buffer->position().column);
     if (next_space == wstring::npos) {
       return buffer->current_line()->size();
@@ -198,9 +198,9 @@ class NavigateCommand : public Command {
             std::make_unique<NavigateModeChar>(editor_state->modifiers()));
         break;
 
-      case WORD:
+      case SYMBOL:
         buffer->set_mode(
-            std::make_unique<NavigateModeWord>(editor_state->modifiers()));
+            std::make_unique<NavigateModeSymbol>(editor_state->modifiers()));
         break;
 
       case LINE:

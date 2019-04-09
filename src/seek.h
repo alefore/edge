@@ -25,6 +25,11 @@ class Seek {
   wchar_t read() const;
 
   Result Once() const;
+  Result WhileCurrentCharIsLower() const;
+  Result UntilCurrentCharIsUpper() const;
+  Result UntilCurrentCharNotIsUpper() const;
+  Result UntilCurrentCharIsAlpha() const;
+  Result UntilCurrentCharNotIsAlpha() const;
   Result UntilCurrentCharIn(const wstring& word_char) const;
   Result UntilCurrentCharNotIn(const wstring& word_char) const;
   Result UntilNextCharIn(const wstring& word_char) const;

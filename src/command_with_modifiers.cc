@@ -171,6 +171,10 @@ class CommandWithModifiersMode : public EditorMode {
         SetStructure(WORD, modifiers);
         break;
 
+      case 'W':
+        SetStructure(SYMBOL, modifiers);
+        break;
+
       case 'B':
         SetStructure(BUFFER, modifiers);
         break;

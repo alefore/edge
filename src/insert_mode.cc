@@ -14,7 +14,6 @@ extern "C" {
 #include "char_buffer.h"
 #include "command.h"
 #include "command_mode.h"
-#include "editable_string.h"
 #include "editor.h"
 #include "editor_mode.h"
 #include "file_link_mode.h"
@@ -325,7 +324,7 @@ void FindCompletion(EditorState* editor_state,
 
   auto line = buffer->current_line()->ToString();
   options.column_start =
-      line.find_last_not_of(buffer->Read(buffer_variables::word_characters()),
+      line.find_last_not_of(buffer->Read(buffer_variables::symbol_characters()),
                             options.column_end - 1);
   if (options.column_start == wstring::npos) {
     options.column_start = 0;

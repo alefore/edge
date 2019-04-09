@@ -58,7 +58,7 @@ void BreakLine(string prefix, int line_width) {
         SetStatus("We're done: No space remains.");
         return;
       }
-      int next_char = s.find_first_of(buffer.word_characters(), break_at);
+      int next_char = s.find_first_of(buffer.symbol_characters(), break_at);
       if (next_char == -1) {
         SetStatus("We're done: Only spaces now.");
         return;

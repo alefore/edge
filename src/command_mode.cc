@@ -1,5 +1,7 @@
 #include "command_mode.h"
 
+#include <glog/logging.h>
+
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -8,8 +10,6 @@
 #include <map>
 #include <memory>
 #include <string>
-
-#include <glog/logging.h>
 
 #include "buffer_variables.h"
 #include "char_buffer.h"
@@ -79,6 +79,7 @@ class Delete : public Command {
     switch (editor_state->structure()) {
       case CHAR:
       case WORD:
+      case SYMBOL:
       case LINE:
       case BUFFER:
       case CURSOR:
@@ -326,6 +327,7 @@ wstring LineUp::Description() const { return L"moves up one line"; }
       break;
 
     case WORD:
+    case SYMBOL:
       // Move in whole pages.
       editor_state->set_repetitions(editor_state->repetitions() *
                                     editor_state->visible_lines());
@@ -368,6 +370,7 @@ wstring LineDown::Description() const { return L"moves down one line"; }
       break;
 
     case WORD:
+    case SYMBOL:
       // Move in whole pages.
       editor_state->set_repetitions(editor_state->repetitions() *
                                     editor_state->visible_lines());
@@ -440,6 +443,7 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
   switch (editor_state->structure()) {
     case CHAR:
     case WORD:
+    case SYMBOL:
     case LINE:
     case MARK:
     case CURSOR:
@@ -488,6 +492,7 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
   switch (editor_state->structure()) {
     case CHAR:
     case WORD:
+    case SYMBOL:
     case LINE:
     case MARK:
     case CURSOR:
@@ -622,34 +627,21 @@ class SetStructureCommand : public Command {
 
 class SetStrengthCommand : public Command {
  public:
-  SetStrengthCommand(Modifiers::Strength value,
-                     Modifiers::Strength extreme_value,
-                     const wstring& description)
-      : value_(value),
-        extreme_value_(extreme_value),
-        description_(description) {}
-
-  wstring Description() const override {
-    return L"sets the strength: " + description_;
-  }
+  wstring Description() const override { return L"Toggles the strength."; }
   wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     Modifiers modifiers(editor_state->modifiers());
-    if (modifiers.strength == value_) {
-      modifiers.strength = extreme_value_;
-    } else if (modifiers.strength == extreme_value_) {
-      modifiers.strength = Modifiers::DEFAULT;
-    } else {
-      modifiers.strength = value_;
+    switch (modifiers.strength) {
+      case Modifiers::Strength::kNormal:
+        modifiers.strength = Modifiers::Strength::kStrong;
+        break;
+      case Modifiers::Strength::kStrong:
+        modifiers.strength = Modifiers::Strength::kNormal;
+        break;
     }
     editor_state->set_modifiers(modifiers);
   }
-
- private:
-  Modifiers::Strength value_;
-  Modifiers::Strength extreme_value_;
-  const wstring description_;
 };
 
 class SetStructureModifierCommand : public Command {
@@ -1076,6 +1068,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"/", NewSearchCommand());
   commands->Add(L"g", NewGotoCommand());
 
+  commands->Add(L"W", std::make_unique<SetStructureCommand>(SYMBOL, L"symbol"));
   commands->Add(L"w", std::make_unique<SetStructureCommand>(WORD, L"word"));
   commands->Add(L"e", std::make_unique<SetStructureCommand>(LINE, L"line"));
   commands->Add(L"E", std::make_unique<SetStructureCommand>(PAGE, L"page"));
@@ -1084,12 +1077,6 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"B", std::make_unique<SetStructureCommand>(BUFFER, L"buffer"));
   commands->Add(L"!", std::make_unique<SetStructureCommand>(MARK, L"mark"));
   commands->Add(L"t", std::make_unique<SetStructureCommand>(TREE, L"tree"));
-
-  commands->Add(L"W", std::make_unique<SetStrengthCommand>(
-                          Modifiers::WEAK, Modifiers::VERY_WEAK, L"weak"));
-  commands->Add(L"S",
-                std::make_unique<SetStrengthCommand>(
-                    Modifiers::STRONG, Modifiers::VERY_STRONG, L"strong"));
 
   commands->Add(L"D", std::make_unique<Delete>(DeleteOptions()));
   commands->Add(
@@ -1144,6 +1131,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
                           Modifiers::FROM_CURRENT_POSITION_TO_END,
                           L"from the current position to the end"));
   commands->Add({Terminal::CTRL_L}, std::make_unique<HardRedrawCommand>());
+  commands->Add(L"*", std::make_unique<SetStrengthCommand>());
   commands->Add(L"0", std::make_unique<NumberMode>(SetRepetitions));
   commands->Add(L"1", std::make_unique<NumberMode>(SetRepetitions));
   commands->Add(L"2", std::make_unique<NumberMode>(SetRepetitions));

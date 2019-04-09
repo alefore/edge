@@ -11,8 +11,10 @@ Structure LowerStructure(Structure s) {
       return CHAR;
     case WORD:
       return CHAR;
-    case LINE:
+    case SYMBOL:
       return WORD;
+    case LINE:
+      return SYMBOL;
     case MARK:
       return LINE;
     case PAGE:

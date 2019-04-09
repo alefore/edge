@@ -9,6 +9,7 @@
 
 #include "direction.h"
 #include "line_column.h"
+#include "src/vm/public/environment.h"
 #include "structure.h"
 #include "tree.h"
 
@@ -28,18 +29,17 @@ std::wstring StructureToString(Structure structure);
 std::ostream& operator<<(std::ostream& os, const BufferPosition& bp);
 
 struct Modifiers {
+  static void Register(vm::Environment* environment);
+
   enum StructureRange {
     ENTIRE_STRUCTURE,
     FROM_BEGINNING_TO_CURRENT_POSITION,
     FROM_CURRENT_POSITION_TO_END,
   };
 
-  enum Strength {
-    VERY_WEAK,
-    WEAK,
-    DEFAULT,
-    STRONG,
-    VERY_STRONG,
+  enum class Strength {
+    kNormal,
+    kStrong,
   };
 
   enum Insertion {
@@ -63,8 +63,8 @@ struct Modifiers {
   // unline ResetHard, abides by stickyness.
   void ResetSoft() {
     ResetStructure();
-    strength = DEFAULT;
     ResetDirection();
+    strength = Strength::kNormal;
     ResetInsertion();
     ResetRepetitions();
   }
@@ -87,7 +87,7 @@ struct Modifiers {
   StructureRange structure_range = ENTIRE_STRUCTURE;
   bool sticky_structure = false;
 
-  Strength strength = DEFAULT;
+  Strength strength = Strength::kNormal;
 
   Direction direction = FORWARDS;
   Direction default_direction = FORWARDS;
@@ -136,6 +136,14 @@ Modifiers::Boundary IncrementBoundary(Modifiers::Boundary boundary);
 ostream& operator<<(ostream& os, const Modifiers& m);
 
 }  // namespace editor
+namespace vm {
+template <>
+struct VMTypeMapper<editor::Modifiers*> {
+  static editor::Modifiers* get(Value* value);
+  static Value::Ptr New(editor::Modifiers* value);
+  static const VMType vmtype;
+};
+}  // namespace vm
 }  // namespace afc
 
 #endif  // __AFC_EDITOR_MODIFIERS_H__
