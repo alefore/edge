@@ -198,7 +198,7 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
       L"ApplyTransformation",
       vm::NewCallback(std::function<void(OpenBuffer*, Transformation*)>(
           [](OpenBuffer* buffer, Transformation* transformation) {
-            return buffer->ApplyToCursors(transformation->Clone());
+            buffer->ApplyToCursors(transformation->Clone());
           })));
 
   buffer->AddField(
@@ -1648,7 +1648,15 @@ void OpenBuffer::SeekToStructure(Structure structure, Direction direction,
     case CURSOR:
     case CHAR:
     case TREE:
+      break;
+
     case LINE:
+      if (direction == FORWARDS) {
+        auto seek = Seek(contents_, position).WrappingLines();
+        if (seek.read() == L'\n') {
+          seek.Once();
+        }
+      }
       break;
 
     case PARAGRAPH:
@@ -1751,10 +1759,13 @@ bool OpenBuffer::SeekToLimit(Structure structure, Direction direction,
     case LINE:
       position->column =
           direction == BACKWARDS ? 0 : LineAt(position->line)->size();
-      return Seek(contents_, position)
-                 .WrappingLines()
-                 .WithDirection(direction)
-                 .Once() == Seek::DONE;
+      if (direction == BACKWARDS) {
+        return Seek(contents_, position)
+                   .WrappingLines()
+                   .WithDirection(direction)
+                   .Once() == Seek::DONE;
+      }
+      return true;
 
     case WORD: {
       auto seek =

@@ -29,6 +29,7 @@ void DeleteCurrentLine() {
   Modifiers modifiers = Modifiers();
   modifiers.set_line();
   modifiers.set_repetitions(repetitions());
+  modifiers.set_boundary_end_neighbor();
   buffer.ApplyTransformation(TransformationDelete(modifiers));
 
   buffer.PopTransformationStack();
