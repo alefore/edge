@@ -49,13 +49,12 @@
 #include "transformation_delete.h"
 #include "transformation_move.h"
 
-// TODO: Fix the namespace.
+namespace afc {
+namespace editor {
 namespace {
 using std::advance;
 using std::ceil;
 using std::make_pair;
-using namespace afc;
-using namespace afc::editor;
 
 class Delete : public Command {
  public:
@@ -851,12 +850,6 @@ class TreeNavigateCommand : public Command {
   }
 };
 
-}  // namespace
-
-namespace afc {
-namespace editor {
-
-namespace {
 void ToggleBoolVariable(EditorState* editor_state, wstring binding,
                         wstring variable_name, MapModeCommands* map_mode) {
   wstring command = L"// Toggle buffer variable: " + variable_name + L"\n" +
