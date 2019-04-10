@@ -83,13 +83,14 @@ shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
     // is a simple way to try to put more relevant things towards the bottom:
     // things that have been used more frequently and more recently.
     std::map<wstring, size_t> previous_lines;
-    history_buffer->ForEachLine([&](size_t position, const Line& line) {
-      auto s = line.ToString();
-      if (s.find(filter) != wstring::npos) {
-        previous_lines[line.ToString()] += position;
-      }
-      return true;
-    });
+    history_buffer->contents()->EveryLine(
+        [&](size_t position, const Line& line) {
+          auto s = line.ToString();
+          if (s.find(filter) != wstring::npos) {
+            previous_lines[line.ToString()] += position;
+          }
+          return true;
+        });
 
     // For sorting.
     std::vector<std::pair<double, wstring>> previous_lines_vector;

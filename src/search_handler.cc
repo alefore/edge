@@ -1,8 +1,7 @@
 #include "search_handler.h"
 
-#include <set>
-
 #include <iostream>
+#include <set>
 #if CPP_REGEX
 #include <regex>
 #else
@@ -83,7 +82,7 @@ vector<LineColumn> PerformSearch(const SearchOptions& options,
   }
 #endif
 
-  buffer->ForEachLine(
+  buffer->contents()->EveryLine(
       [&positions, &pattern](size_t position, const Line& line) {
         for (const auto& column : GetMatches(line.ToString(), pattern)) {
           positions.push_back(LineColumn(position, column));

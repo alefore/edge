@@ -48,8 +48,8 @@ class BufferContents {
   // first argument the line count (starts counting at 0). Stops the iteration
   // if the callback returns false. Returns true iff the callback always
   // returned true.
-  // TODO: Use an enum as the return value.
-  bool ForEach(const std::function<bool(size_t, const Line&)>& callback) const;
+  bool EveryLine(
+      const std::function<bool(size_t, const Line&)>& callback) const;
 
   // Convenience wrappers of the above.
   void ForEach(const std::function<void(const Line&)>& callback) const;

@@ -29,7 +29,7 @@ wint_t BufferContents::character_at(const LineColumn& position) const {
 wstring BufferContents::ToString() const {
   wstring output;
   output.reserve(CountCharacters());
-  ForEach([&output](size_t position, const Line& line) {
+  EveryLine([&output](size_t position, const Line& line) {
     output.append((position == 0 ? L"" : L"\n") + line.ToString());
     return true;
   });
@@ -57,7 +57,7 @@ void BufferContents::insert(size_t position_line, const BufferContents& source,
                             .AddToLine(source.size()));
 }
 
-bool BufferContents::ForEach(
+bool BufferContents::EveryLine(
     const std::function<bool(size_t, const Line&)>& callback) const {
   size_t position = 0;
   for (const auto& line : lines_) {
@@ -70,7 +70,7 @@ bool BufferContents::ForEach(
 
 void BufferContents::ForEach(
     const std::function<void(const Line&)>& callback) const {
-  ForEach([callback](size_t, const Line& line) {
+  EveryLine([callback](size_t, const Line& line) {
     callback(line);
     return true;
   });

@@ -1885,7 +1885,7 @@ void OpenBuffer::set_position(const LineColumn& position) {
 
 bool OpenBuffer::dirty() const {
   return (modified_ && (!Read(buffer_variables::path()).empty() ||
-                        !contents()->ForEach([](size_t, const Line& l) {
+                        !contents()->EveryLine([](size_t, const Line& l) {
                           return l.empty();
                         }))) ||
          child_pid_ != -1 || !WIFEXITED(child_exit_status_) ||

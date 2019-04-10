@@ -326,8 +326,8 @@ class FileBuffer : public OpenBuffer {
                                      const wstring& path, int fd,
                                      const BufferContents& contents) {
     // TODO: It'd be significant more efficient to do fewer (bigger) writes.
-    return contents.ForEach([editor_state, fd, path](size_t position,
-                                                     const Line& line) {
+    return contents.EveryLine([editor_state, fd, path](size_t position,
+                                                       const Line& line) {
       string str = (position == 0 ? "" : "\n") + ToByteString(line.ToString());
       if (write(fd, str.c_str(), str.size()) == -1) {
         editor_state->SetStatus(path + L": write failed: " +
@@ -484,13 +484,14 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
     LOG(INFO) << "No search paths buffer.";
     return;
   }
-  search_paths_buffer->ForEachLine([editor_state, output](wstring line) {
-    if (line.empty()) {
-      return;
-    }
-    output->push_back(editor_state->expand_path(line));
-    LOG(INFO) << "Pushed search path: " << output->back();
-  });
+  search_paths_buffer->contents()->ForEach(
+      [editor_state, output](wstring line) {
+        if (line.empty()) {
+          return;
+        }
+        output->push_back(editor_state->expand_path(line));
+        LOG(INFO) << "Pushed search path: " << output->back();
+      });
 }
 
 bool ResolvePath(ResolvePathOptions options) {

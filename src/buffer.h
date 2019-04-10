@@ -95,11 +95,6 @@ class OpenBuffer {
                                        const shared_ptr<const Line>&)>
                         compare);
 
-  template <typename T>
-  void ForEachLine(T callback) const {
-    contents_.ForEach(callback);
-  }
-
   bool empty() const { return contents_.empty(); }
   size_t lines_size() const { return contents_.size(); }
 

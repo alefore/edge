@@ -78,7 +78,7 @@ class PredictionsBufferImpl : public OpenBuffer {
 
     wstring common_prefix = contents_.front()->contents()->ToString();
     bool results =
-        contents_.ForEach([&common_prefix](size_t, const Line& line) {
+        contents_.EveryLine([&common_prefix](size_t, const Line& line) {
           if (line.empty()) {
             return true;
           }
