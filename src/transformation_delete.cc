@@ -372,48 +372,6 @@ class DeleteLinesTransformation : public Transformation {
   const DeleteOptions options_;
 };
 
-class DeleteBufferTransformation : public Transformation {
- public:
-  DeleteBufferTransformation(DeleteOptions options) : options_(options) {}
-
-  void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const {
-    LOG(INFO) << "Erasing buffer (modifiers: " << options_.modifiers
-              << ") of size: " << buffer->contents()->size();
-
-    int current_line = result->cursor.line;
-    int last_line = buffer->contents()->size();
-
-    int begin = 0;
-    int end = last_line;
-    switch (options_.modifiers.structure_range) {
-      case Modifiers::ENTIRE_STRUCTURE:
-        break;  // We're all set.
-      case Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION:
-        end = current_line;
-        break;
-      case Modifiers::FROM_CURRENT_POSITION_TO_END:
-        begin = current_line;
-        break;
-    }
-
-    CHECK_LE(begin, end);
-    // TODO(alejo): Handle reverse?
-    DeleteOptions options = options_;
-    options.modifiers.repetitions = end - begin;
-    TransformationAtPosition(LineColumn(begin),
-                             NewDeleteLinesTransformation(options))
-        ->Apply(editor_state, buffer, result);
-  }
-
-  unique_ptr<Transformation> Clone() const override {
-    return NewDeleteBufferTransformation(options_);
-  }
-
- private:
-  const DeleteOptions options_;
-};
-
 class DeleteTransformation : public Transformation {
  public:
   DeleteTransformation(DeleteOptions options) : options_(options) {}
@@ -463,11 +421,6 @@ std::unique_ptr<Transformation> NewDeleteRegionTransformation(
 std::unique_ptr<Transformation> NewDeleteLinesTransformation(
     DeleteOptions options) {
   return std::make_unique<DeleteLinesTransformation>(options);
-}
-
-std::unique_ptr<Transformation> NewDeleteBufferTransformation(
-    DeleteOptions options) {
-  return std::make_unique<DeleteBufferTransformation>(options);
 }
 
 std::unique_ptr<Transformation> NewDeleteTransformation(DeleteOptions options) {
