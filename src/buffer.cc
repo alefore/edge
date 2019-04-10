@@ -1540,38 +1540,34 @@ void OpenBuffer::set_current_cursor(CursorsSet::value_type new_value) {
 }
 
 void OpenBuffer::CreateCursor() {
-  switch (editor_->modifiers().structure) {
-    case SYMBOL:
-    case WORD:
-    case LINE: {
-      auto structure = editor_->modifiers().structure;
-      LineColumn first, last;
-      Modifiers tmp_modifiers = editor_->modifiers();
-      tmp_modifiers.structure = CURSOR;
-      if (!FindPartialRange(tmp_modifiers, position(), &first, &last)) {
-        return;
+  if (editor_->modifiers().structure == StructureChar()) {
+    CHECK_LE(position().line, contents_.size());
+    active_cursors()->insert(position());
+  } else {
+    auto structure = editor_->modifiers().structure;
+    LineColumn first, last;
+    Modifiers tmp_modifiers = editor_->modifiers();
+    tmp_modifiers.structure = StructureCursor();
+    if (!FindPartialRange(tmp_modifiers, position(), &first, &last)) {
+      return;
+    }
+    if (first == last) {
+      return;
+    }
+    editor_->set_direction(FORWARDS);
+    LOG(INFO) << "Range for cursors: [" << first << ", " << last << ")";
+    while (first < last) {
+      auto tmp_first = first;
+      structure->SeekToNext(this, FORWARDS, &tmp_first);
+      if (tmp_first > first && tmp_first < last) {
+        VLOG(5) << "Creating cursor at: " << tmp_first;
+        active_cursors()->insert(tmp_first);
       }
-      if (first == last) {
-        return;
+      if (!structure->SeekToLimit(this, FORWARDS, &tmp_first)) {
+        break;
       }
-      editor_->set_direction(FORWARDS);
-      LOG(INFO) << "Range for cursors: [" << first << ", " << last << ")";
-      while (first < last) {
-        auto tmp_first = first;
-        SeekToStructure(structure, FORWARDS, &tmp_first);
-        if (tmp_first > first && tmp_first < last) {
-          VLOG(5) << "Creating cursor at: " << tmp_first;
-          active_cursors()->insert(tmp_first);
-        }
-        if (!SeekToLimit(structure, FORWARDS, &tmp_first)) {
-          break;
-        }
-        first = tmp_first;
-      }
-    } break;
-    default:
-      CHECK_LE(position().line, contents_.size());
-      active_cursors()->insert(position());
+      first = tmp_first;
+    }
   }
   editor_->SetStatus(L"Cursor created.");
   editor_->ScheduleRedraw();
@@ -1641,183 +1637,6 @@ void OpenBuffer::DestroyOtherCursors() {
   editor_->ScheduleRedraw();
 }
 
-void OpenBuffer::SeekToStructure(Structure structure, Direction direction,
-                                 LineColumn* position) {
-  switch (structure) {
-    case BUFFER:
-    case CURSOR:
-    case CHAR:
-    case TREE:
-      break;
-
-    case LINE:
-      if (direction == FORWARDS) {
-        auto seek = Seek(contents_, position).WrappingLines();
-        if (seek.read() == L'\n') {
-          seek.Once();
-        }
-      }
-      break;
-
-    case PARAGRAPH:
-      Seek(contents_, position)
-          .WithDirection(direction)
-          .UntilNextLineIsNotSubsetOf(
-              Read(buffer_variables::line_prefix_characters()));
-      break;
-
-    case WORD:
-      Seek(contents_, position)
-          .WithDirection(direction)
-          .WrappingLines()
-          .UntilCurrentCharIsAlpha();
-      break;
-
-    case SYMBOL:
-      Seek(contents_, position)
-          .WithDirection(direction)
-          .WrappingLines()
-          .UntilCurrentCharIn(Read(buffer_variables::symbol_characters()));
-      break;
-  }
-}
-
-bool OpenBuffer::SeekToLimit(Structure structure, Direction direction,
-                             LineColumn* position) {
-  if (empty()) {
-    *position = LineColumn();
-  } else {
-    position->line = min(lines_size() - 1, position->line);
-    if (position->column >= LineAt(position->line)->size()) {
-      if (Read(buffer_variables::extend_lines())) {
-        MaybeExtendLine(*position);
-      } else {
-        position->column = LineAt(position->line)->size();
-      }
-    }
-  }
-  switch (structure) {
-    case BUFFER:
-      if (empty() || direction == BACKWARDS) {
-        *position = LineColumn();
-      } else {
-        position->line = lines_size() - 1;
-        position->column = LineAt(position->line)->size();
-      }
-      return false;
-      break;
-
-    case CHAR:
-      return Seek(contents_, position)
-                 .WrappingLines()
-                 .WithDirection(direction)
-                 .Once() == Seek::DONE;
-      break;
-
-    case TREE: {
-      auto root = parse_tree();
-      if (root == nullptr) {
-        return false;
-      }
-      auto route = MapRoute(*root, FindRouteToPosition(*root, *position));
-      if (tree_depth() <= 0 || route.size() <= tree_depth() - 1) {
-        return false;
-      }
-      bool has_boundary = false;
-      LineColumn boundary;
-      for (const auto& candidate : route[tree_depth() - 1]->children) {
-        if (direction == FORWARDS) {
-          if (candidate.range.begin > *position &&
-              (!has_boundary || candidate.range.begin < boundary)) {
-            boundary = candidate.range.begin;
-            has_boundary = true;
-          }
-        } else {
-          if (candidate.range.end < *position &&
-              (!has_boundary || candidate.range.end > boundary)) {
-            boundary = candidate.range.end;
-            has_boundary = true;
-          }
-        }
-      }
-      if (!has_boundary) {
-        return false;
-      }
-      if (direction == BACKWARDS) {
-        Seek(contents_, &boundary).WithDirection(direction).Once();
-      }
-      *position = boundary;
-    } break;
-
-    case PARAGRAPH:
-      return Seek(contents_, position)
-                 .WithDirection(direction)
-                 .WrappingLines()
-                 .UntilNextLineIsSubsetOf(Read(
-                     buffer_variables::line_prefix_characters())) == Seek::DONE;
-
-    case LINE:
-      position->column =
-          direction == BACKWARDS ? 0 : LineAt(position->line)->size();
-      if (direction == BACKWARDS) {
-        return Seek(contents_, position)
-                   .WrappingLines()
-                   .WithDirection(direction)
-                   .Once() == Seek::DONE;
-      }
-      return true;
-
-    case WORD: {
-      auto seek =
-          Seek(contents_, position).WithDirection(direction).WrappingLines();
-      if (direction == FORWARDS && iswupper(seek.read()) &&
-          seek.Once() != Seek::DONE) {
-        return false;
-      }
-      if (seek.WhileCurrentCharIsLower() != Seek::DONE) {
-        return false;
-      }
-      if (direction == BACKWARDS && iswupper(seek.read()) &&
-          seek.Once() != Seek::DONE) {
-        return false;
-      }
-      return true;
-    }
-
-    case SYMBOL:
-      return Seek(contents_, position)
-                 .WithDirection(direction)
-                 .WrappingLines()
-                 .UntilCurrentCharNotIn(
-                     Read(buffer_variables::symbol_characters())) == Seek::DONE;
-
-    case CURSOR: {
-      bool has_boundary = false;
-      LineColumn boundary;
-      auto cursors = cursors_tracker_.FindCursors(L"");
-      CHECK(cursors != nullptr);
-      for (const auto& candidate : *cursors) {
-        if (direction == FORWARDS ? (candidate > *position &&
-                                     (!has_boundary || candidate < boundary))
-                                  : (candidate < *position &&
-                                     (!has_boundary || candidate > boundary))) {
-          boundary = candidate;
-          has_boundary = true;
-        }
-      }
-
-      if (!has_boundary) {
-        return false;
-      }
-      if (direction == BACKWARDS) {
-        Seek(contents_, &boundary).WithDirection(direction).Once();
-      }
-      *position = boundary;
-    }
-  }
-  return false;
-}
-
 bool OpenBuffer::FindPartialRange(const Modifiers& modifiers,
                                   const LineColumn& initial_position,
                                   LineColumn* start, LineColumn* end) {
@@ -1841,8 +1660,9 @@ bool OpenBuffer::FindPartialRange(const Modifiers& modifiers,
 
   *start = position;
   LOG(INFO) << "Initial position: " << position;
-  if (modifiers.structure != LINE) {
-    SeekToStructure(modifiers.structure, forward, start);
+  if (modifiers.structure->space_behavior() ==
+      Structure::SpaceBehavior::kForwards) {
+    modifiers.structure->SeekToNext(this, forward, start);
   }
   switch (modifiers.boundary_begin) {
     case Modifiers::CURRENT_POSITION:
@@ -1851,15 +1671,15 @@ bool OpenBuffer::FindPartialRange(const Modifiers& modifiers,
       break;
 
     case Modifiers::LIMIT_CURRENT: {
-      if (SeekToLimit(modifiers.structure, backward, start)) {
+      if (modifiers.structure->SeekToLimit(this, backward, start)) {
         Seek(contents_, start).WrappingLines().WithDirection(forward).Once();
       }
     } break;
 
     case Modifiers::LIMIT_NEIGHBOR:
-      if (SeekToLimit(modifiers.structure, backward, start)) {
-        SeekToStructure(modifiers.structure, backward, start);
-        SeekToLimit(modifiers.structure, forward, start);
+      if (modifiers.structure->SeekToLimit(this, backward, start)) {
+        modifiers.structure->SeekToNext(this, backward, start);
+        modifiers.structure->SeekToLimit(this, forward, start);
       }
   }
   LOG(INFO) << "After seek, initial position: " << *start;
@@ -1867,11 +1687,11 @@ bool OpenBuffer::FindPartialRange(const Modifiers& modifiers,
                                          : min(position, *start);
   bool move_start = true;
   for (size_t i = 0; i < modifiers.repetitions - 1; i++) {
-    if (!SeekToLimit(modifiers.structure, forward, end)) {
+    if (!modifiers.structure->SeekToLimit(this, forward, end)) {
       move_start = false;
       break;
     }
-    SeekToStructure(modifiers.structure, forward, end);
+    modifiers.structure->SeekToNext(this, forward, end);
   }
 
   switch (modifiers.boundary_end) {
@@ -1879,12 +1699,12 @@ bool OpenBuffer::FindPartialRange(const Modifiers& modifiers,
       break;
 
     case Modifiers::LIMIT_CURRENT:
-      move_start &= SeekToLimit(modifiers.structure, forward, end);
+      move_start &= modifiers.structure->SeekToLimit(this, forward, end);
       break;
 
     case Modifiers::LIMIT_NEIGHBOR:
-      move_start &= SeekToLimit(modifiers.structure, forward, end);
-      SeekToStructure(modifiers.structure, forward, end);
+      move_start &= modifiers.structure->SeekToLimit(this, forward, end);
+      modifiers.structure->SeekToNext(this, forward, end);
   }
   LOG(INFO) << "After adjusting end: " << *start << " to " << *end;
 

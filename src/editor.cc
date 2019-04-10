@@ -116,7 +116,7 @@ Environment EditorState::BuildEditorEnvironment() {
             auto buffer = editor->current_buffer()->second;
             CHECK(buffer != nullptr);
 
-            if (editor->structure() == LINE) {
+            if (editor->structure() == StructureLine()) {
               auto target_buffer = buffer->GetBufferFromCurrentLine();
               if (target_buffer != nullptr) {
                 buffer = target_buffer;
@@ -144,7 +144,7 @@ Environment EditorState::BuildEditorEnvironment() {
             auto buffer = editor->current_buffer()->second;
             CHECK(buffer != nullptr);
 
-            if (editor->structure() == LINE) {
+            if (editor->structure() == StructureLine()) {
               auto target_buffer = buffer->GetBufferFromCurrentLine();
               if (target_buffer != nullptr) {
                 buffer = target_buffer;
@@ -172,7 +172,7 @@ Environment EditorState::BuildEditorEnvironment() {
                            CHECK_EQ(args.size(), size_t(0));
                            auto buffer = current_buffer()->second;
                            CHECK(buffer != nullptr);
-                           if (structure() == LINE) {
+                           if (structure() == StructureLine()) {
                              auto target_buffer =
                                  buffer->GetBufferFromCurrentLine();
                              ResetStructure();

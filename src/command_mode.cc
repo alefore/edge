@@ -74,41 +74,11 @@ class Delete : public Command {
     if (!editor_state->has_current_buffer()) {
       return;
     }
-    shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-
-    switch (editor_state->structure()) {
-      case CHAR:
-      case WORD:
-      case SYMBOL:
-      case LINE:
-      case BUFFER:
-      case CURSOR:
-      case TREE:
-        if (editor_state->has_current_buffer()) {
-          auto buffer = editor_state->current_buffer()->second;
-          DeleteOptions options = delete_options_;
-          options.modifiers = editor_state->modifiers();
-          editor_state->ApplyToCurrentBuffer(NewDeleteTransformation(options));
-          editor_state->ScheduleRedraw();
-        }
-        break;
-
-      case MARK:
-        // TODO: Implement.
-        editor_state->SetStatus(L"Oops, delete mark is not implemented.");
-        break;
-
-      case PAGE:
-        // TODO: Implement.
-        editor_state->SetStatus(L"Oops, delete page is not yet implemented.");
-        break;
-
-      case SEARCH:
-        // TODO: Implement.
-        editor_state->SetStatus(
-            L"Ooops, delete search is not yet implemented.");
-        break;
-    }
+    auto buffer = editor_state->current_buffer()->second;
+    DeleteOptions options = delete_options_;
+    options.modifiers = editor_state->modifiers();
+    editor_state->ApplyToCurrentBuffer(NewDeleteTransformation(options));
+    editor_state->ScheduleRedraw();
 
     LOG(INFO) << "After applying delete transformation: "
               << editor_state->modifiers();
@@ -246,9 +216,12 @@ class GotoPreviousPositionCommand : public Command {
           editor_state->current_buffer()->second->position();
       if (it != editor_state->buffers()->end() &&
           (pos.buffer_name != editor_state->current_buffer()->first ||
-           (editor_state->structure() <= LINE &&
+           ((editor_state->structure() == StructureLine() ||
+             editor_state->structure() == StructureWord() ||
+             editor_state->structure() == StructureSymbol() ||
+             editor_state->structure() == StructureChar()) &&
             pos.position.line != current_position.line) ||
-           (editor_state->structure() <= CHAR &&
+           (editor_state->structure() == StructureChar() &&
             pos.position.column != current_position.column))) {
         LOG(INFO) << "Jumping to position: " << it->second->name() << " "
                   << pos.position;
@@ -265,7 +238,7 @@ class LineUp : public Command {
  public:
   wstring Description() const override;
   wstring Category() const override { return L"Navigate"; }
-  static void Move(int c, EditorState* editor_state, Structure structure);
+  static void Move(int c, EditorState* editor_state, Structure* structure);
   void ProcessInput(wint_t c, EditorState* editor_state) override;
 };
 
@@ -273,7 +246,7 @@ class LineDown : public Command {
  public:
   wstring Description() const override;
   wstring Category() const override { return L"Navigate"; }
-  static void Move(int c, EditorState* editor_state, Structure structure);
+  static void Move(int c, EditorState* editor_state, Structure* structure);
   void ProcessInput(wint_t c, EditorState* editor_state) override;
 };
 
@@ -311,8 +284,8 @@ class MoveBackwards : public Command {
 wstring LineUp::Description() const { return L"moves up one line"; }
 
 /* static */ void LineUp::Move(int c, EditorState* editor_state,
-                               Structure structure) {
-  if (editor_state->direction() == BACKWARDS || structure == TREE) {
+                               Structure* structure) {
+  if (editor_state->direction() == BACKWARDS || structure == StructureTree()) {
     editor_state->set_direction(ReverseDirection(editor_state->direction()));
     LineDown::Move(c, editor_state, structure);
     return;
@@ -320,27 +293,20 @@ wstring LineUp::Description() const { return L"moves up one line"; }
   if (!editor_state->has_current_buffer()) {
     return;
   }
-  switch (structure) {
-    case CHAR:
-      editor_state->set_structure(LINE);
-      MoveBackwards::Move(c, editor_state);
-      break;
-
-    case WORD:
-    case SYMBOL:
-      // Move in whole pages.
-      editor_state->set_repetitions(editor_state->repetitions() *
-                                    editor_state->visible_lines());
-      Move(c, editor_state, CHAR);
-      break;
-
-    case TREE:
-      CHECK(false);  // Handled above.
-      break;
-
-    default:
-      editor_state->MoveBufferBackwards(editor_state->repetitions());
-      editor_state->ScheduleRedraw();
+  // TODO: Move to Structure.
+  if (structure == StructureChar()) {
+    editor_state->set_structure(StructureLine());
+    MoveBackwards::Move(c, editor_state);
+  } else if (structure == StructureWord() || structure == StructureSymbol()) {
+    // Move in whole pages.
+    editor_state->set_repetitions(editor_state->repetitions() *
+                                  editor_state->visible_lines());
+    Move(c, editor_state, StructureChar());
+  } else if (structure == StructureTree()) {
+    CHECK(false);  // Handled above.
+  } else {
+    editor_state->MoveBufferBackwards(editor_state->repetitions());
+    editor_state->ScheduleRedraw();
   }
   editor_state->ResetStructure();
   editor_state->ResetRepetitions();
@@ -354,8 +320,8 @@ void LineUp::ProcessInput(wint_t c, EditorState* editor_state) {
 wstring LineDown::Description() const { return L"moves down one line"; }
 
 /* static */ void LineDown::Move(int c, EditorState* editor_state,
-                                 Structure structure) {
-  if (editor_state->direction() == BACKWARDS && structure != TREE) {
+                                 Structure* structure) {
+  if (editor_state->direction() == BACKWARDS && structure != StructureTree()) {
     editor_state->set_direction(FORWARDS);
     LineUp::Move(c, editor_state, structure);
     return;
@@ -363,48 +329,40 @@ wstring LineDown::Description() const { return L"moves down one line"; }
   if (!editor_state->has_current_buffer()) {
     return;
   }
-  switch (structure) {
-    case CHAR:
-      editor_state->set_structure(LINE);
-      MoveForwards::Move(c, editor_state);
-      break;
-
-    case WORD:
-    case SYMBOL:
-      // Move in whole pages.
-      editor_state->set_repetitions(editor_state->repetitions() *
-                                    editor_state->visible_lines());
-      Move(c, editor_state, CHAR);
-      break;
-
-    case TREE: {
-      if (!editor_state->has_current_buffer()) {
-        return;
-      }
-      auto buffer = editor_state->current_buffer()->second;
-      if (editor_state->direction() == BACKWARDS) {
-        if (buffer->tree_depth() > 0) {
-          buffer->set_tree_depth(buffer->tree_depth() - 1);
-        }
-      } else if (editor_state->direction() == FORWARDS) {
-        auto root = buffer->parse_tree();
-        const ParseTree* tree = buffer->current_tree(root.get());
-        if (!tree->children.empty()) {
-          buffer->set_tree_depth(buffer->tree_depth() + 1);
-        }
-      } else {
-        CHECK(false) << "Invalid direction: " << editor_state->direction();
-      }
-      buffer->ResetMode();
+  // TODO: Move to Structure.
+  if (structure == StructureChar()) {
+    editor_state->set_structure(StructureLine());
+    MoveForwards::Move(c, editor_state);
+  } else if (structure == StructureWord() || structure == StructureSymbol()) {
+    // Move in whole pages.
+    editor_state->set_repetitions(editor_state->repetitions() *
+                                  editor_state->visible_lines());
+    Move(c, editor_state, StructureChar());
+  } else if (structure == StructureTree()) {
+    if (!editor_state->has_current_buffer()) {
+      return;
     }
-      editor_state->ResetDirection();
-      editor_state->ResetStructure();
-      editor_state->ScheduleRedraw();
-      break;
-
-    default:
-      editor_state->MoveBufferForwards(editor_state->repetitions());
-      editor_state->ScheduleRedraw();
+    auto buffer = editor_state->current_buffer()->second;
+    if (editor_state->direction() == BACKWARDS) {
+      if (buffer->tree_depth() > 0) {
+        buffer->set_tree_depth(buffer->tree_depth() - 1);
+      }
+    } else if (editor_state->direction() == FORWARDS) {
+      auto root = buffer->parse_tree();
+      const ParseTree* tree = buffer->current_tree(root.get());
+      if (!tree->children.empty()) {
+        buffer->set_tree_depth(buffer->tree_depth() + 1);
+      }
+    } else {
+      CHECK(false) << "Invalid direction: " << editor_state->direction();
+    }
+    buffer->ResetMode();
+    editor_state->ResetDirection();
+    editor_state->ResetStructure();
+    editor_state->ScheduleRedraw();
+  } else {
+    editor_state->MoveBufferForwards(editor_state->repetitions());
+    editor_state->ScheduleRedraw();
   }
   editor_state->ResetStructure();
   editor_state->ResetRepetitions();
@@ -439,42 +397,15 @@ void MoveForwards::ProcessInput(wint_t c, EditorState* editor_state) {
   Move(c, editor_state);
 }
 
-/* static */ void MoveForwards::Move(int c, EditorState* editor_state) {
-  switch (editor_state->structure()) {
-    case CHAR:
-    case WORD:
-    case SYMBOL:
-    case LINE:
-    case MARK:
-    case CURSOR:
-    case TREE: {
-      if (!editor_state->has_current_buffer()) {
-        return;
-      }
-      editor_state->ApplyToCurrentBuffer(
-          NewMoveTransformation(editor_state->modifiers()));
-      editor_state->ResetRepetitions();
-      editor_state->ResetStructure();
-      editor_state->ResetDirection();
-    } break;
-
-    case SEARCH: {
-      auto buffer = editor_state->current_buffer()->second;
-      SearchOptions options;
-      options.search_query = editor_state->last_search_query();
-      options.starting_position = buffer->position();
-      JumpToNextMatch(editor_state, options);
-      buffer->ResetMode();
-    }
-      editor_state->ResetDirection();
-      editor_state->ResetStructure();
-      editor_state->ScheduleRedraw();
-      break;
-
-    default:
-      LineDown::Move(c, editor_state,
-                     LowerStructure(LowerStructure(editor_state->structure())));
+/* static */ void MoveForwards::Move(int, EditorState* editor_state) {
+  if (!editor_state->has_current_buffer()) {
+    return;
   }
+  editor_state->ApplyToCurrentBuffer(
+      NewMoveTransformation(editor_state->modifiers()));
+  editor_state->ResetRepetitions();
+  editor_state->ResetStructure();
+  editor_state->ResetDirection();
 }
 
 wstring MoveBackwards::Description() const { return L"moves backwards"; }
@@ -489,41 +420,12 @@ void MoveBackwards::ProcessInput(wint_t c, EditorState* editor_state) {
     MoveForwards::Move(c, editor_state);
     return;
   }
-  switch (editor_state->structure()) {
-    case CHAR:
-    case WORD:
-    case SYMBOL:
-    case LINE:
-    case MARK:
-    case CURSOR:
-    case TREE: {
-      if (!editor_state->has_current_buffer()) {
-        return;
-      }
-      editor_state->set_direction(ReverseDirection(editor_state->direction()));
-      MoveForwards::Move(c, editor_state);
-      return;
-    } break;
-
-    case SEARCH:
-      editor_state->set_direction(BACKWARDS);
-      {
-        auto buffer = editor_state->current_buffer()->second;
-        SearchOptions options;
-        options.search_query = editor_state->last_search_query();
-        options.starting_position = buffer->position();
-        JumpToNextMatch(editor_state, options);
-        buffer->ResetMode();
-      }
-      editor_state->ResetDirection();
-      editor_state->ResetStructure();
-      editor_state->ScheduleRedraw();
-      break;
-
-    default:
-      LineUp::Move(c, editor_state,
-                   LowerStructure(LowerStructure(editor_state->structure())));
+  if (!editor_state->has_current_buffer()) {
+    return;
   }
+  editor_state->set_direction(ReverseDirection(editor_state->direction()));
+  MoveForwards::Move(c, editor_state);
+  return;
 }
 
 class EnterInsertModeCommand : public Command {
@@ -600,28 +502,27 @@ void SetRepetitions(EditorState* editor_state, int number) {
 
 class SetStructureCommand : public Command {
  public:
-  SetStructureCommand(Structure value, const wstring& description)
-      : value_(value), description_(description) {}
+  SetStructureCommand(Structure* structure) : structure_(structure) {}
 
   wstring Description() const override {
-    return L"sets the structure: " + description_;
+    return L"sets the structure: " + structure_->ToString();
   }
   wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    if (editor_state->structure() != value_) {
-      editor_state->set_structure(value_);
+    if (editor_state->structure() != structure_) {
+      editor_state->set_structure(structure_);
       editor_state->set_sticky_structure(false);
     } else if (!editor_state->sticky_structure()) {
       editor_state->set_sticky_structure(true);
     } else {
-      editor_state->set_structure(CHAR);
+      editor_state->set_structure(StructureChar());
       editor_state->set_sticky_structure(false);
     }
   }
 
  private:
-  Structure value_;
+  Structure* structure_;
   const wstring description_;
 };
 
@@ -939,7 +840,8 @@ class TreeNavigate : public Transformation {
 class TreeNavigateCommand : public Command {
  public:
   wstring Description() const override {
-    return L"Navigates to the start/end of the current children of the syntax "
+    return L"Navigates to the start/end of the current children of the "
+           L"syntax "
            L"tree";
   }
   wstring Category() const override { return L"Navigate"; }
@@ -1068,15 +970,15 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"/", NewSearchCommand());
   commands->Add(L"g", NewGotoCommand());
 
-  commands->Add(L"W", std::make_unique<SetStructureCommand>(SYMBOL, L"symbol"));
-  commands->Add(L"w", std::make_unique<SetStructureCommand>(WORD, L"word"));
-  commands->Add(L"e", std::make_unique<SetStructureCommand>(LINE, L"line"));
-  commands->Add(L"E", std::make_unique<SetStructureCommand>(PAGE, L"page"));
-  commands->Add(L"F", std::make_unique<SetStructureCommand>(SEARCH, L"search"));
-  commands->Add(L"c", std::make_unique<SetStructureCommand>(CURSOR, L"cursor"));
-  commands->Add(L"B", std::make_unique<SetStructureCommand>(BUFFER, L"buffer"));
-  commands->Add(L"!", std::make_unique<SetStructureCommand>(MARK, L"mark"));
-  commands->Add(L"t", std::make_unique<SetStructureCommand>(TREE, L"tree"));
+  commands->Add(L"W", std::make_unique<SetStructureCommand>(StructureSymbol()));
+  commands->Add(L"w", std::make_unique<SetStructureCommand>(StructureWord()));
+  commands->Add(L"e", std::make_unique<SetStructureCommand>(StructureLine()));
+  commands->Add(L"E", std::make_unique<SetStructureCommand>(StructurePage()));
+  commands->Add(L"F", std::make_unique<SetStructureCommand>(StructureSearch()));
+  commands->Add(L"c", std::make_unique<SetStructureCommand>(StructureCursor()));
+  commands->Add(L"B", std::make_unique<SetStructureCommand>(StructureBuffer()));
+  commands->Add(L"!", std::make_unique<SetStructureCommand>(StructureMark()));
+  commands->Add(L"t", std::make_unique<SetStructureCommand>(StructureTree()));
 
   commands->Add(L"D", std::make_unique<Delete>(DeleteOptions()));
   commands->Add(

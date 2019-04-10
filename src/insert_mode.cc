@@ -756,13 +756,13 @@ using std::unique_ptr;
 void DefaultScrollBehavior::Up(EditorState*, OpenBuffer* buffer) {
   Modifiers modifiers;
   modifiers.direction = BACKWARDS;
-  modifiers.structure = LINE;
+  modifiers.structure = StructureLine();
   buffer->ApplyToCursors(NewMoveTransformation(modifiers));
 }
 
 void DefaultScrollBehavior::Down(EditorState*, OpenBuffer* buffer) {
   Modifiers modifiers;
-  modifiers.structure = LINE;
+  modifiers.structure = StructureLine();
   buffer->ApplyToCursors(NewMoveTransformation(modifiers));
 }
 
@@ -855,12 +855,12 @@ void EnterInsertMode(InsertModeOptions options) {
     editor_state->SetStatus(L"type (raw)");
     editor_state->current_buffer()->second->set_mode(
         std::make_unique<RawInputTypeMode>(options.buffer));
-  } else if (editor_state->structure() == CHAR) {
+  } else if (editor_state->structure() == StructureChar()) {
     options.buffer->CheckPosition();
     options.buffer->PushTransformationStack();
     options.buffer->PushTransformationStack();
     EnterInsertCharactersMode(options);
-  } else if (editor_state->structure() == LINE) {
+  } else if (editor_state->structure() == StructureLine()) {
     options.buffer->CheckPosition();
     options.buffer->PushTransformationStack();
     options.buffer->PushTransformationStack();

@@ -192,18 +192,6 @@ class OpenBuffer {
   void set_lines_for_zoomed_out_tree(size_t lines);
   std::shared_ptr<const ParseTree> zoomed_out_tree() const;
 
-  // Moves position in the specified direction until we're inside the structure
-  // of the type specified that starts after position. No-op if we're already
-  // inside the structure.
-  void SeekToStructure(Structure structure, Direction direction,
-                       LineColumn* position);
-  // Moves position in the specified direction until we're just outside of the
-  // current structure of the type specified. No-op if we're already outside the
-  // structure. Returns a boolean indicating whether it successfully found a
-  // position outside of the structure.
-  bool SeekToLimit(Structure structure, Direction direction,
-                   LineColumn* position);
-
   // TODO: Change start and end to be a Range?
   bool FindPartialRange(const Modifiers& modifiers, const LineColumn& position,
                         LineColumn* start, LineColumn* end);

@@ -25,55 +25,48 @@ class MoveTransformation : public Transformation {
     auto root = buffer->parse_tree();
     auto current_tree = buffer->current_tree(root.get());
     LineColumn position;
-    switch (modifiers_.structure) {
-      case LINE:
-        position = MoveLine(buffer, result->cursor);
-        break;
-      case CHAR:
-      case TREE:
-      case SYMBOL:
-      case WORD:
-        position = MoveRange(editor_state, buffer, result->cursor);
-        break;
-      case MARK:
-        position = MoveMark(editor_state, buffer, result->cursor);
-        break;
+    // TODO: Move to Structure.
+    auto structure = modifiers_.structure;
+    if (structure == StructureLine()) {
+      position = MoveLine(buffer, result->cursor);
+    } else if (structure == StructureChar() || structure == StructureTree() ||
+               structure == StructureSymbol() || structure == StructureWord()) {
+      position = MoveRange(editor_state, buffer, result->cursor);
+    } else if (structure == StructureMark()) {
+      position = MoveMark(editor_state, buffer, result->cursor);
+    } else if (structure == StructureCursor()) {
+      // Handles repetitions.
+      auto active_cursors = buffer->active_cursors();
+      auto next_cursor = buffer->FindNextCursor(result->cursor);
+      if (next_cursor == active_cursors->end()) {
+        LOG(INFO) << "Unable to find next cursor.";
+        result->success = false;
+        return;
+      }
 
-      case CURSOR:
-        // Handles repetitions.
-        {
-          auto active_cursors = buffer->active_cursors();
-          auto next_cursor = buffer->FindNextCursor(result->cursor);
-          if (next_cursor == active_cursors->end()) {
-            LOG(INFO) << "Unable to find next cursor.";
-            result->success = false;
-            return;
-          }
+      if (*next_cursor == result->cursor) {
+        LOG(INFO) << "Cursor didn't move.";
+        return;
+      }
 
-          if (*next_cursor == result->cursor) {
-            LOG(INFO) << "Cursor didn't move.";
-            return;
-          }
+      LineColumn original_cursor = result->cursor;
+      result->cursor = *next_cursor;
 
-          LineColumn original_cursor = result->cursor;
-          result->cursor = *next_cursor;
+      VLOG(5) << "Moving cursor from " << *next_cursor << " to "
+              << original_cursor;
 
-          VLOG(5) << "Moving cursor from " << *next_cursor << " to "
-                  << original_cursor;
+      if (*next_cursor != buffer->position()) {
+        active_cursors->erase(next_cursor);
+        active_cursors->insert(original_cursor);
+      }
 
-          if (*next_cursor != buffer->position()) {
-            active_cursors->erase(next_cursor);
-            active_cursors->insert(original_cursor);
-          }
-
-          editor_state->ScheduleRedraw();
-          editor_state->ResetRepetitions();
-          editor_state->ResetStructure();
-          editor_state->ResetDirection();
-          return;
-        }
-      default:
-        CHECK(false);
+      editor_state->ScheduleRedraw();
+      editor_state->ResetRepetitions();
+      editor_state->ResetStructure();
+      editor_state->ResetDirection();
+      return;
+    } else {
+      CHECK(false);
     }
     LOG(INFO) << "Move from " << result->cursor << " to " << position << " "
               << modifiers_;

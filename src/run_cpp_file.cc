@@ -41,7 +41,7 @@ void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
     return;
   }
   OpenBuffer* buffer = editor_state->current_buffer()->second.get();
-  if (editor_state->structure() == LINE) {
+  if (editor_state->structure() == StructureLine()) {
     auto target = buffer->GetBufferFromCurrentLine().get();
     if (target != nullptr) {
       buffer = target;

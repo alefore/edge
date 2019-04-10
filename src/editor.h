@@ -106,8 +106,8 @@ class EditorState {
   Modifiers modifiers() const { return modifiers_; }
   void set_modifiers(const Modifiers& modifiers) { modifiers_ = modifiers; }
 
-  Structure structure() const { return modifiers_.structure; }
-  void set_structure(Structure structure) { modifiers_.structure = structure; }
+  Structure* structure() const { return modifiers_.structure; }
+  void set_structure(Structure* structure) { modifiers_.structure = structure; }
   void ResetStructure() { modifiers_.ResetStructure(); }
 
   Modifiers::StructureRange structure_range() const {

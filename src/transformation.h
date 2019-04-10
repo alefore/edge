@@ -120,7 +120,7 @@ unique_ptr<Transformation> NewDirectionTransformation(
     Direction direction, unique_ptr<Transformation> transformation);
 
 unique_ptr<Transformation> NewStructureTransformation(
-    Structure structure, Modifiers::StructureRange structure_modifier,
+    Structure* structure, Modifiers::StructureRange structure_modifier,
     unique_ptr<Transformation> transformation);
 
 class TransformationStack : public Transformation {

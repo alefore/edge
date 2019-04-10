@@ -423,25 +423,19 @@ class DeleteTransformation : public Transformation {
     LOG(INFO) << "Start delete transformation at " << result->cursor << ": "
               << options_;
     unique_ptr<Transformation> delegate = NewNoopTransformation();
-    switch (options_.modifiers.structure) {
-      case CHAR:
-        delegate = NewDeleteCharactersTransformation(options_);
-        break;
-      case WORD:
-      case SYMBOL:
-      case CURSOR:
-      case TREE:
-      case LINE:
-      case BUFFER:
-      case PARAGRAPH:
-        delegate = NewDeleteRegionTransformation(options_);
-        break;
-      case MARK:
-      case PAGE:
-      case SEARCH:
-        LOG(INFO) << "DeleteTransformation can't handle structure: "
-                  << options_.modifiers.structure;
-        break;
+    auto structure = options_.modifiers.structure;
+    // TODO: Move to Structure.
+    if (structure == StructureChar()) {
+      delegate = NewDeleteCharactersTransformation(options_);
+    } else if (structure == StructureWord() || structure == StructureSymbol() ||
+               structure == StructureCursor() || structure == StructureTree() ||
+               structure == StructureLine() || structure == StructureBuffer() ||
+               structure == StructureParagraph()) {
+      delegate = NewDeleteRegionTransformation(options_);
+    } else if (structure == StructureMark() || structure == StructurePage() ||
+               structure == StructureSearch()) {
+      LOG(INFO) << "DeleteTransformation can't handle structure: "
+                << options_.modifiers.structure;
     }
     return delegate->Apply(editor_state, buffer, result);
   }

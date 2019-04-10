@@ -16,7 +16,7 @@ namespace editor {
 
 void SendEndOfFileToBuffer(EditorState* editor_state,
                            std::shared_ptr<OpenBuffer> buffer) {
-  if (editor_state->structure() == LINE) {
+  if (editor_state->structure() == StructureLine()) {
     auto target_buffer = buffer->GetBufferFromCurrentLine();
     if (target_buffer != nullptr) {
       LOG(INFO) << "Sending EOF to line: " << buffer->current_line()->ToString()

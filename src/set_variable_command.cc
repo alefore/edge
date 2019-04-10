@@ -42,7 +42,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
   }
   auto buffer = editor_state->current_buffer()->second;
   CHECK(buffer != nullptr);
-  if (editor_state->modifiers().structure == LINE) {
+  if (editor_state->modifiers().structure == StructureLine()) {
     auto target_buffer = buffer->GetBufferFromCurrentLine();
     if (target_buffer != nullptr) {
       buffer = target_buffer;

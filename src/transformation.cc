@@ -253,7 +253,7 @@ class DirectionTransformation : public Transformation {
 
 class StructureTransformation : public Transformation {
  public:
-  StructureTransformation(Structure structure,
+  StructureTransformation(Structure* structure,
                           Modifiers::StructureRange structure_range,
                           unique_ptr<Transformation> delegate)
       : structure_(structure),
@@ -277,9 +277,9 @@ class StructureTransformation : public Transformation {
   }
 
  private:
-  Structure structure_;
-  Modifiers::StructureRange structure_range_;
-  unique_ptr<Transformation> delegate_;
+  Structure* const structure_;
+  const Modifiers::StructureRange structure_range_;
+  const std::unique_ptr<Transformation> delegate_;
 };
 
 }  // namespace
@@ -362,7 +362,7 @@ std::unique_ptr<Transformation> NewDirectionTransformation(
 }
 
 std::unique_ptr<Transformation> NewStructureTransformation(
-    Structure structure, Modifiers::StructureRange structure_range,
+    Structure* structure, Modifiers::StructureRange structure_range,
     std::unique_ptr<Transformation> transformation) {
   return std::make_unique<StructureTransformation>(structure, structure_range,
                                                    std::move(transformation));

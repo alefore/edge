@@ -164,31 +164,31 @@ class CommandWithModifiersMode : public EditorMode {
         break;
 
       case 'e':
-        SetStructure(LINE, modifiers);
+        SetStructure(StructureLine(), modifiers);
         break;
 
       case 'w':
-        SetStructure(WORD, modifiers);
+        SetStructure(StructureWord(), modifiers);
         break;
 
       case 'W':
-        SetStructure(SYMBOL, modifiers);
+        SetStructure(StructureSymbol(), modifiers);
         break;
 
       case 'B':
-        SetStructure(BUFFER, modifiers);
+        SetStructure(StructureBuffer(), modifiers);
         break;
 
       case 'c':
-        SetStructure(CURSOR, modifiers);
+        SetStructure(StructureCursor(), modifiers);
         break;
 
       case 'T':
-        SetStructure(TREE, modifiers);
+        SetStructure(StructureTree(), modifiers);
         break;
 
       case 'P':
-        SetStructure(PARAGRAPH, modifiers);
+        SetStructure(StructureParagraph(), modifiers);
         break;
 
       case 'p':
@@ -204,14 +204,15 @@ class CommandWithModifiersMode : public EditorMode {
     return true;
   }
 
-  static void SetStructure(Structure structure, Modifiers* modifiers) {
-    modifiers->structure = modifiers->structure == structure ? CHAR : structure;
+  static void SetStructure(Structure* structure, Modifiers* modifiers) {
+    modifiers->structure =
+        modifiers->structure == structure ? StructureChar() : structure;
   }
 
   wstring BuildStatus(const Modifiers& modifiers) {
     wstring status = name_;
-    if (modifiers.structure != CHAR) {
-      status += L" " + StructureToString(modifiers.structure);
+    if (modifiers.structure != StructureChar()) {
+      status += L" " + modifiers.structure->ToString();
     }
     if (modifiers.direction == BACKWARDS) {
       status += L" reverse";

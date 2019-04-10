@@ -10,36 +10,8 @@ std::ostream& operator<<(std::ostream& os, const BufferPosition& bp) {
   return os;
 }
 
-wstring StructureToString(Structure structure) {
-  switch (structure) {
-    case CHAR:
-      return L"char";
-    case WORD:
-      return L"word";
-    case SYMBOL:
-      return L"symbol";
-    case LINE:
-      return L"line";
-    case MARK:
-      return L"mark";
-    case PAGE:
-      return L"page";
-    case SEARCH:
-      return L"search";
-    case TREE:
-      return L"tree";
-    case CURSOR:
-      return L"cursor";
-    case BUFFER:
-      return L"buffer";
-    case PARAGRAPH:
-      return L"paragraph";
-  }
-  CHECK(false);
-}
-
 ostream& operator<<(ostream& os, const Modifiers& m) {
-  os << "[structure: " << StructureToString(m.structure) << "][direction: ";
+  os << "[structure: " << m.structure->ToString() << "][direction: ";
   switch (m.direction) {
     case FORWARDS:
       os << "forwards";
@@ -81,8 +53,9 @@ void Modifiers::Register(vm::Environment* environment) {
                                         []() { return new Modifiers(); })));
 
   modifiers_type->AddField(
-      L"set_line", vm::NewCallback(std::function<void(Modifiers*)>(
-                       [](Modifiers* output) { output->structure = LINE; })));
+      L"set_line",
+      vm::NewCallback(std::function<void(Modifiers*)>(
+          [](Modifiers* output) { output->structure = StructureLine(); })));
 
   modifiers_type->AddField(L"set_repetitions",
                            vm::NewCallback(std::function<void(Modifiers*, int)>(

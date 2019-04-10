@@ -25,7 +25,6 @@ struct BufferPosition {
   LineColumn position;
 };
 
-std::wstring StructureToString(Structure structure);
 std::ostream& operator<<(std::ostream& os, const BufferPosition& bp);
 
 struct Modifiers {
@@ -52,7 +51,7 @@ struct Modifiers {
   // Sets the modifiers to their default values, including resetting any form
   // of stickyness.
   void ResetHard() {
-    structure = CHAR;
+    structure = StructureChar();
     structure_range = Modifiers::ENTIRE_STRUCTURE;
     default_direction = FORWARDS;
     default_insertion = INSERT;
@@ -71,7 +70,7 @@ struct Modifiers {
 
   void ResetStructure() {
     if (!sticky_structure) {
-      structure = Structure::CHAR;
+      structure = StructureChar();
     }
     structure_range = ENTIRE_STRUCTURE;
   }
@@ -83,7 +82,7 @@ struct Modifiers {
   void ResetRepetitions() { repetitions = 1; }
 
   // Fields follow.
-  Structure structure = CHAR;
+  Structure* structure = StructureChar();
   StructureRange structure_range = ENTIRE_STRUCTURE;
   bool sticky_structure = false;
 

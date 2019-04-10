@@ -32,21 +32,18 @@ class RunCppCommand : public Command {
     if (!editor_state->has_current_buffer()) {
       return;
     }
-    switch (editor_state->structure()) {
-      case LINE:
-        editor_state->ResetStructure();
-        RunCppCommandHandler(
-            editor_state->current_buffer()->second->current_line()->ToString(),
-            editor_state);
-        break;
-
-      default:
-        PromptOptions options;
-        options.prompt = L"cpp ";
-        options.history_file = L"cpp";
-        options.handler = RunCppCommandHandler;
-        options.cancel_handler = [](EditorState*) { /* Nothing. */ };
-        Prompt(editor_state, options);
+    if (editor_state->structure() == StructureLine()) {
+      editor_state->ResetStructure();
+      RunCppCommandHandler(
+          editor_state->current_buffer()->second->current_line()->ToString(),
+          editor_state);
+    } else {
+      PromptOptions options;
+      options.prompt = L"cpp ";
+      options.history_file = L"cpp";
+      options.handler = RunCppCommandHandler;
+      options.cancel_handler = [](EditorState*) { /* Nothing. */ };
+      Prompt(editor_state, options);
     }
   }
 };

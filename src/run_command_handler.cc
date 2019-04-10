@@ -319,35 +319,30 @@ class ForkEditorCommand : public Command {
   wstring Category() const override { return L"Buffers"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    switch (editor_state->structure()) {
-      case CHAR: {
-        PromptOptions options;
-        wstring children_path = GetChildrenPath(editor_state);
-        options.prompt = children_path + L"$ ";
-        options.history_file = L"commands";
-        options.handler = [children_path](const wstring& name,
-                                          EditorState* editor_state) {
-          RunCommandHandler(name, editor_state, 0, 1, children_path);
-        };
-        Prompt(editor_state, options);
-      } break;
-
-      case LINE: {
-        if (!editor_state->has_current_buffer() ||
-            editor_state->current_buffer()->second->current_line() == nullptr) {
-          return;
-        }
-        auto children_path = GetChildrenPath(editor_state);
-        auto line =
-            editor_state->current_buffer()->second->current_line()->ToString();
-        for (size_t i = 0; i < editor_state->repetitions(); ++i) {
-          RunCommandHandler(line, editor_state, i, editor_state->repetitions(),
-                            children_path);
-        }
-      } break;
-
-      default:
-        editor_state->SetStatus(L"Oops, that structure is not handled.");
+    if (editor_state->structure() == StructureChar()) {
+      PromptOptions options;
+      wstring children_path = GetChildrenPath(editor_state);
+      options.prompt = children_path + L"$ ";
+      options.history_file = L"commands";
+      options.handler = [children_path](const wstring& name,
+                                        EditorState* editor_state) {
+        RunCommandHandler(name, editor_state, 0, 1, children_path);
+      };
+      Prompt(editor_state, options);
+    } else if (editor_state->structure() == StructureLine()) {
+      if (!editor_state->has_current_buffer() ||
+          editor_state->current_buffer()->second->current_line() == nullptr) {
+        return;
+      }
+      auto children_path = GetChildrenPath(editor_state);
+      auto line =
+          editor_state->current_buffer()->second->current_line()->ToString();
+      for (size_t i = 0; i < editor_state->repetitions(); ++i) {
+        RunCommandHandler(line, editor_state, i, editor_state->repetitions(),
+                          children_path);
+      }
+    } else {
+      editor_state->SetStatus(L"Oops, that structure is not handled.");
     }
     editor_state->ResetStructure();
   }

@@ -152,7 +152,7 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   screen->Refresh();
   screen->Flush();
   editor_state->set_visible_lines(static_cast<size_t>(screen_lines - 1));
-}  // namespace editor
+}
 
 // Adjust the name of a buffer to a string suitable to be shown in the Status
 // with progress indicators surrounding it.
@@ -260,36 +260,10 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
     }
 
     wstring structure;
-    switch (editor_state.structure()) {
-      case CHAR:
-        break;
-      case WORD:
-        structure = L"word";
-        break;
-      case SYMBOL:
-        structure = L"symbol";
-        break;
-      case LINE:
-        structure = L"line";
-        break;
-      case MARK:
-        structure = L"mark";
-        break;
-      case PAGE:
-        structure = L"page";
-        break;
-      case SEARCH:
-        structure = L"search";
-        break;
-      case BUFFER:
-        structure = L"buffer";
-        break;
-      case CURSOR:
-        structure = L"cursor";
-        break;
-      case TREE:
-        structure = L"tree<" + to_wstring(buffer->tree_depth()) + L">";
-        break;
+    if (editor_state.structure() == StructureTree()) {
+      structure = L"tree<" + to_wstring(buffer->tree_depth()) + L">";
+    } else if (editor_state.structure() != StructureChar()) {
+      structure = editor_state.structure()->ToString();
     }
     if (!structure.empty()) {
       if (editor_state.sticky_structure()) {
@@ -499,9 +473,9 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
   struct Options {
     Line::OutputReceiverInterface* delegate;
 
-    // A set with all the columns in the current line in which there are
-    // cursors that should be drawn. If the active cursor (i.e., the one exposed
-    // to the terminal) is in the line being outputted, its column should not be
+    // A set with all the columns in the current line in which there are cursors
+    // that should be drawn. If the active cursor (i.e., the one exposed to the
+    // terminal) is in the line being outputted, its column should not be
     // included (since we shouldn't do anything special when outputting its
     // corresponding character: the terminal will take care of drawing the
     // cursor).
