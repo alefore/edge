@@ -36,6 +36,15 @@ Seek::Result Seek::Once() const {
   return Advance(position_) ? DONE : UNABLE_TO_ADVANCE;
 }
 
+Seek::Result Seek::WhileCurrentCharIsUpper() const {
+  while (iswupper(read())) {
+    if (!Advance(position_)) {
+      return UNABLE_TO_ADVANCE;
+    }
+  }
+  return DONE;
+}
+
 Seek::Result Seek::WhileCurrentCharIsLower() const {
   while (iswlower(read())) {
     if (!Advance(position_)) {

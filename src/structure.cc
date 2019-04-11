@@ -81,8 +81,8 @@ Structure* StructureWord() {
       auto seek = Seek(*buffer->contents(), position)
                       .WithDirection(direction)
                       .WrappingLines();
-      if (direction == FORWARDS && iswupper(seek.read()) &&
-          seek.Once() != Seek::DONE) {
+      if (direction == FORWARDS &&
+          seek.WhileCurrentCharIsUpper() != Seek::DONE) {
         return false;
       }
       if (seek.WhileCurrentCharIsLower() != Seek::DONE) {
