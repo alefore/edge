@@ -6,6 +6,7 @@
 #include "src/buffer_contents.h"
 #include "src/buffer_variables.h"
 #include "src/seek.h"
+#include "src/transformation_delete.h"
 
 namespace afc {
 namespace editor {
@@ -48,6 +49,11 @@ Structure* StructureChar() {
                  .WrappingLines()
                  .WithDirection(direction)
                  .Once() == Seek::DONE;
+    }
+
+    std::unique_ptr<Transformation> DeleteTransformation(
+        DeleteOptions options) override {
+      return NewDeleteCharactersTransformation(std::move(options));
     }
   };
   static Impl output;
@@ -94,6 +100,11 @@ Structure* StructureWord() {
       }
       return true;
     }
+
+    std::unique_ptr<Transformation> DeleteTransformation(
+        DeleteOptions options) override {
+      return NewDeleteRegionTransformation(std::move(options));
+    }
   };
   static Impl output;
   return &output;
@@ -129,6 +140,11 @@ Structure* StructureSymbol() {
                  .WrappingLines()
                  .UntilCurrentCharNotIn(buffer->Read(
                      buffer_variables::symbol_characters())) == Seek::DONE;
+    }
+
+    std::unique_ptr<Transformation> DeleteTransformation(
+        DeleteOptions options) override {
+      return NewDeleteRegionTransformation(std::move(options));
     }
   };
   static Impl output;
@@ -173,6 +189,11 @@ Structure* StructureLine() {
       }
       return true;
     }
+
+    std::unique_ptr<Transformation> DeleteTransformation(
+        DeleteOptions options) override {
+      return NewDeleteRegionTransformation(std::move(options));
+    }
   };
   static Impl output;
   return &output;
@@ -198,6 +219,11 @@ Structure* StructureMark() {
       StartSeekToLimit(buffer, position);
       // TODO: Implement.
       return true;
+    }
+
+    std::unique_ptr<Transformation> DeleteTransformation(
+        DeleteOptions options) override {
+      return NewDeleteRegionTransformation(std::move(options));
     }
   };
   static Impl output;
@@ -225,6 +251,11 @@ Structure* StructurePage() {
       // TODO: Implement.
       return true;
     }
+
+    std::unique_ptr<Transformation> DeleteTransformation(
+        DeleteOptions options) override {
+      return NewDeleteRegionTransformation(std::move(options));
+    }
   };
   static Impl output;
   return &output;
@@ -250,6 +281,11 @@ Structure* StructureSearch() {
       StartSeekToLimit(buffer, position);
       // TODO: Implement.
       return true;
+    }
+
+    std::unique_ptr<Transformation> DeleteTransformation(
+        DeleteOptions options) override {
+      return NewDeleteRegionTransformation(std::move(options));
     }
   };
   static Impl output;
@@ -309,6 +345,11 @@ Structure* StructureTree() {
       *position = boundary;
       return true;
     }
+
+    std::unique_ptr<Transformation> DeleteTransformation(
+        DeleteOptions options) override {
+      return NewDeleteRegionTransformation(std::move(options));
+    }
   };
   static Impl output;
   return &output;
@@ -355,6 +396,11 @@ Structure* StructureCursor() {
       *position = boundary;
       return true;
     }
+
+    std::unique_ptr<Transformation> DeleteTransformation(
+        DeleteOptions options) override {
+      return NewDeleteRegionTransformation(std::move(options));
+    }
   };
   static Impl output;
   return &output;
@@ -389,6 +435,11 @@ Structure* StructureParagraph() {
                  .UntilNextLineIsSubsetOf(buffer->Read(
                      buffer_variables::line_prefix_characters())) == Seek::DONE;
     }
+
+    std::unique_ptr<Transformation> DeleteTransformation(
+        DeleteOptions options) override {
+      return NewDeleteRegionTransformation(std::move(options));
+    }
   };
   static Impl output;
   return &output;
@@ -419,6 +470,11 @@ Structure* StructureBuffer() {
         position->column = buffer->LineAt(position->line)->size();
       }
       return false;
+    }
+
+    std::unique_ptr<Transformation> DeleteTransformation(
+        DeleteOptions options) override {
+      return NewDeleteRegionTransformation(std::move(options));
     }
   };
   static Impl output;

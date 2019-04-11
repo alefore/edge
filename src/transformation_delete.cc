@@ -365,40 +365,6 @@ class DeleteLinesTransformation : public Transformation {
   const DeleteOptions options_;
 };
 
-class DeleteTransformation : public Transformation {
- public:
-  DeleteTransformation(DeleteOptions options) : options_(options) {}
-
-  void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const {
-    LOG(INFO) << "Start delete transformation at " << result->cursor << ": "
-              << options_;
-    unique_ptr<Transformation> delegate = NewNoopTransformation();
-    auto structure = options_.modifiers.structure;
-    // TODO: Move to Structure.
-    if (structure == StructureChar()) {
-      delegate = NewDeleteCharactersTransformation(options_);
-    } else if (structure == StructureWord() || structure == StructureSymbol() ||
-               structure == StructureCursor() || structure == StructureTree() ||
-               structure == StructureLine() || structure == StructureBuffer() ||
-               structure == StructureParagraph()) {
-      delegate = NewDeleteRegionTransformation(options_);
-    } else if (structure == StructureMark() || structure == StructurePage() ||
-               structure == StructureSearch()) {
-      LOG(INFO) << "DeleteTransformation can't handle structure: "
-                << options_.modifiers.structure;
-    }
-    return delegate->Apply(editor_state, buffer, result);
-  }
-
-  unique_ptr<Transformation> Clone() const override {
-    return NewDeleteTransformation(options_);
-  }
-
- private:
-  const DeleteOptions options_;
-};
-
 }  // namespace
 
 std::unique_ptr<Transformation> NewDeleteCharactersTransformation(
@@ -417,7 +383,7 @@ std::unique_ptr<Transformation> NewDeleteLinesTransformation(
 }
 
 std::unique_ptr<Transformation> NewDeleteTransformation(DeleteOptions options) {
-  return std::make_unique<DeleteTransformation>(options);
+  return options.modifiers.structure->DeleteTransformation(std::move(options));
 }
 
 }  // namespace editor

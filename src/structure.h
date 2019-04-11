@@ -9,6 +9,8 @@
 namespace afc {
 namespace editor {
 
+class DeleteOptions;
+class Transformation;
 class OpenBuffer;
 
 class Structure {
@@ -60,6 +62,9 @@ class Structure {
   // position outside of the structure.
   virtual bool SeekToLimit(OpenBuffer* buffer, Direction direction,
                            LineColumn* position) = 0;
+
+  virtual std::unique_ptr<Transformation> DeleteTransformation(
+      DeleteOptions options) = 0;
 };
 
 Structure* StructureChar();
