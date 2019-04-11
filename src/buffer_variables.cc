@@ -277,6 +277,7 @@ EdgeStruct<wstring>* StringStruct() {
     tree_parser();
     language_keywords();
     typos();
+    directory_noise();
   }
   return output;
 }
@@ -420,6 +421,16 @@ EdgeVariable<wstring>* typos() {
       L"tree parser as errors. This is only honored by a few tree parser types "
       L"(see variable tree_parser).",
       L"");
+  return variable;
+}
+
+EdgeVariable<wstring>* directory_noise() {
+  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
+      L"directory_noise",
+      L"Regular expression to use in a buffer showing the contents of a "
+      L"directory to identify files that should be considered as noise: they "
+      L"are less important than most files.",
+      L".*(\\.o|~)|\\.(?!\\.$).*");
   return variable;
 }
 

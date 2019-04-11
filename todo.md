@@ -7,11 +7,8 @@ Correctly handle: '\000'
 Support more languages:
   - Python
   - Directory listings.
-    - If a single dot:
-      - Under-emphasize it.
-      - Show the type of file, perhaps based on some variable?
-         - text:cc,h,py,md,sh binary:o
-         - Not sure the best way to do this is syntax highlighting. Maybe the buffer should do it, based also on `stat` results (e.g. permissions, symlink, subdir...)
+    - Perhaps have a bool that toggles 'stat' (show data about files)?
+      Ideally this is done by the extensions!
 
 ## Editing
 

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstring>
 #include <memory>
+#include <regex>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -24,6 +25,7 @@ extern "C" {
 #include "char_buffer.h"
 #include "dirname.h"
 #include "editor.h"
+#include "lazy_string_append.h"
 #include "line_prompt_mode.h"
 #include "run_command_handler.h"
 #include "search_handler.h"
@@ -202,8 +204,7 @@ class FileBuffer : public OpenBuffer {
 
     Set(buffer_variables::atomic_lines(), true);
     Set(buffer_variables::allow_dirty_delete(), true);
-    target->AppendToLastLine(editor_state,
-                             NewCopyString(L"File listing: " + path));
+    Set(buffer_variables::tree_parser(), L"md");
 
     DIR* dir = opendir(path_raw.c_str());
     if (dir == nullptr) {
@@ -215,34 +216,41 @@ class FileBuffer : public OpenBuffer {
       return;
     }
     struct dirent* entry;
+
+    std::vector<dirent> directories;
+    std::vector<dirent> regular_files;
+    std::vector<dirent> noise;
+
+    std::wregex noise_regex(target->Read(buffer_variables::directory_noise()));
+
     while ((entry = readdir(dir)) != nullptr) {
-      static std::unordered_map<int, wstring> types = {
-          {DT_BLK, L" (block dev)"},   {DT_CHR, L" (char dev)"}, {DT_DIR, L"/"},
-          {DT_FIFO, L" (named pipe)"}, {DT_LNK, L"@"},           {DT_REG, L""},
-          {DT_SOCK, L" (unix sock)"}};
+      auto path = FromByteString(entry->d_name);
       if (strcmp(entry->d_name, ".") == 0) {
         continue;  // Showing the link to itself is rather pointless.
       }
-      auto type_it = types.find(entry->d_type);
-      auto path = FromByteString(entry->d_name);
-      target->AppendLine(
-          editor_state,
-          shared_ptr<LazyString>(NewCopyString(
-              path + (type_it == types.end() ? L"" : type_it->second))));
 
-      target->contents()->back()->environment()->Define(
-          L"EdgeLineDeleteHandler",
-          vm::NewCallback(std::function<void()>([editor_state, path]() {
-            StartDeleteFile(editor_state, path);
-          })));
+      if (std::regex_match(path, noise_regex)) {
+        noise.push_back(*entry);
+        continue;
+      }
+
+      if (entry->d_type == DT_DIR) {
+        directories.push_back(*entry);
+        continue;
+      }
+
+      regular_files.push_back(*entry);
     }
     closedir(dir);
 
-    target->SortContents(
-        1, target->contents()->size(),
-        [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
-          return *a->contents() < *b->contents();
-        });
+    target->AppendToLastLine(editor_state,
+                             NewCopyString(L"# File listing: " + path));
+    target->AppendLine(editor_state, EmptyString());
+
+    ShowFiles(editor_state, L"Directories", std::move(directories), target);
+    ShowFiles(editor_state, L"Files", std::move(regular_files), target);
+    ShowFiles(editor_state, L"Noise", std::move(noise), target);
+
     target->ClearModified();
     editor_state->CheckPosition();
     editor_state->PushCurrentPosition();
@@ -284,6 +292,69 @@ class FileBuffer : public OpenBuffer {
   }
 
  private:
+  void ShowFiles(EditorState* editor_state, wstring name,
+                 std::vector<dirent> entries, OpenBuffer* target) {
+    if (entries.empty()) {
+      return;
+    }
+    target->AppendLine(editor_state, NewCopyString(L"## " + name));
+    int start = target->contents()->size();
+    for (auto& entry : entries) {
+      AddLine(editor_state, target, entry);
+    }
+    target->SortContents(
+        start, target->contents()->size(),
+        [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
+          return *a->contents() < *b->contents();
+        });
+    target->AppendLine(editor_state, EmptyString());
+  }
+
+  void AddLine(EditorState* editor_state, OpenBuffer* target,
+               const dirent& entry) {
+    enum class SizeBehavior { kShow, kSkip };
+
+    struct FileType {
+      wstring description;
+      LineModifierSet modifiers;
+    };
+    static const std::unordered_map<int, FileType> types = {
+        {DT_BLK, {L" (block dev)", {GREEN}}},
+        {DT_CHR, {L" (char dev)", {RED}}},
+        {DT_DIR, {L"/", {CYAN}}},
+        {DT_FIFO, {L" (named pipe)", {BLUE}}},
+        {DT_LNK, {L"@", {ITALIC}}},
+        {DT_REG, {L"", {}}},
+        {DT_SOCK, {L" (unix sock)", {MAGENTA}}}};
+
+    auto path = FromByteString(entry.d_name);
+
+    auto type_it = types.find(entry.d_type);
+    if (type_it == types.end()) {
+      type_it = types.find(DT_REG);
+      CHECK(type_it != types.end());
+    }
+
+    Line::Options line_options;
+    line_options.contents = shared_ptr<LazyString>(
+        NewCopyString(path + type_it->second.description));
+    line_options.modifiers =
+        std::vector<LineModifierSet>(line_options.contents->size());
+    if (!type_it->second.modifiers.empty()) {
+      for (size_t i = 0; i < path.size(); i++) {
+        line_options.modifiers[i] = (type_it->second.modifiers);
+      }
+    }
+
+    auto line = std::make_shared<Line>(std::move(line_options));
+
+    target->AppendRawLine(editor_state, line);
+    target->contents()->back()->environment()->Define(
+        L"EdgeLineDeleteHandler",
+        vm::NewCallback(std::function<void()>(
+            [editor_state, path]() { StartDeleteFile(editor_state, path); })));
+  }
+
   static bool SaveContentsToFile(EditorState* editor_state, const wstring& path,
                                  const BufferContents& contents) {
     const string path_raw = ToByteString(path);
