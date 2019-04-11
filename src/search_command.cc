@@ -46,19 +46,17 @@ class SearchCommand : public Command {
         editor_state->SetStatus(L"Unable to extract region.");
         return;
       }
-      search_options.starting_position = range.begin;
-      search_options.limit_position = range.end;
-      CHECK_LE(search_options.starting_position, search_options.limit_position);
-      editor_state->ResetStructure();
+      CHECK_LE(range.begin, range.end);
       if (editor_state->modifiers().direction == BACKWARDS) {
-        LOG(INFO) << "Swaping positions (backwards search).";
-        LineColumn tmp = search_options.starting_position;
-        search_options.starting_position = search_options.limit_position;
-        search_options.limit_position = tmp;
+        search_options.starting_position = range.end;
+        search_options.limit_position = range.begin;
+      } else {
+        search_options.starting_position = range.begin;
+        search_options.limit_position = range.end;
       }
+      editor_state->ResetStructure();
       LOG(INFO) << "Searching region: " << search_options.starting_position
-                << " to " << search_options.limit_position;
-      search_options.has_limit_position = true;
+                << " to " << search_options.limit_position.value();
     }
 
     if (editor_state->structure()->search_query() ==

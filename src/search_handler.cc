@@ -128,14 +128,14 @@ vector<LineColumn> PerformSearchWithDirection(EditorState* editor_state,
   vector<LineColumn> head;
   vector<LineColumn> tail;
 
-  if (options.has_limit_position) {
-    auto start = min(options.starting_position, options.limit_position);
-    auto end = max(options.starting_position, options.limit_position);
-    LOG(INFO) << "Removing elements outside of the range: " << start << " to "
-              << end;
+  if (options.limit_position.has_value()) {
+    Range range = {
+        min(options.starting_position, options.limit_position.value()),
+        max(options.starting_position, options.limit_position.value())};
+    LOG(INFO) << "Removing elements outside of the range: " << range;
     vector<LineColumn> valid_candidates;
     for (auto& candidate : candidates) {
-      if (candidate >= start && candidate < end) {
+      if (range.Contains(candidate)) {
         valid_candidates.push_back(candidate);
       }
     }
