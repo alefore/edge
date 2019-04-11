@@ -70,6 +70,11 @@ void HandleFileTypes(string basename, string extension) {
     return;
   }
 
+  if (extension == "sh") {
+    buffer.set_paragraph_line_prefix_characters(" #");
+    buffer.set_line_prefix_characters(" #");
+  }
+
   if (extension == "java") {
     JavaMode();
     buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
