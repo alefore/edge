@@ -141,7 +141,8 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
              if (value->str != current_line) {
                DeleteOptions options;
                options.copy_to_paste_buffer = false;
-               transformation->PushBack(NewDeleteLinesTransformation(options));
+               options.modifiers.structure = StructureLine();
+               transformation->PushBack(NewDeleteTransformation(options));
                auto buffer_to_insert =
                    std::make_shared<OpenBuffer>(editor, L"tmp buffer");
                buffer_to_insert->AppendLine(editor, NewCopyString(value->str));

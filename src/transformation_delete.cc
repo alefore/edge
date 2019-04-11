@@ -209,79 +209,6 @@ class DeleteCharactersTransformation : public Transformation {
   const DeleteOptions options_;
 };
 
-class DeleteTransformation : public Transformation {
- public:
-  DeleteTransformation(DeleteOptions options) : options_(options) {}
-
-  void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const {
-    CHECK(buffer != nullptr);
-    CHECK(result != nullptr);
-
-    buffer->AdjustLineColumn(&result->cursor);
-    const LineColumn adjusted_original_cursor = result->cursor;
-
-    Range range = buffer->FindPartialRange(options_.modifiers, result->cursor);
-    LOG(INFO) << "Starting at " << result->cursor << ", bound region at "
-              << range;
-
-    range.begin = min(range.begin, result->cursor);
-    range.end = max(range.end, result->cursor);
-
-    CHECK_LE(range.begin, range.end);
-
-    TransformationStack stack;
-    stack.PushBack(NewGotoPositionTransformation(range.begin));
-    if (range.begin.line < range.end.line) {
-      LOG(INFO) << "Deleting superfluous lines (from " << range << ")";
-      while (range.begin.line < range.end.line) {
-        DeleteOptions delete_options;
-        delete_options.modifiers.delete_type = options_.modifiers.delete_type;
-        delete_options.modifiers.structure_range =
-            Modifiers::FROM_CURRENT_POSITION_TO_END;
-        delete_options.copy_to_paste_buffer = options_.copy_to_paste_buffer;
-        stack.PushBack(TransformationAtPosition(
-            range.begin, NewDeleteLinesTransformation(delete_options)));
-        if (options_.modifiers.delete_type == Modifiers::DELETE_CONTENTS &&
-            result->mode == Transformation::Result::Mode::kFinal) {
-          range.end.line--;
-        } else {
-          range.begin.line++;
-          range.begin.column = 0;
-        }
-      }
-      range.end.column += range.begin.column;
-    }
-
-    CHECK_LE(range.begin, range.end);
-    CHECK_LE(range.begin.column, range.end.column);
-    DeleteOptions delete_options;
-    delete_options.copy_to_paste_buffer = options_.copy_to_paste_buffer;
-    delete_options.modifiers.repetitions =
-        range.end.column - range.begin.column;
-    delete_options.modifiers.delete_type = options_.modifiers.delete_type;
-    LOG(INFO) << "Deleting characters at: " << range.begin << ": "
-              << options_.modifiers.repetitions;
-    stack.PushBack(TransformationAtPosition(
-        range.begin, DeleteCharactersTransformation::New(delete_options)));
-    if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS) {
-      stack.PushBack(NewGotoPositionTransformation(adjusted_original_cursor));
-    } else {
-      stack.PushBack(std::make_unique<RunIfModeTransformation>(
-          Transformation::Result::Mode::kPreview,
-          NewGotoPositionTransformation(adjusted_original_cursor)));
-    }
-    stack.Apply(editor_state, buffer, result);
-  }
-
-  unique_ptr<Transformation> Clone() const override {
-    return NewDeleteTransformation(options_);
-  }
-
- private:
-  const DeleteOptions options_;
-};
-
 class DeleteLinesTransformation : public Transformation {
  public:
   DeleteLinesTransformation(DeleteOptions options) : options_(options) {}
@@ -362,7 +289,81 @@ class DeleteLinesTransformation : public Transformation {
   }
 
   unique_ptr<Transformation> Clone() const override {
-    return NewDeleteLinesTransformation(options_);
+    return std::make_unique<DeleteLinesTransformation>(options_);
+  }
+
+ private:
+  const DeleteOptions options_;
+};
+
+class DeleteTransformation : public Transformation {
+ public:
+  DeleteTransformation(DeleteOptions options) : options_(options) {}
+
+  void Apply(EditorState* editor_state, OpenBuffer* buffer,
+             Result* result) const {
+    CHECK(buffer != nullptr);
+    CHECK(result != nullptr);
+
+    buffer->AdjustLineColumn(&result->cursor);
+    const LineColumn adjusted_original_cursor = result->cursor;
+
+    Range range = buffer->FindPartialRange(options_.modifiers, result->cursor);
+    LOG(INFO) << "Starting at " << result->cursor << ", bound region at "
+              << range;
+
+    range.begin = min(range.begin, result->cursor);
+    range.end = max(range.end, result->cursor);
+
+    CHECK_LE(range.begin, range.end);
+
+    TransformationStack stack;
+    stack.PushBack(NewGotoPositionTransformation(range.begin));
+    if (range.begin.line < range.end.line) {
+      LOG(INFO) << "Deleting superfluous lines (from " << range << ")";
+      while (range.begin.line < range.end.line) {
+        DeleteOptions delete_options;
+        delete_options.modifiers.delete_type = options_.modifiers.delete_type;
+        delete_options.modifiers.structure_range =
+            Modifiers::FROM_CURRENT_POSITION_TO_END;
+        delete_options.copy_to_paste_buffer = options_.copy_to_paste_buffer;
+        stack.PushBack(TransformationAtPosition(
+            range.begin, std::make_unique<DeleteLinesTransformation>(
+                             std::move(delete_options))));
+        if (options_.modifiers.delete_type == Modifiers::DELETE_CONTENTS &&
+            result->mode == Transformation::Result::Mode::kFinal) {
+          range.end.line--;
+        } else {
+          range.begin.line++;
+          range.begin.column = 0;
+        }
+      }
+      range.end.column += range.begin.column;
+    }
+
+    CHECK_LE(range.begin, range.end);
+    CHECK_LE(range.begin.column, range.end.column);
+    DeleteOptions delete_options;
+    delete_options.copy_to_paste_buffer = options_.copy_to_paste_buffer;
+    delete_options.modifiers.repetitions =
+        range.end.column - range.begin.column;
+    delete_options.modifiers.delete_type = options_.modifiers.delete_type;
+    LOG(INFO) << "Deleting characters at: " << range.begin << ": "
+              << options_.modifiers.repetitions;
+    stack.PushBack(TransformationAtPosition(
+        range.begin, DeleteCharactersTransformation::New(delete_options)));
+    if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS) {
+      stack.PushBack(NewGotoPositionTransformation(adjusted_original_cursor));
+    } else {
+      stack.PushBack(std::make_unique<RunIfModeTransformation>(
+          Transformation::Result::Mode::kPreview,
+          NewGotoPositionTransformation(adjusted_original_cursor)));
+    }
+    stack.Apply(editor_state, buffer, result);
+  }
+
+  unique_ptr<Transformation> Clone() const override {
+    return NewDeleteTransformation(options_);
   }
 
  private:
@@ -370,11 +371,6 @@ class DeleteLinesTransformation : public Transformation {
 };
 
 }  // namespace
-
-std::unique_ptr<Transformation> NewDeleteLinesTransformation(
-    DeleteOptions options) {
-  return std::make_unique<DeleteLinesTransformation>(options);
-}
 
 std::unique_ptr<Transformation> NewDeleteTransformation(DeleteOptions options) {
   return std::make_unique<DeleteTransformation>(options);

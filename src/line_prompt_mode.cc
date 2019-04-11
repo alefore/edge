@@ -181,7 +181,10 @@ class HistoryScrollBehavior : public ScrollBehavior {
 
     DeleteOptions delete_options;
     delete_options.copy_to_paste_buffer = false;
-    buffer->ApplyToCursors(NewDeleteLinesTransformation(delete_options));
+    delete_options.modifiers.structure = StructureLine();
+    delete_options.modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
+    delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
+    buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
     buffer->ApplyToCursors(NewInsertBufferTransformation(insert, 1, END));
 
     UpdateStatus(editor_state, buffer, prompt_);
@@ -332,8 +335,10 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
 
             DeleteOptions delete_options;
             delete_options.copy_to_paste_buffer = false;
-            buffer->ApplyToCursors(
-                NewDeleteLinesTransformation(delete_options));
+            delete_options.modifiers.structure = StructureLine();
+            delete_options.modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
+            delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
+            buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
 
             auto insert =
                 std::make_shared<OpenBuffer>(editor_state, L"- text inserted");

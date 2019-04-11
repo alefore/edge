@@ -527,10 +527,12 @@ class InsertMode : public EditorMode {
       case Terminal::CTRL_U: {
         ResetScrollBehavior();
         DeleteOptions delete_options;
-        delete_options.modifiers.structure_range =
-            Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
+        delete_options.modifiers.structure = StructureLine();
+        delete_options.modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
+        delete_options.modifiers.boundary_end = Modifiers::CURRENT_POSITION;
         delete_options.copy_to_paste_buffer = false;
-        buffer->ApplyToCursors(NewDeleteLinesTransformation(delete_options));
+        buffer->ApplyToCursors(
+            NewDeleteTransformation(std::move(delete_options)));
         options_.modify_listener();
         editor_state->ScheduleRedraw();
         return;
@@ -539,10 +541,11 @@ class InsertMode : public EditorMode {
       case Terminal::CTRL_K: {
         ResetScrollBehavior();
         DeleteOptions delete_options;
-        delete_options.modifiers.structure_range =
-            Modifiers::FROM_CURRENT_POSITION_TO_END;
+        delete_options.modifiers.structure = StructureLine();
+        delete_options.modifiers.boundary_begin = Modifiers::CURRENT_POSITION;
+        delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
         delete_options.copy_to_paste_buffer = false;
-        buffer->ApplyToCursors(NewDeleteLinesTransformation(delete_options));
+        buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
         options_.modify_listener();
         editor_state->ScheduleRedraw();
         return;
