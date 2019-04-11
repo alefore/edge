@@ -1,8 +1,8 @@
 #include "../public/function_call.h"
 
-#include <unordered_set>
-
 #include <glog/logging.h>
+
+#include <unordered_set>
 
 #include "../public/constant_expression.h"
 #include "../public/value.h"
@@ -246,21 +246,16 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
       }
 
       void Evaluate(Trampoline* evaluation, const VMType& type) override {
-        auto shared_type = type_;
-        auto shared_obj_expr = obj_expr_;
-        auto shared_delegate = delegate_;
         evaluation->Bounce(
-            shared_obj_expr.get(), shared_obj_expr->Types()[0],
-            [type, shared_type, shared_obj_expr, shared_delegate](
-                Value::Ptr obj, Trampoline* trampoline) {
-              // TODO: Avoid shared_ptr and Clone below.
-              std::shared_ptr<Value> obj_shared = std::move(obj);
+            obj_expr_.get(), obj_expr_->Types()[0],
+            [type, shared_type = type_, shared_obj_expr = obj_expr_,
+             shared_delegate = delegate_](Value::Ptr obj,
+                                          Trampoline* trampoline) {
               trampoline->Continue(Value::NewFunction(
                   shared_type->type_arguments,
-                  [obj_shared, shared_delegate](std::vector<Value::Ptr> args,
-                                                Trampoline* trampoline) {
-                    args.emplace(args.begin(),
-                                 std::make_unique<Value>(*obj_shared));
+                  [obj = std::shared_ptr(std::move(obj)), shared_delegate](
+                      std::vector<Value::Ptr> args, Trampoline* trampoline) {
+                    args.emplace(args.begin(), std::make_unique<Value>(*obj));
                     shared_delegate->callback(std::move(args), trampoline);
                   }));
             });

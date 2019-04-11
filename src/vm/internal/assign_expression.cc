@@ -13,11 +13,10 @@ namespace vm {
 
 namespace {
 
-// TODO: Don't pass symbol by const reference.
 class AssignExpression : public Expression {
  public:
-  AssignExpression(const wstring& symbol, unique_ptr<Expression> value)
-      : symbol_(symbol), value_(std::move(value)) {}
+  AssignExpression(wstring symbol, unique_ptr<Expression> value)
+      : symbol_(std::move(symbol)), value_(std::move(value)) {}
 
   std::vector<VMType> Types() override { return value_->Types(); }
 
@@ -47,10 +46,9 @@ class AssignExpression : public Expression {
 
 }  // namespace
 
-// TODO: Don't pass type/symbol by const reference.
+// TODO: Don't pass type by const reference.
 unique_ptr<Expression> NewAssignExpression(Compilation* compilation,
-                                           const wstring& type,
-                                           const wstring& symbol,
+                                           const wstring& type, wstring symbol,
                                            unique_ptr<Expression> value) {
   if (value == nullptr) {
     return nullptr;
@@ -69,11 +67,12 @@ unique_ptr<Expression> NewAssignExpression(Compilation* compilation,
     return nullptr;
   }
   compilation->environment->Define(symbol, std::make_unique<Value>(*type_def));
-  return std::make_unique<AssignExpression>(symbol, std::move(value));
+  return std::make_unique<AssignExpression>(std::move(symbol),
+                                            std::move(value));
 }
 
 unique_ptr<Expression> NewAssignExpression(Compilation* compilation,
-                                           const wstring& symbol,
+                                           wstring symbol,
                                            unique_ptr<Expression> value) {
   if (value == nullptr) {
     return nullptr;
@@ -82,7 +81,8 @@ unique_ptr<Expression> NewAssignExpression(Compilation* compilation,
   compilation->environment->PolyLookup(symbol, &variables);
   for (auto& v : variables) {
     if (value->SupportsType(v->type)) {
-      return std::make_unique<AssignExpression>(symbol, std::move(value));
+      return std::make_unique<AssignExpression>(std::move(symbol),
+                                                std::move(value));
     }
   }
 

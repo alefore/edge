@@ -20,23 +20,16 @@ std::vector<VMType> BinaryOperator::Types() { return {type_}; }
 
 void BinaryOperator::Evaluate(Trampoline* trampoline, const VMType& type) {
   CHECK(type_ == type);
-  // TODO: Bunch of things here can be turned to unique_ptr.
-  auto type_copy = type_;
-  auto operator_copy = operator_;
-  std::shared_ptr<Expression> a_shared = a_;
-  std::shared_ptr<Expression> b_shared = b_;
-
   trampoline->Bounce(
-      a_shared.get(), a_shared->Types()[0],
-      [a_shared, b_shared, type_copy, operator_copy](
+      a_.get(), a_->Types()[0],
+      [a = a_, b = b_, type = type_, op = operator_](
           std::unique_ptr<Value> a_value, Trampoline* trampoline) {
-        std::shared_ptr<Value> a_value_shared(std::move(a_value));
         trampoline->Bounce(
-            b_shared.get(), b_shared->Types()[0],
-            [a_value_shared, b_shared, type_copy, operator_copy](
+            b.get(), b->Types()[0],
+            [a_value = std::shared_ptr<Value>(std::move(a_value)), b, type, op](
                 std::unique_ptr<Value> b_value, Trampoline* trampoline) {
-              auto output = std::make_unique<Value>(type_copy);
-              operator_copy(*a_value_shared, *b_value, output.get());
+              auto output = std::make_unique<Value>(type);
+              op(*a_value, *b_value, output.get());
               trampoline->Continue(std::move(output));
             });
       });
