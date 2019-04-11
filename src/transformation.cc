@@ -85,7 +85,7 @@ class InsertBufferTransformation : public Transformation {
     delete_options.modifiers.repetitions = chars_inserted;
     delete_options.copy_to_paste_buffer = false;
     result->undo_stack->PushFront(TransformationAtPosition(
-        start_position, NewDeleteCharactersTransformation(delete_options)));
+        start_position, NewDeleteTransformation(delete_options)));
 
     if (modifiers_.insertion == Modifiers::REPLACE) {
       Result current_result(editor_state);
@@ -93,8 +93,8 @@ class InsertBufferTransformation : public Transformation {
       delete_options.modifiers.repetitions = chars_inserted;
       delete_options.copy_to_paste_buffer = false;
       delete_options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
-      TransformationAtPosition(
-          result->cursor, NewDeleteCharactersTransformation(delete_options))
+      TransformationAtPosition(result->cursor,
+                               NewDeleteTransformation(delete_options))
           ->Apply(editor_state, buffer, &current_result);
       result->undo_stack->PushFront(std::move(current_result.undo_stack));
     }
@@ -152,9 +152,8 @@ class DeleteSuffixSuperfluousCharacters : public Transformation {
     DeleteOptions delete_options;
     delete_options.modifiers.repetitions = line->size() - pos;
     delete_options.copy_to_paste_buffer = false;
-    return TransformationAtPosition(
-               LineColumn(result->cursor.line, pos),
-               NewDeleteCharactersTransformation(delete_options))
+    return TransformationAtPosition(LineColumn(result->cursor.line, pos),
+                                    NewDeleteTransformation(delete_options))
         ->Apply(editor_state, buffer, result);
   }
 

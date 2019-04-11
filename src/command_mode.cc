@@ -735,7 +735,7 @@ class SwitchCaseTransformation : public Transformation {
         options.copy_to_paste_buffer = false;
         stack->PushBack(std::make_unique<TransformationWithMode>(
             Transformation::Result::Mode::kFinal,
-            NewDeleteCharactersTransformation(options)));
+            NewDeleteTransformation(options)));
         buffer_to_insert->AppendEmptyLine(editor_state);
         continue;
       }
@@ -747,7 +747,7 @@ class SwitchCaseTransformation : public Transformation {
       options.copy_to_paste_buffer = false;
       stack->PushBack(std::make_unique<TransformationWithMode>(
           Transformation::Result::Mode::kFinal,
-          NewDeleteCharactersTransformation(options)));
+          NewDeleteTransformation(options)));
 
       // Increment i.
       i.column++;

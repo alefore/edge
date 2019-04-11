@@ -18,8 +18,6 @@ struct DeleteOptions {
 
 std::ostream& operator<<(std::ostream& os, const DeleteOptions& options);
 
-unique_ptr<Transformation> NewDeleteCharactersTransformation(
-    DeleteOptions options);
 unique_ptr<Transformation> NewDeleteRegionTransformation(DeleteOptions options);
 unique_ptr<Transformation> NewDeleteLinesTransformation(DeleteOptions options);
 unique_ptr<Transformation> NewDeleteBufferTransformation(DeleteOptions options);

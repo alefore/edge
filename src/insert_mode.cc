@@ -234,7 +234,7 @@ class AutocompleteMode : public EditorMode {
     options_.buffer->ApplyToCursors(TransformationAtPosition(
         LineColumn(options_.buffer->position().line, options_.column_start),
         ComposeTransformation(
-            NewDeleteCharactersTransformation(delete_options),
+            NewDeleteTransformation(delete_options),
             NewInsertBufferTransformation(buffer_to_insert, 1, END))));
 
     editor_state->ScheduleRedraw();
@@ -513,8 +513,7 @@ class InsertMode : public EditorMode {
           delete_options.modifiers.direction = BACKWARDS;
         }
         delete_options.copy_to_paste_buffer = false;
-        buffer->ApplyToCursors(
-            NewDeleteCharactersTransformation(delete_options));
+        buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
         options_.modify_listener();
         editor_state->ScheduleRedraw();
       }

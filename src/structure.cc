@@ -53,7 +53,7 @@ Structure* StructureChar() {
 
     std::unique_ptr<Transformation> DeleteTransformation(
         DeleteOptions options) override {
-      return NewDeleteCharactersTransformation(std::move(options));
+      return NewDeleteRegionTransformation(std::move(options));
     }
   };
   static Impl output;

@@ -308,7 +308,7 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
           [editor_state](OpenBuffer* buffer, int count) {
             DeleteOptions options;
             options.modifiers.repetitions = count;
-            buffer->ApplyToCursors(NewDeleteCharactersTransformation(options));
+            buffer->ApplyToCursors(NewDeleteTransformation(options));
           })));
 
   buffer->AddField(L"Reload", vm::NewCallback(std::function<void(OpenBuffer*)>(

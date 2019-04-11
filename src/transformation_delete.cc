@@ -26,6 +26,10 @@ std::ostream& operator<<(std::ostream& os, const DeleteOptions& options) {
 namespace {
 class DeleteCharactersTransformation : public Transformation {
  public:
+  static std::unique_ptr<Transformation> New(DeleteOptions options) {
+    return std::make_unique<DeleteCharactersTransformation>(options);
+  }
+
   DeleteCharactersTransformation(DeleteOptions options) : options_(options) {}
 
   void Apply(EditorState* editor_state, OpenBuffer* buffer,
@@ -138,7 +142,7 @@ class DeleteCharactersTransformation : public Transformation {
   }
 
   unique_ptr<Transformation> Clone() const override {
-    return NewDeleteCharactersTransformation(options_);
+    return DeleteCharactersTransformation::New(options_);
   }
 
  private:
@@ -259,7 +263,7 @@ class DeleteRegionTransformation : public Transformation {
     LOG(INFO) << "Deleting characters at: " << range.begin << ": "
               << options_.modifiers.repetitions;
     stack.PushBack(TransformationAtPosition(
-        range.begin, NewDeleteCharactersTransformation(delete_options)));
+        range.begin, DeleteCharactersTransformation::New(delete_options)));
     if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS) {
       stack.PushBack(NewGotoPositionTransformation(adjusted_original_cursor));
     } else {
@@ -348,7 +352,7 @@ class DeleteLinesTransformation : public Transformation {
       DVLOG(6) << "Modifiers for line: " << delete_options.modifiers;
       DVLOG(6) << "Position for line: " << position;
       stack.PushBack(TransformationAtPosition(
-          position, NewDeleteCharactersTransformation(delete_options)));
+          position, DeleteCharactersTransformation::New(delete_options)));
     }
     if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS ||
         result->mode == Transformation::Result::Mode::kPreview) {
@@ -366,11 +370,6 @@ class DeleteLinesTransformation : public Transformation {
 };
 
 }  // namespace
-
-std::unique_ptr<Transformation> NewDeleteCharactersTransformation(
-    DeleteOptions options) {
-  return std::make_unique<DeleteCharactersTransformation>(options);
-}
 
 std::unique_ptr<Transformation> NewDeleteRegionTransformation(
     DeleteOptions options) {
