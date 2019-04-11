@@ -12,6 +12,7 @@ void CppMode() {
       "switch case default "
       "if else "
       "for while do "
+      "break continue "
       "return "
       // Types
       "void const mutable auto "
