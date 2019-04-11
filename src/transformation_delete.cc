@@ -209,9 +209,9 @@ class DeleteCharactersTransformation : public Transformation {
   const DeleteOptions options_;
 };
 
-class DeleteRegionTransformation : public Transformation {
+class DeleteTransformation : public Transformation {
  public:
-  DeleteRegionTransformation(DeleteOptions options) : options_(options) {}
+  DeleteTransformation(DeleteOptions options) : options_(options) {}
 
   void Apply(EditorState* editor_state, OpenBuffer* buffer,
              Result* result) const {
@@ -275,7 +275,7 @@ class DeleteRegionTransformation : public Transformation {
   }
 
   unique_ptr<Transformation> Clone() const override {
-    return NewDeleteRegionTransformation(options_);
+    return NewDeleteTransformation(options_);
   }
 
  private:
@@ -371,18 +371,13 @@ class DeleteLinesTransformation : public Transformation {
 
 }  // namespace
 
-std::unique_ptr<Transformation> NewDeleteRegionTransformation(
-    DeleteOptions options) {
-  return std::make_unique<DeleteRegionTransformation>(options);
-}
-
 std::unique_ptr<Transformation> NewDeleteLinesTransformation(
     DeleteOptions options) {
   return std::make_unique<DeleteLinesTransformation>(options);
 }
 
 std::unique_ptr<Transformation> NewDeleteTransformation(DeleteOptions options) {
-  return options.modifiers.structure->DeleteTransformation(std::move(options));
+  return std::make_unique<DeleteTransformation>(options);
 }
 
 }  // namespace editor
