@@ -714,21 +714,16 @@ class SwitchCaseTransformation : public Transformation {
   void Apply(EditorState* editor_state, OpenBuffer* buffer,
              Result* result) const override {
     buffer->AdjustLineColumn(&result->cursor);
-    LineColumn start, end;
-    if (!buffer->FindPartialRange(modifiers_, result->cursor, &start, &end)) {
-      editor_state->SetStatus(L"Structure not handled.");
-      return;
-    }
-    CHECK_LE(start, end);
+    Range range = buffer->FindPartialRange(modifiers_, result->cursor);
+    CHECK_LE(range.begin, range.end);
     auto stack = std::make_unique<TransformationStack>();
-    stack->PushBack(NewGotoPositionTransformation(start));
+    stack->PushBack(NewGotoPositionTransformation(range.begin));
     auto buffer_to_insert =
         std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
     VLOG(5) << "Switch Case Transformation at " << result->cursor << ": "
-            << editor_state->modifiers() << ": Range [" << start << ", " << end
-            << ")";
-    LineColumn i = start;
-    while (i < end) {
+            << editor_state->modifiers() << ": Range: " << range;
+    LineColumn i = range.begin;
+    while (i < range.end) {
       auto line = buffer->LineAt(i.line);
       if (line == nullptr) {
         break;

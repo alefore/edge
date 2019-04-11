@@ -122,30 +122,26 @@ class GotoCommand : public Command {
       }
 
       VLOG(4) << "Start SYMBOL GotoCommand: " << editor_state->modifiers();
-      LineColumn start, end;
-      if (buffer->FindPartialRange(editor_state->modifiers(), position, &start,
-                                   &end)) {
-        switch (editor_state->direction()) {
-          case FORWARDS: {
-            Modifiers modifiers_copy = editor_state->modifiers();
-            modifiers_copy.repetitions = 1;
-            end = buffer->PositionBefore(end);
-            if (buffer->FindPartialRange(modifiers_copy, end, &start, &end)) {
-              position = start;
-            }
-          } break;
+      Range range =
+          buffer->FindPartialRange(editor_state->modifiers(), position);
+      switch (editor_state->direction()) {
+        case FORWARDS: {
+          Modifiers modifiers_copy = editor_state->modifiers();
+          modifiers_copy.repetitions = 1;
+          range = buffer->FindPartialRange(modifiers_copy,
+                                           buffer->PositionBefore(range.end));
+          position = range.begin;
+        } break;
 
-          case BACKWARDS: {
-            Modifiers modifiers_copy = editor_state->modifiers();
-            modifiers_copy.repetitions = 1;
-            modifiers_copy.direction = FORWARDS;
-            if (buffer->FindPartialRange(modifiers_copy, start, &start, &end)) {
-              position = buffer->PositionBefore(end);
-            }
-          } break;
-        }
-        buffer->set_position(position);
+        case BACKWARDS: {
+          Modifiers modifiers_copy = editor_state->modifiers();
+          modifiers_copy.repetitions = 1;
+          modifiers_copy.direction = FORWARDS;
+          range = buffer->FindPartialRange(modifiers_copy, range.begin);
+          position = buffer->PositionBefore(range.end);
+        } break;
       }
+      buffer->set_position(position);
     } else if (structure == StructureLine()) {
       size_t lines = buffer->contents()->size() - 1;
       size_t position = ComputePosition(

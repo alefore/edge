@@ -241,11 +241,10 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
                   // likely free things when we call it).
                   if (mode == CommandApplyMode::FINAL) {
                     LOG(INFO) << "GetRegion: Resuming.";
-                    LineColumn start, end;
-                    buffer->FindPartialRange(modifiers, buffer->position(),
-                                             &start, &end);
                     resume(Value::NewObject(
-                        L"Range", std::make_shared<Range>(start, end)));
+                        L"Range", std::make_shared<Range>(
+                             buffer->FindPartialRange(
+                                 modifiers, buffer->position()))));
                   } else {
                     buffer->PushTransformationStack();
                     DeleteOptions options;
@@ -1545,28 +1544,25 @@ void OpenBuffer::CreateCursor() {
     active_cursors()->insert(position());
   } else {
     auto structure = editor_->modifiers().structure;
-    LineColumn first, last;
     Modifiers tmp_modifiers = editor_->modifiers();
     tmp_modifiers.structure = StructureCursor();
-    if (!FindPartialRange(tmp_modifiers, position(), &first, &last)) {
-      return;
-    }
-    if (first == last) {
+    Range range = FindPartialRange(tmp_modifiers, position());
+    if (range.IsEmpty()) {
       return;
     }
     editor_->set_direction(FORWARDS);
-    LOG(INFO) << "Range for cursors: [" << first << ", " << last << ")";
-    while (first < last) {
-      auto tmp_first = first;
+    LOG(INFO) << "Range for cursors: " << range;
+    while (!range.IsEmpty()) {
+      auto tmp_first = range.begin;
       structure->SeekToNext(this, FORWARDS, &tmp_first);
-      if (tmp_first > first && tmp_first < last) {
+      if (tmp_first > range.begin && tmp_first < range.end) {
         VLOG(5) << "Creating cursor at: " << tmp_first;
         active_cursors()->insert(tmp_first);
       }
       if (!structure->SeekToLimit(this, FORWARDS, &tmp_first)) {
         break;
       }
-      first = tmp_first;
+      range.begin = tmp_first;
     }
   }
   editor_->SetStatus(L"Cursor created.");
@@ -1637,9 +1633,9 @@ void OpenBuffer::DestroyOtherCursors() {
   editor_->ScheduleRedraw();
 }
 
-bool OpenBuffer::FindPartialRange(const Modifiers& modifiers,
-                                  const LineColumn& initial_position,
-                                  LineColumn* start, LineColumn* end) {
+Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
+                                   const LineColumn& initial_position) {
+  Range output;
   const auto forward = modifiers.direction;
   const auto backward = ReverseDirection(forward);
 
@@ -1658,40 +1654,44 @@ bool OpenBuffer::FindPartialRange(const Modifiers& modifiers,
     Seek(contents_, &position).Backwards().WrappingLines().Once();
   }
 
-  *start = position;
+  output.begin = position;
   LOG(INFO) << "Initial position: " << position;
   if (modifiers.structure->space_behavior() ==
       Structure::SpaceBehavior::kForwards) {
-    modifiers.structure->SeekToNext(this, forward, start);
+    modifiers.structure->SeekToNext(this, forward, &output.begin);
   }
   switch (modifiers.boundary_begin) {
     case Modifiers::CURRENT_POSITION:
-      *start = modifiers.direction == FORWARDS ? max(position, *start)
-                                               : min(position, *start);
+      output.begin = modifiers.direction == FORWARDS
+                         ? max(position, output.begin)
+                         : min(position, output.begin);
       break;
 
     case Modifiers::LIMIT_CURRENT: {
-      if (modifiers.structure->SeekToLimit(this, backward, start)) {
-        Seek(contents_, start).WrappingLines().WithDirection(forward).Once();
+      if (modifiers.structure->SeekToLimit(this, backward, &output.begin)) {
+        Seek(contents_, &output.begin)
+            .WrappingLines()
+            .WithDirection(forward)
+            .Once();
       }
     } break;
 
     case Modifiers::LIMIT_NEIGHBOR:
-      if (modifiers.structure->SeekToLimit(this, backward, start)) {
-        modifiers.structure->SeekToNext(this, backward, start);
-        modifiers.structure->SeekToLimit(this, forward, start);
+      if (modifiers.structure->SeekToLimit(this, backward, &output.begin)) {
+        modifiers.structure->SeekToNext(this, backward, &output.begin);
+        modifiers.structure->SeekToLimit(this, forward, &output.begin);
       }
   }
-  LOG(INFO) << "After seek, initial position: " << *start;
-  *end = modifiers.direction == FORWARDS ? max(position, *start)
-                                         : min(position, *start);
+  LOG(INFO) << "After seek, initial position: " << output.begin;
+  output.end = modifiers.direction == FORWARDS ? max(position, output.begin)
+                                               : min(position, output.begin);
   bool move_start = true;
   for (size_t i = 0; i < modifiers.repetitions - 1; i++) {
-    if (!modifiers.structure->SeekToLimit(this, forward, end)) {
+    if (!modifiers.structure->SeekToLimit(this, forward, &output.end)) {
       move_start = false;
       break;
     }
-    modifiers.structure->SeekToNext(this, forward, end);
+    modifiers.structure->SeekToNext(this, forward, &output.end);
   }
 
   switch (modifiers.boundary_end) {
@@ -1699,26 +1699,28 @@ bool OpenBuffer::FindPartialRange(const Modifiers& modifiers,
       break;
 
     case Modifiers::LIMIT_CURRENT:
-      move_start &= modifiers.structure->SeekToLimit(this, forward, end);
+      move_start &=
+          modifiers.structure->SeekToLimit(this, forward, &output.end);
       break;
 
     case Modifiers::LIMIT_NEIGHBOR:
-      move_start &= modifiers.structure->SeekToLimit(this, forward, end);
-      modifiers.structure->SeekToNext(this, forward, end);
+      move_start &=
+          modifiers.structure->SeekToLimit(this, forward, &output.end);
+      modifiers.structure->SeekToNext(this, forward, &output.end);
   }
-  LOG(INFO) << "After adjusting end: " << *start << " to " << *end;
+  LOG(INFO) << "After adjusting end: " << output;
 
-  if (*start > *end) {
+  if (output.begin > output.end) {
     CHECK(modifiers.direction == BACKWARDS);
-    auto tmp = *end;
-    *end = *start;
-    *start = tmp;
+    auto tmp = output.end;
+    output.end = output.begin;
+    output.begin = tmp;
     if (move_start) {
-      Seek(contents_, start).WrappingLines().Once();
+      Seek(contents_, &output.begin).WrappingLines().Once();
     }
   }
-  LOG(INFO) << "After wrap: " << *start << " to " << *end;
-  return true;
+  LOG(INFO) << "After wrap: " << output;
+  return output;
 }
 
 const ParseTree* OpenBuffer::current_tree(const ParseTree* root) const {

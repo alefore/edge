@@ -40,14 +40,14 @@ class SearchCommand : public Command {
         Structure::SearchRange::kBuffer) {
       search_options.starting_position = buffer->position();
     } else {
-      if (!buffer->FindPartialRange(editor_state->modifiers(),
-                                    buffer->position(),
-                                    &search_options.starting_position,
-                                    &search_options.limit_position) ||
-          search_options.starting_position == search_options.limit_position) {
+      Range range = buffer->FindPartialRange(editor_state->modifiers(),
+                                             buffer->position());
+      if (range.begin == range.end) {
         editor_state->SetStatus(L"Unable to extract region.");
         return;
       }
+      search_options.starting_position = range.begin;
+      search_options.limit_position = range.end;
       CHECK_LE(search_options.starting_position, search_options.limit_position);
       editor_state->ResetStructure();
       if (editor_state->modifiers().direction == BACKWARDS) {
@@ -64,39 +64,38 @@ class SearchCommand : public Command {
     if (editor_state->structure()->search_query() ==
         Structure::SearchQuery::kRegion) {
       auto buffer = editor_state->current_buffer()->second;
-      LineColumn start, end;
-      if (!buffer->FindPartialRange(editor_state->modifiers(),
-                                    buffer->position(), &start, &end) ||
-          start == end) {
+      Range range = buffer->FindPartialRange(editor_state->modifiers(),
+                                             buffer->position());
+      if (range.begin == range.end) {
         editor_state->ResetStructure();
         return;
       }
       VLOG(5) << "FindPartialRange: [position:" << buffer->position()
-              << "][start:" << start << "][end:" << end
+              << "][range:" << range
               << "][modifiers:" << editor_state->modifiers() << "]";
       editor_state->ResetStructure();
-      CHECK_LT(start, end);
-      if (end.line > start.line) {
+      CHECK_LT(range.begin, range.end);
+      if (range.end.line > range.begin.line) {
         // This can happen when repetitions are used (to find multiple
         // words). We just cap it at the start/end of the line.
         if (editor_state->direction() == BACKWARDS) {
-          start.line = end.line;
-          start.column = 0;
+          range.begin = LineColumn(range.end.line);
         } else {
-          end.line = start.line;
-          end.column = buffer->LineAt(start.line)->size();
+          range.end = LineColumn(range.begin.line,
+                                 buffer->LineAt(range.begin.line)->size());
         }
       }
-      CHECK_EQ(start.line, end.line);
-      if (start == end) {
+      CHECK_EQ(range.begin.line, range.end.line);
+      if (range.begin == range.end) {
         editor_state->ResetStructure();
         return;
       }
-      CHECK_LT(start.column, end.column);
-      buffer->set_position(start);
+      CHECK_LT(range.begin.column, range.end.column);
+      buffer->set_position(range.begin);
       search_options.search_query =
-          buffer->LineAt(start.line)
-              ->Substring(start.column, end.column - start.column)
+          buffer->LineAt(range.begin.line)
+              ->Substring(range.begin.column,
+                          range.end.column - range.begin.column)
               ->ToString();
       search_options.starting_position = buffer->position();
       search_options.case_sensitive =

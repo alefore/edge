@@ -187,9 +187,8 @@ class OpenBuffer {
   void set_lines_for_zoomed_out_tree(size_t lines);
   std::shared_ptr<const ParseTree> zoomed_out_tree() const;
 
-  // TODO: Change start and end to be a Range?
-  bool FindPartialRange(const Modifiers& modifiers, const LineColumn& position,
-                        LineColumn* start, LineColumn* end);
+  Range FindPartialRange(const Modifiers& modifiers,
+                         const LineColumn& position);
 
   // May return nullptr if the current_cursor is at the end of file.
   const shared_ptr<const Line> current_line() const;

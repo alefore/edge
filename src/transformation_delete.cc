@@ -217,56 +217,49 @@ class DeleteRegionTransformation : public Transformation {
     buffer->AdjustLineColumn(&result->cursor);
     const LineColumn adjusted_original_cursor = result->cursor;
 
-    LineColumn start, end;
-    if (!buffer->FindPartialRange(options_.modifiers, result->cursor, &start,
-                                  &end)) {
-      result->success = false;
-      LOG(INFO) << "Unable to bind region, giving up.";
-      return;
-    }
+    Range range = buffer->FindPartialRange(options_.modifiers, result->cursor);
+    LOG(INFO) << "Starting at " << result->cursor << ", bound region at "
+              << range;
 
-    LOG(INFO) << "Starting at " << result->cursor << ", bound region at ["
-              << start << ", " << end << ")";
+    range.begin = min(range.begin, result->cursor);
+    range.end = max(range.end, result->cursor);
 
-    start = min(start, result->cursor);
-    end = max(end, result->cursor);
-
-    CHECK_LE(start, end);
+    CHECK_LE(range.begin, range.end);
 
     TransformationStack stack;
-    stack.PushBack(NewGotoPositionTransformation(start));
-    if (start.line < end.line) {
-      LOG(INFO) << "Deleting superfluous lines (from " << start.line << " to "
-                << end.line;
-      while (start.line < end.line) {
+    stack.PushBack(NewGotoPositionTransformation(range.begin));
+    if (range.begin.line < range.end.line) {
+      LOG(INFO) << "Deleting superfluous lines (from " << range << ")";
+      while (range.begin.line < range.end.line) {
         DeleteOptions delete_options;
         delete_options.modifiers.delete_type = options_.modifiers.delete_type;
         delete_options.modifiers.structure_range =
             Modifiers::FROM_CURRENT_POSITION_TO_END;
         delete_options.copy_to_paste_buffer = options_.copy_to_paste_buffer;
         stack.PushBack(TransformationAtPosition(
-            start, NewDeleteLinesTransformation(delete_options)));
+            range.begin, NewDeleteLinesTransformation(delete_options)));
         if (options_.modifiers.delete_type == Modifiers::DELETE_CONTENTS &&
             result->mode == Transformation::Result::Mode::kFinal) {
-          end.line--;
+          range.end.line--;
         } else {
-          start.line++;
-          start.column = 0;
+          range.begin.line++;
+          range.begin.column = 0;
         }
       }
-      end.column += start.column;
+      range.end.column += range.begin.column;
     }
 
-    CHECK_LE(start, end);
-    CHECK_LE(start.column, end.column);
+    CHECK_LE(range.begin, range.end);
+    CHECK_LE(range.begin.column, range.end.column);
     DeleteOptions delete_options;
     delete_options.copy_to_paste_buffer = options_.copy_to_paste_buffer;
-    delete_options.modifiers.repetitions = end.column - start.column;
+    delete_options.modifiers.repetitions =
+        range.end.column - range.begin.column;
     delete_options.modifiers.delete_type = options_.modifiers.delete_type;
-    LOG(INFO) << "Deleting characters at: " << start << ": "
+    LOG(INFO) << "Deleting characters at: " << range.begin << ": "
               << options_.modifiers.repetitions;
     stack.PushBack(TransformationAtPosition(
-        start, NewDeleteCharactersTransformation(delete_options)));
+        range.begin, NewDeleteCharactersTransformation(delete_options)));
     if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS) {
       stack.PushBack(NewGotoPositionTransformation(adjusted_original_cursor));
     } else {

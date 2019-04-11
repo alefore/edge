@@ -137,15 +137,9 @@ class MoveTransformation : public Transformation {
 
   LineColumn MoveRange(EditorState*, OpenBuffer* buffer,
                        LineColumn position) const {
-    LineColumn start, end;
-
-    if (!buffer->FindPartialRange(modifiers_, position, &start, &end)) {
-      LOG(INFO) << "Unable to find partial range: " << position;
-      return position;
-    }
-
-    CHECK_LE(start, end);
-    return modifiers_.direction == FORWARDS ? end : start;
+    Range range = buffer->FindPartialRange(modifiers_, position);
+    CHECK_LE(range.begin, range.end);
+    return modifiers_.direction == FORWARDS ? range.end : range.begin;
   }
 
   LineColumn MoveMark(EditorState* editor_state, OpenBuffer* buffer,
