@@ -295,7 +295,7 @@ void FindCompletion(EditorState* editor_state,
   LOG(INFO) << "Positions: start: " << options.column_start
             << ", end: " << options.column_end;
   options.prefix =
-      std::make_shared<const Line>(Line::Options(NewCopyString(line.substr(
+      std::make_shared<const Line>(Line::Options(NewLazyString(line.substr(
           options.column_start, options.column_end - options.column_start))));
 
   options.delegate = buffer->ResetMode();
@@ -380,7 +380,7 @@ bool StartCompletion(EditorState* editor_state,
 
   auto dictionary = std::make_shared<OpenBuffer>(editor_state, L"Dictionary");
   for (auto& word : words) {
-    dictionary->AppendLine(editor_state, NewCopyString(word));
+    dictionary->AppendLine(editor_state, NewLazyString(std::move(word)));
   }
 
   FindCompletion(editor_state, buffer, dictionary);
@@ -521,7 +521,7 @@ class InsertMode : public EditorMode {
           std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
       insert->AppendToLastLine(
           editor_state,
-          NewCopyString(buffer->TransformKeyboardText(wstring(1, c))));
+          NewLazyString(buffer->TransformKeyboardText(wstring(1, c))));
 
       Modifiers modifiers;
       modifiers.insertion = editor_state->modifiers().insertion;

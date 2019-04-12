@@ -19,7 +19,7 @@ using std::hash;
 using std::unordered_set;
 using std::wstring;
 
-Line::Line(wstring x) : Line(Line::Options(NewCopyString(std::move(x)))) {}
+Line::Line(wstring x) : Line(Line::Options(NewLazyString(std::move(x)))) {}
 
 Line::Line(const Options& options)
     : environment_(options.environment == nullptr
@@ -69,7 +69,7 @@ void Line::InsertCharacterAtPosition(size_t position) {
   CHECK_EQ(contents_->size(), modifiers_.size());
   contents_ =
       StringAppend(StringAppend(afc::editor::Substring(contents_, 0, position),
-                                NewCopyString(L" ")),
+                                NewLazyString(L" ")),
                    afc::editor::Substring(contents_, position));
 
   modifiers_.push_back(unordered_set<LineModifier, hash<int>>());
@@ -83,7 +83,7 @@ void Line::SetCharacter(
     const unordered_set<LineModifier, hash<int>>& modifiers) {
   std::unique_lock<std::mutex> lock(mutex_);
   CHECK_EQ(contents_->size(), modifiers_.size());
-  shared_ptr<LazyString> str = NewCopyString(wstring(1, c));
+  shared_ptr<LazyString> str = NewLazyString(wstring(1, c));
   if (position >= contents_->size()) {
     contents_ = StringAppend(contents_, str);
     modifiers_.push_back(modifiers);

@@ -100,7 +100,8 @@ shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
     sort(previous_lines_vector.begin(), previous_lines_vector.end());
 
     for (auto& line : previous_lines_vector) {
-      filter_buffer->AppendLine(editor_state, NewCopyString(line.second));
+      filter_buffer->AppendLine(editor_state,
+                                NewLazyString(std::move(line.second)));
     }
 
     element->second = std::move(filter_buffer);
@@ -258,7 +259,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
     auto insert =
         std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
     insert->AppendToLastLine(editor_state,
-                             NewCopyString(options.initial_value));
+                             NewLazyString(std::move(options.initial_value)));
     buffer->ApplyToCursors(NewInsertBufferTransformation(insert, 1, END));
   }
 
@@ -342,7 +343,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
 
             auto insert =
                 std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
-            insert->AppendToLastLine(editor_state, NewCopyString(prediction));
+            insert->AppendToLastLine(editor_state, NewLazyString(prediction));
             buffer->ApplyToCursors(
                 NewInsertBufferTransformation(insert, 1, END));
 

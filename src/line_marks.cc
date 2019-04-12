@@ -1,9 +1,9 @@
 #include "line_marks.h"
 
+#include <glog/logging.h>
+
 #include <string>
 #include <vector>
-
-#include <glog/logging.h>
 
 #include "buffer.h"
 #include "char_buffer.h"
@@ -40,7 +40,7 @@ void LineMarks::ExpireMarksFromSource(const OpenBuffer& source_buffer,
                     : source_buffer.LineAt(mark.second.source_line);
     if (line == nullptr) {
       DVLOG(3) << "Unable to find content for mark!";
-      mark.second.source_line_content = NewCopyString(L"Expired mark.");
+      mark.second.source_line_content = NewLazyString(L"Expired mark.");
     } else {
       mark.second.source_line_content = line->contents();
     }

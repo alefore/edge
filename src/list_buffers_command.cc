@@ -101,14 +101,14 @@ class ListBuffersBuffer : public OpenBuffer {
     for (const auto& buffer : buffers_to_show) {
       size_t context_lines_var = lines_to_show[buffer.get()] - 1;
       auto context = LinesToShow(*buffer, context_lines_var);
-      std::shared_ptr<LazyString> name = NewCopyString(buffer->name());
+      std::shared_ptr<LazyString> name = NewLazyString(buffer->name());
       if (context.first != context.second) {
-        name = StringAppend(NewCopyString(L"╭──"), name);
+        name = StringAppend(NewLazyString(L"╭──"), name);
         size_t width = target->Read(buffer_variables::line_width());
         if (width > name->size()) {
           name = StringAppend(
               name,
-              NewCopyString(wstring(width - (name->size() + 1), L'─') + L"╮"));
+              NewLazyString(wstring(width - (name->size() + 1), L'─') + L"╮"));
         }
       }
       if (target->contents()->size() == 1 &&
@@ -123,7 +123,7 @@ class ListBuffersBuffer : public OpenBuffer {
       while (index < context_lines_var) {
         Line::Options options;
         options.contents =
-            NewCopyString(index + 1 == context_lines_var ? L"╰ " : L"│ ");
+            NewLazyString(index + 1 == context_lines_var ? L"╰ " : L"│ ");
         options.modifiers.resize(options.contents->size());
         if (context.first < context.second) {
           auto line = buffer->LineAt(context.first);

@@ -177,8 +177,9 @@ void FilePredictor(EditorState* editor_state, const wstring& input,
       continue;
     }
 
-    std::unique_ptr<DIR, decltype(&closedir)> dir(
-        opendir(ToByteString(path_with_prefix).c_str()), &closedir);
+    std::unique_ptr<DIR, std::function<void(DIR*)>> dir(
+        opendir(ToByteString(path_with_prefix).c_str()),
+        [](DIR* dir) { closedir(dir); });
     if (dir == nullptr) {
       LOG(INFO) << "Unable to open, giving up current search path.";
       continue;
@@ -212,7 +213,7 @@ void FilePredictor(EditorState* editor_state, const wstring& input,
       }
       VLOG(5) << "Prediction: " << prediction;
       buffer->AppendToLastLine(editor_state,
-                               NewCopyString(FromByteString(prediction)));
+                               NewLazyString(FromByteString(prediction)));
       buffer->AppendRawLine(editor_state,
                             std::make_shared<Line>(Line::Options()));
     }
@@ -260,7 +261,7 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
     vector<wstring> variations;
     RegisterVariations(prediction, separator, &variations);
     for (auto& variation : variations) {
-      contents->insert(make_pair(variation, NewCopyString(prediction)));
+      contents->insert(make_pair(variation, NewLazyString(prediction)));
     }
   }
   return [contents](EditorState* editor_state, const wstring& input,

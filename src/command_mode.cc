@@ -742,7 +742,7 @@ class SwitchCaseTransformation : public Transformation {
       wchar_t c = line->get(i.column);
       buffer_to_insert->AppendToLastLine(
           editor_state,
-          NewCopyString(wstring(1, iswupper(c) ? towlower(c) : towupper(c))));
+          NewLazyString(wstring(1, iswupper(c) ? towlower(c) : towupper(c))));
       DeleteOptions options;
       options.copy_to_paste_buffer = false;
       stack->PushBack(std::make_unique<TransformationWithMode>(

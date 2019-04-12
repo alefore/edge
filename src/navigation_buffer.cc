@@ -40,18 +40,18 @@ class NavigationBuffer : public OpenBuffer {
     std::shared_ptr<OpenBuffer> source = source_.lock();
     if (source == nullptr) {
       target->AppendToLastLine(
-          editor_state, NewCopyString(L"Source buffer no longer loaded."));
+          editor_state, NewLazyString(L"Source buffer no longer loaded."));
       return;
     }
 
     auto tree = source->simplified_parse_tree();
     if (tree == nullptr) {
       target->AppendToLastLine(editor_state,
-                               NewCopyString(L"Target has no tree."));
+                               NewLazyString(L"Target has no tree."));
       return;
     }
 
-    target->AppendToLastLine(editor_state, NewCopyString(source->name()));
+    target->AppendToLastLine(editor_state, NewLazyString(source->name()));
     auto depth_value =
         target->environment()->Lookup(kDepthSymbol, VMType::Integer());
     int depth =
@@ -74,10 +74,10 @@ class NavigationBuffer : public OpenBuffer {
         AddContents(source, *source->LineAt(child.range.begin.line), &options);
         if (child.range.begin.line + 1 < child.range.end.line) {
           options.contents =
-              StringAppend(options.contents, NewCopyString(L" ... "));
+              StringAppend(options.contents, NewLazyString(L" ... "));
         } else {
           options.contents =
-              StringAppend(options.contents, NewCopyString(L" "));
+              StringAppend(options.contents, NewLazyString(L" "));
         }
         if (i + 1 >= tree.children.size() ||
             child.range.end.line != tree.children[i + 1].range.begin.line) {
@@ -92,7 +92,7 @@ class NavigationBuffer : public OpenBuffer {
       AppendLine(editor_state, source, padding, child.range.begin, target);
       if (depth_left > 0) {
         DisplayTree(editor_state, source, depth_left - 1, child,
-                    StringAppend(NewCopyString(L"  "), padding), target);
+                    StringAppend(NewLazyString(L"  "), padding), target);
       }
       if (i + 1 >= tree.children.size() ||
           child.range.end.line != tree.children[i + 1].range.begin.line) {

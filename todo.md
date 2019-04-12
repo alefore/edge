@@ -44,6 +44,8 @@ Add a boolean variable "highlight_current_line" (default: false); when set, high
 
 When searching, display in the Status the count of matches (especially when there were zero matches).
 
+Automatically disable follow_end_of_file when the user scrolls upwards.
+
 ### List of buffers
 
 ## Prompt

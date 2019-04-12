@@ -211,8 +211,9 @@ class FileBuffer : public OpenBuffer {
       auto description =
           L"Unable to open directory: " + FromByteString(strerror(errno));
       editor_state->SetStatus(description);
-      target->AppendLine(editor_state,
-                         shared_ptr<LazyString>(NewCopyString(description)));
+      target->AppendLine(
+          editor_state,
+          shared_ptr<LazyString>(NewLazyString(std::move(description))));
       return;
     }
     struct dirent* entry;
@@ -244,7 +245,7 @@ class FileBuffer : public OpenBuffer {
     closedir(dir);
 
     target->AppendToLastLine(editor_state,
-                             NewCopyString(L"# File listing: " + path));
+                             NewLazyString(L"# File listing: " + path));
     target->AppendLine(editor_state, EmptyString());
 
     ShowFiles(editor_state, L"Directories", std::move(directories), target);
@@ -297,7 +298,7 @@ class FileBuffer : public OpenBuffer {
     if (entries.empty()) {
       return;
     }
-    target->AppendLine(editor_state, NewCopyString(L"## " + name));
+    target->AppendLine(editor_state, NewLazyString(L"## " + name));
     int start = target->contents()->size();
     for (auto& entry : entries) {
       AddLine(editor_state, target, entry);
@@ -337,7 +338,7 @@ class FileBuffer : public OpenBuffer {
 
     Line::Options line_options;
     line_options.contents = shared_ptr<LazyString>(
-        NewCopyString(path + type_it->second.description));
+        NewLazyString(path + type_it->second.description));
     line_options.modifiers =
         std::vector<LineModifierSet>(line_options.contents->size());
     if (!type_it->second.modifiers.empty()) {

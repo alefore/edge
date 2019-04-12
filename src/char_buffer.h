@@ -19,9 +19,8 @@ unique_ptr<LazyString> NewCharBuffer(const wchar_t* buffer, size_t size);
 unique_ptr<LazyString> NewCharBufferWithOwnership(const wchar_t* buffer,
                                                   size_t size);
 unique_ptr<LazyString> NewCopyCharBuffer(const wchar_t* buffer);
-// TODO: Pass the string by value.
-unique_ptr<LazyString> NewCopyString(const wstring& buffer);
-unique_ptr<LazyString> NewStringFromVector(vector<wchar_t> input);
+unique_ptr<LazyString> NewLazyString(wstring input);
+unique_ptr<LazyString> NewLazyString(vector<wchar_t> input);
 
 }  // namespace editor
 }  // namespace afc

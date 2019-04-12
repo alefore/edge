@@ -192,7 +192,8 @@ void SearchHandlerPredictor(EditorState* editor_state, const wstring& input,
 
   // Add the matches to the predictions buffer.
   for (auto& match : matches) {
-    predictions_buffer->AppendToLastLine(editor_state, NewCopyString(match));
+    predictions_buffer->AppendToLastLine(editor_state,
+                                         NewLazyString(std::move(match)));
     predictions_buffer->AppendRawLine(editor_state,
                                       std::make_shared<Line>(Line::Options()));
   }

@@ -571,7 +571,7 @@ void EditorState::SetStatus(const wstring& status) {
     status_buffer_it.first->second->Set(
         buffer_variables::show_in_buffers_list(), false);
   }
-  status_buffer_it.first->second->AppendLazyString(this, NewCopyString(status));
+  status_buffer_it.first->second->AppendLazyString(this, NewLazyString(status));
   if (current_buffer_ == status_buffer_it.first) {
     ScheduleRedraw();
   }

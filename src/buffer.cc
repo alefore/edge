@@ -145,7 +145,8 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
                transformation->PushBack(NewDeleteTransformation(options));
                auto buffer_to_insert =
                    std::make_shared<OpenBuffer>(editor, L"tmp buffer");
-               buffer_to_insert->AppendLine(editor, NewCopyString(value->str));
+               buffer_to_insert->AppendLine(
+                   editor, NewLazyString(std::move(value->str)));
                transformation->PushBack(
                    NewInsertBufferTransformation(buffer_to_insert, 1, END));
              }
@@ -346,8 +347,8 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
               } else {
                 insert_separator = true;
               }
-              buffer_to_insert->AppendToLastLine(editor_state,
-                                                 NewCopyString(line));
+              buffer_to_insert->AppendToLastLine(
+                  editor_state, NewLazyString(std::move(line)));
             }
 
             buffer->ApplyToCursors(
@@ -742,7 +743,7 @@ void OpenBuffer::Input::ReadData(EditorState* editor_state,
                nullptr);
   }
 
-  shared_ptr<LazyString> buffer_wrapper(NewStringFromVector(std::move(buffer)));
+  shared_ptr<LazyString> buffer_wrapper(NewLazyString(std::move(buffer)));
   VLOG(5) << "Input: [" << buffer_wrapper->ToString() << "]";
 
   size_t processed = low_buffer_tmp == nullptr
