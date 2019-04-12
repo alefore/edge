@@ -63,6 +63,7 @@ struct LineColumn {
 
 std::ostream& operator<<(std::ostream& os, const LineColumn& lc);
 
+// A range that contains every position i such that begin <= i < end.
 struct Range {
   static void Register(vm::Environment* environment);
 
