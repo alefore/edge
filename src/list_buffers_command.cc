@@ -101,7 +101,8 @@ class ListBuffersBuffer : public OpenBuffer {
     for (const auto& buffer : buffers_to_show) {
       size_t context_lines_var = lines_to_show[buffer.get()] - 1;
       auto context = LinesToShow(*buffer, context_lines_var);
-      std::shared_ptr<LazyString> name = NewLazyString(buffer->name());
+      std::shared_ptr<LazyString> name =
+          NewLazyString(buffer->Read(buffer_variables::name()));
       if (context.first != context.second) {
         name = StringAppend(NewLazyString(L"╭──"), name);
         size_t width = target->Read(buffer_variables::line_width());
@@ -144,7 +145,8 @@ class ListBuffersBuffer : public OpenBuffer {
 
   pair<size_t, size_t> LinesToShow(const OpenBuffer& buffer, size_t lines) {
     lines = min(lines, buffer.contents()->size());
-    VLOG(5) << buffer.name() << ": Context lines to show: " << lines;
+    VLOG(5) << buffer.Read(buffer_variables::name())
+            << ": Context lines to show: " << lines;
     if (lines == 0) {
       auto last = buffer.lines_size();
       return make_pair(last, last);

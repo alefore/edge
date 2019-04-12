@@ -26,6 +26,7 @@ extern "C" {
 #include "screen_vm.h"
 #include "server.h"
 #include "src/args.h"
+#include "src/buffer_variables.h"
 #include "terminal.h"
 #include "vm/public/value.h"
 #include "wstring.h"
@@ -375,10 +376,12 @@ int main(int argc, const char** argv) {
       CHECK_LE(i, buffers.size());
       CHECK(buffers[i] != nullptr);
       if (buffers[i] && fds[i].fd == buffers[i]->fd()) {
-        LOG(INFO) << "Reading (normal): " << buffers[i]->name();
+        LOG(INFO) << "Reading (normal): "
+                  << buffers[i]->Read(buffer_variables::name());
         buffers[i]->ReadData(editor_state());
       } else if (buffers[i] && fds[i].fd == buffers[i]->fd_error()) {
-        LOG(INFO) << "Reading (error): " << buffers[i]->name();
+        LOG(INFO) << "Reading (error): "
+                  << buffers[i]->Read(buffer_variables::name());
         buffers[i]->ReadErrorData(editor_state());
       } else {
         LOG(FATAL) << "Invalid file descriptor.";

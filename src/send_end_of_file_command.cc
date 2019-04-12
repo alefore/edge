@@ -20,7 +20,7 @@ void SendEndOfFileToBuffer(EditorState* editor_state,
     auto target_buffer = buffer->GetBufferFromCurrentLine();
     if (target_buffer != nullptr) {
       LOG(INFO) << "Sending EOF to line: " << buffer->current_line()->ToString()
-                << ": " << buffer->name();
+                << ": " << buffer->Read(buffer_variables::name());
       buffer = target_buffer;
     }
     editor_state->ResetModifiers();

@@ -101,7 +101,8 @@ class FileBuffer : public OpenBuffer {
     list<wstring> file_path_components;
     if (file_path.empty() || file_path[0] != '/') {
       editor_->SetWarningStatus(L"Unable to persist buffer with empty path: " +
-                                name() + (dirty() ? L" (dirty)" : L" (clean)") +
+                                Read(buffer_variables::name()) +
+                                (dirty() ? L" (dirty)" : L" (clean)") +
                                 (modified_ ? L"modified" : L"not modi"));
       return !dirty();
     }
@@ -280,8 +281,8 @@ class FileBuffer : public OpenBuffer {
       for (auto& it : *editor_state->buffers()) {
         CHECK(it.second != nullptr);
         if (it.second->Read(buffer_variables::reload_on_buffer_write())) {
-          LOG(INFO) << "Write of " << path
-                    << " triggers reload: " << it.second->name();
+          LOG(INFO) << "Write of " << path << " triggers reload: "
+                    << it.second->Read(buffer_variables::name());
           it.second->Reload(editor_state);
         }
       }

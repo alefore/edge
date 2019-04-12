@@ -136,8 +136,6 @@ class OpenBuffer {
                       std::function<void(std::unique_ptr<Value>)> consumer);
   bool EvaluateFile(EditorState* editor_state, const wstring& path);
 
-  const wstring& name() const;
-
   void DeleteRange(const Range& range);
 
   // If modifiers is nullptr, takes the modifiers from the insertion (i.e. from

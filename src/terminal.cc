@@ -204,7 +204,8 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
 
     for (auto& it : *editor_state.buffers()) {
       if (it.second->ShouldDisplayProgress()) {
-        auto name = TransformCommandNameForStatus(it.second->name());
+        auto name = TransformCommandNameForStatus(
+            it.second->Read(buffer_variables::name()));
         size_t progress = it.second->Read(buffer_variables::progress()) %
                           (4 + 2 * name.size());
         if (progress == 0 || progress == 1) {
@@ -353,7 +354,7 @@ wstring Terminal::GetBufferContext(const EditorState& editor_state,
       return source->second->contents()->at(mark.source_line)->ToString();
     }
   }
-  return buffer->name();
+  return buffer->Read(buffer_variables::name());
 }
 
 class LineOutputReceiver : public Line::OutputReceiverInterface {

@@ -50,7 +50,8 @@ class NavigationBuffer : public OpenBuffer {
       return;
     }
 
-    target->AppendToLastLine(NewLazyString(source->name()));
+    target->AppendToLastLine(
+        NewLazyString(source->Read(buffer_variables::name())));
     auto depth_value =
         target->environment()->Lookup(kDepthSymbol, VMType::Integer());
     int depth =
@@ -162,7 +163,7 @@ class NavigationBufferCommand : public Command {
       return;
     }
 
-    auto name = L"Navigation: " + source->name();
+    auto name = L"Navigation: " + source->Read(buffer_variables::name());
     auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
     editor_state->set_current_buffer(it.first);
     if (it.second) {

@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -237,7 +238,8 @@ shared_ptr<OpenBuffer> OpenServerBuffer(EditorState* editor_state,
   auto buffer = std::make_shared<ServerBuffer>(
       editor_state, editor_state->GetUnusedBufferName(L"- server"));
   buffer->Set(buffer_variables::path(), address);
-  editor_state->buffers()->insert(make_pair(buffer->name(), buffer));
+  editor_state->buffers()->insert(
+      {buffer->Read(buffer_variables::name()), buffer});
   buffer->Reload(editor_state);
   return buffer;
 }

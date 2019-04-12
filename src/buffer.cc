@@ -692,7 +692,8 @@ vector<unordered_set<LineModifier, hash<int>>> ModifiersVector(
 
 void OpenBuffer::Input::ReadData(EditorState* editor_state,
                                  OpenBuffer* target) {
-  LOG(INFO) << "Reading input from " << fd << " for buffer " << target->name();
+  LOG(INFO) << "Reading input from " << fd << " for buffer "
+            << target->Read(buffer_variables::name());
   static const size_t kLowBufferSize = 1024 * 60;
   if (low_buffer == nullptr) {
     CHECK_EQ(low_buffer_length, size_t(0));
@@ -749,8 +750,9 @@ void OpenBuffer::Input::ReadData(EditorState* editor_state,
   size_t processed = low_buffer_tmp == nullptr
                          ? low_buffer_length
                          : low_buffer_tmp - low_buffer.get();
-  VLOG(5) << target->name() << ": Characters consumed: " << processed;
-  VLOG(5) << target->name()
+  VLOG(5) << target->Read(buffer_variables::name())
+          << ": Characters consumed: " << processed;
+  VLOG(5) << target->Read(buffer_variables::name())
           << ": Characters produced: " << buffer_wrapper->size();
   CHECK_LE(processed, low_buffer_length);
   memmove(low_buffer.get(), low_buffer_tmp, low_buffer_length - processed);
@@ -761,7 +763,7 @@ void OpenBuffer::Input::ReadData(EditorState* editor_state,
   }
 
   if (target->Read(buffer_variables::vm_exec())) {
-    LOG(INFO) << target->name()
+    LOG(INFO) << target->Read(buffer_variables::name())
               << ": Evaluating VM code: " << buffer_wrapper->ToString();
     target->EvaluateString(editor_state, buffer_wrapper->ToString(),
                            [](std::unique_ptr<Value>) {});
@@ -1363,10 +1365,6 @@ bool OpenBuffer::EvaluateFile(EditorState* editor_state, const wstring& path) {
   Evaluate(expression.get(), &environment_,
            [expression](std::unique_ptr<Value>) {});
   return true;
-}
-
-const wstring& OpenBuffer::name() const {
-  return Read(buffer_variables::name());
 }
 
 void OpenBuffer::DeleteRange(const Range& range) {
@@ -2045,8 +2043,8 @@ LineColumn OpenBuffer::Apply(EditorState* editor_state,
   if ((delete_buffer->contents()->size() > 1 ||
        delete_buffer->LineAt(0)->size() > 0) &&
       Read(buffer_variables::delete_into_paste_buffer())) {
-    auto insert_result = editor_state->buffers()->insert(
-        make_pair(delete_buffer->name(), delete_buffer));
+    auto insert_result = editor_state->buffers()->insert(make_pair(
+        delete_buffer->Read(buffer_variables::name()), delete_buffer));
     if (!insert_result.second) {
       insert_result.first->second = delete_buffer;
     }

@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include "buffer.h"
+#include "buffer_variables.h"
 #include "direction.h"
 #include "editor.h"
 #include "lazy_string_append.h"
@@ -246,7 +247,8 @@ class DeleteLinesTransformation : public Transformation {
           result->mode == Transformation::Result::Mode::kFinal) {
         auto target_buffer = buffer->GetBufferFromCurrentLine();
         if (target_buffer.get() != buffer && target_buffer != nullptr) {
-          auto it = editor_state->buffers()->find(target_buffer->name());
+          auto it = editor_state->buffers()->find(
+              target_buffer->Read(buffer_variables::name()));
           if (it != editor_state->buffers()->end()) {
             editor_state->CloseBuffer(it);
           }

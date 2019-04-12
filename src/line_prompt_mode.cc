@@ -69,7 +69,8 @@ shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
                                      wstring filter) {
   CHECK(!filter.empty());
   CHECK(history_buffer != nullptr);
-  auto name = L"- history filter: " + history_buffer->name() + L": " + filter;
+  auto name = L"- history filter: " +
+              history_buffer->Read(buffer_variables::name()) + L": " + filter;
   auto element = editor_state->buffers()->insert({name, nullptr}).first;
   if (element->second == nullptr) {
     auto filter_buffer = std::make_shared<OpenBuffer>(editor_state, name);
@@ -163,7 +164,8 @@ class HistoryScrollBehavior : public ScrollBehavior {
 
     if (history_ != nullptr && history_->contents()->size() > 1) {
       auto previous_buffer = editor_state->current_buffer()->second;
-      auto history_it = editor_state->buffers()->find(history_->name());
+      auto history_it = editor_state->buffers()->find(
+          history_->Read(buffer_variables::name()));
       CHECK(history_it != editor_state->buffers()->end());
       editor_state->set_current_buffer(history_it);
       history_->set_mode(previous_buffer->ResetMode());
