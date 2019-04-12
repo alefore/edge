@@ -1651,12 +1651,16 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
       }
     }
   }
-  if (modifiers.direction == BACKWARDS) {
+
+  if (modifiers.direction == BACKWARDS &&
+      modifiers.structure != StructureTree()) {
+    // TODO: Handle this in structure.
     Seek(contents_, &position).Backwards().WrappingLines().Once();
   }
 
   output.begin = position;
-  LOG(INFO) << "Initial position: " << position;
+  LOG(INFO) << "Initial position: " << position
+            << ", structure: " << modifiers.structure->ToString();
   if (modifiers.structure->space_behavior() ==
       Structure::SpaceBehavior::kForwards) {
     modifiers.structure->SeekToNext(this, forward, &output.begin);

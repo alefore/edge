@@ -270,45 +270,64 @@ Structure* StructureTree() {
 
     SearchRange search_range() override { return SearchRange::kRegion; }
 
-    void SeekToNext(OpenBuffer*, Direction, LineColumn*) override {}
+    void SeekToNext(OpenBuffer* buffer, Direction direction,
+                    LineColumn* position) override {
+      Range range;
+      if (!FindTreeRange(buffer, *position, direction, &range)) {
+        return;
+      }
+      if (!range.Contains(*position)) {
+        *position = range.begin;
+      }
+    }
 
     bool SeekToLimit(OpenBuffer* buffer, Direction direction,
                      LineColumn* position) override {
       StartSeekToLimit(buffer, position);
+      Range range;
+      if (!FindTreeRange(buffer, *position, direction, &range)) {
+        return false;
+      }
+      *position = direction == FORWARDS ? range.end : range.begin;
+      return true;
+    }
+
+   private:
+    bool FindTreeRange(OpenBuffer* buffer, LineColumn position,
+                       Direction direction, Range* output) {
       auto root = buffer->parse_tree();
       if (root == nullptr) {
         return false;
       }
-      auto route = MapRoute(*root, FindRouteToPosition(*root, *position));
-      if (buffer->tree_depth() <= 0 ||
-          route.size() <= buffer->tree_depth() - 1) {
-        return false;
-      }
-      bool has_boundary = false;
-      LineColumn boundary;
-      for (const auto& candidate : route[buffer->tree_depth() - 1]->children) {
-        if (direction == FORWARDS) {
-          if (candidate.range.begin > *position &&
-              (!has_boundary || candidate.range.begin < boundary)) {
-            boundary = candidate.range.begin;
-            has_boundary = true;
+
+      const ParseTree* tree = root.get();
+      while (true) {
+        // Each iteration descends by one level in the parse tree.
+        size_t child = 0;
+        auto get_child = [=](size_t i) {
+          CHECK_LT(i, tree->children.size());
+          if (direction == BACKWARDS) {
+            i = tree->children.size() - i - 1;  // From last to first.
           }
-        } else {
-          if (candidate.range.end < *position &&
-              (!has_boundary || candidate.range.end > boundary)) {
-            boundary = candidate.range.end;
-            has_boundary = true;
-          }
+          return &tree->children[i];
+        };
+        while (child < tree->children.size() &&
+               (get_child(child)->children.empty() ||
+                (direction == FORWARDS
+                     ? get_child(child)->range.end <= position
+                     : get_child(child)->range.begin > position))) {
+          child++;
         }
+
+        if (child < tree->children.size() &&
+            (direction == FORWARDS ? tree->range.begin < position
+                                   : tree->range.end > position)) {
+          tree = get_child(child);
+          continue;
+        }
+        *output = tree->range;
+        return true;
       }
-      if (!has_boundary) {
-        return false;
-      }
-      if (direction == BACKWARDS) {
-        Seek(*buffer->contents(), &boundary).WithDirection(direction).Once();
-      }
-      *position = boundary;
-      return true;
     }
   };
   static Impl output;
