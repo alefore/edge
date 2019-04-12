@@ -183,7 +183,7 @@ class CommandWithModifiersMode : public EditorMode {
         SetStructure(StructureCursor(), modifiers);
         break;
 
-      case 'T':
+      case 't':
         SetStructure(StructureTree(), modifiers);
         break;
 
