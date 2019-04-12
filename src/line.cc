@@ -205,17 +205,21 @@ wchar_t ComputeScrollBarCharacter(size_t line, size_t lines_size,
   // Each line is split into two units (upper and bottom halves). All units in
   // this function are halves (of a line).
   DCHECK_GE(line, view_start);
-  DCHECK_LT(line - view_start, lines_to_show);
+  DCHECK_LT(line - view_start, lines_to_show)
+      << "Line is " << line << " and view_start is " << view_start
+      << ", which exceeds lines_to_show of " << lines_to_show;
   DCHECK_LT(view_start, lines_size);
   size_t halves_to_show = lines_to_show * 2;
 
   // Number of halves the bar should take.
-  size_t bar_size = max(
-      size_t(1),
-      size_t(halves_to_show * static_cast<double>(lines_to_show) / lines_size));
+  size_t bar_size =
+      max(size_t(1),
+          size_t(std::round(halves_to_show *
+                            static_cast<double>(lines_to_show) / lines_size)));
 
   // Bar will be shown in lines in interval [bar, end] (units are halves).
-  size_t start = halves_to_show * static_cast<double>(view_start) / lines_size;
+  size_t start =
+      std::round(halves_to_show * static_cast<double>(view_start) / lines_size);
   size_t end = start + bar_size;
 
   size_t current = 2 * (line - view_start);
@@ -358,7 +362,8 @@ void Line::Output(const Line::OutputOptions& options) const {
         additional_information += DrawTree(
             options.position.line, options.buffer->lines_size(), *parse_tree);
       }
-      if (options.buffer->Read(buffer_variables::scrollbar())) {
+      if (options.buffer->Read(buffer_variables::scrollbar()) &&
+          options.buffer->lines_size() > options.lines_to_show) {
         additional_information += ComputeScrollBarCharacter(
             options.position.line, options.buffer->lines_size(),
             view_start_line, options.lines_to_show);

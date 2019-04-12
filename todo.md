@@ -42,8 +42,6 @@ Honor the "margin_columns" variable.
 
 Add a boolean variable "highlight_current_line" (default: false); when set, highlight the line with the current cursor position.
 
-If the buffer doesn't fit in the screen, don't show the scroll bar (or show it in a different way).
-
 When searching, display in the Status the count of matches (especially when there were zero matches).
 
 ### List of buffers

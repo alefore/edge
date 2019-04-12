@@ -1,14 +1,14 @@
 #ifndef __AFC_EDITOR_LINE_H__
 #define __AFC_EDITOR_LINE_H__
 
+#include <glog/logging.h>
+
 #include <map>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <unordered_set>
 #include <vector>
-
-#include <glog/logging.h>
 
 #include "lazy_string.h"
 #include "src/parse_tree.h"
@@ -125,6 +125,8 @@ class Line {
     const EditorState* editor_state = nullptr;
     const OpenBuffer* buffer = nullptr;
     LineColumn position;
+    // Number of screen lines that will be shown. Does not include the status
+    // line (at the bottom of the screen).
     size_t lines_to_show;
     size_t width;
     bool paste_mode;

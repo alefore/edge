@@ -709,7 +709,10 @@ std::vector<LineColumn> Terminal::GetScreenLinePositions(
   std::vector<LineColumn> output;
 
   OpenBuffer* buffer = editor_state->current_buffer()->second.get();
-  size_t lines_to_show = static_cast<size_t>(screen->lines());
+  if (screen->lines() <= 0) {
+    return {};
+  }
+  size_t lines_to_show = static_cast<size_t>(screen->lines()) - 1;
 
   LineColumn position(
       static_cast<size_t>(
@@ -742,7 +745,8 @@ void Terminal::ShowBuffer(
     const EditorState* editor_state, Screen* screen,
     const std::vector<LineColumn>& screen_line_positions) {
   const shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-  size_t lines_to_show = static_cast<size_t>(screen->lines());
+  size_t lines_to_show = static_cast<size_t>(screen->lines()) - 1;
+  CHECK_EQ(screen_line_positions.size(), lines_to_show);
 
   screen->Move(0, 0);
 
