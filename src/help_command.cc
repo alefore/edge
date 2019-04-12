@@ -20,6 +20,9 @@ using std::unique_ptr;
 namespace {
 wstring DescribeSequence(wstring input) {
   wstring output;
+  if (!input.empty() && input[0] == '#') {
+    output.push_back(L' ');  // It isn't a header!
+  }
   for (wint_t c : input) {
     if (c == '\n') {
       output.push_back(L'↩');
@@ -49,13 +52,13 @@ class HelpCommand : public Command {
     buffer->Set(buffer_variables::allow_dirty_delete(), true);
     buffer->Set(buffer_variables::show_in_buffers_list(), false);
 
-    buffer->AppendToLastLine(editor_state, NewCopyString(L"## Edge - Help"));
+    buffer->AppendToLastLine(editor_state, NewCopyString(L"# Edge - Help"));
     buffer->AppendEmptyLine(editor_state);
 
     ShowCommands(editor_state, buffer.get());
     ShowEnvironment(editor_state, original_buffer.get(), buffer.get());
 
-    StartSection(L"### Buffer Variables", editor_state, buffer.get());
+    StartSection(L"## Buffer Variables", editor_state, buffer.get());
     buffer->AppendLine(
         editor_state,
         NewCopyString(
@@ -91,7 +94,7 @@ class HelpCommand : public Command {
   }
 
   void ShowCommands(EditorState* editor_state, OpenBuffer* output_buffer) {
-    StartSection(L"### Commands", editor_state, output_buffer);
+    StartSection(L"## Commands", editor_state, output_buffer);
 
     output_buffer->AppendLine(
         editor_state,
@@ -100,7 +103,7 @@ class HelpCommand : public Command {
     output_buffer->AppendEmptyLine(editor_state);
 
     for (const auto& category : commands_->Coallesce()) {
-      StartSection(L"#### " + category.first, editor_state, output_buffer);
+      StartSection(L"### " + category.first, editor_state, output_buffer);
       for (const auto& it : category.second) {
         output_buffer->AppendLine(
             editor_state, NewCopyString(DescribeSequence(it.first) + L" - " +
@@ -112,12 +115,12 @@ class HelpCommand : public Command {
 
   void ShowEnvironment(EditorState* editor_state, OpenBuffer* original_buffer,
                        OpenBuffer* output) {
-    StartSection(L"### Environment", editor_state, output);
+    StartSection(L"## Environment", editor_state, output);
 
     auto environment = original_buffer->environment();
     CHECK(environment != nullptr);
 
-    StartSection(L"#### Types & methods", editor_state, output);
+    StartSection(L"### Types & methods", editor_state, output);
 
     output->AppendLine(
         editor_state,
@@ -129,7 +132,7 @@ class HelpCommand : public Command {
 
     environment->ForEachType([&](const wstring& name, ObjectType* type) {
       CHECK(type != nullptr);
-      StartSection(L"##### " + name, editor_state, output);
+      StartSection(L"#### " + name, editor_state, output);
       type->ForEachField([&](const wstring& field_name, Value* value) {
         CHECK(value != nullptr);
         std::stringstream value_stream;
@@ -148,7 +151,7 @@ class HelpCommand : public Command {
     });
     output->AppendEmptyLine(editor_state);
 
-    StartSection(L"#### Variables", editor_state, output);
+    StartSection(L"### Variables", editor_state, output);
 
     output->AppendLine(
         editor_state,
@@ -184,7 +187,7 @@ class HelpCommand : public Command {
   void DescribeVariables(EditorState* editor_state, wstring type_name,
                          OpenBuffer* buffer, EdgeStruct<T>* variables,
                          /*std::function<std::wstring(const T&)>*/ C print) {
-    StartSection(L"#### " + type_name, editor_state, buffer);
+    StartSection(L"### " + type_name, editor_state, buffer);
     for (const auto& variable : variables->variables()) {
       buffer->AppendLine(editor_state, NewCopyString(variable.second->name()));
       buffer->AppendLine(
@@ -200,11 +203,11 @@ class HelpCommand : public Command {
   }
 
   void CommandLineVariables(EditorState* editor_state, OpenBuffer* buffer) {
-    StartSection(L"### Command line arguments", editor_state, buffer);
+    StartSection(L"## Command line arguments", editor_state, buffer);
     using command_line_arguments::Handler;
     auto handlers = command_line_arguments::Handlers();
     for (auto& h : handlers) {
-      StartSection(L"#### " + h.aliases()[0], editor_state, buffer);
+      StartSection(L"### " + h.aliases()[0], editor_state, buffer);
       switch (h.argument_type()) {
         case Handler::VariableType::kRequired:
           buffer->AppendLine(
