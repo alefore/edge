@@ -255,45 +255,6 @@ class AutocompleteMode : public EditorMode {
   const std::shared_ptr<LazyString> original_text_;
 };
 
-class JumpTransformation : public Transformation {
- public:
-  JumpTransformation(Direction direction) : direction_(direction) {}
-
-  void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const override {
-    CHECK(result);
-    if (buffer->LineAt(result->cursor.line) == nullptr) {
-      result->made_progress = false;
-      return;
-    }
-    LineColumn position = result->cursor;
-    switch (direction_) {
-      case FORWARDS:
-        position.column = buffer->current_line()->size();
-        break;
-      case BACKWARDS:
-        position.column = 0;
-        break;
-    }
-    NewGotoPositionTransformation(position)->Apply(editor_state, buffer,
-                                                   result);
-    // TODO: This probabily doesn't belong here.
-    if (buffer->active_cursors()->size() > 1) {
-      editor_state->ScheduleRedraw();
-    }
-    editor_state->ResetRepetitions();
-    editor_state->ResetStructure();
-    editor_state->ResetDirection();
-  }
-
-  std::unique_ptr<Transformation> Clone() const override {
-    return std::make_unique<JumpTransformation>(direction_);
-  }
-
- private:
-  const Direction direction_;
-};
-
 void FindCompletion(EditorState* editor_state,
                     std::shared_ptr<OpenBuffer> buffer,
                     std::shared_ptr<OpenBuffer> dictionary) {
@@ -779,11 +740,12 @@ void DefaultScrollBehavior::Right(EditorState*, OpenBuffer* buffer) {
 }
 
 void DefaultScrollBehavior::Begin(EditorState*, OpenBuffer* buffer) {
-  buffer->ApplyToCursors(std::make_unique<JumpTransformation>(BACKWARDS));
+  buffer->ApplyToCursors(NewGotoColumnTransformation(0));
 }
 
 void DefaultScrollBehavior::End(EditorState*, OpenBuffer* buffer) {
-  buffer->ApplyToCursors(std::make_unique<JumpTransformation>(FORWARDS));
+  buffer->ApplyToCursors(
+      NewGotoColumnTransformation(std::numeric_limits<size_t>::max()));
 }
 
 std::unique_ptr<Command> NewFindCompletionCommand() {

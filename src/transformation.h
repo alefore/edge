@@ -88,6 +88,8 @@ unique_ptr<Transformation> NewInsertBufferTransformation(
     shared_ptr<const OpenBuffer> buffer_to_insert, size_t repetitions,
     InsertBufferTransformationPosition insert_buffer_transformation_position);
 
+// If column is greater than the length of the line, goes to the end of the
+// line.
 unique_ptr<Transformation> NewGotoColumnTransformation(size_t column);
 unique_ptr<Transformation> NewGotoPositionTransformation(
     const LineColumn& position);

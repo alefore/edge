@@ -19,9 +19,14 @@ class GotoColumnTransformation : public Transformation {
   void Apply(EditorState*, OpenBuffer* buffer, Result* result) const override {
     CHECK(buffer != nullptr);
     CHECK(result != nullptr);
+    auto line = buffer->LineAt(result->cursor.line);
+    if (line == nullptr) {
+      return;
+    }
+
     result->undo_stack->PushFront(
         NewGotoColumnTransformation(result->cursor.column));
-    result->cursor.column = column_;
+    result->cursor.column = std::min(column_, line->size());
     result->success = true;
   }
 
