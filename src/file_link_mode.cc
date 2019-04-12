@@ -211,9 +211,7 @@ class FileBuffer : public OpenBuffer {
       auto description =
           L"Unable to open directory: " + FromByteString(strerror(errno));
       editor_state->SetStatus(description);
-      target->AppendLine(
-          editor_state,
-          shared_ptr<LazyString>(NewLazyString(std::move(description))));
+      target->AppendLine(NewLazyString(std::move(description)));
       return;
     }
     struct dirent* entry;
@@ -244,9 +242,8 @@ class FileBuffer : public OpenBuffer {
     }
     closedir(dir);
 
-    target->AppendToLastLine(editor_state,
-                             NewLazyString(L"# File listing: " + path));
-    target->AppendLine(editor_state, EmptyString());
+    target->AppendToLastLine(NewLazyString(L"# File listing: " + path));
+    target->AppendEmptyLine();
 
     ShowFiles(editor_state, L"Directories", std::move(directories), target);
     ShowFiles(editor_state, L"Files", std::move(regular_files), target);
@@ -298,7 +295,7 @@ class FileBuffer : public OpenBuffer {
     if (entries.empty()) {
       return;
     }
-    target->AppendLine(editor_state, NewLazyString(L"## " + name));
+    target->AppendLine(NewLazyString(L"## " + name));
     int start = target->contents()->size();
     for (auto& entry : entries) {
       AddLine(editor_state, target, entry);
@@ -308,7 +305,7 @@ class FileBuffer : public OpenBuffer {
         [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
           return *a->contents() < *b->contents();
         });
-    target->AppendLine(editor_state, EmptyString());
+    target->AppendEmptyLine();
   }
 
   void AddLine(EditorState* editor_state, OpenBuffer* target,
@@ -349,7 +346,7 @@ class FileBuffer : public OpenBuffer {
 
     auto line = std::make_shared<Line>(std::move(line_options));
 
-    target->AppendRawLine(editor_state, line);
+    target->AppendRawLine(line);
     target->contents()->back()->environment()->Define(
         L"EdgeLineDeleteHandler",
         vm::NewCallback(std::function<void()>(

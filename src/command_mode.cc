@@ -736,12 +736,11 @@ class SwitchCaseTransformation : public Transformation {
         stack->PushBack(std::make_unique<TransformationWithMode>(
             Transformation::Result::Mode::kFinal,
             NewDeleteTransformation(options)));
-        buffer_to_insert->AppendEmptyLine(editor_state);
+        buffer_to_insert->AppendEmptyLine();
         continue;
       }
       wchar_t c = line->get(i.column);
       buffer_to_insert->AppendToLastLine(
-          editor_state,
           NewLazyString(wstring(1, iswupper(c) ? towlower(c) : towupper(c))));
       DeleteOptions options;
       options.copy_to_paste_buffer = false;

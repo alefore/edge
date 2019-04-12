@@ -160,7 +160,7 @@ class DeleteCharactersTransformation : public Transformation {
       first_line->DeleteCharacters(chars_erase_line);
     }
     first_line->DeleteCharacters(0, begin.column);
-    delete_buffer->AppendToLastLine(editor_state, first_line->contents(),
+    delete_buffer->AppendToLastLine(first_line->contents(),
                                     first_line->modifiers());
 
     for (size_t i = begin.line + 1; i <= line_end; i++) {
@@ -168,7 +168,7 @@ class DeleteCharactersTransformation : public Transformation {
       if (i == line_end) {
         line->DeleteCharacters(chars_erase_line);
       }
-      delete_buffer->AppendRawLine(editor_state, line);
+      delete_buffer->AppendRawLine(line);
     }
 
     return delete_buffer;

@@ -113,9 +113,9 @@ class ListBuffersBuffer : public OpenBuffer {
       }
       if (target->contents()->size() == 1 &&
           target->contents()->at(0)->size() == 0) {
-        target->AppendToLastLine(editor_state, std::move(name));
+        target->AppendToLastLine(std::move(name));
       } else {
-        target->AppendLine(editor_state, std::move(name));
+        target->AppendLine(std::move(name));
       }
       AdjustLastLine(target, buffer);
 
@@ -134,7 +134,7 @@ class ListBuffersBuffer : public OpenBuffer {
           context.first++;
         }
         CHECK_EQ(options.contents->size(), options.modifiers.size());
-        target->AppendRawLine(editor_state, std::make_shared<Line>(options));
+        target->AppendRawLine(std::make_shared<Line>(options));
         AdjustLastLine(target, buffer);
         ++index;
       }

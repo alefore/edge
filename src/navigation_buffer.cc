@@ -40,28 +40,26 @@ class NavigationBuffer : public OpenBuffer {
     std::shared_ptr<OpenBuffer> source = source_.lock();
     if (source == nullptr) {
       target->AppendToLastLine(
-          editor_state, NewLazyString(L"Source buffer no longer loaded."));
+          NewLazyString(L"Source buffer no longer loaded."));
       return;
     }
 
     auto tree = source->simplified_parse_tree();
     if (tree == nullptr) {
-      target->AppendToLastLine(editor_state,
-                               NewLazyString(L"Target has no tree."));
+      target->AppendToLastLine(NewLazyString(L"Target has no tree."));
       return;
     }
 
-    target->AppendToLastLine(editor_state, NewLazyString(source->name()));
+    target->AppendToLastLine(NewLazyString(source->name()));
     auto depth_value =
         target->environment()->Lookup(kDepthSymbol, VMType::Integer());
     int depth =
         depth_value == nullptr ? 3 : size_t(max(0, depth_value->integer));
-    DisplayTree(editor_state, source, depth, *tree, EmptyString(), target);
+    DisplayTree(source, depth, *tree, EmptyString(), target);
   }
 
  private:
-  void DisplayTree(EditorState* editor_state,
-                   const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
+  void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
                    const ParseTree& tree, std::shared_ptr<LazyString> padding,
                    OpenBuffer* target) {
     for (size_t i = 0; i < tree.children.size(); i++) {
@@ -84,32 +82,31 @@ class NavigationBuffer : public OpenBuffer {
           AddContents(source, *source->LineAt(child.range.end.line), &options);
         }
         options.modifiers.resize(options.contents->size());
-        target->AppendRawLine(editor_state, std::make_shared<Line>(options));
+        target->AppendRawLine(std::make_shared<Line>(options));
         AdjustLastLine(target, source, child.range.begin);
         continue;
       }
 
-      AppendLine(editor_state, source, padding, child.range.begin, target);
+      AppendLine(source, padding, child.range.begin, target);
       if (depth_left > 0) {
-        DisplayTree(editor_state, source, depth_left - 1, child,
+        DisplayTree(source, depth_left - 1, child,
                     StringAppend(NewLazyString(L"  "), padding), target);
       }
       if (i + 1 >= tree.children.size() ||
           child.range.end.line != tree.children[i + 1].range.begin.line) {
-        AppendLine(editor_state, source, padding, child.range.end, target);
+        AppendLine(source, padding, child.range.end, target);
       }
     }
   }
 
-  void AppendLine(EditorState* editor_state,
-                  const std::shared_ptr<OpenBuffer>& source,
+  void AppendLine(const std::shared_ptr<OpenBuffer>& source,
                   std::shared_ptr<LazyString> padding, LineColumn position,
                   OpenBuffer* target) {
     Line::Options options;
     options.contents = padding;
     options.modifiers.resize(padding->size());
     AddContents(source, *source->LineAt(position.line), &options);
-    target->AppendRawLine(editor_state, std::make_shared<Line>(options));
+    target->AppendRawLine(std::make_shared<Line>(options));
     AdjustLastLine(target, source, position);
   }
 

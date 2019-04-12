@@ -73,7 +73,7 @@ class OpenBuffer {
   virtual bool PersistState() const;
 
   void ClearContents(EditorState* editor_state);
-  void AppendEmptyLine(EditorState* editor_state);
+  void AppendEmptyLine();
 
   virtual void ReloadInto(EditorState*, OpenBuffer*) {}
   virtual void Save(EditorState* editor_state);
@@ -112,21 +112,19 @@ class OpenBuffer {
   // Inserts a new line into the buffer at a given position.
   void InsertLine(size_t line_position, shared_ptr<Line> line);
 
-  void AppendLazyString(EditorState* editor_state,
-                        shared_ptr<LazyString> input);
-  void AppendLine(EditorState* editor_state, shared_ptr<LazyString> line);
-  virtual void AppendRawLine(EditorState* editor_state,
-                             shared_ptr<LazyString> str);
+  void AppendLazyString(std::shared_ptr<LazyString> input);
+  void AppendLine(std::shared_ptr<LazyString> line);
+  virtual void AppendRawLine(std::shared_ptr<LazyString> str);
 
   // Insert a line at the end of the buffer.
-  void AppendRawLine(EditorState* editor, shared_ptr<Line> line);
+  void AppendRawLine(std::shared_ptr<Line> line);
 
   size_t ProcessTerminalEscapeSequence(EditorState* editor_state,
                                        shared_ptr<LazyString> str,
                                        size_t read_index,
                                        LineModifierSet* modifiers);
-  void AppendToLastLine(EditorState* editor_state, shared_ptr<LazyString> str);
-  void AppendToLastLine(EditorState* editor_state, shared_ptr<LazyString> str,
+  void AppendToLastLine(std::shared_ptr<LazyString> str);
+  void AppendToLastLine(std::shared_ptr<LazyString> str,
                         const vector<LineModifierSet>& modifiers);
 
   unique_ptr<Expression> CompileString(EditorState* editor_state,

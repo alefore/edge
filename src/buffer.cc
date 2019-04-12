@@ -135,24 +135,24 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
                               {VMType::String()}, map_callback)),
                           std::move(args_expr));
 
-  Evaluate(map_line.get(), trampoline->environment(),
-           [editor, buffer, line, map_callback, transformation, trampoline,
-            current_line, map_line](Value::Ptr value) {
-             if (value->str != current_line) {
-               DeleteOptions options;
-               options.copy_to_paste_buffer = false;
-               options.modifiers.structure = StructureLine();
-               transformation->PushBack(NewDeleteTransformation(options));
-               auto buffer_to_insert =
-                   std::make_shared<OpenBuffer>(editor, L"tmp buffer");
-               buffer_to_insert->AppendLine(
-                   editor, NewLazyString(std::move(value->str)));
-               transformation->PushBack(
-                   NewInsertBufferTransformation(buffer_to_insert, 1, END));
-             }
-             EvaluateMap(editor, buffer, line + 1, std::move(map_callback),
-                         transformation, trampoline);
-           });
+  Evaluate(
+      map_line.get(), trampoline->environment(),
+      [editor, buffer, line, map_callback, transformation, trampoline,
+       current_line, map_line](Value::Ptr value) {
+        if (value->str != current_line) {
+          DeleteOptions options;
+          options.copy_to_paste_buffer = false;
+          options.modifiers.structure = StructureLine();
+          transformation->PushBack(NewDeleteTransformation(options));
+          auto buffer_to_insert =
+              std::make_shared<OpenBuffer>(editor, L"tmp buffer");
+          buffer_to_insert->AppendLine(NewLazyString(std::move(value->str)));
+          transformation->PushBack(
+              NewInsertBufferTransformation(buffer_to_insert, 1, END));
+        }
+        EvaluateMap(editor, buffer, line + 1, std::move(map_callback),
+                    transformation, trampoline);
+      });
 }
 
 /* static */ void OpenBuffer::RegisterBufferType(
@@ -343,12 +343,12 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
             bool insert_separator = false;
             while (std::getline(text_stream, line, wchar_t('\n'))) {
               if (insert_separator) {
-                buffer_to_insert->AppendEmptyLine(editor_state);
+                buffer_to_insert->AppendEmptyLine();
               } else {
                 insert_separator = true;
               }
               buffer_to_insert->AppendToLastLine(
-                  editor_state, NewLazyString(std::move(line)));
+                  NewLazyString(std::move(line)));
             }
 
             buffer->ApplyToCursors(
@@ -590,10 +590,10 @@ void OpenBuffer::ClearContents(EditorState* editor_state) {
   last_transformation_stack_.clear();
   transformations_past_.clear();
   transformations_future_.clear();
-  AppendEmptyLine(editor_state);
+  AppendEmptyLine();
 }
 
-void OpenBuffer::AppendEmptyLine(EditorState*) {
+void OpenBuffer::AppendEmptyLine() {
   contents_.push_back(std::make_shared<Line>());
   MaybeFollowToEndOfFile();
 }
@@ -778,7 +778,7 @@ void OpenBuffer::Input::ReadData(EditorState* editor_state,
       if (buffer_wrapper->get(i) == '\n') {
         auto line = Substring(buffer_wrapper, line_start, i - line_start);
         VLOG(8) << "Adding line from " << line_start << " to " << i;
-        target->AppendToLastLine(editor_state, line,
+        target->AppendToLastLine(line,
                                  ModifiersVector(modifiers, line->size()));
         target->StartNewLine(editor_state);
         target->MaybeFollowToEndOfFile();
@@ -797,8 +797,7 @@ void OpenBuffer::Input::ReadData(EditorState* editor_state,
               << buffer_wrapper->size();
       auto line = Substring(buffer_wrapper, line_start,
                             buffer_wrapper->size() - line_start);
-      target->AppendToLastLine(editor_state, line,
-                               ModifiersVector(modifiers, line->size()));
+      target->AppendToLastLine(line, ModifiersVector(modifiers, line->size()));
     }
   }
   if (!previous_modified) {
@@ -945,17 +944,16 @@ void OpenBuffer::Save(EditorState* editor_state) {
   editor_state->SetStatus(L"Buffer can't be saved.");
 }
 
-void OpenBuffer::AppendLazyString(EditorState* editor_state,
-                                  shared_ptr<LazyString> input) {
+void OpenBuffer::AppendLazyString(std::shared_ptr<LazyString> input) {
   size_t size = input->size();
   size_t start = 0;
   for (size_t i = 0; i < size; i++) {
     if (input->get(i) == '\n') {
-      AppendLine(editor_state, Substring(input, start, i - start));
+      AppendLine(Substring(input, start, i - start));
       start = i + 1;
     }
   }
-  AppendLine(editor_state, Substring(input, start, size - start));
+  AppendLine(Substring(input, start, size - start));
 }
 
 static void AddToParseTree(const shared_ptr<LazyString>& str_input) {
@@ -979,13 +977,12 @@ void OpenBuffer::InsertLine(size_t line_position, shared_ptr<Line> line) {
   contents_.insert_line(line_position, line);
 }
 
-void OpenBuffer::AppendLine(EditorState* editor_state,
-                            shared_ptr<LazyString> str) {
+void OpenBuffer::AppendLine(shared_ptr<LazyString> str) {
   CHECK(str != nullptr);
   if (reading_from_parser_) {
     switch (str->get(0)) {
       case 'E':
-        return AppendRawLine(editor_state, Substring(str, 1));
+        return AppendRawLine(Substring(str, 1));
 
       case 'T':
         AddToParseTree(str);
@@ -1001,15 +998,14 @@ void OpenBuffer::AppendLine(EditorState* editor_state,
     }
   }
 
-  AppendRawLine(editor_state, str);
+  AppendRawLine(str);
 }
 
-void OpenBuffer::AppendRawLine(EditorState* editor,
-                               shared_ptr<LazyString> str) {
-  AppendRawLine(editor, std::make_shared<Line>(Line::Options(str)));
+void OpenBuffer::AppendRawLine(std::shared_ptr<LazyString> str) {
+  AppendRawLine(std::make_shared<Line>(Line::Options(str)));
 }
 
-void OpenBuffer::AppendRawLine(EditorState*, shared_ptr<Line> line) {
+void OpenBuffer::AppendRawLine(std::shared_ptr<Line> line) {
   contents_.push_back(line);
   MaybeFollowToEndOfFile();
 }
@@ -1308,14 +1304,13 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
   return read_index;
 }
 
-void OpenBuffer::AppendToLastLine(EditorState* editor_state,
-                                  shared_ptr<LazyString> str) {
+void OpenBuffer::AppendToLastLine(std::shared_ptr<LazyString> str) {
   vector<unordered_set<LineModifier, hash<int>>> modifiers(str->size());
-  AppendToLastLine(editor_state, str, modifiers);
+  AppendToLastLine(str, modifiers);
 }
 
 void OpenBuffer::AppendToLastLine(
-    EditorState*, shared_ptr<LazyString> str,
+    std::shared_ptr<LazyString> str,
     const vector<unordered_set<LineModifier, hash<int>>>& modifiers) {
   CHECK_EQ(str->size(), modifiers.size());
   Line::Options options;

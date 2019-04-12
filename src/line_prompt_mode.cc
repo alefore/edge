@@ -100,8 +100,7 @@ shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
     sort(previous_lines_vector.begin(), previous_lines_vector.end());
 
     for (auto& line : previous_lines_vector) {
-      filter_buffer->AppendLine(editor_state,
-                                NewLazyString(std::move(line.second)));
+      filter_buffer->AppendLine(NewLazyString(std::move(line.second)));
     }
 
     element->second = std::move(filter_buffer);
@@ -175,8 +174,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
         history_->set_position(position);
       }
       if (history_->current_line() != nullptr) {
-        insert->AppendToLastLine(editor_state,
-                                 history_->current_line()->contents());
+        insert->AppendToLastLine(history_->current_line()->contents());
       }
     }
 
@@ -258,8 +256,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
   {
     auto insert =
         std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
-    insert->AppendToLastLine(editor_state,
-                             NewLazyString(std::move(options.initial_value)));
+    insert->AppendToLastLine(NewLazyString(std::move(options.initial_value)));
     buffer->ApplyToCursors(NewInsertBufferTransformation(insert, 1, END));
   }
 
@@ -312,7 +309,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
           (history->contents()
                ->at(history->contents()->size() - 1)
                ->ToString() != input->ToString())) {
-        history->AppendLine(editor_state, input);
+        history->AppendLine(input);
       }
     }
     auto ensure_survival_of_current_closure = editor_state->keyboard_redirect();
@@ -343,7 +340,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
 
             auto insert =
                 std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
-            insert->AppendToLastLine(editor_state, NewLazyString(prediction));
+            insert->AppendToLastLine(NewLazyString(prediction));
             buffer->ApplyToCursors(
                 NewInsertBufferTransformation(insert, 1, END));
 

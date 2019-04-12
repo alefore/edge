@@ -66,7 +66,7 @@ class NewLineTransformation : public Transformation {
     {
       auto buffer_to_insert =
           std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
-      buffer_to_insert->AppendRawLine(editor_state, continuation_line);
+      buffer_to_insert->AppendRawLine(continuation_line);
       transformation->PushBack(
           NewInsertBufferTransformation(buffer_to_insert, 1, END));
     }
@@ -222,7 +222,7 @@ class AutocompleteMode : public EditorMode {
                           std::shared_ptr<LazyString> insert) {
     auto buffer_to_insert =
         std::make_shared<OpenBuffer>(editor_state, L"tmp buffer");
-    buffer_to_insert->AppendToLastLine(editor_state, insert);
+    buffer_to_insert->AppendToLastLine(insert);
     DLOG(INFO) << "Completion selected: " << buffer_to_insert->ToString()
                << " (len: " << insert->size()
                << ", word_length: " << word_length_ << ").";
@@ -380,7 +380,7 @@ bool StartCompletion(EditorState* editor_state,
 
   auto dictionary = std::make_shared<OpenBuffer>(editor_state, L"Dictionary");
   for (auto& word : words) {
-    dictionary->AppendLine(editor_state, NewLazyString(std::move(word)));
+    dictionary->AppendLine(NewLazyString(std::move(word)));
   }
 
   FindCompletion(editor_state, buffer, dictionary);
@@ -520,7 +520,6 @@ class InsertMode : public EditorMode {
       auto insert =
           std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
       insert->AppendToLastLine(
-          editor_state,
           NewLazyString(buffer->TransformKeyboardText(wstring(1, c))));
 
       Modifiers modifiers;

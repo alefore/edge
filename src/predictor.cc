@@ -212,10 +212,8 @@ void FilePredictor(EditorState* editor_state, const wstring& input,
         }
       }
       VLOG(5) << "Prediction: " << prediction;
-      buffer->AppendToLastLine(editor_state,
-                               NewLazyString(FromByteString(prediction)));
-      buffer->AppendRawLine(editor_state,
-                            std::make_shared<Line>(Line::Options()));
+      buffer->AppendToLastLine(NewLazyString(FromByteString(prediction)));
+      buffer->AppendRawLine(std::make_shared<Line>(Line::Options()));
     }
   }
   buffer->EndOfFile(editor_state);
@@ -269,9 +267,8 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
     for (auto it = contents->lower_bound(input); it != contents->end(); ++it) {
       auto result = mismatch(input.begin(), input.end(), (*it).first.begin());
       if (result.first == input.end()) {
-        buffer->AppendToLastLine(editor_state, it->second);
-        buffer->AppendRawLine(editor_state,
-                              std::make_shared<Line>(Line::Options()));
+        buffer->AppendToLastLine(it->second);
+        buffer->AppendRawLine(std::make_shared<Line>(Line::Options()));
       } else {
         break;
       }
