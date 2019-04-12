@@ -27,11 +27,11 @@ constexpr int Terminal::PAGE_UP;
 constexpr int Terminal::PAGE_DOWN;
 constexpr int Terminal::ESCAPE;
 constexpr int Terminal::CTRL_A;
+constexpr int Terminal::CTRL_D;
 constexpr int Terminal::CTRL_E;
 constexpr int Terminal::CTRL_L;
 constexpr int Terminal::CTRL_U;
 constexpr int Terminal::CTRL_K;
-constexpr int Terminal::CHAR_EOF;
 
 namespace {
 // Returns the number of initial columns to skip, corresponding to output that

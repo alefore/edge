@@ -148,7 +148,7 @@ wint_t ReadChar(std::mbstate_t* mbstate) {
         return Terminal::CTRL_A;
 
       case 4:
-        return Terminal::CHAR_EOF;
+        return Terminal::CTRL_D;
 
       case 5:
         return Terminal::CTRL_E;

@@ -463,7 +463,7 @@ class InsertMode : public EditorMode {
         GetScrollBehavior()->End(editor_state, buffer.get());
         return;
 
-      case Terminal::CHAR_EOF:  // Ctrl_D
+      case Terminal::CTRL_D:
       case Terminal::DELETE:
       case Terminal::BACKSPACE: {
         ResetScrollBehavior();
@@ -556,18 +556,18 @@ class RawInputTypeMode : public EditorMode {
     bool old_literal = literal_;
     literal_ = false;
     switch (static_cast<int>(c)) {
-      case Terminal::CHAR_EOF:
-        line_buffer_.push_back(4);
-        WriteLineBuffer(editor_state);
-        break;
-
       case Terminal::CTRL_A:
         line_buffer_.push_back(1);
         WriteLineBuffer(editor_state);
         break;
 
+      case Terminal::CTRL_D:
+        line_buffer_.push_back(4);
+        WriteLineBuffer(editor_state);
+        break;
+
       case Terminal::CTRL_E:
-        line_buffer_.push_back(0x05);
+        line_buffer_.push_back(5);
         WriteLineBuffer(editor_state);
         break;
 

@@ -1032,6 +1032,49 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"7", std::make_unique<NumberMode>(SetRepetitions));
   commands->Add(L"8", std::make_unique<NumberMode>(SetRepetitions));
   commands->Add(L"9", std::make_unique<NumberMode>(SetRepetitions));
+  commands->Add({Terminal::CTRL_E},
+                NewCppCommand(editor_state->environment(),
+                              L"// Navigate: Move to the end of line.\n"
+                              L"CurrentBuffer().ApplyTransformation("
+                              L"TransformationGoToColumn(999999999999));"));
+  commands->Add({Terminal::CTRL_A},
+                NewCppCommand(editor_state->environment(),
+                              L"// Navigate: Move to the beginning of line.\n"
+                              L"CurrentBuffer().ApplyTransformation("
+                              L"TransformationGoToColumn(0));"));
+  commands->Add({Terminal::CTRL_K},
+                NewCppCommand(editor_state->environment(),
+                              L"// Edit: Delete to end of line.\n"
+                              L"{\n"
+                              L"Modifiers modifiers = Modifiers();\n"
+                              L"modifiers.set_line();\n"
+                              L"CurrentBuffer().ApplyTransformation("
+                              L"TransformationDelete(modifiers));\n"
+                              L"}"));
+  commands->Add({Terminal::CTRL_U},
+                NewCppCommand(editor_state->environment(),
+                              L"// Edit: Delete to the beginning of line.\n"
+                              L"{\n"
+                              L"Modifiers modifiers = Modifiers();\n"
+                              L"modifiers.set_line();\n"
+                              L"modifiers.set_backwards();\n"
+                              L"CurrentBuffer().ApplyTransformation("
+                              L"TransformationDelete(modifiers));\n"
+                              L"}"));
+  commands->Add({Terminal::CTRL_D},
+                NewCppCommand(editor_state->environment(),
+                              L"// Edit: Delete current character.\n"
+                              L"CurrentBuffer().ApplyTransformation("
+                              L"TransformationDelete(Modifiers()));\n"));
+  commands->Add({Terminal::BACKSPACE},
+                NewCppCommand(editor_state->environment(),
+                              L"// Edit: Delete previous character.\n"
+                              L"{\n"
+                              L"Modifiers modifiers = Modifiers();\n"
+                              L"modifiers.set_backwards();\n"
+                              L"CurrentBuffer().ApplyTransformation("
+                              L"TransformationDelete(modifiers));\n"
+                              L"}"));
   commands->Add({Terminal::DOWN_ARROW}, std::make_unique<LineDown>());
   commands->Add({Terminal::UP_ARROW}, std::make_unique<LineUp>());
   commands->Add({Terminal::LEFT_ARROW}, std::make_unique<MoveBackwards>());

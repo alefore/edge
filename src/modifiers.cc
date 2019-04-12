@@ -53,6 +53,11 @@ void Modifiers::Register(vm::Environment* environment) {
                                         []() { return new Modifiers(); })));
 
   modifiers_type->AddField(
+      L"set_backwards",
+      vm::NewCallback(std::function<void(Modifiers*)>(
+          [](Modifiers* output) { output->direction = BACKWARDS; })));
+
+  modifiers_type->AddField(
       L"set_line",
       vm::NewCallback(std::function<void(Modifiers*)>(
           [](Modifiers* output) { output->structure = StructureLine(); })));
