@@ -33,8 +33,6 @@ Reloading the file should reset the cursors.
 
 Search: Should make sure to disable multi active cursors.
 
-Have a 'weak-word' region very similar to word, but breaking at camel-case or underscore.
-
 ## Navigation
 
 Improve "g", the current behavior is kind of annoying:
