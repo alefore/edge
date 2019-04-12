@@ -5,10 +5,11 @@
 #include <map>
 #include <memory>
 
-#include "buffer_variables.h"
-#include "char_buffer.h"
-#include "editor.h"
-#include "lazy_string_append.h"
+#include "src/buffer_variables.h"
+#include "src/char_buffer.h"
+#include "src/editor.h"
+#include "src/lazy_string_append.h"
+#include "src/terminal.h"
 
 namespace afc {
 namespace editor {
@@ -24,10 +25,42 @@ wstring DescribeSequence(wstring input) {
     output.push_back(L' ');  // It isn't a header!
   }
   for (wint_t c : input) {
-    if (c == '\n') {
-      output.push_back(L'↩');
-    } else {
-      output.push_back(static_cast<wchar_t>(c));
+    switch (c) {
+      case '\n':
+        output.push_back(L'↩');
+        break;
+      case Terminal::DOWN_ARROW:
+        output += L"↓";
+        break;
+      case Terminal::UP_ARROW:
+        output += L"↑";
+        break;
+      case Terminal::LEFT_ARROW:
+        output += L"←";
+        break;
+      case Terminal::RIGHT_ARROW:
+        output += L"→";
+        break;
+      case Terminal::BACKSPACE:
+        output += L"← Backspace";
+        break;
+      case Terminal::CTRL_A:
+        output += L"^a";
+        break;
+      case Terminal::CTRL_D:
+        output += L"^d";
+        break;
+      case Terminal::CTRL_E:
+        output += L"^e";
+        break;
+      case Terminal::CTRL_K:
+        output += L"^k";
+        break;
+      case Terminal::CTRL_U:
+        output += L"^u";
+        break;
+      default:
+        output.push_back(static_cast<wchar_t>(c));
     }
   }
   return output;
