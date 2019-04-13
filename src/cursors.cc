@@ -55,9 +55,9 @@ Range OutputOf(const CursorsTracker::Transformation& transformation) {
 }
 
 CursorsTracker::ExtendedTransformation::ExtendedTransformation(
-    const CursorsTracker::Transformation& transformation,
+    CursorsTracker::Transformation transformation,
     ExtendedTransformation* previous)
-    : transformation(transformation) {
+    : transformation(std::move(transformation)) {
   if (transformation.line_delta > 0) {
     empty.begin = transformation.range.begin;
     empty.end = min(
@@ -141,7 +141,7 @@ bool IsNoop(const CursorsTracker::Transformation& t) {
 }
 
 void CursorsTracker::AdjustCursors(Transformation transformation) {
-  auto output = DelayTransformations();
+  auto transformations = scheduled_transformations();
 
   // Remove unnecessary line_lower_bound.
   if (transformation.line_delta == -1 && transformation.column_delta == 0 &&
@@ -154,12 +154,12 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
     return;
   }
 
-  if (transformations_.empty()) {
-    transformations_.emplace_back(transformation, nullptr);
+  if (transformations->empty()) {
+    transformations->emplace_back(transformation, nullptr);
     return;
   }
 
-  auto& last = transformations_.back();
+  auto& last = transformations->back();
   if (last.empty.Contains(transformation.range)) {
     // All cursors in transformation have been moved by last.
     LOG(INFO) << "Removed: " << transformation;
@@ -188,7 +188,7 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
             static_cast<int>(transformation.line_lower_bound -
                              last.transformation.range.begin.line));
     transformation = last.transformation;
-    transformations_.pop_back();
+    transformations->pop_back();
     AdjustCursors(transformation);
     return;
   }
@@ -206,7 +206,7 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
     last.transformation.line_delta = 0;
     last.transformation.column_delta += transformation.column_delta;
     transformation = last.transformation;
-    transformations_.pop_back();
+    transformations->pop_back();
     AdjustCursors(transformation);
     return;
   }
@@ -232,7 +232,7 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
     transformation.range.begin = last.transformation.range.begin;
     transformation.range.end.line += transformation.line_delta;
     transformation.line_delta = 0;
-    transformations_.pop_back();
+    transformations->pop_back();
     AdjustCursors(transformation);
     AdjustCursors(previous);
     return;
@@ -253,7 +253,7 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
         transformation.range.end == LineColumn::Max()) {
       last.transformation.line_delta += transformation.line_delta;
       transformation = last.transformation;
-      transformations_.pop_back();
+      transformations->pop_back();
       AdjustCursors(transformation);
       return;
     }
@@ -262,7 +262,7 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
         transformation.line_delta > 0) {
       last.transformation.range.begin = transformation.range.begin;
       transformation = last.transformation;
-      transformations_.pop_back();
+      transformations->pop_back();
       AdjustCursors(transformation);
       return;
     } else {
@@ -275,13 +275,13 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
       last.transformation.line_delta >= 0) {
     // Swap the order.
     Transformation previous = last.transformation;
-    transformations_.pop_back();
+    transformations->pop_back();
     AdjustCursors(transformation);
     AdjustCursors(previous);
     return;
   }
 
-  transformations_.emplace_back(transformation, &last);
+  transformations->emplace_back(transformation, &last);
 }
 
 void CursorsTracker::ApplyTransformationToCursors(
@@ -325,17 +325,26 @@ size_t CursorsTracker::Pop() {
 }
 
 std::shared_ptr<bool> CursorsTracker::DelayTransformations() {
-  auto output = delay_transformations_.lock();
-  if (output == nullptr) {
-    output = std::shared_ptr<bool>(new bool(), [this](bool* value) {
-      delete value;
-      for (auto& t : transformations_) {
-        ApplyTransformation(t.transformation);
-      }
-      transformations_.clear();
-    });
-    delay_transformations_ = output;
+  auto shared_lock = scheduled_transformations();
+  return std::shared_ptr<bool>(new bool(),
+                               [shared_lock](bool* value) { delete value; });
+}
+
+std::shared_ptr<std::list<CursorsTracker::ExtendedTransformation>>
+CursorsTracker::scheduled_transformations() {
+  auto output = scheduled_transformations_.lock();
+  if (output != nullptr) {
+    return output;
   }
+  output = std::shared_ptr<std::list<ExtendedTransformation>>(
+      new std::list<ExtendedTransformation>(),
+      [this](std::list<ExtendedTransformation>* transformations) {
+        for (auto& t : *transformations) {
+          ApplyTransformation(t.transformation);
+        }
+        delete transformations;
+      });
+  scheduled_transformations_ = output;
   return output;
 }
 

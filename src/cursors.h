@@ -122,7 +122,7 @@ class CursorsTracker {
   // Contains a transformation along with additional information that can be
   // used to optimize transformations.
   struct ExtendedTransformation {
-    ExtendedTransformation(const CursorsTracker::Transformation& transformation,
+    ExtendedTransformation(CursorsTracker::Transformation transformation,
                            ExtendedTransformation* previous);
 
     std::wstring ToString();
@@ -137,6 +137,9 @@ class CursorsTracker {
     // transformation.
     Range owned;
   };
+
+  std::shared_ptr<std::list<ExtendedTransformation>>
+  scheduled_transformations();
 
   void ApplyTransformation(const Transformation& transformation);
 
@@ -158,8 +161,7 @@ class CursorsTracker {
   // operate.
   std::list<CursorsSet> cursors_stack_;
 
-  std::weak_ptr<bool> delay_transformations_;
-  std::list<ExtendedTransformation> transformations_;
+  std::weak_ptr<std::list<ExtendedTransformation>> scheduled_transformations_;
 };
 
 std::ostream& operator<<(std::ostream& os,
