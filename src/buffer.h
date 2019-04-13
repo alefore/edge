@@ -174,7 +174,7 @@ class OpenBuffer {
 
   void set_current_cursor(CursorsSet::value_type new_cursor);
   void CreateCursor();
-  CursorsSet::iterator FindNextCursor(LineColumn cursor);
+  LineColumn FindNextCursor(LineColumn cursor);
   void DestroyCursor();
   void DestroyOtherCursors();
 

@@ -37,28 +37,20 @@ class MoveTransformation : public Transformation {
     } else if (structure == StructureCursor()) {
       // Handles repetitions.
       auto active_cursors = buffer->active_cursors();
-      auto next_cursor = buffer->FindNextCursor(result->cursor);
-      if (next_cursor == active_cursors->end()) {
-        LOG(INFO) << "Unable to find next cursor.";
-        result->success = false;
-        return;
-      }
-
-      if (*next_cursor == result->cursor) {
+      LineColumn next_cursor = buffer->FindNextCursor(result->cursor);
+      if (next_cursor == result->cursor) {
         LOG(INFO) << "Cursor didn't move.";
         return;
       }
 
-      LineColumn original_cursor = result->cursor;
-      result->cursor = *next_cursor;
+      VLOG(5) << "Moving cursor from " << result->cursor << " to "
+              << next_cursor;
 
-      VLOG(5) << "Moving cursor from " << *next_cursor << " to "
-              << original_cursor;
-
-      if (*next_cursor != buffer->position()) {
-        active_cursors->erase(next_cursor);
-        active_cursors->insert(original_cursor);
-      }
+      auto next_it = active_cursors->find(next_cursor);
+      CHECK(next_it != active_cursors->end());
+      active_cursors->erase(next_it);
+      active_cursors->insert(result->cursor);
+      result->cursor = next_cursor;
 
       editor_state->ScheduleRedraw();
       editor_state->ResetRepetitions();

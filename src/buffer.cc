@@ -1579,13 +1579,11 @@ void OpenBuffer::CreateCursor() {
   editor_->ScheduleRedraw();
 }
 
-CursorsSet::iterator OpenBuffer::FindNextCursor(LineColumn position) {
+LineColumn OpenBuffer::FindNextCursor(LineColumn position) {
   LOG(INFO) << "Visiting next cursor: " << editor_->modifiers();
   auto direction = editor_->modifiers().direction;
   auto cursors = active_cursors();
-  if (cursors->empty()) {
-    return cursors->end();
-  }
+  CHECK(!cursors->empty());
 
   size_t index = 0;
   auto output = cursors->begin();
@@ -1608,7 +1606,7 @@ CursorsSet::iterator OpenBuffer::FindNextCursor(LineColumn position) {
   }
   output = cursors->begin();
   std::advance(output, final_position);
-  return output;
+  return *output;
 }
 
 void OpenBuffer::DestroyCursor() {
