@@ -15,6 +15,9 @@
 namespace afc {
 namespace editor {
 
+// A set of LineColumn entries, with a specific one designated as the "active"
+// one. The LineColumn entries aren't bound to any specific buffer, so they may
+// exceed past the length of all buffers. The set may be empty.
 struct CursorsSet {
   using Iterator = std::multiset<LineColumn>::iterator;
   using const_iterator = std::multiset<LineColumn>::const_iterator;
@@ -143,7 +146,6 @@ class CursorsTracker {
   };
 
   CursorsTracker();
-  ~CursorsTracker() = default;
 
   // Returns the position of the current cursor.
   LineColumn position() const;
