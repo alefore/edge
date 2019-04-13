@@ -60,8 +60,9 @@ struct ResolvePathOptions {
   // Where to write the results: the absolute path pointing to the file.
   wstring* output_path;
 
-  // Optional.
-  LineColumn* output_position = nullptr;
+  // If non-nullptr, may get set to a position (if the path specifies a position
+  // to jump to).
+  std::optional<LineColumn>* output_position = nullptr;
 
   // Optional.
   wstring* output_pattern = nullptr;

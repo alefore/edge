@@ -56,7 +56,6 @@ editor::OpenBuffer* VMTypeMapper<editor::OpenBuffer*>::get(Value* value) {
 
 const VMType VMTypeMapper<editor::OpenBuffer*>::vmtype =
     VMType::ObjectType(L"Buffer");
-
 }  // namespace vm
 namespace editor {
 namespace {
@@ -644,10 +643,17 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
 }
 
 void OpenBuffer::MaybeFollowToEndOfFile() {
-  if (IsPastPosition(desired_position_)) {
-    VLOG(5) << "desired_position_ is realized: " << desired_position_;
-    set_position(desired_position_);
-    desired_position_ = LineColumn::Max();
+  while (!future_positions_.empty() &&
+         *future_positions_.begin() < end_position()) {
+    auto position = *future_positions_.begin();
+    if (future_positions_active_.has_value() &&
+        future_positions_active_.value() == position) {
+      cursors_tracker_.MoveCurrentCursor(active_cursors(), position);
+      future_positions_active_ = std::nullopt;
+    } else {
+      active_cursors()->insert(position);
+    }
+    future_positions_.erase(future_positions_.begin());
   }
   if (!Read(buffer_variables::follow_end_of_file())) {
     return;
@@ -655,7 +661,7 @@ void OpenBuffer::MaybeFollowToEndOfFile() {
   if (Read(buffer_variables::pts())) {
     set_position(position_pts_);
   } else {
-    set_position(LineColumn(contents_.size()));
+    set_position(LineColumn(contents_.size() - 1));
   }
 }
 
@@ -889,7 +895,7 @@ void OpenBuffer::StartNewLine(EditorState* editor_state) {
 
     if (Read(buffer_variables::contains_line_marks())) {
       wstring path;
-      LineColumn position;
+      std::optional<LineColumn> position;
       wstring pattern;
       ResolvePathOptions options;
       options.editor_state = editor_state;
@@ -902,7 +908,9 @@ void OpenBuffer::StartNewLine(EditorState* editor_state) {
         mark.source = Read(buffer_variables::name());
         mark.source_line = contents_.size() - 1;
         mark.target_buffer = path;
-        mark.target = position;
+        if (position.has_value()) {
+          mark.target = position.value();
+        }
         LOG(INFO) << "Found a mark: " << mark;
         editor_state->line_marks()->AddMark(mark);
       }
@@ -912,6 +920,18 @@ void OpenBuffer::StartNewLine(EditorState* editor_state) {
 }
 
 void OpenBuffer::Reload(EditorState* editor_state) {
+  VLOG(5) << "Inserting current position into future_positions_: "
+          << position();
+  auto cursors = active_cursors();
+  future_positions_.insert(cursors->begin(), cursors->end());
+  if (future_positions_active_.has_value()) {
+    future_positions_.erase(position());
+  } else {
+    future_positions_active_ = position();
+  }
+  cursors->clear();
+  cursors->insert(LineColumn());
+  cursors_tracker_.SetCurrentCursor(cursors, LineColumn());
   if (child_pid_ != -1) {
     LOG(INFO) << "Sending SIGTERM.";
     kill(-child_pid_, SIGTERM);
@@ -931,14 +951,9 @@ void OpenBuffer::Reload(EditorState* editor_state) {
     }
     EvaluateFile(editor_state, state_path);
   }
-  if (desired_position_ == LineColumn::Max()) {
-    VLOG(5) << "Setting desired_position_ to current position: " << position();
-    desired_position_ = position();
-  }
   ClearModified();
   LOG(INFO) << "Starting reload: " << Read(buffer_variables::name());
   ReloadInto(editor_state, this);
-  CheckPosition();
 }
 
 void OpenBuffer::Save(EditorState* editor_state) {
@@ -1877,8 +1892,13 @@ const LineColumn OpenBuffer::position() const {
 
 void OpenBuffer::set_position(const LineColumn& position) {
   if (!IsPastPosition(position)) {
-    VLOG(5) << "Setting desired_position_: " << position;
-    desired_position_ = position;
+    VLOG(5) << "Inserting into future_positions_: " << position;
+    if (future_positions_active_.has_value()) {
+      future_positions_.erase(future_positions_active_.value());
+    }
+    future_positions_.insert(position);
+    future_positions_active_ = position;
+    return;
   }
   set_current_cursor(
       LineColumn(min(position.line, contents_.size()), position.column));

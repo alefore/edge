@@ -198,8 +198,6 @@ class FileBuffer : public OpenBuffer {
         int fd = open(ToByteString(path).c_str(), O_RDONLY | O_NONBLOCK);
         target->SetInputFiles(editor_state, fd, -1, false, -1);
       }
-      editor_state->CheckPosition();
-      editor_state->PushCurrentPosition();
       return;
     }
 
@@ -251,8 +249,6 @@ class FileBuffer : public OpenBuffer {
     ShowFiles(editor_state, L"Noise", std::move(noise), target);
 
     target->ClearModified();
-    editor_state->CheckPosition();
-    editor_state->PushCurrentPosition();
   }
 
   void Save(EditorState* editor_state) {
@@ -433,8 +429,9 @@ static bool CanStatPath(const wstring& path) {
 
 bool FindPath(EditorState* editor_state, vector<wstring> search_paths,
               wstring path, std::function<bool(const wstring&)> validator,
-              wstring* resolved_path, LineColumn* position, wstring* pattern) {
-  LineColumn position_dummy;
+              wstring* resolved_path, std::optional<LineColumn>* position,
+              wstring* pattern) {
+  std::optional<LineColumn> position_dummy;
   if (position == nullptr) {
     position = &position_dummy;
   }
@@ -468,7 +465,6 @@ bool FindPath(EditorState* editor_state, vector<wstring> search_paths,
         continue;
       }
 
-      *position = LineColumn();
       *pattern = L"";
       for (size_t i = 0; i < 2; i++) {
         while (str_end < path.size() && ':' == path[str_end]) {
@@ -496,7 +492,10 @@ bool FindPath(EditorState* editor_state, vector<wstring> search_paths,
             LOG(INFO) << "stoi failed: out of range: " << arg;
             break;
           }
-          (i == 0 ? position->line : position->column) = value;
+          if (!position->has_value()) {
+            *position = LineColumn();
+          }
+          (i == 0 ? position->value().line : position->value().column) = value;
         }
         str_end = next_str_end;
         if (str_end == path.npos) {
@@ -513,7 +512,7 @@ bool FindPath(EditorState* editor_state, vector<wstring> search_paths,
 
 static bool FindPath(EditorState* editor_state, vector<wstring> search_paths,
                      const wstring& path, wstring* resolved_path,
-                     LineColumn* position, wstring* pattern) {
+                     std::optional<LineColumn>* position, wstring* pattern) {
   return FindPath(editor_state, search_paths, path, CanStatPath, resolved_path,
                   position, pattern);
 }
@@ -576,7 +575,7 @@ bool ResolvePath(ResolvePathOptions options) {
 map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     const OpenFileOptions& options) {
   EditorState* editor_state = options.editor_state;
-  LineColumn position;
+  std::optional<LineColumn> position;
   wstring pattern;
 
   vector<wstring> search_paths = options.initial_search_paths;
@@ -608,7 +607,9 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     if (FindPath(editor_state, {L""}, options.path, validator, &actual_path,
                  &position, &pattern)) {
       editor_state->set_current_buffer(buffer);
-      buffer->second->set_position(position);
+      if (position.has_value()) {
+        buffer->second->set_position(position.value());
+      }
       // TODO: Apply pattern.
       editor_state->ScheduleRedraw();
       return buffer;
@@ -639,8 +640,9 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   } else {
     it.first->second->ResetMode();
   }
-  editor_state->PushCurrentPosition();
-  it.first->second->set_position(position);
+  if (position.has_value()) {
+    it.first->second->set_position(position.value());
+  }
   if (options.make_current_buffer) {
     editor_state->set_current_buffer(it.first);
     editor_state->ScheduleRedraw();

@@ -523,10 +523,10 @@ class OpenBuffer {
 
   CursorsTracker cursors_tracker_;
 
-  // If we get a request to open a buffer and jump to a given line, we store
-  // that value here. Once we've read enough, we stay at this position. It can
-  // be set to LineColumn::Max to signify "no desired position".
-  LineColumn desired_position_;
+  // As a buffer is being read, stores a set of positions where we'd like to
+  // have cursors. As lines are read, the cursors materialize in them.
+  CursorsSet future_positions_;
+  std::optional<LineColumn> future_positions_active_;
 
   std::shared_ptr<const ParseTree> parse_tree_;
   std::shared_ptr<const ParseTree> simplified_parse_tree_;
