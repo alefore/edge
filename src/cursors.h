@@ -15,7 +15,73 @@
 namespace afc {
 namespace editor {
 
-typedef std::multiset<LineColumn> CursorsSet;
+struct CursorsSet {
+  using Iterator = std::multiset<LineColumn>::iterator;
+  using const_iterator = std::multiset<LineColumn>::const_iterator;
+
+  CursorsSet() : active(cursors.end()) {}
+
+  void SetCurrentCursor(LineColumn position);
+  void MoveCurrentCursor(LineColumn position);
+
+  // cursors must have at least two elements.
+  void DeleteCurrentCursor();
+
+  size_t size() { return cursors.size(); }
+  bool empty() { return cursors.empty(); }
+  Iterator insert(LineColumn line) {
+    Iterator it = cursors.insert(line);
+    if (active == cursors.end()) {
+      active = it;
+    }
+    return it;
+  }
+
+  Iterator lower_bound(LineColumn line) { return cursors.lower_bound(line); }
+  Iterator find(LineColumn line) { return cursors.find(line); }
+
+  void erase(Iterator it) {
+    CHECK(it != end());
+    if (it == active) {
+      active++;
+      if (active == cursors.end() && it != cursors.begin()) {
+        active = cursors.begin();
+      }
+    }
+    cursors.erase(it);
+  }
+  void erase(LineColumn position) {
+    auto it = cursors.find(position);
+    if (it != cursors.end()) {
+      erase(it);
+    }
+  }
+
+  void swap(CursorsSet* other);
+
+  void clear() {
+    cursors.clear();
+    active = cursors.end();
+  }
+
+  template <typename Iterator>
+  void insert(Iterator begin, Iterator end) {
+    cursors.insert(begin, end);
+    if (active == cursors.end()) {
+      active = this->begin();
+    }
+  }
+
+  const_iterator begin() const { return cursors.begin(); }
+  const_iterator end() const { return cursors.end(); }
+  Iterator begin() { return cursors.begin(); }
+  Iterator end() { return cursors.end(); }
+
+  std::multiset<LineColumn>::iterator active;
+
+ private:
+  std::multiset<LineColumn> cursors;
+};
 
 class CursorsTracker {
  public:
@@ -90,10 +156,6 @@ class CursorsTracker {
   // and set that as the current cursor.
   void MoveCurrentCursor(CursorsSet* cursors, LineColumn position);
 
-  // current_cursor_ must be a value in cursors. cursors must have at least two
-  // elements.
-  void DeleteCurrentCursor(CursorsSet* cursors);
-
   CursorsSet* FindOrCreateCursors(const std::wstring& name) {
     return &cursors_[name];
   }
@@ -154,8 +216,8 @@ class CursorsTracker {
   // cursors to modify is empty, we just swap it back with this.
   CursorsSet already_applied_cursors_;
 
-  // Points to an entry in a value in cursors_.
-  CursorsSet::iterator current_cursor_;
+  // A key in cursors_.
+  std::wstring active_set_;
 
   // A stack of sets of cursors on which PushActiveCursors and PopActiveCursors
   // operate.

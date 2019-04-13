@@ -15,6 +15,33 @@
 namespace afc {
 namespace editor {
 
+void CursorsSet::SetCurrentCursor(LineColumn position) {
+  active = cursors.find(position);
+  CHECK(active != cursors.end());
+  LOG(INFO) << "Current cursor set to: " << *active;
+}
+
+void CursorsSet::MoveCurrentCursor(LineColumn position) {
+  cursors.insert(position);
+  DeleteCurrentCursor();
+  SetCurrentCursor(position);
+}
+
+void CursorsSet::DeleteCurrentCursor() {
+  CHECK(cursors.size() > 1) << "Attempted to delete the last cursor in set.";
+  cursors.erase(active);
+}
+
+void CursorsSet::swap(CursorsSet* other) {
+  size_t active_distance = std::distance(begin(), active);
+  size_t other_active_distance = std::distance(other->begin(), other->active);
+  cursors.swap(other->cursors);
+  active = begin();
+  other->active = other->begin();
+  std::advance(active, other_active_distance);
+  std::advance(other->active, active_distance);
+}
+
 bool RangeContains(const Range& range,
                    const CursorsTracker::Transformation& transformation) {
   return range.Contains(transformation.range);
@@ -78,48 +105,39 @@ std::wstring CursorsTracker::ExtendedTransformation::ToString() {
   //        << ", owned: " + owned + "]";
 }
 
-CursorsTracker::CursorsTracker() {
-  current_cursor_ = cursors_[L""].insert(LineColumn());
+CursorsTracker::CursorsTracker() : active_set_(L"") {
+  cursors_[active_set_].insert(LineColumn());
 }
 
-LineColumn CursorsTracker::position() const { return *current_cursor_; }
+LineColumn CursorsTracker::position() const {
+  CHECK_EQ(cursors_.count(active_set_), 1);
+  return *cursors_.find(active_set_)->second.active;
+}
 
 void CursorsTracker::SetCurrentCursor(CursorsSet* cursors,
                                       LineColumn position) {
-  current_cursor_ = cursors->find(position);
-  CHECK(current_cursor_ != cursors->end());
-  LOG(INFO) << "Current cursor set to: " << *current_cursor_;
+  cursors->SetCurrentCursor(position);
 }
 
 void CursorsTracker::MoveCurrentCursor(CursorsSet* cursors,
                                        LineColumn position) {
-  cursors->insert(position);
-  DeleteCurrentCursor(cursors);
-  SetCurrentCursor(cursors, position);
-}
-
-void CursorsTracker::DeleteCurrentCursor(CursorsSet* cursors) {
-  CHECK(cursors != nullptr);
-  CHECK(cursors->size() > 1) << "Attempted to delete the last cursor in set.";
-  cursors->erase(current_cursor_++);
-  if (current_cursor_ == cursors->end()) {
-    current_cursor_ = cursors->begin();
-  }
+  cursors->MoveCurrentCursor(position);
 }
 
 void AdjustCursorsSet(const CursorsTracker::Transformation& transformation,
-                      CursorsSet* cursors_set,
-                      CursorsSet::iterator* current_cursor) {
+                      CursorsSet* cursors_set) {
   VLOG(8) << "Adjusting cursor set of size: " << cursors_set->size();
 
-  // Transfer all affected cursors from cursors into cursors_affected.
+  // Transfer affected cursors from cursors into cursors_affected.
   CursorsSet cursors_affected;
   auto it = cursors_set->lower_bound(transformation.range.begin);
   auto end = cursors_set->lower_bound(transformation.range.end);
+  bool transferred_active = false;
   while (it != end) {
     auto result = cursors_affected.insert(*it);
-    if (it == *current_cursor) {
-      *current_cursor = result;
+    if (it == cursors_set->active && !transferred_active) {
+      transferred_active = true;
+      cursors_affected.active = result;
     }
     cursors_set->erase(it++);
   }
@@ -129,8 +147,8 @@ void AdjustCursorsSet(const CursorsTracker::Transformation& transformation,
     auto position = transformation.Transform(*it);
 
     auto result = cursors_set->insert(position);
-    if (it == *current_cursor) {
-      *current_cursor = result;
+    if (transferred_active && cursors_affected.active == it) {
+      cursors_set->active = result;
     }
   }
 }
@@ -287,24 +305,36 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
 void CursorsTracker::ApplyTransformationToCursors(
     CursorsSet* cursors, std::function<LineColumn(LineColumn)> callback) {
   CHECK(cursors != nullptr);
-  LOG(INFO) << "Applying transformation to cursors: " << cursors->size();
-  CHECK(already_applied_cursors_.empty());
-  bool adjusted_current_cursor = false;
-  while (!cursors->empty()) {
-    auto new_position = callback(*cursors->begin());
+  CHECK(cursors != &already_applied_cursors_);
+  CHECK(!cursors->empty());
+  CHECK(cursors->active != cursors->end());
 
-    auto insert_result = already_applied_cursors_.insert(new_position);
-    if (cursors->begin() == current_cursor_) {
+  LOG(INFO) << "Applying transformation to cursors: " << cursors->size()
+            << " active is: " << *cursors->active;
+  CHECK(already_applied_cursors_.empty());
+  CHECK(already_applied_cursors_.active == already_applied_cursors_.end());
+  bool adjusted_active_cursor = false;
+  while (!cursors->empty()) {
+    VLOG(6) << "Adjusting cursor: " << *cursors->begin();
+    auto insert_result =
+        already_applied_cursors_.insert(callback(*cursors->begin()));
+    if (!adjusted_active_cursor && cursors->begin() == cursors->active) {
       VLOG(6) << "Adjusting default cursor (multiple): " << *insert_result;
-      current_cursor_ = insert_result;
-      adjusted_current_cursor = true;
+      already_applied_cursors_.active = insert_result;
+      adjusted_active_cursor = true;
     }
     cursors->erase(cursors->begin());
   }
 
-  cursors->swap(already_applied_cursors_);
-  CHECK(adjusted_current_cursor);
-  LOG(INFO) << "Current cursor at: " << *current_cursor_;
+  CHECK(already_applied_cursors_.active != already_applied_cursors_.end());
+  CHECK(cursors->active == cursors->end());
+  VLOG(5) << "Before swap, active: " << *already_applied_cursors_.active;
+  cursors->swap(&already_applied_cursors_);
+  CHECK(already_applied_cursors_.empty());
+  CHECK(already_applied_cursors_.active == already_applied_cursors_.end());
+  CHECK(cursors->active != cursors->end());
+
+  LOG(INFO) << "Current cursor at: " << *cursors->active;
 }
 
 size_t CursorsTracker::Push() {
@@ -317,9 +347,8 @@ size_t CursorsTracker::Pop() {
     return 0;
   }
 
-  cursors_[L""].swap(cursors_stack_.back());
+  cursors_[L""].swap(&cursors_stack_.back());
   cursors_stack_.pop_back();
-  current_cursor_ = cursors_[L""].begin();
 
   return cursors_stack_.size() + 1;
 }
@@ -353,12 +382,12 @@ void CursorsTracker::ApplyTransformation(const Transformation& transformation) {
     return;
   }
   for (auto& cursors_set : cursors_) {
-    AdjustCursorsSet(transformation, &cursors_set.second, &current_cursor_);
+    AdjustCursorsSet(transformation, &cursors_set.second);
   }
   for (auto& cursors_set : cursors_stack_) {
-    AdjustCursorsSet(transformation, &cursors_set, &current_cursor_);
+    AdjustCursorsSet(transformation, &cursors_set);
   }
-  AdjustCursorsSet(transformation, &already_applied_cursors_, &current_cursor_);
+  AdjustCursorsSet(transformation, &already_applied_cursors_);
 }
 
 std::ostream& operator<<(std::ostream& os,

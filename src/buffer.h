@@ -172,7 +172,7 @@ class OpenBuffer {
   // a mark (based on line_marks_).
   void SetActiveCursorsToMarks();
 
-  void set_current_cursor(CursorsSet::value_type new_cursor);
+  void set_current_cursor(LineColumn new_cursor);
   void CreateCursor();
   LineColumn FindNextCursor(LineColumn cursor);
   void DestroyCursor();

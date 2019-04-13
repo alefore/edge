@@ -1471,7 +1471,7 @@ void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
     return;
   }
   auto cursors = active_cursors();
-  FindCursors(kOldCursors)->swap(*cursors);
+  FindCursors(kOldCursors)->swap(cursors);
   cursors->clear();
   cursors->insert(positions.begin(), positions.end());
 
@@ -1487,7 +1487,7 @@ void OpenBuffer::ToggleActiveCursors() {
   LineColumn desired_position = position();
 
   auto cursors = active_cursors();
-  FindCursors(kOldCursors)->swap(*cursors);
+  FindCursors(kOldCursors)->swap(cursors);
 
   // TODO: Maybe it'd be best to pick the nearest after the cursor?
   // TODO: This should probably be merged somewhat with set_active_cursors?
@@ -1535,14 +1535,11 @@ void OpenBuffer::SetActiveCursorsToMarks() {
   set_active_cursors(cursors);
 }
 
-void OpenBuffer::set_current_cursor(CursorsSet::value_type new_value) {
+void OpenBuffer::set_current_cursor(LineColumn new_value) {
   auto cursors = active_cursors();
   // Need to do find + erase because cursors is a multiset; we only want to
   // erase one cursor, rather than all cursors with the current value.
-  auto it = cursors->find(position());
-  if (it != cursors->end()) {
-    cursors->erase(it);
-  }
+  cursors->erase(position());
   cursors->insert(new_value);
   cursors_tracker_.SetCurrentCursor(cursors, new_value);
   CHECK_LE(position().line, contents_.size());
@@ -1617,7 +1614,7 @@ void OpenBuffer::DestroyCursor() {
   size_t repetitions =
       min(editor_->modifiers().repetitions, cursors->size() - 1);
   for (size_t i = 0; i < repetitions; i++) {
-    cursors_tracker_.DeleteCurrentCursor(cursors);
+    cursors->DeleteCurrentCursor();
   }
   CHECK_LE(position().line, contents_.size());
   editor_->ScheduleRedraw();

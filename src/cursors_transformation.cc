@@ -21,7 +21,7 @@ class SetCursorsTransformation : public Transformation {
     CHECK(result != nullptr);
     vector<LineColumn> positions = {active_};
     bool skipped = false;
-    for (auto& cursor : cursors_) {
+    for (const auto& cursor : cursors_) {
       if (!skipped && cursor == active_) {
         skipped = true;
       } else {

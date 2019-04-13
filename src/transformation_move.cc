@@ -37,6 +37,11 @@ class MoveTransformation : public Transformation {
     } else if (structure == StructureCursor()) {
       // Handles repetitions.
       auto active_cursors = buffer->active_cursors();
+      if (result->cursor != *active_cursors->active) {
+        LOG(INFO) << "Skipping cursor.";
+        return;
+      }
+
       LineColumn next_cursor = buffer->FindNextCursor(result->cursor);
       if (next_cursor == result->cursor) {
         LOG(INFO) << "Cursor didn't move.";
