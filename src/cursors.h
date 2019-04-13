@@ -15,16 +15,20 @@
 namespace afc {
 namespace editor {
 
-// A set of LineColumn entries, with a specific one designated as the "active"
-// one. The LineColumn entries aren't bound to any specific buffer, so they may
-// exceed past the length of all buffers. The set may be empty.
+// A multiset of LineColumn entries, with a specific one designated as the
+// "active" one. The LineColumn entries aren't bound to any specific buffer, so
+// they may exceed past the length of any and all buffers. The set may be empty.
 struct CursorsSet {
   using Iterator = std::multiset<LineColumn>::iterator;
   using const_iterator = std::multiset<LineColumn>::const_iterator;
 
   CursorsSet() : active(cursors.end()) {}
 
+  // position must already be a value in the set (or we'll crash).
   void SetCurrentCursor(LineColumn position);
+
+  // Remove the current cursor from the set, add a new cursor at the position,
+  // and set that as the current cursor.
   void MoveCurrentCursor(LineColumn position);
 
   // cursors must have at least two elements.
@@ -149,14 +153,6 @@ class CursorsTracker {
 
   // Returns the position of the current cursor.
   LineColumn position() const;
-
-  // cursors *must* be a value in cursors_ and position must already be a value
-  // in that set (we verify the later, not the former).
-  void SetCurrentCursor(CursorsSet* cursors, LineColumn position);
-
-  // Remove the current cursor from the set, add a new cursor at the position,
-  // and set that as the current cursor.
-  void MoveCurrentCursor(CursorsSet* cursors, LineColumn position);
 
   CursorsSet* FindOrCreateCursors(const std::wstring& name) {
     return &cursors_[name];

@@ -114,16 +114,6 @@ LineColumn CursorsTracker::position() const {
   return *cursors_.find(active_set_)->second.active;
 }
 
-void CursorsTracker::SetCurrentCursor(CursorsSet* cursors,
-                                      LineColumn position) {
-  cursors->SetCurrentCursor(position);
-}
-
-void CursorsTracker::MoveCurrentCursor(CursorsSet* cursors,
-                                       LineColumn position) {
-  cursors->MoveCurrentCursor(position);
-}
-
 void AdjustCursorsSet(const CursorsTracker::Transformation& transformation,
                       CursorsSet* cursors_set) {
   VLOG(8) << "Adjusting cursor set of size: " << cursors_set->size();

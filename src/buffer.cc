@@ -648,7 +648,7 @@ void OpenBuffer::MaybeFollowToEndOfFile() {
     auto position = *future_positions_.begin();
     if (future_positions_active_.has_value() &&
         future_positions_active_.value() == position) {
-      cursors_tracker_.MoveCurrentCursor(active_cursors(), position);
+      active_cursors()->MoveCurrentCursor(position);
       future_positions_active_ = std::nullopt;
     } else {
       active_cursors()->insert(position);
@@ -931,7 +931,6 @@ void OpenBuffer::Reload(EditorState* editor_state) {
   }
   cursors->clear();
   cursors->insert(LineColumn());
-  cursors_tracker_.SetCurrentCursor(cursors, LineColumn());
   if (child_pid_ != -1) {
     LOG(INFO) << "Sending SIGTERM.";
     kill(-child_pid_, SIGTERM);
@@ -1477,7 +1476,7 @@ void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
 
   // We find the first position (rather than just take cursors->begin()) so that
   // we start at the first requested position.
-  cursors_tracker_.SetCurrentCursor(cursors, positions.front());
+  cursors->SetCurrentCursor(positions.front());
   CHECK_LE(position().line, lines_size());
 
   editor_->ScheduleRedraw();
@@ -1494,13 +1493,13 @@ void OpenBuffer::ToggleActiveCursors() {
   for (auto it = cursors->begin(); it != cursors->end(); ++it) {
     if (desired_position == *it) {
       LOG(INFO) << "Desired position " << desired_position << " prevails.";
-      cursors_tracker_.SetCurrentCursor(cursors, desired_position);
+      cursors->SetCurrentCursor(desired_position);
       CHECK_LE(position().line, lines_size());
       return;
     }
   }
 
-  cursors_tracker_.SetCurrentCursor(cursors, *cursors->begin());
+  cursors->SetCurrentCursor(*cursors->begin());
   LOG(INFO) << "Picked up the first cursor: " << position();
   CHECK_LE(position().line, contents_.size());
 
@@ -1541,7 +1540,7 @@ void OpenBuffer::set_current_cursor(LineColumn new_value) {
   // erase one cursor, rather than all cursors with the current value.
   cursors->erase(position());
   cursors->insert(new_value);
-  cursors_tracker_.SetCurrentCursor(cursors, new_value);
+  cursors->SetCurrentCursor(new_value);
   CHECK_LE(position().line, contents_.size());
 }
 
@@ -1627,7 +1626,6 @@ void OpenBuffer::DestroyOtherCursors() {
   auto cursors = active_cursors();
   cursors->clear();
   cursors->insert(position);
-  cursors_tracker_.SetCurrentCursor(cursors, position);
   Set(buffer_variables::multiple_cursors(), false);
   editor_->ScheduleRedraw();
 }
@@ -2028,7 +2026,7 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
     transformations_past_.back()->cursor = position();
     auto new_position = Apply(editor_, transformation->Clone());
     VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
-    cursors_tracker_.MoveCurrentCursor(active_cursors(), new_position);
+    active_cursors()->MoveCurrentCursor(new_position);
     CHECK_LE(position().line, lines_size());
   }
 
