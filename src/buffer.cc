@@ -1579,12 +1579,6 @@ void OpenBuffer::CreateCursor() {
   editor_->ScheduleRedraw();
 }
 
-CursorsSet::iterator OpenBuffer::FindPreviousCursor(LineColumn position) {
-  LOG(INFO) << "Visiting previous cursor: " << editor_->modifiers();
-  editor_->set_direction(ReverseDirection(editor_->modifiers().direction));
-  return FindNextCursor(position);
-}
-
 CursorsSet::iterator OpenBuffer::FindNextCursor(LineColumn position) {
   LOG(INFO) << "Visiting next cursor: " << editor_->modifiers();
   auto direction = editor_->modifiers().direction;
