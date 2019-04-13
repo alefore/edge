@@ -54,7 +54,7 @@ void BufferContents::insert(size_t position_line, const BufferContents& source,
   }
   NotifyUpdateListeners(CursorsTracker::Transformation()
                             .WithBegin(LineColumn(position_line))
-                            .AddToLine(source.size()));
+                            .LineDelta(source.size()));
 }
 
 bool BufferContents::EveryLine(
@@ -98,7 +98,7 @@ void BufferContents::insert_line(size_t line_position,
   lines_.insert(lines_.begin() + line_position, line);
   NotifyUpdateListeners(CursorsTracker::Transformation()
                             .WithBegin(LineColumn(line_position))
-                            .AddToLine(1));
+                            .LineDelta(1));
 }
 
 void BufferContents::DeleteCharactersFromLine(size_t line, size_t column,
@@ -115,8 +115,8 @@ void BufferContents::DeleteCharactersFromLine(size_t line, size_t column,
   NotifyUpdateListeners(CursorsTracker::Transformation()
                             .WithBegin(LineColumn(line, column))
                             .WithEnd(LineColumn(line + 1, 0))
-                            .AddToColumn(-amount)
-                            .OutputColumnGe(column));
+                            .ColumnDelta(-amount)
+                            .ColumnLowerBound(column));
 }
 
 void BufferContents::DeleteCharactersFromLine(size_t line, size_t column) {
@@ -163,8 +163,8 @@ void BufferContents::EraseLines(size_t first, size_t last) {
   lines_.erase(lines_.begin() + first, lines_.begin() + last);
   NotifyUpdateListeners(CursorsTracker::Transformation()
                             .WithBegin(LineColumn(first))
-                            .AddToLine(first - last)
-                            .OutputLineGe(first));
+                            .LineDelta(first - last)
+                            .LineLowerBound(first));
 }
 
 void BufferContents::SplitLine(LineColumn position) {
@@ -175,8 +175,8 @@ void BufferContents::SplitLine(LineColumn position) {
   NotifyUpdateListeners(CursorsTracker::Transformation()
                             .WithBegin(position)
                             .WithEnd(LineColumn(position.line + 1, 0))
-                            .AddToLine(1)
-                            .AddToColumn(-position.column));
+                            .LineDelta(1)
+                            .ColumnDelta(-position.column));
   DeleteCharactersFromLine(position.line, position.column);
 }
 
@@ -189,8 +189,8 @@ void BufferContents::FoldNextLine(size_t position) {
   AppendToLine(position, *at(position + 1));
   NotifyUpdateListeners(CursorsTracker::Transformation()
                             .WithLineEq(position + 1)
-                            .AddToLine(-1)
-                            .AddToColumn(initial_size));
+                            .LineDelta(-1)
+                            .ColumnDelta(initial_size));
   EraseLines(position + 1, position + 2);
 }
 

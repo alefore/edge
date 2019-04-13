@@ -38,23 +38,23 @@ class CursorsTracker {
       return *this;
     }
 
-    CursorsTracker::Transformation AddToLine(size_t delta) {
-      add_to_line = delta;
+    CursorsTracker::Transformation LineDelta(size_t delta) {
+      line_delta = delta;
       return *this;
     }
 
-    CursorsTracker::Transformation OutputLineGe(size_t column) {
-      output_line_ge = column;
+    CursorsTracker::Transformation LineLowerBound(size_t line) {
+      line_lower_bound = line;
       return *this;
     }
 
-    CursorsTracker::Transformation AddToColumn(size_t delta) {
-      add_to_column = delta;
+    CursorsTracker::Transformation ColumnDelta(size_t delta) {
+      column_delta = delta;
       return *this;
     }
 
-    CursorsTracker::Transformation OutputColumnGe(size_t column) {
-      output_column_ge = column;
+    CursorsTracker::Transformation ColumnLowerBound(size_t column) {
+      column_lower_bound = column;
       return *this;
     }
 
@@ -63,14 +63,17 @@ class CursorsTracker {
 
     Range range = Range(LineColumn(), LineColumn::Max());
 
-    int add_to_line = 0;
-    // If add_to_line would leave the output line at a value smaller than this
-    // one, goes with this one.
-    size_t output_line_ge = 0;
+    // Number of lines to add to a given cursor. For example, a cursor
+    // LineColumn(25, 2) will move to LineColumn(20, 2) if lines_delta is -5.
+    int line_delta = 0;
 
-    int add_to_column = 0;
+    // If lines_delta would leave the output line at a value smaller than this
+    // one, goes with this one.
+    size_t line_lower_bound = 0;
+
+    int column_delta = 0;
     // Same as output_line_ge but for column computations.
-    size_t output_column_ge = 0;
+    size_t column_lower_bound = 0;
   };
 
   CursorsTracker();
