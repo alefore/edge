@@ -18,11 +18,10 @@ namespace editor {
 // A multiset of LineColumn entries, with a specific one designated as the
 // "active" one. The LineColumn entries aren't bound to any specific buffer, so
 // they may exceed past the length of any and all buffers. The set may be empty.
-struct CursorsSet {
+class CursorsSet {
+ public:
   using Iterator = std::multiset<LineColumn>::iterator;
   using const_iterator = std::multiset<LineColumn>::const_iterator;
-
-  CursorsSet() : active(cursors.end()) {}
 
   // position must already be a value in the set (or we'll crash).
   void SetCurrentCursor(LineColumn position);
@@ -34,60 +33,40 @@ struct CursorsSet {
   // cursors must have at least two elements.
   void DeleteCurrentCursor();
 
-  size_t size() { return cursors.size(); }
-  bool empty() { return cursors.empty(); }
-  Iterator insert(LineColumn line) {
-    Iterator it = cursors.insert(line);
-    if (active == cursors.end()) {
-      active = it;
-    }
-    return it;
-  }
+  size_t size();
+  bool empty();
+  Iterator insert(LineColumn line);
+  Iterator lower_bound(LineColumn line);
+  Iterator find(LineColumn line);
 
-  Iterator lower_bound(LineColumn line) { return cursors.lower_bound(line); }
-  Iterator find(LineColumn line) { return cursors.find(line); }
-
-  void erase(Iterator it) {
-    CHECK(it != end());
-    if (it == active) {
-      active++;
-      if (active == cursors.end() && it != cursors.begin()) {
-        active = cursors.begin();
-      }
-    }
-    cursors.erase(it);
-  }
-  void erase(LineColumn position) {
-    auto it = cursors.find(position);
-    if (it != cursors.end()) {
-      erase(it);
-    }
-  }
+  void erase(Iterator it);
+  void erase(LineColumn position);
 
   void swap(CursorsSet* other);
 
-  void clear() {
-    cursors.clear();
-    active = cursors.end();
-  }
+  void clear();
 
   template <typename Iterator>
   void insert(Iterator begin, Iterator end) {
-    cursors.insert(begin, end);
-    if (active == cursors.end()) {
-      active = this->begin();
+    cursors_.insert(begin, end);
+    if (active_ == cursors_.end()) {
+      active_ = this->begin();
     }
   }
 
-  const_iterator begin() const { return cursors.begin(); }
-  const_iterator end() const { return cursors.end(); }
-  Iterator begin() { return cursors.begin(); }
-  Iterator end() { return cursors.end(); }
+  const_iterator begin() const { return cursors_.begin(); }
+  const_iterator end() const { return cursors_.end(); }
+  Iterator begin() { return cursors_.begin(); }
+  Iterator end() { return cursors_.end(); }
 
-  std::multiset<LineColumn>::iterator active;
+  const_iterator active() const;
+  Iterator active();
+  void set_active(Iterator iterator);
 
  private:
-  std::multiset<LineColumn> cursors;
+  std::multiset<LineColumn> cursors_;
+  // Must be equal to cursors_.end() iff cursors_ is empty.
+  std::multiset<LineColumn>::iterator active_ = cursors_.end();
 };
 
 class CursorsTracker {
