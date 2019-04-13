@@ -1,6 +1,8 @@
 #ifndef __AFC_EDITOR_CURSORS_H__
 #define __AFC_EDITOR_CURSORS_H__
 
+#include <glog/logging.h>
+
 #include <functional>
 #include <list>
 #include <map>
@@ -8,16 +10,12 @@
 #include <set>
 #include <vector>
 
-#include <glog/logging.h>
-
 #include "src/line_column.h"
 
 namespace afc {
 namespace editor {
 
 typedef std::multiset<LineColumn> CursorsSet;
-
-struct ExtendedTransformation;
 
 class CursorsTracker {
  public:
@@ -76,7 +74,7 @@ class CursorsTracker {
   };
 
   CursorsTracker();
-  ~CursorsTracker();
+  ~CursorsTracker() = default;
 
   // Returns the position of the current cursor.
   LineColumn position() const;
@@ -118,6 +116,25 @@ class CursorsTracker {
   std::shared_ptr<bool> DelayTransformations();
 
  private:
+  // Contains a transformation along with additional information that can be
+  // used to optimize transformations.
+  struct ExtendedTransformation {
+    ExtendedTransformation(const CursorsTracker::Transformation& transformation,
+                           ExtendedTransformation* previous);
+
+    std::wstring ToString();
+
+    CursorsTracker::Transformation transformation;
+
+    // A range that is known to not have any cursors after this transformation
+    // is applied.
+    Range empty;
+
+    // A range where we know that any cursors here were moved by this
+    // transformation.
+    Range owned;
+  };
+
   void ApplyTransformation(const Transformation& transformation);
 
   // Contains a family of cursors.

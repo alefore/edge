@@ -55,47 +55,33 @@ Range OutputOf(const CursorsTracker::Transformation& transformation) {
   return transformation.TransformRange(transformation.range);
 }
 
-// Contains a transformation along with additional information that can be used
-// to optimize transformations.
-struct ExtendedTransformation {
-  ExtendedTransformation(const CursorsTracker::Transformation& transformation,
-                         ExtendedTransformation* previous)
-      : transformation(transformation) {
-    if (transformation.add_to_line > 0) {
-      empty.begin = transformation.range.begin;
-      empty.end = min(transformation.range.end,
-                      LineColumn(transformation.range.begin.line +
-                                     transformation.add_to_line,
-                                 transformation.range.begin.column +
-                                     transformation.add_to_column));
-    }
-    if (previous != nullptr) {
-      owned = previous->empty.Intersection(OutputOf(transformation));
-    }
+CursorsTracker::ExtendedTransformation::ExtendedTransformation(
+    const CursorsTracker::Transformation& transformation,
+    ExtendedTransformation* previous)
+    : transformation(transformation) {
+  if (transformation.add_to_line > 0) {
+    empty.begin = transformation.range.begin;
+    empty.end = min(
+        transformation.range.end,
+        LineColumn(
+            transformation.range.begin.line + transformation.add_to_line,
+            transformation.range.begin.column + transformation.add_to_column));
   }
+  if (previous != nullptr) {
+    owned = previous->empty.Intersection(OutputOf(transformation));
+  }
+}
 
-  CursorsTracker::Transformation transformation;
-
-  // A range that is known to not have any cursors after this transformation is
-  // applied.
-  Range empty;
-
-  // A range where we know that any cursors here were moved by this
-  // transformation.
-  Range owned;
-};
-
-std::ostream& operator<<(std::ostream& os, const ExtendedTransformation& t) {
-  os << "[Transformation: " << t.transformation << ", empty: " << t.empty
-     << ", owned: " << t.owned << "]";
-  return os;
+std::wstring CursorsTracker::ExtendedTransformation::ToString() {
+  // TODO: Implement.
+  return L"[transformation]";
+  // return L"[Transformation: " + transformation + L", empty: " + empty
+  //        << ", owned: " + owned + "]";
 }
 
 CursorsTracker::CursorsTracker() {
   current_cursor_ = cursors_[L""].insert(LineColumn());
 }
-
-CursorsTracker::~CursorsTracker() {}
 
 LineColumn CursorsTracker::position() const { return *current_cursor_; }
 
@@ -229,6 +215,7 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
   // Turn:
   // [range: [[0:0], [inf:inf]), line: 1, line_ge: 0, column: 0, column_ge: 0.
   // [range: [[1:0], [5:0]), line: -1, line_ge: 0, column: A, column_ge: 0.
+  //
   // Into:
   // [range: [[4:0], [inf:inf]), line: 1, line_ge: 0, column: 0, column_ge: 0.
   // [range: [[0:0], [4:0]), line: 0, line_ge: 0, column: A, column_ge: 0.
@@ -281,7 +268,7 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
       AdjustCursors(transformation);
       return;
     } else {
-      LOG(INFO) << "Skip: " << last << " - " << transformation;
+      LOG(INFO) << "Skip: " << last.ToString() << " - " << transformation;
     }
   }
 
