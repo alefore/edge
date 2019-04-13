@@ -20,7 +20,7 @@ namespace editor {
 // they may exceed past the length of any and all buffers. The set may be empty.
 class CursorsSet {
  public:
-  using Iterator = std::multiset<LineColumn>::iterator;
+  using iterator = std::multiset<LineColumn>::iterator;
   using const_iterator = std::multiset<LineColumn>::const_iterator;
 
   // position must already be a value in the set (or we'll crash).
@@ -35,19 +35,19 @@ class CursorsSet {
 
   size_t size();
   bool empty();
-  Iterator insert(LineColumn line);
-  Iterator lower_bound(LineColumn line);
-  Iterator find(LineColumn line);
+  iterator insert(LineColumn line);
+  iterator lower_bound(LineColumn line);
+  iterator find(LineColumn line);
 
-  void erase(Iterator it);
+  void erase(iterator it);
   void erase(LineColumn position);
 
   void swap(CursorsSet* other);
 
   void clear();
 
-  template <typename Iterator>
-  void insert(Iterator begin, Iterator end) {
+  template <typename iterator>
+  void insert(iterator begin, iterator end) {
     cursors_.insert(begin, end);
     if (active_ == cursors_.end()) {
       active_ = this->begin();
@@ -56,12 +56,12 @@ class CursorsSet {
 
   const_iterator begin() const { return cursors_.begin(); }
   const_iterator end() const { return cursors_.end(); }
-  Iterator begin() { return cursors_.begin(); }
-  Iterator end() { return cursors_.end(); }
+  iterator begin() { return cursors_.begin(); }
+  iterator end() { return cursors_.end(); }
 
   const_iterator active() const;
-  Iterator active();
-  void set_active(Iterator iterator);
+  iterator active();
+  void set_active(iterator iterator);
 
  private:
   std::multiset<LineColumn> cursors_;

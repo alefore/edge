@@ -36,23 +36,23 @@ size_t CursorsSet::size() { return cursors_.size(); }
 
 bool CursorsSet::empty() { return cursors_.empty(); }
 
-CursorsSet::Iterator CursorsSet::insert(LineColumn line) {
-  Iterator it = cursors_.insert(line);
+CursorsSet::iterator CursorsSet::insert(LineColumn line) {
+  iterator it = cursors_.insert(line);
   if (active_ == cursors_.end()) {
     active_ = it;
   }
   return it;
 }
 
-CursorsSet::Iterator CursorsSet::lower_bound(LineColumn line) {
+CursorsSet::iterator CursorsSet::lower_bound(LineColumn line) {
   return cursors_.lower_bound(line);
 }
 
-CursorsSet::Iterator CursorsSet::find(LineColumn line) {
+CursorsSet::iterator CursorsSet::find(LineColumn line) {
   return cursors_.find(line);
 }
 
-void CursorsSet::erase(Iterator it) {
+void CursorsSet::erase(iterator it) {
   CHECK(it != end());
   if (it == active_) {
     active_++;
@@ -90,12 +90,12 @@ CursorsSet::const_iterator CursorsSet::active() const {
   return active_;
 }
 
-CursorsSet::Iterator CursorsSet::active() {
+CursorsSet::iterator CursorsSet::active() {
   CHECK((active_ == cursors_.end()) == cursors_.empty());
   return active_;
 }
 
-void CursorsSet::set_active(Iterator iterator) {
+void CursorsSet::set_active(iterator iterator) {
   active_ = iterator;
   CHECK((active_ == cursors_.end()) == cursors_.empty());
   CHECK(cursors_.find(*iterator) != cursors_.end());
