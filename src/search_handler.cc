@@ -1,4 +1,4 @@
-#include "search_handler.h"
+#include "src/search_handler.h"
 
 #include <iostream>
 #include <set>
@@ -11,11 +11,11 @@ extern "C" {
 }
 #endif
 
-#include "audio.h"
-#include "buffer_variables.h"
-#include "char_buffer.h"
-#include "editor.h"
-#include "wstring.h"
+#include "src/audio.h"
+#include "src/buffer_variables.h"
+#include "src/char_buffer.h"
+#include "src/editor.h"
+#include "src/wstring.h"
 
 namespace {
 

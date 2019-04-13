@@ -1,4 +1,4 @@
-#include "server.h"
+#include "src/server.h"
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -17,13 +17,13 @@ extern "C" {
 #include <sys/types.h>
 }
 
-#include "buffer.h"
-#include "buffer_variables.h"
-#include "editor.h"
-#include "file_link_mode.h"
-#include "lazy_string.h"
-#include "vm/public/vm.h"
-#include "wstring.h"
+#include "src/buffer.h"
+#include "src/buffer_variables.h"
+#include "src/editor.h"
+#include "src/file_link_mode.h"
+#include "src/lazy_string.h"
+#include "src/vm/public/vm.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

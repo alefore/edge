@@ -1,4 +1,4 @@
-#include "terminal.h"
+#include "src/terminal.h"
 
 #include <glog/logging.h>
 
@@ -6,9 +6,9 @@
 #include <cctype>
 #include <iostream>
 
-#include "buffer_variables.h"
-#include "dirname.h"
-#include "line_marks.h"
+#include "src/buffer_variables.h"
+#include "src/dirname.h"
+#include "src/line_marks.h"
 #include "src/parse_tree.h"
 
 namespace afc {

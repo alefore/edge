@@ -1,7 +1,9 @@
+#include "src/quit_command.h"
+
 #include <memory>
 
-#include "command.h"
-#include "editor.h"
+#include "src/command.h"
+#include "src/editor.h"
 
 namespace afc {
 namespace editor {

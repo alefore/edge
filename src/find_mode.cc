@@ -1,12 +1,13 @@
+#include "src/find_mode.h"
+
 #include <list>
 #include <memory>
 #include <string>
 
-#include "command_mode.h"
-#include "editor.h"
-#include "find_mode.h"
-#include "transformation.h"
-#include "transformation_move.h"
+#include "src/command_mode.h"
+#include "src/editor.h"
+#include "src/transformation.h"
+#include "src/transformation_move.h"
 
 namespace afc {
 namespace editor {

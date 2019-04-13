@@ -1,11 +1,11 @@
-#include "cursors_transformation.h"
+#include "src/cursors_transformation.h"
 
 #include <glog/logging.h>
 
-#include "buffer.h"
-#include "editor.h"
-#include "lazy_string_append.h"
-#include "transformation_delete.h"
+#include "src/buffer.h"
+#include "src/editor.h"
+#include "src/lazy_string_append.h"
+#include "src/transformation_delete.h"
 
 namespace afc {
 namespace editor {

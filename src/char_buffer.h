@@ -4,7 +4,7 @@
 #include <memory>
 #include <vector>
 
-#include "lazy_string.h"
+#include "src/lazy_string.h"
 
 namespace afc {
 namespace editor {

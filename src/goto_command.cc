@@ -1,14 +1,14 @@
-#include "goto_command.h"
+#include "src/goto_command.h"
 
 #include <glog/logging.h>
 
 #include <cmath>
 
-#include "buffer.h"
-#include "buffer_variables.h"
-#include "command.h"
-#include "editor.h"
-#include "transformation.h"
+#include "src/buffer.h"
+#include "src/buffer_variables.h"
+#include "src/command.h"
+#include "src/editor.h"
+#include "src/transformation.h"
 
 namespace afc {
 namespace editor {

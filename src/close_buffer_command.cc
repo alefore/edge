@@ -1,8 +1,8 @@
-#include "close_buffer_command.h"
+#include "src/close_buffer_command.h"
 
 #include <memory>
 
-#include "editor.h"
+#include "src/editor.h"
 
 namespace afc {
 namespace editor {

@@ -1,10 +1,10 @@
-#include "screen_curses.h"
+#include "src/screen_curses.h"
 
 extern "C" {
 #include <ncursesw/curses.h>
 }
 
-#include "terminal.h"
+#include "src/terminal.h"
 
 namespace afc {
 namespace editor {

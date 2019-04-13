@@ -1,19 +1,19 @@
-#include "transformation_delete.h"
+#include "src/transformation_delete.h"
 
 #include <glog/logging.h>
 
-#include "buffer.h"
-#include "buffer_variables.h"
-#include "direction.h"
-#include "editor.h"
-#include "lazy_string_append.h"
-#include "modifiers.h"
+#include "src/buffer.h"
+#include "src/buffer_variables.h"
+#include "src/direction.h"
+#include "src/editor.h"
+#include "src/lazy_string_append.h"
+#include "src/modifiers.h"
+#include "src/transformation.h"
+#include "src/transformation_move.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/environment.h"
 #include "src/vm/public/function_call.h"
-#include "transformation.h"
-#include "transformation_move.h"
-#include "wstring.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

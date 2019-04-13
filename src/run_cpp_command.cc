@@ -2,10 +2,10 @@
 
 #include <memory>
 
-#include "buffer.h"
-#include "command.h"
-#include "editor.h"
-#include "line_prompt_mode.h"
+#include "src/buffer.h"
+#include "src/command.h"
+#include "src/editor.h"
+#include "src/line_prompt_mode.h"
 
 namespace afc {
 namespace editor {

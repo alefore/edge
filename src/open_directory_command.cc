@@ -1,14 +1,14 @@
-#include "open_directory_command.h"
+#include "src/open_directory_command.h"
 
 extern "C" {
 #include <libgen.h>
 }
 
-#include "command.h"
-#include "dirname.h"
-#include "editor.h"
-#include "file_link_mode.h"
-#include "wstring.h"
+#include "src/command.h"
+#include "src/dirname.h"
+#include "src/editor.h"
+#include "src/file_link_mode.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

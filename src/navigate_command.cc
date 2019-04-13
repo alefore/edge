@@ -1,15 +1,15 @@
-#include "navigate_command.h"
+#include "src/navigate_command.h"
 
 #include <glog/logging.h>
 
 #include <map>
 #include <memory>
 
-#include "buffer_variables.h"
-#include "char_buffer.h"
-#include "direction.h"
-#include "editor.h"
-#include "editor_mode.h"
+#include "src/buffer_variables.h"
+#include "src/char_buffer.h"
+#include "src/direction.h"
+#include "src/editor.h"
+#include "src/editor_mode.h"
 
 namespace afc {
 namespace editor {

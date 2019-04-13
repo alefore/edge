@@ -1,4 +1,4 @@
-#include "dirname.h"
+#include "src/dirname.h"
 
 #include <cstring>
 
@@ -8,7 +8,7 @@ extern "C" {
 
 #include <glog/logging.h>
 
-#include "wstring.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

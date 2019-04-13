@@ -1,14 +1,14 @@
-#include "transformation_move.h"
+#include "src/transformation_move.h"
 
 #include <glog/logging.h>
 
 #include <algorithm>
 
-#include "buffer.h"
-#include "direction.h"
-#include "editor.h"
-#include "line_marks.h"
-#include "transformation.h"
+#include "src/buffer.h"
+#include "src/direction.h"
+#include "src/editor.h"
+#include "src/line_marks.h"
+#include "src/transformation.h"
 
 namespace afc {
 namespace editor {

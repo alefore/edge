@@ -9,16 +9,16 @@
 #include <string>
 #include <vector>
 
-#include "args.h"
-#include "audio.h"
-#include "buffer.h"
-#include "command_mode.h"
-#include "direction.h"
-#include "editor_mode.h"
-#include "lazy_string.h"
-#include "line_marks.h"
-#include "modifiers.h"
-#include "transformation.h"
+#include "src/args.h"
+#include "src/audio.h"
+#include "src/buffer.h"
+#include "src/command_mode.h"
+#include "src/direction.h"
+#include "src/editor_mode.h"
+#include "src/lazy_string.h"
+#include "src/line_marks.h"
+#include "src/modifiers.h"
+#include "src/transformation.h"
 #include "vm/public/environment.h"
 #include "vm/public/vm.h"
 

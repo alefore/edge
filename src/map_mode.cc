@@ -1,17 +1,17 @@
-#include "map_mode.h"
+#include "src/map_mode.h"
+
+#include <glog/logging.h>
 
 #include <memory>
 #include <set>
 
-#include <glog/logging.h>
-
-#include "command.h"
-#include "help_command.h"
-#include "vm/public/constant_expression.h"
-#include "vm/public/function_call.h"
-#include "vm/public/types.h"
-#include "vm/public/value.h"
-#include "vm/public/vm.h"
+#include "src/command.h"
+#include "src/help_command.h"
+#include "src/vm/public/constant_expression.h"
+#include "src/vm/public/function_call.h"
+#include "src/vm/public/types.h"
+#include "src/vm/public/value.h"
+#include "src/vm/public/vm.h"
 
 namespace afc {
 namespace editor {

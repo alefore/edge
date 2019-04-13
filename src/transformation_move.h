@@ -1,7 +1,7 @@
 #include <memory>
 
-#include "modifiers.h"
-#include "transformation.h"
+#include "src/modifiers.h"
+#include "src/transformation.h"
 
 namespace afc {
 namespace editor {

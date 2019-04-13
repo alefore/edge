@@ -1,16 +1,16 @@
 #ifndef __AFC_EDITOR_VARIABLES_H__
 #define __AFC_EDITOR_VARIABLES_H__
 
+#include <glog/logging.h>
+
 #include <deque>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <glog/logging.h>
-
-#include "predictor.h"
-#include "wstring.h"
+#include "src/predictor.h"
+#include "src/wstring.h"
 #include "vm/public/types.h"
 
 namespace afc {

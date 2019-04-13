@@ -7,8 +7,8 @@
 #include <string>
 #include <vector>
 
-#include "editor_mode.h"
-#include "map_mode.h"
+#include "src/editor_mode.h"
+#include "src/map_mode.h"
 
 namespace afc {
 namespace editor {

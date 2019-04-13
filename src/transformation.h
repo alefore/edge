@@ -6,10 +6,10 @@
 #include <list>
 #include <memory>
 
-#include "direction.h"
-#include "line.h"
-#include "modifiers.h"
-#include "structure.h"
+#include "src/direction.h"
+#include "src/line.h"
+#include "src/modifiers.h"
+#include "src/structure.h"
 
 namespace afc {
 namespace editor {

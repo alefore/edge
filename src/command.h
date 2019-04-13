@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "editor_mode.h"
+#include "src/editor_mode.h"
 
 namespace afc {
 namespace editor {

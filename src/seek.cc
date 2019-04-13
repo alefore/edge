@@ -1,6 +1,6 @@
 #include "src/seek.h"
 
-#include "wstring.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

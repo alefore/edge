@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "line_column.h"
+#include "src/line_column.h"
 
 namespace afc {
 namespace editor {

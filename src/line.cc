@@ -1,16 +1,16 @@
-#include "line.h"
+#include "src/line.h"
 
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <unordered_set>
 
-#include "buffer_variables.h"
-#include "char_buffer.h"
-#include "editor.h"
-#include "lazy_string_append.h"
-#include "substring.h"
-#include "wstring.h"
+#include "src/buffer_variables.h"
+#include "src/char_buffer.h"
+#include "src/editor.h"
+#include "src/lazy_string_append.h"
+#include "src/substring.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

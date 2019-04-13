@@ -1,9 +1,9 @@
-#include "repeat_mode.h"
+#include "src/repeat_mode.h"
 
 #include <memory>
 
-#include "command_mode.h"
-#include "editor.h"
+#include "src/command_mode.h"
+#include "src/editor.h"
 
 namespace {
 using namespace afc::editor;

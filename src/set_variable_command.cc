@@ -1,13 +1,15 @@
+#include "src/set_variable_command.h"
+
 #include <map>
 #include <memory>
 #include <string>
 
-#include "buffer.h"
-#include "buffer_variables.h"
-#include "command_mode.h"
-#include "editor.h"
-#include "line_prompt_mode.h"
-#include "wstring.h"
+#include "src/buffer.h"
+#include "src/buffer_variables.h"
+#include "src/command_mode.h"
+#include "src/editor.h"
+#include "src/line_prompt_mode.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

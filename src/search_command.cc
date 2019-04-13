@@ -1,12 +1,12 @@
-#include "search_command.h"
+#include "src/search_command.h"
 
-#include "buffer.h"
-#include "buffer_variables.h"
-#include "command.h"
-#include "editor.h"
-#include "line_prompt_mode.h"
-#include "search_handler.h"
-#include "transformation.h"
+#include "src/buffer.h"
+#include "src/buffer_variables.h"
+#include "src/command.h"
+#include "src/editor.h"
+#include "src/line_prompt_mode.h"
+#include "src/search_handler.h"
+#include "src/transformation.h"
 
 namespace afc {
 namespace editor {

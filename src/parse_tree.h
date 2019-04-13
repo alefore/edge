@@ -6,9 +6,9 @@
 #include <string>
 #include <unordered_set>
 
-#include "line_column.h"
+#include "src/line_column.h"
 #include "src/line_modifier.h"
-#include "tree.h"
+#include "src/tree.h"
 
 namespace afc {
 namespace editor {

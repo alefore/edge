@@ -1,15 +1,15 @@
-#include "send_end_of_file_command.h"
+#include "src/send_end_of_file_command.h"
 
 extern "C" {
 #include <sys/socket.h>
 }
 
-#include "buffer_variables.h"
-#include "command.h"
-#include "editor.h"
-#include "file_link_mode.h"
-#include "line_prompt_mode.h"
-#include "wstring.h"
+#include "src/buffer_variables.h"
+#include "src/command.h"
+#include "src/editor.h"
+#include "src/file_link_mode.h"
+#include "src/line_prompt_mode.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

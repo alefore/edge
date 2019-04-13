@@ -1,4 +1,4 @@
-#include "help_command.h"
+#include "src/help_command.h"
 
 #include <glog/logging.h>
 

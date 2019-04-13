@@ -1,4 +1,4 @@
-#include "editor.h"
+#include "src/editor.h"
 
 #include <fstream>
 #include <iostream>
@@ -18,21 +18,21 @@ extern "C" {
 
 #include <glog/logging.h>
 
-#include "audio.h"
-#include "char_buffer.h"
-#include "dirname.h"
-#include "file_link_mode.h"
-#include "run_command_handler.h"
-#include "server.h"
+#include "src/audio.h"
 #include "src/buffer_variables.h"
+#include "src/char_buffer.h"
+#include "src/dirname.h"
+#include "src/file_link_mode.h"
+#include "src/run_command_handler.h"
+#include "src/server.h"
 #include "src/shapes.h"
-#include "substring.h"
-#include "transformation_delete.h"
-#include "vm/public/callbacks.h"
-#include "vm/public/environment.h"
-#include "vm/public/value.h"
-#include "vm_transformation.h"
-#include "wstring.h"
+#include "src/substring.h"
+#include "src/transformation_delete.h"
+#include "src/vm/public/callbacks.h"
+#include "src/vm/public/environment.h"
+#include "src/vm/public/value.h"
+#include "src/vm_transformation.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace vm {

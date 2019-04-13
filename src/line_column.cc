@@ -1,15 +1,15 @@
-#include "line_column.h"
+#include "src/line_column.h"
+
+#include <glog/logging.h>
 
 #include <set>
 #include <vector>
 
-#include <glog/logging.h>
-
+#include "src/vm/public/environment.h"
 #include "src/vm/public/set.h"
+#include "src/vm/public/value.h"
 #include "src/vm/public/vector.h"
-#include "vm/public/environment.h"
-#include "vm/public/value.h"
-#include "wstring.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace vm {

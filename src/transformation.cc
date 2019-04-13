@@ -1,12 +1,12 @@
-#include "transformation.h"
+#include "src/transformation.h"
 
 #include <glog/logging.h>
 
-#include "buffer.h"
-#include "buffer_variables.h"
-#include "editor.h"
-#include "lazy_string_append.h"
-#include "transformation_delete.h"
+#include "src/buffer.h"
+#include "src/buffer_variables.h"
+#include "src/editor.h"
+#include "src/lazy_string_append.h"
+#include "src/transformation_delete.h"
 
 namespace {
 

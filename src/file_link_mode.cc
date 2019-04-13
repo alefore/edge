@@ -1,4 +1,4 @@
-#include "file_link_mode.h"
+#include "src/file_link_mode.h"
 
 #include <algorithm>
 #include <cstring>
@@ -21,18 +21,18 @@ extern "C" {
 
 #include <glog/logging.h>
 
-#include "buffer_variables.h"
-#include "char_buffer.h"
-#include "dirname.h"
-#include "editor.h"
-#include "lazy_string_append.h"
-#include "line_prompt_mode.h"
-#include "run_command_handler.h"
-#include "search_handler.h"
-#include "server.h"
-#include "vm/public/callbacks.h"
-#include "vm/public/value.h"
-#include "wstring.h"
+#include "src/buffer_variables.h"
+#include "src/char_buffer.h"
+#include "src/dirname.h"
+#include "src/editor.h"
+#include "src/lazy_string_append.h"
+#include "src/line_prompt_mode.h"
+#include "src/run_command_handler.h"
+#include "src/search_handler.h"
+#include "src/server.h"
+#include "src/vm/public/callbacks.h"
+#include "src/vm/public/value.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

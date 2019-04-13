@@ -1,4 +1,4 @@
-#include "predictor.h"
+#include "src/predictor.h"
 
 #include <algorithm>
 #include <cstring>
@@ -13,15 +13,15 @@ extern "C" {
 #include <sys/types.h>
 }
 
-#include "buffer.h"
-#include "buffer_variables.h"
-#include "char_buffer.h"
-#include "dirname.h"
-#include "editor.h"
-#include "file_link_mode.h"
-#include "lowercase.h"
-#include "predictor.h"
-#include "wstring.h"
+#include "src/buffer.h"
+#include "src/buffer_variables.h"
+#include "src/char_buffer.h"
+#include "src/dirname.h"
+#include "src/editor.h"
+#include "src/file_link_mode.h"
+#include "src/lowercase.h"
+#include "src/predictor.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

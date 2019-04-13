@@ -1,4 +1,4 @@
-#include "insert_mode.h"
+#include "src/insert_mode.h"
 
 #include <algorithm>
 #include <memory>
@@ -10,22 +10,22 @@ extern "C" {
 
 #include <glog/logging.h>
 
-#include "buffer_variables.h"
-#include "char_buffer.h"
-#include "command.h"
-#include "command_mode.h"
-#include "editor.h"
-#include "editor_mode.h"
-#include "file_link_mode.h"
-#include "lazy_string_append.h"
-#include "substring.h"
-#include "terminal.h"
-#include "transformation.h"
-#include "transformation_delete.h"
-#include "transformation_move.h"
-#include "tree.h"
-#include "vm/public/value.h"
-#include "wstring.h"
+#include "src/buffer_variables.h"
+#include "src/char_buffer.h"
+#include "src/command.h"
+#include "src/command_mode.h"
+#include "src/editor.h"
+#include "src/editor_mode.h"
+#include "src/file_link_mode.h"
+#include "src/lazy_string_append.h"
+#include "src/substring.h"
+#include "src/terminal.h"
+#include "src/transformation.h"
+#include "src/transformation_delete.h"
+#include "src/transformation_move.h"
+#include "src/tree.h"
+#include "src/vm/public/value.h"
+#include "src/wstring.h"
 
 namespace {
 using namespace afc::editor;

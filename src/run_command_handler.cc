@@ -1,4 +1,4 @@
-#include "run_command_handler.h"
+#include "src/run_command_handler.h"
 
 #include <cstring>
 #include <fstream>
@@ -16,12 +16,12 @@ extern "C" {
 
 #include <glog/logging.h>
 
-#include "buffer_variables.h"
-#include "char_buffer.h"
-#include "command_mode.h"
-#include "editor.h"
-#include "line_prompt_mode.h"
-#include "wstring.h"
+#include "src/buffer_variables.h"
+#include "src/char_buffer.h"
+#include "src/command_mode.h"
+#include "src/editor.h"
+#include "src/line_prompt_mode.h"
+#include "src/wstring.h"
 
 namespace {
 

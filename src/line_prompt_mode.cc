@@ -1,4 +1,4 @@
-#include "line_prompt_mode.h"
+#include "src/line_prompt_mode.h"
 
 #include <glog/logging.h>
 
@@ -6,19 +6,19 @@
 #include <memory>
 #include <string>
 
-#include "buffer.h"
-#include "buffer_variables.h"
-#include "char_buffer.h"
-#include "command.h"
-#include "command_mode.h"
-#include "editor.h"
-#include "editor_mode.h"
-#include "file_link_mode.h"
-#include "insert_mode.h"
-#include "predictor.h"
-#include "terminal.h"
-#include "transformation_delete.h"
-#include "wstring.h"
+#include "src/buffer.h"
+#include "src/buffer_variables.h"
+#include "src/char_buffer.h"
+#include "src/command.h"
+#include "src/command_mode.h"
+#include "src/editor.h"
+#include "src/editor_mode.h"
+#include "src/file_link_mode.h"
+#include "src/insert_mode.h"
+#include "src/predictor.h"
+#include "src/terminal.h"
+#include "src/transformation_delete.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

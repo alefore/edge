@@ -1,8 +1,8 @@
-#include "cpp_parse_tree.h"
+#include "src/cpp_parse_tree.h"
 
 #include <glog/logging.h>
 
-#include "buffer.h"
+#include "src/buffer.h"
 #include "src/parse_tools.h"
 #include "src/seek.h"
 

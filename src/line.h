@@ -10,7 +10,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "lazy_string.h"
+#include "src/lazy_string.h"
 #include "src/parse_tree.h"
 #include "src/vm/public/environment.h"
 

@@ -15,21 +15,21 @@ extern "C" {
 
 #include <glog/logging.h>
 
-#include "audio.h"
 #include "config.h"
-#include "editor.h"
-#include "file_link_mode.h"
-#include "lazy_string.h"
-#include "run_command_handler.h"
-#include "screen.h"
-#include "screen_curses.h"
-#include "screen_vm.h"
-#include "server.h"
 #include "src/args.h"
+#include "src/audio.h"
 #include "src/buffer_variables.h"
-#include "terminal.h"
-#include "vm/public/value.h"
-#include "wstring.h"
+#include "src/editor.h"
+#include "src/file_link_mode.h"
+#include "src/lazy_string.h"
+#include "src/run_command_handler.h"
+#include "src/screen.h"
+#include "src/screen_curses.h"
+#include "src/screen_vm.h"
+#include "src/server.h"
+#include "src/terminal.h"
+#include "src/vm/public/value.h"
+#include "src/wstring.h"
 
 namespace {
 

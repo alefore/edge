@@ -7,11 +7,11 @@
 #include <string>
 #include <vector>
 
-#include "direction.h"
-#include "line_column.h"
+#include "src/direction.h"
+#include "src/line_column.h"
+#include "src/structure.h"
+#include "src/tree.h"
 #include "src/vm/public/environment.h"
-#include "structure.h"
-#include "tree.h"
 
 namespace afc {
 namespace editor {

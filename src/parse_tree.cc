@@ -1,4 +1,4 @@
-#include "parse_tree.h"
+#include "src/parse_tree.h"
 
 extern "C" {
 #include <sys/types.h>
@@ -8,7 +8,7 @@ extern "C" {
 
 #include <glog/logging.h>
 
-#include "buffer.h"
+#include "src/buffer.h"
 
 namespace afc {
 namespace editor {

@@ -1,15 +1,15 @@
-#include "screen_vm.h"
-
-#include <memory>
+#include "src/screen_vm.h"
 
 #include <glog/logging.h>
 
-#include "screen.h"
-#include "server.h"
-#include "vm/public/callbacks.h"
-#include "vm/public/environment.h"
-#include "vm/public/value.h"
-#include "wstring.h"
+#include <memory>
+
+#include "src/screen.h"
+#include "src/server.h"
+#include "src/vm/public/callbacks.h"
+#include "src/vm/public/environment.h"
+#include "src/vm/public/value.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace vm {

@@ -1,13 +1,13 @@
-#include "line_marks.h"
+#include "src/line_marks.h"
 
 #include <glog/logging.h>
 
 #include <string>
 #include <vector>
 
-#include "buffer.h"
-#include "char_buffer.h"
-#include "wstring.h"
+#include "src/buffer.h"
+#include "src/char_buffer.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

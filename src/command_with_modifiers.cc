@@ -1,10 +1,10 @@
-#include "command_with_modifiers.h"
+#include "src/command_with_modifiers.h"
 
 #include <memory>
 
-#include "buffer_variables.h"
-#include "editor.h"
-#include "terminal.h"
+#include "src/buffer_variables.h"
+#include "src/editor.h"
+#include "src/terminal.h"
 
 namespace afc {
 namespace editor {
