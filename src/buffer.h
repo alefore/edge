@@ -86,7 +86,13 @@ class OpenBuffer {
   virtual void ReloadInto(EditorState*, OpenBuffer*) {}
   virtual void Save(EditorState* editor_state);
 
-  void MaybeFollowToEndOfFile();
+  // If we're currently at the end of the buffer *and* variable
+  // `follow_end_of_file` is set, returns an object that, when deleted, will
+  // move the position to the end of file.
+  //
+  // If variable `pts` is set, has slightly different semantics: the end
+  // position will not be the end of contents(), but rather position_pts_.
+  std::unique_ptr<bool, std::function<void(bool*)>> GetEndPositionFollower();
 
   virtual bool ShouldDisplayProgress() const;
   void RegisterProgress();
@@ -254,6 +260,7 @@ class OpenBuffer {
 
   // Returns the position of just after the last character of the current file.
   LineColumn end_position() const {
+    CHECK_GT(contents_.size(), 0u);
     return LineColumn(contents_.size() - 1, contents_.back()->size());
   }
 

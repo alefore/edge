@@ -612,8 +612,8 @@ void OpenBuffer::ClearContents(
 }
 
 void OpenBuffer::AppendEmptyLine() {
+  auto follower = GetEndPositionFollower();
   contents_.push_back(std::make_shared<Line>());
-  MaybeFollowToEndOfFile();
 }
 
 void OpenBuffer::EndOfFile(EditorState* editor_state) {
@@ -661,15 +661,23 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
   }
 }
 
-void OpenBuffer::MaybeFollowToEndOfFile() {
+std::unique_ptr<bool, std::function<void(bool*)>>
+OpenBuffer::GetEndPositionFollower() {
   if (!Read(buffer_variables::follow_end_of_file())) {
-    return;
+    return nullptr;
   }
-  if (Read(buffer_variables::pts())) {
-    set_position(position_pts_);
-  } else {
-    set_position(LineColumn(contents_.size() - 1));
+  if (position() < end_position()) {
+    return nullptr;  // Not at the end, so user must have scrolled up.
   }
+  return std::unique_ptr<bool, std::function<void(bool*)>>(
+      new bool(), [this](bool* value) {
+        delete value;
+        if (Read(buffer_variables::pts())) {
+          set_position(position_pts_);
+        } else {
+          set_position(end_position());
+        }
+      });
 }
 
 bool OpenBuffer::ShouldDisplayProgress() const {
@@ -788,6 +796,7 @@ void OpenBuffer::Input::ReadData(EditorState* editor_state,
     target->ProcessCommandInput(editor_state, buffer_wrapper);
     editor_state->ScheduleRedraw();
   } else {
+    auto follower = target->GetEndPositionFollower();
     size_t line_start = 0;
     for (size_t i = 0; i < buffer_wrapper->size(); i++) {
       if (buffer_wrapper->get(i) == '\n') {
@@ -796,7 +805,6 @@ void OpenBuffer::Input::ReadData(EditorState* editor_state,
         target->AppendToLastLine(line,
                                  ModifiersVector(modifiers, line->size()));
         target->StartNewLine(editor_state);
-        target->MaybeFollowToEndOfFile();
         line_start = i + 1;
         if (editor_state->has_current_buffer() &&
             editor_state->current_buffer()->second.get() == target &&
@@ -1007,8 +1015,8 @@ void OpenBuffer::AppendRawLine(std::shared_ptr<LazyString> str) {
 }
 
 void OpenBuffer::AppendRawLine(std::shared_ptr<Line> line) {
+  auto follower = GetEndPositionFollower();
   contents_.push_back(line);
-  MaybeFollowToEndOfFile();
 }
 
 void OpenBuffer::ProcessCommandInput(EditorState* editor_state,
@@ -1029,7 +1037,6 @@ void OpenBuffer::ProcessCommandInput(EditorState* editor_state,
       VLOG(8) << "Received \\b";
       if (position_pts_.column > 0) {
         position_pts_.column--;
-        MaybeFollowToEndOfFile();
       }
     } else if (c == '\a') {
       VLOG(8) << "Received \\a";
@@ -1048,7 +1055,6 @@ void OpenBuffer::ProcessCommandInput(EditorState* editor_state,
     } else if (c == '\r') {
       VLOG(8) << "Received \\r";
       position_pts_.column = 0;
-      MaybeFollowToEndOfFile();
     } else if (c == '\n') {
       VLOG(8) << "Received \\n";
       PtsMoveToNextLine();
@@ -1063,10 +1069,10 @@ void OpenBuffer::ProcessCommandInput(EditorState* editor_state,
       if (screen != nullptr && position_pts_.column >= screen->columns()) {
         PtsMoveToNextLine();
       }
+      auto follower = GetEndPositionFollower();
       contents_.SetCharacter(position_pts_.line, position_pts_.column, c,
                              modifiers);
       position_pts_.column++;
-      MaybeFollowToEndOfFile();
     } else {
       LOG(INFO) << "Unknown character: [" << c << "]\n";
     }
@@ -1074,13 +1080,12 @@ void OpenBuffer::ProcessCommandInput(EditorState* editor_state,
 }
 
 void OpenBuffer::PtsMoveToNextLine() {
+  auto follower = GetEndPositionFollower();
   position_pts_.line++;
   position_pts_.column = 0;
   if (position_pts_.line == contents_.size()) {
     contents_.push_back(std::make_shared<Line>());
   }
-  CHECK_LT(position_pts_.line, contents_.size());
-  MaybeFollowToEndOfFile();
 }
 
 size_t OpenBuffer::ProcessTerminalEscapeSequence(
@@ -1096,7 +1101,6 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
       VLOG(9) << "Received: cuu1: Up one line.";
       if (position_pts_.line > 0) {
         position_pts_.line--;
-        MaybeFollowToEndOfFile();
         if (static_cast<size_t>(Read(buffer_variables::view_start_line())) >
             position_pts_.line) {
           Set(buffer_variables::view_start_line(), position_pts_.line);
@@ -1224,11 +1228,10 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
 
       case 'C':
         VLOG(9) << "Terminal: cuf1: non-destructive space (move right 1 space)";
-        if (position_pts_.column >= current_line->size()) {
-          return read_index;
+        if (position_pts_.column < current_line->size()) {
+          auto follower = GetEndPositionFollower();
+          position_pts_.column++;
         }
-        position_pts_.column++;
-        MaybeFollowToEndOfFile();
         return read_index;
 
       case 'H':
@@ -1256,10 +1259,11 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
           position_pts_ =
               LineColumn(Read(buffer_variables::view_start_line()) + line_delta,
                          column_delta);
+          auto follower = GetEndPositionFollower();
           while (position_pts_.line >= contents_.size()) {
             contents_.push_back(std::make_shared<Line>());
           }
-          MaybeFollowToEndOfFile();
+          follower = nullptr;
           Set(buffer_variables::view_start_column(), column_delta);
         }
         return read_index;
@@ -1314,11 +1318,11 @@ void OpenBuffer::AppendToLastLine(
     std::shared_ptr<LazyString> str,
     const vector<unordered_set<LineModifier, hash<int>>>& modifiers) {
   CHECK_EQ(str->size(), modifiers.size());
+  auto follower = GetEndPositionFollower();
   Line::Options options;
   options.contents = str;
   options.modifiers = modifiers;
   contents_.AppendToLine(contents_.size(), Line(options));
-  MaybeFollowToEndOfFile();
 }
 
 unique_ptr<Expression> OpenBuffer::CompileString(EditorState*,
