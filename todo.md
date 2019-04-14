@@ -83,6 +83,8 @@ Don't crash on this: buffer.set_view_start_line(-1);
 
 Allow extensions to define classes or structures.
 
+Support `LineColumn line;` (rather than having to use `LineColumn line = LineColumn();`).
+
 ### Client/server
 
 ## Misc
