@@ -125,6 +125,7 @@ void BufferContents::DeleteCharactersFromLine(size_t line, size_t column) {
 void BufferContents::SetCharacter(
     size_t line, size_t column, int c,
     std::unordered_set<LineModifier, hash<int>> modifiers) {
+  CHECK_LT(line, size());
   auto new_line = std::make_shared<Line>(*at(line));
   new_line->SetCharacter(column, c, modifiers);
   set_line(line, new_line);
