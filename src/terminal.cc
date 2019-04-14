@@ -836,8 +836,8 @@ void Terminal::ShowBuffer(
     auto line = buffer->LineAt(position.line);
 
     CHECK(line->contents() != nullptr);
-    if (position.line == buffer->position().line &&
-        buffer->Read(buffer_variables::atomic_lines())) {
+    if (buffer->Read(buffer_variables::atomic_lines()) &&
+        buffer->active_cursors()->cursors_in_line(position.line)) {
       buffer->set_last_highlighted_line(position.line);
       atomic_lines_highlighter =
           std::make_unique<HighlightedLineOutputReceiver>(

@@ -69,8 +69,6 @@ Make follow_end_of_file the default.
 
 ## Variables
 
-atomic_lines should probably also apply to multiple cursors.
-
 ## VM
 
 Add support for templates, so that we can do "vector<string>".
