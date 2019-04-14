@@ -73,6 +73,11 @@ class Line {
   // Delete characters from position until the end.
   void DeleteCharacters(size_t position);
   void InsertCharacterAtPosition(size_t position);
+
+  // Sets the character at the position given.
+  //
+  // `position` may be greater than size(), in which case the character will
+  // just get appended (extending the line by exactly one character).
   void SetCharacter(size_t position, int c, const LineModifierSet& modifiers);
 
   void SetAllModifiers(const LineModifierSet& modifiers);
