@@ -619,13 +619,28 @@ class ParseTreeHighlighter : public Line::OutputReceiverInterface {
 
 class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
  public:
+  // A Line::OutputReceiverInterface implementation that merges modifiers from
+  // the syntax tree (with modifiers from the line). When modifiers from the
+  // line are present, they override modifiers from the syntax tree.
+  //
+  // columns_to_skip: Initial number of columns from the parent that will be
+  // ignored (i.e., for prefix information shown before the actual contents of
+  // the line). For example, if the prefix for each line is a number such as
+  // "138:", this would have a value of 4.
+  //
+  // largest_column_with_tree: Position after which modifiers from the syntax
+  // tree will no longer apply. This ensures that "continuation" modifiers (that
+  // were active at the last character in the line) won't continue to affect the
+  // padding and/or scrollbar). Includes columns_to_skip. For example, if the
+  // line is "main()" and columns_to_skip is 4, this will be set to 10.
   ParseTreeHighlighterTokens(Line::OutputReceiverInterface* delegate,
                              size_t columns_to_skip, const ParseTree* root,
-                             size_t line)
+                             size_t line, size_t largest_column_with_tree)
       : delegate_(delegate),
         modifiers_merger_(&delegate_),
         root_(root),
         columns_to_skip_(columns_to_skip),
+        largest_column_with_tree_(largest_column_with_tree),
         line_(line),
         current_({root}) {
     UpdateCurrent(LineColumn(line_, delegate_.position()));
@@ -633,7 +648,11 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
 
   void AddCharacter(wchar_t c) override {
     LineColumn position(line_, delegate_.position());
-    if (position.column < columns_to_skip_) {
+    if (position.column < columns_to_skip_ ||
+        position.column >= largest_column_with_tree_) {
+      if (position.column == largest_column_with_tree_) {
+        modifiers_merger_.AddChildrenModifier(LineModifier::RESET);
+      }
       delegate_.AddCharacter(c);
       return;
     }
@@ -701,6 +720,7 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
   ModifiersMerger modifiers_merger_;
   const ParseTree* root_;
   const size_t columns_to_skip_;
+  const size_t largest_column_with_tree_;
   const size_t line_;
   std::vector<const ParseTree*> current_;
 };
@@ -870,7 +890,7 @@ void Terminal::ShowBuffer(
     } else if (!buffer->parse_tree()->children.empty()) {
       parse_tree_highlighter = std::make_unique<ParseTreeHighlighterTokens>(
           line_output_options.output_receiver, number_prefix.size(), root.get(),
-          position.line);
+          position.line, number_prefix.size() + line->size());
       line_output_options.output_receiver = parse_tree_highlighter.get();
     }
 

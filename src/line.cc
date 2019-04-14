@@ -313,6 +313,7 @@ void Line::Output(const Line::OutputOptions& options) const {
         options.output_receiver->AddModifier(it);
       }
       options.output_receiver->AddString(wstring(padding, L' '));
+      options.output_receiver->AddModifier(LineModifier::RESET);
       output_column += padding;
       CHECK_LE(output_column, options.width);
     }
@@ -399,7 +400,6 @@ void Line::Output(const Line::OutputOptions& options) const {
   }
 
   if (output_column < options.width) {
-    options.output_receiver->AddModifier(LineModifier::RESET);
     VLOG(6) << "Adding newline characters.";
     options.output_receiver->AddString(L"\n");
   }
@@ -440,7 +440,7 @@ void OutputReceiverOptimizer::Flush() {
 
   if (!std::includes(modifiers_.begin(), modifiers_.end(),
                      last_modifiers_.begin(), last_modifiers_.end())) {
-    DVLOG(5) << "Last modifiers not contained in new modifiers.";
+    DVLOG(5) << "last_modifiers_ is not contained in modifiers_.";
     delegate_->AddModifier(LineModifier::RESET);
     last_modifiers_.clear();
   }
