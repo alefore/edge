@@ -22,7 +22,9 @@ namespace {
 wstring DescribeSequence(wstring input) {
   wstring output;
   if (!input.empty() && input[0] == '#') {
-    output.push_back(L' ');  // It isn't a header!
+    // Enter an invisible space, to preclude Markdown from interpreting this as
+    // a header.
+    output.push_back(L'​');
   }
   for (wint_t c : input) {
     switch (c) {

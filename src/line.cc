@@ -273,9 +273,9 @@ void Line::Output(const Line::OutputOptions& options) const {
       }
     }
     switch (c) {
-      case '\r':
+      case L'\r':
         break;
-      case '\t': {
+      case L'\t': {
         size_t new_output_column =
             min(options.width,
                 8 * static_cast<size_t>(
@@ -286,6 +286,8 @@ void Line::Output(const Line::OutputOptions& options) const {
             wstring(new_output_column - output_column, ' '));
         output_column = new_output_column;
       } break;
+      case L'​':
+        break;
       default:
         if (iswprint(c)) {
           VLOG(8) << "Print character: " << c;
