@@ -228,13 +228,13 @@ wstring DurationToString(size_t duration) {
 wstring FlagsString(const CommandData& data, const OpenBuffer& buffer) {
   wstring output;
   if (buffer.child_pid() != -1) {
-    output = L"… ";
+    output = L" …";
   } else if (!WIFEXITED(buffer.child_exit_status())) {
-    output = L" ";
+    output = L" ☠";
   } else if (WEXITSTATUS(buffer.child_exit_status()) == 0) {
-    output = L" ";
+    output = L" ☑";
   } else {
-    output = L" ";
+    output = L" ☒";
   }
 
   time_t now;
