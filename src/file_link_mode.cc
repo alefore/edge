@@ -227,49 +227,41 @@ void HandleVisit(EditorState* editor_state, const struct stat& stat_buffer,
   }
 }
 
-class FileBuffer : public OpenBuffer {
- public:
-  FileBuffer(Options options, std::shared_ptr<struct stat> stat_buffer)
-      : OpenBuffer(options), stat_buffer_(std::move(stat_buffer)) {}
-
-  void Save(EditorState* editor_state) {
-    const wstring path = Read(buffer_variables::path());
-    if (path.empty()) {
-      OpenBuffer::Save(editor_state);
-      editor_state->SetStatus(
-          L"Buffer can't be saved: “path” variable is empty.");
-      return;
-    }
-    if (S_ISDIR(stat_buffer_->st_mode)) {
-      OpenBuffer::Save(editor_state);
-      return;
-    }
-
-    if (!SaveContentsToFile(editor_state, path, contents_) || !PersistState()) {
-      LOG(INFO) << "Saving failed.";
-      return;
-    }
-    ClearModified();
-    editor_state->SetStatus(L"Saved: " + path);
-    for (const auto& dir : editor_state->edge_path()) {
-      EvaluateFile(editor_state, dir + L"/hooks/buffer-save.cc");
-    }
-    if (Read(buffer_variables::trigger_reload_on_buffer_write())) {
-      for (auto& it : *editor_state->buffers()) {
-        CHECK(it.second != nullptr);
-        if (it.second->Read(buffer_variables::reload_on_buffer_write())) {
-          LOG(INFO) << "Write of " << path << " triggers reload: "
-                    << it.second->Read(buffer_variables::name());
-          it.second->Reload(editor_state);
-        }
-      }
-    }
-    stat(ToByteString(path).c_str(), stat_buffer_.get());
+void Save(EditorState* editor_state, struct stat* stat_buffer,
+          OpenBuffer* buffer) {
+  const wstring path = buffer->Read(buffer_variables::path());
+  if (path.empty()) {
+    editor_state->SetStatus(
+        L"Buffer can't be saved: “path” variable is empty.");
+    return;
+  }
+  if (S_ISDIR(stat_buffer->st_mode)) {
+    editor_state->SetStatus(L"Buffer can't be saved: Buffer is a directory.");
+    return;
   }
 
- private:
-  std::shared_ptr<struct stat> stat_buffer_;
-};
+  if (!SaveContentsToFile(editor_state, path, *buffer->contents()) ||
+      !buffer->PersistState()) {
+    LOG(INFO) << "Saving failed.";
+    return;
+  }
+  buffer->ClearModified();
+  editor_state->SetStatus(L"Saved: " + path);
+  for (const auto& dir : editor_state->edge_path()) {
+    buffer->EvaluateFile(editor_state, dir + L"/hooks/buffer-save.cc");
+  }
+  if (buffer->Read(buffer_variables::trigger_reload_on_buffer_write())) {
+    for (auto& it : *editor_state->buffers()) {
+      CHECK(it.second != nullptr);
+      if (it.second->Read(buffer_variables::reload_on_buffer_write())) {
+        LOG(INFO) << "Write of " << path << " triggers reload: "
+                  << it.second->Read(buffer_variables::name());
+        it.second->Reload(editor_state);
+      }
+    }
+  }
+  stat(ToByteString(path).c_str(), stat_buffer);
+}
 
 static wstring realpath_safe(const wstring& path) {
   char* result = realpath(ToByteString(path).c_str(), nullptr);
@@ -509,6 +501,9 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
                                  stat_buffer](OpenBuffer* buffer) {
     HandleVisit(editor_state, *stat_buffer, *buffer);
   };
+  buffer_options.handle_save = [editor_state, stat_buffer](OpenBuffer* buffer) {
+    Save(editor_state, stat_buffer.get(), buffer);
+  };
 
   FindPath(editor_state, search_paths, options.path, &buffer_options.path,
            &position, &pattern);
@@ -554,15 +549,14 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   } else if (buffer_options.path.empty()) {
     buffer_options.name =
         editor_state->GetUnusedBufferName(L"anonymous buffer");
-    buffer = std::make_shared<FileBuffer>(buffer_options, stat_buffer);
+    buffer = std::make_shared<OpenBuffer>(buffer_options);
   } else {
     buffer_options.name = buffer_options.path;
   }
   auto it = editor_state->buffers()->insert({buffer_options.name, buffer});
   if (it.second) {
     if (it.first->second.get() == nullptr) {
-      it.first->second =
-          std::make_shared<FileBuffer>(buffer_options, stat_buffer);
+      it.first->second = std::make_shared<OpenBuffer>(buffer_options);
       it.first->second->Set(buffer_variables::persist_state(), true);
     }
     it.first->second->Reload(editor_state);

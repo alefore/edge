@@ -72,6 +72,10 @@ class OpenBuffer {
     // Optional function that listens on visits to the buffer (i.e., the user
     // entering the buffer from other buffers).
     std::function<void(OpenBuffer*)> handle_visit;
+
+    // Optional function that saves the buffer. If not provided, attempts to
+    // save the buffer will fail.
+    std::function<void(OpenBuffer*)> handle_save;
   };
 
   OpenBuffer(EditorState* editor_state, const wstring& name);
@@ -86,20 +90,20 @@ class OpenBuffer {
   void AddEndOfFileObserver(std::function<void()> observer);
   void AddCloseObserver(std::function<void()> observer);
 
-  virtual void Visit(EditorState* editor_state);
+  void Visit(EditorState* editor_state);
   time_t last_visit() const;
   time_t last_action() const;
 
   // Saves state of this buffer (not including contents). Currently that means
   // the values of variables, but in the future it could include other things.
   // Returns true if the state could be persisted successfully.
-  virtual bool PersistState() const;
+  bool PersistState() const;
 
   void ClearContents(EditorState* editor_state,
                      BufferContents::CursorsBehavior cursors_behavior);
   void AppendEmptyLine();
 
-  virtual void Save(EditorState* editor_state);
+  void Save(EditorState* editor_state);
 
   // If we're currently at the end of the buffer *and* variable
   // `follow_end_of_file` is set, returns an object that, when deleted, will
@@ -561,6 +565,7 @@ class OpenBuffer {
   const std::function<void(OpenBuffer*)> generate_contents_;
   const std::function<wstring(const OpenBuffer&)> describe_status_;
   const std::function<void(OpenBuffer*)> handle_visit_;
+  const std::function<void(OpenBuffer*)> handle_save_;
 };
 
 }  // namespace editor

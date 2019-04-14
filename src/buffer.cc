@@ -482,7 +482,8 @@ OpenBuffer::OpenBuffer(Options options)
       mode_(std::make_unique<MapMode>(default_commands_)),
       generate_contents_(std::move(options.generate_contents)),
       describe_status_(std::move(options.describe_status)),
-      handle_visit_(std::move(options.handle_visit)) {
+      handle_visit_(std::move(options.handle_visit)),
+      handle_save_(std::move(options.handle_save)) {
   contents_.AddUpdateListener(
       [this](const CursorsTracker::Transformation& transformation) {
         editor_->ScheduleParseTreeUpdate(this);
@@ -1039,6 +1040,10 @@ void OpenBuffer::Reload(EditorState* editor_state) {
 
 void OpenBuffer::Save(EditorState* editor_state) {
   LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name());
+
+  if (handle_save_ != nullptr) {
+    return handle_save_(this);
+  }
   editor_state->SetStatus(L"Buffer can't be saved.");
 }
 
