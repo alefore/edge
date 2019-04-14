@@ -405,7 +405,7 @@ class OpenBuffer {
   void ResetParseTree();
 
  protected:
-  EditorState* editor_;
+  EditorState* const editor_;
 
   struct Input {
     void Close();
