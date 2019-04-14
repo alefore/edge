@@ -29,6 +29,11 @@ using namespace afc::editor;
 using std::cerr;
 using std::to_string;
 
+struct CommandData {
+  time_t time_start = 0;
+  time_t time_end = 0;
+};
+
 map<wstring, wstring> LoadEnvironmentVariables(
     const vector<wstring>& path, const wstring& full_command,
     map<wstring, wstring> environment) {
@@ -64,161 +69,153 @@ map<wstring, wstring> LoadEnvironmentVariables(
   return environment;
 }
 
-class CommandBuffer : public OpenBuffer {
- public:
-  CommandBuffer(EditorState* editor_state, const wstring& name,
-                const wstring& command, map<wstring, wstring> environment,
-                const wstring& children_path)
-      : OpenBuffer(editor_state, name),
-        environment_(LoadEnvironmentVariables(editor_state->edge_path(),
-                                              command, std::move(environment))),
-        children_path_(children_path) {}
+void GenerateContents(EditorState* editor_state,
+                      std::map<wstring, wstring> environment, CommandData* data,
+                      OpenBuffer* target) {
+  int pipefd_out[2];
+  int pipefd_err[2];
+  static const int parent_fd = 0;
+  static const int child_fd = 1;
+  time(&data->time_start);
+  if (target->Read(buffer_variables::pts())) {
+    int master_fd = posix_openpt(O_RDWR);
+    if (master_fd == -1) {
+      cerr << "posix_openpt failed: " << string(strerror(errno));
+      exit(1);
+    }
+    if (grantpt(master_fd) == -1) {
+      cerr << "grantpt failed: " << string(strerror(errno));
+      exit(1);
+    }
+    if (unlockpt(master_fd) == -1) {
+      cerr << "unlockpt failed: " << string(strerror(errno));
+      exit(1);
+    }
+    // TODO(alejo): Don't do ioctl here; move that to Terminal, have it set a
+    // property in the editor, and read the property here.
+    struct winsize screen_size;
+    if (ioctl(0, TIOCGWINSZ, &screen_size) == -1) {
+      cerr << "ioctl TIOCGWINSZ failed: " << string(strerror(errno));
+    }
+    screen_size.ws_row--;
+    if (ioctl(master_fd, TIOCSWINSZ, &screen_size) == -1) {
+      cerr << "ioctl TIOCSWINSZ failed: " << string(strerror(errno));
+      exit(1);
+    }
+    pipefd_out[parent_fd] = master_fd;
+    char* pts_path = ptsname(master_fd);
+    target->Set(buffer_variables::pts_path(), FromByteString(pts_path));
+    pipefd_out[child_fd] = open(pts_path, O_RDWR);
+    if (pipefd_out[child_fd] == -1) {
+      cerr << "open failed: " << pts_path << ": " << string(strerror(errno));
+      exit(1);
+    }
+    pipefd_err[parent_fd] = -1;
+    pipefd_err[child_fd] = -1;
+  } else if (socketpair(PF_LOCAL, SOCK_STREAM, 0, pipefd_out) == -1 ||
+             socketpair(PF_LOCAL, SOCK_STREAM, 0, pipefd_err) == -1) {
+    LOG(FATAL) << "socketpair failed: " << strerror(errno);
+    exit(1);
+  }
 
-  void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
-    int pipefd_out[2];
-    int pipefd_err[2];
-    static const int parent_fd = 0;
-    static const int child_fd = 1;
-    time(&time_start_);
-    if (Read(buffer_variables::pts())) {
-      int master_fd = posix_openpt(O_RDWR);
-      if (master_fd == -1) {
-        cerr << "posix_openpt failed: " << string(strerror(errno));
-        exit(1);
-      }
-      if (grantpt(master_fd) == -1) {
-        cerr << "grantpt failed: " << string(strerror(errno));
-        exit(1);
-      }
-      if (unlockpt(master_fd) == -1) {
-        cerr << "unlockpt failed: " << string(strerror(errno));
-        exit(1);
-      }
-      // TODO(alejo): Don't do ioctl here; move that to Terminal, have it set a
-      // property in the editor, and read the property here.
-      struct winsize screen_size;
-      if (ioctl(0, TIOCGWINSZ, &screen_size) == -1) {
-        cerr << "ioctl TIOCGWINSZ failed: " << string(strerror(errno));
-      }
-      screen_size.ws_row--;
-      if (ioctl(master_fd, TIOCSWINSZ, &screen_size) == -1) {
-        cerr << "ioctl TIOCSWINSZ failed: " << string(strerror(errno));
-        exit(1);
-      }
-      pipefd_out[parent_fd] = master_fd;
-      char* pts_path = ptsname(master_fd);
-      target->Set(buffer_variables::pts_path(), FromByteString(pts_path));
-      pipefd_out[child_fd] = open(pts_path, O_RDWR);
-      if (pipefd_out[child_fd] == -1) {
-        cerr << "open failed: " << pts_path << ": " << string(strerror(errno));
-        exit(1);
-      }
-      pipefd_err[parent_fd] = -1;
-      pipefd_err[child_fd] = -1;
-    } else if (socketpair(PF_LOCAL, SOCK_STREAM, 0, pipefd_out) == -1 ||
-               socketpair(PF_LOCAL, SOCK_STREAM, 0, pipefd_err) == -1) {
-      LOG(FATAL) << "socketpair failed: " << strerror(errno);
+  pid_t child_pid = fork();
+  if (child_pid == -1) {
+    editor_state->SetStatus(L"fork failed: " + FromByteString(strerror(errno)));
+    return;
+  }
+  if (child_pid == 0) {
+    LOG(INFO) << "I am the children. Life is beautiful!";
+
+    close(pipefd_out[parent_fd]);
+    close(pipefd_err[parent_fd]);
+
+    if (setsid() == -1) {
+      cerr << "setsid failed: " << string(strerror(errno));
       exit(1);
     }
 
-    pid_t child_pid = fork();
-    if (child_pid == -1) {
-      editor_state->SetStatus(L"fork failed: " +
-                              FromByteString(strerror(errno)));
-      return;
+    if (dup2(pipefd_out[child_fd], 0) == -1 ||
+        dup2(pipefd_out[child_fd], 1) == -1 ||
+        dup2(pipefd_err[child_fd] == -1 ? pipefd_out[child_fd]
+                                        : pipefd_err[child_fd],
+             2) == -1) {
+      LOG(FATAL) << "dup2 failed!";
     }
-    if (child_pid == 0) {
-      LOG(INFO) << "I am the children. Life is beautiful!";
-
-      close(pipefd_out[parent_fd]);
-      close(pipefd_err[parent_fd]);
-
-      if (setsid() == -1) {
-        cerr << "setsid failed: " << string(strerror(errno));
-        exit(1);
-      }
-
-      if (dup2(pipefd_out[child_fd], 0) == -1 ||
-          dup2(pipefd_out[child_fd], 1) == -1 ||
-          dup2(pipefd_err[child_fd] == -1 ? pipefd_out[child_fd]
-                                          : pipefd_err[child_fd],
-               2) == -1) {
-        LOG(FATAL) << "dup2 failed!";
-      }
-      if (pipefd_out[child_fd] != 0 && pipefd_out[child_fd] != 1 &&
-          pipefd_out[child_fd] != 2) {
-        close(pipefd_out[child_fd]);
-      }
-      if (pipefd_err[child_fd] != 0 && pipefd_err[child_fd] != 1 &&
-          pipefd_err[child_fd] != 2) {
-        close(pipefd_err[child_fd]);
-      }
-
-      if (!children_path_.empty() &&
-          chdir(ToByteString(children_path_).c_str()) == -1) {
-        LOG(FATAL) << children_path_
-                   << ": chdir failed: " << string(strerror(errno));
-      }
-
-      map<string, string> environment;
-
-      // Copy variables from the current environment (environ(7)).
-      for (size_t index = 0; environ[index] != nullptr; index++) {
-        string entry = environ[index];
-        size_t eq = entry.find_first_of("=");
-        if (eq == string::npos) {
-          environment.insert(make_pair(entry, ""));
-        } else {
-          environment.insert(
-              make_pair(entry.substr(0, eq), entry.substr(eq + 1)));
-        }
-      }
-      environment["TERM"] = "screen";
-
-      for (auto it : environment_) {
-        environment.insert(
-            make_pair(ToByteString(it.first), ToByteString(it.second)));
-      }
-
-      char** envp =
-          static_cast<char**>(calloc(environment.size() + 1, sizeof(char*)));
-      size_t position = 0;
-      for (const auto& it : environment) {
-        string str = it.first + "=" + it.second;
-        CHECK_LT(position, environment.size());
-        envp[position++] = strdup(str.c_str());
-      }
-      envp[position++] = nullptr;
-      CHECK_EQ(position, environment.size() + 1);
-
-      char* argv[] = {
-          strdup("sh"), strdup("-c"),
-          strdup(ToByteString(Read(buffer_variables::command())).c_str()),
-          nullptr};
-      int status = execve("/bin/sh", argv, envp);
-      exit(WIFEXITED(status) ? WEXITSTATUS(status) : 1);
+    if (pipefd_out[child_fd] != 0 && pipefd_out[child_fd] != 1 &&
+        pipefd_out[child_fd] != 2) {
+      close(pipefd_out[child_fd]);
     }
-    close(pipefd_out[child_fd]);
-    close(pipefd_err[child_fd]);
-    LOG(INFO) << "Setting input files: " << pipefd_out[parent_fd] << ", "
-              << pipefd_err[parent_fd];
-    target->SetInputFiles(editor_state, pipefd_out[parent_fd],
-                          pipefd_err[parent_fd], Read(buffer_variables::pts()),
-                          child_pid);
-    editor_state->ScheduleRedraw();
-    AddEndOfFileObserver([this, editor_state]() {
-      LOG(INFO) << "End of file notification.";
-      int success =
-          WIFEXITED(child_exit_status_) && WEXITSTATUS(child_exit_status_) == 0;
-      double frequency =
-          Read(success ? buffer_variables::beep_frequency_success()
-                       : buffer_variables::beep_frequency_failure());
-      if (frequency > 0.0001) {
-        GenerateBeep(editor_state->audio_player(), frequency);
+    if (pipefd_err[child_fd] != 0 && pipefd_err[child_fd] != 1 &&
+        pipefd_err[child_fd] != 2) {
+      close(pipefd_err[child_fd]);
+    }
+
+    auto children_path = target->Read(buffer_variables::children_path());
+    if (!children_path.empty() &&
+        chdir(ToByteString(children_path).c_str()) == -1) {
+      LOG(FATAL) << children_path
+                 << ": chdir failed: " << string(strerror(errno));
+    }
+
+    // Copy variables from the current environment (environ(7)).
+    for (size_t index = 0; environ[index] != nullptr; index++) {
+      wstring entry = FromByteString(environ[index]);
+      size_t eq = entry.find_first_of(L"=");
+      if (eq == wstring::npos) {
+        environment.insert({entry, L""});
+      } else {
+        environment.insert({entry.substr(0, eq), entry.substr(eq + 1)});
       }
-      time(&time_end_);
-    });
+    }
+    environment[L"TERM"] = L"screen";
+    LoadEnvironmentVariables(editor_state->edge_path(),
+                             target->Read(buffer_variables::command()),
+                             environment);
+
+    char** envp =
+        static_cast<char**>(calloc(environment.size() + 1, sizeof(char*)));
+    size_t position = 0;
+    for (const auto& it : environment) {
+      string str = ToByteString(it.first) + "=" + ToByteString(it.second);
+      CHECK_LT(position, environment.size());
+      envp[position++] = strdup(str.c_str());
+    }
+    envp[position++] = nullptr;
+    CHECK_EQ(position, environment.size() + 1);
+
+    char* argv[] = {
+        strdup("sh"), strdup("-c"),
+        strdup(ToByteString(target->Read(buffer_variables::command())).c_str()),
+        nullptr};
+    int status = execve("/bin/sh", argv, envp);
+    exit(WIFEXITED(status) ? WEXITSTATUS(status) : 1);
   }
+  close(pipefd_out[child_fd]);
+  close(pipefd_err[child_fd]);
+  LOG(INFO) << "Setting input files: " << pipefd_out[parent_fd] << ", "
+            << pipefd_err[parent_fd];
+  target->SetInputFiles(editor_state, pipefd_out[parent_fd],
+                        pipefd_err[parent_fd],
+                        target->Read(buffer_variables::pts()), child_pid);
+  editor_state->ScheduleRedraw();
+  target->AddEndOfFileObserver([editor_state, data, target]() {
+    LOG(INFO) << "End of file notification.";
+    int success = WIFEXITED(target->child_exit_status()) &&
+                  WEXITSTATUS(target->child_exit_status()) == 0;
+    double frequency =
+        target->Read(success ? buffer_variables::beep_frequency_success()
+                             : buffer_variables::beep_frequency_failure());
+    if (frequency > 0.0001) {
+      GenerateBeep(editor_state->audio_player(), frequency);
+    }
+    time(&data->time_end);
+  });
+}
+
+class CommandBuffer : public OpenBuffer {
+ public:
+  CommandBuffer(Options options, std::shared_ptr<CommandData> command_data)
+      : OpenBuffer(std::move(options)), data_(std::move(command_data)) {}
 
   wstring FlagsString() const override {
     wstring initial_information;
@@ -235,13 +232,16 @@ class CommandBuffer : public OpenBuffer {
     wstring additional_information;
     time_t now;
     time(&now);
-    if (now > time_start_ && time_start_ > 0) {
-      time_t end =
-          (child_pid_ != -1 || time_end_ < time_start_) ? now : time_end_;
-      additional_information += L" run:" + DurationToString(end - time_start_);
+    if (now > data_->time_start && data_->time_start > 0) {
+      time_t end = (child_pid_ != -1 || data_->time_end < data_->time_start)
+                       ? now
+                       : data_->time_end;
+      additional_information +=
+          L" run:" + DurationToString(end - data_->time_start);
     }
-    if (child_pid_ == -1 && now > time_end_) {
-      additional_information += L" done:" + DurationToString(now - time_end_);
+    if (child_pid_ == -1 && now > data_->time_end) {
+      additional_information +=
+          L" done:" + DurationToString(now - data_->time_end);
     }
     return initial_information + OpenBuffer::FlagsString() +
            additional_information;
@@ -261,10 +261,7 @@ class CommandBuffer : public OpenBuffer {
     return L"very-long";
   }
 
-  const map<wstring, wstring> environment_;
-  const wstring children_path_;
-  time_t time_start_ = 0;
-  time_t time_end_ = 0;
+  const std::shared_ptr<CommandData> data_;
 };
 
 void RunCommand(const wstring& name, const wstring& input,
@@ -359,11 +356,20 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
                                                     : options.buffer_name;
   auto it = editor_state->buffers()->insert(make_pair(buffer_name, nullptr));
   if (it.second) {
-    it.first->second = std::make_shared<CommandBuffer>(
-        editor_state, buffer_name, options.command, options.environment,
-        options.children_path);
-    it.first->second->Set(buffer_variables::command(), options.command);
-    it.first->second->Set(buffer_variables::path(), L"");
+    auto command_data = std::make_shared<CommandData>();
+    OpenBuffer::Options buffer_options;
+    buffer_options.editor_state = editor_state;
+    buffer_options.name = buffer_name;
+    buffer_options.generate_contents = [editor_state,
+                                        environment = options.environment,
+                                        command_data](OpenBuffer* target) {
+      GenerateContents(editor_state, environment, command_data.get(), target);
+    };
+    auto buffer = std::make_shared<CommandBuffer>(std::move(buffer_options),
+                                                  command_data);
+    buffer->Set(buffer_variables::children_path(), options.children_path);
+    buffer->Set(buffer_variables::command(), options.command);
+    it.first->second = std::move(buffer);
   } else {
     it.first->second->ResetMode();
   }

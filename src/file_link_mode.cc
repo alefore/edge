@@ -66,21 +66,168 @@ void StartDeleteFile(EditorState* editor_state, wstring path) {
   Prompt(editor_state, std::move(options));
 }
 
+void AddLine(EditorState* editor_state, OpenBuffer* target,
+             const dirent& entry) {
+  enum class SizeBehavior { kShow, kSkip };
+
+  struct FileType {
+    wstring description;
+    LineModifierSet modifiers;
+  };
+  static const std::unordered_map<int, FileType> types = {
+      {DT_BLK, {L" (block dev)", {GREEN}}},
+      {DT_CHR, {L" (char dev)", {RED}}},
+      {DT_DIR, {L"/", {CYAN}}},
+      {DT_FIFO, {L" (named pipe)", {BLUE}}},
+      {DT_LNK, {L"@", {ITALIC}}},
+      {DT_REG, {L"", {}}},
+      {DT_SOCK, {L" (unix sock)", {MAGENTA}}}};
+
+  auto path = FromByteString(entry.d_name);
+
+  auto type_it = types.find(entry.d_type);
+  if (type_it == types.end()) {
+    type_it = types.find(DT_REG);
+    CHECK(type_it != types.end());
+  }
+
+  Line::Options line_options;
+  line_options.contents =
+      shared_ptr<LazyString>(NewLazyString(path + type_it->second.description));
+  line_options.modifiers =
+      std::vector<LineModifierSet>(line_options.contents->size());
+  if (!type_it->second.modifiers.empty()) {
+    for (size_t i = 0; i < path.size(); i++) {
+      line_options.modifiers[i] = (type_it->second.modifiers);
+    }
+  }
+
+  auto line = std::make_shared<Line>(std::move(line_options));
+
+  target->AppendRawLine(line);
+  target->contents()->back()->environment()->Define(
+      L"EdgeLineDeleteHandler",
+      vm::NewCallback(std::function<void()>(
+          [editor_state, path]() { StartDeleteFile(editor_state, path); })));
+}
+
+void ShowFiles(EditorState* editor_state, wstring name,
+               std::vector<dirent> entries, OpenBuffer* target) {
+  if (entries.empty()) {
+    return;
+  }
+  target->AppendLine(NewLazyString(L"## " + name));
+  int start = target->contents()->size();
+  for (auto& entry : entries) {
+    AddLine(editor_state, target, entry);
+  }
+  target->SortContents(
+      start, target->contents()->size(),
+      [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
+        return *a->contents() < *b->contents();
+      });
+  target->AppendEmptyLine();
+}
+
+void GenerateContents(EditorState* editor_state, struct stat* stat_buffer,
+                      OpenBuffer* target) {
+  CHECK(!target->modified());
+  const wstring path = target->Read(buffer_variables::path());
+  LOG(INFO) << "GenerateContents: " << path;
+  const string path_raw = ToByteString(path);
+  if (!path.empty() && stat(path_raw.c_str(), stat_buffer) == -1) {
+    return;
+  }
+
+  if (target->Read(buffer_variables::clear_on_reload())) {
+    target->ClearContents(editor_state,
+                          BufferContents::CursorsBehavior::kUnmodified);
+    target->ClearModified();
+  }
+
+  editor_state->ScheduleRedraw();
+
+  if (path.empty()) {
+    return;
+  }
+
+  if (!S_ISDIR(stat_buffer->st_mode)) {
+    char* tmp = strdup(path_raw.c_str());
+    if (0 == strcmp(basename(tmp), "passwd")) {
+      RunCommandHandler(L"parsers/passwd <" + path, editor_state, {});
+    } else {
+      int fd = open(ToByteString(path).c_str(), O_RDONLY | O_NONBLOCK);
+      target->SetInputFiles(editor_state, fd, -1, false, -1);
+    }
+    return;
+  }
+
+  target->Set(buffer_variables::atomic_lines(), true);
+  target->Set(buffer_variables::allow_dirty_delete(), true);
+  target->Set(buffer_variables::tree_parser(), L"md");
+
+  DIR* dir = opendir(path_raw.c_str());
+  if (dir == nullptr) {
+    auto description =
+        L"Unable to open directory: " + FromByteString(strerror(errno));
+    editor_state->SetStatus(description);
+    target->AppendLine(NewLazyString(std::move(description)));
+    return;
+  }
+  struct dirent* entry;
+
+  std::vector<dirent> directories;
+  std::vector<dirent> regular_files;
+  std::vector<dirent> noise;
+
+  std::wregex noise_regex(target->Read(buffer_variables::directory_noise()));
+
+  while ((entry = readdir(dir)) != nullptr) {
+    auto path = FromByteString(entry->d_name);
+    if (strcmp(entry->d_name, ".") == 0) {
+      continue;  // Showing the link to itself is rather pointless.
+    }
+
+    if (std::regex_match(path, noise_regex)) {
+      noise.push_back(*entry);
+      continue;
+    }
+
+    if (entry->d_type == DT_DIR) {
+      directories.push_back(*entry);
+      continue;
+    }
+
+    regular_files.push_back(*entry);
+  }
+  closedir(dir);
+
+  target->AppendToLastLine(NewLazyString(L"# File listing: " + path));
+  target->AppendEmptyLine();
+
+  ShowFiles(editor_state, L"Directories", std::move(directories), target);
+  ShowFiles(editor_state, L"Files", std::move(regular_files), target);
+  ShowFiles(editor_state, L"Noise", std::move(noise), target);
+
+  target->ClearModified();
+}
+
 class FileBuffer : public OpenBuffer {
  public:
-  FileBuffer(Options options) : OpenBuffer(options) {}
+  FileBuffer(Options options, std::shared_ptr<struct stat> stat_buffer)
+      : OpenBuffer(options), stat_buffer_(std::move(stat_buffer)) {}
 
   void Visit(EditorState* editor_state) {
     OpenBuffer::Visit(editor_state);
 
     LOG(INFO) << "Checking if file has changed.";
-    const wstring path = GetPath();
+    const wstring path = Read(buffer_variables::path());
     const string path_raw = ToByteString(path);
     struct stat current_stat_buffer;
     if (stat(path_raw.c_str(), &current_stat_buffer) == -1) {
       return;
     }
-    if (current_stat_buffer.st_mtime > stat_buffer_.st_mtime) {
+    if (current_stat_buffer.st_mtime > stat_buffer_->st_mtime) {
       editor_state->SetWarningStatus(
           L"WARNING: File (in disk) changed since last read.");
     }
@@ -166,97 +313,15 @@ class FileBuffer : public OpenBuffer {
     return SaveContentsToFile(editor_, path, contents);
   }
 
-  void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
-    CHECK(!target->modified());
-    const wstring path = GetPath();
-    LOG(INFO) << "ReloadInto: " << path;
-    const string path_raw = ToByteString(path);
-    if (!path.empty() && stat(path_raw.c_str(), &stat_buffer_) == -1) {
-      return;
-    }
-
-    if (target->Read(buffer_variables::clear_on_reload())) {
-      target->ClearContents(editor_state,
-                            BufferContents::CursorsBehavior::kUnmodified);
-      target->ClearModified();
-    }
-
-    editor_state->ScheduleRedraw();
-
-    if (path.empty()) {
-      return;
-    }
-
-    if (!S_ISDIR(stat_buffer_.st_mode)) {
-      char* tmp = strdup(path_raw.c_str());
-      if (0 == strcmp(basename(tmp), "passwd")) {
-        RunCommandHandler(L"parsers/passwd <" + path, editor_state, {});
-      } else {
-        int fd = open(ToByteString(path).c_str(), O_RDONLY | O_NONBLOCK);
-        target->SetInputFiles(editor_state, fd, -1, false, -1);
-      }
-      return;
-    }
-
-    Set(buffer_variables::atomic_lines(), true);
-    Set(buffer_variables::allow_dirty_delete(), true);
-    Set(buffer_variables::tree_parser(), L"md");
-
-    DIR* dir = opendir(path_raw.c_str());
-    if (dir == nullptr) {
-      auto description =
-          L"Unable to open directory: " + FromByteString(strerror(errno));
-      editor_state->SetStatus(description);
-      target->AppendLine(NewLazyString(std::move(description)));
-      return;
-    }
-    struct dirent* entry;
-
-    std::vector<dirent> directories;
-    std::vector<dirent> regular_files;
-    std::vector<dirent> noise;
-
-    std::wregex noise_regex(target->Read(buffer_variables::directory_noise()));
-
-    while ((entry = readdir(dir)) != nullptr) {
-      auto path = FromByteString(entry->d_name);
-      if (strcmp(entry->d_name, ".") == 0) {
-        continue;  // Showing the link to itself is rather pointless.
-      }
-
-      if (std::regex_match(path, noise_regex)) {
-        noise.push_back(*entry);
-        continue;
-      }
-
-      if (entry->d_type == DT_DIR) {
-        directories.push_back(*entry);
-        continue;
-      }
-
-      regular_files.push_back(*entry);
-    }
-    closedir(dir);
-
-    target->AppendToLastLine(NewLazyString(L"# File listing: " + path));
-    target->AppendEmptyLine();
-
-    ShowFiles(editor_state, L"Directories", std::move(directories), target);
-    ShowFiles(editor_state, L"Files", std::move(regular_files), target);
-    ShowFiles(editor_state, L"Noise", std::move(noise), target);
-
-    target->ClearModified();
-  }
-
   void Save(EditorState* editor_state) {
-    const wstring path = GetPath();
+    const wstring path = Read(buffer_variables::path());
     if (path.empty()) {
       OpenBuffer::Save(editor_state);
       editor_state->SetStatus(
           L"Buffer can't be saved: “path” variable is empty.");
       return;
     }
-    if (S_ISDIR(stat_buffer_.st_mode)) {
+    if (S_ISDIR(stat_buffer_->st_mode)) {
       OpenBuffer::Save(editor_state);
       return;
     }
@@ -280,73 +345,10 @@ class FileBuffer : public OpenBuffer {
         }
       }
     }
-    stat(ToByteString(path).c_str(), &stat_buffer_);
+    stat(ToByteString(path).c_str(), stat_buffer_.get());
   }
 
  private:
-  void ShowFiles(EditorState* editor_state, wstring name,
-                 std::vector<dirent> entries, OpenBuffer* target) {
-    if (entries.empty()) {
-      return;
-    }
-    target->AppendLine(NewLazyString(L"## " + name));
-    int start = target->contents()->size();
-    for (auto& entry : entries) {
-      AddLine(editor_state, target, entry);
-    }
-    target->SortContents(
-        start, target->contents()->size(),
-        [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
-          return *a->contents() < *b->contents();
-        });
-    target->AppendEmptyLine();
-  }
-
-  void AddLine(EditorState* editor_state, OpenBuffer* target,
-               const dirent& entry) {
-    enum class SizeBehavior { kShow, kSkip };
-
-    struct FileType {
-      wstring description;
-      LineModifierSet modifiers;
-    };
-    static const std::unordered_map<int, FileType> types = {
-        {DT_BLK, {L" (block dev)", {GREEN}}},
-        {DT_CHR, {L" (char dev)", {RED}}},
-        {DT_DIR, {L"/", {CYAN}}},
-        {DT_FIFO, {L" (named pipe)", {BLUE}}},
-        {DT_LNK, {L"@", {ITALIC}}},
-        {DT_REG, {L"", {}}},
-        {DT_SOCK, {L" (unix sock)", {MAGENTA}}}};
-
-    auto path = FromByteString(entry.d_name);
-
-    auto type_it = types.find(entry.d_type);
-    if (type_it == types.end()) {
-      type_it = types.find(DT_REG);
-      CHECK(type_it != types.end());
-    }
-
-    Line::Options line_options;
-    line_options.contents = shared_ptr<LazyString>(
-        NewLazyString(path + type_it->second.description));
-    line_options.modifiers =
-        std::vector<LineModifierSet>(line_options.contents->size());
-    if (!type_it->second.modifiers.empty()) {
-      for (size_t i = 0; i < path.size(); i++) {
-        line_options.modifiers[i] = (type_it->second.modifiers);
-      }
-    }
-
-    auto line = std::make_shared<Line>(std::move(line_options));
-
-    target->AppendRawLine(line);
-    target->contents()->back()->environment()->Define(
-        L"EdgeLineDeleteHandler",
-        vm::NewCallback(std::function<void()>(
-            [editor_state, path]() { StartDeleteFile(editor_state, path); })));
-  }
-
   static bool SaveContentsToFile(EditorState* editor_state, const wstring& path,
                                  const BufferContents& contents) {
     const string path_raw = ToByteString(path);
@@ -402,9 +404,7 @@ class FileBuffer : public OpenBuffer {
     });
   }
 
-  wstring GetPath() const { return Read(buffer_variables::path()); }
-
-  struct stat stat_buffer_;
+  std::shared_ptr<struct stat> stat_buffer_;
 };
 
 static wstring realpath_safe(const wstring& path) {
@@ -580,8 +580,14 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     GetSearchPaths(editor_state, &search_paths);
   }
 
+  auto stat_buffer = std::make_shared<struct stat>();
+
   OpenBuffer::Options buffer_options;
   buffer_options.editor_state = editor_state;
+  buffer_options.generate_contents = [editor_state,
+                                      stat_buffer](OpenBuffer* target) {
+    GenerateContents(editor_state, stat_buffer.get(), target);
+  };
   FindPath(editor_state, search_paths, options.path, &buffer_options.path,
            &position, &pattern);
 
@@ -626,14 +632,15 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   } else if (buffer_options.path.empty()) {
     buffer_options.name =
         editor_state->GetUnusedBufferName(L"anonymous buffer");
-    buffer = std::make_shared<FileBuffer>(buffer_options);
+    buffer = std::make_shared<FileBuffer>(buffer_options, stat_buffer);
   } else {
     buffer_options.name = buffer_options.path;
   }
   auto it = editor_state->buffers()->insert({buffer_options.name, buffer});
   if (it.second) {
     if (it.first->second.get() == nullptr) {
-      it.first->second = std::make_shared<FileBuffer>(buffer_options);
+      it.first->second =
+          std::make_shared<FileBuffer>(buffer_options, stat_buffer);
     }
     it.first->second->Reload(editor_state);
   } else {

@@ -28,9 +28,6 @@ Improve logic around wrap_long_lines.
   Cursors (other than active cursor) are off.
   Also scrolling to the end of file doesn't quite work.
 
-Reloading the file should reset the cursors.
-  Since it shifts them to the top anyway.
-
 Search: Should make sure to disable multi active cursors.
 
 ## Navigation
@@ -43,8 +40,6 @@ Honor the "margin_columns" variable.
 Add a boolean variable "highlight_current_line" (default: false); when set, highlight the line with the current cursor position.
 
 When searching, display in the Status the count of matches (especially when there were zero matches).
-
-Automatically disable follow_end_of_file when the user scrolls upwards.
 
 ### List of buffers
 

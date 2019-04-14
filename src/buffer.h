@@ -56,6 +56,13 @@ class OpenBuffer {
     EditorState* editor_state;
     wstring name;
     wstring path;
+
+    // Optional function that will be run to generate the contents of the
+    // buffer.
+    //
+    // This will be run when the buffer is first created or when its contents
+    // need to be reloaded.
+    std::function<void(OpenBuffer*)> generate_contents;
   };
 
   OpenBuffer(EditorState* editor_state, const wstring& name);
@@ -83,7 +90,6 @@ class OpenBuffer {
                      BufferContents::CursorsBehavior cursors_behavior);
   void AppendEmptyLine();
 
-  virtual void ReloadInto(EditorState*, OpenBuffer*) {}
   virtual void Save(EditorState* editor_state);
 
   // If we're currently at the end of the buffer *and* variable
@@ -541,6 +547,9 @@ class OpenBuffer {
   //
   // TODO: Add a Time type to the VM and expose this?
   struct timespec last_progress_update_ = {0, 0};
+
+  // See Options::generate_contents.
+  std::function<void(OpenBuffer*)> generate_contents_;
 };
 
 }  // namespace editor

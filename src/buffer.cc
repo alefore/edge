@@ -479,7 +479,8 @@ OpenBuffer::OpenBuffer(Options options)
       parse_tree_(std::make_shared<ParseTree>()),
       tree_parser_(NewNullTreeParser()),
       default_commands_(editor_->default_commands()->NewChild()),
-      mode_(std::make_unique<MapMode>(default_commands_)) {
+      mode_(std::make_unique<MapMode>(default_commands_)),
+      generate_contents_(std::move(options.generate_contents)) {
   contents_.AddUpdateListener(
       [this](const CursorsTracker::Transformation& transformation) {
         editor_->ScheduleParseTreeUpdate(this);
@@ -944,7 +945,9 @@ void OpenBuffer::Reload(EditorState* editor_state) {
   }
   ClearModified();
   LOG(INFO) << "Starting reload: " << Read(buffer_variables::name());
-  ReloadInto(editor_state, this);
+  if (generate_contents_ != nullptr) {
+    generate_contents_(this);
+  }
 }
 
 void OpenBuffer::Save(EditorState* editor_state) {

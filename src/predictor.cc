@@ -38,98 +38,91 @@ using std::shared_ptr;
 using std::sort;
 using std::wstring;
 
-class PredictionsBufferImpl : public OpenBuffer {
- public:
-  PredictionsBufferImpl(EditorState* editor_state, Predictor predictor,
-                        const wstring& input, function<void(wstring)> consumer)
-      : OpenBuffer(editor_state, PredictionsBufferName()),
-        predictor_(predictor),
-        input_(input),
-        consumer_(consumer) {
-    Set(buffer_variables::show_in_buffers_list(), false);
-    Set(buffer_variables::allow_dirty_delete(), true);
-  }
+void HandleEndOfFile(EditorState* editor_state, OpenBuffer* buffer,
+                     std::function<void(wstring)> consumer) {
+  CHECK(editor_state != nullptr);
+  CHECK(buffer != nullptr);
 
-  void ReloadInto(EditorState* editor_state, OpenBuffer* buffer) {
-    predictor_(editor_state, input_, buffer);
-  }
+  LOG(INFO) << "Predictions buffer received end of file. Predictions: "
+            << buffer->contents()->size();
+  buffer->SortContents(
+      0, buffer->contents()->size() - 1,
+      [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
+        return *LowerCase(a->contents()) < *LowerCase(b->contents());
+      });
 
- protected:
-  void EndOfFile(EditorState* editor_state) {
-    OpenBuffer::EndOfFile(editor_state);
-    LOG(INFO) << "Predictions buffer received end of file. Predictions: "
-              << contents()->size();
-    SortContents(
-        0, contents()->size() - 1,
-        [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
-          return *LowerCase(a->contents()) < *LowerCase(b->contents());
-        });
-    for (size_t line = 0; line < contents()->size();) {
-      if (line == 0 ||
-          LineAt(line - 1)->ToString() != LineAt(line)->ToString()) {
-        line++;
-      } else {
-        EraseLines(line, line + 1);
-      }
-    }
-
-    wstring common_prefix = contents_.front()->contents()->ToString();
-    bool results =
-        contents_.EveryLine([&common_prefix](size_t, const Line& line) {
-          if (line.empty()) {
-            return true;
-          }
-          VLOG(5) << "Considering prediction: " << line.ToString()
-                  << " (len: " << line.size() << ")";
-          size_t current_size = min(common_prefix.size(), line.size());
-          wstring current = line.Substring(0, current_size)->ToString();
-
-          auto prefix_end = mismatch(
-              common_prefix.begin(), common_prefix.end(), current.begin(),
-              [](wchar_t common_c, wchar_t current_c) {
-                return towlower(common_c) == towlower(current_c);
-              });
-          if (prefix_end.first != common_prefix.end()) {
-            if (prefix_end.first == common_prefix.begin()) {
-              LOG(INFO) << "Aborting completion.";
-              return false;
-            }
-            common_prefix = wstring(common_prefix.begin(), prefix_end.first);
-          }
-          return true;
-        });
-    if (results) {
-      consumer_(common_prefix);
+  LOG(INFO) << "Removing duplicates.";
+  for (size_t line = 0; line < buffer->contents()->size();) {
+    if (line == 0 || buffer->LineAt(line - 1)->ToString() !=
+                         buffer->LineAt(line)->ToString()) {
+      line++;
     } else {
-      auto it = editor_state->buffers()->find(PredictionsBufferName());
-      if (it == editor_state->buffers()->end()) {
-        editor_state->SetWarningStatus(L"Error: predictions buffer not found.");
-      } else {
-        CHECK_EQ(this, it->second.get());
-        it->second->set_current_position_line(0);
-        editor_state->set_current_buffer(it);
-        editor_state->ScheduleRedraw();
-      }
+      buffer->EraseLines(line, line + 1);
     }
   }
 
- private:
-  Predictor predictor_;
-  const wstring input_;
-  std::function<void(wstring)> consumer_;
-};
+  wstring common_prefix = buffer->contents()->front()->contents()->ToString();
+  bool results =
+      buffer->contents()->EveryLine([&common_prefix](size_t, const Line& line) {
+        if (line.empty()) {
+          return true;
+        }
+        VLOG(5) << "Considering prediction: " << line.ToString()
+                << " (len: " << line.size() << ")";
+        size_t current_size = min(common_prefix.size(), line.size());
+        wstring current = line.Substring(0, current_size)->ToString();
 
+        auto prefix_end =
+            mismatch(common_prefix.begin(), common_prefix.end(),
+                     current.begin(), [](wchar_t common_c, wchar_t current_c) {
+                       return towlower(common_c) == towlower(current_c);
+                     });
+        if (prefix_end.first != common_prefix.end()) {
+          if (prefix_end.first == common_prefix.begin()) {
+            LOG(INFO) << "Aborting completion.";
+            return false;
+          }
+          common_prefix = wstring(common_prefix.begin(), prefix_end.first);
+        }
+        return true;
+      });
+  if (results) {
+    consumer(common_prefix);
+  } else {
+    auto it =
+        editor_state->buffers()->find(buffer->Read(buffer_variables::name()));
+    if (it == editor_state->buffers()->end()) {
+      editor_state->SetWarningStatus(L"Error: predictions buffer not found.");
+    } else {
+      CHECK_EQ(buffer, it->second.get());
+      editor_state->set_current_buffer(it);
+      buffer->set_current_position_line(0);
+      editor_state->ScheduleRedraw();
+    }
+  }
+}
 }  // namespace
 
 void Predict(EditorState* editor_state, Predictor predictor, wstring input,
              function<void(const wstring&)> consumer) {
   auto& predictions_buffer =
       (*editor_state->buffers())[PredictionsBufferName()];
-  predictions_buffer = std::make_shared<PredictionsBufferImpl>(
-      editor_state, std::move(predictor), std::move(input),
-      std::move(consumer));
+  OpenBuffer::Options options;
+  options.editor_state = editor_state;
+  options.name = PredictionsBufferName();
+  options.generate_contents = [editor_state, predictor,
+                               input](OpenBuffer* buffer) {
+    predictor(editor_state, input, buffer);
+  };
+  predictions_buffer = std::make_shared<OpenBuffer>(std::move(options));
+  predictions_buffer->Set(buffer_variables::show_in_buffers_list(), false);
+  predictions_buffer->Set(buffer_variables::allow_dirty_delete(), true);
   predictions_buffer->Reload(editor_state);
   predictions_buffer->set_current_cursor(LineColumn());
+  predictions_buffer->AddEndOfFileObserver(
+      [editor_state, buffer = predictions_buffer.get(), consumer]() {
+        HandleEndOfFile(editor_state, buffer, consumer);
+      });
 }
 
 void FilePredictor(EditorState* editor_state, const wstring& input,

@@ -164,53 +164,24 @@ void Daemonize(const std::unordered_set<int>& surviving_fds) {
 
 class ServerBuffer : public OpenBuffer {
  public:
-  ServerBuffer(EditorState* editor_state, const wstring& name)
-      : OpenBuffer(editor_state, name) {
-    Set(buffer_variables::clear_on_reload(), false);
-    Set(buffer_variables::vm_exec(), true);
-    Set(buffer_variables::show_in_buffers_list(), false);
-    Set(buffer_variables::allow_dirty_delete(), true);
-
-    environment()->Define(
-        L"SendExitTo",
-        Value::NewFunction(
-            {VMType::Void(), VMType::String()},
-            [this, editor_state](vector<unique_ptr<Value>> args) {
-              CHECK_EQ(args.size(), 1u);
-              int fd = open(ToByteString(args[0]->str).c_str(), O_WRONLY);
-              string command = "Exit(0);\n";
-              write(fd, command.c_str(), command.size());
-              close(fd);
-              return Value::NewVoid();
-            }));
-
-    environment()->Define(
-        L"Exit", Value::NewFunction(
-                     {VMType::Void(), VMType::Integer()},
-                     [this, editor_state](vector<unique_ptr<Value>> args) {
-                       CHECK_EQ(args.size(), 1u);
-                       LOG(INFO) << "Exit: " << args[0]->integer;
-                       exit(args[0]->integer);
-                       return Value::NewVoid();
-                     }));
-  }
-
-  void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
-    wstring address = Read(buffer_variables::path());
-    int fd = open(ToByteString(address).c_str(), O_RDONLY | O_NDELAY);
-    if (fd == -1) {
-      cerr << address << ": ReloadInto: open failed: " << strerror(errno);
-      exit(1);
-    }
-
-    LOG(INFO) << "Server received connection: " << fd;
-    target->SetInputFiles(editor_state, fd, -1, false, -1);
-
-    editor_state->ScheduleRedraw();
-  }
-
+  ServerBuffer(OpenBuffer::Options options) : OpenBuffer(std::move(options)) {}
   bool ShouldDisplayProgress() const override { return false; }
 };
+
+void GenerateContents(EditorState* editor_state, OpenBuffer* target) {
+  wstring address = target->Read(buffer_variables::path());
+  LOG(INFO) << L"Server starts: " << address;
+  int fd = open(ToByteString(address).c_str(), O_RDONLY | O_NDELAY);
+  if (fd == -1) {
+    LOG(FATAL) << address << ": Server: GenerateContents: Open failed: "
+               << strerror(errno);
+  }
+
+  LOG(INFO) << "Server received connection: " << fd;
+  target->SetInputFiles(editor_state, fd, -1, false, -1);
+
+  editor_state->ScheduleRedraw();
+}
 
 bool StartServer(EditorState* editor_state, wstring address,
                  wstring* actual_address, wstring* error) {
@@ -235,9 +206,44 @@ bool StartServer(EditorState* editor_state, wstring address,
 
 shared_ptr<OpenBuffer> OpenServerBuffer(EditorState* editor_state,
                                         const wstring& address) {
-  auto buffer = std::make_shared<ServerBuffer>(
-      editor_state, editor_state->GetUnusedBufferName(L"- server"));
-  buffer->Set(buffer_variables::path(), address);
+  OpenBuffer::Options options;
+  options.editor_state = editor_state;
+  options.name = editor_state->GetUnusedBufferName(L"- server");
+  options.path = address;
+  options.generate_contents = [editor_state](OpenBuffer* buffer) {
+    GenerateContents(editor_state, buffer);
+  };
+
+  auto buffer = std::make_shared<ServerBuffer>(options);
+  buffer->Set(buffer_variables::clear_on_reload(), false);
+  buffer->Set(buffer_variables::vm_exec(), true);
+  buffer->Set(buffer_variables::show_in_buffers_list(), false);
+  buffer->Set(buffer_variables::allow_dirty_delete(), true);
+
+  // TODO: These don't belong here but in OpenBuffer?
+  buffer->environment()->Define(
+      L"SendExitTo",
+      Value::NewFunction({VMType::Void(), VMType::String()},
+                         [editor_state](vector<unique_ptr<Value>> args) {
+                           CHECK_EQ(args.size(), 1u);
+                           int fd = open(ToByteString(args[0]->str).c_str(),
+                                         O_WRONLY);
+                           string command = "Exit(0);\n";
+                           write(fd, command.c_str(), command.size());
+                           close(fd);
+                           return Value::NewVoid();
+                         }));
+
+  buffer->environment()->Define(
+      L"Exit",
+      Value::NewFunction({VMType::Void(), VMType::Integer()},
+                         [editor_state](vector<unique_ptr<Value>> args) {
+                           CHECK_EQ(args.size(), 1u);
+                           LOG(INFO) << "Exit: " << args[0]->integer;
+                           exit(args[0]->integer);
+                           return Value::NewVoid();
+                         }));
+
   editor_state->buffers()->insert(
       {buffer->Read(buffer_variables::name()), buffer});
   buffer->Reload(editor_state);
