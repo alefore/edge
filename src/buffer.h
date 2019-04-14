@@ -100,7 +100,7 @@ class OpenBuffer {
   // position will not be the end of contents(), but rather position_pts_.
   std::unique_ptr<bool, std::function<void(bool*)>> GetEndPositionFollower();
 
-  virtual bool ShouldDisplayProgress() const;
+  bool ShouldDisplayProgress() const;
   void RegisterProgress();
 
   void ReadData(EditorState* editor_state);

@@ -162,12 +162,6 @@ void Daemonize(const std::unordered_set<int>& surviving_fds) {
   }
 }
 
-class ServerBuffer : public OpenBuffer {
- public:
-  ServerBuffer(OpenBuffer::Options options) : OpenBuffer(std::move(options)) {}
-  bool ShouldDisplayProgress() const override { return false; }
-};
-
 void GenerateContents(EditorState* editor_state, OpenBuffer* target) {
   wstring address = target->Read(buffer_variables::path());
   LOG(INFO) << L"Server starts: " << address;
@@ -198,6 +192,7 @@ bool StartServer(EditorState* editor_state, wstring address,
   LOG(INFO) << "Starting server: " << *actual_address;
   setenv("EDGE_PARENT_ADDRESS", ToByteString(*actual_address).c_str(), 1);
   auto buffer = OpenServerBuffer(editor_state, *actual_address);
+  buffer->Set(buffer_variables::display_progress(), false);
   buffer->Set(buffer_variables::reload_after_exit(), true);
   buffer->Set(buffer_variables::default_reload_after_exit(), true);
 
@@ -214,7 +209,7 @@ shared_ptr<OpenBuffer> OpenServerBuffer(EditorState* editor_state,
     GenerateContents(editor_state, buffer);
   };
 
-  auto buffer = std::make_shared<ServerBuffer>(options);
+  auto buffer = std::make_shared<OpenBuffer>(options);
   buffer->Set(buffer_variables::clear_on_reload(), false);
   buffer->Set(buffer_variables::vm_exec(), true);
   buffer->Set(buffer_variables::show_in_buffers_list(), false);

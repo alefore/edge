@@ -34,6 +34,7 @@ EdgeStruct<bool>* BoolStruct() {
     search_case_sensitive();
     wrap_long_lines();
     extend_lines();
+    display_progress();
   }
   return output;
 }
@@ -254,6 +255,15 @@ EdgeVariable<bool>* extend_lines() {
       L"If set to true, lines should be extended automatically as the cursor "
       L"advances past their end.",
       false);
+  return variable;
+}
+
+EdgeVariable<bool>* display_progress() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
+      L"display_progress",
+      L"If set to true, if this buffer is reading input (either from a regular "
+      L"file or a process), it'll be shown in the status line.",
+      true);
   return variable;
 }
 

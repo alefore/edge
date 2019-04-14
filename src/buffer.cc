@@ -682,7 +682,8 @@ OpenBuffer::GetEndPositionFollower() {
 }
 
 bool OpenBuffer::ShouldDisplayProgress() const {
-  return fd_.fd != -1 || fd_error_.fd != -1;
+  return (fd_.fd != -1 || fd_error_.fd != -1) &&
+         Read(buffer_variables::display_progress());
 }
 
 void OpenBuffer::RegisterProgress() {
