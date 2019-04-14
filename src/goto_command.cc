@@ -151,8 +151,7 @@ class GotoCommand : public Command {
       buffer->set_current_position_line(position);
     } else if (structure == StructureMark()) {
       // Navigates marks in the current buffer.
-      const multimap<size_t, LineMarks::Mark>* marks =
-          buffer->GetLineMarks(*editor_state);
+      const multimap<size_t, LineMarks::Mark>* marks = buffer->GetLineMarks();
       vector<pair<size_t, LineMarks::Mark>> lines;
       std::unique_copy(marks->begin(), marks->end(), std::back_inserter(lines),
                        [](const pair<size_t, LineMarks::Mark>& entry1,

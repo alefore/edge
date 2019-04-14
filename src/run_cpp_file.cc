@@ -61,7 +61,7 @@ void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
   }
 
   for (size_t i = 0; i < editor_state->repetitions(); i++) {
-    buffer->EvaluateFile(editor_state, adjusted_input);
+    buffer->EvaluateFile(adjusted_input);
   }
   editor_state->ResetRepetitions();
 }

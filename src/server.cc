@@ -172,7 +172,7 @@ void GenerateContents(EditorState* editor_state, OpenBuffer* target) {
   }
 
   LOG(INFO) << "Server received connection: " << fd;
-  target->SetInputFiles(editor_state, fd, -1, false, -1);
+  target->SetInputFiles(fd, -1, false, -1);
 
   editor_state->ScheduleRedraw();
 }
@@ -241,7 +241,7 @@ shared_ptr<OpenBuffer> OpenServerBuffer(EditorState* editor_state,
 
   editor_state->buffers()->insert(
       {buffer->Read(buffer_variables::name()), buffer});
-  buffer->Reload(editor_state);
+  buffer->Reload();
   return buffer;
 }
 

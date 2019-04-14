@@ -122,7 +122,7 @@ Environment EditorState::BuildEditorEnvironment() {
                 buffer = target_buffer;
               }
             }
-            buffer->Reload(editor);
+            buffer->Reload();
             editor->ResetModifiers();
             return Value::NewVoid();
           }));
@@ -150,7 +150,7 @@ Environment EditorState::BuildEditorEnvironment() {
                 buffer = target_buffer;
               }
             }
-            buffer->Save(editor);
+            buffer->Save();
             editor->ResetModifiers();
             return Value::NewVoid();
           }));
@@ -357,13 +357,13 @@ EditorState::~EditorState() {
   // CloseBuffer accordingly.
   LOG(INFO) << "Closing buffers.";
   for (auto& buffer : buffers_) {
-    buffer.second->Close(this);
+    buffer.second->Close();
   }
 }
 
 bool EditorState::CloseBuffer(
     map<wstring, shared_ptr<OpenBuffer>>::iterator buffer) {
-  if (!buffer->second->PrepareToClose(this)) {
+  if (!buffer->second->PrepareToClose()) {
     SetWarningStatus(L"Dirty buffers (“*ad” to ignore): " + buffer->first);
     return false;
   }
@@ -377,11 +377,11 @@ bool EditorState::CloseBuffer(
     }
 
     if (current_buffer_ != buffers_.end()) {
-      current_buffer_->second->Visit(this);
+      current_buffer_->second->Visit();
     }
   }
 
-  buffer->second->Close(this);
+  buffer->second->Close();
   buffers_.erase(buffer);
   return true;
 }
@@ -403,7 +403,7 @@ bool EditorState::AttemptTermination(wstring* error_description,
   LOG(INFO) << "Checking buffers for termination.";
   vector<wstring> buffers_with_problems;
   for (auto& it : buffers_) {
-    if (!it.second->PrepareToClose(this)) {
+    if (!it.second->PrepareToClose()) {
       buffers_with_problems.push_back(it.first);
     }
   }
@@ -458,7 +458,7 @@ void EditorState::MoveBufferForwards(size_t times) {
       current_buffer_ = buffers_.begin();
     }
   }
-  current_buffer_->second->Visit(this);
+  current_buffer_->second->Visit();
   PushCurrentPosition();
 }
 
@@ -477,7 +477,7 @@ void EditorState::MoveBufferBackwards(size_t times) {
     }
     current_buffer_--;
   }
-  current_buffer_->second->Visit(this);
+  current_buffer_->second->Visit();
   PushCurrentPosition();
 }
 
@@ -654,7 +654,7 @@ void EditorState::ProcessSignals() {
         if (target_buffer != nullptr) {
           buffer = target_buffer;
         }
-        buffer->PushSignal(this, signal);
+        buffer->PushSignal(signal);
     }
   }
 }

@@ -98,7 +98,7 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   int screen_lines = screen->lines();
   auto& buffer = editor_state->current_buffer()->second;
   if (buffer->Read(buffer_variables::reload_on_display())) {
-    buffer->Reload(editor_state);
+    buffer->Reload();
   }
   size_t line = min(buffer->position().line, buffer->contents()->size() - 1);
   size_t margin_lines =
@@ -226,7 +226,7 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
       }
     }
 
-    auto marks_text = buffer->GetLineMarksText(editor_state);
+    auto marks_text = buffer->GetLineMarksText();
     if (!marks_text.empty()) {
       status += marks_text + L" ";
     }
@@ -344,7 +344,7 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
 
 wstring Terminal::GetBufferContext(const EditorState& editor_state,
                                    const shared_ptr<OpenBuffer>& buffer) {
-  auto marks = buffer->GetLineMarks(editor_state);
+  auto marks = buffer->GetLineMarks();
   auto current_line_marks = marks->find(buffer->position().line);
   if (current_line_marks != marks->end()) {
     auto mark = current_line_marks->second;

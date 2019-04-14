@@ -73,8 +73,7 @@ using std::unordered_set;
 
 template <typename EdgeStruct, typename FieldValue>
 void RegisterBufferFields(
-    EditorState* editor_state, EdgeStruct* edge_struct,
-    afc::vm::ObjectType* object_type,
+    EdgeStruct* edge_struct, afc::vm::ObjectType* object_type,
     const FieldValue& (OpenBuffer::*reader)(const EdgeVariable<FieldValue>*)
         const,
     void (OpenBuffer::*setter)(const EdgeVariable<FieldValue>*, FieldValue)) {
@@ -98,10 +97,9 @@ void RegisterBufferFields(
     object_type->AddField(
         L"set_" + variable->name(),
         vm::NewCallback(std::function<void(OpenBuffer*, FieldValue)>(
-            [editor_state, variable, setter](OpenBuffer* buffer,
-                                             FieldValue value) {
+            [variable, setter](OpenBuffer* buffer, FieldValue value) {
               (buffer->*setter)(variable, value);
-              editor_state->ScheduleRedraw();
+              buffer->editor()->ScheduleRedraw();
             })));
   }
 }
@@ -114,12 +112,12 @@ using std::to_wstring;
 /* static */ const wstring OpenBuffer::kPasteBuffer = L"- paste buffer";
 
 // TODO: Once we can capture std::unique_ptr, turn transformation into one.
-void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
-                             size_t line, Value::Callback map_callback,
+void OpenBuffer::EvaluateMap(OpenBuffer* buffer, size_t line,
+                             Value::Callback map_callback,
                              TransformationStack* transformation,
                              Trampoline* trampoline) {
   if (line + 1 >= buffer->contents()->size()) {
-    buffer->Apply(editor, std::unique_ptr<Transformation>(transformation));
+    buffer->Apply(std::unique_ptr<Transformation>(transformation));
     trampoline->Return(Value::NewVoid());
     return;
   }
@@ -136,21 +134,21 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
 
   Evaluate(
       map_line.get(), trampoline->environment(),
-      [editor, buffer, line, map_callback, transformation, trampoline,
-       current_line, map_line](Value::Ptr value) {
+      [buffer, line, map_callback, transformation, trampoline, current_line,
+       map_line](Value::Ptr value) {
         if (value->str != current_line) {
           DeleteOptions options;
           options.copy_to_paste_buffer = false;
           options.modifiers.structure = StructureLine();
           transformation->PushBack(NewDeleteTransformation(options));
           auto buffer_to_insert =
-              std::make_shared<OpenBuffer>(editor, L"tmp buffer");
+              std::make_shared<OpenBuffer>(buffer->editor(), L"tmp buffer");
           buffer_to_insert->AppendLine(NewLazyString(std::move(value->str)));
           transformation->PushBack(
               NewInsertBufferTransformation(buffer_to_insert, 1, END));
         }
-        EvaluateMap(editor, buffer, line + 1, std::move(map_callback),
-                    transformation, trampoline);
+        EvaluateMap(buffer, line + 1, std::move(map_callback), transformation,
+                    trampoline);
       });
 }
 
@@ -158,18 +156,18 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
     EditorState* editor_state, afc::vm::Environment* environment) {
   auto buffer = std::make_unique<ObjectType>(L"Buffer");
 
-  RegisterBufferFields<EdgeStruct<bool>, bool>(
-      editor_state, buffer_variables::BoolStruct(), buffer.get(),
-      &OpenBuffer::Read, &OpenBuffer::Set);
+  RegisterBufferFields<EdgeStruct<bool>, bool>(buffer_variables::BoolStruct(),
+                                               buffer.get(), &OpenBuffer::Read,
+                                               &OpenBuffer::Set);
   RegisterBufferFields<EdgeStruct<wstring>, wstring>(
-      editor_state, buffer_variables::StringStruct(), buffer.get(),
-      &OpenBuffer::Read, &OpenBuffer::Set);
-  RegisterBufferFields<EdgeStruct<int>, int>(
-      editor_state, buffer_variables::IntStruct(), buffer.get(),
-      &OpenBuffer::Read, &OpenBuffer::Set);
+      buffer_variables::StringStruct(), buffer.get(), &OpenBuffer::Read,
+      &OpenBuffer::Set);
+  RegisterBufferFields<EdgeStruct<int>, int>(buffer_variables::IntStruct(),
+                                             buffer.get(), &OpenBuffer::Read,
+                                             &OpenBuffer::Set);
   RegisterBufferFields<EdgeStruct<double>, double>(
-      editor_state, buffer_variables::DoubleStruct(), buffer.get(),
-      &OpenBuffer::Read, &OpenBuffer::Set);
+      buffer_variables::DoubleStruct(), buffer.get(), &OpenBuffer::Read,
+      &OpenBuffer::Set);
 
   buffer->AddField(
       L"line_count",
@@ -206,12 +204,10 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
       L"Map", Value::NewFunction(
                   {VMType::Void(), VMType::ObjectType(buffer.get()),
                    VMType::Function({VMType::String(), VMType::String()})},
-                  [editor_state](vector<unique_ptr<Value>> args,
-                                 Trampoline* evaluation) {
+                  [](vector<unique_ptr<Value>> args, Trampoline* evaluation) {
                     CHECK_EQ(args.size(), size_t(2));
                     CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
                     EvaluateMap(
-                        editor_state,
                         static_cast<OpenBuffer*>(args[0]->user_value.get()), 0,
                         args[1]->callback,
                         std::make_unique<TransformationStack>().release(),
@@ -224,7 +220,7 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
       Value::NewFunction(
           {VMType::ObjectType(L"Range"), VMType::ObjectType(buffer.get()),
            VMType::String()},
-          [editor_state](vector<Value::Ptr> args, Trampoline* trampoline) {
+          [](vector<Value::Ptr> args, Trampoline* trampoline) {
             CHECK_EQ(args.size(), 2u);
             CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
             CHECK_EQ(args[1]->type, VMType::VM_STRING);
@@ -262,65 +258,62 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
           }));
 #endif
 
-  buffer->AddField(L"PushTransformationStack",
-                   vm::NewCallback(std::function<void(OpenBuffer*)>(
-                       [editor_state](OpenBuffer* buffer) {
-                         buffer->PushTransformationStack();
-                       })));
+  buffer->AddField(
+      L"PushTransformationStack",
+      vm::NewCallback(std::function<void(OpenBuffer*)>(
+          [](OpenBuffer* buffer) { buffer->PushTransformationStack(); })));
 
-  buffer->AddField(L"PopTransformationStack",
-                   vm::NewCallback(std::function<void(OpenBuffer*)>(
-                       [editor_state](OpenBuffer* buffer) {
-                         buffer->PopTransformationStack();
-                       })));
+  buffer->AddField(
+      L"PopTransformationStack",
+      vm::NewCallback(std::function<void(OpenBuffer*)>(
+          [](OpenBuffer* buffer) { buffer->PopTransformationStack(); })));
 
   buffer->AddField(
       L"AddKeyboardTextTransformer",
       Value::NewFunction(
           {VMType::Bool(), VMType::ObjectType(buffer.get()),
            VMType::Function({VMType::String(), VMType::String()})},
-          [editor_state](vector<unique_ptr<Value>> args) {
+          [](vector<unique_ptr<Value>> args) {
             CHECK_EQ(args.size(), size_t(2));
             CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
             auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
             CHECK(buffer != nullptr);
-            return Value::NewBool(buffer->AddKeyboardTextTransformer(
-                editor_state, std::move(args[1])));
+            return Value::NewBool(
+                buffer->AddKeyboardTextTransformer(std::move(args[1])));
           }));
 
   buffer->AddField(
       L"Filter", Value::NewFunction(
                      {VMType::Void(), VMType::ObjectType(buffer.get()),
                       VMType::Function({VMType::Bool(), VMType::String()})},
-                     [editor_state](vector<unique_ptr<Value>> args) {
+                     [](vector<unique_ptr<Value>> args) {
                        CHECK_EQ(args.size(), size_t(2));
                        CHECK_EQ(args[0]->type, VMType::OBJECT_TYPE);
                        auto buffer =
                            static_cast<OpenBuffer*>(args[0]->user_value.get());
                        CHECK(buffer != nullptr);
                        buffer->set_filter(std::move(args[1]));
-                       editor_state->ScheduleRedraw();
+                       buffer->editor()->ScheduleRedraw();
                        return Value::NewVoid();
                      }));
 
   buffer->AddField(
       L"DeleteCharacters",
       vm::NewCallback(std::function<void(OpenBuffer*, int)>(
-          [editor_state](OpenBuffer* buffer, int count) {
+          [](OpenBuffer* buffer, int count) {
             DeleteOptions options;
             options.modifiers.repetitions = count;
             buffer->ApplyToCursors(NewDeleteTransformation(options));
           })));
 
-  buffer->AddField(L"Reload", vm::NewCallback(std::function<void(OpenBuffer*)>(
-                                  [editor_state](OpenBuffer* buffer) {
-                                    buffer->Reload(editor_state);
-                                  })));
+  buffer->AddField(L"Reload",
+                   vm::NewCallback(std::function<void(OpenBuffer*)>(
+                       [](OpenBuffer* buffer) { buffer->Reload(); })));
 
   buffer->AddField(
       L"InsertText",
       vm::NewCallback(std::function<void(OpenBuffer*, wstring)>(
-          [editor_state](OpenBuffer* buffer, wstring text) {
+          [](OpenBuffer* buffer, wstring text) {
             if (text.empty()) {
               return;  // Optimization.
             }
@@ -328,13 +321,13 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
               auto str = ToByteString(text);
               LOG(INFO) << "Insert text: " << str.size();
               if (write(buffer->fd(), str.c_str(), str.size()) == -1) {
-                editor_state->SetWarningStatus(L"Write failed: " +
-                                               FromByteString(strerror(errno)));
+                buffer->editor()->SetWarningStatus(
+                    L"Write failed: " + FromByteString(strerror(errno)));
               }
               return;
             }
             auto buffer_to_insert =
-                std::make_shared<OpenBuffer>(editor_state, L"tmp buffer");
+                std::make_shared<OpenBuffer>(buffer->editor(), L"tmp buffer");
 
             // getline will silently eat the last (empty) line.
             std::wistringstream text_stream(text + L"\n");
@@ -354,10 +347,8 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
                 NewInsertBufferTransformation(buffer_to_insert, 1, END));
           })));
 
-  buffer->AddField(
-      L"Save",
-      vm::NewCallback(std::function<void(OpenBuffer*)>(
-          [editor_state](OpenBuffer* buffer) { buffer->Save(editor_state); })));
+  buffer->AddField(L"Save", vm::NewCallback(std::function<void(OpenBuffer*)>(
+                                [](OpenBuffer* buffer) { buffer->Save(); })));
 
   buffer->AddField(
       L"AddBinding",
@@ -394,7 +385,7 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
                     editor_state->SetWarningStatus(L"Unable to resolve: " +
                                                    path);
                   } else {
-                    buffer->EvaluateFile(editor_state, resolved_path);
+                    buffer->EvaluateFile(resolved_path);
                   }
                 },
                 L"Load file: " + path);
@@ -402,9 +393,9 @@ void OpenBuffer::EvaluateMap(EditorState* editor, OpenBuffer* buffer,
 
   buffer->AddField(L"EvaluateFile",
                    vm::NewCallback(std::function<void(OpenBuffer*, wstring)>(
-                       [editor_state](OpenBuffer* buffer, wstring path) {
+                       [](OpenBuffer* buffer, wstring path) {
                          LOG(INFO) << "Evaluating file: " << path;
-                         buffer->EvaluateFile(editor_state, path);
+                         buffer->EvaluateFile(path);
                        })));
 
   environment->DefineType(L"Buffer", std::move(buffer));
@@ -507,8 +498,7 @@ OpenBuffer::OpenBuffer(Options options)
     Set(buffer_variables::show_in_buffers_list(), false);
     Set(buffer_variables::delete_into_paste_buffer(), false);
   }
-  ClearContents(options.editor_state,
-                BufferContents::CursorsBehavior::kUnmodified);
+  ClearContents(BufferContents::CursorsBehavior::kUnmodified);
 
   for (const auto& dir : editor_->edge_path()) {
     auto state_path =
@@ -518,7 +508,7 @@ OpenBuffer::OpenBuffer(Options options)
     if (stat(ToByteString(state_path).c_str(), &stat_buffer) == -1) {
       continue;
     }
-    EvaluateFile(editor_, state_path);
+    EvaluateFile(state_path);
   }
 }
 
@@ -528,9 +518,13 @@ OpenBuffer::~OpenBuffer() {
   DestroyThreadIf([]() { return true; });
 }
 
-bool OpenBuffer::PrepareToClose(EditorState* editor_state) {
+void OpenBuffer::SetStatus(wstring status) const {
+  editor()->SetStatus(status);
+}
+
+bool OpenBuffer::PrepareToClose() {
   if (!PersistState() &&
-      editor_state->modifiers().strength == Modifiers::Strength::kNormal) {
+      editor_->modifiers().strength == Modifiers::Strength::kNormal) {
     LOG(INFO) << "Unable to persist state: " << Read(buffer_variables::name());
     return false;
   }
@@ -542,7 +536,7 @@ bool OpenBuffer::PrepareToClose(EditorState* editor_state) {
     LOG(INFO) << Read(buffer_variables::name())
               << ": attempting to save buffer.";
     // TODO(alejo): Let Save give us status?
-    Save(editor_state);
+    Save();
     if (!dirty()) {
       LOG(INFO) << Read(buffer_variables::name()) << ": successful save.";
       return true;
@@ -553,7 +547,7 @@ bool OpenBuffer::PrepareToClose(EditorState* editor_state) {
               << ": allows dirty delete, skipping.";
     return true;
   }
-  if (editor_state->modifiers().strength > Modifiers::Strength::kNormal) {
+  if (editor_->modifiers().strength > Modifiers::Strength::kNormal) {
     LOG(INFO) << Read(buffer_variables::name())
               << ": Deleting due to modifiers.";
     return true;
@@ -561,11 +555,11 @@ bool OpenBuffer::PrepareToClose(EditorState* editor_state) {
   return false;
 }
 
-void OpenBuffer::Close(EditorState* editor_state) {
+void OpenBuffer::Close() {
   LOG(INFO) << "Closing buffer: " << Read(buffer_variables::name());
   if (dirty() && Read(buffer_variables::save_on_close())) {
     LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name());
-    Save(editor_state);
+    Save();
   }
   for (auto& observer : close_observers_) {
     observer();
@@ -584,9 +578,9 @@ void OpenBuffer::AddCloseObserver(std::function<void()> observer) {
   close_observers_.push_back(std::move(observer));
 }
 
-void OpenBuffer::Visit(EditorState* editor_state) {
+void OpenBuffer::Visit() {
   if (Read(buffer_variables::reload_on_enter())) {
-    Reload(editor_state);
+    Reload();
     CheckPosition();
   }
   time(&last_visit_);
@@ -641,8 +635,7 @@ bool OpenBuffer::PersistState() const {
       return false;
     }
     if (mkdir(path_byte_string.c_str(), 0700)) {
-      editor_->SetStatus(L"mkdir: " + FromByteString(strerror(errno)) + L": " +
-                         path);
+      SetStatus(L"mkdir: " + FromByteString(strerror(errno)) + L": " + path);
       return false;
     }
   }
@@ -683,14 +676,13 @@ bool OpenBuffer::PersistState() const {
 }
 
 void OpenBuffer::ClearContents(
-    EditorState* editor_state,
     BufferContents::CursorsBehavior cursors_behavior) {
   VLOG(5) << "Clear contents of buffer: " << Read(buffer_variables::name());
-  editor_state->line_marks()->RemoveExpiredMarksFromSource(
+  editor_->line_marks()->RemoveExpiredMarksFromSource(
       Read(buffer_variables::name()));
-  editor_state->line_marks()->ExpireMarksFromSource(
-      *this, Read(buffer_variables::name()));
-  editor_state->ScheduleRedraw();
+  editor_->line_marks()->ExpireMarksFromSource(*this,
+                                               Read(buffer_variables::name()));
+  editor_->ScheduleRedraw();
   contents_.EraseLines(0, contents_.size(), cursors_behavior);
   position_pts_ = LineColumn();
   last_transformation_ = NewNoopTransformation();
@@ -704,23 +696,22 @@ void OpenBuffer::AppendEmptyLine() {
   contents_.push_back(std::make_shared<Line>());
 }
 
-void OpenBuffer::EndOfFile(EditorState* editor_state) {
+void OpenBuffer::EndOfFile() {
   time(&last_action_);
   CHECK_EQ(fd_.fd, -1);
   CHECK_EQ(fd_error_.fd, -1);
   if (child_pid_ != -1) {
     if (waitpid(child_pid_, &child_exit_status_, 0) == -1) {
-      editor_state->SetStatus(L"waitpid failed: " +
-                              FromByteString(strerror(errno)));
+      SetStatus(L"waitpid failed: " + FromByteString(strerror(errno)));
       return;
     }
   }
 
   // We can remove expired marks now. We know that the set of fresh marks is now
   // complete.
-  editor_state->line_marks()->RemoveExpiredMarksFromSource(
+  editor()->line_marks()->RemoveExpiredMarksFromSource(
       Read(buffer_variables::name()));
-  editor_state->ScheduleRedraw();
+  editor()->ScheduleRedraw();
 
   child_pid_ = -1;
 
@@ -733,19 +724,19 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
   if (Read(buffer_variables::reload_after_exit())) {
     Set(buffer_variables::reload_after_exit(),
         Read(buffer_variables::default_reload_after_exit()));
-    Reload(editor_state);
+    Reload();
   }
   if (Read(buffer_variables::close_after_clean_exit()) &&
       WIFEXITED(child_exit_status_) && WEXITSTATUS(child_exit_status_) == 0) {
-    auto it = editor_state->buffers()->find(Read(buffer_variables::name()));
-    if (it != editor_state->buffers()->end()) {
-      editor_state->CloseBuffer(it);
+    auto it = editor()->buffers()->find(Read(buffer_variables::name()));
+    if (it != editor()->buffers()->end()) {
+      editor()->CloseBuffer(it);
     }
   }
 
-  if (editor_state->has_current_buffer() &&
-      editor_state->current_buffer()->first == kBuffersName) {
-    editor_state->current_buffer()->second->Reload(editor_state);
+  if (editor()->has_current_buffer() &&
+      editor()->current_buffer()->first == kBuffersName) {
+    editor()->current_buffer()->second->Reload();
   }
 }
 
@@ -787,21 +778,17 @@ void OpenBuffer::RegisterProgress() {
   Set(buffer_variables::progress(), Read(buffer_variables::progress()) + 1);
 }
 
-void OpenBuffer::ReadData(EditorState* editor_state) {
-  fd_.ReadData(editor_state, this);
-}
+void OpenBuffer::ReadData() { fd_.ReadData(this); }
 
-void OpenBuffer::ReadErrorData(EditorState* editor_state) {
-  fd_error_.ReadData(editor_state, this);
-}
+void OpenBuffer::ReadErrorData() { fd_error_.ReadData(this); }
 
 vector<unordered_set<LineModifier, hash<int>>> ModifiersVector(
     const unordered_set<LineModifier, hash<int>>& input, size_t size) {
   return vector<unordered_set<LineModifier, hash<int>>>(size, input);
 }
 
-void OpenBuffer::Input::ReadData(EditorState* editor_state,
-                                 OpenBuffer* target) {
+void OpenBuffer::Input::ReadData(OpenBuffer* target) {
+  EditorState* editor_state = target->editor();
   LOG(INFO) << "Reading input from " << fd << " for buffer "
             << target->Read(buffer_variables::name());
   static const size_t kLowBufferSize = 1024 * 60;
@@ -820,7 +807,7 @@ void OpenBuffer::Input::ReadData(EditorState* editor_state,
     Close();
     Reset();
     if (target->fd_.fd == -1 && target->fd_error_.fd == -1) {
-      target->EndOfFile(editor_state);
+      target->EndOfFile();
     }
     return;
   }
@@ -831,7 +818,7 @@ void OpenBuffer::Input::ReadData(EditorState* editor_state,
     Reset();
     target->RegisterProgress();
     if (target->fd_.fd == -1 && target->fd_error_.fd == -1) {
-      target->EndOfFile(editor_state);
+      target->EndOfFile();
     }
     return;
   }
@@ -875,14 +862,14 @@ void OpenBuffer::Input::ReadData(EditorState* editor_state,
   if (target->Read(buffer_variables::vm_exec())) {
     LOG(INFO) << target->Read(buffer_variables::name())
               << ": Evaluating VM code: " << buffer_wrapper->ToString();
-    target->EvaluateString(editor_state, buffer_wrapper->ToString(),
+    target->EvaluateString(buffer_wrapper->ToString(),
                            [](std::unique_ptr<Value>) {});
   }
 
   target->RegisterProgress();
   bool previous_modified = target->modified();
   if (target->Read(buffer_variables::pts())) {
-    target->ProcessCommandInput(editor_state, buffer_wrapper);
+    target->ProcessCommandInput(buffer_wrapper);
     editor_state->ScheduleRedraw();
   } else {
     auto follower = target->GetEndPositionFollower();
@@ -893,7 +880,7 @@ void OpenBuffer::Input::ReadData(EditorState* editor_state,
         VLOG(8) << "Adding line from " << line_start << " to " << i;
         target->AppendToLastLine(line,
                                  ModifiersVector(modifiers, line->size()));
-        target->StartNewLine(editor_state);
+        target->StartNewLine();
         line_start = i + 1;
         if (editor_state->has_current_buffer() &&
             editor_state->current_buffer()->second.get() == target &&
@@ -917,7 +904,7 @@ void OpenBuffer::Input::ReadData(EditorState* editor_state,
   }
   if (editor_state->has_current_buffer() &&
       editor_state->current_buffer()->first == kBuffersName) {
-    editor_state->current_buffer()->second->Reload(editor_state);
+    editor_state->current_buffer()->second->Reload();
   }
   editor_state->ScheduleRedraw();
 }
@@ -993,7 +980,7 @@ void OpenBuffer::DestroyThreadIf(std::function<bool()> predicate) {
   background_thread_.join();
 }
 
-void OpenBuffer::StartNewLine(EditorState* editor_state) {
+void OpenBuffer::StartNewLine() {
   DVLOG(5) << "Line is completed: " << contents_.back()->ToString();
 
   if (Read(buffer_variables::contains_line_marks())) {
@@ -1001,7 +988,7 @@ void OpenBuffer::StartNewLine(EditorState* editor_state) {
     std::optional<LineColumn> position;
     wstring pattern;
     ResolvePathOptions options;
-    options.editor_state = editor_state;
+    options.editor_state = editor();
     options.path = contents_.back()->ToString();
     options.output_path = &path;
     options.output_position = &position;
@@ -1015,21 +1002,21 @@ void OpenBuffer::StartNewLine(EditorState* editor_state) {
         mark.target = position.value();
       }
       LOG(INFO) << "Found a mark: " << mark;
-      editor_state->line_marks()->AddMark(mark);
+      editor()->line_marks()->AddMark(mark);
     }
   }
   contents_.push_back(std::make_shared<Line>());
 }
 
-void OpenBuffer::Reload(EditorState* editor_state) {
+void OpenBuffer::Reload() {
   if (child_pid_ != -1) {
     LOG(INFO) << "Sending SIGTERM.";
     kill(-child_pid_, SIGTERM);
     Set(buffer_variables::reload_after_exit(), true);
     return;
   }
-  for (const auto& dir : editor_state->edge_path()) {
-    EvaluateFile(editor_state, PathJoin(dir, L"hooks/buffer-reload.cc"));
+  for (const auto& dir : editor()->edge_path()) {
+    EvaluateFile(PathJoin(dir, L"hooks/buffer-reload.cc"));
   }
   ClearModified();
   LOG(INFO) << "Starting reload: " << Read(buffer_variables::name());
@@ -1038,13 +1025,13 @@ void OpenBuffer::Reload(EditorState* editor_state) {
   }
 }
 
-void OpenBuffer::Save(EditorState* editor_state) {
+void OpenBuffer::Save() {
   LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name());
 
   if (handle_save_ != nullptr) {
     return handle_save_(this);
   }
-  editor_state->SetStatus(L"Buffer can't be saved.");
+  SetStatus(L"Buffer can't be saved.");
 }
 
 void OpenBuffer::AppendLazyString(std::shared_ptr<LazyString> input) {
@@ -1114,8 +1101,7 @@ void OpenBuffer::AppendRawLine(std::shared_ptr<Line> line) {
   contents_.push_back(line);
 }
 
-void OpenBuffer::ProcessCommandInput(EditorState* editor_state,
-                                     shared_ptr<LazyString> str) {
+void OpenBuffer::ProcessCommandInput(shared_ptr<LazyString> str) {
   CHECK(Read(buffer_variables::pts()));
   if (position_pts_.line >= contents_.size()) {
     position_pts_.line = contents_.size() - 1;
@@ -1135,7 +1121,7 @@ void OpenBuffer::ProcessCommandInput(EditorState* editor_state,
       }
     } else if (c == '\a') {
       VLOG(8) << "Received \\a";
-      auto status = editor_state->status();
+      auto status = editor()->status();
       if (!all_of(status.begin(), status.end(), [](const wchar_t& c) {
             return c == L'♪' || c == L'♫' || c == L'…' || c == L' ' ||
                    c == L'𝄞';
@@ -1144,9 +1130,8 @@ void OpenBuffer::ProcessCommandInput(EditorState* editor_state,
       } else if (status.size() >= 40) {
         status = L"…" + status.substr(status.size() - 40, status.size());
       }
-      editor_state->SetStatus(status + L" " +
-                              (status.back() == L'♪' ? L"♫" : L"♪"));
-      BeepFrequencies(editor_state->audio_player(), {783.99, 523.25, 659.25});
+      SetStatus(status + L" " + (status.back() == L'♪' ? L"♫" : L"♪"));
+      BeepFrequencies(editor()->audio_player(), {783.99, 523.25, 659.25});
     } else if (c == '\r') {
       VLOG(8) << "Received \\r";
       position_pts_.column = 0;
@@ -1155,8 +1140,7 @@ void OpenBuffer::ProcessCommandInput(EditorState* editor_state,
       PtsMoveToNextLine();
     } else if (c == 0x1b) {
       VLOG(8) << "Received 0x1b";
-      read_index = ProcessTerminalEscapeSequence(editor_state, str, read_index,
-                                                 &modifiers);
+      read_index = ProcessTerminalEscapeSequence(str, read_index, &modifiers);
       CHECK_LT(position_pts_.line, contents_.size());
     } else if (isprint(c) || c == '\t') {
       VLOG(8) << "Received printable or tab: " << c;
@@ -1184,7 +1168,7 @@ void OpenBuffer::PtsMoveToNextLine() {
 }
 
 size_t OpenBuffer::ProcessTerminalEscapeSequence(
-    EditorState* editor_state, shared_ptr<LazyString> str, size_t read_index,
+    shared_ptr<LazyString> str, size_t read_index,
     std::unordered_set<LineModifier, hash<int>>* modifiers) {
   if (str->size() <= read_index) {
     LOG(INFO) << "Unhandled character sequence: "
@@ -1344,7 +1328,7 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
               line_delta = stoul(sequence);
             }
           } catch (const std::invalid_argument& ia) {
-            editor_state->SetStatus(
+            SetStatus(
                 L"Unable to parse sequence from terminal in 'home' command: "
                 L"\"" +
                 FromByteString(sequence) + L"\"");
@@ -1420,44 +1404,41 @@ void OpenBuffer::AppendToLastLine(
   contents_.AppendToLine(contents_.size(), Line(options));
 }
 
-unique_ptr<Expression> OpenBuffer::CompileString(EditorState*,
-                                                 const wstring& code,
+unique_ptr<Expression> OpenBuffer::CompileString(const wstring& code,
                                                  wstring* error_description) {
   return afc::vm::CompileString(code, &environment_, error_description);
 }
 
 void OpenBuffer::EvaluateExpression(
-    EditorState*, Expression* expr,
-    std::function<void(std::unique_ptr<Value>)> consumer) {
+    Expression* expr, std::function<void(std::unique_ptr<Value>)> consumer) {
   Evaluate(expr, &environment_, consumer);
 }
 
 bool OpenBuffer::EvaluateString(
-    EditorState* editor_state, const wstring& code,
-    std::function<void(std::unique_ptr<Value>)> consumer) {
+    const wstring& code, std::function<void(std::unique_ptr<Value>)> consumer) {
   wstring error_description;
   LOG(INFO) << "Compiling code.";
   // TODO: Use unique_ptr and capture by value.
   std::shared_ptr<Expression> expression =
-      CompileString(editor_state, code, &error_description);
+      CompileString(code, &error_description);
   if (expression == nullptr) {
-    editor_state->SetWarningStatus(L"Compilation error: " + error_description);
+    editor()->SetWarningStatus(L"Compilation error: " + error_description);
     return false;
   }
   LOG(INFO) << "Code compiled, evaluating.";
   EvaluateExpression(
-      editor_state, expression.get(),
+      expression.get(),
       [expression, consumer](Value::Ptr value) { consumer(std::move(value)); });
   return true;
 }
 
-bool OpenBuffer::EvaluateFile(EditorState* editor_state, const wstring& path) {
+bool OpenBuffer::EvaluateFile(const wstring& path) {
   wstring error_description;
   // TODO: Use unique_ptr and capture by value.
   std::shared_ptr<Expression> expression =
       CompileFile(ToByteString(path), &environment_, &error_description);
   if (expression == nullptr) {
-    editor_state->SetStatus(path + L": error: " + error_description);
+    SetStatus(path + L": error: " + error_description);
     return false;
   }
   Evaluate(expression.get(), &environment_,
@@ -1582,7 +1563,7 @@ void OpenBuffer::ToggleActiveCursors() {
 
 void OpenBuffer::PushActiveCursors() {
   auto stack_size = cursors_tracker_.Push();
-  editor_->SetStatus(L"cursors stack (" + to_wstring(stack_size) + L"): +");
+  SetStatus(L"cursors stack (" + to_wstring(stack_size) + L"): +");
 }
 
 void OpenBuffer::PopActiveCursors() {
@@ -1591,11 +1572,11 @@ void OpenBuffer::PopActiveCursors() {
     editor_->SetWarningStatus(L"cursors stack: -: Stack is empty!");
     return;
   }
-  editor_->SetStatus(L"cursors stack (" + to_wstring(stack_size - 1) + L"): -");
+  SetStatus(L"cursors stack (" + to_wstring(stack_size - 1) + L"): -");
 }
 
 void OpenBuffer::SetActiveCursorsToMarks() {
-  const auto& marks = *GetLineMarks(*editor_);
+  const auto& marks = *GetLineMarks();
   if (marks.empty()) {
     editor_->SetWarningStatus(L"Buffer has no marks!");
     return;
@@ -1644,7 +1625,7 @@ void OpenBuffer::CreateCursor() {
       range.begin = tmp_first;
     }
   }
-  editor_->SetStatus(L"Cursor created.");
+  SetStatus(L"Cursor created.");
   editor_->ScheduleRedraw();
 }
 
@@ -1843,15 +1824,15 @@ std::shared_ptr<OpenBuffer> OpenBuffer::GetBufferFromCurrentLine() {
 
 wstring OpenBuffer::ToString() const { return contents_.ToString(); }
 
-void OpenBuffer::PushSignal(EditorState* editor_state, int sig) {
+void OpenBuffer::PushSignal(int sig) {
   switch (sig) {
     case SIGINT:
       if (Read(buffer_variables::pts())) {
         string sequence(1, 0x03);
         (void)write(fd_.fd, sequence.c_str(), sequence.size());
-        editor_state->SetStatus(L"SIGINT");
+        SetStatus(L"SIGINT");
       } else if (child_pid_ != -1) {
-        editor_state->SetStatus(L"SIGINT >> pid:" + to_wstring(child_pid_));
+        SetStatus(L"SIGINT >> pid:" + to_wstring(child_pid_));
         kill(child_pid_, sig);
       }
       break;
@@ -1864,8 +1845,7 @@ void OpenBuffer::PushSignal(EditorState* editor_state, int sig) {
       break;
 
     default:
-      editor_state->SetStatus(L"Unexpected signal received: " +
-                              to_wstring(sig));
+      SetStatus(L"Unexpected signal received: " + to_wstring(sig));
   }
 }
 
@@ -1880,15 +1860,13 @@ wstring OpenBuffer::TransformKeyboardText(wstring input) {
   return input;
 }
 
-bool OpenBuffer::AddKeyboardTextTransformer(EditorState* editor_state,
-                                            unique_ptr<Value> transformer) {
+bool OpenBuffer::AddKeyboardTextTransformer(unique_ptr<Value> transformer) {
   if (transformer == nullptr || transformer->type.type != VMType::FUNCTION ||
       transformer->type.type_arguments.size() != 2 ||
       transformer->type.type_arguments[0].type != VMType::VM_STRING ||
       transformer->type.type_arguments[1].type != VMType::VM_STRING) {
-    editor_state->SetStatus(
-        L": Unexpected type for keyboard text transformer: " +
-        transformer->type.ToString());
+    SetStatus(L": Unexpected type for keyboard text transformer: " +
+              transformer->type.ToString());
     return false;
   }
   keyboard_text_transformers_.push_back(std::move(transformer));
@@ -1907,11 +1885,10 @@ void OpenBuffer::Input::Close() {
   }
 }
 
-void OpenBuffer::SetInputFiles(EditorState* editor_state, int input_fd,
-                               int input_error_fd, bool fd_is_terminal,
-                               pid_t child_pid) {
+void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
+                               bool fd_is_terminal, pid_t child_pid) {
   if (Read(buffer_variables::clear_on_reload())) {
-    ClearContents(editor_state, BufferContents::CursorsBehavior::kUnmodified);
+    ClearContents(BufferContents::CursorsBehavior::kUnmodified);
     ClearModified();
     fd_.Reset();
     fd_error_.Reset();
@@ -1990,7 +1967,7 @@ wstring OpenBuffer::FlagsString() const {
     }
   }
 
-  auto marks = GetLineMarksText(*editor_);
+  auto marks = GetLineMarksText();
   if (!marks.empty()) {
     output += L" " + marks;
   }
@@ -2076,12 +2053,12 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
     cursors_tracker_.ApplyTransformationToCursors(
         cursors, [this, &transformation, mode](LineColumn old_position) {
           transformations_past_.back()->cursor = old_position;
-          auto new_position = Apply(editor_, transformation->Clone());
+          auto new_position = Apply(transformation->Clone());
           return new_position;
         });
   } else {
     transformations_past_.back()->cursor = position();
-    auto new_position = Apply(editor_, transformation->Clone());
+    auto new_position = Apply(transformation->Clone());
     VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
     active_cursors()->MoveCurrentCursor(new_position);
   }
@@ -2093,12 +2070,11 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
   }
 }
 
-LineColumn OpenBuffer::Apply(EditorState* editor_state,
-                             unique_ptr<Transformation> transformation) {
+LineColumn OpenBuffer::Apply(unique_ptr<Transformation> transformation) {
   CHECK(transformation != nullptr);
   CHECK(!transformations_past_.empty());
 
-  transformation->Apply(editor_state, this, transformations_past_.back().get());
+  transformation->Apply(editor_, this, transformations_past_.back().get());
   CHECK(!transformations_past_.empty());
 
   auto delete_buffer = transformations_past_.back()->delete_buffer;
@@ -2106,7 +2082,7 @@ LineColumn OpenBuffer::Apply(EditorState* editor_state,
   if ((delete_buffer->contents()->size() > 1 ||
        delete_buffer->LineAt(0)->size() > 0) &&
       Read(buffer_variables::delete_into_paste_buffer())) {
-    auto insert_result = editor_state->buffers()->insert(make_pair(
+    auto insert_result = editor()->buffers()->insert(make_pair(
         delete_buffer->Read(buffer_variables::name()), delete_buffer));
     if (!insert_result.second) {
       insert_result.first->second = delete_buffer;
@@ -2141,27 +2117,23 @@ void OpenBuffer::PopTransformationStack() {
   }
 }
 
-void OpenBuffer::Undo(EditorState* editor_state) {
-  Undo(editor_state, SKIP_IRRELEVANT);
-};
+void OpenBuffer::Undo() { Undo(SKIP_IRRELEVANT); };
 
-void OpenBuffer::Undo(EditorState* editor_state, UndoMode undo_mode) {
+void OpenBuffer::Undo(UndoMode undo_mode) {
   list<unique_ptr<Transformation::Result>>* source;
   list<unique_ptr<Transformation::Result>>* target;
-  if (editor_state->direction() == FORWARDS) {
+  if (editor()->direction() == FORWARDS) {
     source = &transformations_past_;
     target = &transformations_future_;
   } else {
     source = &transformations_future_;
     target = &transformations_past_;
   }
-  for (size_t i = 0; i < editor_state->repetitions(); i++) {
+  for (size_t i = 0; i < editor()->repetitions(); i++) {
     bool modified_buffer = false;
     while (!modified_buffer && !source->empty()) {
-      target->emplace_back(
-          std::make_unique<Transformation::Result>(editor_state));
-      source->back()->undo_stack->Apply(editor_state, this,
-                                        target->back().get());
+      target->emplace_back(std::make_unique<Transformation::Result>(editor()));
+      source->back()->undo_stack->Apply(editor(), this, target->back().get());
       source->pop_back();
       modified_buffer =
           target->back()->modified_buffer || undo_mode == ONLY_UNDO_THE_LAST;
@@ -2198,9 +2170,8 @@ bool OpenBuffer::IsLineFiltered(size_t line_number) {
   return filtered;
 }
 
-const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks(
-    const EditorState& editor_state) const {
-  auto marks = editor_state.line_marks();
+const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks() const {
+  auto marks = editor()->line_marks();
   if (marks->updates > line_marks_last_updates_) {
     LOG(INFO) << Read(buffer_variables::name()) << ": Updating marks.";
     line_marks_.clear();
@@ -2215,8 +2186,8 @@ const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks(
   return &line_marks_;
 }
 
-wstring OpenBuffer::GetLineMarksText(const EditorState& editor_state) const {
-  const auto* marks = GetLineMarks(editor_state);
+wstring OpenBuffer::GetLineMarksText() const {
+  const auto* marks = GetLineMarks();
   wstring output;
   if (!marks->empty()) {
     size_t expired_marks = 0;

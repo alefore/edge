@@ -31,9 +31,9 @@ class MoveTransformation : public Transformation {
       position = MoveLine(buffer, result->cursor);
     } else if (structure == StructureChar() || structure == StructureTree() ||
                structure == StructureSymbol() || structure == StructureWord()) {
-      position = MoveRange(editor_state, buffer, result->cursor);
+      position = MoveRange(buffer, result->cursor);
     } else if (structure == StructureMark()) {
-      position = MoveMark(editor_state, buffer, result->cursor);
+      position = MoveMark(buffer, result->cursor);
     } else if (structure == StructureCursor()) {
       // Handles repetitions.
       auto active_cursors = buffer->active_cursors();
@@ -132,17 +132,14 @@ class MoveTransformation : public Transformation {
     return position;
   }
 
-  LineColumn MoveRange(EditorState*, OpenBuffer* buffer,
-                       LineColumn position) const {
+  LineColumn MoveRange(OpenBuffer* buffer, LineColumn position) const {
     Range range = buffer->FindPartialRange(modifiers_, position);
     CHECK_LE(range.begin, range.end);
     return modifiers_.direction == FORWARDS ? range.end : range.begin;
   }
 
-  LineColumn MoveMark(EditorState* editor_state, OpenBuffer* buffer,
-                      LineColumn position) const {
-    const multimap<size_t, LineMarks::Mark>* marks =
-        buffer->GetLineMarks(*editor_state);
+  LineColumn MoveMark(OpenBuffer* buffer, LineColumn position) const {
+    const multimap<size_t, LineMarks::Mark>* marks = buffer->GetLineMarks();
 
     switch (modifiers_.direction) {
       case FORWARDS:

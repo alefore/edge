@@ -48,8 +48,7 @@ void AdjustLastLine(OpenBuffer* target, std::shared_ptr<OpenBuffer> buffer) {
 }
 
 void GenerateContents(EditorState* editor_state, OpenBuffer* target) {
-  target->ClearContents(editor_state,
-                        BufferContents::CursorsBehavior::kUnmodified);
+  target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
   bool show_in_buffers_list =
       target->Read(buffer_variables::show_in_buffers_list());
 
@@ -190,7 +189,7 @@ class ListBuffersCommand : public Command {
       editor_state->StartHandlingInterrupts();
     }
     editor_state->ResetStatus();
-    it.first->second->Reload(editor_state);
+    it.first->second->Reload();
     editor_state->PushCurrentPosition();
     editor_state->ScheduleRedraw();
     it.first->second->ResetMode();

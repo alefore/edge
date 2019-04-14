@@ -195,7 +195,7 @@ void SearchHandlerPredictor(EditorState* editor_state, const wstring& input,
     predictions_buffer->AppendToLastLine(NewLazyString(std::move(match)));
     predictions_buffer->AppendRawLine(std::make_shared<Line>(Line::Options()));
   }
-  predictions_buffer->EndOfFile(editor_state);
+  predictions_buffer->EndOfFile();
 }
 
 vector<LineColumn> SearchHandler(EditorState* editor_state,

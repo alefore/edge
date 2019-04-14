@@ -140,8 +140,7 @@ void GenerateContents(EditorState* editor_state, struct stat* stat_buffer,
   }
 
   if (target->Read(buffer_variables::clear_on_reload())) {
-    target->ClearContents(editor_state,
-                          BufferContents::CursorsBehavior::kUnmodified);
+    target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
     target->ClearModified();
   }
 
@@ -157,7 +156,7 @@ void GenerateContents(EditorState* editor_state, struct stat* stat_buffer,
       RunCommandHandler(L"parsers/passwd <" + path, editor_state, {});
     } else {
       int fd = open(ToByteString(path).c_str(), O_RDONLY | O_NONBLOCK);
-      target->SetInputFiles(editor_state, fd, -1, false, -1);
+      target->SetInputFiles(fd, -1, false, -1);
     }
     return;
   }
@@ -248,7 +247,7 @@ void Save(EditorState* editor_state, struct stat* stat_buffer,
   buffer->ClearModified();
   editor_state->SetStatus(L"Saved: " + path);
   for (const auto& dir : editor_state->edge_path()) {
-    buffer->EvaluateFile(editor_state, dir + L"/hooks/buffer-save.cc");
+    buffer->EvaluateFile(dir + L"/hooks/buffer-save.cc");
   }
   if (buffer->Read(buffer_variables::trigger_reload_on_buffer_write())) {
     for (auto& it : *editor_state->buffers()) {
@@ -256,7 +255,7 @@ void Save(EditorState* editor_state, struct stat* stat_buffer,
       if (it.second->Read(buffer_variables::reload_on_buffer_write())) {
         LOG(INFO) << "Write of " << path << " triggers reload: "
                   << it.second->Read(buffer_variables::name());
-        it.second->Reload(editor_state);
+        it.second->Reload();
       }
     }
   }
@@ -559,7 +558,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
       it.first->second = std::make_shared<OpenBuffer>(buffer_options);
       it.first->second->Set(buffer_variables::persist_state(), true);
     }
-    it.first->second->Reload(editor_state);
+    it.first->second->Reload();
   } else {
     it.first->second->ResetMode();
   }

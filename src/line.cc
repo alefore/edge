@@ -309,7 +309,7 @@ void Line::Output(const Line::OutputOptions& options) const {
       CHECK_LE(output_column, options.width);
     }
 
-    auto all_marks = options.buffer->GetLineMarks(*options.editor_state);
+    auto all_marks = options.buffer->GetLineMarks();
     auto marks = all_marks->equal_range(options.position.line);
 
     wchar_t info_char = L'•';

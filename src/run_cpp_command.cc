@@ -18,7 +18,7 @@ void RunCppCommandHandler(const wstring& name, EditorState* editor_state) {
   }
   editor_state->current_buffer()->second->ResetMode();
   editor_state->current_buffer()->second->EvaluateString(
-      editor_state, name, [](std::unique_ptr<Value>) { /* Nothing. */ });
+      name, [](std::unique_ptr<Value>) { /* Nothing. */ });
 }
 
 class RunCppCommand : public Command {

@@ -118,8 +118,7 @@ shared_ptr<OpenBuffer> GetPromptBuffer(EditorState* editor_state) {
     element.second->Set(buffer_variables::show_in_buffers_list(), false);
     element.second->Set(buffer_variables::delete_into_paste_buffer(), false);
   } else {
-    element.second->ClearContents(editor_state,
-                                  BufferContents::CursorsBehavior::kAdjust);
+    element.second->ClearContents(BufferContents::CursorsBehavior::kAdjust);
   }
   return element.second;
 }

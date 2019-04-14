@@ -82,15 +82,18 @@ class OpenBuffer {
   OpenBuffer(Options options);
   ~OpenBuffer();
 
-  bool PrepareToClose(EditorState* editor_state);
-  void Close(EditorState* editor_state);
+  EditorState* editor() const { return editor_; }
+
+  void SetStatus(wstring status) const;
+  bool PrepareToClose();
+  void Close();
 
   // If the buffer is still being read (fd_ != -1), adds an observer to
   // end_of_file_observers_. Otherwise just calls the observer directly.
   void AddEndOfFileObserver(std::function<void()> observer);
   void AddCloseObserver(std::function<void()> observer);
 
-  void Visit(EditorState* editor_state);
+  void Visit();
   time_t last_visit() const;
   time_t last_action() const;
 
@@ -99,11 +102,10 @@ class OpenBuffer {
   // Returns true if the state could be persisted successfully.
   bool PersistState() const;
 
-  void ClearContents(EditorState* editor_state,
-                     BufferContents::CursorsBehavior cursors_behavior);
+  void ClearContents(BufferContents::CursorsBehavior cursors_behavior);
   void AppendEmptyLine();
 
-  void Save(EditorState* editor_state);
+  void Save();
 
   // If we're currently at the end of the buffer *and* variable
   // `follow_end_of_file` is set, returns an object that, when deleted, will
@@ -116,11 +118,11 @@ class OpenBuffer {
   bool ShouldDisplayProgress() const;
   void RegisterProgress();
 
-  void ReadData(EditorState* editor_state);
-  void ReadErrorData(EditorState* editor_state);
+  void ReadData();
+  void ReadErrorData();
 
-  void Reload(EditorState* editor_state);
-  void EndOfFile(EditorState* editor_state);
+  void Reload();
+  void EndOfFile();
 
   // Sort all lines in range [first, last) according to a compare function.
   void SortContents(size_t first, size_t last,
@@ -151,22 +153,20 @@ class OpenBuffer {
   // Insert a line at the end of the buffer.
   void AppendRawLine(std::shared_ptr<Line> line);
 
-  size_t ProcessTerminalEscapeSequence(EditorState* editor_state,
-                                       shared_ptr<LazyString> str,
+  size_t ProcessTerminalEscapeSequence(shared_ptr<LazyString> str,
                                        size_t read_index,
                                        LineModifierSet* modifiers);
   void AppendToLastLine(std::shared_ptr<LazyString> str);
   void AppendToLastLine(std::shared_ptr<LazyString> str,
                         const vector<LineModifierSet>& modifiers);
 
-  unique_ptr<Expression> CompileString(EditorState* editor_state,
-                                       const wstring& str,
+  unique_ptr<Expression> CompileString(const wstring& str,
                                        wstring* error_description);
-  void EvaluateExpression(EditorState* editor_state, Expression* expr,
+  void EvaluateExpression(Expression* expr,
                           std::function<void(std::unique_ptr<Value>)> consumer);
-  bool EvaluateString(EditorState* editor_state, const wstring& str,
+  bool EvaluateString(const wstring& str,
                       std::function<void(std::unique_ptr<Value>)> consumer);
-  bool EvaluateFile(EditorState* editor_state, const wstring& path);
+  bool EvaluateFile(const wstring& path);
 
   void DeleteRange(const Range& range);
 
@@ -315,14 +315,13 @@ class OpenBuffer {
   bool dirty() const;
   wstring FlagsString() const;
 
-  void PushSignal(EditorState* editor_state, int signal);
+  void PushSignal(int signal);
 
   wstring TransformKeyboardText(wstring input);
-  bool AddKeyboardTextTransformer(EditorState* editor_state,
-                                  unique_ptr<Value> transformer);
+  bool AddKeyboardTextTransformer(unique_ptr<Value> transformer);
 
-  void SetInputFiles(EditorState* editor_state, int input_fd,
-                     int input_fd_error, bool fd_is_terminal, pid_t child_pid);
+  void SetInputFiles(int input_fd, int input_fd_error, bool fd_is_terminal,
+                     pid_t child_pid);
 
   const bool& Read(const EdgeVariable<bool>* variable) const;
   void Set(const EdgeVariable<bool>* variable, bool value);
@@ -355,8 +354,8 @@ class OpenBuffer {
     // Count every transformation (even those that don't modify the buffer).
     ONLY_UNDO_THE_LAST,
   };
-  void Undo(EditorState* editor_state);
-  void Undo(EditorState* editor_state, UndoMode undo_mode);
+  void Undo();
+  void Undo(UndoMode undo_mode);
 
   void set_filter(unique_ptr<Value> filter);
   bool IsLineFiltered(size_t line);
@@ -371,9 +370,8 @@ class OpenBuffer {
 
   // Returns a multimap with all the marks for the current buffer, indexed by
   // the line they refer to. Each call may update the map.
-  const multimap<size_t, LineMarks::Mark>* GetLineMarks(
-      const EditorState& editor_state) const;
-  wstring GetLineMarksText(const EditorState& editor_state) const;
+  const multimap<size_t, LineMarks::Mark>* GetLineMarks() const;
+  wstring GetLineMarksText() const;
 
   Environment* environment() { return &environment_; }
 
@@ -410,7 +408,7 @@ class OpenBuffer {
   struct Input {
     void Close();
     void Reset();
-    void ReadData(EditorState* editor_state, OpenBuffer* target);
+    void ReadData(OpenBuffer* target);
 
     // -1 means "no file descriptor" (i.e. not currently loading this).
     int fd = -1;
@@ -474,12 +472,11 @@ class OpenBuffer {
   size_t filter_version_;
 
  private:
-  static void EvaluateMap(EditorState* editor, OpenBuffer* buffer, size_t line,
+  static void EvaluateMap(OpenBuffer* buffer, size_t line,
                           Value::Callback map_callback,
                           TransformationStack* transformation,
                           Trampoline* trampoline);
-  LineColumn Apply(EditorState* editor_state,
-                   unique_ptr<Transformation> transformation);
+  LineColumn Apply(unique_ptr<Transformation> transformation);
   void BackgroundThread();
   // Destroys the background thread if it's running and if a given predicate
   // returns true. The predicate is evaluated with mutex_ held.
@@ -488,9 +485,8 @@ class OpenBuffer {
 
   // Adds a new line. If there's a previous line, notifies various things about
   // it.
-  void StartNewLine(EditorState* editor_state);
-  void ProcessCommandInput(EditorState* editor_state,
-                           shared_ptr<LazyString> str);
+  void StartNewLine();
+  void ProcessCommandInput(shared_ptr<LazyString> str);
   // Advances the pts position to the next line (possibly inserting a new line).
   void PtsMoveToNextLine();
 

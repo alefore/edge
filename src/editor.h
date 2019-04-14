@@ -63,7 +63,7 @@ class EditorState {
     current_buffer_ = it;
     if (current_buffer_ != buffers_.end() &&
         current_buffer_->second != nullptr) {
-      current_buffer_->second->Visit(this);
+      current_buffer_->second->Visit();
     }
   }
   bool has_current_buffer() const { return current_buffer_ != buffers_.end(); }

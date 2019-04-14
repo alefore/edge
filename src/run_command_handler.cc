@@ -194,8 +194,7 @@ void GenerateContents(EditorState* editor_state,
   close(pipefd_err[child_fd]);
   LOG(INFO) << "Setting input files: " << pipefd_out[parent_fd] << ", "
             << pipefd_err[parent_fd];
-  target->SetInputFiles(editor_state, pipefd_out[parent_fd],
-                        pipefd_err[parent_fd],
+  target->SetInputFiles(pipefd_out[parent_fd], pipefd_err[parent_fd],
                         target->Read(buffer_variables::pts()), child_pid);
   editor_state->ScheduleRedraw();
   target->AddEndOfFileObserver([editor_state, data, target]() {
@@ -366,7 +365,7 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
     editor_state->set_current_buffer(it.first);
     editor_state->ScheduleRedraw();
   }
-  it.first->second->Reload(editor_state);
+  it.first->second->Reload();
   it.first->second->set_current_position_line(0);
   return it.first->second;
 }

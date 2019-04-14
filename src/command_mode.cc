@@ -178,7 +178,7 @@ class UndoCommand : public Command {
     if (!editor_state->has_current_buffer()) {
       return;
     }
-    editor_state->current_buffer()->second->Undo(editor_state);
+    editor_state->current_buffer()->second->Undo();
     editor_state->ResetRepetitions();
     editor_state->ResetDirection();
     editor_state->ScheduleRedraw();

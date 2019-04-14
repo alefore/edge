@@ -38,9 +38,8 @@ using std::shared_ptr;
 using std::sort;
 using std::wstring;
 
-void HandleEndOfFile(EditorState* editor_state, OpenBuffer* buffer,
+void HandleEndOfFile(OpenBuffer* buffer,
                      std::function<void(wstring)> consumer) {
-  CHECK(editor_state != nullptr);
   CHECK(buffer != nullptr);
 
   LOG(INFO) << "Predictions buffer received end of file. Predictions: "
@@ -89,6 +88,7 @@ void HandleEndOfFile(EditorState* editor_state, OpenBuffer* buffer,
   if (results) {
     consumer(common_prefix);
   } else {
+    auto editor_state = buffer->editor();
     auto it =
         editor_state->buffers()->find(buffer->Read(buffer_variables::name()));
     if (it == editor_state->buffers()->end()) {
@@ -117,11 +117,11 @@ void Predict(EditorState* editor_state, Predictor predictor, wstring input,
   predictions_buffer = std::make_shared<OpenBuffer>(std::move(options));
   predictions_buffer->Set(buffer_variables::show_in_buffers_list(), false);
   predictions_buffer->Set(buffer_variables::allow_dirty_delete(), true);
-  predictions_buffer->Reload(editor_state);
+  predictions_buffer->Reload();
   predictions_buffer->set_current_cursor(LineColumn());
   predictions_buffer->AddEndOfFileObserver(
-      [editor_state, buffer = predictions_buffer.get(), consumer]() {
-        HandleEndOfFile(editor_state, buffer, consumer);
+      [buffer = predictions_buffer.get(), consumer]() {
+        HandleEndOfFile(buffer, consumer);
       });
 }
 
@@ -206,12 +206,12 @@ void FilePredictor(EditorState* editor_state, const wstring& input,
       buffer->AppendRawLine(std::make_shared<Line>(Line::Options()));
     }
   }
-  buffer->EndOfFile(editor_state);
+  buffer->EndOfFile();
 }
 
 void EmptyPredictor(EditorState* editor_state, const wstring&,
                     OpenBuffer* buffer) {
-  buffer->EndOfFile(editor_state);
+  buffer->EndOfFile();
 }
 
 namespace {
@@ -263,7 +263,7 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
         break;
       }
     }
-    buffer->EndOfFile(editor_state);
+    buffer->EndOfFile();
   };
 }
 
