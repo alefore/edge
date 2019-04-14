@@ -152,9 +152,11 @@ class ListBuffersBuffer : public OpenBuffer {
       auto last = buffer.lines_size();
       return make_pair(last, last);
     }
-    size_t start = buffer.current_position_line();
+    size_t start =
+        min(buffer.current_position_line(), buffer.contents()->size());
     start -= min(
-        start, max(lines / 2, lines - min(lines, buffer.lines_size() - start)));
+        start,
+        max(lines / 2, lines - min(lines, buffer.contents()->size() - start)));
     size_t stop = min(buffer.lines_size(), start + lines);
     CHECK_LE(start, stop);
 
