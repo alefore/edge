@@ -29,13 +29,6 @@ class CommandWithModifiersMode : public EditorMode {
         editor_state->ResetStatus();
         break;
 
-      case Terminal::BACKSPACE:
-        if (!modifiers_string_.empty()) {
-          modifiers_string_.pop_back();
-        }
-        RunHandler(editor_state, Transformation::Result::Mode::kPreview);
-        break;
-
       default:
         if (!ApplyChar(c, nullptr)) {
           RunHandler(editor_state, Transformation::Result::Mode::kFinal);
@@ -119,6 +112,10 @@ class CommandWithModifiersMode : public EditorMode {
         modifiers->repetitions = 10 * modifiers->repetitions + c - '0';
         break;
 
+      case Terminal::BACKSPACE:
+        modifiers->repetitions--;
+        break;
+
       case '(':
         modifiers->boundary_begin = Modifiers::CURRENT_POSITION;
         break;
@@ -136,11 +133,17 @@ class CommandWithModifiersMode : public EditorMode {
         break;
 
       case ']':
-        modifiers->boundary_end = Modifiers::LIMIT_CURRENT;
-        break;
-
-      case '}':
-        modifiers->boundary_end = Modifiers::LIMIT_NEIGHBOR;
+        if (modifiers->boundary_end == Modifiers::CURRENT_POSITION) {
+          modifiers->boundary_end = Modifiers::LIMIT_CURRENT;
+        } else if (modifiers->boundary_end == Modifiers::LIMIT_CURRENT) {
+          modifiers->boundary_end = Modifiers::LIMIT_NEIGHBOR;
+        } else if (modifiers->boundary_end == Modifiers::LIMIT_NEIGHBOR) {
+          modifiers->boundary_end = Modifiers::LIMIT_CURRENT;
+          if (modifiers->repetitions == 0) {
+            modifiers->repetitions = 1;
+          }
+          modifiers->repetitions++;
+        }
         break;
 
       case 'r':
