@@ -457,7 +457,15 @@ void OpenBuffer::BackgroundThread() {
 }
 
 OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
-    : editor_(editor_state),
+    : OpenBuffer([=]() {
+        Options options;
+        options.editor_state = editor_state;
+        options.name = name;
+        return options;
+      }()) {}
+
+OpenBuffer::OpenBuffer(Options options)
+    : editor_(options.editor_state),
       child_pid_(-1),
       child_exit_status_(0),
       position_pts_(LineColumn(0, 0)),
@@ -467,7 +475,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       string_variables_(buffer_variables::StringStruct()->NewInstance()),
       int_variables_(buffer_variables::IntStruct()->NewInstance()),
       double_variables_(buffer_variables::DoubleStruct()->NewInstance()),
-      environment_(editor_state->environment()),
+      environment_(editor_->environment()),
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
       parse_tree_(std::make_shared<ParseTree>()),
@@ -487,7 +495,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
       L"buffer",
       Value::NewObject(L"Buffer", shared_ptr<void>(this, [](void*) {})));
 
-  Set(buffer_variables::name(), name);
+  Set(buffer_variables::name(), options.name);
   Set(buffer_variables::path(), L"");
   Set(buffer_variables::pts_path(), L"");
   Set(buffer_variables::command(), L"");
@@ -497,7 +505,7 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
     Set(buffer_variables::show_in_buffers_list(), false);
     Set(buffer_variables::delete_into_paste_buffer(), false);
   }
-  ClearContents(editor_state);
+  ClearContents(options.editor_state);
 }
 
 OpenBuffer::~OpenBuffer() {

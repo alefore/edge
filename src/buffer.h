@@ -52,7 +52,13 @@ class OpenBuffer {
   static void RegisterBufferType(EditorState* editor_state,
                                  Environment* environment);
 
+  struct Options {
+    EditorState* editor_state;
+    wstring name;
+  };
+
   OpenBuffer(EditorState* editor_state, const wstring& name);
+  OpenBuffer(Options options);
   ~OpenBuffer();
 
   bool PrepareToClose(EditorState* editor_state);
