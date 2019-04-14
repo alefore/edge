@@ -26,7 +26,8 @@ Line::Line(const Options& options)
                        ? std::make_shared<Environment>()
                        : options.environment),
       contents_(options.contents),
-      modifiers_(options.modifiers) {
+      modifiers_(options.modifiers),
+      options_(std::move(options)) {
   CHECK(contents_ != nullptr);
   CHECK_EQ(contents_->size(), modifiers_.size());
 }
@@ -36,6 +37,7 @@ Line::Line(const Line& line) {
   environment_ = line.environment_;
   contents_ = line.contents_;
   modifiers_ = line.modifiers_;
+  options_ = line.options_;
 }
 
 shared_ptr<LazyString> Line::Substring(size_t pos, size_t length) const {
@@ -103,6 +105,7 @@ void Line::SetAllModifiers(const LineModifierSet& modifiers) {
   std::unique_lock<std::mutex> lock(mutex_);
   CHECK_EQ(contents_->size(), modifiers_.size());
   modifiers_.assign(contents_->size(), modifiers);
+  options_.end_of_line_modifiers = modifiers;
   CHECK_EQ(contents_->size(), modifiers_.size());
 }
 
@@ -115,6 +118,7 @@ void Line::Append(const Line& line) {
   for (auto& m : line.modifiers_) {
     modifiers_.push_back(m);
   }
+  options_.end_of_line_modifiers = line.options_.end_of_line_modifiers;
   CHECK_EQ(contents_->size(), modifiers_.size());
 }
 
@@ -294,6 +298,7 @@ void Line::Output(const Line::OutputOptions& options) const {
     input_column++;
   }
 
+  options.output_receiver->AddModifier(LineModifier::RESET);
   size_t line_width = target_buffer->Read(buffer_variables::line_width());
 
   auto view_start = static_cast<size_t>(
@@ -304,6 +309,9 @@ void Line::Output(const Line::OutputOptions& options) const {
       line_width - view_start < options.width) {
     if (line_width > view_start + output_column) {
       size_t padding = line_width - view_start - output_column;
+      for (auto it : options_.end_of_line_modifiers) {
+        options.output_receiver->AddModifier(it);
+      }
       options.output_receiver->AddString(wstring(padding, L' '));
       output_column += padding;
       CHECK_LE(output_column, options.width);

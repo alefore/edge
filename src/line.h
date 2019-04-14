@@ -40,6 +40,7 @@ class Line {
 
     shared_ptr<LazyString> contents;
     vector<LineModifierSet> modifiers;
+    LineModifierSet end_of_line_modifiers;
     std::shared_ptr<vm::Environment> environment = nullptr;
   };
 
@@ -146,8 +147,10 @@ class Line {
  private:
   mutable std::mutex mutex_;
   std::shared_ptr<vm::Environment> environment_;
+  // TODO: Remove contents_ and modifiers_ and just use options_ instead.
   shared_ptr<LazyString> contents_;
   vector<LineModifierSet> modifiers_;
+  Options options_;
   bool modified_ = false;
   bool filtered_ = true;
   size_t filter_version_ = 0;
