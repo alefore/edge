@@ -155,8 +155,8 @@ class OpenBuffer {
   // of the current line).
   void AdjustLineColumn(LineColumn* output) const;
 
-  // Like AdjustLineColumn but for the current cursor.
-  // TODO: This comment seems wrong?
+  // If the current cursor is in a valid line (i.e., it isn't past the last
+  // line), adjusts the column to not be beyond the length of the line.
   void MaybeAdjustPositionCol();
   // If the line referenced is shorter than the position.column, extend it with
   // spaces.
@@ -164,7 +164,8 @@ class OpenBuffer {
 
   // Makes sure that the current line (position) is not greater than the number
   // of elements in contents().  Note that after this, it may still not be a
-  // valid index for contents() (it may be just at the end).
+  // valid index for contents() (it may be just at the end, perhaps because
+  // contents() is empty).
   void CheckPosition();
 
   CursorsSet* FindCursors(const wstring& name);
