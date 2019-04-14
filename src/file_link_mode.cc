@@ -68,9 +68,7 @@ void StartDeleteFile(EditorState* editor_state, wstring path) {
 
 class FileBuffer : public OpenBuffer {
  public:
-  FileBuffer(Options options, const wstring& path) : OpenBuffer(options) {
-    Set(buffer_variables::path(), path);
-  }
+  FileBuffer(Options options) : OpenBuffer(options) {}
 
   void Visit(EditorState* editor_state) {
     OpenBuffer::Visit(editor_state);
@@ -580,11 +578,13 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   if (options.use_search_paths) {
     GetSearchPaths(editor_state, &search_paths);
   }
-  wstring actual_path;
-  FindPath(editor_state, search_paths, options.path, &actual_path, &position,
-           &pattern);
 
-  if (actual_path.empty()) {
+  OpenBuffer::Options buffer_options;
+  buffer_options.editor_state = editor_state;
+  FindPath(editor_state, search_paths, options.path, &buffer_options.path,
+           &position, &pattern);
+
+  if (buffer_options.path.empty()) {
     map<wstring, shared_ptr<OpenBuffer>>::iterator buffer;
     auto validator = [editor_state, &buffer](const wstring& path) {
       DCHECK(!path.empty());
@@ -602,8 +602,8 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
       }
       return false;
     };
-    if (FindPath(editor_state, {L""}, options.path, validator, &actual_path,
-                 &position, &pattern)) {
+    if (FindPath(editor_state, {L""}, options.path, validator,
+                 &buffer_options.path, &position, &pattern)) {
       editor_state->set_current_buffer(buffer);
       if (position.has_value()) {
         buffer->second->set_position(position.value());
@@ -615,27 +615,24 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     if (options.ignore_if_not_found) {
       return editor_state->buffers()->end();
     }
-    actual_path = options.path;
+    buffer_options.path = options.path;
   }
 
   shared_ptr<OpenBuffer> buffer;
-  OpenBuffer::Options buffer_options;
-  buffer_options.editor_state = editor_state;
 
   if (!options.name.empty()) {
     buffer_options.name = options.name;
-  } else if (actual_path.empty()) {
+  } else if (buffer_options.path.empty()) {
     buffer_options.name =
         editor_state->GetUnusedBufferName(L"anonymous buffer");
-    buffer = std::make_shared<FileBuffer>(buffer_options, actual_path);
+    buffer = std::make_shared<FileBuffer>(buffer_options);
   } else {
-    buffer_options.name = actual_path;
+    buffer_options.name = buffer_options.path;
   }
   auto it = editor_state->buffers()->insert({buffer_options.name, buffer});
   if (it.second) {
     if (it.first->second.get() == nullptr) {
-      it.first->second =
-          std::make_shared<FileBuffer>(buffer_options, actual_path);
+      it.first->second = std::make_shared<FileBuffer>(buffer_options);
     }
     it.first->second->Reload(editor_state);
   } else {
