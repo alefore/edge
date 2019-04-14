@@ -481,7 +481,8 @@ OpenBuffer::OpenBuffer(Options options)
       default_commands_(editor_->default_commands()->NewChild()),
       mode_(std::make_unique<MapMode>(default_commands_)),
       generate_contents_(std::move(options.generate_contents)),
-      describe_status_(std::move(options.describe_status)) {
+      describe_status_(std::move(options.describe_status)),
+      handle_visit_(std::move(options.handle_visit)) {
   contents_.AddUpdateListener(
       [this](const CursorsTracker::Transformation& transformation) {
         editor_->ScheduleParseTreeUpdate(this);
@@ -589,6 +590,9 @@ void OpenBuffer::Visit(EditorState* editor_state) {
   }
   time(&last_visit_);
   time(&last_action_);
+  if (handle_visit_ != nullptr) {
+    handle_visit_(this);
+  }
 }
 
 time_t OpenBuffer::last_visit() const { return last_visit_; }

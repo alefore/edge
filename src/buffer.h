@@ -68,6 +68,10 @@ class OpenBuffer {
     // this buffer (see OpenBuffer::FlagsString). The generated string must
     // begin with a space.
     std::function<wstring(const OpenBuffer&)> describe_status;
+
+    // Optional function that listens on visits to the buffer (i.e., the user
+    // entering the buffer from other buffers).
+    std::function<void(OpenBuffer*)> handle_visit;
   };
 
   OpenBuffer(EditorState* editor_state, const wstring& name);
@@ -556,6 +560,7 @@ class OpenBuffer {
   // See Options::generate_contents.
   const std::function<void(OpenBuffer*)> generate_contents_;
   const std::function<wstring(const OpenBuffer&)> describe_status_;
+  const std::function<void(OpenBuffer*)> handle_visit_;
 };
 
 }  // namespace editor

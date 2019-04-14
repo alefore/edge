@@ -212,26 +212,25 @@ void GenerateContents(EditorState* editor_state, struct stat* stat_buffer,
   target->ClearModified();
 }
 
+void HandleVisit(EditorState* editor_state, const struct stat& stat_buffer,
+                 const OpenBuffer& buffer) {
+  const wstring path = buffer.Read(buffer_variables::path());
+  LOG(INFO) << "Checking if file has changed: " << path;
+  const string path_raw = ToByteString(path);
+  struct stat current_stat_buffer;
+  if (stat(path_raw.c_str(), &current_stat_buffer) == -1) {
+    return;
+  }
+  if (current_stat_buffer.st_mtime > stat_buffer.st_mtime) {
+    editor_state->SetWarningStatus(
+        L"WARNING: File changed in disk since last read.");
+  }
+}
+
 class FileBuffer : public OpenBuffer {
  public:
   FileBuffer(Options options, std::shared_ptr<struct stat> stat_buffer)
       : OpenBuffer(options), stat_buffer_(std::move(stat_buffer)) {}
-
-  void Visit(EditorState* editor_state) {
-    OpenBuffer::Visit(editor_state);
-
-    LOG(INFO) << "Checking if file has changed.";
-    const wstring path = Read(buffer_variables::path());
-    const string path_raw = ToByteString(path);
-    struct stat current_stat_buffer;
-    if (stat(path_raw.c_str(), &current_stat_buffer) == -1) {
-      return;
-    }
-    if (current_stat_buffer.st_mtime > stat_buffer_->st_mtime) {
-      editor_state->SetWarningStatus(
-          L"WARNING: File (in disk) changed since last read.");
-    }
-  }
 
   void Save(EditorState* editor_state) {
     const wstring path = Read(buffer_variables::path());
@@ -506,6 +505,11 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
                                       stat_buffer](OpenBuffer* target) {
     GenerateContents(editor_state, stat_buffer.get(), target);
   };
+  buffer_options.handle_visit = [editor_state,
+                                 stat_buffer](OpenBuffer* buffer) {
+    HandleVisit(editor_state, *stat_buffer, *buffer);
+  };
+
   FindPath(editor_state, search_paths, options.path, &buffer_options.path,
            &position, &pattern);
 
