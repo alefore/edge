@@ -402,7 +402,29 @@ class OpenBuffer {
   // call Editor::ScheduleParseTreeUpdate.
   void ResetParseTree();
 
- protected:
+ private:
+  static void EvaluateMap(OpenBuffer* buffer, size_t line,
+                          Value::Callback map_callback,
+                          TransformationStack* transformation,
+                          Trampoline* trampoline);
+  LineColumn Apply(unique_ptr<Transformation> transformation);
+  void BackgroundThread();
+  // Destroys the background thread if it's running and if a given predicate
+  // returns true. The predicate is evaluated with mutex_ held.
+  void DestroyThreadIf(std::function<bool()> predicate);
+  void UpdateTreeParser();
+
+  // Adds a new line. If there's a previous line, notifies various things about
+  // it.
+  void StartNewLine();
+  void ProcessCommandInput(shared_ptr<LazyString> str);
+  // Advances the pts position to the next line (possibly inserting a new line).
+  void PtsMoveToNextLine();
+
+  // Returns true if the position given is set to a value other than
+  // LineColumn::Max and the buffer has read past that position.
+  bool IsPastPosition(LineColumn position) const;
+
   EditorState* const editor_;
 
   struct Input {
@@ -470,29 +492,6 @@ class OpenBuffer {
   // the Line::filtered field).
   unique_ptr<Value> filter_;
   size_t filter_version_;
-
- private:
-  static void EvaluateMap(OpenBuffer* buffer, size_t line,
-                          Value::Callback map_callback,
-                          TransformationStack* transformation,
-                          Trampoline* trampoline);
-  LineColumn Apply(unique_ptr<Transformation> transformation);
-  void BackgroundThread();
-  // Destroys the background thread if it's running and if a given predicate
-  // returns true. The predicate is evaluated with mutex_ held.
-  void DestroyThreadIf(std::function<bool()> predicate);
-  void UpdateTreeParser();
-
-  // Adds a new line. If there's a previous line, notifies various things about
-  // it.
-  void StartNewLine();
-  void ProcessCommandInput(shared_ptr<LazyString> str);
-  // Advances the pts position to the next line (possibly inserting a new line).
-  void PtsMoveToNextLine();
-
-  // Returns true if the position given is set to a value other than
-  // LineColumn::Max and the buffer has read past that position.
-  bool IsPastPosition(LineColumn position) const;
 
   // Whenever the contents are modified, we set this to the snapshot (after the
   // modification). The background thread will react to this: it'll take the
