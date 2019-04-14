@@ -480,7 +480,8 @@ OpenBuffer::OpenBuffer(Options options)
       tree_parser_(NewNullTreeParser()),
       default_commands_(editor_->default_commands()->NewChild()),
       mode_(std::make_unique<MapMode>(default_commands_)),
-      generate_contents_(std::move(options.generate_contents)) {
+      generate_contents_(std::move(options.generate_contents)),
+      describe_status_(std::move(options.describe_status)) {
   contents_.AddUpdateListener(
       [this](const CursorsTracker::Transformation& transformation) {
         editor_->ScheduleParseTreeUpdate(this);
@@ -1411,7 +1412,7 @@ LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
 }
 
 void OpenBuffer::AdjustLineColumn(LineColumn* output) const {
-  CHECK_GT(contents_.size(), 0);
+  CHECK_GT(contents_.size(), 0u);
   output->line = min(output->line, contents_.size() - 1);
   CHECK(LineAt(output->line) != nullptr);
   output->column = min(LineAt(output->line)->size(), output->column);
@@ -1870,11 +1871,15 @@ bool OpenBuffer::dirty() const {
 
 wstring OpenBuffer::FlagsString() const {
   wstring output;
+  if (describe_status_) {
+    output = describe_status_(*this);
+  }
+
   if (modified()) {
-    output += L"~";
+    output += L" ~";
   }
   if (fd() != -1) {
-    output += L"< l:" + to_wstring(contents_.size());
+    output += L" < l:" + to_wstring(contents_.size());
     if (Read(buffer_variables::follow_end_of_file())) {
       output += L" ↓";
     }

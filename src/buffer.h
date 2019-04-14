@@ -63,6 +63,10 @@ class OpenBuffer {
     // This will be run when the buffer is first created or when its contents
     // need to be reloaded.
     std::function<void(OpenBuffer*)> generate_contents;
+
+    // Optional function to generate additional information for the status of
+    // this buffer (see OpenBuffer::FlagsString).
+    std::function<wstring(const OpenBuffer&)> describe_status;
   };
 
   OpenBuffer(EditorState* editor_state, const wstring& name);
@@ -300,7 +304,7 @@ class OpenBuffer {
   bool modified() const { return modified_; }
 
   bool dirty() const;
-  virtual wstring FlagsString() const;
+  wstring FlagsString() const;
 
   void PushSignal(EditorState* editor_state, int signal);
 
@@ -549,7 +553,8 @@ class OpenBuffer {
   struct timespec last_progress_update_ = {0, 0};
 
   // See Options::generate_contents.
-  std::function<void(OpenBuffer*)> generate_contents_;
+  const std::function<void(OpenBuffer*)> generate_contents_;
+  const std::function<wstring(const OpenBuffer&)> describe_status_;
 };
 
 }  // namespace editor

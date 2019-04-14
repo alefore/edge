@@ -212,57 +212,44 @@ void GenerateContents(EditorState* editor_state,
   });
 }
 
-class CommandBuffer : public OpenBuffer {
- public:
-  CommandBuffer(Options options, std::shared_ptr<CommandData> command_data)
-      : OpenBuffer(std::move(options)), data_(std::move(command_data)) {}
+wstring DurationToString(size_t duration) {
+  static const std::vector<std::pair<size_t, wstring>> time_units = {
+      {60, L"s"}, {60, L"m"}, {24, L"h"}, {99999999, L"d"}};
+  size_t factor = 1;
+  for (auto& entry : time_units) {
+    if (duration < factor * entry.first) {
+      return std::to_wstring(duration / factor) + entry.second;
+    }
+    factor *= entry.first;
+  }
+  return L"very-long";
+}
 
-  wstring FlagsString() const override {
-    wstring initial_information;
-    if (child_pid_ != -1) {
-      initial_information = L"… ";
-    } else if (!WIFEXITED(child_exit_status_)) {
-      initial_information = L" ";
-    } else if (WEXITSTATUS(child_exit_status_) == 0) {
-      initial_information = L" ";
-    } else {
-      initial_information = L" ";
-    }
-
-    wstring additional_information;
-    time_t now;
-    time(&now);
-    if (now > data_->time_start && data_->time_start > 0) {
-      time_t end = (child_pid_ != -1 || data_->time_end < data_->time_start)
-                       ? now
-                       : data_->time_end;
-      additional_information +=
-          L" run:" + DurationToString(end - data_->time_start);
-    }
-    if (child_pid_ == -1 && now > data_->time_end) {
-      additional_information +=
-          L" done:" + DurationToString(now - data_->time_end);
-    }
-    return initial_information + OpenBuffer::FlagsString() +
-           additional_information;
+wstring FlagsString(const CommandData& data, const OpenBuffer& buffer) {
+  wstring output;
+  if (buffer.child_pid() != -1) {
+    output = L"… ";
+  } else if (!WIFEXITED(buffer.child_exit_status())) {
+    output = L" ";
+  } else if (WEXITSTATUS(buffer.child_exit_status()) == 0) {
+    output = L" ";
+  } else {
+    output = L" ";
   }
 
- private:
-  static wstring DurationToString(size_t duration) {
-    static const std::vector<std::pair<size_t, wstring>> time_units = {
-        {60, L"s"}, {60, L"m"}, {24, L"h"}, {99999999, L"d"}};
-    size_t factor = 1;
-    for (auto& entry : time_units) {
-      if (duration < factor * entry.first) {
-        return std::to_wstring(duration / factor) + entry.second;
-      }
-      factor *= entry.first;
-    }
-    return L"very-long";
+  time_t now;
+  time(&now);
+  if (now > data.time_start && data.time_start > 0) {
+    time_t end = (buffer.child_pid() != -1 || data.time_end < data.time_start)
+                     ? now
+                     : data.time_end;
+    output += L" run:" + DurationToString(end - data.time_start);
   }
-
-  const std::shared_ptr<CommandData> data_;
-};
+  if (buffer.child_pid() == -1 && now > data.time_end) {
+    output += L" done:" + DurationToString(now - data.time_end);
+  }
+  return output;
+}
 
 void RunCommand(const wstring& name, const wstring& input,
                 map<wstring, wstring> environment, EditorState* editor_state,
@@ -365,8 +352,10 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
                                         command_data](OpenBuffer* target) {
       GenerateContents(editor_state, environment, command_data.get(), target);
     };
-    auto buffer = std::make_shared<CommandBuffer>(std::move(buffer_options),
-                                                  command_data);
+    buffer_options.describe_status = [command_data](const OpenBuffer& buffer) {
+      return FlagsString(*command_data, buffer);
+    };
+    auto buffer = std::make_shared<OpenBuffer>(std::move(buffer_options));
     buffer->Set(buffer_variables::children_path(), options.children_path);
     buffer->Set(buffer_variables::command(), options.command);
     it.first->second = std::move(buffer);
