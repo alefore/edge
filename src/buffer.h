@@ -103,7 +103,6 @@ class OpenBuffer {
                                        const shared_ptr<const Line>&)>
                         compare);
 
-  bool empty() const { return contents_.empty(); }
   size_t lines_size() const { return contents_.size(); }
 
   EditorMode* mode() const { return mode_.get(); }
@@ -198,16 +197,9 @@ class OpenBuffer {
   // May return nullptr if the current_cursor is at the end of file.
   const shared_ptr<const Line> current_line() const;
 
-  shared_ptr<const Line> LineFront() const {
-    CHECK(!contents_.empty());
-    return LineAt(0);
-  }
-  shared_ptr<const Line> LineBack() const {
-    CHECK(!contents_.empty());
-    return LineAt(lines_size() - 1);
-  }
+  shared_ptr<const Line> LineFront() const { return LineAt(0); }
+  shared_ptr<const Line> LineBack() const { return LineAt(lines_size() - 1); }
   shared_ptr<const Line> LineAt(size_t line_number) const {
-    CHECK(!contents_.empty());
     if (line_number >= contents_.size()) {
       return nullptr;
     }
@@ -237,7 +229,6 @@ class OpenBuffer {
 
   void replace_current_line(const shared_ptr<Line>& line) {
     if (cursors_tracker_.position().line >= contents_.size()) {
-      CHECK(!contents_.empty());
       set_current_position_line(contents_.size() - 1);
     }
     contents_.set_line(cursors_tracker_.position().line, line);
@@ -251,32 +242,18 @@ class OpenBuffer {
   const BufferContents* contents() const { return &contents_; }
   // Delete characters in [column, column + amount).
 
-  bool at_beginning() const {
-    if (contents_.empty()) {
-      return true;
-    }
-    return position().at_beginning();
-  }
+  bool at_beginning() const { return position().at_beginning(); }
   bool at_beginning_of_line() const { return at_beginning_of_line(position()); }
   bool at_beginning_of_line(const LineColumn& position) const {
-    if (contents_.empty()) {
-      return true;
-    }
     return position.at_beginning_of_line();
   }
   bool at_end() const { return at_end(position()); }
   bool at_end(const LineColumn& position) const {
-    if (contents_.empty()) {
-      return true;
-    }
     return at_last_line(position) && at_end_of_line(position);
   }
 
   // Returns the position of just after the last character of the current file.
   LineColumn end_position() const {
-    if (contents_.empty()) {
-      return LineColumn(0, 0);
-    }
     return LineColumn(contents_.size() - 1, contents_.back()->size());
   }
 
@@ -286,9 +263,6 @@ class OpenBuffer {
   }
   bool at_end_of_line() const { return at_end_of_line(position()); }
   bool at_end_of_line(const LineColumn& position) const {
-    if (contents_.empty()) {
-      return true;
-    }
     return position.column >= LineAt(position.line)->size();
   }
   char current_character() const {
@@ -391,9 +365,7 @@ class OpenBuffer {
   void set_tree_depth(size_t tree_depth) { tree_depth_ = tree_depth; }
 
   LineColumn PositionBefore(LineColumn position) const {
-    if (contents_.empty()) {
-      position = LineColumn();
-    } else if (position.column > 0) {
+    if (position.column > 0) {
       position.column--;
     } else if (position.line > 0) {
       position.line = min(position.line - 1, contents_.size() - 1);

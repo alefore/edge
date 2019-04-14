@@ -12,17 +12,14 @@ namespace afc {
 namespace editor {
 namespace {
 Seek StartSeekToLimit(OpenBuffer* buffer, LineColumn* position) {
-  if (buffer->empty()) {
-    *position = LineColumn();
-  } else {
-    position->line = std::min(buffer->lines_size() - 1, position->line);
-    if (position->column >= buffer->LineAt(position->line)->size()) {
-      // if (buffer->Read(buffer_variables::extend_lines())) {
-      //   MaybeExtendLine(*position);
-      //} else {
-      position->column = buffer->LineAt(position->line)->size();
-      //}
-    }
+  CHECK_GT(buffer->lines_size(), 0);
+  position->line = std::min(buffer->lines_size() - 1, position->line);
+  if (position->column >= buffer->LineAt(position->line)->size()) {
+    // if (buffer->Read(buffer_variables::extend_lines())) {
+    //   MaybeExtendLine(*position);
+    //} else {
+    position->column = buffer->LineAt(position->line)->size();
+    //}
   }
   return Seek(*buffer->contents(), position);
 }
@@ -432,9 +429,10 @@ Structure* StructureBuffer() {
     bool SeekToLimit(OpenBuffer* buffer, Direction direction,
                      LineColumn* position) override {
       StartSeekToLimit(buffer, position);
-      if (buffer->empty() || direction == BACKWARDS) {
+      if (direction == BACKWARDS) {
         *position = LineColumn();
       } else {
+        CHECK_GT(buffer->lines_size(), 0);
         position->line = buffer->lines_size() - 1;
         position->column = buffer->LineAt(position->line)->size();
       }

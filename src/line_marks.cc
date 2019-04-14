@@ -35,9 +35,7 @@ void LineMarks::ExpireMarksFromSource(const OpenBuffer& source_buffer,
 
     DVLOG(10) << "Mark transitions from fresh to expired.";
     changes = true;
-    auto line = source_buffer.empty()
-                    ? nullptr
-                    : source_buffer.LineAt(mark.second.source_line);
+    auto line = source_buffer.LineAt(mark.second.source_line);
     if (line == nullptr) {
       DVLOG(3) << "Unable to find content for mark!";
       mark.second.source_line_content = NewLazyString(L"Expired mark.");

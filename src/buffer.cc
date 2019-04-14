@@ -431,11 +431,9 @@ void OpenBuffer::BackgroundThread() {
       continue;
     }
     auto parse_tree = std::make_shared<ParseTree>();
-    if (!contents->empty()) {
-      parse_tree->range.end.line = contents->size() - 1;
-      parse_tree->range.end.column = contents->back()->size();
-      parser->FindChildren(*contents, parse_tree.get());
-    }
+    parse_tree->range.end.line = contents->size() - 1;
+    parse_tree->range.end.column = contents->back()->size();
+    parser->FindChildren(*contents, parse_tree.get());
     auto simplified_parse_tree = std::make_shared<ParseTree>();
     SimplifyTree(*parse_tree, simplified_parse_tree.get());
 
@@ -899,30 +897,28 @@ void OpenBuffer::DestroyThreadIf(std::function<bool()> predicate) {
 }
 
 void OpenBuffer::StartNewLine(EditorState* editor_state) {
-  if (!contents_.empty()) {
-    DVLOG(5) << "Line is completed: " << contents_.back()->ToString();
+  DVLOG(5) << "Line is completed: " << contents_.back()->ToString();
 
-    if (Read(buffer_variables::contains_line_marks())) {
-      wstring path;
-      std::optional<LineColumn> position;
-      wstring pattern;
-      ResolvePathOptions options;
-      options.editor_state = editor_state;
-      options.path = contents_.back()->ToString();
-      options.output_path = &path;
-      options.output_position = &position;
-      options.output_pattern = &pattern;
-      if (ResolvePath(options)) {
-        LineMarks::Mark mark;
-        mark.source = Read(buffer_variables::name());
-        mark.source_line = contents_.size() - 1;
-        mark.target_buffer = path;
-        if (position.has_value()) {
-          mark.target = position.value();
-        }
-        LOG(INFO) << "Found a mark: " << mark;
-        editor_state->line_marks()->AddMark(mark);
+  if (Read(buffer_variables::contains_line_marks())) {
+    wstring path;
+    std::optional<LineColumn> position;
+    wstring pattern;
+    ResolvePathOptions options;
+    options.editor_state = editor_state;
+    options.path = contents_.back()->ToString();
+    options.output_path = &path;
+    options.output_position = &position;
+    options.output_pattern = &pattern;
+    if (ResolvePath(options)) {
+      LineMarks::Mark mark;
+      mark.source = Read(buffer_variables::name());
+      mark.source_line = contents_.size() - 1;
+      mark.target_buffer = path;
+      if (position.has_value()) {
+        mark.target = position.value();
       }
+      LOG(INFO) << "Found a mark: " << mark;
+      editor_state->line_marks()->AddMark(mark);
     }
   }
   contents_.push_back(std::make_shared<Line>());
@@ -996,7 +992,7 @@ void OpenBuffer::AppendLine(shared_ptr<LazyString> str) {
     return;
   }
 
-  if (contents_.empty()) {
+  if (contents_.size() == 1 && contents_.back()->size() == 0) {
     if (str->ToString() == L"EDGE PARSER v1.0") {
       reading_from_parser_ = true;
       return;
@@ -1387,13 +1383,7 @@ LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
                                         const LineColumn& input_position,
                                         const LineModifierSet* modifiers) {
   auto blocker = cursors_tracker_.DelayTransformations();
-  if (buffer.empty()) {
-    return input_position;
-  }
   LineColumn position = input_position;
-  if (empty()) {
-    contents_.push_back(std::make_shared<Line>());
-  }
   if (position.line >= contents_.size()) {
     position.line = contents_.size() - 1;
     position.column = contents_.at(position.line)->size();
@@ -1413,7 +1403,7 @@ LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
 }
 
 void OpenBuffer::AdjustLineColumn(LineColumn* output) const {
-  CHECK(!contents_.empty());
+  CHECK_GT(contents_.size(), 0);
   output->line = min(output->line, contents_.size() - 1);
   CHECK(LineAt(output->line) != nullptr);
   output->column = min(LineAt(output->line)->size(), output->column);
@@ -1621,14 +1611,12 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
   const auto backward = ReverseDirection(forward);
 
   LineColumn position = initial_position;
-  if (!empty()) {
-    position.line = min(lines_size() - 1, position.line);
-    if (position.column > LineAt(position.line)->size()) {
-      if (Read(buffer_variables::extend_lines())) {
-        MaybeExtendLine(position);
-      } else {
-        position.column = LineAt(position.line)->size();
-      }
+  position.line = min(lines_size() - 1, position.line);
+  if (position.column > LineAt(position.line)->size()) {
+    if (Read(buffer_variables::extend_lines())) {
+      MaybeExtendLine(position);
+    } else {
+      position.column = LineAt(position.line)->size();
     }
   }
 
@@ -1743,7 +1731,7 @@ const shared_ptr<const Line> OpenBuffer::current_line() const {
 }
 
 std::shared_ptr<OpenBuffer> OpenBuffer::GetBufferFromCurrentLine() {
-  if (contents()->empty() || current_line() == nullptr) {
+  if (current_line() == nullptr) {
     return nullptr;
   }
   auto target = current_line()->environment()->Lookup(

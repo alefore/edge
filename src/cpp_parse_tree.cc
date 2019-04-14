@@ -42,9 +42,6 @@ class CppTreeParser : public TreeParser {
 
   void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
-    if (buffer.empty()) {
-      return;
-    }
     root->children.clear();
     root->depth = 0;
 

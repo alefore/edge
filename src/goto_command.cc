@@ -165,7 +165,7 @@ class GotoCommand : public Command {
       CHECK_LE(position, lines.size());
       buffer->set_current_position_line(lines.at(position).first);
     } else if (structure == StructurePage()) {
-      CHECK(!buffer->contents()->empty());
+      CHECK_GT(buffer->contents()->size(), 0);
       size_t pages = ceil(static_cast<double>(buffer->contents()->size()) /
                           editor_state->visible_lines());
       size_t position =

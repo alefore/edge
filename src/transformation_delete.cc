@@ -37,10 +37,6 @@ class DeleteCharactersTransformation : public Transformation {
              Result* result) const {
     LOG(INFO) << "Starting DeleteCharactersTransformation: " << options_
               << ", cursor: " << result->cursor;
-    if (buffer->contents()->empty()) {
-      result->success = false;
-      return;
-    }
     if (options_.modifiers.repetitions == 0) {
       VLOG(5) << "No repetitions.";
       return;

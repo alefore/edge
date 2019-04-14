@@ -59,9 +59,6 @@ class PredictionsBufferImpl : public OpenBuffer {
     OpenBuffer::EndOfFile(editor_state);
     LOG(INFO) << "Predictions buffer received end of file. Predictions: "
               << contents()->size();
-    if (contents()->empty()) {
-      return;
-    }
     SortContents(
         0, contents()->size() - 1,
         [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {

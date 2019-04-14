@@ -38,9 +38,6 @@ wstring BufferContents::ToString() const {
 
 void BufferContents::insert(size_t position_line, const BufferContents& source,
                             const LineModifierSet* modifiers) {
-  if (source.empty()) {
-    return;
-  }
   CHECK_LT(position_line, size());
   // No need to increment it since it'll move automatically.
   auto insert_position = lines_.begin() + position_line;

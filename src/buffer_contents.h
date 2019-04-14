@@ -22,8 +22,6 @@ class BufferContents {
 
   wint_t character_at(const LineColumn& position) const;
 
-  bool empty() const { return lines_.empty(); }
-
   size_t size() const { return lines_.size(); }
 
   // Returns a copy of the contents of the tree. Complexity is linear to the
@@ -36,12 +34,12 @@ class BufferContents {
   }
 
   shared_ptr<const Line> back() const {
-    CHECK(!empty());
+    CHECK(!lines_.empty());
     return lines_.at(size() - 1);
   }
 
   shared_ptr<const Line> front() const {
-    CHECK(!empty());
+    CHECK(!lines_.empty());
     return lines_.at(0);
   }
 

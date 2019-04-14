@@ -899,9 +899,8 @@ void Terminal::AdjustPosition(
     const std::vector<LineColumn>& screen_line_positions) {
   CHECK(!screen_line_positions.empty());
   LineColumn position;
-  if (buffer->contents()->empty()) {
-    position = LineColumn();
-  } else if (position.line > buffer->lines_size() - 1) {
+  CHECK_GT(buffer->contents()->size(), 0);
+  if (position.line > buffer->lines_size() - 1) {
     position = LineColumn(buffer->lines_size() - 1);
   } else {
     position = buffer->position();

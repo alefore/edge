@@ -1,8 +1,8 @@
 #include "src/parsers/markdown.h"
 
-#include <algorithm>
-
 #include <glog/logging.h>
+
+#include <algorithm>
 
 #include "src/buffer_contents.h"
 #include "src/parse_tools.h"
@@ -29,9 +29,6 @@ enum State {
 class MarkdownParser : public TreeParser {
  public:
   void FindChildren(const BufferContents& buffer, ParseTree* root) override {
-    if (buffer.empty()) {
-      return;
-    }
     CHECK(root != nullptr);
     root->children.clear();
     root->depth = 0;
