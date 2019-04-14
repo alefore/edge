@@ -133,7 +133,7 @@ class OpenBuffer {
 
   void AppendLazyString(std::shared_ptr<LazyString> input);
   void AppendLine(std::shared_ptr<LazyString> line);
-  virtual void AppendRawLine(std::shared_ptr<LazyString> str);
+  void AppendRawLine(std::shared_ptr<LazyString> str);
 
   // Insert a line at the end of the buffer.
   void AppendRawLine(std::shared_ptr<Line> line);
