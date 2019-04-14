@@ -92,6 +92,12 @@ class BufferContents {
   // Delete characters from the given line in range [column, ...).
   void DeleteCharactersFromLine(size_t line, size_t column);
 
+  // Sets the character and modifiers in line `line` and column `column`.
+  //
+  // `line` must be smaller than size().
+  //
+  // `column` may be greater than size(), in which case the character will just
+  // get appended (extending the line by exactly one character).
   void SetCharacter(size_t line, size_t column, int c,
                     std::unordered_set<LineModifier, hash<int>> modifiers);
 
