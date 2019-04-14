@@ -55,6 +55,7 @@ class OpenBuffer {
   struct Options {
     EditorState* editor_state;
     wstring name;
+    wstring path;
   };
 
   OpenBuffer(EditorState* editor_state, const wstring& name);

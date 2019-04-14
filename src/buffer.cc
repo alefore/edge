@@ -496,7 +496,7 @@ OpenBuffer::OpenBuffer(Options options)
       Value::NewObject(L"Buffer", shared_ptr<void>(this, [](void*) {})));
 
   Set(buffer_variables::name(), options.name);
-  Set(buffer_variables::path(), L"");
+  Set(buffer_variables::path(), options.path);
   Set(buffer_variables::pts_path(), L"");
   Set(buffer_variables::command(), L"");
   Set(buffer_variables::reload_after_exit(), false);
