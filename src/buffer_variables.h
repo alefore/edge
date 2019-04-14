@@ -35,6 +35,7 @@ EdgeVariable<bool>* search_case_sensitive();
 EdgeVariable<bool>* wrap_long_lines();
 EdgeVariable<bool>* extend_lines();
 EdgeVariable<bool>* display_progress();
+EdgeVariable<bool>* persist_state();
 
 EdgeStruct<wstring>* StringStruct();
 EdgeVariable<wstring>* name();

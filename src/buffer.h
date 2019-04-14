@@ -65,7 +65,8 @@ class OpenBuffer {
     std::function<void(OpenBuffer*)> generate_contents;
 
     // Optional function to generate additional information for the status of
-    // this buffer (see OpenBuffer::FlagsString).
+    // this buffer (see OpenBuffer::FlagsString). The generated string must
+    // begin with a space.
     std::function<wstring(const OpenBuffer&)> describe_status;
   };
 

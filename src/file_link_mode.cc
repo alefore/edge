@@ -233,86 +233,6 @@ class FileBuffer : public OpenBuffer {
     }
   }
 
-  bool PersistState() const override {
-    auto path_vector = editor_->edge_path();
-    if (path_vector.empty()) {
-      LOG(INFO) << "Empty edge path.";
-      return false;
-    }
-
-    auto file_path = Read(buffer_variables::path());
-    list<wstring> file_path_components;
-    if (file_path.empty() || file_path[0] != '/') {
-      editor_->SetWarningStatus(L"Unable to persist buffer with empty path: " +
-                                Read(buffer_variables::name()) +
-                                (dirty() ? L" (dirty)" : L" (clean)") +
-                                (modified_ ? L"modified" : L"not modi"));
-      return !dirty();
-    }
-
-    if (!DirectorySplit(file_path, &file_path_components)) {
-      LOG(INFO) << "Unable to split path: " << file_path;
-      return false;
-    }
-
-    file_path_components.push_front(L"state");
-
-    wstring path = path_vector[0];
-    LOG(INFO) << "PersistState: Preparing directory for state: " << path;
-    for (auto& component : file_path_components) {
-      path = PathJoin(path, component);
-      struct stat stat_buffer;
-      auto path_byte_string = ToByteString(path);
-      if (stat(path_byte_string.c_str(), &stat_buffer) != -1) {
-        if (S_ISDIR(stat_buffer.st_mode)) {
-          continue;
-        }
-        LOG(INFO) << "Ooops, exists, but is not a directory: " << path;
-        return false;
-      }
-      if (mkdir(path_byte_string.c_str(), 0700)) {
-        editor_->SetStatus(L"mkdir: " + FromByteString(strerror(errno)) +
-                           L": " + path);
-        return false;
-      }
-    }
-
-    path = PathJoin(path, L".edge_state");
-    LOG(INFO) << "PersistState: Preparing state file: " << path;
-    BufferContents contents;
-    contents.push_back(L"// State of file: " + path);
-    contents.push_back(L"");
-
-    contents.push_back(L"buffer.set_position(" + position().ToCppString() +
-                       L");");
-    contents.push_back(L"");
-
-    contents.push_back(L"// String variables");
-    for (const auto& variable : buffer_variables::StringStruct()->variables()) {
-      contents.push_back(L"buffer.set_" + variable.first + L"(\"" +
-                         CppEscapeString(Read(variable.second.get())) +
-                         L"\");");
-    }
-    contents.push_back(L"");
-
-    contents.push_back(L"// Int variables");
-    for (const auto& variable : buffer_variables::IntStruct()->variables()) {
-      contents.push_back(L"buffer.set_" + variable.first + L"(" +
-                         std::to_wstring(Read(variable.second.get())) + L");");
-    }
-    contents.push_back(L"");
-
-    contents.push_back(L"// Bool variables");
-    for (const auto& variable : buffer_variables::BoolStruct()->variables()) {
-      contents.push_back(L"buffer.set_" + variable.first + L"(" +
-                         (Read(variable.second.get()) ? L"true" : L"false") +
-                         L");");
-    }
-    contents.push_back(L"");
-
-    return SaveContentsToFile(editor_, path, contents);
-  }
-
   void Save(EditorState* editor_state) {
     const wstring path = Read(buffer_variables::path());
     if (path.empty()) {
@@ -349,61 +269,6 @@ class FileBuffer : public OpenBuffer {
   }
 
  private:
-  static bool SaveContentsToFile(EditorState* editor_state, const wstring& path,
-                                 const BufferContents& contents) {
-    const string path_raw = ToByteString(path);
-    const string tmp_path = path_raw + ".tmp";
-
-    struct stat original_stat;
-    if (stat(path_raw.c_str(), &original_stat) == -1) {
-      LOG(INFO) << "Unable to stat file (using default permissions): "
-                << path_raw;
-      original_stat.st_mode =
-          S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
-    }
-
-    // TODO: Make this non-blocking.
-    int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC,
-                  original_stat.st_mode);
-    if (fd == -1) {
-      editor_state->SetStatus(FromByteString(tmp_path) + L": open failed: " +
-                              FromByteString(strerror(errno)));
-      return false;
-    }
-    bool result = SaveContentsToOpenFile(editor_state, FromByteString(tmp_path),
-                                         fd, contents);
-    close(fd);
-    if (!result) {
-      return false;
-    }
-
-    // TODO: Make this non-blocking?
-    if (rename(tmp_path.c_str(), path_raw.c_str()) == -1) {
-      editor_state->SetStatus(path + L": rename failed: " +
-                              FromByteString(strerror(errno)));
-      return false;
-    }
-
-    return true;
-  }
-
-  static bool SaveContentsToOpenFile(EditorState* editor_state,
-                                     const wstring& path, int fd,
-                                     const BufferContents& contents) {
-    // TODO: It'd be significant more efficient to do fewer (bigger) writes.
-    return contents.EveryLine([editor_state, fd, path](size_t position,
-                                                       const Line& line) {
-      string str = (position == 0 ? "" : "\n") + ToByteString(line.ToString());
-      if (write(fd, str.c_str(), str.size()) == -1) {
-        editor_state->SetStatus(path + L": write failed: " +
-                                std::to_wstring(fd) + L": " +
-                                FromByteString(strerror(errno)));
-        return false;
-      }
-      return true;
-    });
-  }
-
   std::shared_ptr<struct stat> stat_buffer_;
 };
 
@@ -517,6 +382,59 @@ static bool FindPath(EditorState* editor_state, vector<wstring> search_paths,
 }  // namespace
 
 using std::unique_ptr;
+
+bool SaveContentsToOpenFile(EditorState* editor_state, const wstring& path,
+                            int fd, const BufferContents& contents) {
+  // TODO: It'd be significant more efficient to do fewer (bigger) writes.
+  return contents.EveryLine([editor_state, fd, path](size_t position,
+                                                     const Line& line) {
+    string str = (position == 0 ? "" : "\n") + ToByteString(line.ToString());
+    if (write(fd, str.c_str(), str.size()) == -1) {
+      editor_state->SetStatus(path + L": write failed: " + std::to_wstring(fd) +
+                              L": " + FromByteString(strerror(errno)));
+      return false;
+    }
+    return true;
+  });
+}
+
+bool SaveContentsToFile(EditorState* editor_state, const wstring& path,
+                        const BufferContents& contents) {
+  const string path_raw = ToByteString(path);
+  const string tmp_path = path_raw + ".tmp";
+
+  struct stat original_stat;
+  if (stat(path_raw.c_str(), &original_stat) == -1) {
+    LOG(INFO) << "Unable to stat file (using default permissions): "
+              << path_raw;
+    original_stat.st_mode =
+        S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+  }
+
+  // TODO: Make this non-blocking.
+  int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC,
+                original_stat.st_mode);
+  if (fd == -1) {
+    editor_state->SetStatus(FromByteString(tmp_path) + L": open failed: " +
+                            FromByteString(strerror(errno)));
+    return false;
+  }
+  bool result = SaveContentsToOpenFile(editor_state, FromByteString(tmp_path),
+                                       fd, contents);
+  close(fd);
+  if (!result) {
+    return false;
+  }
+
+  // TODO: Make this non-blocking?
+  if (rename(tmp_path.c_str(), path_raw.c_str()) == -1) {
+    editor_state->SetStatus(path + L": rename failed: " +
+                            FromByteString(strerror(errno)));
+    return false;
+  }
+
+  return true;
+}
 
 shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
   OpenFileOptions options;
@@ -641,6 +559,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     if (it.first->second.get() == nullptr) {
       it.first->second =
           std::make_shared<FileBuffer>(buffer_options, stat_buffer);
+      it.first->second->Set(buffer_variables::persist_state(), true);
     }
     it.first->second->Reload(editor_state);
   } else {

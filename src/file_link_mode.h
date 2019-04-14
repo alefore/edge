@@ -17,14 +17,8 @@ using std::unique_ptr;
 // Saves the contents of the buffer to the path given.  If there's an error,
 // updates the editor status and returns false; otherwise, returns true (and
 // leaves the status unmodified).
-bool SaveContentsToFile(EditorState* editor_state, OpenBuffer* buffer,
-                        const wstring& path);
-
-// Saves the contents of the buffer directly to an already open file.  Like
-// SaveContentsToFile, either returns true (on success) or updates the editor
-// status.
-bool SaveContentsToOpenFile(EditorState* editor_state, OpenBuffer* buffer,
-                            const wstring& path, int fd);
+bool SaveContentsToFile(EditorState* editor_state, const wstring& path,
+                        const BufferContents& contents);
 
 struct OpenFileOptions {
   OpenFileOptions() {}

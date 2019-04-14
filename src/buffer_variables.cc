@@ -35,6 +35,7 @@ EdgeStruct<bool>* BoolStruct() {
     wrap_long_lines();
     extend_lines();
     display_progress();
+    persist_state();
   }
   return output;
 }
@@ -264,6 +265,15 @@ EdgeVariable<bool>* display_progress() {
       L"If set to true, if this buffer is reading input (either from a regular "
       L"file or a process), it'll be shown in the status line.",
       true);
+  return variable;
+}
+
+EdgeVariable<bool>* persist_state() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
+      L"persist_state",
+      L"Should we aim to persist information for this buffer (in "
+      L"$EDGE_PATH/state/)?",
+      false);
   return variable;
 }
 

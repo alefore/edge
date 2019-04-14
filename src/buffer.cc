@@ -594,7 +594,88 @@ void OpenBuffer::Visit(EditorState* editor_state) {
 time_t OpenBuffer::last_visit() const { return last_visit_; }
 time_t OpenBuffer::last_action() const { return last_action_; }
 
-bool OpenBuffer::PersistState() const { return true; }
+bool OpenBuffer::PersistState() const {
+  if (!Read(buffer_variables::persist_state())) {
+    return true;
+  }
+
+  auto path_vector = editor_->edge_path();
+  if (path_vector.empty()) {
+    LOG(INFO) << "Empty edge path.";
+    return false;
+  }
+
+  auto file_path = Read(buffer_variables::path());
+  list<wstring> file_path_components;
+  if (file_path.empty() || file_path[0] != '/') {
+    editor_->SetWarningStatus(L"Unable to persist buffer with empty path: " +
+                              Read(buffer_variables::name()) +
+                              (dirty() ? L" (dirty)" : L" (clean)") +
+                              (modified_ ? L"modified" : L"not modi"));
+    return !dirty();
+  }
+
+  if (!DirectorySplit(file_path, &file_path_components)) {
+    LOG(INFO) << "Unable to split path: " << file_path;
+    return false;
+  }
+
+  file_path_components.push_front(L"state");
+
+  wstring path = path_vector[0];
+  LOG(INFO) << "PersistState: Preparing directory for state: " << path;
+  for (auto& component : file_path_components) {
+    path = PathJoin(path, component);
+    struct stat stat_buffer;
+    auto path_byte_string = ToByteString(path);
+    if (stat(path_byte_string.c_str(), &stat_buffer) != -1) {
+      if (S_ISDIR(stat_buffer.st_mode)) {
+        continue;
+      }
+      LOG(INFO) << "Ooops, exists, but is not a directory: " << path;
+      return false;
+    }
+    if (mkdir(path_byte_string.c_str(), 0700)) {
+      editor_->SetStatus(L"mkdir: " + FromByteString(strerror(errno)) + L": " +
+                         path);
+      return false;
+    }
+  }
+
+  path = PathJoin(path, L".edge_state");
+  LOG(INFO) << "PersistState: Preparing state file: " << path;
+  BufferContents contents;
+  contents.push_back(L"// State of file: " + path);
+  contents.push_back(L"");
+
+  contents.push_back(L"buffer.set_position(" + position().ToCppString() +
+                     L");");
+  contents.push_back(L"");
+
+  contents.push_back(L"// String variables");
+  for (const auto& variable : buffer_variables::StringStruct()->variables()) {
+    contents.push_back(L"buffer.set_" + variable.first + L"(\"" +
+                       CppEscapeString(Read(variable.second.get())) + L"\");");
+  }
+  contents.push_back(L"");
+
+  contents.push_back(L"// Int variables");
+  for (const auto& variable : buffer_variables::IntStruct()->variables()) {
+    contents.push_back(L"buffer.set_" + variable.first + L"(" +
+                       std::to_wstring(Read(variable.second.get())) + L");");
+  }
+  contents.push_back(L"");
+
+  contents.push_back(L"// Bool variables");
+  for (const auto& variable : buffer_variables::BoolStruct()->variables()) {
+    contents.push_back(L"buffer.set_" + variable.first + L"(" +
+                       (Read(variable.second.get()) ? L"true" : L"false") +
+                       L");");
+  }
+  contents.push_back(L"");
+
+  return SaveContentsToFile(editor_, path, contents);
+}
 
 void OpenBuffer::ClearContents(
     EditorState* editor_state,
