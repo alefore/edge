@@ -168,9 +168,9 @@ void GenerateContents(EditorState* editor_state,
       }
     }
     environment[L"TERM"] = L"screen";
-    LoadEnvironmentVariables(editor_state->edge_path(),
-                             target->Read(buffer_variables::command()),
-                             environment);
+    environment = LoadEnvironmentVariables(
+        editor_state->edge_path(), target->Read(buffer_variables::command()),
+        environment);
 
     char** envp =
         static_cast<char**>(calloc(environment.size() + 1, sizeof(char*)));
