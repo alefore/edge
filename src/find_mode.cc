@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 
+#include "src/buffer_variables.h"
 #include "src/command_mode.h"
 #include "src/editor.h"
 #include "src/transformation.h"
@@ -24,11 +25,12 @@ class FindTransformation : public Transformation {
     for (size_t i = 0; i < modifiers_.repetitions; i++) {
       if (!SeekOnce(buffer, result)) {
         result->success = false;
-        break;
-      } else {
-        buffer->editor()->ScheduleRedraw();  // TODO: Only if multiple cursors.
-        result->made_progress = true;
+        return;
       }
+      if (buffer->Read(buffer_variables::multiple_cursors())) {
+        buffer->editor()->ScheduleRedraw();
+      }
+      result->made_progress = true;
     }
   }
 
