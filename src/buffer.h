@@ -107,7 +107,7 @@ class OpenBuffer {
   void ReadErrorData(EditorState* editor_state);
 
   void Reload(EditorState* editor_state);
-  virtual void EndOfFile(EditorState* editor_state);
+  void EndOfFile(EditorState* editor_state);
 
   // Sort all lines in range [first, last) according to a compare function.
   void SortContents(size_t first, size_t last,
