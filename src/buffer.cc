@@ -1421,13 +1421,10 @@ void OpenBuffer::AdjustLineColumn(LineColumn* output) const {
 }
 
 void OpenBuffer::MaybeAdjustPositionCol() {
-  if (contents_.empty() || current_line() == nullptr) {
+  if (current_line() == nullptr) {
     return;
   }
-  size_t line_length = current_line()->size();
-  if (position().column > line_length) {
-    set_current_position_col(line_length);
-  }
+  set_current_position_col(std::min(position().column, current_line()->size()));
 }
 
 void OpenBuffer::MaybeExtendLine(LineColumn position) {
@@ -1742,10 +1739,8 @@ std::shared_ptr<const ParseTree> OpenBuffer::zoomed_out_tree() const {
 }
 
 const shared_ptr<const Line> OpenBuffer::current_line() const {
-  if (position().line >= contents_.size()) {
-    return nullptr;
-  }
-  return contents_.at(position().line);
+  auto index = position().line;
+  return index >= contents_.size() ? nullptr : contents_.at(index);
 }
 
 std::shared_ptr<OpenBuffer> OpenBuffer::GetBufferFromCurrentLine() {
