@@ -32,7 +32,8 @@ class NavigationBuffer : public OpenBuffer {
   }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
-    target->ClearContents(editor_state);
+    target->ClearContents(editor_state,
+                          BufferContents::CursorsBehavior::kUnmodified);
     for (const auto& dir : editor_state->edge_path()) {
       EvaluateFile(editor_state,
                    PathJoin(dir, L"hooks/navigation-buffer-reload.cc"));

@@ -99,7 +99,9 @@ class BufferContents {
   void InsertCharacter(size_t line, size_t column);
   void AppendToLine(size_t line, const Line& line_to_append);
 
-  void EraseLines(size_t first, size_t last);
+  enum class CursorsBehavior { kAdjust, kUnmodified };
+
+  void EraseLines(size_t first, size_t last, CursorsBehavior cursors_behavior);
 
   void SplitLine(LineColumn position);
 

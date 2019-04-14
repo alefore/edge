@@ -532,6 +532,7 @@ void EditorState::PushPosition(LineColumn position) {
     buffer_it->second->Set(buffer_variables::show_in_buffers_list(), false);
   }
   CHECK(buffer_it->second != nullptr);
+  buffer_it->second->CheckPosition();
   CHECK_LE(buffer_it->second->position().line,
            buffer_it->second->contents()->size());
   buffer_it->second->InsertLine(

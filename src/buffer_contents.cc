@@ -153,7 +153,8 @@ void BufferContents::AppendToLine(size_t position, const Line& line_to_append) {
   NotifyUpdateListeners(CursorsTracker::Transformation());
 }
 
-void BufferContents::EraseLines(size_t first, size_t last) {
+void BufferContents::EraseLines(size_t first, size_t last,
+                                CursorsBehavior cursors_behavior) {
   if (first == last) {
     return;  // Optimization to avoid notifying listeners.
   }
@@ -161,6 +162,9 @@ void BufferContents::EraseLines(size_t first, size_t last) {
   CHECK_LE(last, size());
   LOG(INFO) << "Erasing lines in range [" << first << ", " << last << ").";
   lines_.erase(lines_.begin() + first, lines_.begin() + last);
+  if (cursors_behavior == CursorsBehavior::kUnmodified) {
+    return;
+  }
   NotifyUpdateListeners(CursorsTracker::Transformation()
                             .WithBegin(LineColumn(first))
                             .LineDelta(first - last)
@@ -191,7 +195,7 @@ void BufferContents::FoldNextLine(size_t position) {
                             .WithLineEq(position + 1)
                             .LineDelta(-1)
                             .ColumnDelta(initial_size));
-  EraseLines(position + 1, position + 2);
+  EraseLines(position + 1, position + 2, CursorsBehavior::kAdjust);
 }
 
 void BufferContents::push_back(wstring str) {

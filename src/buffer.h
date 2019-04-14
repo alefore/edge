@@ -79,7 +79,8 @@ class OpenBuffer {
   // Returns true if the state could be persisted successfully.
   virtual bool PersistState() const;
 
-  void ClearContents(EditorState* editor_state);
+  void ClearContents(EditorState* editor_state,
+                     BufferContents::CursorsBehavior cursors_behavior);
   void AppendEmptyLine();
 
   virtual void ReloadInto(EditorState*, OpenBuffer*) {}
@@ -155,6 +156,7 @@ class OpenBuffer {
   void AdjustLineColumn(LineColumn* output) const;
 
   // Like AdjustLineColumn but for the current cursor.
+  // TODO: This comment seems wrong?
   void MaybeAdjustPositionCol();
   // If the line referenced is shorter than the position.column, extend it with
   // spaces.
@@ -528,11 +530,6 @@ class OpenBuffer {
   mutable size_t line_marks_last_updates_ = 0;
 
   CursorsTracker cursors_tracker_;
-
-  // As a buffer is being read, stores a set of positions where we'd like to
-  // have cursors. As lines are read, the cursors materialize in them.
-  CursorsSet future_positions_;
-  std::optional<LineColumn> future_positions_active_;
 
   std::shared_ptr<const ParseTree> parse_tree_;
   std::shared_ptr<const ParseTree> simplified_parse_tree_;

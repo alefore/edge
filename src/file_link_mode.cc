@@ -176,7 +176,8 @@ class FileBuffer : public OpenBuffer {
     }
 
     if (target->Read(buffer_variables::clear_on_reload())) {
-      target->ClearContents(editor_state);
+      target->ClearContents(editor_state,
+                            BufferContents::CursorsBehavior::kUnmodified);
       target->ClearModified();
     }
 

@@ -505,7 +505,19 @@ OpenBuffer::OpenBuffer(Options options)
     Set(buffer_variables::show_in_buffers_list(), false);
     Set(buffer_variables::delete_into_paste_buffer(), false);
   }
-  ClearContents(options.editor_state);
+  ClearContents(options.editor_state,
+                BufferContents::CursorsBehavior::kUnmodified);
+
+  for (const auto& dir : editor_->edge_path()) {
+    auto state_path =
+        PathJoin(PathJoin(dir, L"state"),
+                 PathJoin(Read(buffer_variables::path()), L".edge_state"));
+    struct stat stat_buffer;
+    if (stat(ToByteString(state_path).c_str(), &stat_buffer) == -1) {
+      continue;
+    }
+    EvaluateFile(editor_, state_path);
+  }
 }
 
 OpenBuffer::~OpenBuffer() {
@@ -584,14 +596,16 @@ time_t OpenBuffer::last_action() const { return last_action_; }
 
 bool OpenBuffer::PersistState() const { return true; }
 
-void OpenBuffer::ClearContents(EditorState* editor_state) {
+void OpenBuffer::ClearContents(
+    EditorState* editor_state,
+    BufferContents::CursorsBehavior cursors_behavior) {
   VLOG(5) << "Clear contents of buffer: " << Read(buffer_variables::name());
   editor_state->line_marks()->RemoveExpiredMarksFromSource(
       Read(buffer_variables::name()));
   editor_state->line_marks()->ExpireMarksFromSource(
       *this, Read(buffer_variables::name()));
   editor_state->ScheduleRedraw();
-  EraseLines(0, contents_.size());
+  contents_.EraseLines(0, contents_.size(), cursors_behavior);
   position_pts_ = LineColumn();
   last_transformation_ = NewNoopTransformation();
   last_transformation_stack_.clear();
@@ -651,18 +665,6 @@ void OpenBuffer::EndOfFile(EditorState* editor_state) {
 }
 
 void OpenBuffer::MaybeFollowToEndOfFile() {
-  while (!future_positions_.empty() &&
-         *future_positions_.begin() < end_position()) {
-    auto position = *future_positions_.begin();
-    if (future_positions_active_.has_value() &&
-        future_positions_active_.value() == position) {
-      active_cursors()->MoveCurrentCursor(position);
-      future_positions_active_ = std::nullopt;
-    } else {
-      active_cursors()->insert(position);
-    }
-    future_positions_.erase(future_positions_.begin());
-  }
   if (!Read(buffer_variables::follow_end_of_file())) {
     return;
   }
@@ -928,17 +930,6 @@ void OpenBuffer::StartNewLine(EditorState* editor_state) {
 }
 
 void OpenBuffer::Reload(EditorState* editor_state) {
-  VLOG(5) << "Inserting current position into future_positions_: "
-          << position();
-  auto cursors = active_cursors();
-  future_positions_.insert(cursors->begin(), cursors->end());
-  if (future_positions_active_.has_value()) {
-    future_positions_.erase(position());
-  } else {
-    future_positions_active_ = position();
-  }
-  cursors->clear();
-  cursors->insert(LineColumn());
   if (child_pid_ != -1) {
     LOG(INFO) << "Sending SIGTERM.";
     kill(-child_pid_, SIGTERM);
@@ -947,16 +938,6 @@ void OpenBuffer::Reload(EditorState* editor_state) {
   }
   for (const auto& dir : editor_state->edge_path()) {
     EvaluateFile(editor_state, PathJoin(dir, L"hooks/buffer-reload.cc"));
-  }
-  auto buffer_path = Read(buffer_variables::path());
-  for (const auto& dir : editor_state->edge_path()) {
-    auto state_path = PathJoin(PathJoin(dir, L"state"),
-                               PathJoin(buffer_path, L".edge_state"));
-    struct stat stat_buffer;
-    if (stat(ToByteString(state_path).c_str(), &stat_buffer) == -1) {
-      continue;
-    }
-    EvaluateFile(editor_state, state_path);
   }
   ClearModified();
   LOG(INFO) << "Starting reload: " << Read(buffer_variables::name());
@@ -993,8 +974,9 @@ void OpenBuffer::SortContents(size_t first, size_t last,
 }
 
 void OpenBuffer::EraseLines(size_t first, size_t last) {
-  contents_.EraseLines(first, last);
-  CHECK_LE(position().line, lines_size());
+  CHECK_LE(first, last);
+  CHECK_LE(last, contents_.size());
+  contents_.EraseLines(first, last, BufferContents::CursorsBehavior::kAdjust);
 }
 
 void OpenBuffer::InsertLine(size_t line_position, shared_ptr<Line> line) {
@@ -1485,7 +1467,6 @@ void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
   // We find the first position (rather than just take cursors->begin()) so that
   // we start at the first requested position.
   cursors->SetCurrentCursor(positions.front());
-  CHECK_LE(position().line, lines_size());
 
   editor_->ScheduleRedraw();
 }
@@ -1549,7 +1530,6 @@ void OpenBuffer::set_current_cursor(LineColumn new_value) {
   cursors->erase(position());
   cursors->insert(new_value);
   cursors->SetCurrentCursor(new_value);
-  CHECK_LE(position().line, contents_.size());
 }
 
 void OpenBuffer::CreateCursor() {
@@ -1850,7 +1830,7 @@ void OpenBuffer::SetInputFiles(EditorState* editor_state, int input_fd,
                                int input_error_fd, bool fd_is_terminal,
                                pid_t child_pid) {
   if (Read(buffer_variables::clear_on_reload())) {
-    ClearContents(editor_state);
+    ClearContents(editor_state, BufferContents::CursorsBehavior::kUnmodified);
     ClearModified();
     fd_.Reset();
     fd_error_.Reset();
@@ -1886,17 +1866,7 @@ const LineColumn OpenBuffer::position() const {
 }
 
 void OpenBuffer::set_position(const LineColumn& position) {
-  if (!IsPastPosition(position)) {
-    VLOG(5) << "Inserting into future_positions_: " << position;
-    if (future_positions_active_.has_value()) {
-      future_positions_.erase(future_positions_active_.value());
-    }
-    future_positions_.insert(position);
-    future_positions_active_ = position;
-    return;
-  }
-  set_current_cursor(
-      LineColumn(min(position.line, contents_.size()), position.column));
+  set_current_cursor(position);
 }
 
 bool OpenBuffer::dirty() const {
@@ -2014,10 +1984,6 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
 
   transformations_past_.back()->mode = mode;
 
-  for (auto& position : *active_cursors()) {
-    CHECK_LE(position.line, contents_.size());
-  }
-
   if (cursors_affected == Modifiers::AFFECT_ALL_CURSORS) {
     CursorsSet single_cursor;
     CursorsSet* cursors = active_cursors();
@@ -2026,16 +1992,13 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
         cursors, [this, &transformation, mode](LineColumn old_position) {
           transformations_past_.back()->cursor = old_position;
           auto new_position = Apply(editor_, transformation->Clone());
-          CHECK_LE(new_position.line, contents_.size());
           return new_position;
         });
-    CHECK_LE(position().line, lines_size());
   } else {
     transformations_past_.back()->cursor = position();
     auto new_position = Apply(editor_, transformation->Clone());
     VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
     active_cursors()->MoveCurrentCursor(new_position);
-    CHECK_LE(position().line, lines_size());
   }
 
   transformations_future_.clear();

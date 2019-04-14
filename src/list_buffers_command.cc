@@ -32,7 +32,8 @@ class ListBuffersBuffer : public OpenBuffer {
   }
 
   void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
-    target->ClearContents(editor_state);
+    target->ClearContents(editor_state,
+                          BufferContents::CursorsBehavior::kUnmodified);
     bool show_in_buffers_list = Read(buffer_variables::show_in_buffers_list());
 
     size_t screen_lines = 0;
