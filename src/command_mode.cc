@@ -714,17 +714,16 @@ class SwitchCaseTransformation : public Transformation {
  public:
   SwitchCaseTransformation(Modifiers modifiers) : modifiers_(modifiers) {}
 
-  void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const override {
+  void Apply(OpenBuffer* buffer, Result* result) const override {
     buffer->AdjustLineColumn(&result->cursor);
     Range range = buffer->FindPartialRange(modifiers_, result->cursor);
     CHECK_LE(range.begin, range.end);
-    auto stack = std::make_unique<TransformationStack>();
-    stack->PushBack(NewGotoPositionTransformation(range.begin));
+    TransformationStack stack;
+    stack.PushBack(NewGotoPositionTransformation(range.begin));
     auto buffer_to_insert =
-        std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
+        std::make_shared<OpenBuffer>(buffer->editor(), L"- text inserted");
     VLOG(5) << "Switch Case Transformation at " << result->cursor << ": "
-            << editor_state->modifiers() << ": Range: " << range;
+            << buffer->editor()->modifiers() << ": Range: " << range;
     LineColumn i = range.begin;
     while (i < range.end) {
       auto line = buffer->LineAt(i.line);
@@ -736,7 +735,7 @@ class SwitchCaseTransformation : public Transformation {
         i = LineColumn(i.line + 1);
         DeleteOptions options;
         options.copy_to_paste_buffer = false;
-        stack->PushBack(std::make_unique<TransformationWithMode>(
+        stack.PushBack(std::make_unique<TransformationWithMode>(
             Transformation::Result::Mode::kFinal,
             NewDeleteTransformation(options)));
         buffer_to_insert->AppendEmptyLine();
@@ -747,7 +746,7 @@ class SwitchCaseTransformation : public Transformation {
           NewLazyString(wstring(1, iswupper(c) ? towlower(c) : towupper(c))));
       DeleteOptions options;
       options.copy_to_paste_buffer = false;
-      stack->PushBack(std::make_unique<TransformationWithMode>(
+      stack.PushBack(std::make_unique<TransformationWithMode>(
           Transformation::Result::Mode::kFinal,
           NewDeleteTransformation(options)));
 
@@ -757,15 +756,15 @@ class SwitchCaseTransformation : public Transformation {
     LineModifierSet modifiers_set = {LineModifier::UNDERLINE,
                                      LineModifier::BLUE};
     auto original_position = result->cursor;
-    stack->PushBack(NewInsertBufferTransformation(
+    stack.PushBack(NewInsertBufferTransformation(
         buffer_to_insert, Modifiers(),
         modifiers_.direction == FORWARDS ? END : START,
         result->mode == Transformation::Result::Mode::kPreview ? &modifiers_set
                                                                : nullptr));
     if (result->mode == Transformation::Result::Mode::kPreview) {
-      stack->PushBack(NewGotoPositionTransformation(original_position));
+      stack.PushBack(NewGotoPositionTransformation(original_position));
     }
-    stack->Apply(editor_state, buffer, result);
+    stack.Apply(buffer, result);
   }
 
   std::unique_ptr<Transformation> Clone() const override {
@@ -784,7 +783,7 @@ std::unique_ptr<Transformation> ApplySwitchCaseCommand(
 }
 
 class TreeNavigate : public Transformation {
-  void Apply(EditorState*, OpenBuffer* buffer, Result* result) const override {
+  void Apply(OpenBuffer* buffer, Result* result) const override {
     auto root = buffer->parse_tree();
     if (root == nullptr) {
       result->success = false;

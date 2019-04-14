@@ -2074,7 +2074,7 @@ LineColumn OpenBuffer::Apply(unique_ptr<Transformation> transformation) {
   CHECK(transformation != nullptr);
   CHECK(!transformations_past_.empty());
 
-  transformation->Apply(editor_, this, transformations_past_.back().get());
+  transformation->Apply(this, transformations_past_.back().get());
   CHECK(!transformations_past_.empty());
 
   auto delete_buffer = transformations_past_.back()->delete_buffer;
@@ -2133,7 +2133,7 @@ void OpenBuffer::Undo(UndoMode undo_mode) {
     bool modified_buffer = false;
     while (!modified_buffer && !source->empty()) {
       target->emplace_back(std::make_unique<Transformation::Result>(editor()));
-      source->back()->undo_stack->Apply(editor(), this, target->back().get());
+      source->back()->undo_stack->Apply(this, target->back().get());
       source->pop_back();
       modified_buffer =
           target->back()->modified_buffer || undo_mode == ONLY_UNDO_THE_LAST;

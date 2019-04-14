@@ -31,8 +31,7 @@ namespace {
 using namespace afc::editor;
 
 class NewLineTransformation : public Transformation {
-  void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const override {
+  void Apply(OpenBuffer* buffer, Result* result) const override {
     buffer->AdjustLineColumn(&result->cursor);
     const size_t column = result->cursor.column;
     auto line = buffer->LineAt(result->cursor.line);
@@ -65,7 +64,7 @@ class NewLineTransformation : public Transformation {
     auto transformation = std::make_unique<TransformationStack>();
     {
       auto buffer_to_insert =
-          std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
+          std::make_shared<OpenBuffer>(buffer->editor(), L"- text inserted");
       buffer_to_insert->AppendRawLine(continuation_line);
       transformation->PushBack(
           NewInsertBufferTransformation(buffer_to_insert, 1, END));
@@ -76,7 +75,7 @@ class NewLineTransformation : public Transformation {
 
     transformation->PushBack(NewGotoPositionTransformation(
         LineColumn(result->cursor.line + 1, prefix_end)));
-    return transformation->Apply(editor_state, buffer, result);
+    return transformation->Apply(buffer, result);
   }
 
   unique_ptr<Transformation> Clone() const override {
@@ -88,8 +87,7 @@ class InsertEmptyLineTransformation : public Transformation {
  public:
   InsertEmptyLineTransformation(Direction direction) : direction_(direction) {}
 
-  void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const override {
+  void Apply(OpenBuffer* buffer, Result* result) const override {
     if (direction_ == BACKWARDS) {
       result->cursor.line++;
     }
@@ -97,7 +95,7 @@ class InsertEmptyLineTransformation : public Transformation {
     buffer->AdjustLineColumn(&result->cursor);
     return ComposeTransformation(std::make_unique<NewLineTransformation>(),
                                  NewGotoPositionTransformation(result->cursor))
-        ->Apply(editor_state, buffer, result);
+        ->Apply(buffer, result);
   }
 
   std::unique_ptr<Transformation> Clone() const override {

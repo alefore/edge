@@ -16,7 +16,7 @@ class GotoColumnTransformation : public Transformation {
  public:
   GotoColumnTransformation(size_t column) : column_(column) {}
 
-  void Apply(EditorState*, OpenBuffer* buffer, Result* result) const override {
+  void Apply(OpenBuffer* buffer, Result* result) const override {
     CHECK(buffer != nullptr);
     CHECK(result != nullptr);
     auto line = buffer->LineAt(result->cursor.line);
@@ -43,7 +43,7 @@ class GotoPositionTransformation : public Transformation {
   GotoPositionTransformation(const LineColumn& position)
       : position_(position) {}
 
-  void Apply(EditorState*, OpenBuffer* buffer, Result* result) const override {
+  void Apply(OpenBuffer* buffer, Result* result) const override {
     CHECK(buffer != nullptr);
     CHECK(result != nullptr);
     result->undo_stack->PushFront(
@@ -75,15 +75,14 @@ class InsertBufferTransformation : public Transformation {
     CHECK(buffer_to_insert_ != nullptr);
   }
 
-  void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const override {
+  void Apply(OpenBuffer* buffer, Result* result) const override {
     LineColumn start_position = result->cursor;
     buffer->AdjustLineColumn(&start_position);
     for (size_t i = 0; i < modifiers_.repetitions; i++) {
       result->cursor = buffer->InsertInPosition(*buffer_to_insert_,
                                                 result->cursor, modifiers_set_);
     }
-    editor_state->ScheduleRedraw();
+    buffer->editor()->ScheduleRedraw();
 
     size_t chars_inserted = buffer_to_insert_length_ * modifiers_.repetitions;
     DeleteOptions delete_options;
@@ -93,14 +92,14 @@ class InsertBufferTransformation : public Transformation {
         start_position, NewDeleteTransformation(delete_options)));
 
     if (modifiers_.insertion == Modifiers::REPLACE) {
-      Result current_result(editor_state);
+      Result current_result(buffer->editor());
       DeleteOptions delete_options;
       delete_options.modifiers.repetitions = chars_inserted;
       delete_options.copy_to_paste_buffer = false;
       delete_options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
       TransformationAtPosition(result->cursor,
                                NewDeleteTransformation(delete_options))
-          ->Apply(editor_state, buffer, &current_result);
+          ->Apply(buffer, &current_result);
       result->undo_stack->PushFront(std::move(current_result.undo_stack));
     }
 
@@ -127,7 +126,7 @@ class InsertBufferTransformation : public Transformation {
 
 class NoopTransformation : public Transformation {
  public:
-  void Apply(EditorState*, OpenBuffer*, Result*) const override {}
+  void Apply(OpenBuffer*, Result*) const override {}
 
   unique_ptr<Transformation> Clone() const override {
     return NewNoopTransformation();
@@ -136,8 +135,7 @@ class NoopTransformation : public Transformation {
 
 class DeleteSuffixSuperfluousCharacters : public Transformation {
  public:
-  void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const override {
+  void Apply(OpenBuffer* buffer, Result* result) const override {
     const wstring& superfluous_characters(
         buffer->Read(buffer_variables::line_suffix_superfluous_characters()));
     const auto line = buffer->LineAt(result->cursor.line);
@@ -159,7 +157,7 @@ class DeleteSuffixSuperfluousCharacters : public Transformation {
     delete_options.copy_to_paste_buffer = false;
     return TransformationAtPosition(LineColumn(result->cursor.line, pos),
                                     NewDeleteTransformation(delete_options))
-        ->Apply(editor_state, buffer, result);
+        ->Apply(buffer, result);
   }
 
   unique_ptr<Transformation> Clone() const override {
@@ -173,11 +171,11 @@ class SetRepetitionsTransformation : public Transformation {
                                unique_ptr<Transformation> delegate)
       : repetitions_(repetitions), delegate_(std::move(delegate)) {}
 
-  void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const override {
+  void Apply(OpenBuffer* buffer, Result* result) const override {
+    auto editor_state = buffer->editor();
     auto original_repetitions = editor_state->repetitions();
     editor_state->set_repetitions(repetitions_);
-    delegate_->Apply(editor_state, buffer, result);
+    delegate_->Apply(buffer, result);
     editor_state->set_repetitions(original_repetitions);
   }
 
@@ -196,14 +194,13 @@ class ApplyRepetitionsTransformation : public Transformation {
                                  unique_ptr<Transformation> delegate)
       : repetitions_(repetitions), delegate_(std::move(delegate)) {}
 
-  void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const override {
+  void Apply(OpenBuffer* buffer, Result* result) const override {
     for (size_t i = 0; i < repetitions_; i++) {
-      Result current_result(editor_state);
+      Result current_result(buffer->editor());
       current_result.delete_buffer = result->delete_buffer;
       current_result.cursor = result->cursor;
       current_result.mode = result->mode;
-      delegate_->Apply(editor_state, buffer, &current_result);
+      delegate_->Apply(buffer, &current_result);
       result->cursor = current_result.cursor;
       if (current_result.modified_buffer) {
         result->modified_buffer = true;
@@ -238,11 +235,11 @@ class DirectionTransformation : public Transformation {
                           unique_ptr<Transformation> delegate)
       : direction_(direction), delegate_(std::move(delegate)) {}
 
-  void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const override {
+  void Apply(OpenBuffer* buffer, Result* result) const override {
+    auto editor_state = buffer->editor();
     auto original_direction = editor_state->direction();
     editor_state->set_direction(direction_);
-    delegate_->Apply(editor_state, buffer, result);
+    delegate_->Apply(buffer, result);
     editor_state->set_direction(original_direction);
   }
 
@@ -264,13 +261,13 @@ class StructureTransformation : public Transformation {
         structure_range_(structure_range),
         delegate_(std::move(delegate)) {}
 
-  void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const override {
+  void Apply(OpenBuffer* buffer, Result* result) const override {
+    auto editor_state = buffer->editor();
     auto original_structure = editor_state->structure();
     auto original_structure_range = editor_state->structure_range();
     editor_state->set_structure(structure_);
     editor_state->set_structure_range(structure_range_);
-    delegate_->Apply(editor_state, buffer, result);
+    delegate_->Apply(buffer, result);
     editor_state->set_structure(original_structure);
     editor_state->set_structure_range(original_structure_range);
   }
@@ -370,6 +367,29 @@ std::unique_ptr<Transformation> NewStructureTransformation(
     std::unique_ptr<Transformation> transformation) {
   return std::make_unique<StructureTransformation>(structure, structure_range,
                                                    std::move(transformation));
+}
+
+void TransformationStack::Apply(OpenBuffer* buffer, Result* result) const {
+  CHECK(result != nullptr);
+  for (auto& it : stack_) {
+    Result it_result(buffer->editor());
+    it_result.mode = result->mode;
+    it_result.delete_buffer = result->delete_buffer;
+    it_result.cursor = result->cursor;
+    it->Apply(buffer, &it_result);
+    result->cursor = it_result.cursor;
+    if (it_result.modified_buffer) {
+      result->modified_buffer = true;
+    }
+    if (it_result.made_progress) {
+      result->made_progress = true;
+    }
+    result->undo_stack->PushFront(std::move(it_result.undo_stack));
+    if (!it_result.success) {
+      result->success = false;
+      break;
+    }
+  }
 }
 
 }  // namespace editor

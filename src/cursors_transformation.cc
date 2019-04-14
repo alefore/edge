@@ -16,7 +16,7 @@ class SetCursorsTransformation : public Transformation {
   SetCursorsTransformation(CursorsSet cursors, LineColumn active)
       : cursors_(std::move(cursors)), active_(active) {}
 
-  void Apply(EditorState*, OpenBuffer* buffer, Result* result) const override {
+  void Apply(OpenBuffer* buffer, Result* result) const override {
     CHECK(buffer != nullptr);
     CHECK(result != nullptr);
     vector<LineColumn> positions = {active_};

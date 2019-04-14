@@ -66,8 +66,7 @@ class Transformation {
   };
 
   virtual ~Transformation() {}
-  virtual void Apply(EditorState* editor_state, OpenBuffer* buffer,
-                     Result* result) const = 0;
+  virtual void Apply(OpenBuffer* buffer, Result* result) const = 0;
   virtual unique_ptr<Transformation> Clone() const = 0;
 };
 
@@ -135,29 +134,7 @@ class TransformationStack : public Transformation {
     stack_.push_front(std::move(transformation));
   }
 
-  void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const override {
-    CHECK(result != nullptr);
-    for (auto& it : stack_) {
-      Result it_result(editor_state);
-      it_result.mode = result->mode;
-      it_result.delete_buffer = result->delete_buffer;
-      it_result.cursor = result->cursor;
-      it->Apply(editor_state, buffer, &it_result);
-      result->cursor = it_result.cursor;
-      if (it_result.modified_buffer) {
-        result->modified_buffer = true;
-      }
-      if (it_result.made_progress) {
-        result->made_progress = true;
-      }
-      result->undo_stack->PushFront(std::move(it_result.undo_stack));
-      if (!it_result.success) {
-        result->success = false;
-        break;
-      }
-    }
-  }
+  void Apply(OpenBuffer* buffer, Result* result) const override;
 
   unique_ptr<Transformation> Clone() const override {
     auto output = std::make_unique<TransformationStack>();
@@ -177,10 +154,9 @@ class RunIfModeTransformation : public Transformation {
                           std::unique_ptr<Transformation> delegate)
       : mode_(mode), delegate_(std::move(delegate)) {}
 
-  void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const override {
+  void Apply(OpenBuffer* buffer, Result* result) const override {
     if (result->mode == mode_) {
-      delegate_->Apply(editor_state, buffer, result);
+      delegate_->Apply(buffer, result);
     }
   }
 
@@ -199,11 +175,10 @@ class TransformationWithMode : public Transformation {
                          std::unique_ptr<Transformation> delegate)
       : mode_(mode), delegate_(std::move(delegate)) {}
 
-  void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const override {
+  void Apply(OpenBuffer* buffer, Result* result) const override {
     auto original_mode = result->mode;
     result->mode = mode_;
-    delegate_->Apply(editor_state, buffer, result);
+    delegate_->Apply(buffer, result);
     result->mode = original_mode;
   }
 

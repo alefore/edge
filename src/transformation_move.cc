@@ -19,9 +19,10 @@ class MoveTransformation : public Transformation {
  public:
   MoveTransformation(const Modifiers& modifiers) : modifiers_(modifiers) {}
 
-  void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const override {
-    CHECK(result);
+  void Apply(OpenBuffer* buffer, Result* result) const override {
+    CHECK(buffer != nullptr);
+    CHECK(result != nullptr);
+    auto editor_state = buffer->editor();
     auto root = buffer->parse_tree();
     auto current_tree = buffer->current_tree(root.get());
     LineColumn position;
@@ -67,8 +68,7 @@ class MoveTransformation : public Transformation {
     }
     LOG(INFO) << "Move from " << result->cursor << " to " << position << " "
               << modifiers_;
-    NewGotoPositionTransformation(position)->Apply(editor_state, buffer,
-                                                   result);
+    NewGotoPositionTransformation(position)->Apply(buffer, result);
     if (modifiers_.repetitions > 1) {
       editor_state->PushPosition(result->cursor);
     }

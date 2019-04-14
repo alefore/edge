@@ -56,8 +56,7 @@ class GotoCharTransformation : public Transformation {
  public:
   GotoCharTransformation(int calls) : calls_(calls) {}
 
-  void Apply(EditorState* editor, OpenBuffer* buffer,
-             Result* result) const override {
+  void Apply(OpenBuffer* buffer, Result* result) const override {
     const wstring& line_prefix_characters =
         buffer->Read(buffer_variables::line_prefix_characters());
     const auto& line = buffer->LineAt(result->cursor.line);
@@ -75,6 +74,7 @@ class GotoCharTransformation : public Transformation {
            (line_prefix_characters.find(line->get(end - 1)) != string::npos)) {
       end--;
     }
+    auto editor = buffer->editor();
     size_t position = ComputePosition(
         start, end, line->size(), editor->direction(), editor->repetitions(),
         editor->structure_range(), calls_);
@@ -164,7 +164,7 @@ class GotoCommand : public Command {
       CHECK_LE(position, lines.size());
       buffer->set_current_position_line(lines.at(position).first);
     } else if (structure == StructurePage()) {
-      CHECK_GT(buffer->contents()->size(), 0);
+      CHECK_GT(buffer->contents()->size(), 0u);
       size_t pages = ceil(static_cast<double>(buffer->contents()->size()) /
                           editor_state->visible_lines());
       size_t position =

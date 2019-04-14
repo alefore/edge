@@ -20,14 +20,13 @@ class FindTransformation : public Transformation {
   FindTransformation(wchar_t c, Modifiers modifiers)
       : c_(c), modifiers_(modifiers) {}
 
-  void Apply(EditorState* editor, OpenBuffer* buffer,
-             Result* result) const override {
+  void Apply(OpenBuffer* buffer, Result* result) const override {
     for (size_t i = 0; i < modifiers_.repetitions; i++) {
       if (!SeekOnce(buffer, result)) {
         result->success = false;
         break;
       } else {
-        editor->ScheduleRedraw();  // TODO: Only if multiple cursors.
+        buffer->editor()->ScheduleRedraw();  // TODO: Only if multiple cursors.
         result->made_progress = true;
       }
     }
