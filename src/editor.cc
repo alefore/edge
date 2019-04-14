@@ -222,6 +222,21 @@ Environment EditorState::BuildEditorEnvironment() {
             }
           }));
 
+  environment.Define(
+      L"SendExitTo",
+      vm::NewCallback(std::function<void(wstring)>([](wstring args) {
+        int fd = open(ToByteString(args).c_str(), O_WRONLY);
+        string command = "Exit(0);\n";
+        write(fd, command.c_str(), command.size());
+        close(fd);
+      })));
+
+  environment.Define(L"Exit",
+                     vm::NewCallback(std::function<void(int)>([](int status) {
+                       LOG(INFO) << "Exit: " << status;
+                       exit(status);
+                     })));
+
   environment.Define(L"SetStatus", vm::NewCallback(std::function<void(wstring)>(
                                        [this](wstring s) { SetStatus(s); })));
 

@@ -215,30 +215,6 @@ shared_ptr<OpenBuffer> OpenServerBuffer(EditorState* editor_state,
   buffer->Set(buffer_variables::show_in_buffers_list(), false);
   buffer->Set(buffer_variables::allow_dirty_delete(), true);
 
-  // TODO: These don't belong here but in OpenBuffer?
-  buffer->environment()->Define(
-      L"SendExitTo",
-      Value::NewFunction({VMType::Void(), VMType::String()},
-                         [editor_state](vector<unique_ptr<Value>> args) {
-                           CHECK_EQ(args.size(), 1u);
-                           int fd = open(ToByteString(args[0]->str).c_str(),
-                                         O_WRONLY);
-                           string command = "Exit(0);\n";
-                           write(fd, command.c_str(), command.size());
-                           close(fd);
-                           return Value::NewVoid();
-                         }));
-
-  buffer->environment()->Define(
-      L"Exit",
-      Value::NewFunction({VMType::Void(), VMType::Integer()},
-                         [editor_state](vector<unique_ptr<Value>> args) {
-                           CHECK_EQ(args.size(), 1u);
-                           LOG(INFO) << "Exit: " << args[0]->integer;
-                           exit(args[0]->integer);
-                           return Value::NewVoid();
-                         }));
-
   editor_state->buffers()->insert(
       {buffer->Read(buffer_variables::name()), buffer});
   buffer->Reload();
