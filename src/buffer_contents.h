@@ -31,6 +31,7 @@ class BufferContents {
   std::unique_ptr<BufferContents> copy() const;
 
   shared_ptr<const Line> at(size_t position) const {
+    CHECK_LT(position, lines_.size());
     return lines_.at(position);
   }
 
