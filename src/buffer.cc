@@ -611,7 +611,6 @@ void OpenBuffer::ClearContents(
   last_transformation_stack_.clear();
   transformations_past_.clear();
   transformations_future_.clear();
-  AppendEmptyLine();
 }
 
 void OpenBuffer::AppendEmptyLine() {

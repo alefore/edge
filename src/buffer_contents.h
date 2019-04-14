@@ -123,7 +123,12 @@ class BufferContents {
   void NotifyUpdateListeners(
       const CursorsTracker::Transformation& cursor_adjuster);
 
-  Tree<shared_ptr<const Line>> lines_;
+  Tree<shared_ptr<const Line>> lines_ = []() {
+    Tree<shared_ptr<const Line>> output;
+    output.insert(output.begin(), std::make_shared<Line>());
+    return output;
+  }();
+
   vector<std::function<void(const CursorsTracker::Transformation&)>>
       update_listeners_;
 };

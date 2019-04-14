@@ -162,6 +162,10 @@ void BufferContents::EraseLines(size_t first, size_t last,
   CHECK_LE(last, size());
   LOG(INFO) << "Erasing lines in range [" << first << ", " << last << ").";
   lines_.erase(lines_.begin() + first, lines_.begin() + last);
+  if (lines_.empty()) {
+    lines_.insert(lines_.begin(), std::make_shared<Line>());
+  }
+
   if (cursors_behavior == CursorsBehavior::kUnmodified) {
     return;
   }
