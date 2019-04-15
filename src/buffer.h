@@ -117,6 +117,9 @@ class OpenBuffer {
 
   bool ShouldDisplayProgress() const;
   void RegisterProgress();
+  struct timespec last_progress_update() const {
+    return last_progress_update_;
+  }
 
   void ReadData();
   void ReadErrorData();

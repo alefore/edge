@@ -246,6 +246,11 @@ wstring FlagsString(const CommandData& data, const OpenBuffer& buffer) {
   }
   if (buffer.child_pid() == -1 && now > data.time_end) {
     output += L" done:" + DurationToString(now - data.time_end);
+  } else {
+    auto update = buffer.last_progress_update();
+    if (update.tv_sec != 0) {
+      output += L" out:" + DurationToString(now - update.tv_sec);
+    }
   }
   return output;
 }
