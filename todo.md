@@ -30,6 +30,10 @@ Improve logic around wrap_long_lines.
 
 Search: Should make sure to disable multi active cursors.
 
+Improve 'reflow': In a C++ file, handle multi-line strings better.
+  printf("foo bar hey "
+         "quux.");
+
 ## Navigation
 
 Improve "g", the current behavior is kind of annoying:
