@@ -501,11 +501,7 @@ class CursorsHighlighter : public DelegatingOutputReceiver {
     Line::OutputReceiverInterface* delegate;
 
     // A set with all the columns in the current line in which there are
-    // cursors that should be drawn. If the active cursor (i.e., the one
-    // exposed to the terminal) is in the line being outputted, its column
-    // should not be included (since we shouldn't do anything special when
-    // outputting its corresponding character: the terminal will take care of
-    // drawing the cursor).
+    // cursors that should be drawn.
     set<size_t> columns;
 
     bool multiple_cursors;
@@ -781,9 +777,7 @@ void Terminal::ShowBuffer(
   // Key is line number.
   std::map<size_t, std::set<size_t>> cursors;
   for (auto cursor : *buffer->active_cursors()) {
-    if (cursor != buffer->position()) {
-      cursors[cursor.line].insert(cursor.column);
-    }
+    cursors[cursor.line].insert(cursor.column);
   }
 
   auto root = buffer->parse_tree();
@@ -869,9 +863,6 @@ void Terminal::ShowBuffer(
       CursorsHighlighter::Options options;
       options.delegate = line_output_options.output_receiver;
       options.columns = current_cursors->second;
-      if (position.line == buffer->current_position_line()) {
-        options.columns.erase(buffer->current_position_col());
-      }
       // Any cursors past the end of the line will just be silently moved to
       // the end of the line (just for displaying).
       while (!options.columns.empty() &&
