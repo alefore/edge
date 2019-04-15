@@ -244,7 +244,6 @@ void Line::Output(const Line::OutputOptions& options) const {
   CHECK(options.buffer != nullptr);
   std::unique_lock<std::mutex> lock(mutex_);
   VLOG(5) << "Producing output of line: " << ToString();
-  size_t output_column = 0;
   size_t input_column = options.position.column;
   unordered_set<LineModifier, hash<int>> current_modifiers;
 
@@ -259,7 +258,8 @@ void Line::Output(const Line::OutputOptions& options) const {
   const auto view_start_line =
       options.buffer->Read(buffer_variables::view_start_line());
 
-  while (input_column < contents_->size() && output_column < options.width) {
+  while (input_column < contents_->size() &&
+         options.output_receiver->column() < options.width) {
     wint_t c = contents_->get(input_column);
     CHECK(c != '\n');
     // TODO: Optimize.
@@ -275,49 +275,35 @@ void Line::Output(const Line::OutputOptions& options) const {
     switch (c) {
       case L'\r':
         break;
-      case L'\t': {
-        size_t new_output_column =
-            min(options.width,
-                8 * static_cast<size_t>(
-                        1 + floor(static_cast<double>(output_column) / 8.0)));
-        CHECK_GT(new_output_column, output_column);
-        CHECK_LE(new_output_column - output_column, 8u);
-        options.output_receiver->AddString(
-            wstring(new_output_column - output_column, ' '));
-        output_column = new_output_column;
-      } break;
       case L'​':
         break;
       default:
-        if (iswprint(c)) {
+        if (iswprint(c) || c == '\t') {
           VLOG(8) << "Print character: " << c;
           options.output_receiver->AddCharacter(c);
-          output_column++;
         } else {
           VLOG(7) << "Ignoring non-printable character: " << c;
         }
     }
     input_column++;
   }
-
   options.output_receiver->AddModifier(LineModifier::RESET);
-  size_t line_width = target_buffer->Read(buffer_variables::line_width());
 
   auto view_start = static_cast<size_t>(
       max(0, options.buffer->Read(buffer_variables::view_start_column())));
   if ((!target_buffer->Read(buffer_variables::paste_mode()) ||
        target_buffer != options.buffer) &&
-      line_width != 0 && view_start < line_width &&
-      line_width - view_start < options.width) {
-    if (line_width > view_start + output_column) {
-      size_t padding = line_width - view_start - output_column;
+      options.line_width != 0 && view_start < options.line_width &&
+      options.line_width - view_start < options.width) {
+    if (options.line_width > view_start + options.output_receiver->column()) {
+      size_t padding =
+          options.line_width - view_start - options.output_receiver->column();
       for (auto it : options_.end_of_line_modifiers) {
         options.output_receiver->AddModifier(it);
       }
       options.output_receiver->AddString(wstring(padding, L' '));
       options.output_receiver->AddModifier(LineModifier::RESET);
-      output_column += padding;
-      CHECK_LE(output_column, options.width);
+      CHECK_LE(options.output_receiver->column(), options.width);
     }
 
     auto all_marks = options.buffer->GetLineMarks();
@@ -361,9 +347,9 @@ void Line::Output(const Line::OutputOptions& options) const {
     } else {
       options.output_receiver->AddModifier(LineModifier::DIM);
     }
-    if (output_column <= line_width && output_column < options.width) {
+    if (options.output_receiver->column() <= options.line_width &&
+        options.output_receiver->column() < options.width) {
       options.output_receiver->AddCharacter(info_char);
-      output_column++;
     }
     options.output_receiver->AddModifier(LineModifier::RESET);
 
@@ -387,21 +373,22 @@ void Line::Output(const Line::OutputOptions& options) const {
       }
     }
 
-    if (output_column > line_width + 1) {
+    if (options.output_receiver->column() > options.line_width + 1) {
       VLOG(6) << "Trimming the beginning of additional_information.";
       additional_information = additional_information.substr(
-          min(additional_information.size(), output_column - (line_width + 1)));
+          min(additional_information.size(),
+              options.output_receiver->column() - (options.line_width + 1)));
     }
-    if (options.width >= output_column) {
+    if (options.width >= options.output_receiver->column()) {
       VLOG(6) << "Trimming the end of additional_information.";
       additional_information = additional_information.substr(
-          0, min(additional_information.size(), options.width - output_column));
+          0, min(additional_information.size(),
+                 options.width - options.output_receiver->column()));
     }
     options.output_receiver->AddString(additional_information);
-    output_column += additional_information.size();
   }
 
-  if (output_column < options.width) {
+  if (options.output_receiver->column() < options.width) {
     VLOG(6) << "Adding newline characters.";
     options.output_receiver->AddString(L"\n");
   }
@@ -454,6 +441,11 @@ void OutputReceiverOptimizer::Flush() {
     }
   }
   DCHECK(last_modifiers_ == modifiers_);
+}
+
+size_t OutputReceiverOptimizer::column() {
+  Flush();
+  return delegate_->column();
 }
 
 }  // namespace editor
