@@ -50,6 +50,21 @@ running and which may or may not have a full terminal (pts).
     file formats (Markdown, diff/patch).
 
 
+### 1.1. Screenshot
+
+![Edge Screenshot](/screenshots/shot.png?raw=true "Edge Screenshot")
+
+The screenshot shows Edge editing a C++ file (part of its own source code).
+
+There are multiple cursors in lines 2, 5, 7, 9, 19, 25, and 27 (among others),
+after a regular-expression search for the word `buffer` (which creates a cursor
+in each match). The cursor in line 19 is currently the only active cursor (so
+commands would currently not affect the remaining cursors).
+
+The right-most column shows the scrollbar besides the tree (that corresponds to
+the syntax tree of the contents being edited).
+
+
 ## 2. Getting started
 
 ### 2.1. Running Edge
