@@ -1,6 +1,8 @@
 #ifndef __AFC_EDITOR_LINE_H__
 #define __AFC_EDITOR_LINE_H__
 
+#include <glog/logging.h>
+
 #include <map>
 #include <memory>
 #include <mutex>
@@ -8,9 +10,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include <glog/logging.h>
-
-#include "lazy_string.h"
+#include "src/lazy_string.h"
 #include "src/parse_tree.h"
 #include "src/vm/public/environment.h"
 
@@ -40,6 +40,7 @@ class Line {
 
     shared_ptr<LazyString> contents;
     vector<LineModifierSet> modifiers;
+    LineModifierSet end_of_line_modifiers;
     std::shared_ptr<vm::Environment> environment = nullptr;
   };
 
@@ -73,6 +74,11 @@ class Line {
   // Delete characters from position until the end.
   void DeleteCharacters(size_t position);
   void InsertCharacterAtPosition(size_t position);
+
+  // Sets the character at the position given.
+  //
+  // `position` may be greater than size(), in which case the character will
+  // just get appended (extending the line by exactly one character).
   void SetCharacter(size_t position, int c, const LineModifierSet& modifiers);
 
   void SetAllModifiers(const LineModifierSet& modifiers);
@@ -125,6 +131,8 @@ class Line {
     const EditorState* editor_state = nullptr;
     const OpenBuffer* buffer = nullptr;
     LineColumn position;
+    // Number of screen lines that will be shown. Does not include the status
+    // line (at the bottom of the screen).
     size_t lines_to_show;
     size_t width;
     bool paste_mode;
@@ -139,8 +147,10 @@ class Line {
  private:
   mutable std::mutex mutex_;
   std::shared_ptr<vm::Environment> environment_;
+  // TODO: Remove contents_ and modifiers_ and just use options_ instead.
   shared_ptr<LazyString> contents_;
   vector<LineModifierSet> modifiers_;
+  Options options_;
   bool modified_ = false;
   bool filtered_ = true;
   size_t filter_version_ = 0;

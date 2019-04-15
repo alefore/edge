@@ -1,4 +1,4 @@
-#include "line_prompt_mode.h"
+#include "src/line_prompt_mode.h"
 
 #include <glog/logging.h>
 
@@ -6,19 +6,19 @@
 #include <memory>
 #include <string>
 
-#include "buffer.h"
-#include "buffer_variables.h"
-#include "char_buffer.h"
-#include "command.h"
-#include "command_mode.h"
-#include "editor.h"
-#include "editor_mode.h"
-#include "file_link_mode.h"
-#include "insert_mode.h"
-#include "predictor.h"
-#include "terminal.h"
-#include "transformation_delete.h"
-#include "wstring.h"
+#include "src/buffer.h"
+#include "src/buffer_variables.h"
+#include "src/char_buffer.h"
+#include "src/command.h"
+#include "src/command_mode.h"
+#include "src/editor.h"
+#include "src/editor_mode.h"
+#include "src/file_link_mode.h"
+#include "src/insert_mode.h"
+#include "src/predictor.h"
+#include "src/terminal.h"
+#include "src/transformation_delete.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace editor {
@@ -69,7 +69,8 @@ shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
                                      wstring filter) {
   CHECK(!filter.empty());
   CHECK(history_buffer != nullptr);
-  auto name = L"- history filter: " + history_buffer->name() + L": " + filter;
+  auto name = L"- history filter: " +
+              history_buffer->Read(buffer_variables::name()) + L": " + filter;
   auto element = editor_state->buffers()->insert({name, nullptr}).first;
   if (element->second == nullptr) {
     auto filter_buffer = std::make_shared<OpenBuffer>(editor_state, name);
@@ -83,13 +84,14 @@ shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
     // is a simple way to try to put more relevant things towards the bottom:
     // things that have been used more frequently and more recently.
     std::map<wstring, size_t> previous_lines;
-    history_buffer->ForEachLine([&](size_t position, const Line& line) {
-      auto s = line.ToString();
-      if (s.find(filter) != wstring::npos) {
-        previous_lines[line.ToString()] += position;
-      }
-      return true;
-    });
+    history_buffer->contents()->EveryLine(
+        [&](size_t position, const Line& line) {
+          auto s = line.ToString();
+          if (s.find(filter) != wstring::npos) {
+            previous_lines[line.ToString()] += position;
+          }
+          return true;
+        });
 
     // For sorting.
     std::vector<std::pair<double, wstring>> previous_lines_vector;
@@ -99,7 +101,7 @@ shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
     sort(previous_lines_vector.begin(), previous_lines_vector.end());
 
     for (auto& line : previous_lines_vector) {
-      filter_buffer->AppendLine(editor_state, NewCopyString(line.second));
+      filter_buffer->AppendLine(NewLazyString(std::move(line.second)));
     }
 
     element->second = std::move(filter_buffer);
@@ -116,7 +118,7 @@ shared_ptr<OpenBuffer> GetPromptBuffer(EditorState* editor_state) {
     element.second->Set(buffer_variables::show_in_buffers_list(), false);
     element.second->Set(buffer_variables::delete_into_paste_buffer(), false);
   } else {
-    element.second->ClearContents(editor_state);
+    element.second->ClearContents(BufferContents::CursorsBehavior::kAdjust);
   }
   return element.second;
 }
@@ -162,7 +164,8 @@ class HistoryScrollBehavior : public ScrollBehavior {
 
     if (history_ != nullptr && history_->contents()->size() > 1) {
       auto previous_buffer = editor_state->current_buffer()->second;
-      auto history_it = editor_state->buffers()->find(history_->name());
+      auto history_it = editor_state->buffers()->find(
+          history_->Read(buffer_variables::name()));
       CHECK(history_it != editor_state->buffers()->end());
       editor_state->set_current_buffer(history_it);
       history_->set_mode(previous_buffer->ResetMode());
@@ -173,14 +176,16 @@ class HistoryScrollBehavior : public ScrollBehavior {
         history_->set_position(position);
       }
       if (history_->current_line() != nullptr) {
-        insert->AppendToLastLine(editor_state,
-                                 history_->current_line()->contents());
+        insert->AppendToLastLine(history_->current_line()->contents());
       }
     }
 
     DeleteOptions delete_options;
     delete_options.copy_to_paste_buffer = false;
-    buffer->ApplyToCursors(NewDeleteLinesTransformation(delete_options));
+    delete_options.modifiers.structure = StructureLine();
+    delete_options.modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
+    delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
+    buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
     buffer->ApplyToCursors(NewInsertBufferTransformation(insert, 1, END));
 
     UpdateStatus(editor_state, buffer, prompt_);
@@ -253,8 +258,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
   {
     auto insert =
         std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
-    insert->AppendToLastLine(editor_state,
-                             NewCopyString(options.initial_value));
+    insert->AppendToLastLine(NewLazyString(std::move(options.initial_value)));
     buffer->ApplyToCursors(NewInsertBufferTransformation(insert, 1, END));
   }
 
@@ -307,7 +311,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
           (history->contents()
                ->at(history->contents()->size() - 1)
                ->ToString() != input->ToString())) {
-        history->AppendLine(editor_state, input);
+        history->AppendLine(input);
       }
     }
     auto ensure_survival_of_current_closure = editor_state->keyboard_redirect();
@@ -331,12 +335,14 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
 
             DeleteOptions delete_options;
             delete_options.copy_to_paste_buffer = false;
-            buffer->ApplyToCursors(
-                NewDeleteLinesTransformation(delete_options));
+            delete_options.modifiers.structure = StructureLine();
+            delete_options.modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
+            delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
+            buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
 
             auto insert =
                 std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
-            insert->AppendToLastLine(editor_state, NewCopyString(prediction));
+            insert->AppendToLastLine(NewLazyString(prediction));
             buffer->ApplyToCursors(
                 NewInsertBufferTransformation(insert, 1, END));
 

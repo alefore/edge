@@ -78,10 +78,6 @@ statement(OUT) ::= function_declaration_params(FUNC)
   if (FUNC == nullptr || BODY == nullptr) {
     OUT = nullptr;
   } else {
-    // TODO: Use unique_ptr rather than shared_ptr when lambda capture works.
-    std::shared_ptr<Expression> body(BODY);
-    BODY = nullptr;
-
     shared_ptr<Environment> func_environment(compilation->environment);
     compilation->environment = compilation->environment->parent_environment();
 
@@ -92,8 +88,9 @@ statement(OUT) ::= function_declaration_params(FUNC)
 
     unique_ptr<Value> value(new Value(FUNC->type));
     auto name = FUNC->name;
-    value->callback = [compilation, return_type, name, body, func_environment,
-                       argument_names](
+    value->callback = [compilation, return_type, name,
+                       body = std::shared_ptr<Expression>(BODY),
+                       func_environment, argument_names](
         vector<unique_ptr<Value>> args, Trampoline* trampoline) {
       CHECK_EQ(args.size(), argument_names.size())
           << "Invalid number of arguments for function: " << name;
@@ -117,6 +114,7 @@ statement(OUT) ::= function_declaration_params(FUNC)
     };
     compilation->environment->Define(FUNC->name, std::move(value));
     OUT = NewVoidExpression().release();
+    BODY = nullptr;
   }
 }
 

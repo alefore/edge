@@ -1,8 +1,8 @@
-#include "cpp_parse_tree.h"
+#include "src/cpp_parse_tree.h"
 
 #include <glog/logging.h>
 
-#include "buffer.h"
+#include "src/buffer.h"
 #include "src/parse_tools.h"
 #include "src/seek.h"
 
@@ -42,9 +42,6 @@ class CppTreeParser : public TreeParser {
 
   void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
-    if (buffer.empty()) {
-      return;
-    }
     root->children.clear();
     root->depth = 0;
 

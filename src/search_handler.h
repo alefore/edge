@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "line_column.h"
+#include "src/line_column.h"
 
 namespace afc {
 namespace editor {
@@ -27,10 +27,8 @@ struct SearchOptions {
 
   bool case_sensitive = false;
 
-  // If has_limit_position is true, limit_position marks a position where the
-  // search should stop.
-  bool has_limit_position = false;
-  LineColumn limit_position;
+  // An optional position where the search should stop.
+  std::optional<LineColumn> limit_position;
 };
 
 std::vector<LineColumn> SearchHandler(EditorState* editor_state,

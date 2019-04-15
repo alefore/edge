@@ -1,8 +1,8 @@
-#include "lowercase.h"
-
-#include <memory>
+#include "src/lowercase.h"
 
 #include <glog/logging.h>
+
+#include <memory>
 
 namespace afc {
 namespace editor {

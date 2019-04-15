@@ -15,7 +15,12 @@ bool break_words = false;
 void FoldNextLineWhilePrefixIs(string prefix) {
   SetStatus("Folding paragraph into a single line.");
   int line = buffer.position().line();
-  while (line + 1 < buffer.line_count() && LineHasPrefix(prefix, line + 1)) {
+  bool first_line = true;
+  while (line + 1 < buffer.line_count() && LineHasPrefix(prefix, line + 1) &&
+         (first_line || GetPrefix(buffer.line(line + 1),
+                                  buffer.paragraph_line_prefix_characters()) ==
+                            GetPrefix(buffer.line(line + 1),
+                                      buffer.line_prefix_characters()))) {
     buffer.set_position(LineColumn(line, buffer.line(line).size()));
     if (buffer.position().column() > prefix.size()) {
       buffer.InsertText(" ");  // To avoid a space in the first line.
@@ -23,6 +28,7 @@ void FoldNextLineWhilePrefixIs(string prefix) {
     int prefix_to_delete =
         buffer.line(line + 1).find_first_not_of(" ", prefix.size());
     buffer.DeleteCharacters(1 + prefix_to_delete);
+    first_line = false;
   }
 }
 

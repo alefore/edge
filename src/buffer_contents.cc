@@ -1,15 +1,15 @@
-#include "buffer_contents.h"
+#include "src/buffer_contents.h"
 
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <unordered_set>
 
-#include "char_buffer.h"
-#include "editor.h"
-#include "lazy_string_append.h"
-#include "substring.h"
-#include "wstring.h"
+#include "src/char_buffer.h"
+#include "src/editor.h"
+#include "src/lazy_string_append.h"
+#include "src/substring.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace editor {
@@ -29,7 +29,7 @@ wint_t BufferContents::character_at(const LineColumn& position) const {
 wstring BufferContents::ToString() const {
   wstring output;
   output.reserve(CountCharacters());
-  ForEach([&output](size_t position, const Line& line) {
+  EveryLine([&output](size_t position, const Line& line) {
     output.append((position == 0 ? L"" : L"\n") + line.ToString());
     return true;
   });
@@ -38,9 +38,6 @@ wstring BufferContents::ToString() const {
 
 void BufferContents::insert(size_t position_line, const BufferContents& source,
                             const LineModifierSet* modifiers) {
-  if (source.empty()) {
-    return;
-  }
   CHECK_LT(position_line, size());
   // No need to increment it since it'll move automatically.
   auto insert_position = lines_.begin() + position_line;
@@ -54,10 +51,10 @@ void BufferContents::insert(size_t position_line, const BufferContents& source,
   }
   NotifyUpdateListeners(CursorsTracker::Transformation()
                             .WithBegin(LineColumn(position_line))
-                            .AddToLine(source.size()));
+                            .LineDelta(source.size()));
 }
 
-bool BufferContents::ForEach(
+bool BufferContents::EveryLine(
     const std::function<bool(size_t, const Line&)>& callback) const {
   size_t position = 0;
   for (const auto& line : lines_) {
@@ -70,7 +67,7 @@ bool BufferContents::ForEach(
 
 void BufferContents::ForEach(
     const std::function<void(const Line&)>& callback) const {
-  ForEach([callback](size_t, const Line& line) {
+  EveryLine([callback](size_t, const Line& line) {
     callback(line);
     return true;
   });
@@ -98,7 +95,7 @@ void BufferContents::insert_line(size_t line_position,
   lines_.insert(lines_.begin() + line_position, line);
   NotifyUpdateListeners(CursorsTracker::Transformation()
                             .WithBegin(LineColumn(line_position))
-                            .AddToLine(1));
+                            .LineDelta(1));
 }
 
 void BufferContents::DeleteCharactersFromLine(size_t line, size_t column,
@@ -115,8 +112,8 @@ void BufferContents::DeleteCharactersFromLine(size_t line, size_t column,
   NotifyUpdateListeners(CursorsTracker::Transformation()
                             .WithBegin(LineColumn(line, column))
                             .WithEnd(LineColumn(line + 1, 0))
-                            .AddToColumn(-amount)
-                            .OutputColumnGe(column));
+                            .ColumnDelta(-amount)
+                            .ColumnLowerBound(column));
 }
 
 void BufferContents::DeleteCharactersFromLine(size_t line, size_t column) {
@@ -128,6 +125,7 @@ void BufferContents::DeleteCharactersFromLine(size_t line, size_t column) {
 void BufferContents::SetCharacter(
     size_t line, size_t column, int c,
     std::unordered_set<LineModifier, hash<int>> modifiers) {
+  CHECK_LT(line, size());
   auto new_line = std::make_shared<Line>(*at(line));
   new_line->SetCharacter(column, c, modifiers);
   set_line(line, new_line);
@@ -153,7 +151,8 @@ void BufferContents::AppendToLine(size_t position, const Line& line_to_append) {
   NotifyUpdateListeners(CursorsTracker::Transformation());
 }
 
-void BufferContents::EraseLines(size_t first, size_t last) {
+void BufferContents::EraseLines(size_t first, size_t last,
+                                CursorsBehavior cursors_behavior) {
   if (first == last) {
     return;  // Optimization to avoid notifying listeners.
   }
@@ -161,10 +160,17 @@ void BufferContents::EraseLines(size_t first, size_t last) {
   CHECK_LE(last, size());
   LOG(INFO) << "Erasing lines in range [" << first << ", " << last << ").";
   lines_.erase(lines_.begin() + first, lines_.begin() + last);
+  if (lines_.empty()) {
+    lines_.insert(lines_.begin(), std::make_shared<Line>());
+  }
+
+  if (cursors_behavior == CursorsBehavior::kUnmodified) {
+    return;
+  }
   NotifyUpdateListeners(CursorsTracker::Transformation()
                             .WithBegin(LineColumn(first))
-                            .AddToLine(first - last)
-                            .OutputLineGe(first));
+                            .LineDelta(first - last)
+                            .LineLowerBound(first));
 }
 
 void BufferContents::SplitLine(LineColumn position) {
@@ -175,8 +181,8 @@ void BufferContents::SplitLine(LineColumn position) {
   NotifyUpdateListeners(CursorsTracker::Transformation()
                             .WithBegin(position)
                             .WithEnd(LineColumn(position.line + 1, 0))
-                            .AddToLine(1)
-                            .AddToColumn(-position.column));
+                            .LineDelta(1)
+                            .ColumnDelta(-position.column));
   DeleteCharactersFromLine(position.line, position.column);
 }
 
@@ -189,9 +195,9 @@ void BufferContents::FoldNextLine(size_t position) {
   AppendToLine(position, *at(position + 1));
   NotifyUpdateListeners(CursorsTracker::Transformation()
                             .WithLineEq(position + 1)
-                            .AddToLine(-1)
-                            .AddToColumn(initial_size));
-  EraseLines(position + 1, position + 2);
+                            .LineDelta(-1)
+                            .ColumnDelta(initial_size));
+  EraseLines(position + 1, position + 2, CursorsBehavior::kAdjust);
 }
 
 void BufferContents::push_back(wstring str) {

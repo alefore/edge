@@ -1,8 +1,8 @@
 #include "src/parsers/diff.h"
 
-#include <algorithm>
-
 #include <glog/logging.h>
+
+#include <algorithm>
 
 #include "src/buffer_contents.h"
 #include "src/parse_tools.h"
@@ -18,9 +18,6 @@ enum State { DEFAULT, HEADERS, SECTION, CONTENTS };
 class DiffParser : public TreeParser {
  public:
   void FindChildren(const BufferContents& buffer, ParseTree* root) override {
-    if (buffer.empty()) {
-      return;
-    }
     CHECK(root != nullptr);
     root->children.clear();
     root->depth = 0;

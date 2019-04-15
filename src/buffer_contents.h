@@ -22,8 +22,6 @@ class BufferContents {
 
   wint_t character_at(const LineColumn& position) const;
 
-  bool empty() const { return lines_.empty(); }
-
   size_t size() const { return lines_.size(); }
 
   // Returns a copy of the contents of the tree. Complexity is linear to the
@@ -31,16 +29,17 @@ class BufferContents {
   std::unique_ptr<BufferContents> copy() const;
 
   shared_ptr<const Line> at(size_t position) const {
+    CHECK_LT(position, lines_.size());
     return lines_.at(position);
   }
 
   shared_ptr<const Line> back() const {
-    CHECK(!empty());
+    CHECK(!lines_.empty());
     return lines_.at(size() - 1);
   }
 
   shared_ptr<const Line> front() const {
-    CHECK(!empty());
+    CHECK(!lines_.empty());
     return lines_.at(0);
   }
 
@@ -48,8 +47,8 @@ class BufferContents {
   // first argument the line count (starts counting at 0). Stops the iteration
   // if the callback returns false. Returns true iff the callback always
   // returned true.
-  // TODO: Use an enum as the return value.
-  bool ForEach(const std::function<bool(size_t, const Line&)>& callback) const;
+  bool EveryLine(
+      const std::function<bool(size_t, const Line&)>& callback) const;
 
   // Convenience wrappers of the above.
   void ForEach(const std::function<void(const Line&)>& callback) const;
@@ -93,13 +92,21 @@ class BufferContents {
   // Delete characters from the given line in range [column, ...).
   void DeleteCharactersFromLine(size_t line, size_t column);
 
+  // Sets the character and modifiers in line `line` and column `column`.
+  //
+  // `line` must be smaller than size().
+  //
+  // `column` may be greater than size(), in which case the character will just
+  // get appended (extending the line by exactly one character).
   void SetCharacter(size_t line, size_t column, int c,
                     std::unordered_set<LineModifier, hash<int>> modifiers);
 
   void InsertCharacter(size_t line, size_t column);
   void AppendToLine(size_t line, const Line& line_to_append);
 
-  void EraseLines(size_t first, size_t last);
+  enum class CursorsBehavior { kAdjust, kUnmodified };
+
+  void EraseLines(size_t first, size_t last, CursorsBehavior cursors_behavior);
 
   void SplitLine(LineColumn position);
 
@@ -120,7 +127,12 @@ class BufferContents {
   void NotifyUpdateListeners(
       const CursorsTracker::Transformation& cursor_adjuster);
 
-  Tree<shared_ptr<const Line>> lines_;
+  Tree<shared_ptr<const Line>> lines_ = []() {
+    Tree<shared_ptr<const Line>> output;
+    output.insert(output.begin(), std::make_shared<Line>());
+    return output;
+  }();
+
   vector<std::function<void(const CursorsTracker::Transformation&)>>
       update_listeners_;
 };

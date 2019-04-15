@@ -1,4 +1,4 @@
-#include "direction.h"
+#include "src/direction.h"
 
 namespace afc {
 namespace editor {

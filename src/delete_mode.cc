@@ -1,11 +1,11 @@
-#include "delete_mode.h"
+#include "src/delete_mode.h"
 
 #include <memory>
 
-#include "command_with_modifiers.h"
-#include "editor.h"
-#include "terminal.h"
-#include "transformation_delete.h"
+#include "src/command_with_modifiers.h"
+#include "src/editor.h"
+#include "src/terminal.h"
+#include "src/transformation_delete.h"
 
 namespace afc {
 namespace editor {

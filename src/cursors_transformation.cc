@@ -1,11 +1,11 @@
-#include "cursors_transformation.h"
+#include "src/cursors_transformation.h"
 
 #include <glog/logging.h>
 
-#include "buffer.h"
-#include "editor.h"
-#include "lazy_string_append.h"
-#include "transformation_delete.h"
+#include "src/buffer.h"
+#include "src/editor.h"
+#include "src/lazy_string_append.h"
+#include "src/transformation_delete.h"
 
 namespace afc {
 namespace editor {
@@ -16,12 +16,12 @@ class SetCursorsTransformation : public Transformation {
   SetCursorsTransformation(CursorsSet cursors, LineColumn active)
       : cursors_(std::move(cursors)), active_(active) {}
 
-  void Apply(EditorState*, OpenBuffer* buffer, Result* result) const override {
+  void Apply(OpenBuffer* buffer, Result* result) const override {
     CHECK(buffer != nullptr);
     CHECK(result != nullptr);
     vector<LineColumn> positions = {active_};
     bool skipped = false;
-    for (auto& cursor : cursors_) {
+    for (const auto& cursor : cursors_) {
       if (!skipped && cursor == active_) {
         skipped = true;
       } else {

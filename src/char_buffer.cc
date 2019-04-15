@@ -1,27 +1,28 @@
-#include <cstring>
-#include <string>
+#include "src/char_buffer.h"
 
 #include <glog/logging.h>
 
-#include "char_buffer.h"
+#include <cstring>
+#include <string>
 
 namespace afc {
 namespace editor {
 
 using std::string;
 
-class StringFromVector : public LazyString {
+template <typename Container>
+class StringFromContainer : public LazyString {
  public:
-  StringFromVector(vector<wchar_t> data) : data_(std::move(data)) {}
+  StringFromContainer(Container data) : data_(std::move(data)) {}
 
   wchar_t get(size_t pos) const {
     CHECK_LT(pos, data_.size());
-    return data_[pos];
+    return data_.at(pos);
   }
   size_t size() const { return data_.size(); }
 
  protected:
-  const vector<wchar_t> data_;
+  const Container data_;
 };
 
 class MoveableCharBuffer : public LazyString {
@@ -75,12 +76,13 @@ unique_ptr<LazyString> NewCopyCharBuffer(const wchar_t* buffer) {
                                                    wcslen(buffer));
 }
 
-unique_ptr<LazyString> NewCopyString(const wstring& buffer) {
-  return std::move(NewCopyCharBuffer(buffer.c_str()));
+unique_ptr<LazyString> NewLazyString(wstring buffer) {
+  return std::make_unique<StringFromContainer<wstring>>(std::move(buffer));
 }
 
-unique_ptr<LazyString> NewStringFromVector(vector<wchar_t> data) {
-  return std::make_unique<StringFromVector>(std::move(data));
+unique_ptr<LazyString> NewLazyString(vector<wchar_t> data) {
+  return std::make_unique<StringFromContainer<vector<wchar_t>>>(
+      std::move(data));
 }
 
 }  // namespace editor

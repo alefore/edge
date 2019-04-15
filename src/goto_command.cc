@@ -1,14 +1,14 @@
-#include "goto_command.h"
+#include "src/goto_command.h"
 
 #include <glog/logging.h>
 
 #include <cmath>
 
-#include "buffer.h"
-#include "buffer_variables.h"
-#include "command.h"
-#include "editor.h"
-#include "transformation.h"
+#include "src/buffer.h"
+#include "src/buffer_variables.h"
+#include "src/command.h"
+#include "src/editor.h"
+#include "src/transformation.h"
 
 namespace afc {
 namespace editor {
@@ -56,8 +56,7 @@ class GotoCharTransformation : public Transformation {
  public:
   GotoCharTransformation(int calls) : calls_(calls) {}
 
-  void Apply(EditorState* editor, OpenBuffer* buffer,
-             Result* result) const override {
+  void Apply(OpenBuffer* buffer, Result* result) const override {
     const wstring& line_prefix_characters =
         buffer->Read(buffer_variables::line_prefix_characters());
     const auto& line = buffer->LineAt(result->cursor.line);
@@ -75,6 +74,7 @@ class GotoCharTransformation : public Transformation {
            (line_prefix_characters.find(line->get(end - 1)) != string::npos)) {
       end--;
     }
+    auto editor = buffer->editor();
     size_t position = ComputePosition(
         start, end, line->size(), editor->direction(), editor->repetitions(),
         editor->structure_range(), calls_);
@@ -110,110 +110,85 @@ class GotoCommand : public Command {
       editor_state->ProcessInput(c);
       return;
     }
-    switch (editor_state->structure()) {
-      case CHAR:
-        buffer->ApplyToCursors(
-            std::make_unique<GotoCharTransformation>(calls_));
-        break;
+    // TODO: Move this to Structure.
+    auto structure = editor_state->structure();
+    if (structure == StructureChar()) {
+      buffer->ApplyToCursors(std::make_unique<GotoCharTransformation>(calls_));
+    } else if (structure == StructureSymbol()) {
+      LineColumn position(buffer->position().line);
+      buffer->AdjustLineColumn(&position);
+      if (editor_state->direction() == BACKWARDS) {
+        position.column = buffer->LineAt(position.line)->size();
+      }
 
-      case SYMBOL: {
-        LineColumn position(buffer->position().line);
-        buffer->AdjustLineColumn(&position);
-        if (editor_state->direction() == BACKWARDS) {
-          position.column = buffer->LineAt(position.line)->size();
-        }
+      VLOG(4) << "Start SYMBOL GotoCommand: " << editor_state->modifiers();
+      Range range =
+          buffer->FindPartialRange(editor_state->modifiers(), position);
+      switch (editor_state->direction()) {
+        case FORWARDS: {
+          Modifiers modifiers_copy = editor_state->modifiers();
+          modifiers_copy.repetitions = 1;
+          range = buffer->FindPartialRange(modifiers_copy,
+                                           buffer->PositionBefore(range.end));
+          position = range.begin;
+        } break;
 
-        VLOG(4) << "Start SYMBOL GotoCommand: " << editor_state->modifiers();
-        LineColumn start, end;
-        if (buffer->FindPartialRange(editor_state->modifiers(), position,
-                                     &start, &end)) {
-          switch (editor_state->direction()) {
-            case FORWARDS: {
-              Modifiers modifiers_copy = editor_state->modifiers();
-              modifiers_copy.repetitions = 1;
-              end = buffer->PositionBefore(end);
-              if (buffer->FindPartialRange(modifiers_copy, end, &start, &end)) {
-                position = start;
-              }
-            } break;
-
-            case BACKWARDS: {
-              Modifiers modifiers_copy = editor_state->modifiers();
-              modifiers_copy.repetitions = 1;
-              modifiers_copy.direction = FORWARDS;
-              if (buffer->FindPartialRange(modifiers_copy, start, &start,
-                                           &end)) {
-                position = buffer->PositionBefore(end);
-              }
-            } break;
-          }
-          buffer->set_position(position);
-        }
-      } break;
-
-      case LINE: {
-        size_t lines = buffer->contents()->size() - 1;
-        size_t position =
-            ComputePosition(0, lines, lines, editor_state->direction(),
-                            editor_state->repetitions(),
-                            editor_state->structure_range(), calls_);
-        CHECK_LE(position, buffer->contents()->size());
-        buffer->set_current_position_line(position);
-      } break;
-
-      case MARK: {
-        // Navigates marks in the current buffer.
-        const multimap<size_t, LineMarks::Mark>* marks =
-            buffer->GetLineMarks(*editor_state);
-        vector<pair<size_t, LineMarks::Mark>> lines;
-        std::unique_copy(marks->begin(), marks->end(),
-                         std::back_inserter(lines),
-                         [](const pair<size_t, LineMarks::Mark>& entry1,
-                            const pair<size_t, LineMarks::Mark>& entry2) {
-                           return (entry1.first == entry2.first);
-                         });
-        size_t position = ComputePosition(
-            0, lines.size(), lines.size(), editor_state->direction(),
-            editor_state->repetitions(), editor_state->structure_range(),
-            calls_);
-        CHECK_LE(position, lines.size());
-        buffer->set_current_position_line(lines.at(position).first);
-      } break;
-
-      case PAGE: {
-        CHECK(!buffer->contents()->empty());
-        size_t pages = ceil(static_cast<double>(buffer->contents()->size()) /
-                            editor_state->visible_lines());
-        size_t position =
-            editor_state->visible_lines() *
-            ComputePosition(0, pages, pages, editor_state->direction(),
-                            editor_state->repetitions(),
-                            editor_state->structure_range(), calls_);
-        CHECK_LT(position, buffer->contents()->size());
-        buffer->set_current_position_line(position);
-      } break;
-
-      case SEARCH:
-        // TODO: Implement.
-        break;
-
-      case CURSOR:
-        GotoCursor(editor_state);
-        break;
-
-      case BUFFER: {
-        size_t buffers = editor_state->buffers()->size();
-        size_t position =
-            ComputePosition(0, buffers, buffers, editor_state->direction(),
-                            editor_state->repetitions(),
-                            editor_state->structure_range(), calls_);
-        CHECK_LT(position, editor_state->buffers()->size());
-        auto it = editor_state->buffers()->begin();
-        advance(it, position);
-        if (it != editor_state->current_buffer()) {
-          editor_state->set_current_buffer(it);
-        }
-      } break;
+        case BACKWARDS: {
+          Modifiers modifiers_copy = editor_state->modifiers();
+          modifiers_copy.repetitions = 1;
+          modifiers_copy.direction = FORWARDS;
+          range = buffer->FindPartialRange(modifiers_copy, range.begin);
+          position = buffer->PositionBefore(range.end);
+        } break;
+      }
+      buffer->set_position(position);
+    } else if (structure == StructureLine()) {
+      size_t lines = buffer->contents()->size() - 1;
+      size_t position = ComputePosition(
+          0, lines, lines, editor_state->direction(),
+          editor_state->repetitions(), editor_state->structure_range(), calls_);
+      CHECK_LE(position, buffer->contents()->size());
+      buffer->set_current_position_line(position);
+    } else if (structure == StructureMark()) {
+      // Navigates marks in the current buffer.
+      const multimap<size_t, LineMarks::Mark>* marks = buffer->GetLineMarks();
+      vector<pair<size_t, LineMarks::Mark>> lines;
+      std::unique_copy(marks->begin(), marks->end(), std::back_inserter(lines),
+                       [](const pair<size_t, LineMarks::Mark>& entry1,
+                          const pair<size_t, LineMarks::Mark>& entry2) {
+                         return (entry1.first == entry2.first);
+                       });
+      size_t position = ComputePosition(
+          0, lines.size(), lines.size(), editor_state->direction(),
+          editor_state->repetitions(), editor_state->structure_range(), calls_);
+      CHECK_LE(position, lines.size());
+      buffer->set_current_position_line(lines.at(position).first);
+    } else if (structure == StructurePage()) {
+      CHECK_GT(buffer->contents()->size(), 0u);
+      size_t pages = ceil(static_cast<double>(buffer->contents()->size()) /
+                          editor_state->visible_lines());
+      size_t position =
+          editor_state->visible_lines() *
+          ComputePosition(0, pages, pages, editor_state->direction(),
+                          editor_state->repetitions(),
+                          editor_state->structure_range(), calls_);
+      CHECK_LT(position, buffer->contents()->size());
+      buffer->set_current_position_line(position);
+    } else if (structure == StructureSearch()) {
+      // TODO: Implement.
+    } else if (structure == StructureCursor()) {
+      GotoCursor(editor_state);
+    } else if (structure == StructureBuffer()) {
+      size_t buffers = editor_state->buffers()->size();
+      size_t position = ComputePosition(
+          0, buffers, buffers, editor_state->direction(),
+          editor_state->repetitions(), editor_state->structure_range(), calls_);
+      CHECK_LT(position, editor_state->buffers()->size());
+      auto it = editor_state->buffers()->begin();
+      advance(it, position);
+      if (it != editor_state->current_buffer()) {
+        editor_state->set_current_buffer(it);
+      }
     }
     editor_state->PushCurrentPosition();
     editor_state->ScheduleRedraw();

@@ -1,8 +1,7 @@
-#include "search_handler.h"
-
-#include <set>
+#include "src/search_handler.h"
 
 #include <iostream>
+#include <set>
 #if CPP_REGEX
 #include <regex>
 #else
@@ -12,11 +11,11 @@ extern "C" {
 }
 #endif
 
-#include "audio.h"
-#include "buffer_variables.h"
-#include "char_buffer.h"
-#include "editor.h"
-#include "wstring.h"
+#include "src/audio.h"
+#include "src/buffer_variables.h"
+#include "src/char_buffer.h"
+#include "src/editor.h"
+#include "src/wstring.h"
 
 namespace {
 
@@ -83,7 +82,7 @@ vector<LineColumn> PerformSearch(const SearchOptions& options,
   }
 #endif
 
-  buffer->ForEachLine(
+  buffer->contents()->EveryLine(
       [&positions, &pattern](size_t position, const Line& line) {
         for (const auto& column : GetMatches(line.ToString(), pattern)) {
           positions.push_back(LineColumn(position, column));
@@ -129,14 +128,14 @@ vector<LineColumn> PerformSearchWithDirection(EditorState* editor_state,
   vector<LineColumn> head;
   vector<LineColumn> tail;
 
-  if (options.has_limit_position) {
-    auto start = min(options.starting_position, options.limit_position);
-    auto end = max(options.starting_position, options.limit_position);
-    LOG(INFO) << "Removing elements outside of the range: " << start << " to "
-              << end;
+  if (options.limit_position.has_value()) {
+    Range range = {
+        min(options.starting_position, options.limit_position.value()),
+        max(options.starting_position, options.limit_position.value())};
+    LOG(INFO) << "Removing elements outside of the range: " << range;
     vector<LineColumn> valid_candidates;
     for (auto& candidate : candidates) {
-      if (candidate >= start && candidate < end) {
+      if (range.Contains(candidate)) {
         valid_candidates.push_back(candidate);
       }
     }
@@ -193,11 +192,10 @@ void SearchHandlerPredictor(EditorState* editor_state, const wstring& input,
 
   // Add the matches to the predictions buffer.
   for (auto& match : matches) {
-    predictions_buffer->AppendToLastLine(editor_state, NewCopyString(match));
-    predictions_buffer->AppendRawLine(editor_state,
-                                      std::make_shared<Line>(Line::Options()));
+    predictions_buffer->AppendToLastLine(NewLazyString(std::move(match)));
+    predictions_buffer->AppendRawLine(std::make_shared<Line>(Line::Options()));
   }
-  predictions_buffer->EndOfFile(editor_state);
+  predictions_buffer->EndOfFile();
 }
 
 vector<LineColumn> SearchHandler(EditorState* editor_state,

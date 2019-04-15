@@ -1,13 +1,13 @@
-#include "cpp_command.h"
-
-#include <memory>
+#include "src/cpp_command.h"
 
 #include <glog/logging.h>
 
-#include "command.h"
-#include "editor.h"
-#include "vm/public/vm.h"
-#include "wstring.h"
+#include <memory>
+
+#include "src/command.h"
+#include "src/editor.h"
+#include "src/vm/public/vm.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace editor {

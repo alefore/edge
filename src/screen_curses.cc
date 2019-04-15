@@ -1,10 +1,10 @@
-#include "screen_curses.h"
+#include "src/screen_curses.h"
 
 extern "C" {
 #include <ncursesw/curses.h>
 }
 
-#include "terminal.h"
+#include "src/terminal.h"
 
 namespace afc {
 namespace editor {
@@ -148,7 +148,7 @@ wint_t ReadChar(std::mbstate_t* mbstate) {
         return Terminal::CTRL_A;
 
       case 4:
-        return Terminal::CHAR_EOF;
+        return Terminal::CTRL_D;
 
       case 5:
         return Terminal::CTRL_E;

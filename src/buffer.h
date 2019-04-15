@@ -52,42 +52,77 @@ class OpenBuffer {
   static void RegisterBufferType(EditorState* editor_state,
                                  Environment* environment);
 
+  struct Options {
+    EditorState* editor_state;
+    wstring name;
+    wstring path;
+
+    // Optional function that will be run to generate the contents of the
+    // buffer.
+    //
+    // This will be run when the buffer is first created or when its contents
+    // need to be reloaded.
+    std::function<void(OpenBuffer*)> generate_contents;
+
+    // Optional function to generate additional information for the status of
+    // this buffer (see OpenBuffer::FlagsString). The generated string must
+    // begin with a space.
+    std::function<wstring(const OpenBuffer&)> describe_status;
+
+    // Optional function that listens on visits to the buffer (i.e., the user
+    // entering the buffer from other buffers).
+    std::function<void(OpenBuffer*)> handle_visit;
+
+    // Optional function that saves the buffer. If not provided, attempts to
+    // save the buffer will fail.
+    std::function<void(OpenBuffer*)> handle_save;
+  };
+
   OpenBuffer(EditorState* editor_state, const wstring& name);
+  OpenBuffer(Options options);
   ~OpenBuffer();
 
-  bool PrepareToClose(EditorState* editor_state);
-  void Close(EditorState* editor_state);
+  EditorState* editor() const { return editor_; }
+
+  void SetStatus(wstring status) const;
+  bool PrepareToClose();
+  void Close();
 
   // If the buffer is still being read (fd_ != -1), adds an observer to
   // end_of_file_observers_. Otherwise just calls the observer directly.
   void AddEndOfFileObserver(std::function<void()> observer);
   void AddCloseObserver(std::function<void()> observer);
 
-  virtual void Visit(EditorState* editor_state);
+  void Visit();
   time_t last_visit() const;
   time_t last_action() const;
 
   // Saves state of this buffer (not including contents). Currently that means
   // the values of variables, but in the future it could include other things.
   // Returns true if the state could be persisted successfully.
-  virtual bool PersistState() const;
+  bool PersistState() const;
 
-  void ClearContents(EditorState* editor_state);
-  void AppendEmptyLine(EditorState* editor_state);
+  void ClearContents(BufferContents::CursorsBehavior cursors_behavior);
+  void AppendEmptyLine();
 
-  virtual void ReloadInto(EditorState*, OpenBuffer*) {}
-  virtual void Save(EditorState* editor_state);
+  void Save();
 
-  void MaybeFollowToEndOfFile();
+  // If we're currently at the end of the buffer *and* variable
+  // `follow_end_of_file` is set, returns an object that, when deleted, will
+  // move the position to the end of file.
+  //
+  // If variable `pts` is set, has slightly different semantics: the end
+  // position will not be the end of contents(), but rather position_pts_.
+  std::unique_ptr<bool, std::function<void(bool*)>> GetEndPositionFollower();
 
-  virtual bool ShouldDisplayProgress() const;
+  bool ShouldDisplayProgress() const;
   void RegisterProgress();
 
-  void ReadData(EditorState* editor_state);
-  void ReadErrorData(EditorState* editor_state);
+  void ReadData();
+  void ReadErrorData();
 
-  void Reload(EditorState* editor_state);
-  virtual void EndOfFile(EditorState* editor_state);
+  void Reload();
+  void EndOfFile();
 
   // Sort all lines in range [first, last) according to a compare function.
   void SortContents(size_t first, size_t last,
@@ -95,12 +130,6 @@ class OpenBuffer {
                                        const shared_ptr<const Line>&)>
                         compare);
 
-  template <typename T>
-  void ForEachLine(T callback) const {
-    contents_.ForEach(callback);
-  }
-
-  bool empty() const { return contents_.empty(); }
   size_t lines_size() const { return contents_.size(); }
 
   EditorMode* mode() const { return mode_.get(); }
@@ -117,33 +146,27 @@ class OpenBuffer {
   // Inserts a new line into the buffer at a given position.
   void InsertLine(size_t line_position, shared_ptr<Line> line);
 
-  void AppendLazyString(EditorState* editor_state,
-                        shared_ptr<LazyString> input);
-  void AppendLine(EditorState* editor_state, shared_ptr<LazyString> line);
-  virtual void AppendRawLine(EditorState* editor_state,
-                             shared_ptr<LazyString> str);
+  void AppendLazyString(std::shared_ptr<LazyString> input);
+  void AppendLine(std::shared_ptr<LazyString> line);
+  void AppendRawLine(std::shared_ptr<LazyString> str);
 
   // Insert a line at the end of the buffer.
-  void AppendRawLine(EditorState* editor, shared_ptr<Line> line);
+  void AppendRawLine(std::shared_ptr<Line> line);
 
-  size_t ProcessTerminalEscapeSequence(EditorState* editor_state,
-                                       shared_ptr<LazyString> str,
+  size_t ProcessTerminalEscapeSequence(shared_ptr<LazyString> str,
                                        size_t read_index,
                                        LineModifierSet* modifiers);
-  void AppendToLastLine(EditorState* editor_state, shared_ptr<LazyString> str);
-  void AppendToLastLine(EditorState* editor_state, shared_ptr<LazyString> str,
+  void AppendToLastLine(std::shared_ptr<LazyString> str);
+  void AppendToLastLine(std::shared_ptr<LazyString> str,
                         const vector<LineModifierSet>& modifiers);
 
-  unique_ptr<Expression> CompileString(EditorState* editor_state,
-                                       const wstring& str,
+  unique_ptr<Expression> CompileString(const wstring& str,
                                        wstring* error_description);
-  void EvaluateExpression(EditorState* editor_state, Expression* expr,
+  void EvaluateExpression(Expression* expr,
                           std::function<void(std::unique_ptr<Value>)> consumer);
-  bool EvaluateString(EditorState* editor_state, const wstring& str,
+  bool EvaluateString(const wstring& str,
                       std::function<void(std::unique_ptr<Value>)> consumer);
-  bool EvaluateFile(EditorState* editor_state, const wstring& path);
-
-  const wstring& name() const;
+  bool EvaluateFile(const wstring& path);
 
   void DeleteRange(const Range& range);
 
@@ -156,7 +179,8 @@ class OpenBuffer {
   // of the current line).
   void AdjustLineColumn(LineColumn* output) const;
 
-  // Like AdjustLineColumn but for the current cursor.
+  // If the current cursor is in a valid line (i.e., it isn't past the last
+  // line), adjusts the column to not be beyond the length of the line.
   void MaybeAdjustPositionCol();
   // If the line referenced is shorter than the position.column, extend it with
   // spaces.
@@ -164,7 +188,8 @@ class OpenBuffer {
 
   // Makes sure that the current line (position) is not greater than the number
   // of elements in contents().  Note that after this, it may still not be a
-  // valid index for contents() (it may be just at the end).
+  // valid index for contents() (it may be just at the end, perhaps because
+  // contents() is empty).
   void CheckPosition();
 
   CursorsSet* FindCursors(const wstring& name);
@@ -181,10 +206,9 @@ class OpenBuffer {
   // a mark (based on line_marks_).
   void SetActiveCursorsToMarks();
 
-  void set_current_cursor(CursorsSet::value_type new_cursor);
+  void set_current_cursor(LineColumn new_cursor);
   void CreateCursor();
-  CursorsSet::iterator FindPreviousCursor(LineColumn cursor);
-  CursorsSet::iterator FindNextCursor(LineColumn cursor);
+  LineColumn FindNextCursor(LineColumn cursor);
   void DestroyCursor();
   void DestroyOtherCursors();
 
@@ -192,35 +216,15 @@ class OpenBuffer {
   void set_lines_for_zoomed_out_tree(size_t lines);
   std::shared_ptr<const ParseTree> zoomed_out_tree() const;
 
-  // Moves position in the specified direction until we're inside the structure
-  // of the type specified that starts after position. No-op if we're already
-  // inside the structure.
-  void SeekToStructure(Structure structure, Direction direction,
-                       LineColumn* position);
-  // Moves position in the specified direction until we're just outside of the
-  // current structure of the type specified. No-op if we're already outside the
-  // structure. Returns a boolean indicating whether it successfully found a
-  // position outside of the structure.
-  bool SeekToLimit(Structure structure, Direction direction,
-                   LineColumn* position);
-
-  // TODO: Change start and end to be a Range?
-  bool FindPartialRange(const Modifiers& modifiers, const LineColumn& position,
-                        LineColumn* start, LineColumn* end);
+  Range FindPartialRange(const Modifiers& modifiers,
+                         const LineColumn& position);
 
   // May return nullptr if the current_cursor is at the end of file.
   const shared_ptr<const Line> current_line() const;
 
-  shared_ptr<const Line> LineFront() const {
-    CHECK(!contents_.empty());
-    return LineAt(0);
-  }
-  shared_ptr<const Line> LineBack() const {
-    CHECK(!contents_.empty());
-    return LineAt(lines_size() - 1);
-  }
+  shared_ptr<const Line> LineFront() const { return LineAt(0); }
+  shared_ptr<const Line> LineBack() const { return LineAt(lines_size() - 1); }
   shared_ptr<const Line> LineAt(size_t line_number) const {
-    CHECK(!contents_.empty());
     if (line_number >= contents_.size()) {
       return nullptr;
     }
@@ -250,7 +254,6 @@ class OpenBuffer {
 
   void replace_current_line(const shared_ptr<Line>& line) {
     if (cursors_tracker_.position().line >= contents_.size()) {
-      CHECK(!contents_.empty());
       set_current_position_line(contents_.size() - 1);
     }
     contents_.set_line(cursors_tracker_.position().line, line);
@@ -264,32 +267,19 @@ class OpenBuffer {
   const BufferContents* contents() const { return &contents_; }
   // Delete characters in [column, column + amount).
 
-  bool at_beginning() const {
-    if (contents_.empty()) {
-      return true;
-    }
-    return position().at_beginning();
-  }
+  bool at_beginning() const { return position().at_beginning(); }
   bool at_beginning_of_line() const { return at_beginning_of_line(position()); }
   bool at_beginning_of_line(const LineColumn& position) const {
-    if (contents_.empty()) {
-      return true;
-    }
     return position.at_beginning_of_line();
   }
   bool at_end() const { return at_end(position()); }
   bool at_end(const LineColumn& position) const {
-    if (contents_.empty()) {
-      return true;
-    }
     return at_last_line(position) && at_end_of_line(position);
   }
 
   // Returns the position of just after the last character of the current file.
   LineColumn end_position() const {
-    if (contents_.empty()) {
-      return LineColumn(0, 0);
-    }
+    CHECK_GT(contents_.size(), 0u);
     return LineColumn(contents_.size() - 1, contents_.back()->size());
   }
 
@@ -299,9 +289,6 @@ class OpenBuffer {
   }
   bool at_end_of_line() const { return at_end_of_line(position()); }
   bool at_end_of_line(const LineColumn& position) const {
-    if (contents_.empty()) {
-      return true;
-    }
     return position.column >= LineAt(position.line)->size();
   }
   char current_character() const {
@@ -326,16 +313,15 @@ class OpenBuffer {
   bool modified() const { return modified_; }
 
   bool dirty() const;
-  virtual wstring FlagsString() const;
+  wstring FlagsString() const;
 
-  void PushSignal(EditorState* editor_state, int signal);
+  void PushSignal(int signal);
 
   wstring TransformKeyboardText(wstring input);
-  bool AddKeyboardTextTransformer(EditorState* editor_state,
-                                  unique_ptr<Value> transformer);
+  bool AddKeyboardTextTransformer(unique_ptr<Value> transformer);
 
-  void SetInputFiles(EditorState* editor_state, int input_fd,
-                     int input_fd_error, bool fd_is_terminal, pid_t child_pid);
+  void SetInputFiles(int input_fd, int input_fd_error, bool fd_is_terminal,
+                     pid_t child_pid);
 
   const bool& Read(const EdgeVariable<bool>* variable) const;
   void Set(const EdgeVariable<bool>* variable, bool value);
@@ -368,8 +354,8 @@ class OpenBuffer {
     // Count every transformation (even those that don't modify the buffer).
     ONLY_UNDO_THE_LAST,
   };
-  void Undo(EditorState* editor_state);
-  void Undo(EditorState* editor_state, UndoMode undo_mode);
+  void Undo();
+  void Undo(UndoMode undo_mode);
 
   void set_filter(unique_ptr<Value> filter);
   bool IsLineFiltered(size_t line);
@@ -384,9 +370,8 @@ class OpenBuffer {
 
   // Returns a multimap with all the marks for the current buffer, indexed by
   // the line they refer to. Each call may update the map.
-  const multimap<size_t, LineMarks::Mark>* GetLineMarks(
-      const EditorState& editor_state) const;
-  wstring GetLineMarksText(const EditorState& editor_state) const;
+  const multimap<size_t, LineMarks::Mark>* GetLineMarks() const;
+  wstring GetLineMarksText() const;
 
   Environment* environment() { return &environment_; }
 
@@ -404,9 +389,7 @@ class OpenBuffer {
   void set_tree_depth(size_t tree_depth) { tree_depth_ = tree_depth; }
 
   LineColumn PositionBefore(LineColumn position) const {
-    if (contents_.empty()) {
-      position = LineColumn();
-    } else if (position.column > 0) {
+    if (position.column > 0) {
       position.column--;
     } else if (position.line > 0) {
       position.line = min(position.line - 1, contents_.size() - 1);
@@ -419,13 +402,35 @@ class OpenBuffer {
   // call Editor::ScheduleParseTreeUpdate.
   void ResetParseTree();
 
- protected:
-  EditorState* editor_;
+ private:
+  static void EvaluateMap(OpenBuffer* buffer, size_t line,
+                          Value::Callback map_callback,
+                          TransformationStack* transformation,
+                          Trampoline* trampoline);
+  LineColumn Apply(unique_ptr<Transformation> transformation);
+  void BackgroundThread();
+  // Destroys the background thread if it's running and if a given predicate
+  // returns true. The predicate is evaluated with mutex_ held.
+  void DestroyThreadIf(std::function<bool()> predicate);
+  void UpdateTreeParser();
+
+  // Adds a new line. If there's a previous line, notifies various things about
+  // it.
+  void StartNewLine();
+  void ProcessCommandInput(shared_ptr<LazyString> str);
+  // Advances the pts position to the next line (possibly inserting a new line).
+  void PtsMoveToNextLine();
+
+  // Returns true if the position given is set to a value other than
+  // LineColumn::Max and the buffer has read past that position.
+  bool IsPastPosition(LineColumn position) const;
+
+  EditorState* const editor_;
 
   struct Input {
     void Close();
     void Reset();
-    void ReadData(EditorState* editor_state, OpenBuffer* target);
+    void ReadData(OpenBuffer* target);
 
     // -1 means "no file descriptor" (i.e. not currently loading this).
     int fd = -1;
@@ -488,31 +493,6 @@ class OpenBuffer {
   unique_ptr<Value> filter_;
   size_t filter_version_;
 
- private:
-  static void EvaluateMap(EditorState* editor, OpenBuffer* buffer, size_t line,
-                          Value::Callback map_callback,
-                          TransformationStack* transformation,
-                          Trampoline* trampoline);
-  LineColumn Apply(EditorState* editor_state,
-                   unique_ptr<Transformation> transformation);
-  void BackgroundThread();
-  // Destroys the background thread if it's running and if a given predicate
-  // returns true. The predicate is evaluated with mutex_ held.
-  void DestroyThreadIf(std::function<bool()> predicate);
-  void UpdateTreeParser();
-
-  // Adds a new line. If there's a previous line, notifies various things about
-  // it.
-  void StartNewLine(EditorState* editor_state);
-  void ProcessCommandInput(EditorState* editor_state,
-                           shared_ptr<LazyString> str);
-  // Advances the pts position to the next line (possibly inserting a new line).
-  void PtsMoveToNextLine();
-
-  // Returns true if the position given is set to a value other than
-  // LineColumn::Max and the buffer has read past that position.
-  bool IsPastPosition(LineColumn position) const;
-
   // Whenever the contents are modified, we set this to the snapshot (after the
   // modification). The background thread will react to this: it'll take the
   // value out (and reset it to null). Once it's done, it'll update the parse
@@ -545,11 +525,6 @@ class OpenBuffer {
 
   CursorsTracker cursors_tracker_;
 
-  // If we get a request to open a buffer and jump to a given line, we store
-  // that value here. Once we've read enough, we stay at this position. It can
-  // be set to LineColumn::Max to signify "no desired position".
-  LineColumn desired_position_;
-
   std::shared_ptr<const ParseTree> parse_tree_;
   std::shared_ptr<const ParseTree> simplified_parse_tree_;
   std::shared_ptr<TreeParser> tree_parser_;
@@ -580,6 +555,12 @@ class OpenBuffer {
   //
   // TODO: Add a Time type to the VM and expose this?
   struct timespec last_progress_update_ = {0, 0};
+
+  // See Options::generate_contents.
+  const std::function<void(OpenBuffer*)> generate_contents_;
+  const std::function<wstring(const OpenBuffer&)> describe_status_;
+  const std::function<void(OpenBuffer*)> handle_visit_;
+  const std::function<void(OpenBuffer*)> handle_save_;
 };
 
 }  // namespace editor

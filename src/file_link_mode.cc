@@ -1,8 +1,9 @@
-#include "file_link_mode.h"
+#include "src/file_link_mode.h"
 
 #include <algorithm>
 #include <cstring>
 #include <memory>
+#include <regex>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -20,17 +21,18 @@ extern "C" {
 
 #include <glog/logging.h>
 
-#include "buffer_variables.h"
-#include "char_buffer.h"
-#include "dirname.h"
-#include "editor.h"
-#include "line_prompt_mode.h"
-#include "run_command_handler.h"
-#include "search_handler.h"
-#include "server.h"
-#include "vm/public/callbacks.h"
-#include "vm/public/value.h"
-#include "wstring.h"
+#include "src/buffer_variables.h"
+#include "src/char_buffer.h"
+#include "src/dirname.h"
+#include "src/editor.h"
+#include "src/lazy_string_append.h"
+#include "src/line_prompt_mode.h"
+#include "src/run_command_handler.h"
+#include "src/search_handler.h"
+#include "src/server.h"
+#include "src/vm/public/callbacks.h"
+#include "src/vm/public/value.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace editor {
@@ -64,285 +66,201 @@ void StartDeleteFile(EditorState* editor_state, wstring path) {
   Prompt(editor_state, std::move(options));
 }
 
-class FileBuffer : public OpenBuffer {
- public:
-  FileBuffer(EditorState* editor_state, const wstring& path,
-             const wstring& name)
-      : OpenBuffer(editor_state, name) {
-    Set(buffer_variables::path(), path);
+void AddLine(EditorState* editor_state, OpenBuffer* target,
+             const dirent& entry) {
+  enum class SizeBehavior { kShow, kSkip };
+
+  struct FileType {
+    wstring description;
+    LineModifierSet modifiers;
+  };
+  static const std::unordered_map<int, FileType> types = {
+      {DT_BLK, {L" (block dev)", {GREEN}}},
+      {DT_CHR, {L" (char dev)", {RED}}},
+      {DT_DIR, {L"/", {CYAN}}},
+      {DT_FIFO, {L" (named pipe)", {BLUE}}},
+      {DT_LNK, {L"@", {ITALIC}}},
+      {DT_REG, {L"", {}}},
+      {DT_SOCK, {L" (unix sock)", {MAGENTA}}}};
+
+  auto path = FromByteString(entry.d_name);
+
+  auto type_it = types.find(entry.d_type);
+  if (type_it == types.end()) {
+    type_it = types.find(DT_REG);
+    CHECK(type_it != types.end());
   }
 
-  void Visit(EditorState* editor_state) {
-    OpenBuffer::Visit(editor_state);
-
-    LOG(INFO) << "Checking if file has changed.";
-    const wstring path = GetPath();
-    const string path_raw = ToByteString(path);
-    struct stat current_stat_buffer;
-    if (stat(path_raw.c_str(), &current_stat_buffer) == -1) {
-      return;
-    }
-    if (current_stat_buffer.st_mtime > stat_buffer_.st_mtime) {
-      editor_state->SetWarningStatus(
-          L"WARNING: File (in disk) changed since last read.");
+  Line::Options line_options;
+  line_options.contents =
+      shared_ptr<LazyString>(NewLazyString(path + type_it->second.description));
+  line_options.modifiers =
+      std::vector<LineModifierSet>(line_options.contents->size());
+  if (!type_it->second.modifiers.empty()) {
+    for (size_t i = 0; i < path.size(); i++) {
+      line_options.modifiers[i] = (type_it->second.modifiers);
     }
   }
 
-  bool PersistState() const override {
-    auto path_vector = editor_->edge_path();
-    if (path_vector.empty()) {
-      LOG(INFO) << "Empty edge path.";
-      return false;
-    }
+  auto line = std::make_shared<Line>(std::move(line_options));
 
-    auto file_path = Read(buffer_variables::path());
-    list<wstring> file_path_components;
-    if (file_path.empty() || file_path[0] != '/') {
-      editor_->SetWarningStatus(L"Unable to persist buffer with empty path: " +
-                                name() + (dirty() ? L" (dirty)" : L" (clean)") +
-                                (modified_ ? L"modified" : L"not modi"));
-      return !dirty();
-    }
+  target->AppendRawLine(line);
+  target->contents()->back()->environment()->Define(
+      L"EdgeLineDeleteHandler",
+      vm::NewCallback(std::function<void()>(
+          [editor_state, path]() { StartDeleteFile(editor_state, path); })));
+}
 
-    if (!DirectorySplit(file_path, &file_path_components)) {
-      LOG(INFO) << "Unable to split path: " << file_path;
-      return false;
-    }
+void ShowFiles(EditorState* editor_state, wstring name,
+               std::vector<dirent> entries, OpenBuffer* target) {
+  if (entries.empty()) {
+    return;
+  }
+  target->AppendLine(NewLazyString(L"## " + name));
+  int start = target->contents()->size();
+  for (auto& entry : entries) {
+    AddLine(editor_state, target, entry);
+  }
+  target->SortContents(
+      start, target->contents()->size(),
+      [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
+        return *a->contents() < *b->contents();
+      });
+  target->AppendEmptyLine();
+}
 
-    file_path_components.push_front(L"state");
-
-    wstring path = path_vector[0];
-    LOG(INFO) << "PersistState: Preparing directory for state: " << path;
-    for (auto& component : file_path_components) {
-      path = PathJoin(path, component);
-      struct stat stat_buffer;
-      auto path_byte_string = ToByteString(path);
-      if (stat(path_byte_string.c_str(), &stat_buffer) != -1) {
-        if (S_ISDIR(stat_buffer.st_mode)) {
-          continue;
-        }
-        LOG(INFO) << "Ooops, exists, but is not a directory: " << path;
-        return false;
-      }
-      if (mkdir(path_byte_string.c_str(), 0700)) {
-        editor_->SetStatus(L"mkdir: " + FromByteString(strerror(errno)) +
-                           L": " + path);
-        return false;
-      }
-    }
-
-    path = PathJoin(path, L".edge_state");
-    LOG(INFO) << "PersistState: Preparing state file: " << path;
-    BufferContents contents;
-    contents.push_back(L"// State of file: " + path);
-    contents.push_back(L"");
-
-    contents.push_back(L"buffer.set_position(" + position().ToCppString() +
-                       L");");
-    contents.push_back(L"");
-
-    contents.push_back(L"// String variables");
-    for (const auto& variable : buffer_variables::StringStruct()->variables()) {
-      contents.push_back(L"buffer.set_" + variable.first + L"(\"" +
-                         CppEscapeString(Read(variable.second.get())) +
-                         L"\");");
-    }
-    contents.push_back(L"");
-
-    contents.push_back(L"// Int variables");
-    for (const auto& variable : buffer_variables::IntStruct()->variables()) {
-      contents.push_back(L"buffer.set_" + variable.first + L"(" +
-                         std::to_wstring(Read(variable.second.get())) + L");");
-    }
-    contents.push_back(L"");
-
-    contents.push_back(L"// Bool variables");
-    for (const auto& variable : buffer_variables::BoolStruct()->variables()) {
-      contents.push_back(L"buffer.set_" + variable.first + L"(" +
-                         (Read(variable.second.get()) ? L"true" : L"false") +
-                         L");");
-    }
-    contents.push_back(L"");
-
-    return SaveContentsToFile(editor_, path, contents);
+void GenerateContents(EditorState* editor_state, struct stat* stat_buffer,
+                      OpenBuffer* target) {
+  CHECK(!target->modified());
+  const wstring path = target->Read(buffer_variables::path());
+  LOG(INFO) << "GenerateContents: " << path;
+  const string path_raw = ToByteString(path);
+  if (!path.empty() && stat(path_raw.c_str(), stat_buffer) == -1) {
+    return;
   }
 
-  void ReloadInto(EditorState* editor_state, OpenBuffer* target) {
-    CHECK(!target->modified());
-    const wstring path = GetPath();
-    LOG(INFO) << "ReloadInto: " << path;
-    const string path_raw = ToByteString(path);
-    if (!path.empty() && stat(path_raw.c_str(), &stat_buffer_) == -1) {
-      return;
-    }
-
-    if (target->Read(buffer_variables::clear_on_reload())) {
-      target->ClearContents(editor_state);
-      target->ClearModified();
-    }
-
-    editor_state->ScheduleRedraw();
-
-    if (path.empty()) {
-      return;
-    }
-
-    if (!S_ISDIR(stat_buffer_.st_mode)) {
-      char* tmp = strdup(path_raw.c_str());
-      if (0 == strcmp(basename(tmp), "passwd")) {
-        RunCommandHandler(L"parsers/passwd <" + path, editor_state, {});
-      } else {
-        int fd = open(ToByteString(path).c_str(), O_RDONLY | O_NONBLOCK);
-        target->SetInputFiles(editor_state, fd, -1, false, -1);
-      }
-      editor_state->CheckPosition();
-      editor_state->PushCurrentPosition();
-      return;
-    }
-
-    Set(buffer_variables::atomic_lines(), true);
-    Set(buffer_variables::allow_dirty_delete(), true);
-    target->AppendToLastLine(editor_state,
-                             NewCopyString(L"File listing: " + path));
-
-    DIR* dir = opendir(path_raw.c_str());
-    if (dir == nullptr) {
-      auto description =
-          L"Unable to open directory: " + FromByteString(strerror(errno));
-      editor_state->SetStatus(description);
-      target->AppendLine(editor_state,
-                         shared_ptr<LazyString>(NewCopyString(description)));
-      return;
-    }
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != nullptr) {
-      static std::unordered_map<int, wstring> types = {
-          {DT_BLK, L" (block dev)"},   {DT_CHR, L" (char dev)"}, {DT_DIR, L"/"},
-          {DT_FIFO, L" (named pipe)"}, {DT_LNK, L"@"},           {DT_REG, L""},
-          {DT_SOCK, L" (unix sock)"}};
-      if (strcmp(entry->d_name, ".") == 0) {
-        continue;  // Showing the link to itself is rather pointless.
-      }
-      auto type_it = types.find(entry->d_type);
-      auto path = FromByteString(entry->d_name);
-      target->AppendLine(
-          editor_state,
-          shared_ptr<LazyString>(NewCopyString(
-              path + (type_it == types.end() ? L"" : type_it->second))));
-
-      target->contents()->back()->environment()->Define(
-          L"EdgeLineDeleteHandler",
-          vm::NewCallback(std::function<void()>([editor_state, path]() {
-            StartDeleteFile(editor_state, path);
-          })));
-    }
-    closedir(dir);
-
-    target->SortContents(
-        1, target->contents()->size(),
-        [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
-          return *a->contents() < *b->contents();
-        });
+  if (target->Read(buffer_variables::clear_on_reload())) {
+    target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
     target->ClearModified();
-    editor_state->CheckPosition();
-    editor_state->PushCurrentPosition();
   }
 
-  void Save(EditorState* editor_state) {
-    const wstring path = GetPath();
-    if (path.empty()) {
-      OpenBuffer::Save(editor_state);
-      editor_state->SetStatus(
-          L"Buffer can't be saved: “path” variable is empty.");
-      return;
+  editor_state->ScheduleRedraw();
+
+  if (path.empty()) {
+    return;
+  }
+
+  if (!S_ISDIR(stat_buffer->st_mode)) {
+    char* tmp = strdup(path_raw.c_str());
+    if (0 == strcmp(basename(tmp), "passwd")) {
+      RunCommandHandler(L"parsers/passwd <" + path, editor_state, {});
+    } else {
+      int fd = open(ToByteString(path).c_str(), O_RDONLY | O_NONBLOCK);
+      target->SetInputFiles(fd, -1, false, -1);
     }
-    if (S_ISDIR(stat_buffer_.st_mode)) {
-      OpenBuffer::Save(editor_state);
-      return;
+    return;
+  }
+
+  target->Set(buffer_variables::atomic_lines(), true);
+  target->Set(buffer_variables::allow_dirty_delete(), true);
+  target->Set(buffer_variables::tree_parser(), L"md");
+
+  DIR* dir = opendir(path_raw.c_str());
+  if (dir == nullptr) {
+    auto description =
+        L"Unable to open directory: " + FromByteString(strerror(errno));
+    editor_state->SetStatus(description);
+    target->AppendLine(NewLazyString(std::move(description)));
+    return;
+  }
+  struct dirent* entry;
+
+  std::vector<dirent> directories;
+  std::vector<dirent> regular_files;
+  std::vector<dirent> noise;
+
+  std::wregex noise_regex(target->Read(buffer_variables::directory_noise()));
+
+  while ((entry = readdir(dir)) != nullptr) {
+    auto path = FromByteString(entry->d_name);
+    if (strcmp(entry->d_name, ".") == 0) {
+      continue;  // Showing the link to itself is rather pointless.
     }
 
-    if (!SaveContentsToFile(editor_state, path, contents_) || !PersistState()) {
-      LOG(INFO) << "Saving failed.";
-      return;
+    if (std::regex_match(path, noise_regex)) {
+      noise.push_back(*entry);
+      continue;
     }
-    ClearModified();
-    editor_state->SetStatus(L"Saved: " + path);
-    for (const auto& dir : editor_state->edge_path()) {
-      EvaluateFile(editor_state, dir + L"/hooks/buffer-save.cc");
+
+    if (entry->d_type == DT_DIR) {
+      directories.push_back(*entry);
+      continue;
     }
-    if (Read(buffer_variables::trigger_reload_on_buffer_write())) {
-      for (auto& it : *editor_state->buffers()) {
-        CHECK(it.second != nullptr);
-        if (it.second->Read(buffer_variables::reload_on_buffer_write())) {
-          LOG(INFO) << "Write of " << path
-                    << " triggers reload: " << it.second->name();
-          it.second->Reload(editor_state);
-        }
+
+    regular_files.push_back(*entry);
+  }
+  closedir(dir);
+
+  target->AppendToLastLine(NewLazyString(L"# File listing: " + path));
+  target->AppendEmptyLine();
+
+  ShowFiles(editor_state, L"Directories", std::move(directories), target);
+  ShowFiles(editor_state, L"Files", std::move(regular_files), target);
+  ShowFiles(editor_state, L"Noise", std::move(noise), target);
+
+  target->ClearModified();
+}
+
+void HandleVisit(EditorState* editor_state, const struct stat& stat_buffer,
+                 const OpenBuffer& buffer) {
+  const wstring path = buffer.Read(buffer_variables::path());
+  LOG(INFO) << "Checking if file has changed: " << path;
+  const string path_raw = ToByteString(path);
+  struct stat current_stat_buffer;
+  if (stat(path_raw.c_str(), &current_stat_buffer) == -1) {
+    return;
+  }
+  if (current_stat_buffer.st_mtime > stat_buffer.st_mtime) {
+    editor_state->SetWarningStatus(
+        L"WARNING: File changed in disk since last read.");
+  }
+}
+
+void Save(EditorState* editor_state, struct stat* stat_buffer,
+          OpenBuffer* buffer) {
+  const wstring path = buffer->Read(buffer_variables::path());
+  if (path.empty()) {
+    editor_state->SetStatus(
+        L"Buffer can't be saved: “path” variable is empty.");
+    return;
+  }
+  if (S_ISDIR(stat_buffer->st_mode)) {
+    editor_state->SetStatus(L"Buffer can't be saved: Buffer is a directory.");
+    return;
+  }
+
+  if (!SaveContentsToFile(editor_state, path, *buffer->contents()) ||
+      !buffer->PersistState()) {
+    LOG(INFO) << "Saving failed.";
+    return;
+  }
+  buffer->ClearModified();
+  editor_state->SetStatus(L"Saved: " + path);
+  for (const auto& dir : editor_state->edge_path()) {
+    buffer->EvaluateFile(dir + L"/hooks/buffer-save.cc");
+  }
+  if (buffer->Read(buffer_variables::trigger_reload_on_buffer_write())) {
+    for (auto& it : *editor_state->buffers()) {
+      CHECK(it.second != nullptr);
+      if (it.second->Read(buffer_variables::reload_on_buffer_write())) {
+        LOG(INFO) << "Write of " << path << " triggers reload: "
+                  << it.second->Read(buffer_variables::name());
+        it.second->Reload();
       }
     }
-    stat(ToByteString(path).c_str(), &stat_buffer_);
   }
-
- private:
-  static bool SaveContentsToFile(EditorState* editor_state, const wstring& path,
-                                 const BufferContents& contents) {
-    const string path_raw = ToByteString(path);
-    const string tmp_path = path_raw + ".tmp";
-
-    struct stat original_stat;
-    if (stat(path_raw.c_str(), &original_stat) == -1) {
-      LOG(INFO) << "Unable to stat file (using default permissions): "
-                << path_raw;
-      original_stat.st_mode =
-          S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
-    }
-
-    // TODO: Make this non-blocking.
-    int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC,
-                  original_stat.st_mode);
-    if (fd == -1) {
-      editor_state->SetStatus(FromByteString(tmp_path) + L": open failed: " +
-                              FromByteString(strerror(errno)));
-      return false;
-    }
-    bool result = SaveContentsToOpenFile(editor_state, FromByteString(tmp_path),
-                                         fd, contents);
-    close(fd);
-    if (!result) {
-      return false;
-    }
-
-    // TODO: Make this non-blocking?
-    if (rename(tmp_path.c_str(), path_raw.c_str()) == -1) {
-      editor_state->SetStatus(path + L": rename failed: " +
-                              FromByteString(strerror(errno)));
-      return false;
-    }
-
-    return true;
-  }
-
-  static bool SaveContentsToOpenFile(EditorState* editor_state,
-                                     const wstring& path, int fd,
-                                     const BufferContents& contents) {
-    // TODO: It'd be significant more efficient to do fewer (bigger) writes.
-    return contents.ForEach([editor_state, fd, path](size_t position,
-                                                     const Line& line) {
-      string str = (position == 0 ? "" : "\n") + ToByteString(line.ToString());
-      if (write(fd, str.c_str(), str.size()) == -1) {
-        editor_state->SetStatus(path + L": write failed: " +
-                                std::to_wstring(fd) + L": " +
-                                FromByteString(strerror(errno)));
-        return false;
-      }
-      return true;
-    });
-  }
-
-  wstring GetPath() const { return Read(buffer_variables::path()); }
-
-  struct stat stat_buffer_;
-};
+  stat(ToByteString(path).c_str(), stat_buffer);
+}
 
 static wstring realpath_safe(const wstring& path) {
   char* result = realpath(ToByteString(path).c_str(), nullptr);
@@ -363,8 +281,9 @@ static bool CanStatPath(const wstring& path) {
 
 bool FindPath(EditorState* editor_state, vector<wstring> search_paths,
               wstring path, std::function<bool(const wstring&)> validator,
-              wstring* resolved_path, LineColumn* position, wstring* pattern) {
-  LineColumn position_dummy;
+              wstring* resolved_path, std::optional<LineColumn>* position,
+              wstring* pattern) {
+  std::optional<LineColumn> position_dummy;
   if (position == nullptr) {
     position = &position_dummy;
   }
@@ -398,7 +317,6 @@ bool FindPath(EditorState* editor_state, vector<wstring> search_paths,
         continue;
       }
 
-      *position = LineColumn();
       *pattern = L"";
       for (size_t i = 0; i < 2; i++) {
         while (str_end < path.size() && ':' == path[str_end]) {
@@ -426,7 +344,10 @@ bool FindPath(EditorState* editor_state, vector<wstring> search_paths,
             LOG(INFO) << "stoi failed: out of range: " << arg;
             break;
           }
-          (i == 0 ? position->line : position->column) = value;
+          if (!position->has_value()) {
+            *position = LineColumn();
+          }
+          (i == 0 ? position->value().line : position->value().column) = value;
         }
         str_end = next_str_end;
         if (str_end == path.npos) {
@@ -443,7 +364,7 @@ bool FindPath(EditorState* editor_state, vector<wstring> search_paths,
 
 static bool FindPath(EditorState* editor_state, vector<wstring> search_paths,
                      const wstring& path, wstring* resolved_path,
-                     LineColumn* position, wstring* pattern) {
+                     std::optional<LineColumn>* position, wstring* pattern) {
   return FindPath(editor_state, search_paths, path, CanStatPath, resolved_path,
                   position, pattern);
 }
@@ -451,6 +372,59 @@ static bool FindPath(EditorState* editor_state, vector<wstring> search_paths,
 }  // namespace
 
 using std::unique_ptr;
+
+bool SaveContentsToOpenFile(EditorState* editor_state, const wstring& path,
+                            int fd, const BufferContents& contents) {
+  // TODO: It'd be significant more efficient to do fewer (bigger) writes.
+  return contents.EveryLine([editor_state, fd, path](size_t position,
+                                                     const Line& line) {
+    string str = (position == 0 ? "" : "\n") + ToByteString(line.ToString());
+    if (write(fd, str.c_str(), str.size()) == -1) {
+      editor_state->SetStatus(path + L": write failed: " + std::to_wstring(fd) +
+                              L": " + FromByteString(strerror(errno)));
+      return false;
+    }
+    return true;
+  });
+}
+
+bool SaveContentsToFile(EditorState* editor_state, const wstring& path,
+                        const BufferContents& contents) {
+  const string path_raw = ToByteString(path);
+  const string tmp_path = path_raw + ".tmp";
+
+  struct stat original_stat;
+  if (stat(path_raw.c_str(), &original_stat) == -1) {
+    LOG(INFO) << "Unable to stat file (using default permissions): "
+              << path_raw;
+    original_stat.st_mode =
+        S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+  }
+
+  // TODO: Make this non-blocking.
+  int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC,
+                original_stat.st_mode);
+  if (fd == -1) {
+    editor_state->SetStatus(FromByteString(tmp_path) + L": open failed: " +
+                            FromByteString(strerror(errno)));
+    return false;
+  }
+  bool result = SaveContentsToOpenFile(editor_state, FromByteString(tmp_path),
+                                       fd, contents);
+  close(fd);
+  if (!result) {
+    return false;
+  }
+
+  // TODO: Make this non-blocking?
+  if (rename(tmp_path.c_str(), path_raw.c_str()) == -1) {
+    editor_state->SetStatus(path + L": rename failed: " +
+                            FromByteString(strerror(errno)));
+    return false;
+  }
+
+  return true;
+}
 
 shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
   OpenFileOptions options;
@@ -484,13 +458,14 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
     LOG(INFO) << "No search paths buffer.";
     return;
   }
-  search_paths_buffer->ForEachLine([editor_state, output](wstring line) {
-    if (line.empty()) {
-      return;
-    }
-    output->push_back(editor_state->expand_path(line));
-    LOG(INFO) << "Pushed search path: " << output->back();
-  });
+  search_paths_buffer->contents()->ForEach(
+      [editor_state, output](wstring line) {
+        if (line.empty()) {
+          return;
+        }
+        output->push_back(editor_state->expand_path(line));
+        LOG(INFO) << "Pushed search path: " << output->back();
+      });
 }
 
 bool ResolvePath(ResolvePathOptions options) {
@@ -505,18 +480,34 @@ bool ResolvePath(ResolvePathOptions options) {
 map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     const OpenFileOptions& options) {
   EditorState* editor_state = options.editor_state;
-  LineColumn position;
+  std::optional<LineColumn> position;
   wstring pattern;
 
   vector<wstring> search_paths = options.initial_search_paths;
   if (options.use_search_paths) {
     GetSearchPaths(editor_state, &search_paths);
   }
-  wstring actual_path;
-  FindPath(editor_state, search_paths, options.path, &actual_path, &position,
-           &pattern);
 
-  if (actual_path.empty()) {
+  auto stat_buffer = std::make_shared<struct stat>();
+
+  OpenBuffer::Options buffer_options;
+  buffer_options.editor_state = editor_state;
+  buffer_options.generate_contents = [editor_state,
+                                      stat_buffer](OpenBuffer* target) {
+    GenerateContents(editor_state, stat_buffer.get(), target);
+  };
+  buffer_options.handle_visit = [editor_state,
+                                 stat_buffer](OpenBuffer* buffer) {
+    HandleVisit(editor_state, *stat_buffer, *buffer);
+  };
+  buffer_options.handle_save = [editor_state, stat_buffer](OpenBuffer* buffer) {
+    Save(editor_state, stat_buffer.get(), buffer);
+  };
+
+  FindPath(editor_state, search_paths, options.path, &buffer_options.path,
+           &position, &pattern);
+
+  if (buffer_options.path.empty()) {
     map<wstring, shared_ptr<OpenBuffer>>::iterator buffer;
     auto validator = [editor_state, &buffer](const wstring& path) {
       DCHECK(!path.empty());
@@ -534,10 +525,12 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
       }
       return false;
     };
-    if (FindPath(editor_state, {L""}, options.path, validator, &actual_path,
-                 &position, &pattern)) {
+    if (FindPath(editor_state, {L""}, options.path, validator,
+                 &buffer_options.path, &position, &pattern)) {
       editor_state->set_current_buffer(buffer);
-      buffer->second->set_position(position);
+      if (position.has_value()) {
+        buffer->second->set_position(position.value());
+      }
       // TODO: Apply pattern.
       editor_state->ScheduleRedraw();
       return buffer;
@@ -545,31 +538,33 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     if (options.ignore_if_not_found) {
       return editor_state->buffers()->end();
     }
-    actual_path = options.path;
+    buffer_options.path = options.path;
   }
 
   shared_ptr<OpenBuffer> buffer;
-  wstring name;
+
   if (!options.name.empty()) {
-    name = options.name;
-  } else if (actual_path.empty()) {
-    name = editor_state->GetUnusedBufferName(L"anonymous buffer");
-    buffer = std::make_shared<FileBuffer>(editor_state, actual_path, name);
+    buffer_options.name = options.name;
+  } else if (buffer_options.path.empty()) {
+    buffer_options.name =
+        editor_state->GetUnusedBufferName(L"anonymous buffer");
+    buffer = std::make_shared<OpenBuffer>(buffer_options);
   } else {
-    name = actual_path;
+    buffer_options.name = buffer_options.path;
   }
-  auto it = editor_state->buffers()->insert(make_pair(name, buffer));
+  auto it = editor_state->buffers()->insert({buffer_options.name, buffer});
   if (it.second) {
     if (it.first->second.get() == nullptr) {
-      it.first->second =
-          std::make_shared<FileBuffer>(editor_state, actual_path, name);
+      it.first->second = std::make_shared<OpenBuffer>(buffer_options);
+      it.first->second->Set(buffer_variables::persist_state(), true);
     }
-    it.first->second->Reload(editor_state);
+    it.first->second->Reload();
   } else {
     it.first->second->ResetMode();
   }
-  editor_state->PushCurrentPosition();
-  it.first->second->set_position(position);
+  if (position.has_value()) {
+    it.first->second->set_position(position.value());
+  }
   if (options.make_current_buffer) {
     editor_state->set_current_buffer(it.first);
     editor_state->ScheduleRedraw();

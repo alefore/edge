@@ -4,7 +4,7 @@
 #include <memory>
 #include <unordered_set>
 
-#include "parse_tree.h"
+#include "src/parse_tree.h"
 
 namespace afc {
 namespace editor {

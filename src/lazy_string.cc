@@ -1,4 +1,4 @@
-#include "lazy_string.h"
+#include "src/lazy_string.h"
 
 #include <glog/logging.h>
 

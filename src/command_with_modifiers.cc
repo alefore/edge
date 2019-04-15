@@ -1,10 +1,10 @@
-#include "command_with_modifiers.h"
+#include "src/command_with_modifiers.h"
 
 #include <memory>
 
-#include "buffer_variables.h"
-#include "editor.h"
-#include "terminal.h"
+#include "src/buffer_variables.h"
+#include "src/editor.h"
+#include "src/terminal.h"
 
 namespace afc {
 namespace editor {
@@ -22,18 +22,11 @@ class CommandWithModifiersMode : public EditorMode {
   }
 
   void ProcessInput(wint_t c, EditorState* editor_state) override {
-    buffer_->Undo(editor_state, OpenBuffer::ONLY_UNDO_THE_LAST);
+    buffer_->Undo(OpenBuffer::ONLY_UNDO_THE_LAST);
     switch (static_cast<int>(c)) {
       case Terminal::ESCAPE:
         buffer_->ResetMode();
         editor_state->ResetStatus();
-        break;
-
-      case Terminal::BACKSPACE:
-        if (!modifiers_string_.empty()) {
-          modifiers_string_.pop_back();
-        }
-        RunHandler(editor_state, Transformation::Result::Mode::kPreview);
         break;
 
       default:
@@ -119,6 +112,10 @@ class CommandWithModifiersMode : public EditorMode {
         modifiers->repetitions = 10 * modifiers->repetitions + c - '0';
         break;
 
+      case Terminal::BACKSPACE:
+        modifiers->repetitions--;
+        break;
+
       case '(':
         modifiers->boundary_begin = Modifiers::CURRENT_POSITION;
         break;
@@ -136,11 +133,17 @@ class CommandWithModifiersMode : public EditorMode {
         break;
 
       case ']':
-        modifiers->boundary_end = Modifiers::LIMIT_CURRENT;
-        break;
-
-      case '}':
-        modifiers->boundary_end = Modifiers::LIMIT_NEIGHBOR;
+        if (modifiers->boundary_end == Modifiers::CURRENT_POSITION) {
+          modifiers->boundary_end = Modifiers::LIMIT_CURRENT;
+        } else if (modifiers->boundary_end == Modifiers::LIMIT_CURRENT) {
+          modifiers->boundary_end = Modifiers::LIMIT_NEIGHBOR;
+        } else if (modifiers->boundary_end == Modifiers::LIMIT_NEIGHBOR) {
+          modifiers->boundary_end = Modifiers::LIMIT_CURRENT;
+          if (modifiers->repetitions == 0) {
+            modifiers->repetitions = 1;
+          }
+          modifiers->repetitions++;
+        }
         break;
 
       case 'r':
@@ -164,31 +167,31 @@ class CommandWithModifiersMode : public EditorMode {
         break;
 
       case 'e':
-        SetStructure(LINE, modifiers);
+        SetStructure(StructureLine(), modifiers);
         break;
 
       case 'w':
-        SetStructure(WORD, modifiers);
+        SetStructure(StructureWord(), modifiers);
         break;
 
       case 'W':
-        SetStructure(SYMBOL, modifiers);
+        SetStructure(StructureSymbol(), modifiers);
         break;
 
       case 'B':
-        SetStructure(BUFFER, modifiers);
+        SetStructure(StructureBuffer(), modifiers);
         break;
 
       case 'c':
-        SetStructure(CURSOR, modifiers);
+        SetStructure(StructureCursor(), modifiers);
         break;
 
-      case 'T':
-        SetStructure(TREE, modifiers);
+      case 't':
+        SetStructure(StructureTree(), modifiers);
         break;
 
       case 'P':
-        SetStructure(PARAGRAPH, modifiers);
+        SetStructure(StructureParagraph(), modifiers);
         break;
 
       case 'p':
@@ -204,14 +207,15 @@ class CommandWithModifiersMode : public EditorMode {
     return true;
   }
 
-  static void SetStructure(Structure structure, Modifiers* modifiers) {
-    modifiers->structure = modifiers->structure == structure ? CHAR : structure;
+  static void SetStructure(Structure* structure, Modifiers* modifiers) {
+    modifiers->structure =
+        modifiers->structure == structure ? StructureChar() : structure;
   }
 
   wstring BuildStatus(const Modifiers& modifiers) {
     wstring status = name_;
-    if (modifiers.structure != CHAR) {
-      status += L" " + StructureToString(modifiers.structure);
+    if (modifiers.structure != StructureChar()) {
+      status += L" " + modifiers.structure->ToString();
     }
     if (modifiers.direction == BACKWARDS) {
       status += L" reverse";

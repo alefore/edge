@@ -2,12 +2,12 @@
 
 #include <memory>
 
-#include "buffer.h"
-#include "buffer_variables.h"
-#include "command.h"
-#include "editor.h"
-#include "file_link_mode.h"
-#include "line_prompt_mode.h"
+#include "src/buffer.h"
+#include "src/buffer_variables.h"
+#include "src/command.h"
+#include "src/editor.h"
+#include "src/file_link_mode.h"
+#include "src/line_prompt_mode.h"
 
 namespace afc {
 namespace editor {
@@ -41,7 +41,7 @@ void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
     return;
   }
   OpenBuffer* buffer = editor_state->current_buffer()->second.get();
-  if (editor_state->structure() == LINE) {
+  if (editor_state->structure() == StructureLine()) {
     auto target = buffer->GetBufferFromCurrentLine().get();
     if (target != nullptr) {
       buffer = target;
@@ -61,7 +61,7 @@ void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
   }
 
   for (size_t i = 0; i < editor_state->repetitions(); i++) {
-    buffer->EvaluateFile(editor_state, adjusted_input);
+    buffer->EvaluateFile(adjusted_input);
   }
   editor_state->ResetRepetitions();
 }

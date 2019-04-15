@@ -1,7 +1,7 @@
 #include <memory>
 
-#include "editor.h"
-#include "transformation.h"
+#include "src/editor.h"
+#include "src/transformation.h"
 
 namespace afc {
 namespace editor {
@@ -18,11 +18,6 @@ struct DeleteOptions {
 
 std::ostream& operator<<(std::ostream& os, const DeleteOptions& options);
 
-unique_ptr<Transformation> NewDeleteCharactersTransformation(
-    DeleteOptions options);
-unique_ptr<Transformation> NewDeleteRegionTransformation(DeleteOptions options);
-unique_ptr<Transformation> NewDeleteLinesTransformation(DeleteOptions options);
-unique_ptr<Transformation> NewDeleteBufferTransformation(DeleteOptions options);
 unique_ptr<Transformation> NewDeleteTransformation(DeleteOptions options);
 
 }  // namespace editor

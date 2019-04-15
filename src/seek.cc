@@ -1,6 +1,6 @@
 #include "src/seek.h"
 
-#include "wstring.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace editor {
@@ -34,6 +34,15 @@ wchar_t Seek::read() const { return contents_.character_at(*position_); }
 
 Seek::Result Seek::Once() const {
   return Advance(position_) ? DONE : UNABLE_TO_ADVANCE;
+}
+
+Seek::Result Seek::WhileCurrentCharIsUpper() const {
+  while (iswupper(read())) {
+    if (!Advance(position_)) {
+      return UNABLE_TO_ADVANCE;
+    }
+  }
+  return DONE;
 }
 
 Seek::Result Seek::WhileCurrentCharIsLower() const {
@@ -130,12 +139,9 @@ Seek::Result Seek::UntilNextCharNotIn(const wstring& word_char) const {
 
 Seek::Result Seek::ToEndOfLine() const {
   auto original_position = *position_;
-  if (contents_.empty()) {
-    *position_ = LineColumn();
-  } else {
-    position_->column = contents_.at(position_->line)->size();
-    *position_ = std::min(range_.end, *position_);
-  }
+  CHECK_LT(position_->line, contents_.size());
+  position_->column = contents_.at(position_->line)->size();
+  *position_ = std::min(range_.end, *position_);
   return *position_ > original_position ? DONE : UNABLE_TO_ADVANCE;
 }
 
@@ -209,7 +215,7 @@ bool Seek::AdvanceLine(LineColumn* position) const {
 bool Seek::Advance(LineColumn* position) const {
   switch (direction_) {
     case FORWARDS:
-      if (contents_.empty() || *position >= range_.end) {
+      if (*position >= range_.end) {
         return false;
       } else if (position->column < contents_.at(position->line)->size()) {
         position->column++;
@@ -223,7 +229,7 @@ bool Seek::Advance(LineColumn* position) const {
       return true;
 
     case BACKWARDS:
-      if (contents_.empty() || *position <= range_.begin) {
+      if (*position <= range_.begin) {
         return false;
       } else if (position->column > 0) {
         position->column--;

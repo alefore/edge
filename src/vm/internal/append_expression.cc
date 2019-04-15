@@ -17,14 +17,11 @@ class AppendExpression : public Expression {
   std::vector<VMType> Types() override { return e1_->Types(); }
 
   void Evaluate(Trampoline* trampoline, const VMType& type) override {
-    // TODO: Use unique_ptr and capture by std::move.
-    std::shared_ptr<Expression> e0_copy = e0_;
-    std::shared_ptr<Expression> e1_copy = e1_;
-    trampoline->Bounce(e0_copy.get(), e0_copy->Types()[0],
-                       [e0_copy, e1_copy, type](std::unique_ptr<Value>,
-                                                Trampoline* trampoline) {
-                         e1_copy->Evaluate(trampoline, type);
-                       });
+    trampoline->Bounce(
+        e0_.get(), e0_->Types()[0],
+        [e0 = e0_, e1 = e1_, type](Value::Ptr, Trampoline* trampoline) {
+          e1->Evaluate(trampoline, type);
+        });
   }
 
   std::unique_ptr<Expression> Clone() override {

@@ -1,4 +1,4 @@
-#include "terminal.h"
+#include "src/terminal.h"
 
 #include <glog/logging.h>
 
@@ -6,9 +6,9 @@
 #include <cctype>
 #include <iostream>
 
-#include "buffer_variables.h"
-#include "dirname.h"
-#include "line_marks.h"
+#include "src/buffer_variables.h"
+#include "src/dirname.h"
+#include "src/line_marks.h"
 #include "src/parse_tree.h"
 
 namespace afc {
@@ -27,11 +27,11 @@ constexpr int Terminal::PAGE_UP;
 constexpr int Terminal::PAGE_DOWN;
 constexpr int Terminal::ESCAPE;
 constexpr int Terminal::CTRL_A;
+constexpr int Terminal::CTRL_D;
 constexpr int Terminal::CTRL_E;
 constexpr int Terminal::CTRL_L;
 constexpr int Terminal::CTRL_U;
 constexpr int Terminal::CTRL_K;
-constexpr int Terminal::CHAR_EOF;
 
 namespace {
 // Returns the number of initial columns to skip, corresponding to output that
@@ -98,7 +98,7 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   int screen_lines = screen->lines();
   auto& buffer = editor_state->current_buffer()->second;
   if (buffer->Read(buffer_variables::reload_on_display())) {
-    buffer->Reload(editor_state);
+    buffer->Reload();
   }
   size_t line = min(buffer->position().line, buffer->contents()->size() - 1);
   size_t margin_lines =
@@ -152,7 +152,7 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   screen->Refresh();
   screen->Flush();
   editor_state->set_visible_lines(static_cast<size_t>(screen_lines - 1));
-}  // namespace editor
+}
 
 // Adjust the name of a buffer to a string suitable to be shown in the Status
 // with progress indicators surrounding it.
@@ -204,7 +204,8 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
 
     for (auto& it : *editor_state.buffers()) {
       if (it.second->ShouldDisplayProgress()) {
-        auto name = TransformCommandNameForStatus(it.second->name());
+        auto name = TransformCommandNameForStatus(
+            it.second->Read(buffer_variables::name()));
         size_t progress = it.second->Read(buffer_variables::progress()) %
                           (4 + 2 * name.size());
         if (progress == 0 || progress == 1) {
@@ -225,7 +226,7 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
       }
     }
 
-    auto marks_text = buffer->GetLineMarksText(editor_state);
+    auto marks_text = buffer->GetLineMarksText();
     if (!marks_text.empty()) {
       status += marks_text + L" ";
     }
@@ -260,36 +261,10 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
     }
 
     wstring structure;
-    switch (editor_state.structure()) {
-      case CHAR:
-        break;
-      case WORD:
-        structure = L"word";
-        break;
-      case SYMBOL:
-        structure = L"symbol";
-        break;
-      case LINE:
-        structure = L"line";
-        break;
-      case MARK:
-        structure = L"mark";
-        break;
-      case PAGE:
-        structure = L"page";
-        break;
-      case SEARCH:
-        structure = L"search";
-        break;
-      case BUFFER:
-        structure = L"buffer";
-        break;
-      case CURSOR:
-        structure = L"cursor";
-        break;
-      case TREE:
-        structure = L"tree<" + to_wstring(buffer->tree_depth()) + L">";
-        break;
+    if (editor_state.structure() == StructureTree()) {
+      structure = L"tree<" + to_wstring(buffer->tree_depth()) + L">";
+    } else if (editor_state.structure() != StructureChar()) {
+      structure = editor_state.structure()->ToString();
     }
     if (!structure.empty()) {
       if (editor_state.sticky_structure()) {
@@ -369,7 +344,7 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
 
 wstring Terminal::GetBufferContext(const EditorState& editor_state,
                                    const shared_ptr<OpenBuffer>& buffer) {
-  auto marks = buffer->GetLineMarks(editor_state);
+  auto marks = buffer->GetLineMarks();
   auto current_line_marks = marks->find(buffer->position().line);
   if (current_line_marks != marks->end()) {
     auto mark = current_line_marks->second;
@@ -379,7 +354,7 @@ wstring Terminal::GetBufferContext(const EditorState& editor_state,
       return source->second->contents()->at(mark.source_line)->ToString();
     }
   }
-  return buffer->name();
+  return buffer->Read(buffer_variables::name());
 }
 
 class LineOutputReceiver : public Line::OutputReceiverInterface {
@@ -499,9 +474,9 @@ class CursorsHighlighter : public Line::OutputReceiverInterface {
   struct Options {
     Line::OutputReceiverInterface* delegate;
 
-    // A set with all the columns in the current line in which there are
-    // cursors that should be drawn. If the active cursor (i.e., the one exposed
-    // to the terminal) is in the line being outputted, its column should not be
+    // A set with all the columns in the current line in which there are cursors
+    // that should be drawn. If the active cursor (i.e., the one exposed to the
+    // terminal) is in the line being outputted, its column should not be
     // included (since we shouldn't do anything special when outputting its
     // corresponding character: the terminal will take care of drawing the
     // cursor).
@@ -644,13 +619,28 @@ class ParseTreeHighlighter : public Line::OutputReceiverInterface {
 
 class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
  public:
+  // A Line::OutputReceiverInterface implementation that merges modifiers from
+  // the syntax tree (with modifiers from the line). When modifiers from the
+  // line are present, they override modifiers from the syntax tree.
+  //
+  // columns_to_skip: Initial number of columns from the parent that will be
+  // ignored (i.e., for prefix information shown before the actual contents of
+  // the line). For example, if the prefix for each line is a number such as
+  // "138:", this would have a value of 4.
+  //
+  // largest_column_with_tree: Position after which modifiers from the syntax
+  // tree will no longer apply. This ensures that "continuation" modifiers (that
+  // were active at the last character in the line) won't continue to affect the
+  // padding and/or scrollbar). Includes columns_to_skip. For example, if the
+  // line is "main()" and columns_to_skip is 4, this will be set to 10.
   ParseTreeHighlighterTokens(Line::OutputReceiverInterface* delegate,
                              size_t columns_to_skip, const ParseTree* root,
-                             size_t line)
+                             size_t line, size_t largest_column_with_tree)
       : delegate_(delegate),
         modifiers_merger_(&delegate_),
         root_(root),
         columns_to_skip_(columns_to_skip),
+        largest_column_with_tree_(largest_column_with_tree),
         line_(line),
         current_({root}) {
     UpdateCurrent(LineColumn(line_, delegate_.position()));
@@ -658,7 +648,11 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
 
   void AddCharacter(wchar_t c) override {
     LineColumn position(line_, delegate_.position());
-    if (position.column < columns_to_skip_) {
+    if (position.column < columns_to_skip_ ||
+        position.column >= largest_column_with_tree_) {
+      if (position.column == largest_column_with_tree_) {
+        modifiers_merger_.AddChildrenModifier(LineModifier::RESET);
+      }
       delegate_.AddCharacter(c);
       return;
     }
@@ -726,6 +720,7 @@ class ParseTreeHighlighterTokens : public Line::OutputReceiverInterface {
   ModifiersMerger modifiers_merger_;
   const ParseTree* root_;
   const size_t columns_to_skip_;
+  const size_t largest_column_with_tree_;
   const size_t line_;
   std::vector<const ParseTree*> current_;
 };
@@ -735,7 +730,10 @@ std::vector<LineColumn> Terminal::GetScreenLinePositions(
   std::vector<LineColumn> output;
 
   OpenBuffer* buffer = editor_state->current_buffer()->second.get();
-  size_t lines_to_show = static_cast<size_t>(screen->lines());
+  if (screen->lines() <= 0) {
+    return {};
+  }
+  size_t lines_to_show = static_cast<size_t>(screen->lines()) - 1;
 
   LineColumn position(
       static_cast<size_t>(
@@ -768,7 +766,8 @@ void Terminal::ShowBuffer(
     const EditorState* editor_state, Screen* screen,
     const std::vector<LineColumn>& screen_line_positions) {
   const shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-  size_t lines_to_show = static_cast<size_t>(screen->lines());
+  size_t lines_to_show = static_cast<size_t>(screen->lines()) - 1;
+  CHECK_EQ(screen_line_positions.size(), lines_to_show);
 
   screen->Move(0, 0);
 
@@ -891,7 +890,7 @@ void Terminal::ShowBuffer(
     } else if (!buffer->parse_tree()->children.empty()) {
       parse_tree_highlighter = std::make_unique<ParseTreeHighlighterTokens>(
           line_output_options.output_receiver, number_prefix.size(), root.get(),
-          position.line);
+          position.line, number_prefix.size() + line->size());
       line_output_options.output_receiver = parse_tree_highlighter.get();
     }
 
@@ -920,9 +919,8 @@ void Terminal::AdjustPosition(
     const std::vector<LineColumn>& screen_line_positions) {
   CHECK(!screen_line_positions.empty());
   LineColumn position;
-  if (buffer->contents()->empty()) {
-    position = LineColumn();
-  } else if (position.line > buffer->lines_size() - 1) {
+  CHECK_GT(buffer->contents()->size(), 0);
+  if (position.line > buffer->lines_size() - 1) {
     position = LineColumn(buffer->lines_size() - 1);
   } else {
     position = buffer->position();

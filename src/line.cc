@@ -1,16 +1,16 @@
-#include "line.h"
+#include "src/line.h"
 
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <unordered_set>
 
-#include "buffer_variables.h"
-#include "char_buffer.h"
-#include "editor.h"
-#include "lazy_string_append.h"
-#include "substring.h"
-#include "wstring.h"
+#include "src/buffer_variables.h"
+#include "src/char_buffer.h"
+#include "src/editor.h"
+#include "src/lazy_string_append.h"
+#include "src/substring.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace editor {
@@ -19,14 +19,15 @@ using std::hash;
 using std::unordered_set;
 using std::wstring;
 
-Line::Line(wstring x) : Line(Line::Options(NewCopyString(std::move(x)))) {}
+Line::Line(wstring x) : Line(Line::Options(NewLazyString(std::move(x)))) {}
 
 Line::Line(const Options& options)
     : environment_(options.environment == nullptr
                        ? std::make_shared<Environment>()
                        : options.environment),
       contents_(options.contents),
-      modifiers_(options.modifiers) {
+      modifiers_(options.modifiers),
+      options_(std::move(options)) {
   CHECK(contents_ != nullptr);
   CHECK_EQ(contents_->size(), modifiers_.size());
 }
@@ -36,6 +37,7 @@ Line::Line(const Line& line) {
   environment_ = line.environment_;
   contents_ = line.contents_;
   modifiers_ = line.modifiers_;
+  options_ = line.options_;
 }
 
 shared_ptr<LazyString> Line::Substring(size_t pos, size_t length) const {
@@ -69,7 +71,7 @@ void Line::InsertCharacterAtPosition(size_t position) {
   CHECK_EQ(contents_->size(), modifiers_.size());
   contents_ =
       StringAppend(StringAppend(afc::editor::Substring(contents_, 0, position),
-                                NewCopyString(L" ")),
+                                NewLazyString(L" ")),
                    afc::editor::Substring(contents_, position));
 
   modifiers_.push_back(unordered_set<LineModifier, hash<int>>());
@@ -83,7 +85,7 @@ void Line::SetCharacter(
     const unordered_set<LineModifier, hash<int>>& modifiers) {
   std::unique_lock<std::mutex> lock(mutex_);
   CHECK_EQ(contents_->size(), modifiers_.size());
-  shared_ptr<LazyString> str = NewCopyString(wstring(1, c));
+  shared_ptr<LazyString> str = NewLazyString(wstring(1, c));
   if (position >= contents_->size()) {
     contents_ = StringAppend(contents_, str);
     modifiers_.push_back(modifiers);
@@ -103,6 +105,7 @@ void Line::SetAllModifiers(const LineModifierSet& modifiers) {
   std::unique_lock<std::mutex> lock(mutex_);
   CHECK_EQ(contents_->size(), modifiers_.size());
   modifiers_.assign(contents_->size(), modifiers);
+  options_.end_of_line_modifiers = modifiers;
   CHECK_EQ(contents_->size(), modifiers_.size());
 }
 
@@ -115,6 +118,7 @@ void Line::Append(const Line& line) {
   for (auto& m : line.modifiers_) {
     modifiers_.push_back(m);
   }
+  options_.end_of_line_modifiers = line.options_.end_of_line_modifiers;
   CHECK_EQ(contents_->size(), modifiers_.size());
 }
 
@@ -205,17 +209,21 @@ wchar_t ComputeScrollBarCharacter(size_t line, size_t lines_size,
   // Each line is split into two units (upper and bottom halves). All units in
   // this function are halves (of a line).
   DCHECK_GE(line, view_start);
-  DCHECK_LT(line - view_start, lines_to_show);
+  DCHECK_LT(line - view_start, lines_to_show)
+      << "Line is " << line << " and view_start is " << view_start
+      << ", which exceeds lines_to_show of " << lines_to_show;
   DCHECK_LT(view_start, lines_size);
   size_t halves_to_show = lines_to_show * 2;
 
   // Number of halves the bar should take.
-  size_t bar_size = max(
-      size_t(1),
-      size_t(halves_to_show * static_cast<double>(lines_to_show) / lines_size));
+  size_t bar_size =
+      max(size_t(1),
+          size_t(std::round(halves_to_show *
+                            static_cast<double>(lines_to_show) / lines_size)));
 
   // Bar will be shown in lines in interval [bar, end] (units are halves).
-  size_t start = halves_to_show * static_cast<double>(view_start) / lines_size;
+  size_t start =
+      std::round(halves_to_show * static_cast<double>(view_start) / lines_size);
   size_t end = start + bar_size;
 
   size_t current = 2 * (line - view_start);
@@ -290,6 +298,7 @@ void Line::Output(const Line::OutputOptions& options) const {
     input_column++;
   }
 
+  options.output_receiver->AddModifier(LineModifier::RESET);
   size_t line_width = target_buffer->Read(buffer_variables::line_width());
 
   auto view_start = static_cast<size_t>(
@@ -300,12 +309,16 @@ void Line::Output(const Line::OutputOptions& options) const {
       line_width - view_start < options.width) {
     if (line_width > view_start + output_column) {
       size_t padding = line_width - view_start - output_column;
+      for (auto it : options_.end_of_line_modifiers) {
+        options.output_receiver->AddModifier(it);
+      }
       options.output_receiver->AddString(wstring(padding, L' '));
+      options.output_receiver->AddModifier(LineModifier::RESET);
       output_column += padding;
       CHECK_LE(output_column, options.width);
     }
 
-    auto all_marks = options.buffer->GetLineMarks(*options.editor_state);
+    auto all_marks = options.buffer->GetLineMarks();
     auto marks = all_marks->equal_range(options.position.line);
 
     wchar_t info_char = L'•';
@@ -358,7 +371,8 @@ void Line::Output(const Line::OutputOptions& options) const {
         additional_information += DrawTree(
             options.position.line, options.buffer->lines_size(), *parse_tree);
       }
-      if (options.buffer->Read(buffer_variables::scrollbar())) {
+      if (options.buffer->Read(buffer_variables::scrollbar()) &&
+          options.buffer->lines_size() > options.lines_to_show) {
         additional_information += ComputeScrollBarCharacter(
             options.position.line, options.buffer->lines_size(),
             view_start_line, options.lines_to_show);
@@ -386,7 +400,6 @@ void Line::Output(const Line::OutputOptions& options) const {
   }
 
   if (output_column < options.width) {
-    options.output_receiver->AddModifier(LineModifier::RESET);
     VLOG(6) << "Adding newline characters.";
     options.output_receiver->AddString(L"\n");
   }
@@ -427,7 +440,7 @@ void OutputReceiverOptimizer::Flush() {
 
   if (!std::includes(modifiers_.begin(), modifiers_.end(),
                      last_modifiers_.begin(), last_modifiers_.end())) {
-    DVLOG(5) << "Last modifiers not contained in new modifiers.";
+    DVLOG(5) << "last_modifiers_ is not contained in modifiers_.";
     delegate_->AddModifier(LineModifier::RESET);
     last_modifiers_.clear();
   }

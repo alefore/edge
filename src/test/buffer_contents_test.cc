@@ -1,4 +1,4 @@
-#include "src/test/line_test.h"
+#include "src/buffer_contents.h"
 
 #include <algorithm>
 #include <cassert>
@@ -6,8 +6,8 @@
 #include <iostream>
 #include <unordered_set>
 
-#include "src/buffer_contents.h"
 #include "src/char_buffer.h"
+#include "src/test/line_test.h"
 #include "src/wstring.h"
 
 namespace afc {
@@ -16,26 +16,22 @@ namespace testing {
 namespace {
 void TestBufferContentsSnapshot() {
   BufferContents contents;
-  for (auto& s : { L"alejandro", L"forero", L"cuervo" }) {
-    contents.push_back(std::make_shared<Line>(Line::Options(NewCopyString(s))));
+  for (auto& s : {L"alejandro", L"forero", L"cuervo"}) {
+    contents.push_back(std::make_shared<Line>(Line::Options(NewLazyString(s))));
   }
   auto copy = contents.copy();
-  CHECK_EQ("alejandro\nforero\ncuervo",
-           ToByteString(contents.ToString()));
-  CHECK_EQ("alejandro\nforero\ncuervo",
-           ToByteString(copy->ToString()));
+  CHECK_EQ("alejandro\nforero\ncuervo", ToByteString(contents.ToString()));
+  CHECK_EQ("alejandro\nforero\ncuervo", ToByteString(copy->ToString()));
 
   contents.SplitLine(LineColumn(1, 3));
-  CHECK_EQ("alejandro\nfor\nero\ncuervo",
-           ToByteString(contents.ToString()));
-  CHECK_EQ("alejandro\nforero\ncuervo",
-           ToByteString(copy->ToString()));
+  CHECK_EQ("alejandro\nfor\nero\ncuervo", ToByteString(contents.ToString()));
+  CHECK_EQ("alejandro\nforero\ncuervo", ToByteString(copy->ToString()));
 }
 
 void TestBufferInsertModifiers() {
   BufferContents contents;
   Line::Options options;
-  options.contents = NewCopyString(L"alejo");
+  options.contents = NewLazyString(L"alejo");
   options.modifiers.assign(5, {LineModifier::CYAN});
 
   contents.push_back(std::make_shared<Line>(options));
@@ -65,7 +61,7 @@ void TestBufferInsertModifiers() {
     CHECK(contents.at(2)->modifiers()[0] ==
           LineModifierSet({LineModifier::CYAN}));
     CHECK(contents.at(2)->modifiers()[2] ==
-              LineModifierSet({LineModifier::CYAN, LineModifier::BOLD}));
+          LineModifierSet({LineModifier::CYAN, LineModifier::BOLD}));
 
     CHECK(contents.at(3)->modifiers()[0] ==
           LineModifierSet({LineModifier::DIM}));

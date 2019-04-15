@@ -1,6 +1,7 @@
-#include "record_command.h"
+#include "src/record_command.h"
 
 #include <unistd.h>
+
 #include <cerrno>
 #include <cstring>
 #include <iostream>
@@ -12,9 +13,9 @@ extern "C" {
 #include <sys/socket.h>
 }
 
-#include "buffer.h"
-#include "command.h"
-#include "editor.h"
+#include "src/buffer.h"
+#include "src/command.h"
+#include "src/editor.h"
 
 namespace afc {
 namespace editor {

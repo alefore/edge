@@ -53,13 +53,6 @@ void CenterScreenAroundCurrentLine() {
 
 buffer.set_editor_commands_path("~/.edge/editor_commands/");
 
-// It would be ideal to not have to do this, but since currently all cursors
-// but the main one get reshuffled on reload, it's probably best to just remove
-// them.
-if (!buffer.reload_on_display()) {
-  editor.DestroyOtherCursors();
-}
-
 void HandleFileTypes(string basename, string extension) {
   if (extension == "cc" || extension == "h" || extension == "c") {
     CppMode();
@@ -68,6 +61,11 @@ void HandleFileTypes(string basename, string extension) {
     buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
     SetStatus("Loaded C file (" + extension + ")");
     return;
+  }
+
+  if (extension == "sh") {
+    buffer.set_paragraph_line_prefix_characters(" #");
+    buffer.set_line_prefix_characters(" #");
   }
 
   if (extension == "java") {
@@ -116,7 +114,7 @@ if (path == "") {
   string base_command = BaseCommand(command);
   if (base_command != "") {
     if (base_command == "bash" || base_command == "python" ||
-        base_command == "sh") {
+        base_command == "sh" || base_command == "gdb") {
       // These are interactive commands, that get a full pts.
       buffer.set_pts(true);
       buffer.set_follow_end_of_file(true);

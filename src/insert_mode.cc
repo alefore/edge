@@ -1,4 +1,4 @@
-#include "insert_mode.h"
+#include "src/insert_mode.h"
 
 #include <algorithm>
 #include <memory>
@@ -10,29 +10,28 @@ extern "C" {
 
 #include <glog/logging.h>
 
-#include "buffer_variables.h"
-#include "char_buffer.h"
-#include "command.h"
-#include "command_mode.h"
-#include "editor.h"
-#include "editor_mode.h"
-#include "file_link_mode.h"
-#include "lazy_string_append.h"
-#include "substring.h"
-#include "terminal.h"
-#include "transformation.h"
-#include "transformation_delete.h"
-#include "transformation_move.h"
-#include "tree.h"
-#include "vm/public/value.h"
-#include "wstring.h"
+#include "src/buffer_variables.h"
+#include "src/char_buffer.h"
+#include "src/command.h"
+#include "src/command_mode.h"
+#include "src/editor.h"
+#include "src/editor_mode.h"
+#include "src/file_link_mode.h"
+#include "src/lazy_string_append.h"
+#include "src/substring.h"
+#include "src/terminal.h"
+#include "src/transformation.h"
+#include "src/transformation_delete.h"
+#include "src/transformation_move.h"
+#include "src/tree.h"
+#include "src/vm/public/value.h"
+#include "src/wstring.h"
 
 namespace {
 using namespace afc::editor;
 
 class NewLineTransformation : public Transformation {
-  void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const override {
+  void Apply(OpenBuffer* buffer, Result* result) const override {
     buffer->AdjustLineColumn(&result->cursor);
     const size_t column = result->cursor.column;
     auto line = buffer->LineAt(result->cursor.line);
@@ -65,8 +64,8 @@ class NewLineTransformation : public Transformation {
     auto transformation = std::make_unique<TransformationStack>();
     {
       auto buffer_to_insert =
-          std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
-      buffer_to_insert->AppendRawLine(editor_state, continuation_line);
+          std::make_shared<OpenBuffer>(buffer->editor(), L"- text inserted");
+      buffer_to_insert->AppendRawLine(continuation_line);
       transformation->PushBack(
           NewInsertBufferTransformation(buffer_to_insert, 1, END));
     }
@@ -76,7 +75,7 @@ class NewLineTransformation : public Transformation {
 
     transformation->PushBack(NewGotoPositionTransformation(
         LineColumn(result->cursor.line + 1, prefix_end)));
-    return transformation->Apply(editor_state, buffer, result);
+    return transformation->Apply(buffer, result);
   }
 
   unique_ptr<Transformation> Clone() const override {
@@ -88,8 +87,7 @@ class InsertEmptyLineTransformation : public Transformation {
  public:
   InsertEmptyLineTransformation(Direction direction) : direction_(direction) {}
 
-  void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const override {
+  void Apply(OpenBuffer* buffer, Result* result) const override {
     if (direction_ == BACKWARDS) {
       result->cursor.line++;
     }
@@ -97,7 +95,7 @@ class InsertEmptyLineTransformation : public Transformation {
     buffer->AdjustLineColumn(&result->cursor);
     return ComposeTransformation(std::make_unique<NewLineTransformation>(),
                                  NewGotoPositionTransformation(result->cursor))
-        ->Apply(editor_state, buffer, result);
+        ->Apply(buffer, result);
   }
 
   std::unique_ptr<Transformation> Clone() const override {
@@ -222,7 +220,7 @@ class AutocompleteMode : public EditorMode {
                           std::shared_ptr<LazyString> insert) {
     auto buffer_to_insert =
         std::make_shared<OpenBuffer>(editor_state, L"tmp buffer");
-    buffer_to_insert->AppendToLastLine(editor_state, insert);
+    buffer_to_insert->AppendToLastLine(insert);
     DLOG(INFO) << "Completion selected: " << buffer_to_insert->ToString()
                << " (len: " << insert->size()
                << ", word_length: " << word_length_ << ").";
@@ -234,7 +232,7 @@ class AutocompleteMode : public EditorMode {
     options_.buffer->ApplyToCursors(TransformationAtPosition(
         LineColumn(options_.buffer->position().line, options_.column_start),
         ComposeTransformation(
-            NewDeleteCharactersTransformation(delete_options),
+            NewDeleteTransformation(delete_options),
             NewInsertBufferTransformation(buffer_to_insert, 1, END))));
 
     editor_state->ScheduleRedraw();
@@ -253,45 +251,6 @@ class AutocompleteMode : public EditorMode {
 
   // The original text (that the autocompletion is replacing).
   const std::shared_ptr<LazyString> original_text_;
-};
-
-class JumpTransformation : public Transformation {
- public:
-  JumpTransformation(Direction direction) : direction_(direction) {}
-
-  void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const override {
-    CHECK(result);
-    if (buffer->LineAt(result->cursor.line) == nullptr) {
-      result->made_progress = false;
-      return;
-    }
-    LineColumn position = result->cursor;
-    switch (direction_) {
-      case FORWARDS:
-        position.column = buffer->current_line()->size();
-        break;
-      case BACKWARDS:
-        position.column = 0;
-        break;
-    }
-    NewGotoPositionTransformation(position)->Apply(editor_state, buffer,
-                                                   result);
-    // TODO: This probabily doesn't belong here.
-    if (buffer->active_cursors()->size() > 1) {
-      editor_state->ScheduleRedraw();
-    }
-    editor_state->ResetRepetitions();
-    editor_state->ResetStructure();
-    editor_state->ResetDirection();
-  }
-
-  std::unique_ptr<Transformation> Clone() const override {
-    return std::make_unique<JumpTransformation>(direction_);
-  }
-
- private:
-  const Direction direction_;
 };
 
 void FindCompletion(EditorState* editor_state,
@@ -334,7 +293,7 @@ void FindCompletion(EditorState* editor_state,
   LOG(INFO) << "Positions: start: " << options.column_start
             << ", end: " << options.column_end;
   options.prefix =
-      std::make_shared<const Line>(Line::Options(NewCopyString(line.substr(
+      std::make_shared<const Line>(Line::Options(NewLazyString(line.substr(
           options.column_start, options.column_end - options.column_start))));
 
   options.delegate = buffer->ResetMode();
@@ -419,7 +378,7 @@ bool StartCompletion(EditorState* editor_state,
 
   auto dictionary = std::make_shared<OpenBuffer>(editor_state, L"Dictionary");
   for (auto& word : words) {
-    dictionary->AppendLine(editor_state, NewCopyString(word));
+    dictionary->AppendLine(NewLazyString(std::move(word)));
   }
 
   FindCompletion(editor_state, buffer, dictionary);
@@ -502,7 +461,7 @@ class InsertMode : public EditorMode {
         GetScrollBehavior()->End(editor_state, buffer.get());
         return;
 
-      case Terminal::CHAR_EOF:  // Ctrl_D
+      case Terminal::CTRL_D:
       case Terminal::DELETE:
       case Terminal::BACKSPACE: {
         ResetScrollBehavior();
@@ -513,8 +472,7 @@ class InsertMode : public EditorMode {
           delete_options.modifiers.direction = BACKWARDS;
         }
         delete_options.copy_to_paste_buffer = false;
-        buffer->ApplyToCursors(
-            NewDeleteCharactersTransformation(delete_options));
+        buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
         options_.modify_listener();
         editor_state->ScheduleRedraw();
       }
@@ -528,10 +486,12 @@ class InsertMode : public EditorMode {
       case Terminal::CTRL_U: {
         ResetScrollBehavior();
         DeleteOptions delete_options;
-        delete_options.modifiers.structure_range =
-            Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
+        delete_options.modifiers.structure = StructureLine();
+        delete_options.modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
+        delete_options.modifiers.boundary_end = Modifiers::CURRENT_POSITION;
         delete_options.copy_to_paste_buffer = false;
-        buffer->ApplyToCursors(NewDeleteLinesTransformation(delete_options));
+        buffer->ApplyToCursors(
+            NewDeleteTransformation(std::move(delete_options)));
         options_.modify_listener();
         editor_state->ScheduleRedraw();
         return;
@@ -540,10 +500,11 @@ class InsertMode : public EditorMode {
       case Terminal::CTRL_K: {
         ResetScrollBehavior();
         DeleteOptions delete_options;
-        delete_options.modifiers.structure_range =
-            Modifiers::FROM_CURRENT_POSITION_TO_END;
+        delete_options.modifiers.structure = StructureLine();
+        delete_options.modifiers.boundary_begin = Modifiers::CURRENT_POSITION;
+        delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
         delete_options.copy_to_paste_buffer = false;
-        buffer->ApplyToCursors(NewDeleteLinesTransformation(delete_options));
+        buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
         options_.modify_listener();
         editor_state->ScheduleRedraw();
         return;
@@ -557,8 +518,7 @@ class InsertMode : public EditorMode {
       auto insert =
           std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
       insert->AppendToLastLine(
-          editor_state,
-          NewCopyString(buffer->TransformKeyboardText(wstring(1, c))));
+          NewLazyString(buffer->TransformKeyboardText(wstring(1, c))));
 
       Modifiers modifiers;
       modifiers.insertion = editor_state->modifiers().insertion;
@@ -593,18 +553,18 @@ class RawInputTypeMode : public EditorMode {
     bool old_literal = literal_;
     literal_ = false;
     switch (static_cast<int>(c)) {
-      case Terminal::CHAR_EOF:
-        line_buffer_.push_back(4);
-        WriteLineBuffer(editor_state);
-        break;
-
       case Terminal::CTRL_A:
         line_buffer_.push_back(1);
         WriteLineBuffer(editor_state);
         break;
 
+      case Terminal::CTRL_D:
+        line_buffer_.push_back(4);
+        WriteLineBuffer(editor_state);
+        break;
+
       case Terminal::CTRL_E:
-        line_buffer_.push_back(0x05);
+        line_buffer_.push_back(5);
         WriteLineBuffer(editor_state);
         break;
 
@@ -756,13 +716,13 @@ using std::unique_ptr;
 void DefaultScrollBehavior::Up(EditorState*, OpenBuffer* buffer) {
   Modifiers modifiers;
   modifiers.direction = BACKWARDS;
-  modifiers.structure = LINE;
+  modifiers.structure = StructureLine();
   buffer->ApplyToCursors(NewMoveTransformation(modifiers));
 }
 
 void DefaultScrollBehavior::Down(EditorState*, OpenBuffer* buffer) {
   Modifiers modifiers;
-  modifiers.structure = LINE;
+  modifiers.structure = StructureLine();
   buffer->ApplyToCursors(NewMoveTransformation(modifiers));
 }
 
@@ -777,11 +737,12 @@ void DefaultScrollBehavior::Right(EditorState*, OpenBuffer* buffer) {
 }
 
 void DefaultScrollBehavior::Begin(EditorState*, OpenBuffer* buffer) {
-  buffer->ApplyToCursors(std::make_unique<JumpTransformation>(BACKWARDS));
+  buffer->ApplyToCursors(NewGotoColumnTransformation(0));
 }
 
 void DefaultScrollBehavior::End(EditorState*, OpenBuffer* buffer) {
-  buffer->ApplyToCursors(std::make_unique<JumpTransformation>(FORWARDS));
+  buffer->ApplyToCursors(
+      NewGotoColumnTransformation(std::numeric_limits<size_t>::max()));
 }
 
 std::unique_ptr<Command> NewFindCompletionCommand() {
@@ -855,12 +816,12 @@ void EnterInsertMode(InsertModeOptions options) {
     editor_state->SetStatus(L"type (raw)");
     editor_state->current_buffer()->second->set_mode(
         std::make_unique<RawInputTypeMode>(options.buffer));
-  } else if (editor_state->structure() == CHAR) {
+  } else if (editor_state->structure() == StructureChar()) {
     options.buffer->CheckPosition();
     options.buffer->PushTransformationStack();
     options.buffer->PushTransformationStack();
     EnterInsertCharactersMode(options);
-  } else if (editor_state->structure() == LINE) {
+  } else if (editor_state->structure() == StructureLine()) {
     options.buffer->CheckPosition();
     options.buffer->PushTransformationStack();
     options.buffer->PushTransformationStack();

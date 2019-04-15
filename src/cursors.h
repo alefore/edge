@@ -1,6 +1,8 @@
 #ifndef __AFC_EDITOR_CURSORS_H__
 #define __AFC_EDITOR_CURSORS_H__
 
+#include <glog/logging.h>
+
 #include <functional>
 #include <list>
 #include <map>
@@ -8,16 +10,64 @@
 #include <set>
 #include <vector>
 
-#include <glog/logging.h>
-
 #include "src/line_column.h"
 
 namespace afc {
 namespace editor {
 
-typedef std::multiset<LineColumn> CursorsSet;
+// A multiset of LineColumn entries, with a specific one designated as the
+// "active" one. The LineColumn entries aren't bound to any specific buffer, so
+// they may exceed past the length of any and all buffers. The set may be empty.
+class CursorsSet {
+ public:
+  using iterator = std::multiset<LineColumn>::iterator;
+  using const_iterator = std::multiset<LineColumn>::const_iterator;
 
-struct ExtendedTransformation;
+  // position must already be a value in the set (or we'll crash).
+  void SetCurrentCursor(LineColumn position);
+
+  // Remove the current cursor from the set, add a new cursor at the position,
+  // and set that as the current cursor.
+  void MoveCurrentCursor(LineColumn position);
+
+  // cursors must have at least two elements.
+  void DeleteCurrentCursor();
+
+  size_t size();
+  bool empty();
+  iterator insert(LineColumn line);
+  iterator lower_bound(LineColumn line);
+  iterator find(LineColumn line);
+
+  void erase(iterator it);
+  void erase(LineColumn position);
+
+  void swap(CursorsSet* other);
+
+  void clear();
+
+  template <typename iterator>
+  void insert(iterator begin, iterator end) {
+    cursors_.insert(begin, end);
+    if (active_ == cursors_.end()) {
+      active_ = this->begin();
+    }
+  }
+
+  const_iterator begin() const { return cursors_.begin(); }
+  const_iterator end() const { return cursors_.end(); }
+  iterator begin() { return cursors_.begin(); }
+  iterator end() { return cursors_.end(); }
+
+  const_iterator active() const;
+  iterator active();
+  void set_active(iterator iterator);
+
+ private:
+  std::multiset<LineColumn> cursors_;
+  // Must be equal to cursors_.end() iff cursors_ is empty.
+  std::multiset<LineColumn>::iterator active_ = cursors_.end();
+};
 
 class CursorsTracker {
  public:
@@ -40,23 +90,23 @@ class CursorsTracker {
       return *this;
     }
 
-    CursorsTracker::Transformation AddToLine(size_t delta) {
-      add_to_line = delta;
+    CursorsTracker::Transformation LineDelta(size_t delta) {
+      line_delta = delta;
       return *this;
     }
 
-    CursorsTracker::Transformation OutputLineGe(size_t column) {
-      output_line_ge = column;
+    CursorsTracker::Transformation LineLowerBound(size_t line) {
+      line_lower_bound = line;
       return *this;
     }
 
-    CursorsTracker::Transformation AddToColumn(size_t delta) {
-      add_to_column = delta;
+    CursorsTracker::Transformation ColumnDelta(size_t delta) {
+      column_delta = delta;
       return *this;
     }
 
-    CursorsTracker::Transformation OutputColumnGe(size_t column) {
-      output_column_ge = column;
+    CursorsTracker::Transformation ColumnLowerBound(size_t column) {
+      column_lower_bound = column;
       return *this;
     }
 
@@ -65,33 +115,23 @@ class CursorsTracker {
 
     Range range = Range(LineColumn(), LineColumn::Max());
 
-    int add_to_line = 0;
-    // If add_to_line would leave the output line at a value smaller than this
-    // one, goes with this one.
-    size_t output_line_ge = 0;
+    // Number of lines to add to a given cursor. For example, a cursor
+    // LineColumn(25, 2) will move to LineColumn(20, 2) if lines_delta is -5.
+    int line_delta = 0;
 
-    int add_to_column = 0;
+    // If lines_delta would leave the output line at a value smaller than this
+    // one, goes with this one.
+    size_t line_lower_bound = 0;
+
+    int column_delta = 0;
     // Same as output_line_ge but for column computations.
-    size_t output_column_ge = 0;
+    size_t column_lower_bound = 0;
   };
 
   CursorsTracker();
-  ~CursorsTracker();
 
   // Returns the position of the current cursor.
   LineColumn position() const;
-
-  // cursors *must* be a value in cursors_ and position must already be a value
-  // in that set (we verify the later, not the former).
-  void SetCurrentCursor(CursorsSet* cursors, LineColumn position);
-
-  // Remove the current cursor from the set, add a new cursor at the position,
-  // and set that as the current cursor.
-  void MoveCurrentCursor(CursorsSet* cursors, LineColumn position);
-
-  // current_cursor_ must be a value in cursors. cursors must have at least two
-  // elements.
-  void DeleteCurrentCursor(CursorsSet* cursors);
 
   CursorsSet* FindOrCreateCursors(const std::wstring& name) {
     return &cursors_[name];
@@ -118,6 +158,28 @@ class CursorsTracker {
   std::shared_ptr<bool> DelayTransformations();
 
  private:
+  // Contains a transformation along with additional information that can be
+  // used to optimize transformations.
+  struct ExtendedTransformation {
+    ExtendedTransformation(CursorsTracker::Transformation transformation,
+                           ExtendedTransformation* previous);
+
+    std::wstring ToString();
+
+    CursorsTracker::Transformation transformation;
+
+    // A range that is known to not have any cursors after this transformation
+    // is applied.
+    Range empty;
+
+    // A range where we know that any cursors here were moved by this
+    // transformation.
+    Range owned;
+  };
+
+  std::shared_ptr<std::list<ExtendedTransformation>>
+  scheduled_transformations();
+
   void ApplyTransformation(const Transformation& transformation);
 
   // Contains a family of cursors.
@@ -131,15 +193,14 @@ class CursorsTracker {
   // cursors to modify is empty, we just swap it back with this.
   CursorsSet already_applied_cursors_;
 
-  // Points to an entry in a value in cursors_.
-  CursorsSet::iterator current_cursor_;
+  // A key in cursors_.
+  std::wstring active_set_;
 
   // A stack of sets of cursors on which PushActiveCursors and PopActiveCursors
   // operate.
   std::list<CursorsSet> cursors_stack_;
 
-  std::weak_ptr<bool> delay_transformations_;
-  std::list<ExtendedTransformation> transformations_;
+  std::weak_ptr<std::list<ExtendedTransformation>> scheduled_transformations_;
 };
 
 std::ostream& operator<<(std::ostream& os,

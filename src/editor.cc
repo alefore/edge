@@ -1,4 +1,4 @@
-#include "editor.h"
+#include "src/editor.h"
 
 #include <fstream>
 #include <iostream>
@@ -18,21 +18,21 @@ extern "C" {
 
 #include <glog/logging.h>
 
-#include "audio.h"
-#include "char_buffer.h"
-#include "dirname.h"
-#include "file_link_mode.h"
-#include "run_command_handler.h"
-#include "server.h"
+#include "src/audio.h"
 #include "src/buffer_variables.h"
+#include "src/char_buffer.h"
+#include "src/dirname.h"
+#include "src/file_link_mode.h"
+#include "src/run_command_handler.h"
+#include "src/server.h"
 #include "src/shapes.h"
-#include "substring.h"
-#include "transformation_delete.h"
-#include "vm/public/callbacks.h"
-#include "vm/public/environment.h"
-#include "vm/public/value.h"
-#include "vm_transformation.h"
-#include "wstring.h"
+#include "src/substring.h"
+#include "src/transformation_delete.h"
+#include "src/vm/public/callbacks.h"
+#include "src/vm/public/environment.h"
+#include "src/vm/public/value.h"
+#include "src/vm_transformation.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace vm {
@@ -116,13 +116,13 @@ Environment EditorState::BuildEditorEnvironment() {
             auto buffer = editor->current_buffer()->second;
             CHECK(buffer != nullptr);
 
-            if (editor->structure() == LINE) {
+            if (editor->structure() == StructureLine()) {
               auto target_buffer = buffer->GetBufferFromCurrentLine();
               if (target_buffer != nullptr) {
                 buffer = target_buffer;
               }
             }
-            buffer->Reload(editor);
+            buffer->Reload();
             editor->ResetModifiers();
             return Value::NewVoid();
           }));
@@ -144,13 +144,13 @@ Environment EditorState::BuildEditorEnvironment() {
             auto buffer = editor->current_buffer()->second;
             CHECK(buffer != nullptr);
 
-            if (editor->structure() == LINE) {
+            if (editor->structure() == StructureLine()) {
               auto target_buffer = buffer->GetBufferFromCurrentLine();
               if (target_buffer != nullptr) {
                 buffer = target_buffer;
               }
             }
-            buffer->Save(editor);
+            buffer->Save();
             editor->ResetModifiers();
             return Value::NewVoid();
           }));
@@ -172,7 +172,7 @@ Environment EditorState::BuildEditorEnvironment() {
                            CHECK_EQ(args.size(), size_t(0));
                            auto buffer = current_buffer()->second;
                            CHECK(buffer != nullptr);
-                           if (structure() == LINE) {
+                           if (structure() == StructureLine()) {
                              auto target_buffer =
                                  buffer->GetBufferFromCurrentLine();
                              ResetStructure();
@@ -221,6 +221,21 @@ Environment EditorState::BuildEditorEnvironment() {
               trampoline->Return(Value::NewVoid());
             }
           }));
+
+  environment.Define(
+      L"SendExitTo",
+      vm::NewCallback(std::function<void(wstring)>([](wstring args) {
+        int fd = open(ToByteString(args).c_str(), O_WRONLY);
+        string command = "Exit(0);\n";
+        write(fd, command.c_str(), command.size());
+        close(fd);
+      })));
+
+  environment.Define(L"Exit",
+                     vm::NewCallback(std::function<void(int)>([](int status) {
+                       LOG(INFO) << "Exit: " << status;
+                       exit(status);
+                     })));
 
   environment.Define(L"SetStatus", vm::NewCallback(std::function<void(wstring)>(
                                        [this](wstring s) { SetStatus(s); })));
@@ -357,13 +372,13 @@ EditorState::~EditorState() {
   // CloseBuffer accordingly.
   LOG(INFO) << "Closing buffers.";
   for (auto& buffer : buffers_) {
-    buffer.second->Close(this);
+    buffer.second->Close();
   }
 }
 
 bool EditorState::CloseBuffer(
     map<wstring, shared_ptr<OpenBuffer>>::iterator buffer) {
-  if (!buffer->second->PrepareToClose(this)) {
+  if (!buffer->second->PrepareToClose()) {
     SetWarningStatus(L"Dirty buffers (“*ad” to ignore): " + buffer->first);
     return false;
   }
@@ -377,11 +392,11 @@ bool EditorState::CloseBuffer(
     }
 
     if (current_buffer_ != buffers_.end()) {
-      current_buffer_->second->Visit(this);
+      current_buffer_->second->Visit();
     }
   }
 
-  buffer->second->Close(this);
+  buffer->second->Close();
   buffers_.erase(buffer);
   return true;
 }
@@ -403,7 +418,7 @@ bool EditorState::AttemptTermination(wstring* error_description,
   LOG(INFO) << "Checking buffers for termination.";
   vector<wstring> buffers_with_problems;
   for (auto& it : buffers_) {
-    if (!it.second->PrepareToClose(this)) {
+    if (!it.second->PrepareToClose()) {
       buffers_with_problems.push_back(it.first);
     }
   }
@@ -458,7 +473,7 @@ void EditorState::MoveBufferForwards(size_t times) {
       current_buffer_ = buffers_.begin();
     }
   }
-  current_buffer_->second->Visit(this);
+  current_buffer_->second->Visit();
   PushCurrentPosition();
 }
 
@@ -477,7 +492,7 @@ void EditorState::MoveBufferBackwards(size_t times) {
     }
     current_buffer_--;
   }
-  current_buffer_->second->Visit(this);
+  current_buffer_->second->Visit();
   PushCurrentPosition();
 }
 
@@ -532,6 +547,7 @@ void EditorState::PushPosition(LineColumn position) {
     buffer_it->second->Set(buffer_variables::show_in_buffers_list(), false);
   }
   CHECK(buffer_it->second != nullptr);
+  buffer_it->second->CheckPosition();
   CHECK_LE(buffer_it->second->position().line,
            buffer_it->second->contents()->size());
   buffer_it->second->InsertLine(
@@ -571,7 +587,7 @@ void EditorState::SetStatus(const wstring& status) {
     status_buffer_it.first->second->Set(
         buffer_variables::show_in_buffers_list(), false);
   }
-  status_buffer_it.first->second->AppendLazyString(this, NewCopyString(status));
+  status_buffer_it.first->second->AppendLazyString(NewLazyString(status));
   if (current_buffer_ == status_buffer_it.first) {
     ScheduleRedraw();
   }
@@ -653,7 +669,7 @@ void EditorState::ProcessSignals() {
         if (target_buffer != nullptr) {
           buffer = target_buffer;
         }
-        buffer->PushSignal(this, signal);
+        buffer->PushSignal(signal);
     }
   }
 }

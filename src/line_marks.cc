@@ -1,13 +1,13 @@
-#include "line_marks.h"
+#include "src/line_marks.h"
+
+#include <glog/logging.h>
 
 #include <string>
 #include <vector>
 
-#include <glog/logging.h>
-
-#include "buffer.h"
-#include "char_buffer.h"
-#include "wstring.h"
+#include "src/buffer.h"
+#include "src/char_buffer.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace editor {
@@ -35,12 +35,10 @@ void LineMarks::ExpireMarksFromSource(const OpenBuffer& source_buffer,
 
     DVLOG(10) << "Mark transitions from fresh to expired.";
     changes = true;
-    auto line = source_buffer.empty()
-                    ? nullptr
-                    : source_buffer.LineAt(mark.second.source_line);
+    auto line = source_buffer.LineAt(mark.second.source_line);
     if (line == nullptr) {
       DVLOG(3) << "Unable to find content for mark!";
-      mark.second.source_line_content = NewCopyString(L"Expired mark.");
+      mark.second.source_line_content = NewLazyString(L"Expired mark.");
     } else {
       mark.second.source_line_content = line->contents();
     }

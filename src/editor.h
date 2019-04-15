@@ -9,16 +9,16 @@
 #include <string>
 #include <vector>
 
-#include "args.h"
-#include "audio.h"
-#include "buffer.h"
-#include "command_mode.h"
-#include "direction.h"
-#include "editor_mode.h"
-#include "lazy_string.h"
-#include "line_marks.h"
-#include "modifiers.h"
-#include "transformation.h"
+#include "src/args.h"
+#include "src/audio.h"
+#include "src/buffer.h"
+#include "src/command_mode.h"
+#include "src/direction.h"
+#include "src/editor_mode.h"
+#include "src/lazy_string.h"
+#include "src/line_marks.h"
+#include "src/modifiers.h"
+#include "src/transformation.h"
 #include "vm/public/environment.h"
 #include "vm/public/vm.h"
 
@@ -63,7 +63,7 @@ class EditorState {
     current_buffer_ = it;
     if (current_buffer_ != buffers_.end() &&
         current_buffer_->second != nullptr) {
-      current_buffer_->second->Visit(this);
+      current_buffer_->second->Visit();
     }
   }
   bool has_current_buffer() const { return current_buffer_ != buffers_.end(); }
@@ -106,8 +106,8 @@ class EditorState {
   Modifiers modifiers() const { return modifiers_; }
   void set_modifiers(const Modifiers& modifiers) { modifiers_ = modifiers; }
 
-  Structure structure() const { return modifiers_.structure; }
-  void set_structure(Structure structure) { modifiers_.structure = structure; }
+  Structure* structure() const { return modifiers_.structure; }
+  void set_structure(Structure* structure) { modifiers_.structure = structure; }
   void ResetStructure() { modifiers_.ResetStructure(); }
 
   Modifiers::StructureRange structure_range() const {

@@ -11,6 +11,7 @@ void JavaMode() {
       "switch case default "
       "if else "
       "for while do "
+      "break continue "
       "return "
       // Types
       "double long int String Object Integer Boolean Double "

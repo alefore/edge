@@ -1,26 +1,26 @@
-#include "send_end_of_file_command.h"
+#include "src/send_end_of_file_command.h"
 
 extern "C" {
 #include <sys/socket.h>
 }
 
-#include "buffer_variables.h"
-#include "command.h"
-#include "editor.h"
-#include "file_link_mode.h"
-#include "line_prompt_mode.h"
-#include "wstring.h"
+#include "src/buffer_variables.h"
+#include "src/command.h"
+#include "src/editor.h"
+#include "src/file_link_mode.h"
+#include "src/line_prompt_mode.h"
+#include "src/wstring.h"
 
 namespace afc {
 namespace editor {
 
 void SendEndOfFileToBuffer(EditorState* editor_state,
                            std::shared_ptr<OpenBuffer> buffer) {
-  if (editor_state->structure() == LINE) {
+  if (editor_state->structure() == StructureLine()) {
     auto target_buffer = buffer->GetBufferFromCurrentLine();
     if (target_buffer != nullptr) {
       LOG(INFO) << "Sending EOF to line: " << buffer->current_line()->ToString()
-                << ": " << buffer->name();
+                << ": " << buffer->Read(buffer_variables::name());
       buffer = target_buffer;
     }
     editor_state->ResetModifiers();

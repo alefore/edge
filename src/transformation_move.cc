@@ -1,14 +1,14 @@
-#include "transformation_move.h"
+#include "src/transformation_move.h"
 
 #include <glog/logging.h>
 
 #include <algorithm>
 
-#include "buffer.h"
-#include "direction.h"
-#include "editor.h"
-#include "line_marks.h"
-#include "transformation.h"
+#include "src/buffer.h"
+#include "src/direction.h"
+#include "src/editor.h"
+#include "src/line_marks.h"
+#include "src/transformation.h"
 
 namespace afc {
 namespace editor {
@@ -19,66 +19,56 @@ class MoveTransformation : public Transformation {
  public:
   MoveTransformation(const Modifiers& modifiers) : modifiers_(modifiers) {}
 
-  void Apply(EditorState* editor_state, OpenBuffer* buffer,
-             Result* result) const override {
-    CHECK(result);
+  void Apply(OpenBuffer* buffer, Result* result) const override {
+    CHECK(buffer != nullptr);
+    CHECK(result != nullptr);
+    auto editor_state = buffer->editor();
     auto root = buffer->parse_tree();
     auto current_tree = buffer->current_tree(root.get());
     LineColumn position;
-    switch (modifiers_.structure) {
-      case LINE:
-        position = MoveLine(buffer, result->cursor);
-        break;
-      case CHAR:
-      case TREE:
-      case SYMBOL:
-      case WORD:
-        position = MoveRange(editor_state, buffer, result->cursor);
-        break;
-      case MARK:
-        position = MoveMark(editor_state, buffer, result->cursor);
-        break;
+    // TODO: Move to Structure.
+    auto structure = modifiers_.structure;
+    if (structure == StructureLine()) {
+      position = MoveLine(buffer, result->cursor);
+    } else if (structure == StructureChar() || structure == StructureTree() ||
+               structure == StructureSymbol() || structure == StructureWord()) {
+      position = MoveRange(buffer, result->cursor);
+    } else if (structure == StructureMark()) {
+      position = MoveMark(buffer, result->cursor);
+    } else if (structure == StructureCursor()) {
+      // Handles repetitions.
+      auto active_cursors = buffer->active_cursors();
+      if (result->cursor != *active_cursors->active()) {
+        LOG(INFO) << "Skipping cursor.";
+        return;
+      }
 
-      case CURSOR:
-        // Handles repetitions.
-        {
-          auto active_cursors = buffer->active_cursors();
-          auto next_cursor = buffer->FindNextCursor(result->cursor);
-          if (next_cursor == active_cursors->end()) {
-            LOG(INFO) << "Unable to find next cursor.";
-            result->success = false;
-            return;
-          }
+      LineColumn next_cursor = buffer->FindNextCursor(result->cursor);
+      if (next_cursor == result->cursor) {
+        LOG(INFO) << "Cursor didn't move.";
+        return;
+      }
 
-          if (*next_cursor == result->cursor) {
-            LOG(INFO) << "Cursor didn't move.";
-            return;
-          }
+      VLOG(5) << "Moving cursor from " << result->cursor << " to "
+              << next_cursor;
 
-          LineColumn original_cursor = result->cursor;
-          result->cursor = *next_cursor;
+      auto next_it = active_cursors->find(next_cursor);
+      CHECK(next_it != active_cursors->end());
+      active_cursors->erase(next_it);
+      active_cursors->insert(result->cursor);
+      result->cursor = next_cursor;
 
-          VLOG(5) << "Moving cursor from " << *next_cursor << " to "
-                  << original_cursor;
-
-          if (*next_cursor != buffer->position()) {
-            active_cursors->erase(next_cursor);
-            active_cursors->insert(original_cursor);
-          }
-
-          editor_state->ScheduleRedraw();
-          editor_state->ResetRepetitions();
-          editor_state->ResetStructure();
-          editor_state->ResetDirection();
-          return;
-        }
-      default:
-        CHECK(false);
+      editor_state->ScheduleRedraw();
+      editor_state->ResetRepetitions();
+      editor_state->ResetStructure();
+      editor_state->ResetDirection();
+      return;
+    } else {
+      CHECK(false);
     }
     LOG(INFO) << "Move from " << result->cursor << " to " << position << " "
               << modifiers_;
-    NewGotoPositionTransformation(position)->Apply(editor_state, buffer,
-                                                   result);
+    NewGotoPositionTransformation(position)->Apply(buffer, result);
     if (modifiers_.repetitions > 1) {
       editor_state->PushPosition(result->cursor);
     }
@@ -142,23 +132,14 @@ class MoveTransformation : public Transformation {
     return position;
   }
 
-  LineColumn MoveRange(EditorState*, OpenBuffer* buffer,
-                       LineColumn position) const {
-    LineColumn start, end;
-
-    if (!buffer->FindPartialRange(modifiers_, position, &start, &end)) {
-      LOG(INFO) << "Unable to find partial range: " << position;
-      return position;
-    }
-
-    CHECK_LE(start, end);
-    return modifiers_.direction == FORWARDS ? end : start;
+  LineColumn MoveRange(OpenBuffer* buffer, LineColumn position) const {
+    Range range = buffer->FindPartialRange(modifiers_, position);
+    CHECK_LE(range.begin, range.end);
+    return modifiers_.direction == FORWARDS ? range.end : range.begin;
   }
 
-  LineColumn MoveMark(EditorState* editor_state, OpenBuffer* buffer,
-                      LineColumn position) const {
-    const multimap<size_t, LineMarks::Mark>* marks =
-        buffer->GetLineMarks(*editor_state);
+  LineColumn MoveMark(OpenBuffer* buffer, LineColumn position) const {
+    const multimap<size_t, LineMarks::Mark>* marks = buffer->GetLineMarks();
 
     switch (modifiers_.direction) {
       case FORWARDS:

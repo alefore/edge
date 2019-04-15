@@ -7,11 +7,8 @@ Correctly handle: '\000'
 Support more languages:
   - Python
   - Directory listings.
-    - If a single dot:
-      - Under-emphasize it.
-      - Show the type of file, perhaps based on some variable?
-         - text:cc,h,py,md,sh binary:o
-         - Not sure the best way to do this is syntax highlighting. Maybe the buffer should do it, based also on `stat` results (e.g. permissions, symlink, subdir...)
+    - Perhaps have a bool that toggles 'stat' (show data about files)?
+      Ideally this is done by the extensions!
 
 ## Editing
 
@@ -31,12 +28,7 @@ Improve logic around wrap_long_lines.
   Cursors (other than active cursor) are off.
   Also scrolling to the end of file doesn't quite work.
 
-Reloading the file should reset the cursors.
-  Since it shifts them to the top anyway.
-
 Search: Should make sure to disable multi active cursors.
-
-Have a 'weak-word' region very similar to word, but breaking at camel-case or underscore.
 
 * Improve reflow:
 
@@ -55,9 +47,9 @@ Honor the "margin_columns" variable.
 
 Add a boolean variable "highlight_current_line" (default: false); when set, highlight the line with the current cursor position.
 
-If the buffer doesn't fit in the screen, don't show the scroll bar (or show it in a different way).
-
 When searching, display in the Status the count of matches (especially when there were zero matches).
+
+In diff mode, add a link to every file. Following it should take you directly to the file (perhaps based on a variable for the `strip`, similar to the `patch` command).
 
 ### List of buffers
 

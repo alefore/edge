@@ -2,10 +2,10 @@
 
 #include <memory>
 
-#include "buffer.h"
-#include "command.h"
-#include "editor.h"
-#include "line_prompt_mode.h"
+#include "src/buffer.h"
+#include "src/command.h"
+#include "src/editor.h"
+#include "src/line_prompt_mode.h"
 
 namespace afc {
 namespace editor {
@@ -18,7 +18,7 @@ void RunCppCommandHandler(const wstring& name, EditorState* editor_state) {
   }
   editor_state->current_buffer()->second->ResetMode();
   editor_state->current_buffer()->second->EvaluateString(
-      editor_state, name, [](std::unique_ptr<Value>) { /* Nothing. */ });
+      name, [](std::unique_ptr<Value>) { /* Nothing. */ });
 }
 
 class RunCppCommand : public Command {
@@ -32,21 +32,18 @@ class RunCppCommand : public Command {
     if (!editor_state->has_current_buffer()) {
       return;
     }
-    switch (editor_state->structure()) {
-      case LINE:
-        editor_state->ResetStructure();
-        RunCppCommandHandler(
-            editor_state->current_buffer()->second->current_line()->ToString(),
-            editor_state);
-        break;
-
-      default:
-        PromptOptions options;
-        options.prompt = L"cpp ";
-        options.history_file = L"cpp";
-        options.handler = RunCppCommandHandler;
-        options.cancel_handler = [](EditorState*) { /* Nothing. */ };
-        Prompt(editor_state, options);
+    if (editor_state->structure() == StructureLine()) {
+      editor_state->ResetStructure();
+      RunCppCommandHandler(
+          editor_state->current_buffer()->second->current_line()->ToString(),
+          editor_state);
+    } else {
+      PromptOptions options;
+      options.prompt = L"cpp ";
+      options.history_file = L"cpp";
+      options.handler = RunCppCommandHandler;
+      options.cancel_handler = [](EditorState*) { /* Nothing. */ };
+      Prompt(editor_state, options);
     }
   }
 };

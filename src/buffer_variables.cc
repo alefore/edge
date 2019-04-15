@@ -1,4 +1,4 @@
-#include "buffer_variables.h"
+#include "src/buffer_variables.h"
 
 namespace afc {
 namespace editor {
@@ -34,6 +34,8 @@ EdgeStruct<bool>* BoolStruct() {
     search_case_sensitive();
     wrap_long_lines();
     extend_lines();
+    display_progress();
+    persist_state();
   }
   return output;
 }
@@ -257,6 +259,24 @@ EdgeVariable<bool>* extend_lines() {
   return variable;
 }
 
+EdgeVariable<bool>* display_progress() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
+      L"display_progress",
+      L"If set to true, if this buffer is reading input (either from a regular "
+      L"file or a process), it'll be shown in the status line.",
+      true);
+  return variable;
+}
+
+EdgeVariable<bool>* persist_state() {
+  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
+      L"persist_state",
+      L"Should we aim to persist information for this buffer (in "
+      L"$EDGE_PATH/state/)?",
+      false);
+  return variable;
+}
+
 EdgeStruct<wstring>* StringStruct() {
   static EdgeStruct<wstring>* output = nullptr;
   if (output == nullptr) {
@@ -277,6 +297,7 @@ EdgeStruct<wstring>* StringStruct() {
     tree_parser();
     language_keywords();
     typos();
+    directory_noise();
   }
   return output;
 }
@@ -420,6 +441,16 @@ EdgeVariable<wstring>* typos() {
       L"tree parser as errors. This is only honored by a few tree parser types "
       L"(see variable tree_parser).",
       L"");
+  return variable;
+}
+
+EdgeVariable<wstring>* directory_noise() {
+  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
+      L"directory_noise",
+      L"Regular expression to use in a buffer showing the contents of a "
+      L"directory to identify files that should be considered as noise: they "
+      L"are less important than most files.",
+      L".*(\\.o|~)|\\.(?!\\.$).*");
   return variable;
 }
 

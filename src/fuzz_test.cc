@@ -1,14 +1,14 @@
+#include <glog/logging.h>
+
 #include <csignal>
 #include <iostream>
 #include <string>
 
-#include <glog/logging.h>
-
-#include "audio.h"
-#include "editor.h"
-#include "terminal.h"
-#include "tree.h"
-#include "wstring.h"
+#include "src/audio.h"
+#include "src/editor.h"
+#include "src/terminal.h"
+#include "src/tree.h"
+#include "src/wstring.h"
 
 using namespace afc::editor;
 
