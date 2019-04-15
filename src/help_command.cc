@@ -28,8 +28,14 @@ wstring DescribeSequence(wstring input) {
   }
   for (wint_t c : input) {
     switch (c) {
+      case '\t':
+        output += L"Tab";
+        break;
       case '\n':
         output.push_back(L'↩');
+        break;
+      case Terminal::ESCAPE:
+        output += L"Esc";
         break;
       case Terminal::DOWN_ARROW:
         output += L"↓";
