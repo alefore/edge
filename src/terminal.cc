@@ -143,11 +143,12 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   ShowStatus(*editor_state, screen);
   if (editor_state->status_prompt()) {
     screen->SetCursorVisibility(Screen::NORMAL);
-  } else if (buffer->Read(buffer_variables::atomic_lines())) {
+  } else if (buffer->Read(buffer_variables::atomic_lines()) ||
+             !cursor_position_.has_value()) {
     screen->SetCursorVisibility(Screen::INVISIBLE);
   } else {
     screen->SetCursorVisibility(Screen::NORMAL);
-    AdjustPosition(buffer, screen, screen_lines_positions);
+    AdjustPosition(screen);
   }
   screen->Refresh();
   screen->Flush();
@@ -511,27 +512,40 @@ class CursorsHighlighter : public DelegatingOutputReceiver {
     set<size_t> columns;
 
     bool multiple_cursors;
+
+    std::optional<size_t> active_cursor_input;
+
+    // Output parameter. If the active cursor is found in this line, we set this
+    // to the column in the screen to which it should be moved. This is used to
+    // handle multi-width characters.
+    std::optional<size_t>* active_cursor_output;
   };
 
   explicit CursorsHighlighter(Options options)
       : DelegatingOutputReceiver(options.delegate),
+        options_(options),
         modifiers_merger_(options.delegate),
-        columns_(options.columns),
-        next_cursor_(columns_.begin()),
-        multiple_cursors_(options.multiple_cursors) {
+        next_cursor_(options_.columns.begin()) {
     CheckInvariants();
   }
 
   void AddCharacter(wchar_t c) {
     CheckInvariants();
     bool at_cursor =
-        next_cursor_ != columns_.end() && *next_cursor_ == column_read_;
+        next_cursor_ != options_.columns.end() && *next_cursor_ == column_read_;
     if (at_cursor) {
       ++next_cursor_;
-      CHECK(next_cursor_ == columns_.end() || *next_cursor_ > column_read_);
+      CHECK(next_cursor_ == options_.columns.end() ||
+            *next_cursor_ > column_read_);
+      bool is_active = options_.active_cursor_input.has_value() &&
+                       options_.active_cursor_input.value() == column_read_;
       modifiers_merger_.AddParentModifier(LineModifier::REVERSE);
-      modifiers_merger_.AddParentModifier(
-          multiple_cursors_ ? LineModifier::CYAN : LineModifier::BLUE);
+      modifiers_merger_.AddParentModifier(is_active || options_.multiple_cursors
+                                              ? LineModifier::CYAN
+                                              : LineModifier::BLUE);
+      if (is_active && options_.active_cursor_output != nullptr) {
+        *options_.active_cursor_output = column();
+      }
     }
 
     DelegatingOutputReceiver::AddCharacter(c);
@@ -549,7 +563,7 @@ class CursorsHighlighter : public DelegatingOutputReceiver {
 
       // Compute the position of the next cursor relative to the start of this
       // string.
-      size_t next_column = (next_cursor_ == columns_.end())
+      size_t next_column = (next_cursor_ == options_.columns.end())
                                ? str.size()
                                : *next_cursor_ + str_pos - column_read_;
       if (next_column > str_pos) {
@@ -562,7 +576,7 @@ class CursorsHighlighter : public DelegatingOutputReceiver {
       CheckInvariants();
 
       if (str_pos < str.size()) {
-        CHECK(next_cursor_ != columns_.end());
+        CHECK(next_cursor_ != options_.columns.end());
         CHECK_EQ(*next_cursor_, column_read_);
         AddCharacter(str[str_pos]);
         str_pos++;
@@ -577,18 +591,17 @@ class CursorsHighlighter : public DelegatingOutputReceiver {
 
  private:
   void CheckInvariants() {
-    if (next_cursor_ != columns_.end()) {
+    if (next_cursor_ != options_.columns.end()) {
       CHECK_GE(*next_cursor_, column_read_);
     }
   }
 
+  const Options options_;
   ModifiersMerger modifiers_merger_;
 
-  const set<size_t> columns_;
   // Points to the first element in columns_ that is greater than or equal to
   // the current position.
   set<size_t>::const_iterator next_cursor_;
-  const bool multiple_cursors_;
   size_t column_read_ = 0;
 };
 
@@ -802,6 +815,8 @@ void Terminal::ShowBuffer(
   std::unordered_set<const OpenBuffer*> buffers_shown;
   line_output_options.output_buffers_shown = &buffers_shown;
 
+  cursor_position_ = std::nullopt;
+
   size_t last_line = std::numeric_limits<size_t>::max();
   for (size_t i = 0; i < screen_line_positions.size(); i++) {
     auto position = screen_line_positions[i];
@@ -826,16 +841,24 @@ void Terminal::ShowBuffer(
         buffer->Read(buffer_variables::line_width());
     line_output_options.width = screen->columns();
 
-    auto current_cursors = cursors.find(position.line);
-    line_output_options.has_active_cursor =
-        (buffer->position() >= position &&
-         buffer->position() < next_position) ||
-        (current_cursors != cursors.end() &&
-         buffer->Read(buffer_variables::multiple_cursors()));
-    line_output_options.has_cursor = current_cursors != cursors.end();
+    std::set<size_t> current_cursors;
+    auto it = cursors.find(position.line);
+    if (it != cursors.end()) {
+      for (auto& c : it->second) {
+        if (c >= position.column &&
+            LineColumn(position.line, c) < next_position) {
+          current_cursors.insert(c - position.column);
+        }
+      }
+    }
+    bool has_active_cursor =
+        buffer->position() >= position && buffer->position() < next_position;
+    line_output_options.has_cursor = !current_cursors.empty();
 
     if (!number_prefix.empty()) {
-      if (line_output_options.has_active_cursor) {
+      if (has_active_cursor ||
+          (!current_cursors.empty() &&
+           buffer->Read(buffer_variables::multiple_cursors()))) {
         line_output_options.output_receiver->AddModifier(LineModifier::CYAN);
       } else if (line_output_options.has_cursor) {
         line_output_options.output_receiver->AddModifier(LineModifier::BLUE);
@@ -851,7 +874,7 @@ void Terminal::ShowBuffer(
     }
 
     std::unique_ptr<Line::OutputReceiverInterface> cursors_highlighter;
-
+    std::optional<size_t> active_cursor_column;
     auto line = buffer->LineAt(position.line);
 
     std::unique_ptr<Line::OutputReceiverInterface> atomic_lines_highlighter;
@@ -863,12 +886,17 @@ void Terminal::ShowBuffer(
           std::make_unique<HighlightedLineOutputReceiver>(
               line_output_options.output_receiver);
       line_output_options.output_receiver = atomic_lines_highlighter.get();
-    } else if (current_cursors != cursors.end()) {
-      LOG(INFO) << "Cursors in current line: "
-                << current_cursors->second.size();
+    } else if (!current_cursors.empty()) {
+      LOG(INFO) << "Cursors in current line: " << current_cursors.size();
       CursorsHighlighter::Options options;
       options.delegate = line_output_options.output_receiver;
-      options.columns = current_cursors->second;
+      options.columns = current_cursors;
+      if (buffer->position() >= position &&
+          buffer->position() < next_position) {
+        options.active_cursor_input =
+            min(buffer->position().column, line->size()) - position.column;
+        options.active_cursor_output = &active_cursor_column;
+      }
       // Any cursors past the end of the line will just be silently moved to
       // the end of the line (just for displaying).
       while (!options.columns.empty() &&
@@ -905,35 +933,21 @@ void Terminal::ShowBuffer(
 
     line->Output(line_output_options);
 
+    if (active_cursor_column.has_value()) {
+      cursor_position_ =
+          LineColumn(i, active_cursor_column.value() + number_prefix.size());
+    }
+
     // Need to do this for atomic lines, since they override the Reset
     // modifier with Reset + Reverse.
     line_output_receiver->AddModifier(LineModifier::RESET);
     last_line = position.line;
   }
-}
+}  // namespace editor
 
-void Terminal::AdjustPosition(
-    const shared_ptr<OpenBuffer> buffer, Screen* screen,
-    const std::vector<LineColumn>& screen_line_positions) {
-  CHECK(!screen_line_positions.empty());
-  LineColumn position;
-  CHECK_GT(buffer->contents()->size(), 0u);
-  if (position.line > buffer->lines_size() - 1) {
-    position = LineColumn(buffer->lines_size() - 1);
-  } else {
-    position = buffer->position();
-  }
-
-  auto screen_line = std::upper_bound(screen_line_positions.begin(),
-                                      screen_line_positions.end(), position);
-  if (screen_line != screen_line_positions.begin()) {
-    --screen_line;
-  }
-  auto pos_x = GetCurrentColumn(buffer.get());
-  pos_x -= min(pos_x, screen_line->column);
-  pos_x += GetInitialPrefixSize(*buffer);
-  size_t pos_y = std::distance(screen_line_positions.begin(), screen_line);
-  screen->Move(pos_y, min(static_cast<size_t>(screen->columns()) - 1, pos_x));
+void Terminal::AdjustPosition(Screen* screen) {
+  CHECK(cursor_position_.has_value());
+  screen->Move(cursor_position_.value().line, cursor_position_.value().column);
 }
 
 }  // namespace editor
