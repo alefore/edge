@@ -810,7 +810,7 @@ void Terminal::ShowBuffer(
     line_output_options.position = position;
     line_output_options.output_receiver = line_output_receiver.get();
     screen_adapter.skip_columns(line_output_receiver->column());
-    CHECK_EQ(line_output_options.output_receiver->column(), 0);
+    CHECK_EQ(line_output_options.output_receiver->column(), 0u);
 
     wstring number_prefix = GetInitialPrefix(*buffer, position.line);
     if (!number_prefix.empty() && last_line == position.line) {
@@ -819,6 +819,14 @@ void Terminal::ShowBuffer(
     line_output_options.line_width =
         buffer->Read(buffer_variables::line_width());
     line_output_options.width = screen->columns();
+
+    auto current_cursors = cursors.find(position.line);
+    line_output_options.has_active_cursor =
+        (buffer->position() >= position &&
+         buffer->position() < next_position) ||
+        (current_cursors != cursors.end() &&
+         buffer->Read(buffer_variables::multiple_cursors()));
+    line_output_options.has_cursor = current_cursors != cursors.end();
 
     if (!number_prefix.empty()) {
       if (line_output_options.has_active_cursor) {
@@ -835,14 +843,6 @@ void Terminal::ShowBuffer(
       line_output_options.width -= number_prefix.size();
       screen_adapter.skip_columns(number_prefix.size());
     }
-
-    auto current_cursors = cursors.find(position.line);
-    line_output_options.has_active_cursor =
-        (buffer->position() >= position &&
-         buffer->position() < next_position) ||
-        (current_cursors != cursors.end() &&
-         buffer->Read(buffer_variables::multiple_cursors()));
-    line_output_options.has_cursor = current_cursors != cursors.end();
 
     std::unique_ptr<Line::OutputReceiverInterface> cursors_highlighter;
 
