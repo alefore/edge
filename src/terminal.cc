@@ -362,8 +362,14 @@ class LineOutputReceiver : public Line::OutputReceiverInterface {
   LineOutputReceiver(Screen* screen) : screen_(screen) {}
 
   void AddCharacter(wchar_t c) override {
-    if (c != L'\t') {
+    if (c == L'\t') {
+      // Nothing.
+    } else if (iswprint(c) || c == L'\t' || c == L'\r' || c == L'\n') {
       screen_->WriteString(wstring(1, c));
+    } else if (wcwidth(c) <= 0) {
+      // Nothing.
+    } else {
+      screen_->WriteString(wstring(wcwidth(c), L' '));
     }
     RegisterChar(c);
   }

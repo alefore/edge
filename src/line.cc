@@ -275,15 +275,9 @@ void Line::Output(const Line::OutputOptions& options) const {
     switch (c) {
       case L'\r':
         break;
-      case L'​':
-        break;
       default:
-        if (iswprint(c) || c == '\t') {
-          VLOG(8) << "Print character: " << c;
-          options.output_receiver->AddCharacter(c);
-        } else {
-          VLOG(7) << "Ignoring non-printable character: " << c;
-        }
+        VLOG(8) << "Print character: " << c;
+        options.output_receiver->AddCharacter(c);
     }
     input_column++;
   }
