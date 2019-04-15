@@ -58,6 +58,8 @@ In diff mode, add a link to every file. Following it should take you directly to
 When autocompletion of files fails, have a fail back:
   A second TAB that doesn't advance should do a deeper search: search in every path on which we have an open file.
 
+When the prompt doesn't fit the screen, be smarter about what part to show? If it has a cursor, whatever is closest?
+
 ## Commands
 
 Improve "af":
