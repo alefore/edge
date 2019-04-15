@@ -225,32 +225,35 @@ wstring DurationToString(size_t duration) {
 }
 
 wstring FlagsString(const CommandData& data, const OpenBuffer& buffer) {
+  time_t now;
+  time(&now);
+
   wstring output;
   if (buffer.child_pid() != -1) {
     output = L" …";
-  } else if (!WIFEXITED(buffer.child_exit_status())) {
-    output = L" ☠";
-  } else if (WEXITSTATUS(buffer.child_exit_status()) == 0) {
-    output = L" ☑";
   } else {
-    output = L" ☒";
+    if (!WIFEXITED(buffer.child_exit_status())) {
+      output = L" ☠";
+    } else if (WEXITSTATUS(buffer.child_exit_status()) == 0) {
+      output = L" ✓";
+    } else {
+      output = L" ✗";
+    }
+    if (now > data.time_end) {
+      output += DurationToString(now - data.time_end);
+    }
   }
 
-  time_t now;
-  time(&now);
   if (now > data.time_start && data.time_start > 0) {
     time_t end = (buffer.child_pid() != -1 || data.time_end < data.time_start)
                      ? now
                      : data.time_end;
-    output += L" run:" + DurationToString(end - data.time_start);
+    output += L" ⏲ " + DurationToString(end - data.time_start);
   }
-  if (buffer.child_pid() == -1 && now > data.time_end) {
-    output += L" done:" + DurationToString(now - data.time_end);
-  } else {
-    auto update = buffer.last_progress_update();
-    if (update.tv_sec != 0) {
-      output += L" out:" + DurationToString(now - update.tv_sec);
-    }
+
+  auto update = buffer.last_progress_update();
+  if (buffer.child_pid() != -1 && update.tv_sec != 0) {
+    output += L" 🤖" + DurationToString(now - update.tv_sec);
   }
   return output;
 }
