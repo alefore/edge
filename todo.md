@@ -38,6 +38,10 @@ Search: Should make sure to disable multi active cursors.
 
   * On reflow, leave the cursor where it was?
 
+  * In a C++ file, handle multi-line strings better.
+      printf("foo bar hey "
+             "quux.");
+
 ## Navigation
 
 Improve "g", the current behavior is kind of annoying:
@@ -79,8 +83,6 @@ Make follow_end_of_file the default.
 
 ## Variables
 
-atomic_lines should probably also apply to multiple cursors.
-
 ## VM
 
 Add support for templates, so that we can do "vector<string>".
@@ -95,6 +97,8 @@ Don't crash on this: buffer.set_view_start_line(-1);
 
 Allow extensions to define classes or structures.
 
+Support `LineColumn line;` (rather than having to use `LineColumn line = LineColumn();`).
+
 ### Client/server
 
 ## Misc
@@ -102,3 +106,5 @@ Allow extensions to define classes or structures.
 Support variables scoped at the Editor level (i.e. not specific to a given buffer).
 
 Don't do any blocking operations.
+
+The first five times Edge runs, it should display a `help` message, perhaps at the top of the shell, and also in the SetStatus buffer.

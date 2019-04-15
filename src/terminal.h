@@ -43,8 +43,10 @@ class Terminal {
                                                  Screen* screen);
   void ShowBuffer(const EditorState* editor_state, Screen* screen,
                   const std::vector<LineColumn>& screen_line_positions);
-  void AdjustPosition(const shared_ptr<OpenBuffer> buffer, Screen* screen,
-                      const std::vector<LineColumn>& screen_line_positions);
+  void AdjustPosition(Screen* screen);
+
+  // Position at which the cursor should be placed in the screen, if known.
+  std::optional<LineColumn> cursor_position_;
 };
 
 }  // namespace editor

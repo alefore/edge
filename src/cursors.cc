@@ -48,8 +48,21 @@ CursorsSet::iterator CursorsSet::lower_bound(LineColumn line) {
   return cursors_.lower_bound(line);
 }
 
+CursorsSet::const_iterator CursorsSet::lower_bound(LineColumn line) const {
+  return const_cast<CursorsSet*>(this)->lower_bound(line);
+}
+
 CursorsSet::iterator CursorsSet::find(LineColumn line) {
   return cursors_.find(line);
+}
+
+CursorsSet::const_iterator CursorsSet::find(LineColumn line) const {
+  return const_cast<CursorsSet*>(this)->find(line);
+}
+
+bool CursorsSet::cursors_in_line(size_t line) const {
+  auto it = lower_bound(LineColumn(line));
+  return it != end() && it->line == line;
 }
 
 void CursorsSet::erase(iterator it) {

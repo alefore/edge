@@ -36,8 +36,15 @@ class CursorsSet {
   size_t size();
   bool empty();
   iterator insert(LineColumn line);
+
   iterator lower_bound(LineColumn line);
+  const_iterator lower_bound(LineColumn line) const;
+
   iterator find(LineColumn line);
+  const_iterator find(LineColumn line) const;
+
+  // Are there any cursors in a given line?
+  bool cursors_in_line(size_t line) const;
 
   void erase(iterator it);
   void erase(LineColumn position);
