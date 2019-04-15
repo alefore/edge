@@ -30,9 +30,17 @@ Improve logic around wrap_long_lines.
 
 Search: Should make sure to disable multi active cursors.
 
-Improve 'reflow': In a C++ file, handle multi-line strings better.
-  printf("foo bar hey "
-         "quux.");
+* Improve reflow:
+
+  * Have an "auto-reflow" mode? As soon as the text width is crossed, do a
+    reflow? Or, well, rather: whenever the buffer changes, reflow? For example,
+    if the user deletes a work, just reflow?
+
+  * On reflow, leave the cursor where it was?
+
+  * In a C++ file, handle multi-line strings better.
+      printf("foo bar hey "
+             "quux.");
 
 ## Navigation
 
@@ -53,6 +61,8 @@ In diff mode, add a link to every file. Following it should take you directly to
 
 When autocompletion of files fails, have a fail back:
   A second TAB that doesn't advance should do a deeper search: search in every path on which we have an open file.
+
+When the prompt doesn't fit the screen, be smarter about what part to show? If it has a cursor, whatever is closest?
 
 ## Commands
 
