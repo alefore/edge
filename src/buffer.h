@@ -85,6 +85,7 @@ class OpenBuffer {
   EditorState* editor() const { return editor_; }
 
   void SetStatus(wstring status) const;
+
   bool PrepareToClose();
   void Close();
 
@@ -101,9 +102,6 @@ class OpenBuffer {
   // the values of variables, but in the future it could include other things.
   // Returns true if the state could be persisted successfully.
   bool PersistState() const;
-
-  void ClearContents(BufferContents::CursorsBehavior cursors_behavior);
-  void AppendEmptyLine();
 
   void Save();
 
@@ -126,6 +124,9 @@ class OpenBuffer {
 
   void Reload();
   void EndOfFile();
+
+  void ClearContents(BufferContents::CursorsBehavior cursors_behavior);
+  void AppendEmptyLine();
 
   // Sort all lines in range [first, last) according to a compare function.
   void SortContents(size_t first, size_t last,
@@ -162,14 +163,6 @@ class OpenBuffer {
   void AppendToLastLine(std::shared_ptr<LazyString> str);
   void AppendToLastLine(std::shared_ptr<LazyString> str,
                         const vector<LineModifierSet>& modifiers);
-
-  unique_ptr<Expression> CompileString(const wstring& str,
-                                       wstring* error_description);
-  void EvaluateExpression(Expression* expr,
-                          std::function<void(std::unique_ptr<Value>)> consumer);
-  bool EvaluateString(const wstring& str,
-                      std::function<void(std::unique_ptr<Value>)> consumer);
-  bool EvaluateFile(const wstring& path);
 
   void DeleteRange(const Range& range);
 
@@ -215,102 +208,17 @@ class OpenBuffer {
   void DestroyCursor();
   void DestroyOtherCursors();
 
-  const ParseTree* current_tree(const ParseTree* root) const;
-  void set_lines_for_zoomed_out_tree(size_t lines);
-  std::shared_ptr<const ParseTree> zoomed_out_tree() const;
-
   Range FindPartialRange(const Modifiers& modifiers,
                          const LineColumn& position);
-
-  // May return nullptr if the current_cursor is at the end of file.
-  const shared_ptr<const Line> current_line() const;
-
-  shared_ptr<const Line> LineFront() const { return LineAt(0); }
-  shared_ptr<const Line> LineBack() const { return LineAt(lines_size() - 1); }
-  shared_ptr<const Line> LineAt(size_t line_number) const {
-    if (line_number >= contents_.size()) {
-      return nullptr;
-    }
-    return contents_.at(line_number);
-  }
-  char character_at(LineColumn position) const {
-    return contents_.character_at(position);
-  }
 
   // If there's a buffer associated with the current line (looking up the
   // "buffer" variable in the line's environment), returns it. Returns nullptr
   // otherwise.
   std::shared_ptr<OpenBuffer> GetBufferFromCurrentLine();
 
-  // Returns the substring of the current line until the current position.
-  shared_ptr<LazyString> current_line_head() const {
-    return current_line()->Substring(0, current_position_col());
-  }
-  // Returns the substring of the current line from the current to the last
-  // position.
-  shared_ptr<LazyString> current_line_tail() const {
-    return current_line()->Substring(current_position_col());
-  }
   // Serializes the buffer into a string.  This is not particularly fast (it's
   // meant more for debugging/testing rather than for real use).
   wstring ToString() const;
-
-  void replace_current_line(const shared_ptr<Line>& line) {
-    if (cursors_tracker_.position().line >= contents_.size()) {
-      set_current_position_line(contents_.size() - 1);
-    }
-    contents_.set_line(cursors_tracker_.position().line, line);
-  }
-
-  int fd() const { return fd_.fd; }
-  int fd_error() const { return fd_error_.fd; }
-
-  // We deliberately provide only a read view into our contents. All
-  // modifications should be done through methods defined in this class.
-  const BufferContents* contents() const { return &contents_; }
-  // Delete characters in [column, column + amount).
-
-  bool at_beginning() const { return position().at_beginning(); }
-  bool at_beginning_of_line() const { return at_beginning_of_line(position()); }
-  bool at_beginning_of_line(const LineColumn& position) const {
-    return position.at_beginning_of_line();
-  }
-  bool at_end() const { return at_end(position()); }
-  bool at_end(const LineColumn& position) const {
-    return at_last_line(position) && at_end_of_line(position);
-  }
-
-  // Returns the position of just after the last character of the current file.
-  LineColumn end_position() const {
-    CHECK_GT(contents_.size(), 0u);
-    return LineColumn(contents_.size() - 1, contents_.back()->size());
-  }
-
-  bool at_last_line() const { return at_last_line(position()); }
-  bool at_last_line(const LineColumn& position) const {
-    return position.line == contents_.size() - 1;
-  }
-  bool at_end_of_line() const { return at_end_of_line(position()); }
-  bool at_end_of_line(const LineColumn& position) const {
-    return position.column >= LineAt(position.line)->size();
-  }
-  char current_character() const {
-    CHECK_LT(current_position_col(), current_line()->size());
-    return current_line()->get(current_position_col());
-  }
-  char previous_character() const {
-    CHECK_GT(current_position_col(), 0u);
-    return current_line()->get(current_position_col() - 1);
-  }
-
-  void set_current_position_line(size_t line);
-  size_t current_position_line() const;
-  size_t current_position_col() const;
-  void set_current_position_col(size_t column);
-
-  const LineColumn position() const;
-
-  void set_position(const LineColumn& position);
 
   void ClearModified() { modified_ = false; }
   bool modified() const { return modified_; }
@@ -318,26 +226,8 @@ class OpenBuffer {
   bool dirty() const;
   wstring FlagsString() const;
 
-  void PushSignal(int signal);
-
   wstring TransformKeyboardText(wstring input);
   bool AddKeyboardTextTransformer(unique_ptr<Value> transformer);
-
-  void SetInputFiles(int input_fd, int input_fd_error, bool fd_is_terminal,
-                     pid_t child_pid);
-
-  const bool& Read(const EdgeVariable<bool>* variable) const;
-  void Set(const EdgeVariable<bool>* variable, bool value);
-  void toggle_bool_variable(const EdgeVariable<bool>* variable);
-
-  const wstring& Read(const EdgeVariable<wstring>* variable) const;
-  void Set(const EdgeVariable<wstring>* variable, wstring value);
-
-  const int& Read(const EdgeVariable<int>* variable) const;
-  void Set(const EdgeVariable<int>* variable, int value);
-
-  const double& Read(const EdgeVariable<double>* variable) const;
-  void Set(const EdgeVariable<double>* variable, double value);
 
   void ApplyToCursors(unique_ptr<Transformation> transformation);
   void ApplyToCursors(unique_ptr<Transformation> transformation,
@@ -363,9 +253,6 @@ class OpenBuffer {
   void set_filter(unique_ptr<Value> filter);
   bool IsLineFiltered(size_t line);
 
-  pid_t child_pid() const { return child_pid_; }
-  int child_exit_status() const { return child_exit_status_; }
-
   size_t last_highlighted_line() const { return last_highlighted_line_; }
   void set_last_highlighted_line(size_t value) {
     last_highlighted_line_ = value;
@@ -376,7 +263,99 @@ class OpenBuffer {
   const multimap<size_t, LineMarks::Mark>* GetLineMarks() const;
   wstring GetLineMarksText() const;
 
+  /////////////////////////////////////////////////////////////////////////////
+  // Extensions
+
   Environment* environment() { return &environment_; }
+
+  unique_ptr<Expression> CompileString(const wstring& str,
+                                       wstring* error_description);
+  void EvaluateExpression(Expression* expr,
+                          std::function<void(std::unique_ptr<Value>)> consumer);
+  bool EvaluateString(const wstring& str,
+                      std::function<void(std::unique_ptr<Value>)> consumer);
+  bool EvaluateFile(const wstring& path);
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Inspecting contents of buffer.
+
+  // May return nullptr if the current_cursor is at the end of file.
+  const shared_ptr<const Line> current_line() const;
+
+  shared_ptr<const Line> LineAt(size_t line_number) const {
+    if (line_number >= contents_.size()) {
+      return nullptr;
+    }
+    return contents_.at(line_number);
+  }
+
+  // We deliberately provide only a read view into our contents. All
+  // modifications should be done through methods defined in this class.
+  const BufferContents* contents() const { return &contents_; }
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Interaction with the operating system
+
+  void SetInputFiles(int input_fd, int input_fd_error, bool fd_is_terminal,
+                     pid_t child_pid);
+
+  int fd() const { return fd_.fd; }
+  int fd_error() const { return fd_error_.fd; }
+
+  pid_t child_pid() const { return child_pid_; }
+  int child_exit_status() const { return child_exit_status_; }
+
+  void PushSignal(int signal);
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Cursors
+
+  const LineColumn position() const;
+  void set_position(const LineColumn& position);
+
+  // Returns the position of just after the last character of the current file.
+  LineColumn end_position() const {
+    CHECK_GT(contents_.size(), 0u);
+    return LineColumn(contents_.size() - 1, contents_.back()->size());
+  }
+
+  void set_current_position_line(size_t line);
+  size_t current_position_line() const;
+  size_t current_position_col() const;
+  void set_current_position_col(size_t column);
+
+  LineColumn PositionBefore(LineColumn position) const {
+    if (position.column > 0) {
+      position.column--;
+    } else if (position.line > 0) {
+      position.line = min(position.line - 1, contents_.size() - 1);
+      position.column = contents_.at(position.line)->size();
+    }
+    return position;
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Buffer variables
+
+  const bool& Read(const EdgeVariable<bool>* variable) const;
+  void Set(const EdgeVariable<bool>* variable, bool value);
+  void toggle_bool_variable(const EdgeVariable<bool>* variable);
+
+  const wstring& Read(const EdgeVariable<wstring>* variable) const;
+  void Set(const EdgeVariable<wstring>* variable, wstring value);
+
+  const int& Read(const EdgeVariable<int>* variable) const;
+  void Set(const EdgeVariable<int>* variable, int value);
+
+  const double& Read(const EdgeVariable<double>* variable) const;
+  void Set(const EdgeVariable<double>* variable, double value);
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Parse tree
+
+  // Only Editor::ProcessInputString should call this; everyone else should just
+  // call Editor::ScheduleParseTreeUpdate.
+  void ResetParseTree();
 
   std::shared_ptr<const ParseTree> parse_tree() const {
     std::unique_lock<std::mutex> lock(mutex_);
@@ -391,19 +370,9 @@ class OpenBuffer {
   size_t tree_depth() const { return tree_depth_; }
   void set_tree_depth(size_t tree_depth) { tree_depth_ = tree_depth; }
 
-  LineColumn PositionBefore(LineColumn position) const {
-    if (position.column > 0) {
-      position.column--;
-    } else if (position.line > 0) {
-      position.line = min(position.line - 1, contents_.size() - 1);
-      position.column = contents_.at(position.line)->size();
-    }
-    return position;
-  }
-
-  // Only Editor::ProcessInputString should call this; everyone else should just
-  // call Editor::ScheduleParseTreeUpdate.
-  void ResetParseTree();
+  const ParseTree* current_tree(const ParseTree* root) const;
+  void set_lines_for_zoomed_out_tree(size_t lines);
+  std::shared_ptr<const ParseTree> zoomed_out_tree() const;
 
  private:
   static void EvaluateMap(OpenBuffer* buffer, size_t line,
