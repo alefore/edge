@@ -81,7 +81,7 @@ TODO: Document the list of dependencies.
 
 The following are a few example commands:
 
-*  `?` Shows you the sequences/commands in the current buffer.
+*  `?` - Shows the help information for the current buffer.
 
 * `aq` - Quit (short for "Advanced > Quit"). At the beginning of the execution
   of Edge, Ctrl+c will also quit (until the moment when you start editing any
