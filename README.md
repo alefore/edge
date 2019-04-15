@@ -13,29 +13,31 @@ running and which may or may not have a full terminal (pts).
 
 * Extensibility:
 
-  * Edge Uses a subset of C++ as its extension language. Extensions are
-    interpreted (type errors are detected statically). See
+  * Edge uses a simplified verison of C++ as its extension language. Extensions
+    are interpreted (type errors are detected statically) and the language uses
+    garbage collection. See
     [buffer-reload.cc](https://github.com/alefore/edge/blob/master/rc/hooks/buffer-reload.cc)
-    for an example.
+    for an example extension.
 
   * All buffers have *variables* that control their behavior. For
     example, variable `scrollbar` controls whether the scrollbar should be shown
     in the current buffer. In the extension language, this can be set with
-    `buffer.set_scrollbar(!buffer.scrollbar());`
+    `buffer.set_scrollbar(!buffer.scrollbar());` (and the binding `vS` will
+    toggle its value).
 
 * Shell commands (external processes):
 
-  * Supports running external commands (e.g. "ls -lR"), capturing their output
-    into a buffer (that the user can interact with just as with normal "text"
-    buffers). To do this, the user would type `af` (short for "advanced" and
-    "fork") to be prompted for a shell command to run.
+  * Supports running external commands (e.g. `ls -lR`), capturing their output
+    into a buffer. The user can interact with these buffers just as with the
+    regular "text" buffers. To do this, the user would type `af` (short for
+    "advanced" and "fork") to be prompted for a shell command to run.
 
   * Use of a pts can be enabled or disabled for buffers with underlying commands
     (this is controlled by buffer's variable `pts`). For example, one can run a
     shell process (or even some other text editor) inside Edge.
 
-* All buffers are read asynchronously. Edge (almost) never blocks while waiting
-  for input.
+* Asynchronous: all buffers are read asynchronously. Edge (almost) never blocks
+  while waiting for IO.
 
 * Editing:
 
