@@ -92,3 +92,5 @@ Support `LineColumn line;` (rather than having to use `LineColumn line = LineCol
 Support variables scoped at the Editor level (i.e. not specific to a given buffer).
 
 Don't do any blocking operations.
+
+The first five times Edge runs, it should display a `help` message, perhaps at the top of the shell, and also in the SetStatus buffer.
