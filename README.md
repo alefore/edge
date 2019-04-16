@@ -50,11 +50,12 @@ running and which may or may not have a full terminal (pts).
     file formats (Markdown, diff/patch).
 
 
-### 1.1. Screenshot
+### 1.1. Screenshots
+
+The screenshot shows Edge (running under gnome-terminal) editing a C++ file
+(part of its own source code):
 
 ![Edge Screenshot](/screenshots/shot.png?raw=true "Edge Screenshot")
-
-The screenshot shows Edge editing a C++ file (part of its own source code).
 
 There are multiple cursors in lines 2, 5, 7, 9, 19, 25, and 27 (among others),
 after a regular-expression search for the word `buffer` (which creates a cursor
@@ -79,6 +80,9 @@ You can see the documentation for command line arguments if you run Edge with
 
     $ edge --help
 
+Once in Edge, you can press `?` to get [help](/help.md) about your current
+buffer.
+
 
 ### 1.1. Installing
 
@@ -96,7 +100,8 @@ TODO: Document the list of dependencies.
 
 The following are a few example commands:
 
-*  `?` - Shows the help information for the current buffer.
+* `?` - Shows the help information for the current buffer (it looks something
+  [like this](/help.md)).
 
 * `aq` - Quit (short for "Advanced > Quit"). At the beginning of the execution
   of Edge, Ctrl+c will also quit (until the moment when you start editing any
