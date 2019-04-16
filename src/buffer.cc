@@ -745,7 +745,7 @@ OpenBuffer::GetEndPositionFollower() {
   if (!Read(buffer_variables::follow_end_of_file())) {
     return nullptr;
   }
-  if (position() < end_position()) {
+  if (position() < end_position() && !fd_is_terminal_) {
     return nullptr;  // Not at the end, so user must have scrolled up.
   }
   return std::unique_ptr<bool, std::function<void(bool*)>>(
@@ -1111,6 +1111,7 @@ void OpenBuffer::ProcessCommandInput(shared_ptr<LazyString> str) {
 
   size_t read_index = 0;
   VLOG(5) << "Terminal input: " << str->ToString();
+  auto follower = GetEndPositionFollower();
   while (read_index < str->size()) {
     int c = str->get(read_index);
     read_index++;
@@ -1148,7 +1149,6 @@ void OpenBuffer::ProcessCommandInput(shared_ptr<LazyString> str) {
       if (screen != nullptr && position_pts_.column >= screen->columns()) {
         PtsMoveToNextLine();
       }
-      auto follower = GetEndPositionFollower();
       contents_.SetCharacter(position_pts_.line, position_pts_.column, c,
                              modifiers);
       position_pts_.column++;
