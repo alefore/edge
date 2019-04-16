@@ -205,6 +205,21 @@ const std::vector<Handler>& Handlers() {
           .Set(&Values::background, true),
 
       Handler({L"X"}, L"If nested, exit early")
+          .SetHelp(
+              L"When `edge` runs nested (i.e., under a parent instance), the "
+              L"child instance will not create any buffers for any files that "
+              L"the user may have passed as command-line arguments nor any "
+              L"commands (passed with `--fork`). Instead, it will connect to "
+              L"the parent and request that the parent itself creates the "
+              L"corresponding buffers.\n\n"
+              L"The `-X` command-line argument controls when the child "
+              L"instance will exit. By default, it will wait until any buffers "
+              L"that it requests are deleted by the user (with `ad`). This is "
+              L"suitable for commands such as `git commit` that may run a "
+              L"nested instance of Edge. However, when `-X` is given, the "
+              L"child instance will exit as soon as it has successfully "
+              L"communicated with the parent (without waiting for the user to "
+              L"delete corresponding buffers.")
           .Set(&Values::nested_edge_behavior,
                Values::NestedEdgeBehavior::kExitEarly)};
   return handlers;
