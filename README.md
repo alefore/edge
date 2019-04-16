@@ -832,39 +832,6 @@ If you set this on a buffer, you may want to also set reload_on_buffer_write
 Default: false
 
 
-#### 7.2.24. `multiple_cursors` (bool)
-
-If true, all commands apply to all cursors (see section 8 for more information
-on multiple cursors) in the current document. If false, they only apply to the
-active cursor.
-
-Because this variable is toggled very frequently, the "_" key press can be used
-to quickly toggle this variable (section 8.3).
-
-Default: false
-
-
-#### 7.2.25. `push_positions_to_history` (bool)
-
-If true, cursor moves in the current buffer will be pushed into the history of
-positions (3.4 section).
-
-A few buffers default this to false, to avoid pushing their positions to the
-history.
-
-Default: true
-
-
-#### 7.2.26. `delete_into_paste_buffer` (bool)
-
-If true, deletions longer than one character from this buffer will go into the
-shared paste buffer (section 4.3).
-
-A few buffers, such as prompt buffers, default this to false.
-
-Default: true
-
-
 ## 8. Cursors
 
 One important feature of Edge is the support for multiple cursors.  This allows

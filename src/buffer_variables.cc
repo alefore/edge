@@ -188,8 +188,8 @@ EdgeVariable<bool>* contains_line_marks() {
 EdgeVariable<bool>* multiple_cursors() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"multiple_cursors",
-      L"If set to true, operations in this buffer apply to all cursors defined "
-      L"on it.",
+      L"If `true`, all commands apply to all cursors in the current buffer. "
+      L"Otherwise, they only apply to the active cursor.",
       false);
   return variable;
 }
@@ -213,8 +213,10 @@ EdgeVariable<bool>* show_in_buffers_list() {
 EdgeVariable<bool>* push_positions_to_history() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"push_positions_to_history",
-      L"If set to true, movement in this buffer result in positions being "
-      L"pushed to the history of positions.",
+      L"If set to true, movement in this buffer causes new positions to be "
+      L"pushed to the history of positions.\n\n"
+      L"A few buffers default this to `false`, to avoid pushing their "
+      L"positions to the history.",
       true);
   return variable;
 }
@@ -222,8 +224,9 @@ EdgeVariable<bool>* push_positions_to_history() {
 EdgeVariable<bool>* delete_into_paste_buffer() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"delete_into_paste_buffer",
-      L"If set to true, deletions from this buffer will go into the shared "
-      L"paste buffer.",
+      L"If set to true, deletions from this buffer go into the shared paste "
+      L"buffer.\n\n"
+      L"A few buffers, such as prompt buffers, default this to `false`.",
       true);
   return variable;
 }
