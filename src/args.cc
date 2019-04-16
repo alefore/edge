@@ -134,7 +134,11 @@ void Help();
 
 const std::vector<Handler>& Handlers() {
   static const std::vector<Handler> handlers = {
-      Handler({L"help", L"h"}, L"Display help and exit").Run(Help),
+      Handler({L"help", L"h"}, L"Display help and exit")
+          .SetHelp(
+              L"The --help command-line argument displays a brief overview of "
+              L"the available command line arguments and exits.")
+          .Run(Help),
 
       Handler({L"fork", L"f"}, L"Create a buffer running a shell command")
           .SetHelp(
