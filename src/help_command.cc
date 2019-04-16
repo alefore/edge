@@ -20,12 +20,7 @@ using std::unique_ptr;
 
 namespace {
 wstring DescribeSequence(wstring input) {
-  wstring output;
-  if (!input.empty() && input[0] == '#') {
-    // Enter an invisible space, to preclude Markdown from interpreting this as
-    // a header.
-    output.push_back(L'​');
-  }
+  wstring output = L"`";
   for (wint_t c : input) {
     switch (c) {
       case '\t':
@@ -86,7 +81,7 @@ wstring DescribeSequence(wstring input) {
         output.push_back(static_cast<wchar_t>(c));
     }
   }
-  return output;
+  return output + L"`";
 }
 
 class HelpCommand : public Command {
@@ -158,8 +153,9 @@ class HelpCommand : public Command {
     for (const auto& category : commands_->Coallesce()) {
       StartSection(L"### " + category.first, output_buffer);
       for (const auto& it : category.second) {
-        output_buffer->AppendLine(NewLazyString(
-            DescribeSequence(it.first) + L" - " + it.second->Description()));
+        output_buffer->AppendLine(
+            NewLazyString(L"* " + DescribeSequence(it.first) + L" - " +
+                          it.second->Description()));
       }
       output_buffer->AppendEmptyLine();
     }
@@ -192,8 +188,9 @@ class HelpCommand : public Command {
                             : kPaddingSize - field_name.size(),
                         L' ');
         output->AppendLine(StringAppend(
-            NewLazyString(field_name), NewLazyString(std::move(padding)),
-            NewLazyString(FromByteString(value_stream.str()))));
+            NewLazyString(L"* `"), NewLazyString(field_name),
+            NewLazyString(L"`" + std::move(padding) + L"`"),
+            NewLazyString(FromByteString(value_stream.str()) + L"`")));
       });
       output->AppendEmptyLine();
     });
@@ -219,10 +216,10 @@ class HelpCommand : public Command {
         value_stream << *value;
       }
 
-      output->AppendLine(
-          StringAppend(NewLazyString(L"  "), NewLazyString(name),
-                       NewLazyString(std::move(padding)),
-                       NewLazyString(FromByteString(value_stream.str()))));
+      output->AppendLine(StringAppend(
+          NewLazyString(L"* `"), NewLazyString(name),
+          NewLazyString(L"`" + std::move(padding) + L"`"),
+          NewLazyString(FromByteString(value_stream.str()) + L"`")));
     });
     output->AppendEmptyLine();
   }

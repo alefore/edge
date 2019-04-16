@@ -136,13 +136,13 @@ const std::vector<Handler>& Handlers() {
   static const std::vector<Handler> handlers = {
       Handler({L"help", L"h"}, L"Display help and exit")
           .SetHelp(
-              L"The --help command-line argument displays a brief overview of "
-              L"the available command line arguments and exits.")
+              L"The `--help` command-line argument displays a brief overview "
+              L"of the available command line arguments and exits.")
           .Run(Help),
 
       Handler({L"fork", L"f"}, L"Create a buffer running a shell command")
           .SetHelp(
-              L"The --fork command-line argument must be followed by a shell "
+              L"The `--fork` command-line argument must be followed by a shell "
               L"command. Edge will create a buffer running that command.\n\n"
               L"Example:\n\n"
               L"    edge --fork \"ls -lR /tmp\" --fork \"make\"\n\n"
@@ -153,7 +153,7 @@ const std::vector<Handler>& Handlers() {
 
       Handler({L"run"}, L"Run a VM command")
           .SetHelp(
-              L"The --run command-line argument must be followed by a string "
+              L"The `--run` command-line argument must be followed by a string "
               L"with a VM command to run.\n\n"
               L"Example:\n\n"
               L"    edge --run 'string flags = \"-R\"; ForkCommand(\"ls \" + "
@@ -170,7 +170,7 @@ const std::vector<Handler>& Handlers() {
 
       Handler({L"server", L"s"}, L"Run in daemon mode (at an optional path)")
           .SetHelp(
-              L"The --server command-line argument causes Edge to run in "
+              L"The `--server` command-line argument causes Edge to run in "
               L"*background* mode: without reading any input from stdin nor "
               L"producing any output to stdout. Instead, Edge will wait for "
               L"connections to the path given.\n\n"
