@@ -52,6 +52,12 @@ wstring DescribeSequence(wstring input) {
       case Terminal::BACKSPACE:
         output += L"← Backspace";
         break;
+      case Terminal::PAGE_DOWN:
+        output += L"PgDn";
+        break;
+      case Terminal::PAGE_UP:
+        output += L"PgUp";
+        break;
       case Terminal::CTRL_A:
         output += L"^a";
         break;
@@ -64,8 +70,17 @@ wstring DescribeSequence(wstring input) {
       case Terminal::CTRL_K:
         output += L"^k";
         break;
+      case Terminal::CTRL_L:
+        output += L"^l";
+        break;
       case Terminal::CTRL_U:
         output += L"^u";
+        break;
+      case Terminal::CTRL_V:
+        output += L"^v";
+        break;
+      case Terminal::DELETE:
+        output += L"Delete";
         break;
       default:
         output.push_back(static_cast<wchar_t>(c));
