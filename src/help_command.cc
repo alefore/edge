@@ -232,10 +232,10 @@ class HelpCommand : public Command {
     StartSection(L"### " + type_name, buffer);
     for (const auto& variable : variables->variables()) {
       buffer->AppendLine(NewLazyString(variable.second->name()));
-      buffer->AppendLine(
+      buffer->AppendLazyString(
           StringAppend(NewLazyString(L"    "),
                        NewLazyString(variable.second->description())));
-      buffer->AppendLine(
+      buffer->AppendLazyString(
           StringAppend(NewLazyString(L"    Default: "),
                        NewLazyString(print(variable.second->default_value()))));
     }
@@ -266,12 +266,7 @@ class HelpCommand : public Command {
         case Handler::VariableType::kNone:
           break;
       }
-      std::wstringstream help(h.help());
-      std::wstring line;
-
-      while (std::getline(help, line, L'\n')) {
-        buffer->AppendLine(NewLazyString(std::move(line)));
-      }
+      buffer->AppendLazyString(NewLazyString(h.help()));
       buffer->AppendEmptyLine();
     }
   }
