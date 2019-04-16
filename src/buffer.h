@@ -150,7 +150,9 @@ class OpenBuffer {
   // Inserts a new line into the buffer at a given position.
   void InsertLine(size_t line_position, shared_ptr<Line> line);
 
+  // Can handle \n characters, breaking it into lines.
   void AppendLazyString(std::shared_ptr<LazyString> input);
+  // line must not contain \n characters.
   void AppendLine(std::shared_ptr<LazyString> line);
   void AppendRawLine(std::shared_ptr<LazyString> str);
 
