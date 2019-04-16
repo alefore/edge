@@ -121,12 +121,14 @@ class HelpCommand : public Command {
     buffer->AppendEmptyLine();
 
     DescribeVariables(
-        L"bool", buffer.get(), buffer_variables::BoolStruct(),
+        L"bool", *original_buffer, buffer.get(), buffer_variables::BoolStruct(),
         [](const bool& value) { return value ? L"true" : L"false"; });
     DescribeVariables(
-        L"string", buffer.get(), buffer_variables::StringStruct(),
-        [](const std::wstring& value) { return L"\"" + value + L"\""; });
-    DescribeVariables(L"int", buffer.get(), buffer_variables::IntStruct(),
+        L"string", *original_buffer, buffer.get(),
+        buffer_variables::StringStruct(),
+        [](const std::wstring& value) { return L"`" + value + L"`"; });
+    DescribeVariables(L"int", *original_buffer, buffer.get(),
+                      buffer_variables::IntStruct(),
                       [](const int& value) { return std::to_wstring(value); });
 
     CommandLineVariables(buffer.get());
@@ -226,18 +228,23 @@ class HelpCommand : public Command {
   }
 
   template <typename T, typename C>
-  void DescribeVariables(wstring type_name, OpenBuffer* buffer,
-                         EdgeStruct<T>* variables,
+  void DescribeVariables(wstring type_name, const OpenBuffer& source,
+                         OpenBuffer* buffer, EdgeStruct<T>* variables,
                          /*std::function<std::wstring(const T&)>*/ C print) {
     StartSection(L"### " + type_name, buffer);
     for (const auto& variable : variables->variables()) {
-      buffer->AppendLine(NewLazyString(variable.second->name()));
+      buffer->AppendLine(StringAppend(NewLazyString(L"#### "),
+                                      NewLazyString(variable.second->name())));
+      buffer->AppendEmptyLine();
+      buffer->AppendLazyString(NewLazyString(variable.second->description()));
+      buffer->AppendEmptyLine();
+      buffer->AppendLazyString(StringAppend(
+          NewLazyString(L"* Value: "),
+          NewLazyString(print(source.Read(variable.second.get())))));
       buffer->AppendLazyString(
-          StringAppend(NewLazyString(L"    "),
-                       NewLazyString(variable.second->description())));
-      buffer->AppendLazyString(
-          StringAppend(NewLazyString(L"    Default: "),
+          StringAppend(NewLazyString(L"* Default: "),
                        NewLazyString(print(variable.second->default_value()))));
+      buffer->AppendEmptyLine();
     }
     buffer->AppendEmptyLine();
   }
