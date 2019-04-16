@@ -848,8 +848,8 @@ class TreeNavigateCommand : public Command {
 
 void ToggleBoolVariable(EditorState* editor_state, wstring binding,
                         wstring variable_name, MapModeCommands* map_mode) {
-  wstring command = L"// Toggle buffer variable: " + variable_name + L"\n" +
-                    L"Buffer tmp_buffer = CurrentBuffer();" +
+  wstring command = L"// Variables: Toggle buffer variable: " + variable_name +
+                    L"\nBuffer tmp_buffer = CurrentBuffer();" +
                     L"tmp_buffer.set_" + variable_name + L"(" +
                     L"!tmp_buffer." + variable_name + L"()" + L"); " +
                     L"SetStatus(\"" + variable_name + L" := \" + (tmp_buffer." +
@@ -861,8 +861,8 @@ void ToggleBoolVariable(EditorState* editor_state, wstring binding,
 void ToggleIntVariable(EditorState* editor_state, wstring binding,
                        wstring variable_name, int default_value,
                        MapModeCommands* map_mode) {
-  wstring command = L"// Toggle buffer variable: " + variable_name + L"\n" +
-                    L"Buffer tmp_buffer = CurrentBuffer();" +
+  wstring command = L"// Variables: Toggle buffer variable: " + variable_name +
+                    L"\nBuffer tmp_buffer = CurrentBuffer();" +
                     L"tmp_buffer.set_" + variable_name + L"(" + L"tmp_buffer." +
                     variable_name + L"() != 0 ? 0 : " +
                     std::to_wstring(default_value) + L"); " + L"SetStatus(\"" +
