@@ -36,8 +36,14 @@ running and which may or may not have a full terminal (pts).
     (this is controlled by buffer's variable `pts`). For example, one can run a
     shell process (or even some other text editor) inside Edge.
 
-* Asynchronous: all buffers are read asynchronously. Edge (almost) never blocks
-  while waiting for IO.
+* Always responsive. Edge is designed with the philosophy that the user should
+  not be forced to wait for the completion of operations they initiate (such as
+  loading a file, running a shell command and collecting its output, or
+  compiling the program in the current directory). More accurately, the editor
+  should never cease to respond to user commands simply because it is executing
+  an action. Buffers in Edge are read asynchronously and Edge never blocks while
+  performing IO operations (there are a few exceptional situations to this that
+  we would like to fix).
 
 * Editing:
 
