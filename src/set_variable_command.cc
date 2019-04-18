@@ -78,8 +78,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
     auto var = buffer_variables::BoolStruct()->find_variable(name);
     if (var != nullptr) {
       buffer->toggle_bool_variable(var);
-      editor_state->SetStatus(name + L" := " +
-                              (buffer->Read(var) ? L"ON" : L"OFF"));
+      editor_state->SetStatus((buffer->Read(var) ? L"🗸 " : L"⛶ ") + name);
       return;
     }
   }

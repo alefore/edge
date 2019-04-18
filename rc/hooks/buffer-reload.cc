@@ -59,28 +59,29 @@ void HandleFileTypes(string basename, string extension) {
     buffer.AddBindingToFile("sh", buffer.editor_commands_path() + "header");
     buffer.AddBindingToFile("sI", buffer.editor_commands_path() + "include");
     buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
-    SetStatus("Loaded C file (" + extension + ")");
+    SetStatus("🔡 C++ file (" + extension + ")");
     return;
   }
 
   if (extension == "sh") {
     buffer.set_paragraph_line_prefix_characters(" #");
     buffer.set_line_prefix_characters(" #");
+    SetStatus("🔡 Shell script (" + extension + ")");
   }
 
   if (extension == "java") {
     JavaMode();
     buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
     buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
-    SetStatus("Loaded Java file (" + extension + ")");
+    SetStatus("🔡 Java file (" + extension + ")");
     return;
   }
 
   if (basename == "COMMIT_EDITMSG") {
     buffer.set_paragraph_line_prefix_characters(" #");
     buffer.set_line_prefix_characters(" #");
-    SetStatus("GIT commit msg");
     buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
+    SetStatus("🔡 Git commit message");
     return;
   }
 
@@ -88,7 +89,7 @@ void HandleFileTypes(string basename, string extension) {
     buffer.set_paragraph_line_prefix_characters(" #");
     buffer.set_line_prefix_characters(" #");
     buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
-    SetStatus("Loaded Python file (" + extension + ")");
+    SetStatus("🔡 Python file (" + extension + ")");
     return;
   }
 
@@ -98,7 +99,7 @@ void HandleFileTypes(string basename, string extension) {
     buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
     buffer.set_paragraph_line_prefix_characters("*-# ");
     buffer.set_line_prefix_characters(" ");
-    SetStatus("Loaded Markdown file (" + extension + ")");
+    SetStatus("🔡 Markdown file (" + extension + ")");
   }
 }
 

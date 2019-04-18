@@ -14,7 +14,7 @@ void ClangFormatOnSave() {
 
 void ClangFormatToggle() {
   clang_format = !clang_format;
-  SetStatus("Clang format: " + (clang_format ? "ON" : "OFF"));
+  SetStatus((clang_format ? "🗸" : "⛶") + " clang-format");
 }
 
 int dot = path.find_last_of(".", path.size());

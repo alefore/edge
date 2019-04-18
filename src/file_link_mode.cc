@@ -201,12 +201,12 @@ void GenerateContents(EditorState* editor_state, struct stat* stat_buffer,
   }
   closedir(dir);
 
-  target->AppendToLastLine(NewLazyString(L"# File listing: " + path));
+  target->AppendToLastLine(NewLazyString(L"# 🗁  File listing: " + path));
   target->AppendEmptyLine();
 
-  ShowFiles(editor_state, L"Directories", std::move(directories), target);
-  ShowFiles(editor_state, L"Files", std::move(regular_files), target);
-  ShowFiles(editor_state, L"Noise", std::move(noise), target);
+  ShowFiles(editor_state, L"🗁  Directories", std::move(directories), target);
+  ShowFiles(editor_state, L"🗀  Files", std::move(regular_files), target);
+  ShowFiles(editor_state, L"🗐  Noise", std::move(noise), target);
 
   target->ClearModified();
 }
