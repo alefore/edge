@@ -1127,7 +1127,7 @@ void OpenBuffer::ProcessCommandInput(shared_ptr<LazyString> str) {
             return c == L'♪' || c == L'♫' || c == L'…' || c == L' ' ||
                    c == L'𝄞';
           })) {
-        status = L"𝄞";
+        status = L" 𝄞";
       } else if (status.size() >= 40) {
         status = L"…" + status.substr(status.size() - 40, status.size());
       }
