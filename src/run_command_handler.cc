@@ -233,11 +233,11 @@ wstring FlagsString(const CommandData& data, const OpenBuffer& buffer) {
     output = L" …";
   } else {
     if (!WIFEXITED(buffer.child_exit_status())) {
-      output = L" ☠";
+      output = L" 💀";
     } else if (WEXITSTATUS(buffer.child_exit_status()) == 0) {
-      output = L" ✓";
+      output = L" 🗸";
     } else {
-      output = L" ✗";
+      output = L" 💥";
     }
     if (now > data.time_end) {
       output += DurationToString(now - data.time_end);
