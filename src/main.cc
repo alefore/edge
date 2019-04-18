@@ -220,8 +220,7 @@ int main(int argc, const char** argv) {
   auto commands_to_run = CommandsToRun(args);
   if (!commands_to_run.empty()) {
     if (connected_to_parent) {
-      commands_to_run +=
-          L"SetStatus(\"exit remote\");\nSendExitTo(\"" + server_path + L"\");";
+      commands_to_run += L"SendExitTo(\"" + server_path + L"\");";
     }
 
     int self_fd;
