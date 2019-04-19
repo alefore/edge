@@ -437,6 +437,18 @@ class OpenBuffer {
   // Functions to call when this buffer is deleted.
   std::vector<std::function<void()>> close_observers_;
 
+  enum class ReloadState {
+    // No need to reload this buffer.
+    kDone,
+    // A reload is currently ongoing. If it finishes in this state, we switch to
+    // kDone.
+    kOngoing,
+    // A reload is underway, but a new reload was requested. Once it's done,
+    // it should switch to kUnderway and restart.
+    kPending,
+  };
+  ReloadState reload_state_ = ReloadState::kDone;
+
   // -1 means "no child process"
   pid_t child_pid_;
   int child_exit_status_;

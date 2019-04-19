@@ -1021,6 +1021,17 @@ void OpenBuffer::Reload() {
     return;
   }
 
+  switch (reload_state_) {
+    case ReloadState::kDone:
+      reload_state_ = ReloadState::kOngoing;
+      break;
+    case ReloadState::kOngoing:
+      reload_state_ = ReloadState::kPending;
+      return;
+    case ReloadState::kPending:
+      return;
+  }
+
   // We need to wait until all instances of buffer-reload.cc have been
   // evaluated. To achieve that, we simply pass a function that depends on a
   // shared_ptr as the continuation. Once that function is deallocated, we'll
@@ -1032,6 +1043,17 @@ void OpenBuffer::Reload() {
     LOG(INFO) << "Starting reload: " << Read(buffer_variables::name());
     if (generate_contents_ != nullptr) {
       generate_contents_(this);
+    }
+
+    switch (reload_state_) {
+      case ReloadState::kDone:
+        CHECK(false);
+      case ReloadState::kOngoing:
+        reload_state_ = ReloadState::kDone;
+        break;
+      case ReloadState::kPending:
+        reload_state_ = ReloadState::kDone;
+        Reload();
     }
   });
 
