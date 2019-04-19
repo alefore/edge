@@ -1027,6 +1027,7 @@ void OpenBuffer::Reload() {
   // know that we're ready to run.
   std::shared_ptr<bool> reloader(new bool(), [this](bool* value) {
     delete value;
+    if (editor_->exit_value().has_value()) return;
     ClearModified();
     LOG(INFO) << "Starting reload: " << Read(buffer_variables::name());
     if (generate_contents_ != nullptr) {
