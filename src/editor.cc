@@ -97,13 +97,15 @@ void EditorState::SchedulePendingWork(std::function<void()> callback) {
   pending_work_.push_back(callback);
 }
 
-bool EditorState::ExecutePendingWork() {
+EditorState::PendingWorkState EditorState::ExecutePendingWork() {
+  VLOG(5) << "Executing pending work: " << pending_work_.size();
   std::vector<std::function<void()>> callbacks;
   callbacks.swap(pending_work_);
   for (auto& c : callbacks) {
     c();
   }
-  return pending_work_.empty();
+  return pending_work_.empty() ? PendingWorkState::kIdle
+                               : PendingWorkState::kScheduled;
 }
 
 Environment EditorState::BuildEditorEnvironment() {

@@ -232,10 +232,8 @@ class EditorState {
 
   void SchedulePendingWork(std::function<void()> callback);
 
-  // Returns a boolean indicating whether all pending work could successfully
-  // be executed (i.e., whether pending_work_ was empty *after* any callbacks
-  // initially in it have executed).
-  bool ExecutePendingWork();
+  enum class PendingWorkState { kIdle, kScheduled };
+  PendingWorkState ExecutePendingWork();
 
  private:
   Environment BuildEditorEnvironment();
