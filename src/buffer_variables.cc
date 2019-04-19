@@ -181,7 +181,20 @@ EdgeVariable<bool>* trigger_reload_on_buffer_write() {
 EdgeVariable<bool>* contains_line_marks() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"contains_line_marks",
-      L"If set to true, this buffer will be scanned for line marks.", false);
+      L"Indicates whether the current buffer should be scanned for \"marks\": "
+      L"lines that start with a prefix of the form \"path:line\" (e.g. "
+      L"`src/test.cc:23`). For any such marks found, the corresponding lines "
+      L"in the corresponding buffers (i.e., buffers for the corresponding "
+      L"files) will be highlighted.\n\n"
+      L"This is useful for *compiler* commands like `make` that output lines "
+      L"with compilation errors.\n\n"
+      L"Unfortunately, we don't currently support any fancy formats: the lines "
+      L"need to start with the marks. This, however, is good enough for many "
+      L"compilers. But if your commands output lines in a format such as "
+      L"`Error in src/test.cc:23:` this won't be very useful.\n\n"
+      L"If you set this on a buffer, you may want to also set variable "
+      L"`reload_on_buffer_write`.",
+      false);
   return variable;
 }
 
@@ -380,8 +393,7 @@ EdgeVariable<wstring>* line_prefix_characters() {
       L"of the previous line (the sequence of all characters at the start of "
       L"the previous line that are listed in line_prefix_characters) is copied "
       L"to the new line.  The order of characters in line_prefix_characters "
-      L"has "
-      L"no effect.",
+      L"has no effect.",
       L" ");
   return variable;
 }
@@ -411,9 +423,11 @@ EdgeVariable<wstring>* dictionary() {
       L"dictionary",
       L"Path to a dictionary file used for autocompletion. If empty, pressing "
       L"TAB (in insert mode) just inserts a tab character into the file; "
-      L"otherwise, it triggers completion to the first string from the "
-      L"dictionary that matches the prefix of the current word. Pressing TAB "
-      L"again iterates through all completions.",
+      L"otherwise, it triggers completion to the first string from this file "
+      L"that matches the prefix of the current word. Pressing TAB again "
+      L"iterates through all completions.\n\n"
+      L"The dictionary file must be a text file containing one word per line "
+      L"and sorted alphabetically.",
       L"");
   return variable;
 }
