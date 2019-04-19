@@ -969,9 +969,9 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"t", std::make_unique<SetStructureCommand>(StructureTree()));
 
   commands->Add(L"D", std::make_unique<Delete>(DeleteOptions()));
-  commands->Add(
-      L"d", NewCommandWithModifiers(L"delete", L"starts a new delete command",
-                                    ApplyDeleteCommand));
+  commands->Add(L"d",
+                NewCommandWithModifiers(L"✀ ", L"starts a new delete command",
+                                        ApplyDeleteCommand));
   commands->Add(L"p", std::make_unique<Paste>());
 
   DeleteOptions copy_options;
@@ -986,10 +986,9 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"l", std::make_unique<MoveForwards>());
   commands->Add(L"h", std::make_unique<MoveBackwards>());
 
-  commands->Add(L"~",
-                NewCommandWithModifiers(
-                    L"~~~~", L"Switches the case of the current character.",
-                    ApplySwitchCaseCommand));
+  commands->Add(L"~", NewCommandWithModifiers(
+                          L"🔠🔡", L"Switches the case of the current character.",
+                          ApplySwitchCaseCommand));
 
   commands->Add(L"%", std::make_unique<TreeNavigateCommand>());
   commands->Add(L"sr", NewRecordCommand());

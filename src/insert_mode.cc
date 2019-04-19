@@ -689,7 +689,7 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
   } else {
     options.buffer->MaybeAdjustPositionCol();
   }
-  options.editor_state->SetStatus(L"type");
+  options.editor_state->SetStatus(L"🔡");
 
   auto handler = std::make_unique<InsertMode>(options);
   if (options.editor_state->current_buffer()->second == options.buffer) {
@@ -813,7 +813,7 @@ void EnterInsertMode(InsertModeOptions options) {
   options.editor_state->ResetStatus();
 
   if (options.buffer->fd() != -1) {
-    editor_state->SetStatus(L"type (raw)");
+    editor_state->SetStatus(L"🔡 (raw)");
     editor_state->current_buffer()->second->set_mode(
         std::make_unique<RawInputTypeMode>(options.buffer));
   } else if (editor_state->structure() == StructureChar()) {

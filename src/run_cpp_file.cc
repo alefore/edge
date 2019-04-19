@@ -56,7 +56,7 @@ void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
   options.path = input;
   options.output_path = &adjusted_input;
   if (!ResolvePath(options)) {
-    editor_state->SetWarningStatus(L"File not found: " + input);
+    editor_state->SetWarningStatus(L"🗱  File not found: " + input);
     return;
   }
 

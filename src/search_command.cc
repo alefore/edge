@@ -108,7 +108,7 @@ class SearchCommand : public Command {
     }
 
     PromptOptions options;
-    options.prompt = L"/";
+    options.prompt = L"🔎 ";
     options.history_file = L"search";
     options.handler = [search_options](const wstring& input,
                                        EditorState* editor_state) {

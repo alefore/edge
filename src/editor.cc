@@ -379,7 +379,8 @@ EditorState::~EditorState() {
 bool EditorState::CloseBuffer(
     map<wstring, shared_ptr<OpenBuffer>>::iterator buffer) {
   if (!buffer->second->PrepareToClose()) {
-    SetWarningStatus(L"Dirty buffers (“*ad” to ignore): " + buffer->first);
+    SetWarningStatus(L"🖝  Dirty buffers (“*ad” to ignore): " +
+                     buffer->first);
     return false;
   }
   ScheduleRedraw();
@@ -428,7 +429,7 @@ bool EditorState::AttemptTermination(wstring* error_description,
     return true;
   }
 
-  wstring error = L"Dirty buffers (“*aq” to ignore):";
+  wstring error = L"🖝  Dirty buffers (“*aq” to ignore):";
   for (auto name : buffers_with_problems) {
     error += L" " + name;
   }

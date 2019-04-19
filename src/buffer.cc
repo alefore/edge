@@ -1422,7 +1422,7 @@ bool OpenBuffer::EvaluateString(
   std::shared_ptr<Expression> expression =
       CompileString(code, &error_description);
   if (expression == nullptr) {
-    editor()->SetWarningStatus(L"Compilation error: " + error_description);
+    editor()->SetWarningStatus(L"🐜Compilation error: " + error_description);
     return false;
   }
   LOG(INFO) << "Code compiled, evaluating.";

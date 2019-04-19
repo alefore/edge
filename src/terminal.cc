@@ -258,7 +258,7 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
     }
 
     if (modifiers.strength == Modifiers::Strength::kStrong) {
-      flags += L" strong";
+      flags += L" 💪";
     }
 
     wstring structure;
@@ -311,10 +311,10 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
       }
     }
     if (running > 0) {
-      status += L"run:" + to_wstring(running) + L" ";
+      status += L"  🏃" + to_wstring(running) + L"  ";
     }
     if (failed > 0) {
-      status += L"fail:" + to_wstring(failed) + L" ";
+      status += L"  💥" + to_wstring(failed) + L"  ";
     }
   }
 

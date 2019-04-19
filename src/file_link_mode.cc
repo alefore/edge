@@ -221,8 +221,7 @@ void HandleVisit(EditorState* editor_state, const struct stat& stat_buffer,
     return;
   }
   if (current_stat_buffer.st_mtime > stat_buffer.st_mtime) {
-    editor_state->SetWarningStatus(
-        L"WARNING: File changed in disk since last read.");
+    editor_state->SetWarningStatus(L"🌷File changed in disk since last read.");
   }
 }
 
@@ -245,7 +244,7 @@ void Save(EditorState* editor_state, struct stat* stat_buffer,
     return;
   }
   buffer->ClearModified();
-  editor_state->SetStatus(L"Saved: " + path);
+  editor_state->SetStatus(L"🖫 Saved: " + path);
   for (const auto& dir : editor_state->edge_path()) {
     buffer->EvaluateFile(dir + L"/hooks/buffer-save.cc");
   }
