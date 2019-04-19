@@ -93,6 +93,19 @@ void EditorState::NotifyInternalEvent() {
   }
 }
 
+void EditorState::SchedulePendingWork(std::function<void()> callback) {
+  pending_work_.push_back(callback);
+}
+
+bool EditorState::ExecutePendingWork() {
+  std::vector<std::function<void()>> callbacks;
+  callbacks.swap(pending_work_);
+  for (auto& c : callbacks) {
+    c();
+  }
+  return pending_work_.empty();
+}
+
 Environment EditorState::BuildEditorEnvironment() {
   Environment environment(afc::vm::Environment::GetDefault());
 
