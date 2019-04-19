@@ -97,15 +97,18 @@ statement(OUT) ::= function_declaration_params(FUNC)
       for (size_t i = 0; i < args.size(); i++) {
         func_environment->Define(argument_names[i], std::move(args[i]));
       }
-      std::function<void(Trampoline*)> original_state = trampoline->Save();
-      trampoline->SetEnvironment(func_environment.get());
       trampoline->SetReturnContinuation(
-          [original_state](std::unique_ptr<Value> value,
-                           Trampoline* trampoline) {
+          [original_trampoline = *trampoline](std::unique_ptr<Value> value,
+                                              Trampoline* trampoline) {
             CHECK(value != nullptr);
-            original_state(trampoline);
+            // We have to make a copy because assigning to *trampoline may
+            // delete us (and thus deletes original_trampoline as it is being
+            // read).
+            Trampoline tmp_copy = original_trampoline;
+            *trampoline = tmp_copy;
             trampoline->Return(std::move(value));
           });
+      trampoline->SetEnvironment(func_environment.get());
       trampoline->Bounce(
           body.get(), body->Types()[0],
           [body](Value::Ptr value, Trampoline* trampoline) {

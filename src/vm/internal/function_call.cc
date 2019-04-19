@@ -112,13 +112,16 @@ class FunctionCall : public Expression {
     DVLOG(5) << "Evaluating function parameters, args: " << args_types->size();
     if (values->size() == args_types->size()) {
       DVLOG(4) << "No more parameters, performing function call.";
-      std::function<void(Trampoline*)> original_state = trampoline->Save();
       trampoline->SetReturnContinuation(
-          [original_state](std::unique_ptr<Value> value,
-                           Trampoline* trampoline) {
+          [original_trampoline = *trampoline](std::unique_ptr<Value> value,
+                                              Trampoline* trampoline) {
             CHECK(value != nullptr);
             LOG(INFO) << "Got returned value: " << *value;
-            original_state(trampoline);
+            // We have to make a copy because assigning to *trampoline may
+            // delete us (and thus deletes original_trampoline as it is being
+            // read).
+            Trampoline tmp_copy = original_trampoline;
+            *trampoline = tmp_copy;
             trampoline->Continue(std::move(value));
           });
       trampoline->SetContinuation(trampoline->return_continuation());

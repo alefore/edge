@@ -53,10 +53,6 @@ class Trampoline {
   // Must ensure expression lives until return_continuation is called.
   void Enter(Expression* expression);
 
-  // Saves the state (continuations and environment) of the current trampoline
-  // and returns a callback that can be used to restore it into a trampoline.
-  std::function<void(Trampoline*)> Save();
-
   void SetEnvironment(Environment* environment);
   Environment* environment() const;
 
