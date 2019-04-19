@@ -182,9 +182,13 @@ int main(int argc, const char** argv) {
   string locale = std::setlocale(LC_ALL, "");
   LOG(INFO) << "Using locale: " << locale;
 
+  LOG(INFO) << "Initializing command line arguments.";
   auto args = command_line_arguments::Parse(argc, argv);
 
+  LOG(INFO) << "Setting up audio_player.";
   auto audio_player = args.mute ? NewNullAudioPlayer() : NewAudioPlayer();
+
+  LOG(INFO) << "Creating editor.";
   global_editor_state = std::make_unique<EditorState>(args, audio_player.get());
 
   int remote_server_fd = -1;
@@ -209,13 +213,19 @@ int main(int argc, const char** argv) {
 
   std::shared_ptr<Screen> screen_curses;
   if (!args.server) {
+    LOG(INFO) << "Creating curses screen.";
     screen_curses = NewScreenCurses();
   }
   RegisterScreenType(editor_state()->environment());
   editor_state()->environment()->Define(
       L"screen", afc::vm::Value::NewObject(L"Screen", screen_curses));
 
+  LOG(INFO) << "Starting server.";
   auto server_path = StartServer(args, connected_to_parent);
+  while (editor_state()->ExecutePendingWork() !=
+         EditorState::PendingWorkState::kIdle) {
+    /* Nothing. */
+  }
 
   auto commands_to_run = CommandsToRun(args);
   if (!commands_to_run.empty()) {
@@ -223,6 +233,7 @@ int main(int argc, const char** argv) {
       commands_to_run += L"SendExitTo(\"" + server_path + L"\");";
     }
 
+    LOG(INFO) << "Sending commands.";
     int self_fd;
     wstring errors;
     if (remote_server_fd != -1) {
@@ -240,6 +251,7 @@ int main(int argc, const char** argv) {
     SendCommandsToParent(self_fd, ToByteString(commands_to_run));
   }
 
+  LOG(INFO) << "Creating terminal.";
   std::mbstate_t mbstate = std::mbstate_t();
   Terminal terminal;
   if (!args.server) {
@@ -255,8 +267,17 @@ int main(int argc, const char** argv) {
   BeepFrequencies(audio_player.get(), {783.99, 723.25, 783.99});
   editor_state()->SetStatus(GetGreetingMessage());
 
+  LOG(INFO) << "Main loop starting.";
   while (!editor_state()->exit_value().has_value()) {
     editor_state()->UpdateBuffers();
+
+    // TODO: Change to -1. Requires figuring out a way for background threads of
+    // buffers to trigger redraws.
+    int timeout = editor_state()->ExecutePendingWork() ==
+                          EditorState::PendingWorkState::kIdle
+                      ? 1000
+                      : 0;
+
     auto screen_state = editor_state()->FlushScreenState();
     if (screen_curses != nullptr) {
       if (args.client.empty()) {
@@ -329,9 +350,8 @@ int main(int argc, const char** argv) {
     fds[buffers.size()].events = POLLIN | POLLPRI;
     buffers.push_back(nullptr);
 
-    // TODO: Change to -1. Requires figuring out a way for background threads of
-    // buffers to trigger redraws.
-    if (poll(fds, buffers.size(), 1000) == -1) {
+    VLOG(5) << "Timeout: " << timeout;
+    if (poll(fds, buffers.size(), timeout) == -1) {
       CHECK_EQ(errno, EINTR) << "poll failed: " << strerror(errno);
 
       LOG(INFO) << "Received signals.";

@@ -258,7 +258,12 @@ class DeleteLinesTransformation : public Transformation {
             std::shared_ptr<Expression> expr = vm::NewFunctionCall(
                 vm::NewConstantExpression(std::make_unique<Value>(*callback)),
                 {});
-            Evaluate(expr.get(), buffer->environment(), [expr](Value::Ptr) {});
+            Evaluate(
+                expr.get(), buffer->environment(), [expr](Value::Ptr) {},
+                [editor =
+                     target_buffer->editor()](std::function<void()> callback) {
+                  editor->SchedulePendingWork(callback);
+                });
           }
         }
       }

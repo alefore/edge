@@ -149,6 +149,9 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, size_t line,
         }
         EvaluateMap(buffer, line + 1, std::move(map_callback), transformation,
                     trampoline);
+      },
+      [editor = buffer->editor_](std::function<void()> callback) {
+        editor->SchedulePendingWork(std::move(callback));
       });
 }
 
@@ -375,7 +378,7 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, size_t line,
             LOG(INFO) << "AddBindingToFile: " << keys << " -> " << path;
             buffer->default_commands_->Add(
                 keys,
-                [editor_state, buffer, path]() {
+                [buffer, path](EditorState* editor_state) {
                   wstring resolved_path;
                   ResolvePathOptions options;
                   options.editor_state = editor_state;
@@ -385,7 +388,8 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, size_t line,
                     editor_state->SetWarningStatus(L"Unable to resolve: " +
                                                    path);
                   } else {
-                    buffer->EvaluateFile(resolved_path);
+                    buffer->EvaluateFile(resolved_path,
+                                         [](std::unique_ptr<Value>) {});
                   }
                 },
                 L"Load file: " + path);
@@ -395,7 +399,8 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, size_t line,
                    vm::NewCallback(std::function<void(OpenBuffer*, wstring)>(
                        [](OpenBuffer* buffer, wstring path) {
                          LOG(INFO) << "Evaluating file: " << path;
-                         buffer->EvaluateFile(path);
+                         buffer->EvaluateFile(path,
+                                              [](std::unique_ptr<Value>) {});
                        })));
 
   environment->DefineType(L"Buffer", std::move(buffer));
@@ -508,7 +513,7 @@ OpenBuffer::OpenBuffer(Options options)
     if (stat(ToByteString(state_path).c_str(), &stat_buffer) == -1) {
       continue;
     }
-    EvaluateFile(state_path);
+    EvaluateFile(state_path, [](std::unique_ptr<Value>) {});
   }
 }
 
@@ -1015,13 +1020,23 @@ void OpenBuffer::Reload() {
     Set(buffer_variables::reload_after_exit(), true);
     return;
   }
+
+  // We need to wait until all instances of buffer-reload.cc have been
+  // evaluated. To achieve that, we simply pass a function that depends on a
+  // shared_ptr as the continuation. Once that function is deallocated, we'll
+  // know that we're ready to run.
+  std::shared_ptr<bool> reloader(new bool(), [this](bool* value) {
+    delete value;
+    ClearModified();
+    LOG(INFO) << "Starting reload: " << Read(buffer_variables::name());
+    if (generate_contents_ != nullptr) {
+      generate_contents_(this);
+    }
+  });
+
   for (const auto& dir : editor()->edge_path()) {
-    EvaluateFile(PathJoin(dir, L"hooks/buffer-reload.cc"));
-  }
-  ClearModified();
-  LOG(INFO) << "Starting reload: " << Read(buffer_variables::name());
-  if (generate_contents_ != nullptr) {
-    generate_contents_(this);
+    EvaluateFile(PathJoin(dir, L"hooks/buffer-reload.cc"),
+                 [reloader](std::unique_ptr<Value>) {});
   }
 }
 
@@ -1411,7 +1426,10 @@ unique_ptr<Expression> OpenBuffer::CompileString(const wstring& code,
 
 void OpenBuffer::EvaluateExpression(
     Expression* expr, std::function<void(std::unique_ptr<Value>)> consumer) {
-  Evaluate(expr, &environment_, consumer);
+  Evaluate(expr, &environment_, consumer,
+           [editor = editor_](std::function<void()> callback) {
+             editor->SchedulePendingWork(std::move(callback));
+           });
 }
 
 bool OpenBuffer::EvaluateString(
@@ -1432,17 +1450,26 @@ bool OpenBuffer::EvaluateString(
   return true;
 }
 
-bool OpenBuffer::EvaluateFile(const wstring& path) {
+bool OpenBuffer::EvaluateFile(
+    const wstring& path, std::function<void(std::unique_ptr<Value>)> callback) {
   wstring error_description;
-  // TODO: Use unique_ptr and capture by value.
   std::shared_ptr<Expression> expression =
       CompileFile(ToByteString(path), &environment_, &error_description);
   if (expression == nullptr) {
     SetStatus(path + L": error: " + error_description);
     return false;
   }
-  Evaluate(expression.get(), &environment_,
-           [expression](std::unique_ptr<Value>) {});
+  LOG(INFO) << "Evaluating file: " << path;
+  Evaluate(
+      expression.get(), &environment_,
+      [path, callback, expression](std::unique_ptr<Value> value) {
+        LOG(INFO) << "Evaluation of file completed: " << path;
+        callback(std::move(value));
+      },
+      [path, editor = editor_](std::function<void()> resume) {
+        LOG(INFO) << "Evaluation of file yields: " << path;
+        editor->SchedulePendingWork(std::move(resume));
+      });
   return true;
 }
 
@@ -1854,8 +1881,12 @@ wstring OpenBuffer::TransformKeyboardText(wstring input) {
   for (Value::Ptr& t : keyboard_text_transformers_) {
     vector<Value::Ptr> args;
     args.push_back(Value::NewString(std::move(input)));
-    Call(t.get(), std::move(args),
-         [&input](Value::Ptr value) { input = std::move(value->str); });
+    Call(
+        t.get(), std::move(args),
+        [&input](Value::Ptr value) { input = std::move(value->str); },
+        [editor = editor_](std::function<void()> callback) {
+          editor->SchedulePendingWork(std::move(callback));
+        });
   }
   return input;
 }

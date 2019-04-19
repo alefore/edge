@@ -40,9 +40,9 @@ void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
   if (!editor_state->has_current_buffer()) {
     return;
   }
-  OpenBuffer* buffer = editor_state->current_buffer()->second.get();
+  auto buffer = editor_state->current_buffer()->second;
   if (editor_state->structure() == StructureLine()) {
-    auto target = buffer->GetBufferFromCurrentLine().get();
+    auto target = buffer->GetBufferFromCurrentLine();
     if (target != nullptr) {
       buffer = target;
     }
@@ -60,9 +60,17 @@ void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
     return;
   }
 
-  for (size_t i = 0; i < editor_state->repetitions(); i++) {
-    buffer->EvaluateFile(adjusted_input);
-  }
+  // Recursive function that receives the number of evaluations.
+  auto execute = std::make_shared<std::function<void(size_t)>>();
+  *execute = [buffer, total = editor_state->repetitions(), adjusted_input,
+              execute](size_t i) {
+    if (i >= total) return;
+    buffer->EvaluateFile(adjusted_input, [execute, i](std::unique_ptr<Value>) {
+      (*execute)(i + 1);
+    });
+  };
+  (*execute)(0);
+
   editor_state->ResetRepetitions();
 }
 

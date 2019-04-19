@@ -246,7 +246,8 @@ void Save(EditorState* editor_state, struct stat* stat_buffer,
   buffer->ClearModified();
   editor_state->SetStatus(L"🖫 Saved: " + path);
   for (const auto& dir : editor_state->edge_path()) {
-    buffer->EvaluateFile(dir + L"/hooks/buffer-save.cc");
+    buffer->EvaluateFile(dir + L"/hooks/buffer-save.cc",
+                         [](std::unique_ptr<Value>) {});
   }
   if (buffer->Read(buffer_variables::trigger_reload_on_buffer_write())) {
     for (auto& it : *editor_state->buffers()) {

@@ -276,7 +276,8 @@ class OpenBuffer {
                           std::function<void(std::unique_ptr<Value>)> consumer);
   bool EvaluateString(const wstring& str,
                       std::function<void(std::unique_ptr<Value>)> consumer);
-  bool EvaluateFile(const wstring& path);
+  bool EvaluateFile(const wstring& path,
+                    std::function<void(std::unique_ptr<Value>)> consumer);
 
   /////////////////////////////////////////////////////////////////////////////
   // Inspecting contents of buffer.

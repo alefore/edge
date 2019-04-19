@@ -546,11 +546,11 @@ unique_ptr<Expression> CompileString(const wstring& str,
   return ResultsFromCompilation(&compilation, error_description);
 }
 
-Trampoline::Trampoline(Environment* environment,
-                       Continuation final_continuation)
-    : environment_(environment),
-      return_continuation_(std::move(final_continuation)),
-      continuation_(return_continuation_) {}
+Trampoline::Trampoline(Options options)
+    : environment_(options.environment),
+      return_continuation_(std::move(options.return_continuation)),
+      continuation_(return_continuation_),
+      yield_callback_(std::move(options.yield_callback)) {}
 
 void Trampoline::Enter(Expression* start_expression) {
   CHECK(expression_ == nullptr);
@@ -558,9 +558,21 @@ void Trampoline::Enter(Expression* start_expression) {
   expression_ = start_expression;
   desired_type_ = start_expression->Types()[0];
   while (expression_) {
-    DVLOG(7) << "Jumping in the evaluation trampoline...";
     Expression* current_expression = expression_;
     expression_ = nullptr;
+
+    static size_t kMaximumJumps = 100;
+    if (jumps_ > kMaximumJumps && yield_callback_) {
+      DVLOG(5) << "Yielding.";
+      yield_callback_([trampoline = std::make_shared<Trampoline>(*this),
+                       current_expression]() {
+        trampoline->jumps_ = 0;
+        trampoline->Enter(current_expression);
+      });
+      return;
+    }
+    DVLOG(7) << "Jumping in the evaluation trampoline...";
+    jumps_++;
     current_expression->Evaluate(this, desired_type_);
     DVLOG(10) << "Landed in the evaluation trampoline...";
   }
@@ -625,14 +637,19 @@ void Trampoline::SetContinuation(Continuation continuation) {
 }
 
 void Evaluate(Expression* expr, Environment* environment,
-              std::function<void(std::unique_ptr<Value>)> consumer) {
+              std::function<void(std::unique_ptr<Value>)> consumer,
+              std::function<void(std::function<void()>)> yield_callback) {
   CHECK(expr != nullptr);
-  Trampoline(environment, [consumer](std::unique_ptr<Value> value,
-                                     Trampoline*) {
+  Trampoline::Options options;
+  options.environment = environment;
+  options.return_continuation = [consumer](std::unique_ptr<Value> value,
+                                           Trampoline*) {
     DVLOG(4) << "Evaluation done.";
     DVLOG(5) << "Result: " << *value;
     consumer(std::move(value));
-  }).Enter(expr);
+  };
+  options.yield_callback = yield_callback;
+  Trampoline(std::move(options)).Enter(expr);
 }
 
 }  // namespace vm

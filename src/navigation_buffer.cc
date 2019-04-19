@@ -102,7 +102,8 @@ void GenerateContents(EditorState* editor_state,
                       OpenBuffer* target) {
   target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
   for (const auto& dir : editor_state->edge_path()) {
-    target->EvaluateFile(PathJoin(dir, L"hooks/navigation-buffer-reload.cc"));
+    target->EvaluateFile(PathJoin(dir, L"hooks/navigation-buffer-reload.cc"),
+                         [](std::unique_ptr<Value>) {});
   }
   auto source = source_weak.lock();
   if (source == nullptr) {

@@ -110,19 +110,17 @@ void Predict(EditorState* editor_state, Predictor predictor, wstring input,
   OpenBuffer::Options options;
   options.editor_state = editor_state;
   options.name = PredictionsBufferName();
-  options.generate_contents = [editor_state, predictor,
-                               input](OpenBuffer* buffer) {
+  options.generate_contents = [editor_state, predictor, input,
+                               consumer](OpenBuffer* buffer) {
     predictor(editor_state, input, buffer);
+    buffer->set_current_cursor(LineColumn());
+    buffer->AddEndOfFileObserver(
+        [buffer, consumer]() { HandleEndOfFile(buffer, consumer); });
   };
   predictions_buffer = std::make_shared<OpenBuffer>(std::move(options));
   predictions_buffer->Set(buffer_variables::show_in_buffers_list(), false);
   predictions_buffer->Set(buffer_variables::allow_dirty_delete(), true);
   predictions_buffer->Reload();
-  predictions_buffer->set_current_cursor(LineColumn());
-  predictions_buffer->AddEndOfFileObserver(
-      [buffer = predictions_buffer.get(), consumer]() {
-        HandleEndOfFile(buffer, consumer);
-      });
 }
 
 void FilePredictor(EditorState* editor_state, const wstring& input,

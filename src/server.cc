@@ -98,6 +98,7 @@ int MaybeConnectToParentServer(wstring* error) {
 }
 
 int MaybeConnectToServer(const string& address, wstring* error) {
+  LOG(INFO) << "Connecting to server: " << address;
   wstring dummy;
   if (error == nullptr) {
     error = &dummy;
@@ -124,6 +125,8 @@ int MaybeConnectToServer(const string& address, wstring* error) {
     return -1;
   }
   close(fd);
+
+  LOG(INFO) << "Opening private fifo: " << private_fifo;
   int private_fd = open(ToByteString(private_fifo).c_str(), O_RDWR);
   LOG(INFO) << "Connection fd: " << private_fd;
   if (private_fd == -1) {

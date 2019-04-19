@@ -116,7 +116,7 @@ class FunctionCall : public Expression {
           [original_trampoline = *trampoline](std::unique_ptr<Value> value,
                                               Trampoline* trampoline) {
             CHECK(value != nullptr);
-            LOG(INFO) << "Got returned value: " << *value;
+            DVLOG(3) << "Got returned value: " << *value;
             // We have to make a copy because assigning to *trampoline may
             // delete us (and thus deletes original_trampoline as it is being
             // read).
@@ -283,7 +283,8 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
 }
 
 void Call(Value* func, vector<Value::Ptr> args,
-          std::function<void(Value::Ptr)> consumer) {
+          std::function<void(Value::Ptr)> consumer,
+          std::function<void(std::function<void()>)> yield_callback) {
   std::vector<std::unique_ptr<Expression>> args_expr;
   for (auto& a : args) {
     args_expr.push_back(NewConstantExpression(std::move(a)));
@@ -293,10 +294,12 @@ void Call(Value* func, vector<Value::Ptr> args,
       NewFunctionCall(NewConstantExpression(Value::NewFunction(
                           func->type.type_arguments, func->callback)),
                       std::move(args_expr));
-  Evaluate(function_expr.get(), nullptr,
-           [function_expr, consumer](Value::Ptr value) {
-             consumer(std::move(value));
-           });
+  Evaluate(
+      function_expr.get(), nullptr,
+      [function_expr, consumer](Value::Ptr value) {
+        consumer(std::move(value));
+      },
+      yield_callback);
 }
 
 }  // namespace vm

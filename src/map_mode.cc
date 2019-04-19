@@ -6,6 +6,7 @@
 #include <set>
 
 #include "src/command.h"
+#include "src/editor.h"
 #include "src/help_command.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/function_call.h"
@@ -23,7 +24,8 @@ using vm::VMType;
 namespace {
 class CommandFromFunction : public Command {
  public:
-  CommandFromFunction(std::function<void()> callback, wstring description)
+  CommandFromFunction(std::function<void(EditorState*)> callback,
+                      wstring description)
       : callback_(std::move(callback)), description_(std::move(description)) {
     CHECK(callback_ != nullptr);
   }
@@ -33,10 +35,12 @@ class CommandFromFunction : public Command {
     return L"C++ Functions (Extensions)";
   }
 
-  void ProcessInput(wint_t, EditorState*) override { callback_(); }
+  void ProcessInput(wint_t, EditorState* editor_state) override {
+    callback_(editor_state);
+  }
 
  private:
-  const std::function<void()> callback_;
+  const std::function<void(EditorState*)> callback_;
   const wstring description_;
 };
 
@@ -88,18 +92,22 @@ void MapModeCommands::Add(wstring name, wstring description,
   // TODO: Make a unique_ptr (once capture of unique_ptr is feasible).
   std::shared_ptr<vm::Expression> expression =
       NewFunctionCall(NewConstantExpression(std::move(value)), {});
-  Add(name, std::make_unique<CommandFromFunction>(
-                [expression, environment]() {
-                  LOG(INFO) << "Evaluating expression from Value::Ptr...";
-                  Evaluate(expression.get(), environment,
-                           [expression](Value::Ptr) {
-                             LOG(INFO) << "Done evaluating.";
-                           });
-                },
-                description));
+  Add(name,
+      std::make_unique<CommandFromFunction>(
+          [expression, environment](EditorState* editor_state) {
+            LOG(INFO) << "Evaluating expression from Value::Ptr...";
+            Evaluate(
+                expression.get(), environment,
+                [expression](Value::Ptr) { LOG(INFO) << "Done evaluating."; },
+                [editor_state](std::function<void()> callback) {
+                  editor_state->SchedulePendingWork(callback);
+                });
+          },
+          description));
 }
 
-void MapModeCommands::Add(wstring name, std::function<void()> callback,
+void MapModeCommands::Add(wstring name,
+                          std::function<void(EditorState*)> callback,
                           wstring description) {
   Add(name, std::make_unique<CommandFromFunction>(std::move(callback),
                                                   std::move(description)));
