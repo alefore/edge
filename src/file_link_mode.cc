@@ -214,6 +214,11 @@ void GenerateContents(EditorState* editor_state, struct stat* stat_buffer,
 void HandleVisit(EditorState* editor_state, const struct stat& stat_buffer,
                  const OpenBuffer& buffer) {
   const wstring path = buffer.Read(buffer_variables::path());
+  if (stat_buffer.st_mtime == 0) {
+    LOG(INFO) << "Skipping file change check.";
+    return;
+  }
+
   LOG(INFO) << "Checking if file has changed: " << path;
   const string path_raw = ToByteString(path);
   struct stat current_stat_buffer;
