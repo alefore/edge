@@ -73,11 +73,6 @@ std::wstring GetInitialPrefix(const OpenBuffer& buffer, int line) {
   std::wstring padding(GetInitialPrefixSize(buffer) - number.size() - 1, L' ');
   return padding + number + L':';
 }
-
-void AdvanceToNextLine(const OpenBuffer& buffer, LineColumn* position) {
-  position->line++;
-  position->column = buffer.Read(buffer_variables::view_start_column());
-}
 }  // namespace
 
 void Terminal::Display(EditorState* editor_state, Screen* screen,
@@ -136,9 +131,8 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
     editor_state->ScheduleRedraw();
   }
 
-  auto screen_lines_positions = GetScreenLinePositions(editor_state, screen);
   if (screen_state.needs_redraw) {
-    ShowBuffer(editor_state, screen, screen_lines_positions);
+    ShowBuffer(editor_state, screen);
   }
   ShowStatus(*editor_state, screen);
   if (editor_state->status_prompt()) {
@@ -741,50 +735,29 @@ class ParseTreeHighlighterTokens : public DelegatingOutputReceiver {
   size_t column_read_ = 0;
 };
 
-std::vector<LineColumn> Terminal::GetScreenLinePositions(
-    EditorState* editor_state, Screen* screen) {
-  std::vector<LineColumn> output;
-
-  OpenBuffer* buffer = editor_state->current_buffer()->second.get();
-  if (screen->lines() <= 0) {
-    return {};
+LineColumn Terminal::GetNextLine(const OpenBuffer& buffer, Screen* screen,
+                                 LineColumn position) {
+  // TODO: This is wrong: it doesn't account for multi-width characters.
+  // TODO: This is wrong: it doesn't take int account line filters.
+  if (position.line >= buffer.lines_size()) {
+    return LineColumn(std::numeric_limits<size_t>::max());
   }
-  size_t lines_to_show = static_cast<size_t>(screen->lines()) - 1;
-
-  LineColumn position(
-      static_cast<size_t>(
-          max(0, buffer->Read(buffer_variables::view_start_line()))),
-      buffer->Read(buffer_variables::view_start_column()));
-
-  size_t width = screen->columns() - GetInitialPrefixSize(*buffer);
-  while (output.size() < lines_to_show) {
-    if (position.line >= buffer->lines_size()) {
-      output.push_back(position);
-      continue;
-    }
-    if (!buffer->IsLineFiltered(position.line)) {
-      AdvanceToNextLine(*buffer, &position);
-      continue;
-    }
-
-    output.push_back(position);
-
-    position.column += width;
-    if (position.column >= buffer->LineAt(position.line)->size() ||
-        !buffer->Read(buffer_variables::wrap_long_lines())) {
-      AdvanceToNextLine(*buffer, &position);
+  size_t width = screen->columns() - GetInitialPrefixSize(buffer);
+  position.column += width;
+  if (position.column >= buffer.LineAt(position.line)->size() ||
+      !buffer.Read(buffer_variables::wrap_long_lines())) {
+    position.line++;
+    position.column = buffer.Read(buffer_variables::view_start_column());
+    if (position.line >= buffer.lines_size()) {
+      return LineColumn(std::numeric_limits<size_t>::max());
     }
   }
-  return output;
+  return position;
 }
 
-void Terminal::ShowBuffer(
-    const EditorState* editor_state, Screen* screen,
-    const std::vector<LineColumn>& screen_line_positions) {
+void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   const shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
   size_t lines_to_show = static_cast<size_t>(screen->lines()) - 1;
-  CHECK_EQ(screen_line_positions.size(), lines_to_show);
-
   screen->Move(0, 0);
 
   LineOutputReceiver screen_adapter(screen);
@@ -818,11 +791,14 @@ void Terminal::ShowBuffer(
   cursor_position_ = std::nullopt;
 
   size_t last_line = std::numeric_limits<size_t>::max();
-  for (size_t i = 0; i < screen_line_positions.size(); i++) {
-    auto position = screen_line_positions[i];
-    auto next_position = i + 1 < screen_line_positions.size()
-                             ? screen_line_positions[i + 1]
-                             : LineColumn(std::numeric_limits<size_t>::max());
+
+  LineColumn position(
+      static_cast<size_t>(
+          max(0, buffer->Read(buffer_variables::view_start_line()))),
+      buffer->Read(buffer_variables::view_start_column()));
+
+  for (size_t i = 0; i < lines_to_show; i++) {
+    auto next_position = GetNextLine(*buffer, screen, position);
     if (position.line >= buffer->lines_size()) {
       line_output_receiver->AddString(L"\n");
       continue;
@@ -942,6 +918,7 @@ void Terminal::ShowBuffer(
     // modifier with Reset + Reverse.
     line_output_receiver->AddModifier(LineModifier::RESET);
     last_line = position.line;
+    position = next_position;
   }
 }  // namespace editor
 
