@@ -89,6 +89,8 @@ src/run_cpp_file.h \
 src/screen.h \
 src/screen_curses.cc \
 src/screen_curses.h \
+src/screen_output_receiver.cc \
+src/screen_output_receiver.h \
 src/screen_vm.cc \
 src/screen_vm.h \
 src/search_command.cc \
