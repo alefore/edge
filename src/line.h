@@ -125,7 +125,9 @@ class Line {
     virtual void AddCharacter(wchar_t character) = 0;
     virtual void AddString(const wstring& str) = 0;
     virtual void AddModifier(LineModifier modifier) = 0;
+    virtual void SetTabsStart(size_t columns) = 0;
     virtual size_t column() = 0;
+    virtual size_t width() = 0;
   };
 
   struct OutputOptions {
@@ -134,8 +136,6 @@ class Line {
     // Number of screen lines that will be shown. Does not include the status
     // line (at the bottom of the screen).
     size_t lines_to_show;
-    // Number of columns in the screen.
-    size_t width;
     // Desired width of the line.
     size_t line_width;
     bool paste_mode;
@@ -174,11 +174,13 @@ class OutputReceiverOptimizer : public Line::OutputReceiverInterface {
   void AddCharacter(wchar_t character) override;
   void AddString(const wstring& str) override;
   void AddModifier(LineModifier modifier) override;
+  void SetTabsStart(size_t columns) override;
   // Returns the current column in the screen. This value may not match the
   // current column in the line, due to prefix characters (e.g., the line
   // numbers) or multi-width characters (such as \t or special unicode
   // characters).
   size_t column() override;
+  size_t width() override;
 
  private:
   void Flush();

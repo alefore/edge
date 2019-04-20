@@ -257,8 +257,9 @@ void Line::Output(const Line::OutputOptions& options) const {
   const auto view_start_line =
       options.buffer->Read(buffer_variables::view_start_line());
 
+  const size_t width = options.output_receiver->width();
   while (input_column < contents_->size() &&
-         options.output_receiver->column() < options.width) {
+         options.output_receiver->column() < width) {
     wint_t c = contents_->get(input_column);
     CHECK(c != '\n');
     // TODO: Optimize.
@@ -287,7 +288,7 @@ void Line::Output(const Line::OutputOptions& options) const {
   if ((!target_buffer->Read(buffer_variables::paste_mode()) ||
        target_buffer != options.buffer) &&
       options.line_width != 0 && view_start < options.line_width &&
-      options.line_width - view_start < options.width) {
+      options.line_width - view_start < width) {
     if (options.line_width > view_start + options.output_receiver->column()) {
       size_t padding =
           options.line_width - view_start - options.output_receiver->column();
@@ -296,7 +297,7 @@ void Line::Output(const Line::OutputOptions& options) const {
       }
       options.output_receiver->AddString(wstring(padding, L' '));
       options.output_receiver->AddModifier(LineModifier::RESET);
-      CHECK_LE(options.output_receiver->column(), options.width);
+      CHECK_LE(options.output_receiver->column(), width);
     }
 
     auto all_marks = options.buffer->GetLineMarks();
@@ -341,7 +342,7 @@ void Line::Output(const Line::OutputOptions& options) const {
       options.output_receiver->AddModifier(LineModifier::DIM);
     }
     if (options.output_receiver->column() <= options.line_width &&
-        options.output_receiver->column() < options.width) {
+        options.output_receiver->column() < width) {
       options.output_receiver->AddCharacter(info_char);
     }
     options.output_receiver->AddModifier(LineModifier::RESET);
@@ -372,16 +373,16 @@ void Line::Output(const Line::OutputOptions& options) const {
           min(additional_information.size(),
               options.output_receiver->column() - (options.line_width + 1)));
     }
-    if (options.width >= options.output_receiver->column()) {
+    if (width >= options.output_receiver->column()) {
       VLOG(6) << "Trimming the end of additional_information.";
       additional_information = additional_information.substr(
           0, min(additional_information.size(),
-                 options.width - options.output_receiver->column()));
+                 width - options.output_receiver->column()));
     }
     options.output_receiver->AddString(additional_information);
   }
 
-  if (options.output_receiver->column() < options.width) {
+  if (options.output_receiver->column() < width) {
     VLOG(6) << "Adding newline characters.";
     options.output_receiver->AddString(L"\n");
   }
@@ -436,9 +437,18 @@ void OutputReceiverOptimizer::Flush() {
   DCHECK(last_modifiers_ == modifiers_);
 }
 
+void OutputReceiverOptimizer::SetTabsStart(size_t columns) {
+  return delegate_->SetTabsStart(columns);
+}
+
 size_t OutputReceiverOptimizer::column() {
   Flush();
   return delegate_->column();
+}
+
+size_t OutputReceiverOptimizer::width() {
+  Flush();
+  return delegate_->width();
 }
 
 }  // namespace editor

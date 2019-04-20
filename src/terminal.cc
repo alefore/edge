@@ -377,23 +377,27 @@ class LineOutputReceiver : public Line::OutputReceiverInterface {
     screen_->SetModifier(modifier);
   }
 
+  void SetTabsStart(size_t columns) override { tabs_start_ = columns % 8; }
+
   size_t column() override { return column_write_; }
 
-  void skip_columns(size_t delta) {
-    CHECK_LE(delta, column_write_);
-    column_write_ -= delta;
-  }
+  size_t width() override { return screen_->columns(); }
 
  private:
   void RegisterChar(wchar_t c) {
+    CHECK_LT(column_write_, screen_->columns());
     switch (c) {
       case L'\n':
         column_write_ = 0;
         break;
       case L'\t': {
+        CHECK_GE(column_write_, tabs_start_);
         size_t new_value =
+            tabs_start_ +
             8 * static_cast<size_t>(
-                    1 + floor(static_cast<double>(column_write_) / 8.0));
+                    1 + floor(static_cast<double>(column_write_ - tabs_start_) /
+                              8.0));
+        new_value = std::min(new_value, screen_->columns());
         CHECK_GT(new_value, column_write_);
         CHECK_LE(new_value - column_write_, 8u);
         screen_->WriteString(wstring(new_value - column_write_, ' '));
@@ -404,10 +408,12 @@ class LineOutputReceiver : public Line::OutputReceiverInterface {
       default:
         column_write_ += wcwidth(c);
     }
+    column_write_ = std::min(column_write_, screen_->columns());
   }
 
   Screen* const screen_;
   size_t column_write_ = 0;
+  size_t tabs_start_ = 0;
 };
 
 class DelegatingOutputReceiver : public Line::OutputReceiverInterface {
@@ -421,10 +427,46 @@ class DelegatingOutputReceiver : public Line::OutputReceiverInterface {
     delegate_->AddModifier(modifier);
   }
 
+  void SetTabsStart(size_t columns) override {
+    delegate_->SetTabsStart(columns);
+  }
   size_t column() override { return delegate_->column(); }
+  size_t width() override { return delegate_->width(); }
 
  private:
   Line::OutputReceiverInterface* const delegate_;
+};
+
+class WithPrefixOutputReceiver : public DelegatingOutputReceiver {
+ public:
+  WithPrefixOutputReceiver(Line::OutputReceiverInterface* delegate,
+                           wstring prefix, LineModifier prefix_modifier)
+      : DelegatingOutputReceiver(delegate), prefix_length_([=]() {
+          AddModifier(prefix_modifier);
+          AddString(prefix);
+          AddModifier(LineModifier::RESET);
+          return DelegatingOutputReceiver::column();
+        }()) {}
+
+  void SetTabsStart(size_t columns) override {
+    DelegatingOutputReceiver::SetTabsStart(prefix_length_ + columns);
+  }
+
+  size_t column() override {
+    if (DelegatingOutputReceiver::column() < prefix_length_) {
+      return 0;
+    }
+    return DelegatingOutputReceiver::column() - prefix_length_;
+  }
+  size_t width() override {
+    if (DelegatingOutputReceiver::width() < prefix_length_) {
+      return 0;
+    }
+    return DelegatingOutputReceiver::width() - prefix_length_;
+  }
+
+ private:
+  const size_t prefix_length_;
 };
 
 class HighlightedLineOutputReceiver : public DelegatingOutputReceiver {
@@ -759,10 +801,6 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   size_t lines_to_show = static_cast<size_t>(screen->lines()) - 1;
   screen->Move(0, 0);
 
-  LineOutputReceiver screen_adapter(screen);
-  auto line_output_receiver =
-      std::make_unique<OutputReceiverOptimizer>(&screen_adapter);
-
   buffer->set_last_highlighted_line(-1);
 
   // Key is line number.
@@ -796,6 +834,10 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       buffer->Read(buffer_variables::view_start_column()));
 
   for (size_t i = 0; i < lines_to_show; i++) {
+    LineOutputReceiver screen_adapter(screen);
+    auto line_output_receiver =
+        std::make_unique<OutputReceiverOptimizer>(&screen_adapter);
+
     if (position.line >= buffer->lines_size()) {
       line_output_receiver->AddString(L"\n");
       continue;
@@ -803,8 +845,6 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
 
     line_output_options.position = position;
     line_output_options.output_receiver = line_output_receiver.get();
-    screen_adapter.skip_columns(line_output_receiver->column());
-    CHECK_EQ(line_output_options.output_receiver->column(), 0u);
 
     wstring number_prefix = GetInitialPrefix(*buffer, position.line);
     if (!number_prefix.empty() && last_line == position.line) {
@@ -812,7 +852,6 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     }
     line_output_options.line_width =
         buffer->Read(buffer_variables::line_width());
-    line_output_options.width = screen->columns();
 
     auto next_position = GetNextLine(
         *buffer, screen->columns() - number_prefix.size(), position);
@@ -831,22 +870,21 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
         buffer->position() >= position && buffer->position() < next_position;
     line_output_options.has_cursor = !current_cursors.empty();
 
+    std::unique_ptr<Line::OutputReceiverInterface> prefix_receiver;
     if (!number_prefix.empty()) {
+      LineModifier prefix_modifier = LineModifier::DIM;
       if (has_active_cursor ||
           (!current_cursors.empty() &&
            buffer->Read(buffer_variables::multiple_cursors()))) {
-        line_output_options.output_receiver->AddModifier(LineModifier::CYAN);
+        prefix_modifier = LineModifier::CYAN;
       } else if (line_output_options.has_cursor) {
-        line_output_options.output_receiver->AddModifier(LineModifier::BLUE);
-      } else {
-        line_output_options.output_receiver->AddModifier(LineModifier::DIM);
+        prefix_modifier = LineModifier::BLUE;
       }
-      line_output_options.output_receiver->AddString(number_prefix);
-      line_output_options.output_receiver->AddModifier(LineModifier::RESET);
-      CHECK_EQ(line_output_receiver->column(), number_prefix.size());
 
-      line_output_options.width -= number_prefix.size();
-      screen_adapter.skip_columns(number_prefix.size());
+      prefix_receiver = std::make_unique<WithPrefixOutputReceiver>(
+          line_output_options.output_receiver, number_prefix, prefix_modifier);
+      prefix_receiver->SetTabsStart(0);
+      line_output_options.output_receiver = prefix_receiver.get();
     }
 
     std::unique_ptr<Line::OutputReceiverInterface> cursors_highlighter;
