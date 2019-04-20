@@ -18,7 +18,7 @@ For 'd': Add '?' (show modifiers available).
 
 Add "pipe" command: select the region (similar to delete: line, paragraph, buffer...), and then prompt for a command. Pipe the contents of the region to the command, and replace them with the output of the command.
 
-Add an autocomplete mode that autocompletes based on the path.
+Add an AutoComplete mode that autocompletes based on the path.
 
 Improve logic around wrap_long_lines.
   Also scrolling to the end of file doesn't quite work.
@@ -40,9 +40,9 @@ Improve logic around wrap_long_lines.
 Improve "g", the current behavior is kind of annoying:
   There should be a way (other than pressing it again) to specify if it should ignore space.  Maybe a modifier can do it?
 
-Honor the "margin_columns" variable.
+Honor the `margin_columns` variable.
 
-Add a boolean variable "highlight_current_line" (default: false); when set, highlight the line with the current cursor position.
+Add a boolean variable `highlight_current_line` (default: false); when set, highlight the line with the current cursor position.
 
 When searching, display in the Status the count of matches (especially when there were zero matches).
 
