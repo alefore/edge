@@ -21,37 +21,35 @@ class CursorsHighlighter
         options_(std::move(options)),
         next_cursor_(options_.columns.begin()) {
     CheckInvariants();
+    UpdateColumnRead(0);
   }
 
-  void AddCharacter(wchar_t c) {
+  void AddCharacter(wchar_t c) override {
     CheckInvariants();
-    bool at_cursor =
-        next_cursor_ != options_.columns.end() && *next_cursor_ == column_read_;
-    if (at_cursor) {
-      ++next_cursor_;
-      CHECK(next_cursor_ == options_.columns.end() ||
-            *next_cursor_ > column_read_);
-      bool is_active = options_.active_cursor_input.has_value() &&
-                       options_.active_cursor_input.value() == column_read_;
-      AddInternalModifier(LineModifier::REVERSE);
-      AddInternalModifier(is_active || options_.multiple_cursors
-                              ? LineModifier::CYAN
-                              : LineModifier::BLUE);
-      if (is_active && options_.active_cursor_output != nullptr) {
-        *options_.active_cursor_output =
-            DelegatingOutputReceiverWithInternalModifiers::column();
-      }
+    switch (cursor_state_) {
+      case CursorState::kNone:
+        break;
+      case CursorState::kActive:
+        ++next_cursor_;
+        AddInternalModifier(LineModifier::CYAN);
+        break;
+      case CursorState::kInactive:
+        ++next_cursor_;
+        AddInternalModifier(LineModifier::REVERSE);
+        AddInternalModifier(options_.multiple_cursors ? LineModifier::CYAN
+                                                      : LineModifier::BLUE);
+        break;
     }
 
     DelegatingOutputReceiver::AddCharacter(c);
-    if (at_cursor) {
+    if (cursor_state_ != CursorState::kNone) {
       AddInternalModifier(LineModifier::RESET);
     }
-    column_read_++;
+    UpdateColumnRead(1);
     CheckInvariants();
   }
 
-  void AddString(const wstring& str) {
+  void AddString(const wstring& str) override {
     size_t str_pos = 0;
     while (str_pos < str.size()) {
       CheckInvariants();
@@ -81,6 +79,29 @@ class CursorsHighlighter
   }
 
  private:
+  enum class CursorState {
+    kNone,
+    kInactive,
+    kActive,
+  };
+
+  void UpdateColumnRead(size_t delta) {
+    column_read_ += delta;
+    if (next_cursor_ == options_.columns.end() ||
+        *next_cursor_ != column_read_) {
+      cursor_state_ = CursorState::kNone;
+    } else if (!options_.active_cursor_input.has_value() ||
+               options_.active_cursor_input.value() != column_read_) {
+      cursor_state_ = CursorState::kInactive;
+    } else {
+      cursor_state_ = CursorState::kActive;
+      if (options_.active_cursor_output != nullptr) {
+        *options_.active_cursor_output =
+            DelegatingOutputReceiverWithInternalModifiers::column();
+      }
+    }
+  }
+
   void CheckInvariants() {
     if (next_cursor_ != options_.columns.end()) {
       CHECK_GE(*next_cursor_, column_read_);
@@ -93,6 +114,7 @@ class CursorsHighlighter
   // the current position.
   std::set<size_t>::const_iterator next_cursor_;
   size_t column_read_ = 0;
+  CursorState cursor_state_;
 };
 }  // namespace
 std::unique_ptr<OutputReceiver> NewCursorsHighlighter(
