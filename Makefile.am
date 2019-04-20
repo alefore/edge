@@ -14,9 +14,12 @@ src/audio.cc \
 src/audio.h \
 src/args.cc \
 src/args.h \
+src/buffer.cc \
+src/buffer.h \
 src/buffer_contents.cc \
 src/buffer_contents.h \
-src/buffer.cc \
+src/buffer_output_producer.cc \
+src/buffer_output_producer.h \
 src/buffer_variables.cc \
 src/buffer_variables.h \
 src/cpp_command.cc \
@@ -70,6 +73,7 @@ src/navigation_buffer.h \
 src/navigate_command.cc \
 src/open_directory_command.cc \
 src/open_file_command.cc \
+src/output_producer.h \
 src/output_receiver.h \
 src/output_receiver_optimizer.cc \
 src/output_receiver_optimizer.h \

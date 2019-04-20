@@ -6,6 +6,7 @@
 #include <cctype>
 #include <iostream>
 
+#include "src/buffer_output_producer.h"
 #include "src/buffer_variables.h"
 #include "src/cursors_highlighter.h"
 #include "src/delegating_output_receiver.h"
@@ -69,124 +70,6 @@ size_t GetDesiredViewStartColumn(Screen* screen, OpenBuffer* buffer) {
   effective_size -= min(effective_size, GetInitialPrefixSize(*buffer));
   size_t column = GetCurrentColumn(buffer);
   return column - min(column, effective_size);
-}
-
-std::wstring GetInitialPrefix(const OpenBuffer& buffer, int line) {
-  if (buffer.Read(buffer_variables::paste_mode())) {
-    return L"";
-  }
-  std::wstring number = std::to_wstring(line + 1);
-  std::wstring padding(GetInitialPrefixSize(buffer) - number.size() - 1, L' ');
-  return padding + number + L':';
-}
-
-wchar_t ComputeScrollBarCharacter(size_t line, size_t lines_size,
-                                  size_t view_start, size_t lines_to_show) {
-  // Each line is split into two units (upper and bottom halves). All units in
-  // this function are halves (of a line).
-  DCHECK_GE(line, view_start);
-  DCHECK_LT(line - view_start, lines_to_show)
-      << "Line is " << line << " and view_start is " << view_start
-      << ", which exceeds lines_to_show of " << lines_to_show;
-  DCHECK_LT(view_start, lines_size);
-  size_t halves_to_show = lines_to_show * 2;
-
-  // Number of halves the bar should take.
-  size_t bar_size =
-      max(size_t(1),
-          size_t(std::round(halves_to_show *
-                            static_cast<double>(lines_to_show) / lines_size)));
-
-  // Bar will be shown in lines in interval [bar, end] (units are halves).
-  size_t start =
-      std::round(halves_to_show * static_cast<double>(view_start) / lines_size);
-  size_t end = start + bar_size;
-
-  size_t current = 2 * (line - view_start);
-  if (current < start - (start % 2) || current >= end) {
-    return L' ';
-  } else if (start == current + 1) {
-    return L'▄';
-  } else if (current + 1 == end) {
-    return L'▀';
-  } else {
-    return L'█';
-  }
-}
-
-void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
-          wchar_t connect_final_char, wstring* output) {
-  CHECK_LT(pos, output->size());
-  for (size_t i = 0; i < pos; i++) {
-    output->at(i) = padding_char;
-  }
-  output->at(pos) = (pos + 1 == output->size() || output->at(pos + 1) == L' ' ||
-                     output->at(pos + 1) == L'│')
-                        ? final_char
-                        : connect_final_char;
-}
-
-wstring DrawTree(size_t line, size_t lines_size, const ParseTree& root) {
-  // Route along the tree where each child ends after previous line.
-  vector<const ParseTree*> route_begin;
-  if (line > 0) {
-    route_begin = MapRoute(
-        root,
-        FindRouteToPosition(
-            root, LineColumn(line - 1, std::numeric_limits<size_t>::max())));
-    CHECK(!route_begin.empty() && *route_begin.begin() == &root);
-    route_begin.erase(route_begin.begin());
-  }
-
-  // Route along the tree where each child ends after current line.
-  vector<const ParseTree*> route_end;
-  if (line < lines_size - 1) {
-    route_end = MapRoute(
-        root, FindRouteToPosition(
-                  root, LineColumn(line, std::numeric_limits<size_t>::max())));
-    CHECK(!route_end.empty() && *route_end.begin() == &root);
-    route_end.erase(route_end.begin());
-  }
-
-  wstring output(root.depth, L' ');
-  size_t index_begin = 0;
-  size_t index_end = 0;
-  while (index_begin < route_begin.size() || index_end < route_end.size()) {
-    if (index_begin == route_begin.size()) {
-      Draw(route_end[index_end]->depth, L'─', L'╮', L'┬', &output);
-      index_end++;
-      continue;
-    }
-    if (index_end == route_end.size()) {
-      Draw(route_begin[index_begin]->depth, L'─', L'╯', L'┴', &output);
-      index_begin++;
-      continue;
-    }
-
-    if (route_begin[index_begin]->depth > route_end[index_end]->depth) {
-      Draw(route_begin[index_begin]->depth, L'─', L'╯', L'┴', &output);
-      index_begin++;
-      continue;
-    }
-
-    if (route_end[index_end]->depth > route_begin[index_begin]->depth) {
-      Draw(route_end[index_end]->depth, L'─', L'╮', L'┬', &output);
-      index_end++;
-      continue;
-    }
-
-    if (route_begin[index_begin] == route_end[index_end]) {
-      output[route_begin[index_begin]->depth] = L'│';
-      index_begin++;
-      index_end++;
-      continue;
-    }
-
-    Draw(route_end[index_end]->depth, L'─', L'┤', L'┼', &output);
-    index_begin++;
-    index_end++;
-  }
-  return output;
 }
 }  // namespace
 
@@ -672,121 +555,6 @@ LineColumn Terminal::GetNextLine(const OpenBuffer& buffer, size_t columns,
   return position;
 }
 
-// Adds spaces until we're at a given position.
-void AddPadding(size_t column, const LineModifierSet& modifiers,
-                OutputReceiver* output_receiver) {
-  if (output_receiver->column() >= column ||
-      column >= output_receiver->width()) {
-    return;
-  }
-
-  size_t padding = column - output_receiver->column();
-  for (auto it : modifiers) {
-    output_receiver->AddModifier(it);
-  }
-  output_receiver->AddString(wstring(padding, L' '));
-  output_receiver->AddModifier(LineModifier::RESET);
-  CHECK_LE(output_receiver->column(), output_receiver->width());
-}
-
-void ShowAdditionalData(
-    OpenBuffer* buffer, const Line& line, LineColumn position,
-    size_t lines_to_show, const ParseTree* full_file_parse_tree,
-    OutputReceiver* output_receiver,
-    std::unordered_set<const OpenBuffer*>* output_buffers_shown) {
-  auto target_buffer_value = line.environment()->Lookup(
-      L"buffer", vm::VMTypeMapper<OpenBuffer*>::vmtype);
-  const auto target_buffer =
-      (target_buffer_value != nullptr &&
-       target_buffer_value->user_value != nullptr)
-          ? static_cast<OpenBuffer*>(target_buffer_value->user_value.get())
-          : buffer;
-
-  const auto line_width =
-      static_cast<size_t>(max(0, buffer->Read(buffer_variables::line_width())));
-
-  auto all_marks = buffer->GetLineMarks();
-  auto marks = all_marks->equal_range(position.line);
-
-  wchar_t info_char = L'•';
-  wstring additional_information;
-
-  if (target_buffer != buffer) {
-    if (output_buffers_shown->insert(target_buffer).second) {
-      additional_information = target_buffer->FlagsString();
-    }
-  } else if (marks.first != marks.second) {
-    output_receiver->AddModifier(LineModifier::RED);
-    info_char = '!';
-
-    // Prefer fresh over expired marks.
-    while (next(marks.first) != marks.second &&
-           marks.first->second.IsExpired()) {
-      ++marks.first;
-    }
-
-    const LineMarks::Mark& mark = marks.first->second;
-    if (mark.source_line_content != nullptr) {
-      additional_information = L"(old) " + mark.source_line_content->ToString();
-    } else {
-      auto source = buffer->editor()->buffers()->find(mark.source);
-      if (source != buffer->editor()->buffers()->end() &&
-          source->second->contents()->size() > mark.source_line) {
-        output_receiver->AddModifier(LineModifier::BOLD);
-        additional_information =
-            source->second->contents()->at(mark.source_line)->ToString();
-      } else {
-        additional_information = L"(dead)";
-      }
-    }
-  } else if (line.modified()) {
-    output_receiver->AddModifier(LineModifier::GREEN);
-    info_char = L'•';
-  } else {
-    output_receiver->AddModifier(LineModifier::DIM);
-  }
-  if (output_receiver->column() <= line_width &&
-      output_receiver->column() < output_receiver->width()) {
-    output_receiver->AddCharacter(info_char);
-  }
-  output_receiver->AddModifier(LineModifier::RESET);
-
-  const auto view_start_line =
-      buffer->Read(buffer_variables::view_start_line());
-
-  if (additional_information.empty()) {
-    auto parse_tree = buffer->simplified_parse_tree();
-    if (parse_tree != nullptr) {
-      additional_information +=
-          DrawTree(position.line, buffer->lines_size(), *parse_tree);
-    }
-    if (buffer->Read(buffer_variables::scrollbar()) &&
-        buffer->lines_size() > lines_to_show) {
-      additional_information += ComputeScrollBarCharacter(
-          position.line, buffer->lines_size(), view_start_line, lines_to_show);
-    }
-    if (full_file_parse_tree != nullptr &&
-        !full_file_parse_tree->children.empty()) {
-      additional_information += DrawTree(position.line - view_start_line,
-                                         lines_to_show, *full_file_parse_tree);
-    }
-  }
-
-  if (output_receiver->column() > line_width + 1) {
-    VLOG(6) << "Trimming the beginning of additional_information.";
-    additional_information = additional_information.substr(
-        min(additional_information.size(),
-            output_receiver->column() - (line_width + 1)));
-  }
-  if (output_receiver->width() >= output_receiver->column()) {
-    VLOG(6) << "Trimming the end of additional_information.";
-    additional_information = additional_information.substr(
-        0, min(additional_information.size(),
-               output_receiver->width() - output_receiver->column()));
-  }
-  output_receiver->AddString(additional_information);
-}
-
 void Terminal::ShowBuffer(OpenBuffer* buffer, Screen* screen) {
   size_t lines_to_show = static_cast<size_t>(screen->lines()) - 1;
   screen->Move(0, 0);
@@ -800,7 +568,6 @@ void Terminal::ShowBuffer(OpenBuffer* buffer, Screen* screen) {
   }
 
   auto root = buffer->parse_tree();
-  auto current_tree = buffer->current_tree(root.get());
 
   buffer->set_lines_for_zoomed_out_tree(lines_to_show);
   auto zoomed_out_tree = buffer->zoomed_out_tree();
@@ -809,131 +576,23 @@ void Terminal::ShowBuffer(OpenBuffer* buffer, Screen* screen) {
 
   cursor_position_ = std::nullopt;
 
-  size_t last_line = std::numeric_limits<size_t>::max();
-
   LineColumn position(
       static_cast<size_t>(
           max(0, buffer->Read(buffer_variables::view_start_line()))),
       buffer->Read(buffer_variables::view_start_column()));
 
+  OutputProducer::Options options;
   for (size_t i = 0; i < lines_to_show; i++) {
-    std::unique_ptr<OutputReceiver> line_output_receiver =
-        std::make_unique<OutputReceiverOptimizer>(
-            NewScreenOutputReceiver(screen));
+    options.lines.push_back(std::make_unique<OutputReceiverOptimizer>(
+        NewScreenOutputReceiver(screen)));
+  }
 
-    if (position.line >= buffer->lines_size()) {
-      line_output_receiver->AddString(L"\n");
-      continue;
-    }
+  std::optional<LineColumn> active_cursor;
+  options.active_cursor = &active_cursor;
+  BufferOutputProducer(buffer).Produce(std::move(options));
 
-    wstring number_prefix = GetInitialPrefix(*buffer, position.line);
-    if (!number_prefix.empty() && last_line == position.line) {
-      number_prefix = wstring(number_prefix.size() - 1, L' ') + L':';
-    }
-    auto next_position = GetNextLine(
-        *buffer, screen->columns() - number_prefix.size(), position);
-
-    std::set<size_t> current_cursors;
-    auto it = cursors.find(position.line);
-    if (it != cursors.end()) {
-      for (auto& c : it->second) {
-        if (c >= position.column &&
-            LineColumn(position.line, c) < next_position) {
-          current_cursors.insert(c - position.column);
-        }
-      }
-    }
-    bool has_active_cursor =
-        buffer->position() >= position && buffer->position() < next_position;
-
-    if (!number_prefix.empty()) {
-      LineModifier prefix_modifier = LineModifier::DIM;
-      if (has_active_cursor ||
-          (!current_cursors.empty() &&
-           buffer->Read(buffer_variables::multiple_cursors()))) {
-        prefix_modifier = LineModifier::CYAN;
-      } else if (!current_cursors.empty()) {
-        prefix_modifier = LineModifier::BLUE;
-      }
-
-      line_output_receiver = std::make_unique<WithPrefixOutputReceiver>(
-          std::move(line_output_receiver), number_prefix, prefix_modifier);
-      line_output_receiver->SetTabsStart(0);
-    }
-
-    std::optional<size_t> active_cursor_column;
-    auto line = buffer->LineAt(position.line);
-
-    std::unique_ptr<OutputReceiver> atomic_lines_highlighter;
-    CHECK(line->contents() != nullptr);
-    if (buffer->Read(buffer_variables::atomic_lines()) &&
-        buffer->active_cursors()->cursors_in_line(position.line)) {
-      buffer->set_last_highlighted_line(position.line);
-      line_output_receiver = std::make_unique<HighlightedLineOutputReceiver>(
-          std::move(line_output_receiver));
-    } else if (!current_cursors.empty()) {
-      LOG(INFO) << "Cursors in current line: " << current_cursors.size();
-      CursorsHighlighterOptions options;
-      options.delegate = std::move(line_output_receiver);
-      options.columns = current_cursors;
-      if (buffer->position() >= position &&
-          buffer->position() < next_position) {
-        options.active_cursor_input =
-            min(buffer->position().column, line->size()) - position.column;
-        options.active_cursor_output = &active_cursor_column;
-      }
-      // Any cursors past the end of the line will just be silently moved to
-      // the end of the line (just for displaying).
-      while (!options.columns.empty() &&
-             *options.columns.rbegin() > line->size()) {
-        options.columns.erase(std::prev(options.columns.end()));
-        options.columns.insert(line->size());
-      }
-      options.multiple_cursors =
-          buffer->Read(buffer_variables::multiple_cursors());
-
-      line_output_receiver = NewCursorsHighlighter(std::move(options));
-    }
-
-    if (current_tree != root.get() &&
-        position.line >= current_tree->range.begin.line &&
-        position.line <= current_tree->range.end.line) {
-      size_t begin = position.line == current_tree->range.begin.line
-                         ? current_tree->range.begin.column
-                         : 0;
-      size_t end = position.line == current_tree->range.end.line
-                       ? current_tree->range.end.column
-                       : line->size();
-      line_output_receiver = std::make_unique<ParseTreeHighlighter>(
-          std::move(line_output_receiver), begin, end);
-    } else if (!buffer->parse_tree()->children.empty()) {
-      line_output_receiver = std::make_unique<ParseTreeHighlighterTokens>(
-          std::move(line_output_receiver), root.get(), position.line,
-          line->size());
-    }
-
-    Line::OutputOptions line_output_options;
-    line_output_options.position = position;
-    line_output_options.output_receiver = line_output_receiver.get();
-    line->Output(line_output_options);
-
-    if (!buffer->Read(buffer_variables::paste_mode())) {
-      const auto line_width = static_cast<size_t>(
-          max(0, buffer->Read(buffer_variables::line_width())));
-      AddPadding(line_width, line->end_of_line_modifiers(),
-                 line_output_receiver.get());
-      ShowAdditionalData(buffer, *line, position, lines_to_show,
-                         zoomed_out_tree.get(), line_output_receiver.get(),
-                         &buffers_shown);
-    }
-
-    if (active_cursor_column.has_value()) {
-      cursor_position_ =
-          LineColumn(i, active_cursor_column.value() + number_prefix.size());
-    }
-
-    last_line = position.line;
-    position = next_position;
+  if (active_cursor.has_value()) {
+    cursor_position_ = active_cursor.value();
   }
 }
 
