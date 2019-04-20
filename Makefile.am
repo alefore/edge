@@ -30,6 +30,8 @@ src/command_with_modifiers.cc \
 src/command_with_modifiers.h \
 src/cursors.cc \
 src/cursors.h \
+src/cursors_highlighter.cc \
+src/cursors_highlighter.h \
 src/cursors_transformation.cc \
 src/cursors_transformation.h \
 src/delegating_output_receiver.cc \

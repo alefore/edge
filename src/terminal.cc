@@ -7,6 +7,7 @@
 #include <iostream>
 
 #include "src/buffer_variables.h"
+#include "src/cursors_highlighter.h"
 #include "src/delegating_output_receiver.h"
 #include "src/delegating_output_receiver_with_internal_modifiers.h"
 #include "src/dirname.h"
@@ -517,108 +518,6 @@ class HighlightedLineOutputReceiver : public DelegatingOutputReceiver {
   }
 };
 
-class CursorsHighlighter
-    : public DelegatingOutputReceiverWithInternalModifiers {
- public:
-  struct Options {
-    std::unique_ptr<OutputReceiver> delegate;
-
-    // A set with all the columns in the current line in which there are
-    // cursors that should be drawn.
-    set<size_t> columns;
-
-    bool multiple_cursors;
-
-    std::optional<size_t> active_cursor_input;
-
-    // Output parameter. If the active cursor is found in this line, we set this
-    // to the column in the screen to which it should be moved. This is used to
-    // handle multi-width characters.
-    std::optional<size_t>* active_cursor_output;
-  };
-
-  explicit CursorsHighlighter(Options options)
-      : DelegatingOutputReceiverWithInternalModifiers(
-            std::move(options.delegate),
-            DelegatingOutputReceiverWithInternalModifiers::Preference::
-                kInternal),
-        options_(std::move(options)),
-        next_cursor_(options_.columns.begin()) {
-    CheckInvariants();
-  }
-
-  void AddCharacter(wchar_t c) {
-    CheckInvariants();
-    bool at_cursor =
-        next_cursor_ != options_.columns.end() && *next_cursor_ == column_read_;
-    if (at_cursor) {
-      ++next_cursor_;
-      CHECK(next_cursor_ == options_.columns.end() ||
-            *next_cursor_ > column_read_);
-      bool is_active = options_.active_cursor_input.has_value() &&
-                       options_.active_cursor_input.value() == column_read_;
-      AddInternalModifier(LineModifier::REVERSE);
-      AddInternalModifier(is_active || options_.multiple_cursors
-                              ? LineModifier::CYAN
-                              : LineModifier::BLUE);
-      if (is_active && options_.active_cursor_output != nullptr) {
-        *options_.active_cursor_output =
-            DelegatingOutputReceiverWithInternalModifiers::column();
-      }
-    }
-
-    DelegatingOutputReceiver::AddCharacter(c);
-    if (at_cursor) {
-      AddInternalModifier(LineModifier::RESET);
-    }
-    column_read_++;
-    CheckInvariants();
-  }
-
-  void AddString(const wstring& str) {
-    size_t str_pos = 0;
-    while (str_pos < str.size()) {
-      CheckInvariants();
-
-      // Compute the position of the next cursor relative to the start of this
-      // string.
-      size_t next_column = (next_cursor_ == options_.columns.end())
-                               ? str.size()
-                               : *next_cursor_ + str_pos - column_read_;
-      if (next_column > str_pos) {
-        size_t len = next_column - str_pos;
-        DelegatingOutputReceiver::AddString(str.substr(str_pos, len));
-        column_read_ += len;
-        str_pos += len;
-      }
-
-      CheckInvariants();
-
-      if (str_pos < str.size()) {
-        CHECK(next_cursor_ != options_.columns.end());
-        CHECK_EQ(*next_cursor_, column_read_);
-        AddCharacter(str[str_pos]);
-        str_pos++;
-      }
-      CheckInvariants();
-    }
-  }
-
- private:
-  void CheckInvariants() {
-    if (next_cursor_ != options_.columns.end()) {
-      CHECK_GE(*next_cursor_, column_read_);
-    }
-  }
-
-  const Options options_;
-
-  // Points to the first element in columns_ that is greater than or equal to
-  // the current position.
-  set<size_t>::const_iterator next_cursor_;
-  size_t column_read_ = 0;
-};
-
 class ParseTreeHighlighter : public DelegatingOutputReceiver {
  public:
   explicit ParseTreeHighlighter(std::unique_ptr<OutputReceiver> delegate,
@@ -978,7 +877,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
           std::move(line_output_receiver));
     } else if (!current_cursors.empty()) {
       LOG(INFO) << "Cursors in current line: " << current_cursors.size();
-      CursorsHighlighter::Options options;
+      CursorsHighlighterOptions options;
       options.delegate = std::move(line_output_receiver);
       options.columns = current_cursors;
       if (buffer->position() >= position &&
@@ -997,8 +896,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       options.multiple_cursors =
           buffer->Read(buffer_variables::multiple_cursors());
 
-      line_output_receiver =
-          std::make_unique<CursorsHighlighter>(std::move(options));
+      line_output_receiver = NewCursorsHighlighter(std::move(options));
     }
 
     if (current_tree != root.get() &&
