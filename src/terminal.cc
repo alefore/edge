@@ -247,7 +247,7 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   }
 
   if (screen_state.needs_redraw) {
-    ShowBuffer(editor_state, screen);
+    ShowBuffer(editor_state->current_buffer()->second.get(), screen);
   }
   ShowStatus(*editor_state, screen);
   if (editor_state->status_prompt()) {
@@ -787,8 +787,7 @@ void ShowAdditionalData(
   output_receiver->AddString(additional_information);
 }
 
-void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
-  const shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
+void Terminal::ShowBuffer(OpenBuffer* buffer, Screen* screen) {
   size_t lines_to_show = static_cast<size_t>(screen->lines()) - 1;
   screen->Move(0, 0);
 
@@ -803,7 +802,6 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   auto root = buffer->parse_tree();
   auto current_tree = buffer->current_tree(root.get());
 
-  Line::OutputOptions line_output_options;
   buffer->set_lines_for_zoomed_out_tree(lines_to_show);
   auto zoomed_out_tree = buffer->zoomed_out_tree();
 
@@ -827,8 +825,6 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       line_output_receiver->AddString(L"\n");
       continue;
     }
-
-    line_output_options.position = position;
 
     wstring number_prefix = GetInitialPrefix(*buffer, position.line);
     if (!number_prefix.empty() && last_line == position.line) {
@@ -916,6 +912,8 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
           line->size());
     }
 
+    Line::OutputOptions line_output_options;
+    line_output_options.position = position;
     line_output_options.output_receiver = line_output_receiver.get();
     line->Output(line_output_options);
 
@@ -924,7 +922,7 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
           max(0, buffer->Read(buffer_variables::line_width())));
       AddPadding(line_width, line->end_of_line_modifiers(),
                  line_output_receiver.get());
-      ShowAdditionalData(buffer.get(), *line, position, lines_to_show,
+      ShowAdditionalData(buffer, *line, position, lines_to_show,
                          zoomed_out_tree.get(), line_output_receiver.get(),
                          &buffers_shown);
     }

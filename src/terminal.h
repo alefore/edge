@@ -40,7 +40,7 @@ class Terminal {
                            const shared_ptr<OpenBuffer>& buffer);
   LineColumn GetNextLine(const OpenBuffer& buffer, size_t columns,
                          LineColumn position);
-  void ShowBuffer(const EditorState* editor_state, Screen* screen);
+  void ShowBuffer(OpenBuffer* buffer, Screen* screen);
   void AdjustPosition(Screen* screen);
 
   // Position at which the cursor should be placed in the screen, if known.
