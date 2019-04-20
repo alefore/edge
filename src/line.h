@@ -91,6 +91,10 @@ class Line {
     std::unique_lock<std::mutex> lock(mutex_);
     return modifiers_;
   }
+  const LineModifierSet& end_of_line_modifiers() const {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return options_.end_of_line_modifiers;
+  }
 
   bool modified() const {
     std::unique_lock<std::mutex> lock(mutex_);
@@ -120,19 +124,8 @@ class Line {
   }
 
   struct OutputOptions {
-    const OpenBuffer* buffer = nullptr;
     LineColumn position;
-    // Number of screen lines that will be shown. Does not include the status
-    // line (at the bottom of the screen).
-    size_t lines_to_show;
-    // Desired width of the line.
-    size_t line_width;
-    bool paste_mode;
-    const ParseTree* full_file_parse_tree = nullptr;
     OutputReceiver* output_receiver = nullptr;
-    bool has_active_cursor = false;
-    bool has_cursor = false;
-    std::unordered_set<const OpenBuffer*>* output_buffers_shown;
   };
   void Output(const OutputOptions& options) const;
 
