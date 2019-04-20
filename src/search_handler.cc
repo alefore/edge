@@ -49,7 +49,13 @@ vector<LineColumn> PerformSearch(const SearchOptions& options,
   if (options.case_sensitive) {
     traits |= std::regex_constants::icase;
   }
-  std::wregex pattern(options.search_query, traits);
+  std::wregex pattern;
+  try {
+    pattern = std::wregex(options.search_query, traits);
+  } catch (std::regex_error& e) {
+    buffer->editor()->SetStatus(L"Regex failure: " + FromByteString(e.what()));
+    return {};
+  }
 
   buffer->contents()->EveryLine(
       [&positions, &pattern](size_t position, const Line& line) {
