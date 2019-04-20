@@ -38,7 +38,7 @@ class Terminal {
   void ShowStatus(const EditorState& editor_state, Screen* screen);
   wstring GetBufferContext(const EditorState& editor_state,
                            const shared_ptr<OpenBuffer>& buffer);
-  LineColumn GetNextLine(const OpenBuffer& buffer, Screen* screen,
+  LineColumn GetNextLine(const OpenBuffer& buffer, size_t columns,
                          LineColumn position);
   void ShowBuffer(const EditorState* editor_state, Screen* screen);
   void AdjustPosition(Screen* screen);

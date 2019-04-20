@@ -735,15 +735,14 @@ class ParseTreeHighlighterTokens : public DelegatingOutputReceiver {
   size_t column_read_ = 0;
 };
 
-LineColumn Terminal::GetNextLine(const OpenBuffer& buffer, Screen* screen,
+LineColumn Terminal::GetNextLine(const OpenBuffer& buffer, size_t columns,
                                  LineColumn position) {
   // TODO: This is wrong: it doesn't account for multi-width characters.
   // TODO: This is wrong: it doesn't take int account line filters.
   if (position.line >= buffer.lines_size()) {
     return LineColumn(std::numeric_limits<size_t>::max());
   }
-  size_t width = screen->columns() - GetInitialPrefixSize(buffer);
-  position.column += width;
+  position.column += columns;
   if (position.column >= buffer.LineAt(position.line)->size() ||
       !buffer.Read(buffer_variables::wrap_long_lines())) {
     position.line++;
@@ -797,7 +796,6 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       buffer->Read(buffer_variables::view_start_column()));
 
   for (size_t i = 0; i < lines_to_show; i++) {
-    auto next_position = GetNextLine(*buffer, screen, position);
     if (position.line >= buffer->lines_size()) {
       line_output_receiver->AddString(L"\n");
       continue;
@@ -815,6 +813,9 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     line_output_options.line_width =
         buffer->Read(buffer_variables::line_width());
     line_output_options.width = screen->columns();
+
+    auto next_position = GetNextLine(
+        *buffer, screen->columns() - number_prefix.size(), position);
 
     std::set<size_t> current_cursors;
     auto it = cursors.find(position.line);
