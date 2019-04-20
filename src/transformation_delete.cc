@@ -100,9 +100,11 @@ class DeleteCharactersTransformation : public Transformation {
     if (options_.copy_to_paste_buffer &&
         result->mode == Transformation::Result::Mode::kFinal) {
       VLOG(5) << "Preparing delete buffer.";
+      InsertOptions insert_options;
+      insert_options.buffer_to_insert = delete_buffer;
       result->delete_buffer->ApplyToCursors(TransformationAtPosition(
           result->delete_buffer->position(),
-          NewInsertBufferTransformation(delete_buffer, 1, END)));
+          NewInsertBufferTransformation(std::move(insert_options))));
     }
 
     if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS &&
@@ -118,21 +120,30 @@ class DeleteCharactersTransformation : public Transformation {
 
     result->modified_buffer = true;
 
-    result->undo_stack->PushFront(TransformationAtPosition(
-        result->cursor,
-        NewInsertBufferTransformation(
-            delete_buffer, 1,
-            options_.modifiers.direction == FORWARDS ? START : END)));
+    {
+      InsertOptions insert_options;
+      insert_options.buffer_to_insert = delete_buffer;
+      insert_options.final_position = options_.modifiers.direction == FORWARDS
+                                          ? InsertOptions::FinalPosition::kStart
+                                          : InsertOptions::FinalPosition::kEnd;
+      result->undo_stack->PushFront(TransformationAtPosition(
+          result->cursor,
+          NewInsertBufferTransformation(std::move(insert_options))));
+    }
 
     if (result->mode == Transformation::Result::Mode::kPreview) {
       LOG(INFO) << "Inserting preview at: " << result->cursor << " "
                 << delete_buffer->contents()->CountCharacters();
       LineModifierSet modifiers_set = {LineModifier::UNDERLINE,
                                        LineModifier::BLUE};
-      NewInsertBufferTransformation(
-          delete_buffer, Modifiers(),
-          options_.modifiers.direction == BACKWARDS ? END : START,
-          &modifiers_set)
+      InsertOptions insert_options;
+      insert_options.buffer_to_insert = delete_buffer;
+      insert_options.final_position =
+          options_.modifiers.direction == BACKWARDS
+              ? InsertOptions::FinalPosition::kEnd
+              : InsertOptions::FinalPosition::kStart;
+      insert_options.modifiers_set = &modifiers_set;
+      NewInsertBufferTransformation(std::move(insert_options))
           ->Apply(buffer, result);
     }
   }

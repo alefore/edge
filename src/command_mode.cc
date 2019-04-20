@@ -155,11 +155,12 @@ class Paste : public Command {
     } else {
       buffer->CheckPosition();
       buffer->MaybeAdjustPositionCol();
-      Modifiers modifiers;
-      modifiers.insertion = editor_state->modifiers().insertion;
-      modifiers.repetitions = editor_state->repetitions();
+      InsertOptions insert_options;
+      insert_options.buffer_to_insert = it->second;
+      insert_options.modifiers.insertion = editor_state->modifiers().insertion;
+      insert_options.modifiers.repetitions = editor_state->repetitions();
       editor_state->ApplyToCurrentBuffer(
-          NewInsertBufferTransformation(it->second, modifiers, END, nullptr));
+          NewInsertBufferTransformation(std::move(insert_options)));
       editor_state->ResetInsertionModifier();
     }
     editor_state->ResetRepetitions();
@@ -756,11 +757,15 @@ class SwitchCaseTransformation : public Transformation {
     LineModifierSet modifiers_set = {LineModifier::UNDERLINE,
                                      LineModifier::BLUE};
     auto original_position = result->cursor;
-    stack.PushBack(NewInsertBufferTransformation(
-        buffer_to_insert, Modifiers(),
-        modifiers_.direction == FORWARDS ? END : START,
-        result->mode == Transformation::Result::Mode::kPreview ? &modifiers_set
-                                                               : nullptr));
+    InsertOptions insert_options;
+    insert_options.buffer_to_insert = buffer_to_insert;
+    if (modifiers_.direction == BACKWARDS) {
+      insert_options.final_position = InsertOptions::FinalPosition::kStart;
+    }
+    if (result->mode == Transformation::Result::Mode::kPreview) {
+      insert_options.modifiers_set = &modifiers_set;
+    }
+    stack.PushBack(NewInsertBufferTransformation(std::move(insert_options)));
     if (result->mode == Transformation::Result::Mode::kPreview) {
       stack.PushBack(NewGotoPositionTransformation(original_position));
     }

@@ -159,7 +159,7 @@ class HistoryScrollBehavior : public ScrollBehavior {
  private:
   void ScrollHistory(EditorState* editor_state, OpenBuffer* buffer,
                      int delta) const {
-    auto insert =
+    auto buffer_to_insert =
         std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
 
     if (history_ != nullptr && history_->contents()->size() > 1) {
@@ -176,7 +176,8 @@ class HistoryScrollBehavior : public ScrollBehavior {
         history_->set_position(position);
       }
       if (history_->current_line() != nullptr) {
-        insert->AppendToLastLine(history_->current_line()->contents());
+        buffer_to_insert->AppendToLastLine(
+            history_->current_line()->contents());
       }
     }
 
@@ -186,7 +187,10 @@ class HistoryScrollBehavior : public ScrollBehavior {
     delete_options.modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
     delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
     buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
-    buffer->ApplyToCursors(NewInsertBufferTransformation(insert, 1, END));
+    InsertOptions insert_options;
+    insert_options.buffer_to_insert = std::move(buffer_to_insert);
+    buffer->ApplyToCursors(
+        NewInsertBufferTransformation(std::move(insert_options)));
 
     UpdateStatus(editor_state, buffer, prompt_);
   }
@@ -256,10 +260,14 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
   editor_state->set_modifiers(Modifiers());
 
   {
-    auto insert =
+    auto buffer_to_insert =
         std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
-    insert->AppendToLastLine(NewLazyString(std::move(options.initial_value)));
-    buffer->ApplyToCursors(NewInsertBufferTransformation(insert, 1, END));
+    buffer_to_insert->AppendToLastLine(
+        NewLazyString(std::move(options.initial_value)));
+    InsertOptions insert_options;
+    insert_options.buffer_to_insert = std::move(buffer_to_insert);
+    buffer->ApplyToCursors(
+        NewInsertBufferTransformation(std::move(insert_options)));
   }
 
   InsertModeOptions insert_mode_options;
@@ -340,11 +348,13 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
             delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
             buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
 
-            auto insert =
+            auto buffer_to_insert =
                 std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
-            insert->AppendToLastLine(NewLazyString(prediction));
+            buffer_to_insert->AppendToLastLine(NewLazyString(prediction));
+            InsertOptions insert_options;
+            insert_options.buffer_to_insert = buffer_to_insert;
             buffer->ApplyToCursors(
-                NewInsertBufferTransformation(insert, 1, END));
+                NewInsertBufferTransformation(std::move(insert_options)));
 
             UpdateStatus(editor_state, buffer.get(), options.prompt);
             editor_state->ScheduleRedraw();

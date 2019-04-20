@@ -66,8 +66,10 @@ class NewLineTransformation : public Transformation {
       auto buffer_to_insert =
           std::make_shared<OpenBuffer>(buffer->editor(), L"- text inserted");
       buffer_to_insert->AppendRawLine(continuation_line);
+      InsertOptions insert_options;
+      insert_options.buffer_to_insert = buffer_to_insert;
       transformation->PushBack(
-          NewInsertBufferTransformation(buffer_to_insert, 1, END));
+          NewInsertBufferTransformation(std::move(insert_options)));
     }
 
     transformation->PushBack(NewGotoPositionTransformation(result->cursor));
@@ -229,11 +231,13 @@ class AutocompleteMode : public EditorMode {
     delete_options.copy_to_paste_buffer = false;
     // TODO: Somewhat wrong. Should find the autocompletion for each position.
     // Also, should apply the deletions/insertions at the right positions.
+    InsertOptions insert_options;
+    insert_options.buffer_to_insert = buffer_to_insert;
     options_.buffer->ApplyToCursors(TransformationAtPosition(
         LineColumn(options_.buffer->position().line, options_.column_start),
         ComposeTransformation(
             NewDeleteTransformation(delete_options),
-            NewInsertBufferTransformation(buffer_to_insert, 1, END))));
+            NewInsertBufferTransformation(std::move(insert_options)))));
 
     editor_state->ScheduleRedraw();
     word_length_ = insert->size();
@@ -515,15 +519,16 @@ class InsertMode : public EditorMode {
     }
 
     {
-      auto insert =
+      auto buffer_to_insert =
           std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
-      insert->AppendToLastLine(
+      buffer_to_insert->AppendToLastLine(
           NewLazyString(buffer->TransformKeyboardText(wstring(1, c))));
 
-      Modifiers modifiers;
-      modifiers.insertion = editor_state->modifiers().insertion;
+      InsertOptions insert_options;
+      insert_options.modifiers.insertion = editor_state->modifiers().insertion;
+      insert_options.buffer_to_insert = buffer_to_insert;
       buffer->ApplyToCursors(
-          NewInsertBufferTransformation(insert, modifiers, END, nullptr));
+          NewInsertBufferTransformation(std::move(insert_options)));
     }
 
     options_.modify_listener();

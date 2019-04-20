@@ -70,22 +70,30 @@ class Transformation {
   virtual unique_ptr<Transformation> Clone() const = 0;
 };
 
-enum InsertBufferTransformationPosition {
-  // Leaves the buffer position at the start of the inserted text.
-  START,
+struct InsertOptions {
+  std::shared_ptr<const OpenBuffer> buffer_to_insert;
 
-  // Leaves the buffer position at the end of the inserted text.
-  END,
+  Modifiers modifiers;
+
+  enum class FinalPosition {
+    // Leaves the buffer position at the start of the inserted text.
+    kStart,
+
+    // Leaves the buffer position at the end of the inserted text.
+    kEnd,
+  };
+  // Ignored if `position` is set.
+  FinalPosition final_position = FinalPosition::kEnd;
+
+  LineModifierSet* modifiers_set = nullptr;
+
+  // If not present, will insert wherever the cursor is. If present, inserts the
+  // text at this position.
+  std::optional<LineColumn> position;
 };
 
-unique_ptr<Transformation> NewInsertBufferTransformation(
-    shared_ptr<const OpenBuffer> buffer_to_insert, Modifiers modifiers,
-    InsertBufferTransformationPosition insert_buffer_transformation_position,
-    LineModifierSet* modifiers_set);
-
-unique_ptr<Transformation> NewInsertBufferTransformation(
-    shared_ptr<const OpenBuffer> buffer_to_insert, size_t repetitions,
-    InsertBufferTransformationPosition insert_buffer_transformation_position);
+std::unique_ptr<Transformation> NewInsertBufferTransformation(
+    InsertOptions options);
 
 // If column is greater than the length of the line, goes to the end of the
 // line.

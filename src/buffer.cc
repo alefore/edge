@@ -137,15 +137,18 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, size_t line,
       [buffer, line, map_callback, transformation, trampoline, current_line,
        map_line](Value::Ptr value) {
         if (value->str != current_line) {
-          DeleteOptions options;
-          options.copy_to_paste_buffer = false;
-          options.modifiers.structure = StructureLine();
-          transformation->PushBack(NewDeleteTransformation(options));
+          DeleteOptions delete_options;
+          delete_options.copy_to_paste_buffer = false;
+          delete_options.modifiers.structure = StructureLine();
+          transformation->PushBack(
+              NewDeleteTransformation(std::move(delete_options)));
+          InsertOptions insert_options;
           auto buffer_to_insert =
               std::make_shared<OpenBuffer>(buffer->editor(), L"tmp buffer");
           buffer_to_insert->AppendLine(NewLazyString(std::move(value->str)));
+          insert_options.buffer_to_insert = std::move(buffer_to_insert);
           transformation->PushBack(
-              NewInsertBufferTransformation(buffer_to_insert, 1, END));
+              NewInsertBufferTransformation(std::move(insert_options)));
         }
         EvaluateMap(buffer, line + 1, std::move(map_callback), transformation,
                     trampoline);
@@ -346,8 +349,10 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, size_t line,
                   NewLazyString(std::move(line)));
             }
 
+            InsertOptions insert_options;
+            insert_options.buffer_to_insert = std::move(buffer_to_insert);
             buffer->ApplyToCursors(
-                NewInsertBufferTransformation(buffer_to_insert, 1, END));
+                NewInsertBufferTransformation(std::move(insert_options)));
           })));
 
   buffer->AddField(L"Save", vm::NewCallback(std::function<void(OpenBuffer*)>(
