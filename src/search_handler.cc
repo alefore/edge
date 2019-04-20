@@ -127,6 +127,7 @@ vector<LineColumn> PerformSearchWithDirection(EditorState* editor_state,
     vector<double> frequencies = {261.63, 329.63, 392.0, 523.25, 659.25};
     frequencies.resize(min(frequencies.size(), head.size() + 1));
     BeepFrequencies(editor_state->audio_player(), frequencies);
+    buffer->Set(buffer_variables::multiple_cursors(), false);
   }
   return head;
 }

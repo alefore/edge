@@ -27,8 +27,6 @@ Add an autocomplete mode that autocompletes based on the path.
 Improve logic around wrap_long_lines.
   Also scrolling to the end of file doesn't quite work.
 
-Search: Should make sure to disable multi active cursors.
-
 * Improve reflow:
 
   * Have an "auto-reflow" mode? As soon as the text width is crossed, do a
