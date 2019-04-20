@@ -12,6 +12,7 @@ namespace {
 class Receiver : public OutputReceiver {
  public:
   Receiver(Screen* screen) : screen_(screen) {}
+  ~Receiver() { AddModifier(LineModifier::RESET); }
 
   void AddCharacter(wchar_t c) override {
     if (c == L'\t') {

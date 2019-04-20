@@ -358,9 +358,9 @@ wstring Terminal::GetBufferContext(const EditorState& editor_state,
 
 class WithPrefixOutputReceiver : public DelegatingOutputReceiver {
  public:
-  WithPrefixOutputReceiver(OutputReceiver* delegate, wstring prefix,
-                           LineModifier prefix_modifier)
-      : DelegatingOutputReceiver(delegate), prefix_length_([=]() {
+  WithPrefixOutputReceiver(std::unique_ptr<OutputReceiver> delegate,
+                           wstring prefix, LineModifier prefix_modifier)
+      : DelegatingOutputReceiver(std::move(delegate)), prefix_length_([=]() {
           AddModifier(prefix_modifier);
           AddString(prefix);
           AddModifier(LineModifier::RESET);
@@ -390,8 +390,8 @@ class WithPrefixOutputReceiver : public DelegatingOutputReceiver {
 
 class HighlightedLineOutputReceiver : public DelegatingOutputReceiver {
  public:
-  HighlightedLineOutputReceiver(OutputReceiver* delegate)
-      : DelegatingOutputReceiver(delegate) {
+  HighlightedLineOutputReceiver(std::unique_ptr<OutputReceiver> delegate)
+      : DelegatingOutputReceiver(std::move(delegate)) {
     DelegatingOutputReceiver::AddModifier(LineModifier::REVERSE);
   }
 
@@ -412,7 +412,8 @@ class HighlightedLineOutputReceiver : public DelegatingOutputReceiver {
 // from the child get ignored. A delegate OutputReceiverInterface is updated.
 class ModifiersMerger {
  public:
-  ModifiersMerger(OutputReceiver* delegate) : delegate_(delegate) {}
+  ModifiersMerger(std::function<void(LineModifier)> callback)
+      : callback_(std::move(callback)) {}
 
   void AddParentModifier(LineModifier modifier) {
     if (modifier == LineModifier::RESET) {
@@ -420,21 +421,21 @@ class ModifiersMerger {
         return;
       }
       parent_modifiers_ = false;
-      delegate_->AddModifier(LineModifier::RESET);
+      callback_(LineModifier::RESET);
       for (auto& m : children_modifiers_) {
         CHECK(m != LineModifier::RESET);
-        delegate_->AddModifier(m);
+        callback_(m);
       }
       return;
     }
 
     if (!parent_modifiers_) {
       if (!children_modifiers_.empty()) {
-        delegate_->AddModifier(LineModifier::RESET);
+        callback_(LineModifier::RESET);
       }
       parent_modifiers_ = true;
     }
-    delegate_->AddModifier(modifier);
+    callback_(modifier);
   }
 
   void AddChildrenModifier(LineModifier modifier) {
@@ -444,7 +445,7 @@ class ModifiersMerger {
       children_modifiers_.insert(modifier);
     }
     if (!parent_modifiers_) {
-      delegate_->AddModifier(modifier);
+      callback_(modifier);
     }
   }
 
@@ -453,13 +454,13 @@ class ModifiersMerger {
  private:
   bool parent_modifiers_ = false;
   LineModifierSet children_modifiers_;
-  OutputReceiver* const delegate_;
+  const std::function<void(LineModifier)> callback_;
 };
 
 class CursorsHighlighter : public DelegatingOutputReceiver {
  public:
   struct Options {
-    OutputReceiver* delegate;
+    std::unique_ptr<OutputReceiver> delegate;
 
     // A set with all the columns in the current line in which there are
     // cursors that should be drawn.
@@ -476,9 +477,11 @@ class CursorsHighlighter : public DelegatingOutputReceiver {
   };
 
   explicit CursorsHighlighter(Options options)
-      : DelegatingOutputReceiver(options.delegate),
-        options_(options),
-        modifiers_merger_(options.delegate),
+      : DelegatingOutputReceiver(std::move(options.delegate)),
+        options_(std::move(options)),
+        modifiers_merger_([this](LineModifier m) {
+          DelegatingOutputReceiver::AddModifier(m);
+        }),
         next_cursor_(options_.columns.begin()) {
     CheckInvariants();
   }
@@ -561,9 +564,11 @@ class CursorsHighlighter : public DelegatingOutputReceiver {
 
 class ParseTreeHighlighter : public DelegatingOutputReceiver {
  public:
-  explicit ParseTreeHighlighter(OutputReceiver* delegate, size_t begin,
-                                size_t end)
-      : DelegatingOutputReceiver(delegate), begin_(begin), end_(end) {}
+  explicit ParseTreeHighlighter(std::unique_ptr<OutputReceiver> delegate,
+                                size_t begin, size_t end)
+      : DelegatingOutputReceiver(std::move(delegate)),
+        begin_(begin),
+        end_(end) {}
 
   void AddCharacter(wchar_t c) override {
     size_t position = column();
@@ -606,10 +611,13 @@ class ParseTreeHighlighterTokens : public DelegatingOutputReceiver {
   // tree will no longer apply. This ensures that "continuation" modifiers
   // (that were active at the last character in the line) won't continue to
   // affect the padding and/or scrollbar).
-  ParseTreeHighlighterTokens(OutputReceiver* delegate, const ParseTree* root,
-                             size_t line, size_t largest_column_with_tree)
-      : DelegatingOutputReceiver(delegate),
-        modifiers_merger_(delegate),
+  ParseTreeHighlighterTokens(std::unique_ptr<OutputReceiver> delegate,
+                             const ParseTree* root, size_t line,
+                             size_t largest_column_with_tree)
+      : DelegatingOutputReceiver(std::move(delegate)),
+        modifiers_merger_([this](LineModifier m) {
+          DelegatingOutputReceiver::AddModifier(m);
+        }),
         root_(root),
         largest_column_with_tree_(largest_column_with_tree),
         line_(line),
@@ -751,9 +759,9 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       buffer->Read(buffer_variables::view_start_column()));
 
   for (size_t i = 0; i < lines_to_show; i++) {
-    auto screen_receiver = NewScreenOutputReceiver(screen);
-    auto line_output_receiver =
-        std::make_unique<OutputReceiverOptimizer>(screen_receiver.get());
+    std::unique_ptr<OutputReceiver> line_output_receiver =
+        std::make_unique<OutputReceiverOptimizer>(
+            NewScreenOutputReceiver(screen));
 
     if (position.line >= buffer->lines_size()) {
       line_output_receiver->AddString(L"\n");
@@ -761,7 +769,6 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     }
 
     line_output_options.position = position;
-    line_output_options.output_receiver = line_output_receiver.get();
 
     wstring number_prefix = GetInitialPrefix(*buffer, position.line);
     if (!number_prefix.empty() && last_line == position.line) {
@@ -787,7 +794,6 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
         buffer->position() >= position && buffer->position() < next_position;
     line_output_options.has_cursor = !current_cursors.empty();
 
-    std::unique_ptr<OutputReceiver> prefix_receiver;
     if (!number_prefix.empty()) {
       LineModifier prefix_modifier = LineModifier::DIM;
       if (has_active_cursor ||
@@ -798,13 +804,11 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
         prefix_modifier = LineModifier::BLUE;
       }
 
-      prefix_receiver = std::make_unique<WithPrefixOutputReceiver>(
-          line_output_options.output_receiver, number_prefix, prefix_modifier);
-      prefix_receiver->SetTabsStart(0);
-      line_output_options.output_receiver = prefix_receiver.get();
+      line_output_receiver = std::make_unique<WithPrefixOutputReceiver>(
+          std::move(line_output_receiver), number_prefix, prefix_modifier);
+      line_output_receiver->SetTabsStart(0);
     }
 
-    std::unique_ptr<OutputReceiver> cursors_highlighter;
     std::optional<size_t> active_cursor_column;
     auto line = buffer->LineAt(position.line);
 
@@ -813,14 +817,12 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
     if (buffer->Read(buffer_variables::atomic_lines()) &&
         buffer->active_cursors()->cursors_in_line(position.line)) {
       buffer->set_last_highlighted_line(position.line);
-      atomic_lines_highlighter =
-          std::make_unique<HighlightedLineOutputReceiver>(
-              line_output_options.output_receiver);
-      line_output_options.output_receiver = atomic_lines_highlighter.get();
+      line_output_receiver = std::make_unique<HighlightedLineOutputReceiver>(
+          std::move(line_output_receiver));
     } else if (!current_cursors.empty()) {
       LOG(INFO) << "Cursors in current line: " << current_cursors.size();
       CursorsHighlighter::Options options;
-      options.delegate = line_output_options.output_receiver;
+      options.delegate = std::move(line_output_receiver);
       options.columns = current_cursors;
       if (buffer->position() >= position &&
           buffer->position() < next_position) {
@@ -838,11 +840,10 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       options.multiple_cursors =
           buffer->Read(buffer_variables::multiple_cursors());
 
-      cursors_highlighter = std::make_unique<CursorsHighlighter>(options);
-      line_output_options.output_receiver = cursors_highlighter.get();
+      line_output_receiver =
+          std::make_unique<CursorsHighlighter>(std::move(options));
     }
 
-    std::unique_ptr<OutputReceiver> parse_tree_highlighter;
     if (current_tree != root.get() &&
         position.line >= current_tree->range.begin.line &&
         position.line <= current_tree->range.end.line) {
@@ -852,16 +853,15 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
       size_t end = position.line == current_tree->range.end.line
                        ? current_tree->range.end.column
                        : line->size();
-      parse_tree_highlighter = std::make_unique<ParseTreeHighlighter>(
-          line_output_options.output_receiver, begin, end);
-      line_output_options.output_receiver = parse_tree_highlighter.get();
+      line_output_receiver = std::make_unique<ParseTreeHighlighter>(
+          std::move(line_output_receiver), begin, end);
     } else if (!buffer->parse_tree()->children.empty()) {
-      parse_tree_highlighter = std::make_unique<ParseTreeHighlighterTokens>(
-          line_output_options.output_receiver, root.get(), position.line,
+      line_output_receiver = std::make_unique<ParseTreeHighlighterTokens>(
+          std::move(line_output_receiver), root.get(), position.line,
           line->size());
-      line_output_options.output_receiver = parse_tree_highlighter.get();
     }
 
+    line_output_options.output_receiver = line_output_receiver.get();
     line->Output(line_output_options);
 
     if (active_cursor_column.has_value()) {
@@ -869,9 +869,6 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
           LineColumn(i, active_cursor_column.value() + number_prefix.size());
     }
 
-    // Need to do this for atomic lines, since they override the Reset
-    // modifier with Reset + Reverse.
-    line_output_receiver->AddModifier(LineModifier::RESET);
     last_line = position.line;
     position = next_position;
   }

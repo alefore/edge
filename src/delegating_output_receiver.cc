@@ -7,8 +7,9 @@
 namespace afc {
 namespace editor {
 
-DelegatingOutputReceiver::DelegatingOutputReceiver(OutputReceiver* delegate)
-    : delegate_(delegate) {
+DelegatingOutputReceiver::DelegatingOutputReceiver(
+    std::unique_ptr<OutputReceiver> delegate)
+    : delegate_(std::move(delegate)) {
   DCHECK(delegate_ != nullptr);
 }
 

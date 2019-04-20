@@ -16,7 +16,7 @@ namespace editor {
 
 class OutputReceiverOptimizer : public DelegatingOutputReceiver {
  public:
-  OutputReceiverOptimizer(OutputReceiver* delegate);
+  OutputReceiverOptimizer(std::unique_ptr<OutputReceiver> delegate);
   ~OutputReceiverOptimizer() override;
 
   void AddCharacter(wchar_t character) override;

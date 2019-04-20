@@ -10,8 +10,9 @@
 namespace afc {
 namespace editor {
 
-OutputReceiverOptimizer::OutputReceiverOptimizer(OutputReceiver* delegate)
-    : DelegatingOutputReceiver(delegate) {}
+OutputReceiverOptimizer::OutputReceiverOptimizer(
+    std::unique_ptr<OutputReceiver> delegate)
+    : DelegatingOutputReceiver(std::move(delegate)) {}
 
 OutputReceiverOptimizer::~OutputReceiverOptimizer() { Flush(); }
 

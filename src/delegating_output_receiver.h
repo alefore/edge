@@ -10,7 +10,7 @@ namespace editor {
 
 class DelegatingOutputReceiver : public OutputReceiver {
  public:
-  DelegatingOutputReceiver(OutputReceiver* delegate);
+  DelegatingOutputReceiver(std::unique_ptr<OutputReceiver> delegate);
 
   void AddCharacter(wchar_t character) override;
   void AddString(const wstring& str) override;
@@ -20,7 +20,7 @@ class DelegatingOutputReceiver : public OutputReceiver {
   size_t width() override;
 
  private:
-  OutputReceiver* const delegate_;
+  const std::unique_ptr<OutputReceiver> delegate_;
 };
 
 }  // namespace editor
