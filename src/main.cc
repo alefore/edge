@@ -71,7 +71,6 @@ void SignalHandler(int sig) {
 static const wchar_t* kDefaultCommandsToRun = L"ForkCommand(\"sh -l\", true);";
 
 wstring CommandsToRun(command_line_arguments::Values args) {
-  // TODO: Escape paths here!
   wstring commands_to_run = args.commands_to_run;
   std::vector<wstring> buffers_to_watch;
   for (auto& path : args.files_to_open) {
@@ -85,23 +84,27 @@ wstring CommandsToRun(command_line_arguments::Values args) {
       full_path = FromByteString(dir) + L"/" + path;
       free(dir);
     }
-    commands_to_run += L"OpenFile(\"" + full_path + L"\", true);\n";
+    commands_to_run +=
+        L"OpenFile(\"" + CppEscapeString(full_path) + L"\", true);\n";
     buffers_to_watch.push_back(full_path);
   }
   for (auto& command_to_fork : args.commands_to_fork) {
-    commands_to_run += L"ForkCommand(\"" + command_to_fork + L"\", " +
-                       (args.background ? L"false" : L"true") + L");\n";
+    commands_to_run += L"ForkCommand(\"" + CppEscapeString(command_to_fork) +
+                       L"\", " + (args.background ? L"false" : L"true") +
+                       L");\n";
   }
   if (!args.client.empty()) {
-    commands_to_run += L"Screen screen = RemoteScreen(\"" +
-                       FromByteString(getenv(kEdgeParentAddress)) + L"\");\n";
+    commands_to_run +=
+        L"Screen screen = RemoteScreen(\"" +
+        CppEscapeString(FromByteString(getenv(kEdgeParentAddress))) + L"\");\n";
   } else if (!buffers_to_watch.empty() &&
              args.nested_edge_behavior ==
                  command_line_arguments::Values::NestedEdgeBehavior::
                      kWaitForClose) {
     commands_to_run += L"SetString buffers_to_watch = SetString();\n";
     for (auto& block : buffers_to_watch) {
-      commands_to_run += L"buffers_to_watch.insert(\"" + block + L"\");\n";
+      commands_to_run +=
+          L"buffers_to_watch.insert(\"" + CppEscapeString(block) + L"\");\n";
     }
     commands_to_run += L"WaitForClose(buffers_to_watch);\n";
   }
