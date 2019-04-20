@@ -32,6 +32,8 @@ src/cursors.cc \
 src/cursors.h \
 src/cursors_transformation.cc \
 src/cursors_transformation.h \
+src/delegating_output_receiver.cc \
+src/delegating_output_receiver.h \
 src/delete_mode.cc \
 src/delete_mode.h \
 src/dirname.cc \
@@ -64,6 +66,9 @@ src/navigation_buffer.h \
 src/navigate_command.cc \
 src/open_directory_command.cc \
 src/open_file_command.cc \
+src/output_receiver.h \
+src/output_receiver_optimizer.cc \
+src/output_receiver_optimizer.h \
 src/parse_tools.cc \
 src/parse_tools.h \
 src/parse_tree.cc \

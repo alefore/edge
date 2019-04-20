@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "src/lazy_string.h"
+#include "src/output_receiver.h"
 #include "src/parse_tree.h"
 #include "src/vm/public/environment.h"
 
@@ -118,18 +119,6 @@ class Line {
     filter_version_ = filter_version;
   }
 
-  class OutputReceiverInterface {
-   public:
-    virtual ~OutputReceiverInterface() {}
-
-    virtual void AddCharacter(wchar_t character) = 0;
-    virtual void AddString(const wstring& str) = 0;
-    virtual void AddModifier(LineModifier modifier) = 0;
-    virtual void SetTabsStart(size_t columns) = 0;
-    virtual size_t column() = 0;
-    virtual size_t width() = 0;
-  };
-
   struct OutputOptions {
     const OpenBuffer* buffer = nullptr;
     LineColumn position;
@@ -140,7 +129,7 @@ class Line {
     size_t line_width;
     bool paste_mode;
     const ParseTree* full_file_parse_tree = nullptr;
-    OutputReceiverInterface* output_receiver = nullptr;
+    OutputReceiver* output_receiver = nullptr;
     bool has_active_cursor = false;
     bool has_cursor = false;
     std::unordered_set<const OpenBuffer*>* output_buffers_shown;
@@ -157,39 +146,6 @@ class Line {
   bool modified_ = false;
   bool filtered_ = true;
   size_t filter_version_ = 0;
-};
-
-// Wrapper of a Line::OutputReceiverInterface that coallesces multiple calls to
-// AddCharacter and/or AddString into as few calls (to the delegate) as
-// possible.
-class OutputReceiverOptimizer : public Line::OutputReceiverInterface {
- public:
-  OutputReceiverOptimizer(OutputReceiverInterface* delegate)
-      : delegate_(delegate) {
-    DCHECK(delegate_ != nullptr);
-  }
-
-  ~OutputReceiverOptimizer() override;
-
-  void AddCharacter(wchar_t character) override;
-  void AddString(const wstring& str) override;
-  void AddModifier(LineModifier modifier) override;
-  void SetTabsStart(size_t columns) override;
-  // Returns the current column in the screen. This value may not match the
-  // current column in the line, due to prefix characters (e.g., the line
-  // numbers) or multi-width characters (such as \t or special unicode
-  // characters).
-  size_t column() override;
-  size_t width() override;
-
- private:
-  void Flush();
-
-  Line::OutputReceiverInterface* const delegate_;
-
-  LineModifierSet modifiers_;
-  LineModifierSet last_modifiers_;
-  wstring buffer_;
 };
 
 }  // namespace editor
