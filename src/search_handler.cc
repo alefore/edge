@@ -1,15 +1,8 @@
 #include "src/search_handler.h"
 
 #include <iostream>
-#include <set>
-#if CPP_REGEX
 #include <regex>
-#else
-extern "C" {
-#include <regex.h>
-#include <sys/types.h>
-}
-#endif
+#include <set>
 
 #include "src/audio.h"
 #include "src/buffer_variables.h"
@@ -23,11 +16,7 @@ using namespace afc::editor;
 using std::vector;
 using std::wstring;
 
-#if CPP_REGEX
-typedef std::regex RegexPattern;
-#else
-typedef regex_t RegexPattern;
-#endif
+typedef std::wregex RegexPattern;
 
 // Returns all columns where the current line matches the pattern.
 vector<size_t> GetMatches(const wstring& line, const RegexPattern& pattern) {
@@ -35,22 +24,13 @@ vector<size_t> GetMatches(const wstring& line, const RegexPattern& pattern) {
   vector<size_t> output;
   while (true) {
     size_t match = wstring::npos;
-    // TODO: Ugh, our regexp engines are not wchar aware. :-(
-    string line_substr = ToByteString(line.substr(min(start, line.size())));
+    wstring line_substr = line.substr(min(start, line.size()));
 
-#if CPP_REGEX
-    std::smatch pattern_match;
+    std::wsmatch pattern_match;
     std::regex_search(line_substr, pattern_match, pattern);
     if (!pattern_match.empty()) {
-      match = pattern_match.prefix().first - line_substr.begin();
+      match = pattern_match.position();
     }
-#else
-    regmatch_t matches;
-    if (regexec(&pattern, line_substr.c_str(), 1, &matches, 0) == 0) {
-      match = matches.rm_so;
-    }
-#endif
-
     if (match == wstring::npos) {
       return output;
     }
@@ -65,22 +45,11 @@ vector<LineColumn> PerformSearch(const SearchOptions& options,
   using namespace afc::editor;
   vector<LineColumn> positions;
 
-#if CPP_REGEX
-  // TODO: Get rid of ToByteString. Ugh.
-  std::regex pattern(ToByteString(options.search_query),
-                     options.case_sensitive ? 0 : std::regex_constants::icase);
-#else
-  regex_t pattern;
-  int cflags = 0;
-  if (!options.case_sensitive) {
-    cflags |= REG_ICASE;
+  auto traits = std::regex_constants::extended;
+  if (options.case_sensitive) {
+    traits |= std::regex_constants::icase;
   }
-  // TODO: Get rid of ToByteString. Ugh.
-  if (regcomp(&pattern, ToByteString(options.search_query).c_str(), cflags) !=
-      0) {
-    return positions;
-  }
-#endif
+  std::wregex pattern(options.search_query, traits);
 
   buffer->contents()->EveryLine(
       [&positions, &pattern](size_t position, const Line& line) {
@@ -96,10 +65,6 @@ vector<LineColumn> PerformSearch(const SearchOptions& options,
 
 namespace afc {
 namespace editor {
-
-#if CPP_REGEX
-using std::regex;
-#endif
 
 wstring RegexEscape(shared_ptr<LazyString> str) {
   wstring results;
