@@ -240,7 +240,6 @@ wchar_t ComputeScrollBarCharacter(size_t line, size_t lines_size,
 }  // namespace
 
 void Line::Output(const Line::OutputOptions& options) const {
-  CHECK(options.editor_state != nullptr);
   CHECK(options.buffer != nullptr);
   std::unique_lock<std::mutex> lock(mutex_);
   VLOG(5) << "Producing output of line: " << ToString();
@@ -325,8 +324,8 @@ void Line::Output(const Line::OutputOptions& options) const {
         additional_information =
             L"(old) " + mark.source_line_content->ToString();
       } else {
-        auto source = options.editor_state->buffers()->find(mark.source);
-        if (source != options.editor_state->buffers()->end() &&
+        auto source = options.buffer->editor()->buffers()->find(mark.source);
+        if (source != options.buffer->editor()->buffers()->end() &&
             source->second->contents()->size() > mark.source_line) {
           options.output_receiver->AddModifier(LineModifier::BOLD);
           additional_information =

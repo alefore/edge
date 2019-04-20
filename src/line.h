@@ -129,7 +129,6 @@ class Line {
   };
 
   struct OutputOptions {
-    const EditorState* editor_state = nullptr;
     const OpenBuffer* buffer = nullptr;
     LineColumn position;
     // Number of screen lines that will be shown. Does not include the status

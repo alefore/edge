@@ -776,7 +776,6 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
   auto current_tree = buffer->current_tree(root.get());
 
   Line::OutputOptions line_output_options;
-  line_output_options.editor_state = editor_state;
   line_output_options.buffer = buffer.get();
   line_output_options.lines_to_show = lines_to_show;
   line_output_options.paste_mode = buffer->Read(buffer_variables::paste_mode());
