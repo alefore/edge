@@ -59,6 +59,8 @@ src/line_prompt_mode.cc \
 src/list_buffers_command.cc \
 src/lowercase.cc \
 src/map_mode.cc \
+src/merging_delegating_output_receiver.cc \
+src/merging_delegating_output_receiver.h \
 src/modifiers.cc \
 src/modifiers.h \
 src/navigation_buffer.cc \

@@ -10,6 +10,7 @@
 #include "src/delegating_output_receiver.h"
 #include "src/dirname.h"
 #include "src/line_marks.h"
+#include "src/merging_delegating_output_receiver.h"
 #include "src/output_receiver.h"
 #include "src/output_receiver_optimizer.h"
 #include "src/parse_tree.h"
@@ -405,84 +406,6 @@ class HighlightedLineOutputReceiver : public DelegatingOutputReceiver {
         DelegatingOutputReceiver::AddModifier(modifier);
     }
   }
-};
-
-// Class that merges the external modifiers with internally-produced modifiers.
-class MergingDelegatingOutputReceiver : public DelegatingOutputReceiver {
- public:
-  // When both internal and external modifiers are present, which set should
-  // win?
-  enum class Preference { kInternal, kExternal };
-  MergingDelegatingOutputReceiver(std::unique_ptr<OutputReceiver> delegate,
-                                  Preference preference)
-      : DelegatingOutputReceiver(std::move(delegate)),
-        preference_(preference) {}
-
-  void AddModifier(LineModifier modifier) {
-    switch (preference_) {
-      case Preference::kInternal:
-        AddLowModifier(modifier);
-        break;
-      case Preference::kExternal:
-        AddHighModifier(modifier);
-        break;
-    }
-  }
-
- protected:
-  void AddInternalModifier(LineModifier modifier) {
-    switch (preference_) {
-      case Preference::kInternal:
-        AddHighModifier(modifier);
-        break;
-      case Preference::kExternal:
-        AddLowModifier(modifier);
-        break;
-    }
-  }
-
-  bool has_high_modifiers() { return high_modifiers_; }
-
- private:
-  // Returns a set of modifiers to be applied to the output.
-  void AddHighModifier(LineModifier modifier) {
-    if (modifier == LineModifier::RESET) {
-      if (high_modifiers_) {
-        high_modifiers_ = false;
-        DelegatingOutputReceiver::AddModifier(LineModifier::RESET);
-        for (auto& m : low_modifiers_) {
-          CHECK(m != LineModifier::RESET);
-          DelegatingOutputReceiver::AddModifier(m);
-        }
-      }
-      return;
-    }
-
-    if (!high_modifiers_) {
-      if (!low_modifiers_.empty()) {
-        DelegatingOutputReceiver::AddModifier(LineModifier::RESET);
-      }
-      high_modifiers_ = true;
-    }
-    DelegatingOutputReceiver::AddModifier(modifier);
-    return;
-  }
-
-  // Returns a set of modifiers to be applied to the output.
-  void AddLowModifier(LineModifier modifier) {
-    if (modifier == LineModifier::RESET) {
-      low_modifiers_.clear();
-    } else {
-      low_modifiers_.insert(modifier);
-    }
-    if (!high_modifiers_) {
-      DelegatingOutputReceiver::AddModifier(modifier);
-    }
-  }
-
-  const Preference preference_;
-  bool high_modifiers_ = false;
-  LineModifierSet low_modifiers_;
 };
 
 class CursorsHighlighter : public MergingDelegatingOutputReceiver {
