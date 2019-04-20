@@ -381,11 +381,6 @@ void Line::Output(const Line::OutputOptions& options) const {
     }
     options.output_receiver->AddString(additional_information);
   }
-
-  if (options.output_receiver->column() < width) {
-    VLOG(6) << "Adding newline characters.";
-    options.output_receiver->AddString(L"\n");
-  }
 }
 
 }  // namespace editor

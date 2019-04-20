@@ -12,7 +12,13 @@ namespace {
 class Receiver : public OutputReceiver {
  public:
   Receiver(Screen* screen) : screen_(screen) {}
-  ~Receiver() { AddModifier(LineModifier::RESET); }
+  ~Receiver() {
+    AddModifier(LineModifier::RESET);
+    if (column() < width()) {
+      VLOG(6) << "Adding newline characters.";
+      AddString(L"\n");
+    }
+  }
 
   void AddCharacter(wchar_t c) override {
     if (c == L'\t') {
