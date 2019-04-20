@@ -773,6 +773,23 @@ LineColumn Terminal::GetNextLine(const OpenBuffer& buffer, size_t columns,
   return position;
 }
 
+// Adds spaces until we're at a given position.
+void AddPadding(size_t column, const LineModifierSet& modifiers,
+                OutputReceiver* output_receiver) {
+  if (output_receiver->column() >= column ||
+      column >= output_receiver->width()) {
+    return;
+  }
+
+  size_t padding = column - output_receiver->column();
+  for (auto it : modifiers) {
+    output_receiver->AddModifier(it);
+  }
+  output_receiver->AddString(wstring(padding, L' '));
+  output_receiver->AddModifier(LineModifier::RESET);
+  CHECK_LE(output_receiver->column(), output_receiver->width());
+}
+
 void ShowAdditionalData(
     OpenBuffer* buffer, const Line& line, LineColumn position,
     size_t lines_to_show, const ParseTree* full_file_parse_tree,
@@ -788,21 +805,6 @@ void ShowAdditionalData(
 
   const auto line_width =
       static_cast<size_t>(max(0, buffer->Read(buffer_variables::line_width())));
-
-  if (line_width == 0 ||
-      output_receiver->column() >= output_receiver->width()) {
-    return;
-  }
-
-  if (line_width > output_receiver->column()) {
-    size_t padding = line_width - output_receiver->column();
-    for (auto it : line.end_of_line_modifiers()) {
-      output_receiver->AddModifier(it);
-    }
-    output_receiver->AddString(wstring(padding, L' '));
-    output_receiver->AddModifier(LineModifier::RESET);
-    CHECK_LE(output_receiver->column(), output_receiver->width());
-  }
 
   auto all_marks = buffer->GetLineMarks();
   auto marks = all_marks->equal_range(position.line);
@@ -1018,7 +1020,12 @@ void Terminal::ShowBuffer(const EditorState* editor_state, Screen* screen) {
 
     line_output_options.output_receiver = line_output_receiver.get();
     line->Output(line_output_options);
+
     if (!buffer->Read(buffer_variables::paste_mode())) {
+      const auto line_width = static_cast<size_t>(
+          max(0, buffer->Read(buffer_variables::line_width())));
+      AddPadding(line_width, line->end_of_line_modifiers(),
+                 line_output_receiver.get());
       ShowAdditionalData(buffer.get(), *line, position, lines_to_show,
                          zoomed_out_tree.get(), line_output_receiver.get(),
                          &buffers_shown);
