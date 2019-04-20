@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_MERGING_DELEGATING_OUTPUT_RECEIVER_H__
-#define __AFC_EDITOR_MERGING_DELEGATING_OUTPUT_RECEIVER_H__
+#ifndef __AFC_EDITOR_DELEGATING_OUTPUT_RECEIVER_WITH_INTERNAL_MODIFIERS_H__
+#define __AFC_EDITOR_DELEGATING_OUTPUT_RECEIVER_WITH_INTERNAL_MODIFIERS_H__
 
 #include <string>
 
@@ -9,13 +9,14 @@ namespace afc {
 namespace editor {
 
 // Class that merges the external modifiers with internally-produced modifiers.
-class MergingDelegatingOutputReceiver : public DelegatingOutputReceiver {
+class DelegatingOutputReceiverWithInternalModifiers
+    : public DelegatingOutputReceiver {
  public:
   // When both internal and external modifiers are present, which set should
   // win?
   enum class Preference { kInternal, kExternal };
-  MergingDelegatingOutputReceiver(std::unique_ptr<OutputReceiver> delegate,
-                                  Preference preference);
+  DelegatingOutputReceiverWithInternalModifiers(
+      std::unique_ptr<OutputReceiver> delegate, Preference preference);
 
   void AddModifier(LineModifier modifier) override;
 
@@ -35,4 +36,4 @@ class MergingDelegatingOutputReceiver : public DelegatingOutputReceiver {
 }  // namespace editor
 }  // namespace afc
 
-#endif  // __AFC_EDITOR_MERGING_DELEGATING_OUTPUT_RECEIVER_H__
+#endif  // __AFC_EDITOR_DELEGATING_OUTPUT_RECEIVER_WITH_INTERNAL_MODIFIERS_H__

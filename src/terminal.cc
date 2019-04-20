@@ -8,9 +8,9 @@
 
 #include "src/buffer_variables.h"
 #include "src/delegating_output_receiver.h"
+#include "src/delegating_output_receiver_with_internal_modifiers.h"
 #include "src/dirname.h"
 #include "src/line_marks.h"
-#include "src/merging_delegating_output_receiver.h"
 #include "src/output_receiver.h"
 #include "src/output_receiver_optimizer.h"
 #include "src/parse_tree.h"
@@ -408,7 +408,8 @@ class HighlightedLineOutputReceiver : public DelegatingOutputReceiver {
   }
 };
 
-class CursorsHighlighter : public MergingDelegatingOutputReceiver {
+class CursorsHighlighter
+    : public DelegatingOutputReceiverWithInternalModifiers {
  public:
   struct Options {
     std::unique_ptr<OutputReceiver> delegate;
@@ -428,9 +429,10 @@ class CursorsHighlighter : public MergingDelegatingOutputReceiver {
   };
 
   explicit CursorsHighlighter(Options options)
-      : MergingDelegatingOutputReceiver(
+      : DelegatingOutputReceiverWithInternalModifiers(
             std::move(options.delegate),
-            MergingDelegatingOutputReceiver::Preference::kInternal),
+            DelegatingOutputReceiverWithInternalModifiers::Preference::
+                kInternal),
         options_(std::move(options)),
         next_cursor_(options_.columns.begin()) {
     CheckInvariants();
@@ -452,7 +454,7 @@ class CursorsHighlighter : public MergingDelegatingOutputReceiver {
                               : LineModifier::BLUE);
       if (is_active && options_.active_cursor_output != nullptr) {
         *options_.active_cursor_output =
-            MergingDelegatingOutputReceiver::column();
+            DelegatingOutputReceiverWithInternalModifiers::column();
       }
     }
 
@@ -547,7 +549,8 @@ class ParseTreeHighlighter : public DelegatingOutputReceiver {
   const size_t end_;
 };
 
-class ParseTreeHighlighterTokens : public MergingDelegatingOutputReceiver {
+class ParseTreeHighlighterTokens
+    : public DelegatingOutputReceiverWithInternalModifiers {
  public:
   // A OutputReceiver implementation that merges modifiers from the syntax tree
   // (with modifiers from the line). When modifiers from the line are present,
@@ -560,9 +563,9 @@ class ParseTreeHighlighterTokens : public MergingDelegatingOutputReceiver {
   ParseTreeHighlighterTokens(std::unique_ptr<OutputReceiver> delegate,
                              const ParseTree* root, size_t line,
                              size_t largest_column_with_tree)
-      : MergingDelegatingOutputReceiver(
-            std::move(delegate),
-            MergingDelegatingOutputReceiver::Preference::kExternal),
+      : DelegatingOutputReceiverWithInternalModifiers(
+            std::move(delegate), DelegatingOutputReceiverWithInternalModifiers::
+                                     Preference::kExternal),
         root_(root),
         largest_column_with_tree_(largest_column_with_tree),
         line_(line),

@@ -1,4 +1,4 @@
-#include "src/merging_delegating_output_receiver.h"
+#include "src/delegating_output_receiver_with_internal_modifiers.h"
 
 #include <glog/logging.h>
 
@@ -7,11 +7,13 @@
 namespace afc {
 namespace editor {
 
-MergingDelegatingOutputReceiver::MergingDelegatingOutputReceiver(
-    std::unique_ptr<OutputReceiver> delegate, Preference preference)
+DelegatingOutputReceiverWithInternalModifiers::
+    DelegatingOutputReceiverWithInternalModifiers(
+        std::unique_ptr<OutputReceiver> delegate, Preference preference)
     : DelegatingOutputReceiver(std::move(delegate)), preference_(preference) {}
 
-void MergingDelegatingOutputReceiver::AddModifier(LineModifier modifier) {
+void DelegatingOutputReceiverWithInternalModifiers::AddModifier(
+    LineModifier modifier) {
   switch (preference_) {
     case Preference::kInternal:
       AddLowModifier(modifier);
@@ -22,7 +24,7 @@ void MergingDelegatingOutputReceiver::AddModifier(LineModifier modifier) {
   }
 }
 
-void MergingDelegatingOutputReceiver::AddInternalModifier(
+void DelegatingOutputReceiverWithInternalModifiers::AddInternalModifier(
     LineModifier modifier) {
   switch (preference_) {
     case Preference::kInternal:
@@ -34,11 +36,12 @@ void MergingDelegatingOutputReceiver::AddInternalModifier(
   }
 }
 
-bool MergingDelegatingOutputReceiver::has_high_modifiers() const {
+bool DelegatingOutputReceiverWithInternalModifiers::has_high_modifiers() const {
   return high_modifiers_;
 }
 
-void MergingDelegatingOutputReceiver::AddHighModifier(LineModifier modifier) {
+void DelegatingOutputReceiverWithInternalModifiers::AddHighModifier(
+    LineModifier modifier) {
   if (modifier == LineModifier::RESET) {
     if (high_modifiers_) {
       high_modifiers_ = false;
@@ -61,7 +64,8 @@ void MergingDelegatingOutputReceiver::AddHighModifier(LineModifier modifier) {
   return;
 }
 
-void MergingDelegatingOutputReceiver::AddLowModifier(LineModifier modifier) {
+void DelegatingOutputReceiverWithInternalModifiers::AddLowModifier(
+    LineModifier modifier) {
   if (modifier == LineModifier::RESET) {
     low_modifiers_.clear();
   } else {

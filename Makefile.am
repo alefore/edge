@@ -34,6 +34,8 @@ src/cursors_transformation.cc \
 src/cursors_transformation.h \
 src/delegating_output_receiver.cc \
 src/delegating_output_receiver.h \
+src/delegating_output_receiver_with_internal_modifiers.cc \
+src/delegating_output_receiver_with_internal_modifiers.h \
 src/delete_mode.cc \
 src/delete_mode.h \
 src/dirname.cc \
@@ -59,8 +61,6 @@ src/line_prompt_mode.cc \
 src/list_buffers_command.cc \
 src/lowercase.cc \
 src/map_mode.cc \
-src/merging_delegating_output_receiver.cc \
-src/merging_delegating_output_receiver.h \
 src/modifiers.cc \
 src/modifiers.h \
 src/navigation_buffer.cc \
