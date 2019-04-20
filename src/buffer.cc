@@ -966,6 +966,7 @@ void OpenBuffer::ResetParseTree() {
     if (!background_thread_.joinable()) {
       std::unique_lock<std::mutex> lock(mutex_);
       background_thread_shutting_down_ = false;
+      LOG(INFO) << "Creating thread: " << Read(buffer_variables::name());
       background_thread_ = std::thread([this]() { BackgroundThread(); });
     }
   }
