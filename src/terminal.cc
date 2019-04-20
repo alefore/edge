@@ -407,57 +407,85 @@ class HighlightedLineOutputReceiver : public DelegatingOutputReceiver {
   }
 };
 
-// Class that merges modifiers produced at two different levels: a parent, and
-// a child. For any position where the parent has any modifiers active, those
-// from the child get ignored. A delegate OutputReceiverInterface is updated.
-class ModifiersMerger {
+// Class that merges the external modifiers with internally-produced modifiers.
+class MergingDelegatingOutputReceiver : public DelegatingOutputReceiver {
  public:
-  ModifiersMerger(std::function<void(LineModifier)> callback)
-      : callback_(std::move(callback)) {}
+  // When both internal and external modifiers are present, which set should
+  // win?
+  enum class Preference { kInternal, kExternal };
+  MergingDelegatingOutputReceiver(std::unique_ptr<OutputReceiver> delegate,
+                                  Preference preference)
+      : DelegatingOutputReceiver(std::move(delegate)),
+        preference_(preference) {}
 
-  void AddParentModifier(LineModifier modifier) {
+  void AddModifier(LineModifier modifier) {
+    switch (preference_) {
+      case Preference::kInternal:
+        AddLowModifier(modifier);
+        break;
+      case Preference::kExternal:
+        AddHighModifier(modifier);
+        break;
+    }
+  }
+
+ protected:
+  void AddInternalModifier(LineModifier modifier) {
+    switch (preference_) {
+      case Preference::kInternal:
+        AddHighModifier(modifier);
+        break;
+      case Preference::kExternal:
+        AddLowModifier(modifier);
+        break;
+    }
+  }
+
+  bool has_high_modifiers() { return high_modifiers_; }
+
+ private:
+  // Returns a set of modifiers to be applied to the output.
+  void AddHighModifier(LineModifier modifier) {
     if (modifier == LineModifier::RESET) {
-      if (!parent_modifiers_) {
-        return;
-      }
-      parent_modifiers_ = false;
-      callback_(LineModifier::RESET);
-      for (auto& m : children_modifiers_) {
-        CHECK(m != LineModifier::RESET);
-        callback_(m);
+      if (high_modifiers_) {
+        high_modifiers_ = false;
+        DelegatingOutputReceiver::AddModifier(LineModifier::RESET);
+        for (auto& m : low_modifiers_) {
+          CHECK(m != LineModifier::RESET);
+          DelegatingOutputReceiver::AddModifier(m);
+        }
       }
       return;
     }
 
-    if (!parent_modifiers_) {
-      if (!children_modifiers_.empty()) {
-        callback_(LineModifier::RESET);
+    if (!high_modifiers_) {
+      if (!low_modifiers_.empty()) {
+        DelegatingOutputReceiver::AddModifier(LineModifier::RESET);
       }
-      parent_modifiers_ = true;
+      high_modifiers_ = true;
     }
-    callback_(modifier);
+    DelegatingOutputReceiver::AddModifier(modifier);
+    return;
   }
 
-  void AddChildrenModifier(LineModifier modifier) {
+  // Returns a set of modifiers to be applied to the output.
+  void AddLowModifier(LineModifier modifier) {
     if (modifier == LineModifier::RESET) {
-      children_modifiers_.clear();
+      low_modifiers_.clear();
     } else {
-      children_modifiers_.insert(modifier);
+      low_modifiers_.insert(modifier);
     }
-    if (!parent_modifiers_) {
-      callback_(modifier);
+    if (!high_modifiers_) {
+      DelegatingOutputReceiver::AddModifier(modifier);
     }
   }
 
-  bool has_parent_modifiers() { return parent_modifiers_; }
-
- private:
-  bool parent_modifiers_ = false;
-  LineModifierSet children_modifiers_;
-  const std::function<void(LineModifier)> callback_;
+  const Preference preference_;
+  bool high_modifiers_ = false;
+  LineModifierSet low_modifiers_;
 };
 
-class CursorsHighlighter : public DelegatingOutputReceiver {
+class CursorsHighlighter : public MergingDelegatingOutputReceiver {
  public:
   struct Options {
     std::unique_ptr<OutputReceiver> delegate;
@@ -477,11 +505,10 @@ class CursorsHighlighter : public DelegatingOutputReceiver {
   };
 
   explicit CursorsHighlighter(Options options)
-      : DelegatingOutputReceiver(std::move(options.delegate)),
+      : MergingDelegatingOutputReceiver(
+            std::move(options.delegate),
+            MergingDelegatingOutputReceiver::Preference::kInternal),
         options_(std::move(options)),
-        modifiers_merger_([this](LineModifier m) {
-          DelegatingOutputReceiver::AddModifier(m);
-        }),
         next_cursor_(options_.columns.begin()) {
     CheckInvariants();
   }
@@ -496,18 +523,19 @@ class CursorsHighlighter : public DelegatingOutputReceiver {
             *next_cursor_ > column_read_);
       bool is_active = options_.active_cursor_input.has_value() &&
                        options_.active_cursor_input.value() == column_read_;
-      modifiers_merger_.AddParentModifier(LineModifier::REVERSE);
-      modifiers_merger_.AddParentModifier(is_active || options_.multiple_cursors
-                                              ? LineModifier::CYAN
-                                              : LineModifier::BLUE);
+      AddInternalModifier(LineModifier::REVERSE);
+      AddInternalModifier(is_active || options_.multiple_cursors
+                              ? LineModifier::CYAN
+                              : LineModifier::BLUE);
       if (is_active && options_.active_cursor_output != nullptr) {
-        *options_.active_cursor_output = column();
+        *options_.active_cursor_output =
+            MergingDelegatingOutputReceiver::column();
       }
     }
 
     DelegatingOutputReceiver::AddCharacter(c);
     if (at_cursor) {
-      modifiers_merger_.AddParentModifier(LineModifier::RESET);
+      AddInternalModifier(LineModifier::RESET);
     }
     column_read_++;
     CheckInvariants();
@@ -542,10 +570,6 @@ class CursorsHighlighter : public DelegatingOutputReceiver {
     }
   }
 
-  void AddModifier(LineModifier modifier) {
-    modifiers_merger_.AddChildrenModifier(modifier);
-  }
-
  private:
   void CheckInvariants() {
     if (next_cursor_ != options_.columns.end()) {
@@ -554,7 +578,6 @@ class CursorsHighlighter : public DelegatingOutputReceiver {
   }
 
   const Options options_;
-  ModifiersMerger modifiers_merger_;
 
   // Points to the first element in columns_ that is greater than or equal to
   // the current position.
@@ -601,7 +624,7 @@ class ParseTreeHighlighter : public DelegatingOutputReceiver {
   const size_t end_;
 };
 
-class ParseTreeHighlighterTokens : public DelegatingOutputReceiver {
+class ParseTreeHighlighterTokens : public MergingDelegatingOutputReceiver {
  public:
   // A OutputReceiver implementation that merges modifiers from the syntax tree
   // (with modifiers from the line). When modifiers from the line are present,
@@ -614,10 +637,9 @@ class ParseTreeHighlighterTokens : public DelegatingOutputReceiver {
   ParseTreeHighlighterTokens(std::unique_ptr<OutputReceiver> delegate,
                              const ParseTree* root, size_t line,
                              size_t largest_column_with_tree)
-      : DelegatingOutputReceiver(std::move(delegate)),
-        modifiers_merger_([this](LineModifier m) {
-          DelegatingOutputReceiver::AddModifier(m);
-        }),
+      : MergingDelegatingOutputReceiver(
+            std::move(delegate),
+            MergingDelegatingOutputReceiver::Preference::kExternal),
         root_(root),
         largest_column_with_tree_(largest_column_with_tree),
         line_(line),
@@ -629,7 +651,7 @@ class ParseTreeHighlighterTokens : public DelegatingOutputReceiver {
     LineColumn position(line_, column_read_++);
     if (position.column >= largest_column_with_tree_) {
       if (position.column == largest_column_with_tree_) {
-        modifiers_merger_.AddChildrenModifier(LineModifier::RESET);
+        AddInternalModifier(LineModifier::RESET);
       }
       DelegatingOutputReceiver::AddCharacter(c);
       return;
@@ -638,12 +660,12 @@ class ParseTreeHighlighterTokens : public DelegatingOutputReceiver {
       UpdateCurrent(position);
     }
 
-    modifiers_merger_.AddChildrenModifier(LineModifier::RESET);
-    if (!current_.empty() && !modifiers_merger_.has_parent_modifiers()) {
+    AddInternalModifier(LineModifier::RESET);
+    if (!current_.empty() && !has_high_modifiers()) {
       for (auto& t : current_) {
         if (t->range.Contains(position)) {
           for (auto& modifier : t->modifiers) {
-            modifiers_merger_.AddChildrenModifier(modifier);
+            AddInternalModifier(modifier);
           }
         }
       }
@@ -661,10 +683,6 @@ class ParseTreeHighlighterTokens : public DelegatingOutputReceiver {
     for (auto& c : str) {
       DelegatingOutputReceiver::AddCharacter(c);
     }
-  }
-
-  void AddModifier(LineModifier modifier) override {
-    modifiers_merger_.AddParentModifier(modifier);
   }
 
  private:
@@ -694,7 +712,6 @@ class ParseTreeHighlighterTokens : public DelegatingOutputReceiver {
 
   // Keeps track of the modifiers coming from the parent, so as to not lose
   // that information when we reset our own.
-  ModifiersMerger modifiers_merger_;
   const ParseTree* root_;
   const size_t largest_column_with_tree_;
   const size_t line_;
