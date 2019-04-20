@@ -14,10 +14,6 @@ Support more languages:
 
 Implement delete of page.
 
-Let buffers "garbage collect" their contents: if they're clean and haven't been accessed in a while, just have them drop their contents.
-  - Requires making them load them lazily.
-  - Probably not too important? We can just let the OS page out appropriate pages.
-
 For 'd': Add '?' (show modifiers available).
 
 Add "pipe" command: select the region (similar to delete: line, paragraph, buffer...), and then prompt for a command. Pipe the contents of the region to the command, and replace them with the output of the command.
