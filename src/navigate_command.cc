@@ -42,6 +42,8 @@ class NavigateMode : public EditorMode {
         buffer->second->ResetMode();
         editor_state->ProcessInput(c);
     }
+
+    editor_state->ScheduleRedraw();
   }
 
  protected:
