@@ -2001,7 +2001,7 @@ wstring OpenBuffer::FlagsString() const {
   }
 
   if (modified()) {
-    output += L" ~";
+    output += L" 🐾";
   }
   if (fd() != -1) {
     output += L" < l:" + to_wstring(contents_.size());
@@ -2010,11 +2010,11 @@ wstring OpenBuffer::FlagsString() const {
     }
     wstring pts_path = Read(buffer_variables::pts_path());
     if (!pts_path.empty()) {
-      output += L" " + pts_path;
+      output += L"  💻" + pts_path + L" ";
     }
   }
   if (child_pid_ != -1) {
-    output += L" pid:" + to_wstring(child_pid_);
+    output += L"  🤴" + to_wstring(child_pid_) + L" ";
   } else if (child_exit_status_ != 0) {
     if (WIFEXITED(child_exit_status_)) {
       output += L" exit:" + to_wstring(WEXITSTATUS(child_exit_status_));

@@ -147,7 +147,7 @@ Predictor VariablesPredictor() {
 unique_ptr<Command> NewSetVariableCommand() {
   static Predictor variables_predictor = VariablesPredictor();
   PromptOptions options;
-  options.prompt = L"var ";
+  options.prompt = L"🔧 ";
   options.history_file = L"variables";
   options.handler = SetVariableHandler;
   options.cancel_handler = [](EditorState*) { /* Nothing. */ };
