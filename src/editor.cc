@@ -155,6 +155,11 @@ Environment EditorState::BuildEditorEnvironment() {
                          [](EditorState* editor) { editor->ZoomToLeaf(); })));
 
   editor_type->AddField(
+      L"RemoveActiveLeaf",
+      vm::NewCallback(std::function<void(EditorState*)>(
+          [](EditorState* editor) { editor->BufferTreeRemoveActiveLeaf(); })));
+
+  editor_type->AddField(
       L"SaveCurrentBuffer",
       Value::NewFunction(
           {VMType(VMType::VM_VOID), VMType::ObjectType(editor_type.get())},
@@ -462,6 +467,10 @@ void EditorState::ZoomToLeaf() {
   BufferTree tmp = *FindActiveLeaf(&buffer_tree_);
   buffer_tree_ = tmp;
   ScheduleRedraw();
+}
+
+void EditorState::BufferTreeRemoveActiveLeaf() {
+  BufferTree::RemoveActiveLeaf(&buffer_tree_);
 }
 
 bool EditorState::has_current_buffer() const {

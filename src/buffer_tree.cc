@@ -51,6 +51,20 @@ int InternalAdvanceActiveLeaf(BufferTree* tree, int delta) {
 }
 }  // namespace
 
+/* static */ void BufferTree::RemoveActiveLeaf(BufferTree* tree) {
+  auto route = FindRouteToActiveLeaf(tree);
+  while (route.size() > 1 && route[route.size() - 2]->children.size() == 1) {
+    BufferTree tmp = *route.back();
+    route.pop_back();
+    *route.back() = tmp;
+  }
+  if (route.size() > 1) {
+    auto parent = route[route.size() - 2];
+    parent->children.erase(parent->children.begin() + parent->active);
+    parent->active %= parent->children.size();
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, const BufferTree& lc) {
   os << "[buffer tree ";
   switch (lc.type) {

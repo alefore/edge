@@ -24,6 +24,9 @@ struct BufferTree {
   // Ignored if type == kLeaf.
   Tree<BufferTree> children;
   size_t active;
+
+  // TODO: Turn BufferTree into a class, make this not static.
+  static void RemoveActiveLeaf(BufferTree* tree);
 };
 
 std::ostream& operator<<(std::ostream& os, const BufferTree& lc);

@@ -61,6 +61,7 @@ class EditorState {
   void AddVerticalPane();
   void AdvanceActiveLeaf(int delta);
   void ZoomToLeaf();
+  void BufferTreeRemoveActiveLeaf();
 
   bool has_current_buffer() const;
   shared_ptr<OpenBuffer> current_buffer();
