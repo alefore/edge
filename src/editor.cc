@@ -369,7 +369,7 @@ Environment EditorState::BuildEditorEnvironment() {
   OpenBuffer::RegisterBufferType(this, &environment);
 
   InitShapes(&environment);
-  RegisterTransformations(&environment);
+  RegisterTransformations(this, &environment);
   Modifiers::Register(&environment);
   return environment;
 }
