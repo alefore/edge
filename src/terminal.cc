@@ -42,18 +42,6 @@ constexpr int Terminal::CTRL_L;
 constexpr int Terminal::CTRL_U;
 constexpr int Terminal::CTRL_K;
 
-namespace {
-// TODO: Remove.
-// Returns the number of initial columns to skip, corresponding to output that
-// prefixes the actual line contents.
-size_t GetInitialPrefixSize(const OpenBuffer& buffer) {
-  return buffer.Read(buffer_variables::paste_mode())
-             ? 0
-             : 1 + std::to_wstring(buffer.lines_size()).size();
-}
-
-}  // namespace
-
 void Terminal::Display(EditorState* editor_state, Screen* screen,
                        const EditorState::ScreenState& screen_state) {
   if (screen_state.needs_hard_redraw) {
