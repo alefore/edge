@@ -178,11 +178,14 @@ void AddHorizontalSplit() { editor.AddHorizontalSplit(); }
 void RewindActiveLeaf() { editor.AdvanceActiveLeaf(-1); }
 void AdvanceActiveLeaf() { editor.AdvanceActiveLeaf(1); }
 void RemoveActiveLeaf() { editor.RemoveActiveLeaf(); }
+
 buffer.AddBinding("st=", "Frames: Zoom to the current leaf", ZoomToLeaf);
 buffer.AddBinding("st+", "Frames: Add a new leaf", AddHorizontalSplit);
 buffer.AddBinding("stk", "Frames: Move to the previous leaf", RewindActiveLeaf);
 buffer.AddBinding("stj", "Frames: Move to the next leaf", AdvanceActiveLeaf);
 buffer.AddBinding("st-", "Frames: Remove active leaf", RemoveActiveLeaf);
+buffer.AddBinding("sta", "Frames: Show all open buffers",
+                  editor.SetHorizontalSplitsWithAllBuffers);
 
 void IncrementNumber() {
   AddToIntegerAtPosition(buffer.position(), repetitions());

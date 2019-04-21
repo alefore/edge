@@ -59,6 +59,7 @@ class EditorState {
 
   void set_current_buffer(shared_ptr<OpenBuffer> buffer);
   void AddHorizontalSplit();
+  void SetHorizontalSplitsWithAllBuffers();
   void AdvanceActiveLeaf(int delta);
   void ZoomToLeaf();
   void BufferTreeRemoveActiveLeaf();

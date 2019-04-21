@@ -144,6 +144,12 @@ Environment EditorState::BuildEditorEnvironment() {
       vm::NewCallback(std::function<void(EditorState*)>(
           [](EditorState* editor) { editor->AddHorizontalSplit(); })));
 
+  editor_type->AddField(L"SetHorizontalSplitsWithAllBuffers",
+                        vm::NewCallback(std::function<void(EditorState*)>(
+                            [](EditorState* editor) {
+                              editor->SetHorizontalSplitsWithAllBuffers();
+                            })));
+
   editor_type->AddField(L"AdvanceActiveLeaf",
                         vm::NewCallback(std::function<void(EditorState*, int)>(
                             [](EditorState* editor, int delta) {
@@ -456,6 +462,24 @@ void EditorState::AddHorizontalSplit() {
   buffer_tree_.children.push_back(BufferTree());
   set_screen_needs_hard_redraw(true);  // TODO: Why is this needed?
   ScheduleRedraw();
+}
+
+void EditorState::SetHorizontalSplitsWithAllBuffers() {
+  auto active_buffer = current_buffer();
+  buffer_tree_.type = BufferTree::Type::kHorizontal;
+  buffer_tree_.leaf.reset();
+  buffer_tree_.active = 0;
+  buffer_tree_.children.clear();
+  for (auto& buffer : buffers_) {
+    if (!buffer.second->Read(buffer_variables::show_in_buffers_list())) {
+      continue;
+    }
+    if (buffer.second == active_buffer) {
+      buffer_tree_.active = buffer_tree_.children.size();
+    }
+    buffer_tree_.children.push_back(BufferTree());
+    buffer_tree_.children.back().leaf = buffer.second;
+  }
 }
 
 void EditorState::AdvanceActiveLeaf(int delta) {
