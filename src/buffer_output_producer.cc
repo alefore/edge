@@ -433,7 +433,7 @@ void ShowAdditionalData(
 
     const LineMarks::Mark& mark = marks.first->second;
     if (mark.source_line_content != nullptr) {
-      additional_information = L"(old) " + mark.source_line_content->ToString();
+      additional_information = L"👻 " + mark.source_line_content->ToString();
     } else {
       auto source = buffer->editor()->buffers()->find(mark.source);
       if (source != buffer->editor()->buffers()->end() &&

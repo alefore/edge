@@ -184,12 +184,18 @@ void AdvanceActiveLeaf() {
   editor.AdvanceActiveLeaf(repetitions());
   set_repetitions(1);
 }
+void SetActiveLeaf() {
+  editor.SetActiveLeaf(repetitions() - 1);
+  set_repetitions(1);
+}
 void RemoveActiveLeaf() { editor.RemoveActiveLeaf(); }
 
 buffer.AddBinding("st=", "Frames: Zoom to the current leaf", ZoomToLeaf);
 buffer.AddBinding("st+", "Frames: Add a new leaf", AddHorizontalSplit);
 buffer.AddBinding("stk", "Frames: Move to the previous leaf", RewindActiveLeaf);
 buffer.AddBinding("stj", "Frames: Move to the next leaf", AdvanceActiveLeaf);
+buffer.AddBinding("stg", "Frames: Set the active leaf (by repetitions)",
+                  SetActiveLeaf);
 buffer.AddBinding("st-", "Frames: Remove active leaf", RemoveActiveLeaf);
 buffer.AddBinding("sta", "Frames: Show all open buffers",
                   editor.SetHorizontalSplitsWithAllBuffers);

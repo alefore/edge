@@ -150,6 +150,12 @@ Environment EditorState::BuildEditorEnvironment() {
                               editor->SetHorizontalSplitsWithAllBuffers();
                             })));
 
+  editor_type->AddField(L"SetActiveLeaf",
+                        vm::NewCallback(std::function<void(EditorState*, int)>(
+                            [](EditorState* editor, int delta) {
+                              editor->SetActiveLeaf(delta);
+                            })));
+
   editor_type->AddField(L"AdvanceActiveLeaf",
                         vm::NewCallback(std::function<void(EditorState*, int)>(
                             [](EditorState* editor, int delta) {
@@ -479,6 +485,17 @@ void EditorState::SetHorizontalSplitsWithAllBuffers() {
     }
     buffer_tree_.children.push_back(BufferTree());
     buffer_tree_.children.back().leaf = buffer.second;
+  }
+}
+
+void EditorState::SetActiveLeaf(size_t position) {
+  switch (buffer_tree_.type) {
+    case BufferTree::Type::kLeaf:
+      break;
+    case BufferTree::Type::kHorizontal:
+      CHECK(!buffer_tree_.children.empty());
+      buffer_tree_.active = position % buffer_tree_.children.size();
+      break;
   }
 }
 
