@@ -21,6 +21,7 @@ class Receiver : public OutputReceiver {
   }
 
   void AddCharacter(wchar_t c) override {
+    if (column_write_ >= screen_->columns()) return;
     if (c == L'\t') {
       // Nothing.
     } else if (iswprint(c) || c == L'\t' || c == L'\r' || c == L'\n') {
@@ -49,7 +50,6 @@ class Receiver : public OutputReceiver {
 
  private:
   void RegisterChar(wchar_t c) {
-    CHECK_LT(column_write_, screen_->columns());
     switch (c) {
       case L'\n':
         column_write_ = screen_->columns();
