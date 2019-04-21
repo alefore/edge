@@ -79,6 +79,7 @@ void HandleFileTypes(string basename, string extension) {
   }
 
   if (basename == "COMMIT_EDITMSG") {
+    buffer.set_position(LineColumn(0, 0));
     buffer.set_paragraph_line_prefix_characters(" #");
     buffer.set_line_prefix_characters(" #");
     buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
