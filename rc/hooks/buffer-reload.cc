@@ -6,6 +6,7 @@
 #include "../editor_commands/cpp-mode"
 #include "../editor_commands/java-mode"
 #include "../editor_commands/lib/clang-format"
+#include "../editor_commands/lib/numbers"
 #include "../editor_commands/lib/paths"
 #include "../editor_commands/lib/strings"
 
@@ -182,3 +183,17 @@ buffer.AddBinding("st+", "Frames: Add a new leaf", AddNewLeaf);
 buffer.AddBinding("stk", "Frames: Move to the previous leaf", RewindActiveLeaf);
 buffer.AddBinding("stj", "Frames: Move to the next leaf", AdvanceActiveLeaf);
 buffer.AddBinding("st-", "Frames: Remove active leaf", RemoveActiveLeaf);
+
+void IncrementNumber() {
+  AddToIntegerAtPosition(buffer.position(), repetitions());
+  set_repetitions(1);
+}
+void DecrementNumber() {
+  AddToIntegerAtPosition(buffer.position(), -repetitions());
+  set_repetitions(1);
+}
+
+buffer.AddBinding("sl", "Numbers: Increment the number under the cursor.",
+                  IncrementNumber);
+buffer.AddBinding("sh", "Numbers: Decrement the number under the cursor.",
+                  DecrementNumber);
