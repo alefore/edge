@@ -10,6 +10,10 @@
 
 namespace afc {
 namespace editor {
+size_t FramedOutputProducer::MinimumLines() {
+  return 1 + delegate_->MinimumLines();
+}
+
 void FramedOutputProducer::Produce(Options options) {
   options.lines[0]->AddString(L"───" + title_);
   if (options.lines[0]->column() + 2 < options.lines[0]->width()) {

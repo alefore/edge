@@ -10,6 +10,8 @@ namespace editor {
 
 class OutputProducer {
  public:
+  virtual size_t MinimumLines() = 0;
+
   struct Options {
     std::vector<std::unique_ptr<OutputReceiver>> lines;
 

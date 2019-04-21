@@ -11,6 +11,8 @@ class BufferOutputProducer : public OutputProducer {
  public:
   BufferOutputProducer(OpenBuffer* buffer) : buffer_(buffer) {}
 
+  size_t MinimumLines() override;
+
   void Produce(Options options) override;
 
  private:

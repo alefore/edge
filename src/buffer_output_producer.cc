@@ -493,6 +493,10 @@ void ShowAdditionalData(
   output_receiver->AddString(additional_information);
 }
 
+size_t BufferOutputProducer::MinimumLines() {
+  return max(0, buffer_->Read(buffer_variables::buffer_list_context_lines()));
+}
+
 void BufferOutputProducer::Produce(Options options) {
   const size_t lines_to_show = options.lines.size();
 

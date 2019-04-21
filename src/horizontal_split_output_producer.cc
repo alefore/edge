@@ -10,26 +10,47 @@
 
 namespace afc {
 namespace editor {
+size_t HorizontalSplitOutputProducer::MinimumLines() {
+  size_t count = 0;
+  for (auto& producer : output_producers_) {
+    count += producer->MinimumLines();
+  }
+  return count;
+}
+
 void HorizontalSplitOutputProducer::Produce(Options options) {
-  int lines_index = 0;
+  size_t lines_given = 0;
 
   std::vector<size_t> lines_per_producer;
-  for (size_t i = 0; i < output_producers_.size(); i++) {
-    lines_per_producer.push_back(options.lines.size() /
-                                 output_producers_.size());
+  for (auto& producer : output_producers_) {
+    lines_per_producer.push_back(producer->MinimumLines());
+    lines_given += lines_per_producer.back();
   }
 
-  size_t total = 0;
-  for (auto& n : lines_per_producer) {
-    total += n;
+  // TODO: this could be done way faster (sort + single pass over all buffers).
+  while (lines_given > options.lines.size()) {
+    std::vector<size_t> indices_maximal_producers = {0};
+    for (size_t i = 1; i < lines_per_producer.size(); i++) {
+      size_t maximum = lines_per_producer[indices_maximal_producers.front()];
+      if (maximum < lines_per_producer[i]) {
+        indices_maximal_producers = {i};
+      } else if (maximum == lines_per_producer[i]) {
+        indices_maximal_producers.push_back(i);
+      }
+    }
+    for (auto& i : indices_maximal_producers) {
+      if (lines_given > options.lines.size()) {
+        lines_given--;
+        lines_per_producer[i]--;
+      }
+    }
   }
 
-  // TODO: Give them out more fairly.
-  while (total < options.lines.size()) {
-    lines_per_producer[0]++;
-    total++;
+  if (lines_given < options.lines.size()) {
+    lines_per_producer[index_active_] += options.lines.size() - lines_given;
   }
 
+  int lines_index = 0;
   for (size_t producer = 0; producer < output_producers_.size(); producer++) {
     Options sub_options;
     size_t first_line = lines_index;

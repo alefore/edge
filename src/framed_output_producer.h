@@ -15,6 +15,7 @@ class FramedOutputProducer : public OutputProducer {
   FramedOutputProducer(std::unique_ptr<OutputProducer> delegate, wstring title)
       : delegate_(std::move(delegate)), title_(std::move(title)) {}
 
+  size_t MinimumLines() override;
   void Produce(Options options) override;
 
  private:

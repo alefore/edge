@@ -18,6 +18,7 @@ class HorizontalSplitOutputProducer : public OutputProducer {
       : output_producers_(std::move(output_producers)),
         index_active_(index_active) {}
 
+  size_t MinimumLines() override;
   void Produce(Options options) override;
 
  private:
