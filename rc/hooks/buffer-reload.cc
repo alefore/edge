@@ -176,8 +176,14 @@ if (!buffer.pts()) {
 // Logic to handle the tree of visible buffers.
 void ZoomToLeaf() { editor.ZoomToLeaf(); }
 void AddHorizontalSplit() { editor.AddHorizontalSplit(); }
-void RewindActiveLeaf() { editor.AdvanceActiveLeaf(-1); }
-void AdvanceActiveLeaf() { editor.AdvanceActiveLeaf(1); }
+void RewindActiveLeaf() {
+  editor.AdvanceActiveLeaf(-repetitions());
+  set_repetitions(1);
+}
+void AdvanceActiveLeaf() {
+  editor.AdvanceActiveLeaf(repetitions());
+  set_repetitions(1);
+}
 void RemoveActiveLeaf() { editor.RemoveActiveLeaf(); }
 
 buffer.AddBinding("st=", "Frames: Zoom to the current leaf", ZoomToLeaf);
