@@ -380,7 +380,9 @@ EdgeVariable<wstring>* command() {
 EdgeVariable<wstring>* editor_commands_path() {
   static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
       L"editor_commands_path",
-      L"String with the path to the initial directory for editor commands.",
+      L"String with the path to the initial directory used when prompting the "
+      L"user for an editor command to run. It does not affect in any way the "
+      L"execution of these commands (simply the prompting).",
       L"", FilePredictor);
   return variable;
 }
