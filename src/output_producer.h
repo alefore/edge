@@ -19,6 +19,8 @@ class OutputProducer {
     // example, if it was drawn in the OutputReceiver of lines[2], at the
     // column 10, this will be set to LineColumn(2, 10). May be nullptr.
     std::optional<LineColumn>* active_cursor = nullptr;
+
+    std::optional<size_t> position_in_parent;
   };
   virtual void Produce(Options options) = 0;
 };
