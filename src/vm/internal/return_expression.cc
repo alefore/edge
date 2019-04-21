@@ -46,7 +46,7 @@ std::unique_ptr<Expression> NewReturnExpression(
   const VMType& expected_type = compilation->return_types.back();
   if (!expr->SupportsType(expected_type)) {
     compilation->errors.push_back(L"Expected return type of " +
-                                  expected_type.ToString() + L"but found " +
+                                  expected_type.ToString() + L" but found " +
                                   TypesToString(expr->Types()));
     return nullptr;
   }
