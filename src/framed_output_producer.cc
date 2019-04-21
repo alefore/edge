@@ -15,12 +15,20 @@ size_t FramedOutputProducer::MinimumLines() {
 }
 
 void FramedOutputProducer::Produce(Options options) {
-  options.lines[0]->AddString(L"───" + title_);
-  if (options.lines[0]->column() + 2 < options.lines[0]->width()) {
-    options.lines[0]->AddString(L"  ");
-    options.lines[0]->AddString(std::wstring(
-        options.lines[0]->width() - 2 - options.lines[0]->column(), L'─'));
+  if (options.active_cursor != nullptr) {
+    options.lines[0]->AddModifier(LineModifier::BOLD);
   }
+
+  options.lines[0]->AddString(L"── " + title_);
+  if (options.lines[0]->column() + 1 < options.lines[0]->width()) {
+    options.lines[0]->AddString(L" ");
+    options.lines[0]->AddString(std::wstring(
+        options.lines[0]->width() - options.lines[0]->column(), L'─'));
+  }
+  if (options.active_cursor != nullptr) {
+    options.lines[0]->AddModifier(LineModifier::RESET);
+  }
+
   options.lines.erase(options.lines.begin());
 
   const auto original_active_cursor = options.active_cursor;
