@@ -69,7 +69,9 @@ EdgeVariable<bool>* allow_dirty_delete() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"allow_dirty_delete",
       L"Allow this buffer to be deleted even if it's dirty (i.e. if it has "
-      L"unsaved changes or an underlying process that's still running).",
+      L"unsaved changes or an underlying process that's still running).\n\n"
+      L"This applies both if the buffer is closed explicitly or implicitly "
+      L"when Edge exits.",
       false);
   return variable;
 }
@@ -104,10 +106,12 @@ EdgeVariable<bool>* atomic_lines() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"atomic_lines",
       L"If true, lines can't be joined (e.g. you can't delete the last "
-      L"character in a line unless the line is empty).  This is used by "
-      L"certain "
-      L"buffers that represent lists of things (each represented as a line), "
-      L"for which this is a natural behavior.",
+      L"character in a line unless the line is empty). In this case, instead "
+      L"of displaying the cursors, Edge will show the currently selected "
+      L"line.\n\n"
+      "This is used by certain buffers (such as the list of buffers or a view "
+      L"of the contents of a directory) that represent lists of things (each "
+      L"represented as a line), for which this is a natural behavior.",
       false);
   return variable;
 }
@@ -115,7 +119,10 @@ EdgeVariable<bool>* atomic_lines() {
 EdgeVariable<bool>* save_on_close() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"save_on_close",
-      L"Should this buffer be saved automatically when it's closed?", false);
+      L"Should this buffer be saved automatically when it's closed?\n\n"
+      L"This applies both if the buffer is closed explicitly or implicitly "
+      L"when Edge exits.",
+      false);
   return variable;
 }
 
@@ -125,7 +132,10 @@ EdgeVariable<bool>* clear_on_reload() {
       L"Should any previous contents be discarded when this buffer is "
       L"reloaded? "
       L"If false, previous contents will be preserved and new contents will be "
-      L"appended at the end.",
+      L"appended at the end.\n\n"
+      L"This is useful mainly for buffers with the output of commands, where "
+      L"you don't want to discard the output of previous runs as you reload "
+      L"the buffer.",
       true);
   return variable;
 }
@@ -136,7 +146,7 @@ EdgeVariable<bool>* paste_mode() {
       L"When paste_mode is enabled in a buffer, it will be displayed in a way "
       L"that makes it possible to select (with a mouse) parts of it (that are "
       L"currently shown).  It will also allow you to paste text directly into "
-      L"the buffer.",
+      L"the buffer (i.e., it will disable any smart indenting).",
       false);
   return variable;
 }
@@ -152,7 +162,9 @@ EdgeVariable<bool>* commands_background_mode() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"commands_background_mode",
       L"Should new commands forked from this buffer be started in background "
-      L"mode?  If false, we will switch to them automatically.",
+      L"mode?  If false, we will switch to them automatically.\n\n"
+      L"This just affects whether we switch the currently selected Edge buffer "
+      L"to the new buffer; it has no effect whatsoever in the command.",
       false);
   return variable;
 }
@@ -161,8 +173,10 @@ EdgeVariable<bool>* reload_on_buffer_write() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"reload_on_buffer_write",
       L"Should the current buffer (on which this variable is set) be reloaded "
-      L"when any buffer is written?  This is useful mainly for command buffers "
-      L"like 'make' or 'git diff'.",
+      L"when any buffer is written?\n\n"
+      L"This is useful mainly for command buffers like `make` or `git "
+      L"diff`.\n\n"
+      L"If you set this, you may also want to set `contains_line_marks`.",
       false);
   return variable;
 }
@@ -328,7 +342,7 @@ EdgeVariable<wstring>* symbol_characters() {
   static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
       L"symbol_characters",
       L"String with all the characters that should be considered part of a "
-      L"symbol.",
+      L"symbol. This affects commands such as `dW` (delete symbol).",
       L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
   return variable;
 }
