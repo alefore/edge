@@ -18,7 +18,7 @@
 #include "src/output_receiver_optimizer.h"
 #include "src/parse_tree.h"
 #include "src/screen_output_receiver.h"
-#include "src/vertical_split_output_producer.h"
+#include "src/horizontal_split_output_producer.h"
 
 namespace afc {
 namespace editor {
@@ -514,13 +514,13 @@ std::unique_ptr<OutputProducer> CreateOutputProducer(
       return output;
     }
 
-    case BufferTree::Type::kVertical: {
+    case BufferTree::Type::kHorizontal: {
       std::vector<std::unique_ptr<OutputProducer>> output_producers;
       for (auto& child : buffer_tree->children) {
         auto result = CreateOutputProducer(&child, LeafHandling::kFramed);
         output_producers.push_back(std::move(result));
       }
-      return std::make_unique<VerticalSplitOutputProducer>(
+      return std::make_unique<HorizontalSplitOutputProducer>(
           std::move(output_producers), buffer_tree->active);
     }
   }

@@ -58,7 +58,7 @@ class EditorState {
   BufferTree* buffer_tree() { return &buffer_tree_; }
 
   void set_current_buffer(shared_ptr<OpenBuffer> buffer);
-  void AddVerticalPane();
+  void AddHorizontalSplit();
   void AdvanceActiveLeaf(int delta);
   void ZoomToLeaf();
   void BufferTreeRemoveActiveLeaf();

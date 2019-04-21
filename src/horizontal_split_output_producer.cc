@@ -1,4 +1,4 @@
-#include "src/vertical_split_output_producer.h"
+#include "src/horizontal_split_output_producer.h"
 
 #include <glog/logging.h>
 
@@ -10,7 +10,7 @@
 
 namespace afc {
 namespace editor {
-void VerticalSplitOutputProducer::Produce(Options options) {
+void HorizontalSplitOutputProducer::Produce(Options options) {
   int lines_index = 0;
 
   std::vector<size_t> lines_per_producer;

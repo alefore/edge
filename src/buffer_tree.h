@@ -14,7 +14,7 @@ namespace afc {
 namespace editor {
 
 struct BufferTree {
-  enum class Type { kLeaf, kVertical /*, kHorizontal */ };
+  enum class Type { kLeaf, /*kVertical,*/ kHorizontal };
 
   Type type = Type::kLeaf;
 

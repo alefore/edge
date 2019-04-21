@@ -120,8 +120,8 @@ src/terminal.cc \
 src/transformation.cc \
 src/transformation_delete.cc \
 src/transformation_move.cc \
-src/vertical_split_output_producer.cc \
-src/vertical_split_output_producer.h \
+src/horizontal_split_output_producer.cc \
+src/horizontal_split_output_producer.h \
 src/vm_transformation.cc \
 src/vm_transformation.h \
 src/vm/public/set.h \

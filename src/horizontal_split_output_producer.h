@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_VERTICAL_SPLIT_OUTPUT_PRODUCER_H__
-#define __AFC_EDITOR_VERTICAL_SPLIT_OUTPUT_PRODUCER_H__
+#ifndef __AFC_EDITOR_HORIZONTAL_SPLIT_OUTPUT_PRODUCER_H__
+#define __AFC_EDITOR_HORIZONTAL_SPLIT_OUTPUT_PRODUCER_H__
 
 #include <memory>
 #include <vector>
@@ -10,9 +10,9 @@
 namespace afc {
 namespace editor {
 
-class VerticalSplitOutputProducer : public OutputProducer {
+class HorizontalSplitOutputProducer : public OutputProducer {
  public:
-  VerticalSplitOutputProducer(
+  HorizontalSplitOutputProducer(
       std::vector<std::unique_ptr<OutputProducer>> output_producers,
       size_t index_active)
       : output_producers_(std::move(output_producers)),
@@ -28,4 +28,4 @@ class VerticalSplitOutputProducer : public OutputProducer {
 }  // namespace editor
 }  // namespace afc
 
-#endif  // __AFC_EDITOR_VERTICAL_SPLIT_OUTPUT_PRODUCER_H__
+#endif  // __AFC_EDITOR_HORIZONTAL_SPLIT_OUTPUT_PRODUCER_H__

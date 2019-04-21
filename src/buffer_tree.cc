@@ -13,7 +13,7 @@ size_t CountLeafs(const BufferTree& tree) {
   switch (tree.type) {
     case BufferTree::Type::kLeaf:
       return 1;
-    case BufferTree::Type::kVertical:
+    case BufferTree::Type::kHorizontal:
       int count = 0;
       for (auto& c : tree.children) {
         count += CountLeafs(c);
@@ -30,7 +30,7 @@ int InternalAdvanceActiveLeaf(BufferTree* tree, int delta) {
     case BufferTree::Type::kLeaf:
       return delta;
 
-    case BufferTree::Type::kVertical:
+    case BufferTree::Type::kHorizontal:
       delta = InternalAdvanceActiveLeaf(&tree->children[tree->active], delta);
       while (delta != 0) {
         if (tree->children.empty()) {
@@ -71,8 +71,8 @@ std::ostream& operator<<(std::ostream& os, const BufferTree& lc) {
     case BufferTree::Type::kLeaf:
       os << "leaf";
       break;
-    case BufferTree::Type::kVertical:
-      os << "vertical, children: " << lc.children.size()
+    case BufferTree::Type::kHorizontal:
+      os << "horizontal, children: " << lc.children.size()
          << ", active: " << lc.active;
   }
   os << "]";
@@ -122,7 +122,7 @@ void AdvanceActiveLeaf(BufferTree* tree, int delta) {
   LOG(INFO) << "After initial excursion: " << delta << " " << *tree;
   if (delta > 0) {
     BufferTree* tmp = tree;
-    while (tmp->type == BufferTree::Type::kVertical) {
+    while (tmp->type == BufferTree::Type::kHorizontal) {
       tmp->active = 0;
       tmp = &tmp->children.front();
     }

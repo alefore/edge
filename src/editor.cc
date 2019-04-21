@@ -140,9 +140,9 @@ Environment EditorState::BuildEditorEnvironment() {
           }));
 
   editor_type->AddField(
-      L"AddVerticalPane",
+      L"AddHorizontalSplit",
       vm::NewCallback(std::function<void(EditorState*)>(
-          [](EditorState* editor) { editor->AddVerticalPane(); })));
+          [](EditorState* editor) { editor->AddHorizontalSplit(); })));
 
   editor_type->AddField(L"AdvanceActiveLeaf",
                         vm::NewCallback(std::function<void(EditorState*, int)>(
@@ -442,10 +442,10 @@ void EditorState::set_current_buffer(shared_ptr<OpenBuffer> buffer) {
   }
 }
 
-void EditorState::AddVerticalPane() {
-  if (buffer_tree_.type != BufferTree::Type::kVertical) {
+void EditorState::AddHorizontalSplit() {
+  if (buffer_tree_.type != BufferTree::Type::kHorizontal) {
     BufferTree old_tree = buffer_tree_;
-    buffer_tree_.type = BufferTree::Type::kVertical;
+    buffer_tree_.type = BufferTree::Type::kHorizontal;
     buffer_tree_.leaf.reset();
     buffer_tree_.children.clear();
     buffer_tree_.children.push_back(std::move(old_tree));
