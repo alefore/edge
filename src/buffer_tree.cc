@@ -101,6 +101,8 @@ void RemoveActiveLeaf(BufferTree* tree) {
   auto route = FindRouteToActiveLeaf(tree);
   while (route.size() > 1) {
     auto parent = route[route.size() - 2];
+    CHECK(!parent->children.empty());
+    CHECK_LT(parent->active, parent->children.size());
     if (parent->children.size() > 1) {
       parent->children.erase(parent->children.begin() + parent->active);
     }
