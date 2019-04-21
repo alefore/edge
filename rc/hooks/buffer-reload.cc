@@ -170,3 +170,12 @@ if (!buffer.pts()) {
   buffer.AddBinding("M", "Center the screen around the current line.",
                     CenterScreenAroundCurrentLine);
 }
+
+void ZoomToLeaf() { editor.ZoomToLeaf(); }
+void AddNewLeaf() { editor.AddVerticalPane(); }
+void RewindActiveLeaf() { editor.AdvanceActiveLeaf(-1); }
+void AdvanceActiveLeaf() { editor.AdvanceActiveLeaf(1); }
+buffer.AddBinding("st=", "Frames: Zoom to the current leaf", ZoomToLeaf);
+buffer.AddBinding("st+", "Frames: Add a new leaf", AddNewLeaf);
+buffer.AddBinding("stk", "Frames: Move to the previous leaf", RewindActiveLeaf);
+buffer.AddBinding("stj", "Frames: Move to the next leaf", AdvanceActiveLeaf);

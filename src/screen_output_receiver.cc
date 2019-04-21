@@ -52,7 +52,7 @@ class Receiver : public OutputReceiver {
     CHECK_LT(column_write_, screen_->columns());
     switch (c) {
       case L'\n':
-        column_write_ = 0;
+        column_write_ = screen_->columns();
         break;
       case L'\t': {
         CHECK_GE(column_write_, tabs_start_);

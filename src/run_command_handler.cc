@@ -261,9 +261,10 @@ wstring FlagsString(const CommandData& data, const OpenBuffer& buffer) {
 void RunCommand(const wstring& name, const wstring& input,
                 map<wstring, wstring> environment, EditorState* editor_state,
                 wstring children_path) {
+  auto buffer = editor_state->current_buffer();
   if (input.empty()) {
-    if (editor_state->has_current_buffer()) {
-      editor_state->current_buffer()->second->ResetMode();
+    if (buffer != nullptr) {
+      buffer->ResetMode();
     }
     editor_state->ResetStatus();
     editor_state->ScheduleRedraw();
@@ -273,9 +274,8 @@ void RunCommand(const wstring& name, const wstring& input,
   ForkCommandOptions options;
   options.command = input;
   options.buffer_name = name;
-  options.enter = !editor_state->has_current_buffer() ||
-                  !editor_state->current_buffer()->second->Read(
-                      buffer_variables::commands_background_mode());
+  options.enter = buffer == nullptr ||
+                  !buffer->Read(buffer_variables::commands_background_mode());
   options.children_path = children_path;
   options.environment = std::move(environment);
   ForkCommand(editor_state, options);
@@ -296,10 +296,9 @@ void RunCommandHandler(const wstring& input, EditorState* editor_state,
 }
 
 wstring GetChildrenPath(EditorState* editor_state) {
-  return editor_state->has_current_buffer()
-             ? editor_state->current_buffer()->second->Read(
-                   buffer_variables::children_path())
-             : L"";
+  auto buffer = editor_state->current_buffer();
+  return buffer != nullptr ? buffer->Read(buffer_variables::children_path())
+                           : L"";
 }
 
 class ForkEditorCommand : public Command {
@@ -321,13 +320,12 @@ class ForkEditorCommand : public Command {
       };
       Prompt(editor_state, options);
     } else if (editor_state->structure() == StructureLine()) {
-      if (!editor_state->has_current_buffer() ||
-          editor_state->current_buffer()->second->current_line() == nullptr) {
+      auto buffer = editor_state->current_buffer();
+      if (buffer == nullptr || buffer->current_line() == nullptr) {
         return;
       }
       auto children_path = GetChildrenPath(editor_state);
-      auto line =
-          editor_state->current_buffer()->second->current_line()->ToString();
+      auto line = buffer->current_line()->ToString();
       for (size_t i = 0; i < editor_state->repetitions(); ++i) {
         RunCommandHandler(line, editor_state, i, editor_state->repetitions(),
                           children_path);
@@ -370,7 +368,7 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
     it.first->second->ResetMode();
   }
   if (options.enter) {
-    editor_state->set_current_buffer(it.first);
+    editor_state->set_current_buffer(it.first->second);
     editor_state->ScheduleRedraw();
   }
   it.first->second->Reload();
@@ -390,12 +388,12 @@ void RunCommandHandler(const wstring& input, EditorState* editor_state,
 
 void RunMultipleCommandsHandler(const wstring& input,
                                 EditorState* editor_state) {
-  if (input.empty() || !editor_state->has_current_buffer()) {
+  auto buffer = editor_state->current_buffer();
+  if (input.empty() || buffer == nullptr) {
     editor_state->ResetStatus();
     editor_state->ScheduleRedraw();
     return;
   }
-  auto buffer = editor_state->current_buffer()->second;
   buffer->contents()->ForEach([editor_state, input](wstring arg) {
     map<wstring, wstring> environment = {{L"ARG", arg}};
     RunCommand(L"$ " + input + L" " + arg, input, environment, editor_state,

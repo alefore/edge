@@ -89,7 +89,7 @@ wstring RegexEscape(shared_ptr<LazyString> str) {
 // in the region enclosed by start and *end will be returned.
 vector<LineColumn> PerformSearchWithDirection(EditorState* editor_state,
                                               const SearchOptions& options) {
-  auto buffer = editor_state->current_buffer()->second;
+  auto buffer = editor_state->current_buffer();
   auto direction = editor_state->modifiers().direction;
   vector<LineColumn> candidates = PerformSearch(options, buffer.get());
   if (direction == BACKWARDS) {
@@ -140,7 +140,7 @@ vector<LineColumn> PerformSearchWithDirection(EditorState* editor_state,
 
 void SearchHandlerPredictor(EditorState* editor_state, const wstring& input,
                             OpenBuffer* predictions_buffer) {
-  auto buffer = editor_state->current_buffer()->second;
+  auto buffer = editor_state->current_buffer();
   SearchOptions options;
   options.search_query = input;
   options.case_sensitive =
@@ -185,7 +185,7 @@ void JumpToNextMatch(EditorState* editor_state, const SearchOptions& options) {
   if (results.empty()) {
     editor_state->SetStatus(L"No matches: " + options.search_query);
   } else {
-    editor_state->current_buffer()->second->set_position(results[0]);
+    editor_state->current_buffer()->set_position(results[0]);
     editor_state->PushCurrentPosition();
   }
 }

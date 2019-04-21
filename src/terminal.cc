@@ -12,11 +12,13 @@
 #include "src/delegating_output_receiver.h"
 #include "src/delegating_output_receiver_with_internal_modifiers.h"
 #include "src/dirname.h"
+#include "src/framed_output_producer.h"
 #include "src/line_marks.h"
 #include "src/output_receiver.h"
 #include "src/output_receiver_optimizer.h"
 #include "src/parse_tree.h"
 #include "src/screen_output_receiver.h"
+#include "src/vertical_split_output_producer.h"
 
 namespace afc {
 namespace editor {
@@ -49,28 +51,6 @@ size_t GetInitialPrefixSize(const OpenBuffer& buffer) {
              : 1 + std::to_wstring(buffer.lines_size()).size();
 }
 
-size_t GetCurrentColumn(OpenBuffer* buffer) {
-  if (buffer->lines_size() == 0) {
-    return 0;
-  } else if (buffer->position().line >= buffer->lines_size()) {
-    return buffer->contents()->back()->size();
-  } else if (!buffer->IsLineFiltered(buffer->position().line)) {
-    return 0;
-  } else {
-    return min(buffer->position().column,
-               buffer->LineAt(buffer->position().line)->size());
-  }
-}
-
-size_t GetDesiredViewStartColumn(Screen* screen, OpenBuffer* buffer) {
-  if (buffer->Read(buffer_variables::wrap_long_lines())) {
-    return 0;
-  }
-  size_t effective_size = screen->columns() - 1;
-  effective_size -= min(effective_size, GetInitialPrefixSize(*buffer));
-  size_t column = GetCurrentColumn(buffer);
-  return column - min(column, effective_size);
-}
 }  // namespace
 
 void Terminal::Display(EditorState* editor_state, Screen* screen,
@@ -79,7 +59,8 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
     screen->HardRefresh();
     editor_state->ScheduleRedraw();
   }
-  if (!editor_state->has_current_buffer()) {
+  auto buffer = editor_state->current_buffer();
+  if (buffer == nullptr) {
     if (screen_state.needs_redraw) {
       screen->Clear();
     }
@@ -88,49 +69,9 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
     screen->Flush();
     return;
   }
-  int screen_lines = screen->lines();
-  auto& buffer = editor_state->current_buffer()->second;
-  if (buffer->Read(buffer_variables::reload_on_display())) {
-    buffer->Reload();
-  }
-  size_t line = min(buffer->position().line, buffer->contents()->size() - 1);
-  size_t margin_lines =
-      min(screen_lines / 2,
-          max(static_cast<int>(
-                  ceil(buffer->Read(buffer_variables::margin_lines_ratio()) *
-                       screen_lines)),
-              max(buffer->Read(buffer_variables::margin_lines()), 0)));
-  margin_lines = min(margin_lines, static_cast<size_t>(screen_lines) / 2 - 1);
-  size_t view_start = static_cast<size_t>(
-      max(0, buffer->Read(buffer_variables::view_start_line())));
-  if (view_start > line - min(margin_lines, line) &&
-      (buffer->child_pid() != -1 || buffer->fd() == -1)) {
-    buffer->Set(buffer_variables::view_start_line(),
-                line - min(margin_lines, line));
-    editor_state->ScheduleRedraw();
-  } else if (view_start + screen_lines - 1 <=
-             min(buffer->lines_size() - 1, line + margin_lines)) {
-    buffer->Set(
-        buffer_variables::view_start_line(),
-        min(buffer->lines_size() - 1, line + margin_lines) - screen_lines + 2);
-    editor_state->ScheduleRedraw();
-  }
-
-  auto view_start_column = GetDesiredViewStartColumn(screen, buffer.get());
-  if (static_cast<size_t>(
-          max(0, buffer->Read(buffer_variables::view_start_column()))) !=
-      view_start_column) {
-    buffer->Set(buffer_variables::view_start_column(), view_start_column);
-    editor_state->ScheduleRedraw();
-  }
-
-  if (buffer->Read(buffer_variables::atomic_lines()) &&
-      buffer->last_highlighted_line() != buffer->position().line) {
-    editor_state->ScheduleRedraw();
-  }
 
   if (screen_state.needs_redraw) {
-    ShowBuffer(editor_state->current_buffer()->second.get(), screen);
+    ShowBuffer(editor_state, screen);
   }
   ShowStatus(*editor_state, screen);
   if (editor_state->status_prompt()) {
@@ -144,7 +85,6 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   }
   screen->Refresh();
   screen->Flush();
-  editor_state->set_visible_lines(static_cast<size_t>(screen_lines - 1));
 }
 
 // Adjust the name of a buffer to a string suitable to be shown in the Status
@@ -181,9 +121,9 @@ wstring TransformCommandNameForStatus(wstring name) {
 
 void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
   wstring status;
-  if (editor_state.has_current_buffer() && !editor_state.is_status_warning()) {
+  auto buffer = editor_state.current_buffer();
+  if (buffer != nullptr && !editor_state.is_status_warning()) {
     const auto modifiers = editor_state.modifiers();
-    auto buffer = editor_state.current_buffer()->second;
     status.push_back('[');
     if (buffer->current_position_line() >= buffer->contents()->size()) {
       status += L"<EOF>";
@@ -555,31 +495,44 @@ LineColumn Terminal::GetNextLine(const OpenBuffer& buffer, size_t columns,
   return position;
 }
 
-void Terminal::ShowBuffer(OpenBuffer* buffer, Screen* screen) {
+enum class LeafHandling { kDirect, kFramed };
+
+std::unique_ptr<OutputProducer> CreateOutputProducer(
+    BufferTree* buffer_tree, LeafHandling leaf_handling) {
+  switch (buffer_tree->type) {
+    case BufferTree::Type::kLeaf: {
+      auto buffer = buffer_tree->leaf.lock();
+      if (buffer == nullptr) {
+        return nullptr;
+      }
+      std::unique_ptr<OutputProducer> output =
+          std::make_unique<BufferOutputProducer>(buffer.get());
+      if (leaf_handling == LeafHandling::kFramed) {
+        output = std::make_unique<FramedOutputProducer>(
+            std::move(output), buffer->Read(buffer_variables::name()));
+      }
+      return output;
+    }
+
+    case BufferTree::Type::kVertical: {
+      std::vector<std::unique_ptr<OutputProducer>> output_producers;
+      for (auto& child : buffer_tree->children) {
+        auto result = CreateOutputProducer(&child, LeafHandling::kFramed);
+        output_producers.push_back(std::move(result));
+      }
+      return std::make_unique<VerticalSplitOutputProducer>(
+          std::move(output_producers), buffer_tree->active);
+    }
+  }
+  LOG(FATAL) << "Unexpected buffer tree type.";
+  return nullptr;
+}
+
+void Terminal::ShowBuffer(EditorState* editor_state, Screen* screen) {
   size_t lines_to_show = static_cast<size_t>(screen->lines()) - 1;
   screen->Move(0, 0);
 
-  buffer->set_last_highlighted_line(-1);
-
-  // Key is line number.
-  std::map<size_t, std::set<size_t>> cursors;
-  for (auto cursor : *buffer->active_cursors()) {
-    cursors[cursor.line].insert(cursor.column);
-  }
-
-  auto root = buffer->parse_tree();
-
-  buffer->set_lines_for_zoomed_out_tree(lines_to_show);
-  auto zoomed_out_tree = buffer->zoomed_out_tree();
-
-  std::unordered_set<const OpenBuffer*> buffers_shown;
-
   cursor_position_ = std::nullopt;
-
-  LineColumn position(
-      static_cast<size_t>(
-          max(0, buffer->Read(buffer_variables::view_start_line()))),
-      buffer->Read(buffer_variables::view_start_column()));
 
   OutputProducer::Options options;
   for (size_t i = 0; i < lines_to_show; i++) {
@@ -589,7 +542,9 @@ void Terminal::ShowBuffer(OpenBuffer* buffer, Screen* screen) {
 
   std::optional<LineColumn> active_cursor;
   options.active_cursor = &active_cursor;
-  BufferOutputProducer(buffer).Produce(std::move(options));
+
+  CreateOutputProducer(editor_state->buffer_tree(), LeafHandling::kDirect)
+      ->Produce(std::move(options));
 
   if (active_cursor.has_value()) {
     cursor_position_ = active_cursor.value();

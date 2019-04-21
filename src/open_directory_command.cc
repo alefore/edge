@@ -4,6 +4,7 @@ extern "C" {
 #include <libgen.h>
 }
 
+#include "src/buffer_variables.h"
 #include "src/command.h"
 #include "src/dirname.h"
 #include "src/editor.h"
@@ -23,10 +24,11 @@ class OpenDirectoryCommand : public Command {
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
     OpenFileOptions options;
-    if (!editor_state->has_current_buffer()) {
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
       options.path = L".";
     } else {
-      options.path = Dirname(editor_state->current_buffer()->first);
+      options.path = Dirname(buffer->Read(buffer_variables::name()));
     }
     options.editor_state = editor_state;
     OpenFile(options);

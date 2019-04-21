@@ -20,6 +20,8 @@ src/buffer_contents.cc \
 src/buffer_contents.h \
 src/buffer_output_producer.cc \
 src/buffer_output_producer.h \
+src/buffer_tree.cc \
+src/buffer_tree.h \
 src/buffer_variables.cc \
 src/buffer_variables.h \
 src/cpp_command.cc \
@@ -47,6 +49,8 @@ src/dirname.cc \
 src/dirname.h \
 src/direction.cc \
 src/editor.cc \
+src/framed_output_producer.cc \
+src/framed_output_producer.h \
 src/file_link_mode.cc \
 src/find_mode.cc \
 src/goto_command.cc \
@@ -116,6 +120,8 @@ src/terminal.cc \
 src/transformation.cc \
 src/transformation_delete.cc \
 src/transformation_move.cc \
+src/vertical_split_output_producer.cc \
+src/vertical_split_output_producer.h \
 src/vm_transformation.cc \
 src/vm_transformation.h \
 src/vm/public/set.h \

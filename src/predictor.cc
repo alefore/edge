@@ -95,7 +95,7 @@ void HandleEndOfFile(OpenBuffer* buffer,
       editor_state->SetWarningStatus(L"Error: predictions buffer not found.");
     } else {
       CHECK_EQ(buffer, it->second.get());
-      editor_state->set_current_buffer(it);
+      editor_state->set_current_buffer(it->second);
       buffer->set_current_position_line(0);
       editor_state->ScheduleRedraw();
     }

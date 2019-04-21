@@ -73,7 +73,6 @@ class Delete : public Command {
     if (!editor_state->has_current_buffer()) {
       return;
     }
-    auto buffer = editor_state->current_buffer()->second;
     DeleteOptions options = delete_options_;
     options.modifiers = editor_state->modifiers();
     editor_state->ApplyToCurrentBuffer(NewDeleteTransformation(options));
@@ -124,7 +123,7 @@ class Paste : public Command {
       }
       return;
     }
-    if (it == editor_state->current_buffer()) {
+    if (it->second == editor_state->current_buffer()) {
       const static wstring errors[] = {
           L"You shall not paste into the paste buffer.",
           L"Nope.",
@@ -143,7 +142,7 @@ class Paste : public Command {
       }
       return;
     }
-    auto buffer = editor_state->current_buffer()->second;
+    auto buffer = editor_state->current_buffer();
     if (buffer->fd() != -1) {
       string text = ToByteString(it->second->ToString());
       for (size_t i = 0; i < editor_state->repetitions(); i++) {
@@ -176,10 +175,11 @@ class UndoCommand : public Command {
   wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
-    if (!editor_state->has_current_buffer()) {
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
       return;
     }
-    editor_state->current_buffer()->second->Undo();
+    buffer->Undo();
     editor_state->ResetRepetitions();
     editor_state->ResetDirection();
     editor_state->ScheduleRedraw();
@@ -213,9 +213,10 @@ class GotoPreviousPositionCommand : public Command {
       const BufferPosition pos = editor_state->ReadPositionsStack();
       auto it = editor_state->buffers()->find(pos.buffer_name);
       const LineColumn current_position =
-          editor_state->current_buffer()->second->position();
+          editor_state->current_buffer()->position();
       if (it != editor_state->buffers()->end() &&
-          (pos.buffer_name != editor_state->current_buffer()->first ||
+          (pos.buffer_name !=
+               editor_state->current_buffer()->Read(buffer_variables::name()) ||
            ((editor_state->structure() == StructureLine() ||
              editor_state->structure() == StructureWord() ||
              editor_state->structure() == StructureSymbol() ||
@@ -226,7 +227,7 @@ class GotoPreviousPositionCommand : public Command {
         LOG(INFO) << "Jumping to position: "
                   << it->second->Read(buffer_variables::name()) << " "
                   << pos.position;
-        editor_state->set_current_buffer(it);
+        editor_state->set_current_buffer(it->second);
         it->second->set_position(pos.position);
         editor_state->ScheduleRedraw();
         editor_state->set_repetitions(editor_state->repetitions() - 1);
@@ -291,7 +292,8 @@ wstring LineUp::Description() const { return L"moves up one line"; }
     LineDown::Move(c, editor_state, structure);
     return;
   }
-  if (!editor_state->has_current_buffer()) {
+  auto buffer = editor_state->current_buffer();
+  if (buffer == nullptr) {
     return;
   }
   // TODO: Move to Structure.
@@ -301,7 +303,7 @@ wstring LineUp::Description() const { return L"moves up one line"; }
   } else if (structure == StructureWord() || structure == StructureSymbol()) {
     // Move in whole pages.
     editor_state->set_repetitions(editor_state->repetitions() *
-                                  editor_state->visible_lines());
+                                  (max(3ul, buffer->view_range().lines()) - 2));
     Move(c, editor_state, StructureChar());
   } else if (structure == StructureTree()) {
     CHECK(false);  // Handled above.
@@ -327,7 +329,8 @@ wstring LineDown::Description() const { return L"moves down one line"; }
     LineUp::Move(c, editor_state, structure);
     return;
   }
-  if (!editor_state->has_current_buffer()) {
+  auto buffer = editor_state->current_buffer();
+  if (buffer == nullptr) {
     return;
   }
   // TODO: Move to Structure.
@@ -337,13 +340,13 @@ wstring LineDown::Description() const { return L"moves down one line"; }
   } else if (structure == StructureWord() || structure == StructureSymbol()) {
     // Move in whole pages.
     editor_state->set_repetitions(editor_state->repetitions() *
-                                  editor_state->visible_lines());
+                                  (max(3ul, buffer->view_range().lines()) - 2));
     Move(c, editor_state, StructureChar());
   } else if (structure == StructureTree()) {
-    if (!editor_state->has_current_buffer()) {
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
       return;
     }
-    auto buffer = editor_state->current_buffer()->second;
     if (editor_state->direction() == BACKWARDS) {
       if (buffer->tree_depth() > 0) {
         buffer->set_tree_depth(buffer->tree_depth() - 1);
@@ -377,19 +380,15 @@ void LineDown::ProcessInput(wint_t c, EditorState* editor_state) {
 wstring PageUp::Description() const { return L"moves up one page"; }
 
 void PageUp::ProcessInput(wint_t c, EditorState* editor_state) {
-  editor_state->set_repetitions(editor_state->repetitions() *
-                                editor_state->visible_lines());
   editor_state->ResetStructure();
-  LineUp::Move(c, editor_state, editor_state->structure());
+  LineUp::Move(c, editor_state, StructureWord());
 }
 
 wstring PageDown::Description() const { return L"moves down one page"; }
 
 void PageDown::ProcessInput(wint_t c, EditorState* editor_state) {
-  editor_state->set_repetitions(editor_state->repetitions() *
-                                editor_state->visible_lines());
   editor_state->ResetStructure();
-  LineDown::Move(c, editor_state, editor_state->structure());
+  LineDown::Move(c, editor_state, StructureWord());
 }
 
 wstring MoveForwards::Description() const { return L"moves forwards"; }
@@ -448,10 +447,11 @@ class EnterFindMode : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) {
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
       return;
     }
-    editor_state->current_buffer()->second->set_mode(NewFindMode());
+    buffer->set_mode(NewFindMode());
   }
 };
 
@@ -581,10 +581,10 @@ class NumberMode : public Command {
   wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) {
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
       return;
     }
-    auto buffer = editor_state->current_buffer()->second;
     buffer->set_mode(NewRepeatMode(consumer_));
     if (c < '0' || c > '9') {
       return;
@@ -605,10 +605,10 @@ class ActivateLink : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) {
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
       return;
     }
-    shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
     if (buffer->current_line() == nullptr) {
       return;
     }
@@ -618,18 +618,13 @@ class ActivateLink : public Command {
       LOG(INFO) << "Visiting buffer: "
                 << target->Read(buffer_variables::name());
       editor_state->ResetStatus();
-      auto it =
-          editor_state->buffers()->find(target->Read(buffer_variables::name()));
-      if (it == editor_state->buffers()->end()) {
-        return;
-      }
-      editor_state->set_current_buffer(it);
+      editor_state->set_current_buffer(target);
       auto target_position = buffer->current_line()->environment()->Lookup(
           L"buffer_position", vm::VMTypeMapper<LineColumn>::vmtype);
       if (target_position != nullptr &&
           target_position->type.type == VMType::OBJECT_TYPE &&
           target_position->type.object_type == L"LineColumn") {
-        it->second->set_position(
+        target->set_position(
             *static_cast<LineColumn*>(target_position->user_value.get()));
       }
       editor_state->PushCurrentPosition();

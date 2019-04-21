@@ -1,10 +1,10 @@
 #ifndef __AFC_EDITOR_TREE_H__
 #define __AFC_EDITOR_TREE_H__
 
+#include <glog/logging.h>
+
 #include <algorithm>
 #include <memory>
-
-#include <glog/logging.h>
 
 namespace afc {
 namespace editor {
@@ -442,8 +442,8 @@ bool TreeIterator<Item, IsConst>::operator>=(
 }
 
 template <typename Item, bool IsConst>
-typename TreeIterator<Item, IsConst>::reference TreeIterator<Item, IsConst>::
-operator*() const {
+typename TreeIterator<Item, IsConst>::reference
+    TreeIterator<Item, IsConst>::operator*() const {
   VLOG(5) << "Dereference object at: " << tree_->FindPosition(node_);
   CHECK(node_ != nullptr)
       << "Attempt to dereference iterator past end of tree.";

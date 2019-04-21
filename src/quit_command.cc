@@ -24,8 +24,9 @@ class QuitCommand : public Command {
     if (!editor_state->AttemptTermination(&error_description, exit_value_)) {
       editor_state->SetWarningStatus(error_description);
     }
-    if (editor_state->has_current_buffer()) {
-      editor_state->current_buffer()->second->ResetMode();
+    auto buffer = editor_state->current_buffer();
+    if (buffer != nullptr) {
+      buffer->ResetMode();
     }
   }
 

@@ -24,22 +24,22 @@ class NavigateMode : public EditorMode {
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
     auto buffer = editor_state->current_buffer();
-    if (buffer == editor_state->buffers()->end()) {
+    if (buffer == nullptr) {
       LOG(INFO) << "NavigateMode gives up: No current buffer.";
       return;
     }
 
     switch (c) {
       case 'l':
-        Navigate(buffer->second.get(), modifiers_.direction);
+        Navigate(buffer.get(), modifiers_.direction);
         break;
 
       case 'h':
-        Navigate(buffer->second.get(), ReverseDirection(modifiers_.direction));
+        Navigate(buffer.get(), ReverseDirection(modifiers_.direction));
         break;
 
       default:
-        buffer->second->ResetMode();
+        buffer->ResetMode();
         editor_state->ProcessInput(c);
     }
 
@@ -189,11 +189,11 @@ class NavigateCommand : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) {
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
       return;
     }
     auto structure = editor_state->modifiers().structure;
-    auto buffer = editor_state->current_buffer()->second;
     // TODO: Move to Structure.
     if (structure == StructureChar()) {
       buffer->set_mode(

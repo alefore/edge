@@ -738,15 +738,13 @@ void OpenBuffer::EndOfFile() {
   }
   if (Read(buffer_variables::close_after_clean_exit()) &&
       WIFEXITED(child_exit_status_) && WEXITSTATUS(child_exit_status_) == 0) {
-    auto it = editor()->buffers()->find(Read(buffer_variables::name()));
-    if (it != editor()->buffers()->end()) {
-      editor()->CloseBuffer(it);
-    }
+    editor()->CloseBuffer(this);
   }
 
-  if (editor()->has_current_buffer() &&
-      editor()->current_buffer()->first == kBuffersName) {
-    editor()->current_buffer()->second->Reload();
+  auto current_buffer = editor()->current_buffer();
+  if (current_buffer != nullptr &&
+      current_buffer->Read(buffer_variables::name()) == kBuffersName) {
+    current_buffer->Reload();
   }
 }
 
@@ -892,11 +890,10 @@ void OpenBuffer::Input::ReadData(OpenBuffer* target) {
                                  ModifiersVector(modifiers, line->size()));
         target->StartNewLine();
         line_start = i + 1;
-        if (editor_state->has_current_buffer() &&
-            editor_state->current_buffer()->second.get() == target &&
-            target->contents()->size() <=
-                target->Read(buffer_variables::view_start_line()) +
-                    editor_state->visible_lines()) {
+        auto buffer = editor_state->current_buffer();
+        if (buffer.get() == target &&
+            (buffer->view_range_.IsEmpty() ||
+             buffer->view_range_.Contains(buffer->position()))) {
           editor_state->ScheduleRedraw();
         }
       }
@@ -912,9 +909,10 @@ void OpenBuffer::Input::ReadData(OpenBuffer* target) {
   if (!previous_modified) {
     target->ClearModified();  // These changes don't count.
   }
-  if (editor_state->has_current_buffer() &&
-      editor_state->current_buffer()->first == kBuffersName) {
-    editor_state->current_buffer()->second->Reload();
+  auto current_buffer = editor_state->current_buffer();
+  if (current_buffer != nullptr &&
+      current_buffer->Read(buffer_variables::name()) == kBuffersName) {
+    current_buffer->Reload();
   }
   editor_state->ScheduleRedraw();
 }
@@ -2229,6 +2227,9 @@ bool OpenBuffer::IsLineFiltered(size_t line_number) {
   contents_.set_line(line_number, new_line);
   return filtered;
 }
+
+void OpenBuffer::SetViewRange(Range view_range) { view_range_ = view_range; }
+Range OpenBuffer::view_range() const { return view_range_; }
 
 const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks() const {
   auto marks = editor()->line_marks();

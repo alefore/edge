@@ -6,6 +6,7 @@
 #include <cctype>
 #include <iostream>
 
+#include "src/buffer.h"
 #include "src/buffer_variables.h"
 #include "src/cursors_highlighter.h"
 #include "src/delegating_output_receiver.h"
@@ -27,6 +28,30 @@ size_t GetInitialPrefixSize(const OpenBuffer& buffer) {
   return buffer.Read(buffer_variables::paste_mode())
              ? 0
              : 1 + std::to_wstring(buffer.lines_size()).size();
+}
+
+size_t GetCurrentColumn(OpenBuffer* buffer) {
+  if (buffer->lines_size() == 0) {
+    return 0;
+  } else if (buffer->position().line >= buffer->lines_size()) {
+    return buffer->contents()->back()->size();
+  } else if (!buffer->IsLineFiltered(buffer->position().line)) {
+    return 0;
+  } else {
+    return min(buffer->position().column,
+               buffer->LineAt(buffer->position().line)->size());
+  }
+}
+
+size_t GetDesiredViewStartColumn(OutputReceiver* output_receiver,
+                                 OpenBuffer* buffer) {
+  if (buffer->Read(buffer_variables::wrap_long_lines())) {
+    return 0;
+  }
+  size_t effective_size = output_receiver->width() - 1;
+  effective_size -= min(effective_size, GetInitialPrefixSize(*buffer));
+  size_t column = GetCurrentColumn(buffer);
+  return column - min(column, effective_size);
 }
 
 std::wstring GetInitialPrefix(const OpenBuffer& buffer, int line) {
@@ -469,9 +494,49 @@ void ShowAdditionalData(
 }
 
 void BufferOutputProducer::Produce(Options options) {
-  size_t lines_to_show = options.lines.size();
+  const size_t lines_to_show = options.lines.size();
 
+  if (buffer_->Read(buffer_variables::reload_on_display())) {
+    buffer_->Reload();
+  }
   buffer_->set_last_highlighted_line(-1);
+
+  size_t line = min(buffer_->position().line, buffer_->contents()->size() - 1);
+  size_t margin_lines =
+      min(lines_to_show / 2 - 1,
+          max(static_cast<size_t>(
+                  ceil(buffer_->Read(buffer_variables::margin_lines_ratio()) *
+                       lines_to_show)),
+              static_cast<size_t>(
+                  max(buffer_->Read(buffer_variables::margin_lines()), 0))));
+  size_t view_start = static_cast<size_t>(
+      max(0, buffer_->Read(buffer_variables::view_start_line())));
+  if (view_start > line - min(margin_lines, line) &&
+      (buffer_->child_pid() != -1 || buffer_->fd() == -1)) {
+    buffer_->Set(buffer_variables::view_start_line(),
+                 line - min(margin_lines, line));
+    // editor_state->ScheduleRedraw();
+  } else if (view_start + lines_to_show <=
+             min(buffer_->lines_size(), line + margin_lines)) {
+    buffer_->Set(buffer_variables::view_start_line(),
+                 min(buffer_->lines_size() - 1, line + margin_lines) -
+                     lines_to_show + 1);
+    // editor_state->ScheduleRedraw();
+  }
+
+  auto view_start_column =
+      GetDesiredViewStartColumn(options.lines[0].get(), buffer_);
+  if (static_cast<size_t>(
+          max(0, buffer_->Read(buffer_variables::view_start_column()))) !=
+      view_start_column) {
+    buffer_->Set(buffer_variables::view_start_column(), view_start_column);
+    // editor_state->ScheduleRedraw();
+  }
+
+  if (buffer_->Read(buffer_variables::atomic_lines()) &&
+      buffer_->last_highlighted_line() != buffer_->position().line) {
+    // editor_state->ScheduleRedraw();
+  }
 
   // Key is line number.
   std::map<size_t, std::set<size_t>> cursors;
@@ -497,6 +562,7 @@ void BufferOutputProducer::Produce(Options options) {
       static_cast<size_t>(
           max(0, buffer_->Read(buffer_variables::view_start_line()))),
       buffer_->Read(buffer_variables::view_start_column()));
+  Range view_range(position, position);
 
   for (size_t i = 0; i < lines_to_show; i++) {
     std::unique_ptr<OutputReceiver> line_output_receiver =
@@ -510,7 +576,7 @@ void BufferOutputProducer::Produce(Options options) {
     if (!number_prefix.empty() && last_line == position.line) {
       number_prefix = wstring(number_prefix.size() - 1, L' ') + L':';
     }
-    auto next_position = GetNextLine(
+    view_range.end = GetNextLine(
         *buffer_, line_output_receiver->width() - number_prefix.size(),
         position);
 
@@ -519,13 +585,13 @@ void BufferOutputProducer::Produce(Options options) {
     if (it != cursors.end()) {
       for (auto& c : it->second) {
         if (c >= position.column &&
-            LineColumn(position.line, c) < next_position) {
+            LineColumn(position.line, c) < view_range.end) {
           current_cursors.insert(c - position.column);
         }
       }
     }
     bool has_active_cursor =
-        buffer_->position() >= position && buffer_->position() < next_position;
+        buffer_->position() >= position && buffer_->position() < view_range.end;
 
     if (!number_prefix.empty()) {
       LineModifier prefix_modifier = LineModifier::DIM;
@@ -558,7 +624,7 @@ void BufferOutputProducer::Produce(Options options) {
       options.delegate = std::move(line_output_receiver);
       options.columns = current_cursors;
       if (buffer_->position() >= position &&
-          buffer_->position() < next_position) {
+          buffer_->position() < view_range.end) {
         options.active_cursor_input =
             min(buffer_->position().column, line->size()) - position.column;
         options.active_cursor_output = &active_cursor_column;
@@ -614,8 +680,9 @@ void BufferOutputProducer::Produce(Options options) {
     }
 
     last_line = position.line;
-    position = next_position;
+    position = view_range.end;
   }
+  buffer_->SetViewRange(view_range);
 }
 
 }  // namespace editor

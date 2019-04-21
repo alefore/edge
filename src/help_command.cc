@@ -93,10 +93,8 @@ class HelpCommand : public Command {
   wstring Category() const override { return L"Editor"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    auto original_buffer = editor_state->current_buffer()->second;
+    auto original_buffer = editor_state->current_buffer();
     const wstring name = L"- help: " + mode_description_;
-    auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
-    editor_state->set_current_buffer(it.first);
 
     auto buffer = std::make_shared<OpenBuffer>(editor_state, name);
     buffer->Set(buffer_variables::tree_parser(), L"md");
@@ -130,7 +128,8 @@ class HelpCommand : public Command {
     buffer->set_current_position_line(0);
     buffer->ResetMode();
 
-    it.first->second = buffer;
+    editor_state->buffers()->insert(make_pair(name, buffer));
+    editor_state->set_current_buffer(buffer);
 
     editor_state->ScheduleRedraw();
     editor_state->ResetRepetitions();

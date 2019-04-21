@@ -27,10 +27,10 @@ class RecordCommand : public Command {
   wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
-    if (!editor_state->has_current_buffer()) {
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
       return;
     }
-    auto buffer = editor_state->current_buffer()->second;
     if (buffer->HasTransformationStack()) {
       buffer->PopTransformationStack();
       editor_state->SetStatus(L"Recording: stop");

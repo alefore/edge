@@ -251,12 +251,7 @@ class DeleteLinesTransformation : public Transformation {
           result->mode == Transformation::Result::Mode::kFinal) {
         auto target_buffer = buffer->GetBufferFromCurrentLine();
         if (target_buffer.get() != buffer && target_buffer != nullptr) {
-          auto editor = target_buffer->editor();
-          auto it = editor->buffers()->find(
-              target_buffer->Read(buffer_variables::name()));
-          if (it != editor->buffers()->end()) {
-            editor->CloseBuffer(it);
-          }
+          target_buffer->editor()->CloseBuffer(target_buffer.get());
         }
 
         if (buffer->LineAt(result->cursor.line) != nullptr) {

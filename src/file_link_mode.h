@@ -68,8 +68,7 @@ bool ResolvePath(ResolvePathOptions options);
 map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     const OpenFileOptions& options);
 
-map<wstring, shared_ptr<OpenBuffer>>::iterator OpenAnonymousBuffer(
-    EditorState* editor_state);
+shared_ptr<OpenBuffer> OpenAnonymousBuffer(EditorState* editor_state);
 
 }  // namespace editor
 }  // namespace afc

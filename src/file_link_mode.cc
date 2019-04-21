@@ -58,8 +58,9 @@ void StartDeleteFile(EditorState* editor_state, wstring path) {
       // in the other case.
       editor_state->SetStatus(L"Ignored.");
     }
-    if (editor_state->has_current_buffer()) {
-      editor_state->current_buffer()->second->ResetMode();
+    auto buffer = editor_state->current_buffer();
+    if (buffer != nullptr) {
+      buffer->ResetMode();
     }
   };
   options.predictor = PrecomputedPredictor({L"no", L"yes"}, '/');
@@ -450,7 +451,7 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
   it->second->Set(buffer_variables::trigger_reload_on_buffer_write(), false);
   it->second->Set(buffer_variables::show_in_buffers_list(), false);
   if (!editor_state->has_current_buffer()) {
-    editor_state->set_current_buffer(it);
+    editor_state->set_current_buffer(it->second);
     editor_state->ScheduleRedraw();
   }
   return it->second;
@@ -532,7 +533,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     };
     if (FindPath(editor_state, {L""}, options.path, validator,
                  &buffer_options.path, &position, &pattern)) {
-      editor_state->set_current_buffer(buffer);
+      editor_state->set_current_buffer(buffer->second);
       if (position.has_value()) {
         buffer->second->set_position(position.value());
       }
@@ -571,7 +572,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     it.first->second->set_position(position.value());
   }
   if (options.make_current_buffer) {
-    editor_state->set_current_buffer(it.first);
+    editor_state->set_current_buffer(it.first->second);
     editor_state->ScheduleRedraw();
   }
   if (!pattern.empty()) {
@@ -583,11 +584,10 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   return it.first;
 }
 
-map<wstring, shared_ptr<OpenBuffer>>::iterator OpenAnonymousBuffer(
-    EditorState* editor_state) {
+std::shared_ptr<OpenBuffer> OpenAnonymousBuffer(EditorState* editor_state) {
   OpenFileOptions options;
   options.editor_state = editor_state;
-  return OpenFile(options);
+  return OpenFile(options)->second;
 }
 
 }  // namespace editor

@@ -259,6 +259,8 @@ class OpenBuffer {
   void set_last_highlighted_line(size_t value) {
     last_highlighted_line_ = value;
   }
+  void SetViewRange(Range view_range);
+  Range view_range() const;
 
   // Returns a multimap with all the marks for the current buffer, indexed by
   // the line they refer to. Each call may update the map.
@@ -499,6 +501,8 @@ class OpenBuffer {
   // If variable_atomic_lines is true, this will be set to the last line that
   // was highlighted.
   size_t last_highlighted_line_ = 0;
+
+  Range view_range_;
 
   // Index of the marks for the current buffer (i.e. Mark::target_buffer is the
   // current buffer). The key is the line (i.e. Mark::line).

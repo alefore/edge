@@ -12,6 +12,7 @@
 #include "src/args.h"
 #include "src/audio.h"
 #include "src/buffer.h"
+#include "src/buffer_tree.h"
 #include "src/command_mode.h"
 #include "src/direction.h"
 #include "src/editor_mode.h"
@@ -45,41 +46,33 @@ class EditorState {
   EditorState(command_line_arguments::Values args, AudioPlayer* audio_player);
   ~EditorState();
 
-  void CheckPosition() {
-    if (has_current_buffer()) {
-      current_buffer_->second->CheckPosition();
-    }
-  }
+  void CheckPosition();
 
-  bool CloseBuffer(const map<wstring, shared_ptr<OpenBuffer>>::iterator buffer);
+  bool CloseBuffer(OpenBuffer* buffer);
 
   const map<wstring, shared_ptr<OpenBuffer>>* buffers() const {
     return &buffers_;
   }
 
   map<wstring, shared_ptr<OpenBuffer>>* buffers() { return &buffers_; }
+  BufferTree* buffer_tree() { return &buffer_tree_; }
 
-  void set_current_buffer(map<wstring, shared_ptr<OpenBuffer>>::iterator it) {
-    current_buffer_ = it;
-    if (current_buffer_ != buffers_.end() &&
-        current_buffer_->second != nullptr) {
-      current_buffer_->second->Visit();
-    }
-  }
-  bool has_current_buffer() const { return current_buffer_ != buffers_.end(); }
-  map<wstring, shared_ptr<OpenBuffer>>::iterator current_buffer() {
-    return current_buffer_;
-  }
-  map<wstring, shared_ptr<OpenBuffer>>::const_iterator current_buffer() const {
-    return current_buffer_;
-  }
+  void set_current_buffer(shared_ptr<OpenBuffer> buffer);
+  void AddVerticalPane();
+  void AdvanceActiveLeaf(int delta);
+  void ZoomToLeaf();
+
+  bool has_current_buffer() const;
+  shared_ptr<OpenBuffer> current_buffer();
+  const shared_ptr<OpenBuffer> current_buffer() const;
   wstring GetUnusedBufferName(const wstring& prefix);
   std::optional<int> exit_value() const { return exit_value_; }
   bool AttemptTermination(wstring* error_description, int exit_value);
 
   void ResetModifiers() {
-    if (has_current_buffer()) {
-      current_buffer()->second->ResetMode();
+    auto buffer = current_buffer();
+    if (buffer != nullptr) {
+      buffer->ResetMode();
     }
     modifiers_.ResetSoft();
   }
@@ -152,9 +145,6 @@ class EditorState {
   std::shared_ptr<MapModeCommands> default_commands() const {
     return default_commands_;
   }
-
-  size_t visible_lines() const { return visible_lines_; }
-  void set_visible_lines(size_t value) { visible_lines_ = value; }
 
   void MoveBufferForwards(size_t times);
   void MoveBufferBackwards(size_t times);
@@ -244,7 +234,6 @@ class EditorState {
   std::unordered_set<OpenBuffer*> buffers_to_parse_;
 
   map<wstring, shared_ptr<OpenBuffer>> buffers_;
-  map<wstring, shared_ptr<OpenBuffer>>::iterator current_buffer_;
   std::optional<int> exit_value_;
 
   wstring home_directory_;
@@ -258,9 +247,6 @@ class EditorState {
   std::shared_ptr<MapModeCommands> default_commands_;
   std::shared_ptr<EditorMode> keyboard_redirect_;
 
-  // Set by the terminal handler.
-  size_t visible_lines_;
-
   std::mutex mutex_;
   ScreenState screen_state_;
 
@@ -269,8 +255,8 @@ class EditorState {
   int status_prompt_column_;
   wstring status_;
 
-  // Initially we don't consume SIGINT: we let it crash the process (in case the
-  // user has accidentally ran Edge). However, as soon as the user starts
+  // Initially we don't consume SIGINT: we let it crash the process (in case
+  // the user has accidentally ran Edge). However, as soon as the user starts
   // actually using Edge (e.g. modifies a buffer), we start consuming it.
   bool handling_interrupts_ = false;
 
@@ -284,13 +270,16 @@ class EditorState {
   // threads write to the write end to trigger that.
   const std::pair<int, int> pipe_to_communicate_internal_events_;
 
-  // Long running operations that can't be executed in background threads should
-  // periodically interrupt themselves and insert their continuations here. Edge
-  // will periodically flush this to advance their work. This allows them to run
-  // without preventing Edge from handling input from the user.
+  // Long running operations that can't be executed in background threads
+  // should periodically interrupt themselves and insert their continuations
+  // here. Edge will periodically flush this to advance their work. This
+  // allows them to run without preventing Edge from handling input from the
+  // user.
   std::vector<std::function<void()>> pending_work_;
 
   AudioPlayer* const audio_player_;
+
+  BufferTree buffer_tree_;
 };
 
 }  // namespace editor

@@ -22,7 +22,7 @@ class RunCppFileCommand : public Command {
     if (!editor_state->has_current_buffer()) {
       return;
     }
-    auto buffer = editor_state->current_buffer()->second;
+    auto buffer = editor_state->current_buffer();
     PromptOptions options;
     options.prompt = L"cmd ";
     options.history_file = L"editor_commands";
@@ -37,10 +37,10 @@ class RunCppFileCommand : public Command {
 }  // namespace
 
 void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
-  if (!editor_state->has_current_buffer()) {
+  auto buffer = editor_state->current_buffer();
+  if (buffer == nullptr) {
     return;
   }
-  auto buffer = editor_state->current_buffer()->second;
   if (editor_state->structure() == StructureLine()) {
     auto target = buffer->GetBufferFromCurrentLine();
     if (target != nullptr) {

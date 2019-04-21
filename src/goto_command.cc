@@ -101,10 +101,10 @@ class GotoCommand : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) {
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
       return;
     }
-    auto buffer = editor_state->current_buffer()->second;
     if (c != 'g') {
       buffer->ResetMode();
       editor_state->ProcessInput(c);
@@ -166,9 +166,9 @@ class GotoCommand : public Command {
     } else if (structure == StructurePage()) {
       CHECK_GT(buffer->contents()->size(), 0u);
       size_t pages = ceil(static_cast<double>(buffer->contents()->size()) /
-                          editor_state->visible_lines());
+                          buffer->view_range().lines());
       size_t position =
-          editor_state->visible_lines() *
+          buffer->view_range().lines() *
           ComputePosition(0, pages, pages, editor_state->direction(),
                           editor_state->repetitions(),
                           editor_state->structure_range(), calls_);
@@ -186,8 +186,8 @@ class GotoCommand : public Command {
       CHECK_LT(position, editor_state->buffers()->size());
       auto it = editor_state->buffers()->begin();
       advance(it, position);
-      if (it != editor_state->current_buffer()) {
-        editor_state->set_current_buffer(it);
+      if (it->second != editor_state->current_buffer()) {
+        editor_state->set_current_buffer(it->second);
       }
     }
     editor_state->PushCurrentPosition();

@@ -58,7 +58,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
   it->second->Set(buffer_variables::atomic_lines(), true);
   if (!editor_state->has_current_buffer()) {
     // Seems lame, but what can we do?
-    editor_state->set_current_buffer(it);
+    editor_state->set_current_buffer(it->second);
     editor_state->ScheduleRedraw();
   }
   return it;
@@ -163,11 +163,8 @@ class HistoryScrollBehavior : public ScrollBehavior {
         std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
 
     if (history_ != nullptr && history_->contents()->size() > 1) {
-      auto previous_buffer = editor_state->current_buffer()->second;
-      auto history_it = editor_state->buffers()->find(
-          history_->Read(buffer_variables::name()));
-      CHECK(history_it != editor_state->buffers()->end());
-      editor_state->set_current_buffer(history_it);
+      auto previous_buffer = editor_state->current_buffer();
+      editor_state->set_current_buffer(history_);
       history_->set_mode(previous_buffer->ResetMode());
 
       LineColumn position = history_->position();
@@ -294,7 +291,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
     editor_state->ScheduleRedraw();
 
     // We make a copy in case cancel_handler or handler delete us.
-    auto buffer = original_buffer->second;
+    auto buffer = original_buffer;
     if (options.cancel_handler) {
       VLOG(5) << "Running cancel handler.";
       options.cancel_handler(editor_state);
@@ -366,7 +363,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
                   L"Error: predictions buffer not found.");
             } else {
               it->second->set_current_position_line(0);
-              editor_state->set_current_buffer(it);
+              editor_state->set_current_buffer(it->second);
               editor_state->ScheduleRedraw();
             }
           }

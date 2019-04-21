@@ -15,7 +15,7 @@ class CommandWithModifiersMode : public EditorMode {
   CommandWithModifiersMode(wstring name, EditorState* editor_state,
                            CommandWithModifiersHandler handler)
       : name_(std::move(name)),
-        buffer_(editor_state->current_buffer()->second),
+        buffer_(editor_state->current_buffer()),
         handler_(std::move(handler)) {
     CHECK(buffer_ != nullptr);
     RunHandler(editor_state, Transformation::Result::Mode::kPreview);
@@ -278,10 +278,10 @@ class CommandWithModifiers : public Command {
   wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
-    if (editor_state->has_current_buffer()) {
-      editor_state->current_buffer()->second->set_mode(
-          std::make_unique<CommandWithModifiersMode>(name_, editor_state,
-                                                     handler_));
+    auto buffer = editor_state->current_buffer();
+    if (buffer != nullptr) {
+      buffer->set_mode(std::make_unique<CommandWithModifiersMode>(
+          name_, editor_state, handler_));
     }
   }
 
