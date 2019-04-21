@@ -13,12 +13,12 @@
 #include "src/delegating_output_receiver_with_internal_modifiers.h"
 #include "src/dirname.h"
 #include "src/framed_output_producer.h"
+#include "src/horizontal_split_output_producer.h"
 #include "src/line_marks.h"
 #include "src/output_receiver.h"
 #include "src/output_receiver_optimizer.h"
 #include "src/parse_tree.h"
 #include "src/screen_output_receiver.h"
-#include "src/horizontal_split_output_producer.h"
 
 namespace afc {
 namespace editor {
@@ -43,6 +43,7 @@ constexpr int Terminal::CTRL_U;
 constexpr int Terminal::CTRL_K;
 
 namespace {
+// TODO: Remove.
 // Returns the number of initial columns to skip, corresponding to output that
 // prefixes the actual line contents.
 size_t GetInitialPrefixSize(const OpenBuffer& buffer) {
@@ -499,9 +500,9 @@ enum class LeafHandling { kDirect, kFramed };
 
 std::unique_ptr<OutputProducer> CreateOutputProducer(
     BufferTree* buffer_tree, LeafHandling leaf_handling) {
-  switch (buffer_tree->type) {
+  switch (buffer_tree->type()) {
     case BufferTree::Type::kLeaf: {
-      auto buffer = buffer_tree->leaf.lock();
+      auto buffer = buffer_tree->LockActiveLeaf();
       if (buffer == nullptr) {
         return nullptr;
       }
@@ -516,12 +517,16 @@ std::unique_ptr<OutputProducer> CreateOutputProducer(
 
     case BufferTree::Type::kHorizontal: {
       std::vector<std::unique_ptr<OutputProducer>> output_producers;
-      for (auto& child : buffer_tree->children) {
-        auto result = CreateOutputProducer(&child, LeafHandling::kFramed);
-        output_producers.push_back(std::move(result));
-      }
+      int active_index = 0;
+      buffer_tree->ForEach([&](BufferTree* child, bool active) {
+        if (active) {
+          active_index = output_producers.size();
+        }
+        output_producers.push_back(
+            CreateOutputProducer(child, LeafHandling::kFramed));
+      });
       return std::make_unique<HorizontalSplitOutputProducer>(
-          std::move(output_producers), buffer_tree->active);
+          std::move(output_producers), active_index);
     }
   }
   LOG(FATAL) << "Unexpected buffer tree type.";

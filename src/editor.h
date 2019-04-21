@@ -282,7 +282,7 @@ class EditorState {
 
   AudioPlayer* const audio_player_;
 
-  BufferTree buffer_tree_;
+  BufferTree buffer_tree_ = BufferTree::NewLeaf(std::weak_ptr<OpenBuffer>());
 };
 
 }  // namespace editor

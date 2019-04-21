@@ -418,7 +418,7 @@ EditorState::~EditorState() {
 }
 
 void EditorState::CheckPosition() {
-  auto buffer = FindActiveLeaf(&buffer_tree_)->leaf.lock();
+  auto buffer = buffer_tree_.LockActiveLeaf();
   if (buffer != nullptr) {
     buffer->CheckPosition();
   }
@@ -434,7 +434,7 @@ bool EditorState::CloseBuffer(OpenBuffer* buffer) {
   ScheduleRedraw();
 
   if (current_buffer().get() == buffer) {
-    RemoveActiveLeaf(&buffer_tree_);
+    buffer_tree_.RemoveActiveLeaf();
     // TODO: Readjust: pick another one and make it active!
     // if (current_buffer_ != buffers_.end()) {
     //  current_buffer_->second->Visit();
@@ -448,80 +448,63 @@ bool EditorState::CloseBuffer(OpenBuffer* buffer) {
 }
 
 void EditorState::set_current_buffer(shared_ptr<OpenBuffer> buffer) {
-  FindActiveLeaf(&buffer_tree_)->leaf = buffer;
+  buffer_tree_.SetActiveLeafBuffer(buffer);
   if (buffer != nullptr) {
     buffer->Visit();
   }
 }
 
 void EditorState::AddHorizontalSplit() {
-  if (buffer_tree_.type != BufferTree::Type::kHorizontal) {
-    BufferTree old_tree = buffer_tree_;
-    buffer_tree_.type = BufferTree::Type::kHorizontal;
-    buffer_tree_.leaf.reset();
-    buffer_tree_.children.clear();
-    buffer_tree_.children.push_back(std::move(old_tree));
-    buffer_tree_.active = 0;
-  }
+  buffer_tree_.AddHorizontalSplit();
 
-  buffer_tree_.active = buffer_tree_.children.size();
-  buffer_tree_.children.push_back(BufferTree());
   set_screen_needs_hard_redraw(true);  // TODO: Why is this needed?
   ScheduleRedraw();
 }
 
 void EditorState::SetHorizontalSplitsWithAllBuffers() {
   auto active_buffer = current_buffer();
-  buffer_tree_.type = BufferTree::Type::kHorizontal;
-  buffer_tree_.leaf.reset();
-  buffer_tree_.active = 0;
-  buffer_tree_.children.clear();
+  Tree<BufferTree> buffers;
+  size_t index_active = 0;
   for (auto& buffer : buffers_) {
     if (!buffer.second->Read(buffer_variables::show_in_buffers_list())) {
       continue;
     }
     if (buffer.second == active_buffer) {
-      buffer_tree_.active = buffer_tree_.children.size();
+      index_active = buffers.size();
     }
-    buffer_tree_.children.push_back(BufferTree());
-    buffer_tree_.children.back().leaf = buffer.second;
+    buffers.push_back(BufferTree::NewLeaf(buffer.second));
   }
+  CHECK(!buffers.empty());
+  buffer_tree_ = BufferTree::NewHorizontal(buffers, index_active);
 }
 
 void EditorState::SetActiveLeaf(size_t position) {
-  switch (buffer_tree_.type) {
-    case BufferTree::Type::kLeaf:
-      break;
-    case BufferTree::Type::kHorizontal:
-      CHECK(!buffer_tree_.children.empty());
-      buffer_tree_.active = position % buffer_tree_.children.size();
-      break;
-  }
+  buffer_tree_.SetActiveLeaf(position);
 }
 
 void EditorState::AdvanceActiveLeaf(int delta) {
-  editor::AdvanceActiveLeaf(&buffer_tree_, delta);
+  buffer_tree_.AdvanceActiveLeaf(delta);
   ScheduleRedraw();
 }
 
 void EditorState::ZoomToLeaf() {
-  BufferTree tmp = *FindActiveLeaf(&buffer_tree_);
+  BufferTree tmp = *buffer_tree_.FindActiveLeaf();
   buffer_tree_ = tmp;
   ScheduleRedraw();
 }
 
 void EditorState::BufferTreeRemoveActiveLeaf() {
-  BufferTree::RemoveActiveLeaf(&buffer_tree_);
+  buffer_tree_.RemoveActiveLeaf();
 }
 
 bool EditorState::has_current_buffer() const {
   return current_buffer() != nullptr;
 }
 shared_ptr<OpenBuffer> EditorState::current_buffer() {
-  return FindActiveLeaf(&buffer_tree_)->leaf.lock();
+  return buffer_tree_.LockActiveLeaf();
 }
 const shared_ptr<OpenBuffer> EditorState::current_buffer() const {
-  return FindActiveLeaf(&buffer_tree_)->leaf.lock();
+  return buffer_tree_.LockActiveLeaf();
 }
 
 wstring GetBufferName(const wstring& prefix, size_t count) {

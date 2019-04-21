@@ -13,29 +13,62 @@
 namespace afc {
 namespace editor {
 
-struct BufferTree {
+class BufferTree {
+ public:
   enum class Type { kLeaf, /*kVertical,*/ kHorizontal };
 
-  Type type = Type::kLeaf;
+  static BufferTree NewLeaf(std::weak_ptr<OpenBuffer> buffer);
+  static BufferTree NewHorizontal(Tree<BufferTree> buffers,
+                                  size_t active_index);
+
+  Type type() const { return type_; }
+
+  void AddHorizontalSplit();
+
+  void SetActiveLeafBuffer(std::shared_ptr<OpenBuffer> buffer);
+  void SetActiveLeaf(size_t position);
+  std::shared_ptr<OpenBuffer> LockActiveLeaf() const;
+
+  void RemoveActiveLeaf();
+  std::vector<BufferTree*> FindRouteToActiveLeaf();
+
+  BufferTree* FindActiveLeaf();
+  const BufferTree* FindActiveLeaf() const;
+  void AdvanceActiveLeaf(int delta);
+
+  template <typename T>
+  void ForEach(T callback) {
+    switch (type_) {
+      case Type::kLeaf:
+        return;
+      case Type::kHorizontal:
+        for (size_t i = 0; i < children_.size(); i++) {
+          callback(&children_[i], i == active_);
+        }
+        return;
+    }
+  }
+
+  size_t CountLeafs() const;
+
+  wstring ToString() const;
+
+ private:
+  BufferTree() = default;
+
+  int InternalAdvanceActiveLeaf(int delta);
+
+  Type type_ = Type::kLeaf;
 
   // Ignored if type != kLeaf.
-  std::weak_ptr<OpenBuffer> leaf;
+  std::weak_ptr<OpenBuffer> leaf_;
 
   // Ignored if type == kLeaf.
-  Tree<BufferTree> children;
-  size_t active;
-
-  // TODO: Turn BufferTree into a class, make this not static.
-  static void RemoveActiveLeaf(BufferTree* tree);
+  Tree<BufferTree> children_;
+  size_t active_;
 };
 
 std::ostream& operator<<(std::ostream& os, const BufferTree& lc);
-
-std::vector<BufferTree*> FindRouteToActiveLeaf(BufferTree* tree);
-BufferTree* FindActiveLeaf(BufferTree* tree);
-const BufferTree* FindActiveLeaf(const BufferTree* tree);
-void RemoveActiveLeaf(BufferTree* tree);
-void AdvanceActiveLeaf(BufferTree* tree, int delta);
 
 }  // namespace editor
 }  // namespace afc
