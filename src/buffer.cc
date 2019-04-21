@@ -2228,7 +2228,10 @@ bool OpenBuffer::IsLineFiltered(size_t line_number) {
   return filtered;
 }
 
-void OpenBuffer::SetViewRange(Range view_range) { view_range_ = view_range; }
+void OpenBuffer::SetViewRange(Range view_range) {
+  view_range_ = view_range;
+  view_range_.end = min(view_range_.end, end_position());
+}
 Range OpenBuffer::view_range() const { return view_range_; }
 
 const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks() const {

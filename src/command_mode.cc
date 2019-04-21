@@ -303,7 +303,10 @@ wstring LineUp::Description() const { return L"moves up one line"; }
   } else if (structure == StructureWord() || structure == StructureSymbol()) {
     // Move in whole pages.
     editor_state->set_repetitions(editor_state->repetitions() *
-                                  (max(3ul, buffer->view_range().lines()) - 2));
+                                  (buffer->view_range().lines() > 2
+                                       ? buffer->view_range().lines() - 2
+                                       : 3));
+    VLOG(6) << "Word Up: Repetitions: " << editor_state->repetitions();
     Move(c, editor_state, StructureChar());
   } else if (structure == StructureTree()) {
     CHECK(false);  // Handled above.
@@ -340,7 +343,10 @@ wstring LineDown::Description() const { return L"moves down one line"; }
   } else if (structure == StructureWord() || structure == StructureSymbol()) {
     // Move in whole pages.
     editor_state->set_repetitions(editor_state->repetitions() *
-                                  (max(3ul, buffer->view_range().lines()) - 2));
+                                  (buffer->view_range().lines() > 2
+                                       ? buffer->view_range().lines() - 2
+                                       : 3));
+    VLOG(6) << "Word Down: Repetitions: " << editor_state->repetitions();
     Move(c, editor_state, StructureChar());
   } else if (structure == StructureTree()) {
     auto buffer = editor_state->current_buffer();
