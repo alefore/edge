@@ -41,9 +41,16 @@ running and which may or may not have a full terminal (pts).
   loading a file, running a shell command and collecting its output, or
   compiling the program in the current directory). More accurately, the editor
   should never cease to respond to user commands simply because it is executing
-  an action. Buffers in Edge are read asynchronously and Edge never blocks while
-  performing IO operations (there are a few exceptional situations to this that
-  we would like to fix).
+  an action.
+
+  * Edge reads buffers asynchronously and never blocks while performing IO
+    operations (module a few exceptions that we would like to fix).
+
+  * Edge doesn't block while executing extensions. Changes are shown to the
+    buffer as they are applied (unless extensions explicitly bundle changes
+    together so that they get applied atomically) and the user can continue to
+    interact with the buffer (or switch to other buffers) even if an extension
+    runs a loop that never returns.
 
 * Editing:
 
