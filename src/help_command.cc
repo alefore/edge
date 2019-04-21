@@ -113,15 +113,18 @@ class HelpCommand : public Command {
                       L"your buffer."));
     buffer->AppendEmptyLine();
 
+    auto variable_commands = commands_->GetVariableCommands();
+
     DescribeVariables(
         L"bool", *original_buffer, buffer.get(), buffer_variables::BoolStruct(),
+        variable_commands,
         [](const bool& value) { return value ? L"true" : L"false"; });
     DescribeVariables(
         L"string", *original_buffer, buffer.get(),
-        buffer_variables::StringStruct(),
+        buffer_variables::StringStruct(), variable_commands,
         [](const std::wstring& value) { return L"`" + value + L"`"; });
     DescribeVariables(L"int", *original_buffer, buffer.get(),
-                      buffer_variables::IntStruct(),
+                      buffer_variables::IntStruct(), variable_commands,
                       [](const int& value) { return std::to_wstring(value); });
 
     CommandLineVariables(buffer.get());
@@ -224,9 +227,11 @@ class HelpCommand : public Command {
   }
 
   template <typename T, typename C>
-  void DescribeVariables(wstring type_name, const OpenBuffer& source,
-                         OpenBuffer* buffer, EdgeStruct<T>* variables,
-                         /*std::function<std::wstring(const T&)>*/ C print) {
+  void DescribeVariables(
+      wstring type_name, const OpenBuffer& source, OpenBuffer* buffer,
+      EdgeStruct<T>* variables,
+      const std::map<std::wstring, std::set<std::wstring>>& variable_commands,
+      /*std::function<std::wstring(const T&)>*/ C print) {
     StartSection(L"### " + type_name, buffer);
     for (const auto& variable : variables->variables()) {
       buffer->AppendLine(StringAppend(NewLazyString(L"#### "),
@@ -240,6 +245,14 @@ class HelpCommand : public Command {
       buffer->AppendLazyString(
           StringAppend(NewLazyString(L"* Default: "),
                        NewLazyString(print(variable.second->default_value()))));
+
+      auto commands = variable_commands.find(variable.second->name());
+      if (commands != variable_commands.end()) {
+        buffer->AppendLazyString(NewLazyString(L"* Related commands:"));
+        for (auto& it : commands->second) {
+          buffer->AppendLazyString(NewLazyString(L"  * `" + it + L"`"));
+        }
+      }
       buffer->AppendEmptyLine();
     }
     buffer->AppendEmptyLine();

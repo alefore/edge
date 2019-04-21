@@ -4,7 +4,10 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "command.h"
 #include "editor_mode.h"
@@ -36,10 +39,20 @@ class MapModeCommands {
   void Add(wstring name, std::function<void(EditorState*)> value,
            wstring description);
 
+  void RegisterVariableCommand(wstring variable_name, wstring command_name);
+  std::map<std::wstring, std::set<std::wstring>> GetVariableCommands() const;
+
  private:
   friend class MapMode;
-  std::list<std::shared_ptr<std::map<std::wstring, std::unique_ptr<Command>>>>
-      commands_;
+
+  struct Frame {
+    std::map<std::wstring, std::unique_ptr<Command>> commands;
+    // The key is the name of a variable. The set contains all commands
+    // associated with that variable.
+    std::unordered_map<wstring, std::unordered_set<wstring>> variable_commands;
+  };
+
+  std::list<std::shared_ptr<Frame>> frames_;
 };
 
 class MapMode : public EditorMode {

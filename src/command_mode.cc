@@ -861,6 +861,7 @@ void ToggleBoolVariable(EditorState* editor_state, wstring binding,
                     L"() ? \"🗸\" : \"⛶\") + \" " + variable_name + L"\");";
   LOG(INFO) << "Command: " << command;
   map_mode->Add(binding, NewCppCommand(editor_state->environment(), command));
+  map_mode->RegisterVariableCommand(variable_name, binding);
 }
 
 void ToggleIntVariable(EditorState* editor_state, wstring binding,
@@ -875,6 +876,7 @@ void ToggleIntVariable(EditorState* editor_state, wstring binding,
                     L"().tostring());";
   LOG(INFO) << "Command: " << command;
   map_mode->Add(binding, NewCppCommand(editor_state->environment(), command));
+  map_mode->RegisterVariableCommand(variable_name, binding);
 }
 }  // namespace
 

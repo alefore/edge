@@ -102,8 +102,6 @@ The first five times Edge runs, it should display a `help` message, perhaps at t
 
 Improve the help document:
 
-* When showing variables, list bindings that toggle them.
-
 * Move documentation about the variables from the README.md to buffer_variables.h
 
 * Add documentation string for VM functions/variables.

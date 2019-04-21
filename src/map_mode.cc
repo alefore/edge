@@ -47,16 +47,14 @@ class CommandFromFunction : public Command {
 }  // namespace
 
 class EditorState;
-MapModeCommands::MapModeCommands()
-    : commands_({std::make_shared<map<wstring, std::unique_ptr<Command>>>()}) {
+MapModeCommands::MapModeCommands() : frames_({std::make_shared<Frame>()}) {
   Add(L"?", NewHelpCommand(this, L"command mode"));
 }
 
 std::unique_ptr<MapModeCommands> MapModeCommands::NewChild() {
   auto output = std::make_unique<MapModeCommands>();
-  output->commands_ = commands_;
-  output->commands_.push_front(
-      std::make_shared<map<wstring, std::unique_ptr<Command>>>());
+  output->frames_ = frames_;
+  output->frames_.push_front(std::make_shared<Frame>());
 
   // Override the parent's help command, so that bindings added to the child are
   // visible.
@@ -68,8 +66,8 @@ std::map<wstring, std::map<wstring, Command*>> MapModeCommands::Coallesce()
     const {
   std::map<wstring, std::map<wstring, Command*>> output;
   std::set<wstring> already_seen;  // Avoid showing unreachable commands.
-  for (const auto& node : commands_) {
-    for (const auto& it : *node) {
+  for (const auto& frame : frames_) {
+    for (const auto& it : frame->commands) {
       if (already_seen.insert(it.first).second) {
         output[it.second->Category()][it.first] = it.second.get();
       }
@@ -80,7 +78,8 @@ std::map<wstring, std::map<wstring, Command*>> MapModeCommands::Coallesce()
 
 void MapModeCommands::Add(wstring name, std::unique_ptr<Command> value) {
   CHECK(value != nullptr);
-  commands_.front()->insert({name, std::move(value)});
+  CHECK(!frames_.empty());
+  frames_.front()->commands.insert({name, std::move(value)});
 }
 
 void MapModeCommands::Add(wstring name, wstring description,
@@ -113,6 +112,29 @@ void MapModeCommands::Add(wstring name,
                                                   std::move(description)));
 }
 
+void MapModeCommands::RegisterVariableCommand(wstring variable_name,
+                                              wstring command_name) {
+  CHECK(!frames_.empty());
+  frames_.front()->variable_commands[variable_name].insert(command_name);
+}
+
+std::map<std::wstring, std::set<std::wstring>>
+MapModeCommands::GetVariableCommands() const {
+  std::map<std::wstring, std::set<std::wstring>> output;
+  std::set<wstring> already_seen;  // Avoid showing unreachable commands.
+  for (const auto& frame : frames_) {
+    for (const auto& variable_it : frame->variable_commands) {
+      wstring variable_name = variable_it.first;
+      for (const wstring& command_name : variable_it.second) {
+        if (already_seen.insert(command_name).second) {
+          output[variable_name].insert(command_name);
+        }
+      }
+    }
+  }
+  return output;
+}
+
 MapMode::MapMode(std::shared_ptr<MapModeCommands> commands)
     : commands_(std::move(commands)) {}
 
@@ -120,9 +142,9 @@ void MapMode::ProcessInput(wint_t c, EditorState* editor_state) {
   current_input_.push_back(c);
 
   bool reset_input = true;
-  for (const auto& node : commands_->commands_) {
-    auto it = node->lower_bound(current_input_);
-    if (it != node->end() &&
+  for (const auto& frame : commands_->frames_) {
+    auto it = frame->commands.lower_bound(current_input_);
+    if (it != frame->commands.end() &&
         std::equal(current_input_.begin(), current_input_.end(),
                    it->first.begin())) {
       if (current_input_ == it->first) {
