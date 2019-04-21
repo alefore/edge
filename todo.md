@@ -44,8 +44,6 @@ Honor the `margin_columns` variable.
 
 Add a boolean variable `highlight_current_line` (default: false); when set, highlight the line with the current cursor position.
 
-When searching, display in the Status the count of matches (especially when there were zero matches).
-
 In diff mode, add a link to every file. Following it should take you directly to the file (perhaps based on a variable for the `strip`, similar to the `patch` command).
 
 ### List of buffers

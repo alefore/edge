@@ -128,8 +128,16 @@ vector<LineColumn> PerformSearchWithDirection(EditorState* editor_state,
   }
 
   if (head.empty()) {
+    editor_state->SetStatus(L"🔍 No results.");
     BeepFrequencies(editor_state->audio_player(), {523.25, 261.63, 261.63});
   } else {
+    if (head.size() == 1) {
+      editor_state->SetStatus(L"🔍 1 result.");
+    } else {
+      wstring results_prefix(1 + static_cast<size_t>(log2(head.size())), L'🔍');
+      editor_state->SetStatus(results_prefix + L" Results: " +
+                              std::to_wstring(head.size()));
+    }
     vector<double> frequencies = {261.63, 329.63, 392.0, 523.25, 659.25};
     frequencies.resize(min(frequencies.size(), head.size() + 1));
     BeepFrequencies(editor_state->audio_player(), frequencies);
