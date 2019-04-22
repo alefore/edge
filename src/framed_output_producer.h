@@ -18,8 +18,7 @@ class FramedOutputProducer : public OutputProducer {
         title_(std::move(title)),
         position_in_parent_(position_in_parent) {}
 
-  size_t MinimumLines() override;
-  void Produce(Options options) override;
+  void WriteLine(Options options) override;
 
  private:
   void AddFirstLine(const OutputProducer::Options& options);
@@ -27,6 +26,8 @@ class FramedOutputProducer : public OutputProducer {
   const std::unique_ptr<OutputProducer> delegate_;
   const wstring title_;
   const std::optional<size_t> position_in_parent_;
+
+  int lines_written_ = 0;
 };
 
 }  // namespace editor

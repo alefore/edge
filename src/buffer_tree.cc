@@ -29,6 +29,7 @@ std::shared_ptr<OpenBuffer> BufferTreeLeaf::LockActiveLeaf() const {
 
 void BufferTreeLeaf::SetActiveLeafBuffer(std::shared_ptr<OpenBuffer> buffer) {
   leaf_ = std::move(buffer);
+  SetLines(lines_);  // Causes things to be recomputed.
 }
 
 void BufferTreeLeaf::SetActiveLeaf(size_t) {}
@@ -55,7 +56,23 @@ std::unique_ptr<OutputProducer> BufferTreeLeaf::CreateOutputProducer() {
   if (buffer == nullptr) {
     return nullptr;
   }
-  return std::make_unique<BufferOutputProducer>(buffer);
+  return std::make_unique<BufferOutputProducer>(buffer, lines_);
+}
+
+void BufferTreeLeaf::SetLines(size_t lines) {
+  lines_ = lines;
+  auto buffer = leaf_.lock();
+  if (buffer != nullptr) {
+    buffer->set_lines_for_zoomed_out_tree(lines);
+  }
+}
+
+size_t BufferTreeLeaf::MinimumLines() {
+  auto buffer = LockActiveLeaf();
+  return buffer == nullptr
+             ? 0
+             : max(0,
+                   buffer->Read(buffer_variables::buffer_list_context_lines()));
 }
 
 std::ostream& operator<<(std::ostream& os, const BufferTree& lc) {

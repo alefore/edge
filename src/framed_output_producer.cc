@@ -10,21 +10,19 @@
 
 namespace afc {
 namespace editor {
-size_t FramedOutputProducer::MinimumLines() {
-  return 1 + delegate_->MinimumLines();
-}
-
-void FramedOutputProducer::Produce(Options options) {
-  AddFirstLine(options);
-  options.lines.erase(options.lines.begin());
+void FramedOutputProducer::WriteLine(Options options) {
+  if (lines_written_++ == 0) {
+    AddFirstLine(std::move(options));
+    return;
+  }
 
   const auto original_active_cursor = options.active_cursor;
-  std::optional<LineColumn> active_cursor;
+  std::optional<size_t> active_cursor;
   options.active_cursor = &active_cursor;
-  delegate_->Produce(std::move(options));
+  delegate_->WriteLine(std::move(options));
+
   if (active_cursor.has_value() && original_active_cursor != nullptr) {
-    *original_active_cursor = LineColumn(active_cursor.value().line + 1,
-                                         active_cursor.value().column);
+    *original_active_cursor = active_cursor.value();
   }
 }
 
@@ -34,25 +32,24 @@ void FramedOutputProducer::AddFirstLine(
                                       ? LineModifier::RESET
                                       : LineModifier::BOLD;
 
-  OutputReceiver& receiver = *options.lines[0];
-
-  receiver.AddModifier(default_modifier);
-  receiver.AddString(L"──" + (title_.empty() ? L"" : L" " + title_ + L" ") +
-                     L"─");
+  options.receiver->AddModifier(default_modifier);
+  options.receiver->AddString(
+      L"──" + (title_.empty() ? L"" : L" " + title_ + L" ") + L"─");
   if (position_in_parent_.has_value()) {
-    receiver.AddString(L"(");
-    receiver.AddModifier(LineModifier::CYAN);
+    options.receiver->AddString(L"(");
+    options.receiver->AddModifier(LineModifier::CYAN);
     // Add 1 because that matches what the repetitions do. Humans typically
     // start counting from 1.
-    receiver.AddString(std::to_wstring(1 + position_in_parent_.value()));
-    receiver.AddModifier(LineModifier::RESET);
-    receiver.AddModifier(default_modifier);
-    receiver.AddString(L")");
+    options.receiver->AddString(
+        std::to_wstring(1 + position_in_parent_.value()));
+    options.receiver->AddModifier(LineModifier::RESET);
+    options.receiver->AddModifier(default_modifier);
+    options.receiver->AddString(L")");
   }
 
-  receiver.AddString(std::wstring(
-      options.lines[0]->width() - options.lines[0]->column(), L'─'));
-  receiver.AddModifier(LineModifier::RESET);
+  options.receiver->AddString(std::wstring(
+      options.receiver->width() - options.receiver->column(), L'─'));
+  options.receiver->AddModifier(LineModifier::RESET);
 }
 
 }  // namespace editor

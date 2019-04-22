@@ -8,6 +8,7 @@
 
 #include "src/buffer.h"
 #include "src/buffer_output_producer.h"
+#include "src/buffer_tree.h"
 #include "src/buffer_variables.h"
 #include "src/framed_output_producer.h"
 #include "src/horizontal_split_output_producer.h"
@@ -131,7 +132,7 @@ std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
         index));
   }
   return std::make_unique<HorizontalSplitOutputProducer>(
-      std::move(output_producers), active_);
+      std::move(output_producers), lines_per_child_, active_);
 }
 
 void BufferTreeHorizontal::PushChildren(std::unique_ptr<BufferTree> children) {
@@ -162,6 +163,58 @@ std::unique_ptr<BufferTree> BufferTreeHorizontal::RemoveActiveLeafInternal(
                                casted_tree->active_);
   casted_tree->active_ %= casted_tree->children_.size();
   return tree;
+}
+
+void BufferTreeHorizontal::SetLines(size_t lines) {
+  lines_ = lines;
+  RecomputeLinesPerChild();
+}
+
+size_t BufferTreeHorizontal::MinimumLines() {
+  size_t count = 0;
+  for (auto& child : children_) {
+    static const int kFrameLines = 1;
+    count += child->MinimumLines() + kFrameLines;
+  }
+  return count;
+}
+
+void BufferTreeHorizontal::RecomputeLinesPerChild() {
+  static const int kFrameLines = 1;
+
+  size_t lines_given = 0;
+
+  lines_per_child_.clear();
+  for (auto& child : children_) {
+    lines_per_child_.push_back(child->MinimumLines() + kFrameLines);
+    lines_given += lines_per_child_.back();
+  }
+
+  // TODO: this could be done way faster (sort + single pass over all buffers).
+  while (lines_given > lines_) {
+    std::vector<size_t> indices_maximal_producers = {0};
+    for (size_t i = 1; i < lines_per_child_.size(); i++) {
+      size_t maximum = lines_per_child_[indices_maximal_producers.front()];
+      if (maximum < lines_per_child_[i]) {
+        indices_maximal_producers = {i};
+      } else if (maximum == lines_per_child_[i]) {
+        indices_maximal_producers.push_back(i);
+      }
+    }
+    for (auto& i : indices_maximal_producers) {
+      if (lines_given > lines_) {
+        lines_given--;
+        lines_per_child_[i]--;
+      }
+    }
+  }
+
+  if (lines_given < lines_) {
+    lines_per_child_[active_] += lines_ - lines_given;
+  }
+  for (size_t i = 0; i < lines_per_child_.size(); i++) {
+    children_[i]->SetLines(lines_per_child_[i] - kFrameLines);
+  }
 }
 
 }  // namespace editor

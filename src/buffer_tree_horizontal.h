@@ -45,10 +45,15 @@ class BufferTreeHorizontal : public BufferTree {
 
   std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 
+  void SetLines(size_t lines) override;
+  size_t MinimumLines() override;
+
   void PushChildren(std::unique_ptr<BufferTree> children);
   size_t children_count() const;
 
  private:
+  void RecomputeLinesPerChild();
+
   // Doesn't wrap. Returns the number of steps pending.
   int AdvanceActiveLeafWithoutWrapping(int delta);
   static std::unique_ptr<BufferTree> RemoveActiveLeafInternal(
@@ -56,6 +61,9 @@ class BufferTreeHorizontal : public BufferTree {
 
   std::vector<std::unique_ptr<BufferTree>> children_;
   size_t active_;
+
+  size_t lines_;
+  std::vector<size_t> lines_per_child_;
 };
 
 }  // namespace editor

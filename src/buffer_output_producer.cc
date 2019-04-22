@@ -43,12 +43,11 @@ size_t GetCurrentColumn(OpenBuffer* buffer) {
   }
 }
 
-size_t GetDesiredViewStartColumn(OutputReceiver* output_receiver,
-                                 OpenBuffer* buffer) {
+size_t GetDesiredViewStartColumn(OpenBuffer* buffer) {
   if (buffer->Read(buffer_variables::wrap_long_lines())) {
     return 0;
   }
-  size_t effective_size = output_receiver->width() - 1;
+  size_t effective_size = 80;  // TODO: This is bogus.
   effective_size -= min(effective_size, GetInitialPrefixSize(*buffer));
   size_t column = GetCurrentColumn(buffer);
   return column - min(column, effective_size);
@@ -468,6 +467,7 @@ void ShowAdditionalData(
     }
     if (buffer->Read(buffer_variables::scrollbar()) &&
         buffer->lines_size() > lines_to_show) {
+      CHECK_GE(position.line, view_start_line);
       additional_information += ComputeScrollBarCharacter(
           position.line, buffer->lines_size(), view_start_line, lines_to_show);
     }
@@ -493,43 +493,51 @@ void ShowAdditionalData(
   output_receiver->AddString(additional_information);
 }
 
-size_t BufferOutputProducer::MinimumLines() {
-  return max(0, buffer_->Read(buffer_variables::buffer_list_context_lines()));
-}
-
-void BufferOutputProducer::Produce(Options options) {
-  const size_t lines_to_show = options.lines.size();
-
+BufferOutputProducer::BufferOutputProducer(std::shared_ptr<OpenBuffer> buffer,
+                                           size_t lines_shown)
+    : buffer_(std::move(buffer)),
+      lines_shown_(lines_shown),
+      cursors_([=]() {
+        std::map<size_t, std::set<size_t>> cursors;
+        for (auto cursor : *buffer_->active_cursors()) {
+          cursors[cursor.line].insert(cursor.column);
+        }
+        return cursors;
+      }()),
+      root_(buffer_->parse_tree()),
+      current_tree_(buffer_->current_tree(root_.get())),
+      zoomed_out_tree_(buffer_->zoomed_out_tree()) {
   if (buffer_->Read(buffer_variables::reload_on_display())) {
     buffer_->Reload();
   }
+
   buffer_->set_last_highlighted_line(-1);
 
   size_t line = min(buffer_->position().line, buffer_->contents()->size() - 1);
   size_t margin_lines =
-      min(lines_to_show / 2 - 1,
+      min(lines_shown_ / 2 - 1,
           max(static_cast<size_t>(
                   ceil(buffer_->Read(buffer_variables::margin_lines_ratio()) *
-                       lines_to_show)),
+                       lines_shown_)),
               static_cast<size_t>(
                   max(buffer_->Read(buffer_variables::margin_lines()), 0))));
   size_t view_start = static_cast<size_t>(
       max(0, buffer_->Read(buffer_variables::view_start_line())));
+
   if (view_start > line - min(margin_lines, line) &&
       (buffer_->child_pid() != -1 || buffer_->fd() == -1)) {
     buffer_->Set(buffer_variables::view_start_line(),
                  line - min(margin_lines, line));
     // editor_state->ScheduleRedraw();
-  } else if (view_start + lines_to_show <=
+  } else if (view_start + lines_shown_ <=
              min(buffer_->lines_size(), line + margin_lines)) {
-    buffer_->Set(buffer_variables::view_start_line(),
-                 min(buffer_->lines_size() - 1, line + margin_lines) -
-                     lines_to_show + 1);
+    buffer_->Set(
+        buffer_variables::view_start_line(),
+        min(buffer_->lines_size() - 1, line + margin_lines) - lines_shown_ + 1);
     // editor_state->ScheduleRedraw();
   }
 
-  auto view_start_column =
-      GetDesiredViewStartColumn(options.lines[0].get(), buffer_.get());
+  auto view_start_column = GetDesiredViewStartColumn(buffer_.get());
   if (static_cast<size_t>(
           max(0, buffer_->Read(buffer_variables::view_start_column()))) !=
       view_start_column) {
@@ -542,152 +550,132 @@ void BufferOutputProducer::Produce(Options options) {
     // editor_state->ScheduleRedraw();
   }
 
-  // Key is line number.
-  std::map<size_t, std::set<size_t>> cursors;
-  for (auto cursor : *buffer_->active_cursors()) {
-    cursors[cursor.line].insert(cursor.column);
-  }
+  position_ =
+      LineColumn(static_cast<size_t>(max(
+                     0, buffer_->Read(buffer_variables::view_start_line()))),
+                 buffer_->Read(buffer_variables::view_start_column()));
+}
 
-  auto root = buffer_->parse_tree();
-  auto current_tree = buffer_->current_tree(root.get());
-
-  buffer_->set_lines_for_zoomed_out_tree(lines_to_show);
-  auto zoomed_out_tree = buffer_->zoomed_out_tree();
-
-  std::unordered_set<const OpenBuffer*> buffers_shown;
-
+void BufferOutputProducer::WriteLine(Options options) {
   if (options.active_cursor != nullptr) {
     *options.active_cursor = std::nullopt;
   }
 
-  size_t last_line = std::numeric_limits<size_t>::max();
-
-  LineColumn position(
-      static_cast<size_t>(
-          max(0, buffer_->Read(buffer_variables::view_start_line()))),
-      buffer_->Read(buffer_variables::view_start_column()));
-  Range view_range(position, position);
-
-  for (size_t i = 0; i < lines_to_show; i++) {
-    std::unique_ptr<OutputReceiver> line_output_receiver =
-        std::move(options.lines[i]);
-    if (position.line >= buffer_->lines_size()) {
-      line_output_receiver->AddString(L"\n");
-      continue;
-    }
-
-    wstring number_prefix = GetInitialPrefix(*buffer_, position.line);
-    if (!number_prefix.empty() && last_line == position.line) {
-      number_prefix = wstring(number_prefix.size() - 1, L' ') + L':';
-    }
-    view_range.end = GetNextLine(
-        *buffer_, line_output_receiver->width() - number_prefix.size(),
-        position);
-
-    std::set<size_t> current_cursors;
-    auto it = cursors.find(position.line);
-    if (it != cursors.end()) {
-      for (auto& c : it->second) {
-        if (c >= position.column &&
-            LineColumn(position.line, c) < view_range.end) {
-          current_cursors.insert(c - position.column);
-        }
-      }
-    }
-    bool has_active_cursor =
-        buffer_->position() >= position && buffer_->position() < view_range.end;
-
-    if (!number_prefix.empty()) {
-      LineModifier prefix_modifier = LineModifier::DIM;
-      if (has_active_cursor ||
-          (!current_cursors.empty() &&
-           buffer_->Read(buffer_variables::multiple_cursors()))) {
-        prefix_modifier = LineModifier::CYAN;
-      } else if (!current_cursors.empty()) {
-        prefix_modifier = LineModifier::BLUE;
-      }
-
-      line_output_receiver = std::make_unique<WithPrefixOutputReceiver>(
-          std::move(line_output_receiver), number_prefix, prefix_modifier);
-      line_output_receiver->SetTabsStart(0);
-    }
-
-    std::optional<size_t> active_cursor_column;
-    auto line = buffer_->LineAt(position.line);
-
-    std::unique_ptr<OutputReceiver> atomic_lines_highlighter;
-    CHECK(line->contents() != nullptr);
-    if (buffer_->Read(buffer_variables::atomic_lines()) &&
-        buffer_->active_cursors()->cursors_in_line(position.line)) {
-      buffer_->set_last_highlighted_line(position.line);
-      line_output_receiver = std::make_unique<HighlightedLineOutputReceiver>(
-          std::move(line_output_receiver));
-    } else if (!current_cursors.empty()) {
-      LOG(INFO) << "Cursors in current line: " << current_cursors.size();
-      CursorsHighlighterOptions options;
-      options.delegate = std::move(line_output_receiver);
-      options.columns = current_cursors;
-      if (buffer_->position() >= position &&
-          buffer_->position() < view_range.end) {
-        options.active_cursor_input =
-            min(buffer_->position().column, line->size()) - position.column;
-        options.active_cursor_output = &active_cursor_column;
-      }
-      // Any cursors past the end of the line will just be silently moved to
-      // the end of the line (just for displaying).
-      while (!options.columns.empty() &&
-             *options.columns.rbegin() > line->size()) {
-        options.columns.erase(std::prev(options.columns.end()));
-        options.columns.insert(line->size());
-      }
-      options.multiple_cursors =
-          buffer_->Read(buffer_variables::multiple_cursors());
-
-      line_output_receiver = NewCursorsHighlighter(std::move(options));
-    }
-
-    if (current_tree != root.get() &&
-        position.line >= current_tree->range.begin.line &&
-        position.line <= current_tree->range.end.line) {
-      size_t begin = position.line == current_tree->range.begin.line
-                         ? current_tree->range.begin.column
-                         : 0;
-      size_t end = position.line == current_tree->range.end.line
-                       ? current_tree->range.end.column
-                       : line->size();
-      line_output_receiver = std::make_unique<ParseTreeHighlighter>(
-          std::move(line_output_receiver), begin, end);
-    } else if (!buffer_->parse_tree()->children.empty()) {
-      line_output_receiver = std::make_unique<ParseTreeHighlighterTokens>(
-          std::move(line_output_receiver), root.get(), position.line,
-          line->size());
-    }
-
-    Line::OutputOptions line_output_options;
-    line_output_options.position = position;
-    line_output_options.output_receiver = line_output_receiver.get();
-    line->Output(line_output_options);
-
-    if (!buffer_->Read(buffer_variables::paste_mode())) {
-      const auto line_width = static_cast<size_t>(
-          max(0, buffer_->Read(buffer_variables::line_width())));
-      AddPadding(line_width, line->end_of_line_modifiers(),
-                 line_output_receiver.get());
-      ShowAdditionalData(buffer_.get(), *line, position, lines_to_show,
-                         zoomed_out_tree.get(), line_output_receiver.get(),
-                         &buffers_shown);
-    }
-
-    if (active_cursor_column.has_value() && options.active_cursor != nullptr) {
-      *options.active_cursor =
-          LineColumn(i, active_cursor_column.value() + number_prefix.size());
-    }
-
-    last_line = position.line;
-    position = view_range.end;
+  if (position_.line >= buffer_->lines_size()) {
+    options.receiver->AddString(L"\n");
+    return;
   }
-  buffer_->SetViewRange(view_range);
-}
 
+  wstring number_prefix = GetInitialPrefix(*buffer_, position_.line);
+  if (!number_prefix.empty() && last_line_ == position_.line) {
+    number_prefix = wstring(number_prefix.size() - 1, L' ') + L':';
+  }
+  auto next_position = GetNextLine(
+      *buffer_, options.receiver->width() - number_prefix.size(), position_);
+
+  std::set<size_t> current_cursors;
+  auto it = cursors_.find(position_.line);
+  if (it != cursors_.end()) {
+    for (auto& c : it->second) {
+      if (c >= position_.column &&
+          LineColumn(position_.line, c) < next_position) {
+        current_cursors.insert(c - position_.column);
+      }
+    }
+  }
+  bool has_active_cursor =
+      buffer_->position() >= position_ && buffer_->position() < next_position;
+
+  if (!number_prefix.empty()) {
+    LineModifier prefix_modifier = LineModifier::DIM;
+    if (has_active_cursor ||
+        (!current_cursors.empty() &&
+         buffer_->Read(buffer_variables::multiple_cursors()))) {
+      prefix_modifier = LineModifier::CYAN;
+    } else if (!current_cursors.empty()) {
+      prefix_modifier = LineModifier::BLUE;
+    }
+
+    options.receiver = std::make_unique<WithPrefixOutputReceiver>(
+        std::move(options.receiver), number_prefix, prefix_modifier);
+    options.receiver->SetTabsStart(0);
+  }
+
+  std::optional<size_t> active_cursor_column;
+  auto line = buffer_->LineAt(position_.line);
+
+  std::unique_ptr<OutputReceiver> atomic_lines_highlighter;
+  CHECK(line->contents() != nullptr);
+  if (buffer_->Read(buffer_variables::atomic_lines()) &&
+      buffer_->active_cursors()->cursors_in_line(position_.line)) {
+    buffer_->set_last_highlighted_line(position_.line);
+    options.receiver = std::make_unique<HighlightedLineOutputReceiver>(
+        std::move(options.receiver));
+  } else if (!current_cursors.empty()) {
+    LOG(INFO) << "Cursors in current line: " << current_cursors.size();
+    CursorsHighlighterOptions cursors_highlighter_options;
+    cursors_highlighter_options.delegate = std::move(options.receiver);
+    cursors_highlighter_options.columns = current_cursors;
+    if (buffer_->position() >= position_ &&
+        buffer_->position() < next_position) {
+      cursors_highlighter_options.active_cursor_input =
+          min(buffer_->position().column, line->size()) - position_.column;
+      cursors_highlighter_options.active_cursor_output = &active_cursor_column;
+    }
+    // Any cursors past the end of the line will just be silently moved to
+    // the end of the line (just for displaying).
+    while (!cursors_highlighter_options.columns.empty() &&
+           *cursors_highlighter_options.columns.rbegin() > line->size()) {
+      cursors_highlighter_options.columns.erase(
+          std::prev(cursors_highlighter_options.columns.end()));
+      cursors_highlighter_options.columns.insert(line->size());
+    }
+    cursors_highlighter_options.multiple_cursors =
+        buffer_->Read(buffer_variables::multiple_cursors());
+
+    options.receiver =
+        NewCursorsHighlighter(std::move(cursors_highlighter_options));
+  }
+
+  if (current_tree_ != root_.get() &&
+      position_.line >= current_tree_->range.begin.line &&
+      position_.line <= current_tree_->range.end.line) {
+    size_t begin = position_.line == current_tree_->range.begin.line
+                       ? current_tree_->range.begin.column
+                       : 0;
+    size_t end = position_.line == current_tree_->range.end.line
+                     ? current_tree_->range.end.column
+                     : line->size();
+    options.receiver = std::make_unique<ParseTreeHighlighter>(
+        std::move(options.receiver), begin, end);
+  } else if (!buffer_->parse_tree()->children.empty()) {
+    options.receiver = std::make_unique<ParseTreeHighlighterTokens>(
+        std::move(options.receiver), root_.get(), position_.line, line->size());
+  }
+
+  Line::OutputOptions line_output_options;
+  line_output_options.position = position_;
+  line_output_options.output_receiver = options.receiver.get();
+  line->Output(line_output_options);
+
+  if (!buffer_->Read(buffer_variables::paste_mode())) {
+    const auto line_width = static_cast<size_t>(
+        max(0, buffer_->Read(buffer_variables::line_width())));
+    AddPadding(line_width, line->end_of_line_modifiers(),
+               options.receiver.get());
+    LOG(INFO) << "XXXX position: " << position_;
+    ShowAdditionalData(buffer_.get(), *line, position_, lines_shown_,
+                       zoomed_out_tree_.get(), options.receiver.get(),
+                       &buffers_shown_);
+  }
+
+  if (active_cursor_column.has_value() && options.active_cursor != nullptr) {
+    *options.active_cursor =
+        active_cursor_column.value() + number_prefix.size();
+  }
+
+  last_line_ = position_.line;
+  position_ = next_position;
+}
 }  // namespace editor
 }  // namespace afc

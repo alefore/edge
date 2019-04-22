@@ -485,25 +485,27 @@ LineColumn Terminal::GetNextLine(const OpenBuffer& buffer, size_t columns,
 }
 
 void Terminal::ShowBuffer(EditorState* editor_state, Screen* screen) {
-  size_t lines_to_show = static_cast<size_t>(screen->lines()) - 1;
   screen->Move(0, 0);
 
   cursor_position_ = std::nullopt;
 
-  OutputProducer::Options options;
-  for (size_t i = 0; i < lines_to_show; i++) {
-    options.lines.push_back(std::make_unique<OutputReceiverOptimizer>(
-        NewScreenOutputReceiver(screen)));
-  }
+  size_t lines_to_show = static_cast<size_t>(screen->lines()) - 1;
+  auto buffer_tree = editor_state->buffer_tree();
+  buffer_tree->SetLines(lines_to_show);
+  auto output_producer = editor_state->buffer_tree()->CreateOutputProducer();
+  for (size_t line = 0; line < lines_to_show; line++) {
+    OutputProducer::Options options;
+    options.receiver = std::make_unique<OutputReceiverOptimizer>(
+        NewScreenOutputReceiver(screen));
 
-  std::optional<LineColumn> active_cursor;
-  options.active_cursor = &active_cursor;
+    std::optional<size_t> active_cursor_column;
+    options.active_cursor = &active_cursor_column;
 
-  editor_state->buffer_tree()->CreateOutputProducer()->Produce(
-      std::move(options));
+    output_producer->WriteLine(std::move(options));
 
-  if (active_cursor.has_value()) {
-    cursor_position_ = active_cursor.value();
+    if (active_cursor_column.has_value()) {
+      cursor_position_ = LineColumn(line, active_cursor_column.value());
+    }
   }
 }
 

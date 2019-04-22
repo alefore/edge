@@ -32,6 +32,9 @@ class BufferTree {
   virtual wstring ToString() const = 0;
 
   virtual std::unique_ptr<OutputProducer> CreateOutputProducer() = 0;
+
+  virtual void SetLines(size_t) = 0;
+  virtual size_t MinimumLines() = 0;
 };
 
 class BufferTreeLeaf : public BufferTree {
@@ -56,8 +59,12 @@ class BufferTreeLeaf : public BufferTree {
 
   std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 
+  void SetLines(size_t) override;
+  size_t MinimumLines() override;
+
  private:
   std::weak_ptr<OpenBuffer> leaf_;
+  size_t lines_ = 0;
 };
 
 std::ostream& operator<<(std::ostream& os, const BufferTree& lc);
