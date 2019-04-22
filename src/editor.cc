@@ -583,7 +583,12 @@ void EditorState::ProcessInput(int c) {
   } else if (has_current_buffer()) {
     handler = current_buffer()->mode();
   } else {
-    handler = OpenAnonymousBuffer(this)->mode();
+    auto buffer = OpenAnonymousBuffer(this);
+    if (!has_current_buffer()) {
+      buffer_tree_->InsertChildren(
+          buffer, BufferTreeHorizontal::InsertionType::kReuseCurrent);
+    }
+    handler = buffer->mode();
     CHECK(has_current_buffer());
   }
   handler->ProcessInput(c, this);

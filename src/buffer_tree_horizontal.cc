@@ -57,7 +57,8 @@ std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
     auto child_producer = children_[index]->CreateOutputProducer();
     std::shared_ptr<const OpenBuffer> buffer =
         children_[index]->GetActiveLeaf()->Lock();
-    if (children_.size() > 1 && buffers_visible_ == BuffersVisible::kAll) {
+    if (lines_per_child_[index] < lines_) {
+      VLOG(5) << "Producing frame.";
       std::vector<std::unique_ptr<OutputProducer>> nested_producers;
       FrameOutputProducer::FrameOptions frame_options;
       frame_options.title = children_[index]->Name();
@@ -238,36 +239,31 @@ void BufferTreeHorizontal::SetBuffersVisible(BuffersVisible buffers_visible) {
 void BufferTreeHorizontal::RecomputeLinesPerChild() {
   static const int kFrameLines = 1;
 
-  std::vector<std::unique_ptr<Widget>> new_children;
-  std::optional<int> new_active;
-  for (size_t i = 0; i < children_.size(); i++) {
-    auto leaf = children_[i]->GetActiveLeaf();
-    if (leaf != children_[i].get() || leaf->Lock() != nullptr) {
-      if (active_ == i) {
-        new_active = new_children.size();
-      }
-      new_children.push_back(std::move(children_[i]));
-    }
-  }
-  if (!new_children.empty()) {
-    children_ = std::move(new_children);
-    active_ = new_active.value_or(0);
-  }
-
   size_t lines_given = 0;
 
   lines_per_child_.clear();
   for (size_t i = 0; i < children_.size(); i++) {
     auto child = children_[i].get();
     CHECK(child != nullptr);
-    switch (buffers_visible_) {
-      case BuffersVisible::kActive:
-        lines_per_child_.push_back(i == active_ ? lines_ : 0);
-        break;
-      case BuffersVisible::kAll:
-        lines_per_child_.push_back(child->MinimumLines() +
-                                   (children_.size() > 1 ? kFrameLines : 0));
+    bool enabled = true;
+    auto leaf = child->GetActiveLeaf();
+    if (leaf == child) {
+      auto buffer = leaf->Lock();
+      enabled = buffer != nullptr &&
+                buffer->Read(buffer_variables::show_in_buffers_list());
     }
+    int lines = 0;
+    if (enabled) {
+      switch (buffers_visible_) {
+        case BuffersVisible::kActive:
+          lines = i == active_ ? lines_ : 0;
+          break;
+        case BuffersVisible::kAll:
+          lines =
+              child->MinimumLines() + (children_.size() > 1 ? kFrameLines : 0);
+      }
+    }
+    lines_per_child_.push_back(lines);
     lines_given += lines_per_child_.back();
   }
 
@@ -298,10 +294,7 @@ void BufferTreeHorizontal::RecomputeLinesPerChild() {
       continue;
     }
     children_[i]->SetLines(
-        lines_per_child_[i] -
-        (children_.size() > 1 && buffers_visible_ == BuffersVisible::kAll
-             ? kFrameLines
-             : 0));
+        lines_per_child_[i] == lines_ ? lines_ : lines_per_child_[i] - 1);
   }
 }
 
