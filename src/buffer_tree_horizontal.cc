@@ -101,9 +101,12 @@ wstring BufferTreeHorizontal::ToString() const {
 std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
   std::vector<std::unique_ptr<OutputProducer>> output_producers;
   for (size_t index = 0; index < children_.size(); index++) {
-    output_producers.push_back(std::make_unique<FramedOutputProducer>(
-        children_[index]->CreateOutputProducer(), children_[index]->Name(),
-        index));
+    auto child_producer = children_[index]->CreateOutputProducer();
+    if (children_.size() > 1) {
+      child_producer = std::make_unique<FramedOutputProducer>(
+          std::move(child_producer), children_[index]->Name(), index);
+    }
+    output_producers.push_back(std::move(child_producer));
   }
   return std::make_unique<HorizontalSplitOutputProducer>(
       std::move(output_producers), lines_per_child_, active_);
@@ -161,7 +164,8 @@ void BufferTreeHorizontal::RecomputeLinesPerChild() {
 
   lines_per_child_.clear();
   for (auto& child : children_) {
-    lines_per_child_.push_back(child->MinimumLines() + kFrameLines);
+    lines_per_child_.push_back(child->MinimumLines() +
+                               (children_.size() > 1 ? kFrameLines : 0));
     lines_given += lines_per_child_.back();
   }
 
@@ -188,7 +192,8 @@ void BufferTreeHorizontal::RecomputeLinesPerChild() {
     lines_per_child_[active_] += lines_ - lines_given;
   }
   for (size_t i = 0; i < lines_per_child_.size(); i++) {
-    children_[i]->SetLines(lines_per_child_[i] - kFrameLines);
+    children_[i]->SetLines(lines_per_child_[i] -
+                           (children_.size() > 1 ? kFrameLines : 0));
   }
 }
 
