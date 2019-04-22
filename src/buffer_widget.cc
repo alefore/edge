@@ -71,7 +71,8 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
   if (buffer == nullptr) {
     return nullptr;
   }
-  return std::make_unique<BufferOutputProducer>(buffer, lines_, view_start_);
+  return std::make_unique<BufferOutputProducer>(buffer, lines_, view_start_,
+                                                zoomed_out_tree_);
 }
 
 void BufferWidget::SetLines(size_t lines) {
@@ -79,9 +80,9 @@ void BufferWidget::SetLines(size_t lines) {
   auto buffer = leaf_.lock();
   if (buffer == nullptr) {
     view_start_ = LineColumn();
+    zoomed_out_tree_ = nullptr;
     return;
   }
-  buffer->set_lines_for_zoomed_out_tree(lines);
 
   size_t line = min(buffer->position().line, buffer->contents()->size() - 1);
   size_t margin_lines = min(
@@ -103,6 +104,12 @@ void BufferWidget::SetLines(size_t lines) {
   }
 
   view_start_.column = GetDesiredViewStartColumn(buffer.get());
+
+  auto simplified_parse_tree = buffer->simplified_parse_tree();
+  if (lines_ > 0 && simplified_parse_tree != nullptr) {
+    zoomed_out_tree_ = std::make_shared<ParseTree>(ZoomOutTree(
+        *buffer->simplified_parse_tree(), buffer->lines_size(), lines_));
+  }
 }
 
 size_t BufferWidget::lines() const { return lines_; }

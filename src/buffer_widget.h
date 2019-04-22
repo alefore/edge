@@ -43,6 +43,8 @@ class BufferWidget : public Widget {
 
   // The position in the buffer where the view begins.
   LineColumn view_start_;
+
+  std::shared_ptr<const ParseTree> zoomed_out_tree_;
 };
 
 }  // namespace editor

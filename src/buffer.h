@@ -374,8 +374,6 @@ class OpenBuffer {
   void set_tree_depth(size_t tree_depth) { tree_depth_ = tree_depth; }
 
   const ParseTree* current_tree(const ParseTree* root) const;
-  void set_lines_for_zoomed_out_tree(size_t lines);
-  std::shared_ptr<const ParseTree> zoomed_out_tree() const;
 
  private:
   static void EvaluateMap(OpenBuffer* buffer, size_t line,
@@ -516,8 +514,6 @@ class OpenBuffer {
   std::shared_ptr<const ParseTree> simplified_parse_tree_;
   std::shared_ptr<TreeParser> tree_parser_;
   size_t tree_depth_ = 0;
-  size_t lines_for_zoomed_out_tree_ = 0;
-  std::shared_ptr<const ParseTree> zoomed_out_tree_;
 
   std::shared_ptr<MapModeCommands> default_commands_;
   std::shared_ptr<EditorMode> mode_;

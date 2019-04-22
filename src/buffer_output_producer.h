@@ -10,7 +10,8 @@ namespace editor {
 class BufferOutputProducer : public OutputProducer {
  public:
   BufferOutputProducer(std::shared_ptr<OpenBuffer> buffer, size_t lines_shown,
-                       LineColumn view_start);
+                       LineColumn view_start,
+                       std::shared_ptr<const ParseTree> zoomed_out_tree);
 
   void WriteLine(Options options) override;
 

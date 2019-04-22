@@ -468,9 +468,9 @@ void ShowAdditionalData(
   output_receiver->AddString(additional_information);
 }
 
-BufferOutputProducer::BufferOutputProducer(std::shared_ptr<OpenBuffer> buffer,
-                                           size_t lines_shown,
-                                           LineColumn view_start)
+BufferOutputProducer::BufferOutputProducer(
+    std::shared_ptr<OpenBuffer> buffer, size_t lines_shown,
+    LineColumn view_start, std::shared_ptr<const ParseTree> zoomed_out_tree)
     : buffer_(std::move(buffer)),
       lines_shown_(lines_shown),
       view_start_(view_start),
@@ -483,7 +483,7 @@ BufferOutputProducer::BufferOutputProducer(std::shared_ptr<OpenBuffer> buffer,
       }()),
       root_(buffer_->parse_tree()),
       current_tree_(buffer_->current_tree(root_.get())),
-      zoomed_out_tree_(buffer_->zoomed_out_tree()),
+      zoomed_out_tree_(std::move(zoomed_out_tree)),
       position_(view_start_) {
   if (buffer_->Read(buffer_variables::reload_on_display())) {
     buffer_->Reload();
