@@ -21,16 +21,12 @@ class BufferTreeHorizontal : public BufferTree {
   static std::unique_ptr<BufferTreeHorizontal> New(
       std::vector<std::unique_ptr<BufferTree>> children, size_t active);
 
+  static std::unique_ptr<BufferTreeHorizontal> New(
+      std::unique_ptr<BufferTree> children);
+
   BufferTreeHorizontal(ConstructorAccessTag,
                        std::vector<std::unique_ptr<BufferTree>> children,
                        size_t active);
-
-  static std::unique_ptr<BufferTree> AddHorizontalSplit(
-      std::unique_ptr<BufferTree> tree);
-
-  // `tree` may be of any type (not only BufferTreeHorizontal).
-  static std::unique_ptr<BufferTree> RemoveActiveLeaf(
-      std::unique_ptr<BufferTree> tree);
 
   BufferTreeLeaf* GetActiveLeaf() override;
 
@@ -51,13 +47,15 @@ class BufferTreeHorizontal : public BufferTree {
   void PushChildren(std::unique_ptr<BufferTree> children);
   size_t children_count() const;
 
+  void RemoveActiveLeaf();
+  void AddSplit();
+  void ZoomToActiveLeaf();
+
  private:
   void RecomputeLinesPerChild();
 
   // Doesn't wrap. Returns the number of steps pending.
   int AdvanceActiveLeafWithoutWrapping(int delta);
-  static std::unique_ptr<BufferTree> RemoveActiveLeafInternal(
-      std::unique_ptr<BufferTree> tree);
 
   std::vector<std::unique_ptr<BufferTree>> children_;
   size_t active_;

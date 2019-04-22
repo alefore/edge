@@ -13,6 +13,7 @@
 #include "src/audio.h"
 #include "src/buffer.h"
 #include "src/buffer_tree.h"
+#include "src/buffer_tree_horizontal.h"
 #include "src/buffer_tree_leaf.h"
 #include "src/command_mode.h"
 #include "src/direction.h"
@@ -283,8 +284,9 @@ class EditorState {
 
   AudioPlayer* const audio_player_;
 
-  std::unique_ptr<BufferTree> buffer_tree_ =
-      BufferTreeLeaf::New(std::weak_ptr<OpenBuffer>());
+  std::unique_ptr<BufferTreeHorizontal> buffer_tree_ =
+      BufferTreeHorizontal::New(
+          BufferTreeLeaf::New(std::weak_ptr<OpenBuffer>()));
 };
 
 }  // namespace editor

@@ -23,29 +23,11 @@ namespace editor {
                                                 std::move(children), active);
 }
 
-/* static */
-std::unique_ptr<BufferTree> BufferTreeHorizontal::AddHorizontalSplit(
-    std::unique_ptr<BufferTree> tree) {
-  auto casted_tree = dynamic_cast<BufferTreeHorizontal*>(tree.get());
-  if (casted_tree == nullptr) {
-    std::vector<std::unique_ptr<BufferTree>> children;
-    children.emplace_back(std::move(tree));
-    tree = BufferTreeHorizontal::New(std::move(children), 0);
-    casted_tree = dynamic_cast<BufferTreeHorizontal*>(tree.get());
-    CHECK(casted_tree != nullptr);
-  }
-
-  casted_tree->PushChildren(BufferTreeLeaf::New(std::weak_ptr<OpenBuffer>()));
-  casted_tree->SetActiveLeaf(casted_tree->children_count() - 1);
-  return tree;
-}
-
-/* static */
-std::unique_ptr<BufferTree> BufferTreeHorizontal::RemoveActiveLeaf(
-    std::unique_ptr<BufferTree> tree) {
-  tree = RemoveActiveLeafInternal(std::move(tree));
-  return tree == nullptr ? BufferTreeLeaf::New(std::shared_ptr<OpenBuffer>())
-                         : std::move(tree);
+/* static */ std::unique_ptr<BufferTreeHorizontal> BufferTreeHorizontal::New(
+    std::unique_ptr<BufferTree> child) {
+  std::vector<std::unique_ptr<BufferTree>> children;
+  children.push_back(std::move(child));
+  return BufferTreeHorizontal::New(std::move(children), 0);
 }
 
 BufferTreeHorizontal::BufferTreeHorizontal(
@@ -129,33 +111,10 @@ std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
 
 void BufferTreeHorizontal::PushChildren(std::unique_ptr<BufferTree> children) {
   children_.push_back(std::move(children));
+  RecomputeLinesPerChild();
 }
 
 size_t BufferTreeHorizontal::children_count() const { return children_.size(); }
-
-/* static */
-std::unique_ptr<BufferTree> BufferTreeHorizontal::RemoveActiveLeafInternal(
-    std::unique_ptr<BufferTree> tree) {
-  auto casted_tree = dynamic_cast<BufferTreeHorizontal*>(tree.get());
-  if (casted_tree == nullptr) {
-    return nullptr;  // It's a leaf, remove it.
-  }
-
-  casted_tree->children_[casted_tree->active_] = RemoveActiveLeafInternal(
-      std::move(casted_tree->children_[casted_tree->active_]));
-  if (casted_tree->children_[casted_tree->active_] != nullptr) {
-    return tree;  // Subtree isn't empty (post removal). We're done.
-  }
-
-  if (casted_tree->children_.size() == 1) {
-    return nullptr;  // We've become empty, remove ourselves.
-  }
-
-  casted_tree->children_.erase(casted_tree->children_.begin() +
-                               casted_tree->active_);
-  casted_tree->active_ %= casted_tree->children_.size();
-  return tree;
-}
 
 void BufferTreeHorizontal::SetLines(size_t lines) {
   lines_ = lines;
@@ -171,6 +130,28 @@ size_t BufferTreeHorizontal::MinimumLines() {
     count += child->MinimumLines() + kFrameLines;
   }
   return count;
+}
+
+void BufferTreeHorizontal::RemoveActiveLeaf() {
+  if (children_.size() == 1) {
+    children_[0] = BufferTreeLeaf::New(std::weak_ptr<OpenBuffer>());
+  } else {
+    children_.erase(children_.begin() + active_);
+    active_ %= children_.size();
+  }
+  RecomputeLinesPerChild();
+}
+
+void BufferTreeHorizontal::AddSplit() {
+  PushChildren(BufferTreeLeaf::New(std::weak_ptr<OpenBuffer>()));
+  SetActiveLeaf(children_count() - 1);
+  RecomputeLinesPerChild();
+}
+
+void BufferTreeHorizontal::ZoomToActiveLeaf() {
+  children_[0] = std::move(children_[active_]);
+  children_.resize(1);
+  RecomputeLinesPerChild();
 }
 
 void BufferTreeHorizontal::RecomputeLinesPerChild() {
