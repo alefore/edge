@@ -255,11 +255,6 @@ class OpenBuffer {
   void set_filter(unique_ptr<Value> filter);
   bool IsLineFiltered(size_t line);
 
-  size_t last_highlighted_line() const { return last_highlighted_line_; }
-  void set_last_highlighted_line(size_t value) {
-    last_highlighted_line_ = value;
-  }
-
   // Returns a multimap with all the marks for the current buffer, indexed by
   // the line they refer to. Each call may update the map.
   const multimap<size_t, LineMarks::Mark>* GetLineMarks() const;
@@ -493,10 +488,6 @@ class OpenBuffer {
   // OpenBuffer::PopTransformationStack (which sets this back to null and moves
   // this value to last_transformation_).
   list<unique_ptr<TransformationStack>> last_transformation_stack_;
-
-  // If variable_atomic_lines is true, this will be set to the last line that
-  // was highlighted.
-  size_t last_highlighted_line_ = 0;
 
   // Index of the marks for the current buffer (i.e. Mark::target_buffer is the
   // current buffer). The key is the line (i.e. Mark::line).

@@ -488,13 +488,6 @@ BufferOutputProducer::BufferOutputProducer(
   if (buffer_->Read(buffer_variables::reload_on_display())) {
     buffer_->Reload();
   }
-
-  buffer_->set_last_highlighted_line(-1);
-
-  if (buffer_->Read(buffer_variables::atomic_lines()) &&
-      buffer_->last_highlighted_line() != buffer_->position().line) {
-    // editor_state->ScheduleRedraw();
-  }
 }
 
 void BufferOutputProducer::WriteLine(Options options) {
@@ -549,7 +542,6 @@ void BufferOutputProducer::WriteLine(Options options) {
   CHECK(line->contents() != nullptr);
   if (buffer_->Read(buffer_variables::atomic_lines()) &&
       buffer_->active_cursors()->cursors_in_line(position_.line)) {
-    buffer_->set_last_highlighted_line(position_.line);
     options.receiver = std::make_unique<HighlightedLineOutputReceiver>(
         std::move(options.receiver));
   } else if (!current_cursors.empty()) {
