@@ -18,6 +18,9 @@ void HorizontalSplitOutputProducer::WriteLine(Options options) {
     CHECK_LT(current_producer_, lines_per_producer_.size());
   }
 
+  if (current_producer_ != index_active_) {
+    options.active_cursor = nullptr;
+  }
   output_producers_[current_producer_]->WriteLine(std::move(options));
   current_producer_line_++;
 }
