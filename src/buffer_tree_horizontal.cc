@@ -57,7 +57,7 @@ std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
     auto child_producer = children_[index]->CreateOutputProducer();
     std::shared_ptr<const OpenBuffer> buffer =
         children_[index]->GetActiveLeaf()->Lock();
-    if (children_.size() > 1) {
+    if (children_.size() > 1 && buffers_visible_ == BuffersVisible::kAll) {
       std::vector<std::unique_ptr<OutputProducer>> nested_producers;
       FrameOutputProducer::FrameOptions frame_options;
       frame_options.title = children_[index]->Name();
@@ -181,16 +181,33 @@ void BufferTreeHorizontal::ZoomToActiveLeaf() {
   RecomputeLinesPerChild();
 }
 
+BufferTreeHorizontal::BuffersVisible BufferTreeHorizontal::buffers_visible()
+    const {
+  return buffers_visible_;
+}
+
+void BufferTreeHorizontal::SetBuffersVisible(BuffersVisible buffers_visible) {
+  buffers_visible_ = buffers_visible;
+  RecomputeLinesPerChild();
+}
+
 void BufferTreeHorizontal::RecomputeLinesPerChild() {
   static const int kFrameLines = 1;
 
   size_t lines_given = 0;
 
   lines_per_child_.clear();
-  for (auto& child : children_) {
+  for (size_t i = 0; i < children_.size(); i++) {
+    auto child = children_[i].get();
     CHECK(child != nullptr);
-    lines_per_child_.push_back(child->MinimumLines() +
-                               (children_.size() > 1 ? kFrameLines : 0));
+    switch (buffers_visible_) {
+      case BuffersVisible::kActive:
+        lines_per_child_.push_back(i == active_ ? lines_ : 0);
+        break;
+      case BuffersVisible::kAll:
+        lines_per_child_.push_back(child->MinimumLines() +
+                                   (children_.size() > 1 ? kFrameLines : 0));
+    }
     lines_given += lines_per_child_.back();
   }
 
@@ -217,8 +234,14 @@ void BufferTreeHorizontal::RecomputeLinesPerChild() {
     lines_per_child_[active_] += lines_ - lines_given;
   }
   for (size_t i = 0; i < lines_per_child_.size(); i++) {
-    children_[i]->SetLines(lines_per_child_[i] -
-                           (children_.size() > 1 ? kFrameLines : 0));
+    if (buffers_visible_ == BuffersVisible::kActive && i != active_) {
+      continue;
+    }
+    children_[i]->SetLines(
+        lines_per_child_[i] -
+        (children_.size() > 1 && buffers_visible_ == BuffersVisible::kAll
+             ? kFrameLines
+             : 0));
   }
 }
 

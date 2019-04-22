@@ -168,6 +168,28 @@ Environment EditorState::BuildEditorEnvironment() {
                          [](EditorState* editor) { editor->ZoomToLeaf(); })));
 
   editor_type->AddField(
+      L"ToggleBuffersVisible",
+      vm::NewCallback(std::function<void(EditorState*)>(
+          [](EditorState* editor) {
+            CHECK(editor != nullptr);
+            editor->buffer_tree_->SetBuffersVisible(
+                editor->buffer_tree_->buffers_visible() == BufferTreeHorizontal::BuffersVisible::kAll
+                            ? BufferTreeHorizontal::BuffersVisible::kActive :  BufferTreeHorizontal::BuffersVisible::kAll);
+            editor->ScheduleRedraw();
+          })));
+
+  editor_type->AddField(
+      L"SetBuffersVisible",
+      vm::NewCallback(std::function<void(EditorState*, bool)>(
+          [](EditorState* editor, bool all_visible) {
+            CHECK(editor != nullptr);
+            editor->buffer_tree_->SetBuffersVisible(
+                all_visible ? BufferTreeHorizontal::BuffersVisible::kAll
+                            : BufferTreeHorizontal::BuffersVisible::kActive);
+            editor->ScheduleRedraw();
+          })));
+
+  editor_type->AddField(
       L"RemoveActiveLeaf",
       vm::NewCallback(std::function<void(EditorState*)>(
           [](EditorState* editor) { editor->BufferTreeRemoveActiveLeaf(); })));

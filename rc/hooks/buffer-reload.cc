@@ -190,7 +190,8 @@ void SetActiveLeaf() {
 }
 void RemoveActiveLeaf() { editor.RemoveActiveLeaf(); }
 
-buffer.AddBinding("st=", "Frames: Zoom to the current leaf", ZoomToLeaf);
+buffer.AddBinding("st=", "Frames: Toggle: show all buffers or only active?",
+                  editor.ToggleBuffersVisible);
 buffer.AddBinding("st+", "Frames: Add a new leaf", AddHorizontalSplit);
 buffer.AddBinding("stk", "Frames: Move to the previous leaf", RewindActiveLeaf);
 buffer.AddBinding("stj", "Frames: Move to the next leaf", AdvanceActiveLeaf);

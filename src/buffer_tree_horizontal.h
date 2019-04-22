@@ -18,6 +18,8 @@ class BufferTreeHorizontal : public Widget {
   struct ConstructorAccessTag {};
 
  public:
+  enum class BuffersVisible { kAll, kActive };
+
   static std::unique_ptr<BufferTreeHorizontal> New(
       std::vector<std::unique_ptr<Widget>> children, size_t active);
 
@@ -51,11 +53,16 @@ class BufferTreeHorizontal : public Widget {
   void AddSplit();
   void ZoomToActiveLeaf();
 
+  BuffersVisible buffers_visible() const;
+  void SetBuffersVisible(BuffersVisible buffers_visible);
+
  private:
   void RecomputeLinesPerChild();
 
   // Doesn't wrap. Returns the number of steps pending.
   int AdvanceActiveLeafWithoutWrapping(int delta);
+
+  BuffersVisible buffers_visible_ = BuffersVisible::kAll;
 
   std::vector<std::unique_ptr<Widget>> children_;
   size_t active_;
