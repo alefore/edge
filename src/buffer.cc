@@ -1990,7 +1990,20 @@ wstring OpenBuffer::FlagsString() const {
   }
 
   if (fd() != -1) {
-    output += L" < l:" + to_wstring(contents_.size());
+    output += L" < ";
+    switch (contents_.size()) {
+      case 1:
+        output += L"⚊ ";
+        break;
+      case 2:
+        output += L"⚌ ";
+        break;
+      case 3:
+        output += L"☰ ";
+        break;
+      default:
+        output += L"☰ " + to_wstring(contents_.size());
+    }
     if (Read(buffer_variables::follow_end_of_file())) {
       output += L" ↓";
     }
