@@ -418,7 +418,7 @@ EditorState::~EditorState() {
 }
 
 void EditorState::CheckPosition() {
-  auto buffer = buffer_tree_.LockActiveLeaf();
+  auto buffer = buffer_tree_->LockActiveLeaf();
   if (buffer != nullptr) {
     buffer->CheckPosition();
   }
@@ -434,7 +434,8 @@ bool EditorState::CloseBuffer(OpenBuffer* buffer) {
   ScheduleRedraw();
 
   if (current_buffer().get() == buffer) {
-    buffer_tree_.RemoveActiveLeaf();
+    buffer_tree_ =
+        BufferTreeHorizontal::RemoveActiveLeaf(std::move(buffer_tree_));
     // TODO: Readjust: pick another one and make it active!
     // if (current_buffer_ != buffers_.end()) {
     //  current_buffer_->second->Visit();
@@ -448,14 +449,15 @@ bool EditorState::CloseBuffer(OpenBuffer* buffer) {
 }
 
 void EditorState::set_current_buffer(shared_ptr<OpenBuffer> buffer) {
-  buffer_tree_.SetActiveLeafBuffer(buffer);
+  buffer_tree_->SetActiveLeafBuffer(buffer);
   if (buffer != nullptr) {
     buffer->Visit();
   }
 }
 
 void EditorState::AddHorizontalSplit() {
-  buffer_tree_.AddHorizontalSplit();
+  buffer_tree_ =
+      BufferTreeHorizontal::AddHorizontalSplit(std::move(buffer_tree_));
 
   set_screen_needs_hard_redraw(true);  // TODO: Why is this needed?
   ScheduleRedraw();
@@ -463,7 +465,7 @@ void EditorState::AddHorizontalSplit() {
 
 void EditorState::SetHorizontalSplitsWithAllBuffers() {
   auto active_buffer = current_buffer();
-  Tree<BufferTree> buffers;
+  std::vector<std::unique_ptr<BufferTree>> buffers;
   size_t index_active = 0;
   for (auto& buffer : buffers_) {
     if (!buffer.second->Read(buffer_variables::show_in_buffers_list())) {
@@ -472,39 +474,39 @@ void EditorState::SetHorizontalSplitsWithAllBuffers() {
     if (buffer.second == active_buffer) {
       index_active = buffers.size();
     }
-    buffers.push_back(BufferTree::NewLeaf(buffer.second));
+    buffers.push_back(BufferTreeLeaf::New(buffer.second));
   }
   CHECK(!buffers.empty());
-  buffer_tree_ = BufferTree::NewHorizontal(buffers, index_active);
+  buffer_tree_ = BufferTreeHorizontal::New(std::move(buffers), index_active);
 }
 
 void EditorState::SetActiveLeaf(size_t position) {
-  buffer_tree_.SetActiveLeaf(position);
+  buffer_tree_->SetActiveLeaf(position);
 }
 
 void EditorState::AdvanceActiveLeaf(int delta) {
-  buffer_tree_.AdvanceActiveLeaf(delta);
+  buffer_tree_->AdvanceActiveLeaf(delta);
   ScheduleRedraw();
 }
 
 void EditorState::ZoomToLeaf() {
-  BufferTree tmp = *buffer_tree_.FindActiveLeaf();
-  buffer_tree_ = tmp;
+  buffer_tree_ = BufferTreeLeaf::New(buffer_tree_->LockActiveLeaf());
   ScheduleRedraw();
 }
 
 void EditorState::BufferTreeRemoveActiveLeaf() {
-  buffer_tree_.RemoveActiveLeaf();
+  buffer_tree_ =
+      BufferTreeHorizontal::RemoveActiveLeaf(std::move(buffer_tree_));
 }
 
 bool EditorState::has_current_buffer() const {
   return current_buffer() != nullptr;
 }
 shared_ptr<OpenBuffer> EditorState::current_buffer() {
-  return buffer_tree_.LockActiveLeaf();
+  return buffer_tree_->LockActiveLeaf();
 }
 const shared_ptr<OpenBuffer> EditorState::current_buffer() const {
-  return buffer_tree_.LockActiveLeaf();
+  return buffer_tree_->LockActiveLeaf();
 }
 
 wstring GetBufferName(const wstring& prefix, size_t count) {

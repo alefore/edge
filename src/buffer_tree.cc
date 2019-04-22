@@ -6,182 +6,207 @@
 #include <cctype>
 #include <iostream>
 
+#include "src/buffer.h"
+#include "src/buffer_output_producer.h"
+#include "src/buffer_variables.h"
+#include "src/framed_output_producer.h"
+#include "src/horizontal_split_output_producer.h"
 #include "src/wstring.h"
 
 namespace afc {
 namespace editor {
-/* static */
-BufferTree BufferTree::NewLeaf(std::weak_ptr<OpenBuffer> buffer) {
-  BufferTree output;
-  output.type_ = Type::kLeaf;
-  output.leaf_ = buffer;
-  return output;
-}
+BufferTreeLeaf::BufferTreeLeaf(ConstructorAccessTag,
+                               std::weak_ptr<OpenBuffer> buffer)
+    : leaf_(buffer) {}
 
 /* static */
-BufferTree BufferTree::NewHorizontal(Tree<BufferTree> children,
-                                     size_t active_index) {
-  CHECK(!children.empty());
-  CHECK_LT(active_index, children.size());
-  BufferTree output;
-  output.type_ = Type::kHorizontal;
-  output.children_ = std::move(children);
-  output.active_ = active_index;
-  return output;
+std::unique_ptr<BufferTreeLeaf> BufferTreeLeaf::New(
+    std::weak_ptr<OpenBuffer> buffer) {
+  return std::make_unique<BufferTreeLeaf>(ConstructorAccessTag(), buffer);
 }
 
-void BufferTree::AddHorizontalSplit() {
-  if (type_ != BufferTree::Type::kHorizontal) {
-    BufferTree old_tree = *this;
-    type_ = BufferTree::Type::kHorizontal;
-    leaf_.reset();
-    children_.clear();
-    children_.push_back(std::move(old_tree));
-    active_ = 0;
+std::shared_ptr<OpenBuffer> BufferTreeLeaf::LockActiveLeaf() const {
+  return leaf_.lock();
+}
+
+void BufferTreeLeaf::SetActiveLeafBuffer(std::shared_ptr<OpenBuffer> buffer) {
+  leaf_ = std::move(buffer);
+}
+
+void BufferTreeLeaf::SetActiveLeaf(size_t) {}
+
+void BufferTreeLeaf::AdvanceActiveLeaf(int) {}
+
+size_t BufferTreeLeaf::CountLeafs() const { return 1; }
+
+wstring BufferTreeLeaf::Name() const {
+  auto buffer = LockActiveLeaf();
+  return buffer == nullptr ? L"" : buffer->Read(buffer_variables::name());
+}
+
+wstring BufferTreeLeaf::ToString() const {
+  auto buffer = leaf_.lock();
+  return L"[buffer tree leaf" +
+         (buffer == nullptr ? L"nullptr"
+                            : buffer->Read(buffer_variables::name())) +
+         L"]";
+}
+
+std::unique_ptr<OutputProducer> BufferTreeLeaf::CreateOutputProducer() {
+  auto buffer = LockActiveLeaf();
+  if (buffer == nullptr) {
+    return nullptr;
+  }
+  return std::make_unique<BufferOutputProducer>(buffer);
+}
+
+/* static */ std::unique_ptr<BufferTreeHorizontal> BufferTreeHorizontal::New(
+    std::vector<std::unique_ptr<BufferTree>> children, size_t active) {
+  return std::make_unique<BufferTreeHorizontal>(ConstructorAccessTag(),
+                                                std::move(children), active);
+}
+
+/* static */
+std::unique_ptr<BufferTree> BufferTreeHorizontal::AddHorizontalSplit(
+    std::unique_ptr<BufferTree> tree) {
+  auto casted_tree = dynamic_cast<BufferTreeHorizontal*>(tree.get());
+  if (casted_tree == nullptr) {
+    std::vector<std::unique_ptr<BufferTree>> children;
+    children.emplace_back(std::move(tree));
+    tree = BufferTreeHorizontal::New(std::move(children), 0);
+    casted_tree = dynamic_cast<BufferTreeHorizontal*>(tree.get());
+    CHECK(casted_tree != nullptr);
   }
 
-  active_ = children_.size();
-  children_.push_back(BufferTree());
+  casted_tree->PushChildren(BufferTreeLeaf::New(std::weak_ptr<OpenBuffer>()));
+  casted_tree->SetActiveLeaf(casted_tree->children_count() - 1);
+  return tree;
 }
 
-void BufferTree::SetActiveLeafBuffer(std::shared_ptr<OpenBuffer> buffer) {
-  switch (type_) {
-    case Type::kLeaf:
-      leaf_ = std::move(buffer);
-      return;
-    case Type::kHorizontal:
-      children_[active_].SetActiveLeafBuffer(std::move(buffer));
-      return;
-  }
-  LOG(FATAL);
+/* static */
+std::unique_ptr<BufferTree> BufferTreeHorizontal::RemoveActiveLeaf(
+    std::unique_ptr<BufferTree> tree) {
+  tree = RemoveActiveLeafInternal(std::move(tree));
+  return tree == nullptr ? BufferTreeLeaf::New(std::shared_ptr<OpenBuffer>())
+                         : std::move(tree);
 }
 
-void BufferTree::SetActiveLeaf(size_t position) {
-  switch (type_) {
-    case BufferTree::Type::kLeaf:
-      break;
-    case BufferTree::Type::kHorizontal:
-      CHECK(!children_.empty());
-      active_ = position % children_.size();
-      break;
-  }
+BufferTreeHorizontal::BufferTreeHorizontal(
+    ConstructorAccessTag, std::vector<std::unique_ptr<BufferTree>> children,
+    size_t active)
+    : children_(std::move(children)), active_(active) {}
+
+std::shared_ptr<OpenBuffer> BufferTreeHorizontal::LockActiveLeaf() const {
+  CHECK(!children_.empty());
+  CHECK_LT(active_, children_.size());
+  return children_[active_]->LockActiveLeaf();
 }
 
-std::shared_ptr<OpenBuffer> BufferTree::LockActiveLeaf() const {
-  switch (type_) {
-    case Type::kLeaf:
-      return leaf_.lock();
-    case Type::kHorizontal:
-      return children_[active_].LockActiveLeaf();
-  }
-  LOG(FATAL);
-  return 0;
+void BufferTreeHorizontal::SetActiveLeafBuffer(
+    std::shared_ptr<OpenBuffer> buffer) {
+  CHECK(!children_.empty());
+  CHECK_LT(active_, children_.size());
+  children_[active_]->SetActiveLeafBuffer(std::move(buffer));
 }
 
-void BufferTree::RemoveActiveLeaf() {
-  auto route = FindRouteToActiveLeaf();
-  while (route.size() > 1 && route[route.size() - 2]->children_.size() == 1) {
-    BufferTree tmp = *route.back();
-    route.pop_back();
-    *route.back() = tmp;
-  }
-  if (route.size() > 1) {
-    auto parent = route[route.size() - 2];
-    parent->children_.erase(parent->children_.begin() + parent->active_);
-    parent->active_ %= parent->children_.size();
-  }
+void BufferTreeHorizontal::SetActiveLeaf(size_t position) {
+  CHECK(!children_.empty());
+  CHECK_LT(position, children_.size());
+  active_ = position;
 }
 
-std::vector<BufferTree*> BufferTree::FindRouteToActiveLeaf() {
-  std::vector<BufferTree*> output = {this};
-  BufferTree* tree = this;
-  while (tree->type_ != BufferTree::Type::kLeaf) {
-    CHECK(!tree->children_.empty());
-    tree = &tree->children_[tree->active_];
-    output.push_back(tree);
-  }
-  return output;
-}
-
-BufferTree* BufferTree::FindActiveLeaf() {
-  return FindRouteToActiveLeaf().back();
-}
-
-const BufferTree* BufferTree::FindActiveLeaf() const {
-  return const_cast<BufferTree*>(this)->FindRouteToActiveLeaf().back();
-}
-
-void BufferTree::AdvanceActiveLeaf(int delta) {
+// Returns the number of steps advanced.
+void BufferTreeHorizontal::AdvanceActiveLeaf(int delta) {
   size_t leafs = CountLeafs();
   if (delta < 0) {
     delta = leafs - ((-delta) % leafs);
   } else {
     delta %= leafs;
   }
-  delta = InternalAdvanceActiveLeaf(delta);
+  delta = AdvanceActiveLeafWithoutWrapping(delta);
   if (delta > 0) {
-    BufferTree* tmp = this;
-    while (tmp->type_ == BufferTree::Type::kHorizontal) {
+    auto tmp = this;
+    while (tmp != nullptr) {
       tmp->active_ = 0;
-      tmp = &tmp->children_.front();
+      tmp = dynamic_cast<BufferTreeHorizontal*>(tmp->children_[0].get());
     }
     delta--;
-    InternalAdvanceActiveLeaf(delta);
   }
+  AdvanceActiveLeafWithoutWrapping(delta);
 }
 
-size_t BufferTree::CountLeafs() const {
-  switch (type_) {
-    case BufferTree::Type::kLeaf:
-      return 1;
-    case BufferTree::Type::kHorizontal:
-      int count = 0;
-      for (const auto& c : children_) {
-        count += c.CountLeafs();
-      }
-      return count;
+int BufferTreeHorizontal::AdvanceActiveLeafWithoutWrapping(int delta) {
+  while (delta > 0) {
+    auto child = dynamic_cast<BufferTreeHorizontal*>(children_[active_].get());
+    if (child != nullptr) {
+      delta -= child->AdvanceActiveLeafWithoutWrapping(delta);
+    }
+    if (active_ == children_.size() - 1) {
+      return delta;
+    } else if (delta > 0) {
+      delta--;
+      active_++;
+    }
   }
-  LOG(FATAL);
-  return 0;
+  return delta;
 }
 
-wstring BufferTree::ToString() const {
-  wstring output = L"[buffer tree ";
-  switch (type_) {
-    case BufferTree::Type::kLeaf:
-      output += L"leaf";
-      break;
-    case BufferTree::Type::kHorizontal:
-      output += L"horizontal, children: " + std::to_wstring(children_.size()) +
-                L", active: " + std::to_wstring(active_);
+size_t BufferTreeHorizontal::CountLeafs() const {
+  int count = 0;
+  for (const auto& c : children_) {
+    count += c->CountLeafs();
   }
-  output += L"]";
+  return count;
+}
+
+wstring BufferTreeHorizontal::Name() const { return L""; }
+
+wstring BufferTreeHorizontal::ToString() const {
+  wstring output = L"[buffer tree horizontal, children: " +
+                   std::to_wstring(children_.size()) + L", active: " +
+                   std::to_wstring(active_) + L"]";
   return output;
 }
 
-int BufferTree::InternalAdvanceActiveLeaf(int delta) {
-  switch (type_) {
-    case BufferTree::Type::kLeaf:
-      return delta;
-
-    case BufferTree::Type::kHorizontal:
-      delta = children_[active_].InternalAdvanceActiveLeaf(delta);
-      while (delta != 0) {
-        if (children_.empty()) {
-          return delta;
-        }
-        if (delta > 0) {
-          if (active_ == children_.size() - 1) {
-            return delta;
-          }
-          active_++;
-          delta--;
-        }
-      }
-      return 0;
+std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
+  std::vector<std::unique_ptr<OutputProducer>> output_producers;
+  for (size_t index = 0; index < children_.size(); index++) {
+    output_producers.push_back(std::make_unique<FramedOutputProducer>(
+        children_[index]->CreateOutputProducer(), children_[index]->Name(),
+        index));
   }
-  LOG(FATAL);
-  return 0;
+  return std::make_unique<HorizontalSplitOutputProducer>(
+      std::move(output_producers), active_);
+}
+
+void BufferTreeHorizontal::PushChildren(std::unique_ptr<BufferTree> children) {
+  children_.push_back(std::move(children));
+}
+
+size_t BufferTreeHorizontal::children_count() const { return children_.size(); }
+
+/* static */
+std::unique_ptr<BufferTree> BufferTreeHorizontal::RemoveActiveLeafInternal(
+    std::unique_ptr<BufferTree> tree) {
+  auto casted_tree = dynamic_cast<BufferTreeHorizontal*>(tree.get());
+  if (casted_tree == nullptr) {
+    return nullptr;  // It's a leaf, remove it.
+  }
+
+  casted_tree->children_[casted_tree->active_] = RemoveActiveLeafInternal(
+      std::move(casted_tree->children_[casted_tree->active_]));
+  if (casted_tree->children_[casted_tree->active_] != nullptr) {
+    return tree;  // Subtree isn't empty (post removal). We're done.
+  }
+
+  if (casted_tree->children_.size() == 1) {
+    return nullptr;  // We've become empty, remove ourselves.
+  }
+
+  casted_tree->children_.erase(casted_tree->children_.begin() +
+                               casted_tree->active_);
+  casted_tree->active_ %= casted_tree->children_.size();
+  return tree;
 }
 
 std::ostream& operator<<(std::ostream& os, const BufferTree& lc) {

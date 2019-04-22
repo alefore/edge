@@ -53,7 +53,6 @@ void HorizontalSplitOutputProducer::Produce(Options options) {
   int lines_index = 0;
   for (size_t producer = 0; producer < output_producers_.size(); producer++) {
     Options sub_options;
-    sub_options.position_in_parent = producer;
     size_t first_line = lines_index;
     for (size_t line = 0; line < lines_per_producer[producer]; line++) {
       sub_options.lines.push_back(std::move(options.lines[lines_index++]));

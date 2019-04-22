@@ -529,7 +529,7 @@ void BufferOutputProducer::Produce(Options options) {
   }
 
   auto view_start_column =
-      GetDesiredViewStartColumn(options.lines[0].get(), buffer_);
+      GetDesiredViewStartColumn(options.lines[0].get(), buffer_.get());
   if (static_cast<size_t>(
           max(0, buffer_->Read(buffer_variables::view_start_column()))) !=
       view_start_column) {
@@ -673,7 +673,7 @@ void BufferOutputProducer::Produce(Options options) {
           max(0, buffer_->Read(buffer_variables::line_width())));
       AddPadding(line_width, line->end_of_line_modifiers(),
                  line_output_receiver.get());
-      ShowAdditionalData(buffer_, *line, position, lines_to_show,
+      ShowAdditionalData(buffer_.get(), *line, position, lines_to_show,
                          zoomed_out_tree.get(), line_output_receiver.get(),
                          &buffers_shown);
     }

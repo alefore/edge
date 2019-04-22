@@ -484,43 +484,6 @@ LineColumn Terminal::GetNextLine(const OpenBuffer& buffer, size_t columns,
   return position;
 }
 
-enum class LeafHandling { kDirect, kFramed };
-
-std::unique_ptr<OutputProducer> CreateOutputProducer(
-    BufferTree* buffer_tree, LeafHandling leaf_handling) {
-  switch (buffer_tree->type()) {
-    case BufferTree::Type::kLeaf: {
-      auto buffer = buffer_tree->LockActiveLeaf();
-      if (buffer == nullptr) {
-        return nullptr;
-      }
-      std::unique_ptr<OutputProducer> output =
-          std::make_unique<BufferOutputProducer>(buffer.get());
-      if (leaf_handling == LeafHandling::kFramed) {
-        output = std::make_unique<FramedOutputProducer>(
-            std::move(output), buffer->Read(buffer_variables::name()));
-      }
-      return output;
-    }
-
-    case BufferTree::Type::kHorizontal: {
-      std::vector<std::unique_ptr<OutputProducer>> output_producers;
-      int active_index = 0;
-      buffer_tree->ForEach([&](BufferTree* child, bool active) {
-        if (active) {
-          active_index = output_producers.size();
-        }
-        output_producers.push_back(
-            CreateOutputProducer(child, LeafHandling::kFramed));
-      });
-      return std::make_unique<HorizontalSplitOutputProducer>(
-          std::move(output_producers), active_index);
-    }
-  }
-  LOG(FATAL) << "Unexpected buffer tree type.";
-  return nullptr;
-}
-
 void Terminal::ShowBuffer(EditorState* editor_state, Screen* screen) {
   size_t lines_to_show = static_cast<size_t>(screen->lines()) - 1;
   screen->Move(0, 0);
@@ -536,8 +499,8 @@ void Terminal::ShowBuffer(EditorState* editor_state, Screen* screen) {
   std::optional<LineColumn> active_cursor;
   options.active_cursor = &active_cursor;
 
-  CreateOutputProducer(editor_state->buffer_tree(), LeafHandling::kDirect)
-      ->Produce(std::move(options));
+  editor_state->buffer_tree()->CreateOutputProducer()->Produce(
+      std::move(options));
 
   if (active_cursor.has_value()) {
     cursor_position_ = active_cursor.value();

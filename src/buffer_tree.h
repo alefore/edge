@@ -5,7 +5,7 @@
 #include <memory>
 
 #include "src/lazy_string.h"
-#include "src/output_receiver.h"
+#include "src/output_producer.h"
 #include "src/parse_tree.h"
 #include "src/tree.h"
 #include "src/vm/public/environment.h"
@@ -15,56 +15,93 @@ namespace editor {
 
 class BufferTree {
  public:
-  enum class Type { kLeaf, /*kVertical,*/ kHorizontal };
+  ~BufferTree() = default;
 
-  static BufferTree NewLeaf(std::weak_ptr<OpenBuffer> buffer);
-  static BufferTree NewHorizontal(Tree<BufferTree> buffers,
-                                  size_t active_index);
+  virtual std::shared_ptr<OpenBuffer> LockActiveLeaf() const = 0;
 
-  Type type() const { return type_; }
+  virtual void SetActiveLeafBuffer(std::shared_ptr<OpenBuffer> buffer) = 0;
 
-  void AddHorizontalSplit();
+  virtual void SetActiveLeaf(size_t position) = 0;
 
-  void SetActiveLeafBuffer(std::shared_ptr<OpenBuffer> buffer);
-  void SetActiveLeaf(size_t position);
-  std::shared_ptr<OpenBuffer> LockActiveLeaf() const;
+  // Move the active leaf by this number of positions.
+  virtual void AdvanceActiveLeaf(int delta) = 0;
 
-  void RemoveActiveLeaf();
-  std::vector<BufferTree*> FindRouteToActiveLeaf();
+  virtual size_t CountLeafs() const = 0;
 
-  BufferTree* FindActiveLeaf();
-  const BufferTree* FindActiveLeaf() const;
-  void AdvanceActiveLeaf(int delta);
+  virtual wstring Name() const = 0;
+  virtual wstring ToString() const = 0;
 
-  template <typename T>
-  void ForEach(T callback) {
-    switch (type_) {
-      case Type::kLeaf:
-        return;
-      case Type::kHorizontal:
-        for (size_t i = 0; i < children_.size(); i++) {
-          callback(&children_[i], i == active_);
-        }
-        return;
-    }
-  }
+  virtual std::unique_ptr<OutputProducer> CreateOutputProducer() = 0;
+};
 
-  size_t CountLeafs() const;
+class BufferTreeLeaf : public BufferTree {
+ private:
+  struct ConstructorAccessTag {};
 
-  wstring ToString() const;
+ public:
+  static std::unique_ptr<BufferTreeLeaf> New(std::weak_ptr<OpenBuffer> buffer);
+
+  BufferTreeLeaf(ConstructorAccessTag, std::weak_ptr<OpenBuffer> buffer);
+
+  std::shared_ptr<OpenBuffer> LockActiveLeaf() const override;
+
+  void SetActiveLeafBuffer(std::shared_ptr<OpenBuffer> buffer) override;
+  void SetActiveLeaf(size_t position) override;
+  void AdvanceActiveLeaf(int delta) override;
+
+  size_t CountLeafs() const override;
+
+  wstring Name() const override;
+  wstring ToString() const override;
+
+  std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 
  private:
-  BufferTree() = default;
-
-  int InternalAdvanceActiveLeaf(int delta);
-
-  Type type_ = Type::kLeaf;
-
-  // Ignored if type != kLeaf.
   std::weak_ptr<OpenBuffer> leaf_;
+};
 
-  // Ignored if type == kLeaf.
-  Tree<BufferTree> children_;
+class BufferTreeHorizontal : public BufferTree {
+ private:
+  struct ConstructorAccessTag {};
+
+ public:
+  static std::unique_ptr<BufferTreeHorizontal> New(
+      std::vector<std::unique_ptr<BufferTree>> children, size_t active);
+
+  BufferTreeHorizontal(ConstructorAccessTag,
+                       std::vector<std::unique_ptr<BufferTree>> children,
+                       size_t active);
+
+  static std::unique_ptr<BufferTree> AddHorizontalSplit(
+      std::unique_ptr<BufferTree> tree);
+
+  // `tree` may be of any type (not only BufferTreeHorizontal).
+  static std::unique_ptr<BufferTree> RemoveActiveLeaf(
+      std::unique_ptr<BufferTree> tree);
+
+  std::shared_ptr<OpenBuffer> LockActiveLeaf() const override;
+
+  void SetActiveLeafBuffer(std::shared_ptr<OpenBuffer> buffer) override;
+  void SetActiveLeaf(size_t position) override;
+  void AdvanceActiveLeaf(int delta) override;
+
+  size_t CountLeafs() const override;
+
+  wstring Name() const override;
+  wstring ToString() const override;
+
+  std::unique_ptr<OutputProducer> CreateOutputProducer() override;
+
+  void PushChildren(std::unique_ptr<BufferTree> children);
+  size_t children_count() const;
+
+ private:
+  // Doesn't wrap. Returns the number of steps pending.
+  int AdvanceActiveLeafWithoutWrapping(int delta);
+  static std::unique_ptr<BufferTree> RemoveActiveLeafInternal(
+      std::unique_ptr<BufferTree> tree);
+
+  std::vector<std::unique_ptr<BufferTree>> children_;
   size_t active_;
 };
 

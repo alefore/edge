@@ -106,6 +106,7 @@ class Tree {
 
   Tree() = default;
   Tree(const Tree& tree);
+  Tree(Tree&& tree) = default;
   ~Tree() = default;
   Tree<Item>& operator=(const Tree<Item>& tree);
 

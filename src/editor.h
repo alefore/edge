@@ -55,7 +55,7 @@ class EditorState {
   }
 
   map<wstring, shared_ptr<OpenBuffer>>* buffers() { return &buffers_; }
-  BufferTree* buffer_tree() { return &buffer_tree_; }
+  BufferTree* buffer_tree() { return buffer_tree_.get(); }
 
   void set_current_buffer(shared_ptr<OpenBuffer> buffer);
   void AddHorizontalSplit();
@@ -282,7 +282,8 @@ class EditorState {
 
   AudioPlayer* const audio_player_;
 
-  BufferTree buffer_tree_ = BufferTree::NewLeaf(std::weak_ptr<OpenBuffer>());
+  std::unique_ptr<BufferTree> buffer_tree_ =
+      BufferTreeLeaf::New(std::weak_ptr<OpenBuffer>());
 };
 
 }  // namespace editor

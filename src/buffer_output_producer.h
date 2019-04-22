@@ -9,14 +9,15 @@ namespace editor {
 
 class BufferOutputProducer : public OutputProducer {
  public:
-  BufferOutputProducer(OpenBuffer* buffer) : buffer_(buffer) {}
+  BufferOutputProducer(std::shared_ptr<OpenBuffer> buffer)
+      : buffer_(std::move(buffer)) {}
 
   size_t MinimumLines() override;
 
   void Produce(Options options) override;
 
  private:
-  OpenBuffer* const buffer_;
+  const std::shared_ptr<OpenBuffer> buffer_;
 };
 
 }  // namespace editor
