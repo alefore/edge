@@ -274,6 +274,11 @@ class OpenBuffer {
   bool EvaluateFile(const wstring& path,
                     std::function<void(std::unique_ptr<Value>)> consumer);
 
+  void SchedulePendingWork(std::function<void()> callback);
+
+  enum class PendingWorkState { kIdle, kScheduled };
+  PendingWorkState ExecutePendingWork();
+
   /////////////////////////////////////////////////////////////////////////////
   // Inspecting contents of buffer.
 
@@ -465,6 +470,13 @@ class OpenBuffer {
 
   list<unique_ptr<Value>> keyboard_text_transformers_;
   Environment environment_;
+
+  // Long running operations that can't be executed in background threads
+  // should periodically interrupt themselves and insert their continuations
+  // here. Edge will periodically flush this to advance their work. This
+  // allows them to run without preventing Edge from handling input from the
+  // user.
+  std::vector<std::function<void()>> pending_work_;
 
   // A function that receives a string and returns a boolean. The function will
   // be evaluated on every line, to compute whether or not the line should be

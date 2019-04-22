@@ -226,7 +226,7 @@ int main(int argc, const char** argv) {
   LOG(INFO) << "Starting server.";
   auto server_path = StartServer(args, connected_to_parent);
   while (editor_state()->ExecutePendingWork() !=
-         EditorState::PendingWorkState::kIdle) {
+         OpenBuffer::PendingWorkState::kIdle) {
     /* Nothing. */
   }
 
@@ -277,7 +277,7 @@ int main(int argc, const char** argv) {
     // TODO: Change to -1. Requires figuring out a way for background threads of
     // buffers to trigger redraws.
     int timeout = editor_state()->ExecutePendingWork() ==
-                          EditorState::PendingWorkState::kIdle
+                          OpenBuffer::PendingWorkState::kIdle
                       ? 1000
                       : 0;
 

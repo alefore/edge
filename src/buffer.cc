@@ -153,8 +153,8 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, size_t line,
         EvaluateMap(buffer, line + 1, std::move(map_callback), transformation,
                     trampoline);
       },
-      [editor = buffer->editor_](std::function<void()> callback) {
-        editor->SchedulePendingWork(std::move(callback));
+      [buffer](std::function<void()> callback) {
+        buffer->SchedulePendingWork(std::move(callback));
       });
 }
 
@@ -1442,8 +1442,8 @@ unique_ptr<Expression> OpenBuffer::CompileString(const wstring& code,
 void OpenBuffer::EvaluateExpression(
     Expression* expr, std::function<void(std::unique_ptr<Value>)> consumer) {
   Evaluate(expr, &environment_, consumer,
-           [editor = editor_](std::function<void()> callback) {
-             editor->SchedulePendingWork(std::move(callback));
+           [this](std::function<void()> callback) {
+             SchedulePendingWork(std::move(callback));
            });
 }
 
@@ -1481,11 +1481,26 @@ bool OpenBuffer::EvaluateFile(
         LOG(INFO) << "Evaluation of file completed: " << path;
         callback(std::move(value));
       },
-      [path, editor = editor_](std::function<void()> resume) {
+      [path, this](std::function<void()> resume) {
         LOG(INFO) << "Evaluation of file yields: " << path;
-        editor->SchedulePendingWork(std::move(resume));
+        SchedulePendingWork(std::move(resume));
       });
   return true;
+}
+
+void OpenBuffer::SchedulePendingWork(std::function<void()> callback) {
+  pending_work_.push_back(callback);
+}
+
+OpenBuffer::PendingWorkState OpenBuffer::ExecutePendingWork() {
+  VLOG(5) << "Executing pending work: " << pending_work_.size();
+  std::vector<std::function<void()>> callbacks;
+  callbacks.swap(pending_work_);
+  for (auto& c : callbacks) {
+    c();
+  }
+  return pending_work_.empty() ? PendingWorkState::kIdle
+                               : PendingWorkState::kScheduled;
 }
 
 void OpenBuffer::DeleteRange(const Range& range) {
@@ -1881,8 +1896,8 @@ wstring OpenBuffer::TransformKeyboardText(wstring input) {
     Call(
         t.get(), std::move(args),
         [&input](Value::Ptr value) { input = std::move(value->str); },
-        [editor = editor_](std::function<void()> callback) {
-          editor->SchedulePendingWork(std::move(callback));
+        [this](std::function<void()> callback) {
+          SchedulePendingWork(std::move(callback));
         });
   }
   return input;
@@ -1973,6 +1988,7 @@ wstring OpenBuffer::FlagsString() const {
   if (modified()) {
     output += L" 🐾";
   }
+
   if (fd() != -1) {
     output += L" < l:" + to_wstring(contents_.size());
     if (Read(buffer_variables::follow_end_of_file())) {
@@ -1983,6 +1999,11 @@ wstring OpenBuffer::FlagsString() const {
       output += L"  💻" + pts_path + L" ";
     }
   }
+
+  if (!pending_work_.empty()) {
+    output += L" ⏳";
+  }
+
   if (child_pid_ != -1) {
     output += L"  🤴" + to_wstring(child_pid_) + L" ";
   } else if (child_exit_status_ != 0) {

@@ -99,7 +99,9 @@ void MapModeCommands::Add(wstring name, wstring description,
                 expression.get(), environment,
                 [expression](Value::Ptr) { LOG(INFO) << "Done evaluating."; },
                 [editor_state](std::function<void()> callback) {
-                  editor_state->SchedulePendingWork(callback);
+                  auto buffer = editor_state->current_buffer();
+                  CHECK(buffer != nullptr);
+                  buffer->SchedulePendingWork(callback);
                 });
           },
           description));

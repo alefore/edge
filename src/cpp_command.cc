@@ -58,13 +58,16 @@ class CppCommand : public Command {
   void ProcessInput(wint_t, EditorState* editor_state) override {
     DVLOG(4) << "CppCommand starting (" << description_ << ")";
     auto expression = expression_;
+    std::shared_ptr<OpenBuffer> buffer = editor_state->current_buffer();
+    CHECK(buffer != nullptr);
+
     Evaluate(
         expression_.get(), editor_state->environment(),
         [expression](std::unique_ptr<Value>) {
           DVLOG(5) << "CppCommand finished.";
         },
-        [editor_state](std::function<void()> callback) {
-          editor_state->SchedulePendingWork(std::move(callback));
+        [buffer](std::function<void()> callback) {
+          buffer->SchedulePendingWork(std::move(callback));
         });
   }
 

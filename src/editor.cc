@@ -92,19 +92,16 @@ void EditorState::NotifyInternalEvent() {
   }
 }
 
-void EditorState::SchedulePendingWork(std::function<void()> callback) {
-  pending_work_.push_back(callback);
-}
-
-EditorState::PendingWorkState EditorState::ExecutePendingWork() {
-  VLOG(5) << "Executing pending work: " << pending_work_.size();
-  std::vector<std::function<void()>> callbacks;
-  callbacks.swap(pending_work_);
-  for (auto& c : callbacks) {
-    c();
+// Executes pending work from all buffers.
+OpenBuffer::PendingWorkState EditorState::ExecutePendingWork() {
+  OpenBuffer::PendingWorkState output = OpenBuffer::PendingWorkState::kIdle;
+  for (auto& buffer : buffers_) {
+    if (buffer.second->ExecutePendingWork() ==
+        OpenBuffer::PendingWorkState::kScheduled) {
+      output = OpenBuffer::PendingWorkState::kScheduled;
+    }
   }
-  return pending_work_.empty() ? PendingWorkState::kIdle
-                               : PendingWorkState::kScheduled;
+  return output;
 }
 
 Environment EditorState::BuildEditorEnvironment() {
@@ -169,12 +166,14 @@ Environment EditorState::BuildEditorEnvironment() {
 
   editor_type->AddField(
       L"ToggleBuffersVisible",
-      vm::NewCallback(std::function<void(EditorState*)>(
-          [](EditorState* editor) {
+      vm::NewCallback(
+          std::function<void(EditorState*)>([](EditorState* editor) {
             CHECK(editor != nullptr);
             editor->buffer_tree_->SetBuffersVisible(
-                editor->buffer_tree_->buffers_visible() == BufferTreeHorizontal::BuffersVisible::kAll
-                            ? BufferTreeHorizontal::BuffersVisible::kActive :  BufferTreeHorizontal::BuffersVisible::kAll);
+                editor->buffer_tree_->buffers_visible() ==
+                        BufferTreeHorizontal::BuffersVisible::kAll
+                    ? BufferTreeHorizontal::BuffersVisible::kActive
+                    : BufferTreeHorizontal::BuffersVisible::kAll);
             editor->ScheduleRedraw();
           })));
 

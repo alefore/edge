@@ -225,10 +225,8 @@ class EditorState {
     keyboard_redirect_ = std::move(keyboard_redirect);
   }
 
-  void SchedulePendingWork(std::function<void()> callback);
-
-  enum class PendingWorkState { kIdle, kScheduled };
-  PendingWorkState ExecutePendingWork();
+  // Executes pending work from all buffers.
+  OpenBuffer::PendingWorkState ExecutePendingWork();
 
  private:
   Environment BuildEditorEnvironment();
@@ -274,13 +272,6 @@ class EditorState {
   // end, to detect the need to redraw the screen. Internally, background
   // threads write to the write end to trigger that.
   const std::pair<int, int> pipe_to_communicate_internal_events_;
-
-  // Long running operations that can't be executed in background threads
-  // should periodically interrupt themselves and insert their continuations
-  // here. Edge will periodically flush this to advance their work. This
-  // allows them to run without preventing Edge from handling input from the
-  // user.
-  std::vector<std::function<void()>> pending_work_;
 
   AudioPlayer* const audio_player_;
 
