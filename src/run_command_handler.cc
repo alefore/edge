@@ -284,8 +284,11 @@ void RunCommand(const wstring& name, const wstring& input,
   ForkCommandOptions options;
   options.command = input;
   options.buffer_name = name;
-  options.enter = buffer == nullptr ||
-                  !buffer->Read(buffer_variables::commands_background_mode());
+  options.insertion_type =
+      buffer == nullptr ||
+              !buffer->Read(buffer_variables::commands_background_mode())
+          ? BufferTreeHorizontal::InsertionType::kSearchOrCreate
+          : BufferTreeHorizontal::InsertionType::kSkip;
   options.children_path = children_path;
   options.environment = std::move(environment);
   ForkCommand(editor_state, options);
@@ -377,10 +380,9 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
   } else {
     it.first->second->ResetMode();
   }
-  if (options.enter) {
-    editor_state->set_current_buffer(it.first->second);
-    editor_state->ScheduleRedraw();
-  }
+  editor_state->buffer_tree()->InsertChildren(it.first->second,
+                                              options.insertion_type);
+  editor_state->ScheduleRedraw();
   it.first->second->Reload();
   it.first->second->set_current_position_line(0);
   return it.first->second;

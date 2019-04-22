@@ -341,17 +341,20 @@ Environment EditorState::BuildEditorEnvironment() {
 
   environment.Define(
       L"ForkCommand",
-      Value::NewFunction({VMType::ObjectType(L"Buffer"), VMType::VM_STRING,
-                          VMType::VM_BOOLEAN},
-                         [this](vector<Value::Ptr> args) {
-                           CHECK_EQ(args.size(), 2u);
-                           CHECK_EQ(args[0]->type, VMType::VM_STRING);
-                           ForkCommandOptions options;
-                           options.command = args[0]->str;
-                           options.enter = args[1]->boolean;
-                           return Value::NewObject(L"Buffer",
-                                                   ForkCommand(this, options));
-                         }));
+      Value::NewFunction(
+          {VMType::ObjectType(L"Buffer"), VMType::VM_STRING,
+           VMType::VM_BOOLEAN},
+          [this](vector<Value::Ptr> args) {
+            CHECK_EQ(args.size(), 2u);
+            CHECK_EQ(args[0]->type, VMType::VM_STRING);
+            ForkCommandOptions options;
+            options.command = args[0]->str;
+            options.insertion_type =
+                args[1]->boolean
+                    ? BufferTreeHorizontal::InsertionType::kSearchOrCreate
+                    : BufferTreeHorizontal::InsertionType::kSkip;
+            return Value::NewObject(L"Buffer", ForkCommand(this, options));
+          }));
 
   environment.Define(L"repetitions",
                      vm::NewCallback(std::function<int()>([this]() {

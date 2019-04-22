@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 
+#include "buffer_tree_horizontal.h"
 #include "command.h"
 
 namespace afc {
@@ -18,8 +19,6 @@ using std::wstring;
 class EditorState;
 
 struct ForkCommandOptions {
-  ForkCommandOptions() : enter(false) {}
-
   // The command to run.
   wstring command;
 
@@ -29,7 +28,8 @@ struct ForkCommandOptions {
   map<wstring, wstring> environment;
 
   // Should we make it the active buffer?
-  bool enter;
+  BufferTreeHorizontal::InsertionType insertion_type =
+      BufferTreeHorizontal::InsertionType::kSkip;
 
   // If non-empty, change to this directory in the children. Ignored if empty.
   wstring children_path;
