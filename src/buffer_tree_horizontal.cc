@@ -58,6 +58,10 @@ std::shared_ptr<OpenBuffer> BufferTreeHorizontal::LockActiveLeaf() const {
   return children_[active_]->LockActiveLeaf();
 }
 
+BufferTreeLeaf* BufferTreeHorizontal::GetActiveLeaf() {
+  return children_[active_]->GetActiveLeaf();
+}
+
 void BufferTreeHorizontal::SetActiveLeafBuffer(
     std::shared_ptr<OpenBuffer> buffer) {
   CHECK(!children_.empty());
@@ -169,6 +173,8 @@ void BufferTreeHorizontal::SetLines(size_t lines) {
   lines_ = lines;
   RecomputeLinesPerChild();
 }
+
+size_t BufferTreeHorizontal::lines() const { return lines_; }
 
 size_t BufferTreeHorizontal::MinimumLines() {
   size_t count = 0;

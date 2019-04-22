@@ -302,10 +302,9 @@ wstring LineUp::Description() const { return L"moves up one line"; }
     MoveBackwards::Move(c, editor_state);
   } else if (structure == StructureWord() || structure == StructureSymbol()) {
     // Move in whole pages.
+    auto lines = editor_state->buffer_tree()->GetActiveLeaf()->lines();
     editor_state->set_repetitions(editor_state->repetitions() *
-                                  (buffer->view_range().lines() > 2
-                                       ? buffer->view_range().lines() - 2
-                                       : 3));
+                                  (lines > 2 ? lines - 2 : 3));
     VLOG(6) << "Word Up: Repetitions: " << editor_state->repetitions();
     Move(c, editor_state, StructureChar());
   } else if (structure == StructureTree()) {
@@ -342,10 +341,9 @@ wstring LineDown::Description() const { return L"moves down one line"; }
     MoveForwards::Move(c, editor_state);
   } else if (structure == StructureWord() || structure == StructureSymbol()) {
     // Move in whole pages.
+    auto lines = editor_state->buffer_tree()->GetActiveLeaf()->lines();
     editor_state->set_repetitions(editor_state->repetitions() *
-                                  (buffer->view_range().lines() > 2
-                                       ? buffer->view_range().lines() - 2
-                                       : 3));
+                                  (lines > 2 ? lines - 2 : 3));
     VLOG(6) << "Word Down: Repetitions: " << editor_state->repetitions();
     Move(c, editor_state, StructureChar());
   } else if (structure == StructureTree()) {

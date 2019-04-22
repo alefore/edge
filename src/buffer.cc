@@ -891,9 +891,9 @@ void OpenBuffer::Input::ReadData(OpenBuffer* target) {
         target->StartNewLine();
         line_start = i + 1;
         auto buffer = editor_state->current_buffer();
-        if (buffer.get() == target &&
-            (buffer->view_range_.IsEmpty() ||
-             buffer->view_range_.Contains(buffer->position()))) {
+        if (buffer.get() == target) {
+          // TODO: Only do this if the position is in view in any of the
+          // buffers.
           editor_state->ScheduleRedraw();
         }
       }
@@ -2227,12 +2227,6 @@ bool OpenBuffer::IsLineFiltered(size_t line_number) {
   contents_.set_line(line_number, new_line);
   return filtered;
 }
-
-void OpenBuffer::SetViewRange(Range view_range) {
-  view_range_ = view_range;
-  view_range_.end = min(view_range_.end, end_position());
-}
-Range OpenBuffer::view_range() const { return view_range_; }
 
 const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks() const {
   auto marks = editor()->line_marks();

@@ -13,11 +13,15 @@
 namespace afc {
 namespace editor {
 
+class BufferTreeLeaf;
+
 class BufferTree {
  public:
   ~BufferTree() = default;
 
   virtual std::shared_ptr<OpenBuffer> LockActiveLeaf() const = 0;
+
+  virtual BufferTreeLeaf* GetActiveLeaf() = 0;
 
   virtual void SetActiveLeafBuffer(std::shared_ptr<OpenBuffer> buffer) = 0;
 
@@ -34,6 +38,7 @@ class BufferTree {
   virtual std::unique_ptr<OutputProducer> CreateOutputProducer() = 0;
 
   virtual void SetLines(size_t) = 0;
+  virtual size_t lines() const = 0;
   virtual size_t MinimumLines() = 0;
 };
 
@@ -48,6 +53,8 @@ class BufferTreeLeaf : public BufferTree {
 
   std::shared_ptr<OpenBuffer> LockActiveLeaf() const override;
 
+  BufferTreeLeaf* GetActiveLeaf() override;
+
   void SetActiveLeafBuffer(std::shared_ptr<OpenBuffer> buffer) override;
   void SetActiveLeaf(size_t position) override;
   void AdvanceActiveLeaf(int delta) override;
@@ -60,6 +67,7 @@ class BufferTreeLeaf : public BufferTree {
   std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 
   void SetLines(size_t) override;
+  size_t lines() const override;
   size_t MinimumLines() override;
 
  private:

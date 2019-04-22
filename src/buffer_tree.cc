@@ -27,6 +27,8 @@ std::shared_ptr<OpenBuffer> BufferTreeLeaf::LockActiveLeaf() const {
   return leaf_.lock();
 }
 
+BufferTreeLeaf* BufferTreeLeaf::GetActiveLeaf() { return this; }
+
 void BufferTreeLeaf::SetActiveLeafBuffer(std::shared_ptr<OpenBuffer> buffer) {
   leaf_ = std::move(buffer);
   SetLines(lines_);  // Causes things to be recomputed.
@@ -66,6 +68,8 @@ void BufferTreeLeaf::SetLines(size_t lines) {
     buffer->set_lines_for_zoomed_out_tree(lines);
   }
 }
+
+size_t BufferTreeLeaf::lines() const { return lines_; }
 
 size_t BufferTreeLeaf::MinimumLines() {
   auto buffer = LockActiveLeaf();

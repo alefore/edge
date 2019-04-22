@@ -34,6 +34,8 @@ class BufferTreeHorizontal : public BufferTree {
 
   std::shared_ptr<OpenBuffer> LockActiveLeaf() const override;
 
+  BufferTreeLeaf* GetActiveLeaf() override;
+
   void SetActiveLeafBuffer(std::shared_ptr<OpenBuffer> buffer) override;
   void SetActiveLeaf(size_t position) override;
   void AdvanceActiveLeaf(int delta) override;
@@ -46,6 +48,7 @@ class BufferTreeHorizontal : public BufferTree {
   std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 
   void SetLines(size_t lines) override;
+  size_t lines() const override;
   size_t MinimumLines() override;
 
   void PushChildren(std::unique_ptr<BufferTree> children);
