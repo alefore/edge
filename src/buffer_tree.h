@@ -21,8 +21,6 @@ class BufferTree {
 
   virtual BufferTreeLeaf* GetActiveLeaf() = 0;
 
-  virtual void SetActiveLeafBuffer(std::shared_ptr<OpenBuffer> buffer) = 0;
-
   virtual void SetActiveLeaf(size_t position) = 0;
 
   // Move the active leaf by this number of positions.

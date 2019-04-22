@@ -23,7 +23,6 @@ class BufferTreeLeaf : public BufferTree {
 
   BufferTreeLeaf* GetActiveLeaf() override;
 
-  void SetActiveLeafBuffer(std::shared_ptr<OpenBuffer> buffer) override;
   void SetActiveLeaf(size_t position) override;
   void AdvanceActiveLeaf(int delta) override;
 
@@ -41,6 +40,7 @@ class BufferTreeLeaf : public BufferTree {
 
   // Custom methods.
   std::shared_ptr<OpenBuffer> Lock() const;
+  void SetBuffer(std::weak_ptr<OpenBuffer> buffer);
 
  private:
   std::weak_ptr<OpenBuffer> leaf_;

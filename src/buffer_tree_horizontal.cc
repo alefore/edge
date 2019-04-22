@@ -57,13 +57,6 @@ BufferTreeLeaf* BufferTreeHorizontal::GetActiveLeaf() {
   return children_[active_]->GetActiveLeaf();
 }
 
-void BufferTreeHorizontal::SetActiveLeafBuffer(
-    std::shared_ptr<OpenBuffer> buffer) {
-  CHECK(!children_.empty());
-  CHECK_LT(active_, children_.size());
-  children_[active_]->SetActiveLeafBuffer(std::move(buffer));
-}
-
 void BufferTreeHorizontal::SetActiveLeaf(size_t position) {
   CHECK(!children_.empty());
   CHECK_LT(position, children_.size());

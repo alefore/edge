@@ -53,11 +53,6 @@ std::unique_ptr<BufferTreeLeaf> BufferTreeLeaf::New(
 
 BufferTreeLeaf* BufferTreeLeaf::GetActiveLeaf() { return this; }
 
-void BufferTreeLeaf::SetActiveLeafBuffer(std::shared_ptr<OpenBuffer> buffer) {
-  leaf_ = std::move(buffer);
-  SetLines(lines_);  // Causes things to be recomputed.
-}
-
 void BufferTreeLeaf::SetActiveLeaf(size_t) {}
 
 void BufferTreeLeaf::AdvanceActiveLeaf(int) {}
@@ -129,6 +124,11 @@ LineColumn BufferTreeLeaf::view_start() const { return view_start_; }
 
 std::shared_ptr<OpenBuffer> BufferTreeLeaf::Lock() const {
   return leaf_.lock();
+}
+
+void BufferTreeLeaf::SetBuffer(std::weak_ptr<OpenBuffer> buffer) {
+  leaf_ = std::move(buffer);
+  SetLines(lines_);  // Causes things to be recomputed.
 }
 
 }  // namespace editor

@@ -449,8 +449,8 @@ bool EditorState::CloseBuffer(OpenBuffer* buffer) {
   return true;
 }
 
-void EditorState::set_current_buffer(shared_ptr<OpenBuffer> buffer) {
-  buffer_tree_->SetActiveLeafBuffer(buffer);
+void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer) {
+  buffer_tree_->GetActiveLeaf()->SetBuffer(buffer);
   if (buffer != nullptr) {
     buffer->Visit();
   }

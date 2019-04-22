@@ -34,7 +34,6 @@ class BufferTreeHorizontal : public BufferTree {
 
   BufferTreeLeaf* GetActiveLeaf() override;
 
-  void SetActiveLeafBuffer(std::shared_ptr<OpenBuffer> buffer) override;
   void SetActiveLeaf(size_t position) override;
   void AdvanceActiveLeaf(int delta) override;
 
