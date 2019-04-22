@@ -49,7 +49,7 @@ void CenterScreenAroundCurrentLine() {
     SetStatus("Near end of file.");
     start_line = (buffer.line_count() > size ? buffer.line_count() - size : 0);
   }
-  buffer.set_view_start_line(start_line);
+  // buffer.set_view_start_line(start_line);
 }
 
 buffer.set_editor_commands_path("~/.edge/editor_commands/");

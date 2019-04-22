@@ -9,13 +9,17 @@ namespace editor {
 
 class BufferOutputProducer : public OutputProducer {
  public:
-  BufferOutputProducer(std::shared_ptr<OpenBuffer> buffer, size_t lines_shown);
+  BufferOutputProducer(std::shared_ptr<OpenBuffer> buffer, size_t lines_shown,
+                       LineColumn view_start);
 
   void WriteLine(Options options) override;
 
  private:
+  LineColumn GetNextLine(size_t columns, LineColumn position);
+
   const std::shared_ptr<OpenBuffer> buffer_;
   const size_t lines_shown_;
+  const LineColumn view_start_;
 
   // Key is line number.
   const std::map<size_t, std::set<size_t>> cursors_;

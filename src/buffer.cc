@@ -1222,10 +1222,6 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
       VLOG(9) << "Received: cuu1: Up one line.";
       if (position_pts_.line > 0) {
         position_pts_.line--;
-        if (static_cast<size_t>(Read(buffer_variables::view_start_line())) >
-            position_pts_.line) {
-          Set(buffer_variables::view_start_line(), position_pts_.line);
-        }
       }
       return read_index + 1;
     case '[':
@@ -1377,15 +1373,15 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
           }
           DLOG(INFO) << "Move cursor home: line: " << line_delta
                      << ", column: " << column_delta;
-          position_pts_ =
-              LineColumn(Read(buffer_variables::view_start_line()) + line_delta,
-                         column_delta);
+          position_pts_ = LineColumn(
+              editor_->buffer_tree()->GetActiveLeaf()->view_start().line +
+                  line_delta,
+              column_delta);
           auto follower = GetEndPositionFollower();
           while (position_pts_.line >= contents_.size()) {
             contents_.push_back(std::make_shared<Line>());
           }
           follower = nullptr;
-          Set(buffer_variables::view_start_column(), column_delta);
         }
         return read_index;
 

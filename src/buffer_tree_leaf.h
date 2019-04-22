@@ -39,10 +39,14 @@ class BufferTreeLeaf : public BufferTree {
   void SetLines(size_t) override;
   size_t lines() const override;
   size_t MinimumLines() override;
+  LineColumn view_start() const;
 
  private:
   std::weak_ptr<OpenBuffer> leaf_;
   size_t lines_ = 0;
+
+  // The position in the buffer where the view begins.
+  LineColumn view_start_;
 };
 
 }  // namespace editor

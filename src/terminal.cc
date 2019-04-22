@@ -465,25 +465,6 @@ class ParseTreeHighlighterTokens
   size_t column_read_ = 0;
 };
 
-LineColumn Terminal::GetNextLine(const OpenBuffer& buffer, size_t columns,
-                                 LineColumn position) {
-  // TODO: This is wrong: it doesn't account for multi-width characters.
-  // TODO: This is wrong: it doesn't take int account line filters.
-  if (position.line >= buffer.lines_size()) {
-    return LineColumn(std::numeric_limits<size_t>::max());
-  }
-  position.column += columns;
-  if (position.column >= buffer.LineAt(position.line)->size() ||
-      !buffer.Read(buffer_variables::wrap_long_lines())) {
-    position.line++;
-    position.column = buffer.Read(buffer_variables::view_start_column());
-    if (position.line >= buffer.lines_size()) {
-      return LineColumn(std::numeric_limits<size_t>::max());
-    }
-  }
-  return position;
-}
-
 void Terminal::ShowBuffer(EditorState* editor_state, Screen* screen) {
   screen->Move(0, 0);
 

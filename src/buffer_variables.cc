@@ -496,8 +496,6 @@ EdgeStruct<int>* IntStruct() {
     buffer_list_context_lines();
     margin_lines();
     margin_columns();
-    view_start_line();
-    view_start_column();
     progress();
   }
   return output;
@@ -533,25 +531,6 @@ EdgeVariable<int>* margin_columns() {
       L"Number of characters of context to display at the left/right of the "
       L"current position.",
       2);
-  return variable;
-}
-
-EdgeVariable<int>* view_start_line() {
-  static EdgeVariable<int>* variable = IntStruct()->AddVariable(
-      L"view_start_line",
-      L"The desired line to show at the beginning of the screen (at the "
-      L"top-most position). This is adjusted automatically as the cursor moves "
-      L"around in the buffer.",
-      0);
-  return variable;
-}
-
-EdgeVariable<int>* view_start_column() {
-  static EdgeVariable<int>* variable = IntStruct()->AddVariable(
-      L"view_start_column",
-      L"The desired column to show at the left-most part of the screen. This "
-      L"is adjusted automatically as the cursor moves around in the buffer.",
-      0);
   return variable;
 }
 

@@ -30,29 +30,6 @@ size_t GetInitialPrefixSize(const OpenBuffer& buffer) {
              : 1 + std::to_wstring(buffer.lines_size()).size();
 }
 
-size_t GetCurrentColumn(OpenBuffer* buffer) {
-  if (buffer->lines_size() == 0) {
-    return 0;
-  } else if (buffer->position().line >= buffer->lines_size()) {
-    return buffer->contents()->back()->size();
-  } else if (!buffer->IsLineFiltered(buffer->position().line)) {
-    return 0;
-  } else {
-    return min(buffer->position().column,
-               buffer->LineAt(buffer->position().line)->size());
-  }
-}
-
-size_t GetDesiredViewStartColumn(OpenBuffer* buffer) {
-  if (buffer->Read(buffer_variables::wrap_long_lines())) {
-    return 0;
-  }
-  size_t effective_size = 80;  // TODO: This is bogus.
-  effective_size -= min(effective_size, GetInitialPrefixSize(*buffer));
-  size_t column = GetCurrentColumn(buffer);
-  return column - min(column, effective_size);
-}
-
 std::wstring GetInitialPrefix(const OpenBuffer& buffer, int line) {
   if (buffer.Read(buffer_variables::paste_mode())) {
     return L"";
@@ -358,19 +335,19 @@ class ParseTreeHighlighterTokens
   size_t column_read_ = 0;
 };
 
-LineColumn GetNextLine(const OpenBuffer& buffer, size_t columns,
-                       LineColumn position) {
+LineColumn BufferOutputProducer::GetNextLine(size_t columns,
+                                             LineColumn position) {
   // TODO: This is wrong: it doesn't account for multi-width characters.
   // TODO: This is wrong: it doesn't take int account line filters.
-  if (position.line >= buffer.lines_size()) {
+  if (position.line >= buffer_->lines_size()) {
     return LineColumn(std::numeric_limits<size_t>::max());
   }
   position.column += columns;
-  if (position.column >= buffer.LineAt(position.line)->size() ||
-      !buffer.Read(buffer_variables::wrap_long_lines())) {
+  if (position.column >= buffer_->LineAt(position.line)->size() ||
+      !buffer_->Read(buffer_variables::wrap_long_lines())) {
     position.line++;
-    position.column = buffer.Read(buffer_variables::view_start_column());
-    if (position.line >= buffer.lines_size()) {
+    position.column = view_start_.column;
+    if (position.line >= buffer_->lines_size()) {
       return LineColumn(std::numeric_limits<size_t>::max());
     }
   }
@@ -398,7 +375,8 @@ void ShowAdditionalData(
     OpenBuffer* buffer, const Line& line, LineColumn position,
     size_t lines_to_show, const ParseTree* full_file_parse_tree,
     OutputReceiver* output_receiver,
-    std::unordered_set<const OpenBuffer*>* output_buffers_shown) {
+    std::unordered_set<const OpenBuffer*>* output_buffers_shown,
+    size_t view_start_line) {
   auto target_buffer_value = line.environment()->Lookup(
       L"buffer", vm::VMTypeMapper<OpenBuffer*>::vmtype);
   const auto target_buffer =
@@ -456,9 +434,6 @@ void ShowAdditionalData(
   }
   output_receiver->AddModifier(LineModifier::RESET);
 
-  const auto view_start_line =
-      buffer->Read(buffer_variables::view_start_line());
-
   if (additional_information.empty()) {
     auto parse_tree = buffer->simplified_parse_tree();
     if (parse_tree != nullptr) {
@@ -494,9 +469,11 @@ void ShowAdditionalData(
 }
 
 BufferOutputProducer::BufferOutputProducer(std::shared_ptr<OpenBuffer> buffer,
-                                           size_t lines_shown)
+                                           size_t lines_shown,
+                                           LineColumn view_start)
     : buffer_(std::move(buffer)),
       lines_shown_(lines_shown),
+      view_start_(view_start),
       cursors_([=]() {
         std::map<size_t, std::set<size_t>> cursors;
         for (auto cursor : *buffer_->active_cursors()) {
@@ -506,54 +483,18 @@ BufferOutputProducer::BufferOutputProducer(std::shared_ptr<OpenBuffer> buffer,
       }()),
       root_(buffer_->parse_tree()),
       current_tree_(buffer_->current_tree(root_.get())),
-      zoomed_out_tree_(buffer_->zoomed_out_tree()) {
+      zoomed_out_tree_(buffer_->zoomed_out_tree()),
+      position_(view_start_) {
   if (buffer_->Read(buffer_variables::reload_on_display())) {
     buffer_->Reload();
   }
 
   buffer_->set_last_highlighted_line(-1);
 
-  size_t line = min(buffer_->position().line, buffer_->contents()->size() - 1);
-  size_t margin_lines =
-      min(lines_shown_ / 2 - 1,
-          max(static_cast<size_t>(
-                  ceil(buffer_->Read(buffer_variables::margin_lines_ratio()) *
-                       lines_shown_)),
-              static_cast<size_t>(
-                  max(buffer_->Read(buffer_variables::margin_lines()), 0))));
-  size_t view_start = static_cast<size_t>(
-      max(0, buffer_->Read(buffer_variables::view_start_line())));
-
-  if (view_start > line - min(margin_lines, line) &&
-      (buffer_->child_pid() != -1 || buffer_->fd() == -1)) {
-    buffer_->Set(buffer_variables::view_start_line(),
-                 line - min(margin_lines, line));
-    // editor_state->ScheduleRedraw();
-  } else if (view_start + lines_shown_ <=
-             min(buffer_->lines_size(), line + margin_lines)) {
-    buffer_->Set(
-        buffer_variables::view_start_line(),
-        min(buffer_->lines_size() - 1, line + margin_lines) - lines_shown_ + 1);
-    // editor_state->ScheduleRedraw();
-  }
-
-  auto view_start_column = GetDesiredViewStartColumn(buffer_.get());
-  if (static_cast<size_t>(
-          max(0, buffer_->Read(buffer_variables::view_start_column()))) !=
-      view_start_column) {
-    buffer_->Set(buffer_variables::view_start_column(), view_start_column);
-    // editor_state->ScheduleRedraw();
-  }
-
   if (buffer_->Read(buffer_variables::atomic_lines()) &&
       buffer_->last_highlighted_line() != buffer_->position().line) {
     // editor_state->ScheduleRedraw();
   }
-
-  position_ =
-      LineColumn(static_cast<size_t>(max(
-                     0, buffer_->Read(buffer_variables::view_start_line()))),
-                 buffer_->Read(buffer_variables::view_start_column()));
 }
 
 void BufferOutputProducer::WriteLine(Options options) {
@@ -570,8 +511,8 @@ void BufferOutputProducer::WriteLine(Options options) {
   if (!number_prefix.empty() && last_line_ == position_.line) {
     number_prefix = wstring(number_prefix.size() - 1, L' ') + L':';
   }
-  auto next_position = GetNextLine(
-      *buffer_, options.receiver->width() - number_prefix.size(), position_);
+  auto next_position =
+      GetNextLine(options.receiver->width() - number_prefix.size(), position_);
 
   std::set<size_t> current_cursors;
   auto it = cursors_.find(position_.line);
@@ -663,10 +604,9 @@ void BufferOutputProducer::WriteLine(Options options) {
         max(0, buffer_->Read(buffer_variables::line_width())));
     AddPadding(line_width, line->end_of_line_modifiers(),
                options.receiver.get());
-    LOG(INFO) << "XXXX position: " << position_;
     ShowAdditionalData(buffer_.get(), *line, position_, lines_shown_,
                        zoomed_out_tree_.get(), options.receiver.get(),
-                       &buffers_shown_);
+                       &buffers_shown_, view_start_.line);
   }
 
   if (active_cursor_column.has_value() && options.active_cursor != nullptr) {
