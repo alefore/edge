@@ -38,12 +38,16 @@ class BufferWidget : public Widget {
   void SetBuffer(std::weak_ptr<OpenBuffer> buffer);
 
  private:
+  // When either leaf_ or lines_ changes, recomputes internal data.
+  void RecomputeData();
+
   std::weak_ptr<OpenBuffer> leaf_;
   size_t lines_ = 0;
 
   // The position in the buffer where the view begins.
   LineColumn view_start_;
 
+  std::shared_ptr<const ParseTree> simplified_parse_tree_;
   std::shared_ptr<const ParseTree> zoomed_out_tree_;
 };
 

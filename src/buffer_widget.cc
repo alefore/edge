@@ -77,6 +77,29 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
 
 void BufferWidget::SetLines(size_t lines) {
   lines_ = lines;
+  RecomputeData();
+}
+
+size_t BufferWidget::lines() const { return lines_; }
+
+size_t BufferWidget::MinimumLines() {
+  auto buffer = Lock();
+  return buffer == nullptr
+             ? 0
+             : max(0,
+                   buffer->Read(buffer_variables::buffer_list_context_lines()));
+}
+
+LineColumn BufferWidget::view_start() const { return view_start_; }
+
+std::shared_ptr<OpenBuffer> BufferWidget::Lock() const { return leaf_.lock(); }
+
+void BufferWidget::SetBuffer(std::weak_ptr<OpenBuffer> buffer) {
+  leaf_ = std::move(buffer);
+  RecomputeData();
+}
+
+void BufferWidget::RecomputeData() {
   auto buffer = leaf_.lock();
   if (buffer == nullptr) {
     view_start_ = LineColumn();
@@ -106,29 +129,12 @@ void BufferWidget::SetLines(size_t lines) {
   view_start_.column = GetDesiredViewStartColumn(buffer.get());
 
   auto simplified_parse_tree = buffer->simplified_parse_tree();
-  if (lines_ > 0 && simplified_parse_tree != nullptr) {
+  if (lines_ > 0 && simplified_parse_tree != nullptr &&
+      simplified_parse_tree != simplified_parse_tree_) {
     zoomed_out_tree_ = std::make_shared<ParseTree>(ZoomOutTree(
         *buffer->simplified_parse_tree(), buffer->lines_size(), lines_));
+    simplified_parse_tree_ = simplified_parse_tree;
   }
-}
-
-size_t BufferWidget::lines() const { return lines_; }
-
-size_t BufferWidget::MinimumLines() {
-  auto buffer = Lock();
-  return buffer == nullptr
-             ? 0
-             : max(0,
-                   buffer->Read(buffer_variables::buffer_list_context_lines()));
-}
-
-LineColumn BufferWidget::view_start() const { return view_start_; }
-
-std::shared_ptr<OpenBuffer> BufferWidget::Lock() const { return leaf_.lock(); }
-
-void BufferWidget::SetBuffer(std::weak_ptr<OpenBuffer> buffer) {
-  leaf_ = std::move(buffer);
-  SetLines(lines_);  // Causes things to be recomputed.
 }
 
 }  // namespace editor
