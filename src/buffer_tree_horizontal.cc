@@ -100,8 +100,7 @@ size_t BufferTreeHorizontal::MinimumLines() {
 
 void BufferTreeHorizontal::SetActiveLeaf(size_t position) {
   CHECK(!children_.empty());
-  CHECK_LT(position, children_.size());
-  active_ = position;
+  active_ = position % children_.size();
 }
 
 // Returns the number of steps advanced.
