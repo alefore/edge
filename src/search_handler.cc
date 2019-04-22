@@ -46,7 +46,7 @@ vector<LineColumn> PerformSearch(const SearchOptions& options,
   vector<LineColumn> positions;
 
   auto traits = std::regex_constants::extended;
-  if (options.case_sensitive) {
+  if (!options.case_sensitive) {
     traits |= std::regex_constants::icase;
   }
   std::wregex pattern;
