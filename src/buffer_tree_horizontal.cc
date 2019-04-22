@@ -139,7 +139,7 @@ size_t BufferTreeHorizontal::CountLeafs() const {
   int count = 0;
   for (const auto& child : children_) {
     auto casted_child = dynamic_cast<const BufferTreeHorizontal*>(child.get());
-    count += casted_child == nullptr ? count++ : casted_child->CountLeafs();
+    count += casted_child == nullptr ? 1 : casted_child->CountLeafs();
   }
   return count;
 }
