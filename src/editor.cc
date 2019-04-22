@@ -502,7 +502,10 @@ bool EditorState::has_current_buffer() const {
   return current_buffer() != nullptr;
 }
 shared_ptr<OpenBuffer> EditorState::current_buffer() {
-  return buffer_tree_->GetActiveLeaf()->Lock();
+  CHECK(buffer_tree_ != nullptr);
+  auto leaf = buffer_tree_->GetActiveLeaf();
+  CHECK(leaf != nullptr);
+  return leaf->Lock();
 }
 const shared_ptr<OpenBuffer> EditorState::current_buffer() const {
   return buffer_tree_->GetActiveLeaf()->Lock();

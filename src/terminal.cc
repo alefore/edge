@@ -12,7 +12,7 @@
 #include "src/delegating_output_receiver.h"
 #include "src/delegating_output_receiver_with_internal_modifiers.h"
 #include "src/dirname.h"
-#include "src/framed_output_producer.h"
+#include "src/frame_output_producer.h"
 #include "src/horizontal_split_output_producer.h"
 #include "src/line_marks.h"
 #include "src/output_receiver.h"

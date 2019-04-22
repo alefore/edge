@@ -10,7 +10,7 @@
 #include "src/buffer_output_producer.h"
 #include "src/buffer_variables.h"
 #include "src/buffer_widget.h"
-#include "src/framed_output_producer.h"
+#include "src/frame_output_producer.h"
 #include "src/horizontal_split_output_producer.h"
 #include "src/widget.h"
 #include "src/wstring.h"
@@ -45,6 +45,9 @@ wstring BufferTreeHorizontal::ToString() const {
 }
 
 BufferWidget* BufferTreeHorizontal::GetActiveLeaf() {
+  CHECK(!children_.empty());
+  CHECK_LT(active_, children_.size());
+  CHECK(children_[active_] != nullptr);
   return children_[active_]->GetActiveLeaf();
 }
 
@@ -53,8 +56,20 @@ std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
   for (size_t index = 0; index < children_.size(); index++) {
     auto child_producer = children_[index]->CreateOutputProducer();
     if (children_.size() > 1) {
-      child_producer = std::make_unique<FramedOutputProducer>(
-          std::move(child_producer), children_[index]->Name(), index);
+      std::vector<std::unique_ptr<OutputProducer>> nested_producers;
+      FrameOutputProducer::FrameOptions frame_options;
+      frame_options.title = children_[index]->Name();
+      frame_options.position_in_parent = index;
+      if (index == active_) {
+        frame_options.active_state =
+            FrameOutputProducer::FrameOptions::ActiveState::kActive;
+      }
+      nested_producers.push_back(
+          std::make_unique<FrameOutputProducer>(std::move(frame_options)));
+      nested_producers.push_back(std::move(child_producer));
+      child_producer = std::make_unique<HorizontalSplitOutputProducer>(
+          std::move(nested_producers),
+          std::vector<size_t>({1, lines_per_child_[index] - 1}), 1);
     }
     output_producers.push_back(std::move(child_producer));
   }
@@ -137,12 +152,14 @@ void BufferTreeHorizontal::PushChildren(std::unique_ptr<Widget> children) {
 size_t BufferTreeHorizontal::children_count() const { return children_.size(); }
 
 void BufferTreeHorizontal::RemoveActiveLeaf() {
+  CHECK_LT(active_, children_.size());
   if (children_.size() == 1) {
     children_[0] = BufferWidget::New(std::weak_ptr<OpenBuffer>());
   } else {
     children_.erase(children_.begin() + active_);
     active_ %= children_.size();
   }
+  CHECK_LT(active_, children_.size());
   RecomputeLinesPerChild();
 }
 
@@ -155,6 +172,7 @@ void BufferTreeHorizontal::AddSplit() {
 void BufferTreeHorizontal::ZoomToActiveLeaf() {
   children_[0] = std::move(children_[active_]);
   children_.resize(1);
+  active_ = 0;
   RecomputeLinesPerChild();
 }
 

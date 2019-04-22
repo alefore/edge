@@ -51,8 +51,8 @@ src/dirname.cc \
 src/dirname.h \
 src/direction.cc \
 src/editor.cc \
-src/framed_output_producer.cc \
-src/framed_output_producer.h \
+src/frame_output_producer.cc \
+src/frame_output_producer.h \
 src/file_link_mode.cc \
 src/find_mode.cc \
 src/goto_command.cc \
