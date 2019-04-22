@@ -28,21 +28,21 @@ class BufferTreeHorizontal : public BufferTree {
                        std::vector<std::unique_ptr<BufferTree>> children,
                        size_t active);
 
-  BufferTreeLeaf* GetActiveLeaf() override;
-
-  void SetActiveLeaf(size_t position) override;
-  void AdvanceActiveLeaf(int delta) override;
-
-  size_t CountLeafs() const override;
-
-  wstring Name() const override;
+  wstring Name() const;
   wstring ToString() const override;
+
+  BufferTreeLeaf* GetActiveLeaf() override;
 
   std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 
   void SetLines(size_t lines) override;
   size_t lines() const override;
   size_t MinimumLines() override;
+
+  void SetActiveLeaf(size_t position);
+  void AdvanceActiveLeaf(int delta);
+
+  size_t CountLeafs() const;
 
   void PushChildren(std::unique_ptr<BufferTree> children);
   size_t children_count() const;

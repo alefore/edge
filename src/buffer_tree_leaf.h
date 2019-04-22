@@ -21,15 +21,10 @@ class BufferTreeLeaf : public BufferTree {
 
   BufferTreeLeaf(ConstructorAccessTag, std::weak_ptr<OpenBuffer> buffer);
 
-  BufferTreeLeaf* GetActiveLeaf() override;
-
-  void SetActiveLeaf(size_t position) override;
-  void AdvanceActiveLeaf(int delta) override;
-
-  size_t CountLeafs() const override;
-
   wstring Name() const override;
   wstring ToString() const override;
+
+  BufferTreeLeaf* GetActiveLeaf() override;
 
   std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 

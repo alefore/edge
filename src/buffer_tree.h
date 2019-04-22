@@ -19,17 +19,10 @@ class BufferTree {
  public:
   ~BufferTree() = default;
 
-  virtual BufferTreeLeaf* GetActiveLeaf() = 0;
-
-  virtual void SetActiveLeaf(size_t position) = 0;
-
-  // Move the active leaf by this number of positions.
-  virtual void AdvanceActiveLeaf(int delta) = 0;
-
-  virtual size_t CountLeafs() const = 0;
-
   virtual wstring Name() const = 0;
   virtual wstring ToString() const = 0;
+
+  virtual BufferTreeLeaf* GetActiveLeaf() = 0;
 
   virtual std::unique_ptr<OutputProducer> CreateOutputProducer() = 0;
 

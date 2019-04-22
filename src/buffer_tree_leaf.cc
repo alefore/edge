@@ -51,14 +51,6 @@ std::unique_ptr<BufferTreeLeaf> BufferTreeLeaf::New(
   return std::make_unique<BufferTreeLeaf>(ConstructorAccessTag(), buffer);
 }
 
-BufferTreeLeaf* BufferTreeLeaf::GetActiveLeaf() { return this; }
-
-void BufferTreeLeaf::SetActiveLeaf(size_t) {}
-
-void BufferTreeLeaf::AdvanceActiveLeaf(int) {}
-
-size_t BufferTreeLeaf::CountLeafs() const { return 1; }
-
 wstring BufferTreeLeaf::Name() const {
   auto buffer = Lock();
   return buffer == nullptr ? L"" : buffer->Read(buffer_variables::name());
@@ -71,6 +63,8 @@ wstring BufferTreeLeaf::ToString() const {
                             : buffer->Read(buffer_variables::name())) +
          L"]";
 }
+
+BufferTreeLeaf* BufferTreeLeaf::GetActiveLeaf() { return this; }
 
 std::unique_ptr<OutputProducer> BufferTreeLeaf::CreateOutputProducer() {
   auto buffer = Lock();
