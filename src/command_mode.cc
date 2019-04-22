@@ -862,19 +862,16 @@ void ToggleBoolVariable(EditorState* editor_state, wstring binding,
   map_mode->RegisterVariableCommand(variable_name, binding);
 }
 
-void ToggleIntVariable(EditorState* editor_state, wstring binding,
-                       wstring variable_name, int default_value,
+void ToggleIntVariable(EditorState* editor_state, wstring binding, wstring name,
                        MapModeCommands* map_mode) {
-  wstring command = L"// Variables: Toggle buffer variable: " + variable_name +
+  wstring command = L"// Variables: Toggle buffer variable: " + name +
                     L"\nBuffer tmp_buffer = CurrentBuffer();" +
-                    L"tmp_buffer.set_" + variable_name + L"(" + L"tmp_buffer." +
-                    variable_name + L"() != 0 ? 0 : " +
-                    std::to_wstring(default_value) + L"); " + L"SetStatus(\"" +
-                    variable_name + L" := \" + tmp_buffer." + variable_name +
-                    L"().tostring());";
+                    L"tmp_buffer.set_" + name +
+                    L"(repetitions());set_repetitions(1);SetStatus(\"" + name +
+                    L" := \" + tmp_buffer." + name + L"().tostring());";
   LOG(INFO) << "Command: " << command;
   map_mode->Add(binding, NewCppCommand(editor_state->environment(), command));
-  map_mode->RegisterVariableCommand(variable_name, binding);
+  map_mode->RegisterVariableCommand(name, binding);
 }
 }  // namespace
 
@@ -1014,7 +1011,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
                      commands.get());
   ToggleBoolVariable(editor_state, L"v/c", L"search_case_sensitive",
                      commands.get());
-  ToggleIntVariable(editor_state, L"vc", L"buffer_list_context_lines", 10,
+  ToggleIntVariable(editor_state, L"vc", L"buffer_list_context_lines",
                     commands.get());
 
   commands->Add({Terminal::ESCAPE}, std::make_unique<ResetStateCommand>());
