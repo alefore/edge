@@ -53,12 +53,6 @@ BufferTreeHorizontal::BufferTreeHorizontal(
     size_t active)
     : children_(std::move(children)), active_(active) {}
 
-std::shared_ptr<OpenBuffer> BufferTreeHorizontal::LockActiveLeaf() const {
-  CHECK(!children_.empty());
-  CHECK_LT(active_, children_.size());
-  return children_[active_]->LockActiveLeaf();
-}
-
 BufferTreeLeaf* BufferTreeHorizontal::GetActiveLeaf() {
   return children_[active_]->GetActiveLeaf();
 }

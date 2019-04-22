@@ -51,10 +51,6 @@ std::unique_ptr<BufferTreeLeaf> BufferTreeLeaf::New(
   return std::make_unique<BufferTreeLeaf>(ConstructorAccessTag(), buffer);
 }
 
-std::shared_ptr<OpenBuffer> BufferTreeLeaf::LockActiveLeaf() const {
-  return leaf_.lock();
-}
-
 BufferTreeLeaf* BufferTreeLeaf::GetActiveLeaf() { return this; }
 
 void BufferTreeLeaf::SetActiveLeafBuffer(std::shared_ptr<OpenBuffer> buffer) {
@@ -69,7 +65,7 @@ void BufferTreeLeaf::AdvanceActiveLeaf(int) {}
 size_t BufferTreeLeaf::CountLeafs() const { return 1; }
 
 wstring BufferTreeLeaf::Name() const {
-  auto buffer = LockActiveLeaf();
+  auto buffer = Lock();
   return buffer == nullptr ? L"" : buffer->Read(buffer_variables::name());
 }
 
@@ -82,7 +78,7 @@ wstring BufferTreeLeaf::ToString() const {
 }
 
 std::unique_ptr<OutputProducer> BufferTreeLeaf::CreateOutputProducer() {
-  auto buffer = LockActiveLeaf();
+  auto buffer = Lock();
   if (buffer == nullptr) {
     return nullptr;
   }
@@ -122,7 +118,7 @@ void BufferTreeLeaf::SetLines(size_t lines) {
 size_t BufferTreeLeaf::lines() const { return lines_; }
 
 size_t BufferTreeLeaf::MinimumLines() {
-  auto buffer = LockActiveLeaf();
+  auto buffer = Lock();
   return buffer == nullptr
              ? 0
              : max(0,
@@ -130,6 +126,10 @@ size_t BufferTreeLeaf::MinimumLines() {
 }
 
 LineColumn BufferTreeLeaf::view_start() const { return view_start_; }
+
+std::shared_ptr<OpenBuffer> BufferTreeLeaf::Lock() const {
+  return leaf_.lock();
+}
 
 }  // namespace editor
 }  // namespace afc

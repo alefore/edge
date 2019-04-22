@@ -19,8 +19,6 @@ class BufferTree {
  public:
   ~BufferTree() = default;
 
-  virtual std::shared_ptr<OpenBuffer> LockActiveLeaf() const = 0;
-
   virtual BufferTreeLeaf* GetActiveLeaf() = 0;
 
   virtual void SetActiveLeafBuffer(std::shared_ptr<OpenBuffer> buffer) = 0;

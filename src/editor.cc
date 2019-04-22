@@ -419,7 +419,7 @@ EditorState::~EditorState() {
 }
 
 void EditorState::CheckPosition() {
-  auto buffer = buffer_tree_->LockActiveLeaf();
+  auto buffer = buffer_tree_->GetActiveLeaf()->Lock();
   if (buffer != nullptr) {
     buffer->CheckPosition();
   }
@@ -491,7 +491,7 @@ void EditorState::AdvanceActiveLeaf(int delta) {
 }
 
 void EditorState::ZoomToLeaf() {
-  buffer_tree_ = BufferTreeLeaf::New(buffer_tree_->LockActiveLeaf());
+  buffer_tree_ = BufferTreeLeaf::New(buffer_tree_->GetActiveLeaf()->Lock());
   ScheduleRedraw();
 }
 
@@ -504,10 +504,10 @@ bool EditorState::has_current_buffer() const {
   return current_buffer() != nullptr;
 }
 shared_ptr<OpenBuffer> EditorState::current_buffer() {
-  return buffer_tree_->LockActiveLeaf();
+  return buffer_tree_->GetActiveLeaf()->Lock();
 }
 const shared_ptr<OpenBuffer> EditorState::current_buffer() const {
-  return buffer_tree_->LockActiveLeaf();
+  return buffer_tree_->GetActiveLeaf()->Lock();
 }
 
 wstring GetBufferName(const wstring& prefix, size_t count) {

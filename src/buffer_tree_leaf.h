@@ -21,8 +21,6 @@ class BufferTreeLeaf : public BufferTree {
 
   BufferTreeLeaf(ConstructorAccessTag, std::weak_ptr<OpenBuffer> buffer);
 
-  std::shared_ptr<OpenBuffer> LockActiveLeaf() const override;
-
   BufferTreeLeaf* GetActiveLeaf() override;
 
   void SetActiveLeafBuffer(std::shared_ptr<OpenBuffer> buffer) override;
@@ -40,6 +38,9 @@ class BufferTreeLeaf : public BufferTree {
   size_t lines() const override;
   size_t MinimumLines() override;
   LineColumn view_start() const;
+
+  // Custom methods.
+  std::shared_ptr<OpenBuffer> Lock() const;
 
  private:
   std::weak_ptr<OpenBuffer> leaf_;

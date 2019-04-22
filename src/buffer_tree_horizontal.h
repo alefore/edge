@@ -32,8 +32,6 @@ class BufferTreeHorizontal : public BufferTree {
   static std::unique_ptr<BufferTree> RemoveActiveLeaf(
       std::unique_ptr<BufferTree> tree);
 
-  std::shared_ptr<OpenBuffer> LockActiveLeaf() const override;
-
   BufferTreeLeaf* GetActiveLeaf() override;
 
   void SetActiveLeafBuffer(std::shared_ptr<OpenBuffer> buffer) override;
