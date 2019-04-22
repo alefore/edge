@@ -55,6 +55,8 @@ std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
   std::vector<std::unique_ptr<OutputProducer>> output_producers;
   for (size_t index = 0; index < children_.size(); index++) {
     auto child_producer = children_[index]->CreateOutputProducer();
+    std::shared_ptr<const OpenBuffer> buffer =
+        children_[index]->GetActiveLeaf()->Lock();
     if (children_.size() > 1) {
       std::vector<std::unique_ptr<OutputProducer>> nested_producers;
       FrameOutputProducer::FrameOptions frame_options;
@@ -63,6 +65,9 @@ std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
       if (index == active_) {
         frame_options.active_state =
             FrameOutputProducer::FrameOptions::ActiveState::kActive;
+      }
+      if (buffer != nullptr) {
+        frame_options.extra_information = buffer->FlagsString();
       }
       nested_producers.push_back(
           std::make_unique<FrameOutputProducer>(std::move(frame_options)));

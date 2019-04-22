@@ -17,6 +17,7 @@ class FrameOutputProducer : public OutputProducer {
     std::optional<size_t> position_in_parent;
     enum class ActiveState { kActive, kInactive };
     ActiveState active_state = ActiveState::kInactive;
+    wstring extra_information;
   };
 
   FrameOutputProducer(FrameOptions options) : options_(std::move(options)) {}
