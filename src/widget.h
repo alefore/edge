@@ -1,5 +1,5 @@
-#ifndef __AFC_EDITOR_BUFFER_TREE_H__
-#define __AFC_EDITOR_BUFFER_TREE_H__
+#ifndef __AFC_EDITOR_WIDGET_H__
+#define __AFC_EDITOR_WIDGET_H__
 
 #include <list>
 #include <memory>
@@ -13,16 +13,16 @@
 namespace afc {
 namespace editor {
 
-class BufferTreeLeaf;
+class BufferWidget;
 
-class BufferTree {
+class Widget {
  public:
-  ~BufferTree() = default;
+  ~Widget() = default;
 
   virtual wstring Name() const = 0;
   virtual wstring ToString() const = 0;
 
-  virtual BufferTreeLeaf* GetActiveLeaf() = 0;
+  virtual BufferWidget* GetActiveLeaf() = 0;
 
   virtual std::unique_ptr<OutputProducer> CreateOutputProducer() = 0;
 
@@ -31,9 +31,9 @@ class BufferTree {
   virtual size_t MinimumLines() = 0;
 };
 
-std::ostream& operator<<(std::ostream& os, const BufferTree& lc);
+std::ostream& operator<<(std::ostream& os, const Widget& lc);
 
 }  // namespace editor
 }  // namespace afc
 
-#endif  // __AFC_EDITOR_BUFFER_TREE_H__
+#endif  // __AFC_EDITOR_WIDGET_H__

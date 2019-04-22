@@ -1,4 +1,4 @@
-#include "src/buffer_tree_leaf.h"
+#include "src/buffer_widget.h"
 
 #include <glog/logging.h>
 
@@ -9,8 +9,8 @@
 
 #include "src/buffer.h"
 #include "src/buffer_output_producer.h"
-#include "src/buffer_tree.h"
 #include "src/buffer_variables.h"
+#include "src/widget.h"
 #include "src/wstring.h"
 
 namespace afc {
@@ -41,22 +41,22 @@ size_t GetDesiredViewStartColumn(OpenBuffer* buffer) {
 }
 }  // namespace
 
-BufferTreeLeaf::BufferTreeLeaf(ConstructorAccessTag,
-                               std::weak_ptr<OpenBuffer> buffer)
+BufferWidget::BufferWidget(ConstructorAccessTag,
+                           std::weak_ptr<OpenBuffer> buffer)
     : leaf_(buffer) {}
 
 /* static */
-std::unique_ptr<BufferTreeLeaf> BufferTreeLeaf::New(
+std::unique_ptr<BufferWidget> BufferWidget::New(
     std::weak_ptr<OpenBuffer> buffer) {
-  return std::make_unique<BufferTreeLeaf>(ConstructorAccessTag(), buffer);
+  return std::make_unique<BufferWidget>(ConstructorAccessTag(), buffer);
 }
 
-wstring BufferTreeLeaf::Name() const {
+wstring BufferWidget::Name() const {
   auto buffer = Lock();
   return buffer == nullptr ? L"" : buffer->Read(buffer_variables::name());
 }
 
-wstring BufferTreeLeaf::ToString() const {
+wstring BufferWidget::ToString() const {
   auto buffer = leaf_.lock();
   return L"[buffer tree leaf" +
          (buffer == nullptr ? L"nullptr"
@@ -64,9 +64,9 @@ wstring BufferTreeLeaf::ToString() const {
          L"]";
 }
 
-BufferTreeLeaf* BufferTreeLeaf::GetActiveLeaf() { return this; }
+BufferWidget* BufferWidget::GetActiveLeaf() { return this; }
 
-std::unique_ptr<OutputProducer> BufferTreeLeaf::CreateOutputProducer() {
+std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
   auto buffer = Lock();
   if (buffer == nullptr) {
     return nullptr;
@@ -74,7 +74,7 @@ std::unique_ptr<OutputProducer> BufferTreeLeaf::CreateOutputProducer() {
   return std::make_unique<BufferOutputProducer>(buffer, lines_, view_start_);
 }
 
-void BufferTreeLeaf::SetLines(size_t lines) {
+void BufferWidget::SetLines(size_t lines) {
   lines_ = lines;
   auto buffer = leaf_.lock();
   if (buffer == nullptr) {
@@ -104,9 +104,9 @@ void BufferTreeLeaf::SetLines(size_t lines) {
   view_start_.column = GetDesiredViewStartColumn(buffer.get());
 }
 
-size_t BufferTreeLeaf::lines() const { return lines_; }
+size_t BufferWidget::lines() const { return lines_; }
 
-size_t BufferTreeLeaf::MinimumLines() {
+size_t BufferWidget::MinimumLines() {
   auto buffer = Lock();
   return buffer == nullptr
              ? 0
@@ -114,13 +114,11 @@ size_t BufferTreeLeaf::MinimumLines() {
                    buffer->Read(buffer_variables::buffer_list_context_lines()));
 }
 
-LineColumn BufferTreeLeaf::view_start() const { return view_start_; }
+LineColumn BufferWidget::view_start() const { return view_start_; }
 
-std::shared_ptr<OpenBuffer> BufferTreeLeaf::Lock() const {
-  return leaf_.lock();
-}
+std::shared_ptr<OpenBuffer> BufferWidget::Lock() const { return leaf_.lock(); }
 
-void BufferTreeLeaf::SetBuffer(std::weak_ptr<OpenBuffer> buffer) {
+void BufferWidget::SetBuffer(std::weak_ptr<OpenBuffer> buffer) {
   leaf_ = std::move(buffer);
   SetLines(lines_);  // Causes things to be recomputed.
 }

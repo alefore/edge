@@ -8,30 +8,30 @@
 
 #include "src/buffer.h"
 #include "src/buffer_output_producer.h"
-#include "src/buffer_tree.h"
-#include "src/buffer_tree_leaf.h"
 #include "src/buffer_variables.h"
+#include "src/buffer_widget.h"
 #include "src/framed_output_producer.h"
 #include "src/horizontal_split_output_producer.h"
+#include "src/widget.h"
 #include "src/wstring.h"
 
 namespace afc {
 namespace editor {
 /* static */ std::unique_ptr<BufferTreeHorizontal> BufferTreeHorizontal::New(
-    std::vector<std::unique_ptr<BufferTree>> children, size_t active) {
+    std::vector<std::unique_ptr<Widget>> children, size_t active) {
   return std::make_unique<BufferTreeHorizontal>(ConstructorAccessTag(),
                                                 std::move(children), active);
 }
 
 /* static */ std::unique_ptr<BufferTreeHorizontal> BufferTreeHorizontal::New(
-    std::unique_ptr<BufferTree> child) {
-  std::vector<std::unique_ptr<BufferTree>> children;
+    std::unique_ptr<Widget> child) {
+  std::vector<std::unique_ptr<Widget>> children;
   children.push_back(std::move(child));
   return BufferTreeHorizontal::New(std::move(children), 0);
 }
 
 BufferTreeHorizontal::BufferTreeHorizontal(
-    ConstructorAccessTag, std::vector<std::unique_ptr<BufferTree>> children,
+    ConstructorAccessTag, std::vector<std::unique_ptr<Widget>> children,
     size_t active)
     : children_(std::move(children)), active_(active) {}
 
@@ -44,7 +44,7 @@ wstring BufferTreeHorizontal::ToString() const {
   return output;
 }
 
-BufferTreeLeaf* BufferTreeHorizontal::GetActiveLeaf() {
+BufferWidget* BufferTreeHorizontal::GetActiveLeaf() {
   return children_[active_]->GetActiveLeaf();
 }
 
@@ -129,7 +129,7 @@ size_t BufferTreeHorizontal::CountLeafs() const {
   return count;
 }
 
-void BufferTreeHorizontal::PushChildren(std::unique_ptr<BufferTree> children) {
+void BufferTreeHorizontal::PushChildren(std::unique_ptr<Widget> children) {
   children_.push_back(std::move(children));
   RecomputeLinesPerChild();
 }
@@ -138,7 +138,7 @@ size_t BufferTreeHorizontal::children_count() const { return children_.size(); }
 
 void BufferTreeHorizontal::RemoveActiveLeaf() {
   if (children_.size() == 1) {
-    children_[0] = BufferTreeLeaf::New(std::weak_ptr<OpenBuffer>());
+    children_[0] = BufferWidget::New(std::weak_ptr<OpenBuffer>());
   } else {
     children_.erase(children_.begin() + active_);
     active_ %= children_.size();
@@ -147,7 +147,7 @@ void BufferTreeHorizontal::RemoveActiveLeaf() {
 }
 
 void BufferTreeHorizontal::AddSplit() {
-  PushChildren(BufferTreeLeaf::New(std::weak_ptr<OpenBuffer>()));
+  PushChildren(BufferWidget::New(std::weak_ptr<OpenBuffer>()));
   SetActiveLeaf(children_count() - 1);
   RecomputeLinesPerChild();
 }

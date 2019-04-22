@@ -4,34 +4,34 @@
 #include <list>
 #include <memory>
 
-#include "src/buffer_tree.h"
 #include "src/output_producer.h"
 #include "src/parse_tree.h"
 #include "src/tree.h"
 #include "src/vm/public/environment.h"
+#include "src/widget.h"
 
 namespace afc {
 namespace editor {
 
-class BufferTreeHorizontal : public BufferTree {
+class BufferTreeHorizontal : public Widget {
  private:
   struct ConstructorAccessTag {};
 
  public:
   static std::unique_ptr<BufferTreeHorizontal> New(
-      std::vector<std::unique_ptr<BufferTree>> children, size_t active);
+      std::vector<std::unique_ptr<Widget>> children, size_t active);
 
   static std::unique_ptr<BufferTreeHorizontal> New(
-      std::unique_ptr<BufferTree> children);
+      std::unique_ptr<Widget> children);
 
   BufferTreeHorizontal(ConstructorAccessTag,
-                       std::vector<std::unique_ptr<BufferTree>> children,
+                       std::vector<std::unique_ptr<Widget>> children,
                        size_t active);
 
   wstring Name() const;
   wstring ToString() const override;
 
-  BufferTreeLeaf* GetActiveLeaf() override;
+  BufferWidget* GetActiveLeaf() override;
 
   std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 
@@ -44,7 +44,7 @@ class BufferTreeHorizontal : public BufferTree {
 
   size_t CountLeafs() const;
 
-  void PushChildren(std::unique_ptr<BufferTree> children);
+  void PushChildren(std::unique_ptr<Widget> children);
   size_t children_count() const;
 
   void RemoveActiveLeaf();
@@ -57,7 +57,7 @@ class BufferTreeHorizontal : public BufferTree {
   // Doesn't wrap. Returns the number of steps pending.
   int AdvanceActiveLeafWithoutWrapping(int delta);
 
-  std::vector<std::unique_ptr<BufferTree>> children_;
+  std::vector<std::unique_ptr<Widget>> children_;
   size_t active_;
 
   size_t lines_;

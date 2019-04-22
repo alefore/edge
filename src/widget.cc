@@ -1,4 +1,4 @@
-#include "src/buffer_tree.h"
+#include "src/widget.h"
 
 #include <cctype>
 #include <ostream>
@@ -8,7 +8,7 @@
 namespace afc {
 namespace editor {
 
-std::ostream& operator<<(std::ostream& os, const BufferTree& lc) {
+std::ostream& operator<<(std::ostream& os, const Widget& lc) {
   os << lc.ToString();
   return os;
 }

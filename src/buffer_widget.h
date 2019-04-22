@@ -4,27 +4,27 @@
 #include <list>
 #include <memory>
 
-#include "src/buffer_tree.h"
 #include "src/output_producer.h"
 #include "src/parse_tree.h"
 #include "src/tree.h"
+#include "src/widget.h"
 
 namespace afc {
 namespace editor {
 
-class BufferTreeLeaf : public BufferTree {
+class BufferWidget : public Widget {
  private:
   struct ConstructorAccessTag {};
 
  public:
-  static std::unique_ptr<BufferTreeLeaf> New(std::weak_ptr<OpenBuffer> buffer);
+  static std::unique_ptr<BufferWidget> New(std::weak_ptr<OpenBuffer> buffer);
 
-  BufferTreeLeaf(ConstructorAccessTag, std::weak_ptr<OpenBuffer> buffer);
+  BufferWidget(ConstructorAccessTag, std::weak_ptr<OpenBuffer> buffer);
 
   wstring Name() const override;
   wstring ToString() const override;
 
-  BufferTreeLeaf* GetActiveLeaf() override;
+  BufferWidget* GetActiveLeaf() override;
 
   std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 

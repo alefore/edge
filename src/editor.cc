@@ -464,7 +464,7 @@ void EditorState::AddHorizontalSplit() {
 
 void EditorState::SetHorizontalSplitsWithAllBuffers() {
   auto active_buffer = current_buffer();
-  std::vector<std::unique_ptr<BufferTree>> buffers;
+  std::vector<std::unique_ptr<Widget>> buffers;
   size_t index_active = 0;
   for (auto& buffer : buffers_) {
     if (!buffer.second->Read(buffer_variables::show_in_buffers_list())) {
@@ -473,7 +473,7 @@ void EditorState::SetHorizontalSplitsWithAllBuffers() {
     if (buffer.second == active_buffer) {
       index_active = buffers.size();
     }
-    buffers.push_back(BufferTreeLeaf::New(buffer.second));
+    buffers.push_back(BufferWidget::New(buffer.second));
   }
   CHECK(!buffers.empty());
   buffer_tree_ = BufferTreeHorizontal::New(std::move(buffers), index_active);

@@ -16,16 +16,14 @@ src/args.cc \
 src/args.h \
 src/buffer.cc \
 src/buffer.h \
+src/buffer_widget.cc \
+src/buffer_widget.h \
 src/buffer_contents.cc \
 src/buffer_contents.h \
 src/buffer_output_producer.cc \
 src/buffer_output_producer.h \
-src/buffer_tree.cc \
-src/buffer_tree.h \
 src/buffer_tree_horizontal.cc \
 src/buffer_tree_horizontal.h \
-src/buffer_tree_leaf.cc \
-src/buffer_tree_leaf.h \
 src/buffer_variables.cc \
 src/buffer_variables.h \
 src/cpp_command.cc \
@@ -148,6 +146,8 @@ src/vm/internal/negate_expression.cc \
 src/vm/internal/logical_expression.cc \
 src/vm/internal/variable_lookup.cc \
 src/vm/internal/wstring.cc \
+src/widget.cc \
+src/widget.h \
 src/wstring.cc
 
 CLEANFILES = src/vm/internal/cpp.cc src/vm/internal/cpp.h
