@@ -238,6 +238,22 @@ void BufferTreeHorizontal::SetBuffersVisible(BuffersVisible buffers_visible) {
 void BufferTreeHorizontal::RecomputeLinesPerChild() {
   static const int kFrameLines = 1;
 
+  std::vector<std::unique_ptr<Widget>> new_children;
+  std::optional<int> new_active;
+  for (size_t i = 0; i < children_.size(); i++) {
+    auto leaf = children_[i]->GetActiveLeaf();
+    if (leaf != children_[i].get() || leaf->Lock() != nullptr) {
+      if (active_ == i) {
+        new_active = new_children.size();
+      }
+      new_children.push_back(std::move(children_[i]));
+    }
+  }
+  if (!new_children.empty()) {
+    children_ = std::move(new_children);
+    active_ = new_active.value_or(0);
+  }
+
   size_t lines_given = 0;
 
   lines_per_child_.clear();

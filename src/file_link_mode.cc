@@ -586,6 +586,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
 std::shared_ptr<OpenBuffer> OpenAnonymousBuffer(EditorState* editor_state) {
   OpenFileOptions options;
   options.editor_state = editor_state;
+  options.insertion_type = BufferTreeHorizontal::InsertionType::kSkip;
   return OpenFile(options)->second;
 }
 
