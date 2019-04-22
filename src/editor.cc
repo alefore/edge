@@ -379,7 +379,7 @@ Environment EditorState::BuildEditorEnvironment() {
             options.path = args[0]->str;
             options.insertion_type =
                 args[1]->boolean
-                    ? BufferTreeHorizontal::InsertionType::kReuseCurrent
+                    ? BufferTreeHorizontal::InsertionType::kSearchOrCreate
                     : BufferTreeHorizontal::InsertionType::kSkip;
             return Value::NewObject(L"Buffer", OpenFile(options)->second);
           }));
