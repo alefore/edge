@@ -13,6 +13,7 @@
 #include "src/audio.h"
 #include "src/buffer.h"
 #include "src/buffer_tree.h"
+#include "src/buffer_tree_leaf.h"
 #include "src/command_mode.h"
 #include "src/direction.h"
 #include "src/editor_mode.h"

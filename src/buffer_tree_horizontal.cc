@@ -9,6 +9,7 @@
 #include "src/buffer.h"
 #include "src/buffer_output_producer.h"
 #include "src/buffer_tree.h"
+#include "src/buffer_tree_leaf.h"
 #include "src/buffer_variables.h"
 #include "src/framed_output_producer.h"
 #include "src/horizontal_split_output_producer.h"
