@@ -442,7 +442,7 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
     return it->second;
   }
   options.path = (*editor_state->edge_path().begin()) + L"/search_paths";
-  options.make_current_buffer = false;
+  options.insertion_type = BufferTreeHorizontal::InsertionType::kSkip;
   options.use_search_paths = false;
   it = OpenFile(options);
   CHECK(it != editor_state->buffers()->end());
@@ -571,10 +571,9 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   if (position.has_value()) {
     it.first->second->set_position(position.value());
   }
-  if (options.make_current_buffer) {
-    editor_state->set_current_buffer(it.first->second);
-    editor_state->ScheduleRedraw();
-  }
+  editor_state->buffer_tree()->InsertChildren(it.first->second,
+                                              options.insertion_type);
+  editor_state->ScheduleRedraw();
   if (!pattern.empty()) {
     SearchOptions search_options;
     search_options.starting_position = it.first->second->position();

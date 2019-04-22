@@ -57,7 +57,7 @@ class EditorState {
   }
 
   map<wstring, shared_ptr<OpenBuffer>>* buffers() { return &buffers_; }
-  Widget* buffer_tree() { return buffer_tree_.get(); }
+  BufferTreeHorizontal* buffer_tree() { return buffer_tree_.get(); }
 
   void set_current_buffer(shared_ptr<OpenBuffer> buffer);
   void AddHorizontalSplit();

@@ -149,6 +149,52 @@ size_t BufferTreeHorizontal::CountLeafs() const {
   return count;
 }
 
+BufferTreeHorizontal::LeafSearchResult BufferTreeHorizontal::SelectLeafFor(
+    OpenBuffer* buffer) {
+  for (size_t i = 0; i < children_.size(); i++) {
+    auto casted = dynamic_cast<BufferTreeHorizontal*>(children_[i].get());
+    LeafSearchResult result = LeafSearchResult::kNotFound;
+    if (casted == nullptr) {
+      if (children_[i]->GetActiveLeaf()->Lock().get() == buffer) {
+        result = LeafSearchResult::kFound;
+      }
+    } else {
+      result = casted->SelectLeafFor(buffer);
+    }
+    if (result == LeafSearchResult::kFound) {
+      active_ = i;
+      return result;
+    }
+  }
+  return LeafSearchResult::kNotFound;
+}
+
+void BufferTreeHorizontal::InsertChildren(std::shared_ptr<OpenBuffer> buffer,
+                                          InsertionType insertion_type) {
+  switch (insertion_type) {
+    case InsertionType::kSearchOrCreate:
+      if (SelectLeafFor(buffer.get()) == LeafSearchResult::kFound) {
+        RecomputeLinesPerChild();
+        return;
+      }
+      // Fallthrough.
+
+    case InsertionType::kCreate:
+      children_.push_back(BufferWidget::New(std::move(buffer)));
+      SetActiveLeaf(children_count() - 1);
+      RecomputeLinesPerChild();
+      break;
+
+    case InsertionType::kReuseCurrent:
+      GetActiveLeaf()->SetBuffer(buffer);
+      RecomputeLinesPerChild();
+      break;
+
+    case InsertionType::kSkip:
+      break;
+  }
+}
+
 void BufferTreeHorizontal::PushChildren(std::unique_ptr<Widget> children) {
   children_.push_back(std::move(children));
   RecomputeLinesPerChild();
@@ -169,8 +215,7 @@ void BufferTreeHorizontal::RemoveActiveLeaf() {
 }
 
 void BufferTreeHorizontal::AddSplit() {
-  PushChildren(BufferWidget::New(std::weak_ptr<OpenBuffer>()));
-  SetActiveLeaf(children_count() - 1);
+  InsertChildren(nullptr, InsertionType::kCreate);
   RecomputeLinesPerChild();
 }
 

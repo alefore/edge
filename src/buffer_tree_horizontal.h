@@ -46,6 +46,22 @@ class BufferTreeHorizontal : public Widget {
 
   size_t CountLeafs() const;
 
+  // Where should the new buffer be shown?
+  enum class InsertionType {
+    // Searches the tree of widgets to see if a leaf for the current buffer
+    // already exists. The first such widget found is selected as active.
+    // Otherwise, creates a new buffer widget.
+    kSearchOrCreate,
+    // Create a new buffer widget displaying the buffer.
+    kCreate,
+    // Show the buffer in the current buffer widget.
+    kReuseCurrent,
+    // Don't actually insert the children.
+    kSkip
+  };
+  void InsertChildren(std::shared_ptr<OpenBuffer> buffer,
+                      InsertionType insertion_type);
+
   void PushChildren(std::unique_ptr<Widget> children);
   size_t children_count() const;
 
@@ -57,6 +73,9 @@ class BufferTreeHorizontal : public Widget {
   void SetBuffersVisible(BuffersVisible buffers_visible);
 
  private:
+  enum class LeafSearchResult { kFound, kNotFound };
+  LeafSearchResult SelectLeafFor(OpenBuffer* buffer);
+
   void RecomputeLinesPerChild();
 
   // Doesn't wrap. Returns the number of steps pending.

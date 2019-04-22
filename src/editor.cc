@@ -364,19 +364,22 @@ Environment EditorState::BuildEditorEnvironment() {
 
   environment.Define(
       L"OpenFile",
-      Value::NewFunction({VMType::ObjectType(L"Buffer"), VMType::VM_STRING,
-                          VMType::VM_BOOLEAN},
-                         [this](vector<unique_ptr<Value>> args) {
-                           CHECK_EQ(args.size(), 2u);
-                           CHECK(args[0]->IsString());
-                           CHECK(args[1]->IsBool());
-                           OpenFileOptions options;
-                           options.editor_state = this;
-                           options.path = args[0]->str;
-                           options.make_current_buffer = args[1]->boolean;
-                           return Value::NewObject(L"Buffer",
-                                                   OpenFile(options)->second);
-                         }));
+      Value::NewFunction(
+          {VMType::ObjectType(L"Buffer"), VMType::VM_STRING,
+           VMType::VM_BOOLEAN},
+          [this](vector<unique_ptr<Value>> args) {
+            CHECK_EQ(args.size(), 2u);
+            CHECK(args[0]->IsString());
+            CHECK(args[1]->IsBool());
+            OpenFileOptions options;
+            options.editor_state = this;
+            options.path = args[0]->str;
+            options.insertion_type =
+                args[1]->boolean
+                    ? BufferTreeHorizontal::InsertionType::kReuseCurrent
+                    : BufferTreeHorizontal::InsertionType::kSkip;
+            return Value::NewObject(L"Buffer", OpenFile(options)->second);
+          }));
 
   RegisterBufferMethod(editor_type.get(), L"ToggleActiveCursors",
                        &OpenBuffer::ToggleActiveCursors);
@@ -683,7 +686,7 @@ void EditorState::PushPosition(LineColumn position) {
     options.editor_state = this;
     options.name = kPositionsBufferName;
     options.path = PathJoin(*edge_path().begin(), L"positions");
-    options.make_current_buffer = false;
+    options.insertion_type = BufferTreeHorizontal::InsertionType::kSkip;
     buffer_it = OpenFile(options);
     CHECK(buffer_it != buffers()->end());
     CHECK(buffer_it->second != nullptr);

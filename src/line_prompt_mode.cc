@@ -48,7 +48,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
   }
   options.path =
       (*editor_state->edge_path().begin()) + L"/" + name + L"_history";
-  options.make_current_buffer = false;
+  options.insertion_type = BufferTreeHorizontal::InsertionType::kSkip;
   it = OpenFile(options);
   CHECK(it != editor_state->buffers()->end());
   CHECK(it->second != nullptr);
