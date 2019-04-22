@@ -19,6 +19,7 @@ extern "C" {
 #include <glog/logging.h>
 
 #include "src/audio.h"
+#include "src/buffer_tree_horizontal.h"
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/dirname.h"

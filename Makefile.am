@@ -22,6 +22,8 @@ src/buffer_output_producer.cc \
 src/buffer_output_producer.h \
 src/buffer_tree.cc \
 src/buffer_tree.h \
+src/buffer_tree_horizontal.cc \
+src/buffer_tree_horizontal.h \
 src/buffer_variables.cc \
 src/buffer_variables.h \
 src/cpp_command.cc \
