@@ -183,6 +183,7 @@ void BufferTreeHorizontal::RecomputeLinesPerChild() {
 
   lines_per_child_.clear();
   for (auto& child : children_) {
+    CHECK(child != nullptr);
     lines_per_child_.push_back(child->MinimumLines() +
                                (children_.size() > 1 ? kFrameLines : 0));
     lines_given += lines_per_child_.back();

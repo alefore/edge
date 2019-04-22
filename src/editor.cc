@@ -457,8 +457,6 @@ void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer) {
 
 void EditorState::AddHorizontalSplit() {
   buffer_tree_->AddSplit();
-
-  set_screen_needs_hard_redraw(true);  // TODO: Why is this needed?
   ScheduleRedraw();
 }
 
@@ -477,10 +475,12 @@ void EditorState::SetHorizontalSplitsWithAllBuffers() {
   }
   CHECK(!buffers.empty());
   buffer_tree_ = BufferTreeHorizontal::New(std::move(buffers), index_active);
+  ScheduleRedraw();
 }
 
 void EditorState::SetActiveLeaf(size_t position) {
   buffer_tree_->SetActiveLeaf(position);
+  ScheduleRedraw();
 }
 
 void EditorState::AdvanceActiveLeaf(int delta) {

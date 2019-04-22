@@ -48,24 +48,15 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
     screen->HardRefresh();
     editor_state->ScheduleRedraw();
   }
-  auto buffer = editor_state->current_buffer();
-  if (buffer == nullptr) {
-    if (screen_state.needs_redraw) {
-      screen->Clear();
-    }
-    ShowStatus(*editor_state, screen);
-    screen->Refresh();
-    screen->Flush();
-    return;
-  }
-
   if (screen_state.needs_redraw) {
     ShowBuffer(editor_state, screen);
   }
   ShowStatus(*editor_state, screen);
+  auto buffer = editor_state->current_buffer();
   if (editor_state->status_prompt()) {
     screen->SetCursorVisibility(Screen::NORMAL);
-  } else if (buffer->Read(buffer_variables::atomic_lines()) ||
+  } else if (buffer == nullptr ||
+             buffer->Read(buffer_variables::atomic_lines()) ||
              !cursor_position_.has_value()) {
     screen->SetCursorVisibility(Screen::INVISIBLE);
   } else {

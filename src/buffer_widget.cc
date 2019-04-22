@@ -78,6 +78,7 @@ void BufferWidget::SetLines(size_t lines) {
   lines_ = lines;
   auto buffer = leaf_.lock();
   if (buffer == nullptr) {
+    view_start_ = LineColumn();
     return;
   }
   buffer->set_lines_for_zoomed_out_tree(lines);
