@@ -1,5 +1,7 @@
 ## Display
 
+* Consider using unicode watches to display duration, using exponential/logarithmic growth.
+
 ### Syntax
 
 Correctly handle: '\000'
