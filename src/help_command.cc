@@ -20,12 +20,7 @@ using std::unique_ptr;
 
 namespace {
 wstring DescribeSequence(wstring input) {
-  wstring output;
-  if (!input.empty() && input[0] == '#') {
-    // Enter an invisible space, to preclude Markdown from interpreting this as
-    // a header.
-    output.push_back(L'​');
-  }
+  wstring output = L"`";
   for (wint_t c : input) {
     switch (c) {
       case '\t':
@@ -52,6 +47,12 @@ wstring DescribeSequence(wstring input) {
       case Terminal::BACKSPACE:
         output += L"← Backspace";
         break;
+      case Terminal::PAGE_DOWN:
+        output += L"PgDn";
+        break;
+      case Terminal::PAGE_UP:
+        output += L"PgUp";
+        break;
       case Terminal::CTRL_A:
         output += L"^a";
         break;
@@ -64,14 +65,23 @@ wstring DescribeSequence(wstring input) {
       case Terminal::CTRL_K:
         output += L"^k";
         break;
+      case Terminal::CTRL_L:
+        output += L"^l";
+        break;
       case Terminal::CTRL_U:
         output += L"^u";
+        break;
+      case Terminal::CTRL_V:
+        output += L"^v";
+        break;
+      case Terminal::DELETE:
+        output += L"Delete";
         break;
       default:
         output.push_back(static_cast<wchar_t>(c));
     }
   }
-  return output;
+  return output + L"`";
 }
 
 class HelpCommand : public Command {
@@ -83,10 +93,8 @@ class HelpCommand : public Command {
   wstring Category() const override { return L"Editor"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    auto original_buffer = editor_state->current_buffer()->second;
+    auto original_buffer = editor_state->current_buffer();
     const wstring name = L"- help: " + mode_description_;
-    auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
-    editor_state->set_current_buffer(it.first);
 
     auto buffer = std::make_shared<OpenBuffer>(editor_state, name);
     buffer->Set(buffer_variables::tree_parser(), L"md");
@@ -105,20 +113,26 @@ class HelpCommand : public Command {
                       L"your buffer."));
     buffer->AppendEmptyLine();
 
+    auto variable_commands = commands_->GetVariableCommands();
+
     DescribeVariables(
-        L"bool", buffer.get(), buffer_variables::BoolStruct(),
+        L"bool", *original_buffer, buffer.get(), buffer_variables::BoolStruct(),
+        variable_commands,
         [](const bool& value) { return value ? L"true" : L"false"; });
     DescribeVariables(
-        L"string", buffer.get(), buffer_variables::StringStruct(),
-        [](const std::wstring& value) { return L"\"" + value + L"\""; });
-    DescribeVariables(L"int", buffer.get(), buffer_variables::IntStruct(),
+        L"string", *original_buffer, buffer.get(),
+        buffer_variables::StringStruct(), variable_commands,
+        [](const std::wstring& value) { return L"`" + value + L"`"; });
+    DescribeVariables(L"int", *original_buffer, buffer.get(),
+                      buffer_variables::IntStruct(), variable_commands,
                       [](const int& value) { return std::to_wstring(value); });
 
     CommandLineVariables(buffer.get());
     buffer->set_current_position_line(0);
     buffer->ResetMode();
 
-    it.first->second = buffer;
+    editor_state->buffers()->insert(make_pair(name, buffer));
+    editor_state->set_current_buffer(buffer);
 
     editor_state->ScheduleRedraw();
     editor_state->ResetRepetitions();
@@ -141,8 +155,9 @@ class HelpCommand : public Command {
     for (const auto& category : commands_->Coallesce()) {
       StartSection(L"### " + category.first, output_buffer);
       for (const auto& it : category.second) {
-        output_buffer->AppendLine(NewLazyString(
-            DescribeSequence(it.first) + L" - " + it.second->Description()));
+        output_buffer->AppendLine(
+            NewLazyString(L"* " + DescribeSequence(it.first) + L" - " +
+                          it.second->Description()));
       }
       output_buffer->AppendEmptyLine();
     }
@@ -175,8 +190,9 @@ class HelpCommand : public Command {
                             : kPaddingSize - field_name.size(),
                         L' ');
         output->AppendLine(StringAppend(
-            NewLazyString(field_name), NewLazyString(std::move(padding)),
-            NewLazyString(FromByteString(value_stream.str()))));
+            NewLazyString(L"* `"), NewLazyString(field_name),
+            NewLazyString(L"`" + std::move(padding) + L"`"),
+            NewLazyString(FromByteString(value_stream.str()) + L"`")));
       });
       output->AppendEmptyLine();
     });
@@ -202,27 +218,42 @@ class HelpCommand : public Command {
         value_stream << *value;
       }
 
-      output->AppendLine(
-          StringAppend(NewLazyString(L"  "), NewLazyString(name),
-                       NewLazyString(std::move(padding)),
-                       NewLazyString(FromByteString(value_stream.str()))));
+      output->AppendLine(StringAppend(
+          NewLazyString(L"* `"), NewLazyString(name),
+          NewLazyString(L"`" + std::move(padding) + L"`"),
+          NewLazyString(FromByteString(value_stream.str()) + L"`")));
     });
     output->AppendEmptyLine();
   }
 
   template <typename T, typename C>
-  void DescribeVariables(wstring type_name, OpenBuffer* buffer,
-                         EdgeStruct<T>* variables,
-                         /*std::function<std::wstring(const T&)>*/ C print) {
+  void DescribeVariables(
+      wstring type_name, const OpenBuffer& source, OpenBuffer* buffer,
+      EdgeStruct<T>* variables,
+      const std::map<std::wstring, std::set<std::wstring>>& variable_commands,
+      /*std::function<std::wstring(const T&)>*/ C print) {
     StartSection(L"### " + type_name, buffer);
     for (const auto& variable : variables->variables()) {
-      buffer->AppendLine(NewLazyString(variable.second->name()));
-      buffer->AppendLine(
-          StringAppend(NewLazyString(L"    "),
-                       NewLazyString(variable.second->description())));
-      buffer->AppendLine(
-          StringAppend(NewLazyString(L"    Default: "),
+      buffer->AppendLine(StringAppend(NewLazyString(L"#### "),
+                                      NewLazyString(variable.second->name())));
+      buffer->AppendEmptyLine();
+      buffer->AppendLazyString(NewLazyString(variable.second->description()));
+      buffer->AppendEmptyLine();
+      buffer->AppendLazyString(StringAppend(
+          NewLazyString(L"* Value: "),
+          NewLazyString(print(source.Read(variable.second.get())))));
+      buffer->AppendLazyString(
+          StringAppend(NewLazyString(L"* Default: "),
                        NewLazyString(print(variable.second->default_value()))));
+
+      auto commands = variable_commands.find(variable.second->name());
+      if (commands != variable_commands.end()) {
+        buffer->AppendLazyString(NewLazyString(L"* Related commands:"));
+        for (auto& it : commands->second) {
+          buffer->AppendLazyString(NewLazyString(L"  * `" + it + L"`"));
+        }
+      }
+      buffer->AppendEmptyLine();
     }
     buffer->AppendEmptyLine();
   }
@@ -251,12 +282,7 @@ class HelpCommand : public Command {
         case Handler::VariableType::kNone:
           break;
       }
-      std::wstringstream help(h.help());
-      std::wstring line;
-
-      while (std::getline(help, line, L'\n')) {
-        buffer->AppendLine(NewLazyString(std::move(line)));
-      }
+      buffer->AppendLazyString(NewLazyString(h.help()));
       buffer->AppendEmptyLine();
     }
   }

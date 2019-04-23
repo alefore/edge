@@ -48,7 +48,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
   }
   options.path =
       (*editor_state->edge_path().begin()) + L"/" + name + L"_history";
-  options.make_current_buffer = false;
+  options.insertion_type = BufferTreeHorizontal::InsertionType::kSkip;
   it = OpenFile(options);
   CHECK(it != editor_state->buffers()->end());
   CHECK(it->second != nullptr);
@@ -58,7 +58,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
   it->second->Set(buffer_variables::atomic_lines(), true);
   if (!editor_state->has_current_buffer()) {
     // Seems lame, but what can we do?
-    editor_state->set_current_buffer(it);
+    editor_state->set_current_buffer(it->second);
     editor_state->ScheduleRedraw();
   }
   return it;
@@ -159,15 +159,12 @@ class HistoryScrollBehavior : public ScrollBehavior {
  private:
   void ScrollHistory(EditorState* editor_state, OpenBuffer* buffer,
                      int delta) const {
-    auto insert =
+    auto buffer_to_insert =
         std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
 
     if (history_ != nullptr && history_->contents()->size() > 1) {
-      auto previous_buffer = editor_state->current_buffer()->second;
-      auto history_it = editor_state->buffers()->find(
-          history_->Read(buffer_variables::name()));
-      CHECK(history_it != editor_state->buffers()->end());
-      editor_state->set_current_buffer(history_it);
+      auto previous_buffer = editor_state->current_buffer();
+      editor_state->set_current_buffer(history_);
       history_->set_mode(previous_buffer->ResetMode());
 
       LineColumn position = history_->position();
@@ -176,7 +173,8 @@ class HistoryScrollBehavior : public ScrollBehavior {
         history_->set_position(position);
       }
       if (history_->current_line() != nullptr) {
-        insert->AppendToLastLine(history_->current_line()->contents());
+        buffer_to_insert->AppendToLastLine(
+            history_->current_line()->contents());
       }
     }
 
@@ -186,7 +184,10 @@ class HistoryScrollBehavior : public ScrollBehavior {
     delete_options.modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
     delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
     buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
-    buffer->ApplyToCursors(NewInsertBufferTransformation(insert, 1, END));
+    InsertOptions insert_options;
+    insert_options.buffer_to_insert = std::move(buffer_to_insert);
+    buffer->ApplyToCursors(
+        NewInsertBufferTransformation(std::move(insert_options)));
 
     UpdateStatus(editor_state, buffer, prompt_);
   }
@@ -256,10 +257,14 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
   editor_state->set_modifiers(Modifiers());
 
   {
-    auto insert =
+    auto buffer_to_insert =
         std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
-    insert->AppendToLastLine(NewLazyString(std::move(options.initial_value)));
-    buffer->ApplyToCursors(NewInsertBufferTransformation(insert, 1, END));
+    buffer_to_insert->AppendToLastLine(
+        NewLazyString(std::move(options.initial_value)));
+    InsertOptions insert_options;
+    insert_options.buffer_to_insert = std::move(buffer_to_insert);
+    buffer->ApplyToCursors(
+        NewInsertBufferTransformation(std::move(insert_options)));
   }
 
   InsertModeOptions insert_mode_options;
@@ -286,7 +291,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
     editor_state->ScheduleRedraw();
 
     // We make a copy in case cancel_handler or handler delete us.
-    auto buffer = original_buffer->second;
+    auto buffer = original_buffer;
     if (options.cancel_handler) {
       VLOG(5) << "Running cancel handler.";
       options.cancel_handler(editor_state);
@@ -340,11 +345,13 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
             delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
             buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
 
-            auto insert =
+            auto buffer_to_insert =
                 std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
-            insert->AppendToLastLine(NewLazyString(prediction));
+            buffer_to_insert->AppendToLastLine(NewLazyString(prediction));
+            InsertOptions insert_options;
+            insert_options.buffer_to_insert = buffer_to_insert;
             buffer->ApplyToCursors(
-                NewInsertBufferTransformation(insert, 1, END));
+                NewInsertBufferTransformation(std::move(insert_options)));
 
             UpdateStatus(editor_state, buffer.get(), options.prompt);
             editor_state->ScheduleRedraw();
@@ -356,7 +363,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
                   L"Error: predictions buffer not found.");
             } else {
               it->second->set_current_position_line(0);
-              editor_state->set_current_buffer(it);
+              editor_state->set_current_buffer(it->second);
               editor_state->ScheduleRedraw();
             }
           }

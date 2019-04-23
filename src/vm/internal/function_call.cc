@@ -37,9 +37,8 @@ bool TypeMatchesArguments(const VMType& type,
   for (size_t argument = 0; argument < args.size(); argument++) {
     if (!args[argument]->SupportsType(type.type_arguments[1 + argument])) {
       *error = L"Type mismatch in argument " + std::to_wstring(argument) +
-               L": Expected \"" + type.type_arguments[1 + argument].ToString() +
-               L"\" but found \"" + TypesToString(args[argument]->Types()) +
-               L"\"";
+               L": Expected " + type.type_arguments[1 + argument].ToString() +
+               L" but found " + TypesToString(args[argument]->Types());
       return false;
     }
   }
@@ -112,13 +111,16 @@ class FunctionCall : public Expression {
     DVLOG(5) << "Evaluating function parameters, args: " << args_types->size();
     if (values->size() == args_types->size()) {
       DVLOG(4) << "No more parameters, performing function call.";
-      std::function<void(Trampoline*)> original_state = trampoline->Save();
       trampoline->SetReturnContinuation(
-          [original_state](std::unique_ptr<Value> value,
-                           Trampoline* trampoline) {
+          [original_trampoline = *trampoline](std::unique_ptr<Value> value,
+                                              Trampoline* trampoline) {
             CHECK(value != nullptr);
-            LOG(INFO) << "Got returned value: " << *value;
-            original_state(trampoline);
+            DVLOG(3) << "Got returned value: " << *value;
+            // We have to make a copy because assigning to *trampoline may
+            // delete us (and thus deletes original_trampoline as it is being
+            // read).
+            Trampoline tmp_copy = original_trampoline;
+            *trampoline = tmp_copy;
             trampoline->Continue(std::move(value));
           });
       trampoline->SetContinuation(trampoline->return_continuation());
@@ -280,7 +282,8 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
 }
 
 void Call(Value* func, vector<Value::Ptr> args,
-          std::function<void(Value::Ptr)> consumer) {
+          std::function<void(Value::Ptr)> consumer,
+          std::function<void(std::function<void()>)> yield_callback) {
   std::vector<std::unique_ptr<Expression>> args_expr;
   for (auto& a : args) {
     args_expr.push_back(NewConstantExpression(std::move(a)));
@@ -290,10 +293,12 @@ void Call(Value* func, vector<Value::Ptr> args,
       NewFunctionCall(NewConstantExpression(Value::NewFunction(
                           func->type.type_arguments, func->callback)),
                       std::move(args_expr));
-  Evaluate(function_expr.get(), nullptr,
-           [function_expr, consumer](Value::Ptr value) {
-             consumer(std::move(value));
-           });
+  Evaluate(
+      function_expr.get(), nullptr,
+      [function_expr, consumer](Value::Ptr value) {
+        consumer(std::move(value));
+      },
+      yield_callback);
 }
 
 }  // namespace vm

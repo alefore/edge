@@ -20,6 +20,7 @@ void OpenFileHandler(const wstring& name, EditorState* editor_state) {
   OpenFileOptions options;
   options.editor_state = editor_state;
   options.path = name;
+  options.insertion_type = BufferTreeHorizontal::InsertionType::kSearchOrCreate;
   OpenFile(options);
 }
 
@@ -31,17 +32,19 @@ std::unique_ptr<Command> NewOpenFileCommand() {
   options.history_file = L"files";
   options.handler = OpenFileHandler;
   options.cancel_handler = [](EditorState* editor_state) {
-    if (editor_state->has_current_buffer()) {
-      editor_state->current_buffer()->second->ResetMode();
+    auto buffer = editor_state->current_buffer();
+    if (buffer != nullptr) {
+      buffer->ResetMode();
     }
   };
   options.predictor = FilePredictor;
   return NewLinePromptCommand(
       L"loads a file", [options](EditorState* editor_state) {
         PromptOptions options_copy = options;
-        if (editor_state->has_current_buffer()) {
-          wstring path = editor_state->current_buffer()->second->Read(
-              buffer_variables::path());
+        auto buffer = editor_state->current_buffer();
+
+        if (buffer != nullptr) {
+          wstring path = buffer->Read(buffer_variables::path());
           struct stat stat_buffer;
           if (stat(ToByteString(path).c_str(), &stat_buffer) == -1 ||
               !S_ISDIR(stat_buffer.st_mode)) {

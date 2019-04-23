@@ -16,21 +16,14 @@ Support more languages:
 
 Implement delete of page.
 
-Let buffers "garbage collect" their contents: if they're clean and haven't been accessed in a while, just have them drop their contents.
-  - Requires making them load them lazily.
-  - Probably not too important? We can just let the OS page out appropriate pages.
-
 For 'd': Add '?' (show modifiers available).
 
 Add "pipe" command: select the region (similar to delete: line, paragraph, buffer...), and then prompt for a command. Pipe the contents of the region to the command, and replace them with the output of the command.
 
-Add an autocomplete mode that autocompletes based on the path.
+Add an AutoComplete mode that autocompletes based on the path.
 
 Improve logic around wrap_long_lines.
-  Cursors (other than active cursor) are off.
   Also scrolling to the end of file doesn't quite work.
-
-Search: Should make sure to disable multi active cursors.
 
 * Improve reflow:
 
@@ -49,11 +42,9 @@ Search: Should make sure to disable multi active cursors.
 Improve "g", the current behavior is kind of annoying:
   There should be a way (other than pressing it again) to specify if it should ignore space.  Maybe a modifier can do it?
 
-Honor the "margin_columns" variable.
+Honor the `margin_columns` variable.
 
-Add a boolean variable "highlight_current_line" (default: false); when set, highlight the line with the current cursor position.
-
-When searching, display in the Status the count of matches (especially when there were zero matches).
+Add a boolean variable `highlight_current_line` (default: false); when set, highlight the line with the current cursor position.
 
 In diff mode, add a link to every file. Following it should take you directly to the file (perhaps based on a variable for the `strip`, similar to the `patch` command).
 
@@ -110,3 +101,9 @@ Support variables scoped at the Editor level (i.e. not specific to a given buffe
 Don't do any blocking operations.
 
 The first five times Edge runs, it should display a `help` message, perhaps at the top of the shell, and also in the SetStatus buffer.
+
+Improve the help document:
+
+* Move documentation about the variables from the README.md to buffer_variables.h
+
+* Add documentation string for VM functions/variables.

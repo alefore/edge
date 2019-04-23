@@ -12,6 +12,8 @@
 #include "src/args.h"
 #include "src/audio.h"
 #include "src/buffer.h"
+#include "src/buffer_tree_horizontal.h"
+#include "src/buffer_widget.h"
 #include "src/command_mode.h"
 #include "src/direction.h"
 #include "src/editor_mode.h"
@@ -19,6 +21,7 @@
 #include "src/line_marks.h"
 #include "src/modifiers.h"
 #include "src/transformation.h"
+#include "src/widget.h"
 #include "vm/public/environment.h"
 #include "vm/public/vm.h"
 
@@ -45,41 +48,36 @@ class EditorState {
   EditorState(command_line_arguments::Values args, AudioPlayer* audio_player);
   ~EditorState();
 
-  void CheckPosition() {
-    if (has_current_buffer()) {
-      current_buffer_->second->CheckPosition();
-    }
-  }
+  void CheckPosition();
 
-  bool CloseBuffer(const map<wstring, shared_ptr<OpenBuffer>>::iterator buffer);
+  bool CloseBuffer(OpenBuffer* buffer);
 
   const map<wstring, shared_ptr<OpenBuffer>>* buffers() const {
     return &buffers_;
   }
 
   map<wstring, shared_ptr<OpenBuffer>>* buffers() { return &buffers_; }
+  BufferTreeHorizontal* buffer_tree() { return buffer_tree_.get(); }
 
-  void set_current_buffer(map<wstring, shared_ptr<OpenBuffer>>::iterator it) {
-    current_buffer_ = it;
-    if (current_buffer_ != buffers_.end() &&
-        current_buffer_->second != nullptr) {
-      current_buffer_->second->Visit();
-    }
-  }
-  bool has_current_buffer() const { return current_buffer_ != buffers_.end(); }
-  map<wstring, shared_ptr<OpenBuffer>>::iterator current_buffer() {
-    return current_buffer_;
-  }
-  map<wstring, shared_ptr<OpenBuffer>>::const_iterator current_buffer() const {
-    return current_buffer_;
-  }
+  void set_current_buffer(shared_ptr<OpenBuffer> buffer);
+  void AddHorizontalSplit();
+  void SetHorizontalSplitsWithAllBuffers();
+  void SetActiveLeaf(size_t position);
+  void AdvanceActiveLeaf(int delta);
+  void ZoomToLeaf();
+  void BufferTreeRemoveActiveLeaf();
+
+  bool has_current_buffer() const;
+  shared_ptr<OpenBuffer> current_buffer();
+  const shared_ptr<OpenBuffer> current_buffer() const;
   wstring GetUnusedBufferName(const wstring& prefix);
   std::optional<int> exit_value() const { return exit_value_; }
   bool AttemptTermination(wstring* error_description, int exit_value);
 
   void ResetModifiers() {
-    if (has_current_buffer()) {
-      current_buffer()->second->ResetMode();
+    auto buffer = current_buffer();
+    if (buffer != nullptr) {
+      buffer->ResetMode();
     }
     modifiers_.ResetSoft();
   }
@@ -152,9 +150,6 @@ class EditorState {
   std::shared_ptr<MapModeCommands> default_commands() const {
     return default_commands_;
   }
-
-  size_t visible_lines() const { return visible_lines_; }
-  void set_visible_lines(size_t value) { visible_lines_ = value; }
 
   void MoveBufferForwards(size_t times);
   void MoveBufferBackwards(size_t times);
@@ -230,6 +225,9 @@ class EditorState {
     keyboard_redirect_ = std::move(keyboard_redirect);
   }
 
+  // Executes pending work from all buffers.
+  OpenBuffer::PendingWorkState ExecutePendingWork();
+
  private:
   Environment BuildEditorEnvironment();
 
@@ -239,7 +237,6 @@ class EditorState {
   std::unordered_set<OpenBuffer*> buffers_to_parse_;
 
   map<wstring, shared_ptr<OpenBuffer>> buffers_;
-  map<wstring, shared_ptr<OpenBuffer>>::iterator current_buffer_;
   std::optional<int> exit_value_;
 
   wstring home_directory_;
@@ -253,9 +250,6 @@ class EditorState {
   std::shared_ptr<MapModeCommands> default_commands_;
   std::shared_ptr<EditorMode> keyboard_redirect_;
 
-  // Set by the terminal handler.
-  size_t visible_lines_;
-
   std::mutex mutex_;
   ScreenState screen_state_;
 
@@ -264,8 +258,8 @@ class EditorState {
   int status_prompt_column_;
   wstring status_;
 
-  // Initially we don't consume SIGINT: we let it crash the process (in case the
-  // user has accidentally ran Edge). However, as soon as the user starts
+  // Initially we don't consume SIGINT: we let it crash the process (in case
+  // the user has accidentally ran Edge). However, as soon as the user starts
   // actually using Edge (e.g. modifies a buffer), we start consuming it.
   bool handling_interrupts_ = false;
 
@@ -280,6 +274,9 @@ class EditorState {
   const std::pair<int, int> pipe_to_communicate_internal_events_;
 
   AudioPlayer* const audio_player_;
+
+  std::unique_ptr<BufferTreeHorizontal> buffer_tree_ =
+      BufferTreeHorizontal::New(BufferWidget::New(std::weak_ptr<OpenBuffer>()));
 };
 
 }  // namespace editor

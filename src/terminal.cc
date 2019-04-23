@@ -6,10 +6,19 @@
 #include <cctype>
 #include <iostream>
 
+#include "src/buffer_output_producer.h"
 #include "src/buffer_variables.h"
+#include "src/cursors_highlighter.h"
+#include "src/delegating_output_receiver.h"
+#include "src/delegating_output_receiver_with_internal_modifiers.h"
 #include "src/dirname.h"
+#include "src/frame_output_producer.h"
+#include "src/horizontal_split_output_producer.h"
 #include "src/line_marks.h"
+#include "src/output_receiver.h"
+#include "src/output_receiver_optimizer.h"
 #include "src/parse_tree.h"
+#include "src/screen_output_receiver.h"
 
 namespace afc {
 namespace editor {
@@ -33,117 +42,21 @@ constexpr int Terminal::CTRL_L;
 constexpr int Terminal::CTRL_U;
 constexpr int Terminal::CTRL_K;
 
-namespace {
-// Returns the number of initial columns to skip, corresponding to output that
-// prefixes the actual line contents.
-size_t GetInitialPrefixSize(const OpenBuffer& buffer) {
-  return buffer.Read(buffer_variables::paste_mode())
-             ? 0
-             : 1 + std::to_wstring(buffer.lines_size()).size();
-}
-
-size_t GetCurrentColumn(OpenBuffer* buffer) {
-  if (buffer->lines_size() == 0) {
-    return 0;
-  } else if (buffer->position().line >= buffer->lines_size()) {
-    return buffer->contents()->back()->size();
-  } else if (!buffer->IsLineFiltered(buffer->position().line)) {
-    return 0;
-  } else {
-    return min(buffer->position().column,
-               buffer->LineAt(buffer->position().line)->size());
-  }
-}
-
-size_t GetDesiredViewStartColumn(Screen* screen, OpenBuffer* buffer) {
-  if (buffer->Read(buffer_variables::wrap_long_lines())) {
-    return 0;
-  }
-  size_t effective_size = screen->columns() - 1;
-  effective_size -= min(effective_size, GetInitialPrefixSize(*buffer));
-  size_t column = GetCurrentColumn(buffer);
-  return column - min(column, effective_size);
-}
-
-std::wstring GetInitialPrefix(const OpenBuffer& buffer, int line) {
-  if (buffer.Read(buffer_variables::paste_mode())) {
-    return L"";
-  }
-  std::wstring number = std::to_wstring(line + 1);
-  std::wstring padding(GetInitialPrefixSize(buffer) - number.size() - 1, L' ');
-  return padding + number + L':';
-}
-
-void AdvanceToNextLine(const OpenBuffer& buffer, LineColumn* position) {
-  position->line++;
-  position->column = buffer.Read(buffer_variables::view_start_column());
-}
-}  // namespace
-
 void Terminal::Display(EditorState* editor_state, Screen* screen,
                        const EditorState::ScreenState& screen_state) {
   if (screen_state.needs_hard_redraw) {
     screen->HardRefresh();
     editor_state->ScheduleRedraw();
   }
-  if (!editor_state->has_current_buffer()) {
-    if (screen_state.needs_redraw) {
-      screen->Clear();
-    }
-    ShowStatus(*editor_state, screen);
-    screen->Refresh();
-    screen->Flush();
-    return;
-  }
-  int screen_lines = screen->lines();
-  auto& buffer = editor_state->current_buffer()->second;
-  if (buffer->Read(buffer_variables::reload_on_display())) {
-    buffer->Reload();
-  }
-  size_t line = min(buffer->position().line, buffer->contents()->size() - 1);
-  size_t margin_lines =
-      min(screen_lines / 2,
-          max(static_cast<int>(
-                  ceil(buffer->Read(buffer_variables::margin_lines_ratio()) *
-                       screen_lines)),
-              max(buffer->Read(buffer_variables::margin_lines()), 0)));
-  margin_lines = min(margin_lines, static_cast<size_t>(screen_lines) / 2 - 1);
-  size_t view_start = static_cast<size_t>(
-      max(0, buffer->Read(buffer_variables::view_start_line())));
-  if (view_start > line - min(margin_lines, line) &&
-      (buffer->child_pid() != -1 || buffer->fd() == -1)) {
-    buffer->Set(buffer_variables::view_start_line(),
-                line - min(margin_lines, line));
-    editor_state->ScheduleRedraw();
-  } else if (view_start + screen_lines - 1 <=
-             min(buffer->lines_size() - 1, line + margin_lines)) {
-    buffer->Set(
-        buffer_variables::view_start_line(),
-        min(buffer->lines_size() - 1, line + margin_lines) - screen_lines + 2);
-    editor_state->ScheduleRedraw();
-  }
-
-  auto view_start_column = GetDesiredViewStartColumn(screen, buffer.get());
-  if (static_cast<size_t>(
-          max(0, buffer->Read(buffer_variables::view_start_column()))) !=
-      view_start_column) {
-    buffer->Set(buffer_variables::view_start_column(), view_start_column);
-    editor_state->ScheduleRedraw();
-  }
-
-  if (buffer->Read(buffer_variables::atomic_lines()) &&
-      buffer->last_highlighted_line() != buffer->position().line) {
-    editor_state->ScheduleRedraw();
-  }
-
-  auto screen_lines_positions = GetScreenLinePositions(editor_state, screen);
   if (screen_state.needs_redraw) {
-    ShowBuffer(editor_state, screen, screen_lines_positions);
+    ShowBuffer(editor_state, screen);
   }
   ShowStatus(*editor_state, screen);
+  auto buffer = editor_state->current_buffer();
   if (editor_state->status_prompt()) {
     screen->SetCursorVisibility(Screen::NORMAL);
-  } else if (buffer->Read(buffer_variables::atomic_lines()) ||
+  } else if (buffer == nullptr ||
+             buffer->Read(buffer_variables::atomic_lines()) ||
              !cursor_position_.has_value()) {
     screen->SetCursorVisibility(Screen::INVISIBLE);
   } else {
@@ -152,7 +65,6 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   }
   screen->Refresh();
   screen->Flush();
-  editor_state->set_visible_lines(static_cast<size_t>(screen_lines - 1));
 }
 
 // Adjust the name of a buffer to a string suitable to be shown in the Status
@@ -189,9 +101,9 @@ wstring TransformCommandNameForStatus(wstring name) {
 
 void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
   wstring status;
-  if (editor_state.has_current_buffer() && !editor_state.is_status_warning()) {
+  auto buffer = editor_state.current_buffer();
+  if (buffer != nullptr && !editor_state.is_status_warning()) {
     const auto modifiers = editor_state.modifiers();
-    auto buffer = editor_state.current_buffer()->second;
     status.push_back('[');
     if (buffer->current_position_line() >= buffer->contents()->size()) {
       status += L"<EOF>";
@@ -258,7 +170,7 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
     }
 
     if (modifiers.strength == Modifiers::Strength::kStrong) {
-      flags += L" strong";
+      flags += L" 💪";
     }
 
     wstring structure;
@@ -311,10 +223,10 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
       }
     }
     if (running > 0) {
-      status += L"run:" + to_wstring(running) + L" ";
+      status += L"  🏃" + to_wstring(running) + L"  ";
     }
     if (failed > 0) {
-      status += L"fail:" + to_wstring(failed) + L" ";
+      status += L"  💥" + to_wstring(failed) + L"  ";
     }
   }
 
@@ -358,85 +270,42 @@ wstring Terminal::GetBufferContext(const EditorState& editor_state,
   return buffer->Read(buffer_variables::name());
 }
 
-class LineOutputReceiver : public Line::OutputReceiverInterface {
+class WithPrefixOutputReceiver : public DelegatingOutputReceiver {
  public:
-  LineOutputReceiver(Screen* screen) : screen_(screen) {}
+  WithPrefixOutputReceiver(std::unique_ptr<OutputReceiver> delegate,
+                           wstring prefix, LineModifier prefix_modifier)
+      : DelegatingOutputReceiver(std::move(delegate)), prefix_length_([=]() {
+          AddModifier(prefix_modifier);
+          AddString(prefix);
+          AddModifier(LineModifier::RESET);
+          return DelegatingOutputReceiver::column();
+        }()) {}
 
-  void AddCharacter(wchar_t c) override {
-    if (c == L'\t') {
-      // Nothing.
-    } else if (iswprint(c) || c == L'\t' || c == L'\r' || c == L'\n') {
-      screen_->WriteString(wstring(1, c));
-    } else if (wcwidth(c) <= 0) {
-      // Nothing.
-    } else {
-      screen_->WriteString(wstring(wcwidth(c), L' '));
+  void SetTabsStart(size_t columns) override {
+    DelegatingOutputReceiver::SetTabsStart(prefix_length_ + columns);
+  }
+
+  size_t column() override {
+    if (DelegatingOutputReceiver::column() < prefix_length_) {
+      return 0;
     }
-    RegisterChar(c);
+    return DelegatingOutputReceiver::column() - prefix_length_;
   }
-  void AddString(const wstring& str) override {
-    for (auto& c : str) {
-      AddCharacter(c);
+  size_t width() override {
+    if (DelegatingOutputReceiver::width() < prefix_length_) {
+      return 0;
     }
-  }
-  void AddModifier(LineModifier modifier) override {
-    screen_->SetModifier(modifier);
-  }
-
-  size_t column() override { return column_write_; }
-
-  void skip_columns(size_t delta) {
-    CHECK_LE(delta, column_write_);
-    column_write_ -= delta;
+    return DelegatingOutputReceiver::width() - prefix_length_;
   }
 
  private:
-  void RegisterChar(wchar_t c) {
-    switch (c) {
-      case L'\n':
-        column_write_ = 0;
-        break;
-      case L'\t': {
-        size_t new_value =
-            8 * static_cast<size_t>(
-                    1 + floor(static_cast<double>(column_write_) / 8.0));
-        CHECK_GT(new_value, column_write_);
-        CHECK_LE(new_value - column_write_, 8u);
-        screen_->WriteString(wstring(new_value - column_write_, ' '));
-        column_write_ = new_value;
-      } break;
-      case L'​':
-        break;
-      default:
-        column_write_ += wcwidth(c);
-    }
-  }
-
-  Screen* const screen_;
-  size_t column_write_ = 0;
-};
-
-class DelegatingOutputReceiver : public Line::OutputReceiverInterface {
- public:
-  DelegatingOutputReceiver(Line::OutputReceiverInterface* delegate)
-      : delegate_(delegate) {}
-
-  void AddCharacter(wchar_t c) override { delegate_->AddCharacter(c); }
-  void AddString(const wstring& str) override { delegate_->AddString(str); }
-  void AddModifier(LineModifier modifier) override {
-    delegate_->AddModifier(modifier);
-  }
-
-  size_t column() override { return delegate_->column(); }
-
- private:
-  Line::OutputReceiverInterface* const delegate_;
+  const size_t prefix_length_;
 };
 
 class HighlightedLineOutputReceiver : public DelegatingOutputReceiver {
  public:
-  HighlightedLineOutputReceiver(Line::OutputReceiverInterface* delegate)
-      : DelegatingOutputReceiver(delegate) {
+  HighlightedLineOutputReceiver(std::unique_ptr<OutputReceiver> delegate)
+      : DelegatingOutputReceiver(std::move(delegate)) {
     DelegatingOutputReceiver::AddModifier(LineModifier::REVERSE);
   }
 
@@ -452,164 +321,13 @@ class HighlightedLineOutputReceiver : public DelegatingOutputReceiver {
   }
 };
 
-// Class that merges modifiers produced at two different levels: a parent, and
-// a child. For any position where the parent has any modifiers active, those
-// from the child get ignored. A delegate OutputReceiverInterface is updated.
-class ModifiersMerger {
- public:
-  ModifiersMerger(Line::OutputReceiverInterface* delegate)
-      : delegate_(delegate) {}
-
-  void AddParentModifier(LineModifier modifier) {
-    if (modifier == LineModifier::RESET) {
-      if (!parent_modifiers_) {
-        return;
-      }
-      parent_modifiers_ = false;
-      delegate_->AddModifier(LineModifier::RESET);
-      for (auto& m : children_modifiers_) {
-        CHECK(m != LineModifier::RESET);
-        delegate_->AddModifier(m);
-      }
-      return;
-    }
-
-    if (!parent_modifiers_) {
-      if (!children_modifiers_.empty()) {
-        delegate_->AddModifier(LineModifier::RESET);
-      }
-      parent_modifiers_ = true;
-    }
-    delegate_->AddModifier(modifier);
-  }
-
-  void AddChildrenModifier(LineModifier modifier) {
-    if (modifier == LineModifier::RESET) {
-      children_modifiers_.clear();
-    } else {
-      children_modifiers_.insert(modifier);
-    }
-    if (!parent_modifiers_) {
-      delegate_->AddModifier(modifier);
-    }
-  }
-
-  bool has_parent_modifiers() { return parent_modifiers_; }
-
- private:
-  bool parent_modifiers_ = false;
-  LineModifierSet children_modifiers_;
-  Line::OutputReceiverInterface* const delegate_;
-};
-
-class CursorsHighlighter : public DelegatingOutputReceiver {
- public:
-  struct Options {
-    Line::OutputReceiverInterface* delegate;
-
-    // A set with all the columns in the current line in which there are
-    // cursors that should be drawn.
-    set<size_t> columns;
-
-    bool multiple_cursors;
-
-    std::optional<size_t> active_cursor_input;
-
-    // Output parameter. If the active cursor is found in this line, we set this
-    // to the column in the screen to which it should be moved. This is used to
-    // handle multi-width characters.
-    std::optional<size_t>* active_cursor_output;
-  };
-
-  explicit CursorsHighlighter(Options options)
-      : DelegatingOutputReceiver(options.delegate),
-        options_(options),
-        modifiers_merger_(options.delegate),
-        next_cursor_(options_.columns.begin()) {
-    CheckInvariants();
-  }
-
-  void AddCharacter(wchar_t c) {
-    CheckInvariants();
-    bool at_cursor =
-        next_cursor_ != options_.columns.end() && *next_cursor_ == column_read_;
-    if (at_cursor) {
-      ++next_cursor_;
-      CHECK(next_cursor_ == options_.columns.end() ||
-            *next_cursor_ > column_read_);
-      bool is_active = options_.active_cursor_input.has_value() &&
-                       options_.active_cursor_input.value() == column_read_;
-      modifiers_merger_.AddParentModifier(LineModifier::REVERSE);
-      modifiers_merger_.AddParentModifier(is_active || options_.multiple_cursors
-                                              ? LineModifier::CYAN
-                                              : LineModifier::BLUE);
-      if (is_active && options_.active_cursor_output != nullptr) {
-        *options_.active_cursor_output = column();
-      }
-    }
-
-    DelegatingOutputReceiver::AddCharacter(c);
-    if (at_cursor) {
-      modifiers_merger_.AddParentModifier(LineModifier::RESET);
-    }
-    column_read_++;
-    CheckInvariants();
-  }
-
-  void AddString(const wstring& str) {
-    size_t str_pos = 0;
-    while (str_pos < str.size()) {
-      CheckInvariants();
-
-      // Compute the position of the next cursor relative to the start of this
-      // string.
-      size_t next_column = (next_cursor_ == options_.columns.end())
-                               ? str.size()
-                               : *next_cursor_ + str_pos - column_read_;
-      if (next_column > str_pos) {
-        size_t len = next_column - str_pos;
-        DelegatingOutputReceiver::AddString(str.substr(str_pos, len));
-        column_read_ += len;
-        str_pos += len;
-      }
-
-      CheckInvariants();
-
-      if (str_pos < str.size()) {
-        CHECK(next_cursor_ != options_.columns.end());
-        CHECK_EQ(*next_cursor_, column_read_);
-        AddCharacter(str[str_pos]);
-        str_pos++;
-      }
-      CheckInvariants();
-    }
-  }
-
-  void AddModifier(LineModifier modifier) {
-    modifiers_merger_.AddChildrenModifier(modifier);
-  }
-
- private:
-  void CheckInvariants() {
-    if (next_cursor_ != options_.columns.end()) {
-      CHECK_GE(*next_cursor_, column_read_);
-    }
-  }
-
-  const Options options_;
-  ModifiersMerger modifiers_merger_;
-
-  // Points to the first element in columns_ that is greater than or equal to
-  // the current position.
-  set<size_t>::const_iterator next_cursor_;
-  size_t column_read_ = 0;
-};
-
 class ParseTreeHighlighter : public DelegatingOutputReceiver {
  public:
-  explicit ParseTreeHighlighter(Line::OutputReceiverInterface* delegate,
+  explicit ParseTreeHighlighter(std::unique_ptr<OutputReceiver> delegate,
                                 size_t begin, size_t end)
-      : DelegatingOutputReceiver(delegate), begin_(begin), end_(end) {}
+      : DelegatingOutputReceiver(std::move(delegate)),
+        begin_(begin),
+        end_(end) {}
 
   void AddCharacter(wchar_t c) override {
     size_t position = column();
@@ -642,21 +360,23 @@ class ParseTreeHighlighter : public DelegatingOutputReceiver {
   const size_t end_;
 };
 
-class ParseTreeHighlighterTokens : public DelegatingOutputReceiver {
+class ParseTreeHighlighterTokens
+    : public DelegatingOutputReceiverWithInternalModifiers {
  public:
-  // A Line::OutputReceiverInterface implementation that merges modifiers from
-  // the syntax tree (with modifiers from the line). When modifiers from the
-  // line are present, they override modifiers from the syntax tree.
+  // A OutputReceiver implementation that merges modifiers from the syntax tree
+  // (with modifiers from the line). When modifiers from the line are present,
+  // they override modifiers from the syntax tree.
   //
   // largest_column_with_tree: Position after which modifiers from the syntax
   // tree will no longer apply. This ensures that "continuation" modifiers
   // (that were active at the last character in the line) won't continue to
   // affect the padding and/or scrollbar).
-  ParseTreeHighlighterTokens(Line::OutputReceiverInterface* delegate,
+  ParseTreeHighlighterTokens(std::unique_ptr<OutputReceiver> delegate,
                              const ParseTree* root, size_t line,
                              size_t largest_column_with_tree)
-      : DelegatingOutputReceiver(delegate),
-        modifiers_merger_(delegate),
+      : DelegatingOutputReceiverWithInternalModifiers(
+            std::move(delegate), DelegatingOutputReceiverWithInternalModifiers::
+                                     Preference::kExternal),
         root_(root),
         largest_column_with_tree_(largest_column_with_tree),
         line_(line),
@@ -668,7 +388,7 @@ class ParseTreeHighlighterTokens : public DelegatingOutputReceiver {
     LineColumn position(line_, column_read_++);
     if (position.column >= largest_column_with_tree_) {
       if (position.column == largest_column_with_tree_) {
-        modifiers_merger_.AddChildrenModifier(LineModifier::RESET);
+        AddInternalModifier(LineModifier::RESET);
       }
       DelegatingOutputReceiver::AddCharacter(c);
       return;
@@ -677,12 +397,12 @@ class ParseTreeHighlighterTokens : public DelegatingOutputReceiver {
       UpdateCurrent(position);
     }
 
-    modifiers_merger_.AddChildrenModifier(LineModifier::RESET);
-    if (!current_.empty() && !modifiers_merger_.has_parent_modifiers()) {
+    AddInternalModifier(LineModifier::RESET);
+    if (!current_.empty() && !has_high_modifiers()) {
       for (auto& t : current_) {
         if (t->range.Contains(position)) {
           for (auto& modifier : t->modifiers) {
-            modifiers_merger_.AddChildrenModifier(modifier);
+            AddInternalModifier(modifier);
           }
         }
       }
@@ -700,10 +420,6 @@ class ParseTreeHighlighterTokens : public DelegatingOutputReceiver {
     for (auto& c : str) {
       DelegatingOutputReceiver::AddCharacter(c);
     }
-  }
-
-  void AddModifier(LineModifier modifier) override {
-    modifiers_merger_.AddParentModifier(modifier);
   }
 
  private:
@@ -733,7 +449,6 @@ class ParseTreeHighlighterTokens : public DelegatingOutputReceiver {
 
   // Keeps track of the modifiers coming from the parent, so as to not lose
   // that information when we reset our own.
-  ModifiersMerger modifiers_merger_;
   const ParseTree* root_;
   const size_t largest_column_with_tree_;
   const size_t line_;
@@ -741,209 +456,30 @@ class ParseTreeHighlighterTokens : public DelegatingOutputReceiver {
   size_t column_read_ = 0;
 };
 
-std::vector<LineColumn> Terminal::GetScreenLinePositions(
-    EditorState* editor_state, Screen* screen) {
-  std::vector<LineColumn> output;
-
-  OpenBuffer* buffer = editor_state->current_buffer()->second.get();
-  if (screen->lines() <= 0) {
-    return {};
-  }
-  size_t lines_to_show = static_cast<size_t>(screen->lines()) - 1;
-
-  LineColumn position(
-      static_cast<size_t>(
-          max(0, buffer->Read(buffer_variables::view_start_line()))),
-      buffer->Read(buffer_variables::view_start_column()));
-
-  size_t width = screen->columns() - GetInitialPrefixSize(*buffer);
-  while (output.size() < lines_to_show) {
-    if (position.line >= buffer->lines_size()) {
-      output.push_back(position);
-      continue;
-    }
-    if (!buffer->IsLineFiltered(position.line)) {
-      AdvanceToNextLine(*buffer, &position);
-      continue;
-    }
-
-    output.push_back(position);
-
-    position.column += width;
-    if (position.column >= buffer->LineAt(position.line)->size() ||
-        !buffer->Read(buffer_variables::wrap_long_lines())) {
-      AdvanceToNextLine(*buffer, &position);
-    }
-  }
-  return output;
-}
-
-void Terminal::ShowBuffer(
-    const EditorState* editor_state, Screen* screen,
-    const std::vector<LineColumn>& screen_line_positions) {
-  const shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
-  size_t lines_to_show = static_cast<size_t>(screen->lines()) - 1;
-  CHECK_EQ(screen_line_positions.size(), lines_to_show);
-
+void Terminal::ShowBuffer(EditorState* editor_state, Screen* screen) {
   screen->Move(0, 0);
-
-  LineOutputReceiver screen_adapter(screen);
-  auto line_output_receiver =
-      std::make_unique<OutputReceiverOptimizer>(&screen_adapter);
-
-  buffer->set_last_highlighted_line(-1);
-
-  // Key is line number.
-  std::map<size_t, std::set<size_t>> cursors;
-  for (auto cursor : *buffer->active_cursors()) {
-    cursors[cursor.line].insert(cursor.column);
-  }
-
-  auto root = buffer->parse_tree();
-  auto current_tree = buffer->current_tree(root.get());
-
-  Line::OutputOptions line_output_options;
-  line_output_options.editor_state = editor_state;
-  line_output_options.buffer = buffer.get();
-  line_output_options.lines_to_show = lines_to_show;
-  line_output_options.paste_mode = buffer->Read(buffer_variables::paste_mode());
-
-  buffer->set_lines_for_zoomed_out_tree(lines_to_show);
-  auto zoomed_out_tree = buffer->zoomed_out_tree();
-  line_output_options.full_file_parse_tree = zoomed_out_tree.get();
-
-  std::unordered_set<const OpenBuffer*> buffers_shown;
-  line_output_options.output_buffers_shown = &buffers_shown;
 
   cursor_position_ = std::nullopt;
 
-  size_t last_line = std::numeric_limits<size_t>::max();
-  for (size_t i = 0; i < screen_line_positions.size(); i++) {
-    auto position = screen_line_positions[i];
-    auto next_position = i + 1 < screen_line_positions.size()
-                             ? screen_line_positions[i + 1]
-                             : LineColumn(std::numeric_limits<size_t>::max());
-    if (position.line >= buffer->lines_size()) {
-      line_output_receiver->AddString(L"\n");
-      continue;
-    }
+  size_t lines_to_show = static_cast<size_t>(screen->lines()) - 1;
+  auto buffer_tree = editor_state->buffer_tree();
+  buffer_tree->SetLines(lines_to_show);
+  auto output_producer = editor_state->buffer_tree()->CreateOutputProducer();
+  for (size_t line = 0; line < lines_to_show; line++) {
+    OutputProducer::Options options;
+    options.receiver = std::make_unique<OutputReceiverOptimizer>(
+        NewScreenOutputReceiver(screen));
 
-    line_output_options.position = position;
-    line_output_options.output_receiver = line_output_receiver.get();
-    screen_adapter.skip_columns(line_output_receiver->column());
-    CHECK_EQ(line_output_options.output_receiver->column(), 0u);
-
-    wstring number_prefix = GetInitialPrefix(*buffer, position.line);
-    if (!number_prefix.empty() && last_line == position.line) {
-      number_prefix = wstring(number_prefix.size() - 1, L' ') + L':';
-    }
-    line_output_options.line_width =
-        buffer->Read(buffer_variables::line_width());
-    line_output_options.width = screen->columns();
-
-    std::set<size_t> current_cursors;
-    auto it = cursors.find(position.line);
-    if (it != cursors.end()) {
-      for (auto& c : it->second) {
-        if (c >= position.column &&
-            LineColumn(position.line, c) < next_position) {
-          current_cursors.insert(c - position.column);
-        }
-      }
-    }
-    bool has_active_cursor =
-        buffer->position() >= position && buffer->position() < next_position;
-    line_output_options.has_cursor = !current_cursors.empty();
-
-    if (!number_prefix.empty()) {
-      if (has_active_cursor ||
-          (!current_cursors.empty() &&
-           buffer->Read(buffer_variables::multiple_cursors()))) {
-        line_output_options.output_receiver->AddModifier(LineModifier::CYAN);
-      } else if (line_output_options.has_cursor) {
-        line_output_options.output_receiver->AddModifier(LineModifier::BLUE);
-      } else {
-        line_output_options.output_receiver->AddModifier(LineModifier::DIM);
-      }
-      line_output_options.output_receiver->AddString(number_prefix);
-      line_output_options.output_receiver->AddModifier(LineModifier::RESET);
-      CHECK_EQ(line_output_receiver->column(), number_prefix.size());
-
-      line_output_options.width -= number_prefix.size();
-      screen_adapter.skip_columns(number_prefix.size());
-    }
-
-    std::unique_ptr<Line::OutputReceiverInterface> cursors_highlighter;
     std::optional<size_t> active_cursor_column;
-    auto line = buffer->LineAt(position.line);
+    options.active_cursor = &active_cursor_column;
 
-    std::unique_ptr<Line::OutputReceiverInterface> atomic_lines_highlighter;
-    CHECK(line->contents() != nullptr);
-    if (buffer->Read(buffer_variables::atomic_lines()) &&
-        buffer->active_cursors()->cursors_in_line(position.line)) {
-      buffer->set_last_highlighted_line(position.line);
-      atomic_lines_highlighter =
-          std::make_unique<HighlightedLineOutputReceiver>(
-              line_output_options.output_receiver);
-      line_output_options.output_receiver = atomic_lines_highlighter.get();
-    } else if (!current_cursors.empty()) {
-      LOG(INFO) << "Cursors in current line: " << current_cursors.size();
-      CursorsHighlighter::Options options;
-      options.delegate = line_output_options.output_receiver;
-      options.columns = current_cursors;
-      if (buffer->position() >= position &&
-          buffer->position() < next_position) {
-        options.active_cursor_input =
-            min(buffer->position().column, line->size()) - position.column;
-        options.active_cursor_output = &active_cursor_column;
-      }
-      // Any cursors past the end of the line will just be silently moved to
-      // the end of the line (just for displaying).
-      while (!options.columns.empty() &&
-             *options.columns.rbegin() > line->size()) {
-        options.columns.erase(std::prev(options.columns.end()));
-        options.columns.insert(line->size());
-      }
-      options.multiple_cursors =
-          buffer->Read(buffer_variables::multiple_cursors());
-
-      cursors_highlighter = std::make_unique<CursorsHighlighter>(options);
-      line_output_options.output_receiver = cursors_highlighter.get();
-    }
-
-    std::unique_ptr<Line::OutputReceiverInterface> parse_tree_highlighter;
-    if (current_tree != root.get() &&
-        position.line >= current_tree->range.begin.line &&
-        position.line <= current_tree->range.end.line) {
-      size_t begin = position.line == current_tree->range.begin.line
-                         ? current_tree->range.begin.column
-                         : 0;
-      size_t end = position.line == current_tree->range.end.line
-                       ? current_tree->range.end.column
-                       : line->size();
-      parse_tree_highlighter = std::make_unique<ParseTreeHighlighter>(
-          line_output_options.output_receiver, begin, end);
-      line_output_options.output_receiver = parse_tree_highlighter.get();
-    } else if (!buffer->parse_tree()->children.empty()) {
-      parse_tree_highlighter = std::make_unique<ParseTreeHighlighterTokens>(
-          line_output_options.output_receiver, root.get(), position.line,
-          line->size());
-      line_output_options.output_receiver = parse_tree_highlighter.get();
-    }
-
-    line->Output(line_output_options);
+    output_producer->WriteLine(std::move(options));
 
     if (active_cursor_column.has_value()) {
-      cursor_position_ =
-          LineColumn(i, active_cursor_column.value() + number_prefix.size());
+      cursor_position_ = LineColumn(line, active_cursor_column.value());
     }
-
-    // Need to do this for atomic lines, since they override the Reset
-    // modifier with Reset + Reverse.
-    line_output_receiver->AddModifier(LineModifier::RESET);
-    last_line = position.line;
   }
-}  // namespace editor
+}
 
 void Terminal::AdjustPosition(Screen* screen) {
   CHECK(cursor_position_.has_value());

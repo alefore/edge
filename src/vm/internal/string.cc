@@ -34,6 +34,14 @@ void RegisterStringType(Environment* environment) {
                    return str.size();
                  }),
                  string_type.get());
+  AddMethod<int>(L"toint", std::function<int(wstring)>([](wstring str) {
+                   try {
+                     return std::stoi(str);
+                   } catch (const std::invalid_argument& ia) {
+                     return 0;
+                   }
+                 }),
+                 string_type.get());
   AddMethod<bool>(L"empty", std::function<bool(wstring)>([](wstring str) {
                     return str.empty();
                   }),

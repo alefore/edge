@@ -58,8 +58,9 @@ void StartDeleteFile(EditorState* editor_state, wstring path) {
       // in the other case.
       editor_state->SetStatus(L"Ignored.");
     }
-    if (editor_state->has_current_buffer()) {
-      editor_state->current_buffer()->second->ResetMode();
+    auto buffer = editor_state->current_buffer();
+    if (buffer != nullptr) {
+      buffer->ResetMode();
     }
   };
   options.predictor = PrecomputedPredictor({L"no", L"yes"}, '/');
@@ -201,12 +202,12 @@ void GenerateContents(EditorState* editor_state, struct stat* stat_buffer,
   }
   closedir(dir);
 
-  target->AppendToLastLine(NewLazyString(L"# File listing: " + path));
+  target->AppendToLastLine(NewLazyString(L"# 🗁  File listing: " + path));
   target->AppendEmptyLine();
 
-  ShowFiles(editor_state, L"Directories", std::move(directories), target);
-  ShowFiles(editor_state, L"Files", std::move(regular_files), target);
-  ShowFiles(editor_state, L"Noise", std::move(noise), target);
+  ShowFiles(editor_state, L"🗁  Directories", std::move(directories), target);
+  ShowFiles(editor_state, L"🗀  Files", std::move(regular_files), target);
+  ShowFiles(editor_state, L"🗐  Noise", std::move(noise), target);
 
   target->ClearModified();
 }
@@ -214,6 +215,11 @@ void GenerateContents(EditorState* editor_state, struct stat* stat_buffer,
 void HandleVisit(EditorState* editor_state, const struct stat& stat_buffer,
                  const OpenBuffer& buffer) {
   const wstring path = buffer.Read(buffer_variables::path());
+  if (stat_buffer.st_mtime == 0) {
+    LOG(INFO) << "Skipping file change check.";
+    return;
+  }
+
   LOG(INFO) << "Checking if file has changed: " << path;
   const string path_raw = ToByteString(path);
   struct stat current_stat_buffer;
@@ -221,8 +227,7 @@ void HandleVisit(EditorState* editor_state, const struct stat& stat_buffer,
     return;
   }
   if (current_stat_buffer.st_mtime > stat_buffer.st_mtime) {
-    editor_state->SetWarningStatus(
-        L"WARNING: File changed in disk since last read.");
+    editor_state->SetWarningStatus(L"🌷File changed in disk since last read.");
   }
 }
 
@@ -245,9 +250,10 @@ void Save(EditorState* editor_state, struct stat* stat_buffer,
     return;
   }
   buffer->ClearModified();
-  editor_state->SetStatus(L"Saved: " + path);
+  editor_state->SetStatus(L"🖫 Saved: " + path);
   for (const auto& dir : editor_state->edge_path()) {
-    buffer->EvaluateFile(dir + L"/hooks/buffer-save.cc");
+    buffer->EvaluateFile(dir + L"/hooks/buffer-save.cc",
+                         [](std::unique_ptr<Value>) {});
   }
   if (buffer->Read(buffer_variables::trigger_reload_on_buffer_write())) {
     for (auto& it : *editor_state->buffers()) {
@@ -436,7 +442,7 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
     return it->second;
   }
   options.path = (*editor_state->edge_path().begin()) + L"/search_paths";
-  options.make_current_buffer = false;
+  options.insertion_type = BufferTreeHorizontal::InsertionType::kSkip;
   options.use_search_paths = false;
   it = OpenFile(options);
   CHECK(it != editor_state->buffers()->end());
@@ -445,7 +451,7 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
   it->second->Set(buffer_variables::trigger_reload_on_buffer_write(), false);
   it->second->Set(buffer_variables::show_in_buffers_list(), false);
   if (!editor_state->has_current_buffer()) {
-    editor_state->set_current_buffer(it);
+    editor_state->set_current_buffer(it->second);
     editor_state->ScheduleRedraw();
   }
   return it->second;
@@ -527,7 +533,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     };
     if (FindPath(editor_state, {L""}, options.path, validator,
                  &buffer_options.path, &position, &pattern)) {
-      editor_state->set_current_buffer(buffer);
+      editor_state->set_current_buffer(buffer->second);
       if (position.has_value()) {
         buffer->second->set_position(position.value());
       }
@@ -565,10 +571,9 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   if (position.has_value()) {
     it.first->second->set_position(position.value());
   }
-  if (options.make_current_buffer) {
-    editor_state->set_current_buffer(it.first);
-    editor_state->ScheduleRedraw();
-  }
+  editor_state->buffer_tree()->InsertChildren(it.first->second,
+                                              options.insertion_type);
+  editor_state->ScheduleRedraw();
   if (!pattern.empty()) {
     SearchOptions search_options;
     search_options.starting_position = it.first->second->position();
@@ -578,11 +583,11 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   return it.first;
 }
 
-map<wstring, shared_ptr<OpenBuffer>>::iterator OpenAnonymousBuffer(
-    EditorState* editor_state) {
+std::shared_ptr<OpenBuffer> OpenAnonymousBuffer(EditorState* editor_state) {
   OpenFileOptions options;
   options.editor_state = editor_state;
-  return OpenFile(options);
+  options.insertion_type = BufferTreeHorizontal::InsertionType::kSkip;
+  return OpenFile(options)->second;
 }
 
 }  // namespace editor

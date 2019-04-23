@@ -12,3 +12,48 @@ double min(double a, int b) { return a <= b ? a : b + 0.0; }
 
 int abs(int a) { return a < 0 ? -a : a; }
 double abs(double a) { return a < 0 ? -a : a; }
+
+string IntegerAtPosition(LineColumn position) {
+  string line = buffer.line(position.line());
+  line = line.substr(position.column(), line.size() - position.column());
+  string numbers = "-0123456789";
+  for (int i = 0; i < line.size() && numbers.find(line.substr(i, 1), 0) != -1;
+       i++) {
+    numbers = "0123456789";  // Disallow "-".
+  }
+  return line.substr(0, i);
+}
+
+LineColumn AdvanceToInt(LineColumn position) {
+  while (true) {
+    string line = buffer.line(position.line());
+    int column = line.find_first_of("-0123456789", position.column());
+    if (column != -1) {
+      return LineColumn(position.line(), column);
+    }
+    if (position.line() + 1 == buffer.line_count()) {
+      return position;
+    }
+    position = LineColumn(position.line() + 1, 0);
+  }
+}
+
+void AddToIntegerAtPosition(LineColumn position, int delta) {
+  position = AdvanceToInt(position);
+
+  buffer.PushTransformationStack();
+
+  string integer = IntegerAtPosition(position);
+  buffer.ApplyTransformation(TransformationGoToPosition(position));
+
+  Modifiers modifiers = Modifiers();
+  modifiers.set_repetitions(integer.size());
+  buffer.ApplyTransformation(TransformationDelete(modifiers));
+
+  InsertTextBuilder insertion = InsertTextBuilder();
+  insertion.set_text((integer.toint() + delta).tostring());
+  insertion.set_position(position);
+  buffer.ApplyTransformation(insertion.build());
+
+  buffer.PopTransformationStack();
+}

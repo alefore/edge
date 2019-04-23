@@ -150,7 +150,9 @@ class OpenBuffer {
   // Inserts a new line into the buffer at a given position.
   void InsertLine(size_t line_position, shared_ptr<Line> line);
 
+  // Can handle \n characters, breaking it into lines.
   void AppendLazyString(std::shared_ptr<LazyString> input);
+  // line must not contain \n characters.
   void AppendLine(std::shared_ptr<LazyString> line);
   void AppendRawLine(std::shared_ptr<LazyString> str);
 
@@ -253,11 +255,6 @@ class OpenBuffer {
   void set_filter(unique_ptr<Value> filter);
   bool IsLineFiltered(size_t line);
 
-  size_t last_highlighted_line() const { return last_highlighted_line_; }
-  void set_last_highlighted_line(size_t value) {
-    last_highlighted_line_ = value;
-  }
-
   // Returns a multimap with all the marks for the current buffer, indexed by
   // the line they refer to. Each call may update the map.
   const multimap<size_t, LineMarks::Mark>* GetLineMarks() const;
@@ -274,7 +271,13 @@ class OpenBuffer {
                           std::function<void(std::unique_ptr<Value>)> consumer);
   bool EvaluateString(const wstring& str,
                       std::function<void(std::unique_ptr<Value>)> consumer);
-  bool EvaluateFile(const wstring& path);
+  bool EvaluateFile(const wstring& path,
+                    std::function<void(std::unique_ptr<Value>)> consumer);
+
+  void SchedulePendingWork(std::function<void()> callback);
+
+  enum class PendingWorkState { kIdle, kScheduled };
+  PendingWorkState ExecutePendingWork();
 
   /////////////////////////////////////////////////////////////////////////////
   // Inspecting contents of buffer.
@@ -371,8 +374,6 @@ class OpenBuffer {
   void set_tree_depth(size_t tree_depth) { tree_depth_ = tree_depth; }
 
   const ParseTree* current_tree(const ParseTree* root) const;
-  void set_lines_for_zoomed_out_tree(size_t lines);
-  std::shared_ptr<const ParseTree> zoomed_out_tree() const;
 
  private:
   static void EvaluateMap(OpenBuffer* buffer, size_t line,
@@ -434,6 +435,18 @@ class OpenBuffer {
   // Functions to call when this buffer is deleted.
   std::vector<std::function<void()>> close_observers_;
 
+  enum class ReloadState {
+    // No need to reload this buffer.
+    kDone,
+    // A reload is currently ongoing. If it finishes in this state, we switch to
+    // kDone.
+    kOngoing,
+    // A reload is underway, but a new reload was requested. Once it's done,
+    // it should switch to kUnderway and restart.
+    kPending,
+  };
+  ReloadState reload_state_ = ReloadState::kDone;
+
   // -1 means "no child process"
   pid_t child_pid_;
   int child_exit_status_;
@@ -458,6 +471,13 @@ class OpenBuffer {
   list<unique_ptr<Value>> keyboard_text_transformers_;
   Environment environment_;
 
+  // Long running operations that can't be executed in background threads
+  // should periodically interrupt themselves and insert their continuations
+  // here. Edge will periodically flush this to advance their work. This
+  // allows them to run without preventing Edge from handling input from the
+  // user.
+  std::vector<std::function<void()>> pending_work_;
+
   // A function that receives a string and returns a boolean. The function will
   // be evaluated on every line, to compute whether or not the line should be
   // shown.  This does not remove any lines: it merely hides them (by setting
@@ -481,10 +501,6 @@ class OpenBuffer {
   // this value to last_transformation_).
   list<unique_ptr<TransformationStack>> last_transformation_stack_;
 
-  // If variable_atomic_lines is true, this will be set to the last line that
-  // was highlighted.
-  size_t last_highlighted_line_ = 0;
-
   // Index of the marks for the current buffer (i.e. Mark::target_buffer is the
   // current buffer). The key is the line (i.e. Mark::line).
   //
@@ -501,8 +517,6 @@ class OpenBuffer {
   std::shared_ptr<const ParseTree> simplified_parse_tree_;
   std::shared_ptr<TreeParser> tree_parser_;
   size_t tree_depth_ = 0;
-  size_t lines_for_zoomed_out_tree_ = 0;
-  std::shared_ptr<const ParseTree> zoomed_out_tree_;
 
   std::shared_ptr<MapModeCommands> default_commands_;
   std::shared_ptr<EditorMode> mode_;

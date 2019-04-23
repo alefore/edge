@@ -69,7 +69,9 @@ EdgeVariable<bool>* allow_dirty_delete() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"allow_dirty_delete",
       L"Allow this buffer to be deleted even if it's dirty (i.e. if it has "
-      L"unsaved changes or an underlying process that's still running).",
+      L"unsaved changes or an underlying process that's still running).\n\n"
+      L"This applies both if the buffer is closed explicitly or implicitly "
+      L"when Edge exits.",
       false);
   return variable;
 }
@@ -104,10 +106,12 @@ EdgeVariable<bool>* atomic_lines() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"atomic_lines",
       L"If true, lines can't be joined (e.g. you can't delete the last "
-      L"character in a line unless the line is empty).  This is used by "
-      L"certain "
-      L"buffers that represent lists of things (each represented as a line), "
-      L"for which this is a natural behavior.",
+      L"character in a line unless the line is empty). In this case, instead "
+      L"of displaying the cursors, Edge will show the currently selected "
+      L"line.\n\n"
+      "This is used by certain buffers (such as the list of buffers or a view "
+      L"of the contents of a directory) that represent lists of things (each "
+      L"represented as a line), for which this is a natural behavior.",
       false);
   return variable;
 }
@@ -115,7 +119,10 @@ EdgeVariable<bool>* atomic_lines() {
 EdgeVariable<bool>* save_on_close() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"save_on_close",
-      L"Should this buffer be saved automatically when it's closed?", false);
+      L"Should this buffer be saved automatically when it's closed?\n\n"
+      L"This applies both if the buffer is closed explicitly or implicitly "
+      L"when Edge exits.",
+      false);
   return variable;
 }
 
@@ -125,7 +132,10 @@ EdgeVariable<bool>* clear_on_reload() {
       L"Should any previous contents be discarded when this buffer is "
       L"reloaded? "
       L"If false, previous contents will be preserved and new contents will be "
-      L"appended at the end.",
+      L"appended at the end.\n\n"
+      L"This is useful mainly for buffers with the output of commands, where "
+      L"you don't want to discard the output of previous runs as you reload "
+      L"the buffer.",
       true);
   return variable;
 }
@@ -136,7 +146,7 @@ EdgeVariable<bool>* paste_mode() {
       L"When paste_mode is enabled in a buffer, it will be displayed in a way "
       L"that makes it possible to select (with a mouse) parts of it (that are "
       L"currently shown).  It will also allow you to paste text directly into "
-      L"the buffer.",
+      L"the buffer (i.e., it will disable any smart indenting).",
       false);
   return variable;
 }
@@ -152,7 +162,9 @@ EdgeVariable<bool>* commands_background_mode() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"commands_background_mode",
       L"Should new commands forked from this buffer be started in background "
-      L"mode?  If false, we will switch to them automatically.",
+      L"mode?  If false, we will switch to them automatically.\n\n"
+      L"This just affects whether we switch the currently selected Edge buffer "
+      L"to the new buffer; it has no effect whatsoever in the command.",
       false);
   return variable;
 }
@@ -161,8 +173,10 @@ EdgeVariable<bool>* reload_on_buffer_write() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"reload_on_buffer_write",
       L"Should the current buffer (on which this variable is set) be reloaded "
-      L"when any buffer is written?  This is useful mainly for command buffers "
-      L"like 'make' or 'git diff'.",
+      L"when any buffer is written?\n\n"
+      L"This is useful mainly for command buffers like `make` or `git "
+      L"diff`.\n\n"
+      L"If you set this, you may also want to set `contains_line_marks`.",
       false);
   return variable;
 }
@@ -181,15 +195,28 @@ EdgeVariable<bool>* trigger_reload_on_buffer_write() {
 EdgeVariable<bool>* contains_line_marks() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"contains_line_marks",
-      L"If set to true, this buffer will be scanned for line marks.", false);
+      L"Indicates whether the current buffer should be scanned for \"marks\": "
+      L"lines that start with a prefix of the form \"path:line\" (e.g. "
+      L"`src/test.cc:23`). For any such marks found, the corresponding lines "
+      L"in the corresponding buffers (i.e., buffers for the corresponding "
+      L"files) will be highlighted.\n\n"
+      L"This is useful for *compiler* commands like `make` that output lines "
+      L"with compilation errors.\n\n"
+      L"Unfortunately, we don't currently support any fancy formats: the lines "
+      L"need to start with the marks. This, however, is good enough for many "
+      L"compilers. But if your commands output lines in a format such as "
+      L"`Error in src/test.cc:23:` this won't be very useful.\n\n"
+      L"If you set this on a buffer, you may want to also set variable "
+      L"`reload_on_buffer_write`.",
+      false);
   return variable;
 }
 
 EdgeVariable<bool>* multiple_cursors() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"multiple_cursors",
-      L"If set to true, operations in this buffer apply to all cursors defined "
-      L"on it.",
+      L"If `true`, all commands apply to all cursors in the current buffer. "
+      L"Otherwise, they only apply to the active cursor.",
       false);
   return variable;
 }
@@ -213,8 +240,10 @@ EdgeVariable<bool>* show_in_buffers_list() {
 EdgeVariable<bool>* push_positions_to_history() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"push_positions_to_history",
-      L"If set to true, movement in this buffer result in positions being "
-      L"pushed to the history of positions.",
+      L"If set to true, movement in this buffer causes new positions to be "
+      L"pushed to the history of positions.\n\n"
+      L"A few buffers default this to `false`, to avoid pushing their "
+      L"positions to the history.",
       true);
   return variable;
 }
@@ -222,8 +251,9 @@ EdgeVariable<bool>* push_positions_to_history() {
 EdgeVariable<bool>* delete_into_paste_buffer() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"delete_into_paste_buffer",
-      L"If set to true, deletions from this buffer will go into the shared "
-      L"paste buffer.",
+      L"If set to true, deletions from this buffer go into the shared paste "
+      L"buffer.\n\n"
+      L"A few buffers, such as prompt buffers, default this to `false`.",
       true);
   return variable;
 }
@@ -312,7 +342,7 @@ EdgeVariable<wstring>* symbol_characters() {
   static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
       L"symbol_characters",
       L"String with all the characters that should be considered part of a "
-      L"symbol.",
+      L"symbol. This affects commands such as `dW` (delete symbol).",
       L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
   return variable;
 }
@@ -364,7 +394,9 @@ EdgeVariable<wstring>* command() {
 EdgeVariable<wstring>* editor_commands_path() {
   static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
       L"editor_commands_path",
-      L"String with the path to the initial directory for editor commands.",
+      L"String with the path to the initial directory used when prompting the "
+      L"user for an editor command to run. It does not affect in any way the "
+      L"execution of these commands (simply the prompting).",
       L"", FilePredictor);
   return variable;
 }
@@ -377,8 +409,7 @@ EdgeVariable<wstring>* line_prefix_characters() {
       L"of the previous line (the sequence of all characters at the start of "
       L"the previous line that are listed in line_prefix_characters) is copied "
       L"to the new line.  The order of characters in line_prefix_characters "
-      L"has "
-      L"no effect.",
+      L"has no effect.",
       L" ");
   return variable;
 }
@@ -408,9 +439,11 @@ EdgeVariable<wstring>* dictionary() {
       L"dictionary",
       L"Path to a dictionary file used for autocompletion. If empty, pressing "
       L"TAB (in insert mode) just inserts a tab character into the file; "
-      L"otherwise, it triggers completion to the first string from the "
-      L"dictionary that matches the prefix of the current word. Pressing TAB "
-      L"again iterates through all completions.",
+      L"otherwise, it triggers completion to the first string from this file "
+      L"that matches the prefix of the current word. Pressing TAB again "
+      L"iterates through all completions.\n\n"
+      L"The dictionary file must be a text file containing one word per line "
+      L"and sorted alphabetically.",
       L"");
   return variable;
 }
@@ -463,8 +496,6 @@ EdgeStruct<int>* IntStruct() {
     buffer_list_context_lines();
     margin_lines();
     margin_columns();
-    view_start_line();
-    view_start_column();
     progress();
   }
   return output;
@@ -500,25 +531,6 @@ EdgeVariable<int>* margin_columns() {
       L"Number of characters of context to display at the left/right of the "
       L"current position.",
       2);
-  return variable;
-}
-
-EdgeVariable<int>* view_start_line() {
-  static EdgeVariable<int>* variable = IntStruct()->AddVariable(
-      L"view_start_line",
-      L"The desired line to show at the beginning of the screen (at the "
-      L"top-most position). This is adjusted automatically as the cursor moves "
-      L"around in the buffer.",
-      0);
-  return variable;
-}
-
-EdgeVariable<int>* view_start_column() {
-  static EdgeVariable<int>* variable = IntStruct()->AddVariable(
-      L"view_start_column",
-      L"The desired column to show at the left-most part of the screen. This "
-      L"is adjusted automatically as the cursor moves around in the buffer.",
-      0);
   return variable;
 }
 

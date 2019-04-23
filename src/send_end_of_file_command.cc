@@ -56,10 +56,10 @@ class SendEndOfFileCommand : public Command {
   wstring Category() const override { return L"Subprocess"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
-    if (!editor_state->has_current_buffer()) {
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
       return;
     }
-    auto buffer = editor_state->current_buffer()->second;
     buffer->ResetMode();
     SendEndOfFileToBuffer(editor_state, buffer);
   }

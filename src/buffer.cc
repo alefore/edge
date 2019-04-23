@@ -137,18 +137,24 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, size_t line,
       [buffer, line, map_callback, transformation, trampoline, current_line,
        map_line](Value::Ptr value) {
         if (value->str != current_line) {
-          DeleteOptions options;
-          options.copy_to_paste_buffer = false;
-          options.modifiers.structure = StructureLine();
-          transformation->PushBack(NewDeleteTransformation(options));
+          DeleteOptions delete_options;
+          delete_options.copy_to_paste_buffer = false;
+          delete_options.modifiers.structure = StructureLine();
+          transformation->PushBack(
+              NewDeleteTransformation(std::move(delete_options)));
+          InsertOptions insert_options;
           auto buffer_to_insert =
               std::make_shared<OpenBuffer>(buffer->editor(), L"tmp buffer");
           buffer_to_insert->AppendLine(NewLazyString(std::move(value->str)));
+          insert_options.buffer_to_insert = std::move(buffer_to_insert);
           transformation->PushBack(
-              NewInsertBufferTransformation(buffer_to_insert, 1, END));
+              NewInsertBufferTransformation(std::move(insert_options)));
         }
         EvaluateMap(buffer, line + 1, std::move(map_callback), transformation,
                     trampoline);
+      },
+      [buffer](std::function<void()> callback) {
+        buffer->SchedulePendingWork(std::move(callback));
       });
 }
 
@@ -343,8 +349,10 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, size_t line,
                   NewLazyString(std::move(line)));
             }
 
+            InsertOptions insert_options;
+            insert_options.buffer_to_insert = std::move(buffer_to_insert);
             buffer->ApplyToCursors(
-                NewInsertBufferTransformation(buffer_to_insert, 1, END));
+                NewInsertBufferTransformation(std::move(insert_options)));
           })));
 
   buffer->AddField(L"Save", vm::NewCallback(std::function<void(OpenBuffer*)>(
@@ -375,7 +383,7 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, size_t line,
             LOG(INFO) << "AddBindingToFile: " << keys << " -> " << path;
             buffer->default_commands_->Add(
                 keys,
-                [editor_state, buffer, path]() {
+                [buffer, path](EditorState* editor_state) {
                   wstring resolved_path;
                   ResolvePathOptions options;
                   options.editor_state = editor_state;
@@ -385,7 +393,8 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, size_t line,
                     editor_state->SetWarningStatus(L"Unable to resolve: " +
                                                    path);
                   } else {
-                    buffer->EvaluateFile(resolved_path);
+                    buffer->EvaluateFile(resolved_path,
+                                         [](std::unique_ptr<Value>) {});
                   }
                 },
                 L"Load file: " + path);
@@ -395,7 +404,8 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, size_t line,
                    vm::NewCallback(std::function<void(OpenBuffer*, wstring)>(
                        [](OpenBuffer* buffer, wstring path) {
                          LOG(INFO) << "Evaluating file: " << path;
-                         buffer->EvaluateFile(path);
+                         buffer->EvaluateFile(path,
+                                              [](std::unique_ptr<Value>) {});
                        })));
 
   environment->DefineType(L"Buffer", std::move(buffer));
@@ -415,7 +425,6 @@ void OpenBuffer::BackgroundThread() {
         std::move(contents_to_parse_);
     CHECK(contents_to_parse_ == nullptr);
     auto parser = tree_parser_;
-    size_t lines_for_zoomed_out_tree = lines_for_zoomed_out_tree_;
     lock.unlock();
 
     if (contents == nullptr) {
@@ -428,16 +437,9 @@ void OpenBuffer::BackgroundThread() {
     auto simplified_parse_tree = std::make_shared<ParseTree>();
     SimplifyTree(*parse_tree, simplified_parse_tree.get());
 
-    std::shared_ptr<const ParseTree> zoomed_out_tree;
-    if (lines_for_zoomed_out_tree != 0) {
-      zoomed_out_tree = std::make_shared<ParseTree>(ZoomOutTree(
-          *simplified_parse_tree, contents->size(), lines_for_zoomed_out_tree));
-    }
-
     std::unique_lock<std::mutex> final_lock(mutex_);
     parse_tree_ = parse_tree;
     simplified_parse_tree_ = simplified_parse_tree;
-    zoomed_out_tree_ = zoomed_out_tree;
     editor_->ScheduleRedraw();
     final_lock.unlock();
 
@@ -508,7 +510,7 @@ OpenBuffer::OpenBuffer(Options options)
     if (stat(ToByteString(state_path).c_str(), &stat_buffer) == -1) {
       continue;
     }
-    EvaluateFile(state_path);
+    EvaluateFile(state_path, [](std::unique_ptr<Value>) {});
   }
 }
 
@@ -728,15 +730,13 @@ void OpenBuffer::EndOfFile() {
   }
   if (Read(buffer_variables::close_after_clean_exit()) &&
       WIFEXITED(child_exit_status_) && WEXITSTATUS(child_exit_status_) == 0) {
-    auto it = editor()->buffers()->find(Read(buffer_variables::name()));
-    if (it != editor()->buffers()->end()) {
-      editor()->CloseBuffer(it);
-    }
+    editor()->CloseBuffer(this);
   }
 
-  if (editor()->has_current_buffer() &&
-      editor()->current_buffer()->first == kBuffersName) {
-    editor()->current_buffer()->second->Reload();
+  auto current_buffer = editor()->current_buffer();
+  if (current_buffer != nullptr &&
+      current_buffer->Read(buffer_variables::name()) == kBuffersName) {
+    current_buffer->Reload();
   }
 }
 
@@ -882,11 +882,10 @@ void OpenBuffer::Input::ReadData(OpenBuffer* target) {
                                  ModifiersVector(modifiers, line->size()));
         target->StartNewLine();
         line_start = i + 1;
-        if (editor_state->has_current_buffer() &&
-            editor_state->current_buffer()->second.get() == target &&
-            target->contents()->size() <=
-                target->Read(buffer_variables::view_start_line()) +
-                    editor_state->visible_lines()) {
+        auto buffer = editor_state->current_buffer();
+        if (buffer.get() == target) {
+          // TODO: Only do this if the position is in view in any of the
+          // buffers.
           editor_state->ScheduleRedraw();
         }
       }
@@ -902,9 +901,10 @@ void OpenBuffer::Input::ReadData(OpenBuffer* target) {
   if (!previous_modified) {
     target->ClearModified();  // These changes don't count.
   }
-  if (editor_state->has_current_buffer() &&
-      editor_state->current_buffer()->first == kBuffersName) {
-    editor_state->current_buffer()->second->Reload();
+  auto current_buffer = editor_state->current_buffer();
+  if (current_buffer != nullptr &&
+      current_buffer->Read(buffer_variables::name()) == kBuffersName) {
+    current_buffer->Reload();
   }
   editor_state->ScheduleRedraw();
 }
@@ -956,6 +956,7 @@ void OpenBuffer::ResetParseTree() {
     if (!background_thread_.joinable()) {
       std::unique_lock<std::mutex> lock(mutex_);
       background_thread_shutting_down_ = false;
+      LOG(INFO) << "Creating thread: " << Read(buffer_variables::name());
       background_thread_ = std::thread([this]() { BackgroundThread(); });
     }
   }
@@ -1015,13 +1016,46 @@ void OpenBuffer::Reload() {
     Set(buffer_variables::reload_after_exit(), true);
     return;
   }
-  for (const auto& dir : editor()->edge_path()) {
-    EvaluateFile(PathJoin(dir, L"hooks/buffer-reload.cc"));
+
+  switch (reload_state_) {
+    case ReloadState::kDone:
+      reload_state_ = ReloadState::kOngoing;
+      break;
+    case ReloadState::kOngoing:
+      reload_state_ = ReloadState::kPending;
+      return;
+    case ReloadState::kPending:
+      return;
   }
-  ClearModified();
-  LOG(INFO) << "Starting reload: " << Read(buffer_variables::name());
-  if (generate_contents_ != nullptr) {
-    generate_contents_(this);
+
+  // We need to wait until all instances of buffer-reload.cc have been
+  // evaluated. To achieve that, we simply pass a function that depends on a
+  // shared_ptr as the continuation. Once that function is deallocated, we'll
+  // know that we're ready to run.
+  std::shared_ptr<bool> reloader(new bool(), [this](bool* value) {
+    delete value;
+    if (editor_->exit_value().has_value()) return;
+    ClearModified();
+    LOG(INFO) << "Starting reload: " << Read(buffer_variables::name());
+    if (generate_contents_ != nullptr) {
+      generate_contents_(this);
+    }
+
+    switch (reload_state_) {
+      case ReloadState::kDone:
+        CHECK(false);
+      case ReloadState::kOngoing:
+        reload_state_ = ReloadState::kDone;
+        break;
+      case ReloadState::kPending:
+        reload_state_ = ReloadState::kDone;
+        Reload();
+    }
+  });
+
+  for (const auto& dir : editor()->edge_path()) {
+    EvaluateFile(PathJoin(dir, L"hooks/buffer-reload.cc"),
+                 [reloader](std::unique_ptr<Value>) {});
   }
 }
 
@@ -1127,7 +1161,7 @@ void OpenBuffer::ProcessCommandInput(shared_ptr<LazyString> str) {
             return c == L'♪' || c == L'♫' || c == L'…' || c == L' ' ||
                    c == L'𝄞';
           })) {
-        status = L"𝄞";
+        status = L" 𝄞";
       } else if (status.size() >= 40) {
         status = L"…" + status.substr(status.size() - 40, status.size());
       }
@@ -1180,10 +1214,6 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
       VLOG(9) << "Received: cuu1: Up one line.";
       if (position_pts_.line > 0) {
         position_pts_.line--;
-        if (static_cast<size_t>(Read(buffer_variables::view_start_line())) >
-            position_pts_.line) {
-          Set(buffer_variables::view_start_line(), position_pts_.line);
-        }
       }
       return read_index + 1;
     case '[':
@@ -1335,15 +1365,15 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
           }
           DLOG(INFO) << "Move cursor home: line: " << line_delta
                      << ", column: " << column_delta;
-          position_pts_ =
-              LineColumn(Read(buffer_variables::view_start_line()) + line_delta,
-                         column_delta);
+          position_pts_ = LineColumn(
+              editor_->buffer_tree()->GetActiveLeaf()->view_start().line +
+                  line_delta,
+              column_delta);
           auto follower = GetEndPositionFollower();
           while (position_pts_.line >= contents_.size()) {
             contents_.push_back(std::make_shared<Line>());
           }
           follower = nullptr;
-          Set(buffer_variables::view_start_column(), column_delta);
         }
         return read_index;
 
@@ -1411,7 +1441,10 @@ unique_ptr<Expression> OpenBuffer::CompileString(const wstring& code,
 
 void OpenBuffer::EvaluateExpression(
     Expression* expr, std::function<void(std::unique_ptr<Value>)> consumer) {
-  Evaluate(expr, &environment_, consumer);
+  Evaluate(expr, &environment_, consumer,
+           [this](std::function<void()> callback) {
+             SchedulePendingWork(std::move(callback));
+           });
 }
 
 bool OpenBuffer::EvaluateString(
@@ -1422,7 +1455,7 @@ bool OpenBuffer::EvaluateString(
   std::shared_ptr<Expression> expression =
       CompileString(code, &error_description);
   if (expression == nullptr) {
-    editor()->SetWarningStatus(L"Compilation error: " + error_description);
+    editor()->SetWarningStatus(L"🐜Compilation error: " + error_description);
     return false;
   }
   LOG(INFO) << "Code compiled, evaluating.";
@@ -1432,18 +1465,42 @@ bool OpenBuffer::EvaluateString(
   return true;
 }
 
-bool OpenBuffer::EvaluateFile(const wstring& path) {
+bool OpenBuffer::EvaluateFile(
+    const wstring& path, std::function<void(std::unique_ptr<Value>)> callback) {
   wstring error_description;
-  // TODO: Use unique_ptr and capture by value.
   std::shared_ptr<Expression> expression =
       CompileFile(ToByteString(path), &environment_, &error_description);
   if (expression == nullptr) {
     SetStatus(path + L": error: " + error_description);
     return false;
   }
-  Evaluate(expression.get(), &environment_,
-           [expression](std::unique_ptr<Value>) {});
+  LOG(INFO) << "Evaluating file: " << path;
+  Evaluate(
+      expression.get(), &environment_,
+      [path, callback, expression](std::unique_ptr<Value> value) {
+        LOG(INFO) << "Evaluation of file completed: " << path;
+        callback(std::move(value));
+      },
+      [path, this](std::function<void()> resume) {
+        LOG(INFO) << "Evaluation of file yields: " << path;
+        SchedulePendingWork(std::move(resume));
+      });
   return true;
+}
+
+void OpenBuffer::SchedulePendingWork(std::function<void()> callback) {
+  pending_work_.push_back(callback);
+}
+
+OpenBuffer::PendingWorkState OpenBuffer::ExecutePendingWork() {
+  VLOG(5) << "Executing pending work: " << pending_work_.size();
+  std::vector<std::function<void()>> callbacks;
+  callbacks.swap(pending_work_);
+  for (auto& c : callbacks) {
+    c();
+  }
+  return pending_work_.empty() ? PendingWorkState::kIdle
+                               : PendingWorkState::kScheduled;
 }
 
 void OpenBuffer::DeleteRange(const Range& range) {
@@ -1787,24 +1844,6 @@ const ParseTree* OpenBuffer::current_tree(const ParseTree* root) const {
   return FollowRoute(*root, route);
 }
 
-void OpenBuffer::set_lines_for_zoomed_out_tree(size_t lines) {
-  std::unique_lock<std::mutex> lock(mutex_);
-  if (lines == lines_for_zoomed_out_tree_) {
-    return;
-  }
-
-  lines_for_zoomed_out_tree_ = lines;
-  zoomed_out_tree_ = nullptr;
-  lock.unlock();
-
-  editor_->ScheduleParseTreeUpdate(this);
-}
-
-std::shared_ptr<const ParseTree> OpenBuffer::zoomed_out_tree() const {
-  std::unique_lock<std::mutex> lock(mutex_);
-  return zoomed_out_tree_;
-}
-
 const shared_ptr<const Line> OpenBuffer::current_line() const {
   auto index = position().line;
   return index >= contents_.size() ? nullptr : contents_.at(index);
@@ -1854,8 +1893,12 @@ wstring OpenBuffer::TransformKeyboardText(wstring input) {
   for (Value::Ptr& t : keyboard_text_transformers_) {
     vector<Value::Ptr> args;
     args.push_back(Value::NewString(std::move(input)));
-    Call(t.get(), std::move(args),
-         [&input](Value::Ptr value) { input = std::move(value->str); });
+    Call(
+        t.get(), std::move(args),
+        [&input](Value::Ptr value) { input = std::move(value->str); },
+        [this](std::function<void()> callback) {
+          SchedulePendingWork(std::move(callback));
+        });
   }
   return input;
 }
@@ -1943,20 +1986,39 @@ wstring OpenBuffer::FlagsString() const {
   }
 
   if (modified()) {
-    output += L" ~";
+    output += L" 🐾";
   }
+
   if (fd() != -1) {
-    output += L" < l:" + to_wstring(contents_.size());
+    output += L" < ";
+    switch (contents_.size()) {
+      case 1:
+        output += L"⚊ ";
+        break;
+      case 2:
+        output += L"⚌ ";
+        break;
+      case 3:
+        output += L"☰ ";
+        break;
+      default:
+        output += L"☰ " + to_wstring(contents_.size());
+    }
     if (Read(buffer_variables::follow_end_of_file())) {
       output += L" ↓";
     }
     wstring pts_path = Read(buffer_variables::pts_path());
     if (!pts_path.empty()) {
-      output += L" " + pts_path;
+      output += L"  💻" + pts_path + L" ";
     }
   }
+
+  if (!pending_work_.empty()) {
+    output += L" ⏳";
+  }
+
   if (child_pid_ != -1) {
-    output += L" pid:" + to_wstring(child_pid_);
+    output += L"  🤴" + to_wstring(child_pid_) + L" ";
   } else if (child_exit_status_ != 0) {
     if (WIFEXITED(child_exit_status_)) {
       output += L" exit:" + to_wstring(WEXITSTATUS(child_exit_status_));

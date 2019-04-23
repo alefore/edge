@@ -1,15 +1,8 @@
 #include "src/search_handler.h"
 
 #include <iostream>
-#include <set>
-#if CPP_REGEX
 #include <regex>
-#else
-extern "C" {
-#include <regex.h>
-#include <sys/types.h>
-}
-#endif
+#include <set>
 
 #include "src/audio.h"
 #include "src/buffer_variables.h"
@@ -23,11 +16,7 @@ using namespace afc::editor;
 using std::vector;
 using std::wstring;
 
-#if CPP_REGEX
-typedef std::regex RegexPattern;
-#else
-typedef regex_t RegexPattern;
-#endif
+typedef std::wregex RegexPattern;
 
 // Returns all columns where the current line matches the pattern.
 vector<size_t> GetMatches(const wstring& line, const RegexPattern& pattern) {
@@ -35,22 +24,13 @@ vector<size_t> GetMatches(const wstring& line, const RegexPattern& pattern) {
   vector<size_t> output;
   while (true) {
     size_t match = wstring::npos;
-    // TODO: Ugh, our regexp engines are not wchar aware. :-(
-    string line_substr = ToByteString(line.substr(min(start, line.size())));
+    wstring line_substr = line.substr(min(start, line.size()));
 
-#if CPP_REGEX
-    std::smatch pattern_match;
+    std::wsmatch pattern_match;
     std::regex_search(line_substr, pattern_match, pattern);
     if (!pattern_match.empty()) {
-      match = pattern_match.prefix().first - line_substr.begin();
+      match = pattern_match.position();
     }
-#else
-    regmatch_t matches;
-    if (regexec(&pattern, line_substr.c_str(), 1, &matches, 0) == 0) {
-      match = matches.rm_so;
-    }
-#endif
-
     if (match == wstring::npos) {
       return output;
     }
@@ -65,22 +45,17 @@ vector<LineColumn> PerformSearch(const SearchOptions& options,
   using namespace afc::editor;
   vector<LineColumn> positions;
 
-#if CPP_REGEX
-  // TODO: Get rid of ToByteString. Ugh.
-  std::regex pattern(ToByteString(options.search_query),
-                     options.case_sensitive ? 0 : std::regex_constants::icase);
-#else
-  regex_t pattern;
-  int cflags = 0;
+  auto traits = std::regex_constants::extended;
   if (!options.case_sensitive) {
-    cflags |= REG_ICASE;
+    traits |= std::regex_constants::icase;
   }
-  // TODO: Get rid of ToByteString. Ugh.
-  if (regcomp(&pattern, ToByteString(options.search_query).c_str(), cflags) !=
-      0) {
-    return positions;
+  std::wregex pattern;
+  try {
+    pattern = std::wregex(options.search_query, traits);
+  } catch (std::regex_error& e) {
+    buffer->editor()->SetStatus(L"Regex failure: " + FromByteString(e.what()));
+    return {};
   }
-#endif
 
   buffer->contents()->EveryLine(
       [&positions, &pattern](size_t position, const Line& line) {
@@ -96,10 +71,6 @@ vector<LineColumn> PerformSearch(const SearchOptions& options,
 
 namespace afc {
 namespace editor {
-
-#if CPP_REGEX
-using std::regex;
-#endif
 
 wstring RegexEscape(shared_ptr<LazyString> str) {
   wstring results;
@@ -118,7 +89,7 @@ wstring RegexEscape(shared_ptr<LazyString> str) {
 // in the region enclosed by start and *end will be returned.
 vector<LineColumn> PerformSearchWithDirection(EditorState* editor_state,
                                               const SearchOptions& options) {
-  auto buffer = editor_state->current_buffer()->second;
+  auto buffer = editor_state->current_buffer();
   auto direction = editor_state->modifiers().direction;
   vector<LineColumn> candidates = PerformSearch(options, buffer.get());
   if (direction == BACKWARDS) {
@@ -157,18 +128,27 @@ vector<LineColumn> PerformSearchWithDirection(EditorState* editor_state,
   }
 
   if (head.empty()) {
+    editor_state->SetStatus(L"🔍 No results.");
     BeepFrequencies(editor_state->audio_player(), {523.25, 261.63, 261.63});
   } else {
+    if (head.size() == 1) {
+      editor_state->SetStatus(L"🔍 1 result.");
+    } else {
+      wstring results_prefix(1 + static_cast<size_t>(log2(head.size())), L'🔍');
+      editor_state->SetStatus(results_prefix + L" Results: " +
+                              std::to_wstring(head.size()));
+    }
     vector<double> frequencies = {261.63, 329.63, 392.0, 523.25, 659.25};
     frequencies.resize(min(frequencies.size(), head.size() + 1));
     BeepFrequencies(editor_state->audio_player(), frequencies);
+    buffer->Set(buffer_variables::multiple_cursors(), false);
   }
   return head;
 }
 
 void SearchHandlerPredictor(EditorState* editor_state, const wstring& input,
                             OpenBuffer* predictions_buffer) {
-  auto buffer = editor_state->current_buffer()->second;
+  auto buffer = editor_state->current_buffer();
   SearchOptions options;
   options.search_query = input;
   options.case_sensitive =
@@ -213,7 +193,7 @@ void JumpToNextMatch(EditorState* editor_state, const SearchOptions& options) {
   if (results.empty()) {
     editor_state->SetStatus(L"No matches: " + options.search_query);
   } else {
-    editor_state->current_buffer()->second->set_position(results[0]);
+    editor_state->current_buffer()->set_position(results[0]);
     editor_state->PushCurrentPosition();
   }
 }

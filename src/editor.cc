@@ -19,6 +19,7 @@ extern "C" {
 #include <glog/logging.h>
 
 #include "src/audio.h"
+#include "src/buffer_tree_horizontal.h"
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/dirname.h"
@@ -72,10 +73,8 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
     auto editor = static_cast<EditorState*>(args[0]->user_value.get());
     CHECK(editor != nullptr);
 
-    if (editor->has_current_buffer()) {
-      auto buffer = editor->current_buffer()->second;
-      CHECK(buffer != nullptr);
-
+    auto buffer = editor->current_buffer();
+    if (buffer != nullptr) {
       (*buffer.*method)();
       editor->ResetModifiers();
       editor->ScheduleRedraw();
@@ -91,6 +90,18 @@ void EditorState::NotifyInternalEvent() {
   if (write(pipe_to_communicate_internal_events_.second, " ", 1) == -1) {
     SetStatus(L"Write to internal pipe failed!");
   }
+}
+
+// Executes pending work from all buffers.
+OpenBuffer::PendingWorkState EditorState::ExecutePendingWork() {
+  OpenBuffer::PendingWorkState output = OpenBuffer::PendingWorkState::kIdle;
+  for (auto& buffer : buffers_) {
+    if (buffer.second->ExecutePendingWork() ==
+        OpenBuffer::PendingWorkState::kScheduled) {
+      output = OpenBuffer::PendingWorkState::kScheduled;
+    }
+  }
+  return output;
 }
 
 Environment EditorState::BuildEditorEnvironment() {
@@ -110,11 +121,10 @@ Environment EditorState::BuildEditorEnvironment() {
             auto editor = static_cast<EditorState*>(args[0]->user_value.get());
             CHECK(editor != nullptr);
 
-            if (!editor->has_current_buffer()) {
+            auto buffer = editor->current_buffer();
+            if (buffer == nullptr) {
               return Value::NewVoid();
             }
-            auto buffer = editor->current_buffer()->second;
-            CHECK(buffer != nullptr);
 
             if (editor->structure() == StructureLine()) {
               auto target_buffer = buffer->GetBufferFromCurrentLine();
@@ -128,6 +138,62 @@ Environment EditorState::BuildEditorEnvironment() {
           }));
 
   editor_type->AddField(
+      L"AddHorizontalSplit",
+      vm::NewCallback(std::function<void(EditorState*)>(
+          [](EditorState* editor) { editor->AddHorizontalSplit(); })));
+
+  editor_type->AddField(L"SetHorizontalSplitsWithAllBuffers",
+                        vm::NewCallback(std::function<void(EditorState*)>(
+                            [](EditorState* editor) {
+                              editor->SetHorizontalSplitsWithAllBuffers();
+                            })));
+
+  editor_type->AddField(L"SetActiveLeaf",
+                        vm::NewCallback(std::function<void(EditorState*, int)>(
+                            [](EditorState* editor, int delta) {
+                              editor->SetActiveLeaf(delta);
+                            })));
+
+  editor_type->AddField(L"AdvanceActiveLeaf",
+                        vm::NewCallback(std::function<void(EditorState*, int)>(
+                            [](EditorState* editor, int delta) {
+                              editor->AdvanceActiveLeaf(delta);
+                            })));
+
+  editor_type->AddField(
+      L"ZoomToLeaf", vm::NewCallback(std::function<void(EditorState*)>(
+                         [](EditorState* editor) { editor->ZoomToLeaf(); })));
+
+  editor_type->AddField(
+      L"ToggleBuffersVisible",
+      vm::NewCallback(
+          std::function<void(EditorState*)>([](EditorState* editor) {
+            CHECK(editor != nullptr);
+            editor->buffer_tree_->SetBuffersVisible(
+                editor->buffer_tree_->buffers_visible() ==
+                        BufferTreeHorizontal::BuffersVisible::kAll
+                    ? BufferTreeHorizontal::BuffersVisible::kActive
+                    : BufferTreeHorizontal::BuffersVisible::kAll);
+            editor->ScheduleRedraw();
+          })));
+
+  editor_type->AddField(
+      L"SetBuffersVisible",
+      vm::NewCallback(std::function<void(EditorState*, bool)>(
+          [](EditorState* editor, bool all_visible) {
+            CHECK(editor != nullptr);
+            editor->buffer_tree_->SetBuffersVisible(
+                all_visible ? BufferTreeHorizontal::BuffersVisible::kAll
+                            : BufferTreeHorizontal::BuffersVisible::kActive);
+            editor->ScheduleRedraw();
+          })));
+
+  editor_type->AddField(
+      L"RemoveActiveLeaf",
+      vm::NewCallback(std::function<void(EditorState*)>(
+          [](EditorState* editor) { editor->BufferTreeRemoveActiveLeaf(); })));
+
+  editor_type->AddField(
       L"SaveCurrentBuffer",
       Value::NewFunction(
           {VMType(VMType::VM_VOID), VMType::ObjectType(editor_type.get())},
@@ -138,11 +204,10 @@ Environment EditorState::BuildEditorEnvironment() {
             auto editor = static_cast<EditorState*>(args[0]->user_value.get());
             CHECK(editor != nullptr);
 
-            if (!editor->has_current_buffer()) {
+            auto buffer = editor->current_buffer();
+            if (buffer == nullptr) {
               return Value::NewVoid();
             }
-            auto buffer = editor->current_buffer()->second;
-            CHECK(buffer != nullptr);
 
             if (editor->structure() == StructureLine()) {
               auto target_buffer = buffer->GetBufferFromCurrentLine();
@@ -170,7 +235,7 @@ Environment EditorState::BuildEditorEnvironment() {
       Value::NewFunction({VMType::ObjectType(L"Buffer")},
                          [this](vector<unique_ptr<Value>> args) {
                            CHECK_EQ(args.size(), size_t(0));
-                           auto buffer = current_buffer()->second;
+                           auto buffer = current_buffer();
                            CHECK(buffer != nullptr);
                            if (structure() == StructureLine()) {
                              auto target_buffer =
@@ -257,36 +322,39 @@ Environment EditorState::BuildEditorEnvironment() {
   environment.Define(
       L"SetPositionColumn",
       vm::NewCallback(std::function<void(int)>([this](int value) {
-        if (!has_current_buffer()) {
+        auto buffer = current_buffer();
+        if (buffer == nullptr) {
           return;
         }
-        auto buffer = current_buffer()->second;
         buffer->set_position(LineColumn(buffer->position().line, value));
       })));
 
   environment.Define(
       L"Line",
       vm::NewCallback(std::function<wstring(void)>([this]() -> wstring {
-        if (!has_current_buffer()) {
+        auto buffer = current_buffer();
+        if (buffer == nullptr) {
           return L"";
         }
-        auto buffer = current_buffer()->second;
         return buffer->current_line()->ToString();
       })));
 
   environment.Define(
       L"ForkCommand",
-      Value::NewFunction({VMType::ObjectType(L"Buffer"), VMType::VM_STRING,
-                          VMType::VM_BOOLEAN},
-                         [this](vector<Value::Ptr> args) {
-                           CHECK_EQ(args.size(), 2u);
-                           CHECK_EQ(args[0]->type, VMType::VM_STRING);
-                           ForkCommandOptions options;
-                           options.command = args[0]->str;
-                           options.enter = args[1]->boolean;
-                           return Value::NewObject(L"Buffer",
-                                                   ForkCommand(this, options));
-                         }));
+      Value::NewFunction(
+          {VMType::ObjectType(L"Buffer"), VMType::VM_STRING,
+           VMType::VM_BOOLEAN},
+          [this](vector<Value::Ptr> args) {
+            CHECK_EQ(args.size(), 2u);
+            CHECK_EQ(args[0]->type, VMType::VM_STRING);
+            ForkCommandOptions options;
+            options.command = args[0]->str;
+            options.insertion_type =
+                args[1]->boolean
+                    ? BufferTreeHorizontal::InsertionType::kSearchOrCreate
+                    : BufferTreeHorizontal::InsertionType::kSkip;
+            return Value::NewObject(L"Buffer", ForkCommand(this, options));
+          }));
 
   environment.Define(L"repetitions",
                      vm::NewCallback(std::function<int()>([this]() {
@@ -299,19 +367,22 @@ Environment EditorState::BuildEditorEnvironment() {
 
   environment.Define(
       L"OpenFile",
-      Value::NewFunction({VMType::ObjectType(L"Buffer"), VMType::VM_STRING,
-                          VMType::VM_BOOLEAN},
-                         [this](vector<unique_ptr<Value>> args) {
-                           CHECK_EQ(args.size(), 2u);
-                           CHECK(args[0]->IsString());
-                           CHECK(args[1]->IsBool());
-                           OpenFileOptions options;
-                           options.editor_state = this;
-                           options.path = args[0]->str;
-                           options.make_current_buffer = args[1]->boolean;
-                           return Value::NewObject(L"Buffer",
-                                                   OpenFile(options)->second);
-                         }));
+      Value::NewFunction(
+          {VMType::ObjectType(L"Buffer"), VMType::VM_STRING,
+           VMType::VM_BOOLEAN},
+          [this](vector<unique_ptr<Value>> args) {
+            CHECK_EQ(args.size(), 2u);
+            CHECK(args[0]->IsString());
+            CHECK(args[1]->IsBool());
+            OpenFileOptions options;
+            options.editor_state = this;
+            options.path = args[0]->str;
+            options.insertion_type =
+                args[1]->boolean
+                    ? BufferTreeHorizontal::InsertionType::kSearchOrCreate
+                    : BufferTreeHorizontal::InsertionType::kSkip;
+            return Value::NewObject(L"Buffer", OpenFile(options)->second);
+          }));
 
   RegisterBufferMethod(editor_type.get(), L"ToggleActiveCursors",
                        &OpenBuffer::ToggleActiveCursors);
@@ -338,7 +409,7 @@ Environment EditorState::BuildEditorEnvironment() {
   OpenBuffer::RegisterBufferType(this, &environment);
 
   InitShapes(&environment);
-  RegisterTransformations(&environment);
+  RegisterTransformations(this, &environment);
   Modifiers::Register(&environment);
   return environment;
 }
@@ -353,12 +424,10 @@ std::pair<int, int> BuildPipe() {
 
 EditorState::EditorState(command_line_arguments::Values args,
                          AudioPlayer* audio_player)
-    : current_buffer_(buffers_.end()),
-      home_directory_(args.home_directory),
+    : home_directory_(args.home_directory),
       edge_path_(args.config_paths),
       environment_(BuildEditorEnvironment()),
       default_commands_(NewCommandMode(this)),
-      visible_lines_(1),
       status_prompt_(false),
       status_(L""),
       pipe_to_communicate_internal_events_(BuildPipe()),
@@ -376,29 +445,97 @@ EditorState::~EditorState() {
   }
 }
 
-bool EditorState::CloseBuffer(
-    map<wstring, shared_ptr<OpenBuffer>>::iterator buffer) {
-  if (!buffer->second->PrepareToClose()) {
-    SetWarningStatus(L"Dirty buffers (“*ad” to ignore): " + buffer->first);
+void EditorState::CheckPosition() {
+  auto buffer = buffer_tree_->GetActiveLeaf()->Lock();
+  if (buffer != nullptr) {
+    buffer->CheckPosition();
+  }
+}
+
+bool EditorState::CloseBuffer(OpenBuffer* buffer) {
+  CHECK(buffer != nullptr);
+  if (!buffer->PrepareToClose()) {
+    SetWarningStatus(L"🖝  Dirty buffers (“*ad” to ignore): " +
+                     buffer->Read(buffer_variables::name()));
     return false;
   }
   ScheduleRedraw();
-  if (current_buffer_ == buffer) {
-    if (buffers_.size() == 1) {
-      current_buffer_ = buffers_.end();
-    } else {
-      current_buffer_ = buffer == buffers_.begin() ? buffers_.end() : buffer;
-      current_buffer_--;
-    }
 
-    if (current_buffer_ != buffers_.end()) {
-      current_buffer_->second->Visit();
+  if (current_buffer().get() == buffer) {
+    buffer_tree_->RemoveActiveLeaf();
+    auto buffer = buffer_tree_->GetActiveLeaf()->Lock();
+    if (buffer != nullptr) {
+      buffer->Visit();
     }
   }
 
-  buffer->second->Close();
-  buffers_.erase(buffer);
+  buffer->Close();
+  buffers_.erase(buffer->Read(buffer_variables::name()));
+
   return true;
+}
+
+void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer) {
+  buffer_tree_->GetActiveLeaf()->SetBuffer(buffer);
+  if (buffer != nullptr) {
+    buffer->Visit();
+  }
+}
+
+void EditorState::AddHorizontalSplit() {
+  buffer_tree_->AddSplit();
+  ScheduleRedraw();
+}
+
+void EditorState::SetHorizontalSplitsWithAllBuffers() {
+  auto active_buffer = current_buffer();
+  std::vector<std::unique_ptr<Widget>> buffers;
+  size_t index_active = 0;
+  for (auto& buffer : buffers_) {
+    if (!buffer.second->Read(buffer_variables::show_in_buffers_list())) {
+      continue;
+    }
+    if (buffer.second == active_buffer) {
+      index_active = buffers.size();
+    }
+    buffers.push_back(BufferWidget::New(buffer.second));
+  }
+  CHECK(!buffers.empty());
+  buffer_tree_ = BufferTreeHorizontal::New(std::move(buffers), index_active);
+  ScheduleRedraw();
+}
+
+void EditorState::SetActiveLeaf(size_t position) {
+  buffer_tree_->SetActiveLeaf(position);
+  ScheduleRedraw();
+}
+
+void EditorState::AdvanceActiveLeaf(int delta) {
+  buffer_tree_->AdvanceActiveLeaf(delta);
+  ScheduleRedraw();
+}
+
+void EditorState::ZoomToLeaf() {
+  buffer_tree_->ZoomToActiveLeaf();
+  ScheduleRedraw();
+}
+
+void EditorState::BufferTreeRemoveActiveLeaf() {
+  buffer_tree_->RemoveActiveLeaf();
+  ScheduleRedraw();
+}
+
+bool EditorState::has_current_buffer() const {
+  return current_buffer() != nullptr;
+}
+shared_ptr<OpenBuffer> EditorState::current_buffer() {
+  CHECK(buffer_tree_ != nullptr);
+  auto leaf = buffer_tree_->GetActiveLeaf();
+  CHECK(leaf != nullptr);
+  return leaf->Lock();
+}
+const shared_ptr<OpenBuffer> EditorState::current_buffer() const {
+  return buffer_tree_->GetActiveLeaf()->Lock();
 }
 
 wstring GetBufferName(const wstring& prefix, size_t count) {
@@ -428,7 +565,7 @@ bool EditorState::AttemptTermination(wstring* error_description,
     return true;
   }
 
-  wstring error = L"Dirty buffers (“*aq” to ignore):";
+  wstring error = L"🖝  Dirty buffers (“*aq” to ignore):";
   for (auto name : buffers_with_problems) {
     error += L" " + name;
   }
@@ -444,9 +581,14 @@ void EditorState::ProcessInput(int c) {
   if (handler != nullptr) {
     // Pass.
   } else if (has_current_buffer()) {
-    handler = current_buffer()->second->mode();
+    handler = current_buffer()->mode();
   } else {
-    handler = OpenAnonymousBuffer(this)->second->mode();
+    auto buffer = OpenAnonymousBuffer(this);
+    if (!has_current_buffer()) {
+      buffer_tree_->InsertChildren(
+          buffer, BufferTreeHorizontal::InsertionType::kReuseCurrent);
+    }
+    handler = buffer->mode();
     CHECK(has_current_buffer());
   }
   handler->ProcessInput(c, this);
@@ -460,39 +602,53 @@ void EditorState::UpdateBuffers() {
 }
 
 void EditorState::MoveBufferForwards(size_t times) {
-  if (current_buffer_ == buffers_.end()) {
+  auto it = buffers_.end();
+
+  auto buffer = current_buffer();
+  if (buffer != nullptr) {
+    it = buffers_.find(buffer->Read(buffer_variables::name()));
+  }
+
+  if (it == buffers_.end()) {
     if (buffers_.empty()) {
       return;
     }
-    current_buffer_ = buffers_.begin();
+    it = buffers_.begin();
   }
+
   times = times % buffers_.size();
-  for (size_t i = 0; i < times; i++) {
-    current_buffer_++;
-    if (current_buffer_ == buffers_.end()) {
-      current_buffer_ = buffers_.begin();
+  for (size_t repetition = 0; repetition < times; repetition++) {
+    ++it;
+    if (it == buffers_.end()) {
+      it = buffers_.begin();
     }
   }
-  current_buffer_->second->Visit();
+  set_current_buffer(it->second);
   PushCurrentPosition();
 }
 
 void EditorState::MoveBufferBackwards(size_t times) {
-  if (current_buffer_ == buffers_.end()) {
+  auto it = buffers_.end();
+
+  auto buffer = current_buffer();
+  if (buffer != nullptr) {
+    it = buffers_.find(buffer->Read(buffer_variables::name()));
+  }
+
+  if (it == buffers_.end()) {
     if (buffers_.empty()) {
       return;
     }
-    current_buffer_ = buffers_.end();
-    current_buffer_--;
+    --it;
   }
   times = times % buffers_.size();
   for (size_t i = 0; i < times; i++) {
-    if (current_buffer_ == buffers_.begin()) {
-      current_buffer_ = buffers_.end();
+    if (it == buffers_.begin()) {
+      it = buffers_.end();
     }
-    current_buffer_--;
+    --it;
   }
-  current_buffer_->second->Visit();
+  set_current_buffer(it->second);
   PushCurrentPosition();
 }
 
@@ -519,15 +675,16 @@ EditorState::ScreenState EditorState::FlushScreenState() {
 static wstring kPositionsBufferName = L"- positions";
 
 void EditorState::PushCurrentPosition() {
-  if (current_buffer_ != buffers_.end()) {
-    PushPosition(current_buffer_->second->position());
+  auto buffer = current_buffer();
+  if (buffer != nullptr) {
+    PushPosition(buffer->position());
   }
 }
 
 void EditorState::PushPosition(LineColumn position) {
-  if (!has_current_buffer() ||
-      !current_buffer_->second->Read(
-          buffer_variables::push_positions_to_history())) {
+  auto buffer = current_buffer();
+  if (buffer == nullptr ||
+      !buffer->Read(buffer_variables::push_positions_to_history())) {
     return;
   }
   auto buffer_it = buffers_.find(kPositionsBufferName);
@@ -537,7 +694,7 @@ void EditorState::PushPosition(LineColumn position) {
     options.editor_state = this;
     options.name = kPositionsBufferName;
     options.path = PathJoin(*edge_path().begin(), L"positions");
-    options.make_current_buffer = false;
+    options.insertion_type = BufferTreeHorizontal::InsertionType::kSkip;
     buffer_it = OpenFile(options);
     CHECK(buffer_it != buffers()->end());
     CHECK(buffer_it->second != nullptr);
@@ -553,10 +710,10 @@ void EditorState::PushPosition(LineColumn position) {
   buffer_it->second->InsertLine(
       buffer_it->second->current_position_line(),
       std::make_shared<Line>(position.ToString() + L" " +
-                             current_buffer_->first));
+                             buffer->Read(buffer_variables::name())));
   CHECK_LE(buffer_it->second->position().line,
            buffer_it->second->contents()->size());
-  if (buffer_it == current_buffer_) {
+  if (buffer_it->second == buffer) {
     ScheduleRedraw();
   }
 }
@@ -588,7 +745,7 @@ void EditorState::SetStatus(const wstring& status) {
         buffer_variables::show_in_buffers_list(), false);
   }
   status_buffer_it.first->second->AppendLazyString(NewLazyString(status));
-  if (current_buffer_ == status_buffer_it.first) {
+  if (current_buffer() == status_buffer_it.first->second) {
     ScheduleRedraw();
   }
 }
@@ -635,7 +792,7 @@ void EditorState::ApplyToCurrentBuffer(
     unique_ptr<Transformation> transformation) {
   CHECK(transformation != nullptr);
   CHECK(has_current_buffer());
-  current_buffer_->second->ApplyToCursors(std::move(transformation));
+  current_buffer()->ApplyToCursors(std::move(transformation));
 }
 
 void EditorState::DefaultErrorHandler(const wstring& error_description) {
@@ -660,11 +817,10 @@ void EditorState::ProcessSignals() {
     switch (signal) {
       case SIGINT:
       case SIGTSTP:
-        if (!has_current_buffer()) {
+        auto buffer = current_buffer();
+        if (buffer == nullptr) {
           return;
         }
-        auto buffer = current_buffer()->second;
-        CHECK(buffer != nullptr);
         auto target_buffer = buffer->GetBufferFromCurrentLine();
         if (target_buffer != nullptr) {
           buffer = target_buffer;
@@ -675,11 +831,10 @@ void EditorState::ProcessSignals() {
 }
 
 bool EditorState::handling_stop_signals() const {
-  if (!has_current_buffer()) {
+  auto buffer = current_buffer();
+  if (buffer == nullptr) {
     return false;
   }
-  auto buffer = current_buffer()->second;
-  CHECK(buffer != nullptr);
   auto target_buffer = buffer->GetBufferFromCurrentLine();
   if (target_buffer != nullptr) {
     buffer = target_buffer;

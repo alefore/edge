@@ -220,7 +220,7 @@ int main(int, char** argv) {
       default:
         CHECK(false) << "Ugh: " << value % 24;
     }
-    auto cursors = editor_state.current_buffer()->second->active_cursors();
+    auto cursors = editor_state.current_buffer()->active_cursors();
     if (cursors->size() > 50) {
       vector<LineColumn> positions;
       auto it = cursors->begin();
@@ -228,8 +228,8 @@ int main(int, char** argv) {
         positions.push_back(*it);
         ++it;
       }
-      editor_state.current_buffer()->second->set_active_cursors({});
-      editor_state.current_buffer()->second->set_active_cursors(positions);
+      editor_state.current_buffer()->set_active_cursors({});
+      editor_state.current_buffer()->set_active_cursors(positions);
     }
   }
 

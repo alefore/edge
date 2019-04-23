@@ -13,12 +13,12 @@ namespace editor {
 namespace {
 
 void RunCppCommandHandler(const wstring& name, EditorState* editor_state) {
-  if (!editor_state->has_current_buffer()) {
+  auto buffer = editor_state->current_buffer();
+  if (buffer == nullptr) {
     return;
   }
-  editor_state->current_buffer()->second->ResetMode();
-  editor_state->current_buffer()->second->EvaluateString(
-      name, [](std::unique_ptr<Value>) { /* Nothing. */ });
+  buffer->ResetMode();
+  buffer->EvaluateString(name, [](std::unique_ptr<Value>) { /* Nothing. */ });
 }
 
 class RunCppCommand : public Command {
@@ -29,14 +29,13 @@ class RunCppCommand : public Command {
   wstring Category() const override { return L"Extensions"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
-    if (!editor_state->has_current_buffer()) {
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
       return;
     }
     if (editor_state->structure() == StructureLine()) {
       editor_state->ResetStructure();
-      RunCppCommandHandler(
-          editor_state->current_buffer()->second->current_line()->ToString(),
-          editor_state);
+      RunCppCommandHandler(buffer->current_line()->ToString(), editor_state);
     } else {
       PromptOptions options;
       options.prompt = L"cpp ";

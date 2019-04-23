@@ -21,7 +21,7 @@ struct VMTypeMapper<editor::Transformation*> {
 };
 }  // namespace vm
 namespace editor {
-void RegisterTransformations(vm::Environment* environment);
+void RegisterTransformations(EditorState* editor, vm::Environment* environment);
 }  // namespace editor
 }  // namespace afc
 

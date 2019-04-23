@@ -73,7 +73,6 @@ class Delete : public Command {
     if (!editor_state->has_current_buffer()) {
       return;
     }
-    auto buffer = editor_state->current_buffer()->second;
     DeleteOptions options = delete_options_;
     options.modifiers = editor_state->modifiers();
     editor_state->ApplyToCurrentBuffer(NewDeleteTransformation(options));
@@ -124,7 +123,7 @@ class Paste : public Command {
       }
       return;
     }
-    if (it == editor_state->current_buffer()) {
+    if (it->second == editor_state->current_buffer()) {
       const static wstring errors[] = {
           L"You shall not paste into the paste buffer.",
           L"Nope.",
@@ -143,7 +142,7 @@ class Paste : public Command {
       }
       return;
     }
-    auto buffer = editor_state->current_buffer()->second;
+    auto buffer = editor_state->current_buffer();
     if (buffer->fd() != -1) {
       string text = ToByteString(it->second->ToString());
       for (size_t i = 0; i < editor_state->repetitions(); i++) {
@@ -155,11 +154,12 @@ class Paste : public Command {
     } else {
       buffer->CheckPosition();
       buffer->MaybeAdjustPositionCol();
-      Modifiers modifiers;
-      modifiers.insertion = editor_state->modifiers().insertion;
-      modifiers.repetitions = editor_state->repetitions();
+      InsertOptions insert_options;
+      insert_options.buffer_to_insert = it->second;
+      insert_options.modifiers.insertion = editor_state->modifiers().insertion;
+      insert_options.modifiers.repetitions = editor_state->repetitions();
       editor_state->ApplyToCurrentBuffer(
-          NewInsertBufferTransformation(it->second, modifiers, END, nullptr));
+          NewInsertBufferTransformation(std::move(insert_options)));
       editor_state->ResetInsertionModifier();
     }
     editor_state->ResetRepetitions();
@@ -175,10 +175,11 @@ class UndoCommand : public Command {
   wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
-    if (!editor_state->has_current_buffer()) {
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
       return;
     }
-    editor_state->current_buffer()->second->Undo();
+    buffer->Undo();
     editor_state->ResetRepetitions();
     editor_state->ResetDirection();
     editor_state->ScheduleRedraw();
@@ -212,9 +213,10 @@ class GotoPreviousPositionCommand : public Command {
       const BufferPosition pos = editor_state->ReadPositionsStack();
       auto it = editor_state->buffers()->find(pos.buffer_name);
       const LineColumn current_position =
-          editor_state->current_buffer()->second->position();
+          editor_state->current_buffer()->position();
       if (it != editor_state->buffers()->end() &&
-          (pos.buffer_name != editor_state->current_buffer()->first ||
+          (pos.buffer_name !=
+               editor_state->current_buffer()->Read(buffer_variables::name()) ||
            ((editor_state->structure() == StructureLine() ||
              editor_state->structure() == StructureWord() ||
              editor_state->structure() == StructureSymbol() ||
@@ -225,7 +227,7 @@ class GotoPreviousPositionCommand : public Command {
         LOG(INFO) << "Jumping to position: "
                   << it->second->Read(buffer_variables::name()) << " "
                   << pos.position;
-        editor_state->set_current_buffer(it);
+        editor_state->set_current_buffer(it->second);
         it->second->set_position(pos.position);
         editor_state->ScheduleRedraw();
         editor_state->set_repetitions(editor_state->repetitions() - 1);
@@ -290,7 +292,8 @@ wstring LineUp::Description() const { return L"moves up one line"; }
     LineDown::Move(c, editor_state, structure);
     return;
   }
-  if (!editor_state->has_current_buffer()) {
+  auto buffer = editor_state->current_buffer();
+  if (buffer == nullptr) {
     return;
   }
   // TODO: Move to Structure.
@@ -299,8 +302,10 @@ wstring LineUp::Description() const { return L"moves up one line"; }
     MoveBackwards::Move(c, editor_state);
   } else if (structure == StructureWord() || structure == StructureSymbol()) {
     // Move in whole pages.
+    auto lines = editor_state->buffer_tree()->GetActiveLeaf()->lines();
     editor_state->set_repetitions(editor_state->repetitions() *
-                                  editor_state->visible_lines());
+                                  (lines > 2 ? lines - 2 : 3));
+    VLOG(6) << "Word Up: Repetitions: " << editor_state->repetitions();
     Move(c, editor_state, StructureChar());
   } else if (structure == StructureTree()) {
     CHECK(false);  // Handled above.
@@ -326,7 +331,8 @@ wstring LineDown::Description() const { return L"moves down one line"; }
     LineUp::Move(c, editor_state, structure);
     return;
   }
-  if (!editor_state->has_current_buffer()) {
+  auto buffer = editor_state->current_buffer();
+  if (buffer == nullptr) {
     return;
   }
   // TODO: Move to Structure.
@@ -335,14 +341,16 @@ wstring LineDown::Description() const { return L"moves down one line"; }
     MoveForwards::Move(c, editor_state);
   } else if (structure == StructureWord() || structure == StructureSymbol()) {
     // Move in whole pages.
+    auto lines = editor_state->buffer_tree()->GetActiveLeaf()->lines();
     editor_state->set_repetitions(editor_state->repetitions() *
-                                  editor_state->visible_lines());
+                                  (lines > 2 ? lines - 2 : 3));
+    VLOG(6) << "Word Down: Repetitions: " << editor_state->repetitions();
     Move(c, editor_state, StructureChar());
   } else if (structure == StructureTree()) {
-    if (!editor_state->has_current_buffer()) {
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
       return;
     }
-    auto buffer = editor_state->current_buffer()->second;
     if (editor_state->direction() == BACKWARDS) {
       if (buffer->tree_depth() > 0) {
         buffer->set_tree_depth(buffer->tree_depth() - 1);
@@ -376,19 +384,15 @@ void LineDown::ProcessInput(wint_t c, EditorState* editor_state) {
 wstring PageUp::Description() const { return L"moves up one page"; }
 
 void PageUp::ProcessInput(wint_t c, EditorState* editor_state) {
-  editor_state->set_repetitions(editor_state->repetitions() *
-                                editor_state->visible_lines());
   editor_state->ResetStructure();
-  LineUp::Move(c, editor_state, editor_state->structure());
+  LineUp::Move(c, editor_state, StructureWord());
 }
 
 wstring PageDown::Description() const { return L"moves down one page"; }
 
 void PageDown::ProcessInput(wint_t c, EditorState* editor_state) {
-  editor_state->set_repetitions(editor_state->repetitions() *
-                                editor_state->visible_lines());
   editor_state->ResetStructure();
-  LineDown::Move(c, editor_state, editor_state->structure());
+  LineDown::Move(c, editor_state, StructureWord());
 }
 
 wstring MoveForwards::Description() const { return L"moves forwards"; }
@@ -447,10 +451,11 @@ class EnterFindMode : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) {
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
       return;
     }
-    editor_state->current_buffer()->second->set_mode(NewFindMode());
+    buffer->set_mode(NewFindMode());
   }
 };
 
@@ -580,10 +585,10 @@ class NumberMode : public Command {
   wstring Category() const override { return L"Modifiers"; }
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) {
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
       return;
     }
-    auto buffer = editor_state->current_buffer()->second;
     buffer->set_mode(NewRepeatMode(consumer_));
     if (c < '0' || c > '9') {
       return;
@@ -604,10 +609,10 @@ class ActivateLink : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) {
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
       return;
     }
-    shared_ptr<OpenBuffer> buffer = editor_state->current_buffer()->second;
     if (buffer->current_line() == nullptr) {
       return;
     }
@@ -617,18 +622,13 @@ class ActivateLink : public Command {
       LOG(INFO) << "Visiting buffer: "
                 << target->Read(buffer_variables::name());
       editor_state->ResetStatus();
-      auto it =
-          editor_state->buffers()->find(target->Read(buffer_variables::name()));
-      if (it == editor_state->buffers()->end()) {
-        return;
-      }
-      editor_state->set_current_buffer(it);
+      editor_state->set_current_buffer(target);
       auto target_position = buffer->current_line()->environment()->Lookup(
           L"buffer_position", vm::VMTypeMapper<LineColumn>::vmtype);
       if (target_position != nullptr &&
           target_position->type.type == VMType::OBJECT_TYPE &&
           target_position->type.object_type == L"LineColumn") {
-        it->second->set_position(
+        target->set_position(
             *static_cast<LineColumn*>(target_position->user_value.get()));
       }
       editor_state->PushCurrentPosition();
@@ -756,11 +756,15 @@ class SwitchCaseTransformation : public Transformation {
     LineModifierSet modifiers_set = {LineModifier::UNDERLINE,
                                      LineModifier::BLUE};
     auto original_position = result->cursor;
-    stack.PushBack(NewInsertBufferTransformation(
-        buffer_to_insert, Modifiers(),
-        modifiers_.direction == FORWARDS ? END : START,
-        result->mode == Transformation::Result::Mode::kPreview ? &modifiers_set
-                                                               : nullptr));
+    InsertOptions insert_options;
+    insert_options.buffer_to_insert = buffer_to_insert;
+    if (modifiers_.direction == BACKWARDS) {
+      insert_options.final_position = InsertOptions::FinalPosition::kStart;
+    }
+    if (result->mode == Transformation::Result::Mode::kPreview) {
+      insert_options.modifiers_set = &modifiers_set;
+    }
+    stack.PushBack(NewInsertBufferTransformation(std::move(insert_options)));
     if (result->mode == Transformation::Result::Mode::kPreview) {
       stack.PushBack(NewGotoPositionTransformation(original_position));
     }
@@ -848,28 +852,26 @@ class TreeNavigateCommand : public Command {
 
 void ToggleBoolVariable(EditorState* editor_state, wstring binding,
                         wstring variable_name, MapModeCommands* map_mode) {
-  wstring command = L"// Toggle buffer variable: " + variable_name + L"\n" +
-                    L"Buffer tmp_buffer = CurrentBuffer();" +
-                    L"tmp_buffer.set_" + variable_name + L"(" +
-                    L"!tmp_buffer." + variable_name + L"()" + L"); " +
-                    L"SetStatus(\"" + variable_name + L" := \" + (tmp_buffer." +
-                    variable_name + L"() ? \"ON\" : \"OFF\"));";
+  wstring command = L"// Variables: Toggle buffer variable: " + variable_name +
+                    L"\nBuffer tmp_buffer = CurrentBuffer(); tmp_buffer.set_" +
+                    variable_name + L"(!tmp_buffer." + variable_name +
+                    L"()); SetStatus((tmp_buffer." + variable_name +
+                    L"() ? \"🗸\" : \"⛶\") + \" " + variable_name + L"\");";
   LOG(INFO) << "Command: " << command;
   map_mode->Add(binding, NewCppCommand(editor_state->environment(), command));
+  map_mode->RegisterVariableCommand(variable_name, binding);
 }
 
-void ToggleIntVariable(EditorState* editor_state, wstring binding,
-                       wstring variable_name, int default_value,
+void ToggleIntVariable(EditorState* editor_state, wstring binding, wstring name,
                        MapModeCommands* map_mode) {
-  wstring command = L"// Toggle buffer variable: " + variable_name + L"\n" +
-                    L"Buffer tmp_buffer = CurrentBuffer();" +
-                    L"tmp_buffer.set_" + variable_name + L"(" + L"tmp_buffer." +
-                    variable_name + L"() != 0 ? 0 : " +
-                    std::to_wstring(default_value) + L"); " + L"SetStatus(\"" +
-                    variable_name + L" := \" + tmp_buffer." + variable_name +
-                    L"().tostring());";
+  wstring command = L"// Variables: Toggle buffer variable: " + name +
+                    L"\nBuffer tmp_buffer = CurrentBuffer();" +
+                    L"tmp_buffer.set_" + name +
+                    L"(repetitions());set_repetitions(1);SetStatus(\"" + name +
+                    L" := \" + tmp_buffer." + name + L"().tostring());";
   LOG(INFO) << "Command: " << command;
   map_mode->Add(binding, NewCppCommand(editor_state->environment(), command));
+  map_mode->RegisterVariableCommand(name, binding);
 }
 }  // namespace
 
@@ -970,9 +972,9 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"t", std::make_unique<SetStructureCommand>(StructureTree()));
 
   commands->Add(L"D", std::make_unique<Delete>(DeleteOptions()));
-  commands->Add(
-      L"d", NewCommandWithModifiers(L"delete", L"starts a new delete command",
-                                    ApplyDeleteCommand));
+  commands->Add(L"d",
+                NewCommandWithModifiers(L"✀ ", L"starts a new delete command",
+                                        ApplyDeleteCommand));
   commands->Add(L"p", std::make_unique<Paste>());
 
   DeleteOptions copy_options;
@@ -987,10 +989,9 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"l", std::make_unique<MoveForwards>());
   commands->Add(L"h", std::make_unique<MoveBackwards>());
 
-  commands->Add(L"~",
-                NewCommandWithModifiers(
-                    L"~~~~", L"Switches the case of the current character.",
-                    ApplySwitchCaseCommand));
+  commands->Add(L"~", NewCommandWithModifiers(
+                          L"🔠🔡", L"Switches the case of the current character.",
+                          ApplySwitchCaseCommand));
 
   commands->Add(L"%", std::make_unique<TreeNavigateCommand>());
   commands->Add(L"sr", NewRecordCommand());
@@ -1010,7 +1011,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
                      commands.get());
   ToggleBoolVariable(editor_state, L"v/c", L"search_case_sensitive",
                      commands.get());
-  ToggleIntVariable(editor_state, L"vc", L"buffer_list_context_lines", 10,
+  ToggleIntVariable(editor_state, L"vc", L"buffer_list_context_lines",
                     commands.get());
 
   commands->Add({Terminal::ESCAPE}, std::make_unique<ResetStateCommand>());

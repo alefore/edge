@@ -134,11 +134,15 @@ void Help();
 
 const std::vector<Handler>& Handlers() {
   static const std::vector<Handler> handlers = {
-      Handler({L"help", L"h"}, L"Display help and exit").Run(Help),
+      Handler({L"help", L"h"}, L"Display help and exit")
+          .SetHelp(
+              L"The `--help` command-line argument displays a brief overview "
+              L"of the available command line arguments and exits.")
+          .Run(Help),
 
       Handler({L"fork", L"f"}, L"Create a buffer running a shell command")
           .SetHelp(
-              L"The --fork command-line argument must be followed by a shell "
+              L"The `--fork` command-line argument must be followed by a shell "
               L"command. Edge will create a buffer running that command.\n\n"
               L"Example:\n\n"
               L"    edge --fork \"ls -lR /tmp\" --fork \"make\"\n\n"
@@ -149,7 +153,7 @@ const std::vector<Handler>& Handlers() {
 
       Handler({L"run"}, L"Run a VM command")
           .SetHelp(
-              L"The --run command-line argument must be followed by a string "
+              L"The `--run` command-line argument must be followed by a string "
               L"with a VM command to run.\n\n"
               L"Example:\n\n"
               L"    edge --run 'string flags = \"-R\"; ForkCommand(\"ls \" + "
@@ -166,7 +170,7 @@ const std::vector<Handler>& Handlers() {
 
       Handler({L"server", L"s"}, L"Run in daemon mode (at an optional path)")
           .SetHelp(
-              L"The --server command-line argument causes Edge to run in "
+              L"The `--server` command-line argument causes Edge to run in "
               L"*background* mode: without reading any input from stdin nor "
               L"producing any output to stdout. Instead, Edge will wait for "
               L"connections to the path given.\n\n"
@@ -201,6 +205,21 @@ const std::vector<Handler>& Handlers() {
           .Set(&Values::background, true),
 
       Handler({L"X"}, L"If nested, exit early")
+          .SetHelp(
+              L"When `edge` runs nested (i.e., under a parent instance), the "
+              L"child instance will not create any buffers for any files that "
+              L"the user may have passed as command-line arguments nor any "
+              L"commands (passed with `--fork`). Instead, it will connect to "
+              L"the parent and request that the parent itself creates the "
+              L"corresponding buffers.\n\n"
+              L"The `-X` command-line argument controls when the child "
+              L"instance will exit. By default, it will wait until any buffers "
+              L"that it requests are deleted by the user (with `ad`). This is "
+              L"suitable for commands such as `git commit` that may run a "
+              L"nested instance of Edge. However, when `-X` is given, the "
+              L"child instance will exit as soon as it has successfully "
+              L"communicated with the parent (without waiting for the user to "
+              L"delete corresponding buffers.")
           .Set(&Values::nested_edge_behavior,
                Values::NestedEdgeBehavior::kExitEarly)};
   return handlers;

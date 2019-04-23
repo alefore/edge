@@ -102,7 +102,8 @@ void GenerateContents(EditorState* editor_state,
                       OpenBuffer* target) {
   target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
   for (const auto& dir : editor_state->edge_path()) {
-    target->EvaluateFile(PathJoin(dir, L"hooks/navigation-buffer-reload.cc"));
+    target->EvaluateFile(PathJoin(dir, L"hooks/navigation-buffer-reload.cc"),
+                         [](std::unique_ptr<Value>) {});
   }
   auto source = source_weak.lock();
   if (source == nullptr) {
@@ -132,13 +133,12 @@ class NavigationBufferCommand : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
-    if (!editor_state->has_current_buffer()) {
+    auto source = editor_state->current_buffer();
+    if (source == nullptr) {
       editor_state->SetWarningStatus(
           L"NavigationBuffer needs an existing buffer.");
       return;
     }
-    auto source = editor_state->current_buffer()->second;
-    CHECK(source != nullptr);
     if (source->simplified_parse_tree() == nullptr) {
       editor_state->SetStatus(L"Current buffer has no tree.");
       return;
@@ -146,7 +146,6 @@ class NavigationBufferCommand : public Command {
 
     auto name = L"Navigation: " + source->Read(buffer_variables::name());
     auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
-    editor_state->set_current_buffer(it.first);
     if (it.second) {
       OpenBuffer::Options options;
       options.editor_state = editor_state;
@@ -165,6 +164,7 @@ class NavigationBufferCommand : public Command {
       it.first->second = buffer;
       editor_state->StartHandlingInterrupts();
     }
+    editor_state->set_current_buffer(it.first->second);
     editor_state->ResetStatus();
     it.first->second->Reload();
     editor_state->PushCurrentPosition();

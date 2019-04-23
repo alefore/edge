@@ -14,9 +14,16 @@ src/audio.cc \
 src/audio.h \
 src/args.cc \
 src/args.h \
+src/buffer.cc \
+src/buffer.h \
+src/buffer_widget.cc \
+src/buffer_widget.h \
 src/buffer_contents.cc \
 src/buffer_contents.h \
-src/buffer.cc \
+src/buffer_output_producer.cc \
+src/buffer_output_producer.h \
+src/buffer_tree_horizontal.cc \
+src/buffer_tree_horizontal.h \
 src/buffer_variables.cc \
 src/buffer_variables.h \
 src/cpp_command.cc \
@@ -30,14 +37,22 @@ src/command_with_modifiers.cc \
 src/command_with_modifiers.h \
 src/cursors.cc \
 src/cursors.h \
+src/cursors_highlighter.cc \
+src/cursors_highlighter.h \
 src/cursors_transformation.cc \
 src/cursors_transformation.h \
+src/delegating_output_receiver.cc \
+src/delegating_output_receiver.h \
+src/delegating_output_receiver_with_internal_modifiers.cc \
+src/delegating_output_receiver_with_internal_modifiers.h \
 src/delete_mode.cc \
 src/delete_mode.h \
 src/dirname.cc \
 src/dirname.h \
 src/direction.cc \
 src/editor.cc \
+src/frame_output_producer.cc \
+src/frame_output_producer.h \
 src/file_link_mode.cc \
 src/find_mode.cc \
 src/goto_command.cc \
@@ -64,6 +79,10 @@ src/navigation_buffer.h \
 src/navigate_command.cc \
 src/open_directory_command.cc \
 src/open_file_command.cc \
+src/output_producer.h \
+src/output_receiver.h \
+src/output_receiver_optimizer.cc \
+src/output_receiver_optimizer.h \
 src/parse_tools.cc \
 src/parse_tools.h \
 src/parse_tree.cc \
@@ -84,6 +103,8 @@ src/run_cpp_file.h \
 src/screen.h \
 src/screen_curses.cc \
 src/screen_curses.h \
+src/screen_output_receiver.cc \
+src/screen_output_receiver.h \
 src/screen_vm.cc \
 src/screen_vm.h \
 src/search_command.cc \
@@ -101,6 +122,8 @@ src/terminal.cc \
 src/transformation.cc \
 src/transformation_delete.cc \
 src/transformation_move.cc \
+src/horizontal_split_output_producer.cc \
+src/horizontal_split_output_producer.h \
 src/vm_transformation.cc \
 src/vm_transformation.h \
 src/vm/public/set.h \
@@ -123,6 +146,8 @@ src/vm/internal/negate_expression.cc \
 src/vm/internal/logical_expression.cc \
 src/vm/internal/variable_lookup.cc \
 src/vm/internal/wstring.cc \
+src/widget.cc \
+src/widget.h \
 src/wstring.cc
 
 CLEANFILES = src/vm/internal/cpp.cc src/vm/internal/cpp.h

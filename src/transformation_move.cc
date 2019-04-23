@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include "src/buffer.h"
+#include "src/buffer_variables.h"
 #include "src/direction.h"
 #include "src/editor.h"
 #include "src/line_marks.h"
@@ -20,6 +21,8 @@ class MoveTransformation : public Transformation {
   MoveTransformation(const Modifiers& modifiers) : modifiers_(modifiers) {}
 
   void Apply(OpenBuffer* buffer, Result* result) const override {
+    VLOG(1) << "Move Transformation starts: "
+            << buffer->Read(buffer_variables::name()) << " " << modifiers_;
     CHECK(buffer != nullptr);
     CHECK(result != nullptr);
     auto editor_state = buffer->editor();

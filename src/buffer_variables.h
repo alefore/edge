@@ -60,8 +60,6 @@ EdgeVariable<int>* line_width();
 EdgeVariable<int>* buffer_list_context_lines();
 EdgeVariable<int>* margin_lines();
 EdgeVariable<int>* margin_columns();
-EdgeVariable<int>* view_start_line();
-EdgeVariable<int>* view_start_column();
 EdgeVariable<int>* progress();
 
 EdgeStruct<double>* DoubleStruct();

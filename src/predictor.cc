@@ -95,7 +95,7 @@ void HandleEndOfFile(OpenBuffer* buffer,
       editor_state->SetWarningStatus(L"Error: predictions buffer not found.");
     } else {
       CHECK_EQ(buffer, it->second.get());
-      editor_state->set_current_buffer(it);
+      editor_state->set_current_buffer(it->second);
       buffer->set_current_position_line(0);
       editor_state->ScheduleRedraw();
     }
@@ -110,19 +110,17 @@ void Predict(EditorState* editor_state, Predictor predictor, wstring input,
   OpenBuffer::Options options;
   options.editor_state = editor_state;
   options.name = PredictionsBufferName();
-  options.generate_contents = [editor_state, predictor,
-                               input](OpenBuffer* buffer) {
+  options.generate_contents = [editor_state, predictor, input,
+                               consumer](OpenBuffer* buffer) {
     predictor(editor_state, input, buffer);
+    buffer->set_current_cursor(LineColumn());
+    buffer->AddEndOfFileObserver(
+        [buffer, consumer]() { HandleEndOfFile(buffer, consumer); });
   };
   predictions_buffer = std::make_shared<OpenBuffer>(std::move(options));
   predictions_buffer->Set(buffer_variables::show_in_buffers_list(), false);
   predictions_buffer->Set(buffer_variables::allow_dirty_delete(), true);
   predictions_buffer->Reload();
-  predictions_buffer->set_current_cursor(LineColumn());
-  predictions_buffer->AddEndOfFileObserver(
-      [buffer = predictions_buffer.get(), consumer]() {
-        HandleEndOfFile(buffer, consumer);
-      });
 }
 
 void FilePredictor(EditorState* editor_state, const wstring& input,

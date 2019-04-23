@@ -39,11 +39,10 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
     return;
   }
 
-  if (!editor_state->has_current_buffer()) {
+  auto buffer = editor_state->current_buffer();
+  if (buffer == nullptr) {
     return;
   }
-  auto buffer = editor_state->current_buffer()->second;
-  CHECK(buffer != nullptr);
   if (editor_state->modifiers().structure == StructureLine()) {
     auto target_buffer = buffer->GetBufferFromCurrentLine();
     if (target_buffer != nullptr) {
@@ -78,8 +77,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
     auto var = buffer_variables::BoolStruct()->find_variable(name);
     if (var != nullptr) {
       buffer->toggle_bool_variable(var);
-      editor_state->SetStatus(name + L" := " +
-                              (buffer->Read(var) ? L"ON" : L"OFF"));
+      editor_state->SetStatus((buffer->Read(var) ? L"🗸 " : L"⛶ ") + name);
       return;
     }
   }
@@ -149,7 +147,7 @@ Predictor VariablesPredictor() {
 unique_ptr<Command> NewSetVariableCommand() {
   static Predictor variables_predictor = VariablesPredictor();
   PromptOptions options;
-  options.prompt = L"var ";
+  options.prompt = L"🔧 ";
   options.history_file = L"variables";
   options.handler = SetVariableHandler;
   options.cancel_handler = [](EditorState*) { /* Nothing. */ };

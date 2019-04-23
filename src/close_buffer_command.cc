@@ -13,10 +13,11 @@ class CloseBufferCommand : public Command {
   wstring Category() const override { return L"Buffers"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
-    if (!editor_state->has_current_buffer()) {
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
       return;
     }
-    editor_state->CloseBuffer(editor_state->current_buffer());
+    editor_state->CloseBuffer(buffer.get());
     editor_state->ResetModifiers();
   }
 };

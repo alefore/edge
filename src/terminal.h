@@ -38,11 +38,7 @@ class Terminal {
   void ShowStatus(const EditorState& editor_state, Screen* screen);
   wstring GetBufferContext(const EditorState& editor_state,
                            const shared_ptr<OpenBuffer>& buffer);
-  // Get the desired position in the buffer of each line in the screen.
-  std::vector<LineColumn> GetScreenLinePositions(EditorState* editor_state,
-                                                 Screen* screen);
-  void ShowBuffer(const EditorState* editor_state, Screen* screen,
-                  const std::vector<LineColumn>& screen_line_positions);
+  void ShowBuffer(EditorState* editor_state, Screen* screen);
   void AdjustPosition(Screen* screen);
 
   // Position at which the cursor should be placed in the screen, if known.

@@ -62,48 +62,52 @@ class GotoPositionTransformation : public Transformation {
 
 class InsertBufferTransformation : public Transformation {
  public:
-  InsertBufferTransformation(shared_ptr<const OpenBuffer> buffer_to_insert,
-                             Modifiers modifiers,
-                             InsertBufferTransformationPosition final_position,
-                             LineModifierSet* modifiers_set)
-      : buffer_to_insert_(buffer_to_insert),
+  InsertBufferTransformation(InsertOptions options)
+      : options_(std::move(options)),
         buffer_to_insert_length_(
-            buffer_to_insert->contents()->CountCharacters()),
-        modifiers_(modifiers),
-        final_position_(final_position),
-        modifiers_set_(modifiers_set) {
-    CHECK(buffer_to_insert_ != nullptr);
+            options_.buffer_to_insert->contents()->CountCharacters()) {
+    CHECK(options_.buffer_to_insert != nullptr);
   }
 
   void Apply(OpenBuffer* buffer, Result* result) const override {
-    LineColumn start_position = result->cursor;
-    buffer->AdjustLineColumn(&start_position);
-    for (size_t i = 0; i < modifiers_.repetitions; i++) {
-      result->cursor = buffer->InsertInPosition(*buffer_to_insert_,
-                                                result->cursor, modifiers_set_);
+    LineColumn position = options_.position.has_value()
+                              ? options_.position.value()
+                              : result->cursor;
+    buffer->AdjustLineColumn(&position);
+    LineColumn start_position = position;
+    for (size_t i = 0; i < options_.modifiers.repetitions; i++) {
+      position = buffer->InsertInPosition(*options_.buffer_to_insert, position,
+                                          options_.modifiers_set);
     }
+
+    if (!options_.position.has_value()) {
+      result->cursor = position;
+    }
+
     buffer->editor()->ScheduleRedraw();
 
-    size_t chars_inserted = buffer_to_insert_length_ * modifiers_.repetitions;
+    size_t chars_inserted =
+        buffer_to_insert_length_ * options_.modifiers.repetitions;
     DeleteOptions delete_options;
     delete_options.modifiers.repetitions = chars_inserted;
     delete_options.copy_to_paste_buffer = false;
     result->undo_stack->PushFront(TransformationAtPosition(
         start_position, NewDeleteTransformation(delete_options)));
 
-    if (modifiers_.insertion == Modifiers::REPLACE) {
+    if (options_.modifiers.insertion == Modifiers::REPLACE) {
       Result current_result(buffer->editor());
       DeleteOptions delete_options;
       delete_options.modifiers.repetitions = chars_inserted;
       delete_options.copy_to_paste_buffer = false;
       delete_options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
-      TransformationAtPosition(result->cursor,
+      TransformationAtPosition(position,
                                NewDeleteTransformation(delete_options))
           ->Apply(buffer, &current_result);
       result->undo_stack->PushFront(std::move(current_result.undo_stack));
     }
 
-    if (final_position_ == START) {
+    if (options_.final_position == InsertOptions::FinalPosition::kStart &&
+        !options_.position.has_value()) {
       result->cursor = start_position;
     }
 
@@ -112,16 +116,12 @@ class InsertBufferTransformation : public Transformation {
   }
 
   unique_ptr<Transformation> Clone() const override {
-    return NewInsertBufferTransformation(buffer_to_insert_, modifiers_,
-                                         final_position_, modifiers_set_);
+    return NewInsertBufferTransformation(options_);
   }
 
  private:
-  shared_ptr<const OpenBuffer> buffer_to_insert_;
+  InsertOptions options_;
   size_t buffer_to_insert_length_;
-  Modifiers modifiers_;
-  InsertBufferTransformationPosition final_position_;
-  LineModifierSet* modifiers_set_;
 };
 
 class NoopTransformation : public Transformation {
@@ -297,20 +297,9 @@ Transformation::Result::Result(EditorState* editor_state)
                                                  OpenBuffer::kPasteBuffer)) {}
 
 unique_ptr<Transformation> NewInsertBufferTransformation(
-    shared_ptr<const OpenBuffer> buffer_to_insert, Modifiers modifiers,
-    InsertBufferTransformationPosition final_position,
-    LineModifierSet* modifiers_set) {
+    InsertOptions insert_options) {
   return std::make_unique<InsertBufferTransformation>(
-      buffer_to_insert, modifiers, final_position, modifiers_set);
-}
-
-unique_ptr<Transformation> NewInsertBufferTransformation(
-    shared_ptr<const OpenBuffer> buffer_to_insert, size_t repetitions,
-    InsertBufferTransformationPosition final_position) {
-  Modifiers modifiers;
-  modifiers.repetitions = repetitions;
-  return NewInsertBufferTransformation(buffer_to_insert, modifiers,
-                                       final_position, nullptr);
+      std::move(insert_options));
 }
 
 std::unique_ptr<Transformation> NewGotoColumnTransformation(size_t column) {

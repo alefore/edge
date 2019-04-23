@@ -36,8 +36,21 @@ running and which may or may not have a full terminal (pts).
     (this is controlled by buffer's variable `pts`). For example, one can run a
     shell process (or even some other text editor) inside Edge.
 
-* Asynchronous: all buffers are read asynchronously. Edge (almost) never blocks
-  while waiting for IO.
+* Always responsive. Edge is designed with the philosophy that the user should
+  not be forced to wait for the completion of operations they initiate (such as
+  loading a file, running a shell command and collecting its output, or
+  compiling the program in the current directory). More accurately, the editor
+  should never cease to respond to user commands simply because it is executing
+  an action.
+
+  * Edge reads buffers asynchronously and never blocks while performing IO
+    operations (module a few exceptions that we would like to fix).
+
+  * Edge doesn't block while executing extensions. Changes are shown to the
+    buffer as they are applied (unless extensions explicitly bundle changes
+    together so that they get applied atomically) and the user can continue to
+    interact with the buffer (or switch to other buffers) even if an extension
+    runs a loop that never returns.
 
 * Editing:
 
@@ -50,11 +63,12 @@ running and which may or may not have a full terminal (pts).
     file formats (Markdown, diff/patch).
 
 
-### 1.1. Screenshot
+### 1.1. Screenshots
+
+The screenshot shows Edge (running under gnome-terminal) editing a C++ file
+(part of its own source code):
 
 ![Edge Screenshot](/screenshots/shot.png?raw=true "Edge Screenshot")
-
-The screenshot shows Edge editing a C++ file (part of its own source code).
 
 There are multiple cursors in lines 2, 5, 7, 9, 19, 25, and 27 (among others),
 after a regular-expression search for the word `buffer` (which creates a cursor
@@ -79,6 +93,9 @@ You can see the documentation for command line arguments if you run Edge with
 
     $ edge --help
 
+Once in Edge, you can press `?` to get [help](/help.md) about your current
+buffer.
+
 
 ### 1.1. Installing
 
@@ -96,7 +113,8 @@ TODO: Document the list of dependencies.
 
 The following are a few example commands:
 
-*  `?` - Shows the help information for the current buffer.
+* `?` - Shows the help information for the current buffer (it looks something
+  [like this](/help.md)).
 
 * `aq` - Quit (short for "Advanced > Quit"). At the beginning of the execution
   of Edge, Ctrl+c will also quit (until the moment when you start editing any
@@ -640,229 +658,6 @@ Default: false
 Should this buffer be reloaded automatically when visited?
 
 Default: false
-
-
-#### 7.2.6. `atomic_lines` (bool)
-
-If true, lines can't be joined (e.g. you can't delete the last character in a
-line unless the line is empty).  In this case, instead of displaying the cursor,
-Edge will show the currently selected line.
-
-This is used by certain buffers such as the list of buffers or a directory view
-that represent lists of things (each represented as a line), for which this is a
-natural behavior.
-
-Default: false
-
-
-#### 7.2.7. `save_on_close` (bool)
-
-Should this buffer be saved automatically when it's closed?  See section 5.8 for
-details.
-
-This applies both when the buffer is closed explicitly (e.g. through "ad",
-section 5.8) or when Edge exits.
-
-Default: false
-
-
-#### 7.2.8. `allow_dirty_delete` (bool)
-
-Can this buffer be deleted if it's dirty?  See section 5.8 for details.
-
-This applies both when the buffer is closed explicitly (e.g. through "ad",
-section 5.8) or when Edge exits.
-
-Default: false
-
-
-#### 7.2.9. `clear_on_reload` (bool)
-
-Should any previous contents be discarded when this buffer is reloaded? If
-false, previous contents will be preserved and new contents will be appended at
-the end.
-
-This is useful mainly for buffers with the output of commands, where you don't
-want to discard the output of previous runs as you reload the buffer.
-
-Default: true
-
-
-#### 7.2.10. `paste_mode` (bool)
-
-When paste_mode is true in a buffer, it will be displayed in a way that makes it
-possible to select (with a mouse) parts of it (that are currently shown).  It
-will also allow you to paste text directly into the buffer (i.e. it will disable
-any smart "auto indenting").
-
-Paste mode can be quickly toggled with 'vp'.
-
-Default: false
-
-
-#### 7.2.11. `commands_background_mode` (bool)
-
-Should new commands forked from this buffer be started in background mode?  If
-false, we will switch to them automatically.
-
-This just affects whether we switch the currently selected Edge buffer to the
-new buffer; it has no effect whatsoever in the command.
-
-Default: false
-
-
-#### 7.2.12. `reload_on_buffer_write` (bool)
-
-Should the buffer on which this variable is set be reloaded automatically when
-any buffer is written?
-
-This is useful mainly for command buffers like 'make' or 'git diff'.
-
-If you set this on a buffer, you may want to also set contains_line_marks
-(section 7.2.22).
-
-Default: false
-
-
-#### 7.2.13. `word_characters` (string)
-
-String with all the characters that should be considered part of a word.  This
-affects commands such as "wd" (delete word).
-
-Default: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_"
-
-
-#### 7.2.14. `path_characters` (string)
-
-String with all the characters that should be considered part of a path.
-
-Default: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-.*:/"
-
-
-#### 7.2.15. `path` (string)
-
-String with the path of the current file.
-
-Default: ""
-
-
-#### 7.2.16. `pts_path` (string)
-
-String with the path of the terminal used by the current buffer (or empty if the
-buffer is not using a terminal).
-
-Default: ""
-
-
-#### 7.2.17. `command` (string)
-
-String with the current command (or empty).
-
-Default: ""
-
-
-#### 7.2.18. `editor_commands_path` (string)
-
-String with the path to the initial directory for editor commands ("c", see
-section 9.2).
-
-Default: ""
-
-
-#### 7.2.19. `line_width` (int)
-
-Desired maximum width of a line.
-
-Default: 80
-
-
-#### 7.2.20. `line_prefix_characters` (string)
-
-String with all the characters that should be considered the prefix of the
-actual contents of a line.  When a new line is created, the prefix of the
-previous line (the sequence of all characters at the start of the previous line
-that are listed in line_prefix_characters) is copied to the new line.
-
-The order of characters in line_prefix_characters has no effect.
-
-Default: " "
-
-
-#### 7.2.21. `line_suffix_superfluous_characters` (string)
-
-String with all the characters that should be removed from the suffix of a line
-(after editing it).
-
-The order of characters in line_suffix_superfluous_characters has no effect.
-
-Default: " "
-
-
-#### 7.2.22. `dictionary` (string)
-
-If the dictionary variable is non-empty, pressing Tab while in Insert mode in a
-buffer that contains a file (i.e. not in a buffer that runs a command) will
-cause the dictionary to be loaded and used for autocompletions.
-
-The dictionary file must be a text file containing one word per line and be
-sorted alphabetically.
-
-See section 4.1. for more details.
-
-Default: ""
-
-
-#### 7.2.23. `contains_line_marks` (bool)
-
-contains_line_marks indicates whether the current buffer should be scanned for
-"marks": lines that start with a prefix of the form "path:line" (e.g.
-src/test.cc:23"). For any such marks found, the corresponding lines in the
-corresponding buffers will be highlighted.
-
-This is useful for commands like "make" that output lines with compilation
-errors.
-
-Unfortunately, we don't currently support any fancy formats: the lines need to
-start with the marks (so this is not useful if your commands output lines like
-"Error in src/test.cc:23:").
-
-If you set this on a buffer, you may want to also set reload_on_buffer_write
-(section 7.2.12).
-
-Default: false
-
-
-#### 7.2.24. `multiple_cursors` (bool)
-
-If true, all commands apply to all cursors (see section 8 for more information
-on multiple cursors) in the current document. If false, they only apply to the
-active cursor.
-
-Because this variable is toggled very frequently, the "_" key press can be used
-to quickly toggle this variable (section 8.3).
-
-Default: false
-
-
-#### 7.2.25. `push_positions_to_history` (bool)
-
-If true, cursor moves in the current buffer will be pushed into the history of
-positions (3.4 section).
-
-A few buffers default this to false, to avoid pushing their positions to the
-history.
-
-Default: true
-
-
-#### 7.2.26. `delete_into_paste_buffer` (bool)
-
-If true, deletions longer than one character from this buffer will go into the
-shared paste buffer (section 4.3).
-
-A few buffers, such as prompt buffers, default this to false.
-
-Default: true
 
 
 ## 8. Cursors

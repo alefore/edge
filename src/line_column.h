@@ -96,6 +96,8 @@ struct Range {
     return begin == rhs.begin && end == rhs.end;
   }
 
+  size_t lines() const { return end.line - begin.line + 1; }
+
   LineColumn begin;
   LineColumn end;
 };

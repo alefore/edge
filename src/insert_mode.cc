@@ -66,8 +66,10 @@ class NewLineTransformation : public Transformation {
       auto buffer_to_insert =
           std::make_shared<OpenBuffer>(buffer->editor(), L"- text inserted");
       buffer_to_insert->AppendRawLine(continuation_line);
+      InsertOptions insert_options;
+      insert_options.buffer_to_insert = buffer_to_insert;
       transformation->PushBack(
-          NewInsertBufferTransformation(buffer_to_insert, 1, END));
+          NewInsertBufferTransformation(std::move(insert_options)));
     }
 
     transformation->PushBack(NewGotoPositionTransformation(result->cursor));
@@ -202,8 +204,7 @@ class AutocompleteMode : public EditorMode {
         ReplaceCurrentText(editor_state, original_text_);
         // Fall through.
       default:
-        editor_state->current_buffer()->second->set_mode(
-            std::move(options_.delegate));
+        editor_state->current_buffer()->set_mode(std::move(options_.delegate));
         editor_state->ResetStatus();
         if (c != '\n') {
           editor_state->ProcessInput(c);
@@ -229,11 +230,13 @@ class AutocompleteMode : public EditorMode {
     delete_options.copy_to_paste_buffer = false;
     // TODO: Somewhat wrong. Should find the autocompletion for each position.
     // Also, should apply the deletions/insertions at the right positions.
+    InsertOptions insert_options;
+    insert_options.buffer_to_insert = buffer_to_insert;
     options_.buffer->ApplyToCursors(TransformationAtPosition(
         LineColumn(options_.buffer->position().line, options_.column_start),
         ComposeTransformation(
             NewDeleteTransformation(delete_options),
-            NewInsertBufferTransformation(buffer_to_insert, 1, END))));
+            NewInsertBufferTransformation(std::move(insert_options)))));
 
     editor_state->ScheduleRedraw();
     word_length_ = insert->size();
@@ -315,8 +318,7 @@ void FindCompletion(EditorState* editor_state,
   auto autocomplete_mode =
       std::make_unique<AutocompleteMode>(std::move(options));
   autocomplete_mode->DrawCurrentMatch(editor_state);
-  editor_state->current_buffer()->second->set_mode(
-      std::move(autocomplete_mode));
+  editor_state->current_buffer()->set_mode(std::move(autocomplete_mode));
 }
 
 void StartCompletionFromDictionary(EditorState* editor_state,
@@ -326,7 +328,7 @@ void StartCompletionFromDictionary(EditorState* editor_state,
   options.path = path;
   DCHECK(!options.path.empty());
   options.editor_state = editor_state;
-  options.make_current_buffer = false;
+  options.insertion_type = BufferTreeHorizontal::InsertionType::kSkip;
   auto file = OpenFile(options);
   file->second->Set(buffer_variables::show_in_buffers_list(), false);
   LOG(INFO) << "Loading dictionary.";
@@ -393,10 +395,10 @@ class FindCompletionCommand : public Command {
   wstring Category() const override { return L"Edit"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) {
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
       return;
     }
-    auto buffer = editor_state->current_buffer()->second;
     StartCompletion(editor_state, buffer);
   }
 };
@@ -433,7 +435,7 @@ class InsertMode : public EditorMode {
         options_.escape_handler();  // Probably deletes us.
         editor_state->ResetRepetitions();
         editor_state->ResetInsertionModifier();
-        editor_state->current_buffer()->second->ResetMode();
+        editor_state->current_buffer()->ResetMode();
         editor_state->set_keyboard_redirect(nullptr);
         return;
 
@@ -515,15 +517,16 @@ class InsertMode : public EditorMode {
     }
 
     {
-      auto insert =
+      auto buffer_to_insert =
           std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
-      insert->AppendToLastLine(
+      buffer_to_insert->AppendToLastLine(
           NewLazyString(buffer->TransformKeyboardText(wstring(1, c))));
 
-      Modifiers modifiers;
-      modifiers.insertion = editor_state->modifiers().insertion;
+      InsertOptions insert_options;
+      insert_options.modifiers.insertion = editor_state->modifiers().insertion;
+      insert_options.buffer_to_insert = buffer_to_insert;
       buffer->ApplyToCursors(
-          NewInsertBufferTransformation(insert, modifiers, END, nullptr));
+          NewInsertBufferTransformation(std::move(insert_options)));
     }
 
     options_.modify_listener();
@@ -605,7 +608,7 @@ class RawInputTypeMode : public EditorMode {
           line_buffer_.push_back(27);
           WriteLineBuffer(editor_state);
         } else {
-          editor_state->current_buffer()->second->ResetMode();
+          editor_state->current_buffer()->ResetMode();
           editor_state->set_keyboard_redirect(nullptr);
           editor_state->ResetStatus();
         }
@@ -689,12 +692,11 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
   } else {
     options.buffer->MaybeAdjustPositionCol();
   }
-  options.editor_state->SetStatus(L"type");
+  options.editor_state->SetStatus(L"🔡");
 
   auto handler = std::make_unique<InsertMode>(options);
-  if (options.editor_state->current_buffer()->second == options.buffer) {
-    options.editor_state->current_buffer()->second->set_mode(
-        std::move(handler));
+  if (options.editor_state->current_buffer() == options.buffer) {
+    options.editor_state->current_buffer()->set_mode(std::move(handler));
   } else {
     options.editor_state->set_keyboard_redirect(std::move(handler));
   }
@@ -774,7 +776,7 @@ void EnterInsertMode(InsertModeOptions options) {
     if (!editor_state->has_current_buffer()) {
       OpenAnonymousBuffer(editor_state);
     }
-    options.buffer = editor_state->current_buffer()->second;
+    options.buffer = editor_state->current_buffer();
   }
 
   auto target_buffer = options.buffer->GetBufferFromCurrentLine();
@@ -813,8 +815,8 @@ void EnterInsertMode(InsertModeOptions options) {
   options.editor_state->ResetStatus();
 
   if (options.buffer->fd() != -1) {
-    editor_state->SetStatus(L"type (raw)");
-    editor_state->current_buffer()->second->set_mode(
+    editor_state->SetStatus(L"🔡 (raw)");
+    editor_state->current_buffer()->set_mode(
         std::make_unique<RawInputTypeMode>(options.buffer));
   } else if (editor_state->structure() == StructureChar()) {
     options.buffer->CheckPosition();

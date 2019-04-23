@@ -6,6 +6,7 @@
 #include "../editor_commands/cpp-mode"
 #include "../editor_commands/java-mode"
 #include "../editor_commands/lib/clang-format"
+#include "../editor_commands/lib/numbers"
 #include "../editor_commands/lib/paths"
 #include "../editor_commands/lib/strings"
 
@@ -48,7 +49,7 @@ void CenterScreenAroundCurrentLine() {
     SetStatus("Near end of file.");
     start_line = (buffer.line_count() > size ? buffer.line_count() - size : 0);
   }
-  buffer.set_view_start_line(start_line);
+  // buffer.set_view_start_line(start_line);
 }
 
 buffer.set_editor_commands_path("~/.edge/editor_commands/");
@@ -59,28 +60,30 @@ void HandleFileTypes(string basename, string extension) {
     buffer.AddBindingToFile("sh", buffer.editor_commands_path() + "header");
     buffer.AddBindingToFile("sI", buffer.editor_commands_path() + "include");
     buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
-    SetStatus("Loaded C file (" + extension + ")");
+    SetStatus("🔡 C++ file (" + extension + ")");
     return;
   }
 
   if (extension == "sh") {
     buffer.set_paragraph_line_prefix_characters(" #");
     buffer.set_line_prefix_characters(" #");
+    SetStatus("🔡 Shell script (" + extension + ")");
   }
 
   if (extension == "java") {
     JavaMode();
     buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
     buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
-    SetStatus("Loaded Java file (" + extension + ")");
+    SetStatus("🔡 Java file (" + extension + ")");
     return;
   }
 
   if (basename == "COMMIT_EDITMSG") {
+    buffer.set_position(LineColumn(0, 0));
     buffer.set_paragraph_line_prefix_characters(" #");
     buffer.set_line_prefix_characters(" #");
-    SetStatus("GIT commit msg");
     buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
+    SetStatus("🔡 Git commit message");
     return;
   }
 
@@ -88,7 +91,7 @@ void HandleFileTypes(string basename, string extension) {
     buffer.set_paragraph_line_prefix_characters(" #");
     buffer.set_line_prefix_characters(" #");
     buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
-    SetStatus("Loaded Python file (" + extension + ")");
+    SetStatus("🔡 Python file (" + extension + ")");
     return;
   }
 
@@ -98,7 +101,7 @@ void HandleFileTypes(string basename, string extension) {
     buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
     buffer.set_paragraph_line_prefix_characters("*-# ");
     buffer.set_line_prefix_characters(" ");
-    SetStatus("Loaded Markdown file (" + extension + ")");
+    SetStatus("🔡 Markdown file (" + extension + ")");
   }
 }
 
@@ -169,3 +172,45 @@ if (!buffer.pts()) {
   buffer.AddBinding("M", "Center the screen around the current line.",
                     CenterScreenAroundCurrentLine);
 }
+
+// Logic to handle the tree of visible buffers.
+void ZoomToLeaf() { editor.ZoomToLeaf(); }
+void AddHorizontalSplit() { editor.AddHorizontalSplit(); }
+void RewindActiveLeaf() {
+  editor.AdvanceActiveLeaf(-repetitions());
+  set_repetitions(1);
+}
+void AdvanceActiveLeaf() {
+  editor.AdvanceActiveLeaf(repetitions());
+  set_repetitions(1);
+}
+void SetActiveLeaf() {
+  editor.SetActiveLeaf(repetitions() - 1);
+  set_repetitions(1);
+}
+void RemoveActiveLeaf() { editor.RemoveActiveLeaf(); }
+
+buffer.AddBinding("st=", "Frames: Toggle: show all buffers or only active?",
+                  editor.ToggleBuffersVisible);
+buffer.AddBinding("st+", "Frames: Add a new leaf", AddHorizontalSplit);
+buffer.AddBinding("stk", "Frames: Move to the previous leaf", RewindActiveLeaf);
+buffer.AddBinding("stj", "Frames: Move to the next leaf", AdvanceActiveLeaf);
+buffer.AddBinding("stg", "Frames: Set the active leaf (by repetitions)",
+                  SetActiveLeaf);
+buffer.AddBinding("st-", "Frames: Remove active leaf", RemoveActiveLeaf);
+buffer.AddBinding("sta", "Frames: Show all open buffers",
+                  editor.SetHorizontalSplitsWithAllBuffers);
+
+void IncrementNumber() {
+  AddToIntegerAtPosition(buffer.position(), repetitions());
+  set_repetitions(1);
+}
+void DecrementNumber() {
+  AddToIntegerAtPosition(buffer.position(), -repetitions());
+  set_repetitions(1);
+}
+
+buffer.AddBinding("sl", "Numbers: Increment the number under the cursor.",
+                  IncrementNumber);
+buffer.AddBinding("sh", "Numbers: Decrement the number under the cursor.",
+                  DecrementNumber);

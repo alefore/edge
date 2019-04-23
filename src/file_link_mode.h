@@ -6,7 +6,8 @@
 #include <string>
 #include <vector>
 
-#include "editor.h"
+#include "src/buffer_tree_horizontal.h"
+#include "src/editor.h"
 
 namespace afc {
 namespace editor {
@@ -31,7 +32,9 @@ struct OpenFileOptions {
   // The path of the file to open.
   wstring path;
   bool ignore_if_not_found = false;
-  bool make_current_buffer = true;
+
+  BufferTreeHorizontal::InsertionType insertion_type =
+      BufferTreeHorizontal::InsertionType::kSearchOrCreate;
 
   // Should the contents of the search paths buffer be used to find the file?
   bool use_search_paths = true;
@@ -68,8 +71,7 @@ bool ResolvePath(ResolvePathOptions options);
 map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     const OpenFileOptions& options);
 
-map<wstring, shared_ptr<OpenBuffer>>::iterator OpenAnonymousBuffer(
-    EditorState* editor_state);
+shared_ptr<OpenBuffer> OpenAnonymousBuffer(EditorState* editor_state);
 
 }  // namespace editor
 }  // namespace afc

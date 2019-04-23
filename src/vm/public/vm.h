@@ -48,14 +48,16 @@ class Trampoline {
   // this is the reason the Continuation receives the Trampoline.
   using Continuation = std::function<void(std::unique_ptr<Value>, Trampoline*)>;
 
-  Trampoline(Environment* environment, Continuation return_continuation);
+  struct Options {
+    Environment* environment = nullptr;
+    Continuation return_continuation;
+    std::function<void(std::function<void()>)> yield_callback;
+  };
+
+  Trampoline(Options options);
 
   // Must ensure expression lives until return_continuation is called.
   void Enter(Expression* expression);
-
-  // Saves the state (continuations and environment) of the current trampoline
-  // and returns a callback that can be used to restore it into a trampoline.
-  std::function<void(Trampoline*)> Save();
 
   void SetEnvironment(Environment* environment);
   Environment* environment() const;
@@ -80,6 +82,9 @@ class Trampoline {
 
   Continuation return_continuation_;
   Continuation continuation_;
+
+  std::function<void(std::function<void()>)> yield_callback_;
+  size_t jumps_ = 0;
 
   // Set by Bounce (and Enter), read by Enter.
   Expression* expression_ = nullptr;
@@ -123,9 +128,12 @@ unique_ptr<Expression> CompileString(const wstring& str,
                                      wstring* error_description,
                                      const VMType& return_type);
 
-// Caller must make sure expr lives until consumer runs.
+// Caller must make sure expr lives until consumer runs. `yield_callback` is an
+// optional function that must ensure that the callback it receives will run
+// in the future.
 void Evaluate(Expression* expr, Environment* environment,
-              std::function<void(std::unique_ptr<Value>)> consumer);
+              std::function<void(std::unique_ptr<Value>)> consumer,
+              std::function<void(std::function<void()>)> yield_callback);
 
 }  // namespace vm
 }  // namespace afc

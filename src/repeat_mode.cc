@@ -14,10 +14,10 @@ class RepeatMode : public EditorMode {
       : consumer_(consumer), result_(0) {}
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) {
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
       return;
     }
-    auto buffer = editor_state->current_buffer()->second;
     if (c < '0' || c > '9') {
       consumer_(editor_state, result_);
       buffer->ResetMode();

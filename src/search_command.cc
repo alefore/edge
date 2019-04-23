@@ -13,7 +13,7 @@ namespace editor {
 
 namespace {
 static void DoSearch(EditorState* editor_state, const SearchOptions& options) {
-  auto buffer = editor_state->current_buffer()->second;
+  auto buffer = editor_state->current_buffer();
   buffer->set_active_cursors(SearchHandler(editor_state, options));
   buffer->ResetMode();
   editor_state->ResetDirection();
@@ -27,10 +27,10 @@ class SearchCommand : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    if (!editor_state->has_current_buffer()) {
+    auto buffer = editor_state->current_buffer();
+    if (buffer == nullptr) {
       return;
     }
-    auto buffer = editor_state->current_buffer()->second;
 
     SearchOptions search_options;
     search_options.case_sensitive =
@@ -61,7 +61,7 @@ class SearchCommand : public Command {
 
     if (editor_state->structure()->search_query() ==
         Structure::SearchQuery::kRegion) {
-      auto buffer = editor_state->current_buffer()->second;
+      auto buffer = editor_state->current_buffer();
       Range range = buffer->FindPartialRange(editor_state->modifiers(),
                                              buffer->position());
       if (range.begin == range.end) {
@@ -108,7 +108,7 @@ class SearchCommand : public Command {
     }
 
     PromptOptions options;
-    options.prompt = L"/";
+    options.prompt = L"🔎 ";
     options.history_file = L"search";
     options.handler = [search_options](const wstring& input,
                                        EditorState* editor_state) {

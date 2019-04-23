@@ -76,8 +76,8 @@ class FindTransformation : public Transformation {
 class FindMode : public EditorMode {
   void ProcessInput(wint_t c, EditorState* editor_state) {
     editor_state->PushCurrentPosition();
-    if (editor_state->has_current_buffer()) {
-      auto buffer = editor_state->current_buffer()->second;
+    auto buffer = editor_state->current_buffer();
+    if (buffer != nullptr) {
       buffer->ApplyToCursors(
           std::make_unique<FindTransformation>(c, editor_state->modifiers()));
       buffer->ResetMode();

@@ -169,7 +169,6 @@ class ListBuffersCommand : public Command {
   void ProcessInput(wint_t, EditorState* editor_state) override {
     auto it = editor_state->buffers()->insert(
         make_pair(OpenBuffer::kBuffersName, nullptr));
-    editor_state->set_current_buffer(it.first);
     if (it.second) {
       OpenBuffer::Options options;
       options.editor_state = editor_state;
@@ -188,6 +187,7 @@ class ListBuffersCommand : public Command {
       it.first->second = std::move(buffer);
       editor_state->StartHandlingInterrupts();
     }
+    editor_state->set_current_buffer(it.first->second);
     editor_state->ResetStatus();
     it.first->second->Reload();
     editor_state->PushCurrentPosition();
