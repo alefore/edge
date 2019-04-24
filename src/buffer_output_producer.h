@@ -25,7 +25,7 @@ class BufferOutputProducer : public OutputProducer {
   bool HasActiveCursor() const;
 
  private:
-  LineColumn GetNextLine(size_t columns, LineColumn position);
+  Range GetRangeStartingAt(LineColumn start) const;
 
   const std::shared_ptr<OpenBuffer> buffer_;
   const size_t lines_shown_;
@@ -38,8 +38,8 @@ class BufferOutputProducer : public OutputProducer {
   const ParseTree* current_tree_;
   const std::shared_ptr<const ParseTree> zoomed_out_tree_;
 
-  // The position at which the next line will be read from.
-  LineColumn position_;
+  // The range in the input (in buffer_) for the next line to output.
+  Range range_;
 
   // The last buffer line that was printed. Used for the number prefix.
   size_t last_line_ = std::numeric_limits<size_t>::max();
