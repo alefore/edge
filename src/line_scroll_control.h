@@ -4,6 +4,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 
 #include "src/output_producer.h"
@@ -14,38 +15,75 @@
 namespace afc {
 namespace editor {
 
-class LineScrollControl {
+class LineScrollControl
+    : public std::enable_shared_from_this<LineScrollControl> {
  private:
   struct ConstructorAccessTag {};
 
  public:
-  LineScrollControl(std::shared_ptr<OpenBuffer> buffer, LineColumn view_start,
-                    size_t columns_shown, size_t customers);
+  static std::shared_ptr<LineScrollControl> New(
+      std::shared_ptr<OpenBuffer> buffer, LineColumn view_start,
+      size_t columns_shown) {
+    return std::make_shared<LineScrollControl>(
+        ConstructorAccessTag(), std::move(buffer), view_start, columns_shown);
+  }
 
-  // Returns the prediction for the range (from the buffer) that will be
-  // displayed in the next line. The start is known to be accurate, but the end
-  // could be inaccurate because we don't fully know how much certain characters
-  // (mostly tabs, but also multi-width characters) will actually consume.
-  Range GetRange() const { return range_; }
+  LineScrollControl(ConstructorAccessTag, std::shared_ptr<OpenBuffer> buffer,
+                    LineColumn view_start, size_t columns_shown);
 
-  bool HasActiveCursor() const;
+  class Reader {
+   private:
+    struct ConstructorAccessTag {};
 
-  std::set<size_t> GetCurrentCursors() const;
+   public:
+    Reader(ConstructorAccessTag, std::shared_ptr<LineScrollControl> parent);
 
-  void Advance();
+    // Returns the range corresponding to the current line. If `nullopt`, it
+    // means the reader has signaled that it's done with this range, but other
+    // readers are still outputing contents for it; in this case, it shouldn't
+    // print anything.
+    std::optional<Range> GetRange() const {
+      return state_ == State::kDone ? std::nullopt
+                                    : std::optional<Range>(parent_->range_);
+    }
+
+    bool HasActiveCursor() const;
+
+    std::set<size_t> GetCurrentCursors() const;
+
+    void RangeDone() {
+      CHECK(state_ == State::kProcessing);
+      state_ = State::kDone;
+      parent_->SignalReaderDone();
+    }
+
+   private:
+    friend class LineScrollControl;
+
+    std::shared_ptr<LineScrollControl> const parent_;
+    enum class State { kDone, kProcessing };
+    State state_ = State::kProcessing;
+  };
+
+  std::unique_ptr<Reader> NewReader();
 
  private:
+  friend Reader;
+  void SignalReaderDone();
+  void Advance();
+
   const std::shared_ptr<OpenBuffer> buffer_;
   const LineColumn view_start_;
   const size_t columns_shown_;
-  // How many customers will be notifying us (through calls to `Advance`) that
-  // they are done printing output for the current range?
-  const size_t customers_;
 
   Range range_;
   const std::map<size_t, std::set<size_t>> cursors_;
-  // Counts calls to `Advance` since the last update to `range_`.
-  size_t customers_done_;
+
+  std::vector<Reader*> readers_;
+
+  // Counts the number of readers that have switched to State::kDone since the
+  // range was last updated.
+  size_t readers_done_ = 0;
 };
 
 }  // namespace editor

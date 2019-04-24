@@ -10,10 +10,11 @@ namespace editor {
 
 class BufferOutputProducer : public OutputProducer {
  public:
-  BufferOutputProducer(std::shared_ptr<OpenBuffer> buffer,
-                       std::shared_ptr<LineScrollControl> line_scroll_control,
-                       size_t lines_shown, LineColumn view_start,
-                       std::shared_ptr<const ParseTree> zoomed_out_tree);
+  BufferOutputProducer(
+      std::shared_ptr<OpenBuffer> buffer,
+      std::shared_ptr<LineScrollControl::Reader> line_scroll_control_reader,
+      size_t lines_shown, LineColumn view_start,
+      std::shared_ptr<const ParseTree> zoomed_out_tree);
 
   void WriteLine(Options options) override;
 
@@ -21,7 +22,7 @@ class BufferOutputProducer : public OutputProducer {
   Range GetRangeStartingAt(LineColumn start) const;
 
   const std::shared_ptr<OpenBuffer> buffer_;
-  const std::shared_ptr<LineScrollControl> line_scroll_control_;
+  const std::shared_ptr<LineScrollControl::Reader> line_scroll_control_reader_;
   const size_t lines_shown_;
   const LineColumn view_start_;
 

@@ -177,32 +177,42 @@ class ParseTreeHighlighterTokens
 
 BufferOutputProducer::BufferOutputProducer(
     std::shared_ptr<OpenBuffer> buffer,
-    std::shared_ptr<LineScrollControl> line_scroll_control, size_t lines_shown,
-    LineColumn view_start, std::shared_ptr<const ParseTree> zoomed_out_tree)
+    std::shared_ptr<LineScrollControl::Reader> line_scroll_control_reader,
+    size_t lines_shown, LineColumn view_start,
+    std::shared_ptr<const ParseTree> zoomed_out_tree)
     : buffer_(std::move(buffer)),
-      line_scroll_control_(std::move(line_scroll_control)),
+      line_scroll_control_reader_(std::move(line_scroll_control_reader)),
       lines_shown_(lines_shown),
       view_start_(view_start),
       root_(buffer_->parse_tree()),
       current_tree_(buffer_->current_tree(root_.get())),
       zoomed_out_tree_(std::move(zoomed_out_tree)) {
+  CHECK(line_scroll_control_reader_ != nullptr);
   if (buffer_->Read(buffer_variables::reload_on_display())) {
     buffer_->Reload();
   }
 }
 
 void BufferOutputProducer::WriteLine(Options options) {
-  auto range = line_scroll_control_->GetRange();
+  auto optional_range = line_scroll_control_reader_->GetRange();
+  if (!optional_range.has_value()) {
+    return;
+  }
+
+  auto range = optional_range.value();
+
   if (options.active_cursor != nullptr) {
     *options.active_cursor = std::nullopt;
   }
 
   if (range.begin.line >= buffer_->lines_size()) {
     options.receiver->AddString(L"\n");
+    line_scroll_control_reader_->RangeDone();
     return;
   }
 
-  auto current_cursors = line_scroll_control_->GetCurrentCursors();
+  CHECK(line_scroll_control_reader_->GetRange().has_value());
+  auto current_cursors = line_scroll_control_reader_->GetCurrentCursors();
 
   std::optional<size_t> active_cursor_column;
   auto line = buffer_->LineAt(range.begin.line);
@@ -264,7 +274,7 @@ void BufferOutputProducer::WriteLine(Options options) {
     *options.active_cursor = active_cursor_column.value();
   }
 
-  line_scroll_control_->Advance();
+  line_scroll_control_reader_->RangeDone();
 }
 
 }  // namespace editor

@@ -17,13 +17,19 @@
 
 namespace afc {
 namespace editor {
-LineScrollControl::LineScrollControl(std::shared_ptr<OpenBuffer> buffer,
+LineScrollControl::Reader::Reader(ConstructorAccessTag,
+                                  std::shared_ptr<LineScrollControl> parent)
+    : parent_(std::move(parent)) {
+  CHECK(parent_ != nullptr);
+}
+
+LineScrollControl::LineScrollControl(ConstructorAccessTag,
+                                     std::shared_ptr<OpenBuffer> buffer,
                                      LineColumn view_start,
-                                     size_t columns_shown, size_t customers)
+                                     size_t columns_shown)
     : buffer_(buffer),
       view_start_(view_start),
       columns_shown_(columns_shown),
-      customers_(customers),
       range_(view_start, view_start),
       cursors_([=]() {
         std::map<size_t, std::set<size_t>> cursors;
@@ -31,35 +37,50 @@ LineScrollControl::LineScrollControl(std::shared_ptr<OpenBuffer> buffer,
           cursors[cursor.line].insert(cursor.column);
         }
         return cursors;
-      }()),
-      customers_done_(customers_) {
+      }()) {
   Advance();
 }
 
-bool LineScrollControl::HasActiveCursor() const {
-  return GetRange().Contains(buffer_->position());
+std::unique_ptr<LineScrollControl::Reader> LineScrollControl::NewReader() {
+  auto output = std::make_unique<LineScrollControl::Reader>(
+      Reader::ConstructorAccessTag(), shared_from_this());
+  readers_.push_back(output.get());
+  return output;
 }
 
-std::set<size_t> LineScrollControl::GetCurrentCursors() const {
+bool LineScrollControl::Reader::HasActiveCursor() const {
+  CHECK(state_ == State::kProcessing);
+  return GetRange().value().Contains(parent_->buffer_->position());
+}
+
+std::set<size_t> LineScrollControl::Reader::GetCurrentCursors() const {
+  CHECK(state_ == State::kProcessing);
   std::set<size_t> output;
-  auto it = cursors_.find(range_.begin.line);
-  if (it == cursors_.end()) {
+  auto range = GetRange().value();
+  auto it = parent_->cursors_.find(range.begin.line);
+  if (it == parent_->cursors_.end()) {
     return output;
   }
-  auto range = GetRange();
   for (auto& c : it->second) {
-    if (range.Contains(LineColumn(range_.begin.line, c))) {
-      output.insert(c - range_.begin.column);
+    if (range.Contains(LineColumn(range.begin.line, c))) {
+      output.insert(c - range.begin.column);
     }
   }
   return output;
 }
 
-void LineScrollControl::Advance() {
-  if (++customers_done_ < customers_) {
-    return;
+void LineScrollControl::SignalReaderDone() {
+  if (++readers_done_ == readers_.size()) {
+    Advance();
   }
-  customers_done_ = 0;
+}
+
+void LineScrollControl::Advance() {
+  readers_done_ = 0;
+  for (auto& c : readers_) {
+    c->state_ = Reader::State::kProcessing;
+  }
+
   range_.begin = range_.end;
   // TODO: This is wrong: it doesn't account for multi-width characters.
   // TODO: This is wrong: it doesn't take into account line filters.
