@@ -10,6 +10,8 @@ Support more languages:
     - Perhaps have a bool that toggles 'stat' (show data about files)?
       Ideally this is done by the extensions!
 
+Fix a bug with buffers that are shown with fewer lines than mandated by their margins.
+
 ## Editing
 
 Implement delete of page.
