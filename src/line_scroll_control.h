@@ -20,7 +20,7 @@ class LineScrollControl {
 
  public:
   LineScrollControl(std::shared_ptr<OpenBuffer> buffer, LineColumn view_start,
-                    size_t columns_shown);
+                    size_t columns_shown, size_t customers);
 
   // Returns the prediction for the range (from the buffer) that will be
   // displayed in the next line. The start is known to be accurate, but the end
@@ -38,9 +38,15 @@ class LineScrollControl {
   const std::shared_ptr<OpenBuffer> buffer_;
   const LineColumn view_start_;
   const size_t columns_shown_;
+  // How many customers will be notifying us (through calls to `Advance`) that
+  // they are done printing output for the current range?
+  const size_t customers_;
+
   Range range_;
   const std::map<size_t, std::set<size_t>> cursors_;
-};  // namespace editor
+  // Counts calls to `Advance` since the last update to `range_`.
+  size_t customers_done_;
+};
 
 }  // namespace editor
 }  // namespace afc

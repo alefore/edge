@@ -8,6 +8,7 @@
 #include <iostream>
 
 #include "src/buffer.h"
+#include "src/buffer_metadata_output_producer.h"
 #include "src/buffer_output_producer.h"
 #include "src/buffer_variables.h"
 #include "src/line_scroll_control.h"
@@ -122,18 +123,21 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
       (paste_mode
            ? 0
            : LineNumberOutputProducer::PrefixWidth(buffer->lines_size()));
-
-  auto line_scroll_control =
-      std::make_shared<LineScrollControl>(buffer, view_start_, buffer_columns);
+  if (!buffer->Read(buffer_variables::paste_mode())) {
+    buffer_columns =
+        min(buffer_columns,
+            static_cast<size_t>(buffer->Read(buffer_variables::line_width())));
+  }
+  auto line_scroll_control = std::make_shared<LineScrollControl>(
+      buffer, view_start_, buffer_columns, paste_mode ? 1 : 2);
 
   auto buffer_output_producer = std::make_unique<BufferOutputProducer>(
-      buffer, line_scroll_control, lines_, buffer_columns, view_start_,
-      zoomed_out_tree_);
+      buffer, line_scroll_control, lines_, view_start_, zoomed_out_tree_);
   if (paste_mode) {
     return buffer_output_producer;
   }
 
-  std::vector<VerticalSplitOutputProducer::Column> columns(2);
+  std::vector<VerticalSplitOutputProducer::Column> columns(3);
 
   auto line_numbers =
       std::make_unique<LineNumberOutputProducer>(buffer, line_scroll_control);
@@ -141,7 +145,11 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
   columns[0].width = line_numbers->width();
   columns[0].producer = std::move(line_numbers);
 
+  columns[1].width = buffer->Read(buffer_variables::line_width());
   columns[1].producer = std::move(buffer_output_producer);
+
+  columns[2].producer = std::make_unique<BufferMetadataOutputProducer>(
+      buffer, line_scroll_control, lines_, view_start_, zoomed_out_tree_);
 
   return std::make_unique<VerticalSplitOutputProducer>(std::move(columns), 1);
 }

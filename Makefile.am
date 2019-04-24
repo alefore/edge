@@ -20,6 +20,8 @@ src/buffer_widget.cc \
 src/buffer_widget.h \
 src/buffer_contents.cc \
 src/buffer_contents.h \
+src/buffer_metadata_output_producer.cc \
+src/buffer_metadata_output_producer.h \
 src/buffer_output_producer.cc \
 src/buffer_output_producer.h \
 src/buffer_tree_horizontal.cc \
