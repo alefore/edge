@@ -88,7 +88,7 @@ class LineNumberOutputProducer : public OutputProducer {
       return;  // Happens when the buffer is smaller than the screen.
     }
     std::wstring number =
-        range.begin.column == 0 ? std::to_wstring(range.begin.line) : L"↪";
+        range.begin.column == 0 ? std::to_wstring(range.begin.line + 1) : L"↪";
     CHECK_LE(number.size(), width_ - 1);
     std::wstring padding(width_ - number.size() - 1, L' ');
     if (line_scroll_control_->GetCurrentCursors().empty()) {
