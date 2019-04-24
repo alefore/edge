@@ -22,23 +22,6 @@
 namespace afc {
 namespace editor {
 namespace {
-// Returns the number of initial columns to skip, corresponding to output that
-// prefixes the actual line contents.
-size_t GetInitialPrefixSize(const OpenBuffer& buffer) {
-  return buffer.Read(buffer_variables::paste_mode())
-             ? 0
-             : 1 + std::to_wstring(buffer.lines_size()).size();
-}
-
-std::wstring GetInitialPrefix(const OpenBuffer& buffer, int line) {
-  if (buffer.Read(buffer_variables::paste_mode())) {
-    return L"";
-  }
-  std::wstring number = std::to_wstring(line + 1);
-  std::wstring padding(GetInitialPrefixSize(buffer) - number.size() - 1, L' ');
-  return padding + number + L':';
-}
-
 wchar_t ComputeScrollBarCharacter(size_t line, size_t lines_size,
                                   size_t view_start, size_t lines_to_show) {
   // Each line is split into two units (upper and bottom halves). All units in
@@ -148,38 +131,6 @@ wstring DrawTree(size_t line, size_t lines_size, const ParseTree& root) {
   return output;
 }
 }  // namespace
-
-class WithPrefixOutputReceiver : public DelegatingOutputReceiver {
- public:
-  WithPrefixOutputReceiver(std::unique_ptr<OutputReceiver> delegate,
-                           wstring prefix, LineModifier prefix_modifier)
-      : DelegatingOutputReceiver(std::move(delegate)), prefix_length_([=]() {
-          AddModifier(prefix_modifier);
-          AddString(prefix);
-          AddModifier(LineModifier::RESET);
-          return DelegatingOutputReceiver::column();
-        }()) {}
-
-  void SetTabsStart(size_t columns) override {
-    DelegatingOutputReceiver::SetTabsStart(prefix_length_ + columns);
-  }
-
-  size_t column() override {
-    if (DelegatingOutputReceiver::column() < prefix_length_) {
-      return 0;
-    }
-    return DelegatingOutputReceiver::column() - prefix_length_;
-  }
-  size_t width() override {
-    if (DelegatingOutputReceiver::width() < prefix_length_) {
-      return 0;
-    }
-    return DelegatingOutputReceiver::width() - prefix_length_;
-  }
-
- private:
-  const size_t prefix_length_;
-};
 
 class HighlightedLineOutputReceiver : public DelegatingOutputReceiver {
  public:
@@ -335,25 +286,6 @@ class ParseTreeHighlighterTokens
   size_t column_read_ = 0;
 };
 
-LineColumn BufferOutputProducer::GetNextLine(size_t columns,
-                                             LineColumn position) {
-  // TODO: This is wrong: it doesn't account for multi-width characters.
-  // TODO: This is wrong: it doesn't take int account line filters.
-  if (position.line >= buffer_->lines_size()) {
-    return LineColumn(std::numeric_limits<size_t>::max());
-  }
-  position.column += columns;
-  if (position.column >= buffer_->LineAt(position.line)->size() ||
-      !buffer_->Read(buffer_variables::wrap_long_lines())) {
-    position.line++;
-    position.column = view_start_.column;
-    if (position.line >= buffer_->lines_size()) {
-      return LineColumn(std::numeric_limits<size_t>::max());
-    }
-  }
-  return position;
-}
-
 // Adds spaces until we're at a given position.
 void AddPadding(size_t column, const LineModifierSet& modifiers,
                 OutputReceiver* output_receiver) {
@@ -470,9 +402,11 @@ void ShowAdditionalData(
 
 BufferOutputProducer::BufferOutputProducer(
     std::shared_ptr<OpenBuffer> buffer, size_t lines_shown,
-    LineColumn view_start, std::shared_ptr<const ParseTree> zoomed_out_tree)
+    size_t columns_shown, LineColumn view_start,
+    std::shared_ptr<const ParseTree> zoomed_out_tree)
     : buffer_(std::move(buffer)),
       lines_shown_(lines_shown),
+      columns_shown_(columns_shown),
       view_start_(view_start),
       cursors_([=]() {
         std::map<size_t, std::set<size_t>> cursors;
@@ -500,40 +434,8 @@ void BufferOutputProducer::WriteLine(Options options) {
     return;
   }
 
-  wstring number_prefix = GetInitialPrefix(*buffer_, position_.line);
-  if (!number_prefix.empty() && last_line_ == position_.line) {
-    number_prefix = wstring(number_prefix.size() - 1, L' ') + L':';
-  }
-  auto next_position =
-      GetNextLine(options.receiver->width() - number_prefix.size(), position_);
-
-  std::set<size_t> current_cursors;
-  auto it = cursors_.find(position_.line);
-  if (it != cursors_.end()) {
-    for (auto& c : it->second) {
-      if (c >= position_.column &&
-          LineColumn(position_.line, c) < next_position) {
-        current_cursors.insert(c - position_.column);
-      }
-    }
-  }
-  bool has_active_cursor =
-      buffer_->position() >= position_ && buffer_->position() < next_position;
-
-  if (!number_prefix.empty()) {
-    LineModifier prefix_modifier = LineModifier::DIM;
-    if (has_active_cursor ||
-        (!current_cursors.empty() &&
-         buffer_->Read(buffer_variables::multiple_cursors()))) {
-      prefix_modifier = LineModifier::CYAN;
-    } else if (!current_cursors.empty()) {
-      prefix_modifier = LineModifier::BLUE;
-    }
-
-    options.receiver = std::make_unique<WithPrefixOutputReceiver>(
-        std::move(options.receiver), number_prefix, prefix_modifier);
-    options.receiver->SetTabsStart(0);
-  }
+  auto next_position = GetCurrentRange().end;
+  auto current_cursors = GetCurrentCursors();
 
   std::optional<size_t> active_cursor_column;
   auto line = buffer_->LineAt(position_.line);
@@ -602,12 +504,51 @@ void BufferOutputProducer::WriteLine(Options options) {
   }
 
   if (active_cursor_column.has_value() && options.active_cursor != nullptr) {
-    *options.active_cursor =
-        active_cursor_column.value() + number_prefix.size();
+    *options.active_cursor = active_cursor_column.value();
   }
 
   last_line_ = position_.line;
   position_ = next_position;
 }
+
+Range BufferOutputProducer::GetCurrentRange() const {
+  Range output(position_, position_);
+  // TODO: This is wrong: it doesn't account for multi-width characters.
+  // TODO: This is wrong: it doesn't take int account line filters.
+  if (position_.line >= buffer_->lines_size()) {
+    output.end = LineColumn(std::numeric_limits<size_t>::max());
+  } else {
+    output.end.column += columns_shown_;
+    if (output.end.column >= buffer_->LineAt(output.end.line)->size() ||
+        !buffer_->Read(buffer_variables::wrap_long_lines())) {
+      output.end.line++;
+      output.end.column = view_start_.column;
+      if (output.end.line >= buffer_->lines_size()) {
+        output.end = LineColumn(std::numeric_limits<size_t>::max());
+      }
+    }
+  }
+  return output;
+}
+
+bool BufferOutputProducer::HasActiveCursor() const {
+  return GetCurrentRange().Contains(buffer_->position());
+}
+
+std::set<size_t> BufferOutputProducer::GetCurrentCursors() const {
+  std::set<size_t> output;
+  auto it = cursors_.find(position_.line);
+  if (it == cursors_.end()) {
+    return output;
+  }
+  auto range = GetCurrentRange();
+  for (auto& c : it->second) {
+    if (range.Contains(LineColumn(position_.line, c))) {
+      output.insert(c - position_.column);
+    }
+  }
+  return output;
+}
+
 }  // namespace editor
 }  // namespace afc

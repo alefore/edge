@@ -83,12 +83,15 @@ std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
       std::move(output_producers), lines_per_child_, active_);
 }
 
-void BufferTreeHorizontal::SetLines(size_t lines) {
+void BufferTreeHorizontal::SetSize(size_t lines, size_t columns) {
   lines_ = lines;
+  columns_ = columns;
   RecomputeLinesPerChild();
 }
 
 size_t BufferTreeHorizontal::lines() const { return lines_; }
+
+size_t BufferTreeHorizontal::columns() const { return columns_; }
 
 size_t BufferTreeHorizontal::MinimumLines() {
   size_t count = 0;
@@ -293,8 +296,9 @@ void BufferTreeHorizontal::RecomputeLinesPerChild() {
     if (buffers_visible_ == BuffersVisible::kActive && i != active_) {
       continue;
     }
-    children_[i]->SetLines(
-        lines_per_child_[i] == lines_ ? lines_ : lines_per_child_[i] - 1);
+    children_[i]->SetSize(
+        lines_per_child_[i] == lines_ ? lines_ : lines_per_child_[i] - 1,
+        columns_);
   }
 }
 

@@ -10,16 +10,26 @@ namespace editor {
 class BufferOutputProducer : public OutputProducer {
  public:
   BufferOutputProducer(std::shared_ptr<OpenBuffer> buffer, size_t lines_shown,
-                       LineColumn view_start,
+                       size_t columns_shown, LineColumn view_start,
                        std::shared_ptr<const ParseTree> zoomed_out_tree);
 
   void WriteLine(Options options) override;
+
+  // Returns the prediction for the range (from the buffer) that will be
+  // displayed in the next line. The start is known to be accurate, but the end
+  // could be inaccurate because we don't fully know how much certain characters
+  // (mostly tabs, but also multi-width characters) will actually consume.
+  Range GetCurrentRange() const;
+  std::set<size_t> GetCurrentCursors() const;
+
+  bool HasActiveCursor() const;
 
  private:
   LineColumn GetNextLine(size_t columns, LineColumn position);
 
   const std::shared_ptr<OpenBuffer> buffer_;
   const size_t lines_shown_;
+  const size_t columns_shown_;
   const LineColumn view_start_;
 
   // Key is line number.

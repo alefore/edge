@@ -57,6 +57,8 @@ src/file_link_mode.cc \
 src/find_mode.cc \
 src/goto_command.cc \
 src/help_command.cc \
+src/horizontal_split_output_producer.cc \
+src/horizontal_split_output_producer.h \
 src/insert_mode.cc \
 src/lazy_string.cc \
 src/lazy_string_append.cc \
@@ -122,8 +124,8 @@ src/terminal.cc \
 src/transformation.cc \
 src/transformation_delete.cc \
 src/transformation_move.cc \
-src/horizontal_split_output_producer.cc \
-src/horizontal_split_output_producer.h \
+src/vertical_split_output_producer.cc \
+src/vertical_split_output_producer.h \
 src/vm_transformation.cc \
 src/vm_transformation.h \
 src/vm/public/set.h \

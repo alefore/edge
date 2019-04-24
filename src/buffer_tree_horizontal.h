@@ -37,8 +37,9 @@ class BufferTreeHorizontal : public Widget {
 
   std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 
-  void SetLines(size_t lines) override;
+  void SetSize(size_t lines, size_t columns) override;
   size_t lines() const override;
+  size_t columns() const override;
   size_t MinimumLines() override;
 
   void SetActiveLeaf(size_t position);
@@ -87,6 +88,7 @@ class BufferTreeHorizontal : public Widget {
   size_t active_;
 
   size_t lines_;
+  size_t columns_;
   std::vector<size_t> lines_per_child_;
 };
 

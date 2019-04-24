@@ -28,8 +28,9 @@ class BufferWidget : public Widget {
 
   std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 
-  void SetLines(size_t) override;
+  void SetSize(size_t lines, size_t columns) override;
   size_t lines() const override;
+  size_t columns() const override;
   size_t MinimumLines() override;
   LineColumn view_start() const;
 
@@ -43,6 +44,7 @@ class BufferWidget : public Widget {
 
   std::weak_ptr<OpenBuffer> leaf_;
   size_t lines_ = 0;
+  size_t columns_ = 0;
 
   // The position in the buffer where the view begins.
   LineColumn view_start_;
