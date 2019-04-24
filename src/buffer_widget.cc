@@ -10,6 +10,7 @@
 #include "src/buffer.h"
 #include "src/buffer_output_producer.h"
 #include "src/buffer_variables.h"
+#include "src/line_scroll_control.h"
 #include "src/vertical_split_output_producer.h"
 #include "src/widget.h"
 #include "src/wstring.h"
@@ -67,43 +68,33 @@ wstring BufferWidget::ToString() const {
 
 BufferWidget* BufferWidget::GetActiveLeaf() { return this; }
 
-struct LineData {
-  Range range;
-  enum class Cursors { kNone, kInactive, kActive };
-  Cursors cursors = Cursors::kNone;
-};
-
 class LineNumberOutputProducer : public OutputProducer {
  public:
   static size_t PrefixWidth(size_t lines_size) {
     return 1 + std::to_wstring(lines_size).size();
   }
 
-  LineNumberOutputProducer(size_t lines_size,
-                           std::function<LineData()> get_line_data)
+  LineNumberOutputProducer(
+      size_t lines_size, std::shared_ptr<LineScrollControl> line_scroll_control)
       : width_(PrefixWidth(lines_size)),
-        get_line_data_(std::move(get_line_data)),
+        line_scroll_control_(std::move(line_scroll_control)),
         lines_size_(lines_size) {}
 
   void WriteLine(Options options) override {
-    auto data = get_line_data_();
-    if (data.range.begin.line >= lines_size_) {
+    auto range = line_scroll_control_->GetRange();
+    if (range.begin.line >= lines_size_) {
       return;  // Happens when the buffer is smaller than the screen.
     }
-    std::wstring number = std::to_wstring(data.range.begin.line);
+    std::wstring number = std::to_wstring(range.begin.line);
     CHECK_LE(number.size(), width_ - 1);
     std::wstring padding(width_ - number.size() - 1, L' ');
-    switch (data.cursors) {
-      case LineData::Cursors::kNone:
-        options.receiver->AddModifier(LineModifier::DIM);
-        break;
-      case LineData::Cursors::kInactive:
-        options.receiver->AddModifier(LineModifier::BLUE);
-        break;
-      case LineData::Cursors::kActive:
-        options.receiver->AddModifier(LineModifier::CYAN);
-        options.receiver->AddModifier(LineModifier::BOLD);
-        break;
+    if (line_scroll_control_->HasActiveCursor()) {
+      options.receiver->AddModifier(LineModifier::CYAN);
+      options.receiver->AddModifier(LineModifier::BOLD);
+    } else if (!line_scroll_control_->GetCurrentCursors().empty()) {
+      options.receiver->AddModifier(LineModifier::BLUE);
+    } else {
+      options.receiver->AddModifier(LineModifier::DIM);
     }
     options.receiver->AddString(padding + number + L':');
   }
@@ -112,7 +103,7 @@ class LineNumberOutputProducer : public OutputProducer {
 
  private:
   const size_t width_;
-  const std::function<LineData()> get_line_data_;
+  const std::shared_ptr<LineScrollControl> line_scroll_control_;
   const size_t lines_size_;
 };
 
@@ -123,12 +114,18 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
   }
 
   bool paste_mode = buffer->Read(buffer_variables::paste_mode());
+  size_t buffer_columns =
+      columns_ -
+      (paste_mode
+           ? 0
+           : LineNumberOutputProducer::PrefixWidth(buffer->lines_size()));
+
+  auto line_scroll_control =
+      std::make_shared<LineScrollControl>(buffer, view_start_, buffer_columns);
+
   auto buffer_output_producer = std::make_unique<BufferOutputProducer>(
-      buffer, lines_,
-      columns_ - (paste_mode ? 0
-                             : LineNumberOutputProducer::PrefixWidth(
-                                   buffer->lines_size())),
-      view_start_, zoomed_out_tree_);
+      buffer, line_scroll_control, lines_, buffer_columns, view_start_,
+      zoomed_out_tree_);
   if (paste_mode) {
     return buffer_output_producer;
   }
@@ -136,18 +133,8 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
   std::vector<VerticalSplitOutputProducer::Column> columns(2);
 
   auto line_numbers = std::make_unique<LineNumberOutputProducer>(
-      buffer->lines_size(), [producer = buffer_output_producer.get()]() {
-        LineData output;
-        output.range = producer->GetCurrentRange();
-        if (producer->HasActiveCursor()) {
-          output.cursors = LineData::Cursors::kActive;
-        } else if (!producer->GetCurrentCursors().empty()) {
-          output.cursors = LineData::Cursors::kInactive;
-        } else {
-          output.cursors = LineData::Cursors::kNone;
-        }
-        return output;
-      });
+      buffer->lines_size(), line_scroll_control);
+
   columns[0].width = line_numbers->width();
   columns[0].producer = std::move(line_numbers);
 

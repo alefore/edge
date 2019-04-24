@@ -66,11 +66,13 @@ src/lazy_string_trim.cc \
 src/lazy_string_trim.h \
 src/line.cc \
 src/line.h \
-src/line_modifier.cc \
-src/line_modifier.h \
 src/line_column.cc \
 src/line_marks.cc \
+src/line_modifier.cc \
+src/line_modifier.h \
 src/line_prompt_mode.cc \
+src/line_scroll_control.h \
+src/line_scroll_control.cc \
 src/list_buffers_command.cc \
 src/lowercase.cc \
 src/map_mode.cc \
