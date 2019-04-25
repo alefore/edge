@@ -2,8 +2,6 @@
 
 Fix a bug with buffers that are shown with fewer lines than mandated by their margins.
 
-Don't apply margin to buffers with pts.
-
 Add a display mode for lines that wraps them at spaces (rather than just wherever they cross the boundary).
 
 Make it possible to put buffers side-by-side with a vertical division.
@@ -117,7 +115,5 @@ Don't do any blocking operations.
 The first five times Edge runs, it should display a `help` message, perhaps at the top of the shell, and also in the SetStatus buffer.
 
 Improve the help document:
-
-* Move documentation about the variables from the README.md to buffer_variables.h
 
 * Add documentation string for VM functions/variables.
