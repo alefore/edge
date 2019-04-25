@@ -609,57 +609,6 @@ type "line_width" (or a shorter prefix of that and use Tab to autocomplete),
 then Enter, then edit the current value, and then press Enter.
 
 
-### 7.2. List of variables
-
-
-#### 7.2.1. `pts` (bool)
-
-If a command is forked that writes to this buffer, should it be run with its own
-pseudoterminal?
-
-Default: false.
-
-
-#### 7.2.2. `close_after_clean_exit` (bool)
-
-If this buffer is a command buffer (e.g. it was started with "af", as described
-in section 5.3), should the buffer be closed when the command exists with a
-successful status code?
-
-This can be used to fork commands that you expect to succeed and where you don't
-care for their output unless they fail.
-
-Default: false
-
-
-#### 7.2.3. `reload_after_exit` (bool)
-
-If this buffer is a command buffer (e.g. it was started with "af", as described
-in section 5.3), should the buffer be reloaded automatically when the command
-exits?
-
-When the buffer is reloaded, this variable is automatically set to the value of
-default_reload_after_exit (section 7.2.4).
-
-Default: false
-
-
-#### 7.2.4. `default_reload_after_exit` (bool)
-
-If this buffer is a command buffer (e.g. it was started with "af", as described
-in section 5.3), what should reload_after_exit (section 7.2.3) be set to as the
-buffer is reloaded?
-
-Default: false
-
-
-#### 7.2.5. `reload_on_enter` (bool)
-
-Should this buffer be reloaded automatically when visited?
-
-Default: false
-
-
 ## 8. Cursors
 
 One important feature of Edge is the support for multiple cursors.  This allows
