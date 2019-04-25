@@ -24,8 +24,6 @@ class SplitOutputReceiver : public DelegatingOutputReceiver {
     SetTabsStart(0);
   }
 
-  ~SplitOutputReceiver() { AddModifier(LineModifier::RESET); }
-
   void AddCharacter(wchar_t character) override {
     if (column() < width()) {
       DelegatingOutputReceiver::AddCharacter(character);
@@ -64,6 +62,7 @@ void VerticalSplitOutputProducer::WriteLine(Options options) {
       options.receiver->AddString(
           wstring(initial_column - options.receiver->column(), L' '));
     }
+    options.receiver->AddModifier(LineModifier::RESET);
 
     Options child_options;
     child_options.receiver = std::make_unique<SplitOutputReceiver>(

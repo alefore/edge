@@ -161,6 +161,9 @@ void Line::Output(const Line::OutputOptions& options) const {
     input_column++;
   }
   options.output_receiver->AddModifier(LineModifier::RESET);
+  for (auto& c : options_.end_of_line_modifiers) {
+    options.output_receiver->AddModifier(c);
+  }
 }
 
 }  // namespace editor
