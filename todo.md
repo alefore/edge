@@ -1,5 +1,19 @@
 ## Display
 
+Fix a bug with buffers that are shown with fewer lines than mandated by their margins.
+
+Don't apply margin to buffers with pts.
+
+Add a display mode for lines that wraps them at spaces (rather than just wherever they cross the boundary).
+
+Make it possible to put buffers side-by-side with a vertical division.
+
+Optimize the display of buffers to collapse multiple inactive buffers.
+
+Make the widgets work closer to nethack or a similar command-line game.
+
+When a line wraps, don't let it cut the scrollbar/syntax tree.
+
 ### Syntax
 
 Correctly handle: '\000'
@@ -9,10 +23,6 @@ Support more languages:
   - Directory listings.
     - Perhaps have a bool that toggles 'stat' (show data about files)?
       Ideally this is done by the extensions!
-
-Fix a bug with buffers that are shown with fewer lines than mandated by their margins.
-
-Don't apply margin to buffers with pts.
 
 ## Editing
 
@@ -49,6 +59,8 @@ Honor the `margin_columns` variable.
 Add a boolean variable `highlight_current_line` (default: false); when set, highlight the line with the current cursor position.
 
 In diff mode, add a link to every file. Following it should take you directly to the file (perhaps based on a variable for the `strip`, similar to the `patch` command).
+
+Improve the bindings used to navigate the widgets.
 
 ### List of buffers
 
