@@ -25,21 +25,16 @@ LineScrollControl::Reader::Reader(ConstructorAccessTag,
 
 LineScrollControl::LineScrollControl(ConstructorAccessTag,
                                      std::shared_ptr<OpenBuffer> buffer,
-                                     LineColumn view_start,
-                                     size_t columns_shown)
+                                     size_t line)
     : buffer_(buffer),
-      view_start_(view_start),
-      columns_shown_(columns_shown),
-      range_(view_start, view_start),
       cursors_([=]() {
         std::map<size_t, std::set<size_t>> cursors;
         for (auto cursor : *buffer_->active_cursors()) {
           cursors[cursor.line].insert(cursor.column);
         }
         return cursors;
-      }()) {
-  Advance();
-}
+      }()),
+      line_(line) {}
 
 std::unique_ptr<LineScrollControl::Reader> LineScrollControl::NewReader() {
   auto output = std::make_unique<LineScrollControl::Reader>(
@@ -50,54 +45,26 @@ std::unique_ptr<LineScrollControl::Reader> LineScrollControl::NewReader() {
 
 bool LineScrollControl::Reader::HasActiveCursor() const {
   CHECK(state_ == State::kProcessing);
-  return GetRange().value().Contains(parent_->buffer_->position());
+  return GetLine().value() == parent_->buffer_->position().line;
 }
 
 std::set<size_t> LineScrollControl::Reader::GetCurrentCursors() const {
   CHECK(state_ == State::kProcessing);
-  std::set<size_t> output;
-  auto range = GetRange().value();
-  auto it = parent_->cursors_.find(range.begin.line);
+  auto line = GetLine().value();
+  auto it = parent_->cursors_.find(line);
   if (it == parent_->cursors_.end()) {
-    return output;
+    return {};
   }
-  for (auto& c : it->second) {
-    if (range.Contains(LineColumn(range.begin.line, c))) {
-      output.insert(c - range.begin.column);
-    }
-  }
-  return output;
+  return it->second;
 }
 
 void LineScrollControl::SignalReaderDone() {
   if (++readers_done_ == readers_.size()) {
-    Advance();
-  }
-}
-
-void LineScrollControl::Advance() {
-  readers_done_ = 0;
-  for (auto& c : readers_) {
-    c->state_ = Reader::State::kProcessing;
-  }
-
-  range_.begin = range_.end;
-  // TODO: This is wrong: it doesn't account for multi-width characters.
-  // TODO: This is wrong: it doesn't take into account line filters.
-  if (range_.begin.line >= buffer_->lines_size()) {
-    range_.end = LineColumn(std::numeric_limits<size_t>::max());
-    return;
-  }
-  range_.end =
-      LineColumn(range_.begin.line, range_.begin.column + columns_shown_);
-  if (range_.end.column < buffer_->LineAt(range_.end.line)->size() &&
-      buffer_->Read(buffer_variables::wrap_long_lines())) {
-    return;
-  }
-  range_.end.line++;
-  range_.end.column = view_start_.column;
-  if (range_.end.line >= buffer_->lines_size()) {
-    range_.end = LineColumn(std::numeric_limits<size_t>::max());
+    readers_done_ = 0;
+    line_++;
+    for (auto& c : readers_) {
+      c->state_ = Reader::State::kProcessing;
+    }
   }
 }
 

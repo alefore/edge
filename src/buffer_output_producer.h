@@ -13,18 +13,19 @@ class BufferOutputProducer : public OutputProducer {
   BufferOutputProducer(
       std::shared_ptr<OpenBuffer> buffer,
       std::shared_ptr<LineScrollControl::Reader> line_scroll_control_reader,
-      size_t lines_shown, LineColumn view_start,
+      size_t lines_shown, size_t columns_shown, size_t initial_column,
       std::shared_ptr<const ParseTree> zoomed_out_tree);
 
   void WriteLine(Options options) override;
 
  private:
-  Range GetRangeStartingAt(LineColumn start) const;
+  Range GetRange(LineColumn begin);
 
   const std::shared_ptr<OpenBuffer> buffer_;
   const std::shared_ptr<LineScrollControl::Reader> line_scroll_control_reader_;
   const size_t lines_shown_;
-  const LineColumn view_start_;
+  const size_t columns_shown_;
+  const size_t initial_column_;
 
   // Key is line number.
   const std::shared_ptr<const ParseTree> root_;
@@ -35,6 +36,10 @@ class BufferOutputProducer : public OutputProducer {
   // for the list of open buffers), keeps track of those we've already shown, to
   // only output their flags in their first line.
   std::unordered_set<const OpenBuffer*> buffers_shown_;
+
+  // The column (in the input) from which we should start displaying the current
+  // output line. We get the line number from line_scroll_control_reader_.
+  int column_ = 0;
 };
 
 }  // namespace editor

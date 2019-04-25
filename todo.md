@@ -12,6 +12,8 @@ Support more languages:
 
 Fix a bug with buffers that are shown with fewer lines than mandated by their margins.
 
+Don't apply margin to buffers with pts.
+
 ## Editing
 
 Implement delete of page.

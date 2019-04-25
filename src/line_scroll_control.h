@@ -22,14 +22,13 @@ class LineScrollControl
 
  public:
   static std::shared_ptr<LineScrollControl> New(
-      std::shared_ptr<OpenBuffer> buffer, LineColumn view_start,
-      size_t columns_shown) {
-    return std::make_shared<LineScrollControl>(
-        ConstructorAccessTag(), std::move(buffer), view_start, columns_shown);
+      std::shared_ptr<OpenBuffer> buffer, size_t line) {
+    return std::make_shared<LineScrollControl>(ConstructorAccessTag(),
+                                               std::move(buffer), line);
   }
 
   LineScrollControl(ConstructorAccessTag, std::shared_ptr<OpenBuffer> buffer,
-                    LineColumn view_start, size_t columns_shown);
+                    size_t line);
 
   class Reader {
    private:
@@ -42,16 +41,16 @@ class LineScrollControl
     // means the reader has signaled that it's done with this range, but other
     // readers are still outputing contents for it; in this case, it shouldn't
     // print anything.
-    std::optional<Range> GetRange() const {
+    std::optional<size_t> GetLine() const {
       return state_ == State::kDone ? std::nullopt
-                                    : std::optional<Range>(parent_->range_);
+                                    : std::optional<size_t>(parent_->line_);
     }
 
     bool HasActiveCursor() const;
 
     std::set<size_t> GetCurrentCursors() const;
 
-    void RangeDone() {
+    void LineDone() {
       CHECK(state_ == State::kProcessing);
       state_ = State::kDone;
       parent_->SignalReaderDone();
@@ -70,16 +69,13 @@ class LineScrollControl
  private:
   friend Reader;
   void SignalReaderDone();
-  void Advance();
 
   const std::shared_ptr<OpenBuffer> buffer_;
-  const LineColumn view_start_;
-  const size_t columns_shown_;
-
-  Range range_;
   const std::map<size_t, std::set<size_t>> cursors_;
 
   std::vector<Reader*> readers_;
+
+  size_t line_ = 0;
 
   // Counts the number of readers that have switched to State::kDone since the
   // range was last updated.

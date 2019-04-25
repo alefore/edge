@@ -12,7 +12,6 @@
 #include "src/delegating_output_receiver.h"
 #include "src/delegating_output_receiver_with_internal_modifiers.h"
 #include "src/dirname.h"
-#include "src/line_marks.h"
 #include "src/output_receiver.h"
 #include "src/output_receiver_optimizer.h"
 #include "src/parse_tree.h"
@@ -178,12 +177,13 @@ class ParseTreeHighlighterTokens
 BufferOutputProducer::BufferOutputProducer(
     std::shared_ptr<OpenBuffer> buffer,
     std::shared_ptr<LineScrollControl::Reader> line_scroll_control_reader,
-    size_t lines_shown, LineColumn view_start,
+    size_t lines_shown, size_t columns_shown, size_t initial_column,
     std::shared_ptr<const ParseTree> zoomed_out_tree)
     : buffer_(std::move(buffer)),
       line_scroll_control_reader_(std::move(line_scroll_control_reader)),
       lines_shown_(lines_shown),
-      view_start_(view_start),
+      columns_shown_(columns_shown),
+      initial_column_(initial_column),
       root_(buffer_->parse_tree()),
       current_tree_(buffer_->current_tree(root_.get())),
       zoomed_out_tree_(std::move(zoomed_out_tree)) {
@@ -194,33 +194,38 @@ BufferOutputProducer::BufferOutputProducer(
 }
 
 void BufferOutputProducer::WriteLine(Options options) {
-  auto optional_range = line_scroll_control_reader_->GetRange();
-  if (!optional_range.has_value()) {
+  auto optional_line = line_scroll_control_reader_->GetLine();
+  if (!optional_line.has_value()) {
     return;
   }
 
-  auto range = optional_range.value();
+  auto line = optional_line.value();
 
   if (options.active_cursor != nullptr) {
     *options.active_cursor = std::nullopt;
   }
 
-  if (range.begin.line >= buffer_->lines_size()) {
+  if (line >= buffer_->lines_size()) {
     options.receiver->AddString(L"\n");
-    line_scroll_control_reader_->RangeDone();
+    line_scroll_control_reader_->LineDone();
+    column_ = 0;
     return;
   }
 
-  CHECK(line_scroll_control_reader_->GetRange().has_value());
-  auto current_cursors = line_scroll_control_reader_->GetCurrentCursors();
+  auto range = GetRange(LineColumn(line, column_));
+  std::set<size_t> current_cursors;
+  for (auto& c : line_scroll_control_reader_->GetCurrentCursors()) {
+    current_cursors.insert(c - column_);
+  }
 
   std::optional<size_t> active_cursor_column;
-  auto line = buffer_->LineAt(range.begin.line);
+  auto line_contents = buffer_->LineAt(line);
+  auto line_size = line_contents->size();
 
   std::unique_ptr<OutputReceiver> atomic_lines_highlighter;
-  CHECK(line->contents() != nullptr);
+  CHECK(line_contents->contents() != nullptr);
   if (buffer_->Read(buffer_variables::atomic_lines()) &&
-      buffer_->active_cursors()->cursors_in_line(range.begin.line)) {
+      buffer_->active_cursors()->cursors_in_line(line)) {
     options.receiver = std::make_unique<HighlightedLineOutputReceiver>(
         std::move(options.receiver));
   } else if (!current_cursors.empty()) {
@@ -230,16 +235,16 @@ void BufferOutputProducer::WriteLine(Options options) {
     cursors_highlighter_options.columns = current_cursors;
     if (range.Contains(buffer_->position())) {
       cursors_highlighter_options.active_cursor_input =
-          min(buffer_->position().column, line->size()) - range.begin.column;
+          min(buffer_->position().column, line_size) - range.begin.column;
       cursors_highlighter_options.active_cursor_output = &active_cursor_column;
     }
     // Any cursors past the end of the line will just be silently moved to
     // the end of the line (just for displaying).
     while (!cursors_highlighter_options.columns.empty() &&
-           *cursors_highlighter_options.columns.rbegin() > line->size()) {
+           *cursors_highlighter_options.columns.rbegin() > line_size) {
       cursors_highlighter_options.columns.erase(
           std::prev(cursors_highlighter_options.columns.end()));
-      cursors_highlighter_options.columns.insert(line->size());
+      cursors_highlighter_options.columns.insert(line_size);
     }
     cursors_highlighter_options.multiple_cursors =
         buffer_->Read(buffer_variables::multiple_cursors());
@@ -256,25 +261,49 @@ void BufferOutputProducer::WriteLine(Options options) {
                        : 0;
     size_t end = range.begin.line == current_tree_->range.end.line
                      ? current_tree_->range.end.column
-                     : line->size();
+                     : line_size;
     options.receiver = std::make_unique<ParseTreeHighlighter>(
         std::move(options.receiver), begin, end);
   } else if (!buffer_->parse_tree()->children.empty()) {
     options.receiver = std::make_unique<ParseTreeHighlighterTokens>(
-        std::move(options.receiver), root_.get(), range.begin.line,
-        line->size());
+        std::move(options.receiver), root_.get(), range.begin.line, line_size);
   }
 
   Line::OutputOptions line_output_options;
   line_output_options.position = range.begin;
   line_output_options.output_receiver = options.receiver.get();
-  line->Output(line_output_options);
+  line_contents->Output(line_output_options);
 
   if (active_cursor_column.has_value() && options.active_cursor != nullptr) {
     *options.active_cursor = active_cursor_column.value();
   }
 
-  line_scroll_control_reader_->RangeDone();
+  if (range.end >= LineColumn(line, line_contents->size())) {
+    column_ = initial_column_;
+    line_scroll_control_reader_->LineDone();
+  } else {
+    CHECK_EQ(range.begin.line, range.end.line);
+    column_ = range.end.column;
+  }
+}
+
+Range BufferOutputProducer::GetRange(LineColumn begin) {
+  // TODO: This is wrong: it doesn't account for multi-width characters.
+  // TODO: This is wrong: it doesn't take into account line filters.
+  if (begin.line >= buffer_->lines_size()) {
+    return Range(begin, LineColumn(std::numeric_limits<size_t>::max()));
+  }
+  LineColumn end(begin.line, begin.column + columns_shown_);
+  if (end.column < buffer_->LineAt(end.line)->size() &&
+      buffer_->Read(buffer_variables::wrap_long_lines())) {
+    return Range(begin, end);
+  }
+  end.line++;
+  end.column = initial_column_;
+  if (end.line >= buffer_->lines_size()) {
+    end = LineColumn(std::numeric_limits<size_t>::max());
+  }
+  return Range(begin, end);
 }
 
 }  // namespace editor
