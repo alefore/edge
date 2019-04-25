@@ -90,14 +90,15 @@ class ParseTreeHighlighterTokens
   // (that were active at the last character in the line) won't continue to
   // affect the padding and/or scrollbar).
   ParseTreeHighlighterTokens(std::unique_ptr<OutputReceiver> delegate,
-                             const ParseTree* root, size_t line,
+                             const ParseTree* root, LineColumn position,
                              size_t largest_column_with_tree)
       : DelegatingOutputReceiverWithInternalModifiers(
             std::move(delegate), DelegatingOutputReceiverWithInternalModifiers::
                                      Preference::kExternal),
         root_(root),
         largest_column_with_tree_(largest_column_with_tree),
-        line_(line),
+        line_(position.line),
+        column_read_(position.column),
         current_({root}) {
     UpdateCurrent(LineColumn(line_, 0));
   }
@@ -170,8 +171,8 @@ class ParseTreeHighlighterTokens
   const ParseTree* root_;
   const size_t largest_column_with_tree_;
   const size_t line_;
+  size_t column_read_;
   std::vector<const ParseTree*> current_;
-  size_t column_read_ = 0;
 };
 
 BufferOutputProducer::BufferOutputProducer(
@@ -266,7 +267,7 @@ void BufferOutputProducer::WriteLine(Options options) {
         std::move(options.receiver), begin, end);
   } else if (!buffer_->parse_tree()->children.empty()) {
     options.receiver = std::make_unique<ParseTreeHighlighterTokens>(
-        std::move(options.receiver), root_.get(), range.begin.line, line_size);
+        std::move(options.receiver), root_.get(), range.begin, line_size);
   }
 
   Line::OutputOptions line_output_options;
