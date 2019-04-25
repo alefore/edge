@@ -196,12 +196,15 @@ void BufferWidget::RecomputeData() {
   }
 
   size_t line = min(buffer->position().line, buffer->contents()->size() - 1);
-  size_t margin_lines = min(
-      lines_ / 2 - 1,
-      max(static_cast<size_t>(ceil(
-              buffer->Read(buffer_variables::margin_lines_ratio()) * lines_)),
-          static_cast<size_t>(
-              max(buffer->Read(buffer_variables::margin_lines()), 0))));
+  size_t margin_lines =
+      buffer->Read(buffer_variables::pts())
+          ? 0
+          : min(lines_ / 2 - 1,
+                max(static_cast<size_t>(ceil(
+                        buffer->Read(buffer_variables::margin_lines_ratio()) *
+                        lines_)),
+                    static_cast<size_t>(max(
+                        buffer->Read(buffer_variables::margin_lines()), 0))));
 
   if (view_start_.line > line - min(margin_lines, line) &&
       (buffer->child_pid() != -1 || buffer->fd() == -1)) {
