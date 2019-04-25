@@ -1379,7 +1379,34 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
 
       case 'J':
         VLOG(9) << "Terminal: ed: clear to end of screen.";
-        EraseLines(position_pts_.line + 1, contents_.size());
+        // Clears part of the screen.
+        if (sequence == "" || sequence == "0") {
+          VLOG(10) << "ed: Clear from cursor to end of screen.";
+          EraseLines(position_pts_.line + 1, contents_.size());
+          contents_.DeleteCharactersFromLine(position_pts_.line,
+                                             position_pts_.column);
+        } else if (sequence == "1") {
+          VLOG(10) << "ed: Clear from cursor to beginning of the screen.";
+          EraseLines(0, position_pts_.line);
+          position_pts_ = LineColumn();
+          contents_.DeleteCharactersFromLine(position_pts_.line, 0,
+                                             position_pts_.column);
+        } else if (sequence == "2") {
+          VLOG(10) << "ed: Clear entire screen (and moves cursor to upper left "
+                      "on DOS ANSI.SYS).";
+          EraseLines(0, contents_.size());
+          position_pts_ = LineColumn();
+        } else if (sequence == "3") {
+          VLOG(10) << "ed: Clear entire screen and delete all lines saved in "
+                      "the scrollback buffer (this feature was added for xterm "
+                      "and is supported by other terminal applications).";
+          EraseLines(0, contents_.size());
+          position_pts_ = LineColumn();
+        } else {
+          VLOG(10) << "ed: Unknown sequence: " << sequence;
+          EraseLines(0, contents_.size());
+          position_pts_ = LineColumn();
+        }
         CHECK_LT(position_pts_.line, contents_.size());
         return read_index;
 
