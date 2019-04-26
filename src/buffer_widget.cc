@@ -8,8 +8,11 @@
 #include <iostream>
 
 #include "src/buffer.h"
+#include "src/buffer_metadata_output_producer.h"
 #include "src/buffer_output_producer.h"
 #include "src/buffer_variables.h"
+#include "src/line_scroll_control.h"
+#include "src/vertical_split_output_producer.h"
 #include "src/widget.h"
 #include "src/wstring.h"
 
@@ -66,21 +69,106 @@ wstring BufferWidget::ToString() const {
 
 BufferWidget* BufferWidget::GetActiveLeaf() { return this; }
 
+class LineNumberOutputProducer : public OutputProducer {
+ public:
+  static size_t PrefixWidth(size_t lines_size) {
+    return 1 + std::to_wstring(lines_size).size();
+  }
+
+  LineNumberOutputProducer(
+      std::shared_ptr<OpenBuffer> buffer,
+      std::unique_ptr<LineScrollControl::Reader> line_scroll_control_reader)
+      : width_(PrefixWidth(buffer->lines_size())),
+        buffer_(std::move(buffer)),
+        line_scroll_control_reader_(std::move(line_scroll_control_reader)) {}
+
+  void WriteLine(Options options) override {
+    auto line = line_scroll_control_reader_->GetLine();
+    if (line.has_value() && line.value() >= buffer_->lines_size()) {
+      return;  // Happens when the buffer is smaller than the screen.
+    }
+
+    std::wstring number =
+        line.has_value() ? std::to_wstring(line.value() + 1) : L"↪";
+    CHECK_LE(number.size(), width_ - 1);
+    std::wstring padding(width_ - number.size() - 1, L' ');
+    if (!line.has_value() ||
+        line_scroll_control_reader_->GetCurrentCursors().empty()) {
+      options.receiver->AddModifier(LineModifier::DIM);
+    } else if (line_scroll_control_reader_->HasActiveCursor() ||
+               buffer_->Read(buffer_variables::multiple_cursors())) {
+      options.receiver->AddModifier(LineModifier::CYAN);
+      options.receiver->AddModifier(LineModifier::BOLD);
+    } else {
+      options.receiver->AddModifier(LineModifier::BLUE);
+    }
+    options.receiver->AddString(padding + number + L':');
+
+    if (line.has_value()) {
+      line_scroll_control_reader_->LineDone();
+    }
+  }
+
+  size_t width() const { return width_; }
+
+ private:
+  const size_t width_;
+  const std::shared_ptr<OpenBuffer> buffer_;
+  const std::unique_ptr<LineScrollControl::Reader> line_scroll_control_reader_;
+};
+
 std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
   auto buffer = Lock();
   if (buffer == nullptr) {
     return nullptr;
   }
-  return std::make_unique<BufferOutputProducer>(buffer, lines_, view_start_,
-                                                zoomed_out_tree_);
+
+  bool paste_mode = buffer->Read(buffer_variables::paste_mode());
+  size_t buffer_columns =
+      columns_ -
+      (paste_mode
+           ? 0
+           : LineNumberOutputProducer::PrefixWidth(buffer->lines_size()));
+  if (!buffer->Read(buffer_variables::paste_mode())) {
+    buffer_columns =
+        min(buffer_columns,
+            static_cast<size_t>(buffer->Read(buffer_variables::line_width())));
+  }
+  auto line_scroll_control = LineScrollControl::New(buffer, view_start_.line);
+
+  auto buffer_output_producer = std::make_unique<BufferOutputProducer>(
+      buffer, line_scroll_control->NewReader(), lines_, buffer_columns,
+      view_start_.column, zoomed_out_tree_);
+  if (paste_mode) {
+    return buffer_output_producer;
+  }
+
+  std::vector<VerticalSplitOutputProducer::Column> columns(3);
+
+  auto line_numbers = std::make_unique<LineNumberOutputProducer>(
+      buffer, line_scroll_control->NewReader());
+
+  columns[0].width = line_numbers->width();
+  columns[0].producer = std::move(line_numbers);
+
+  columns[1].width = buffer->Read(buffer_variables::line_width());
+  columns[1].producer = std::move(buffer_output_producer);
+
+  columns[2].producer = std::make_unique<BufferMetadataOutputProducer>(
+      buffer, line_scroll_control->NewReader(), lines_, view_start_.line,
+      zoomed_out_tree_);
+
+  return std::make_unique<VerticalSplitOutputProducer>(std::move(columns), 1);
 }
 
-void BufferWidget::SetLines(size_t lines) {
+void BufferWidget::SetSize(size_t lines, size_t columns) {
   lines_ = lines;
+  columns_ = columns;
   RecomputeData();
 }
 
 size_t BufferWidget::lines() const { return lines_; }
+size_t BufferWidget::columns() const { return columns_; }
 
 size_t BufferWidget::MinimumLines() {
   auto buffer = Lock();
@@ -108,12 +196,15 @@ void BufferWidget::RecomputeData() {
   }
 
   size_t line = min(buffer->position().line, buffer->contents()->size() - 1);
-  size_t margin_lines = min(
-      lines_ / 2 - 1,
-      max(static_cast<size_t>(ceil(
-              buffer->Read(buffer_variables::margin_lines_ratio()) * lines_)),
-          static_cast<size_t>(
-              max(buffer->Read(buffer_variables::margin_lines()), 0))));
+  size_t margin_lines =
+      buffer->Read(buffer_variables::pts())
+          ? 0
+          : min(lines_ / 2 - 1,
+                max(static_cast<size_t>(ceil(
+                        buffer->Read(buffer_variables::margin_lines_ratio()) *
+                        lines_)),
+                    static_cast<size_t>(max(
+                        buffer->Read(buffer_variables::margin_lines()), 0))));
 
   if (view_start_.line > line - min(margin_lines, line) &&
       (buffer->child_pid() != -1 || buffer->fd() == -1)) {

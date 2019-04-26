@@ -60,7 +60,9 @@ EdgeVariable<bool>* close_after_clean_exit() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"close_after_clean_exit",
       L"If a command is forked that writes to this buffer, should the buffer "
-      L"be closed when the command exits with a successful status code?",
+      L"be closed when the command exits with a successful status code?\n\n"
+      L"This can be used to fork commands that you expect to succeed and where "
+      L"you don't care for their output unless they fail.",
       false);
   return variable;
 }
@@ -80,7 +82,9 @@ EdgeVariable<bool>* reload_after_exit() {
   static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
       L"reload_after_exit",
       L"If a forked command that writes to this buffer exits, should Edge "
-      L"reload the buffer?",
+      L"reload the buffer automatically?\n\n"
+      L"When the buffer is reloaded, this variable is automatically set to the "
+      L"value of `default_reload_after_exit`.",
       false);
   return variable;
 }

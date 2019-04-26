@@ -4,12 +4,15 @@
 
 #include <algorithm>
 #include <cctype>
+#include <ctgmath>
 #include <iostream>
+#include <numeric>
 
 #include "src/buffer.h"
 #include "src/buffer_output_producer.h"
 #include "src/buffer_variables.h"
 #include "src/buffer_widget.h"
+#include "src/dirname.h"
 #include "src/frame_output_producer.h"
 #include "src/horizontal_split_output_producer.h"
 #include "src/widget.h"
@@ -17,6 +20,13 @@
 
 namespace afc {
 namespace editor {
+struct CollapsedBuffer {
+  std::shared_ptr<OpenBuffer> buffer;
+  size_t index;
+};
+
+BufferTreeHorizontal::~BufferTreeHorizontal() {}
+
 /* static */ std::unique_ptr<BufferTreeHorizontal> BufferTreeHorizontal::New(
     std::vector<std::unique_ptr<Widget>> children, size_t active) {
   return std::make_unique<BufferTreeHorizontal>(ConstructorAccessTag(),
@@ -51,15 +61,125 @@ BufferWidget* BufferTreeHorizontal::GetActiveLeaf() {
   return children_[active_]->GetActiveLeaf();
 }
 
+class CollapsedBuffersProducer : public OutputProducer {
+ public:
+  static const size_t kMinimumColumnsPerBuffer = 20;
+
+  CollapsedBuffersProducer(std::vector<CollapsedBuffer> buffers,
+                           size_t max_index)
+      : buffers_(buffers), max_index_(max_index) {}
+
+  void WriteLine(Options options) override {
+    size_t prefix_width = std::to_wstring(max_index_ + 1).size() + 2;
+    size_t all_prefixes_width = prefix_width * buffers_.size();
+
+    size_t columns_per_buffer =  // Excluding prefixes and separators.
+        (options.receiver->width() -
+         min(options.receiver->width(), all_prefixes_width)) /
+        buffers_.size();
+    for (size_t i = 0; i < buffers_.size(); i++) {
+      auto buffer = buffers_[i].buffer;
+      options.receiver->AddModifier(LineModifier::RESET);
+      auto name = buffer->Read(buffer_variables::name());
+      auto number_prefix = std::to_wstring(buffers_[i].index + 1);
+      size_t start = i * (columns_per_buffer + prefix_width) +
+                     (prefix_width - number_prefix.size() - 2);
+      if (options.receiver->column() < start) {
+        options.receiver->AddString(
+            wstring(start - options.receiver->column(), L' '));
+      }
+      options.receiver->AddModifier(LineModifier::CYAN);
+      options.receiver->AddString(number_prefix);
+      options.receiver->AddModifier(LineModifier::RESET);
+
+      std::list<std::wstring> output_components;
+      std::list<std::wstring> components;
+      if (buffer != nullptr && buffer->Read(buffer_variables::path()) == name &&
+          DirectorySplit(name, &components) && !components.empty()) {
+        name.clear();
+        output_components.push_front(components.back());
+        if (output_components.front().size() > columns_per_buffer) {
+          output_components.front() = output_components.front().substr(
+              output_components.front().size() - columns_per_buffer);
+        } else {
+          size_t consumed = output_components.front().size();
+          components.pop_back();
+
+          static const size_t kSizeOfSlash = 1;
+          while (!components.empty()) {
+            if (columns_per_buffer >
+                components.size() * 2 + components.back().size() + consumed) {
+              output_components.push_front(components.back());
+              consumed += components.back().size() + kSizeOfSlash;
+            } else if (columns_per_buffer > 1 + kSizeOfSlash + consumed) {
+              output_components.push_front(
+                  std::wstring(1, components.back()[0]));
+              consumed += 1 + kSizeOfSlash;
+            } else {
+              break;
+            }
+            components.pop_back();
+          }
+        }
+      }
+
+      options.receiver->AddModifier(LineModifier::DIM);
+      if (!name.empty()) {
+        if (name.size() > columns_per_buffer) {
+          name = name.substr(name.size() - columns_per_buffer);
+          options.receiver->AddString(L"…");
+        } else {
+          options.receiver->AddString(L":");
+        }
+        options.receiver->AddModifier(LineModifier::RESET);
+        options.receiver->AddString(name);
+        continue;
+      }
+
+      if (components.empty()) {
+        options.receiver->AddString(L":");
+      } else {
+        options.receiver->AddString(L"…");
+      }
+      options.receiver->AddModifier(LineModifier::RESET);
+
+      auto last = output_components.end();
+      --last;
+      for (auto it = output_components.begin(); it != output_components.end();
+           ++it) {
+        if (it != output_components.begin()) {
+          options.receiver->AddModifier(LineModifier::DIM);
+          options.receiver->AddCharacter(L'/');
+          options.receiver->AddModifier(LineModifier::RESET);
+        }
+        if (it == last) {
+          options.receiver->AddModifier(LineModifier::BOLD);
+        }
+        options.receiver->AddString(*it);
+      }
+      options.receiver->AddModifier(LineModifier::RESET);
+    }
+  }
+
+ private:
+  const std::vector<CollapsedBuffer> buffers_;
+  const size_t max_index_;
+};
+
 std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
-  std::vector<std::unique_ptr<OutputProducer>> output_producers;
+  std::vector<HorizontalSplitOutputProducer::Row> rows;
+
+  bool show_frames =
+      std::count_if(lines_per_child_.begin(), lines_per_child_.end(),
+                    [](size_t i) { return i > 0; }) > 1;
+
   for (size_t index = 0; index < children_.size(); index++) {
     auto child_producer = children_[index]->CreateOutputProducer();
     std::shared_ptr<const OpenBuffer> buffer =
         children_[index]->GetActiveLeaf()->Lock();
-    if (lines_per_child_[index] < lines_) {
-      VLOG(5) << "Producing frame.";
-      std::vector<std::unique_ptr<OutputProducer>> nested_producers;
+    if (show_frames) {
+      VLOG(5) << "Producing row with frame.";
+      std::vector<HorizontalSplitOutputProducer::Row> nested_rows;
       FrameOutputProducer::FrameOptions frame_options;
       frame_options.title = children_[index]->Name();
       frame_options.position_in_parent = index;
@@ -70,25 +190,33 @@ std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
       if (buffer != nullptr) {
         frame_options.extra_information = buffer->FlagsString();
       }
-      nested_producers.push_back(
-          std::make_unique<FrameOutputProducer>(std::move(frame_options)));
-      nested_producers.push_back(std::move(child_producer));
+      nested_rows.push_back(
+          {std::make_unique<FrameOutputProducer>(std::move(frame_options)), 1});
+      nested_rows.push_back(
+          {std::move(child_producer), lines_per_child_[index] - 1});
       child_producer = std::make_unique<HorizontalSplitOutputProducer>(
-          std::move(nested_producers),
-          std::vector<size_t>({1, lines_per_child_[index] - 1}), 1);
+          std::move(nested_rows), 1);
     }
-    output_producers.push_back(std::move(child_producer));
+    rows.push_back({std::move(child_producer), lines_per_child_[index]});
   }
-  return std::make_unique<HorizontalSplitOutputProducer>(
-      std::move(output_producers), lines_per_child_, active_);
+
+  for (auto& row : collapsed_buffers_) {
+    rows.push_back(
+        {std::make_unique<CollapsedBuffersProducer>(row, children_.size()), 1});
+  }
+  return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows),
+                                                         active_);
 }
 
-void BufferTreeHorizontal::SetLines(size_t lines) {
+void BufferTreeHorizontal::SetSize(size_t lines, size_t columns) {
   lines_ = lines;
+  columns_ = columns;
   RecomputeLinesPerChild();
 }
 
 size_t BufferTreeHorizontal::lines() const { return lines_; }
+
+size_t BufferTreeHorizontal::columns() const { return columns_; }
 
 size_t BufferTreeHorizontal::MinimumLines() {
   size_t count = 0;
@@ -237,38 +365,68 @@ void BufferTreeHorizontal::SetBuffersVisible(BuffersVisible buffers_visible) {
 }
 
 void BufferTreeHorizontal::RecomputeLinesPerChild() {
-  static const int kFrameLines = 1;
-
-  size_t lines_given = 0;
-
   lines_per_child_.clear();
   for (size_t i = 0; i < children_.size(); i++) {
     auto child = children_[i].get();
     CHECK(child != nullptr);
-    bool enabled = true;
-    auto leaf = child->GetActiveLeaf();
-    if (leaf == child) {
-      auto buffer = leaf->Lock();
-      enabled = buffer != nullptr &&
-                buffer->Read(buffer_variables::show_in_buffers_list());
-    }
     int lines = 0;
-    if (enabled) {
-      switch (buffers_visible_) {
-        case BuffersVisible::kActive:
-          lines = i == active_ ? lines_ : 0;
-          break;
-        case BuffersVisible::kAll:
-          lines =
-              child->MinimumLines() + (children_.size() > 1 ? kFrameLines : 0);
-      }
+    switch (buffers_visible_) {
+      case BuffersVisible::kActive:
+        lines = i == active_ ? lines_ : 0;
+        break;
+      case BuffersVisible::kAll:
+        lines = max(child->MinimumLines(), i == active_ ? 1ul : 0ul);
     }
     lines_per_child_.push_back(lines);
-    lines_given += lines_per_child_.back();
   }
 
-  // TODO: this could be done way faster (sort + single pass over all buffers).
-  while (lines_given > lines_) {
+  bool show_frames =
+      std::count_if(lines_per_child_.begin(), lines_per_child_.end(),
+                    [](size_t i) { return i > 0; }) > 1;
+  if (show_frames) {
+    LOG(INFO) << "Adding lines for frames.";
+    for (auto& lines : lines_per_child_) {
+      if (lines > 0) {
+        static const int kFrameLines = 1;
+        lines += kFrameLines;
+      }
+    }
+  }
+
+  size_t lines_given =
+      std::accumulate(lines_per_child_.begin(), lines_per_child_.end(), 0);
+
+  std::vector<CollapsedBuffer> all_collapsed_buffers;
+  for (size_t i = 0; i < lines_per_child_.size(); i++) {
+    auto buffer = children_[i]->GetActiveLeaf()->Lock();
+    if (lines_per_child_[i] == 0 && buffer != nullptr) {
+      all_collapsed_buffers.push_back({buffer, i});
+    }
+  }
+
+  size_t lines = ceil(
+      static_cast<double>(all_collapsed_buffers.size() *
+                          CollapsedBuffersProducer::kMinimumColumnsPerBuffer) /
+      columns_);
+  size_t collapsed_buffers_per_line =
+      ceil(static_cast<double>(all_collapsed_buffers.size()) / lines);
+  collapsed_buffers_.clear();
+  for (auto& buffer : all_collapsed_buffers) {
+    if (collapsed_buffers_.empty() ||
+        collapsed_buffers_.back().size() >= collapsed_buffers_per_line) {
+      collapsed_buffers_.push_back({});
+    }
+    collapsed_buffers_.back().push_back(std::move(buffer));
+  }
+
+  size_t reserved_lines = collapsed_buffers_.size();
+
+  // TODO: this could be done way faster (sort + single pass over all
+  // buffers).
+  while (lines_given > lines_ - reserved_lines) {
+    LOG(INFO) << "Ensuring that lines given (" << lines_given
+              << ") doesn't exceed lines available (" << lines_ << " - "
+              << reserved_lines << ").";
     std::vector<size_t> indices_maximal_producers = {0};
     for (size_t i = 1; i < lines_per_child_.size(); i++) {
       size_t maximum = lines_per_child_[indices_maximal_producers.front()];
@@ -278,25 +436,29 @@ void BufferTreeHorizontal::RecomputeLinesPerChild() {
         indices_maximal_producers.push_back(i);
       }
     }
+    CHECK(!indices_maximal_producers.empty());
+    CHECK_GT(lines_per_child_[indices_maximal_producers[0]], 0);
     for (auto& i : indices_maximal_producers) {
-      if (lines_given > lines_) {
+      if (lines_given > lines_ - reserved_lines) {
         lines_given--;
         lines_per_child_[i]--;
       }
     }
   }
 
-  if (lines_given < lines_) {
-    lines_per_child_[active_] += lines_ - lines_given;
+  if (lines_given < lines_ - reserved_lines) {
+    LOG(INFO) << "Donating spare lines to the active widget: "
+              << lines_ - reserved_lines - lines_given;
+    lines_per_child_[active_] += lines_ - reserved_lines - lines_given;
   }
   for (size_t i = 0; i < lines_per_child_.size(); i++) {
     if (buffers_visible_ == BuffersVisible::kActive && i != active_) {
       continue;
     }
-    children_[i]->SetLines(
-        lines_per_child_[i] == lines_ ? lines_ : lines_per_child_[i] - 1);
+    children_[i]->SetSize(lines_per_child_[i] - (show_frames ? 1 : 0),
+                          columns_);
   }
-}
+}  // namespace editor
 
 }  // namespace editor
 }  // namespace afc

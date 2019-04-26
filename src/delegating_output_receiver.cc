@@ -9,7 +9,12 @@ namespace editor {
 
 DelegatingOutputReceiver::DelegatingOutputReceiver(
     std::unique_ptr<OutputReceiver> delegate)
-    : delegate_(std::move(delegate)) {
+    : delegate_owned_(std::move(delegate)), delegate_(delegate_owned_.get()) {
+  DCHECK(delegate_ != nullptr);
+}
+
+DelegatingOutputReceiver::DelegatingOutputReceiver(OutputReceiver* delegate)
+    : delegate_(delegate) {
   DCHECK(delegate_ != nullptr);
 }
 

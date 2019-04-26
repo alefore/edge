@@ -12,22 +12,22 @@ namespace editor {
 
 class HorizontalSplitOutputProducer : public OutputProducer {
  public:
-  HorizontalSplitOutputProducer(
-      std::vector<std::unique_ptr<OutputProducer>> output_producers,
-      std::vector<size_t> lines_per_producer, size_t index_active)
-      : output_producers_(std::move(output_producers)),
-        lines_per_producer_(std::move(lines_per_producer)),
-        index_active_(index_active) {}
+  struct Row {
+    std::unique_ptr<OutputProducer> producer;
+    size_t lines;
+  };
+
+  HorizontalSplitOutputProducer(std::vector<Row> rows, size_t index_active)
+      : rows_(std::move(rows)), index_active_(index_active) {}
 
   void WriteLine(Options options) override;
 
  private:
-  const std::vector<std::unique_ptr<OutputProducer>> output_producers_;
-  const std::vector<size_t> lines_per_producer_;
+  const std::vector<Row> rows_;
   const size_t index_active_;
 
-  size_t current_producer_ = 0;
-  size_t current_producer_line_ = 0;
+  size_t current_row_ = 0;
+  size_t current_row_line_ = 0;
 };
 
 }  // namespace editor

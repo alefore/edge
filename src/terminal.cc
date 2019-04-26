@@ -463,7 +463,7 @@ void Terminal::ShowBuffer(EditorState* editor_state, Screen* screen) {
 
   size_t lines_to_show = static_cast<size_t>(screen->lines()) - 1;
   auto buffer_tree = editor_state->buffer_tree();
-  buffer_tree->SetLines(lines_to_show);
+  buffer_tree->SetSize(lines_to_show, screen->columns());
   auto output_producer = editor_state->buffer_tree()->CreateOutputProducer();
   for (size_t line = 0; line < lines_to_show; line++) {
     OutputProducer::Options options;

@@ -13,11 +13,15 @@
 namespace afc {
 namespace editor {
 
+class CollapsedBuffer;
+
 class BufferTreeHorizontal : public Widget {
  private:
   struct ConstructorAccessTag {};
 
  public:
+  ~BufferTreeHorizontal();
+
   enum class BuffersVisible { kAll, kActive };
 
   static std::unique_ptr<BufferTreeHorizontal> New(
@@ -37,8 +41,9 @@ class BufferTreeHorizontal : public Widget {
 
   std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 
-  void SetLines(size_t lines) override;
+  void SetSize(size_t lines, size_t columns) override;
   size_t lines() const override;
+  size_t columns() const override;
   size_t MinimumLines() override;
 
   void SetActiveLeaf(size_t position);
@@ -87,7 +92,11 @@ class BufferTreeHorizontal : public Widget {
   size_t active_;
 
   size_t lines_;
+  size_t columns_;
   std::vector<size_t> lines_per_child_;
+
+  // One entry per line of collapsed buffers.
+  std::vector<std::vector<CollapsedBuffer>> collapsed_buffers_;
 };
 
 }  // namespace editor

@@ -175,7 +175,6 @@ if (!buffer.pts()) {
 
 // Logic to handle the tree of visible buffers.
 void ZoomToLeaf() { editor.ZoomToLeaf(); }
-void AddHorizontalSplit() { editor.AddHorizontalSplit(); }
 void RewindActiveLeaf() {
   editor.AdvanceActiveLeaf(-repetitions());
   set_repetitions(1);
@@ -188,17 +187,14 @@ void SetActiveLeaf() {
   editor.SetActiveLeaf(repetitions() - 1);
   set_repetitions(1);
 }
-void RemoveActiveLeaf() { editor.RemoveActiveLeaf(); }
 
-buffer.AddBinding("st=", "Frames: Toggle: show all buffers or only active?",
+buffer.AddBinding("a=", "Frames: Toggle: show all buffers or only active?",
                   editor.ToggleBuffersVisible);
-buffer.AddBinding("st+", "Frames: Add a new leaf", AddHorizontalSplit);
-buffer.AddBinding("stk", "Frames: Move to the previous leaf", RewindActiveLeaf);
-buffer.AddBinding("stj", "Frames: Move to the next leaf", AdvanceActiveLeaf);
-buffer.AddBinding("stg", "Frames: Set the active leaf (by repetitions)",
+buffer.AddBinding("ak", "Frames: Move to the previous leaf", RewindActiveLeaf);
+buffer.AddBinding("aj", "Frames: Move to the next leaf", AdvanceActiveLeaf);
+buffer.AddBinding("ag", "Frames: Set the active leaf (by repetitions)",
                   SetActiveLeaf);
-buffer.AddBinding("st-", "Frames: Remove active leaf", RemoveActiveLeaf);
-buffer.AddBinding("sta", "Frames: Show all open buffers",
+buffer.AddBinding("aR", "Frames: Show all open buffers",
                   editor.SetHorizontalSplitsWithAllBuffers);
 
 void IncrementNumber() {

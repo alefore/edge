@@ -1,6 +1,18 @@
 ## Display
 
-* Consider using unicode watches to display duration, using exponential/logarithmic growth.
+Consider using unicode watches to display duration, using exponential/logarithmic growth.
+
+Fix a bug with buffers that are shown with fewer lines than mandated by their margins.
+
+Add a display mode for lines that wraps them at spaces (rather than just wherever they cross the boundary).
+
+Make it possible to put buffers side-by-side with a vertical division.
+
+Optimize the display of buffers to collapse multiple inactive buffers.
+
+Make the widgets work closer to nethack or a similar command-line game.
+
+When a line wraps, don't let it cut the scrollbar/syntax tree.
 
 ### Syntax
 
@@ -47,6 +59,8 @@ Honor the `margin_columns` variable.
 Add a boolean variable `highlight_current_line` (default: false); when set, highlight the line with the current cursor position.
 
 In diff mode, add a link to every file. Following it should take you directly to the file (perhaps based on a variable for the `strip`, similar to the `patch` command).
+
+Improve the bindings used to navigate the widgets.
 
 ### List of buffers
 
@@ -103,7 +117,5 @@ Don't do any blocking operations.
 The first five times Edge runs, it should display a `help` message, perhaps at the top of the shell, and also in the SetStatus buffer.
 
 Improve the help document:
-
-* Move documentation about the variables from the README.md to buffer_variables.h
 
 * Add documentation string for VM functions/variables.

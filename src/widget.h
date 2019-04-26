@@ -26,8 +26,9 @@ class Widget {
 
   virtual std::unique_ptr<OutputProducer> CreateOutputProducer() = 0;
 
-  virtual void SetLines(size_t) = 0;
+  virtual void SetSize(size_t lines, size_t columns) = 0;
   virtual size_t lines() const = 0;
+  virtual size_t columns() const = 0;
   virtual size_t MinimumLines() = 0;
 };
 

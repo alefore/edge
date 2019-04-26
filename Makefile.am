@@ -20,6 +20,8 @@ src/buffer_widget.cc \
 src/buffer_widget.h \
 src/buffer_contents.cc \
 src/buffer_contents.h \
+src/buffer_metadata_output_producer.cc \
+src/buffer_metadata_output_producer.h \
 src/buffer_output_producer.cc \
 src/buffer_output_producer.h \
 src/buffer_tree_horizontal.cc \
@@ -57,6 +59,8 @@ src/file_link_mode.cc \
 src/find_mode.cc \
 src/goto_command.cc \
 src/help_command.cc \
+src/horizontal_split_output_producer.cc \
+src/horizontal_split_output_producer.h \
 src/insert_mode.cc \
 src/lazy_string.cc \
 src/lazy_string_append.cc \
@@ -64,11 +68,13 @@ src/lazy_string_trim.cc \
 src/lazy_string_trim.h \
 src/line.cc \
 src/line.h \
-src/line_modifier.cc \
-src/line_modifier.h \
 src/line_column.cc \
 src/line_marks.cc \
+src/line_modifier.cc \
+src/line_modifier.h \
 src/line_prompt_mode.cc \
+src/line_scroll_control.h \
+src/line_scroll_control.cc \
 src/list_buffers_command.cc \
 src/lowercase.cc \
 src/map_mode.cc \
@@ -122,8 +128,8 @@ src/terminal.cc \
 src/transformation.cc \
 src/transformation_delete.cc \
 src/transformation_move.cc \
-src/horizontal_split_output_producer.cc \
-src/horizontal_split_output_producer.h \
+src/vertical_split_output_producer.cc \
+src/vertical_split_output_producer.h \
 src/vm_transformation.cc \
 src/vm_transformation.h \
 src/vm/public/set.h \

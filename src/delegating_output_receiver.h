@@ -11,6 +11,7 @@ namespace editor {
 class DelegatingOutputReceiver : public OutputReceiver {
  public:
   DelegatingOutputReceiver(std::unique_ptr<OutputReceiver> delegate);
+  DelegatingOutputReceiver(OutputReceiver* delegate);
 
   void AddCharacter(wchar_t character) override;
   void AddString(const wstring& str) override;
@@ -20,7 +21,10 @@ class DelegatingOutputReceiver : public OutputReceiver {
   size_t width() override;
 
  private:
-  const std::unique_ptr<OutputReceiver> delegate_;
+  // All accessors should use delegate_. If the caller gives us ownership, we'll
+  // store it here.
+  const std::unique_ptr<OutputReceiver> delegate_owned_;
+  OutputReceiver* const delegate_;
 };
 
 }  // namespace editor

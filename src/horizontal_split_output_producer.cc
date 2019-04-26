@@ -11,20 +11,20 @@
 namespace afc {
 namespace editor {
 void HorizontalSplitOutputProducer::WriteLine(Options options) {
-  CHECK_LT(current_producer_, lines_per_producer_.size());
-  while (current_producer_line_ >= lines_per_producer_[current_producer_]) {
-    current_producer_++;
-    current_producer_line_ = 0;
-    CHECK_LT(current_producer_, lines_per_producer_.size());
+  CHECK_LT(current_row_, rows_.size());
+  while (current_row_line_ >= rows_[current_row_].lines) {
+    current_row_++;
+    current_row_line_ = 0;
+    CHECK_LT(current_row_, rows_.size());
   }
 
-  if (current_producer_ != index_active_) {
+  if (current_row_ != index_active_) {
     options.active_cursor = nullptr;
   }
-  if (output_producers_[current_producer_] != nullptr) {
-    output_producers_[current_producer_]->WriteLine(std::move(options));
+  if (rows_[current_row_].producer != nullptr) {
+    rows_[current_row_].producer->WriteLine(std::move(options));
   }
-  current_producer_line_++;
+  current_row_line_++;
 }
 
 }  // namespace editor
