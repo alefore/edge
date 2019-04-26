@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <ctgmath>
 #include <iostream>
 #include <numeric>
 
@@ -19,6 +20,13 @@
 
 namespace afc {
 namespace editor {
+struct CollapsedBuffer {
+  std::shared_ptr<OpenBuffer> buffer;
+  size_t index;
+};
+
+BufferTreeHorizontal::~BufferTreeHorizontal() {}
+
 /* static */ std::unique_ptr<BufferTreeHorizontal> BufferTreeHorizontal::New(
     std::vector<std::unique_ptr<Widget>> children, size_t active) {
   return std::make_unique<BufferTreeHorizontal>(ConstructorAccessTag(),
@@ -55,52 +63,34 @@ BufferWidget* BufferTreeHorizontal::GetActiveLeaf() {
 
 class CollapsedBuffersProducer : public OutputProducer {
  public:
-  CollapsedBuffersProducer(const std::vector<size_t>& lines_per_children,
-                           const std::vector<std::unique_ptr<Widget>>* children)
-      : children_(children),
-        collapsed_indices_([&]() {
-          CHECK_EQ(lines_per_children.size(), children->size());
-          std::vector<size_t> output;
-          for (size_t i = 0; i < lines_per_children.size(); i++) {
-            if (lines_per_children[i] == 0) {
-              output.push_back(i);
-            }
-          }
-          CHECK(!output.empty());
-          return output;
-        }()),
-        longest_base_name_([&]() {
-          size_t output = GetBasename(0).size();
-          for (size_t i = 0; i < collapsed_indices_.size(); i++) {
-            output = max(output, GetBasename(i).size());
-          }
-          return output;
-        }()) {}
+  static const size_t kMinimumColumnsPerBuffer = 20;
+
+  CollapsedBuffersProducer(std::vector<CollapsedBuffer> buffers,
+                           size_t max_index)
+      : buffers_(buffers), max_index_(max_index) {}
 
   void WriteLine(Options options) override {
-    VLOG(5) << "Writing CollapsedBuffersProducer (indices "
-            << collapsed_indices_.size() << ").";
-    size_t prefix_width = std::to_wstring(children_->size() + 1).size() + 1;
-    size_t all_prefixes_width = prefix_width * children_->size();
+    size_t prefix_width = std::to_wstring(max_index_ + 1).size() + 2;
+    size_t all_prefixes_width = prefix_width * buffers_.size();
 
-    std::vector<size_t> collapsed_indices;
     size_t columns_per_buffer =  // Excluding prefixes and separators.
         (options.receiver->width() -
-         min(options.receiver->width(),
-             collapsed_indices_.size() - 1 + all_prefixes_width)) /
-        collapsed_indices_.size();
-    for (size_t i = 0; i < collapsed_indices_.size(); i++) {
-      wstring separator = L":";
-      auto buffer = GetBuffer(i);
+         min(options.receiver->width(), all_prefixes_width)) /
+        buffers_.size();
+    for (size_t i = 0; i < buffers_.size(); i++) {
+      auto buffer = buffers_[i].buffer;
       options.receiver->AddModifier(LineModifier::RESET);
-      auto name = buffer != nullptr ? buffer->Read(buffer_variables::name())
-                                    : L"(dead)";
-
-      size_t start = i * columns_per_buffer + i;
+      auto name = buffer->Read(buffer_variables::name());
+      auto number_prefix = std::to_wstring(buffers_[i].index + 1);
+      size_t start = i * (columns_per_buffer + prefix_width) +
+                     (prefix_width - number_prefix.size() - 2);
       if (options.receiver->column() < start) {
         options.receiver->AddString(
             wstring(start - options.receiver->column(), L' '));
       }
+      options.receiver->AddModifier(LineModifier::CYAN);
+      options.receiver->AddString(number_prefix);
+      options.receiver->AddModifier(LineModifier::RESET);
 
       std::list<std::wstring> output_components;
       std::list<std::wstring> components;
@@ -112,7 +102,7 @@ class CollapsedBuffersProducer : public OutputProducer {
           output_components.front() = output_components.front().substr(
               output_components.front().size() - columns_per_buffer);
         } else {
-          size_t consumed = components.back().size();
+          size_t consumed = output_components.front().size();
           components.pop_back();
 
           static const size_t kSizeOfSlash = 1;
@@ -132,9 +122,7 @@ class CollapsedBuffersProducer : public OutputProducer {
           }
         }
       }
-      options.receiver->AddModifier(LineModifier::CYAN);
-      options.receiver->AddString(std::to_wstring(collapsed_indices_[i] + 1));
-      options.receiver->AddModifier(LineModifier::RESET);
+
       options.receiver->AddModifier(LineModifier::DIM);
       if (!name.empty()) {
         if (name.size() > columns_per_buffer) {
@@ -174,24 +162,9 @@ class CollapsedBuffersProducer : public OutputProducer {
   }
 
  private:
-  std::shared_ptr<OpenBuffer> GetBuffer(size_t collapsed_index) {
-    CHECK_LT(collapsed_index, collapsed_indices_.size());
-    CHECK_LT(collapsed_indices_[collapsed_index], children_->size());
-    return children_->at(collapsed_indices_[collapsed_index])
-        ->GetActiveLeaf()
-        ->Lock();
-  }
-
-  std::wstring GetBasename(size_t collapsed_index) {
-    auto buffer = GetBuffer(collapsed_index);
-    return buffer == nullptr ? L"(dead)"
-                             : Basename(buffer->Read(buffer_variables::name()));
-  }
-
-  const std::vector<std::unique_ptr<Widget>>* children_;
-  const std::vector<size_t> collapsed_indices_;
-  const size_t longest_base_name_;
-};  // namespace afc
+  const std::vector<CollapsedBuffer> buffers_;
+  const size_t max_index_;
+};
 
 std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
   std::vector<HorizontalSplitOutputProducer::Row> rows;
@@ -226,12 +199,10 @@ std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
     }
     rows.push_back({std::move(child_producer), lines_per_child_[index]});
   }
-  if (std::count_if(lines_per_child_.begin(), lines_per_child_.end(),
-                    [](size_t i) { return i == 0; }) > 0) {
-    LOG(INFO) << "Adding row for CollapsedBuffersProducer.";
-    rows.push_back({std::make_unique<CollapsedBuffersProducer>(lines_per_child_,
-                                                               &children_),
-                    1});
+
+  for (auto& row : collapsed_buffers_) {
+    rows.push_back(
+        {std::make_unique<CollapsedBuffersProducer>(row, children_.size()), 1});
   }
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows),
                                                          active_);
@@ -425,12 +396,30 @@ void BufferTreeHorizontal::RecomputeLinesPerChild() {
   size_t lines_given =
       std::accumulate(lines_per_child_.begin(), lines_per_child_.end(), 0);
 
-  size_t reserved_lines = 0;  // For list of buffers.
-  if (std::count_if(lines_per_child_.begin(), lines_per_child_.end(),
-                    [](size_t i) { return i == 0; }) > 0) {
-    LOG(INFO) << "Reserving lines for hidden buffers.";
-    reserved_lines = 1;
+  std::vector<CollapsedBuffer> all_collapsed_buffers;
+  for (size_t i = 0; i < lines_per_child_.size(); i++) {
+    auto buffer = children_[i]->GetActiveLeaf()->Lock();
+    if (lines_per_child_[i] == 0 && buffer != nullptr) {
+      all_collapsed_buffers.push_back({buffer, i});
+    }
   }
+
+  size_t lines = ceil(
+      static_cast<double>(all_collapsed_buffers.size() *
+                          CollapsedBuffersProducer::kMinimumColumnsPerBuffer) /
+      columns_);
+  size_t collapsed_buffers_per_line =
+      ceil(static_cast<double>(all_collapsed_buffers.size()) / lines);
+  collapsed_buffers_.clear();
+  for (auto& buffer : all_collapsed_buffers) {
+    if (collapsed_buffers_.empty() ||
+        collapsed_buffers_.back().size() >= collapsed_buffers_per_line) {
+      collapsed_buffers_.push_back({});
+    }
+    collapsed_buffers_.back().push_back(std::move(buffer));
+  }
+
+  size_t reserved_lines = collapsed_buffers_.size();
 
   // TODO: this could be done way faster (sort + single pass over all
   // buffers).
@@ -469,7 +458,7 @@ void BufferTreeHorizontal::RecomputeLinesPerChild() {
     children_[i]->SetSize(lines_per_child_[i] - (show_frames ? 1 : 0),
                           columns_);
   }
-}
+}  // namespace editor
 
 }  // namespace editor
 }  // namespace afc
