@@ -19,6 +19,8 @@ using std::wstring;
 class EditorState;
 
 struct ForkCommandOptions {
+  static void Register(vm::Environment* environment);
+
   // The command to run.
   wstring command;
 
@@ -46,8 +48,15 @@ void RunCommandHandler(const wstring& input, EditorState* editor_state,
                        std::map<wstring, wstring> environment);
 void RunMultipleCommandsHandler(const wstring& input,
                                 EditorState* editor_state);
-
 }  // namespace editor
+namespace vm {
+template <>
+struct VMTypeMapper<editor::ForkCommandOptions*> {
+  static editor::ForkCommandOptions* get(Value* value);
+  static Value::Ptr New(editor::ForkCommandOptions* value);
+  static const VMType vmtype;
+};
+}  // namespace vm
 }  // namespace afc
 
 #endif

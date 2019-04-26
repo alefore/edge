@@ -6,10 +6,12 @@ void ClangFormatOnSave() {
     return;
   }
   SetStatus("clang-format ...");
-  ForkCommand("clang-format -i " + path.shell_escape() +
+  ForkCommandOptions options = ForkCommandOptions();
+  options.set_command("clang-format -i " + path.shell_escape() +
                   "; edge --run 'OpenFile(\"" + path.shell_escape() +
-                  "\", false).Reload();'",
-              false);
+                  "\", false).Reload();'");
+  options.set_insertion_type("skip");
+  ForkCommand(options);
 }
 
 void ClangFormatToggle() {

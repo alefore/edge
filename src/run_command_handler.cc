@@ -353,7 +353,80 @@ class ForkEditorCommand : public Command {
 }  // namespace
 
 namespace afc {
+namespace vm {
+/* static */ editor::ForkCommandOptions*
+VMTypeMapper<editor::ForkCommandOptions*>::get(Value* value) {
+  CHECK(value != nullptr);
+  CHECK(value->type.type == VMType::OBJECT_TYPE);
+  CHECK(value->type.object_type == L"ForkCommandOptions");
+  CHECK(value->user_value != nullptr);
+  return static_cast<editor::ForkCommandOptions*>(value->user_value.get());
+}
+
+/* static */ Value::Ptr VMTypeMapper<editor::ForkCommandOptions*>::New(
+    editor::ForkCommandOptions* value) {
+  CHECK(value != nullptr);
+  return Value::NewObject(L"ForkCommandOptions",
+                          std::shared_ptr<void>(value, [](void* v) {
+                            delete static_cast<editor::ForkCommandOptions*>(v);
+                          }));
+}
+
+const VMType VMTypeMapper<editor::ForkCommandOptions*>::vmtype =
+    VMType::ObjectType(L"ForkCommandOptions");
+}  // namespace vm
 namespace editor {
+/* static */
+void ForkCommandOptions::Register(vm::Environment* environment) {
+  using vm::ObjectType;
+  using vm::Value;
+  using vm::VMType;
+  auto fork_command_options =
+      std::make_unique<ObjectType>(L"ForkCommandOptions");
+
+  environment->Define(L"ForkCommandOptions",
+                      NewCallback(std::function<ForkCommandOptions*()>(
+                          []() { return new ForkCommandOptions(); })));
+
+  fork_command_options->AddField(
+      L"set_command",
+      NewCallback(std::function<void(ForkCommandOptions*, wstring)>(
+          [](ForkCommandOptions* options, wstring command) {
+            CHECK(options != nullptr);
+            options->command = std::move(command);
+          })));
+
+  fork_command_options->AddField(
+      L"set_insertion_type",
+      NewCallback(std::function<void(ForkCommandOptions*, wstring)>(
+          [](ForkCommandOptions* options, wstring insertion_type) {
+            CHECK(options != nullptr);
+            if (insertion_type == L"search_or_create") {
+              options->insertion_type =
+                  BufferTreeHorizontal::InsertionType::kSearchOrCreate;
+            } else if (insertion_type == L"create") {
+              options->insertion_type =
+                  BufferTreeHorizontal::InsertionType::kCreate;
+            } else if (insertion_type == L"reuse_current") {
+              options->insertion_type =
+                  BufferTreeHorizontal::InsertionType::kReuseCurrent;
+            } else if (insertion_type == L"skip") {
+              options->insertion_type =
+                  BufferTreeHorizontal::InsertionType::kSkip;
+            }
+          })));
+
+  fork_command_options->AddField(
+      L"set_children_path",
+      NewCallback(std::function<void(ForkCommandOptions*, wstring)>(
+          [](ForkCommandOptions* options, wstring children_path) {
+            CHECK(options != nullptr);
+            options->children_path = std::move(children_path);
+          })));
+
+  environment->DefineType(L"ForkCommandOptions",
+                          std::move(fork_command_options));
+}
 
 std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
                                         const ForkCommandOptions& options) {

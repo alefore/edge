@@ -68,7 +68,11 @@ void SignalHandler(int sig) {
   editor_state()->PushSignal(sig);
 }
 
-static const wchar_t* kDefaultCommandsToRun = L"ForkCommand(\"sh -l\", true);";
+static const wchar_t* kDefaultCommandsToRun =
+    L"ForkCommandOptions options = ForkCommandOptions();\n"
+    L"options.set_command(\"sh -l\");\n"
+    L"options.set_insertion_type(\"search_or_create\");\n"
+    L"ForkCommand(options);";
 
 wstring CommandsToRun(command_line_arguments::Values args) {
   wstring commands_to_run = args.commands_to_run;
@@ -89,9 +93,13 @@ wstring CommandsToRun(command_line_arguments::Values args) {
     buffers_to_watch.push_back(full_path);
   }
   for (auto& command_to_fork : args.commands_to_fork) {
-    commands_to_run += L"ForkCommand(\"" + CppEscapeString(command_to_fork) +
-                       L"\", " + (args.background ? L"false" : L"true") +
-                       L");\n";
+    commands_to_run +=
+        L"ForkCommandOptions options = ForkCommandOptions();\n"
+        L"options.set_command(\"" +
+        CppEscapeString(command_to_fork) +
+        L"\");\noptions.set_insertion_type(\"" +
+        (args.background ? L"skip" : L"search_or_create") +
+        L"\");\nForkCommand(options);";
   }
   if (!args.client.empty()) {
     commands_to_run +=

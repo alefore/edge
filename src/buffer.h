@@ -552,8 +552,9 @@ class OpenBuffer {
 }  // namespace editor
 namespace vm {
 template <>
-struct VMTypeMapper<editor::OpenBuffer*> {
-  static editor::OpenBuffer* get(Value* value);
+struct VMTypeMapper<std::shared_ptr<editor::OpenBuffer>> {
+  static std::shared_ptr<editor::OpenBuffer> get(Value* value);
+  static Value::Ptr New(std::shared_ptr<editor::OpenBuffer> value);
   static const VMType vmtype;
 };
 }  // namespace vm

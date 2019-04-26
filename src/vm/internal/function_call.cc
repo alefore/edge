@@ -85,6 +85,7 @@ class FunctionCall : public Expression {
                        [func, args_types](std::unique_ptr<Value> callback,
                                           Trampoline* trampoline) {
                          DVLOG(6) << "Got function: " << *callback;
+                         CHECK(callback->callback != nullptr);
                          CaptureArgs(
                              trampoline, args_types,
                              std::make_shared<vector<unique_ptr<Value>>>(),
@@ -106,7 +107,7 @@ class FunctionCall : public Expression {
     CHECK(values != nullptr);
     CHECK(callback != nullptr);
     CHECK_EQ(callback->type.type, VMType::FUNCTION);
-    CHECK(callback->callback);
+    CHECK(callback->callback != nullptr);
 
     DVLOG(5) << "Evaluating function parameters, args: " << args_types->size();
     if (values->size() == args_types->size()) {

@@ -210,3 +210,19 @@ buffer.AddBinding("sl", "Numbers: Increment the number under the cursor.",
                   IncrementNumber);
 buffer.AddBinding("sh", "Numbers: Decrement the number under the cursor.",
                   DecrementNumber);
+
+void RunLocalShell() {
+  ForkCommandOptions options = ForkCommandOptions();
+  options.set_command("sh -l");
+  string path = buffer.path();
+  if (!path.empty()) {
+    path = Dirname(path);
+    SetStatus("Children path: " + path);
+    options.set_children_path(path);
+  }
+  options.set_insertion_type("search_or_create");
+  ForkCommand(options);
+}
+
+buffer.AddBinding("ss", "Run a shell in the directory of the current buffer.",
+                  RunLocalShell);

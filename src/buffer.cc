@@ -50,11 +50,21 @@ extern "C" {
 
 namespace afc {
 namespace vm {
-editor::OpenBuffer* VMTypeMapper<editor::OpenBuffer*>::get(Value* value) {
-  return static_cast<editor::OpenBuffer*>(value->user_value.get());
+std::shared_ptr<editor::OpenBuffer>
+VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(Value* value) {
+  return std::shared_ptr<editor::OpenBuffer>(
+      static_cast<editor::OpenBuffer*>(value->user_value.get()),
+      [dependency = value->user_value](editor::OpenBuffer*) { /* Nothing. */ });
 }
 
-const VMType VMTypeMapper<editor::OpenBuffer*>::vmtype =
+/* static */ Value::Ptr VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
+    std::shared_ptr<editor::OpenBuffer> value) {
+  return Value::NewObject(
+      L"Buffer",
+      shared_ptr<void>(value.get(), [value](void*) { /* Nothing. */ }));
+}
+
+const VMType VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype =
     VMType::ObjectType(L"Buffer");
 }  // namespace vm
 namespace editor {
@@ -87,20 +97,22 @@ void RegisterBufferFields(
     // Getter.
     object_type->AddField(
         variable->name(),
-        vm::NewCallback(std::function<FieldValue(OpenBuffer*)>(
-            [reader, variable](OpenBuffer* buffer) {
+        vm::NewCallback(std::function<FieldValue(std::shared_ptr<OpenBuffer>)>(
+            [reader, variable](std::shared_ptr<OpenBuffer> buffer) {
               DVLOG(4) << "Buffer field reader is returning.";
-              return (buffer->*reader)(variable);
+              return (buffer.get()->*reader)(variable);
             })));
 
     // Setter.
     object_type->AddField(
         L"set_" + variable->name(),
-        vm::NewCallback(std::function<void(OpenBuffer*, FieldValue)>(
-            [variable, setter](OpenBuffer* buffer, FieldValue value) {
-              (buffer->*setter)(variable, value);
-              buffer->editor()->ScheduleRedraw();
-            })));
+        vm::NewCallback(
+            std::function<void(std::shared_ptr<OpenBuffer>, FieldValue)>(
+                [variable, setter](std::shared_ptr<OpenBuffer> buffer,
+                                   FieldValue value) {
+                  (buffer.get()->*setter)(variable, value);
+                  buffer->editor()->ScheduleRedraw();
+                })));
   }
 }
 }  // namespace
@@ -177,34 +189,43 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, size_t line,
 
   buffer->AddField(
       L"line_count",
-      vm::NewCallback(std::function<int(OpenBuffer*)>(
-          [](OpenBuffer* buffer) { return int(buffer->contents()->size()); })));
+      vm::NewCallback(std::function<int(std::shared_ptr<OpenBuffer>)>(
+          [](std::shared_ptr<OpenBuffer> buffer) {
+            return int(buffer->contents()->size());
+          })));
 
-  buffer->AddField(L"set_position",
-                   vm::NewCallback(std::function<void(OpenBuffer*, LineColumn)>(
-                       [](OpenBuffer* buffer, LineColumn position) {
-                         buffer->set_position(position);
-                       })));
+  buffer->AddField(
+      L"set_position",
+      vm::NewCallback(
+          std::function<void(std::shared_ptr<OpenBuffer>, LineColumn)>(
+              [](std::shared_ptr<OpenBuffer> buffer, LineColumn position) {
+                buffer->set_position(position);
+              })));
 
   buffer->AddField(
       L"position",
-      vm::NewCallback(std::function<LineColumn(OpenBuffer*)>(
-          [](OpenBuffer* buffer) { return LineColumn(buffer->position()); })));
+      vm::NewCallback(std::function<LineColumn(std::shared_ptr<OpenBuffer>)>(
+          [](std::shared_ptr<OpenBuffer> buffer) {
+            return LineColumn(buffer->position());
+          })));
 
   buffer->AddField(
-      L"line", vm::NewCallback(std::function<wstring(OpenBuffer*, int)>(
-                   [](OpenBuffer* buffer, int line) {
-                     size_t line_size_t = min(size_t(max(line, 0)),
-                                              buffer->contents()->size() - 1);
-                     return buffer->contents()->at(line_size_t)->ToString();
-                   })));
+      L"line",
+      vm::NewCallback(std::function<wstring(std::shared_ptr<OpenBuffer>, int)>(
+          [](std::shared_ptr<OpenBuffer> buffer, int line) {
+            size_t line_size_t =
+                min(size_t(max(line, 0)), buffer->contents()->size() - 1);
+            return buffer->contents()->at(line_size_t)->ToString();
+          })));
 
   buffer->AddField(
       L"ApplyTransformation",
-      vm::NewCallback(std::function<void(OpenBuffer*, Transformation*)>(
-          [](OpenBuffer* buffer, Transformation* transformation) {
-            buffer->ApplyToCursors(transformation->Clone());
-          })));
+      vm::NewCallback(
+          std::function<void(std::shared_ptr<OpenBuffer>, Transformation*)>(
+              [](std::shared_ptr<OpenBuffer> buffer,
+                 Transformation* transformation) {
+                buffer->ApplyToCursors(transformation->Clone());
+              })));
 
   buffer->AddField(
       L"Map", Value::NewFunction(
@@ -266,13 +287,17 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, size_t line,
 
   buffer->AddField(
       L"PushTransformationStack",
-      vm::NewCallback(std::function<void(OpenBuffer*)>(
-          [](OpenBuffer* buffer) { buffer->PushTransformationStack(); })));
+      vm::NewCallback(std::function<void(std::shared_ptr<OpenBuffer>)>(
+          [](std::shared_ptr<OpenBuffer> buffer) {
+            buffer->PushTransformationStack();
+          })));
 
   buffer->AddField(
       L"PopTransformationStack",
-      vm::NewCallback(std::function<void(OpenBuffer*)>(
-          [](OpenBuffer* buffer) { buffer->PopTransformationStack(); })));
+      vm::NewCallback(std::function<void(std::shared_ptr<OpenBuffer>)>(
+          [](std::shared_ptr<OpenBuffer> buffer) {
+            buffer->PopTransformationStack();
+          })));
 
   buffer->AddField(
       L"AddKeyboardTextTransformer",
@@ -305,21 +330,22 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, size_t line,
 
   buffer->AddField(
       L"DeleteCharacters",
-      vm::NewCallback(std::function<void(OpenBuffer*, int)>(
-          [](OpenBuffer* buffer, int count) {
+      vm::NewCallback(std::function<void(std::shared_ptr<OpenBuffer>, int)>(
+          [](std::shared_ptr<OpenBuffer> buffer, int count) {
             DeleteOptions options;
             options.modifiers.repetitions = count;
             buffer->ApplyToCursors(NewDeleteTransformation(options));
           })));
 
-  buffer->AddField(L"Reload",
-                   vm::NewCallback(std::function<void(OpenBuffer*)>(
-                       [](OpenBuffer* buffer) { buffer->Reload(); })));
+  buffer->AddField(
+      L"Reload",
+      vm::NewCallback(std::function<void(std::shared_ptr<OpenBuffer>)>(
+          [](std::shared_ptr<OpenBuffer> buffer) { buffer->Reload(); })));
 
   buffer->AddField(
       L"InsertText",
-      vm::NewCallback(std::function<void(OpenBuffer*, wstring)>(
-          [](OpenBuffer* buffer, wstring text) {
+      vm::NewCallback(std::function<void(std::shared_ptr<OpenBuffer>, wstring)>(
+          [](std::shared_ptr<OpenBuffer> buffer, wstring text) {
             if (text.empty()) {
               return;  // Optimization.
             }
@@ -355,8 +381,10 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, size_t line,
                 NewInsertBufferTransformation(std::move(insert_options)));
           })));
 
-  buffer->AddField(L"Save", vm::NewCallback(std::function<void(OpenBuffer*)>(
-                                [](OpenBuffer* buffer) { buffer->Save(); })));
+  buffer->AddField(
+      L"Save",
+      vm::NewCallback(std::function<void(std::shared_ptr<OpenBuffer>)>(
+          [](std::shared_ptr<OpenBuffer> buffer) { buffer->Save(); })));
 
   buffer->AddField(
       L"AddBinding",
@@ -378,35 +406,37 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, size_t line,
 
   buffer->AddField(
       L"AddBindingToFile",
-      vm::NewCallback(std::function<void(OpenBuffer*, wstring, wstring)>(
-          [editor_state](OpenBuffer* buffer, wstring keys, wstring path) {
-            LOG(INFO) << "AddBindingToFile: " << keys << " -> " << path;
-            buffer->default_commands_->Add(
-                keys,
-                [buffer, path](EditorState* editor_state) {
-                  wstring resolved_path;
-                  ResolvePathOptions options;
-                  options.editor_state = editor_state;
-                  options.path = path;
-                  options.output_path = &resolved_path;
-                  if (!ResolvePath(options)) {
-                    editor_state->SetWarningStatus(L"Unable to resolve: " +
-                                                   path);
-                  } else {
-                    buffer->EvaluateFile(resolved_path,
-                                         [](std::unique_ptr<Value>) {});
-                  }
-                },
-                L"Load file: " + path);
-          })));
+      vm::NewCallback(
+          std::function<void(std::shared_ptr<OpenBuffer>, wstring, wstring)>(
+              [editor_state](std::shared_ptr<OpenBuffer> buffer, wstring keys,
+                             wstring path) {
+                LOG(INFO) << "AddBindingToFile: " << keys << " -> " << path;
+                buffer->default_commands_->Add(
+                    keys,
+                    [buffer, path](EditorState* editor_state) {
+                      wstring resolved_path;
+                      ResolvePathOptions options;
+                      options.editor_state = editor_state;
+                      options.path = path;
+                      options.output_path = &resolved_path;
+                      if (!ResolvePath(options)) {
+                        editor_state->SetWarningStatus(L"Unable to resolve: " +
+                                                       path);
+                      } else {
+                        buffer->EvaluateFile(resolved_path,
+                                             [](std::unique_ptr<Value>) {});
+                      }
+                    },
+                    L"Load file: " + path);
+              })));
 
-  buffer->AddField(L"EvaluateFile",
-                   vm::NewCallback(std::function<void(OpenBuffer*, wstring)>(
-                       [](OpenBuffer* buffer, wstring path) {
-                         LOG(INFO) << "Evaluating file: " << path;
-                         buffer->EvaluateFile(path,
-                                              [](std::unique_ptr<Value>) {});
-                       })));
+  buffer->AddField(
+      L"EvaluateFile",
+      vm::NewCallback(std::function<void(std::shared_ptr<OpenBuffer>, wstring)>(
+          [](std::shared_ptr<OpenBuffer> buffer, wstring path) {
+            LOG(INFO) << "Evaluating file: " << path;
+            buffer->EvaluateFile(path, [](std::unique_ptr<Value>) {});
+          })));
 
   environment->DefineType(L"Buffer", std::move(buffer));
 }
@@ -1881,7 +1911,7 @@ std::shared_ptr<OpenBuffer> OpenBuffer::GetBufferFromCurrentLine() {
     return nullptr;
   }
   auto target = current_line()->environment()->Lookup(
-      L"buffer", vm::VMTypeMapper<editor::OpenBuffer*>::vmtype);
+      L"buffer", vm::VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype);
   if (target == nullptr) {
     return nullptr;
   }
