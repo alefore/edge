@@ -195,7 +195,6 @@ bool StartServer(EditorState* editor_state, wstring address,
   LOG(INFO) << "Starting server: " << *actual_address;
   setenv("EDGE_PARENT_ADDRESS", ToByteString(*actual_address).c_str(), 1);
   auto buffer = OpenServerBuffer(editor_state, *actual_address);
-  buffer->Set(buffer_variables::display_progress, false);
   buffer->Set(buffer_variables::reload_after_exit, true);
   buffer->Set(buffer_variables::default_reload_after_exit, true);
 
@@ -217,6 +216,7 @@ shared_ptr<OpenBuffer> OpenServerBuffer(EditorState* editor_state,
   buffer->Set(buffer_variables::vm_exec, true);
   buffer->Set(buffer_variables::show_in_buffers_list, false);
   buffer->Set(buffer_variables::allow_dirty_delete, true);
+  buffer->Set(buffer_variables::display_progress, false);
 
   editor_state->buffers()->insert(
       {buffer->Read(buffer_variables::name), buffer});
