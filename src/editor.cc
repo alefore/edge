@@ -569,24 +569,25 @@ void EditorState::AttemptTermination(int exit_value) {
         // Since `PrepareToClose is asynchronous, we must check that they are
         // all ready to be deleted.
         LOG(INFO) << "Checking buffers state for termination.";
-        std::vector<wstring> buffers_with_problems;
-        for (auto& it : buffers_) {
-          if (it.second->dirty() &&
-              !it.second->Read(buffer_variables::allow_dirty_delete)) {
-            buffers_with_problems.push_back(
-                it.second->Read(buffer_variables::name));
+        if (modifiers().strength <= Modifiers::Strength::kNormal) {
+          std::vector<wstring> buffers_with_problems;
+          for (auto& it : buffers_) {
+            if (it.second->dirty() &&
+                !it.second->Read(buffer_variables::allow_dirty_delete)) {
+              buffers_with_problems.push_back(
+                  it.second->Read(buffer_variables::name));
+            }
+          }
+          if (!buffers_with_problems.empty()) {
+            wstring error = L"🖝  Dirty buffers (“*aq” to ignore):";
+            for (auto name : buffers_with_problems) {
+              error += L" " + name;
+            }
+            return SetWarningStatus(error);
           }
         }
-        if (!buffers_with_problems.empty()) {
-          wstring error = L"🖝  Dirty buffers (“*aq” to ignore):";
-          for (auto name : buffers_with_problems) {
-            error += L" " + name;
-          }
-          SetWarningStatus(error);
-        } else {
-          LOG(INFO) << "Terminating.";
-          exit_value_ = exit_value;
-        }
+        LOG(INFO) << "Terminating.";
+        exit_value_ = exit_value;
       });
 
   for (auto& it : buffers_) {
