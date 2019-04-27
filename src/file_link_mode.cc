@@ -432,7 +432,8 @@ bool SaveContentsToFile(EditorState* editor_state, const wstring& path,
   return true;
 }
 
-shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
+shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state,
+                                            const wstring& edge_path) {
   OpenFileOptions options;
   options.editor_state = editor_state;
   options.name = L"- search paths";
@@ -441,7 +442,7 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
     LOG(INFO) << "search paths buffer already existed.";
     return it->second;
   }
-  options.path = (*editor_state->edge_path().begin()) + L"/search_paths";
+  options.path = edge_path + L"/search_paths";
   options.insertion_type = BufferTreeHorizontal::InsertionType::kSkip;
   options.use_search_paths = false;
   it = OpenFile(options);
@@ -459,19 +460,22 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
 
 void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
   output->push_back(L"");
-  auto search_paths_buffer = GetSearchPathsBuffer(editor_state);
-  if (search_paths_buffer == nullptr) {
-    LOG(INFO) << "No search paths buffer.";
-    return;
+
+  for (auto& edge_path : editor_state->edge_path()) {
+    auto search_paths_buffer = GetSearchPathsBuffer(editor_state, edge_path);
+    if (search_paths_buffer == nullptr) {
+      LOG(INFO) << edge_path << ": No search paths buffer.";
+      continue;
+    }
+    search_paths_buffer->contents()->ForEach(
+        [editor_state, output](wstring line) {
+          if (line.empty()) {
+            return;
+          }
+          output->push_back(editor_state->expand_path(line));
+          LOG(INFO) << "Pushed search path: " << output->back();
+        });
   }
-  search_paths_buffer->contents()->ForEach(
-      [editor_state, output](wstring line) {
-        if (line.empty()) {
-          return;
-        }
-        output->push_back(editor_state->expand_path(line));
-        LOG(INFO) << "Pushed search path: " << output->back();
-      });
 }
 
 bool ResolvePath(ResolvePathOptions options) {

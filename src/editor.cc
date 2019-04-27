@@ -685,7 +685,9 @@ void EditorState::PushPosition(LineColumn position) {
     OpenFileOptions options;
     options.editor_state = this;
     options.name = kPositionsBufferName;
-    options.path = PathJoin(*edge_path().begin(), L"positions");
+    if (!edge_path().empty()) {
+      options.path = PathJoin(*edge_path().begin(), L"positions");
+    }
     options.insertion_type = BufferTreeHorizontal::InsertionType::kSkip;
     buffer_it = OpenFile(options);
     CHECK(buffer_it != buffers()->end());
