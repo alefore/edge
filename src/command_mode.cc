@@ -889,7 +889,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
   commands->Add(L"ac", NewRunCppFileCommand());
   commands->Add(L"aC", NewRunCppCommand());
   commands->Add(L"a.", NewOpenDirectoryCommand());
-  commands->Add(L"al", NewListBuffersCommand());
+  commands->Add(L"aL", NewListBuffersCommand());
   commands->Add(L"ar", NewCppCommand(editor_state->environment(),
                                      L"// Buffers: Reload the current buffer.\n"
                                      L"editor.ReloadCurrentBuffer();"));

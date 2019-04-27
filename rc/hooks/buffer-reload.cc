@@ -200,8 +200,8 @@ void SetActiveLeaf() {
 
 buffer.AddBinding("a=", "Frames: Toggle: show all buffers or only active?",
                   editor.ToggleBuffersVisible);
-buffer.AddBinding("ak", "Frames: Move to the previous leaf", RewindActiveLeaf);
-buffer.AddBinding("aj", "Frames: Move to the next leaf", AdvanceActiveLeaf);
+buffer.AddBinding("ah", "Frames: Move to the previous leaf", RewindActiveLeaf);
+buffer.AddBinding("al", "Frames: Move to the next leaf", AdvanceActiveLeaf);
 buffer.AddBinding("ag", "Frames: Set the active leaf (by repetitions)",
                   SetActiveLeaf);
 buffer.AddBinding("aR", "Frames: Show all open buffers",
