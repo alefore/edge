@@ -216,8 +216,11 @@ std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
     rows.push_back({std::move(child_producer), lines_per_child_[index]});
   }
 
-  rows.push_back({std::make_unique<BuffersListProducer>(buffers_list_, active_),
-                  buffers_list_.size()});
+  if (!buffers_list_.empty()) {
+    rows.push_back(
+        {std::make_unique<BuffersListProducer>(buffers_list_, active_),
+         buffers_list_.size()});
+  }
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows),
                                                          active_);
 }
@@ -410,27 +413,29 @@ void BufferTreeHorizontal::RecomputeLinesPerChild() {
   size_t lines_given =
       std::accumulate(lines_per_child_.begin(), lines_per_child_.end(), 0);
 
-  std::vector<BufferListPosition> all_buffers;
-  for (size_t i = 0; i < lines_per_child_.size(); i++) {
-    all_buffers.push_back({children_[i]->GetActiveLeaf()->Lock(), i});
-  }
-
-  size_t buffers_list_lines =
-      ceil(static_cast<double>(all_buffers.size() *
-                               BuffersListProducer::kMinimumColumnsPerBuffer) /
-           columns_);
-  size_t buffers_list_buffers_per_line =
-      ceil(static_cast<double>(all_buffers.size()) / buffers_list_lines);
+  size_t reserved_lines = 0;
   buffers_list_.clear();
-  for (auto& buffer : all_buffers) {
-    if (buffers_list_.empty() ||
-        buffers_list_.back().size() >= buffers_list_buffers_per_line) {
-      buffers_list_.push_back({});
+  if (buffers_visible_ == BuffersVisible::kAll) {
+    std::vector<BufferListPosition> all_buffers;
+    for (size_t i = 0; i < lines_per_child_.size(); i++) {
+      all_buffers.push_back({children_[i]->GetActiveLeaf()->Lock(), i});
     }
-    buffers_list_.back().push_back(std::move(buffer));
-  }
 
-  size_t reserved_lines = buffers_list_.size();
+    size_t buffers_list_lines = ceil(
+        static_cast<double>(all_buffers.size() *
+                            BuffersListProducer::kMinimumColumnsPerBuffer) /
+        columns_);
+    size_t buffers_list_buffers_per_line =
+        ceil(static_cast<double>(all_buffers.size()) / buffers_list_lines);
+    for (auto& buffer : all_buffers) {
+      if (buffers_list_.empty() ||
+          buffers_list_.back().size() >= buffers_list_buffers_per_line) {
+        buffers_list_.push_back({});
+      }
+      buffers_list_.back().push_back(std::move(buffer));
+    }
+    reserved_lines = buffers_list_.size();
+  }
 
   // TODO: this could be done way faster (sort + single pass over all
   // buffers).
