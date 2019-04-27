@@ -13,7 +13,7 @@
 namespace afc {
 namespace editor {
 
-class CollapsedBuffer;
+struct BufferListPosition;
 
 class BufferTreeHorizontal : public Widget {
  private:
@@ -96,7 +96,7 @@ class BufferTreeHorizontal : public Widget {
   std::vector<size_t> lines_per_child_;
 
   // One entry per line of collapsed buffers.
-  std::vector<std::vector<CollapsedBuffer>> collapsed_buffers_;
+  std::vector<std::vector<BufferListPosition>> buffers_list_;
 };
 
 }  // namespace editor

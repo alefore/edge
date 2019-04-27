@@ -20,7 +20,7 @@
 
 namespace afc {
 namespace editor {
-struct CollapsedBuffer {
+struct BufferListPosition {
   std::shared_ptr<OpenBuffer> buffer;
   size_t index;
 };
@@ -61,29 +61,37 @@ BufferWidget* BufferTreeHorizontal::GetActiveLeaf() {
   return children_[active_]->GetActiveLeaf();
 }
 
-class CollapsedBuffersProducer : public OutputProducer {
+class BuffersListProducer : public OutputProducer {
  public:
   static const size_t kMinimumColumnsPerBuffer = 20;
 
-  CollapsedBuffersProducer(std::vector<CollapsedBuffer> buffers,
-                           size_t max_index)
-      : buffers_(buffers), max_index_(max_index) {}
+  BuffersListProducer(std::vector<std::vector<BufferListPosition>> buffers)
+      : buffers_(buffers),
+        max_index_([&]() {
+          size_t output = buffers_[0][0].index;
+          for (auto& line : buffers_) {
+            for (auto& buffer : line) {
+              output = max(buffer.index, output);
+            }
+          }
+          return output;
+        }()),
+        prefix_width_(std::to_wstring(max_index_ + 1).size() + 2) {}
 
   void WriteLine(Options options) override {
-    size_t prefix_width = std::to_wstring(max_index_ + 1).size() + 2;
-    size_t all_prefixes_width = prefix_width * buffers_.size();
-
     size_t columns_per_buffer =  // Excluding prefixes and separators.
         (options.receiver->width() -
-         min(options.receiver->width(), all_prefixes_width)) /
-        buffers_.size();
-    for (size_t i = 0; i < buffers_.size(); i++) {
-      auto buffer = buffers_[i].buffer;
+         min(options.receiver->width(), (prefix_width_ * buffers_[0].size()))) /
+        buffers_[0].size();
+    for (size_t i = 0; i < buffers_[current_line_].size(); i++) {
+      auto buffer = buffers_[current_line_][i].buffer;
       options.receiver->AddModifier(LineModifier::RESET);
-      auto name = buffer->Read(buffer_variables::name);
-      auto number_prefix = std::to_wstring(buffers_[i].index + 1);
-      size_t start = i * (columns_per_buffer + prefix_width) +
-                     (prefix_width - number_prefix.size() - 2);
+      auto name =
+          buffer == nullptr ? L"(dead)" : buffer->Read(buffer_variables::name);
+      auto number_prefix =
+          std::to_wstring(buffers_[current_line_][i].index + 1);
+      size_t start = i * (columns_per_buffer + prefix_width_) +
+                     (prefix_width_ - number_prefix.size() - 2);
       if (options.receiver->column() < start) {
         options.receiver->AddString(
             wstring(start - options.receiver->column(), L' '));
@@ -159,11 +167,14 @@ class CollapsedBuffersProducer : public OutputProducer {
       }
       options.receiver->AddModifier(LineModifier::RESET);
     }
+    current_line_++;
   }
 
  private:
-  const std::vector<CollapsedBuffer> buffers_;
+  const std::vector<std::vector<BufferListPosition>> buffers_;
   const size_t max_index_;
+  const size_t prefix_width_;
+  int current_line_ = 0;
 };
 
 std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
@@ -200,10 +211,8 @@ std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
     rows.push_back({std::move(child_producer), lines_per_child_[index]});
   }
 
-  for (auto& row : collapsed_buffers_) {
-    rows.push_back(
-        {std::make_unique<CollapsedBuffersProducer>(row, children_.size()), 1});
-  }
+  rows.push_back({std::make_unique<BuffersListProducer>(buffers_list_),
+                  buffers_list_.size()});
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows),
                                                          active_);
 }
@@ -396,30 +405,27 @@ void BufferTreeHorizontal::RecomputeLinesPerChild() {
   size_t lines_given =
       std::accumulate(lines_per_child_.begin(), lines_per_child_.end(), 0);
 
-  std::vector<CollapsedBuffer> all_collapsed_buffers;
+  std::vector<BufferListPosition> all_buffers;
   for (size_t i = 0; i < lines_per_child_.size(); i++) {
-    auto buffer = children_[i]->GetActiveLeaf()->Lock();
-    if (lines_per_child_[i] == 0 && buffer != nullptr) {
-      all_collapsed_buffers.push_back({buffer, i});
-    }
+    all_buffers.push_back({children_[i]->GetActiveLeaf()->Lock(), i});
   }
 
-  size_t lines = ceil(
-      static_cast<double>(all_collapsed_buffers.size() *
-                          CollapsedBuffersProducer::kMinimumColumnsPerBuffer) /
-      columns_);
-  size_t collapsed_buffers_per_line =
-      ceil(static_cast<double>(all_collapsed_buffers.size()) / lines);
-  collapsed_buffers_.clear();
-  for (auto& buffer : all_collapsed_buffers) {
-    if (collapsed_buffers_.empty() ||
-        collapsed_buffers_.back().size() >= collapsed_buffers_per_line) {
-      collapsed_buffers_.push_back({});
+  size_t buffers_list_lines =
+      ceil(static_cast<double>(all_buffers.size() *
+                               BuffersListProducer::kMinimumColumnsPerBuffer) /
+           columns_);
+  size_t buffers_list_buffers_per_line =
+      ceil(static_cast<double>(all_buffers.size()) / buffers_list_lines);
+  buffers_list_.clear();
+  for (auto& buffer : all_buffers) {
+    if (buffers_list_.empty() ||
+        buffers_list_.back().size() >= buffers_list_buffers_per_line) {
+      buffers_list_.push_back({});
     }
-    collapsed_buffers_.back().push_back(std::move(buffer));
+    buffers_list_.back().push_back(std::move(buffer));
   }
 
-  size_t reserved_lines = collapsed_buffers_.size();
+  size_t reserved_lines = buffers_list_.size();
 
   // TODO: this could be done way faster (sort + single pass over all
   // buffers).
