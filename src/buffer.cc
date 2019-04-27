@@ -554,15 +554,16 @@ void OpenBuffer::SetStatus(wstring status) const {
   editor()->SetStatus(status);
 }
 
-bool OpenBuffer::PrepareToClose() {
+void OpenBuffer::PrepareToClose(std::function<void()> success,
+                                std::function<void(wstring)> failure) {
   if (!PersistState() &&
       editor_->modifiers().strength == Modifiers::Strength::kNormal) {
     LOG(INFO) << "Unable to persist state: " << Read(buffer_variables::name);
-    return false;
+    return failure(L"Unable to persist state.");
   }
   if (!dirty()) {
     LOG(INFO) << Read(buffer_variables::name) << ": clean, skipping.";
-    return true;
+    return success();
   }
   if (Read(buffer_variables::save_on_close)) {
     LOG(INFO) << Read(buffer_variables::name) << ": attempting to save buffer.";
@@ -570,19 +571,19 @@ bool OpenBuffer::PrepareToClose() {
     Save();
     if (!dirty()) {
       LOG(INFO) << Read(buffer_variables::name) << ": successful save.";
-      return true;
+      return success();
     }
   }
   if (Read(buffer_variables::allow_dirty_delete)) {
     LOG(INFO) << Read(buffer_variables::name)
               << ": allows dirty delete, skipping.";
-    return true;
+    return success();
   }
   if (editor_->modifiers().strength > Modifiers::Strength::kNormal) {
     LOG(INFO) << Read(buffer_variables::name) << ": Deleting due to modifiers.";
-    return true;
+    return success();
   }
-  return false;
+  return failure(L"Buffer has unsaved changes.");
 }
 
 void OpenBuffer::Close() {

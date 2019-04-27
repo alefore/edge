@@ -86,7 +86,8 @@ class OpenBuffer {
 
   void SetStatus(wstring status) const;
 
-  bool PrepareToClose();
+  void PrepareToClose(std::function<void()> success,
+                      std::function<void(wstring)> failure);
   void Close();
 
   // If the buffer is still being read (fd_ != -1), adds an observer to

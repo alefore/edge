@@ -444,27 +444,28 @@ void EditorState::CheckPosition() {
   }
 }
 
-bool EditorState::CloseBuffer(OpenBuffer* buffer) {
+void EditorState::CloseBuffer(OpenBuffer* buffer) {
   CHECK(buffer != nullptr);
-  if (!buffer->PrepareToClose()) {
-    SetWarningStatus(L"🖝  Dirty buffers (“*ad” to ignore): " +
-                     buffer->Read(buffer_variables::name));
-    return false;
-  }
-  ScheduleRedraw();
+  buffer->PrepareToClose(
+      [this, buffer]() {
+        ScheduleRedraw();
 
-  if (current_buffer().get() == buffer) {
-    buffer_tree_->RemoveActiveLeaf();
-    auto buffer = buffer_tree_->GetActiveLeaf()->Lock();
-    if (buffer != nullptr) {
-      buffer->Visit();
-    }
-  }
+        if (current_buffer().get() == buffer) {
+          buffer_tree_->RemoveActiveLeaf();
+          auto buffer = buffer_tree_->GetActiveLeaf()->Lock();
+          if (buffer != nullptr) {
+            buffer->Visit();
+          }
+        }
 
-  buffer->Close();
-  buffers_.erase(buffer->Read(buffer_variables::name));
-
-  return true;
+        buffer->Close();
+        buffers_.erase(buffer->Read(buffer_variables::name));
+      },
+      [this, buffer](wstring error) {
+        SetWarningStatus(
+            L"🖝  Unable to close buffer (“*ad” to ignore): " +
+            buffer->Read(buffer_variables::name) + L" " + error);
+      });
 }
 
 void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer) {
@@ -542,30 +543,31 @@ wstring EditorState::GetUnusedBufferName(const wstring& prefix) {
   return GetBufferName(prefix, count);
 }
 
-bool EditorState::AttemptTermination(wstring* error_description,
-                                     int exit_value) {
+void EditorState::AttemptTermination(int exit_value) {
   LOG(INFO) << "Checking buffers for termination.";
-  vector<wstring> buffers_with_problems;
-  for (auto& it : buffers_) {
-    if (!it.second->PrepareToClose()) {
-      buffers_with_problems.push_back(it.first);
-    }
-  }
-  if (buffers_with_problems.empty()) {
-    LOG(INFO) << "Terminating.";
-    exit_value_ = exit_value;
-    return true;
-  }
+  std::shared_ptr<vector<wstring>> buffers_with_problems(
+      new vector<wstring>(),
+      [this, exit_value](vector<wstring>* buffers_with_problems) {
+        if (buffers_with_problems->empty()) {
+          LOG(INFO) << "Terminating.";
+          exit_value_ = exit_value;
+        } else {
+          wstring error = L"🖝  Dirty buffers (“*aq” to ignore):";
+          for (auto name : *buffers_with_problems) {
+            error += L" " + name;
+          }
+          SetWarningStatus(error);
+        }
+        delete buffers_with_problems;
+      });
 
-  wstring error = L"🖝  Dirty buffers (“*aq” to ignore):";
-  for (auto name : buffers_with_problems) {
-    error += L" " + name;
+  for (auto& it : buffers_) {
+    it.second->PrepareToClose(
+        [buffers_with_problems]() { /* Nothing. */ },
+        [buffers_with_problems, name = it.first](wstring) {
+          buffers_with_problems->push_back(name);
+        });
   }
-  LOG(INFO) << error;
-  if (error_description != nullptr) {
-    *error_description = std::move(error);
-  }
-  return false;
 }
 
 void EditorState::ProcessInput(int c) {

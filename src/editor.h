@@ -50,7 +50,7 @@ class EditorState {
 
   void CheckPosition();
 
-  bool CloseBuffer(OpenBuffer* buffer);
+  void CloseBuffer(OpenBuffer* buffer);
 
   const map<wstring, shared_ptr<OpenBuffer>>* buffers() const {
     return &buffers_;
@@ -72,7 +72,7 @@ class EditorState {
   const shared_ptr<OpenBuffer> current_buffer() const;
   wstring GetUnusedBufferName(const wstring& prefix);
   std::optional<int> exit_value() const { return exit_value_; }
-  bool AttemptTermination(wstring* error_description, int exit_value);
+  void AttemptTermination(int exit_value);
 
   void ResetModifiers() {
     auto buffer = current_buffer();
