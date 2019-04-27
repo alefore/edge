@@ -4,6 +4,7 @@
 #include <list>
 #include <memory>
 
+#include "src/buffers_list.h"
 #include "src/output_producer.h"
 #include "src/parse_tree.h"
 #include "src/tree.h"
@@ -12,8 +13,6 @@
 
 namespace afc {
 namespace editor {
-
-struct BufferListPosition;
 
 class BufferTreeHorizontal : public Widget {
  private:
@@ -96,7 +95,7 @@ class BufferTreeHorizontal : public Widget {
   std::vector<size_t> lines_per_child_;
 
   // One entry per line of collapsed buffers.
-  std::vector<std::vector<BufferListPosition>> buffers_list_;
+  std::vector<std::vector<BuffersListProducer::Entry>> buffers_list_;
 };
 
 }  // namespace editor

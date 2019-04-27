@@ -28,6 +28,8 @@ src/buffer_tree_horizontal.cc \
 src/buffer_tree_horizontal.h \
 src/buffer_variables.cc \
 src/buffer_variables.h \
+src/buffers_list.cc \
+src/buffers_list.h \
 src/cpp_command.cc \
 src/cpp_parse_tree.cc \
 src/cpp_parse_tree.h \
