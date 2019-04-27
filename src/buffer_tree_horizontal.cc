@@ -65,8 +65,10 @@ class BuffersListProducer : public OutputProducer {
  public:
   static const size_t kMinimumColumnsPerBuffer = 20;
 
-  BuffersListProducer(std::vector<std::vector<BufferListPosition>> buffers)
+  BuffersListProducer(std::vector<std::vector<BufferListPosition>> buffers,
+                      size_t active_index)
       : buffers_(buffers),
+        active_index_(active_index),
         max_index_([&]() {
           size_t output = buffers_[0][0].index;
           for (auto& line : buffers_) {
@@ -83,13 +85,13 @@ class BuffersListProducer : public OutputProducer {
         (options.receiver->width() -
          min(options.receiver->width(), (prefix_width_ * buffers_[0].size()))) /
         buffers_[0].size();
-    for (size_t i = 0; i < buffers_[current_line_].size(); i++) {
-      auto buffer = buffers_[current_line_][i].buffer;
+    const auto& row = buffers_[current_line_++];
+    for (size_t i = 0; i < row.size(); i++) {
+      auto buffer = row[i].buffer;
       options.receiver->AddModifier(LineModifier::RESET);
       auto name =
           buffer == nullptr ? L"(dead)" : buffer->Read(buffer_variables::name);
-      auto number_prefix =
-          std::to_wstring(buffers_[current_line_][i].index + 1);
+      auto number_prefix = std::to_wstring(row[i].index + 1);
       size_t start = i * (columns_per_buffer + prefix_width_) +
                      (prefix_width_ - number_prefix.size() - 2);
       if (options.receiver->column() < start) {
@@ -97,6 +99,9 @@ class BuffersListProducer : public OutputProducer {
             wstring(start - options.receiver->column(), L' '));
       }
       options.receiver->AddModifier(LineModifier::CYAN);
+      if (row[i].index == active_index_) {
+        options.receiver->AddModifier(LineModifier::BOLD);
+      }
       options.receiver->AddString(number_prefix);
       options.receiver->AddModifier(LineModifier::RESET);
 
@@ -167,11 +172,11 @@ class BuffersListProducer : public OutputProducer {
       }
       options.receiver->AddModifier(LineModifier::RESET);
     }
-    current_line_++;
   }
 
  private:
   const std::vector<std::vector<BufferListPosition>> buffers_;
+  const size_t active_index_;
   const size_t max_index_;
   const size_t prefix_width_;
   int current_line_ = 0;
@@ -211,7 +216,7 @@ std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
     rows.push_back({std::move(child_producer), lines_per_child_[index]});
   }
 
-  rows.push_back({std::make_unique<BuffersListProducer>(buffers_list_),
+  rows.push_back({std::make_unique<BuffersListProducer>(buffers_list_, active_),
                   buffers_list_.size()});
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows),
                                                          active_);
