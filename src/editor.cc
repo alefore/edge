@@ -462,9 +462,8 @@ void EditorState::CloseBuffer(OpenBuffer* buffer) {
         buffers_.erase(buffer->Read(buffer_variables::name));
       },
       [this, buffer](wstring error) {
-        SetWarningStatus(
-            L"🖝  Unable to close buffer (“*ad” to ignore): " +
-            buffer->Read(buffer_variables::name) + L" " + error);
+        SetWarningStatus(L"🖝  Unable to close (“*ad” to ignore): " +
+                         error + L": " + buffer->Read(buffer_variables::name));
       });
 }
 
@@ -545,28 +544,54 @@ wstring EditorState::GetUnusedBufferName(const wstring& prefix) {
 
 void EditorState::AttemptTermination(int exit_value) {
   LOG(INFO) << "Checking buffers for termination.";
-  std::shared_ptr<vector<wstring>> buffers_with_problems(
-      new vector<wstring>(),
-      [this, exit_value](vector<wstring>* buffers_with_problems) {
-        if (buffers_with_problems->empty()) {
-          LOG(INFO) << "Terminating.";
-          exit_value_ = exit_value;
-        } else {
+  std::vector<wstring> buffers_with_problems;
+  for (auto& it : buffers_) {
+    if (it.second->IsUnableToPrepareToClose()) {
+      buffers_with_problems.push_back(it.second->Read(buffer_variables::name));
+    }
+  }
+  if (!buffers_with_problems.empty()) {
+    wstring error = L"🖝  Dirty buffers (“*aq” to ignore):";
+    for (auto name : buffers_with_problems) {
+      error += L" " + name;
+    }
+    SetWarningStatus(error);
+    return;
+  }
+
+  std::shared_ptr<int> pending_calls(
+      new int(buffers_.size()), [this, exit_value](int* value) {
+        if (*value != 0) {
+          LOG(INFO) << "Termination attempt didn't complete successfully. It "
+                       "must mean that a new one has started.";
+          return;
+        }
+        // Since `PrepareToClose is asynchronous, we must check that they are
+        // all ready to be deleted.
+        LOG(INFO) << "Checking buffers state for termination.";
+        std::vector<wstring> buffers_with_problems;
+        for (auto& it : buffers_) {
+          if (it.second->dirty() &&
+              !it.second->Read(buffer_variables::allow_dirty_delete)) {
+            buffers_with_problems.push_back(
+                it.second->Read(buffer_variables::name));
+          }
+        }
+        if (!buffers_with_problems.empty()) {
           wstring error = L"🖝  Dirty buffers (“*aq” to ignore):";
-          for (auto name : *buffers_with_problems) {
+          for (auto name : buffers_with_problems) {
             error += L" " + name;
           }
           SetWarningStatus(error);
+        } else {
+          LOG(INFO) << "Terminating.";
+          exit_value_ = exit_value;
         }
-        delete buffers_with_problems;
       });
 
   for (auto& it : buffers_) {
-    it.second->PrepareToClose(
-        [buffers_with_problems]() { /* Nothing. */ },
-        [buffers_with_problems, name = it.first](wstring) {
-          buffers_with_problems->push_back(name);
-        });
+    it.second->PrepareToClose([pending_calls]() { --*pending_calls; },
+                              [pending_calls](wstring) { --*pending_calls; });
   }
 }
 

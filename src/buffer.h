@@ -86,6 +86,13 @@ class OpenBuffer {
 
   void SetStatus(wstring status) const;
 
+  // If it is closeable, returns std::nullopt. Otherwise, returns reasons why
+  // we can predict that PrepareToClose will fail.
+  std::optional<wstring> IsUnableToPrepareToClose() const;
+
+  // Starts saving this buffer. When done, calls either `success` or `failure`.
+  // These callbacks may not run if a new call to `PrepareToClose` is made; in
+  // other words, typically only the last values passed will run.
   void PrepareToClose(std::function<void()> success,
                       std::function<void(wstring)> failure);
   void Close();
@@ -451,6 +458,8 @@ class OpenBuffer {
   // -1 means "no child process"
   pid_t child_pid_;
   int child_exit_status_;
+  // Optional function to execute when a sub-process exits.
+  std::function<void()> on_exit_handler_;
 
   LineColumn position_pts_;
 

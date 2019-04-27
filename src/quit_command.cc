@@ -21,6 +21,7 @@ class QuitCommand : public Command {
 
   void ProcessInput(wint_t, EditorState* editor_state) override {
     wstring error_description;
+    LOG(INFO) << "Triggering termination with value: " << exit_value_;
     editor_state->AttemptTermination(exit_value_);
     auto buffer = editor_state->current_buffer();
     if (buffer != nullptr) {

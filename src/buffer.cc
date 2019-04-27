@@ -554,12 +554,49 @@ void OpenBuffer::SetStatus(wstring status) const {
   editor()->SetStatus(status);
 }
 
+std::optional<wstring> OpenBuffer::IsUnableToPrepareToClose() const {
+  if (editor_->modifiers().strength > Modifiers::Strength::kNormal) {
+    return std::nullopt;
+  }
+  if (child_pid_ != -1) {
+    if (!Read(buffer_variables::term_on_close)) {
+      return L"Running subprocess (pid: " + std::to_wstring(child_pid_) + L")";
+    }
+    return std::nullopt;
+  }
+  if (dirty() && !Read(buffer_variables::save_on_close) &&
+      !Read(buffer_variables::allow_dirty_delete)) {
+    return L"Unsaved changes";
+  }
+  return std::nullopt;
+}
+
 void OpenBuffer::PrepareToClose(std::function<void()> success,
                                 std::function<void(wstring)> failure) {
+  LOG(INFO) << "Preparing to close: " << Read(buffer_variables::name);
+  auto is_unable = IsUnableToPrepareToClose();
+  if (is_unable.has_value()) {
+    return failure(is_unable.value());
+  }
+
   if (!PersistState() &&
       editor_->modifiers().strength == Modifiers::Strength::kNormal) {
     LOG(INFO) << "Unable to persist state: " << Read(buffer_variables::name);
     return failure(L"Unable to persist state.");
+  }
+  if (child_pid_ != -1) {
+    if (Read(buffer_variables::term_on_close)) {
+      LOG(INFO) << "Sending termination and preparing handler: "
+                << Read(buffer_variables::name);
+      kill(child_pid_, SIGTERM);
+      on_exit_handler_ = [this, success, failure]() {
+        CHECK_EQ(child_pid_, -1);
+        LOG(INFO) << "Subprocess terminated: " << Read(buffer_variables::name);
+        PrepareToClose(success, failure);
+      };
+      return;
+    }
+    CHECK(editor_->modifiers().strength > Modifiers::Strength::kNormal);
   }
   if (!dirty()) {
     LOG(INFO) << Read(buffer_variables::name) << ": clean, skipping.";
@@ -579,11 +616,9 @@ void OpenBuffer::PrepareToClose(std::function<void()> success,
               << ": allows dirty delete, skipping.";
     return success();
   }
-  if (editor_->modifiers().strength > Modifiers::Strength::kNormal) {
-    LOG(INFO) << Read(buffer_variables::name) << ": Deleting due to modifiers.";
-    return success();
-  }
-  return failure(L"Buffer has unsaved changes.");
+  CHECK(editor_->modifiers().strength > Modifiers::Strength::kNormal);
+  LOG(INFO) << Read(buffer_variables::name) << ": Deleting due to modifiers.";
+  return success();
 }
 
 void OpenBuffer::Close() {
@@ -736,6 +771,11 @@ void OpenBuffer::EndOfFile() {
       SetStatus(L"waitpid failed: " + FromByteString(strerror(errno)));
       return;
     }
+    child_pid_ = -1;
+    if (on_exit_handler_) {
+      on_exit_handler_();
+      on_exit_handler_ = nullptr;
+    }
   }
 
   // We can remove expired marks now. We know that the set of fresh marks is now
@@ -743,8 +783,6 @@ void OpenBuffer::EndOfFile() {
   editor()->line_marks()->RemoveExpiredMarksFromSource(
       Read(buffer_variables::name));
   editor()->ScheduleRedraw();
-
-  child_pid_ = -1;
 
   vector<std::function<void()>> observers;
   observers.swap(end_of_file_observers_);

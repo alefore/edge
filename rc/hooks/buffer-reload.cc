@@ -126,6 +126,12 @@ if (path == "") {
       buffer.set_pts(true);
       buffer.set_follow_end_of_file(true);
       buffer.set_buffer_list_context_lines(5);
+      if (base_command == "bash" || base_command == "sh") {
+        // If the user deletes the buffer, we send SIGTERM to it and wait for
+        // the shell to exit. If the shell is currently running a process, it
+        // will simply ignore the signal.
+        buffer.set_term_on_close(true);
+      }
     } else if (base_command == "make") {
       buffer.set_contains_line_marks(true);
       buffer.set_reload_on_buffer_write(true);

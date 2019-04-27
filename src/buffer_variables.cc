@@ -65,6 +65,12 @@ EdgeVariable<bool>* const atomic_lines = BoolStruct()->AddVariable(
     L"represented as a line), for which this is a natural behavior.",
     false);
 
+EdgeVariable<bool>* const term_on_close = BoolStruct()->AddVariable(
+    L"term_on_close",
+    L"If this buffer has a child process, should Edge send a SIGTERM signal to "
+    L"the child process when the buffer is closed?",
+    false);
+
 EdgeVariable<bool>* const save_on_close = BoolStruct()->AddVariable(
     L"save_on_close",
     L"Should this buffer be saved automatically when it's closed?\n\n"

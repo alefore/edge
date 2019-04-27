@@ -17,6 +17,7 @@ extern EdgeVariable<bool>* const reload_after_exit;
 extern EdgeVariable<bool>* const default_reload_after_exit;
 extern EdgeVariable<bool>* const reload_on_enter;
 extern EdgeVariable<bool>* const atomic_lines;
+extern EdgeVariable<bool>* const term_on_close;
 extern EdgeVariable<bool>* const save_on_close;
 extern EdgeVariable<bool>* const clear_on_reload;
 extern EdgeVariable<bool>* const paste_mode;
