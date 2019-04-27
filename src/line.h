@@ -124,8 +124,8 @@ class Line {
   }
 
   struct OutputOptions {
-    LineColumn position;
     OutputReceiver* output_receiver = nullptr;
+    size_t initial_column;
     size_t width = 0;
   };
   void Output(const OutputOptions& options) const;

@@ -271,8 +271,8 @@ void BufferOutputProducer::WriteLine(Options options) {
   }
 
   Line::OutputOptions line_output_options;
-  line_output_options.position = range.begin;
   line_output_options.output_receiver = options.receiver.get();
+  line_output_options.initial_column = range.begin.column;
   if (range.begin.line == range.end.line) {
     CHECK_GE(range.end.column, range.begin.column);
     CHECK_LE(range.end.column - range.begin.column, columns_shown_);

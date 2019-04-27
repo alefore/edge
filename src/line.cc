@@ -131,7 +131,7 @@ std::shared_ptr<vm::Environment> Line::environment() const {
 void Line::Output(const Line::OutputOptions& options) const {
   std::unique_lock<std::mutex> lock(mutex_);
   VLOG(5) << "Producing output of line: " << ToString();
-  size_t input_column = options.position.column;
+  size_t input_column = options.initial_column;
   unordered_set<LineModifier, hash<int>> current_modifiers;
 
   CHECK(environment_ != nullptr);
