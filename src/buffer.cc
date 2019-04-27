@@ -1852,11 +1852,15 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
                                                : min(position, output.begin);
   bool move_start = true;
   for (size_t i = 0; i < modifiers.repetitions - 1; i++) {
+    LineColumn position = output.end;
     if (!modifiers.structure->SeekToLimit(this, forward, &output.end)) {
       move_start = false;
       break;
     }
     modifiers.structure->SeekToNext(this, forward, &output.end);
+    if (output.end == position) {
+      break;
+    }
   }
 
   switch (modifiers.boundary_end) {
