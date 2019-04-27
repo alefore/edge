@@ -14,8 +14,6 @@ When a line wraps, don't let it cut the scrollbar/syntax tree.
 
 When an inactive cursor is exactly at the line_width, it's currently not shown.
 
-`wrap_from_contents`: When toggled, schedule a redraw.
-
 `wrap_long_lines`:
 * Make `j` and `k` scroll within the line.
 * Make it possible to scroll to the very end of the file (and show it).
