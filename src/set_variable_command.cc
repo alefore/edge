@@ -63,6 +63,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
           return;
         }
         buffer->Set(var, input);
+        buffer->editor()->ScheduleRedraw();
         // ResetMode causes the prompt to be deleted, and the captures of
         // this lambda go away with it.
         buffer->ResetMode();
@@ -77,6 +78,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
     auto var = buffer_variables::BoolStruct()->find_variable(name);
     if (var != nullptr) {
       buffer->toggle_bool_variable(var);
+      buffer->editor()->ScheduleRedraw();
       editor_state->SetStatus((buffer->Read(var) ? L"🗸 " : L"⛶ ") + name);
       return;
     }
@@ -96,6 +98,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
                                   var->name() + L"”: " +
                                   FromByteString(ia.what()));
         }
+        buffer->editor()->ScheduleRedraw();
         // ResetMode causes the prompt to be deleted, and the captures of
         // this lambda go away with it.
         buffer->ResetMode();
@@ -122,6 +125,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
           editor_state->SetStatus(L"Invalid value for double value “" +
                                   var->name() + L"”: " + input);
         }
+        buffer->editor()->ScheduleRedraw();
         // ResetMode causes the prompt to be deleted, and the captures of
         // this lambda go away with it.
         buffer->ResetMode();
