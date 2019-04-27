@@ -382,23 +382,6 @@ void BufferTreeHorizontal::SetBuffersVisible(BuffersVisible buffers_visible) {
 }
 
 void BufferTreeHorizontal::RecomputeLinesPerChild() {
-  LOG(INFO) << "Filtering out dead children.";
-  std::vector<std::unique_ptr<Widget>> new_children;
-  for (size_t i = 0; i < children_.size(); i++) {
-    auto buffer = children_[i]->GetActiveLeaf()->Lock();
-    if (buffer == nullptr ||
-        !buffer->Read(buffer_variables::show_in_buffers_list)) {
-      continue;
-    }
-    if (i == active_) {
-      active_ = new_children.size();
-    }
-    new_children.push_back(std::move(children_[i]));
-  }
-  if (!new_children.empty()) {
-    children_ = std::move(new_children);
-  }
-
   lines_per_child_.clear();
   for (size_t i = 0; i < children_.size(); i++) {
     auto child = children_[i].get();
@@ -413,6 +396,7 @@ void BufferTreeHorizontal::RecomputeLinesPerChild() {
     }
     lines_per_child_.push_back(lines);
   }
+  CHECK_EQ(lines_per_child_.size(), children_.size());
 
   bool show_frames =
       std::count_if(lines_per_child_.begin(), lines_per_child_.end(),
@@ -430,7 +414,6 @@ void BufferTreeHorizontal::RecomputeLinesPerChild() {
   size_t lines_given =
       std::accumulate(lines_per_child_.begin(), lines_per_child_.end(), 0);
 
-  size_t reserved_lines = 0;
   buffers_list_.clear();
   if (buffers_visible_ == BuffersVisible::kAll) {
     std::vector<BufferListPosition> all_buffers;
@@ -451,8 +434,8 @@ void BufferTreeHorizontal::RecomputeLinesPerChild() {
       }
       buffers_list_.back().push_back(std::move(buffer));
     }
-    reserved_lines = buffers_list_.size();
   }
+  size_t reserved_lines = buffers_list_.size();
 
   // TODO: this could be done way faster (sort + single pass over all
   // buffers).
@@ -479,19 +462,33 @@ void BufferTreeHorizontal::RecomputeLinesPerChild() {
     }
   }
 
-  if (lines_given < lines_ - reserved_lines) {
+  CHECK_EQ(lines_given, std::accumulate(lines_per_child_.begin(),
+                                        lines_per_child_.end(), 0));
+
+  if (lines_ > lines_given + reserved_lines) {
     LOG(INFO) << "Donating spare lines to the active widget: "
               << lines_ - reserved_lines - lines_given;
     lines_per_child_[active_] += lines_ - reserved_lines - lines_given;
   }
-  for (size_t i = 0; i < lines_per_child_.size(); i++) {
-    if (buffers_visible_ == BuffersVisible::kActive && i != active_) {
-      continue;
-    }
-    children_[i]->SetSize(lines_per_child_[i] - (show_frames ? 1 : 0),
-                          columns_);
+
+  CHECK_EQ(lines_, std::accumulate(lines_per_child_.begin(),
+                                   lines_per_child_.end(), 0) +
+                       reserved_lines);
+
+  switch (buffers_visible_) {
+    case BuffersVisible::kActive:
+      children_[active_]->SetSize(
+          lines_per_child_[active_] - (show_frames ? 1 : 0), columns_);
+      break;
+
+    case BuffersVisible::kAll:
+      for (size_t i = 0; i < lines_per_child_.size(); i++) {
+        children_[i]->SetSize(lines_per_child_[i] - (show_frames ? 1 : 0),
+                              columns_);
+      }
+      break;
   }
-}  // namespace editor
+}
 
 }  // namespace editor
 }  // namespace afc
