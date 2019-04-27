@@ -20,6 +20,10 @@ namespace editor {
 // they may exceed past the length of any and all buffers. The set may be empty.
 class CursorsSet {
  public:
+  CursorsSet() = default;
+  CursorsSet(const CursorsSet& other)
+      : cursors_(other.cursors_), active_(cursors_.find(*other.active_)) {}
+
   using iterator = std::multiset<LineColumn>::iterator;
   using const_iterator = std::multiset<LineColumn>::const_iterator;
 
