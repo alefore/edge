@@ -24,6 +24,15 @@ class CursorsHighlighter
     UpdateColumnRead(0);
   }
 
+  ~CursorsHighlighter() {
+    if (cursor_state_ == CursorState::kInactive && column() < width()) {
+      AddInternalModifier(LineModifier::REVERSE);
+      AddInternalModifier(options_.multiple_cursors ? LineModifier::CYAN
+                                                    : LineModifier::BLUE);
+      AddCharacter(L' ');
+    }
+  }
+
   void AddCharacter(wchar_t c) override {
     CheckInvariants();
     switch (cursor_state_) {

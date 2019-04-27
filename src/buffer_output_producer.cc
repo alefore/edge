@@ -234,7 +234,8 @@ void BufferOutputProducer::WriteLine(Options options) {
     CursorsHighlighterOptions cursors_highlighter_options;
     cursors_highlighter_options.delegate = std::move(options.receiver);
     cursors_highlighter_options.columns = current_cursors;
-    if (range.Contains(buffer_->position())) {
+    if (range.Contains(buffer_->position()) ||
+        range.end == buffer_->position()) {
       cursors_highlighter_options.active_cursor_input =
           min(buffer_->position().column, line_size) - range.begin.column;
       cursors_highlighter_options.active_cursor_output = &active_cursor_column;
@@ -322,10 +323,6 @@ Range BufferOutputProducer::GetRange(LineColumn begin) {
       }
       if (moved) {
         end.column++;
-      }
-      while (end.column > begin.column + 1 &&
-             std::iswspace(read(end.column - 1))) {
-        end.column--;
       }
       if (end.column <= begin.column + 1) {
         LOG(INFO) << "Giving up, line exceeds width.";

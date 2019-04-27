@@ -12,7 +12,9 @@ Make the widgets work closer to nethack or a similar command-line game.
 
 When a line wraps, don't let it cut the scrollbar/syntax tree.
 
-`wrap_from_content`: When the cursor is at the end of an output line from somewhere in the middle of a buffer line that wraps, it's currently not shown. It should be shown. When toggled, schedule a redraw.
+When an inactive cursor is exactly at the line_width, it's currently not shown.
+
+`wrap_from_contents`: When toggled, schedule a redraw.
 
 `wrap_long_lines`:
 * Make `j` and `k` scroll within the line.
