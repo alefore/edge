@@ -20,12 +20,12 @@ void TestBufferContentsSnapshot() {
     contents.push_back(std::make_shared<Line>(Line::Options(NewLazyString(s))));
   }
   auto copy = contents.copy();
-  CHECK_EQ("alejandro\nforero\ncuervo", ToByteString(contents.ToString()));
-  CHECK_EQ("alejandro\nforero\ncuervo", ToByteString(copy->ToString()));
+  CHECK_EQ("\nalejandro\nforero\ncuervo", ToByteString(contents.ToString()));
+  CHECK_EQ("\nalejandro\nforero\ncuervo", ToByteString(copy->ToString()));
 
-  contents.SplitLine(LineColumn(1, 3));
-  CHECK_EQ("alejandro\nfor\nero\ncuervo", ToByteString(contents.ToString()));
-  CHECK_EQ("alejandro\nforero\ncuervo", ToByteString(copy->ToString()));
+  contents.SplitLine(LineColumn(2, 3));
+  CHECK_EQ("\nalejandro\nfor\nero\ncuervo", ToByteString(contents.ToString()));
+  CHECK_EQ("\nalejandro\nforero\ncuervo", ToByteString(copy->ToString()));
 }
 
 void TestBufferInsertModifiers() {
@@ -44,16 +44,11 @@ void TestBufferInsertModifiers() {
 
   for (int i = 0; i < 2; i++) {
     LOG(INFO) << "Start iteration: " << i;
-    CHECK_EQ(contents.size(), 4);
-
-    CHECK(contents.at(0)->modifiers()[0] ==
-          LineModifierSet({LineModifier::CYAN}));
-    CHECK(contents.at(0)->modifiers()[1] ==
-          LineModifierSet({LineModifier::CYAN}));
-    CHECK(contents.at(0)->modifiers()[2] ==
-          LineModifierSet({LineModifier::CYAN}));
+    CHECK_EQ(contents.size(), 5);
 
     CHECK(contents.at(1)->modifiers()[0] ==
+          LineModifierSet({LineModifier::CYAN}));
+    CHECK(contents.at(1)->modifiers()[1] ==
           LineModifierSet({LineModifier::CYAN}));
     CHECK(contents.at(1)->modifiers()[2] ==
           LineModifierSet({LineModifier::CYAN}));
@@ -61,22 +56,27 @@ void TestBufferInsertModifiers() {
     CHECK(contents.at(2)->modifiers()[0] ==
           LineModifierSet({LineModifier::CYAN}));
     CHECK(contents.at(2)->modifiers()[2] ==
-          LineModifierSet({LineModifier::CYAN, LineModifier::BOLD}));
+          LineModifierSet({LineModifier::CYAN}));
 
     CHECK(contents.at(3)->modifiers()[0] ==
-          LineModifierSet({LineModifier::DIM}));
+          LineModifierSet({LineModifier::CYAN}));
     CHECK(contents.at(3)->modifiers()[2] ==
+          LineModifierSet({LineModifier::CYAN, LineModifier::BOLD}));
+
+    CHECK(contents.at(4)->modifiers()[0] ==
+          LineModifierSet({LineModifier::DIM}));
+    CHECK(contents.at(4)->modifiers()[2] ==
           LineModifierSet({LineModifier::DIM}));
 
-    contents.SplitLine(LineColumn(0, 2));
+    contents.SplitLine(LineColumn(1, 2));
+    CHECK_EQ(contents.size(), 6);
+    contents.FoldNextLine(1);
     CHECK_EQ(contents.size(), 5);
-    contents.FoldNextLine(0);
-    CHECK_EQ(contents.size(), 4);
 
-    contents.SplitLine(LineColumn(3, 2));
+    contents.SplitLine(LineColumn(4, 2));
+    CHECK_EQ(contents.size(), 6);
+    contents.FoldNextLine(4);
     CHECK_EQ(contents.size(), 5);
-    contents.FoldNextLine(3);
-    CHECK_EQ(contents.size(), 4);
   }
 }
 }  // namespace
