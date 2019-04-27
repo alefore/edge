@@ -405,10 +405,13 @@ size_t CursorsTracker::Push() {
 }
 
 size_t CursorsTracker::Pop() {
+  LOG(INFO) << "CursorsTracker::Pop starts. Active: " << cursors_[L""].size()
+            << ", stack: " << cursors_stack_.back().size();
   if (cursors_stack_.empty()) {
     return 0;
   }
 
+  CHECK(&cursors_[L""] != &cursors_stack_.back());
   cursors_[L""].swap(&cursors_stack_.back());
   cursors_stack_.pop_back();
 
