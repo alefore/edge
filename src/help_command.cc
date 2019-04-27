@@ -98,6 +98,7 @@ class HelpCommand : public Command {
 
     auto buffer = std::make_shared<OpenBuffer>(editor_state, name);
     buffer->Set(buffer_variables::tree_parser, L"md");
+    buffer->Set(buffer_variables::wrap_from_content, true);
     buffer->Set(buffer_variables::allow_dirty_delete, true);
     buffer->Set(buffer_variables::show_in_buffers_list, false);
 
