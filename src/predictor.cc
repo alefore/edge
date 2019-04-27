@@ -90,7 +90,7 @@ void HandleEndOfFile(OpenBuffer* buffer,
   } else {
     auto editor_state = buffer->editor();
     auto it =
-        editor_state->buffers()->find(buffer->Read(buffer_variables::name()));
+        editor_state->buffers()->find(buffer->Read(buffer_variables::name));
     if (it == editor_state->buffers()->end()) {
       editor_state->SetWarningStatus(L"Error: predictions buffer not found.");
     } else {
@@ -118,8 +118,8 @@ void Predict(EditorState* editor_state, Predictor predictor, wstring input,
         [buffer, consumer]() { HandleEndOfFile(buffer, consumer); });
   };
   predictions_buffer = std::make_shared<OpenBuffer>(std::move(options));
-  predictions_buffer->Set(buffer_variables::show_in_buffers_list(), false);
-  predictions_buffer->Set(buffer_variables::allow_dirty_delete(), true);
+  predictions_buffer->Set(buffer_variables::show_in_buffers_list, false);
+  predictions_buffer->Set(buffer_variables::allow_dirty_delete, true);
   predictions_buffer->Reload();
 }
 

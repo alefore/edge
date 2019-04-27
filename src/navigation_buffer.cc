@@ -31,9 +31,8 @@ void AdjustLastLine(OpenBuffer* buffer, std::shared_ptr<OpenBuffer> link_to,
 // Modifles line_options.contents, appending to it from input.
 void AddContents(const OpenBuffer& source, const Line& input,
                  Line::Options* line_options) {
-  auto trim =
-      StringTrimLeft(input.contents(),
-                     source.Read(buffer_variables::line_prefix_characters()));
+  auto trim = StringTrimLeft(
+      input.contents(), source.Read(buffer_variables::line_prefix_characters));
   CHECK_LE(trim->size(), input.contents()->size());
   size_t characters_trimmed = input.contents()->size() - trim->size();
   size_t initial_length = line_options->contents->size();
@@ -117,8 +116,7 @@ void GenerateContents(EditorState* editor_state,
     return;
   }
 
-  target->AppendToLastLine(
-      NewLazyString(source->Read(buffer_variables::name())));
+  target->AppendToLastLine(NewLazyString(source->Read(buffer_variables::name)));
   auto depth_value =
       target->environment()->Lookup(kDepthSymbol, VMType::Integer());
   int depth = depth_value == nullptr ? 3 : size_t(max(0, depth_value->integer));
@@ -144,7 +142,7 @@ class NavigationBufferCommand : public Command {
       return;
     }
 
-    auto name = L"Navigation: " + source->Read(buffer_variables::name());
+    auto name = L"Navigation: " + source->Read(buffer_variables::name);
     auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
     if (it.second) {
       OpenBuffer::Options options;
@@ -156,11 +154,11 @@ class NavigationBufferCommand : public Command {
         GenerateContents(editor_state, source_weak, target);
       };
       auto buffer = std::make_shared<OpenBuffer>(std::move(options));
-      buffer->Set(buffer_variables::show_in_buffers_list(), false);
-      buffer->Set(buffer_variables::push_positions_to_history(), false);
-      buffer->Set(buffer_variables::allow_dirty_delete(), true);
+      buffer->Set(buffer_variables::show_in_buffers_list, false);
+      buffer->Set(buffer_variables::push_positions_to_history, false);
+      buffer->Set(buffer_variables::allow_dirty_delete, true);
       buffer->environment()->Define(kDepthSymbol, Value::NewInteger(3));
-      buffer->Set(buffer_variables::reload_on_enter(), true);
+      buffer->Set(buffer_variables::reload_on_enter, true);
       it.first->second = buffer;
       editor_state->StartHandlingInterrupts();
     }

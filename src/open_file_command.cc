@@ -44,7 +44,7 @@ std::unique_ptr<Command> NewOpenFileCommand() {
         auto buffer = editor_state->current_buffer();
 
         if (buffer != nullptr) {
-          wstring path = buffer->Read(buffer_variables::path());
+          wstring path = buffer->Read(buffer_variables::path);
           struct stat stat_buffer;
           if (stat(ToByteString(path).c_str(), &stat_buffer) == -1 ||
               !S_ISDIR(stat_buffer.st_mode)) {

@@ -97,9 +97,9 @@ class HelpCommand : public Command {
     const wstring name = L"- help: " + mode_description_;
 
     auto buffer = std::make_shared<OpenBuffer>(editor_state, name);
-    buffer->Set(buffer_variables::tree_parser(), L"md");
-    buffer->Set(buffer_variables::allow_dirty_delete(), true);
-    buffer->Set(buffer_variables::show_in_buffers_list(), false);
+    buffer->Set(buffer_variables::tree_parser, L"md");
+    buffer->Set(buffer_variables::allow_dirty_delete, true);
+    buffer->Set(buffer_variables::show_in_buffers_list, false);
 
     buffer->AppendToLastLine(NewLazyString(L"# Edge - Help"));
     buffer->AppendEmptyLine();

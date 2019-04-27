@@ -77,7 +77,7 @@ void GenerateContents(EditorState* editor_state,
   static const int parent_fd = 0;
   static const int child_fd = 1;
   time(&data->time_start);
-  if (target->Read(buffer_variables::pts())) {
+  if (target->Read(buffer_variables::pts)) {
     int master_fd = posix_openpt(O_RDWR);
     if (master_fd == -1) {
       cerr << "posix_openpt failed: " << string(strerror(errno));
@@ -104,7 +104,7 @@ void GenerateContents(EditorState* editor_state,
     }
     pipefd_out[parent_fd] = master_fd;
     char* pts_path = ptsname(master_fd);
-    target->Set(buffer_variables::pts_path(), FromByteString(pts_path));
+    target->Set(buffer_variables::pts_path, FromByteString(pts_path));
     pipefd_out[child_fd] = open(pts_path, O_RDWR);
     if (pipefd_out[child_fd] == -1) {
       cerr << "open failed: " << pts_path << ": " << string(strerror(errno));
@@ -150,7 +150,7 @@ void GenerateContents(EditorState* editor_state,
       close(pipefd_err[child_fd]);
     }
 
-    auto children_path = target->Read(buffer_variables::children_path());
+    auto children_path = target->Read(buffer_variables::children_path);
     if (!children_path.empty() &&
         chdir(ToByteString(children_path).c_str()) == -1) {
       LOG(FATAL) << children_path
@@ -169,7 +169,7 @@ void GenerateContents(EditorState* editor_state,
     }
     environment[L"TERM"] = L"screen";
     environment = LoadEnvironmentVariables(
-        editor_state->edge_path(), target->Read(buffer_variables::command()),
+        editor_state->edge_path(), target->Read(buffer_variables::command),
         environment);
 
     char** envp =
@@ -185,7 +185,7 @@ void GenerateContents(EditorState* editor_state,
 
     char* argv[] = {
         strdup("sh"), strdup("-c"),
-        strdup(ToByteString(target->Read(buffer_variables::command())).c_str()),
+        strdup(ToByteString(target->Read(buffer_variables::command)).c_str()),
         nullptr};
     int status = execve("/bin/sh", argv, envp);
     exit(WIFEXITED(status) ? WEXITSTATUS(status) : 1);
@@ -195,15 +195,15 @@ void GenerateContents(EditorState* editor_state,
   LOG(INFO) << "Setting input files: " << pipefd_out[parent_fd] << ", "
             << pipefd_err[parent_fd];
   target->SetInputFiles(pipefd_out[parent_fd], pipefd_err[parent_fd],
-                        target->Read(buffer_variables::pts()), child_pid);
+                        target->Read(buffer_variables::pts), child_pid);
   editor_state->ScheduleRedraw();
   target->AddEndOfFileObserver([editor_state, data, target]() {
     LOG(INFO) << "End of file notification.";
     int success = WIFEXITED(target->child_exit_status()) &&
                   WEXITSTATUS(target->child_exit_status()) == 0;
     double frequency =
-        target->Read(success ? buffer_variables::beep_frequency_success()
-                             : buffer_variables::beep_frequency_failure());
+        target->Read(success ? buffer_variables::beep_frequency_success
+                             : buffer_variables::beep_frequency_failure);
     if (frequency > 0.0001) {
       GenerateBeep(editor_state->audio_player(), frequency);
     }
@@ -286,7 +286,7 @@ void RunCommand(const wstring& name, const wstring& input,
   options.buffer_name = name;
   options.insertion_type =
       buffer == nullptr ||
-              !buffer->Read(buffer_variables::commands_background_mode())
+              !buffer->Read(buffer_variables::commands_background_mode)
           ? BufferTreeHorizontal::InsertionType::kSearchOrCreate
           : BufferTreeHorizontal::InsertionType::kSkip;
   options.children_path = children_path;
@@ -310,7 +310,7 @@ void RunCommandHandler(const wstring& input, EditorState* editor_state,
 
 wstring GetChildrenPath(EditorState* editor_state) {
   auto buffer = editor_state->current_buffer();
-  return buffer != nullptr ? buffer->Read(buffer_variables::children_path())
+  return buffer != nullptr ? buffer->Read(buffer_variables::children_path)
                            : L"";
 }
 
@@ -447,8 +447,8 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
       return FlagsString(*command_data, buffer);
     };
     auto buffer = std::make_shared<OpenBuffer>(std::move(buffer_options));
-    buffer->Set(buffer_variables::children_path(), options.children_path);
-    buffer->Set(buffer_variables::command(), options.command);
+    buffer->Set(buffer_variables::children_path, options.children_path);
+    buffer->Set(buffer_variables::command, options.command);
     it.first->second = std::move(buffer);
   } else {
     it.first->second->ResetMode();

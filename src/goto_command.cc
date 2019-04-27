@@ -58,7 +58,7 @@ class GotoCharTransformation : public Transformation {
 
   void Apply(OpenBuffer* buffer, Result* result) const override {
     const wstring& line_prefix_characters =
-        buffer->Read(buffer_variables::line_prefix_characters());
+        buffer->Read(buffer_variables::line_prefix_characters);
     const auto& line = buffer->LineAt(result->cursor.line);
     if (line == nullptr) {
       result->success = false;

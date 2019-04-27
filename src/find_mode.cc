@@ -27,7 +27,7 @@ class FindTransformation : public Transformation {
         result->success = false;
         return;
       }
-      if (buffer->Read(buffer_variables::multiple_cursors())) {
+      if (buffer->Read(buffer_variables::multiple_cursors)) {
         buffer->editor()->ScheduleRedraw();
       }
       result->made_progress = true;

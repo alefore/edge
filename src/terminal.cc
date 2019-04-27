@@ -56,7 +56,7 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   if (editor_state->status_prompt()) {
     screen->SetCursorVisibility(Screen::NORMAL);
   } else if (buffer == nullptr ||
-             buffer->Read(buffer_variables::atomic_lines()) ||
+             buffer->Read(buffer_variables::atomic_lines) ||
              !cursor_position_.has_value()) {
     screen->SetCursorVisibility(Screen::INVISIBLE);
   } else {
@@ -118,9 +118,9 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
     for (auto& it : *editor_state.buffers()) {
       if (it.second->ShouldDisplayProgress()) {
         auto name = TransformCommandNameForStatus(
-            it.second->Read(buffer_variables::name()));
-        size_t progress = it.second->Read(buffer_variables::progress()) %
-                          (4 + 2 * name.size());
+            it.second->Read(buffer_variables::name));
+        size_t progress =
+            it.second->Read(buffer_variables::progress) % (4 + 2 * name.size());
         if (progress == 0 || progress == 1) {
           static const std::vector<wstring> begin = {L"◟", L"◜"};
           status += begin[progress] + name + L" ";
@@ -147,7 +147,7 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
     auto active_cursors = buffer->active_cursors()->size();
     if (active_cursors != 1) {
       status += L" " +
-                (buffer->Read(buffer_variables::multiple_cursors())
+                (buffer->Read(buffer_variables::multiple_cursors)
                      ? wstring(L"CURSORS")
                      : wstring(L"cursors")) +
                 L":" + to_wstring(active_cursors) + L" ";
@@ -267,7 +267,7 @@ wstring Terminal::GetBufferContext(const EditorState& editor_state,
       return source->second->contents()->at(mark.source_line)->ToString();
     }
   }
-  return buffer->Read(buffer_variables::name());
+  return buffer->Read(buffer_variables::name);
 }
 
 class WithPrefixOutputReceiver : public DelegatingOutputReceiver {

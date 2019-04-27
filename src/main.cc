@@ -407,11 +407,11 @@ int main(int argc, const char** argv) {
       CHECK(buffers[i] != nullptr);
       if (buffers[i] && fds[i].fd == buffers[i]->fd()) {
         LOG(INFO) << "Reading (normal): "
-                  << buffers[i]->Read(buffer_variables::name());
+                  << buffers[i]->Read(buffer_variables::name);
         buffers[i]->ReadData();
       } else if (buffers[i] && fds[i].fd == buffers[i]->fd_error()) {
         LOG(INFO) << "Reading (error): "
-                  << buffers[i]->Read(buffer_variables::name());
+                  << buffers[i]->Read(buffer_variables::name);
         buffers[i]->ReadErrorData();
       } else {
         LOG(FATAL) << "Invalid file descriptor.";

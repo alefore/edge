@@ -189,7 +189,7 @@ BufferOutputProducer::BufferOutputProducer(
       current_tree_(buffer_->current_tree(root_.get())),
       zoomed_out_tree_(std::move(zoomed_out_tree)) {
   CHECK(line_scroll_control_reader_ != nullptr);
-  if (buffer_->Read(buffer_variables::reload_on_display())) {
+  if (buffer_->Read(buffer_variables::reload_on_display)) {
     buffer_->Reload();
   }
 }
@@ -225,7 +225,7 @@ void BufferOutputProducer::WriteLine(Options options) {
 
   std::unique_ptr<OutputReceiver> atomic_lines_highlighter;
   CHECK(line_contents->contents() != nullptr);
-  if (buffer_->Read(buffer_variables::atomic_lines()) &&
+  if (buffer_->Read(buffer_variables::atomic_lines) &&
       buffer_->active_cursors()->cursors_in_line(line)) {
     options.receiver = std::make_unique<HighlightedLineOutputReceiver>(
         std::move(options.receiver));
@@ -248,7 +248,7 @@ void BufferOutputProducer::WriteLine(Options options) {
       cursors_highlighter_options.columns.insert(line_size);
     }
     cursors_highlighter_options.multiple_cursors =
-        buffer_->Read(buffer_variables::multiple_cursors());
+        buffer_->Read(buffer_variables::multiple_cursors);
 
     options.receiver =
         NewCursorsHighlighter(std::move(cursors_highlighter_options));
@@ -296,7 +296,7 @@ Range BufferOutputProducer::GetRange(LineColumn begin) {
   }
   LineColumn end(begin.line, begin.column + columns_shown_);
   if (end.column < buffer_->LineAt(end.line)->size() &&
-      buffer_->Read(buffer_variables::wrap_long_lines())) {
+      buffer_->Read(buffer_variables::wrap_long_lines)) {
     return Range(begin, end);
   }
   end.line++;

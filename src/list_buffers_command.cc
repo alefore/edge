@@ -20,7 +20,7 @@ namespace {
 
 pair<size_t, size_t> LinesToShow(const OpenBuffer& buffer, size_t lines) {
   lines = min(lines, buffer.contents()->size());
-  VLOG(5) << buffer.Read(buffer_variables::name())
+  VLOG(5) << buffer.Read(buffer_variables::name)
           << ": Context lines to show: " << lines;
   if (lines == 0) {
     auto last = buffer.lines_size();
@@ -50,7 +50,7 @@ void AdjustLastLine(OpenBuffer* target, std::shared_ptr<OpenBuffer> buffer) {
 void GenerateContents(EditorState* editor_state, OpenBuffer* target) {
   target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
   bool show_in_buffers_list =
-      target->Read(buffer_variables::show_in_buffers_list());
+      target->Read(buffer_variables::show_in_buffers_list);
 
   size_t screen_lines = 0;
   auto screen_value =
@@ -66,7 +66,7 @@ void GenerateContents(EditorState* editor_state, OpenBuffer* target) {
   vector<std::shared_ptr<OpenBuffer>> buffers_to_show;
   for (const auto& it : *editor_state->buffers()) {
     if (!show_in_buffers_list &&
-        !it.second->Read(buffer_variables::show_in_buffers_list())) {
+        !it.second->Read(buffer_variables::show_in_buffers_list)) {
       LOG(INFO) << "Skipping buffer (!show_in_buffers_list).";
       continue;
     }
@@ -90,9 +90,8 @@ void GenerateContents(EditorState* editor_state, OpenBuffer* target) {
   size_t buffers_with_context = 0;
   for (const auto& buffer : buffers_to_show) {
     size_t value =
-        1 +
-        static_cast<size_t>(max(
-            buffer->Read(buffer_variables::buffer_list_context_lines()), 0));
+        1 + static_cast<size_t>(max(
+                buffer->Read(buffer_variables::buffer_list_context_lines), 0));
     lines_to_show[buffer.get()] = value;
     sum_lines_to_show += value;
     buffers_with_context += value > 1 ? 1 : 0;
@@ -120,10 +119,10 @@ void GenerateContents(EditorState* editor_state, OpenBuffer* target) {
     size_t context_lines_var = lines_to_show[buffer.get()] - 1;
     auto context = LinesToShow(*buffer, context_lines_var);
     std::shared_ptr<LazyString> name =
-        NewLazyString(buffer->Read(buffer_variables::name()));
+        NewLazyString(buffer->Read(buffer_variables::name));
     if (context.first != context.second) {
       name = StringAppend(NewLazyString(L"╭──"), name);
-      size_t width = target->Read(buffer_variables::line_width());
+      size_t width = target->Read(buffer_variables::line_width);
       if (width > name->size()) {
         name = StringAppend(
             name,
@@ -177,13 +176,13 @@ class ListBuffersCommand : public Command {
         GenerateContents(editor_state, target);
       };
       auto buffer = std::make_shared<OpenBuffer>(std::move(options));
-      buffer->Set(buffer_variables::reload_on_enter(), true);
-      buffer->Set(buffer_variables::atomic_lines(), true);
-      buffer->Set(buffer_variables::reload_on_display(), true);
-      buffer->Set(buffer_variables::show_in_buffers_list(), false);
-      buffer->Set(buffer_variables::push_positions_to_history(), false);
-      buffer->Set(buffer_variables::allow_dirty_delete(), true);
-      buffer->Set(buffer_variables::wrap_long_lines(), false);
+      buffer->Set(buffer_variables::reload_on_enter, true);
+      buffer->Set(buffer_variables::atomic_lines, true);
+      buffer->Set(buffer_variables::reload_on_display, true);
+      buffer->Set(buffer_variables::show_in_buffers_list, false);
+      buffer->Set(buffer_variables::push_positions_to_history, false);
+      buffer->Set(buffer_variables::allow_dirty_delete, true);
+      buffer->Set(buffer_variables::wrap_long_lines, false);
       it.first->second = std::move(buffer);
       editor_state->StartHandlingInterrupts();
     }

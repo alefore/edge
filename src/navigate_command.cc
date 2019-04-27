@@ -129,7 +129,7 @@ class NavigateModeSymbol : public NavigateMode {
   size_t InitialStart(OpenBuffer* buffer) override {
     wstring contents = buffer->current_line()->ToString();
     size_t previous_space = contents.find_last_not_of(
-        buffer->Read(buffer_variables::symbol_characters()),
+        buffer->Read(buffer_variables::symbol_characters),
         buffer->position().column);
     if (previous_space == wstring::npos) {
       return 0;
@@ -140,7 +140,7 @@ class NavigateModeSymbol : public NavigateMode {
   size_t InitialEnd(OpenBuffer* buffer) override {
     wstring contents = buffer->current_line()->ToString();
     size_t next_space = contents.find_first_not_of(
-        buffer->Read(buffer_variables::symbol_characters()),
+        buffer->Read(buffer_variables::symbol_characters),
         buffer->position().column);
     if (next_space == wstring::npos) {
       return buffer->current_line()->size();

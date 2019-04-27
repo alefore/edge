@@ -80,7 +80,7 @@ class CollapsedBuffersProducer : public OutputProducer {
     for (size_t i = 0; i < buffers_.size(); i++) {
       auto buffer = buffers_[i].buffer;
       options.receiver->AddModifier(LineModifier::RESET);
-      auto name = buffer->Read(buffer_variables::name());
+      auto name = buffer->Read(buffer_variables::name);
       auto number_prefix = std::to_wstring(buffers_[i].index + 1);
       size_t start = i * (columns_per_buffer + prefix_width) +
                      (prefix_width - number_prefix.size() - 2);
@@ -94,7 +94,7 @@ class CollapsedBuffersProducer : public OutputProducer {
 
       std::list<std::wstring> output_components;
       std::list<std::wstring> components;
-      if (buffer != nullptr && buffer->Read(buffer_variables::path()) == name &&
+      if (buffer != nullptr && buffer->Read(buffer_variables::path) == name &&
           DirectorySplit(name, &components) && !components.empty()) {
         name.clear();
         output_components.push_front(components.back());

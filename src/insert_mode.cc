@@ -40,16 +40,16 @@ class NewLineTransformation : public Transformation {
       return;
     }
 
-    if (buffer->Read(buffer_variables::atomic_lines()) && column != 0 &&
+    if (buffer->Read(buffer_variables::atomic_lines) && column != 0 &&
         column != line->size()) {
       result->made_progress = false;
       return;
     }
 
     const wstring& line_prefix_characters(
-        buffer->Read(buffer_variables::line_prefix_characters()));
+        buffer->Read(buffer_variables::line_prefix_characters));
     size_t prefix_end = 0;
-    if (line != nullptr && !buffer->Read(buffer_variables::paste_mode())) {
+    if (line != nullptr && !buffer->Read(buffer_variables::paste_mode)) {
       while (prefix_end < column &&
              (line_prefix_characters.find(line->get(prefix_end)) !=
               line_prefix_characters.npos)) {
@@ -286,7 +286,7 @@ void FindCompletion(EditorState* editor_state,
 
   auto line = buffer->current_line()->ToString();
   options.column_start =
-      line.find_last_not_of(buffer->Read(buffer_variables::symbol_characters()),
+      line.find_last_not_of(buffer->Read(buffer_variables::symbol_characters),
                             options.column_end - 1);
   if (options.column_start == wstring::npos) {
     options.column_start = 0;
@@ -330,7 +330,7 @@ void StartCompletionFromDictionary(EditorState* editor_state,
   options.editor_state = editor_state;
   options.insertion_type = BufferTreeHorizontal::InsertionType::kSkip;
   auto file = OpenFile(options);
-  file->second->Set(buffer_variables::show_in_buffers_list(), false);
+  file->second->Set(buffer_variables::show_in_buffers_list, false);
   LOG(INFO) << "Loading dictionary.";
   std::weak_ptr<OpenBuffer> weak_dictionary = file->second;
   std::weak_ptr<OpenBuffer> weak_buffer = buffer;
@@ -362,7 +362,7 @@ void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
 
 bool StartCompletion(EditorState* editor_state,
                      std::shared_ptr<OpenBuffer> buffer) {
-  auto path = buffer->Read(buffer_variables::dictionary());
+  auto path = buffer->Read(buffer_variables::dictionary);
   if (!path.empty()) {
     StartCompletionFromDictionary(editor_state, buffer, path);
     return true;
@@ -374,7 +374,7 @@ bool StartCompletion(EditorState* editor_state,
   LOG(INFO) << "Leaves found: " << words.size();
 
   std::wistringstream keywords(
-      buffer->Read(buffer_variables::language_keywords()));
+      buffer->Read(buffer_variables::language_keywords));
   words.insert(std::istream_iterator<wstring, wchar_t>(keywords),
                std::istream_iterator<wstring, wchar_t>());
 
@@ -687,7 +687,7 @@ class RawInputTypeMode : public EditorMode {
 };
 
 void EnterInsertCharactersMode(InsertModeOptions options) {
-  if (options.buffer->Read(buffer_variables::extend_lines())) {
+  if (options.buffer->Read(buffer_variables::extend_lines)) {
     options.buffer->MaybeExtendLine(options.buffer->position());
   } else {
     options.buffer->MaybeAdjustPositionCol();
@@ -702,7 +702,7 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
   }
 
   if (options.buffer->active_cursors()->size() > 1 &&
-      options.buffer->Read(buffer_variables::multiple_cursors())) {
+      options.buffer->Read(buffer_variables::multiple_cursors)) {
     BeepFrequencies(options.editor_state->audio_player(), {659.25, 1046.50});
   }
 }

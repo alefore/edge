@@ -216,7 +216,7 @@ class GotoPreviousPositionCommand : public Command {
           editor_state->current_buffer()->position();
       if (it != editor_state->buffers()->end() &&
           (pos.buffer_name !=
-               editor_state->current_buffer()->Read(buffer_variables::name()) ||
+               editor_state->current_buffer()->Read(buffer_variables::name) ||
            ((editor_state->structure() == StructureLine() ||
              editor_state->structure() == StructureWord() ||
              editor_state->structure() == StructureSymbol() ||
@@ -225,7 +225,7 @@ class GotoPreviousPositionCommand : public Command {
            (editor_state->structure() == StructureChar() &&
             pos.position.column != current_position.column))) {
         LOG(INFO) << "Jumping to position: "
-                  << it->second->Read(buffer_variables::name()) << " "
+                  << it->second->Read(buffer_variables::name) << " "
                   << pos.position;
         editor_state->set_current_buffer(it->second);
         it->second->set_position(pos.position);
@@ -619,8 +619,7 @@ class ActivateLink : public Command {
 
     auto target = buffer->GetBufferFromCurrentLine();
     if (target != nullptr && target != buffer) {
-      LOG(INFO) << "Visiting buffer: "
-                << target->Read(buffer_variables::name());
+      LOG(INFO) << "Visiting buffer: " << target->Read(buffer_variables::name);
       editor_state->ResetStatus();
       editor_state->set_current_buffer(target);
       auto target_position = buffer->current_line()->environment()->Lookup(
@@ -642,7 +641,7 @@ class ActivateLink : public Command {
     wstring line = buffer->current_line()->ToString();
 
     const wstring& path_characters =
-        buffer->Read(buffer_variables::path_characters());
+        buffer->Read(buffer_variables::path_characters);
 
     // Scroll back to the first non-path character. If we're in a non-path
     // character, this is a no-op.
@@ -677,7 +676,7 @@ class ActivateLink : public Command {
     options.initial_search_paths.clear();
     // Works if the current buffer is a directory listing:
     options.initial_search_paths.push_back(
-        buffer->Read(buffer_variables::path()));
+        buffer->Read(buffer_variables::path));
     // And a fall-back for the current buffer being a file:
     options.initial_search_paths.push_back(
         Dirname(options.initial_search_paths[0]));

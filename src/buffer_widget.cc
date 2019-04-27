@@ -33,7 +33,7 @@ size_t GetCurrentColumn(OpenBuffer* buffer) {
 }
 
 size_t GetDesiredViewStartColumn(OpenBuffer* buffer) {
-  if (buffer->Read(buffer_variables::wrap_long_lines())) {
+  if (buffer->Read(buffer_variables::wrap_long_lines)) {
     return 0;
   }
   size_t effective_size = 80;  // TODO: This is bogus.
@@ -56,14 +56,14 @@ std::unique_ptr<BufferWidget> BufferWidget::New(
 
 wstring BufferWidget::Name() const {
   auto buffer = Lock();
-  return buffer == nullptr ? L"" : buffer->Read(buffer_variables::name());
+  return buffer == nullptr ? L"" : buffer->Read(buffer_variables::name);
 }
 
 wstring BufferWidget::ToString() const {
   auto buffer = leaf_.lock();
   return L"[buffer tree leaf" +
          (buffer == nullptr ? L"nullptr"
-                            : buffer->Read(buffer_variables::name())) +
+                            : buffer->Read(buffer_variables::name)) +
          L"]";
 }
 
@@ -96,7 +96,7 @@ class LineNumberOutputProducer : public OutputProducer {
         line_scroll_control_reader_->GetCurrentCursors().empty()) {
       options.receiver->AddModifier(LineModifier::DIM);
     } else if (line_scroll_control_reader_->HasActiveCursor() ||
-               buffer_->Read(buffer_variables::multiple_cursors())) {
+               buffer_->Read(buffer_variables::multiple_cursors)) {
       options.receiver->AddModifier(LineModifier::CYAN);
       options.receiver->AddModifier(LineModifier::BOLD);
     } else {
@@ -123,16 +123,16 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
     return nullptr;
   }
 
-  bool paste_mode = buffer->Read(buffer_variables::paste_mode());
+  bool paste_mode = buffer->Read(buffer_variables::paste_mode);
   size_t buffer_columns =
       columns_ -
       (paste_mode
            ? 0
            : LineNumberOutputProducer::PrefixWidth(buffer->lines_size()));
-  if (!buffer->Read(buffer_variables::paste_mode())) {
+  if (!buffer->Read(buffer_variables::paste_mode)) {
     buffer_columns =
         min(buffer_columns,
-            static_cast<size_t>(buffer->Read(buffer_variables::line_width())));
+            static_cast<size_t>(buffer->Read(buffer_variables::line_width)));
   }
   auto line_scroll_control = LineScrollControl::New(buffer, view_start_.line);
 
@@ -151,7 +151,7 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
   columns[0].width = line_numbers->width();
   columns[0].producer = std::move(line_numbers);
 
-  columns[1].width = buffer->Read(buffer_variables::line_width());
+  columns[1].width = buffer->Read(buffer_variables::line_width);
   columns[1].producer = std::move(buffer_output_producer);
 
   columns[2].producer = std::make_unique<BufferMetadataOutputProducer>(
@@ -175,7 +175,7 @@ size_t BufferWidget::MinimumLines() {
   return buffer == nullptr
              ? 0
              : max(0,
-                   buffer->Read(buffer_variables::buffer_list_context_lines()));
+                   buffer->Read(buffer_variables::buffer_list_context_lines));
 }
 
 LineColumn BufferWidget::view_start() const { return view_start_; }
@@ -197,14 +197,14 @@ void BufferWidget::RecomputeData() {
 
   size_t line = min(buffer->position().line, buffer->contents()->size() - 1);
   size_t margin_lines =
-      buffer->Read(buffer_variables::pts())
+      buffer->Read(buffer_variables::pts)
           ? 0
           : min(lines_ / 2 - 1,
                 max(static_cast<size_t>(ceil(
-                        buffer->Read(buffer_variables::margin_lines_ratio()) *
+                        buffer->Read(buffer_variables::margin_lines_ratio) *
                         lines_)),
-                    static_cast<size_t>(max(
-                        buffer->Read(buffer_variables::margin_lines()), 0))));
+                    static_cast<size_t>(
+                        max(buffer->Read(buffer_variables::margin_lines), 0))));
 
   if (view_start_.line > line - min(margin_lines, line) &&
       (buffer->child_pid() != -1 || buffer->fd() == -1)) {

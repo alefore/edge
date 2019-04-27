@@ -448,7 +448,7 @@ bool EditorState::CloseBuffer(OpenBuffer* buffer) {
   CHECK(buffer != nullptr);
   if (!buffer->PrepareToClose()) {
     SetWarningStatus(L"🖝  Dirty buffers (“*ad” to ignore): " +
-                     buffer->Read(buffer_variables::name()));
+                     buffer->Read(buffer_variables::name));
     return false;
   }
   ScheduleRedraw();
@@ -462,7 +462,7 @@ bool EditorState::CloseBuffer(OpenBuffer* buffer) {
   }
 
   buffer->Close();
-  buffers_.erase(buffer->Read(buffer_variables::name()));
+  buffers_.erase(buffer->Read(buffer_variables::name));
 
   return true;
 }
@@ -484,7 +484,7 @@ void EditorState::SetHorizontalSplitsWithAllBuffers() {
   std::vector<std::unique_ptr<Widget>> buffers;
   size_t index_active = 0;
   for (auto& buffer : buffers_) {
-    if (!buffer.second->Read(buffer_variables::show_in_buffers_list())) {
+    if (!buffer.second->Read(buffer_variables::show_in_buffers_list)) {
       continue;
     }
     if (buffer.second == active_buffer) {
@@ -598,7 +598,7 @@ void EditorState::MoveBufferForwards(size_t times) {
 
   auto buffer = current_buffer();
   if (buffer != nullptr) {
-    it = buffers_.find(buffer->Read(buffer_variables::name()));
+    it = buffers_.find(buffer->Read(buffer_variables::name));
   }
 
   if (it == buffers_.end()) {
@@ -624,7 +624,7 @@ void EditorState::MoveBufferBackwards(size_t times) {
 
   auto buffer = current_buffer();
   if (buffer != nullptr) {
-    it = buffers_.find(buffer->Read(buffer_variables::name()));
+    it = buffers_.find(buffer->Read(buffer_variables::name));
   }
 
   if (it == buffers_.end()) {
@@ -676,7 +676,7 @@ void EditorState::PushCurrentPosition() {
 void EditorState::PushPosition(LineColumn position) {
   auto buffer = current_buffer();
   if (buffer == nullptr ||
-      !buffer->Read(buffer_variables::push_positions_to_history())) {
+      !buffer->Read(buffer_variables::push_positions_to_history)) {
     return;
   }
   auto buffer_it = buffers_.find(kPositionsBufferName);
@@ -690,10 +690,10 @@ void EditorState::PushPosition(LineColumn position) {
     buffer_it = OpenFile(options);
     CHECK(buffer_it != buffers()->end());
     CHECK(buffer_it->second != nullptr);
-    buffer_it->second->Set(buffer_variables::save_on_close(), true);
-    buffer_it->second->Set(buffer_variables::trigger_reload_on_buffer_write(),
+    buffer_it->second->Set(buffer_variables::save_on_close, true);
+    buffer_it->second->Set(buffer_variables::trigger_reload_on_buffer_write,
                            false);
-    buffer_it->second->Set(buffer_variables::show_in_buffers_list(), false);
+    buffer_it->second->Set(buffer_variables::show_in_buffers_list, false);
   }
   CHECK(buffer_it->second != nullptr);
   buffer_it->second->CheckPosition();
@@ -702,7 +702,7 @@ void EditorState::PushPosition(LineColumn position) {
   buffer_it->second->InsertLine(
       buffer_it->second->current_position_line(),
       std::make_shared<Line>(position.ToString() + L" " +
-                             buffer->Read(buffer_variables::name())));
+                             buffer->Read(buffer_variables::name)));
   CHECK_LE(buffer_it->second->position().line,
            buffer_it->second->contents()->size());
   if (buffer_it->second == buffer) {
@@ -731,10 +731,10 @@ void EditorState::SetStatus(const wstring& status) {
     // Inserted the entry.
     status_buffer_it.first->second =
         std::make_shared<OpenBuffer>(this, status_buffer_it.first->first);
-    status_buffer_it.first->second->Set(buffer_variables::allow_dirty_delete(),
+    status_buffer_it.first->second->Set(buffer_variables::allow_dirty_delete,
                                         true);
-    status_buffer_it.first->second->Set(
-        buffer_variables::show_in_buffers_list(), false);
+    status_buffer_it.first->second->Set(buffer_variables::show_in_buffers_list,
+                                        false);
   }
   status_buffer_it.first->second->AppendLazyString(NewLazyString(status));
   if (current_buffer() == status_buffer_it.first->second) {
@@ -831,7 +831,7 @@ bool EditorState::handling_stop_signals() const {
   if (target_buffer != nullptr) {
     buffer = target_buffer;
   }
-  return buffer->Read(buffer_variables::pts());
+  return buffer->Read(buffer_variables::pts);
 }
 
 }  // namespace editor

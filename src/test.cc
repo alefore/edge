@@ -27,7 +27,7 @@ void Clear(EditorState* editor_state) {
 
   editor_state->ProcessInputString("eegdl999999999999999\n");
   editor_state->ProcessInput(Terminal::ESCAPE);
-  editor_state->current_buffer()->Set(buffer_variables::multiple_cursors(),
+  editor_state->current_buffer()->Set(buffer_variables::multiple_cursors,
                                       false);
   editor_state->current_buffer()->DestroyOtherCursors();
   editor_state->current_buffer()->set_position(LineColumn());
@@ -422,8 +422,8 @@ void TestCases() {
 
   editor_state.ProcessInputString("w+");
   editor_state.ProcessInputString("_");
-  CHECK(editor_state.current_buffer()->Read(
-      buffer_variables::multiple_cursors()));
+  CHECK(
+      editor_state.current_buffer()->Read(buffer_variables::multiple_cursors));
 
   editor_state.ProcessInputString("i1234 ");
   editor_state.ProcessInput(Terminal::ESCAPE);

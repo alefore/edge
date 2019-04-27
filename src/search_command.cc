@@ -34,7 +34,7 @@ class SearchCommand : public Command {
 
     SearchOptions search_options;
     search_options.case_sensitive =
-        buffer->Read(buffer_variables::search_case_sensitive());
+        buffer->Read(buffer_variables::search_case_sensitive);
 
     if (editor_state->structure()->search_range() ==
         Structure::SearchRange::kBuffer) {
@@ -97,7 +97,7 @@ class SearchCommand : public Command {
               ->ToString();
       search_options.starting_position = buffer->position();
       search_options.case_sensitive =
-          buffer->Read(buffer_variables::search_case_sensitive());
+          buffer->Read(buffer_variables::search_case_sensitive);
       DoSearch(editor_state, search_options);
 
       buffer->ResetMode();

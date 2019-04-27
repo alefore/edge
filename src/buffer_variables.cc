@@ -5,589 +5,380 @@ namespace editor {
 namespace buffer_variables {
 
 EdgeStruct<bool>* BoolStruct() {
-  static EdgeStruct<bool>* output = nullptr;
-  if (output == nullptr) {
-    output = new EdgeStruct<bool>();
-    // Trigger registration of all fields.
-    pts();
-    vm_exec();
-    close_after_clean_exit();
-    allow_dirty_delete();
-    reload_after_exit();
-    default_reload_after_exit();
-    reload_on_enter();
-    atomic_lines();
-    save_on_close();
-    clear_on_reload();
-    paste_mode();
-    follow_end_of_file();
-    commands_background_mode();
-    reload_on_buffer_write();
-    trigger_reload_on_buffer_write();
-    contains_line_marks();
-    multiple_cursors();
-    reload_on_display();
-    show_in_buffers_list();
-    push_positions_to_history();
-    delete_into_paste_buffer();
-    scrollbar();
-    search_case_sensitive();
-    wrap_long_lines();
-    extend_lines();
-    display_progress();
-    persist_state();
-  }
+  static EdgeStruct<bool>* output = new EdgeStruct<bool>();
   return output;
 }
 
-EdgeVariable<bool>* pts() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"pts",
-      L"If a command is forked that writes to this buffer, should it be run "
-      L"with its own pseudoterminal?",
-      false);
-  return variable;
-}
+EdgeVariable<bool>* const pts = BoolStruct()->AddVariable(
+    L"pts",
+    L"If a command is forked that writes to this buffer, should it be run "
+    L"with its own pseudoterminal?",
+    false);
 
-EdgeVariable<bool>* vm_exec() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"vm_exec", L"If set, all input read into this buffer will be executed.",
-      false);
-  return variable;
-}
+EdgeVariable<bool>* const vm_exec = BoolStruct()->AddVariable(
+    L"vm_exec", L"If set, all input read into this buffer will be executed.",
+    false);
 
-EdgeVariable<bool>* close_after_clean_exit() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"close_after_clean_exit",
-      L"If a command is forked that writes to this buffer, should the buffer "
-      L"be closed when the command exits with a successful status code?\n\n"
-      L"This can be used to fork commands that you expect to succeed and where "
-      L"you don't care for their output unless they fail.",
-      false);
-  return variable;
-}
+EdgeVariable<bool>* const close_after_clean_exit = BoolStruct()->AddVariable(
+    L"close_after_clean_exit",
+    L"If a command is forked that writes to this buffer, should the buffer "
+    L"be closed when the command exits with a successful status code?\n\n"
+    L"This can be used to fork commands that you expect to succeed and where "
+    L"you don't care for their output unless they fail.",
+    false);
 
-EdgeVariable<bool>* allow_dirty_delete() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"allow_dirty_delete",
-      L"Allow this buffer to be deleted even if it's dirty (i.e. if it has "
-      L"unsaved changes or an underlying process that's still running).\n\n"
-      L"This applies both if the buffer is closed explicitly or implicitly "
-      L"when Edge exits.",
-      false);
-  return variable;
-}
+EdgeVariable<bool>* const allow_dirty_delete = BoolStruct()->AddVariable(
+    L"allow_dirty_delete",
+    L"Allow this buffer to be deleted even if it's dirty (i.e. if it has "
+    L"unsaved changes or an underlying process that's still running).\n\n"
+    L"This applies both if the buffer is closed explicitly or implicitly "
+    L"when Edge exits.",
+    false);
 
-EdgeVariable<bool>* reload_after_exit() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"reload_after_exit",
-      L"If a forked command that writes to this buffer exits, should Edge "
-      L"reload the buffer automatically?\n\n"
-      L"When the buffer is reloaded, this variable is automatically set to the "
-      L"value of `default_reload_after_exit`.",
-      false);
-  return variable;
-}
+EdgeVariable<bool>* const reload_after_exit = BoolStruct()->AddVariable(
+    L"reload_after_exit",
+    L"If a forked command that writes to this buffer exits, should Edge "
+    L"reload the buffer automatically?\n\n"
+    L"When the buffer is reloaded, this variable is automatically set to the "
+    L"value of `default_reload_after_exit`.",
+    false);
 
-EdgeVariable<bool>* default_reload_after_exit() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"default_reload_after_exit",
-      L"If a forked command that writes to this buffer exits and "
-      L"reload_after_exit is set, what should Edge set reload_after_exit just "
-      L"after reloading the buffer?",
-      false);
-  return variable;
-}
+EdgeVariable<bool>* const default_reload_after_exit = BoolStruct()->AddVariable(
+    L"default_reload_after_exit",
+    L"If a forked command that writes to this buffer exits and "
+    L"reload_after_exit is set, what should Edge set reload_after_exit just "
+    L"after reloading the buffer?",
+    false);
 
-EdgeVariable<bool>* reload_on_enter() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"reload_on_enter",
-      L"Should this buffer be reloaded automatically when visited?", false);
-  return variable;
-}
+EdgeVariable<bool>* const reload_on_enter = BoolStruct()->AddVariable(
+    L"reload_on_enter",
+    L"Should this buffer be reloaded automatically when visited?", false);
 
-EdgeVariable<bool>* atomic_lines() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"atomic_lines",
-      L"If true, lines can't be joined (e.g. you can't delete the last "
-      L"character in a line unless the line is empty). In this case, instead "
-      L"of displaying the cursors, Edge will show the currently selected "
-      L"line.\n\n"
-      "This is used by certain buffers (such as the list of buffers or a view "
-      L"of the contents of a directory) that represent lists of things (each "
-      L"represented as a line), for which this is a natural behavior.",
-      false);
-  return variable;
-}
+EdgeVariable<bool>* const atomic_lines = BoolStruct()->AddVariable(
+    L"atomic_lines",
+    L"If true, lines can't be joined (e.g. you can't delete the last "
+    L"character in a line unless the line is empty). In this case, instead "
+    L"of displaying the cursors, Edge will show the currently selected "
+    L"line.\n\n"
+    "This is used by certain buffers (such as the list of buffers or a view "
+    L"of the contents of a directory) that represent lists of things (each "
+    L"represented as a line), for which this is a natural behavior.",
+    false);
 
-EdgeVariable<bool>* save_on_close() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"save_on_close",
-      L"Should this buffer be saved automatically when it's closed?\n\n"
-      L"This applies both if the buffer is closed explicitly or implicitly "
-      L"when Edge exits.",
-      false);
-  return variable;
-}
+EdgeVariable<bool>* const save_on_close = BoolStruct()->AddVariable(
+    L"save_on_close",
+    L"Should this buffer be saved automatically when it's closed?\n\n"
+    L"This applies both if the buffer is closed explicitly or implicitly "
+    L"when Edge exits.",
+    false);
 
-EdgeVariable<bool>* clear_on_reload() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"clear_on_reload",
-      L"Should any previous contents be discarded when this buffer is "
-      L"reloaded? "
-      L"If false, previous contents will be preserved and new contents will be "
-      L"appended at the end.\n\n"
-      L"This is useful mainly for buffers with the output of commands, where "
-      L"you don't want to discard the output of previous runs as you reload "
-      L"the buffer.",
-      true);
-  return variable;
-}
+EdgeVariable<bool>* const clear_on_reload = BoolStruct()->AddVariable(
+    L"clear_on_reload",
+    L"Should any previous contents be discarded when this buffer is "
+    L"reloaded? "
+    L"If false, previous contents will be preserved and new contents will be "
+    L"appended at the end.\n\n"
+    L"This is useful mainly for buffers with the output of commands, where "
+    L"you don't want to discard the output of previous runs as you reload "
+    L"the buffer.",
+    true);
 
-EdgeVariable<bool>* paste_mode() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"paste_mode",
-      L"When paste_mode is enabled in a buffer, it will be displayed in a way "
-      L"that makes it possible to select (with a mouse) parts of it (that are "
-      L"currently shown).  It will also allow you to paste text directly into "
-      L"the buffer (i.e., it will disable any smart indenting).",
-      false);
-  return variable;
-}
+EdgeVariable<bool>* const paste_mode = BoolStruct()->AddVariable(
+    L"paste_mode",
+    L"When paste_mode is enabled in a buffer, it will be displayed in a way "
+    L"that makes it possible to select (with a mouse) parts of it (that are "
+    L"currently shown).  It will also allow you to paste text directly into "
+    L"the buffer (i.e., it will disable any smart indenting).",
+    false);
 
-EdgeVariable<bool>* follow_end_of_file() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"follow_end_of_file", L"Should the cursor stay at the end of the file?",
-      false);
-  return variable;
-}
+EdgeVariable<bool>* const follow_end_of_file = BoolStruct()->AddVariable(
+    L"follow_end_of_file", L"Should the cursor stay at the end of the file?",
+    false);
 
-EdgeVariable<bool>* commands_background_mode() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"commands_background_mode",
-      L"Should new commands forked from this buffer be started in background "
-      L"mode?  If false, we will switch to them automatically.\n\n"
-      L"This just affects whether we switch the currently selected Edge buffer "
-      L"to the new buffer; it has no effect whatsoever in the command.",
-      false);
-  return variable;
-}
+EdgeVariable<bool>* const commands_background_mode = BoolStruct()->AddVariable(
+    L"commands_background_mode",
+    L"Should new commands forked from this buffer be started in background "
+    L"mode?  If false, we will switch to them automatically.\n\n"
+    L"This just affects whether we switch the currently selected Edge buffer "
+    L"to the new buffer; it has no effect whatsoever in the command.",
+    false);
 
-EdgeVariable<bool>* reload_on_buffer_write() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"reload_on_buffer_write",
-      L"Should the current buffer (on which this variable is set) be reloaded "
-      L"when any buffer is written?\n\n"
-      L"This is useful mainly for command buffers like `make` or `git "
-      L"diff`.\n\n"
-      L"If you set this, you may also want to set `contains_line_marks`.",
-      false);
-  return variable;
-}
+EdgeVariable<bool>* const reload_on_buffer_write = BoolStruct()->AddVariable(
+    L"reload_on_buffer_write",
+    L"Should the current buffer (on which this variable is set) be reloaded "
+    L"when any buffer is written?\n\n"
+    L"This is useful mainly for command buffers like `make` or `git "
+    L"diff`.\n\n"
+    L"If you set this, you may also want to set `contains_line_marks`.",
+    false);
 
-EdgeVariable<bool>* trigger_reload_on_buffer_write() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"trigger_reload_on_buffer_write",
-      L"Does a write of this buffer trigger a reload of other buffers that "
-      L"have variable `reload_on_buffer_write` set? This is mainly useful to "
-      L"ensure that *internal* buffers (such as prompt history) don't trigger "
-      L"reload of user-visible buffers (such as compilers) on quit.",
-      true);
-  return variable;
-}
+EdgeVariable<bool>* const trigger_reload_on_buffer_write =
+    BoolStruct()->AddVariable(
+        L"trigger_reload_on_buffer_write",
+        L"Does a write of this buffer trigger a reload of other buffers that "
+        L"have variable `reload_on_buffer_write` set? This is mainly useful to "
+        L"ensure that *internal* buffers (such as prompt history) don't "
+        L"trigger "
+        L"reload of user-visible buffers (such as compilers) on quit.",
+        true);
 
-EdgeVariable<bool>* contains_line_marks() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"contains_line_marks",
-      L"Indicates whether the current buffer should be scanned for \"marks\": "
-      L"lines that start with a prefix of the form \"path:line\" (e.g. "
-      L"`src/test.cc:23`). For any such marks found, the corresponding lines "
-      L"in the corresponding buffers (i.e., buffers for the corresponding "
-      L"files) will be highlighted.\n\n"
-      L"This is useful for *compiler* commands like `make` that output lines "
-      L"with compilation errors.\n\n"
-      L"Unfortunately, we don't currently support any fancy formats: the lines "
-      L"need to start with the marks. This, however, is good enough for many "
-      L"compilers. But if your commands output lines in a format such as "
-      L"`Error in src/test.cc:23:` this won't be very useful.\n\n"
-      L"If you set this on a buffer, you may want to also set variable "
-      L"`reload_on_buffer_write`.",
-      false);
-  return variable;
-}
+EdgeVariable<bool>* const contains_line_marks = BoolStruct()->AddVariable(
+    L"contains_line_marks",
+    L"Indicates whether the current buffer should be scanned for \"marks\": "
+    L"lines that start with a prefix of the form \"path:line\" (e.g. "
+    L"`src/test.cc:23`). For any such marks found, the corresponding lines "
+    L"in the corresponding buffers (i.e., buffers for the corresponding "
+    L"files) will be highlighted.\n\n"
+    L"This is useful for *compiler* commands like `make` that output lines "
+    L"with compilation errors.\n\n"
+    L"Unfortunately, we don't currently support any fancy formats: the lines "
+    L"need to start with the marks. This, however, is good enough for many "
+    L"compilers. But if your commands output lines in a format such as "
+    L"`Error in src/test.cc:23:` this won't be very useful.\n\n"
+    L"If you set this on a buffer, you may want to also set variable "
+    L"`reload_on_buffer_write`.",
+    false);
 
-EdgeVariable<bool>* multiple_cursors() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"multiple_cursors",
-      L"If `true`, all commands apply to all cursors in the current buffer. "
-      L"Otherwise, they only apply to the active cursor.",
-      false);
-  return variable;
-}
+EdgeVariable<bool>* const multiple_cursors = BoolStruct()->AddVariable(
+    L"multiple_cursors",
+    L"If `true`, all commands apply to all cursors in the current buffer. "
+    L"Otherwise, they only apply to the active cursor.",
+    false);
 
-EdgeVariable<bool>* reload_on_display() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"reload_on_display",
-      L"If set to true, a buffer will always be reloaded before being "
-      L"displayed.",
-      false);
-  return variable;
-}
+EdgeVariable<bool>* const reload_on_display = BoolStruct()->AddVariable(
+    L"reload_on_display",
+    L"If set to true, a buffer will always be reloaded before being "
+    L"displayed.",
+    false);
 
-EdgeVariable<bool>* show_in_buffers_list() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"show_in_buffers_list",
-      L"If set to true, includes this in the list of buffers.", true);
-  return variable;
-}
+EdgeVariable<bool>* const show_in_buffers_list = BoolStruct()->AddVariable(
+    L"show_in_buffers_list",
+    L"If set to true, includes this in the list of buffers.", true);
 
-EdgeVariable<bool>* push_positions_to_history() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"push_positions_to_history",
-      L"If set to true, movement in this buffer causes new positions to be "
-      L"pushed to the history of positions.\n\n"
-      L"A few buffers default this to `false`, to avoid pushing their "
-      L"positions to the history.",
-      true);
-  return variable;
-}
+EdgeVariable<bool>* const push_positions_to_history = BoolStruct()->AddVariable(
+    L"push_positions_to_history",
+    L"If set to true, movement in this buffer causes new positions to be "
+    L"pushed to the history of positions.\n\n"
+    L"A few buffers default this to `false`, to avoid pushing their "
+    L"positions to the history.",
+    true);
 
-EdgeVariable<bool>* delete_into_paste_buffer() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"delete_into_paste_buffer",
-      L"If set to true, deletions from this buffer go into the shared paste "
-      L"buffer.\n\n"
-      L"A few buffers, such as prompt buffers, default this to `false`.",
-      true);
-  return variable;
-}
+EdgeVariable<bool>* const delete_into_paste_buffer = BoolStruct()->AddVariable(
+    L"delete_into_paste_buffer",
+    L"If set to true, deletions from this buffer go into the shared paste "
+    L"buffer.\n\n"
+    L"A few buffers, such as prompt buffers, default this to `false`.",
+    true);
 
-EdgeVariable<bool>* scrollbar() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"scrollbar", L"If set to true, the scrollbar will be shown.", true);
-  return variable;
-}
+EdgeVariable<bool>* const scrollbar = BoolStruct()->AddVariable(
+    L"scrollbar", L"If set to true, the scrollbar will be shown.", true);
 
-EdgeVariable<bool>* search_case_sensitive() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"search_case_sensitive",
-      L"If set to true, search (through \"/\") is case sensitive.", false);
-  return variable;
-}
+EdgeVariable<bool>* const search_case_sensitive = BoolStruct()->AddVariable(
+    L"search_case_sensitive",
+    L"If set to true, search (through \"/\") is case sensitive.", false);
 
-EdgeVariable<bool>* wrap_long_lines() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"wrap_long_lines",
-      L"If set to true, long lines will be wrapped (only for displaying). "
-      L"Otherwise, they get trimmed at the end.",
-      true);
-  return variable;
-}
+EdgeVariable<bool>* const wrap_long_lines = BoolStruct()->AddVariable(
+    L"wrap_long_lines",
+    L"If set to true, long lines will be wrapped (only for displaying). "
+    L"Otherwise, they get trimmed at the end.",
+    true);
 
-EdgeVariable<bool>* extend_lines() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"extend_lines",
-      L"If set to true, lines should be extended automatically as the cursor "
-      L"advances past their end.",
-      false);
-  return variable;
-}
+EdgeVariable<bool>* const extend_lines = BoolStruct()->AddVariable(
+    L"extend_lines",
+    L"If set to true, lines should be extended automatically as the cursor "
+    L"advances past their end.",
+    false);
 
-EdgeVariable<bool>* display_progress() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"display_progress",
-      L"If set to true, if this buffer is reading input (either from a regular "
-      L"file or a process), it'll be shown in the status line.",
-      true);
-  return variable;
-}
+EdgeVariable<bool>* const display_progress = BoolStruct()->AddVariable(
+    L"display_progress",
+    L"If set to true, if this buffer is reading input (either from a regular "
+    L"file or a process), it'll be shown in the status line.",
+    true);
 
-EdgeVariable<bool>* persist_state() {
-  static EdgeVariable<bool>* variable = BoolStruct()->AddVariable(
-      L"persist_state",
-      L"Should we aim to persist information for this buffer (in "
-      L"$EDGE_PATH/state/)?",
-      false);
-  return variable;
-}
+EdgeVariable<bool>* const persist_state = BoolStruct()->AddVariable(
+    L"persist_state",
+    L"Should we aim to persist information for this buffer (in "
+    L"$EDGE_PATH/state/)?",
+    false);
 
 EdgeStruct<wstring>* StringStruct() {
-  static EdgeStruct<wstring>* output = nullptr;
-  if (output == nullptr) {
-    output = new EdgeStruct<wstring>;
-    // Trigger registration of all fields.
-    name();
-    symbol_characters();
-    path_characters();
-    path();
-    pts_path();
-    children_path();
-    command();
-    editor_commands_path();
-    line_prefix_characters();
-    paragraph_line_prefix_characters();
-    line_suffix_superfluous_characters();
-    dictionary();
-    tree_parser();
-    language_keywords();
-    typos();
-    directory_noise();
-  }
+  static EdgeStruct<wstring>* output = new EdgeStruct<wstring>();
   return output;
 }
 
-EdgeVariable<wstring>* name() {
-  static EdgeVariable<wstring>* variable =
-      StringStruct()->AddVariable(L"name", L"Name of the current buffer.", L"");
-  return variable;
-}
+EdgeVariable<wstring>* const name =
+    StringStruct()->AddVariable(L"name", L"Name of the current buffer.", L"");
 
-EdgeVariable<wstring>* symbol_characters() {
-  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
-      L"symbol_characters",
-      L"String with all the characters that should be considered part of a "
-      L"symbol. This affects commands such as `dW` (delete symbol).",
-      L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
-  return variable;
-}
+EdgeVariable<wstring>* const symbol_characters = StringStruct()->AddVariable(
+    L"symbol_characters",
+    L"String with all the characters that should be considered part of a "
+    L"symbol. This affects commands such as `dW` (delete symbol).",
+    L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
 
-EdgeVariable<wstring>* path_characters() {
-  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
-      L"path_characters",
-      L"String with all the characters that should be considered part of a "
-      L"path.",
-      L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-.*:/");
-  return variable;
-}
+EdgeVariable<wstring>* const path_characters = StringStruct()->AddVariable(
+    L"path_characters",
+    L"String with all the characters that should be considered part of a "
+    L"path.",
+    L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-.*:/");
 
-EdgeVariable<wstring>* path() {
-  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
-      L"path", L"String with the path of the current file.", L"",
-      FilePredictor);
-  return variable;
-}
+EdgeVariable<wstring>* const path = StringStruct()->AddVariable(
+    L"path", L"String with the path of the current file.", L"", FilePredictor);
 
-EdgeVariable<wstring>* pts_path() {
-  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
-      L"pts_path",
-      L"String with the path of the terminal used by the current buffer (or "
-      L"empty if the user is not using a terminal).",
-      L"", FilePredictor);
-  return variable;
-}
+EdgeVariable<wstring>* const pts_path = StringStruct()->AddVariable(
+    L"pts_path",
+    L"String with the path of the terminal used by the current buffer (or "
+    L"empty if the user is not using a terminal).",
+    L"", FilePredictor);
 
-EdgeVariable<wstring>* children_path() {
-  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
-      L"children_path",
-      L"If non-empty, string with the path of the directory used when forking "
-      L"a new command from the current buffer. If empty, the new command will "
-      L"inherit the current working directory that Edge was run in.",
-      L"", FilePredictor);
-  return variable;
-}
+EdgeVariable<wstring>* const children_path = StringStruct()->AddVariable(
+    L"children_path",
+    L"If non-empty, string with the path of the directory used when forking "
+    L"a new command from the current buffer. If empty, the new command will "
+    L"inherit the current working directory that Edge was run in.",
+    L"", FilePredictor);
 
-EdgeVariable<wstring>* command() {
-  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
-      L"command",
-      L"String with the current command. Empty if the buffer is not a "
-      L"sub-process (e.g. a regular file).",
-      L"", FilePredictor);
-  return variable;
-}
+EdgeVariable<wstring>* const command = StringStruct()->AddVariable(
+    L"command",
+    L"String with the current command. Empty if the buffer is not a "
+    L"sub-process (e.g. a regular file).",
+    L"", FilePredictor);
 
-EdgeVariable<wstring>* editor_commands_path() {
-  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
-      L"editor_commands_path",
-      L"String with the path to the initial directory used when prompting the "
-      L"user for an editor command to run. It does not affect in any way the "
-      L"execution of these commands (simply the prompting).",
-      L"", FilePredictor);
-  return variable;
-}
+EdgeVariable<wstring>* const editor_commands_path = StringStruct()->AddVariable(
+    L"editor_commands_path",
+    L"String with the path to the initial directory used when prompting the "
+    L"user for an editor command to run. It does not affect in any way the "
+    L"execution of these commands (simply the prompting).",
+    L"", FilePredictor);
 
-EdgeVariable<wstring>* line_prefix_characters() {
-  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
-      L"line_prefix_characters",
-      L"String with all the characters that should be considered the prefix of "
-      L"the actual contents of a line.  When a new line is created, the prefix "
-      L"of the previous line (the sequence of all characters at the start of "
-      L"the previous line that are listed in line_prefix_characters) is copied "
-      L"to the new line.  The order of characters in line_prefix_characters "
-      L"has no effect.",
-      L" ");
-  return variable;
-}
+EdgeVariable<wstring>* const line_prefix_characters =
+    StringStruct()->AddVariable(
+        L"line_prefix_characters",
+        L"String with all the characters that should be considered the prefix "
+        L"of "
+        L"the actual contents of a line.  When a new line is created, the "
+        L"prefix "
+        L"of the previous line (the sequence of all characters at the start of "
+        L"the previous line that are listed in line_prefix_characters) is "
+        L"copied "
+        L"to the new line.  The order of characters in line_prefix_characters "
+        L"has no effect.",
+        L" ");
 
-EdgeVariable<wstring>* paragraph_line_prefix_characters() {
-  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
-      L"paragraph_line_prefix_characters",
-      L"Similar to line_prefix_characters, but contains additional characters "
-      L"that are allowed in the prefix of the first line of a paragraph (but "
-      L"wouldn't be allowed in continuation lines).",
-      L" ");
-  return variable;
-}
+EdgeVariable<wstring>* const paragraph_line_prefix_characters =
+    StringStruct()->AddVariable(
+        L"paragraph_line_prefix_characters",
+        L"Similar to line_prefix_characters, but contains additional "
+        L"characters "
+        L"that are allowed in the prefix of the first line of a paragraph (but "
+        L"wouldn't be allowed in continuation lines).",
+        L" ");
 
-EdgeVariable<wstring>* line_suffix_superfluous_characters() {
-  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
-      L"line_suffix_superfluous_characters",
-      L"String with all the characters that should be removed from the suffix "
-      L"of a line (after editing it).  The order of characters in "
-      L"line_suffix_superfluous_characters has no effect.",
-      L" ");
-  return variable;
-}
+EdgeVariable<wstring>* const line_suffix_superfluous_characters =
+    StringStruct()->AddVariable(
+        L"line_suffix_superfluous_characters",
+        L"String with all the characters that should be removed from the "
+        L"suffix "
+        L"of a line (after editing it).  The order of characters in "
+        L"line_suffix_superfluous_characters has no effect.",
+        L" ");
 
-EdgeVariable<wstring>* dictionary() {
-  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
-      L"dictionary",
-      L"Path to a dictionary file used for autocompletion. If empty, pressing "
-      L"TAB (in insert mode) just inserts a tab character into the file; "
-      L"otherwise, it triggers completion to the first string from this file "
-      L"that matches the prefix of the current word. Pressing TAB again "
-      L"iterates through all completions.\n\n"
-      L"The dictionary file must be a text file containing one word per line "
-      L"and sorted alphabetically.",
-      L"");
-  return variable;
-}
+EdgeVariable<wstring>* const dictionary = StringStruct()->AddVariable(
+    L"dictionary",
+    L"Path to a dictionary file used for autocompletion. If empty, pressing "
+    L"TAB (in insert mode) just inserts a tab character into the file; "
+    L"otherwise, it triggers completion to the first string from this file "
+    L"that matches the prefix of the current word. Pressing TAB again "
+    L"iterates through all completions.\n\n"
+    L"The dictionary file must be a text file containing one word per line "
+    L"and sorted alphabetically.",
+    L"");
 
-EdgeVariable<wstring>* tree_parser() {
-  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
-      L"tree_parser",
-      L"Name of the parser to use to extract the tree structure from the "
-      L"current file. Valid values are: \"text\" (normal text), and \"cpp\". "
-      L"Any other value disables the tree logic.",
-      L"");
-  return variable;
-}
+EdgeVariable<wstring>* const tree_parser = StringStruct()->AddVariable(
+    L"tree_parser",
+    L"Name of the parser to use to extract the tree structure from the "
+    L"current file. Valid values are: \"text\" (normal text), and \"cpp\". "
+    L"Any other value disables the tree logic.",
+    L"");
 
-EdgeVariable<wstring>* language_keywords() {
-  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
-      L"language_keywords",
-      L"Space separated list of keywords that should be highlighted by the "
-      L"\"cpp\" tree parser (see variable tree_parser).",
-      L"");
-  return variable;
-}
+EdgeVariable<wstring>* const language_keywords = StringStruct()->AddVariable(
+    L"language_keywords",
+    L"Space separated list of keywords that should be highlighted by the "
+    L"\"cpp\" tree parser (see variable tree_parser).",
+    L"");
 
-EdgeVariable<wstring>* typos() {
-  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
-      L"typos",
-      L"Space separated list of keywords that should be highlighted by the "
-      L"tree parser as errors. This is only honored by a few tree parser types "
-      L"(see variable tree_parser).",
-      L"");
-  return variable;
-}
+EdgeVariable<wstring>* const typos = StringStruct()->AddVariable(
+    L"typos",
+    L"Space separated list of keywords that should be highlighted by the "
+    L"tree parser as errors. This is only honored by a few tree parser types "
+    L"(see variable tree_parser).",
+    L"");
 
-EdgeVariable<wstring>* directory_noise() {
-  static EdgeVariable<wstring>* variable = StringStruct()->AddVariable(
-      L"directory_noise",
-      L"Regular expression to use in a buffer showing the contents of a "
-      L"directory to identify files that should be considered as noise: they "
-      L"are less important than most files.",
-      L".*(\\.o|~)|\\.(?!\\.$).*");
-  return variable;
-}
+EdgeVariable<wstring>* const directory_noise = StringStruct()->AddVariable(
+    L"directory_noise",
+    L"Regular expression to use in a buffer showing the contents of a "
+    L"directory to identify files that should be considered as noise: they "
+    L"are less important than most files.",
+    L".*(\\.o|~)|\\.(?!\\.$).*");
 
 EdgeStruct<int>* IntStruct() {
-  static EdgeStruct<int>* output = nullptr;
-  if (output == nullptr) {
-    output = new EdgeStruct<int>;
-    // Trigger registration of all fields.
-    line_width();
-    buffer_list_context_lines();
-    margin_lines();
-    margin_columns();
-    progress();
-  }
+  static EdgeStruct<int>* output = new EdgeStruct<int>();
   return output;
 }
 
-EdgeVariable<int>* line_width() {
-  static EdgeVariable<int>* variable = IntStruct()->AddVariable(
-      L"line_width", L"Desired maximum width of a line.", 80);
-  return variable;
-}
+EdgeVariable<int>* const line_width = IntStruct()->AddVariable(
+    L"line_width", L"Desired maximum width of a line.", 80);
 
-EdgeVariable<int>* buffer_list_context_lines() {
-  static EdgeVariable<int>* variable = IntStruct()->AddVariable(
-      L"buffer_list_context_lines",
-      L"Number of lines of context from this buffer to show in the list of "
-      L"buffers.",
-      0);
-  return variable;
-}
+EdgeVariable<int>* const buffer_list_context_lines = IntStruct()->AddVariable(
+    L"buffer_list_context_lines",
+    L"Number of lines of context from this buffer to show in the list of "
+    L"buffers.",
+    0);
 
-EdgeVariable<int>* margin_lines() {
-  static EdgeVariable<int>* variable = IntStruct()->AddVariable(
-      L"margin_lines",
-      L"Number of lines of context to display at the top/bottom of the current "
-      L"position.",
-      2);
-  return variable;
-}
+EdgeVariable<int>* const margin_lines = IntStruct()->AddVariable(
+    L"margin_lines",
+    L"Number of lines of context to display at the top/bottom of the current "
+    L"position.",
+    2);
 
-EdgeVariable<int>* margin_columns() {
-  static EdgeVariable<int>* variable = IntStruct()->AddVariable(
-      L"margin_columns",
-      L"Number of characters of context to display at the left/right of the "
-      L"current position.",
-      2);
-  return variable;
-}
+EdgeVariable<int>* const margin_columns = IntStruct()->AddVariable(
+    L"margin_columns",
+    L"Number of characters of context to display at the left/right of the "
+    L"current position.",
+    2);
 
-EdgeVariable<int>* progress() {
-  static EdgeVariable<int>* variable = IntStruct()->AddVariable(
-      L"progress",
-      L"Counter of the number of times this buffer has made progress. This is "
-      L"defined somewhat ambiguously, but roughly consists of new information "
-      L"being read into the buffer. This is used to display progress for the "
-      L"buffer.",
-      0);
-  return variable;
-}
+EdgeVariable<int>* const progress = IntStruct()->AddVariable(
+    L"progress",
+    L"Counter of the number of times this buffer has made progress. This is "
+    L"defined somewhat ambiguously, but roughly consists of new information "
+    L"being read into the buffer. This is used to display progress for the "
+    L"buffer.",
+    0);
 
 EdgeStruct<double>* DoubleStruct() {
-  static EdgeStruct<double>* output = nullptr;
-  if (output == nullptr) {
-    output = new EdgeStruct<double>;
-    // Trigger registration of all fields.
-    margin_lines_ratio();
-    beep_frequency_success();
-    beep_frequency_failure();
-  }
+  static EdgeStruct<double>* output = new EdgeStruct<double>();
   return output;
 }
 
-EdgeVariable<double>* margin_lines_ratio() {
-  static EdgeVariable<double>* variable = DoubleStruct()->AddVariable(
-      L"margin_lines_ratio",
-      L"Ratio of the number of lines in the screen reserved to display context "
-      L"around the current position in the current buffer at the top/bottom of "
-      L"the screen. See also variable `margin_lines`.",
-      0.07);
-  return variable;
-}
+EdgeVariable<double>* const margin_lines_ratio = DoubleStruct()->AddVariable(
+    L"margin_lines_ratio",
+    L"Ratio of the number of lines in the screen reserved to display context "
+    L"around the current position in the current buffer at the top/bottom of "
+    L"the screen. See also variable `margin_lines`.",
+    0.07);
 
-EdgeVariable<double>* beep_frequency_success() {
-  static EdgeVariable<double>* variable = DoubleStruct()->AddVariable(
-      L"beep_frequency_success",
-      L"Frequency of the beep to play when a command buffer exits "
-      L"successfully. If 0, disables the beep.",
-      880.0);
-  return variable;
-}
+EdgeVariable<double>* const beep_frequency_success =
+    DoubleStruct()->AddVariable(
+        L"beep_frequency_success",
+        L"Frequency of the beep to play when a command buffer exits "
+        L"successfully. If 0, disables the beep.",
+        880.0);
 
-EdgeVariable<double>* beep_frequency_failure() {
-  static EdgeVariable<double>* variable = DoubleStruct()->AddVariable(
-      L"beep_frequency_failure",
-      L"Frequency of the beep to play when a command buffer exits with an "
-      L"error. If 0, disables the beep.",
-      440.0);
-  return variable;
-}
+EdgeVariable<double>* const beep_frequency_failure =
+    DoubleStruct()->AddVariable(
+        L"beep_frequency_failure",
+        L"Frequency of the beep to play when a command buffer exits with an "
+        L"error. If 0, disables the beep.",
+        440.0);
 
 }  // namespace buffer_variables
 }  // namespace editor

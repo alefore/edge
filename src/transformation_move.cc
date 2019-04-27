@@ -22,7 +22,7 @@ class MoveTransformation : public Transformation {
 
   void Apply(OpenBuffer* buffer, Result* result) const override {
     VLOG(1) << "Move Transformation starts: "
-            << buffer->Read(buffer_variables::name()) << " " << modifiers_;
+            << buffer->Read(buffer_variables::name) << " " << modifiers_;
     CHECK(buffer != nullptr);
     CHECK(result != nullptr);
     auto editor_state = buffer->editor();

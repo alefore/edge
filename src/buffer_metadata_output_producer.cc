@@ -249,7 +249,7 @@ wstring BufferMetadataOutputProducer::GetDefaultInformation(size_t line) {
   if (parse_tree != nullptr) {
     output += DrawTree(line, buffer_->lines_size(), *parse_tree);
   }
-  if (buffer_->Read(buffer_variables::scrollbar()) &&
+  if (buffer_->Read(buffer_variables::scrollbar) &&
       buffer_->lines_size() > lines_shown_) {
     CHECK_GE(line, initial_line_);
     output += ComputeScrollBarCharacter(line, buffer_->lines_size(),

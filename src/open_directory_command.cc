@@ -28,7 +28,7 @@ class OpenDirectoryCommand : public Command {
     if (buffer == nullptr) {
       options.path = L".";
     } else {
-      options.path = Dirname(buffer->Read(buffer_variables::name()));
+      options.path = Dirname(buffer->Read(buffer_variables::name));
     }
     options.editor_state = editor_state;
     OpenFile(options);

@@ -15,7 +15,7 @@ Seek StartSeekToLimit(OpenBuffer* buffer, LineColumn* position) {
   CHECK_GT(buffer->lines_size(), 0);
   position->line = std::min(buffer->lines_size() - 1, position->line);
   if (position->column >= buffer->LineAt(position->line)->size()) {
-    // if (buffer->Read(buffer_variables::extend_lines())) {
+    // if (buffer->Read(buffer_variables::extend_lines)) {
     //   MaybeExtendLine(*position);
     //} else {
     position->column = buffer->LineAt(position->line)->size();
@@ -116,7 +116,7 @@ Structure* StructureSymbol() {
           .WithDirection(direction)
           .WrappingLines()
           .UntilCurrentCharIn(
-              buffer->Read(buffer_variables::symbol_characters()));
+              buffer->Read(buffer_variables::symbol_characters));
     }
 
     bool SeekToLimit(OpenBuffer* buffer, Direction direction,
@@ -126,7 +126,7 @@ Structure* StructureSymbol() {
                  .WithDirection(direction)
                  .WrappingLines()
                  .UntilCurrentCharNotIn(buffer->Read(
-                     buffer_variables::symbol_characters())) == Seek::DONE;
+                     buffer_variables::symbol_characters)) == Seek::DONE;
     }
   };
   static Impl output;
@@ -395,7 +395,7 @@ Structure* StructureParagraph() {
       Seek(*buffer->contents(), position)
           .WithDirection(direction)
           .UntilNextLineIsNotSubsetOf(
-              buffer->Read(buffer_variables::line_prefix_characters()));
+              buffer->Read(buffer_variables::line_prefix_characters));
     }
 
     bool SeekToLimit(OpenBuffer* buffer, Direction direction,
@@ -404,7 +404,7 @@ Structure* StructureParagraph() {
                  .WithDirection(direction)
                  .WrappingLines()
                  .UntilNextLineIsSubsetOf(buffer->Read(
-                     buffer_variables::line_prefix_characters())) == Seek::DONE;
+                     buffer_variables::line_prefix_characters)) == Seek::DONE;
     }
   };
   static Impl output;

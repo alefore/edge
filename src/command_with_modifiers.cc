@@ -55,7 +55,7 @@ class CommandWithModifiersMode : public EditorMode {
   Modifiers BuildModifiers(EditorState* editor_state) {
     Modifiers modifiers;
     modifiers.cursors_affected =
-        buffer_->Read(buffer_variables::multiple_cursors())
+        buffer_->Read(buffer_variables::multiple_cursors)
             ? Modifiers::AFFECT_ALL_CURSORS
             : Modifiers::AFFECT_ONLY_CURRENT_CURSOR;
     modifiers.repetitions = 0;

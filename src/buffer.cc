@@ -520,22 +520,22 @@ OpenBuffer::OpenBuffer(Options options)
       L"buffer",
       Value::NewObject(L"Buffer", shared_ptr<void>(this, [](void*) {})));
 
-  Set(buffer_variables::name(), options.name);
-  Set(buffer_variables::path(), options.path);
-  Set(buffer_variables::pts_path(), L"");
-  Set(buffer_variables::command(), L"");
-  Set(buffer_variables::reload_after_exit(), false);
-  if (Read(buffer_variables::name()) == kPasteBuffer) {
-    Set(buffer_variables::allow_dirty_delete(), true);
-    Set(buffer_variables::show_in_buffers_list(), false);
-    Set(buffer_variables::delete_into_paste_buffer(), false);
+  Set(buffer_variables::name, options.name);
+  Set(buffer_variables::path, options.path);
+  Set(buffer_variables::pts_path, L"");
+  Set(buffer_variables::command, L"");
+  Set(buffer_variables::reload_after_exit, false);
+  if (Read(buffer_variables::name) == kPasteBuffer) {
+    Set(buffer_variables::allow_dirty_delete, true);
+    Set(buffer_variables::show_in_buffers_list, false);
+    Set(buffer_variables::delete_into_paste_buffer, false);
   }
   ClearContents(BufferContents::CursorsBehavior::kUnmodified);
 
   for (const auto& dir : editor_->edge_path()) {
     auto state_path =
         PathJoin(PathJoin(dir, L"state"),
-                 PathJoin(Read(buffer_variables::path()), L".edge_state"));
+                 PathJoin(Read(buffer_variables::path), L".edge_state"));
     struct stat stat_buffer;
     if (stat(ToByteString(state_path).c_str(), &stat_buffer) == -1) {
       continue;
@@ -545,7 +545,7 @@ OpenBuffer::OpenBuffer(Options options)
 }
 
 OpenBuffer::~OpenBuffer() {
-  LOG(INFO) << "Buffer deleted: " << Read(buffer_variables::name());
+  LOG(INFO) << "Buffer deleted: " << Read(buffer_variables::name);
   editor_->UnscheduleParseTreeUpdate(this);
   DestroyThreadIf([]() { return true; });
 }
@@ -557,40 +557,38 @@ void OpenBuffer::SetStatus(wstring status) const {
 bool OpenBuffer::PrepareToClose() {
   if (!PersistState() &&
       editor_->modifiers().strength == Modifiers::Strength::kNormal) {
-    LOG(INFO) << "Unable to persist state: " << Read(buffer_variables::name());
+    LOG(INFO) << "Unable to persist state: " << Read(buffer_variables::name);
     return false;
   }
   if (!dirty()) {
-    LOG(INFO) << Read(buffer_variables::name()) << ": clean, skipping.";
+    LOG(INFO) << Read(buffer_variables::name) << ": clean, skipping.";
     return true;
   }
-  if (Read(buffer_variables::save_on_close())) {
-    LOG(INFO) << Read(buffer_variables::name())
-              << ": attempting to save buffer.";
+  if (Read(buffer_variables::save_on_close)) {
+    LOG(INFO) << Read(buffer_variables::name) << ": attempting to save buffer.";
     // TODO(alejo): Let Save give us status?
     Save();
     if (!dirty()) {
-      LOG(INFO) << Read(buffer_variables::name()) << ": successful save.";
+      LOG(INFO) << Read(buffer_variables::name) << ": successful save.";
       return true;
     }
   }
-  if (Read(buffer_variables::allow_dirty_delete())) {
-    LOG(INFO) << Read(buffer_variables::name())
+  if (Read(buffer_variables::allow_dirty_delete)) {
+    LOG(INFO) << Read(buffer_variables::name)
               << ": allows dirty delete, skipping.";
     return true;
   }
   if (editor_->modifiers().strength > Modifiers::Strength::kNormal) {
-    LOG(INFO) << Read(buffer_variables::name())
-              << ": Deleting due to modifiers.";
+    LOG(INFO) << Read(buffer_variables::name) << ": Deleting due to modifiers.";
     return true;
   }
   return false;
 }
 
 void OpenBuffer::Close() {
-  LOG(INFO) << "Closing buffer: " << Read(buffer_variables::name());
-  if (dirty() && Read(buffer_variables::save_on_close())) {
-    LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name());
+  LOG(INFO) << "Closing buffer: " << Read(buffer_variables::name);
+  if (dirty() && Read(buffer_variables::save_on_close)) {
+    LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name);
     Save();
   }
   for (auto& observer : close_observers_) {
@@ -611,7 +609,7 @@ void OpenBuffer::AddCloseObserver(std::function<void()> observer) {
 }
 
 void OpenBuffer::Visit() {
-  if (Read(buffer_variables::reload_on_enter())) {
+  if (Read(buffer_variables::reload_on_enter)) {
     Reload();
     CheckPosition();
   }
@@ -626,7 +624,7 @@ time_t OpenBuffer::last_visit() const { return last_visit_; }
 time_t OpenBuffer::last_action() const { return last_action_; }
 
 bool OpenBuffer::PersistState() const {
-  if (!Read(buffer_variables::persist_state())) {
+  if (!Read(buffer_variables::persist_state)) {
     return true;
   }
 
@@ -636,11 +634,11 @@ bool OpenBuffer::PersistState() const {
     return false;
   }
 
-  auto file_path = Read(buffer_variables::path());
+  auto file_path = Read(buffer_variables::path);
   list<wstring> file_path_components;
   if (file_path.empty() || file_path[0] != '/') {
     editor_->SetWarningStatus(L"Unable to persist buffer with empty path: " +
-                              Read(buffer_variables::name()) +
+                              Read(buffer_variables::name) +
                               (dirty() ? L" (dirty)" : L" (clean)") +
                               (modified_ ? L"modified" : L"not modi"));
     return !dirty();
@@ -709,11 +707,11 @@ bool OpenBuffer::PersistState() const {
 
 void OpenBuffer::ClearContents(
     BufferContents::CursorsBehavior cursors_behavior) {
-  VLOG(5) << "Clear contents of buffer: " << Read(buffer_variables::name());
+  VLOG(5) << "Clear contents of buffer: " << Read(buffer_variables::name);
   editor_->line_marks()->RemoveExpiredMarksFromSource(
-      Read(buffer_variables::name()));
+      Read(buffer_variables::name));
   editor_->line_marks()->ExpireMarksFromSource(*this,
-                                               Read(buffer_variables::name()));
+                                               Read(buffer_variables::name));
   editor_->ScheduleRedraw();
   contents_.EraseLines(0, contents_.size(), cursors_behavior);
   position_pts_ = LineColumn();
@@ -742,7 +740,7 @@ void OpenBuffer::EndOfFile() {
   // We can remove expired marks now. We know that the set of fresh marks is now
   // complete.
   editor()->line_marks()->RemoveExpiredMarksFromSource(
-      Read(buffer_variables::name()));
+      Read(buffer_variables::name));
   editor()->ScheduleRedraw();
 
   child_pid_ = -1;
@@ -753,26 +751,26 @@ void OpenBuffer::EndOfFile() {
     observer();
   }
 
-  if (Read(buffer_variables::reload_after_exit())) {
-    Set(buffer_variables::reload_after_exit(),
-        Read(buffer_variables::default_reload_after_exit()));
+  if (Read(buffer_variables::reload_after_exit)) {
+    Set(buffer_variables::reload_after_exit,
+        Read(buffer_variables::default_reload_after_exit));
     Reload();
   }
-  if (Read(buffer_variables::close_after_clean_exit()) &&
+  if (Read(buffer_variables::close_after_clean_exit) &&
       WIFEXITED(child_exit_status_) && WEXITSTATUS(child_exit_status_) == 0) {
     editor()->CloseBuffer(this);
   }
 
   auto current_buffer = editor()->current_buffer();
   if (current_buffer != nullptr &&
-      current_buffer->Read(buffer_variables::name()) == kBuffersName) {
+      current_buffer->Read(buffer_variables::name) == kBuffersName) {
     current_buffer->Reload();
   }
 }
 
 std::unique_ptr<bool, std::function<void(bool*)>>
 OpenBuffer::GetEndPositionFollower() {
-  if (!Read(buffer_variables::follow_end_of_file())) {
+  if (!Read(buffer_variables::follow_end_of_file)) {
     return nullptr;
   }
   if (position() < end_position() && !fd_is_terminal_) {
@@ -781,7 +779,7 @@ OpenBuffer::GetEndPositionFollower() {
   return std::unique_ptr<bool, std::function<void(bool*)>>(
       new bool(), [this](bool* value) {
         delete value;
-        if (Read(buffer_variables::pts())) {
+        if (Read(buffer_variables::pts)) {
           set_position(position_pts_);
         } else {
           set_position(end_position());
@@ -791,7 +789,7 @@ OpenBuffer::GetEndPositionFollower() {
 
 bool OpenBuffer::ShouldDisplayProgress() const {
   return (fd_.fd != -1 || fd_error_.fd != -1) &&
-         Read(buffer_variables::display_progress());
+         Read(buffer_variables::display_progress);
 }
 
 void OpenBuffer::RegisterProgress() {
@@ -805,7 +803,7 @@ void OpenBuffer::RegisterProgress() {
     return;
   }
   last_progress_update_ = now;
-  Set(buffer_variables::progress(), Read(buffer_variables::progress()) + 1);
+  Set(buffer_variables::progress, Read(buffer_variables::progress) + 1);
 }
 
 void OpenBuffer::ReadData() { fd_.ReadData(this); }
@@ -820,7 +818,7 @@ vector<unordered_set<LineModifier, hash<int>>> ModifiersVector(
 void OpenBuffer::Input::ReadData(OpenBuffer* target) {
   EditorState* editor_state = target->editor();
   LOG(INFO) << "Reading input from " << fd << " for buffer "
-            << target->Read(buffer_variables::name());
+            << target->Read(buffer_variables::name);
   static const size_t kLowBufferSize = 1024 * 60;
   if (low_buffer == nullptr) {
     CHECK_EQ(low_buffer_length, size_t(0));
@@ -877,9 +875,9 @@ void OpenBuffer::Input::ReadData(OpenBuffer* target) {
   size_t processed = low_buffer_tmp == nullptr
                          ? low_buffer_length
                          : low_buffer_tmp - low_buffer.get();
-  VLOG(5) << target->Read(buffer_variables::name())
+  VLOG(5) << target->Read(buffer_variables::name)
           << ": Characters consumed: " << processed;
-  VLOG(5) << target->Read(buffer_variables::name())
+  VLOG(5) << target->Read(buffer_variables::name)
           << ": Characters produced: " << buffer_wrapper->size();
   CHECK_LE(processed, low_buffer_length);
   memmove(low_buffer.get(), low_buffer_tmp, low_buffer_length - processed);
@@ -889,8 +887,8 @@ void OpenBuffer::Input::ReadData(OpenBuffer* target) {
     low_buffer = nullptr;
   }
 
-  if (target->Read(buffer_variables::vm_exec())) {
-    LOG(INFO) << target->Read(buffer_variables::name())
+  if (target->Read(buffer_variables::vm_exec)) {
+    LOG(INFO) << target->Read(buffer_variables::name)
               << ": Evaluating VM code: " << buffer_wrapper->ToString();
     target->EvaluateString(buffer_wrapper->ToString(),
                            [](std::unique_ptr<Value>) {});
@@ -898,7 +896,7 @@ void OpenBuffer::Input::ReadData(OpenBuffer* target) {
 
   target->RegisterProgress();
   bool previous_modified = target->modified();
-  if (target->Read(buffer_variables::pts())) {
+  if (target->Read(buffer_variables::pts)) {
     target->ProcessCommandInput(buffer_wrapper);
     editor_state->ScheduleRedraw();
   } else {
@@ -933,15 +931,15 @@ void OpenBuffer::Input::ReadData(OpenBuffer* target) {
   }
   auto current_buffer = editor_state->current_buffer();
   if (current_buffer != nullptr &&
-      current_buffer->Read(buffer_variables::name()) == kBuffersName) {
+      current_buffer->Read(buffer_variables::name) == kBuffersName) {
     current_buffer->Reload();
   }
   editor_state->ScheduleRedraw();
 }
 
 void OpenBuffer::UpdateTreeParser() {
-  auto parser = Read(buffer_variables::tree_parser());
-  std::wistringstream typos_stream(Read(buffer_variables::typos()));
+  auto parser = Read(buffer_variables::tree_parser);
+  std::wistringstream typos_stream(Read(buffer_variables::typos));
   std::unordered_set<wstring> typos_set{
       std::istream_iterator<std::wstring, wchar_t>(typos_stream),
       std::istream_iterator<std::wstring, wchar_t>()};
@@ -949,10 +947,10 @@ void OpenBuffer::UpdateTreeParser() {
   std::unique_lock<std::mutex> lock(mutex_);
   if (parser == L"text") {
     tree_parser_ = NewLineTreeParser(
-        NewWordsTreeParser(Read(buffer_variables::symbol_characters()),
-                           typos_set, NewNullTreeParser()));
+        NewWordsTreeParser(Read(buffer_variables::symbol_characters), typos_set,
+                           NewNullTreeParser()));
   } else if (parser == L"cpp") {
-    std::wistringstream keywords(Read(buffer_variables::language_keywords()));
+    std::wistringstream keywords(Read(buffer_variables::language_keywords));
     tree_parser_ =
         NewCppTreeParser(std::unordered_set<wstring>(
                              std::istream_iterator<wstring, wchar_t>(keywords),
@@ -986,7 +984,7 @@ void OpenBuffer::ResetParseTree() {
     if (!background_thread_.joinable()) {
       std::unique_lock<std::mutex> lock(mutex_);
       background_thread_shutting_down_ = false;
-      LOG(INFO) << "Creating thread: " << Read(buffer_variables::name());
+      LOG(INFO) << "Creating thread: " << Read(buffer_variables::name);
       background_thread_ = std::thread([this]() { BackgroundThread(); });
     }
   }
@@ -1014,7 +1012,7 @@ void OpenBuffer::DestroyThreadIf(std::function<bool()> predicate) {
 void OpenBuffer::StartNewLine() {
   DVLOG(5) << "Line is completed: " << contents_.back()->ToString();
 
-  if (Read(buffer_variables::contains_line_marks())) {
+  if (Read(buffer_variables::contains_line_marks)) {
     wstring path;
     std::optional<LineColumn> position;
     wstring pattern;
@@ -1026,7 +1024,7 @@ void OpenBuffer::StartNewLine() {
     options.output_pattern = &pattern;
     if (ResolvePath(options)) {
       LineMarks::Mark mark;
-      mark.source = Read(buffer_variables::name());
+      mark.source = Read(buffer_variables::name);
       mark.source_line = contents_.size() - 1;
       mark.target_buffer = path;
       if (position.has_value()) {
@@ -1043,7 +1041,7 @@ void OpenBuffer::Reload() {
   if (child_pid_ != -1) {
     LOG(INFO) << "Sending SIGTERM.";
     kill(-child_pid_, SIGTERM);
-    Set(buffer_variables::reload_after_exit(), true);
+    Set(buffer_variables::reload_after_exit, true);
     return;
   }
 
@@ -1066,7 +1064,7 @@ void OpenBuffer::Reload() {
     delete value;
     if (editor_->exit_value().has_value()) return;
     ClearModified();
-    LOG(INFO) << "Starting reload: " << Read(buffer_variables::name());
+    LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
     if (generate_contents_ != nullptr) {
       generate_contents_(this);
     }
@@ -1090,7 +1088,7 @@ void OpenBuffer::Reload() {
 }
 
 void OpenBuffer::Save() {
-  LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name());
+  LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name);
 
   if (handle_save_ != nullptr) {
     return handle_save_(this);
@@ -1166,7 +1164,7 @@ void OpenBuffer::AppendRawLine(std::shared_ptr<Line> line) {
 }
 
 void OpenBuffer::ProcessCommandInput(shared_ptr<LazyString> str) {
-  CHECK(Read(buffer_variables::pts()));
+  CHECK(Read(buffer_variables::pts));
   if (position_pts_.line >= contents_.size()) {
     position_pts_.line = contents_.size() - 1;
   }
@@ -1794,7 +1792,7 @@ void OpenBuffer::DestroyOtherCursors() {
   auto cursors = active_cursors();
   cursors->clear();
   cursors->insert(position);
-  Set(buffer_variables::multiple_cursors(), false);
+  Set(buffer_variables::multiple_cursors, false);
   editor_->ScheduleRedraw();
 }
 
@@ -1807,7 +1805,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
   LineColumn position = initial_position;
   position.line = min(lines_size() - 1, position.line);
   if (position.column > LineAt(position.line)->size()) {
-    if (Read(buffer_variables::extend_lines())) {
+    if (Read(buffer_variables::extend_lines)) {
       MaybeExtendLine(position);
     } else {
       position.column = LineAt(position.line)->size();
@@ -1923,7 +1921,7 @@ wstring OpenBuffer::ToString() const { return contents_.ToString(); }
 void OpenBuffer::PushSignal(int sig) {
   switch (sig) {
     case SIGINT:
-      if (Read(buffer_variables::pts())) {
+      if (Read(buffer_variables::pts)) {
         string sequence(1, 0x03);
         (void)write(fd_.fd, sequence.c_str(), sequence.size());
         SetStatus(L"SIGINT");
@@ -1934,7 +1932,7 @@ void OpenBuffer::PushSignal(int sig) {
       break;
 
     case SIGTSTP:
-      if (Read(buffer_variables::pts())) {
+      if (Read(buffer_variables::pts)) {
         string sequence(1, 0x1a);
         write(fd_.fd, sequence.c_str(), sequence.size());
       }
@@ -1987,7 +1985,7 @@ void OpenBuffer::Input::Close() {
 
 void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
                                bool fd_is_terminal, pid_t child_pid) {
-  if (Read(buffer_variables::clear_on_reload())) {
+  if (Read(buffer_variables::clear_on_reload)) {
     ClearContents(BufferContents::CursorsBehavior::kUnmodified);
     ClearModified();
     fd_.Reset();
@@ -2028,7 +2026,7 @@ void OpenBuffer::set_position(const LineColumn& position) {
 }
 
 bool OpenBuffer::dirty() const {
-  return (modified_ && (!Read(buffer_variables::path()).empty() ||
+  return (modified_ && (!Read(buffer_variables::path).empty() ||
                         !contents()->EveryLine([](size_t, const Line& l) {
                           return l.empty();
                         }))) ||
@@ -2061,10 +2059,10 @@ wstring OpenBuffer::FlagsString() const {
       default:
         output += L"☰ " + to_wstring(contents_.size());
     }
-    if (Read(buffer_variables::follow_end_of_file())) {
+    if (Read(buffer_variables::follow_end_of_file)) {
       output += L" ↓";
     }
-    wstring pts_path = Read(buffer_variables::pts_path());
+    wstring pts_path = Read(buffer_variables::pts_path);
     if (!pts_path.empty()) {
       output += L"  💻" + pts_path + L" ";
     }
@@ -2114,10 +2112,10 @@ void OpenBuffer::Set(const EdgeVariable<wstring>* variable, wstring value) {
   string_variables_.Set(variable, value);
 
   // TODO: This should be in the variable definition, not here. Ugh.
-  if (variable == buffer_variables::symbol_characters() ||
-      variable == buffer_variables::tree_parser() ||
-      variable == buffer_variables::language_keywords() ||
-      variable == buffer_variables::typos()) {
+  if (variable == buffer_variables::symbol_characters ||
+      variable == buffer_variables::tree_parser ||
+      variable == buffer_variables::language_keywords ||
+      variable == buffer_variables::typos) {
     UpdateTreeParser();
   }
 }
@@ -2140,7 +2138,7 @@ void OpenBuffer::Set(const EdgeVariable<double>* variable, double value) {
 
 void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
   ApplyToCursors(std::move(transformation),
-                 Read(buffer_variables::multiple_cursors())
+                 Read(buffer_variables::multiple_cursors)
                      ? Modifiers::AFFECT_ALL_CURSORS
                      : Modifiers::AFFECT_ONLY_CURRENT_CURSOR,
                  Transformation::Result::Mode::kFinal);
@@ -2200,9 +2198,9 @@ LineColumn OpenBuffer::Apply(unique_ptr<Transformation> transformation) {
   CHECK(delete_buffer != nullptr);
   if ((delete_buffer->contents()->size() > 1 ||
        delete_buffer->LineAt(0)->size() > 0) &&
-      Read(buffer_variables::delete_into_paste_buffer())) {
-    auto insert_result = editor()->buffers()->insert(make_pair(
-        delete_buffer->Read(buffer_variables::name()), delete_buffer));
+      Read(buffer_variables::delete_into_paste_buffer)) {
+    auto insert_result = editor()->buffers()->insert(
+        make_pair(delete_buffer->Read(buffer_variables::name), delete_buffer));
     if (!insert_result.second) {
       insert_result.first->second = delete_buffer;
     }
@@ -2292,10 +2290,10 @@ bool OpenBuffer::IsLineFiltered(size_t line_number) {
 const multimap<size_t, LineMarks::Mark>* OpenBuffer::GetLineMarks() const {
   auto marks = editor()->line_marks();
   if (marks->updates > line_marks_last_updates_) {
-    LOG(INFO) << Read(buffer_variables::name()) << ": Updating marks.";
+    LOG(INFO) << Read(buffer_variables::name) << ": Updating marks.";
     line_marks_.clear();
     auto relevant_marks =
-        marks->GetMarksForTargetBuffer(Read(buffer_variables::name()));
+        marks->GetMarksForTargetBuffer(Read(buffer_variables::name));
     for (auto& mark : relevant_marks) {
       line_marks_.insert(make_pair(mark.target.line, mark));
     }

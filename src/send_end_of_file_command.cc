@@ -20,7 +20,7 @@ void SendEndOfFileToBuffer(EditorState* editor_state,
     auto target_buffer = buffer->GetBufferFromCurrentLine();
     if (target_buffer != nullptr) {
       LOG(INFO) << "Sending EOF to line: " << buffer->current_line()->ToString()
-                << ": " << buffer->Read(buffer_variables::name());
+                << ": " << buffer->Read(buffer_variables::name);
       buffer = target_buffer;
     }
     editor_state->ResetModifiers();
@@ -30,7 +30,7 @@ void SendEndOfFileToBuffer(EditorState* editor_state,
     editor_state->SetStatus(L"No active subprocess for current buffer.");
     return;
   }
-  if (buffer->Read(buffer_variables::pts())) {
+  if (buffer->Read(buffer_variables::pts)) {
     char str[1] = {4};
     if (write(buffer->fd(), str, sizeof(str)) == -1) {
       editor_state->SetStatus(L"Sending EOF failed: " +

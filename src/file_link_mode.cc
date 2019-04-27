@@ -133,14 +133,14 @@ void ShowFiles(EditorState* editor_state, wstring name,
 void GenerateContents(EditorState* editor_state, struct stat* stat_buffer,
                       OpenBuffer* target) {
   CHECK(!target->modified());
-  const wstring path = target->Read(buffer_variables::path());
+  const wstring path = target->Read(buffer_variables::path);
   LOG(INFO) << "GenerateContents: " << path;
   const string path_raw = ToByteString(path);
   if (!path.empty() && stat(path_raw.c_str(), stat_buffer) == -1) {
     return;
   }
 
-  if (target->Read(buffer_variables::clear_on_reload())) {
+  if (target->Read(buffer_variables::clear_on_reload)) {
     target->ClearContents(BufferContents::CursorsBehavior::kUnmodified);
     target->ClearModified();
   }
@@ -162,9 +162,9 @@ void GenerateContents(EditorState* editor_state, struct stat* stat_buffer,
     return;
   }
 
-  target->Set(buffer_variables::atomic_lines(), true);
-  target->Set(buffer_variables::allow_dirty_delete(), true);
-  target->Set(buffer_variables::tree_parser(), L"md");
+  target->Set(buffer_variables::atomic_lines, true);
+  target->Set(buffer_variables::allow_dirty_delete, true);
+  target->Set(buffer_variables::tree_parser, L"md");
 
   DIR* dir = opendir(path_raw.c_str());
   if (dir == nullptr) {
@@ -180,7 +180,7 @@ void GenerateContents(EditorState* editor_state, struct stat* stat_buffer,
   std::vector<dirent> regular_files;
   std::vector<dirent> noise;
 
-  std::wregex noise_regex(target->Read(buffer_variables::directory_noise()));
+  std::wregex noise_regex(target->Read(buffer_variables::directory_noise));
 
   while ((entry = readdir(dir)) != nullptr) {
     auto path = FromByteString(entry->d_name);
@@ -214,7 +214,7 @@ void GenerateContents(EditorState* editor_state, struct stat* stat_buffer,
 
 void HandleVisit(EditorState* editor_state, const struct stat& stat_buffer,
                  const OpenBuffer& buffer) {
-  const wstring path = buffer.Read(buffer_variables::path());
+  const wstring path = buffer.Read(buffer_variables::path);
   if (stat_buffer.st_mtime == 0) {
     LOG(INFO) << "Skipping file change check.";
     return;
@@ -233,7 +233,7 @@ void HandleVisit(EditorState* editor_state, const struct stat& stat_buffer,
 
 void Save(EditorState* editor_state, struct stat* stat_buffer,
           OpenBuffer* buffer) {
-  const wstring path = buffer->Read(buffer_variables::path());
+  const wstring path = buffer->Read(buffer_variables::path);
   if (path.empty()) {
     editor_state->SetStatus(
         L"Buffer can't be saved: “path” variable is empty.");
@@ -255,12 +255,12 @@ void Save(EditorState* editor_state, struct stat* stat_buffer,
     buffer->EvaluateFile(dir + L"/hooks/buffer-save.cc",
                          [](std::unique_ptr<Value>) {});
   }
-  if (buffer->Read(buffer_variables::trigger_reload_on_buffer_write())) {
+  if (buffer->Read(buffer_variables::trigger_reload_on_buffer_write)) {
     for (auto& it : *editor_state->buffers()) {
       CHECK(it.second != nullptr);
-      if (it.second->Read(buffer_variables::reload_on_buffer_write())) {
+      if (it.second->Read(buffer_variables::reload_on_buffer_write)) {
         LOG(INFO) << "Write of " << path << " triggers reload: "
-                  << it.second->Read(buffer_variables::name());
+                  << it.second->Read(buffer_variables::name);
         it.second->Reload();
       }
     }
@@ -447,9 +447,9 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state) {
   it = OpenFile(options);
   CHECK(it != editor_state->buffers()->end());
   CHECK(it->second != nullptr);
-  it->second->Set(buffer_variables::save_on_close(), true);
-  it->second->Set(buffer_variables::trigger_reload_on_buffer_write(), false);
-  it->second->Set(buffer_variables::show_in_buffers_list(), false);
+  it->second->Set(buffer_variables::save_on_close, true);
+  it->second->Set(buffer_variables::trigger_reload_on_buffer_write, false);
+  it->second->Set(buffer_variables::show_in_buffers_list, false);
   if (!editor_state->has_current_buffer()) {
     editor_state->set_current_buffer(it->second);
     editor_state->ScheduleRedraw();
@@ -520,7 +520,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
       for (auto it = editor_state->buffers()->begin();
            it != editor_state->buffers()->end(); ++it) {
         CHECK(it->second != nullptr);
-        auto buffer_path = it->second->Read(buffer_variables::path());
+        auto buffer_path = it->second->Read(buffer_variables::path);
         if (buffer_path.size() >= path.size() &&
             buffer_path.substr(buffer_path.size() - path.size()) == path &&
             (buffer_path.size() == path.size() || path[0] == L'/' ||
@@ -562,7 +562,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   if (it.second) {
     if (it.first->second.get() == nullptr) {
       it.first->second = std::make_shared<OpenBuffer>(buffer_options);
-      it.first->second->Set(buffer_variables::persist_state(), true);
+      it.first->second->Set(buffer_variables::persist_state, true);
     }
     it.first->second->Reload();
   } else {
