@@ -177,6 +177,13 @@ EdgeVariable<bool>* const search_case_sensitive = BoolStruct()->AddVariable(
     L"search_case_sensitive",
     L"If set to true, search (through \"/\") is case sensitive.", false);
 
+EdgeVariable<bool>* const wrap_from_content = BoolStruct()->AddVariable(
+    L"wrap_from_content",
+    L"If true, lines will be wrapped (either at the end of the screen or after "
+    L"`line_width` characters) based on spaces, avoiding breaking words when "
+    L"feasible.",
+    false);
+
 EdgeVariable<bool>* const wrap_long_lines = BoolStruct()->AddVariable(
     L"wrap_long_lines",
     L"If set to true, long lines will be wrapped (only for displaying). "

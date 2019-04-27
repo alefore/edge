@@ -273,6 +273,13 @@ void BufferOutputProducer::WriteLine(Options options) {
   Line::OutputOptions line_output_options;
   line_output_options.position = range.begin;
   line_output_options.output_receiver = options.receiver.get();
+  if (range.begin.line == range.end.line) {
+    CHECK_GE(range.end.column, range.begin.column);
+    CHECK_LE(range.end.column - range.begin.column, columns_shown_);
+    line_output_options.width = range.end.column - range.begin.column;
+  } else {
+    line_output_options.width = columns_shown_;
+  }
   line_contents->Output(line_output_options);
 
   if (active_cursor_column.has_value() && options.active_cursor != nullptr) {
@@ -285,6 +292,13 @@ void BufferOutputProducer::WriteLine(Options options) {
   } else {
     CHECK_EQ(range.begin.line, range.end.line);
     column_ = range.end.column;
+    if (buffer_->Read(buffer_variables::wrap_from_content)) {
+      LOG(INFO) << "Skipping spaces (from column: " << column_ << ").";
+      auto line = buffer_->LineAt(range.end.line);
+      while (column_ < line->size() && line->get(column_) == L' ') {
+        column_++;
+      }
+    }
   }
 }
 
@@ -297,6 +311,27 @@ Range BufferOutputProducer::GetRange(LineColumn begin) {
   LineColumn end(begin.line, begin.column + columns_shown_);
   if (end.column < buffer_->LineAt(end.line)->size() &&
       buffer_->Read(buffer_variables::wrap_long_lines)) {
+    if (buffer_->Read(buffer_variables::wrap_from_content)) {
+      auto symbols = buffer_->Read(buffer_variables::symbol_characters);
+      auto line = buffer_->LineAt(end.line);
+      auto read = [&](size_t column) { return line->get(column); };
+      bool moved = false;
+      while (end > begin && symbols.find(read(end.column)) != symbols.npos) {
+        end.column--;
+        moved = true;
+      }
+      if (moved) {
+        end.column++;
+      }
+      while (end.column > begin.column + 1 &&
+             std::iswspace(read(end.column - 1))) {
+        end.column--;
+      }
+      if (end.column <= begin.column + 1) {
+        LOG(INFO) << "Giving up, line exceeds width.";
+        end.column = begin.column + columns_shown_;
+      }
+    }
     return Range(begin, end);
   }
   end.line++;

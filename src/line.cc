@@ -136,9 +136,8 @@ void Line::Output(const Line::OutputOptions& options) const {
 
   CHECK(environment_ != nullptr);
 
-  const size_t width = options.output_receiver->width();
   while (input_column < contents_->size() &&
-         options.output_receiver->column() < width) {
+         options.output_receiver->column() < options.width) {
     wint_t c = contents_->get(input_column);
     CHECK(c != '\n');
     // TODO: Optimize.

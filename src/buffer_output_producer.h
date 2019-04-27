@@ -39,7 +39,7 @@ class BufferOutputProducer : public OutputProducer {
 
   // The column (in the input) from which we should start displaying the current
   // output line. We get the line number from line_scroll_control_reader_.
-  int column_ = 0;
+  size_t column_ = 0;
 };
 
 }  // namespace editor

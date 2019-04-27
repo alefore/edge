@@ -95,10 +95,14 @@ void HandleFileTypes(string basename, string extension) {
     return;
   }
 
-  if (extension == "md") {
-    buffer.set_tree_parser("md");
+  if (extension == "txt" || extension == "md") {
+    buffer.set_wrap_from_content(true);
     buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
     buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
+  }
+
+  if (extension == "md") {
+    buffer.set_tree_parser("md");
     buffer.set_paragraph_line_prefix_characters("*-# ");
     buffer.set_line_prefix_characters(" ");
     SetStatus("🔡 Markdown file (" + extension + ")");

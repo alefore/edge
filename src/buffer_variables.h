@@ -32,6 +32,7 @@ extern EdgeVariable<bool>* const push_positions_to_history;
 extern EdgeVariable<bool>* const delete_into_paste_buffer;
 extern EdgeVariable<bool>* const scrollbar;
 extern EdgeVariable<bool>* const search_case_sensitive;
+extern EdgeVariable<bool>* const wrap_from_content;
 extern EdgeVariable<bool>* const wrap_long_lines;
 extern EdgeVariable<bool>* const extend_lines;
 extern EdgeVariable<bool>* const display_progress;

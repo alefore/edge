@@ -4,8 +4,6 @@ Consider using unicode watches to display duration, using exponential/logarithmi
 
 Fix a bug with buffers that are shown with fewer lines than mandated by their margins.
 
-Add a display mode for lines that wraps them at spaces (rather than just wherever they cross the boundary).
-
 Make it possible to put buffers side-by-side with a vertical division.
 
 Optimize the display of buffers to collapse multiple inactive buffers.
@@ -13,6 +11,12 @@ Optimize the display of buffers to collapse multiple inactive buffers.
 Make the widgets work closer to nethack or a similar command-line game.
 
 When a line wraps, don't let it cut the scrollbar/syntax tree.
+
+`wrap_from_content`: When the cursor is at the end of an output line from somewhere in the middle of a buffer line that wraps, it's currently not shown. It should be shown. When toggled, schedule a redraw.
+
+`wrap_long_lines`:
+* Make `j` and `k` scroll within the line.
+* Make it possible to scroll to the very end of the file (and show it).
 
 ### Syntax
 
