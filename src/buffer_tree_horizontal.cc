@@ -382,6 +382,23 @@ void BufferTreeHorizontal::SetBuffersVisible(BuffersVisible buffers_visible) {
 }
 
 void BufferTreeHorizontal::RecomputeLinesPerChild() {
+  LOG(INFO) << "Filtering out dead children.";
+  std::vector<std::unique_ptr<Widget>> new_children;
+  for (size_t i = 0; i < children_.size(); i++) {
+    auto buffer = children_[i]->GetActiveLeaf()->Lock();
+    if (buffer == nullptr ||
+        !buffer->Read(buffer_variables::show_in_buffers_list)) {
+      continue;
+    }
+    if (i == active_) {
+      active_ = new_children.size();
+    }
+    new_children.push_back(std::move(children_[i]));
+  }
+  if (!new_children.empty()) {
+    children_ = std::move(new_children);
+  }
+
   lines_per_child_.clear();
   for (size_t i = 0; i < children_.size(); i++) {
     auto child = children_[i].get();
