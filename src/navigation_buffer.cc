@@ -146,7 +146,7 @@ class NavigationBufferCommand : public Command {
     auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
     if (it.second) {
       OpenBuffer::Options options;
-      options.editor_state = editor_state;
+      options.editor = editor_state;
       options.name = name;
       std::weak_ptr<OpenBuffer> source_weak = source;
       options.generate_contents = [editor_state,

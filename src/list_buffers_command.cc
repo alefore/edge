@@ -170,7 +170,7 @@ class ListBuffersCommand : public Command {
         make_pair(OpenBuffer::kBuffersName, nullptr));
     if (it.second) {
       OpenBuffer::Options options;
-      options.editor_state = editor_state;
+      options.editor = editor_state;
       options.name = OpenBuffer::kBuffersName;
       options.generate_contents = [editor_state](OpenBuffer* target) {
         GenerateContents(editor_state, target);

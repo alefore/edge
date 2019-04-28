@@ -473,23 +473,23 @@ void OpenBuffer::BackgroundThread() {
     std::unique_lock<std::mutex> final_lock(mutex_);
     parse_tree_ = parse_tree;
     simplified_parse_tree_ = simplified_parse_tree;
-    editor_->ScheduleRedraw();
+    options_.editor->ScheduleRedraw();
     final_lock.unlock();
 
-    editor_->NotifyInternalEvent();
+    options_.editor->NotifyInternalEvent();
   }
 }
 
 OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
     : OpenBuffer([=]() {
         Options options;
-        options.editor_state = editor_state;
+        options.editor = editor_state;
         options.name = name;
         return options;
       }()) {}
 
 OpenBuffer::OpenBuffer(Options options)
-    : editor_(options.editor_state),
+    : options_(std::move(options)),
       child_pid_(-1),
       child_exit_status_(0),
       position_pts_(LineColumn(0, 0)),
@@ -499,20 +499,16 @@ OpenBuffer::OpenBuffer(Options options)
       string_variables_(buffer_variables::StringStruct()->NewInstance()),
       int_variables_(buffer_variables::IntStruct()->NewInstance()),
       double_variables_(buffer_variables::DoubleStruct()->NewInstance()),
-      environment_(editor_->environment()),
+      environment_(options_.editor->environment()),
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
       parse_tree_(std::make_shared<ParseTree>()),
       tree_parser_(NewNullTreeParser()),
-      default_commands_(editor_->default_commands()->NewChild()),
-      mode_(std::make_unique<MapMode>(default_commands_)),
-      generate_contents_(std::move(options.generate_contents)),
-      describe_status_(std::move(options.describe_status)),
-      handle_visit_(std::move(options.handle_visit)),
-      handle_save_(std::move(options.handle_save)) {
+      default_commands_(options_.editor->default_commands()->NewChild()),
+      mode_(std::make_unique<MapMode>(default_commands_)) {
   contents_.AddUpdateListener(
       [this](const CursorsTracker::Transformation& transformation) {
-        editor_->ScheduleParseTreeUpdate(this);
+        options_.editor->ScheduleParseTreeUpdate(this);
         modified_ = true;
         time(&last_action_);
         cursors_tracker_.AdjustCursors(transformation);
@@ -523,8 +519,8 @@ OpenBuffer::OpenBuffer(Options options)
       L"buffer",
       Value::NewObject(L"Buffer", shared_ptr<void>(this, [](void*) {})));
 
-  Set(buffer_variables::name, options.name);
-  Set(buffer_variables::path, options.path);
+  Set(buffer_variables::name, options_.name);
+  Set(buffer_variables::path, options_.path);
   Set(buffer_variables::pts_path, L"");
   Set(buffer_variables::command, L"");
   Set(buffer_variables::reload_after_exit, false);
@@ -535,7 +531,7 @@ OpenBuffer::OpenBuffer(Options options)
   }
   ClearContents(BufferContents::CursorsBehavior::kUnmodified);
 
-  for (const auto& dir : editor_->edge_path()) {
+  for (const auto& dir : options_.editor->edge_path()) {
     auto state_path =
         PathJoin(PathJoin(dir, L"state"),
                  PathJoin(Read(buffer_variables::path), L".edge_state"));
@@ -549,16 +545,18 @@ OpenBuffer::OpenBuffer(Options options)
 
 OpenBuffer::~OpenBuffer() {
   LOG(INFO) << "Buffer deleted: " << Read(buffer_variables::name);
-  editor_->UnscheduleParseTreeUpdate(this);
+  options_.editor->UnscheduleParseTreeUpdate(this);
   DestroyThreadIf([]() { return true; });
 }
+
+EditorState* OpenBuffer::editor() const { return options_.editor; }
 
 void OpenBuffer::SetStatus(wstring status) const {
   editor()->SetStatus(status);
 }
 
 std::optional<wstring> OpenBuffer::IsUnableToPrepareToClose() const {
-  if (editor_->modifiers().strength > Modifiers::Strength::kNormal) {
+  if (options_.editor->modifiers().strength > Modifiers::Strength::kNormal) {
     return std::nullopt;
   }
   if (child_pid_ != -1) {
@@ -583,7 +581,7 @@ void OpenBuffer::PrepareToClose(std::function<void()> success,
   }
 
   if (!PersistState() &&
-      editor_->modifiers().strength == Modifiers::Strength::kNormal) {
+      options_.editor->modifiers().strength == Modifiers::Strength::kNormal) {
     LOG(INFO) << "Unable to persist state: " << Read(buffer_variables::name);
     return failure(L"Unable to persist state.");
   }
@@ -599,7 +597,7 @@ void OpenBuffer::PrepareToClose(std::function<void()> success,
       };
       return;
     }
-    CHECK(editor_->modifiers().strength > Modifiers::Strength::kNormal);
+    CHECK(options_.editor->modifiers().strength > Modifiers::Strength::kNormal);
   }
   if (!dirty()) {
     LOG(INFO) << Read(buffer_variables::name) << ": clean, skipping.";
@@ -619,7 +617,7 @@ void OpenBuffer::PrepareToClose(std::function<void()> success,
               << ": allows dirty delete, skipping.";
     return success();
   }
-  CHECK(editor_->modifiers().strength > Modifiers::Strength::kNormal);
+  CHECK(options_.editor->modifiers().strength > Modifiers::Strength::kNormal);
   LOG(INFO) << Read(buffer_variables::name) << ": Deleting due to modifiers.";
   return success();
 }
@@ -654,8 +652,8 @@ void OpenBuffer::Visit() {
   }
   time(&last_visit_);
   time(&last_action_);
-  if (handle_visit_ != nullptr) {
-    handle_visit_(this);
+  if (options_.handle_visit != nullptr) {
+    options_.handle_visit(this);
   }
 }
 
@@ -667,7 +665,7 @@ bool OpenBuffer::PersistState() const {
     return true;
   }
 
-  auto path_vector = editor_->edge_path();
+  auto path_vector = options_.editor->edge_path();
   if (path_vector.empty()) {
     LOG(INFO) << "Empty edge path.";
     return false;
@@ -676,10 +674,10 @@ bool OpenBuffer::PersistState() const {
   auto file_path = Read(buffer_variables::path);
   list<wstring> file_path_components;
   if (file_path.empty() || file_path[0] != '/') {
-    editor_->SetWarningStatus(L"Unable to persist buffer with empty path: " +
-                              Read(buffer_variables::name) +
-                              (dirty() ? L" (dirty)" : L" (clean)") +
-                              (modified_ ? L"modified" : L"not modi"));
+    options_.editor->SetWarningStatus(
+        L"Unable to persist buffer with empty path: " +
+        Read(buffer_variables::name) + (dirty() ? L" (dirty)" : L" (clean)") +
+        (modified_ ? L"modified" : L"not modi"));
     return !dirty();
   }
 
@@ -741,17 +739,17 @@ bool OpenBuffer::PersistState() const {
   }
   contents.push_back(L"");
 
-  return SaveContentsToFile(editor_, path, contents);
+  return SaveContentsToFile(editor(), path, contents);
 }
 
 void OpenBuffer::ClearContents(
     BufferContents::CursorsBehavior cursors_behavior) {
   VLOG(5) << "Clear contents of buffer: " << Read(buffer_variables::name);
-  editor_->line_marks()->RemoveExpiredMarksFromSource(
+  options_.editor->line_marks()->RemoveExpiredMarksFromSource(
       Read(buffer_variables::name));
-  editor_->line_marks()->ExpireMarksFromSource(*this,
-                                               Read(buffer_variables::name));
-  editor_->ScheduleRedraw();
+  options_.editor->line_marks()->ExpireMarksFromSource(
+      *this, Read(buffer_variables::name));
+  options_.editor->ScheduleRedraw();
   contents_.EraseLines(0, contents_.size(), cursors_behavior);
   position_pts_ = LineColumn();
   last_transformation_ = NewNoopTransformation();
@@ -821,7 +819,7 @@ OpenBuffer::GetEndPositionFollower() {
   return std::unique_ptr<bool, std::function<void(bool*)>>(
       new bool(), [this](bool* value) {
         delete value;
-        if (Read(buffer_variables::pts)) {
+        if (terminal_data_.has_value()) {
           set_position(position_pts_);
         } else {
           set_position(end_position());
@@ -1005,7 +1003,7 @@ void OpenBuffer::UpdateTreeParser() {
   } else {
     tree_parser_ = NewNullTreeParser();
   }
-  editor_->ScheduleParseTreeUpdate(this);
+  options_.editor->ScheduleParseTreeUpdate(this);
   lock.unlock();
 
   DestroyThreadIf([this]() { return TreeParser::IsNull(tree_parser_.get()); });
@@ -1104,11 +1102,11 @@ void OpenBuffer::Reload() {
   // know that we're ready to run.
   std::shared_ptr<bool> reloader(new bool(), [this](bool* value) {
     delete value;
-    if (editor_->exit_value().has_value()) return;
+    if (options_.editor->exit_value().has_value()) return;
     ClearModified();
     LOG(INFO) << "Starting reload: " << Read(buffer_variables::name);
-    if (generate_contents_ != nullptr) {
-      generate_contents_(this);
+    if (options_.generate_contents != nullptr) {
+      options_.generate_contents(this);
     }
 
     switch (reload_state_) {
@@ -1132,8 +1130,8 @@ void OpenBuffer::Reload() {
 void OpenBuffer::Save() {
   LOG(INFO) << "Saving buffer: " << Read(buffer_variables::name);
 
-  if (handle_save_ != nullptr) {
-    return handle_save_(this);
+  if (options_.handle_save != nullptr) {
+    return options_.handle_save(this);
   }
   SetStatus(L"Buffer can't be saved.");
 }
@@ -1435,10 +1433,12 @@ size_t OpenBuffer::ProcessTerminalEscapeSequence(
           }
           DLOG(INFO) << "Move cursor home: line: " << line_delta
                      << ", column: " << column_delta;
-          position_pts_ = LineColumn(
-              editor_->buffer_tree()->GetActiveLeaf()->view_start().line +
-                  line_delta,
-              column_delta);
+          position_pts_ = LineColumn(options_.editor->buffer_tree()
+                                             ->GetActiveLeaf()
+                                             ->view_start()
+                                             .line +
+                                         line_delta,
+                                     column_delta);
           auto follower = GetEndPositionFollower();
           while (position_pts_.line >= contents_.size()) {
             contents_.push_back(std::make_shared<Line>());
@@ -1672,7 +1672,7 @@ CursorsSet* OpenBuffer::FindCursors(const wstring& name) {
 }
 
 CursorsSet* OpenBuffer::active_cursors() {
-  return FindCursors(editor_->modifiers().active_cursors);
+  return FindCursors(options_.editor->modifiers().active_cursors);
 }
 
 void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
@@ -1688,7 +1688,7 @@ void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
   // we start at the first requested position.
   cursors->SetCurrentCursor(positions.front());
 
-  editor_->ScheduleRedraw();
+  options_.editor->ScheduleRedraw();
 }
 
 void OpenBuffer::ToggleActiveCursors() {
@@ -1712,7 +1712,7 @@ void OpenBuffer::ToggleActiveCursors() {
   LOG(INFO) << "Picked up the first cursor: " << position();
   CHECK_LE(position().line, contents_.size());
 
-  editor_->ScheduleRedraw();
+  options_.editor->ScheduleRedraw();
 }
 
 void OpenBuffer::PushActiveCursors() {
@@ -1723,7 +1723,7 @@ void OpenBuffer::PushActiveCursors() {
 void OpenBuffer::PopActiveCursors() {
   auto stack_size = cursors_tracker_.Pop();
   if (stack_size == 0) {
-    editor_->SetWarningStatus(L"cursors stack: -: Stack is empty!");
+    options_.editor->SetWarningStatus(L"cursors stack: -: Stack is empty!");
     return;
   }
   SetStatus(L"cursors stack (" + to_wstring(stack_size - 1) + L"): -");
@@ -1732,7 +1732,7 @@ void OpenBuffer::PopActiveCursors() {
 void OpenBuffer::SetActiveCursorsToMarks() {
   const auto& marks = *GetLineMarks();
   if (marks.empty()) {
-    editor_->SetWarningStatus(L"Buffer has no marks!");
+    options_.editor->SetWarningStatus(L"Buffer has no marks!");
     return;
   }
 
@@ -1753,18 +1753,18 @@ void OpenBuffer::set_current_cursor(LineColumn new_value) {
 }
 
 void OpenBuffer::CreateCursor() {
-  if (editor_->modifiers().structure == StructureChar()) {
+  if (options_.editor->modifiers().structure == StructureChar()) {
     CHECK_LE(position().line, contents_.size());
     active_cursors()->insert(position());
   } else {
-    auto structure = editor_->modifiers().structure;
-    Modifiers tmp_modifiers = editor_->modifiers();
+    auto structure = options_.editor->modifiers().structure;
+    Modifiers tmp_modifiers = options_.editor->modifiers();
     tmp_modifiers.structure = StructureCursor();
     Range range = FindPartialRange(tmp_modifiers, position());
     if (range.IsEmpty()) {
       return;
     }
-    editor_->set_direction(FORWARDS);
+    options_.editor->set_direction(FORWARDS);
     LOG(INFO) << "Range for cursors: " << range;
     while (!range.IsEmpty()) {
       auto tmp_first = range.begin;
@@ -1780,12 +1780,12 @@ void OpenBuffer::CreateCursor() {
     }
   }
   SetStatus(L"Cursor created.");
-  editor_->ScheduleRedraw();
+  options_.editor->ScheduleRedraw();
 }
 
 LineColumn OpenBuffer::FindNextCursor(LineColumn position) {
-  LOG(INFO) << "Visiting next cursor: " << editor_->modifiers();
-  auto direction = editor_->modifiers().direction;
+  LOG(INFO) << "Visiting next cursor: " << options_.editor->modifiers();
+  auto direction = options_.editor->modifiers().direction;
   auto cursors = active_cursors();
   CHECK(!cursors->empty());
 
@@ -1799,7 +1799,8 @@ LineColumn OpenBuffer::FindNextCursor(LineColumn position) {
     ++index;
   }
 
-  size_t repetitions = editor_->modifiers().repetitions % cursors->size();
+  size_t repetitions =
+      options_.editor->modifiers().repetitions % cursors->size();
   size_t final_position;  // From cursors->begin().
   if (direction == FORWARDS) {
     final_position = (index + repetitions) % cursors->size();
@@ -1819,12 +1820,12 @@ void OpenBuffer::DestroyCursor() {
     return;
   }
   size_t repetitions =
-      min(editor_->modifiers().repetitions, cursors->size() - 1);
+      min(options_.editor->modifiers().repetitions, cursors->size() - 1);
   for (size_t i = 0; i < repetitions; i++) {
     cursors->DeleteCurrentCursor();
   }
   CHECK_LE(position().line, contents_.size());
-  editor_->ScheduleRedraw();
+  options_.editor->ScheduleRedraw();
 }
 
 void OpenBuffer::DestroyOtherCursors() {
@@ -1835,7 +1836,7 @@ void OpenBuffer::DestroyOtherCursors() {
   cursors->clear();
   cursors->insert(position);
   Set(buffer_variables::multiple_cursors, false);
-  editor_->ScheduleRedraw();
+  options_.editor->ScheduleRedraw();
 }
 
 Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
@@ -1999,8 +2000,8 @@ void OpenBuffer::SetTerminalSize(size_t lines, size_t columns) {
   terminal_data_.value().lines = screen_size.ws_row = lines;
   terminal_data_.value().columns = screen_size.ws_col = columns;
   if (ioctl(fd_.fd, TIOCSWINSZ, &screen_size) == -1) {
-    editor_->SetWarningStatus(L"ioctl TIOCSWINSZ failed: " +
-                              FromByteString(strerror(errno)));
+    options_.editor->SetWarningStatus(L"ioctl TIOCSWINSZ failed: " +
+                                      FromByteString(strerror(errno)));
   }
 }
 
@@ -2098,8 +2099,8 @@ bool OpenBuffer::dirty() const {
 
 std::map<wstring, wstring> OpenBuffer::Flags() const {
   std::map<wstring, wstring> output;
-  if (describe_status_) {
-    output = describe_status_(*this);
+  if (options_.describe_status) {
+    output = options_.describe_status(*this);
   }
 
   if (modified()) {
@@ -2228,7 +2229,7 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
     CHECK(!transformations_past_.empty());
   } else {
     transformations_past_.push_back(
-        std::make_unique<Transformation::Result>(editor_));
+        std::make_unique<Transformation::Result>(editor()));
   }
 
   transformations_past_.back()->undo_stack->PushFront(
@@ -2255,7 +2256,7 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
 
   transformations_future_.clear();
   if (transformations_past_.back()->modified_buffer) {
-    editor_->StartHandlingInterrupts();
+    options_.editor->StartHandlingInterrupts();
     last_transformation_ = std::move(transformation);
   }
 }
@@ -2283,8 +2284,8 @@ LineColumn OpenBuffer::Apply(unique_ptr<Transformation> transformation) {
 }
 
 void OpenBuffer::RepeatLastTransformation() {
-  int repetitions = editor_->repetitions();
-  editor_->ResetRepetitions();
+  int repetitions = options_.editor->repetitions();
+  options_.editor->ResetRepetitions();
   ApplyToCursors(NewApplyRepetitionsTransformation(
       repetitions, last_transformation_->Clone()));
 }
@@ -2292,7 +2293,7 @@ void OpenBuffer::RepeatLastTransformation() {
 void OpenBuffer::PushTransformationStack() {
   if (last_transformation_stack_.empty()) {
     transformations_past_.push_back(
-        std::make_unique<Transformation::Result>(editor_));
+        std::make_unique<Transformation::Result>(editor()));
   }
   last_transformation_stack_.emplace_back(
       std::make_unique<TransformationStack>());

@@ -53,7 +53,7 @@ class OpenBuffer {
                                  Environment* environment);
 
   struct Options {
-    EditorState* editor_state;
+    EditorState* editor;
     wstring name;
     wstring path;
 
@@ -82,7 +82,7 @@ class OpenBuffer {
   OpenBuffer(Options options);
   ~OpenBuffer();
 
-  EditorState* editor() const { return editor_; }
+  EditorState* editor() const;
 
   void SetStatus(wstring status) const;
 
@@ -409,7 +409,7 @@ class OpenBuffer {
   // LineColumn::Max and the buffer has read past that position.
   bool IsPastPosition(LineColumn position) const;
 
-  EditorState* const editor_;
+  const Options options_;
 
   struct Input {
     void Close();
@@ -468,6 +468,7 @@ class OpenBuffer {
   // Optional function to execute when a sub-process exits.
   std::function<void()> on_exit_handler_;
 
+  // Move to TerminalData.
   LineColumn position_pts_;
 
   BufferContents contents_;
@@ -558,14 +559,6 @@ class OpenBuffer {
   //
   // TODO: Add a Time type to the VM and expose this?
   struct timespec last_progress_update_ = {0, 0};
-
-  // See Options::generate_contents.
-  // TODO: Just keep const Options_ options;
-  const std::function<void(OpenBuffer*)> generate_contents_;
-  const std::function<std::map<wstring, wstring>(const OpenBuffer&)>
-      describe_status_;
-  const std::function<void(OpenBuffer*)> handle_visit_;
-  const std::function<void(OpenBuffer*)> handle_save_;
 };
 
 }  // namespace editor

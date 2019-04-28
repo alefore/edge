@@ -420,7 +420,7 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
   if (it.second) {
     auto command_data = std::make_shared<CommandData>();
     OpenBuffer::Options buffer_options;
-    buffer_options.editor_state = editor_state;
+    buffer_options.editor = editor_state;
     buffer_options.name = buffer_name;
     buffer_options.generate_contents = [editor_state,
                                         environment = options.environment,

@@ -204,7 +204,7 @@ bool StartServer(EditorState* editor_state, wstring address,
 shared_ptr<OpenBuffer> OpenServerBuffer(EditorState* editor_state,
                                         const wstring& address) {
   OpenBuffer::Options options;
-  options.editor_state = editor_state;
+  options.editor = editor_state;
   options.name = editor_state->GetUnusedBufferName(L"- server");
   options.path = address;
   options.generate_contents = [editor_state](OpenBuffer* buffer) {

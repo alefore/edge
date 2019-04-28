@@ -108,7 +108,7 @@ void Predict(EditorState* editor_state, Predictor predictor, wstring input,
   auto& predictions_buffer =
       (*editor_state->buffers())[PredictionsBufferName()];
   OpenBuffer::Options options;
-  options.editor_state = editor_state;
+  options.editor = editor_state;
   options.name = PredictionsBufferName();
   options.generate_contents = [editor_state, predictor, input,
                                consumer](OpenBuffer* buffer) {

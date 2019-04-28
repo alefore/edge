@@ -501,7 +501,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   auto stat_buffer = std::make_shared<struct stat>();
 
   OpenBuffer::Options buffer_options;
-  buffer_options.editor_state = editor_state;
+  buffer_options.editor = editor_state;
   buffer_options.generate_contents = [editor_state,
                                       stat_buffer](OpenBuffer* target) {
     GenerateContents(editor_state, stat_buffer.get(), target);
