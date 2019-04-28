@@ -1,17 +1,17 @@
 #ifndef __AFC_EDITOR_AUDIO_H__
 #define __AFC_EDITOR_AUDIO_H__
 
-#include <functional>
-#include <memory>
-#include <mutex>
-#include <thread>
-#include <vector>
-
 #include <ao/ao.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <thread>
+#include <vector>
 
 namespace afc {
 namespace editor {
