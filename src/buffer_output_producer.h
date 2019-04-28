@@ -36,10 +36,6 @@ class BufferOutputProducer : public OutputProducer {
   // for the list of open buffers), keeps track of those we've already shown, to
   // only output their flags in their first line.
   std::unordered_set<const OpenBuffer*> buffers_shown_;
-
-  // The column (in the input) from which we should start displaying the current
-  // output line. We get the line number from line_scroll_control_reader_.
-  size_t column_ = 0;
 };
 
 }  // namespace editor

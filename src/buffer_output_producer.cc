@@ -195,27 +195,26 @@ BufferOutputProducer::BufferOutputProducer(
 }
 
 void BufferOutputProducer::WriteLine(Options options) {
-  auto optional_line = line_scroll_control_reader_->GetLine();
-  if (!optional_line.has_value()) {
+  auto optional_range = line_scroll_control_reader_->GetRange();
+  if (!optional_range.has_value()) {
     return;
   }
 
-  auto line = optional_line.value();
+  auto range = optional_range.value();
+  size_t line = range.begin.line;
 
   if (options.active_cursor != nullptr) {
     *options.active_cursor = std::nullopt;
   }
 
   if (line >= buffer_->lines_size()) {
-    line_scroll_control_reader_->LineDone();
-    column_ = 0;
+    line_scroll_control_reader_->RangeDone();
     return;
   }
 
-  auto range = GetRange(LineColumn(line, column_));
   std::set<size_t> current_cursors;
   for (auto& c : line_scroll_control_reader_->GetCurrentCursors()) {
-    current_cursors.insert(c - column_);
+    current_cursors.insert(c);
   }
 
   std::optional<size_t> active_cursor_column;
@@ -286,56 +285,7 @@ void BufferOutputProducer::WriteLine(Options options) {
     *options.active_cursor = active_cursor_column.value();
   }
 
-  if (range.end >= LineColumn(line, line_contents->size())) {
-    column_ = initial_column_;
-    line_scroll_control_reader_->LineDone();
-  } else {
-    CHECK_EQ(range.begin.line, range.end.line);
-    column_ = range.end.column;
-    if (buffer_->Read(buffer_variables::wrap_from_content)) {
-      LOG(INFO) << "Skipping spaces (from column: " << column_ << ").";
-      auto line = buffer_->LineAt(range.end.line);
-      while (column_ < line->size() && line->get(column_) == L' ') {
-        column_++;
-      }
-    }
-  }
-}
-
-Range BufferOutputProducer::GetRange(LineColumn begin) {
-  // TODO: This is wrong: it doesn't account for multi-width characters.
-  // TODO: This is wrong: it doesn't take into account line filters.
-  if (begin.line >= buffer_->lines_size()) {
-    return Range(begin, LineColumn(std::numeric_limits<size_t>::max()));
-  }
-  LineColumn end(begin.line, begin.column + columns_shown_);
-  if (end.column < buffer_->LineAt(end.line)->size() &&
-      buffer_->Read(buffer_variables::wrap_long_lines)) {
-    if (buffer_->Read(buffer_variables::wrap_from_content)) {
-      auto symbols = buffer_->Read(buffer_variables::symbol_characters);
-      auto line = buffer_->LineAt(end.line);
-      auto read = [&](size_t column) { return line->get(column); };
-      bool moved = false;
-      while (end > begin && symbols.find(read(end.column)) != symbols.npos) {
-        end.column--;
-        moved = true;
-      }
-      if (moved) {
-        end.column++;
-      }
-      if (end.column <= begin.column + 1) {
-        LOG(INFO) << "Giving up, line exceeds width.";
-        end.column = begin.column + columns_shown_;
-      }
-    }
-    return Range(begin, end);
-  }
-  end.line++;
-  end.column = initial_column_;
-  if (end.line >= buffer_->lines_size()) {
-    end = LineColumn(std::numeric_limits<size_t>::max());
-  }
-  return Range(begin, end);
+  line_scroll_control_reader_->RangeDone();
 }
 
 }  // namespace editor

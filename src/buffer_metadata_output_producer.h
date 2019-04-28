@@ -19,7 +19,7 @@ class BufferMetadataOutputProducer : public OutputProducer {
   void WriteLine(Options options) override;
 
  private:
-  void Prepare(size_t line);
+  void Prepare(Range range);
   wstring GetDefaultInformation(size_t line);
 
   const std::shared_ptr<OpenBuffer> buffer_;
@@ -39,16 +39,19 @@ class BufferMetadataOutputProducer : public OutputProducer {
 
   // Fields with output to display for each line in the buffer. They are set by
   // `Prepare`.
-  struct LineData {
-    wchar_t info_char_;
-    LineModifier info_char_modifier_;
+  struct RangeData {
+    wchar_t info_char;
+    LineModifier info_char_modifier;
 
-    std::optional<wstring> additional_information_;
-    std::list<LineMarks::Mark> marks_;
-    std::list<LineMarks::Mark> marks_expired_;
+    std::optional<wstring> additional_information;
+    std::list<LineMarks::Mark> marks;
+    std::list<LineMarks::Mark> marks_expired;
+
+    // How many lines have we produced for this range?
+    size_t output_lines = 0;
   };
 
-  std::optional<LineData> line_data_;
+  std::optional<RangeData> range_data_;
 };
 
 }  // namespace editor

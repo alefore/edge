@@ -153,27 +153,28 @@ void AddString(wchar_t info_char, LineModifier modifier, wstring str,
 }
 
 void BufferMetadataOutputProducer::WriteLine(Options options) {
-  auto line = line_scroll_control_reader_->GetLine();
-  if (!line.has_value()) {
+  auto range = line_scroll_control_reader_->GetRange();
+  if (!range.has_value()) {
+    return;
+  }
+  auto line = range.value().begin.line;
+
+  if (line >= buffer_->lines_size()) {
+    line_scroll_control_reader_->RangeDone();
     return;
   }
 
-  if (line.value() >= buffer_->lines_size()) {
-    line_scroll_control_reader_->LineDone();
-    return;
+  if (range_data_ == std::nullopt) {
+    Prepare(range.value());
   }
 
-  if (line_data_ == std::nullopt) {
-    Prepare(line.value());
-  }
-
-  if (line_data_->additional_information_.has_value()) {
-    AddString(line_data_->info_char_, line_data_->info_char_modifier_,
-              line_data_->additional_information_.value(),
+  if (range_data_->additional_information.has_value()) {
+    AddString(range_data_->info_char, range_data_->info_char_modifier,
+              range_data_->additional_information.value(),
               options.receiver.get());
-    line_data_->additional_information_ = std::nullopt;
-  } else if (!line_data_->marks_.empty()) {
-    const auto& m = line_data_->marks_.front();
+    range_data_->additional_information = std::nullopt;
+  } else if (!range_data_->marks.empty()) {
+    const auto& m = range_data_->marks.front();
     auto source = buffer_->editor()->buffers()->find(m.source);
     if (source != buffer_->editor()->buffers()->end() &&
         source->second->contents()->size() > m.source_line) {
@@ -183,31 +184,31 @@ void BufferMetadataOutputProducer::WriteLine(Options options) {
     } else {
       AddString('!', LineModifier::RED, L"(dead mark)", options.receiver.get());
     }
-    line_data_->marks_.pop_front();
-  } else if (!line_data_->marks_expired_.empty()) {
+    range_data_->marks.pop_front();
+  } else if (!range_data_->marks_expired.empty()) {
     AddString(
         '!', LineModifier::RED,
         L"👻 " +
-            line_data_->marks_expired_.front().source_line_content->ToString(),
+            range_data_->marks_expired.front().source_line_content->ToString(),
         options.receiver.get());
-    line_data_->marks_expired_.pop_front();
+    range_data_->marks_expired.pop_front();
   } else {
-    AddString(line_data_->info_char_, line_data_->info_char_modifier_,
-              GetDefaultInformation(line.value()), options.receiver.get());
+    AddString(range_data_->info_char, range_data_->info_char_modifier,
+              GetDefaultInformation(line), options.receiver.get());
   }
 
-  if (line_data_->additional_information_ == std::nullopt &&
-      line_data_->marks_.empty() && line_data_->marks_expired_.empty()) {
-    line_data_ = std::nullopt;
-    line_scroll_control_reader_->LineDone();
+  if (range_data_->additional_information == std::nullopt &&
+      range_data_->marks.empty() && range_data_->marks_expired.empty()) {
+    range_data_ = std::nullopt;
+    line_scroll_control_reader_->RangeDone();
   }
 }
 
-void BufferMetadataOutputProducer::Prepare(size_t line) {
-  CHECK(line_data_ == std::nullopt);
-  line_data_ = LineData();
+void BufferMetadataOutputProducer::Prepare(Range range) {
+  CHECK(range_data_ == std::nullopt);
+  range_data_ = RangeData();
 
-  auto contents = *buffer_->LineAt(line);
+  auto contents = *buffer_->LineAt(range.begin.line);
   auto target_buffer_value = contents.environment()->Lookup(
       L"buffer", vm::VMTypeMapper<std::shared_ptr<OpenBuffer>>::vmtype);
   const auto target_buffer =
@@ -216,29 +217,29 @@ void BufferMetadataOutputProducer::Prepare(size_t line) {
           ? static_cast<OpenBuffer*>(target_buffer_value->user_value.get())
           : buffer_.get();
 
-  auto marks = buffer_->GetLineMarks()->equal_range(line);
-  if (marks.first != marks.second) {
-    while (std::next(marks.first) != marks.second) {
-      (marks.first->second.IsExpired() ? line_data_->marks_expired_
-                                       : line_data_->marks_)
+  auto marks = buffer_->GetLineMarks()->equal_range(range.begin.line);
+  while (marks.first != marks.second) {
+    if (range.Contains(marks.first->second.target)) {
+      (marks.first->second.IsExpired() ? range_data_->marks_expired
+                                        : range_data_->marks)
           .push_back(marks.first->second);
-      ++marks.first;
     }
+    ++marks.first;
   }
 
-  line_data_->info_char_ = L'•';
-  line_data_->info_char_modifier_ = LineModifier::DIM;
+  range_data_->info_char = L'•';
+  range_data_->info_char_modifier = LineModifier::DIM;
 
   if (target_buffer != buffer_.get()) {
     if (buffers_shown_.insert(target_buffer).second) {
-      line_data_->additional_information_ = target_buffer->FlagsString();
+      range_data_->additional_information = target_buffer->FlagsString();
     }
   } else if (marks.first != marks.second) {
   } else if (contents.modified()) {
-    line_data_->info_char_modifier_ = LineModifier::GREEN;
-    line_data_->info_char_ = L'•';
+    range_data_->info_char_modifier = LineModifier::GREEN;
+    range_data_->info_char = L'•';
   } else {
-    line_data_->info_char_modifier_ = LineModifier::DIM;
+    range_data_->info_char_modifier = LineModifier::DIM;
   }
 }
 

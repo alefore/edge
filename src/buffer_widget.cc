@@ -83,16 +83,18 @@ class LineNumberOutputProducer : public OutputProducer {
         line_scroll_control_reader_(std::move(line_scroll_control_reader)) {}
 
   void WriteLine(Options options) override {
-    auto line = line_scroll_control_reader_->GetLine();
-    if (line.has_value() && line.value() >= buffer_->lines_size()) {
+    auto range = line_scroll_control_reader_->GetRange();
+    if (range.has_value() &&
+        range.value().begin.line >= buffer_->lines_size()) {
       return;  // Happens when the buffer is smaller than the screen.
     }
 
-    std::wstring number =
-        line.has_value() ? std::to_wstring(line.value() + 1) : L"↪";
+    std::wstring number = range.has_value()
+                              ? std::to_wstring(range.value().begin.line + 1)
+                              : L"↪";
     CHECK_LE(number.size(), width_ - 1);
     std::wstring padding(width_ - number.size() - 1, L' ');
-    if (!line.has_value() ||
+    if (!range.has_value() ||
         line_scroll_control_reader_->GetCurrentCursors().empty()) {
       options.receiver->AddModifier(LineModifier::DIM);
     } else if (line_scroll_control_reader_->HasActiveCursor() ||
@@ -104,8 +106,8 @@ class LineNumberOutputProducer : public OutputProducer {
     }
     options.receiver->AddString(padding + number + L':');
 
-    if (line.has_value()) {
-      line_scroll_control_reader_->LineDone();
+    if (range.has_value()) {
+      line_scroll_control_reader_->RangeDone();
     }
   }
 
@@ -139,7 +141,9 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
         min(buffer_columns,
             static_cast<size_t>(buffer->Read(buffer_variables::line_width)));
   }
-  auto line_scroll_control = LineScrollControl::New(buffer, view_start_.line);
+
+  auto line_scroll_control =
+      LineScrollControl::New(line_scroll_control_options_);
 
   auto buffer_output_producer = std::make_unique<BufferOutputProducer>(
       buffer, line_scroll_control->NewReader(), lines_, buffer_columns,
@@ -156,7 +160,7 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
   columns[0].width = line_numbers->width();
   columns[0].producer = std::move(line_numbers);
 
-  columns[1].width = buffer->Read(buffer_variables::line_width);
+  columns[1].width = line_scroll_control_options_.columns_shown;
   columns[1].producer = std::move(buffer_output_producer);
 
   columns[2].producer = std::make_unique<BufferMetadataOutputProducer>(
@@ -205,12 +209,18 @@ void BufferWidget::SetBuffer(std::weak_ptr<OpenBuffer> buffer) {
 }
 
 void BufferWidget::RecomputeData() {
+  line_scroll_control_options_ = LineScrollControl::Options();
+
   auto buffer = leaf_.lock();
   if (buffer == nullptr) {
-    view_start_ = LineColumn();
     zoomed_out_tree_ = nullptr;
     return;
   }
+
+  line_scroll_control_options_.buffer = buffer;
+  line_scroll_control_options_.lines_shown = lines_;
+  line_scroll_control_options_.columns_shown =
+      buffer->Read(buffer_variables::line_width);
 
   size_t line = min(buffer->position().line, buffer->contents()->size() - 1);
   size_t margin_lines =
@@ -226,15 +236,15 @@ void BufferWidget::RecomputeData() {
   if (view_start_.line > line - min(margin_lines, line) &&
       (buffer->child_pid() != -1 || buffer->fd() == -1)) {
     view_start_.line = line - min(margin_lines, line);
-    // editor_state->ScheduleRedraw();
   } else if (view_start_.line + lines_ <=
              min(buffer->lines_size(), line + margin_lines)) {
     view_start_.line =
         min(buffer->lines_size() - 1, line + margin_lines) - lines_ + 1;
-    // editor_state->ScheduleRedraw();
   }
 
   view_start_.column = GetDesiredViewStartColumn(buffer.get());
+  line_scroll_control_options_.begin = view_start_;
+  line_scroll_control_options_.initial_column = view_start_.column;
 
   auto simplified_parse_tree = buffer->simplified_parse_tree();
   if (lines_ > 0 && simplified_parse_tree != nullptr &&

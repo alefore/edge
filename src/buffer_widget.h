@@ -4,6 +4,7 @@
 #include <list>
 #include <memory>
 
+#include "src/line_scroll_control.h"
 #include "src/output_producer.h"
 #include "src/parse_tree.h"
 #include "src/tree.h"
@@ -56,6 +57,8 @@ class BufferWidget : public Widget {
   std::weak_ptr<OpenBuffer> leaf_;
   size_t lines_ = 0;
   size_t columns_ = 0;
+
+  LineScrollControl::Options line_scroll_control_options_;
 
   // The position in the buffer where the view begins.
   LineColumn view_start_;
