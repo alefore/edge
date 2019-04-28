@@ -37,7 +37,13 @@ void LineNumberOutputProducer::WriteLine(Options options) {
   }
 
   std::wstring number =
-      range.has_value() ? std::to_wstring(range.value().begin.line + 1) : L"↪";
+      range.has_value() && (!last_line_.has_value() ||
+                            range.value().begin.line > last_line_.value())
+          ? std::to_wstring(range.value().begin.line + 1)
+          : L"↪";
+  if (range.has_value()) {
+    last_line_ = range.value().begin.line;
+  }
   CHECK_LE(number.size(), width_ - 1);
   std::wstring padding(width_ - number.size() - 1, L' ');
   if (!range.has_value() ||
