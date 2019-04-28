@@ -313,9 +313,8 @@ class OpenBuffer {
   void SetInputFiles(int input_fd, int input_fd_error, bool fd_is_terminal,
                      pid_t child_pid);
 
-  int fd() const { return fd_.fd(); }
-  int fd_error() const { return fd_error_.fd(); }
-  void CheckForEndOfFile();
+  int fd() const;
+  int fd_error() const;
 
   pid_t child_pid() const { return child_pid_; }
   int child_exit_status() const { return child_exit_status_; }
@@ -410,10 +409,14 @@ class OpenBuffer {
   // LineColumn::Max and the buffer has read past that position.
   bool IsPastPosition(LineColumn position) const;
 
+  // Reads from one of the two FileDescriptorReader instances in the buffer
+  // (i.e., `fd_` or `fd_error_`).
+  void ReadData(std::unique_ptr<FileDescriptorReader>* source);
+
   const Options options_;
 
-  FileDescriptorReader fd_;
-  FileDescriptorReader fd_error_;
+  std::unique_ptr<FileDescriptorReader> fd_;
+  std::unique_ptr<FileDescriptorReader> fd_error_;
 
   std::unique_ptr<BufferTerminal> terminal_;
 

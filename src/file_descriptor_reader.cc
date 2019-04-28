@@ -21,57 +21,37 @@ vector<unordered_set<LineModifier, hash<int>>> ModifiersVector(
 }  // namespace
 
 FileDescriptorReader::FileDescriptorReader(Options options)
-    : options_(std::move(options)) {}
-
-int FileDescriptorReader::fd() const { return fd_; }
-
-void FileDescriptorReader::Open(int fd, LineModifierSet modifiers,
-                                BufferTerminal* terminal) {
-  fd_ = fd;
-  modifiers_ = modifiers;
-  terminal_ = terminal;
+    : options_(std::move(options)) {
+  CHECK(options_.buffer != nullptr);
+  CHECK(options_.fd != -1);
 }
 
-void FileDescriptorReader::Reset() {
-  low_buffer_ = nullptr;
-  low_buffer_length_ = 0;
-}
+FileDescriptorReader::~FileDescriptorReader() { close(options_.fd); }
 
-void FileDescriptorReader::Close() {
-  if (fd_ != -1) {
-    close(fd_);
-    fd_ = -1;
-  }
-}
+int FileDescriptorReader::fd() const { return options_.fd; }
 
-void FileDescriptorReader::ReadData() {
+FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
   EditorState* editor_state = options_.buffer->editor();
-  LOG(INFO) << "Reading input from " << fd_ << " for buffer "
+  LOG(INFO) << "Reading input from " << options_.fd << " for buffer "
             << options_.buffer->Read(buffer_variables::name);
   static const size_t kLowBufferSize = 1024 * 60;
   if (low_buffer_ == nullptr) {
     CHECK_EQ(low_buffer_length_, 0ul);
     low_buffer_.reset(new char[kLowBufferSize]);
   }
-  ssize_t characters_read = read(fd_, low_buffer_.get() + low_buffer_length_,
+  ssize_t characters_read = read(fd(), low_buffer_.get() + low_buffer_length_,
                                  kLowBufferSize - low_buffer_length_);
   LOG(INFO) << "Read returns: " << characters_read;
   if (characters_read == -1) {
     if (errno == EAGAIN) {
-      return;
+      return ReadResult::kContinue;
     }
-    options_.buffer->RegisterProgress();
-    Close();
-    Reset();
-    return;
+    return ReadResult::kDone;
   }
   CHECK_GE(characters_read, 0);
   CHECK_LE(characters_read, ssize_t(kLowBufferSize - low_buffer_length_));
   if (characters_read == 0) {
-    Close();
-    Reset();
-    options_.buffer->RegisterProgress();
-    return;
+    return ReadResult::kDone;
   }
   low_buffer_length_ += characters_read;
 
@@ -118,8 +98,8 @@ void FileDescriptorReader::ReadData() {
 
   options_.buffer->RegisterProgress();
   bool previous_modified = options_.buffer->modified();
-  if (terminal_ != nullptr) {
-    terminal_->ProcessCommandInput(buffer_wrapper);
+  if (options_.terminal != nullptr) {
+    options_.terminal->ProcessCommandInput(buffer_wrapper);
     editor_state->ScheduleRedraw();
   } else {
     auto follower = options_.buffer->GetEndPositionFollower();
@@ -129,7 +109,7 @@ void FileDescriptorReader::ReadData() {
         auto line = Substring(buffer_wrapper, line_start, i - line_start);
         VLOG(8) << "Adding line from " << line_start << " to " << i;
         options_.buffer->AppendToLastLine(
-            line, ModifiersVector(modifiers_, line->size()));
+            line, ModifiersVector(options_.modifiers, line->size()));
         options_.start_new_line();
         line_start = i + 1;
         auto buffer = editor_state->current_buffer();
@@ -146,7 +126,7 @@ void FileDescriptorReader::ReadData() {
       auto line = Substring(buffer_wrapper, line_start,
                             buffer_wrapper->size() - line_start);
       options_.buffer->AppendToLastLine(
-          line, ModifiersVector(modifiers_, line->size()));
+          line, ModifiersVector(options_.modifiers, line->size()));
     }
   }
   if (!previous_modified) {
@@ -159,6 +139,7 @@ void FileDescriptorReader::ReadData() {
     current_buffer->Reload();
   }
   editor_state->ScheduleRedraw();
+  return ReadResult::kContinue;
 }
 
 }  // namespace editor

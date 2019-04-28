@@ -30,32 +30,39 @@ class FileDescriptorReader {
     // have roughly the same effect to allow the buffer to scan the line (which
     // it won't do with the public methods).
     std::function<void()> start_new_line;
+
+    // Ownership of the file descriptior (i.e, the responsibility for closing
+    // it) is transferred to the FileDescriptorReader.
+    int fd;
+
+    LineModifierSet modifiers;
+
+    BufferTerminal* terminal;
   };
 
   FileDescriptorReader(Options options);
+  ~FileDescriptorReader();
 
   int fd() const;
 
-  void Open(int fd, LineModifierSet modifiers, BufferTerminal* terminal);
-  void Close();
-  void Reset();
-  void ReadData();
+  enum class ReadResult {
+    // If this is returned, no further calls to ReadData should happen (and our
+    // customer should probably drop this instance as soon as feasible).
+    kDone,
+    // If this is returned, we haven't finished reading. The customer should
+    // continue to call ReadData once it detects that more data is available.
+    kContinue
+  };
+  ReadResult ReadData();
 
  private:
   const Options options_;
 
-  // -1 means "no file descriptor" (i.e. not currently loading this).
-  int fd_ = -1;
-
-  // We read directly into low_buffer_ and then drain from that into buffer_.
-  // It's possible that not all bytes read can be converted (for example, if the
-  // reading stops in the middle of a wide character).
+  // We read directly into low_buffer_ and then drain from that into
+  // options_.buffer. It's possible that not all bytes read can be converted
+  // (for example, if the reading stops in the middle of a wide character).
   std::unique_ptr<char[]> low_buffer_;
   size_t low_buffer_length_ = 0;
-
-  LineModifierSet modifiers_;
-
-  BufferTerminal* terminal_;
 };
 
 }  // namespace editor

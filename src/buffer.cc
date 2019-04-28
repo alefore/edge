@@ -483,18 +483,6 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
 
 OpenBuffer::OpenBuffer(Options options)
     : options_(std::move(options)),
-      fd_([&]() {
-        FileDescriptorReader::Options options;
-        options.buffer = this;
-        options.start_new_line = [this]() { StartNewLine(); };
-        return options;
-      }()),
-      fd_error_([&]() {
-        FileDescriptorReader::Options options;
-        options.buffer = this;
-        options.start_new_line = [this]() { StartNewLine(); };
-        return options;
-      }()),
       child_pid_(-1),
       child_exit_status_(0),
       modified_(false),
@@ -638,7 +626,7 @@ void OpenBuffer::Close() {
 }
 
 void OpenBuffer::AddEndOfFileObserver(std::function<void()> observer) {
-  if (fd_.fd() == -1 && fd_error_.fd() == -1) {
+  if (fd_ == nullptr && fd_error_ == nullptr) {
     observer();
     return;
   }
@@ -771,8 +759,8 @@ void OpenBuffer::AppendEmptyLine() {
 
 void OpenBuffer::EndOfFile() {
   time(&last_action_);
-  CHECK_EQ(fd_.fd(), -1);
-  CHECK_EQ(fd_error_.fd(), -1);
+  CHECK(fd_ == nullptr);
+  CHECK(fd_error_ == nullptr);
   if (child_pid_ != -1) {
     if (waitpid(child_pid_, &child_exit_status_, 0) == -1) {
       SetStatus(L"waitpid failed: " + FromByteString(strerror(errno)));
@@ -831,7 +819,7 @@ OpenBuffer::GetEndPositionFollower() {
 }
 
 bool OpenBuffer::ShouldDisplayProgress() const {
-  return (fd_.fd() != -1 || fd_error_.fd() != -1) &&
+  return (fd_ != nullptr || fd_error_ != nullptr) &&
          Read(buffer_variables::display_progress);
 }
 
@@ -849,21 +837,8 @@ void OpenBuffer::RegisterProgress() {
   Set(buffer_variables::progress, Read(buffer_variables::progress) + 1);
 }
 
-void OpenBuffer::ReadData() {
-  CHECK(fd() != -1);
-  fd_.ReadData();
-  if (fd() == -1 && fd_error() == -1) {
-    EndOfFile();
-  }
-}
-
-void OpenBuffer::ReadErrorData() {
-  CHECK(fd_error() != -1);
-  fd_error_.ReadData();
-  if (fd() == -1 && fd_error() == -1) {
-    EndOfFile();
-  }
-}
+void OpenBuffer::ReadData() { ReadData(&fd_); }
+void OpenBuffer::ReadErrorData() { ReadData(&fd_error_); }
 
 void OpenBuffer::UpdateTreeParser() {
   auto parser = Read(buffer_variables::tree_parser);
@@ -1544,10 +1519,10 @@ wstring OpenBuffer::ToString() const { return contents_.ToString(); }
 void OpenBuffer::PushSignal(int sig) {
   switch (sig) {
     case SIGINT:
-      // TODO: Should be based on terminal_data_.
+      // TODO: Should be based on terminal_.
       if (Read(buffer_variables::pts)) {
         string sequence(1, 0x03);
-        (void)write(fd_.fd(), sequence.c_str(), sequence.size());
+        (void)write(fd_->fd(), sequence.c_str(), sequence.size());
         SetStatus(L"SIGINT");
       } else if (child_pid_ != -1) {
         SetStatus(L"SIGINT >> pid:" + to_wstring(child_pid_));
@@ -1556,10 +1531,10 @@ void OpenBuffer::PushSignal(int sig) {
       break;
 
     case SIGTSTP:
-      // TODO: Should be based on terminal_data_.
+      // TODO: Should be based on terminal_.
       if (Read(buffer_variables::pts)) {
         string sequence(1, 0x1a);
-        write(fd_.fd(), sequence.c_str(), sequence.size());
+        write(fd_->fd(), sequence.c_str(), sequence.size());
       }
       break;
 
@@ -1577,7 +1552,7 @@ void OpenBuffer::SetTerminalSize(size_t lines, size_t columns) {
   struct winsize screen_size;
   terminal_->lines = screen_size.ws_row = lines;
   terminal_->columns = screen_size.ws_col = columns;
-  if (ioctl(fd_.fd(), TIOCSWINSZ, &screen_size) == -1) {
+  if (ioctl(fd_->fd(), TIOCSWINSZ, &screen_size) == -1) {
     options_.editor->SetWarningStatus(L"ioctl TIOCSWINSZ failed: " +
                                       FromByteString(strerror(errno)));
   }
@@ -1616,20 +1591,35 @@ void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
   if (Read(buffer_variables::clear_on_reload)) {
     ClearContents(BufferContents::CursorsBehavior::kUnmodified);
     ClearModified();
-    fd_.Reset();
-    fd_error_.Reset();
   }
 
   CHECK_EQ(child_pid_, -1);
-  fd_.Close();
-  fd_error_.Close();
   terminal_ = fd_is_terminal
                   ? std::make_unique<BufferTerminal>(this, &contents_)
                   : nullptr;
-  fd_.Open(input_fd, {}, terminal_.get());
-  fd_error_.Open(input_error_fd, {LineModifier::RED}, terminal_.get());
+
+  auto new_reader = [this](int fd, LineModifierSet modifiers) {
+    if (fd == -1) {
+      return std::unique_ptr<FileDescriptorReader>();
+    }
+    FileDescriptorReader::Options options;
+    options.buffer = this;
+    options.start_new_line = [this]() { StartNewLine(); };
+    options.terminal = terminal_.get();
+    options.fd = fd;
+    options.modifiers = std::move(modifiers);
+    return std::make_unique<FileDescriptorReader>(std::move(options));
+  };
+
+  fd_ = new_reader(input_fd, {});
+  fd_error_ = new_reader(input_error_fd, {LineModifier::RED});
 
   child_pid_ = child_pid;
+}
+
+int OpenBuffer::fd() const { return fd_ == nullptr ? -1 : fd_->fd(); }
+int OpenBuffer::fd_error() const {
+  return fd_error_ == nullptr ? -1 : fd_error_->fd();
 }
 
 size_t OpenBuffer::current_position_line() const { return position().line; }
@@ -1965,6 +1955,18 @@ bool OpenBuffer::IsPastPosition(LineColumn position) const {
          (position.line + 1 < contents_.size() ||
           (position.line + 1 == contents_.size() &&
            position.column <= LineAt(position.line)->size()));
+}
+
+void OpenBuffer::ReadData(std::unique_ptr<FileDescriptorReader>* source) {
+  CHECK(source != nullptr);
+  CHECK(*source != nullptr);
+  if ((*source)->ReadData() == FileDescriptorReader::ReadResult::kDone) {
+    RegisterProgress();
+    (*source) = nullptr;
+    if (fd_ == nullptr && fd_error_ == nullptr) {
+      EndOfFile();
+    }
+  }
 }
 
 }  // namespace editor
