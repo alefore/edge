@@ -247,6 +247,7 @@ void RunLocalShell() {
     options.set_children_path(path);
   }
   options.set_insertion_type("visit");
+  options.set_name("💻 shell");
   ForkCommand(options);
 }
 

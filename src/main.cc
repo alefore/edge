@@ -72,6 +72,7 @@ static const wchar_t* kDefaultCommandsToRun =
     L"ForkCommandOptions options = ForkCommandOptions();\n"
     L"options.set_command(\"sh -l\");\n"
     L"options.set_insertion_type(\"search_or_create\");\n"
+    L"options.set_name(\"💻shell\");\n"
     L"ForkCommand(options);";
 
 wstring CommandsToRun(command_line_arguments::Values args) {
