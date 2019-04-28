@@ -2113,13 +2113,13 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
         output.insert({L"⚊", L""});
         break;
       case 2:
-        output.insert({L"⚌", L""});
+        output.insert({L"⚌ ", L""});
         break;
       case 3:
-        output.insert({L"☰", L""});
+        output.insert({L"☰ ", L""});
         break;
       default:
-        output.insert({L"☰", std::to_wstring(contents_.size())});
+        output.insert({L"☰ ", std::to_wstring(contents_.size())});
     }
     if (Read(buffer_variables::follow_end_of_file)) {
       output.insert({L"↓", L""});
