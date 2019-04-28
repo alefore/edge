@@ -4,11 +4,7 @@ Consider using unicode watches to display duration, using exponential/logarithmi
 
 Fix a bug with buffers that are shown with fewer lines than mandated by their margins.
 
-Make it possible to put buffers side-by-side with a vertical division.
-
-Optimize the display of buffers to collapse multiple inactive buffers.
-
-Make the widgets work closer to nethack or a similar command-line game.
+Make the widgets work closer to nethack or similar command-line games.
 
 When a line wraps, don't let it cut the scrollbar/syntax tree.
 
@@ -16,7 +12,7 @@ When an inactive cursor is exactly at the line_width, it's currently not shown.
 
 `wrap_long_lines`:
 * Make `j` and `k` scroll within the line.
-* Make it possible to scroll to the very end of the file (and show it).
+* Adjust handing of margins to take into account lines that wrap.
 
 ### Syntax
 
@@ -38,14 +34,9 @@ Add "pipe" command: select the region (similar to delete: line, paragraph, buffe
 
 Add an AutoComplete mode that autocompletes based on the path.
 
-Improve logic around wrap_long_lines.
-  Also scrolling to the end of file doesn't quite work.
-
 * Improve reflow:
 
-  * Have an "auto-reflow" mode? As soon as the text width is crossed, do a
-    reflow? Or, well, rather: whenever the buffer changes, reflow? For example,
-    if the user deletes a work, just reflow?
+  * Somehow integrate reflow (logic from `wrap_from_content`) with `reflow` script?
 
   * On reflow, leave the cursor where it was?
 
@@ -66,8 +57,6 @@ In diff mode, add a link to every file. Following it should take you directly to
 
 Improve the bindings used to navigate the widgets.
 
-### List of buffers
-
 ## Prompt
 
 When autocompletion of files fails, have a fail back:
@@ -78,7 +67,7 @@ When the prompt doesn't fit the screen, be smarter about what part to show? If i
 ## Commands
 
 Improve "af":
-  Add more structures to "af":
+Add more structures to "af":
     BUFFER> run a command with the whole contents of the buffer
       (another possibility: run a command for each line in buffer (prompt))
   Switch it to use the "new" enter-applies-command (similar to "d") mode.
