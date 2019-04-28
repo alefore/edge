@@ -72,14 +72,6 @@ const VMType VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype =
 }  // namespace vm
 namespace editor {
 namespace {
-Screen* GetScreen(OpenBuffer* buffer) {
-  auto screen = buffer->environment()->Lookup(L"screen", GetScreenVmType());
-  if (screen == nullptr || screen->user_value == nullptr) {
-    return nullptr;
-  }
-  return static_cast<Screen*>(screen->user_value.get());
-}
-
 static const wchar_t* kOldCursors = L"old-cursors";
 
 using std::unordered_set;
@@ -492,7 +484,6 @@ OpenBuffer::OpenBuffer(Options options)
     : options_(std::move(options)),
       child_pid_(-1),
       child_exit_status_(0),
-      position_pts_(LineColumn(0, 0)),
       modified_(false),
       reading_from_parser_(false),
       bool_variables_(buffer_variables::BoolStruct()->NewInstance()),
@@ -751,7 +742,9 @@ void OpenBuffer::ClearContents(
       *this, Read(buffer_variables::name));
   options_.editor->ScheduleRedraw();
   contents_.EraseLines(0, contents_.size(), cursors_behavior);
-  position_pts_ = LineColumn();
+  if (terminal_ != nullptr) {
+    terminal_->SetPosition(LineColumn());
+  }
   last_transformation_ = NewNoopTransformation();
   last_transformation_stack_.clear();
   transformations_past_.clear();
@@ -813,17 +806,14 @@ OpenBuffer::GetEndPositionFollower() {
   if (!Read(buffer_variables::follow_end_of_file)) {
     return nullptr;
   }
-  if (position() < end_position() && !terminal_data_.has_value()) {
+  if (position() < end_position() && terminal_ == nullptr) {
     return nullptr;  // Not at the end, so user must have scrolled up.
   }
   return std::unique_ptr<bool, std::function<void(bool*)>>(
       new bool(), [this](bool* value) {
         delete value;
-        if (terminal_data_.has_value()) {
-          set_position(position_pts_);
-        } else {
-          set_position(end_position());
-        }
+        set_position(terminal_ != nullptr ? terminal_->position()
+                                          : end_position());
       });
 }
 
@@ -936,8 +926,8 @@ void OpenBuffer::Input::ReadData(OpenBuffer* target) {
 
   target->RegisterProgress();
   bool previous_modified = target->modified();
-  if (target->Read(buffer_variables::pts)) {
-    target->ProcessCommandInput(buffer_wrapper);
+  if (target->terminal_ != nullptr) {
+    target->terminal_->ProcessCommandInput(buffer_wrapper);
     editor_state->ScheduleRedraw();
   } else {
     auto follower = target->GetEndPositionFollower();
@@ -1201,318 +1191,6 @@ void OpenBuffer::AppendRawLine(std::shared_ptr<LazyString> str) {
 void OpenBuffer::AppendRawLine(std::shared_ptr<Line> line) {
   auto follower = GetEndPositionFollower();
   contents_.push_back(line);
-}
-
-void OpenBuffer::ProcessCommandInput(shared_ptr<LazyString> str) {
-  CHECK(Read(buffer_variables::pts));
-  if (position_pts_.line >= contents_.size()) {
-    position_pts_.line = contents_.size() - 1;
-  }
-  CHECK_LT(position_pts_.line, contents_.size());
-  std::unordered_set<LineModifier, hash<int>> modifiers;
-
-  size_t read_index = 0;
-  VLOG(5) << "Terminal input: " << str->ToString();
-  auto follower = GetEndPositionFollower();
-  while (read_index < str->size()) {
-    int c = str->get(read_index);
-    read_index++;
-    if (c == '\b') {
-      VLOG(8) << "Received \\b";
-      if (position_pts_.column > 0) {
-        position_pts_.column--;
-      }
-    } else if (c == '\a') {
-      VLOG(8) << "Received \\a";
-      auto status = editor()->status();
-      if (!all_of(status.begin(), status.end(), [](const wchar_t& c) {
-            return c == L'♪' || c == L'♫' || c == L'…' || c == L' ' ||
-                   c == L'𝄞';
-          })) {
-        status = L" 𝄞";
-      } else if (status.size() >= 40) {
-        status = L"…" + status.substr(status.size() - 40, status.size());
-      }
-      SetStatus(status + L" " + (status.back() == L'♪' ? L"♫" : L"♪"));
-      BeepFrequencies(editor()->audio_player(), {783.99, 523.25, 659.25});
-    } else if (c == '\r') {
-      VLOG(8) << "Received \\r";
-      position_pts_.column = 0;
-    } else if (c == '\n') {
-      VLOG(8) << "Received \\n";
-      PtsMoveToNextLine();
-    } else if (c == 0x1b) {
-      VLOG(8) << "Received 0x1b";
-      read_index = ProcessTerminalEscapeSequence(str, read_index, &modifiers);
-      CHECK_LT(position_pts_.line, contents_.size());
-    } else if (isprint(c) || c == '\t') {
-      VLOG(8) << "Received printable or tab: " << c;
-      auto screen = GetScreen(this);
-      if (screen != nullptr && position_pts_.column >= screen->columns()) {
-        PtsMoveToNextLine();
-      }
-      contents_.SetCharacter(position_pts_.line, position_pts_.column, c,
-                             modifiers);
-      position_pts_.column++;
-    } else {
-      LOG(INFO) << "Unknown character: [" << c << "]\n";
-    }
-  }
-}
-
-void OpenBuffer::PtsMoveToNextLine() {
-  auto follower = GetEndPositionFollower();
-  position_pts_.line++;
-  position_pts_.column = 0;
-  if (position_pts_.line == contents_.size()) {
-    contents_.push_back(std::make_shared<Line>());
-  }
-}
-
-size_t OpenBuffer::ProcessTerminalEscapeSequence(
-    shared_ptr<LazyString> str, size_t read_index,
-    std::unordered_set<LineModifier, hash<int>>* modifiers) {
-  if (str->size() <= read_index) {
-    LOG(INFO) << "Unhandled character sequence: "
-              << Substring(str, read_index)->ToString() << ")\n";
-    return read_index;
-  }
-  switch (str->get(read_index)) {
-    case 'M':
-      VLOG(9) << "Received: cuu1: Up one line.";
-      if (position_pts_.line > 0) {
-        position_pts_.line--;
-      }
-      return read_index + 1;
-    case '[':
-      VLOG(9) << "Received: [";
-      break;
-    default:
-      LOG(INFO) << "Unhandled character sequence: "
-                << Substring(str, read_index)->ToString();
-  }
-  read_index++;
-  CHECK_LT(position_pts_.line, contents_.size());
-  auto current_line = contents_.at(position_pts_.line);
-  string sequence;
-  while (read_index < str->size()) {
-    int c = str->get(read_index);
-    read_index++;
-    switch (c) {
-      case '@': {
-        VLOG(9) << "Terminal: ich: Insert character.";
-        contents_.InsertCharacter(position_pts_.line, position_pts_.column);
-        return read_index;
-      }
-
-      case 'l':
-        VLOG(9) << "Terminal: l";
-        if (sequence == "?1") {
-          VLOG(9) << "Terminal: ?1";
-          sequence.push_back(c);
-          continue;
-        }
-        if (sequence == "?1049") {
-          VLOG(9) << "Terminal: ?1049: rmcup";
-        } else if (sequence == "?25") {
-          LOG(INFO) << "Ignoring: Make cursor invisible";
-        } else {
-          LOG(INFO) << "Unhandled character sequence: " << sequence;
-        }
-        return read_index;
-
-      case 'h':
-        VLOG(9) << "Terminal: h";
-        if (sequence == "?1") {
-          sequence.push_back(c);
-          continue;
-        }
-        if (sequence == "?1049") {
-          // smcup
-        } else if (sequence == "?25") {
-          LOG(INFO) << "Ignoring: Make cursor visible";
-        } else {
-          LOG(INFO) << "Unhandled character sequence: " << sequence;
-        }
-        return read_index;
-
-      case 'm':
-        VLOG(9) << "Terminal: m";
-        if (sequence == "") {
-          modifiers->clear();
-        } else if (sequence == "0") {
-          modifiers->clear();
-        } else if (sequence == "1") {
-          modifiers->insert(LineModifier::BOLD);
-        } else if (sequence == "3") {
-          // TODO(alejo): Support italic on.
-        } else if (sequence == "4") {
-          modifiers->insert(LineModifier::UNDERLINE);
-        } else if (sequence == "23") {
-          // Fraktur off, italic off.  No need to do anything for now.
-        } else if (sequence == "24") {
-          modifiers->erase(LineModifier::UNDERLINE);
-        } else if (sequence == "31") {
-          modifiers->clear();
-          modifiers->insert(LineModifier::RED);
-        } else if (sequence == "32") {
-          modifiers->clear();
-          modifiers->insert(LineModifier::GREEN);
-        } else if (sequence == "36") {
-          modifiers->clear();
-          modifiers->insert(LineModifier::CYAN);
-        } else if (sequence == "1;30") {
-          modifiers->clear();
-          modifiers->insert(LineModifier::BOLD);
-          modifiers->insert(LineModifier::BLACK);
-        } else if (sequence == "1;31") {
-          modifiers->clear();
-          modifiers->insert(LineModifier::BOLD);
-          modifiers->insert(LineModifier::RED);
-        } else if (sequence == "1;36") {
-          modifiers->clear();
-          modifiers->insert(LineModifier::BOLD);
-          modifiers->insert(LineModifier::CYAN);
-        } else if (sequence == "0;36") {
-          modifiers->clear();
-          modifiers->insert(LineModifier::CYAN);
-        } else {
-          LOG(INFO) << "Unhandled character sequence: (" << sequence;
-        }
-        return read_index;
-
-      case '>':
-        VLOG(9) << "Terminal: >";
-        if (sequence == "?1l\E") {
-          // rmkx: leave 'keyboard_transmit' mode
-          // TODO(alejo): Handle it.
-        } else {
-          LOG(INFO) << "Unhandled character sequence: " << sequence;
-        }
-        return read_index;
-        break;
-
-      case '=':
-        VLOG(9) << "Terminal: =";
-        if (sequence == "?1h\E") {
-          // smkx: enter 'keyboard_transmit' mode
-          // TODO(alejo): Handle it.
-        } else {
-          LOG(INFO) << "Unhandled character sequence: " << sequence;
-        }
-        return read_index;
-        break;
-
-      case 'C':
-        VLOG(9) << "Terminal: cuf1: non-destructive space (move right 1 space)";
-        if (position_pts_.column < current_line->size()) {
-          auto follower = GetEndPositionFollower();
-          position_pts_.column++;
-        }
-        return read_index;
-
-      case 'H':
-        VLOG(9) << "Terminal: home: move cursor home.";
-        {
-          size_t line_delta = 0, column_delta = 0;
-          size_t pos = sequence.find(';');
-          try {
-            if (pos != wstring::npos) {
-              line_delta = pos == 0 ? 0 : stoul(sequence.substr(0, pos)) - 1;
-              column_delta = pos == sequence.size() - 1
-                                 ? 0
-                                 : stoul(sequence.substr(pos + 1)) - 1;
-            } else if (!sequence.empty()) {
-              line_delta = stoul(sequence);
-            }
-          } catch (const std::invalid_argument& ia) {
-            SetStatus(
-                L"Unable to parse sequence from terminal in 'home' command: "
-                L"\"" +
-                FromByteString(sequence) + L"\"");
-          }
-          DLOG(INFO) << "Move cursor home: line: " << line_delta
-                     << ", column: " << column_delta;
-          position_pts_ = LineColumn(options_.editor->buffer_tree()
-                                             ->GetActiveLeaf()
-                                             ->view_start()
-                                             .line +
-                                         line_delta,
-                                     column_delta);
-          auto follower = GetEndPositionFollower();
-          while (position_pts_.line >= contents_.size()) {
-            contents_.push_back(std::make_shared<Line>());
-          }
-          follower = nullptr;
-        }
-        return read_index;
-
-      case 'J':
-        VLOG(9) << "Terminal: ed: clear to end of screen.";
-        // Clears part of the screen.
-        if (sequence == "" || sequence == "0") {
-          VLOG(10) << "ed: Clear from cursor to end of screen.";
-          EraseLines(position_pts_.line + 1, contents_.size());
-          contents_.DeleteCharactersFromLine(position_pts_.line,
-                                             position_pts_.column);
-        } else if (sequence == "1") {
-          VLOG(10) << "ed: Clear from cursor to beginning of the screen.";
-          EraseLines(0, position_pts_.line);
-          position_pts_ = LineColumn();
-          contents_.DeleteCharactersFromLine(position_pts_.line, 0,
-                                             position_pts_.column);
-        } else if (sequence == "2") {
-          VLOG(10) << "ed: Clear entire screen (and moves cursor to upper left "
-                      "on DOS ANSI.SYS).";
-          EraseLines(0, contents_.size());
-          position_pts_ = LineColumn();
-        } else if (sequence == "3") {
-          VLOG(10) << "ed: Clear entire screen and delete all lines saved in "
-                      "the scrollback buffer (this feature was added for xterm "
-                      "and is supported by other terminal applications).";
-          EraseLines(0, contents_.size());
-          position_pts_ = LineColumn();
-        } else {
-          VLOG(10) << "ed: Unknown sequence: " << sequence;
-          EraseLines(0, contents_.size());
-          position_pts_ = LineColumn();
-        }
-        CHECK_LT(position_pts_.line, contents_.size());
-        return read_index;
-
-      case 'K': {
-        VLOG(9) << "Terminal: el: clear to end of line.";
-        contents_.DeleteCharactersFromLine(position_pts_.line,
-                                           position_pts_.column);
-        return read_index;
-      }
-
-      case 'M':
-        VLOG(9) << "Terminal: dl1: delete one line.";
-        {
-          EraseLines(position_pts_.line, position_pts_.line + 1);
-          CHECK_LT(position_pts_.line, contents_.size());
-        }
-        return read_index;
-
-      case 'P': {
-        VLOG(9) << "Terminal: P";
-        size_t chars_to_erase = static_cast<size_t>(atoi(sequence.c_str()));
-        size_t length = contents_.at(position_pts_.line)->size();
-        if (position_pts_.column < length) {
-          contents_.DeleteCharactersFromLine(
-              position_pts_.line, position_pts_.column,
-              min(chars_to_erase, length - position_pts_.column));
-        }
-        current_line = LineAt(position_pts_.line);
-        return read_index;
-      }
-      default:
-        sequence.push_back(c);
-    }
-  }
-  LOG(INFO) << "Unhandled character sequence: " << sequence;
-  return read_index;
 }
 
 void OpenBuffer::AppendToLastLine(std::shared_ptr<LazyString> str) {
@@ -1991,14 +1669,13 @@ void OpenBuffer::PushSignal(int sig) {
 }
 
 void OpenBuffer::SetTerminalSize(size_t lines, size_t columns) {
-  if (terminal_data_ == std::nullopt ||
-      (terminal_data_.value().lines == lines &&
-       terminal_data_.value().columns == columns)) {
+  if (terminal_ == nullptr ||
+      (terminal_->lines == lines && terminal_->columns == columns)) {
     return;
   }
   struct winsize screen_size;
-  terminal_data_.value().lines = screen_size.ws_row = lines;
-  terminal_data_.value().columns = screen_size.ws_col = columns;
+  terminal_->lines = screen_size.ws_row = lines;
+  terminal_->columns = screen_size.ws_col = columns;
   if (ioctl(fd_.fd, TIOCSWINSZ, &screen_size) == -1) {
     options_.editor->SetWarningStatus(L"ioctl TIOCSWINSZ failed: " +
                                       FromByteString(strerror(errno)));
@@ -2063,8 +1740,9 @@ void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
   fd_error_.modifiers.insert(LineModifier::RED);
 
   CHECK_EQ(child_pid_, -1);
-  terminal_data_ =
-      fd_is_terminal ? TerminalData() : std::optional<TerminalData>();
+  terminal_ = fd_is_terminal
+                  ? std::make_unique<BufferTerminal>(this, &contents_)
+                  : nullptr;
   child_pid_ = child_pid;
 }
 

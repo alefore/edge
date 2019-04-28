@@ -11,21 +11,22 @@
 #include <thread>
 #include <vector>
 
-#include "buffer_contents.h"
-#include "cursors.h"
-#include "lazy_string.h"
-#include "line.h"
-#include "line_column.h"
-#include "line_marks.h"
-#include "map_mode.h"
-#include "parse_tree.h"
-#include "substring.h"
-#include "transformation.h"
-#include "tree.h"
-#include "variables.h"
-#include "vm/public/environment.h"
-#include "vm/public/value.h"
-#include "vm/public/vm.h"
+#include "src/buffer_contents.h"
+#include "src/buffer_terminal.h"
+#include "src/cursors.h"
+#include "src/lazy_string.h"
+#include "src/line.h"
+#include "src/line_column.h"
+#include "src/line_marks.h"
+#include "src/map_mode.h"
+#include "src/parse_tree.h"
+#include "src/substring.h"
+#include "src/transformation.h"
+#include "src/tree.h"
+#include "src/variables.h"
+#include "src/vm/public/environment.h"
+#include "src/vm/public/value.h"
+#include "src/vm/public/vm.h"
 
 namespace afc {
 namespace editor {
@@ -167,9 +168,6 @@ class OpenBuffer {
   // Insert a line at the end of the buffer.
   void AppendRawLine(std::shared_ptr<Line> line);
 
-  size_t ProcessTerminalEscapeSequence(shared_ptr<LazyString> str,
-                                       size_t read_index,
-                                       LineModifierSet* modifiers);
   void AppendToLastLine(std::shared_ptr<LazyString> str);
   void AppendToLastLine(std::shared_ptr<LazyString> str,
                         const vector<LineModifierSet>& modifiers);
@@ -303,6 +301,9 @@ class OpenBuffer {
 
   // We deliberately provide only a read view into our contents. All
   // modifications should be done through methods defined in this class.
+  //
+  // One exception to this is the BufferTerminal class (to which we pass a
+  // reference).
   const BufferContents* contents() const { return &contents_; }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -402,8 +403,6 @@ class OpenBuffer {
   // it.
   void StartNewLine();
   void ProcessCommandInput(shared_ptr<LazyString> str);
-  // Advances the pts position to the next line (possibly inserting a new line).
-  void PtsMoveToNextLine();
 
   // Returns true if the position given is set to a value other than
   // LineColumn::Max and the buffer has read past that position.
@@ -431,16 +430,7 @@ class OpenBuffer {
   Input fd_;
   Input fd_error_;
 
-  // If we obtained a terminal for the file descriptor (for a subprocess), we'll
-  // use terminal_data_ to remember its data. Otherwise, this is set to nullopt.
-  // This typically depends on the value of pts_ just at the time a subprocess
-  // is started. Toggling the value of pts_ doesn't have any effect on this
-  // (until the process is restarted).
-  struct TerminalData {
-    size_t lines;
-    size_t columns;
-  };
-  std::optional<TerminalData> terminal_data_;
+  std::unique_ptr<BufferTerminal> terminal_;
 
   // Functions to be called when the end of file is reached. The functions will
   // be called at most once (so they won't be notified if the buffer is
@@ -467,9 +457,6 @@ class OpenBuffer {
   int child_exit_status_;
   // Optional function to execute when a sub-process exits.
   std::function<void()> on_exit_handler_;
-
-  // Move to TerminalData.
-  LineColumn position_pts_;
 
   BufferContents contents_;
 

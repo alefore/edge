@@ -12,11 +12,24 @@
 namespace afc {
 namespace editor {
 
+struct LinesDelta {
+  LinesDelta() = default;
+  explicit LinesDelta(int delta) : delta(delta) {}
+  int delta = 0;
+};
+
+struct ColumnsDelta {
+  ColumnsDelta() = default;
+  explicit ColumnsDelta(int delta) : delta(delta) {}
+  int delta = 0;
+};
+
 // A position in a text buffer.
 struct LineColumn {
   static void Register(vm::Environment* environment);
 
   LineColumn() {}
+  // TODO: Make single-argument constructors explicit.
   LineColumn(std::vector<int> pos)
       : line(pos.size() > 0 ? pos[0] : 0),
         column(pos.size() > 1 ? pos[1] : 0) {}
@@ -49,6 +62,14 @@ struct LineColumn {
   bool operator>(const LineColumn& rhs) const { return rhs < *this; }
 
   bool operator>=(const LineColumn& rhs) const { return rhs <= *this; }
+
+  LineColumn operator+(const LinesDelta& delta) const;
+  LineColumn operator-(const LinesDelta& delta) const;
+  LineColumn& operator+=(const LinesDelta& delta);
+  LineColumn& operator-=(const LinesDelta& delta);
+
+  LineColumn operator+(const ColumnsDelta& delta) const;
+  LineColumn operator-(const ColumnsDelta& delta) const;
 
   std::wstring ToCppString() const;
 

@@ -45,6 +45,39 @@ std::ostream& operator<<(std::ostream& os, const Range& range) {
   return os;
 }
 
+LineColumn LineColumn::operator+(const LinesDelta& delta) const {
+  auto output = *this;
+  output += delta;
+  return output;
+}
+
+LineColumn LineColumn::operator-(const LinesDelta& delta) const {
+  return *this + LinesDelta(-delta.delta);
+}
+
+LineColumn& LineColumn::operator+=(const LinesDelta& delta) {
+  if (delta.delta < 0) {
+    CHECK_GE(line, static_cast<size_t>(-delta.delta));
+  }
+  line += delta.delta;
+  return *this;
+}
+
+LineColumn& LineColumn::operator-=(const LinesDelta& delta) {
+  return operator+=(delta);
+}
+
+LineColumn LineColumn::operator+(const ColumnsDelta& delta) const {
+  if (delta.delta < 0) {
+    CHECK_GE(column, static_cast<size_t>(-delta.delta));
+  }
+  return LineColumn(line, column + delta.delta);
+}
+
+LineColumn LineColumn::operator-(const ColumnsDelta& delta) const {
+  return *this + ColumnsDelta(-delta.delta);
+}
+
 std::wstring LineColumn::ToCppString() const {
   return L"LineColumn(" + std::to_wstring(line) + L", " +
          std::to_wstring(column) + L")";
