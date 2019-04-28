@@ -54,7 +54,7 @@ std::optional<Range> LineScrollControl::Reader::GetRange() const {
 
 bool LineScrollControl::Reader::HasActiveCursor() const {
   CHECK(state_ == State::kProcessing);
-  return parent_->range_.Contains(parent_->options_.buffer->position().line);
+  return parent_->range_.Contains(parent_->options_.buffer->position());
 }
 
 std::set<size_t> LineScrollControl::Reader::GetCurrentCursors() const {
@@ -95,7 +95,8 @@ Range LineScrollControl::GetRange(LineColumn begin) {
   }
 
   auto line = options_.buffer->LineAt(begin.line);
-  if (options_.buffer->Read(buffer_variables::wrap_from_content)) {
+  if (options_.buffer->Read(buffer_variables::wrap_from_content) &&
+      begin.column > options_.initial_column) {
     LOG(INFO) << "Skipping spaces (from " << begin << ").";
     while (begin.column < line->size() && line->get(begin.column) == L' ') {
       begin.column++;
