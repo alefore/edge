@@ -28,6 +28,7 @@ extern "C" {
 #include "src/cursors_transformation.h"
 #include "src/dirname.h"
 #include "src/editor.h"
+#include "src/file_descriptor_reader.h"
 #include "src/file_link_mode.h"
 #include "src/lazy_string_append.h"
 #include "src/line_marks.h"
@@ -482,6 +483,18 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
 
 OpenBuffer::OpenBuffer(Options options)
     : options_(std::move(options)),
+      fd_([&]() {
+        FileDescriptorReader::Options options;
+        options.buffer = this;
+        options.start_new_line = [this]() { StartNewLine(); };
+        return options;
+      }()),
+      fd_error_([&]() {
+        FileDescriptorReader::Options options;
+        options.buffer = this;
+        options.start_new_line = [this]() { StartNewLine(); };
+        return options;
+      }()),
       child_pid_(-1),
       child_exit_status_(0),
       modified_(false),
@@ -625,7 +638,7 @@ void OpenBuffer::Close() {
 }
 
 void OpenBuffer::AddEndOfFileObserver(std::function<void()> observer) {
-  if (fd_.fd == -1) {
+  if (fd_.fd() == -1 && fd_error_.fd() == -1) {
     observer();
     return;
   }
@@ -758,8 +771,8 @@ void OpenBuffer::AppendEmptyLine() {
 
 void OpenBuffer::EndOfFile() {
   time(&last_action_);
-  CHECK_EQ(fd_.fd, -1);
-  CHECK_EQ(fd_error_.fd, -1);
+  CHECK_EQ(fd_.fd(), -1);
+  CHECK_EQ(fd_error_.fd(), -1);
   if (child_pid_ != -1) {
     if (waitpid(child_pid_, &child_exit_status_, 0) == -1) {
       SetStatus(L"waitpid failed: " + FromByteString(strerror(errno)));
@@ -818,7 +831,7 @@ OpenBuffer::GetEndPositionFollower() {
 }
 
 bool OpenBuffer::ShouldDisplayProgress() const {
-  return (fd_.fd != -1 || fd_error_.fd != -1) &&
+  return (fd_.fd() != -1 || fd_error_.fd() != -1) &&
          Read(buffer_variables::display_progress);
 }
 
@@ -836,135 +849,20 @@ void OpenBuffer::RegisterProgress() {
   Set(buffer_variables::progress, Read(buffer_variables::progress) + 1);
 }
 
-void OpenBuffer::ReadData() { fd_.ReadData(this); }
-
-void OpenBuffer::ReadErrorData() { fd_error_.ReadData(this); }
-
-vector<unordered_set<LineModifier, hash<int>>> ModifiersVector(
-    const unordered_set<LineModifier, hash<int>>& input, size_t size) {
-  return vector<unordered_set<LineModifier, hash<int>>>(size, input);
+void OpenBuffer::ReadData() {
+  CHECK(fd() != -1);
+  fd_.ReadData();
+  if (fd() == -1 && fd_error() == -1) {
+    EndOfFile();
+  }
 }
 
-void OpenBuffer::Input::ReadData(OpenBuffer* target) {
-  EditorState* editor_state = target->editor();
-  LOG(INFO) << "Reading input from " << fd << " for buffer "
-            << target->Read(buffer_variables::name);
-  static const size_t kLowBufferSize = 1024 * 60;
-  if (low_buffer == nullptr) {
-    CHECK_EQ(low_buffer_length, size_t(0));
-    low_buffer.reset(new char[kLowBufferSize]);
+void OpenBuffer::ReadErrorData() {
+  CHECK(fd_error() != -1);
+  fd_error_.ReadData();
+  if (fd() == -1 && fd_error() == -1) {
+    EndOfFile();
   }
-  ssize_t characters_read = read(fd, low_buffer.get() + low_buffer_length,
-                                 kLowBufferSize - low_buffer_length);
-  LOG(INFO) << "Read returns: " << characters_read;
-  if (characters_read == -1) {
-    if (errno == EAGAIN) {
-      return;
-    }
-    target->RegisterProgress();
-    Close();
-    Reset();
-    if (target->fd_.fd == -1 && target->fd_error_.fd == -1) {
-      target->EndOfFile();
-    }
-    return;
-  }
-  CHECK_GE(characters_read, 0);
-  CHECK_LE(characters_read, ssize_t(kLowBufferSize - low_buffer_length));
-  if (characters_read == 0) {
-    Close();
-    Reset();
-    target->RegisterProgress();
-    if (target->fd_.fd == -1 && target->fd_error_.fd == -1) {
-      target->EndOfFile();
-    }
-    return;
-  }
-  low_buffer_length += characters_read;
-
-  const char* low_buffer_tmp = low_buffer.get();
-  int output_characters =
-      mbsnrtowcs(nullptr, &low_buffer_tmp, low_buffer_length, 0, nullptr);
-  std::vector<wchar_t> buffer(output_characters == -1 ? low_buffer_length
-                                                      : output_characters);
-
-  low_buffer_tmp = low_buffer.get();
-  if (output_characters == -1) {
-    low_buffer_tmp = nullptr;
-    for (size_t i = 0; i < low_buffer_length; i++) {
-      buffer[i] = static_cast<wchar_t>(*(low_buffer.get() + i));
-    }
-  } else {
-    mbsnrtowcs(&buffer[0], &low_buffer_tmp, low_buffer_length, buffer.size(),
-               nullptr);
-  }
-
-  shared_ptr<LazyString> buffer_wrapper(NewLazyString(std::move(buffer)));
-  VLOG(5) << "Input: [" << buffer_wrapper->ToString() << "]";
-
-  size_t processed = low_buffer_tmp == nullptr
-                         ? low_buffer_length
-                         : low_buffer_tmp - low_buffer.get();
-  VLOG(5) << target->Read(buffer_variables::name)
-          << ": Characters consumed: " << processed;
-  VLOG(5) << target->Read(buffer_variables::name)
-          << ": Characters produced: " << buffer_wrapper->size();
-  CHECK_LE(processed, low_buffer_length);
-  memmove(low_buffer.get(), low_buffer_tmp, low_buffer_length - processed);
-  low_buffer_length -= processed;
-  if (low_buffer_length == 0) {
-    LOG(INFO) << "Consumed all input.";
-    low_buffer = nullptr;
-  }
-
-  if (target->Read(buffer_variables::vm_exec)) {
-    LOG(INFO) << target->Read(buffer_variables::name)
-              << ": Evaluating VM code: " << buffer_wrapper->ToString();
-    target->EvaluateString(buffer_wrapper->ToString(),
-                           [](std::unique_ptr<Value>) {});
-  }
-
-  target->RegisterProgress();
-  bool previous_modified = target->modified();
-  if (target->terminal_ != nullptr) {
-    target->terminal_->ProcessCommandInput(buffer_wrapper);
-    editor_state->ScheduleRedraw();
-  } else {
-    auto follower = target->GetEndPositionFollower();
-    size_t line_start = 0;
-    for (size_t i = 0; i < buffer_wrapper->size(); i++) {
-      if (buffer_wrapper->get(i) == '\n') {
-        auto line = Substring(buffer_wrapper, line_start, i - line_start);
-        VLOG(8) << "Adding line from " << line_start << " to " << i;
-        target->AppendToLastLine(line,
-                                 ModifiersVector(modifiers, line->size()));
-        target->StartNewLine();
-        line_start = i + 1;
-        auto buffer = editor_state->current_buffer();
-        if (buffer.get() == target) {
-          // TODO: Only do this if the position is in view in any of the
-          // buffers.
-          editor_state->ScheduleRedraw();
-        }
-      }
-    }
-    if (line_start < buffer_wrapper->size()) {
-      VLOG(8) << "Adding last line from " << line_start << " to "
-              << buffer_wrapper->size();
-      auto line = Substring(buffer_wrapper, line_start,
-                            buffer_wrapper->size() - line_start);
-      target->AppendToLastLine(line, ModifiersVector(modifiers, line->size()));
-    }
-  }
-  if (!previous_modified) {
-    target->ClearModified();  // These changes don't count.
-  }
-  auto current_buffer = editor_state->current_buffer();
-  if (current_buffer != nullptr &&
-      current_buffer->Read(buffer_variables::name) == kBuffersName) {
-    current_buffer->Reload();
-  }
-  editor_state->ScheduleRedraw();
 }
 
 void OpenBuffer::UpdateTreeParser() {
@@ -1646,9 +1544,10 @@ wstring OpenBuffer::ToString() const { return contents_.ToString(); }
 void OpenBuffer::PushSignal(int sig) {
   switch (sig) {
     case SIGINT:
+      // TODO: Should be based on terminal_data_.
       if (Read(buffer_variables::pts)) {
         string sequence(1, 0x03);
-        (void)write(fd_.fd, sequence.c_str(), sequence.size());
+        (void)write(fd_.fd(), sequence.c_str(), sequence.size());
         SetStatus(L"SIGINT");
       } else if (child_pid_ != -1) {
         SetStatus(L"SIGINT >> pid:" + to_wstring(child_pid_));
@@ -1657,9 +1556,10 @@ void OpenBuffer::PushSignal(int sig) {
       break;
 
     case SIGTSTP:
+      // TODO: Should be based on terminal_data_.
       if (Read(buffer_variables::pts)) {
         string sequence(1, 0x1a);
-        write(fd_.fd, sequence.c_str(), sequence.size());
+        write(fd_.fd(), sequence.c_str(), sequence.size());
       }
       break;
 
@@ -1669,6 +1569,7 @@ void OpenBuffer::PushSignal(int sig) {
 }
 
 void OpenBuffer::SetTerminalSize(size_t lines, size_t columns) {
+  // TODO: Move this logic to buffer_terminal.cc.
   if (terminal_ == nullptr ||
       (terminal_->lines == lines && terminal_->columns == columns)) {
     return;
@@ -1676,7 +1577,7 @@ void OpenBuffer::SetTerminalSize(size_t lines, size_t columns) {
   struct winsize screen_size;
   terminal_->lines = screen_size.ws_row = lines;
   terminal_->columns = screen_size.ws_col = columns;
-  if (ioctl(fd_.fd, TIOCSWINSZ, &screen_size) == -1) {
+  if (ioctl(fd_.fd(), TIOCSWINSZ, &screen_size) == -1) {
     options_.editor->SetWarningStatus(L"ioctl TIOCSWINSZ failed: " +
                                       FromByteString(strerror(errno)));
   }
@@ -1710,18 +1611,6 @@ bool OpenBuffer::AddKeyboardTextTransformer(unique_ptr<Value> transformer) {
   return true;
 }
 
-void OpenBuffer::Input::Reset() {
-  low_buffer = nullptr;
-  low_buffer_length = 0;
-}
-
-void OpenBuffer::Input::Close() {
-  if (fd != -1) {
-    close(fd);
-    fd = -1;
-  }
-}
-
 void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
                                bool fd_is_terminal, pid_t child_pid) {
   if (Read(buffer_variables::clear_on_reload)) {
@@ -1731,18 +1620,15 @@ void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
     fd_error_.Reset();
   }
 
-  fd_.Close();
-  fd_.fd = input_fd;
-
-  fd_error_.Close();
-  fd_error_.fd = input_error_fd;
-  fd_error_.modifiers.clear();
-  fd_error_.modifiers.insert(LineModifier::RED);
-
   CHECK_EQ(child_pid_, -1);
+  fd_.Close();
+  fd_error_.Close();
   terminal_ = fd_is_terminal
                   ? std::make_unique<BufferTerminal>(this, &contents_)
                   : nullptr;
+  fd_.Open(input_fd, {}, terminal_.get());
+  fd_error_.Open(input_error_fd, {LineModifier::RED}, terminal_.get());
+
   child_pid_ = child_pid;
 }
 

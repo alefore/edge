@@ -14,6 +14,7 @@
 #include "src/buffer_contents.h"
 #include "src/buffer_terminal.h"
 #include "src/cursors.h"
+#include "src/file_descriptor_reader.h"
 #include "src/lazy_string.h"
 #include "src/line.h"
 #include "src/line_column.h"
@@ -312,8 +313,9 @@ class OpenBuffer {
   void SetInputFiles(int input_fd, int input_fd_error, bool fd_is_terminal,
                      pid_t child_pid);
 
-  int fd() const { return fd_.fd; }
-  int fd_error() const { return fd_error_.fd; }
+  int fd() const { return fd_.fd(); }
+  int fd_error() const { return fd_error_.fd(); }
+  void CheckForEndOfFile();
 
   pid_t child_pid() const { return child_pid_; }
   int child_exit_status() const { return child_exit_status_; }
@@ -410,25 +412,8 @@ class OpenBuffer {
 
   const Options options_;
 
-  struct Input {
-    void Close();
-    void Reset();
-    void ReadData(OpenBuffer* target);
-
-    // -1 means "no file descriptor" (i.e. not currently loading this).
-    int fd = -1;
-
-    // We read directly into low_buffer_ and then drain from that into
-    // contents_. It's possible that not all bytes read can be converted (for
-    // example, if the reading stops in the middle of a wide character).
-    std::unique_ptr<char[]> low_buffer;
-    size_t low_buffer_length = 0;
-
-    LineModifierSet modifiers;
-  };
-
-  Input fd_;
-  Input fd_error_;
+  FileDescriptorReader fd_;
+  FileDescriptorReader fd_error_;
 
   std::unique_ptr<BufferTerminal> terminal_;
 

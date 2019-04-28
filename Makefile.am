@@ -60,6 +60,8 @@ src/editor.cc \
 src/frame_output_producer.cc \
 src/frame_output_producer.h \
 src/file_link_mode.cc \
+src/file_descriptor_reader.cc \
+src/file_descriptor_reader.h \
 src/find_mode.cc \
 src/goto_command.cc \
 src/help_command.cc \
