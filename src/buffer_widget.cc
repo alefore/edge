@@ -82,23 +82,14 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
   }
 
   bool paste_mode = buffer->Read(buffer_variables::paste_mode);
-  size_t buffer_columns =
-      columns_ -
-      (paste_mode
-           ? 0
-           : LineNumberOutputProducer::PrefixWidth(buffer->lines_size()));
-  if (!buffer->Read(buffer_variables::paste_mode)) {
-    buffer_columns =
-        min(buffer_columns,
-            static_cast<size_t>(buffer->Read(buffer_variables::line_width)));
-  }
 
   auto line_scroll_control =
       LineScrollControl::New(line_scroll_control_options_);
 
   auto buffer_output_producer = std::make_unique<BufferOutputProducer>(
-      buffer, line_scroll_control->NewReader(), lines_, buffer_columns,
-      view_start_.column, zoomed_out_tree_);
+      buffer, line_scroll_control->NewReader(), lines_,
+      line_scroll_control_options_.columns_shown, view_start_.column,
+      zoomed_out_tree_);
   if (paste_mode) {
     return buffer_output_producer;
   }
@@ -168,10 +159,20 @@ void BufferWidget::RecomputeData() {
     return;
   }
 
+  bool paste_mode = buffer->Read(buffer_variables::paste_mode);
+
   line_scroll_control_options_.buffer = buffer;
   line_scroll_control_options_.lines_shown = lines_;
   line_scroll_control_options_.columns_shown =
-      buffer->Read(buffer_variables::line_width);
+      columns_ -
+      (paste_mode
+           ? 0
+           : LineNumberOutputProducer::PrefixWidth(buffer->lines_size()));
+  if (!buffer->Read(buffer_variables::paste_mode)) {
+    line_scroll_control_options_.columns_shown =
+        min(line_scroll_control_options_.columns_shown,
+            static_cast<size_t>(buffer->Read(buffer_variables::line_width)));
+  }
 
   size_t line = min(buffer->position().line, buffer->contents()->size() - 1);
   size_t margin_lines =
