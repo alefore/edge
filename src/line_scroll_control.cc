@@ -78,7 +78,9 @@ void LineScrollControl::SignalReaderDone() {
     return;
   }
   readers_done_ = 0;
+  VLOG(6) << "Advancing, finished range: " << range_;
   range_ = GetRange(range_.end);
+  VLOG(7) << "Next range: " << range_;
 
   for (auto& c : readers_) {
     c->state_ = Reader::State::kProcessing;
@@ -97,13 +99,6 @@ Range LineScrollControl::GetRange(LineColumn begin) {
     LOG(INFO) << "Skipping spaces (from " << begin << ").";
     while (begin.column < line->size() && line->get(begin.column) == L' ') {
       begin.column++;
-    }
-    if (begin.column == line->size()) {
-      begin.line++;
-      begin.column = options_.initial_column;
-      if (begin.line >= options_.buffer->lines_size()) {
-        return Range(begin, LineColumn::Max());
-      }
     }
   }
 
