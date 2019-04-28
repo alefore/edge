@@ -574,25 +574,29 @@ wstring EditorState::GetUnusedBufferName(const wstring& prefix) {
   return GetBufferName(prefix, count);
 }
 
-void EditorState::AttemptTermination(int exit_value) {
-  LOG(INFO) << "Checking buffers for termination.";
-  std::vector<wstring> buffers_with_problems;
-  for (auto& it : buffers_) {
-    if (it.second->IsUnableToPrepareToClose()) {
-      buffers_with_problems.push_back(it.second->Read(buffer_variables::name));
+void EditorState::Terminate(TerminationType termination_type, int exit_value) {
+  if (termination_type == TerminationType::kWhenClean) {
+    LOG(INFO) << "Checking buffers for termination.";
+    std::vector<wstring> buffers_with_problems;
+    for (auto& it : buffers_) {
+      if (it.second->IsUnableToPrepareToClose()) {
+        buffers_with_problems.push_back(
+            it.second->Read(buffer_variables::name));
+      }
     }
-  }
-  if (!buffers_with_problems.empty()) {
-    wstring error = L"🖝  Dirty buffers (“*aq” to ignore):";
-    for (auto name : buffers_with_problems) {
-      error += L" " + name;
+    if (!buffers_with_problems.empty()) {
+      wstring error = L"🖝  Dirty buffers (“*aq” to ignore):";
+      for (auto name : buffers_with_problems) {
+        error += L" " + name;
+      }
+      SetWarningStatus(error);
+      return;
     }
-    SetWarningStatus(error);
-    return;
   }
 
   std::shared_ptr<int> pending_calls(
-      new int(buffers_.size()), [this, exit_value](int* value) {
+      new int(buffers_.size()),
+      [this, exit_value, termination_type](int* value) {
         if (*value != 0) {
           LOG(INFO) << "Termination attempt didn't complete successfully. It "
                        "must mean that a new one has started.";
@@ -600,23 +604,25 @@ void EditorState::AttemptTermination(int exit_value) {
         }
         // Since `PrepareToClose is asynchronous, we must check that they are
         // all ready to be deleted.
+        if (termination_type == TerminationType::kIgnoringErrors) {
+          exit_value_ = exit_value;
+          return;
+        }
         LOG(INFO) << "Checking buffers state for termination.";
-        if (modifiers().strength <= Modifiers::Strength::kNormal) {
-          std::vector<wstring> buffers_with_problems;
-          for (auto& it : buffers_) {
-            if (it.second->dirty() &&
-                !it.second->Read(buffer_variables::allow_dirty_delete)) {
-              buffers_with_problems.push_back(
-                  it.second->Read(buffer_variables::name));
-            }
+        std::vector<wstring> buffers_with_problems;
+        for (auto& it : buffers_) {
+          if (it.second->dirty() &&
+              !it.second->Read(buffer_variables::allow_dirty_delete)) {
+            buffers_with_problems.push_back(
+                it.second->Read(buffer_variables::name));
           }
-          if (!buffers_with_problems.empty()) {
-            wstring error = L"🖝  Dirty buffers (“*aq” to ignore):";
-            for (auto name : buffers_with_problems) {
-              error += L" " + name;
-            }
-            return SetWarningStatus(error);
+        }
+        if (!buffers_with_problems.empty()) {
+          wstring error = L"🖝  Dirty buffers (“*aq” to ignore):";
+          for (auto name : buffers_with_problems) {
+            error += L" " + name;
           }
+          return SetWarningStatus(error);
         }
         LOG(INFO) << "Terminating.";
         exit_value_ = exit_value;

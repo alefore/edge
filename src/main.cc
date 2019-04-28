@@ -354,7 +354,7 @@ int main(int argc, const char** argv) {
 
     if (screen_curses != nullptr) {
       fds[buffers.size()].fd = 0;
-      fds[buffers.size()].events = POLLIN | POLLPRI;
+      fds[buffers.size()].events = POLLIN | POLLPRI | POLLERR;
       buffers.push_back(nullptr);
     }
 
@@ -384,14 +384,21 @@ int main(int argc, const char** argv) {
         continue;
       }
       if (fds[i].fd == 0) {
-        CHECK(screen_curses != nullptr);
-        wint_t c;
-        while ((c = ReadChar(&mbstate)) != static_cast<wint_t>(-1)) {
-          if (remote_server_fd == -1) {
-            editor_state()->ProcessInput(c);
-          } else {
-            SendCommandsToParent(remote_server_fd,
-                                 "ProcessInput(" + std::to_string(c) + ");\n");
+        if (fds[i].revents & POLLHUP) {
+          LOG(INFO) << "POLLHUP enabled in fd 0. AttemptTermination(0).";
+          editor_state()->Terminate(
+              EditorState::TerminationType::kIgnoringErrors, 0);
+        } else {
+          CHECK(screen_curses != nullptr);
+          wint_t c;
+          while ((c = ReadChar(&mbstate)) != static_cast<wint_t>(-1)) {
+            if (remote_server_fd == -1) {
+              editor_state()->ProcessInput(c);
+            } else {
+              SendCommandsToParent(
+                  remote_server_fd,
+                  "ProcessInput(" + std::to_string(c) + ");\n");
+            }
           }
         }
         continue;

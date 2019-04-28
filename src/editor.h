@@ -75,7 +75,9 @@ class EditorState {
   const shared_ptr<OpenBuffer> current_buffer() const;
   wstring GetUnusedBufferName(const wstring& prefix);
   std::optional<int> exit_value() const { return exit_value_; }
-  void AttemptTermination(int exit_value);
+
+  enum class TerminationType { kWhenClean, kIgnoringErrors };
+  void Terminate(TerminationType termination_type, int exit_value);
 
   void ResetModifiers() {
     auto buffer = current_buffer();
