@@ -74,6 +74,8 @@ src/line_column.cc \
 src/line_marks.cc \
 src/line_modifier.cc \
 src/line_modifier.h \
+src/line_number_output_producer.h \
+src/line_number_output_producer.cc \
 src/line_prompt_mode.cc \
 src/line_scroll_control.h \
 src/line_scroll_control.cc \
