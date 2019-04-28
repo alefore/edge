@@ -3,6 +3,10 @@
 #include <cctype>
 #include <ostream>
 
+extern "C" {
+#include <sys/ioctl.h>
+}
+
 #include "src/buffer.h"
 #include "src/editor.h"
 #include "src/wstring.h"
@@ -16,6 +20,19 @@ BufferTerminal::BufferTerminal(OpenBuffer* buffer, BufferContents* contents)
 LineColumn BufferTerminal::position() const { return position_; }
 
 void BufferTerminal::SetPosition(LineColumn position) { position_ = position; }
+
+void BufferTerminal::SetSize(size_t lines, size_t columns) {
+  if (lines_ == lines && columns_ == columns) {
+    return;
+  }
+  struct winsize screen_size;
+  lines_ = screen_size.ws_row = lines;
+  columns_ = screen_size.ws_col = columns;
+  if (ioctl(buffer_->fd(), TIOCSWINSZ, &screen_size) == -1) {
+    buffer_->editor()->SetWarningStatus(L"ioctl TIOCSWINSZ failed: " +
+                                        FromByteString(strerror(errno)));
+  }
+}
 
 void BufferTerminal::ProcessCommandInput(shared_ptr<LazyString> str) {
   if (position_.line >= buffer_->lines_size()) {
@@ -60,7 +77,7 @@ void BufferTerminal::ProcessCommandInput(shared_ptr<LazyString> str) {
       CHECK_LT(position_.line, buffer_->lines_size());
     } else if (isprint(c) || c == '\t') {
       VLOG(8) << "Received printable or tab: " << c;
-      if (position_.column >= columns) {
+      if (position_.column >= columns_) {
         MoveToNextLine();
       }
       contents_->SetCharacter(position_.line, position_.column, c, modifiers);

@@ -24,11 +24,9 @@ class BufferTerminal {
   LineColumn position() const;
   void SetPosition(LineColumn position);
 
-  void ProcessCommandInput(shared_ptr<LazyString> str);
+  void SetSize(size_t lines, size_t columns);
 
-  // TODO: Make them private.
-  size_t lines;
-  size_t columns;
+  void ProcessCommandInput(shared_ptr<LazyString> str);
 
  private:
   size_t ProcessTerminalEscapeSequence(
@@ -41,6 +39,9 @@ class BufferTerminal {
 
   // TODO: Find a way to remove this?
   BufferContents* const contents_;
+
+  size_t lines_ = 0;
+  size_t columns_ = 0;
 
   LineColumn position_;
 };

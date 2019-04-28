@@ -10,9 +10,6 @@
 #include <unordered_set>
 
 extern "C" {
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -1544,17 +1541,8 @@ void OpenBuffer::PushSignal(int sig) {
 }
 
 void OpenBuffer::SetTerminalSize(size_t lines, size_t columns) {
-  // TODO: Move this logic to buffer_terminal.cc.
-  if (terminal_ == nullptr ||
-      (terminal_->lines == lines && terminal_->columns == columns)) {
-    return;
-  }
-  struct winsize screen_size;
-  terminal_->lines = screen_size.ws_row = lines;
-  terminal_->columns = screen_size.ws_col = columns;
-  if (ioctl(fd_->fd(), TIOCSWINSZ, &screen_size) == -1) {
-    options_.editor->SetWarningStatus(L"ioctl TIOCSWINSZ failed: " +
-                                      FromByteString(strerror(errno)));
+  if (terminal_ != nullptr) {
+    terminal_->SetSize(lines, columns);
   }
 }
 
