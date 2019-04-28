@@ -24,7 +24,7 @@ struct ForkCommandOptions {
   // The command to run.
   wstring command;
 
-  wstring buffer_name;
+  wstring name;
 
   // Additional environment variables (e.g. getenv) to give to the command.
   map<wstring, wstring> environment;

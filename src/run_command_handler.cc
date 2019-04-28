@@ -273,7 +273,7 @@ void RunCommand(const wstring& name, const wstring& input,
 
   ForkCommandOptions options;
   options.command = input;
-  options.buffer_name = name;
+  options.name = name;
   options.insertion_type =
       buffer == nullptr ||
               !buffer->Read(buffer_variables::commands_background_mode)
@@ -387,6 +387,14 @@ void ForkCommandOptions::Register(vm::Environment* environment) {
           })));
 
   fork_command_options->AddField(
+      L"set_name",
+      NewCallback(std::function<void(ForkCommandOptions*, wstring)>(
+          [](ForkCommandOptions* options, wstring name) {
+            CHECK(options != nullptr);
+            options->name = std::move(name);
+          })));
+
+  fork_command_options->AddField(
       L"set_insertion_type",
       NewCallback(std::function<void(ForkCommandOptions*, wstring)>(
           [](ForkCommandOptions* options, wstring insertion_type) {
@@ -414,14 +422,14 @@ void ForkCommandOptions::Register(vm::Environment* environment) {
 
 std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
                                         const ForkCommandOptions& options) {
-  wstring buffer_name = options.buffer_name.empty() ? (L"$ " + options.command)
-                                                    : options.buffer_name;
-  auto it = editor_state->buffers()->insert(make_pair(buffer_name, nullptr));
+  wstring name =
+      options.name.empty() ? (L"$ " + options.command) : options.name;
+  auto it = editor_state->buffers()->insert(make_pair(name, nullptr));
   if (it.second) {
     auto command_data = std::make_shared<CommandData>();
     OpenBuffer::Options buffer_options;
     buffer_options.editor = editor_state;
-    buffer_options.name = buffer_name;
+    buffer_options.name = name;
     buffer_options.generate_contents = [editor_state,
                                         environment = options.environment,
                                         command_data](OpenBuffer* target) {
