@@ -91,17 +91,6 @@ void GenerateContents(EditorState* editor_state,
       cerr << "unlockpt failed: " << string(strerror(errno));
       exit(1);
     }
-    // TODO(alejo): Don't do ioctl here; move that to Terminal, have it set a
-    // property in the editor, and read the property here.
-    struct winsize screen_size;
-    if (ioctl(0, TIOCGWINSZ, &screen_size) == -1) {
-      cerr << "ioctl TIOCGWINSZ failed: " << string(strerror(errno));
-    }
-    screen_size.ws_row--;
-    if (ioctl(master_fd, TIOCSWINSZ, &screen_size) == -1) {
-      cerr << "ioctl TIOCSWINSZ failed: " << string(strerror(errno));
-      exit(1);
-    }
     pipefd_out[parent_fd] = master_fd;
     char* pts_path = ptsname(master_fd);
     target->Set(buffer_variables::pts_path, FromByteString(pts_path));

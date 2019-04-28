@@ -160,6 +160,10 @@ void BufferWidget::RecomputeData() {
     return;
   }
 
+  // TODO: If the buffer has multiple views of different sizes, we're gonna have
+  // a bad time.
+  buffer->SetTerminalSize(lines_, columns_);
+
   bool paste_mode = buffer->Read(buffer_variables::paste_mode);
 
   line_scroll_control_options_.buffer = buffer;

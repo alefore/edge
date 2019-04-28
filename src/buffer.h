@@ -318,6 +318,8 @@ class OpenBuffer {
 
   void PushSignal(int signal);
 
+  void SetTerminalSize(size_t lines, size_t columns);
+
   /////////////////////////////////////////////////////////////////////////////
   // Cursors
 
@@ -428,12 +430,16 @@ class OpenBuffer {
   Input fd_;
   Input fd_error_;
 
-  // This is used to remember if we obtained a terminal for the file descriptor
-  // (for a subprocess).  Typically this has the same value of pts_ after a
-  // subprocess is started, but it's a separate value to allow the user to
-  // change the value of pts_ without breaking things (when one command is
-  // already running).
-  bool fd_is_terminal_ = false;
+  // If we obtained a terminal for the file descriptor (for a subprocess), we'll
+  // use terminal_data_ to remember its data. Otherwise, this is set to nullopt.
+  // This typically depends on the value of pts_ just at the time a subprocess
+  // is started. Toggling the value of pts_ doesn't have any effect on this
+  // (until the process is restarted).
+  struct TerminalData {
+    size_t lines;
+    size_t columns;
+  };
+  std::optional<TerminalData> terminal_data_;
 
   // Functions to be called when the end of file is reached. The functions will
   // be called at most once (so they won't be notified if the buffer is

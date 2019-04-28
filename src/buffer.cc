@@ -10,6 +10,9 @@
 #include <unordered_set>
 
 extern "C" {
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -812,7 +815,7 @@ OpenBuffer::GetEndPositionFollower() {
   if (!Read(buffer_variables::follow_end_of_file)) {
     return nullptr;
   }
-  if (position() < end_position() && !fd_is_terminal_) {
+  if (position() < end_position() && !terminal_data_.has_value()) {
     return nullptr;  // Not at the end, so user must have scrolled up.
   }
   return std::unique_ptr<bool, std::function<void(bool*)>>(
@@ -1986,6 +1989,21 @@ void OpenBuffer::PushSignal(int sig) {
   }
 }
 
+void OpenBuffer::SetTerminalSize(size_t lines, size_t columns) {
+  if (terminal_data_ == std::nullopt ||
+      (terminal_data_.value().lines == lines &&
+       terminal_data_.value().columns == columns)) {
+    return;
+  }
+  struct winsize screen_size;
+  terminal_data_.value().lines = screen_size.ws_row = lines;
+  terminal_data_.value().columns = screen_size.ws_col = columns;
+  if (ioctl(fd_.fd, TIOCSWINSZ, &screen_size) == -1) {
+    editor_->SetWarningStatus(L"ioctl TIOCSWINSZ failed: " +
+                              FromByteString(strerror(errno)));
+  }
+}
+
 wstring OpenBuffer::TransformKeyboardText(wstring input) {
   using afc::vm::VMType;
   for (Value::Ptr& t : keyboard_text_transformers_) {
@@ -2044,7 +2062,8 @@ void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
   fd_error_.modifiers.insert(LineModifier::RED);
 
   CHECK_EQ(child_pid_, -1);
-  fd_is_terminal_ = fd_is_terminal;
+  terminal_data_ =
+      fd_is_terminal ? TerminalData() : std::optional<TerminalData>();
   child_pid_ = child_pid;
 }
 

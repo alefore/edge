@@ -152,17 +152,12 @@ wstring BufferTreeHorizontal::ToString() const {
 std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
   std::vector<HorizontalSplitOutputProducer::Row> rows;
   CHECK_EQ(children_.size(), lines_per_child_.size());
-
-  bool show_frames =
-      std::count_if(lines_per_child_.begin(), lines_per_child_.end(),
-                    [](size_t i) { return i > 0; }) > 1;
-
   for (size_t index = 0; index < children_.size(); index++) {
     auto child_producer = children_[index]->CreateOutputProducer();
     CHECK(child_producer != nullptr);
     std::shared_ptr<const OpenBuffer> buffer =
         children_[index]->GetActiveLeaf()->Lock();
-    if (show_frames) {
+    if (children_.size() > 1) {
       VLOG(5) << "Producing row with frame.";
       std::vector<HorizontalSplitOutputProducer::Row> nested_rows;
       FrameOutputProducer::FrameOptions frame_options;
@@ -201,10 +196,7 @@ void BufferTreeHorizontal::SetSize(size_t lines, size_t columns) {
   }
   CHECK_EQ(lines_per_child_.size(), children_.size());
 
-  bool show_frames =
-      std::count_if(lines_per_child_.begin(), lines_per_child_.end(),
-                    [](size_t i) { return i > 0; }) > 1;
-  if (show_frames) {
+  if (children_.size() > 1) {
     LOG(INFO) << "Adding lines for frames.";
     for (auto& lines : lines_per_child_) {
       if (lines > 0) {
@@ -258,7 +250,7 @@ void BufferTreeHorizontal::SetSize(size_t lines, size_t columns) {
                                    lines_per_child_.end(), 0ul));
 
   for (size_t i = 0; i < lines_per_child_.size(); i++) {
-    children_[i]->SetSize(lines_per_child_[i] - (show_frames ? 1 : 0),
+    children_[i]->SetSize(lines_per_child_[i] - (children_.size() > 1 ? 1 : 0),
                           columns_);
   }
 }
