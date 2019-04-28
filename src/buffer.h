@@ -67,7 +67,7 @@ class OpenBuffer {
     // Optional function to generate additional information for the status of
     // this buffer (see OpenBuffer::FlagsString). The generated string must
     // begin with a space.
-    std::function<wstring(const OpenBuffer&)> describe_status;
+    std::function<map<wstring, wstring>(const OpenBuffer&)> describe_status;
 
     // Optional function that listens on visits to the buffer (i.e., the user
     // entering the buffer from other buffers).
@@ -234,7 +234,8 @@ class OpenBuffer {
   bool modified() const { return modified_; }
 
   bool dirty() const;
-  wstring FlagsString() const;
+  std::map<wstring, wstring> Flags() const;
+  static wstring FlagsToString(std::map<wstring, wstring> flags);
 
   wstring TransformKeyboardText(wstring input);
   bool AddKeyboardTextTransformer(unique_ptr<Value> transformer);
@@ -559,8 +560,10 @@ class OpenBuffer {
   struct timespec last_progress_update_ = {0, 0};
 
   // See Options::generate_contents.
+  // TODO: Just keep const Options_ options;
   const std::function<void(OpenBuffer*)> generate_contents_;
-  const std::function<wstring(const OpenBuffer&)> describe_status_;
+  const std::function<std::map<wstring, wstring>(const OpenBuffer&)>
+      describe_status_;
   const std::function<void(OpenBuffer*)> handle_visit_;
   const std::function<void(OpenBuffer*)> handle_save_;
 };

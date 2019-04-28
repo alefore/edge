@@ -153,24 +153,24 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
                 L":" + to_wstring(active_cursors) + L" ";
     }
 
-    wstring flags = buffer->FlagsString();
+    auto flags = buffer->Flags();
     if (editor_state.repetitions() != 1) {
-      flags += to_wstring(editor_state.repetitions());
+      flags.insert({to_wstring(editor_state.repetitions()), L""});
     }
     if (modifiers.default_direction == BACKWARDS) {
-      flags += L" REVERSE";
+      flags.insert({L"REVERSE", L""});
     } else if (modifiers.direction == BACKWARDS) {
-      flags += L" reverse";
+      flags.insert({L"reverse", L""});
     }
 
     if (modifiers.default_insertion == Modifiers::REPLACE) {
-      flags += L" REPLACE";
+      flags.insert({L"REPLACE", L""});
     } else if (modifiers.insertion == Modifiers::REPLACE) {
-      flags += L" replace";
+      flags.insert({L"replace", L""});
     }
 
     if (modifiers.strength == Modifiers::Strength::kStrong) {
-      flags += L" 💪";
+      flags.insert({L"💪", L""});
     }
 
     wstring structure;
@@ -194,11 +194,11 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
           structure = structure + L"...]";
           break;
       }
-      flags += L"(" + structure + L")";
+      flags[L"St:"] = structure;
     }
 
     if (!flags.empty()) {
-      status += L" " + flags + L" ";
+      status += L"  " + OpenBuffer::FlagsToString(std::move(flags));
     }
 
     if (editor_state.status().empty()) {

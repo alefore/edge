@@ -213,23 +213,24 @@ wstring DurationToString(size_t duration) {
   return L"very-long";
 }
 
-wstring FlagsString(const CommandData& data, const OpenBuffer& buffer) {
+std::map<wstring, wstring> Flags(const CommandData& data,
+                                 const OpenBuffer& buffer) {
   time_t now;
   time(&now);
 
-  wstring output;
+  std::map<wstring, wstring> output;
   if (buffer.child_pid() != -1) {
-    output = L" …";
+    output.insert({L" …", L""});
   } else {
     if (!WIFEXITED(buffer.child_exit_status())) {
-      output = L" 💀";
+      output.insert({L"💀", L""});
     } else if (WEXITSTATUS(buffer.child_exit_status()) == 0) {
-      output = L" 🏁";
+      output.insert({L" 🏁", L""});
     } else {
-      output = L" 💥";
+      output.insert({L" 💥", L""});
     }
     if (now > data.time_end) {
-      output += DurationToString(now - data.time_end);
+      output.insert({DurationToString(now - data.time_end), L""});
     }
   }
 
@@ -237,22 +238,22 @@ wstring FlagsString(const CommandData& data, const OpenBuffer& buffer) {
     time_t end = (buffer.child_pid() != -1 || data.time_end < data.time_start)
                      ? now
                      : data.time_end;
-    output += L" ⏲ " + DurationToString(end - data.time_start);
+    output[L"⏲ "] = DurationToString(end - data.time_start);
   }
 
   auto update = buffer.last_progress_update();
   if (buffer.child_pid() != -1 && update.tv_sec != 0) {
     int seconds = now - update.tv_sec;
-    if (seconds < 1) {
-      output += L"🗯 ";
-    } else if (seconds < 5) {
-      output += L"🗩 ";
+    if (seconds < 5) {
+      output[L"🤖"] = L"🗩";
     } else if (seconds < 60) {
-      output += L" 🤖";
+      output[L"🤖"] = L"";
+    } else if (seconds < 60 * 2) {
+      output[L"🤖"] = L"z";
     } else {
-      output += L" 😴";
+      output[L"🤖"] = L"💤";
     }
-    output += DurationToString(now - update.tv_sec);
+    output.insert({DurationToString(now - update.tv_sec), L""});
   }
   return output;
 }
@@ -427,7 +428,7 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
       GenerateContents(editor_state, environment, command_data.get(), target);
     };
     buffer_options.describe_status = [command_data](const OpenBuffer& buffer) {
-      return FlagsString(*command_data, buffer);
+      return Flags(*command_data, buffer);
     };
     auto buffer = std::make_shared<OpenBuffer>(std::move(buffer_options));
     buffer->Set(buffer_variables::children_path, options.children_path);

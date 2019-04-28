@@ -1113,7 +1113,7 @@ void OpenBuffer::Reload() {
 
     switch (reload_state_) {
       case ReloadState::kDone:
-        CHECK(false);
+        LOG(FATAL);
       case ReloadState::kOngoing:
         reload_state_ = ReloadState::kDone;
         break;
@@ -2096,61 +2096,72 @@ bool OpenBuffer::dirty() const {
          WEXITSTATUS(child_exit_status_) != 0;
 }
 
-wstring OpenBuffer::FlagsString() const {
-  wstring output;
+std::map<wstring, wstring> OpenBuffer::Flags() const {
+  std::map<wstring, wstring> output;
   if (describe_status_) {
     output = describe_status_(*this);
   }
 
   if (modified()) {
-    output += L" 🐾";
+    output.insert({L"🐾", L""});
   }
 
   if (fd() != -1) {
-    output += L" < ";
+    output.insert({L"<", L""});
     switch (contents_.size()) {
       case 1:
-        output += L"⚊ ";
+        output.insert({L"⚊", L""});
         break;
       case 2:
-        output += L"⚌ ";
+        output.insert({L"⚌", L""});
         break;
       case 3:
-        output += L"☰ ";
+        output.insert({L"☰", L""});
         break;
       default:
-        output += L"☰ " + to_wstring(contents_.size());
+        output.insert({L"☰", std::to_wstring(contents_.size())});
     }
     if (Read(buffer_variables::follow_end_of_file)) {
-      output += L" ↓";
+      output.insert({L"↓", L""});
     }
     wstring pts_path = Read(buffer_variables::pts_path);
     if (!pts_path.empty()) {
-      output += L"  💻" + pts_path + L" ";
+      output.insert({L"💻", pts_path});
     }
   }
 
   if (!pending_work_.empty()) {
-    output += L" ⏳";
+    output.insert({L"⏳", L""});
   }
 
   if (child_pid_ != -1) {
-    output += L"  🤴" + to_wstring(child_pid_) + L" ";
-  } else if (child_exit_status_ != 0) {
-    if (WIFEXITED(child_exit_status_)) {
-      output += L" exit:" + to_wstring(WEXITSTATUS(child_exit_status_));
-    } else if (WIFSIGNALED(child_exit_status_)) {
-      output += L" signal:" + to_wstring(WTERMSIG(child_exit_status_));
-    } else {
-      output += L" exit-status:" + to_wstring(child_exit_status_);
-    }
+    output.insert({L"🤴", std::to_wstring(child_pid_)});
+  } else if (child_exit_status_ == 0) {
+    // Nothing.
+  } else if (WIFEXITED(child_exit_status_)) {
+    output.insert({L"exit", std::to_wstring(WEXITSTATUS(child_exit_status_))});
+  } else if (WIFSIGNALED(child_exit_status_)) {
+    output.insert({L"signal", std::to_wstring(WTERMSIG(child_exit_status_))});
+  } else {
+    output.insert({L"exit-status", std::to_wstring(child_exit_status_)});
   }
 
   auto marks = GetLineMarksText();
   if (!marks.empty()) {
-    output += L" " + marks;
+    output.insert({marks, L""});  // TODO: Show better?
   }
 
+  return output;
+}
+
+/* static */ wstring OpenBuffer::FlagsToString(
+    std::map<wstring, wstring> flags) {
+  wstring output;
+  wstring separator = L"";
+  for (auto& f : flags) {
+    output += separator + f.first + f.second;
+    separator = L"  ";
+  }
   return output;
 }
 

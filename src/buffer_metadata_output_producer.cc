@@ -221,7 +221,7 @@ void BufferMetadataOutputProducer::Prepare(Range range) {
   while (marks.first != marks.second) {
     if (range.Contains(marks.first->second.target)) {
       (marks.first->second.IsExpired() ? range_data_->marks_expired
-                                        : range_data_->marks)
+                                       : range_data_->marks)
           .push_back(marks.first->second);
     }
     ++marks.first;
@@ -232,7 +232,8 @@ void BufferMetadataOutputProducer::Prepare(Range range) {
 
   if (target_buffer != buffer_.get()) {
     if (buffers_shown_.insert(target_buffer).second) {
-      range_data_->additional_information = target_buffer->FlagsString();
+      range_data_->additional_information =
+          OpenBuffer::FlagsToString(target_buffer->Flags());
     }
   } else if (marks.first != marks.second) {
   } else if (contents.modified()) {

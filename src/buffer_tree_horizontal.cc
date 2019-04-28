@@ -168,7 +168,8 @@ std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
             FrameOutputProducer::FrameOptions::ActiveState::kActive;
       }
       if (buffer != nullptr) {
-        frame_options.extra_information = buffer->FlagsString();
+        frame_options.extra_information =
+            OpenBuffer::FlagsToString(buffer->Flags());
       }
       nested_rows.push_back(
           {std::make_unique<FrameOutputProducer>(std::move(frame_options)), 1});
