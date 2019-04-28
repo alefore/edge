@@ -14,14 +14,12 @@
 namespace afc {
 namespace editor {
 
-class BufferTreeHorizontal : public Widget {
+class BufferTreeHorizontal : public SelectingWidget {
  private:
   struct ConstructorAccessTag {};
 
  public:
   ~BufferTreeHorizontal();
-
-  enum class BuffersVisible { kAll, kActive };
 
   static std::unique_ptr<BufferTreeHorizontal> New(
       std::vector<std::unique_ptr<Widget>> children, size_t active);
@@ -44,48 +42,36 @@ class BufferTreeHorizontal : public Widget {
   size_t lines() const override;
   size_t columns() const override;
   size_t MinimumLines() override;
+  void RemoveBuffer(OpenBuffer* buffer) override;
 
-  void SetActiveLeaf(size_t position);
-  void AdvanceActiveLeaf(int delta);
+  size_t count() const override;
+  // Returns the currently selected index. An invariant is that it will be
+  // smaller than count.
+  size_t index() const override;
+  void set_index(size_t new_index) override;
+  void AddChild(std::unique_ptr<Widget> widget) override;
 
-  size_t CountLeafs() const;
+  // Overrides from DelegatingWidget.
+  Widget* Child() override;
+  void SetChild(std::unique_ptr<Widget> widget) override;
+  void WrapChild(std::function<std::unique_ptr<Widget>(std::unique_ptr<Widget>)>
+                     callback) override;
 
-  // Where should the new buffer be shown?
-  enum class InsertionType {
-    // Searches the tree of widgets to see if a leaf for the current buffer
-    // already exists. The first such widget found is selected as active.
-    // Otherwise, creates a new buffer widget.
-    kSearchOrCreate,
-    // Create a new buffer widget displaying the buffer.
-    kCreate,
-    // Show the buffer in the current buffer widget.
-    kReuseCurrent,
-    // Don't actually insert the children.
-    kSkip
-  };
-  void InsertChildren(std::shared_ptr<OpenBuffer> buffer,
-                      InsertionType insertion_type);
+  size_t CountLeaves() const override;
 
-  void PushChildren(std::unique_ptr<Widget> children);
-  size_t children_count() const;
+  // Advances the active leaf (recursing down into child containers) by this
+  // number of positions.
+  //
+  // Doesn't wrap. Returns the number of steps pending.
+  int AdvanceActiveLeafWithoutWrapping(int delta) override;
+
+  void SetActiveLeavesAtStart() override;
 
   void RemoveActiveLeaf();
-  void AddSplit();
   void ZoomToActiveLeaf();
 
-  BuffersVisible buffers_visible() const;
-  void SetBuffersVisible(BuffersVisible buffers_visible);
-
  private:
-  enum class LeafSearchResult { kFound, kNotFound };
-  LeafSearchResult SelectLeafFor(OpenBuffer* buffer);
-
   void RecomputeLinesPerChild();
-
-  // Doesn't wrap. Returns the number of steps pending.
-  int AdvanceActiveLeafWithoutWrapping(int delta);
-
-  BuffersVisible buffers_visible_ = BuffersVisible::kAll;
 
   std::vector<std::unique_ptr<Widget>> children_;
   size_t active_;
@@ -93,9 +79,6 @@ class BufferTreeHorizontal : public Widget {
   size_t lines_;
   size_t columns_;
   std::vector<size_t> lines_per_child_;
-
-  // One entry per line of collapsed buffers.
-  std::vector<std::vector<BuffersListProducer::Entry>> buffers_list_;
 };
 
 }  // namespace editor

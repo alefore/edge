@@ -287,8 +287,8 @@ void RunCommand(const wstring& name, const wstring& input,
   options.insertion_type =
       buffer == nullptr ||
               !buffer->Read(buffer_variables::commands_background_mode)
-          ? BufferTreeHorizontal::InsertionType::kSearchOrCreate
-          : BufferTreeHorizontal::InsertionType::kSkip;
+          ? BuffersList::AddBufferType::kVisit
+          : BuffersList::AddBufferType::kIgnore;
   options.children_path = children_path;
   options.environment = std::move(environment);
   ForkCommand(editor_state, options);
@@ -401,18 +401,12 @@ void ForkCommandOptions::Register(vm::Environment* environment) {
       NewCallback(std::function<void(ForkCommandOptions*, wstring)>(
           [](ForkCommandOptions* options, wstring insertion_type) {
             CHECK(options != nullptr);
-            if (insertion_type == L"search_or_create") {
-              options->insertion_type =
-                  BufferTreeHorizontal::InsertionType::kSearchOrCreate;
-            } else if (insertion_type == L"create") {
-              options->insertion_type =
-                  BufferTreeHorizontal::InsertionType::kCreate;
-            } else if (insertion_type == L"reuse_current") {
-              options->insertion_type =
-                  BufferTreeHorizontal::InsertionType::kReuseCurrent;
-            } else if (insertion_type == L"skip") {
-              options->insertion_type =
-                  BufferTreeHorizontal::InsertionType::kSkip;
+            if (insertion_type == L"visit") {
+              options->insertion_type = BuffersList::AddBufferType::kVisit;
+            } else if (insertion_type == L"only_list") {
+              options->insertion_type = BuffersList::AddBufferType::kOnlyList;
+            } else if (insertion_type == L"ignore") {
+              options->insertion_type = BuffersList::AddBufferType::kIgnore;
             }
           })));
 
@@ -453,8 +447,10 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
   } else {
     it.first->second->ResetMode();
   }
-  editor_state->buffer_tree()->InsertChildren(it.first->second,
-                                              options.insertion_type);
+
+  editor_state->buffer_tree()->AddBuffer(it.first->second,
+                                         options.insertion_type);
+
   editor_state->ScheduleRedraw();
   it.first->second->Reload();
   it.first->second->set_current_position_line(0);

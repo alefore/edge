@@ -182,7 +182,7 @@ CursorsTracker::CursorsTracker() : active_set_(L"") {
 }
 
 LineColumn CursorsTracker::position() const {
-  CHECK_EQ(cursors_.count(active_set_), 1);
+  CHECK_EQ(cursors_.count(active_set_), 1ul);
   return *cursors_.find(active_set_)->second.active();
 }
 

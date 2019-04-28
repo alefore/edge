@@ -117,10 +117,15 @@ class LineNumberOutputProducer : public OutputProducer {
   const std::unique_ptr<LineScrollControl::Reader> line_scroll_control_reader_;
 };
 
+class EmptyProducer : public OutputProducer {
+  void WriteLine(Options) override {}
+};
+
 std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
+  LOG(INFO) << "Buffer widget: CreateOutputProducer.";
   auto buffer = Lock();
   if (buffer == nullptr) {
-    return nullptr;
+    return std::make_unique<EmptyProducer>();
   }
 
   bool paste_mode = buffer->Read(buffer_variables::paste_mode);
@@ -177,6 +182,18 @@ size_t BufferWidget::MinimumLines() {
              : max(0,
                    buffer->Read(buffer_variables::buffer_list_context_lines));
 }
+
+void BufferWidget::RemoveBuffer(OpenBuffer* buffer) {
+  if (Lock().get() == buffer) {
+    leaf_ = std::shared_ptr<OpenBuffer>();
+  }
+}
+
+size_t BufferWidget::CountLeaves() const { return 1; }
+
+int BufferWidget::AdvanceActiveLeafWithoutWrapping(int delta) { return delta; }
+
+void BufferWidget::SetActiveLeavesAtStart() {}
 
 LineColumn BufferWidget::view_start() const { return view_start_; }
 

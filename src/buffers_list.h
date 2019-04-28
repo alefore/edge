@@ -3,6 +3,7 @@
 
 #include <list>
 #include <memory>
+#include <vector>
 
 #include "src/output_producer.h"
 #include "src/parse_tree.h"
@@ -12,26 +13,51 @@
 namespace afc {
 namespace editor {
 
-class BuffersListProducer : public OutputProducer {
+class BuffersList : public DelegatingWidget {
  public:
-  struct Entry {
-    std::shared_ptr<OpenBuffer> buffer;
-    size_t index;
-  };
+  BuffersList(std::unique_ptr<Widget> widget);
 
-  static const size_t kMinimumColumnsPerBuffer = 20;
+  enum class AddBufferType { kVisit, kOnlyList, kIgnore };
+  void AddBuffer(std::shared_ptr<OpenBuffer> buffer,
+                 AddBufferType add_buffer_type);
+  std::shared_ptr<OpenBuffer> GetBuffer(size_t index);
+  size_t GetCurrentIndex();
+  size_t BuffersCount() const;
 
-  BuffersListProducer(std::vector<std::vector<Entry>> buffers,
-                      size_t active_index);
+  // Overrides from Widget
+  wstring Name() const override;
+  wstring ToString() const override;
 
-  void WriteLine(Options options) override;
+  BufferWidget* GetActiveLeaf() override;
+
+  std::unique_ptr<OutputProducer> CreateOutputProducer() override;
+
+  void SetSize(size_t lines, size_t columns) override;
+  size_t lines() const override;
+  size_t columns() const override;
+  size_t MinimumLines() override;
+
+  void RemoveBuffer(OpenBuffer* buffer) override;
+
+  size_t CountLeaves() const override;
+
+  int AdvanceActiveLeafWithoutWrapping(int delta) override;
+  void SetActiveLeavesAtStart() override;
+
+  // Overrides from DelegatingWidget:
+  Widget* Child() override;
+  void SetChild(std::unique_ptr<Widget> widget) override;
+  void WrapChild(std::function<std::unique_ptr<Widget>(std::unique_ptr<Widget>)>
+                     callback) override;
 
  private:
-  const std::vector<std::vector<Entry>> buffers_;
-  const size_t active_index_;
-  const size_t max_index_;
-  const size_t prefix_width_;
-  int current_line_ = 0;
+  std::map<wstring, std::shared_ptr<OpenBuffer>> buffers_;
+  std::unique_ptr<Widget> widget_;
+
+  size_t lines_;
+  size_t columns_;
+  size_t buffers_list_lines_;
+  size_t buffers_per_line_;
 };
 
 }  // namespace editor

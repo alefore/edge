@@ -12,7 +12,7 @@ namespace afc {
 namespace editor {
 namespace {
 Seek StartSeekToLimit(OpenBuffer* buffer, LineColumn* position) {
-  CHECK_GT(buffer->lines_size(), 0);
+  CHECK_GT(buffer->lines_size(), 0ul);
   position->line = std::min(buffer->lines_size() - 1, position->line);
   if (position->column >= buffer->LineAt(position->line)->size()) {
     // if (buffer->Read(buffer_variables::extend_lines)) {

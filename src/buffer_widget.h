@@ -18,9 +18,13 @@ class BufferWidget : public Widget {
 
  public:
   static std::unique_ptr<BufferWidget> New(std::weak_ptr<OpenBuffer> buffer);
+  static std::unique_ptr<BufferWidget> New() {
+    return New(std::shared_ptr<OpenBuffer>());
+  }
 
   BufferWidget(ConstructorAccessTag, std::weak_ptr<OpenBuffer> buffer);
 
+  // Overrides from Widget.
   wstring Name() const override;
   wstring ToString() const override;
 
@@ -32,6 +36,13 @@ class BufferWidget : public Widget {
   size_t lines() const override;
   size_t columns() const override;
   size_t MinimumLines() override;
+
+  void RemoveBuffer(OpenBuffer* buffer) override;
+
+  size_t CountLeaves() const override;
+  int AdvanceActiveLeafWithoutWrapping(int delta) override;
+  void SetActiveLeavesAtStart() override;
+
   LineColumn view_start() const;
 
   // Custom methods.

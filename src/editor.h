@@ -14,6 +14,7 @@
 #include "src/buffer.h"
 #include "src/buffer_tree_horizontal.h"
 #include "src/buffer_widget.h"
+#include "src/buffers_list.h"
 #include "src/command_mode.h"
 #include "src/direction.h"
 #include "src/editor_mode.h"
@@ -57,12 +58,13 @@ class EditorState {
   }
 
   map<wstring, shared_ptr<OpenBuffer>>* buffers() { return &buffers_; }
-  BufferTreeHorizontal* buffer_tree() { return buffer_tree_.get(); }
+  BuffersList* buffer_tree() { return buffer_tree_.get(); }
 
   void set_current_buffer(shared_ptr<OpenBuffer> buffer);
   void AddHorizontalSplit();
   void SetHorizontalSplitsWithAllBuffers();
-  void SetActiveLeaf(size_t position);
+  void SetActiveBuffer(size_t position);
+  void AdvanceActiveBuffer(int delta);
   void AdvanceActiveLeaf(int delta);
   void ZoomToLeaf();
   void BufferTreeRemoveActiveLeaf();
@@ -275,8 +277,8 @@ class EditorState {
 
   AudioPlayer* const audio_player_;
 
-  std::unique_ptr<BufferTreeHorizontal> buffer_tree_ =
-      BufferTreeHorizontal::New(BufferWidget::New(std::weak_ptr<OpenBuffer>()));
+  std::unique_ptr<BuffersList> buffer_tree_ = std::make_unique<BuffersList>(
+      BufferTreeHorizontal::New(BufferWidget::New()));
 };
 
 }  // namespace editor

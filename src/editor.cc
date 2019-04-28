@@ -148,10 +148,16 @@ Environment EditorState::BuildEditorEnvironment() {
                               editor->SetHorizontalSplitsWithAllBuffers();
                             })));
 
-  editor_type->AddField(L"SetActiveLeaf",
+  editor_type->AddField(L"SetActiveBuffer",
                         vm::NewCallback(std::function<void(EditorState*, int)>(
                             [](EditorState* editor, int delta) {
-                              editor->SetActiveLeaf(delta);
+                              editor->SetActiveBuffer(delta);
+                            })));
+
+  editor_type->AddField(L"AdvanceActiveBuffer",
+                        vm::NewCallback(std::function<void(EditorState*, int)>(
+                            [](EditorState* editor, int delta) {
+                              editor->AdvanceActiveBuffer(delta);
                             })));
 
   editor_type->AddField(L"AdvanceActiveLeaf",
@@ -163,35 +169,6 @@ Environment EditorState::BuildEditorEnvironment() {
   editor_type->AddField(
       L"ZoomToLeaf", vm::NewCallback(std::function<void(EditorState*)>(
                          [](EditorState* editor) { editor->ZoomToLeaf(); })));
-
-  editor_type->AddField(
-      L"ToggleBuffersVisible",
-      vm::NewCallback(
-          std::function<void(EditorState*)>([](EditorState* editor) {
-            CHECK(editor != nullptr);
-            editor->buffer_tree_->SetBuffersVisible(
-                editor->buffer_tree_->buffers_visible() ==
-                        BufferTreeHorizontal::BuffersVisible::kAll
-                    ? BufferTreeHorizontal::BuffersVisible::kActive
-                    : BufferTreeHorizontal::BuffersVisible::kAll);
-            editor->ScheduleRedraw();
-          })));
-
-  editor_type->AddField(
-      L"SetBuffersVisible",
-      vm::NewCallback(std::function<void(EditorState*, bool)>(
-          [](EditorState* editor, bool all_visible) {
-            CHECK(editor != nullptr);
-            editor->buffer_tree_->SetBuffersVisible(
-                all_visible ? BufferTreeHorizontal::BuffersVisible::kAll
-                            : BufferTreeHorizontal::BuffersVisible::kActive);
-            editor->ScheduleRedraw();
-          })));
-
-  editor_type->AddField(
-      L"RemoveActiveLeaf",
-      vm::NewCallback(std::function<void(EditorState*)>(
-          [](EditorState* editor) { editor->BufferTreeRemoveActiveLeaf(); })));
 
   editor_type->AddField(
       L"SaveCurrentBuffer",
@@ -368,10 +345,9 @@ Environment EditorState::BuildEditorEnvironment() {
             OpenFileOptions options;
             options.editor_state = this;
             options.path = args[0]->str;
-            options.insertion_type =
-                args[1]->boolean
-                    ? BufferTreeHorizontal::InsertionType::kSearchOrCreate
-                    : BufferTreeHorizontal::InsertionType::kSkip;
+            options.insertion_type = args[1]->boolean
+                                         ? BuffersList::AddBufferType::kVisit
+                                         : BuffersList::AddBufferType::kIgnore;
             return Value::NewObject(L"Buffer", OpenFile(options)->second);
           }));
 
@@ -449,16 +425,8 @@ void EditorState::CloseBuffer(OpenBuffer* buffer) {
   buffer->PrepareToClose(
       [this, buffer]() {
         ScheduleRedraw();
-
-        if (current_buffer().get() == buffer) {
-          buffer_tree_->RemoveActiveLeaf();
-          auto buffer = buffer_tree_->GetActiveLeaf()->Lock();
-          if (buffer != nullptr) {
-            buffer->Visit();
-          }
-        }
-
         buffer->Close();
+        buffer_tree_->RemoveBuffer(buffer);
         buffers_.erase(buffer->Read(buffer_variables::name));
       },
       [this, buffer](wstring error) {
@@ -475,7 +443,16 @@ void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer) {
 }
 
 void EditorState::AddHorizontalSplit() {
-  buffer_tree_->AddSplit();
+  auto casted_child =
+      dynamic_cast<BufferTreeHorizontal*>(buffer_tree_->Child());
+  if (casted_child == nullptr) {
+    buffer_tree_->WrapChild([this](std::unique_ptr<Widget> child) {
+      return BufferTreeHorizontal::New(std::move(child));
+    });
+    casted_child = dynamic_cast<BufferTreeHorizontal*>(buffer_tree_->Child());
+    CHECK(casted_child != nullptr);
+  }
+  casted_child->AddChild(BufferWidget::New(OpenAnonymousBuffer(this)));
   ScheduleRedraw();
 }
 
@@ -493,27 +470,60 @@ void EditorState::SetHorizontalSplitsWithAllBuffers() {
     buffers.push_back(BufferWidget::New(buffer.second));
   }
   CHECK(!buffers.empty());
-  buffer_tree_ = BufferTreeHorizontal::New(std::move(buffers), index_active);
+  buffer_tree_->SetChild(
+      BufferTreeHorizontal::New(std::move(buffers), index_active));
   ScheduleRedraw();
 }
 
-void EditorState::SetActiveLeaf(size_t position) {
-  buffer_tree_->SetActiveLeaf(position);
+void EditorState::SetActiveBuffer(size_t position) {
+  buffer_tree_->GetActiveLeaf()->SetBuffer(
+      buffer_tree_->GetBuffer(position % buffer_tree_->BuffersCount()));
   ScheduleRedraw();
 }
 
 void EditorState::AdvanceActiveLeaf(int delta) {
-  buffer_tree_->AdvanceActiveLeaf(delta);
+  size_t leaves = buffer_tree_->CountLeaves();
+  LOG(INFO) << "AdvanceActiveLeaf with delta " << delta << " and leaves "
+            << leaves;
+  if (delta < 0) {
+    delta = leaves - ((-delta) % leaves);
+  } else {
+    delta %= leaves;
+  }
+  VLOG(5) << "Delta adjusted to: " << delta;
+  delta = buffer_tree_->AdvanceActiveLeafWithoutWrapping(delta);
+  VLOG(6) << "After first advance, delta remaining: " << delta;
+  if (delta > 0) {
+    VLOG(7) << "Wrapping around end of tree";
+    buffer_tree_->SetActiveLeavesAtStart();
+    delta--;
+  }
+  delta = buffer_tree_->AdvanceActiveLeafWithoutWrapping(delta);
+  VLOG(5) << "Done advance, with delta: " << delta;
+  ScheduleRedraw();
+}
+
+void EditorState::AdvanceActiveBuffer(int delta) {
+  delta += buffer_tree_->GetCurrentIndex();
+  size_t total = buffer_tree_->BuffersCount();
+  if (delta < 0) {
+    delta = total - ((-delta) % total);
+  } else {
+    delta %= total;
+  }
+  buffer_tree_->GetActiveLeaf()->SetBuffer(
+      buffer_tree_->GetBuffer(delta % total));
   ScheduleRedraw();
 }
 
 void EditorState::ZoomToLeaf() {
-  buffer_tree_->ZoomToActiveLeaf();
+  buffer_tree_->SetChild(
+      BufferWidget::New(buffer_tree_->GetActiveLeaf()->Lock()));
   ScheduleRedraw();
 }
 
 void EditorState::BufferTreeRemoveActiveLeaf() {
-  buffer_tree_->RemoveActiveLeaf();
+  // buffer_tree_->RemoveActiveLeaf();
   ScheduleRedraw();
 }
 
@@ -605,8 +615,7 @@ void EditorState::ProcessInput(int c) {
   } else {
     auto buffer = OpenAnonymousBuffer(this);
     if (!has_current_buffer()) {
-      buffer_tree_->InsertChildren(
-          buffer, BufferTreeHorizontal::InsertionType::kReuseCurrent);
+      buffer_tree_->GetActiveLeaf()->SetBuffer(buffer);
     }
     handler = buffer->mode();
     CHECK(has_current_buffer());
@@ -716,7 +725,7 @@ void EditorState::PushPosition(LineColumn position) {
     if (!edge_path().empty()) {
       options.path = PathJoin(*edge_path().begin(), L"positions");
     }
-    options.insertion_type = BufferTreeHorizontal::InsertionType::kSkip;
+    options.insertion_type = BuffersList::AddBufferType::kIgnore;
     buffer_it = OpenFile(options);
     CHECK(buffer_it != buffers()->end());
     CHECK(buffer_it->second != nullptr);

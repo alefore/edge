@@ -184,7 +184,18 @@ if (!buffer.pts()) {
 }
 
 // Logic to handle the tree of visible buffers.
-void ZoomToLeaf() { editor.ZoomToLeaf(); }
+void RewindActiveBuffer() {
+  editor.AdvanceActiveBuffer(-repetitions());
+  set_repetitions(1);
+}
+void AdvanceActiveBuffer() {
+  editor.AdvanceActiveBuffer(repetitions());
+  set_repetitions(1);
+}
+void SetActiveBuffer() {
+  editor.SetActiveBuffer(repetitions() - 1);
+  set_repetitions(1);
+}
 void RewindActiveLeaf() {
   editor.AdvanceActiveLeaf(-repetitions());
   set_repetitions(1);
@@ -193,19 +204,22 @@ void AdvanceActiveLeaf() {
   editor.AdvanceActiveLeaf(repetitions());
   set_repetitions(1);
 }
-void SetActiveLeaf() {
-  editor.SetActiveLeaf(repetitions() - 1);
-  set_repetitions(1);
-}
 
-buffer.AddBinding("a=", "Frames: Toggle: show all buffers or only active?",
-                  editor.ToggleBuffersVisible);
-buffer.AddBinding("ah", "Frames: Move to the previous leaf", RewindActiveLeaf);
-buffer.AddBinding("al", "Frames: Move to the next leaf", AdvanceActiveLeaf);
-buffer.AddBinding("ag", "Frames: Set the active leaf (by repetitions)",
-                  SetActiveLeaf);
-buffer.AddBinding("aR", "Frames: Show all open buffers",
-                  editor.SetHorizontalSplitsWithAllBuffers);
+buffer.AddBinding("a=", "Frames: Zoom to the active leaf", editor.ZoomToLeaf);
+buffer.AddBinding("ah", "Frames: Move to the previous buffer",
+                  RewindActiveBuffer);
+buffer.AddBinding("al", "Frames: Move to the next buffer", AdvanceActiveBuffer);
+buffer.AddBinding("ak", "Frames: Move to the previous active leaf",
+                  RewindActiveLeaf);
+buffer.AddBinding("aj", "Frames: Move to the next active leaf",
+                  AdvanceActiveLeaf);
+buffer.AddBinding("ag", "Frames: Set the active buffer (by repetitions)",
+                  SetActiveBuffer);
+buffer.AddBinding("a+j", "Frames: Add a horizontal split",
+                  editor.AddHorizontalSplit);
+
+// buffer.AddBinding("aR", "Frames: Show all open buffers",
+//                  editor.SetHorizontalSplitsWithAllBuffers);
 
 void IncrementNumber() {
   AddToIntegerAtPosition(buffer.position(), repetitions());
@@ -230,7 +244,7 @@ void RunLocalShell() {
     SetStatus("Children path: " + path);
     options.set_children_path(path);
   }
-  options.set_insertion_type("search_or_create");
+  options.set_insertion_type("visit");
   ForkCommand(options);
 }
 

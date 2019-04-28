@@ -328,7 +328,7 @@ void StartCompletionFromDictionary(EditorState* editor_state,
   options.path = path;
   DCHECK(!options.path.empty());
   options.editor_state = editor_state;
-  options.insertion_type = BufferTreeHorizontal::InsertionType::kSkip;
+  options.insertion_type = BuffersList::AddBufferType::kIgnore;
   auto file = OpenFile(options);
   file->second->Set(buffer_variables::show_in_buffers_list, false);
   LOG(INFO) << "Loading dictionary.";

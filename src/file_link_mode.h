@@ -33,8 +33,9 @@ struct OpenFileOptions {
   wstring path;
   bool ignore_if_not_found = false;
 
-  BufferTreeHorizontal::InsertionType insertion_type =
-      BufferTreeHorizontal::InsertionType::kSearchOrCreate;
+  enum class InsertionType { kForeground, kBackground };
+  BuffersList::AddBufferType insertion_type =
+      BuffersList::AddBufferType::kVisit;
 
   // Should the contents of the search paths buffer be used to find the file?
   bool use_search_paths = true;

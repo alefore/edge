@@ -10,5 +10,5 @@ buffer.set_path(original_path);
 ForkCommandOptions options = ForkCommandOptions();
 options.set_command("diff -Naur " + original_path.shell_escape() + " " +
                     tmp_path.shell_escape());
-options.set_insertion_type("search_or_create");
+options.set_insertion_type("visit");
 ForkCommand(options);

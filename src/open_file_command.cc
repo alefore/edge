@@ -20,7 +20,7 @@ void OpenFileHandler(const wstring& name, EditorState* editor_state) {
   OpenFileOptions options;
   options.editor_state = editor_state;
   options.path = name;
-  options.insertion_type = BufferTreeHorizontal::InsertionType::kSearchOrCreate;
+  options.insertion_type = BuffersList::AddBufferType::kVisit;
   OpenFile(options);
 }
 

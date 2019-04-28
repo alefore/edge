@@ -29,9 +29,8 @@ struct ForkCommandOptions {
   // Additional environment variables (e.g. getenv) to give to the command.
   map<wstring, wstring> environment;
 
-  // Should we make it the active buffer?
-  BufferTreeHorizontal::InsertionType insertion_type =
-      BufferTreeHorizontal::InsertionType::kSkip;
+  BuffersList::AddBufferType insertion_type =
+      BuffersList::AddBufferType::kVisit;
 
   // If non-empty, change to this directory in the children. Ignored if empty.
   wstring children_path;

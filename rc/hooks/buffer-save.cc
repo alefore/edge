@@ -7,6 +7,6 @@ ClangFormatOnSave();
 if (path.starts_with("/home/alejo/edge/src")) {
   ForkCommandOptions options = ForkCommandOptions();
   options.set_command("make -j3");
-  options.set_insertion_type("skip");
+  options.set_insertion_type("only_list");
   ForkCommand(options);
 }
