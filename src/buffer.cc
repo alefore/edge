@@ -1519,22 +1519,22 @@ wstring OpenBuffer::ToString() const { return contents_.ToString(); }
 void OpenBuffer::PushSignal(int sig) {
   switch (sig) {
     case SIGINT:
-      // TODO: Should be based on terminal_.
-      if (Read(buffer_variables::pts)) {
+      if (terminal_ == nullptr ? child_pid_ == -1 : fd_ == nullptr) {
+        SetStatus(L"No subprocess found.");
+      } else if (terminal_ == nullptr) {
+        SetStatus(L"SIGINT >> pid:" + to_wstring(child_pid_));
+        kill(child_pid_, sig);
+      } else {
         string sequence(1, 0x03);
         (void)write(fd_->fd(), sequence.c_str(), sequence.size());
         SetStatus(L"SIGINT");
-      } else if (child_pid_ != -1) {
-        SetStatus(L"SIGINT >> pid:" + to_wstring(child_pid_));
-        kill(child_pid_, sig);
       }
       break;
 
     case SIGTSTP:
-      // TODO: Should be based on terminal_.
-      if (Read(buffer_variables::pts)) {
-        string sequence(1, 0x1a);
-        write(fd_->fd(), sequence.c_str(), sequence.size());
+      static const string sequence(1, 0x1a);
+      if (terminal_ != nullptr && fd_ != nullptr) {
+        (void)write(fd_->fd(), sequence.c_str(), sequence.size());
       }
       break;
 
