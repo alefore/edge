@@ -207,7 +207,6 @@ void BufferOutputProducer::WriteLine(Options options) {
   }
 
   if (line >= buffer_->lines_size()) {
-    options.receiver->AddString(L"\n");
     line_scroll_control_reader_->LineDone();
     column_ = 0;
     return;

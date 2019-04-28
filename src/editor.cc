@@ -138,6 +138,11 @@ Environment EditorState::BuildEditorEnvironment() {
           }));
 
   editor_type->AddField(
+      L"AddVerticalSplit",
+      vm::NewCallback(std::function<void(EditorState*)>(
+          [](EditorState* editor) { editor->AddVerticalSplit(); })));
+
+  editor_type->AddField(
       L"AddHorizontalSplit",
       vm::NewCallback(std::function<void(EditorState*)>(
           [](EditorState* editor) { editor->AddHorizontalSplit(); })));
@@ -442,12 +447,25 @@ void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer) {
   }
 }
 
+void EditorState::AddVerticalSplit() {
+  auto casted_child = dynamic_cast<BufferTreeVertical*>(buffer_tree_->Child());
+  if (casted_child == nullptr) {
+    buffer_tree_->WrapChild([this](std::unique_ptr<Widget> child) {
+      return std::make_unique<BufferTreeVertical>(std::move(child));
+    });
+    casted_child = dynamic_cast<BufferTreeVertical*>(buffer_tree_->Child());
+    CHECK(casted_child != nullptr);
+  }
+  casted_child->AddChild(BufferWidget::New(OpenAnonymousBuffer(this)));
+  ScheduleRedraw();
+}
+
 void EditorState::AddHorizontalSplit() {
   auto casted_child =
       dynamic_cast<BufferTreeHorizontal*>(buffer_tree_->Child());
   if (casted_child == nullptr) {
     buffer_tree_->WrapChild([this](std::unique_ptr<Widget> child) {
-      return BufferTreeHorizontal::New(std::move(child));
+      return std::make_unique<BufferTreeHorizontal>(std::move(child));
     });
     casted_child = dynamic_cast<BufferTreeHorizontal*>(buffer_tree_->Child());
     CHECK(casted_child != nullptr);
@@ -471,7 +489,7 @@ void EditorState::SetHorizontalSplitsWithAllBuffers() {
   }
   CHECK(!buffers.empty());
   buffer_tree_->SetChild(
-      BufferTreeHorizontal::New(std::move(buffers), index_active));
+      std::make_unique<BufferTreeHorizontal>(std::move(buffers), index_active));
   ScheduleRedraw();
 }
 

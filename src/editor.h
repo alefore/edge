@@ -62,6 +62,7 @@ class EditorState {
 
   void set_current_buffer(shared_ptr<OpenBuffer> buffer);
   void AddHorizontalSplit();
+  void AddVerticalSplit();
   void SetHorizontalSplitsWithAllBuffers();
   void SetActiveBuffer(size_t position);
   void AdvanceActiveBuffer(int delta);
@@ -278,7 +279,7 @@ class EditorState {
   AudioPlayer* const audio_player_;
 
   std::unique_ptr<BuffersList> buffer_tree_ = std::make_unique<BuffersList>(
-      BufferTreeHorizontal::New(BufferWidget::New()));
+      std::make_unique<BufferTreeHorizontal>(BufferWidget::New()));
 };
 
 }  // namespace editor

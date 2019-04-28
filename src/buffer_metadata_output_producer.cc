@@ -159,7 +159,6 @@ void BufferMetadataOutputProducer::WriteLine(Options options) {
   }
 
   if (line.value() >= buffer_->lines_size()) {
-    options.receiver->AddString(L"\n");
     line_scroll_control_reader_->LineDone();
     return;
   }
