@@ -17,6 +17,7 @@ namespace editor {
 class BufferTree : public SelectingWidget {
  public:
   BufferWidget* GetActiveLeaf() override;
+  const BufferWidget* GetActiveLeaf() const;
 
   void SetSize(size_t lines, size_t columns) override;
   size_t lines() const override;

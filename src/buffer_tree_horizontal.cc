@@ -23,6 +23,11 @@ namespace afc {
 namespace editor {
 
 BufferWidget* BufferTree::GetActiveLeaf() {
+  return const_cast<BufferWidget*>(
+      const_cast<const BufferTree*>(this)->GetActiveLeaf());
+}
+
+const BufferWidget* BufferTree::GetActiveLeaf() const {
   CHECK(!children_.empty());
   CHECK_LT(active_, children_.size());
   CHECK(children_[active_] != nullptr);

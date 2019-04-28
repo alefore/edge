@@ -29,6 +29,7 @@ class BuffersList : public DelegatingWidget {
   wstring ToString() const override;
 
   BufferWidget* GetActiveLeaf() override;
+  const BufferWidget* GetActiveLeaf() const override;
 
   std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 

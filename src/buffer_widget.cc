@@ -69,6 +69,7 @@ wstring BufferWidget::ToString() const {
 }
 
 BufferWidget* BufferWidget::GetActiveLeaf() { return this; }
+const BufferWidget* BufferWidget::GetActiveLeaf() const { return this; }
 
 class EmptyProducer : public OutputProducer {
   void WriteLine(Options) override {}

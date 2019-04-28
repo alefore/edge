@@ -58,7 +58,7 @@ class EditorState {
   }
 
   map<wstring, shared_ptr<OpenBuffer>>* buffers() { return &buffers_; }
-  BuffersList* buffer_tree() { return buffer_tree_.get(); }
+  BuffersList* buffer_tree() { return &buffer_tree_; }
 
   void set_current_buffer(shared_ptr<OpenBuffer> buffer);
   void AddHorizontalSplit();
@@ -278,8 +278,7 @@ class EditorState {
 
   AudioPlayer* const audio_player_;
 
-  std::unique_ptr<BuffersList> buffer_tree_ = std::make_unique<BuffersList>(
-      std::make_unique<BufferTreeHorizontal>(BufferWidget::New()));
+  BuffersList buffer_tree_;
 };
 
 }  // namespace editor

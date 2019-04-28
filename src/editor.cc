@@ -404,7 +404,9 @@ EditorState::EditorState(command_line_arguments::Values args,
       status_prompt_(false),
       status_(L""),
       pipe_to_communicate_internal_events_(BuildPipe()),
-      audio_player_(audio_player) {
+      audio_player_(audio_player),
+      buffer_tree_(
+          std::make_unique<BufferTreeHorizontal>(BufferWidget::New())) {
   LineColumn::Register(&environment_);
   Range::Register(&environment_);
 }
@@ -419,7 +421,7 @@ EditorState::~EditorState() {
 }
 
 void EditorState::CheckPosition() {
-  auto buffer = buffer_tree_->GetActiveLeaf()->Lock();
+  auto buffer = buffer_tree_.GetActiveLeaf()->Lock();
   if (buffer != nullptr) {
     buffer->CheckPosition();
   }
@@ -431,7 +433,7 @@ void EditorState::CloseBuffer(OpenBuffer* buffer) {
       [this, buffer]() {
         ScheduleRedraw();
         buffer->Close();
-        buffer_tree_->RemoveBuffer(buffer);
+        buffer_tree_.RemoveBuffer(buffer);
         buffers_.erase(buffer->Read(buffer_variables::name));
       },
       [this, buffer](wstring error) {
@@ -441,19 +443,19 @@ void EditorState::CloseBuffer(OpenBuffer* buffer) {
 }
 
 void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer) {
-  buffer_tree_->GetActiveLeaf()->SetBuffer(buffer);
+  buffer_tree_.GetActiveLeaf()->SetBuffer(buffer);
   if (buffer != nullptr) {
     buffer->Visit();
   }
 }
 
 void EditorState::AddVerticalSplit() {
-  auto casted_child = dynamic_cast<BufferTreeVertical*>(buffer_tree_->Child());
+  auto casted_child = dynamic_cast<BufferTreeVertical*>(buffer_tree_.Child());
   if (casted_child == nullptr) {
-    buffer_tree_->WrapChild([this](std::unique_ptr<Widget> child) {
+    buffer_tree_.WrapChild([this](std::unique_ptr<Widget> child) {
       return std::make_unique<BufferTreeVertical>(std::move(child));
     });
-    casted_child = dynamic_cast<BufferTreeVertical*>(buffer_tree_->Child());
+    casted_child = dynamic_cast<BufferTreeVertical*>(buffer_tree_.Child());
     CHECK(casted_child != nullptr);
   }
   casted_child->AddChild(BufferWidget::New(OpenAnonymousBuffer(this)));
@@ -461,13 +463,12 @@ void EditorState::AddVerticalSplit() {
 }
 
 void EditorState::AddHorizontalSplit() {
-  auto casted_child =
-      dynamic_cast<BufferTreeHorizontal*>(buffer_tree_->Child());
+  auto casted_child = dynamic_cast<BufferTreeHorizontal*>(buffer_tree_.Child());
   if (casted_child == nullptr) {
-    buffer_tree_->WrapChild([this](std::unique_ptr<Widget> child) {
+    buffer_tree_.WrapChild([this](std::unique_ptr<Widget> child) {
       return std::make_unique<BufferTreeHorizontal>(std::move(child));
     });
-    casted_child = dynamic_cast<BufferTreeHorizontal*>(buffer_tree_->Child());
+    casted_child = dynamic_cast<BufferTreeHorizontal*>(buffer_tree_.Child());
     CHECK(casted_child != nullptr);
   }
   casted_child->AddChild(BufferWidget::New(OpenAnonymousBuffer(this)));
@@ -488,19 +489,19 @@ void EditorState::SetHorizontalSplitsWithAllBuffers() {
     buffers.push_back(BufferWidget::New(buffer.second));
   }
   CHECK(!buffers.empty());
-  buffer_tree_->SetChild(
+  buffer_tree_.SetChild(
       std::make_unique<BufferTreeHorizontal>(std::move(buffers), index_active));
   ScheduleRedraw();
 }
 
 void EditorState::SetActiveBuffer(size_t position) {
-  buffer_tree_->GetActiveLeaf()->SetBuffer(
-      buffer_tree_->GetBuffer(position % buffer_tree_->BuffersCount()));
+  buffer_tree_.GetActiveLeaf()->SetBuffer(
+      buffer_tree_.GetBuffer(position % buffer_tree_.BuffersCount()));
   ScheduleRedraw();
 }
 
 void EditorState::AdvanceActiveLeaf(int delta) {
-  size_t leaves = buffer_tree_->CountLeaves();
+  size_t leaves = buffer_tree_.CountLeaves();
   LOG(INFO) << "AdvanceActiveLeaf with delta " << delta << " and leaves "
             << leaves;
   if (delta < 0) {
@@ -509,39 +510,39 @@ void EditorState::AdvanceActiveLeaf(int delta) {
     delta %= leaves;
   }
   VLOG(5) << "Delta adjusted to: " << delta;
-  delta = buffer_tree_->AdvanceActiveLeafWithoutWrapping(delta);
+  delta = buffer_tree_.AdvanceActiveLeafWithoutWrapping(delta);
   VLOG(6) << "After first advance, delta remaining: " << delta;
   if (delta > 0) {
     VLOG(7) << "Wrapping around end of tree";
-    buffer_tree_->SetActiveLeavesAtStart();
+    buffer_tree_.SetActiveLeavesAtStart();
     delta--;
   }
-  delta = buffer_tree_->AdvanceActiveLeafWithoutWrapping(delta);
+  delta = buffer_tree_.AdvanceActiveLeafWithoutWrapping(delta);
   VLOG(5) << "Done advance, with delta: " << delta;
   ScheduleRedraw();
 }
 
 void EditorState::AdvanceActiveBuffer(int delta) {
-  delta += buffer_tree_->GetCurrentIndex();
-  size_t total = buffer_tree_->BuffersCount();
+  delta += buffer_tree_.GetCurrentIndex();
+  size_t total = buffer_tree_.BuffersCount();
   if (delta < 0) {
     delta = total - ((-delta) % total);
   } else {
     delta %= total;
   }
-  buffer_tree_->GetActiveLeaf()->SetBuffer(
-      buffer_tree_->GetBuffer(delta % total));
+  buffer_tree_.GetActiveLeaf()->SetBuffer(
+      buffer_tree_.GetBuffer(delta % total));
   ScheduleRedraw();
 }
 
 void EditorState::ZoomToLeaf() {
-  buffer_tree_->SetChild(
-      BufferWidget::New(buffer_tree_->GetActiveLeaf()->Lock()));
+  buffer_tree_.SetChild(
+      BufferWidget::New(buffer_tree_.GetActiveLeaf()->Lock()));
   ScheduleRedraw();
 }
 
 void EditorState::BufferTreeRemoveActiveLeaf() {
-  // buffer_tree_->RemoveActiveLeaf();
+  // buffer_tree_.RemoveActiveLeaf();
   ScheduleRedraw();
 }
 
@@ -549,13 +550,12 @@ bool EditorState::has_current_buffer() const {
   return current_buffer() != nullptr;
 }
 shared_ptr<OpenBuffer> EditorState::current_buffer() {
-  CHECK(buffer_tree_ != nullptr);
-  auto leaf = buffer_tree_->GetActiveLeaf();
+  auto leaf = buffer_tree_.GetActiveLeaf();
   CHECK(leaf != nullptr);
   return leaf->Lock();
 }
 const shared_ptr<OpenBuffer> EditorState::current_buffer() const {
-  return buffer_tree_->GetActiveLeaf()->Lock();
+  return buffer_tree_.GetActiveLeaf()->Lock();
 }
 
 wstring GetBufferName(const wstring& prefix, size_t count) {
@@ -633,7 +633,7 @@ void EditorState::ProcessInput(int c) {
   } else {
     auto buffer = OpenAnonymousBuffer(this);
     if (!has_current_buffer()) {
-      buffer_tree_->GetActiveLeaf()->SetBuffer(buffer);
+      buffer_tree_.GetActiveLeaf()->SetBuffer(buffer);
     }
     handler = buffer->mode();
     CHECK(has_current_buffer());

@@ -23,6 +23,7 @@ class Widget {
   virtual wstring ToString() const = 0;
 
   virtual BufferWidget* GetActiveLeaf() = 0;
+  virtual const BufferWidget* GetActiveLeaf() const = 0;
 
   virtual std::unique_ptr<OutputProducer> CreateOutputProducer() = 0;
 

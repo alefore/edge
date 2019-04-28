@@ -205,6 +205,11 @@ wstring BuffersList::ToString() const {
 }
 
 BufferWidget* BuffersList::GetActiveLeaf() {
+  return const_cast<BufferWidget*>(
+      const_cast<const BuffersList*>(this)->GetActiveLeaf());
+}
+
+const BufferWidget* BuffersList::GetActiveLeaf() const {
   CHECK(widget_ != nullptr);
   return widget_->GetActiveLeaf();
 }
