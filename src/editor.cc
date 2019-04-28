@@ -405,8 +405,12 @@ EditorState::EditorState(command_line_arguments::Values args,
       status_(L""),
       pipe_to_communicate_internal_events_(BuildPipe()),
       audio_player_(audio_player),
-      buffer_tree_(
-          std::make_unique<BufferTreeHorizontal>(BufferWidget::New())) {
+      buffer_tree_(std::make_unique<BufferTreeHorizontal>(BufferWidget::New()),
+                   [this]() {
+                     LOG(INFO) << "Check: " << is_status_warning_;
+                     return is_status_warning_ ? status_
+                                               : std::optional<wstring>();
+                   }) {
   LineColumn::Register(&environment_);
   Range::Register(&environment_);
 }
@@ -780,6 +784,7 @@ void EditorState::SetStatus(const wstring& status) {
   LOG(INFO) << "SetStatus: " << status;
   status_ = status;
   is_status_warning_ = false;
+  ScheduleRedraw();
   if (status_prompt_ || status.empty()) {
     return;
   }
@@ -794,15 +799,13 @@ void EditorState::SetStatus(const wstring& status) {
                                         false);
   }
   status_buffer_it.first->second->AppendLazyString(NewLazyString(status));
-  if (current_buffer() == status_buffer_it.first->second) {
-    ScheduleRedraw();
-  }
 }
 
 void EditorState::SetWarningStatus(const wstring& status) {
   SetStatus(status);
   is_status_warning_ = true;
   GenerateAlert(audio_player_);
+  ScheduleRedraw();
 }
 
 bool EditorState::HasPositionsInStack() {

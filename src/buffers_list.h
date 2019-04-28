@@ -15,7 +15,8 @@ namespace editor {
 
 class BuffersList : public DelegatingWidget {
  public:
-  BuffersList(std::unique_ptr<Widget> widget);
+  BuffersList(std::unique_ptr<Widget> widget,
+              std::function<std::optional<wstring>()> warning_status_callback);
 
   enum class AddBufferType { kVisit, kOnlyList, kIgnore };
   void AddBuffer(std::shared_ptr<OpenBuffer> buffer,
@@ -52,11 +53,15 @@ class BuffersList : public DelegatingWidget {
                      callback) override;
 
  private:
+  const std::function<std::optional<wstring>()> warning_status_callback_;
   std::map<wstring, std::shared_ptr<OpenBuffer>> buffers_;
   std::unique_ptr<Widget> widget_;
 
+  // Fields initialized by SetSize.
   size_t lines_;
   size_t columns_;
+  std::optional<wstring> warning_status_;
+  size_t warning_status_lines_;
   size_t buffers_list_lines_;
   size_t buffers_per_line_;
 };

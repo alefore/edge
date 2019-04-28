@@ -14,17 +14,18 @@ namespace afc {
 namespace editor {
 
 namespace {
-class Producer : public OutputProducer {
+class BuffersListProducer : public OutputProducer {
  public:
-  Producer(std::map<wstring, std::shared_ptr<OpenBuffer>>* buffers,
-           std::shared_ptr<OpenBuffer> active_buffer_, size_t buffers_per_line)
+  BuffersListProducer(std::map<wstring, std::shared_ptr<OpenBuffer>>* buffers,
+                      std::shared_ptr<OpenBuffer> active_buffer_,
+                      size_t buffers_per_line)
       : buffers_(buffers),
         active_buffer_(std::move(active_buffer_)),
         buffers_per_line_(buffers_per_line),
         prefix_width_(std::to_wstring(buffers_->size() + 1).size() + 2),
         buffers_iterator_(buffers->begin()) {}
 
-  void WriteLine(Options options) {
+  void WriteLine(Options options) override {
     size_t columns_per_buffer =  // Excluding prefixes and separators.
         (options.receiver->width() -
          std::min(options.receiver->width(),
@@ -129,11 +130,29 @@ class Producer : public OutputProducer {
   std::map<wstring, std::shared_ptr<OpenBuffer>>::iterator buffers_iterator_;
   size_t index_ = 0;
 };
+
+class WarningProducer : public OutputProducer {
+ public:
+  WarningProducer(wstring text) : text_(std::move(text)) {}
+
+  void WriteLine(Options options) override {
+    options.receiver->AddModifier(LineModifier::RED);
+    options.receiver->AddModifier(LineModifier::BOLD);
+    options.receiver->AddString(text_);
+    options.receiver->AddModifier(LineModifier::RESET);
+  }
+
+ private:
+  const wstring text_;
+};
 }  // namespace
 
-BuffersList::BuffersList(std::unique_ptr<Widget> widget) {
-  CHECK(widget != nullptr);
-  widget_ = std::move(widget);
+BuffersList::BuffersList(
+    std::unique_ptr<Widget> widget,
+    std::function<std::optional<wstring>()> warning_status_callback)
+    : warning_status_callback_(std::move(warning_status_callback)),
+      widget_(std::move(widget)) {
+  CHECK(widget_ != nullptr);
 }
 
 void BuffersList::AddBuffer(std::shared_ptr<OpenBuffer> buffer,
@@ -217,16 +236,27 @@ const BufferWidget* BuffersList::GetActiveLeaf() const {
 std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer() {
   CHECK(widget_ != nullptr);
   auto output = widget_->CreateOutputProducer();
-  if (buffers_.empty()) {
+  if (warning_status_lines_ == 0 && buffers_list_lines_ == 0) {
     return output;
   }
 
   std::vector<HorizontalSplitOutputProducer::Row> rows;
-  rows.push_back({std::move(output), lines_ - buffers_list_lines_});
-  rows.push_back(
-      {std::make_unique<Producer>(&buffers_, widget_->GetActiveLeaf()->Lock(),
-                                  buffers_per_line_),
-       buffers_list_lines_});
+  rows.push_back({std::move(output),
+                  lines_ - buffers_list_lines_ - warning_status_lines_});
+
+  if (warning_status_lines_ > 0) {
+    CHECK(warning_status_.has_value());
+    rows.push_back({std::make_unique<WarningProducer>(warning_status_.value()),
+                    warning_status_lines_});
+  }
+
+  if (buffers_list_lines_ > 0) {
+    rows.push_back(
+        {std::make_unique<BuffersListProducer>(
+             &buffers_, widget_->GetActiveLeaf()->Lock(), buffers_per_line_),
+         buffers_list_lines_});
+  }
+
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows), 0);
 }
 
@@ -236,13 +266,22 @@ void BuffersList::SetSize(size_t lines, size_t columns) {
 
   static const size_t kMinimumColumnsPerBuffer = 20;
 
+  warning_status_ = warning_status_callback_();
+  if (warning_status_.has_value()) {
+    LOG(INFO) << "Warning status has value: " << warning_status_.value();
+    warning_status_lines_ = 1;
+  } else {
+    warning_status_lines_ = 0;
+  }
+
   buffers_list_lines_ =
       ceil(static_cast<double>(buffers_.size() * kMinimumColumnsPerBuffer) /
            columns_);
   buffers_per_line_ =
       ceil(static_cast<double>(buffers_.size()) / buffers_list_lines_);
 
-  widget_->SetSize(lines_ - buffers_list_lines_, columns_);
+  widget_->SetSize(lines_ - buffers_list_lines_ - warning_status_lines_,
+                   columns_);
 }
 
 size_t BuffersList::lines() const { return lines_; }
