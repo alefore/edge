@@ -1,5 +1,9 @@
 ## Display
 
+* Add a status per buffer. Make status messages be specific to buffers (and also one per editor). Show the ones for the editor at the bottom, the ones per buffer in each buffer.
+
+  * Probably worth doing this through a `status` class.
+
 Consider using unicode watches to display duration, using exponential/logarithmic growth.
 
 Fix a bug with buffers that are shown with fewer lines than mandated by their margins.
@@ -13,6 +17,8 @@ When an inactive cursor is exactly at the line_width, it's currently not shown.
 `wrap_long_lines`:
 * Make `j` and `k` scroll within the line.
 * Adjust handing of margins to take into account lines that wrap.
+
+Make progress shown in the BuffersList? Probably using Braille? That gives us great resolution.
 
 ### Syntax
 
@@ -46,6 +52,8 @@ Add an AutoComplete mode that autocompletes based on the path.
 
 ## Navigation
 
+Make M center the widget around the current line.
+
 Improve "g", the current behavior is kind of annoying:
   There should be a way (other than pressing it again) to specify if it should ignore space.  Maybe a modifier can do it?
 
@@ -55,7 +63,13 @@ Add a boolean variable `highlight_current_line` (default: false); when set, high
 
 In diff mode, add a link to every file. Following it should take you directly to the file (perhaps based on a variable for the `strip`, similar to the `patch` command).
 
+## Widgets
+
 Improve the bindings used to navigate the widgets.
+
+* Add a key binding that shows a tree map with every single buffer (from the BuffersList). The user can then quickly select which one to go to.
+
+* Make hjkl move the active widget up/down/left/right.
 
 ## Prompt
 
@@ -81,6 +95,22 @@ Persist undo history?
 
 Make follow_end_of_file the default.
 
+## Readability
+
+* Add dedicated types for `Line` and `Column`.
+
+* Make `LineColumn`'s constructor explicit.
+
+## Testing
+
+### Fuzz testing
+
+* Add a parameter with a file with input to deliver to the editor at start up. When starting, before running the main loop, read that as a file, and feed it to the editor.
+
+* Maybe add a flag that triggers that the editor exits #x ms after the main loop starts?
+
+* Ideally, it runs with full terminal. Maybe add a parameter that instructs it to create a fake terminal and write to it? We'll need to figure out how to redirect that output to /dev/null. Perhaps it can fork a separate process that reads from it?
+
 ## Variables
 
 ## VM
@@ -100,6 +130,12 @@ Allow extensions to define classes or structures.
 Support `LineColumn line;` (rather than having to use `LineColumn line = LineColumn();`).
 
 ### Client/server
+
+## Bindings
+
+* Improve repetitions handling: `a2g` should be equivalent to `2ag`
+
+* Make a list of all keys and brainstorm bindings that could be given to them.
 
 ## Misc
 
