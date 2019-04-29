@@ -202,7 +202,7 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
     }
 
     if (editor_state.status().empty()) {
-      status += L"“" + GetBufferContext(editor_state, buffer) + L"” ";
+      status += L"  “" + GetBufferContext(editor_state, buffer) + L"” ";
     }
   }
 
@@ -215,10 +215,8 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
         running++;
       } else {
         int status = it.second->child_exit_status();
-        if (WIFEXITED(status)) {
-          if (WEXITSTATUS(status)) {
-            failed++;
-          }
+        if (WIFEXITED(status) && WEXITSTATUS(status)) {
+          failed++;
         }
       }
     }
