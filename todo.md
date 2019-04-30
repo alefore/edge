@@ -18,8 +18,6 @@ When an inactive cursor is exactly at the line_width, it's currently not shown.
 * Make `j` and `k` scroll within the line.
 * Adjust handing of margins to take into account lines that wrap.
 
-Make progress shown in the BuffersList? Probably using Braille? That gives us great resolution.
-
 ### Syntax
 
 Correctly handle: '\000'

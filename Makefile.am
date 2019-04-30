@@ -130,6 +130,8 @@ src/server.cc \
 src/set_variable_command.cc \
 src/shapes.cc \
 src/shapes.h \
+src/status.cc \
+src/status.h \
 src/structure.cc \
 src/substring.cc \
 src/terminal.cc \

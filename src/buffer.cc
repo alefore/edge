@@ -37,6 +37,7 @@ extern "C" {
 #include "src/screen_vm.h"
 #include "src/seek.h"
 #include "src/server.h"
+#include "src/status.h"
 #include "src/substring.h"
 #include "src/transformation.h"
 #include "src/transformation_delete.h"
@@ -1647,6 +1648,12 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
 
   if (modified()) {
     output.insert({L"🐾", L""});
+  }
+
+  if (ShouldDisplayProgress()) {
+    output.insert({ProgressString(Read(buffer_variables::progress),
+                                  OverflowBehavior::kModulo),
+                   L""});
   }
 
   if (fd() != -1) {

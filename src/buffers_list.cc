@@ -8,6 +8,7 @@
 #include "src/buffer_widget.h"
 #include "src/dirname.h"
 #include "src/horizontal_split_output_producer.h"
+#include "src/status.h"
 #include "src/widget.h"
 
 namespace afc {
@@ -26,7 +27,7 @@ class BuffersListProducer : public OutputProducer {
         buffers_iterator_(buffers->begin()) {}
 
   void WriteLine(Options options) override {
-    size_t columns_per_buffer =  // Excluding prefixes and separators.
+    const size_t columns_per_buffer =  // Excluding prefixes and separators.
         (options.receiver->width() -
          std::min(options.receiver->width(),
                   (prefix_width_ * buffers_per_line_))) /
@@ -82,9 +83,25 @@ class BuffersListProducer : public OutputProducer {
         }
       }
 
-      options.receiver->AddModifier(LineModifier::DIM);
+      wstring progress =
+          buffer->ShouldDisplayProgress()
+              ? ProgressString(buffer->Read(buffer_variables::progress),
+                               OverflowBehavior::kModulo)
+              : L"";
+      // If we ever make ProgressString return more than a single character,
+      // we'll have to adjust this.
+      CHECK_LE(progress.size(), 1ul);
+
+      if (progress.empty()) {
+        options.receiver->AddModifier(LineModifier::DIM);
+      } else {
+        options.receiver->AddString(progress);
+      }
+
       if (!name.empty()) {
-        if (name.size() > columns_per_buffer) {
+        if (!progress.empty()) {
+          // Nothing.
+        } else if (name.size() > columns_per_buffer) {
           name = name.substr(name.size() - columns_per_buffer);
           options.receiver->AddString(L"…");
         } else {
@@ -95,7 +112,9 @@ class BuffersListProducer : public OutputProducer {
         continue;
       }
 
-      if (components.empty()) {
+      if (!progress.empty()) {
+        // Nothing.
+      } else if (components.empty()) {
         options.receiver->AddString(L":");
       } else {
         options.receiver->AddString(L"…");
