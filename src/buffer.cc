@@ -344,10 +344,10 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, size_t line,
             if (text.empty()) {
               return;  // Optimization.
             }
-            if (buffer->fd() != -1) {
+            if (buffer->fd() != nullptr) {
               auto str = ToByteString(text);
               LOG(INFO) << "Insert text: " << str.size();
-              if (write(buffer->fd(), str.c_str(), str.size()) == -1) {
+              if (write(buffer->fd()->fd(), str.c_str(), str.size()) == -1) {
                 buffer->editor()->SetWarningStatus(
                     L"Write failed: " + FromByteString(strerror(errno)));
               }
@@ -1599,14 +1599,9 @@ void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
   child_pid_ = child_pid;
 }
 
-int OpenBuffer::fd() const { return fd_ == nullptr ? -1 : fd_->fd(); }
-int OpenBuffer::fd_error() const {
-  return fd_error_ == nullptr ? -1 : fd_error_->fd();
-}
+const FileDescriptorReader* OpenBuffer::fd() const { return fd_.get(); }
 
-const FileDescriptorReader* OpenBuffer::GetFd() const { return fd_.get(); }
-
-const FileDescriptorReader* OpenBuffer::GetFdError() const {
+const FileDescriptorReader* OpenBuffer::fd_error() const {
   return fd_error_.get();
 }
 
@@ -1655,7 +1650,7 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
                    L""});
   }
 
-  if (fd() != -1) {
+  if (fd() != nullptr) {
     output.insert({L"<", L""});
     switch (contents_.size()) {
       case 1:
