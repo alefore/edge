@@ -245,24 +245,31 @@ std::map<wstring, wstring> Flags(const CommandData& data,
 
   auto update = buffer.last_progress_update();
   if (buffer.child_pid() != -1 && update.tv_sec != 0) {
-    int seconds = now - update.tv_sec;
     auto error_input = buffer.GetFdError();
     double lines_read_rate =
-        error_input == nullptr ? 0 : error_input->lines_read_rate();
-    if (lines_read_rate > 10) {
+        (buffer.GetFdError() == nullptr
+             ? 0
+             : buffer.GetFdError()->lines_read_rate()) +
+        (buffer.GetFd() == nullptr ? 0 : buffer.GetFd()->lines_read_rate());
+    double seconds_since_input =
+        buffer.GetFd() == nullptr
+            ? -1
+            : GetElapsedSecondsSince(buffer.GetFd()->last_input_received());
+    VLOG(5) << buffer.Read(buffer_variables::name)
+            << "Lines read rate: " << lines_read_rate;
+    if (lines_read_rate > 2) {
       output[L"🤖"] = L"🗫";
     } else if (error_input != nullptr &&
-               GetElapsedMillisecondsSince(error_input->last_input_received()) <
-                   5000) {
+               GetElapsedSecondsSince(error_input->last_input_received()) < 5) {
       output[L"🤖"] = L"🗯";
-    } else if (seconds < 5) {
-      output[L"🤖"] = L"🗩";
-    } else if (seconds < 60) {
-      output[L"🤖"] = L"";
-    } else if (seconds < 60 * 2) {
-      output[L"🤖"] = L"z";
-    } else {
+    } else if (seconds_since_input > 60 * 2) {
       output[L"🤖"] = L"💤";
+    } else if (seconds_since_input > 60) {
+      output[L"🤖"] = L"z";
+    } else if (seconds_since_input > 5) {
+      output[L"🤖"] = L"";
+    } else if (seconds_since_input >= 0) {
+      output[L"🤖"] = L"🗩";
     }
     output.insert({DurationToString(now - update.tv_sec), L""});
   }

@@ -47,6 +47,8 @@ src/cursors_highlighter.cc \
 src/cursors_highlighter.h \
 src/cursors_transformation.cc \
 src/cursors_transformation.h \
+src/decaying_counter.cc \
+src/decaying_counter.h \
 src/delegating_output_receiver.cc \
 src/delegating_output_receiver.h \
 src/delegating_output_receiver_with_internal_modifiers.cc \

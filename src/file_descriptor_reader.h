@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "src/decaying_counter.h"
 #include "src/lazy_string.h"
 #include "src/line_column.h"
 #include "src/line_modifier.h"
@@ -58,7 +59,6 @@ class FileDescriptorReader {
   ReadResult ReadData();
 
  private:
-  void IncrementLinesReadRateWithDecay(size_t delta) const;
   const Options options_;
 
   // We read directly into low_buffer_ and then drain from that into
@@ -69,12 +69,7 @@ class FileDescriptorReader {
 
   mutable struct timespec last_input_received_ = {0, 0};
 
-  // Exponentially decaying value aproximating lines read in the last ten
-  // seconds.
-  //
-  // TODO: Move to its own module.
-  mutable double lines_read_rate_ = 0;
-  mutable struct timespec last_decay_ = {0, 0};
+  DecayingCounter lines_read_rate_;
 };
 
 }  // namespace editor

@@ -22,7 +22,7 @@ vector<unordered_set<LineModifier, hash<int>>> ModifiersVector(
 }  // namespace
 
 FileDescriptorReader::FileDescriptorReader(Options options)
-    : options_(std::move(options)) {
+    : options_(std::move(options)), lines_read_rate_(2.0) {
   CHECK(options_.buffer != nullptr);
   CHECK(options_.fd != -1);
 }
@@ -36,8 +36,7 @@ struct timespec FileDescriptorReader::last_input_received() const {
 }
 
 double FileDescriptorReader::lines_read_rate() const {
-  IncrementLinesReadRateWithDecay(0);
-  return lines_read_rate_;
+  return lines_read_rate_.GetEventsPerSecond();
 }
 
 FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
@@ -110,8 +109,9 @@ FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
   options_.buffer->RegisterProgress();
   bool previous_modified = options_.buffer->modified();
   if (options_.terminal != nullptr) {
-    // TODO: Call IncrementLinesReadRateWithDecay?
-    options_.terminal->ProcessCommandInput(buffer_wrapper);
+    options_.terminal->ProcessCommandInput(buffer_wrapper, [this]() {
+      lines_read_rate_.IncrementAndGetEventsPerSecond(1.0);
+    });
     editor_state->ScheduleRedraw();
   } else {
     auto follower = options_.buffer->GetEndPositionFollower();
@@ -122,7 +122,7 @@ FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
         VLOG(8) << "Adding line from " << line_start << " to " << i;
         options_.buffer->AppendToLastLine(
             line, ModifiersVector(options_.modifiers, line->size()));
-        IncrementLinesReadRateWithDecay(1);
+        lines_read_rate_.IncrementAndGetEventsPerSecond(1.0);
         options_.start_new_line();
         line_start = i + 1;
         auto buffer = editor_state->current_buffer();
@@ -153,23 +153,6 @@ FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
   }
   editor_state->ScheduleRedraw();
   return ReadResult::kContinue;
-}
-
-void FileDescriptorReader::IncrementLinesReadRateWithDecay(size_t delta) const {
-  static const double kHalfLifeMs = 10 * 1000;
-  const double elapsed_half_lifes =
-      GetElapsedMillisecondsAndUpdate(&last_decay_) / kHalfLifeMs;
-  if (elapsed_half_lifes <= 0) {
-    // TODO: If delta != 0, we should probably not ignore it? Meh.
-    LOG(INFO) << "Clock jumped backwards? Ignoring...";
-    return;
-  }
-  const double decay_factor = exp2(-elapsed_half_lifes);
-  VLOG(5) << "Decaying. Factor: " << decay_factor
-          << ", previous: " << lines_read_rate_ << ", delta: " << delta
-          << ", elapsed half lifes: " << elapsed_half_lifes;
-  lines_read_rate_ =
-      lines_read_rate_ * decay_factor + delta * (1 - decay_factor);
 }
 
 }  // namespace editor

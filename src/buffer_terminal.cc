@@ -34,7 +34,9 @@ void BufferTerminal::SetSize(size_t lines, size_t columns) {
   }
 }
 
-void BufferTerminal::ProcessCommandInput(shared_ptr<LazyString> str) {
+void BufferTerminal::ProcessCommandInput(
+    shared_ptr<LazyString> str,
+    const std::function<void()>& new_line_callback) {
   if (position_.line >= buffer_->lines_size()) {
     position_.line = buffer_->lines_size() - 1;
   }
@@ -70,6 +72,7 @@ void BufferTerminal::ProcessCommandInput(shared_ptr<LazyString> str) {
       position_.column = 0;
     } else if (c == '\n') {
       VLOG(8) << "Received \\n";
+      new_line_callback();
       MoveToNextLine();
     } else if (c == 0x1b) {
       VLOG(8) << "Received 0x1b";

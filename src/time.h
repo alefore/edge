@@ -13,12 +13,16 @@
 
 namespace afc {
 namespace editor {
+// TODO: Replace all this with Abseil.
+double SecondsBetween(const struct timespec& begin, const struct timespec& end);
 double MillisecondsBetween(const struct timespec& begin,
                            const struct timespec& end);
 
+double GetElapsedSecondsSince(const struct timespec& spec);
 double GetElapsedMillisecondsSince(const struct timespec& spec);
 
 double GetElapsedMillisecondsAndUpdate(struct timespec* spec);
+double GetElapsedSecondsAndUpdate(struct timespec* spec);
 
 // If required_milliseconds have passed since the last call, updates `spec` to
 // now and returns the elapsed time. Otherwise, returns nullopt.

@@ -26,7 +26,8 @@ class BufferTerminal {
 
   void SetSize(size_t lines, size_t columns);
 
-  void ProcessCommandInput(shared_ptr<LazyString> str);
+  void ProcessCommandInput(shared_ptr<LazyString> str,
+                           const std::function<void()>& new_line_callback);
 
  private:
   size_t ProcessTerminalEscapeSequence(
@@ -37,7 +38,7 @@ class BufferTerminal {
 
   OpenBuffer* const buffer_;
 
-  // TODO: Find a way to remove this?
+  // TODO: Find a way to remove this? I.e. always use buffer_.
   BufferContents* const contents_;
 
   size_t lines_ = 0;

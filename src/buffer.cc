@@ -1604,6 +1604,8 @@ int OpenBuffer::fd_error() const {
   return fd_error_ == nullptr ? -1 : fd_error_->fd();
 }
 
+const FileDescriptorReader* OpenBuffer::GetFd() const { return fd_.get(); }
+
 const FileDescriptorReader* OpenBuffer::GetFdError() const {
   return fd_error_.get();
 }
