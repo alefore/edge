@@ -28,7 +28,8 @@ void BufferTerminal::SetSize(size_t lines, size_t columns) {
   struct winsize screen_size;
   lines_ = screen_size.ws_row = lines;
   columns_ = screen_size.ws_col = columns;
-  if (ioctl(buffer_->fd(), TIOCSWINSZ, &screen_size) == -1) {
+  if (buffer_->fd() != -1 &&
+      ioctl(buffer_->fd(), TIOCSWINSZ, &screen_size) == -1) {
     buffer_->editor()->SetWarningStatus(L"ioctl TIOCSWINSZ failed: " +
                                         FromByteString(strerror(errno)));
   }
