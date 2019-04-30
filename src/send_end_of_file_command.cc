@@ -7,6 +7,7 @@ extern "C" {
 #include "src/buffer_variables.h"
 #include "src/command.h"
 #include "src/editor.h"
+#include "src/file_descriptor_reader.h"
 #include "src/file_link_mode.h"
 #include "src/line_prompt_mode.h"
 #include "src/wstring.h"
@@ -26,20 +27,20 @@ void SendEndOfFileToBuffer(EditorState* editor_state,
     editor_state->ResetModifiers();
   }
 
-  if (buffer->fd() == -1) {
+  if (buffer->fd() == nullptr) {
     editor_state->SetStatus(L"No active subprocess for current buffer.");
     return;
   }
   if (buffer->Read(buffer_variables::pts)) {
     char str[1] = {4};
-    if (write(buffer->fd(), str, sizeof(str)) == -1) {
+    if (write(buffer->fd()->fd(), str, sizeof(str)) == -1) {
       editor_state->SetStatus(L"Sending EOF failed: " +
                               FromByteString(strerror(errno)));
       return;
     }
     editor_state->SetStatus(L"EOF sent");
   } else {
-    if (shutdown(buffer->fd(), SHUT_WR) == -1) {
+    if (shutdown(buffer->fd()->fd(), SHUT_WR) == -1) {
       editor_state->SetStatus(L"shutdown(SHUT_WR) failed: " +
                               FromByteString(strerror(errno)));
       return;

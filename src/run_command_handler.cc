@@ -245,16 +245,15 @@ std::map<wstring, wstring> Flags(const CommandData& data,
 
   auto update = buffer.last_progress_update();
   if (buffer.child_pid() != -1 && update.tv_sec != 0) {
-    auto error_input = buffer.GetFdError();
+    auto error_input = buffer.fd_error();
     double lines_read_rate =
-        (buffer.GetFdError() == nullptr
-             ? 0
-             : buffer.GetFdError()->lines_read_rate()) +
-        (buffer.GetFd() == nullptr ? 0 : buffer.GetFd()->lines_read_rate());
+        (buffer.fd_error() == nullptr ? 0
+                                      : buffer.fd_error()->lines_read_rate()) +
+        (buffer.fd() == nullptr ? 0 : buffer.fd()->lines_read_rate());
     double seconds_since_input =
-        buffer.GetFd() == nullptr
+        buffer.fd() == nullptr
             ? -1
-            : GetElapsedSecondsSince(buffer.GetFd()->last_input_received());
+            : GetElapsedSecondsSince(buffer.fd()->last_input_received());
     VLOG(5) << buffer.Read(buffer_variables::name)
             << "Lines read rate: " << lines_read_rate;
     if (lines_read_rate > 5) {

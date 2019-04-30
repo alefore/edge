@@ -18,6 +18,7 @@
 #include "src/cpp_command.h"
 #include "src/delete_mode.h"
 #include "src/dirname.h"
+#include "src/file_descriptor_reader.h"
 #include "src/file_link_mode.h"
 #include "src/find_mode.h"
 #include "src/goto_command.h"
@@ -143,10 +144,10 @@ class Paste : public Command {
       return;
     }
     auto buffer = editor_state->current_buffer();
-    if (buffer->fd() != -1) {
+    if (buffer->fd() != nullptr) {
       string text = ToByteString(it->second->ToString());
       for (size_t i = 0; i < editor_state->repetitions(); i++) {
-        if (write(buffer->fd(), text.c_str(), text.size()) == -1) {
+        if (write(buffer->fd()->fd(), text.c_str(), text.size()) == -1) {
           editor_state->SetWarningStatus(L"Unable to paste.");
           break;
         }

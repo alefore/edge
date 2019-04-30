@@ -191,7 +191,7 @@ void BufferWidget::RecomputeData() {
                         max(buffer->Read(buffer_variables::margin_lines), 0))));
 
   if (view_start_.line > line - min(margin_lines, line) &&
-      (buffer->child_pid() != -1 || buffer->fd() == -1)) {
+      (buffer->child_pid() != -1 || buffer->fd() == nullptr)) {
     view_start_.line = line - min(margin_lines, line);
   } else if (view_start_.line + lines_ <=
              min(buffer->lines_size(), line + margin_lines)) {

@@ -16,6 +16,7 @@ extern "C" {
 #include "src/command_mode.h"
 #include "src/editor.h"
 #include "src/editor_mode.h"
+#include "src/file_descriptor_reader.h"
 #include "src/file_link_mode.h"
 #include "src/lazy_string_append.h"
 #include "src/substring.h"
@@ -652,7 +653,9 @@ class RawInputTypeMode : public EditorMode {
 
       case Terminal::BACKSPACE: {
         string contents(1, 127);
-        write(buffer_->fd(), contents.c_str(), contents.size());
+        if (buffer_->fd() != nullptr) {
+          write(buffer_->fd()->fd(), contents.c_str(), contents.size());
+        }
       } break;
 
       case '\n':
@@ -668,9 +671,9 @@ class RawInputTypeMode : public EditorMode {
 
  private:
   void WriteLineBuffer(EditorState* editor_state) {
-    if (buffer_->fd() == -1) {
+    if (buffer_->fd() == nullptr) {
       editor_state->SetStatus(L"Warning: Process exited.");
-    } else if (write(buffer_->fd(), line_buffer_.c_str(),
+    } else if (write(buffer_->fd()->fd(), line_buffer_.c_str(),
                      line_buffer_.size()) == -1) {
       editor_state->SetStatus(L"Write failed: " +
                               FromByteString(strerror(errno)));
@@ -814,7 +817,7 @@ void EnterInsertMode(InsertModeOptions options) {
 
   options.editor_state->ResetStatus();
 
-  if (options.buffer->fd() != -1) {
+  if (options.buffer->fd() != nullptr) {
     editor_state->SetStatus(L"🔡 (raw)");
     editor_state->current_buffer()->set_mode(
         std::make_unique<RawInputTypeMode>(options.buffer));

@@ -314,11 +314,8 @@ class OpenBuffer {
   void SetInputFiles(int input_fd, int input_fd_error, bool fd_is_terminal,
                      pid_t child_pid);
 
-  // TODO: Switch to returning FileDescriptorReader* and remove GetFd.
-  int fd() const;
-  int fd_error() const;
-  const FileDescriptorReader* GetFd() const;
-  const FileDescriptorReader* GetFdError() const;
+  const FileDescriptorReader* fd() const;
+  const FileDescriptorReader* fd_error() const;
 
   pid_t child_pid() const { return child_pid_; }
   int child_exit_status() const { return child_exit_status_; }

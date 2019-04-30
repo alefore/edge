@@ -20,6 +20,7 @@ extern "C" {
 #include "src/audio.h"
 #include "src/buffer_variables.h"
 #include "src/editor.h"
+#include "src/file_descriptor_reader.h"
 #include "src/file_link_mode.h"
 #include "src/lazy_string.h"
 #include "src/run_command_handler.h"
@@ -336,17 +337,18 @@ int main(int argc, const char** argv) {
     buffers.reserve(sizeof(fds) / sizeof(fds[0]));
 
     for (auto& buffer : *editor_state()->buffers()) {
-      if (buffer.second->fd() != -1) {
+      // TODO: Move this logic to FileDescriptorReader?
+      if (buffer.second->fd() != nullptr) {
         VLOG(5) << buffer.first
-                << ": Installing (out) fd: " << buffer.second->fd();
-        fds[buffers.size()].fd = buffer.second->fd();
+                << ": Installing (out) fd: " << buffer.second->fd()->fd();
+        fds[buffers.size()].fd = buffer.second->fd()->fd();
         fds[buffers.size()].events = POLLIN | POLLPRI;
         buffers.push_back(buffer.second);
       }
-      if (buffer.second->fd_error() != -1) {
+      if (buffer.second->fd_error() != nullptr) {
         VLOG(5) << buffer.first
-                << ": Installing (err) fd: " << buffer.second->fd();
-        fds[buffers.size()].fd = buffer.second->fd_error();
+                << ": Installing (err) fd: " << buffer.second->fd()->fd();
+        fds[buffers.size()].fd = buffer.second->fd_error()->fd();
         fds[buffers.size()].events = POLLIN | POLLPRI;
         buffers.push_back(buffer.second);
       }
@@ -413,11 +415,13 @@ int main(int argc, const char** argv) {
 
       CHECK_LE(i, buffers.size());
       CHECK(buffers[i] != nullptr);
-      if (buffers[i] && fds[i].fd == buffers[i]->fd()) {
+      if (buffers[i] && buffers[i]->fd() != nullptr &&
+          fds[i].fd == buffers[i]->fd()->fd()) {
         LOG(INFO) << "Reading (normal): "
                   << buffers[i]->Read(buffer_variables::name);
         buffers[i]->ReadData();
-      } else if (buffers[i] && fds[i].fd == buffers[i]->fd_error()) {
+      } else if (buffers[i] && buffers[i]->fd_error() != nullptr &&
+                 fds[i].fd == buffers[i]->fd_error()->fd()) {
         LOG(INFO) << "Reading (error): "
                   << buffers[i]->Read(buffer_variables::name);
         buffers[i]->ReadErrorData();
