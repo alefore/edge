@@ -15,7 +15,7 @@ double SecondsBetween(const struct timespec& begin,
 
 double MillisecondsBetween(const struct timespec& begin,
                            const struct timespec& end) {
-  return SecondsBetween(begin, end) / 1000.0;
+  return SecondsBetween(begin, end) * 1000.0;
 }
 
 double GetElapsedSecondsSince(const struct timespec& spec) {
