@@ -257,8 +257,10 @@ std::map<wstring, wstring> Flags(const CommandData& data,
             : GetElapsedSecondsSince(buffer.GetFd()->last_input_received());
     VLOG(5) << buffer.Read(buffer_variables::name)
             << "Lines read rate: " << lines_read_rate;
-    if (lines_read_rate > 2) {
+    if (lines_read_rate > 5) {
       output[L"🤖"] = L"🗫";
+    } else if (lines_read_rate > 2) {
+      output[L"🤖"] = L"🗪";
     } else if (error_input != nullptr &&
                GetElapsedSecondsSince(error_input->last_input_received()) < 5) {
       output[L"🤖"] = L"🗯";
