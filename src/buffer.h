@@ -14,7 +14,6 @@
 #include "src/buffer_contents.h"
 #include "src/buffer_terminal.h"
 #include "src/cursors.h"
-#include "src/file_descriptor_reader.h"
 #include "src/lazy_string.h"
 #include "src/line.h"
 #include "src/line_column.h"
@@ -44,6 +43,8 @@ using std::unique_ptr;
 using std::vector;
 
 using namespace afc::vm;
+
+class FileDescriptorReader;
 
 class OpenBuffer {
  public:
@@ -315,6 +316,7 @@ class OpenBuffer {
 
   int fd() const;
   int fd_error() const;
+  const FileDescriptorReader* GetFdError() const;
 
   pid_t child_pid() const { return child_pid_; }
   int child_exit_status() const { return child_exit_status_; }

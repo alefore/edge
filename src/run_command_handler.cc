@@ -20,7 +20,9 @@ extern "C" {
 #include "src/char_buffer.h"
 #include "src/command_mode.h"
 #include "src/editor.h"
+#include "src/file_descriptor_reader.h"
 #include "src/line_prompt_mode.h"
+#include "src/time.h"
 #include "src/wstring.h"
 
 namespace {
@@ -244,7 +246,16 @@ std::map<wstring, wstring> Flags(const CommandData& data,
   auto update = buffer.last_progress_update();
   if (buffer.child_pid() != -1 && update.tv_sec != 0) {
     int seconds = now - update.tv_sec;
-    if (seconds < 5) {
+    auto error_input = buffer.GetFdError();
+    double lines_read_rate =
+        error_input == nullptr ? 0 : error_input->lines_read_rate();
+    if (lines_read_rate > 10) {
+      output[L"🤖"] = L"🗫";
+    } else if (error_input != nullptr &&
+               GetElapsedMillisecondsSince(error_input->last_input_received()) <
+                   5000) {
+      output[L"🤖"] = L"🗯";
+    } else if (seconds < 5) {
       output[L"🤖"] = L"🗩";
     } else if (seconds < 60) {
       output[L"🤖"] = L"";

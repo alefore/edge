@@ -39,6 +39,7 @@ extern "C" {
 #include "src/server.h"
 #include "src/status.h"
 #include "src/substring.h"
+#include "src/time.h"
 #include "src/transformation.h"
 #include "src/transformation_delete.h"
 #include "src/vm/public/callbacks.h"
@@ -822,17 +823,9 @@ bool OpenBuffer::ShouldDisplayProgress() const {
 }
 
 void OpenBuffer::RegisterProgress() {
-  struct timespec now;
-  if (clock_gettime(0, &now) == -1) {
-    return;
+  if (UpdateIfMillisecondsHavePassed(&last_progress_update_, 200).has_value()) {
+    Set(buffer_variables::progress, Read(buffer_variables::progress) + 1);
   }
-  double ms_elapsed = (now.tv_sec - last_progress_update_.tv_sec) * 1000 +
-                      (now.tv_nsec - last_progress_update_.tv_nsec) / 1000000;
-  if (ms_elapsed < 200) {
-    return;
-  }
-  last_progress_update_ = now;
-  Set(buffer_variables::progress, Read(buffer_variables::progress) + 1);
 }
 
 void OpenBuffer::ReadData() { ReadData(&fd_); }
@@ -1609,6 +1602,10 @@ void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
 int OpenBuffer::fd() const { return fd_ == nullptr ? -1 : fd_->fd(); }
 int OpenBuffer::fd_error() const {
   return fd_error_ == nullptr ? -1 : fd_error_->fd();
+}
+
+const FileDescriptorReader* OpenBuffer::GetFdError() const {
+  return fd_error_.get();
 }
 
 size_t OpenBuffer::current_position_line() const { return position().line; }

@@ -135,6 +135,8 @@ src/status.h \
 src/structure.cc \
 src/substring.cc \
 src/terminal.cc \
+src/time.cc \
+src/time.h \
 src/transformation.cc \
 src/transformation_delete.cc \
 src/transformation_move.cc \

@@ -44,6 +44,8 @@ class FileDescriptorReader {
   ~FileDescriptorReader();
 
   int fd() const;
+  struct timespec last_input_received() const;
+  double lines_read_rate() const;
 
   enum class ReadResult {
     // If this is returned, no further calls to ReadData should happen (and our
@@ -56,6 +58,7 @@ class FileDescriptorReader {
   ReadResult ReadData();
 
  private:
+  void IncrementLinesReadRateWithDecay(size_t delta) const;
   const Options options_;
 
   // We read directly into low_buffer_ and then drain from that into
@@ -63,6 +66,15 @@ class FileDescriptorReader {
   // (for example, if the reading stops in the middle of a wide character).
   std::unique_ptr<char[]> low_buffer_;
   size_t low_buffer_length_ = 0;
+
+  mutable struct timespec last_input_received_ = {0, 0};
+
+  // Exponentially decaying value aproximating lines read in the last ten
+  // seconds.
+  //
+  // TODO: Move to its own module.
+  mutable double lines_read_rate_ = 0;
+  mutable struct timespec last_decay_ = {0, 0};
 };
 
 }  // namespace editor
