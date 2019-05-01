@@ -99,7 +99,7 @@ class MoveTransformation : public Transformation {
                                     const Modifiers& modifiers) {
     using P = pair<const size_t, LineMarks::Mark>;
     Iterator it = std::upper_bound(
-        it_begin, it_end, P(current.line, LineMarks::Mark()),
+        it_begin, it_end, P(current.line.line, LineMarks::Mark()),
         modifiers.direction == FORWARDS
             ? [](const P& a, const P& b) { return a.first < b.first; }
             : [](const P& a, const P& b) { return a.first > b.first; });
@@ -116,7 +116,7 @@ class MoveTransformation : public Transformation {
       }
       if (it == it_end) {
         // Can't move past the current mark.
-        return LineColumn(position);
+        return LineColumn(LineNumber(position));
       }
     }
 
@@ -126,11 +126,11 @@ class MoveTransformation : public Transformation {
   LineColumn MoveLine(OpenBuffer* buffer, LineColumn position) const {
     int direction = (modifiers_.direction == BACKWARDS ? -1 : 1);
     size_t repetitions = modifiers_.repetitions;
-    if (modifiers_.direction == BACKWARDS && repetitions > position.line) {
-      position.line = 0;
+    if (modifiers_.direction == BACKWARDS && repetitions > position.line.line) {
+      position.line = LineNumber(0);
     } else {
-      position.line += direction * repetitions;
-      position.line = min(position.line, buffer->contents()->size() - 1);
+      position.line += LineNumberDelta(direction * repetitions);
+      position.line = min(position.line, buffer->contents()->EndLine());
     }
     return position;
   }

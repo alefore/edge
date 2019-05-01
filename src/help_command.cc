@@ -129,7 +129,7 @@ class HelpCommand : public Command {
                       [](const int& value) { return std::to_wstring(value); });
 
     CommandLineVariables(buffer.get());
-    buffer->set_current_position_line(0);
+    buffer->set_current_position_line(LineNumber(0));
     buffer->ResetMode();
 
     editor_state->buffers()->insert(make_pair(name, buffer));

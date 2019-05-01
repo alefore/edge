@@ -50,12 +50,13 @@ class CppTreeParser : public TreeParser {
 
     std::vector<size_t> states_stack = {DEFAULT_AT_START_OF_LINE};
     std::vector<ParseTree*> trees = {root};
-    for (size_t i = root->range.begin.line; i < root->range.end.line; i++) {
+    for (LineNumber i = root->range.begin.line; i < root->range.end.line; ++i) {
       auto insert_results = cache_[buffer.at(i)->contents()].insert(
           {states_stack, ParseResults()});
       if (insert_results.second) {
-        ParseData data(buffer, std::move(states_stack),
-                       min(LineColumn(i + 1), root->range.end));
+        ParseData data(
+            buffer, std::move(states_stack),
+            min(LineColumn(i + LineNumberDelta(1)), root->range.end));
         data.set_position(max(LineColumn(i), root->range.begin));
         ParseLine(&data);
         insert_results.first->second = *data.parse_results();
@@ -67,11 +68,13 @@ class CppTreeParser : public TreeParser {
     }
 
     auto final_position =
-        LineColumn(buffer.size() - 1, buffer.back()->EndColumn());
+        LineColumn(buffer.EndLine(), buffer.back()->EndColumn());
     if (final_position >= root->range.end) {
       DVLOG(5) << "Draining final states: " << states_stack.size();
       ParseData data(buffer, std::move(states_stack),
-                     std::min(LineColumn(buffer.size() + 1), root->range.end));
+                     std::min(LineColumn(LineNumber(0) + buffer.size() +
+                                         LineNumberDelta(1)),
+                              root->range.end));
       while (!data.parse_results()->states_stack.empty()) {
         data.PopBack();
       }

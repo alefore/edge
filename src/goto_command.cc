@@ -143,12 +143,13 @@ class GotoCommand : public Command {
       }
       buffer->set_position(position);
     } else if (structure == StructureLine()) {
-      size_t lines = buffer->contents()->size() - 1;
-      size_t position = ComputePosition(
-          0, lines, lines, editor_state->direction(),
-          editor_state->repetitions(), editor_state->structure_range(), calls_);
-      CHECK_LE(position, buffer->contents()->size());
-      buffer->set_current_position_line(position);
+      size_t lines = buffer->EndLine().line;
+      LineNumber line =
+          LineNumber(ComputePosition(0, lines, lines, editor_state->direction(),
+                                     editor_state->repetitions(),
+                                     editor_state->structure_range(), calls_));
+      CHECK_LE(line, LineNumber(0) + buffer->contents()->size());
+      buffer->set_current_position_line(line);
     } else if (structure == StructureMark()) {
       // Navigates marks in the current buffer.
       const multimap<size_t, LineMarks::Mark>* marks = buffer->GetLineMarks();
@@ -162,18 +163,19 @@ class GotoCommand : public Command {
           0, lines.size(), lines.size(), editor_state->direction(),
           editor_state->repetitions(), editor_state->structure_range(), calls_);
       CHECK_LE(position, lines.size());
-      buffer->set_current_position_line(lines.at(position).first);
+      buffer->set_current_position_line(LineNumber(lines.at(position).first));
     } else if (structure == StructurePage()) {
-      CHECK_GT(buffer->contents()->size(), 0u);
-      size_t pages =
-          ceil(static_cast<double>(buffer->contents()->size()) /
-               editor_state->buffer_tree()->GetActiveLeaf()->lines());
-      size_t position =
+      CHECK_GT(buffer->contents()->size(), LineNumberDelta(0));
+      size_t pages = ceil(
+          static_cast<double>(buffer->contents()->size().line_delta) /
+          editor_state->buffer_tree()->GetActiveLeaf()->lines().line_delta);
+      LineNumber position =
+          LineNumber(0) +
           editor_state->buffer_tree()->GetActiveLeaf()->lines() *
-          ComputePosition(0, pages, pages, editor_state->direction(),
-                          editor_state->repetitions(),
-                          editor_state->structure_range(), calls_);
-      CHECK_LT(position, buffer->contents()->size());
+              ComputePosition(0, pages, pages, editor_state->direction(),
+                              editor_state->repetitions(),
+                              editor_state->structure_range(), calls_);
+      CHECK_LT(position, LineNumber(0) + buffer->contents()->size());
       buffer->set_current_position_line(position);
     } else if (structure == StructureSearch()) {
       // TODO: Implement.

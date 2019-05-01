@@ -55,7 +55,7 @@ class DeleteCharactersTransformation : public Transformation {
     }
 
     size_t chars_erased;
-    size_t line_end;
+    LineNumber line_end;
     if (options_.line_end_behavior == DeleteOptions::LineEndBehavior::kDelete) {
       line_end = SkipLinesToErase(
           buffer, result->cursor.column.column + options_.modifiers.repetitions,
@@ -81,11 +81,11 @@ class DeleteCharactersTransformation : public Transformation {
       LOG(INFO) << "Adjusting for end of buffer.";
       CHECK_EQ(chars_erase_line, buffer->LineAt(line_end)->size() + 1);
       chars_erase_line = 0;
-      if (line_end + 1 >= buffer->lines_size() ||
+      if (line_end >= buffer->EndLine() ||
           options_.line_end_behavior == DeleteOptions::LineEndBehavior::kStop) {
         chars_erase_line = buffer->LineAt(line_end)->size();
       } else {
-        line_end++;
+        ++line_end;
       }
     }
     LOG(INFO) << "Characters to erase from current line: " << chars_erase_line
@@ -156,7 +156,7 @@ class DeleteCharactersTransformation : public Transformation {
   // If modifiers is null, the original modifiers (from the input buffer) are
   // used. Otherwise, they're overridden by modifiers.
   shared_ptr<OpenBuffer> GetDeletedTextBuffer(
-      OpenBuffer* buffer, LineColumn begin, size_t line_end,
+      OpenBuffer* buffer, LineColumn begin, LineNumber line_end,
       ColumnNumber chars_erase_line) const {
     LOG(INFO) << "Preparing deleted text buffer.";
     auto delete_buffer = std::make_shared<OpenBuffer>(buffer->editor(),
@@ -169,7 +169,7 @@ class DeleteCharactersTransformation : public Transformation {
     delete_buffer->AppendToLastLine(first_line->contents(),
                                     first_line->modifiers());
 
-    for (size_t i = begin.line + 1; i <= line_end; i++) {
+    for (LineNumber i = begin.line.next(); i <= line_end; ++i) {
       auto line = std::make_shared<Line>(*buffer->LineAt(i));
       if (i == line_end) {
         line->DeleteCharacters(chars_erase_line);
@@ -187,15 +187,15 @@ class DeleteCharactersTransformation : public Transformation {
   //
   // chars_erased will be set to the total number of characters erased from the
   // current position until (including) line.
-  size_t SkipLinesToErase(const OpenBuffer* buffer, size_t chars_to_erase,
-                          size_t line, size_t* chars_erased) const {
+  LineNumber SkipLinesToErase(const OpenBuffer* buffer, size_t chars_to_erase,
+                              LineNumber line, size_t* chars_erased) const {
     *chars_erased = 0;
-    if (line == buffer->contents()->size()) {
+    if (line == LineNumber(0) + buffer->contents()->size()) {
       return line;
     }
     auto newlines = 1;
     while (true) {
-      CHECK_LT(line, buffer->contents()->size());
+      CHECK_LE(line, buffer->contents()->EndLine());
       LOG(INFO) << "Iteration at line " << line << " having already erased "
                 << *chars_erased << " characters.";
       size_t chars_in_line = buffer->LineAt(line)->size() + newlines;
@@ -204,7 +204,7 @@ class DeleteCharactersTransformation : public Transformation {
       if (*chars_erased >= chars_to_erase) {
         return line;
       }
-      if (line + 1 >= buffer->lines_size()) {
+      if (line >= buffer->EndLine()) {
         return line;
       }
       line++;
@@ -223,8 +223,11 @@ class DeleteLinesTransformation : public Transformation {
     CHECK(buffer != nullptr);
     buffer->AdjustLineColumn(&result->cursor);
     const LineColumn adjusted_original_cursor = result->cursor;
+    CHECK_GE(buffer->contents()->size(), result->cursor.line.ToDelta());
     size_t repetitions = min(options_.modifiers.repetitions,
-                             buffer->contents()->size() - result->cursor.line);
+                             static_cast<size_t>((buffer->contents()->size() -
+                                                  result->cursor.line.ToDelta())
+                                                     .line_delta));
     auto delete_buffer = std::make_shared<OpenBuffer>(buffer->editor(),
                                                       OpenBuffer::kPasteBuffer);
 
@@ -240,9 +243,9 @@ class DeleteLinesTransformation : public Transformation {
 
     TransformationStack stack;
 
-    size_t line = result->cursor.line;
+    LineNumber line = result->cursor.line;
     for (size_t i = 0; i < repetitions; i++) {
-      auto contents = buffer->LineAt(line + i);
+      auto contents = buffer->LineAt(line + LineNumberDelta(i));
       DVLOG(5) << "Erasing line: " << contents->ToString();
       ColumnNumber start = backwards ? ColumnNumber(0) : result->cursor.column;
       ColumnNumber end =
@@ -283,7 +286,7 @@ class DeleteLinesTransformation : public Transformation {
       LineColumn position(line, start);
       if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS ||
           result->mode == Transformation::Result::Mode::kPreview) {
-        position.line += i;
+        position.line += LineNumberDelta(i);
       }
       DVLOG(6) << "Modifiers for line: " << delete_options.modifiers;
       DVLOG(6) << "Position for line: " << position;

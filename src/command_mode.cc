@@ -304,8 +304,9 @@ wstring LineUp::Description() const { return L"moves up one line"; }
   } else if (structure == StructureWord() || structure == StructureSymbol()) {
     // Move in whole pages.
     auto lines = editor_state->buffer_tree()->GetActiveLeaf()->lines();
-    editor_state->set_repetitions(editor_state->repetitions() *
-                                  (lines > 2 ? lines - 2 : 3));
+    editor_state->set_repetitions(
+        editor_state->repetitions() *
+        (lines.line_delta > 2 ? lines.line_delta - 2 : 3));
     VLOG(6) << "Word Up: Repetitions: " << editor_state->repetitions();
     Move(c, editor_state, StructureChar());
   } else if (structure == StructureTree()) {
@@ -343,8 +344,9 @@ wstring LineDown::Description() const { return L"moves down one line"; }
   } else if (structure == StructureWord() || structure == StructureSymbol()) {
     // Move in whole pages.
     auto lines = editor_state->buffer_tree()->GetActiveLeaf()->lines();
-    editor_state->set_repetitions(editor_state->repetitions() *
-                                  (lines > 2 ? lines - 2 : 3));
+    editor_state->set_repetitions(
+        editor_state->repetitions() *
+        (lines.line_delta > 2 ? lines.line_delta - 2 : 3));
     VLOG(6) << "Word Down: Repetitions: " << editor_state->repetitions();
     Move(c, editor_state, StructureChar());
   } else if (structure == StructureTree()) {
@@ -732,7 +734,7 @@ class SwitchCaseTransformation : public Transformation {
       }
       if (i.column >= line->EndColumn()) {
         // Switch to the next line.
-        i = LineColumn(i.line + 1);
+        i = LineColumn(i.line + LineNumberDelta(1));
         DeleteOptions options;
         options.copy_to_paste_buffer = false;
         stack.PushBack(std::make_unique<TransformationWithMode>(

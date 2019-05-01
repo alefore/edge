@@ -12,8 +12,8 @@ namespace afc {
 namespace editor {
 namespace {
 Seek StartSeekToLimit(OpenBuffer* buffer, LineColumn* position) {
-  CHECK_GT(buffer->lines_size(), 0ul);
-  position->line = std::min(buffer->lines_size() - 1, position->line);
+  CHECK_GT(buffer->lines_size(), LineNumberDelta(0));
+  position->line = std::min(buffer->EndLine(), position->line);
   if (position->column >= buffer->LineAt(position->line)->EndColumn()) {
     // if (buffer->Read(buffer_variables::extend_lines)) {
     //   MaybeExtendLine(*position);
@@ -433,8 +433,8 @@ Structure* StructureBuffer() {
       if (direction == BACKWARDS) {
         *position = LineColumn();
       } else {
-        CHECK_GT(buffer->lines_size(), 0);
-        position->line = buffer->lines_size() - 1;
+        CHECK_GT(buffer->lines_size(), LineNumberDelta(0));
+        position->line = buffer->EndLine();
         position->column = buffer->LineAt(position->line)->EndColumn();
       }
       return false;

@@ -26,9 +26,10 @@ LineScrollControl::Reader::Reader(ConstructorAccessTag,
 LineScrollControl::LineScrollControl(ConstructorAccessTag, Options options)
     : options_(std::move(options)),
       cursors_([=]() {
+        // TODO: Switch the type for the keys to LineNumber.
         std::map<size_t, std::set<ColumnNumber>> cursors;
         for (auto cursor : *options_.buffer->active_cursors()) {
-          cursors[cursor.line].insert(cursor.column);
+          cursors[cursor.line.line].insert(cursor.column);
         }
         return cursors;
       }()),
@@ -59,8 +60,8 @@ bool LineScrollControl::Reader::HasActiveCursor() const {
 
 std::set<ColumnNumber> LineScrollControl::Reader::GetCurrentCursors() const {
   CHECK(state_ == State::kProcessing);
-  size_t line = parent_->range_.begin.line;
-  auto it = parent_->cursors_.find(line);
+  LineNumber line = parent_->range_.begin.line;
+  auto it = parent_->cursors_.find(line.line);
   if (it == parent_->cursors_.end()) {
     return {};
   }
@@ -90,7 +91,7 @@ void LineScrollControl::SignalReaderDone() {
 Range LineScrollControl::GetRange(LineColumn begin) {
   // TODO: This is wrong: it doesn't account for multi-width characters.
   // TODO: This is wrong: it doesn't take into account line filters.
-  if (begin.line >= options_.buffer->lines_size()) {
+  if (begin.line > options_.buffer->EndLine()) {
     return Range(begin, LineColumn::Max());
   }
 
@@ -128,8 +129,8 @@ Range LineScrollControl::GetRange(LineColumn begin) {
   }
   end.line++;
   end.column = options_.initial_column;
-  if (end.line >= options_.buffer->lines_size()) {
-    end = LineColumn(std::numeric_limits<size_t>::max());
+  if (end.line > options_.buffer->EndLine()) {
+    end = LineColumn::Max();
   }
   return Range(begin, end);
 }

@@ -14,7 +14,7 @@ class HorizontalSplitOutputProducer : public OutputProducer {
  public:
   struct Row {
     std::unique_ptr<OutputProducer> producer;
-    size_t lines;
+    LineNumberDelta lines;
   };
 
   HorizontalSplitOutputProducer(std::vector<Row> rows, size_t index_active)
@@ -27,7 +27,7 @@ class HorizontalSplitOutputProducer : public OutputProducer {
   const size_t index_active_;
 
   size_t current_row_ = 0;
-  size_t current_row_line_ = 0;
+  LineNumber current_row_line_;
 };
 
 }  // namespace editor

@@ -470,7 +470,7 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
 
   editor_state->ScheduleRedraw();
   it.first->second->Reload();
-  it.first->second->set_current_position_line(0);
+  it.first->second->set_current_position_line(LineNumber(0));
   return it.first->second;
 }
 

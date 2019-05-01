@@ -49,7 +49,7 @@ class ScreenCurses : public Screen {
     }
   }
 
-  void Move(size_t y, ColumnNumber x) override { move(y, x.column); }
+  void Move(LineNumber y, ColumnNumber x) override { move(y.line, x.column); }
   void WriteString(const wstring& s) override { addwstr(s.c_str()); }
 
   void SetModifier(LineModifier modifier) override {
@@ -111,7 +111,7 @@ class ScreenCurses : public Screen {
     }
   }
 
-  size_t lines() const override { return LINES; }
+  LineNumberDelta lines() const override { return LineNumberDelta(LINES); }
   ColumnNumberDelta columns() const override { return ColumnNumberDelta(COLS); }
 };
 }  // namespace

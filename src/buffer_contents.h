@@ -22,20 +22,22 @@ class BufferContents {
 
   wint_t character_at(const LineColumn& position) const;
 
-  size_t size() const { return lines_.size(); }
+  LineNumberDelta size() const { return LineNumberDelta(lines_.size()); }
+
+  LineNumber EndLine() const;
 
   // Returns a copy of the contents of the tree. Complexity is linear to the
   // number of lines (the lines themselves aren't actually copied).
   std::unique_ptr<BufferContents> copy() const;
 
-  shared_ptr<const Line> at(size_t position) const {
-    CHECK_LT(position, lines_.size());
-    return lines_.at(position);
+  shared_ptr<const Line> at(LineNumber position) const {
+    CHECK_LT(position, LineNumber(lines_.size()));
+    return lines_.at(position.line);
   }
 
   shared_ptr<const Line> back() const {
     CHECK(!lines_.empty());
-    return lines_.at(size() - 1);
+    return at(EndLine());
   }
 
   shared_ptr<const Line> front() const {
@@ -48,7 +50,7 @@ class BufferContents {
   // if the callback returns false. Returns true iff the callback always
   // returned true.
   bool EveryLine(
-      const std::function<bool(size_t, const Line&)>& callback) const;
+      const std::function<bool(LineNumber, const Line&)>& callback) const;
 
   // Convenience wrappers of the above.
   void ForEach(const std::function<void(const Line&)>& callback) const;
@@ -57,64 +59,66 @@ class BufferContents {
   wstring ToString() const;
 
   template <class C>
-  size_t upper_bound(std::shared_ptr<const Line>& key, C compare) const {
+  LineNumber upper_bound(std::shared_ptr<const Line>& key, C compare) const {
     auto it = std::upper_bound(lines_.begin(), lines_.end(), key, compare);
-    return distance(lines_.begin(), it);
+    return LineNumber(distance(lines_.begin(), it));
   }
 
   size_t CountCharacters() const;
 
-  void insert_line(size_t line_position, shared_ptr<const Line> line);
+  void insert_line(LineNumber line_position, shared_ptr<const Line> line);
 
   // Does not call NotifyUpdateListeners! That should be done by the caller.
   // Avoid calling this in general: prefer calling the other functions (that
   // have more semantic information about what you're doing).
-  void set_line(size_t position, shared_ptr<const Line> line) {
-    if (position >= size()) {
-      return push_back(line);
-    }
-
-    CHECK_LE(position, size());
-    lines_[position] = line;
-  }
+  void set_line(LineNumber position, shared_ptr<const Line> line);
 
   template <class C>
-  void sort(size_t first, size_t last, C compare) {
-    std::sort(lines_.begin() + first, lines_.begin() + last, compare);
+  void sort(LineNumber first, LineNumber last, C compare) {
+    std::sort(lines_.begin() + first.line, lines_.begin() + last.line, compare);
     NotifyUpdateListeners(CursorsTracker::Transformation());
   }
 
-  void insert(size_t position_line, const BufferContents& source,
+  void insert(LineNumber position_line, const BufferContents& source,
               const LineModifierSet* modifiers);
 
   // Delete characters from the given line in range [column, column + amount).
   // Amount must not be negative.
-  void DeleteCharactersFromLine(size_t line, ColumnNumber column,
+  //
+  // TODO: Use LineColumn?
+  void DeleteCharactersFromLine(LineNumber line, ColumnNumber column,
                                 ColumnNumberDelta amount);
   // Delete characters from the given line in range [column, ...).
-  void DeleteCharactersFromLine(size_t line, ColumnNumber column);
+  //
+  // TODO: Use LineColumn?
+  void DeleteCharactersFromLine(LineNumber line, ColumnNumber column);
 
   // Sets the character and modifiers in line `line` and column `column`.
   //
   // `line` must be smaller than size().
   //
-  // `column` may be greater than size(), in which case the character will just
-  // get appended (extending the line by exactly one character).
-  void SetCharacter(size_t line, ColumnNumber column, int c,
+  // `column` may be greater than size() of the current line, in which case the
+  // character will just get appended (extending the line by exactly one
+  // character).
+  //
+  // TODO: Use LineColumn?
+  void SetCharacter(LineNumber line, ColumnNumber column, int c,
                     std::unordered_set<LineModifier, hash<int>> modifiers);
 
-  void InsertCharacter(size_t line, ColumnNumber column);
-  void AppendToLine(size_t line, const Line& line_to_append);
+  // TODO: Use LineColumn?
+  void InsertCharacter(LineNumber line, ColumnNumber column);
+  void AppendToLine(LineNumber line, const Line& line_to_append);
 
   enum class CursorsBehavior { kAdjust, kUnmodified };
 
-  void EraseLines(size_t first, size_t last, CursorsBehavior cursors_behavior);
+  void EraseLines(LineNumber first, LineNumber last,
+                  CursorsBehavior cursors_behavior);
 
   void SplitLine(LineColumn position);
 
   // Appends the next line to the current line and removes the next line.
   // Essentially, removes the \n at the end of the current line.
-  void FoldNextLine(size_t line);
+  void FoldNextLine(LineNumber line);
 
   void push_back(wstring str);
   void push_back(shared_ptr<const Line> line) {

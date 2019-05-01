@@ -22,13 +22,14 @@ LineColumn BufferTerminal::position() const { return position_; }
 
 void BufferTerminal::SetPosition(LineColumn position) { position_ = position; }
 
-void BufferTerminal::SetSize(size_t lines, ColumnNumberDelta columns) {
+void BufferTerminal::SetSize(LineNumberDelta lines, ColumnNumberDelta columns) {
   if (lines_ == lines && columns_ == columns) {
     return;
   }
   struct winsize screen_size;
-  lines_ = screen_size.ws_row = lines;
+  lines_ = lines;
   columns_ = columns;
+  screen_size.ws_row = lines.line_delta;
   screen_size.ws_col = columns.column_delta;
   if (buffer_->fd() != nullptr &&
       ioctl(buffer_->fd()->fd(), TIOCSWINSZ, &screen_size) == -1) {
@@ -40,9 +41,7 @@ void BufferTerminal::SetSize(size_t lines, ColumnNumberDelta columns) {
 void BufferTerminal::ProcessCommandInput(
     shared_ptr<LazyString> str,
     const std::function<void()>& new_line_callback) {
-  if (position_.line >= buffer_->lines_size()) {
-    position_.line = buffer_->lines_size() - 1;
-  }
+  position_.line = min(position_.line, buffer_->EndLine());
   std::unordered_set<LineModifier, hash<int>> modifiers;
 
   size_t read_index = 0;
@@ -80,7 +79,7 @@ void BufferTerminal::ProcessCommandInput(
     } else if (c == 0x1b) {
       VLOG(8) << "Received 0x1b";
       read_index = ProcessTerminalEscapeSequence(str, read_index, &modifiers);
-      CHECK_LT(position_.line, buffer_->lines_size());
+      CHECK_LE(position_.line, buffer_->EndLine());
     } else if (isprint(c) || c == '\t') {
       VLOG(8) << "Received printable or tab: " << c;
       if (position_.column >= ColumnNumber(0) + columns_) {
@@ -105,8 +104,8 @@ size_t BufferTerminal::ProcessTerminalEscapeSequence(
   switch (str->get(read_index)) {
     case 'M':
       VLOG(9) << "Received: cuu1: Up one line.";
-      if (position_.line > 0) {
-        position_.line--;
+      if (position_.line > LineNumber(0)) {
+        --position_.line;
       }
       return read_index + 1;
     case '[':
@@ -117,7 +116,7 @@ size_t BufferTerminal::ProcessTerminalEscapeSequence(
                 << Substring(str, read_index)->ToString();
   }
   read_index++;
-  CHECK_LT(position_.line, buffer_->lines_size());
+  CHECK_LE(position_.line, buffer_->EndLine());
   auto current_line = buffer_->LineAt(position_.line);
   string sequence;
   while (read_index < str->size()) {
@@ -264,7 +263,7 @@ size_t BufferTerminal::ProcessTerminalEscapeSequence(
               buffer_->editor()->buffer_tree()->GetActiveLeaf()->view_start() +
               delta;
           auto follower = buffer_->GetEndPositionFollower();
-          while (position_.line >= buffer_->lines_size()) {
+          while (position_.line > buffer_->EndLine()) {
             buffer_->AppendEmptyLine();
           }
           follower = nullptr;
@@ -276,31 +275,35 @@ size_t BufferTerminal::ProcessTerminalEscapeSequence(
         // Clears part of the screen.
         if (sequence == "" || sequence == "0") {
           VLOG(10) << "ed: Clear from cursor to end of screen.";
-          buffer_->EraseLines(position_.line + 1, buffer_->lines_size());
+          buffer_->EraseLines(position_.line + LineNumberDelta(1),
+                              LineNumber(0) + buffer_->lines_size());
           contents_->DeleteCharactersFromLine(position_.line, position_.column);
         } else if (sequence == "1") {
           VLOG(10) << "ed: Clear from cursor to beginning of the screen.";
-          buffer_->EraseLines(0, position_.line);
-          contents_->DeleteCharactersFromLine(0, ColumnNumber(0),
+          buffer_->EraseLines(LineNumber(0), position_.line);
+          contents_->DeleteCharactersFromLine(LineNumber(0), ColumnNumber(0),
                                               position_.column.ToDelta());
           position_ = LineColumn();
         } else if (sequence == "2") {
           VLOG(10) << "ed: Clear entire screen (and moves cursor to upper left "
                       "on DOS ANSI.SYS).";
-          buffer_->EraseLines(0, buffer_->lines_size());
+          buffer_->EraseLines(LineNumber(0),
+                              LineNumber(0) + buffer_->lines_size());
           position_ = LineColumn();
         } else if (sequence == "3") {
           VLOG(10) << "ed: Clear entire screen and delete all lines saved in "
                       "the scrollback buffer (this feature was added for xterm "
                       "and is supported by other terminal applications).";
-          buffer_->EraseLines(0, buffer_->lines_size());
+          buffer_->EraseLines(LineNumber(0),
+                              LineNumber(0) + buffer_->lines_size());
           position_ = LineColumn();
         } else {
           VLOG(10) << "ed: Unknown sequence: " << sequence;
-          buffer_->EraseLines(0, buffer_->lines_size());
+          buffer_->EraseLines(LineNumber(0),
+                              LineNumber(0) + buffer_->lines_size());
           position_ = LineColumn();
         }
-        CHECK_LT(position_.line, buffer_->lines_size());
+        CHECK_LE(position_.line, buffer_->EndLine());
         return read_index;
 
       case 'K': {
@@ -312,8 +315,9 @@ size_t BufferTerminal::ProcessTerminalEscapeSequence(
       case 'M':
         VLOG(9) << "Terminal: dl1: delete one line.";
         {
-          buffer_->EraseLines(position_.line, position_.line + 1);
-          CHECK_LT(position_.line, buffer_->lines_size());
+          buffer_->EraseLines(position_.line,
+                              position_.line + LineNumberDelta(1));
+          CHECK_LE(position_.line, buffer_->EndLine());
         }
         return read_index;
 
@@ -339,9 +343,9 @@ size_t BufferTerminal::ProcessTerminalEscapeSequence(
 
 void BufferTerminal::MoveToNextLine() {
   auto follower = buffer_->GetEndPositionFollower();
-  position_.line++;
+  ++position_.line;
   position_.column = ColumnNumber(0);
-  if (position_.line == buffer_->lines_size()) {
+  if (position_.line == LineNumber(0) + buffer_->lines_size()) {
     buffer_->AppendEmptyLine();
   }
 }

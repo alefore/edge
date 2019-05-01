@@ -43,8 +43,8 @@ void SimplifyTree(const ParseTree& tree, ParseTree* output) {
 namespace {
 void ZoomOutTree(const ParseTree& input, double ratio, ParseTree* parent) {
   Range range = input.range;
-  range.begin.line *= ratio;
-  range.end.line *= ratio;
+  range.begin.line.line *= ratio;
+  range.end.line.line *= ratio;
   if (range.begin.line == range.end.line) {
     return;
   }
@@ -56,11 +56,14 @@ void ZoomOutTree(const ParseTree& input, double ratio, ParseTree* parent) {
 }
 }  // namespace
 
-ParseTree ZoomOutTree(const ParseTree& input, size_t input_lines,
-                      size_t output_lines) {
+ParseTree ZoomOutTree(const ParseTree& input, LineNumberDelta input_lines,
+                      LineNumberDelta output_lines) {
   LOG(INFO) << "Zooming out: " << input_lines << " to " << output_lines;
   ParseTree output;
-  ZoomOutTree(input, static_cast<double>(output_lines) / input_lines, &output);
+  ZoomOutTree(
+      input,
+      static_cast<double>(output_lines.line_delta) / input_lines.line_delta,
+      &output);
   if (output.children.empty()) {
     return ParseTree();
   }
@@ -129,7 +132,7 @@ class CharTreeParser : public TreeParser {
     root->children.clear();
     for (auto line = root->range.begin.line; line <= root->range.end.line;
          line++) {
-      CHECK_LT(line, buffer.size());
+      CHECK_LE(line, buffer.EndLine());
       auto contents = buffer.at(line);
       ColumnNumber end_column =
           line == root->range.end.line

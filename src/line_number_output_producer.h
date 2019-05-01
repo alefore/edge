@@ -16,7 +16,7 @@ namespace editor {
 
 class LineNumberOutputProducer : public OutputProducer {
  public:
-  static ColumnNumberDelta PrefixWidth(size_t lines_size);
+  static ColumnNumberDelta PrefixWidth(LineNumberDelta lines_size);
 
   LineNumberOutputProducer(
       std::shared_ptr<OpenBuffer> buffer,
@@ -30,7 +30,7 @@ class LineNumberOutputProducer : public OutputProducer {
   const ColumnNumberDelta width_;
   const std::shared_ptr<OpenBuffer> buffer_;
   const std::unique_ptr<LineScrollControl::Reader> line_scroll_control_reader_;
-  std::optional<size_t> last_line_;
+  std::optional<LineNumber> last_line_;
 };
 
 }  // namespace editor

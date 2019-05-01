@@ -105,12 +105,12 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
   if (buffer != nullptr && !editor_state.is_status_warning()) {
     const auto modifiers = editor_state.modifiers();
     status.push_back('[');
-    if (buffer->current_position_line() >= buffer->contents()->size()) {
+    if (buffer->current_position_line() > buffer->contents()->EndLine()) {
       status += L"<EOF>";
     } else {
-      status += to_wstring(buffer->current_position_line() + 1);
+      status += buffer->current_position_line().ToUserString();
     }
-    status += L" of " + to_wstring(buffer->contents()->size()) + L", " +
+    status += L" of " + buffer->contents()->EndLine().ToUserString() + L", " +
               buffer->current_position_col().ToUserString();
     status += L"] ";
 
@@ -237,7 +237,8 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
   } else if (ColumnNumberDelta(status.size()) > screen->columns()) {
     status = status.substr(0, screen->columns().column_delta);
   }
-  screen->Move(screen->lines() - 1, ColumnNumber(0));
+  screen->Move(LineNumber(0) + screen->lines() - LineNumberDelta(1),
+               ColumnNumber(0));
   if (editor_state.is_status_warning()) {
     screen->SetModifier(LineModifier::RED);
     screen->SetModifier(LineModifier::BOLD);
@@ -248,7 +249,7 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
   }
   if (editor_state.status_prompt()) {
     status_column += editor_state.status_prompt_column().ToDelta();
-    screen->Move(screen->lines() - 1,
+    screen->Move(LineNumber(0) + screen->lines() - LineNumberDelta(1),
                  min(status_column, ColumnNumber(0) + screen->columns()));
   }
 }
@@ -256,12 +257,12 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
 wstring Terminal::GetBufferContext(const EditorState& editor_state,
                                    const shared_ptr<OpenBuffer>& buffer) {
   auto marks = buffer->GetLineMarks();
-  auto current_line_marks = marks->find(buffer->position().line);
+  auto current_line_marks = marks->find(buffer->position().line.line);
   if (current_line_marks != marks->end()) {
     auto mark = current_line_marks->second;
     auto source = editor_state.buffers()->find(mark.source);
     if (source != editor_state.buffers()->end() &&
-        source->second->contents()->size() > mark.source_line) {
+        LineNumber(0) + source->second->contents()->size() > mark.source_line) {
       return source->second->contents()->at(mark.source_line)->ToString();
     }
   }
@@ -269,15 +270,15 @@ wstring Terminal::GetBufferContext(const EditorState& editor_state,
 }
 
 void Terminal::ShowBuffer(EditorState* editor_state, Screen* screen) {
-  screen->Move(0, ColumnNumber(0));
+  screen->Move(LineNumber(0), ColumnNumber(0));
 
   cursor_position_ = std::nullopt;
 
-  size_t lines_to_show = static_cast<size_t>(screen->lines()) - 1;
+  LineNumberDelta lines_to_show = screen->lines() - LineNumberDelta(1);
   auto buffer_tree = editor_state->buffer_tree();
   buffer_tree->SetSize(lines_to_show, screen->columns());
   auto output_producer = editor_state->buffer_tree()->CreateOutputProducer();
-  for (size_t line = 0; line < lines_to_show; line++) {
+  for (auto line = LineNumber(0); line.ToDelta() < lines_to_show; ++line) {
     OutputProducer::Options options;
     options.receiver = std::make_unique<OutputReceiverOptimizer>(
         NewScreenOutputReceiver(screen));

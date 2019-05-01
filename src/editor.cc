@@ -766,13 +766,13 @@ void EditorState::PushPosition(LineColumn position) {
   CHECK(buffer_it->second != nullptr);
   buffer_it->second->CheckPosition();
   CHECK_LE(buffer_it->second->position().line,
-           buffer_it->second->contents()->size());
+           LineNumber(0) + buffer_it->second->contents()->size());
   buffer_it->second->InsertLine(
       buffer_it->second->current_position_line(),
       std::make_shared<Line>(position.ToString() + L" " +
                              buffer->Read(buffer_variables::name)));
   CHECK_LE(buffer_it->second->position().line,
-           buffer_it->second->contents()->size());
+           LineNumber(0) + buffer_it->second->contents()->size());
   if (buffer_it->second == buffer) {
     ScheduleRedraw();
   }
@@ -781,7 +781,7 @@ void EditorState::PushPosition(LineColumn position) {
 static BufferPosition PositionFromLine(const wstring& line) {
   std::wstringstream line_stream(line);
   BufferPosition pos;
-  line_stream >> pos.position.line >> pos.position.column.column;
+  line_stream >> pos.position.line.line >> pos.position.column.column;
   line_stream.get();
   getline(line_stream, pos.buffer_name);
   return pos;
@@ -817,7 +817,8 @@ void EditorState::SetWarningStatus(const wstring& status) {
 
 bool EditorState::HasPositionsInStack() {
   auto it = buffers_.find(kPositionsBufferName);
-  return it != buffers_.end() && it->second->contents()->size() > 1;
+  return it != buffers_.end() &&
+         it->second->contents()->size() > LineNumberDelta(1);
 }
 
 BufferPosition EditorState::ReadPositionsStack() {
@@ -833,17 +834,19 @@ bool EditorState::MovePositionsStack(Direction direction) {
   CHECK(HasPositionsInStack());
   auto buffer = buffers_.find(kPositionsBufferName)->second;
   if (direction == BACKWARDS) {
-    if (buffer->current_position_line() + 1 >= buffer->contents()->size()) {
+    if (buffer->current_position_line() >= buffer->EndLine()) {
       return false;
     }
-    buffer->set_current_position_line(buffer->current_position_line() + 1);
+    buffer->set_current_position_line(buffer->current_position_line() +
+                                      LineNumberDelta(1));
     return true;
   }
 
-  if (buffer->current_position_line() == 0) {
+  if (buffer->current_position_line() == LineNumber(0)) {
     return false;
   }
-  buffer->set_current_position_line(buffer->current_position_line() - 1);
+  buffer->set_current_position_line(buffer->current_position_line() -
+                                    LineNumberDelta(1));
   return true;
 }
 

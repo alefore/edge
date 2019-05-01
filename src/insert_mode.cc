@@ -77,7 +77,7 @@ class NewLineTransformation : public Transformation {
     transformation->PushBack(NewDeleteSuffixSuperfluousCharacters());
 
     transformation->PushBack(NewGotoPositionTransformation(
-        LineColumn(result->cursor.line + 1, prefix_end)));
+        LineColumn(result->cursor.line + LineNumberDelta(1), prefix_end)));
     return transformation->Apply(buffer, result);
   }
 
@@ -123,41 +123,43 @@ class AutocompleteMode : public EditorMode {
     std::shared_ptr<OpenBuffer> buffer;
 
     // The position where the matches begin.
-    size_t matches_start;
+    LineNumber line_start;
     ColumnNumber column_start;
     ColumnNumber column_end;
   };
 
   AutocompleteMode(Options options)
       : options_(std::move(options)),
-        matches_current_(options_.matches_start),
+        line_current_(options_.line_start),
         word_length_(options_.column_end - options_.column_start),
         original_text_(options_.buffer->LineAt(options_.buffer->position().line)
                            ->Substring(options_.column_start, word_length_)) {}
 
   void DrawCurrentMatch(EditorState* editor_state) {
     wstring status;
-    const size_t kPrefixLength = 3;
-    size_t start = matches_current_ > options_.matches_start + kPrefixLength
-                       ? matches_current_ - kPrefixLength
-                       : options_.matches_start;
-    for (size_t i = 0; i < 10 && start + i < options_.dictionary->lines_size();
+    const LineNumberDelta kPrefixLength = LineNumberDelta(3);
+    LineNumber start = line_current_ > options_.line_start + kPrefixLength
+                           ? line_current_ - kPrefixLength
+                           : options_.line_start;
+    for (size_t i = 0;
+         i < 10 && start + LineNumberDelta(i) < options_.dictionary->EndLine();
          i++) {
-      bool is_current = start + i == matches_current_;
+      LineNumber current = start + LineNumberDelta(i);
+      bool is_current = current == line_current_;
       wstring number_prefix;
-      if (start + i > matches_current_) {
-        number_prefix = std::to_wstring(start + i - matches_current_) + L":";
+      if (current > line_current_) {
+        number_prefix =
+            std::to_wstring((current - line_current_).line_delta) + L":";
       }
       status += wstring(status.empty() ? L"" : L" ") +
                 wstring(is_current ? L"[" : L"") + number_prefix +
-                options_.dictionary->LineAt(start + i)->ToString() +
+                options_.dictionary->LineAt(current)->ToString() +
                 wstring(is_current ? L"]" : L"");
     }
     editor_state->SetStatus(status);
 
-    ReplaceCurrentText(
-        editor_state,
-        options_.dictionary->LineAt(matches_current_)->contents());
+    ReplaceCurrentText(editor_state,
+                       options_.dictionary->LineAt(line_current_)->contents());
   }
 
   void ProcessInput(wint_t c, EditorState* editor_state) {
@@ -167,9 +169,9 @@ class AutocompleteMode : public EditorMode {
       case 'l':
       case Terminal::DOWN_ARROW:
       case Terminal::RIGHT_ARROW:
-        matches_current_++;
-        if (matches_current_ == options_.dictionary->lines_size()) {
-          matches_current_ = options_.matches_start;
+        line_current_++;
+        if (line_current_ > options_.dictionary->EndLine()) {
+          line_current_ = options_.line_start;
         }
         break;
 
@@ -177,10 +179,10 @@ class AutocompleteMode : public EditorMode {
       case 'h':
       case Terminal::UP_ARROW:
       case Terminal::LEFT_ARROW:
-        if (matches_current_ <= options_.matches_start) {
-          matches_current_ = options_.dictionary->lines_size() - 1;
+        if (line_current_ <= options_.line_start) {
+          line_current_ = options_.dictionary->EndLine();
         } else {
-          matches_current_--;
+          --line_current_;
         }
         break;
 
@@ -193,9 +195,9 @@ class AutocompleteMode : public EditorMode {
       case '7':
       case '8':
       case '9':
-        matches_current_ += c - '0';
-        if (matches_current_ >= options_.dictionary->lines_size()) {
-          matches_current_ = options_.matches_start;
+        line_current_ += LineNumberDelta(c - '0');
+        if (line_current_ > options_.dictionary->EndLine()) {
+          line_current_ = options_.line_start;
         }
         break;
 
@@ -245,7 +247,7 @@ class AutocompleteMode : public EditorMode {
 
   Options options_;
   // The position of the line with the current match.
-  size_t matches_current_;
+  LineNumber line_current_;
 
   // The number of characters that need to be erased (starting at
   // options_.column_start) for the next insertion. Initially, this is computed
@@ -273,12 +275,12 @@ void FindCompletion(EditorState* editor_state,
     return;
   }
 
-  if (dictionary->contents()->size() <= 1) {
-    static std::vector<wstring> errors({
-        L"No completions are available.",
-        L"The autocomplete dictionary is empty.",
-        L"Maybe set the `dictionary` variable?",
-    });
+  if (dictionary->contents()->size() <= LineNumberDelta(1)) {
+    static std::vector<wstring> errors(
+        {L"No completions are available.",
+         L"The autocomplete dictionary is empty.",
+         L"Maybe set the `dictionary` variable?",
+         L"Sorry, I can't autocomplete with an empty dictionary."});
     editor_state->SetStatus(errors[rand() % errors.size()]);
     return;
   }
@@ -307,14 +309,14 @@ void FindCompletion(EditorState* editor_state,
 
   LOG(INFO) << "Find completion for \"" << options.prefix->ToString()
             << "\" among options: " << dictionary->contents()->size();
-  options.matches_start = dictionary->contents()->upper_bound(
+  options.line_start = dictionary->contents()->upper_bound(
       options.prefix,
       [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
         return a->ToString() < b->ToString();
       });
 
-  if (options.matches_start == dictionary->lines_size()) {
-    options.matches_start = 0;
+  if (options.line_start == LineNumber(0) + dictionary->lines_size()) {
+    options.line_start = LineNumber(0);
   }
 
   auto autocomplete_mode =

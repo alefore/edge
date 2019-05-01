@@ -21,9 +21,9 @@ namespace afc {
 namespace editor {
 namespace {
 ColumnNumber GetCurrentColumn(OpenBuffer* buffer) {
-  if (buffer->lines_size() == 0) {
+  if (buffer->lines_size() == LineNumberDelta(0)) {
     return ColumnNumber(0);
-  } else if (buffer->position().line >= buffer->lines_size()) {
+  } else if (buffer->position().line > buffer->EndLine()) {
     return buffer->contents()->back()->EndColumn();
   } else if (!buffer->IsLineFiltered(buffer->position().line)) {
     return ColumnNumber(0);
@@ -115,21 +115,22 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
   return std::make_unique<VerticalSplitOutputProducer>(std::move(columns), 1);
 }
 
-void BufferWidget::SetSize(size_t lines, ColumnNumberDelta columns) {
+void BufferWidget::SetSize(LineNumberDelta lines, ColumnNumberDelta columns) {
   lines_ = lines;
   columns_ = columns;
   RecomputeData();
 }
 
-size_t BufferWidget::lines() const { return lines_; }
+LineNumberDelta BufferWidget::lines() const { return lines_; }
 ColumnNumberDelta BufferWidget::columns() const { return columns_; }
 
-size_t BufferWidget::MinimumLines() {
+LineNumberDelta BufferWidget::MinimumLines() {
   auto buffer = Lock();
   return buffer == nullptr
-             ? 0
-             : max(0,
-                   buffer->Read(buffer_variables::buffer_list_context_lines));
+             ? LineNumberDelta(0)
+             : max(LineNumberDelta(0),
+                   LineNumberDelta(buffer->Read(
+                       buffer_variables::buffer_list_context_lines)));
 }
 
 void BufferWidget::RemoveBuffer(OpenBuffer* buffer) {
@@ -181,24 +182,28 @@ void BufferWidget::RecomputeData() {
             ColumnNumberDelta(buffer->Read(buffer_variables::line_width)));
   }
 
-  size_t line = min(buffer->position().line, buffer->contents()->size() - 1);
-  size_t margin_lines =
+  LineNumber line = min(buffer->position().line, buffer->EndLine());
+  LineNumberDelta margin_lines =
       buffer->Read(buffer_variables::pts)
-          ? 0
-          : min(lines_ / 2 - 1,
-                max(static_cast<size_t>(ceil(
+          ? LineNumberDelta(0)
+          : min(max(lines_ / 2 - LineNumberDelta(1), LineNumberDelta(0)),
+                max(LineNumberDelta(ceil(
                         buffer->Read(buffer_variables::margin_lines_ratio) *
-                        lines_)),
-                    static_cast<size_t>(
-                        max(buffer->Read(buffer_variables::margin_lines), 0))));
+                        lines_.line_delta)),
+                    max(LineNumberDelta(
+                            buffer->Read(buffer_variables::margin_lines)),
+                        LineNumberDelta(0))));
+  CHECK_GE(margin_lines, LineNumberDelta(0));
 
-  if (view_start_.line > line - min(margin_lines, line) &&
+  if (view_start_.line > line - min(margin_lines, line.ToDelta()) &&
       (buffer->child_pid() != -1 || buffer->fd() == nullptr)) {
-    view_start_.line = line - min(margin_lines, line);
+    view_start_.line = line - min(margin_lines, line.ToDelta());
   } else if (view_start_.line + lines_ <=
-             min(buffer->lines_size(), line + margin_lines)) {
+             min(LineNumber(0) + buffer->lines_size(), line + margin_lines)) {
     view_start_.line =
-        min(buffer->lines_size() - 1, line + margin_lines) - lines_ + 1;
+        min(LineNumber(0) + buffer->lines_size() - LineNumberDelta(1),
+            line + margin_lines) -
+        lines_ + LineNumberDelta(1);
   }
 
   view_start_.column = GetDesiredViewStartColumn(buffer.get());
@@ -206,7 +211,7 @@ void BufferWidget::RecomputeData() {
   line_scroll_control_options_.initial_column = view_start_.column;
 
   auto simplified_parse_tree = buffer->simplified_parse_tree();
-  if (lines_ > 0 && simplified_parse_tree != nullptr &&
+  if (lines_ > LineNumberDelta(0) && simplified_parse_tree != nullptr &&
       simplified_parse_tree != simplified_parse_tree_) {
     zoomed_out_tree_ = std::make_shared<ParseTree>(ZoomOutTree(
         *buffer->simplified_parse_tree(), buffer->lines_size(), lines_));

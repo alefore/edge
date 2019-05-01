@@ -25,7 +25,7 @@ class LineScrollControl
     std::shared_ptr<OpenBuffer> buffer;
 
     // Total number of lines in the output.
-    size_t lines_shown;
+    LineNumberDelta lines_shown;
 
     // Total number of columns in the output for buffer contents.
     ColumnNumberDelta columns_shown;

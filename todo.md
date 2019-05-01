@@ -18,6 +18,8 @@ When an inactive cursor is exactly at the line_width, it's currently not shown.
 * Make `j` and `k` scroll within the line.
 * Adjust handing of margins to take into account lines that wrap.
 
+Display the state of bool variables set different than their default values?
+
 ### Syntax
 
 Correctly handle: '\000'
@@ -36,8 +38,6 @@ For 'd': Add '?' (show modifiers available).
 
 Add "pipe" command: select the region (similar to delete: line, paragraph, buffer...), and then prompt for a command. Pipe the contents of the region to the command, and replace them with the output of the command.
 
-Add an AutoComplete mode that autocompletes based on the path.
-
 * Improve reflow:
 
   * Somehow integrate reflow (logic from `wrap_from_content`) with `reflow` script?
@@ -47,6 +47,12 @@ Add an AutoComplete mode that autocompletes based on the path.
   * In a C++ file, handle multi-line strings better.
       printf("foo bar hey "
              "quux.");
+
+### Autocomplete
+
+Add an AutoComplete mode that autocompletes based on the path.
+
+In C++ mode, fix it to recognize full identifiers (rather than CamelCase).
 
 ## Navigation
 

@@ -60,7 +60,7 @@ CursorsSet::const_iterator CursorsSet::find(LineColumn line) const {
   return const_cast<CursorsSet*>(this)->find(line);
 }
 
-bool CursorsSet::cursors_in_line(size_t line) const {
+bool CursorsSet::cursors_in_line(LineNumber line) const {
   auto it = lower_bound(LineColumn(line));
   return it != end() && it->line == line;
 }
@@ -132,8 +132,9 @@ size_t TransformValue(size_t input, int delta, size_t clamp, bool is_end) {
 LineColumn TransformLineColumn(
     const CursorsTracker::Transformation& transformation, LineColumn position,
     bool is_end) {
-  position.line = TransformValue(position.line, transformation.line_delta,
-                                 transformation.line_lower_bound, is_end);
+  position.line = LineNumber(
+      TransformValue(position.line.line, transformation.line_delta.line_delta,
+                     transformation.line_lower_bound.line, is_end));
   position.column = ColumnNumber(TransformValue(
       position.column.column, transformation.column_delta.column_delta,
       transformation.column_lower_bound.column, is_end));
@@ -158,7 +159,7 @@ CursorsTracker::ExtendedTransformation::ExtendedTransformation(
     CursorsTracker::Transformation transformation,
     ExtendedTransformation* previous)
     : transformation(std::move(transformation)) {
-  if (transformation.line_delta > 0) {
+  if (transformation.line_delta > LineNumberDelta(0)) {
     empty.begin = transformation.range.begin;
     empty.end = min(
         transformation.range.end,
@@ -217,8 +218,10 @@ void AdjustCursorsSet(const CursorsTracker::Transformation& transformation,
 }
 
 bool IsNoop(const CursorsTracker::Transformation& t) {
-  return t.line_delta == 0 && t.column_delta == ColumnNumberDelta(0) &&
-         t.line_lower_bound == 0 && t.column_lower_bound == ColumnNumber(0);
+  return t.line_delta == LineNumberDelta(0) &&
+         t.column_delta == ColumnNumberDelta(0) &&
+         t.line_lower_bound == LineNumber(0) &&
+         t.column_lower_bound == ColumnNumber(0);
 }
 
 void CursorsTracker::AdjustCursors(Transformation transformation) {
@@ -226,12 +229,12 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
   auto transformations = scheduled_transformations();
 
   // Remove unnecessary line_lower_bound.
-  if (transformation.line_delta == -1 &&
+  if (transformation.line_delta == LineNumberDelta(-1) &&
       transformation.column_delta == ColumnNumberDelta(0) &&
       transformation.line_lower_bound == transformation.range.begin.line) {
     VLOG(4) << "Remove unnecessary line_lower_bound: " << transformation;
-    transformation.line_lower_bound = 0;
-    transformation.range.begin.line++;
+    transformation.line_lower_bound = LineNumber(0);
+    ++transformation.range.begin.line;
   }
 
   if (IsNoop(transformation)) {
@@ -262,8 +265,9 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
       last.transformation.range.begin.column == ColumnNumber(0) &&
       last.transformation.range.end.column ==
           std::numeric_limits<ColumnNumber>::max() &&
-      last.transformation.line_delta + transformation.line_delta == 0 &&
-      last.transformation.line_lower_bound == 0 &&
+      last.transformation.line_delta + transformation.line_delta ==
+          LineNumberDelta(0) &&
+      last.transformation.line_lower_bound == LineNumber(0) &&
       last.transformation.column_lower_bound == ColumnNumber(0) &&
       last.transformation.column_delta == ColumnNumberDelta(0) &&
       transformation.column_delta == ColumnNumberDelta(0)) {
@@ -272,10 +276,9 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
 
     last.transformation.range.end.line = min(last.transformation.range.end.line,
                                              transformation.line_lower_bound);
-    last.transformation.line_delta =
-        min(last.transformation.line_delta,
-            static_cast<int>(transformation.line_lower_bound -
-                             last.transformation.range.begin.line));
+    last.transformation.line_delta = min(
+        last.transformation.line_delta,
+        transformation.line_lower_bound - last.transformation.range.begin.line);
     transformation = last.transformation;
     transformations->pop_back();
     AdjustCursors(transformation);
@@ -284,17 +287,18 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
 
   if (last.owned == transformation.range &&
       last.transformation.range.Contains(OutputOf(transformation)) &&
-      last.transformation.line_delta + transformation.line_delta == 0 &&
-      last.transformation.line_delta > 0 &&
+      last.transformation.line_delta + transformation.line_delta ==
+          LineNumberDelta(0) &&
+      last.transformation.line_delta > LineNumberDelta(0) &&
       last.transformation.column_delta < ColumnNumberDelta(0) &&
       transformation.column_delta >= -last.transformation.column_delta &&
-      last.transformation.line_lower_bound == 0 &&
+      last.transformation.line_lower_bound == LineNumber(0) &&
       last.transformation.column_lower_bound == ColumnNumber(0) &&
-      transformation.line_lower_bound == 0 &&
+      transformation.line_lower_bound == LineNumber(0) &&
       transformation.column_lower_bound == ColumnNumber(0)) {
     VLOG(4) << "Collapsing transformations: " << last.transformation << " and "
             << transformation;
-    last.transformation.line_delta = 0;
+    last.transformation.line_delta = LineNumberDelta(0);
     last.transformation.column_delta += transformation.column_delta;
     transformation = last.transformation;
     transformations->pop_back();
@@ -315,7 +319,7 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
       transformation.range.end < LineColumn::Max() &&
       transformation.range.begin.column == ColumnNumber(0) &&
       last.transformation.range.end == LineColumn::Max() &&
-      last.transformation.line_delta > 0 &&
+      last.transformation.line_delta > LineNumberDelta(0) &&
       transformation.line_delta == -last.transformation.line_delta) {
     VLOG(4) << "Collapsing transformations: " << last.transformation << " and "
             << transformation;
@@ -324,7 +328,7 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
         transformation.range.end.line + transformation.line_delta;
     transformation.range.begin = last.transformation.range.begin;
     transformation.range.end.line += transformation.line_delta;
-    transformation.line_delta = 0;
+    transformation.line_delta = LineNumberDelta(0);
     transformations->pop_back();
     AdjustCursors(transformation);
     AdjustCursors(previous);
@@ -337,10 +341,10 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
       transformation.column_delta == ColumnNumberDelta(0) &&
       transformation.column_lower_bound == ColumnNumber(0) &&
       transformation.range.begin.column == ColumnNumber(0)) {
-    if (last.transformation.line_delta > 0 &&
+    if (last.transformation.line_delta > LineNumberDelta(0) &&
         last.transformation.range.begin.line + last.transformation.line_delta ==
             transformation.range.begin.line &&
-        transformation.line_delta < 0 &&
+        transformation.line_delta < LineNumberDelta(0) &&
         last.transformation.line_delta >= -transformation.line_delta &&
         last.transformation.range.end == LineColumn::Max() &&
         transformation.range.end == LineColumn::Max()) {
@@ -354,7 +358,7 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
     }
     if (transformation.range.end == last.transformation.range.begin &&
         transformation.line_delta == last.transformation.line_delta &&
-        transformation.line_delta > 0) {
+        transformation.line_delta > LineNumberDelta(0)) {
       VLOG(4) << "Collapsing transformations: " << last.transformation
               << " and " << transformation;
       last.transformation.range.begin = transformation.range.begin;
@@ -369,7 +373,8 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
 
   if (transformation.range.end == last.transformation.range.begin &&
       transformation.range.end.column == ColumnNumber(0) &&
-      transformation.line_delta == 0 && last.transformation.line_delta >= 0) {
+      transformation.line_delta == LineNumberDelta(0) &&
+      last.transformation.line_delta >= LineNumberDelta(0)) {
     VLOG(4) << "Collapsing transformations: " << last.transformation << " and "
             << transformation;
     // Swap the order.
@@ -465,7 +470,7 @@ CursorsTracker::scheduled_transformations() {
 }
 
 void CursorsTracker::ApplyTransformation(const Transformation& transformation) {
-  if (transformation.line_delta == 0 &&
+  if (transformation.line_delta == LineNumberDelta(0) &&
       transformation.column_delta == ColumnNumberDelta(0)) {
     return;
   }

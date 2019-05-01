@@ -38,7 +38,7 @@ struct LineMarks {
     bool IsExpired() const { return source_line_content != nullptr; }
 
     // What line in the source did this mark occur in?
-    size_t source_line = 0;
+    LineNumber source_line;
 
     // What buffer does this mark identify?
     std::wstring target_buffer;

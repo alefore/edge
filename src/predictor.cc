@@ -45,24 +45,25 @@ void HandleEndOfFile(OpenBuffer* buffer,
   LOG(INFO) << "Predictions buffer received end of file. Predictions: "
             << buffer->contents()->size();
   buffer->SortContents(
-      0, buffer->contents()->size() - 1,
+      LineNumber(0), buffer->EndLine(),
       [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
         return *LowerCase(a->contents()) < *LowerCase(b->contents());
       });
 
   LOG(INFO) << "Removing duplicates.";
-  for (size_t line = 0; line < buffer->contents()->size();) {
-    if (line == 0 || buffer->LineAt(line - 1)->ToString() !=
-                         buffer->LineAt(line)->ToString()) {
+  for (auto line = LineNumber(0);
+       line.ToDelta() < buffer->contents()->size();) {
+    if (line == LineNumber(0) || buffer->LineAt(line.previous())->ToString() !=
+                                     buffer->LineAt(line)->ToString()) {
       line++;
     } else {
-      buffer->EraseLines(line, line + 1);
+      buffer->EraseLines(line, line.next());
     }
   }
 
   wstring common_prefix = buffer->contents()->front()->contents()->ToString();
-  bool results =
-      buffer->contents()->EveryLine([&common_prefix](size_t, const Line& line) {
+  bool results = buffer->contents()->EveryLine(
+      [&common_prefix](LineNumber, const Line& line) {
         if (line.empty()) {
           return true;
         }
@@ -98,7 +99,7 @@ void HandleEndOfFile(OpenBuffer* buffer,
     } else {
       CHECK_EQ(buffer, it->second.get());
       editor_state->set_current_buffer(it->second);
-      buffer->set_current_position_line(0);
+      buffer->set_current_position_line(LineNumber(0));
       editor_state->ScheduleRedraw();
     }
   }

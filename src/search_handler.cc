@@ -59,7 +59,7 @@ vector<LineColumn> PerformSearch(const SearchOptions& options,
   }
 
   buffer->contents()->EveryLine(
-      [&positions, &pattern](size_t position, const Line& line) {
+      [&positions, &pattern](LineNumber position, const Line& line) {
         for (const auto& column : GetMatches(line.ToString(), pattern)) {
           positions.push_back(LineColumn(position, column));
         }

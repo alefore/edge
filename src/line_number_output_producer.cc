@@ -20,8 +20,9 @@ namespace afc {
 namespace editor {
 
 /* static */ ColumnNumberDelta LineNumberOutputProducer::PrefixWidth(
-    size_t lines_size) {
-  return ColumnNumberDelta(1 + std::to_wstring(lines_size).size());
+    LineNumberDelta lines_size) {
+  return ColumnNumberDelta(1 +
+                           (LineNumber() + lines_size).ToUserString().size());
 }
 
 LineNumberOutputProducer::LineNumberOutputProducer(
@@ -33,14 +34,14 @@ LineNumberOutputProducer::LineNumberOutputProducer(
 
 void LineNumberOutputProducer::WriteLine(Options options) {
   auto range = line_scroll_control_reader_->GetRange();
-  if (range.has_value() && range.value().begin.line >= buffer_->lines_size()) {
+  if (range.has_value() && range.value().begin.line > buffer_->EndLine()) {
     return;  // Happens when the buffer is smaller than the screen.
   }
 
   std::wstring number =
       range.has_value() && (!last_line_.has_value() ||
                             range.value().begin.line > last_line_.value())
-          ? std::to_wstring(range.value().begin.line + 1)
+          ? range.value().begin.line.ToUserString()
           : L"↪";
   if (range.has_value()) {
     last_line_ = range.value().begin.line;

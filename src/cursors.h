@@ -48,7 +48,7 @@ class CursorsSet {
   const_iterator find(LineColumn line) const;
 
   // Are there any cursors in a given line?
-  bool cursors_in_line(size_t line) const;
+  bool cursors_in_line(LineNumber line) const;
 
   void erase(iterator it);
   void erase(LineColumn position);
@@ -95,18 +95,18 @@ class CursorsTracker {
       return *this;
     }
 
-    Transformation& WithLineEq(size_t line) {
+    Transformation& WithLineEq(LineNumber line) {
       range.begin = LineColumn(line);
-      range.end = LineColumn(line + 1);
+      range.end = LineColumn(line + LineNumberDelta(1));
       return *this;
     }
 
-    CursorsTracker::Transformation LineDelta(size_t delta) {
+    CursorsTracker::Transformation LineDelta(LineNumberDelta delta) {
       line_delta = delta;
       return *this;
     }
 
-    CursorsTracker::Transformation LineLowerBound(size_t line) {
+    CursorsTracker::Transformation LineLowerBound(LineNumber line) {
       line_lower_bound = line;
       return *this;
     }
@@ -128,11 +128,11 @@ class CursorsTracker {
 
     // Number of lines to add to a given cursor. For example, a cursor
     // LineColumn(25, 2) will move to LineColumn(20, 2) if lines_delta is -5.
-    int line_delta = 0;
+    LineNumberDelta line_delta;
 
     // If lines_delta would leave the output line at a value smaller than this
     // one, goes with this one.
-    size_t line_lower_bound = 0;
+    LineNumber line_lower_bound;
 
     // Number of columns to add to a given cursor.
     ColumnNumberDelta column_delta;

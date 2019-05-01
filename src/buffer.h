@@ -140,12 +140,13 @@ class OpenBuffer {
   void AppendEmptyLine();
 
   // Sort all lines in range [first, last) according to a compare function.
-  void SortContents(size_t first, size_t last,
+  void SortContents(LineNumber first, LineNumber last,
                     std::function<bool(const shared_ptr<const Line>&,
                                        const shared_ptr<const Line>&)>
                         compare);
 
-  size_t lines_size() const { return contents_.size(); }
+  LineNumberDelta lines_size() const;
+  LineNumber EndLine() const;
 
   EditorMode* mode() const { return mode_.get(); }
   std::shared_ptr<EditorMode> ResetMode() {
@@ -156,10 +157,10 @@ class OpenBuffer {
   void set_mode(std::shared_ptr<EditorMode> mode) { mode_ = std::move(mode); }
 
   // Erases all lines in range [first, last).
-  void EraseLines(size_t first, size_t last);
+  void EraseLines(LineNumber first, LineNumber last);
 
   // Inserts a new line into the buffer at a given position.
-  void InsertLine(size_t line_position, shared_ptr<Line> line);
+  void InsertLine(LineNumber line_position, shared_ptr<Line> line);
 
   // Can handle \n characters, breaking it into lines.
   void AppendLazyString(std::shared_ptr<LazyString> input);
@@ -262,7 +263,7 @@ class OpenBuffer {
   void Undo(UndoMode undo_mode);
 
   void set_filter(unique_ptr<Value> filter);
-  bool IsLineFiltered(size_t line);
+  bool IsLineFiltered(LineNumber line);
 
   // Returns a multimap with all the marks for the current buffer, indexed by
   // the line they refer to. Each call may update the map.
@@ -294,12 +295,7 @@ class OpenBuffer {
   // May return nullptr if the current_cursor is at the end of file.
   const shared_ptr<const Line> current_line() const;
 
-  shared_ptr<const Line> LineAt(size_t line_number) const {
-    if (line_number >= contents_.size()) {
-      return nullptr;
-    }
-    return contents_.at(line_number);
-  }
+  shared_ptr<const Line> LineAt(LineNumber line_number) const;
 
   // We deliberately provide only a read view into our contents. All
   // modifications should be done through methods defined in this class.
@@ -322,7 +318,7 @@ class OpenBuffer {
 
   void PushSignal(int signal);
 
-  void SetTerminalSize(size_t lines, ColumnNumberDelta columns);
+  void SetTerminalSize(LineNumberDelta lines, ColumnNumberDelta columns);
 
   /////////////////////////////////////////////////////////////////////////////
   // Cursors
@@ -333,8 +329,8 @@ class OpenBuffer {
   // Returns the position of just after the last character of the current file.
   LineColumn end_position() const;
 
-  void set_current_position_line(size_t line);
-  size_t current_position_line() const;
+  void set_current_position_line(LineNumber line);
+  LineNumber current_position_line() const;
   ColumnNumber current_position_col() const;
   void set_current_position_col(ColumnNumber column);
 
@@ -379,7 +375,7 @@ class OpenBuffer {
   const ParseTree* current_tree(const ParseTree* root) const;
 
  private:
-  static void EvaluateMap(OpenBuffer* buffer, size_t line,
+  static void EvaluateMap(OpenBuffer* buffer, LineNumber line,
                           Value::Callback map_callback,
                           TransformationStack* transformation,
                           Trampoline* trampoline);

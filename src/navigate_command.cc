@@ -167,17 +167,17 @@ class NavigateModeLine : public NavigateMode {
   size_t InitialStart(OpenBuffer*) override { return 0; }
 
   size_t InitialEnd(OpenBuffer* buffer) override {
-    return buffer->contents()->size();
+    return buffer->contents()->size().line_delta;
   }
 
   void SetTarget(OpenBuffer* buffer, size_t target) override {
     LineColumn position = buffer->position();
-    position.line = target;
+    position.line = LineNumber(target);
     buffer->set_position(position);
   }
 
   size_t GetCurrent(OpenBuffer* buffer) override {
-    return buffer->position().line;
+    return buffer->position().line.line;
   }
 };
 

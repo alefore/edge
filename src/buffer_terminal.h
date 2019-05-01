@@ -24,7 +24,7 @@ class BufferTerminal {
   LineColumn position() const;
   void SetPosition(LineColumn position);
 
-  void SetSize(size_t lines, ColumnNumberDelta columns);
+  void SetSize(LineNumberDelta lines, ColumnNumberDelta columns);
 
   void ProcessCommandInput(shared_ptr<LazyString> str,
                            const std::function<void()>& new_line_callback);
@@ -41,7 +41,7 @@ class BufferTerminal {
   // TODO: Find a way to remove this? I.e. always use buffer_.
   BufferContents* const contents_;
 
-  size_t lines_ = 0;
+  LineNumberDelta lines_;
   ColumnNumberDelta columns_;
 
   LineColumn position_;

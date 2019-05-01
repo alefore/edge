@@ -55,6 +55,7 @@ class Line {
     std::unique_lock<std::mutex> lock(mutex_);
     return contents_;
   }
+  // TODO: Change to return a ColumnNumberDelta.
   size_t size() const {
     CHECK(contents() != nullptr);
     return contents()->size();

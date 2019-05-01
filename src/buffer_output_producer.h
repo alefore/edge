@@ -14,7 +14,7 @@ class BufferOutputProducer : public OutputProducer {
   BufferOutputProducer(
       std::shared_ptr<OpenBuffer> buffer,
       std::shared_ptr<LineScrollControl::Reader> line_scroll_control_reader,
-      size_t lines_shown, ColumnNumberDelta columns_shown,
+      LineNumberDelta lines_shown, ColumnNumberDelta columns_shown,
       ColumnNumber initial_column,
       std::shared_ptr<const ParseTree> zoomed_out_tree);
 
@@ -25,7 +25,7 @@ class BufferOutputProducer : public OutputProducer {
 
   const std::shared_ptr<OpenBuffer> buffer_;
   const std::shared_ptr<LineScrollControl::Reader> line_scroll_control_reader_;
-  const size_t lines_shown_;
+  const LineNumberDelta lines_shown_;
   const ColumnNumberDelta columns_shown_;
   const ColumnNumber initial_column_;
 

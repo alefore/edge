@@ -62,13 +62,13 @@ void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
                  OpenBuffer* target) {
   for (size_t i = 0; i < tree.children.size(); i++) {
     auto& child = tree.children[i];
-    if (child.range.begin.line + 1 == child.range.end.line || depth_left == 0 ||
-        child.children.empty()) {
+    if (child.range.begin.line + LineNumberDelta(1) == child.range.end.line ||
+        depth_left == 0 || child.children.empty()) {
       Line::Options options;
       options.contents = padding;
       options.modifiers.resize(padding->size());
       AddContents(*source, *source->LineAt(child.range.begin.line), &options);
-      if (child.range.begin.line + 1 < child.range.end.line) {
+      if (child.range.begin.line + LineNumberDelta(1) < child.range.end.line) {
         options.contents =
             StringAppend(options.contents, NewLazyString(L" ... "));
       } else {

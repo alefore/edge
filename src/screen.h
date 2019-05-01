@@ -49,13 +49,13 @@ class Screen {
   }
 
   virtual void SetCursorVisibility(CursorVisibility cursor_visibility) = 0;
-  virtual void Move(size_t y, ColumnNumber x) = 0;
+  virtual void Move(LineNumber y, ColumnNumber x) = 0;
   virtual void WriteString(const wstring& str) = 0;
 
   virtual void SetModifier(LineModifier modifier) = 0;
 
+  virtual LineNumberDelta lines() const = 0;
   virtual ColumnNumberDelta columns() const = 0;
-  virtual size_t lines() const = 0;
 };
 
 }  // namespace editor

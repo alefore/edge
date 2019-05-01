@@ -118,12 +118,12 @@ void ShowFiles(EditorState* editor_state, wstring name,
     return;
   }
   target->AppendLine(NewLazyString(L"## " + name));
-  int start = target->contents()->size();
+  auto start = target->contents()->size();
   for (auto& entry : entries) {
     AddLine(editor_state, target, entry);
   }
   target->SortContents(
-      start, target->contents()->size(),
+      LineNumber(0) + start, LineNumber(0) + target->contents()->size(),
       [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
         return *a->contents() < *b->contents();
       });
@@ -354,7 +354,7 @@ bool FindPath(EditorState* editor_state, vector<wstring> search_paths,
             *position = LineColumn();
           }
           if (i == 0) {
-            position->value().line = value;
+            position->value().line = LineNumber(value);
           } else {
             position->value().column = ColumnNumber(value);
           }
@@ -386,9 +386,10 @@ using std::unique_ptr;
 bool SaveContentsToOpenFile(EditorState* editor_state, const wstring& path,
                             int fd, const BufferContents& contents) {
   // TODO: It'd be significant more efficient to do fewer (bigger) writes.
-  return contents.EveryLine([editor_state, fd, path](size_t position,
+  return contents.EveryLine([editor_state, fd, path](LineNumber position,
                                                      const Line& line) {
-    string str = (position == 0 ? "" : "\n") + ToByteString(line.ToString());
+    string str =
+        (position == LineNumber(0) ? "" : "\n") + ToByteString(line.ToString());
     if (write(fd, str.c_str(), str.size()) == -1) {
       editor_state->SetStatus(path + L": write failed: " + std::to_wstring(fd) +
                               L": " + FromByteString(strerror(errno)));

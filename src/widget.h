@@ -27,10 +27,11 @@ class Widget {
 
   virtual std::unique_ptr<OutputProducer> CreateOutputProducer() = 0;
 
-  virtual void SetSize(size_t lines, ColumnNumberDelta columns) = 0;
-  virtual size_t lines() const = 0;
+  // TODO: Use LineColumnDelta?
+  virtual void SetSize(LineNumberDelta lines, ColumnNumberDelta columns) = 0;
+  virtual LineNumberDelta lines() const = 0;
   virtual ColumnNumberDelta columns() const = 0;
-  virtual size_t MinimumLines() = 0;
+  virtual LineNumberDelta MinimumLines() = 0;
   virtual void RemoveBuffer(OpenBuffer* buffer) = 0;
 
   virtual size_t CountLeaves() const = 0;

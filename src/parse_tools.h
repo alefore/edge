@@ -19,7 +19,7 @@ struct Action {
 
   static Action SetFirstChildModifiers(LineModifierSet modifiers);
 
-  void Execute(std::vector<ParseTree*>* trees, size_t line);
+  void Execute(std::vector<ParseTree*>* trees, LineNumber line);
 
   enum ActionType {
     PUSH,

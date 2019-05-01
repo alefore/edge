@@ -19,8 +19,8 @@ class BufferTree : public SelectingWidget {
   BufferWidget* GetActiveLeaf() override;
   const BufferWidget* GetActiveLeaf() const;
 
-  void SetSize(size_t lines, ColumnNumberDelta columns) override;
-  size_t lines() const override;
+  void SetSize(LineNumberDelta lines, ColumnNumberDelta columns) override;
+  LineNumberDelta lines() const override;
   ColumnNumberDelta columns() const override;
   void RemoveBuffer(OpenBuffer* buffer) override;
 
@@ -56,7 +56,7 @@ class BufferTree : public SelectingWidget {
   std::vector<std::unique_ptr<Widget>> children_;
   size_t active_;
 
-  size_t lines_;
+  LineNumberDelta lines_;
   ColumnNumberDelta columns_;
 };
 
@@ -72,11 +72,11 @@ class BufferTreeHorizontal : public BufferTree {
 
   std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 
-  void SetSize(size_t lines, ColumnNumberDelta columns) override;
-  size_t MinimumLines() override;
+  void SetSize(LineNumberDelta lines, ColumnNumberDelta columns) override;
+  LineNumberDelta MinimumLines() override;
 
  private:
-  std::vector<size_t> lines_per_child_;
+  std::vector<LineNumberDelta> lines_per_child_;
 };
 
 class BufferTreeVertical : public BufferTree {
@@ -91,8 +91,8 @@ class BufferTreeVertical : public BufferTree {
 
   std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 
-  void SetSize(size_t lines, ColumnNumberDelta columns) override;
-  size_t MinimumLines() override;
+  void SetSize(LineNumberDelta lines, ColumnNumberDelta columns) override;
+  LineNumberDelta MinimumLines() override;
 
  private:
   std::vector<ColumnNumberDelta> columns_per_child_;

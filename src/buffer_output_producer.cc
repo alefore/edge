@@ -170,7 +170,7 @@ class ParseTreeHighlighterTokens
   // that information when we reset our own.
   const ParseTree* root_;
   const ColumnNumber largest_column_with_tree_;
-  const size_t line_;
+  const LineNumber line_;
   ColumnNumber column_read_;
   std::vector<const ParseTree*> current_;
 };
@@ -178,7 +178,7 @@ class ParseTreeHighlighterTokens
 BufferOutputProducer::BufferOutputProducer(
     std::shared_ptr<OpenBuffer> buffer,
     std::shared_ptr<LineScrollControl::Reader> line_scroll_control_reader,
-    size_t lines_shown, ColumnNumberDelta columns_shown,
+    LineNumberDelta lines_shown, ColumnNumberDelta columns_shown,
     ColumnNumber initial_column,
     std::shared_ptr<const ParseTree> zoomed_out_tree)
     : buffer_(std::move(buffer)),
@@ -202,13 +202,13 @@ void BufferOutputProducer::WriteLine(Options options) {
   }
 
   auto range = optional_range.value();
-  size_t line = range.begin.line;
+  auto line = range.begin.line;
 
   if (options.active_cursor != nullptr) {
     *options.active_cursor = std::nullopt;
   }
 
-  if (line >= buffer_->lines_size()) {
+  if (line > buffer_->EndLine()) {
     line_scroll_control_reader_->RangeDone();
     return;
   }

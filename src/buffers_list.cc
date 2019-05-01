@@ -272,7 +272,8 @@ const BufferWidget* BuffersList::GetActiveLeaf() const {
 std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer() {
   CHECK(widget_ != nullptr);
   auto output = widget_->CreateOutputProducer();
-  if (warning_status_lines_ == 0 && buffers_list_lines_ == 0) {
+  if (warning_status_lines_ == LineNumberDelta(0) &&
+      buffers_list_lines_ == LineNumberDelta(0)) {
     return output;
   }
 
@@ -280,13 +281,13 @@ std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer() {
   rows.push_back({std::move(output),
                   lines_ - buffers_list_lines_ - warning_status_lines_});
 
-  if (warning_status_lines_ > 0) {
+  if (warning_status_lines_ > LineNumberDelta(0)) {
     CHECK(warning_status_.has_value());
     rows.push_back({std::make_unique<WarningProducer>(warning_status_.value()),
                     warning_status_lines_});
   }
 
-  if (buffers_list_lines_ > 0) {
+  if (buffers_list_lines_ > LineNumberDelta(0)) {
     rows.push_back(
         {std::make_unique<BuffersListProducer>(
              &buffers_, widget_->GetActiveLeaf()->Lock(), buffers_per_line_),
@@ -296,7 +297,7 @@ std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer() {
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows), 0);
 }
 
-void BuffersList::SetSize(size_t lines, ColumnNumberDelta columns) {
+void BuffersList::SetSize(LineNumberDelta lines, ColumnNumberDelta columns) {
   lines_ = lines;
   columns_ = columns;
 
@@ -305,25 +306,25 @@ void BuffersList::SetSize(size_t lines, ColumnNumberDelta columns) {
   warning_status_ = warning_status_callback_();
   if (warning_status_.has_value()) {
     LOG(INFO) << "Warning status has value: " << warning_status_.value();
-    warning_status_lines_ = 1;
+    warning_status_lines_ = LineNumberDelta(1);
   } else {
-    warning_status_lines_ = 0;
+    warning_status_lines_ = LineNumberDelta(0);
   }
 
-  buffers_list_lines_ =
+  buffers_list_lines_ = LineNumberDelta(
       ceil(static_cast<double>(
                (buffers_.size() * kMinimumColumnsPerBuffer).column_delta) /
-           columns_.column_delta);
-  buffers_per_line_ =
-      ceil(static_cast<double>(buffers_.size()) / buffers_list_lines_);
+           columns_.column_delta));
+  buffers_per_line_ = ceil(static_cast<double>(buffers_.size()) /
+                           buffers_list_lines_.line_delta);
 
   widget_->SetSize(lines_ - buffers_list_lines_ - warning_status_lines_,
                    columns_);
 }
 
-size_t BuffersList::lines() const { return lines_; }
+LineNumberDelta BuffersList::lines() const { return lines_; }
 ColumnNumberDelta BuffersList::columns() const { return columns_; }
-size_t BuffersList::MinimumLines() { return 0; }
+LineNumberDelta BuffersList::MinimumLines() { return LineNumberDelta(0); }
 
 Widget* BuffersList::Child() { return widget_.get(); }
 

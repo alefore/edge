@@ -13,19 +13,19 @@ class BufferMetadataOutputProducer : public OutputProducer {
   BufferMetadataOutputProducer(
       std::shared_ptr<OpenBuffer> buffer,
       std::unique_ptr<LineScrollControl::Reader> line_scroll_control_reader,
-      size_t lines_shown, size_t initial_line,
+      LineNumberDelta lines_shown, LineNumber initial_line,
       std::shared_ptr<const ParseTree> zoomed_out_tree);
 
   void WriteLine(Options options) override;
 
  private:
   void Prepare(Range range);
-  wstring GetDefaultInformation(size_t line);
+  wstring GetDefaultInformation(LineNumber line);
 
   const std::shared_ptr<OpenBuffer> buffer_;
   const std::unique_ptr<LineScrollControl::Reader> line_scroll_control_reader_;
-  const size_t lines_shown_;
-  const size_t initial_line_;
+  const LineNumberDelta lines_shown_;
+  const LineNumber initial_line_;
 
   // Key is line number.
   const std::shared_ptr<const ParseTree> root_;

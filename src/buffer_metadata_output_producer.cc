@@ -22,29 +22,33 @@
 namespace afc {
 namespace editor {
 namespace {
-wchar_t ComputeScrollBarCharacter(size_t line, size_t lines_size,
-                                  size_t view_start, size_t lines_shown_) {
+// TODO: Make a private method of BufferMetadataOutputReceiver?
+wchar_t ComputeScrollBarCharacter(LineNumber line, LineNumberDelta lines_size,
+                                  LineNumber view_start,
+                                  LineNumberDelta lines_shown_) {
   // Each line is split into two units (upper and bottom halves). All units in
   // this function are halves (of a line).
   DCHECK_GE(line, view_start);
   DCHECK_LT(line - view_start, lines_shown_)
       << "Line is " << line << " and view_start is " << view_start
       << ", which exceeds lines_shown_ of " << lines_shown_;
-  DCHECK_LT(view_start, lines_size);
-  size_t halves_to_show = lines_shown_ * 2;
+  DCHECK_LT(view_start, LineNumber(0) + lines_size);
+  size_t halves_to_show = lines_shown_.line_delta * 2;
 
   // Number of halves the bar should take.
   size_t bar_size =
       max(size_t(1),
-          size_t(std::round(halves_to_show * static_cast<double>(lines_shown_) /
-                            lines_size)));
+          size_t(std::round(halves_to_show *
+                            static_cast<double>(lines_shown_.line_delta) /
+                            lines_size.line_delta)));
 
   // Bar will be shown in lines in interval [bar, end] (units are halves).
   size_t start =
-      std::round(halves_to_show * static_cast<double>(view_start) / lines_size);
+      std::round(halves_to_show * static_cast<double>(view_start.line) /
+                 lines_size.line_delta);
   size_t end = start + bar_size;
 
-  size_t current = 2 * (line - view_start);
+  size_t current = 2 * (line - view_start).line_delta;
   if (current < start - (start % 2) || current >= end) {
     return L' ';
   } else if (start == current + 1) {
@@ -68,13 +72,14 @@ void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
                         : connect_final_char;
 }
 
-wstring DrawTree(size_t line, size_t lines_size, const ParseTree& root) {
+wstring DrawTree(LineNumber line, LineNumberDelta lines_size,
+                 const ParseTree& root) {
   // Route along the tree where each child ends after previous line.
   vector<const ParseTree*> route_begin;
-  if (line > 0) {
+  if (line > LineNumber(0)) {
     route_begin = MapRoute(
         root, FindRouteToPosition(
-                  root, LineColumn(line - 1,
+                  root, LineColumn(line - LineNumberDelta(1),
                                    std::numeric_limits<ColumnNumber>::max())));
     CHECK(!route_begin.empty() && *route_begin.begin() == &root);
     route_begin.erase(route_begin.begin());
@@ -82,7 +87,7 @@ wstring DrawTree(size_t line, size_t lines_size, const ParseTree& root) {
 
   // Route along the tree where each child ends after current line.
   vector<const ParseTree*> route_end;
-  if (line < lines_size - 1) {
+  if (line < LineNumber(0) + lines_size - LineNumberDelta(1)) {
     route_end = MapRoute(
         root,
         FindRouteToPosition(
@@ -136,7 +141,7 @@ wstring DrawTree(size_t line, size_t lines_size, const ParseTree& root) {
 BufferMetadataOutputProducer::BufferMetadataOutputProducer(
     std::shared_ptr<OpenBuffer> buffer,
     std::unique_ptr<LineScrollControl::Reader> line_scroll_control_reader,
-    size_t lines_shown, size_t initial_line,
+    LineNumberDelta lines_shown, LineNumber initial_line,
     std::shared_ptr<const ParseTree> zoomed_out_tree)
     : buffer_(std::move(buffer)),
       line_scroll_control_reader_(std::move(line_scroll_control_reader)),
@@ -160,7 +165,7 @@ void BufferMetadataOutputProducer::WriteLine(Options options) {
   }
   auto line = range.value().begin.line;
 
-  if (line >= buffer_->lines_size()) {
+  if (line >= LineNumber(0) + buffer_->lines_size()) {
     line_scroll_control_reader_->RangeDone();
     return;
   }
@@ -178,7 +183,7 @@ void BufferMetadataOutputProducer::WriteLine(Options options) {
     const auto& m = range_data_->marks.front();
     auto source = buffer_->editor()->buffers()->find(m.source);
     if (source != buffer_->editor()->buffers()->end() &&
-        source->second->contents()->size() > m.source_line) {
+        m.source_line < LineNumber(0) + source->second->contents()->size()) {
       AddString('!', LineModifier::RED,
                 source->second->contents()->at(m.source_line)->ToString(),
                 options.receiver.get());
@@ -218,7 +223,7 @@ void BufferMetadataOutputProducer::Prepare(Range range) {
           ? static_cast<OpenBuffer*>(target_buffer_value->user_value.get())
           : buffer_.get();
 
-  auto marks = buffer_->GetLineMarks()->equal_range(range.begin.line);
+  auto marks = buffer_->GetLineMarks()->equal_range(range.begin.line.line);
   while (marks.first != marks.second) {
     if (range.Contains(marks.first->second.target)) {
       (marks.first->second.IsExpired() ? range_data_->marks_expired
@@ -245,7 +250,7 @@ void BufferMetadataOutputProducer::Prepare(Range range) {
   }
 }
 
-wstring BufferMetadataOutputProducer::GetDefaultInformation(size_t line) {
+wstring BufferMetadataOutputProducer::GetDefaultInformation(LineNumber line) {
   wstring output;
   auto parse_tree = buffer_->simplified_parse_tree();
   if (parse_tree != nullptr) {
@@ -258,7 +263,8 @@ wstring BufferMetadataOutputProducer::GetDefaultInformation(size_t line) {
                                         initial_line_, lines_shown_);
   }
   if (zoomed_out_tree_ != nullptr && !zoomed_out_tree_->children.empty()) {
-    output += DrawTree(line - initial_line_, lines_shown_, *zoomed_out_tree_);
+    output += DrawTree(line - initial_line_.ToDelta(), lines_shown_,
+                       *zoomed_out_tree_);
   }
   return output;
 }

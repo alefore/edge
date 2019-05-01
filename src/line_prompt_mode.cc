@@ -90,10 +90,10 @@ shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
     // things that have been used more frequently and more recently.
     std::map<wstring, size_t> previous_lines;
     history_buffer->contents()->EveryLine(
-        [&](size_t position, const Line& line) {
+        [&](LineNumber position, const Line& line) {
           auto s = line.ToString();
           if (s.find(filter) != wstring::npos) {
-            previous_lines[line.ToString()] += position;
+            previous_lines[line.ToString()] += position.line;
           }
           return true;
         });
@@ -124,6 +124,8 @@ shared_ptr<OpenBuffer> GetPromptBuffer(EditorState* editor_state) {
     element.second->Set(buffer_variables::delete_into_paste_buffer, false);
   } else {
     element.second->ClearContents(BufferContents::CursorsBehavior::kAdjust);
+    CHECK_EQ(element.second->EndLine(), LineNumber(0));
+    CHECK(element.second->contents()->back()->empty());
   }
   return element.second;
 }
@@ -134,11 +136,11 @@ class HistoryScrollBehavior : public ScrollBehavior {
       : history_(std::move(history)), prompt_(std::move(prompt)) {}
 
   void Up(EditorState* editor_state, OpenBuffer* buffer) override {
-    ScrollHistory(editor_state, buffer, -1);
+    ScrollHistory(editor_state, buffer, LineNumberDelta(-1));
   }
 
   void Down(EditorState* editor_state, OpenBuffer* buffer) override {
-    ScrollHistory(editor_state, buffer, +1);
+    ScrollHistory(editor_state, buffer, LineNumberDelta(+1));
   }
 
   void Left(EditorState* editor_state, OpenBuffer* buffer) override {
@@ -163,18 +165,20 @@ class HistoryScrollBehavior : public ScrollBehavior {
 
  private:
   void ScrollHistory(EditorState* editor_state, OpenBuffer* buffer,
-                     int delta) const {
+                     LineNumberDelta delta) const {
     auto buffer_to_insert =
         std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
 
-    if (history_ != nullptr && history_->contents()->size() > 1) {
+    if (history_ != nullptr &&
+        history_->contents()->size() > LineNumberDelta(1)) {
       auto previous_buffer = editor_state->current_buffer();
       editor_state->set_current_buffer(history_);
       history_->set_mode(previous_buffer->ResetMode());
 
       LineColumn position = history_->position();
       position.line += delta;
-      if (position.line <= history_->contents()->size() && position.line > 0) {
+      if (position.line <= LineNumber(0) + history_->contents()->size() &&
+          position.line > LineNumber(0)) {
         history_->set_position(position);
       }
       if (history_->current_line() != nullptr) {
@@ -213,12 +217,14 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
 
   std::unique_ptr<ScrollBehavior> Build() override {
     auto history = history_;
-    if (buffer_->lines_size() > 0 && !buffer_->LineAt(0)->empty()) {
+    if (buffer_->lines_size() > LineNumberDelta(0) &&
+        !buffer_->LineAt(LineNumber(0))->empty()) {
       history = FilterHistory(editor_state_, history.get(),
-                              buffer_->LineAt(0)->ToString());
+                              buffer_->LineAt(LineNumber(0))->ToString());
     }
 
-    history->set_current_position_line(history->contents()->size());
+    history->set_current_position_line(LineNumber(0) +
+                                       history->contents()->size());
     return std::make_unique<HistoryScrollBehavior>(history, prompt_);
   }
 
@@ -255,7 +261,8 @@ using std::unique_ptr;
 void Prompt(EditorState* editor_state, PromptOptions options) {
   CHECK(options.handler);
   auto history = GetHistoryBuffer(editor_state, options.history_file)->second;
-  history->set_current_position_line(history->contents()->size());
+  history->set_current_position_line(LineNumber(0) +
+                                     history->contents()->size());
 
   auto buffer = GetPromptBuffer(editor_state);
   Modifiers original_modifiers = editor_state->modifiers();
@@ -317,10 +324,9 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
       auto history =
           GetHistoryBuffer(editor_state, options.history_file)->second;
       CHECK(history != nullptr);
-      if (history->contents()->size() == 0 ||
-          (history->contents()
-               ->at(history->contents()->size() - 1)
-               ->ToString() != input->ToString())) {
+      if (history->contents()->size() == LineNumberDelta(0) ||
+          (history->contents()->at(history->EndLine())->ToString() !=
+           input->ToString())) {
         history->AppendLine(input);
       }
     }
@@ -367,7 +373,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
               editor_state->SetWarningStatus(
                   L"Error: predictions buffer not found.");
             } else {
-              it->second->set_current_position_line(0);
+              it->second->set_current_position_line(LineNumber(0));
               editor_state->set_current_buffer(it->second);
               editor_state->ScheduleRedraw();
             }

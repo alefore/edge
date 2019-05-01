@@ -16,8 +16,8 @@
 using namespace afc::editor;
 
 bool IsEmpty(EditorState* editor_state) {
-  return editor_state->current_buffer()->contents()->size() == 1u &&
-         editor_state->current_buffer()->contents()->at(0)->size() == 0u;
+  return editor_state->current_buffer()->EndLine() == LineNumber(0) &&
+         editor_state->current_buffer()->contents()->back()->size() == 0;
 }
 
 void Clear(EditorState* editor_state) {
@@ -213,35 +213,44 @@ void TestCases() {
 
   editor_state.ProcessInputString("ialejandro\nforero\ncuervo");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  CHECK_EQ(editor_state.current_buffer()->contents()->size(), 3ul);
-  CHECK_EQ(editor_state.current_buffer()->current_position_line(), 2ul);
+  CHECK_EQ(editor_state.current_buffer()->contents()->size(),
+           LineNumberDelta(3));
+  CHECK_EQ(editor_state.current_buffer()->current_position_line(),
+           LineNumber(2));
   CHECK_EQ(editor_state.current_buffer()->current_position_col(),
            ColumnNumber(sizeof("cuervo") - 1));
   editor_state.ProcessInputString("ehhh");
-  CHECK_EQ(editor_state.current_buffer()->current_position_line(), 1);
+  CHECK_EQ(editor_state.current_buffer()->current_position_line(),
+           LineNumber(1));
   CHECK_EQ(editor_state.current_buffer()->current_position_col(),
            ColumnNumber(sizeof("cuervo") - 1 - 2));
 
   editor_state.ProcessInputString("k");
-  CHECK_EQ(editor_state.current_buffer()->current_position_line(), 0);
+  CHECK_EQ(editor_state.current_buffer()->current_position_line(),
+           LineNumber(0));
   editor_state.ProcessInputString("kkkkk");
-  CHECK_EQ(editor_state.current_buffer()->current_position_line(), 0);
+  CHECK_EQ(editor_state.current_buffer()->current_position_line(),
+           LineNumber(0));
 
   editor_state.ProcessInputString("3g");
-  CHECK_EQ(editor_state.current_buffer()->current_position_line(), 0);
+  CHECK_EQ(editor_state.current_buffer()->current_position_line(),
+           LineNumber(0));
   CHECK_EQ(editor_state.current_buffer()->current_position_col(),
            ColumnNumber(3 - 1));
 
   editor_state.ProcessInputString("rg");
-  CHECK_EQ(editor_state.current_buffer()->current_position_line(), 0);
+  CHECK_EQ(editor_state.current_buffer()->current_position_line(),
+           LineNumber(0));
   CHECK_EQ(editor_state.current_buffer()->current_position_col(),
            ColumnNumber(sizeof("alejandro") - 1));
 
   editor_state.ProcessInputString("erg");
-  CHECK_EQ(editor_state.current_buffer()->current_position_line(), 2);
+  CHECK_EQ(editor_state.current_buffer()->current_position_line(),
+           LineNumber(2));
 
   editor_state.ProcessInputString("egg");
-  CHECK_EQ(editor_state.current_buffer()->current_position_line(), 0);
+  CHECK_EQ(editor_state.current_buffer()->current_position_line(),
+           LineNumber(0));
   CHECK_EQ(editor_state.current_buffer()->current_position_col(),
            ColumnNumber(0));
 
@@ -251,19 +260,24 @@ void TestCases() {
       "cuervo");
 
   editor_state.ProcessInputString("pp");
-  CHECK_EQ(editor_state.current_buffer()->contents()->size(), 5);
+  CHECK_EQ(editor_state.current_buffer()->contents()->size(),
+           LineNumberDelta(5));
 
   editor_state.ProcessInputString("erg");
-  CHECK_EQ(editor_state.current_buffer()->current_position_line(), 4);
+  CHECK_EQ(editor_state.current_buffer()->current_position_line(),
+           LineNumber(4));
   editor_state.ProcessInputString("eg");
-  CHECK_EQ(editor_state.current_buffer()->current_position_line(), 0);
+  CHECK_EQ(editor_state.current_buffer()->current_position_line(),
+           LineNumber(0));
 
   editor_state.ProcessInputString("eel");
-  CHECK_EQ(editor_state.current_buffer()->current_position_line(), 1);
+  CHECK_EQ(editor_state.current_buffer()->current_position_line(),
+           LineNumber(1));
 
   editor_state.ProcessInput(Terminal::ESCAPE);
   editor_state.ProcessInputString("d3\n");
-  CHECK_EQ(editor_state.current_buffer()->current_position_line(), 1);
+  CHECK_EQ(editor_state.current_buffer()->current_position_line(),
+           LineNumber(1));
   CHECK_EQ(ToByteString(editor_state.current_buffer()->ToString()),
            "alejandro\nero\nalejandro\nforero\ncuervo");
 
@@ -274,7 +288,7 @@ void TestCases() {
   editor_state.ProcessInputString("0123456789abcdefghijklmnopqrstuvwxyz");
   editor_state.ProcessInput(Terminal::ESCAPE);
   editor_state.ProcessInputString("2h2h2h2h2l2l2l2l2l2h2h2h2hegg");
-  CHECK_EQ(editor_state.current_buffer()->position().line, 0);
+  CHECK_EQ(editor_state.current_buffer()->position().line, LineNumber(0));
   CHECK_EQ(editor_state.current_buffer()->position().column, ColumnNumber(0));
 
   editor_state.ProcessInputString("2l2l2l2l2l");
@@ -287,7 +301,7 @@ void TestCases() {
   CHECK_EQ(editor_state.current_buffer()->position().column, ColumnNumber(8));
 
   editor_state.ProcessInputString("eb");
-  CHECK_EQ(editor_state.current_buffer()->position().line, 2);
+  CHECK_EQ(editor_state.current_buffer()->position().line, LineNumber(2));
 
   editor_state.ProcessInputString("gf1f3f5f7f9");
   CHECK_EQ(editor_state.current_buffer()->position().column, ColumnNumber(9));
@@ -299,11 +313,11 @@ void TestCases() {
   CHECK_EQ(editor_state.current_buffer()->position().column, ColumnNumber(9));
 
   editor_state.ProcessInputString("/123\n");
-  CHECK_EQ(editor_state.current_buffer()->position().line, 2);
+  CHECK_EQ(editor_state.current_buffer()->position().line, LineNumber(2));
   CHECK_EQ(editor_state.current_buffer()->position().column, ColumnNumber(1));
 
   editor_state.ProcessInputString("egd1000000000000000000\n");
-  CHECK_EQ(editor_state.current_buffer()->position().line, 0);
+  CHECK_EQ(editor_state.current_buffer()->position().line, LineNumber(0));
 
   editor_state.ProcessInputString("ialejo forero\n");
   editor_state.ProcessInput(Terminal::ESCAPE);
@@ -320,11 +334,11 @@ void TestCases() {
   Clear(&editor_state);
 
   editor_state.ProcessInputString("ihey there hey hey man yes ahoheyblah.");
-  CHECK_EQ(editor_state.current_buffer()->position().line, 0);
+  CHECK_EQ(editor_state.current_buffer()->position().line, LineNumber(0));
   editor_state.ProcessInput(Terminal::ESCAPE);
   editor_state.ProcessInputString("gw/");
   CHECK(editor_state.last_search_query() == L"hey");
-  CHECK_EQ(editor_state.current_buffer()->position().line, 0);
+  CHECK_EQ(editor_state.current_buffer()->position().line, LineNumber(0));
   CHECK_EQ(editor_state.current_buffer()->position().column, ColumnNumber(10));
 
   Clear(&editor_state);
@@ -333,7 +347,7 @@ void TestCases() {
   editor_state.ProcessInput(Terminal::ESCAPE);
   editor_state.ProcessInputString("jjjj");
   editor_state.ProcessInputString("/alejo\n");
-  CHECK_EQ(editor_state.current_buffer()->position().line, 0);
+  CHECK_EQ(editor_state.current_buffer()->position().line, LineNumber(0));
   CHECK_EQ(editor_state.current_buffer()->position().column, ColumnNumber(0));
 
   Clear(&editor_state);
@@ -341,7 +355,7 @@ void TestCases() {
   // VM Tests.
   editor_state.ProcessInputString("i0123456789");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  CHECK_EQ(editor_state.current_buffer()->position().line, 0);
+  CHECK_EQ(editor_state.current_buffer()->position().line, LineNumber(0));
   CHECK_EQ(editor_state.current_buffer()->position().column, ColumnNumber(10));
 
   editor_state.ProcessInputString("aCSetPositionColumn(4);;\n");
@@ -372,10 +386,10 @@ void TestCases() {
   Clear(&editor_state);
 
   // Test for insertion at EOF.
-  CHECK_EQ(editor_state.current_buffer()->contents()->size(), 1);
+  CHECK_EQ(editor_state.current_buffer()->EndLine(), LineNumber(0));
   editor_state.ProcessInputString("55ji\n");
   editor_state.ProcessInput(Terminal::ESCAPE);
-  CHECK_EQ(editor_state.current_buffer()->contents()->size(), 2);
+  CHECK_EQ(editor_state.current_buffer()->EndLine(), LineNumber(1));
 
   Clear(&editor_state);
 
@@ -402,7 +416,7 @@ void TestCases() {
 
   editor_state.ProcessInputString("rg");
   CHECK_EQ(editor_state.current_buffer()->position(),
-           LineColumn(0, ColumnNumber(9)));
+           LineColumn(LineNumber(0), ColumnNumber(9)));
 
   editor_state.ProcessInputString("dw)\n");
   CHECK_EQ(ToByteString(editor_state.current_buffer()->ToString()),
@@ -417,10 +431,11 @@ void TestCases() {
            "alejandro\nforero\ncuervo");
 
   editor_state.ProcessInputString("g");
-  CHECK_EQ(editor_state.current_buffer()->position(), LineColumn(2));
+  CHECK_EQ(editor_state.current_buffer()->position(),
+           LineColumn(LineNumber(2)));
 
   editor_state.ProcessInputString("+eg");
-  CHECK_EQ(editor_state.current_buffer()->position(), LineColumn(0));
+  CHECK_EQ(editor_state.current_buffer()->position(), LineColumn());
 
   editor_state.ProcessInputString("w+");
   editor_state.ProcessInputString("_");
@@ -535,7 +550,7 @@ void TestCases() {
   editor_state.ProcessInput(Terminal::ESCAPE);
   editor_state.ProcessInputString("k3h");
   CHECK_EQ(editor_state.current_buffer()->position(),
-           LineColumn(0, ColumnNumber(1)));
+           LineColumn(LineNumber(), ColumnNumber(1)));
 
   Clear(&editor_state);
 
@@ -607,14 +622,14 @@ void TestCases() {
       "3h");
   CHECK_EQ(ToByteString(editor_state.current_buffer()->ToString()), "alejo");
   CHECK_EQ(editor_state.current_buffer()->position(),
-           LineColumn(0, ColumnNumber(2)));
+           LineColumn(LineNumber(0), ColumnNumber(2)));
   editor_state.ProcessInputString("p");
   CHECK_EQ(ToByteString(editor_state.current_buffer()->ToString()),
            "alalejoejo");
   editor_state.ProcessInputString("u");
   CHECK_EQ(ToByteString(editor_state.current_buffer()->ToString()), "alejo");
   CHECK_EQ(editor_state.current_buffer()->position(),
-           LineColumn(0, ColumnNumber(2)));
+           LineColumn(LineNumber(0), ColumnNumber(2)));
 
   Clear(&editor_state);
 

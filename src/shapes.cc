@@ -76,7 +76,7 @@ void FindBoundariesLine(LineColumn start, LineColumn end,
   }
   double delta_x =
       static_cast<double>((end.column - start.column).column_delta);
-  double delta_y = static_cast<double>(end.line - start.line);
+  double delta_y = static_cast<double>((end.line - start.line).line_delta);
   double delta_error = delta_x == 0.0
                            ? delta_y * std::numeric_limits<double>::max()
                            : delta_y / delta_x;

@@ -23,14 +23,95 @@ const VMType VMTypeMapper<std::set<editor::LineColumn>*>::vmtype =
 }  // namespace vm
 namespace editor {
 
-/* static */ std::wstring ColumnNumberDelta::PaddingString(
-    const ColumnNumberDelta& length, wchar_t fill) {
-  return std::wstring(length.column_delta, fill);
+bool operator==(const LineNumberDelta& a, const LineNumberDelta& b) {
+  return a.line_delta == b.line_delta;
 }
 
 std::ostream& operator<<(std::ostream& os, const LineNumberDelta& lc) {
   os << "[line delta: " << lc.line_delta << "]";
   return os;
+}
+
+bool operator<(const LineNumberDelta& a, const LineNumberDelta& b) {
+  return a.line_delta < b.line_delta;
+}
+bool operator<=(const LineNumberDelta& a, const LineNumberDelta& b) {
+  return a.line_delta <= b.line_delta;
+}
+
+bool operator>(const LineNumberDelta& a, const LineNumberDelta& b) {
+  return a.line_delta > b.line_delta;
+}
+
+bool operator>=(const LineNumberDelta& a, const LineNumberDelta& b) {
+  return a.line_delta >= b.line_delta;
+}
+
+LineNumberDelta operator+(LineNumberDelta a, const LineNumberDelta& b) {
+  a.line_delta += b.line_delta;
+  return a;
+}
+
+LineNumberDelta operator-(LineNumberDelta a, const LineNumberDelta& b) {
+  a.line_delta -= b.line_delta;
+  return a;
+}
+
+LineNumberDelta operator-(LineNumberDelta a) {
+  a.line_delta = -a.line_delta;
+  return a;
+}
+
+LineNumberDelta operator*(LineNumberDelta a, const size_t& b) {
+  a.line_delta *= b;
+  return a;
+}
+
+LineNumberDelta operator*(const size_t& a, LineNumberDelta b) {
+  b.line_delta *= a;
+  return b;
+}
+
+LineNumberDelta operator/(LineNumberDelta a, const size_t& b) {
+  a.line_delta /= b;
+  return a;
+}
+
+LineNumberDelta& operator+=(LineNumberDelta& a, const LineNumberDelta& value) {
+  a.line_delta += value.line_delta;
+  return a;
+}
+
+LineNumberDelta& operator-=(LineNumberDelta& a, const LineNumberDelta& value) {
+  a.line_delta -= value.line_delta;
+  return a;
+}
+
+LineNumberDelta& operator++(LineNumberDelta& a) {
+  a.line_delta++;
+  return a;
+}
+
+LineNumberDelta operator++(LineNumberDelta& a, int) {
+  LineNumberDelta copy = a;
+  a.line_delta++;
+  return copy;
+}
+
+LineNumberDelta& operator--(LineNumberDelta& a) {
+  a.line_delta++;
+  return a;
+}
+
+LineNumberDelta operator--(LineNumberDelta& a, int) {
+  LineNumberDelta copy = a;
+  a.line_delta--;
+  return copy;
+}
+
+/* static */ std::wstring ColumnNumberDelta::PaddingString(
+    const ColumnNumberDelta& length, wchar_t fill) {
+  return std::wstring(length.column_delta, fill);
 }
 
 ColumnNumberDelta& ColumnNumberDelta::operator=(
@@ -116,10 +197,135 @@ ColumnNumberDelta operator++(ColumnNumberDelta& a, int) {
   return copy;
 }
 
+ColumnNumberDelta& operator--(ColumnNumberDelta& a) {
+  a.column_delta++;
+  return a;
+}
+
 ColumnNumberDelta operator--(ColumnNumberDelta& a, int) {
   ColumnNumberDelta copy = a;
   a.column_delta--;
   return copy;
+}
+
+bool operator==(const LineColumnDelta& a, const LineColumnDelta& b) {
+  return a.line == b.line && a.column == b.column;
+}
+
+bool operator!=(const LineColumnDelta& a, const LineColumnDelta& b) {
+  return !(a == b);
+}
+
+LineNumber::LineNumber(size_t value) : line(value) {}
+
+LineNumber& LineNumber::operator=(const LineNumber& other) {
+  line = other.line;
+  return *this;
+}
+
+LineNumberDelta LineNumber::ToDelta() const { return *this - LineNumber(0); }
+
+std::wstring LineNumber::ToUserString() const {
+  return std::to_wstring(line + 1);
+}
+
+LineNumber LineNumber::next() const {
+  if (line == std::numeric_limits<size_t>::max()) {
+    return *this;
+  }
+  return LineNumber(line + 1);
+}
+
+LineNumber LineNumber::previous() const {
+  CHECK(line != 0);
+  return LineNumber(line - 1);
+}
+
+bool operator==(const LineNumber& a, const LineNumber& b) {
+  return a.line == b.line;
+}
+
+bool operator!=(const LineNumber& a, const LineNumber& b) {
+  return a.line != b.line;
+}
+
+bool operator<(const LineNumber& a, const LineNumber& b) {
+  return a.line < b.line;
+}
+
+bool operator<=(const LineNumber& a, const LineNumber& b) {
+  return a.line <= b.line;
+}
+
+bool operator>(const LineNumber& a, const LineNumber& b) {
+  return a.line > b.line;
+}
+
+bool operator>=(const LineNumber& a, const LineNumber& b) {
+  return a.line >= b.line;
+}
+
+LineNumber& operator+=(LineNumber& a, const LineNumberDelta& delta) {
+  if (delta.line_delta < 0) {
+    CHECK_GE(a.line, static_cast<size_t>(-delta.line_delta));
+  }
+
+  a.line += delta.line_delta;
+  return a;
+}
+
+LineNumber& operator-=(LineNumber& a, const LineNumberDelta& delta) {
+  a += -delta;
+  return a;
+}
+
+LineNumber& operator++(LineNumber& a) {
+  a.line++;
+  return a;
+}
+
+LineNumber operator++(LineNumber& a, int) {
+  auto output = a;
+  a.line++;
+  return output;
+}
+
+LineNumber& operator--(LineNumber& a) {
+  a.line--;
+  return a;
+}
+
+LineNumber operator--(LineNumber& a, int) {
+  auto output = a;
+  a.line--;
+  return output;
+}
+
+LineNumber operator+(LineNumber a, const LineNumberDelta& delta) {
+  if (delta.line_delta < 0) {
+    CHECK_GE(a.line, static_cast<size_t>(-delta.line_delta));
+  }
+  a.line += delta.line_delta;
+  return a;
+}
+
+LineNumber operator-(LineNumber a, const LineNumberDelta& delta) {
+  if (delta.line_delta > 0) {
+    CHECK_GE(a.line, static_cast<size_t>(delta.line_delta));
+  }
+  a.line -= delta.line_delta;
+  return a;
+}
+
+LineNumber operator-(const LineNumber& a) { return LineNumber(-a.line); }
+
+LineNumberDelta operator-(const LineNumber& a, const LineNumber& b) {
+  return LineNumberDelta(a.line - b.line);
+}
+
+std::ostream& operator<<(std::ostream& os, const LineNumber& lc) {
+  os << "[Line " << lc.line << "]";
+  return os;
 }
 
 ColumnNumber::ColumnNumber(size_t value) : column(value) {}
@@ -219,9 +425,9 @@ std::ostream& operator<<(std::ostream& os, const ColumnNumber& lc) {
 
 std::ostream& operator<<(std::ostream& os, const LineColumn& lc) {
   os << "["
-     << (lc.line == std::numeric_limits<size_t>::max()
+     << (lc.line == std::numeric_limits<LineNumber>::max()
              ? "inf"
-             : std::to_string(lc.line))
+             : std::to_string(lc.line.line))
      << ":"
      << (lc.column == std::numeric_limits<ColumnNumber>::max()
              ? "inf"
@@ -235,10 +441,10 @@ bool LineColumn::operator!=(const LineColumn& other) const {
 }
 
 std::wstring LineColumn::ToString() const {
-  return std::to_wstring(line) + L" " + std::to_wstring(column.column);
+  return std::to_wstring(line.line) + L" " + std::to_wstring(column.column);
 }
 
-/* static */ Range Range::InLine(size_t line, ColumnNumber column,
+/* static */ Range Range::InLine(LineNumber line, ColumnNumber column,
                                  ColumnNumberDelta size) {
   return Range(LineColumn(line, column), LineColumn(line, column + size));
 }
@@ -259,10 +465,7 @@ LineColumn LineColumn::operator-(const LineNumberDelta& value) const {
 }
 
 LineColumn& LineColumn::operator+=(const LineNumberDelta& value) {
-  if (value.line_delta < 0) {
-    CHECK_GE(line, static_cast<size_t>(-value.line_delta));
-  }
-  line += value.line_delta;
+  line += value;
   return *this;
 }
 
@@ -283,7 +486,7 @@ LineColumn LineColumn::operator+(const LineColumnDelta& value) const {
 }
 
 std::wstring LineColumn::ToCppString() const {
-  return L"LineColumn(" + std::to_wstring(line) + L", " +
+  return L"LineColumn(" + std::to_wstring(line.line) + L", " +
          std::to_wstring(column.column) + L")";
 }
 
@@ -305,7 +508,7 @@ std::wstring LineColumn::ToCppString() const {
                            return Value::NewObject(
                                L"LineColumn",
                                std::make_shared<LineColumn>(
-                                   args[0]->integer,
+                                   LineNumber(args[0]->integer),
                                    ColumnNumber(args[1]->integer)));
                          }));
 
@@ -318,7 +521,7 @@ std::wstring LineColumn::ToCppString() const {
                      auto line_column =
                          static_cast<LineColumn*>(args[0]->user_value.get());
                      CHECK(line_column != nullptr);
-                     return Value::NewInteger(line_column->line);
+                     return Value::NewInteger(line_column->line.line);
                    }));
 
   line_column->AddField(
@@ -344,7 +547,7 @@ std::wstring LineColumn::ToCppString() const {
                 static_cast<LineColumn*>(args[0]->user_value.get());
             CHECK(line_column != nullptr);
             return Value::NewString(
-                std::to_wstring(line_column->line) + L", " +
+                std::to_wstring(line_column->line.line) + L", " +
                 std::to_wstring(line_column->column.column));
           }));
 

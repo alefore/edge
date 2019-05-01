@@ -12,9 +12,9 @@ namespace afc {
 namespace editor {
 void HorizontalSplitOutputProducer::WriteLine(Options options) {
   CHECK_LT(current_row_, rows_.size());
-  while (current_row_line_ >= rows_[current_row_].lines) {
+  while (current_row_line_.ToDelta() >= rows_[current_row_].lines) {
     current_row_++;
-    current_row_line_ = 0;
+    current_row_line_ = LineNumber(0);
     CHECK_LT(current_row_, rows_.size());
   }
 
