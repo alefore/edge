@@ -175,10 +175,6 @@ struct LineColumn {
   static void Register(vm::Environment* environment);
 
   LineColumn() = default;
-  // TODO: Make single-argument constructors explicit.
-  explicit LineColumn(std::vector<int> pos)
-      : line(pos.size() > 0 ? pos[0] : 0),
-        column(pos.size() > 1 ? pos[1] : 0) {}
   explicit LineColumn(LineNumber l) : LineColumn(l, ColumnNumber(0)) {}
   LineColumn(LineNumber l, ColumnNumber c) : line(l), column(c) {}
 

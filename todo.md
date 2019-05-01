@@ -101,10 +101,6 @@ Make follow_end_of_file the default.
 
 ## Readability
 
-* Add dedicated types for `Line` and `Column`.
-
-* Make `LineColumn`'s constructor explicit.
-
 ## Testing
 
 ### Fuzz testing
