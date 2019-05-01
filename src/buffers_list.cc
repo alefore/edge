@@ -55,8 +55,8 @@ class BuffersListProducer : public OutputProducer {
           ColumnNumber(0) + (columns_per_buffer + prefix_width_) * i +
           (prefix_width_ - ColumnNumberDelta(number_prefix.size() - 2));
       if (options.receiver->column() < start) {
-        options.receiver->AddString(
-            wstring((start - options.receiver->column()).value, L' '));
+        options.receiver->AddString(ColumnNumberDelta::PaddingString(
+            start - options.receiver->column(), L' '));
       }
       options.receiver->AddModifier(LineModifier::CYAN);
       if (buffer == active_buffer_) {
@@ -74,7 +74,8 @@ class BuffersListProducer : public OutputProducer {
         if (ColumnNumberDelta(output_components.front().size()) >
             columns_per_buffer) {
           output_components.front() = output_components.front().substr(
-              output_components.front().size() - columns_per_buffer.value);
+              output_components.front().size() -
+              columns_per_buffer.column_delta);
         } else {
           size_t consumed = output_components.front().size();
           components.pop_back();
@@ -118,7 +119,7 @@ class BuffersListProducer : public OutputProducer {
         if (!progress.empty()) {
           // Nothing.
         } else if (ColumnNumberDelta(name.size()) > columns_per_buffer) {
-          name = name.substr(name.size() - columns_per_buffer.value);
+          name = name.substr(name.size() - columns_per_buffer.column_delta);
           options.receiver->AddString(L"…");
         } else {
           options.receiver->AddString(L":");
@@ -309,9 +310,10 @@ void BuffersList::SetSize(size_t lines, ColumnNumberDelta columns) {
     warning_status_lines_ = 0;
   }
 
-  buffers_list_lines_ = ceil(
-      static_cast<double>(buffers_.size() * kMinimumColumnsPerBuffer.value) /
-      columns_.value);
+  buffers_list_lines_ =
+      ceil(static_cast<double>(
+               (buffers_.size() * kMinimumColumnsPerBuffer).column_delta) /
+           columns_.column_delta);
   buffers_per_line_ =
       ceil(static_cast<double>(buffers_.size()) / buffers_list_lines_);
 

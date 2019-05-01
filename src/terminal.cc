@@ -233,9 +233,9 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
   }
   status += editor_state.status();
   if (ColumnNumberDelta(status.size()) < screen->columns()) {
-    status += wstring(screen->columns().value - status.size(), ' ');
+    status += wstring(screen->columns().column_delta - status.size(), ' ');
   } else if (ColumnNumberDelta(status.size()) > screen->columns()) {
-    status = status.substr(0, screen->columns().value);
+    status = status.substr(0, screen->columns().column_delta);
   }
   screen->Move(screen->lines() - 1, ColumnNumber(0));
   if (editor_state.is_status_warning()) {

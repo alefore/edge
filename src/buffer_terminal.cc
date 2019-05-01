@@ -29,7 +29,7 @@ void BufferTerminal::SetSize(size_t lines, ColumnNumberDelta columns) {
   struct winsize screen_size;
   lines_ = screen_size.ws_row = lines;
   columns_ = columns;
-  screen_size.ws_col = columns.value;
+  screen_size.ws_col = columns.column_delta;
   if (buffer_->fd() != nullptr &&
       ioctl(buffer_->fd()->fd(), TIOCSWINSZ, &screen_size) == -1) {
     buffer_->editor()->SetWarningStatus(L"ioctl TIOCSWINSZ failed: " +
@@ -258,8 +258,8 @@ size_t BufferTerminal::ProcessTerminalEscapeSequence(
                 L"\"" +
                 FromByteString(sequence) + L"\"");
           }
-          DLOG(INFO) << "Move cursor home: line: " << delta.line.value
-                     << ", column: " << delta.column.value;
+          DLOG(INFO) << "Move cursor home: line: " << delta.line
+                     << ", column: " << delta.column;
           position_ =
               buffer_->editor()->buffer_tree()->GetActiveLeaf()->view_start() +
               delta;

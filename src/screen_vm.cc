@@ -188,7 +188,7 @@ void RegisterScreenType(Environment* environment) {
       L"columns",
       vm::NewCallback(std::function<int(Screen*)>([](Screen* screen) {
         CHECK(screen != nullptr);
-        return screen->columns().value;
+        return screen->columns().column_delta;
       })));
 
   screen_type->AddField(

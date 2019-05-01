@@ -1200,9 +1200,9 @@ void OpenBuffer::MaybeExtendLine(LineColumn position) {
   if (line->EndColumn() > position.column + ColumnNumberDelta(1)) {
     return;
   }
-  wstring padding(
-      (position.column - line->EndColumn() + ColumnNumberDelta(1)).value, L' ');
-  line->Append(Line(padding));
+  line->Append(Line(ColumnNumberDelta::PaddingString(
+      position.column - line->EndColumn() + ColumnNumberDelta(1), L' ')));
+
   contents_.set_line(position.line, line);
 }
 

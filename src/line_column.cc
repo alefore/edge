@@ -23,92 +23,102 @@ const VMType VMTypeMapper<std::set<editor::LineColumn>*>::vmtype =
 }  // namespace vm
 namespace editor {
 
+/* static */ std::wstring ColumnNumberDelta::PaddingString(
+    const ColumnNumberDelta& length, wchar_t fill) {
+  return std::wstring(length.column_delta, fill);
+}
+
+std::ostream& operator<<(std::ostream& os, const LineNumberDelta& lc) {
+  os << "[line delta: " << lc.line_delta << "]";
+  return os;
+}
+
 ColumnNumberDelta& ColumnNumberDelta::operator=(
     const ColumnNumberDelta& delta) {
-  value = delta.value;
+  column_delta = delta.column_delta;
   return *this;
 }
 
 bool operator==(const ColumnNumberDelta& a, const ColumnNumberDelta& b) {
-  return a.value == b.value;
+  return a.column_delta == b.column_delta;
 }
 
 std::ostream& operator<<(std::ostream& os, const ColumnNumberDelta& lc) {
-  os << "[column delta: " << lc.value << "]";
+  os << "[column delta: " << lc.column_delta << "]";
   return os;
 }
 
 bool operator<(const ColumnNumberDelta& a, const ColumnNumberDelta& b) {
-  return a.value < b.value;
+  return a.column_delta < b.column_delta;
 }
 bool operator<=(const ColumnNumberDelta& a, const ColumnNumberDelta& b) {
-  return a.value <= b.value;
+  return a.column_delta <= b.column_delta;
 }
 
 bool operator>(const ColumnNumberDelta& a, const ColumnNumberDelta& b) {
-  return a.value > b.value;
+  return a.column_delta > b.column_delta;
 }
 
 bool operator>=(const ColumnNumberDelta& a, const ColumnNumberDelta& b) {
-  return a.value >= b.value;
+  return a.column_delta >= b.column_delta;
 }
 
 ColumnNumberDelta operator+(ColumnNumberDelta a, const ColumnNumberDelta& b) {
-  a.value += b.value;
+  a.column_delta += b.column_delta;
   return a;
 }
 
 ColumnNumberDelta operator-(ColumnNumberDelta a, const ColumnNumberDelta& b) {
-  a.value -= b.value;
+  a.column_delta -= b.column_delta;
   return a;
 }
 
 ColumnNumberDelta operator-(ColumnNumberDelta a) {
-  a.value = -a.value;
+  a.column_delta = -a.column_delta;
   return a;
 }
 
 ColumnNumberDelta operator*(ColumnNumberDelta a, const size_t& b) {
-  a.value *= b;
+  a.column_delta *= b;
   return a;
 }
 
 ColumnNumberDelta operator*(const size_t& a, ColumnNumberDelta b) {
-  b.value *= a;
+  b.column_delta *= a;
   return b;
 }
 
 ColumnNumberDelta operator/(ColumnNumberDelta a, const size_t& b) {
-  a.value /= b;
+  a.column_delta /= b;
   return a;
 }
 
 ColumnNumberDelta& operator+=(ColumnNumberDelta& a,
                               const ColumnNumberDelta& value) {
-  a.value += value.value;
+  a.column_delta += value.column_delta;
   return a;
 }
 
 ColumnNumberDelta& operator-=(ColumnNumberDelta& a,
                               const ColumnNumberDelta& value) {
-  a.value -= value.value;
+  a.column_delta -= value.column_delta;
   return a;
 }
 
 ColumnNumberDelta& operator++(ColumnNumberDelta& a) {
-  a.value++;
+  a.column_delta++;
   return a;
 }
 
 ColumnNumberDelta operator++(ColumnNumberDelta& a, int) {
   ColumnNumberDelta copy = a;
-  a.value++;
+  a.column_delta++;
   return copy;
 }
 
 ColumnNumberDelta operator--(ColumnNumberDelta& a, int) {
   ColumnNumberDelta copy = a;
-  a.value--;
+  a.column_delta--;
   return copy;
 }
 
@@ -152,7 +162,7 @@ bool operator>=(const ColumnNumber& a, const ColumnNumber& b) {
 }
 
 ColumnNumber& operator+=(ColumnNumber& a, const ColumnNumberDelta& delta) {
-  a.column += delta.value;
+  a.column += delta.column_delta;
   return a;
 }
 
@@ -179,18 +189,18 @@ ColumnNumber operator--(ColumnNumber& a, int) {
 }
 
 ColumnNumber operator+(ColumnNumber a, const ColumnNumberDelta& delta) {
-  if (delta.value < 0) {
-    CHECK_GE(a.column, static_cast<size_t>(-delta.value));
+  if (delta.column_delta < 0) {
+    CHECK_GE(a.column, static_cast<size_t>(-delta.column_delta));
   }
-  a.column += delta.value;
+  a.column += delta.column_delta;
   return a;
 }
 
 ColumnNumber operator-(ColumnNumber a, const ColumnNumberDelta& delta) {
-  if (delta.value > 0) {
-    CHECK_GE(a.column, static_cast<size_t>(delta.value));
+  if (delta.column_delta > 0) {
+    CHECK_GE(a.column, static_cast<size_t>(delta.column_delta));
   }
-  a.column -= delta.value;
+  a.column -= delta.column_delta;
   return a;
 }
 
@@ -245,19 +255,19 @@ LineColumn LineColumn::operator+(const LineNumberDelta& value) const {
 }
 
 LineColumn LineColumn::operator-(const LineNumberDelta& value) const {
-  return *this + LineNumberDelta(-value.value);
+  return *this + LineNumberDelta(-value.line_delta);
 }
 
 LineColumn& LineColumn::operator+=(const LineNumberDelta& value) {
-  if (value.value < 0) {
-    CHECK_GE(line, static_cast<size_t>(-value.value));
+  if (value.line_delta < 0) {
+    CHECK_GE(line, static_cast<size_t>(-value.line_delta));
   }
-  line += value.value;
+  line += value.line_delta;
   return *this;
 }
 
 LineColumn& LineColumn::operator-=(const LineNumberDelta& value) {
-  return operator+=(LineNumberDelta(-value.value));
+  return operator+=(LineNumberDelta(-value.line_delta));
 }
 
 LineColumn LineColumn::operator+(const ColumnNumberDelta& value) const {

@@ -59,8 +59,8 @@ void VerticalSplitOutputProducer::WriteLine(Options options) {
   for (size_t i = 0; i < columns_.size(); i++) {
     if (options.receiver->column() < initial_column) {
       // TODO: Consider adding an 'advance N spaces' function?
-      options.receiver->AddString(
-          wstring((initial_column - options.receiver->column()).value, L' '));
+      options.receiver->AddString(ColumnNumberDelta::PaddingString(
+          initial_column - options.receiver->column(), L' '));
     }
     options.receiver->AddModifier(LineModifier::RESET);
 

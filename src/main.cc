@@ -304,8 +304,9 @@ int main(int argc, const char** argv) {
           LOG(INFO) << "Sending screen size update to server.";
           SendCommandsToParent(
               remote_server_fd,
-              "screen.set_size(" + std::to_string(screen_size.first.value) +
-                  "," + std::to_string(screen_size.second) + ");" +
+              "screen.set_size(" +
+                  std::to_string(screen_size.first.column_delta) + "," +
+                  std::to_string(screen_size.second) + ");" +
                   "set_screen_needs_hard_redraw(true);\n");
           last_screen_size = screen_size;
         }

@@ -154,7 +154,8 @@ class DeleteSuffixSuperfluousCharacters : public Transformation {
     }
     CHECK_LT(column, line->EndColumn());
     DeleteOptions delete_options;
-    delete_options.modifiers.repetitions = (line->EndColumn() - column).value;
+    delete_options.modifiers.repetitions =
+        (line->EndColumn() - column).column_delta;
     delete_options.copy_to_paste_buffer = false;
     return TransformationAtPosition(LineColumn(result->cursor.line, column),
                                     NewDeleteTransformation(delete_options))

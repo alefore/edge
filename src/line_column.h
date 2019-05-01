@@ -14,15 +14,24 @@ namespace editor {
 
 struct LineNumberDelta {
   LineNumberDelta() = default;
-  explicit LineNumberDelta(int value) : value(value) {}
-  int value = 0;
+  explicit LineNumberDelta(int value) : line_delta(value) {}
+  int line_delta = 0;
 };
 
+std::ostream& operator<<(std::ostream& os, const LineNumberDelta& lc);
+
 struct ColumnNumberDelta {
+  // Generates a string of the length specified by `this` filled up with the
+  // character given.
+  static std::wstring PaddingString(const ColumnNumberDelta& length,
+                                    wchar_t fill);
+
   ColumnNumberDelta() = default;
-  explicit ColumnNumberDelta(int value) : value(value) {}
+  explicit ColumnNumberDelta(int value) : column_delta(value) {}
+
   ColumnNumberDelta& operator=(const ColumnNumberDelta& delta);
-  int value = 0;
+
+  int column_delta = 0;
 };
 
 bool operator==(const ColumnNumberDelta& a, const ColumnNumberDelta& b);

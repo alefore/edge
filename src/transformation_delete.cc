@@ -279,7 +279,7 @@ class DeleteLinesTransformation : public Transformation {
       delete_options.modifiers.repetitions =
           (end - start +
            ColumnNumberDelta(end == contents->EndColumn() ? 1 : 0))
-              .value;
+              .column_delta;
       LineColumn position(line, start);
       if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS ||
           result->mode == Transformation::Result::Mode::kPreview) {
@@ -354,7 +354,7 @@ class DeleteTransformation : public Transformation {
     DeleteOptions delete_options;
     delete_options.copy_to_paste_buffer = options_.copy_to_paste_buffer;
     delete_options.modifiers.repetitions =
-        (range.end.column - range.begin.column).value;
+        (range.end.column - range.begin.column).column_delta;
     delete_options.modifiers.delete_type = options_.modifiers.delete_type;
     LOG(INFO) << "Deleting characters at: " << range.begin << ": "
               << options_.modifiers.repetitions;

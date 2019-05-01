@@ -62,12 +62,13 @@ class Receiver : public OutputReceiver {
             tabs_start_ +
             8 * ColumnNumberDelta(
                     1 + floor(static_cast<double>(
-                                  (column_write_ - tabs_start_).value) /
+                                  (column_write_ - tabs_start_).column_delta) /
                               8.0)));
         new_value = std::min(new_value, ColumnNumber(0) + screen_->columns());
         CHECK_GT(new_value, column_write_);
         CHECK_LE(new_value - column_write_, ColumnNumberDelta(8u));
-        screen_->WriteString(wstring((new_value - column_write_).value, ' '));
+        screen_->WriteString(
+            ColumnNumberDelta::PaddingString(new_value - column_write_, ' '));
         column_write_ = new_value;
       } break;
       case L'​':

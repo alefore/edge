@@ -227,7 +227,7 @@ class AutocompleteMode : public EditorMode {
                << " (len: " << insert->size()
                << ", word_length: " << word_length_ << ").";
     DeleteOptions delete_options;
-    delete_options.modifiers.repetitions = word_length_.value;
+    delete_options.modifiers.repetitions = word_length_.column_delta;
     delete_options.copy_to_paste_buffer = false;
     // TODO: Somewhat wrong. Should find the autocompletion for each position.
     // Also, should apply the deletions/insertions at the right positions.
@@ -285,10 +285,11 @@ void FindCompletion(EditorState* editor_state,
 
   LOG(INFO) << "Dictionary size: " << dictionary->contents()->size();
 
-  auto line = buffer->current_line()->ToString();
-  size_t index_before_symbol =
-      line.find_last_not_of(buffer->Read(buffer_variables::symbol_characters),
-                            (options.column_end - ColumnNumberDelta(1)).column);
+  auto line = buffer->current_line();
+  auto line_str = line->ToString();
+  size_t index_before_symbol = line_str.find_last_not_of(
+      buffer->Read(buffer_variables::symbol_characters),
+      (options.column_end - ColumnNumberDelta(1)).column);
   if (index_before_symbol == wstring::npos) {
     options.column_start = ColumnNumber(0);
   } else {
@@ -296,9 +297,9 @@ void FindCompletion(EditorState* editor_state,
   }
   LOG(INFO) << "Positions: start: " << options.column_start
             << ", end: " << options.column_end;
-  options.prefix = std::make_shared<const Line>(Line::Options(NewLazyString(
-      line.substr(options.column_start.column,
-                  (options.column_end - options.column_start).value))));
+  options.prefix = std::make_shared<const Line>(
+      Line::Options(Substring(line->contents(), options.column_start,
+                              options.column_end - options.column_start)));
 
   options.delegate = buffer->ResetMode();
   options.dictionary = dictionary;

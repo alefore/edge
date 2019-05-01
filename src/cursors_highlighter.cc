@@ -72,7 +72,7 @@ class CursorsHighlighter
       if (next_column > str_pos) {
         ColumnNumberDelta len = next_column - str_pos;
         DelegatingOutputReceiver::AddString(
-            str.substr(str_pos.column, len.value));
+            str.substr(str_pos.column, len.column_delta));
         column_read_ += len;
         str_pos += len;
       }

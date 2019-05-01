@@ -68,7 +68,7 @@ void Line::DeleteCharacters(ColumnNumber column, ColumnNumberDelta delta) {
       afc::editor::Substring(contents_, ColumnNumber(0), column.ToDelta()),
       afc::editor::Substring(contents_, column + delta));
   auto it = modifiers_.begin() + column.column;
-  modifiers_.erase(it, it + delta.value);
+  modifiers_.erase(it, it + delta.column_delta);
   CHECK_EQ(contents_->size(), modifiers_.size());
 }
 

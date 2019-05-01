@@ -246,7 +246,7 @@ class CppTreeParser : public TreeParser {
     auto length = result->position().column - original_position.column;
     auto str =
         Substring(result->buffer().at(original_position.line)->contents(),
-                  original_position.column.column, length.value);
+                  original_position.column, length);
     LineModifierSet modifiers;
     if (keywords_.find(str->ToString()) != keywords_.end()) {
       modifiers.insert(LineModifier::CYAN);

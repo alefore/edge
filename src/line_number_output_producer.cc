@@ -46,8 +46,8 @@ void LineNumberOutputProducer::WriteLine(Options options) {
     last_line_ = range.value().begin.line;
   }
   CHECK_LE(ColumnNumberDelta(number.size() + 1), width_);
-  std::wstring padding((width_ - ColumnNumberDelta(number.size() + 1)).value,
-                       L' ');
+  std::wstring padding = ColumnNumberDelta::PaddingString(
+      width_ - ColumnNumberDelta(number.size() + 1), L' ');
   if (!range.has_value() ||
       line_scroll_control_reader_->GetCurrentCursors().empty()) {
     options.receiver->AddModifier(LineModifier::DIM);

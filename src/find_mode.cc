@@ -58,8 +58,8 @@ class FindTransformation : public Transformation {
         break;
     }
 
-    CHECK_GE(times.value, 0);
-    for (size_t i = 1; i < static_cast<size_t>(times.value); i++) {
+    CHECK_GE(times, ColumnNumberDelta(0));
+    for (size_t i = 1; i < static_cast<size_t>(times.column_delta); i++) {
       if (line->get(column + direction * i) == static_cast<wint_t>(c_)) {
         result->cursor.column = column + direction * i;
         return true;
