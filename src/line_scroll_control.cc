@@ -26,7 +26,7 @@ LineScrollControl::Reader::Reader(ConstructorAccessTag,
 LineScrollControl::LineScrollControl(ConstructorAccessTag, Options options)
     : options_(std::move(options)),
       cursors_([=]() {
-        std::map<size_t, std::set<size_t>> cursors;
+        std::map<size_t, std::set<ColumnNumber>> cursors;
         for (auto cursor : *options_.buffer->active_cursors()) {
           cursors[cursor.line].insert(cursor.column);
         }
@@ -57,17 +57,17 @@ bool LineScrollControl::Reader::HasActiveCursor() const {
   return parent_->range_.Contains(parent_->options_.buffer->position());
 }
 
-std::set<size_t> LineScrollControl::Reader::GetCurrentCursors() const {
+std::set<ColumnNumber> LineScrollControl::Reader::GetCurrentCursors() const {
   CHECK(state_ == State::kProcessing);
   size_t line = parent_->range_.begin.line;
   auto it = parent_->cursors_.find(line);
   if (it == parent_->cursors_.end()) {
     return {};
   }
-  std::set<size_t> output;
+  std::set<ColumnNumber> output;
   for (auto& column : it->second) {
     if (parent_->range_.Contains(LineColumn(line, column))) {
-      output.insert(column - parent_->range_.begin.column);
+      output.insert(column - (parent_->range_.begin.column.ToDelta()));
     }
   }
   return output;
@@ -98,27 +98,28 @@ Range LineScrollControl::GetRange(LineColumn begin) {
   if (options_.buffer->Read(buffer_variables::wrap_from_content) &&
       begin.column > options_.initial_column) {
     LOG(INFO) << "Skipping spaces (from " << begin << ").";
-    while (begin.column < line->size() && line->get(begin.column) == L' ') {
+    while (begin.column < line->EndColumn() &&
+           line->get(begin.column) == L' ') {
       begin.column++;
     }
   }
 
   LineColumn end(begin.line, begin.column + options_.columns_shown);
-  if (end.column < options_.buffer->LineAt(end.line)->size() &&
+  if (end.column < options_.buffer->LineAt(end.line)->EndColumn() &&
       options_.buffer->Read(buffer_variables::wrap_long_lines)) {
     if (options_.buffer->Read(buffer_variables::wrap_from_content)) {
       auto symbols = options_.buffer->Read(buffer_variables::symbol_characters);
       auto line = options_.buffer->LineAt(end.line);
-      auto read = [&](size_t column) { return line->get(column); };
+      auto read = [&](ColumnNumber column) { return line->get(column); };
       bool moved = false;
       while (end > begin && symbols.find(read(end.column)) != symbols.npos) {
-        end.column--;
+        --end.column;
         moved = true;
       }
       if (moved) {
-        end.column++;
+        ++end.column;
       }
-      if (end.column <= begin.column + 1) {
+      if (end.column <= begin.column + ColumnNumberDelta(1)) {
         LOG(INFO) << "Giving up, line exceeds width.";
         end.column = begin.column + options_.columns_shown;
       }

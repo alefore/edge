@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "src/lazy_string.h"
+#include "src/line_column.h"
 #include "src/output_receiver.h"
 #include "src/parse_tree.h"
 #include "src/vm/public/environment.h"
@@ -23,9 +24,9 @@ class OutputReceiver {
   virtual void AddCharacter(wchar_t character) = 0;
   virtual void AddString(const wstring& str) = 0;
   virtual void AddModifier(LineModifier modifier) = 0;
-  virtual void SetTabsStart(size_t columns) = 0;
-  virtual size_t column() = 0;
-  virtual size_t width() = 0;
+  virtual void SetTabsStart(ColumnNumber columns) = 0;
+  virtual ColumnNumber column() = 0;
+  virtual ColumnNumberDelta width() = 0;
 };
 
 }  // namespace editor

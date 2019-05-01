@@ -19,8 +19,9 @@
 namespace afc {
 namespace editor {
 
-/* static */ size_t LineNumberOutputProducer::PrefixWidth(size_t lines_size) {
-  return 1 + std::to_wstring(lines_size).size();
+/* static */ ColumnNumberDelta LineNumberOutputProducer::PrefixWidth(
+    size_t lines_size) {
+  return ColumnNumberDelta(1 + std::to_wstring(lines_size).size());
 }
 
 LineNumberOutputProducer::LineNumberOutputProducer(
@@ -44,8 +45,9 @@ void LineNumberOutputProducer::WriteLine(Options options) {
   if (range.has_value()) {
     last_line_ = range.value().begin.line;
   }
-  CHECK_LE(number.size(), width_ - 1);
-  std::wstring padding(width_ - number.size() - 1, L' ');
+  CHECK_LE(ColumnNumberDelta(number.size() + 1), width_);
+  std::wstring padding((width_ - ColumnNumberDelta(number.size() + 1)).value,
+                       L' ');
   if (!range.has_value() ||
       line_scroll_control_reader_->GetCurrentCursors().empty()) {
     options.receiver->AddModifier(LineModifier::DIM);
@@ -63,7 +65,7 @@ void LineNumberOutputProducer::WriteLine(Options options) {
   }
 }
 
-size_t LineNumberOutputProducer::width() const { return width_; }
+ColumnNumberDelta LineNumberOutputProducer::width() const { return width_; }
 
 }  // namespace editor
 }  // namespace afc

@@ -308,7 +308,8 @@ Environment EditorState::BuildEditorEnvironment() {
         if (buffer == nullptr) {
           return;
         }
-        buffer->set_position(LineColumn(buffer->position().line, value));
+        buffer->set_position(
+            LineColumn(buffer->position().line, ColumnNumber(value)));
       })));
 
   environment.Define(
@@ -780,7 +781,7 @@ void EditorState::PushPosition(LineColumn position) {
 static BufferPosition PositionFromLine(const wstring& line) {
   std::wstringstream line_stream(line);
   BufferPosition pos;
-  line_stream >> pos.position.line >> pos.position.column;
+  line_stream >> pos.position.line >> pos.position.column.value;
   line_stream.get();
   getline(line_stream, pos.buffer_name);
   return pos;

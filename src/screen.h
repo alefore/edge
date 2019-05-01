@@ -1,7 +1,8 @@
 #ifndef __AFC_EDITOR_SCREEN_H__
 #define __AFC_EDITOR_SCREEN_H__
 
-#include "line.h"
+#include "src/line.h"
+#include "src/line_column.h"
 
 namespace afc {
 namespace editor {
@@ -48,12 +49,12 @@ class Screen {
   }
 
   virtual void SetCursorVisibility(CursorVisibility cursor_visibility) = 0;
-  virtual void Move(size_t y, size_t x) = 0;
+  virtual void Move(size_t y, ColumnNumber x) = 0;
   virtual void WriteString(const wstring& str) = 0;
 
   virtual void SetModifier(LineModifier modifier) = 0;
 
-  virtual size_t columns() const = 0;
+  virtual ColumnNumberDelta columns() const = 0;
   virtual size_t lines() const = 0;
 };
 

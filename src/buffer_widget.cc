@@ -20,28 +20,30 @@
 namespace afc {
 namespace editor {
 namespace {
-size_t GetCurrentColumn(OpenBuffer* buffer) {
+ColumnNumber GetCurrentColumn(OpenBuffer* buffer) {
   if (buffer->lines_size() == 0) {
-    return 0;
+    return ColumnNumber(0);
   } else if (buffer->position().line >= buffer->lines_size()) {
-    return buffer->contents()->back()->size();
+    return buffer->contents()->back()->EndColumn();
   } else if (!buffer->IsLineFiltered(buffer->position().line)) {
-    return 0;
+    return ColumnNumber(0);
   } else {
     return min(buffer->position().column,
-               buffer->LineAt(buffer->position().line)->size());
+               buffer->LineAt(buffer->position().line)->EndColumn());
   }
 }
 
-size_t GetDesiredViewStartColumn(OpenBuffer* buffer) {
+ColumnNumber GetDesiredViewStartColumn(OpenBuffer* buffer) {
   if (buffer->Read(buffer_variables::wrap_long_lines)) {
-    return 0;
+    return ColumnNumber(0);
   }
-  size_t effective_size = 80;  // TODO: This is bogus.
+  // TODO: This is bogus.
+  ColumnNumberDelta effective_size = ColumnNumberDelta(80);
   effective_size -=
-      min(effective_size, /* GetInitialPrefixSize(*buffer) */ 3ul);
-  size_t column = GetCurrentColumn(buffer);
-  return column - min(column, effective_size);
+      min(effective_size,
+          /* GetInitialPrefixSize(*buffer) */ ColumnNumberDelta(3ul));
+  ColumnNumber column = GetCurrentColumn(buffer);
+  return column - min(column.ToDelta(), effective_size);
 }
 }  // namespace
 
@@ -113,14 +115,14 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
   return std::make_unique<VerticalSplitOutputProducer>(std::move(columns), 1);
 }
 
-void BufferWidget::SetSize(size_t lines, size_t columns) {
+void BufferWidget::SetSize(size_t lines, ColumnNumberDelta columns) {
   lines_ = lines;
   columns_ = columns;
   RecomputeData();
 }
 
 size_t BufferWidget::lines() const { return lines_; }
-size_t BufferWidget::columns() const { return columns_; }
+ColumnNumberDelta BufferWidget::columns() const { return columns_; }
 
 size_t BufferWidget::MinimumLines() {
   auto buffer = Lock();
@@ -171,12 +173,12 @@ void BufferWidget::RecomputeData() {
   line_scroll_control_options_.columns_shown =
       columns_ -
       (paste_mode
-           ? 0
+           ? ColumnNumberDelta(0)
            : LineNumberOutputProducer::PrefixWidth(buffer->lines_size()));
   if (!buffer->Read(buffer_variables::paste_mode)) {
     line_scroll_control_options_.columns_shown =
         min(line_scroll_control_options_.columns_shown,
-            static_cast<size_t>(buffer->Read(buffer_variables::line_width)));
+            ColumnNumberDelta(buffer->Read(buffer_variables::line_width)));
   }
 
   size_t line = min(buffer->position().line, buffer->contents()->size() - 1);

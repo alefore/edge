@@ -34,33 +34,33 @@ using namespace afc::editor;
 class NewLineTransformation : public Transformation {
   void Apply(OpenBuffer* buffer, Result* result) const override {
     buffer->AdjustLineColumn(&result->cursor);
-    const size_t column = result->cursor.column;
+    const ColumnNumber column = result->cursor.column;
     auto line = buffer->LineAt(result->cursor.line);
     if (line == nullptr) {
       result->made_progress = false;
       return;
     }
 
-    if (buffer->Read(buffer_variables::atomic_lines) && column != 0 &&
-        column != line->size()) {
+    if (buffer->Read(buffer_variables::atomic_lines) &&
+        column != ColumnNumber(0) && column != line->EndColumn()) {
       result->made_progress = false;
       return;
     }
 
     const wstring& line_prefix_characters(
         buffer->Read(buffer_variables::line_prefix_characters));
-    size_t prefix_end = 0;
+    ColumnNumber prefix_end = ColumnNumber(0);
     if (line != nullptr && !buffer->Read(buffer_variables::paste_mode)) {
       while (prefix_end < column &&
              (line_prefix_characters.find(line->get(prefix_end)) !=
               line_prefix_characters.npos)) {
-        prefix_end++;
+        ++prefix_end;
       }
     }
 
     auto continuation_line = std::make_shared<Line>(*line);
-    continuation_line->DeleteCharacters(prefix_end,
-                                        continuation_line->size() - prefix_end);
+    continuation_line->DeleteCharacters(
+        prefix_end, continuation_line->EndColumn() - prefix_end);
 
     auto transformation = std::make_unique<TransformationStack>();
     {
@@ -94,7 +94,7 @@ class InsertEmptyLineTransformation : public Transformation {
     if (direction_ == BACKWARDS) {
       result->cursor.line++;
     }
-    result->cursor.column = 0;
+    result->cursor.column = ColumnNumber(0);
     buffer->AdjustLineColumn(&result->cursor);
     return ComposeTransformation(std::make_unique<NewLineTransformation>(),
                                  NewGotoPositionTransformation(result->cursor))
@@ -124,8 +124,8 @@ class AutocompleteMode : public EditorMode {
 
     // The position where the matches begin.
     size_t matches_start;
-    size_t column_start;
-    size_t column_end;
+    ColumnNumber column_start;
+    ColumnNumber column_end;
   };
 
   AutocompleteMode(Options options)
@@ -227,7 +227,7 @@ class AutocompleteMode : public EditorMode {
                << " (len: " << insert->size()
                << ", word_length: " << word_length_ << ").";
     DeleteOptions delete_options;
-    delete_options.modifiers.repetitions = word_length_;
+    delete_options.modifiers.repetitions = word_length_.value;
     delete_options.copy_to_paste_buffer = false;
     // TODO: Somewhat wrong. Should find the autocompletion for each position.
     // Also, should apply the deletions/insertions at the right positions.
@@ -240,7 +240,7 @@ class AutocompleteMode : public EditorMode {
             NewInsertBufferTransformation(std::move(insert_options)))));
 
     editor_state->ScheduleRedraw();
-    word_length_ = insert->size();
+    word_length_ = ColumnNumberDelta(insert->size());
   }
 
   Options options_;
@@ -251,7 +251,7 @@ class AutocompleteMode : public EditorMode {
   // options_.column_start) for the next insertion. Initially, this is computed
   // from options_.column_start and options_.column_end; however, after an
   // insertion, it gets updated with the length of the insertion.
-  size_t word_length_;
+  ColumnNumberDelta word_length_;
 
   // The original text (that the autocompletion is replacing).
   const std::shared_ptr<LazyString> original_text_;
@@ -268,7 +268,7 @@ void FindCompletion(EditorState* editor_state,
   AutocompleteMode::Options options;
 
   options.column_end = buffer->position().column;
-  if (options.column_end == 0) {
+  if (options.column_end == ColumnNumber(0)) {
     LOG(INFO) << "No completion at very beginning of line.";
     return;
   }
@@ -286,19 +286,19 @@ void FindCompletion(EditorState* editor_state,
   LOG(INFO) << "Dictionary size: " << dictionary->contents()->size();
 
   auto line = buffer->current_line()->ToString();
-  options.column_start =
+  size_t index_before_symbol =
       line.find_last_not_of(buffer->Read(buffer_variables::symbol_characters),
-                            options.column_end - 1);
-  if (options.column_start == wstring::npos) {
-    options.column_start = 0;
+                            (options.column_end - ColumnNumberDelta(1)).value);
+  if (index_before_symbol == wstring::npos) {
+    options.column_start = ColumnNumber(0);
   } else {
-    options.column_start++;
+    options.column_start = ColumnNumber(index_before_symbol + 1);
   }
   LOG(INFO) << "Positions: start: " << options.column_start
             << ", end: " << options.column_end;
-  options.prefix =
-      std::make_shared<const Line>(Line::Options(NewLazyString(line.substr(
-          options.column_start, options.column_end - options.column_start))));
+  options.prefix = std::make_shared<const Line>(Line::Options(NewLazyString(
+      line.substr(options.column_start.value,
+                  (options.column_end - options.column_start).value))));
 
   options.delegate = buffer->ResetMode();
   options.dictionary = dictionary;
@@ -347,7 +347,7 @@ void RegisterLeaves(const OpenBuffer& buffer, const ParseTree& tree,
   if (tree.children.empty() && tree.range.begin.line == tree.range.end.line) {
     CHECK_LE(tree.range.begin.column, tree.range.end.column);
     auto line = buffer.LineAt(tree.range.begin.line);
-    CHECK_LE(tree.range.end.column, line->size());
+    CHECK_LE(tree.range.end.column, line->EndColumn());
     auto word = line->Substring(tree.range.begin.column,
                                 tree.range.end.column - tree.range.begin.column)
                     ->ToString();
@@ -742,12 +742,12 @@ void DefaultScrollBehavior::Right(EditorState*, OpenBuffer* buffer) {
 }
 
 void DefaultScrollBehavior::Begin(EditorState*, OpenBuffer* buffer) {
-  buffer->ApplyToCursors(NewGotoColumnTransformation(0));
+  buffer->ApplyToCursors(NewGotoColumnTransformation(ColumnNumber(0)));
 }
 
 void DefaultScrollBehavior::End(EditorState*, OpenBuffer* buffer) {
   buffer->ApplyToCursors(
-      NewGotoColumnTransformation(std::numeric_limits<size_t>::max()));
+      NewGotoColumnTransformation(std::numeric_limits<ColumnNumber>::max()));
 }
 
 std::unique_ptr<Command> NewFindCompletionCommand() {

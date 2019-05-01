@@ -15,7 +15,7 @@ namespace editor {
 
 namespace {
 // Arguments:
-//   prefix_len: The size of the prefix that we skip when calls is 0.
+//   prefix_len: The length of prefix that we skip when calls is 0.
 //   suffix_start: The position where the suffix starts. This is the base when
 //       calls is 2.
 //   elements: The total number of elements.
@@ -75,12 +75,12 @@ class GotoCharTransformation : public Transformation {
       end--;
     }
     auto editor = buffer->editor();
-    size_t position = ComputePosition(
+    ColumnNumber column = ColumnNumber(ComputePosition(
         start, end, line->size(), editor->direction(), editor->repetitions(),
-        editor->structure_range(), calls_);
-    CHECK_LE(position, line->size());
-    result->made_progress = result->cursor.column != position;
-    result->cursor.column = position;
+        editor->structure_range(), calls_));
+    CHECK_LE(column, line->EndColumn());
+    result->made_progress = result->cursor.column != column;
+    result->cursor.column = column;
   }
 
   std::unique_ptr<Transformation> Clone() const override {
@@ -118,7 +118,7 @@ class GotoCommand : public Command {
       LineColumn position(buffer->position().line);
       buffer->AdjustLineColumn(&position);
       if (editor_state->direction() == BACKWARDS) {
-        position.column = buffer->LineAt(position.line)->size();
+        position.column = buffer->LineAt(position.line)->EndColumn();
       }
 
       VLOG(4) << "Start SYMBOL GotoCommand: " << editor_state->modifiers();

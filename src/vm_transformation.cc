@@ -67,7 +67,7 @@ void RegisterTransformations(EditorState* editor,
   environment->Define(
       L"TransformationGoToColumn",
       NewCallback(std::function<Transformation*(int)>([](int column) {
-        return NewGotoColumnTransformation(column).release();
+        return NewGotoColumnTransformation(ColumnNumber(column)).release();
       })));
 
   environment->Define(

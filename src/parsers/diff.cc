@@ -26,8 +26,8 @@ class DiffParser : public TreeParser {
     std::vector<ParseTree*> trees = {root};
     for (size_t i = root->range.begin.line; i < root->range.end.line; i++) {
       ParseData data(buffer, std::move(states_stack),
-                     std::min(LineColumn(i + 1, 0), root->range.end));
-      data.set_position(std::max(LineColumn(i, 0), root->range.begin));
+                     std::min(LineColumn(i + 1), root->range.end));
+      data.set_position(std::max(LineColumn(i), root->range.begin));
       ParseLine(&data);
       for (auto& action : data.parse_results()->actions) {
         action.Execute(&trees, i);
@@ -35,12 +35,12 @@ class DiffParser : public TreeParser {
       states_stack = data.parse_results()->states_stack;
     }
 
-    auto final_position = LineColumn(buffer.size() - 1, buffer.back()->size());
+    auto final_position =
+        LineColumn(buffer.size() - 1, buffer.back()->EndColumn());
     if (final_position >= root->range.end) {
       DVLOG(5) << "Draining final states: " << states_stack.size();
-      ParseData data(
-          buffer, std::move(states_stack),
-          std::min(LineColumn(buffer.size() + 1, 0), root->range.end));
+      ParseData data(buffer, std::move(states_stack),
+                     std::min(LineColumn(buffer.size() + 1), root->range.end));
       while (!data.parse_results()->states_stack.empty()) {
         data.PopBack();
       }
@@ -110,7 +110,7 @@ class DiffParser : public TreeParser {
   void AdvanceLine(ParseData* result, LineModifierSet modifiers) {
     auto original_column = result->position().column;
     result->seek().ToEndOfLine();
-    result->PushAndPop(result->position().column - original_column,
+    result->PushAndPop((result->position().column - original_column).value,
                        {modifiers});
   }
 

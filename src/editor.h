@@ -178,8 +178,10 @@ class EditorState {
 
   void set_status_prompt(bool value) { status_prompt_ = value; }
   bool status_prompt() const { return status_prompt_; }
-  void set_status_prompt_column(int column) { status_prompt_column_ = column; }
-  int status_prompt_column() const {
+  void set_status_prompt_column(ColumnNumber column) {
+    status_prompt_column_ = column;
+  }
+  ColumnNumber status_prompt_column() const {
     CHECK(status_prompt_);
     return status_prompt_column_;
   }
@@ -260,7 +262,7 @@ class EditorState {
 
   bool status_prompt_;
   bool is_status_warning_ = false;
-  int status_prompt_column_;
+  ColumnNumber status_prompt_column_;
   wstring status_;
 
   // Initially we don't consume SIGINT: we let it crash the process (in case

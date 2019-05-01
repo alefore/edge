@@ -34,9 +34,9 @@ class BuffersList : public DelegatingWidget {
 
   std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 
-  void SetSize(size_t lines, size_t columns) override;
+  void SetSize(size_t lines, ColumnNumberDelta columns) override;
   size_t lines() const override;
-  size_t columns() const override;
+  ColumnNumberDelta columns() const override;
   size_t MinimumLines() override;
 
   void RemoveBuffer(OpenBuffer* buffer) override;
@@ -59,7 +59,7 @@ class BuffersList : public DelegatingWidget {
 
   // Fields initialized by SetSize.
   size_t lines_;
-  size_t columns_;
+  ColumnNumberDelta columns_;
   std::optional<wstring> warning_status_;
   size_t warning_status_lines_;
   size_t buffers_list_lines_;

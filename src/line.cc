@@ -40,63 +40,77 @@ Line::Line(const Line& line) {
   options_ = line.options_;
 }
 
-shared_ptr<LazyString> Line::Substring(size_t pos, size_t length) const {
-  return afc::editor::Substring(contents(), pos, length);
-}
-
-shared_ptr<LazyString> Line::Substring(size_t pos) const {
-  return afc::editor::Substring(contents(), pos);
-}
-
-void Line::DeleteCharacters(size_t position, size_t amount) {
+ColumnNumber Line::EndColumn() const {
   std::unique_lock<std::mutex> lock(mutex_);
-  CHECK_LE(position, contents_->size());
-  CHECK_LE(position + amount, contents_->size());
+  return EndColumnWithLock();
+}
+
+wint_t Line::get(ColumnNumber column) const {
+  std::unique_lock<std::mutex> lock(mutex_);
+  return GetWithLock(column);
+}
+
+shared_ptr<LazyString> Line::Substring(ColumnNumber column,
+                                       ColumnNumberDelta delta) const {
+  return afc::editor::Substring(contents(), column, delta);
+}
+
+shared_ptr<LazyString> Line::Substring(ColumnNumber column) const {
+  return afc::editor::Substring(contents(), column);
+}
+
+void Line::DeleteCharacters(ColumnNumber column, ColumnNumberDelta delta) {
+  std::unique_lock<std::mutex> lock(mutex_);
+  CHECK_LE(column, EndColumnWithLock());
+  CHECK_LE(column + delta, EndColumnWithLock());
   CHECK_EQ(contents_->size(), modifiers_.size());
   contents_ =
-      StringAppend(afc::editor::Substring(contents_, 0, position),
-                   afc::editor::Substring(contents_, position + amount));
-  auto it = modifiers_.begin() + position;
-  modifiers_.erase(it, it + amount);
+      StringAppend(afc::editor::Substring(contents_, 0, column.value),
+                   afc::editor::Substring(contents_, (column + delta).value));
+  auto it = modifiers_.begin() + column.value;
+  modifiers_.erase(it, it + delta.value);
   CHECK_EQ(contents_->size(), modifiers_.size());
 }
 
-void Line::DeleteCharacters(size_t position) {
-  CHECK_LE(position, size());
-  DeleteCharacters(position, size() - position);
+void Line::DeleteCharacters(ColumnNumber column) {
+  CHECK_LE(column, EndColumn());
+  DeleteCharacters(column, EndColumn() - column);
 }
 
-void Line::InsertCharacterAtPosition(size_t position) {
+void Line::InsertCharacterAtPosition(ColumnNumber column) {
   std::unique_lock<std::mutex> lock(mutex_);
   CHECK_EQ(contents_->size(), modifiers_.size());
-  contents_ =
-      StringAppend(StringAppend(afc::editor::Substring(contents_, 0, position),
-                                NewLazyString(L" ")),
-                   afc::editor::Substring(contents_, position));
+  contents_ = StringAppend(
+      StringAppend(
+          afc::editor::Substring(contents_, ColumnNumber(0), column.ToDelta()),
+          NewLazyString(L" ")),
+      afc::editor::Substring(contents_, column));
 
   modifiers_.push_back(unordered_set<LineModifier, hash<int>>());
-  for (size_t i = modifiers_.size() - 1; i > position; i--) {
+  for (size_t i = modifiers_.size() - 1; i > column.value; i--) {
     modifiers_[i] = modifiers_[i - 1];
   }
 }
 
 void Line::SetCharacter(
-    size_t position, int c,
+    ColumnNumber column, int c,
     const unordered_set<LineModifier, hash<int>>& modifiers) {
   std::unique_lock<std::mutex> lock(mutex_);
   CHECK_EQ(contents_->size(), modifiers_.size());
   shared_ptr<LazyString> str = NewLazyString(wstring(1, c));
-  if (position >= contents_->size()) {
+  if (column >= EndColumnWithLock()) {
     contents_ = StringAppend(contents_, str);
     modifiers_.push_back(modifiers);
   } else {
     contents_ = StringAppend(
-        StringAppend(afc::editor::Substring(contents_, 0, position), str),
-        afc::editor::Substring(contents_, position + 1));
-    if (modifiers_.size() <= position) {
-      modifiers_.resize(position + 1);
+        StringAppend(afc::editor::Substring(contents_, ColumnNumber(0),
+                                            column.ToDelta()),
+                     str),
+        afc::editor::Substring(contents_, column + ColumnNumberDelta(1)));
+    if (modifiers_.size() <= column.value) {
+      modifiers_.resize(column.value + 1);
     }
-    modifiers_[position] = modifiers;
+    modifiers_[column.value] = modifiers;
   }
   CHECK_EQ(contents_->size(), modifiers_.size());
 }
@@ -131,21 +145,21 @@ std::shared_ptr<vm::Environment> Line::environment() const {
 void Line::Output(const Line::OutputOptions& options) const {
   std::unique_lock<std::mutex> lock(mutex_);
   VLOG(5) << "Producing output of line: " << ToString();
-  size_t input_column = options.initial_column;
+  ColumnNumber input_column = options.initial_column;
   unordered_set<LineModifier, hash<int>> current_modifiers;
 
   CHECK(environment_ != nullptr);
 
-  while (input_column < contents_->size() &&
-         options.output_receiver->column() < options.width) {
-    wint_t c = contents_->get(input_column);
+  while (input_column < EndColumnWithLock() &&
+         options.output_receiver->column() < ColumnNumber(0) + options.width) {
+    wint_t c = GetWithLock(input_column);
     CHECK(c != '\n');
     // TODO: Optimize.
-    if (input_column >= modifiers_.size()) {
+    if (input_column.value >= modifiers_.size()) {
       options.output_receiver->AddModifier(LineModifier::RESET);
-    } else if (modifiers_[input_column] != current_modifiers) {
+    } else if (modifiers_[input_column.value] != current_modifiers) {
       options.output_receiver->AddModifier(LineModifier::RESET);
-      current_modifiers = modifiers_[input_column];
+      current_modifiers = modifiers_[input_column.value];
       for (auto it : current_modifiers) {
         options.output_receiver->AddModifier(it);
       }
@@ -163,6 +177,15 @@ void Line::Output(const Line::OutputOptions& options) const {
   for (auto& c : options_.end_of_line_modifiers) {
     options.output_receiver->AddModifier(c);
   }
+}
+
+ColumnNumber Line::EndColumnWithLock() const {
+  return ColumnNumber(contents_->size());
+}
+
+wint_t Line::GetWithLock(ColumnNumber column) const {
+  CHECK_LT(column, EndColumnWithLock());
+  return contents_->get(column.value);
 }
 
 }  // namespace editor

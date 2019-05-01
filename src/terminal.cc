@@ -111,7 +111,7 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
       status += to_wstring(buffer->current_position_line() + 1);
     }
     status += L" of " + to_wstring(buffer->contents()->size()) + L", " +
-              to_wstring(buffer->current_position_col() + 1);
+              to_wstring(buffer->current_position_col().value + 1);
 
     status += L"] ";
 
@@ -228,17 +228,17 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
     }
   }
 
-  size_t status_column = 0;
+  ColumnNumber status_column;
   for (size_t i = 0; i < status.size(); i++) {
-    status_column += wcwidth(status[i]);
+    status_column += ColumnNumberDelta(wcwidth(status[i]));
   }
   status += editor_state.status();
-  if (status.size() < screen->columns()) {
-    status += wstring(screen->columns() - status.size(), ' ');
-  } else if (status.size() > screen->columns()) {
-    status = status.substr(0, screen->columns());
+  if (ColumnNumberDelta(status.size()) < screen->columns()) {
+    status += wstring(screen->columns().value - status.size(), ' ');
+  } else if (ColumnNumberDelta(status.size()) > screen->columns()) {
+    status = status.substr(0, screen->columns().value);
   }
-  screen->Move(screen->lines() - 1, 0);
+  screen->Move(screen->lines() - 1, ColumnNumber(0));
   if (editor_state.is_status_warning()) {
     screen->SetModifier(LineModifier::RED);
     screen->SetModifier(LineModifier::BOLD);
@@ -248,8 +248,9 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
     screen->SetModifier(LineModifier::RESET);
   }
   if (editor_state.status_prompt()) {
-    status_column += editor_state.status_prompt_column();
-    screen->Move(screen->lines() - 1, min(status_column, screen->columns()));
+    status_column += editor_state.status_prompt_column().ToDelta();
+    screen->Move(screen->lines() - 1,
+                 min(status_column, ColumnNumber(0) + screen->columns()));
   }
 }
 
@@ -272,32 +273,33 @@ class WithPrefixOutputReceiver : public DelegatingOutputReceiver {
  public:
   WithPrefixOutputReceiver(std::unique_ptr<OutputReceiver> delegate,
                            wstring prefix, LineModifier prefix_modifier)
-      : DelegatingOutputReceiver(std::move(delegate)), prefix_length_([=]() {
+      : DelegatingOutputReceiver(std::move(delegate)), prefix_len_([=]() {
           AddModifier(prefix_modifier);
           AddString(prefix);
           AddModifier(LineModifier::RESET);
-          return DelegatingOutputReceiver::column();
+          return DelegatingOutputReceiver::column().ToDelta();
         }()) {}
 
-  void SetTabsStart(size_t columns) override {
-    DelegatingOutputReceiver::SetTabsStart(prefix_length_ + columns);
+  void SetTabsStart(ColumnNumber columns) override {
+    DelegatingOutputReceiver::SetTabsStart(columns + prefix_len_);
   }
 
-  size_t column() override {
-    if (DelegatingOutputReceiver::column() < prefix_length_) {
-      return 0;
+  ColumnNumber column() override {
+    if (DelegatingOutputReceiver::column().ToDelta() < prefix_len_) {
+      return ColumnNumber(0);
     }
-    return DelegatingOutputReceiver::column() - prefix_length_;
+    return DelegatingOutputReceiver::column() - prefix_len_;
   }
-  size_t width() override {
-    if (DelegatingOutputReceiver::width() < prefix_length_) {
-      return 0;
+
+  ColumnNumberDelta width() override {
+    if (DelegatingOutputReceiver::width() < prefix_len_) {
+      return ColumnNumberDelta(0);
     }
-    return DelegatingOutputReceiver::width() - prefix_length_;
+    return DelegatingOutputReceiver::width() - prefix_len_;
   }
 
  private:
-  const size_t prefix_length_;
+  const ColumnNumberDelta prefix_len_;
 };
 
 class HighlightedLineOutputReceiver : public DelegatingOutputReceiver {
@@ -319,16 +321,17 @@ class HighlightedLineOutputReceiver : public DelegatingOutputReceiver {
   }
 };
 
+// TODO: Nuke this?
 class ParseTreeHighlighter : public DelegatingOutputReceiver {
  public:
   explicit ParseTreeHighlighter(std::unique_ptr<OutputReceiver> delegate,
-                                size_t begin, size_t end)
+                                ColumnNumber begin, ColumnNumber end)
       : DelegatingOutputReceiver(std::move(delegate)),
         begin_(begin),
         end_(end) {}
 
   void AddCharacter(wchar_t c) override {
-    size_t position = column();
+    ColumnNumber position = column();
     // TODO: Optimize: Don't add it for each character, just at the start.
     if (begin_ <= position && position < end_) {
       AddModifier(LineModifier::BLUE);
@@ -354,10 +357,11 @@ class ParseTreeHighlighter : public DelegatingOutputReceiver {
   }
 
  private:
-  const size_t begin_;
-  const size_t end_;
+  const ColumnNumber begin_;
+  const ColumnNumber end_;
 };
 
+// TODO: Nuke this?
 class ParseTreeHighlighterTokens
     : public DelegatingOutputReceiverWithInternalModifiers {
  public:
@@ -371,7 +375,7 @@ class ParseTreeHighlighterTokens
   // affect the padding and/or scrollbar).
   ParseTreeHighlighterTokens(std::unique_ptr<OutputReceiver> delegate,
                              const ParseTree* root, size_t line,
-                             size_t largest_column_with_tree)
+                             ColumnNumber largest_column_with_tree)
       : DelegatingOutputReceiverWithInternalModifiers(
             std::move(delegate), DelegatingOutputReceiverWithInternalModifiers::
                                      Preference::kExternal),
@@ -379,7 +383,7 @@ class ParseTreeHighlighterTokens
         largest_column_with_tree_(largest_column_with_tree),
         line_(line),
         current_({root}) {
-    UpdateCurrent(LineColumn(line_, 0));
+    UpdateCurrent(LineColumn(line_, ColumnNumber(0)));
   }
 
   void AddCharacter(wchar_t c) override {
@@ -412,7 +416,7 @@ class ParseTreeHighlighterTokens
     // TODO: Optimize.
     if (str == L"\n") {
       DelegatingOutputReceiver::AddString(str);
-      column_read_ = 0;
+      column_read_ = ColumnNumber(0);
       return;
     }
     for (auto& c : str) {
@@ -448,14 +452,14 @@ class ParseTreeHighlighterTokens
   // Keeps track of the modifiers coming from the parent, so as to not lose
   // that information when we reset our own.
   const ParseTree* root_;
-  const size_t largest_column_with_tree_;
+  const ColumnNumber largest_column_with_tree_;
   const size_t line_;
   std::vector<const ParseTree*> current_;
-  size_t column_read_ = 0;
+  ColumnNumber column_read_;
 };
 
 void Terminal::ShowBuffer(EditorState* editor_state, Screen* screen) {
-  screen->Move(0, 0);
+  screen->Move(0, ColumnNumber(0));
 
   cursor_position_ = std::nullopt;
 
@@ -468,7 +472,7 @@ void Terminal::ShowBuffer(EditorState* editor_state, Screen* screen) {
     options.receiver = std::make_unique<OutputReceiverOptimizer>(
         NewScreenOutputReceiver(screen));
 
-    std::optional<size_t> active_cursor_column;
+    std::optional<ColumnNumber> active_cursor_column;
     options.active_cursor = &active_cursor_column;
 
     output_producer->WriteLine(std::move(options));

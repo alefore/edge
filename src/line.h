@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "src/lazy_string.h"
+#include "src/line_column.h"
 #include "src/output_receiver.h"
 #include "src/parse_tree.h"
 #include "src/vm/public/environment.h"
@@ -58,6 +59,7 @@ class Line {
     CHECK(contents() != nullptr);
     return contents()->size();
   }
+  ColumnNumber EndColumn() const;
   bool empty() const {
     CHECK(contents() != nullptr);
     return size() == 0;
@@ -66,21 +68,27 @@ class Line {
     CHECK_LT(column, contents()->size());
     return contents()->get(column);
   }
-  shared_ptr<LazyString> Substring(size_t pos, size_t length) const;
+  wint_t get(ColumnNumber column) const;
+  shared_ptr<LazyString> Substring(ColumnNumber column,
+                                   ColumnNumberDelta length) const;
+
   // Returns the substring from pos to the end of the string.
-  shared_ptr<LazyString> Substring(size_t pos) const;
+  shared_ptr<LazyString> Substring(ColumnNumber column) const;
+
   wstring ToString() const { return contents()->ToString(); }
   // Delete characters in [position, position + amount).
-  void DeleteCharacters(size_t position, size_t amount);
+  void DeleteCharacters(ColumnNumber position, ColumnNumberDelta amount);
+
   // Delete characters from position until the end.
-  void DeleteCharacters(size_t position);
-  void InsertCharacterAtPosition(size_t position);
+  void DeleteCharacters(ColumnNumber position);
+  void InsertCharacterAtPosition(ColumnNumber position);
 
   // Sets the character at the position given.
   //
   // `position` may be greater than size(), in which case the character will
   // just get appended (extending the line by exactly one character).
-  void SetCharacter(size_t position, int c, const LineModifierSet& modifiers);
+  void SetCharacter(ColumnNumber position, int c,
+                    const LineModifierSet& modifiers);
 
   void SetAllModifiers(const LineModifierSet& modifiers);
   const vector<LineModifierSet> modifiers() const {
@@ -125,12 +133,15 @@ class Line {
 
   struct OutputOptions {
     OutputReceiver* output_receiver = nullptr;
-    size_t initial_column;
-    size_t width = 0;
+    ColumnNumber initial_column;
+    ColumnNumberDelta width;
   };
   void Output(const OutputOptions& options) const;
 
  private:
+  ColumnNumber EndColumnWithLock() const;
+  wint_t GetWithLock(ColumnNumber column) const;
+
   mutable std::mutex mutex_;
   std::shared_ptr<vm::Environment> environment_;
   // TODO: Remove contents_ and modifiers_ and just use options_ instead.

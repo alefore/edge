@@ -23,7 +23,8 @@ std::unique_ptr<BufferContents> BufferContents::copy() const {
 wint_t BufferContents::character_at(const LineColumn& position) const {
   CHECK_LT(position.line, size());
   auto line = at(position.line);
-  return position.column >= line->size() ? L'\n' : line->get(position.column);
+  return position.column >= line->EndColumn() ? L'\n'
+                                              : line->get(position.column);
 }
 
 wstring BufferContents::ToString() const {
@@ -98,12 +99,13 @@ void BufferContents::insert_line(size_t line_position,
                             .LineDelta(1));
 }
 
-void BufferContents::DeleteCharactersFromLine(size_t line, size_t column,
-                                              size_t amount) {
-  if (amount == 0) {
+void BufferContents::DeleteCharactersFromLine(size_t line, ColumnNumber column,
+                                              ColumnNumberDelta amount) {
+  if (amount == ColumnNumberDelta(0)) {
     return;
   }
-  CHECK_LE(column + amount, at(line)->size());
+  CHECK_GT(amount, ColumnNumberDelta(0));
+  CHECK_LE(column + amount, at(line)->EndColumn());
 
   auto new_line = std::make_shared<Line>(*at(line));
   new_line->DeleteCharacters(column, amount);
@@ -111,19 +113,21 @@ void BufferContents::DeleteCharactersFromLine(size_t line, size_t column,
 
   NotifyUpdateListeners(CursorsTracker::Transformation()
                             .WithBegin(LineColumn(line, column))
-                            .WithEnd(LineColumn(line + 1, 0))
+                            .WithEnd(LineColumn(line + 1))
                             .ColumnDelta(-amount)
                             .ColumnLowerBound(column));
 }
 
-void BufferContents::DeleteCharactersFromLine(size_t line, size_t column) {
-  if (column < at(line)->size()) {
-    return DeleteCharactersFromLine(line, column, at(line)->size() - column);
+void BufferContents::DeleteCharactersFromLine(size_t line,
+                                              ColumnNumber column) {
+  if (column < at(line)->EndColumn()) {
+    return DeleteCharactersFromLine(line, column,
+                                    at(line)->EndColumn() - column);
   }
 }
 
 void BufferContents::SetCharacter(
-    size_t line, size_t column, int c,
+    size_t line, ColumnNumber column, int c,
     std::unordered_set<LineModifier, hash<int>> modifiers) {
   CHECK_LT(line, size());
   auto new_line = std::make_shared<Line>(*at(line));
@@ -132,7 +136,7 @@ void BufferContents::SetCharacter(
   NotifyUpdateListeners(CursorsTracker::Transformation());
 }
 
-void BufferContents::InsertCharacter(size_t line, size_t column) {
+void BufferContents::InsertCharacter(size_t line, ColumnNumber column) {
   auto new_line = std::make_shared<Line>(*at(line));
   new_line->InsertCharacterAtPosition(column);
   set_line(line, new_line);
@@ -175,14 +179,14 @@ void BufferContents::EraseLines(size_t first, size_t last,
 
 void BufferContents::SplitLine(LineColumn position) {
   auto tail = std::make_shared<Line>(*at(position.line));
-  tail->DeleteCharacters(0, position.column);
+  tail->DeleteCharacters(ColumnNumber(0), position.column.ToDelta());
   // TODO: Can maybe combine this with next for fewer updates.
   insert_line(position.line + 1, tail);
   NotifyUpdateListeners(CursorsTracker::Transformation()
                             .WithBegin(position)
-                            .WithEnd(LineColumn(position.line + 1, 0))
+                            .WithEnd(LineColumn(position.line + 1))
                             .LineDelta(1)
-                            .ColumnDelta(-position.column));
+                            .ColumnDelta(-position.column.ToDelta()));
   DeleteCharactersFromLine(position.line, position.column);
 }
 
@@ -190,7 +194,7 @@ void BufferContents::FoldNextLine(size_t position) {
   if (position + 1 >= size()) {
     return;
   }
-  size_t initial_size = at(position)->size();
+  ColumnNumberDelta initial_size = at(position)->EndColumn().ToDelta();
   // TODO: Can maybe combine this with next for fewer updates.
   AppendToLine(position, *at(position + 1));
   NotifyUpdateListeners(CursorsTracker::Transformation()

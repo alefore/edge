@@ -14,11 +14,11 @@ namespace {
 Seek StartSeekToLimit(OpenBuffer* buffer, LineColumn* position) {
   CHECK_GT(buffer->lines_size(), 0ul);
   position->line = std::min(buffer->lines_size() - 1, position->line);
-  if (position->column >= buffer->LineAt(position->line)->size()) {
+  if (position->column >= buffer->LineAt(position->line)->EndColumn()) {
     // if (buffer->Read(buffer_variables::extend_lines)) {
     //   MaybeExtendLine(*position);
     //} else {
-    position->column = buffer->LineAt(position->line)->size();
+    position->column = buffer->LineAt(position->line)->EndColumn();
     //}
   }
   return Seek(*buffer->contents(), position);
@@ -161,8 +161,9 @@ Structure* StructureLine() {
     bool SeekToLimit(OpenBuffer* buffer, Direction direction,
                      LineColumn* position) override {
       StartSeekToLimit(buffer, position);
-      position->column =
-          direction == BACKWARDS ? 0 : buffer->LineAt(position->line)->size();
+      position->column = direction == BACKWARDS
+                             ? ColumnNumber(0)
+                             : buffer->LineAt(position->line)->EndColumn();
       if (direction == BACKWARDS) {
         return Seek(*buffer->contents(), position)
                    .WrappingLines()
@@ -434,7 +435,7 @@ Structure* StructureBuffer() {
       } else {
         CHECK_GT(buffer->lines_size(), 0);
         position->line = buffer->lines_size() - 1;
-        position->column = buffer->LineAt(position->line)->size();
+        position->column = buffer->LineAt(position->line)->EndColumn();
       }
       return false;
     }

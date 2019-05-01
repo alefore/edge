@@ -22,13 +22,14 @@ LineColumn BufferTerminal::position() const { return position_; }
 
 void BufferTerminal::SetPosition(LineColumn position) { position_ = position; }
 
-void BufferTerminal::SetSize(size_t lines, size_t columns) {
+void BufferTerminal::SetSize(size_t lines, ColumnNumberDelta columns) {
   if (lines_ == lines && columns_ == columns) {
     return;
   }
   struct winsize screen_size;
   lines_ = screen_size.ws_row = lines;
-  columns_ = screen_size.ws_col = columns;
+  columns_ = columns;
+  screen_size.ws_col = columns.value;
   if (buffer_->fd() != nullptr &&
       ioctl(buffer_->fd()->fd(), TIOCSWINSZ, &screen_size) == -1) {
     buffer_->editor()->SetWarningStatus(L"ioctl TIOCSWINSZ failed: " +
@@ -52,7 +53,7 @@ void BufferTerminal::ProcessCommandInput(
     read_index++;
     if (c == '\b') {
       VLOG(8) << "Received \\b";
-      if (position_.column > 0) {
+      if (position_.column > ColumnNumber(0)) {
         position_.column--;
       }
     } else if (c == '\a') {
@@ -71,7 +72,7 @@ void BufferTerminal::ProcessCommandInput(
                       {783.99, 523.25, 659.25});
     } else if (c == '\r') {
       VLOG(8) << "Received \\r";
-      position_.column = 0;
+      position_.column = ColumnNumber(0);
     } else if (c == '\n') {
       VLOG(8) << "Received \\n";
       new_line_callback();
@@ -82,7 +83,7 @@ void BufferTerminal::ProcessCommandInput(
       CHECK_LT(position_.line, buffer_->lines_size());
     } else if (isprint(c) || c == '\t') {
       VLOG(8) << "Received printable or tab: " << c;
-      if (position_.column >= columns_) {
+      if (position_.column >= ColumnNumber(0) + columns_) {
         MoveToNextLine();
       }
       contents_->SetCharacter(position_.line, position_.column, c, modifiers);
@@ -229,7 +230,7 @@ size_t BufferTerminal::ProcessTerminalEscapeSequence(
 
       case 'C':
         VLOG(9) << "Terminal: cuf1: non-destructive space (move right 1 space)";
-        if (position_.column < current_line->size()) {
+        if (position_.column < current_line->EndColumn()) {
           auto follower = buffer_->GetEndPositionFollower();
           position_.column++;
         }
@@ -238,19 +239,18 @@ size_t BufferTerminal::ProcessTerminalEscapeSequence(
       case 'H':
         VLOG(9) << "Terminal: home: move cursor home.";
         {
-          LinesDelta lines_delta;
-          ColumnsDelta columns_delta;
+          LineColumnDelta delta;
           size_t pos = sequence.find(';');
           try {
             if (pos != wstring::npos) {
-              lines_delta =
-                  LinesDelta(pos == 0 ? 0 : stoul(sequence.substr(0, pos)) - 1);
-              columns_delta =
-                  ColumnsDelta(pos == sequence.size() - 1
-                                   ? 0
-                                   : stoul(sequence.substr(pos + 1)) - 1);
+              delta.line = LineNumberDelta(
+                  pos == 0 ? 0 : stoul(sequence.substr(0, pos)) - 1);
+              delta.column =
+                  ColumnNumberDelta(pos == sequence.size() - 1
+                                        ? 0
+                                        : stoul(sequence.substr(pos + 1)) - 1);
             } else if (!sequence.empty()) {
-              lines_delta = LinesDelta(stoul(sequence));
+              delta.line = LineNumberDelta(stoul(sequence));
             }
           } catch (const std::invalid_argument& ia) {
             buffer_->SetStatus(
@@ -258,11 +258,11 @@ size_t BufferTerminal::ProcessTerminalEscapeSequence(
                 L"\"" +
                 FromByteString(sequence) + L"\"");
           }
-          DLOG(INFO) << "Move cursor home: line: " << lines_delta.delta
-                     << ", column: " << columns_delta.delta;
+          DLOG(INFO) << "Move cursor home: line: " << delta.line.value
+                     << ", column: " << delta.column.value;
           position_ =
               buffer_->editor()->buffer_tree()->GetActiveLeaf()->view_start() +
-              lines_delta + columns_delta;
+              delta;
           auto follower = buffer_->GetEndPositionFollower();
           while (position_.line >= buffer_->lines_size()) {
             buffer_->AppendEmptyLine();
@@ -281,7 +281,8 @@ size_t BufferTerminal::ProcessTerminalEscapeSequence(
         } else if (sequence == "1") {
           VLOG(10) << "ed: Clear from cursor to beginning of the screen.";
           buffer_->EraseLines(0, position_.line);
-          contents_->DeleteCharactersFromLine(0, 0, position_.column);
+          contents_->DeleteCharactersFromLine(0, ColumnNumber(0),
+                                              position_.column.ToDelta());
           position_ = LineColumn();
         } else if (sequence == "2") {
           VLOG(10) << "ed: Clear entire screen (and moves cursor to upper left "
@@ -318,12 +319,12 @@ size_t BufferTerminal::ProcessTerminalEscapeSequence(
 
       case 'P': {
         VLOG(9) << "Terminal: P";
-        size_t chars_to_erase = static_cast<size_t>(atoi(sequence.c_str()));
-        size_t length = contents_->at(position_.line)->size();
-        if (position_.column < length) {
+        ColumnNumberDelta chars_to_erase(atoi(sequence.c_str()));
+        ColumnNumber end_column = contents_->at(position_.line)->EndColumn();
+        if (position_.column < end_column) {
           contents_->DeleteCharactersFromLine(
               position_.line, position_.column,
-              min(chars_to_erase, length - position_.column));
+              min(chars_to_erase, end_column - position_.column));
         }
         current_line = buffer_->LineAt(position_.line);
         return read_index;
@@ -339,7 +340,7 @@ size_t BufferTerminal::ProcessTerminalEscapeSequence(
 void BufferTerminal::MoveToNextLine() {
   auto follower = buffer_->GetEndPositionFollower();
   position_.line++;
-  position_.column = 0;
+  position_.column = ColumnNumber(0);
   if (position_.line == buffer_->lines_size()) {
     buffer_->AppendEmptyLine();
   }

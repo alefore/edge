@@ -30,11 +30,14 @@ void UpdateStatus(EditorState* editor_state, OpenBuffer* buffer,
                   const wstring& prompt) {
   DCHECK(buffer != nullptr);
   auto line = buffer->current_line();
-  wstring input = line == nullptr ? L"" : line->contents()->ToString();
+  CHECK(line != nullptr);
+  wstring input = line->contents()->ToString();
   editor_state->SetStatus(prompt + input);
   editor_state->set_status_prompt(true);
   editor_state->set_status_prompt_column(
-      prompt.size() + min(input.size(), buffer->current_position_col()));
+      ColumnNumber(prompt.size()) +
+      min(ColumnNumberDelta(input.size()),
+          buffer->current_position_col().ToDelta()));
 }
 
 map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(

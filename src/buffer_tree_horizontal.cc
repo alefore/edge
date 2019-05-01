@@ -34,14 +34,14 @@ const BufferWidget* BufferTree::GetActiveLeaf() const {
   return children_[active_]->GetActiveLeaf();
 }
 
-void BufferTree::SetSize(size_t lines, size_t columns) {
+void BufferTree::SetSize(size_t lines, ColumnNumberDelta columns) {
   lines_ = lines;
   columns_ = columns;
 }
 
 size_t BufferTree::lines() const { return lines_; }
 
-size_t BufferTree::columns() const { return columns_; }
+ColumnNumberDelta BufferTree::columns() const { return columns_; }
 
 void BufferTree::RemoveBuffer(OpenBuffer* buffer) {
   for (auto& child : children_) {
@@ -186,7 +186,7 @@ std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
                                                          active_);
 }
 
-void BufferTreeHorizontal::SetSize(size_t lines, size_t columns) {
+void BufferTreeHorizontal::SetSize(size_t lines, ColumnNumberDelta columns) {
   BufferTree::SetSize(lines, columns);
   lines_per_child_.clear();
   for (size_t i = 0; i < children_.size(); i++) {
@@ -297,20 +297,20 @@ std::unique_ptr<OutputProducer> BufferTreeVertical::CreateOutputProducer() {
                                                        active_);
 }
 
-void BufferTreeVertical::SetSize(size_t lines, size_t columns) {
+void BufferTreeVertical::SetSize(size_t lines, ColumnNumberDelta columns) {
   BufferTree::SetSize(lines, columns);
   columns_per_child_.clear();
 
-  size_t base_columns = columns / children_.size();
-  size_t columns_left = columns - base_columns * children_.size();
-  for (auto& unused : children_) {
+  ColumnNumberDelta base_columns = columns / children_.size();
+  ColumnNumberDelta columns_left = columns - base_columns * children_.size();
+  for (auto& unused __attribute__((unused)) : children_) {
     columns_per_child_.push_back(base_columns);
-    if (columns_left > 0) {
+    if (columns_left > ColumnNumberDelta(0)) {
       columns_per_child_.back()++;
       columns_left--;
     }
   }
-  CHECK_EQ(columns_left, 0);
+  CHECK_EQ(columns_left, ColumnNumberDelta(0));
   for (size_t i = 0; i < columns_per_child_.size(); i++) {
     children_[i]->SetSize(lines_, columns_per_child_[i]);
   }

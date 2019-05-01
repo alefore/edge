@@ -67,7 +67,7 @@ class MoveTransformation : public Transformation {
       editor_state->ResetDirection();
       return;
     } else {
-      CHECK(false);
+      LOG(FATAL) << "Unhandled structure: " << structure->ToString();
     }
     LOG(INFO) << "Move from " << result->cursor << " to " << position << " "
               << modifiers_;
@@ -116,7 +116,7 @@ class MoveTransformation : public Transformation {
       }
       if (it == it_end) {
         // Can't move past the current mark.
-        return position;
+        return LineColumn(position);
       }
     }
 

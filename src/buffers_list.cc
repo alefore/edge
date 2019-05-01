@@ -24,14 +24,26 @@ class BuffersListProducer : public OutputProducer {
         active_buffer_(std::move(active_buffer_)),
         buffers_per_line_(buffers_per_line),
         prefix_width_(std::to_wstring(buffers_->size() + 1).size() + 2),
-        buffers_iterator_(buffers->begin()) {}
+        buffers_iterator_(buffers->begin()) {
+    VLOG(1) << "BuffersList created. Buffers per line: " << buffers_per_line
+            << ", prefix width: " << prefix_width_
+            << ", count: " << buffers->size();
+  }
 
   void WriteLine(Options options) override {
-    const size_t columns_per_buffer =  // Excluding prefixes and separators.
+    VLOG(2) << "BuffersListProducer::WriteLine start at "
+            << options.receiver->column() << " and output "
+            << options.receiver->width();
+    // Excluding prefixes and separators.
+    //
+    // TODO: Move this to constructor? Our customer can tell us the width in
+    // advance?
+    const ColumnNumberDelta columns_per_buffer =
         (options.receiver->width() -
          std::min(options.receiver->width(),
                   (prefix_width_ * buffers_per_line_))) /
         buffers_per_line_;
+    VLOG(2) << "Columns per buffer: " << columns_per_buffer;
     for (size_t i = 0;
          i < buffers_per_line_ && buffers_iterator_ != buffers_->end();
          i++, buffers_iterator_++, index_++) {
@@ -39,11 +51,12 @@ class BuffersListProducer : public OutputProducer {
       options.receiver->AddModifier(LineModifier::RESET);
       auto name = buffers_iterator_->first;
       auto number_prefix = std::to_wstring(index_ + 1);
-      size_t start = i * (columns_per_buffer + prefix_width_) +
-                     (prefix_width_ - number_prefix.size() - 2);
+      ColumnNumber start =
+          ColumnNumber(0) + (columns_per_buffer + prefix_width_) * i +
+          (prefix_width_ - ColumnNumberDelta(number_prefix.size() - 2));
       if (options.receiver->column() < start) {
         options.receiver->AddString(
-            wstring(start - options.receiver->column(), L' '));
+            wstring((start - options.receiver->column()).value, L' '));
       }
       options.receiver->AddModifier(LineModifier::CYAN);
       if (buffer == active_buffer_) {
@@ -58,9 +71,10 @@ class BuffersListProducer : public OutputProducer {
           DirectorySplit(name, &components) && !components.empty()) {
         name.clear();
         output_components.push_front(components.back());
-        if (output_components.front().size() > columns_per_buffer) {
+        if (ColumnNumberDelta(output_components.front().size()) >
+            columns_per_buffer) {
           output_components.front() = output_components.front().substr(
-              output_components.front().size() - columns_per_buffer);
+              output_components.front().size() - columns_per_buffer.value);
         } else {
           size_t consumed = output_components.front().size();
           components.pop_back();
@@ -68,10 +82,12 @@ class BuffersListProducer : public OutputProducer {
           static const size_t kSizeOfSlash = 1;
           while (!components.empty()) {
             if (columns_per_buffer >
-                components.size() * 2 + components.back().size() + consumed) {
+                ColumnNumberDelta(components.size() * 2 +
+                                  components.back().size() + consumed)) {
               output_components.push_front(components.back());
               consumed += components.back().size() + kSizeOfSlash;
-            } else if (columns_per_buffer > 1 + kSizeOfSlash + consumed) {
+            } else if (columns_per_buffer >
+                       ColumnNumberDelta(1 + kSizeOfSlash + consumed)) {
               output_components.push_front(
                   std::wstring(1, components.back()[0]));
               consumed += 1 + kSizeOfSlash;
@@ -101,8 +117,8 @@ class BuffersListProducer : public OutputProducer {
       if (!name.empty()) {
         if (!progress.empty()) {
           // Nothing.
-        } else if (name.size() > columns_per_buffer) {
-          name = name.substr(name.size() - columns_per_buffer);
+        } else if (ColumnNumberDelta(name.size()) > columns_per_buffer) {
+          name = name.substr(name.size() - columns_per_buffer.value);
           options.receiver->AddString(L"…");
         } else {
           options.receiver->AddString(L":");
@@ -143,7 +159,7 @@ class BuffersListProducer : public OutputProducer {
   const std::map<wstring, std::shared_ptr<OpenBuffer>>* const buffers_;
   const std::shared_ptr<OpenBuffer> active_buffer_;
   const size_t buffers_per_line_;
-  const size_t prefix_width_;
+  const ColumnNumberDelta prefix_width_;
 
   int line_ = 0;
   std::map<wstring, std::shared_ptr<OpenBuffer>>::iterator buffers_iterator_;
@@ -279,11 +295,11 @@ std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer() {
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows), 0);
 }
 
-void BuffersList::SetSize(size_t lines, size_t columns) {
+void BuffersList::SetSize(size_t lines, ColumnNumberDelta columns) {
   lines_ = lines;
   columns_ = columns;
 
-  static const size_t kMinimumColumnsPerBuffer = 20;
+  static const auto kMinimumColumnsPerBuffer = ColumnNumberDelta(20);
 
   warning_status_ = warning_status_callback_();
   if (warning_status_.has_value()) {
@@ -293,9 +309,9 @@ void BuffersList::SetSize(size_t lines, size_t columns) {
     warning_status_lines_ = 0;
   }
 
-  buffers_list_lines_ =
-      ceil(static_cast<double>(buffers_.size() * kMinimumColumnsPerBuffer) /
-           columns_);
+  buffers_list_lines_ = ceil(
+      static_cast<double>(buffers_.size() * kMinimumColumnsPerBuffer.value) /
+      columns_.value);
   buffers_per_line_ =
       ceil(static_cast<double>(buffers_.size()) / buffers_list_lines_);
 
@@ -304,7 +320,7 @@ void BuffersList::SetSize(size_t lines, size_t columns) {
 }
 
 size_t BuffersList::lines() const { return lines_; }
-size_t BuffersList::columns() const { return columns_; }
+ColumnNumberDelta BuffersList::columns() const { return columns_; }
 size_t BuffersList::MinimumLines() { return 0; }
 
 Widget* BuffersList::Child() { return widget_.get(); }

@@ -353,7 +353,11 @@ bool FindPath(EditorState* editor_state, vector<wstring> search_paths,
           if (!position->has_value()) {
             *position = LineColumn();
           }
-          (i == 0 ? position->value().line : position->value().column) = value;
+          if (i == 0) {
+            position->value().line = value;
+          } else {
+            position->value().column = ColumnNumber(value);
+          }
         }
         str_end = next_str_end;
         if (str_end == path.npos) {

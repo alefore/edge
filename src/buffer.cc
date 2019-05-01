@@ -457,7 +457,7 @@ void OpenBuffer::BackgroundThread() {
     }
     auto parse_tree = std::make_shared<ParseTree>();
     parse_tree->range.end.line = contents->size() - 1;
-    parse_tree->range.end.column = contents->back()->size();
+    parse_tree->range.end.column = contents->back()->EndColumn();
     parser->FindChildren(*contents, parse_tree.get());
     auto simplified_parse_tree = std::make_shared<ParseTree>();
     SimplifyTree(*parse_tree, simplified_parse_tree.get());
@@ -1148,7 +1148,8 @@ void OpenBuffer::DeleteRange(const Range& range) {
                                        range.end.column - range.begin.column);
   } else {
     contents_.DeleteCharactersFromLine(range.begin.line, range.begin.column);
-    contents_.DeleteCharactersFromLine(range.end.line, 0, range.end.column);
+    contents_.DeleteCharactersFromLine(range.end.line, ColumnNumber(0),
+                                       range.end.column.ToDelta());
     // Lines in the middle.
     EraseLines(range.begin.line + 1, range.end.line);
     contents_.FoldNextLine(range.begin.line);
@@ -1162,17 +1163,17 @@ LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
   LineColumn position = input_position;
   if (position.line >= contents_.size()) {
     position.line = contents_.size() - 1;
-    position.column = contents_.at(position.line)->size();
+    position.column = contents_.at(position.line)->EndColumn();
   }
-  if (position.column > contents_.at(position.line)->size()) {
-    position.column = contents_.at(position.line)->size();
+  if (position.column > contents_.at(position.line)->EndColumn()) {
+    position.column = contents_.at(position.line)->EndColumn();
   }
   contents_.SplitLine(position);
   contents_.insert(position.line + 1, buffer.contents_, modifiers);
   contents_.FoldNextLine(position.line);
 
   size_t last_line = position.line + buffer.contents_.size() - 1;
-  size_t column = LineAt(last_line)->size();
+  ColumnNumber column = LineAt(last_line)->EndColumn();
 
   contents_.FoldNextLine(last_line);
   return LineColumn(last_line, column);
@@ -1182,23 +1183,25 @@ void OpenBuffer::AdjustLineColumn(LineColumn* output) const {
   CHECK_GT(contents_.size(), 0u);
   output->line = min(output->line, contents_.size() - 1);
   CHECK(LineAt(output->line) != nullptr);
-  output->column = min(LineAt(output->line)->size(), output->column);
+  output->column = min(LineAt(output->line)->EndColumn(), output->column);
 }
 
 void OpenBuffer::MaybeAdjustPositionCol() {
   if (current_line() == nullptr) {
     return;
   }
-  set_current_position_col(std::min(position().column, current_line()->size()));
+  set_current_position_col(
+      std::min(position().column, current_line()->EndColumn()));
 }
 
 void OpenBuffer::MaybeExtendLine(LineColumn position) {
   CHECK_LT(position.line, contents_.size());
   auto line = std::make_shared<Line>(*LineAt(position.line));
-  if (line->size() > position.column + 1) {
+  if (line->EndColumn() > position.column + ColumnNumberDelta(1)) {
     return;
   }
-  wstring padding(position.column - line->size() + 1, L' ');
+  wstring padding(
+      (position.column - line->EndColumn() + ColumnNumberDelta(1)).value, L' ');
   line->Append(Line(padding));
   contents_.set_line(position.line, line);
 }
@@ -1373,7 +1376,7 @@ void OpenBuffer::DestroyCursor() {
 void OpenBuffer::DestroyOtherCursors() {
   CheckPosition();
   auto position = this->position();
-  CHECK_LE(position, contents_.size());
+  CHECK_LE(position, LineColumn(contents_.size()));
   auto cursors = active_cursors();
   cursors->clear();
   cursors->insert(position);
@@ -1389,11 +1392,11 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
 
   LineColumn position = initial_position;
   position.line = min(lines_size() - 1, position.line);
-  if (position.column > LineAt(position.line)->size()) {
+  if (position.column > LineAt(position.line)->EndColumn()) {
     if (Read(buffer_variables::extend_lines)) {
       MaybeExtendLine(position);
     } else {
-      position.column = LineAt(position.line)->size();
+      position.column = LineAt(position.line)->EndColumn();
     }
   }
 
@@ -1534,7 +1537,7 @@ void OpenBuffer::PushSignal(int sig) {
   }
 }
 
-void OpenBuffer::SetTerminalSize(size_t lines, size_t columns) {
+void OpenBuffer::SetTerminalSize(size_t lines, ColumnNumberDelta columns) {
   if (terminal_ != nullptr) {
     terminal_->SetSize(lines, columns);
   }
@@ -1611,10 +1614,22 @@ void OpenBuffer::set_current_position_line(size_t line) {
   set_current_cursor(LineColumn(min(line, contents_.size())));
 }
 
-size_t OpenBuffer::current_position_col() const { return position().column; }
+ColumnNumber OpenBuffer::current_position_col() const {
+  return position().column;
+}
 
-void OpenBuffer::set_current_position_col(size_t column) {
+void OpenBuffer::set_current_position_col(ColumnNumber column) {
   set_current_cursor(LineColumn(position().line, column));
+}
+
+LineColumn OpenBuffer::PositionBefore(LineColumn position) const {
+  if (position.column > ColumnNumber()) {
+    position.column--;
+  } else if (position.line > 0) {
+    position.line = min(position.line - 1, contents_.size() - 1);
+    position.column = contents_.at(position.line)->EndColumn();
+  }
+  return position;
 }
 
 const LineColumn OpenBuffer::position() const {
@@ -1623,6 +1638,11 @@ const LineColumn OpenBuffer::position() const {
 
 void OpenBuffer::set_position(const LineColumn& position) {
   set_current_cursor(position);
+}
+
+LineColumn OpenBuffer::end_position() const {
+  CHECK_GT(contents_.size(), 0u);
+  return LineColumn(contents_.size() - 1, contents_.back()->EndColumn());
 }
 
 bool OpenBuffer::dirty() const {
@@ -1943,7 +1963,7 @@ bool OpenBuffer::IsPastPosition(LineColumn position) const {
   return position != LineColumn::Max() &&
          (position.line + 1 < contents_.size() ||
           (position.line + 1 == contents_.size() &&
-           position.column <= LineAt(position.line)->size()));
+           position.column <= LineAt(position.line)->EndColumn()));
 }
 
 void OpenBuffer::ReadData(std::unique_ptr<FileDescriptorReader>* source) {

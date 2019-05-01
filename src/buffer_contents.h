@@ -88,9 +88,11 @@ class BufferContents {
               const LineModifierSet* modifiers);
 
   // Delete characters from the given line in range [column, column + amount).
-  void DeleteCharactersFromLine(size_t line, size_t column, size_t amount);
+  // Amount must not be negative.
+  void DeleteCharactersFromLine(size_t line, ColumnNumber column,
+                                ColumnNumberDelta amount);
   // Delete characters from the given line in range [column, ...).
-  void DeleteCharactersFromLine(size_t line, size_t column);
+  void DeleteCharactersFromLine(size_t line, ColumnNumber column);
 
   // Sets the character and modifiers in line `line` and column `column`.
   //
@@ -98,10 +100,10 @@ class BufferContents {
   //
   // `column` may be greater than size(), in which case the character will just
   // get appended (extending the line by exactly one character).
-  void SetCharacter(size_t line, size_t column, int c,
+  void SetCharacter(size_t line, ColumnNumber column, int c,
                     std::unordered_set<LineModifier, hash<int>> modifiers);
 
-  void InsertCharacter(size_t line, size_t column);
+  void InsertCharacter(size_t line, ColumnNumber column);
   void AppendToLine(size_t line, const Line& line_to_append);
 
   enum class CursorsBehavior { kAdjust, kUnmodified };

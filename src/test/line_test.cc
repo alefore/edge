@@ -31,7 +31,7 @@ void TestLineDeleteCharacters() {
 
   {
     Line line_copy(line);
-    line_copy.DeleteCharacters(2);
+    line_copy.DeleteCharacters(ColumnNumber(2));
     CHECK_EQ(ToByteString(line_copy.contents()->ToString()), "al");
     CHECK_EQ(line_copy.modifiers().size(), 2);
     CheckSingleton(line_copy.modifiers()[0], LineModifier::RED);
@@ -40,7 +40,7 @@ void TestLineDeleteCharacters() {
 
   {
     Line line_copy(line);
-    line_copy.DeleteCharacters(1, 2);
+    line_copy.DeleteCharacters(ColumnNumber(1), ColumnNumberDelta(2));
     CHECK_EQ(ToByteString(line_copy.contents()->ToString()), "ajo");
     CHECK_EQ(line_copy.modifiers().size(), 3);
     CheckSingleton(line_copy.modifiers()[0], LineModifier::RED);

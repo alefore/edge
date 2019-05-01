@@ -16,9 +16,9 @@ class DelegatingOutputReceiver : public OutputReceiver {
   void AddCharacter(wchar_t character) override;
   void AddString(const wstring& str) override;
   void AddModifier(LineModifier modifier) override;
-  void SetTabsStart(size_t columns) override;
-  size_t column() override;
-  size_t width() override;
+  void SetTabsStart(ColumnNumber columns) override;
+  ColumnNumber column() override;
+  ColumnNumberDelta width() override;
 
  private:
   // All accessors should use delegate_. If the caller gives us ownership, we'll

@@ -33,6 +33,7 @@ struct Action {
 
   ActionType action_type = PUSH;
 
+  // TODO: Use ColumnNumber.
   size_t column;
 
   // Used by PUSH and by SET_FIRST_CHILD_MODIFIERS.
@@ -82,17 +83,17 @@ class ParseData {
   void PopBack() {
     CHECK(!parse_results_.states_stack.empty());
     parse_results_.states_stack.pop_back();
-    parse_results_.actions.push_back(Action::Pop(position_.column));
+    parse_results_.actions.push_back(Action::Pop(position_.column.value));
   }
 
   void Push(size_t nested_state, size_t rewind_column,
             LineModifierSet modifiers) {
-    CHECK_GE(position_.column, rewind_column);
+    CHECK_GE(position_.column.value, rewind_column);
 
     parse_results_.states_stack.push_back(nested_state);
 
     parse_results_.actions.push_back(
-        Action::Push(position_.column - rewind_column, modifiers));
+        Action::Push(position_.column.value - rewind_column, modifiers));
   }
 
   void PushAndPop(size_t rewind_column, LineModifierSet modifiers) {

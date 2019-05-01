@@ -65,7 +65,7 @@ ParseTree ZoomOutTree(const ParseTree& input, size_t input_lines,
     return ParseTree();
   }
 
-  CHECK_EQ(output.children.size(), 1);
+  CHECK_EQ(output.children.size(), 1ul);
   return std::move(output.children.at(0));
 }
 
@@ -131,13 +131,16 @@ class CharTreeParser : public TreeParser {
          line++) {
       CHECK_LT(line, buffer.size());
       auto contents = buffer.at(line);
-      size_t end_column = line == root->range.end.line ? root->range.end.column
-                                                       : contents->size() + 1;
-      for (size_t i = line == root->range.begin.line ? root->range.begin.column
-                                                     : 0;
-           i < end_column; i++) {
+      ColumnNumber end_column =
+          line == root->range.end.line
+              ? root->range.end.column
+              : contents->EndColumn() + ColumnNumberDelta(1);
+      for (ColumnNumber i = line == root->range.begin.line
+                                ? root->range.begin.column
+                                : ColumnNumber(0);
+           i < end_column; ++i) {
         ParseTree new_children;
-        new_children.range = Range::InLine(line, i, 1);
+        new_children.range = Range::InLine(line, i, ColumnNumberDelta(1));
         DVLOG(7) << "Adding char: " << new_children;
         root->children.push_back(new_children);
       }
@@ -161,13 +164,14 @@ class WordsTreeParser : public TreeParser {
          line++) {
       const auto& contents = *buffer.at(line);
 
-      size_t line_end = contents.size();
+      ColumnNumber line_end = contents.EndColumn();
       if (line == root->range.end.line) {
         line_end = min(line_end, root->range.end.column);
       }
 
-      size_t column =
-          line == root->range.begin.line ? root->range.begin.column : 0;
+      ColumnNumber column = line == root->range.begin.line
+                                ? root->range.begin.column
+                                : ColumnNumber(0);
       while (column < line_end) {
         auto new_children = PushChild(root);
 
@@ -202,7 +206,7 @@ class WordsTreeParser : public TreeParser {
   }
 
  private:
-  bool IsSpace(const Line& line, size_t column) {
+  bool IsSpace(const Line& line, ColumnNumber column) {
     return symbol_characters_.find(line.get(column)) == symbol_characters_.npos;
   }
 
@@ -230,7 +234,7 @@ class LineTreeParser : public TreeParser {
       auto new_children = PushChild(root);
       new_children->range.begin = LineColumn(line);
       new_children->range.end =
-          min(LineColumn(line, contents->size()), root->range.end);
+          min(LineColumn(line, contents->EndColumn()), root->range.end);
       DVLOG(5) << "Adding line: " << *new_children;
       delegate_->FindChildren(buffer, new_children.get());
     }

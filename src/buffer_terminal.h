@@ -24,7 +24,7 @@ class BufferTerminal {
   LineColumn position() const;
   void SetPosition(LineColumn position);
 
-  void SetSize(size_t lines, size_t columns);
+  void SetSize(size_t lines, ColumnNumberDelta columns);
 
   void ProcessCommandInput(shared_ptr<LazyString> str,
                            const std::function<void()>& new_line_callback);
@@ -42,7 +42,7 @@ class BufferTerminal {
   BufferContents* const contents_;
 
   size_t lines_ = 0;
-  size_t columns_ = 0;
+  ColumnNumberDelta columns_;
 
   LineColumn position_;
 };

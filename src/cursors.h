@@ -111,12 +111,12 @@ class CursorsTracker {
       return *this;
     }
 
-    CursorsTracker::Transformation ColumnDelta(size_t delta) {
+    CursorsTracker::Transformation ColumnDelta(ColumnNumberDelta delta) {
       column_delta = delta;
       return *this;
     }
 
-    CursorsTracker::Transformation ColumnLowerBound(size_t column) {
+    CursorsTracker::Transformation ColumnLowerBound(ColumnNumber column) {
       column_lower_bound = column;
       return *this;
     }
@@ -134,9 +134,14 @@ class CursorsTracker {
     // one, goes with this one.
     size_t line_lower_bound = 0;
 
-    int column_delta = 0;
+    // Number of columns to add to a given cursor.
+    ColumnNumberDelta column_delta;
+
+    // If column_delta would leave the output cursor at a value smaller than
+    // this one, goes with this one.
+    //
     // Same as output_line_ge but for column computations.
-    size_t column_lower_bound = 0;
+    ColumnNumber column_lower_bound;
   };
 
   CursorsTracker();
@@ -216,6 +221,8 @@ class CursorsTracker {
 
 std::ostream& operator<<(std::ostream& os,
                          const CursorsTracker::Transformation& lc);
+bool operator==(const CursorsTracker::Transformation& a,
+                const CursorsTracker::Transformation& b);
 
 }  // namespace editor
 }  // namespace afc

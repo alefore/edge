@@ -16,7 +16,7 @@ class OutputProducer {
 
     // Output parameter. If the active cursor is found in the line, stores here
     // the column in which it was output here. May be nullptr.
-    std::optional<size_t>* active_cursor = nullptr;
+    std::optional<ColumnNumber>* active_cursor = nullptr;
   };
   virtual void WriteLine(Options options) = 0;
 };

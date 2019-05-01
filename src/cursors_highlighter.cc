@@ -21,11 +21,12 @@ class CursorsHighlighter
         options_(std::move(options)),
         next_cursor_(options_.columns.begin()) {
     CheckInvariants();
-    UpdateColumnRead(0);
+    UpdateColumnRead(ColumnNumberDelta(0));
   }
 
   ~CursorsHighlighter() {
-    if (cursor_state_ == CursorState::kInactive && column() < width()) {
+    if (cursor_state_ == CursorState::kInactive &&
+        column() < ColumnNumber(0) + width()) {
       AddInternalModifier(LineModifier::REVERSE);
       AddInternalModifier(options_.multiple_cursors ? LineModifier::CYAN
                                                     : LineModifier::BLUE);
@@ -54,33 +55,34 @@ class CursorsHighlighter
     if (cursor_state_ != CursorState::kNone) {
       AddInternalModifier(LineModifier::RESET);
     }
-    UpdateColumnRead(1);
+    UpdateColumnRead(ColumnNumberDelta(1));
     CheckInvariants();
   }
 
   void AddString(const wstring& str) override {
-    size_t str_pos = 0;
-    while (str_pos < str.size()) {
+    ColumnNumber str_pos;
+    while (str_pos < ColumnNumber(str.size())) {
       CheckInvariants();
 
       // Compute the position of the next cursor relative to the start of this
       // string.
-      size_t next_column = (next_cursor_ == options_.columns.end())
-                               ? str.size()
-                               : *next_cursor_ + str_pos - column_read_;
+      ColumnNumber next_column = (next_cursor_ == options_.columns.end())
+                                     ? ColumnNumber(str.size())
+                                     : *next_cursor_ + (str_pos - column_read_);
       if (next_column > str_pos) {
-        size_t len = next_column - str_pos;
-        DelegatingOutputReceiver::AddString(str.substr(str_pos, len));
+        ColumnNumberDelta len = next_column - str_pos;
+        DelegatingOutputReceiver::AddString(
+            str.substr(str_pos.value, len.value));
         column_read_ += len;
         str_pos += len;
       }
 
       CheckInvariants();
 
-      if (str_pos < str.size()) {
+      if (str_pos < ColumnNumber(str.size())) {
         CHECK(next_cursor_ != options_.columns.end());
         CHECK_EQ(*next_cursor_, column_read_);
-        AddCharacter(str[str_pos]);
+        AddCharacter(str[str_pos.value]);
         str_pos++;
       }
       CheckInvariants();
@@ -94,7 +96,7 @@ class CursorsHighlighter
     kActive,
   };
 
-  void UpdateColumnRead(size_t delta) {
+  void UpdateColumnRead(ColumnNumberDelta delta) {
     column_read_ += delta;
     if (next_cursor_ == options_.columns.end() ||
         *next_cursor_ != column_read_) {
@@ -121,8 +123,8 @@ class CursorsHighlighter
 
   // Points to the first element in columns_ that is greater than or equal to
   // the current position.
-  std::set<size_t>::const_iterator next_cursor_;
-  size_t column_read_ = 0;
+  std::set<ColumnNumber>::const_iterator next_cursor_;
+  ColumnNumber column_read_;
   CursorState cursor_state_;
 };
 }  // namespace

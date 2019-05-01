@@ -73,9 +73,9 @@ wstring DrawTree(size_t line, size_t lines_size, const ParseTree& root) {
   vector<const ParseTree*> route_begin;
   if (line > 0) {
     route_begin = MapRoute(
-        root,
-        FindRouteToPosition(
-            root, LineColumn(line - 1, std::numeric_limits<size_t>::max())));
+        root, FindRouteToPosition(
+                  root, LineColumn(line - 1,
+                                   std::numeric_limits<ColumnNumber>::max())));
     CHECK(!route_begin.empty() && *route_begin.begin() == &root);
     route_begin.erase(route_begin.begin());
   }
@@ -84,8 +84,9 @@ wstring DrawTree(size_t line, size_t lines_size, const ParseTree& root) {
   vector<const ParseTree*> route_end;
   if (line < lines_size - 1) {
     route_end = MapRoute(
-        root, FindRouteToPosition(
-                  root, LineColumn(line, std::numeric_limits<size_t>::max())));
+        root,
+        FindRouteToPosition(
+            root, LineColumn(line, std::numeric_limits<ColumnNumber>::max())));
     CHECK(!route_end.empty() && *route_end.begin() == &root);
     route_end.erase(route_end.begin());
   }

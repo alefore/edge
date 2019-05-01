@@ -46,23 +46,24 @@ class FindTransformation : public Transformation {
     }
     shared_ptr<LazyString> contents = line->contents();
     CHECK(contents != nullptr);
-    int direction = 1;
-    size_t times = 0;
-    size_t position = min(result->cursor.column, contents->size());
+    ColumnNumberDelta direction;
+    ColumnNumberDelta times;
+    ColumnNumber column = min(result->cursor.column, line->EndColumn());
     switch (modifiers_.direction) {
       case FORWARDS:
-        direction = 1;
-        times = contents->size() - position;
+        direction = ColumnNumberDelta(1);
+        times = line->EndColumn() - column;
         break;
       case BACKWARDS:
-        direction = -1;
-        times = position + 1;
+        direction = ColumnNumberDelta(-1);
+        times = (column + ColumnNumberDelta(1)).ToDelta();
         break;
     }
 
-    for (size_t i = 1; i < times; i++) {
-      if (contents->get(position + direction * i) == c_) {
-        result->cursor.column = position + direction * i;
+    CHECK_GE(times.value, 0);
+    for (size_t i = 1; i < static_cast<size_t>(times.value); i++) {
+      if (contents->get((column + direction * i).value) == c_) {
+        result->cursor.column = column + direction * i;
         return true;
       }
     }

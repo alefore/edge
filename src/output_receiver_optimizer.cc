@@ -63,12 +63,12 @@ void OutputReceiverOptimizer::Flush() {
   DCHECK(last_modifiers_ == modifiers_);
 }
 
-size_t OutputReceiverOptimizer::column() {
+ColumnNumber OutputReceiverOptimizer::column() {
   Flush();
   return DelegatingOutputReceiver::column();
 }
 
-size_t OutputReceiverOptimizer::width() {
+ColumnNumberDelta OutputReceiverOptimizer::width() {
   Flush();
   return DelegatingOutputReceiver::width();
 }

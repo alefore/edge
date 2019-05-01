@@ -80,7 +80,7 @@ class SearchCommand : public Command {
           range.begin = LineColumn(range.end.line);
         } else {
           range.end = LineColumn(range.begin.line,
-                                 buffer->LineAt(range.begin.line)->size());
+                                 buffer->LineAt(range.begin.line)->EndColumn());
         }
       }
       CHECK_EQ(range.begin.line, range.end.line);

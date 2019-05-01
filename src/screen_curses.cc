@@ -4,6 +4,7 @@ extern "C" {
 #include <ncursesw/curses.h>
 }
 
+#include "src/line_column.h"
 #include "src/terminal.h"
 
 namespace afc {
@@ -48,7 +49,7 @@ class ScreenCurses : public Screen {
     }
   }
 
-  void Move(size_t y, size_t x) override { move(y, x); }
+  void Move(size_t y, ColumnNumber x) override { move(y, x.value); }
   void WriteString(const wstring& s) override { addwstr(s.c_str()); }
 
   void SetModifier(LineModifier modifier) override {
@@ -111,7 +112,7 @@ class ScreenCurses : public Screen {
   }
 
   size_t lines() const override { return LINES; }
-  size_t columns() const override { return COLS; }
+  ColumnNumberDelta columns() const override { return ColumnNumberDelta(COLS); }
 };
 }  // namespace
 

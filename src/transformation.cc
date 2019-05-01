@@ -14,7 +14,7 @@ using namespace afc::editor;
 
 class GotoColumnTransformation : public Transformation {
  public:
-  GotoColumnTransformation(size_t column) : column_(column) {}
+  GotoColumnTransformation(ColumnNumber column) : column_(column) {}
 
   void Apply(OpenBuffer* buffer, Result* result) const override {
     CHECK(buffer != nullptr);
@@ -26,7 +26,7 @@ class GotoColumnTransformation : public Transformation {
 
     result->undo_stack->PushFront(
         NewGotoColumnTransformation(result->cursor.column));
-    result->cursor.column = std::min(column_, line->size());
+    result->cursor.column = std::min(column_, line->EndColumn());
     result->success = true;
   }
 
@@ -35,7 +35,7 @@ class GotoColumnTransformation : public Transformation {
   }
 
  private:
-  const size_t column_;
+  const ColumnNumber column_;
 };
 
 class GotoPositionTransformation : public Transformation {
@@ -143,19 +143,20 @@ class DeleteSuffixSuperfluousCharacters : public Transformation {
       result->made_progress = false;
       return;
     }
-    size_t pos = line->size();
-    while (pos > 0 &&
-           superfluous_characters.find(line->get(pos - 1)) != string::npos) {
-      pos--;
+    ColumnNumber column = line->EndColumn();
+    while (column > ColumnNumber(0) &&
+           superfluous_characters.find(
+               line->get(column - ColumnNumberDelta(1))) != string::npos) {
+      --column;
     }
-    if (pos == line->size()) {
+    if (column == line->EndColumn()) {
       return;
     }
-    CHECK_LT(pos, line->size());
+    CHECK_LT(column, line->EndColumn());
     DeleteOptions delete_options;
-    delete_options.modifiers.repetitions = line->size() - pos;
+    delete_options.modifiers.repetitions = (line->EndColumn() - column).value;
     delete_options.copy_to_paste_buffer = false;
-    return TransformationAtPosition(LineColumn(result->cursor.line, pos),
+    return TransformationAtPosition(LineColumn(result->cursor.line, column),
                                     NewDeleteTransformation(delete_options))
         ->Apply(buffer, result);
   }
@@ -302,7 +303,8 @@ unique_ptr<Transformation> NewInsertBufferTransformation(
       std::move(insert_options));
 }
 
-std::unique_ptr<Transformation> NewGotoColumnTransformation(size_t column) {
+std::unique_ptr<Transformation> NewGotoColumnTransformation(
+    ColumnNumber column) {
   return std::make_unique<GotoColumnTransformation>(column);
 }
 

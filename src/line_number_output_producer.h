@@ -4,6 +4,7 @@
 #include <list>
 #include <memory>
 
+#include "src/line_column.h"
 #include "src/line_scroll_control.h"
 #include "src/output_producer.h"
 #include "src/parse_tree.h"
@@ -15,7 +16,7 @@ namespace editor {
 
 class LineNumberOutputProducer : public OutputProducer {
  public:
-  static size_t PrefixWidth(size_t lines_size);
+  static ColumnNumberDelta PrefixWidth(size_t lines_size);
 
   LineNumberOutputProducer(
       std::shared_ptr<OpenBuffer> buffer,
@@ -23,10 +24,10 @@ class LineNumberOutputProducer : public OutputProducer {
 
   void WriteLine(Options options) override;
 
-  size_t width() const;
+  ColumnNumberDelta width() const;
 
  private:
-  const size_t width_;
+  const ColumnNumberDelta width_;
   const std::shared_ptr<OpenBuffer> buffer_;
   const std::unique_ptr<LineScrollControl::Reader> line_scroll_control_reader_;
   std::optional<size_t> last_line_;

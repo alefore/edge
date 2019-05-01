@@ -28,14 +28,14 @@ class LineScrollControl
     size_t lines_shown;
 
     // Total number of columns in the output for buffer contents.
-    size_t columns_shown;
+    ColumnNumberDelta columns_shown;
 
     // Initial position in the buffer where output will begin.
     LineColumn begin;
 
     // When we advance lines, we will start at the column given by
     // initial_column_.
-    size_t initial_column;
+    ColumnNumber initial_column;
   };
 
   static std::shared_ptr<LineScrollControl> New(
@@ -61,7 +61,7 @@ class LineScrollControl
 
     bool HasActiveCursor() const;
 
-    std::set<size_t> GetCurrentCursors() const;
+    std::set<ColumnNumber> GetCurrentCursors() const;
 
     void RangeDone() {
       CHECK(state_ == State::kProcessing);
@@ -86,7 +86,7 @@ class LineScrollControl
   Range GetRange(LineColumn begin);
 
   const Options options_;
-  const std::map<size_t, std::set<size_t>> cursors_;
+  const std::map<size_t, std::set<ColumnNumber>> cursors_;
 
   std::vector<Reader*> readers_;
 

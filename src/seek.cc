@@ -8,7 +8,7 @@ namespace editor {
 Seek::Seek(const BufferContents& contents, LineColumn* position)
     : contents_(contents),
       position_(position),
-      range_(LineColumn(), LineColumn(contents_.size(), 0)) {}
+      range_(LineColumn(), LineColumn(contents_.size())) {}
 
 Seek& Seek::WrappingLines() {
   wrapping_lines_ = true;
@@ -140,7 +140,7 @@ Seek::Result Seek::UntilNextCharNotIn(const wstring& word_char) const {
 Seek::Result Seek::ToEndOfLine() const {
   auto original_position = *position_;
   CHECK_LT(position_->line, contents_.size());
-  position_->column = contents_.at(position_->line)->size();
+  position_->column = contents_.at(position_->line)->EndColumn();
   *position_ = std::min(range_.end, *position_);
   return *position_ > original_position ? DONE : UNABLE_TO_ADVANCE;
 }
@@ -156,7 +156,7 @@ Seek::Result Seek::UntilLine(
 
     if (predicate(*contents_.at(position_->line))) {
       if (direction_ == BACKWARDS) {
-        position_->column = contents_.at(position_->line)->size();
+        position_->column = contents_.at(position_->line)->EndColumn();
       }
       return DONE;
     }
@@ -195,7 +195,7 @@ bool Seek::AdvanceLine(LineColumn* position) const {
       if (position->line + 1 >= range_.end.line) {
         return false;
       }
-      position->column = 0;
+      position->column = ColumnNumber(0);
       position->line++;
       return true;
 
@@ -203,7 +203,7 @@ bool Seek::AdvanceLine(LineColumn* position) const {
       if (position->line == range_.begin.line) {
         return false;
       }
-      position->column = 0;
+      position->column = ColumnNumber(0);
       position->line--;
       return true;
   }
@@ -217,8 +217,8 @@ bool Seek::Advance(LineColumn* position) const {
     case FORWARDS:
       if (*position >= range_.end) {
         return false;
-      } else if (position->column < contents_.at(position->line)->size()) {
-        position->column++;
+      } else if (position->column < contents_.at(position->line)->EndColumn()) {
+        ++position->column;
       } else if (!wrapping_lines_) {
         return false;
       } else if (LineColumn(position->line + 1) == range_.end) {
@@ -231,17 +231,18 @@ bool Seek::Advance(LineColumn* position) const {
     case BACKWARDS:
       if (*position <= range_.begin) {
         return false;
-      } else if (position->column > 0) {
-        position->column--;
+      } else if (position->column > ColumnNumber(0)) {
+        --position->column;
       } else if (!wrapping_lines_) {
         return false;
       } else {
         position->line = std::min(position->line - 1, contents_.size() - 1);
-        position->column = contents_.at(position->line)->size();
+        position->column = contents_.at(position->line)->EndColumn();
       }
       return true;
   }
-  CHECK(false);
+  LOG(FATAL) << "Unhandled switch value.";
+  ;
   return false;
 }
 

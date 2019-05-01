@@ -69,7 +69,9 @@ void HandleEndOfFile(OpenBuffer* buffer,
         VLOG(5) << "Considering prediction: " << line.ToString()
                 << " (len: " << line.size() << ")";
         size_t current_size = min(common_prefix.size(), line.size());
-        wstring current = line.Substring(0, current_size)->ToString();
+        wstring current =
+            line.Substring(ColumnNumber(0), ColumnNumberDelta(current_size))
+                ->ToString();
 
         auto prefix_end =
             mismatch(common_prefix.begin(), common_prefix.end(),

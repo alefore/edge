@@ -14,16 +14,16 @@ struct CursorsHighlighterOptions {
 
   // A set with all the columns in the current line in which there are
   // cursors that should be drawn.
-  std::set<size_t> columns;
+  std::set<ColumnNumber> columns;
 
   bool multiple_cursors;
 
-  std::optional<size_t> active_cursor_input;
+  std::optional<ColumnNumber> active_cursor_input;
 
   // Output parameter. If the active cursor is found in this line, we set this
   // to the column in the screen to which it should be moved. This is used to
   // handle multi-width characters.
-  std::optional<size_t>* active_cursor_output;
+  std::optional<ColumnNumber>* active_cursor_output;
 };
 
 std::unique_ptr<OutputReceiver> NewCursorsHighlighter(

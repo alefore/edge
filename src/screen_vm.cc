@@ -59,9 +59,9 @@ class ScreenVm : public Screen {
                CursorVisibilityToString(cursor_visibility) + "\");";
   }
 
-  void Move(size_t y, size_t x) override {
-    buffer_ +=
-        "screen.Move(" + std::to_string(y) + ", " + std::to_string(x) + ");";
+  void Move(size_t y, ColumnNumber x) override {
+    buffer_ += "screen.Move(" + std::to_string(y) + ", " +
+               std::to_string(x.value) + ");";
   }
 
   void WriteString(const wstring& str) override {
@@ -73,9 +73,9 @@ class ScreenVm : public Screen {
     buffer_ += "screen.SetModifier(\"" + ModifierToString(modifier) + "\");";
   }
 
-  size_t columns() const { return columns_; }
+  ColumnNumberDelta columns() const { return columns_; }
   size_t lines() const { return lines_; }
-  void set_size(size_t columns, size_t lines) {
+  void set_size(ColumnNumberDelta columns, size_t lines) {
     DVLOG(5) << "Received new size: " << columns << " x " << lines;
     columns_ = columns;
     lines_ = lines;
@@ -94,7 +94,7 @@ class ScreenVm : public Screen {
 
   string buffer_;
   const int fd_;
-  size_t columns_ = 80;
+  ColumnNumberDelta columns_ = ColumnNumberDelta(80);
   size_t lines_ = 25;
 };
 }  // namespace
@@ -157,7 +157,7 @@ void RegisterScreenType(Environment* environment) {
                         vm::NewCallback(std::function<void(Screen*, int, int)>(
                             [](Screen* screen, int y, int x) {
                               CHECK(screen != nullptr);
-                              screen->Move(y, x);
+                              screen->Move(y, ColumnNumber(x));
                             })));
 
   screen_type->AddField(L"WriteString",
@@ -181,14 +181,14 @@ void RegisterScreenType(Environment* environment) {
                        [](Screen* screen, int columns, int lines) {
                          ScreenVm* screen_vm = dynamic_cast<ScreenVm*>(screen);
                          CHECK(screen != nullptr);
-                         screen_vm->set_size(columns, lines);
+                         screen_vm->set_size(ColumnNumberDelta(columns), lines);
                        })));
 
   screen_type->AddField(
       L"columns",
       vm::NewCallback(std::function<int(Screen*)>([](Screen* screen) {
         CHECK(screen != nullptr);
-        return screen->columns();
+        return screen->columns().value;
       })));
 
   screen_type->AddField(

@@ -12,39 +12,105 @@
 namespace afc {
 namespace editor {
 
-struct LinesDelta {
-  LinesDelta() = default;
-  explicit LinesDelta(int delta) : delta(delta) {}
-  int delta = 0;
+struct LineNumberDelta {
+  LineNumberDelta() = default;
+  explicit LineNumberDelta(int value) : value(value) {}
+  int value = 0;
 };
 
-struct ColumnsDelta {
-  ColumnsDelta() = default;
-  explicit ColumnsDelta(int delta) : delta(delta) {}
-  int delta = 0;
+struct ColumnNumberDelta {
+  ColumnNumberDelta() = default;
+  explicit ColumnNumberDelta(int value) : value(value) {}
+  ColumnNumberDelta& operator=(const ColumnNumberDelta& delta);
+  int value = 0;
 };
 
+bool operator==(const ColumnNumberDelta& a, const ColumnNumberDelta& b);
+std::ostream& operator<<(std::ostream& os, const ColumnNumberDelta& lc);
+bool operator<(const ColumnNumberDelta& a, const ColumnNumberDelta& b);
+bool operator<=(const ColumnNumberDelta& a, const ColumnNumberDelta& b);
+bool operator>(const ColumnNumberDelta& a, const ColumnNumberDelta& b);
+bool operator>=(const ColumnNumberDelta& a, const ColumnNumberDelta& b);
+ColumnNumberDelta operator+(ColumnNumberDelta a, const ColumnNumberDelta& b);
+ColumnNumberDelta operator-(ColumnNumberDelta a, const ColumnNumberDelta& b);
+ColumnNumberDelta operator-(ColumnNumberDelta a);
+ColumnNumberDelta operator*(ColumnNumberDelta a, const size_t& b);
+ColumnNumberDelta operator*(const size_t& a, ColumnNumberDelta b);
+ColumnNumberDelta operator/(ColumnNumberDelta a, const size_t& b);
+ColumnNumberDelta& operator+=(ColumnNumberDelta& a,
+                              const ColumnNumberDelta& value);
+ColumnNumberDelta& operator-=(ColumnNumberDelta& a,
+                              const ColumnNumberDelta& value);
+ColumnNumberDelta& operator++(ColumnNumberDelta& a, int);
+ColumnNumberDelta& operator--(ColumnNumberDelta& a, int);
+
+// First adds the line, then adds the column.
+struct LineColumnDelta {
+  LineNumberDelta line;
+  ColumnNumberDelta column;
+};
+
+struct ColumnNumber {
+  ColumnNumber() = default;
+  explicit ColumnNumber(size_t value) : value(value) {}
+  ColumnNumber& operator=(const ColumnNumber& value);
+
+  ColumnNumberDelta ToDelta() const;
+
+  size_t value = 0;
+};
+
+bool operator==(const ColumnNumber& a, const ColumnNumber& b);
+bool operator!=(const ColumnNumber& a, const ColumnNumber& b);
+bool operator<(const ColumnNumber& a, const ColumnNumber& b);
+bool operator<=(const ColumnNumber& a, const ColumnNumber& b);
+bool operator>(const ColumnNumber& a, const ColumnNumber& b);
+bool operator>=(const ColumnNumber& a, const ColumnNumber& b);
+ColumnNumber& operator+=(ColumnNumber& a, const ColumnNumberDelta& delta);
+ColumnNumber& operator++(ColumnNumber& a);
+ColumnNumber operator++(ColumnNumber& a, int);
+ColumnNumber& operator--(ColumnNumber& a);
+ColumnNumber operator--(ColumnNumber& a, int);
+ColumnNumber operator+(ColumnNumber a, const ColumnNumberDelta& delta);
+ColumnNumber operator-(ColumnNumber a, const ColumnNumberDelta& delta);
+ColumnNumber operator-(ColumnNumber a);
+ColumnNumberDelta operator-(const ColumnNumber& a, const ColumnNumber& b);
+std::ostream& operator<<(std::ostream& os, const ColumnNumber& lc);
+
+}  // namespace editor
+}  // namespace afc
+namespace std {
+template <>
+class numeric_limits<afc::editor::ColumnNumber> {
+ public:
+  static afc::editor::ColumnNumber max() {
+    return afc::editor::ColumnNumber(std::numeric_limits<size_t>::max());
+  };
+};
+}  // namespace std
+namespace afc {
+namespace editor {
 // A position in a text buffer.
 struct LineColumn {
   static void Register(vm::Environment* environment);
 
-  LineColumn() {}
+  LineColumn() = default;
   // TODO: Make single-argument constructors explicit.
-  LineColumn(std::vector<int> pos)
+  explicit LineColumn(std::vector<int> pos)
       : line(pos.size() > 0 ? pos[0] : 0),
         column(pos.size() > 1 ? pos[1] : 0) {}
-  LineColumn(size_t l) : LineColumn(l, 0) {}
-  LineColumn(size_t l, size_t c) : line(l), column(c) {}
+  explicit LineColumn(size_t l) : LineColumn(l, ColumnNumber(0)) {}
+  LineColumn(size_t l, ColumnNumber c) : line(l), column(c) {}
 
   static LineColumn Max() {
     return LineColumn(std::numeric_limits<size_t>::max(),
-                      std::numeric_limits<size_t>::max());
+                      std::numeric_limits<ColumnNumber>::max());
   }
 
   bool operator!=(const LineColumn& other) const;
 
   std::wstring ToString() const {
-    return std::to_wstring(line) + L" " + std::to_wstring(column);
+    return std::to_wstring(line) + L" " + std::to_wstring(column.value);
   }
 
   bool operator==(const LineColumn& rhs) const {
@@ -63,18 +129,20 @@ struct LineColumn {
 
   bool operator>=(const LineColumn& rhs) const { return rhs <= *this; }
 
-  LineColumn operator+(const LinesDelta& delta) const;
-  LineColumn operator-(const LinesDelta& delta) const;
-  LineColumn& operator+=(const LinesDelta& delta);
-  LineColumn& operator-=(const LinesDelta& delta);
+  LineColumn operator+(const LineNumberDelta& value) const;
+  LineColumn operator-(const LineNumberDelta& value) const;
+  LineColumn& operator+=(const LineNumberDelta& value);
+  LineColumn& operator-=(const LineNumberDelta& value);
 
-  LineColumn operator+(const ColumnsDelta& delta) const;
-  LineColumn operator-(const ColumnsDelta& delta) const;
+  LineColumn operator+(const ColumnNumberDelta& value) const;
+  LineColumn operator-(const ColumnNumberDelta& value) const;
+
+  LineColumn operator+(const LineColumnDelta& value) const;
 
   std::wstring ToCppString() const;
 
   size_t line = 0;
-  size_t column = 0;
+  ColumnNumber column;
 
   friend std::ostream& operator<<(std::ostream& os, const LineColumn& lc);
 };
@@ -88,9 +156,7 @@ struct Range {
   Range() = default;
   Range(LineColumn begin, LineColumn end) : begin(begin), end(end) {}
 
-  static Range InLine(size_t line, size_t column, size_t size) {
-    return Range(LineColumn(line, column), LineColumn(line, column + size));
-  }
+  static Range InLine(size_t line, ColumnNumber column, ColumnNumberDelta size);
 
   bool IsEmpty() const { return begin >= end; }
 

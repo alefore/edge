@@ -322,7 +322,7 @@ class OpenBuffer {
 
   void PushSignal(int signal);
 
-  void SetTerminalSize(size_t lines, size_t columns);
+  void SetTerminalSize(size_t lines, ColumnNumberDelta columns);
 
   /////////////////////////////////////////////////////////////////////////////
   // Cursors
@@ -331,25 +331,14 @@ class OpenBuffer {
   void set_position(const LineColumn& position);
 
   // Returns the position of just after the last character of the current file.
-  LineColumn end_position() const {
-    CHECK_GT(contents_.size(), 0u);
-    return LineColumn(contents_.size() - 1, contents_.back()->size());
-  }
+  LineColumn end_position() const;
 
   void set_current_position_line(size_t line);
   size_t current_position_line() const;
-  size_t current_position_col() const;
-  void set_current_position_col(size_t column);
+  ColumnNumber current_position_col() const;
+  void set_current_position_col(ColumnNumber column);
 
-  LineColumn PositionBefore(LineColumn position) const {
-    if (position.column > 0) {
-      position.column--;
-    } else if (position.line > 0) {
-      position.line = min(position.line - 1, contents_.size() - 1);
-      position.column = contents_.at(position.line)->size();
-    }
-    return position;
-  }
+  LineColumn PositionBefore(LineColumn position) const;
 
   //////////////////////////////////////////////////////////////////////////////
   // Buffer variables

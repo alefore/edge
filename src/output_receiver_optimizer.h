@@ -26,8 +26,8 @@ class OutputReceiverOptimizer : public DelegatingOutputReceiver {
   // current column in the line, due to prefix characters (e.g., the line
   // numbers) or multi-width characters (such as \t or special unicode
   // characters).
-  size_t column() override;
-  size_t width() override;
+  ColumnNumber column() override;
+  ColumnNumberDelta width() override;
 
  private:
   void Flush();

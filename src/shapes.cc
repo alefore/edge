@@ -1,8 +1,8 @@
 #include "src/shapes.h"
 
-#include <set>
-
 #include <glog/logging.h>
+
+#include <set>
 
 #include "src/line_column.h"
 #include "src/vm/public/callbacks.h"
@@ -74,10 +74,8 @@ void FindBoundariesLine(LineColumn start, LineColumn end,
     start = end;
     end = tmp;
   }
-  double delta_x =
-      static_cast<double>(end.column) - static_cast<double>(start.column);
-  double delta_y =
-      static_cast<double>(end.line) - static_cast<double>(start.line);
+  double delta_x = static_cast<double>((end.column - start.column).value);
+  double delta_y = static_cast<double>(end.line - start.line);
   double delta_error = delta_x == 0.0
                            ? delta_y * std::numeric_limits<double>::max()
                            : delta_y / delta_x;

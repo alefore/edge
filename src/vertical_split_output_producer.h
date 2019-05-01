@@ -17,7 +17,7 @@ class VerticalSplitOutputProducer : public OutputProducer {
 
     // If absent, this column will be the last column produced, and it will
     // allow to span the entire screen.
-    std::optional<size_t> width;
+    std::optional<ColumnNumberDelta> width;
   };
 
   VerticalSplitOutputProducer(std::vector<Column> columns, size_t index_active)

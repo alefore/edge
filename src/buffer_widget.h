@@ -34,9 +34,9 @@ class BufferWidget : public Widget {
 
   std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 
-  void SetSize(size_t lines, size_t columns) override;
+  void SetSize(size_t lines, ColumnNumberDelta columns) override;
   size_t lines() const override;
-  size_t columns() const override;
+  ColumnNumberDelta columns() const override;
   size_t MinimumLines() override;
 
   void RemoveBuffer(OpenBuffer* buffer) override;
@@ -57,7 +57,7 @@ class BufferWidget : public Widget {
 
   std::weak_ptr<OpenBuffer> leaf_;
   size_t lines_ = 0;
-  size_t columns_ = 0;
+  ColumnNumberDelta columns_;
 
   LineScrollControl::Options line_scroll_control_options_;
 

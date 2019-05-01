@@ -275,7 +275,7 @@ int main(int argc, const char** argv) {
   // This is only meaningful if we're running with args.client: it contains the
   // last observed size of our screen (to detect that we need to propagate
   // changes to the server).
-  std::pair<size_t, size_t> last_screen_size = {-1, -1};
+  std::optional<std::pair<ColumnNumberDelta, size_t>> last_screen_size;
 
   BeepFrequencies(audio_player.get(), {783.99, 723.25, 783.99});
   editor_state()->SetStatus(GetGreetingMessage());
@@ -299,13 +299,14 @@ int main(int argc, const char** argv) {
         screen_curses->Refresh();  // Don't want this to be buffered!
         auto screen_size =
             std::make_pair(screen_curses->columns(), screen_curses->lines());
-        if (screen_size != last_screen_size) {
+        if (last_screen_size.has_value() &&
+            screen_size != last_screen_size.value()) {
           LOG(INFO) << "Sending screen size update to server.";
-          SendCommandsToParent(remote_server_fd,
-                               "screen.set_size(" +
-                                   std::to_string(screen_size.first) + "," +
-                                   std::to_string(screen_size.second) + ");" +
-                                   "set_screen_needs_hard_redraw(true);\n");
+          SendCommandsToParent(
+              remote_server_fd,
+              "screen.set_size(" + std::to_string(screen_size.first.value) +
+                  "," + std::to_string(screen_size.second) + ");" +
+                  "set_screen_needs_hard_redraw(true);\n");
           last_screen_size = screen_size;
         }
       }

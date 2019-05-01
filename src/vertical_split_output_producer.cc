@@ -13,26 +13,26 @@ namespace afc {
 namespace editor {
 class SplitOutputReceiver : public DelegatingOutputReceiver {
  public:
-  SplitOutputReceiver(OutputReceiver* delegate, size_t start,
-                      std::optional<size_t> width)
+  SplitOutputReceiver(OutputReceiver* delegate, ColumnNumber start,
+                      std::optional<ColumnNumberDelta> width)
       : DelegatingOutputReceiver(delegate),
-        start_(start),
+        skips_(start.ToDelta()),
         width_(
             width.has_value()
-                ? min(width.value(), DelegatingOutputReceiver::width() - start_)
-                : DelegatingOutputReceiver::width() - start_) {
-    SetTabsStart(0);
+                ? min(width.value(), DelegatingOutputReceiver::width() - skips_)
+                : DelegatingOutputReceiver::width() - skips_) {
+    SetTabsStart(ColumnNumber(0));
   }
 
   void AddCharacter(wchar_t character) override {
-    if (column() < width()) {
+    if (column() < ColumnNumber(0) + width()) {
       DelegatingOutputReceiver::AddCharacter(character);
     }
   }
 
   void AddString(const wstring& str) override {
     for (auto& character : str) {
-      if (column() < width()) {
+      if (column() < ColumnNumber(0) + width()) {
         DelegatingOutputReceiver::AddCharacter(character);
       } else {
         return;
@@ -40,27 +40,27 @@ class SplitOutputReceiver : public DelegatingOutputReceiver {
     }
   }
 
-  void SetTabsStart(size_t columns) override {
-    DelegatingOutputReceiver::SetTabsStart(start_ + columns);
+  void SetTabsStart(ColumnNumber columns) override {
+    DelegatingOutputReceiver::SetTabsStart(columns + skips_);
   }
 
-  size_t column() override {
-    return DelegatingOutputReceiver::column() - start_;
+  ColumnNumber column() override {
+    return DelegatingOutputReceiver::column() - skips_;
   }
-  size_t width() override { return width_; }
+  ColumnNumberDelta width() override { return width_; }
 
  private:
-  const size_t start_;
-  const size_t width_;
+  const ColumnNumberDelta skips_;
+  const ColumnNumberDelta width_;
 };
 
 void VerticalSplitOutputProducer::WriteLine(Options options) {
-  size_t initial_column = 0;
+  ColumnNumber initial_column;
   for (size_t i = 0; i < columns_.size(); i++) {
     if (options.receiver->column() < initial_column) {
       // TODO: Consider adding an 'advance N spaces' function?
       options.receiver->AddString(
-          wstring(initial_column - options.receiver->column(), L' '));
+          wstring((initial_column - options.receiver->column()).value, L' '));
     }
     options.receiver->AddModifier(LineModifier::RESET);
 
@@ -68,13 +68,13 @@ void VerticalSplitOutputProducer::WriteLine(Options options) {
     child_options.receiver = std::make_unique<SplitOutputReceiver>(
         options.receiver.get(), initial_column, columns_[i].width);
 
-    std::optional<size_t> active_cursor;
+    std::optional<ColumnNumber> active_cursor;
     if (options.active_cursor != nullptr && i == index_active_) {
       child_options.active_cursor = &active_cursor;
     }
     columns_[i].producer->WriteLine(std::move(child_options));
     if (active_cursor.has_value()) {
-      *options.active_cursor = active_cursor.value() + initial_column;
+      *options.active_cursor = active_cursor.value() + initial_column.ToDelta();
     }
     if (!columns_[i].width.has_value()) {
       return;

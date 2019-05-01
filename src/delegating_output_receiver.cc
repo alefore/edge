@@ -30,13 +30,15 @@ void DelegatingOutputReceiver::AddModifier(LineModifier modifier) {
   delegate_->AddModifier(modifier);
 }
 
-void DelegatingOutputReceiver::SetTabsStart(size_t columns) {
+void DelegatingOutputReceiver::SetTabsStart(ColumnNumber columns) {
   return delegate_->SetTabsStart(columns);
 }
 
-size_t DelegatingOutputReceiver::column() { return delegate_->column(); }
+ColumnNumber DelegatingOutputReceiver::column() { return delegate_->column(); }
 
-size_t DelegatingOutputReceiver::width() { return delegate_->width(); }
+ColumnNumberDelta DelegatingOutputReceiver::width() {
+  return delegate_->width();
+}
 
 }  // namespace editor
 }  // namespace afc

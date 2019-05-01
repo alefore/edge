@@ -53,7 +53,9 @@ void FrameOutputProducer::WriteLine(OutputProducer::Options options) {
   }
 
   options.receiver->AddString(std::wstring(
-      options.receiver->width() - options.receiver->column(), L'─'));
+      (ColumnNumber(0) + options.receiver->width() - options.receiver->column())
+          .value,
+      L'─'));
   options.receiver->AddModifier(LineModifier::RESET);
 }
 

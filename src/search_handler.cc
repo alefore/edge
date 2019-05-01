@@ -19,9 +19,10 @@ using std::wstring;
 typedef std::wregex RegexPattern;
 
 // Returns all columns where the current line matches the pattern.
-vector<size_t> GetMatches(const wstring& line, const RegexPattern& pattern) {
+vector<ColumnNumber> GetMatches(const wstring& line,
+                                const RegexPattern& pattern) {
   size_t start = 0;
-  vector<size_t> output;
+  vector<ColumnNumber> output;
   while (true) {
     size_t match = wstring::npos;
     wstring line_substr = line.substr(min(start, line.size()));
@@ -34,7 +35,7 @@ vector<size_t> GetMatches(const wstring& line, const RegexPattern& pattern) {
     if (match == wstring::npos) {
       return output;
     }
-    output.push_back(start + match);
+    output.push_back(ColumnNumber(start + match));
     start += match + 1;
   }
 }

@@ -97,7 +97,7 @@ std::unique_ptr<Transformation> NewInsertBufferTransformation(
 
 // If column is greater than the length of the line, goes to the end of the
 // line.
-unique_ptr<Transformation> NewGotoColumnTransformation(size_t column);
+unique_ptr<Transformation> NewGotoColumnTransformation(ColumnNumber column);
 unique_ptr<Transformation> NewGotoPositionTransformation(
     const LineColumn& position);
 

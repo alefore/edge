@@ -42,13 +42,13 @@ class HighlightedLineOutputReceiver : public DelegatingOutputReceiver {
 class ParseTreeHighlighter : public DelegatingOutputReceiver {
  public:
   explicit ParseTreeHighlighter(std::unique_ptr<OutputReceiver> delegate,
-                                size_t begin, size_t end)
+                                ColumnNumber begin, ColumnNumber end)
       : DelegatingOutputReceiver(std::move(delegate)),
         begin_(begin),
         end_(end) {}
 
   void AddCharacter(wchar_t c) override {
-    size_t position = column();
+    ColumnNumber position = column();
     // TODO: Optimize: Don't add it for each character, just at the start.
     if (begin_ <= position && position < end_) {
       AddModifier(LineModifier::BLUE);
@@ -74,8 +74,8 @@ class ParseTreeHighlighter : public DelegatingOutputReceiver {
   }
 
  private:
-  const size_t begin_;
-  const size_t end_;
+  const ColumnNumber begin_;
+  const ColumnNumber end_;
 };
 
 class ParseTreeHighlighterTokens
@@ -91,7 +91,7 @@ class ParseTreeHighlighterTokens
   // affect the padding and/or scrollbar).
   ParseTreeHighlighterTokens(std::unique_ptr<OutputReceiver> delegate,
                              const ParseTree* root, LineColumn position,
-                             size_t largest_column_with_tree)
+                             ColumnNumber largest_column_with_tree)
       : DelegatingOutputReceiverWithInternalModifiers(
             std::move(delegate), DelegatingOutputReceiverWithInternalModifiers::
                                      Preference::kExternal),
@@ -100,7 +100,7 @@ class ParseTreeHighlighterTokens
         line_(position.line),
         column_read_(position.column),
         current_({root}) {
-    UpdateCurrent(LineColumn(line_, 0));
+    UpdateCurrent(LineColumn(line_));
   }
 
   void AddCharacter(wchar_t c) override {
@@ -133,7 +133,7 @@ class ParseTreeHighlighterTokens
     // TODO: Optimize.
     if (str == L"\n") {
       DelegatingOutputReceiver::AddString(str);
-      column_read_ = 0;
+      column_read_ = ColumnNumber(0);
       return;
     }
     for (auto& c : str) {
@@ -169,16 +169,17 @@ class ParseTreeHighlighterTokens
   // Keeps track of the modifiers coming from the parent, so as to not lose
   // that information when we reset our own.
   const ParseTree* root_;
-  const size_t largest_column_with_tree_;
+  const ColumnNumber largest_column_with_tree_;
   const size_t line_;
-  size_t column_read_;
+  ColumnNumber column_read_;
   std::vector<const ParseTree*> current_;
 };
 
 BufferOutputProducer::BufferOutputProducer(
     std::shared_ptr<OpenBuffer> buffer,
     std::shared_ptr<LineScrollControl::Reader> line_scroll_control_reader,
-    size_t lines_shown, size_t columns_shown, size_t initial_column,
+    size_t lines_shown, ColumnNumberDelta columns_shown,
+    ColumnNumber initial_column,
     std::shared_ptr<const ParseTree> zoomed_out_tree)
     : buffer_(std::move(buffer)),
       line_scroll_control_reader_(std::move(line_scroll_control_reader)),
@@ -212,14 +213,14 @@ void BufferOutputProducer::WriteLine(Options options) {
     return;
   }
 
-  std::set<size_t> current_cursors;
+  std::set<ColumnNumber> current_cursors;
   for (auto& c : line_scroll_control_reader_->GetCurrentCursors()) {
     current_cursors.insert(c);
   }
 
-  std::optional<size_t> active_cursor_column;
+  std::optional<ColumnNumber> active_cursor_column;
   auto line_contents = buffer_->LineAt(line);
-  auto line_size = line_contents->size();
+  ColumnNumber end_column = line_contents->EndColumn();
 
   std::unique_ptr<OutputReceiver> atomic_lines_highlighter;
   CHECK(line_contents->contents() != nullptr);
@@ -235,16 +236,17 @@ void BufferOutputProducer::WriteLine(Options options) {
     if (range.Contains(buffer_->position()) ||
         range.end == buffer_->position()) {
       cursors_highlighter_options.active_cursor_input =
-          min(buffer_->position().column, line_size) - range.begin.column;
+          ColumnNumber(0) +
+          (min(buffer_->position().column, end_column) - range.begin.column);
       cursors_highlighter_options.active_cursor_output = &active_cursor_column;
     }
     // Any cursors past the end of the line will just be silently moved to
     // the end of the line (just for displaying).
     while (!cursors_highlighter_options.columns.empty() &&
-           *cursors_highlighter_options.columns.rbegin() > line_size) {
+           *cursors_highlighter_options.columns.rbegin() > end_column) {
       cursors_highlighter_options.columns.erase(
           std::prev(cursors_highlighter_options.columns.end()));
-      cursors_highlighter_options.columns.insert(line_size);
+      cursors_highlighter_options.columns.insert(end_column);
     }
     cursors_highlighter_options.multiple_cursors =
         buffer_->Read(buffer_variables::multiple_cursors);
@@ -256,17 +258,17 @@ void BufferOutputProducer::WriteLine(Options options) {
   if (current_tree_ != root_.get() &&
       range.begin.line >= current_tree_->range.begin.line &&
       range.begin.line <= current_tree_->range.end.line) {
-    size_t begin = range.begin.line == current_tree_->range.begin.line
-                       ? current_tree_->range.begin.column
-                       : 0;
-    size_t end = range.begin.line == current_tree_->range.end.line
-                     ? current_tree_->range.end.column
-                     : line_size;
+    ColumnNumber begin = range.begin.line == current_tree_->range.begin.line
+                             ? current_tree_->range.begin.column
+                             : ColumnNumber(0);
+    ColumnNumber end = range.begin.line == current_tree_->range.end.line
+                           ? current_tree_->range.end.column
+                           : end_column;
     options.receiver = std::make_unique<ParseTreeHighlighter>(
         std::move(options.receiver), begin, end);
   } else if (!buffer_->parse_tree()->children.empty()) {
     options.receiver = std::make_unique<ParseTreeHighlighterTokens>(
-        std::move(options.receiver), root_.get(), range.begin, line_size);
+        std::move(options.receiver), root_.get(), range.begin, end_column);
   }
 
   Line::OutputOptions line_output_options;
@@ -282,7 +284,7 @@ void BufferOutputProducer::WriteLine(Options options) {
   line_contents->Output(line_output_options);
 
   if (active_cursor_column.has_value() && options.active_cursor != nullptr) {
-    *options.active_cursor = active_cursor_column.value();
+    *options.active_cursor = active_cursor_column;
   }
 
   line_scroll_control_reader_->RangeDone();
