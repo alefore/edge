@@ -288,7 +288,7 @@ void FindCompletion(EditorState* editor_state,
   auto line = buffer->current_line()->ToString();
   size_t index_before_symbol =
       line.find_last_not_of(buffer->Read(buffer_variables::symbol_characters),
-                            (options.column_end - ColumnNumberDelta(1)).value);
+                            (options.column_end - ColumnNumberDelta(1)).column);
   if (index_before_symbol == wstring::npos) {
     options.column_start = ColumnNumber(0);
   } else {
@@ -297,7 +297,7 @@ void FindCompletion(EditorState* editor_state,
   LOG(INFO) << "Positions: start: " << options.column_start
             << ", end: " << options.column_end;
   options.prefix = std::make_shared<const Line>(Line::Options(NewLazyString(
-      line.substr(options.column_start.value,
+      line.substr(options.column_start.column,
                   (options.column_end - options.column_start).value))));
 
   options.delegate = buffer->ResetMode();

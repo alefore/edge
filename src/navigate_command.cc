@@ -117,7 +117,7 @@ class NavigateModeChar : public NavigateMode {
   }
 
   size_t GetCurrent(OpenBuffer* buffer) override {
-    return buffer->position().column.value;
+    return buffer->position().column.column;
   }
 };
 
@@ -130,7 +130,7 @@ class NavigateModeSymbol : public NavigateMode {
     wstring contents = buffer->current_line()->ToString();
     size_t previous_space = contents.find_last_not_of(
         buffer->Read(buffer_variables::symbol_characters),
-        buffer->position().column.value);
+        buffer->position().column.column);
     if (previous_space == wstring::npos) {
       return 0;
     }
@@ -141,7 +141,7 @@ class NavigateModeSymbol : public NavigateMode {
     wstring contents = buffer->current_line()->ToString();
     size_t next_space = contents.find_first_not_of(
         buffer->Read(buffer_variables::symbol_characters),
-        buffer->position().column.value);
+        buffer->position().column.column);
     if (next_space == wstring::npos) {
       return buffer->current_line()->size();
     }
@@ -155,7 +155,7 @@ class NavigateModeSymbol : public NavigateMode {
   }
 
   size_t GetCurrent(OpenBuffer* buffer) override {
-    return buffer->position().column.value;
+    return buffer->position().column.column;
   }
 };
 

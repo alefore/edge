@@ -58,7 +58,7 @@ class DeleteCharactersTransformation : public Transformation {
     size_t line_end;
     if (options_.line_end_behavior == DeleteOptions::LineEndBehavior::kDelete) {
       line_end = SkipLinesToErase(
-          buffer, result->cursor.column.value + options_.modifiers.repetitions,
+          buffer, result->cursor.column.column + options_.modifiers.repetitions,
           result->cursor.line, &chars_erased);
     } else {
       line_end = result->cursor.line;
@@ -66,7 +66,7 @@ class DeleteCharactersTransformation : public Transformation {
     }
     LOG(INFO) << "Erasing from line " << result->cursor.line << " to line "
               << line_end << " would erase " << chars_erased << " characters.";
-    chars_erased -= result->cursor.column.value;
+    chars_erased -= result->cursor.column.column;
 
     // The amount of characters that should be erased from the current line. If
     // the line is the current line, this already includes characters in the

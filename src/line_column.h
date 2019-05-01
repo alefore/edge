@@ -41,8 +41,9 @@ ColumnNumberDelta& operator+=(ColumnNumberDelta& a,
                               const ColumnNumberDelta& value);
 ColumnNumberDelta& operator-=(ColumnNumberDelta& a,
                               const ColumnNumberDelta& value);
-ColumnNumberDelta& operator++(ColumnNumberDelta& a, int);
-ColumnNumberDelta& operator--(ColumnNumberDelta& a, int);
+ColumnNumberDelta& operator++(ColumnNumberDelta& a);
+ColumnNumberDelta operator++(ColumnNumberDelta& a, int);
+ColumnNumberDelta operator--(ColumnNumberDelta& a, int);
 
 // First adds the line, then adds the column.
 struct LineColumnDelta {
@@ -52,12 +53,17 @@ struct LineColumnDelta {
 
 struct ColumnNumber {
   ColumnNumber() = default;
-  explicit ColumnNumber(size_t value) : value(value) {}
+  explicit ColumnNumber(size_t column);
+
   ColumnNumber& operator=(const ColumnNumber& value);
 
   ColumnNumberDelta ToDelta() const;
 
-  size_t value = 0;
+  // Starts counting from 1 (i.e. ColumnNumber(5).ToUserString() evaluates to
+  // L"6").
+  std::wstring ToUserString() const;
+
+  size_t column = 0;
 };
 
 bool operator==(const ColumnNumber& a, const ColumnNumber& b);
@@ -109,9 +115,7 @@ struct LineColumn {
 
   bool operator!=(const LineColumn& other) const;
 
-  std::wstring ToString() const {
-    return std::to_wstring(line) + L" " + std::to_wstring(column.value);
-  }
+  std::wstring ToString() const;
 
   bool operator==(const LineColumn& rhs) const {
     return line == rhs.line && column == rhs.column;

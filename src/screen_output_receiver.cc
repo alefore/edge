@@ -43,7 +43,7 @@ class Receiver : public OutputReceiver {
   }
 
   void SetTabsStart(ColumnNumber columns) override {
-    tabs_start_ = ColumnNumber(columns.value % 8);
+    tabs_start_ = ColumnNumber(columns.column % 8);
   }
 
   ColumnNumber column() override { return column_write_; }

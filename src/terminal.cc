@@ -111,8 +111,7 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
       status += to_wstring(buffer->current_position_line() + 1);
     }
     status += L" of " + to_wstring(buffer->contents()->size()) + L", " +
-              to_wstring(buffer->current_position_col().value + 1);
-
+              buffer->current_position_col().ToUserString();
     status += L"] ";
 
     for (auto& it : *editor_state.buffers()) {

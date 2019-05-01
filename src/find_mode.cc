@@ -44,8 +44,6 @@ class FindTransformation : public Transformation {
     if (line == nullptr) {
       return false;
     }
-    shared_ptr<LazyString> contents = line->contents();
-    CHECK(contents != nullptr);
     ColumnNumberDelta direction;
     ColumnNumberDelta times;
     ColumnNumber column = min(result->cursor.column, line->EndColumn());
@@ -62,7 +60,7 @@ class FindTransformation : public Transformation {
 
     CHECK_GE(times.value, 0);
     for (size_t i = 1; i < static_cast<size_t>(times.value); i++) {
-      if (contents->get((column + direction * i).value) == c_) {
+      if (line->get(column + direction * i) == static_cast<wint_t>(c_)) {
         result->cursor.column = column + direction * i;
         return true;
       }

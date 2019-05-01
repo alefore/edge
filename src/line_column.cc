@@ -88,22 +88,34 @@ ColumnNumberDelta& operator+=(ColumnNumberDelta& a,
   a.value += value.value;
   return a;
 }
+
 ColumnNumberDelta& operator-=(ColumnNumberDelta& a,
                               const ColumnNumberDelta& value) {
   a.value -= value.value;
   return a;
 }
-ColumnNumberDelta& operator++(ColumnNumberDelta& a, int) {
+
+ColumnNumberDelta& operator++(ColumnNumberDelta& a) {
   a.value++;
   return a;
 }
-ColumnNumberDelta& operator--(ColumnNumberDelta& a, int) {
-  a.value--;
-  return a;
+
+ColumnNumberDelta operator++(ColumnNumberDelta& a, int) {
+  ColumnNumberDelta copy = a;
+  a.value++;
+  return copy;
 }
 
+ColumnNumberDelta operator--(ColumnNumberDelta& a, int) {
+  ColumnNumberDelta copy = a;
+  a.value--;
+  return copy;
+}
+
+ColumnNumber::ColumnNumber(size_t value) : column(value) {}
+
 ColumnNumber& ColumnNumber::operator=(const ColumnNumber& other) {
-  value = other.value;
+  column = other.column;
   return *this;
 }
 
@@ -111,81 +123,87 @@ ColumnNumberDelta ColumnNumber::ToDelta() const {
   return *this - ColumnNumber(0);
 }
 
+std::wstring ColumnNumber::ToUserString() const {
+  return std::to_wstring(column + 1);
+}
+
 bool operator==(const ColumnNumber& a, const ColumnNumber& b) {
-  return a.value == b.value;
+  return a.column == b.column;
 }
 
 bool operator!=(const ColumnNumber& a, const ColumnNumber& b) {
-  return a.value != b.value;
+  return a.column != b.column;
 }
 
 bool operator<(const ColumnNumber& a, const ColumnNumber& b) {
-  return a.value < b.value;
+  return a.column < b.column;
 }
 
 bool operator<=(const ColumnNumber& a, const ColumnNumber& b) {
-  return a.value <= b.value;
+  return a.column <= b.column;
 }
 
 bool operator>(const ColumnNumber& a, const ColumnNumber& b) {
-  return a.value > b.value;
+  return a.column > b.column;
 }
 
 bool operator>=(const ColumnNumber& a, const ColumnNumber& b) {
-  return a.value >= b.value;
+  return a.column >= b.column;
 }
 
 ColumnNumber& operator+=(ColumnNumber& a, const ColumnNumberDelta& delta) {
-  a.value += delta.value;
+  a.column += delta.value;
   return a;
 }
 
 ColumnNumber& operator++(ColumnNumber& a) {
-  a.value++;
+  a.column++;
   return a;
 }
 
 ColumnNumber operator++(ColumnNumber& a, int) {
   auto output = a;
-  a.value++;
+  a.column++;
   return output;
 }
 
 ColumnNumber& operator--(ColumnNumber& a) {
-  a.value--;
+  a.column--;
   return a;
 }
 
 ColumnNumber operator--(ColumnNumber& a, int) {
   auto output = a;
-  a.value--;
+  a.column--;
   return output;
 }
 
 ColumnNumber operator+(ColumnNumber a, const ColumnNumberDelta& delta) {
   if (delta.value < 0) {
-    CHECK_GE(a.value, static_cast<size_t>(-delta.value));
+    CHECK_GE(a.column, static_cast<size_t>(-delta.value));
   }
-  a.value += delta.value;
+  a.column += delta.value;
   return a;
 }
 
 ColumnNumber operator-(ColumnNumber a, const ColumnNumberDelta& delta) {
   if (delta.value > 0) {
-    CHECK_GE(a.value, static_cast<size_t>(delta.value));
+    CHECK_GE(a.column, static_cast<size_t>(delta.value));
   }
-  a.value -= delta.value;
+  a.column -= delta.value;
   return a;
 }
 
-ColumnNumber operator-(const ColumnNumber& a) { return ColumnNumber(-a.value); }
+ColumnNumber operator-(const ColumnNumber& a) {
+  return ColumnNumber(-a.column);
+}
 
 ColumnNumberDelta operator-(const ColumnNumber& a, const ColumnNumber& b) {
-  return ColumnNumberDelta(a.value - b.value);
+  return ColumnNumberDelta(a.column - b.column);
 }
 
 std::ostream& operator<<(std::ostream& os, const ColumnNumber& lc) {
-  os << "[Column " << lc.value << "]";
+  os << "[Column " << lc.column << "]";
   return os;
 }
 
@@ -197,13 +215,17 @@ std::ostream& operator<<(std::ostream& os, const LineColumn& lc) {
      << ":"
      << (lc.column == std::numeric_limits<ColumnNumber>::max()
              ? "inf"
-             : std::to_string(lc.column.value))
+             : std::to_string(lc.column.column))
      << "]";
   return os;
 }
 
 bool LineColumn::operator!=(const LineColumn& other) const {
   return line != other.line || column != other.column;
+}
+
+std::wstring LineColumn::ToString() const {
+  return std::to_wstring(line) + L" " + std::to_wstring(column.column);
 }
 
 /* static */ Range Range::InLine(size_t line, ColumnNumber column,
@@ -239,9 +261,6 @@ LineColumn& LineColumn::operator-=(const LineNumberDelta& value) {
 }
 
 LineColumn LineColumn::operator+(const ColumnNumberDelta& value) const {
-  if (value.value < 0) {
-    CHECK_GE(column.value, static_cast<size_t>(-value.value));
-  }
   return LineColumn(line, column + value);
 }
 
@@ -255,7 +274,7 @@ LineColumn LineColumn::operator+(const LineColumnDelta& value) const {
 
 std::wstring LineColumn::ToCppString() const {
   return L"LineColumn(" + std::to_wstring(line) + L", " +
-         std::to_wstring(column.value) + L")";
+         std::to_wstring(column.column) + L")";
 }
 
 /* static */ void LineColumn::Register(vm::Environment* environment) {
@@ -301,7 +320,7 @@ std::wstring LineColumn::ToCppString() const {
                        auto line_column =
                            static_cast<LineColumn*>(args[0]->user_value.get());
                        CHECK(line_column != nullptr);
-                       return Value::NewInteger(line_column->column.value);
+                       return Value::NewInteger(line_column->column.column);
                      }));
 
   line_column->AddField(
@@ -314,8 +333,9 @@ std::wstring LineColumn::ToCppString() const {
             auto line_column =
                 static_cast<LineColumn*>(args[0]->user_value.get());
             CHECK(line_column != nullptr);
-            return Value::NewString(std::to_wstring(line_column->line) + L", " +
-                                    std::to_wstring(line_column->column.value));
+            return Value::NewString(
+                std::to_wstring(line_column->line) + L", " +
+                std::to_wstring(line_column->column.column));
           }));
 
   environment->DefineType(L"LineColumn", std::move(line_column));

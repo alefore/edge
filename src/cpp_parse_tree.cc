@@ -148,7 +148,7 @@ class CppTreeParser : public TreeParser {
         CommentToEndOfLine(result);
         break;
       case '*':
-        result->Push(COMMENT, 1, {LineModifier::BLUE});
+        result->Push(COMMENT, ColumnNumberDelta(1), {LineModifier::BLUE});
         seek.Once();
         break;
       default:
@@ -160,9 +160,9 @@ class CppTreeParser : public TreeParser {
     LineColumn original_position = result->position();
     CHECK_GT(original_position.column, ColumnNumber(0));
     result->seek().ToEndOfLine();
-    result->PushAndPop(
-        result->position().column.value - original_position.column.value + 1,
-        {LineModifier::BLUE});
+    result->PushAndPop(result->position().column + ColumnNumberDelta(1) -
+                           original_position.column,
+                       {LineModifier::BLUE});
     // TODO: words_parser_->FindChildren(result->buffer(), comment_tree);
   }
 
@@ -178,23 +178,23 @@ class CppTreeParser : public TreeParser {
 
   void LiteralCharacter(ParseData* result) {
     Seek seek = result->seek();
-    size_t rewind_column = 1;
+    ColumnNumberDelta rewind_column(1);
     auto original_position = result->position();
     if (seek.read() == '\\') {
       seek.Once();
-      rewind_column++;
+      ++rewind_column;
     }
 
     seek.Once();  // Skip the character.
-    rewind_column++;
+    ++rewind_column;
 
     if (seek.read() == '\'') {
       seek.Once();
-      rewind_column++;
+      ++rewind_column;
       result->PushAndPop(rewind_column, {LineModifier::YELLOW});
     } else {
       result->set_position(original_position);
-      result->PushAndPop(1, BAD_PARSE_MODIFIERS);
+      result->PushAndPop(ColumnNumberDelta(1), BAD_PARSE_MODIFIERS);
     }
   }
 
@@ -212,26 +212,25 @@ class CppTreeParser : public TreeParser {
     if (seek.read() == L'"') {
       seek.Once();
       CHECK_EQ(result->position().line, original_position.line);
-      result->PushAndPop(
-          result->position().column.value - original_position.column.value + 1,
-          {LineModifier::YELLOW});
+      result->PushAndPop(result->position().column - original_position.column +
+                             ColumnNumberDelta(1),
+                         {LineModifier::YELLOW});
       // TODO: words_parser_->FindChildren(result->buffer(), tree);
     } else {
       result->set_position(original_position);
-      result->PushAndPop(1, BAD_PARSE_MODIFIERS);
+      result->PushAndPop(ColumnNumberDelta(1), BAD_PARSE_MODIFIERS);
     }
   }
 
   void PreprocessorDirective(ParseData* result) {
     LineColumn original_position = result->position();
     CHECK_GE(original_position.column, ColumnNumber(1));
-    original_position.column--;
+    --original_position.column;
 
     result->seek().ToEndOfLine();
     CHECK_GT(result->position().column, original_position.column);
-    result->PushAndPop(
-        result->position().column.value - original_position.column.value,
-        {LineModifier::YELLOW});
+    result->PushAndPop(result->position().column - original_position.column,
+                       {LineModifier::YELLOW});
   }
 
   void Identifier(ParseData* result) {
@@ -247,14 +246,14 @@ class CppTreeParser : public TreeParser {
     auto length = result->position().column - original_position.column;
     auto str =
         Substring(result->buffer().at(original_position.line)->contents(),
-                  original_position.column.value, length.value);
+                  original_position.column.column, length.value);
     LineModifierSet modifiers;
     if (keywords_.find(str->ToString()) != keywords_.end()) {
       modifiers.insert(LineModifier::CYAN);
     } else if (typos_.find(str->ToString()) != typos_.end()) {
       modifiers.insert(LineModifier::RED);
     }
-    result->PushAndPop(length.value, std::move(modifiers));
+    result->PushAndPop(length, std::move(modifiers));
   }
 
   void LiteralNumber(ParseData* result) {
@@ -266,9 +265,8 @@ class CppTreeParser : public TreeParser {
     CHECK_EQ(result->position().line, original_position.line);
     CHECK_GT(result->position(), original_position);
 
-    result->PushAndPop(
-        result->position().column.value - original_position.column.value,
-        {LineModifier::YELLOW});
+    result->PushAndPop(result->position().column - original_position.column,
+                       {LineModifier::YELLOW});
   }
 
   void DefaultState(State state_default, State state_default_at_start_of_line,
@@ -316,8 +314,9 @@ class CppTreeParser : public TreeParser {
     }
 
     if (c == L'{' || c == L'(') {
-      result->Push(c == L'{' ? BRACKET_DEFAULT : PARENS_DEFAULT, 1, {});
-      result->PushAndPop(1, BAD_PARSE_MODIFIERS);
+      result->Push(c == L'{' ? BRACKET_DEFAULT : PARENS_DEFAULT,
+                   ColumnNumberDelta(1), {});
+      result->PushAndPop(ColumnNumberDelta(1), BAD_PARSE_MODIFIERS);
       return;
     }
 
@@ -325,11 +324,11 @@ class CppTreeParser : public TreeParser {
       if ((c == L'}' && state_default == BRACKET_DEFAULT) ||
           (c == L')' && state_default == PARENS_DEFAULT)) {
         auto modifiers = ModifierForNesting(result->AddAndGetNesting());
-        result->PushAndPop(1, modifiers);
+        result->PushAndPop(ColumnNumberDelta(1), modifiers);
         result->SetFirstChildModifiers(modifiers);
         result->PopBack();
       } else {
-        result->PushAndPop(1, BAD_PARSE_MODIFIERS);
+        result->PushAndPop(ColumnNumberDelta(1), BAD_PARSE_MODIFIERS);
       }
       return;
     }

@@ -61,7 +61,7 @@ class ScreenVm : public Screen {
 
   void Move(size_t y, ColumnNumber x) override {
     buffer_ += "screen.Move(" + std::to_string(y) + ", " +
-               std::to_string(x.value) + ");";
+               std::to_string(x.column) + ");";
   }
 
   void WriteString(const wstring& str) override {

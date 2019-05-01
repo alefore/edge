@@ -110,7 +110,7 @@ class MarkdownParser : public TreeParser {
     if (result->state() == CODE) {
       result->PopBack();
     } else {
-      result->Push(CODE, 1, {LineModifier::CYAN});
+      result->Push(CODE, ColumnNumberDelta(1), {LineModifier::CYAN});
     }
   }
 
@@ -122,14 +122,14 @@ class MarkdownParser : public TreeParser {
         seek.Once();
         result->PopBack();
       } else {
-        result->Push(STRONG, 1, {LineModifier::BOLD});
+        result->Push(STRONG, ColumnNumberDelta(1), {LineModifier::BOLD});
         seek.Once();
       }
     } else {
       if (result->state() == EM) {
         result->PopBack();
       } else {
-        result->Push(EM, 1, {LineModifier::ITALIC});
+        result->Push(EM, ColumnNumberDelta(1), {LineModifier::ITALIC});
       }
     }
   }
@@ -155,7 +155,7 @@ class MarkdownParser : public TreeParser {
     }
 
     if (depth <= 5) {
-      result->Push(DepthToState(depth), 0, {});
+      result->Push(DepthToState(depth), ColumnNumberDelta(0), {});
     }
 
     LineModifierSet modifiers;
@@ -209,12 +209,13 @@ class MarkdownParser : public TreeParser {
         return SECTION_5;
       default:
         LOG(FATAL) << "Invalid depth: " << depth;
+        return SECTION_0;
     }
   }
 
   void AdvanceLine(ParseData* result, LineModifierSet modifiers) {
     result->seek().ToEndOfLine();
-    result->PushAndPop(result->position().column.value, {modifiers});
+    result->PushAndPop(result->position().column.ToDelta(), {modifiers});
   }
 };
 

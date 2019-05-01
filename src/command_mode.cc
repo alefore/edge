@@ -647,7 +647,7 @@ class ActivateLink : public Command {
     // Scroll back to the first non-path character. If we're in a non-path
     // character, this is a no-op.
     size_t start = line.find_last_not_of(path_characters,
-                                         buffer->current_position_col().value);
+                                         buffer->current_position_col().column);
     if (start == line.npos) {
       start = 0;
     }
@@ -741,7 +741,7 @@ class SwitchCaseTransformation : public Transformation {
         buffer_to_insert->AppendEmptyLine();
         continue;
       }
-      wchar_t c = line->get(i.column.value);
+      wchar_t c = line->get(i.column);
       buffer_to_insert->AppendToLastLine(
           NewLazyString(wstring(1, iswupper(c) ? towlower(c) : towupper(c))));
       DeleteOptions options;

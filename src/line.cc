@@ -64,10 +64,10 @@ void Line::DeleteCharacters(ColumnNumber column, ColumnNumberDelta delta) {
   CHECK_LE(column, EndColumnWithLock());
   CHECK_LE(column + delta, EndColumnWithLock());
   CHECK_EQ(contents_->size(), modifiers_.size());
-  contents_ =
-      StringAppend(afc::editor::Substring(contents_, 0, column.value),
-                   afc::editor::Substring(contents_, (column + delta).value));
-  auto it = modifiers_.begin() + column.value;
+  contents_ = StringAppend(
+      afc::editor::Substring(contents_, ColumnNumber(0), column.ToDelta()),
+      afc::editor::Substring(contents_, column + delta));
+  auto it = modifiers_.begin() + column.column;
   modifiers_.erase(it, it + delta.value);
   CHECK_EQ(contents_->size(), modifiers_.size());
 }
@@ -87,7 +87,7 @@ void Line::InsertCharacterAtPosition(ColumnNumber column) {
       afc::editor::Substring(contents_, column));
 
   modifiers_.push_back(unordered_set<LineModifier, hash<int>>());
-  for (size_t i = modifiers_.size() - 1; i > column.value; i--) {
+  for (size_t i = modifiers_.size() - 1; i > column.column; i--) {
     modifiers_[i] = modifiers_[i - 1];
   }
 }
@@ -107,10 +107,10 @@ void Line::SetCharacter(
                                             column.ToDelta()),
                      str),
         afc::editor::Substring(contents_, column + ColumnNumberDelta(1)));
-    if (modifiers_.size() <= column.value) {
-      modifiers_.resize(column.value + 1);
+    if (modifiers_.size() <= column.column) {
+      modifiers_.resize(column.column + 1);
     }
-    modifiers_[column.value] = modifiers;
+    modifiers_[column.column] = modifiers;
   }
   CHECK_EQ(contents_->size(), modifiers_.size());
 }
@@ -155,11 +155,11 @@ void Line::Output(const Line::OutputOptions& options) const {
     wint_t c = GetWithLock(input_column);
     CHECK(c != '\n');
     // TODO: Optimize.
-    if (input_column.value >= modifiers_.size()) {
+    if (input_column.column >= modifiers_.size()) {
       options.output_receiver->AddModifier(LineModifier::RESET);
-    } else if (modifiers_[input_column.value] != current_modifiers) {
+    } else if (modifiers_[input_column.column] != current_modifiers) {
       options.output_receiver->AddModifier(LineModifier::RESET);
-      current_modifiers = modifiers_[input_column.value];
+      current_modifiers = modifiers_[input_column.column];
       for (auto it : current_modifiers) {
         options.output_receiver->AddModifier(it);
       }
@@ -185,7 +185,7 @@ ColumnNumber Line::EndColumnWithLock() const {
 
 wint_t Line::GetWithLock(ColumnNumber column) const {
   CHECK_LT(column, EndColumnWithLock());
-  return contents_->get(column.value);
+  return contents_->get(column.column);
 }
 
 }  // namespace editor

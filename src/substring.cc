@@ -11,9 +11,11 @@ class SubstringImpl : public LazyString {
                 ColumnNumberDelta delta)
       : buffer_(input), column_(column), delta_(delta) {}
 
-  wchar_t get(size_t pos) const { return buffer_->get(column_.value + pos); }
+  wchar_t get(size_t pos) const {
+    return buffer_->get((column_ + ColumnNumberDelta(pos)).column);
+  }
 
-  size_t size() const { return (ColumnNumber(0) + delta_).value; }
+  size_t size() const { return (ColumnNumber(0) + delta_).column; }
 
  private:
   const shared_ptr<LazyString> buffer_;

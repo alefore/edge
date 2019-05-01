@@ -84,7 +84,7 @@ class DiffParser : public TreeParser {
         if (result->state() == SECTION) {
           result->PopBack();
         }
-        result->Push(SECTION, 0, {});
+        result->Push(SECTION, ColumnNumberDelta(), {});
         AdvanceLine(result, {LineModifier::CYAN});
         return;
 
@@ -99,7 +99,7 @@ class DiffParser : public TreeParser {
           if (result->state() == HEADERS) {
             result->PopBack();
           }
-          result->Push(HEADERS, 0, {});
+          result->Push(HEADERS, ColumnNumberDelta(), {});
         }
         AdvanceLine(result, {LineModifier::BOLD});
         return;
@@ -110,13 +110,13 @@ class DiffParser : public TreeParser {
   void AdvanceLine(ParseData* result, LineModifierSet modifiers) {
     auto original_column = result->position().column;
     result->seek().ToEndOfLine();
-    result->PushAndPop((result->position().column - original_column).value,
+    result->PushAndPop(result->position().column - original_column,
                        {modifiers});
   }
 
   void InContents(ParseData* result, LineModifierSet modifiers) {
     if (result->state() != CONTENTS) {
-      result->Push(CONTENTS, 0, {});
+      result->Push(CONTENTS, ColumnNumberDelta(), {});
     }
     AdvanceLine(result, modifiers);
   }

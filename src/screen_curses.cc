@@ -49,7 +49,7 @@ class ScreenCurses : public Screen {
     }
   }
 
-  void Move(size_t y, ColumnNumber x) override { move(y, x.value); }
+  void Move(size_t y, ColumnNumber x) override { move(y, x.column); }
   void WriteString(const wstring& s) override { addwstr(s.c_str()); }
 
   void SetModifier(LineModifier modifier) override {

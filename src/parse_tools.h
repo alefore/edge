@@ -11,15 +11,13 @@ namespace afc {
 namespace editor {
 
 struct Action {
-  static Action Push(size_t column, LineModifierSet modifiers) {
+  static Action Push(ColumnNumber column, LineModifierSet modifiers) {
     return Action(PUSH, column, std::move(modifiers));
   }
 
-  static Action Pop(size_t column) { return Action(POP, column, {}); }
+  static Action Pop(ColumnNumber column) { return Action(POP, column, {}); }
 
-  static Action SetFirstChildModifiers(LineModifierSet modifiers) {
-    return Action(SET_FIRST_CHILD_MODIFIERS, 0, std::move(modifiers));
-  }
+  static Action SetFirstChildModifiers(LineModifierSet modifiers);
 
   void Execute(std::vector<ParseTree*>* trees, size_t line);
 
@@ -33,14 +31,13 @@ struct Action {
 
   ActionType action_type = PUSH;
 
-  // TODO: Use ColumnNumber.
-  size_t column;
+  ColumnNumber column;
 
   // Used by PUSH and by SET_FIRST_CHILD_MODIFIERS.
   LineModifierSet modifiers;
 
  private:
-  Action(ActionType action_type, size_t column, LineModifierSet modifiers)
+  Action(ActionType action_type, ColumnNumber column, LineModifierSet modifiers)
       : action_type(action_type),
         column(column),
         modifiers(std::move(modifiers)) {}
@@ -80,27 +77,12 @@ class ParseData {
     parse_results_.actions.push_back(Action::SetFirstChildModifiers(modifiers));
   }
 
-  void PopBack() {
-    CHECK(!parse_results_.states_stack.empty());
-    parse_results_.states_stack.pop_back();
-    parse_results_.actions.push_back(Action::Pop(position_.column.value));
-  }
+  void PopBack();
 
-  void Push(size_t nested_state, size_t rewind_column,
-            LineModifierSet modifiers) {
-    CHECK_GE(position_.column.value, rewind_column);
+  void Push(size_t nested_state, ColumnNumberDelta rewind_column,
+            LineModifierSet modifiers);
 
-    parse_results_.states_stack.push_back(nested_state);
-
-    parse_results_.actions.push_back(
-        Action::Push(position_.column.value - rewind_column, modifiers));
-  }
-
-  void PushAndPop(size_t rewind_column, LineModifierSet modifiers) {
-    size_t ignored_state = 0;
-    Push(ignored_state, rewind_column, std::move(modifiers));
-    PopBack();
-  }
+  void PushAndPop(ColumnNumberDelta rewind_column, LineModifierSet modifiers);
 
  private:
   const BufferContents& buffer_;

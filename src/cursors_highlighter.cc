@@ -72,7 +72,7 @@ class CursorsHighlighter
       if (next_column > str_pos) {
         ColumnNumberDelta len = next_column - str_pos;
         DelegatingOutputReceiver::AddString(
-            str.substr(str_pos.value, len.value));
+            str.substr(str_pos.column, len.value));
         column_read_ += len;
         str_pos += len;
       }
@@ -82,7 +82,7 @@ class CursorsHighlighter
       if (str_pos < ColumnNumber(str.size())) {
         CHECK(next_cursor_ != options_.columns.end());
         CHECK_EQ(*next_cursor_, column_read_);
-        AddCharacter(str[str_pos.value]);
+        AddCharacter(str[str_pos.column]);
         str_pos++;
       }
       CheckInvariants();
