@@ -2,6 +2,7 @@
 
 #include <glog/logging.h>
 
+#include <cmath>
 #include <memory>
 
 namespace afc {
@@ -14,6 +15,19 @@ wchar_t Braille(size_t counter) {
        (counter & 0x08 ? 0x04 : 0) + (counter & 0x04 ? 0x20 : 0) +
        (counter & 0x02 ? 0x40 : 0) + (counter & 0x01 ? 0x80 : 0);
   return c;
+}
+
+size_t HandleOverflow(size_t counter, OverflowBehavior overflow_behavior,
+                      size_t largest_value) {
+  switch (overflow_behavior) {
+    case OverflowBehavior::kModulo:
+      counter = counter % largest_value;
+      break;
+    case OverflowBehavior::kMaximum:
+      counter = std::min(counter, largest_value);
+      break;
+  }
+  return counter;
 }
 
 wstring ProgressString(size_t counter, OverflowBehavior overflow_behavior) {
@@ -45,15 +59,19 @@ wstring ProgressString(size_t counter, OverflowBehavior overflow_behavior) {
   };
 
   static const size_t kLargestValue = values.size();
-  switch (overflow_behavior) {
-    case OverflowBehavior::kModulo:
-      counter = counter % kLargestValue;
-      break;
-    case OverflowBehavior::kMaximum:
-      counter = std::min(counter, kLargestValue);
-      break;
+
+  return wstring(
+      1, values[HandleOverflow(counter, overflow_behavior, kLargestValue)]);
+}
+
+wstring ProgressStringFillUp(size_t lines, OverflowBehavior overflow_behavior) {
+  wstring output = L" ▁▂▃▄▅▆▇█";
+  size_t kInitial = 32;
+  if (lines < kInitial) {
+    return L" ";
   }
-  return wstring(1, values[counter]);
+  return wstring(1, output[HandleOverflow(floor(log2(lines / kInitial)),
+                                          overflow_behavior, output.size())]);
 }
 
 }  // namespace editor

@@ -23,7 +23,7 @@ class BuffersListProducer : public OutputProducer {
       : buffers_(buffers),
         active_buffer_(std::move(active_buffer_)),
         buffers_per_line_(buffers_per_line),
-        prefix_width_(std::to_wstring(buffers_->size() + 1).size() + 2),
+        prefix_width_(std::to_wstring(buffers_->size()).size() + 2),
         buffers_iterator_(buffers->begin()) {
     VLOG(1) << "BuffersList created. Buffers per line: " << buffers_per_line
             << ", prefix width: " << prefix_width_
@@ -52,15 +52,21 @@ class BuffersListProducer : public OutputProducer {
       auto name = buffers_iterator_->first;
       auto number_prefix = std::to_wstring(index_ + 1);
       ColumnNumber start =
-          ColumnNumber(0) + (columns_per_buffer + prefix_width_) * i +
-          (prefix_width_ - ColumnNumberDelta(number_prefix.size() - 2));
+          ColumnNumber(0) + (columns_per_buffer + prefix_width_) * i;
       if (options.receiver->column() < start) {
         options.receiver->AddString(ColumnNumberDelta::PaddingString(
             start - options.receiver->column(), L' '));
       }
+
       options.receiver->AddModifier(LineModifier::CYAN);
       if (buffer == active_buffer_) {
         options.receiver->AddModifier(LineModifier::BOLD);
+        options.receiver->AddModifier(LineModifier::REVERSE);
+      }
+      start += prefix_width_ - ColumnNumberDelta(number_prefix.size() + 2);
+      if (options.receiver->column() < start) {
+        options.receiver->AddString(ColumnNumberDelta::PaddingString(
+            start - options.receiver->column(), L' '));
       }
       options.receiver->AddString(number_prefix);
       options.receiver->AddModifier(LineModifier::RESET);
@@ -100,43 +106,33 @@ class BuffersListProducer : public OutputProducer {
         }
       }
 
-      wstring progress =
-          buffer->ShouldDisplayProgress()
-              ? ProgressString(buffer->Read(buffer_variables::progress),
-                               OverflowBehavior::kModulo)
-              : L"";
+      wstring progress;
+      std::optional<LineModifier> progress_modifier;
+      if (!buffer->GetLineMarks()->empty()) {
+        progress = L"!";
+        progress_modifier = LineModifier::RED;
+      } else if (buffer->ShouldDisplayProgress()) {
+        progress = ProgressString(buffer->Read(buffer_variables::progress),
+                                  OverflowBehavior::kModulo);
+      } else {
+        progress = ProgressStringFillUp(buffer->lines_size().line_delta,
+                                        OverflowBehavior::kModulo);
+        progress_modifier = LineModifier::DIM;
+      }
       // If we ever make ProgressString return more than a single character,
       // we'll have to adjust this.
       CHECK_LE(progress.size(), 1ul);
 
-      if (progress.empty()) {
-        options.receiver->AddModifier(LineModifier::DIM);
-      } else {
-        options.receiver->AddString(progress);
+      if (progress_modifier.has_value()) {
+        options.receiver->AddModifier(progress_modifier.value());
       }
+      options.receiver->AddString(progress);
+      options.receiver->AddModifier(LineModifier::RESET);
 
       if (!name.empty()) {
-        if (!progress.empty()) {
-          // Nothing.
-        } else if (ColumnNumberDelta(name.size()) > columns_per_buffer) {
-          name = name.substr(name.size() - columns_per_buffer.column_delta);
-          options.receiver->AddString(L"…");
-        } else {
-          options.receiver->AddString(L":");
-        }
-        options.receiver->AddModifier(LineModifier::RESET);
         options.receiver->AddString(name);
         continue;
       }
-
-      if (!progress.empty()) {
-        // Nothing.
-      } else if (components.empty()) {
-        options.receiver->AddString(L":");
-      } else {
-        options.receiver->AddString(L"…");
-      }
-      options.receiver->AddModifier(LineModifier::RESET);
 
       auto last = output_components.end();
       --last;

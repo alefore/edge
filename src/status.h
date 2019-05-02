@@ -12,6 +12,8 @@ using std::shared_ptr;
 
 enum class OverflowBehavior { kModulo, kMaximum };
 wstring ProgressString(size_t counter, OverflowBehavior overflow_behavior);
+wstring ProgressStringFillUp(size_t counter,
+                             OverflowBehavior overflow_behavior);
 
 }  // namespace editor
 }  // namespace afc
