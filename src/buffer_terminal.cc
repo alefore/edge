@@ -33,8 +33,8 @@ void BufferTerminal::SetSize(LineNumberDelta lines, ColumnNumberDelta columns) {
   screen_size.ws_col = columns.column_delta;
   if (buffer_->fd() != nullptr &&
       ioctl(buffer_->fd()->fd(), TIOCSWINSZ, &screen_size) == -1) {
-    buffer_->editor()->SetWarningStatus(L"ioctl TIOCSWINSZ failed: " +
-                                        FromByteString(strerror(errno)));
+    buffer_->status()->SetWarningText(L"ioctl TIOCSWINSZ failed: " +
+                                      FromByteString(strerror(errno)));
   }
 }
 
@@ -57,16 +57,7 @@ void BufferTerminal::ProcessCommandInput(
       }
     } else if (c == '\a') {
       VLOG(8) << "Received \\a";
-      auto status = buffer_->editor()->status();
-      if (!all_of(status.begin(), status.end(), [](const wchar_t& c) {
-            return c == L'♪' || c == L'♫' || c == L'…' || c == L' ' ||
-                   c == L'𝄞';
-          })) {
-        status = L" 𝄞";
-      } else if (status.size() >= 40) {
-        status = L"…" + status.substr(status.size() - 40, status.size());
-      }
-      buffer_->SetStatus(status + L" " + (status.back() == L'♪' ? L"♫" : L"♪"));
+      buffer_->status()->Bell();
       BeepFrequencies(buffer_->editor()->audio_player(),
                       {783.99, 523.25, 659.25});
     } else if (c == '\r') {
@@ -252,7 +243,7 @@ size_t BufferTerminal::ProcessTerminalEscapeSequence(
               delta.line = LineNumberDelta(stoul(sequence));
             }
           } catch (const std::invalid_argument& ia) {
-            buffer_->SetStatus(
+            buffer_->status()->SetWarningText(
                 L"Unable to parse sequence from terminal in 'home' command: "
                 L"\"" +
                 FromByteString(sequence) + L"\"");

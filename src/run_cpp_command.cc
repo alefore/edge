@@ -42,6 +42,7 @@ class RunCppCommand : public Command {
       options.history_file = L"cpp";
       options.handler = RunCppCommandHandler;
       options.cancel_handler = [](EditorState*) { /* Nothing. */ };
+      options.status = PromptOptions::Status::kBuffer;
       Prompt(editor_state, options);
     }
   }

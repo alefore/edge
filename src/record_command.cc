@@ -33,10 +33,10 @@ class RecordCommand : public Command {
     }
     if (buffer->HasTransformationStack()) {
       buffer->PopTransformationStack();
-      editor_state->SetStatus(L"Recording: stop");
+      buffer->status()->SetInformationText(L"Recording: stop");
     } else {
       buffer->PushTransformationStack();
-      editor_state->SetStatus(L"Recording: start");
+      buffer->status()->SetInformationText(L"Recording: start");
     }
     buffer->ResetMode();
   }

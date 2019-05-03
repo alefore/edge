@@ -205,7 +205,8 @@ class NavigateCommand : public Command {
       buffer->set_mode(
           std::make_unique<NavigateModeLine>(editor_state->modifiers()));
     } else {
-      editor_state->SetStatus(L"Navigate not handled for current mode.");
+      buffer->status()->SetInformationText(
+          L"Navigate not handled for current mode.");
       buffer->ResetMode();
     }
   }

@@ -95,7 +95,7 @@ void HandleEndOfFile(OpenBuffer* buffer,
     auto it =
         editor_state->buffers()->find(buffer->Read(buffer_variables::name));
     if (it == editor_state->buffers()->end()) {
-      editor_state->SetWarningStatus(L"Error: predictions buffer not found.");
+      buffer->status()->SetWarningText(L"Error: predictions buffer not found.");
     } else {
       CHECK_EQ(buffer, it->second.get());
       editor_state->set_current_buffer(it->second);

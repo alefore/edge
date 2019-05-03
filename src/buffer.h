@@ -20,6 +20,7 @@
 #include "src/line_marks.h"
 #include "src/map_mode.h"
 #include "src/parse_tree.h"
+#include "src/status.h"
 #include "src/substring.h"
 #include "src/transformation.h"
 #include "src/tree.h"
@@ -45,6 +46,7 @@ using std::vector;
 using namespace afc::vm;
 
 class FileDescriptorReader;
+class Status;
 
 class OpenBuffer {
  public:
@@ -87,7 +89,10 @@ class OpenBuffer {
 
   EditorState* editor() const;
 
-  void SetStatus(wstring status) const;
+  // Set status information for this buffer. Only information specific to this
+  // buffer should be set here; everything else should be set on the Editor's
+  // status.
+  Status* status() const;
 
   // If it is closeable, returns std::nullopt. Otherwise, returns reasons why
   // we can predict that PrepareToClose will fail.
@@ -201,6 +206,8 @@ class OpenBuffer {
 
   CursorsSet* FindCursors(const wstring& name);
   CursorsSet* active_cursors();
+  const CursorsSet* active_cursors() const;
+
   // Removes all active cursors and replaces them with the ones given. The old
   // cursors are saved and can be restored with ToggleActiveCursors.
   void set_active_cursors(const vector<LineColumn>& positions);
@@ -520,6 +527,8 @@ class OpenBuffer {
   //
   // TODO: Add a Time type to the VM and expose this?
   struct timespec last_progress_update_ = {0, 0};
+
+  mutable Status status_;
 };
 
 }  // namespace editor

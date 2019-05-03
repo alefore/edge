@@ -41,6 +41,8 @@ LineNumberDelta operator--(LineNumberDelta& a, int);
 struct ColumnNumberDelta {
   // Generates a string of the length specified by `this` filled up with the
   // character given.
+  //
+  // If length is negative (or zero), returns an empty string.
   static std::wstring PaddingString(const ColumnNumberDelta& length,
                                     wchar_t fill);
 

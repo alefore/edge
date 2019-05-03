@@ -183,6 +183,13 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, LineNumber line,
       &OpenBuffer::Set);
 
   buffer->AddField(
+      L"SetStatus",
+      vm::NewCallback(std::function<void(std::shared_ptr<OpenBuffer>, wstring)>(
+          [](std::shared_ptr<OpenBuffer> buffer, wstring s) {
+            buffer->status()->SetInformationText(s);
+          })));
+
+  buffer->AddField(
       L"line_count",
       vm::NewCallback(std::function<int(std::shared_ptr<OpenBuffer>)>(
           [](std::shared_ptr<OpenBuffer> buffer) {
@@ -349,7 +356,7 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, LineNumber line,
               auto str = ToByteString(text);
               LOG(INFO) << "Insert text: " << str.size();
               if (write(buffer->fd()->fd(), str.c_str(), str.size()) == -1) {
-                buffer->editor()->SetWarningStatus(
+                buffer->editor()->status()->SetWarningText(
                     L"Write failed: " + FromByteString(strerror(errno)));
               }
               return;
@@ -416,8 +423,8 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, LineNumber line,
                       options.path = path;
                       options.output_path = &resolved_path;
                       if (!ResolvePath(options)) {
-                        editor_state->SetWarningStatus(L"Unable to resolve: " +
-                                                       path);
+                        buffer->status()->SetWarningText(
+                            L"Unable to resolve: " + path);
                       } else {
                         buffer->EvaluateFile(resolved_path,
                                              [](std::unique_ptr<Value>) {});
@@ -497,7 +504,9 @@ OpenBuffer::OpenBuffer(Options options)
       parse_tree_(std::make_shared<ParseTree>()),
       tree_parser_(NewNullTreeParser()),
       default_commands_(options_.editor->default_commands()->NewChild()),
-      mode_(std::make_unique<MapMode>(default_commands_)) {
+      mode_(std::make_unique<MapMode>(default_commands_)),
+      status_(options_.editor->GetConsole(), options_.editor->audio_player(),
+              [this]() { editor()->ScheduleRedraw(); }) {
   contents_.AddUpdateListener(
       [this](const CursorsTracker::Transformation& transformation) {
         options_.editor->ScheduleParseTreeUpdate(this);
@@ -543,9 +552,7 @@ OpenBuffer::~OpenBuffer() {
 
 EditorState* OpenBuffer::editor() const { return options_.editor; }
 
-void OpenBuffer::SetStatus(wstring status) const {
-  editor()->SetStatus(status);
-}
+Status* OpenBuffer::status() const { return &status_; }
 
 std::optional<wstring> OpenBuffer::IsUnableToPrepareToClose() const {
   if (options_.editor->modifiers().strength > Modifiers::Strength::kNormal) {
@@ -666,10 +673,10 @@ bool OpenBuffer::PersistState() const {
   auto file_path = Read(buffer_variables::path);
   list<wstring> file_path_components;
   if (file_path.empty() || file_path[0] != '/') {
-    options_.editor->SetWarningStatus(
-        L"Unable to persist buffer with empty path: " +
-        Read(buffer_variables::name) + (dirty() ? L" (dirty)" : L" (clean)") +
-        (modified_ ? L"modified" : L"not modi"));
+    status_.SetWarningText(L"Unable to persist buffer with empty path: " +
+                           Read(buffer_variables::name) + L" " +
+                           (dirty() ? L" (dirty)" : L" (clean)") + L" " +
+                           (modified_ ? L"modified" : L"not modified"));
     return !dirty();
   }
 
@@ -694,7 +701,8 @@ bool OpenBuffer::PersistState() const {
       return false;
     }
     if (mkdir(path_byte_string.c_str(), 0700)) {
-      SetStatus(L"mkdir: " + FromByteString(strerror(errno)) + L": " + path);
+      status_.SetInformationText(L"mkdir: " + FromByteString(strerror(errno)) +
+                                 L": " + path);
       return false;
     }
   }
@@ -731,7 +739,7 @@ bool OpenBuffer::PersistState() const {
   }
   contents.push_back(L"");
 
-  return SaveContentsToFile(editor(), path, contents);
+  return SaveContentsToFile(path, contents, &status_);
 }
 
 void OpenBuffer::ClearContents(
@@ -764,7 +772,8 @@ void OpenBuffer::EndOfFile() {
   CHECK(fd_error_ == nullptr);
   if (child_pid_ != -1) {
     if (waitpid(child_pid_, &child_exit_status_, 0) == -1) {
-      SetStatus(L"waitpid failed: " + FromByteString(strerror(errno)));
+      status_.SetWarningText(L"waitpid failed: " +
+                             FromByteString(strerror(errno)));
       return;
     }
     child_pid_ = -1;
@@ -967,7 +976,8 @@ void OpenBuffer::Reload() {
 
     switch (reload_state_) {
       case ReloadState::kDone:
-        LOG(FATAL);
+        LOG(FATAL) << "Invalid reload state! Can't be kDone.";
+        break;
       case ReloadState::kOngoing:
         reload_state_ = ReloadState::kDone;
         break;
@@ -989,7 +999,7 @@ void OpenBuffer::Save() {
   if (options_.handle_save != nullptr) {
     return options_.handle_save(this);
   }
-  SetStatus(L"Buffer can't be saved.");
+  status_.SetWarningText(L"Buffer can't be saved.");
 }
 
 void OpenBuffer::AppendLazyString(std::shared_ptr<LazyString> input) {
@@ -1100,7 +1110,7 @@ bool OpenBuffer::EvaluateString(
   std::shared_ptr<Expression> expression =
       CompileString(code, &error_description);
   if (expression == nullptr) {
-    editor()->SetWarningStatus(L"🐜Compilation error: " + error_description);
+    status_.SetWarningText(L"🐜Compilation error: " + error_description);
     return false;
   }
   LOG(INFO) << "Code compiled, evaluating.";
@@ -1116,7 +1126,7 @@ bool OpenBuffer::EvaluateFile(
   std::shared_ptr<Expression> expression =
       CompileFile(ToByteString(path), &environment_, &error_description);
   if (expression == nullptr) {
-    SetStatus(path + L": error: " + error_description);
+    status_.SetWarningText(path + L": error: " + error_description);
     return false;
   }
   LOG(INFO) << "Evaluating file: " << path;
@@ -1227,7 +1237,14 @@ CursorsSet* OpenBuffer::FindCursors(const wstring& name) {
 }
 
 CursorsSet* OpenBuffer::active_cursors() {
-  return FindCursors(options_.editor->modifiers().active_cursors);
+  return const_cast<CursorsSet*>(
+      const_cast<const OpenBuffer*>(this)->active_cursors());
+}
+
+const CursorsSet* OpenBuffer::active_cursors() const {
+  // TODO: Remove const cast. Ugh.
+  return const_cast<OpenBuffer*>(this)->FindCursors(
+      options_.editor->modifiers().active_cursors);
 }
 
 void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
@@ -1272,22 +1289,24 @@ void OpenBuffer::ToggleActiveCursors() {
 
 void OpenBuffer::PushActiveCursors() {
   auto stack_size = cursors_tracker_.Push();
-  SetStatus(L"cursors stack (" + to_wstring(stack_size) + L"): +");
+  status_.SetInformationText(L"cursors stack (" + to_wstring(stack_size) +
+                             L"): +");
 }
 
 void OpenBuffer::PopActiveCursors() {
   auto stack_size = cursors_tracker_.Pop();
   if (stack_size == 0) {
-    options_.editor->SetWarningStatus(L"cursors stack: -: Stack is empty!");
+    status_.SetWarningText(L"cursors stack: -: Stack is empty!");
     return;
   }
-  SetStatus(L"cursors stack (" + to_wstring(stack_size - 1) + L"): -");
+  status_.SetInformationText(L"cursors stack (" + to_wstring(stack_size - 1) +
+                             L"): -");
 }
 
 void OpenBuffer::SetActiveCursorsToMarks() {
   const auto& marks = *GetLineMarks();
   if (marks.empty()) {
-    options_.editor->SetWarningStatus(L"Buffer has no marks!");
+    status_.SetWarningText(L"Buffer has no marks!");
     return;
   }
 
@@ -1334,7 +1353,7 @@ void OpenBuffer::CreateCursor() {
       range.begin = tmp_first;
     }
   }
-  SetStatus(L"Cursor created.");
+  status_.SetInformationText(L"Cursor created.");
   options_.editor->ScheduleRedraw();
 }
 
@@ -1530,14 +1549,14 @@ void OpenBuffer::PushSignal(int sig) {
   switch (sig) {
     case SIGINT:
       if (terminal_ == nullptr ? child_pid_ == -1 : fd_ == nullptr) {
-        SetStatus(L"No subprocess found.");
+        status_.SetWarningText(L"No subprocess found.");
       } else if (terminal_ == nullptr) {
-        SetStatus(L"SIGINT >> pid:" + to_wstring(child_pid_));
+        status_.SetInformationText(L"SIGINT >> pid:" + to_wstring(child_pid_));
         kill(child_pid_, sig);
       } else {
         string sequence(1, 0x03);
         (void)write(fd_->fd(), sequence.c_str(), sequence.size());
-        SetStatus(L"SIGINT");
+        status_.SetInformationText(L"SIGINT");
       }
       break;
 
@@ -1549,7 +1568,7 @@ void OpenBuffer::PushSignal(int sig) {
       break;
 
     default:
-      SetStatus(L"Unexpected signal received: " + to_wstring(sig));
+      status_.SetWarningText(L"Unexpected signal received: " + to_wstring(sig));
   }
 }
 
@@ -1580,8 +1599,9 @@ bool OpenBuffer::AddKeyboardTextTransformer(unique_ptr<Value> transformer) {
       transformer->type.type_arguments.size() != 2 ||
       transformer->type.type_arguments[0].type != VMType::VM_STRING ||
       transformer->type.type_arguments[1].type != VMType::VM_STRING) {
-    SetStatus(L": Unexpected type for keyboard text transformer: " +
-              transformer->type.ToString());
+    status_.SetWarningText(
+        L": Unexpected type for keyboard text transformer: " +
+        transformer->type.ToString());
     return false;
   }
   keyboard_text_transformers_.push_back(std::move(transformer));

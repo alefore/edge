@@ -47,18 +47,19 @@ void StartDeleteFile(EditorState* editor_state, wstring path) {
   options.prompt = L"unlink " + path + L"? [yes/no] ",
   options.history_file = L"confirmation";
   options.handler = [path](const wstring input, EditorState* editor_state) {
+    auto buffer = editor_state->current_buffer();
+    auto status = buffer == nullptr ? editor_state->status() : buffer->status();
     if (input == L"yes") {
       int result = unlink(ToByteString(path).c_str());
-      editor_state->SetStatus(
+      status->SetInformationText(
           path + L": unlink: " +
           (result == 0 ? L"done"
                        : L"ERROR: " + FromByteString(strerror(errno))));
     } else {
       // TODO: insert it again?  Actually, only let it be erased
       // in the other case.
-      editor_state->SetStatus(L"Ignored.");
+      status->SetInformationText(L"Ignored.");
     }
-    auto buffer = editor_state->current_buffer();
     if (buffer != nullptr) {
       buffer->ResetMode();
     }
@@ -170,7 +171,7 @@ void GenerateContents(EditorState* editor_state, struct stat* stat_buffer,
   if (dir == nullptr) {
     auto description =
         L"Unable to open directory: " + FromByteString(strerror(errno));
-    editor_state->SetStatus(description);
+    target->status()->SetInformationText(description);
     target->AppendLine(NewLazyString(std::move(description)));
     return;
   }
@@ -212,8 +213,7 @@ void GenerateContents(EditorState* editor_state, struct stat* stat_buffer,
   target->ClearModified();
 }
 
-void HandleVisit(EditorState* editor_state, const struct stat& stat_buffer,
-                 const OpenBuffer& buffer) {
+void HandleVisit(const struct stat& stat_buffer, const OpenBuffer& buffer) {
   const wstring path = buffer.Read(buffer_variables::path);
   if (stat_buffer.st_mtime == 0) {
     LOG(INFO) << "Skipping file change check.";
@@ -227,7 +227,7 @@ void HandleVisit(EditorState* editor_state, const struct stat& stat_buffer,
     return;
   }
   if (current_stat_buffer.st_mtime > stat_buffer.st_mtime) {
-    editor_state->SetWarningStatus(L"🌷File changed in disk since last read.");
+    buffer.status()->SetWarningText(L"🌷File changed in disk since last read.");
   }
 }
 
@@ -235,22 +235,23 @@ void Save(EditorState* editor_state, struct stat* stat_buffer,
           OpenBuffer* buffer) {
   const wstring path = buffer->Read(buffer_variables::path);
   if (path.empty()) {
-    editor_state->SetStatus(
+    buffer->status()->SetInformationText(
         L"Buffer can't be saved: “path” variable is empty.");
     return;
   }
   if (S_ISDIR(stat_buffer->st_mode)) {
-    editor_state->SetStatus(L"Buffer can't be saved: Buffer is a directory.");
+    buffer->status()->SetInformationText(
+        L"Buffer can't be saved: Buffer is a directory.");
     return;
   }
 
-  if (!SaveContentsToFile(editor_state, path, *buffer->contents()) ||
+  if (!SaveContentsToFile(path, *buffer->contents(), buffer->status()) ||
       !buffer->PersistState()) {
     LOG(INFO) << "Saving failed.";
     return;
   }
   buffer->ClearModified();
-  editor_state->SetStatus(L"🖫 Saved: " + path);
+  buffer->status()->SetInformationText(L"🖫 Saved: " + path);
   for (const auto& dir : editor_state->edge_path()) {
     buffer->EvaluateFile(dir + L"/hooks/buffer-save.cc",
                          [](std::unique_ptr<Value>) {});
@@ -383,24 +384,23 @@ static bool FindPath(EditorState* editor_state, vector<wstring> search_paths,
 
 using std::unique_ptr;
 
-bool SaveContentsToOpenFile(EditorState* editor_state, const wstring& path,
-                            int fd, const BufferContents& contents) {
+bool SaveContentsToOpenFile(const wstring& path, int fd,
+                            const BufferContents& contents, Status* status) {
   // TODO: It'd be significant more efficient to do fewer (bigger) writes.
-  return contents.EveryLine([editor_state, fd, path](LineNumber position,
-                                                     const Line& line) {
+  return contents.EveryLine([&](LineNumber position, const Line& line) {
     string str =
         (position == LineNumber(0) ? "" : "\n") + ToByteString(line.ToString());
     if (write(fd, str.c_str(), str.size()) == -1) {
-      editor_state->SetStatus(path + L": write failed: " + std::to_wstring(fd) +
-                              L": " + FromByteString(strerror(errno)));
+      status->SetWarningText(path + L": write failed: " + std::to_wstring(fd) +
+                             L": " + FromByteString(strerror(errno)));
       return false;
     }
     return true;
   });
 }
 
-bool SaveContentsToFile(EditorState* editor_state, const wstring& path,
-                        const BufferContents& contents) {
+bool SaveContentsToFile(const wstring& path, const BufferContents& contents,
+                        Status* status) {
   const string path_raw = ToByteString(path);
   const string tmp_path = path_raw + ".tmp";
 
@@ -416,12 +416,12 @@ bool SaveContentsToFile(EditorState* editor_state, const wstring& path,
   int fd = open(tmp_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC,
                 original_stat.st_mode);
   if (fd == -1) {
-    editor_state->SetStatus(FromByteString(tmp_path) + L": open failed: " +
-                            FromByteString(strerror(errno)));
+    status->SetWarningText(FromByteString(tmp_path) + L": open failed: " +
+                           FromByteString(strerror(errno)));
     return false;
   }
-  bool result = SaveContentsToOpenFile(editor_state, FromByteString(tmp_path),
-                                       fd, contents);
+  bool result =
+      SaveContentsToOpenFile(FromByteString(tmp_path), fd, contents, status);
   close(fd);
   if (!result) {
     return false;
@@ -429,8 +429,8 @@ bool SaveContentsToFile(EditorState* editor_state, const wstring& path,
 
   // TODO: Make this non-blocking?
   if (rename(tmp_path.c_str(), path_raw.c_str()) == -1) {
-    editor_state->SetStatus(path + L": rename failed: " +
-                            FromByteString(strerror(errno)));
+    status->SetWarningText(path + L": rename failed: " +
+                           FromByteString(strerror(errno)));
     return false;
   }
 
@@ -513,7 +513,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   };
   buffer_options.handle_visit = [editor_state,
                                  stat_buffer](OpenBuffer* buffer) {
-    HandleVisit(editor_state, *stat_buffer, *buffer);
+    HandleVisit(*stat_buffer, *buffer);
   };
   buffer_options.handle_save = [editor_state, stat_buffer](OpenBuffer* buffer) {
     Save(editor_state, stat_buffer.get(), buffer);

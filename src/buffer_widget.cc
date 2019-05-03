@@ -11,8 +11,10 @@
 #include "src/buffer_metadata_output_producer.h"
 #include "src/buffer_output_producer.h"
 #include "src/buffer_variables.h"
+#include "src/horizontal_split_output_producer.h"
 #include "src/line_number_output_producer.h"
 #include "src/line_scroll_control.h"
+#include "src/status_output_producer.h"
 #include "src/vertical_split_output_producer.h"
 #include "src/widget.h"
 #include "src/wstring.h"
@@ -84,35 +86,53 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
     return std::make_unique<EmptyProducer>();
   }
 
+  // We always show the buffer's status, even if the status::text is empty.
+  auto status_lines = LineNumberDelta(1);
+
   bool paste_mode = buffer->Read(buffer_variables::paste_mode);
 
   auto line_scroll_control =
       LineScrollControl::New(line_scroll_control_options_);
 
-  auto buffer_output_producer = std::make_unique<BufferOutputProducer>(
-      buffer, line_scroll_control->NewReader(), lines_,
-      line_scroll_control_options_.columns_shown, view_start_.column,
-      zoomed_out_tree_);
-  if (paste_mode) {
-    return buffer_output_producer;
+  std::unique_ptr<OutputProducer> output =
+      std::make_unique<BufferOutputProducer>(
+          buffer, line_scroll_control->NewReader(), lines_ - status_lines,
+          line_scroll_control_options_.columns_shown, view_start_.column,
+          zoomed_out_tree_);
+  if (!paste_mode) {
+    std::vector<VerticalSplitOutputProducer::Column> columns(3);
+
+    auto line_numbers = std::make_unique<LineNumberOutputProducer>(
+        buffer, line_scroll_control->NewReader());
+
+    columns[0].width = line_numbers->width();
+    columns[0].producer = std::move(line_numbers);
+
+    columns[1].width = line_scroll_control_options_.columns_shown;
+    columns[1].producer = std::move(output);
+
+    columns[2].producer = std::make_unique<BufferMetadataOutputProducer>(
+        buffer, line_scroll_control->NewReader(), lines_ - status_lines,
+        view_start_.line, zoomed_out_tree_);
+
+    output =
+        std::make_unique<VerticalSplitOutputProducer>(std::move(columns), 1);
   }
 
-  std::vector<VerticalSplitOutputProducer::Column> columns(3);
+  if (status_lines > LineNumberDelta(0)) {
+    std::vector<HorizontalSplitOutputProducer::Row> rows(2);
+    rows[0].producer = std::move(output);
+    rows[0].lines = lines_ - status_lines;
 
-  auto line_numbers = std::make_unique<LineNumberOutputProducer>(
-      buffer, line_scroll_control->NewReader());
+    rows[1].producer = std::make_unique<StatusOutputProducer>(
+        buffer->status(), buffer.get(), Modifiers());
+    rows[1].lines = status_lines;
 
-  columns[0].width = line_numbers->width();
-  columns[0].producer = std::move(line_numbers);
-
-  columns[1].width = line_scroll_control_options_.columns_shown;
-  columns[1].producer = std::move(buffer_output_producer);
-
-  columns[2].producer = std::make_unique<BufferMetadataOutputProducer>(
-      buffer, line_scroll_control->NewReader(), lines_, view_start_.line,
-      zoomed_out_tree_);
-
-  return std::make_unique<VerticalSplitOutputProducer>(std::move(columns), 1);
+    output = std::make_unique<HorizontalSplitOutputProducer>(
+        std::move(rows),
+        buffer->status()->GetType() == Status::Type::kPrompt ? 1 : 0);
+  }
+  return output;
 }
 
 void BufferWidget::SetSize(LineNumberDelta lines, ColumnNumberDelta columns) {
@@ -165,12 +185,14 @@ void BufferWidget::RecomputeData() {
 
   // TODO: If the buffer has multiple views of different sizes, we're gonna have
   // a bad time.
-  buffer->SetTerminalSize(lines_, columns_);
+  auto status_lines = min(lines_, LineNumberDelta(1));
+  auto buffer_lines = lines_ - status_lines;
+  buffer->SetTerminalSize(buffer_lines, columns_);
 
   bool paste_mode = buffer->Read(buffer_variables::paste_mode);
 
   line_scroll_control_options_.buffer = buffer;
-  line_scroll_control_options_.lines_shown = lines_;
+  line_scroll_control_options_.lines_shown = buffer_lines;
   line_scroll_control_options_.columns_shown =
       columns_ -
       (paste_mode
@@ -186,10 +208,10 @@ void BufferWidget::RecomputeData() {
   LineNumberDelta margin_lines =
       buffer->Read(buffer_variables::pts)
           ? LineNumberDelta(0)
-          : min(max(lines_ / 2 - LineNumberDelta(1), LineNumberDelta(0)),
+          : min(max(buffer_lines / 2 - LineNumberDelta(1), LineNumberDelta(0)),
                 max(LineNumberDelta(ceil(
                         buffer->Read(buffer_variables::margin_lines_ratio) *
-                        lines_.line_delta)),
+                        buffer_lines.line_delta)),
                     max(LineNumberDelta(
                             buffer->Read(buffer_variables::margin_lines)),
                         LineNumberDelta(0))));
@@ -198,12 +220,12 @@ void BufferWidget::RecomputeData() {
   if (view_start_.line > line - min(margin_lines, line.ToDelta()) &&
       (buffer->child_pid() != -1 || buffer->fd() == nullptr)) {
     view_start_.line = line - min(margin_lines, line.ToDelta());
-  } else if (view_start_.line + lines_ <=
+  } else if (view_start_.line + buffer_lines <=
              min(LineNumber(0) + buffer->lines_size(), line + margin_lines)) {
     view_start_.line =
         min(LineNumber(0) + buffer->lines_size() - LineNumberDelta(1),
             line + margin_lines) -
-        lines_ + LineNumberDelta(1);
+        buffer_lines + LineNumberDelta(1);
   }
 
   view_start_.column = GetDesiredViewStartColumn(buffer.get());
@@ -211,10 +233,10 @@ void BufferWidget::RecomputeData() {
   line_scroll_control_options_.initial_column = view_start_.column;
 
   auto simplified_parse_tree = buffer->simplified_parse_tree();
-  if (lines_ > LineNumberDelta(0) && simplified_parse_tree != nullptr &&
+  if (buffer_lines > LineNumberDelta(0) && simplified_parse_tree != nullptr &&
       simplified_parse_tree != simplified_parse_tree_) {
     zoomed_out_tree_ = std::make_shared<ParseTree>(ZoomOutTree(
-        *buffer->simplified_parse_tree(), buffer->lines_size(), lines_));
+        *buffer->simplified_parse_tree(), buffer->lines_size(), buffer_lines));
     simplified_parse_tree_ = simplified_parse_tree;
   }
 }

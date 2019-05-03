@@ -88,7 +88,8 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
 void EditorState::NotifyInternalEvent() {
   VLOG(5) << "Internal event notification!";
   if (write(pipe_to_communicate_internal_events_.second, " ", 1) == -1) {
-    SetStatus(L"Write to internal pipe failed!");
+    status_.SetWarningText(L"Write to internal pipe failed: " +
+                           FromByteString(strerror(errno)));
   }
 }
 
@@ -284,8 +285,9 @@ Environment EditorState::BuildEditorEnvironment() {
                        exit(status);
                      })));
 
-  environment.Define(L"SetStatus", vm::NewCallback(std::function<void(wstring)>(
-                                       [this](wstring s) { SetStatus(s); })));
+  environment.Define(
+      L"SetStatus", vm::NewCallback(std::function<void(wstring)>(
+                        [this](wstring s) { status_.SetInformationText(s); })));
 
   environment.Define(
       L"ScheduleRedraw",
@@ -402,16 +404,10 @@ EditorState::EditorState(command_line_arguments::Values args,
       edge_path_(args.config_paths),
       environment_(BuildEditorEnvironment()),
       default_commands_(NewCommandMode(this)),
-      status_prompt_(false),
-      status_(L""),
       pipe_to_communicate_internal_events_(BuildPipe()),
       audio_player_(audio_player),
-      buffer_tree_(std::make_unique<BufferTreeHorizontal>(BufferWidget::New()),
-                   [this]() {
-                     LOG(INFO) << "Check: " << is_status_warning_;
-                     return is_status_warning_ ? status_
-                                               : std::optional<wstring>();
-                   }) {
+      buffer_tree_(std::make_unique<BufferTreeHorizontal>(BufferWidget::New())),
+      status_(GetConsole(), audio_player_, [this]() { ScheduleRedraw(); }) {
   LineColumn::Register(&environment_);
   Range::Register(&environment_);
 }
@@ -442,8 +438,9 @@ void EditorState::CloseBuffer(OpenBuffer* buffer) {
         buffers_.erase(buffer->Read(buffer_variables::name));
       },
       [this, buffer](wstring error) {
-        SetWarningStatus(L"🖝  Unable to close (“*ad” to ignore): " +
-                         error + L": " + buffer->Read(buffer_variables::name));
+        buffer->status()->SetWarningText(
+            L"🖝  Unable to close (“*ad” to ignore): " + error + L": " +
+            buffer->Read(buffer_variables::name));
       });
 }
 
@@ -590,7 +587,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
       for (auto name : buffers_with_problems) {
         error += L" " + name;
       }
-      SetWarningStatus(error);
+      status_.SetWarningText(error);
       return;
     }
   }
@@ -623,7 +620,7 @@ void EditorState::Terminate(TerminationType termination_type, int exit_value) {
           for (auto name : buffers_with_problems) {
             error += L" " + name;
           }
-          return SetWarningStatus(error);
+          return status_.SetWarningText(error);
         }
         LOG(INFO) << "Terminating.";
         exit_value_ = exit_value;
@@ -787,32 +784,14 @@ static BufferPosition PositionFromLine(const wstring& line) {
   return pos;
 }
 
-void EditorState::SetStatus(const wstring& status) {
-  LOG(INFO) << "SetStatus: " << status;
-  status_ = status;
-  is_status_warning_ = false;
-  ScheduleRedraw();
-  if (status_prompt_ || status.empty()) {
-    return;
+std::shared_ptr<OpenBuffer> EditorState::GetConsole() {
+  auto it = buffers_.insert(make_pair(L"- console", nullptr));
+  if (it.second) {  // Inserted the entry.
+    it.first->second = std::make_shared<OpenBuffer>(this, it.first->first);
+    it.first->second->Set(buffer_variables::allow_dirty_delete, true);
+    it.first->second->Set(buffer_variables::show_in_buffers_list, false);
   }
-  auto status_buffer_it = buffers_.insert(make_pair(L"- console", nullptr));
-  if (status_buffer_it.second) {
-    // Inserted the entry.
-    status_buffer_it.first->second =
-        std::make_shared<OpenBuffer>(this, status_buffer_it.first->first);
-    status_buffer_it.first->second->Set(buffer_variables::allow_dirty_delete,
-                                        true);
-    status_buffer_it.first->second->Set(buffer_variables::show_in_buffers_list,
-                                        false);
-  }
-  status_buffer_it.first->second->AppendLazyString(NewLazyString(status));
-}
-
-void EditorState::SetWarningStatus(const wstring& status) {
-  SetStatus(status);
-  is_status_warning_ = true;
-  GenerateAlert(audio_player_);
-  ScheduleRedraw();
+  return it.first->second;
 }
 
 bool EditorState::HasPositionsInStack() {
@@ -850,15 +829,14 @@ bool EditorState::MovePositionsStack(Direction direction) {
   return true;
 }
 
+Status* EditorState::status() { return &status_; }
+const Status* EditorState::status() const { return &status_; }
+
 void EditorState::ApplyToCurrentBuffer(
     unique_ptr<Transformation> transformation) {
   CHECK(transformation != nullptr);
   CHECK(has_current_buffer());
   current_buffer()->ApplyToCursors(std::move(transformation));
-}
-
-void EditorState::DefaultErrorHandler(const wstring& error_description) {
-  SetStatus(L"Error: " + error_description);
 }
 
 wstring EditorState::expand_path(const wstring& path) {

@@ -26,14 +26,16 @@ class CommandWithModifiersMode : public EditorMode {
     switch (static_cast<int>(c)) {
       case Terminal::ESCAPE:
         buffer_->ResetMode();
-        editor_state->ResetStatus();
+        buffer_->status()->Reset();
+        editor_state->status()->Reset();
         break;
 
       default:
         if (!ApplyChar(c, nullptr)) {
           RunHandler(editor_state, Transformation::Result::Mode::kFinal);
           buffer_->ResetMode();
-          editor_state->ResetStatus();
+          buffer_->status()->Reset();
+          editor_state->status()->Reset();
           if (c != L'\n') {
             editor_state->ProcessInput(c);
           }
@@ -47,12 +49,12 @@ class CommandWithModifiersMode : public EditorMode {
  private:
   void RunHandler(EditorState* editor_state,
                   Transformation::Result::Mode apply_mode) {
-    Modifiers modifiers = BuildModifiers(editor_state);
+    Modifiers modifiers = BuildModifiers();
     buffer_->ApplyToCursors(handler_(editor_state, buffer_.get(), modifiers),
                             modifiers.cursors_affected, apply_mode);
   }
 
-  Modifiers BuildModifiers(EditorState* editor_state) {
+  Modifiers BuildModifiers() {
     Modifiers modifiers;
     modifiers.cursors_affected =
         buffer_->Read(buffer_variables::multiple_cursors)
@@ -65,7 +67,7 @@ class CommandWithModifiersMode : public EditorMode {
     if (modifiers.repetitions == 0) {
       modifiers.repetitions = 1;
     }
-    editor_state->SetStatus(BuildStatus(modifiers));
+    buffer_->status()->SetInformationText(BuildStatus(modifiers));
     return modifiers;
   }
 

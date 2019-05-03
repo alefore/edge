@@ -36,8 +36,6 @@ class Terminal {
 
  private:
   void ShowStatus(const EditorState& editor_state, Screen* screen);
-  wstring GetBufferContext(const EditorState& editor_state,
-                           const shared_ptr<OpenBuffer>& buffer);
   void ShowBuffer(EditorState* editor_state, Screen* screen);
   void AdjustPosition(Screen* screen);
 
@@ -48,4 +46,4 @@ class Terminal {
 }  // namespace editor
 }  // namespace afc
 
-#endif
+#endif  // __AFC_EDITOR_TERMINAL_H__

@@ -100,6 +100,7 @@ class Paste : public Command {
     if (!editor_state->has_current_buffer()) {
       return;
     }
+    auto buffer = editor_state->current_buffer();
     auto it = editor_state->buffers()->find(OpenBuffer::kPasteBuffer);
     if (it == editor_state->buffers()->end()) {
       const static wstring errors[] = {
@@ -118,7 +119,7 @@ class Paste : public Command {
           L"",
       };
       static int current_message = 0;
-      editor_state->SetWarningStatus(errors[current_message++]);
+      buffer->status()->SetWarningText(errors[current_message++]);
       if (errors[current_message].empty()) {
         current_message = 0;
       }
@@ -137,18 +138,17 @@ class Paste : public Command {
           L"",
       };
       static int current_message = 0;
-      editor_state->SetWarningStatus(errors[current_message++]);
+      buffer->status()->SetWarningText(errors[current_message++]);
       if (errors[current_message].empty()) {
         current_message = 0;
       }
       return;
     }
-    auto buffer = editor_state->current_buffer();
     if (buffer->fd() != nullptr) {
       string text = ToByteString(it->second->ToString());
       for (size_t i = 0; i < editor_state->repetitions(); i++) {
         if (write(buffer->fd()->fd(), text.c_str(), text.size()) == -1) {
-          editor_state->SetWarningStatus(L"Unable to paste.");
+          buffer->status()->SetWarningText(L"Unable to paste.");
           break;
         }
       }
@@ -623,7 +623,8 @@ class ActivateLink : public Command {
     auto target = buffer->GetBufferFromCurrentLine();
     if (target != nullptr && target != buffer) {
       LOG(INFO) << "Visiting buffer: " << target->Read(buffer_variables::name);
-      editor_state->ResetStatus();
+      editor_state->status()->Reset();
+      buffer->status()->Reset();
       editor_state->set_current_buffer(target);
       auto target_position = buffer->current_line()->environment()->Lookup(
           L"buffer_position", vm::VMTypeMapper<LineColumn>::vmtype);
@@ -697,7 +698,11 @@ class ResetStateCommand : public Command {
   wstring Category() const override { return L"Editor"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->ResetStatus();
+    editor_state->status()->Reset();
+    auto buffer = editor_state->current_buffer();
+    if (buffer != nullptr) {
+      buffer->status()->Reset();
+    }
     editor_state->set_modifiers(Modifiers());
   }
 };

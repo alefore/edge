@@ -43,7 +43,7 @@ class SearchCommand : public Command {
       Range range = buffer->FindPartialRange(editor_state->modifiers(),
                                              buffer->position());
       if (range.begin == range.end) {
-        editor_state->SetStatus(L"Unable to extract region.");
+        buffer->status()->SetInformationText(L"Unable to extract region.");
         return;
       }
       CHECK_LE(range.begin, range.end);
@@ -117,6 +117,7 @@ class SearchCommand : public Command {
       DoSearch(editor_state, options);
     };
     options.predictor = SearchHandlerPredictor;
+    options.status = PromptOptions::Status::kBuffer;
     Prompt(editor_state, std::move(options));
   }
 };

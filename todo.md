@@ -48,6 +48,10 @@ Add "pipe" command: select the region (similar to delete: line, paragraph, buffe
       printf("foo bar hey "
              "quux.");
 
+* Improve multiple cursors:
+
+  * Have a mode where the widget just gets divided into the active cursors and just shows every single one of them, with some context (if there are too many, then just show the first N, where each has some margins of context).
+
 ### Autocomplete
 
 Add an AutoComplete mode that autocompletes based on the path.

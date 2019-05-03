@@ -111,7 +111,8 @@ void GenerateContents(EditorState* editor_state,
 
   pid_t child_pid = fork();
   if (child_pid == -1) {
-    editor_state->SetStatus(L"fork failed: " + FromByteString(strerror(errno)));
+    target->status()->SetWarningText(L"fork failed: " +
+                                     FromByteString(strerror(errno)));
     return;
   }
   if (child_pid == 0) {
@@ -284,8 +285,9 @@ void RunCommand(const wstring& name, const wstring& input,
   if (input.empty()) {
     if (buffer != nullptr) {
       buffer->ResetMode();
+      buffer->status()->Reset();
     }
-    editor_state->ResetStatus();
+    editor_state->status()->Reset();
     editor_state->ScheduleRedraw();
     return;
   }
@@ -353,7 +355,9 @@ class ForkEditorCommand : public Command {
                           children_path);
       }
     } else {
-      editor_state->SetStatus(L"Oops, that structure is not handled.");
+      auto buffer = editor_state->current_buffer();
+      (buffer == nullptr ? editor_state->status() : buffer->status())
+          ->SetWarningText(L"Oops, that structure is not handled.");
     }
     editor_state->ResetStructure();
   }
@@ -488,7 +492,7 @@ void RunMultipleCommandsHandler(const wstring& input,
                                 EditorState* editor_state) {
   auto buffer = editor_state->current_buffer();
   if (input.empty() || buffer == nullptr) {
-    editor_state->ResetStatus();
+    editor_state->status()->Reset();
     editor_state->ScheduleRedraw();
     return;
   }

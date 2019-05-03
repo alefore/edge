@@ -32,6 +32,9 @@ struct PromptOptions {
 
   // Optional. Useful for automatic completion.
   Predictor predictor = EmptyPredictor;
+
+  enum class Status { kEditor, kBuffer };
+  Status status = Status::kEditor;
 };
 
 void Prompt(EditorState* editor_state, PromptOptions options);

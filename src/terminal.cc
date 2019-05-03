@@ -19,6 +19,7 @@
 #include "src/output_receiver_optimizer.h"
 #include "src/parse_tree.h"
 #include "src/screen_output_receiver.h"
+#include "src/status_output_producer.h"
 
 namespace afc {
 namespace editor {
@@ -53,11 +54,9 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   }
   ShowStatus(*editor_state, screen);
   auto buffer = editor_state->current_buffer();
-  if (editor_state->status_prompt()) {
-    screen->SetCursorVisibility(Screen::NORMAL);
-  } else if (buffer == nullptr ||
-             buffer->Read(buffer_variables::atomic_lines) ||
-             !cursor_position_.has_value()) {
+  if (editor_state->status()->GetType() != Status::Type::kPrompt &&
+      (buffer == nullptr || buffer->Read(buffer_variables::atomic_lines) ||
+       !cursor_position_.has_value())) {
     screen->SetCursorVisibility(Screen::INVISIBLE);
   } else {
     screen->SetCursorVisibility(Screen::NORMAL);
@@ -100,181 +99,40 @@ wstring TransformCommandNameForStatus(wstring name) {
 }
 
 void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
-  wstring status;
-  auto buffer = editor_state.current_buffer();
-  if (buffer != nullptr && !editor_state.is_status_warning()) {
-    const auto modifiers = editor_state.modifiers();
-    status.push_back('[');
-    if (buffer->current_position_line() > buffer->contents()->EndLine()) {
-      status += L"<EOF>";
-    } else {
-      status += buffer->current_position_line().ToUserString();
-    }
-    status += L" of " + buffer->contents()->EndLine().ToUserString() + L", " +
-              buffer->current_position_col().ToUserString();
-    status += L"] ";
-
-    for (auto& it : *editor_state.buffers()) {
-      if (it.second->ShouldDisplayProgress()) {
-        auto name = TransformCommandNameForStatus(
-            it.second->Read(buffer_variables::name));
-        size_t progress =
-            it.second->Read(buffer_variables::progress) % (4 + 2 * name.size());
-        if (progress == 0 || progress == 1) {
-          static const std::vector<wstring> begin = {L"◟", L"◜"};
-          status += begin[progress] + name + L" ";
-        } else if (progress < 2 + name.size()) {
-          int split = progress - 2;
-          status += L" " + name.substr(0, split + 1) + L"̅" +
-                    name.substr(split + 1) + L" ";
-        } else if (progress < 2 + name.size() + 2) {
-          static const std::vector<wstring> end = {L"◝", L"◞"};
-          status += L" " + name + end[progress - 2 - name.size()];
-        } else {
-          int split = name.size() - (progress - 2 - name.size() - 2) - 1;
-          status += L" " + name.substr(0, split + 1) + L"̲" +
-                    name.substr(split + 1) + L" ";
-        }
-      }
-    }
-
-    auto marks_text = buffer->GetLineMarksText();
-    if (!marks_text.empty()) {
-      status += marks_text + L" ";
-    }
-
-    auto active_cursors = buffer->active_cursors()->size();
-    if (active_cursors != 1) {
-      status += L" " +
-                (buffer->Read(buffer_variables::multiple_cursors)
-                     ? wstring(L"CURSORS")
-                     : wstring(L"cursors")) +
-                L":" + to_wstring(active_cursors) + L" ";
-    }
-
-    auto flags = buffer->Flags();
-    if (editor_state.repetitions() != 1) {
-      flags.insert({to_wstring(editor_state.repetitions()), L""});
-    }
-    if (modifiers.default_direction == BACKWARDS) {
-      flags.insert({L"REVERSE", L""});
-    } else if (modifiers.direction == BACKWARDS) {
-      flags.insert({L"reverse", L""});
-    }
-
-    if (modifiers.default_insertion == Modifiers::REPLACE) {
-      flags.insert({L"REPLACE", L""});
-    } else if (modifiers.insertion == Modifiers::REPLACE) {
-      flags.insert({L"replace", L""});
-    }
-
-    if (modifiers.strength == Modifiers::Strength::kStrong) {
-      flags.insert({L"💪", L""});
-    }
-
-    wstring structure;
-    if (editor_state.structure() == StructureTree()) {
-      structure = L"tree<" + to_wstring(buffer->tree_depth()) + L">";
-    } else if (editor_state.structure() != StructureChar()) {
-      structure = editor_state.structure()->ToString();
-    }
-    if (!structure.empty()) {
-      if (editor_state.sticky_structure()) {
-        transform(structure.begin(), structure.end(), structure.begin(),
-                  ::toupper);
-      }
-      switch (editor_state.structure_range()) {
-        case Modifiers::ENTIRE_STRUCTURE:
-          break;
-        case Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION:
-          structure = L"[..." + structure;
-          break;
-        case Modifiers::FROM_CURRENT_POSITION_TO_END:
-          structure = structure + L"...]";
-          break;
-      }
-      flags[L"St:"] = structure;
-    }
-
-    if (!flags.empty()) {
-      status += L"  " + OpenBuffer::FlagsToString(std::move(flags));
-    }
-
-    if (editor_state.status().empty()) {
-      status += L"  “" + GetBufferContext(editor_state, buffer) + L"” ";
-    }
+  auto status = editor_state.status();
+  if (status->text().empty()) {
+    return;
   }
 
-  if (!editor_state.is_status_warning()) {
-    int running = 0;
-    int failed = 0;
-    for (const auto& it : *editor_state.buffers()) {
-      CHECK(it.second != nullptr);
-      if (it.second->child_pid() != -1) {
-        running++;
-      } else {
-        int status = it.second->child_exit_status();
-        if (WIFEXITED(status) && WEXITSTATUS(status)) {
-          failed++;
-        }
-      }
-    }
-    if (running > 0) {
-      status += L"  🏃" + to_wstring(running) + L"  ";
-    }
-    if (failed > 0) {
-      status += L"  💥" + to_wstring(failed) + L"  ";
-    }
-  }
-
-  ColumnNumber status_column;
-  for (size_t i = 0; i < status.size(); i++) {
-    status_column += ColumnNumberDelta(wcwidth(status[i]));
-  }
-  status += editor_state.status();
-  if (ColumnNumberDelta(status.size()) < screen->columns()) {
-    status += wstring(screen->columns().column_delta - status.size(), ' ');
-  } else if (ColumnNumberDelta(status.size()) > screen->columns()) {
-    status = status.substr(0, screen->columns().column_delta);
-  }
   screen->Move(LineNumber(0) + screen->lines() - LineNumberDelta(1),
                ColumnNumber(0));
-  if (editor_state.is_status_warning()) {
-    screen->SetModifier(LineModifier::RED);
-    screen->SetModifier(LineModifier::BOLD);
-  }
-  screen->WriteString(status.c_str());
-  if (editor_state.is_status_warning()) {
-    screen->SetModifier(LineModifier::RESET);
-  }
-  if (editor_state.status_prompt()) {
-    status_column += editor_state.status_prompt_column().ToDelta();
-    screen->Move(LineNumber(0) + screen->lines() - LineNumberDelta(1),
-                 min(status_column, ColumnNumber(0) + screen->columns()));
-  }
-}
 
-wstring Terminal::GetBufferContext(const EditorState& editor_state,
-                                   const shared_ptr<OpenBuffer>& buffer) {
-  auto marks = buffer->GetLineMarks();
-  auto current_line_marks = marks->find(buffer->position().line.line);
-  if (current_line_marks != marks->end()) {
-    auto mark = current_line_marks->second;
-    auto source = editor_state.buffers()->find(mark.source);
-    if (source != editor_state.buffers()->end() &&
-        LineNumber(0) + source->second->contents()->size() > mark.source_line) {
-      return source->second->contents()->at(mark.source_line)->ToString();
-    }
+  OutputProducer::Options options;
+  options.receiver = std::make_unique<OutputReceiverOptimizer>(
+      NewScreenOutputReceiver(screen));
+
+  std::optional<ColumnNumber> active_cursor_column;
+  options.active_cursor = &active_cursor_column;
+
+  StatusOutputProducer(status, nullptr, editor_state.modifiers())
+      .WriteLine(std::move(options));
+
+  if (active_cursor_column.has_value()) {
+    VLOG(5) << "Received cursor from status: " << active_cursor_column.value();
+    cursor_position_ =
+        LineColumn(LineNumber(0) + screen->lines() - LineNumberDelta(1),
+                   active_cursor_column.value());
   }
-  return buffer->Read(buffer_variables::name);
-}
+};
 
 void Terminal::ShowBuffer(EditorState* editor_state, Screen* screen) {
+  auto status_lines = editor_state->status()->DesiredLines();
+
   screen->Move(LineNumber(0), ColumnNumber(0));
 
   cursor_position_ = std::nullopt;
 
-  LineNumberDelta lines_to_show = screen->lines() - LineNumberDelta(1);
+  LineNumberDelta lines_to_show = screen->lines() - status_lines;
   auto buffer_tree = editor_state->buffer_tree();
   buffer_tree->SetSize(lines_to_show, screen->columns());
   auto output_producer = editor_state->buffer_tree()->CreateOutputProducer();
@@ -289,6 +147,8 @@ void Terminal::ShowBuffer(EditorState* editor_state, Screen* screen) {
     output_producer->WriteLine(std::move(options));
 
     if (active_cursor_column.has_value()) {
+      VLOG(5) << "Received cursor from buffer: "
+              << active_cursor_column.value();
       cursor_position_ = LineColumn(line, active_cursor_column.value());
     }
   }
@@ -296,6 +156,7 @@ void Terminal::ShowBuffer(EditorState* editor_state, Screen* screen) {
 
 void Terminal::AdjustPosition(Screen* screen) {
   CHECK(cursor_position_.has_value());
+  VLOG(5) << "Setting cursor position: " << cursor_position_.value();
   screen->Move(cursor_position_.value().line, cursor_position_.value().column);
 }
 

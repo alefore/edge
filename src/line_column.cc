@@ -111,6 +111,9 @@ LineNumberDelta operator--(LineNumberDelta& a, int) {
 
 /* static */ std::wstring ColumnNumberDelta::PaddingString(
     const ColumnNumberDelta& length, wchar_t fill) {
+  if (length < ColumnNumberDelta(0)) {
+    return L"";
+  }
   return std::wstring(length.column_delta, fill);
 }
 

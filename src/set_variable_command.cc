@@ -51,12 +51,14 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
     editor_state->ResetModifiers();
   }
 
+  PromptOptions options;
+  options.prompt = name + L" := ";
+  options.history_file = L"values",
+  options.status = PromptOptions::Status::kBuffer;
+
   {
     auto var = buffer_variables::StringStruct()->find_variable(name);
     if (var != nullptr) {
-      PromptOptions options;
-      options.prompt = name + L" := ";
-      options.history_file = L"values";
       options.initial_value = buffer->Read(var);
       options.handler = [var, buffer](const wstring& input, EditorState*) {
         if (buffer == nullptr) {
@@ -79,24 +81,23 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
     if (var != nullptr) {
       buffer->toggle_bool_variable(var);
       buffer->editor()->ScheduleRedraw();
-      editor_state->SetStatus((buffer->Read(var) ? L"🗸 " : L"⛶ ") + name);
+      buffer->status()->SetInformationText(
+          (buffer->Read(var) ? L"🗸 " : L"⛶ ") + name);
       return;
     }
   }
   {
     auto var = buffer_variables::IntStruct()->find_variable(name);
     if (var != nullptr) {
-      PromptOptions options;
-      options.prompt = name + L" := ", options.history_file = L"values",
       options.initial_value = std::to_wstring(buffer->Read(var));
       options.handler = [var, buffer](const wstring& input,
                                       EditorState* editor_state) {
         try {
           buffer->Set(var, stoi(input));
         } catch (const std::invalid_argument& ia) {
-          editor_state->SetStatus(L"Invalid value for integer value “" +
-                                  var->name() + L"”: " +
-                                  FromByteString(ia.what()));
+          buffer->status()->SetWarningText(
+              L"Invalid value for integer value “" + var->name() + L"”: " +
+              FromByteString(ia.what()));
         }
         buffer->editor()->ScheduleRedraw();
         // ResetMode causes the prompt to be deleted, and the captures of
@@ -111,8 +112,6 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
   {
     auto var = buffer_variables::DoubleStruct()->find_variable(name);
     if (var != nullptr) {
-      PromptOptions options;
-      options.prompt = name + L" := ", options.history_file = L"values",
       options.initial_value = std::to_wstring(buffer->Read(var));
       options.handler = [var, buffer](const wstring& input,
                                       EditorState* editor_state) {
@@ -122,8 +121,8 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
         if (ss.eof() && !ss.fail()) {
           buffer->Set(var, value);
         } else {
-          editor_state->SetStatus(L"Invalid value for double value “" +
-                                  var->name() + L"”: " + input);
+          buffer->status()->SetWarningText(L"Invalid value for double value “" +
+                                           var->name() + L"”: " + input);
         }
         buffer->editor()->ScheduleRedraw();
         // ResetMode causes the prompt to be deleted, and the captures of
@@ -135,7 +134,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
       return;
     }
   }
-  editor_state->SetWarningStatus(L"Unknown variable: " + name);
+  buffer->status()->SetWarningText(L"Unknown variable: " + name);
 }
 
 Predictor VariablesPredictor() {
@@ -156,6 +155,7 @@ unique_ptr<Command> NewSetVariableCommand() {
   options.handler = SetVariableHandler;
   options.cancel_handler = [](EditorState*) { /* Nothing. */ };
   options.predictor = variables_predictor;
+  options.status = PromptOptions::Status::kBuffer;
   return NewLinePromptCommand(L"assigns to a variable",
                               [options](EditorState*) { return options; });
 }

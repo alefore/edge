@@ -156,7 +156,7 @@ class AutocompleteMode : public EditorMode {
                 options_.dictionary->LineAt(current)->ToString() +
                 wstring(is_current ? L"]" : L"");
     }
-    editor_state->SetStatus(status);
+    options_.buffer->status()->SetInformationText(status);
 
     ReplaceCurrentText(editor_state,
                        options_.dictionary->LineAt(line_current_)->contents());
@@ -208,7 +208,8 @@ class AutocompleteMode : public EditorMode {
         // Fall through.
       default:
         editor_state->current_buffer()->set_mode(std::move(options_.delegate));
-        editor_state->ResetStatus();
+        editor_state->current_buffer()->status()->Reset();
+        editor_state->status()->Reset();
         if (c != '\n') {
           editor_state->ProcessInput(c);
         }
@@ -281,7 +282,7 @@ void FindCompletion(EditorState* editor_state,
          L"The autocomplete dictionary is empty.",
          L"Maybe set the `dictionary` variable?",
          L"Sorry, I can't autocomplete with an empty dictionary."});
-    editor_state->SetStatus(errors[rand() % errors.size()]);
+    buffer->status()->SetInformationText(errors[rand() % errors.size()]);
     return;
   }
 
@@ -434,7 +435,8 @@ class InsertMode : public EditorMode {
         buffer->RepeatLastTransformation();
         buffer->PopTransformationStack();
         editor_state->PushCurrentPosition();
-        editor_state->ResetStatus();
+        buffer->status()->Reset();
+        editor_state->status()->Reset();
         CHECK(options_.escape_handler);
         options_.escape_handler();  // Probably deletes us.
         editor_state->ResetRepetitions();
@@ -592,7 +594,7 @@ class RawInputTypeMode : public EditorMode {
           WriteLineBuffer(editor_state);
         } else {
           DLOG(INFO) << "Set literal.";
-          editor_state->SetStatus(L"<literal>");
+          buffer_->status()->SetInformationText(L"<literal>");
           literal_ = true;
         }
         break;
@@ -608,13 +610,14 @@ class RawInputTypeMode : public EditorMode {
 
       case Terminal::ESCAPE:
         if (old_literal) {
-          editor_state->SetStatus(L"ESC");
+          buffer_->status()->SetInformationText(L"ESC");
           line_buffer_.push_back(27);
           WriteLineBuffer(editor_state);
         } else {
           editor_state->current_buffer()->ResetMode();
           editor_state->set_keyboard_redirect(nullptr);
-          editor_state->ResetStatus();
+          buffer_->status()->Reset();
+          editor_state->status()->Reset();
         }
         break;
 
@@ -675,11 +678,11 @@ class RawInputTypeMode : public EditorMode {
  private:
   void WriteLineBuffer(EditorState* editor_state) {
     if (buffer_->fd() == nullptr) {
-      editor_state->SetStatus(L"Warning: Process exited.");
+      buffer_->status()->SetWarningText(L"Warning: Process exited.");
     } else if (write(buffer_->fd()->fd(), line_buffer_.c_str(),
                      line_buffer_.size()) == -1) {
-      editor_state->SetStatus(L"Write failed: " +
-                              FromByteString(strerror(errno)));
+      buffer_->status()->SetWarningText(L"Write failed: " +
+                                        FromByteString(strerror(errno)));
     } else {
       editor_state->StartHandlingInterrupts();
     }
@@ -698,7 +701,7 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
   } else {
     options.buffer->MaybeAdjustPositionCol();
   }
-  options.editor_state->SetStatus(L"🔡");
+  options.buffer->status()->SetInformationText(L"🔡");
 
   auto handler = std::make_unique<InsertMode>(options);
   if (options.editor_state->current_buffer() == options.buffer) {
@@ -818,10 +821,11 @@ void EnterInsertMode(InsertModeOptions options) {
     };
   }
 
-  options.editor_state->ResetStatus();
+  options.editor_state->status()->Reset();
+  options.buffer->status()->Reset();
 
   if (options.buffer->fd() != nullptr) {
-    editor_state->SetStatus(L"🔡 (raw)");
+    options.buffer->status()->SetInformationText(L"🔡 (raw)");
     editor_state->current_buffer()->set_mode(
         std::make_unique<RawInputTypeMode>(options.buffer));
   } else if (editor_state->structure() == StructureChar()) {

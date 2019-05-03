@@ -30,7 +30,8 @@ size_t HandleOverflow(size_t counter, OverflowBehavior overflow_behavior,
   return counter;
 }
 
-wstring ProgressString(size_t counter, OverflowBehavior overflow_behavior) {
+std::wstring ProgressString(size_t counter,
+                            OverflowBehavior overflow_behavior) {
   static const std::vector<wchar_t> values = {
       // From the top left, to the bottom right.
       Braille(0x80),
@@ -60,19 +61,86 @@ wstring ProgressString(size_t counter, OverflowBehavior overflow_behavior) {
 
   static const size_t kLargestValue = values.size();
 
-  return wstring(
+  return std::wstring(
       1, values[HandleOverflow(counter, overflow_behavior, kLargestValue)]);
 }
 
-wstring ProgressStringFillUp(size_t lines, OverflowBehavior overflow_behavior) {
-  wstring output = L" ▁▂▃▄▅▆▇█";
+std::wstring ProgressStringFillUp(size_t lines,
+                                  OverflowBehavior overflow_behavior) {
+  std::wstring output = L" ▁▂▃▄▅▆▇█";
   size_t kInitial = 32;
   if (lines < kInitial) {
     return L" ";
   }
-  return wstring(1, output[HandleOverflow(floor(log2(lines / kInitial)),
-                                          overflow_behavior, output.size())]);
+  return std::wstring(
+      1, output[HandleOverflow(floor(log2(lines / kInitial)), overflow_behavior,
+                               output.size())]);
 }
+
+Status::Status(std::shared_ptr<OpenBuffer> console, AudioPlayer* audio_player,
+               std::function<void()> updates_listener)
+    : console_(std::move(console)),
+      audio_player_(audio_player),
+      updates_listener_(std::move(updates_listener)) {}
+
+Status::Type Status::GetType() const { return type_; }
+
+LineNumberDelta Status::DesiredLines() const {
+  return type_ != Type::kPrompt && text_.empty() ? LineNumberDelta(0)
+                                                 : LineNumberDelta(1);
+}
+
+void Status::set_prompt(std::wstring text, ColumnNumber column) {
+  CHECK_LE(column, ColumnNumber(text.size()));
+  type_ = Status::Type::kPrompt;
+  text_ = std::move(text);
+  prompt_column_ = column;
+  updates_listener_();
+}
+
+std::optional<ColumnNumber> Status::prompt_column() const {
+  return prompt_column_;
+}
+
+void Status::SetInformationText(std::wstring text) {
+  if (prompt_column_.has_value()) {
+    return;
+  }
+  type_ = Type::kInformation;
+  text_ = std::move(text);
+  updates_listener_();
+}
+
+void Status::SetWarningText(std::wstring text) {
+  GenerateAlert(audio_player_);
+  if (prompt_column_.has_value()) {
+    return;
+  }
+  type_ = Type::kWarning;
+  text_ = std::move(text);
+  updates_listener_();
+}
+
+void Status::Reset() {
+  prompt_column_ = std::nullopt;
+  type_ = Type::kInformation;
+  text_ = L"";
+  updates_listener_();
+}
+
+void Status::Bell() {
+  if (!all_of(text_.begin(), text_.end(), [](const wchar_t& c) {
+        return c == L'♪' || c == L'♫' || c == L'…' || c == L' ' || c == L'𝄞';
+      })) {
+    text_ = L" 𝄞";
+  } else if (text_.size() >= 40) {
+    text_ = L"…" + text_.substr(text_.size() - 40, text_.size());
+  }
+  text_ += +L" " + std::wstring(text_.back() == L'♪' ? L"♫" : L"♪");
+  updates_listener_();
+}
+
+const std::wstring& Status::text() const { return text_; }
 
 }  // namespace editor
 }  // namespace afc

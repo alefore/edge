@@ -28,24 +28,25 @@ void SendEndOfFileToBuffer(EditorState* editor_state,
   }
 
   if (buffer->fd() == nullptr) {
-    editor_state->SetStatus(L"No active subprocess for current buffer.");
+    buffer->status()->SetInformationText(
+        L"No active subprocess for current buffer.");
     return;
   }
   if (buffer->Read(buffer_variables::pts)) {
     char str[1] = {4};
     if (write(buffer->fd()->fd(), str, sizeof(str)) == -1) {
-      editor_state->SetStatus(L"Sending EOF failed: " +
-                              FromByteString(strerror(errno)));
+      buffer->status()->SetInformationText(L"Sending EOF failed: " +
+                                           FromByteString(strerror(errno)));
       return;
     }
-    editor_state->SetStatus(L"EOF sent");
+    buffer->status()->SetInformationText(L"EOF sent");
   } else {
     if (shutdown(buffer->fd()->fd(), SHUT_WR) == -1) {
-      editor_state->SetStatus(L"shutdown(SHUT_WR) failed: " +
-                              FromByteString(strerror(errno)));
+      buffer->status()->SetInformationText(L"shutdown(SHUT_WR) failed: " +
+                                           FromByteString(strerror(errno)));
       return;
     }
-    editor_state->SetStatus(L"shutdown sent");
+    buffer->status()->SetInformationText(L"shutdown sent");
   }
 }
 

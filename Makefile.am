@@ -134,6 +134,8 @@ src/shapes.cc \
 src/shapes.h \
 src/status.cc \
 src/status.h \
+src/status_output_producer.cc \
+src/status_output_producer.h \
 src/structure.cc \
 src/substring.cc \
 src/terminal.cc \

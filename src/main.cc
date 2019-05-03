@@ -55,7 +55,7 @@ void SignalHandler(int sig) {
     // Normally, when the buffer consumes the signal, it'll overwrite the
     // status right away. So we just put a default message in case the signal is
     // not consumed.
-    editor_state()->SetWarningStatus(
+    editor_state()->status()->SetWarningText(
         L"'*aq' to quit -- pending changes won't be saved.");
   } else if (sig == SIGTSTP) {
     if (!editor_state()->handling_stop_signals()) {
@@ -278,7 +278,7 @@ int main(int argc, const char** argv) {
   std::optional<LineColumnDelta> last_screen_size;
 
   BeepFrequencies(audio_player.get(), {783.99, 723.25, 783.99});
-  editor_state()->SetStatus(GetGreetingMessage());
+  editor_state()->status()->SetInformationText(GetGreetingMessage());
 
   LOG(INFO) << "Main loop starting.";
   while (!editor_state()->exit_value().has_value()) {

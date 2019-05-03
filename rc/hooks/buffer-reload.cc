@@ -43,10 +43,10 @@ void CenterScreenAroundCurrentLine() {
   int line = buffer.position().line();
   int start_line = line - size / 2;
   if (start_line < 0) {
-    SetStatus("Near beginning of file.");
+    buffer.SetStatus("Near beginning of file.");
     start_line = 0;
   } else if (start_line + size > buffer.line_count()) {
-    SetStatus("Near end of file.");
+    buffer.SetStatus("Near end of file.");
     start_line = (buffer.line_count() > size ? buffer.line_count() - size : 0);
   }
   // buffer.set_view_start_line(start_line);
@@ -60,21 +60,21 @@ void HandleFileTypes(string basename, string extension) {
     buffer.AddBindingToFile("sh", buffer.editor_commands_path() + "header");
     buffer.AddBindingToFile("sI", buffer.editor_commands_path() + "include");
     buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
-    SetStatus("🔡 C++ file (" + extension + ")");
+    buffer.SetStatus("🔡 C++ file (" + extension + ")");
     return;
   }
 
   if (extension == "sh") {
     buffer.set_paragraph_line_prefix_characters(" #");
     buffer.set_line_prefix_characters(" #");
-    SetStatus("🔡 Shell script (" + extension + ")");
+    buffer.SetStatus("🔡 Shell script (" + extension + ")");
   }
 
   if (extension == "java") {
     JavaMode();
     buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
     buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
-    SetStatus("🔡 Java file (" + extension + ")");
+    buffer.SetStatus("🔡 Java file (" + extension + ")");
     return;
   }
 
@@ -83,7 +83,7 @@ void HandleFileTypes(string basename, string extension) {
     buffer.set_paragraph_line_prefix_characters(" #");
     buffer.set_line_prefix_characters(" #");
     buffer.AddBindingToFile("sR", buffer.editor_commands_path() + "reflow");
-    SetStatus("🔡 Git commit message");
+    buffer.SetStatus("🔡 Git commit message");
     return;
   }
 
@@ -91,7 +91,7 @@ void HandleFileTypes(string basename, string extension) {
     buffer.set_paragraph_line_prefix_characters(" #");
     buffer.set_line_prefix_characters(" #");
     buffer.AddBindingToFile("si", buffer.editor_commands_path() + "indent");
-    SetStatus("🔡 Python file (" + extension + ")");
+    buffer.SetStatus("🔡 Python file (" + extension + ")");
     return;
   }
 
@@ -105,7 +105,7 @@ void HandleFileTypes(string basename, string extension) {
     buffer.set_tree_parser("md");
     buffer.set_paragraph_line_prefix_characters("*-# ");
     buffer.set_line_prefix_characters(" ");
-    SetStatus("🔡 Markdown file (" + extension + ")");
+    buffer.SetStatus("🔡 Markdown file (" + extension + ")");
   }
 }
 
@@ -243,12 +243,11 @@ void RunLocalShell() {
   string path = buffer.path();
   if (!path.empty()) {
     path = Dirname(path);
-    SetStatus("Children path: " + path);
     options.set_children_path(path);
   }
   options.set_insertion_type("visit");
   options.set_name("💻 shell");
-  ForkCommand(options);
+  ForkCommand(options).SetStatus("Children path: " + path);
 }
 
 buffer.AddBinding("ss", "Run a shell in the directory of the current buffer.",

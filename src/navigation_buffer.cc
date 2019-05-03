@@ -133,12 +133,12 @@ class NavigationBufferCommand : public Command {
   void ProcessInput(wint_t, EditorState* editor_state) override {
     auto source = editor_state->current_buffer();
     if (source == nullptr) {
-      editor_state->SetWarningStatus(
+      editor_state->status()->SetWarningText(
           L"NavigationBuffer needs an existing buffer.");
       return;
     }
     if (source->simplified_parse_tree() == nullptr) {
-      editor_state->SetStatus(L"Current buffer has no tree.");
+      source->status()->SetInformationText(L"Buffer has no tree.");
       return;
     }
 
@@ -163,7 +163,7 @@ class NavigationBufferCommand : public Command {
       editor_state->StartHandlingInterrupts();
     }
     editor_state->set_current_buffer(it.first->second);
-    editor_state->ResetStatus();
+    editor_state->status()->Reset();
     it.first->second->Reload();
     editor_state->PushCurrentPosition();
     editor_state->ScheduleRedraw();

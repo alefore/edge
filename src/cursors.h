@@ -37,7 +37,7 @@ class CursorsSet {
   // cursors must have at least two elements.
   void DeleteCurrentCursor();
 
-  size_t size();
+  size_t size() const;
   bool empty();
   iterator insert(LineColumn line);
 

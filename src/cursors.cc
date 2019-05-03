@@ -32,7 +32,7 @@ void CursorsSet::DeleteCurrentCursor() {
   erase(active_);
 }
 
-size_t CursorsSet::size() { return cursors_.size(); }
+size_t CursorsSet::size() const { return cursors_.size(); }
 
 bool CursorsSet::empty() { return cursors_.empty(); }
 

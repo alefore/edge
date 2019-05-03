@@ -21,6 +21,7 @@
 #include "src/lazy_string.h"
 #include "src/line_marks.h"
 #include "src/modifiers.h"
+#include "src/status.h"
 #include "src/transformation.h"
 #include "src/widget.h"
 #include "vm/public/environment.h"
@@ -172,24 +173,13 @@ class EditorState {
 
   void PushCurrentPosition();
   void PushPosition(LineColumn position);
+  std::shared_ptr<OpenBuffer> GetConsole();
   bool HasPositionsInStack();
   BufferPosition ReadPositionsStack();
   bool MovePositionsStack(Direction direction);
 
-  void set_status_prompt(bool value) { status_prompt_ = value; }
-  bool status_prompt() const { return status_prompt_; }
-  void set_status_prompt_column(ColumnNumber column) {
-    status_prompt_column_ = column;
-  }
-  ColumnNumber status_prompt_column() const {
-    CHECK(status_prompt_);
-    return status_prompt_column_;
-  }
-  void SetStatus(const wstring& status);
-  void SetWarningStatus(const wstring& status);
-  void ResetStatus() { SetStatus(L""); }
-  const wstring& status() const { return status_; }
-  bool is_status_warning() const { return is_status_warning_; }
+  Status* status();
+  const Status* status() const;
 
   const wstring& home_directory() const { return home_directory_; }
   const vector<wstring>& edge_path() const { return edge_path_; }
@@ -197,9 +187,6 @@ class EditorState {
   void ApplyToCurrentBuffer(unique_ptr<Transformation> transformation);
 
   Environment* environment() { return &environment_; }
-
-  // Meant to be used to construct afc::vm::Evaluator::ErrorHandler instances.
-  void DefaultErrorHandler(const wstring& error_description);
 
   wstring expand_path(const wstring& path);
 
@@ -260,11 +247,6 @@ class EditorState {
   std::mutex mutex_;
   ScreenState screen_state_;
 
-  bool status_prompt_;
-  bool is_status_warning_ = false;
-  ColumnNumber status_prompt_column_;
-  wstring status_;
-
   // Initially we don't consume SIGINT: we let it crash the process (in case
   // the user has accidentally ran Edge). However, as soon as the user starts
   // actually using Edge (e.g. modifies a buffer), we start consuming it.
@@ -283,6 +265,7 @@ class EditorState {
   AudioPlayer* const audio_player_;
 
   BuffersList buffer_tree_;
+  Status status_;
 };
 
 }  // namespace editor

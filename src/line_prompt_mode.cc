@@ -26,18 +26,15 @@ namespace {
 
 using std::make_pair;
 
-void UpdateStatus(EditorState* editor_state, OpenBuffer* buffer,
-                  const wstring& prompt) {
+void UpdateStatus(Status* status, OpenBuffer* buffer, const wstring& prompt) {
   DCHECK(buffer != nullptr);
   auto line = buffer->current_line();
   CHECK(line != nullptr);
   wstring input = line->contents()->ToString();
-  editor_state->SetStatus(prompt + input);
-  editor_state->set_status_prompt(true);
-  editor_state->set_status_prompt_column(
-      ColumnNumber(prompt.size()) +
-      min(ColumnNumberDelta(input.size()),
-          buffer->current_position_col().ToDelta()));
+  status->set_prompt(prompt + input,
+                     ColumnNumber(prompt.size()) +
+                         min(ColumnNumberDelta(input.size()),
+                             buffer->current_position_col().ToDelta()));
 }
 
 map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
@@ -132,8 +129,11 @@ shared_ptr<OpenBuffer> GetPromptBuffer(EditorState* editor_state) {
 
 class HistoryScrollBehavior : public ScrollBehavior {
  public:
-  HistoryScrollBehavior(std::shared_ptr<OpenBuffer> history, wstring prompt)
-      : history_(std::move(history)), prompt_(std::move(prompt)) {}
+  HistoryScrollBehavior(std::shared_ptr<OpenBuffer> history, Status* status,
+                        wstring prompt)
+      : history_(std::move(history)),
+        status_(status),
+        prompt_(std::move(prompt)) {}
 
   void Up(EditorState* editor_state, OpenBuffer* buffer) override {
     ScrollHistory(editor_state, buffer, LineNumberDelta(-1));
@@ -145,22 +145,22 @@ class HistoryScrollBehavior : public ScrollBehavior {
 
   void Left(EditorState* editor_state, OpenBuffer* buffer) override {
     DefaultScrollBehavior().Left(editor_state, buffer);
-    UpdateStatus(editor_state, buffer, prompt_);
+    UpdateStatus(status_, buffer, prompt_);
   }
 
   void Right(EditorState* editor_state, OpenBuffer* buffer) override {
     DefaultScrollBehavior().Right(editor_state, buffer);
-    UpdateStatus(editor_state, buffer, prompt_);
+    UpdateStatus(status_, buffer, prompt_);
   }
 
   void Begin(EditorState* editor_state, OpenBuffer* buffer) override {
     DefaultScrollBehavior().Begin(editor_state, buffer);
-    UpdateStatus(editor_state, buffer, prompt_);
+    UpdateStatus(status_, buffer, prompt_);
   }
 
   void End(EditorState* editor_state, OpenBuffer* buffer) override {
     DefaultScrollBehavior().End(editor_state, buffer);
-    UpdateStatus(editor_state, buffer, prompt_);
+    UpdateStatus(status_, buffer, prompt_);
   }
 
  private:
@@ -198,10 +198,11 @@ class HistoryScrollBehavior : public ScrollBehavior {
     buffer->ApplyToCursors(
         NewInsertBufferTransformation(std::move(insert_options)));
 
-    UpdateStatus(editor_state, buffer, prompt_);
+    UpdateStatus(status_, buffer, prompt_);
   }
 
-  std::shared_ptr<OpenBuffer> history_;
+  const std::shared_ptr<OpenBuffer> history_;
+  Status* const status_;
   const wstring prompt_;
 };
 
@@ -209,10 +210,12 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
  public:
   HistoryScrollBehaviorFactory(EditorState* editor_state, wstring prompt,
                                std::shared_ptr<OpenBuffer> history,
+                               Status* status,
                                std::shared_ptr<OpenBuffer> buffer)
       : editor_state_(editor_state),
         prompt_(std::move(prompt)),
         history_(std::move(history)),
+        status_(status),
         buffer_(std::move(buffer)) {}
 
   std::unique_ptr<ScrollBehavior> Build() override {
@@ -225,13 +228,14 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
 
     history->set_current_position_line(LineNumber(0) +
                                        history->contents()->size());
-    return std::make_unique<HistoryScrollBehavior>(history, prompt_);
+    return std::make_unique<HistoryScrollBehavior>(history, status_, prompt_);
   }
 
  private:
   EditorState* const editor_state_;
   const wstring prompt_;
   const std::shared_ptr<OpenBuffer> history_;
+  Status* const status_;
   const std::shared_ptr<OpenBuffer> buffer_;
 };
 
@@ -265,6 +269,11 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
                                      history->contents()->size());
 
   auto buffer = GetPromptBuffer(editor_state);
+  auto status = options.status == PromptOptions::Status::kEditor
+                    ? editor_state->status()
+                    : editor_state->current_buffer()->status();
+  CHECK(status);
+
   Modifiers original_modifiers = editor_state->modifiers();
   editor_state->set_modifiers(Modifiers());
 
@@ -285,21 +294,22 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
 
   auto original_buffer = editor_state->current_buffer();
   insert_mode_options.modify_listener = [editor_state, original_buffer, buffer,
-                                         options]() {
+                                         status, options]() {
     editor_state->set_current_buffer(original_buffer);
-    UpdateStatus(editor_state, buffer.get(), options.prompt);
+    UpdateStatus(status, buffer.get(), options.prompt);
   };
 
   insert_mode_options.scroll_behavior =
       std::make_unique<HistoryScrollBehaviorFactory>(
-          editor_state, options.prompt, history, buffer);
+          editor_state, options.prompt, history, status, buffer);
 
   insert_mode_options.escape_handler = [editor_state, options, original_buffer,
-                                        original_modifiers]() {
+                                        status, original_modifiers]() {
     LOG(INFO) << "Running escape_handler from Prompt.";
     editor_state->set_current_buffer(original_buffer);
     editor_state->set_modifiers(original_modifiers);
-    editor_state->set_status_prompt(false);
+    editor_state->status()->Reset();
+    status->Reset();
     editor_state->ScheduleRedraw();
 
     // We make a copy in case cancel_handler or handler delete us.
@@ -315,7 +325,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
     editor_state->set_keyboard_redirect(nullptr);
   };
 
-  insert_mode_options.new_line_handler = [editor_state, options, buffer,
+  insert_mode_options.new_line_handler = [editor_state, options, buffer, status,
                                           original_buffer,
                                           original_modifiers]() {
     editor_state->set_current_buffer(original_buffer);
@@ -332,19 +342,21 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
     }
     auto ensure_survival_of_current_closure = editor_state->keyboard_redirect();
     editor_state->set_keyboard_redirect(nullptr);
-    editor_state->set_status_prompt(false);
-    editor_state->ResetStatus();
+    status->Reset();
+    editor_state->status()->Reset();
     editor_state->set_modifiers(original_modifiers);
     options.handler(input->ToString(), editor_state);
     (void)ensure_survival_of_current_closure;
   };
 
-  insert_mode_options.start_completion = [editor_state, options, buffer]() {
+  insert_mode_options.start_completion = [editor_state, options, buffer,
+                                          status]() {
     auto input = buffer->current_line()->contents()->ToString();
     LOG(INFO) << "Triggering predictions from: " << input;
     Predict(
         editor_state, options.predictor, input,
-        [editor_state, options, buffer, input](const wstring& prediction) {
+        [editor_state, options, buffer, status,
+         input](const wstring& prediction) {
           if (input != prediction && !prediction.empty()) {
             LOG(INFO) << "Prediction advanced from " << input << " to "
                       << prediction;
@@ -364,13 +376,13 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
             buffer->ApplyToCursors(
                 NewInsertBufferTransformation(std::move(insert_options)));
 
-            UpdateStatus(editor_state, buffer.get(), options.prompt);
+            UpdateStatus(status, buffer.get(), options.prompt);
             editor_state->ScheduleRedraw();
           } else {
             LOG(INFO) << "Prediction didn't advance.";
             auto it = editor_state->buffers()->find(PredictionsBufferName());
             if (it == editor_state->buffers()->end()) {
-              editor_state->SetWarningStatus(
+              editor_state->status()->SetWarningText(
                   L"Error: predictions buffer not found.");
             } else {
               it->second->set_current_position_line(LineNumber(0));

@@ -190,7 +190,7 @@ class ListBuffersCommand : public Command {
       editor_state->StartHandlingInterrupts();
     }
     editor_state->set_current_buffer(it.first->second);
-    editor_state->ResetStatus();
+    editor_state->status()->Reset();
     it.first->second->Reload();
     editor_state->PushCurrentPosition();
     editor_state->ScheduleRedraw();
