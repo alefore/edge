@@ -23,7 +23,7 @@ class BuffersListProducer : public OutputProducer {
       : buffers_(buffers),
         active_buffer_(std::move(active_buffer_)),
         buffers_per_line_(buffers_per_line),
-        prefix_width_(std::to_wstring(buffers_->size()).size() + 2),
+        prefix_width_(max(2ul, std::to_wstring(buffers_->size()).size()) + 2),
         buffers_iterator_(buffers->begin()) {
     VLOG(1) << "BuffersList created. Buffers per line: " << buffers_per_line
             << ", prefix width: " << prefix_width_
