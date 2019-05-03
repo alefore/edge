@@ -26,17 +26,6 @@ namespace {
 
 using std::make_pair;
 
-void UpdateStatus(Status* status, OpenBuffer* buffer, const wstring& prompt) {
-  DCHECK(buffer != nullptr);
-  auto line = buffer->current_line();
-  CHECK(line != nullptr);
-  wstring input = line->contents()->ToString();
-  status->set_prompt(prompt + input,
-                     ColumnNumber(prompt.size()) +
-                         min(ColumnNumberDelta(input.size()),
-                             buffer->current_position_col().ToDelta()));
-}
-
 map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
     EditorState* editor_state, const wstring& name) {
   OpenFileOptions options;
@@ -129,11 +118,8 @@ shared_ptr<OpenBuffer> GetPromptBuffer(EditorState* editor_state) {
 
 class HistoryScrollBehavior : public ScrollBehavior {
  public:
-  HistoryScrollBehavior(std::shared_ptr<OpenBuffer> history, Status* status,
-                        wstring prompt)
-      : history_(std::move(history)),
-        status_(status),
-        prompt_(std::move(prompt)) {}
+  HistoryScrollBehavior(std::shared_ptr<OpenBuffer> history)
+      : history_(std::move(history)) {}
 
   void Up(EditorState* editor_state, OpenBuffer* buffer) override {
     ScrollHistory(editor_state, buffer, LineNumberDelta(-1));
@@ -145,22 +131,18 @@ class HistoryScrollBehavior : public ScrollBehavior {
 
   void Left(EditorState* editor_state, OpenBuffer* buffer) override {
     DefaultScrollBehavior().Left(editor_state, buffer);
-    UpdateStatus(status_, buffer, prompt_);
   }
 
   void Right(EditorState* editor_state, OpenBuffer* buffer) override {
     DefaultScrollBehavior().Right(editor_state, buffer);
-    UpdateStatus(status_, buffer, prompt_);
   }
 
   void Begin(EditorState* editor_state, OpenBuffer* buffer) override {
     DefaultScrollBehavior().Begin(editor_state, buffer);
-    UpdateStatus(status_, buffer, prompt_);
   }
 
   void End(EditorState* editor_state, OpenBuffer* buffer) override {
     DefaultScrollBehavior().End(editor_state, buffer);
-    UpdateStatus(status_, buffer, prompt_);
   }
 
  private:
@@ -197,13 +179,9 @@ class HistoryScrollBehavior : public ScrollBehavior {
     insert_options.buffer_to_insert = std::move(buffer_to_insert);
     buffer->ApplyToCursors(
         NewInsertBufferTransformation(std::move(insert_options)));
-
-    UpdateStatus(status_, buffer, prompt_);
   }
 
   const std::shared_ptr<OpenBuffer> history_;
-  Status* const status_;
-  const wstring prompt_;
 };
 
 class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
@@ -228,7 +206,7 @@ class HistoryScrollBehaviorFactory : public ScrollBehaviorFactory {
 
     history->set_current_position_line(LineNumber(0) +
                                        history->contents()->size());
-    return std::make_unique<HistoryScrollBehavior>(history, status_, prompt_);
+    return std::make_unique<HistoryScrollBehavior>(history);
   }
 
  private:
@@ -296,7 +274,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
   insert_mode_options.modify_listener = [editor_state, original_buffer, buffer,
                                          status, options]() {
     editor_state->set_current_buffer(original_buffer);
-    UpdateStatus(status, buffer.get(), options.prompt);
+    status->set_prompt(options.prompt, buffer);
   };
 
   insert_mode_options.scroll_behavior =
@@ -376,7 +354,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
             buffer->ApplyToCursors(
                 NewInsertBufferTransformation(std::move(insert_options)));
 
-            UpdateStatus(status, buffer.get(), options.prompt);
+            status->set_prompt(options.prompt, buffer);
             editor_state->ScheduleRedraw();
           } else {
             LOG(INFO) << "Prediction didn't advance.";

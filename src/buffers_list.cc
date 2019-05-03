@@ -8,7 +8,6 @@
 #include "src/buffer_widget.h"
 #include "src/dirname.h"
 #include "src/horizontal_split_output_producer.h"
-#include "src/status.h"
 #include "src/widget.h"
 
 namespace afc {

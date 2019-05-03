@@ -81,54 +81,80 @@ Status::Status(std::shared_ptr<OpenBuffer> console, AudioPlayer* audio_player,
                std::function<void()> updates_listener)
     : console_(std::move(console)),
       audio_player_(audio_player),
-      updates_listener_(std::move(updates_listener)) {}
+      updates_listener_(std::move(updates_listener)) {
+  ValidatePreconditions();
+}
 
-Status::Type Status::GetType() const { return type_; }
+Status::Type Status::GetType() const {
+  ValidatePreconditions();
+  return type_;
+}
 
 LineNumberDelta Status::DesiredLines() const {
+  ValidatePreconditions();
   return type_ != Type::kPrompt && text_.empty() ? LineNumberDelta(0)
                                                  : LineNumberDelta(1);
 }
 
-void Status::set_prompt(std::wstring text, ColumnNumber column) {
-  CHECK_LE(column, ColumnNumber(text.size()));
+void Status::set_prompt(std::wstring text, std::shared_ptr<OpenBuffer> buffer) {
+  CHECK(buffer != nullptr);
+  ValidatePreconditions();
+
   type_ = Status::Type::kPrompt;
+  prompt_buffer_ = std::move(buffer);
   text_ = std::move(text);
-  prompt_column_ = column;
   updates_listener_();
+
+  ValidatePreconditions();
 }
 
-std::optional<ColumnNumber> Status::prompt_column() const {
-  return prompt_column_;
+const OpenBuffer* Status::prompt_buffer() const {
+  ValidatePreconditions();
+  return prompt_buffer_.get();
 }
 
 void Status::SetInformationText(std::wstring text) {
-  if (prompt_column_.has_value()) {
+  ValidatePreconditions();
+
+  CHECK((prompt_buffer_ != nullptr) == (type_ == Type::kPrompt));
+  if (prompt_buffer_ != nullptr) {
     return;
   }
   type_ = Type::kInformation;
   text_ = std::move(text);
   updates_listener_();
+
+  ValidatePreconditions();
 }
 
 void Status::SetWarningText(std::wstring text) {
+  ValidatePreconditions();
+
   GenerateAlert(audio_player_);
-  if (prompt_column_.has_value()) {
+  if (prompt_buffer_ != nullptr) {
     return;
   }
   type_ = Type::kWarning;
   text_ = std::move(text);
   updates_listener_();
+
+  ValidatePreconditions();
 }
 
 void Status::Reset() {
-  prompt_column_ = std::nullopt;
+  ValidatePreconditions();
+
+  prompt_buffer_ = nullptr;
   type_ = Type::kInformation;
   text_ = L"";
   updates_listener_();
+
+  ValidatePreconditions();
 }
 
 void Status::Bell() {
+  ValidatePreconditions();
+
   if (!all_of(text_.begin(), text_.end(), [](const wchar_t& c) {
         return c == L'♪' || c == L'♫' || c == L'…' || c == L' ' || c == L'𝄞';
       })) {
@@ -140,7 +166,14 @@ void Status::Bell() {
   updates_listener_();
 }
 
-const std::wstring& Status::text() const { return text_; }
+const std::wstring& Status::text() const {
+  ValidatePreconditions();
+  return text_;
+}
+
+void Status::ValidatePreconditions() const {
+  CHECK((prompt_buffer_ != nullptr) == (type_ == Type::kPrompt));
+}
 
 }  // namespace editor
 }  // namespace afc

@@ -11,6 +11,7 @@
 #include "src/buffer_metadata_output_producer.h"
 #include "src/buffer_output_producer.h"
 #include "src/buffer_variables.h"
+#include "src/editor.h"
 #include "src/horizontal_split_output_producer.h"
 #include "src/line_number_output_producer.h"
 #include "src/line_scroll_control.h"
@@ -125,7 +126,7 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
     rows[0].lines = lines_ - status_lines;
 
     rows[1].producer = std::make_unique<StatusOutputProducer>(
-        buffer->status(), buffer.get(), Modifiers());
+        buffer->status(), buffer.get(), buffer->editor()->modifiers());
     rows[1].lines = status_lines;
 
     output = std::make_unique<HorizontalSplitOutputProducer>(

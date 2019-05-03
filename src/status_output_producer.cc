@@ -138,14 +138,19 @@ void StatusOutputProducer::WriteLine(Options options) {
   }
   options.receiver->AddString(output);
   auto text = status_->text();
-  if (status_->prompt_column().has_value() &&
-      options.active_cursor != nullptr) {
-    auto input_column = status_->prompt_column().value();
-    VLOG(5) << "Setting status cursor: " << input_column;
-    CHECK_LE(input_column.column, text.size());
-    options.receiver->AddString(text.substr(0, input_column.column));
+  if (status_->prompt_buffer() != nullptr && options.active_cursor != nullptr) {
+    auto contents = status_->prompt_buffer()->current_line();
+    auto column = min(contents->EndColumn(),
+                      status_->prompt_buffer()->current_position_col());
+    VLOG(5) << "Setting status cursor: " << column;
+
+    options.receiver->AddString(status_->text());
+    options.receiver->AddString(
+        Substring(contents->contents(), ColumnNumber(0), column.ToDelta())
+            ->ToString());
     *options.active_cursor = options.receiver->column();
-    options.receiver->AddString(text.substr(input_column.column));
+    options.receiver->AddString(
+        Substring(contents->contents(), column)->ToString());
   } else {
     VLOG(6) << "Not setting status cursor.";
     options.receiver->AddString(status_->text());

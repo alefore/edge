@@ -54,13 +54,15 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   }
   ShowStatus(*editor_state, screen);
   auto buffer = editor_state->current_buffer();
-  if (editor_state->status()->GetType() != Status::Type::kPrompt &&
-      (buffer == nullptr || buffer->Read(buffer_variables::atomic_lines) ||
-       !cursor_position_.has_value())) {
-    screen->SetCursorVisibility(Screen::INVISIBLE);
-  } else {
+  if (editor_state->status()->GetType() == Status::Type::kPrompt ||
+      (buffer != nullptr &&
+       buffer->status()->GetType() == Status::Type::kPrompt) ||
+      (buffer != nullptr && !buffer->Read(buffer_variables::atomic_lines) &&
+       cursor_position_.has_value())) {
     screen->SetCursorVisibility(Screen::NORMAL);
     AdjustPosition(screen);
+  } else {
+    screen->SetCursorVisibility(Screen::INVISIBLE);
   }
   screen->Refresh();
   screen->Flush();

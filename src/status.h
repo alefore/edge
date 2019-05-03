@@ -26,8 +26,9 @@ class Status {
 
   LineNumberDelta DesiredLines() const;
 
-  void set_prompt(std::wstring text, ColumnNumber column);
-  std::optional<ColumnNumber> prompt_column() const;
+  void set_prompt(std::wstring text, std::shared_ptr<OpenBuffer> buffer);
+  // May be nullptr.
+  const OpenBuffer* prompt_buffer() const;
 
   void SetInformationText(std::wstring text);
   void SetWarningText(std::wstring text);
@@ -38,11 +39,13 @@ class Status {
   const std::wstring& text() const;
 
  private:
+  void ValidatePreconditions() const;
+
   const std::shared_ptr<OpenBuffer> console_;
   AudioPlayer* const audio_player_;
   const std::function<void()> updates_listener_;
 
-  std::optional<ColumnNumber> prompt_column_;
+  std::shared_ptr<OpenBuffer> prompt_buffer_;
 
   Type type_ = Type::kInformation;
   std::wstring text_;
