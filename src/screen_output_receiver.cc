@@ -16,7 +16,8 @@ class Receiver : public OutputReceiver {
     AddModifier(LineModifier::RESET);
     if (column() < ColumnNumber(0) + width()) {
       VLOG(6) << "Adding newline characters.";
-      AddString(L"\n");
+      AddString(ColumnNumberDelta::PaddingString(
+          ColumnNumber(0) + width() - column(), L' '));
     }
   }
 
