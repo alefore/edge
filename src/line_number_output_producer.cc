@@ -11,6 +11,9 @@
 #include "src/buffer_output_producer.h"
 #include "src/buffer_variables.h"
 #include "src/buffer_widget.h"
+#include "src/char_buffer.h"
+#include "src/lazy_string.h"
+#include "src/lazy_string_append.h"
 #include "src/line_scroll_control.h"
 #include "src/vertical_split_output_producer.h"
 #include "src/widget.h"
@@ -41,10 +44,8 @@ OutputProducer::Generator LineNumberOutputProducer::Next() {
 
   std::shared_ptr<bool> delete_handler;
   if (range.has_value()) {
-    LOG(INFO) << "XXXX creating deleter.";
     delete_handler = std::shared_ptr<bool>(
         new bool(), [reader = line_scroll_control_reader_.get()](bool* value) {
-          LOG(INFO) << "XXXX range done.";
           delete value;
           reader->RangeDone();
         });
@@ -61,7 +62,7 @@ OutputProducer::Generator LineNumberOutputProducer::Next() {
           last_line_ = range.value().begin.line;
         }
         CHECK_LE(ColumnNumberDelta(number.size() + 1), width_);
-        std::wstring padding = ColumnNumberDelta::PaddingString(
+        auto padding = ColumnNumberDelta::PaddingString(
             width_ - ColumnNumberDelta(number.size() + 1), L' ');
         LineModifierSet modifiers;
         if (!range.has_value() ||
@@ -75,7 +76,8 @@ OutputProducer::Generator LineNumberOutputProducer::Next() {
           modifiers.insert(LineModifier::BLUE);
         }
         Line::Options line_options;
-        line_options.AppendString(padding + number + L':', modifiers);
+        line_options.AppendString(
+            StringAppend(padding, NewLazyString(number + L":")), modifiers);
         return LineWithCursor{std::make_shared<Line>(std::move(line_options)),
                               std::nullopt};
       }};

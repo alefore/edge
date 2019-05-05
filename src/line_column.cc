@@ -5,6 +5,8 @@
 #include <set>
 #include <vector>
 
+#include "src/char_buffer.h"
+#include "src/lazy_string.h"
 #include "src/vm/public/environment.h"
 #include "src/vm/public/set.h"
 #include "src/vm/public/value.h"
@@ -109,12 +111,12 @@ LineNumberDelta operator--(LineNumberDelta& a, int) {
   return copy;
 }
 
-/* static */ std::wstring ColumnNumberDelta::PaddingString(
+/* static */ std::shared_ptr<LazyString> ColumnNumberDelta::PaddingString(
     const ColumnNumberDelta& length, wchar_t fill) {
   if (length < ColumnNumberDelta(0)) {
-    return L"";
+    return EmptyString();
   }
-  return std::wstring(length.column_delta, fill);
+  return NewLazyString(length, fill);
 }
 
 ColumnNumberDelta& ColumnNumberDelta::operator=(

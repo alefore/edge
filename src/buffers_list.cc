@@ -53,8 +53,8 @@ class BuffersListProducer : public OutputProducer {
             ColumnNumber start =
                 ColumnNumber(0) + (columns_per_buffer_ + prefix_width_) * i;
             output.AppendString(
-                NewLazyString(ColumnNumberDelta::PaddingString(
-                    start - ColumnNumber(output.contents->size()), L' ')),
+                ColumnNumberDelta::PaddingString(
+                    start - ColumnNumber(output.contents->size()), L' '),
                 LineModifierSet());
 
             LineModifierSet number_modifiers = {LineModifier::CYAN};
@@ -66,8 +66,8 @@ class BuffersListProducer : public OutputProducer {
             start +=
                 prefix_width_ - ColumnNumberDelta(number_prefix.size() + 2);
             output.AppendString(
-                NewLazyString(ColumnNumberDelta::PaddingString(
-                    start - ColumnNumber(output.contents->size()), L' ')),
+                ColumnNumberDelta::PaddingString(
+                    start - ColumnNumber(output.contents->size()), L' '),
                 number_modifiers);
             output.AppendString(NewLazyString(number_prefix), number_modifiers);
 

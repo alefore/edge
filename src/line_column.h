@@ -12,6 +12,8 @@
 namespace afc {
 namespace editor {
 
+class LazyString;
+
 struct LineNumberDelta {
   LineNumberDelta() = default;
   explicit LineNumberDelta(int value) : line_delta(value) {}
@@ -43,8 +45,8 @@ struct ColumnNumberDelta {
   // character given.
   //
   // If length is negative (or zero), returns an empty string.
-  static std::wstring PaddingString(const ColumnNumberDelta& length,
-                                    wchar_t fill);
+  static std::shared_ptr<LazyString> PaddingString(
+      const ColumnNumberDelta& length, wchar_t fill);
 
   ColumnNumberDelta() = default;
   explicit ColumnNumberDelta(int value) : column_delta(value) {}

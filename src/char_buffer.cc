@@ -5,10 +5,28 @@
 #include <cstring>
 #include <string>
 
+#include "src/line_column.h"
+
 namespace afc {
 namespace editor {
 
 using std::string;
+
+namespace {
+class RepeatedChar : public LazyString {
+ public:
+  RepeatedChar(ColumnNumberDelta times, wchar_t c) : times_(times), c_(c) {}
+
+  wchar_t get(size_t pos) const {
+    CHECK_LT(ColumnNumberDelta(pos), times_);
+    return c_;
+  }
+  size_t size() const { return times_.column_delta; }
+
+ protected:
+  const ColumnNumberDelta times_;
+  const wchar_t c_;
+};
 
 template <typename Container>
 class StringFromContainer : public LazyString {
@@ -56,6 +74,7 @@ class CharBufferWithOwnership : public CharBuffer {
       : CharBuffer(buffer, input_size) {}
   ~CharBufferWithOwnership() { free(const_cast<wchar_t*>(location_)); }
 };
+}  // namespace
 
 unique_ptr<LazyString> NewMoveableCharBuffer(const wchar_t* const* buffer,
                                              size_t size) {
@@ -83,6 +102,10 @@ unique_ptr<LazyString> NewLazyString(wstring buffer) {
 unique_ptr<LazyString> NewLazyString(vector<wchar_t> data) {
   return std::make_unique<StringFromContainer<vector<wchar_t>>>(
       std::move(data));
+}
+
+std::unique_ptr<LazyString> NewLazyString(ColumnNumberDelta times, wchar_t c) {
+  return std::make_unique<RepeatedChar>(times, c);
 }
 
 }  // namespace editor
