@@ -23,7 +23,7 @@ class VerticalSplitOutputProducer : public OutputProducer {
   VerticalSplitOutputProducer(std::vector<Column> columns, size_t index_active)
       : columns_(std::move(columns)), index_active_(index_active) {}
 
-  void WriteLine(Options options) override;
+  Generator Next() override;
 
  private:
   const std::vector<Column> columns_;

@@ -13,6 +13,7 @@ namespace editor {
 class FrameOutputProducer : public OutputProducer {
  public:
   struct FrameOptions {
+    ColumnNumberDelta width;
     wstring title;
     std::optional<size_t> position_in_parent;
     enum class ActiveState { kActive, kInactive };
@@ -20,12 +21,14 @@ class FrameOutputProducer : public OutputProducer {
     wstring extra_information;
   };
 
-  FrameOutputProducer(FrameOptions options) : options_(std::move(options)) {}
+  FrameOutputProducer(FrameOptions options);
 
-  void WriteLine(Options options) override;
+  Generator Next() override;
 
  private:
   const FrameOptions options_;
+  const LineModifierSet line_modifiers_;
+  const LineModifierSet title_modifiers_;
 };
 
 }  // namespace editor

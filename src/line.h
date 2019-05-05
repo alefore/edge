@@ -6,13 +6,14 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <unordered_set>
 #include <vector>
 
 #include "src/lazy_string.h"
 #include "src/line_column.h"
-#include "src/output_receiver.h"
+#include "src/output_producer.h"
 #include "src/parse_tree.h"
 #include "src/vm/public/environment.h"
 
@@ -23,6 +24,7 @@ class EditorMode;
 class EditorState;
 class LazyString;
 class OpenBuffer;
+class LineWithCursor;
 
 using std::hash;
 using std::shared_ptr;
@@ -35,15 +37,29 @@ using std::wstring;
 // This class is thread-safe.
 class Line {
  public:
+  // TODO: Turn this into a class.
   struct Options {
     Options() : contents(EmptyString()) {}
     Options(shared_ptr<LazyString> input_contents)
         : contents(std::move(input_contents)), modifiers(contents->size()) {}
+    Options(Line line);
 
-    shared_ptr<LazyString> contents;
-    vector<LineModifierSet> modifiers;
+    ColumnNumber EndColumn() const;
+
+    void AppendCharacter(wchar_t c, LineModifierSet modifier);
+    void AppendString(std::shared_ptr<LazyString> suffix);
+    void AppendString(std::shared_ptr<LazyString> suffix,
+                      LineModifierSet modifier);
+    void AppendString(std::wstring contents, LineModifierSet modifier);
+    void Append(Line line);
+
+    std::shared_ptr<LazyString> contents;
+    std::vector<LineModifierSet> modifiers;
     LineModifierSet end_of_line_modifiers;
-    std::shared_ptr<vm::Environment> environment = nullptr;
+    std::shared_ptr<vm::Environment> environment;
+
+   private:
+    void ValidateInvariants();
   };
 
   Line() : Line(Options()) {}
@@ -94,11 +110,11 @@ class Line {
   void SetAllModifiers(const LineModifierSet& modifiers);
   const vector<LineModifierSet> modifiers() const {
     std::unique_lock<std::mutex> lock(mutex_);
-    return modifiers_;
+    return options_.modifiers;
   }
   vector<LineModifierSet>& modifiers() {
     std::unique_lock<std::mutex> lock(mutex_);
-    return modifiers_;
+    return options_.modifiers;
   }
   const LineModifierSet& end_of_line_modifiers() const {
     std::unique_lock<std::mutex> lock(mutex_);
@@ -133,11 +149,13 @@ class Line {
   }
 
   struct OutputOptions {
-    OutputReceiver* output_receiver = nullptr;
     ColumnNumber initial_column;
     ColumnNumberDelta width;
+    std::optional<ColumnNumber> active_cursor_column;
+    std::set<ColumnNumber> inactive_cursor_columns;
+    LineModifierSet modifiers_inactive_cursors;
   };
-  void Output(const OutputOptions& options) const;
+  OutputProducer::LineWithCursor Output(const OutputOptions& options) const;
 
  private:
   ColumnNumber EndColumnWithLock() const;
@@ -147,7 +165,6 @@ class Line {
   std::shared_ptr<vm::Environment> environment_;
   // TODO: Remove contents_ and modifiers_ and just use options_ instead.
   shared_ptr<LazyString> contents_;
-  vector<LineModifierSet> modifiers_;
   Options options_;
   bool modified_ = false;
   bool filtered_ = true;

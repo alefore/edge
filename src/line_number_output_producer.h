@@ -22,7 +22,7 @@ class LineNumberOutputProducer : public OutputProducer {
       std::shared_ptr<OpenBuffer> buffer,
       std::unique_ptr<LineScrollControl::Reader> line_scroll_control_reader);
 
-  void WriteLine(Options options) override;
+  Generator Next() override;
 
   ColumnNumberDelta width() const;
 

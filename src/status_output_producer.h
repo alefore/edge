@@ -21,7 +21,7 @@ class StatusOutputProducer : public OutputProducer {
   StatusOutputProducer(const Status* status, const OpenBuffer* buffer,
                        Modifiers modifiers);
 
-  void WriteLine(Options options);
+  Generator Next();
 
  private:
   const Status* const status_;

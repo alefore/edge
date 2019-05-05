@@ -6,56 +6,51 @@
 #include <cctype>
 #include <iostream>
 
-#include "src/output_receiver.h"
-
 namespace afc {
 namespace editor {
-void FrameOutputProducer::WriteLine(OutputProducer::Options options) {
-  LineModifier line_modifier = LineModifier::RESET;
-  LineModifier title_modifier = LineModifier::RESET;
-  switch (options_.active_state) {
-    case FrameOptions::ActiveState::kActive:
-      line_modifier = LineModifier::RESET;
-      title_modifier = LineModifier::BOLD;
-      break;
-    case FrameOptions::ActiveState::kInactive:
-      line_modifier = LineModifier::DIM;
-      title_modifier = LineModifier::RESET;
-      break;
-  }
+FrameOutputProducer::FrameOutputProducer(FrameOptions options)
+    : options_(std::move(options)),
+      line_modifiers_(options_.active_state ==
+                              FrameOptions::ActiveState::kInactive
+                          ? LineModifierSet({LineModifier::DIM})
+                          : LineModifierSet()),
+      title_modifiers_(options_.active_state ==
+                               FrameOptions::ActiveState::kActive
+                           ? LineModifierSet({LineModifier::BOLD})
+                           : LineModifierSet()) {}
 
-  options.receiver->AddModifier(line_modifier);
-  options.receiver->AddString(L"──");
-  if (!options_.title.empty()) {
-    options.receiver->AddModifier(LineModifier::RESET);
-    options.receiver->AddModifier(title_modifier);
-    options.receiver->AddString(L" " + options_.title + L" ");
-    options.receiver->AddModifier(LineModifier::RESET);
-    options.receiver->AddModifier(line_modifier);
-  }
-  if (options_.position_in_parent.has_value()) {
-    options.receiver->AddString(L"─(");
-    options.receiver->AddModifier(LineModifier::BOLD);
-    options.receiver->AddModifier(LineModifier::CYAN);
-    // Add 1 because that matches what the repetitions do. Humans typically
-    // start counting from 1.
-    options.receiver->AddString(
-        std::to_wstring(1 + options_.position_in_parent.value()));
-    options.receiver->AddModifier(LineModifier::RESET);
-    options.receiver->AddModifier(line_modifier);
-    options.receiver->AddString(L")");
-  }
+OutputProducer::Generator FrameOutputProducer::Next() {
+  return Generator{
+      std::nullopt, [this]() {
+        Line::Options output;
+        output.AppendString(L"──", line_modifiers_);
+        if (!options_.title.empty()) {
+          output.AppendString(L" " + options_.title + L" ", title_modifiers_);
+        }
+        if (options_.position_in_parent.has_value()) {
+          output.AppendString(L"─(", line_modifiers_);
+          // Add 1 because that matches what the repetitions do. Humans
+          // typically start counting from 1.
+          output.AppendString(
+              std::to_wstring(1 + options_.position_in_parent.value()),
+              {LineModifier::BOLD, LineModifier::CYAN});
+          output.AppendString(L")", line_modifiers_);
+        }
 
-  if (!options_.extra_information.empty()) {
-    options.receiver->AddString(L"─<");
-    options.receiver->AddString(options_.extra_information);
-    options.receiver->AddString(L">");
-  }
+        if (!options_.extra_information.empty()) {
+          output.AppendString(L"─<", line_modifiers_);
+          output.AppendString(options_.extra_information, line_modifiers_);
+          output.AppendString(L">", line_modifiers_);
+        }
 
-  options.receiver->AddString(ColumnNumberDelta::PaddingString(
-      ColumnNumber(0) + options.receiver->width() - options.receiver->column(),
-      L'─'));
-  options.receiver->AddModifier(LineModifier::RESET);
+        output.AppendString(
+            ColumnNumberDelta::PaddingString(
+                options_.width - ColumnNumberDelta(output.modifiers.size()),
+                L'─'),
+            line_modifiers_);
+        return OutputProducer::LineWithCursor{
+            std::make_shared<Line>(std::move(output)), std::nullopt};
+      }};
 }
 
 }  // namespace editor

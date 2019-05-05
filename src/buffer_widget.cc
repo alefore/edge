@@ -77,7 +77,12 @@ BufferWidget* BufferWidget::GetActiveLeaf() { return this; }
 const BufferWidget* BufferWidget::GetActiveLeaf() const { return this; }
 
 class EmptyProducer : public OutputProducer {
-  void WriteLine(Options) override {}
+  Generator Next() override {
+    return Generator{
+        0ul, []() {
+          return LineWithCursor{std::make_shared<Line>(), std::nullopt};
+        }};
+  }
 };
 
 std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {

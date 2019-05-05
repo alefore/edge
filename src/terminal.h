@@ -37,6 +37,9 @@ class Terminal {
  private:
   void ShowStatus(const EditorState& editor_state, Screen* screen);
   void ShowBuffer(EditorState* editor_state, Screen* screen);
+  void WriteLine(Screen* screen, LineNumber line,
+                 OutputProducer::LineWithCursor line_with_cursor);
+
   void AdjustPosition(Screen* screen);
 
   // Position at which the cursor should be placed in the screen, if known.

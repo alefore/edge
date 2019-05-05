@@ -1,25 +1,46 @@
 #ifndef __AFC_EDITOR_OUTPUT_PRODUCER_H__
 #define __AFC_EDITOR_OUTPUT_PRODUCER_H__
 
+#include <optional>
 #include <vector>
 
-#include "src/output_receiver.h"
+#include "src/line_column.h"
 
 namespace afc {
 namespace editor {
 
+class Line;
+
 // Can be used to render a view of something once, line by line.
 class OutputProducer {
  public:
-  struct Options {
-    std::unique_ptr<OutputReceiver> receiver;
+  struct LineWithCursor {
+    static LineWithCursor Empty();
+
+    std::shared_ptr<Line> line;
 
     // Output parameter. If the active cursor is found in the line, stores here
     // the column in which it was output here. May be nullptr.
-    std::optional<ColumnNumber>* active_cursor = nullptr;
+    std::optional<ColumnNumber> cursor;
   };
-  virtual void WriteLine(Options options) = 0;
-};
+
+  // Callback that can generate a single line of output.
+  struct Generator {
+    static Generator Empty() {
+      return Generator{std::nullopt, []() { return LineWithCursor::Empty(); }};
+    }
+
+    // If a value is provided, this should be a hash of all the inputs from
+    // which the line is generated. This will used to avoid unnecessarily
+    // generating memoized lines.
+    std::optional<size_t> inputs_hash;
+
+    // Generates the line. Must be called at most once.
+    std::function<LineWithCursor()> generate;
+  };  // namespace editor
+
+  virtual Generator Next() = 0;
+};  // namespace afc
 
 }  // namespace editor
 }  // namespace afc

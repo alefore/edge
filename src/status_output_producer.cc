@@ -36,127 +36,138 @@ StatusOutputProducer::StatusOutputProducer(const Status* status,
   CHECK(status_ != nullptr);
 }
 
-void StatusOutputProducer::WriteLine(Options options) {
-  wstring output;
-  if (buffer_ != nullptr && status_->GetType() != Status::Type::kWarning) {
-    output.push_back('[');
-    if (buffer_->current_position_line() > buffer_->contents()->EndLine()) {
-      output += L"<EOF>";
-    } else {
-      output += buffer_->current_position_line().ToUserString();
-    }
-    output += L" of " + buffer_->contents()->EndLine().ToUserString() + L", " +
-              buffer_->current_position_col().ToUserString();
-    output += L"] ";
+OutputProducer::Generator StatusOutputProducer::Next() {
+  return Generator{
+      std::nullopt, [this]() {
+        wstring output;
+        if (buffer_ != nullptr &&
+            status_->GetType() != Status::Type::kWarning) {
+          output.push_back('[');
+          if (buffer_->current_position_line() >
+              buffer_->contents()->EndLine()) {
+            output += L"<EOF>";
+          } else {
+            output += buffer_->current_position_line().ToUserString();
+          }
+          output += L" of " + buffer_->contents()->EndLine().ToUserString() +
+                    L", " + buffer_->current_position_col().ToUserString();
+          output += L"] ";
 
-    auto marks_text = buffer_->GetLineMarksText();
-    if (!marks_text.empty()) {
-      output += marks_text + L" ";
-    }
+          auto marks_text = buffer_->GetLineMarksText();
+          if (!marks_text.empty()) {
+            output += marks_text + L" ";
+          }
 
-    auto active_cursors = buffer_->active_cursors()->size();
-    if (active_cursors != 1) {
-      output += L" " +
-                (buffer_->Read(buffer_variables::multiple_cursors)
-                     ? std::wstring(L"CURSORS")
-                     : std::wstring(L"cursors")) +
-                L":" + std::to_wstring(active_cursors) + L" ";
-    }
+          auto active_cursors = buffer_->active_cursors()->size();
+          if (active_cursors != 1) {
+            output += L" " +
+                      (buffer_->Read(buffer_variables::multiple_cursors)
+                           ? std::wstring(L"CURSORS")
+                           : std::wstring(L"cursors")) +
+                      L":" + std::to_wstring(active_cursors) + L" ";
+          }
 
-    auto flags = buffer_->Flags();
-    if (modifiers_.repetitions != 1) {
-      flags.insert({std::to_wstring(modifiers_.repetitions), L""});
-    }
-    if (modifiers_.default_direction == BACKWARDS) {
-      flags.insert({L"REVERSE", L""});
-    } else if (modifiers_.direction == BACKWARDS) {
-      flags.insert({L"reverse", L""});
-    }
+          auto flags = buffer_->Flags();
+          if (modifiers_.repetitions != 1) {
+            flags.insert({std::to_wstring(modifiers_.repetitions), L""});
+          }
+          if (modifiers_.default_direction == BACKWARDS) {
+            flags.insert({L"REVERSE", L""});
+          } else if (modifiers_.direction == BACKWARDS) {
+            flags.insert({L"reverse", L""});
+          }
 
-    if (modifiers_.default_insertion == Modifiers::REPLACE) {
-      flags.insert({L"REPLACE", L""});
-    } else if (modifiers_.insertion == Modifiers::REPLACE) {
-      flags.insert({L"replace", L""});
-    }
+          if (modifiers_.default_insertion == Modifiers::REPLACE) {
+            flags.insert({L"REPLACE", L""});
+          } else if (modifiers_.insertion == Modifiers::REPLACE) {
+            flags.insert({L"replace", L""});
+          }
 
-    if (modifiers_.strength == Modifiers::Strength::kStrong) {
-      flags.insert({L"💪", L""});
-    }
+          if (modifiers_.strength == Modifiers::Strength::kStrong) {
+            flags.insert({L"💪", L""});
+          }
 
-    wstring structure;
-    if (modifiers_.structure == StructureTree()) {
-      structure = L"tree<" + std::to_wstring(buffer_->tree_depth()) + L">";
-    } else if (modifiers_.structure != StructureChar()) {
-      structure = modifiers_.structure->ToString();
-    }
-    if (!structure.empty()) {
-      if (modifiers_.sticky_structure) {
-        transform(structure.begin(), structure.end(), structure.begin(),
-                  ::toupper);
-      }
-      flags[L"St:"] = structure;
-    }
+          wstring structure;
+          if (modifiers_.structure == StructureTree()) {
+            structure =
+                L"tree<" + std::to_wstring(buffer_->tree_depth()) + L">";
+          } else if (modifiers_.structure != StructureChar()) {
+            structure = modifiers_.structure->ToString();
+          }
+          if (!structure.empty()) {
+            if (modifiers_.sticky_structure) {
+              transform(structure.begin(), structure.end(), structure.begin(),
+                        ::toupper);
+            }
+            flags[L"St:"] = structure;
+          }
 
-    if (!flags.empty()) {
-      output += L"  " + OpenBuffer::FlagsToString(std::move(flags));
-    }
+          if (!flags.empty()) {
+            output += L"  " + OpenBuffer::FlagsToString(std::move(flags));
+          }
 
-    if (status_->text().empty()) {
-      output += L"  “" + GetBufferContext(*buffer_) + L"” ";
-    }
-  }
+          if (status_->text().empty()) {
+            output += L"  “" + GetBufferContext(*buffer_) + L"” ";
+          }
 
-  if (status_->GetType() != Status::Type::kWarning && buffer_ != nullptr) {
-    int running = 0;
-    int failed = 0;
-    for (const auto& it : *buffer_->editor()->buffers()) {
-      CHECK(it.second != nullptr);
-      if (it.second->child_pid() != -1) {
-        running++;
-      } else {
-        int status = it.second->child_exit_status();
-        if (WIFEXITED(status) && WEXITSTATUS(status)) {
-          failed++;
+          int running = 0;
+          int failed = 0;
+          for (const auto& it : *buffer_->editor()->buffers()) {
+            CHECK(it.second != nullptr);
+            if (it.second->child_pid() != -1) {
+              running++;
+            } else {
+              int status = it.second->child_exit_status();
+              if (WIFEXITED(status) && WEXITSTATUS(status)) {
+                failed++;
+              }
+            }
+          }
+          if (running > 0) {
+            output += L"  🏃" + std::to_wstring(running) + L"  ";
+          }
+          if (failed > 0) {
+            output += L"  💥" + std::to_wstring(failed) + L"  ";
+          }
         }
-      }
-    }
-    if (running > 0) {
-      output += L"  🏃" + std::to_wstring(running) + L"  ";
-    }
-    if (failed > 0) {
-      output += L"  💥" + std::to_wstring(failed) + L"  ";
-    }
-  }
 
-  ColumnNumberDelta status_columns;
-  for (auto& c : output) {
-    status_columns += ColumnNumberDelta(wcwidth(c));
-  }
-  if (status_->GetType() == Status::Type::kWarning) {
-    options.receiver->AddModifier(LineModifier::RED);
-    options.receiver->AddModifier(LineModifier::BOLD);
-  }
-  options.receiver->AddString(output);
-  auto text = status_->text();
-  if (status_->prompt_buffer() != nullptr && options.active_cursor != nullptr) {
-    auto contents = status_->prompt_buffer()->current_line();
-    auto column = min(contents->EndColumn(),
-                      status_->prompt_buffer()->current_position_col());
-    VLOG(5) << "Setting status cursor: " << column;
+        LineWithCursor line_with_cursor;
+        Line::Options options;
 
-    options.receiver->AddString(status_->text());
-    options.receiver->AddString(
-        Substring(contents->contents(), ColumnNumber(0), column.ToDelta())
-            ->ToString());
-    *options.active_cursor = options.receiver->column();
-    options.receiver->AddString(
-        Substring(contents->contents(), column)->ToString());
-  } else {
-    VLOG(6) << "Not setting status cursor.";
-    options.receiver->AddString(status_->text());
-  }
-  options.receiver->AddString(ColumnNumberDelta::PaddingString(
-      options.receiver->width() - options.receiver->column().ToDelta(), L' '));
+        ColumnNumberDelta status_columns;
+        for (auto& c : output) {
+          status_columns += ColumnNumberDelta(wcwidth(c));
+        }
+        LineModifierSet modifiers =
+            status_->GetType() == Status::Type::kWarning
+                ? LineModifierSet({LineModifier::RED, LineModifier::BOLD})
+                : LineModifierSet();
+
+        options.AppendString(output, modifiers);
+
+        auto text = status_->text();
+        if (status_->prompt_buffer() != nullptr) {
+          auto contents = status_->prompt_buffer()->current_line();
+          auto column = min(contents->EndColumn(),
+                            status_->prompt_buffer()->current_position_col());
+          VLOG(5) << "Setting status cursor: " << column;
+
+          options.AppendString(status_->text(), LineModifierSet());
+          options.AppendString(Substring(contents->contents(), ColumnNumber(0),
+                                         column.ToDelta()));
+          line_with_cursor.cursor = ColumnNumber(options.contents->size());
+          options.AppendString(Substring(contents->contents(), column),
+                               LineModifierSet());
+        } else {
+          VLOG(6) << "Not setting status cursor.";
+          options.AppendString(status_->text(), modifiers);
+        }
+        // options.AddString(ColumnNumberDelta::PaddingString(
+        //    options.receiver->width() - options.receiver->column().ToDelta(),
+        //    L' '));
+        line_with_cursor.line = std::make_shared<Line>(std::move(options));
+        return line_with_cursor;
+      }};
 }
 
 }  // namespace editor

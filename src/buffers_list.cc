@@ -6,6 +6,7 @@
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
 #include "src/buffer_widget.h"
+#include "src/char_buffer.h"
 #include "src/dirname.h"
 #include "src/horizontal_split_output_producer.h"
 #include "src/widget.h"
@@ -18,144 +19,146 @@ class BuffersListProducer : public OutputProducer {
  public:
   BuffersListProducer(std::map<wstring, std::shared_ptr<OpenBuffer>>* buffers,
                       std::shared_ptr<OpenBuffer> active_buffer_,
-                      size_t buffers_per_line)
-      : buffers_(buffers),
+                      size_t buffers_per_line, ColumnNumberDelta width)
+      : buffers_([&]() {
+          std::vector<OpenBuffer*> output;
+          for (const auto& it : *buffers) {
+            output.push_back(it.second.get());
+          }
+          return output;
+        }()),
         active_buffer_(std::move(active_buffer_)),
         buffers_per_line_(buffers_per_line),
-        prefix_width_(max(2ul, std::to_wstring(buffers_->size()).size()) + 2),
+        prefix_width_(max(2ul, std::to_wstring(buffers_.size()).size()) + 2),
+        columns_per_buffer_(
+            (width - std::min(width, (prefix_width_ * buffers_per_line_))) /
+            buffers_per_line_),
         buffers_iterator_(buffers->begin()) {
     VLOG(1) << "BuffersList created. Buffers per line: " << buffers_per_line
             << ", prefix width: " << prefix_width_
             << ", count: " << buffers->size();
   }
 
-  void WriteLine(Options options) override {
-    VLOG(2) << "BuffersListProducer::WriteLine start at "
-            << options.receiver->column() << " and output "
-            << options.receiver->width();
-    // Excluding prefixes and separators.
-    //
-    // TODO: Move this to constructor? Our customer can tell us the width in
-    // advance?
-    const ColumnNumberDelta columns_per_buffer =
-        (options.receiver->width() -
-         std::min(options.receiver->width(),
-                  (prefix_width_ * buffers_per_line_))) /
-        buffers_per_line_;
-    VLOG(2) << "Columns per buffer: " << columns_per_buffer;
-    for (size_t i = 0;
-         i < buffers_per_line_ && buffers_iterator_ != buffers_->end();
-         i++, buffers_iterator_++, index_++) {
-      auto buffer = buffers_iterator_->second;
-      options.receiver->AddModifier(LineModifier::RESET);
-      auto name = buffers_iterator_->first;
-      auto number_prefix = std::to_wstring(index_ + 1);
-      ColumnNumber start =
-          ColumnNumber(0) + (columns_per_buffer + prefix_width_) * i;
-      if (options.receiver->column() < start) {
-        options.receiver->AddString(ColumnNumberDelta::PaddingString(
-            start - options.receiver->column(), L' '));
-      }
+  Generator Next() override {
+    VLOG(2) << "BuffersListProducer::WriteLine start.";
+    Generator output{
+        std::nullopt, [this, index = index_]() {
+          CHECK_LT(index, buffers_.size());
+          Line::Options output;
+          for (size_t i = 0;
+               i < buffers_per_line_ && index + i < buffers_.size(); i++) {
+            auto buffer = buffers_[index + i];
+            auto name = buffer->Read(buffer_variables::name);
+            auto number_prefix = std::to_wstring(index + i + 1);
+            ColumnNumber start =
+                ColumnNumber(0) + (columns_per_buffer_ + prefix_width_) * i;
+            output.AppendString(
+                NewLazyString(ColumnNumberDelta::PaddingString(
+                    start - ColumnNumber(output.contents->size()), L' ')),
+                LineModifierSet());
 
-      options.receiver->AddModifier(LineModifier::CYAN);
-      if (buffer == active_buffer_) {
-        options.receiver->AddModifier(LineModifier::BOLD);
-        options.receiver->AddModifier(LineModifier::REVERSE);
-      }
-      start += prefix_width_ - ColumnNumberDelta(number_prefix.size() + 2);
-      if (options.receiver->column() < start) {
-        options.receiver->AddString(ColumnNumberDelta::PaddingString(
-            start - options.receiver->column(), L' '));
-      }
-      options.receiver->AddString(number_prefix);
-      options.receiver->AddModifier(LineModifier::RESET);
+            LineModifierSet number_modifiers = {LineModifier::CYAN};
 
-      std::list<std::wstring> output_components;
-      std::list<std::wstring> components;
-      if (buffer != nullptr && buffer->Read(buffer_variables::path) == name &&
-          DirectorySplit(name, &components) && !components.empty()) {
-        name.clear();
-        output_components.push_front(components.back());
-        if (ColumnNumberDelta(output_components.front().size()) >
-            columns_per_buffer) {
-          output_components.front() = output_components.front().substr(
-              output_components.front().size() -
-              columns_per_buffer.column_delta);
-        } else {
-          size_t consumed = output_components.front().size();
-          components.pop_back();
-
-          static const size_t kSizeOfSlash = 1;
-          while (!components.empty()) {
-            if (columns_per_buffer >
-                ColumnNumberDelta(components.size() * 2 +
-                                  components.back().size() + consumed)) {
-              output_components.push_front(components.back());
-              consumed += components.back().size() + kSizeOfSlash;
-            } else if (columns_per_buffer >
-                       ColumnNumberDelta(1 + kSizeOfSlash + consumed)) {
-              output_components.push_front(
-                  std::wstring(1, components.back()[0]));
-              consumed += 1 + kSizeOfSlash;
-            } else {
-              break;
+            if (buffer == active_buffer_.get()) {
+              number_modifiers.insert(LineModifier::BOLD);
+              number_modifiers.insert(LineModifier::REVERSE);
             }
-            components.pop_back();
+            start +=
+                prefix_width_ - ColumnNumberDelta(number_prefix.size() + 2);
+            output.AppendString(
+                NewLazyString(ColumnNumberDelta::PaddingString(
+                    start - ColumnNumber(output.contents->size()), L' ')),
+                number_modifiers);
+            output.AppendString(NewLazyString(number_prefix), number_modifiers);
+
+            std::list<std::wstring> output_components;
+            std::list<std::wstring> components;
+            if (buffer != nullptr &&
+                buffer->Read(buffer_variables::path) == name &&
+                DirectorySplit(name, &components) && !components.empty()) {
+              name.clear();
+              output_components.push_front(components.back());
+              if (ColumnNumberDelta(output_components.front().size()) >
+                  columns_per_buffer_) {
+                output_components.front() = output_components.front().substr(
+                    output_components.front().size() -
+                    columns_per_buffer_.column_delta);
+              } else {
+                size_t consumed = output_components.front().size();
+                components.pop_back();
+
+                static const size_t kSizeOfSlash = 1;
+                while (!components.empty()) {
+                  if (columns_per_buffer_ >
+                      ColumnNumberDelta(components.size() * 2 +
+                                        components.back().size() + consumed)) {
+                    output_components.push_front(components.back());
+                    consumed += components.back().size() + kSizeOfSlash;
+                  } else if (columns_per_buffer_ >
+                             ColumnNumberDelta(1 + kSizeOfSlash + consumed)) {
+                    output_components.push_front(
+                        std::wstring(1, components.back()[0]));
+                    consumed += 1 + kSizeOfSlash;
+                  } else {
+                    break;
+                  }
+                  components.pop_back();
+                }
+              }
+            }
+
+            wstring progress;
+            LineModifierSet progress_modifier;
+            if (!buffer->GetLineMarks()->empty()) {
+              progress = L"!";
+              progress_modifier.insert(LineModifier::RED);
+            } else if (buffer->ShouldDisplayProgress()) {
+              progress =
+                  ProgressString(buffer->Read(buffer_variables::progress),
+                                 OverflowBehavior::kModulo);
+            } else {
+              progress = ProgressStringFillUp(buffer->lines_size().line_delta,
+                                              OverflowBehavior::kModulo);
+              progress_modifier.insert(LineModifier::DIM);
+            }
+            // If we ever make ProgressString return more than a single
+            // character, we'll have to adjust this.
+            CHECK_LE(progress.size(), 1ul);
+
+            output.AppendString(NewLazyString(progress), progress_modifier);
+            if (!name.empty()) {
+              output.AppendString(NewLazyString(name), progress_modifier);
+              continue;
+            }
+
+            auto last = output_components.end();
+            bool first_item = true;
+            --last;
+            for (auto it = output_components.begin();
+                 it != output_components.end(); ++it) {
+              if (!first_item) {
+                output.AppendCharacter(L'/', {LineModifier::DIM});
+              }
+              first_item = false;
+              output.AppendString(NewLazyString(std::move(*it)),
+                                  it == last
+                                      ? LineModifierSet{LineModifier::BOLD}
+                                      : LineModifierSet({}));
+            }
           }
-        }
-      }
-
-      wstring progress;
-      std::optional<LineModifier> progress_modifier;
-      if (!buffer->GetLineMarks()->empty()) {
-        progress = L"!";
-        progress_modifier = LineModifier::RED;
-      } else if (buffer->ShouldDisplayProgress()) {
-        progress = ProgressString(buffer->Read(buffer_variables::progress),
-                                  OverflowBehavior::kModulo);
-      } else {
-        progress = ProgressStringFillUp(buffer->lines_size().line_delta,
-                                        OverflowBehavior::kModulo);
-        progress_modifier = LineModifier::DIM;
-      }
-      // If we ever make ProgressString return more than a single character,
-      // we'll have to adjust this.
-      CHECK_LE(progress.size(), 1ul);
-
-      if (progress_modifier.has_value()) {
-        options.receiver->AddModifier(progress_modifier.value());
-      }
-      options.receiver->AddString(progress);
-      options.receiver->AddModifier(LineModifier::RESET);
-
-      if (!name.empty()) {
-        options.receiver->AddString(name);
-        continue;
-      }
-
-      auto last = output_components.end();
-      --last;
-      for (auto it = output_components.begin(); it != output_components.end();
-           ++it) {
-        if (it != output_components.begin()) {
-          options.receiver->AddModifier(LineModifier::DIM);
-          options.receiver->AddCharacter(L'/');
-          options.receiver->AddModifier(LineModifier::RESET);
-        }
-        if (it == last) {
-          options.receiver->AddModifier(LineModifier::BOLD);
-        }
-        options.receiver->AddString(*it);
-      }
-      options.receiver->AddModifier(LineModifier::RESET);
-    }
+          return LineWithCursor{std::make_shared<Line>(std::move(output)),
+                                std::nullopt};
+        }};
+    index_ += buffers_per_line_;
+    return output;
   }
 
  private:
-  const std::map<wstring, std::shared_ptr<OpenBuffer>>* const buffers_;
+  const std::vector<OpenBuffer*> buffers_;
   const std::shared_ptr<OpenBuffer> active_buffer_;
   const size_t buffers_per_line_;
   const ColumnNumberDelta prefix_width_;
+  const ColumnNumberDelta columns_per_buffer_;
 
   int line_ = 0;
   std::map<wstring, std::shared_ptr<OpenBuffer>>::iterator buffers_iterator_;
@@ -257,10 +260,10 @@ std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer() {
   rows.push_back({std::move(output), lines_ - buffers_list_lines_});
 
   if (buffers_list_lines_ > LineNumberDelta(0)) {
-    rows.push_back(
-        {std::make_unique<BuffersListProducer>(
-             &buffers_, widget_->GetActiveLeaf()->Lock(), buffers_per_line_),
-         buffers_list_lines_});
+    rows.push_back({std::make_unique<BuffersListProducer>(
+                        &buffers_, widget_->GetActiveLeaf()->Lock(),
+                        buffers_per_line_, columns_),
+                    buffers_list_lines_});
   }
 
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows), 0);

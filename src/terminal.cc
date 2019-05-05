@@ -8,17 +8,11 @@
 
 #include "src/buffer_output_producer.h"
 #include "src/buffer_variables.h"
-#include "src/cursors_highlighter.h"
-#include "src/delegating_output_receiver.h"
-#include "src/delegating_output_receiver_with_internal_modifiers.h"
 #include "src/dirname.h"
 #include "src/frame_output_producer.h"
 #include "src/horizontal_split_output_producer.h"
 #include "src/line_marks.h"
-#include "src/output_receiver.h"
-#include "src/output_receiver_optimizer.h"
 #include "src/parse_tree.h"
-#include "src/screen_output_receiver.h"
 #include "src/status_output_producer.h"
 
 namespace afc {
@@ -106,25 +100,13 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
     return;
   }
 
-  screen->Move(LineNumber(0) + screen->lines() - LineNumberDelta(1),
-               ColumnNumber(0));
+  auto line = LineNumber(0) + screen->lines() - LineNumberDelta(1);
+  screen->Move(line, ColumnNumber(0));
 
-  OutputProducer::Options options;
-  options.receiver = std::make_unique<OutputReceiverOptimizer>(
-      NewScreenOutputReceiver(screen));
-
-  std::optional<ColumnNumber> active_cursor_column;
-  options.active_cursor = &active_cursor_column;
-
-  StatusOutputProducer(status, nullptr, editor_state.modifiers())
-      .WriteLine(std::move(options));
-
-  if (active_cursor_column.has_value()) {
-    VLOG(5) << "Received cursor from status: " << active_cursor_column.value();
-    cursor_position_ =
-        LineColumn(LineNumber(0) + screen->lines() - LineNumberDelta(1),
-                   active_cursor_column.value());
-  }
+  WriteLine(screen, line,
+            StatusOutputProducer(status, nullptr, editor_state.modifiers())
+                .Next()
+                .generate());
 };
 
 void Terminal::ShowBuffer(EditorState* editor_state, Screen* screen) {
@@ -139,20 +121,61 @@ void Terminal::ShowBuffer(EditorState* editor_state, Screen* screen) {
   buffer_tree->SetSize(lines_to_show, screen->columns());
   auto output_producer = editor_state->buffer_tree()->CreateOutputProducer();
   for (auto line = LineNumber(0); line.ToDelta() < lines_to_show; ++line) {
-    OutputProducer::Options options;
-    options.receiver = std::make_unique<OutputReceiverOptimizer>(
-        NewScreenOutputReceiver(screen));
+    WriteLine(screen, line, output_producer->Next().generate());
+  }
+}
 
-    std::optional<ColumnNumber> active_cursor_column;
-    options.active_cursor = &active_cursor_column;
+void Terminal::WriteLine(Screen* screen, LineNumber line,
+                         OutputProducer::LineWithCursor line_with_cursor) {
+  CHECK(line_with_cursor.line != nullptr);
+  VLOG(6) << "Writing line of length: " << line_with_cursor.line->size()
+          << " for screen line " << line;
+  ColumnNumber input_column;
+  ColumnNumber output_column;
 
-    output_producer->WriteLine(std::move(options));
+  if (line_with_cursor.cursor.has_value()) {
+    cursor_position_ = std::nullopt;
+  }
 
-    if (active_cursor_column.has_value()) {
-      VLOG(5) << "Received cursor from buffer: "
-              << active_cursor_column.value();
-      cursor_position_ = LineColumn(line, active_cursor_column.value());
+  auto width = screen->columns();
+  while (input_column < ColumnNumber(line_with_cursor.line->size()) &&
+         output_column < ColumnNumber(0) + width) {
+    auto modifiers = line_with_cursor.line->modifiers()[input_column.column];
+    if (line_with_cursor.cursor.has_value() &&
+        input_column == line_with_cursor.cursor.value()) {
+      cursor_position_ = LineColumn(line, output_column);
     }
+
+    auto start = input_column;
+    while (start == input_column ||
+           (input_column < ColumnNumber(line_with_cursor.line->size()) &&
+            output_column < ColumnNumber(0) + width &&
+            (!line_with_cursor.cursor.has_value() ||
+             input_column != line_with_cursor.cursor.value()) &&
+            line_with_cursor.line->modifiers()[input_column.column] ==
+                modifiers)) {
+      output_column += ColumnNumberDelta(
+          wcwidth(line_with_cursor.line->contents()->get(input_column.column)));
+      ++input_column;
+    }
+
+    screen->SetModifier(LineModifier::RESET);
+    for (auto& modifier : modifiers) {
+      screen->SetModifier(modifier);
+    }
+
+    // TODO: Have screen receive the LazyString directly.
+    screen->WriteString(Substring(line_with_cursor.line->contents(), start,
+                                  input_column - start)
+                            ->ToString());
+  }
+
+  if (line_with_cursor.cursor.has_value() && !cursor_position_.has_value()) {
+    cursor_position_ = LineColumn(line, output_column);
+  }
+
+  if (output_column < ColumnNumber(0) + width) {
+    screen->WriteString(L"\n");
   }
 }
 

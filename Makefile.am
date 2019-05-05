@@ -43,16 +43,10 @@ src/command_with_modifiers.cc \
 src/command_with_modifiers.h \
 src/cursors.cc \
 src/cursors.h \
-src/cursors_highlighter.cc \
-src/cursors_highlighter.h \
 src/cursors_transformation.cc \
 src/cursors_transformation.h \
 src/decaying_counter.cc \
 src/decaying_counter.h \
-src/delegating_output_receiver.cc \
-src/delegating_output_receiver.h \
-src/delegating_output_receiver_with_internal_modifiers.cc \
-src/delegating_output_receiver_with_internal_modifiers.h \
 src/delete_mode.cc \
 src/delete_mode.h \
 src/dirname.cc \
@@ -95,10 +89,8 @@ src/navigation_buffer.h \
 src/navigate_command.cc \
 src/open_directory_command.cc \
 src/open_file_command.cc \
+src/output_producer.cc \
 src/output_producer.h \
-src/output_receiver.h \
-src/output_receiver_optimizer.cc \
-src/output_receiver_optimizer.h \
 src/parse_tools.cc \
 src/parse_tools.h \
 src/parse_tree.cc \
@@ -119,8 +111,6 @@ src/run_cpp_file.h \
 src/screen.h \
 src/screen_curses.cc \
 src/screen_curses.h \
-src/screen_output_receiver.cc \
-src/screen_output_receiver.h \
 src/screen_vm.cc \
 src/screen_vm.h \
 src/search_command.cc \

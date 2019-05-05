@@ -76,6 +76,8 @@ std::set<ColumnNumber> LineScrollControl::Reader::GetCurrentCursors() const {
 
 void LineScrollControl::SignalReaderDone() {
   if (++readers_done_ < readers_.size()) {
+    VLOG(8) << "Readers done: " << readers_done_ << " out of "
+            << readers_.size();
     return;
   }
   readers_done_ = 0;

@@ -18,7 +18,7 @@ class BufferOutputProducer : public OutputProducer {
       ColumnNumber initial_column,
       std::shared_ptr<const ParseTree> zoomed_out_tree);
 
-  void WriteLine(Options options) override;
+  Generator Next() override;
 
  private:
   Range GetRange(LineColumn begin);

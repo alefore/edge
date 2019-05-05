@@ -32,38 +32,53 @@ LineNumberOutputProducer::LineNumberOutputProducer(
       buffer_(std::move(buffer)),
       line_scroll_control_reader_(std::move(line_scroll_control_reader)) {}
 
-void LineNumberOutputProducer::WriteLine(Options options) {
+OutputProducer::Generator LineNumberOutputProducer::Next() {
   auto range = line_scroll_control_reader_->GetRange();
   if (range.has_value() && range.value().begin.line > buffer_->EndLine()) {
-    return;  // Happens when the buffer is smaller than the screen.
+    // Happens when the buffer is smaller than the screen.
+    return OutputProducer::Generator::Empty();
   }
 
-  std::wstring number =
-      range.has_value() && (!last_line_.has_value() ||
-                            range.value().begin.line > last_line_.value())
-          ? range.value().begin.line.ToUserString()
-          : L"↪";
+  std::shared_ptr<bool> delete_handler;
   if (range.has_value()) {
-    last_line_ = range.value().begin.line;
+    LOG(INFO) << "XXXX creating deleter.";
+    delete_handler = std::shared_ptr<bool>(
+        new bool(), [reader = line_scroll_control_reader_.get()](bool* value) {
+          LOG(INFO) << "XXXX range done.";
+          delete value;
+          reader->RangeDone();
+        });
   }
-  CHECK_LE(ColumnNumberDelta(number.size() + 1), width_);
-  std::wstring padding = ColumnNumberDelta::PaddingString(
-      width_ - ColumnNumberDelta(number.size() + 1), L' ');
-  if (!range.has_value() ||
-      line_scroll_control_reader_->GetCurrentCursors().empty()) {
-    options.receiver->AddModifier(LineModifier::DIM);
-  } else if (line_scroll_control_reader_->HasActiveCursor() ||
-             buffer_->Read(buffer_variables::multiple_cursors)) {
-    options.receiver->AddModifier(LineModifier::CYAN);
-    options.receiver->AddModifier(LineModifier::BOLD);
-  } else {
-    options.receiver->AddModifier(LineModifier::BLUE);
-  }
-  options.receiver->AddString(padding + number + L':');
 
-  if (range.has_value()) {
-    line_scroll_control_reader_->RangeDone();
-  }
+  return OutputProducer::Generator{
+      std::nullopt, [range, this, delete_handler]() {
+        std::wstring number =
+            range.has_value() && (!last_line_.has_value() ||
+                                  range.value().begin.line > last_line_.value())
+                ? range.value().begin.line.ToUserString()
+                : L"↪";
+        if (range.has_value()) {
+          last_line_ = range.value().begin.line;
+        }
+        CHECK_LE(ColumnNumberDelta(number.size() + 1), width_);
+        std::wstring padding = ColumnNumberDelta::PaddingString(
+            width_ - ColumnNumberDelta(number.size() + 1), L' ');
+        LineModifierSet modifiers;
+        if (!range.has_value() ||
+            line_scroll_control_reader_->GetCurrentCursors().empty()) {
+          modifiers.insert(LineModifier::DIM);
+        } else if (line_scroll_control_reader_->HasActiveCursor() ||
+                   buffer_->Read(buffer_variables::multiple_cursors)) {
+          modifiers.insert(LineModifier::CYAN);
+          modifiers.insert(LineModifier::BOLD);
+        } else {
+          modifiers.insert(LineModifier::BLUE);
+        }
+        Line::Options line_options;
+        line_options.AppendString(padding + number + L':', modifiers);
+        return LineWithCursor{std::make_shared<Line>(std::move(line_options)),
+                              std::nullopt};
+      }};
 }
 
 ColumnNumberDelta LineNumberOutputProducer::width() const { return width_; }
