@@ -173,7 +173,7 @@ if (path == "") {
   buffer.AddBinding("K", "Delete the current line", DeleteCurrentLine);
   buffer.AddBindingToFile("#", buffer.editor_commands_path() + "reflow");
 
-  buffer.set_typos("overriden");
+  buffer.set_typos("overriden optoins");
 
   HandleFileTypes(basename, extension);
 }
