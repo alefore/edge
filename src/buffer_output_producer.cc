@@ -49,54 +49,58 @@ OutputProducer::Generator ParseTreeHighlighter(
 OutputProducer::Generator ParseTreeHighlighterTokens(
     const ParseTree* root, LineColumn initial_position,
     OutputProducer::Generator generator) {
-  return OutputProducer::Generator{
-      std::nullopt, [root, initial_position, generator]() {
-        LineColumn position = initial_position;
-        OutputProducer::LineWithCursor input = generator.generate();
-        Line::Options options(std::move(*input.line));
-        std::vector<const ParseTree*> current = {root};
+  // TODO: Add to the hash from ParseTree.
+  generator.inputs_hash.value() ^= std::hash<LineColumn>{}(initial_position);
+  generator.generate = [root, initial_position,
+                        generator = std::move(generator)]() {
+    LineColumn position = initial_position;
+    OutputProducer::LineWithCursor input = generator.generate();
+    Line::Options options(std::move(*input.line));
+    std::vector<const ParseTree*> current = {root};
 
-        for (size_t i = 0; i < options.modifiers.size(); i++) {
-          if (i == 0 ||
-              (!current.empty() && current.back()->range.end <= position)) {
-            // Go up the tree until we're at a root that includes position.
-            while (!current.empty() && current.back()->range.end <= position) {
-              current.pop_back();
-            }
-
-            if (!current.empty()) {
-              // Go down the tree. At each position, pick the first children
-              // that ends after position (it may also start *after*
-              // position).
-              while (!current.back()->children.empty()) {
-                auto it = current.back()->children.UpperBound(
-                    position,
-                    [](const LineColumn& position, const ParseTree& candidate) {
-                      return position < candidate.range.end;
-                    });
-                if (it == current.back()->children.end()) {
-                  break;
-                }
-                current.push_back(&*it);
-              }
-            }
-          }
-
-          if (options.modifiers[i].empty()) {
-            for (auto& t : current) {
-              if (t->range.Contains(position)) {
-                for (auto& modifier : t->modifiers) {
-                  options.modifiers[i].insert(modifier);
-                }
-              }
-            }
-          }
-
-          ++position.column;
+    for (size_t i = 0; i < options.modifiers.size(); i++) {
+      if (i == 0 ||
+          (!current.empty() && current.back()->range.end <= position)) {
+        // Go up the tree until we're at a root that includes position.
+        while (!current.empty() && current.back()->range.end <= position) {
+          current.pop_back();
         }
-        input.line = std::make_shared<Line>(std::move(options));
-        return input;
-      }};
+
+        if (!current.empty()) {
+          // Go down the tree. At each position, pick the first children
+          // that ends after position (it may also start *after*
+          // position).
+          while (!current.back()->children.empty()) {
+            auto it = current.back()->children.UpperBound(
+                position,
+                [](const LineColumn& position, const ParseTree& candidate) {
+                  return position < candidate.range.end;
+                });
+            if (it == current.back()->children.end()) {
+              break;
+            }
+            current.push_back(&*it);
+          }
+        }
+      }
+
+      if (options.modifiers[i].empty()) {
+        for (auto& t : current) {
+          if (t->range.Contains(position)) {
+            for (auto& modifier : t->modifiers) {
+              options.modifiers[i].insert(modifier);
+            }
+          }
+        }
+      }
+
+      ++position.column;
+    }
+    input.line = std::make_shared<Line>(std::move(options));
+    return input;
+  };
+  return generator;
+  ;
 }
 }  // namespace
 
@@ -120,6 +124,12 @@ BufferOutputProducer::BufferOutputProducer(
   }
 }
 
+template <class T>
+inline void hash_combine(std::size_t& seed, const T& v) {
+  std::hash<T> hasher;
+  seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
 OutputProducer::Generator BufferOutputProducer::Next() {
   auto optional_range = line_scroll_control_reader_->GetRange();
   if (!optional_range.has_value()) {
@@ -137,37 +147,55 @@ OutputProducer::Generator BufferOutputProducer::Next() {
   std::optional<ColumnNumber> active_cursor_column;
   auto line_contents = buffer_->LineAt(line);
 
-  Generator output{
-      std::nullopt, [line_contents, range, this]() {
-        Line::OutputOptions options;
-        options.initial_column = range.begin.column;
-        if (range.begin.line == range.end.line) {
-          CHECK_GE(range.end.column, range.begin.column);
-          CHECK_LE(range.end.column - range.begin.column, columns_shown_);
-          options.width = range.end.column - range.begin.column;
+  Generator output;
+
+  bool atomic_lines = buffer_->Read(buffer_variables::atomic_lines);
+  bool multiple_cursors = buffer_->Read(buffer_variables::multiple_cursors);
+  auto position = buffer_->position();
+  auto cursors = line_scroll_control_reader_->GetCurrentCursors();
+
+  line_scroll_control_reader_->RangeDone();
+
+  output.inputs_hash = std::hash<std::optional<Range>>()(range);
+  if (position.line == line) {
+    hash_combine(output.inputs_hash.value(), position);
+  }
+  hash_combine(output.inputs_hash.value(), atomic_lines);
+  hash_combine(output.inputs_hash.value(), multiple_cursors);
+  hash_combine(output.inputs_hash.value(), columns_shown_);
+  hash_combine(output.inputs_hash.value(), line_contents->GetHash());
+  for (auto& c : cursors) {
+    hash_combine(output.inputs_hash.value(), c);
+  }
+
+  output.generate = [line_contents, range, atomic_lines, multiple_cursors,
+                     columns_shown = columns_shown_, position, cursors]() {
+    Line::OutputOptions options;
+    options.initial_column = range.begin.column;
+    if (range.begin.line == range.end.line) {
+      CHECK_GE(range.end.column, range.begin.column);
+      CHECK_LE(range.end.column - range.begin.column, columns_shown);
+      options.width = range.end.column - range.begin.column;
+    } else {
+      options.width = columns_shown;
+    }
+
+    if (!atomic_lines) {
+      std::set<ColumnNumber> current_cursors;
+      for (auto& c : cursors) {
+        if (LineColumn(range.begin.line, c) == position) {
+          options.active_cursor_column = c;
         } else {
-          options.width = columns_shown_;
+          options.inactive_cursor_columns.insert(c);
         }
+      }
+      options.modifiers_inactive_cursors = {
+          LineModifier::REVERSE,
+          multiple_cursors ? LineModifier::CYAN : LineModifier::BLUE};
+    }
 
-        if (!buffer_->Read(buffer_variables::atomic_lines)) {
-          std::set<ColumnNumber> current_cursors;
-          for (auto& c : line_scroll_control_reader_->GetCurrentCursors()) {
-            if (LineColumn(range.begin.line, c) == buffer_->position()) {
-              options.active_cursor_column = c;
-            } else {
-              options.inactive_cursor_columns.insert(c);
-            }
-          }
-          options.modifiers_inactive_cursors = {
-              LineModifier::REVERSE,
-              buffer_->Read(buffer_variables::multiple_cursors)
-                  ? LineModifier::CYAN
-                  : LineModifier::BLUE};
-        }
-
-        line_scroll_control_reader_->RangeDone();
-        return line_contents->Output(std::move(options));
-      }};
+    return line_contents->Output(std::move(options));
+  };
 
   if (current_tree_ != root_.get() &&
       range.begin.line >= current_tree_->range.begin.line &&

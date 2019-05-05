@@ -38,12 +38,13 @@ class Terminal {
   void ShowStatus(const EditorState& editor_state, Screen* screen);
   void ShowBuffer(EditorState* editor_state, Screen* screen);
   void WriteLine(Screen* screen, LineNumber line,
-                 OutputProducer::LineWithCursor line_with_cursor);
+                 OutputProducer::Generator line_with_cursor);
 
   void AdjustPosition(Screen* screen);
 
   // Position at which the cursor should be placed in the screen, if known.
   std::optional<LineColumn> cursor_position_;
+  std::vector<std::optional<size_t>> hashes_current_lines_;
 };
 
 }  // namespace editor

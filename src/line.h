@@ -57,6 +57,7 @@ class Line {
     std::vector<LineModifierSet> modifiers;
     LineModifierSet end_of_line_modifiers;
     std::shared_ptr<vm::Environment> environment;
+    size_t hash = 0;
 
    private:
     void ValidateInvariants();
@@ -154,6 +155,8 @@ class Line {
   };
   OutputProducer::LineWithCursor Output(const OutputOptions& options) const;
 
+  size_t GetHash() const;
+
  private:
   void ValidateInvariants() const;
   ColumnNumber EndColumnWithLock() const;
@@ -165,6 +168,8 @@ class Line {
   bool modified_ = false;
   bool filtered_ = true;
   size_t filter_version_ = 0;
+
+  mutable std::optional<size_t> hash_;
 };
 
 }  // namespace editor

@@ -41,11 +41,10 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
                        const EditorState::ScreenState& screen_state) {
   if (screen_state.needs_hard_redraw) {
     screen->HardRefresh();
+    hashes_current_lines_.empty();
     editor_state->ScheduleRedraw();
   }
-  if (screen_state.needs_redraw) {
-    ShowBuffer(editor_state, screen);
-  }
+  ShowBuffer(editor_state, screen);
   ShowStatus(*editor_state, screen);
   auto buffer = editor_state->current_buffer();
   if (editor_state->status()->GetType() == Status::Type::kPrompt ||
@@ -103,10 +102,9 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
   auto line = LineNumber(0) + screen->lines() - LineNumberDelta(1);
   screen->Move(line, ColumnNumber(0));
 
-  WriteLine(screen, line,
-            StatusOutputProducer(status, nullptr, editor_state.modifiers())
-                .Next()
-                .generate());
+  WriteLine(
+      screen, line,
+      StatusOutputProducer(status, nullptr, editor_state.modifiers()).Next());
 };
 
 void Terminal::ShowBuffer(EditorState* editor_state, Screen* screen) {
@@ -114,22 +112,37 @@ void Terminal::ShowBuffer(EditorState* editor_state, Screen* screen) {
 
   screen->Move(LineNumber(0), ColumnNumber(0));
 
-  cursor_position_ = std::nullopt;
-
   LineNumberDelta lines_to_show = screen->lines() - status_lines;
   auto buffer_tree = editor_state->buffer_tree();
   buffer_tree->SetSize(lines_to_show, screen->columns());
   auto output_producer = editor_state->buffer_tree()->CreateOutputProducer();
   for (auto line = LineNumber(0); line.ToDelta() < lines_to_show; ++line) {
-    WriteLine(screen, line, output_producer->Next().generate());
+    WriteLine(screen, line, output_producer->Next());
   }
 }
 
 void Terminal::WriteLine(Screen* screen, LineNumber line,
-                         OutputProducer::LineWithCursor line_with_cursor) {
+                         OutputProducer::Generator generator) {
+  if (generator.inputs_hash.has_value()) {
+    VLOG(9) << "Checking line " << line << " with hash "
+            << generator.inputs_hash.value();
+    if (line.line < hashes_current_lines_.size() &&
+        hashes_current_lines_[line.line] == generator.inputs_hash.value()) {
+      VLOG(5) << "Skipping unnecessary render for " << line;
+      return;
+    }
+  }
+  if (hashes_current_lines_.size() <= line.line) {
+    hashes_current_lines_.resize(line.line * 2 + 50);
+  }
+  hashes_current_lines_[line.line] = generator.inputs_hash;
+
+  screen->Move(line, ColumnNumber(0));
+
+  VLOG(8) << "Generating line for screen " << line;
+  auto line_with_cursor = generator.generate();
   CHECK(line_with_cursor.line != nullptr);
-  VLOG(6) << "Writing line of length: " << line_with_cursor.line->size()
-          << " for screen line " << line;
+  VLOG(6) << "Writing line of length: " << line_with_cursor.line->size();
   ColumnNumber input_column;
   ColumnNumber output_column;
 

@@ -198,6 +198,8 @@ std::shared_ptr<vm::Environment> Line::environment() const {
 
 OutputProducer::LineWithCursor Line::Output(
     const OutputOptions& options) const {
+  std::unique_lock<std::mutex> lock(mutex_);
+
   CHECK(environment_ != nullptr);
   VLOG(5) << "Producing output of line: " << ToString();
   Line::Options line_output;
@@ -256,6 +258,28 @@ OutputProducer::LineWithCursor Line::Output(
     line_with_cursor.cursor = output_column;
   }
   return line_with_cursor;
+}
+
+template <class T>
+inline void hash_combine(std::size_t& seed, const T& v) {
+  std::hash<T> hasher;
+  seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
+size_t Line::GetHash() const {
+  std::unique_lock<std::mutex> lock(mutex_);
+  if (hash_.has_value()) return hash_.value();
+  size_t value = 0;
+  for (size_t i = 0; i < options_.modifiers.size(); i++) {
+    for (auto& m : options_.modifiers[i]) {
+      hash_combine(value, static_cast<size_t>(m));
+    }
+  }
+  for (size_t i = 0; i < options_.contents->size(); i++) {
+    hash_combine(value, options_.contents->get(i));
+  }
+  hash_ = value;
+  return value;
 }
 
 void Line::ValidateInvariants() const {

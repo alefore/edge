@@ -285,6 +285,18 @@ struct VMTypeMapper<editor::LineColumn> {
 
 namespace std {
 template <>
+struct hash<afc::editor::ColumnNumberDelta> {
+  std::size_t operator()(const afc::editor::ColumnNumberDelta& delta) const {
+    return std::hash<size_t>()(delta.column_delta);
+  }
+};
+template <>
+struct hash<afc::editor::LineNumberDelta> {
+  std::size_t operator()(const afc::editor::LineNumberDelta& delta) const {
+    return std::hash<size_t>()(delta.line_delta);
+  }
+};
+template <>
 struct hash<afc::editor::ColumnNumber> {
   std::size_t operator()(const afc::editor::ColumnNumber& column) const {
     return std::hash<size_t>()(column.column);
