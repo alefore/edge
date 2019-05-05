@@ -21,10 +21,11 @@ OutputProducer::Generator LineHighlighter(OutputProducer::Generator generator) {
       std::nullopt, [generator]() {
         auto output = generator.generate();
         Line::Options line_options(*output.line);
+        line_options.modifiers.insert({ColumnNumber(0), LineModifierSet()});
         for (auto& m : line_options.modifiers) {
-          auto it = m.insert(LineModifier::REVERSE);
+          auto it = m.second.insert(LineModifier::REVERSE);
           if (!it.second) {
-            m.erase(it.first);
+            m.second.erase(it.first);
           }
         }
         output.line = std::make_shared<Line>(std::move(line_options));
@@ -38,12 +39,39 @@ OutputProducer::Generator ParseTreeHighlighter(
         OutputProducer::LineWithCursor output = generator.generate();
         Line::Options line_options(std::move(*output.line));
         LineModifierSet modifiers = {LineModifier::BLUE};
-        for (auto index = begin; index <= end; ++index) {
-          line_options.modifiers[index.column] = modifiers;
-        }
+        line_options.modifiers.erase(line_options.modifiers.lower_bound(begin),
+                                     line_options.modifiers.lower_bound(end));
+        line_options.modifiers[begin] = {LineModifier::BLUE};
         output.line = std::make_shared<Line>(std::move(line_options));
         return output;
       }};
+}
+
+// Adds to `output` all modifiers for the tree for the current line.
+void GetSyntaxModifiersForLine(
+    LineNumber line, const ParseTree* tree, LineModifierSet syntax_modifiers,
+    std::map<ColumnNumber, LineModifierSet>* output) {
+  CHECK(tree);
+  LOG(INFO) << "Getting syntax for " << line << " from " << tree->range;
+  if (tree->range.end.line == line) {
+    (*output)[tree->range.end.column] = syntax_modifiers;
+  }
+
+  syntax_modifiers.insert(tree->modifiers.begin(), tree->modifiers.end());
+  (*output)[tree->range.begin.line == line ? tree->range.begin.column
+                                           : ColumnNumber(0)] =
+      syntax_modifiers;
+
+  auto it = tree->children.UpperBound(
+      LineColumn(line),
+      [](const LineColumn& position, const ParseTree& candidate) {
+        return position < candidate.range.end;
+      });
+
+  while (it != tree->children.end() && (*it).range.begin.line <= line) {
+    GetSyntaxModifiersForLine(line, &*it, syntax_modifiers, output);
+    ++it;
+  }
 }
 
 OutputProducer::Generator ParseTreeHighlighterTokens(
@@ -53,55 +81,57 @@ OutputProducer::Generator ParseTreeHighlighterTokens(
   generator.inputs_hash.value() ^= std::hash<LineColumn>{}(initial_position);
   generator.generate = [root, initial_position,
                         generator = std::move(generator)]() {
-    LineColumn position = initial_position;
     OutputProducer::LineWithCursor input = generator.generate();
     Line::Options options(std::move(*input.line));
-    std::vector<const ParseTree*> current = {root};
 
-    for (size_t i = 0; i < options.modifiers.size(); i++) {
-      if (i == 0 ||
-          (!current.empty() && current.back()->range.end <= position)) {
-        // Go up the tree until we're at a root that includes position.
-        while (!current.empty() && current.back()->range.end <= position) {
-          current.pop_back();
-        }
+    std::map<ColumnNumber, LineModifierSet> syntax_modifiers;
+    GetSyntaxModifiersForLine(initial_position.line, root, LineModifierSet(),
+                              &syntax_modifiers);
+    LOG(INFO) << "Syntax tokens for " << initial_position << ": "
+              << syntax_modifiers.size();
 
-        if (!current.empty()) {
-          // Go down the tree. At each position, pick the first children
-          // that ends after position (it may also start *after*
-          // position).
-          while (!current.back()->children.empty()) {
-            auto it = current.back()->children.UpperBound(
-                position,
-                [](const LineColumn& position, const ParseTree& candidate) {
-                  return position < candidate.range.end;
-                });
-            if (it == current.back()->children.end()) {
-              break;
-            }
-            current.push_back(&*it);
-          }
+    // Merge them.
+    std::map<ColumnNumber, LineModifierSet> merged_modifiers;
+    auto parent_it = options.modifiers.begin();
+    auto syntax_it = syntax_modifiers.begin();
+    LineModifierSet current_parent_modifiers;
+    LineModifierSet current_syntax_modifiers;
+    while ((syntax_it != syntax_modifiers.end() &&
+            syntax_it->first <= options.EndColumn()) ||
+           parent_it != options.modifiers.end()) {
+      if (syntax_it == syntax_modifiers.end()) {
+        merged_modifiers.insert(*parent_it);
+        ++parent_it;
+        if (parent_it == options.modifiers.end()) {
+          current_parent_modifiers = options.end_of_line_modifiers;
         }
+        continue;
       }
-
-      if (options.modifiers[i].empty()) {
-        for (auto& t : current) {
-          if (t->range.Contains(position)) {
-            for (auto& modifier : t->modifiers) {
-              options.modifiers[i].insert(modifier);
-            }
-          }
+      if (parent_it == options.modifiers.end() ||
+          parent_it->first > syntax_it->first) {
+        current_syntax_modifiers = syntax_it->second;
+        if (current_parent_modifiers.empty()) {
+          merged_modifiers[syntax_it->first] = current_syntax_modifiers;
         }
+        ++syntax_it;
+        continue;
       }
-
-      ++position.column;
+      CHECK(parent_it != options.modifiers.end());
+      CHECK(syntax_it != syntax_modifiers.end());
+      CHECK_LE(parent_it->first, syntax_it->first);
+      current_parent_modifiers = parent_it->second;
+      merged_modifiers[parent_it->first] = current_parent_modifiers.empty()
+                                               ? current_syntax_modifiers
+                                               : current_parent_modifiers;
+      ++parent_it;
     }
+    options.modifiers = std::move(merged_modifiers);
+
     input.line = std::make_shared<Line>(std::move(options));
     return input;
   };
   return generator;
-  ;
-}
+}  // namespace
 }  // namespace
 
 BufferOutputProducer::BufferOutputProducer(

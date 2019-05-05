@@ -32,41 +32,49 @@ void TestBufferInsertModifiers() {
   BufferContents contents;
   Line::Options options;
   options.contents = NewLazyString(L"alejo");
-  options.modifiers.assign(5, {LineModifier::CYAN});
+  options.modifiers[ColumnNumber(0)] = {LineModifier::CYAN};
 
-  contents.push_back(std::make_shared<Line>(options));
-  contents.push_back(std::make_shared<Line>(options));
-  options.modifiers[2].insert(LineModifier::BOLD);
-  contents.push_back(std::make_shared<Line>(options));
+  contents.push_back(std::make_shared<Line>(options));  // LineNumber(1).
+  contents.push_back(std::make_shared<Line>(options));  // LineNumber(2).
+  options.modifiers[ColumnNumber(2)] = {LineModifier::BOLD};
+  contents.push_back(std::make_shared<Line>(options));  // LineNumber(3).
   auto line = std::make_shared<Line>(*contents.at(LineNumber(1)));
   line->SetAllModifiers(LineModifierSet({LineModifier::DIM}));
-  contents.push_back(line);
+  contents.push_back(line);  // LineNumber(4).
 
   for (int i = 0; i < 2; i++) {
     LOG(INFO) << "Start iteration: " << i;
     CHECK_EQ(contents.size(), LineNumberDelta(5));
 
-    CHECK(contents.at(LineNumber(1))->modifiers()[0] ==
-          LineModifierSet({LineModifier::CYAN}));
-    CHECK(contents.at(LineNumber(1))->modifiers()[1] ==
-          LineModifierSet({LineModifier::CYAN}));
-    CHECK(contents.at(LineNumber(1))->modifiers()[2] ==
-          LineModifierSet({LineModifier::CYAN}));
+    {
+      auto modifiers_1 = contents.at(LineNumber(1))->modifiers();
+      CHECK_EQ(modifiers_1.size(), 1ul);
+      CHECK(modifiers_1.find(ColumnNumber(0))->second ==
+            LineModifierSet({LineModifier::CYAN}));
+    }
 
-    CHECK(contents.at(LineNumber(2))->modifiers()[0] ==
-          LineModifierSet({LineModifier::CYAN}));
-    CHECK(contents.at(LineNumber(2))->modifiers()[2] ==
-          LineModifierSet({LineModifier::CYAN}));
+    {
+      auto modifiers_2 = contents.at(LineNumber(2))->modifiers();
+      CHECK_EQ(modifiers_2.size(), 1ul);
+      CHECK(modifiers_2.find(ColumnNumber(0))->second ==
+            LineModifierSet({LineModifier::CYAN}));
+    }
 
-    CHECK(contents.at(LineNumber(3))->modifiers()[0] ==
-          LineModifierSet({LineModifier::CYAN}));
-    CHECK(contents.at(LineNumber(3))->modifiers()[2] ==
-          LineModifierSet({LineModifier::CYAN, LineModifier::BOLD}));
+    {
+      auto modifiers_3 = contents.at(LineNumber(3))->modifiers();
+      CHECK_EQ(modifiers_3.size(), 2ul);
+      CHECK(modifiers_3.find(ColumnNumber(0))->second ==
+            LineModifierSet({LineModifier::CYAN}));
+      CHECK(modifiers_3.find(ColumnNumber(2))->second ==
+            LineModifierSet({LineModifier::BOLD}));
+    }
 
-    CHECK(contents.at(LineNumber(4))->modifiers()[0] ==
-          LineModifierSet({LineModifier::DIM}));
-    CHECK(contents.at(LineNumber(4))->modifiers()[2] ==
-          LineModifierSet({LineModifier::DIM}));
+    {
+      auto modifiers_4 = contents.at(LineNumber(4))->modifiers();
+      CHECK_EQ(modifiers_4.size(), 1ul);
+      CHECK(modifiers_4.find(ColumnNumber(0))->second ==
+            LineModifierSet({LineModifier::DIM}));
+    }
 
     contents.SplitLine(LineColumn(LineNumber(1), ColumnNumber(2)));
     CHECK_EQ(contents.size(), LineNumberDelta(6));
@@ -75,8 +83,20 @@ void TestBufferInsertModifiers() {
 
     contents.SplitLine(LineColumn(LineNumber(4), ColumnNumber(2)));
     CHECK_EQ(contents.size(), LineNumberDelta(6));
+    {
+      auto modifiers_4 = contents.at(LineNumber(4))->modifiers();
+      CHECK_EQ(modifiers_4.size(), 1ul);
+    }
+
     contents.FoldNextLine(LineNumber(4));
     CHECK_EQ(contents.size(), LineNumberDelta(5));
+    {
+      auto modifiers_4 = contents.at(LineNumber(4))->modifiers();
+      for (auto& c : modifiers_4) {
+        LOG(INFO) << "At: " << c.first << " " << *c.second.begin();
+      }
+      CHECK_EQ(modifiers_4.size(), 1ul);
+    }
   }
 }
 

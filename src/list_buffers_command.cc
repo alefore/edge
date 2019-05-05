@@ -145,13 +145,8 @@ void GenerateContents(EditorState* editor_state, OpenBuffer* target) {
       options.contents = NewLazyString(
           (index + LineNumberDelta(1)).ToDelta() == context_lines_var ? L"╰ "
                                                                       : L"│ ");
-      options.modifiers.resize(options.contents->size());
       if (context.first < context.second) {
-        auto line = buffer->LineAt(context.first);
-        options.contents = StringAppend(options.contents, line->contents());
-        for (const auto& m : line->modifiers()) {
-          options.modifiers.push_back(m);
-        }
+        options.Append(*buffer->LineAt(context.first));
         context.first++;
       }
       CHECK_EQ(options.contents->size(), options.modifiers.size());

@@ -1074,17 +1074,8 @@ void OpenBuffer::AppendRawLine(std::shared_ptr<Line> line) {
 }
 
 void OpenBuffer::AppendToLastLine(std::shared_ptr<LazyString> str) {
-  vector<unordered_set<LineModifier, hash<int>>> modifiers(str->size());
-  AppendToLastLine(str, modifiers);
-}
-
-void OpenBuffer::AppendToLastLine(
-    std::shared_ptr<LazyString> str,
-    const vector<unordered_set<LineModifier, hash<int>>>& modifiers) {
-  CHECK_EQ(str->size(), modifiers.size());
   Line::Options options;
-  options.contents = str;
-  options.modifiers = modifiers;
+  options.contents = std::move(str);
   AppendToLastLine(Line(std::move(options)));
 }
 

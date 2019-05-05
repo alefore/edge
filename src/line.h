@@ -41,7 +41,7 @@ class Line {
   struct Options {
     Options() : contents(EmptyString()) {}
     Options(shared_ptr<LazyString> input_contents)
-        : contents(std::move(input_contents)), modifiers(contents->size()) {}
+        : contents(std::move(input_contents)) {}
     Options(Line line);
 
     ColumnNumber EndColumn() const;
@@ -58,7 +58,13 @@ class Line {
     Options& DeleteSuffix(ColumnNumber column);
 
     std::shared_ptr<LazyString> contents;
-    std::vector<LineModifierSet> modifiers;
+
+    // Columns without an entry here reuse the last present value. If no
+    // previous value, assume LineModifierSet(). There's no need to include
+    // RESET: it is assumed implicitly. In other words, modifiers don't carry
+    // over past an entry.
+    std::map<ColumnNumber, LineModifierSet> modifiers;
+
     LineModifierSet end_of_line_modifiers;
     std::shared_ptr<vm::Environment> environment;
     size_t hash = 0;
@@ -108,11 +114,11 @@ class Line {
                     const LineModifierSet& modifiers);
 
   void SetAllModifiers(const LineModifierSet& modifiers);
-  const vector<LineModifierSet> modifiers() const {
+  const std::map<ColumnNumber, LineModifierSet>& modifiers() const {
     std::unique_lock<std::mutex> lock(mutex_);
     return options_.modifiers;
   }
-  vector<LineModifierSet>& modifiers() {
+  std::map<ColumnNumber, LineModifierSet>& modifiers() {
     std::unique_lock<std::mutex> lock(mutex_);
     return options_.modifiers;
   }

@@ -13,6 +13,10 @@ using std::shared_ptr;
 
 // Returns the substring from pos to the end of the string.
 //
+// Equivalent to:
+//
+//     Substring(input, pos, input.size() - pos);
+//
 // TODO: Remove the versions that take `size_t` after migrating to ColumnNumber.
 shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
                                  size_t pos);

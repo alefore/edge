@@ -118,10 +118,14 @@ FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
     size_t line_start = 0;
     for (size_t i = 0; i < buffer_wrapper->size(); i++) {
       if (buffer_wrapper->get(i) == '\n') {
-        auto line = Substring(buffer_wrapper, line_start, i - line_start);
         VLOG(8) << "Adding line from " << line_start << " to " << i;
-        options_.buffer->AppendToLastLine(
-            line, ModifiersVector(options_.modifiers, line->size()));
+
+        Line::Options options;
+        options.contents =
+            Substring(buffer_wrapper, line_start, i - line_start);
+        options.modifiers[ColumnNumber(0)] = options_.modifiers;
+        options_.buffer->AppendToLastLine(Line(std::move(options)));
+
         lines_read_rate_.IncrementAndGetEventsPerSecond(1.0);
         options_.start_new_line();
         line_start = i + 1;
@@ -136,10 +140,11 @@ FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
     if (line_start < buffer_wrapper->size()) {
       VLOG(8) << "Adding last line from " << line_start << " to "
               << buffer_wrapper->size();
-      auto line = Substring(buffer_wrapper, line_start,
-                            buffer_wrapper->size() - line_start);
-      options_.buffer->AppendToLastLine(
-          line, ModifiersVector(options_.modifiers, line->size()));
+
+      Line::Options options;
+      options.contents = Substring(buffer_wrapper, line_start);
+      options.modifiers[ColumnNumber(0)] = options_.modifiers;
+      options_.buffer->AppendToLastLine(Line(std::move(options)));
     }
   }
   if (!previous_modified) {

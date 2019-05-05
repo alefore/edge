@@ -33,7 +33,8 @@ ColumnNumber Line::Options::EndColumn() const {
 
 void Line::Options::AppendCharacter(wchar_t c, LineModifierSet modifier) {
   ValidateInvariants();
-  modifiers.push_back(std::move(modifier));
+  CHECK(modifier.find(LineModifier::RESET) == modifier.end());
+  modifiers[ColumnNumber(contents->size())] = modifier;
   contents = StringAppend(std::move(contents), NewLazyString(wstring(1, c)));
   ValidateInvariants();
 }
@@ -45,8 +46,13 @@ void Line::Options::AppendString(std::shared_ptr<LazyString> suffix) {
 void Line::Options::AppendString(std::shared_ptr<LazyString> suffix,
                                  LineModifierSet suffix_modifiers) {
   ValidateInvariants();
-  modifiers.insert(modifiers.end(), suffix->size(), suffix_modifiers);
-  contents = StringAppend(std::move(contents), std::move(suffix));
+  Line::Options suffix_line;
+  suffix_line.contents = std::move(suffix);
+  if (suffix_line.contents->size() > 0ul) {
+    suffix_line.modifiers[ColumnNumber(0)] = suffix_modifiers;
+  }
+  suffix_line.end_of_line_modifiers = suffix_modifiers;
+  Append(Line(std::move(suffix_line)));
   ValidateInvariants();
 }
 
@@ -57,9 +63,28 @@ void Line::Options::AppendString(std::wstring suffix,
 
 void Line::Options::Append(Line line) {
   ValidateInvariants();
+  if (line.contents()->size() == 0) return;
+  auto original_length = EndColumn().ToDelta();
   contents = StringAppend(std::move(contents), std::move(line.contents()));
-  modifiers.insert(modifiers.end(), line.modifiers().begin(),
-                   line.modifiers().end());
+
+  LineModifierSet current_modifiers;
+  if (!modifiers.empty()) {
+    current_modifiers = modifiers.rbegin()->second;
+  }
+
+  if (!current_modifiers.empty() &&
+      line.modifiers().find(ColumnNumber(0)) == line.modifiers().end()) {
+    modifiers[ColumnNumber(0) + original_length];  // Reset.
+    current_modifiers.clear();
+  }
+
+  for (auto& m : line.modifiers()) {
+    if (m.second != current_modifiers) {
+      current_modifiers = m.second;
+      modifiers[m.first + original_length] = std::move(m.second);
+    }
+  }
+
   end_of_line_modifiers = line.end_of_line_modifiers();
   ValidateInvariants();
 }
@@ -70,11 +95,34 @@ Line::Options& Line::Options::DeleteCharacters(ColumnNumber column,
   CHECK_GE(delta, ColumnNumberDelta(0));
   CHECK_LE(column, EndColumn());
   CHECK_LE(column + delta, EndColumn());
+
   contents = StringAppend(
       afc::editor::Substring(contents, ColumnNumber(0), column.ToDelta()),
       afc::editor::Substring(contents, column + delta));
-  auto it = modifiers.begin() + column.column;
-  modifiers.erase(it, it + delta.column_delta);
+
+  std::map<ColumnNumber, LineModifierSet> new_modifiers;
+  // TODO: We could optimize this to only set it once (rather than for every
+  // modifier before the deleted range).
+  std::optional<LineModifierSet> last_modifiers_before_gap;
+  std::optional<LineModifierSet> modifiers_continuation;
+  for (auto& m : modifiers) {
+    if (m.first < column) {
+      last_modifiers_before_gap = m.second;
+      new_modifiers[m.first] = std::move(m.second);
+    } else if (m.first < column + delta) {
+      modifiers_continuation = std::move(m.second);
+    } else {
+      new_modifiers[m.first - delta] = std::move(m.second);
+    }
+  }
+  if (modifiers_continuation.has_value() &&
+      new_modifiers.find(column) == new_modifiers.end() &&
+      last_modifiers_before_gap != modifiers_continuation &&
+      column + delta < EndColumn()) {
+    new_modifiers[column] = modifiers_continuation.value();
+  }
+  modifiers = std::move(new_modifiers);
+
   ValidateInvariants();
   return *this;
 }
@@ -83,9 +131,7 @@ Line::Options& Line::Options::DeleteSuffix(ColumnNumber column) {
   return DeleteCharacters(column, EndColumn() - column);
 }
 
-void Line::Options::ValidateInvariants() {
-  CHECK_EQ(modifiers.size(), contents->size());
-}
+void Line::Options::ValidateInvariants() { CHECK(contents != nullptr); }
 
 /* static */ std::shared_ptr<Line> Line::New(Options options) {
   return std::make_shared<Line>(std::move(options));
@@ -98,8 +144,7 @@ Line::Line(Options options)
                        ? std::make_shared<Environment>()
                        : std::move(options.environment)),
       options_(std::move(options)) {
-  CHECK(options_.contents != nullptr);
-  CHECK_EQ(options_.contents->size(), options_.modifiers.size());
+  ValidateInvariants();
 }
 
 Line::Line(const Line& line) {
@@ -143,10 +188,13 @@ void Line::InsertCharacterAtPosition(ColumnNumber column) {
                    NewLazyString(L" ")),
       afc::editor::Substring(options_.contents, column));
 
-  options_.modifiers.push_back(unordered_set<LineModifier, hash<int>>());
-  for (size_t i = options_.modifiers.size() - 1; i > column.column; i--) {
-    options_.modifiers[i] = options_.modifiers[i - 1];
+  std::map<ColumnNumber, LineModifierSet> new_modifiers;
+  for (auto& m : options_.modifiers) {
+    new_modifiers[m.first + (m.first < column ? ColumnNumberDelta(0)
+                                              : ColumnNumberDelta(1))] =
+        std::move(m.second);
   }
+  options_.modifiers = std::move(new_modifiers);
 
   ValidateInvariants();
 }
@@ -160,7 +208,7 @@ void Line::SetCharacter(
   hash_ = std::nullopt;
   if (column >= EndColumnWithLock()) {
     options_.contents = StringAppend(std::move(options_.contents), str);
-    options_.modifiers.push_back(modifiers);
+    options_.modifiers[EndColumnWithLock()] = modifiers;
   } else {
     options_.contents = StringAppend(
         StringAppend(afc::editor::Substring(std::move(options_.contents),
@@ -168,10 +216,19 @@ void Line::SetCharacter(
                      str),
         afc::editor::Substring(options_.contents,
                                column + ColumnNumberDelta(1)));
-    if (options_.modifiers.size() <= column.column) {
-      options_.modifiers.resize(column.column + 1);
+
+    LineModifierSet previous_modifiers;
+    if (!options_.modifiers.empty() &&
+        options_.modifiers.begin()->first <= column) {
+      auto it = options_.modifiers.lower_bound(column);
+      previous_modifiers =
+          (it == options_.modifiers.end() ? options_.modifiers.begin() : --it)
+              ->second;
     }
-    options_.modifiers[column.column] = modifiers;
+    if (modifiers != previous_modifiers) {
+      options_.modifiers[column] = modifiers;
+      options_.modifiers[column + ColumnNumberDelta(1)] = previous_modifiers;
+    }
   }
   ValidateInvariants();
 }
@@ -179,24 +236,27 @@ void Line::SetCharacter(
 void Line::SetAllModifiers(const LineModifierSet& modifiers) {
   std::unique_lock<std::mutex> lock(mutex_);
   ValidateInvariants();
-  options_.modifiers.assign(options_.contents->size(), modifiers);
-  options_.end_of_line_modifiers = modifiers;
+  options_.modifiers.clear();
+  options_.modifiers[ColumnNumber(0)] = modifiers;
+  options_.end_of_line_modifiers = std::move(modifiers);
   hash_ = std::nullopt;
   ValidateInvariants();
 }
 
 void Line::Append(const Line& line) {
+  if (line.contents()->size() == 0) return;
   std::unique_lock<std::mutex> lock(mutex_);
   ValidateInvariants();
   line.ValidateInvariants();
   CHECK(this != &line);
   hash_ = std::nullopt;
+  auto original_length = EndColumnWithLock().ToDelta();
   options_.contents = StringAppend(options_.contents, line.options_.contents);
   for (auto& m : line.options_.modifiers) {
-    options_.modifiers.push_back(m);
+    options_.modifiers[m.first + original_length] = m.second;
   }
   options_.end_of_line_modifiers = line.options_.end_of_line_modifiers;
-  CHECK_EQ(options_.contents->size(), options_.modifiers.size());
+  ValidateInvariants();
 }
 
 std::shared_ptr<vm::Environment> Line::environment() const {
@@ -213,20 +273,19 @@ OutputProducer::LineWithCursor Line::Output(
   VLOG(5) << "Producing output of line: " << ToString();
   Line::Options line_output;
   ColumnNumber output_column;
-  OutputProducer::LineWithCursor line_with_cursor;
-  LineModifierSet current_modifiers;
   ColumnNumber input_column = options.initial_column;
+  OutputProducer::LineWithCursor line_with_cursor;
+  auto modifiers_it = options_.modifiers.begin();
   for (; input_column < EndColumnWithLock() &&
          output_column < ColumnNumber(0) + options.width;
        ++input_column) {
     wint_t c = GetWithLock(input_column);
     CHECK(c != '\n');
 
-    // TODO: Optimize.
-    if (input_column.column >= options_.modifiers.size()) {
-      current_modifiers.clear();
-    } else {
-      current_modifiers = options_.modifiers[input_column.column];
+    if (modifiers_it != options_.modifiers.end() &&
+        modifiers_it->first == input_column) {
+      line_output.modifiers[output_column] = modifiers_it->second;
+      ++modifiers_it;
     }
 
     if (options.active_cursor_column.has_value() &&
@@ -234,7 +293,10 @@ OutputProducer::LineWithCursor Line::Output(
       line_with_cursor.cursor = output_column;
     } else if (options.inactive_cursor_columns.find(input_column) !=
                options.inactive_cursor_columns.end()) {
-      current_modifiers = options.modifiers_inactive_cursors;
+      line_output.modifiers[output_column].insert(
+          options.modifiers_inactive_cursors.begin(),
+          options.modifiers_inactive_cursors.end());
+      line_output.modifiers[output_column + ColumnNumberDelta(1)];
     }
 
     switch (c) {
@@ -254,13 +316,17 @@ OutputProducer::LineWithCursor Line::Output(
 
       default:
         VLOG(8) << "Print character: " << c;
-        line_output.AppendCharacter(c, current_modifiers);
+        line_output.contents = StringAppend(std::move(line_output.contents),
+                                            NewLazyString(wstring(1, c)));
         output_column += ColumnNumberDelta(wcwidth(c));
     }
   }
-  line_output.end_of_line_modifiers = input_column == EndColumnWithLock()
-                                          ? options_.end_of_line_modifiers
-                                          : current_modifiers;
+  line_output.end_of_line_modifiers =
+      input_column == EndColumnWithLock()
+          ? options_.end_of_line_modifiers
+          : (line_output.modifiers.empty()
+                 ? LineModifierSet()
+                 : line_output.modifiers.rbegin()->second);
   line_with_cursor.line = std::make_shared<Line>(std::move(line_output));
   if (!line_with_cursor.cursor.has_value() &&
       options.active_cursor_column.has_value()) {
@@ -279,8 +345,9 @@ size_t Line::GetHash() const {
   std::unique_lock<std::mutex> lock(mutex_);
   if (hash_.has_value()) return hash_.value();
   size_t value = 0;
-  for (size_t i = 0; i < options_.modifiers.size(); i++) {
-    for (auto& m : options_.modifiers[i]) {
+  for (auto& modifiers : options_.modifiers) {
+    hash_combine(value, modifiers.first);
+    for (auto& m : modifiers.second) {
       hash_combine(value, static_cast<size_t>(m));
     }
   }
@@ -292,7 +359,11 @@ size_t Line::GetHash() const {
 }
 
 void Line::ValidateInvariants() const {
-  CHECK_EQ(options_.contents->size(), options_.modifiers.size());
+  CHECK(options_.contents != nullptr);
+  for (auto& m : options_.modifiers) {
+    CHECK_LE(m.first, EndColumnWithLock());
+    CHECK(m.second.find(LineModifier::RESET) == m.second.end());
+  }
 }
 
 ColumnNumber Line::EndColumnWithLock() const {

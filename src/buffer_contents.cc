@@ -164,9 +164,9 @@ void BufferContents::AppendToLine(LineNumber position, Line line_to_append) {
   }
   CHECK(!lines_.empty());
   position = min(position, LineNumber() + size() - LineNumberDelta(1));
-  auto line = std::make_shared<Line>(*at(position));
-  line->Append(std::move(line_to_append));
-  set_line(position, line);
+  Line::Options options(*at(position));
+  options.Append(std::move(line_to_append));
+  set_line(position, std::make_shared<Line>(std::move(options)));
   NotifyUpdateListeners(CursorsTracker::Transformation());
 }
 

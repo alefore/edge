@@ -121,6 +121,13 @@ void Terminal::ShowBuffer(EditorState* editor_state, Screen* screen) {
   }
 }
 
+void FlushModifiers(Screen* screen, const LineModifierSet& modifiers) {
+  screen->SetModifier(LineModifier::RESET);
+  for (const auto& m : modifiers) {
+    screen->SetModifier(m);
+  }
+}
+
 void Terminal::WriteLine(Screen* screen, LineNumber line,
                          OutputProducer::Generator generator) {
   if (generator.inputs_hash.has_value()) {
@@ -150,37 +157,47 @@ void Terminal::WriteLine(Screen* screen, LineNumber line,
     cursor_position_ = std::nullopt;
   }
 
+  screen->SetModifier(LineModifier::RESET);
+  auto modifiers_it =
+      line_with_cursor.line->modifiers().lower_bound(input_column);
   auto width = screen->columns();
+
   while (input_column < ColumnNumber(line_with_cursor.line->size()) &&
          output_column < ColumnNumber(0) + width) {
-    auto modifiers = line_with_cursor.line->modifiers()[input_column.column];
     if (line_with_cursor.cursor.has_value() &&
         input_column == line_with_cursor.cursor.value()) {
       cursor_position_ = LineColumn(line, output_column);
     }
 
+    // Each iteration will advance input_column and then print between start and
+    // input_column.
     auto start = input_column;
-    while (start == input_column ||
-           (input_column < ColumnNumber(line_with_cursor.line->size()) &&
+    while ((input_column < ColumnNumber(line_with_cursor.line->size()) &&
             output_column < ColumnNumber(0) + width &&
             (!line_with_cursor.cursor.has_value() ||
-             input_column != line_with_cursor.cursor.value()) &&
-            line_with_cursor.line->modifiers()[input_column.column] ==
-                modifiers)) {
+             input_column != line_with_cursor.cursor.value() ||
+             cursor_position_ == LineColumn(line, output_column)) &&
+            (modifiers_it == line_with_cursor.line->modifiers().end() ||
+             modifiers_it->first > input_column))) {
       output_column += ColumnNumberDelta(
           wcwidth(line_with_cursor.line->contents()->get(input_column.column)));
       ++input_column;
     }
 
-    screen->SetModifier(LineModifier::RESET);
-    for (auto& modifier : modifiers) {
-      screen->SetModifier(modifier);
+    // TODO: Have screen receive the LazyString directly.
+    if (start != input_column) {
+      screen->WriteString(Substring(line_with_cursor.line->contents(), start,
+                                    input_column - start)
+                              ->ToString());
     }
 
-    // TODO: Have screen receive the LazyString directly.
-    screen->WriteString(Substring(line_with_cursor.line->contents(), start,
-                                  input_column - start)
-                            ->ToString());
+    if (modifiers_it != line_with_cursor.line->modifiers().end()) {
+      CHECK_GE(modifiers_it->first, input_column);
+      if (modifiers_it->first == input_column) {
+        FlushModifiers(screen, modifiers_it->second);
+        ++modifiers_it;
+      }
+    }
   }
 
   if (line_with_cursor.cursor.has_value() && !cursor_position_.has_value()) {

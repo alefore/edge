@@ -34,14 +34,14 @@ void AddContents(const OpenBuffer& source, const Line& input,
   auto trim = StringTrimLeft(
       input.contents(), source.Read(buffer_variables::line_prefix_characters));
   CHECK_LE(trim->size(), input.contents()->size());
-  size_t characters_trimmed = input.contents()->size() - trim->size();
-  size_t initial_length = line_options->contents->size();
+  auto characters_trimmed =
+      ColumnNumberDelta(input.contents()->size() - trim->size());
+  auto initial_length = line_options->EndColumn().ToDelta();
   line_options->contents = StringAppend(line_options->contents, trim);
-  line_options->modifiers.resize(line_options->contents->size());
-  for (size_t i = 0; i < input.modifiers().size(); i++) {
-    if (i >= characters_trimmed) {
-      line_options->modifiers[initial_length + i - characters_trimmed] =
-          input.modifiers()[i];
+  for (auto& m : input.modifiers()) {
+    if (m.first >= ColumnNumber(0) + characters_trimmed) {
+      line_options->modifiers[m.first + initial_length - characters_trimmed] =
+          m.second;
     }
   }
 }
@@ -51,7 +51,6 @@ void AppendLine(const std::shared_ptr<OpenBuffer>& source,
                 OpenBuffer* target) {
   Line::Options options;
   options.contents = padding;
-  options.modifiers.resize(padding->size());
   AddContents(*source, *source->LineAt(position.line), &options);
   target->AppendRawLine(std::make_shared<Line>(options));
   AdjustLastLine(target, source, position);
@@ -66,7 +65,6 @@ void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
         depth_left == 0 || child.children.empty()) {
       Line::Options options;
       options.contents = padding;
-      options.modifiers.resize(padding->size());
       AddContents(*source, *source->LineAt(child.range.begin.line), &options);
       if (child.range.begin.line + LineNumberDelta(1) < child.range.end.line) {
         options.contents =
@@ -78,7 +76,6 @@ void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
           child.range.end.line != tree.children[i + 1].range.begin.line) {
         AddContents(*source, *source->LineAt(child.range.end.line), &options);
       }
-      options.modifiers.resize(options.contents->size());
       target->AppendRawLine(std::make_shared<Line>(options));
       AdjustLastLine(target, source, child.range.begin);
       continue;

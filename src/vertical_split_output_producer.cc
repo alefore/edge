@@ -35,11 +35,9 @@ OutputProducer::Generator VerticalSplitOutputProducer::Next() {
         ColumnNumber initial_column;
         LineModifierSet current_modifiers;
         for (size_t i = 0; i < delegates.size(); i++) {
-          // TODO: Consider adding an 'advance N spaces' function?
           options.AppendString(ColumnNumberDelta::PaddingString(
                                    initial_column - options.EndColumn(), L' '),
                                current_modifiers);
-          current_modifiers.clear();
 
           LineWithCursor column_data = delegates[i].generate();
           if (column_data.cursor.has_value() && i == index_active_) {

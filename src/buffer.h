@@ -177,9 +177,6 @@ class OpenBuffer {
   void AppendRawLine(std::shared_ptr<Line> line);
 
   void AppendToLastLine(std::shared_ptr<LazyString> str);
-  // TODO: Get rid of this.
-  void AppendToLastLine(std::shared_ptr<LazyString> str,
-                        const vector<LineModifierSet>& modifiers);
   void AppendToLastLine(Line line);
 
   void DeleteRange(const Range& range);

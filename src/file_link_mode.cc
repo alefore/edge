@@ -96,12 +96,8 @@ void AddLine(EditorState* editor_state, OpenBuffer* target,
   Line::Options line_options;
   line_options.contents =
       shared_ptr<LazyString>(NewLazyString(path + type_it->second.description));
-  line_options.modifiers =
-      std::vector<LineModifierSet>(line_options.contents->size());
   if (!type_it->second.modifiers.empty()) {
-    for (size_t i = 0; i < path.size(); i++) {
-      line_options.modifiers[i] = (type_it->second.modifiers);
-    }
+    line_options.modifiers[ColumnNumber(0)] = (type_it->second.modifiers);
   }
 
   auto line = std::make_shared<Line>(std::move(line_options));
