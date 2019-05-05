@@ -80,16 +80,9 @@ class Line {
   Line(const Line& line);
 
   shared_ptr<LazyString> contents() const;
-  // TODO: Change to return a ColumnNumberDelta.
-  size_t size() const {
-    CHECK(contents() != nullptr);
-    return contents()->size();
-  }
   ColumnNumber EndColumn() const;
-  bool empty() const {
-    CHECK(contents() != nullptr);
-    return size() == 0;
-  }
+  bool empty() const;
+
   wint_t get(size_t column) const {
     CHECK_LT(column, contents()->size());
     return contents()->get(column);

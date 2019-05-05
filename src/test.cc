@@ -17,7 +17,11 @@ using namespace afc::editor;
 
 bool IsEmpty(EditorState* editor_state) {
   return editor_state->current_buffer()->EndLine() == LineNumber(0) &&
-         editor_state->current_buffer()->contents()->back()->size() == 0;
+         editor_state->current_buffer()
+             ->contents()
+             ->back()
+             ->EndColumn()
+             .IsZero();
 }
 
 void Clear(EditorState* editor_state) {

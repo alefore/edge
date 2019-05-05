@@ -164,6 +164,11 @@ ColumnNumber Line::EndColumn() const {
   return EndColumnWithLock();
 }
 
+bool Line::empty() const {
+  CHECK(contents() != nullptr);
+  return EndColumn().IsZero();
+}
+
 wint_t Line::get(ColumnNumber column) const {
   std::unique_lock<std::mutex> lock(mutex_);
   return GetWithLock(column);

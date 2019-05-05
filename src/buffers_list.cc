@@ -57,7 +57,13 @@ class BuffersListProducer : public OutputProducer {
                     start - ColumnNumber(output.contents->size()), L' '),
                 LineModifierSet());
 
-            LineModifierSet number_modifiers = {LineModifier::CYAN};
+            LineModifierSet number_modifiers;
+
+            if (buffer->child_pid() != -1) {
+              number_modifiers.insert(LineModifier::GREEN);
+            } else {
+              number_modifiers.insert(LineModifier::CYAN);
+            }
 
             if (buffer == active_buffer_.get()) {
               number_modifiers.insert(LineModifier::BOLD);

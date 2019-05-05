@@ -1054,7 +1054,8 @@ void OpenBuffer::AppendLine(shared_ptr<LazyString> str) {
     return;
   }
 
-  if (contents_.size() == LineNumberDelta(1) && contents_.back()->size() == 0) {
+  if (contents_.size() == LineNumberDelta(1) &&
+      contents_.back()->EndColumn().IsZero()) {
     if (str->ToString() == L"EDGE PARSER v1.0") {
       reading_from_parser_ = true;
       return;
@@ -1867,7 +1868,7 @@ LineColumn OpenBuffer::Apply(unique_ptr<Transformation> transformation) {
   auto delete_buffer = transformations_past_.back()->delete_buffer;
   CHECK(delete_buffer != nullptr);
   if ((delete_buffer->contents()->size() > LineNumberDelta(1) ||
-       delete_buffer->LineAt(LineNumber(0))->size() > 0) &&
+       delete_buffer->LineAt(LineNumber(0))->EndColumn() > ColumnNumber(0)) &&
       Read(buffer_variables::delete_into_paste_buffer)) {
     auto insert_result = editor()->buffers()->insert(
         make_pair(delete_buffer->Read(buffer_variables::name), delete_buffer));

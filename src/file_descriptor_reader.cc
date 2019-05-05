@@ -14,13 +14,6 @@
 namespace afc {
 namespace editor {
 
-namespace {
-vector<unordered_set<LineModifier, hash<int>>> ModifiersVector(
-    const unordered_set<LineModifier, hash<int>>& input, size_t size) {
-  return vector<unordered_set<LineModifier, hash<int>>>(size, input);
-}
-}  // namespace
-
 FileDescriptorReader::FileDescriptorReader(Options options)
     : options_(std::move(options)), lines_read_rate_(2.0) {
   CHECK(options_.buffer != nullptr);

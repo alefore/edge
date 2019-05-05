@@ -348,6 +348,8 @@ std::wstring ColumnNumber::ToUserString() const {
   return std::to_wstring(column + 1);
 }
 
+bool ColumnNumber::IsZero() const { return *this == ColumnNumber(); }
+
 bool operator==(const ColumnNumber& a, const ColumnNumber& b) {
   return a.column == b.column;
 }

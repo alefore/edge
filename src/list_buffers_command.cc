@@ -132,7 +132,7 @@ void GenerateContents(EditorState* editor_state, OpenBuffer* target) {
       }
     }
     if (target->contents()->size() == LineNumberDelta(1) &&
-        target->contents()->at(LineNumber(0))->size() == 0) {
+        target->contents()->at(LineNumber(0))->EndColumn().IsZero()) {
       target->AppendToLastLine(std::move(name));
     } else {
       target->AppendLine(std::move(name));

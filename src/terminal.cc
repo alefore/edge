@@ -149,7 +149,8 @@ void Terminal::WriteLine(Screen* screen, LineNumber line,
   VLOG(8) << "Generating line for screen " << line;
   auto line_with_cursor = generator.generate();
   CHECK(line_with_cursor.line != nullptr);
-  VLOG(6) << "Writing line of length: " << line_with_cursor.line->size();
+  VLOG(6) << "Writing line of length: "
+          << line_with_cursor.line->EndColumn().ToDelta();
   ColumnNumber input_column;
   ColumnNumber output_column;
 
@@ -162,7 +163,7 @@ void Terminal::WriteLine(Screen* screen, LineNumber line,
       line_with_cursor.line->modifiers().lower_bound(input_column);
   auto width = screen->columns();
 
-  while (input_column < ColumnNumber(line_with_cursor.line->size()) &&
+  while (input_column < line_with_cursor.line->EndColumn() &&
          output_column < ColumnNumber(0) + width) {
     if (line_with_cursor.cursor.has_value() &&
         input_column == line_with_cursor.cursor.value()) {
@@ -172,7 +173,7 @@ void Terminal::WriteLine(Screen* screen, LineNumber line,
     // Each iteration will advance input_column and then print between start and
     // input_column.
     auto start = input_column;
-    while ((input_column < ColumnNumber(line_with_cursor.line->size()) &&
+    while ((input_column < line_with_cursor.line->EndColumn() &&
             output_column < ColumnNumber(0) + width &&
             (!line_with_cursor.cursor.has_value() ||
              input_column != line_with_cursor.cursor.value() ||

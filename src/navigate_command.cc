@@ -107,7 +107,7 @@ class NavigateModeChar : public NavigateMode {
   size_t InitialStart(OpenBuffer*) override { return 0; }
 
   size_t InitialEnd(OpenBuffer* buffer) override {
-    return buffer->current_line()->size();
+    return buffer->current_line()->EndColumn().column;
   }
 
   void SetTarget(OpenBuffer* buffer, size_t target) override {
@@ -143,7 +143,7 @@ class NavigateModeSymbol : public NavigateMode {
         buffer->Read(buffer_variables::symbol_characters),
         buffer->position().column.column);
     if (next_space == wstring::npos) {
-      return buffer->current_line()->size();
+      return buffer->current_line()->EndColumn().column;
     }
     return next_space;
   }

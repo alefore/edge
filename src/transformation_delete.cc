@@ -62,7 +62,8 @@ class DeleteCharactersTransformation : public Transformation {
           result->cursor.line, &chars_erased);
     } else {
       line_end = result->cursor.line;
-      chars_erased = buffer->LineAt(result->cursor.line)->size() + 1;
+      chars_erased =
+          buffer->LineAt(result->cursor.line)->EndColumn().column + 1;
     }
     LOG(INFO) << "Erasing from line " << result->cursor.line << " to line "
               << line_end << " would erase " << chars_erased << " characters.";
@@ -71,32 +72,37 @@ class DeleteCharactersTransformation : public Transformation {
     // The amount of characters that should be erased from the current line. If
     // the line is the current line, this already includes characters in the
     // prefix.
-    size_t chars_erase_line =
-        buffer->LineAt(line_end)->size() + 1 -
-        min(buffer->LineAt(line_end)->size(),
+    ColumnNumber chars_erase_line =
+        buffer->LineAt(line_end)->EndColumn() + ColumnNumberDelta(1) -
+        min(buffer->LineAt(line_end)->EndColumn().ToDelta(),
             (options_.modifiers.repetitions < chars_erased
-                 ? chars_erased - options_.modifiers.repetitions
-                 : 0));
-    if (chars_erase_line > buffer->LineAt(line_end)->size()) {
+                 ? ColumnNumberDelta(chars_erased -
+                                     options_.modifiers.repetitions)
+                 : ColumnNumberDelta()));
+    if (chars_erase_line > buffer->LineAt(line_end)->EndColumn()) {
       LOG(INFO) << "Adjusting for end of buffer.";
-      CHECK_EQ(chars_erase_line, buffer->LineAt(line_end)->size() + 1);
-      chars_erase_line = 0;
+      CHECK_EQ(chars_erase_line,
+               buffer->LineAt(line_end)->EndColumn() + ColumnNumberDelta(1));
+      chars_erase_line = ColumnNumber(0);
       if (line_end >= buffer->EndLine() ||
           options_.line_end_behavior == DeleteOptions::LineEndBehavior::kStop) {
-        chars_erase_line = buffer->LineAt(line_end)->size();
+        chars_erase_line = buffer->LineAt(line_end)->EndColumn();
       } else {
         ++line_end;
       }
     }
     LOG(INFO) << "Characters to erase from current line: " << chars_erase_line
               << ", options: " << options_ << ", chars_erased: " << chars_erased
-              << ", actual length: " << buffer->LineAt(line_end)->size();
+              << ", actual length: "
+              << buffer->LineAt(line_end)->EndColumn().ToDelta();
 
     result->success = chars_erased >= options_.modifiers.repetitions;
-    result->made_progress = chars_erased + chars_erase_line > 0;
+    result->made_progress =
+        chars_erase_line.ToDelta() + ColumnNumberDelta(chars_erased) >
+        ColumnNumberDelta(0);
 
     shared_ptr<OpenBuffer> delete_buffer = GetDeletedTextBuffer(
-        buffer, result->cursor, line_end, ColumnNumber(chars_erase_line));
+        buffer, result->cursor, line_end, chars_erase_line);
     if (options_.copy_to_paste_buffer &&
         result->mode == Transformation::Result::Mode::kFinal) {
       VLOG(5) << "Preparing delete buffer.";
@@ -197,7 +203,8 @@ class DeleteCharactersTransformation : public Transformation {
       CHECK_LE(line, buffer->contents()->EndLine());
       LOG(INFO) << "Iteration at line " << line << " having already erased "
                 << *chars_erased << " characters.";
-      size_t chars_in_line = buffer->LineAt(line)->size() + newlines;
+      size_t chars_in_line =
+          buffer->LineAt(line)->EndColumn().column + newlines;
       LOG(INFO) << "Characters available in line: " << chars_in_line;
       *chars_erased += chars_in_line;
       if (*chars_erased >= chars_to_erase) {
@@ -249,7 +256,7 @@ class DeleteLinesTransformation : public Transformation {
       ColumnNumber start = backwards ? ColumnNumber(0) : result->cursor.column;
       ColumnNumber end =
           forwards ? contents->EndColumn() : result->cursor.column;
-      if (start == ColumnNumber(0) && end == contents->EndColumn() &&
+      if (start.IsZero() && end == contents->EndColumn() &&
           options_.modifiers.delete_type == Modifiers::DELETE_CONTENTS &&
           result->mode == Transformation::Result::Mode::kFinal) {
         auto target_buffer = buffer->GetBufferFromCurrentLine();

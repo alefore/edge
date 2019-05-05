@@ -253,11 +253,22 @@ wstring BufferMetadataOutputProducer::GetDefaultInformation(LineNumber line) {
   return output;
 }
 
+template <class T>
+inline void hash_combine(std::size_t& seed, const T& v) {
+  std::hash<T> hasher;
+  seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
 void BufferMetadataOutputProducer::PushGenerator(wchar_t info_char,
                                                  LineModifier modifier,
                                                  wstring str) {
+  size_t hash = 0;
+  hash_combine(hash, info_char);
+  hash_combine(hash, static_cast<int>(modifier));
+  hash_combine(hash, str);
+
   range_data_.push_back(Generator{
-      std::nullopt, [info_char, modifier, str]() {
+      hash, [info_char, modifier, str]() {
         Line::Options options;
         options.AppendCharacter(info_char, {modifier});
         options.AppendString(NewLazyString(str));

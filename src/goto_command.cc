@@ -65,19 +65,19 @@ class GotoCharTransformation : public Transformation {
       return;
     }
     size_t start = 0;
-    while (start < line->size() &&
+    while (start < line->EndColumn().column &&
            (line_prefix_characters.find(line->get(start)) != string::npos)) {
       start++;
     }
-    size_t end = line->size();
+    size_t end = line->EndColumn().column;
     while (start + 1 < end &&
            (line_prefix_characters.find(line->get(end - 1)) != string::npos)) {
       end--;
     }
     auto editor = buffer->editor();
     ColumnNumber column = ColumnNumber(ComputePosition(
-        start, end, line->size(), editor->direction(), editor->repetitions(),
-        editor->structure_range(), calls_));
+        start, end, line->EndColumn().column, editor->direction(),
+        editor->repetitions(), editor->structure_range(), calls_));
     CHECK_LE(column, line->EndColumn());
     result->made_progress = result->cursor.column != column;
     result->cursor.column = column;

@@ -41,7 +41,7 @@ shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
 shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
                                  ColumnNumber column, ColumnNumberDelta delta) {
   CHECK(input != nullptr);
-  if (column == ColumnNumber(0) && delta == ColumnNumberDelta(input->size())) {
+  if (column.IsZero() && delta == ColumnNumberDelta(input->size())) {
     return input;  // Optimization.
   }
   CHECK_LE(column, ColumnNumber(input->size()));

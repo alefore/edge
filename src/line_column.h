@@ -134,6 +134,8 @@ struct ColumnNumber {
   // L"6").
   std::wstring ToUserString() const;
 
+  bool IsZero() const;
+
   size_t column = 0;
 };
 

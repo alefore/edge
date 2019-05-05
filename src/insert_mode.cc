@@ -268,7 +268,7 @@ void FindCompletion(EditorState* editor_state,
   AutocompleteMode::Options options;
 
   options.column_end = buffer->position().column;
-  if (options.column_end == ColumnNumber(0)) {
+  if (options.column_end.IsZero()) {
     LOG(INFO) << "No completion at very beginning of line.";
     return;
   }

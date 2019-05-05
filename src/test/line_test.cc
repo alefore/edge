@@ -49,7 +49,7 @@ void TestLineDeleteCharacters() {
   }
 
   // Original isn't modified.
-  CHECK_EQ(line.size(), 5ul);
+  CHECK_EQ(line.EndColumn(), ColumnNumber(5));
   CHECK_EQ(line.modifiers().size(), 5ul);
   CheckSingleton(line.modifiers()[ColumnNumber(0)], LineModifier::RED);
   CheckSingleton(line.modifiers()[ColumnNumber(1)], LineModifier::GREEN);

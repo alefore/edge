@@ -68,8 +68,9 @@ void HandleEndOfFile(OpenBuffer* buffer,
           return true;
         }
         VLOG(5) << "Considering prediction: " << line.ToString()
-                << " (len: " << line.size() << ")";
-        size_t current_size = min(common_prefix.size(), line.size());
+                << " (end column: " << line.EndColumn() << ")";
+        size_t current_size =
+            min(common_prefix.size(), line.EndColumn().column);
         wstring current =
             line.Substring(ColumnNumber(0), ColumnNumberDelta(current_size))
                 ->ToString();

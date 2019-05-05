@@ -220,8 +220,7 @@ void AdjustCursorsSet(const CursorsTracker::Transformation& transformation,
 bool IsNoop(const CursorsTracker::Transformation& t) {
   return t.line_delta == LineNumberDelta(0) &&
          t.column_delta == ColumnNumberDelta(0) &&
-         t.line_lower_bound == LineNumber(0) &&
-         t.column_lower_bound == ColumnNumber(0);
+         t.line_lower_bound == LineNumber(0) && t.column_lower_bound.IsZero();
 }
 
 void CursorsTracker::AdjustCursors(Transformation transformation) {
@@ -262,13 +261,13 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
   // Into:
   // [[A:0], [min(B, D):MAX]), line: C, line_ge: 0, column: 0, column_ge: 0
   if (last.transformation.range == transformation.range &&
-      last.transformation.range.begin.column == ColumnNumber(0) &&
+      last.transformation.range.begin.column.IsZero() &&
       last.transformation.range.end.column ==
           std::numeric_limits<ColumnNumber>::max() &&
       last.transformation.line_delta + transformation.line_delta ==
           LineNumberDelta(0) &&
       last.transformation.line_lower_bound == LineNumber(0) &&
-      last.transformation.column_lower_bound == ColumnNumber(0) &&
+      last.transformation.column_lower_bound.IsZero() &&
       last.transformation.column_delta == ColumnNumberDelta(0) &&
       transformation.column_delta == ColumnNumberDelta(0)) {
     VLOG(4) << "Collapsing transformations: " << last.transformation << " and "
@@ -293,9 +292,9 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
       last.transformation.column_delta < ColumnNumberDelta(0) &&
       transformation.column_delta >= -last.transformation.column_delta &&
       last.transformation.line_lower_bound == LineNumber(0) &&
-      last.transformation.column_lower_bound == ColumnNumber(0) &&
+      last.transformation.column_lower_bound.IsZero() &&
       transformation.line_lower_bound == LineNumber(0) &&
-      transformation.column_lower_bound == ColumnNumber(0)) {
+      transformation.column_lower_bound.IsZero()) {
     VLOG(4) << "Collapsing transformations: " << last.transformation << " and "
             << transformation;
     last.transformation.line_delta = LineNumberDelta(0);
@@ -315,9 +314,9 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
   // [range: [[0:0], [4:0]), line: 0, line_ge: 0, column: A, column_ge: 0.
   if (last.transformation.range.begin.line + last.transformation.line_delta ==
           transformation.range.begin.line &&
-      last.transformation.range.begin.column == ColumnNumber(0) &&
+      last.transformation.range.begin.column.IsZero() &&
       transformation.range.end < LineColumn::Max() &&
-      transformation.range.begin.column == ColumnNumber(0) &&
+      transformation.range.begin.column.IsZero() &&
       last.transformation.range.end == LineColumn::Max() &&
       last.transformation.line_delta > LineNumberDelta(0) &&
       transformation.line_delta == -last.transformation.line_delta) {
@@ -336,11 +335,11 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
   }
 
   if (last.transformation.column_delta == ColumnNumberDelta(0) &&
-      last.transformation.column_lower_bound == ColumnNumber(0) &&
-      last.transformation.range.begin.column == ColumnNumber(0) &&
+      last.transformation.column_lower_bound.IsZero() &&
+      last.transformation.range.begin.column.IsZero() &&
       transformation.column_delta == ColumnNumberDelta(0) &&
-      transformation.column_lower_bound == ColumnNumber(0) &&
-      transformation.range.begin.column == ColumnNumber(0)) {
+      transformation.column_lower_bound.IsZero() &&
+      transformation.range.begin.column.IsZero()) {
     if (last.transformation.line_delta > LineNumberDelta(0) &&
         last.transformation.range.begin.line + last.transformation.line_delta ==
             transformation.range.begin.line &&
@@ -372,7 +371,7 @@ void CursorsTracker::AdjustCursors(Transformation transformation) {
   }
 
   if (transformation.range.end == last.transformation.range.begin &&
-      transformation.range.end.column == ColumnNumber(0) &&
+      transformation.range.end.column.IsZero() &&
       transformation.line_delta == LineNumberDelta(0) &&
       last.transformation.line_delta >= LineNumberDelta(0)) {
     VLOG(4) << "Collapsing transformations: " << last.transformation << " and "

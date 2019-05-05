@@ -87,7 +87,7 @@ void BufferContents::ForEach(
 size_t BufferContents::CountCharacters() const {
   size_t output = 0;
   ForEach([&output](const Line& line) {
-    output += line.size() + 1;  // \n.
+    output += line.EndColumn().ToDelta().column_delta + 1;  // \n.
   });
   if (output > 0) {
     output--;  // Last line has no \n.
