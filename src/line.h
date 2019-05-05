@@ -67,10 +67,7 @@ class Line {
   explicit Line(wstring text);
   Line(const Line& line);
 
-  shared_ptr<LazyString> contents() const {
-    std::unique_lock<std::mutex> lock(mutex_);
-    return contents_;
-  }
+  shared_ptr<LazyString> contents() const;
   // TODO: Change to return a ColumnNumberDelta.
   size_t size() const {
     CHECK(contents() != nullptr);
@@ -158,13 +155,12 @@ class Line {
   OutputProducer::LineWithCursor Output(const OutputOptions& options) const;
 
  private:
+  void ValidateInvariants() const;
   ColumnNumber EndColumnWithLock() const;
   wint_t GetWithLock(ColumnNumber column) const;
 
   mutable std::mutex mutex_;
   std::shared_ptr<vm::Environment> environment_;
-  // TODO: Remove contents_ and modifiers_ and just use options_ instead.
-  shared_ptr<LazyString> contents_;
   Options options_;
   bool modified_ = false;
   bool filtered_ = true;

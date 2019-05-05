@@ -74,17 +74,20 @@ Line::Line(const Options& options)
     : environment_(options.environment == nullptr
                        ? std::make_shared<Environment>()
                        : options.environment),
-      contents_(options.contents),
       options_(std::move(options)) {
-  CHECK(contents_ != nullptr);
-  CHECK_EQ(contents_->size(), options_.modifiers.size());
+  CHECK(options_.contents != nullptr);
+  CHECK_EQ(options_.contents->size(), options_.modifiers.size());
 }
 
 Line::Line(const Line& line) {
   std::unique_lock<std::mutex> lock(line.mutex_);
   environment_ = line.environment_;
-  contents_ = line.contents_;
   options_ = line.options_;
+}
+
+std::shared_ptr<LazyString> Line::contents() const {
+  std::unique_lock<std::mutex> lock(mutex_);
+  return options_.contents;
 }
 
 ColumnNumber Line::EndColumn() const {
@@ -110,13 +113,14 @@ void Line::DeleteCharacters(ColumnNumber column, ColumnNumberDelta delta) {
   std::unique_lock<std::mutex> lock(mutex_);
   CHECK_LE(column, EndColumnWithLock());
   CHECK_LE(column + delta, EndColumnWithLock());
-  CHECK_EQ(contents_->size(), options_.modifiers.size());
-  contents_ = StringAppend(
-      afc::editor::Substring(contents_, ColumnNumber(0), column.ToDelta()),
-      afc::editor::Substring(contents_, column + delta));
+  CHECK_EQ(options_.contents->size(), options_.modifiers.size());
+  options_.contents =
+      StringAppend(afc::editor::Substring(options_.contents, ColumnNumber(0),
+                                          column.ToDelta()),
+                   afc::editor::Substring(options_.contents, column + delta));
   auto it = options_.modifiers.begin() + column.column;
   options_.modifiers.erase(it, it + delta.column_delta);
-  CHECK_EQ(contents_->size(), options_.modifiers.size());
+  CHECK_EQ(options_.contents->size(), options_.modifiers.size());
 }
 
 void Line::DeleteCharacters(ColumnNumber column) {
@@ -126,61 +130,64 @@ void Line::DeleteCharacters(ColumnNumber column) {
 
 void Line::InsertCharacterAtPosition(ColumnNumber column) {
   std::unique_lock<std::mutex> lock(mutex_);
-  CHECK_EQ(contents_->size(), options_.modifiers.size());
-  contents_ = StringAppend(
-      StringAppend(
-          afc::editor::Substring(contents_, ColumnNumber(0), column.ToDelta()),
-          NewLazyString(L" ")),
-      afc::editor::Substring(contents_, column));
+  ValidateInvariants();
+  options_.contents = StringAppend(
+      StringAppend(afc::editor::Substring(options_.contents, ColumnNumber(0),
+                                          column.ToDelta()),
+                   NewLazyString(L" ")),
+      afc::editor::Substring(options_.contents, column));
 
   options_.modifiers.push_back(unordered_set<LineModifier, hash<int>>());
   for (size_t i = options_.modifiers.size() - 1; i > column.column; i--) {
     options_.modifiers[i] = options_.modifiers[i - 1];
   }
+
+  ValidateInvariants();
 }
 
 void Line::SetCharacter(
     ColumnNumber column, int c,
     const unordered_set<LineModifier, hash<int>>& modifiers) {
   std::unique_lock<std::mutex> lock(mutex_);
-  CHECK_EQ(contents_->size(), options_.modifiers.size());
+  ValidateInvariants();
   shared_ptr<LazyString> str = NewLazyString(wstring(1, c));
   if (column >= EndColumnWithLock()) {
-    contents_ = StringAppend(contents_, str);
+    options_.contents = StringAppend(std::move(options_.contents), str);
     options_.modifiers.push_back(modifiers);
   } else {
-    contents_ = StringAppend(
-        StringAppend(afc::editor::Substring(contents_, ColumnNumber(0),
-                                            column.ToDelta()),
+    options_.contents = StringAppend(
+        StringAppend(afc::editor::Substring(std::move(options_.contents),
+                                            ColumnNumber(0), column.ToDelta()),
                      str),
-        afc::editor::Substring(contents_, column + ColumnNumberDelta(1)));
+        afc::editor::Substring(options_.contents,
+                               column + ColumnNumberDelta(1)));
     if (options_.modifiers.size() <= column.column) {
       options_.modifiers.resize(column.column + 1);
     }
     options_.modifiers[column.column] = modifiers;
   }
-  CHECK_EQ(contents_->size(), options_.modifiers.size());
+  ValidateInvariants();
 }
 
 void Line::SetAllModifiers(const LineModifierSet& modifiers) {
   std::unique_lock<std::mutex> lock(mutex_);
-  CHECK_EQ(contents_->size(), options_.modifiers.size());
-  options_.modifiers.assign(contents_->size(), modifiers);
+  ValidateInvariants();
+  options_.modifiers.assign(options_.contents->size(), modifiers);
   options_.end_of_line_modifiers = modifiers;
-  CHECK_EQ(contents_->size(), options_.modifiers.size());
+  ValidateInvariants();
 }
 
 void Line::Append(const Line& line) {
   std::unique_lock<std::mutex> lock(mutex_);
-  CHECK_EQ(contents_->size(), options_.modifiers.size());
-  CHECK_EQ(line.contents_->size(), line.options_.modifiers.size());
+  ValidateInvariants();
+  CHECK_EQ(line.options_.contents->size(), line.options_.modifiers.size());
   CHECK(this != &line);
-  contents_ = StringAppend(contents_, line.contents_);
+  options_.contents = StringAppend(options_.contents, line.options_.contents);
   for (auto& m : line.options_.modifiers) {
     options_.modifiers.push_back(m);
   }
   options_.end_of_line_modifiers = line.options_.end_of_line_modifiers;
-  CHECK_EQ(contents_->size(), options_.modifiers.size());
+  CHECK_EQ(options_.contents->size(), options_.modifiers.size());
 }
 
 std::shared_ptr<vm::Environment> Line::environment() const {
@@ -251,13 +258,17 @@ OutputProducer::LineWithCursor Line::Output(
   return line_with_cursor;
 }
 
+void Line::ValidateInvariants() const {
+  CHECK_EQ(options_.contents->size(), options_.modifiers.size());
+}
+
 ColumnNumber Line::EndColumnWithLock() const {
-  return ColumnNumber(contents_->size());
+  return ColumnNumber(options_.contents->size());
 }
 
 wint_t Line::GetWithLock(ColumnNumber column) const {
   CHECK_LT(column, EndColumnWithLock());
-  return contents_->get(column.column);
+  return options_.contents->get(column.column);
 }
 
 }  // namespace editor
