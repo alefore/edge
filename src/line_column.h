@@ -283,4 +283,33 @@ struct VMTypeMapper<editor::LineColumn> {
 }  // namespace vm
 }  // namespace afc
 
+namespace std {
+template <>
+struct hash<afc::editor::ColumnNumber> {
+  std::size_t operator()(const afc::editor::ColumnNumber& column) const {
+    return std::hash<size_t>()(column.column);
+  }
+};
+template <>
+struct hash<afc::editor::LineNumber> {
+  std::size_t operator()(const afc::editor::LineNumber& line) const {
+    return std::hash<size_t>()(line.line);
+  }
+};
+template <>
+struct hash<afc::editor::LineColumn> {
+  std::size_t operator()(const afc::editor::LineColumn& line_column) const {
+    return std::hash<afc::editor::LineNumber>()(line_column.line) ^
+           std::hash<afc::editor::ColumnNumber>()(line_column.column);
+  }
+};
+template <>
+struct hash<afc::editor::Range> {
+  std::size_t operator()(const afc::editor::Range& range) const {
+    return std::hash<afc::editor::LineColumn>{}(range.begin) ^
+           std::hash<afc::editor::LineColumn>{}(range.end);
+  }
+};
+}  // namespace std
+
 #endif
