@@ -9,6 +9,7 @@
 #include "src/char_buffer.h"
 #include "src/dirname.h"
 #include "src/horizontal_split_output_producer.h"
+#include "src/time.h"
 #include "src/widget.h"
 
 namespace afc {
@@ -60,7 +61,20 @@ class BuffersListProducer : public OutputProducer {
             LineModifierSet number_modifiers;
 
             if (buffer->child_pid() != -1) {
-              number_modifiers.insert(LineModifier::GREEN);
+              number_modifiers.insert(LineModifier::YELLOW);
+            } else if (buffer->child_exit_status().has_value()) {
+              auto status = buffer->child_exit_status().value();
+              if (!WIFEXITED(status)) {
+                number_modifiers.insert(LineModifier::RED);
+                number_modifiers.insert(LineModifier::BOLD);
+              } else if (WEXITSTATUS(status) == 0) {
+                number_modifiers.insert(LineModifier::GREEN);
+              } else {
+                number_modifiers.insert(LineModifier::RED);
+              }
+              if (GetElapsedSecondsSince(buffer->time_last_exit()) < 5.0) {
+                number_modifiers.insert({LineModifier::REVERSE});
+              }
             } else {
               number_modifiers.insert(LineModifier::CYAN);
             }

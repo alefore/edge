@@ -490,10 +490,6 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
 
 OpenBuffer::OpenBuffer(Options options)
     : options_(std::move(options)),
-      child_pid_(-1),
-      child_exit_status_(0),
-      modified_(false),
-      reading_from_parser_(false),
       bool_variables_(buffer_variables::BoolStruct()->NewInstance()),
       string_variables_(buffer_variables::StringStruct()->NewInstance()),
       int_variables_(buffer_variables::IntStruct()->NewInstance()),
@@ -771,11 +767,15 @@ void OpenBuffer::EndOfFile() {
   CHECK(fd_ == nullptr);
   CHECK(fd_error_ == nullptr);
   if (child_pid_ != -1) {
-    if (waitpid(child_pid_, &child_exit_status_, 0) == -1) {
+    int exit_status;
+    if (waitpid(child_pid_, &exit_status, 0) == -1) {
       status_.SetWarningText(L"waitpid failed: " +
                              FromByteString(strerror(errno)));
       return;
     }
+    child_exit_status_ = exit_status;
+    clock_gettime(0, &time_last_exit_);
+
     child_pid_ = -1;
     if (on_exit_handler_) {
       on_exit_handler_();
@@ -801,7 +801,8 @@ void OpenBuffer::EndOfFile() {
     Reload();
   }
   if (Read(buffer_variables::close_after_clean_exit) &&
-      WIFEXITED(child_exit_status_) && WEXITSTATUS(child_exit_status_) == 0) {
+      child_exit_status_.has_value() && WIFEXITED(child_exit_status_.value()) &&
+      WEXITSTATUS(child_exit_status_.value()) == 0) {
     editor()->CloseBuffer(this);
   }
 
@@ -1541,6 +1542,10 @@ std::shared_ptr<OpenBuffer> OpenBuffer::GetBufferFromCurrentLine() {
 
 wstring OpenBuffer::ToString() const { return contents_.ToString(); }
 
+const struct timespec OpenBuffer::time_last_exit() const {
+  return time_last_exit_;
+}
+
 void OpenBuffer::PushSignal(int sig) {
   switch (sig) {
     case SIGINT:
@@ -1684,8 +1689,10 @@ bool OpenBuffer::dirty() const {
                         !contents()->EveryLine([](LineNumber, const Line& l) {
                           return l.empty();
                         }))) ||
-         child_pid_ != -1 || !WIFEXITED(child_exit_status_) ||
-         WEXITSTATUS(child_exit_status_) != 0;
+         child_pid_ != -1 ||
+         (child_exit_status_.has_value() &&
+          (!WIFEXITED(child_exit_status_.value()) ||
+           WEXITSTATUS(child_exit_status_.value()) != 0));
 }
 
 std::map<wstring, wstring> OpenBuffer::Flags() const {
@@ -1734,14 +1741,17 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
 
   if (child_pid_ != -1) {
     output.insert({L"🤴", std::to_wstring(child_pid_)});
-  } else if (child_exit_status_ == 0) {
+  } else if (!child_exit_status_.has_value()) {
     // Nothing.
-  } else if (WIFEXITED(child_exit_status_)) {
-    output.insert({L"exit", std::to_wstring(WEXITSTATUS(child_exit_status_))});
-  } else if (WIFSIGNALED(child_exit_status_)) {
-    output.insert({L"signal", std::to_wstring(WTERMSIG(child_exit_status_))});
+  } else if (WIFEXITED(child_exit_status_.value())) {
+    output.insert(
+        {L"exit", std::to_wstring(WEXITSTATUS(child_exit_status_.value()))});
+  } else if (WIFSIGNALED(child_exit_status_.value())) {
+    output.insert(
+        {L"signal", std::to_wstring(WTERMSIG(child_exit_status_.value()))});
   } else {
-    output.insert({L"exit-status", std::to_wstring(child_exit_status_)});
+    output.insert(
+        {L"exit-status", std::to_wstring(child_exit_status_.value())});
   }
 
   auto marks = GetLineMarksText();

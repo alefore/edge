@@ -191,8 +191,9 @@ void GenerateContents(EditorState* editor_state,
   editor_state->ScheduleRedraw();
   target->AddEndOfFileObserver([editor_state, data, target]() {
     LOG(INFO) << "End of file notification.";
-    int success = WIFEXITED(target->child_exit_status()) &&
-                  WEXITSTATUS(target->child_exit_status()) == 0;
+    CHECK(target->child_exit_status().has_value());
+    int success = WIFEXITED(target->child_exit_status().value()) &&
+                  WEXITSTATUS(target->child_exit_status().value()) == 0;
     double frequency =
         target->Read(success ? buffer_variables::beep_frequency_success
                              : buffer_variables::beep_frequency_failure);
@@ -224,10 +225,10 @@ std::map<wstring, wstring> Flags(const CommandData& data,
   std::map<wstring, wstring> output;
   if (buffer.child_pid() != -1) {
     output.insert({L" …", L""});
-  } else {
-    if (!WIFEXITED(buffer.child_exit_status())) {
+  } else if (buffer.child_exit_status().has_value()) {
+    if (!WIFEXITED(buffer.child_exit_status().value())) {
       output.insert({L"💀", L""});
-    } else if (WEXITSTATUS(buffer.child_exit_status()) == 0) {
+    } else if (WEXITSTATUS(buffer.child_exit_status().value()) == 0) {
       output.insert({L" 🏁", L""});
     } else {
       output.insert({L" 💥", L""});

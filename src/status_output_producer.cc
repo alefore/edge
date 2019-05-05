@@ -116,8 +116,8 @@ OutputProducer::Generator StatusOutputProducer::Next() {
             CHECK(it.second != nullptr);
             if (it.second->child_pid() != -1) {
               running++;
-            } else {
-              int status = it.second->child_exit_status();
+            } else if (it.second->child_exit_status().has_value()) {
+              int status = it.second->child_exit_status().value();
               if (WIFEXITED(status) && WEXITSTATUS(status)) {
                 failed++;
               }

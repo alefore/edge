@@ -320,7 +320,8 @@ class OpenBuffer {
   const FileDescriptorReader* fd_error() const;
 
   pid_t child_pid() const { return child_pid_; }
-  int child_exit_status() const { return child_exit_status_; }
+  std::optional<int> child_exit_status() const { return child_exit_status_; }
+  const struct timespec time_last_exit() const;
 
   void PushSignal(int signal);
 
@@ -433,15 +434,16 @@ class OpenBuffer {
   ReloadState reload_state_ = ReloadState::kDone;
 
   // -1 means "no child process"
-  pid_t child_pid_;
-  int child_exit_status_;
+  pid_t child_pid_ = -1;
+  std::optional<int> child_exit_status_;
+  struct timespec time_last_exit_;
   // Optional function to execute when a sub-process exits.
   std::function<void()> on_exit_handler_;
 
   BufferContents contents_;
 
-  bool modified_;
-  bool reading_from_parser_;
+  bool modified_ = false;
+  bool reading_from_parser_ = false;
 
   EdgeStructInstance<bool> bool_variables_;
   EdgeStructInstance<wstring> string_variables_;
