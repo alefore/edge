@@ -64,16 +64,39 @@ void Line::Options::Append(Line line) {
   ValidateInvariants();
 }
 
+Line::Options& Line::Options::DeleteCharacters(ColumnNumber column,
+                                               ColumnNumberDelta delta) {
+  ValidateInvariants();
+  CHECK_GE(delta, ColumnNumberDelta(0));
+  CHECK_LE(column, EndColumn());
+  CHECK_LE(column + delta, EndColumn());
+  contents = StringAppend(
+      afc::editor::Substring(contents, ColumnNumber(0), column.ToDelta()),
+      afc::editor::Substring(contents, column + delta));
+  auto it = modifiers.begin() + column.column;
+  modifiers.erase(it, it + delta.column_delta);
+  ValidateInvariants();
+  return *this;
+}
+
+Line::Options& Line::Options::DeleteSuffix(ColumnNumber column) {
+  return DeleteCharacters(column, EndColumn() - column);
+}
+
 void Line::Options::ValidateInvariants() {
   CHECK_EQ(modifiers.size(), contents->size());
 }
 
+/* static */ std::shared_ptr<Line> Line::New(Options options) {
+  return std::make_shared<Line>(std::move(options));
+}
+
 Line::Line(wstring x) : Line(Line::Options(NewLazyString(std::move(x)))) {}
 
-Line::Line(const Options& options)
+Line::Line(Options options)
     : environment_(options.environment == nullptr
                        ? std::make_shared<Environment>()
-                       : options.environment),
+                       : std::move(options.environment)),
       options_(std::move(options)) {
   CHECK(options_.contents != nullptr);
   CHECK_EQ(options_.contents->size(), options_.modifiers.size());
@@ -83,6 +106,7 @@ Line::Line(const Line& line) {
   std::unique_lock<std::mutex> lock(line.mutex_);
   environment_ = line.environment_;
   options_ = line.options_;
+  hash_ = line.hash_;
 }
 
 std::shared_ptr<LazyString> Line::contents() const {
@@ -109,28 +133,10 @@ shared_ptr<LazyString> Line::Substring(ColumnNumber column) const {
   return afc::editor::Substring(contents(), column);
 }
 
-void Line::DeleteCharacters(ColumnNumber column, ColumnNumberDelta delta) {
-  std::unique_lock<std::mutex> lock(mutex_);
-  CHECK_LE(column, EndColumnWithLock());
-  CHECK_LE(column + delta, EndColumnWithLock());
-  CHECK_EQ(options_.contents->size(), options_.modifiers.size());
-  options_.contents =
-      StringAppend(afc::editor::Substring(options_.contents, ColumnNumber(0),
-                                          column.ToDelta()),
-                   afc::editor::Substring(options_.contents, column + delta));
-  auto it = options_.modifiers.begin() + column.column;
-  options_.modifiers.erase(it, it + delta.column_delta);
-  CHECK_EQ(options_.contents->size(), options_.modifiers.size());
-}
-
-void Line::DeleteCharacters(ColumnNumber column) {
-  CHECK_LE(column, EndColumn());
-  DeleteCharacters(column, EndColumn() - column);
-}
-
 void Line::InsertCharacterAtPosition(ColumnNumber column) {
   std::unique_lock<std::mutex> lock(mutex_);
   ValidateInvariants();
+  hash_ = std::nullopt;
   options_.contents = StringAppend(
       StringAppend(afc::editor::Substring(options_.contents, ColumnNumber(0),
                                           column.ToDelta()),
@@ -151,6 +157,7 @@ void Line::SetCharacter(
   std::unique_lock<std::mutex> lock(mutex_);
   ValidateInvariants();
   shared_ptr<LazyString> str = NewLazyString(wstring(1, c));
+  hash_ = std::nullopt;
   if (column >= EndColumnWithLock()) {
     options_.contents = StringAppend(std::move(options_.contents), str);
     options_.modifiers.push_back(modifiers);
@@ -174,6 +181,7 @@ void Line::SetAllModifiers(const LineModifierSet& modifiers) {
   ValidateInvariants();
   options_.modifiers.assign(options_.contents->size(), modifiers);
   options_.end_of_line_modifiers = modifiers;
+  hash_ = std::nullopt;
   ValidateInvariants();
 }
 
@@ -182,6 +190,7 @@ void Line::Append(const Line& line) {
   ValidateInvariants();
   line.ValidateInvariants();
   CHECK(this != &line);
+  hash_ = std::nullopt;
   options_.contents = StringAppend(options_.contents, line.options_.contents);
   for (auto& m : line.options_.modifiers) {
     options_.modifiers.push_back(m);

@@ -58,15 +58,12 @@ class NewLineTransformation : public Transformation {
       }
     }
 
-    auto continuation_line = std::make_shared<Line>(*line);
-    continuation_line->DeleteCharacters(
-        prefix_end, continuation_line->EndColumn() - prefix_end);
-
     auto transformation = std::make_unique<TransformationStack>();
     {
       auto buffer_to_insert =
           std::make_shared<OpenBuffer>(buffer->editor(), L"- text inserted");
-      buffer_to_insert->AppendRawLine(continuation_line);
+      buffer_to_insert->AppendRawLine(std::make_shared<Line>(
+          Line::Options(*line).DeleteSuffix(prefix_end)));
       InsertOptions insert_options;
       insert_options.buffer_to_insert = buffer_to_insert;
       transformation->PushBack(

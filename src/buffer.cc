@@ -1082,11 +1082,15 @@ void OpenBuffer::AppendToLastLine(
     std::shared_ptr<LazyString> str,
     const vector<unordered_set<LineModifier, hash<int>>>& modifiers) {
   CHECK_EQ(str->size(), modifiers.size());
-  auto follower = GetEndPositionFollower();
   Line::Options options;
   options.contents = str;
   options.modifiers = modifiers;
-  contents_.AppendToLine(LineNumber(0) + contents_.size(), Line(options));
+  AppendToLastLine(Line(std::move(options)));
+}
+
+void OpenBuffer::AppendToLastLine(Line line) {
+  auto follower = GetEndPositionFollower();
+  contents_.AppendToLine(LineNumber(0) + contents_.size(), std::move(line));
 }
 
 unique_ptr<Expression> OpenBuffer::CompileString(const wstring& code,

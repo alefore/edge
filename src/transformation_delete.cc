@@ -161,20 +161,19 @@ class DeleteCharactersTransformation : public Transformation {
     LOG(INFO) << "Preparing deleted text buffer.";
     auto delete_buffer = std::make_shared<OpenBuffer>(buffer->editor(),
                                                       OpenBuffer::kPasteBuffer);
-    auto first_line = std::make_shared<Line>(*buffer->LineAt(begin.line));
+    Line::Options first_line(*buffer->LineAt(begin.line));
     if (begin.line == line_end) {
-      first_line->DeleteCharacters(chars_erase_line);
+      first_line.DeleteSuffix(chars_erase_line);
     }
-    first_line->DeleteCharacters(ColumnNumber(0), begin.column.ToDelta());
-    delete_buffer->AppendToLastLine(first_line->contents(),
-                                    first_line->modifiers());
+    first_line.DeleteCharacters(ColumnNumber(0), begin.column.ToDelta());
+    delete_buffer->AppendToLastLine(Line(std::move(first_line)));
 
     for (LineNumber i = begin.line.next(); i <= line_end; ++i) {
-      auto line = std::make_shared<Line>(*buffer->LineAt(i));
+      Line::Options replacement(*buffer->LineAt(i));
       if (i == line_end) {
-        line->DeleteCharacters(chars_erase_line);
+        replacement.DeleteSuffix(chars_erase_line);
       }
-      delete_buffer->AppendRawLine(line);
+      delete_buffer->AppendRawLine(std::make_shared<Line>(replacement));
     }
 
     return delete_buffer;

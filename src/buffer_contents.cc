@@ -122,9 +122,9 @@ void BufferContents::DeleteCharactersFromLine(LineNumber line,
   CHECK_GT(amount, ColumnNumberDelta(0));
   CHECK_LE(column + amount, at(line)->EndColumn());
 
-  auto new_line = std::make_shared<Line>(*at(line));
-  new_line->DeleteCharacters(column, amount);
-  set_line(line, new_line);
+  Line::Options options(*at(line));
+  options.DeleteCharacters(column, amount);
+  set_line(line, std::make_shared<Line>(options));
 
   NotifyUpdateListeners(CursorsTracker::Transformation()
                             .WithBegin(LineColumn(line, column))
@@ -158,15 +158,14 @@ void BufferContents::InsertCharacter(LineNumber line, ColumnNumber column) {
   NotifyUpdateListeners(CursorsTracker::Transformation());
 }
 
-void BufferContents::AppendToLine(LineNumber position,
-                                  const Line& line_to_append) {
+void BufferContents::AppendToLine(LineNumber position, Line line_to_append) {
   if (lines_.empty()) {
     push_back(std::make_shared<Line>());
   }
   CHECK(!lines_.empty());
   position = min(position, LineNumber() + size() - LineNumberDelta(1));
   auto line = std::make_shared<Line>(*at(position));
-  line->Append(line_to_append);
+  line->Append(std::move(line_to_append));
   set_line(position, line);
   NotifyUpdateListeners(CursorsTracker::Transformation());
 }
@@ -194,10 +193,11 @@ void BufferContents::EraseLines(LineNumber first, LineNumber last,
 }
 
 void BufferContents::SplitLine(LineColumn position) {
-  auto tail = std::make_shared<Line>(*at(position.line));
-  tail->DeleteCharacters(ColumnNumber(0), position.column.ToDelta());
   // TODO: Can maybe combine this with next for fewer updates.
-  insert_line(position.line + LineNumberDelta(1), tail);
+  insert_line(position.line + LineNumberDelta(1),
+              Line::New(Line::Options(*at(position.line))
+                            .DeleteCharacters(ColumnNumber(0),
+                                              position.column.ToDelta())));
   NotifyUpdateListeners(
       CursorsTracker::Transformation()
           .WithBegin(position)

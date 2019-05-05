@@ -52,6 +52,10 @@ class Line {
                       LineModifierSet modifier);
     void AppendString(std::wstring contents, LineModifierSet modifier);
     void Append(Line line);
+    Options& DeleteCharacters(ColumnNumber position, ColumnNumberDelta amount);
+
+    // Delete characters from column (included) until the end.
+    Options& DeleteSuffix(ColumnNumber column);
 
     std::shared_ptr<LazyString> contents;
     std::vector<LineModifierSet> modifiers;
@@ -63,8 +67,9 @@ class Line {
     void ValidateInvariants();
   };
 
+  static std::shared_ptr<Line> New(Options options);
   Line() : Line(Options()) {}
-  explicit Line(const Options& options);
+  explicit Line(Options options);
   explicit Line(wstring text);
   Line(const Line& line);
 
@@ -92,10 +97,7 @@ class Line {
 
   wstring ToString() const { return contents()->ToString(); }
   // Delete characters in [position, position + amount).
-  void DeleteCharacters(ColumnNumber position, ColumnNumberDelta amount);
 
-  // Delete characters from position until the end.
-  void DeleteCharacters(ColumnNumber position);
   void InsertCharacterAtPosition(ColumnNumber position);
 
   // Sets the character at the position given.

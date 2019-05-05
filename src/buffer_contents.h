@@ -107,7 +107,7 @@ class BufferContents {
 
   // TODO: Use LineColumn?
   void InsertCharacter(LineNumber line, ColumnNumber column);
-  void AppendToLine(LineNumber line, const Line& line_to_append);
+  void AppendToLine(LineNumber line, Line line_to_append);
 
   enum class CursorsBehavior { kAdjust, kUnmodified };
 

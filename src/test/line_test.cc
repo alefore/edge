@@ -30,27 +30,27 @@ void TestLineDeleteCharacters() {
   line.modifiers()[4].insert(LineModifier::DIM);
 
   {
-    Line line_copy(line);
-    line_copy.DeleteCharacters(ColumnNumber(2));
-    CHECK_EQ(ToByteString(line_copy.contents()->ToString()), "al");
-    CHECK_EQ(line_copy.modifiers().size(), 2);
-    CheckSingleton(line_copy.modifiers()[0], LineModifier::RED);
-    CheckSingleton(line_copy.modifiers()[1], LineModifier::GREEN);
+    Line::Options line_copy(line);
+    line_copy.DeleteSuffix(ColumnNumber(2));
+    CHECK_EQ(ToByteString(line_copy.contents->ToString()), "al");
+    CHECK_EQ(line_copy.modifiers.size(), 2ul);
+    CheckSingleton(line_copy.modifiers[0], LineModifier::RED);
+    CheckSingleton(line_copy.modifiers[1], LineModifier::GREEN);
   }
 
   {
-    Line line_copy(line);
+    Line::Options line_copy(line);
     line_copy.DeleteCharacters(ColumnNumber(1), ColumnNumberDelta(2));
-    CHECK_EQ(ToByteString(line_copy.contents()->ToString()), "ajo");
-    CHECK_EQ(line_copy.modifiers().size(), 3);
-    CheckSingleton(line_copy.modifiers()[0], LineModifier::RED);
-    CheckSingleton(line_copy.modifiers()[1], LineModifier::BOLD);
-    CheckSingleton(line_copy.modifiers()[2], LineModifier::DIM);
+    CHECK_EQ(ToByteString(line_copy.contents->ToString()), "ajo");
+    CHECK_EQ(line_copy.modifiers.size(), 3ul);
+    CheckSingleton(line_copy.modifiers[0], LineModifier::RED);
+    CheckSingleton(line_copy.modifiers[1], LineModifier::BOLD);
+    CheckSingleton(line_copy.modifiers[2], LineModifier::DIM);
   }
 
   // Original isn't modified.
-  CHECK_EQ(line.size(), 5);
-  CHECK_EQ(line.modifiers().size(), 5);
+  CHECK_EQ(line.size(), 5ul);
+  CHECK_EQ(line.modifiers().size(), 5ul);
   CheckSingleton(line.modifiers()[0], LineModifier::RED);
   CheckSingleton(line.modifiers()[1], LineModifier::GREEN);
   CheckSingleton(line.modifiers()[2], LineModifier::BLUE);
