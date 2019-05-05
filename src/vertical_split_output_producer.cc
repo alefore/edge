@@ -8,6 +8,18 @@
 
 namespace afc {
 namespace editor {
+std::optional<size_t> CombineHashesFromDelegates(
+    const std::vector<OutputProducer::Generator>& delegates) {
+  size_t value = std::hash<size_t>{}(4);
+  for (auto& delegate : delegates) {
+    if (!delegate.inputs_hash.has_value()) {
+      return std::nullopt;
+    }
+    value = std::hash<size_t>{}(value ^ delegate.inputs_hash.value());
+  }
+  return value;
+}
+
 OutputProducer::Generator VerticalSplitOutputProducer::Next() {
   std::vector<Generator> delegates;
   delegates.reserve(columns_.size());
@@ -15,8 +27,9 @@ OutputProducer::Generator VerticalSplitOutputProducer::Next() {
     delegates.push_back(c.producer->Next());
   }
 
+  std::optional<size_t> hash = CombineHashesFromDelegates(delegates);
   return Generator{
-      std::nullopt, [delegates, this]() {
+      hash, [delegates = std::move(delegates), this]() {
         LineWithCursor output;
         Line::Options options;
         ColumnNumber initial_column;
