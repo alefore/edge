@@ -6,8 +6,10 @@
 #include <memory>
 #include <string>
 
-#include "editor.h"
-#include "screen.h"
+#include "src/editor.h"
+#include "src/lru_cache.h"
+#include "src/output_producer.h"
+#include "src/screen.h"
 
 namespace afc {
 namespace editor {
@@ -31,20 +33,35 @@ class Terminal {
   static constexpr int CTRL_E = -16;
   static constexpr int DELETE = -17;
 
+  Terminal();
+
   void Display(EditorState* editor_state, Screen* screen,
                const EditorState::ScreenState& screen_state);
 
  private:
+  // Function that will draw a given line of output at the current position.
+  struct LineDrawer {
+    std::function<void(Screen*)> draw_callback;
+    std::optional<ColumnNumber> cursor;
+  };
+
   void ShowStatus(const EditorState& editor_state, Screen* screen);
   void ShowBuffer(EditorState* editor_state, Screen* screen);
   void WriteLine(Screen* screen, LineNumber line,
                  OutputProducer::Generator line_with_cursor);
 
+  // Returns a DrawLine that can be used to draw a given line.
+  static LineDrawer GetLineDrawer(
+      OutputProducer::LineWithCursor line_with_cursor, ColumnNumberDelta width);
+
   void AdjustPosition(Screen* screen);
 
   // Position at which the cursor should be placed in the screen, if known.
   std::optional<LineColumn> cursor_position_;
+
   std::vector<std::optional<size_t>> hashes_current_lines_;
+
+  LRUCache<size_t, LineDrawer> lines_cache_;
 };
 
 }  // namespace editor

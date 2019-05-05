@@ -37,6 +37,8 @@ constexpr int Terminal::CTRL_L;
 constexpr int Terminal::CTRL_U;
 constexpr int Terminal::CTRL_K;
 
+Terminal::Terminal() : lines_cache_(1024) {}
+
 void Terminal::Display(EditorState* editor_state, Screen* screen,
                        const EditorState::ScreenState& screen_state) {
   if (screen_state.needs_hard_redraw) {
@@ -142,42 +144,63 @@ void Terminal::WriteLine(Screen* screen, LineNumber line,
   if (hashes_current_lines_.size() <= line.line) {
     hashes_current_lines_.resize(line.line * 2 + 50);
   }
+
   hashes_current_lines_[line.line] = generator.inputs_hash;
 
   screen->Move(line, ColumnNumber(0));
-
   VLOG(8) << "Generating line for screen " << line;
-  auto line_with_cursor = generator.generate();
+  LineDrawer no_hash_drawer;
+  LineDrawer* drawer;
+  auto factory = [generator = std::move(generator),
+                  width = screen->columns()]() {
+    return GetLineDrawer(generator.generate(), width);
+  };
+
+  if (!generator.inputs_hash.has_value()) {
+    no_hash_drawer = factory();
+    drawer = &no_hash_drawer;
+  } else {
+    drawer = lines_cache_.Get(generator.inputs_hash.value(), factory);
+  }
+
+  drawer->draw_callback(screen);
+  if (drawer->cursor.has_value()) {
+    cursor_position_ = LineColumn(line, drawer->cursor.value());
+  }
+}
+
+Terminal::LineDrawer Terminal::GetLineDrawer(
+    OutputProducer::LineWithCursor line_with_cursor, ColumnNumberDelta width) {
+  Terminal::LineDrawer output;
+  std::vector<decltype(LineDrawer::draw_callback)> functions;
+
   CHECK(line_with_cursor.line != nullptr);
   VLOG(6) << "Writing line of length: "
           << line_with_cursor.line->EndColumn().ToDelta();
   ColumnNumber input_column;
   ColumnNumber output_column;
 
-  if (line_with_cursor.cursor.has_value()) {
-    cursor_position_ = std::nullopt;
-  }
+  functions.push_back(
+      [](Screen* screen) { screen->SetModifier(LineModifier::RESET); });
 
-  screen->SetModifier(LineModifier::RESET);
   auto modifiers_it =
       line_with_cursor.line->modifiers().lower_bound(input_column);
-  auto width = screen->columns();
 
   while (input_column < line_with_cursor.line->EndColumn() &&
          output_column < ColumnNumber(0) + width) {
     if (line_with_cursor.cursor.has_value() &&
         input_column == line_with_cursor.cursor.value()) {
-      cursor_position_ = LineColumn(line, output_column);
+      output.cursor = output_column;
     }
 
-    // Each iteration will advance input_column and then print between start and
-    // input_column.
+    // Each iteration will advance input_column and then print between start
+    // and input_column.
     auto start = input_column;
     while ((input_column < line_with_cursor.line->EndColumn() &&
             output_column < ColumnNumber(0) + width &&
             (!line_with_cursor.cursor.has_value() ||
              input_column != line_with_cursor.cursor.value() ||
-             cursor_position_ == LineColumn(line, output_column)) &&
+             output.cursor == output_column) &&
             (modifiers_it == line_with_cursor.line->modifiers().end() ||
              modifiers_it->first > input_column))) {
       output_column += ColumnNumberDelta(
@@ -187,27 +210,36 @@ void Terminal::WriteLine(Screen* screen, LineNumber line,
 
     // TODO: Have screen receive the LazyString directly.
     if (start != input_column) {
-      screen->WriteString(Substring(line_with_cursor.line->contents(), start,
-                                    input_column - start)
-                              ->ToString());
+      auto str = Substring(line_with_cursor.line->contents(), start,
+                           input_column - start)
+                     ->ToString();
+      functions.push_back([str](Screen* screen) { screen->WriteString(str); });
     }
 
     if (modifiers_it != line_with_cursor.line->modifiers().end()) {
       CHECK_GE(modifiers_it->first, input_column);
       if (modifiers_it->first == input_column) {
-        FlushModifiers(screen, modifiers_it->second);
+        functions.push_back([modifiers = modifiers_it->second](Screen* screen) {
+          FlushModifiers(screen, modifiers);
+        });
         ++modifiers_it;
       }
     }
   }
 
-  if (line_with_cursor.cursor.has_value() && !cursor_position_.has_value()) {
-    cursor_position_ = LineColumn(line, output_column);
+  if (line_with_cursor.cursor.has_value() && !output.cursor.has_value()) {
+    output.cursor = output_column;
   }
 
   if (output_column < ColumnNumber(0) + width) {
-    screen->WriteString(L"\n");
+    functions.push_back([](Screen* screen) { screen->WriteString(L"\n"); });
   }
+  output.draw_callback = [functions = std::move(functions)](Screen* screen) {
+    for (auto& f : functions) {
+      f(screen);
+    }
+  };
+  return output;
 }
 
 void Terminal::AdjustPosition(Screen* screen) {

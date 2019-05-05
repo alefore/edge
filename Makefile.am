@@ -81,6 +81,7 @@ src/line_scroll_control.h \
 src/line_scroll_control.cc \
 src/list_buffers_command.cc \
 src/lowercase.cc \
+src/lru_cache.h \
 src/map_mode.cc \
 src/modifiers.cc \
 src/modifiers.h \
