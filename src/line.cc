@@ -180,7 +180,7 @@ void Line::SetAllModifiers(const LineModifierSet& modifiers) {
 void Line::Append(const Line& line) {
   std::unique_lock<std::mutex> lock(mutex_);
   ValidateInvariants();
-  CHECK_EQ(line.options_.contents->size(), line.options_.modifiers.size());
+  line.ValidateInvariants();
   CHECK(this != &line);
   options_.contents = StringAppend(options_.contents, line.options_.contents);
   for (auto& m : line.options_.modifiers) {
