@@ -24,7 +24,7 @@ class ParseTree {
   ParseTree() = default;
 
   ParseTree(const ParseTree& other)
-      : children(other.children),
+      : children_(other.children()),
         range_(other.range()),
         depth_(other.depth()),
         modifiers_(other.modifiers()) {}
@@ -38,23 +38,37 @@ class ParseTree {
   void set_modifiers(LineModifierSet modifiers);
   void InsertModifier(LineModifier modifier);
 
-  void Reset();
+  const Tree<ParseTree>& children() const;
 
-  Tree<ParseTree> children;
-
-  // Inserts a new child into a tree and returns a pointer to it.
-  //
   // Unlike the usual unique_ptr uses, ownership of the child remains with the
   // parent. However, the custom deleter adjusts the depth in the parent once
   // the child goes out of scope. The standard use is that changes to the child
   // will be done through the returned unique_ptr, so that these changes are
   // taken into account to adjust the depth of the parent.
+  std::unique_ptr<ParseTree, std::function<void(ParseTree*)>> MutableChildren(
+      size_t i);
+
+  void Reset();
+
+  // Inserts a new child into a tree and returns a pointer to it.
   std::unique_ptr<ParseTree, std::function<void(ParseTree*)>> PushChild();
 
+  size_t hash() const;
+
  private:
+  void RecomputeHashExcludingChildren();
+  void XorChildHash(size_t position);
+
+  Tree<ParseTree> children_;
+
   Range range_;
   size_t depth_ = 0;
   LineModifierSet modifiers_;
+
+  // The hash of all parameters except for children_.
+  size_t hash_ = 0;
+  // The xor of the hashes of all children (including their positions).
+  size_t children_hashes_ = 0;
 };
 
 // Returns a copy of tree that only includes children that cross line

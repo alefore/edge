@@ -62,13 +62,13 @@ void GetSyntaxModifiersForLine(
                                              : ColumnNumber(0)] =
       syntax_modifiers;
 
-  auto it = tree->children.UpperBound(
+  auto it = tree->children().UpperBound(
       LineColumn(line),
       [](const LineColumn& position, const ParseTree& candidate) {
         return position < candidate.range().end;
       });
 
-  while (it != tree->children.end() && (*it).range().begin.line <= line) {
+  while (it != tree->children().end() && (*it).range().begin.line <= line) {
     GetSyntaxModifiersForLine(line, &*it, syntax_modifiers, output);
     ++it;
   }
@@ -237,7 +237,7 @@ OutputProducer::Generator BufferOutputProducer::Next() {
                            ? current_tree_->range().end.column
                            : line_contents->EndColumn();
     output = ParseTreeHighlighter(begin, end, std::move(output));
-  } else if (!buffer_->parse_tree()->children.empty()) {
+  } else if (!buffer_->parse_tree()->children().empty()) {
     output =
         ParseTreeHighlighterTokens(root_.get(), range.begin, std::move(output));
   }

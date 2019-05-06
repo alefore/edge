@@ -31,7 +31,7 @@ void Action::Execute(std::vector<ParseTree*>* trees, LineNumber line) {
 
     case SET_FIRST_CHILD_MODIFIERS:
       DVLOG(5) << "Tree: SetModifiers: " << trees->back()->range();
-      trees->back()->children.front().set_modifiers(modifiers);
+      trees->back()->MutableChildren(0)->set_modifiers(modifiers);
       break;
   }
 }

@@ -303,21 +303,21 @@ Structure* StructureTree() {
         // Each iteration descends by one level in the parse tree.
         size_t child = 0;
         auto get_child = [=](size_t i) {
-          CHECK_LT(i, tree->children.size());
+          CHECK_LT(i, tree->children().size());
           if (direction == BACKWARDS) {
-            i = tree->children.size() - i - 1;  // From last to first.
+            i = tree->children().size() - i - 1;  // From last to first.
           }
-          return &tree->children[i];
+          return &tree->children()[i];
         };
-        while (child < tree->children.size() &&
-               (get_child(child)->children.empty() ||
+        while (child < tree->children().size() &&
+               (get_child(child)->children().empty() ||
                 (direction == FORWARDS
                      ? get_child(child)->range().end <= position
                      : get_child(child)->range().begin > position))) {
           child++;
         }
 
-        if (child < tree->children.size() &&
+        if (child < tree->children().size() &&
             (direction == FORWARDS ? tree->range().begin < position
                                    : tree->range().end > position)) {
           tree = get_child(child);

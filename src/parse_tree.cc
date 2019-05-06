@@ -10,12 +10,33 @@ extern "C" {
 
 #include "src/buffer.h"
 
+namespace std {
+template <>
+struct hash<afc::editor::LineModifierSet> {
+  std::size_t operator()(const afc::editor::LineModifierSet& modifiers) const {
+    size_t output;
+    std::hash<size_t> hasher;
+    for (auto& m : modifiers) {
+      output ^= hasher(static_cast<size_t>(m)) + 0x9e3779b9 + (output << 6) +
+                (output >> 2);
+    }
+    return output;
+  }
+};
+}  // namespace std
 namespace afc {
 namespace editor {
+namespace {
+template <class T>
+inline void hash_combine(std::size_t& seed, const T& v) {
+  std::hash<T> hasher;
+  seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+}  // namespace
 
 std::ostream& operator<<(std::ostream& os, const ParseTree& t) {
   os << "[ParseTree: " << t.range() << ", children: ";
-  for (auto& c : t.children) {
+  for (auto& c : t.children()) {
     os << c;
   }
   os << "]";
@@ -23,34 +44,74 @@ std::ostream& operator<<(std::ostream& os, const ParseTree& t) {
 }
 
 Range ParseTree::range() const { return range_; }
-void ParseTree::set_range(Range range) { range_ = range; }
+void ParseTree::set_range(Range range) {
+  range_ = range;
+  RecomputeHashExcludingChildren();
+}
 
 size_t ParseTree::depth() const { return depth_; }
 
 const LineModifierSet& ParseTree::modifiers() const { return modifiers_; }
+
 void ParseTree::set_modifiers(LineModifierSet modifiers) {
   modifiers_ = std::move(modifiers);
+  RecomputeHashExcludingChildren();
 }
+
 void ParseTree::InsertModifier(LineModifier modifier) {
   modifiers_.insert(modifier);
+  RecomputeHashExcludingChildren();
+}
+
+const Tree<ParseTree>& ParseTree::children() const { return children_; }
+
+std::unique_ptr<ParseTree, std::function<void(ParseTree*)>>
+ParseTree::MutableChildren(size_t i) {
+  CHECK_LT(i, children_.size());
+  XorChildHash(i);  // Remove its old hash.
+  return std::unique_ptr<ParseTree, std::function<void(ParseTree*)>>(
+      &children_[i], [this, i](ParseTree* child) {
+        depth_ = max(depth(), child->depth() + 1);
+        XorChildHash(i);  // Add its new hash.
+      });
+}
+
+void ParseTree::XorChildHash(size_t position) {
+  size_t hash_for_child = position;
+  hash_combine(hash_for_child, children_[position].hash());
+  children_hashes_ ^= hash_for_child;
 }
 
 void ParseTree::Reset() {
-  children.clear();
+  children_.clear();
   depth_ = 0;
+  set_modifiers(LineModifierSet());
+  children_hashes_ = 0;
 }
 
 std::unique_ptr<ParseTree, std::function<void(ParseTree*)>>
 ParseTree::PushChild() {
-  children.emplace_back();
-  return std::unique_ptr<ParseTree, std::function<void(ParseTree*)>>(
-      &children.back(),
-      [this](ParseTree* child) { depth_ = max(depth(), child->depth() + 1); });
+  children_.emplace_back();
+  XorChildHash(children_.size() - 1);  // Add its new hash.
+  return MutableChildren(children_.size() - 1);
+}
+
+size_t ParseTree::hash() const {
+  size_t output = hash_;
+  hash_combine(output, children_hashes_);
+  return output;
+}
+
+void ParseTree::RecomputeHashExcludingChildren() {
+  hash_ = 0;
+  hash_combine(hash_, range_);
+  hash_combine(hash_, modifiers_);
+  // No need to include depth_, that will come through children_hash_.
 }
 
 void SimplifyTree(const ParseTree& tree, ParseTree* output) {
   output->set_range(tree.range());
-  for (const auto& child : tree.children) {
+  for (const auto& child : tree.children()) {
     if (child.range().begin.line != child.range().end.line) {
       SimplifyTree(child, output->PushChild().get());
     }
@@ -67,7 +128,7 @@ void ZoomOutTree(const ParseTree& input, double ratio, ParseTree* parent) {
   }
   auto output = parent->PushChild();
   output->set_range(range);
-  for (const auto& child : input.children) {
+  for (const auto& child : input.children()) {
     ZoomOutTree(child, ratio, output.get());
   }
 }
@@ -81,23 +142,23 @@ ParseTree ZoomOutTree(const ParseTree& input, LineNumberDelta input_lines,
       input,
       static_cast<double>(output_lines.line_delta) / input_lines.line_delta,
       &output);
-  if (output.children.empty()) {
+  if (output.children().empty()) {
     return ParseTree();
   }
 
-  CHECK_EQ(output.children.size(), 1ul);
-  return std::move(output.children.at(0));
+  CHECK_EQ(output.children().size(), 1ul);
+  return std::move(output.children().at(0));
 }
 
 // Returns the first children of tree that ends after a given position.
 size_t FindChildrenForPosition(const ParseTree* tree,
                                const LineColumn& position) {
-  for (size_t i = 0; i < tree->children.size(); i++) {
-    if (tree->children.at(i).range().Contains(position)) {
+  for (size_t i = 0; i < tree->children().size(); i++) {
+    if (tree->children().at(i).range().Contains(position)) {
       return i;
     }
   }
-  return tree->children.size();
+  return tree->children().size();
 }
 
 ParseTree::Route FindRouteToPosition(const ParseTree& root,
@@ -106,11 +167,11 @@ ParseTree::Route FindRouteToPosition(const ParseTree& root,
   auto tree = &root;
   for (;;) {
     size_t index = FindChildrenForPosition(tree, position);
-    if (index == tree->children.size()) {
+    if (index == tree->children().size()) {
       return output;
     }
     output.push_back(index);
-    tree = &tree->children.at(index);
+    tree = &tree->children().at(index);
   }
 }
 
@@ -118,7 +179,7 @@ std::vector<const ParseTree*> MapRoute(const ParseTree& root,
                                        const ParseTree::Route& route) {
   std::vector<const ParseTree*> output = {&root};
   for (auto& index : route) {
-    output.push_back(&output.back()->children.at(index));
+    output.push_back(&output.back()->children().at(index));
   }
   return output;
 }
@@ -127,8 +188,8 @@ const ParseTree* FollowRoute(const ParseTree& root,
                              const ParseTree::Route& route) {
   auto tree = &root;
   for (auto& index : route) {
-    CHECK_LT(index, tree->children.size());
-    tree = &tree->children.at(index);
+    CHECK_LT(index, tree->children().size());
+    tree = &tree->children().at(index);
   }
   return tree;
 }
@@ -138,7 +199,7 @@ class NullTreeParser : public TreeParser {
  public:
   void FindChildren(const BufferContents&, ParseTree* root) override {
     CHECK(root != nullptr);
-    root->children.clear();
+    root->Reset();
   }
 };
 
@@ -146,7 +207,7 @@ class CharTreeParser : public TreeParser {
  public:
   void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
-    root->children.clear();
+    root->Reset();
     for (auto line = root->range().begin.line; line <= root->range().end.line;
          ++line) {
       CHECK_LE(line, buffer.EndLine());
@@ -159,10 +220,9 @@ class CharTreeParser : public TreeParser {
                                 ? root->range().begin.column
                                 : ColumnNumber(0);
            i < end_column; ++i) {
-        ParseTree new_children;
-        new_children.set_range(Range::InLine(line, i, ColumnNumberDelta(1)));
-        DVLOG(7) << "Adding char: " << new_children;
-        root->children.push_back(new_children);
+        auto new_children = root->PushChild();
+        new_children->set_range(Range::InLine(line, i, ColumnNumberDelta(1)));
+        DVLOG(7) << "Adding char: " << *new_children;
       }
     }
   }
@@ -179,7 +239,7 @@ class WordsTreeParser : public TreeParser {
 
   void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
-    root->children.clear();
+    root->Reset();
     for (auto line = root->range().begin.line; line <= root->range().end.line;
          line++) {
       const auto& contents = *buffer.at(line);
@@ -242,7 +302,7 @@ class LineTreeParser : public TreeParser {
 
   void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
-    root->children.clear();
+    root->Reset();
     DVLOG(5) << "Finding lines: " << *root;
     for (auto line = root->range().begin.line; line <= root->range().end.line;
          line++) {

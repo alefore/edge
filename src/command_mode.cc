@@ -361,7 +361,7 @@ wstring LineDown::Description() const { return L"moves down one line"; }
     } else if (editor_state->direction() == FORWARDS) {
       auto root = buffer->parse_tree();
       const ParseTree* tree = buffer->current_tree(root.get());
-      if (!tree->children.empty()) {
+      if (!tree->children().empty()) {
         buffer->set_tree_depth(buffer->tree_depth() + 1);
       }
     } else {
@@ -805,14 +805,14 @@ class TreeNavigate : public Transformation {
     Seek(*buffer->contents(), &next_position).Once();
     while (true) {
       size_t child = 0;
-      while (child < tree->children.size() &&
-             (tree->children[child].range().end <= result->cursor ||
-              tree->children[child].children.empty())) {
+      while (child < tree->children().size() &&
+             (tree->children()[child].range().end <= result->cursor ||
+              tree->children()[child].children().empty())) {
         child++;
       }
-      if (child < tree->children.size()) {
+      if (child < tree->children().size()) {
         bool descend = false;
-        auto candidate = &tree->children[child];
+        auto candidate = &tree->children()[child];
         if (tree->range().begin < result->cursor) {
           descend = true;
         } else if (tree->range().end == next_position) {

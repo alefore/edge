@@ -59,11 +59,11 @@ void AppendLine(const std::shared_ptr<OpenBuffer>& source,
 void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
                  const ParseTree& tree, std::shared_ptr<LazyString> padding,
                  OpenBuffer* target) {
-  for (size_t i = 0; i < tree.children.size(); i++) {
-    auto& child = tree.children[i];
+  for (size_t i = 0; i < tree.children().size(); i++) {
+    auto& child = tree.children()[i];
     if (child.range().begin.line + LineNumberDelta(1) ==
             child.range().end.line ||
-        depth_left == 0 || child.children.empty()) {
+        depth_left == 0 || child.children().empty()) {
       Line::Options options;
       options.contents = padding;
       AddContents(*source, *source->LineAt(child.range().begin.line), &options);
@@ -74,8 +74,8 @@ void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
       } else {
         options.contents = StringAppend(options.contents, NewLazyString(L" "));
       }
-      if (i + 1 >= tree.children.size() ||
-          child.range().end.line != tree.children[i + 1].range().begin.line) {
+      if (i + 1 >= tree.children().size() ||
+          child.range().end.line != tree.children()[i + 1].range().begin.line) {
         AddContents(*source, *source->LineAt(child.range().end.line), &options);
       }
       target->AppendRawLine(std::make_shared<Line>(options));
@@ -88,8 +88,8 @@ void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
       DisplayTree(source, depth_left - 1, child,
                   StringAppend(NewLazyString(L"  "), padding), target);
     }
-    if (i + 1 >= tree.children.size() ||
-        child.range().end.line != tree.children[i + 1].range().begin.line) {
+    if (i + 1 >= tree.children().size() ||
+        child.range().end.line != tree.children()[i + 1].range().begin.line) {
       AppendLine(source, padding, child.range().end, target);
     }
   }

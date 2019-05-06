@@ -246,7 +246,7 @@ wstring BufferMetadataOutputProducer::GetDefaultInformation(LineNumber line) {
     output += ComputeScrollBarCharacter(line, buffer_->lines_size(),
                                         initial_line_, lines_shown_);
   }
-  if (zoomed_out_tree_ != nullptr && !zoomed_out_tree_->children.empty()) {
+  if (zoomed_out_tree_ != nullptr && !zoomed_out_tree_->children().empty()) {
     output += DrawTree(line - initial_line_.ToDelta(), lines_shown_,
                        *zoomed_out_tree_);
   }
