@@ -9,7 +9,9 @@
 #include "src/buffer.h"
 #include "src/buffer_variables.h"
 #include "src/dirname.h"
+#include "src/hash.h"
 #include "src/line.h"
+#include "src/line_column.h"
 #include "src/parse_tree.h"
 #include "src/terminal.h"
 
@@ -78,8 +80,8 @@ OutputProducer::Generator ParseTreeHighlighterTokens(
     const ParseTree* root, LineColumn initial_position,
     OutputProducer::Generator generator) {
   CHECK(root != nullptr);
-  generator.inputs_hash.value() ^= std::hash<LineColumn>{}(initial_position);
-  generator.inputs_hash.value() ^= root->hash();
+  generator.inputs_hash = hash_combine(generator.inputs_hash.value(),
+                                       initial_position, root->hash());
   generator.generate = [root, initial_position,
                         generator = std::move(generator)]() {
     OutputProducer::LineWithCursor input = generator.generate();
@@ -155,12 +157,6 @@ BufferOutputProducer::BufferOutputProducer(
   }
 }
 
-template <class T>
-inline void hash_combine(std::size_t& seed, const T& v) {
-  std::hash<T> hasher;
-  seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-}
-
 OutputProducer::Generator BufferOutputProducer::Next() {
   auto optional_range = line_scroll_control_reader_->GetRange();
   if (!optional_range.has_value()) {
@@ -187,16 +183,14 @@ OutputProducer::Generator BufferOutputProducer::Next() {
 
   line_scroll_control_reader_->RangeDone();
 
-  output.inputs_hash = std::hash<std::optional<Range>>()(range);
+  output.inputs_hash =
+      hash_combine(hash_combine(range, atomic_lines, multiple_cursors),
+                   hash_combine(columns_shown_, line_contents->GetHash()));
   if (position.line == line) {
-    hash_combine(output.inputs_hash.value(), position);
+    output.inputs_hash = hash_combine(output.inputs_hash.value(), position);
   }
-  hash_combine(output.inputs_hash.value(), atomic_lines);
-  hash_combine(output.inputs_hash.value(), multiple_cursors);
-  hash_combine(output.inputs_hash.value(), columns_shown_);
-  hash_combine(output.inputs_hash.value(), line_contents->GetHash());
   for (auto& c : cursors) {
-    hash_combine(output.inputs_hash.value(), c);
+    output.inputs_hash = hash_combine(output.inputs_hash.value(), c);
   }
 
   output.generate = [line_contents, range, atomic_lines, multiple_cursors,

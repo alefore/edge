@@ -60,6 +60,7 @@ src/file_descriptor_reader.cc \
 src/file_descriptor_reader.h \
 src/find_mode.cc \
 src/goto_command.cc \
+src/hash.h \
 src/help_command.cc \
 src/horizontal_split_output_producer.cc \
 src/horizontal_split_output_producer.h \

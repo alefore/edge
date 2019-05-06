@@ -8,6 +8,7 @@
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/editor.h"
+#include "src/hash.h"
 #include "src/lazy_string_append.h"
 #include "src/substring.h"
 #include "src/wstring.h"
@@ -340,24 +341,18 @@ OutputProducer::LineWithCursor Line::Output(
   return line_with_cursor;
 }
 
-template <class T>
-inline void hash_combine(std::size_t& seed, const T& v) {
-  std::hash<T> hasher;
-  seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-}
-
 size_t Line::GetHash() const {
   std::unique_lock<std::mutex> lock(mutex_);
   if (hash_.has_value()) return hash_.value();
   size_t value = 0;
   for (auto& modifiers : options_.modifiers) {
-    hash_combine(value, modifiers.first);
+    value = hash_combine(value, modifiers.first);
     for (auto& m : modifiers.second) {
-      hash_combine(value, static_cast<size_t>(m));
+      value = hash_combine(value, static_cast<size_t>(m));
     }
   }
   for (size_t i = 0; i < options_.contents->size(); i++) {
-    hash_combine(value, options_.contents->get(i));
+    value = hash_combine(value, options_.contents->get(i));
   }
   hash_ = value;
   return value;

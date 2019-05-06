@@ -10,6 +10,7 @@
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/dirname.h"
+#include "src/hash.h"
 #include "src/line_marks.h"
 #include "src/output_producer.h"
 #include "src/parse_tree.h"
@@ -253,22 +254,12 @@ wstring BufferMetadataOutputProducer::GetDefaultInformation(LineNumber line) {
   return output;
 }
 
-template <class T>
-inline void hash_combine(std::size_t& seed, const T& v) {
-  std::hash<T> hasher;
-  seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-}
-
 void BufferMetadataOutputProducer::PushGenerator(wchar_t info_char,
                                                  LineModifier modifier,
                                                  wstring str) {
-  size_t hash = 0;
-  hash_combine(hash, info_char);
-  hash_combine(hash, static_cast<int>(modifier));
-  hash_combine(hash, str);
-
   range_data_.push_back(Generator{
-      hash, [info_char, modifier, str]() {
+      hash_combine(info_char, static_cast<int>(modifier), str),
+      [info_char, modifier, str]() {
         Line::Options options;
         options.AppendCharacter(info_char, {modifier});
         options.AppendString(NewLazyString(str));

@@ -9,31 +9,10 @@ extern "C" {
 #include <glog/logging.h>
 
 #include "src/buffer.h"
+#include "src/hash.h"
 
-namespace std {
-template <>
-struct hash<afc::editor::LineModifierSet> {
-  std::size_t operator()(const afc::editor::LineModifierSet& modifiers) const {
-    size_t output;
-    std::hash<size_t> hasher;
-    for (auto& m : modifiers) {
-      output ^= hasher(static_cast<size_t>(m)) + 0x9e3779b9 + (output << 6) +
-                (output >> 2);
-    }
-    return output;
-  }
-};
-}  // namespace std
 namespace afc {
 namespace editor {
-namespace {
-template <class T>
-inline void hash_combine(std::size_t& seed, const T& v) {
-  std::hash<T> hasher;
-  seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-}
-}  // namespace
-
 std::ostream& operator<<(std::ostream& os, const ParseTree& t) {
   os << "[ParseTree: " << t.range() << ", children: ";
   for (auto& c : t.children()) {
@@ -77,9 +56,7 @@ ParseTree::MutableChildren(size_t i) {
 }
 
 void ParseTree::XorChildHash(size_t position) {
-  size_t hash_for_child = position;
-  hash_combine(hash_for_child, children_[position].hash());
-  children_hashes_ ^= hash_for_child;
+  children_hashes_ ^= hash_combine(position, children_[position].hash());
 }
 
 void ParseTree::Reset() {
@@ -96,16 +73,10 @@ ParseTree::PushChild() {
   return MutableChildren(children_.size() - 1);
 }
 
-size_t ParseTree::hash() const {
-  size_t output = hash_;
-  hash_combine(output, children_hashes_);
-  return output;
-}
+size_t ParseTree::hash() const { return hash_combine(hash_, children_hashes_); }
 
 void ParseTree::RecomputeHashExcludingChildren() {
-  hash_ = 0;
-  hash_combine(hash_, range_);
-  hash_combine(hash_, modifiers_);
+  hash_ = hash_combine(range_, modifiers_);
   // No need to include depth_, that will come through children_hash_.
 }
 
