@@ -36,12 +36,11 @@ ColumnNumber GetCurrentColumn(OpenBuffer* buffer) {
   }
 }
 
-ColumnNumber GetDesiredViewStartColumn(OpenBuffer* buffer) {
+ColumnNumber GetDesiredViewStartColumn(OpenBuffer* buffer,
+                                       ColumnNumberDelta effective_size) {
   if (buffer->Read(buffer_variables::wrap_long_lines)) {
     return ColumnNumber(0);
   }
-  // TODO: This is bogus.
-  ColumnNumberDelta effective_size = ColumnNumberDelta(80);
   effective_size -=
       min(effective_size,
           /* GetInitialPrefixSize(*buffer) */ ColumnNumberDelta(3ul));
@@ -238,7 +237,7 @@ void BufferWidget::RecomputeData() {
         min(buffer_lines, view_end_line.ToDelta() + LineNumberDelta(1));
   }
 
-  view_start_.column = GetDesiredViewStartColumn(buffer.get());
+  view_start_.column = GetDesiredViewStartColumn(buffer.get(), columns_);
   line_scroll_control_options_.begin = view_start_;
   line_scroll_control_options_.initial_column = view_start_.column;
 
