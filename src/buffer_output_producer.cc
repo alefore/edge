@@ -131,7 +131,7 @@ OutputProducer::Generator ParseTreeHighlighterTokens(
     return input;
   };
   return generator;
-}  // namespace
+}
 }  // namespace
 
 BufferOutputProducer::BufferOutputProducer(
