@@ -22,20 +22,26 @@ std::ostream& operator<<(std::ostream& os, const ParseTree& t) {
   return os;
 }
 
-std::unique_ptr<ParseTree, std::function<void(ParseTree*)>> PushChild(
-    ParseTree* parent) {
-  parent->children.emplace_back();
+size_t ParseTree::depth() const { return depth_; }
+
+void ParseTree::Reset() {
+  children.clear();
+  depth_ = 0;
+}
+
+std::unique_ptr<ParseTree, std::function<void(ParseTree*)>>
+ParseTree::PushChild() {
+  children.emplace_back();
   return std::unique_ptr<ParseTree, std::function<void(ParseTree*)>>(
-      &parent->children.back(), [parent](ParseTree* child) {
-        parent->depth = max(parent->depth, child->depth + 1);
-      });
+      &children.back(),
+      [this](ParseTree* child) { depth_ = max(depth(), child->depth() + 1); });
 }
 
 void SimplifyTree(const ParseTree& tree, ParseTree* output) {
   output->range = tree.range;
   for (const auto& child : tree.children) {
     if (child.range.begin.line != child.range.end.line) {
-      SimplifyTree(child, PushChild(output).get());
+      SimplifyTree(child, output->PushChild().get());
     }
   }
 }
@@ -48,7 +54,7 @@ void ZoomOutTree(const ParseTree& input, double ratio, ParseTree* parent) {
   if (range.begin.line == range.end.line) {
     return;
   }
-  auto output = PushChild(parent);
+  auto output = parent->PushChild();
   output->range = range;
   for (const auto& child : input.children) {
     ZoomOutTree(child, ratio, output.get());
@@ -176,7 +182,7 @@ class WordsTreeParser : public TreeParser {
                                 ? root->range.begin.column
                                 : ColumnNumber(0);
       while (column < line_end) {
-        auto new_children = PushChild(root);
+        auto new_children = root->PushChild();
 
         while (column < line_end && IsSpace(contents, column)) {
           column++;
@@ -234,7 +240,7 @@ class LineTreeParser : public TreeParser {
         continue;
       }
 
-      auto new_children = PushChild(root);
+      auto new_children = root->PushChild();
       new_children->range.begin = LineColumn(line);
       new_children->range.end =
           min(LineColumn(line, contents->EndColumn()), root->range.end);

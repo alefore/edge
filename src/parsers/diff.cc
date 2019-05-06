@@ -19,8 +19,7 @@ class DiffParser : public TreeParser {
  public:
   void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
-    root->children.clear();
-    root->depth = 0;
+    root->Reset();
 
     std::vector<size_t> states_stack = {DEFAULT};
     std::vector<ParseTree*> trees = {root};

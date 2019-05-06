@@ -42,8 +42,7 @@ class CppTreeParser : public TreeParser {
 
   void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
-    root->children.clear();
-    root->depth = 0;
+    root->Reset();
 
     // TODO: Does this actually clean up expired references? Probably not?
     cache_.erase(std::weak_ptr<LazyString>());

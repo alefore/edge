@@ -92,41 +92,41 @@ wstring DrawTree(LineNumber line, LineNumberDelta lines_size,
     route_end.erase(route_end.begin());
   }
 
-  wstring output(root.depth, L' ');
+  wstring output(root.depth(), L' ');
   size_t index_begin = 0;
   size_t index_end = 0;
   while (index_begin < route_begin.size() || index_end < route_end.size()) {
     if (index_begin == route_begin.size()) {
-      Draw(route_end[index_end]->depth, L'─', L'╮', L'┬', &output);
+      Draw(route_end[index_end]->depth(), L'─', L'╮', L'┬', &output);
       index_end++;
       continue;
     }
     if (index_end == route_end.size()) {
-      Draw(route_begin[index_begin]->depth, L'─', L'╯', L'┴', &output);
+      Draw(route_begin[index_begin]->depth(), L'─', L'╯', L'┴', &output);
       index_begin++;
       continue;
     }
 
-    if (route_begin[index_begin]->depth > route_end[index_end]->depth) {
-      Draw(route_begin[index_begin]->depth, L'─', L'╯', L'┴', &output);
+    if (route_begin[index_begin]->depth() > route_end[index_end]->depth()) {
+      Draw(route_begin[index_begin]->depth(), L'─', L'╯', L'┴', &output);
       index_begin++;
       continue;
     }
 
-    if (route_end[index_end]->depth > route_begin[index_begin]->depth) {
-      Draw(route_end[index_end]->depth, L'─', L'╮', L'┬', &output);
+    if (route_end[index_end]->depth() > route_begin[index_begin]->depth()) {
+      Draw(route_end[index_end]->depth(), L'─', L'╮', L'┬', &output);
       index_end++;
       continue;
     }
 
     if (route_begin[index_begin] == route_end[index_end]) {
-      output[route_begin[index_begin]->depth] = L'│';
+      output[route_begin[index_begin]->depth()] = L'│';
       index_begin++;
       index_end++;
       continue;
     }
 
-    Draw(route_end[index_end]->depth, L'─', L'┤', L'┼', &output);
+    Draw(route_end[index_end]->depth(), L'─', L'┤', L'┼', &output);
     index_begin++;
     index_end++;
   }

@@ -11,7 +11,7 @@ namespace editor {
 void Action::Execute(std::vector<ParseTree*>* trees, LineNumber line) {
   switch (action_type) {
     case PUSH:
-      trees->push_back(PushChild(trees->back()).release());
+      trees->push_back(trees->back()->PushChild().release());
       trees->back()->range.begin = LineColumn(line, column);
       trees->back()->modifiers = modifiers;
       DVLOG(5) << "Tree: Push: " << trees->back()->range;
