@@ -1,5 +1,6 @@
 #include "src/seek.h"
 
+#include "src/lazy_string_functional.h"
 #include "src/wstring.h"
 
 namespace afc {
@@ -171,12 +172,9 @@ std::function<bool(const Line& line)> Negate(
 std::function<bool(const Line& line)> IsLineSubsetOf(
     const wstring& allowed_chars) {
   return [allowed_chars](const Line& line) {
-    for (ColumnNumber i; i < line.EndColumn(); ++i) {
-      if (allowed_chars.find(line.get(i.column)) == allowed_chars.npos) {
-        return false;
-      }
-    }
-    return true;
+    return AllColumns(*line.contents(), [&](ColumnNumber, wchar_t c) {
+      return allowed_chars.find(c) != allowed_chars.npos;
+    });
   };
 }
 
