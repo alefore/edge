@@ -1,9 +1,5 @@
 ## Display
 
-* Add a status per buffer. Make status messages be specific to buffers (and also one per editor). Show the ones for the editor at the bottom, the ones per buffer in each buffer.
-
-  * Probably worth doing this through a `status` class.
-
 Consider using unicode watches to display duration, using exponential/logarithmic growth.
 
 Fix a bug with buffers that are shown with fewer lines than mandated by their margins.
