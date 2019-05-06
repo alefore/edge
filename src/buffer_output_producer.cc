@@ -57,7 +57,7 @@ void GetSyntaxModifiersForLine(
     (*output)[tree->range().end.column] = syntax_modifiers;
   }
 
-  syntax_modifiers.insert(tree->modifiers.begin(), tree->modifiers.end());
+  syntax_modifiers.insert(tree->modifiers().begin(), tree->modifiers().end());
   (*output)[tree->range().begin.line == line ? tree->range().begin.column
                                              : ColumnNumber(0)] =
       syntax_modifiers;

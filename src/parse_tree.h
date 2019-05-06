@@ -24,17 +24,22 @@ class ParseTree {
   ParseTree() = default;
 
   ParseTree(const ParseTree& other)
-      : modifiers(other.modifiers),
-        children(other.children),
+      : children(other.children),
         range_(other.range()),
-        depth_(other.depth()) {}
+        depth_(other.depth()),
+        modifiers_(other.modifiers()) {}
 
   Range range() const;
   void set_range(Range range);
+
   size_t depth() const;
+
+  const LineModifierSet& modifiers() const;
+  void set_modifiers(LineModifierSet modifiers);
+  void InsertModifier(LineModifier modifier);
+
   void Reset();
 
-  std::unordered_set<LineModifier, std::hash<int>> modifiers;
   Tree<ParseTree> children;
 
   // Inserts a new child into a tree and returns a pointer to it.
@@ -49,6 +54,7 @@ class ParseTree {
  private:
   Range range_;
   size_t depth_ = 0;
+  LineModifierSet modifiers_;
 };
 
 // Returns a copy of tree that only includes children that cross line

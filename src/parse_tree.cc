@@ -27,6 +27,14 @@ void ParseTree::set_range(Range range) { range_ = range; }
 
 size_t ParseTree::depth() const { return depth_; }
 
+const LineModifierSet& ParseTree::modifiers() const { return modifiers_; }
+void ParseTree::set_modifiers(LineModifierSet modifiers) {
+  modifiers_ = std::move(modifiers);
+}
+void ParseTree::InsertModifier(LineModifier modifier) {
+  modifiers_.insert(modifier);
+}
+
 void ParseTree::Reset() {
   children.clear();
   depth_ = 0;
@@ -207,7 +215,7 @@ class WordsTreeParser : public TreeParser {
                                  range.end.column - range.begin.column)
                            ->ToString();
         if (typos_.find(keyword) != typos_.end()) {
-          new_children->modifiers.insert(LineModifier::RED);
+          new_children->InsertModifier(LineModifier::RED);
         }
         new_children->set_range(range);
 

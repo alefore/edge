@@ -15,7 +15,7 @@ void Action::Execute(std::vector<ParseTree*>* trees, LineNumber line) {
       auto range = trees->back()->range();
       range.begin = LineColumn(line, column);
       trees->back()->set_range(range);
-      trees->back()->modifiers = modifiers;
+      trees->back()->set_modifiers(modifiers);
       DVLOG(5) << "Tree: Push: " << trees->back()->range();
       break;
     }
@@ -31,7 +31,7 @@ void Action::Execute(std::vector<ParseTree*>* trees, LineNumber line) {
 
     case SET_FIRST_CHILD_MODIFIERS:
       DVLOG(5) << "Tree: SetModifiers: " << trees->back()->range();
-      trees->back()->children.front().modifiers = modifiers;
+      trees->back()->children.front().set_modifiers(modifiers);
       break;
   }
 }
