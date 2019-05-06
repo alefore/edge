@@ -30,8 +30,8 @@ class BufferTerminal {
                            const std::function<void()>& new_line_callback);
 
  private:
-  size_t ProcessTerminalEscapeSequence(
-      std::shared_ptr<LazyString> str, size_t read_index,
+  ColumnNumber ProcessTerminalEscapeSequence(
+      std::shared_ptr<LazyString> str, ColumnNumber read_index,
       std::unordered_set<LineModifier, std::hash<int>>* modifiers);
 
   void MoveToNextLine();

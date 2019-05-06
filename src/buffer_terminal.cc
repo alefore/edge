@@ -44,12 +44,12 @@ void BufferTerminal::ProcessCommandInput(
   position_.line = min(position_.line, buffer_->EndLine());
   std::unordered_set<LineModifier, hash<int>> modifiers;
 
-  size_t read_index = 0;
+  ColumnNumber read_index;
   VLOG(5) << "Terminal input: " << str->ToString();
   auto follower = buffer_->GetEndPositionFollower();
-  while (read_index < str->size()) {
-    int c = str->get(read_index);
-    read_index++;
+  while (read_index < ColumnNumber(str->size())) {
+    int c = str->get(read_index.column);
+    ++read_index;
     if (c == '\b') {
       VLOG(8) << "Received \\b";
       if (position_.column > ColumnNumber(0)) {
@@ -84,36 +84,35 @@ void BufferTerminal::ProcessCommandInput(
   }
 }
 
-// TODO: Turn the type of read_index into ColumnNumber.
-size_t BufferTerminal::ProcessTerminalEscapeSequence(
-    shared_ptr<LazyString> str, size_t read_index,
+ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
+    shared_ptr<LazyString> str, ColumnNumber read_index,
     std::unordered_set<LineModifier, hash<int>>* modifiers) {
-  if (str->size() <= read_index) {
+  if (ColumnNumber(str->size()) <= read_index) {
     LOG(INFO) << "Unhandled character sequence: "
-              << Substring(str, ColumnNumber(read_index))->ToString() << ")\n";
+              << Substring(str, read_index)->ToString() << ")\n";
     return read_index;
   }
-  switch (str->get(read_index)) {
+  switch (str->get(read_index.column)) {
     case 'M':
       VLOG(9) << "Received: cuu1: Up one line.";
       if (position_.line > LineNumber(0)) {
         --position_.line;
       }
-      return read_index + 1;
+      return read_index + ColumnNumberDelta(1);
     case '[':
       VLOG(9) << "Received: [";
       break;
     default:
       LOG(INFO) << "Unhandled character sequence: "
-                << Substring(str, ColumnNumber(read_index))->ToString();
+                << Substring(str, read_index)->ToString();
   }
-  read_index++;
+  ++read_index;
   CHECK_LE(position_.line, buffer_->EndLine());
   auto current_line = buffer_->LineAt(position_.line);
   string sequence;
-  while (read_index < str->size()) {
-    int c = str->get(read_index);
-    read_index++;
+  while (read_index < ColumnNumber(str->size())) {
+    int c = str->get(read_index.column);
+    ++read_index;
     switch (c) {
       case '@': {
         VLOG(9) << "Terminal: ich: Insert character.";
