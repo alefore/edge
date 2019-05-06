@@ -77,8 +77,9 @@ void GetSyntaxModifiersForLine(
 OutputProducer::Generator ParseTreeHighlighterTokens(
     const ParseTree* root, LineColumn initial_position,
     OutputProducer::Generator generator) {
-  // TODO: Add to the hash from ParseTree.
+  CHECK(root != nullptr);
   generator.inputs_hash.value() ^= std::hash<LineColumn>{}(initial_position);
+  generator.inputs_hash.value() ^= root->hash();
   generator.generate = [root, initial_position,
                         generator = std::move(generator)]() {
     OutputProducer::LineWithCursor input = generator.generate();
