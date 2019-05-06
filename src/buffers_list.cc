@@ -9,6 +9,7 @@
 #include "src/char_buffer.h"
 #include "src/dirname.h"
 #include "src/horizontal_split_output_producer.h"
+#include "src/lazy_string_append.h"
 #include "src/time.h"
 #include "src/widget.h"
 
@@ -86,10 +87,11 @@ class BuffersListProducer : public OutputProducer {
             start +=
                 prefix_width_ - ColumnNumberDelta(number_prefix.size() + 2);
             output.AppendString(
-                ColumnNumberDelta::PaddingString(
-                    start.ToDelta() - output.contents->size(), L' '),
+                StringAppend(
+                    ColumnNumberDelta::PaddingString(
+                        start.ToDelta() - output.contents->size(), L' '),
+                    NewLazyString(number_prefix)),
                 number_modifiers);
-            output.AppendString(NewLazyString(number_prefix), number_modifiers);
 
             std::list<std::wstring> output_components;
             std::list<std::wstring> components;
