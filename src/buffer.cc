@@ -477,6 +477,7 @@ void OpenBuffer::BackgroundThread() {
     options_.editor->ScheduleRedraw();
     final_lock.unlock();
 
+    VLOG(5) << "Background thread is notifying internal event.";
     options_.editor->NotifyInternalEvent();
   }
 }
@@ -1047,7 +1048,7 @@ void OpenBuffer::AppendLine(shared_ptr<LazyString> str) {
   if (reading_from_parser_) {
     switch (str->get(0)) {
       case 'E':
-        return AppendRawLine(Substring(str, 1));
+        return AppendRawLine(Substring(str, ColumnNumber(1)));
 
       case 'T':
         AddToParseTree(str);

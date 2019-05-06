@@ -108,20 +108,20 @@ FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
     editor_state->ScheduleRedraw();
   } else {
     auto follower = options_.buffer->GetEndPositionFollower();
-    size_t line_start = 0;
+    ColumnNumber line_start;
     for (size_t i = 0; i < buffer_wrapper->size(); i++) {
       if (buffer_wrapper->get(i) == '\n') {
         VLOG(8) << "Adding line from " << line_start << " to " << i;
 
         Line::Options options;
         options.contents =
-            Substring(buffer_wrapper, line_start, i - line_start);
+            Substring(buffer_wrapper, line_start, ColumnNumber(i) - line_start);
         options.modifiers[ColumnNumber(0)] = options_.modifiers;
         options_.buffer->AppendToLastLine(Line(std::move(options)));
 
         lines_read_rate_.IncrementAndGetEventsPerSecond(1.0);
         options_.start_new_line();
-        line_start = i + 1;
+        line_start = ColumnNumber(i) + ColumnNumberDelta(1);
         auto buffer = editor_state->current_buffer();
         if (buffer.get() == options_.buffer) {
           // TODO: Only do this if the position is in view in any of the
@@ -130,7 +130,7 @@ FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
         }
       }
     }
-    if (line_start < buffer_wrapper->size()) {
+    if (line_start.ToDelta() < ColumnNumberDelta(buffer_wrapper->size())) {
       VLOG(8) << "Adding last line from " << line_start << " to "
               << buffer_wrapper->size();
 

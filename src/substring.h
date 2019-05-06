@@ -16,10 +16,6 @@ using std::shared_ptr;
 // Equivalent to:
 //
 //     Substring(input, pos, input.size() - pos);
-//
-// TODO: Remove the versions that take `size_t` after migrating to ColumnNumber.
-shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
-                                 size_t pos);
 shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
                                  ColumnNumber column);
 

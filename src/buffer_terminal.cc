@@ -84,12 +84,13 @@ void BufferTerminal::ProcessCommandInput(
   }
 }
 
+// TODO: Turn the type of read_index into ColumnNumber.
 size_t BufferTerminal::ProcessTerminalEscapeSequence(
     shared_ptr<LazyString> str, size_t read_index,
     std::unordered_set<LineModifier, hash<int>>* modifiers) {
   if (str->size() <= read_index) {
     LOG(INFO) << "Unhandled character sequence: "
-              << Substring(str, read_index)->ToString() << ")\n";
+              << Substring(str, ColumnNumber(read_index))->ToString() << ")\n";
     return read_index;
   }
   switch (str->get(read_index)) {
@@ -104,7 +105,7 @@ size_t BufferTerminal::ProcessTerminalEscapeSequence(
       break;
     default:
       LOG(INFO) << "Unhandled character sequence: "
-                << Substring(str, read_index)->ToString();
+                << Substring(str, ColumnNumber(read_index))->ToString();
   }
   read_index++;
   CHECK_LE(position_.line, buffer_->EndLine());
