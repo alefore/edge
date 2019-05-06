@@ -22,7 +22,7 @@ using std::wstring;
 
 Line::Options::Options(Line line)
     : contents(std::move(line.contents())),
-      modifiers(line.modifiers()),  // TODO: std::move,
+      modifiers(std::move(line.modifiers())),
       end_of_line_modifiers(line.end_of_line_modifiers()),
       environment(line.environment()) {}
 
