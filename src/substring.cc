@@ -25,18 +25,8 @@ class SubstringImpl : public LazyString {
 };
 
 shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
-                                 size_t pos) {
-  return Substring(input, pos, input->size().column_delta - pos);
-}
-
-shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
                                  ColumnNumber column) {
   return Substring(input, column, input->size() - column.ToDelta());
-}
-
-shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
-                                 size_t pos, size_t size) {
-  return Substring(input, ColumnNumber(pos), ColumnNumberDelta(size));
 }
 
 shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
