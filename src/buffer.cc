@@ -464,8 +464,9 @@ void OpenBuffer::BackgroundThread() {
       continue;
     }
     auto parse_tree = std::make_shared<ParseTree>();
-    parse_tree->range.end.line = contents->EndLine();
-    parse_tree->range.end.column = contents->back()->EndColumn();
+    parse_tree->set_range(
+        Range(LineColumn(),
+              LineColumn(contents->EndLine(), contents->back()->EndColumn())));
     parser->FindChildren(*contents, parse_tree.get());
     auto simplified_parse_tree = std::make_shared<ParseTree>();
     SimplifyTree(*parse_tree, simplified_parse_tree.get());

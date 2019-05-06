@@ -23,11 +23,12 @@ class DiffParser : public TreeParser {
 
     std::vector<size_t> states_stack = {DEFAULT};
     std::vector<ParseTree*> trees = {root};
-    for (LineNumber i = root->range.begin.line; i < root->range.end.line; ++i) {
+    for (LineNumber i = root->range().begin.line; i < root->range().end.line;
+         ++i) {
       ParseData data(
           buffer, std::move(states_stack),
-          std::min(LineColumn(i + LineNumberDelta(1)), root->range.end));
-      data.set_position(std::max(LineColumn(i), root->range.begin));
+          std::min(LineColumn(i + LineNumberDelta(1)), root->range().end));
+      data.set_position(std::max(LineColumn(i), root->range().begin));
       ParseLine(&data);
       for (auto& action : data.parse_results()->actions) {
         action.Execute(&trees, i);
@@ -37,12 +38,12 @@ class DiffParser : public TreeParser {
 
     auto final_position =
         LineColumn(buffer.EndLine(), buffer.back()->EndColumn());
-    if (final_position >= root->range.end) {
+    if (final_position >= root->range().end) {
       DVLOG(5) << "Draining final states: " << states_stack.size();
       ParseData data(buffer, std::move(states_stack),
                      std::min(LineColumn(LineNumber(0) + buffer.size() +
                                          LineNumberDelta(1)),
-                              root->range.end));
+                              root->range().end));
       while (!data.parse_results()->states_stack.empty()) {
         data.PopBack();
       }

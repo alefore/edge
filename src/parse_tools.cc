@@ -10,21 +10,27 @@ namespace editor {
 
 void Action::Execute(std::vector<ParseTree*>* trees, LineNumber line) {
   switch (action_type) {
-    case PUSH:
+    case PUSH: {
       trees->push_back(trees->back()->PushChild().release());
-      trees->back()->range.begin = LineColumn(line, column);
+      auto range = trees->back()->range();
+      range.begin = LineColumn(line, column);
+      trees->back()->set_range(range);
       trees->back()->modifiers = modifiers;
-      DVLOG(5) << "Tree: Push: " << trees->back()->range;
+      DVLOG(5) << "Tree: Push: " << trees->back()->range();
       break;
+    }
 
-    case POP:
-      trees->back()->range.end = LineColumn(line, column);
-      DVLOG(5) << "Tree: Pop: " << trees->back()->range;
+    case POP: {
+      auto range = trees->back()->range();
+      range.end = LineColumn(line, column);
+      trees->back()->set_range(range);
+      DVLOG(5) << "Tree: Pop: " << trees->back()->range();
       trees->pop_back();
       break;
+    }
 
     case SET_FIRST_CHILD_MODIFIERS:
-      DVLOG(5) << "Tree: SetModifiers: " << trees->back()->range;
+      DVLOG(5) << "Tree: SetModifiers: " << trees->back()->range();
       trees->back()->children.front().modifiers = modifiers;
       break;
   }

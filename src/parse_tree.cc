@@ -14,13 +14,16 @@ namespace afc {
 namespace editor {
 
 std::ostream& operator<<(std::ostream& os, const ParseTree& t) {
-  os << "[ParseTree: " << t.range << ", children: ";
+  os << "[ParseTree: " << t.range() << ", children: ";
   for (auto& c : t.children) {
     os << c;
   }
   os << "]";
   return os;
 }
+
+Range ParseTree::range() const { return range_; }
+void ParseTree::set_range(Range range) { range_ = range; }
 
 size_t ParseTree::depth() const { return depth_; }
 
@@ -38,9 +41,9 @@ ParseTree::PushChild() {
 }
 
 void SimplifyTree(const ParseTree& tree, ParseTree* output) {
-  output->range = tree.range;
+  output->set_range(tree.range());
   for (const auto& child : tree.children) {
-    if (child.range.begin.line != child.range.end.line) {
+    if (child.range().begin.line != child.range().end.line) {
       SimplifyTree(child, output->PushChild().get());
     }
   }
@@ -48,14 +51,14 @@ void SimplifyTree(const ParseTree& tree, ParseTree* output) {
 
 namespace {
 void ZoomOutTree(const ParseTree& input, double ratio, ParseTree* parent) {
-  Range range = input.range;
+  Range range = input.range();
   range.begin.line.line *= ratio;
   range.end.line.line *= ratio;
   if (range.begin.line == range.end.line) {
     return;
   }
   auto output = parent->PushChild();
-  output->range = range;
+  output->set_range(range);
   for (const auto& child : input.children) {
     ZoomOutTree(child, ratio, output.get());
   }
@@ -82,7 +85,7 @@ ParseTree ZoomOutTree(const ParseTree& input, LineNumberDelta input_lines,
 size_t FindChildrenForPosition(const ParseTree* tree,
                                const LineColumn& position) {
   for (size_t i = 0; i < tree->children.size(); i++) {
-    if (tree->children.at(i).range.Contains(position)) {
+    if (tree->children.at(i).range().Contains(position)) {
       return i;
     }
   }
@@ -136,20 +139,20 @@ class CharTreeParser : public TreeParser {
   void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
     root->children.clear();
-    for (auto line = root->range.begin.line; line <= root->range.end.line;
-         line++) {
+    for (auto line = root->range().begin.line; line <= root->range().end.line;
+         ++line) {
       CHECK_LE(line, buffer.EndLine());
       auto contents = buffer.at(line);
       ColumnNumber end_column =
-          line == root->range.end.line
-              ? root->range.end.column
+          line == root->range().end.line
+              ? root->range().end.column
               : contents->EndColumn() + ColumnNumberDelta(1);
-      for (ColumnNumber i = line == root->range.begin.line
-                                ? root->range.begin.column
+      for (ColumnNumber i = line == root->range().begin.line
+                                ? root->range().begin.column
                                 : ColumnNumber(0);
            i < end_column; ++i) {
         ParseTree new_children;
-        new_children.range = Range::InLine(line, i, ColumnNumberDelta(1));
+        new_children.set_range(Range::InLine(line, i, ColumnNumberDelta(1)));
         DVLOG(7) << "Adding char: " << new_children;
         root->children.push_back(new_children);
       }
@@ -169,45 +172,45 @@ class WordsTreeParser : public TreeParser {
   void FindChildren(const BufferContents& buffer, ParseTree* root) override {
     CHECK(root != nullptr);
     root->children.clear();
-    for (auto line = root->range.begin.line; line <= root->range.end.line;
+    for (auto line = root->range().begin.line; line <= root->range().end.line;
          line++) {
       const auto& contents = *buffer.at(line);
 
       ColumnNumber line_end = contents.EndColumn();
-      if (line == root->range.end.line) {
-        line_end = min(line_end, root->range.end.column);
+      if (line == root->range().end.line) {
+        line_end = min(line_end, root->range().end.column);
       }
 
-      ColumnNumber column = line == root->range.begin.line
-                                ? root->range.begin.column
+      ColumnNumber column = line == root->range().begin.line
+                                ? root->range().begin.column
                                 : ColumnNumber(0);
       while (column < line_end) {
         auto new_children = root->PushChild();
 
+        Range range;
         while (column < line_end && IsSpace(contents, column)) {
           column++;
         }
-        new_children->range.begin = LineColumn(line, column);
+        range.begin = LineColumn(line, column);
 
         while (column < line_end && !IsSpace(contents, column)) {
           column++;
         }
-        new_children->range.end = LineColumn(line, column);
+        range.end = LineColumn(line, column);
 
-        if (new_children->range.IsEmpty()) {
+        if (range.IsEmpty()) {
           return;
         }
 
-        CHECK_GT(new_children->range.end.column,
-                 new_children->range.begin.column);
-        auto keyword =
-            Substring(contents.contents(), new_children->range.begin.column,
-                      new_children->range.end.column -
-                          new_children->range.begin.column)
-                ->ToString();
+        CHECK_GT(range.end.column, range.begin.column);
+        auto keyword = Substring(contents.contents(), range.begin.column,
+                                 range.end.column - range.begin.column)
+                           ->ToString();
         if (typos_.find(keyword) != typos_.end()) {
           new_children->modifiers.insert(LineModifier::RED);
         }
+        new_children->set_range(range);
+
         DVLOG(6) << "Adding word: " << *new_children;
         delegate_->FindChildren(buffer, new_children.get());
       }
@@ -233,7 +236,7 @@ class LineTreeParser : public TreeParser {
     CHECK(root != nullptr);
     root->children.clear();
     DVLOG(5) << "Finding lines: " << *root;
-    for (auto line = root->range.begin.line; line <= root->range.end.line;
+    for (auto line = root->range().begin.line; line <= root->range().end.line;
          line++) {
       auto contents = buffer.at(line);
       if (contents->empty()) {
@@ -241,9 +244,9 @@ class LineTreeParser : public TreeParser {
       }
 
       auto new_children = root->PushChild();
-      new_children->range.begin = LineColumn(line);
-      new_children->range.end =
-          min(LineColumn(line, contents->EndColumn()), root->range.end);
+      new_children->set_range(Range(
+          LineColumn(line),
+          min(LineColumn(line, contents->EndColumn()), root->range().end)));
       DVLOG(5) << "Adding line: " << *new_children;
       delegate_->FindChildren(buffer, new_children.get());
     }

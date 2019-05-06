@@ -24,15 +24,16 @@ class ParseTree {
   ParseTree() = default;
 
   ParseTree(const ParseTree& other)
-      : range(other.range),
-        modifiers(other.modifiers),
+      : modifiers(other.modifiers),
         children(other.children),
+        range_(other.range()),
         depth_(other.depth()) {}
 
+  Range range() const;
+  void set_range(Range range);
   size_t depth() const;
   void Reset();
 
-  Range range;
   std::unordered_set<LineModifier, std::hash<int>> modifiers;
   Tree<ParseTree> children;
 
@@ -46,6 +47,7 @@ class ParseTree {
   std::unique_ptr<ParseTree, std::function<void(ParseTree*)>> PushChild();
 
  private:
+  Range range_;
   size_t depth_ = 0;
 };
 

@@ -806,17 +806,17 @@ class TreeNavigate : public Transformation {
     while (true) {
       size_t child = 0;
       while (child < tree->children.size() &&
-             (tree->children[child].range.end <= result->cursor ||
+             (tree->children[child].range().end <= result->cursor ||
               tree->children[child].children.empty())) {
         child++;
       }
       if (child < tree->children.size()) {
         bool descend = false;
         auto candidate = &tree->children[child];
-        if (tree->range.begin < result->cursor) {
+        if (tree->range().begin < result->cursor) {
           descend = true;
-        } else if (tree->range.end == next_position) {
-          descend = candidate->range.end == next_position;
+        } else if (tree->range().end == next_position) {
+          descend = candidate->range().end == next_position;
         }
 
         if (descend) {
@@ -825,14 +825,14 @@ class TreeNavigate : public Transformation {
         }
       }
 
-      auto last_position = tree->range.end;
+      auto last_position = tree->range().end;
       Seek(*buffer->contents(), &last_position).Backwards().Once();
 
       auto original_cursor = result->cursor;
-      result->cursor =
-          result->cursor < tree->range.begin || result->cursor == last_position
-              ? tree->range.begin
-              : last_position;
+      result->cursor = result->cursor < tree->range().begin ||
+                               result->cursor == last_position
+                           ? tree->range().begin
+                           : last_position;
       result->success = original_cursor != result->cursor;
       return;
     }

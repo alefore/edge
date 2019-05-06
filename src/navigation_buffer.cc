@@ -61,34 +61,36 @@ void DisplayTree(const std::shared_ptr<OpenBuffer>& source, size_t depth_left,
                  OpenBuffer* target) {
   for (size_t i = 0; i < tree.children.size(); i++) {
     auto& child = tree.children[i];
-    if (child.range.begin.line + LineNumberDelta(1) == child.range.end.line ||
+    if (child.range().begin.line + LineNumberDelta(1) ==
+            child.range().end.line ||
         depth_left == 0 || child.children.empty()) {
       Line::Options options;
       options.contents = padding;
-      AddContents(*source, *source->LineAt(child.range.begin.line), &options);
-      if (child.range.begin.line + LineNumberDelta(1) < child.range.end.line) {
+      AddContents(*source, *source->LineAt(child.range().begin.line), &options);
+      if (child.range().begin.line + LineNumberDelta(1) <
+          child.range().end.line) {
         options.contents =
             StringAppend(options.contents, NewLazyString(L" ... "));
       } else {
         options.contents = StringAppend(options.contents, NewLazyString(L" "));
       }
       if (i + 1 >= tree.children.size() ||
-          child.range.end.line != tree.children[i + 1].range.begin.line) {
-        AddContents(*source, *source->LineAt(child.range.end.line), &options);
+          child.range().end.line != tree.children[i + 1].range().begin.line) {
+        AddContents(*source, *source->LineAt(child.range().end.line), &options);
       }
       target->AppendRawLine(std::make_shared<Line>(options));
-      AdjustLastLine(target, source, child.range.begin);
+      AdjustLastLine(target, source, child.range().begin);
       continue;
     }
 
-    AppendLine(source, padding, child.range.begin, target);
+    AppendLine(source, padding, child.range().begin, target);
     if (depth_left > 0) {
       DisplayTree(source, depth_left - 1, child,
                   StringAppend(NewLazyString(L"  "), padding), target);
     }
     if (i + 1 >= tree.children.size() ||
-        child.range.end.line != tree.children[i + 1].range.begin.line) {
-      AppendLine(source, padding, child.range.end, target);
+        child.range().end.line != tree.children[i + 1].range().begin.line) {
+      AppendLine(source, padding, child.range().end, target);
     }
   }
 }

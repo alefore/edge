@@ -239,6 +239,13 @@ struct Range {
   static Range InLine(LineNumber line, ColumnNumber column,
                       ColumnNumberDelta size);
 
+  template <typename Callback>
+  void ForEachLine(Callback callback) {
+    for (LineNumber line = begin.line; line < end.line; ++line) {
+      callback(line);
+    }
+  }
+
   bool IsEmpty() const { return begin >= end; }
 
   bool Contains(const Range& subset) const {

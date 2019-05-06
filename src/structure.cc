@@ -312,18 +312,18 @@ Structure* StructureTree() {
         while (child < tree->children.size() &&
                (get_child(child)->children.empty() ||
                 (direction == FORWARDS
-                     ? get_child(child)->range.end <= position
-                     : get_child(child)->range.begin > position))) {
+                     ? get_child(child)->range().end <= position
+                     : get_child(child)->range().begin > position))) {
           child++;
         }
 
         if (child < tree->children.size() &&
-            (direction == FORWARDS ? tree->range.begin < position
-                                   : tree->range.end > position)) {
+            (direction == FORWARDS ? tree->range().begin < position
+                                   : tree->range().end > position)) {
           tree = get_child(child);
           continue;
         }
-        *output = tree->range;
+        *output = tree->range();
         return true;
       }
     }

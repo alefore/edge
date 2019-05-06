@@ -52,23 +52,23 @@ void GetSyntaxModifiersForLine(
     LineNumber line, const ParseTree* tree, LineModifierSet syntax_modifiers,
     std::map<ColumnNumber, LineModifierSet>* output) {
   CHECK(tree);
-  LOG(INFO) << "Getting syntax for " << line << " from " << tree->range;
-  if (tree->range.end.line == line) {
-    (*output)[tree->range.end.column] = syntax_modifiers;
+  LOG(INFO) << "Getting syntax for " << line << " from " << tree->range();
+  if (tree->range().end.line == line) {
+    (*output)[tree->range().end.column] = syntax_modifiers;
   }
 
   syntax_modifiers.insert(tree->modifiers.begin(), tree->modifiers.end());
-  (*output)[tree->range.begin.line == line ? tree->range.begin.column
-                                           : ColumnNumber(0)] =
+  (*output)[tree->range().begin.line == line ? tree->range().begin.column
+                                             : ColumnNumber(0)] =
       syntax_modifiers;
 
   auto it = tree->children.UpperBound(
       LineColumn(line),
       [](const LineColumn& position, const ParseTree& candidate) {
-        return position < candidate.range.end;
+        return position < candidate.range().end;
       });
 
-  while (it != tree->children.end() && (*it).range.begin.line <= line) {
+  while (it != tree->children.end() && (*it).range().begin.line <= line) {
     GetSyntaxModifiersForLine(line, &*it, syntax_modifiers, output);
     ++it;
   }
@@ -228,13 +228,13 @@ OutputProducer::Generator BufferOutputProducer::Next() {
   };
 
   if (current_tree_ != root_.get() &&
-      range.begin.line >= current_tree_->range.begin.line &&
-      range.begin.line <= current_tree_->range.end.line) {
-    ColumnNumber begin = range.begin.line == current_tree_->range.begin.line
-                             ? current_tree_->range.begin.column
+      range.begin.line >= current_tree_->range().begin.line &&
+      range.begin.line <= current_tree_->range().end.line) {
+    ColumnNumber begin = range.begin.line == current_tree_->range().begin.line
+                             ? current_tree_->range().begin.column
                              : ColumnNumber(0);
-    ColumnNumber end = range.begin.line == current_tree_->range.end.line
-                           ? current_tree_->range.end.column
+    ColumnNumber end = range.begin.line == current_tree_->range().end.line
+                           ? current_tree_->range().end.column
                            : line_contents->EndColumn();
     output = ParseTreeHighlighter(begin, end, std::move(output));
   } else if (!buffer_->parse_tree()->children.empty()) {
