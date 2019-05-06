@@ -192,6 +192,7 @@ void BufferWidget::RecomputeData() {
   // TODO: If the buffer has multiple views of different sizes, we're gonna have
   // a bad time.
   auto status_lines = min(lines_, LineNumberDelta(1));
+  // Screen lines that are dedicated to the buffer.
   auto buffer_lines = lines_ - status_lines;
   buffer->SetTerminalSize(buffer_lines, columns_);
 
@@ -223,15 +224,18 @@ void BufferWidget::RecomputeData() {
                         LineNumberDelta(0))));
   CHECK_GE(margin_lines, LineNumberDelta(0));
 
-  if (view_start_.line > line - min(margin_lines, line.ToDelta()) &&
+  if (view_start_.line + min(margin_lines, line.ToDelta()) > line &&
       (buffer->child_pid() != -1 || buffer->fd() == nullptr)) {
     view_start_.line = line - min(margin_lines, line.ToDelta());
   } else if (view_start_.line + buffer_lines <=
              min(LineNumber(0) + buffer->lines_size(), line + margin_lines)) {
-    view_start_.line =
+    CHECK_GT(buffer->lines_size(), LineNumberDelta(0));
+    auto view_end_line =
         min(LineNumber(0) + buffer->lines_size() - LineNumberDelta(1),
-            line + margin_lines) -
-        buffer_lines + LineNumberDelta(1);
+            line + margin_lines);
+    view_start_.line =
+        view_end_line + LineNumberDelta(1) -
+        min(buffer_lines, view_end_line.ToDelta() + LineNumberDelta(1));
   }
 
   view_start_.column = GetDesiredViewStartColumn(buffer.get());
