@@ -2,24 +2,30 @@
 #define __AFC_EDITOR_LAZY_STRING_FUNCTIONAL_H__
 
 #include <memory>
+#include <optional>
 #include <string>
+
+#include "line_column.h"
 
 namespace afc {
 namespace editor {
 
-template <typename Function>
-bool AllColumns(const LazyString& input, const Function& f) {
-  for (ColumnNumber i; i < ColumnNumber(input.size()); ++i) {
-    if (!f(i, input.get(i.column))) {
-      return false;
+// Finds the first column in a string where `predicate` returns true.
+//
+// If no such column is found, returns an empty optional; otherwise, returns the
+// first column found.
+//
+// `predicate` receives two argumens: the ColumnNumber and the character at that
+// position.
+template <typename Predicate>
+std::optional<ColumnNumber> FindFirstColumnWithPredicate(
+    const LazyString& input, const Predicate& f) {
+  for (ColumnNumber column; column < ColumnNumber(input.size()); ++column) {
+    if (f(column, input.get(column.column))) {
+      return column;
     }
   }
-  return true;
-}
-
-template <typename Function>
-bool AnyColumn(const LazyString& input, const Function& f) {
-  return !AllColumns(input, [f](LineColumn i, wchar_t c) { return !f(i, c); });
+  return std::nullopt;
 }
 
 }  // namespace editor
