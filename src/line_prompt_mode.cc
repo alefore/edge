@@ -308,7 +308,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
                                           original_modifiers]() {
     editor_state->set_current_buffer(original_buffer);
     auto input = buffer->current_line()->contents();
-    if (input->size() != 0) {
+    if (input->size() != ColumnNumberDelta(0)) {
       auto history =
           GetHistoryBuffer(editor_state, options.history_file)->second;
       CHECK(history != nullptr);

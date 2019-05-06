@@ -47,7 +47,7 @@ void BufferTerminal::ProcessCommandInput(
   ColumnNumber read_index;
   VLOG(5) << "Terminal input: " << str->ToString();
   auto follower = buffer_->GetEndPositionFollower();
-  while (read_index < ColumnNumber(str->size())) {
+  while (read_index < ColumnNumber(0) + str->size()) {
     int c = str->get(read_index);
     ++read_index;
     if (c == '\b') {
@@ -87,7 +87,7 @@ void BufferTerminal::ProcessCommandInput(
 ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
     shared_ptr<LazyString> str, ColumnNumber read_index,
     std::unordered_set<LineModifier, hash<int>>* modifiers) {
-  if (ColumnNumber(str->size()) <= read_index) {
+  if (str->size() <= read_index.ToDelta()) {
     LOG(INFO) << "Unhandled character sequence: "
               << Substring(str, read_index)->ToString() << ")\n";
     return read_index;
@@ -110,7 +110,7 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
   CHECK_LE(position_.line, buffer_->EndLine());
   auto current_line = buffer_->LineAt(position_.line);
   string sequence;
-  while (read_index < ColumnNumber(str->size())) {
+  while (read_index.ToDelta() < str->size()) {
     int c = str->get(read_index);
     ++read_index;
     switch (c) {

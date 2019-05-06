@@ -15,7 +15,7 @@ class SubstringImpl : public LazyString {
     return buffer_->get(column_ + pos.ToDelta());
   }
 
-  size_t size() const override { return (ColumnNumber(0) + delta_).column; }
+  ColumnNumberDelta size() const override { return delta_; }
 
  private:
   const shared_ptr<LazyString> buffer_;
@@ -26,12 +26,12 @@ class SubstringImpl : public LazyString {
 
 shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
                                  size_t pos) {
-  return Substring(input, pos, input->size() - pos);
+  return Substring(input, pos, input->size().column_delta - pos);
 }
 
 shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
                                  ColumnNumber column) {
-  return Substring(input, column, ColumnNumber(input->size()) - column);
+  return Substring(input, column, input->size() - column.ToDelta());
 }
 
 shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
@@ -45,8 +45,8 @@ shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
   if (column.IsZero() && delta == ColumnNumberDelta(input->size())) {
     return input;  // Optimization.
   }
-  CHECK_LE(column, ColumnNumber(input->size()));
-  CHECK_LE(column + delta, ColumnNumber(input->size()));
+  CHECK_LE(column, ColumnNumber(0) + input->size());
+  CHECK_LE(column + delta, ColumnNumber(0) + input->size());
   return std::make_shared<SubstringImpl>(input, column, delta);
 }
 

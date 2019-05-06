@@ -13,20 +13,20 @@ class EmptyStringImpl : public LazyString {
   wchar_t get(ColumnNumber) const override {
     LOG(FATAL) << "Attempt to read from empty string.";
   }
-  size_t size() const override { return 0; }
+  ColumnNumberDelta size() const override { return ColumnNumberDelta(0); }
 };
 }  // namespace
 
 wstring LazyString::ToString() const {
-  wstring output(size(), 0);
+  wstring output(size().column_delta, 0);
   ForEachColumn(*this,
                 [&output](ColumnNumber i, wchar_t c) { output[i.column] = c; });
   return output;
 }
 
 bool LazyString::operator<(const LazyString& x) {
-  for (ColumnNumber current; current < ColumnNumber(size()); ++current) {
-    if (current == ColumnNumber(x.size())) {
+  for (ColumnNumber current; current.ToDelta() < size(); ++current) {
+    if (current.ToDelta() == x.size()) {
       return false;
     }
     if (get(current) < x.get(current)) {

@@ -57,6 +57,7 @@ struct ColumnNumberDelta {
 };
 
 bool operator==(const ColumnNumberDelta& a, const ColumnNumberDelta& b);
+bool operator!=(const ColumnNumberDelta& a, const ColumnNumberDelta& b);
 std::ostream& operator<<(std::ostream& os, const ColumnNumberDelta& lc);
 bool operator<(const ColumnNumberDelta& a, const ColumnNumberDelta& b);
 bool operator<=(const ColumnNumberDelta& a, const ColumnNumberDelta& b);

@@ -15,7 +15,7 @@ std::shared_ptr<LazyString> StringTrimLeft(std::shared_ptr<LazyString> source,
       source,
       FindFirstColumnWithPredicate(*source, [&](ColumnNumber, wchar_t c) {
         return space_characters.find(c) == wstring::npos;
-      }).value_or(ColumnNumber(source->size())));
+      }).value_or(ColumnNumber(0) + source->size()));
 }
 
 }  // namespace editor

@@ -21,7 +21,8 @@ class RepeatedChar : public LazyString {
     CHECK_LT(pos.ToDelta(), times_);
     return c_;
   }
-  size_t size() const { return times_.column_delta; }
+
+  ColumnNumberDelta size() const { return times_; }
 
  protected:
   const ColumnNumberDelta times_;
@@ -37,7 +38,8 @@ class StringFromContainer : public LazyString {
     CHECK_LT(pos, ColumnNumber(data_.size()));
     return data_.at(pos.column);
   }
-  size_t size() const { return data_.size(); }
+
+  ColumnNumberDelta size() const { return ColumnNumberDelta(data_.size()); }
 
  protected:
   const Container data_;
@@ -52,7 +54,8 @@ class MoveableCharBuffer : public LazyString {
     CHECK_LT(pos.ToDelta(), size_);
     return (*buffer_)[pos.column];
   }
-  size_t size() const { return size_.column_delta; }
+
+  ColumnNumberDelta size() const { return size_; }
 
  protected:
   const wchar_t* const* buffer_;

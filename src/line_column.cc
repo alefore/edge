@@ -129,6 +129,10 @@ bool operator==(const ColumnNumberDelta& a, const ColumnNumberDelta& b) {
   return a.column_delta == b.column_delta;
 }
 
+bool operator!=(const ColumnNumberDelta& a, const ColumnNumberDelta& b) {
+  return !(a == b);
+}
+
 std::ostream& operator<<(std::ostream& os, const ColumnNumberDelta& lc) {
   os << "[column delta: " << lc.column_delta << "]";
   return os;

@@ -155,7 +155,7 @@ OutputProducer::Generator StatusOutputProducer::Next() {
           options.AppendString(status_->text(), LineModifierSet());
           options.AppendString(Substring(contents->contents(), ColumnNumber(0),
                                          column.ToDelta()));
-          line_with_cursor.cursor = ColumnNumber(options.contents->size());
+          line_with_cursor.cursor = ColumnNumber(0) + options.contents->size();
           options.AppendString(Substring(contents->contents(), column),
                                LineModifierSet());
         } else {

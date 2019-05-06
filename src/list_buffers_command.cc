@@ -124,11 +124,14 @@ void GenerateContents(EditorState* editor_state, OpenBuffer* target) {
         NewLazyString(buffer->Read(buffer_variables::name));
     if (context.first != context.second) {
       name = StringAppend(NewLazyString(L"╭──"), name);
-      size_t width = target->Read(buffer_variables::line_width);
+      auto width =
+          ColumnNumberDelta(target->Read(buffer_variables::line_width));
       if (width > name->size()) {
-        name = StringAppend(
-            name,
-            NewLazyString(wstring(width - (name->size() + 1), L'─') + L"╮"));
+        name =
+            StringAppend(name,
+                         ColumnNumberDelta::PaddingString(
+                             width - name->size() + ColumnNumberDelta(1), L'─'),
+                         NewLazyString(L"╮"));
       }
     }
     if (target->contents()->size() == LineNumberDelta(1) &&
@@ -149,7 +152,6 @@ void GenerateContents(EditorState* editor_state, OpenBuffer* target) {
         options.Append(*buffer->LineAt(context.first));
         context.first++;
       }
-      CHECK_EQ(options.contents->size(), options.modifiers.size());
       target->AppendRawLine(std::make_shared<Line>(options));
       AdjustLastLine(target, buffer);
       ++index;

@@ -28,15 +28,14 @@ Line::Options::Options(Line line)
       environment(line.environment()) {}
 
 ColumnNumber Line::Options::EndColumn() const {
-  // TODO: Compute this separately, taking the width of characters into
-  // account.
-  return ColumnNumber(contents->size());
+  // TODO: Compute this separately, taking the width of characters into account.
+  return ColumnNumber(0) + contents->size();
 }
 
 void Line::Options::AppendCharacter(wchar_t c, LineModifierSet modifier) {
   ValidateInvariants();
   CHECK(modifier.find(LineModifier::RESET) == modifier.end());
-  modifiers[ColumnNumber(contents->size())] = modifier;
+  modifiers[ColumnNumber(0) + contents->size()] = modifier;
   contents = StringAppend(std::move(contents), NewLazyString(wstring(1, c)));
   ValidateInvariants();
 }
@@ -50,7 +49,7 @@ void Line::Options::AppendString(std::shared_ptr<LazyString> suffix,
   ValidateInvariants();
   Line::Options suffix_line;
   suffix_line.contents = std::move(suffix);
-  if (suffix_line.contents->size() > 0ul) {
+  if (suffix_line.contents->size() > ColumnNumberDelta(0)) {
     suffix_line.modifiers[ColumnNumber(0)] = suffix_modifiers;
   }
   suffix_line.end_of_line_modifiers = suffix_modifiers;
@@ -65,7 +64,7 @@ void Line::Options::AppendString(std::wstring suffix,
 
 void Line::Options::Append(Line line) {
   ValidateInvariants();
-  if (line.contents()->size() == 0) return;
+  if (line.contents()->size() == ColumnNumberDelta(0)) return;
   auto original_length = EndColumn().ToDelta();
   contents = StringAppend(std::move(contents), std::move(line.contents()));
 
@@ -251,7 +250,7 @@ void Line::SetAllModifiers(const LineModifierSet& modifiers) {
 }
 
 void Line::Append(const Line& line) {
-  if (line.contents()->size() == 0) return;
+  if (line.contents()->size() == ColumnNumberDelta(0)) return;
   std::unique_lock<std::mutex> lock(mutex_);
   ValidateInvariants();
   line.ValidateInvariants();
@@ -368,7 +367,7 @@ void Line::ValidateInvariants() const {
 }
 
 ColumnNumber Line::EndColumnWithLock() const {
-  return ColumnNumber(options_.contents->size());
+  return ColumnNumber(0) + options_.contents->size();
 }
 
 wint_t Line::GetWithLock(ColumnNumber column) const {

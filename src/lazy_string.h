@@ -11,6 +11,7 @@ using std::shared_ptr;
 using std::wstring;
 
 class ColumnNumber;
+class ColumnNumberDelta;
 
 // An immutable string. Implementations must ensure that methods always return
 // the same values.
@@ -18,7 +19,7 @@ class LazyString {
  public:
   virtual ~LazyString() {}
   virtual wchar_t get(ColumnNumber pos) const = 0;
-  virtual size_t size() const = 0;
+  virtual ColumnNumberDelta size() const = 0;
 
   wstring ToString() const;
 

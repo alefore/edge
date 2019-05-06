@@ -15,7 +15,7 @@ class StringAppendImpl : public LazyString {
 
   wchar_t get(ColumnNumber pos) const { return tree_.at(pos.column); }
 
-  size_t size() const { return tree_.size(); }
+  ColumnNumberDelta size() const { return ColumnNumberDelta(tree_.size()); }
 
   const Tree<wchar_t>& tree() const { return tree_; }
 
@@ -35,10 +35,10 @@ std::shared_ptr<LazyString> StringAppend(std::shared_ptr<LazyString> a,
   CHECK(a != nullptr);
   CHECK(b != nullptr);
 
-  if (a->size() == 0) {
+  if (a->size() == ColumnNumberDelta()) {
     return std::move(b);
   }
-  if (b->size() == 0) {
+  if (b->size() == ColumnNumberDelta()) {
     return std::move(a);
   }
 
@@ -48,16 +48,16 @@ std::shared_ptr<LazyString> StringAppend(std::shared_ptr<LazyString> a,
   if (a_cast != nullptr && (b_cast == nullptr || b->size() <= a->size())) {
     tree = a_cast->tree();
     InsertToTree(b.get(), &tree, tree.end());
-    CHECK_EQ(a->size() + b->size(), tree.size());
+    CHECK_EQ(a->size() + b->size(), ColumnNumberDelta(tree.size()));
   } else if (b_cast != nullptr &&
              (a_cast == nullptr || a->size() <= b->size())) {
     tree = b_cast->tree();
     InsertToTree(a.get(), &tree, tree.begin());
-    CHECK_EQ(a->size() + b->size(), tree.size());
+    CHECK_EQ(a->size() + b->size(), ColumnNumberDelta(tree.size()));
   } else {
     InsertToTree(a.get(), &tree, tree.end());
     InsertToTree(b.get(), &tree, tree.end());
-    CHECK_EQ(a->size() + b->size(), tree.size());
+    CHECK_EQ(a->size() + b->size(), ColumnNumberDelta(tree.size()));
   }
 
   return std::make_shared<StringAppendImpl>(tree);

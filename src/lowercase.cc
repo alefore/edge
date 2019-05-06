@@ -20,7 +20,7 @@ class LowerCaseImpl : public LazyString {
     return towlower(input_->get(pos));
   }
 
-  size_t size() const override { return input_->size(); }
+  ColumnNumberDelta size() const override { return input_->size(); }
 
  private:
   const shared_ptr<LazyString> input_;
