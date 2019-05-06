@@ -10,6 +10,7 @@
 #include "src/editor.h"
 #include "src/hash.h"
 #include "src/lazy_string_append.h"
+#include "src/lazy_string_functional.h"
 #include "src/substring.h"
 #include "src/wstring.h"
 
@@ -351,9 +352,9 @@ size_t Line::GetHash() const {
       value = hash_combine(value, static_cast<size_t>(m));
     }
   }
-  for (size_t i = 0; i < options_.contents->size(); i++) {
-    value = hash_combine(value, options_.contents->get(i));
-  }
+  ForEachColumn(*options_.contents, [&](ColumnNumber, wchar_t c) {
+    value = hash_combine(value, c);
+  });
   hash_ = value;
   return value;
 }
@@ -372,7 +373,7 @@ ColumnNumber Line::EndColumnWithLock() const {
 
 wint_t Line::GetWithLock(ColumnNumber column) const {
   CHECK_LT(column, EndColumnWithLock());
-  return options_.contents->get(column.column);
+  return options_.contents->get(column);
 }
 
 }  // namespace editor

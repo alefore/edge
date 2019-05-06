@@ -4,6 +4,8 @@
 
 #include <memory>
 
+#include "src/line_column.h"
+
 namespace afc {
 namespace editor {
 
@@ -14,9 +16,11 @@ class LowerCaseImpl : public LazyString {
  public:
   LowerCaseImpl(shared_ptr<LazyString> input) : input_(std::move(input)) {}
 
-  wchar_t get(size_t pos) const { return towlower(input_->get(pos)); }
+  wchar_t get(ColumnNumber pos) const override {
+    return towlower(input_->get(pos));
+  }
 
-  size_t size() const { return input_->size(); }
+  size_t size() const override { return input_->size(); }
 
  private:
   const shared_ptr<LazyString> input_;

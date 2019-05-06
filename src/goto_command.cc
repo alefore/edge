@@ -8,6 +8,7 @@
 #include "src/buffer_variables.h"
 #include "src/command.h"
 #include "src/editor.h"
+#include "src/lazy_string_functional.h"
 #include "src/transformation.h"
 
 namespace afc {
@@ -64,19 +65,20 @@ class GotoCharTransformation : public Transformation {
       result->success = false;
       return;
     }
-    size_t start = 0;
-    while (start < line->EndColumn().column &&
-           (line_prefix_characters.find(line->get(start)) != string::npos)) {
-      start++;
-    }
-    size_t end = line->EndColumn().column;
-    while (start + 1 < end &&
-           (line_prefix_characters.find(line->get(end - 1)) != string::npos)) {
+    ColumnNumber start =
+        FindFirstColumnWithPredicate(*line->contents(), [&](ColumnNumber,
+                                                            wchar_t c) {
+          return line_prefix_characters.find(c) == string::npos;
+        }).value_or(line->EndColumn());
+    ColumnNumber end = line->EndColumn();
+    while (start + ColumnNumberDelta(1) < end &&
+           (line_prefix_characters.find(
+                line->get(end - ColumnNumberDelta(1))) != string::npos)) {
       end--;
     }
     auto editor = buffer->editor();
     ColumnNumber column = ColumnNumber(ComputePosition(
-        start, end, line->EndColumn().column, editor->direction(),
+        start.column, end.column, line->EndColumn().column, editor->direction(),
         editor->repetitions(), editor->structure_range(), calls_));
     CHECK_LE(column, line->EndColumn());
     result->made_progress = result->cursor.column != column;

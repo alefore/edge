@@ -21,11 +21,19 @@ template <typename Predicate>
 std::optional<ColumnNumber> FindFirstColumnWithPredicate(
     const LazyString& input, const Predicate& f) {
   for (ColumnNumber column; column < ColumnNumber(input.size()); ++column) {
-    if (f(column, input.get(column.column))) {
+    if (f(column, input.get(column))) {
       return column;
     }
   }
   return std::nullopt;
+}
+
+template <typename Callback>
+void ForEachColumn(const LazyString& input, Callback callback) {
+  FindFirstColumnWithPredicate(input, [&](ColumnNumber column, wchar_t c) {
+    callback(column, c);
+    return false;
+  });
 }
 
 }  // namespace editor

@@ -8,6 +8,7 @@
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/editor.h"
+#include "src/lazy_string_functional.h"
 #include "src/wstring.h"
 
 namespace {
@@ -77,13 +78,12 @@ namespace editor {
 wstring RegexEscape(shared_ptr<LazyString> str) {
   wstring results;
   static wstring literal_characters = L" ()<>{}+_-;\"':,?#%";
-  for (size_t i = 0; i < str->size(); i++) {
-    wchar_t c = str->get(i);
+  ForEachColumn(*str, [&](ColumnNumber, wchar_t c) {
     if (!iswalnum(c) && literal_characters.find(c) == wstring::npos) {
       results.push_back('\\');
     }
     results.push_back(c);
-  }
+  });
   return results;
 }
 

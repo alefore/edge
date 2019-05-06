@@ -27,7 +27,9 @@ extern "C" {
 #include "src/editor.h"
 #include "src/file_descriptor_reader.h"
 #include "src/file_link_mode.h"
+#include "src/lazy_string.h"
 #include "src/lazy_string_append.h"
+#include "src/lazy_string_functional.h"
 #include "src/line_marks.h"
 #include "src/map_mode.h"
 #include "src/parsers/diff.h"
@@ -1006,15 +1008,15 @@ void OpenBuffer::Save() {
 }
 
 void OpenBuffer::AppendLazyString(std::shared_ptr<LazyString> input) {
-  size_t size = input->size();
-  size_t start = 0;
-  for (size_t i = 0; i < size; i++) {
-    if (input->get(i) == '\n') {
+  ColumnNumber start;
+  ForEachColumn(*input, [&](ColumnNumber i, wchar_t c) {
+    CHECK_GT(i, start);
+    if (c == '\n') {
       AppendLine(Substring(input, start, i - start));
-      start = i + 1;
+      start = i + ColumnNumberDelta(1);
     }
-  }
-  AppendLine(Substring(input, start, size - start));
+  });
+  AppendLine(Substring(input, start));
 }
 
 static void AddToParseTree(const shared_ptr<LazyString>& str_input) {
@@ -1046,7 +1048,7 @@ void OpenBuffer::InsertLine(LineNumber line_position, shared_ptr<Line> line) {
 void OpenBuffer::AppendLine(shared_ptr<LazyString> str) {
   CHECK(str != nullptr);
   if (reading_from_parser_) {
-    switch (str->get(0)) {
+    switch (str->get(ColumnNumber(0))) {
       case 'E':
         return AppendRawLine(Substring(str, ColumnNumber(1)));
 

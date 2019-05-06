@@ -83,10 +83,6 @@ class Line {
   ColumnNumber EndColumn() const;
   bool empty() const;
 
-  wint_t get(size_t column) const {
-    CHECK_LT(column, contents()->size());
-    return contents()->get(column);
-  }
   wint_t get(ColumnNumber column) const;
   shared_ptr<LazyString> Substring(ColumnNumber column,
                                    ColumnNumberDelta length) const;

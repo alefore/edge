@@ -109,7 +109,8 @@ FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
   } else {
     auto follower = options_.buffer->GetEndPositionFollower();
     ColumnNumber line_start;
-    for (size_t i = 0; i < buffer_wrapper->size(); i++) {
+    for (ColumnNumber i;
+         i.ToDelta() < ColumnNumberDelta(buffer_wrapper->size()); i++) {
       if (buffer_wrapper->get(i) == '\n') {
         VLOG(8) << "Adding line from " << line_start << " to " << i;
 

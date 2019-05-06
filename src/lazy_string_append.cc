@@ -2,6 +2,8 @@
 
 #include <glog/logging.h>
 
+#include "src/lazy_string_functional.h"
+#include "src/line_column.h"
 #include "src/tree.h"
 
 namespace afc {
@@ -11,7 +13,7 @@ class StringAppendImpl : public LazyString {
  public:
   StringAppendImpl(Tree<wchar_t> tree) : tree_(tree) {}
 
-  wchar_t get(size_t pos) const { return tree_.at(pos); }
+  wchar_t get(ColumnNumber pos) const { return tree_.at(pos.column); }
 
   size_t size() const { return tree_.size(); }
 
@@ -23,9 +25,8 @@ class StringAppendImpl : public LazyString {
 
 void InsertToTree(LazyString* source, Tree<wchar_t>* tree,
                   Tree<wchar_t>::iterator position) {
-  for (size_t i = 0; i < source->size(); i++) {
-    tree->insert(position, source->get(i));
-  }
+  ForEachColumn(*source,
+                [&](ColumnNumber, wchar_t c) { tree->insert(position, c); });
 }
 }  // namespace
 

@@ -10,36 +10,19 @@ namespace editor {
 using std::shared_ptr;
 using std::wstring;
 
+class ColumnNumber;
+
 // An immutable string. Implementations must ensure that methods always return
 // the same values.
 class LazyString {
  public:
   virtual ~LazyString() {}
-  virtual wchar_t get(size_t pos) const = 0;
+  virtual wchar_t get(ColumnNumber pos) const = 0;
   virtual size_t size() const = 0;
 
-  wstring ToString() const {
-    wstring output(size(), 0);
-    for (size_t i = 0; i < output.size(); i++) {
-      output.at(i) = get(i);
-    }
-    return output;
-  }
+  wstring ToString() const;
 
-  bool operator<(const LazyString& x) {
-    for (size_t current = 0; current < size(); current++) {
-      if (current == x.size()) {
-        return false;
-      }
-      if (get(current) < x.get(current)) {
-        return true;
-      }
-      if (get(current) > x.get(current)) {
-        return false;
-      }
-    }
-    return size() < x.size();
-  }
+  bool operator<(const LazyString& x);
 };
 
 shared_ptr<LazyString> EmptyString();

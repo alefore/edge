@@ -48,7 +48,7 @@ void BufferTerminal::ProcessCommandInput(
   VLOG(5) << "Terminal input: " << str->ToString();
   auto follower = buffer_->GetEndPositionFollower();
   while (read_index < ColumnNumber(str->size())) {
-    int c = str->get(read_index.column);
+    int c = str->get(read_index);
     ++read_index;
     if (c == '\b') {
       VLOG(8) << "Received \\b";
@@ -92,7 +92,7 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
               << Substring(str, read_index)->ToString() << ")\n";
     return read_index;
   }
-  switch (str->get(read_index.column)) {
+  switch (str->get(read_index)) {
     case 'M':
       VLOG(9) << "Received: cuu1: Up one line.";
       if (position_.line > LineNumber(0)) {
@@ -111,7 +111,7 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
   auto current_line = buffer_->LineAt(position_.line);
   string sequence;
   while (read_index < ColumnNumber(str->size())) {
-    int c = str->get(read_index.column);
+    int c = str->get(read_index);
     ++read_index;
     switch (c) {
       case '@': {

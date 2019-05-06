@@ -11,14 +11,15 @@ class SubstringImpl : public LazyString {
                 ColumnNumberDelta delta)
       : buffer_(input), column_(column), delta_(delta) {}
 
-  wchar_t get(size_t pos) const {
-    return buffer_->get((column_ + ColumnNumberDelta(pos)).column);
+  wchar_t get(ColumnNumber pos) const override {
+    return buffer_->get(column_ + pos.ToDelta());
   }
 
-  size_t size() const { return (ColumnNumber(0) + delta_).column; }
+  size_t size() const override { return (ColumnNumber(0) + delta_).column; }
 
  private:
   const shared_ptr<LazyString> buffer_;
+  // First column to read from.
   const ColumnNumber column_;
   const ColumnNumberDelta delta_;
 };

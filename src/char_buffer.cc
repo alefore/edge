@@ -17,8 +17,8 @@ class RepeatedChar : public LazyString {
  public:
   RepeatedChar(ColumnNumberDelta times, wchar_t c) : times_(times), c_(c) {}
 
-  wchar_t get(size_t pos) const {
-    CHECK_LT(ColumnNumberDelta(pos), times_);
+  wchar_t get(ColumnNumber pos) const {
+    CHECK_LT(pos.ToDelta(), times_);
     return c_;
   }
   size_t size() const { return times_.column_delta; }
@@ -33,9 +33,9 @@ class StringFromContainer : public LazyString {
  public:
   StringFromContainer(Container data) : data_(std::move(data)) {}
 
-  wchar_t get(size_t pos) const {
-    CHECK_LT(pos, data_.size());
-    return data_.at(pos);
+  wchar_t get(ColumnNumber pos) const {
+    CHECK_LT(pos, ColumnNumber(data_.size()));
+    return data_.at(pos.column);
   }
   size_t size() const { return data_.size(); }
 
@@ -48,15 +48,15 @@ class MoveableCharBuffer : public LazyString {
   MoveableCharBuffer(const wchar_t* const* buffer, size_t input_size)
       : buffer_(buffer), size_(input_size) {}
 
-  wchar_t get(size_t pos) const {
-    CHECK_LT(pos, size_);
-    return (*buffer_)[pos];
+  wchar_t get(ColumnNumber pos) const {
+    CHECK_LT(pos.ToDelta(), size_);
+    return (*buffer_)[pos.column];
   }
-  size_t size() const { return size_; }
+  size_t size() const { return size_.column_delta; }
 
  protected:
   const wchar_t* const* buffer_;
-  size_t size_;
+  ColumnNumberDelta size_;
 };
 
 class CharBuffer : public MoveableCharBuffer {
