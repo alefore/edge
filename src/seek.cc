@@ -171,7 +171,7 @@ std::function<bool(const Line& line)> Negate(
 std::function<bool(const Line& line)> IsLineSubsetOf(
     const wstring& allowed_chars) {
   return [allowed_chars](const Line& line) {
-    for (ColumnNumber i; i <= line.EndColumn(); ++i) {
+    for (ColumnNumber i; i < line.EndColumn(); ++i) {
       if (allowed_chars.find(line.get(i.column)) == allowed_chars.npos) {
         return false;
       }
