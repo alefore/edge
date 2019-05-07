@@ -10,6 +10,7 @@
 #include "src/lazy_string.h"
 #include "src/line_column.h"
 #include "src/line_modifier.h"
+#include "src/viewers.h"
 
 namespace afc {
 namespace editor {
@@ -24,8 +25,6 @@ class BufferTerminal {
   LineColumn position() const;
   void SetPosition(LineColumn position);
 
-  void SetSize(LineNumberDelta lines, ColumnNumberDelta columns);
-
   void ProcessCommandInput(shared_ptr<LazyString> str,
                            const std::function<void()>& new_line_callback);
 
@@ -36,13 +35,16 @@ class BufferTerminal {
 
   void MoveToNextLine();
 
+  void UpdateSize();
+
+  LineColumnDelta LastViewSize();
+
   OpenBuffer* const buffer_;
 
   // TODO: Find a way to remove this? I.e. always use buffer_.
   BufferContents* const contents_;
 
-  LineNumberDelta lines_;
-  ColumnNumberDelta columns_;
+  const Viewers::Registration listener_registration_;
 
   LineColumn position_;
 };

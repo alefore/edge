@@ -25,6 +25,7 @@
 #include "src/transformation.h"
 #include "src/tree.h"
 #include "src/variables.h"
+#include "src/viewers.h"
 #include "src/vm/public/environment.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
@@ -46,7 +47,6 @@ using std::vector;
 using namespace afc::vm;
 
 class FileDescriptorReader;
-class Status;
 
 class OpenBuffer {
  public:
@@ -325,7 +325,7 @@ class OpenBuffer {
 
   void PushSignal(int signal);
 
-  void SetTerminalSize(LineNumberDelta lines, ColumnNumberDelta columns);
+  Viewers* viewers();
 
   /////////////////////////////////////////////////////////////////////////////
   // Cursors
@@ -381,6 +381,9 @@ class OpenBuffer {
 
   const ParseTree* current_tree(const ParseTree* root) const;
 
+  std::shared_ptr<const ParseTree> current_zoomed_out_parse_tree(
+      LineNumberDelta lines) const;
+
  private:
   static void EvaluateMap(OpenBuffer* buffer, LineNumber line,
                           Value::Callback map_callback,
@@ -411,6 +414,8 @@ class OpenBuffer {
   std::unique_ptr<FileDescriptorReader> fd_;
   std::unique_ptr<FileDescriptorReader> fd_error_;
 
+  Viewers viewers_;
+
   std::unique_ptr<BufferTerminal> terminal_;
 
   // Functions to be called when the end of file is reached. The functions will
@@ -433,7 +438,7 @@ class OpenBuffer {
   };
   ReloadState reload_state_ = ReloadState::kDone;
 
-  // -1 means "no child process"
+  // 0 means "no child process"
   pid_t child_pid_ = -1;
   std::optional<int> child_exit_status_;
   struct timespec time_last_exit_;
@@ -503,6 +508,8 @@ class OpenBuffer {
   std::shared_ptr<const ParseTree> parse_tree_;
   std::shared_ptr<const ParseTree> simplified_parse_tree_;
   std::shared_ptr<TreeParser> tree_parser_;
+  std::map<LineNumberDelta, std::shared_ptr<const ParseTree>>
+      zoomed_out_parse_trees_;
   size_t tree_depth_ = 0;
 
   std::shared_ptr<MapModeCommands> default_commands_;
@@ -530,6 +537,8 @@ class OpenBuffer {
   struct timespec last_progress_update_ = {0, 0};
 
   mutable Status status_;
+
+  Viewers::Registration viewers_registration_;
 };
 
 }  // namespace editor

@@ -141,16 +141,14 @@ BufferOutputProducer::BufferOutputProducer(
     std::shared_ptr<OpenBuffer> buffer,
     std::shared_ptr<LineScrollControl::Reader> line_scroll_control_reader,
     LineNumberDelta lines_shown, ColumnNumberDelta columns_shown,
-    ColumnNumber initial_column,
-    std::shared_ptr<const ParseTree> zoomed_out_tree)
+    ColumnNumber initial_column)
     : buffer_(std::move(buffer)),
       line_scroll_control_reader_(std::move(line_scroll_control_reader)),
       lines_shown_(lines_shown),
       columns_shown_(columns_shown),
       initial_column_(initial_column),
       root_(buffer_->parse_tree()),
-      current_tree_(buffer_->current_tree(root_.get())),
-      zoomed_out_tree_(std::move(zoomed_out_tree)) {
+      current_tree_(buffer_->current_tree(root_.get())) {
   CHECK(line_scroll_control_reader_ != nullptr);
   if (buffer_->Read(buffer_variables::reload_on_display)) {
     buffer_->Reload();

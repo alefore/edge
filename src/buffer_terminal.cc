@@ -16,27 +16,14 @@ namespace afc {
 namespace editor {
 
 BufferTerminal::BufferTerminal(OpenBuffer* buffer, BufferContents* contents)
-    : buffer_(buffer), contents_(contents) {}
+    : buffer_(buffer),
+      contents_(contents),
+      listener_registration_(
+          buffer_->viewers()->AddListener([this]() { UpdateSize(); })) {}
 
 LineColumn BufferTerminal::position() const { return position_; }
 
 void BufferTerminal::SetPosition(LineColumn position) { position_ = position; }
-
-void BufferTerminal::SetSize(LineNumberDelta lines, ColumnNumberDelta columns) {
-  if (lines_ == lines && columns_ == columns) {
-    return;
-  }
-  struct winsize screen_size;
-  lines_ = lines;
-  columns_ = columns;
-  screen_size.ws_row = lines.line_delta;
-  screen_size.ws_col = columns.column_delta;
-  if (buffer_->fd() != nullptr &&
-      ioctl(buffer_->fd()->fd(), TIOCSWINSZ, &screen_size) == -1) {
-    buffer_->status()->SetWarningText(L"ioctl TIOCSWINSZ failed: " +
-                                      FromByteString(strerror(errno)));
-  }
-}
 
 void BufferTerminal::ProcessCommandInput(
     shared_ptr<LazyString> str,
@@ -73,7 +60,7 @@ void BufferTerminal::ProcessCommandInput(
       CHECK_LE(position_.line, buffer_->EndLine());
     } else if (isprint(c) || c == '\t') {
       VLOG(8) << "Received printable or tab: " << c;
-      if (position_.column >= ColumnNumber(0) + columns_) {
+      if (position_.column >= ColumnNumber(0) + LastViewSize().column) {
         MoveToNextLine();
       }
       contents_->SetCharacter(position_.line, position_.column, c, modifiers);
@@ -339,6 +326,22 @@ void BufferTerminal::MoveToNextLine() {
   if (position_.line == LineNumber(0) + buffer_->lines_size()) {
     buffer_->AppendEmptyLine();
   }
+}
+
+void BufferTerminal::UpdateSize() {
+  struct winsize screen_size;
+  auto view_size = LastViewSize();
+  screen_size.ws_row = view_size.line.line_delta;
+  screen_size.ws_col = view_size.column.column_delta;
+  if (buffer_->fd() != nullptr &&
+      ioctl(buffer_->fd()->fd(), TIOCSWINSZ, &screen_size) == -1) {
+    buffer_->status()->SetWarningText(L"ioctl TIOCSWINSZ failed: " +
+                                      FromByteString(strerror(errno)));
+  }
+}
+
+LineColumnDelta BufferTerminal::LastViewSize() {
+  return buffer_->viewers()->last_view_size().value();
 }
 
 }  // namespace editor

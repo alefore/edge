@@ -2,6 +2,10 @@
 
 #include <glog/logging.h>
 
+#include <algorithm>
+
+#include "src/line_column.h"
+
 namespace afc {
 namespace editor {
 
@@ -38,6 +42,15 @@ shared_ptr<LazyString> Substring(const shared_ptr<LazyString>& input,
   CHECK_LE(column, ColumnNumber(0) + input->size());
   CHECK_LE(column + delta, ColumnNumber(0) + input->size());
   return std::make_shared<SubstringImpl>(input, column, delta);
+}
+
+std::shared_ptr<LazyString> SubstringWithRangeChecks(
+    const shared_ptr<LazyString>& input, ColumnNumber column,
+    ColumnNumberDelta delta) {
+  auto length = ColumnNumberDelta(input->size());
+  column = std::min(column, ColumnNumber(0) + length);
+  return Substring(std::move(input), column,
+                   std::min(delta, length - column.ToDelta()));
 }
 
 }  // namespace editor

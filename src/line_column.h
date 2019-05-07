@@ -22,6 +22,7 @@ struct LineNumberDelta {
 };
 
 bool operator==(const LineNumberDelta& a, const LineNumberDelta& b);
+bool operator!=(const LineNumberDelta& a, const LineNumberDelta& b);
 std::ostream& operator<<(std::ostream& os, const LineNumberDelta& lc);
 bool operator<(const LineNumberDelta& a, const LineNumberDelta& b);
 bool operator<=(const LineNumberDelta& a, const LineNumberDelta& b);
@@ -80,12 +81,16 @@ ColumnNumberDelta operator--(ColumnNumberDelta& a, int);
 
 // First adds the line, then adds the column.
 struct LineColumnDelta {
+  LineColumnDelta(LineNumberDelta line, ColumnNumberDelta column);
+  LineColumnDelta() = default;
+
   LineNumberDelta line;
   ColumnNumberDelta column;
 };
 
 bool operator==(const LineColumnDelta& a, const LineColumnDelta& b);
 bool operator!=(const LineColumnDelta& a, const LineColumnDelta& b);
+bool operator<(const LineColumnDelta& a, const LineColumnDelta& b);
 
 struct LineNumber {
   LineNumber() = default;

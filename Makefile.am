@@ -139,6 +139,8 @@ src/transformation_delete.cc \
 src/transformation_move.cc \
 src/vertical_split_output_producer.cc \
 src/vertical_split_output_producer.h \
+src/viewers.cc \
+src/viewers.h \
 src/vm_transformation.cc \
 src/vm_transformation.h \
 src/vm/public/set.h \

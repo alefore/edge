@@ -102,8 +102,7 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
   std::unique_ptr<OutputProducer> output =
       std::make_unique<BufferOutputProducer>(
           buffer, line_scroll_control->NewReader(), lines_ - status_lines,
-          line_scroll_control_options_.columns_shown, view_start_.column,
-          zoomed_out_tree_);
+          line_scroll_control_options_.columns_shown, view_start_.column);
   if (!paste_mode) {
     std::vector<VerticalSplitOutputProducer::Column> columns(3);
 
@@ -118,7 +117,8 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
 
     columns[2].producer = std::make_unique<BufferMetadataOutputProducer>(
         buffer, line_scroll_control->NewReader(), lines_ - status_lines,
-        view_start_.line, zoomed_out_tree_);
+        view_start_.line,
+        buffer->current_zoomed_out_parse_tree(lines_ - status_lines));
 
     output =
         std::make_unique<VerticalSplitOutputProducer>(std::move(columns), 1);
@@ -143,6 +143,7 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
 void BufferWidget::SetSize(LineNumberDelta lines, ColumnNumberDelta columns) {
   lines_ = lines;
   columns_ = columns;
+
   RecomputeData();
 }
 
@@ -161,6 +162,7 @@ LineNumberDelta BufferWidget::MinimumLines() {
 void BufferWidget::RemoveBuffer(OpenBuffer* buffer) {
   if (Lock().get() == buffer) {
     leaf_ = std::shared_ptr<OpenBuffer>();
+    buffer_viewer_registration_ = nullptr;
   }
 }
 
@@ -184,7 +186,6 @@ void BufferWidget::RecomputeData() {
 
   auto buffer = leaf_.lock();
   if (buffer == nullptr) {
-    zoomed_out_tree_ = nullptr;
     return;
   }
 
@@ -193,7 +194,8 @@ void BufferWidget::RecomputeData() {
   auto status_lines = min(lines_, LineNumberDelta(1));
   // Screen lines that are dedicated to the buffer.
   auto buffer_lines = lines_ - status_lines;
-  buffer->SetTerminalSize(buffer_lines, columns_);
+  buffer_viewer_registration_ =
+      buffer->viewers()->Register(LineColumnDelta(buffer_lines, columns_));
 
   bool paste_mode = buffer->Read(buffer_variables::paste_mode);
 
@@ -240,14 +242,6 @@ void BufferWidget::RecomputeData() {
   view_start_.column = GetDesiredViewStartColumn(buffer.get(), columns_);
   line_scroll_control_options_.begin = view_start_;
   line_scroll_control_options_.initial_column = view_start_.column;
-
-  auto simplified_parse_tree = buffer->simplified_parse_tree();
-  if (buffer_lines > LineNumberDelta(0) && simplified_parse_tree != nullptr &&
-      simplified_parse_tree != simplified_parse_tree_) {
-    zoomed_out_tree_ = std::make_shared<ParseTree>(ZoomOutTree(
-        *buffer->simplified_parse_tree(), buffer->lines_size(), buffer_lines));
-    simplified_parse_tree_ = simplified_parse_tree;
-  }
 }
 
 }  // namespace editor

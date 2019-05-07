@@ -10,6 +10,7 @@
 #include "src/dirname.h"
 #include "src/horizontal_split_output_producer.h"
 #include "src/lazy_string_append.h"
+#include "src/lazy_string_trim.h"
 #include "src/time.h"
 #include "src/widget.h"
 
@@ -149,7 +150,18 @@ class BuffersListProducer : public OutputProducer {
 
             output.AppendString(NewLazyString(progress), progress_modifier);
             if (!name.empty()) {
-              output.AppendString(NewLazyString(name), progress_modifier);
+              std::shared_ptr<LazyString> output_name =
+                  NewLazyString(std::move(name));
+              if (output_name->size() > ColumnNumberDelta(2) &&
+                  output_name->get(ColumnNumber(0)) == L'$' &&
+                  output_name->get(ColumnNumber(1)) == L' ') {
+                output_name = StringTrimLeft(
+                    Substring(std::move(output_name), ColumnNumber(1)), L" ");
+              }
+              output.AppendString(SubstringWithRangeChecks(
+                                      std::move(output_name), ColumnNumber(0),
+                                      columns_per_buffer_),
+                                  LineModifierSet());
               continue;
             }
 

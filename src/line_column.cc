@@ -29,6 +29,10 @@ bool operator==(const LineNumberDelta& a, const LineNumberDelta& b) {
   return a.line_delta == b.line_delta;
 }
 
+bool operator!=(const LineNumberDelta& a, const LineNumberDelta& b) {
+  return !(a == b);
+}
+
 std::ostream& operator<<(std::ostream& os, const LineNumberDelta& lc) {
   os << "[line delta: " << lc.line_delta << "]";
   return os;
@@ -217,12 +221,19 @@ ColumnNumberDelta operator--(ColumnNumberDelta& a, int) {
   return copy;
 }
 
+LineColumnDelta::LineColumnDelta(LineNumberDelta line, ColumnNumberDelta column)
+    : line(line), column(column) {}
+
 bool operator==(const LineColumnDelta& a, const LineColumnDelta& b) {
   return a.line == b.line && a.column == b.column;
 }
 
 bool operator!=(const LineColumnDelta& a, const LineColumnDelta& b) {
   return !(a == b);
+}
+
+bool operator<(const LineColumnDelta& a, const LineColumnDelta& b) {
+  return a.line < b.line || (a.line == b.line && a.column < b.column);
 }
 
 LineNumber::LineNumber(size_t value) : line(value) {}

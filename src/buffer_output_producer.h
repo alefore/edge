@@ -15,8 +15,7 @@ class BufferOutputProducer : public OutputProducer {
       std::shared_ptr<OpenBuffer> buffer,
       std::shared_ptr<LineScrollControl::Reader> line_scroll_control_reader,
       LineNumberDelta lines_shown, ColumnNumberDelta columns_shown,
-      ColumnNumber initial_column,
-      std::shared_ptr<const ParseTree> zoomed_out_tree);
+      ColumnNumber initial_column);
 
   Generator Next() override;
 
@@ -32,7 +31,6 @@ class BufferOutputProducer : public OutputProducer {
   // Key is line number.
   const std::shared_ptr<const ParseTree> root_;
   const ParseTree* current_tree_;
-  const std::shared_ptr<const ParseTree> zoomed_out_tree_;
 
   // When we're outputing information about other buffers (mostly useful just
   // for the list of open buffers), keeps track of those we've already shown, to

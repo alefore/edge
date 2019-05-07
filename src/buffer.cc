@@ -44,6 +44,7 @@ extern "C" {
 #include "src/time.h"
 #include "src/transformation.h"
 #include "src/transformation_delete.h"
+#include "src/viewers.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/function_call.h"
@@ -460,6 +461,13 @@ void OpenBuffer::BackgroundThread() {
         std::move(contents_to_parse_);
     CHECK(contents_to_parse_ == nullptr);
     auto parser = tree_parser_;
+    std::set<LineColumnDelta> view_sizes = viewers()->GetViewSizes();
+    // In case nobody is viewing it, we still want to emit the tree for the last
+    // view size.
+    std::optional<LineColumnDelta> last = viewers()->last_view_size();
+    if (last.has_value()) {
+      view_sizes.insert(last.value());
+    }
     lock.unlock();
 
     if (contents == nullptr) {
@@ -473,9 +481,20 @@ void OpenBuffer::BackgroundThread() {
     auto simplified_parse_tree = std::make_shared<ParseTree>();
     SimplifyTree(*parse_tree, simplified_parse_tree.get());
 
+    std::map<LineNumberDelta, std::shared_ptr<const ParseTree>>
+        zoomed_out_parse_trees;
+    for (auto& size : view_sizes) {
+      auto results = zoomed_out_parse_trees.insert({size.line, nullptr});
+      if (results.first->second == nullptr) {
+        results.first->second = std::make_shared<ParseTree>(
+            ZoomOutTree(*simplified_parse_tree, lines_size(), size.line));
+      }
+    }
+
     std::unique_lock<std::mutex> final_lock(mutex_);
-    parse_tree_ = parse_tree;
-    simplified_parse_tree_ = simplified_parse_tree;
+    parse_tree_ = std::move(parse_tree);
+    simplified_parse_tree_ = std::move(simplified_parse_tree);
+    zoomed_out_parse_trees_ = std::move(zoomed_out_parse_trees);
     options_.editor->ScheduleRedraw();
     final_lock.unlock();
 
@@ -506,7 +525,9 @@ OpenBuffer::OpenBuffer(Options options)
       default_commands_(options_.editor->default_commands()->NewChild()),
       mode_(std::make_unique<MapMode>(default_commands_)),
       status_(options_.editor->GetConsole(), options_.editor->audio_player(),
-              [this]() { editor()->ScheduleRedraw(); }) {
+              [this]() { editor()->ScheduleRedraw(); }),
+      viewers_registration_(
+          viewers_.AddListener([this]() { ResetParseTree(); })) {
   contents_.AddUpdateListener(
       [this](const CursorsTracker::Transformation& transformation) {
         options_.editor->ScheduleParseTreeUpdate(this);
@@ -1521,6 +1542,17 @@ const ParseTree* OpenBuffer::current_tree(const ParseTree* root) const {
   return FollowRoute(*root, route);
 }
 
+std::shared_ptr<const ParseTree> OpenBuffer::current_zoomed_out_parse_tree(
+    LineNumberDelta lines) const {
+  std::unique_lock<std::mutex> lock(mutex_);
+  auto it = zoomed_out_parse_trees_.find(lines);
+  if (it == zoomed_out_parse_trees_.end()) {
+    return nullptr;
+  }
+  CHECK(it->second != nullptr);
+  return it->second;
+}
+
 const std::shared_ptr<const Line> OpenBuffer::current_line() const {
   return LineAt(position().line);
 }
@@ -1577,12 +1609,7 @@ void OpenBuffer::PushSignal(int sig) {
   }
 }
 
-void OpenBuffer::SetTerminalSize(LineNumberDelta lines,
-                                 ColumnNumberDelta columns) {
-  if (terminal_ != nullptr) {
-    terminal_->SetSize(lines, columns);
-  }
-}
+Viewers* OpenBuffer::viewers() { return &viewers_; }
 
 wstring OpenBuffer::TransformKeyboardText(wstring input) {
   using afc::vm::VMType;
