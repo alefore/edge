@@ -94,15 +94,20 @@ void EditorState::NotifyInternalEvent() {
 }
 
 // Executes pending work from all buffers.
-OpenBuffer::PendingWorkState EditorState::ExecutePendingWork() {
-  OpenBuffer::PendingWorkState output = OpenBuffer::PendingWorkState::kIdle;
+void EditorState::ExecutePendingWork() {
   for (auto& buffer : buffers_) {
-    if (buffer.second->ExecutePendingWork() ==
+    buffer.second->ExecutePendingWork();
+  }
+}
+
+OpenBuffer::PendingWorkState EditorState::GetPendingWorkState() const {
+  for (auto& buffer : buffers_) {
+    if (buffer.second->GetPendingWorkState() ==
         OpenBuffer::PendingWorkState::kScheduled) {
-      output = OpenBuffer::PendingWorkState::kScheduled;
+      return OpenBuffer::PendingWorkState::kScheduled;
     }
   }
-  return output;
+  return OpenBuffer::PendingWorkState::kIdle;
 }
 
 Environment EditorState::BuildEditorEnvironment() {

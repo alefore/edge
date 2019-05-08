@@ -212,7 +212,8 @@ class EditorState {
   }
 
   // Executes pending work from all buffers.
-  OpenBuffer::PendingWorkState ExecutePendingWork();
+  void ExecutePendingWork();
+  OpenBuffer::PendingWorkState GetPendingWorkState() const;
 
  private:
   Environment BuildEditorEnvironment();

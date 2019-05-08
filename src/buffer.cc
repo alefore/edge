@@ -1144,13 +1144,16 @@ void OpenBuffer::SchedulePendingWork(std::function<void()> callback) {
   pending_work_.push_back(callback);
 }
 
-OpenBuffer::PendingWorkState OpenBuffer::ExecutePendingWork() {
+void OpenBuffer::ExecutePendingWork() {
   VLOG(5) << "Executing pending work: " << pending_work_.size();
   std::vector<std::function<void()>> callbacks;
   callbacks.swap(pending_work_);
   for (auto& c : callbacks) {
     c();
   }
+}
+
+OpenBuffer::PendingWorkState OpenBuffer::GetPendingWorkState() const {
   return pending_work_.empty() ? PendingWorkState::kIdle
                                : PendingWorkState::kScheduled;
 }

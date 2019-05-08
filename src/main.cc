@@ -235,9 +235,9 @@ int main(int argc, const char** argv) {
 
   LOG(INFO) << "Starting server.";
   auto server_path = StartServer(args, connected_to_parent);
-  while (editor_state()->ExecutePendingWork() !=
+  while (editor_state()->GetPendingWorkState() !=
          OpenBuffer::PendingWorkState::kIdle) {
-    /* Nothing. */
+    editor_state()->ExecutePendingWork();
   }
 
   auto commands_to_run = CommandsToRun(args);
@@ -282,13 +282,15 @@ int main(int argc, const char** argv) {
 
   LOG(INFO) << "Main loop starting.";
   while (!editor_state()->exit_value().has_value()) {
+    // We execute pending work before updating screens, since we expect that the
+    // pending work updates may have visible effects.
+    //
     // TODO: Change to -1. Requires figuring out a way for background threads of
     // buffers to trigger redraws.
-    int timeout = editor_state()->ExecutePendingWork() ==
-                          OpenBuffer::PendingWorkState::kIdle
-                      ? 1000
-                      : 0;
+    VLOG(5) << "Executing pending work.";
+    editor_state()->ExecutePendingWork();
 
+    VLOG(5) << "Updating screens.";
     auto screen_state = editor_state()->FlushScreenState();
     if (screen_curses != nullptr) {
       if (args.client.empty()) {
@@ -364,6 +366,10 @@ int main(int argc, const char** argv) {
     fds[buffers.size()].events = POLLIN | POLLPRI;
     buffers.push_back(nullptr);
 
+    int timeout = editor_state()->GetPendingWorkState() ==
+                          OpenBuffer::PendingWorkState::kIdle
+                      ? 1000
+                      : 0;
     VLOG(5) << "Timeout: " << timeout;
     if (poll(fds, buffers.size(), timeout) == -1) {
       CHECK_EQ(errno, EINTR) << "poll failed: " << strerror(errno);

@@ -290,7 +290,9 @@ class OpenBuffer {
   void SchedulePendingWork(std::function<void()> callback);
 
   enum class PendingWorkState { kIdle, kScheduled };
-  PendingWorkState ExecutePendingWork();
+  void ExecutePendingWork();
+
+  PendingWorkState GetPendingWorkState() const;
 
   /////////////////////////////////////////////////////////////////////////////
   // Inspecting contents of buffer.
