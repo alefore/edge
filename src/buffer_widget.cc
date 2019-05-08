@@ -186,8 +186,6 @@ void BufferWidget::RecomputeData() {
     return;
   }
 
-  // TODO: If the buffer has multiple views of different sizes, we're gonna have
-  // a bad time.
   auto status_lines = min(size_.line, LineNumberDelta(1));
   // Screen lines that are dedicated to the buffer.
   auto buffer_lines = size_.line - status_lines;
