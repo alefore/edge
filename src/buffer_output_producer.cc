@@ -54,7 +54,7 @@ void GetSyntaxModifiersForLine(
     LineNumber line, const ParseTree* tree, LineModifierSet syntax_modifiers,
     std::map<ColumnNumber, LineModifierSet>* output) {
   CHECK(tree);
-  LOG(INFO) << "Getting syntax for " << line << " from " << tree->range();
+  VLOG(5) << "Getting syntax for " << line << " from " << tree->range();
   if (tree->range().end.line == line) {
     (*output)[tree->range().end.column] = syntax_modifiers;
   }

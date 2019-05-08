@@ -7,13 +7,13 @@
 #include <iterator>
 #include <map>
 #include <memory>
-#include <mutex>
-#include <thread>
 #include <vector>
 
+#include "src/async_processor.h"
 #include "src/buffer_contents.h"
 #include "src/buffer_terminal.h"
 #include "src/cursors.h"
+#include "src/file_descriptor_reader.h"
 #include "src/lazy_string.h"
 #include "src/line.h"
 #include "src/line_column.h"
@@ -45,8 +45,6 @@ using std::unique_ptr;
 using std::vector;
 
 using namespace afc::vm;
-
-class FileDescriptorReader;
 
 class OpenBuffer {
  public:
@@ -85,7 +83,6 @@ class OpenBuffer {
 
   OpenBuffer(EditorState* editor_state, const wstring& name);
   OpenBuffer(Options options);
-  ~OpenBuffer();
 
   EditorState* editor() const;
 
@@ -362,19 +359,10 @@ class OpenBuffer {
   //////////////////////////////////////////////////////////////////////////////
   // Parse tree
 
-  // Only Editor::ProcessInputString should call this; everyone else should just
-  // call Editor::ScheduleParseTreeUpdate.
-  void ResetParseTree();
-
-  std::shared_ptr<const ParseTree> parse_tree() const {
-    std::unique_lock<std::mutex> lock(mutex_);
-    return parse_tree_;
-  }
-
-  std::shared_ptr<const ParseTree> simplified_parse_tree() const {
-    std::unique_lock<std::mutex> lock(mutex_);
-    return simplified_parse_tree_;
-  }
+  // Never returns nullptr (may return an empty tree instead).
+  std::shared_ptr<const ParseTree> parse_tree() const;
+  // Never returns nullptr (may return an empty tree instead).
+  std::shared_ptr<const ParseTree> simplified_parse_tree() const;
 
   size_t tree_depth() const { return tree_depth_; }
   void set_tree_depth(size_t tree_depth) { tree_depth_ = tree_depth; }
@@ -385,16 +373,33 @@ class OpenBuffer {
       LineNumberDelta lines) const;
 
  private:
+  struct SyntaxDataInput {
+    std::unique_ptr<const BufferContents> contents;
+    std::shared_ptr<TreeParser> parser;
+    std::set<LineNumberDelta> view_sizes;
+  };
+
+  struct SyntaxDataOutput {
+    std::shared_ptr<const ParseTree> parse_tree;
+    std::shared_ptr<const ParseTree> simplified_parse_tree;
+    std::map<LineNumberDelta, std::shared_ptr<const ParseTree>>
+        zoomed_out_parse_trees;
+  };
+
   static void EvaluateMap(OpenBuffer* buffer, LineNumber line,
                           Value::Callback map_callback,
                           TransformationStack* transformation,
                           Trampoline* trampoline);
+  static SyntaxDataOutput UpdateSyntaxData(SyntaxDataInput input);
+
   LineColumn Apply(unique_ptr<Transformation> transformation);
   void BackgroundThread();
   // Destroys the background thread if it's running and if a given predicate
   // returns true. The predicate is evaluated with mutex_ held.
   void DestroyThreadIf(std::function<bool()> predicate);
   void UpdateTreeParser();
+
+  void ScheduleSyntaxDataUpdate();
 
   // Adds a new line. If there's a previous line, notifies various things about
   // it.
@@ -463,11 +468,21 @@ class OpenBuffer {
   list<unique_ptr<Value>> keyboard_text_transformers_;
   Environment environment_;
 
-  // Long running operations that can't be executed in background threads
-  // should periodically interrupt themselves and insert their continuations
-  // here. Edge will periodically flush this to advance their work. This
-  // allows them to run without preventing Edge from handling input from the
-  // user.
+  // Contains a list of callbacks that will be executed later, at some point
+  // shortly before the Editor attempts to sleep waiting for IO (in the main
+  // loop). If this isn't empty, the main loop will actually skip the sleep and
+  // continue running.
+  //
+  // One of the uses of this is for long running operations that can't be
+  // executed in background threads. They periodically interrupt themselves and
+  // insert their continuations here. Edge flushes this to advance their work.
+  // This allows them to run without preventing Edge from handling input from
+  // the user.
+  //
+  // Another use is to ensure that a given execution (such as updating the
+  // syntax tree) only happens in "batches", after a set of operations has been
+  // applied to the buffer (rather than having to schedule many redundant runs,
+  // e.g., when input is being gradually read from a file).
   std::vector<std::function<void()>> pending_work_;
 
   // A function that receives a string and returns a boolean. The function will
@@ -476,12 +491,6 @@ class OpenBuffer {
   // the Line::filtered field).
   unique_ptr<Value> filter_;
   size_t filter_version_;
-
-  // Whenever the contents are modified, we set this to the snapshot (after the
-  // modification). The background thread will react to this: it'll take the
-  // value out (and reset it to null). Once it's done, it'll update the parse
-  // tree.
-  std::unique_ptr<const BufferContents> contents_to_parse_;
 
   unique_ptr<Transformation> last_transformation_;
 
@@ -505,11 +514,6 @@ class OpenBuffer {
 
   CursorsTracker cursors_tracker_;
 
-  std::shared_ptr<const ParseTree> parse_tree_;
-  std::shared_ptr<const ParseTree> simplified_parse_tree_;
-  std::shared_ptr<TreeParser> tree_parser_;
-  std::map<LineNumberDelta, std::shared_ptr<const ParseTree>>
-      zoomed_out_parse_trees_;
   size_t tree_depth_ = 0;
 
   std::shared_ptr<MapModeCommands> default_commands_;
@@ -521,16 +525,6 @@ class OpenBuffer {
   // receiving input and probably other things.
   time_t last_action_ = 0;
 
-  // Protects all the variables that background thread may access.
-  mutable std::mutex mutex_;
-  std::condition_variable background_condition_;
-  // Protects access to background_thread_ itself. Must never be acquired after
-  // mutex_ (only before). Anybody assigning to background_thread_shutting_down_
-  // must do so and join the thread while holding this mutex.
-  mutable std::mutex thread_creation_mutex_;
-  std::thread background_thread_;
-  bool background_thread_shutting_down_ = false;
-
   // The time when variable_progress was last incremented.
   //
   // TODO: Add a Time type to the VM and expose this?
@@ -539,6 +533,21 @@ class OpenBuffer {
   mutable Status status_;
 
   Viewers::Registration viewers_registration_;
+
+  enum class SyntaxDataState {
+    // We need to schedule an update in syntax_data_. When we set
+    // syntax_data_state_ to kPending, we schedule into `pending_work_` a
+    // callback to trigger the update (through the background thread in
+    // `syntax_data_`).
+    kPending,
+    // We've already scheduled the last update in syntax_data_. It may not yet
+    // be fully computed (it may be currently being computing in the background
+    // thread of syntax_data_), but we don't have anything else to do.
+    kDone
+  };
+  SyntaxDataState syntax_data_state_ = SyntaxDataState::kDone;
+  std::shared_ptr<TreeParser> tree_parser_;
+  AsyncProcessor<SyntaxDataInput, SyntaxDataOutput> syntax_data_;
 };
 
 }  // namespace editor

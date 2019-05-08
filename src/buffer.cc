@@ -168,6 +168,34 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, LineNumber line,
       });
 }
 
+/* static */
+OpenBuffer::SyntaxDataOutput OpenBuffer::UpdateSyntaxData(
+    SyntaxDataInput input) {
+  VLOG(3) << "Executing parse tree update.";
+
+  SyntaxDataOutput output;
+
+  auto parse_tree = std::make_shared<ParseTree>();
+  parse_tree->set_range(
+      Range(LineColumn(), LineColumn(input.contents->EndLine(),
+                                     input.contents->back()->EndColumn())));
+  input.parser->FindChildren(*input.contents, parse_tree.get());
+  output.parse_tree = std::move(parse_tree);
+
+  auto simplified_parse_tree = std::make_shared<ParseTree>();
+  SimplifyTree(*output.parse_tree, simplified_parse_tree.get());
+  output.simplified_parse_tree = std::move(simplified_parse_tree);
+
+  for (auto& size : input.view_sizes) {
+    auto results = output.zoomed_out_parse_trees.insert(
+        {size,
+         std::make_shared<ParseTree>(ZoomOutTree(
+             *output.simplified_parse_tree, input.contents->size(), size))});
+    CHECK(results.second);
+  }
+  return output;
+}
+
 /* static */ void OpenBuffer::RegisterBufferType(
     EditorState* editor_state, afc::vm::Environment* environment) {
   auto buffer = std::make_unique<ObjectType>(L"Buffer");
@@ -447,62 +475,6 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, LineNumber line,
   environment->DefineType(L"Buffer", std::move(buffer));
 }
 
-void OpenBuffer::BackgroundThread() {
-  while (true) {
-    std::unique_lock<std::mutex> lock(mutex_);
-    background_condition_.wait(lock, [this]() {
-      return background_thread_shutting_down_ || contents_to_parse_ != nullptr;
-    });
-    VLOG(5) << "Background thread is waking up.";
-    if (background_thread_shutting_down_) {
-      return;
-    }
-    std::unique_ptr<const BufferContents> contents =
-        std::move(contents_to_parse_);
-    CHECK(contents_to_parse_ == nullptr);
-    auto parser = tree_parser_;
-    std::set<LineColumnDelta> view_sizes = viewers()->GetViewSizes();
-    // In case nobody is viewing it, we still want to emit the tree for the last
-    // view size.
-    std::optional<LineColumnDelta> last = viewers()->last_view_size();
-    if (last.has_value()) {
-      view_sizes.insert(last.value());
-    }
-    lock.unlock();
-
-    if (contents == nullptr) {
-      continue;
-    }
-    auto parse_tree = std::make_shared<ParseTree>();
-    parse_tree->set_range(
-        Range(LineColumn(),
-              LineColumn(contents->EndLine(), contents->back()->EndColumn())));
-    parser->FindChildren(*contents, parse_tree.get());
-    auto simplified_parse_tree = std::make_shared<ParseTree>();
-    SimplifyTree(*parse_tree, simplified_parse_tree.get());
-
-    std::map<LineNumberDelta, std::shared_ptr<const ParseTree>>
-        zoomed_out_parse_trees;
-    for (auto& size : view_sizes) {
-      auto results = zoomed_out_parse_trees.insert({size.line, nullptr});
-      if (results.first->second == nullptr) {
-        results.first->second = std::make_shared<ParseTree>(
-            ZoomOutTree(*simplified_parse_tree, lines_size(), size.line));
-      }
-    }
-
-    std::unique_lock<std::mutex> final_lock(mutex_);
-    parse_tree_ = std::move(parse_tree);
-    simplified_parse_tree_ = std::move(simplified_parse_tree);
-    zoomed_out_parse_trees_ = std::move(zoomed_out_parse_trees);
-    options_.editor->ScheduleRedraw();
-    final_lock.unlock();
-
-    VLOG(5) << "Background thread is notifying internal event.";
-    options_.editor->NotifyInternalEvent();
-  }
-}
-
 OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
     : OpenBuffer([=]() {
         Options options;
@@ -520,17 +492,23 @@ OpenBuffer::OpenBuffer(Options options)
       environment_(options_.editor->environment()),
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
-      parse_tree_(std::make_shared<ParseTree>()),
-      tree_parser_(NewNullTreeParser()),
       default_commands_(options_.editor->default_commands()->NewChild()),
       mode_(std::make_unique<MapMode>(default_commands_)),
       status_(options_.editor->GetConsole(), options_.editor->audio_player(),
               [this]() { editor()->ScheduleRedraw(); }),
-      viewers_registration_(
-          viewers_.AddListener([this]() { ResetParseTree(); })) {
+      viewers_registration_(viewers_.AddListener([this]() {
+        LOG(INFO) << "Viewer registered.";
+        ScheduleSyntaxDataUpdate();
+      })),
+      tree_parser_(NewNullTreeParser()),
+      syntax_data_(&UpdateSyntaxData, [this]() {
+        options_.editor->ScheduleRedraw();
+        VLOG(5) << "Background thread is notifying internal event.";
+        options_.editor->NotifyInternalEvent();
+      }) {
   contents_.AddUpdateListener(
       [this](const CursorsTracker::Transformation& transformation) {
-        options_.editor->ScheduleParseTreeUpdate(this);
+        ScheduleSyntaxDataUpdate();
         modified_ = true;
         time(&last_action_);
         cursors_tracker_.AdjustCursors(transformation);
@@ -563,12 +541,6 @@ OpenBuffer::OpenBuffer(Options options)
     }
     EvaluateFile(state_path, [](std::unique_ptr<Value>) {});
   }
-}
-
-OpenBuffer::~OpenBuffer() {
-  LOG(INFO) << "Buffer deleted: " << Read(buffer_variables::name);
-  options_.editor->UnscheduleParseTreeUpdate(this);
-  DestroyThreadIf([]() { return true; });
 }
 
 EditorState* OpenBuffer::editor() const { return options_.editor; }
@@ -874,8 +846,6 @@ void OpenBuffer::UpdateTreeParser() {
   std::unordered_set<wstring> typos_set{
       std::istream_iterator<std::wstring, wchar_t>(typos_stream),
       std::istream_iterator<std::wstring, wchar_t>()};
-
-  std::unique_lock<std::mutex> lock(mutex_);
   if (parser == L"text") {
     tree_parser_ = NewLineTreeParser(
         NewWordsTreeParser(Read(buffer_variables::symbol_characters), typos_set,
@@ -894,50 +864,55 @@ void OpenBuffer::UpdateTreeParser() {
   } else {
     tree_parser_ = NewNullTreeParser();
   }
-  options_.editor->ScheduleParseTreeUpdate(this);
-  lock.unlock();
 
-  DestroyThreadIf([this]() { return TreeParser::IsNull(tree_parser_.get()); });
+  if (TreeParser::IsNull(tree_parser_.get())) {
+    syntax_data_.PauseThread();  // TODO: Don't block until the thread is done?
+  }
 }
 
-void OpenBuffer::ResetParseTree() {
-  VLOG(5) << "Resetting parse tree.";
-  {
-    std::unique_lock<std::mutex> lock(mutex_);
+void OpenBuffer::ScheduleSyntaxDataUpdate() {
+  if (syntax_data_state_ == SyntaxDataState::kPending) {
+    return;  // Already scheduled in `pending_work_`.
+  }
+  syntax_data_state_ = SyntaxDataState::kPending;
+
+  VLOG(5) << "Scheduling parse tree update.";
+
+  pending_work_.push_back([this]() {
+    syntax_data_state_ = SyntaxDataState::kDone;
     if (TreeParser::IsNull(tree_parser_.get())) {
       return;
     }
-    contents_to_parse_ = contents_.copy();
-  }
 
-  {
-    std::unique_lock<std::mutex> lock(thread_creation_mutex_);
-    if (!background_thread_.joinable()) {
-      std::unique_lock<std::mutex> lock(mutex_);
-      background_thread_shutting_down_ = false;
-      LOG(INFO) << "Creating thread: " << Read(buffer_variables::name);
-      background_thread_ = std::thread([this]() { BackgroundThread(); });
+    SyntaxDataInput input;
+    input.contents = contents_.copy();
+    input.parser = tree_parser_;
+
+    for (const auto& size : viewers()->GetViewSizes()) {
+      input.view_sizes.insert(size.line);
     }
-  }
 
-  background_condition_.notify_one();
+    // In case nobody is viewing it, we still want to emit the tree for the
+    // last view size.
+    std::optional<LineColumnDelta> last = viewers()->last_view_size();
+    if (last.has_value()) {
+      input.view_sizes.insert(last.value().line);
+    }
+
+    syntax_data_.Push(std::move(input));
+  });
 }
 
-void OpenBuffer::DestroyThreadIf(std::function<bool()> predicate) {
-  std::unique_lock<std::mutex> thread_creation_lock(thread_creation_mutex_);
-  if (!background_thread_.joinable()) {
-    return;
-  }
+std::shared_ptr<const ParseTree> OpenBuffer::parse_tree() const {
+  std::optional<const SyntaxDataOutput> data = syntax_data_.Get();
+  return data.has_value() ? data.value().parse_tree
+                          : std::make_shared<ParseTree>();
+}
 
-  std::unique_lock<std::mutex> lock(mutex_);
-  if (!predicate()) {
-    return;
-  }
-  background_thread_shutting_down_ = true;
-  lock.unlock();
-
-  background_condition_.notify_one();
-  background_thread_.join();
+std::shared_ptr<const ParseTree> OpenBuffer::simplified_parse_tree() const {
+  std::optional<const SyntaxDataOutput> data = syntax_data_.Get();
+  return data.has_value() ? data.value().simplified_parse_tree
+                          : std::make_shared<ParseTree>();
 }
 
 void OpenBuffer::StartNewLine() {
@@ -1532,6 +1507,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
 }
 
 const ParseTree* OpenBuffer::current_tree(const ParseTree* root) const {
+  CHECK(root);
   auto route = FindRouteToPosition(*root, position());
   if (route.size() < tree_depth_) {
     return root;
@@ -1544,10 +1520,14 @@ const ParseTree* OpenBuffer::current_tree(const ParseTree* root) const {
 
 std::shared_ptr<const ParseTree> OpenBuffer::current_zoomed_out_parse_tree(
     LineNumberDelta lines) const {
-  std::unique_lock<std::mutex> lock(mutex_);
-  auto it = zoomed_out_parse_trees_.find(lines);
-  if (it == zoomed_out_parse_trees_.end()) {
+  std::optional<const SyntaxDataOutput> data = syntax_data_.Get();
+  if (!data.has_value()) {
     return nullptr;
+  }
+
+  auto it = data.value().zoomed_out_parse_trees.find(lines);
+  if (it == data.value().zoomed_out_parse_trees.end()) {
+    return std::make_shared<ParseTree>();
   }
   CHECK(it->second != nullptr);
   return it->second;

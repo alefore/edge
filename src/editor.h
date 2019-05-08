@@ -196,13 +196,6 @@ class EditorState {
   bool handling_interrupts() const { return handling_interrupts_; }
   bool handling_stop_signals() const;
 
-  void ScheduleParseTreeUpdate(OpenBuffer* buffer) {
-    buffers_to_parse_.insert(buffer);
-  }
-  void UnscheduleParseTreeUpdate(OpenBuffer* buffer) {
-    buffers_to_parse_.erase(buffer);
-  }
-
   int fd_to_detect_internal_events() const {
     return pipe_to_communicate_internal_events_.first;
   }
@@ -224,11 +217,6 @@ class EditorState {
 
  private:
   Environment BuildEditorEnvironment();
-
-  // While processing input, buffers add themselves here if they need to have
-  // their tree re-scanned. Once the chunk of input has been fully processed,
-  // we flush the updates. ~OpenBuffer removes entries from here.
-  std::unordered_set<OpenBuffer*> buffers_to_parse_;
 
   map<wstring, shared_ptr<OpenBuffer>> buffers_;
   std::optional<int> exit_value_;

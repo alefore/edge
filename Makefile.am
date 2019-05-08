@@ -10,6 +10,7 @@ EXTRA_DIST = \
 src/vm/internal/cpp.y
 
 COMMON_SOURCES = \
+src/async_processor.h \
 src/audio.cc \
 src/audio.h \
 src/args.cc \

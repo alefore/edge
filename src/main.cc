@@ -282,8 +282,6 @@ int main(int argc, const char** argv) {
 
   LOG(INFO) << "Main loop starting.";
   while (!editor_state()->exit_value().has_value()) {
-    editor_state()->UpdateBuffers();
-
     // TODO: Change to -1. Requires figuring out a way for background threads of
     // buffers to trigger redraws.
     int timeout = editor_state()->ExecutePendingWork() ==

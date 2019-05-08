@@ -649,13 +649,6 @@ void EditorState::ProcessInput(int c) {
   handler->ProcessInput(c, this);
 }
 
-void EditorState::UpdateBuffers() {
-  for (OpenBuffer* buffer : buffers_to_parse_) {
-    buffer->ResetParseTree();
-  }
-  buffers_to_parse_.clear();
-}
-
 void EditorState::MoveBufferForwards(size_t times) {
   auto it = buffers_.end();
 

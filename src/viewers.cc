@@ -7,13 +7,14 @@ namespace editor {
 
 Viewers::Registration Viewers::Register(LineColumnDelta view_size) {
   // TODO: Optimize to not require 2 tree traversals?
+  CHECK_LT(view_sizes_.size(), 10000);
   bool new_item = view_sizes_.find(view_size) == view_sizes_.end();
   view_sizes_.insert(view_size);
   if (new_item) {
     last_view_size_ = view_size;
-  }
-  for (auto& l : listeners_) {
-    l();
+    for (auto& l : listeners_) {
+      l();
+    }
   }
   return std::unique_ptr<bool, std::function<void(bool*)>>(
       new bool(), [this, view_size](bool* value) {
@@ -25,6 +26,7 @@ Viewers::Registration Viewers::Register(LineColumnDelta view_size) {
 }
 
 Viewers::Registration Viewers::AddListener(std::function<void()> listener) {
+  CHECK_LT(listeners_.size(), 10000);
   listeners_.push_front(listener);
   return std::unique_ptr<bool, std::function<void(bool*)>>(
       new bool(), [this, it = listeners_.begin()](bool* value) {
