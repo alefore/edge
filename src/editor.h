@@ -148,7 +148,6 @@ class EditorState {
   }
 
   void ProcessInput(int c);
-  void UpdateBuffers();
 
   const LineMarks* line_marks() const { return &line_marks_; }
   LineMarks* line_marks() { return &line_marks_; }
