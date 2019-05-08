@@ -18,6 +18,14 @@ class LRUCache {
  public:
   LRUCache(size_t max_size) : max_size_(max_size) {}
 
+  void Clear() {
+    ValidateInvariants();
+    LOG(INFO) << "Clearing LRU Cache (size: " << access_order_.size();
+    map_.clear();
+    access_order_.clear();
+    ValidateInvariants();
+  }
+
   // Creator must be a function that receives zero arguments and returns a
   // Value.
   template <typename Creator>

@@ -44,7 +44,7 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
   if (screen_state.needs_hard_redraw) {
     screen->HardRefresh();
     hashes_current_lines_.clear();
-    // TODO: lines_cache_.clear();
+    lines_cache_.Clear();
   }
   ShowBuffer(editor_state, screen);
   ShowStatus(*editor_state, screen);
