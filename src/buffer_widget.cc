@@ -145,8 +145,7 @@ void BufferWidget::SetSize(LineColumnDelta size) {
   RecomputeData();
 }
 
-LineNumberDelta BufferWidget::lines() const { return size_.line; }
-ColumnNumberDelta BufferWidget::columns() const { return size_.column; }
+LineColumnDelta BufferWidget::size() const { return size_; }
 
 LineNumberDelta BufferWidget::MinimumLines() {
   auto buffer = Lock();

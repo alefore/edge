@@ -303,7 +303,7 @@ wstring LineUp::Description() const { return L"moves up one line"; }
     MoveBackwards::Move(c, editor_state);
   } else if (structure == StructureWord() || structure == StructureSymbol()) {
     // Move in whole pages.
-    auto lines = editor_state->buffer_tree()->GetActiveLeaf()->lines();
+    auto lines = editor_state->buffer_tree()->GetActiveLeaf()->size().line;
     editor_state->set_repetitions(
         editor_state->repetitions() *
         (lines.line_delta > 2 ? lines.line_delta - 2 : 3));
@@ -343,7 +343,7 @@ wstring LineDown::Description() const { return L"moves down one line"; }
     MoveForwards::Move(c, editor_state);
   } else if (structure == StructureWord() || structure == StructureSymbol()) {
     // Move in whole pages.
-    auto lines = editor_state->buffer_tree()->GetActiveLeaf()->lines();
+    auto lines = editor_state->buffer_tree()->GetActiveLeaf()->size().line;
     editor_state->set_repetitions(
         editor_state->repetitions() *
         (lines.line_delta > 2 ? lines.line_delta - 2 : 3));

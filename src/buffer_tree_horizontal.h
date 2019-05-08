@@ -20,8 +20,7 @@ class BufferTree : public SelectingWidget {
   const BufferWidget* GetActiveLeaf() const;
 
   void SetSize(LineColumnDelta size) override;
-  LineNumberDelta lines() const override;
-  ColumnNumberDelta columns() const override;
+  LineColumnDelta size() const override;
   void RemoveBuffer(OpenBuffer* buffer) override;
 
   size_t count() const override;

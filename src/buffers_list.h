@@ -33,8 +33,7 @@ class BuffersList : public DelegatingWidget {
   std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 
   void SetSize(LineColumnDelta size) override;
-  LineNumberDelta lines() const override;
-  ColumnNumberDelta columns() const override;
+  LineColumnDelta size() const override;
   LineNumberDelta MinimumLines() override;
 
   void RemoveBuffer(OpenBuffer* buffer) override;

@@ -168,15 +168,15 @@ class GotoCommand : public Command {
       buffer->set_current_position_line(LineNumber(lines.at(position).first));
     } else if (structure == StructurePage()) {
       CHECK_GT(buffer->contents()->size(), LineNumberDelta(0));
-      size_t pages = ceil(
-          static_cast<double>(buffer->contents()->size().line_delta) /
-          editor_state->buffer_tree()->GetActiveLeaf()->lines().line_delta);
+      auto lines = editor_state->buffer_tree()->GetActiveLeaf()->size().line;
+      size_t pages =
+          ceil(static_cast<double>(buffer->contents()->size().line_delta) /
+               lines.line_delta);
       LineNumber position =
           LineNumber(0) +
-          editor_state->buffer_tree()->GetActiveLeaf()->lines() *
-              ComputePosition(0, pages, pages, editor_state->direction(),
-                              editor_state->repetitions(),
-                              editor_state->structure_range(), calls_);
+          lines * ComputePosition(0, pages, pages, editor_state->direction(),
+                                  editor_state->repetitions(),
+                                  editor_state->structure_range(), calls_);
       CHECK_LT(position, LineNumber(0) + buffer->contents()->size());
       buffer->set_current_position_line(position);
     } else if (structure == StructureSearch()) {

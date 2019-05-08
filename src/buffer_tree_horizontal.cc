@@ -36,9 +36,7 @@ const BufferWidget* BufferTree::GetActiveLeaf() const {
 
 void BufferTree::SetSize(LineColumnDelta size) { size_ = size; }
 
-LineNumberDelta BufferTree::lines() const { return size_.line; }
-
-ColumnNumberDelta BufferTree::columns() const { return size_.column; }
+LineColumnDelta BufferTree::size() const { return size_; }
 
 void BufferTree::RemoveBuffer(OpenBuffer* buffer) {
   for (auto& child : children_) {
