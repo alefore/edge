@@ -19,44 +19,6 @@
 namespace afc {
 namespace editor {
 namespace {
-// TODO: Make a private method of BufferMetadataOutputProducer?
-wchar_t ComputeScrollBarCharacter(LineNumber line, LineNumberDelta lines_size,
-                                  LineNumber view_start,
-                                  LineNumberDelta lines_shown_) {
-  // Each line is split into two units (upper and bottom halves). All units in
-  // this function are halves (of a line).
-  DCHECK_GE(line, view_start);
-  DCHECK_LT(line - view_start, lines_shown_)
-      << "Line is " << line << " and view_start is " << view_start
-      << ", which exceeds lines_shown_ of " << lines_shown_;
-  DCHECK_LT(view_start, LineNumber(0) + lines_size);
-  size_t halves_to_show = lines_shown_.line_delta * 2;
-
-  // Number of halves the bar should take.
-  size_t bar_size =
-      max(size_t(1),
-          size_t(std::round(halves_to_show *
-                            static_cast<double>(lines_shown_.line_delta) /
-                            lines_size.line_delta)));
-
-  // Bar will be shown in lines in interval [bar, end] (units are halves).
-  size_t start =
-      std::round(halves_to_show * static_cast<double>(view_start.line) /
-                 lines_size.line_delta);
-  size_t end = start + bar_size;
-
-  size_t current = 2 * (line - view_start).line_delta;
-  if (current < start - (start % 2) || current >= end) {
-    return L' ';
-  } else if (start == current + 1) {
-    return L'▄';
-  } else if (current + 1 == end) {
-    return L'▀';
-  } else {
-    return L'█';
-  }
-}
-
 void Draw(size_t pos, wchar_t padding_char, wchar_t final_char,
           wchar_t connect_final_char, wstring* output) {
   CHECK_LT(pos, output->size());
@@ -244,8 +206,7 @@ wstring BufferMetadataOutputProducer::GetDefaultInformation(LineNumber line) {
   if (buffer_->Read(buffer_variables::scrollbar) &&
       buffer_->lines_size() > lines_shown_) {
     CHECK_GE(line, initial_line_);
-    output += ComputeScrollBarCharacter(line, buffer_->lines_size(),
-                                        initial_line_, lines_shown_);
+    output += ComputeScrollBarCharacter(line);
   }
   if (zoomed_out_tree_ != nullptr && !zoomed_out_tree_->children().empty()) {
     output += DrawTree(line - initial_line_.ToDelta(), lines_shown_,
@@ -267,5 +228,41 @@ void BufferMetadataOutputProducer::PushGenerator(wchar_t info_char,
       }});
 }
 
+wchar_t BufferMetadataOutputProducer::ComputeScrollBarCharacter(
+    LineNumber line) {
+  auto lines_size = buffer_->lines_size();
+  // Each line is split into two units (upper and bottom halves). All units in
+  // this function are halves (of a line).
+  DCHECK_GE(line, initial_line_);
+  DCHECK_LT(line - initial_line_, lines_shown_)
+      << "Line is " << line << " and view_start is " << initial_line_
+      << ", which exceeds lines_shown_ of " << lines_shown_;
+  DCHECK_LT(initial_line_, LineNumber(0) + lines_size);
+  size_t halves_to_show = lines_shown_.line_delta * 2;
+
+  // Number of halves the bar should take.
+  size_t bar_size =
+      max(size_t(1),
+          size_t(std::round(halves_to_show *
+                            static_cast<double>(lines_shown_.line_delta) /
+                            lines_size.line_delta)));
+
+  // Bar will be shown in lines in interval [bar, end] (units are halves).
+  size_t start =
+      std::round(halves_to_show * static_cast<double>(initial_line_.line) /
+                 lines_size.line_delta);
+  size_t end = start + bar_size;
+
+  size_t current = 2 * (line - initial_line_).line_delta;
+  if (current < start - (start % 2) || current >= end) {
+    return L' ';
+  } else if (start == current + 1) {
+    return L'▄';
+  } else if (current + 1 == end) {
+    return L'▀';
+  } else {
+    return L'█';
+  }
+}
 }  // namespace editor
 }  // namespace afc
