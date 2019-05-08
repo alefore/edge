@@ -86,7 +86,7 @@ class LineScrollControl
   Range GetRange(LineColumn begin);
 
   const Options options_;
-  const std::map<size_t, std::set<ColumnNumber>> cursors_;
+  const std::map<LineNumber, std::set<ColumnNumber>> cursors_;
 
   std::vector<Reader*> readers_;
 

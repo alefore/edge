@@ -26,10 +26,9 @@ LineScrollControl::Reader::Reader(ConstructorAccessTag,
 LineScrollControl::LineScrollControl(ConstructorAccessTag, Options options)
     : options_(std::move(options)),
       cursors_([=]() {
-        // TODO: Switch the type for the keys to LineNumber.
-        std::map<size_t, std::set<ColumnNumber>> cursors;
+        std::map<LineNumber, std::set<ColumnNumber>> cursors;
         for (auto cursor : *options_.buffer->active_cursors()) {
-          cursors[cursor.line.line].insert(cursor.column);
+          cursors[cursor.line].insert(cursor.column);
         }
         return cursors;
       }()),
@@ -61,7 +60,7 @@ bool LineScrollControl::Reader::HasActiveCursor() const {
 std::set<ColumnNumber> LineScrollControl::Reader::GetCurrentCursors() const {
   CHECK(state_ == State::kProcessing);
   LineNumber line = parent_->range_.begin.line;
-  auto it = parent_->cursors_.find(line.line);
+  auto it = parent_->cursors_.find(line);
   if (it == parent_->cursors_.end()) {
     return {};
   }
