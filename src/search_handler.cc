@@ -166,7 +166,6 @@ void SearchHandlerPredictor(EditorState* editor_state, const wstring& input,
     if (i == 0) {
       buffer->set_position(positions[0]);
       buffer->status()->Reset();
-      editor_state->ScheduleRedraw();
     }
     matches.insert(RegexEscape(
         buffer->LineAt(positions[i].line)->Substring(positions[i].column)));

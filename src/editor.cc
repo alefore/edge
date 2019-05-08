@@ -77,7 +77,6 @@ void RegisterBufferMethod(ObjectType* editor_type, const wstring& name,
     if (buffer != nullptr) {
       (*buffer.*method)();
       editor->ResetModifiers();
-      editor->ScheduleRedraw();
     }
     trampoline->Return(Value::NewVoid());
   };
@@ -295,10 +294,6 @@ Environment EditorState::BuildEditorEnvironment() {
                         [this](wstring s) { status_.SetInformationText(s); })));
 
   environment.Define(
-      L"ScheduleRedraw",
-      vm::NewCallback(std::function<void()>([this]() { ScheduleRedraw(); })));
-
-  environment.Define(
       L"set_screen_needs_hard_redraw",
       vm::NewCallback(std::function<void(bool)>(
           [this](bool value) { set_screen_needs_hard_redraw(value); })));
@@ -412,7 +407,7 @@ EditorState::EditorState(command_line_arguments::Values args,
       pipe_to_communicate_internal_events_(BuildPipe()),
       audio_player_(audio_player),
       buffer_tree_(std::make_unique<BufferTreeHorizontal>(BufferWidget::New())),
-      status_(GetConsole(), audio_player_, [this]() { ScheduleRedraw(); }) {
+      status_(GetConsole(), audio_player_) {
   LineColumn::Register(&environment_);
   Range::Register(&environment_);
 }
@@ -437,7 +432,6 @@ void EditorState::CloseBuffer(OpenBuffer* buffer) {
   CHECK(buffer != nullptr);
   buffer->PrepareToClose(
       [this, buffer]() {
-        ScheduleRedraw();
         buffer->Close();
         buffer_tree_.RemoveBuffer(buffer);
         buffers_.erase(buffer->Read(buffer_variables::name));
@@ -466,7 +460,6 @@ void EditorState::AddVerticalSplit() {
     CHECK(casted_child != nullptr);
   }
   casted_child->AddChild(BufferWidget::New(OpenAnonymousBuffer(this)));
-  ScheduleRedraw();
 }
 
 void EditorState::AddHorizontalSplit() {
@@ -479,7 +472,6 @@ void EditorState::AddHorizontalSplit() {
     CHECK(casted_child != nullptr);
   }
   casted_child->AddChild(BufferWidget::New(OpenAnonymousBuffer(this)));
-  ScheduleRedraw();
 }
 
 void EditorState::SetHorizontalSplitsWithAllBuffers() {
@@ -498,13 +490,11 @@ void EditorState::SetHorizontalSplitsWithAllBuffers() {
   CHECK(!buffers.empty());
   buffer_tree_.SetChild(
       std::make_unique<BufferTreeHorizontal>(std::move(buffers), index_active));
-  ScheduleRedraw();
 }
 
 void EditorState::SetActiveBuffer(size_t position) {
   buffer_tree_.GetActiveLeaf()->SetBuffer(
       buffer_tree_.GetBuffer(position % buffer_tree_.BuffersCount()));
-  ScheduleRedraw();
 }
 
 void EditorState::AdvanceActiveLeaf(int delta) {
@@ -526,7 +516,6 @@ void EditorState::AdvanceActiveLeaf(int delta) {
   }
   delta = buffer_tree_.AdvanceActiveLeafWithoutWrapping(delta);
   VLOG(5) << "Done advance, with delta: " << delta;
-  ScheduleRedraw();
 }
 
 void EditorState::AdvanceActiveBuffer(int delta) {
@@ -539,18 +528,11 @@ void EditorState::AdvanceActiveBuffer(int delta) {
   }
   buffer_tree_.GetActiveLeaf()->SetBuffer(
       buffer_tree_.GetBuffer(delta % total));
-  ScheduleRedraw();
 }
 
 void EditorState::ZoomToLeaf() {
   buffer_tree_.SetChild(
       BufferWidget::New(buffer_tree_.GetActiveLeaf()->Lock()));
-  ScheduleRedraw();
-}
-
-void EditorState::BufferTreeRemoveActiveLeaf() {
-  // buffer_tree_.RemoveActiveLeaf();
-  ScheduleRedraw();
 }
 
 bool EditorState::has_current_buffer() const {
@@ -705,11 +687,6 @@ void EditorState::MoveBufferBackwards(size_t times) {
   PushCurrentPosition();
 }
 
-void EditorState::ScheduleRedraw() {
-  std::unique_lock<std::mutex> lock(mutex_);
-  screen_state_.needs_redraw = true;
-}
-
 EditorState::ScreenState EditorState::FlushScreenState() {
   std::unique_lock<std::mutex> lock(mutex_);
   ScreenState output = screen_state_;
@@ -768,9 +745,6 @@ void EditorState::PushPosition(LineColumn position) {
                              buffer->Read(buffer_variables::name)));
   CHECK_LE(buffer_it->second->position().line,
            LineNumber(0) + buffer_it->second->contents()->size());
-  if (buffer_it->second == buffer) {
-    ScheduleRedraw();
-  }
 }
 
 static BufferPosition PositionFromLine(const wstring& line) {

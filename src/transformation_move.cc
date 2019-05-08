@@ -61,7 +61,6 @@ class MoveTransformation : public Transformation {
       active_cursors->insert(result->cursor);
       result->cursor = next_cursor;
 
-      editor_state->ScheduleRedraw();
       editor_state->ResetRepetitions();
       editor_state->ResetStructure();
       editor_state->ResetDirection();
@@ -74,10 +73,6 @@ class MoveTransformation : public Transformation {
     NewGotoPositionTransformation(position)->Apply(buffer, result);
     if (modifiers_.repetitions > 1) {
       editor_state->PushPosition(result->cursor);
-    }
-    if (buffer->active_cursors()->size() > 1 ||
-        buffer->current_tree(root.get()) != current_tree) {
-      editor_state->ScheduleRedraw();
     }
     editor_state->ResetRepetitions();
     editor_state->ResetStructure();

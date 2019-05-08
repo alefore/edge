@@ -105,7 +105,6 @@ FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
     options_.terminal->ProcessCommandInput(buffer_wrapper, [this]() {
       lines_read_rate_.IncrementAndGetEventsPerSecond(1.0);
     });
-    editor_state->ScheduleRedraw();
   } else {
     auto follower = options_.buffer->GetEndPositionFollower();
     ColumnNumber line_start;
@@ -123,12 +122,6 @@ FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
         lines_read_rate_.IncrementAndGetEventsPerSecond(1.0);
         options_.start_new_line();
         line_start = ColumnNumber(i) + ColumnNumberDelta(1);
-        auto buffer = editor_state->current_buffer();
-        if (buffer.get() == options_.buffer) {
-          // TODO: Only do this if the position is in view in any of the
-          // buffers.
-          editor_state->ScheduleRedraw();
-        }
       }
     }
     if (line_start.ToDelta() < ColumnNumberDelta(buffer_wrapper->size())) {
@@ -150,7 +143,6 @@ FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
           OpenBuffer::kBuffersName) {
     current_buffer->Reload();
   }
-  editor_state->ScheduleRedraw();
   return ReadResult::kContinue;
 }
 

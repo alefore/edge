@@ -165,7 +165,6 @@ class NavigationBufferCommand : public Command {
     editor_state->status()->Reset();
     it.first->second->Reload();
     editor_state->PushCurrentPosition();
-    editor_state->ScheduleRedraw();
     it.first->second->ResetMode();
     editor_state->ResetRepetitions();
   }

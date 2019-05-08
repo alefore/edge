@@ -18,7 +18,6 @@ static void DoSearch(EditorState* editor_state, const SearchOptions& options) {
   buffer->ResetMode();
   editor_state->ResetDirection();
   editor_state->ResetStructure();
-  editor_state->ScheduleRedraw();
 }
 
 class SearchCommand : public Command {
@@ -103,7 +102,6 @@ class SearchCommand : public Command {
       buffer->ResetMode();
       editor_state->ResetDirection();
       editor_state->ResetStructure();
-      editor_state->ScheduleRedraw();
       return;
     }
 

@@ -135,7 +135,6 @@ class HelpCommand : public Command {
     editor_state->buffers()->insert(make_pair(name, buffer));
     editor_state->set_current_buffer(buffer);
 
-    editor_state->ScheduleRedraw();
     editor_state->ResetRepetitions();
   }
 

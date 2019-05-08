@@ -18,8 +18,7 @@ std::wstring ProgressStringFillUp(size_t counter,
 
 class Status {
  public:
-  Status(std::shared_ptr<OpenBuffer> console, AudioPlayer* audio_player,
-         std::function<void()> updates_listener);
+  Status(std::shared_ptr<OpenBuffer> console, AudioPlayer* audio_player);
 
   enum class Type { kWarning, kInformation, kPrompt };
   Type GetType() const;
@@ -43,7 +42,6 @@ class Status {
 
   const std::shared_ptr<OpenBuffer> console_;
   AudioPlayer* const audio_player_;
-  const std::function<void()> updates_listener_;
 
   std::shared_ptr<OpenBuffer> prompt_buffer_;
 

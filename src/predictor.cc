@@ -101,7 +101,6 @@ void HandleEndOfFile(OpenBuffer* buffer,
       CHECK_EQ(buffer, it->second.get());
       editor_state->set_current_buffer(it->second);
       buffer->set_current_position_line(LineNumber(0));
-      editor_state->ScheduleRedraw();
     }
   }
 }

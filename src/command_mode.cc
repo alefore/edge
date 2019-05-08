@@ -77,7 +77,6 @@ class Delete : public Command {
     DeleteOptions options = delete_options_;
     options.modifiers = editor_state->modifiers();
     editor_state->ApplyToCurrentBuffer(NewDeleteTransformation(options));
-    editor_state->ScheduleRedraw();
 
     LOG(INFO) << "After applying delete transformation: "
               << editor_state->modifiers();
@@ -164,7 +163,6 @@ class Paste : public Command {
       editor_state->ResetInsertionModifier();
     }
     editor_state->ResetRepetitions();
-    editor_state->ScheduleRedraw();
   }
 };
 
@@ -183,7 +181,6 @@ class UndoCommand : public Command {
     buffer->Undo();
     editor_state->ResetRepetitions();
     editor_state->ResetDirection();
-    editor_state->ScheduleRedraw();
   }
 };
 
@@ -230,7 +227,6 @@ class GotoPreviousPositionCommand : public Command {
                   << pos.position;
         editor_state->set_current_buffer(it->second);
         it->second->set_position(pos.position);
-        editor_state->ScheduleRedraw();
         editor_state->set_repetitions(editor_state->repetitions() - 1);
       }
     }
@@ -313,7 +309,6 @@ wstring LineUp::Description() const { return L"moves up one line"; }
     CHECK(false);  // Handled above.
   } else {
     editor_state->MoveBufferBackwards(editor_state->repetitions());
-    editor_state->ScheduleRedraw();
   }
   editor_state->ResetStructure();
   editor_state->ResetRepetitions();
@@ -370,10 +365,8 @@ wstring LineDown::Description() const { return L"moves down one line"; }
     buffer->ResetMode();
     editor_state->ResetDirection();
     editor_state->ResetStructure();
-    editor_state->ScheduleRedraw();
   } else {
     editor_state->MoveBufferForwards(editor_state->repetitions());
-    editor_state->ScheduleRedraw();
   }
   editor_state->ResetStructure();
   editor_state->ResetRepetitions();
@@ -635,7 +628,6 @@ class ActivateLink : public Command {
             *static_cast<LineColumn*>(target_position->user_value.get()));
       }
       editor_state->PushCurrentPosition();
-      editor_state->ScheduleRedraw();
       buffer->ResetMode();
       target->ResetMode();
       return;

@@ -77,11 +77,8 @@ std::wstring ProgressStringFillUp(size_t lines,
                                output.size())]);
 }
 
-Status::Status(std::shared_ptr<OpenBuffer> console, AudioPlayer* audio_player,
-               std::function<void()> updates_listener)
-    : console_(std::move(console)),
-      audio_player_(audio_player),
-      updates_listener_(std::move(updates_listener)) {
+Status::Status(std::shared_ptr<OpenBuffer> console, AudioPlayer* audio_player)
+    : console_(std::move(console)), audio_player_(audio_player) {
   ValidatePreconditions();
 }
 
@@ -103,7 +100,6 @@ void Status::set_prompt(std::wstring text, std::shared_ptr<OpenBuffer> buffer) {
   type_ = Status::Type::kPrompt;
   prompt_buffer_ = std::move(buffer);
   text_ = std::move(text);
-  updates_listener_();
 
   ValidatePreconditions();
 }
@@ -122,7 +118,6 @@ void Status::SetInformationText(std::wstring text) {
   }
   type_ = Type::kInformation;
   text_ = std::move(text);
-  updates_listener_();
 
   ValidatePreconditions();
 }
@@ -136,7 +131,6 @@ void Status::SetWarningText(std::wstring text) {
   }
   type_ = Type::kWarning;
   text_ = std::move(text);
-  updates_listener_();
 
   ValidatePreconditions();
 }
@@ -147,7 +141,6 @@ void Status::Reset() {
   prompt_buffer_ = nullptr;
   type_ = Type::kInformation;
   text_ = L"";
-  updates_listener_();
 
   ValidatePreconditions();
 }
@@ -163,7 +156,6 @@ void Status::Bell() {
     text_ = L"…" + text_.substr(text_.size() - 40, text_.size());
   }
   text_ += +L" " + std::wstring(text_.back() == L'♪' ? L"♫" : L"♪");
-  updates_listener_();
 }
 
 const std::wstring& Status::text() const {

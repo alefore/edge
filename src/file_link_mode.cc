@@ -142,8 +142,6 @@ void GenerateContents(EditorState* editor_state, struct stat* stat_buffer,
     target->ClearModified();
   }
 
-  editor_state->ScheduleRedraw();
-
   if (path.empty()) {
     return;
   }
@@ -454,7 +452,6 @@ shared_ptr<OpenBuffer> GetSearchPathsBuffer(EditorState* editor_state,
   it->second->Set(buffer_variables::show_in_buffers_list, false);
   if (!editor_state->has_current_buffer()) {
     editor_state->set_current_buffer(it->second);
-    editor_state->ScheduleRedraw();
   }
   return it->second;
 }
@@ -543,7 +540,6 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
         buffer->second->set_position(position.value());
       }
       // TODO: Apply pattern.
-      editor_state->ScheduleRedraw();
       return buffer;
     }
     if (options.ignore_if_not_found) {
@@ -580,7 +576,6 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   editor_state->buffer_tree()->AddBuffer(it.first->second,
                                          options.insertion_type);
 
-  editor_state->ScheduleRedraw();
   if (!pattern.empty()) {
     SearchOptions search_options;
     search_options.starting_position = it.first->second->position();

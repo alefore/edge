@@ -43,7 +43,6 @@ using std::vector;
 class EditorState {
  public:
   struct ScreenState {
-    bool needs_redraw = false;
     bool needs_hard_redraw = false;
   };
 
@@ -69,7 +68,6 @@ class EditorState {
   void AdvanceActiveBuffer(int delta);
   void AdvanceActiveLeaf(int delta);
   void ZoomToLeaf();
-  void BufferTreeRemoveActiveLeaf();
 
   bool has_current_buffer() const;
   shared_ptr<OpenBuffer> current_buffer();
@@ -159,12 +157,7 @@ class EditorState {
   void MoveBufferForwards(size_t times);
   void MoveBufferBackwards(size_t times);
 
-  void ScheduleRedraw();
   ScreenState FlushScreenState();
-  void set_screen_needs_redraw(bool value) {
-    std::unique_lock<std::mutex> lock(mutex_);
-    screen_state_.needs_redraw = value;
-  }
   void set_screen_needs_hard_redraw(bool value) {
     std::unique_lock<std::mutex> lock(mutex_);
     screen_state_.needs_hard_redraw = value;

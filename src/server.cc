@@ -176,8 +176,6 @@ void GenerateContents(EditorState* editor_state, OpenBuffer* target) {
 
   LOG(INFO) << "Server received connection: " << fd;
   target->SetInputFiles(fd, -1, false, -1);
-
-  editor_state->ScheduleRedraw();
 }
 
 bool StartServer(EditorState* editor_state, wstring address,

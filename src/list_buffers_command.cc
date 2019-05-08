@@ -157,7 +157,6 @@ void GenerateContents(EditorState* editor_state, OpenBuffer* target) {
       ++index;
     }
   }
-  editor_state->ScheduleRedraw();
 }
 
 class ListBuffersCommand : public Command {
@@ -190,7 +189,6 @@ class ListBuffersCommand : public Command {
     editor_state->status()->Reset();
     it.first->second->Reload();
     editor_state->PushCurrentPosition();
-    editor_state->ScheduleRedraw();
     it.first->second->ResetMode();
     editor_state->ResetRepetitions();
   }

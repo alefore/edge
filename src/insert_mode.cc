@@ -239,7 +239,6 @@ class AutocompleteMode : public EditorMode {
             NewDeleteTransformation(delete_options),
             NewInsertBufferTransformation(std::move(insert_options)))));
 
-    editor_state->ScheduleRedraw();
     word_length_ = ColumnNumberDelta(insert->size());
   }
 
@@ -481,7 +480,6 @@ class InsertMode : public EditorMode {
         delete_options.copy_to_paste_buffer = false;
         buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
         options_.modify_listener();
-        editor_state->ScheduleRedraw();
       }
         return;
 
@@ -500,7 +498,6 @@ class InsertMode : public EditorMode {
         buffer->ApplyToCursors(
             NewDeleteTransformation(std::move(delete_options)));
         options_.modify_listener();
-        editor_state->ScheduleRedraw();
         return;
       }
 
@@ -513,7 +510,6 @@ class InsertMode : public EditorMode {
         delete_options.copy_to_paste_buffer = false;
         buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
         options_.modify_listener();
-        editor_state->ScheduleRedraw();
         return;
       }
 
@@ -535,7 +531,6 @@ class InsertMode : public EditorMode {
     }
 
     options_.modify_listener();
-    editor_state->ScheduleRedraw();
   }
 
  private:
@@ -808,7 +803,6 @@ void EnterInsertMode(InsertModeOptions options) {
     auto buffer = options.buffer;
     options.new_line_handler = [buffer, editor_state]() {
       buffer->ApplyToCursors(std::make_unique<NewLineTransformation>());
-      editor_state->ScheduleRedraw();
     };
   }
 
@@ -840,7 +834,6 @@ void EnterInsertMode(InsertModeOptions options) {
         std::make_unique<InsertEmptyLineTransformation>(
             editor_state->direction()));
     EnterInsertCharactersMode(options);
-    editor_state->ScheduleRedraw();
   }
   editor_state->ResetDirection();
   editor_state->ResetStructure();

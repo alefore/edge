@@ -50,7 +50,6 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator GetHistoryBuffer(
   if (!editor_state->has_current_buffer()) {
     // Seems lame, but what can we do?
     editor_state->set_current_buffer(it->second);
-    editor_state->ScheduleRedraw();
   }
   return it;
 }
@@ -288,7 +287,6 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
     editor_state->set_modifiers(original_modifiers);
     editor_state->status()->Reset();
     status->Reset();
-    editor_state->ScheduleRedraw();
 
     // We make a copy in case cancel_handler or handler delete us.
     auto buffer = original_buffer;
@@ -355,7 +353,6 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
                 NewInsertBufferTransformation(std::move(insert_options)));
 
             status->set_prompt(options.prompt, buffer);
-            editor_state->ScheduleRedraw();
           } else {
             LOG(INFO) << "Prediction didn't advance.";
             auto it = editor_state->buffers()->find(PredictionsBufferName());
@@ -365,7 +362,6 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
             } else {
               it->second->set_current_position_line(LineNumber(0));
               editor_state->set_current_buffer(it->second);
-              editor_state->ScheduleRedraw();
             }
           }
         });

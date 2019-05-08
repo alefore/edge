@@ -196,7 +196,6 @@ class GotoCommand : public Command {
       }
     }
     editor_state->PushCurrentPosition();
-    editor_state->ScheduleRedraw();
     editor_state->ResetStructure();
     editor_state->ResetDirection();
     editor_state->ResetRepetitions();

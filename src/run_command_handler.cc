@@ -188,7 +188,6 @@ void GenerateContents(EditorState* editor_state,
             << pipefd_err[parent_fd];
   target->SetInputFiles(pipefd_out[parent_fd], pipefd_err[parent_fd],
                         target->Read(buffer_variables::pts), child_pid);
-  editor_state->ScheduleRedraw();
   target->AddEndOfFileObserver([editor_state, data, target]() {
     LOG(INFO) << "End of file notification.";
     CHECK(target->child_exit_status().has_value());
@@ -289,7 +288,6 @@ void RunCommand(const wstring& name, const wstring& input,
       buffer->status()->Reset();
     }
     editor_state->status()->Reset();
-    editor_state->ScheduleRedraw();
     return;
   }
 
@@ -473,7 +471,6 @@ std::shared_ptr<OpenBuffer> ForkCommand(EditorState* editor_state,
   editor_state->buffer_tree()->AddBuffer(it.first->second,
                                          options.insertion_type);
 
-  editor_state->ScheduleRedraw();
   it.first->second->Reload();
   it.first->second->set_current_position_line(LineNumber(0));
   return it.first->second;
@@ -494,7 +491,6 @@ void RunMultipleCommandsHandler(const wstring& input,
   auto buffer = editor_state->current_buffer();
   if (input.empty() || buffer == nullptr) {
     editor_state->status()->Reset();
-    editor_state->ScheduleRedraw();
     return;
   }
   buffer->contents()->ForEach([editor_state, input](wstring arg) {

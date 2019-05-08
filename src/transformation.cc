@@ -84,8 +84,6 @@ class InsertBufferTransformation : public Transformation {
       result->cursor = position;
     }
 
-    buffer->editor()->ScheduleRedraw();
-
     size_t chars_inserted =
         buffer_to_insert_length_ * options_.modifiers.repetitions;
     DeleteOptions delete_options;

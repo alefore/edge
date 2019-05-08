@@ -109,7 +109,6 @@ void RegisterBufferFields(
                 [variable, setter](std::shared_ptr<OpenBuffer> buffer,
                                    FieldValue value) {
                   (buffer.get()->*setter)(variable, value);
-                  buffer->editor()->ScheduleRedraw();
                 })));
   }
 }
@@ -358,7 +357,6 @@ OpenBuffer::SyntaxDataOutput OpenBuffer::UpdateSyntaxData(
                            static_cast<OpenBuffer*>(args[0]->user_value.get());
                        CHECK(buffer != nullptr);
                        buffer->set_filter(std::move(args[1]));
-                       buffer->editor()->ScheduleRedraw();
                        return Value::NewVoid();
                      }));
 
@@ -494,15 +492,13 @@ OpenBuffer::OpenBuffer(Options options)
       last_transformation_(NewNoopTransformation()),
       default_commands_(options_.editor->default_commands()->NewChild()),
       mode_(std::make_unique<MapMode>(default_commands_)),
-      status_(options_.editor->GetConsole(), options_.editor->audio_player(),
-              [this]() { editor()->ScheduleRedraw(); }),
+      status_(options_.editor->GetConsole(), options_.editor->audio_player()),
       viewers_registration_(viewers_.AddListener([this]() {
         LOG(INFO) << "Viewer registered.";
         ScheduleSyntaxDataUpdate();
       })),
       tree_parser_(NewNullTreeParser()),
       syntax_data_(&UpdateSyntaxData, [this]() {
-        options_.editor->ScheduleRedraw();
         VLOG(5) << "Background thread is notifying internal event.";
         options_.editor->NotifyInternalEvent();
       }) {
@@ -742,7 +738,6 @@ void OpenBuffer::ClearContents(
       Read(buffer_variables::name));
   options_.editor->line_marks()->ExpireMarksFromSource(
       *this, Read(buffer_variables::name));
-  options_.editor->ScheduleRedraw();
   contents_.EraseLines(LineNumber(0), LineNumber(0) + contents_.size(),
                        cursors_behavior);
   if (terminal_ != nullptr) {
@@ -784,7 +779,6 @@ void OpenBuffer::EndOfFile() {
   // complete.
   editor()->line_marks()->RemoveExpiredMarksFromSource(
       Read(buffer_variables::name));
-  editor()->ScheduleRedraw();
 
   vector<std::function<void()>> observers;
   observers.swap(end_of_file_observers_);
@@ -1259,8 +1253,6 @@ void OpenBuffer::set_active_cursors(const vector<LineColumn>& positions) {
   // We find the first position (rather than just take cursors->begin()) so that
   // we start at the first requested position.
   cursors->SetCurrentCursor(positions.front());
-
-  options_.editor->ScheduleRedraw();
 }
 
 void OpenBuffer::ToggleActiveCursors() {
@@ -1283,8 +1275,6 @@ void OpenBuffer::ToggleActiveCursors() {
   cursors->SetCurrentCursor(*cursors->begin());
   LOG(INFO) << "Picked up the first cursor: " << position();
   CHECK_LE(position().line, LineNumber(0) + contents_.size());
-
-  options_.editor->ScheduleRedraw();
 }
 
 void OpenBuffer::PushActiveCursors() {
@@ -1354,7 +1344,6 @@ void OpenBuffer::CreateCursor() {
     }
   }
   status_.SetInformationText(L"Cursor created.");
-  options_.editor->ScheduleRedraw();
 }
 
 LineColumn OpenBuffer::FindNextCursor(LineColumn position) {
@@ -1399,7 +1388,6 @@ void OpenBuffer::DestroyCursor() {
     cursors->DeleteCurrentCursor();
   }
   CHECK_LE(position().line, LineNumber(0) + contents_.size());
-  options_.editor->ScheduleRedraw();
 }
 
 void OpenBuffer::DestroyOtherCursors() {
@@ -1410,7 +1398,6 @@ void OpenBuffer::DestroyOtherCursors() {
   cursors->clear();
   cursors->insert(position);
   Set(buffer_variables::multiple_cursors, false);
-  options_.editor->ScheduleRedraw();
 }
 
 Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
