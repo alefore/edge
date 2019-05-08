@@ -101,7 +101,7 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
 
   std::unique_ptr<OutputProducer> output =
       std::make_unique<BufferOutputProducer>(
-          buffer, line_scroll_control->NewReader(), lines_ - status_lines,
+          buffer, line_scroll_control->NewReader(), size_.line - status_lines,
           line_scroll_control_options_.columns_shown, view_start_.column);
   if (!paste_mode) {
     std::vector<VerticalSplitOutputProducer::Column> columns(3);
@@ -116,9 +116,9 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
     columns[1].producer = std::move(output);
 
     columns[2].producer = std::make_unique<BufferMetadataOutputProducer>(
-        buffer, line_scroll_control->NewReader(), lines_ - status_lines,
+        buffer, line_scroll_control->NewReader(), size_.line - status_lines,
         view_start_.line,
-        buffer->current_zoomed_out_parse_tree(lines_ - status_lines));
+        buffer->current_zoomed_out_parse_tree(size_.line - status_lines));
 
     output =
         std::make_unique<VerticalSplitOutputProducer>(std::move(columns), 1);
@@ -127,7 +127,7 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
   if (status_lines > LineNumberDelta(0)) {
     std::vector<HorizontalSplitOutputProducer::Row> rows(2);
     rows[0].producer = std::move(output);
-    rows[0].lines = lines_ - status_lines;
+    rows[0].lines = size_.line - status_lines;
 
     rows[1].producer = std::make_unique<StatusOutputProducer>(
         buffer->status(), buffer.get(), buffer->editor()->modifiers());
@@ -140,15 +140,13 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
   return output;
 }
 
-void BufferWidget::SetSize(LineNumberDelta lines, ColumnNumberDelta columns) {
-  lines_ = lines;
-  columns_ = columns;
-
+void BufferWidget::SetSize(LineColumnDelta size) {
+  size_ = size;
   RecomputeData();
 }
 
-LineNumberDelta BufferWidget::lines() const { return lines_; }
-ColumnNumberDelta BufferWidget::columns() const { return columns_; }
+LineNumberDelta BufferWidget::lines() const { return size_.line; }
+ColumnNumberDelta BufferWidget::columns() const { return size_.column; }
 
 LineNumberDelta BufferWidget::MinimumLines() {
   auto buffer = Lock();
@@ -191,18 +189,18 @@ void BufferWidget::RecomputeData() {
 
   // TODO: If the buffer has multiple views of different sizes, we're gonna have
   // a bad time.
-  auto status_lines = min(lines_, LineNumberDelta(1));
+  auto status_lines = min(size_.line, LineNumberDelta(1));
   // Screen lines that are dedicated to the buffer.
-  auto buffer_lines = lines_ - status_lines;
+  auto buffer_lines = size_.line - status_lines;
   buffer_viewer_registration_ =
-      buffer->viewers()->Register(LineColumnDelta(buffer_lines, columns_));
+      buffer->viewers()->Register(LineColumnDelta(buffer_lines, size_.column));
 
   bool paste_mode = buffer->Read(buffer_variables::paste_mode);
 
   line_scroll_control_options_.buffer = buffer;
   line_scroll_control_options_.lines_shown = buffer_lines;
   line_scroll_control_options_.columns_shown =
-      columns_ -
+      size_.column -
       (paste_mode
            ? ColumnNumberDelta(0)
            : LineNumberOutputProducer::PrefixWidth(buffer->lines_size()));
@@ -239,7 +237,7 @@ void BufferWidget::RecomputeData() {
         min(buffer_lines, view_end_line.ToDelta() + LineNumberDelta(1));
   }
 
-  view_start_.column = GetDesiredViewStartColumn(buffer.get(), columns_);
+  view_start_.column = GetDesiredViewStartColumn(buffer.get(), size_.column);
   line_scroll_control_options_.begin = view_start_;
   line_scroll_control_options_.initial_column = view_start_.column;
 }

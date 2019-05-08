@@ -32,7 +32,7 @@ class BuffersList : public DelegatingWidget {
 
   std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 
-  void SetSize(LineNumberDelta lines, ColumnNumberDelta columns) override;
+  void SetSize(LineColumnDelta size) override;
   LineNumberDelta lines() const override;
   ColumnNumberDelta columns() const override;
   LineNumberDelta MinimumLines() override;
@@ -55,8 +55,7 @@ class BuffersList : public DelegatingWidget {
   std::unique_ptr<Widget> widget_;
 
   // Fields initialized by SetSize.
-  LineNumberDelta lines_;
-  ColumnNumberDelta columns_;
+  LineColumnDelta size_;
   LineNumberDelta buffers_list_lines_;
   size_t buffers_per_line_;
 };

@@ -116,7 +116,7 @@ void Terminal::ShowBuffer(EditorState* editor_state, Screen* screen) {
 
   LineNumberDelta lines_to_show = screen->lines() - status_lines;
   auto buffer_tree = editor_state->buffer_tree();
-  buffer_tree->SetSize(lines_to_show, screen->columns());
+  buffer_tree->SetSize(LineColumnDelta(lines_to_show, screen->columns()));
   auto output_producer = editor_state->buffer_tree()->CreateOutputProducer();
   for (auto line = LineNumber(0); line.ToDelta() < lines_to_show; ++line) {
     WriteLine(screen, line, output_producer->Next());

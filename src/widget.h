@@ -27,8 +27,7 @@ class Widget {
 
   virtual std::unique_ptr<OutputProducer> CreateOutputProducer() = 0;
 
-  // TODO: Use LineColumnDelta?
-  virtual void SetSize(LineNumberDelta lines, ColumnNumberDelta columns) = 0;
+  virtual void SetSize(LineColumnDelta size) = 0;
   virtual LineNumberDelta lines() const = 0;
   virtual ColumnNumberDelta columns() const = 0;
   virtual LineNumberDelta MinimumLines() = 0;

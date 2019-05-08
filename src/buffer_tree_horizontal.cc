@@ -34,14 +34,11 @@ const BufferWidget* BufferTree::GetActiveLeaf() const {
   return children_[active_]->GetActiveLeaf();
 }
 
-void BufferTree::SetSize(LineNumberDelta lines, ColumnNumberDelta columns) {
-  lines_ = lines;
-  columns_ = columns;
-}
+void BufferTree::SetSize(LineColumnDelta size) { size_ = size; }
 
-LineNumberDelta BufferTree::lines() const { return lines_; }
+LineNumberDelta BufferTree::lines() const { return size_.line; }
 
-ColumnNumberDelta BufferTree::columns() const { return columns_; }
+ColumnNumberDelta BufferTree::columns() const { return size_.column; }
 
 void BufferTree::RemoveBuffer(OpenBuffer* buffer) {
   for (auto& child : children_) {
@@ -61,7 +58,7 @@ void BufferTree::set_index(size_t position) {
 void BufferTree::AddChild(std::unique_ptr<Widget> widget) {
   children_.push_back(std::move(widget));
   set_index(children_.size() - 1);
-  SetSize(lines_, columns_);
+  SetSize(size_);
 }
 
 Widget* BufferTree::Child() { return children_[active_].get(); }
@@ -111,7 +108,7 @@ void BufferTree::RemoveActiveLeaf() {
     active_ %= children_.size();
   }
   CHECK_LT(active_, children_.size());
-  SetSize(lines_, columns_);
+  SetSize(size_);
 }
 
 BufferTree::BufferTree(std::vector<std::unique_ptr<Widget>> children,
@@ -187,9 +184,8 @@ std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
                                                          active_);
 }
 
-void BufferTreeHorizontal::SetSize(LineNumberDelta lines,
-                                   ColumnNumberDelta columns) {
-  BufferTree::SetSize(lines, columns);
+void BufferTreeHorizontal::SetSize(LineColumnDelta size) {
+  BufferTree::SetSize(size);
   lines_per_child_.clear();
   for (size_t i = 0; i < children_.size(); i++) {
     auto child = children_[i].get();
@@ -213,9 +209,9 @@ void BufferTreeHorizontal::SetSize(LineNumberDelta lines,
 
   // TODO: this could be done way faster (sort + single pass over all
   // buffers).
-  while (lines_given > lines_) {
+  while (lines_given > size_.line) {
     LOG(INFO) << "Ensuring that lines given (" << lines_given
-              << ") doesn't exceed lines available (" << lines_ << ").";
+              << ") doesn't exceed lines available (" << size_.line << ").";
     std::vector<size_t> indices_maximal_producers = {0};
     for (size_t i = 1; i < lines_per_child_.size(); i++) {
       LineNumberDelta maximum =
@@ -230,7 +226,7 @@ void BufferTreeHorizontal::SetSize(LineNumberDelta lines,
     CHECK_GT(lines_per_child_[indices_maximal_producers[0]],
              LineNumberDelta(0));
     for (auto& i : indices_maximal_producers) {
-      if (lines_given > lines_) {
+      if (lines_given > size_.line) {
         lines_given--;
         lines_per_child_[i]--;
       }
@@ -241,26 +237,27 @@ void BufferTreeHorizontal::SetSize(LineNumberDelta lines,
            std::accumulate(lines_per_child_.begin(), lines_per_child_.end(),
                            LineNumberDelta(0)));
 
-  if (lines_ > lines_given) {
+  if (size_.line > lines_given) {
     LineNumberDelta lines_each =
-        (lines_ - lines_given) / lines_per_child_.size();
+        (size_.line - lines_given) / lines_per_child_.size();
     lines_given += lines_per_child_.size() * lines_each;
     for (auto& l : lines_per_child_) {
       LineNumberDelta extra_line =
-          lines_given < lines_ ? LineNumberDelta(1) : LineNumberDelta(0);
+          lines_given < size_.line ? LineNumberDelta(1) : LineNumberDelta(0);
       l += lines_each + extra_line;
       lines_given += extra_line;
     }
   }
 
-  CHECK_EQ(lines_, std::accumulate(lines_per_child_.begin(),
-                                   lines_per_child_.end(), LineNumberDelta(0)));
+  CHECK_EQ(size_.line,
+           std::accumulate(lines_per_child_.begin(), lines_per_child_.end(),
+                           LineNumberDelta(0)));
 
   for (size_t i = 0; i < lines_per_child_.size(); i++) {
-    children_[i]->SetSize(
+    children_[i]->SetSize(LineColumnDelta(
         lines_per_child_[i] -
             (children_.size() > 1 ? LineNumberDelta(1) : LineNumberDelta(0)),
-        columns_);
+        size_.column));
   }
 }
 
@@ -305,13 +302,13 @@ std::unique_ptr<OutputProducer> BufferTreeVertical::CreateOutputProducer() {
                                                        active_);
 }
 
-void BufferTreeVertical::SetSize(LineNumberDelta lines,
-                                 ColumnNumberDelta columns) {
-  BufferTree::SetSize(lines, columns);
+void BufferTreeVertical::SetSize(LineColumnDelta size) {
+  BufferTree::SetSize(size);
   columns_per_child_.clear();
 
-  ColumnNumberDelta base_columns = columns / children_.size();
-  ColumnNumberDelta columns_left = columns - base_columns * children_.size();
+  ColumnNumberDelta base_columns = size_.column / children_.size();
+  ColumnNumberDelta columns_left =
+      size_.column - base_columns * children_.size();
   for (auto& unused __attribute__((unused)) : children_) {
     columns_per_child_.push_back(base_columns);
     if (columns_left > ColumnNumberDelta(0)) {
@@ -321,7 +318,7 @@ void BufferTreeVertical::SetSize(LineNumberDelta lines,
   }
   CHECK_EQ(columns_left, ColumnNumberDelta(0));
   for (size_t i = 0; i < columns_per_child_.size(); i++) {
-    children_[i]->SetSize(lines_, columns_per_child_[i]);
+    children_[i]->SetSize(LineColumnDelta(size_.line, columns_per_child_[i]));
   }
 }
 
