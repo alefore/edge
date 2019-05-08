@@ -1,6 +1,7 @@
 #ifndef __AFC_EDITOR_ASYNC_PROCESSOR_H__
 #define __AFC_EDITOR_ASYNC_PROCESSOR_H__
 
+#include <chrono>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -36,11 +37,21 @@ class AsyncProcessor {
     thread_creation_mutex_.lock();
     mutex_.lock();
     input_ = std::move(input);
-    if (!background_thread_.joinable()) {
-      background_thread_shutting_down_ = false;
-      LOG(INFO) << "Creating thread";
-      background_thread_ = std::thread([this]() { BackgroundThread(); });
-      VLOG(5) << "Thread created.";
+    switch (state_) {
+      case State::kNotRunning: {
+        LOG(INFO) << "Creating thread";
+        if (background_thread_.joinable()) {
+          background_thread_.join();
+        }
+        state_ = State::kRunning;
+        background_thread_ = std::thread([this]() { BackgroundThread(); });
+        break;
+      }
+      case State::kTerminationRequested:
+        state_ = State::kRunning;
+        break;
+      case State::kRunning:
+        break;
     }
     mutex_.unlock();
     thread_creation_mutex_.unlock();
@@ -55,29 +66,35 @@ class AsyncProcessor {
 
   void PauseThread() {
     std::unique_lock<std::mutex> thread_creation_lock(thread_creation_mutex_);
-    if (!background_thread_.joinable()) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    if (state_ == State::kNotRunning) {
       return;
     }
 
-    std::unique_lock<std::mutex> lock(mutex_);
-    background_thread_shutting_down_ = true;
+    state_ = State::kTerminationRequested;
     lock.unlock();
 
     background_condition_.notify_one();
     background_thread_.join();
+    CHECK(state_ == State::kNotRunning);
   }
 
  private:
   void BackgroundThread() {
+    using namespace std::chrono_literals;
     while (true) {
       std::optional<Input> input;
 
       std::unique_lock<std::mutex> lock(mutex_);
-      background_condition_.wait(lock, [this]() {
-        return background_thread_shutting_down_ || input_.has_value();
+      CHECK(state_ != State::kNotRunning);
+      background_condition_.wait_for(lock, 2s, [this]() {
+        return state_ != State::kRunning || input_.has_value();
       });
+      CHECK(state_ != State::kNotRunning);
       VLOG(5) << "Background thread is waking up.";
-      if (background_thread_shutting_down_) {
+      if (!input_.has_value()) {
+        LOG(INFO) << "Background thread is shutting down.";
+        state_ = State::kNotRunning;
         return;
       }
       CHECK(input_.has_value());
@@ -113,7 +130,8 @@ class AsyncProcessor {
   // must do so and join the thread while holding this mutex.
   mutable std::mutex thread_creation_mutex_;
   std::thread background_thread_;
-  bool background_thread_shutting_down_ = false;
+  enum class State { kRunning, kNotRunning, kTerminationRequested };
+  State state_ = State::kNotRunning;
 };
 
 }  // namespace editor
