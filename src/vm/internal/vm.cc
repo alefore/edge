@@ -229,7 +229,7 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
         {
           size_t start = pos;
           while (pos < str.size() &&
-                 (isalnum(str.at(pos)) || str.at(pos) == '_')) {
+                 (iswalnum(str.at(pos)) || str.at(pos) == '_')) {
             pos++;
           }
           wstring symbol = str.substr(start, pos - start);
@@ -422,7 +422,7 @@ void CompileLine(Compilation* compilation, void* parser, const wstring& str) {
       case '_':
       case '~': {
         size_t start = pos;
-        while (pos < str.size() && (isalnum(str.at(pos)) ||
+        while (pos < str.size() && (iswalnum(str.at(pos)) ||
                                     str.at(pos) == '_' || str.at(pos) == '~')) {
           pos++;
         }
