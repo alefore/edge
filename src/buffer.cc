@@ -42,6 +42,7 @@ extern "C" {
 #include "src/status.h"
 #include "src/substring.h"
 #include "src/time.h"
+#include "src/tracker.h"
 #include "src/transformation.h"
 #include "src/transformation_delete.h"
 #include "src/viewers.h"
@@ -461,6 +462,19 @@ OpenBuffer::SyntaxDataOutput OpenBuffer::UpdateSyntaxData(
                     },
                     L"Load file: " + path);
               })));
+
+  buffer->AddField(
+      L"ShowTrackers",
+      vm::NewCallback(std::function<void(std::shared_ptr<OpenBuffer>)>(
+          [](std::shared_ptr<OpenBuffer> buffer) {
+            for (auto& data : Tracker::GetData()) {
+              buffer->AppendLine(StringAppend(
+                  StringAppend(NewLazyString(data.name), NewLazyString(L": ")),
+                  NewLazyString(std::to_wstring(data.executions)),
+                  NewLazyString(L" "),
+                  NewLazyString(std::to_wstring(data.seconds))));
+            }
+          })));
 
   buffer->AddField(
       L"EvaluateFile",
@@ -1000,7 +1014,7 @@ void OpenBuffer::Save() {
 void OpenBuffer::AppendLazyString(std::shared_ptr<LazyString> input) {
   ColumnNumber start;
   ForEachColumn(*input, [&](ColumnNumber i, wchar_t c) {
-    CHECK_GT(i, start);
+    CHECK_GE(i, start);
     if (c == '\n') {
       AppendLine(Substring(input, start, i - start));
       start = i + ColumnNumberDelta(1);
@@ -1523,6 +1537,10 @@ std::shared_ptr<const ParseTree> OpenBuffer::current_zoomed_out_parse_tree(
   return it->second;
 }
 
+std::unique_ptr<BufferTerminal> OpenBuffer::NewTerminal() {
+  return std::make_unique<BufferTerminal>(this, &contents_);
+}
+
 const std::shared_ptr<const Line> OpenBuffer::current_line() const {
   return LineAt(position().line);
 }
@@ -1618,9 +1636,7 @@ void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
   }
 
   CHECK_EQ(child_pid_, -1);
-  terminal_ = fd_is_terminal
-                  ? std::make_unique<BufferTerminal>(this, &contents_)
-                  : nullptr;
+  terminal_ = fd_is_terminal ? NewTerminal() : nullptr;
 
   auto new_reader = [this](int fd, LineModifierSet modifiers) {
     if (fd == -1) {

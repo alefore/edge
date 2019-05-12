@@ -321,6 +321,11 @@ LineNumber operator--(LineNumber& a, int) {
   return output;
 }
 
+LineNumber operator%(LineNumber a, const LineNumberDelta& delta) {
+  CHECK_NE(delta, LineNumberDelta(0));
+  return LineNumber(a.line % delta.line_delta);
+}
+
 LineNumber operator+(LineNumber a, const LineNumberDelta& delta) {
   if (delta.line_delta < 0) {
     CHECK_GE(a.line, static_cast<size_t>(-delta.line_delta));
@@ -347,6 +352,19 @@ std::ostream& operator<<(std::ostream& os, const LineNumber& lc) {
   os << "[Line " << lc.line << "]";
   return os;
 }
+
+namespace fuzz {
+std::optional<LineNumber> Reader<LineNumber>::Read(Stream& input_stream) {
+  auto value = Reader<size_t>::Read(input_stream);
+  if (!value.has_value()) {
+    VLOG(8) << "Fuzz: LineNumber: Unable to read.";
+    return std::nullopt;
+  }
+  auto output = LineNumber(value.value());
+  VLOG(9) << "Fuzz: Read: " << output;
+  return output;
+};
+}  // namespace fuzz
 
 ColumnNumber::ColumnNumber(size_t value) : column(value) {}
 
@@ -416,6 +434,11 @@ ColumnNumber operator--(ColumnNumber& a, int) {
   return output;
 }
 
+ColumnNumber operator%(ColumnNumber a, const ColumnNumberDelta& delta) {
+  CHECK_NE(delta, ColumnNumberDelta(0));
+  return ColumnNumber(a.column % delta.column_delta);
+}
+
 ColumnNumber operator+(ColumnNumber a, const ColumnNumberDelta& delta) {
   if (delta.column_delta < 0) {
     CHECK_GE(a.column, static_cast<size_t>(-delta.column_delta));
@@ -444,6 +467,19 @@ std::ostream& operator<<(std::ostream& os, const ColumnNumber& lc) {
   os << "[Column " << lc.column << "]";
   return os;
 }
+
+namespace fuzz {
+std::optional<ColumnNumber> Reader<ColumnNumber>::Read(Stream& input_stream) {
+  auto value = Reader<size_t>::Read(input_stream);
+  if (!value.has_value()) {
+    VLOG(8) << "Fuzz: ColumnNumber: Unable to read.";
+    return std::nullopt;
+  }
+  auto output = ColumnNumber(value.value());
+  VLOG(9) << "Fuzz: Read: " << output;
+  return output;
+};
+}  // namespace fuzz
 
 std::ostream& operator<<(std::ostream& os, const LineColumn& lc) {
   os << "["
@@ -511,6 +547,21 @@ std::wstring LineColumn::ToCppString() const {
   return L"LineColumn(" + std::to_wstring(line.line) + L", " +
          std::to_wstring(column.column) + L")";
 }
+
+namespace fuzz {
+/* static */ std::optional<LineColumn> Reader<LineColumn>::Read(
+    fuzz::Stream& input_stream) {
+  auto line = Reader<LineNumber>::Read(input_stream);
+  auto column = Reader<ColumnNumber>::Read(input_stream);
+  if (!line.has_value() || !column.has_value()) {
+    VLOG(8) << "Fuzz: LineNumber: Unable to read.";
+    return std::nullopt;
+  }
+  auto output = LineColumn(line.value(), column.value());
+  VLOG(9) << "Fuzz: Read: " << output;
+  return output;
+}
+}  // namespace fuzz
 
 /* static */ void LineColumn::Register(vm::Environment* environment) {
   using vm::ObjectType;

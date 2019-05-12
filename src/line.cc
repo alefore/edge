@@ -12,6 +12,7 @@
 #include "src/lazy_string_append.h"
 #include "src/lazy_string_functional.h"
 #include "src/substring.h"
+#include "src/tracker.h"
 #include "src/wstring.h"
 
 namespace afc {
@@ -273,6 +274,9 @@ std::shared_ptr<vm::Environment> Line::environment() const {
 
 OutputProducer::LineWithCursor Line::Output(
     const OutputOptions& options) const {
+  static Tracker tracker(L"Line::Output");
+  auto tracker_call = tracker.Call();
+
   std::unique_lock<std::mutex> lock(mutex_);
 
   CHECK(environment_ != nullptr);

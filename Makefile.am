@@ -2,7 +2,7 @@ AUTOMAKE_OPTIONS = subdir-objects
 
 SUBDIRS = glog-0.4.0
 
-bin_PROGRAMS = edge test fuzz_test test_fuzz_parser test_fuzz_compiler
+bin_PROGRAMS = edge test fuzz_test test_fuzz_parser test_fuzz_compiler test_fuzz_classes
 
 noinst_PROGRAMS = lemon
 
@@ -60,6 +60,10 @@ src/file_link_mode.cc \
 src/file_descriptor_reader.cc \
 src/file_descriptor_reader.h \
 src/find_mode.cc \
+src/fuzz.h \
+src/fuzz.cc \
+src/fuzz_testable.h \
+src/fuzz_testable.cc \
 src/goto_command.cc \
 src/hash.h \
 src/help_command.cc \
@@ -135,6 +139,8 @@ src/substring.cc \
 src/terminal.cc \
 src/time.cc \
 src/time.h \
+src/tracker.cc \
+src/tracker.h \
 src/transformation.cc \
 src/transformation_delete.cc \
 src/transformation_move.cc \
@@ -191,6 +197,8 @@ test_fuzz_parser_SOURCES = $(COMMON_SOURCES) src/test/fuzz/parser.cc
 
 test_fuzz_compiler_SOURCES = $(COMMON_SOURCES) src/test/fuzz/compiler.cc
 
+test_fuzz_classes_SOURCES = $(COMMON_SOURCES) src/test/fuzz/classes.cc
+
 lemon_SOURCES = src/vm/internal/lemon.c
 
 src/vm/internal/cpp.h: src/vm/internal/cpp.y lemon
@@ -212,3 +220,4 @@ test_LDADD=glog-0.4.0/libglog.la
 fuzz_test_LDADD=glog-0.4.0/libglog.la
 test_fuzz_parser_LDADD=glog-0.4.0/libglog.la
 test_fuzz_compiler_LDADD=glog-0.4.0/libglog.la
+test_fuzz_classes_LDADD=glog-0.4.0/libglog.la

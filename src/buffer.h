@@ -374,6 +374,8 @@ class OpenBuffer {
   std::shared_ptr<const ParseTree> current_zoomed_out_parse_tree(
       LineNumberDelta lines) const;
 
+  std::unique_ptr<BufferTerminal> NewTerminal();  // Public for testing.
+
  private:
   struct SyntaxDataInput {
     std::unique_ptr<const BufferContents> contents;

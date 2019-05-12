@@ -8,8 +8,11 @@ extern "C" {
 }
 
 #include "src/buffer.h"
+#include "src/char_buffer.h"
 #include "src/editor.h"
 #include "src/file_descriptor_reader.h"
+#include "src/fuzz.h"
+#include "src/lazy_string.h"
 #include "src/wstring.h"
 
 namespace afc {
@@ -69,6 +72,22 @@ void BufferTerminal::ProcessCommandInput(
       LOG(INFO) << "Unknown character: [" << c << "]\n";
     }
   }
+}
+
+std::vector<fuzz::Handler> BufferTerminal::FuzzHandlers() {
+  using namespace fuzz;
+  std::vector<Handler> output;
+  output.push_back(Call(std::function<void()>([this]() { position(); })));
+
+  output.push_back(Call(std::function<void(LineColumn)>(
+      [this](LineColumn position) { SetPosition(position); })));
+
+  output.push_back(Call(
+      std::function<void(ShortRandomString)>([this](ShortRandomString input) {
+        ProcessCommandInput(NewLazyString(std::move(input.value)),
+                            []() { /* Nothing. */ });
+      })));
+  return output;
 }
 
 ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
@@ -341,7 +360,8 @@ void BufferTerminal::UpdateSize() {
 }
 
 LineColumnDelta BufferTerminal::LastViewSize() {
-  return buffer_->viewers()->last_view_size().value();
+  return buffer_->viewers()->last_view_size().value_or(
+      LineColumnDelta(LineNumberDelta(24), ColumnNumberDelta(80)));
 }
 
 }  // namespace editor

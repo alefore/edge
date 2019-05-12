@@ -234,6 +234,79 @@ void BufferContents::AddUpdateListener(
   update_listeners_.push_back(listener);
 }
 
+std::vector<fuzz::Handler> BufferContents::FuzzHandlers() {
+  using namespace fuzz;
+  std::vector<Handler> output;
+
+  // Call all our const methods that don't take any arguments.
+  output.push_back(Call(std::function<void()>([this]() {
+    size();
+    EndLine();
+    copy();
+    back();
+    front();
+    ToString();
+    CountCharacters();
+  })));
+
+  output.push_back(Call(std::function<void(LineNumber, ShortRandomLine)>(
+      [this](LineNumber line_number, ShortRandomLine text) {
+        line_number = line_number % size();
+        insert_line(line_number, std::make_shared<Line>(Line::Options(
+                                     NewLazyString(std::move(text.value)))));
+      })));
+
+  output.push_back(Call(std::function<void(LineNumber, ShortRandomLine)>(
+      [this](LineNumber line_number, ShortRandomLine text) {
+        line_number = line_number % size();
+        set_line(line_number, std::make_shared<Line>(Line::Options(
+                                  NewLazyString(std::move(text.value)))));
+      })));
+
+  // TODO: Call sort.
+  // TODO: Call insert.
+  // TODO: Call DeleteCharactersFromLine.
+  // TODO: Call SetCharacter
+  // TODO: Call InsertCharacter
+  // TODO: Call AppendToLine.
+  // TODO: Call EraseLines
+
+  output.push_back(Call(std::function<void(LineNumber, LineNumber)>(
+      [this](LineNumber a, LineNumber b) {
+        a = a % size();
+        b = b % size();
+        EraseLines(min(a, b), max(a, b), CursorsBehavior::kAdjust);
+      })));
+
+  output.push_back(
+      Call(std::function<void(LineColumn)>([this](LineColumn position) {
+        position.line = position.line % size();
+        auto line = at(position.line);
+        if (line->empty()) {
+          position.column = ColumnNumber(0);
+        } else {
+          position.column = position.column % line->EndColumn().ToDelta();
+        }
+        SplitLine(position);
+      })));
+
+  output.push_back(
+      Call(std::function<void(LineNumber)>([this](LineNumber line) {
+        static const int kMargin = 10;
+        // TODO: Declare a operator% for LineNumber and avoid the roundtrip.
+        FoldNextLine(LineNumber(line.line % (lines_.size() + kMargin)));
+      })));
+
+  output.push_back(Call(std::function<void(ShortRandomLine)>(
+      [this](ShortRandomLine s) { push_back(s.value); })));
+
+  output.push_back(Call(std::function<void()>([this]() {
+    AddUpdateListener([](const CursorsTracker::Transformation&) {});
+  })));
+
+  return output;
+}
+
 void BufferContents::NotifyUpdateListeners(
     const CursorsTracker::Transformation& transformation) {
   for (auto& l : update_listeners_) {

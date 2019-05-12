@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "src/cursors.h"
+#include "src/fuzz_testable.h"
 #include "src/line.h"
 #include "src/line_column.h"
 #include "src/tree.h"
@@ -16,7 +17,7 @@ using std::string;
 using std::unique_ptr;
 using std::vector;
 
-class BufferContents {
+class BufferContents : public fuzz::FuzzTestable {
  public:
   BufferContents() = default;
 
@@ -118,6 +119,8 @@ class BufferContents {
 
   // Appends the next line to the current line and removes the next line.
   // Essentially, removes the \n at the end of the current line.
+  //
+  // If the line is out of range, doesn't do anything.
   void FoldNextLine(LineNumber line);
 
   void push_back(wstring str);
@@ -128,6 +131,8 @@ class BufferContents {
 
   void AddUpdateListener(
       std::function<void(const CursorsTracker::Transformation&)> listener);
+
+  std::vector<fuzz::Handler> FuzzHandlers() override;
 
  private:
   void NotifyUpdateListeners(

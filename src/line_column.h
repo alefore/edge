@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "src/fuzz.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/environment.h"
 
@@ -122,11 +123,19 @@ LineNumber& operator++(LineNumber& a);
 LineNumber operator++(LineNumber& a, int);
 LineNumber& operator--(LineNumber& a);
 LineNumber operator--(LineNumber& a, int);
+LineNumber operator%(LineNumber a, const LineNumberDelta& delta);
 LineNumber operator+(LineNumber a, const LineNumberDelta& delta);
 LineNumber operator-(LineNumber a, const LineNumberDelta& delta);
 LineNumber operator-(LineNumber a);
 LineNumberDelta operator-(const LineNumber& a, const LineNumber& b);
 std::ostream& operator<<(std::ostream& os, const LineNumber& lc);
+
+namespace fuzz {
+template <>
+struct Reader<LineNumber> {
+  static std::optional<LineNumber> Read(fuzz::Stream& input_stream);
+};
+}  // namespace fuzz
 
 struct ColumnNumber {
   ColumnNumber() = default;
@@ -156,11 +165,19 @@ ColumnNumber& operator++(ColumnNumber& a);
 ColumnNumber operator++(ColumnNumber& a, int);
 ColumnNumber& operator--(ColumnNumber& a);
 ColumnNumber operator--(ColumnNumber& a, int);
+ColumnNumber operator%(ColumnNumber a, const ColumnNumberDelta& delta);
 ColumnNumber operator+(ColumnNumber a, const ColumnNumberDelta& delta);
 ColumnNumber operator-(ColumnNumber a, const ColumnNumberDelta& delta);
 ColumnNumber operator-(ColumnNumber a);
 ColumnNumberDelta operator-(const ColumnNumber& a, const ColumnNumber& b);
 std::ostream& operator<<(std::ostream& os, const ColumnNumber& lc);
+
+namespace fuzz {
+template <>
+struct Reader<ColumnNumber> {
+  static std::optional<ColumnNumber> Read(fuzz::Stream& input_stream);
+};
+}  // namespace fuzz
 
 }  // namespace editor
 }  // namespace afc
@@ -234,6 +251,13 @@ struct LineColumn {
 };
 
 std::ostream& operator<<(std::ostream& os, const LineColumn& lc);
+
+namespace fuzz {
+template <>
+struct Reader<LineColumn> {
+  static std::optional<LineColumn> Read(fuzz::Stream& input_stream);
+};
+}  // namespace fuzz
 
 // A range that contains every position i such that begin <= i < end.
 struct Range {

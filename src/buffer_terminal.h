@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "src/fuzz_testable.h"
 #include "src/lazy_string.h"
 #include "src/line_column.h"
 #include "src/line_modifier.h"
@@ -18,7 +19,7 @@ namespace editor {
 class OpenBuffer;
 class BufferContents;
 
-class BufferTerminal {
+class BufferTerminal : public fuzz::FuzzTestable {
  public:
   BufferTerminal(OpenBuffer* buffer, BufferContents* contents);
 
@@ -27,6 +28,8 @@ class BufferTerminal {
 
   void ProcessCommandInput(shared_ptr<LazyString> str,
                            const std::function<void()>& new_line_callback);
+
+  std::vector<fuzz::Handler> FuzzHandlers() override;
 
  private:
   ColumnNumber ProcessTerminalEscapeSequence(
