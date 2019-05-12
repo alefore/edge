@@ -42,6 +42,7 @@ src/command_mode.cc \
 src/command_mode.h \
 src/command_with_modifiers.cc \
 src/command_with_modifiers.h \
+src/const_tree.h \
 src/cursors.cc \
 src/cursors.h \
 src/cursors_transformation.cc \

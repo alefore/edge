@@ -2,31 +2,39 @@
 
 #include <glog/logging.h>
 
+#include "src/const_tree.h"
 #include "src/lazy_string_functional.h"
 #include "src/line_column.h"
-#include "src/tree.h"
 
 namespace afc {
 namespace editor {
 namespace {
 class StringAppendImpl : public LazyString {
  public:
-  StringAppendImpl(Tree<wchar_t> tree) : tree_(tree) {}
+  StringAppendImpl(ConstTree<wchar_t>::Ptr tree) : tree_(std::move(tree)) {}
 
-  wchar_t get(ColumnNumber pos) const { return tree_.at(pos.column); }
+  wchar_t get(ColumnNumber pos) const { return tree_->Get(pos.column); }
 
-  ColumnNumberDelta size() const { return ColumnNumberDelta(tree_.size()); }
+  ColumnNumberDelta size() const {
+    return ColumnNumberDelta(ConstTree<wchar_t>::Size(tree_));
+  }
 
-  const Tree<wchar_t>& tree() const { return tree_; }
+  const ConstTree<wchar_t>::Ptr& tree() const { return tree_; }
 
  private:
-  const Tree<wchar_t> tree_;
+  const ConstTree<wchar_t>::Ptr tree_;
 };
 
-void InsertToTree(LazyString* source, Tree<wchar_t>* tree,
-                  Tree<wchar_t>::iterator position) {
-  ForEachColumn(*source,
-                [&](ColumnNumber, wchar_t c) { tree->insert(position, c); });
+ConstTree<wchar_t>::Ptr TreeFrom(std::shared_ptr<LazyString> a) {
+  auto a_cast = dynamic_cast<StringAppendImpl*>(a.get());
+  if (a_cast != nullptr) {
+    return a_cast->tree();
+  }
+  ConstTree<wchar_t>::Ptr output;
+  ForEachColumn(*a, [&output](ColumnNumber, wchar_t c) {
+    output = ConstTree<wchar_t>::PushBack(output, c);
+  });
+  return output;
 }
 }  // namespace
 
@@ -42,25 +50,8 @@ std::shared_ptr<LazyString> StringAppend(std::shared_ptr<LazyString> a,
     return std::move(a);
   }
 
-  auto a_cast = dynamic_cast<StringAppendImpl*>(a.get());
-  auto b_cast = dynamic_cast<StringAppendImpl*>(b.get());
-  Tree<wchar_t> tree;
-  if (a_cast != nullptr && (b_cast == nullptr || b->size() <= a->size())) {
-    tree = a_cast->tree();
-    InsertToTree(b.get(), &tree, tree.end());
-    CHECK_EQ(a->size() + b->size(), ColumnNumberDelta(tree.size()));
-  } else if (b_cast != nullptr &&
-             (a_cast == nullptr || a->size() <= b->size())) {
-    tree = b_cast->tree();
-    InsertToTree(a.get(), &tree, tree.begin());
-    CHECK_EQ(a->size() + b->size(), ColumnNumberDelta(tree.size()));
-  } else {
-    InsertToTree(a.get(), &tree, tree.end());
-    InsertToTree(b.get(), &tree, tree.end());
-    CHECK_EQ(a->size() + b->size(), ColumnNumberDelta(tree.size()));
-  }
-
-  return std::make_shared<StringAppendImpl>(tree);
+  return std::make_shared<StringAppendImpl>(
+      ConstTree<wchar_t>::Append(TreeFrom(a), TreeFrom(b)));
 }
 
 std::shared_ptr<LazyString> StringAppend(std::shared_ptr<LazyString> a,
