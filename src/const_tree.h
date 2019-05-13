@@ -27,8 +27,9 @@ class ConstTree {
         element_(std::move(element)),
         left_(std::move(left)),
         right_(std::move(right)) {
-    CHECK_LE(
-        max(Depth(left_), Depth(right_)) - min(Depth(left_), Depth(right_)), 1);
+    CHECK_LE(std::max(Depth(left_), Depth(right_)) -
+                 std::min(Depth(left_), Depth(right_)),
+             1ul);
   }
 
   static Ptr Append(const Ptr& a, const Ptr& b) {
