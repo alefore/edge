@@ -46,16 +46,18 @@ void BufferContents::insert(LineNumber position_line,
                             const BufferContents& source,
                             const LineModifierSet* modifiers) {
   CHECK_LE(position_line, EndLine());
-  // No need to increment it since it'll move automatically.
-  auto insert_position = lines_.begin() + position_line.line;
-  for (auto line : source.lines_) {
+  auto prefix = Lines::Prefix(lines_, position_line.line);
+  auto suffix = Lines::Suffix(lines_, position_line.line);
+  Lines::Every(source.lines_, [&](std::shared_ptr<const Line> line) {
     if (modifiers != nullptr) {
       auto replacement = std::make_shared<Line>(*line);
       replacement->SetAllModifiers(*modifiers);
       line = replacement;
     }
-    lines_.insert(insert_position, line);
-  }
+    prefix = Lines::PushBack(prefix, line);
+    return true;
+  });
+  lines_ = Lines::Append(prefix, suffix);
   NotifyUpdateListeners(CursorsTracker::Transformation()
                             .WithBegin(LineColumn(position_line))
                             .LineDelta(source.size()));
@@ -64,12 +66,9 @@ void BufferContents::insert(LineNumber position_line,
 bool BufferContents::EveryLine(
     const std::function<bool(LineNumber, const Line&)>& callback) const {
   LineNumber line_number;
-  for (const auto& line : lines_) {
-    if (!callback(line_number++, *line)) {
-      return false;
-    }
-  }
-  return true;
+  return Lines::Every(lines_, [&](const std::shared_ptr<const Line>& line) {
+    return callback(line_number++, *line);
+  });
 }
 
 void BufferContents::ForEach(
@@ -99,7 +98,13 @@ size_t BufferContents::CountCharacters() const {
 void BufferContents::insert_line(LineNumber line_position,
                                  shared_ptr<const Line> line) {
   LOG(INFO) << "Inserting line at position: " << line_position;
-  lines_.insert(lines_.begin() + line_position.line, line);
+  size_t original_size = Lines::Size(lines_);
+  auto prefix = Lines::Prefix(lines_, line_position.line);
+  CHECK_EQ(Lines::Size(prefix), line_position.line);
+  auto suffix = Lines::Suffix(lines_, line_position.line);
+  CHECK_EQ(Lines::Size(suffix), Lines::Size(lines_) - line_position.line);
+  lines_ = Lines::Append(Lines::PushBack(prefix, std::move(line)), suffix);
+  CHECK_EQ(Lines::Size(lines_), original_size + 1);
   NotifyUpdateListeners(CursorsTracker::Transformation()
                             .WithBegin(LineColumn(line_position))
                             .LineDelta(LineNumberDelta(1)));
@@ -111,7 +116,10 @@ void BufferContents::set_line(LineNumber position,
     return push_back(line);
   }
 
-  lines_[position.line] = line;
+  lines_ = Lines::Append(
+      Lines::PushBack(Lines::Prefix(lines_, position.line), std::move(line)),
+      Lines::Suffix(lines_, position.line + 1));
+  // TODO: Why no notify update listeners?
 }
 
 void BufferContents::DeleteCharactersFromLine(LineNumber line,
@@ -160,10 +168,9 @@ void BufferContents::InsertCharacter(LineNumber line, ColumnNumber column) {
 }
 
 void BufferContents::AppendToLine(LineNumber position, Line line_to_append) {
-  if (lines_.empty()) {
-    push_back(std::make_shared<Line>());
+  if (lines_ == nullptr) {
+    lines_ = Lines::PushBack(nullptr, std::make_shared<Line>());
   }
-  CHECK(!lines_.empty());
   position = min(position, LineNumber() + size() - LineNumberDelta(1));
   Line::Options options(*at(position));
   options.Append(std::move(line_to_append));
@@ -179,9 +186,11 @@ void BufferContents::EraseLines(LineNumber first, LineNumber last,
   CHECK_LE(first, last);
   CHECK_LE(last, LineNumber(0) + size());
   LOG(INFO) << "Erasing lines in range [" << first << ", " << last << ").";
-  lines_.erase(lines_.begin() + first.line, lines_.begin() + last.line);
-  if (lines_.empty()) {
-    lines_.insert(lines_.begin(), std::make_shared<Line>());
+  lines_ = Lines::Append(Lines::Prefix(lines_, first.line),
+                         Lines::Suffix(lines_, last.line));
+
+  if (lines_ == nullptr) {
+    lines_ = Lines::PushBack(nullptr, std::make_shared<Line>());
   }
 
   if (cursors_behavior == CursorsBehavior::kUnmodified) {
@@ -294,7 +303,7 @@ std::vector<fuzz::Handler> BufferContents::FuzzHandlers() {
       Call(std::function<void(LineNumber)>([this](LineNumber line) {
         static const int kMargin = 10;
         // TODO: Declare a operator% for LineNumber and avoid the roundtrip.
-        FoldNextLine(LineNumber(line.line % (lines_.size() + kMargin)));
+        FoldNextLine(LineNumber(line.line % (Lines::Size(lines_) + kMargin)));
       })));
 
   output.push_back(Call(std::function<void(ShortRandomLine)>(

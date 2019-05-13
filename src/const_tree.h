@@ -26,10 +26,14 @@ class ConstTree {
         size_(1 + Size(left) + Size(right)),
         element_(std::move(element)),
         left_(std::move(left)),
-        right_(std::move(right)) {}
+        right_(std::move(right)) {
+    CHECK_LE(
+        max(Depth(left_), Depth(right_)) - min(Depth(left_), Depth(right_)), 1);
+  }
 
   static Ptr Append(const Ptr& a, const Ptr& b) {
     if (a == nullptr) return b;
+    if (b == nullptr) return a;
     return New(a->element_, a->left_, Append(a->right_, std::move(b)));
   }
 
@@ -40,6 +44,7 @@ class ConstTree {
   static size_t Size(const Ptr& tree) {
     return tree == nullptr ? 0 : tree->size_;
   }
+
   static size_t Depth(const Ptr& tree) {
     return tree == nullptr ? 0 : tree->depth_;
   }
@@ -58,18 +63,49 @@ class ConstTree {
     }
   }
 
-  // Returns a tree containing the first len elements.
+  // Returns a tree containing the first len elements. Prefix("abcde", 2) ==
+  // "ab".
   static Ptr Prefix(const Ptr& a, size_t len) {
-    if (len == 0) return nullptr;
+    if (len == Size(a)) return a;
     CHECK(a != nullptr);
-    CHECK_LE(len, a->size_);
+    CHECK_LT(len, a->size_);
     auto size_left = Size(a->left_);
     if (len <= size_left) {
-      CHECK(a->left_ != nullptr);
       return Prefix(a->left_, len);
     }
     auto prefix = PushBack(a->left_, a->element_);
-    return Append(prefix, Prefix(a->right, len - prefix->size()));
+    return Append(prefix, Prefix(a->right_, len - Size(prefix)));
+  }
+
+  // Returns a tree skipping the first len elements (i.e., from element `len` to
+  // the end).
+  static Ptr Suffix(const Ptr& a, size_t len) {
+    if (len >= Size(a)) return nullptr;
+    CHECK(a != nullptr);
+    CHECK_LT(len, a->size_);
+    auto size_left = Size(a->left_);
+    if (len >= size_left + 1) {
+      return Suffix(a->right_, len - size_left - 1);
+    }
+    return Append(PushBack(Suffix(a->left_, len), a->element_), a->right_);
+  }
+
+  template <typename LessThan>
+  static size_t UpperBound(const Ptr& tree, const T& key, LessThan less_than) {
+    if (tree == nullptr) {
+      return 0;
+    } else if (less_than(key, tree->element_)) {
+      return UpperBound(tree->left_, key, less_than);
+    } else {
+      return Size(tree->left_) + 1 + UpperBound(tree->right_, key, less_than);
+    }
+  }
+
+  template <typename Predicate>
+  static bool Every(const Ptr& tree, Predicate predicate) {
+    return tree == nullptr ||
+           (Every(tree->left_, predicate) && predicate(tree->element_) &&
+            Every(tree->right_, predicate));
   }
 
  private:
@@ -113,8 +149,8 @@ class ConstTree {
                                           right);
   }
 
-  const int depth_;
-  const int size_;
+  const size_t depth_;
+  const size_t size_;
   const T element_;
 
   const std::shared_ptr<ConstTree<T>> left_;

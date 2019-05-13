@@ -4,11 +4,11 @@
 #include <memory>
 #include <vector>
 
+#include "src/const_tree.h"
 #include "src/cursors.h"
 #include "src/fuzz_testable.h"
 #include "src/line.h"
 #include "src/line_column.h"
-#include "src/tree.h"
 
 namespace afc {
 namespace editor {
@@ -18,32 +18,33 @@ using std::unique_ptr;
 using std::vector;
 
 class BufferContents : public fuzz::FuzzTestable {
+  using Lines = ConstTree<std::shared_ptr<const Line>>;
+
  public:
   BufferContents() = default;
 
   wint_t character_at(const LineColumn& position) const;
 
-  LineNumberDelta size() const { return LineNumberDelta(lines_.size()); }
+  LineNumberDelta size() const { return LineNumberDelta(Lines::Size(lines_)); }
 
   LineNumber EndLine() const;
 
-  // Returns a copy of the contents of the tree. Complexity is linear to the
-  // number of lines (the lines themselves aren't actually copied).
+  // Returns a copy of the contents of the tree. No actual copying takes place.
   std::unique_ptr<BufferContents> copy() const;
 
   shared_ptr<const Line> at(LineNumber position) const {
-    CHECK_LT(position, LineNumber(lines_.size()));
-    return lines_.at(position.line);
+    CHECK_LT(position, LineNumber(0) + size());
+    return lines_->Get(position.line);
   }
 
   shared_ptr<const Line> back() const {
-    CHECK(!lines_.empty());
+    CHECK(lines_ != nullptr);
     return at(EndLine());
   }
 
   shared_ptr<const Line> front() const {
-    CHECK(!lines_.empty());
-    return lines_.at(0);
+    CHECK(lines_ != nullptr);
+    return at(LineNumber(0));
   }
 
   // Iterates: runs the callback on every line in the buffer, passing as the
@@ -61,8 +62,7 @@ class BufferContents : public fuzz::FuzzTestable {
 
   template <class C>
   LineNumber upper_bound(std::shared_ptr<const Line>& key, C compare) const {
-    auto it = std::upper_bound(lines_.begin(), lines_.end(), key, compare);
-    return LineNumber(distance(lines_.begin(), it));
+    return LineNumber(Lines::UpperBound(lines_, key, compare));
   }
 
   size_t CountCharacters() const;
@@ -76,7 +76,18 @@ class BufferContents : public fuzz::FuzzTestable {
 
   template <class C>
   void sort(LineNumber first, LineNumber last, C compare) {
-    std::sort(lines_.begin() + first.line, lines_.begin() + last.line, compare);
+    // TODO: Only append to `lines` the actual range [first, last), and then
+    // just Append to prefix/suffix.
+    std::vector<std::shared_ptr<const Line>> lines;
+    Lines::Every(lines_, [&lines](std::shared_ptr<const Line> line) {
+      lines.push_back(line);
+      return true;
+    });
+    std::sort(lines.begin() + first.line, lines.begin() + last.line, compare);
+    lines_ = nullptr;
+    for (auto& line : lines) {
+      lines_ = Lines::PushBack(std::move(lines_), std::move(line));
+    }
     NotifyUpdateListeners(CursorsTracker::Transformation());
   }
 
@@ -125,7 +136,7 @@ class BufferContents : public fuzz::FuzzTestable {
 
   void push_back(wstring str);
   void push_back(shared_ptr<const Line> line) {
-    lines_.push_back(line);
+    lines_ = Lines::PushBack(std::move(lines_), line);
     NotifyUpdateListeners(CursorsTracker::Transformation());
   }
 
@@ -138,11 +149,7 @@ class BufferContents : public fuzz::FuzzTestable {
   void NotifyUpdateListeners(
       const CursorsTracker::Transformation& cursor_adjuster);
 
-  Tree<shared_ptr<const Line>> lines_ = []() {
-    Tree<shared_ptr<const Line>> output;
-    output.insert(output.begin(), std::make_shared<Line>());
-    return output;
-  }();
+  Lines::Ptr lines_ = Lines::PushBack(nullptr, std::make_shared<Line>());
 
   vector<std::function<void(const CursorsTracker::Transformation&)>>
       update_listeners_;
