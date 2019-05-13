@@ -7,7 +7,6 @@
 #include "src/audio.h"
 #include "src/editor.h"
 #include "src/terminal.h"
-#include "src/tree.h"
 #include "src/wstring.h"
 
 using namespace afc::editor;

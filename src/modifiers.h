@@ -10,7 +10,6 @@
 #include "src/direction.h"
 #include "src/line_column.h"
 #include "src/structure.h"
-#include "src/tree.h"
 #include "src/vm/public/environment.h"
 
 namespace afc {

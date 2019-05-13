@@ -7,7 +7,6 @@
 #include "src/buffers_list.h"
 #include "src/output_producer.h"
 #include "src/parse_tree.h"
-#include "src/tree.h"
 #include "src/vm/public/environment.h"
 #include "src/widget.h"
 

@@ -8,8 +8,6 @@
 #include <set>
 
 #include "src/output_producer.h"
-#include "src/parse_tree.h"
-#include "src/tree.h"
 #include "src/widget.h"
 
 namespace afc {

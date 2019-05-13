@@ -24,7 +24,6 @@ extern "C" {
 #include "src/transformation.h"
 #include "src/transformation_delete.h"
 #include "src/transformation_move.h"
-#include "src/tree.h"
 #include "src/vm/public/value.h"
 #include "src/wstring.h"
 
@@ -108,8 +107,6 @@ class InsertEmptyLineTransformation : public Transformation {
 
 class AutocompleteMode : public EditorMode {
  public:
-  using Iterator = Tree<std::shared_ptr<Line>>::const_iterator;
-
   struct Options {
     std::shared_ptr<EditorMode> delegate;
 

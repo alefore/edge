@@ -4,10 +4,9 @@
 #include <list>
 #include <memory>
 
+#include "src/buffer.h"
 #include "src/lazy_string.h"
 #include "src/output_producer.h"
-#include "src/parse_tree.h"
-#include "src/tree.h"
 #include "src/vm/public/environment.h"
 
 namespace afc {

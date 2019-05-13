@@ -6,8 +6,6 @@
 
 #include "src/line_scroll_control.h"
 #include "src/output_producer.h"
-#include "src/parse_tree.h"
-#include "src/tree.h"
 #include "src/viewers.h"
 #include "src/widget.h"
 

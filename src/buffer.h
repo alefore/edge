@@ -23,7 +23,6 @@
 #include "src/status.h"
 #include "src/substring.h"
 #include "src/transformation.h"
-#include "src/tree.h"
 #include "src/variables.h"
 #include "src/viewers.h"
 #include "src/vm/public/environment.h"
