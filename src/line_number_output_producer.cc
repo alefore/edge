@@ -24,8 +24,9 @@ namespace editor {
 
 /* static */ ColumnNumberDelta LineNumberOutputProducer::PrefixWidth(
     LineNumberDelta lines_size) {
-  return ColumnNumberDelta(1 +
-                           (LineNumber() + lines_size).ToUserString().size());
+  return ColumnNumberDelta(
+      1 +
+      (LineNumber() + lines_size - LineNumberDelta(1)).ToUserString().size());
 }
 
 LineNumberOutputProducer::LineNumberOutputProducer(
