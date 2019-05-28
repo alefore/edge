@@ -8,6 +8,8 @@
 namespace afc {
 namespace editor {
 
+// An immutable tree supporting fast `Prefix` (get initial sequence), `Suffix`,
+// and `Append` operations.
 template <typename T>
 class ConstTree {
  private:
@@ -87,6 +89,9 @@ class ConstTree {
     return Append(PushBack(Suffix(a->left_, len), a->element_), a->right_);
   }
 
+  // Similar to std::upper_bound(begin(), end(), val, compare). Returns the
+  // index of the first element greater than key. The elements in the tree must
+  // be sorted (according to the less_than value given).
   template <typename LessThan>
   static size_t UpperBound(const Ptr& tree, const T& key, LessThan less_than) {
     if (tree == nullptr) {
