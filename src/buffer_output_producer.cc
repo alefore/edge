@@ -18,12 +18,13 @@
 namespace afc {
 namespace editor {
 namespace {
+// Use to highlight entire lines (for variable `atomic_lines`).
 OutputProducer::Generator LineHighlighter(OutputProducer::Generator generator) {
   return OutputProducer::Generator{
       std::nullopt, [generator]() {
         auto output = generator.generate();
         Line::Options line_options(*output.line);
-        line_options.modifiers.insert({ColumnNumber(0), LineModifierSet()});
+        line_options.modifiers.insert({ColumnNumber(0), {}});
         for (auto& m : line_options.modifiers) {
           auto it = m.second.insert(LineModifier::REVERSE);
           if (!it.second) {
@@ -34,6 +35,7 @@ OutputProducer::Generator LineHighlighter(OutputProducer::Generator generator) {
         return output;
       }};
 }
+
 OutputProducer::Generator ParseTreeHighlighter(
     ColumnNumber begin, ColumnNumber end, OutputProducer::Generator generator) {
   return OutputProducer::Generator{
@@ -49,49 +51,57 @@ OutputProducer::Generator ParseTreeHighlighter(
       }};
 }
 
-// Adds to `output` all modifiers for the tree for the current line.
+// Adds to `output` all modifiers for the tree relevant to a given range.
+//
+// If range.begin.column is non-zero, the columns in the output will have
+// already subtracted it. In other words, the columns in the output are relative
+// to range.begin.column, rather than absolute.
+//
+// Only modifiers in the line range.begin.line will ever be outputed. Most of
+// the time, range.end is either in the same line or at the beginning of the
+// next, and this restriction won't apply.
 void GetSyntaxModifiersForLine(
-    LineNumber line, const ParseTree* tree, LineModifierSet syntax_modifiers,
+    Range range, const ParseTree* tree, LineModifierSet syntax_modifiers,
     std::map<ColumnNumber, LineModifierSet>* output) {
   CHECK(tree);
-  VLOG(5) << "Getting syntax for " << line << " from " << tree->range();
-  if (tree->range().end.line == line) {
-    (*output)[tree->range().end.column] = syntax_modifiers;
-  }
+  VLOG(5) << "Getting syntax for " << range << " from " << tree->range();
+  if (range.Intersection(tree->range()).IsEmpty()) return;
+  auto PushCurrentModifiers = [&](LineColumn tree_position) {
+    if (tree_position.line != range.begin.line) return;
+    auto column = tree_position.column.MinusHandlingOverflow(
+        range.begin.column.ToDelta());
+    (*output)[column] = syntax_modifiers;
+  };
 
+  PushCurrentModifiers(tree->range().end);
   syntax_modifiers.insert(tree->modifiers().begin(), tree->modifiers().end());
-  (*output)[tree->range().begin.line == line ? tree->range().begin.column
-                                             : ColumnNumber(0)] =
-      syntax_modifiers;
+  PushCurrentModifiers(std::max(range.begin, tree->range().begin));
 
   const auto& children = tree->children();
   auto it = std::upper_bound(
-      children.begin(), children.end(), LineColumn(line),
+      children.begin(), children.end(), range.begin,
       [](const LineColumn& position, const ParseTree& candidate) {
         return position < candidate.range().end;
       });
 
-  while (it != children.end() && (*it).range().begin.line <= line) {
-    GetSyntaxModifiersForLine(line, &*it, syntax_modifiers, output);
+  while (it != children.end() && (*it).range().begin <= range.end) {
+    GetSyntaxModifiersForLine(range, &*it, syntax_modifiers, output);
     ++it;
   }
 }
 
 OutputProducer::Generator ParseTreeHighlighterTokens(
-    const ParseTree* root, LineColumn initial_position,
-    OutputProducer::Generator generator) {
+    const ParseTree* root, Range range, OutputProducer::Generator generator) {
   CHECK(root != nullptr);
-  generator.inputs_hash = hash_combine(generator.inputs_hash.value(),
-                                       initial_position, root->hash());
-  generator.generate = [root, initial_position,
-                        generator = std::move(generator)]() {
+  generator.inputs_hash =
+      hash_combine(generator.inputs_hash.value(), range, root->hash());
+  generator.generate = [root, range, generator = std::move(generator)]() {
     OutputProducer::LineWithCursor input = generator.generate();
     Line::Options options(std::move(*input.line));
 
     std::map<ColumnNumber, LineModifierSet> syntax_modifiers;
-    GetSyntaxModifiersForLine(initial_position.line, root, LineModifierSet(),
-                              &syntax_modifiers);
-    LOG(INFO) << "Syntax tokens for " << initial_position << ": "
+    GetSyntaxModifiersForLine(range, root, {}, &syntax_modifiers);
+    LOG(INFO) << "Syntax tokens for " << range << ": "
               << syntax_modifiers.size();
 
     // Merge them.
@@ -232,8 +242,7 @@ OutputProducer::Generator BufferOutputProducer::Next() {
                            : line_contents->EndColumn();
     output = ParseTreeHighlighter(begin, end, std::move(output));
   } else if (!buffer_->parse_tree()->children().empty()) {
-    output =
-        ParseTreeHighlighterTokens(root_.get(), range.begin, std::move(output));
+    output = ParseTreeHighlighterTokens(root_.get(), range, std::move(output));
   }
 
   CHECK(line_contents->contents() != nullptr);
