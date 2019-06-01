@@ -175,8 +175,7 @@ OpenBuffer::SyntaxDataOutput OpenBuffer::UpdateSyntaxData(
 
   SyntaxDataOutput output;
 
-  auto parse_tree = std::make_shared<ParseTree>();
-  parse_tree->set_range(
+  auto parse_tree = std::make_shared<ParseTree>(
       Range(LineColumn(), LineColumn(input.contents->EndLine(),
                                      input.contents->back()->EndColumn())));
   input.parser->FindChildren(*input.contents, parse_tree.get());
@@ -912,13 +911,13 @@ void OpenBuffer::ScheduleSyntaxDataUpdate() {
 std::shared_ptr<const ParseTree> OpenBuffer::parse_tree() const {
   std::optional<const SyntaxDataOutput> data = syntax_data_.Get();
   return data.has_value() ? data.value().parse_tree
-                          : std::make_shared<ParseTree>();
+                          : std::make_shared<ParseTree>(Range());
 }
 
 std::shared_ptr<const ParseTree> OpenBuffer::simplified_parse_tree() const {
   std::optional<const SyntaxDataOutput> data = syntax_data_.Get();
   return data.has_value() ? data.value().simplified_parse_tree
-                          : std::make_shared<ParseTree>();
+                          : std::make_shared<ParseTree>(Range());
 }
 
 void OpenBuffer::StartNewLine() {
@@ -1529,7 +1528,7 @@ std::shared_ptr<const ParseTree> OpenBuffer::current_zoomed_out_parse_tree(
 
   auto it = data.value().zoomed_out_parse_trees.find(lines);
   if (it == data.value().zoomed_out_parse_trees.end()) {
-    return std::make_shared<ParseTree>();
+    return std::make_shared<ParseTree>(Range());
   }
   CHECK(it->second != nullptr);
   return it->second;
