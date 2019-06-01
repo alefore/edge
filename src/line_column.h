@@ -149,6 +149,10 @@ struct ColumnNumber {
   // L"6").
   std::wstring ToUserString() const;
 
+  // a.MinusHadlingOverflow(value) is equivalent to `a - value` if `a` is
+  // greater than or equal to `value` (and `ColumnNumber(0)` otherwise).
+  ColumnNumber MinusHandlingOverflow(const ColumnNumberDelta& value) const;
+
   bool IsZero() const;
 
   size_t column = 0;

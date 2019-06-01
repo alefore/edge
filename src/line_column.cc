@@ -381,6 +381,11 @@ std::wstring ColumnNumber::ToUserString() const {
   return std::to_wstring(column + 1);
 }
 
+ColumnNumber ColumnNumber::MinusHandlingOverflow(
+    const ColumnNumberDelta& value) const {
+  return this->ToDelta() > value ? *this - value : ColumnNumber(0);
+}
+
 bool ColumnNumber::IsZero() const { return *this == ColumnNumber(); }
 
 bool operator==(const ColumnNumber& a, const ColumnNumber& b) {
