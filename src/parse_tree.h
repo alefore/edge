@@ -8,7 +8,6 @@
 
 #include "src/line_column.h"
 #include "src/line_modifier.h"
-#include "src/tree.h"
 
 namespace afc {
 namespace editor {
@@ -40,7 +39,7 @@ class ParseTree {
   void set_modifiers(LineModifierSet modifiers);
   void InsertModifier(LineModifier modifier);
 
-  const Tree<ParseTree>& children() const;
+  const std::vector<ParseTree>& children() const;
 
   // Unlike the usual unique_ptr uses, ownership of the child remains with the
   // parent. However, the custom deleter adjusts the depth in the parent once
@@ -64,7 +63,7 @@ class ParseTree {
   void RecomputeHashExcludingChildren();
   void XorChildHash(size_t position);
 
-  Tree<ParseTree> children_;
+  std::vector<ParseTree> children_;
 
   Range range_;
   size_t depth_ = 0;

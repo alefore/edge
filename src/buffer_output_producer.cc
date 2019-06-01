@@ -64,13 +64,14 @@ void GetSyntaxModifiersForLine(
                                              : ColumnNumber(0)] =
       syntax_modifiers;
 
-  auto it = tree->children().UpperBound(
-      LineColumn(line),
+  const auto& children = tree->children();
+  auto it = std::upper_bound(
+      children.begin(), children.end(), LineColumn(line),
       [](const LineColumn& position, const ParseTree& candidate) {
         return position < candidate.range().end;
       });
 
-  while (it != tree->children().end() && (*it).range().begin.line <= line) {
+  while (it != children.end() && (*it).range().begin.line <= line) {
     GetSyntaxModifiersForLine(line, &*it, syntax_modifiers, output);
     ++it;
   }

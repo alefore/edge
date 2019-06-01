@@ -46,7 +46,7 @@ void ParseTree::InsertModifier(LineModifier modifier) {
   RecomputeHashExcludingChildren();
 }
 
-const Tree<ParseTree>& ParseTree::children() const { return children_; }
+const std::vector<ParseTree>& ParseTree::children() const { return children_; }
 
 std::unique_ptr<ParseTree, std::function<void(ParseTree*)>>
 ParseTree::MutableChildren(size_t i) {
