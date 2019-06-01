@@ -32,6 +32,7 @@
 #include "src/navigation_buffer.h"
 #include "src/open_directory_command.h"
 #include "src/open_file_command.h"
+#include "src/parse_tree.h"
 #include "src/quit_command.h"
 #include "src/record_command.h"
 #include "src/repeat_mode.h"
