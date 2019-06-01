@@ -101,35 +101,35 @@ ParseTree SimplifyTree(const ParseTree& tree) {
 }
 
 namespace {
-void ZoomOutTree(const ParseTree& input, double ratio, ParseTree* parent) {
+std::optional<ParseTree> ZoomOutTree(const ParseTree& input, double ratio) {
   Range range = input.range();
   range.begin.line.line *= ratio;
   range.end.line.line *= ratio;
   if (range.begin.line == range.end.line) {
-    return;
+    return std::nullopt;
   }
-  auto output = parent->PushChild();
-  output->set_range(range);
+  ParseTree output(range);
   for (const auto& child : input.children()) {
-    ZoomOutTree(child, ratio, output.get());
+    auto output_child = ZoomOutTree(child, ratio);
+    if (output_child.has_value()) {
+      output.PushChild(std::move(output_child.value()));
+    }
   }
+  return output;
 }
 }  // namespace
 
 ParseTree ZoomOutTree(const ParseTree& input, LineNumberDelta input_lines,
                       LineNumberDelta output_lines) {
   LOG(INFO) << "Zooming out: " << input_lines << " to " << output_lines;
-  ParseTree output;
-  ZoomOutTree(
-      input,
-      static_cast<double>(output_lines.line_delta) / input_lines.line_delta,
-      &output);
-  if (output.children().empty()) {
+  auto output =
+      ZoomOutTree(input, static_cast<double>(output_lines.line_delta) /
+                             input_lines.line_delta);
+  if (!output.has_value()) {
     return ParseTree();
   }
 
-  CHECK_EQ(output.children().size(), 1ul);
-  return std::move(output.children().at(0));
+  return output.value();
 }
 
 // Returns the first children of tree that ends after a given position.
