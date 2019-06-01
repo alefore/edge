@@ -19,6 +19,7 @@ extern "C" {
 #include "src/file_descriptor_reader.h"
 #include "src/file_link_mode.h"
 #include "src/lazy_string_append.h"
+#include "src/parse_tree.h"
 #include "src/substring.h"
 #include "src/terminal.h"
 #include "src/transformation.h"
