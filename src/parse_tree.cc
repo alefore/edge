@@ -22,6 +22,10 @@ std::ostream& operator<<(std::ostream& os, const ParseTree& t) {
   return os;
 }
 
+ParseTree::ParseTree(Range range) : range_(std::move(range)) {
+  RecomputeHashExcludingChildren();
+}
+
 Range ParseTree::range() const { return range_; }
 void ParseTree::set_range(Range range) {
   range_ = range;

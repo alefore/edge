@@ -23,6 +23,8 @@ class ParseTree {
 
   ParseTree() = default;
 
+  ParseTree(Range range);
+
   ParseTree(const ParseTree& other)
       : children_(other.children()),
         range_(other.range()),
