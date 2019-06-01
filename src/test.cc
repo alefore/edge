@@ -6,11 +6,11 @@
 
 #include "src/audio.h"
 #include "src/buffer_variables.h"
+#include "src/const_tree.h"
 #include "src/editor.h"
 #include "src/terminal.h"
 #include "src/test/buffer_contents_test.h"
 #include "src/test/line_test.h"
-#include "src/tree.h"
 #include "src/wstring.h"
 
 using namespace afc::editor;
@@ -46,131 +46,77 @@ void ShowList(list<int> l) {
   std::cout << "\n";
 }
 
+list<int> ToList(ConstTree<int>::Ptr tree) {
+  using T = ConstTree<int>;
+  list<int> output;
+  CHECK(T::Every(tree, [&](int v) {
+    output.push_back(v);
+    return true;
+  }));
+  CHECK_EQ(output.size(), T::Size(tree));
+  return output;
+}
+
 void TreeTestsLong() {
   srand(0);
   list<int> l;
-  Tree<int> t;
+  using T = ConstTree<int>;
+  T::Ptr t;
   size_t elements = 500;
   for (size_t i = 0; i < elements; i++) {
-    int position = rand() % (1 + t.size());
+    int position = rand() % (1 + T::Size(t));
     auto l_it = l.begin();
-    auto t_it = t.begin();
-    for (int i = 0; i < position; i++) {
-      CHECK(t_it == t.begin() + i);
-      ++l_it;
-      ++t_it;
-    }
-    CHECK(t_it == t.begin() + position);
-    if (position > 10) {
-      t_it = t.begin();
-      t_it += position / 2;
-      t_it += position - position / 2;
-      CHECK(t_it == t.begin() + position);
-    }
+    std::advance(l_it, position);
     l.insert(l_it, i);
-    t.insert(t.begin() + position, i);
+    t = T::Append(T::PushBack(T::Prefix(t, position), i),
+                  T::Suffix(t, position));
+    CHECK(ToList(t) == l);
   }
-  CHECK(list<int>(t.begin(), t.end()) == l);
+
   LOG(INFO) << "Starting delete tests.";
   for (size_t i = 0; i < elements / 2; i++) {
-    int position = rand() % t.size();
+    int position = rand() % T::Size(t);
     auto l_it = l.begin();
-    auto t_it = t.begin();
-    for (int i = 0; i < position; i++) {
-      CHECK(t_it == t.begin() + i);
-      ++l_it;
-      ++t_it;
-    }
-    CHECK_EQ(*l_it, *t_it);
-    CHECK(t_it == t.begin() + position);
-    LOG(INFO) << "Erasing at position " << (position) << ": ";
+    std::advance(l_it, position);
+
+    LOG(INFO) << "Erasing at position " << position << ": ";
     l.erase(l_it);
-    t.erase(t.begin() + position);
-    CHECK_EQ(t.size(), l.size());
-    CHECK(list<int>(t.begin(), t.end()) == l);
+    t = T::Append(T::Prefix(t, position), T::Suffix(t, position + 1));
+    CHECK(ToList(t) == l);
   }
-
-  LOG(INFO) << "Starting sorting tests.";
-
-  vector<int> v(t.begin(), t.end());
-  std::sort(v.begin(), v.end());
-  std::sort(t.begin(), t.end());
-  CHECK_EQ(t.size(), v.size());
-  CHECK(vector<int>(t.begin(), t.end()) == v);
 }
 
-std::ostream& operator<<(std::ostream& out, const Node<int>& node);
-
 void TreeTestsBasic() {
-  Tree<int> t;
-  std::cout << t << "\n";
-  CHECK(t.begin() == t.end());
+  using T = ConstTree<int>;
 
-  t.push_back(10);
-  std::cout << t << "\n";
-  CHECK_EQ(t.front(), 10);
-  CHECK_EQ(t.back(), 10);
-  CHECK(t.begin() != t.end());
+  T::Ptr t;
+  CHECK_EQ(T::Size(t), 0ul);
 
-  t.push_back(20);
-  std::cout << t << "\n";
-  CHECK_EQ(t.front(), 10);
-  CHECK_EQ(t.back(), 20);
+  t = T::Leaf(10);
+  CHECK_EQ(T::Size(t), 1ul);
+  CHECK_EQ(t->Get(0), 10);
 
-  {
-    auto it = t.begin();
-    CHECK_EQ(*it, 10);
-    ++it;
-    CHECK_EQ(*it, 20);
-    ++it;
-    CHECK(it == t.end());
-  }
+  t = T::PushBack(t, 20);
+  CHECK_EQ(t->Get(0), 10);
+  CHECK_EQ(t->Get(1), 20);
+  CHECK_EQ(T::Size(t), 2ul);
 
-  t.push_back(30);
-  std::cout << t << "\n";
-  CHECK_EQ(t.front(), 10);
-  CHECK_EQ(t.back(), 30);
+  t = T::PushBack(t, 30);
+  CHECK_EQ(t->Get(0), 10);
+  CHECK_EQ(t->Get(2), 30);
+  CHECK_EQ(T::Size(t), 3ul);
 
-  t.push_back(40);
-  std::cout << t << "\n";
-  CHECK_EQ(t.front(), 10);
-  CHECK_EQ(t.back(), 40);
+  t = T::PushBack(t, 40);
+  CHECK_EQ(t->Get(0), 10);
+  CHECK_EQ(t->Get(3), 40);
+  CHECK_EQ(T::Size(t), 4ul);
 
-  t.insert(t.begin(), 5);
-  std::cout << t << "\n";
-  CHECK_EQ(t.front(), 5);
-
-  {
-    auto it = t.begin();
-    CHECK(it == t.begin());
-    CHECK_EQ(*it, 5);
-    ++it;
-    CHECK(it != t.end());
-    CHECK_EQ(*it, 10);
-    ++it;
-    CHECK(it != t.end());
-    CHECK_EQ(*it, 20);
-    ++it;
-    CHECK(it != t.end());
-    CHECK_EQ(*it, 30);
-    --it;
-    CHECK(it != t.end());
-    CHECK_EQ(*it, 20);
-    ++it;
-    CHECK(it != t.end());
-    CHECK_EQ(*it, 30);
-    ++it;
-    CHECK(it != t.end());
-    CHECK_EQ(*it, 40);
-    ++it;
-    CHECK(it == t.end());
-  }
-
-  {
-    auto it = t.begin();
-    it += 3;
-    CHECK_EQ(*it, 30);
-  }
+  t = T::Append(T::Leaf(5), t);
+  CHECK_EQ(t->Get(0), 5);
+  CHECK_EQ(t->Get(1), 10);
+  CHECK_EQ(t->Get(2), 20);
+  CHECK_EQ(t->Get(3), 30);
+  CHECK_EQ(t->Get(4), 40);
 }
 
 void TestCases() {
