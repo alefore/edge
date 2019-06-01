@@ -30,6 +30,10 @@ class ConstTree {
         left_(std::move(left)),
         right_(std::move(right)) {}
 
+  static Ptr Leaf(T element) {
+    return New(std::move(element), nullptr, nullptr);
+  }
+
   static Ptr Append(const Ptr& a, const Ptr& b) {
     if (a == nullptr) return b;
     if (b == nullptr) return a;
@@ -37,7 +41,7 @@ class ConstTree {
   }
 
   static Ptr PushBack(const Ptr& a, T element) {
-    return Append(a, New(std::move(element), nullptr, nullptr));
+    return Append(a, Leaf(std::move(element)));
   }
 
   static size_t Size(const Ptr& tree) {
