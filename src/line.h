@@ -13,8 +13,8 @@
 
 #include "src/lazy_string.h"
 #include "src/line_column.h"
+#include "src/line_modifier.h"
 #include "src/output_producer.h"
-#include "src/parse_tree.h"
 #include "src/vm/public/environment.h"
 
 namespace afc {
