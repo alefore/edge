@@ -52,8 +52,11 @@ class ParseTree {
 
   void Reset();
 
-  // Inserts a new child into a tree and returns a pointer to it.
+  // Inserts a new child into a tree and returns a pointer to it. Prefer version
+  // that receives the child.
   std::unique_ptr<ParseTree, std::function<void(ParseTree*)>> PushChild();
+
+  void PushChild(ParseTree child);
 
   size_t hash() const;
 
@@ -75,7 +78,7 @@ class ParseTree {
 
 // Returns a copy of tree that only includes children that cross line
 // boundaries. This is useful to reduce the noise shown in the tree.
-void SimplifyTree(const ParseTree& tree, ParseTree* output);
+ParseTree SimplifyTree(const ParseTree& tree);
 
 // Produces simplified (by SimplifyTree) copy of a simplified tree, where lines
 // are remapped from an input of `input_lines` lines to an output of exactly

@@ -77,6 +77,12 @@ ParseTree::PushChild() {
   return MutableChildren(children_.size() - 1);
 }
 
+void ParseTree::PushChild(ParseTree child) {
+  depth_ = max(depth(), child.depth() + 1);
+  children_.emplace_back(std::move(child));
+  XorChildHash(children_.size() - 1);
+}
+
 size_t ParseTree::hash() const { return hash_combine(hash_, children_hashes_); }
 
 void ParseTree::RecomputeHashExcludingChildren() {
@@ -84,13 +90,14 @@ void ParseTree::RecomputeHashExcludingChildren() {
   // No need to include depth_, that will come through children_hash_.
 }
 
-void SimplifyTree(const ParseTree& tree, ParseTree* output) {
-  output->set_range(tree.range());
+ParseTree SimplifyTree(const ParseTree& tree) {
+  ParseTree output(tree.range());
   for (const auto& child : tree.children()) {
     if (child.range().begin.line != child.range().end.line) {
-      SimplifyTree(child, output->PushChild().get());
+      output.PushChild(SimplifyTree(child));
     }
   }
+  return output;
 }
 
 namespace {

@@ -182,10 +182,8 @@ OpenBuffer::SyntaxDataOutput OpenBuffer::UpdateSyntaxData(
   input.parser->FindChildren(*input.contents, parse_tree.get());
   output.parse_tree = std::move(parse_tree);
 
-  auto simplified_parse_tree = std::make_shared<ParseTree>();
-  SimplifyTree(*output.parse_tree, simplified_parse_tree.get());
-  output.simplified_parse_tree = std::move(simplified_parse_tree);
-
+  output.simplified_parse_tree =
+      std::make_shared<ParseTree>(SimplifyTree(*output.parse_tree));
   for (auto& size : input.view_sizes) {
     auto results = output.zoomed_out_parse_trees.insert(
         {size,
