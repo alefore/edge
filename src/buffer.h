@@ -45,6 +45,7 @@ using std::vector;
 using namespace afc::vm;
 
 class ParseTree;
+class TreeParser;
 
 class OpenBuffer {
  public:
