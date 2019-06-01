@@ -22,15 +22,17 @@ std::ostream& operator<<(std::ostream& os, const ParseTree& t) {
   return os;
 }
 
-ParseTree::ParseTree(Range range) : range_(std::move(range)) {
-  RecomputeHashExcludingChildren();
-}
+ParseTree::ParseTree(Range range) : range_(std::move(range)) {}
+
+ParseTree::ParseTree(const ParseTree& other)
+    : children_(other.children()),
+      children_hashes_(other.children_hashes_),
+      range_(other.range()),
+      depth_(other.depth()),
+      modifiers_(other.modifiers()) {}
 
 Range ParseTree::range() const { return range_; }
-void ParseTree::set_range(Range range) {
-  range_ = range;
-  RecomputeHashExcludingChildren();
-}
+void ParseTree::set_range(Range range) { range_ = range; }
 
 size_t ParseTree::depth() const { return depth_; }
 
@@ -38,12 +40,10 @@ const LineModifierSet& ParseTree::modifiers() const { return modifiers_; }
 
 void ParseTree::set_modifiers(LineModifierSet modifiers) {
   modifiers_ = std::move(modifiers);
-  RecomputeHashExcludingChildren();
 }
 
 void ParseTree::InsertModifier(LineModifier modifier) {
   modifiers_.insert(modifier);
-  RecomputeHashExcludingChildren();
 }
 
 const std::vector<ParseTree>& ParseTree::children() const { return children_; }
@@ -65,9 +65,9 @@ void ParseTree::XorChildHash(size_t position) {
 
 void ParseTree::Reset() {
   children_.clear();
+  children_hashes_ = 0;
   depth_ = 0;
   set_modifiers(LineModifierSet());
-  children_hashes_ = 0;
 }
 
 std::unique_ptr<ParseTree, std::function<void(ParseTree*)>>
@@ -83,11 +83,8 @@ void ParseTree::PushChild(ParseTree child) {
   XorChildHash(children_.size() - 1);
 }
 
-size_t ParseTree::hash() const { return hash_combine(hash_, children_hashes_); }
-
-void ParseTree::RecomputeHashExcludingChildren() {
-  hash_ = hash_combine(range_, modifiers_);
-  // No need to include depth_, that will come through children_hash_.
+size_t ParseTree::hash() const {
+  return hash_combine(range_, modifiers_, children_hashes_);
 }
 
 ParseTree SimplifyTree(const ParseTree& tree) {

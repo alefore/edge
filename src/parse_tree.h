@@ -23,12 +23,7 @@ class ParseTree {
   ParseTree() = default;
 
   ParseTree(Range range);
-
-  ParseTree(const ParseTree& other)
-      : children_(other.children()),
-        range_(other.range()),
-        depth_(other.depth()),
-        modifiers_(other.modifiers()) {}
+  ParseTree(const ParseTree& other);
 
   Range range() const;
   void set_range(Range range);
@@ -60,19 +55,16 @@ class ParseTree {
   size_t hash() const;
 
  private:
-  void RecomputeHashExcludingChildren();
   void XorChildHash(size_t position);
 
   std::vector<ParseTree> children_;
 
+  // The xor of the hashes of all children (including their positions).
+  size_t children_hashes_ = 0;
+
   Range range_;
   size_t depth_ = 0;
   LineModifierSet modifiers_;
-
-  // The hash of all parameters except for children_.
-  size_t hash_ = 0;
-  // The xor of the hashes of all children (including their positions).
-  size_t children_hashes_ = 0;
 };
 
 // Returns a copy of tree that only includes children that cross line
