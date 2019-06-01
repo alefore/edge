@@ -5,6 +5,7 @@
 #include "src/buffer.h"
 #include "src/buffer_contents.h"
 #include "src/buffer_variables.h"
+#include "src/parse_tree.h"
 #include "src/seek.h"
 #include "src/transformation_delete.h"
 
