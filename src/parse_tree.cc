@@ -202,9 +202,10 @@ class CharTreeParser : public TreeParser {
                                 ? root->range().begin.column
                                 : ColumnNumber(0);
            i < end_column; ++i) {
-        auto new_children = root->PushChild();
-        new_children->set_range(Range::InLine(line, i, ColumnNumberDelta(1)));
-        DVLOG(7) << "Adding char: " << *new_children;
+        auto new_children =
+            ParseTree(Range::InLine(line, i, ColumnNumberDelta(1)));
+        DVLOG(7) << "Adding char: " << new_children;
+        root->PushChild(std::move(new_children));
       }
     }
   }
