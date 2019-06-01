@@ -19,7 +19,6 @@
 #include "src/line_column.h"
 #include "src/line_marks.h"
 #include "src/map_mode.h"
-#include "src/parse_tree.h"
 #include "src/status.h"
 #include "src/substring.h"
 #include "src/transformation.h"
@@ -44,6 +43,8 @@ using std::unique_ptr;
 using std::vector;
 
 using namespace afc::vm;
+
+class ParseTree;
 
 class OpenBuffer {
  public:
