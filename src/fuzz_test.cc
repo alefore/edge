@@ -49,8 +49,6 @@ void RandomModifiers(EditorState* editor_state) {
   }
 }
 
-std::ostream& operator<<(std::ostream& out, const Node<int>& node);
-
 int main(int, char** argv) {
   signal(SIGPIPE, SIG_IGN);
   google::InitGoogleLogging(argv[0]);
