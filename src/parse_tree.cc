@@ -294,12 +294,13 @@ class LineTreeParser : public TreeParser {
         continue;
       }
 
-      auto new_children = root->PushChild();
-      new_children->set_range(Range(
+      auto new_children = ParseTree(Range(
           LineColumn(line),
           min(LineColumn(line, contents->EndColumn()), root->range().end)));
-      DVLOG(5) << "Adding line: " << *new_children;
-      delegate_->FindChildren(buffer, new_children.get());
+
+      DVLOG(5) << "Adding line: " << new_children;
+      delegate_->FindChildren(buffer, &new_children);
+      root->PushChild(new_children);
     }
   }
 
