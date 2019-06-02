@@ -28,17 +28,13 @@ enum State {
 
 class MarkdownParser : public TreeParser {
  public:
-  void FindChildren(const BufferContents& buffer, ParseTree* root) override {
-    CHECK(root != nullptr);
-    root->Reset();
-
+  ParseTree FindChildren(const BufferContents& buffer, Range range) override {
     std::vector<size_t> states_stack = {DEFAULT};
-    std::vector<ParseTree*> trees = {root};
-    root->range().ForEachLine([&](LineNumber i) {
-      ParseData data(
-          buffer, std::move(states_stack),
-          std::min(LineColumn(i + LineNumberDelta(1)), root->range().end));
-      data.set_position(std::max(LineColumn(i), root->range().begin));
+    std::vector<ParseTree> trees = {ParseTree(range)};
+    range.ForEachLine([&](LineNumber i) {
+      ParseData data(buffer, std::move(states_stack),
+                     std::min(LineColumn(i + LineNumberDelta(1)), range.end));
+      data.set_position(std::max(LineColumn(i), range.begin));
       ParseLine(&data);
       for (auto& action : data.parse_results()->actions) {
         action.Execute(&trees, i);
@@ -48,19 +44,21 @@ class MarkdownParser : public TreeParser {
 
     auto final_position =
         LineColumn(buffer.EndLine(), buffer.back()->EndColumn());
-    if (final_position >= root->range().end) {
+    if (final_position >= range.end) {
       DVLOG(5) << "Draining final states: " << states_stack.size();
       ParseData data(buffer, std::move(states_stack),
                      std::min(LineColumn(LineNumber(0) + buffer.size() +
                                          LineNumberDelta(1)),
-                              root->range().end));
-      while (!data.parse_results()->states_stack.empty()) {
+                              range.end));
+      while (data.parse_results()->states_stack.size() > 1) {
         data.PopBack();
       }
       for (auto& action : data.parse_results()->actions) {
         action.Execute(&trees, final_position.line);
       }
     }
+    CHECK(!trees.empty());
+    return std::move(trees[0]);
   }
 
   void ParseLine(ParseData* result) {

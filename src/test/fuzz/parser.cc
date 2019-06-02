@@ -35,9 +35,7 @@ int main(int argc, char** argv) {
   }
 
   std::cout << "Parsing input: " << contents.ToString();
-
-  ParseTree tree;
-  parser->FindChildren(contents, &tree);
-
+  ParseTree tree = parser->FindChildren(contents, contents.range());
+  std::cout << "Hash: " << tree.hash();
   return 0;
 }

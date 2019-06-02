@@ -40,24 +40,19 @@ class CppTreeParser : public TreeParser {
         keywords_(std::move(keywords)),
         typos_(std::move(typos)) {}
 
-  void FindChildren(const BufferContents& buffer, ParseTree* root) override {
-    CHECK(root != nullptr);
-    root->Reset();
-
+  ParseTree FindChildren(const BufferContents& buffer, Range range) override {
     // TODO: Does this actually clean up expired references? Probably not?
     cache_.erase(std::weak_ptr<LazyString>());
 
     std::vector<size_t> states_stack = {DEFAULT_AT_START_OF_LINE};
-    std::vector<ParseTree*> trees = {root};
-    for (LineNumber i = root->range().begin.line; i < root->range().end.line;
-         ++i) {
+    std::vector<ParseTree> trees = {ParseTree(range)};
+    range.ForEachLine([&](LineNumber i) {
       auto insert_results = cache_[buffer.at(i)->contents()].insert(
           {states_stack, ParseResults()});
       if (insert_results.second) {
-        ParseData data(
-            buffer, std::move(states_stack),
-            min(LineColumn(i + LineNumberDelta(1)), root->range().end));
-        data.set_position(max(LineColumn(i), root->range().begin));
+        ParseData data(buffer, std::move(states_stack),
+                       min(LineColumn(i + LineNumberDelta(1)), range.end));
+        data.set_position(max(LineColumn(i), range.begin));
         ParseLine(&data);
         insert_results.first->second = *data.parse_results();
       }
@@ -65,23 +60,25 @@ class CppTreeParser : public TreeParser {
         action.Execute(&trees, i);
       }
       states_stack = insert_results.first->second.states_stack;
-    }
+    });
 
     auto final_position =
         LineColumn(buffer.EndLine(), buffer.back()->EndColumn());
-    if (final_position >= root->range().end) {
+    if (final_position >= range.end) {
       DVLOG(5) << "Draining final states: " << states_stack.size();
       ParseData data(buffer, std::move(states_stack),
                      std::min(LineColumn(LineNumber(0) + buffer.size() +
                                          LineNumberDelta(1)),
-                              root->range().end));
-      while (!data.parse_results()->states_stack.empty()) {
+                              range.end));
+      while (data.parse_results()->states_stack.size() > 1) {
         data.PopBack();
       }
       for (auto& action : data.parse_results()->actions) {
         action.Execute(&trees, final_position.line);
       }
     }
+    CHECK(!trees.empty());
+    return trees[0];
   }
 
   void ParseLine(ParseData* result) {

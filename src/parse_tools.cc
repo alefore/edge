@@ -8,30 +8,31 @@ namespace editor {
                 std::move(modifiers));
 }
 
-void Action::Execute(std::vector<ParseTree*>* trees, LineNumber line) {
+void Action::Execute(std::vector<ParseTree>* trees, LineNumber line) {
   switch (action_type) {
     case PUSH: {
-      trees->push_back(trees->back()->PushChild().release());
-      auto range = trees->back()->range();
-      range.begin = LineColumn(line, column);
-      trees->back()->set_range(range);
-      trees->back()->set_modifiers(modifiers);
-      DVLOG(5) << "Tree: Push: " << trees->back()->range();
+      trees->emplace_back(Range(LineColumn(line, column), LineColumn()));
+      trees->back().set_modifiers(modifiers);
+      DVLOG(5) << "Tree: Push: " << trees->back().range();
       break;
     }
 
     case POP: {
-      auto range = trees->back()->range();
-      range.end = LineColumn(line, column);
-      trees->back()->set_range(range);
-      DVLOG(5) << "Tree: Pop: " << trees->back()->range();
+      auto child = std::move(trees->back());
       trees->pop_back();
+
+      auto range = child.range();
+      range.end = LineColumn(line, column);
+      child.set_range(range);
+      DVLOG(5) << "Tree: Pop: " << child.range();
+      CHECK(!trees->empty());
+      trees->back().PushChild(std::move(child));
       break;
     }
 
     case SET_FIRST_CHILD_MODIFIERS:
-      DVLOG(5) << "Tree: SetModifiers: " << trees->back()->range();
-      trees->back()->MutableChildren(0)->set_modifiers(modifiers);
+      DVLOG(5) << "Tree: SetModifiers: " << trees->back().range();
+      trees->back().MutableChildren(0)->set_modifiers(modifiers);
       break;
   }
 }

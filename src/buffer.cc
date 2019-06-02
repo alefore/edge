@@ -175,11 +175,8 @@ OpenBuffer::SyntaxDataOutput OpenBuffer::UpdateSyntaxData(
 
   SyntaxDataOutput output;
 
-  auto parse_tree = std::make_shared<ParseTree>(
-      Range(LineColumn(), LineColumn(input.contents->EndLine(),
-                                     input.contents->back()->EndColumn())));
-  input.parser->FindChildren(*input.contents, parse_tree.get());
-  output.parse_tree = std::move(parse_tree);
+  output.parse_tree = std::make_shared<ParseTree>(
+      input.parser->FindChildren(*input.contents, input.contents->range()));
 
   output.simplified_parse_tree =
       std::make_shared<ParseTree>(SimplifyTree(*output.parse_tree));

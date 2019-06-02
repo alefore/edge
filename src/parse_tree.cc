@@ -70,15 +70,9 @@ void ParseTree::Reset() {
   set_modifiers(LineModifierSet());
 }
 
-std::unique_ptr<ParseTree, std::function<void(ParseTree*)>>
-ParseTree::PushChild() {
-  PushChild(ParseTree(Range()));
-  return MutableChildren(children_.size() - 1);
-}
-
 void ParseTree::PushChild(ParseTree child) {
   depth_ = max(depth(), child.depth() + 1);
-  children_.emplace_back(std::move(child));
+  children_.push_back(std::move(child));
   XorChildHash(children_.size() - 1);
 }
 
@@ -177,35 +171,8 @@ const ParseTree* FollowRoute(const ParseTree& root,
 namespace {
 class NullTreeParser : public TreeParser {
  public:
-  void FindChildren(const BufferContents&, ParseTree* root) override {
-    CHECK(root != nullptr);
-    root->Reset();
-  }
-};
-
-class CharTreeParser : public TreeParser {
- public:
-  void FindChildren(const BufferContents& buffer, ParseTree* root) override {
-    CHECK(root != nullptr);
-    root->Reset();
-    for (auto line = root->range().begin.line; line <= root->range().end.line;
-         ++line) {
-      CHECK_LE(line, buffer.EndLine());
-      auto contents = buffer.at(line);
-      ColumnNumber end_column =
-          line == root->range().end.line
-              ? root->range().end.column
-              : contents->EndColumn() + ColumnNumberDelta(1);
-      for (ColumnNumber i = line == root->range().begin.line
-                                ? root->range().begin.column
-                                : ColumnNumber(0);
-           i < end_column; ++i) {
-        auto new_children =
-            ParseTree(Range::InLine(line, i, ColumnNumberDelta(1)));
-        DVLOG(7) << "Adding char: " << new_children;
-        root->PushChild(std::move(new_children));
-      }
-    }
+  ParseTree FindChildren(const BufferContents&, Range range) override {
+    return ParseTree(range);
   }
 };
 
@@ -218,24 +185,19 @@ class WordsTreeParser : public TreeParser {
         typos_(typos),
         delegate_(std::move(delegate)) {}
 
-  void FindChildren(const BufferContents& buffer, ParseTree* root) override {
-    CHECK(root != nullptr);
-    root->Reset();
-    for (auto line = root->range().begin.line; line <= root->range().end.line;
-         line++) {
+  ParseTree FindChildren(const BufferContents& buffer, Range range) override {
+    ParseTree output(range);
+    range.ForEachLine([&](LineNumber line) {
       const auto& contents = *buffer.at(line);
 
       ColumnNumber line_end = contents.EndColumn();
-      if (line == root->range().end.line) {
-        line_end = min(line_end, root->range().end.column);
+      if (line == range.end.line) {
+        line_end = min(line_end, range.end.column);
       }
 
-      ColumnNumber column = line == root->range().begin.line
-                                ? root->range().begin.column
-                                : ColumnNumber(0);
+      ColumnNumber column =
+          line == range.begin.line ? range.begin.column : ColumnNumber(0);
       while (column < line_end) {
-        auto new_children = root->PushChild();
-
         Range range;
         while (column < line_end && IsSpace(contents, column)) {
           column++;
@@ -255,15 +217,15 @@ class WordsTreeParser : public TreeParser {
         auto keyword = Substring(contents.contents(), range.begin.column,
                                  range.end.column - range.begin.column)
                            ->ToString();
+        ParseTree child = delegate_->FindChildren(buffer, range);
         if (typos_.find(keyword) != typos_.end()) {
-          new_children->InsertModifier(LineModifier::RED);
+          child.InsertModifier(LineModifier::RED);
         }
-        new_children->set_range(range);
-
-        DVLOG(6) << "Adding word: " << *new_children;
-        delegate_->FindChildren(buffer, new_children.get());
+        DVLOG(6) << "Adding word: " << child;
+        output.PushChild(std::move(child));
       }
-    }
+    });
+    return output;
   }
 
  private:
@@ -281,25 +243,20 @@ class LineTreeParser : public TreeParser {
   LineTreeParser(std::unique_ptr<TreeParser> delegate)
       : delegate_(std::move(delegate)) {}
 
-  void FindChildren(const BufferContents& buffer, ParseTree* root) override {
-    CHECK(root != nullptr);
-    root->Reset();
-    DVLOG(5) << "Finding lines: " << *root;
-    for (auto line = root->range().begin.line; line <= root->range().end.line;
-         line++) {
+  ParseTree FindChildren(const BufferContents& buffer, Range range) override {
+    ParseTree output(range);
+    range.ForEachLine([&](LineNumber line) {
       auto contents = buffer.at(line);
       if (contents->empty()) {
-        continue;
+        return;
       }
 
-      auto new_children = ParseTree(Range(
-          LineColumn(line),
-          min(LineColumn(line, contents->EndColumn()), root->range().end)));
-
-      DVLOG(5) << "Adding line: " << new_children;
-      delegate_->FindChildren(buffer, &new_children);
-      root->PushChild(new_children);
-    }
+      output.PushChild(delegate_->FindChildren(
+          buffer,
+          Range(LineColumn(line),
+                min(LineColumn(line, contents->EndColumn()), range.end))));
+    });
+    return output;
   }
 
  private:
@@ -314,10 +271,6 @@ class LineTreeParser : public TreeParser {
 
 std::unique_ptr<TreeParser> NewNullTreeParser() {
   return std::make_unique<NullTreeParser>();
-}
-
-std::unique_ptr<TreeParser> NewCharTreeParser() {
-  return std::make_unique<CharTreeParser>();
 }
 
 std::unique_ptr<TreeParser> NewWordsTreeParser(

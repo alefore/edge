@@ -46,10 +46,6 @@ class ParseTree {
 
   void Reset();
 
-  // Inserts a new child into a tree and returns a pointer to it. Prefer version
-  // that receives the child.
-  std::unique_ptr<ParseTree, std::function<void(ParseTree*)>> PushChild();
-
   void PushChild(ParseTree child);
 
   size_t hash() const;
@@ -97,8 +93,7 @@ class TreeParser {
  public:
   static bool IsNull(TreeParser*);
 
-  // Removes all children from root and re-scans it (from begin to end).
-  virtual void FindChildren(const BufferContents& lines, ParseTree* root) = 0;
+  virtual ParseTree FindChildren(const BufferContents& lines, Range range) = 0;
 };
 
 std::unique_ptr<TreeParser> NewNullTreeParser();
