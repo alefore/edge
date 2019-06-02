@@ -14,8 +14,7 @@ class BufferOutputProducer : public OutputProducer {
   BufferOutputProducer(
       std::shared_ptr<OpenBuffer> buffer,
       std::shared_ptr<LineScrollControl::Reader> line_scroll_control_reader,
-      LineNumberDelta lines_shown, ColumnNumberDelta columns_shown,
-      ColumnNumber initial_column);
+      LineColumnDelta output_size);
 
   Generator Next() override;
 
@@ -24,9 +23,7 @@ class BufferOutputProducer : public OutputProducer {
 
   const std::shared_ptr<OpenBuffer> buffer_;
   const std::shared_ptr<LineScrollControl::Reader> line_scroll_control_reader_;
-  const LineNumberDelta lines_shown_;
-  const ColumnNumberDelta columns_shown_;
-  const ColumnNumber initial_column_;
+  const LineColumnDelta output_size_;
 
   // Key is line number.
   const std::shared_ptr<const ParseTree> root_;

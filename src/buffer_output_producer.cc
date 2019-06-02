@@ -152,13 +152,10 @@ OutputProducer::Generator ParseTreeHighlighterTokens(
 BufferOutputProducer::BufferOutputProducer(
     std::shared_ptr<OpenBuffer> buffer,
     std::shared_ptr<LineScrollControl::Reader> line_scroll_control_reader,
-    LineNumberDelta lines_shown, ColumnNumberDelta columns_shown,
-    ColumnNumber initial_column)
+    LineColumnDelta output_size)
     : buffer_(std::move(buffer)),
       line_scroll_control_reader_(std::move(line_scroll_control_reader)),
-      lines_shown_(lines_shown),
-      columns_shown_(columns_shown),
-      initial_column_(initial_column),
+      output_size_(output_size),
       root_(buffer_->parse_tree()),
       current_tree_(buffer_->current_tree(root_.get())) {
   CHECK(line_scroll_control_reader_ != nullptr);
@@ -193,10 +190,11 @@ OutputProducer::Generator BufferOutputProducer::Next() {
 
   line_scroll_control_reader_->RangeDone();
 
-  output.inputs_hash = hash_combine(
-      std::hash<Range>{}(range), std::hash<bool>{}(atomic_lines),
-      std::hash<bool>{}(multiple_cursors),
-      std::hash<ColumnNumberDelta>{}(columns_shown_), line_contents->GetHash());
+  output.inputs_hash =
+      hash_combine(std::hash<Range>{}(range), std::hash<bool>{}(atomic_lines),
+                   std::hash<bool>{}(multiple_cursors),
+                   std::hash<ColumnNumberDelta>{}(output_size_.column),
+                   line_contents->GetHash());
   if (position.line == line) {
     output.inputs_hash = hash_combine(output.inputs_hash.value(),
                                       std::hash<LineColumn>{}(position));
@@ -207,15 +205,16 @@ OutputProducer::Generator BufferOutputProducer::Next() {
   }
 
   output.generate = [line_contents, range, atomic_lines, multiple_cursors,
-                     columns_shown = columns_shown_, position, cursors]() {
+                     output_columns = output_size_.column, position,
+                     cursors]() {
     Line::OutputOptions options;
     options.initial_column = range.begin.column;
     if (range.begin.line == range.end.line) {
       CHECK_GE(range.end.column, range.begin.column);
-      CHECK_LE(range.end.column - range.begin.column, columns_shown);
+      CHECK_LE(range.end.column - range.begin.column, output_columns);
       options.width = range.end.column - range.begin.column;
     } else {
-      options.width = columns_shown;
+      options.width = output_columns;
     }
 
     if (!atomic_lines) {

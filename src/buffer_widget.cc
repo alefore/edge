@@ -84,6 +84,33 @@ class EmptyProducer : public OutputProducer {
   }
 };
 
+std::unique_ptr<OutputProducer> ViewSection(
+    std::shared_ptr<OpenBuffer> buffer,
+    std::shared_ptr<LineScrollControl> line_scroll_control,
+    LineColumnDelta output_size) {
+  std::unique_ptr<OutputProducer> output =
+      std::make_unique<BufferOutputProducer>(
+          buffer, line_scroll_control->NewReader(), output_size);
+  if (buffer->Read(buffer_variables::paste_mode)) return output;
+
+  std::vector<VerticalSplitOutputProducer::Column> columns(3);
+
+  auto line_numbers = std::make_unique<LineNumberOutputProducer>(
+      buffer, line_scroll_control->NewReader());
+
+  columns[0].width = line_numbers->width();
+  columns[0].producer = std::move(line_numbers);
+
+  columns[1].width = output_size.column;
+  columns[1].producer = std::move(output);
+
+  columns[2].producer = std::make_unique<BufferMetadataOutputProducer>(
+      buffer, line_scroll_control->NewReader(), output_size.line,
+      buffer->current_zoomed_out_parse_tree(output_size.line));
+
+  return std::make_unique<VerticalSplitOutputProducer>(std::move(columns), 1);
+}
+
 std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
   LOG(INFO) << "Buffer widget: CreateOutputProducer.";
   auto buffer = Lock();
@@ -94,35 +121,10 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
   // We always show the buffer's status, even if the status::text is empty.
   auto status_lines = LineNumberDelta(1);
 
-  bool paste_mode = buffer->Read(buffer_variables::paste_mode);
-
-  auto line_scroll_control =
-      LineScrollControl::New(line_scroll_control_options_);
-
   std::unique_ptr<OutputProducer> output =
-      std::make_unique<BufferOutputProducer>(
-          buffer, line_scroll_control->NewReader(), size_.line - status_lines,
-          line_scroll_control_options_.columns_shown, view_start_.column);
-  if (!paste_mode) {
-    std::vector<VerticalSplitOutputProducer::Column> columns(3);
-
-    auto line_numbers = std::make_unique<LineNumberOutputProducer>(
-        buffer, line_scroll_control->NewReader());
-
-    columns[0].width = line_numbers->width();
-    columns[0].producer = std::move(line_numbers);
-
-    columns[1].width = line_scroll_control_options_.columns_shown;
-    columns[1].producer = std::move(output);
-
-    columns[2].producer = std::make_unique<BufferMetadataOutputProducer>(
-        buffer, line_scroll_control->NewReader(), size_.line - status_lines,
-        view_start_.line,
-        buffer->current_zoomed_out_parse_tree(size_.line - status_lines));
-
-    output =
-        std::make_unique<VerticalSplitOutputProducer>(std::move(columns), 1);
-  }
+      ViewSection(buffer, LineScrollControl::New(line_scroll_control_options_),
+                  LineColumnDelta(size_.line - status_lines,
+                                  line_scroll_control_options_.columns_shown));
 
   if (status_lines > LineNumberDelta(0)) {
     std::vector<HorizontalSplitOutputProducer::Row> rows(2);
