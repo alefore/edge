@@ -28,6 +28,7 @@ class BufferContents : public fuzz::FuzzTestable {
   LineNumberDelta size() const { return LineNumberDelta(Lines::Size(lines_)); }
 
   LineNumber EndLine() const;
+  Range range() const;
 
   // Returns a copy of the contents of the tree. No actual copying takes place.
   std::unique_ptr<BufferContents> copy() const;

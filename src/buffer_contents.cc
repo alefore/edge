@@ -19,6 +19,10 @@ LineNumber BufferContents::EndLine() const {
   return LineNumber(0) + size() - LineNumberDelta(1);
 }
 
+Range BufferContents::range() const {
+  return Range(LineColumn(), LineColumn(EndLine(), back()->EndColumn()));
+}
+
 std::unique_ptr<BufferContents> BufferContents::copy() const {
   auto output = std::make_unique<BufferContents>();
   output->lines_ = lines_;
