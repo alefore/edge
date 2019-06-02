@@ -307,6 +307,7 @@ void BufferTreeVertical::SetSize(LineColumnDelta size) {
   ColumnNumberDelta base_columns = size_.column / children_.size();
   ColumnNumberDelta columns_left =
       size_.column - base_columns * children_.size();
+  CHECK_LT(columns_left, ColumnNumberDelta(children_.size()));
   for (auto& unused __attribute__((unused)) : children_) {
     columns_per_child_.push_back(base_columns);
     if (columns_left > ColumnNumberDelta(0)) {

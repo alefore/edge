@@ -105,7 +105,7 @@ LineNumberDelta operator++(LineNumberDelta& a, int) {
 }
 
 LineNumberDelta& operator--(LineNumberDelta& a) {
-  a.line_delta++;
+  a.line_delta--;
   return a;
 }
 
@@ -211,7 +211,7 @@ ColumnNumberDelta operator++(ColumnNumberDelta& a, int) {
 }
 
 ColumnNumberDelta& operator--(ColumnNumberDelta& a) {
-  a.column_delta++;
+  a.column_delta--;
   return a;
 }
 
