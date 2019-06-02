@@ -59,6 +59,12 @@ class LineScrollControl
 
     bool HasActiveCursor() const;
 
+    // Returns the set of cursors that fall in the current range.
+    //
+    // The column positions are relative to the beginning of the input line
+    // (i.e., changing the range affects only whether a given cursor is
+    // returned, but once the decision is made that a cursor will be returned,
+    // the value returned for it won't be affected by the range).
     std::set<ColumnNumber> GetCurrentCursors() const;
 
     void RangeDone() {

@@ -67,7 +67,7 @@ std::set<ColumnNumber> LineScrollControl::Reader::GetCurrentCursors() const {
   std::set<ColumnNumber> output;
   for (auto& column : it->second) {
     if (parent_->range_.Contains(LineColumn(line, column))) {
-      output.insert(column - (parent_->range_.begin.column.ToDelta()));
+      output.insert(column);
     }
   }
   return output;
