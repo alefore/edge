@@ -111,6 +111,81 @@ std::unique_ptr<OutputProducer> ViewSection(
   return std::make_unique<VerticalSplitOutputProducer>(std::move(columns), 1);
 }
 
+std::set<Range> MergeSections(std::set<Range> input) {
+  std::set<Range> output;
+  for (auto& section : input) {
+    std::optional<Range> merged_section;
+    if (!output.empty()) {
+      merged_section = output.rbegin()->Union(section);
+    }
+
+    if (merged_section.has_value()) {
+      output.erase(--output.end());
+    }
+    output.insert(merged_section.value_or(section));
+  }
+  return output;
+}
+
+LineNumberDelta SectionsLines(const std::set<Range> sections) {
+  LineNumberDelta output;
+  for (auto& range : sections) {
+    output += range.end.line - range.begin.line;
+  }
+  return output;
+}
+
+std::set<Range> ExpandSections(LineNumber end_line,
+                               const std::set<Range> sections) {
+  std::set<Range> output;
+  static const auto kMargin = LineNumberDelta(1);
+  for (auto& section : sections) {
+    output.insert(
+        Range(LineColumn(section.begin.line.MinusHandlingOverflow(kMargin)),
+              LineColumn(min(end_line, section.end.line + kMargin))));
+  }
+  return output;
+}
+
+std::unique_ptr<OutputProducer> ViewMultipleCursors(
+    std::shared_ptr<OpenBuffer> buffer, LineColumnDelta output_size,
+    const LineScrollControl::Options line_scroll_control_options) {
+  std::set<Range> sections;
+  for (auto& cursor : *buffer->active_cursors()) {
+    sections.insert(Range(
+        LineColumn(cursor.line),
+        LineColumn(min(buffer->EndLine(), cursor.line + LineNumberDelta(1)))));
+  }
+  bool first_run = true;
+  while (sections.size() > 1 &&
+         (first_run || SectionsLines(sections) < output_size.line)) {
+    sections =
+        MergeSections(ExpandSections(buffer->EndLine(), std::move(sections)));
+    first_run = false;
+  }
+
+  std::vector<HorizontalSplitOutputProducer::Row> rows;
+  size_t active_index = 0;
+  size_t index = 0;
+  for (const auto& section : sections) {
+    LineScrollControl::Options options = line_scroll_control_options;
+    options.lines_shown = section.end.line - section.begin.line;
+    // TODO: Maybe take columns into account? Ugh.
+    options.begin = LineColumn(section.begin.line);
+    rows.push_back(
+        {ViewSection(buffer, LineScrollControl::New(options),
+                     LineColumnDelta(options.lines_shown, output_size.column)),
+         options.lines_shown});
+
+    if (section.Contains(buffer->position())) {
+      active_index = index;
+    }
+    index++;
+  }
+  return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows),
+                                                         active_index);
+}
+
 std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
   LOG(INFO) << "Buffer widget: CreateOutputProducer.";
   auto buffer = Lock();
@@ -121,10 +196,19 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
   // We always show the buffer's status, even if the status::text is empty.
   auto status_lines = LineNumberDelta(1);
 
-  std::unique_ptr<OutputProducer> output =
-      ViewSection(buffer, LineScrollControl::New(line_scroll_control_options_),
-                  LineColumnDelta(size_.line - status_lines,
-                                  line_scroll_control_options_.columns_shown));
+  std::unique_ptr<OutputProducer> output;
+
+  LineColumnDelta buffer_output_size(
+      size_.line - status_lines, line_scroll_control_options_.columns_shown);
+
+  if (buffer->Read(buffer_variables::multiple_cursors)) {
+    output = ViewMultipleCursors(buffer, buffer_output_size,
+                                 line_scroll_control_options_);
+  } else {
+    output = ViewSection(buffer,
+                         LineScrollControl::New(line_scroll_control_options_),
+                         buffer_output_size);
+  }
 
   if (status_lines > LineNumberDelta(0)) {
     std::vector<HorizontalSplitOutputProducer::Row> rows(2);

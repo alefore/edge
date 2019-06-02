@@ -108,6 +108,10 @@ struct LineNumber {
   LineNumber next() const;
   LineNumber previous() const;
 
+  // a.MinusHadlingOverflow(value) is equivalent to `a - value` if `a` is
+  // greater than or equal to `value` (and `LineNumber(0)` otherwise).
+  LineNumber MinusHandlingOverflow(const LineNumberDelta& value) const;
+
   size_t line = 0;
 };
 
@@ -294,6 +298,9 @@ struct Range {
     return end <= other.begin || other.end <= begin;
   }
 
+  // Returns the union, unless there's a gap between the ranges.
+  std::optional<Range> Union(const Range& other) const;
+
   Range Intersection(const Range& other) const {
     if (Disjoint(other)) {
       return Range();
@@ -314,6 +321,8 @@ struct Range {
 };
 
 std::ostream& operator<<(std::ostream& os, const Range& range);
+
+bool operator<(const Range& a, const Range& b);
 
 }  // namespace editor
 namespace vm {

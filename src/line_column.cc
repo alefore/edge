@@ -261,6 +261,11 @@ LineNumber LineNumber::previous() const {
   return LineNumber(line - 1);
 }
 
+LineNumber LineNumber::MinusHandlingOverflow(
+    const LineNumberDelta& value) const {
+  return this->ToDelta() > value ? *this - value : LineNumber(0);
+}
+
 bool operator==(const LineNumber& a, const LineNumber& b) {
   return a.line == b.line;
 }
@@ -512,9 +517,18 @@ std::wstring LineColumn::ToString() const {
   return Range(LineColumn(line, column), LineColumn(line, column + size));
 }
 
+std::optional<Range> Range::Union(const Range& other) const {
+  if (end < other.begin || begin > other.end) return std::nullopt;
+  return Range(std::min(begin, other.begin), std::max(end, other.end));
+}
+
 std::ostream& operator<<(std::ostream& os, const Range& range) {
   os << "[" << range.begin << ", " << range.end << ")";
   return os;
+}
+
+bool operator<(const Range& a, const Range& b) {
+  return a.begin < b.begin || (a.begin == b.begin && a.end < b.end);
 }
 
 LineColumn LineColumn::operator+(const LineNumberDelta& value) const {

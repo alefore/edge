@@ -42,7 +42,7 @@ Add "pipe" command: select the region (similar to delete: line, paragraph, buffe
 
 * Improve multiple cursors:
 
-  * Have a mode where the widget just gets divided into the active cursors and just shows every single one of them, with some context (if there are too many, then just show the first N, where each has some margins of context).
+  * Make sure that the section with the actual cursor is shown.
 
 ### Autocomplete
 
