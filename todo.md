@@ -6,10 +6,6 @@ Fix a bug with buffers that are shown with fewer lines than mandated by their ma
 
 Make the widgets work closer to nethack or similar command-line games.
 
-When a line wraps, don't let it cut the scrollbar/syntax tree.
-
-When an inactive cursor is exactly at the line_width, it's currently not shown.
-
 `wrap_long_lines`:
 * Make `j` and `k` scroll within the line.
 * Adjust handing of margins to take into account lines that wrap.
