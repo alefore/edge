@@ -219,7 +219,9 @@ void BufferMetadataOutputProducer::PushGenerator(wchar_t info_char,
                                                  LineModifier modifier,
                                                  wstring str) {
   range_data_.push_back(Generator{
-      hash_combine(info_char, static_cast<int>(modifier), str),
+      hash_combine(
+          hash_combine(hash_combine(0, info_char), static_cast<int>(modifier)),
+          std::hash<wstring>{}(str)),
       [info_char, modifier, str]() {
         Line::Options options;
         options.AppendCharacter(info_char, {modifier});

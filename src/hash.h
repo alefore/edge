@@ -8,19 +8,15 @@
 
 namespace afc {
 namespace editor {
-template <class A, class B>
-inline size_t hash_combine(const A& a, const B& b) {
-  size_t output = std::hash<A>{}(a);
-  output ^= std::hash<B>{}(b) + 0x9e3779b9 + (output << 6) + (output >> 2);
-  return output;
+inline size_t hash_combine(size_t seed, size_t h) {
+  return seed ^ (h + 0x9e3779b9 + (seed << 6) + (seed >> 2));
 }
-template <class A, class B, class C>
-inline size_t hash_combine(const A& a, const B& b, const C& c) {
-  size_t output = std::hash<A>{}(a);
-  output ^= std::hash<B>{}(b) + 0x9e3779b9 + (output << 6) + (output >> 2);
-  output ^= std::hash<C>{}(c) + 0x9e3779b9 + (output << 6) + (output >> 2);
-  return output;
+
+template <typename... Args>
+inline size_t hash_combine(size_t seed, size_t h, Args... args) {
+  return hash_combine(hash_combine(seed, h), args...);
 }
+
 }  // namespace editor
 }  // namespace afc
 

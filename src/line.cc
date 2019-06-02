@@ -350,10 +350,8 @@ size_t Line::GetHash() const {
   if (hash_.has_value()) return hash_.value();
   size_t value = 0;
   for (auto& modifiers : options_.modifiers) {
-    value = hash_combine(value, modifiers.first);
-    for (auto& m : modifiers.second) {
-      value = hash_combine(value, static_cast<size_t>(m));
-    }
+    value = hash_combine(value, std::hash<ColumnNumber>{}(modifiers.first),
+                         std::hash<LineModifierSet>{}(modifiers.second));
   }
   ForEachColumn(*options_.contents, [&](ColumnNumber, wchar_t c) {
     value = hash_combine(value, c);

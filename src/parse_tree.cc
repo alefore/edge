@@ -72,8 +72,7 @@ void ParseTree::Reset() {
 
 std::unique_ptr<ParseTree, std::function<void(ParseTree*)>>
 ParseTree::PushChild() {
-  children_.emplace_back();
-  XorChildHash(children_.size() - 1);  // Add its new hash.
+  PushChild(ParseTree(Range()));
   return MutableChildren(children_.size() - 1);
 }
 
@@ -84,7 +83,9 @@ void ParseTree::PushChild(ParseTree child) {
 }
 
 size_t ParseTree::hash() const {
-  return hash_combine(range_, modifiers_, children_hashes_);
+  return hash_combine(std::hash<Range>{}(range_),
+                      std::hash<LineModifierSet>{}(modifiers_),
+                      children_hashes_);
 }
 
 ParseTree SimplifyTree(const ParseTree& tree) {

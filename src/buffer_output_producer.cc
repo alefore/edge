@@ -94,7 +94,8 @@ OutputProducer::Generator ParseTreeHighlighterTokens(
     const ParseTree* root, Range range, OutputProducer::Generator generator) {
   CHECK(root != nullptr);
   generator.inputs_hash =
-      hash_combine(generator.inputs_hash.value(), range, root->hash());
+      hash_combine(hash_combine(generator.inputs_hash.value(), root->hash()),
+                   std::hash<Range>{}(range));
   generator.generate = [root, range, generator = std::move(generator)]() {
     OutputProducer::LineWithCursor input = generator.generate();
     Line::Options options(std::move(*input.line));
@@ -192,14 +193,17 @@ OutputProducer::Generator BufferOutputProducer::Next() {
 
   line_scroll_control_reader_->RangeDone();
 
-  output.inputs_hash =
-      hash_combine(hash_combine(range, atomic_lines, multiple_cursors),
-                   hash_combine(columns_shown_, line_contents->GetHash()));
+  output.inputs_hash = hash_combine(
+      std::hash<Range>{}(range), std::hash<bool>{}(atomic_lines),
+      std::hash<bool>{}(multiple_cursors),
+      std::hash<ColumnNumberDelta>{}(columns_shown_), line_contents->GetHash());
   if (position.line == line) {
-    output.inputs_hash = hash_combine(output.inputs_hash.value(), position);
+    output.inputs_hash = hash_combine(output.inputs_hash.value(),
+                                      std::hash<LineColumn>{}(position));
   }
   for (auto& c : cursors) {
-    output.inputs_hash = hash_combine(output.inputs_hash.value(), c);
+    output.inputs_hash =
+        hash_combine(output.inputs_hash.value(), std::hash<ColumnNumber>{}(c));
   }
 
   output.generate = [line_contents, range, atomic_lines, multiple_cursors,
