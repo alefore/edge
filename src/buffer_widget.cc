@@ -11,6 +11,7 @@
 #include "src/buffer_metadata_output_producer.h"
 #include "src/buffer_output_producer.h"
 #include "src/buffer_variables.h"
+#include "src/char_buffer.h"
 #include "src/editor.h"
 #include "src/horizontal_split_output_producer.h"
 #include "src/line_number_output_producer.h"
@@ -84,31 +85,65 @@ class EmptyProducer : public OutputProducer {
   }
 };
 
-std::unique_ptr<OutputProducer> ViewSection(
+class SectionBracketsProducer : public OutputProducer {
+ public:
+  SectionBracketsProducer(LineNumberDelta lines) : lines_(lines) {}
+
+  Generator Next() override {
+    wstring c;
+    if (current_line_ == LineNumber(0)) {
+      c = L"╭";
+    } else if ((current_line_ + LineNumberDelta(1)).ToDelta() == lines_) {
+      c = L"╰";
+    } else {
+      c = L"│";
+    }
+    ++current_line_;
+    return Generator{
+        std::hash<wstring>{}(c), [c]() {
+          return LineWithCursor{
+              std::make_shared<Line>(Line::Options(NewLazyString(c))),
+              std::nullopt};
+        }};
+  }
+
+ private:
+  const LineNumberDelta lines_;
+  LineNumber current_line_;
+};
+
+std::unique_ptr<OutputProducer> LinesSpanView(
     std::shared_ptr<OpenBuffer> buffer,
     std::shared_ptr<LineScrollControl> line_scroll_control,
-    LineColumnDelta output_size) {
-  std::unique_ptr<OutputProducer> output =
+    LineColumnDelta output_size, size_t sections_count) {
+  std::unique_ptr<OutputProducer> main_contents =
       std::make_unique<BufferOutputProducer>(
           buffer, line_scroll_control->NewReader(), output_size);
-  if (buffer->Read(buffer_variables::paste_mode)) return output;
 
-  std::vector<VerticalSplitOutputProducer::Column> columns(3);
+  if (buffer->Read(buffer_variables::paste_mode)) {
+    return std::move(main_contents);
+  }
+
+  std::vector<VerticalSplitOutputProducer::Column> columns;
 
   auto line_numbers = std::make_unique<LineNumberOutputProducer>(
       buffer, line_scroll_control->NewReader());
+  auto width = line_numbers->width();
+  if (sections_count > 1) {
+    columns.push_back(
+        {std::make_unique<SectionBracketsProducer>(output_size.line),
+         ColumnNumberDelta(1)});
+  }
 
-  columns[0].width = line_numbers->width();
-  columns[0].producer = std::move(line_numbers);
-
-  columns[1].width = output_size.column;
-  columns[1].producer = std::move(output);
-
-  columns[2].producer = std::make_unique<BufferMetadataOutputProducer>(
-      buffer, line_scroll_control->NewReader(), output_size.line,
-      buffer->current_zoomed_out_parse_tree(output_size.line));
-
-  return std::make_unique<VerticalSplitOutputProducer>(std::move(columns), 1);
+  columns.push_back({std::move(line_numbers), width});
+  columns.push_back({std::move(main_contents), output_size.column});
+  columns.push_back(
+      {std::make_unique<BufferMetadataOutputProducer>(
+           buffer, line_scroll_control->NewReader(), output_size.line,
+           buffer->current_zoomed_out_parse_tree(output_size.line)),
+       std::nullopt});
+  return std::make_unique<VerticalSplitOutputProducer>(
+      std::move(columns), sections_count > 1 ? 2 : 1);
 }
 
 std::set<Range> MergeSections(std::set<Range> input) {
@@ -127,7 +162,7 @@ std::set<Range> MergeSections(std::set<Range> input) {
   return output;
 }
 
-LineNumberDelta SectionsLines(const std::set<Range> sections) {
+LineNumberDelta SumSectionsLines(const std::set<Range> sections) {
   LineNumberDelta output;
   for (auto& range : sections) {
     output += range.end.line - range.begin.line;
@@ -158,7 +193,7 @@ std::unique_ptr<OutputProducer> ViewMultipleCursors(
   }
   bool first_run = true;
   while (sections.size() > 1 &&
-         (first_run || SectionsLines(sections) < output_size.line)) {
+         (first_run || SumSectionsLines(sections) < output_size.line)) {
     sections =
         MergeSections(ExpandSections(buffer->EndLine(), std::move(sections)));
     first_run = false;
@@ -173,8 +208,9 @@ std::unique_ptr<OutputProducer> ViewMultipleCursors(
     // TODO: Maybe take columns into account? Ugh.
     options.begin = LineColumn(section.begin.line);
     rows.push_back(
-        {ViewSection(buffer, LineScrollControl::New(options),
-                     LineColumnDelta(options.lines_shown, output_size.column)),
+        {LinesSpanView(buffer, LineScrollControl::New(options),
+                       LineColumnDelta(options.lines_shown, output_size.column),
+                       sections.size()),
          options.lines_shown});
 
     if (section.Contains(buffer->position())) {
@@ -205,9 +241,9 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
     output = ViewMultipleCursors(buffer, buffer_output_size,
                                  line_scroll_control_options_);
   } else {
-    output = ViewSection(buffer,
-                         LineScrollControl::New(line_scroll_control_options_),
-                         buffer_output_size);
+    output = LinesSpanView(buffer,
+                           LineScrollControl::New(line_scroll_control_options_),
+                           buffer_output_size, 1);
   }
 
   if (status_lines > LineNumberDelta(0)) {
