@@ -149,11 +149,8 @@ std::unique_ptr<OutputProducer> LinesSpanView(
 std::set<Range> MergeSections(std::set<Range> input) {
   std::set<Range> output;
   for (auto& section : input) {
-    std::optional<Range> merged_section;
-    if (!output.empty()) {
-      merged_section = output.rbegin()->Union(section);
-    }
-
+    auto merged_section =
+        output.empty() ? std::nullopt : output.rbegin()->Union(section);
     if (merged_section.has_value()) {
       output.erase(--output.end());
     }
@@ -174,10 +171,11 @@ std::set<Range> ExpandSections(LineNumber end_line,
                                const std::set<Range> sections) {
   std::set<Range> output;
   static const auto kMargin = LineNumberDelta(1);
-  for (auto& section : sections) {
+  for (const auto& section : sections) {
     output.insert(
         Range(LineColumn(section.begin.line.MinusHandlingOverflow(kMargin)),
-              LineColumn(min(end_line, section.end.line + kMargin))));
+              LineColumn(min(end_line + LineNumberDelta(1),
+                             section.end.line + kMargin))));
   }
   return output;
 }
@@ -192,8 +190,10 @@ std::unique_ptr<OutputProducer> ViewMultipleCursors(
         LineColumn(min(buffer->EndLine(), cursor.line + LineNumberDelta(1)))));
   }
   bool first_run = true;
-  while (sections.size() > 1 &&
-         (first_run || SumSectionsLines(sections) < output_size.line)) {
+  while (first_run || SumSectionsLines(sections) <
+                          min(output_size.line, buffer->contents()->size())) {
+    VLOG(4) << "Expanding " << sections.size()
+            << " with size: " << SumSectionsLines(sections);
     sections =
         MergeSections(ExpandSections(buffer->EndLine(), std::move(sections)));
     first_run = false;
