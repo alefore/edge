@@ -24,7 +24,6 @@ class EditorMode;
 class EditorState;
 class LazyString;
 class OpenBuffer;
-class LineWithCursor;
 
 using std::hash;
 using std::shared_ptr;
