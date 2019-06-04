@@ -9,11 +9,13 @@
 namespace afc {
 namespace editor {
 OutputProducer::Generator HorizontalSplitOutputProducer::Next() {
-  CHECK_LT(current_row_, rows_.size());
-  while (current_row_line_.ToDelta() >= rows_[current_row_].lines) {
+  while (current_row_ < rows_.size() &&
+         current_row_line_.ToDelta() >= rows_[current_row_].lines) {
     current_row_++;
     current_row_line_ = LineNumber(0);
-    CHECK_LT(current_row_, rows_.size());
+  }
+  if (current_row_ >= rows_.size()) {
+    return OutputProducer::Generator::Empty();
   }
 
   OutputProducer::Generator delegate;
