@@ -185,12 +185,10 @@ std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
 void BufferTreeHorizontal::SetSize(LineColumnDelta size) {
   BufferTree::SetSize(size);
   lines_per_child_.clear();
-  for (size_t i = 0; i < children_.size(); i++) {
-    auto child = children_[i].get();
-    CHECK(child != nullptr);
+  if (size.line == LineNumberDelta(0)) return;
+  for (auto& child : children_) {
     lines_per_child_.push_back(child->MinimumLines());
   }
-  CHECK_EQ(lines_per_child_.size(), children_.size());
 
   if (children_.size() > 1) {
     LOG(INFO) << "Adding lines for frames.";
@@ -303,6 +301,8 @@ std::unique_ptr<OutputProducer> BufferTreeVertical::CreateOutputProducer() {
 void BufferTreeVertical::SetSize(LineColumnDelta size) {
   BufferTree::SetSize(size);
   columns_per_child_.clear();
+
+  if (size.line == LineNumberDelta()) return;
 
   ColumnNumberDelta base_columns = size_.column / children_.size();
   ColumnNumberDelta columns_left =
