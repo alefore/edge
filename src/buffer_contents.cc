@@ -134,11 +134,11 @@ void BufferContents::DeleteCharactersFromLine(LineColumn position,
   CHECK_GT(amount, ColumnNumberDelta(0));
   CHECK_LE(position.column + amount, at(position.line)->EndColumn());
 
-  Line::Options options(*at(position.line));
-  options.DeleteCharacters(position.column, amount);
-  set_line(position.line, std::make_shared<Line>(options));
-
-  NotifyUpdateListeners(
+  TransformLine(
+      position.line,
+      [&](Line::Options* options) {
+        options->DeleteCharacters(position.column, amount);
+      },
       CursorsTracker::Transformation()
           .WithBegin(position)
           .WithEnd(LineColumn(position.line + LineNumberDelta(1)))
@@ -158,26 +158,22 @@ void BufferContents::SetCharacter(
     std::unordered_set<LineModifier, hash<int>> modifiers) {
   VLOG(5) << "Set character: " << c << " at " << position
           << " with modifiers: " << modifiers.size();
-  TransformLine(position.line, [&](Line* output) {
-    output->SetCharacter(position.column, c, modifiers);
+  TransformLine(position.line, [&](Line::Options* options) {
+    options->SetCharacter(position.column, c, modifiers);
   });
 }
 
 void BufferContents::InsertCharacter(LineColumn position) {
-  TransformLine(position.line, [&](Line* output) {
-    output->InsertCharacterAtPosition(position.column);
+  TransformLine(position.line, [&](Line::Options* options) {
+    options->InsertCharacterAtPosition(position.column);
   });
 }
 
 void BufferContents::AppendToLine(LineNumber position, Line line_to_append) {
-  if (lines_ == nullptr) {
-    lines_ = Lines::PushBack(nullptr, std::make_shared<Line>());
-  }
-  position = min(position, LineNumber() + size() - LineNumberDelta(1));
-  Line::Options options(*at(position));
-  options.Append(std::move(line_to_append));
-  set_line(position, std::make_shared<Line>(std::move(options)));
-  NotifyUpdateListeners(CursorsTracker::Transformation());
+  TransformLine(min(position, LineNumber() + size() - LineNumberDelta(1)),
+                [&](Line::Options* options) {
+                  options->Append(std::move(line_to_append));
+                });
 }
 
 void BufferContents::EraseLines(LineNumber first, LineNumber last,

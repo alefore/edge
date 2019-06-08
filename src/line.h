@@ -45,12 +45,22 @@ class Line {
 
     ColumnNumber EndColumn() const;
 
+    // Sets the character at the position given.
+    //
+    // `column` may be greater than size(), in which case the character will
+    // just get appended (extending the line by exactly one character).
+    void SetCharacter(ColumnNumber column, int c,
+                      const LineModifierSet& modifiers);
+
+    void InsertCharacterAtPosition(ColumnNumber position);
     void AppendCharacter(wchar_t c, LineModifierSet modifier);
     void AppendString(std::shared_ptr<LazyString> suffix);
     void AppendString(std::shared_ptr<LazyString> suffix,
                       LineModifierSet modifier);
     void AppendString(std::wstring contents, LineModifierSet modifier);
     void Append(Line line);
+
+    // Delete characters in [position, position + amount).
     Options& DeleteCharacters(ColumnNumber position, ColumnNumberDelta amount);
 
     // Delete characters from column (included) until the end.
@@ -90,16 +100,6 @@ class Line {
   shared_ptr<LazyString> Substring(ColumnNumber column) const;
 
   wstring ToString() const { return contents()->ToString(); }
-  // Delete characters in [position, position + amount).
-
-  void InsertCharacterAtPosition(ColumnNumber position);
-
-  // Sets the character at the position given.
-  //
-  // `position` may be greater than size(), in which case the character will
-  // just get appended (extending the line by exactly one character).
-  void SetCharacter(ColumnNumber position, int c,
-                    const LineModifierSet& modifiers);
 
   void SetAllModifiers(const LineModifierSet& modifiers);
   const std::map<ColumnNumber, LineModifierSet>& modifiers() const {

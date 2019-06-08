@@ -142,11 +142,21 @@ class BufferContents : public fuzz::FuzzTestable {
  private:
   template <typename Callback>
   void TransformLine(LineNumber line_number, Callback callback) {
+    TransformLine(line_number, std::move(callback),
+                  CursorsTracker::Transformation());
+  }
+
+  template <typename Callback>
+  void TransformLine(LineNumber line_number, Callback callback,
+                     CursorsTracker::Transformation cursors_transformation) {
+    if (lines_ == nullptr) {
+      lines_ = Lines::PushBack(nullptr, std::make_shared<Line>());
+    }
     CHECK_LE(line_number, EndLine());
-    auto line = std::make_shared<Line>(*at(line_number));
-    callback(line.get());
-    set_line(line_number, std::move(line));
-    NotifyUpdateListeners(CursorsTracker::Transformation());
+    Line::Options options(*at(line_number));
+    callback(&options);
+    set_line(line_number, std::make_shared<Line>(std::move(options)));
+    NotifyUpdateListeners(cursors_transformation);
   }
 
   void NotifyUpdateListeners(

@@ -33,6 +33,55 @@ ColumnNumber Line::Options::EndColumn() const {
   return ColumnNumber(0) + contents->size();
 }
 
+void Line::Options::SetCharacter(ColumnNumber column, int c,
+                                 const LineModifierSet& c_modifiers) {
+  ValidateInvariants();
+  auto str = NewLazyString(wstring(1, c));
+  if (column >= EndColumn()) {
+    column = EndColumn();
+    contents = StringAppend(std::move(contents), std::move(str));
+  } else {
+    contents = StringAppend(
+        StringAppend(afc::editor::Substring(std::move(contents),
+                                            ColumnNumber(0), column.ToDelta()),
+                     std::move(str)),
+        afc::editor::Substring(contents, column + ColumnNumberDelta(1)));
+  }
+
+  LineModifierSet previous_modifiers;
+  if (!modifiers.empty() && modifiers.begin()->first <= column) {
+    auto it = modifiers.lower_bound(column);
+    previous_modifiers =
+        (it == modifiers.end() ? modifiers.begin() : --it)->second;
+  }
+  if (c_modifiers != previous_modifiers) {
+    modifiers[column] = c_modifiers;
+    if (column + ColumnNumberDelta(1) < EndColumn()) {
+      modifiers[column + ColumnNumberDelta(1)] = previous_modifiers;
+    }
+    ValidateInvariants();
+  }
+}
+
+void Line::Options::InsertCharacterAtPosition(ColumnNumber column) {
+  ValidateInvariants();
+  contents = StringAppend(
+      StringAppend(
+          afc::editor::Substring(contents, ColumnNumber(0), column.ToDelta()),
+          NewLazyString(L" ")),
+      afc::editor::Substring(contents, column));
+
+  std::map<ColumnNumber, LineModifierSet> new_modifiers;
+  for (auto& m : modifiers) {
+    new_modifiers[m.first + (m.first < column ? ColumnNumberDelta(0)
+                                              : ColumnNumberDelta(1))] =
+        std::move(m.second);
+  }
+  modifiers = std::move(new_modifiers);
+
+  ValidateInvariants();
+}
+
 void Line::Options::AppendCharacter(wchar_t c, LineModifierSet modifier) {
   ValidateInvariants();
   CHECK(modifier.find(LineModifier::RESET) == modifier.end());
@@ -183,64 +232,6 @@ shared_ptr<LazyString> Line::Substring(ColumnNumber column,
 
 shared_ptr<LazyString> Line::Substring(ColumnNumber column) const {
   return afc::editor::Substring(contents(), column);
-}
-
-void Line::InsertCharacterAtPosition(ColumnNumber column) {
-  std::unique_lock<std::mutex> lock(mutex_);
-  ValidateInvariants();
-  hash_ = std::nullopt;
-  options_.contents = StringAppend(
-      StringAppend(afc::editor::Substring(options_.contents, ColumnNumber(0),
-                                          column.ToDelta()),
-                   NewLazyString(L" ")),
-      afc::editor::Substring(options_.contents, column));
-
-  std::map<ColumnNumber, LineModifierSet> new_modifiers;
-  for (auto& m : options_.modifiers) {
-    new_modifiers[m.first + (m.first < column ? ColumnNumberDelta(0)
-                                              : ColumnNumberDelta(1))] =
-        std::move(m.second);
-  }
-  options_.modifiers = std::move(new_modifiers);
-
-  ValidateInvariants();
-}
-
-void Line::SetCharacter(
-    ColumnNumber column, int c,
-    const unordered_set<LineModifier, hash<int>>& modifiers) {
-  std::unique_lock<std::mutex> lock(mutex_);
-  ValidateInvariants();
-  shared_ptr<LazyString> str = NewLazyString(wstring(1, c));
-  hash_ = std::nullopt;
-  if (column >= EndColumnWithLock()) {
-    if (options_.modifiers.empty() ||
-        options_.modifiers.rbegin()->second != modifiers) {
-      options_.modifiers[EndColumnWithLock()] = modifiers;
-    }
-    options_.contents = StringAppend(std::move(options_.contents), str);
-  } else {
-    options_.contents = StringAppend(
-        StringAppend(afc::editor::Substring(std::move(options_.contents),
-                                            ColumnNumber(0), column.ToDelta()),
-                     str),
-        afc::editor::Substring(options_.contents,
-                               column + ColumnNumberDelta(1)));
-
-    LineModifierSet previous_modifiers;
-    if (!options_.modifiers.empty() &&
-        options_.modifiers.begin()->first <= column) {
-      auto it = options_.modifiers.lower_bound(column);
-      previous_modifiers =
-          (it == options_.modifiers.end() ? options_.modifiers.begin() : --it)
-              ->second;
-    }
-    if (modifiers != previous_modifiers) {
-      options_.modifiers[column] = modifiers;
-      options_.modifiers[column + ColumnNumberDelta(1)] = previous_modifiers;
-    }
-  }
-  ValidateInvariants();
 }
 
 void Line::SetAllModifiers(const LineModifierSet& modifiers) {
