@@ -60,13 +60,16 @@ void BufferTerminal::ProcessCommandInput(
     } else if (c == 0x1b) {
       VLOG(8) << "Received 0x1b";
       read_index = ProcessTerminalEscapeSequence(str, read_index, &modifiers);
+      VLOG(9) << "Modifiers: " << modifiers.size();
       CHECK_LE(position_.line, buffer_->EndLine());
     } else if (isprint(c) || c == '\t') {
-      VLOG(8) << "Received printable or tab: " << c;
+      VLOG(8) << "Received printable or tab: " << c
+              << " (modifiers: " << modifiers.size() << ", position "
+              << position_ << ")";
       if (position_.column >= ColumnNumber(0) + LastViewSize().column) {
         MoveToNextLine();
       }
-      contents_->SetCharacter(position_.line, position_.column, c, modifiers);
+      contents_->SetCharacter(position_, c, modifiers);
       position_.column++;
     } else {
       LOG(INFO) << "Unknown character: [" << c << "]\n";

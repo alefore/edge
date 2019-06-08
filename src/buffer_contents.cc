@@ -155,12 +155,14 @@ void BufferContents::DeleteCharactersFromLine(LineNumber line,
 }
 
 void BufferContents::SetCharacter(
-    LineNumber line, ColumnNumber column, int c,
+    LineColumn position, int c,
     std::unordered_set<LineModifier, hash<int>> modifiers) {
-  CHECK_LE(line, EndLine());
-  auto new_line = std::make_shared<Line>(*at(line));
-  new_line->SetCharacter(column, c, modifiers);
-  set_line(line, new_line);
+  CHECK_LE(position.line, EndLine());
+  auto new_line = std::make_shared<Line>(*at(position.line));
+  VLOG(5) << "Set character: " << c << " at " << position
+          << " with modifiers: " << modifiers.size();
+  new_line->SetCharacter(position.column, c, modifiers);
+  set_line(position.line, new_line);
   NotifyUpdateListeners(CursorsTracker::Transformation());
 }
 

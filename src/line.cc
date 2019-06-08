@@ -214,8 +214,11 @@ void Line::SetCharacter(
   shared_ptr<LazyString> str = NewLazyString(wstring(1, c));
   hash_ = std::nullopt;
   if (column >= EndColumnWithLock()) {
+    if (options_.modifiers.empty() ||
+        options_.modifiers.rbegin()->second != modifiers) {
+      options_.modifiers[EndColumnWithLock()] = modifiers;
+    }
     options_.contents = StringAppend(std::move(options_.contents), str);
-    options_.modifiers[EndColumnWithLock()] = modifiers;
   } else {
     options_.contents = StringAppend(
         StringAppend(afc::editor::Substring(std::move(options_.contents),

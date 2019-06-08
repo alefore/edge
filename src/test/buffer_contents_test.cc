@@ -114,7 +114,7 @@ void TestCursorsMove() {
   CHECK_EQ(transformations[0], CursorsTracker::Transformation());
   transformations.clear();
 
-  contents.SetCharacter(LineNumber(0), ColumnNumber(3), 'j', {});
+  contents.SetCharacter(LineColumn(LineNumber(0), ColumnNumber(3)), 'j', {});
   CHECK_EQ(transformations.size(), 1ul);
   transformations.clear();
 }

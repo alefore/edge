@@ -106,16 +106,14 @@ class BufferContents : public fuzz::FuzzTestable {
   // TODO: Use LineColumn?
   void DeleteCharactersFromLine(LineNumber line, ColumnNumber column);
 
-  // Sets the character and modifiers in line `line` and column `column`.
+  // Sets the character and modifiers in a given position.
   //
-  // `line` must be smaller than size().
+  // `position.line` must be smaller than size().
   //
-  // `column` may be greater than size() of the current line, in which case the
-  // character will just get appended (extending the line by exactly one
-  // character).
-  //
-  // TODO: Use LineColumn?
-  void SetCharacter(LineNumber line, ColumnNumber column, int c,
+  // `position.column` may be greater than size() of the current line, in which
+  // case the character will just get appended (extending the line by exactly
+  // one character).
+  void SetCharacter(LineColumn position, int c,
                     std::unordered_set<LineModifier, hash<int>> modifiers);
 
   // TODO: Use LineColumn?
