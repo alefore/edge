@@ -126,51 +126,47 @@ void BufferContents::set_line(LineNumber position,
   // TODO: Why no notify update listeners?
 }
 
-void BufferContents::DeleteCharactersFromLine(LineNumber line,
-                                              ColumnNumber column,
+void BufferContents::DeleteCharactersFromLine(LineColumn position,
                                               ColumnNumberDelta amount) {
   if (amount == ColumnNumberDelta(0)) {
     return;
   }
   CHECK_GT(amount, ColumnNumberDelta(0));
-  CHECK_LE(column + amount, at(line)->EndColumn());
+  CHECK_LE(position.column + amount, at(position.line)->EndColumn());
 
-  Line::Options options(*at(line));
-  options.DeleteCharacters(column, amount);
-  set_line(line, std::make_shared<Line>(options));
+  Line::Options options(*at(position.line));
+  options.DeleteCharacters(position.column, amount);
+  set_line(position.line, std::make_shared<Line>(options));
 
-  NotifyUpdateListeners(CursorsTracker::Transformation()
-                            .WithBegin(LineColumn(line, column))
-                            .WithEnd(LineColumn(line + LineNumberDelta(1)))
-                            .ColumnDelta(-amount)
-                            .ColumnLowerBound(column));
+  NotifyUpdateListeners(
+      CursorsTracker::Transformation()
+          .WithBegin(position)
+          .WithEnd(LineColumn(position.line + LineNumberDelta(1)))
+          .ColumnDelta(-amount)
+          .ColumnLowerBound(position.column));
 }
 
-void BufferContents::DeleteCharactersFromLine(LineNumber line,
-                                              ColumnNumber column) {
-  if (column < at(line)->EndColumn()) {
-    return DeleteCharactersFromLine(line, column,
-                                    at(line)->EndColumn() - column);
+void BufferContents::DeleteToLineEnd(LineColumn position) {
+  if (position.column < at(position.line)->EndColumn()) {
+    return DeleteCharactersFromLine(
+        position, at(position.line)->EndColumn() - position.column);
   }
 }
 
 void BufferContents::SetCharacter(
     LineColumn position, int c,
     std::unordered_set<LineModifier, hash<int>> modifiers) {
-  CHECK_LE(position.line, EndLine());
-  auto new_line = std::make_shared<Line>(*at(position.line));
   VLOG(5) << "Set character: " << c << " at " << position
           << " with modifiers: " << modifiers.size();
-  new_line->SetCharacter(position.column, c, modifiers);
-  set_line(position.line, new_line);
-  NotifyUpdateListeners(CursorsTracker::Transformation());
+  TransformLine(position.line, [&](Line* output) {
+    output->SetCharacter(position.column, c, modifiers);
+  });
 }
 
-void BufferContents::InsertCharacter(LineNumber line, ColumnNumber column) {
-  auto new_line = std::make_shared<Line>(*at(line));
-  new_line->InsertCharacterAtPosition(column);
-  set_line(line, new_line);
-  NotifyUpdateListeners(CursorsTracker::Transformation());
+void BufferContents::InsertCharacter(LineColumn position) {
+  TransformLine(position.line, [&](Line* output) {
+    output->InsertCharacterAtPosition(position.column);
+  });
 }
 
 void BufferContents::AppendToLine(LineNumber position, Line line_to_append) {
@@ -220,7 +216,7 @@ void BufferContents::SplitLine(LineColumn position) {
           .WithEnd(LineColumn(position.line + LineNumberDelta(1)))
           .LineDelta(LineNumberDelta(1))
           .ColumnDelta(-position.column.ToDelta()));
-  DeleteCharactersFromLine(position.line, position.column);
+  DeleteToLineEnd(position);
 }
 
 void BufferContents::FoldNextLine(LineNumber position) {

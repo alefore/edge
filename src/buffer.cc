@@ -1162,11 +1162,11 @@ OpenBuffer::PendingWorkState OpenBuffer::GetPendingWorkState() const {
 
 void OpenBuffer::DeleteRange(const Range& range) {
   if (range.begin.line == range.end.line) {
-    contents_.DeleteCharactersFromLine(range.begin.line, range.begin.column,
+    contents_.DeleteCharactersFromLine(range.begin,
                                        range.end.column - range.begin.column);
   } else {
-    contents_.DeleteCharactersFromLine(range.begin.line, range.begin.column);
-    contents_.DeleteCharactersFromLine(range.end.line, ColumnNumber(0),
+    contents_.DeleteToLineEnd(range.begin);
+    contents_.DeleteCharactersFromLine(LineColumn(range.end.line),
                                        range.end.column.ToDelta());
     // Lines in the middle.
     EraseLines(range.begin.line + LineNumberDelta(1), range.end.line);

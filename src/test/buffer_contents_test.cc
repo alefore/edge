@@ -109,7 +109,7 @@ void TestCursorsMove() {
     transformations.push_back(t);
   });
   CHECK_EQ(transformations.size(), 0ul);
-  contents.InsertCharacter(LineNumber(0), ColumnNumber(3));
+  contents.InsertCharacter(LineColumn(LineNumber(0), ColumnNumber(3)));
   CHECK_EQ(transformations.size(), 1ul);
   CHECK_EQ(transformations[0], CursorsTracker::Transformation());
   transformations.clear();

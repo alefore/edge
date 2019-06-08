@@ -125,7 +125,7 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
     switch (c) {
       case '@': {
         VLOG(9) << "Terminal: ich: Insert character.";
-        contents_->InsertCharacter(position_.line, position_.column);
+        contents_->InsertCharacter(position_);
         return read_index;
       }
 
@@ -277,11 +277,11 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
           VLOG(10) << "ed: Clear from cursor to end of screen.";
           buffer_->EraseLines(position_.line + LineNumberDelta(1),
                               LineNumber(0) + buffer_->lines_size());
-          contents_->DeleteCharactersFromLine(position_.line, position_.column);
+          contents_->DeleteToLineEnd(position_);
         } else if (sequence == "1") {
           VLOG(10) << "ed: Clear from cursor to beginning of the screen.";
           buffer_->EraseLines(LineNumber(0), position_.line);
-          contents_->DeleteCharactersFromLine(LineNumber(0), ColumnNumber(0),
+          contents_->DeleteCharactersFromLine(LineColumn(),
                                               position_.column.ToDelta());
           position_ = LineColumn();
         } else if (sequence == "2") {
@@ -308,7 +308,7 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
 
       case 'K': {
         VLOG(9) << "Terminal: el: clear to end of line.";
-        contents_->DeleteCharactersFromLine(position_.line, position_.column);
+        contents_->DeleteToLineEnd(position_);
         return read_index;
       }
 
@@ -327,8 +327,7 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
         ColumnNumber end_column = contents_->at(position_.line)->EndColumn();
         if (position_.column < end_column) {
           contents_->DeleteCharactersFromLine(
-              position_.line, position_.column,
-              min(chars_to_erase, end_column - position_.column));
+              position_, min(chars_to_erase, end_column - position_.column));
         }
         current_line = buffer_->LineAt(position_.line);
         return read_index;

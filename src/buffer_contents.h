@@ -95,16 +95,12 @@ class BufferContents : public fuzz::FuzzTestable {
   void insert(LineNumber position_line, const BufferContents& source,
               const LineModifierSet* modifiers);
 
-  // Delete characters from the given line in range [column, column + amount).
-  // Amount must not be negative.
-  //
-  // TODO: Use LineColumn?
-  void DeleteCharactersFromLine(LineNumber line, ColumnNumber column,
-                                ColumnNumberDelta amount);
-  // Delete characters from the given line in range [column, ...).
-  //
-  // TODO: Use LineColumn?
-  void DeleteCharactersFromLine(LineNumber line, ColumnNumber column);
+  // Delete characters from position.line in range [position.column,
+  // position.column + amount). Amount must not be negative and it must be in a
+  // valid range.
+  void DeleteCharactersFromLine(LineColumn position, ColumnNumberDelta amount);
+  // Delete characters from position.line in range [position.column, ...).
+  void DeleteToLineEnd(LineColumn position);
 
   // Sets the character and modifiers in a given position.
   //
@@ -116,8 +112,7 @@ class BufferContents : public fuzz::FuzzTestable {
   void SetCharacter(LineColumn position, int c,
                     std::unordered_set<LineModifier, hash<int>> modifiers);
 
-  // TODO: Use LineColumn?
-  void InsertCharacter(LineNumber line, ColumnNumber column);
+  void InsertCharacter(LineColumn position);
   void AppendToLine(LineNumber line, Line line_to_append);
 
   enum class CursorsBehavior { kAdjust, kUnmodified };
@@ -145,6 +140,15 @@ class BufferContents : public fuzz::FuzzTestable {
   std::vector<fuzz::Handler> FuzzHandlers() override;
 
  private:
+  template <typename Callback>
+  void TransformLine(LineNumber line_number, Callback callback) {
+    CHECK_LE(line_number, EndLine());
+    auto line = std::make_shared<Line>(*at(line_number));
+    callback(line.get());
+    set_line(line_number, std::move(line));
+    NotifyUpdateListeners(CursorsTracker::Transformation());
+  }
+
   void NotifyUpdateListeners(
       const CursorsTracker::Transformation& cursor_adjuster);
 
