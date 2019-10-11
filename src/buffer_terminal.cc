@@ -8,6 +8,7 @@ extern "C" {
 }
 
 #include "src/buffer.h"
+#include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/editor.h"
 #include "src/file_descriptor_reader.h"
@@ -22,7 +23,10 @@ BufferTerminal::BufferTerminal(OpenBuffer* buffer, BufferContents* contents)
     : buffer_(buffer),
       contents_(contents),
       listener_registration_(
-          buffer_->viewers()->AddListener([this]() { UpdateSize(); })) {}
+          buffer_->viewers()->AddListener([this]() { UpdateSize(); })) {
+  LOG(INFO) << "New BufferTerminal for "
+            << buffer_->Read(buffer_variables::name);
+}
 
 LineColumn BufferTerminal::position() const { return position_; }
 
@@ -352,10 +356,14 @@ void BufferTerminal::MoveToNextLine() {
 void BufferTerminal::UpdateSize() {
   struct winsize screen_size;
   auto view_size = LastViewSize();
+  LOG(INFO) << "Update buffer size: " << buffer_->Read(buffer_variables::name)
+            << " to: " << view_size;
   screen_size.ws_row = view_size.line.line_delta;
   screen_size.ws_col = view_size.column.column_delta;
-  if (buffer_->fd() != nullptr &&
-      ioctl(buffer_->fd()->fd(), TIOCSWINSZ, &screen_size) == -1) {
+  if (buffer_->fd() == nullptr) {
+    LOG(INFO) << "Buffer fd is nullptr!";
+  } else if (ioctl(buffer_->fd()->fd(), TIOCSWINSZ, &screen_size) == -1) {
+    LOG(INFO) << "Buffer ioctl TICSWINSZ failed.";
     buffer_->status()->SetWarningText(L"ioctl TIOCSWINSZ failed: " +
                                       FromByteString(strerror(errno)));
   }

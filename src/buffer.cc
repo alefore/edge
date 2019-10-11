@@ -1649,6 +1649,10 @@ void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
   fd_ = new_reader(input_fd, {});
   fd_error_ = new_reader(input_error_fd, {LineModifier::RED});
 
+  if (terminal_ != nullptr) {
+    terminal_->UpdateSize();
+  }
+
   child_pid_ = child_pid;
 }
 
