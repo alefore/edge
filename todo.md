@@ -12,6 +12,8 @@ Make the widgets work closer to nethack or similar command-line games.
 
 Display the state of bool variables set different than their default values?
 
+Change the cursor when we're in `type` mode.
+
 ### Syntax
 
 Correctly handle: '\000'
