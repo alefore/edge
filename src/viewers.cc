@@ -9,6 +9,8 @@ Viewers::Registration Viewers::Register(LineColumnDelta view_size) {
   // TODO: Optimize to not require 2 tree traversals?
   CHECK_LT(view_sizes_.size(), 10000);
   bool new_item = view_sizes_.find(view_size) == view_sizes_.end();
+  LOG(INFO) << "Viewer register: " << view_size << "(new item: " << new_item
+            << ")";
   view_sizes_.insert(view_size);
   if (new_item) {
     last_view_size_ = view_size;

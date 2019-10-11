@@ -502,7 +502,8 @@ OpenBuffer::OpenBuffer(Options options)
       mode_(std::make_unique<MapMode>(default_commands_)),
       status_(options_.editor->GetConsole(), options_.editor->audio_player()),
       viewers_registration_(viewers_.AddListener([this]() {
-        LOG(INFO) << "Viewer registered.";
+        LOG(INFO) << "Viewer registered: "
+                  << this->Read(buffer_variables::name);
         ScheduleSyntaxDataUpdate();
       })),
       tree_parser_(NewNullTreeParser()),
@@ -1647,6 +1648,10 @@ void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
 
   fd_ = new_reader(input_fd, {});
   fd_error_ = new_reader(input_error_fd, {LineModifier::RED});
+
+  if (terminal_ != nullptr) {
+    terminal_->UpdateSize();
+  }
 
   child_pid_ = child_pid;
 }

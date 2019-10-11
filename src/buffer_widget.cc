@@ -308,6 +308,9 @@ void BufferWidget::RecomputeData() {
     return;
   }
 
+  LOG(INFO) << "BufferWidget::RecomputeData: "
+            << buffer->Read(buffer_variables::name);
+
   auto status_lines = min(size_.line, LineNumberDelta(1));
   // Screen lines that are dedicated to the buffer.
   auto buffer_lines = size_.line - status_lines;

@@ -23,6 +23,9 @@ class BufferTerminal : public fuzz::FuzzTestable {
  public:
   BufferTerminal(OpenBuffer* buffer, BufferContents* contents);
 
+  // Propagates the last view size to buffer->fd().
+  void UpdateSize();
+
   LineColumn position() const;
   void SetPosition(LineColumn position);
 
@@ -37,8 +40,6 @@ class BufferTerminal : public fuzz::FuzzTestable {
       std::unordered_set<LineModifier, std::hash<int>>* modifiers);
 
   void MoveToNextLine();
-
-  void UpdateSize();
 
   LineColumnDelta LastViewSize();
 

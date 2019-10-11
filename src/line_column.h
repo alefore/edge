@@ -89,6 +89,7 @@ struct LineColumnDelta {
   ColumnNumberDelta column;
 };
 
+std::ostream& operator<<(std::ostream& os, const LineColumnDelta& lc);
 bool operator==(const LineColumnDelta& a, const LineColumnDelta& b);
 bool operator!=(const LineColumnDelta& a, const LineColumnDelta& b);
 bool operator<(const LineColumnDelta& a, const LineColumnDelta& b);
