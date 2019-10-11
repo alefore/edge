@@ -502,7 +502,8 @@ OpenBuffer::OpenBuffer(Options options)
       mode_(std::make_unique<MapMode>(default_commands_)),
       status_(options_.editor->GetConsole(), options_.editor->audio_player()),
       viewers_registration_(viewers_.AddListener([this]() {
-        LOG(INFO) << "Viewer registered.";
+        LOG(INFO) << "Viewer registered: "
+                  << this->Read(buffer_variables::name);
         ScheduleSyntaxDataUpdate();
       })),
       tree_parser_(NewNullTreeParser()),
