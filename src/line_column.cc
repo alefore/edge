@@ -224,6 +224,11 @@ ColumnNumberDelta operator--(ColumnNumberDelta& a, int) {
 LineColumnDelta::LineColumnDelta(LineNumberDelta line, ColumnNumberDelta column)
     : line(line), column(column) {}
 
+std::ostream& operator<<(std::ostream& os, const LineColumnDelta& lc) {
+  os << "[" << lc.line << " " << lc.column << "]";
+  return os;
+}
+
 bool operator==(const LineColumnDelta& a, const LineColumnDelta& b) {
   return a.line == b.line && a.column == b.column;
 }
