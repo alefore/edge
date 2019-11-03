@@ -250,6 +250,13 @@ std::shared_ptr<OpenBuffer> BuffersList::GetBuffer(size_t index) {
   return it->second;
 }
 
+std::optional<size_t> BuffersList::GetBufferIndex(
+    const OpenBuffer* buffer) const {
+  auto it = buffers_.find(buffer->Read(buffer_variables::name));
+  return it == buffers_.end() ? std::optional<size_t>()
+                              : std::distance(buffers_.begin(), it);
+}
+
 size_t BuffersList::GetCurrentIndex() {
   auto buffer = GetActiveLeaf()->Lock();
   if (buffer == nullptr) {
@@ -281,6 +288,18 @@ BufferWidget* BuffersList::GetActiveLeaf() {
 const BufferWidget* BuffersList::GetActiveLeaf() const {
   CHECK(widget_ != nullptr);
   return widget_->GetActiveLeaf();
+}
+
+void BuffersList::ForEachBufferWidget(
+    std::function<void(BufferWidget*)> callback) {
+  CHECK(widget_ != nullptr);
+  widget_->ForEachBufferWidget(std::move(callback));
+}
+
+void BuffersList::ForEachBufferWidgetConst(
+    std::function<void(const BufferWidget*)> callback) const {
+  CHECK(widget_ != nullptr);
+  widget_->ForEachBufferWidgetConst(callback);
 }
 
 std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer() {

@@ -76,6 +76,16 @@ wstring BufferWidget::ToString() const {
 BufferWidget* BufferWidget::GetActiveLeaf() { return this; }
 const BufferWidget* BufferWidget::GetActiveLeaf() const { return this; }
 
+void BufferWidget::ForEachBufferWidget(
+    std::function<void(BufferWidget*)> callback) {
+  callback(this);
+}
+
+void BufferWidget::ForEachBufferWidgetConst(
+    std::function<void(const BufferWidget*)> callback) const {
+  callback(this);
+}
+
 class EmptyProducer : public OutputProducer {
   Generator Next() override {
     return Generator{

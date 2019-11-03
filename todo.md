@@ -77,8 +77,6 @@ Improve the bindings used to navigate the widgets.
 
 * Make hjkl move the active widget up/down/left/right.
 
-* When widget is deleted, leave the next nearest widget selected.
-
 ## Prompt
 
 When autocompletion of files fails, have a fail back:

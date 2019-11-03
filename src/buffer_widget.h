@@ -30,6 +30,10 @@ class BufferWidget : public Widget {
 
   BufferWidget* GetActiveLeaf() override;
   const BufferWidget* GetActiveLeaf() const override;
+  void ForEachBufferWidget(
+      std::function<void(BufferWidget*)> callback) override;
+  void ForEachBufferWidgetConst(
+      std::function<void(const BufferWidget*)> callback) const override;
 
   std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 
