@@ -67,8 +67,6 @@ In diff mode, add a link to every file. Following it should take you directly to
 
 Make "ad" and "aw" and "ar" honor repetitions (pick the buffer from the buffer's list)? Tricky: how to distinguish "current" from "1st".
 
-When searching, if an invalid regexp is given, print an "Invalid regexp" error (rather than "No results").
-
 ## Widgets
 
 Improve the bindings used to navigate the widgets.
