@@ -218,7 +218,7 @@ buffer.AddBinding("ag", "Frames: Set the active buffer (by repetitions)",
                   SetActiveBuffer);
 buffer.AddBinding("a+j", "Frames: Add a horizontal split",
                   editor.AddHorizontalSplit);
-buffer.AddBinding("a+l", "Frames: Add a horizontal split",
+buffer.AddBinding("a+l", "Frames: Add a vertical split",
                   editor.AddVerticalSplit);
 
 // buffer.AddBinding("aR", "Frames: Show all open buffers",
