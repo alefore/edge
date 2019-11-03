@@ -55,7 +55,8 @@ void CenterScreenAroundCurrentLine() {
 buffer.set_editor_commands_path("~/.edge/editor_commands/");
 
 void HandleFileTypes(string basename, string extension) {
-  if (extension == "cc" || extension == "h" || extension == "c") {
+  if (extension == "cc" || extension == "h" || extension == "c" ||
+      extension == "cpp") {
     CppMode();
     buffer.AddBindingToFile("sh", buffer.editor_commands_path() + "header");
     buffer.AddBindingToFile("sI", buffer.editor_commands_path() + "include");
