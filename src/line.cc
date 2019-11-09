@@ -279,17 +279,24 @@ OutputProducer::LineWithCursor Line::Output(
   ColumnNumber output_column;
   ColumnNumber input_column = options.initial_column;
   OutputProducer::LineWithCursor line_with_cursor;
-  auto modifiers_it = options_.modifiers.begin();
+  auto modifiers_it = options_.modifiers.lower_bound(input_column);
+  if (!options_.modifiers.empty() &&
+      modifiers_it != options_.modifiers.begin()) {
+    line_output.modifiers[output_column] = std::prev(modifiers_it)->second;
+  }
+
   for (; input_column < EndColumnWithLock() &&
          output_column < ColumnNumber(0) + options.width;
        ++input_column) {
     wint_t c = GetWithLock(input_column);
     CHECK(c != '\n');
 
-    if (modifiers_it != options_.modifiers.end() &&
-        modifiers_it->first == input_column) {
-      line_output.modifiers[output_column] = modifiers_it->second;
-      ++modifiers_it;
+    if (modifiers_it != options_.modifiers.end()) {
+      CHECK_GE(modifiers_it->first, input_column);
+      if (modifiers_it->first == input_column) {
+        line_output.modifiers[output_column] = modifiers_it->second;
+        ++modifiers_it;
+      }
     }
 
     if (options.active_cursor_column.has_value() &&
