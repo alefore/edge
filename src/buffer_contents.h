@@ -92,8 +92,10 @@ class BufferContents : public fuzz::FuzzTestable {
     NotifyUpdateListeners(CursorsTracker::Transformation());
   }
 
+  // If modifiers is present, applies it to every character (overriding
+  // modifiers from the source).
   void insert(LineNumber position_line, const BufferContents& source,
-              const LineModifierSet* modifiers);
+              const std::optional<LineModifierSet>& modifiers);
 
   // Delete characters from position.line in range [position.column,
   // position.column + amount). Amount must not be negative and it must be in a

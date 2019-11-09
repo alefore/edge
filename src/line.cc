@@ -114,18 +114,18 @@ void Line::Options::AppendString(std::wstring suffix,
 
 void Line::Options::Append(Line line) {
   ValidateInvariants();
-  if (line.contents()->size() == ColumnNumberDelta(0)) return;
+  if (line.empty()) return;
   auto original_length = EndColumn().ToDelta();
   contents = StringAppend(std::move(contents), std::move(line.contents()));
 
   LineModifierSet current_modifiers;
   if (!modifiers.empty()) {
-    current_modifiers = modifiers.rbegin()->second;
+    current_modifiers = std::move(end_of_line_modifiers);
   }
 
   if (!current_modifiers.empty() &&
       line.modifiers().find(ColumnNumber(0)) == line.modifiers().end()) {
-    modifiers[ColumnNumber(0) + original_length];  // Reset.
+    modifiers[ColumnNumber(0) + original_length] = {};  // Reset.
     current_modifiers.clear();
   }
 
@@ -136,7 +136,7 @@ void Line::Options::Append(Line line) {
     }
   }
 
-  end_of_line_modifiers = line.end_of_line_modifiers();
+  end_of_line_modifiers = std::move(line.end_of_line_modifiers());
   ValidateInvariants();
 }
 
@@ -245,7 +245,7 @@ void Line::SetAllModifiers(const LineModifierSet& modifiers) {
 }
 
 void Line::Append(const Line& line) {
-  if (line.contents()->size() == ColumnNumberDelta(0)) return;
+  if (line.empty()) return;
   std::unique_lock<std::mutex> lock(mutex_);
   ValidateInvariants();
   line.ValidateInvariants();
@@ -297,10 +297,13 @@ OutputProducer::LineWithCursor Line::Output(
       line_with_cursor.cursor = output_column;
     } else if (options.inactive_cursor_columns.find(input_column) !=
                options.inactive_cursor_columns.end()) {
+      line_output.modifiers[output_column + ColumnNumberDelta(1)] =
+          line_output.modifiers.empty()
+              ? LineModifierSet()
+              : line_output.modifiers.rbegin()->second;
       line_output.modifiers[output_column].insert(
           options.modifiers_inactive_cursors.begin(),
           options.modifiers_inactive_cursors.end());
-      line_output.modifiers[output_column + ColumnNumberDelta(1)];
     }
 
     switch (c) {

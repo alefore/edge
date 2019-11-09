@@ -753,8 +753,6 @@ class SwitchCaseTransformation : public Transformation {
       // Increment i.
       i.column++;
     }
-    LineModifierSet modifiers_set = {LineModifier::UNDERLINE,
-                                     LineModifier::BLUE};
     auto original_position = result->cursor;
     InsertOptions insert_options;
     insert_options.buffer_to_insert = buffer_to_insert;
@@ -762,7 +760,8 @@ class SwitchCaseTransformation : public Transformation {
       insert_options.final_position = InsertOptions::FinalPosition::kStart;
     }
     if (result->mode == Transformation::Result::Mode::kPreview) {
-      insert_options.modifiers_set = &modifiers_set;
+      insert_options.modifiers_set = {LineModifier::UNDERLINE,
+                                      LineModifier::BLUE};
     }
     stack.PushBack(NewInsertBufferTransformation(std::move(insert_options)));
     if (result->mode == Transformation::Result::Mode::kPreview) {

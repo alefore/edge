@@ -139,16 +139,16 @@ class DeleteCharactersTransformation : public Transformation {
 
     if (result->mode == Transformation::Result::Mode::kPreview) {
       LOG(INFO) << "Inserting preview at: " << result->cursor << " "
-                << delete_buffer->contents()->CountCharacters();
-      LineModifierSet modifiers_set = {LineModifier::UNDERLINE,
-                                       LineModifier::BLUE};
+                << delete_buffer->contents()->CountCharacters()
+                << " options: " << options_.modifiers;
       InsertOptions insert_options;
+      insert_options.modifiers_set = {LineModifier::UNDERLINE,
+                                      LineModifier::RED};
       insert_options.buffer_to_insert = delete_buffer;
       insert_options.final_position =
           options_.modifiers.direction == BACKWARDS
               ? InsertOptions::FinalPosition::kEnd
               : InsertOptions::FinalPosition::kStart;
-      insert_options.modifiers_set = &modifiers_set;
       NewInsertBufferTransformation(std::move(insert_options))
           ->Apply(buffer, result);
     }
@@ -164,7 +164,8 @@ class DeleteCharactersTransformation : public Transformation {
   shared_ptr<OpenBuffer> GetDeletedTextBuffer(
       OpenBuffer* buffer, LineColumn begin, LineNumber line_end,
       ColumnNumber chars_erase_line) const {
-    LOG(INFO) << "Preparing deleted text buffer.";
+    LOG(INFO) << "Preparing deleted text buffer: " << begin << " to "
+              << line_end << ", chars_erase_line: " << chars_erase_line;
     auto delete_buffer = std::make_shared<OpenBuffer>(buffer->editor(),
                                                       OpenBuffer::kPasteBuffer);
     Line::Options first_line(*buffer->LineAt(begin.line));

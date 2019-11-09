@@ -48,14 +48,16 @@ wstring BufferContents::ToString() const {
 
 void BufferContents::insert(LineNumber position_line,
                             const BufferContents& source,
-                            const LineModifierSet* modifiers) {
+                            const std::optional<LineModifierSet>& modifiers) {
   CHECK_LE(position_line, EndLine());
   auto prefix = Lines::Prefix(lines_, position_line.line);
   auto suffix = Lines::Suffix(lines_, position_line.line);
   Lines::Every(source.lines_, [&](std::shared_ptr<const Line> line) {
-    if (modifiers != nullptr) {
+    VLOG(6) << "Insert line: " << line->EndColumn() << " modifiers: "
+            << (modifiers.has_value() ? modifiers->size() : -1);
+    if (modifiers.has_value()) {
       auto replacement = std::make_shared<Line>(*line);
-      replacement->SetAllModifiers(*modifiers);
+      replacement->SetAllModifiers(modifiers.value());
       line = replacement;
     }
     prefix = Lines::PushBack(prefix, line);
