@@ -1,5 +1,5 @@
-#include "lib/strings"
 #include "lib/numbers"
+#include "lib/strings"
 
 double total_columns = 80.0;
 double total_lines = 25.0;
@@ -427,7 +427,6 @@ void DrawLineColumns(SetLineColumn line_column_right,
   buffer.PopTransformationStack();
 }
 
-
 void FindBoundariesSquare(LineColumn start, LineColumn end,
                           SetLineColumn output_right,
                           SetLineColumn output_down) {
@@ -766,11 +765,11 @@ void ShapesDrawDiagramInner() {
 
 void ShapesDrawDiagram() { ShapesDrawDiagramInner(); }
 
-buffer.AddBinding("sl", "shapes: line: draw", ShapesAddLine);
-buffer.AddBinding("sq", "shapes: square: draw", ShapesAddSquare);
-buffer.AddBinding("sc", "shapes: square: center contents", ShapesSquareCenter);
-buffer.AddBinding("sd", "shapes: delete_mode = !delete_mode",
+buffer.AddBinding("Sl", "shapes: line: draw", ShapesAddLine);
+buffer.AddBinding("Sq", "shapes: square: draw", ShapesAddSquare);
+buffer.AddBinding("Sc", "shapes: square: center contents", ShapesSquareCenter);
+buffer.AddBinding("Sd", "shapes: delete_mode = !delete_mode",
                   ShapesToggleDeleteMode);
-buffer.AddBinding("s=", "shapes: set source", ShapesSet);
-buffer.AddBinding("sb", "shapes: bold_mode = !bold_mode", ShapesToggleBoldMode);
-buffer.AddBinding("sD", "shapes: Draw a diagram", ShapesDrawDiagram);
+buffer.AddBinding("S=", "shapes: set source", ShapesSet);
+buffer.AddBinding("Sb", "shapes: bold_mode = !bold_mode", ShapesToggleBoldMode);
+buffer.AddBinding("SD", "shapes: Draw a diagram", ShapesDrawDiagram);
