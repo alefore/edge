@@ -86,29 +86,33 @@ void Line::Options::AppendCharacter(wchar_t c, LineModifierSet modifier) {
   ValidateInvariants();
   CHECK(modifier.find(LineModifier::RESET) == modifier.end());
   modifiers[ColumnNumber(0) + contents->size()] = modifier;
+  end_of_line_modifiers = std::move(modifier);
   contents = StringAppend(std::move(contents), NewLazyString(wstring(1, c)));
   ValidateInvariants();
 }
 
 void Line::Options::AppendString(std::shared_ptr<LazyString> suffix) {
-  AppendString(std::move(suffix), {});
+  AppendString(std::move(suffix), std::nullopt);
 }
 
-void Line::Options::AppendString(std::shared_ptr<LazyString> suffix,
-                                 LineModifierSet suffix_modifiers) {
+void Line::Options::AppendString(
+    std::shared_ptr<LazyString> suffix,
+    std::optional<LineModifierSet> suffix_modifiers) {
   ValidateInvariants();
   Line::Options suffix_line;
   suffix_line.contents = std::move(suffix);
-  if (suffix_line.contents->size() > ColumnNumberDelta(0)) {
-    suffix_line.modifiers[ColumnNumber(0)] = suffix_modifiers;
+  if (suffix_modifiers.has_value()) {
+    if (suffix_line.contents->size() > ColumnNumberDelta(0)) {
+      suffix_line.modifiers[ColumnNumber(0)] = suffix_modifiers.value();
+    }
+    suffix_line.end_of_line_modifiers = suffix_modifiers.value();
   }
-  suffix_line.end_of_line_modifiers = suffix_modifiers;
   Append(Line(std::move(suffix_line)));
   ValidateInvariants();
 }
 
 void Line::Options::AppendString(std::wstring suffix,
-                                 LineModifierSet modifiers) {
+                                 std::optional<LineModifierSet> modifiers) {
   AppendString(NewLazyString(std::move(suffix)), std::move(modifiers));
 }
 
@@ -323,7 +327,7 @@ OutputProducer::LineWithCursor Line::Output(
             ((output_column.ToDelta() / 8) + ColumnNumberDelta(1)) * 8;
         line_output.AppendString(
             ColumnNumberDelta::PaddingString(target - output_column, L' '),
-            LineModifierSet());
+            std::nullopt);
         output_column = target;
         break;
       }

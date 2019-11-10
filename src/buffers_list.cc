@@ -177,7 +177,7 @@ class BuffersListProducer : public OutputProducer {
               output.AppendString(NewLazyString(std::move(*it)),
                                   it == last
                                       ? LineModifierSet{LineModifier::BOLD}
-                                      : LineModifierSet({}));
+                                      : LineModifierSet{});
             }
           }
           return LineWithCursor{std::make_shared<Line>(std::move(output)),
