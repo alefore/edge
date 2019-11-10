@@ -372,6 +372,27 @@ void BufferWidget::RecomputeData() {
   view_start_.column = GetDesiredViewStartColumn(buffer.get(), size_.column);
   line_scroll_control_options_.begin = view_start_;
   line_scroll_control_options_.initial_column = view_start_.column;
+
+  if (!buffer->Read(buffer_variables::multiple_cursors)) {
+    auto scroll_reader =
+        LineScrollControl::New(line_scroll_control_options_)->NewReader();
+    std::vector<Range> positions;
+    while ((positions.empty() || positions.back().end <= buffer->position()) &&
+           scroll_reader->GetRange().has_value()) {
+      positions.push_back(scroll_reader->GetRange().value());
+      scroll_reader->RangeDone();
+    }
+
+    auto status_lines = LineNumberDelta(1);
+    LineNumber content_size = (LineNumber(0) + size_.line)
+                                  .MinusHandlingOverflow(status_lines)
+                                  .MinusHandlingOverflow(margin_lines);
+    if (LineNumber(positions.size()) > content_size) {
+      view_start_ = positions[positions.size() - content_size.line].begin;
+      line_scroll_control_options_.begin = view_start_;
+      line_scroll_control_options_.initial_column = view_start_.column;
+    }
+  }
 }
 
 }  // namespace editor
