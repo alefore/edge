@@ -57,5 +57,15 @@ wstring PathJoin(const wstring& a, const wstring& b) {
   return a + (has_slash ? L"" : L"/") + b;
 }
 
+SplitExtensionOutput SplitExtension(const std::wstring& path) {
+  auto index = path.find_last_of(L".");
+  if (index == std::string::npos) {
+    return {path, std::nullopt};
+  }
+  return {path.substr(0, index),
+          SplitExtensionOutput::Suffix{path.substr(index, 1),
+                                       path.substr(index + 1)}};
+}
+
 }  // namespace editor
 }  // namespace afc
