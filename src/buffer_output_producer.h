@@ -25,14 +25,8 @@ class BufferOutputProducer : public OutputProducer {
   const std::shared_ptr<LineScrollControl::Reader> line_scroll_control_reader_;
   const LineColumnDelta output_size_;
 
-  // Key is line number.
   const std::shared_ptr<const ParseTree> root_;
   const ParseTree* current_tree_;
-
-  // When we're outputing information about other buffers (mostly useful just
-  // for the list of open buffers), keeps track of those we've already shown, to
-  // only output their flags in their first line.
-  std::unordered_set<const OpenBuffer*> buffers_shown_;
 };
 
 }  // namespace editor
