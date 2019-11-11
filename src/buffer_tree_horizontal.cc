@@ -34,6 +34,19 @@ const BufferWidget* BufferTree::GetActiveLeaf() const {
   return children_[active_]->GetActiveLeaf();
 }
 
+void BufferTree::ForEachBufferWidget(
+    std::function<void(BufferWidget*)> callback) {
+  for (auto& widget : children_) {
+    widget->ForEachBufferWidget(callback);
+  }
+}
+void BufferTree::ForEachBufferWidgetConst(
+    std::function<void(const BufferWidget*)> callback) const {
+  for (const auto& widget : children_) {
+    widget->ForEachBufferWidgetConst(callback);
+  }
+}
+
 void BufferTree::SetSize(LineColumnDelta size) { size_ = size; }
 
 LineColumnDelta BufferTree::size() const { return size_; }

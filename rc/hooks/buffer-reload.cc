@@ -55,7 +55,8 @@ void CenterScreenAroundCurrentLine() {
 buffer.set_editor_commands_path("~/.edge/editor_commands/");
 
 void HandleFileTypes(string basename, string extension) {
-  if (extension == "cc" || extension == "h" || extension == "c") {
+  if (extension == "cc" || extension == "h" || extension == "c" ||
+      extension == "cpp") {
     CppMode();
     buffer.AddBindingToFile("sh", buffer.editor_commands_path() + "header");
     buffer.AddBindingToFile("sI", buffer.editor_commands_path() + "include");
@@ -217,11 +218,11 @@ buffer.AddBinding("ag", "Frames: Set the active buffer (by repetitions)",
                   SetActiveBuffer);
 buffer.AddBinding("a+j", "Frames: Add a horizontal split",
                   editor.AddHorizontalSplit);
-buffer.AddBinding("a+l", "Frames: Add a horizontal split",
+buffer.AddBinding("a+l", "Frames: Add a vertical split",
                   editor.AddVerticalSplit);
 
-// buffer.AddBinding("aR", "Frames: Show all open buffers",
-//                  editor.SetHorizontalSplitsWithAllBuffers);
+buffer.AddBinding("aR", "Frames: Show all open buffers",
+                  editor.SetHorizontalSplitsWithAllBuffers);
 
 void IncrementNumber() {
   AddToIntegerAtPosition(buffer.position(), repetitions());
@@ -232,9 +233,9 @@ void DecrementNumber() {
   set_repetitions(1);
 }
 
-buffer.AddBinding("sl", "Numbers: Increment the number under the cursor.",
+buffer.AddBinding("s+", "Numbers: Increment the number under the cursor.",
                   IncrementNumber);
-buffer.AddBinding("sh", "Numbers: Decrement the number under the cursor.",
+buffer.AddBinding("s-", "Numbers: Decrement the number under the cursor.",
                   DecrementNumber);
 
 void RunLocalShell() {

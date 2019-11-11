@@ -1175,9 +1175,11 @@ void OpenBuffer::DeleteRange(const Range& range) {
   }
 }
 
-LineColumn OpenBuffer::InsertInPosition(const OpenBuffer& buffer,
-                                        const LineColumn& input_position,
-                                        const LineModifierSet* modifiers) {
+LineColumn OpenBuffer::InsertInPosition(
+    const OpenBuffer& buffer, const LineColumn& input_position,
+    const std::optional<LineModifierSet>& modifiers) {
+  VLOG(5) << "InsertInPosition: " << input_position << " "
+          << (modifiers.has_value() ? modifiers.value().size() : -1);
   auto blocker = cursors_tracker_.DelayTransformations();
   LineColumn position = input_position;
   if (position.line > contents_.EndLine()) {

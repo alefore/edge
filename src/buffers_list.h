@@ -11,6 +11,8 @@
 namespace afc {
 namespace editor {
 
+// Divides the screen vertically into two sections: at the top, displays a given
+// widget. At the bottom, displays a list of buffers.
 class BuffersList : public DelegatingWidget {
  public:
   BuffersList(std::unique_ptr<Widget> widget);
@@ -18,6 +20,7 @@ class BuffersList : public DelegatingWidget {
   void AddBuffer(std::shared_ptr<OpenBuffer> buffer,
                  AddBufferType add_buffer_type);
   std::shared_ptr<OpenBuffer> GetBuffer(size_t index);
+  std::optional<size_t> GetBufferIndex(const OpenBuffer* buffer) const;
   size_t GetCurrentIndex();
   size_t BuffersCount() const;
 
@@ -27,6 +30,10 @@ class BuffersList : public DelegatingWidget {
 
   BufferWidget* GetActiveLeaf() override;
   const BufferWidget* GetActiveLeaf() const override;
+  void ForEachBufferWidget(
+      std::function<void(BufferWidget*)> callback) override;
+  void ForEachBufferWidgetConst(
+      std::function<void(const BufferWidget*)> callback) const override;
 
   std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 

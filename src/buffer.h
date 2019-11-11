@@ -179,11 +179,11 @@ class OpenBuffer {
 
   void DeleteRange(const Range& range);
 
-  // If modifiers is nullptr, takes the modifiers from the insertion (i.e. from
-  // the input). Otherwise, uses modifiers for every character inserted.
+  // If modifiers is present, applies it to every character (overriding the
+  // modifiers from `insertion`; that is, from the input).
   LineColumn InsertInPosition(const OpenBuffer& insertion,
                               const LineColumn& position,
-                              const LineModifierSet* modifiers);
+                              const std::optional<LineModifierSet>& modifiers);
   // Checks that line column is in the expected range (between 0 and the length
   // of the current line).
   void AdjustLineColumn(LineColumn* output) const;

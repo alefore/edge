@@ -63,7 +63,9 @@ class MarkdownParser : public TreeParser {
 
   void ParseLine(ParseData* result) {
     auto seek = result->seek();
+    size_t spaces = 0;
     while (seek.read() == L' ') {
+      spaces++;
       seek.Once();
     }
 
@@ -73,7 +75,7 @@ class MarkdownParser : public TreeParser {
         return;
 
       case L'*':
-        HandleList(result);
+        HandleList(spaces, result);
         return;
 
       default:
@@ -99,8 +101,30 @@ class MarkdownParser : public TreeParser {
     }
   }
 
-  void HandleList(ParseData* result) {
+  void HandleList(size_t spaces_prefix, ParseData* result) {
     result->seek().Once();
+    LineModifierSet modifiers;
+    switch (spaces_prefix / 2) {
+      case 0:
+        modifiers = {LineModifier::BOLD, LineModifier::CYAN};
+        break;
+      case 1:
+        modifiers = {LineModifier::BOLD, LineModifier::YELLOW};
+        break;
+      case 2:
+        modifiers = {LineModifier::BOLD, LineModifier::GREEN};
+        break;
+      case 3:
+        modifiers = {LineModifier::CYAN};
+        break;
+      case 4:
+        modifiers = {LineModifier::YELLOW};
+        break;
+      case 5:
+        modifiers = {LineModifier::GREEN};
+        break;
+    }
+    result->PushAndPop(ColumnNumberDelta(1), modifiers);
     HandleNormalLine(result);
   }
 

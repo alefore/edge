@@ -18,6 +18,41 @@ namespace afc {
 namespace editor {
 
 namespace {
+std::list<std::wstring> GetOutputComponents(
+    const std::wstring& name, ColumnNumberDelta columns_per_buffer) {
+  std::list<std::wstring> components;
+  if (!DirectorySplit(name, &components) || components.empty()) {
+    return {};
+  }
+  std::list<std::wstring> output;
+  output.push_front(components.back());
+  if (ColumnNumberDelta(output.front().size()) > columns_per_buffer) {
+    output.front() = output.front().substr(output.front().size() -
+                                           columns_per_buffer.column_delta);
+  } else {
+    size_t consumed = output.front().size();
+    components.pop_back();
+
+    static const size_t kSizeOfSlash = 1;
+    while (!components.empty()) {
+      if (columns_per_buffer >
+          ColumnNumberDelta(components.size() * 2 + components.back().size() +
+                            consumed)) {
+        output.push_front(components.back());
+        consumed += components.back().size() + kSizeOfSlash;
+      } else if (columns_per_buffer >
+                 ColumnNumberDelta(1 + kSizeOfSlash + consumed)) {
+        output.push_front(std::wstring(1, components.back()[0]));
+        consumed += 1 + kSizeOfSlash;
+      } else {
+        break;
+      }
+      components.pop_back();
+    }
+  }
+  return output;
+}
+
 class BuffersListProducer : public OutputProducer {
  public:
   BuffersListProducer(std::map<wstring, std::shared_ptr<OpenBuffer>>* buffers,
@@ -94,42 +129,6 @@ class BuffersListProducer : public OutputProducer {
                     NewLazyString(number_prefix)),
                 number_modifiers);
 
-            std::list<std::wstring> output_components;
-            std::list<std::wstring> components;
-            if (buffer != nullptr &&
-                buffer->Read(buffer_variables::path) == name &&
-                DirectorySplit(name, &components) && !components.empty()) {
-              name.clear();
-              output_components.push_front(components.back());
-              if (ColumnNumberDelta(output_components.front().size()) >
-                  columns_per_buffer_) {
-                output_components.front() = output_components.front().substr(
-                    output_components.front().size() -
-                    columns_per_buffer_.column_delta);
-              } else {
-                size_t consumed = output_components.front().size();
-                components.pop_back();
-
-                static const size_t kSizeOfSlash = 1;
-                while (!components.empty()) {
-                  if (columns_per_buffer_ >
-                      ColumnNumberDelta(components.size() * 2 +
-                                        components.back().size() + consumed)) {
-                    output_components.push_front(components.back());
-                    consumed += components.back().size() + kSizeOfSlash;
-                  } else if (columns_per_buffer_ >
-                             ColumnNumberDelta(1 + kSizeOfSlash + consumed)) {
-                    output_components.push_front(
-                        std::wstring(1, components.back()[0]));
-                    consumed += 1 + kSizeOfSlash;
-                  } else {
-                    break;
-                  }
-                  components.pop_back();
-                }
-              }
-            }
-
             wstring progress;
             LineModifierSet progress_modifier;
             if (!buffer->GetLineMarks()->empty()) {
@@ -149,7 +148,13 @@ class BuffersListProducer : public OutputProducer {
             CHECK_LE(progress.size(), 1ul);
 
             output.AppendString(NewLazyString(progress), progress_modifier);
-            if (!name.empty()) {
+            std::list<std::wstring> components;
+            if (buffer != nullptr &&
+                buffer->Read(buffer_variables::path) == name) {
+              components = GetOutputComponents(name, columns_per_buffer_);
+            }
+
+            if (components.empty()) {
               std::shared_ptr<LazyString> output_name =
                   NewLazyString(std::move(name));
               if (output_name->size() > ColumnNumberDelta(2) &&
@@ -165,19 +170,24 @@ class BuffersListProducer : public OutputProducer {
               continue;
             }
 
-            auto last = output_components.end();
-            bool first_item = true;
-            --last;
-            for (auto it = output_components.begin();
-                 it != output_components.end(); ++it) {
-              if (!first_item) {
+            for (auto it = components.begin(); it != components.end(); ++it) {
+              if (it != components.begin()) {
                 output.AppendCharacter(L'/', {LineModifier::DIM});
               }
-              first_item = false;
-              output.AppendString(NewLazyString(std::move(*it)),
-                                  it == last
-                                      ? LineModifierSet{LineModifier::BOLD}
-                                      : LineModifierSet({}));
+              if (it != std::prev(components.end())) {
+                output.AppendString(NewLazyString(std::move(*it)),
+                                    LineModifierSet{});
+                continue;
+              }
+              auto split = SplitExtension(*it);
+              output.AppendString(split.prefix,
+                                  LineModifierSet{LineModifier::BOLD});
+              if (split.suffix.has_value()) {
+                output.AppendString(split.suffix->separator,
+                                    LineModifierSet{LineModifier::DIM});
+                output.AppendString(split.suffix->extension,
+                                    LineModifierSet{LineModifier::BOLD});
+              }
             }
           }
           return LineWithCursor{std::make_shared<Line>(std::move(output)),
@@ -250,6 +260,13 @@ std::shared_ptr<OpenBuffer> BuffersList::GetBuffer(size_t index) {
   return it->second;
 }
 
+std::optional<size_t> BuffersList::GetBufferIndex(
+    const OpenBuffer* buffer) const {
+  auto it = buffers_.find(buffer->Read(buffer_variables::name));
+  return it == buffers_.end() ? std::optional<size_t>()
+                              : std::distance(buffers_.begin(), it);
+}
+
 size_t BuffersList::GetCurrentIndex() {
   auto buffer = GetActiveLeaf()->Lock();
   if (buffer == nullptr) {
@@ -281,6 +298,18 @@ BufferWidget* BuffersList::GetActiveLeaf() {
 const BufferWidget* BuffersList::GetActiveLeaf() const {
   CHECK(widget_ != nullptr);
   return widget_->GetActiveLeaf();
+}
+
+void BuffersList::ForEachBufferWidget(
+    std::function<void(BufferWidget*)> callback) {
+  CHECK(widget_ != nullptr);
+  widget_->ForEachBufferWidget(std::move(callback));
+}
+
+void BuffersList::ForEachBufferWidgetConst(
+    std::function<void(const BufferWidget*)> callback) const {
+  CHECK(widget_ != nullptr);
+  widget_->ForEachBufferWidgetConst(callback);
 }
 
 std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer() {

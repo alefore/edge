@@ -73,7 +73,7 @@ Make "ad" and "aw" and "ar" honor repetitions (pick the buffer from the buffer's
 
 Improve the bindings used to navigate the widgets.
 
-* Add a key binding that shows a tree map with every single buffer (from the BuffersList). The user can then quickly select which one to go to.
+* Add a key binding that shows a tree map with every single buffer (from the BuffersList). The user can then quickly select which one to go to. Perhaps the weight is proportional to use or time spent in file.
 
 * Make hjkl move the active widget up/down/left/right.
 

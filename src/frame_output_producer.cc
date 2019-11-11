@@ -33,7 +33,7 @@ OutputProducer::Generator FrameOutputProducer::Next() {
           // typically start counting from 1.
           output.AppendString(
               std::to_wstring(1 + options_.position_in_parent.value()),
-              {LineModifier::BOLD, LineModifier::CYAN});
+              LineModifierSet{LineModifier::BOLD, LineModifier::CYAN});
           output.AppendString(L")", line_modifiers_);
         }
 

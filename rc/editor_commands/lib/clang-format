@@ -23,7 +23,8 @@ void ClangFormatToggle() {
 
 int dot = path.find_last_of(".", path.size());
 string extension = dot == -1 ? "" : path.substr(dot + 1, path.size() - dot - 1);
-if (extension == "cc" || extension == "h" || extension == "java") {
+if (extension == "cc" || extension == "h" || extension == "cpp" ||
+    extension == "java") {
   ClangFormatToggle();
 }
 

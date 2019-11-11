@@ -23,6 +23,10 @@ class Widget {
 
   virtual BufferWidget* GetActiveLeaf() = 0;
   virtual const BufferWidget* GetActiveLeaf() const = 0;
+  virtual void ForEachBufferWidget(
+      std::function<void(BufferWidget*)> callback) = 0;
+  virtual void ForEachBufferWidgetConst(
+      std::function<void(const BufferWidget*)> callback) const = 0;
 
   virtual std::unique_ptr<OutputProducer> CreateOutputProducer() = 0;
 

@@ -16,6 +16,10 @@ class BufferTree : public SelectingWidget {
  public:
   BufferWidget* GetActiveLeaf() override;
   const BufferWidget* GetActiveLeaf() const;
+  void ForEachBufferWidget(
+      std::function<void(BufferWidget*)> callback) override;
+  void ForEachBufferWidgetConst(
+      std::function<void(const BufferWidget*)> callback) const override;
 
   void SetSize(LineColumnDelta size) override;
   LineColumnDelta size() const override;

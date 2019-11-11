@@ -56,8 +56,9 @@ class Line {
     void AppendCharacter(wchar_t c, LineModifierSet modifier);
     void AppendString(std::shared_ptr<LazyString> suffix);
     void AppendString(std::shared_ptr<LazyString> suffix,
-                      LineModifierSet modifier);
-    void AppendString(std::wstring contents, LineModifierSet modifier);
+                      std::optional<LineModifierSet> modifier);
+    void AppendString(std::wstring contents,
+                      std::optional<LineModifierSet> modifier);
     void Append(Line line);
 
     // Delete characters in [position, position + amount).
