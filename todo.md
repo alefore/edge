@@ -12,6 +12,8 @@ Make the widgets work closer to nethack or similar command-line games.
 
 Display the state of bool variables set different than their default values?
 
+If a file is smaller than the screen (or available lines for its widget), show it centered (vertically) in the widget.
+
 Change the cursor when we're in `type` mode.
 
 ### Syntax
