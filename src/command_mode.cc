@@ -1000,6 +1000,7 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
                                     L"// Edit: Repeats the last command.\n"
                                     L"editor.RepeatLastTransformation();"));
 
+  ToggleBoolVariable(editor_state, L"va", L"atomic_lines", commands.get());
   ToggleBoolVariable(editor_state, L"vp", L"paste_mode", commands.get());
   ToggleBoolVariable(editor_state, L"vS", L"scrollbar", commands.get());
   ToggleBoolVariable(editor_state, L"vW", L"wrap_long_lines", commands.get());
