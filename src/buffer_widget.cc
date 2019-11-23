@@ -388,9 +388,10 @@ void BufferWidget::RecomputeData() {
                                   .MinusHandlingOverflow(status_lines)
                                   .MinusHandlingOverflow(margin_lines);
     if (LineNumber(positions.size()) > content_size) {
+      // No need to adjust line_scroll_control_options_.initial_column, since
+      // that controls where continuation lines begin.
       view_start_ = positions[positions.size() - content_size.line].begin;
       line_scroll_control_options_.begin = view_start_;
-      line_scroll_control_options_.initial_column = view_start_.column;
     }
   }
 }
