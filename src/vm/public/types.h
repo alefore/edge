@@ -47,6 +47,9 @@ struct VMType {
   wstring ToString() const;
 
   Type type;
+  // When type is FUNCTION, this contains the types. The first element is the
+  // return type of the callback. Subsequent elements are the types of the
+  // elements expected by the callback.
   vector<VMType> type_arguments;
   wstring object_type;
 };
