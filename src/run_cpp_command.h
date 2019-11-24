@@ -8,7 +8,17 @@
 namespace afc {
 namespace editor {
 
-std::unique_ptr<Command> NewRunCppCommand();
+enum class CppCommandMode {
+  // Compiles the string and runs it.
+  kLiteral,
+
+  // Splits the string into a vector of strings (respecting quotes). Looks up a
+  // C++ (VM) function named after the first token that receives strings and
+  // runs it, providing the tokens given.
+  kShell
+};
+
+std::unique_ptr<Command> NewRunCppCommand(CppCommandMode mode);
 
 }  // namespace editor
 }  // namespace afc

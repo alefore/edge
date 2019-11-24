@@ -887,7 +887,8 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
                                      L"editor.SaveCurrentBuffer();"));
   commands->Add(L"av", NewSetVariableCommand());
   commands->Add(L"ac", NewRunCppFileCommand());
-  commands->Add(L"aC", NewRunCppCommand());
+  commands->Add(L"aC", NewRunCppCommand(CppCommandMode::kLiteral));
+  commands->Add(L":", NewRunCppCommand(CppCommandMode::kShell));
   commands->Add(L"a.", NewOpenDirectoryCommand());
   commands->Add(L"aL", NewListBuffersCommand());
   commands->Add(L"ar", NewCppCommand(editor_state->environment(),
