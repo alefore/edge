@@ -1,17 +1,19 @@
 // Marks the current buffer as a “compiler”: a buffer that goes over the text
 // being edited and produces a report of errors as its output.
 
-// Avoid giving it a pts.
-buffer.set_pts(false);
+void SetAsCompiler(Buffer buffer) {
+  // Avoid giving it a pts.
+  buffer.set_pts(false);
 
-// Scroll down to the end of output automatically.
-buffer.set_follow_end_of_file(true);
+  // Scroll down to the end of output automatically.
+  buffer.set_follow_end_of_file(true);
 
-// If another buffer is saved, reload this buffer automatically.
-buffer.set_reload_on_buffer_write(true);
+  // If another buffer is saved, reload this buffer automatically.
+  buffer.set_reload_on_buffer_write(true);
 
-// Track PATH:LINE references to other files in the compiler output.
-buffer.set_contains_line_marks(true);
+  // Track PATH:LINE references to other files in the compiler output.
+  buffer.set_contains_line_marks(true);
 
-// Show the last lines of this buffer in the list of buffers.
-buffer.set_buffer_list_context_lines(5);
+  // Show the last lines of this buffer in the list of buffers.
+  buffer.set_buffer_list_context_lines(5);
+}
