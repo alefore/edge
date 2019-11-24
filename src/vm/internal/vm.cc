@@ -555,6 +555,7 @@ Trampoline::Trampoline(Options options)
 void Trampoline::Enter(Expression* start_expression) {
   CHECK(expression_ == nullptr);
   CHECK(start_expression != nullptr);
+  CHECK(!start_expression->Types().empty());
   expression_ = start_expression;
   desired_type_ = start_expression->Types()[0];
   while (expression_) {
