@@ -17,3 +17,7 @@ void SetAsCompiler(Buffer buffer) {
   // Show the last lines of this buffer in the list of buffers.
   buffer.set_buffer_list_context_lines(5);
 }
+
+void SetAsCompiler() {
+  SetAsCompiler(buffer);
+}
