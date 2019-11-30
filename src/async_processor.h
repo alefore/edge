@@ -68,6 +68,9 @@ class AsyncProcessor {
     std::unique_lock<std::mutex> thread_creation_lock(thread_creation_mutex_);
     std::unique_lock<std::mutex> lock(mutex_);
     if (state_ == State::kNotRunning) {
+      if (background_thread_.joinable()) {
+        background_thread_.join();
+      }
       return;
     }
 
@@ -117,21 +120,23 @@ class AsyncProcessor {
 
   // If set, pending input for the background thread to pick up.
   std::optional<Input> input_;
-  // As soon as the first execution of the supplier completes, we store here the
-  // value it returns. Whenever it finishes, we update the previous value.
+  // As soon as the first execution of the supplier completes, we store here
+  // the value it returns. Whenever it finishes, we update the previous value.
   std::optional<Output> output_;
 
   // Protects all the variables that background thread may access.
   mutable std::mutex mutex_;
   std::condition_variable background_condition_;
 
-  // Protects access to background_thread_ itself. Must never be acquired after
-  // mutex_ (only before). Anybody assigning to background_thread_shutting_down_
-  // must do so and join the thread while holding this mutex.
-  mutable std::mutex thread_creation_mutex_;
-  std::thread background_thread_;
   enum class State { kRunning, kNotRunning, kTerminationRequested };
   State state_ = State::kNotRunning;
+
+  // Protects access to background_thread_ itself. Must never be acquired
+  // after mutex_ (only before). Anybody assigning to
+  // background_thread_shutting_down_ must do so and join the thread while
+  // holding this mutex.
+  mutable std::mutex thread_creation_mutex_;
+  std::thread background_thread_;
 };
 
 }  // namespace editor
