@@ -2,11 +2,14 @@
 #define __AFC_EDITOR_ASYNC_PROCESSOR_H__
 
 #include <chrono>
+#include <condition_variable>
 #include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <thread>
+
+#include "glog/logging.h"
 
 namespace afc {
 namespace editor {
