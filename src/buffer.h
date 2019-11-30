@@ -398,10 +398,6 @@ class OpenBuffer {
   static SyntaxDataOutput UpdateSyntaxData(SyntaxDataInput input);
 
   LineColumn Apply(unique_ptr<Transformation> transformation);
-  void BackgroundThread();
-  // Destroys the background thread if it's running and if a given predicate
-  // returns true. The predicate is evaluated with mutex_ held.
-  void DestroyThreadIf(std::function<bool()> predicate);
   void UpdateTreeParser();
 
   void ScheduleSyntaxDataUpdate();
@@ -488,6 +484,7 @@ class OpenBuffer {
   // syntax tree) only happens in "batches", after a set of operations has been
   // applied to the buffer (rather than having to schedule many redundant runs,
   // e.g., when input is being gradually read from a file).
+  mutable std::mutex pending_work_mutex_;
   std::vector<std::function<void()>> pending_work_;
 
   // A function that receives a string and returns a boolean. The function will

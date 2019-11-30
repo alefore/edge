@@ -881,7 +881,7 @@ void OpenBuffer::ScheduleSyntaxDataUpdate() {
 
   VLOG(5) << "Scheduling parse tree update.";
 
-  pending_work_.push_back([this]() {
+  SchedulePendingWork([this]() {
     syntax_data_state_ = SyntaxDataState::kDone;
     if (TreeParser::IsNull(tree_parser_.get())) {
       return;
@@ -1144,19 +1144,25 @@ bool OpenBuffer::EvaluateFile(
 }
 
 void OpenBuffer::SchedulePendingWork(std::function<void()> callback) {
+  std::unique_lock<std::mutex> lock(pending_work_mutex_);
   pending_work_.push_back(callback);
 }
 
 void OpenBuffer::ExecutePendingWork() {
-  VLOG(5) << "Executing pending work: " << pending_work_.size();
   std::vector<std::function<void()>> callbacks;
+
+  pending_work_mutex_.lock();
   callbacks.swap(pending_work_);
+  pending_work_mutex_.unlock();
+
+  VLOG(5) << "Executing pending work: " << callbacks.size();
   for (auto& c : callbacks) {
     c();
   }
 }
 
 OpenBuffer::PendingWorkState OpenBuffer::GetPendingWorkState() const {
+  std::unique_lock<std::mutex> lock(pending_work_mutex_);
   return pending_work_.empty() ? PendingWorkState::kIdle
                                : PendingWorkState::kScheduled;
 }
@@ -1753,7 +1759,7 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
     }
   }
 
-  if (!pending_work_.empty()) {
+  if (GetPendingWorkState() != OpenBuffer::PendingWorkState::kIdle) {
     output.insert({L"⏳", L""});
   }
 
