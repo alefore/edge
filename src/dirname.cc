@@ -36,6 +36,9 @@ bool DirectorySplit(wstring path, list<wstring>* output) {
   output->clear();
   while (!path.empty() && path != L"/") {
     output->push_front(Basename(path));
+    if (output->front() == path) {
+      return true;
+    }
     auto tmp = Dirname(path);
     if (tmp.size() >= path.size()) {
       LOG(INFO) << "Unable to advance: " << path << " -> " << tmp;
