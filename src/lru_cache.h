@@ -26,8 +26,11 @@ class LRUCache {
     ValidateInvariants();
   }
 
-  // Creator must be a function that receives zero arguments and returns a
-  // Value.
+  // If the key is currently in the map, just returns its value.
+  //
+  // Otherwise, runs the Creator callback, a function that receives zero
+  // arguments and returns a Value. The returned value is stored in the map and
+  // returned.
   template <typename Creator>
   Value* Get(Key key, Creator creator) {
     ValidateInvariants();
