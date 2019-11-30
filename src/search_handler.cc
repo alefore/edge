@@ -11,9 +11,9 @@
 #include "src/lazy_string_functional.h"
 #include "src/wstring.h"
 
+namespace afc::editor {
 namespace {
 
-using namespace afc::editor;
 using std::vector;
 using std::wstring;
 
@@ -41,10 +41,14 @@ vector<ColumnNumber> GetMatches(const wstring& line,
   }
 }
 
-// Returns a vector with all positions matching input sorted in ascending order.
-std::optional<std::vector<LineColumn>> PerformSearch(
-    const SearchOptions& options, OpenBuffer* buffer) {
-  using namespace afc::editor;
+struct SearchResults {
+  std::optional<std::wstring> error;
+  // A vector with all positions matching input sorted in ascending order.
+  std::vector<LineColumn> positions;
+};
+
+SearchResults PerformSearch(const SearchOptions& options,
+                            const BufferContents& contents) {
   vector<LineColumn> positions;
 
   auto traits = std::regex_constants::extended;
@@ -55,29 +59,55 @@ std::optional<std::vector<LineColumn>> PerformSearch(
   try {
     pattern = std::wregex(options.search_query, traits);
   } catch (std::regex_error& e) {
-    buffer->status()->SetWarningText(L"Regex failure: " +
-                                     FromByteString(e.what()));
-    return std::nullopt;
+    SearchResults output;
+    output.error = L"Regex failure: " + FromByteString(e.what());
+    return output;
   }
 
-  buffer->contents()->EveryLine(
-      [&positions, &pattern](LineNumber position, const Line& line) {
-        for (const auto& column : GetMatches(line.ToString(), pattern)) {
-          positions.push_back(LineColumn(position, column));
-        }
-        return true;
-      });
-  return positions;
+  SearchResults output;
+
+  contents.EveryLine([&](LineNumber position, const Line& line) {
+    for (const auto& column : GetMatches(line.ToString(), pattern)) {
+      output.positions.push_back(LineColumn(position, column));
+    }
+    return !options.required_positions.has_value() ||
+           options.required_positions.value() > output.positions.size();
+  });
+  return output;
+}
+
+AsyncSearchOutput DoAsyncSearch(AsyncSearchInput input) {
+  CHECK(input.buffer != nullptr);
+  input.search_options.required_positions = 2;
+  auto search_results = PerformSearch(input.search_options, *input.buffer);
+  VLOG(5) << "Async search completed for \""
+          << input.search_options.search_query
+          << "\", found results: " << search_results.positions.size();
+  AsyncSearchOutput output;
+  if (search_results.error.has_value()) {
+    output.results = AsyncSearchOutput::Results::kInvalidPattern;
+  } else if (search_results.positions.empty()) {
+    output.results = AsyncSearchOutput::Results::kNoMatches;
+  } else if (search_results.positions.size() == 1) {
+    output.results = AsyncSearchOutput::Results::kOneMatch;
+  } else {
+    output.results = AsyncSearchOutput::Results::kManyMatches;
+  }
+  input.callback(output);
+  return output;
 }
 
 }  // namespace
 
-namespace afc {
-namespace editor {
+std::unique_ptr<AsyncProcessor<AsyncSearchInput, AsyncSearchOutput>>
+NewAsyncSearchProcessor() {
+  return std::make_unique<AsyncProcessor<AsyncSearchInput, AsyncSearchOutput>>(
+      DoAsyncSearch, [] {});
+}
 
-wstring RegexEscape(shared_ptr<LazyString> str) {
-  wstring results;
-  static wstring literal_characters = L" ()<>{}+_-;\"':,?#%";
+std::wstring RegexEscape(std::shared_ptr<LazyString> str) {
+  std::wstring results;
+  static std::wstring literal_characters = L" ()<>{}+_-;\"':,?#%";
   ForEachColumn(*str, [&](ColumnNumber, wchar_t c) {
     if (!iswalnum(c) && literal_characters.find(c) == wstring::npos) {
       results.push_back('\\');
@@ -89,16 +119,17 @@ wstring RegexEscape(shared_ptr<LazyString> str) {
 
 // Returns all matches starting at start. If end is not nullptr, only matches
 // in the region enclosed by start and *end will be returned.
-std::optional<vector<LineColumn>> PerformSearchWithDirection(
+std::optional<std::vector<LineColumn>> PerformSearchWithDirection(
     EditorState* editor_state, const SearchOptions& options) {
   auto buffer = editor_state->current_buffer();
   auto direction = editor_state->modifiers().direction;
-  auto candidates = PerformSearch(options, buffer.get());
-  if (!candidates.has_value()) {
+  SearchResults results = PerformSearch(options, *buffer->contents());
+  if (results.error.has_value()) {
+    buffer->status()->SetWarningText(results.error.value());
     return std::nullopt;
   }
   if (direction == BACKWARDS) {
-    std::reverse(candidates.value().begin(), candidates.value().end());
+    std::reverse(results.positions.begin(), results.positions.end());
   }
 
   vector<LineColumn> head;
@@ -110,16 +141,16 @@ std::optional<vector<LineColumn>> PerformSearchWithDirection(
         max(options.starting_position, options.limit_position.value())};
     LOG(INFO) << "Removing elements outside of the range: " << range;
     vector<LineColumn> valid_candidates;
-    for (auto& candidate : candidates.value()) {
+    for (auto& candidate : results.positions) {
       if (range.Contains(candidate)) {
         valid_candidates.push_back(candidate);
       }
     }
-    candidates = std::move(valid_candidates);
+    results.positions = std::move(valid_candidates);
   }
 
   // Split them into head and tail depending on the current direction.
-  for (auto& candidate : candidates.value()) {
+  for (auto& candidate : results.positions) {
     ((direction == FORWARDS ? candidate > options.starting_position
                             : candidate < options.starting_position)
          ? head
@@ -207,5 +238,4 @@ void JumpToNextMatch(EditorState* editor_state, const SearchOptions& options) {
   }
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
