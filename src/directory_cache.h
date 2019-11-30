@@ -31,6 +31,13 @@ struct DirectoryCacheOutput {
   // For example, if directory `foo/bar` has files `alejo` and `alejandro`,
   // searching for `foo/bar/al` will contain `ej`.
   std::wstring longest_suffix;
+
+  enum class ExactMatch {
+    // An exact match was found for the pattern.
+    kFound,
+    kNotFound
+  };
+  ExactMatch exact_match = ExactMatch::kNotFound;
 };
 
 struct DirectoryCacheInput {
