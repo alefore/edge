@@ -49,16 +49,20 @@ void DrawPath(const std::shared_ptr<OpenBuffer>& buffer,
       default:
         LineModifierSet modifiers;
         if (results.has_value()) {
-          if (i < ColumnNumber(results.value().longest_prefix.size())) {
-            // Pass.
-          } else if (results.value().count == 0) {
-            modifiers.insert(LineModifier::RED);
-          } else if (results.value().count == 1) {
-            modifiers.insert(LineModifier::GREEN);
-          } else if (line->EndColumn() <
-                     ColumnNumber(results.value().longest_prefix.size() + 1 +
-                                  results.value().longest_suffix.size())) {
-            modifiers.insert(LineModifier::YELLOW);
+          auto value = results.value();
+          if (i >= ColumnNumber(value.longest_prefix.size())) {
+            if (value.exact_match == DirectoryCacheOutput::ExactMatch::kFound) {
+              modifiers.insert(LineModifier::BOLD);
+            }
+            if (value.count == 0) {
+              modifiers.insert(LineModifier::RED);
+            } else if (value.count == 1) {
+              modifiers.insert(LineModifier::GREEN);
+            } else if (line->EndColumn() <
+                       ColumnNumber(value.longest_prefix.size() + 1 +
+                                    value.longest_suffix.size())) {
+              modifiers.insert(LineModifier::YELLOW);
+            }
           }
         }
         output.AppendCharacter(c, modifiers);
