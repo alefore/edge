@@ -1146,6 +1146,7 @@ bool OpenBuffer::EvaluateFile(
 void OpenBuffer::SchedulePendingWork(std::function<void()> callback) {
   std::unique_lock<std::mutex> lock(pending_work_mutex_);
   pending_work_.push_back(callback);
+  options_.editor->NotifyInternalEvent();
 }
 
 void OpenBuffer::ExecutePendingWork() {
