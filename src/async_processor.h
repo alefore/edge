@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <deque>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -11,8 +12,7 @@
 
 #include "glog/logging.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 // Function that runs `supplier` asynchronously (with a background thread) and
 // allows the user to trigger execution and fetch the results of the last
@@ -30,16 +30,31 @@ class AsyncProcessor {
   // installed.
   using NotifyCallback = std::function<void()>;
 
+  struct Options {
+    Factory factory;
+    NotifyCallback notify_callback = [] {};
+
+    // Controls the behavior when `Push` is called while there are unprocessed
+    // inputs.
+    enum class QueueBehavior { kFlush, kWait };
+    QueueBehavior push_behavior = QueueBehavior::kFlush;
+  };
+
   AsyncProcessor(Factory factory, NotifyCallback notify_callback)
-      : factory_(std::move(factory)),
-        notify_callback_(std::move(notify_callback)) {}
+      : AsyncProcessor(
+            Options{std::move(factory), std::move(notify_callback)}) {}
+
+  AsyncProcessor(Options options) : options_(std::move(options)) {}
 
   ~AsyncProcessor() { PauseThread(); }
 
   void Push(Input input) {
     thread_creation_mutex_.lock();
     mutex_.lock();
-    input_ = std::move(input);
+    if (options_.push_behavior == Options::QueueBehavior::kFlush) {
+      input_queue_.clear();
+    }
+    input_queue_.push_back(std::move(input));
     switch (state_) {
       case State::kNotRunning: {
         LOG(INFO) << "Creating thread";
@@ -89,40 +104,39 @@ class AsyncProcessor {
   void BackgroundThread() {
     using namespace std::chrono_literals;
     while (true) {
-      std::optional<Input> input;
-
       std::unique_lock<std::mutex> lock(mutex_);
       CHECK(state_ != State::kNotRunning);
       background_condition_.wait_for(lock, 2s, [this]() {
-        return state_ != State::kRunning || input_.has_value();
+        return state_ != State::kRunning || !input_queue_.empty();
       });
       CHECK(state_ != State::kNotRunning);
       VLOG(5) << "Background thread is waking up.";
-      if (!input_.has_value()) {
+      if (input_queue_.empty()) {
         LOG(INFO) << "Background thread is shutting down.";
         state_ = State::kNotRunning;
         return;
       }
-      CHECK(input_.has_value());
-      std::swap(input, input_);
+
+      Input input = std::move(input_queue_.front());
+      input_queue_.pop_front();
 
       lock.unlock();
 
-      const Output output = factory_(std::move(input.value()));
+      const Output output = options_.factory(std::move(input));
 
       mutex_.lock();
       output_ = std::move(output);
       mutex_.unlock();
 
-      notify_callback_();
+      options_.notify_callback();
     }
   }
 
-  const Factory factory_;
-  const NotifyCallback notify_callback_;
+  const Options options_;
 
-  // If set, pending input for the background thread to pick up.
-  std::optional<Input> input_;
+  // If non-empty, pending input for the background thread to pick up.
+  std::deque<Input> input_queue_;
+
   // As soon as the first execution of the supplier completes, we store here
   // the value it returns. Whenever it finishes, we update the previous value.
   std::optional<Output> output_;
@@ -142,7 +156,6 @@ class AsyncProcessor {
   std::thread background_thread_;
 };
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_ASYNC_PROCESSOR_H__
