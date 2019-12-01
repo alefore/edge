@@ -52,8 +52,6 @@ Add "pipe" command: select the region (similar to delete: line, paragraph, buffe
 
 Add an AutoComplete mode that autocompletes based on the path.
 
-In C++ mode, fix it to recognize full identifiers (rather than CamelCase).
-
 ## Navigation
 
 Make M center the widget around the current line.
