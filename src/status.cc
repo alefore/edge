@@ -84,87 +84,98 @@ Status::Status(std::shared_ptr<OpenBuffer> console, AudioPlayer* audio_player)
 
 Status::Type Status::GetType() const {
   ValidatePreconditions();
-  return type_;
+  return data_->type;
 }
 
 LineNumberDelta Status::DesiredLines() const {
   ValidatePreconditions();
-  return type_ != Type::kPrompt && text_.empty() ? LineNumberDelta(0)
-                                                 : LineNumberDelta(1);
+  return data_->type != Type::kPrompt && data_->text.empty()
+             ? LineNumberDelta(0)
+             : LineNumberDelta(1);
 }
 
 void Status::set_prompt(std::wstring text, std::shared_ptr<OpenBuffer> buffer) {
   CHECK(buffer != nullptr);
   ValidatePreconditions();
-
-  type_ = Status::Type::kPrompt;
-  prompt_buffer_ = std::move(buffer);
-  text_ = std::move(text);
-
+  data_ = std::make_shared<Data>(
+      Data{Status::Type::kPrompt, std::move(text), std::move(buffer)});
   ValidatePreconditions();
 }
 
 const OpenBuffer* Status::prompt_buffer() const {
   ValidatePreconditions();
-  return prompt_buffer_.get();
+  return data_->prompt_buffer.get();
 }
 
 void Status::SetInformationText(std::wstring text) {
   ValidatePreconditions();
-
-  CHECK((prompt_buffer_ != nullptr) == (type_ == Type::kPrompt));
-  if (prompt_buffer_ != nullptr) {
+  if (data_->prompt_buffer != nullptr) {
     return;
   }
-  type_ = Type::kInformation;
-  text_ = std::move(text);
-
+  data_ = std::make_shared<Data>(Data{Type::kInformation, std::move(text)});
   ValidatePreconditions();
+}
+
+struct StatusExpirationControl {
+  std::weak_ptr<Status::Data> data;
+};
+
+std::unique_ptr<StatusExpirationControl,
+                std::function<void(StatusExpirationControl*)>>
+Status::SetExpiringInformationText(std::wstring text) {
+  ValidatePreconditions();
+  SetInformationText(text);
+  ValidatePreconditions();
+  return std::unique_ptr<StatusExpirationControl,
+                         std::function<void(StatusExpirationControl*)>>(
+      new StatusExpirationControl{data_},
+      [](StatusExpirationControl* status_expiration_control) {
+        auto data = status_expiration_control->data.lock();
+        if (data != nullptr) {
+          data->text = L"";
+        }
+        delete status_expiration_control;
+      });
 }
 
 void Status::SetWarningText(std::wstring text) {
   ValidatePreconditions();
 
   GenerateAlert(audio_player_);
-  if (prompt_buffer_ != nullptr) {
+  if (data_->prompt_buffer != nullptr) {
     return;
   }
-  type_ = Type::kWarning;
-  text_ = std::move(text);
-
+  data_ = std::make_shared<Data>(Data{Type::kWarning, std::move(text)});
   ValidatePreconditions();
 }
 
 void Status::Reset() {
   ValidatePreconditions();
-
-  prompt_buffer_ = nullptr;
-  type_ = Type::kInformation;
-  text_ = L"";
-
+  data_ = std::make_shared<Data>();
   ValidatePreconditions();
 }
 
 void Status::Bell() {
   ValidatePreconditions();
-
-  if (!all_of(text_.begin(), text_.end(), [](const wchar_t& c) {
+  auto text = data_->text;
+  if (!all_of(text.begin(), text.end(), [](const wchar_t& c) {
         return c == L'♪' || c == L'♫' || c == L'…' || c == L' ' || c == L'𝄞';
       })) {
-    text_ = L" 𝄞";
-  } else if (text_.size() >= 40) {
-    text_ = L"…" + text_.substr(text_.size() - 40, text_.size());
+    text = L" 𝄞";
+  } else if (text.size() >= 40) {
+    text = L"…" + text.substr(text.size() - 40, text.size());
   }
-  text_ += +L" " + std::wstring(text_.back() == L'♪' ? L"♫" : L"♪");
+  text += +L" " + std::wstring(text.back() == L'♪' ? L"♫" : L"♪");
 }
 
 const std::wstring& Status::text() const {
   ValidatePreconditions();
-  return text_;
+  return data_->text;
 }
 
 void Status::ValidatePreconditions() const {
-  CHECK((prompt_buffer_ != nullptr) == (type_ == Type::kPrompt));
+  CHECK(data_ != nullptr);
+  CHECK((data_->prompt_buffer != nullptr) == (data_->type == Type::kPrompt));
 }
 
 }  // namespace editor
