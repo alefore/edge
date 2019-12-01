@@ -21,8 +21,7 @@
 #include "src/widget.h"
 #include "src/wstring.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 namespace {
 ColumnNumber GetCurrentColumn(OpenBuffer* buffer) {
   if (buffer->lines_size() == LineNumberDelta(0)) {
@@ -324,6 +323,7 @@ void BufferWidget::RecomputeData() {
   auto status_lines = min(size_.line, LineNumberDelta(1));
   // Screen lines that are dedicated to the buffer.
   auto buffer_lines = size_.line - status_lines;
+
   buffer_viewer_registration_ =
       buffer->viewers()->Register(LineColumnDelta(buffer_lines, size_.column));
 
@@ -383,18 +383,25 @@ void BufferWidget::RecomputeData() {
       scroll_reader->RangeDone();
     }
 
-    auto status_lines = LineNumberDelta(1);
-    LineNumber content_size = (LineNumber(0) + size_.line)
-                                  .MinusHandlingOverflow(status_lines)
-                                  .MinusHandlingOverflow(margin_lines);
-    if (LineNumber(positions.size()) > content_size) {
+    LineNumber capped_line =
+        std::min(buffer->position().line, LineNumber(0) + buffer->lines_size());
+    LineNumberDelta lines_remaining =
+        buffer->lines_size() - capped_line.ToDelta();
+
+    LineNumberDelta effective_bottom_margin_lines =
+        std::min(buffer_lines, std::min(margin_lines, lines_remaining));
+    if (LineNumber(positions.size()) + effective_bottom_margin_lines >
+        LineNumber(0) + buffer_lines) {
       // No need to adjust line_scroll_control_options_.initial_column, since
       // that controls where continuation lines begin.
-      view_start_ = positions[positions.size() - content_size.line].begin;
+      view_start_ =
+          positions[positions.size() -
+                    (buffer_lines - effective_bottom_margin_lines).line_delta -
+                    1]
+              .begin;
       line_scroll_control_options_.begin = view_start_;
     }
   }
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
