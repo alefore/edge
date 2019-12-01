@@ -1,7 +1,5 @@
 #include "src/directory_cache.h"
 
-#include <dirent.h>
-
 #include "src/dirname.h"
 #include "src/lru_cache.h"
 
@@ -9,12 +7,6 @@ namespace afc {
 namespace editor {
 
 using Cache = LRUCache<wstring, DirectoryCacheOutput>;
-
-std::unique_ptr<DIR, std::function<void(DIR*)>> OpenDir(std::wstring path) {
-  VLOG(10) << "Open dir: " << path;
-  return std::unique_ptr<DIR, std::function<void(DIR*)>>(
-      opendir(ToByteString(path).c_str()), closedir);
-}
 
 DirectoryCacheOutput Seek(std::wstring input) {
   VLOG(5) << "Started seek: " << input;

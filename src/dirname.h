@@ -3,9 +3,14 @@
 
 #include <wchar.h>
 
+#include <functional>
 #include <list>
 #include <memory>
 #include <optional>
+
+extern "C" {
+#include <dirent.h>
+}
 
 #include "command.h"
 
@@ -26,6 +31,9 @@ struct SplitExtensionOutput {
   std::optional<Suffix> suffix;
 };
 SplitExtensionOutput SplitExtension(const std::wstring& path);
+
+// Wrapper around `opendir` that calls `closedir` in the deleter.
+std::unique_ptr<DIR, std::function<void(DIR*)>> OpenDir(std::wstring path);
 
 }  // namespace editor
 }  // namespace afc
