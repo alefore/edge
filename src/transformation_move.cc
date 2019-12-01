@@ -27,7 +27,6 @@ class MoveTransformation : public Transformation {
     CHECK(result != nullptr);
     auto editor_state = buffer->editor();
     auto root = buffer->parse_tree();
-    auto current_tree = buffer->current_tree(root.get());
     LineColumn position;
     // TODO: Move to Structure.
     auto structure = modifiers_.structure;
@@ -66,7 +65,12 @@ class MoveTransformation : public Transformation {
       editor_state->ResetDirection();
       return;
     } else {
-      LOG(FATAL) << "Unhandled structure: " << structure->ToString();
+      buffer->status()->SetWarningText(L"Unhandled structure: " +
+                                       structure->ToString());
+      editor_state->ResetRepetitions();
+      editor_state->ResetStructure();
+      editor_state->ResetDirection();
+      return;
     }
     LOG(INFO) << "Move from " << result->cursor << " to " << position << " "
               << modifiers_;
