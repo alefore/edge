@@ -604,8 +604,7 @@ bool ResolvePath(ResolvePathOptions options) {
   vector<wstring> search_paths;
   GetSearchPaths(options.editor_state, &search_paths);
   return FindPath(options.editor_state, std::move(search_paths), options.path,
-                  options.validator ? options.validator : CanStatPath,
-                  options.output_path, options.output_position,
+                  CanStatPath, options.output_path, options.output_position,
                   options.output_pattern);
 }
 
