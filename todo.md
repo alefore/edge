@@ -6,9 +6,9 @@ Fix a bug with buffers that are shown with fewer lines than mandated by their ma
 
 Make the widgets work closer to nethack or similar command-line games.
 
-`wrap_long_lines`:
-* Make `j` and `k` scroll within the line.
-* Adjust handing of margins to take into account lines that wrap.
+* `wrap_long_lines`:
+  * Make `j` and `k` scroll within the line.
+  * Adjust handing of margins to take into account lines that wrap.
 
 Display the state of bool variables set different than their default values?
 
