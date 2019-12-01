@@ -507,10 +507,15 @@ OpenBuffer::OpenBuffer(Options options)
         ScheduleSyntaxDataUpdate();
       })),
       tree_parser_(NewNullTreeParser()),
-      syntax_data_(&UpdateSyntaxData, [this]() {
-        VLOG(5) << "Background thread is notifying internal event.";
-        options_.editor->NotifyInternalEvent();
-      }) {
+      syntax_data_([this]() {
+        AsyncProcessor<SyntaxDataInput, SyntaxDataOutput>::Options options;
+        options.factory = UpdateSyntaxData;
+        options.notify_callback = [this]() {
+          VLOG(5) << "Background thread is notifying internal event.";
+          options_.editor->NotifyInternalEvent();
+        };
+        return options;
+      }()) {
   contents_.AddUpdateListener(
       [this](const CursorsTracker::Transformation& transformation) {
         ScheduleSyntaxDataUpdate();

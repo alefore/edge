@@ -101,8 +101,10 @@ AsyncSearchOutput DoAsyncSearch(AsyncSearchInput input) {
 
 std::unique_ptr<AsyncProcessor<AsyncSearchInput, AsyncSearchOutput>>
 NewAsyncSearchProcessor() {
+  AsyncProcessor<AsyncSearchInput, AsyncSearchOutput>::Options options;
+  options.factory = DoAsyncSearch;
   return std::make_unique<AsyncProcessor<AsyncSearchInput, AsyncSearchOutput>>(
-      DoAsyncSearch, [] {});
+      std::move(options));
 }
 
 std::wstring RegexEscape(std::shared_ptr<LazyString> str) {

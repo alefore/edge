@@ -40,10 +40,6 @@ class AsyncProcessor {
     QueueBehavior push_behavior = QueueBehavior::kFlush;
   };
 
-  AsyncProcessor(Factory factory, NotifyCallback notify_callback)
-      : AsyncProcessor(
-            Options{std::move(factory), std::move(notify_callback)}) {}
-
   AsyncProcessor(Options options) : options_(std::move(options)) {}
 
   ~AsyncProcessor() { PauseThread(); }
