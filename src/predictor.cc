@@ -168,9 +168,7 @@ void FilePredictor(EditorState* editor_state, const wstring& input,
       continue;
     }
 
-    std::unique_ptr<DIR, std::function<void(DIR*)>> dir(
-        opendir(ToByteString(path_with_prefix).c_str()),
-        [](DIR* dir) { closedir(dir); });
+    auto dir = OpenDir(path_with_prefix);
     if (dir == nullptr) {
       LOG(INFO) << "Unable to open, giving up current search path.";
       continue;
