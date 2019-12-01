@@ -27,6 +27,7 @@
 #include "src/vm/public/environment.h"
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
+#include "src/work_queue.h"
 
 namespace afc {
 namespace editor {
@@ -289,11 +290,8 @@ class OpenBuffer {
                     std::function<void(std::unique_ptr<Value>)> consumer);
 
   void SchedulePendingWork(std::function<void()> callback);
-
-  enum class PendingWorkState { kIdle, kScheduled };
   void ExecutePendingWork();
-
-  PendingWorkState GetPendingWorkState() const;
+  WorkQueue::State GetPendingWorkState() const;
 
   /////////////////////////////////////////////////////////////////////////////
   // Inspecting contents of buffer.
@@ -469,23 +467,7 @@ class OpenBuffer {
   list<unique_ptr<Value>> keyboard_text_transformers_;
   Environment environment_;
 
-  // Contains a list of callbacks that will be executed later, at some point
-  // shortly before the Editor attempts to sleep waiting for IO (in the main
-  // loop). If this isn't empty, the main loop will actually skip the sleep and
-  // continue running.
-  //
-  // One of the uses of this is for long running operations that can't be
-  // executed in background threads. They periodically interrupt themselves and
-  // insert their continuations here. Edge flushes this to advance their work.
-  // This allows them to run without preventing Edge from handling input from
-  // the user.
-  //
-  // Another use is to ensure that a given execution (such as updating the
-  // syntax tree) only happens in "batches", after a set of operations has been
-  // applied to the buffer (rather than having to schedule many redundant runs,
-  // e.g., when input is being gradually read from a file).
-  mutable std::mutex pending_work_mutex_;
-  std::vector<std::function<void()>> pending_work_;
+  WorkQueue work_queue_;
 
   // A function that receives a string and returns a boolean. The function will
   // be evaluated on every line, to compute whether or not the line should be

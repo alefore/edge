@@ -175,6 +175,8 @@ src/vm/internal/variable_lookup.cc \
 src/vm/internal/wstring.cc \
 src/widget.cc \
 src/widget.h \
+src/work_queue.cc \
+src/work_queue.h \
 src/wstring.cc
 
 CLEANFILES = src/vm/internal/cpp.cc src/vm/internal/cpp.h

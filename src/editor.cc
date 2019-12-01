@@ -97,17 +97,19 @@ void EditorState::ExecutePendingWork() {
   for (auto& buffer : buffers_) {
     buffer.second->ExecutePendingWork();
   }
+  work_queue_->Execute();
 }
 
-OpenBuffer::PendingWorkState EditorState::GetPendingWorkState() const {
+WorkQueue::State EditorState::GetPendingWorkState() const {
   for (auto& buffer : buffers_) {
-    if (buffer.second->GetPendingWorkState() ==
-        OpenBuffer::PendingWorkState::kScheduled) {
-      return OpenBuffer::PendingWorkState::kScheduled;
+    if (buffer.second->GetPendingWorkState() == WorkQueue::State::kScheduled) {
+      return WorkQueue::State::kScheduled;
     }
   }
-  return OpenBuffer::PendingWorkState::kIdle;
+  return work_queue_->state();
 }
+
+WorkQueue* EditorState::work_queue() const { return work_queue_.get(); }
 
 Environment EditorState::BuildEditorEnvironment() {
   Environment environment(afc::vm::Environment::GetDefault());
@@ -823,7 +825,7 @@ void EditorState::ApplyToCurrentBuffer(
   current_buffer()->ApplyToCursors(std::move(transformation));
 }
 
-wstring EditorState::expand_path(const wstring& path) {
+wstring EditorState::expand_path(const wstring& path) const {
   // TODO: Also support ~user/foo.
   if (path == L"~" || (path.size() > 2 && path.substr(0, 2) == L"~/")) {
     return home_directory() + path.substr(1);

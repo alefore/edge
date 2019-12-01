@@ -235,8 +235,7 @@ int main(int argc, const char** argv) {
 
   LOG(INFO) << "Starting server.";
   auto server_path = StartServer(args, connected_to_parent);
-  while (editor_state()->GetPendingWorkState() !=
-         OpenBuffer::PendingWorkState::kIdle) {
+  while (editor_state()->GetPendingWorkState() != WorkQueue::State::kIdle) {
     editor_state()->ExecutePendingWork();
   }
 
@@ -366,10 +365,9 @@ int main(int argc, const char** argv) {
     fds[buffers.size()].events = POLLIN | POLLPRI;
     buffers.push_back(nullptr);
 
-    int timeout = editor_state()->GetPendingWorkState() ==
-                          OpenBuffer::PendingWorkState::kIdle
-                      ? 1000
-                      : 0;
+    int timeout =
+        editor_state()->GetPendingWorkState() == WorkQueue::State::kIdle ? 1000
+                                                                         : 0;
     VLOG(5) << "Timeout: " << timeout;
     if (poll(fds, buffers.size(), timeout) == -1) {
       CHECK_EQ(errno, EINTR) << "poll failed: " << strerror(errno);

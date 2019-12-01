@@ -1144,28 +1144,13 @@ bool OpenBuffer::EvaluateFile(
 }
 
 void OpenBuffer::SchedulePendingWork(std::function<void()> callback) {
-  std::unique_lock<std::mutex> lock(pending_work_mutex_);
-  pending_work_.push_back(callback);
+  work_queue_.Schedule(std::move(callback));
   options_.editor->NotifyInternalEvent();
 }
 
-void OpenBuffer::ExecutePendingWork() {
-  std::vector<std::function<void()>> callbacks;
-
-  pending_work_mutex_.lock();
-  callbacks.swap(pending_work_);
-  pending_work_mutex_.unlock();
-
-  VLOG(5) << "Executing pending work: " << callbacks.size();
-  for (auto& c : callbacks) {
-    c();
-  }
-}
-
-OpenBuffer::PendingWorkState OpenBuffer::GetPendingWorkState() const {
-  std::unique_lock<std::mutex> lock(pending_work_mutex_);
-  return pending_work_.empty() ? PendingWorkState::kIdle
-                               : PendingWorkState::kScheduled;
+void OpenBuffer::ExecutePendingWork() { work_queue_.Execute(); }
+WorkQueue::State OpenBuffer::GetPendingWorkState() const {
+  return work_queue_.state();
 }
 
 void OpenBuffer::DeleteRange(const Range& range) {
@@ -1760,7 +1745,7 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
     }
   }
 
-  if (GetPendingWorkState() != OpenBuffer::PendingWorkState::kIdle) {
+  if (GetPendingWorkState() != WorkQueue::State::kIdle) {
     output.insert({L"⏳", L""});
   }
 
