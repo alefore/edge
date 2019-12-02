@@ -19,6 +19,7 @@ extern "C" {
 #include "src/args.h"
 #include "src/audio.h"
 #include "src/buffer_variables.h"
+#include "src/command_line.h"
 #include "src/editor.h"
 #include "src/file_descriptor_reader.h"
 #include "src/file_link_mode.h"
@@ -76,7 +77,7 @@ static const wchar_t* kDefaultCommandsToRun =
     L"options.set_name(\"💻shell\");\n"
     L"ForkCommand(options);";
 
-wstring CommandsToRun(command_line_arguments::Values args) {
+wstring CommandsToRun(CommandLineValues args) {
   wstring commands_to_run = args.commands_to_run;
   std::vector<wstring> buffers_to_watch;
   for (auto& path : args.files_to_open) {
@@ -109,8 +110,7 @@ wstring CommandsToRun(command_line_arguments::Values args) {
         CppEscapeString(FromByteString(getenv(kEdgeParentAddress))) + L"\");\n";
   } else if (!buffers_to_watch.empty() &&
              args.nested_edge_behavior ==
-                 command_line_arguments::Values::NestedEdgeBehavior::
-                     kWaitForClose) {
+                 CommandLineValues::NestedEdgeBehavior::kWaitForClose) {
     commands_to_run += L"SetString buffers_to_watch = SetString();\n";
     for (auto& block : buffers_to_watch) {
       commands_to_run +=
@@ -134,8 +134,7 @@ void SendCommandsToParent(int fd, const string commands_to_run) {
   }
 }
 
-wstring StartServer(const command_line_arguments::Values& args,
-                    bool connected_to_parent) {
+wstring StartServer(const CommandLineValues& args, bool connected_to_parent) {
   LOG(INFO) << "Starting server.";
 
   wstring address;
@@ -196,7 +195,8 @@ int main(int argc, const char** argv) {
   LOG(INFO) << "Using locale: " << locale;
 
   LOG(INFO) << "Initializing command line arguments.";
-  auto args = command_line_arguments::Parse(argc, argv);
+  auto args = afc::command_line_arguments::Parse(afc::editor::CommandLineArgs(),
+                                                 argc, argv);
 
   LOG(INFO) << "Setting up audio_player.";
   auto audio_player = args.mute ? NewNullAudioPlayer() : NewAudioPlayer();

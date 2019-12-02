@@ -29,9 +29,8 @@ int main(int argc, char** argv) {
 
   std::unique_ptr<fuzz::FuzzTestable> fuzz_testable;
   std::string class_name(argv[1]);
-  command_line_arguments::Values args;
   auto audio_player = NewNullAudioPlayer();
-  EditorState editor(args, audio_player.get());
+  EditorState editor(CommandLineValues(), audio_player.get());
   OpenBuffer::Options options;
   options.editor = &editor;
   OpenBuffer buffer(options);

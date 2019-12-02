@@ -47,7 +47,7 @@ class EditorState {
     bool needs_hard_redraw = false;
   };
 
-  EditorState(command_line_arguments::Values args, AudioPlayer* audio_player);
+  EditorState(CommandLineValues args, AudioPlayer* audio_player);
   ~EditorState();
 
   void CheckPosition();

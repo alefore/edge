@@ -33,6 +33,7 @@ src/buffer_widget.cc \
 src/buffer_widget.h \
 src/buffers_list.cc \
 src/buffers_list.h \
+src/command_line.h \
 src/cpp_command.cc \
 src/cpp_parse_tree.cc \
 src/cpp_parse_tree.h \
