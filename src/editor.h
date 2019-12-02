@@ -24,6 +24,7 @@
 #include "src/status.h"
 #include "src/transformation.h"
 #include "src/widget.h"
+#include "src/work_queue.h"
 #include "vm/public/environment.h"
 #include "vm/public/vm.h"
 
@@ -46,7 +47,7 @@ class EditorState {
     bool needs_hard_redraw = false;
   };
 
-  EditorState(command_line_arguments::Values args, AudioPlayer* audio_player);
+  EditorState(CommandLineValues args, AudioPlayer* audio_player);
   ~EditorState();
 
   void CheckPosition();
@@ -180,7 +181,7 @@ class EditorState {
 
   Environment* environment() { return &environment_; }
 
-  wstring expand_path(const wstring& path);
+  wstring expand_path(const wstring& path) const;
 
   void PushSignal(int signal) { pending_signals_.push_back(signal); }
   void ProcessSignals();
@@ -206,7 +207,8 @@ class EditorState {
 
   // Executes pending work from all buffers.
   void ExecutePendingWork();
-  OpenBuffer::PendingWorkState GetPendingWorkState() const;
+  WorkQueue::State GetPendingWorkState() const;
+  WorkQueue* work_queue() const;
 
  private:
   Environment BuildEditorEnvironment();
@@ -214,7 +216,7 @@ class EditorState {
   map<wstring, shared_ptr<OpenBuffer>> buffers_;
   std::optional<int> exit_value_;
 
-  wstring home_directory_;
+  const wstring home_directory_;
   vector<wstring> edge_path_;
 
   Environment environment_;
@@ -247,6 +249,7 @@ class EditorState {
 
   BuffersList buffer_tree_;
   Status status_;
+  std::unique_ptr<WorkQueue> work_queue_ = std::make_unique<WorkQueue>();
 };
 
 }  // namespace editor

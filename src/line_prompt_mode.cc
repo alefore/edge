@@ -273,6 +273,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
   insert_mode_options.modify_listener = [editor_state, original_buffer, buffer,
                                          status, options]() {
     editor_state->set_current_buffer(original_buffer);
+    options.change_notifier(buffer);
     status->set_prompt(options.prompt, buffer);
   };
 
@@ -352,6 +353,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
             buffer->ApplyToCursors(
                 NewInsertBufferTransformation(std::move(insert_options)));
 
+            options.change_notifier(buffer);
             status->set_prompt(options.prompt, buffer);
           } else {
             LOG(INFO) << "Prediction didn't advance.";

@@ -33,6 +33,7 @@ src/buffer_widget.cc \
 src/buffer_widget.h \
 src/buffers_list.cc \
 src/buffers_list.h \
+src/command_line.h \
 src/cpp_command.cc \
 src/cpp_parse_tree.cc \
 src/cpp_parse_tree.h \
@@ -51,6 +52,8 @@ src/decaying_counter.cc \
 src/decaying_counter.h \
 src/delete_mode.cc \
 src/delete_mode.h \
+src/directory_cache.cc \
+src/directory_cache.h \
 src/dirname.cc \
 src/dirname.h \
 src/direction.cc \
@@ -173,6 +176,8 @@ src/vm/internal/variable_lookup.cc \
 src/vm/internal/wstring.cc \
 src/widget.cc \
 src/widget.h \
+src/work_queue.cc \
+src/work_queue.h \
 src/wstring.cc
 
 CLEANFILES = src/vm/internal/cpp.cc src/vm/internal/cpp.h

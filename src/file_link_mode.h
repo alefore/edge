@@ -52,9 +52,6 @@ struct ResolvePathOptions {
   EditorState* editor_state;
   wstring path;
 
-  // Optional.
-  std::function<bool(const wstring&)> validator;
-
   // Where to write the results: the absolute path pointing to the file.
   wstring* output_path;
 

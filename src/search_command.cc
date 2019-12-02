@@ -8,9 +8,7 @@
 #include "src/search_handler.h"
 #include "src/transformation.h"
 
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
 namespace {
 static void DoSearch(EditorState* editor_state, const SearchOptions& options) {
   auto buffer = editor_state->current_buffer();
@@ -18,6 +16,41 @@ static void DoSearch(EditorState* editor_state, const SearchOptions& options) {
   buffer->ResetMode();
   editor_state->ResetDirection();
   editor_state->ResetStructure();
+}
+
+void DrawSearchResults(OpenBuffer* buffer,
+                       const std::shared_ptr<const Line>& original_line,
+                       AsyncSearchOutput results) {
+  CHECK(buffer != nullptr);
+  CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
+  auto line = buffer->LineAt(LineNumber(0));
+  if (original_line->ToString() != line->ToString()) {
+    LOG(INFO) << "Line has changed, ignoring call to `DrawSearchResults`.";
+    return;
+  }
+
+  VLOG(5) << "DrawSearchResults";
+  LineModifierSet modifiers;
+  switch (results.results) {
+    case AsyncSearchOutput::Results::kInvalidPattern:
+      modifiers.insert(LineModifier::RED);
+      break;
+    case AsyncSearchOutput::Results::kNoMatches:
+      break;
+    case AsyncSearchOutput::Results::kOneMatch:
+      modifiers.insert(LineModifier::CYAN);
+      break;
+    case AsyncSearchOutput::Results::kManyMatches:
+      modifiers.insert(LineModifier::GREEN);
+      break;
+  }
+
+  Line::Options output;
+  output.AppendString(line->contents(), std::move(modifiers));
+  buffer->AppendRawLine(Line::New(std::move(output)));
+  buffer->EraseLines(LineNumber(0), LineNumber(1));
+
+  CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
 }
 
 class SearchCommand : public Command {
@@ -114,6 +147,35 @@ class SearchCommand : public Command {
       options.search_query = input;
       DoSearch(editor_state, options);
     };
+    std::shared_ptr<AsyncProcessor<AsyncSearchInput, AsyncSearchOutput>>
+        async_search_processor = NewAsyncSearchProcessor();
+
+    options.change_notifier = [async_search_processor, search_options,
+                               editor_state](
+                                  const std::shared_ptr<OpenBuffer>& buffer) {
+      CHECK(buffer != nullptr);
+      CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
+      auto line = buffer->LineAt(LineNumber(0));
+      if (line->empty()) {
+        return;
+      }
+      VLOG(5) << "Triggering async search.";
+
+      AsyncSearchInput async_search_input;
+      async_search_input.search_options = search_options;
+      async_search_input.search_options.search_query = line->ToString();
+      async_search_input.buffer =
+          editor_state->current_buffer()->contents()->copy();
+      async_search_input.callback = [buffer, line](AsyncSearchOutput results) {
+        VLOG(5) << "Scheduling drawing of search results.";
+        buffer->SchedulePendingWork([buffer, line, results]() {
+          VLOG(5) << "Drawing of search results.";
+          DrawSearchResults(buffer.get(), line, results);
+        });
+      };
+      async_search_processor->Push(std::move(async_search_input));
+    };
+
     options.predictor = SearchHandlerPredictor;
     options.status = PromptOptions::Status::kBuffer;
     Prompt(editor_state, std::move(options));
@@ -125,5 +187,4 @@ std::unique_ptr<Command> NewSearchCommand() {
   return std::make_unique<SearchCommand>();
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

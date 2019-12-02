@@ -16,6 +16,9 @@ std::wstring ProgressString(size_t counter, OverflowBehavior overflow_behavior);
 std::wstring ProgressStringFillUp(size_t counter,
                                   OverflowBehavior overflow_behavior);
 
+// Opaque type returned by `SetExpiringInformationText`.
+struct StatusExpirationControl;
+
 class Status {
  public:
   Status(std::shared_ptr<OpenBuffer> console, AudioPlayer* audio_player);
@@ -30,6 +33,9 @@ class Status {
   const OpenBuffer* prompt_buffer() const;
 
   void SetInformationText(std::wstring text);
+  std::unique_ptr<StatusExpirationControl,
+                  std::function<void(StatusExpirationControl*)>>
+  SetExpiringInformationText(std::wstring text);
   void SetWarningText(std::wstring text);
   void Reset();
 
@@ -38,15 +44,23 @@ class Status {
   const std::wstring& text() const;
 
  private:
+  friend StatusExpirationControl;
   void ValidatePreconditions() const;
 
   const std::shared_ptr<OpenBuffer> console_;
   AudioPlayer* const audio_player_;
 
-  std::shared_ptr<OpenBuffer> prompt_buffer_;
+  // We nest our mutable fields in `struct Data`. This allows us to implement
+  // `SetExpiringInformationText`, where we can detect if the status hasn't
+  // changed (between the call to `SetExpiringInformationText` and the moment
+  // when the `StatusExpirationControl` that it returns is deleted).
+  struct Data {
+    Type type = Type::kInformation;
+    std::wstring text;
+    std::shared_ptr<OpenBuffer> prompt_buffer = nullptr;
+  };
 
-  Type type_ = Type::kInformation;
-  std::wstring text_;
+  std::shared_ptr<Data> data_ = std::make_shared<Data>();
 };
 
 }  // namespace editor

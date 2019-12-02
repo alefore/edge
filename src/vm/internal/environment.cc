@@ -1,9 +1,9 @@
 #include "../public/environment.h"
 
+#include <glog/logging.h>
+
 #include <map>
 #include <set>
-
-#include <glog/logging.h>
 
 #include "../public/callbacks.h"
 #include "../public/set.h"
@@ -112,14 +112,27 @@ Value* Environment::Lookup(const wstring& symbol, VMType expected_type) {
 
 void Environment::PolyLookup(const wstring& symbol,
                              std::vector<Value*>* output) {
-  auto it = table_.find(symbol);
-  if (it != table_.end()) {
+  if (auto it = table_.find(symbol); it != table_.end()) {
     for (auto& entry : it->second) {
       output->push_back(entry.second.get());
     }
   }
   if (parent_environment_ != nullptr) {
     parent_environment_->PolyLookup(symbol, output);
+  }
+}
+
+void Environment::CaseInsensitiveLookup(const wstring& symbol,
+                                        std::vector<Value*>* output) {
+  for (auto& item : table_) {
+    if (wcscasecmp(item.first.c_str(), symbol.c_str()) == 0) {
+      for (auto& entry : item.second) {
+        output->push_back(entry.second.get());
+      }
+    }
+  }
+  if (parent_environment_ != nullptr) {
+    parent_environment_->CaseInsensitiveLookup(symbol, output);
   }
 }
 
@@ -132,11 +145,13 @@ void Environment::Assign(const wstring& symbol, unique_ptr<Value> value) {
   if (it == table_.end()) {
     // TODO: Show the symbol.
     CHECK(parent_environment_ != nullptr)
-        << "Environment::parent_environment_ is nullptr while trying to assign "
+        << "Environment::parent_environment_ is nullptr while trying to "
+           "assign "
         << "a new value to a symbol `"
         << "..."
         << "`. This likely means that "
-        << "the symbol is undefined (which the caller should have validated as "
+        << "the symbol is undefined (which the caller should have validated "
+           "as "
         << "part of the compilation process).";
     parent_environment_->Assign(symbol, std::move(value));
     return;

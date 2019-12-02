@@ -10,8 +10,7 @@ extern "C" {
 
 #include "src/wstring.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 using std::list;
 using std::wstring;
@@ -36,6 +35,9 @@ bool DirectorySplit(wstring path, list<wstring>* output) {
   output->clear();
   while (!path.empty() && path != L"/") {
     output->push_front(Basename(path));
+    if (output->front() == path) {
+      return true;
+    }
     auto tmp = Dirname(path);
     if (tmp.size() >= path.size()) {
       LOG(INFO) << "Unable to advance: " << path << " -> " << tmp;
@@ -67,5 +69,10 @@ SplitExtensionOutput SplitExtension(const std::wstring& path) {
                                        path.substr(index + 1)}};
 }
 
-}  // namespace editor
-}  // namespace afc
+std::unique_ptr<DIR, std::function<void(DIR*)>> OpenDir(std::wstring path) {
+  VLOG(10) << "Open dir: " << path;
+  return std::unique_ptr<DIR, std::function<void(DIR*)>>(
+      opendir(ToByteString(path).c_str()), closedir);
+}
+
+}  // namespace afc::editor

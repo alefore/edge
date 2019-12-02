@@ -507,10 +507,15 @@ OpenBuffer::OpenBuffer(Options options)
         ScheduleSyntaxDataUpdate();
       })),
       tree_parser_(NewNullTreeParser()),
-      syntax_data_(&UpdateSyntaxData, [this]() {
-        VLOG(5) << "Background thread is notifying internal event.";
-        options_.editor->NotifyInternalEvent();
-      }) {
+      syntax_data_([this]() {
+        AsyncProcessor<SyntaxDataInput, SyntaxDataOutput>::Options options;
+        options.factory = UpdateSyntaxData;
+        options.notify_callback = [this]() {
+          VLOG(5) << "Background thread is notifying internal event.";
+          options_.editor->NotifyInternalEvent();
+        };
+        return options;
+      }()) {
   contents_.AddUpdateListener(
       [this](const CursorsTracker::Transformation& transformation) {
         ScheduleSyntaxDataUpdate();
@@ -881,7 +886,7 @@ void OpenBuffer::ScheduleSyntaxDataUpdate() {
 
   VLOG(5) << "Scheduling parse tree update.";
 
-  pending_work_.push_back([this]() {
+  SchedulePendingWork([this]() {
     syntax_data_state_ = SyntaxDataState::kDone;
     if (TreeParser::IsNull(tree_parser_.get())) {
       return;
@@ -1144,21 +1149,13 @@ bool OpenBuffer::EvaluateFile(
 }
 
 void OpenBuffer::SchedulePendingWork(std::function<void()> callback) {
-  pending_work_.push_back(callback);
+  work_queue_.Schedule(std::move(callback));
+  options_.editor->NotifyInternalEvent();
 }
 
-void OpenBuffer::ExecutePendingWork() {
-  VLOG(5) << "Executing pending work: " << pending_work_.size();
-  std::vector<std::function<void()>> callbacks;
-  callbacks.swap(pending_work_);
-  for (auto& c : callbacks) {
-    c();
-  }
-}
-
-OpenBuffer::PendingWorkState OpenBuffer::GetPendingWorkState() const {
-  return pending_work_.empty() ? PendingWorkState::kIdle
-                               : PendingWorkState::kScheduled;
+void OpenBuffer::ExecutePendingWork() { work_queue_.Execute(); }
+WorkQueue::State OpenBuffer::GetPendingWorkState() const {
+  return work_queue_.state();
 }
 
 void OpenBuffer::DeleteRange(const Range& range) {
@@ -1753,7 +1750,7 @@ std::map<wstring, wstring> OpenBuffer::Flags() const {
     }
   }
 
-  if (!pending_work_.empty()) {
+  if (GetPendingWorkState() != WorkQueue::State::kIdle) {
     output.insert({L"⏳", L""});
   }
 

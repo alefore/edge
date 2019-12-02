@@ -261,25 +261,25 @@ class HelpCommand : public Command {
   void CommandLineVariables(OpenBuffer* buffer) {
     StartSection(L"## Command line arguments", buffer);
     using command_line_arguments::Handler;
-    auto handlers = command_line_arguments::Handlers();
+    auto handlers = CommandLineArgs();
     for (auto& h : handlers) {
       StartSection(L"### " + h.aliases()[0], buffer);
       switch (h.argument_type()) {
-        case Handler::VariableType::kRequired:
+        case Handler<CommandLineValues>::VariableType::kRequired:
           buffer->AppendLine(NewLazyString(L"Required argument: " +
                                            h.argument() + L": " +
                                            h.argument_description()));
           buffer->AppendEmptyLine();
           break;
 
-        case Handler::VariableType::kOptional:
+        case Handler<CommandLineValues>::VariableType::kOptional:
           buffer->AppendLine(NewLazyString(L"Optional argument: " +
                                            h.argument() + L": " +
                                            h.argument_description()));
           buffer->AppendEmptyLine();
           break;
 
-        case Handler::VariableType::kNone:
+        case Handler<CommandLineValues>::VariableType::kNone:
           break;
       }
       buffer->AppendLazyString(NewLazyString(h.help()));

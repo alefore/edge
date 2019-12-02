@@ -23,6 +23,10 @@ struct PromptOptions {
   // Optional. Initial value for the prompt. Defaults to empty.
   wstring initial_value;
 
+  // Run any time the text in the prompt changes.
+  std::function<void(const std::shared_ptr<OpenBuffer>&)> change_notifier =
+      [](const std::shared_ptr<OpenBuffer>&) {};
+
   // Function to run when the prompt receives the final input.
   std::function<void(const wstring& input, EditorState* editor)> handler;
 

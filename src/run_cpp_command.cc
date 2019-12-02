@@ -100,7 +100,7 @@ void RunCppCommandShellHandler(const std::wstring& command,
     return;
   }
   std::vector<Value*> functions;
-  buffer->environment()->PolyLookup(tokens[0], &functions);
+  buffer->environment()->CaseInsensitiveLookup(tokens[0], &functions);
 
   if (functions.empty()) {
     buffer->status()->SetWarningText(L"Unknown symbol: " + tokens[0]);

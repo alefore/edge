@@ -6,9 +6,9 @@ Fix a bug with buffers that are shown with fewer lines than mandated by their ma
 
 Make the widgets work closer to nethack or similar command-line games.
 
-`wrap_long_lines`:
-* Make `j` and `k` scroll within the line.
-* Adjust handing of margins to take into account lines that wrap.
+* `wrap_long_lines`:
+  * Make `j` and `k` scroll within the line.
+  * Adjust handing of margins to take into account lines that wrap.
 
 Display the state of bool variables set different than their default values?
 
@@ -51,8 +51,6 @@ Add "pipe" command: select the region (similar to delete: line, paragraph, buffe
 ### Autocomplete
 
 Add an AutoComplete mode that autocompletes based on the path.
-
-In C++ mode, fix it to recognize full identifiers (rather than CamelCase).
 
 ## Navigation
 

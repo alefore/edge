@@ -153,11 +153,13 @@ OutputProducer::Generator StatusOutputProducer::Next() {
           VLOG(5) << "Setting status cursor: " << column;
 
           options.AppendString(status_->text(), LineModifierSet());
-          options.AppendString(Substring(contents->contents(), ColumnNumber(0),
-                                         column.ToDelta()));
+          Line::Options prefix(*contents);
+          prefix.DeleteSuffix(column);
+          options.Append(Line(std::move(prefix)));
           line_with_cursor.cursor = ColumnNumber(0) + options.contents->size();
-          options.AppendString(Substring(contents->contents(), column),
-                               LineModifierSet());
+          Line::Options suffix(*contents);
+          suffix.DeleteCharacters(ColumnNumber(0), column.ToDelta());
+          options.Append(Line(std::move(suffix)));
         } else {
           VLOG(6) << "Not setting status cursor.";
           options.AppendString(status_->text(), modifiers);

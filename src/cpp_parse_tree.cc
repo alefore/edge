@@ -25,7 +25,8 @@ enum State {
   PARENS_AFTER_SLASH,
 };
 
-static const wstring identifier_chars = L"_abcdefghijklmnopqrstuvwxyz";
+static const wstring identifier_chars =
+    L"_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 static const wstring digit_chars = L"1234567890";
 static const LineModifierSet BAD_PARSE_MODIFIERS =
     LineModifierSet({LineModifier::BG_RED, LineModifier::BOLD});
@@ -252,6 +253,10 @@ class CppTreeParser : public TreeParser {
       modifiers.insert(LineModifier::CYAN);
     } else if (typos_.find(str->ToString()) != typos_.end()) {
       modifiers.insert(LineModifier::RED);
+    } else if (false) {
+      // TODO: Make it possible to enable this mode.
+      modifiers = HashToModifiers(std::hash<wstring>{}(str->ToString()),
+                                  HashToModifiersBold::kNever);
     }
     result->PushAndPop(length, std::move(modifiers));
   }
@@ -323,7 +328,8 @@ class CppTreeParser : public TreeParser {
     if (c == L'}' || c == ')') {
       if ((c == L'}' && state_default == BRACKET_DEFAULT) ||
           (c == L')' && state_default == PARENS_DEFAULT)) {
-        auto modifiers = ModifierForNesting(result->AddAndGetNesting());
+        auto modifiers = HashToModifiers(result->AddAndGetNesting(),
+                                         HashToModifiersBold::kSometimes);
         result->PushAndPop(ColumnNumberDelta(1), modifiers);
         result->SetFirstChildModifiers(modifiers);
         result->PopBack();
@@ -339,26 +345,16 @@ class CppTreeParser : public TreeParser {
     }
   }
 
-  LineModifierSet ModifierForNesting(int nesting) {
+  enum class HashToModifiersBold { kSometimes, kNever };
+  LineModifierSet HashToModifiers(int nesting,
+                                  HashToModifiersBold bold_behavior) {
     LineModifierSet output;
-    switch (nesting % 5) {
-      case 0:
-        output.insert(LineModifier::CYAN);
-        break;
-      case 1:
-        output.insert(LineModifier::YELLOW);
-        break;
-      case 2:
-        output.insert(LineModifier::RED);
-        break;
-      case 3:
-        output.insert(LineModifier::BLUE);
-        break;
-      case 4:
-        output.insert(LineModifier::GREEN);
-        break;
-    }
-    if (((nesting / 5) % 2) == 0) {
+    static std::vector<LineModifier> modifiers = {
+        LineModifier::CYAN, LineModifier::YELLOW, LineModifier::RED,
+        LineModifier::BLUE, LineModifier::GREEN,  LineModifier::MAGENTA};
+    output.insert(modifiers[nesting % modifiers.size()]);
+    if (bold_behavior == HashToModifiersBold::kSometimes &&
+        ((nesting / modifiers.size()) % 2) == 0) {
       output.insert(LineModifier::BOLD);
     }
     return output;
