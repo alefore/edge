@@ -56,6 +56,7 @@ struct ResolvePathOptions {
   std::wstring path;
   std::vector<std::wstring> search_paths;
   std::wstring home_directory;
+  std::function<bool(const wstring&)> validator;
 
  private:
   ResolvePathOptions() = default;
