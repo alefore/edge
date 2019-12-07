@@ -18,18 +18,18 @@ struct DirectoryCacheOutput {
   // The total number of entries matched.
   int count = 0;
 
-  // The longest substring of the pattern that matches at least one entry.
+  // The longest substring of the pattern that matches one existing directory or
+  // file.
   //
   // For example, if directory `foo/bar` has files `alejo` and
-  // `alejandro`, searching for `foo/bar/alhambra` will contain `foo/bar/al`.
+  // `alejandro`, searching for `foo/bar/alhambra` will contain `foo/bar`.
   std::wstring longest_prefix;
 
-  // If longest_valid_prefix contains the entire pattern, the longest possible
-  // string that could be appended, such that the number of matches wouldn't
-  // change.
+  // If longest_prefix contains the entire pattern, the longest possible string
+  // that could be appended, such that the number of matches wouldn't change.
   //
   // For example, if directory `foo/bar` has files `alejo` and `alejandro`,
-  // searching for `foo/bar/al` will contain `ej`.
+  // searching for `foo/bar/al` will contain `alej`.
   std::wstring longest_suffix;
 
   enum class ExactMatch {
@@ -40,8 +40,11 @@ struct DirectoryCacheOutput {
   ExactMatch exact_match = ExactMatch::kNotFound;
 };
 
+std::ostream& operator<<(std::ostream& os, const DirectoryCacheOutput& lc);
+
 struct DirectoryCacheInput {
   std::wstring pattern;
+  std::vector<std::wstring> search_paths;
   std::function<void(const DirectoryCacheOutput&)> callback;
 };
 

@@ -83,6 +83,7 @@ void AdjustPath(const std::shared_ptr<OpenBuffer>& buffer) {
       directory_cache = NewDirectoryCache();
   DirectoryCacheInput directory_cache_input;
   directory_cache_input.pattern = line->ToString();
+  GetSearchPaths(buffer->editor(), &directory_cache_input.search_paths);
   directory_cache_input.callback = [buffer,
                                     line](DirectoryCacheOutput results) {
     buffer->SchedulePendingWork(
