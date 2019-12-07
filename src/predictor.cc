@@ -174,8 +174,10 @@ void FilePredictor(EditorState* editor_state, const wstring& input,
     ResolvePathOptions options;
     options.editor_state = editor_state;
     options.path = path_with_prefix;
-    options.output_path = &path_with_prefix;
-    if (!ResolvePath(std::move(options))) {
+    if (auto results = ResolvePath(std::move(options)); results.has_value()) {
+      path_with_prefix = results->path;
+
+    } else {
       LOG(INFO) << "Unable to resolve, giving up current search path.";
       continue;
     }

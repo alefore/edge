@@ -445,13 +445,14 @@ OpenBuffer::SyntaxDataOutput OpenBuffer::UpdateSyntaxData(
                       ResolvePathOptions options;
                       options.editor_state = editor_state;
                       options.path = path;
-                      options.output_path = &resolved_path;
-                      if (!ResolvePath(options)) {
+                      if (auto results = ResolvePath(std::move(options));
+                          results.has_value()) {
+                        buffer->EvaluateFile(results->path,
+                                             [](std::unique_ptr<Value>) {});
+
+                      } else {
                         buffer->status()->SetWarningText(
                             L"Unable to resolve: " + path);
-                      } else {
-                        buffer->EvaluateFile(resolved_path,
-                                             [](std::unique_ptr<Value>) {});
                       }
                     },
                     L"Load file: " + path);
@@ -926,22 +927,16 @@ void OpenBuffer::StartNewLine() {
   DVLOG(5) << "Line is completed: " << contents_.back()->ToString();
 
   if (Read(buffer_variables::contains_line_marks)) {
-    wstring path;
-    std::optional<LineColumn> position;
-    wstring pattern;
     ResolvePathOptions options;
     options.editor_state = editor();
     options.path = contents_.back()->ToString();
-    options.output_path = &path;
-    options.output_position = &position;
-    options.output_pattern = &pattern;
-    if (ResolvePath(options)) {
+    if (auto results = ResolvePath(std::move(options)); results.has_value()) {
       LineMarks::Mark mark;
       mark.source = Read(buffer_variables::name);
       mark.source_line = contents_.EndLine();
-      mark.target_buffer = path;
-      if (position.has_value()) {
-        mark.target = position.value();
+      mark.target_buffer = results->path;
+      if (results->position.has_value()) {
+        mark.target = *results->position;
       }
       LOG(INFO) << "Found a mark: " << mark;
       editor()->line_marks()->AddMark(mark);

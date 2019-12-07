@@ -51,19 +51,20 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output);
 struct ResolvePathOptions {
   EditorState* editor_state;
   wstring path;
-
-  // Where to write the results: the absolute path pointing to the file.
-  wstring* output_path;
-
-  // If non-nullptr, may get set to a position (if the path specifies a position
-  // to jump to).
-  std::optional<LineColumn>* output_position = nullptr;
-
-  // Optional.
-  wstring* output_pattern = nullptr;
 };
 
-bool ResolvePath(ResolvePathOptions options);
+struct ResolvePathOutput {
+  // The absolute path pointing to the file. Absent if the operation failed.
+  std::wstring path;
+
+  // The position to jump to.
+  std::optional<LineColumn> position;
+
+  // The pattern to jump to (after jumping to `position`).
+  std::optional<wstring> pattern;
+};
+
+std::optional<ResolvePathOutput> ResolvePath(ResolvePathOptions options);
 
 // Creates a new buffer for the file at the path given.
 map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
