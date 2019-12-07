@@ -82,6 +82,8 @@ Status::Status(std::shared_ptr<OpenBuffer> console, AudioPlayer* audio_player)
   ValidatePreconditions();
 }
 
+void Status::CopyFrom(const Status& status) { data_ = status.data_; }
+
 Status::Type Status::GetType() const {
   ValidatePreconditions();
   return data_->type;

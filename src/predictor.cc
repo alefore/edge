@@ -23,8 +23,7 @@ extern "C" {
 #include "src/predictor.h"
 #include "src/wstring.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 namespace {
 
 using afc::editor::EditorState;
@@ -93,37 +92,50 @@ void HandleEndOfFile(OpenBuffer* buffer,
     consumer(common_prefix);
   } else {
     auto editor_state = buffer->editor();
-    auto it =
-        editor_state->buffers()->find(buffer->Read(buffer_variables::name));
-    if (it == editor_state->buffers()->end()) {
-      buffer->status()->SetWarningText(L"Error: predictions buffer not found.");
-    } else {
+    auto buffers = editor_state->buffers();
+    auto name = buffer->Read(buffer_variables::name);
+    if (auto it = buffers->find(name); it != editor_state->buffers()->end()) {
       CHECK_EQ(buffer, it->second.get());
       editor_state->set_current_buffer(it->second);
       buffer->set_current_position_line(LineNumber(0));
+    } else {
+      buffer->status()->SetWarningText(
+          L"Error: EndOfFile: predictions buffer not found: name");
     }
   }
 }
 }  // namespace
 
-void Predict(EditorState* editor_state, Predictor predictor, wstring input,
+void Predict(EditorState* editor_state, Predictor predictor, Status* status,
              function<void(const wstring&)> consumer) {
+  auto shared_status = std::make_shared<Status>(editor_state->GetConsole(),
+                                                editor_state->audio_player());
+  shared_status->CopyFrom(*status);
   auto& predictions_buffer =
       (*editor_state->buffers())[PredictionsBufferName()];
   OpenBuffer::Options options;
   options.editor = editor_state;
   options.name = PredictionsBufferName();
-  options.generate_contents = [editor_state, predictor, input,
+  options.generate_contents = [editor_state, predictor, shared_status,
                                consumer](OpenBuffer* buffer) {
-    predictor(editor_state, input, buffer);
+    if (editor_state->status()->prompt_buffer() == nullptr) {
+      buffer->status()->CopyFrom(*shared_status);
+    }
+    auto prompt = shared_status->prompt_buffer();
+    CHECK(prompt != nullptr);
+    predictor(editor_state, prompt->LineAt(LineNumber(0))->ToString(), buffer);
     buffer->set_current_cursor(LineColumn());
-    buffer->AddEndOfFileObserver(
-        [buffer, consumer]() { HandleEndOfFile(buffer, consumer); });
+    buffer->AddEndOfFileObserver([buffer, shared_status, consumer]() {
+      HandleEndOfFile(buffer, consumer);
+    });
   };
   predictions_buffer = std::make_shared<OpenBuffer>(std::move(options));
   predictions_buffer->Set(buffer_variables::show_in_buffers_list, false);
   predictions_buffer->Set(buffer_variables::allow_dirty_delete, true);
   predictions_buffer->Reload();
+  if (editor_state->status()->prompt_buffer() == nullptr) {
+    predictions_buffer->status()->CopyFrom(*shared_status);
+  }
 }
 
 void FilePredictor(EditorState* editor_state, const wstring& input,
@@ -266,5 +278,4 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
   };
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

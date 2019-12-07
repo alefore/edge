@@ -708,6 +708,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
 
   if (!pattern.empty()) {
     SearchOptions search_options;
+    search_options.buffer = it.first->second.get();
     search_options.starting_position = it.first->second->position();
     search_options.search_query = pattern;
     JumpToNextMatch(editor_state, search_options);

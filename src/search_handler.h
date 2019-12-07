@@ -18,9 +18,13 @@ class OpenBuffer;
 struct LineColumn;
 
 void SearchHandlerPredictor(EditorState* editor_state,
-                            const wstring& current_query, OpenBuffer* target);
+                            const wstring& current_query,
+                            OpenBuffer* search_buffer, OpenBuffer* target);
 
 struct SearchOptions {
+  // The buffer in which to search.
+  OpenBuffer* buffer;
+
   // The position in which to start searching for positions.
   LineColumn starting_position;
 

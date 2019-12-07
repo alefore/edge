@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "src/status.h"
+
 namespace afc {
 namespace editor {
 
@@ -30,10 +32,10 @@ typedef function<void(EditorState*, const wstring&, OpenBuffer*)> Predictor;
 
 const wstring& PredictionsBufferName();
 
-// Create a new buffer running a given predictor on a given input. When that's
-// done, runs consumer on the results (on the longest unambiguous completion for
-// input).
-void Predict(EditorState* editor_state, Predictor predictor, wstring input,
+// Create a new buffer running a given predictor on the input in a given status
+// prompt. When that's done, runs consumer on the results (on the longest
+// unambiguous completion for input).
+void Predict(EditorState* editor_state, Predictor predictor, Status* status,
              function<void(const wstring&)> consumer);
 
 void FilePredictor(EditorState* editor_state, const wstring& input,

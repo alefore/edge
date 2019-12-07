@@ -63,8 +63,9 @@ class SearchCommand : public Command {
     if (buffer == nullptr) {
       return;
     }
-
     SearchOptions search_options;
+    search_options.buffer = buffer.get();
+
     search_options.case_sensitive =
         buffer->Read(buffer_variables::search_case_sensitive);
 
@@ -93,7 +94,6 @@ class SearchCommand : public Command {
 
     if (editor_state->structure()->search_query() ==
         Structure::SearchQuery::kRegion) {
-      auto buffer = editor_state->current_buffer();
       Range range = buffer->FindPartialRange(editor_state->modifiers(),
                                              buffer->position());
       if (range.begin == range.end) {
@@ -176,7 +176,12 @@ class SearchCommand : public Command {
       async_search_processor->Push(std::move(async_search_input));
     };
 
-    options.predictor = SearchHandlerPredictor;
+    options.predictor = [buffer](EditorState* editor_state,
+                                 const wstring& input,
+                                 OpenBuffer* predictions_buffer) {
+      return SearchHandlerPredictor(editor_state, input, buffer.get(),
+                                    predictions_buffer);
+    };
     options.status = PromptOptions::Status::kBuffer;
     Prompt(editor_state, std::move(options));
   }
