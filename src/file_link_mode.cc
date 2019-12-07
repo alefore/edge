@@ -590,10 +590,15 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
   }
 }
 
+ResolvePathOptions::ResolvePathOptions(EditorState* editor_state)
+    : home_directory(editor_state->home_directory()) {
+  GetSearchPaths(editor_state, &search_paths);
+}
+
 std::optional<ResolvePathOutput> ResolvePath(ResolvePathOptions options) {
   FindPathInput input;
-  input.home_directory = options.editor_state->home_directory();
-  GetSearchPaths(options.editor_state, &input.search_paths);
+  input.home_directory = std::move(options.home_directory);
+  input.search_paths = std::move(options.search_paths);
   input.path = std::move(options.path);
   return FindPath(std::move(input));
 }

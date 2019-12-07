@@ -442,8 +442,7 @@ OpenBuffer::SyntaxDataOutput OpenBuffer::UpdateSyntaxData(
                     keys,
                     [buffer, path](EditorState* editor_state) {
                       wstring resolved_path;
-                      ResolvePathOptions options;
-                      options.editor_state = editor_state;
+                      ResolvePathOptions options(editor_state);
                       options.path = path;
                       if (auto results = ResolvePath(std::move(options));
                           results.has_value()) {
@@ -927,8 +926,7 @@ void OpenBuffer::StartNewLine() {
   DVLOG(5) << "Line is completed: " << contents_.back()->ToString();
 
   if (Read(buffer_variables::contains_line_marks)) {
-    ResolvePathOptions options;
-    options.editor_state = editor();
+    ResolvePathOptions options(editor());
     options.path = contents_.back()->ToString();
     if (auto results = ResolvePath(std::move(options)); results.has_value()) {
       LineMarks::Mark mark;
