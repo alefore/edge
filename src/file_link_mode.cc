@@ -404,7 +404,7 @@ static bool CanStatPath(const wstring& path) {
 }
 
 struct FindPathInput {
-  EditorState* editor_state;
+  std::wstring home_directory;
   vector<wstring> search_paths;
   wstring path;
   std::function<bool(const wstring&)> validator = CanStatPath;
@@ -417,7 +417,11 @@ std::optional<ResolvePathOutput> FindPath(FindPathInput input) {
     input.search_paths.push_back(L"");
   }
 
-  input.path = input.editor_state->expand_path(input.path);
+  if (input.path == L"~" ||
+      (input.path.size() > 2 && input.path.substr(0, 2) == L"~/")) {
+    input.path = PathJoin(input.home_directory, input.path.substr(1));
+  }
+
   if (!input.path.empty() && input.path[0] == L'/') {
     input.search_paths = {L""};
   }
@@ -590,7 +594,7 @@ std::optional<ResolvePathOutput> ResolvePath(ResolvePathOptions options) {
   vector<wstring> search_paths;
   GetSearchPaths(options.editor_state, &search_paths);
   FindPathInput input;
-  input.editor_state = options.editor_state;
+  input.home_directory = options.editor_state->home_directory();
   input.search_paths = std::move(search_paths);
   input.path = std::move(options.path);
   return FindPath(std::move(input));
@@ -631,7 +635,7 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
   };
 
   FindPathInput find_path_input;
-  find_path_input.editor_state = editor_state;
+  find_path_input.home_directory = editor_state->home_directory();
   find_path_input.search_paths = search_paths;
   find_path_input.path = options.path;
   if (auto output = FindPath(find_path_input); output.has_value()) {
