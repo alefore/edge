@@ -50,7 +50,7 @@ void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
   }
 
   buffer->ResetMode();
-  ResolvePathOptions options(editor_state);
+  auto options = ResolvePathOptions::New(editor_state);
   options.path = input;
   auto resolved_path = ResolvePath(std::move(options));
   if (!resolved_path.has_value()) {

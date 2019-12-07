@@ -171,7 +171,7 @@ void FilePredictor(EditorState* editor_state, const wstring& input,
     LOG(INFO) << "Reading directory: " << path_with_prefix;
 
     wstring resolved_path;
-    ResolvePathOptions options(editor_state);
+    auto options = ResolvePathOptions::New(editor_state);
     options.path = path_with_prefix;
     if (auto results = ResolvePath(std::move(options)); results.has_value()) {
       path_with_prefix = results->path;

@@ -49,11 +49,16 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output);
 // relative, looks it up in the search paths. If a file is found, returns an
 // absolute path pointing to it.
 struct ResolvePathOptions {
-  ResolvePathOptions(EditorState* editor_state);
+ public:
+  static ResolvePathOptions New(EditorState* editor_state);
+  static ResolvePathOptions NewWithEmptySearchPaths(EditorState* editor_state);
 
   std::wstring path;
   std::vector<std::wstring> search_paths;
   std::wstring home_directory;
+
+ private:
+  ResolvePathOptions() = default;
 };
 
 struct ResolvePathOutput {
