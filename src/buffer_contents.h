@@ -21,7 +21,13 @@ class BufferContents : public fuzz::FuzzTestable {
   using Lines = ConstTree<std::shared_ptr<const Line>>;
 
  public:
-  BufferContents() = default;
+  using UpdateListener =
+      std::function<void(const CursorsTracker::Transformation&)>;
+
+  BufferContents();
+  BufferContents(UpdateListener update_listener);
+
+  void CopyContentsFrom(const BufferContents& source);
 
   wint_t character_at(const LineColumn& position) const;
 
@@ -70,9 +76,9 @@ class BufferContents : public fuzz::FuzzTestable {
 
   void insert_line(LineNumber line_position, shared_ptr<const Line> line);
 
-  // Does not call NotifyUpdateListeners! That should be done by the caller.
-  // Avoid calling this in general: prefer calling the other functions (that
-  // have more semantic information about what you're doing).
+  // Does not call update_listener_! That should be done by the caller. Avoid
+  // calling this in general: prefer calling the other functions (that have more
+  // semantic information about what you're doing).
   void set_line(LineNumber position, shared_ptr<const Line> line);
 
   template <class C>
@@ -89,7 +95,7 @@ class BufferContents : public fuzz::FuzzTestable {
     for (auto& line : lines) {
       lines_ = Lines::PushBack(std::move(lines_), std::move(line));
     }
-    NotifyUpdateListeners(CursorsTracker::Transformation());
+    update_listener_(CursorsTracker::Transformation());
   }
 
   // If modifiers is present, applies it to every character (overriding
@@ -131,13 +137,7 @@ class BufferContents : public fuzz::FuzzTestable {
   void FoldNextLine(LineNumber line);
 
   void push_back(wstring str);
-  void push_back(shared_ptr<const Line> line) {
-    lines_ = Lines::PushBack(std::move(lines_), line);
-    NotifyUpdateListeners(CursorsTracker::Transformation());
-  }
-
-  void AddUpdateListener(
-      std::function<void(const CursorsTracker::Transformation&)> listener);
+  void push_back(shared_ptr<const Line> line);
 
   std::vector<fuzz::Handler> FuzzHandlers() override;
 
@@ -158,16 +158,12 @@ class BufferContents : public fuzz::FuzzTestable {
     Line::Options options(*at(line_number));
     callback(&options);
     set_line(line_number, std::make_shared<Line>(std::move(options)));
-    NotifyUpdateListeners(cursors_transformation);
+    update_listener_(cursors_transformation);
   }
-
-  void NotifyUpdateListeners(
-      const CursorsTracker::Transformation& cursor_adjuster);
 
   Lines::Ptr lines_ = Lines::PushBack(nullptr, std::make_shared<Line>());
 
-  vector<std::function<void(const CursorsTracker::Transformation&)>>
-      update_listeners_;
+  const UpdateListener update_listener_;
 };
 
 }  // namespace editor

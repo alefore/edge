@@ -491,6 +491,12 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
 
 OpenBuffer::OpenBuffer(Options options)
     : options_(std::move(options)),
+      contents_([this](const CursorsTracker::Transformation& transformation) {
+        ScheduleSyntaxDataUpdate();
+        modified_ = true;
+        time(&last_action_);
+        cursors_tracker_.AdjustCursors(transformation);
+      }),
       bool_variables_(buffer_variables::BoolStruct()->NewInstance()),
       string_variables_(buffer_variables::StringStruct()->NewInstance()),
       int_variables_(buffer_variables::IntStruct()->NewInstance()),
@@ -516,13 +522,6 @@ OpenBuffer::OpenBuffer(Options options)
         };
         return options;
       }()) {
-  contents_.AddUpdateListener(
-      [this](const CursorsTracker::Transformation& transformation) {
-        ScheduleSyntaxDataUpdate();
-        modified_ = true;
-        time(&last_action_);
-        cursors_tracker_.AdjustCursors(transformation);
-      });
   UpdateTreeParser();
 
   environment_.Define(

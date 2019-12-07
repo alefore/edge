@@ -101,13 +101,12 @@ void TestBufferInsertModifiers() {
 }
 
 void TestCursorsMove() {
-  BufferContents contents;
   std::vector<CursorsTracker::Transformation> transformations;
-  contents.set_line(LineNumber(0),
-                    std::make_shared<Line>(L"aleandro forero cuervo"));
-  contents.AddUpdateListener([&](const CursorsTracker::Transformation& t) {
+  BufferContents contents([&](const CursorsTracker::Transformation& t) {
     transformations.push_back(t);
   });
+  contents.set_line(LineNumber(0),
+                    std::make_shared<Line>(L"aleandro forero cuervo"));
   CHECK_EQ(transformations.size(), 0ul);
   contents.InsertCharacter(LineColumn(LineNumber(0), ColumnNumber(3)));
   CHECK_EQ(transformations.size(), 1ul);
