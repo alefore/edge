@@ -403,56 +403,63 @@ static bool CanStatPath(const wstring& path) {
   return true;
 }
 
-bool FindPath(EditorState* editor_state, vector<wstring> search_paths,
-              wstring path, std::function<bool(const wstring&)> validator,
-              wstring* resolved_path, std::optional<LineColumn>* position,
-              wstring* pattern) {
+struct FindPathInput {
+  EditorState* editor_state;
+  vector<wstring> search_paths;
+  wstring path;
+  std::function<bool(const wstring&)> validator = CanStatPath;
+
+  // Output parameters.
+  wstring* output_path;
+  std::optional<LineColumn>* position;
+  wstring* pattern;
+};
+
+bool FindPath(FindPathInput input) {
   std::optional<LineColumn> position_dummy;
-  if (position == nullptr) {
-    position = &position_dummy;
+  if (input.position == nullptr) {
+    input.position = &position_dummy;
   }
 
   wstring pattern_dummy;
-  if (pattern == nullptr) {
-    pattern = &pattern_dummy;
+  if (input.pattern == nullptr) {
+    input.pattern = &pattern_dummy;
   }
 
-  if (find(search_paths.begin(), search_paths.end(), L"") ==
-      search_paths.end()) {
-    search_paths.push_back(L"");
+  if (find(input.search_paths.begin(), input.search_paths.end(), L"") ==
+      input.search_paths.end()) {
+    input.search_paths.push_back(L"");
   }
 
-  path = editor_state->expand_path(path);
-  if (!path.empty() && path[0] == L'/') {
-    search_paths = {L""};
+  input.path = input.editor_state->expand_path(input.path);
+  if (!input.path.empty() && input.path[0] == L'/') {
+    input.search_paths = {L""};
   }
-  for (auto search_path_it = search_paths.begin();
-       search_path_it != search_paths.end(); ++search_path_it) {
-    for (size_t str_end = path.size(); str_end != path.npos && str_end != 0;
-         str_end = path.find_last_of(':', str_end - 1)) {
+  for (auto& search_path : input.search_paths) {
+    for (size_t str_end = input.path.size();
+         str_end != input.path.npos && str_end != 0;
+         str_end = input.path.find_last_of(':', str_end - 1)) {
       wstring path_with_prefix =
-          *search_path_it +
-          (!search_path_it->empty() && *search_path_it->rbegin() != L'/'
-               ? L"/"
-               : L"") +
-          path.substr(0, str_end);
+          search_path +
+          (!search_path.empty() && *search_path.rbegin() != L'/' ? L"/" : L"") +
+          input.path.substr(0, str_end);
 
-      if (!validator(path_with_prefix)) {
+      if (!input.validator(path_with_prefix)) {
         continue;
       }
 
-      *pattern = L"";
+      *input.pattern = L"";
       for (size_t i = 0; i < 2; i++) {
-        while (str_end < path.size() && ':' == path[str_end]) {
+        while (str_end < input.path.size() && ':' == input.path[str_end]) {
           str_end++;
         }
-        if (str_end == path.size()) {
+        if (str_end == input.path.size()) {
           break;
         }
-        size_t next_str_end = path.find(':', str_end);
-        const wstring arg = path.substr(str_end, next_str_end);
+        size_t next_str_end = input.path.find(':', str_end);
+        const wstring arg = input.path.substr(str_end, next_str_end);
         if (i == 0 && arg.size() > 0 && arg[0] == '/') {
-          *pattern = arg.substr(1);
+          *input.pattern = arg.substr(1);
           break;
         } else {
           size_t value;
@@ -468,33 +475,26 @@ bool FindPath(EditorState* editor_state, vector<wstring> search_paths,
             LOG(INFO) << "stoi failed: out of range: " << arg;
             break;
           }
-          if (!position->has_value()) {
-            *position = LineColumn();
+          if (!input.position->has_value()) {
+            *input.position = LineColumn();
           }
           if (i == 0) {
-            position->value().line = LineNumber(value);
+            input.position->value().line = LineNumber(value);
           } else {
-            position->value().column = ColumnNumber(value);
+            input.position->value().column = ColumnNumber(value);
           }
         }
         str_end = next_str_end;
-        if (str_end == path.npos) {
+        if (str_end == input.path.npos) {
           break;
         }
       }
-      *resolved_path = realpath_safe(path_with_prefix);
-      VLOG(4) << "Resolved path: " << *resolved_path;
+      *input.output_path = realpath_safe(path_with_prefix);
+      VLOG(4) << "Resolved path: " << *input.output_path;
       return true;
     }
   }
   return false;
-}
-
-static bool FindPath(EditorState* editor_state, vector<wstring> search_paths,
-                     const wstring& path, wstring* resolved_path,
-                     std::optional<LineColumn>* position, wstring* pattern) {
-  return FindPath(editor_state, search_paths, path, CanStatPath, resolved_path,
-                  position, pattern);
 }
 
 }  // namespace
@@ -603,9 +603,14 @@ void GetSearchPaths(EditorState* editor_state, vector<wstring>* output) {
 bool ResolvePath(ResolvePathOptions options) {
   vector<wstring> search_paths;
   GetSearchPaths(options.editor_state, &search_paths);
-  return FindPath(options.editor_state, std::move(search_paths), options.path,
-                  CanStatPath, options.output_path, options.output_position,
-                  options.output_pattern);
+  FindPathInput input;
+  input.editor_state = options.editor_state;
+  input.search_paths = std::move(search_paths);
+  input.path = std::move(options.path);
+  input.output_path = options.output_path;
+  input.position = options.output_position;
+  input.pattern = options.output_pattern;
+  return FindPath(std::move(input));
 }
 
 map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
@@ -642,12 +647,18 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
     Save(editor_state, stat_buffer.get(), buffer);
   };
 
-  FindPath(editor_state, search_paths, options.path, &buffer_options.path,
-           &position, &pattern);
+  FindPathInput find_path_input;
+  find_path_input.editor_state = editor_state;
+  find_path_input.search_paths = search_paths;
+  find_path_input.path = options.path;
+  find_path_input.output_path = &buffer_options.path;
+  find_path_input.position = &position;
+  find_path_input.pattern = &pattern;
+  FindPath(find_path_input);
 
   if (buffer_options.path.empty()) {
     map<wstring, shared_ptr<OpenBuffer>>::iterator buffer;
-    auto validator = [editor_state, &buffer](const wstring& path) {
+    find_path_input.validator = [editor_state, &buffer](const wstring& path) {
       DCHECK(!path.empty());
       for (auto it = editor_state->buffers()->begin();
            it != editor_state->buffers()->end(); ++it) {
@@ -663,8 +674,8 @@ map<wstring, shared_ptr<OpenBuffer>>::iterator OpenFile(
       }
       return false;
     };
-    if (FindPath(editor_state, {L""}, options.path, validator,
-                 &buffer_options.path, &position, &pattern)) {
+    find_path_input.search_paths = {L""};
+    if (FindPath(find_path_input)) {
       editor_state->set_current_buffer(buffer->second);
       if (position.has_value()) {
         buffer->second->set_position(position.value());
