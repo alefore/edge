@@ -10,10 +10,9 @@
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/function_call.h"
 #include "src/vm/public/value.h"
+#include "src/vm/public/vector.h"
 
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
 namespace {
 
 void RunCppCommandLiteralHandler(const wstring& name,
@@ -94,42 +93,60 @@ ParsedCommand Parse(const LazyString& command, Environment* environment) {
 
   // Filter functions that match our type expectations.
   std::vector<Value*> type_match_functions;
+  Value* function_vector;
   for (auto& candidate : functions) {
     if (!candidate->IsFunction()) {
       continue;
     }
-    for (auto& arg_type : candidate->type.type_arguments) {
-      if (!(arg_type == VMType::String())) {
-        continue;
-      }
+    const auto& arguments = candidate->type.type_arguments;
+    if (!(arguments[0] == VMType::Void())) {
+      continue;
     }
-    type_match_functions.push_back(candidate);
+    bool all_arguments_are_strings = true;
+    for (auto it = arguments.begin() + 1;
+         all_arguments_are_strings && it != arguments.end(); ++it) {
+      all_arguments_are_strings = *it == VMType::String();
+    }
+    if (all_arguments_are_strings) {
+      type_match_functions.push_back(candidate);
+    } else if (arguments.size() == 2 &&
+               arguments[1] ==
+                   VMTypeMapper<std::vector<std::wstring>*>::vmtype) {
+      function_vector = candidate;
+    }
   }
 
-  if (type_match_functions.empty()) {
+  if (function_vector != nullptr) {
+    output.function = function_vector;
+    std::vector<std::wstring> argument_values;
+    for (auto it = output.tokens.begin() + 1; it != output.tokens.end(); ++it) {
+      argument_values.push_back(it->value);
+    }
+    output.inputs.push_back(vm::NewConstantExpression(
+        VMTypeMapper<std::vector<std::wstring>*>::New(&argument_values)));
+  } else if (!type_match_functions.empty()) {
+    // TODO: Choose the most suitable one given our arguments.
+    output.function = type_match_functions[0];
+    CHECK_GE(output.function->type.type_arguments.size(), 1 /* return type */);
+    size_t expected_arguments = output.function->type.type_arguments.size() - 1;
+    if (output.tokens.size() - 1 > expected_arguments) {
+      return ParsedCommand::Error(L"Too many arguments given for `" +
+                                  output.tokens[0].value + L"` (expected: " +
+                                  std::to_wstring(expected_arguments) + L")");
+    }
+
+    for (auto it = output.tokens.begin() + 1; it != output.tokens.end(); ++it) {
+      output.inputs.push_back(
+          vm::NewConstantExpression(vm::Value::NewString(it->value)));
+    }
+
+    while (output.inputs.size() < expected_arguments) {
+      output.inputs.push_back(
+          vm::NewConstantExpression(vm::Value::NewString(L"")));
+    }
+  } else {
     return ParsedCommand::Error(L"No suitable definition found: " +
                                 output.tokens[0].value);
-  }
-
-  // TODO: Choose the most suitable one given our arguments.
-  output.function = type_match_functions[0];
-
-  CHECK_GE(output.function->type.type_arguments.size(), 1 /* return type */);
-  size_t expected_arguments = output.function->type.type_arguments.size() - 1;
-  if (output.tokens.size() - 1 > expected_arguments) {
-    return ParsedCommand::Error(L"Too many arguments given for `" +
-                                output.tokens[0].value + L"` (expected: " +
-                                std::to_wstring(expected_arguments) + L")");
-  }
-
-  for (auto it = output.tokens.begin() + 1; it != output.tokens.end(); ++it) {
-    output.inputs.push_back(
-        vm::NewConstantExpression(vm::Value::NewString(it->value)));
-  }
-
-  while (output.inputs.size() < expected_arguments) {
-    output.inputs.push_back(
-        vm::NewConstantExpression(vm::Value::NewString(L"")));
   }
 
   return output;
@@ -249,6 +266,4 @@ class RunCppCommand : public Command {
 std::unique_ptr<Command> NewRunCppCommand(CppCommandMode mode) {
   return std::make_unique<RunCppCommand>(mode);
 }
-
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
