@@ -4,11 +4,7 @@
 #include <memory>
 #include <string>
 
-namespace afc {
-namespace editor {
-
-using std::shared_ptr;
-using std::wstring;
+namespace afc::editor {
 
 class ColumnNumber;
 class ColumnNumberDelta;
@@ -21,14 +17,13 @@ class LazyString {
   virtual wchar_t get(ColumnNumber pos) const = 0;
   virtual ColumnNumberDelta size() const = 0;
 
-  wstring ToString() const;
+  std::wstring ToString() const;
 
   bool operator<(const LazyString& x);
 };
 
-shared_ptr<LazyString> EmptyString();
+std::shared_ptr<LazyString> EmptyString();
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif
