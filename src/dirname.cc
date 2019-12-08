@@ -60,6 +60,9 @@ wstring PathJoin(const wstring& a, const wstring& b) {
   if (b.empty()) {
     return a;
   }
+  if (a == L"/" && b[0] == L'/') {
+    return b;
+  }
   bool has_slash = a[a.size() - 1] == L'/' || b[0] == L'/';
   return a + (has_slash ? L"" : L"/") + b;
 }
