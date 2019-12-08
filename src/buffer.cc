@@ -515,6 +515,7 @@ OpenBuffer::OpenBuffer(Options options)
       tree_parser_(NewNullTreeParser()),
       syntax_data_([this]() {
         AsyncProcessor<SyntaxDataInput, SyntaxDataOutput>::Options options;
+        options.name = L"SyntaxData";
         options.factory = UpdateSyntaxData;
         options.notify_callback = [this]() {
           VLOG(5) << "Background thread is notifying internal event.";
