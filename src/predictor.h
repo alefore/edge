@@ -28,7 +28,11 @@ class OpenBuffer;
 // by OpenBuffer::AppendRawLine(..., empty_line). In other words, once the
 // predictor is done running, the buffer must have an empty line at the end (and
 // not at the beginning).
-typedef function<void(EditorState*, const wstring&, OpenBuffer*)> Predictor;
+//
+// Once the predictor is done running, it must run the callback given.
+typedef function<void(EditorState*, const wstring&, OpenBuffer*,
+                      std::function<void()>)>
+    Predictor;
 
 const wstring& PredictionsBufferName();
 
@@ -39,10 +43,10 @@ void Predict(EditorState* editor_state, Predictor predictor, Status* status,
              function<void(const wstring&)> consumer);
 
 void FilePredictor(EditorState* editor_state, const wstring& input,
-                   OpenBuffer* buffer);
+                   OpenBuffer* buffer, std::function<void()> callback);
 
 void EmptyPredictor(EditorState* editor_state, const wstring& input,
-                    OpenBuffer* buffer);
+                    OpenBuffer* buffer, std::function<void()> callback);
 
 Predictor PrecomputedPredictor(const vector<wstring>& predictions,
                                wchar_t separator);

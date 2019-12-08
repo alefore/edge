@@ -178,9 +178,11 @@ class SearchCommand : public Command {
 
     options.predictor = [buffer](EditorState* editor_state,
                                  const wstring& input,
-                                 OpenBuffer* predictions_buffer) {
-      return SearchHandlerPredictor(editor_state, input, buffer.get(),
-                                    predictions_buffer);
+                                 OpenBuffer* predictions_buffer,
+                                 std::function<void()> callback) {
+      SearchHandlerPredictor(editor_state, input, buffer.get(),
+                             predictions_buffer);
+      callback();
     };
     options.status = PromptOptions::Status::kBuffer;
     Prompt(editor_state, std::move(options));
