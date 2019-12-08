@@ -104,9 +104,9 @@ void Status::set_prompt(std::wstring text, std::shared_ptr<OpenBuffer> buffer) {
   ValidatePreconditions();
 }
 
-const OpenBuffer* Status::prompt_buffer() const {
+const std::shared_ptr<OpenBuffer>& Status::prompt_buffer() const {
   ValidatePreconditions();
-  return data_->prompt_buffer.get();
+  return data_->prompt_buffer;
 }
 
 void Status::SetInformationText(std::wstring text) {
