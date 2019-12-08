@@ -38,7 +38,7 @@ using std::sort;
 using std::wstring;
 
 void HandleEndOfFile(OpenBuffer* buffer,
-                     std::function<void(wstring)> consumer) {
+                     std::function<void(PredictResults)> consumer) {
   CHECK(buffer != nullptr);
 
   LOG(INFO) << "Predictions buffer received end of file. Predictions: "
@@ -61,8 +61,9 @@ void HandleEndOfFile(OpenBuffer* buffer,
   }
 
   wstring common_prefix = buffer->contents()->front()->contents()->ToString();
-  bool results = buffer->contents()->EveryLine(
-      [&common_prefix](LineNumber, const Line& line) {
+  PredictResults predict_results;
+  if (buffer->contents()->EveryLine([&common_prefix](LineNumber,
+                                                     const Line& line) {
         if (line.empty()) {
           return true;
         }
@@ -87,22 +88,11 @@ void HandleEndOfFile(OpenBuffer* buffer,
           common_prefix = wstring(common_prefix.begin(), prefix_end.first);
         }
         return true;
-      });
-  if (results) {
-    consumer(common_prefix);
-  } else {
-    auto editor_state = buffer->editor();
-    auto buffers = editor_state->buffers();
-    auto name = buffer->Read(buffer_variables::name);
-    if (auto it = buffers->find(name); it != editor_state->buffers()->end()) {
-      CHECK_EQ(buffer, it->second.get());
-      editor_state->set_current_buffer(it->second);
-      buffer->set_current_position_line(LineNumber(0));
-    } else {
-      buffer->status()->SetWarningText(
-          L"Error: EndOfFile: predictions buffer not found: name");
-    }
+      })) {
+    predict_results.common_prefix = common_prefix;
   }
+
+  consumer(std::move(predict_results));
 }
 
 std::wstring GetPrompt(const OpenBuffer& buffer) {
@@ -111,64 +101,75 @@ std::wstring GetPrompt(const OpenBuffer& buffer) {
 
 // Wrap `consumer` with a consumer that verifies that `prompt_buffer` hasn't
 // expired and that its text hasn't changed.
-std::function<void(const wstring&)> GuardConsumer(
+std::function<void(PredictResults)> GuardConsumer(
     std::shared_ptr<OpenBuffer> prompt_buffer,
-    std::function<void(const wstring&)> consumer) {
+    std::function<void(PredictResults)> consumer) {
   std::wstring initial_text = GetPrompt(*prompt_buffer);
   std::weak_ptr<OpenBuffer> weak_prompt_buffer = prompt_buffer;
-  return
-      [consumer, weak_prompt_buffer, initial_text](const wstring& prediction) {
-        auto prompt_buffer = weak_prompt_buffer.lock();
-        if (prompt_buffer == nullptr) {
-          LOG(INFO) << "Prompt buffer has expired.";
-          return;
-        }
-        auto current_text = GetPrompt(*prompt_buffer);
-        if (current_text != initial_text) {
-          LOG(INFO) << "Text has changed from \"" << initial_text << "\" to \""
-                    << current_text << "\"";
-          return;
-        }
-        LOG(INFO) << "Running on prediction: " << prediction;
-        consumer(prediction);
-      };
+  return [consumer, weak_prompt_buffer,
+          initial_text](PredictResults predict_results) {
+    auto prompt_buffer = weak_prompt_buffer.lock();
+    if (prompt_buffer == nullptr) {
+      LOG(INFO) << "Prompt buffer has expired.";
+      return;
+    }
+    auto current_text = GetPrompt(*prompt_buffer);
+    if (current_text != initial_text) {
+      LOG(INFO) << "Text has changed from \"" << initial_text << "\" to \""
+                << current_text << "\"";
+      return;
+    }
+    LOG(INFO) << "Running on prediction: "
+              << predict_results.common_prefix.value_or(L"<missing value>");
+    consumer(std::move(predict_results));
+  };
 }
 }  // namespace
 
-void Predict(EditorState* editor_state, Predictor predictor, Status* status,
-             function<void(const wstring&)> consumer) {
-  auto shared_status = std::make_shared<Status>(editor_state->GetConsole(),
-                                                editor_state->audio_player());
-  shared_status->CopyFrom(*status);
+std::ostream& operator<<(std::ostream& os, const PredictResults& lc) {
+  os << "[PredictResults";
+  if (lc.common_prefix.has_value()) {
+    os << lc.common_prefix.value();
+  }
+  os << "]";
+  return os;
+}
+
+void Predict(PredictOptions options) {
+  auto shared_status = std::make_shared<Status>(
+      options.editor_state->GetConsole(), options.editor_state->audio_player());
+  shared_status->CopyFrom(*options.status);
   std::shared_ptr<OpenBuffer>& predictions_buffer =
-      (*editor_state->buffers())[PredictionsBufferName()];
-  OpenBuffer::Options options;
-  options.editor = editor_state;
-  options.name = PredictionsBufferName();
+      (*options.editor_state->buffers())[PredictionsBufferName()];
+  OpenBuffer::Options buffer_options;
+  buffer_options.editor = options.editor_state;
+  buffer_options.name = PredictionsBufferName();
   auto weak_predictions_buffer = std::make_shared<std::weak_ptr<OpenBuffer>>();
 
-  consumer = GuardConsumer(shared_status->prompt_buffer(), std::move(consumer));
-  options.generate_contents = [editor_state, predictor, weak_predictions_buffer,
-                               shared_status, consumer](OpenBuffer* buffer) {
+  options.callback = GuardConsumer(shared_status->prompt_buffer(),
+                                   std::move(options.callback));
+  buffer_options.generate_contents = [options, weak_predictions_buffer,
+                                      shared_status](OpenBuffer* buffer) {
     auto shared_predictions_buffer = weak_predictions_buffer->lock();
     CHECK_EQ(shared_predictions_buffer.get(), buffer);
-    if (editor_state->status()->prompt_buffer() == nullptr) {
+    if (options.editor_state->status()->prompt_buffer() == nullptr) {
       buffer->status()->CopyFrom(*shared_status);
     }
     auto prompt = shared_status->prompt_buffer();
     CHECK(prompt != nullptr);
-    predictor(editor_state, prompt->LineAt(LineNumber(0))->ToString(), buffer,
-              [shared_status, buffer, consumer, shared_predictions_buffer] {
-                buffer->set_current_cursor(LineColumn());
-                HandleEndOfFile(buffer, consumer);
-              });
+    options.predictor(
+        options.editor_state, prompt->LineAt(LineNumber(0))->ToString(), buffer,
+        [shared_status, buffer, options, shared_predictions_buffer] {
+          buffer->set_current_cursor(LineColumn());
+          HandleEndOfFile(buffer, options.callback);
+        });
   };
-  predictions_buffer = std::make_shared<OpenBuffer>(std::move(options));
+  predictions_buffer = std::make_shared<OpenBuffer>(std::move(buffer_options));
   *weak_predictions_buffer = predictions_buffer;
   predictions_buffer->Set(buffer_variables::show_in_buffers_list, false);
   predictions_buffer->Set(buffer_variables::allow_dirty_delete, true);
   predictions_buffer->Reload();
-  if (editor_state->status()->prompt_buffer() == nullptr) {
+  if (options.editor_state->status()->prompt_buffer() == nullptr) {
     predictions_buffer->status()->CopyFrom(*shared_status);
   }
 }
@@ -189,7 +190,7 @@ void FilePredictor(EditorState* editor_state, const wstring& input_path,
   options.factory = [](AsyncInput input) {
     std::wstring path = input.path;
     if (!path.empty() && *path.begin() == L'/') {
-      input.search_paths = {L""};
+      input.search_paths = {L"/"};
     } else {
       for (auto& search_path : input.search_paths) {
         search_path = Realpath(search_path.empty() ? L"." : search_path);
@@ -215,53 +216,69 @@ void FilePredictor(EditorState* editor_state, const wstring& input_path,
         path_with_prefix += L"/" + path;
       }
 
-      string basename_prefix;
-      if (path_with_prefix.back() != '/') {
-        path_with_prefix = Dirname(path_with_prefix);
-
-        char* path_copy = strdup(ToByteString(path).c_str());
-        basename_prefix = basename(path_copy);
-        free(path_copy);
+      VLOG(6) << "Starting search at: " << search_path;
+      auto parent_dir = OpenDir(search_path);
+      if (parent_dir == nullptr) {
+        VLOG(5) << "Unable to open search_path: " << search_path;
+        continue;
       }
-      LOG(INFO) << "Reading directory: " << path_with_prefix;
+      std::list<std::wstring> components;
+      DirectorySplit(input.path, &components);
+      std::wstring prefix;
 
-      wstring resolved_path;
-      input.resolve_path_options.path = path_with_prefix;
-      if (auto results = ResolvePath(input.resolve_path_options);
-          results.has_value()) {
-        path_with_prefix = results->path;
+      while (components.size() > 1) {
+        auto subdir_path = PathJoin(prefix, components.front());
+        auto subdir = OpenDir(PathJoin(search_path, subdir_path));
+        if (subdir != nullptr) {
+          parent_dir = std::move(subdir);
+          prefix = std::move(subdir_path);
+          components.pop_front();
+        } else {
+          break;
+        }
+      }
+      VLOG(5) << "After descent: " << prefix;
 
+      if (prefix.empty()) {
+        path_with_prefix = search_path;
       } else {
-        LOG(INFO) << "Unable to resolve, giving up current search path.";
-        continue;
-      }
-
-      auto dir = OpenDir(path_with_prefix);
-      if (dir == nullptr) {
-        LOG(INFO) << "Unable to open, giving up current search path.";
-        continue;
-      }
-
-      if (path_with_prefix == L".") {
-        path_with_prefix = L"";
-      } else if (path_with_prefix.back() != L'/') {
-        path_with_prefix += L"/";
-      }
-
-      struct dirent* entry;
-      while ((entry = readdir(dir.get())) != nullptr) {
-        string entry_path = entry->d_name;
-        if (!std::equal(basename_prefix.begin(), basename_prefix.end(),
-                        entry_path.begin()) ||
-            entry_path == "." || entry_path == "..") {
-          VLOG(6) << "Skipping entry: " << entry_path;
+        auto resolve_path_options = input.resolve_path_options;
+        resolve_path_options.path = prefix;
+        resolve_path_options.search_paths = {search_path};
+        if (auto results = ResolvePath(resolve_path_options);
+            results.has_value()) {
+          path_with_prefix = results->path;
+        } else {
+          LOG(INFO) << "Unable to resolve, giving up current search path.";
           continue;
         }
-        string prediction = ToByteString(path_with_prefix) + entry->d_name +
-                            (entry->d_type == DT_DIR ? "/" : "");
-        if (!search_path.empty() &&
+      }
+
+      // The length of the longest prefix of `basename_prefix` that matches an
+      // entry in `parent_dir`.
+      size_t longest_prefix_match = 0;
+      auto basename_prefix = components.front();
+      struct dirent* entry;
+      while ((entry = readdir(parent_dir.get())) != nullptr) {
+        string entry_path = entry->d_name;
+
+        auto mismatch_results =
+            std::mismatch(basename_prefix.begin(), basename_prefix.end(),
+                          entry_path.begin(), entry_path.end());
+        if (mismatch_results.first != basename_prefix.end()) {
+          VLOG(20) << "The entry " << entry_path
+                   << " doesn't contain the whole prefix.";
+          longest_prefix_match = std::max<int>(
+              longest_prefix_match,
+              std::distance(basename_prefix.begin(), mismatch_results.first));
+          continue;
+        }
+        wstring prediction =
+            PathJoin(path_with_prefix, FromByteString(entry->d_name)) +
+            (entry->d_type == DT_DIR ? L"/" : L"");
+        if (!search_path.empty() && search_path != L"/" &&
             std::equal(search_path.begin(), search_path.end(),
-                       FromByteString(prediction).begin())) {
+                       prediction.begin())) {
           VLOG(6) << "Removing prefix from prediction: " << prediction;
           size_t start = prediction.find_first_not_of('/', search_path.size());
           if (start != prediction.npos) {
@@ -274,8 +291,7 @@ void FilePredictor(EditorState* editor_state, const wstring& input_path,
         VLOG(5) << "Prediction: " << prediction;
         input.buffer->SchedulePendingWork(
             [buffer = input.buffer,
-             line = std::shared_ptr<LazyString>(
-                 NewLazyString(FromByteString(prediction)))] {
+             line = std::shared_ptr<LazyString>(NewLazyString(prediction))] {
               buffer->AppendToLastLine(line);
               buffer->AppendRawLine(std::make_shared<Line>(Line::Options()));
             });

@@ -36,11 +36,33 @@ typedef function<void(EditorState*, const wstring&, OpenBuffer*,
 
 const wstring& PredictionsBufferName();
 
+struct PredictResults {
+  // If the input matched at least one item, this will be the longest common
+  // prefix of all the items that the input matched.
+  std::optional<wstring> common_prefix;
+
+  // This will be the size of the longest prefix in the input that matched at
+  // least one item. Typically, when the input matches at least one item, this
+  // will be the size of the input.
+  //
+  // TODO: Set this.
+  size_t longest_prefix;
+};
+
+std::ostream& operator<<(std::ostream& os, const PredictResults& lc);
+
+struct PredictOptions {
+  EditorState* editor_state;
+  Predictor predictor;
+  Status* status;
+  // Called if all the predicted entries have a common prefix that's longer than
+  // the query.
+  std::function<void(PredictResults)> callback;
+};
 // Create a new buffer running a given predictor on the input in a given status
 // prompt. When that's done, runs consumer on the results (on the longest
 // unambiguous completion for input).
-void Predict(EditorState* editor_state, Predictor predictor, Status* status,
-             function<void(const wstring&)> consumer);
+void Predict(PredictOptions predict_options);
 
 void FilePredictor(EditorState* editor_state, const wstring& input,
                    OpenBuffer* buffer, std::function<void()> callback);
