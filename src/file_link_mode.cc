@@ -388,11 +388,6 @@ void Save(EditorState* editor_state, struct stat* stat_buffer,
   stat(ToByteString(path).c_str(), stat_buffer);
 }
 
-static wstring realpath_safe(const wstring& path) {
-  char* result = realpath(ToByteString(path).c_str(), nullptr);
-  return result == nullptr ? path : FromByteString(result);
-}
-
 static bool CanStatPath(const wstring& path) {
   CHECK(!path.empty());
   VLOG(5) << "Considering path: " << path;
@@ -543,9 +538,7 @@ std::optional<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
          str_end != input.path.npos && str_end != 0;
          str_end = input.path.find_last_of(':', str_end - 1)) {
       wstring path_with_prefix =
-          search_path +
-          (!search_path.empty() && *search_path.rbegin() != L'/' ? L"/" : L"") +
-          input.path.substr(0, str_end);
+          PathJoin(search_path, input.path.substr(0, str_end));
 
       if (!input.validator(path_with_prefix)) {
         continue;
@@ -592,7 +585,7 @@ std::optional<ResolvePathOutput> ResolvePath(ResolvePathOptions input) {
           break;
         }
       }
-      output.path = realpath_safe(path_with_prefix);
+      output.path = Realpath(path_with_prefix);
       VLOG(4) << "Resolved path: " << output.path;
       return output;
     }

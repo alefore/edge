@@ -15,6 +15,11 @@ namespace afc::editor {
 using std::list;
 using std::wstring;
 
+wstring Realpath(const wstring& path) {
+  char* result = realpath(ToByteString(path).c_str(), nullptr);
+  return result == nullptr ? path : FromByteString(result);
+}
+
 wstring Dirname(wstring path) {
   VLOG(5) << "Dirname: " << path;
   std::unique_ptr<char, decltype(&std::free)> tmp(

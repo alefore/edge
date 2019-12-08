@@ -7,6 +7,7 @@
 #include <list>
 #include <memory>
 #include <optional>
+#include <string>
 
 extern "C" {
 #include <dirent.h>
@@ -17,6 +18,7 @@ extern "C" {
 namespace afc {
 namespace editor {
 
+std::wstring Realpath(const std::wstring& path);
 std::wstring Dirname(std::wstring path);
 std::wstring Basename(std::wstring path);
 bool DirectorySplit(std::wstring path, std::list<std::wstring>* output);
