@@ -154,6 +154,8 @@ class BufferAsyncProcessor {
                        std::function<Output(Input)> factory)
       : operation_status_(operation_status), async_processor_([&] {
           typename AsyncProcessor<FullInput, int>::Options options;
+          options.name = L"BufferAsyncProcessor::" + operation_status;
+
           options.factory = [factory](FullInput input) {
             input.buffer->SchedulePendingWork(
                 [consumer = std::move(input.consumer),
@@ -172,7 +174,8 @@ class BufferAsyncProcessor {
     full_input.input = std::move(input);
     full_input.buffer = buffer;
     full_input.status_expiration_control =
-        buffer->status()->SetExpiringInformationText(operation_status_);
+        buffer->status()->SetExpiringInformationText(operation_status_ +
+                                                     L" ...");
     full_input.consumer = std::move(consumer);
     async_processor_.Push(std::move(full_input));
   }
@@ -189,10 +192,9 @@ class BufferAsyncProcessor {
 class BackgroundOpen : public BufferAsyncProcessor<std::wstring, int> {
  public:
   BackgroundOpen()
-      : BufferAsyncProcessor<std::wstring, int>(
-            L"Open ...", [](std::wstring path) {
-              return open(ToByteString(path).c_str(), O_RDONLY | O_NONBLOCK);
-            }) {}
+      : BufferAsyncProcessor<std::wstring, int>(L"Open", [](std::wstring path) {
+          return open(ToByteString(path).c_str(), O_RDONLY | O_NONBLOCK);
+        }) {}
 };
 
 class BackgroundStat
@@ -200,7 +202,7 @@ class BackgroundStat
  public:
   BackgroundStat()
       : BufferAsyncProcessor<std::wstring, std::optional<struct stat>>(
-            L"Stat ...", [](std::wstring path) -> std::optional<struct stat> {
+            L"Stat", [](std::wstring path) -> std::optional<struct stat> {
               struct stat output;
               if (path.empty() ||
                   stat(ToByteString(path).c_str(), &output) == -1) {
@@ -227,7 +229,7 @@ class BackgroundReadDir : public BufferAsyncProcessor<BackgroundReadDirInput,
  public:
   BackgroundReadDir()
       : BufferAsyncProcessor<BackgroundReadDirInput, BackgroundReadDirOutput>(
-            L"Read directory ...", InternalRead) {}
+            L"ReadDirectory", InternalRead) {}
 
  private:
   static BackgroundReadDirOutput InternalRead(BackgroundReadDirInput input) {
