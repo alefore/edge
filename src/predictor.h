@@ -41,12 +41,19 @@ struct PredictResults {
   // prefix of all the items that the input matched.
   std::optional<wstring> common_prefix;
 
-  // This will be the size of the longest prefix in the input that matched at
-  // least one item. Typically, when the input matches at least one item, this
-  // will be the size of the input.
-  //
-  // TODO: Set this.
-  size_t longest_prefix;
+  int matches = 0;
+
+  // The size of the longest prefix in the input that matched at least one item.
+  // Typically, when the input matches at least one item, this will be the size
+  // of the input.
+  ColumnNumberDelta longest_prefix;
+  // The size of the longest prefix in the input that matched a directory and
+  // that is shorter than the entire input (i.e., if the input is `foo/bar` and
+  // that directory exists, the longest directory will be `foo`).
+  ColumnNumberDelta longest_directory_match;
+
+  // Did the input match a file exactly?
+  bool found_exact_match = false;
 };
 
 std::ostream& operator<<(std::ostream& os, const PredictResults& lc);
@@ -72,6 +79,12 @@ void EmptyPredictor(EditorState* editor_state, const wstring& input,
 
 Predictor PrecomputedPredictor(const vector<wstring>& predictions,
                                wchar_t separator);
+
+// Buffer must be a buffer given to a predictor by `Predict`. Registers a new
+// size of a prefix that has a match.
+void RegisterPredictorPrefixMatch(size_t longest_prefix, OpenBuffer* buffer);
+void RegisterPredictorDirectoryMatch(size_t prefix, OpenBuffer* buffer);
+void RegisterPredictorExactMatch(OpenBuffer* buffer);
 
 }  // namespace editor
 }  // namespace afc

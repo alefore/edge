@@ -37,6 +37,11 @@ using std::shared_ptr;
 using std::sort;
 using std::wstring;
 
+const wchar_t* kLongestPrefixEnvironmentVariable = L"predictor_longest_prefix";
+const wchar_t* kLongestDirectoryMatchEnvironmentVariable =
+    L"predictor_longest_directory_match";
+const wchar_t* kExactMatchEnvironmentVariable = L"predictor_exact_match";
+
 void HandleEndOfFile(OpenBuffer* buffer,
                      std::function<void(PredictResults)> consumer) {
   CHECK(buffer != nullptr);
@@ -92,6 +97,25 @@ void HandleEndOfFile(OpenBuffer* buffer,
     predict_results.common_prefix = common_prefix;
   }
 
+  if (auto value = buffer->environment()->Lookup(
+          kLongestPrefixEnvironmentVariable, VMType::VM_INTEGER);
+      value != nullptr) {
+    predict_results.longest_prefix = ColumnNumberDelta(value->integer);
+  }
+
+  if (auto value = buffer->environment()->Lookup(
+          kLongestDirectoryMatchEnvironmentVariable, VMType::VM_INTEGER);
+      value != nullptr) {
+    predict_results.longest_directory_match = ColumnNumberDelta(value->integer);
+  }
+
+  if (auto value = buffer->environment()->Lookup(kExactMatchEnvironmentVariable,
+                                                 VMType::VM_BOOLEAN);
+      value != nullptr) {
+    predict_results.found_exact_match = value->boolean;
+  }
+
+  predict_results.matches = buffer->lines_size().line_delta - 1;
   consumer(std::move(predict_results));
 }
 
@@ -104,6 +128,7 @@ std::wstring GetPrompt(const OpenBuffer& buffer) {
 std::function<void(PredictResults)> GuardConsumer(
     std::shared_ptr<OpenBuffer> prompt_buffer,
     std::function<void(PredictResults)> consumer) {
+  CHECK(prompt_buffer != nullptr);
   std::wstring initial_text = GetPrompt(*prompt_buffer);
   std::weak_ptr<OpenBuffer> weak_prompt_buffer = prompt_buffer;
   return [consumer, weak_prompt_buffer,
@@ -129,8 +154,13 @@ std::function<void(PredictResults)> GuardConsumer(
 std::ostream& operator<<(std::ostream& os, const PredictResults& lc) {
   os << "[PredictResults";
   if (lc.common_prefix.has_value()) {
-    os << lc.common_prefix.value();
+    os << " common_prefix: \"" << lc.common_prefix.value() << "\"";
   }
+
+  os << " matches: " << lc.matches;
+  os << " longest_prefix: " << lc.longest_prefix;
+  os << " longest_directory_match: " << lc.longest_directory_match;
+  os << " found_exact_match: " << lc.found_exact_match;
   os << "]";
   return os;
 }
@@ -150,7 +180,15 @@ void Predict(PredictOptions options) {
                                    std::move(options.callback));
   buffer_options.generate_contents = [options, weak_predictions_buffer,
                                       shared_status](OpenBuffer* buffer) {
+    buffer->environment()->Define(kLongestPrefixEnvironmentVariable,
+                                  vm::Value::NewInteger(0));
+    buffer->environment()->Define(kLongestDirectoryMatchEnvironmentVariable,
+                                  vm::Value::NewInteger(0));
+    buffer->environment()->Define(kExactMatchEnvironmentVariable,
+                                  vm::Value::NewBool(false));
+
     auto shared_predictions_buffer = weak_predictions_buffer->lock();
+    if (shared_predictions_buffer == nullptr) return;
     CHECK_EQ(shared_predictions_buffer.get(), buffer);
     if (options.editor_state->status()->prompt_buffer() == nullptr) {
       buffer->status()->CopyFrom(*shared_status);
@@ -179,6 +217,7 @@ struct DescendDirectoryTreeOutput {
   // The length of the longest prefix of path that corresponds to a valid
   // directory.
   size_t valid_prefix_length = 0;
+  size_t valid_proper_prefix_length = 0;
 };
 
 DescendDirectoryTreeOutput DescendDirectoryTree(wstring search_path,
@@ -193,6 +232,7 @@ DescendDirectoryTreeOutput DescendDirectoryTree(wstring search_path,
 
   // We don't use DirectorySplit in order to handle adjacent slashes.
   while (output.valid_prefix_length < path.size()) {
+    output.valid_proper_prefix_length = output.valid_prefix_length;
     VLOG(6) << "Iterating at: " << path.substr(0, output.valid_prefix_length);
     auto next_candidate = path.find_first_of(L'/', output.valid_prefix_length);
     if (next_candidate == wstring::npos) {
@@ -200,6 +240,8 @@ DescendDirectoryTreeOutput DescendDirectoryTree(wstring search_path,
     } else if (next_candidate == output.valid_prefix_length) {
       ++output.valid_prefix_length;
       continue;
+    } else {
+      ++next_candidate;
     }
     auto test_path = PathJoin(search_path, path.substr(0, next_candidate));
     VLOG(8) << "Considering: " << test_path;
@@ -214,42 +256,61 @@ DescendDirectoryTreeOutput DescendDirectoryTree(wstring search_path,
   return output;
 }
 
-void AppendPrediction(std::wstring prediction, OpenBuffer* buffer) {
-  VLOG(5) << "Prediction: " << prediction;
-  buffer->SchedulePendingWork(
-      [buffer, line = std::shared_ptr<LazyString>(
-                   NewLazyString(std::move(prediction)))] {
-        buffer->AppendToLastLine(line);
-        buffer->AppendRawLine(std::make_shared<Line>(Line::Options()));
-      });
-}
-
 // Reads the entire contents of `dir`, looking for files that match `pattern`.
 // For any files that do, prepends `prefix` and appends them to `buffer`.
-
 void ScanDirectory(DIR* dir, std::wstring pattern, std::wstring prefix,
                    OpenBuffer* buffer) {
-  VLOG(5) << "Scanning directory looking for: " << pattern;
+  VLOG(5) << "Scanning directory \"" << prefix << "\" looking for: " << pattern;
   // The length of the longest prefix of `pattern` that matches an entry.
   size_t longest_pattern_match = 0;
   struct dirent* entry;
+  std::vector<std::shared_ptr<LazyString>> predictions;
+
+  auto FlushPredictions = [&predictions, buffer] {
+    buffer->SchedulePendingWork([batch = std::move(predictions), buffer] {
+      auto empty_line = std::make_shared<Line>(Line::Options());
+      for (auto& prediction : batch) {
+        buffer->AppendToLastLine(std::move(prediction));
+        buffer->AppendRawLine(empty_line);
+      }
+    });
+    predictions.clear();
+  };
+
   while ((entry = readdir(dir)) != nullptr) {
     string entry_path = entry->d_name;
 
     auto mismatch_results = std::mismatch(pattern.begin(), pattern.end(),
                                           entry_path.begin(), entry_path.end());
     if (mismatch_results.first != pattern.end()) {
-      VLOG(20) << "The entry " << entry_path
-               << " doesn't contain the whole prefix.";
       longest_pattern_match =
           std::max<int>(longest_pattern_match,
                         std::distance(pattern.begin(), mismatch_results.first));
+      VLOG(20) << "The entry " << entry_path
+               << " doesn't contain the whole prefix. Longest match: "
+               << longest_pattern_match;
       continue;
     }
-    AppendPrediction(PathJoin(prefix, FromByteString(entry->d_name)) +
-                         (entry->d_type == DT_DIR ? L"/" : L""),
-                     buffer);
+    if (mismatch_results.second == entry_path.end()) {
+      buffer->SchedulePendingWork(
+          [buffer] { RegisterPredictorExactMatch(buffer); });
+    }
+    longest_pattern_match = pattern.size();
+    predictions.push_back(
+        NewLazyString(PathJoin(prefix, FromByteString(entry->d_name)) +
+                      (entry->d_type == DT_DIR ? L"/" : L"")));
+    if (predictions.size() > 100) {
+      FlushPredictions();
+    }
   }
+  FlushPredictions();
+  buffer->SchedulePendingWork([prefix, pattern, longest_pattern_match, buffer,
+                               predictions = std::move(predictions)] {
+    if (pattern.empty()) {
+      RegisterPredictorExactMatch(buffer);
+    }
+    RegisterPredictorPrefixMatch(prefix.size() + longest_pattern_match, buffer);
+  });
 }
 
 void FilePredictor(EditorState* editor_state, const wstring& input_path,
@@ -288,6 +349,11 @@ void FilePredictor(EditorState* editor_state, const wstring& input_path,
     for (const auto& search_path : input.search_paths) {
       VLOG(4) << "Considering search path: " << search_path;
       auto descend_results = DescendDirectoryTree(search_path, input.path);
+      input.buffer->SchedulePendingWork(
+          [buffer = input.buffer,
+           length = descend_results.valid_proper_prefix_length] {
+            RegisterPredictorDirectoryMatch(length, buffer);
+          });
       CHECK_LE(descend_results.valid_prefix_length, input.path.size());
       ScanDirectory(descend_results.dir.get(),
                     input.path.substr(descend_results.valid_prefix_length,
@@ -371,6 +437,27 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
     buffer->EndOfFile();
     buffer->AddEndOfFileObserver(callback);
   };
+}
+
+void RegisterPredictorPrefixMatch(size_t new_value, OpenBuffer* buffer) {
+  auto value = buffer->environment()->Lookup(kLongestPrefixEnvironmentVariable,
+                                             VMType::VM_INTEGER);
+  if (value == nullptr) return;
+  value->integer = std::max(value->integer, static_cast<int>(new_value));
+}
+
+void RegisterPredictorDirectoryMatch(size_t new_value, OpenBuffer* buffer) {
+  auto value = buffer->environment()->Lookup(
+      kLongestDirectoryMatchEnvironmentVariable, VMType::VM_INTEGER);
+  if (value == nullptr) return;
+  value->integer = std::max(value->integer, static_cast<int>(new_value));
+}
+
+void RegisterPredictorExactMatch(OpenBuffer* buffer) {
+  auto value = buffer->environment()->Lookup(kExactMatchEnvironmentVariable,
+                                             VMType::VM_BOOLEAN);
+  if (value == nullptr) return;
+  value->boolean = true;
 }
 
 }  // namespace afc::editor
