@@ -142,6 +142,7 @@ DirectoryCacheOutput Seek(std::wstring input,
 AsyncProcessor<DirectoryCacheInput, DirectoryCacheOutput> NewDirectoryCache() {
   auto cache = std::make_shared<LRUCache<wstring, DirectoryCacheOutput>>(1024);
   AsyncProcessor<DirectoryCacheInput, DirectoryCacheOutput>::Options options;
+  options.name = L"DirectoryCache";
   options.factory = [cache](DirectoryCacheInput input) -> DirectoryCacheOutput {
     auto output = *cache->Get(input.pattern, [&]() {
       return Seek(input.pattern, input.search_paths);
