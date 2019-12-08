@@ -174,6 +174,84 @@ void Predict(PredictOptions options) {
   }
 }
 
+struct DescendDirectoryTreeOutput {
+  std::unique_ptr<DIR, std::function<void(DIR*)>> dir;
+  // The length of the longest prefix of path that corresponds to a valid
+  // directory.
+  size_t valid_prefix_length = 0;
+};
+
+DescendDirectoryTreeOutput DescendDirectoryTree(wstring search_path,
+                                                wstring path) {
+  DescendDirectoryTreeOutput output;
+  VLOG(6) << "Starting search at: " << search_path;
+  output.dir = OpenDir(search_path);
+  if (output.dir == nullptr) {
+    VLOG(5) << "Unable to open search_path: " << search_path;
+    return output;
+  }
+
+  // We don't use DirectorySplit in order to handle adjacent slashes.
+  while (output.valid_prefix_length < path.size()) {
+    VLOG(6) << "Iterating at: " << path.substr(0, output.valid_prefix_length);
+    auto next_candidate = path.find_first_of(L'/', output.valid_prefix_length);
+    if (next_candidate == wstring::npos) {
+      next_candidate = path.size();
+    } else if (next_candidate == output.valid_prefix_length) {
+      ++output.valid_prefix_length;
+      continue;
+    }
+    auto test_path = PathJoin(search_path, path.substr(0, next_candidate));
+    VLOG(8) << "Considering: " << test_path;
+    auto subdir = OpenDir(test_path);
+    if (subdir == nullptr) {
+      return output;
+    }
+    CHECK_GT(next_candidate, output.valid_prefix_length);
+    output.dir = std::move(subdir);
+    output.valid_prefix_length = next_candidate;
+  }
+  return output;
+}
+
+void AppendPrediction(std::wstring prediction, OpenBuffer* buffer) {
+  VLOG(5) << "Prediction: " << prediction;
+  buffer->SchedulePendingWork(
+      [buffer, line = std::shared_ptr<LazyString>(
+                   NewLazyString(std::move(prediction)))] {
+        buffer->AppendToLastLine(line);
+        buffer->AppendRawLine(std::make_shared<Line>(Line::Options()));
+      });
+}
+
+// Reads the entire contents of `dir`, looking for files that match `pattern`.
+// For any files that do, prepends `prefix` and appends them to `buffer`.
+
+void ScanDirectory(DIR* dir, std::wstring pattern, std::wstring prefix,
+                   OpenBuffer* buffer) {
+  VLOG(5) << "Scanning directory looking for: " << pattern;
+  // The length of the longest prefix of `pattern` that matches an entry.
+  size_t longest_pattern_match = 0;
+  struct dirent* entry;
+  while ((entry = readdir(dir)) != nullptr) {
+    string entry_path = entry->d_name;
+
+    auto mismatch_results = std::mismatch(pattern.begin(), pattern.end(),
+                                          entry_path.begin(), entry_path.end());
+    if (mismatch_results.first != pattern.end()) {
+      VLOG(20) << "The entry " << entry_path
+               << " doesn't contain the whole prefix.";
+      longest_pattern_match =
+          std::max<int>(longest_pattern_match,
+                        std::distance(pattern.begin(), mismatch_results.first));
+      continue;
+    }
+    AppendPrediction(PathJoin(prefix, FromByteString(entry->d_name)) +
+                         (entry->d_type == DT_DIR ? L"/" : L""),
+                     buffer);
+  }
+}
+
 void FilePredictor(EditorState* editor_state, const wstring& input_path,
                    OpenBuffer* buffer, std::function<void()> callback) {
   LOG(INFO) << "Generating predictions for: " << input_path;
@@ -209,93 +287,13 @@ void FilePredictor(EditorState* editor_state, const wstring& input_path,
 
     for (const auto& search_path : input.search_paths) {
       VLOG(4) << "Considering search path: " << search_path;
-      wstring path_with_prefix = search_path;
-      if (search_path.empty()) {
-        path_with_prefix = path.empty() ? L"." : path;
-      } else if (!path.empty()) {
-        path_with_prefix += L"/" + path;
-      }
-
-      VLOG(6) << "Starting search at: " << search_path;
-      auto parent_dir = OpenDir(search_path);
-      if (parent_dir == nullptr) {
-        VLOG(5) << "Unable to open search_path: " << search_path;
-        continue;
-      }
-      std::list<std::wstring> components;
-      DirectorySplit(input.path, &components);
-      std::wstring prefix;
-
-      while (components.size() > 1) {
-        auto subdir_path = PathJoin(prefix, components.front());
-        auto subdir = OpenDir(PathJoin(search_path, subdir_path));
-        if (subdir != nullptr) {
-          parent_dir = std::move(subdir);
-          prefix = std::move(subdir_path);
-          components.pop_front();
-        } else {
-          break;
-        }
-      }
-      VLOG(5) << "After descent: " << prefix;
-
-      if (prefix.empty()) {
-        path_with_prefix = search_path;
-      } else {
-        auto resolve_path_options = input.resolve_path_options;
-        resolve_path_options.path = prefix;
-        resolve_path_options.search_paths = {search_path};
-        if (auto results = ResolvePath(resolve_path_options);
-            results.has_value()) {
-          path_with_prefix = results->path;
-        } else {
-          LOG(INFO) << "Unable to resolve, giving up current search path.";
-          continue;
-        }
-      }
-
-      // The length of the longest prefix of `basename_prefix` that matches an
-      // entry in `parent_dir`.
-      size_t longest_prefix_match = 0;
-      auto basename_prefix = components.front();
-      struct dirent* entry;
-      while ((entry = readdir(parent_dir.get())) != nullptr) {
-        string entry_path = entry->d_name;
-
-        auto mismatch_results =
-            std::mismatch(basename_prefix.begin(), basename_prefix.end(),
-                          entry_path.begin(), entry_path.end());
-        if (mismatch_results.first != basename_prefix.end()) {
-          VLOG(20) << "The entry " << entry_path
-                   << " doesn't contain the whole prefix.";
-          longest_prefix_match = std::max<int>(
-              longest_prefix_match,
-              std::distance(basename_prefix.begin(), mismatch_results.first));
-          continue;
-        }
-        wstring prediction =
-            PathJoin(path_with_prefix, FromByteString(entry->d_name)) +
-            (entry->d_type == DT_DIR ? L"/" : L"");
-        if (!search_path.empty() && search_path != L"/" &&
-            std::equal(search_path.begin(), search_path.end(),
-                       prediction.begin())) {
-          VLOG(6) << "Removing prefix from prediction: " << prediction;
-          size_t start = prediction.find_first_not_of('/', search_path.size());
-          if (start != prediction.npos) {
-            prediction = prediction.substr(start);
-          }
-        } else {
-          VLOG(6) << "Not stripping prefix " << search_path
-                  << " from prediction " << prediction;
-        }
-        VLOG(5) << "Prediction: " << prediction;
-        input.buffer->SchedulePendingWork(
-            [buffer = input.buffer,
-             line = std::shared_ptr<LazyString>(NewLazyString(prediction))] {
-              buffer->AppendToLastLine(line);
-              buffer->AppendRawLine(std::make_shared<Line>(Line::Options()));
-            });
-      }
+      auto descend_results = DescendDirectoryTree(search_path, input.path);
+      CHECK_LE(descend_results.valid_prefix_length, input.path.size());
+      ScanDirectory(descend_results.dir.get(),
+                    input.path.substr(descend_results.valid_prefix_length,
+                                      input.path.size()),
+                    input.path.substr(0, descend_results.valid_prefix_length),
+                    input.buffer);
     }
     input.buffer->SchedulePendingWork(
         [buffer = input.buffer, callback = input.callback] {
