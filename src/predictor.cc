@@ -188,13 +188,26 @@ void FilePredictor(EditorState* editor_state, const wstring& input_path,
   options.name = L"FilePredictor";
   options.factory = [](AsyncInput input) {
     std::wstring path = input.path;
-    for (const auto& search_path : input.search_paths) {
-      VLOG(4) << "Considering search path: " << search_path;
-      if (!search_path.empty() && !path.empty() && path.front() == '/') {
-        VLOG(5) << "Skipping non-empty search path for absolute path.";
-        continue;
+    if (!path.empty() && *path.begin() == L'/') {
+      input.search_paths = {L""};
+    } else {
+      for (auto& search_path : input.search_paths) {
+        search_path = Realpath(search_path.empty() ? L"." : search_path);
       }
 
+      std::set<std::wstring> unique_paths_set;
+      std::vector<std::wstring> unique_paths;  // Preserve the order.
+      for (const auto& search_path : input.search_paths) {
+        if (unique_paths_set.insert(search_path).second) {
+          unique_paths.push_back(search_path);
+        }
+      }
+
+      input.search_paths = std::move(unique_paths);
+    }
+
+    for (const auto& search_path : input.search_paths) {
+      VLOG(4) << "Considering search path: " << search_path;
       wstring path_with_prefix = search_path;
       if (search_path.empty()) {
         path_with_prefix = path.empty() ? L"." : path;
@@ -210,7 +223,6 @@ void FilePredictor(EditorState* editor_state, const wstring& input_path,
         basename_prefix = basename(path_copy);
         free(path_copy);
       }
-
       LOG(INFO) << "Reading directory: " << path_with_prefix;
 
       wstring resolved_path;
@@ -255,6 +267,9 @@ void FilePredictor(EditorState* editor_state, const wstring& input_path,
           if (start != prediction.npos) {
             prediction = prediction.substr(start);
           }
+        } else {
+          VLOG(6) << "Not stripping prefix " << search_path
+                  << " from prediction " << prediction;
         }
         VLOG(5) << "Prediction: " << prediction;
         input.buffer->SchedulePendingWork(
