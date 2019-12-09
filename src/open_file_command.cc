@@ -5,7 +5,6 @@ extern "C" {
 }
 
 #include "src/buffer_variables.h"
-#include "src/directory_cache.h"
 #include "src/dirname.h"
 #include "src/editor.h"
 #include "src/file_link_mode.h"
@@ -27,7 +26,7 @@ void OpenFileHandler(const wstring& name, EditorState* editor_state) {
 
 void DrawPath(const std::shared_ptr<OpenBuffer>& buffer,
               const std::shared_ptr<const Line>& original_line,
-              std::optional<DirectoryCacheOutput> results) {
+              std::optional<PredictResults> results) {
   CHECK(buffer != nullptr);
   CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
   auto line = buffer->LineAt(LineNumber(0));
@@ -36,8 +35,6 @@ void DrawPath(const std::shared_ptr<OpenBuffer>& buffer,
     return;
   }
 
-  VLOG(5) << "DrawPath, output prefix: "
-          << (results.has_value() ? results.value().longest_prefix : L"(null)");
   Line::Options output;
   for (auto i = ColumnNumber(0); i < line->EndColumn(); ++i) {
     auto c = line->get(i);
@@ -50,17 +47,17 @@ void DrawPath(const std::shared_ptr<OpenBuffer>& buffer,
         LineModifierSet modifiers;
         if (results.has_value()) {
           auto value = results.value();
-          if (i >= ColumnNumber(value.longest_prefix.size())) {
-            if (value.exact_match == DirectoryCacheOutput::ExactMatch::kFound) {
+          if (i.ToDelta() >= value.longest_directory_match) {
+            if (value.found_exact_match) {
               modifiers.insert(LineModifier::BOLD);
             }
-            if (value.count == 0) {
+            if (value.matches == 0 && i.ToDelta() >= value.longest_prefix) {
               modifiers.insert(LineModifier::RED);
-            } else if (value.count == 1) {
+            } else if (value.matches == 1) {
               modifiers.insert(LineModifier::GREEN);
-            } else if (line->EndColumn() <
-                       ColumnNumber(value.longest_prefix.size() + 1 +
-                                    value.longest_suffix.size())) {
+            } else if (value.common_prefix.has_value() &&
+                       line->EndColumn() <
+                           ColumnNumber(value.common_prefix.value().size())) {
               modifiers.insert(LineModifier::YELLOW);
             }
           }
@@ -79,17 +76,15 @@ void AdjustPath(const std::shared_ptr<OpenBuffer>& buffer) {
   CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
   auto line = buffer->LineAt(LineNumber(0));
 
-  static AsyncProcessor<DirectoryCacheInput, DirectoryCacheOutput>
-      directory_cache = NewDirectoryCache();
-  DirectoryCacheInput directory_cache_input;
-  directory_cache_input.pattern = line->ToString();
-  directory_cache_input.callback = [buffer,
-                                    line](DirectoryCacheOutput results) {
-    buffer->SchedulePendingWork(
-        [buffer, line, results]() { DrawPath(buffer, line, results); });
+  PredictOptions options;
+  options.editor_state = buffer->editor();
+  options.predictor = FilePredictor;
+  options.status = buffer->editor()->status();
+  options.callback = [buffer, line](PredictResults results) {
+    VLOG(5) << "Prediction results: " << results;
+    DrawPath(buffer, line, results);
   };
-  directory_cache.Push(directory_cache_input);
-
+  Predict(std::move(options));
   DrawPath(buffer, line, std::nullopt);
 }
 }  // namespace

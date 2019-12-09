@@ -50,20 +50,18 @@ void RunCppFileHandler(const wstring& input, EditorState* editor_state) {
   }
 
   buffer->ResetMode();
-  wstring adjusted_input;
-  ResolvePathOptions options;
-  options.editor_state = editor_state;
+  auto options = ResolvePathOptions::New(editor_state);
   options.path = input;
-  options.output_path = &adjusted_input;
-  if (!ResolvePath(options)) {
+  auto resolved_path = ResolvePath(std::move(options));
+  if (!resolved_path.has_value()) {
     buffer->status()->SetWarningText(L"🗱  File not found: " + input);
     return;
   }
 
   // Recursive function that receives the number of evaluations.
   auto execute = std::make_shared<std::function<void(size_t)>>();
-  *execute = [buffer, total = editor_state->repetitions(), adjusted_input,
-              execute](size_t i) {
+  *execute = [buffer, total = editor_state->repetitions(),
+              adjusted_input = resolved_path->path, execute](size_t i) {
     if (i >= total) return;
     buffer->EvaluateFile(adjusted_input, [execute, i](std::unique_ptr<Value>) {
       (*execute)(i + 1);

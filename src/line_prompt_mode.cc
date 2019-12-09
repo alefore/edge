@@ -246,10 +246,13 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
                                      history->contents()->size());
 
   auto buffer = GetPromptBuffer(editor_state);
+  CHECK(buffer != nullptr);
+
+  auto original_buffer = editor_state->current_buffer();
   auto status = options.status == PromptOptions::Status::kEditor
                     ? editor_state->status()
-                    : editor_state->current_buffer()->status();
-  CHECK(status);
+                    : original_buffer->status();
+  CHECK(status != nullptr);
 
   Modifiers original_modifiers = editor_state->modifiers();
   editor_state->set_modifiers(Modifiers());
@@ -269,12 +272,10 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
   insert_mode_options.editor_state = editor_state;
   insert_mode_options.buffer = buffer;
 
-  auto original_buffer = editor_state->current_buffer();
   insert_mode_options.modify_listener = [editor_state, original_buffer, buffer,
                                          status, options]() {
     editor_state->set_current_buffer(original_buffer);
     options.change_notifier(buffer);
-    status->set_prompt(options.prompt, buffer);
   };
 
   insert_mode_options.scroll_behavior =
@@ -286,7 +287,6 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
     LOG(INFO) << "Running escape_handler from Prompt.";
     editor_state->set_current_buffer(original_buffer);
     editor_state->set_modifiers(original_modifiers);
-    editor_state->status()->Reset();
     status->Reset();
 
     // We make a copy in case cancel_handler or handler delete us.
@@ -320,57 +320,65 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
     auto ensure_survival_of_current_closure = editor_state->keyboard_redirect();
     editor_state->set_keyboard_redirect(nullptr);
     status->Reset();
-    editor_state->status()->Reset();
     editor_state->set_modifiers(original_modifiers);
     options.handler(input->ToString(), editor_state);
     (void)ensure_survival_of_current_closure;
   };
 
-  insert_mode_options.start_completion = [editor_state, options, buffer,
-                                          status]() {
+  insert_mode_options.start_completion = [editor_state, options,
+                                          original_buffer, buffer, status]() {
     auto input = buffer->current_line()->contents()->ToString();
     LOG(INFO) << "Triggering predictions from: " << input;
-    Predict(
-        editor_state, options.predictor, input,
-        [editor_state, options, buffer, status,
-         input](const wstring& prediction) {
-          if (input != prediction && !prediction.empty()) {
-            LOG(INFO) << "Prediction advanced from " << input << " to "
-                      << prediction;
+    PredictOptions predict_options;
+    predict_options.editor_state = editor_state;
+    predict_options.predictor = options.predictor;
+    predict_options.status = status;
+    predict_options.callback = [editor_state, options, original_buffer, buffer,
+                                status, input](PredictResults results) {
+      if (results.common_prefix.has_value() &&
+          !results.common_prefix.value().empty() &&
+          input != results.common_prefix.value()) {
+        LOG(INFO) << "Prediction advanced from " << input << " to " << results;
 
-            DeleteOptions delete_options;
-            delete_options.copy_to_paste_buffer = false;
-            delete_options.modifiers.structure = StructureLine();
-            delete_options.modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
-            delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
-            buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
+        DeleteOptions delete_options;
+        delete_options.copy_to_paste_buffer = false;
+        delete_options.modifiers.structure = StructureLine();
+        delete_options.modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
+        delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
+        buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
 
-            auto buffer_to_insert =
-                std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
-            buffer_to_insert->AppendToLastLine(NewLazyString(prediction));
-            InsertOptions insert_options;
-            insert_options.buffer_to_insert = buffer_to_insert;
-            buffer->ApplyToCursors(
-                NewInsertBufferTransformation(std::move(insert_options)));
+        auto buffer_to_insert =
+            std::make_shared<OpenBuffer>(editor_state, L"- text inserted");
+        buffer_to_insert->AppendToLastLine(
+            NewLazyString(results.common_prefix.value()));
+        InsertOptions insert_options;
+        insert_options.buffer_to_insert = buffer_to_insert;
+        buffer->ApplyToCursors(
+            NewInsertBufferTransformation(std::move(insert_options)));
 
-            options.change_notifier(buffer);
-            status->set_prompt(options.prompt, buffer);
-          } else {
-            LOG(INFO) << "Prediction didn't advance.";
-            auto it = editor_state->buffers()->find(PredictionsBufferName());
-            if (it == editor_state->buffers()->end()) {
-              editor_state->status()->SetWarningText(
-                  L"Error: predictions buffer not found.");
-            } else {
-              it->second->set_current_position_line(LineNumber(0));
-              editor_state->set_current_buffer(it->second);
-            }
+        options.change_notifier(buffer);
+      } else {
+        LOG(INFO) << "Prediction didn't advance.";
+        auto buffers = editor_state->buffers();
+        auto name = PredictionsBufferName();
+        if (auto it = buffers->find(name); it != buffers->end()) {
+          it->second->set_current_position_line(LineNumber(0));
+          editor_state->set_current_buffer(it->second);
+          if (editor_state->status()->prompt_buffer() == nullptr) {
+            it->second->status()->CopyFrom(*status);
           }
-        });
+        } else {
+          editor_state->status()->SetWarningText(
+              L"Error: Predict: predictions buffer not found: " + name);
+        }
+      }
+    };
+    Predict(std::move(predict_options));
     return true;
   };
 
   EnterInsertMode(insert_mode_options);
+  status->set_prompt(options.prompt, buffer);
   insert_mode_options.modify_listener();
 }
 

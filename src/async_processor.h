@@ -38,9 +38,17 @@ class AsyncProcessor {
     // inputs.
     enum class QueueBehavior { kFlush, kWait };
     QueueBehavior push_behavior = QueueBehavior::kFlush;
+
+    std::wstring name;
   };
 
-  AsyncProcessor(Options options) : options_(std::move(options)) {}
+  AsyncProcessor(Options options)
+      : options_([&] {
+          if (options.name.empty()) {
+            options.name = L"<anonymous>";
+          }
+          return options;
+        }()) {}
 
   ~AsyncProcessor() { PauseThread(); }
 
@@ -53,7 +61,7 @@ class AsyncProcessor {
     input_queue_.push_back(std::move(input));
     switch (state_) {
       case State::kNotRunning: {
-        LOG(INFO) << "Creating thread";
+        LOG(INFO) << options_.name << ": Creating thread";
         if (background_thread_.joinable()) {
           background_thread_.join();
         }
@@ -106,9 +114,9 @@ class AsyncProcessor {
         return state_ != State::kRunning || !input_queue_.empty();
       });
       CHECK(state_ != State::kNotRunning);
-      VLOG(5) << "Background thread is waking up.";
+      VLOG(5) << options_.name << ": Background thread is waking up.";
       if (input_queue_.empty()) {
-        LOG(INFO) << "Background thread is shutting down.";
+        LOG(INFO) << options_.name << ": Background thread is shutting down.";
         state_ = State::kNotRunning;
         return;
       }

@@ -1,10 +1,10 @@
 #ifndef __AFC_VM_PUBLIC_VECTOR_H__
 #define __AFC_VM_PUBLIC_VECTOR_H__
 
+#include <glog/logging.h>
+
 #include <memory>
 #include <type_traits>
-
-#include <glog/logging.h>
 
 #include "src/vm/public/value.h"
 #include "src/vm/public/vm.h"
@@ -29,7 +29,13 @@ struct VMTypeMapper<std::vector<T>*> {
     return static_cast<std::vector<T>*>(value->user_value.get());
   }
 
-  static Value::Ptr New(std::vector<T> value) { return Value::NewInteger(0); }
+  static Value::Ptr New(std::vector<T>* value) {
+    // TODO: It's lame that we have to copy the values. :-/ We should find a way
+    // to avoid that.
+    auto value_copy = std::make_shared<std::vector<T>>(*value);
+    std::shared_ptr<void> void_ptr(value_copy, value_copy.get());
+    return Value::NewObject(vmtype.object_type, void_ptr);
+  }
 
   static const VMType vmtype;
 

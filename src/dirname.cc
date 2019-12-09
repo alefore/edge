@@ -15,6 +15,11 @@ namespace afc::editor {
 using std::list;
 using std::wstring;
 
+wstring Realpath(const wstring& path) {
+  char* result = realpath(ToByteString(path).c_str(), nullptr);
+  return result == nullptr ? path : FromByteString(result);
+}
+
 wstring Dirname(wstring path) {
   VLOG(5) << "Dirname: " << path;
   std::unique_ptr<char, decltype(&std::free)> tmp(
@@ -54,6 +59,9 @@ wstring PathJoin(const wstring& a, const wstring& b) {
   }
   if (b.empty()) {
     return a;
+  }
+  if (a == L"/" && b[0] == L'/') {
+    return b;
   }
   bool has_slash = a[a.size() - 1] == L'/' || b[0] == L'/';
   return a + (has_slash ? L"" : L"/") + b;

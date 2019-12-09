@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "src/status.h"
+
 namespace afc {
 namespace editor {
 
@@ -26,24 +28,63 @@ class OpenBuffer;
 // by OpenBuffer::AppendRawLine(..., empty_line). In other words, once the
 // predictor is done running, the buffer must have an empty line at the end (and
 // not at the beginning).
-typedef function<void(EditorState*, const wstring&, OpenBuffer*)> Predictor;
+//
+// Once the predictor is done running, it must run the callback given.
+typedef function<void(EditorState*, const wstring&, OpenBuffer*,
+                      std::function<void()>)>
+    Predictor;
 
 const wstring& PredictionsBufferName();
 
-// Create a new buffer running a given predictor on a given input. When that's
-// done, runs consumer on the results (on the longest unambiguous completion for
-// input).
-void Predict(EditorState* editor_state, Predictor predictor, wstring input,
-             function<void(const wstring&)> consumer);
+struct PredictResults {
+  // If the input matched at least one item, this will be the longest common
+  // prefix of all the items that the input matched.
+  std::optional<wstring> common_prefix;
+
+  int matches = 0;
+
+  // The size of the longest prefix in the input that matched at least one item.
+  // Typically, when the input matches at least one item, this will be the size
+  // of the input.
+  ColumnNumberDelta longest_prefix;
+  // The size of the longest prefix in the input that matched a directory and
+  // that is shorter than the entire input (i.e., if the input is `foo/bar` and
+  // that directory exists, the longest directory will be `foo`).
+  ColumnNumberDelta longest_directory_match;
+
+  // Did the input match a file exactly?
+  bool found_exact_match = false;
+};
+
+std::ostream& operator<<(std::ostream& os, const PredictResults& lc);
+
+struct PredictOptions {
+  EditorState* editor_state;
+  Predictor predictor;
+  Status* status;
+  // Called if all the predicted entries have a common prefix that's longer than
+  // the query.
+  std::function<void(PredictResults)> callback;
+};
+// Create a new buffer running a given predictor on the input in a given status
+// prompt. When that's done, runs consumer on the results (on the longest
+// unambiguous completion for input).
+void Predict(PredictOptions predict_options);
 
 void FilePredictor(EditorState* editor_state, const wstring& input,
-                   OpenBuffer* buffer);
+                   OpenBuffer* buffer, std::function<void()> callback);
 
 void EmptyPredictor(EditorState* editor_state, const wstring& input,
-                    OpenBuffer* buffer);
+                    OpenBuffer* buffer, std::function<void()> callback);
 
 Predictor PrecomputedPredictor(const vector<wstring>& predictions,
                                wchar_t separator);
+
+// Buffer must be a buffer given to a predictor by `Predict`. Registers a new
+// size of a prefix that has a match.
+void RegisterPredictorPrefixMatch(size_t longest_prefix, OpenBuffer* buffer);
+void RegisterPredictorDirectoryMatch(size_t prefix, OpenBuffer* buffer);
+void RegisterPredictorExactMatch(OpenBuffer* buffer);
 
 }  // namespace editor
 }  // namespace afc

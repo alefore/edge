@@ -22,6 +22,7 @@ struct StatusExpirationControl;
 class Status {
  public:
   Status(std::shared_ptr<OpenBuffer> console, AudioPlayer* audio_player);
+  void CopyFrom(const Status& status);
 
   enum class Type { kWarning, kInformation, kPrompt };
   Type GetType() const;
@@ -30,7 +31,7 @@ class Status {
 
   void set_prompt(std::wstring text, std::shared_ptr<OpenBuffer> buffer);
   // May be nullptr.
-  const OpenBuffer* prompt_buffer() const;
+  const std::shared_ptr<OpenBuffer>& prompt_buffer() const;
 
   void SetInformationText(std::wstring text);
   std::unique_ptr<StatusExpirationControl,

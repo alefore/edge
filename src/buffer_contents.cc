@@ -15,6 +15,15 @@
 namespace afc {
 namespace editor {
 
+BufferContents::BufferContents() : BufferContents(nullptr) {}
+
+BufferContents::BufferContents(UpdateListener update_listener)
+    : update_listener_(update_listener != nullptr
+                           ? std::move(update_listener)
+                           : [](const CursorsTracker::Transformation&) {}) {
+  CHECK(update_listener_ != nullptr);
+}
+
 LineNumber BufferContents::EndLine() const {
   return LineNumber(0) + size() - LineNumberDelta(1);
 }
@@ -64,9 +73,9 @@ void BufferContents::insert(LineNumber position_line,
     return true;
   });
   lines_ = Lines::Append(prefix, suffix);
-  NotifyUpdateListeners(CursorsTracker::Transformation()
-                            .WithBegin(LineColumn(position_line))
-                            .LineDelta(source.size()));
+  update_listener_(CursorsTracker::Transformation()
+                       .WithBegin(LineColumn(position_line))
+                       .LineDelta(source.size()));
 }
 
 bool BufferContents::EveryLine(
@@ -111,9 +120,9 @@ void BufferContents::insert_line(LineNumber line_position,
   CHECK_EQ(Lines::Size(suffix), Lines::Size(lines_) - line_position.line);
   lines_ = Lines::Append(Lines::PushBack(prefix, std::move(line)), suffix);
   CHECK_EQ(Lines::Size(lines_), original_size + 1);
-  NotifyUpdateListeners(CursorsTracker::Transformation()
-                            .WithBegin(LineColumn(line_position))
-                            .LineDelta(LineNumberDelta(1)));
+  update_listener_(CursorsTracker::Transformation()
+                       .WithBegin(LineColumn(line_position))
+                       .LineDelta(LineNumberDelta(1)));
 }
 
 void BufferContents::set_line(LineNumber position,
@@ -196,10 +205,10 @@ void BufferContents::EraseLines(LineNumber first, LineNumber last,
   if (cursors_behavior == CursorsBehavior::kUnmodified) {
     return;
   }
-  NotifyUpdateListeners(CursorsTracker::Transformation()
-                            .WithBegin(LineColumn(first))
-                            .LineDelta(first - last)
-                            .LineLowerBound(first));
+  update_listener_(CursorsTracker::Transformation()
+                       .WithBegin(LineColumn(first))
+                       .LineDelta(first - last)
+                       .LineLowerBound(first));
 }
 
 void BufferContents::SplitLine(LineColumn position) {
@@ -208,12 +217,11 @@ void BufferContents::SplitLine(LineColumn position) {
               Line::New(Line::Options(*at(position.line))
                             .DeleteCharacters(ColumnNumber(0),
                                               position.column.ToDelta())));
-  NotifyUpdateListeners(
-      CursorsTracker::Transformation()
-          .WithBegin(position)
-          .WithEnd(LineColumn(position.line + LineNumberDelta(1)))
-          .LineDelta(LineNumberDelta(1))
-          .ColumnDelta(-position.column.ToDelta()));
+  update_listener_(CursorsTracker::Transformation()
+                       .WithBegin(position)
+                       .WithEnd(LineColumn(position.line + LineNumberDelta(1)))
+                       .LineDelta(LineNumberDelta(1))
+                       .ColumnDelta(-position.column.ToDelta()));
   DeleteToLineEnd(position);
 }
 
@@ -225,10 +233,10 @@ void BufferContents::FoldNextLine(LineNumber position) {
   ColumnNumberDelta initial_size = at(position)->EndColumn().ToDelta();
   // TODO: Can maybe combine this with next for fewer updates.
   AppendToLine(position, *at(next_line));
-  NotifyUpdateListeners(CursorsTracker::Transformation()
-                            .WithLineEq(position + LineNumberDelta(1))
-                            .LineDelta(LineNumberDelta(-1))
-                            .ColumnDelta(initial_size));
+  update_listener_(CursorsTracker::Transformation()
+                       .WithLineEq(position + LineNumberDelta(1))
+                       .LineDelta(LineNumberDelta(-1))
+                       .ColumnDelta(initial_size));
   EraseLines(next_line, position + LineNumberDelta(2),
              CursorsBehavior::kAdjust);
 }
@@ -237,10 +245,9 @@ void BufferContents::push_back(wstring str) {
   return push_back(std::make_shared<Line>(std::move(str)));
 }
 
-void BufferContents::AddUpdateListener(
-    std::function<void(const CursorsTracker::Transformation&)> listener) {
-  CHECK(listener);
-  update_listeners_.push_back(listener);
+void BufferContents::push_back(shared_ptr<const Line> line) {
+  lines_ = Lines::PushBack(std::move(lines_), line);
+  update_listener_({});
 }
 
 std::vector<fuzz::Handler> BufferContents::FuzzHandlers() {
@@ -309,18 +316,7 @@ std::vector<fuzz::Handler> BufferContents::FuzzHandlers() {
   output.push_back(Call(std::function<void(ShortRandomLine)>(
       [this](ShortRandomLine s) { push_back(s.value); })));
 
-  output.push_back(Call(std::function<void()>([this]() {
-    AddUpdateListener([](const CursorsTracker::Transformation&) {});
-  })));
-
   return output;
-}
-
-void BufferContents::NotifyUpdateListeners(
-    const CursorsTracker::Transformation& transformation) {
-  for (auto& l : update_listeners_) {
-    l(transformation);
-  }
 }
 
 }  // namespace editor

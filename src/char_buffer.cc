@@ -10,8 +10,6 @@
 namespace afc {
 namespace editor {
 
-using std::string;
-
 namespace {
 class RepeatedChar : public LazyString {
  public:
@@ -79,31 +77,31 @@ class CharBufferWithOwnership : public CharBuffer {
 };
 }  // namespace
 
-unique_ptr<LazyString> NewMoveableCharBuffer(const wchar_t* const* buffer,
-                                             size_t size) {
+std::unique_ptr<LazyString> NewMoveableCharBuffer(const wchar_t* const* buffer,
+                                                  size_t size) {
   return std::make_unique<MoveableCharBuffer>(buffer, size);
 }
 
-unique_ptr<LazyString> NewCharBuffer(const wchar_t* buffer, size_t size) {
+std::unique_ptr<LazyString> NewCharBuffer(const wchar_t* buffer, size_t size) {
   return std::make_unique<CharBuffer>(buffer, size);
 }
 
-unique_ptr<LazyString> NewCharBufferWithOwnership(const wchar_t* buffer,
-                                                  size_t size) {
+std::unique_ptr<LazyString> NewCharBufferWithOwnership(const wchar_t* buffer,
+                                                       size_t size) {
   return std::make_unique<CharBufferWithOwnership>(buffer, size);
 }
 
-unique_ptr<LazyString> NewCopyCharBuffer(const wchar_t* buffer) {
+std::unique_ptr<LazyString> NewCopyCharBuffer(const wchar_t* buffer) {
   return std::make_unique<CharBufferWithOwnership>(wcsdup(buffer),
                                                    wcslen(buffer));
 }
 
-unique_ptr<LazyString> NewLazyString(wstring buffer) {
-  return std::make_unique<StringFromContainer<wstring>>(std::move(buffer));
+std::unique_ptr<LazyString> NewLazyString(std::wstring buffer) {
+  return std::make_unique<StringFromContainer<std::wstring>>(std::move(buffer));
 }
 
-unique_ptr<LazyString> NewLazyString(vector<wchar_t> data) {
-  return std::make_unique<StringFromContainer<vector<wchar_t>>>(
+std::unique_ptr<LazyString> NewLazyString(std::vector<wchar_t> data) {
+  return std::make_unique<StringFromContainer<std::vector<wchar_t>>>(
       std::move(data));
 }
 

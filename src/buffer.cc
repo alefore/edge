@@ -442,16 +442,16 @@ OpenBuffer::SyntaxDataOutput OpenBuffer::UpdateSyntaxData(
                     keys,
                     [buffer, path](EditorState* editor_state) {
                       wstring resolved_path;
-                      ResolvePathOptions options;
-                      options.editor_state = editor_state;
+                      auto options = ResolvePathOptions::New(editor_state);
                       options.path = path;
-                      options.output_path = &resolved_path;
-                      if (!ResolvePath(options)) {
+                      if (auto results = ResolvePath(std::move(options));
+                          results.has_value()) {
+                        buffer->EvaluateFile(results->path,
+                                             [](std::unique_ptr<Value>) {});
+
+                      } else {
                         buffer->status()->SetWarningText(
                             L"Unable to resolve: " + path);
-                      } else {
-                        buffer->EvaluateFile(resolved_path,
-                                             [](std::unique_ptr<Value>) {});
                       }
                     },
                     L"Load file: " + path);
@@ -491,6 +491,12 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
 
 OpenBuffer::OpenBuffer(Options options)
     : options_(std::move(options)),
+      contents_([this](const CursorsTracker::Transformation& transformation) {
+        ScheduleSyntaxDataUpdate();
+        modified_ = true;
+        time(&last_action_);
+        cursors_tracker_.AdjustCursors(transformation);
+      }),
       bool_variables_(buffer_variables::BoolStruct()->NewInstance()),
       string_variables_(buffer_variables::StringStruct()->NewInstance()),
       int_variables_(buffer_variables::IntStruct()->NewInstance()),
@@ -509,6 +515,7 @@ OpenBuffer::OpenBuffer(Options options)
       tree_parser_(NewNullTreeParser()),
       syntax_data_([this]() {
         AsyncProcessor<SyntaxDataInput, SyntaxDataOutput>::Options options;
+        options.name = L"SyntaxData";
         options.factory = UpdateSyntaxData;
         options.notify_callback = [this]() {
           VLOG(5) << "Background thread is notifying internal event.";
@@ -516,13 +523,6 @@ OpenBuffer::OpenBuffer(Options options)
         };
         return options;
       }()) {
-  contents_.AddUpdateListener(
-      [this](const CursorsTracker::Transformation& transformation) {
-        ScheduleSyntaxDataUpdate();
-        modified_ = true;
-        time(&last_action_);
-        cursors_tracker_.AdjustCursors(transformation);
-      });
   UpdateTreeParser();
 
   environment_.Define(
@@ -927,22 +927,15 @@ void OpenBuffer::StartNewLine() {
   DVLOG(5) << "Line is completed: " << contents_.back()->ToString();
 
   if (Read(buffer_variables::contains_line_marks)) {
-    wstring path;
-    std::optional<LineColumn> position;
-    wstring pattern;
-    ResolvePathOptions options;
-    options.editor_state = editor();
+    auto options = ResolvePathOptions::New(editor());
     options.path = contents_.back()->ToString();
-    options.output_path = &path;
-    options.output_position = &position;
-    options.output_pattern = &pattern;
-    if (ResolvePath(options)) {
+    if (auto results = ResolvePath(std::move(options)); results.has_value()) {
       LineMarks::Mark mark;
       mark.source = Read(buffer_variables::name);
       mark.source_line = contents_.EndLine();
-      mark.target_buffer = path;
-      if (position.has_value()) {
-        mark.target = position.value();
+      mark.target_buffer = results->path;
+      if (results->position.has_value()) {
+        mark.target = *results->position;
       }
       LOG(INFO) << "Found a mark: " << mark;
       editor()->line_marks()->AddMark(mark);

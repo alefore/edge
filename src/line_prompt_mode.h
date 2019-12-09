@@ -24,6 +24,11 @@ struct PromptOptions {
   wstring initial_value;
 
   // Run any time the text in the prompt changes.
+  //
+  // The prompt buffer is passed as an argument. To get the current text in the
+  // prompt, use:
+  //
+  // auto line = buffer->LineAt(LineNumber(0));
   std::function<void(const std::shared_ptr<OpenBuffer>&)> change_notifier =
       [](const std::shared_ptr<OpenBuffer>&) {};
 

@@ -29,7 +29,7 @@ class BufferTerminal : public fuzz::FuzzTestable {
   LineColumn position() const;
   void SetPosition(LineColumn position);
 
-  void ProcessCommandInput(shared_ptr<LazyString> str,
+  void ProcessCommandInput(std::shared_ptr<LazyString> str,
                            const std::function<void()>& new_line_callback);
 
   std::vector<fuzz::Handler> FuzzHandlers() override;
