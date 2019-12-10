@@ -32,7 +32,7 @@ void CppMode() {
   buffer.set_line_prefix_characters(" /*");
   buffer.set_language_keywords(
       "static extern override virtual "
-      "class struct private public protected "
+      "class struct enum private public protected "
       "using typedef namespace "
       "sizeof "
       "static_cast dynamic_cast "
