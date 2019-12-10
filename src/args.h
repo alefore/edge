@@ -8,8 +8,7 @@
 
 #include "command_line.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 using std::wstring;
 
@@ -49,7 +48,6 @@ struct CommandLineValues {
 const std::vector<afc::command_line_arguments::Handler<CommandLineValues>>&
 CommandLineArgs();
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_SRC_ARGS_H__
