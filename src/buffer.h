@@ -532,6 +532,8 @@ class OpenBuffer {
   SyntaxDataState syntax_data_state_ = SyntaxDataState::kDone;
   std::shared_ptr<TreeParser> tree_parser_;
   AsyncProcessor<SyntaxDataInput, SyntaxDataOutput> syntax_data_;
+  BackgroundCallbackRunner background_read_runner_ =
+      NewBackgroundCallbackRunner(L"BackgroundReadRunner");
 };
 
 }  // namespace editor

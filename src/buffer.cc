@@ -1636,6 +1636,7 @@ void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
     options.terminal = terminal_.get();
     options.fd = fd;
     options.modifiers = std::move(modifiers);
+    options.background_callback_runner = &background_read_runner_;
     return std::make_unique<FileDescriptorReader>(std::move(options));
   };
 

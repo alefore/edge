@@ -9,6 +9,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "src/async_processor.h"
 #include "src/decaying_counter.h"
 #include "src/lazy_string.h"
 #include "src/line_column.h"
@@ -40,7 +41,12 @@ class FileDescriptorReader {
 
     LineModifierSet modifiers;
 
-    BufferTerminal* terminal;
+    BufferTerminal* terminal = nullptr;
+
+    // We want to avoid potentially expensive/slow parsing operations in the
+    // main thread. To achieve that, we receive an async_processor owned by the
+    // buffer and we delegate as much work as feasible to that processor.
+    BackgroundCallbackRunner* background_callback_runner = nullptr;
   };
 
   FileDescriptorReader(Options options);
@@ -66,7 +72,9 @@ class FileDescriptorReader {
   ReadResult ReadData();
 
  private:
-  const Options options_;
+  void ParseAndInsertLines(std::shared_ptr<LazyString> contents);
+
+  const std::shared_ptr<const Options> options_;
 
   // We read directly into low_buffer_ and then drain from that into
   // options_.buffer. It's possible that not all bytes read can be converted
@@ -76,7 +84,8 @@ class FileDescriptorReader {
 
   mutable struct timespec last_input_received_ = {0, 0};
 
-  DecayingCounter lines_read_rate_;
+  const std::shared_ptr<DecayingCounter> lines_read_rate_ =
+      std::make_shared<DecayingCounter>(2.0);
 };
 
 }  // namespace editor

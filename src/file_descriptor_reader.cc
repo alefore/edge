@@ -11,25 +11,25 @@
 #include "src/time.h"
 #include "src/wstring.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 FileDescriptorReader::FileDescriptorReader(Options options)
-    : options_(std::move(options)), lines_read_rate_(2.0) {
-  CHECK(options_.buffer != nullptr);
-  CHECK(options_.fd != -1);
+    : options_(std::make_shared<Options>(std::move(options))) {
+  CHECK(options_->buffer != nullptr);
+  CHECK(options_->fd != -1);
+  CHECK(options_->background_callback_runner != nullptr);
 }
 
-FileDescriptorReader::~FileDescriptorReader() { close(options_.fd); }
+FileDescriptorReader::~FileDescriptorReader() { close(options_->fd); }
 
-int FileDescriptorReader::fd() const { return options_.fd; }
+int FileDescriptorReader::fd() const { return options_->fd; }
 
 struct timespec FileDescriptorReader::last_input_received() const {
   return last_input_received_;
 }
 
 double FileDescriptorReader::lines_read_rate() const {
-  return lines_read_rate_.GetEventsPerSecond();
+  return lines_read_rate_->GetEventsPerSecond();
 }
 
 std::optional<struct pollfd> FileDescriptorReader::GetPollFd() const {
@@ -40,9 +40,8 @@ std::optional<struct pollfd> FileDescriptorReader::GetPollFd() const {
 }
 
 FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
-  EditorState* editor_state = options_.buffer->editor();
-  LOG(INFO) << "Reading input from " << options_.fd << " for buffer "
-            << options_.buffer->Read(buffer_variables::name);
+  LOG(INFO) << "Reading input from " << options_->fd << " for buffer "
+            << options_->buffer->Read(buffer_variables::name);
   static const size_t kLowBufferSize = 1024 * 60;
   if (low_buffer_ == nullptr) {
     CHECK_EQ(low_buffer_length_, 0ul);
@@ -87,7 +86,7 @@ FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
   size_t processed = low_buffer_tmp == nullptr
                          ? low_buffer_length_
                          : low_buffer_tmp - low_buffer_.get();
-  VLOG(5) << options_.buffer->Read(buffer_variables::name)
+  VLOG(5) << options_->buffer->Read(buffer_variables::name)
           << ": Characters consumed: " << processed
           << ", produced: " << buffer_wrapper->size();
   CHECK_LE(processed, low_buffer_length_);
@@ -98,60 +97,72 @@ FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
     low_buffer_ = nullptr;
   }
 
-  if (options_.buffer->Read(buffer_variables::vm_exec)) {
-    LOG(INFO) << options_.buffer->Read(buffer_variables::name)
+  if (options_->buffer->Read(buffer_variables::vm_exec)) {
+    LOG(INFO) << options_->buffer->Read(buffer_variables::name)
               << ": Evaluating VM code: " << buffer_wrapper->ToString();
-    options_.buffer->EvaluateString(buffer_wrapper->ToString(),
-                                    [](std::unique_ptr<Value>) {});
+    options_->buffer->EvaluateString(buffer_wrapper->ToString(),
+                                     [](std::unique_ptr<Value>) {});
   }
 
   clock_gettime(0, &last_input_received_);
-  options_.buffer->RegisterProgress();
-  bool previous_modified = options_.buffer->modified();
-  if (options_.terminal != nullptr) {
-    options_.terminal->ProcessCommandInput(buffer_wrapper, [this]() {
-      lines_read_rate_.IncrementAndGetEventsPerSecond(1.0);
+  options_->buffer->RegisterProgress();
+  if (options_->terminal != nullptr) {
+    options_->terminal->ProcessCommandInput(buffer_wrapper, [this]() {
+      lines_read_rate_->IncrementAndGetEventsPerSecond(1.0);
     });
   } else {
-    auto follower = options_.buffer->GetEndPositionFollower();
-    ColumnNumber line_start;
-    for (ColumnNumber i;
-         i.ToDelta() < ColumnNumberDelta(buffer_wrapper->size()); i++) {
-      if (buffer_wrapper->get(i) == '\n') {
-        VLOG(8) << "Adding line from " << line_start << " to " << i;
-
-        Line::Options options;
-        options.contents =
-            Substring(buffer_wrapper, line_start, ColumnNumber(i) - line_start);
-        options.modifiers[ColumnNumber(0)] = options_.modifiers;
-        options_.buffer->AppendToLastLine(Line(std::move(options)));
-
-        lines_read_rate_.IncrementAndGetEventsPerSecond(1.0);
-        options_.start_new_line();
-        line_start = ColumnNumber(i) + ColumnNumberDelta(1);
-      }
-    }
-    if (line_start.ToDelta() < ColumnNumberDelta(buffer_wrapper->size())) {
-      VLOG(8) << "Adding last line from " << line_start << " to "
-              << buffer_wrapper->size();
-
-      Line::Options options;
-      options.contents = Substring(buffer_wrapper, line_start);
-      options.modifiers[ColumnNumber(0)] = options_.modifiers;
-      options_.buffer->AppendToLastLine(Line(std::move(options)));
-    }
-  }
-  if (!previous_modified) {
-    options_.buffer->ClearModified();  // These changes don't count.
-  }
-  auto current_buffer = editor_state->current_buffer();
-  if (current_buffer != nullptr &&
-      current_buffer->Read(buffer_variables::name) ==
-          OpenBuffer::kBuffersName) {
-    current_buffer->Reload();
+    ParseAndInsertLines(buffer_wrapper);
   }
   return ReadResult::kContinue;
 }
 
-}  // namespace editor
-}  // namespace afc
+void FileDescriptorReader::ParseAndInsertLines(
+    std::shared_ptr<LazyString> contents) {
+  options_->background_callback_runner->Push(
+      [options = options_, lines_read_rate = lines_read_rate_, contents,
+       previous_modified = options_->buffer->modified(),
+       follower = std::shared_ptr<bool>(
+           options_->buffer->GetEndPositionFollower())]() {
+        std::vector<Line> lines_to_insert;
+        ColumnNumber line_start;
+        for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(contents->size());
+             i++) {
+          if (contents->get(i) == '\n') {
+            VLOG(8) << "Adding line from " << line_start << " to " << i;
+
+            Line::Options line_options;
+            line_options.contents =
+                Substring(contents, line_start, ColumnNumber(i) - line_start);
+            line_options.modifiers[ColumnNumber(0)] = options->modifiers;
+            lines_to_insert.emplace_back(std::move(line_options));
+
+            line_start = ColumnNumber(i) + ColumnNumberDelta(1);
+          }
+        }
+
+        VLOG(8) << "Adding last line from " << line_start << " to "
+                << contents->size();
+        Line::Options line_options;
+        line_options.contents = Substring(contents, line_start);
+        line_options.modifiers[ColumnNumber(0)] = options->modifiers;
+        lines_to_insert.emplace_back(std::move(line_options));
+
+        options->buffer->SchedulePendingWork(
+            [options, lines_read_rate, previous_modified, follower,
+             lines_to_insert = std::move(lines_to_insert)] {
+              for (auto it = lines_to_insert.begin();
+                   it != lines_to_insert.end(); ++it) {
+                if (it != lines_to_insert.begin()) {
+                  lines_read_rate->IncrementAndGetEventsPerSecond(1.0);
+                  options->start_new_line();
+                }
+                options->buffer->AppendToLastLine(std::move(*it));
+              }
+
+              if (!previous_modified) {
+                options->buffer->ClearModified();  // These changes don't count.
+              }
+            });
+      });
+}
+}  // namespace afc::editor

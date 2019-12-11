@@ -22,14 +22,19 @@ namespace afc::editor {
 template <typename Input, typename Output>
 class AsyncProcessor {
  public:
+  using InputType = Input;
+  using OutputType = Output;
+
   // A function that receives an Input instance and returns an Output instance.
   // This will be executed in the background thread (so it must be thread-safe
   // with other threads it shares data with).
   using Factory = std::function<Output(Input)>;
   // A function to run once the output of a call to Factory has been correctly
-  // installed.
+  // installed. Like `Factory`, this will be executed in the background thread.
   using NotifyCallback = std::function<void()>;
 
+  // This must be nested inside `AsyncProcessor<>` (rather than being defined at
+  // the top level) because it depends on the template parameters.
   struct Options {
     Factory factory;
     NotifyCallback notify_callback = [] {};
@@ -159,6 +164,10 @@ class AsyncProcessor {
   mutable std::mutex thread_creation_mutex_;
   std::thread background_thread_;
 };
+
+using BackgroundCallbackRunner = AsyncProcessor<std::function<void()>, int>;
+
+BackgroundCallbackRunner NewBackgroundCallbackRunner(std::wstring name);
 
 }  // namespace afc::editor
 
