@@ -439,9 +439,9 @@ void EditorState::CloseBuffer(OpenBuffer* buffer) {
         buffers_.erase(buffer->Read(buffer_variables::name));
         LOG(INFO) << "Adjusting widgets that may be displaying the buffer we "
                      "are deleting.";
-        if (!index.has_value() || buffer_tree_.BuffersCount() == 0) return;
-        auto replacement =
-            buffer_tree_.GetBuffer(index.value() % buffer_tree_.BuffersCount());
+        if (buffer_tree_.BuffersCount() == 0) return;
+        auto replacement = buffer_tree_.GetBuffer(index.value_or(0) %
+                                                  buffer_tree_.BuffersCount());
         buffer_tree_.ForEachBufferWidget([&](BufferWidget* widget) {
           auto widget_buffer = widget->Lock();
           if (widget_buffer == nullptr || widget_buffer.get() == buffer) {
