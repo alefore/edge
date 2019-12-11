@@ -1055,16 +1055,6 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
                               L"CurrentBuffer().ApplyTransformation("
                               L"TransformationDelete(modifiers));\n"
                               L"}"));
-  commands->Add({Terminal::CTRL_U},
-                NewCppCommand(editor_state->environment(),
-                              L"// Edit: Delete to the beginning of line.\n"
-                              L"{\n"
-                              L"Modifiers modifiers = Modifiers();\n"
-                              L"modifiers.set_line();\n"
-                              L"modifiers.set_backwards();\n"
-                              L"CurrentBuffer().ApplyTransformation("
-                              L"TransformationDelete(modifiers));\n"
-                              L"}"));
   commands->Add({Terminal::CTRL_D},
                 NewCppCommand(editor_state->environment(),
                               L"// Edit: Delete current character.\n"

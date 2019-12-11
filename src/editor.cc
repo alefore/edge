@@ -28,6 +28,7 @@ extern "C" {
 #include "src/server.h"
 #include "src/shapes.h"
 #include "src/substring.h"
+#include "src/terminal.h"
 #include "src/transformation_delete.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/environment.h"
@@ -113,6 +114,9 @@ WorkQueue* EditorState::work_queue() const { return work_queue_.get(); }
 
 Environment EditorState::BuildEditorEnvironment() {
   Environment environment(afc::vm::Environment::GetDefault());
+
+  environment.Define(L"terminal_control_u",
+                     Value::NewString({Terminal::CTRL_U}));
 
   auto editor_type = std::make_unique<ObjectType>(L"Editor");
 

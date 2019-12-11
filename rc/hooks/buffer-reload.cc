@@ -38,6 +38,14 @@ void DeleteCurrentLine() {
   set_repetitions(1);
 }
 
+void DeleteBackwardsToLineStart() {
+  // Edit: Delete to the beginning of line.
+  Modifiers modifiers = Modifiers();
+  modifiers.set_line();
+  modifiers.set_backwards();
+  CurrentBuffer().ApplyTransformation(TransformationDelete(modifiers));
+}
+
 void CenterScreenAroundCurrentLine() {
   int size = screen.lines();
   size--;  // The status line doesn't count.
@@ -172,7 +180,9 @@ if (path == "") {
   buffer.AddBinding("$", "Go to the end of the current line", GoToEndOfLine);
   buffer.AddBindingToFile("J",
                           buffer.editor_commands_path() + "fold-next-line");
-  buffer.AddBinding("K", "Delete the current line", DeleteCurrentLine);
+  buffer.AddBinding("K", "Edit: Delete the current line", DeleteCurrentLine);
+  buffer.AddBinding(terminal_control_u, "Edit: Delete the current line",
+                    DeleteBackwardsToLineStart);
   buffer.AddBindingToFile("#", buffer.editor_commands_path() + "reflow");
 
   buffer.set_typos("overriden optoins");
