@@ -27,14 +27,6 @@ class FileDescriptorReader {
   struct Options {
     OpenBuffer* buffer = nullptr;
 
-    // Signals that we're done adding to the current line and a new line should
-    // start.
-    //
-    // We do this rather than call the public methods of OpenBuffer that
-    // have roughly the same effect to allow the buffer to scan the line (which
-    // it won't do with the public methods).
-    std::function<void()> start_new_line;
-
     // Ownership of the file descriptior (i.e, the responsibility for closing
     // it) is transferred to the FileDescriptorReader.
     int fd;

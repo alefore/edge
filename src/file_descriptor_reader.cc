@@ -123,12 +123,12 @@ FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
   return ReadResult::kContinue;
 }
 
-std::vector<Line> CreateLineInstances(std::shared_ptr<LazyString> contents,
-                                      const LineModifierSet& modifiers) {
+std::vector<std::shared_ptr<Line>> CreateLineInstances(
+    std::shared_ptr<LazyString> contents, const LineModifierSet& modifiers) {
   static Tracker tracker(L"FileDescriptorReader::CreateLineInstances");
   auto tracker_call = tracker.Call();
 
-  std::vector<Line> lines_to_insert;
+  std::vector<std::shared_ptr<Line>> lines_to_insert;
   ColumnNumber line_start;
   for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(contents->size()); i++) {
     if (contents->get(i) == '\n') {
@@ -138,7 +138,8 @@ std::vector<Line> CreateLineInstances(std::shared_ptr<LazyString> contents,
       line_options.contents =
           Substring(contents, line_start, ColumnNumber(i) - line_start);
       line_options.modifiers[ColumnNumber(0)] = modifiers;
-      lines_to_insert.emplace_back(std::move(line_options));
+      lines_to_insert.emplace_back(
+          std::make_shared<Line>(std::move(line_options)));
 
       line_start = ColumnNumber(i) + ColumnNumberDelta(1);
     }
@@ -149,12 +150,12 @@ std::vector<Line> CreateLineInstances(std::shared_ptr<LazyString> contents,
   Line::Options line_options;
   line_options.contents = Substring(contents, line_start);
   line_options.modifiers[ColumnNumber(0)] = modifiers;
-  lines_to_insert.emplace_back(std::move(line_options));
+  lines_to_insert.emplace_back(std::make_shared<Line>(std::move(line_options)));
   return lines_to_insert;
 }
 
 void InsertLines(const FileDescriptorReader::Options* options,
-                 std::vector<Line> lines_to_insert) {
+                 std::vector<std::shared_ptr<Line>> lines_to_insert) {
   static Tracker tracker(L"FileDescriptorReader::InsertLines");
   auto tracker_call = tracker.Call();
 
@@ -162,10 +163,11 @@ void InsertLines(const FileDescriptorReader::Options* options,
   auto follower = options->buffer->GetEndPositionFollower();
 
   for (auto it = lines_to_insert.begin(); it != lines_to_insert.end(); ++it) {
-    if (it != lines_to_insert.begin()) {
-      options->start_new_line();
+    if (it == lines_to_insert.begin()) {
+      options->buffer->AppendToLastLine(std::move(**it));
+    } else {
+      options->buffer->StartNewLine(std::move(*it));
     }
-    options->buffer->AppendToLastLine(std::move(*it));
   }
 
   if (!previous_modified) {

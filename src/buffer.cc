@@ -923,13 +923,16 @@ std::shared_ptr<const ParseTree> OpenBuffer::simplified_parse_tree() const {
                           : std::make_shared<ParseTree>(Range());
 }
 
-void OpenBuffer::StartNewLine() {
+void OpenBuffer::StartNewLine(std::shared_ptr<Line> line) {
   static Tracker tracker(L"OpenBuffer::StartNewLine");
   auto tracker_call = tracker.Call();
 
+  CHECK(line != nullptr);
   DVLOG(5) << "Line is completed: " << contents_.back()->ToString();
 
   if (Read(buffer_variables::contains_line_marks)) {
+    static Tracker tracker(L"OpenBuffer::StartNewLine::ScanForMarks");
+    auto tracker_call = tracker.Call();
     auto options = ResolvePathOptions::New(editor());
     options.path = contents_.back()->ToString();
     if (auto results = ResolvePath(std::move(options)); results.has_value()) {
@@ -944,7 +947,7 @@ void OpenBuffer::StartNewLine() {
       editor()->line_marks()->AddMark(mark);
     }
   }
-  contents_.push_back(std::make_shared<Line>());
+  contents_.push_back(std::move(line));
 }
 
 void OpenBuffer::Reload() {
@@ -1637,7 +1640,6 @@ void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
     }
     FileDescriptorReader::Options options;
     options.buffer = this;
-    options.start_new_line = [this]() { StartNewLine(); };
     options.terminal = terminal_.get();
     options.fd = fd;
     options.modifiers = std::move(modifiers);

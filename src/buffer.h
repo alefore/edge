@@ -178,6 +178,10 @@ class OpenBuffer {
   void AppendToLastLine(std::shared_ptr<LazyString> str);
   void AppendToLastLine(Line line);
 
+  // Adds a new line. If there's a previous line, notifies various things about
+  // it.
+  void StartNewLine(std::shared_ptr<Line> line);
+
   void DeleteRange(const Range& range);
 
   // If modifiers is present, applies it to every character (overriding the
@@ -400,9 +404,6 @@ class OpenBuffer {
 
   void ScheduleSyntaxDataUpdate();
 
-  // Adds a new line. If there's a previous line, notifies various things about
-  // it.
-  void StartNewLine();
   void ProcessCommandInput(shared_ptr<LazyString> str);
 
   // Returns true if the position given is set to a value other than
