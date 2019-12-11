@@ -338,21 +338,15 @@ int main(int argc, const char** argv) {
     buffers.reserve(sizeof(fds) / sizeof(fds[0]));
 
     for (auto& buffer : *editor_state()->buffers()) {
-      // TODO: Move this logic to FileDescriptorReader?
-      if (buffer.second->fd() != nullptr) {
-        VLOG(5) << buffer.first
-                << ": Installing (out) fd: " << buffer.second->fd()->fd();
-        fds[buffers.size()].fd = buffer.second->fd()->fd();
-        fds[buffers.size()].events = POLLIN | POLLPRI;
-        buffers.push_back(buffer.second);
-      }
-      if (buffer.second->fd_error() != nullptr) {
-        VLOG(5) << buffer.first
-                << ": Installing (err) fd: " << buffer.second->fd()->fd();
-        fds[buffers.size()].fd = buffer.second->fd_error()->fd();
-        fds[buffers.size()].events = POLLIN | POLLPRI;
-        buffers.push_back(buffer.second);
-      }
+      auto register_reader = [&](const FileDescriptorReader* reader) {
+        auto pollfd = reader == nullptr ? std::nullopt : reader->GetPollFd();
+        if (pollfd.has_value()) {
+          fds[buffers.size()] = pollfd.value();
+          buffers.push_back(buffer.second);
+        }
+      };
+      register_reader(buffer.second->fd());
+      register_reader(buffer.second->fd_error());
     }
 
     if (screen_curses != nullptr) {

@@ -32,6 +32,13 @@ double FileDescriptorReader::lines_read_rate() const {
   return lines_read_rate_.GetEventsPerSecond();
 }
 
+std::optional<struct pollfd> FileDescriptorReader::GetPollFd() const {
+  struct pollfd output;
+  output.fd = fd();
+  output.events = POLLIN | POLLPRI;
+  return output;
+}
+
 FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
   EditorState* editor_state = options_.buffer->editor();
   LOG(INFO) << "Reading input from " << options_.fd << " for buffer "

@@ -1,6 +1,8 @@
 #ifndef __AFC_EDITOR_FILE_DESCRIPTOR_READER_H__
 #define __AFC_EDITOR_FILE_DESCRIPTOR_READER_H__
 
+#include <poll.h>
+
 #include <functional>
 #include <memory>
 #include <string>
@@ -47,6 +49,11 @@ class FileDescriptorReader {
   int fd() const;
   struct timespec last_input_received() const;
   double lines_read_rate() const;
+
+  // Return a pollfd value that can be passed to `poll`. If the file isn't ready
+  // for reading (e.g., a background operation is running on the data read),
+  // returns std::nullopt.
+  std::optional<struct pollfd> GetPollFd() const;
 
   enum class ReadResult {
     // If this is returned, no further calls to ReadData should happen (and our
