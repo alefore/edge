@@ -93,7 +93,7 @@ ParsedCommand Parse(const LazyString& command, Environment* environment) {
 
   // Filter functions that match our type expectations.
   std::vector<Value*> type_match_functions;
-  Value* function_vector;
+  Value* function_vector = nullptr;
   for (auto& candidate : functions) {
     if (!candidate->IsFunction()) {
       continue;
