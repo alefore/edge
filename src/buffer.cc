@@ -1625,9 +1625,10 @@ void OpenBuffer::SetInputFiles(int input_fd, int input_error_fd,
   CHECK_EQ(child_pid_, -1);
   terminal_ = fd_is_terminal ? NewTerminal() : nullptr;
 
-  auto new_reader = [this](int fd, LineModifierSet modifiers) {
+  auto new_reader = [this](int fd, LineModifierSet modifiers)
+      -> std::unique_ptr<FileDescriptorReader> {
     if (fd == -1) {
-      return std::unique_ptr<FileDescriptorReader>();
+      return nullptr;
     }
     FileDescriptorReader::Options options;
     options.buffer = this;
