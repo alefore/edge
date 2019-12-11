@@ -9,6 +9,7 @@
 #include "src/fuzz_testable.h"
 #include "src/line.h"
 #include "src/line_column.h"
+#include "src/tracker.h"
 
 namespace afc {
 namespace editor {
@@ -151,6 +152,8 @@ class BufferContents : public fuzz::FuzzTestable {
   template <typename Callback>
   void TransformLine(LineNumber line_number, Callback callback,
                      CursorsTracker::Transformation cursors_transformation) {
+    static Tracker tracker(L"BufferContents::TransformLine");
+    auto tracker_call = tracker.Call();
     if (lines_ == nullptr) {
       lines_ = Lines::PushBack(nullptr, std::make_shared<Line>());
     }

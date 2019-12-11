@@ -127,6 +127,9 @@ void BufferContents::insert_line(LineNumber line_position,
 
 void BufferContents::set_line(LineNumber position,
                               shared_ptr<const Line> line) {
+  static Tracker tracker(L"BufferContents::set_line");
+  auto tracker_call = tracker.Call();
+
   if (position.ToDelta() >= size()) {
     return push_back(line);
   }

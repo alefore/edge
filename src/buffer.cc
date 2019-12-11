@@ -924,6 +924,9 @@ std::shared_ptr<const ParseTree> OpenBuffer::simplified_parse_tree() const {
 }
 
 void OpenBuffer::StartNewLine() {
+  static Tracker tracker(L"OpenBuffer::StartNewLine");
+  auto tracker_call = tracker.Call();
+
   DVLOG(5) << "Line is completed: " << contents_.back()->ToString();
 
   if (Read(buffer_variables::contains_line_marks)) {
@@ -1083,6 +1086,8 @@ void OpenBuffer::AppendToLastLine(std::shared_ptr<LazyString> str) {
 }
 
 void OpenBuffer::AppendToLastLine(Line line) {
+  static Tracker tracker(L"OpenBuffer::AppendToLastLine");
+  auto tracker_call = tracker.Call();
   auto follower = GetEndPositionFollower();
   contents_.AppendToLine(LineNumber(0) + contents_.size(), std::move(line));
 }

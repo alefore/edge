@@ -9,6 +9,7 @@
 #include "src/editor.h"
 #include "src/lazy_string.h"
 #include "src/time.h"
+#include "src/tracker.h"
 #include "src/wstring.h"
 
 namespace afc::editor {
@@ -63,6 +64,10 @@ FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
   }
   low_buffer_length_ += characters_read;
 
+  static Tracker chars_tracker(
+      L"FileDescriptorReader::ReadData::UnicodeConversion");
+  auto chars_tracker_call = chars_tracker.Call();
+
   const char* low_buffer_tmp = low_buffer_.get();
   int output_characters =
       mbsnrtowcs(nullptr, &low_buffer_tmp, low_buffer_length_, 0, nullptr);
@@ -79,6 +84,8 @@ FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
     mbsnrtowcs(&buffer[0], &low_buffer_tmp, low_buffer_length_, buffer.size(),
                nullptr);
   }
+
+  chars_tracker_call = nullptr;
 
   shared_ptr<LazyString> buffer_wrapper(NewLazyString(std::move(buffer)));
   VLOG(5) << "Input: [" << buffer_wrapper->ToString() << "]";
@@ -116,52 +123,67 @@ FileDescriptorReader::ReadResult FileDescriptorReader::ReadData() {
   return ReadResult::kContinue;
 }
 
+std::vector<Line> CreateLineInstances(std::shared_ptr<LazyString> contents,
+                                      const LineModifierSet& modifiers) {
+  static Tracker tracker(L"FileDescriptorReader::CreateLineInstances");
+  auto tracker_call = tracker.Call();
+
+  std::vector<Line> lines_to_insert;
+  ColumnNumber line_start;
+  for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(contents->size()); i++) {
+    if (contents->get(i) == '\n') {
+      VLOG(8) << "Adding line from " << line_start << " to " << i;
+
+      Line::Options line_options;
+      line_options.contents =
+          Substring(contents, line_start, ColumnNumber(i) - line_start);
+      line_options.modifiers[ColumnNumber(0)] = modifiers;
+      lines_to_insert.emplace_back(std::move(line_options));
+
+      line_start = ColumnNumber(i) + ColumnNumberDelta(1);
+    }
+  }
+
+  VLOG(8) << "Adding last line from " << line_start << " to "
+          << contents->size();
+  Line::Options line_options;
+  line_options.contents = Substring(contents, line_start);
+  line_options.modifiers[ColumnNumber(0)] = modifiers;
+  lines_to_insert.emplace_back(std::move(line_options));
+  return lines_to_insert;
+}
+
+void InsertLines(const FileDescriptorReader::Options* options,
+                 std::vector<Line> lines_to_insert) {
+  static Tracker tracker(L"FileDescriptorReader::InsertLines");
+  auto tracker_call = tracker.Call();
+
+  bool previous_modified = options->buffer->modified();
+  auto follower = options->buffer->GetEndPositionFollower();
+
+  for (auto it = lines_to_insert.begin(); it != lines_to_insert.end(); ++it) {
+    if (it != lines_to_insert.begin()) {
+      options->start_new_line();
+    }
+    options->buffer->AppendToLastLine(std::move(*it));
+  }
+
+  if (!previous_modified) {
+    options->buffer->ClearModified();  // These changes don't count.
+  }
+}
+
 void FileDescriptorReader::ParseAndInsertLines(
     std::shared_ptr<LazyString> contents) {
   options_->background_callback_runner->Push(
-      [options = options_, lines_read_rate = lines_read_rate_, contents,
-       previous_modified = options_->buffer->modified(),
-       follower = std::shared_ptr<bool>(
-           options_->buffer->GetEndPositionFollower())]() {
-        std::vector<Line> lines_to_insert;
-        ColumnNumber line_start;
-        for (ColumnNumber i; i.ToDelta() < ColumnNumberDelta(contents->size());
-             i++) {
-          if (contents->get(i) == '\n') {
-            VLOG(8) << "Adding line from " << line_start << " to " << i;
-
-            Line::Options line_options;
-            line_options.contents =
-                Substring(contents, line_start, ColumnNumber(i) - line_start);
-            line_options.modifiers[ColumnNumber(0)] = options->modifiers;
-            lines_to_insert.emplace_back(std::move(line_options));
-
-            line_start = ColumnNumber(i) + ColumnNumberDelta(1);
-          }
-        }
-
-        VLOG(8) << "Adding last line from " << line_start << " to "
-                << contents->size();
-        Line::Options line_options;
-        line_options.contents = Substring(contents, line_start);
-        line_options.modifiers[ColumnNumber(0)] = options->modifiers;
-        lines_to_insert.emplace_back(std::move(line_options));
-
+      [options = options_, lines_read_rate = lines_read_rate_,
+       contents]() mutable {
+        auto lines =
+            CreateLineInstances(std::move(contents), options->modifiers);
         options->buffer->SchedulePendingWork(
-            [options, lines_read_rate, previous_modified, follower,
-             lines_to_insert = std::move(lines_to_insert)] {
-              for (auto it = lines_to_insert.begin();
-                   it != lines_to_insert.end(); ++it) {
-                if (it != lines_to_insert.begin()) {
-                  lines_read_rate->IncrementAndGetEventsPerSecond(1.0);
-                  options->start_new_line();
-                }
-                options->buffer->AppendToLastLine(std::move(*it));
-              }
-
-              if (!previous_modified) {
-                options->buffer->ClearModified();  // These changes don't count.
-              }
+            [options, lines_read_rate, lines = std::move(lines)]() mutable {
+              lines_read_rate->IncrementAndGetEventsPerSecond(lines.size() - 1);
+              InsertLines(options.get(), std::move(lines));
             });
       });
 }
