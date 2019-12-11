@@ -132,7 +132,7 @@ class HelpCommand : public Command {
     buffer->set_current_position_line(LineNumber(0));
     buffer->ResetMode();
 
-    editor_state->buffers()->insert(make_pair(name, buffer));
+    (*editor_state->buffers())[name] = buffer;
     editor_state->set_current_buffer(buffer);
 
     editor_state->ResetRepetitions();
