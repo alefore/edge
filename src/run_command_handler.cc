@@ -314,6 +314,11 @@ void RunCommandHandler(const wstring& input, EditorState* editor_state,
       name += L" " + it.first + L"=" + it.second;
     }
   }
+  auto buffer = editor_state->current_buffer();
+  if (buffer != nullptr) {
+    environment[L"EDGE_SOURCE_BUFFER_PATH"] =
+        buffer->Read(buffer_variables::path);
+  }
   name += L" " + input;
   RunCommand(name, input, environment, editor_state, std::move(children_path));
 }

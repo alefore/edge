@@ -16,6 +16,8 @@ If a file is smaller than the screen (or available lines for its widget), show i
 
 Change the cursor when we're in `type` mode.
 
+If `line_width` is 1, automatically set it to fit the screen?
+
 ### Syntax
 
 Correctly handle: '\000'
@@ -52,6 +54,8 @@ Add "pipe" command: select the region (similar to delete: line, paragraph, buffe
 
 Add an AutoComplete mode that autocompletes based on the path.
 
+When a user is typing a path to open, cache the contents of the directory. If the prefix entered uniquely matches a directory, start reading the contents of the directory proactively.
+
 ## Navigation
 
 Make M center the widget around the current line.
@@ -85,10 +89,13 @@ When the prompt doesn't fit the screen, be smarter about what part to show? If i
 ## Commands
 
 Improve "af":
-Add more structures to "af":
-    BUFFER> run a command with the whole contents of the buffer
-      (another possibility: run a command for each line in buffer (prompt))
-  Switch it to use the "new" enter-applies-command (similar to "d") mode.
+* Add more structures to "af":
+  * BUFFER> run a command with the whole contents of the buffer
+    (another possibility: run a command for each line in buffer (prompt))
+  * Switch it to use the "new" enter-applies-command (similar to "d") mode.
+* If the command doesn't match a regular expression (aiming to detect complex
+  shell commands, such as `(for|while|[a-z]+=)`), automatically check in $PATH
+  whether the first token of the command exists; show it in red if it doesn't.
 
 When running subcommands with aC, actually set variables "ARG0", "ARG1", "ARG2", "ARG3", with words in line...
 
@@ -98,6 +105,10 @@ Create some "barriers" that limit the number of subprocesses.  Set a limit for e
 Persist undo history?
 
 Make follow_end_of_file the default.
+
+## Directory view
+
+Automatically adjust the width of the view to fit the screen.
 
 ## Readability
 

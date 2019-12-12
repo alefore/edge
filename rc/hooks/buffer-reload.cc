@@ -156,7 +156,7 @@ if (path == "") {
       buffer.set_allow_dirty_delete(true);
     } else if (base_command == "diff") {
       DiffMode();
-    } else if (base_command == "git") {
+    } else if (base_command == "git" || base_command == "hg") {
       string next = BaseCommand(SkipInitialSpaces(command.substr(
           base_command.size(), command.size() - base_command.size())));
       if (next == "diff") {
