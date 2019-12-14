@@ -209,6 +209,7 @@ void Predict(PredictOptions options) {
   *weak_predictions_buffer = predictions_buffer;
   predictions_buffer->Set(buffer_variables::show_in_buffers_list, false);
   predictions_buffer->Set(buffer_variables::allow_dirty_delete, true);
+  predictions_buffer->Set(buffer_variables::paste_mode, true);
   predictions_buffer->Reload();
   if (options.editor_state->status()->prompt_buffer() == nullptr) {
     predictions_buffer->status()->CopyFrom(*shared_status);

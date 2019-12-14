@@ -89,13 +89,6 @@ Status::Type Status::GetType() const {
   return data_->type;
 }
 
-LineNumberDelta Status::DesiredLines() const {
-  ValidatePreconditions();
-  return data_->type != Type::kPrompt && data_->text.empty()
-             ? LineNumberDelta(0)
-             : LineNumberDelta(1);
-}
-
 void Status::set_prompt(std::wstring text, std::shared_ptr<OpenBuffer> buffer) {
   CHECK(buffer != nullptr);
   ValidatePreconditions();

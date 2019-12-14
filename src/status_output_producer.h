@@ -15,13 +15,15 @@ namespace editor {
 class Status;
 class OpenBuffer;
 
-class StatusOutputProducer : public OutputProducer {
+class StatusOutputProducerSupplier {
  public:
   // `buffer` may be null.
-  StatusOutputProducer(const Status* status, const OpenBuffer* buffer,
-                       Modifiers modifiers);
+  StatusOutputProducerSupplier(const Status* status, const OpenBuffer* buffer,
+                               Modifiers modifiers);
 
-  Generator Next();
+  LineNumberDelta lines() const;
+
+  std::unique_ptr<OutputProducer> CreateOutputProducer(LineColumnDelta size);
 
  private:
   const Status* const status_;

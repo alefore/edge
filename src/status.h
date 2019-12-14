@@ -27,8 +27,6 @@ class Status {
   enum class Type { kWarning, kInformation, kPrompt };
   Type GetType() const;
 
-  LineNumberDelta DesiredLines() const;
-
   void set_prompt(std::wstring text, std::shared_ptr<OpenBuffer> buffer);
   // Should only be called if `GetType` returns kPrompt.
   void set_prompt_context(std::shared_ptr<OpenBuffer> prompt_context);

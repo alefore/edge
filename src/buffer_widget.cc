@@ -278,8 +278,10 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
     rows[0].producer = std::move(output.producer);
     rows[0].lines = buffer_lines;
 
-    rows[1].producer = std::make_unique<StatusOutputProducer>(
-        buffer->status(), buffer.get(), buffer->editor()->modifiers());
+    rows[1].producer =
+        StatusOutputProducerSupplier(buffer->status(), buffer.get(),
+                                     buffer->editor()->modifiers())
+            .CreateOutputProducer(LineColumnDelta(status_lines, size.column));
     rows[1].lines = status_lines;
 
     output.producer = std::make_unique<HorizontalSplitOutputProducer>(

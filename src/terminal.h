@@ -45,8 +45,9 @@ class Terminal {
     std::optional<ColumnNumber> cursor;
   };
 
-  void ShowStatus(const EditorState& editor_state, Screen* screen);
-  void ShowBuffer(EditorState* editor_state, Screen* screen);
+  void ShowOutputProducer(OutputProducer* output_producer,
+                          LineNumber initial_position,
+                          LineNumberDelta lines_to_show, Screen* screen);
   void WriteLine(Screen* screen, LineNumber line,
                  OutputProducer::Generator line_with_cursor);
 

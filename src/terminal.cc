@@ -47,8 +47,27 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
     lines_cache_.Clear();
   }
   screen->Move(LineNumber(0), ColumnNumber(0));
-  ShowBuffer(editor_state, screen);
-  ShowStatus(*editor_state, screen);
+
+  StatusOutputProducerSupplier status_supplier(editor_state->status(), nullptr,
+                                               editor_state->modifiers());
+  auto status_lines = status_supplier.lines();
+  LineNumberDelta buffer_tree_lines = screen->lines() - status_lines;
+
+  ShowOutputProducer(
+      editor_state->buffer_tree()
+          ->CreateOutputProducer(
+              {.size = LineColumnDelta(buffer_tree_lines, screen->columns())})
+          .get(),
+      LineNumber(0), buffer_tree_lines, screen);
+
+  if (status_lines > LineNumberDelta(0)) {
+    ShowOutputProducer(status_supplier
+                           .CreateOutputProducer(
+                               LineColumnDelta(status_lines, screen->columns()))
+                           .get(),
+                       LineNumber(0) + buffer_tree_lines, status_lines, screen);
+  }
+
   auto buffer = editor_state->current_buffer();
   if (editor_state->status()->GetType() == Status::Type::kPrompt ||
       (buffer != nullptr &&
@@ -96,26 +115,12 @@ wstring TransformCommandNameForStatus(wstring name) {
   return output;
 }
 
-void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
-  auto status = editor_state.status();
-  if (status->text().empty()) {
-    return;
-  }
-
-  auto line = LineNumber(0) + screen->lines() - LineNumberDelta(1);
-  WriteLine(
-      screen, line,
-      StatusOutputProducer(status, nullptr, editor_state.modifiers()).Next());
-};
-
-void Terminal::ShowBuffer(EditorState* editor_state, Screen* screen) {
-  auto status_lines = editor_state->status()->DesiredLines();
-  LineNumberDelta lines_to_show = screen->lines() - status_lines;
-  Widget::OutputProducerOptions options;
-  options.size = LineColumnDelta(lines_to_show, screen->columns());
-  auto output_producer =
-      editor_state->buffer_tree()->CreateOutputProducer(std::move(options));
-  for (auto line = LineNumber(0); line.ToDelta() < lines_to_show; ++line) {
+void Terminal::ShowOutputProducer(OutputProducer* output_producer,
+                                  LineNumber initial_position,
+                                  LineNumberDelta lines_to_show,
+                                  Screen* screen) {
+  for (auto line = initial_position; line < initial_position + lines_to_show;
+       ++line) {
     WriteLine(screen, line, output_producer->Next());
   }
 }
