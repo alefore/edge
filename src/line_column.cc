@@ -78,6 +78,16 @@ LineNumberDelta operator*(const size_t& a, LineNumberDelta b) {
   return b;
 }
 
+LineNumberDelta operator*(LineNumberDelta a, const double& b) {
+  a.line_delta *= b;
+  return a;
+}
+
+LineNumberDelta operator*(const double& a, LineNumberDelta b) {
+  b.line_delta *= a;
+  return b;
+}
+
 LineNumberDelta operator/(LineNumberDelta a, const size_t& b) {
   a.line_delta /= b;
   return a;

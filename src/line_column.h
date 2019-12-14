@@ -34,6 +34,8 @@ LineNumberDelta operator-(LineNumberDelta a, const LineNumberDelta& b);
 LineNumberDelta operator-(LineNumberDelta a);
 LineNumberDelta operator*(LineNumberDelta a, const size_t& b);
 LineNumberDelta operator*(const size_t& a, LineNumberDelta b);
+LineNumberDelta operator*(LineNumberDelta a, const double& b);
+LineNumberDelta operator*(const double& a, LineNumberDelta b);
 LineNumberDelta operator/(LineNumberDelta a, const size_t& b);
 LineNumberDelta& operator+=(LineNumberDelta& a, const LineNumberDelta& value);
 LineNumberDelta& operator-=(LineNumberDelta& a, const LineNumberDelta& value);
