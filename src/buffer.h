@@ -383,9 +383,7 @@ class OpenBuffer {
   struct SyntaxDataInput {
     std::unique_ptr<const BufferContents> contents;
     std::shared_ptr<TreeParser> parser;
-    std::set<LineNumberDelta> view_sizes;
   };
-
   struct SyntaxDataOutput {
     std::shared_ptr<const ParseTree> parse_tree;
     std::shared_ptr<const ParseTree> simplified_parse_tree;
@@ -399,10 +397,19 @@ class OpenBuffer {
                           Trampoline* trampoline);
   static SyntaxDataOutput UpdateSyntaxData(SyntaxDataInput input);
 
+  // Given a simplified_parse_tree and a desired view size, computes the zoomed
+  // out parse tree.
+  struct SyntaxDataZoomInput {
+    const OpenBuffer* buffer;
+    // Total number of lines in the buffer.
+    LineNumberDelta lines_size;
+    LineNumberDelta view_size;
+    std::shared_ptr<const ParseTree> simplified_parse_tree;
+  };
+  static int UpdateSyntaxDataZoom(SyntaxDataZoomInput input);
+
   LineColumn Apply(unique_ptr<Transformation> transformation);
   void UpdateTreeParser();
-
-  void ScheduleSyntaxDataUpdate();
 
   void ProcessCommandInput(shared_ptr<LazyString> str);
 
@@ -468,7 +475,7 @@ class OpenBuffer {
   list<unique_ptr<Value>> keyboard_text_transformers_;
   Environment environment_;
 
-  WorkQueue work_queue_;
+  mutable WorkQueue work_queue_;
 
   // A function that receives a string and returns a boolean. The function will
   // be evaluated on every line, to compute whether or not the line should be
@@ -517,8 +524,6 @@ class OpenBuffer {
 
   mutable Status status_;
 
-  Viewers::Registration viewers_registration_;
-
   enum class SyntaxDataState {
     // We need to schedule an update in syntax_data_. When we set
     // syntax_data_state_ to kPending, we schedule into `pending_work_` a
@@ -533,6 +538,10 @@ class OpenBuffer {
   SyntaxDataState syntax_data_state_ = SyntaxDataState::kDone;
   std::shared_ptr<TreeParser> tree_parser_;
   AsyncProcessor<SyntaxDataInput, SyntaxDataOutput> syntax_data_;
+  mutable AsyncProcessor<SyntaxDataZoomInput, int> syntax_data_zoom_;
+  mutable std::unordered_map<LineNumberDelta, std::shared_ptr<const ParseTree>>
+      zoomed_out_parse_trees_;
+
   BackgroundCallbackRunner background_read_runner_ =
       NewBackgroundCallbackRunner(L"BackgroundReadRunner");
 };

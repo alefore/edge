@@ -180,14 +180,24 @@ OpenBuffer::SyntaxDataOutput OpenBuffer::UpdateSyntaxData(
 
   output.simplified_parse_tree =
       std::make_shared<ParseTree>(SimplifyTree(*output.parse_tree));
-  for (auto& size : input.view_sizes) {
-    auto results = output.zoomed_out_parse_trees.insert(
-        {size,
-         std::make_shared<ParseTree>(ZoomOutTree(
-             *output.simplified_parse_tree, input.contents->size(), size))});
-    CHECK(results.second);
-  }
   return output;
+}
+
+/* static */
+int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
+  if (input.buffer->simplified_parse_tree() != input.simplified_parse_tree) {
+    return 0;  // Parse tree changed in the meantime.
+  }
+
+  auto output = std::make_shared<ParseTree>(ZoomOutTree(
+      *input.simplified_parse_tree, input.lines_size, input.view_size));
+  input.buffer->work_queue_.Schedule([input, output]() mutable {
+    if (input.buffer->simplified_parse_tree() != input.simplified_parse_tree) {
+      return;  // Parse tree changed in the meantime.
+    }
+    input.buffer->zoomed_out_parse_trees_[input.view_size] = std::move(output);
+  });
+  return 0;
 }
 
 /* static */ void OpenBuffer::RegisterBufferType(
@@ -492,7 +502,18 @@ OpenBuffer::OpenBuffer(EditorState* editor_state, const wstring& name)
 OpenBuffer::OpenBuffer(Options options)
     : options_(std::move(options)),
       contents_([this](const CursorsTracker::Transformation& transformation) {
-        ScheduleSyntaxDataUpdate();
+        if (syntax_data_state_ == SyntaxDataState::kDone) {
+          syntax_data_state_ = SyntaxDataState::kPending;
+          work_queue_.Schedule([this] {
+            syntax_data_state_ = SyntaxDataState::kDone;
+            if (!TreeParser::IsNull(tree_parser_.get())) {
+              SyntaxDataInput input;
+              input.contents = contents_.copy();
+              input.parser = tree_parser_;
+              syntax_data_.Push(std::move(input));
+            }
+          });
+        }
         modified_ = true;
         time(&last_action_);
         cursors_tracker_.AdjustCursors(transformation);
@@ -507,11 +528,6 @@ OpenBuffer::OpenBuffer(Options options)
       default_commands_(options_.editor->default_commands()->NewChild()),
       mode_(std::make_unique<MapMode>(default_commands_)),
       status_(options_.editor->GetConsole(), options_.editor->audio_player()),
-      viewers_registration_(viewers_.AddListener([this]() {
-        LOG(INFO) << "Viewer registered: "
-                  << this->Read(buffer_variables::name);
-        ScheduleSyntaxDataUpdate();
-      })),
       tree_parser_(NewNullTreeParser()),
       syntax_data_([this]() {
         AsyncProcessor<SyntaxDataInput, SyntaxDataOutput>::Options options;
@@ -519,8 +535,21 @@ OpenBuffer::OpenBuffer(Options options)
         options.factory = UpdateSyntaxData;
         options.notify_callback = [this]() {
           VLOG(5) << "Background thread is notifying internal event.";
-          options_.editor->NotifyInternalEvent();
+          SchedulePendingWork([this]() {
+            // TODO: Optimize this to not throw them away if the simplified
+            // parse tree didn't change.
+            zoomed_out_parse_trees_.clear();
+          });
         };
+        return options;
+      }()),
+      syntax_data_zoom_([this]() {
+        AsyncProcessor<SyntaxDataZoomInput, int>::Options options;
+        options.name = L"SyntaxDataZoom";
+        options.factory = UpdateSyntaxDataZoom;
+        options.push_behavior =
+            AsyncProcessor<SyntaxDataZoomInput,
+                           int>::Options::QueueBehavior::kWait;
         return options;
       }()) {
   UpdateTreeParser();
@@ -876,39 +905,6 @@ void OpenBuffer::UpdateTreeParser() {
   if (TreeParser::IsNull(tree_parser_.get())) {
     syntax_data_.PauseThread();  // TODO: Don't block until the thread is done?
   }
-}
-
-void OpenBuffer::ScheduleSyntaxDataUpdate() {
-  if (syntax_data_state_ == SyntaxDataState::kPending) {
-    return;  // Already scheduled in `pending_work_`.
-  }
-  syntax_data_state_ = SyntaxDataState::kPending;
-
-  VLOG(5) << "Scheduling parse tree update.";
-
-  SchedulePendingWork([this]() {
-    syntax_data_state_ = SyntaxDataState::kDone;
-    if (TreeParser::IsNull(tree_parser_.get())) {
-      return;
-    }
-
-    SyntaxDataInput input;
-    input.contents = contents_.copy();
-    input.parser = tree_parser_;
-
-    for (const auto& size : viewers()->GetViewSizes()) {
-      input.view_sizes.insert(size.line);
-    }
-
-    // In case nobody is viewing it, we still want to emit the tree for the
-    // last view size.
-    std::optional<LineColumnDelta> last = viewers()->last_view_size();
-    if (last.has_value()) {
-      input.view_sizes.insert(last.value().line);
-    }
-
-    syntax_data_.Push(std::move(input));
-  });
 }
 
 std::shared_ptr<const ParseTree> OpenBuffer::parse_tree() const {
@@ -1518,18 +1514,22 @@ const ParseTree* OpenBuffer::current_tree(const ParseTree* root) const {
 }
 
 std::shared_ptr<const ParseTree> OpenBuffer::current_zoomed_out_parse_tree(
-    LineNumberDelta lines) const {
-  std::optional<const SyntaxDataOutput> data = syntax_data_.Get();
-  if (!data.has_value()) {
-    return nullptr;
+    LineNumberDelta view_size) const {
+  if (auto it = zoomed_out_parse_trees_.find(view_size);
+      it != zoomed_out_parse_trees_.end()) {
+    CHECK(it->second != nullptr);
+    return it->second;
   }
 
-  auto it = data.value().zoomed_out_parse_trees.find(lines);
-  if (it == data.value().zoomed_out_parse_trees.end()) {
-    return std::make_shared<ParseTree>(Range());
+  SyntaxDataZoomInput input;
+  input.buffer = this;
+  input.lines_size = lines_size();
+  input.view_size = view_size;
+  input.simplified_parse_tree = simplified_parse_tree();
+  if (input.simplified_parse_tree != nullptr) {
+    syntax_data_zoom_.Push(std::move(input));
   }
-  CHECK(it->second != nullptr);
-  return it->second;
+  return std::make_shared<ParseTree>(Range());
 }
 
 std::unique_ptr<BufferTerminal> OpenBuffer::NewTerminal() {

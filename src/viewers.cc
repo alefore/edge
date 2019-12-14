@@ -42,10 +42,6 @@ Viewers::Registration Viewers::AddListener(std::function<void()> listener) {
       });
 }
 
-std::set<LineColumnDelta> Viewers::GetViewSizes() const {
-  return std::set<LineColumnDelta>(view_sizes_->begin(), view_sizes_->end());
-}
-
 std::optional<LineColumnDelta> Viewers::last_view_size() const {
   return last_view_size_;
 }
