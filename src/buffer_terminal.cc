@@ -354,8 +354,12 @@ void BufferTerminal::MoveToNextLine() {
 }
 
 void BufferTerminal::UpdateSize() {
-  struct winsize screen_size;
   auto view_size = LastViewSize();
+  if (last_updated_size_.has_value() && view_size == *last_updated_size_) {
+    return;
+  }
+  last_updated_size_ = view_size;
+  struct winsize screen_size;
   LOG(INFO) << "Update buffer size: " << buffer_->Read(buffer_variables::name)
             << " to: " << view_size;
   screen_size.ws_row = view_size.line.line_delta;

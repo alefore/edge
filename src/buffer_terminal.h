@@ -43,6 +43,9 @@ class BufferTerminal : public fuzz::FuzzTestable {
 
   LineColumnDelta LastViewSize();
 
+  // The last size written to buffer->fd() by UpdateSize.
+  std::optional<LineColumnDelta> last_updated_size_;
+
   OpenBuffer* const buffer_;
 
   // TODO: Find a way to remove this? I.e. always use buffer_.
