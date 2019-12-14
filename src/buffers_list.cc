@@ -53,39 +53,41 @@ std::list<std::wstring> GetOutputComponents(
   return output;
 }
 
+struct BuffersListOptions {
+  std::map<wstring, std::shared_ptr<OpenBuffer>>* buffers;
+  std::shared_ptr<OpenBuffer> active_buffer;
+  size_t buffers_per_line;
+  ColumnNumberDelta width;
+};
+
 class BuffersListProducer : public OutputProducer {
  public:
-  BuffersListProducer(std::map<wstring, std::shared_ptr<OpenBuffer>>* buffers,
-                      std::shared_ptr<OpenBuffer> active_buffer_,
-                      size_t buffers_per_line, ColumnNumberDelta width)
-      : buffers_([&]() {
-          std::vector<OpenBuffer*> output;
-          for (const auto& it : *buffers) {
-            output.push_back(it.second.get());
-          }
-          return output;
-        }()),
-        active_buffer_(std::move(active_buffer_)),
-        buffers_per_line_(buffers_per_line),
-        prefix_width_(max(2ul, std::to_wstring(buffers_.size()).size()) + 2),
+  BuffersListProducer(BuffersListOptions options)
+      : options_(std::move(options)),
+        prefix_width_(
+            max(2ul, std::to_wstring(options_.buffers->size()).size()) + 2),
         columns_per_buffer_(
-            (width - std::min(width, (prefix_width_ * buffers_per_line_))) /
-            buffers_per_line_),
-        buffers_iterator_(buffers->begin()) {
-    VLOG(1) << "BuffersList created. Buffers per line: " << buffers_per_line
-            << ", prefix width: " << prefix_width_
-            << ", count: " << buffers->size();
+            (options_.width -
+             std::min(options_.width,
+                      (prefix_width_ * options_.buffers_per_line))) /
+            options_.buffers_per_line),
+        buffers_iterator_(options_.buffers->begin()) {
+    VLOG(1) << "BuffersList created. Buffers per line: "
+            << options_.buffers_per_line << ", prefix width: " << prefix_width_
+            << ", count: " << options_.buffers->size();
   }
 
   Generator Next() override {
     VLOG(2) << "BuffersListProducer::WriteLine start.";
     Generator output{
         std::nullopt, [this, index = index_]() {
-          CHECK_LT(index, buffers_.size());
+          CHECK_LT(index, options_.buffers->size());
           Line::Options output;
-          for (size_t i = 0;
-               i < buffers_per_line_ && index + i < buffers_.size(); i++) {
-            auto buffer = buffers_[index + i];
+          for (size_t i = 0; i < options_.buffers_per_line &&
+                             index + i < options_.buffers->size();
+               i++) {
+            auto buffer = buffers_iterator_->second.get();
+            ++buffers_iterator_;
             auto name = buffer->Read(buffer_variables::name);
             auto number_prefix = std::to_wstring(index + i + 1);
             ColumnNumber start =
@@ -116,7 +118,7 @@ class BuffersListProducer : public OutputProducer {
               number_modifiers.insert(LineModifier::CYAN);
             }
 
-            if (buffer == active_buffer_.get()) {
+            if (buffer == options_.active_buffer.get()) {
               number_modifiers.insert(LineModifier::BOLD);
               number_modifiers.insert(LineModifier::REVERSE);
             }
@@ -193,18 +195,15 @@ class BuffersListProducer : public OutputProducer {
           return LineWithCursor{std::make_shared<Line>(std::move(output)),
                                 std::nullopt};
         }};
-    index_ += buffers_per_line_;
+    index_ += options_.buffers_per_line;
     return output;
   }
 
  private:
-  const std::vector<OpenBuffer*> buffers_;
-  const std::shared_ptr<OpenBuffer> active_buffer_;
-  const size_t buffers_per_line_;
+  const BuffersListOptions options_;
   const ColumnNumberDelta prefix_width_;
   const ColumnNumberDelta columns_per_buffer_;
 
-  int line_ = 0;
   std::map<wstring, std::shared_ptr<OpenBuffer>>::iterator buffers_iterator_;
   size_t index_ = 0;
 };
@@ -335,9 +334,13 @@ std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
     auto buffers_per_line = ceil(static_cast<double>(buffers_.size()) /
                                  buffers_list_lines.line_delta);
 
-    rows.push_back({std::make_unique<BuffersListProducer>(
-                        &buffers_, widget_->GetActiveLeaf()->Lock(),
-                        buffers_per_line, options.size.column),
+    BuffersListOptions buffers_list_options;
+    buffers_list_options.buffers = &buffers_;
+    buffers_list_options.active_buffer = widget_->GetActiveLeaf()->Lock();
+    buffers_list_options.buffers_per_line = buffers_per_line;
+    buffers_list_options.width = options.size.column;
+
+    rows.push_back({std::make_unique<BuffersListProducer>(buffers_list_options),
                     buffers_list_lines});
   }
 
