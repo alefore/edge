@@ -16,6 +16,7 @@
 #include "src/horizontal_split_output_producer.h"
 #include "src/line_number_output_producer.h"
 #include "src/line_scroll_control.h"
+#include "src/section_brackets_producer.h"
 #include "src/status_output_producer.h"
 #include "src/vertical_split_output_producer.h"
 #include "src/widget.h"
@@ -47,33 +48,6 @@ ColumnNumber GetDesiredViewStartColumn(OpenBuffer* buffer,
   ColumnNumber column = GetCurrentColumn(buffer);
   return column - min(column.ToDelta(), effective_size);
 }
-
-class SectionBracketsProducer : public OutputProducer {
- public:
-  SectionBracketsProducer(LineNumberDelta lines) : lines_(lines) {}
-
-  Generator Next() override {
-    wstring c;
-    if (current_line_ == LineNumber(0)) {
-      c = L"╭";
-    } else if ((current_line_ + LineNumberDelta(1)).ToDelta() == lines_) {
-      c = L"╰";
-    } else {
-      c = L"│";
-    }
-    ++current_line_;
-    return Generator{
-        std::hash<wstring>{}(c), [c]() {
-          return LineWithCursor{
-              std::make_shared<Line>(Line::Options(NewLazyString(c))),
-              std::nullopt};
-        }};
-  }
-
- private:
-  const LineNumberDelta lines_;
-  LineNumber current_line_;
-};
 
 std::unique_ptr<OutputProducer> LinesSpanView(
     std::shared_ptr<OpenBuffer> buffer,

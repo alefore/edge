@@ -126,6 +126,8 @@ src/screen_vm.cc \
 src/screen_vm.h \
 src/search_command.cc \
 src/search_handler.cc \
+src/section_brackets_producer.cc \
+src/section_brackets_producer.h \
 src/seek.cc \
 src/seek.h \
 src/send_end_of_file_command.cc \
