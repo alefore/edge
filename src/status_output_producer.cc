@@ -12,6 +12,8 @@
 #include "src/editor.h"
 #include "src/horizontal_split_output_producer.h"
 #include "src/line_marks.h"
+#include "src/section_brackets_producer.h"
+#include "src/vertical_split_output_producer.h"
 
 namespace afc::editor {
 namespace {
@@ -202,20 +204,30 @@ LineNumberDelta StatusOutputProducerSupplier::lines() const {
 
 std::unique_ptr<OutputProducer>
 StatusOutputProducerSupplier::CreateOutputProducer(LineColumnDelta size) {
-  auto total_lines = lines();
+  const auto total_lines = lines();
   auto base = std::make_unique<InfoProducer>(status_, buffer_, modifiers_);
   if (total_lines <= LineNumberDelta(1) || total_lines > size.line) {
     return base;
   }
+
+  const auto context_lines = total_lines - LineNumberDelta(1);
   std::vector<HorizontalSplitOutputProducer::Row> rows(2);
+
+  std::vector<VerticalSplitOutputProducer::Column> context_columns(2);
+  context_columns[0].width = ColumnNumberDelta(1);
+  context_columns[0].producer =
+      std::make_unique<SectionBracketsProducer>(context_lines);
 
   BufferOutputProducerInput buffer_producer_input;
   buffer_producer_input.output_producer_options.size =
-      LineColumnDelta(total_lines - LineNumberDelta(1), size.column);
+      LineColumnDelta(context_lines, size.column);
   buffer_producer_input.buffer = status_->prompt_context();
 
+  context_columns[1].producer =
+      CreateBufferOutputProducer(buffer_producer_input).producer;
   rows[0].lines = total_lines - LineNumberDelta(1);
-  rows[0].producer = CreateBufferOutputProducer(buffer_producer_input).producer;
+  rows[0].producer = std::make_unique<VerticalSplitOutputProducer>(
+      std::move(context_columns), 1);
 
   rows[1].lines = LineNumberDelta(1);
   rows[1].producer = std::move(base);
