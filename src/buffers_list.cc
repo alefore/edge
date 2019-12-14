@@ -54,7 +54,7 @@ std::list<std::wstring> GetOutputComponents(
 }
 
 struct BuffersListOptions {
-  std::map<wstring, std::shared_ptr<OpenBuffer>>* buffers;
+  const std::map<wstring, std::shared_ptr<OpenBuffer>>* buffers;
   std::shared_ptr<OpenBuffer> active_buffer;
   size_t buffers_per_line;
   ColumnNumberDelta width;
@@ -71,7 +71,7 @@ class BuffersListProducer : public OutputProducer {
              std::min(options_.width,
                       (prefix_width_ * options_.buffers_per_line))) /
             options_.buffers_per_line),
-        buffers_iterator_(options_.buffers->begin()) {
+        buffers_iterator_(options_.buffers->cbegin()) {
     VLOG(1) << "BuffersList created. Buffers per line: "
             << options_.buffers_per_line << ", prefix width: " << prefix_width_
             << ", count: " << options_.buffers->size();
@@ -204,7 +204,8 @@ class BuffersListProducer : public OutputProducer {
   const ColumnNumberDelta prefix_width_;
   const ColumnNumberDelta columns_per_buffer_;
 
-  std::map<wstring, std::shared_ptr<OpenBuffer>>::iterator buffers_iterator_;
+  std::map<wstring, std::shared_ptr<OpenBuffer>>::const_iterator
+      buffers_iterator_;
   size_t index_ = 0;
 };
 }  // namespace
