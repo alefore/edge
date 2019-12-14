@@ -4,13 +4,22 @@
 
 #include "src/line.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+namespace {
+class EmptyProducer : public OutputProducer {
+  Generator Next() override {
+    return Generator{0ul, []() { return LineWithCursor::Empty(); }};
+  }
+};
+}  // namespace
 
 /* static */ OutputProducer::LineWithCursor
 OutputProducer::LineWithCursor::Empty() {
   return OutputProducer::LineWithCursor{std::make_shared<Line>(), std::nullopt};
 }
 
-}  // namespace editor
-}  // namespace afc
+/* static */ std::unique_ptr<OutputProducer> OutputProducer::Empty() {
+  return std::make_unique<EmptyProducer>();
+}
+
+}  // namespace afc::editor

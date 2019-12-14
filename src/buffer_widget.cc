@@ -85,15 +85,6 @@ void BufferWidget::ForEachBufferWidgetConst(
   callback(this);
 }
 
-class EmptyProducer : public OutputProducer {
-  Generator Next() override {
-    return Generator{
-        0ul, []() {
-          return LineWithCursor{std::make_shared<Line>(), std::nullopt};
-        }};
-  }
-};
-
 class SectionBracketsProducer : public OutputProducer {
  public:
   SectionBracketsProducer(LineNumberDelta lines) : lines_(lines) {}
@@ -235,7 +226,7 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
     OutputProducerOptions options) const {
   auto buffer = leaf_.lock();
   if (buffer == nullptr) {
-    return std::make_unique<EmptyProducer>();
+    return OutputProducer::Empty();
   }
 
   LineScrollControl::Options line_scroll_control_options;

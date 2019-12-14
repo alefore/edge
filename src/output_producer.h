@@ -6,14 +6,15 @@
 
 #include "src/line_column.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 class Line;
 
 // Can be used to render a view of something once, line by line.
 class OutputProducer {
  public:
+  static std::unique_ptr<OutputProducer> Empty();
+
   struct LineWithCursor {
     static LineWithCursor Empty();
 
@@ -40,9 +41,8 @@ class OutputProducer {
   };  // namespace editor
 
   virtual Generator Next() = 0;
-};  // namespace afc
+};
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_OUTPUT_PRODUCER_H__
