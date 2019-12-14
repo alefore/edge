@@ -9,8 +9,22 @@
 #include "src/viewers.h"
 #include "src/widget.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+
+struct BufferOutputProducerOutput {
+  std::unique_ptr<OutputProducer> producer;
+  // Typically a copy of `view_start`, but may have been adjusted.
+  LineColumn view_start;
+};
+
+struct BufferOutputProducerInput {
+  Widget::OutputProducerOptions output_producer_options;
+  std::shared_ptr<OpenBuffer> buffer;
+  LineColumn view_start;
+};
+
+BufferOutputProducerOutput CreateBufferOutputProducer(
+    BufferOutputProducerInput input);
 
 class BufferWidget : public Widget {
  private:
@@ -58,12 +72,8 @@ class BufferWidget : public Widget {
   // The position in the buffer where the view begins.
   // TODO: Find a better way than making this mutable.
   mutable LineColumn view_start_;
-
-  // The last size we've registered to the viewers of `leaf_`.
-  mutable std::optional<LineColumnDelta> buffer_view_size_registration_;
 };
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_BUFFER_LEAF_H__

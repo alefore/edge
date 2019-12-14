@@ -47,43 +47,6 @@ ColumnNumber GetDesiredViewStartColumn(OpenBuffer* buffer,
   ColumnNumber column = GetCurrentColumn(buffer);
   return column - min(column.ToDelta(), effective_size);
 }
-}  // namespace
-
-BufferWidget::BufferWidget(ConstructorAccessTag,
-                           std::weak_ptr<OpenBuffer> buffer)
-    : leaf_(buffer) {}
-
-/* static */
-std::unique_ptr<BufferWidget> BufferWidget::New(
-    std::weak_ptr<OpenBuffer> buffer) {
-  return std::make_unique<BufferWidget>(ConstructorAccessTag(), buffer);
-}
-
-wstring BufferWidget::Name() const {
-  auto buffer = Lock();
-  return buffer == nullptr ? L"" : buffer->Read(buffer_variables::name);
-}
-
-wstring BufferWidget::ToString() const {
-  auto buffer = leaf_.lock();
-  return L"[buffer tree leaf" +
-         (buffer == nullptr ? L"nullptr"
-                            : buffer->Read(buffer_variables::name)) +
-         L"]";
-}
-
-BufferWidget* BufferWidget::GetActiveLeaf() { return this; }
-const BufferWidget* BufferWidget::GetActiveLeaf() const { return this; }
-
-void BufferWidget::ForEachBufferWidget(
-    std::function<void(BufferWidget*)> callback) {
-  callback(this);
-}
-
-void BufferWidget::ForEachBufferWidgetConst(
-    std::function<void(const BufferWidget*)> callback) const {
-  callback(this);
-}
 
 class SectionBracketsProducer : public OutputProducer {
  public:
@@ -221,35 +184,38 @@ std::unique_ptr<OutputProducer> ViewMultipleCursors(
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows),
                                                          active_index);
 }
+}  // namespace
 
-std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
-    OutputProducerOptions options) const {
-  auto buffer = leaf_.lock();
+BufferOutputProducerOutput CreateBufferOutputProducer(
+    BufferOutputProducerInput input) {
+  BufferOutputProducerOutput output;
+  output.view_start = input.view_start;
+
+  auto buffer = input.buffer;
   if (buffer == nullptr) {
-    return OutputProducer::Empty();
+    output.producer = OutputProducer::Empty();
+    return output;
   }
 
-  LineScrollControl::Options line_scroll_control_options;
+  auto size = input.output_producer_options.size;
+
   LOG(INFO) << "BufferWidget::RecomputeData: "
             << buffer->Read(buffer_variables::name);
 
-  auto status_lines = min(options.size.line, LineNumberDelta(1));
+  auto status_lines = min(size.line, LineNumberDelta(1));
   // Screen lines that are dedicated to the buffer.
-  auto buffer_lines = options.size.line - status_lines;
+  auto buffer_lines = size.line - status_lines;
 
-  LineColumnDelta buffer_view_size(buffer_lines, options.size.column);
-  if (!buffer_view_size_registration_.has_value() ||
-      buffer_view_size_registration_.value() != buffer_view_size) {
-    buffer_view_size_registration_ = buffer_view_size;
-    buffer->viewers()->set_view_size(buffer_view_size);
-  }
+  auto buffer_view_size = LineColumnDelta(buffer_lines, size.column);
+  buffer->viewers()->set_view_size(buffer_view_size);
 
   bool paste_mode = buffer->Read(buffer_variables::paste_mode);
 
+  LineScrollControl::Options line_scroll_control_options;
   line_scroll_control_options.buffer = buffer;
   line_scroll_control_options.lines_shown = buffer_lines;
   line_scroll_control_options.columns_shown =
-      options.size.column -
+      size.column -
       (paste_mode
            ? ColumnNumberDelta(0)
            : LineNumberOutputProducer::PrefixWidth(buffer->lines_size()));
@@ -272,24 +238,24 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
                         LineNumberDelta(0))));
   CHECK_GE(margin_lines, LineNumberDelta(0));
 
-  if (view_start_.line + min(margin_lines, line.ToDelta()) > line &&
+  if (output.view_start.line + min(margin_lines, line.ToDelta()) > line &&
       (buffer->child_pid() != -1 || buffer->fd() == nullptr)) {
-    view_start_.line = line - min(margin_lines, line.ToDelta());
-  } else if (view_start_.line + buffer_lines <=
+    output.view_start.line = line - min(margin_lines, line.ToDelta());
+  } else if (output.view_start.line + buffer_lines <=
              min(LineNumber(0) + buffer->lines_size(), line + margin_lines)) {
     CHECK_GT(buffer->lines_size(), LineNumberDelta(0));
     auto view_end_line =
         min(LineNumber(0) + buffer->lines_size() - LineNumberDelta(1),
             line + margin_lines);
-    view_start_.line =
+    output.view_start.line =
         view_end_line + LineNumberDelta(1) -
         min(buffer_lines, view_end_line.ToDelta() + LineNumberDelta(1));
   }
 
-  view_start_.column =
-      GetDesiredViewStartColumn(buffer.get(), options.size.column);
-  line_scroll_control_options.begin = view_start_;
-  line_scroll_control_options.initial_column = view_start_.column;
+  output.view_start.column =
+      GetDesiredViewStartColumn(buffer.get(), size.column);
+  line_scroll_control_options.begin = output.view_start;
+  line_scroll_control_options.initial_column = output.view_start.column;
 
   if (!buffer->Read(buffer_variables::multiple_cursors)) {
     auto scroll_reader =
@@ -312,43 +278,89 @@ std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
         LineNumber(0) + buffer_lines) {
       // No need to adjust line_scroll_control_options.initial_column, since
       // that controls where continuation lines begin.
-      view_start_ =
+      output.view_start =
           positions[positions.size() -
                     (buffer_lines - effective_bottom_margin_lines).line_delta -
                     1]
               .begin;
-      line_scroll_control_options.begin = view_start_;
+      line_scroll_control_options.begin = output.view_start;
     }
   }
 
-  std::unique_ptr<OutputProducer> output;
-
-  LineColumnDelta buffer_output_size(options.size.line - status_lines,
+  LineColumnDelta buffer_output_size(buffer_lines,
                                      line_scroll_control_options.columns_shown);
 
   if (buffer->Read(buffer_variables::multiple_cursors)) {
-    output = ViewMultipleCursors(buffer, buffer_output_size,
-                                 line_scroll_control_options);
+    output.producer = ViewMultipleCursors(buffer, buffer_output_size,
+                                          line_scroll_control_options);
   } else {
-    output = LinesSpanView(buffer,
-                           LineScrollControl::New(line_scroll_control_options),
-                           buffer_output_size, 1);
+    output.producer = LinesSpanView(
+        buffer, LineScrollControl::New(line_scroll_control_options),
+        buffer_output_size, 1);
   }
 
   if (status_lines > LineNumberDelta(0)) {
     std::vector<HorizontalSplitOutputProducer::Row> rows(2);
-    rows[0].producer = std::move(output);
-    rows[0].lines = options.size.line - status_lines;
+    rows[0].producer = std::move(output.producer);
+    rows[0].lines = buffer_lines;
 
     rows[1].producer = std::make_unique<StatusOutputProducer>(
         buffer->status(), buffer.get(), buffer->editor()->modifiers());
     rows[1].lines = status_lines;
 
-    output = std::make_unique<HorizontalSplitOutputProducer>(
+    output.producer = std::make_unique<HorizontalSplitOutputProducer>(
         std::move(rows),
         buffer->status()->GetType() == Status::Type::kPrompt ? 1 : 0);
   }
   return output;
+}
+
+BufferWidget::BufferWidget(ConstructorAccessTag,
+                           std::weak_ptr<OpenBuffer> buffer)
+    : leaf_(buffer) {}
+
+/* static */
+std::unique_ptr<BufferWidget> BufferWidget::New(
+    std::weak_ptr<OpenBuffer> buffer) {
+  return std::make_unique<BufferWidget>(ConstructorAccessTag(), buffer);
+}
+
+wstring BufferWidget::Name() const {
+  auto buffer = Lock();
+  return buffer == nullptr ? L"" : buffer->Read(buffer_variables::name);
+}
+
+wstring BufferWidget::ToString() const {
+  auto buffer = leaf_.lock();
+  return L"[buffer tree leaf" +
+         (buffer == nullptr ? L"nullptr"
+                            : buffer->Read(buffer_variables::name)) +
+         L"]";
+}
+
+BufferWidget* BufferWidget::GetActiveLeaf() { return this; }
+const BufferWidget* BufferWidget::GetActiveLeaf() const { return this; }
+
+void BufferWidget::ForEachBufferWidget(
+    std::function<void(BufferWidget*)> callback) {
+  callback(this);
+}
+
+void BufferWidget::ForEachBufferWidgetConst(
+    std::function<void(const BufferWidget*)> callback) const {
+  callback(this);
+}
+
+std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer(
+    OutputProducerOptions options) const {
+  auto buffer = leaf_.lock();
+  BufferOutputProducerInput input;
+  input.output_producer_options = std::move(options);
+  input.buffer = buffer;
+  input.view_start = view_start_;
+  auto output = CreateBufferOutputProducer(std::move(input));
+  view_start_ = output.view_start;
+  return std::move(output.producer);
 }
 
 LineNumberDelta BufferWidget::MinimumLines() const {
@@ -378,7 +390,6 @@ std::shared_ptr<OpenBuffer> BufferWidget::Lock() const { return leaf_.lock(); }
 
 void BufferWidget::SetBuffer(std::weak_ptr<OpenBuffer> buffer) {
   leaf_ = std::move(buffer);
-  buffer_view_size_registration_ = std::nullopt;
 }
 
 }  // namespace afc::editor
