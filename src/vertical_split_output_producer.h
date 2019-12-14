@@ -20,8 +20,7 @@ class VerticalSplitOutputProducer : public OutputProducer {
     std::optional<ColumnNumberDelta> width;
   };
 
-  VerticalSplitOutputProducer(std::vector<Column> columns, size_t index_active)
-      : columns_(std::move(columns)), index_active_(index_active) {}
+  VerticalSplitOutputProducer(std::vector<Column> columns, size_t index_active);
 
   Generator Next() override;
 

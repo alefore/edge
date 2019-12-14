@@ -6,8 +6,8 @@
 #include <cctype>
 #include <iostream>
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
+namespace {
 std::optional<size_t> CombineHashesFromDelegates(
     const std::vector<OutputProducer::Generator>& delegates) {
   size_t value = std::hash<size_t>{}(4);
@@ -18,6 +18,15 @@ std::optional<size_t> CombineHashesFromDelegates(
     value = std::hash<size_t>{}(value ^ delegate.inputs_hash.value());
   }
   return value;
+}
+}  // namespace
+
+VerticalSplitOutputProducer::VerticalSplitOutputProducer(
+    std::vector<Column> columns, size_t index_active)
+    : columns_(std::move(columns)), index_active_(index_active) {
+  for (const auto& c : columns_) {
+    CHECK(c.producer != nullptr);
+  }
 }
 
 OutputProducer::Generator VerticalSplitOutputProducer::Next() {
@@ -61,5 +70,4 @@ OutputProducer::Generator VerticalSplitOutputProducer::Next() {
       }};
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
