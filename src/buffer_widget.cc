@@ -287,8 +287,7 @@ LineNumberDelta BufferWidget::MinimumLines() const {
 
 void BufferWidget::RemoveBuffer(OpenBuffer* buffer) {
   if (Lock().get() == buffer) {
-    leaf_ = std::shared_ptr<OpenBuffer>();
-    buffer_viewer_registration_ = nullptr;
+    SetBuffer(std::shared_ptr<OpenBuffer>());
   }
 }
 
@@ -304,17 +303,17 @@ std::shared_ptr<OpenBuffer> BufferWidget::Lock() const { return leaf_.lock(); }
 
 void BufferWidget::SetBuffer(std::weak_ptr<OpenBuffer> buffer) {
   leaf_ = std::move(buffer);
+  buffer_view_size_registration_ = std::nullopt;
   RecomputeData();
 }
 
 void BufferWidget::RecomputeData() {
-  line_scroll_control_options_ = LineScrollControl::Options();
-
   auto buffer = leaf_.lock();
   if (buffer == nullptr) {
     return;
   }
 
+  line_scroll_control_options_ = LineScrollControl::Options();
   LOG(INFO) << "BufferWidget::RecomputeData: "
             << buffer->Read(buffer_variables::name);
 
@@ -322,8 +321,12 @@ void BufferWidget::RecomputeData() {
   // Screen lines that are dedicated to the buffer.
   auto buffer_lines = size_.line - status_lines;
 
-  buffer_viewer_registration_ =
-      buffer->viewers()->Register(LineColumnDelta(buffer_lines, size_.column));
+  LineColumnDelta buffer_view_size(buffer_lines, size_.column);
+  if (!buffer_view_size_registration_.has_value() ||
+      buffer_view_size_registration_ != buffer_view_size) {
+    buffer_view_size_registration_ = buffer_view_size;
+    buffer->viewers()->set_view_size(buffer_view_size);
+  }
 
   bool paste_mode = buffer->Read(buffer_variables::paste_mode);
 

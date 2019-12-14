@@ -300,9 +300,8 @@ wstring LineUp::Description() const { return L"moves up one line"; }
     MoveBackwards::Move(c, editor_state);
   } else if (structure == StructureWord() || structure == StructureSymbol()) {
     // Move in whole pages.
-    auto last_view_size = buffer->viewers()->last_view_size();
-    auto lines =
-        last_view_size.has_value() ? last_view_size->line : LineNumberDelta(1);
+    auto view_size = buffer->viewers()->view_size();
+    auto lines = view_size.has_value() ? view_size->line : LineNumberDelta(1);
     editor_state->set_repetitions(
         editor_state->repetitions() *
         (lines.line_delta > 2 ? lines.line_delta - 2 : 3));
@@ -341,9 +340,8 @@ wstring LineDown::Description() const { return L"moves down one line"; }
     MoveForwards::Move(c, editor_state);
   } else if (structure == StructureWord() || structure == StructureSymbol()) {
     // Move in whole pages.
-    auto last_view_size = buffer->viewers()->last_view_size();
-    auto lines =
-        last_view_size.has_value() ? last_view_size->line : LineNumberDelta(1);
+    auto view_size = buffer->viewers()->view_size();
+    auto lines = view_size.has_value() ? view_size->line : LineNumberDelta(1);
     editor_state->set_repetitions(
         editor_state->repetitions() *
         (lines.line_delta > 2 ? lines.line_delta - 2 : 3));

@@ -374,7 +374,7 @@ void BufferTerminal::UpdateSize() {
 }
 
 LineColumnDelta BufferTerminal::LastViewSize() {
-  return buffer_->viewers()->last_view_size().value_or(
+  return buffer_->viewers()->view_size().value_or(
       LineColumnDelta(LineNumberDelta(24), ColumnNumberDelta(80)));
 }
 

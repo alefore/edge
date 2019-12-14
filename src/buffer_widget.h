@@ -64,7 +64,8 @@ class BufferWidget : public Widget {
   // The position in the buffer where the view begins.
   LineColumn view_start_;
 
-  Viewers::Registration buffer_viewer_registration_;
+  // The last size we've registered to the viewers of `leaf_`.
+  std::optional<LineColumnDelta> buffer_view_size_registration_;
 };
 
 }  // namespace editor
