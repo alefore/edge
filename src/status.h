@@ -30,8 +30,11 @@ class Status {
   LineNumberDelta DesiredLines() const;
 
   void set_prompt(std::wstring text, std::shared_ptr<OpenBuffer> buffer);
+  // Should only be called if `GetType` returns kPrompt.
+  void set_prompt_context(std::shared_ptr<OpenBuffer> prompt_context);
   // May be nullptr.
   const std::shared_ptr<OpenBuffer>& prompt_buffer() const;
+  const std::shared_ptr<OpenBuffer>& prompt_context() const;
 
   void SetInformationText(std::wstring text);
   std::unique_ptr<StatusExpirationControl,
@@ -59,6 +62,11 @@ class Status {
     Type type = Type::kInformation;
     std::wstring text;
     std::shared_ptr<OpenBuffer> prompt_buffer = nullptr;
+
+    // When `prompt_buffer` isn't nullptr, `prompt_context` may be set to a
+    // buffer that contains either a preview of the results of executing the
+    // prompt or possible completions.
+    std::shared_ptr<OpenBuffer> prompt_context = nullptr;
   };
 
   std::shared_ptr<Data> data_ = std::make_shared<Data>();

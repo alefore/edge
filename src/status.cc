@@ -104,9 +104,21 @@ void Status::set_prompt(std::wstring text, std::shared_ptr<OpenBuffer> buffer) {
   ValidatePreconditions();
 }
 
+void Status::set_prompt_context(std::shared_ptr<OpenBuffer> prompt_context) {
+  ValidatePreconditions();
+  CHECK(data_->type == Status::Type::kPrompt);
+  data_->prompt_context = std::move(prompt_context);
+  ValidatePreconditions();
+}
+
 const std::shared_ptr<OpenBuffer>& Status::prompt_buffer() const {
   ValidatePreconditions();
   return data_->prompt_buffer;
+}
+
+const std::shared_ptr<OpenBuffer>& Status::prompt_context() const {
+  ValidatePreconditions();
+  return data_->prompt_context;
 }
 
 void Status::SetInformationText(std::wstring text) {
@@ -178,6 +190,7 @@ const std::wstring& Status::text() const {
 void Status::ValidatePreconditions() const {
   CHECK(data_ != nullptr);
   CHECK((data_->prompt_buffer != nullptr) == (data_->type == Type::kPrompt));
+  CHECK((data_->prompt_context == nullptr) || (data_->type == Type::kPrompt));
 }
 
 }  // namespace editor
