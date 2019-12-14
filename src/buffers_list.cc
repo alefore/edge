@@ -348,7 +348,6 @@ void BuffersList::SetSize(LineColumnDelta size) {
       LineColumnDelta(size_.line - buffers_list_lines_, size_.column));
 }
 
-LineColumnDelta BuffersList::size() const { return size_; }
 LineNumberDelta BuffersList::MinimumLines() { return LineNumberDelta(0); }
 
 Widget* BuffersList::Child() { return widget_.get(); }

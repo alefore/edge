@@ -22,7 +22,6 @@ class WidgetList : public SelectingWidget {
       std::function<void(const BufferWidget*)> callback) const override;
 
   void SetSize(LineColumnDelta size) override;
-  LineColumnDelta size() const override;
   void RemoveBuffer(OpenBuffer* buffer) override;
 
   size_t count() const override;

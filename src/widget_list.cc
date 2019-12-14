@@ -49,8 +49,6 @@ void WidgetList::ForEachBufferWidgetConst(
 
 void WidgetList::SetSize(LineColumnDelta size) { size_ = size; }
 
-LineColumnDelta WidgetList::size() const { return size_; }
-
 void WidgetList::RemoveBuffer(OpenBuffer* buffer) {
   for (auto& child : children_) {
     child->RemoveBuffer(buffer);

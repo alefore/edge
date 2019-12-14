@@ -38,7 +38,6 @@ class BufferWidget : public Widget {
   std::unique_ptr<OutputProducer> CreateOutputProducer() override;
 
   void SetSize(LineColumnDelta lines) override;
-  LineColumnDelta size() const override;
   LineNumberDelta MinimumLines() override;
 
   void RemoveBuffer(OpenBuffer* buffer) override;

@@ -168,7 +168,9 @@ class GotoCommand : public Command {
       buffer->set_current_position_line(LineNumber(lines.at(position).first));
     } else if (structure == StructurePage()) {
       CHECK_GT(buffer->contents()->size(), LineNumberDelta(0));
-      auto lines = editor_state->buffer_tree()->GetActiveLeaf()->size().line;
+      auto last_view_size = buffer->viewers()->last_view_size();
+      auto lines = last_view_size.has_value() ? last_view_size->line
+                                              : LineNumberDelta(1);
       size_t pages =
           ceil(static_cast<double>(buffer->contents()->size().line_delta) /
                lines.line_delta);

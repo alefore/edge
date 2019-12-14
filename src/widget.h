@@ -31,7 +31,6 @@ class Widget {
   virtual std::unique_ptr<OutputProducer> CreateOutputProducer() = 0;
 
   virtual void SetSize(LineColumnDelta size) = 0;
-  virtual LineColumnDelta size() const = 0;
   virtual LineNumberDelta MinimumLines() = 0;
   virtual void RemoveBuffer(OpenBuffer* buffer) = 0;
 
