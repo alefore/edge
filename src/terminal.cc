@@ -46,6 +46,7 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
     hashes_current_lines_.clear();
     lines_cache_.Clear();
   }
+  screen->Move(LineNumber(0), ColumnNumber(0));
   ShowBuffer(editor_state, screen);
   ShowStatus(*editor_state, screen);
   auto buffer = editor_state->current_buffer();
@@ -102,8 +103,6 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
   }
 
   auto line = LineNumber(0) + screen->lines() - LineNumberDelta(1);
-  screen->Move(line, ColumnNumber(0));
-
   WriteLine(
       screen, line,
       StatusOutputProducer(status, nullptr, editor_state.modifiers()).Next());
@@ -111,9 +110,6 @@ void Terminal::ShowStatus(const EditorState& editor_state, Screen* screen) {
 
 void Terminal::ShowBuffer(EditorState* editor_state, Screen* screen) {
   auto status_lines = editor_state->status()->DesiredLines();
-
-  screen->Move(LineNumber(0), ColumnNumber(0));
-
   LineNumberDelta lines_to_show = screen->lines() - status_lines;
   Widget::OutputProducerOptions options;
   options.size = LineColumnDelta(lines_to_show, screen->columns());
