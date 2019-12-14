@@ -28,6 +28,14 @@ void DrawPath(const std::shared_ptr<OpenBuffer>& buffer,
               const std::shared_ptr<const Line>& original_line,
               std::optional<PredictResults> results) {
   CHECK(buffer != nullptr);
+  auto status = buffer->editor()->status();
+  CHECK(status != nullptr);
+  CHECK(status->GetType() == Status::Type::kPrompt);
+  if (results.has_value()) {
+    LOG(INFO) << "Setting context: "
+              << results->predictions_buffer->Read(buffer_variables::name);
+    status->set_prompt_context(results->predictions_buffer);
+  }
   CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
   auto line = buffer->LineAt(LineNumber(0));
   if (original_line->ToString() != line->ToString()) {
