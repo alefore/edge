@@ -26,8 +26,8 @@ src/buffer_output_producer.cc \
 src/buffer_output_producer.h \
 src/buffer_terminal.cc \
 src/buffer_terminal.h \
-src/buffer_tree_horizontal.cc \
-src/buffer_tree_horizontal.h \
+src/widget_list.cc \
+src/widget_list.h \
 src/buffer_variables.cc \
 src/buffer_variables.h \
 src/buffer_widget.cc \

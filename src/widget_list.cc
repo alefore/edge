@@ -1,4 +1,4 @@
-#include "src/buffer_tree_horizontal.h"
+#include "src/widget_list.h"
 
 #include <glog/logging.h>
 
@@ -22,68 +22,68 @@
 namespace afc {
 namespace editor {
 
-BufferWidget* BufferTree::GetActiveLeaf() {
+BufferWidget* WidgetList::GetActiveLeaf() {
   return const_cast<BufferWidget*>(
-      const_cast<const BufferTree*>(this)->GetActiveLeaf());
+      const_cast<const WidgetList*>(this)->GetActiveLeaf());
 }
 
-const BufferWidget* BufferTree::GetActiveLeaf() const {
+const BufferWidget* WidgetList::GetActiveLeaf() const {
   CHECK(!children_.empty());
   CHECK_LT(active_, children_.size());
   CHECK(children_[active_] != nullptr);
   return children_[active_]->GetActiveLeaf();
 }
 
-void BufferTree::ForEachBufferWidget(
+void WidgetList::ForEachBufferWidget(
     std::function<void(BufferWidget*)> callback) {
   for (auto& widget : children_) {
     widget->ForEachBufferWidget(callback);
   }
 }
-void BufferTree::ForEachBufferWidgetConst(
+void WidgetList::ForEachBufferWidgetConst(
     std::function<void(const BufferWidget*)> callback) const {
   for (const auto& widget : children_) {
     widget->ForEachBufferWidgetConst(callback);
   }
 }
 
-void BufferTree::SetSize(LineColumnDelta size) { size_ = size; }
+void WidgetList::SetSize(LineColumnDelta size) { size_ = size; }
 
-LineColumnDelta BufferTree::size() const { return size_; }
+LineColumnDelta WidgetList::size() const { return size_; }
 
-void BufferTree::RemoveBuffer(OpenBuffer* buffer) {
+void WidgetList::RemoveBuffer(OpenBuffer* buffer) {
   for (auto& child : children_) {
     child->RemoveBuffer(buffer);
   }
 }
 
-size_t BufferTree::count() const { return children_.size(); }
+size_t WidgetList::count() const { return children_.size(); }
 
-size_t BufferTree::index() const { return active_; }
+size_t WidgetList::index() const { return active_; }
 
-void BufferTree::set_index(size_t position) {
+void WidgetList::set_index(size_t position) {
   CHECK(!children_.empty());
   active_ = position % children_.size();
 }
 
-void BufferTree::AddChild(std::unique_ptr<Widget> widget) {
+void WidgetList::AddChild(std::unique_ptr<Widget> widget) {
   children_.push_back(std::move(widget));
   set_index(children_.size() - 1);
   SetSize(size_);
 }
 
-Widget* BufferTree::Child() { return children_[active_].get(); }
+Widget* WidgetList::Child() { return children_[active_].get(); }
 
-void BufferTree::SetChild(std::unique_ptr<Widget> widget) {
+void WidgetList::SetChild(std::unique_ptr<Widget> widget) {
   children_[active_] = std::move(widget);
 }
 
-void BufferTree::WrapChild(
+void WidgetList::WrapChild(
     std::function<std::unique_ptr<Widget>(std::unique_ptr<Widget>)> callback) {
   children_[active_] = callback(std::move(children_[active_]));
 }
 
-size_t BufferTree::CountLeaves() const {
+size_t WidgetList::CountLeaves() const {
   int count = 0;
   for (const auto& child : children_) {
     count += child->CountLeaves();
@@ -91,8 +91,8 @@ size_t BufferTree::CountLeaves() const {
   return count;
 }
 
-int BufferTree::AdvanceActiveLeafWithoutWrapping(int delta) {
-  LOG(INFO) << "BufferTree advances leaf: " << delta;
+int WidgetList::AdvanceActiveLeafWithoutWrapping(int delta) {
+  LOG(INFO) << "WidgetList advances leaf: " << delta;
   while (delta > 0) {
     delta = children_[active_]->AdvanceActiveLeafWithoutWrapping(delta);
     if (active_ == children_.size() - 1) {
@@ -105,12 +105,12 @@ int BufferTree::AdvanceActiveLeafWithoutWrapping(int delta) {
   return delta;
 }
 
-void BufferTree::SetActiveLeavesAtStart() {
+void WidgetList::SetActiveLeavesAtStart() {
   active_ = 0;
   children_[active_]->SetActiveLeavesAtStart();
 }
 
-void BufferTree::RemoveActiveLeaf() {
+void WidgetList::RemoveActiveLeaf() {
   CHECK_LT(active_, children_.size());
   if (children_.size() == 1) {
     children_[0] = BufferWidget::New(std::weak_ptr<OpenBuffer>());
@@ -122,12 +122,12 @@ void BufferTree::RemoveActiveLeaf() {
   SetSize(size_);
 }
 
-BufferTree::BufferTree(std::vector<std::unique_ptr<Widget>> children,
+WidgetList::WidgetList(std::vector<std::unique_ptr<Widget>> children,
                        size_t active)
     : children_(std::move(children)), active_(active) {}
 
-BufferTree::BufferTree(std::unique_ptr<Widget> children)
-    : BufferTree(
+WidgetList::WidgetList(std::unique_ptr<Widget> children)
+    : WidgetList(
           [&]() {
             std::vector<std::unique_ptr<Widget>> output;
             output.push_back(std::move(children));
@@ -135,8 +135,8 @@ BufferTree::BufferTree(std::unique_ptr<Widget> children)
           }(),
           0) {}
 
-BufferTreeHorizontal::BufferTreeHorizontal(std::unique_ptr<Widget> children)
-    : BufferTree(
+WidgetListHorizontal::WidgetListHorizontal(std::unique_ptr<Widget> children)
+    : WidgetList(
           [&]() {
             std::vector<std::unique_ptr<Widget>> output;
             output.push_back(std::move(children));
@@ -144,20 +144,20 @@ BufferTreeHorizontal::BufferTreeHorizontal(std::unique_ptr<Widget> children)
           }(),
           0) {}
 
-BufferTreeHorizontal::BufferTreeHorizontal(
+WidgetListHorizontal::WidgetListHorizontal(
     std::vector<std::unique_ptr<Widget>> children, size_t active)
-    : BufferTree(std::move(children), active) {}
+    : WidgetList(std::move(children), active) {}
 
-wstring BufferTreeHorizontal::Name() const { return L""; }
+wstring WidgetListHorizontal::Name() const { return L""; }
 
-wstring BufferTreeHorizontal::ToString() const {
+wstring WidgetListHorizontal::ToString() const {
   wstring output = L"[buffer tree horizontal, children: " +
                    std::to_wstring(children_.size()) + L", active: " +
                    std::to_wstring(active_) + L"]";
   return output;
 }
 
-std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
+std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer() {
   std::vector<HorizontalSplitOutputProducer::Row> rows;
   CHECK_EQ(children_.size(), lines_per_child_.size());
   for (size_t index = 0; index < children_.size(); index++) {
@@ -195,8 +195,8 @@ std::unique_ptr<OutputProducer> BufferTreeHorizontal::CreateOutputProducer() {
                                                          active_);
 }
 
-void BufferTreeHorizontal::SetSize(LineColumnDelta size) {
-  BufferTree::SetSize(size);
+void WidgetListHorizontal::SetSize(LineColumnDelta size) {
+  WidgetList::SetSize(size);
   lines_per_child_.clear();
   if (size.line == LineNumberDelta(0)) return;
   for (auto& child : children_) {
@@ -270,7 +270,7 @@ void BufferTreeHorizontal::SetSize(LineColumnDelta size) {
   }
 }
 
-LineNumberDelta BufferTreeHorizontal::MinimumLines() {
+LineNumberDelta WidgetListHorizontal::MinimumLines() {
   LineNumberDelta count;
   for (auto& child : children_) {
     static const LineNumberDelta kFrameLines = LineNumberDelta(1);
@@ -279,23 +279,23 @@ LineNumberDelta BufferTreeHorizontal::MinimumLines() {
   return count;
 }
 
-BufferTreeVertical::BufferTreeVertical(std::unique_ptr<Widget> children)
-    : BufferTree(std::move(children)) {}
+WidgetListVertical::WidgetListVertical(std::unique_ptr<Widget> children)
+    : WidgetList(std::move(children)) {}
 
-BufferTreeVertical::BufferTreeVertical(
+WidgetListVertical::WidgetListVertical(
     std::vector<std::unique_ptr<Widget>> children, size_t active)
-    : BufferTree(std::move(children), active) {}
+    : WidgetList(std::move(children), active) {}
 
-wstring BufferTreeVertical::Name() const { return L""; }
+wstring WidgetListVertical::Name() const { return L""; }
 
-wstring BufferTreeVertical::ToString() const {
+wstring WidgetListVertical::ToString() const {
   wstring output = L"[buffer tree vertical, children: " +
                    std::to_wstring(children_.size()) + L", active: " +
                    std::to_wstring(active_) + L"]";
   return output;
 }
 
-std::unique_ptr<OutputProducer> BufferTreeVertical::CreateOutputProducer() {
+std::unique_ptr<OutputProducer> WidgetListVertical::CreateOutputProducer() {
   std::vector<VerticalSplitOutputProducer::Column> columns;
   CHECK_EQ(children_.size(), columns_per_child_.size());
 
@@ -311,8 +311,8 @@ std::unique_ptr<OutputProducer> BufferTreeVertical::CreateOutputProducer() {
                                                        active_);
 }
 
-void BufferTreeVertical::SetSize(LineColumnDelta size) {
-  BufferTree::SetSize(size);
+void WidgetListVertical::SetSize(LineColumnDelta size) {
+  WidgetList::SetSize(size);
   columns_per_child_.clear();
 
   if (size.line == LineNumberDelta()) return;
@@ -334,7 +334,7 @@ void BufferTreeVertical::SetSize(LineColumnDelta size) {
   }
 }
 
-LineNumberDelta BufferTreeVertical::MinimumLines() {
+LineNumberDelta WidgetListVertical::MinimumLines() {
   LineNumberDelta output = children_[0]->MinimumLines();
   for (auto& child : children_) {
     output = max(child->MinimumLines(), output);

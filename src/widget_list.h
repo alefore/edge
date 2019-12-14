@@ -12,7 +12,7 @@
 namespace afc {
 namespace editor {
 
-class BufferTree : public SelectingWidget {
+class WidgetList : public SelectingWidget {
  public:
   BufferWidget* GetActiveLeaf() override;
   const BufferWidget* GetActiveLeaf() const;
@@ -51,8 +51,8 @@ class BufferTree : public SelectingWidget {
   void RemoveActiveLeaf();
 
  protected:
-  BufferTree(std::unique_ptr<Widget> children);
-  BufferTree(std::vector<std::unique_ptr<Widget>> children, size_t active);
+  WidgetList(std::unique_ptr<Widget> children);
+  WidgetList(std::vector<std::unique_ptr<Widget>> children, size_t active);
 
   std::vector<std::unique_ptr<Widget>> children_;
   size_t active_;
@@ -60,11 +60,11 @@ class BufferTree : public SelectingWidget {
   LineColumnDelta size_;
 };
 
-class BufferTreeHorizontal : public BufferTree {
+class WidgetListHorizontal : public WidgetList {
  public:
-  BufferTreeHorizontal(std::unique_ptr<Widget> children);
+  WidgetListHorizontal(std::unique_ptr<Widget> children);
 
-  BufferTreeHorizontal(std::vector<std::unique_ptr<Widget>> children,
+  WidgetListHorizontal(std::vector<std::unique_ptr<Widget>> children,
                        size_t active);
 
   wstring Name() const;
@@ -79,11 +79,11 @@ class BufferTreeHorizontal : public BufferTree {
   std::vector<LineNumberDelta> lines_per_child_;
 };
 
-class BufferTreeVertical : public BufferTree {
+class WidgetListVertical : public WidgetList {
  public:
-  BufferTreeVertical(std::unique_ptr<Widget> children);
+  WidgetListVertical(std::unique_ptr<Widget> children);
 
-  BufferTreeVertical(std::vector<std::unique_ptr<Widget>> children,
+  WidgetListVertical(std::vector<std::unique_ptr<Widget>> children,
                      size_t active);
 
   wstring Name() const;

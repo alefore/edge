@@ -5,8 +5,8 @@
 #include <memory>
 #include <string>
 
-#include "buffer_tree_horizontal.h"
-#include "command.h"
+#include "src/command.h"
+#include "src/widget_list.h"
 
 namespace afc {
 namespace editor {

@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 
-#include "src/buffer_tree_horizontal.h"
 #include "src/editor.h"
+#include "src/widget_list.h"
 
 namespace afc {
 namespace editor {

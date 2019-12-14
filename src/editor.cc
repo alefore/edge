@@ -19,7 +19,6 @@ extern "C" {
 #include <glog/logging.h>
 
 #include "src/audio.h"
-#include "src/buffer_tree_horizontal.h"
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/dirname.h"
@@ -34,6 +33,7 @@ extern "C" {
 #include "src/vm/public/environment.h"
 #include "src/vm/public/value.h"
 #include "src/vm_transformation.h"
+#include "src/widget_list.h"
 #include "src/wstring.h"
 
 namespace afc {
@@ -411,7 +411,7 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
       default_commands_(NewCommandMode(this)),
       pipe_to_communicate_internal_events_(BuildPipe()),
       audio_player_(audio_player),
-      buffer_tree_(std::make_unique<BufferTreeHorizontal>(BufferWidget::New())),
+      buffer_tree_(std::make_unique<WidgetListHorizontal>(BufferWidget::New())),
       status_(GetConsole(), audio_player_) {
   LineColumn::Register(&environment_);
   Range::Register(&environment_);
@@ -468,24 +468,24 @@ void EditorState::set_current_buffer(std::shared_ptr<OpenBuffer> buffer) {
 }
 
 void EditorState::AddVerticalSplit() {
-  auto casted_child = dynamic_cast<BufferTreeVertical*>(buffer_tree_.Child());
+  auto casted_child = dynamic_cast<WidgetListVertical*>(buffer_tree_.Child());
   if (casted_child == nullptr) {
     buffer_tree_.WrapChild([this](std::unique_ptr<Widget> child) {
-      return std::make_unique<BufferTreeVertical>(std::move(child));
+      return std::make_unique<WidgetListVertical>(std::move(child));
     });
-    casted_child = dynamic_cast<BufferTreeVertical*>(buffer_tree_.Child());
+    casted_child = dynamic_cast<WidgetListVertical*>(buffer_tree_.Child());
     CHECK(casted_child != nullptr);
   }
   casted_child->AddChild(BufferWidget::New(OpenAnonymousBuffer(this)));
 }
 
 void EditorState::AddHorizontalSplit() {
-  auto casted_child = dynamic_cast<BufferTreeHorizontal*>(buffer_tree_.Child());
+  auto casted_child = dynamic_cast<WidgetListHorizontal*>(buffer_tree_.Child());
   if (casted_child == nullptr) {
     buffer_tree_.WrapChild([this](std::unique_ptr<Widget> child) {
-      return std::make_unique<BufferTreeHorizontal>(std::move(child));
+      return std::make_unique<WidgetListHorizontal>(std::move(child));
     });
-    casted_child = dynamic_cast<BufferTreeHorizontal*>(buffer_tree_.Child());
+    casted_child = dynamic_cast<WidgetListHorizontal*>(buffer_tree_.Child());
     CHECK(casted_child != nullptr);
   }
   casted_child->AddChild(BufferWidget::New(OpenAnonymousBuffer(this)));
@@ -506,7 +506,7 @@ void EditorState::SetHorizontalSplitsWithAllBuffers() {
   }
   CHECK(!buffers.empty());
   buffer_tree_.SetChild(
-      std::make_unique<BufferTreeHorizontal>(std::move(buffers), index_active));
+      std::make_unique<WidgetListHorizontal>(std::move(buffers), index_active));
 }
 
 void EditorState::SetActiveBuffer(size_t position) {
