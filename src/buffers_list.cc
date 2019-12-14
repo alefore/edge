@@ -14,9 +14,7 @@
 #include "src/time.h"
 #include "src/widget.h"
 
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
 namespace {
 std::list<std::wstring> GetOutputComponents(
     const std::wstring& name, ColumnNumberDelta columns_per_buffer) {
@@ -363,5 +361,4 @@ void BuffersList::WrapChild(
   CHECK(widget_ != nullptr);
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
