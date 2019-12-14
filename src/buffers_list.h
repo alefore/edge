@@ -8,8 +8,7 @@
 #include "src/output_producer.h"
 #include "src/widget.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 // Divides the screen vertically into two sections: at the top, displays a given
 // widget. At the bottom, displays a list of buffers.
@@ -35,9 +34,9 @@ class BuffersList : public DelegatingWidget {
   void ForEachBufferWidgetConst(
       std::function<void(const BufferWidget*)> callback) const override;
 
-  std::unique_ptr<OutputProducer> CreateOutputProducer() const override;
+  std::unique_ptr<OutputProducer> CreateOutputProducer(
+      OutputProducerOptions options) const override;
 
-  void SetSize(LineColumnDelta size) override;
   LineNumberDelta MinimumLines() const override;
 
   void RemoveBuffer(OpenBuffer* buffer) override;
@@ -56,14 +55,8 @@ class BuffersList : public DelegatingWidget {
  private:
   std::map<wstring, std::shared_ptr<OpenBuffer>> buffers_;
   std::unique_ptr<Widget> widget_;
-
-  // Fields initialized by SetSize.
-  LineColumnDelta size_;
-  LineNumberDelta buffers_list_lines_;
-  size_t buffers_per_line_;
 };
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
 
 #endif  // __AFC_EDITOR_BUFFERS_LIST_H__

@@ -35,9 +35,9 @@ class BufferWidget : public Widget {
   void ForEachBufferWidgetConst(
       std::function<void(const BufferWidget*)> callback) const override;
 
-  std::unique_ptr<OutputProducer> CreateOutputProducer() const override;
+  std::unique_ptr<OutputProducer> CreateOutputProducer(
+      OutputProducerOptions options) const override;
 
-  void SetSize(LineColumnDelta lines) override;
   LineNumberDelta MinimumLines() const override;
 
   void RemoveBuffer(OpenBuffer* buffer) override;
@@ -53,19 +53,14 @@ class BufferWidget : public Widget {
   void SetBuffer(std::weak_ptr<OpenBuffer> buffer);
 
  private:
-  // When either leaf_ or lines_ changes, recomputes internal data.
-  void RecomputeData();
-
   std::weak_ptr<OpenBuffer> leaf_;
-  LineColumnDelta size_;
-
-  LineScrollControl::Options line_scroll_control_options_;
 
   // The position in the buffer where the view begins.
-  LineColumn view_start_;
+  // TODO: Find a better way than making this mutable.
+  mutable LineColumn view_start_;
 
   // The last size we've registered to the viewers of `leaf_`.
-  std::optional<LineColumnDelta> buffer_view_size_registration_;
+  mutable std::optional<LineColumnDelta> buffer_view_size_registration_;
 };
 
 }  // namespace editor

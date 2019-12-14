@@ -21,7 +21,6 @@ class WidgetList : public SelectingWidget {
   void ForEachBufferWidgetConst(
       std::function<void(const BufferWidget*)> callback) const override;
 
-  void SetSize(LineColumnDelta size) override;
   void RemoveBuffer(OpenBuffer* buffer) override;
 
   size_t count() const override;
@@ -55,8 +54,6 @@ class WidgetList : public SelectingWidget {
 
   std::vector<std::unique_ptr<Widget>> children_;
   size_t active_;
-
-  LineColumnDelta size_;
 };
 
 class WidgetListHorizontal : public WidgetList {
@@ -69,13 +66,10 @@ class WidgetListHorizontal : public WidgetList {
   wstring Name() const;
   wstring ToString() const override;
 
-  std::unique_ptr<OutputProducer> CreateOutputProducer() const override;
+  std::unique_ptr<OutputProducer> CreateOutputProducer(
+      OutputProducerOptions options) const override;
 
-  void SetSize(LineColumnDelta size) override;
   LineNumberDelta MinimumLines() const override;
-
- private:
-  std::vector<LineNumberDelta> lines_per_child_;
 };
 
 class WidgetListVertical : public WidgetList {
@@ -88,9 +82,9 @@ class WidgetListVertical : public WidgetList {
   wstring Name() const;
   wstring ToString() const override;
 
-  std::unique_ptr<OutputProducer> CreateOutputProducer() const override;
+  std::unique_ptr<OutputProducer> CreateOutputProducer(
+      OutputProducerOptions options) const override;
 
-  void SetSize(LineColumnDelta size) override;
   LineNumberDelta MinimumLines() const override;
 
  private:

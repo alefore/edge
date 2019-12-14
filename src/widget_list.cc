@@ -47,8 +47,6 @@ void WidgetList::ForEachBufferWidgetConst(
   }
 }
 
-void WidgetList::SetSize(LineColumnDelta size) { size_ = size; }
-
 void WidgetList::RemoveBuffer(OpenBuffer* buffer) {
   for (auto& child : children_) {
     child->RemoveBuffer(buffer);
@@ -67,7 +65,6 @@ void WidgetList::set_index(size_t position) {
 void WidgetList::AddChild(std::unique_ptr<Widget> widget) {
   children_.push_back(std::move(widget));
   set_index(children_.size() - 1);
-  SetSize(size_);
 }
 
 Widget* WidgetList::Child() { return children_[active_].get(); }
@@ -117,7 +114,6 @@ void WidgetList::RemoveActiveLeaf() {
     active_ %= children_.size();
   }
   CHECK_LT(active_, children_.size());
-  SetSize(size_);
 }
 
 WidgetList::WidgetList(std::vector<std::unique_ptr<Widget>> children,
@@ -155,15 +151,81 @@ wstring WidgetListHorizontal::ToString() const {
   return output;
 }
 
-std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer()
-    const {
+std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer(
+    OutputProducerOptions options) const {
+  std::vector<LineNumberDelta> lines_per_child;
+  for (auto& child : children_) {
+    lines_per_child.push_back(child->MinimumLines());
+  }
+
+  if (children_.size() > 1) {
+    LOG(INFO) << "Adding lines for frames.";
+    for (auto& lines : lines_per_child) {
+      if (lines > LineNumberDelta(0)) {
+        static const LineNumberDelta kFrameLines(1);
+        lines += kFrameLines;
+      }
+    }
+  }
+
+  LineNumberDelta lines_given = std::accumulate(
+      lines_per_child.begin(), lines_per_child.end(), LineNumberDelta(0));
+
+  // TODO: this could be done way faster (sort + single pass over all
+  // buffers).
+  while (lines_given > options.size.line) {
+    LOG(INFO) << "Ensuring that lines given (" << lines_given
+              << ") doesn't exceed lines available (" << options.size.line
+              << ").";
+    std::vector<size_t> indices_maximal_producers = {0};
+    for (size_t i = 1; i < lines_per_child.size(); i++) {
+      LineNumberDelta maximum =
+          lines_per_child[indices_maximal_producers.front()];
+      if (maximum < lines_per_child[i]) {
+        indices_maximal_producers = {i};
+      } else if (maximum == lines_per_child[i]) {
+        indices_maximal_producers.push_back(i);
+      }
+    }
+    CHECK(!indices_maximal_producers.empty());
+    CHECK_GT(lines_per_child[indices_maximal_producers[0]], LineNumberDelta(0));
+    for (auto& i : indices_maximal_producers) {
+      if (lines_given > options.size.line) {
+        lines_given--;
+        lines_per_child[i]--;
+      }
+    }
+  }
+
+  CHECK_EQ(lines_given,
+           std::accumulate(lines_per_child.begin(), lines_per_child.end(),
+                           LineNumberDelta(0)));
+
+  if (options.size.line > lines_given) {
+    LineNumberDelta lines_each =
+        (options.size.line - lines_given) / lines_per_child.size();
+    lines_given += lines_per_child.size() * lines_each;
+    for (auto& l : lines_per_child) {
+      LineNumberDelta extra_line = lines_given < options.size.line
+                                       ? LineNumberDelta(1)
+                                       : LineNumberDelta(0);
+      l += lines_each + extra_line;
+      lines_given += extra_line;
+    }
+  }
+
+  CHECK_EQ(options.size.line,
+           std::accumulate(lines_per_child.begin(), lines_per_child.end(),
+                           LineNumberDelta(0)));
+
   std::vector<HorizontalSplitOutputProducer::Row> rows;
-  CHECK_EQ(children_.size(), lines_per_child_.size());
+  CHECK_EQ(children_.size(), lines_per_child.size());
   for (size_t index = 0; index < children_.size(); index++) {
-    auto child_producer = children_[index]->CreateOutputProducer();
-    CHECK(child_producer != nullptr);
     std::shared_ptr<const OpenBuffer> buffer =
         children_[index]->GetActiveLeaf()->Lock();
+    OutputProducerOptions child_options = options;
+    child_options.size.line = lines_per_child[index];
+    std::unique_ptr<OutputProducer> child_producer;
     if (children_.size() > 1) {
       VLOG(5) << "Producing row with frame.";
       std::vector<HorizontalSplitOutputProducer::Row> nested_rows;
@@ -181,92 +243,21 @@ std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer()
       nested_rows.push_back(
           {std::make_unique<FrameOutputProducer>(std::move(frame_options)),
            LineNumberDelta(1)});
-      nested_rows.push_back({std::move(child_producer),
-                             lines_per_child_[index] - LineNumberDelta(1)});
+      child_options.size.line -= nested_rows.back().lines;
+      nested_rows.push_back(
+          {children_[index]->CreateOutputProducer(child_options),
+           child_options.size.line});
       child_producer = std::make_unique<HorizontalSplitOutputProducer>(
           std::move(nested_rows), 1);
+    } else {
+      child_producer = children_[index]->CreateOutputProducer(child_options);
     }
     CHECK(child_producer != nullptr);
-    rows.push_back({std::move(child_producer), lines_per_child_[index]});
+    rows.push_back({std::move(child_producer), lines_per_child[index]});
   }
 
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows),
                                                          active_);
-}
-
-void WidgetListHorizontal::SetSize(LineColumnDelta size) {
-  WidgetList::SetSize(size);
-  lines_per_child_.clear();
-  if (size.line == LineNumberDelta(0)) return;
-  for (auto& child : children_) {
-    lines_per_child_.push_back(child->MinimumLines());
-  }
-
-  if (children_.size() > 1) {
-    LOG(INFO) << "Adding lines for frames.";
-    for (auto& lines : lines_per_child_) {
-      if (lines > LineNumberDelta(0)) {
-        static const LineNumberDelta kFrameLines(1);
-        lines += kFrameLines;
-      }
-    }
-  }
-
-  LineNumberDelta lines_given = std::accumulate(
-      lines_per_child_.begin(), lines_per_child_.end(), LineNumberDelta(0));
-
-  // TODO: this could be done way faster (sort + single pass over all
-  // buffers).
-  while (lines_given > size_.line) {
-    LOG(INFO) << "Ensuring that lines given (" << lines_given
-              << ") doesn't exceed lines available (" << size_.line << ").";
-    std::vector<size_t> indices_maximal_producers = {0};
-    for (size_t i = 1; i < lines_per_child_.size(); i++) {
-      LineNumberDelta maximum =
-          lines_per_child_[indices_maximal_producers.front()];
-      if (maximum < lines_per_child_[i]) {
-        indices_maximal_producers = {i};
-      } else if (maximum == lines_per_child_[i]) {
-        indices_maximal_producers.push_back(i);
-      }
-    }
-    CHECK(!indices_maximal_producers.empty());
-    CHECK_GT(lines_per_child_[indices_maximal_producers[0]],
-             LineNumberDelta(0));
-    for (auto& i : indices_maximal_producers) {
-      if (lines_given > size_.line) {
-        lines_given--;
-        lines_per_child_[i]--;
-      }
-    }
-  }
-
-  CHECK_EQ(lines_given,
-           std::accumulate(lines_per_child_.begin(), lines_per_child_.end(),
-                           LineNumberDelta(0)));
-
-  if (size_.line > lines_given) {
-    LineNumberDelta lines_each =
-        (size_.line - lines_given) / lines_per_child_.size();
-    lines_given += lines_per_child_.size() * lines_each;
-    for (auto& l : lines_per_child_) {
-      LineNumberDelta extra_line =
-          lines_given < size_.line ? LineNumberDelta(1) : LineNumberDelta(0);
-      l += lines_each + extra_line;
-      lines_given += extra_line;
-    }
-  }
-
-  CHECK_EQ(size_.line,
-           std::accumulate(lines_per_child_.begin(), lines_per_child_.end(),
-                           LineNumberDelta(0)));
-
-  for (size_t i = 0; i < lines_per_child_.size(); i++) {
-    children_[i]->SetSize(LineColumnDelta(
-        lines_per_child_[i] -
-            (children_.size() > 1 ? LineNumberDelta(1) : LineNumberDelta(0)),
-        size_.column));
-  }
 }
 
 LineNumberDelta WidgetListHorizontal::MinimumLines() const {
@@ -294,44 +285,35 @@ wstring WidgetListVertical::ToString() const {
   return output;
 }
 
-std::unique_ptr<OutputProducer> WidgetListVertical::CreateOutputProducer()
-    const {
-  std::vector<VerticalSplitOutputProducer::Column> columns;
-  CHECK_EQ(children_.size(), columns_per_child_.size());
+std::unique_ptr<OutputProducer> WidgetListVertical::CreateOutputProducer(
+    OutputProducerOptions options) const {
+  std::vector<VerticalSplitOutputProducer::Column> columns(children_.size());
 
-  for (size_t index = 0; index < children_.size(); index++) {
-    auto child_producer = children_[index]->CreateOutputProducer();
-    CHECK(child_producer != nullptr);
-    std::shared_ptr<const OpenBuffer> buffer =
-        children_[index]->GetActiveLeaf()->Lock();
-    columns.push_back({std::move(child_producer), columns_per_child_[index]});
-  }
-
-  return std::make_unique<VerticalSplitOutputProducer>(std::move(columns),
-                                                       active_);
-}
-
-void WidgetListVertical::SetSize(LineColumnDelta size) {
-  WidgetList::SetSize(size);
-  columns_per_child_.clear();
-
-  if (size.line == LineNumberDelta()) return;
-
-  ColumnNumberDelta base_columns = size_.column / children_.size();
+  ColumnNumberDelta base_columns = options.size.column / children_.size();
   ColumnNumberDelta columns_left =
-      size_.column - base_columns * children_.size();
+      options.size.column - base_columns * children_.size();
   CHECK_LT(columns_left, ColumnNumberDelta(children_.size()));
-  for (auto& unused __attribute__((unused)) : children_) {
-    columns_per_child_.push_back(base_columns);
+  for (auto& column : columns) {
+    column.width = base_columns;
     if (columns_left > ColumnNumberDelta(0)) {
-      ++columns_per_child_.back();
+      ++*column.width;
       --columns_left;
     }
   }
   CHECK_EQ(columns_left, ColumnNumberDelta(0));
-  for (size_t i = 0; i < columns_per_child_.size(); i++) {
-    children_[i]->SetSize(LineColumnDelta(size_.line, columns_per_child_[i]));
+
+  for (size_t index = 0; index < children_.size(); index++) {
+    auto& column = columns[index];
+    OutputProducerOptions child_options = options;
+    CHECK(column.width.has_value());
+    child_options.size.column = column.width.value();
+    column.producer =
+        children_[index]->CreateOutputProducer(std::move(child_options));
+    CHECK(column.producer != nullptr);
   }
+
+  return std::make_unique<VerticalSplitOutputProducer>(std::move(columns),
+                                                       active_);
 }
 
 LineNumberDelta WidgetListVertical::MinimumLines() const {

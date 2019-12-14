@@ -28,9 +28,12 @@ class Widget {
   virtual void ForEachBufferWidgetConst(
       std::function<void(const BufferWidget*)> callback) const = 0;
 
-  virtual std::unique_ptr<OutputProducer> CreateOutputProducer() const = 0;
+  struct OutputProducerOptions {
+    LineColumnDelta size;
+  };
+  virtual std::unique_ptr<OutputProducer> CreateOutputProducer(
+      OutputProducerOptions options) const = 0;
 
-  virtual void SetSize(LineColumnDelta size) = 0;
   virtual LineNumberDelta MinimumLines() const = 0;
   virtual void RemoveBuffer(OpenBuffer* buffer) = 0;
 

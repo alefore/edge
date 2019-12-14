@@ -312,40 +312,36 @@ void BuffersList::ForEachBufferWidgetConst(
   widget_->ForEachBufferWidgetConst(callback);
 }
 
-std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer() const {
+std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer(
+    OutputProducerOptions options) const {
+  static const auto kMinimumColumnsPerBuffer = ColumnNumberDelta(20);
+
+  auto buffers_list_lines = LineNumberDelta(
+      ceil(static_cast<double>(
+               (buffers_.size() * kMinimumColumnsPerBuffer).column_delta) /
+           options.size.column.column_delta));
+
+  options.size.line -= buffers_list_lines;
   CHECK(widget_ != nullptr);
-  auto output = widget_->CreateOutputProducer();
-  if (buffers_list_lines_ == LineNumberDelta(0)) {
+  auto output = widget_->CreateOutputProducer(options);
+  if (buffers_list_lines == LineNumberDelta(0)) {
     return output;
   }
 
   std::vector<HorizontalSplitOutputProducer::Row> rows;
-  rows.push_back({std::move(output), size_.line - buffers_list_lines_});
+  rows.push_back({std::move(output), options.size.line});
 
-  if (buffers_list_lines_ > LineNumberDelta(0)) {
+  if (buffers_list_lines > LineNumberDelta(0)) {
+    auto buffers_per_line = ceil(static_cast<double>(buffers_.size()) /
+                                 buffers_list_lines.line_delta);
+
     rows.push_back({std::make_unique<BuffersListProducer>(
                         &buffers_, widget_->GetActiveLeaf()->Lock(),
-                        buffers_per_line_, size_.column),
-                    buffers_list_lines_});
+                        buffers_per_line, options.size.column),
+                    buffers_list_lines});
   }
 
   return std::make_unique<HorizontalSplitOutputProducer>(std::move(rows), 0);
-}
-
-void BuffersList::SetSize(LineColumnDelta size) {
-  size_ = size;
-
-  static const auto kMinimumColumnsPerBuffer = ColumnNumberDelta(20);
-
-  buffers_list_lines_ = LineNumberDelta(
-      ceil(static_cast<double>(
-               (buffers_.size() * kMinimumColumnsPerBuffer).column_delta) /
-           size_.column.column_delta));
-  buffers_per_line_ = ceil(static_cast<double>(buffers_.size()) /
-                           buffers_list_lines_.line_delta);
-
-  widget_->SetSize(
-      LineColumnDelta(size_.line - buffers_list_lines_, size_.column));
 }
 
 LineNumberDelta BuffersList::MinimumLines() const { return LineNumberDelta(0); }
