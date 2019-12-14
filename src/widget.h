@@ -28,10 +28,10 @@ class Widget {
   virtual void ForEachBufferWidgetConst(
       std::function<void(const BufferWidget*)> callback) const = 0;
 
-  virtual std::unique_ptr<OutputProducer> CreateOutputProducer() = 0;
+  virtual std::unique_ptr<OutputProducer> CreateOutputProducer() const = 0;
 
   virtual void SetSize(LineColumnDelta size) = 0;
-  virtual LineNumberDelta MinimumLines() = 0;
+  virtual LineNumberDelta MinimumLines() const = 0;
   virtual void RemoveBuffer(OpenBuffer* buffer) = 0;
 
   virtual size_t CountLeaves() const = 0;

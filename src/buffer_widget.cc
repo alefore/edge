@@ -231,7 +231,7 @@ std::unique_ptr<OutputProducer> ViewMultipleCursors(
                                                          active_index);
 }
 
-std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() {
+std::unique_ptr<OutputProducer> BufferWidget::CreateOutputProducer() const {
   LOG(INFO) << "Buffer widget: CreateOutputProducer.";
   auto buffer = Lock();
   if (buffer == nullptr) {
@@ -276,7 +276,7 @@ void BufferWidget::SetSize(LineColumnDelta size) {
   RecomputeData();
 }
 
-LineNumberDelta BufferWidget::MinimumLines() {
+LineNumberDelta BufferWidget::MinimumLines() const {
   auto buffer = Lock();
   return buffer == nullptr
              ? LineNumberDelta(0)

@@ -35,10 +35,10 @@ class BuffersList : public DelegatingWidget {
   void ForEachBufferWidgetConst(
       std::function<void(const BufferWidget*)> callback) const override;
 
-  std::unique_ptr<OutputProducer> CreateOutputProducer() override;
+  std::unique_ptr<OutputProducer> CreateOutputProducer() const override;
 
   void SetSize(LineColumnDelta size) override;
-  LineNumberDelta MinimumLines() override;
+  LineNumberDelta MinimumLines() const override;
 
   void RemoveBuffer(OpenBuffer* buffer) override;
 

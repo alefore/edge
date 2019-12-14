@@ -155,7 +155,8 @@ wstring WidgetListHorizontal::ToString() const {
   return output;
 }
 
-std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer() {
+std::unique_ptr<OutputProducer> WidgetListHorizontal::CreateOutputProducer()
+    const {
   std::vector<HorizontalSplitOutputProducer::Row> rows;
   CHECK_EQ(children_.size(), lines_per_child_.size());
   for (size_t index = 0; index < children_.size(); index++) {
@@ -268,7 +269,7 @@ void WidgetListHorizontal::SetSize(LineColumnDelta size) {
   }
 }
 
-LineNumberDelta WidgetListHorizontal::MinimumLines() {
+LineNumberDelta WidgetListHorizontal::MinimumLines() const {
   LineNumberDelta count;
   for (auto& child : children_) {
     static const LineNumberDelta kFrameLines = LineNumberDelta(1);
@@ -293,7 +294,8 @@ wstring WidgetListVertical::ToString() const {
   return output;
 }
 
-std::unique_ptr<OutputProducer> WidgetListVertical::CreateOutputProducer() {
+std::unique_ptr<OutputProducer> WidgetListVertical::CreateOutputProducer()
+    const {
   std::vector<VerticalSplitOutputProducer::Column> columns;
   CHECK_EQ(children_.size(), columns_per_child_.size());
 
@@ -332,7 +334,7 @@ void WidgetListVertical::SetSize(LineColumnDelta size) {
   }
 }
 
-LineNumberDelta WidgetListVertical::MinimumLines() {
+LineNumberDelta WidgetListVertical::MinimumLines() const {
   LineNumberDelta output = children_[0]->MinimumLines();
   for (auto& child : children_) {
     output = max(child->MinimumLines(), output);

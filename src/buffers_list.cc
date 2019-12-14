@@ -312,7 +312,7 @@ void BuffersList::ForEachBufferWidgetConst(
   widget_->ForEachBufferWidgetConst(callback);
 }
 
-std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer() {
+std::unique_ptr<OutputProducer> BuffersList::CreateOutputProducer() const {
   CHECK(widget_ != nullptr);
   auto output = widget_->CreateOutputProducer();
   if (buffers_list_lines_ == LineNumberDelta(0)) {
@@ -348,7 +348,7 @@ void BuffersList::SetSize(LineColumnDelta size) {
       LineColumnDelta(size_.line - buffers_list_lines_, size_.column));
 }
 
-LineNumberDelta BuffersList::MinimumLines() { return LineNumberDelta(0); }
+LineNumberDelta BuffersList::MinimumLines() const { return LineNumberDelta(0); }
 
 Widget* BuffersList::Child() { return widget_.get(); }
 

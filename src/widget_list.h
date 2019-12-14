@@ -69,10 +69,10 @@ class WidgetListHorizontal : public WidgetList {
   wstring Name() const;
   wstring ToString() const override;
 
-  std::unique_ptr<OutputProducer> CreateOutputProducer() override;
+  std::unique_ptr<OutputProducer> CreateOutputProducer() const override;
 
   void SetSize(LineColumnDelta size) override;
-  LineNumberDelta MinimumLines() override;
+  LineNumberDelta MinimumLines() const override;
 
  private:
   std::vector<LineNumberDelta> lines_per_child_;
@@ -88,10 +88,10 @@ class WidgetListVertical : public WidgetList {
   wstring Name() const;
   wstring ToString() const override;
 
-  std::unique_ptr<OutputProducer> CreateOutputProducer() override;
+  std::unique_ptr<OutputProducer> CreateOutputProducer() const override;
 
   void SetSize(LineColumnDelta size) override;
-  LineNumberDelta MinimumLines() override;
+  LineNumberDelta MinimumLines() const override;
 
  private:
   std::vector<ColumnNumberDelta> columns_per_child_;
