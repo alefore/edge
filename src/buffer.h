@@ -406,6 +406,10 @@ class OpenBuffer {
     LineNumberDelta view_size;
     std::shared_ptr<const ParseTree> simplified_parse_tree;
   };
+  struct SyntaxDataZoomOutput {
+    std::shared_ptr<const ParseTree> simplified_parse_tree;
+    std::shared_ptr<const ParseTree> zoomed_parse_tree;
+  };
   static int UpdateSyntaxDataZoom(SyntaxDataZoomInput input);
 
   LineColumn Apply(unique_ptr<Transformation> transformation);
@@ -539,7 +543,8 @@ class OpenBuffer {
   std::shared_ptr<TreeParser> tree_parser_;
   AsyncProcessor<SyntaxDataInput, SyntaxDataOutput> syntax_data_;
   mutable AsyncProcessor<SyntaxDataZoomInput, int> syntax_data_zoom_;
-  mutable std::unordered_map<LineNumberDelta, std::shared_ptr<const ParseTree>>
+  // Caches the last parse done (by syntax_data_zoom_) for a given view size.
+  mutable std::unordered_map<LineNumberDelta, SyntaxDataZoomOutput>
       zoomed_out_parse_trees_;
 
   BackgroundCallbackRunner background_read_runner_ =
