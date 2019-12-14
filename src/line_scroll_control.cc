@@ -26,6 +26,7 @@ LineScrollControl::Reader::Reader(ConstructorAccessTag,
 LineScrollControl::LineScrollControl(ConstructorAccessTag, Options options)
     : options_(std::move(options)),
       cursors_([=]() {
+        CHECK(options_.buffer != nullptr);
         std::map<LineNumber, std::set<ColumnNumber>> cursors;
         for (auto cursor : *options_.buffer->active_cursors()) {
           cursors[cursor.line].insert(cursor.column);
