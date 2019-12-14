@@ -41,6 +41,9 @@ struct PredictResults {
   // prefix of all the items that the input matched.
   std::optional<wstring> common_prefix;
 
+  // The buffer holding all the predictions.
+  std::shared_ptr<OpenBuffer> predictions_buffer;
+
   int matches = 0;
 
   // The size of the longest prefix in the input that matched at least one item.

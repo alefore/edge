@@ -42,80 +42,83 @@ const wchar_t* kLongestDirectoryMatchEnvironmentVariable =
     L"predictor_longest_directory_match";
 const wchar_t* kExactMatchEnvironmentVariable = L"predictor_exact_match";
 
-void HandleEndOfFile(OpenBuffer* buffer,
+void HandleEndOfFile(std::shared_ptr<OpenBuffer> predictions_buffer,
                      std::function<void(PredictResults)> consumer) {
-  CHECK(buffer != nullptr);
+  CHECK(predictions_buffer != nullptr);
 
   LOG(INFO) << "Predictions buffer received end of file. Predictions: "
-            << buffer->contents()->size();
-  buffer->SortContents(
-      LineNumber(0), buffer->EndLine(),
+            << predictions_buffer->contents()->size();
+  predictions_buffer->SortContents(
+      LineNumber(0), predictions_buffer->EndLine(),
       [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
         return *LowerCase(a->contents()) < *LowerCase(b->contents());
       });
 
   LOG(INFO) << "Removing duplicates.";
   for (auto line = LineNumber(0);
-       line.ToDelta() < buffer->contents()->size();) {
-    if (line == LineNumber(0) || buffer->LineAt(line.previous())->ToString() !=
-                                     buffer->LineAt(line)->ToString()) {
+       line.ToDelta() < predictions_buffer->contents()->size();) {
+    if (line == LineNumber(0) ||
+        predictions_buffer->LineAt(line.previous())->ToString() !=
+            predictions_buffer->LineAt(line)->ToString()) {
       line++;
     } else {
-      buffer->EraseLines(line, line.next());
+      predictions_buffer->EraseLines(line, line.next());
     }
   }
 
-  wstring common_prefix = buffer->contents()->front()->contents()->ToString();
+  wstring common_prefix =
+      predictions_buffer->contents()->front()->contents()->ToString();
   PredictResults predict_results;
-  if (buffer->contents()->EveryLine([&common_prefix](LineNumber,
-                                                     const Line& line) {
-        if (line.empty()) {
-          return true;
-        }
-        VLOG(5) << "Considering prediction: " << line.ToString()
-                << " (end column: " << line.EndColumn() << ")";
-        size_t current_size =
-            min(common_prefix.size(), line.EndColumn().column);
-        wstring current =
-            line.Substring(ColumnNumber(0), ColumnNumberDelta(current_size))
-                ->ToString();
+  if (predictions_buffer->contents()->EveryLine(
+          [&common_prefix](LineNumber, const Line& line) {
+            if (line.empty()) {
+              return true;
+            }
+            VLOG(5) << "Considering prediction: " << line.ToString()
+                    << " (end column: " << line.EndColumn() << ")";
+            size_t current_size =
+                min(common_prefix.size(), line.EndColumn().column);
+            wstring current =
+                line.Substring(ColumnNumber(0), ColumnNumberDelta(current_size))
+                    ->ToString();
 
-        auto prefix_end =
-            mismatch(common_prefix.begin(), common_prefix.end(),
-                     current.begin(), [](wchar_t common_c, wchar_t current_c) {
-                       return towlower(common_c) == towlower(current_c);
-                     });
-        if (prefix_end.first != common_prefix.end()) {
-          if (prefix_end.first == common_prefix.begin()) {
-            LOG(INFO) << "Aborting completion.";
-            return false;
-          }
-          common_prefix = wstring(common_prefix.begin(), prefix_end.first);
-        }
-        return true;
-      })) {
+            auto prefix_end = mismatch(
+                common_prefix.begin(), common_prefix.end(), current.begin(),
+                [](wchar_t common_c, wchar_t current_c) {
+                  return towlower(common_c) == towlower(current_c);
+                });
+            if (prefix_end.first != common_prefix.end()) {
+              if (prefix_end.first == common_prefix.begin()) {
+                LOG(INFO) << "Aborting completion.";
+                return false;
+              }
+              common_prefix = wstring(common_prefix.begin(), prefix_end.first);
+            }
+            return true;
+          })) {
     predict_results.common_prefix = common_prefix;
   }
 
-  if (auto value = buffer->environment()->Lookup(
+  if (auto value = predictions_buffer->environment()->Lookup(
           kLongestPrefixEnvironmentVariable, VMType::VM_INTEGER);
       value != nullptr) {
     predict_results.longest_prefix = ColumnNumberDelta(value->integer);
   }
 
-  if (auto value = buffer->environment()->Lookup(
+  if (auto value = predictions_buffer->environment()->Lookup(
           kLongestDirectoryMatchEnvironmentVariable, VMType::VM_INTEGER);
       value != nullptr) {
     predict_results.longest_directory_match = ColumnNumberDelta(value->integer);
   }
 
-  if (auto value = buffer->environment()->Lookup(kExactMatchEnvironmentVariable,
-                                                 VMType::VM_BOOLEAN);
+  if (auto value = predictions_buffer->environment()->Lookup(
+          kExactMatchEnvironmentVariable, VMType::VM_BOOLEAN);
       value != nullptr) {
     predict_results.found_exact_match = value->boolean;
   }
 
-  predict_results.matches = buffer->lines_size().line_delta - 1;
+  predict_results.matches = predictions_buffer->lines_size().line_delta - 1;
+  predict_results.predictions_buffer = std::move(predictions_buffer);
   consumer(std::move(predict_results));
 }
 
@@ -197,9 +200,9 @@ void Predict(PredictOptions options) {
     CHECK(prompt != nullptr);
     options.predictor(
         options.editor_state, prompt->LineAt(LineNumber(0))->ToString(), buffer,
-        [shared_status, buffer, options, shared_predictions_buffer] {
-          buffer->set_current_cursor(LineColumn());
-          HandleEndOfFile(buffer, options.callback);
+        [shared_status, options, shared_predictions_buffer] {
+          shared_predictions_buffer->set_current_cursor(LineColumn());
+          HandleEndOfFile(shared_predictions_buffer, options.callback);
         });
   };
   predictions_buffer = std::make_shared<OpenBuffer>(std::move(buffer_options));
