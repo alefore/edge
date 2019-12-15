@@ -24,6 +24,26 @@ void OpenFileHandler(const wstring& name, EditorState* editor_state) {
   OpenFile(options);
 }
 
+void SetStatusContext(const OpenBuffer& buffer, const PredictResults& results,
+                      const Line& line, Status* status) {
+  if (results.found_exact_match) {
+    auto editor = buffer.editor();
+    OpenFileOptions open_file_options;
+    open_file_options.editor_state = editor;
+    open_file_options.path = line.ToString();
+    open_file_options.insertion_type = BuffersList::AddBufferType::kIgnore;
+    open_file_options.ignore_if_not_found = true;
+    if (auto result = OpenFile(open_file_options);
+        result != editor->buffers()->end()) {
+      status->set_prompt_context(OpenFile(open_file_options)->second);
+      return;
+    }
+  }
+  LOG(INFO) << "Setting context: "
+            << results.predictions_buffer->Read(buffer_variables::name);
+  status->set_prompt_context(results.predictions_buffer);
+}
+
 void DrawPath(const std::shared_ptr<OpenBuffer>& buffer,
               const std::shared_ptr<const Line>& original_line,
               std::optional<PredictResults> results) {
@@ -31,16 +51,16 @@ void DrawPath(const std::shared_ptr<OpenBuffer>& buffer,
   auto status = buffer->editor()->status();
   CHECK(status != nullptr);
   CHECK(status->GetType() == Status::Type::kPrompt);
-  if (results.has_value()) {
-    LOG(INFO) << "Setting context: "
-              << results->predictions_buffer->Read(buffer_variables::name);
-    status->set_prompt_context(results->predictions_buffer);
-  }
+
   CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
   auto line = buffer->LineAt(LineNumber(0));
   if (original_line->ToString() != line->ToString()) {
     LOG(INFO) << "Line has changed, ignoring call to `DrawPath`.";
     return;
+  }
+
+  if (results.has_value()) {
+    SetStatusContext(*buffer, results.value(), *line, status);
   }
 
   Line::Options output;
