@@ -154,25 +154,24 @@ std::vector<std::shared_ptr<Line>> CreateLineInstances(
   return lines_to_insert;
 }
 
-// TODO: Pass options as const ref.
-void InsertLines(const FileDescriptorReader::Options* options,
+void InsertLines(const FileDescriptorReader::Options& options,
                  std::vector<std::shared_ptr<Line>> lines_to_insert) {
   static Tracker tracker(L"FileDescriptorReader::InsertLines");
   auto tracker_call = tracker.Call();
 
-  bool previous_modified = options->buffer->modified();
-  auto follower = options->buffer->GetEndPositionFollower();
+  bool previous_modified = options.buffer->modified();
+  auto follower = options.buffer->GetEndPositionFollower();
 
   for (auto it = lines_to_insert.begin(); it != lines_to_insert.end(); ++it) {
     if (it == lines_to_insert.begin()) {
-      options->buffer->AppendToLastLine(std::move(**it));
+      options.buffer->AppendToLastLine(std::move(**it));
     } else {
-      options->buffer->StartNewLine(std::move(*it));
+      options.buffer->StartNewLine(std::move(*it));
     }
   }
 
   if (!previous_modified) {
-    options->buffer->ClearModified();  // These changes don't count.
+    options.buffer->ClearModified();  // These changes don't count.
   }
 }
 
@@ -186,7 +185,7 @@ void FileDescriptorReader::ParseAndInsertLines(
         options->buffer->work_queue()->Schedule(
             [options, lines_read_rate, lines = std::move(lines)]() mutable {
               lines_read_rate->IncrementAndGetEventsPerSecond(lines.size() - 1);
-              InsertLines(options.get(), std::move(lines));
+              InsertLines(*options, std::move(lines));
             });
       });
 }
