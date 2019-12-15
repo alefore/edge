@@ -1078,9 +1078,7 @@ void OpenBuffer::AppendRawLine(std::shared_ptr<Line> line) {
 }
 
 void OpenBuffer::AppendToLastLine(std::shared_ptr<LazyString> str) {
-  Line::Options options;
-  options.contents = std::move(str);
-  AppendToLastLine(Line(std::move(options)));
+  AppendToLastLine(Line(Line::Options(std::move(str))));
 }
 
 void OpenBuffer::AppendToLastLine(Line line) {

@@ -36,8 +36,8 @@ using std::wstring;
 // This class is thread-safe.
 class Line {
  public:
-  // TODO: Turn this into a class.
-  struct Options {
+  class Options {
+   public:
     Options() : contents(EmptyString()) {}
     Options(shared_ptr<LazyString> input_contents)
         : contents(std::move(input_contents)) {}
@@ -67,6 +67,7 @@ class Line {
     // Delete characters from column (included) until the end.
     Options& DeleteSuffix(ColumnNumber column);
 
+    // TODO: Make these fields private.
     std::shared_ptr<LazyString> contents;
 
     // Columns without an entry here reuse the last present value. If no
@@ -76,10 +77,11 @@ class Line {
     std::map<ColumnNumber, LineModifierSet> modifiers;
 
     LineModifierSet end_of_line_modifiers;
-    std::shared_ptr<vm::Environment> environment;
-    size_t hash = 0;
 
    private:
+    friend Line;
+
+    std::shared_ptr<vm::Environment> environment;
     void ValidateInvariants();
   };
 
