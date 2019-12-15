@@ -183,12 +183,13 @@ std::optional<std::vector<LineColumn>> PerformSearchWithDirection(
   return head;
 }
 
-void SearchHandlerPredictor(PredictorInput input, OpenBuffer* search_buffer) {
+void SearchHandlerPredictor(PredictorInput input) {
+  auto search_buffer = input.source_buffer;
   CHECK(search_buffer != nullptr);
   CHECK(input.predictions != nullptr);
   CHECK(input.predictions->status()->prompt_buffer() != nullptr);
   SearchOptions options;
-  options.buffer = search_buffer;
+  options.buffer = search_buffer.get();
   options.search_query = input.input;
   options.case_sensitive =
       search_buffer->Read(buffer_variables::search_case_sensitive);

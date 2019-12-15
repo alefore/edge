@@ -202,10 +202,12 @@ void Predict(PredictOptions options) {
         {.editor = options.editor_state,
          .input = prompt->LineAt(LineNumber(0))->ToString(),
          .predictions = buffer,
-         .callback = [shared_status, options, shared_predictions_buffer] {
-           shared_predictions_buffer->set_current_cursor(LineColumn());
-           HandleEndOfFile(shared_predictions_buffer, options.callback);
-         }});
+         .callback =
+             [shared_status, options, shared_predictions_buffer] {
+               shared_predictions_buffer->set_current_cursor(LineColumn());
+               HandleEndOfFile(shared_predictions_buffer, options.callback);
+             },
+         .source_buffer = options.source_buffer});
   };
   predictions_buffer = std::make_shared<OpenBuffer>(std::move(buffer_options));
   *weak_predictions_buffer = predictions_buffer;

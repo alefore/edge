@@ -176,9 +176,8 @@ class SearchCommand : public Command {
       async_search_processor->Push(std::move(async_search_input));
     };
 
-    options.predictor = [buffer](PredictorInput input) {
-      SearchHandlerPredictor(std::move(input), buffer.get());
-    };
+    options.predictor = SearchHandlerPredictor;
+    options.source_buffer = buffer;
     options.status = PromptOptions::Status::kBuffer;
     Prompt(editor_state, std::move(options));
   }

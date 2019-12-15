@@ -44,10 +44,15 @@ struct PromptOptions {
   // Optional. Useful for automatic completion.
   Predictor predictor = EmptyPredictor;
 
+  // Source buffer to give to the predictor. See
+  // `PredictorInput::source_buffer`.
+  std::shared_ptr<OpenBuffer> source_buffer;
+
   enum class Status { kEditor, kBuffer };
   Status status = Status::kEditor;
 };
 
+// TODO: Move editor_state to PromptOptions.
 void Prompt(EditorState* editor_state, PromptOptions options);
 
 unique_ptr<Command> NewLinePromptCommand(

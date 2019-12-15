@@ -36,6 +36,13 @@ struct PredictorInput {
   OpenBuffer* predictions = nullptr;
   // Once the predictor is done running, it must run the callback given.
   std::function<void()> callback;
+
+  // If the completion is specific to a given buffer (as opposed to in a global
+  // status, with no corresponding buffer), this will be pointing to the buffer.
+  // That allows the predictor to inspect the buffer contents (e.g., searching
+  // in the buffer) or variables (e.g., honoring variables in the buffer
+  // affecting the prediction).
+  std::shared_ptr<OpenBuffer> source_buffer = nullptr;
 };
 using Predictor = std::function<void(PredictorInput)>;
 
@@ -70,6 +77,9 @@ struct PredictOptions {
   EditorState* editor_state;
   Predictor predictor;
   Status* status;
+  // Given to the predictor (see `PredictorInput::source_buffer`).
+  std::shared_ptr<OpenBuffer> source_buffer;
+
   // Called if all the predicted entries have a common prefix that's longer than
   // the query.
   std::function<void(PredictResults)> callback;
