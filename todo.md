@@ -16,8 +16,6 @@ If a file is smaller than the screen (or available lines for its widget), show i
 
 Change the cursor when we're in `type` mode.
 
-If `line_width` is 1, automatically set it to fit the screen?
-
 ### Syntax
 
 Correctly handle: '\000'

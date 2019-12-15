@@ -193,10 +193,10 @@ BufferOutputProducerOutput CreateBufferOutputProducer(
       (paste_mode
            ? ColumnNumberDelta(0)
            : LineNumberOutputProducer::PrefixWidth(buffer->lines_size()));
-  if (!buffer->Read(buffer_variables::paste_mode)) {
+  if (auto w = ColumnNumberDelta(buffer->Read(buffer_variables::line_width));
+      !buffer->Read(buffer_variables::paste_mode) && w > ColumnNumberDelta(1)) {
     line_scroll_control_options.columns_shown =
-        min(line_scroll_control_options.columns_shown,
-            ColumnNumberDelta(buffer->Read(buffer_variables::line_width)));
+        min(line_scroll_control_options.columns_shown, w);
   }
 
   LineNumber line = min(buffer->position().line, buffer->EndLine());

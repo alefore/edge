@@ -346,7 +346,14 @@ EdgeStruct<int>* IntStruct() {
 }
 
 EdgeVariable<int>* const line_width = IntStruct()->AddVariable(
-    L"line_width", L"Desired maximum width of a line.", 80);
+    L"line_width",
+    L"Desired maximum width of a line. The syntax information, scroll bar, and "
+    L"other relevant information (when available) will be displayed after this "
+    L"number of characters. Lines will also be wrapped (see variables "
+    L"`wrap_from_content` and `wrap_long_lines`) based on this value. If set "
+    L"to 1, the value will be taken from the size of the screen (i.e., use as "
+    L"many columns as are currently available.",
+    80);
 
 EdgeVariable<int>* const buffer_list_context_lines = IntStruct()->AddVariable(
     L"buffer_list_context_lines",
