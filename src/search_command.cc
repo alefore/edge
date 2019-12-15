@@ -176,13 +176,8 @@ class SearchCommand : public Command {
       async_search_processor->Push(std::move(async_search_input));
     };
 
-    options.predictor = [buffer](EditorState* editor_state,
-                                 const wstring& input,
-                                 OpenBuffer* predictions_buffer,
-                                 std::function<void()> callback) {
-      SearchHandlerPredictor(editor_state, input, buffer.get(),
-                             predictions_buffer);
-      callback();
+    options.predictor = [buffer](PredictorInput input) {
+      SearchHandlerPredictor(std::move(input), buffer.get());
     };
     options.status = PromptOptions::Status::kBuffer;
     Prompt(editor_state, std::move(options));

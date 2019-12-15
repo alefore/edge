@@ -7,6 +7,7 @@
 #include "src/async_processor.h"
 #include "src/buffer_contents.h"
 #include "src/line_column.h"
+#include "src/predictor.h"
 
 namespace afc {
 namespace editor {
@@ -17,9 +18,7 @@ class EditorState;
 class OpenBuffer;
 struct LineColumn;
 
-void SearchHandlerPredictor(EditorState* editor_state,
-                            const wstring& current_query,
-                            OpenBuffer* search_buffer, OpenBuffer* target);
+void SearchHandlerPredictor(PredictorInput input, OpenBuffer* search_buffer);
 
 struct SearchOptions {
   // The buffer in which to search.

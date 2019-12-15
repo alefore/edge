@@ -199,11 +199,13 @@ void Predict(PredictOptions options) {
     auto prompt = shared_status->prompt_buffer();
     CHECK(prompt != nullptr);
     options.predictor(
-        options.editor_state, prompt->LineAt(LineNumber(0))->ToString(), buffer,
-        [shared_status, options, shared_predictions_buffer] {
-          shared_predictions_buffer->set_current_cursor(LineColumn());
-          HandleEndOfFile(shared_predictions_buffer, options.callback);
-        });
+        {.editor = options.editor_state,
+         .input = prompt->LineAt(LineNumber(0))->ToString(),
+         .predictions = buffer,
+         .callback = [shared_status, options, shared_predictions_buffer] {
+           shared_predictions_buffer->set_current_cursor(LineColumn());
+           HandleEndOfFile(shared_predictions_buffer, options.callback);
+         }});
   };
   predictions_buffer = std::make_shared<OpenBuffer>(std::move(buffer_options));
   *weak_predictions_buffer = predictions_buffer;
@@ -316,9 +318,8 @@ void ScanDirectory(DIR* dir, std::wstring pattern, std::wstring prefix,
   });
 }
 
-void FilePredictor(EditorState* editor_state, const wstring& input_path,
-                   OpenBuffer* buffer, std::function<void()> callback) {
-  LOG(INFO) << "Generating predictions for: " << input_path;
+void FilePredictor(PredictorInput predictor_input) {
+  LOG(INFO) << "Generating predictions for: " << predictor_input.input;
   struct AsyncInput {
     OpenBuffer::LockFunction get_buffer;
     wstring path;
@@ -372,19 +373,18 @@ void FilePredictor(EditorState* editor_state, const wstring& input_path,
   };
   static AsyncProcessor<AsyncInput, int> async_processor(std::move(options));
 
-  AsyncInput input{buffer->GetLockFunction(),
-                   editor_state->expand_path(input_path),
+  AsyncInput input{predictor_input.predictions->GetLockFunction(),
+                   predictor_input.editor->expand_path(predictor_input.input),
                    {},
-                   ResolvePathOptions::New(editor_state),
-                   std::move(callback)};
-  GetSearchPaths(editor_state, &input.search_paths);
+                   ResolvePathOptions::New(predictor_input.editor),
+                   std::move(predictor_input.callback)};
+  GetSearchPaths(predictor_input.editor, &input.search_paths);
   async_processor.Push(std::move(input));
 }
 
-void EmptyPredictor(EditorState*, const wstring&, OpenBuffer* buffer,
-                    std::function<void()> callback) {
-  buffer->EndOfFile();
-  buffer->AddEndOfFileObserver(callback);
+void EmptyPredictor(PredictorInput input) {
+  input.predictions->EndOfFile();
+  input.predictions->AddEndOfFileObserver(std::move(input.callback));
 }
 
 namespace {
@@ -424,19 +424,21 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
       contents->insert(make_pair(variation, NewLazyString(prediction)));
     }
   }
-  return [contents](EditorState*, const wstring& input, OpenBuffer* buffer,
-                    std::function<void()> callback) {
-    for (auto it = contents->lower_bound(input); it != contents->end(); ++it) {
-      auto result = mismatch(input.begin(), input.end(), (*it).first.begin());
-      if (result.first == input.end()) {
-        buffer->AppendToLastLine(it->second);
-        buffer->AppendRawLine(std::make_shared<Line>(Line::Options()));
+  return [contents](PredictorInput input) {
+    for (auto it = contents->lower_bound(input.input); it != contents->end();
+         ++it) {
+      auto result =
+          mismatch(input.input.begin(), input.input.end(), (*it).first.begin());
+      if (result.first == input.input.end()) {
+        input.predictions->AppendToLastLine(it->second);
+        input.predictions->AppendRawLine(
+            std::make_shared<Line>(Line::Options()));
       } else {
         break;
       }
     }
-    buffer->EndOfFile();
-    buffer->AddEndOfFileObserver(callback);
+    input.predictions->EndOfFile();
+    input.predictions->AddEndOfFileObserver(std::move(input.callback));
   };
 }
 

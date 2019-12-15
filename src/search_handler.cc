@@ -183,20 +183,22 @@ std::optional<std::vector<LineColumn>> PerformSearchWithDirection(
   return head;
 }
 
-void SearchHandlerPredictor(EditorState* editor_state, const wstring& input,
-                            OpenBuffer* search_buffer,
-                            OpenBuffer* predictions_buffer) {
+void SearchHandlerPredictor(PredictorInput input, OpenBuffer* search_buffer) {
   CHECK(search_buffer != nullptr);
-  CHECK(predictions_buffer != nullptr);
-  CHECK(predictions_buffer->status()->prompt_buffer() != nullptr);
+  CHECK(input.predictions != nullptr);
+  CHECK(input.predictions->status()->prompt_buffer() != nullptr);
   SearchOptions options;
   options.buffer = search_buffer;
-  options.search_query = input;
+  options.search_query = input.input;
   options.case_sensitive =
       search_buffer->Read(buffer_variables::search_case_sensitive);
   options.starting_position = search_buffer->position();
-  auto positions = PerformSearchWithDirection(editor_state, options);
-  if (!positions.has_value()) return;
+  auto positions = PerformSearchWithDirection(input.editor, options);
+  if (!positions.has_value()) {
+    input.predictions->EndOfFile();
+    input.predictions->AddEndOfFileObserver(input.callback);
+    return;
+  }
 
   // Get the first kMatchesLimit matches:
   const int kMatchesLimit = 100;
@@ -215,10 +217,11 @@ void SearchHandlerPredictor(EditorState* editor_state, const wstring& input,
 
   // Add the matches to the predictions buffer.
   for (auto& match : matches) {
-    predictions_buffer->AppendToLastLine(NewLazyString(std::move(match)));
-    predictions_buffer->AppendRawLine(std::make_shared<Line>(Line::Options()));
+    input.predictions->AppendToLastLine(NewLazyString(std::move(match)));
+    input.predictions->AppendRawLine(std::make_shared<Line>(Line::Options()));
   }
-  predictions_buffer->EndOfFile();
+  input.predictions->EndOfFile();
+  input.predictions->AddEndOfFileObserver(input.callback);
 }
 
 vector<LineColumn> SearchHandler(EditorState* editor_state,

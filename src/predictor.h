@@ -19,20 +19,25 @@ using std::wstring;
 class EditorState;
 class OpenBuffer;
 
-// A function that generates predictions (autocompletions) for a given prompt
-// input and writes them to a buffer.
-//
-// The buffer will begin with nothing but an empty line. As such, you probably
-// don't want to use OpenBuffer::AppendLine (because that would leave an empty
-// line at the beggining) but, instead, OpenBuffer::AppendToLastLine, followed
-// by OpenBuffer::AppendRawLine(..., empty_line). In other words, once the
-// predictor is done running, the buffer must have an empty line at the end (and
-// not at the beginning).
-//
-// Once the predictor is done running, it must run the callback given.
-typedef function<void(EditorState*, const wstring&, OpenBuffer*,
-                      std::function<void()>)>
-    Predictor;
+// A Predictor is a function that generates predictions (autocompletions) for a
+// given prompt input and writes them to a buffer.
+struct PredictorInput {
+  EditorState* editor = nullptr;
+  std::wstring input;
+
+  // The output buffer to write predictions to.
+  //
+  // It begins with nothing but an empty line. As such, you probably don't want
+  // to use OpenBuffer::AppendLine (because that would leave an empty line at
+  // the beggining) but, instead, OpenBuffer::AppendToLastLine, followed by
+  // OpenBuffer::AppendRawLine(..., empty_line). In other words, once the
+  // predictor is done running, the buffer must have an empty line at the end
+  // (and not at the beginning).
+  OpenBuffer* predictions = nullptr;
+  // Once the predictor is done running, it must run the callback given.
+  std::function<void()> callback;
+};
+using Predictor = std::function<void(PredictorInput)>;
 
 const wstring& PredictionsBufferName();
 
@@ -74,11 +79,9 @@ struct PredictOptions {
 // unambiguous completion for input).
 void Predict(PredictOptions predict_options);
 
-void FilePredictor(EditorState* editor_state, const wstring& input,
-                   OpenBuffer* buffer, std::function<void()> callback);
+void FilePredictor(PredictorInput input);
 
-void EmptyPredictor(EditorState* editor_state, const wstring& input,
-                    OpenBuffer* buffer, std::function<void()> callback);
+void EmptyPredictor(PredictorInput input);
 
 Predictor PrecomputedPredictor(const vector<wstring>& predictions,
                                wchar_t separator);
