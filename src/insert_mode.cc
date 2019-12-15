@@ -25,12 +25,14 @@ extern "C" {
 #include "src/transformation.h"
 #include "src/transformation_delete.h"
 #include "src/transformation_move.h"
+#include "src/vm/public/constant_expression.h"
+#include "src/vm/public/function_call.h"
+#include "src/vm/public/types.h"
 #include "src/vm/public/value.h"
 #include "src/wstring.h"
 
+namespace afc::editor {
 namespace {
-using namespace afc::editor;
-
 class NewLineTransformation : public Transformation {
   void Apply(OpenBuffer* buffer, Result* result) const override {
     buffer->AdjustLineColumn(&result->cursor);
@@ -488,14 +490,25 @@ class InsertMode : public EditorMode {
 
       case Terminal::CTRL_U: {
         ResetScrollBehavior();
-        DeleteOptions delete_options;
-        delete_options.modifiers.structure = StructureLine();
-        delete_options.modifiers.boundary_begin = Modifiers::LIMIT_CURRENT;
-        delete_options.modifiers.boundary_end = Modifiers::CURRENT_POSITION;
-        delete_options.copy_to_paste_buffer = false;
-        buffer->ApplyToCursors(
-            NewDeleteTransformation(std::move(delete_options)));
-        options_.modify_listener();
+        // TODO: Find a way to set `copy_to_paste_buffer` in the transformation.
+        Value* callback = buffer->environment()->Lookup(
+            L"HandleKeyboardControlU", VMType::Function({VMType::Void()}));
+        if (callback == nullptr) {
+          LOG(INFO) << "Didn't find HandleKeyboardControlU function: "
+                    << buffer->Read(buffer_variables::name);
+          return;
+        }
+        std::shared_ptr<Expression> expression = vm::NewFunctionCall(
+            vm::NewConstantExpression(std::make_unique<vm::Value>(*callback)),
+            {});
+        if (expression->Types().empty()) {
+          buffer->status()->SetWarningText(
+              L"Unable to compile (type mismatch).");
+          return;
+        }
+        buffer->EvaluateExpression(
+            expression.get(),
+            [buffer, expression](Value::Ptr) { /* Nothing. */ });
         return;
       }
 
@@ -707,12 +720,7 @@ void EnterInsertCharactersMode(InsertModeOptions options) {
     BeepFrequencies(options.editor_state->audio_player(), {659.25, 1046.50});
   }
 }
-
 }  // namespace
-
-namespace afc {
-namespace editor {
-
 using std::shared_ptr;
 using std::unique_ptr;
 
@@ -837,5 +845,4 @@ void EnterInsertMode(InsertModeOptions options) {
   editor_state->ResetStructure();
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

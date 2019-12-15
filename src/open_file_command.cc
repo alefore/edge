@@ -120,6 +120,7 @@ void AdjustPath(const std::shared_ptr<OpenBuffer>& buffer) {
 std::unique_ptr<Command> NewOpenFileCommand() {
   PromptOptions options;
   options.prompt = L"<";
+  options.prompt_contents_type = L"path";
   options.history_file = L"files";
   options.handler = OpenFileHandler;
   options.cancel_handler = [](EditorState* editor_state) {

@@ -38,12 +38,33 @@ void DeleteCurrentLine() {
   set_repetitions(1);
 }
 
-void DeleteBackwardsToLineStart() {
-  // Edit: Delete to the beginning of line.
+void HandleKeyboardControlU() {
+  buffer.PushTransformationStack();
   Modifiers modifiers = Modifiers();
-  modifiers.set_line();
   modifiers.set_backwards();
-  CurrentBuffer().ApplyTransformation(TransformationDelete(modifiers));
+
+  if (buffer.contents_type() == "path") {
+    LineColumn position = buffer.position();
+    string line = buffer.line(position.line());
+    int column = position.column();
+    if (column > 1 && line.substr(column - 1, 1) == "/") {
+      column--;
+    }
+    if (column == 0) {
+      return;
+    }
+    int last_slash = line.find_last_of("/", min(column - 1, line.size()));
+    if (last_slash == -1) {
+      modifiers.set_line();
+    } else {
+      modifiers.set_repetitions(position.column() - last_slash - 1);
+    }
+  } else {
+    // Edit: Delete to the beginning of line.
+    modifiers.set_line();
+  }
+  buffer.ApplyTransformation(TransformationDelete(modifiers));
+  buffer.PopTransformationStack();
 }
 
 void CenterScreenAroundCurrentLine() {
@@ -182,7 +203,7 @@ if (path == "") {
                           buffer.editor_commands_path() + "fold-next-line");
   buffer.AddBinding("K", "Edit: Delete the current line", DeleteCurrentLine);
   buffer.AddBinding(terminal_control_u, "Edit: Delete the current line",
-                    DeleteBackwardsToLineStart);
+                    HandleKeyboardControlU);
   buffer.AddBindingToFile("#", buffer.editor_commands_path() + "reflow");
 
   buffer.set_typos("overriden optoins");

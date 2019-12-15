@@ -16,6 +16,8 @@ struct PromptOptions {
   // Text to show in the prompt.
   wstring prompt;
 
+  std::wstring prompt_contents_type;
+
   // Optional. Name of the file with the history for this type of prompt.
   // Defaults to no history.
   wstring history_file;

@@ -99,7 +99,8 @@ shared_ptr<OpenBuffer> FilterHistory(EditorState* editor_state,
   return element->second;
 }
 
-shared_ptr<OpenBuffer> GetPromptBuffer(EditorState* editor_state) {
+shared_ptr<OpenBuffer> GetPromptBuffer(const PromptOptions& options,
+                                       EditorState* editor_state) {
   auto& element =
       *editor_state->buffers()->insert(make_pair(L"- prompt", nullptr)).first;
   if (element.second == nullptr) {
@@ -107,11 +108,16 @@ shared_ptr<OpenBuffer> GetPromptBuffer(EditorState* editor_state) {
     element.second->Set(buffer_variables::allow_dirty_delete, true);
     element.second->Set(buffer_variables::show_in_buffers_list, false);
     element.second->Set(buffer_variables::delete_into_paste_buffer, false);
+    element.second->Set(buffer_variables::save_on_close, false);
+    element.second->Set(buffer_variables::persist_state, false);
   } else {
     element.second->ClearContents(BufferContents::CursorsBehavior::kAdjust);
     CHECK_EQ(element.second->EndLine(), LineNumber(0));
     CHECK(element.second->contents()->back()->empty());
   }
+  element.second->Set(buffer_variables::contents_type,
+                      options.prompt_contents_type);
+  element.second->Reload();
   return element.second;
 }
 
@@ -245,7 +251,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
   history->set_current_position_line(LineNumber(0) +
                                      history->contents()->size());
 
-  auto buffer = GetPromptBuffer(editor_state);
+  auto buffer = GetPromptBuffer(options, editor_state);
   CHECK(buffer != nullptr);
 
   auto original_buffer = editor_state->current_buffer();

@@ -119,6 +119,7 @@ void Status::SetInformationText(std::wstring text) {
   if (data_->prompt_buffer != nullptr) {
     return;
   }
+  LOG(INFO) << "SetInformationText: " << text;
   data_ = std::make_shared<Data>(Data{Type::kInformation, std::move(text)});
   ValidatePreconditions();
 }
