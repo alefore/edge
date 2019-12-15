@@ -39,7 +39,8 @@ class Terminal {
                const EditorState::ScreenState& screen_state);
 
  private:
-  // Function that will draw a given line of output at the current position.
+  // Function that will draw a given line of output at the current position. It
+  // also contains knowledge about where the cursor will be at the end.
   struct LineDrawer {
     std::function<void(Screen*)> draw_callback;
     std::optional<ColumnNumber> cursor;
@@ -60,8 +61,11 @@ class Terminal {
   // Position at which the cursor should be placed in the screen, if known.
   std::optional<LineColumn> cursor_position_;
 
+  // Value at position i is the hash of the line currently drawn at line i, if
+  // known.
   std::vector<std::optional<size_t>> hashes_current_lines_;
 
+  // Given the hash of a line, return a LineDrawer that can be used to draw it.
   LRUCache<size_t, LineDrawer> lines_cache_;
 };
 
