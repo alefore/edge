@@ -249,7 +249,7 @@ class EditorState {
 
   BuffersList buffer_tree_;
   Status status_;
-  WorkQueue work_queue_;
+  mutable WorkQueue work_queue_;
 };
 
 }  // namespace editor
