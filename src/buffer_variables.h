@@ -56,6 +56,7 @@ extern EdgeVariable<wstring>* const tree_parser;
 extern EdgeVariable<wstring>* const language_keywords;
 extern EdgeVariable<wstring>* const typos;
 extern EdgeVariable<wstring>* const directory_noise;
+extern EdgeVariable<wstring>* const contents_type;
 
 EdgeStruct<int>* IntStruct();
 extern EdgeVariable<int>* const line_width;

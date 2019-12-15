@@ -333,6 +333,13 @@ EdgeVariable<wstring>* const directory_noise = StringStruct()->AddVariable(
     L"are less important than most files.",
     L".*(\\.o|~)|\\.(?!\\.$).*");
 
+EdgeVariable<wstring>* const contents_type = StringStruct()->AddVariable(
+    L"contents_type",
+    L"String identifying the type of contents in the buffer. Known values are "
+    L"`path` for buffers that contain paths and the empty string. This can be "
+    L"used to customize certain behaviors.",
+    L"");
+
 EdgeStruct<int>* IntStruct() {
   static EdgeStruct<int>* output = new EdgeStruct<int>();
   return output;
