@@ -35,9 +35,9 @@ class BufferTerminal : public fuzz::FuzzTestable {
   std::vector<fuzz::Handler> FuzzHandlers() override;
 
  private:
-  ColumnNumber ProcessTerminalEscapeSequence(
-      std::shared_ptr<LazyString> str, ColumnNumber read_index,
-      std::unordered_set<LineModifier, std::hash<int>>* modifiers);
+  ColumnNumber ProcessTerminalEscapeSequence(std::shared_ptr<LazyString> str,
+                                             ColumnNumber read_index,
+                                             LineModifierSet* modifiers);
 
   void MoveToNextLine();
 

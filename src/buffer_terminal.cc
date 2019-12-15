@@ -16,8 +16,7 @@ extern "C" {
 #include "src/lazy_string.h"
 #include "src/wstring.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 BufferTerminal::BufferTerminal(OpenBuffer* buffer, BufferContents* contents)
     : buffer_(buffer),
@@ -99,7 +98,7 @@ std::vector<fuzz::Handler> BufferTerminal::FuzzHandlers() {
 
 ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
     shared_ptr<LazyString> str, ColumnNumber read_index,
-    std::unordered_set<LineModifier, hash<int>>* modifiers) {
+    LineModifierSet* modifiers) {
   if (str->size() <= read_index.ToDelta()) {
     LOG(INFO) << "Unhandled character sequence: "
               << Substring(str, read_index)->ToString() << ")\n";
@@ -166,41 +165,44 @@ ColumnNumber BufferTerminal::ProcessTerminalEscapeSequence(
 
       case 'm':
         VLOG(9) << "Terminal: m";
-        if (sequence == "") {
-          modifiers->clear();
-        } else if (sequence == "0") {
-          modifiers->clear();
-        } else if (sequence == "1") {
-          modifiers->insert(LineModifier::BOLD);
-        } else if (sequence == "3") {
-          // TODO(alejo): Support italic on.
-        } else if (sequence == "4") {
-          modifiers->insert(LineModifier::UNDERLINE);
-        } else if (sequence == "23") {
-          // Fraktur off, italic off.  No need to do anything for now.
-        } else if (sequence == "24") {
-          modifiers->erase(LineModifier::UNDERLINE);
-        } else if (sequence == "31") {
-          modifiers->clear();
-          modifiers->insert(LineModifier::RED);
-        } else if (sequence == "32") {
-          modifiers->clear();
-          modifiers->insert(LineModifier::GREEN);
-        } else if (sequence == "36") {
-          modifiers->clear();
-          modifiers->insert(LineModifier::CYAN);
-        } else if (sequence == "1;30") {
-          modifiers->clear();
-          modifiers->insert(LineModifier::BOLD);
-          modifiers->insert(LineModifier::BLACK);
-        } else if (sequence == "1;31") {
-          modifiers->clear();
-          modifiers->insert(LineModifier::BOLD);
-          modifiers->insert(LineModifier::RED);
-        } else if (sequence == "1;36") {
-          modifiers->clear();
-          modifiers->insert(LineModifier::BOLD);
-          modifiers->insert(LineModifier::CYAN);
+        static const std::unordered_map<std::string, LineModifierSet> on{
+            {"", {}},
+            {"0", {}},
+            {"0;30", {LineModifier::BLACK}},
+            {"0;31", {LineModifier::RED}},
+            {"0;32", {LineModifier::GREEN}},
+            {"0;33", {LineModifier::YELLOW}},
+            {"0;34", {LineModifier::BLUE}},
+            {"0;35", {LineModifier::MAGENTA}},
+            {"0;36", {LineModifier::CYAN}},
+            {"1", {LineModifier::BOLD}},
+            {"1;30", {LineModifier::BOLD, LineModifier::BLACK}},
+            {"1;31", {LineModifier::BOLD, LineModifier::RED}},
+            {"1;32", {LineModifier::BOLD, LineModifier::GREEN}},
+            {"1;33", {LineModifier::BOLD, LineModifier::YELLOW}},
+            {"1;34", {LineModifier::BOLD, LineModifier::BLUE}},
+            {"1;35", {LineModifier::BOLD, LineModifier::MAGENTA}},
+            {"1;36", {LineModifier::BOLD, LineModifier::CYAN}},
+            // TODO(alejo): Support italic (3) on. "23" is Fraktur off, italic
+            // off.
+            {"3", {}},
+            {"4", {LineModifier::UNDERLINE}},
+            {"30", {LineModifier::BLACK}},
+            {"31", {LineModifier::RED}},
+            {"32", {LineModifier::GREEN}},
+            {"33", {LineModifier::YELLOW}},
+            {"34", {LineModifier::BLUE}},
+            {"35", {LineModifier::MAGENTA}},
+            {"36", {LineModifier::CYAN}},
+        };
+        static const std::unordered_map<std::string, LineModifierSet> off{
+            {"24", {LineModifier::UNDERLINE}}};
+        if (auto it = on.find(sequence); it != on.end()) {
+          *modifiers = it->second;
+        } else if (auto it = off.find(sequence); it != off.end()) {
+          for (const auto& m : it->second) {
+            modifiers->erase(m);
+          }
         } else if (sequence == "0;36") {
           modifiers->clear();
           modifiers->insert(LineModifier::CYAN);
@@ -378,5 +380,4 @@ LineColumnDelta BufferTerminal::LastViewSize() {
       LineColumnDelta(LineNumberDelta(24), ColumnNumberDelta(80)));
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor
