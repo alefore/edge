@@ -27,6 +27,30 @@ void build() {
   SetAsCompiler(build_buffer);
 }
 
+void StdMove() {
+  buffer.InsertText("std::move()");
+  LineColumn position = buffer.position();
+  buffer.set_position(LineColumn(position.line(), position.column() - 1));
+}
+
+void StdUniquePtr() {
+  buffer.InsertText("std::unique_ptr<>");
+  LineColumn position = buffer.position();
+  buffer.set_position(LineColumn(position.line(), position.column() - 1));
+}
+
+void StdSharedPtr() {
+  buffer.InsertText("std::shared_ptr<>");
+  LineColumn position = buffer.position();
+  buffer.set_position(LineColumn(position.line(), position.column() - 1));
+}
+
+void StdFunction() {
+  buffer.InsertText("std::function<()>");
+  LineColumn position = buffer.position();
+  buffer.set_position(LineColumn(position.line(), position.column() - 3));
+}
+
 void CppMode() {
   buffer.set_paragraph_line_prefix_characters(" /*");
   buffer.set_line_prefix_characters(" /*");
@@ -53,4 +77,9 @@ void CppMode() {
       // Values
       "true false nullptr NULL");
   buffer.set_tree_parser("cpp");
+
+  buffer.AddBinding("Sm", "C++: Insert `std::move()`", StdMove);
+  buffer.AddBinding("Su", "C++: Insert `std::unique_ptr<>`", StdUniquePtr);
+  buffer.AddBinding("Ss", "C++: Insert `std::unique_ptr<>`", StdSharedPtr);
+  buffer.AddBinding("Sf", "C++: Insert `std::function<()>`", StdFunction);
 }
