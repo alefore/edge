@@ -31,9 +31,9 @@ struct OpenFileOptions {
 
   // The path of the file to open.
   wstring path;
+  // TODO: Turn into an enum.
   bool ignore_if_not_found = false;
 
-  enum class InsertionType { kForeground, kBackground };
   BuffersList::AddBufferType insertion_type =
       BuffersList::AddBufferType::kVisit;
 
