@@ -114,7 +114,8 @@ void ShowFiles(EditorState* editor_state, wstring name,
   if (entries.empty()) {
     return;
   }
-  target->AppendLine(NewLazyString(L"## " + name));
+  target->AppendLine(NewLazyString(L"## " + name + L" (" +
+                                   std::to_wstring(entries.size()) + L")"));
   auto start = target->contents()->size();
   for (auto& entry : entries) {
     AddLine(editor_state, target, entry);
