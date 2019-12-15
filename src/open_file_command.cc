@@ -112,6 +112,9 @@ void AdjustPath(const std::shared_ptr<OpenBuffer>& buffer) {
     VLOG(5) << "Prediction results: " << results;
     DrawPath(buffer, line, results);
   };
+  if (auto buffer = options.editor_state->current_buffer(); buffer != nullptr) {
+    options.source_buffer = buffer;
+  }
   Predict(std::move(options));
   DrawPath(buffer, line, std::nullopt);
 }
@@ -137,6 +140,7 @@ std::unique_ptr<Command> NewOpenFileCommand() {
         auto buffer = editor_state->current_buffer();
 
         if (buffer != nullptr) {
+          options_copy.source_buffer = buffer;
           wstring path = buffer->Read(buffer_variables::path);
           struct stat stat_buffer;
           if (stat(ToByteString(path).c_str(), &stat_buffer) == -1 ||

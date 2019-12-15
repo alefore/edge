@@ -5,6 +5,7 @@
 #include <iostream>
 #include <list>
 #include <memory>
+#include <regex>
 #include <string>
 
 extern "C" {
@@ -266,7 +267,9 @@ DescendDirectoryTreeOutput DescendDirectoryTree(wstring search_path,
 
 // Reads the entire contents of `dir`, looking for files that match `pattern`.
 // For any files that do, prepends `prefix` and appends them to `buffer`.
-void ScanDirectory(DIR* dir, std::wstring pattern, std::wstring prefix,
+void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
+
+                   std::wstring pattern, std::wstring prefix,
                    OpenBuffer::LockFunction get_buffer) {
   VLOG(5) << "Scanning directory \"" << prefix << "\" looking for: " << pattern;
   // The length of the longest prefix of `pattern` that matches an entry.
@@ -303,9 +306,12 @@ void ScanDirectory(DIR* dir, std::wstring pattern, std::wstring prefix,
       get_buffer(RegisterPredictorExactMatch);
     }
     longest_pattern_match = pattern.size();
-    predictions.push_back(
-        NewLazyString(PathJoin(prefix, FromByteString(entry->d_name)) +
-                      (entry->d_type == DT_DIR ? L"/" : L"")));
+    auto full_path = PathJoin(prefix, FromByteString(entry->d_name)) +
+                     (entry->d_type == DT_DIR ? L"/" : L"");
+    if (std::regex_match(full_path, noise_regex)) {
+      continue;
+    }
+    predictions.push_back(NewLazyString(std::move(full_path)));
     if (predictions.size() > 100) {
       FlushPredictions();
     }
@@ -327,6 +333,7 @@ void FilePredictor(PredictorInput predictor_input) {
     wstring path;
     vector<wstring> search_paths;
     ResolvePathOptions resolve_path_options;
+    std::wregex noise_regex;
     std::function<void()> callback;
   };
 
@@ -360,7 +367,7 @@ void FilePredictor(PredictorInput predictor_input) {
         RegisterPredictorDirectoryMatch(length, buffer);
       });
       CHECK_LE(descend_results.valid_prefix_length, input.path.size());
-      ScanDirectory(descend_results.dir.get(),
+      ScanDirectory(descend_results.dir.get(), input.noise_regex,
                     input.path.substr(descend_results.valid_prefix_length,
                                       input.path.size()),
                     input.path.substr(0, descend_results.valid_prefix_length),
@@ -375,11 +382,16 @@ void FilePredictor(PredictorInput predictor_input) {
   };
   static AsyncProcessor<AsyncInput, int> async_processor(std::move(options));
 
-  AsyncInput input{predictor_input.predictions->GetLockFunction(),
-                   predictor_input.editor->expand_path(predictor_input.input),
-                   {},
-                   ResolvePathOptions::New(predictor_input.editor),
-                   std::move(predictor_input.callback)};
+  AsyncInput input{
+      .get_buffer = predictor_input.predictions->GetLockFunction(),
+      .path = predictor_input.editor->expand_path(predictor_input.input),
+      .search_paths = {},
+      .resolve_path_options = ResolvePathOptions::New(predictor_input.editor),
+      .noise_regex = predictor_input.source_buffer != nullptr
+                         ? std::wregex(predictor_input.source_buffer->Read(
+                               buffer_variables::directory_noise))
+                         : std::wregex(),
+      .callback = std::move(predictor_input.callback)};
   GetSearchPaths(predictor_input.editor, &input.search_paths);
   async_processor.Push(std::move(input));
 }
