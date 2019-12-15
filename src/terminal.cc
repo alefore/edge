@@ -50,22 +50,22 @@ void Terminal::Display(EditorState* editor_state, Screen* screen,
 
   StatusOutputProducerSupplier status_supplier(editor_state->status(), nullptr,
                                                editor_state->modifiers());
-  auto status_lines = status_supplier.lines();
-  LineNumberDelta buffer_tree_lines = screen->lines() - status_lines;
+  std::vector<HorizontalSplitOutputProducer::Row> rows(2);
+  rows[1].lines = status_supplier.lines();
+  rows[0].lines = screen->lines() - rows[1].lines;
 
-  ShowOutputProducer(
-      editor_state->buffer_tree()
-          ->CreateOutputProducer(
-              {.size = LineColumnDelta(buffer_tree_lines, screen->columns())})
-          .get(),
-      LineNumber(0), buffer_tree_lines, screen);
+  rows[0].producer = editor_state->buffer_tree()->CreateOutputProducer(
+      {.size = LineColumnDelta(rows[0].lines, screen->columns())});
 
-  if (status_lines > LineNumberDelta(0)) {
-    ShowOutputProducer(status_supplier
-                           .CreateOutputProducer(
-                               LineColumnDelta(status_lines, screen->columns()))
-                           .get(),
-                       LineNumber(0) + buffer_tree_lines, status_lines, screen);
+  rows[1].producer = status_supplier.CreateOutputProducer(
+      LineColumnDelta(rows[1].lines, screen->columns()));
+
+  HorizontalSplitOutputProducer producer(
+      std::move(rows),
+      editor_state->status()->GetType() == Status::Type::kPrompt ? 1 : 0);
+
+  for (auto line = LineNumber(); line.ToDelta() < screen->lines(); ++line) {
+    WriteLine(screen, line, producer.Next());
   }
 
   auto buffer = editor_state->current_buffer();
@@ -115,16 +115,6 @@ wstring TransformCommandNameForStatus(wstring name) {
   return output;
 }
 
-void Terminal::ShowOutputProducer(OutputProducer* output_producer,
-                                  LineNumber initial_position,
-                                  LineNumberDelta lines_to_show,
-                                  Screen* screen) {
-  for (auto line = initial_position; line < initial_position + lines_to_show;
-       ++line) {
-    WriteLine(screen, line, output_producer->Next());
-  }
-}
-
 void FlushModifiers(Screen* screen, const LineModifierSet& modifiers) {
   screen->SetModifier(LineModifier::RESET);
   for (const auto& m : modifiers) {
@@ -134,38 +124,31 @@ void FlushModifiers(Screen* screen, const LineModifierSet& modifiers) {
 
 void Terminal::WriteLine(Screen* screen, LineNumber line,
                          OutputProducer::Generator generator) {
-  if (generator.inputs_hash.has_value()) {
-    VLOG(9) << "Checking line " << line << " with hash "
-            << generator.inputs_hash.value();
-    if (line.line < hashes_current_lines_.size() &&
-        hashes_current_lines_[line.line] == generator.inputs_hash.value()) {
-      VLOG(5) << "Skipping unnecessary render for " << line;
-      return;
-    }
-  }
   if (hashes_current_lines_.size() <= line.line) {
-    hashes_current_lines_.resize(line.line * 2 + 50);
+    CHECK_LT(line.ToDelta(), screen->lines());
+    hashes_current_lines_.resize(screen->lines().line_delta * 2 + 50);
   }
 
-  hashes_current_lines_[line.line] = generator.inputs_hash;
-
-  screen->Move(line, ColumnNumber(0));
-  VLOG(8) << "Generating line for screen " << line;
-  LineDrawer no_hash_drawer;
-  LineDrawer* drawer;
-  auto factory = [generator = std::move(generator),
-                  width = screen->columns()]() {
-    return GetLineDrawer(generator.generate(), width);
+  auto factory = [&] {
+    return GetLineDrawer(generator.generate(), screen->columns());
   };
 
-  if (!generator.inputs_hash.has_value()) {
+  LineDrawer no_hash_drawer;
+  LineDrawer* drawer;
+  if (generator.inputs_hash.has_value()) {
+    if (hashes_current_lines_[line.line] == generator.inputs_hash.value()) {
+      return;
+    }
+    drawer = lines_cache_.Get(generator.inputs_hash.value(), factory);
+  } else {
     no_hash_drawer = factory();
     drawer = &no_hash_drawer;
-  } else {
-    drawer = lines_cache_.Get(generator.inputs_hash.value(), factory);
   }
 
+  VLOG(8) << "Generating line for screen: " << line;
+  screen->Move(line, ColumnNumber(0));
   drawer->draw_callback(screen);
+  hashes_current_lines_[line.line] = generator.inputs_hash;
   if (drawer->cursor.has_value()) {
     cursor_position_ = LineColumn(line, drawer->cursor.value());
   }

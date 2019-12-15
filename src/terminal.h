@@ -46,9 +46,6 @@ class Terminal {
     std::optional<ColumnNumber> cursor;
   };
 
-  void ShowOutputProducer(OutputProducer* output_producer,
-                          LineNumber initial_position,
-                          LineNumberDelta lines_to_show, Screen* screen);
   void WriteLine(Screen* screen, LineNumber line,
                  OutputProducer::Generator line_with_cursor);
 
