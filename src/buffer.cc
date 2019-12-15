@@ -1142,6 +1142,8 @@ bool OpenBuffer::EvaluateFile(
   return true;
 }
 
+WorkQueue* OpenBuffer::work_queue() { return &work_queue_; }
+
 void OpenBuffer::SchedulePendingWork(std::function<void()> callback) {
   work_queue_.Schedule(std::move(callback));
   options_.editor->NotifyInternalEvent();
@@ -1150,6 +1152,13 @@ void OpenBuffer::SchedulePendingWork(std::function<void()> callback) {
 void OpenBuffer::ExecutePendingWork() { work_queue_.Execute(); }
 WorkQueue::State OpenBuffer::GetPendingWorkState() const {
   return work_queue_.state();
+}
+
+OpenBuffer::LockFunction OpenBuffer::GetLockFunction() {
+  return [this](std::function<void(OpenBuffer*)> callback) {
+    work_queue()->Schedule(
+        [this, callback = std::move(callback)]() { callback(this); });
+  };
 }
 
 void OpenBuffer::DeleteRange(const Range& range) {

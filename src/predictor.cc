@@ -263,15 +263,15 @@ DescendDirectoryTreeOutput DescendDirectoryTree(wstring search_path,
 // Reads the entire contents of `dir`, looking for files that match `pattern`.
 // For any files that do, prepends `prefix` and appends them to `buffer`.
 void ScanDirectory(DIR* dir, std::wstring pattern, std::wstring prefix,
-                   OpenBuffer* buffer) {
+                   OpenBuffer::LockFunction get_buffer) {
   VLOG(5) << "Scanning directory \"" << prefix << "\" looking for: " << pattern;
   // The length of the longest prefix of `pattern` that matches an entry.
   size_t longest_pattern_match = 0;
   struct dirent* entry;
   std::vector<std::shared_ptr<LazyString>> predictions;
 
-  auto FlushPredictions = [&predictions, buffer] {
-    buffer->SchedulePendingWork([batch = std::move(predictions), buffer] {
+  auto FlushPredictions = [&predictions, get_buffer] {
+    get_buffer([batch = std::move(predictions)](OpenBuffer* buffer) {
       auto empty_line = std::make_shared<Line>(Line::Options());
       for (auto& prediction : batch) {
         buffer->AppendToLastLine(std::move(prediction));
@@ -296,8 +296,7 @@ void ScanDirectory(DIR* dir, std::wstring pattern, std::wstring prefix,
       continue;
     }
     if (mismatch_results.second == entry_path.end()) {
-      buffer->SchedulePendingWork(
-          [buffer] { RegisterPredictorExactMatch(buffer); });
+      get_buffer(RegisterPredictorExactMatch);
     }
     longest_pattern_match = pattern.size();
     predictions.push_back(
@@ -308,12 +307,12 @@ void ScanDirectory(DIR* dir, std::wstring pattern, std::wstring prefix,
     }
   }
   FlushPredictions();
-  buffer->SchedulePendingWork([prefix, pattern, longest_pattern_match, buffer,
-                               predictions = std::move(predictions)] {
+  get_buffer([prefix_match = prefix.size() + longest_pattern_match,
+              pattern](OpenBuffer* buffer) {
     if (pattern.empty()) {
       RegisterPredictorExactMatch(buffer);
     }
-    RegisterPredictorPrefixMatch(prefix.size() + longest_pattern_match, buffer);
+    RegisterPredictorPrefixMatch(prefix_match, buffer);
   });
 }
 
@@ -321,7 +320,7 @@ void FilePredictor(EditorState* editor_state, const wstring& input_path,
                    OpenBuffer* buffer, std::function<void()> callback) {
   LOG(INFO) << "Generating predictions for: " << input_path;
   struct AsyncInput {
-    OpenBuffer* buffer;
+    OpenBuffer::LockFunction get_buffer;
     wstring path;
     vector<wstring> search_paths;
     ResolvePathOptions resolve_path_options;
@@ -353,29 +352,27 @@ void FilePredictor(EditorState* editor_state, const wstring& input_path,
     for (const auto& search_path : input.search_paths) {
       VLOG(4) << "Considering search path: " << search_path;
       auto descend_results = DescendDirectoryTree(search_path, input.path);
-      input.buffer->SchedulePendingWork(
-          [buffer = input.buffer,
-           length = descend_results.valid_proper_prefix_length] {
-            RegisterPredictorDirectoryMatch(length, buffer);
-          });
+      input.get_buffer([length = descend_results.valid_proper_prefix_length](
+                           OpenBuffer* buffer) {
+        RegisterPredictorDirectoryMatch(length, buffer);
+      });
       CHECK_LE(descend_results.valid_prefix_length, input.path.size());
       ScanDirectory(descend_results.dir.get(),
                     input.path.substr(descend_results.valid_prefix_length,
                                       input.path.size()),
                     input.path.substr(0, descend_results.valid_prefix_length),
-                    input.buffer);
+                    input.get_buffer);
     }
-    input.buffer->SchedulePendingWork(
-        [buffer = input.buffer, callback = input.callback] {
-          LOG(INFO) << "Signaling end of file.";
-          buffer->EndOfFile();
-          buffer->AddEndOfFileObserver(callback);
-        });
+    input.get_buffer([callback = input.callback](OpenBuffer* buffer) {
+      LOG(INFO) << "Signaling end of file.";
+      buffer->EndOfFile();
+      buffer->AddEndOfFileObserver(callback);
+    });
     return 0;
   };
   static AsyncProcessor<AsyncInput, int> async_processor(std::move(options));
 
-  AsyncInput input{buffer,
+  AsyncInput input{buffer->GetLockFunction(),
                    editor_state->expand_path(input_path),
                    {},
                    ResolvePathOptions::New(editor_state),

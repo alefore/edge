@@ -293,9 +293,21 @@ class OpenBuffer {
   bool EvaluateFile(const wstring& path,
                     std::function<void(std::unique_ptr<Value>)> consumer);
 
+  WorkQueue* work_queue();
   void SchedulePendingWork(std::function<void()> callback);
   void ExecutePendingWork();
   WorkQueue::State GetPendingWorkState() const;
+
+  // Asynchronous threads that need to interact with the buffer shouldn't be
+  // given a direct reference to the buffer, since OpenBuffer isn't thread safe.
+  // Instead, they should receive a `LockFunction`: calling the `LockFunction`
+  // with a callback will schedule that callback for execution in the main
+  // thread, from which access to the OpenBuffer instance is safe.
+  //
+  // Typically a call to a `LockFunction` will return before the callback given
+  // is executed.
+  using LockFunction = std::function<void(std::function<void(OpenBuffer*)>)>;
+  LockFunction GetLockFunction();
 
   /////////////////////////////////////////////////////////////////////////////
   // Inspecting contents of buffer.
