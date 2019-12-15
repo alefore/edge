@@ -101,7 +101,7 @@ void MapModeCommands::Add(wstring name, wstring description,
                 [editor_state](std::function<void()> callback) {
                   auto buffer = editor_state->current_buffer();
                   CHECK(buffer != nullptr);
-                  buffer->SchedulePendingWork(callback);
+                  buffer->work_queue()->Schedule(callback);
                 });
           },
           description));

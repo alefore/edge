@@ -163,8 +163,8 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, LineNumber line,
         EvaluateMap(buffer, line + LineNumberDelta(1), std::move(map_callback),
                     transformation, trampoline);
       },
-      [buffer](std::function<void()> callback) {
-        buffer->SchedulePendingWork(std::move(callback));
+      [work_queue = buffer->work_queue()](std::function<void()> callback) {
+        work_queue->Schedule(std::move(callback));
       });
 }
 
@@ -1098,8 +1098,8 @@ unique_ptr<Expression> OpenBuffer::CompileString(const wstring& code,
 void OpenBuffer::EvaluateExpression(
     Expression* expr, std::function<void(std::unique_ptr<Value>)> consumer) {
   Evaluate(expr, &environment_, consumer,
-           [this](std::function<void()> callback) {
-             SchedulePendingWork(std::move(callback));
+           [work_queue = work_queue()](std::function<void()> callback) {
+             work_queue->Schedule(std::move(callback));
            });
 }
 
@@ -1137,18 +1137,14 @@ bool OpenBuffer::EvaluateFile(
         LOG(INFO) << "Evaluation of file completed: " << path;
         callback(std::move(value));
       },
-      [path, this](std::function<void()> resume) {
+      [path, work_queue = work_queue()](std::function<void()> resume) {
         LOG(INFO) << "Evaluation of file yields: " << path;
-        SchedulePendingWork(std::move(resume));
+        work_queue->Schedule(std::move(resume));
       });
   return true;
 }
 
 WorkQueue* OpenBuffer::work_queue() { return &work_queue_; }
-
-void OpenBuffer::SchedulePendingWork(std::function<void()> callback) {
-  work_queue_.Schedule(std::move(callback));
-}
 
 void OpenBuffer::ExecutePendingWork() { work_queue_.Execute(); }
 WorkQueue::State OpenBuffer::GetPendingWorkState() const {
@@ -1612,8 +1608,8 @@ wstring OpenBuffer::TransformKeyboardText(wstring input) {
     Call(
         t.get(), std::move(args),
         [&input](Value::Ptr value) { input = std::move(value->str); },
-        [this](std::function<void()> callback) {
-          SchedulePendingWork(std::move(callback));
+        [work_queue = work_queue()](std::function<void()> callback) {
+          work_queue->Schedule(std::move(callback));
         });
   }
   return input;

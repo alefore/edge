@@ -157,7 +157,7 @@ class BufferAsyncProcessor {
           options.name = L"BufferAsyncProcessor::" + operation_status;
 
           options.factory = [factory](FullInput input) {
-            input.buffer->SchedulePendingWork(
+            input.buffer->work_queue()->Schedule(
                 [consumer = std::move(input.consumer),
                  output = factory(std::move(input.input)),
                  expiration = std::move(input.status_expiration_control)]() {

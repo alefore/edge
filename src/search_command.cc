@@ -168,7 +168,7 @@ class SearchCommand : public Command {
           editor_state->current_buffer()->contents()->copy();
       async_search_input.callback = [buffer, line](AsyncSearchOutput results) {
         VLOG(5) << "Scheduling drawing of search results.";
-        buffer->SchedulePendingWork([buffer, line, results]() {
+        buffer->work_queue()->Schedule([buffer, line, results]() {
           VLOG(5) << "Drawing of search results.";
           DrawSearchResults(buffer.get(), line, results);
         });

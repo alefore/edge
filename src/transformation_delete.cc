@@ -277,8 +277,9 @@ class DeleteLinesTransformation : public Transformation {
                 {});
             Evaluate(
                 expr.get(), buffer->environment(), [expr](Value::Ptr) {},
-                [target_buffer](std::function<void()> callback) {
-                  target_buffer->SchedulePendingWork(callback);
+                [work_queue = target_buffer->work_queue()](
+                    std::function<void()> callback) {
+                  work_queue->Schedule(callback);
                 });
           }
         }

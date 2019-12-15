@@ -294,7 +294,6 @@ class OpenBuffer {
                     std::function<void(std::unique_ptr<Value>)> consumer);
 
   WorkQueue* work_queue();
-  void SchedulePendingWork(std::function<void()> callback);
   void ExecutePendingWork();
   WorkQueue::State GetPendingWorkState() const;
 

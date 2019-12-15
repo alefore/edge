@@ -154,6 +154,7 @@ std::vector<std::shared_ptr<Line>> CreateLineInstances(
   return lines_to_insert;
 }
 
+// TODO: Pass options as const ref.
 void InsertLines(const FileDescriptorReader::Options* options,
                  std::vector<std::shared_ptr<Line>> lines_to_insert) {
   static Tracker tracker(L"FileDescriptorReader::InsertLines");
@@ -182,7 +183,7 @@ void FileDescriptorReader::ParseAndInsertLines(
        contents]() mutable {
         auto lines =
             CreateLineInstances(std::move(contents), options->modifiers);
-        options->buffer->SchedulePendingWork(
+        options->buffer->work_queue()->Schedule(
             [options, lines_read_rate, lines = std::move(lines)]() mutable {
               lines_read_rate->IncrementAndGetEventsPerSecond(lines.size() - 1);
               InsertLines(options.get(), std::move(lines));

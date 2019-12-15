@@ -66,8 +66,8 @@ class CppCommand : public Command {
         [expression](std::unique_ptr<Value>) {
           DVLOG(5) << "CppCommand finished.";
         },
-        [buffer](std::function<void()> callback) {
-          buffer->SchedulePendingWork(std::move(callback));
+        [work_queue = buffer->work_queue()](std::function<void()> callback) {
+          work_queue->Schedule(std::move(callback));
         });
   }
 
