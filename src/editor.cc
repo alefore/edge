@@ -98,7 +98,7 @@ void EditorState::ExecutePendingWork() {
   for (auto& buffer : buffers_) {
     buffer.second->ExecutePendingWork();
   }
-  work_queue_->Execute();
+  work_queue_.Execute();
 }
 
 WorkQueue::State EditorState::GetPendingWorkState() const {
@@ -107,10 +107,10 @@ WorkQueue::State EditorState::GetPendingWorkState() const {
       return WorkQueue::State::kScheduled;
     }
   }
-  return work_queue_->state();
+  return work_queue_.state();
 }
 
-WorkQueue* EditorState::work_queue() const { return work_queue_.get(); }
+WorkQueue* EditorState::work_queue() const { return &work_queue_; }
 
 Environment EditorState::BuildEditorEnvironment() {
   Environment environment(afc::vm::Environment::GetDefault());
@@ -412,7 +412,8 @@ EditorState::EditorState(CommandLineValues args, AudioPlayer* audio_player)
       pipe_to_communicate_internal_events_(BuildPipe()),
       audio_player_(audio_player),
       buffer_tree_(std::make_unique<WidgetListHorizontal>(BufferWidget::New())),
-      status_(GetConsole(), audio_player_) {
+      status_(GetConsole(), audio_player_),
+      work_queue_([this] { NotifyInternalEvent(); }) {
   LineColumn::Register(&environment_);
   Range::Register(&environment_);
 }

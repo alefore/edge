@@ -525,6 +525,8 @@ OpenBuffer::OpenBuffer(Options options)
       int_variables_(buffer_variables::IntStruct()->NewInstance()),
       double_variables_(buffer_variables::DoubleStruct()->NewInstance()),
       environment_(options_.editor->environment()),
+      work_queue_(
+          [editor = options_.editor] { editor->NotifyInternalEvent(); }),
       filter_version_(0),
       last_transformation_(NewNoopTransformation()),
       default_commands_(options_.editor->default_commands()->NewChild()),
@@ -1146,7 +1148,6 @@ WorkQueue* OpenBuffer::work_queue() { return &work_queue_; }
 
 void OpenBuffer::SchedulePendingWork(std::function<void()> callback) {
   work_queue_.Schedule(std::move(callback));
-  options_.editor->NotifyInternalEvent();
 }
 
 void OpenBuffer::ExecutePendingWork() { work_queue_.Execute(); }

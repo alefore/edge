@@ -249,7 +249,7 @@ class EditorState {
 
   BuffersList buffer_tree_;
   Status status_;
-  std::unique_ptr<WorkQueue> work_queue_ = std::make_unique<WorkQueue>();
+  WorkQueue work_queue_;
 };
 
 }  // namespace editor

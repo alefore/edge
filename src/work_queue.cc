@@ -1,9 +1,15 @@
 #include "src/work_queue.h"
 
 namespace afc::editor {
+WorkQueue::WorkQueue(std::function<void()> schedule_listener)
+    : schedule_listener_(std::move(schedule_listener)) {
+  CHECK(schedule_listener_ != nullptr);
+}
+
 void WorkQueue::Schedule(std::function<void()> callback) {
   std::unique_lock<std::mutex> lock(mutex_);
   callbacks_.push_back(std::move(callback));
+  schedule_listener_();
 }
 
 void WorkQueue::Execute() {

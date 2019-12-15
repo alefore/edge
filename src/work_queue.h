@@ -25,6 +25,8 @@ namespace afc::editor {
 // input is being gradually read from a file).
 class WorkQueue {
  public:
+  WorkQueue(std::function<void()> schedule_listener);
+
   void Schedule(std::function<void()> callback);
 
   enum class State { kIdle, kScheduled };
@@ -33,6 +35,8 @@ class WorkQueue {
   State state() const;
 
  private:
+  const std::function<void()> schedule_listener_;
+
   mutable std::mutex mutex_;
   std::vector<std::function<void()>> callbacks_;
 };
