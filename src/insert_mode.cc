@@ -508,7 +508,10 @@ class InsertMode : public EditorMode {
         }
         buffer->EvaluateExpression(
             expression.get(),
-            [buffer, expression](Value::Ptr) { /* Nothing. */ });
+            [buffer, expression,
+             callback = options_.modify_listener](Value::Ptr) {
+              callback();
+            });
         return;
       }
 
