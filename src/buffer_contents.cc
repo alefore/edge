@@ -230,9 +230,10 @@ void BufferContents::SplitLine(LineColumn position) {
 
 void BufferContents::FoldNextLine(LineNumber position) {
   auto next_line = position + LineNumberDelta(1);
-  if (next_line >= LineNumber(0) + size()) {
+  if (next_line.ToDelta() >= size()) {
     return;
   }
+
   ColumnNumberDelta initial_size = at(position)->EndColumn().ToDelta();
   // TODO: Can maybe combine this with next for fewer updates.
   AppendToLine(position, *at(next_line));
