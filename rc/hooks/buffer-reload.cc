@@ -10,6 +10,7 @@
 #include "../editor_commands/lib/numbers"
 #include "../editor_commands/lib/paths"
 #include "../editor_commands/lib/strings"
+#include "../editor_commands/prompt-context.cc"
 
 // Optimizes the buffer for visualizing a patch (output of a `diff` command).
 void DiffMode() { buffer.set_tree_parser("diff"); }

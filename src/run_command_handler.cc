@@ -24,8 +24,14 @@ extern "C" {
 #include "src/file_descriptor_reader.h"
 #include "src/line_prompt_mode.h"
 #include "src/time.h"
+#include "src/vm/public/constant_expression.h"
+#include "src/vm/public/environment.h"
+#include "src/vm/public/function_call.h"
+#include "src/vm/public/value.h"
 #include "src/wstring.h"
 
+namespace afc {
+namespace editor {
 namespace {
 
 using namespace afc::editor;
@@ -336,6 +342,7 @@ class ForkEditorCommand : public Command {
   struct PromptState {
     const std::shared_ptr<OpenBuffer> original_buffer;
     std::optional<std::wstring> base_command;
+    afc::vm::Value* context_command_callback;
   };
 
  public:
@@ -346,18 +353,24 @@ class ForkEditorCommand : public Command {
 
   void ProcessInput(wint_t, EditorState* editor_state) {
     if (editor_state->structure() == StructureChar()) {
-      auto prompt_state = std::make_shared<PromptState>(
-          PromptState{.original_buffer = editor_state->current_buffer(),
-                      .base_command = std::nullopt});
+      auto original_buffer = editor_state->current_buffer();
+      auto prompt_state = std::make_shared<PromptState>(PromptState{
+          .original_buffer = original_buffer,
+          .base_command = std::nullopt,
+          .context_command_callback = original_buffer->environment()->Lookup(
+              L"GetShellPromptContextProgram",
+              VMType::Function({VMType::String(), VMType::String()}))});
 
       PromptOptions options;
       wstring children_path = GetChildrenPath(editor_state);
       options.prompt = children_path + L"$ ";
       options.history_file = L"commands";
-      options.change_notifier =
-          [prompt_state](const std::shared_ptr<OpenBuffer>& prompt_buffer) {
-            PromptChange(prompt_state.get(), prompt_buffer);
-          };
+      if (prompt_state->context_command_callback != nullptr) {
+        options.change_notifier =
+            [prompt_state](const std::shared_ptr<OpenBuffer>& prompt_buffer) {
+              PromptChange(prompt_state.get(), prompt_buffer);
+            };
+      }
       options.handler = [children_path](const wstring& name,
                                         EditorState* editor_state) {
         RunCommandHandler(name, editor_state, 0, 1, children_path);
@@ -386,43 +399,53 @@ class ForkEditorCommand : public Command {
   static void PromptChange(PromptState* prompt_state,
                            const std::shared_ptr<OpenBuffer>& prompt_buffer) {
     CHECK(prompt_state != nullptr);
+    CHECK(prompt_state->context_command_callback);
     CHECK(prompt_buffer->editor()->status()->GetType() ==
           Status::Type::kPrompt);
     const auto line = prompt_buffer->LineAt(LineNumber(0))->ToString();
-
-    auto filter = std::wregex{prompt_state->original_buffer->Read(
-        buffer_variables::shell_command_help_filter)};
-    std::wsmatch filter_match;
-    std::regex_search(line, filter_match, filter);
-
-    if (filter_match.empty()) {
+    std::vector<std::unique_ptr<Expression>> arguments;
+    arguments.push_back(vm::NewConstantExpression(vm::Value::NewString(line)));
+    std::shared_ptr<Expression> expression = vm::NewFunctionCall(
+        vm::NewConstantExpression(
+            std::make_unique<Value>(*prompt_state->context_command_callback)),
+        std::move(arguments));
+    if (expression->Types().empty()) {
       prompt_state->base_command = std::nullopt;
-
       prompt_buffer->editor()->status()->set_prompt_context(nullptr);
+      prompt_state->original_buffer->status()->SetWarningText(
+          L"Unable to compile (type mismatch).");
       return;
     }
+    prompt_state->original_buffer->EvaluateExpression(
+        expression.get(),
+        [prompt_state, expression, prompt_buffer](Value::Ptr value) {
+          CHECK(value->IsString());
+          auto base_command = value->str;
+          if (prompt_state->base_command == base_command) {
+            return;
+          }
 
-    const auto base_command = filter_match.str(1);
-    if (prompt_state->base_command.has_value() &&
-        prompt_state->base_command.value() == base_command) {
-      return;  // Optimization.
-    }
-    prompt_state->base_command = base_command;
+          if (base_command.empty()) {
+            prompt_state->base_command = std::nullopt;
+            prompt_buffer->editor()->status()->set_prompt_context(nullptr);
+            return;
+          }
 
-    ForkCommandOptions options;
-    options.command = base_command + L" --help";
-    options.name = L"- help: " + base_command;
-    options.insertion_type = BuffersList::AddBufferType::kIgnore;
-    auto help_buffer = ForkCommand(prompt_buffer->editor(), options);
-    help_buffer->Set(buffer_variables::follow_end_of_file, false);
-    help_buffer->set_position({});
-    prompt_buffer->editor()->status()->set_prompt_context(help_buffer);
+          prompt_state->base_command = base_command;
+          ForkCommandOptions options;
+          options.command = base_command;
+          options.name = L"- help: " + base_command;
+          options.insertion_type = BuffersList::AddBufferType::kIgnore;
+          auto help_buffer = ForkCommand(prompt_buffer->editor(), options);
+          help_buffer->Set(buffer_variables::follow_end_of_file, false);
+          help_buffer->set_position({});
+          prompt_buffer->editor()->status()->set_prompt_context(help_buffer);
+        });
   }
 };
 
 }  // namespace
-
-namespace afc {
+}  // namespace editor
 namespace vm {
 /* static */ editor::ForkCommandOptions*
 VMTypeMapper<editor::ForkCommandOptions*>::get(Value* value) {

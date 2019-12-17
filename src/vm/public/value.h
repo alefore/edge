@@ -9,8 +9,7 @@
 
 #include "types.h"
 
-namespace afc {
-namespace vm {
+namespace afc::vm {
 
 using std::function;
 using std::shared_ptr;
@@ -58,7 +57,6 @@ struct Value {
 
 std::ostream& operator<<(std::ostream& os, const Value& value);
 
-}  // namespace vm
-}  // namespace afc
+}  // namespace afc::vm
 
 #endif  // __AFC_VM_PUBLIC_VALUE_H__
