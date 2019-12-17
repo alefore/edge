@@ -340,6 +340,17 @@ EdgeVariable<wstring>* const contents_type = StringStruct()->AddVariable(
     L"used to customize certain behaviors.",
     L"");
 
+EdgeVariable<wstring>* const shell_command_help_filter =
+    StringStruct()->AddVariable(
+        L"shell_command_help_filter",
+        L"Regular expression that matches commands for which a help buffer "
+        L"(based "
+        L"on running the command with `--help`) should be shown.",
+        L"^ *"
+        L"(blaze|cat|date|edge|find|gcc|git|grep|ls|locate|make|python|rm|"
+        L"sleep)"
+        L"[^|;]*$");
+
 EdgeStruct<int>* IntStruct() {
   static EdgeStruct<int>* output = new EdgeStruct<int>();
   return output;

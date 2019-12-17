@@ -31,6 +31,11 @@ struct PromptOptions {
   // prompt, use:
   //
   // auto line = buffer->LineAt(LineNumber(0));
+  //
+  // TODO(easy): Rename to `change_handler`, which is more consistent with the
+  // names of other fields in this class.
+  //
+  // TODO(easy): Turn this into an options structure.
   std::function<void(const std::shared_ptr<OpenBuffer>&)> change_notifier =
       [](const std::shared_ptr<OpenBuffer>&) {};
 
