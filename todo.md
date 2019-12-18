@@ -69,6 +69,8 @@ In diff mode, add a link to every file. Following it should take you directly to
 
 Make "ad" and "aw" and "ar" honor repetitions (pick the buffer from the buffer's list)? Tricky: how to distinguish "current" from "1st".
 
+Make `%` take you to the *end* (rather than *beginning*) of the next tree child.
+
 ## Widgets
 
 Improve the bindings used to navigate the widgets.
@@ -123,6 +125,8 @@ Automatically adjust the width of the view to fit the screen.
 ## Variables
 
 ## VM
+
+Create a hook for start of the editor, so that we can do more expensive things (without having to evaluate them for each buffer reload).
 
 Add support for templates, so that we can do "vector<string>".
 
