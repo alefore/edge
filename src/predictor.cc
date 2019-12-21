@@ -123,26 +123,29 @@ void HandleEndOfFile(std::shared_ptr<OpenBuffer> predictions_buffer,
   consumer(std::move(predict_results));
 }
 
-std::wstring GetPrompt(const OpenBuffer& buffer) {
-  return buffer.LineAt(LineNumber(0))->ToString();
+std::wstring GetPredictInput(const PredictOptions& options) {
+  auto buffer = options.input_buffer;
+  Modifiers modifiers;
+  modifiers.direction = Direction::BACKWARDS;
+  modifiers.structure = options.input_selection_structure;
+  auto range = buffer->FindPartialRange(modifiers, buffer->position());
+  range.end = max(range.end, buffer->position());
+  auto line = buffer->LineAt(range.begin.line);
+  return line
+      ->Substring(range.begin.column,
+                  range.end.line == range.begin.line
+                      ? range.end.column - range.begin.column
+                      : line->EndColumn() - range.begin.column)
+      ->ToString();
 }
 
 // Wrap `consumer` with a consumer that verifies that `prompt_buffer` hasn't
 // expired and that its text hasn't changed.
 std::function<void(PredictResults)> GuardConsumer(
-    std::shared_ptr<OpenBuffer> prompt_buffer,
+    const PredictOptions& options, std::wstring initial_text,
     std::function<void(PredictResults)> consumer) {
-  CHECK(prompt_buffer != nullptr);
-  std::wstring initial_text = GetPrompt(*prompt_buffer);
-  std::weak_ptr<OpenBuffer> weak_prompt_buffer = prompt_buffer;
-  return [consumer, weak_prompt_buffer,
-          initial_text](PredictResults predict_results) {
-    auto prompt_buffer = weak_prompt_buffer.lock();
-    if (prompt_buffer == nullptr) {
-      LOG(INFO) << "Prompt buffer has expired.";
-      return;
-    }
-    auto current_text = GetPrompt(*prompt_buffer);
+  return [consumer, options, initial_text](PredictResults predict_results) {
+    auto current_text = GetPredictInput(options);
     if (current_text != initial_text) {
       LOG(INFO) << "Text has changed from \"" << initial_text << "\" to \""
                 << current_text << "\"";
@@ -170,9 +173,6 @@ std::ostream& operator<<(std::ostream& os, const PredictResults& lc) {
 }
 
 void Predict(PredictOptions options) {
-  auto shared_status = std::make_shared<Status>(
-      options.editor_state->GetConsole(), options.editor_state->audio_player());
-  shared_status->CopyFrom(*options.status);
   std::shared_ptr<OpenBuffer>& predictions_buffer =
       (*options.editor_state->buffers())[PredictionsBufferName()];
   OpenBuffer::Options buffer_options;
@@ -180,45 +180,38 @@ void Predict(PredictOptions options) {
   buffer_options.name = PredictionsBufferName();
   auto weak_predictions_buffer = std::make_shared<std::weak_ptr<OpenBuffer>>();
 
-  options.callback = GuardConsumer(shared_status->prompt_buffer(),
-                                   std::move(options.callback));
-  buffer_options.generate_contents = [options, weak_predictions_buffer,
-                                      shared_status](OpenBuffer* buffer) {
-    buffer->environment()->Define(kLongestPrefixEnvironmentVariable,
-                                  vm::Value::NewInteger(0));
-    buffer->environment()->Define(kLongestDirectoryMatchEnvironmentVariable,
-                                  vm::Value::NewInteger(0));
-    buffer->environment()->Define(kExactMatchEnvironmentVariable,
-                                  vm::Value::NewBool(false));
+  auto input = GetPredictInput(options);
+  options.callback = GuardConsumer(options, input, std::move(options.callback));
+  buffer_options.generate_contents =
+      [options, input, weak_predictions_buffer](OpenBuffer* buffer) {
+        buffer->environment()->Define(kLongestPrefixEnvironmentVariable,
+                                      vm::Value::NewInteger(0));
+        buffer->environment()->Define(kLongestDirectoryMatchEnvironmentVariable,
+                                      vm::Value::NewInteger(0));
+        buffer->environment()->Define(kExactMatchEnvironmentVariable,
+                                      vm::Value::NewBool(false));
 
-    auto shared_predictions_buffer = weak_predictions_buffer->lock();
-    if (shared_predictions_buffer == nullptr) return;
-    CHECK_EQ(shared_predictions_buffer.get(), buffer);
-    if (options.editor_state->status()->prompt_buffer() == nullptr) {
-      buffer->status()->CopyFrom(*shared_status);
-    }
-    auto prompt = shared_status->prompt_buffer();
-    CHECK(prompt != nullptr);
-    options.predictor(
-        {.editor = options.editor_state,
-         .input = prompt->LineAt(LineNumber(0))->ToString(),
-         .predictions = buffer,
-         .callback =
-             [shared_status, options, shared_predictions_buffer] {
-               shared_predictions_buffer->set_current_cursor(LineColumn());
-               HandleEndOfFile(shared_predictions_buffer, options.callback);
-             },
-         .source_buffer = options.source_buffer});
-  };
+        auto shared_predictions_buffer = weak_predictions_buffer->lock();
+        if (shared_predictions_buffer == nullptr) return;
+        CHECK_EQ(shared_predictions_buffer.get(), buffer);
+
+        options.predictor(
+            {.editor = options.editor_state,
+             .input = std::move(input),
+             .predictions = buffer,
+             .callback =
+                 [options, shared_predictions_buffer] {
+                   shared_predictions_buffer->set_current_cursor(LineColumn());
+                   HandleEndOfFile(shared_predictions_buffer, options.callback);
+                 },
+             .source_buffer = options.source_buffer});
+      };
   predictions_buffer = std::make_shared<OpenBuffer>(std::move(buffer_options));
   *weak_predictions_buffer = predictions_buffer;
   predictions_buffer->Set(buffer_variables::show_in_buffers_list, false);
   predictions_buffer->Set(buffer_variables::allow_dirty_delete, true);
   predictions_buffer->Set(buffer_variables::paste_mode, true);
   predictions_buffer->Reload();
-  if (options.editor_state->status()->prompt_buffer() == nullptr) {
-    predictions_buffer->status()->CopyFrom(*shared_status);
-  }
 }
 
 struct DescendDirectoryTreeOutput {
@@ -507,7 +500,5 @@ Predictor DictionaryPredictor(std::shared_ptr<const OpenBuffer> dictionary) {
     input.predictions->AddEndOfFileObserver(std::move(input.callback));
   };
 }
-
-// Predictor CombinationPredictor(std::vector<Predictor> predictors) {}
 
 }  // namespace afc::editor

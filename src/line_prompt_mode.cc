@@ -339,6 +339,8 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
     predict_options.editor_state = editor_state;
     predict_options.predictor = options.predictor;
     predict_options.source_buffer = options.source_buffer;
+    predict_options.input_buffer = buffer;
+    predict_options.input_selection_structure = StructureLine();
     predict_options.status = status;
     predict_options.callback = [editor_state, options, original_buffer, buffer,
                                 status, input](PredictResults results) {
