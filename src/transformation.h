@@ -27,7 +27,10 @@ class TransformationStack;
 class Transformation {
  public:
   struct Result {
-    Result(EditorState* editor_state);
+    Result(OpenBuffer* buffer);
+
+    // The buffer that the transformation should modify.
+    OpenBuffer* buffer = nullptr;
 
     // Input parameter.
     enum class Mode {
@@ -66,7 +69,7 @@ class Transformation {
   };
 
   virtual ~Transformation() {}
-  virtual void Apply(OpenBuffer* buffer, Result* result) const = 0;
+  virtual void Apply(Result* result) const = 0;
   virtual unique_ptr<Transformation> Clone() const = 0;
 };
 
@@ -142,7 +145,7 @@ class TransformationStack : public Transformation {
     stack_.push_front(std::move(transformation));
   }
 
-  void Apply(OpenBuffer* buffer, Result* result) const override;
+  void Apply(Result* result) const override;
 
   unique_ptr<Transformation> Clone() const override {
     auto output = std::make_unique<TransformationStack>();
@@ -162,9 +165,9 @@ class RunIfModeTransformation : public Transformation {
                           std::unique_ptr<Transformation> delegate)
       : mode_(mode), delegate_(std::move(delegate)) {}
 
-  void Apply(OpenBuffer* buffer, Result* result) const override {
+  void Apply(Result* result) const override {
     if (result->mode == mode_) {
-      delegate_->Apply(buffer, result);
+      delegate_->Apply(result);
     }
   }
 
@@ -183,10 +186,10 @@ class TransformationWithMode : public Transformation {
                          std::unique_ptr<Transformation> delegate)
       : mode_(mode), delegate_(std::move(delegate)) {}
 
-  void Apply(OpenBuffer* buffer, Result* result) const override {
+  void Apply(Result* result) const override {
     auto original_mode = result->mode;
     result->mode = mode_;
-    delegate_->Apply(buffer, result);
+    delegate_->Apply(result);
     result->mode = original_mode;
   }
 

@@ -1857,7 +1857,7 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
     CHECK(!transformations_past_.empty());
   } else {
     transformations_past_.push_back(
-        std::make_unique<Transformation::Result>(editor()));
+        std::make_unique<Transformation::Result>(this));
   }
 
   transformations_past_.back()->undo_stack->PushFront(
@@ -1893,7 +1893,7 @@ LineColumn OpenBuffer::Apply(unique_ptr<Transformation> transformation) {
   CHECK(transformation != nullptr);
   CHECK(!transformations_past_.empty());
 
-  transformation->Apply(this, transformations_past_.back().get());
+  transformation->Apply(transformations_past_.back().get());
   CHECK(!transformations_past_.empty());
 
   auto delete_buffer = transformations_past_.back()->delete_buffer;
@@ -1921,7 +1921,7 @@ void OpenBuffer::RepeatLastTransformation() {
 void OpenBuffer::PushTransformationStack() {
   if (last_transformation_stack_.empty()) {
     transformations_past_.push_back(
-        std::make_unique<Transformation::Result>(editor()));
+        std::make_unique<Transformation::Result>(this));
   }
   last_transformation_stack_.emplace_back(
       std::make_unique<TransformationStack>());
@@ -1951,8 +1951,8 @@ void OpenBuffer::Undo(UndoMode undo_mode) {
   for (size_t i = 0; i < editor()->repetitions(); i++) {
     bool modified_buffer = false;
     while (!modified_buffer && !source->empty()) {
-      target->emplace_back(std::make_unique<Transformation::Result>(editor()));
-      source->back()->undo_stack->Apply(this, target->back().get());
+      target->emplace_back(std::make_unique<Transformation::Result>(this));
+      source->back()->undo_stack->Apply(target->back().get());
       source->pop_back();
       modified_buffer =
           target->back()->modified_buffer || undo_mode == ONLY_UNDO_THE_LAST;

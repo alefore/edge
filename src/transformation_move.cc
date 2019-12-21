@@ -20,32 +20,33 @@ class MoveTransformation : public Transformation {
  public:
   MoveTransformation(const Modifiers& modifiers) : modifiers_(modifiers) {}
 
-  void Apply(OpenBuffer* buffer, Result* result) const override {
-    VLOG(1) << "Move Transformation starts: "
-            << buffer->Read(buffer_variables::name) << " " << modifiers_;
-    CHECK(buffer != nullptr);
+  void Apply(Result* result) const override {
     CHECK(result != nullptr);
-    auto editor_state = buffer->editor();
-    auto root = buffer->parse_tree();
+    CHECK(result->buffer != nullptr);
+    VLOG(1) << "Move Transformation starts: "
+            << result->buffer->Read(buffer_variables::name) << " "
+            << modifiers_;
+    auto editor_state = result->buffer->editor();
+    auto root = result->buffer->parse_tree();
     LineColumn position;
     // TODO: Move to Structure.
     auto structure = modifiers_.structure;
     if (structure == StructureLine()) {
-      position = MoveLine(buffer, result->cursor);
+      position = MoveLine(result->buffer, result->cursor);
     } else if (structure == StructureChar() || structure == StructureTree() ||
                structure == StructureSymbol() || structure == StructureWord()) {
-      position = MoveRange(buffer, result->cursor);
+      position = MoveRange(result->buffer, result->cursor);
     } else if (structure == StructureMark()) {
-      position = MoveMark(buffer, result->cursor);
+      position = MoveMark(result->buffer, result->cursor);
     } else if (structure == StructureCursor()) {
       // Handles repetitions.
-      auto active_cursors = buffer->active_cursors();
+      auto active_cursors = result->buffer->active_cursors();
       if (result->cursor != *active_cursors->active()) {
         LOG(INFO) << "Skipping cursor.";
         return;
       }
 
-      LineColumn next_cursor = buffer->FindNextCursor(result->cursor);
+      LineColumn next_cursor = result->buffer->FindNextCursor(result->cursor);
       if (next_cursor == result->cursor) {
         LOG(INFO) << "Cursor didn't move.";
         return;
@@ -65,8 +66,8 @@ class MoveTransformation : public Transformation {
       editor_state->ResetDirection();
       return;
     } else {
-      buffer->status()->SetWarningText(L"Unhandled structure: " +
-                                       structure->ToString());
+      result->buffer->status()->SetWarningText(L"Unhandled structure: " +
+                                               structure->ToString());
       editor_state->ResetRepetitions();
       editor_state->ResetStructure();
       editor_state->ResetDirection();
@@ -74,7 +75,7 @@ class MoveTransformation : public Transformation {
     }
     LOG(INFO) << "Move from " << result->cursor << " to " << position << " "
               << modifiers_;
-    NewGotoPositionTransformation(position)->Apply(buffer, result);
+    NewGotoPositionTransformation(position)->Apply(result);
     if (modifiers_.repetitions > 1) {
       editor_state->PushPosition(result->cursor);
     }

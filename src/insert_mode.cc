@@ -34,25 +34,27 @@ extern "C" {
 namespace afc::editor {
 namespace {
 class NewLineTransformation : public Transformation {
-  void Apply(OpenBuffer* buffer, Result* result) const override {
-    buffer->AdjustLineColumn(&result->cursor);
+  void Apply(Result* result) const override {
+    CHECK(result != nullptr);
+    result->buffer->AdjustLineColumn(&result->cursor);
     const ColumnNumber column = result->cursor.column;
-    auto line = buffer->LineAt(result->cursor.line);
+    auto line = result->buffer->LineAt(result->cursor.line);
     if (line == nullptr) {
       result->made_progress = false;
       return;
     }
 
-    if (buffer->Read(buffer_variables::atomic_lines) &&
+    if (result->buffer->Read(buffer_variables::atomic_lines) &&
         column != ColumnNumber(0) && column != line->EndColumn()) {
       result->made_progress = false;
       return;
     }
 
     const wstring& line_prefix_characters(
-        buffer->Read(buffer_variables::line_prefix_characters));
+        result->buffer->Read(buffer_variables::line_prefix_characters));
     ColumnNumber prefix_end = ColumnNumber(0);
-    if (line != nullptr && !buffer->Read(buffer_variables::paste_mode)) {
+    if (line != nullptr &&
+        !result->buffer->Read(buffer_variables::paste_mode)) {
       while (prefix_end < column &&
              (line_prefix_characters.find(line->get(prefix_end)) !=
               line_prefix_characters.npos)) {
@@ -62,8 +64,8 @@ class NewLineTransformation : public Transformation {
 
     auto transformation = std::make_unique<TransformationStack>();
     {
-      auto buffer_to_insert =
-          std::make_shared<OpenBuffer>(buffer->editor(), L"- text inserted");
+      auto buffer_to_insert = std::make_shared<OpenBuffer>(
+          result->buffer->editor(), L"- text inserted");
       buffer_to_insert->AppendRawLine(std::make_shared<Line>(
           Line::Options(*line).DeleteSuffix(prefix_end)));
       InsertOptions insert_options;
@@ -77,7 +79,7 @@ class NewLineTransformation : public Transformation {
 
     transformation->PushBack(NewGotoPositionTransformation(
         LineColumn(result->cursor.line + LineNumberDelta(1), prefix_end)));
-    return transformation->Apply(buffer, result);
+    return transformation->Apply(result);
   }
 
   unique_ptr<Transformation> Clone() const override {
@@ -89,15 +91,17 @@ class InsertEmptyLineTransformation : public Transformation {
  public:
   InsertEmptyLineTransformation(Direction direction) : direction_(direction) {}
 
-  void Apply(OpenBuffer* buffer, Result* result) const override {
+  void Apply(Result* result) const override {
+    CHECK(result != nullptr);
+    CHECK(result->buffer != nullptr);
     if (direction_ == BACKWARDS) {
       result->cursor.line++;
     }
     result->cursor.column = ColumnNumber(0);
-    buffer->AdjustLineColumn(&result->cursor);
+    result->buffer->AdjustLineColumn(&result->cursor);
     return ComposeTransformation(std::make_unique<NewLineTransformation>(),
                                  NewGotoPositionTransformation(result->cursor))
-        ->Apply(buffer, result);
+        ->Apply(result);
   }
 
   std::unique_ptr<Transformation> Clone() const override {

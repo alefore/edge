@@ -57,10 +57,12 @@ class GotoCharTransformation : public Transformation {
  public:
   GotoCharTransformation(int calls) : calls_(calls) {}
 
-  void Apply(OpenBuffer* buffer, Result* result) const override {
+  void Apply(Result* result) const override {
+    CHECK(result != nullptr);
+    CHECK(result->buffer != nullptr);
     const wstring& line_prefix_characters =
-        buffer->Read(buffer_variables::line_prefix_characters);
-    const auto& line = buffer->LineAt(result->cursor.line);
+        result->buffer->Read(buffer_variables::line_prefix_characters);
+    const auto& line = result->buffer->LineAt(result->cursor.line);
     if (line == nullptr) {
       result->success = false;
       return;
@@ -76,7 +78,7 @@ class GotoCharTransformation : public Transformation {
                 line->get(end - ColumnNumberDelta(1))) != string::npos)) {
       end--;
     }
-    auto editor = buffer->editor();
+    auto editor = result->buffer->editor();
     ColumnNumber column = ColumnNumber(ComputePosition(
         start.column, end.column, line->EndColumn().column, editor->direction(),
         editor->repetitions(), editor->structure_range(), calls_));

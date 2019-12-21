@@ -33,7 +33,9 @@ class DeleteCharactersTransformation : public Transformation {
 
   DeleteCharactersTransformation(DeleteOptions options) : options_(options) {}
 
-  void Apply(OpenBuffer* buffer, Result* result) const override {
+  void Apply(Result* result) const override {
+    CHECK(result != nullptr);
+    CHECK(result->buffer != nullptr);
     LOG(INFO) << "Starting DeleteCharactersTransformation: " << options_
               << ", cursor: " << result->cursor;
     if (options_.modifiers.repetitions == 0) {
@@ -41,14 +43,14 @@ class DeleteCharactersTransformation : public Transformation {
       return;
     }
     const auto original_position = result->cursor;
-    buffer->AdjustLineColumn(&result->cursor);
+    result->buffer->AdjustLineColumn(&result->cursor);
     if (options_.modifiers.direction == BACKWARDS) {
       for (size_t i = 0; i < options_.modifiers.repetitions; i++) {
-        result->cursor = buffer->PositionBefore(result->cursor);
+        result->cursor = result->buffer->PositionBefore(result->cursor);
       }
     }
 
-    if (buffer->LineAt(result->cursor.line) == nullptr) {
+    if (result->buffer->LineAt(result->cursor.line) == nullptr) {
       LOG(INFO) << "Can't make progress: Empty line.";
       result->made_progress = false;
       return;
@@ -58,12 +60,13 @@ class DeleteCharactersTransformation : public Transformation {
     LineNumber line_end;
     if (options_.line_end_behavior == DeleteOptions::LineEndBehavior::kDelete) {
       line_end = SkipLinesToErase(
-          buffer, result->cursor.column.column + options_.modifiers.repetitions,
+          result->buffer,
+          result->cursor.column.column + options_.modifiers.repetitions,
           result->cursor.line, &chars_erased);
     } else {
       line_end = result->cursor.line;
       chars_erased =
-          buffer->LineAt(result->cursor.line)->EndColumn().column + 1;
+          result->buffer->LineAt(result->cursor.line)->EndColumn().column + 1;
     }
     LOG(INFO) << "Erasing from line " << result->cursor.line << " to line "
               << line_end << " would erase " << chars_erased << " characters.";
@@ -73,20 +76,20 @@ class DeleteCharactersTransformation : public Transformation {
     // the line is the current line, this already includes characters in the
     // prefix.
     ColumnNumber chars_erase_line =
-        buffer->LineAt(line_end)->EndColumn() + ColumnNumberDelta(1) -
-        min(buffer->LineAt(line_end)->EndColumn().ToDelta(),
+        result->buffer->LineAt(line_end)->EndColumn() + ColumnNumberDelta(1) -
+        min(result->buffer->LineAt(line_end)->EndColumn().ToDelta(),
             (options_.modifiers.repetitions < chars_erased
                  ? ColumnNumberDelta(chars_erased -
                                      options_.modifiers.repetitions)
                  : ColumnNumberDelta()));
-    if (chars_erase_line > buffer->LineAt(line_end)->EndColumn()) {
+    if (chars_erase_line > result->buffer->LineAt(line_end)->EndColumn()) {
       LOG(INFO) << "Adjusting for end of buffer.";
-      CHECK_EQ(chars_erase_line,
-               buffer->LineAt(line_end)->EndColumn() + ColumnNumberDelta(1));
+      CHECK_EQ(chars_erase_line, result->buffer->LineAt(line_end)->EndColumn() +
+                                     ColumnNumberDelta(1));
       chars_erase_line = ColumnNumber(0);
-      if (line_end >= buffer->EndLine() ||
+      if (line_end >= result->buffer->EndLine() ||
           options_.line_end_behavior == DeleteOptions::LineEndBehavior::kStop) {
-        chars_erase_line = buffer->LineAt(line_end)->EndColumn();
+        chars_erase_line = result->buffer->LineAt(line_end)->EndColumn();
       } else {
         ++line_end;
       }
@@ -94,7 +97,7 @@ class DeleteCharactersTransformation : public Transformation {
     LOG(INFO) << "Characters to erase from current line: " << chars_erase_line
               << ", options: " << options_ << ", chars_erased: " << chars_erased
               << ", actual length: "
-              << buffer->LineAt(line_end)->EndColumn().ToDelta();
+              << result->buffer->LineAt(line_end)->EndColumn().ToDelta();
 
     result->success = chars_erased >= options_.modifiers.repetitions;
     result->made_progress =
@@ -102,7 +105,7 @@ class DeleteCharactersTransformation : public Transformation {
         ColumnNumberDelta(0);
 
     shared_ptr<OpenBuffer> delete_buffer = GetDeletedTextBuffer(
-        buffer, result->cursor, line_end, chars_erase_line);
+        result->buffer, result->cursor, line_end, chars_erase_line);
     if (options_.copy_to_paste_buffer &&
         result->mode == Transformation::Result::Mode::kFinal) {
       VLOG(5) << "Preparing delete buffer.";
@@ -121,7 +124,7 @@ class DeleteCharactersTransformation : public Transformation {
     }
 
     LOG(INFO) << "Storing new line (at position " << line_end << ").";
-    buffer->DeleteRange(Range(
+    result->buffer->DeleteRange(Range(
         result->cursor, LineColumn(line_end, ColumnNumber(chars_erase_line))));
 
     result->modified_buffer = true;
@@ -149,8 +152,7 @@ class DeleteCharactersTransformation : public Transformation {
           options_.modifiers.direction == BACKWARDS
               ? InsertOptions::FinalPosition::kEnd
               : InsertOptions::FinalPosition::kStart;
-      NewInsertBufferTransformation(std::move(insert_options))
-          ->Apply(buffer, result);
+      NewInsertBufferTransformation(std::move(insert_options))->Apply(result);
     }
   }
 
@@ -226,21 +228,22 @@ class DeleteLinesTransformation : public Transformation {
  public:
   DeleteLinesTransformation(DeleteOptions options) : options_(options) {}
 
-  void Apply(OpenBuffer* buffer, Result* result) const {
-    CHECK(buffer != nullptr);
-    buffer->AdjustLineColumn(&result->cursor);
+  void Apply(Result* result) const {
+    CHECK(result->buffer != nullptr);
+    result->buffer->AdjustLineColumn(&result->cursor);
     const LineColumn adjusted_original_cursor = result->cursor;
-    CHECK_GE(buffer->contents()->size(), result->cursor.line.ToDelta());
-    size_t repetitions = min(options_.modifiers.repetitions,
-                             static_cast<size_t>((buffer->contents()->size() -
-                                                  result->cursor.line.ToDelta())
-                                                     .line_delta));
-    auto delete_buffer = std::make_shared<OpenBuffer>(buffer->editor(),
+    CHECK_GE(result->buffer->contents()->size(), result->cursor.line.ToDelta());
+    size_t repetitions =
+        min(options_.modifiers.repetitions,
+            static_cast<size_t>((result->buffer->contents()->size() -
+                                 result->cursor.line.ToDelta())
+                                    .line_delta));
+    auto delete_buffer = std::make_shared<OpenBuffer>(result->buffer->editor(),
                                                       OpenBuffer::kPasteBuffer);
 
     LOG(INFO) << "Erasing lines " << repetitions << " starting at line "
               << result->cursor.line << " in a buffer with size "
-              << buffer->contents()->size()
+              << result->buffer->contents()->size()
               << " with modifiers: " << options_.modifiers;
 
     bool forwards = options_.modifiers.structure_range !=
@@ -252,7 +255,7 @@ class DeleteLinesTransformation : public Transformation {
 
     LineNumber line = result->cursor.line;
     for (size_t i = 0; i < repetitions; i++) {
-      auto contents = buffer->LineAt(line + LineNumberDelta(i));
+      auto contents = result->buffer->LineAt(line + LineNumberDelta(i));
       DVLOG(5) << "Erasing line: " << contents->ToString();
       ColumnNumber start = backwards ? ColumnNumber(0) : result->cursor.column;
       ColumnNumber end =
@@ -260,13 +263,13 @@ class DeleteLinesTransformation : public Transformation {
       if (start.IsZero() && end == contents->EndColumn() &&
           options_.modifiers.delete_type == Modifiers::DELETE_CONTENTS &&
           result->mode == Transformation::Result::Mode::kFinal) {
-        auto target_buffer = buffer->GetBufferFromCurrentLine();
-        if (target_buffer.get() != buffer && target_buffer != nullptr) {
+        auto target_buffer = result->buffer->GetBufferFromCurrentLine();
+        if (target_buffer.get() != result->buffer && target_buffer != nullptr) {
           target_buffer->editor()->CloseBuffer(target_buffer.get());
         }
 
-        if (buffer->LineAt(result->cursor.line) != nullptr) {
-          Value* callback = buffer->LineAt(result->cursor.line)
+        if (result->buffer->LineAt(result->cursor.line) != nullptr) {
+          Value* callback = result->buffer->LineAt(result->cursor.line)
                                 ->environment()
                                 ->Lookup(L"EdgeLineDeleteHandler",
                                          VMType::Function({VMType::Void()}));
@@ -276,7 +279,8 @@ class DeleteLinesTransformation : public Transformation {
                 vm::NewConstantExpression(std::make_unique<Value>(*callback)),
                 {});
             Evaluate(
-                expr.get(), buffer->environment(), [expr](Value::Ptr) {},
+                expr.get(), result->buffer->environment(),
+                [expr](Value::Ptr) {},
                 [work_queue = target_buffer->work_queue()](
                     std::function<void()> callback) {
                   work_queue->Schedule(callback);
@@ -305,7 +309,7 @@ class DeleteLinesTransformation : public Transformation {
         result->mode == Transformation::Result::Mode::kPreview) {
       stack.PushBack(NewGotoPositionTransformation(adjusted_original_cursor));
     }
-    stack.Apply(buffer, result);
+    stack.Apply(result);
   }
 
   unique_ptr<Transformation> Clone() const override {
@@ -320,14 +324,15 @@ class DeleteTransformation : public Transformation {
  public:
   DeleteTransformation(DeleteOptions options) : options_(options) {}
 
-  void Apply(OpenBuffer* buffer, Result* result) const {
-    CHECK(buffer != nullptr);
+  void Apply(Result* result) const {
     CHECK(result != nullptr);
+    CHECK(result->buffer != nullptr);
 
-    buffer->AdjustLineColumn(&result->cursor);
+    result->buffer->AdjustLineColumn(&result->cursor);
     const LineColumn adjusted_original_cursor = result->cursor;
 
-    Range range = buffer->FindPartialRange(options_.modifiers, result->cursor);
+    Range range =
+        result->buffer->FindPartialRange(options_.modifiers, result->cursor);
     LOG(INFO) << "Starting at " << result->cursor << ", bound region at "
               << range;
 
@@ -378,7 +383,7 @@ class DeleteTransformation : public Transformation {
           Transformation::Result::Mode::kPreview,
           NewGotoPositionTransformation(adjusted_original_cursor)));
     }
-    stack.Apply(buffer, result);
+    stack.Apply(result);
   }
 
   unique_ptr<Transformation> Clone() const override {

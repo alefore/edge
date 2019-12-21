@@ -716,19 +716,21 @@ class SwitchCaseTransformation : public Transformation {
  public:
   SwitchCaseTransformation(Modifiers modifiers) : modifiers_(modifiers) {}
 
-  void Apply(OpenBuffer* buffer, Result* result) const override {
-    buffer->AdjustLineColumn(&result->cursor);
-    Range range = buffer->FindPartialRange(modifiers_, result->cursor);
+  void Apply(Result* result) const override {
+    CHECK(result != nullptr);
+    CHECK(result->buffer != nullptr);
+    result->buffer->AdjustLineColumn(&result->cursor);
+    Range range = result->buffer->FindPartialRange(modifiers_, result->cursor);
     CHECK_LE(range.begin, range.end);
     TransformationStack stack;
     stack.PushBack(NewGotoPositionTransformation(range.begin));
-    auto buffer_to_insert =
-        std::make_shared<OpenBuffer>(buffer->editor(), L"- text inserted");
+    auto buffer_to_insert = std::make_shared<OpenBuffer>(
+        result->buffer->editor(), L"- text inserted");
     VLOG(5) << "Switch Case Transformation at " << result->cursor << ": "
-            << buffer->editor()->modifiers() << ": Range: " << range;
+            << result->buffer->editor()->modifiers() << ": Range: " << range;
     LineColumn i = range.begin;
     while (i < range.end) {
-      auto line = buffer->LineAt(i.line);
+      auto line = result->buffer->LineAt(i.line);
       if (line == nullptr) {
         break;
       }
@@ -769,7 +771,7 @@ class SwitchCaseTransformation : public Transformation {
     if (result->mode == Transformation::Result::Mode::kPreview) {
       stack.PushBack(NewGotoPositionTransformation(original_position));
     }
-    stack.Apply(buffer, result);
+    stack.Apply(result);
   }
 
   std::unique_ptr<Transformation> Clone() const override {
@@ -788,15 +790,17 @@ std::unique_ptr<Transformation> ApplySwitchCaseCommand(
 }
 
 class TreeNavigate : public Transformation {
-  void Apply(OpenBuffer* buffer, Result* result) const override {
-    auto root = buffer->parse_tree();
+  void Apply(Result* result) const override {
+    CHECK(result != nullptr);
+    CHECK(result->buffer != nullptr);
+    auto root = result->buffer->parse_tree();
     if (root == nullptr) {
       result->success = false;
       return;
     }
     const ParseTree* tree = root.get();
     auto next_position = result->cursor;
-    Seek(*buffer->contents(), &next_position).Once();
+    Seek(*result->buffer->contents(), &next_position).Once();
     while (true) {
       size_t child = 0;
       while (child < tree->children().size() &&
@@ -820,7 +824,7 @@ class TreeNavigate : public Transformation {
       }
 
       auto last_position = tree->range().end;
-      Seek(*buffer->contents(), &last_position).Backwards().Once();
+      Seek(*result->buffer->contents(), &last_position).Backwards().Once();
 
       auto original_cursor = result->cursor;
       result->cursor = result->cursor < tree->range().begin ||

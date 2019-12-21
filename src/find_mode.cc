@@ -21,9 +21,11 @@ class FindTransformation : public Transformation {
   FindTransformation(wchar_t c, Modifiers modifiers)
       : c_(c), modifiers_(modifiers) {}
 
-  void Apply(OpenBuffer* buffer, Result* result) const override {
+  void Apply(Result* result) const override {
+    CHECK(result != nullptr);
+    CHECK(result->buffer != nullptr);
     for (size_t i = 0; i < modifiers_.repetitions; i++) {
-      if (!SeekOnce(buffer, result)) {
+      if (!SeekOnce(result)) {
         result->success = false;
         return;
       }
@@ -36,8 +38,8 @@ class FindTransformation : public Transformation {
   }
 
  private:
-  bool SeekOnce(OpenBuffer* buffer, Result* result) const {
-    auto line = buffer->LineAt(result->cursor.line);
+  bool SeekOnce(Result* result) const {
+    auto line = result->buffer->LineAt(result->cursor.line);
     if (line == nullptr) {
       return false;
     }
