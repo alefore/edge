@@ -278,8 +278,8 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
   insert_mode_options.editor_state = editor_state;
   insert_mode_options.buffer = buffer;
 
-  insert_mode_options.modify_listener = [editor_state, original_buffer, buffer,
-                                         status, options]() {
+  insert_mode_options.modify_handler = [editor_state, original_buffer, buffer,
+                                        status, options]() {
     editor_state->set_current_buffer(original_buffer);
     options.change_notifier(buffer);
   };
@@ -386,7 +386,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
 
   EnterInsertMode(insert_mode_options);
   status->set_prompt(options.prompt, buffer);
-  insert_mode_options.modify_listener();
+  insert_mode_options.modify_handler();
 }
 
 std::unique_ptr<Command> NewLinePromptCommand(

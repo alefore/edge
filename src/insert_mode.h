@@ -49,7 +49,7 @@ struct InsertModeOptions {
   shared_ptr<OpenBuffer> buffer;
 
   // Optional function to run whenever the contents of the buffer are modified.
-  std::function<void()> modify_listener;
+  std::function<void()> modify_handler;
 
   std::shared_ptr<ScrollBehaviorFactory> scroll_behavior =
       ScrollBehaviorFactory::Default();

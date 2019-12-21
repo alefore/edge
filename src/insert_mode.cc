@@ -479,7 +479,7 @@ class InsertMode : public EditorMode {
         }
         delete_options.copy_to_paste_buffer = false;
         buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
-        options_.modify_listener();
+        options_.modify_handler();
       }
         return;
 
@@ -509,9 +509,7 @@ class InsertMode : public EditorMode {
         buffer->EvaluateExpression(
             expression.get(),
             [buffer, expression,
-             callback = options_.modify_listener](Value::Ptr) {
-              callback();
-            });
+             callback = options_.modify_handler](Value::Ptr) { callback(); });
         return;
       }
 
@@ -523,7 +521,7 @@ class InsertMode : public EditorMode {
         delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
         delete_options.copy_to_paste_buffer = false;
         buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
-        options_.modify_listener();
+        options_.modify_handler();
         return;
       }
 
@@ -544,7 +542,7 @@ class InsertMode : public EditorMode {
           NewInsertBufferTransformation(std::move(insert_options)));
     }
 
-    options_.modify_listener();
+    options_.modify_handler();
   }
 
  private:
@@ -796,8 +794,8 @@ void EnterInsertMode(InsertModeOptions options) {
     options.buffer = target_buffer;
   }
 
-  if (!options.modify_listener) {
-    options.modify_listener = []() { /* Nothing. */ };
+  if (!options.modify_handler) {
+    options.modify_handler = []() { /* Nothing. */ };
   }
 
   if (options.scroll_behavior == nullptr) {
@@ -816,8 +814,7 @@ void EnterInsertMode(InsertModeOptions options) {
   }
 
   if (!options.start_completion) {
-    auto buffer = options.buffer;
-    options.start_completion = [editor_state, buffer]() {
+    options.start_completion = [editor_state, buffer = options.buffer]() {
       LOG(INFO) << "Start default completion.";
       return StartCompletion(editor_state, buffer);
     };
