@@ -16,13 +16,11 @@
 void DiffMode() { buffer.set_tree_parser("diff"); }
 
 void GoToBeginningOfLine() {
-  buffer.set_position(LineColumn(buffer.position().line(), 0));
+  buffer.ApplyTransformation(TransformationGoToColumn(0));
 }
 
 void GoToEndOfLine() {
-  int current_line = buffer.position().line();
-  buffer.set_position(
-      LineColumn(buffer.position().line(), buffer.line(current_line).size()));
+  buffer.ApplyTransformation(TransformationGoToColumn(999999999999));
 }
 
 void DeleteCurrentLine() {
