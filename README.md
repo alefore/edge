@@ -44,7 +44,7 @@ running and which may or may not have a full terminal (pts).
   an action.
 
   * Edge reads buffers asynchronously and never blocks while performing IO
-    operations (module a few exceptions that we would like to fix).
+    operations (modulo a few exceptions that we would like to fix).
 
   * Edge doesn't block while executing extensions. Changes are shown to the
     buffer as they are applied (unless extensions explicitly bundle changes
