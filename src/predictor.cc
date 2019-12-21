@@ -477,4 +477,37 @@ void RegisterPredictorExactMatch(OpenBuffer* buffer) {
   value->boolean = true;
 }
 
+Predictor DictionaryPredictor(std::shared_ptr<const OpenBuffer> dictionary) {
+  return [dictionary](PredictorInput input) {
+    auto contents = dictionary->contents();
+    auto input_line =
+        std::make_shared<const Line>(Line::Options(NewLazyString(input.input)));
+
+    LineNumber line = contents->upper_bound(
+        input_line,
+        [](const shared_ptr<const Line>& a, const shared_ptr<const Line>& b) {
+          return a->ToString() < b->ToString();
+        });
+
+    // TODO: This has complexity N log N. We could instead extend BufferContents
+    // to expose a wrapper around `Suffix`, allowing this to have complexity N
+    // (just take the suffix once, and then walk it, with `ConstTree::Every`).
+    while (line < contents->EndLine()) {
+      auto line_contents = contents->at(line);
+      auto line_str = line_contents->ToString();
+      auto result =
+          mismatch(input.input.begin(), input.input.end(), line_str.begin());
+      if (result.first != input.input.end()) {
+        break;
+      }
+      input.predictions->AppendToLastLine(*line_contents);
+      input.predictions->AppendRawLine(std::make_shared<Line>(Line::Options()));
+    }
+    input.predictions->EndOfFile();
+    input.predictions->AddEndOfFileObserver(std::move(input.callback));
+  };
+}
+
+// Predictor CombinationPredictor(std::vector<Predictor> predictors) {}
+
 }  // namespace afc::editor

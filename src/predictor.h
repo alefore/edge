@@ -96,6 +96,8 @@ void EmptyPredictor(PredictorInput input);
 Predictor PrecomputedPredictor(const vector<wstring>& predictions,
                                wchar_t separator);
 
+Predictor DictionaryPredictor(std::shared_ptr<OpenBuffer> dictionary);
+
 // Buffer must be a buffer given to a predictor by `Predict`. Registers a new
 // size of a prefix that has a match.
 void RegisterPredictorPrefixMatch(size_t longest_prefix, OpenBuffer* buffer);
