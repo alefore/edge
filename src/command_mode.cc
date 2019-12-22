@@ -47,7 +47,7 @@
 #include "src/substring.h"
 #include "src/terminal.h"
 #include "src/transformation.h"
-#include "src/transformation/goto_position.h"
+#include "src/transformation/set_position.h"
 #include "src/transformation_delete.h"
 #include "src/transformation_move.h"
 #include "src/wstring.h"
@@ -724,7 +724,7 @@ class SwitchCaseTransformation : public Transformation {
     Range range = result->buffer->FindPartialRange(modifiers_, result->cursor);
     CHECK_LE(range.begin, range.end);
     TransformationStack stack;
-    stack.PushBack(NewGotoPositionTransformation(range.begin));
+    stack.PushBack(NewSetPositionTransformation(range.begin));
     auto buffer_to_insert = std::make_shared<OpenBuffer>(
         result->buffer->editor(), L"- text inserted");
     VLOG(5) << "Switch Case Transformation at " << result->cursor << ": "
@@ -770,7 +770,7 @@ class SwitchCaseTransformation : public Transformation {
     }
     stack.PushBack(NewInsertBufferTransformation(std::move(insert_options)));
     if (result->mode == Transformation::Result::Mode::kPreview) {
-      stack.PushBack(NewGotoPositionTransformation(original_position));
+      stack.PushBack(NewSetPositionTransformation(original_position));
     }
     stack.Apply(result);
   }

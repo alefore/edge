@@ -10,7 +10,7 @@
 #include "src/editor.h"
 #include "src/line_marks.h"
 #include "src/transformation.h"
-#include "src/transformation/goto_position.h"
+#include "src/transformation/set_position.h"
 
 namespace afc {
 namespace editor {
@@ -76,7 +76,7 @@ class MoveTransformation : public Transformation {
     }
     LOG(INFO) << "Move from " << result->cursor << " to " << position << " "
               << modifiers_;
-    NewGotoPositionTransformation(position)->Apply(result);
+    NewSetPositionTransformation(position)->Apply(result);
     if (modifiers_.repetitions > 1) {
       editor_state->PushPosition(result->cursor);
     }

@@ -23,7 +23,7 @@ extern "C" {
 #include "src/substring.h"
 #include "src/terminal.h"
 #include "src/transformation.h"
-#include "src/transformation/goto_position.h"
+#include "src/transformation/set_position.h"
 #include "src/transformation_delete.h"
 #include "src/transformation_move.h"
 #include "src/vm/public/constant_expression.h"
@@ -75,10 +75,10 @@ class NewLineTransformation : public Transformation {
           NewInsertBufferTransformation(std::move(insert_options)));
     }
 
-    transformation->PushBack(NewGotoPositionTransformation(result->cursor));
+    transformation->PushBack(NewSetPositionTransformation(result->cursor));
     transformation->PushBack(NewDeleteSuffixSuperfluousCharacters());
 
-    transformation->PushBack(NewGotoPositionTransformation(
+    transformation->PushBack(NewSetPositionTransformation(
         LineColumn(result->cursor.line + LineNumberDelta(1), prefix_end)));
     return transformation->Apply(result);
   }
@@ -101,7 +101,7 @@ class InsertEmptyLineTransformation : public Transformation {
     result->cursor.column = ColumnNumber(0);
     result->buffer->AdjustLineColumn(&result->cursor);
     return ComposeTransformation(std::make_unique<NewLineTransformation>(),
-                                 NewGotoPositionTransformation(result->cursor))
+                                 NewSetPositionTransformation(result->cursor))
         ->Apply(result);
   }
 
@@ -755,11 +755,11 @@ void DefaultScrollBehavior::Right(EditorState*, OpenBuffer* buffer) {
 
 void DefaultScrollBehavior::Begin(EditorState*, OpenBuffer* buffer) {
   buffer->ApplyToCursors(
-      NewGotoPositionTransformation(std::nullopt, ColumnNumber(0)));
+      NewSetPositionTransformation(std::nullopt, ColumnNumber(0)));
 }
 
 void DefaultScrollBehavior::End(EditorState*, OpenBuffer* buffer) {
-  buffer->ApplyToCursors(NewGotoPositionTransformation(
+  buffer->ApplyToCursors(NewSetPositionTransformation(
       std::nullopt, std::numeric_limits<ColumnNumber>::max()));
 }
 

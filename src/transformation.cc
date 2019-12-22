@@ -6,7 +6,7 @@
 #include "src/buffer_variables.h"
 #include "src/editor.h"
 #include "src/lazy_string_append.h"
-#include "src/transformation/goto_position.h"
+#include "src/transformation/set_position.h"
 #include "src/transformation_delete.h"
 
 namespace afc::editor {
@@ -264,7 +264,7 @@ std::unique_ptr<Transformation> ComposeTransformation(
 
 unique_ptr<Transformation> TransformationAtPosition(
     const LineColumn& position, unique_ptr<Transformation> transformation) {
-  return ComposeTransformation(NewGotoPositionTransformation(position),
+  return ComposeTransformation(NewSetPositionTransformation(position),
                                std::move(transformation));
 }
 

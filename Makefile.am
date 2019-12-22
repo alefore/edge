@@ -146,8 +146,8 @@ src/time.cc \
 src/time.h \
 src/tracker.cc \
 src/tracker.h \
-src/transformation/goto_position.cc \
-src/transformation/goto_position.h \
+src/transformation/set_position.cc \
+src/transformation/set_position.h \
 src/transformation/noop.cc \
 src/transformation/noop.h \
 src/transformation.cc \

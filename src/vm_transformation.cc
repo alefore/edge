@@ -6,8 +6,8 @@
 #include "src/char_buffer.h"
 #include "src/modifiers.h"
 #include "src/transformation.h"
-#include "src/transformation/goto_position.h"
 #include "src/transformation/noop.h"
+#include "src/transformation/set_position.h"
 #include "src/transformation_delete.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/types.h"
@@ -114,7 +114,7 @@ void RegisterTransformations(EditorState* editor,
 
   environment->DefineType(L"InsertTextBuilder", std::move(insert_text_builder));
 
-  RegisterGotoPositionTransformation(environment);
+  RegisterSetPositionTransformation(environment);
   RegisterNoopTransformation(environment);
 }
 }  // namespace editor

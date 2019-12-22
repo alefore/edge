@@ -9,7 +9,7 @@
 #include "src/lazy_string_append.h"
 #include "src/modifiers.h"
 #include "src/transformation.h"
-#include "src/transformation/goto_position.h"
+#include "src/transformation/set_position.h"
 #include "src/transformation_move.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/environment.h"
@@ -308,7 +308,7 @@ class DeleteLinesTransformation : public Transformation {
     }
     if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS ||
         result->mode == Transformation::Result::Mode::kPreview) {
-      stack.PushBack(NewGotoPositionTransformation(adjusted_original_cursor));
+      stack.PushBack(NewSetPositionTransformation(adjusted_original_cursor));
     }
     stack.Apply(result);
   }
@@ -343,7 +343,7 @@ class DeleteTransformation : public Transformation {
     CHECK_LE(range.begin, range.end);
 
     TransformationStack stack;
-    stack.PushBack(NewGotoPositionTransformation(range.begin));
+    stack.PushBack(NewSetPositionTransformation(range.begin));
     if (range.begin.line < range.end.line) {
       LOG(INFO) << "Deleting superfluous lines (from " << range << ")";
       while (range.begin.line < range.end.line) {
@@ -378,11 +378,11 @@ class DeleteTransformation : public Transformation {
     stack.PushBack(TransformationAtPosition(
         range.begin, DeleteCharactersTransformation::New(delete_options)));
     if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS) {
-      stack.PushBack(NewGotoPositionTransformation(adjusted_original_cursor));
+      stack.PushBack(NewSetPositionTransformation(adjusted_original_cursor));
     } else {
       stack.PushBack(std::make_unique<RunIfModeTransformation>(
           Transformation::Result::Mode::kPreview,
-          NewGotoPositionTransformation(adjusted_original_cursor)));
+          NewSetPositionTransformation(adjusted_original_cursor)));
     }
     stack.Apply(result);
   }

@@ -1,4 +1,4 @@
-#include "src/transformation/goto_position.h"
+#include "src/transformation/set_position.h"
 
 #include "src/transformation.h"
 #include "src/vm/public/callbacks.h"
@@ -6,35 +6,36 @@
 
 namespace afc::editor {
 namespace {
-class GotoPositionTransformation : public Transformation {
+class SetPositionTransformation : public Transformation {
  public:
   static void Register(vm::Environment* environment) {
+    // TODO: Rename `SetPosition` (rather than `GoToPosition`).
     environment->Define(
         L"TransformationGoToColumn",
         vm::NewCallback(std::function<Transformation*(int)>([](int column) {
-          return NewGotoPositionTransformation(std::nullopt,
-                                               ColumnNumber(column))
+          return NewSetPositionTransformation(std::nullopt,
+                                              ColumnNumber(column))
               .release();
         })));
 
+    // TODO: Rename `SetPosition` (rather than `GoToPosition`).
     environment->Define(
         L"TransformationGoToPosition",
         vm::NewCallback(
             std::function<Transformation*(LineColumn)>([](LineColumn position) {
-              return NewGotoPositionTransformation(position.line,
-                                                   position.column)
+              return NewSetPositionTransformation(position.line,
+                                                  position.column)
                   .release();
             })));
   }
 
-  GotoPositionTransformation(std::optional<LineNumber> line,
-                             ColumnNumber column)
+  SetPositionTransformation(std::optional<LineNumber> line, ColumnNumber column)
       : line_(line), column_(column) {}
 
   void Apply(Result* result) const override {
     CHECK(result != nullptr);
     CHECK(result->buffer != nullptr);
-    result->undo_stack->PushFront(NewGotoPositionTransformation(
+    result->undo_stack->PushFront(NewSetPositionTransformation(
         line_.has_value() ? std::optional<LineNumber>(result->cursor.line)
                           : std::nullopt,
         result->cursor.column));
@@ -46,7 +47,7 @@ class GotoPositionTransformation : public Transformation {
   }
 
   std::unique_ptr<Transformation> Clone() const override {
-    return NewGotoPositionTransformation(line_, column_);
+    return NewSetPositionTransformation(line_, column_);
   }
 
  private:
@@ -56,18 +57,18 @@ class GotoPositionTransformation : public Transformation {
 }  // namespace
 
 // TODO: Get rid of this, just have everyone call the other directly.
-std::unique_ptr<Transformation> NewGotoPositionTransformation(
+std::unique_ptr<Transformation> NewSetPositionTransformation(
     LineColumn position) {
-  return std::make_unique<GotoPositionTransformation>(position.line,
-                                                      position.column);
+  return std::make_unique<SetPositionTransformation>(position.line,
+                                                     position.column);
 }
 
-std::unique_ptr<Transformation> NewGotoPositionTransformation(
+std::unique_ptr<Transformation> NewSetPositionTransformation(
     std::optional<LineNumber> line, ColumnNumber column) {
-  return std::make_unique<GotoPositionTransformation>(line, column);
+  return std::make_unique<SetPositionTransformation>(line, column);
 }
 
-void RegisterGotoPositionTransformation(vm::Environment* environment) {
-  GotoPositionTransformation::Register(environment);
+void RegisterSetPositionTransformation(vm::Environment* environment) {
+  SetPositionTransformation::Register(environment);
 }
 }  // namespace afc::editor
