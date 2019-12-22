@@ -7,6 +7,7 @@
 #include "src/editor.h"
 #include "src/lazy_string_append.h"
 #include "src/transformation/set_position.h"
+#include "src/transformation/stack.h"
 #include "src/transformation_delete.h"
 
 namespace afc::editor {
@@ -254,14 +255,6 @@ unique_ptr<Transformation> NewInsertBufferTransformation(
       std::move(insert_options));
 }
 
-std::unique_ptr<Transformation> ComposeTransformation(
-    std::unique_ptr<Transformation> a, std::unique_ptr<Transformation> b) {
-  auto stack = std::make_unique<TransformationStack>();
-  stack->PushBack(std::move(a));
-  stack->PushBack(std::move(b));
-  return std::move(stack);
-}
-
 unique_ptr<Transformation> TransformationAtPosition(
     const LineColumn& position, unique_ptr<Transformation> transformation) {
   return ComposeTransformation(NewSetPositionTransformation(position),
@@ -295,29 +288,6 @@ std::unique_ptr<Transformation> NewStructureTransformation(
     std::unique_ptr<Transformation> transformation) {
   return std::make_unique<StructureTransformation>(structure, structure_range,
                                                    std::move(transformation));
-}
-
-void TransformationStack::Apply(Result* result) const {
-  CHECK(result != nullptr);
-  for (auto& it : stack_) {
-    Result it_result(result->buffer);
-    it_result.mode = result->mode;
-    it_result.delete_buffer = result->delete_buffer;
-    it_result.cursor = result->cursor;
-    it->Apply(&it_result);
-    result->cursor = it_result.cursor;
-    if (it_result.modified_buffer) {
-      result->modified_buffer = true;
-    }
-    if (it_result.made_progress) {
-      result->made_progress = true;
-    }
-    result->undo_stack->PushFront(std::move(it_result.undo_stack));
-    if (!it_result.success) {
-      result->success = false;
-      break;
-    }
-  }
 }
 
 }  // namespace afc::editor

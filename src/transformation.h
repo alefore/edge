@@ -58,7 +58,7 @@ class Transformation {
     bool modified_buffer;
 
     // Transformation that will undo any changes done by this one.
-    unique_ptr<TransformationStack> undo_stack;
+    std::unique_ptr<TransformationStack> undo_stack;
 
     // Any text deleted will be appended to this buffer.  If any text at all is
     // appended, the buffer will replace the previous paste buffer.
@@ -103,9 +103,6 @@ std::unique_ptr<Transformation> NewInsertBufferTransformation(
 unique_ptr<Transformation> TransformationAtPosition(
     const LineColumn& position, unique_ptr<Transformation> transformation);
 
-unique_ptr<Transformation> ComposeTransformation(unique_ptr<Transformation> a,
-                                                 unique_ptr<Transformation> b);
-
 // Returns a transformation that deletes superfluous characters (based on
 // OpenBuffer::variable_line_suffix_superfluous_characters) from the current
 // line.
@@ -127,30 +124,6 @@ unique_ptr<Transformation> NewDirectionTransformation(
 unique_ptr<Transformation> NewStructureTransformation(
     Structure* structure, Modifiers::StructureRange structure_modifier,
     unique_ptr<Transformation> transformation);
-
-class TransformationStack : public Transformation {
- public:
-  void PushBack(unique_ptr<Transformation> transformation) {
-    stack_.push_back(std::move(transformation));
-  }
-
-  void PushFront(unique_ptr<Transformation> transformation) {
-    stack_.push_front(std::move(transformation));
-  }
-
-  void Apply(Result* result) const override;
-
-  unique_ptr<Transformation> Clone() const override {
-    auto output = std::make_unique<TransformationStack>();
-    for (auto& it : stack_) {
-      output->PushBack(it->Clone());
-    }
-    return std::move(output);
-  }
-
- private:
-  list<unique_ptr<Transformation>> stack_;
-};
 
 class RunIfModeTransformation : public Transformation {
  public:

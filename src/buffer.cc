@@ -45,6 +45,7 @@ extern "C" {
 #include "src/tracker.h"
 #include "src/transformation.h"
 #include "src/transformation/noop.h"
+#include "src/transformation/stack.h"
 #include "src/transformation_delete.h"
 #include "src/viewers.h"
 #include "src/vm/public/callbacks.h"
@@ -581,6 +582,8 @@ OpenBuffer::OpenBuffer(Options options)
     EvaluateFile(state_path, [](std::unique_ptr<Value>) {});
   }
 }
+
+OpenBuffer::~OpenBuffer() = default;
 
 EditorState* OpenBuffer::editor() const { return options_.editor; }
 

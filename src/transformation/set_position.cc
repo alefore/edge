@@ -1,6 +1,7 @@
 #include "src/transformation/set_position.h"
 
 #include "src/transformation.h"
+#include "src/transformation/stack.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm_transformation.h"
 

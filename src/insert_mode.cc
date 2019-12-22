@@ -24,6 +24,7 @@ extern "C" {
 #include "src/terminal.h"
 #include "src/transformation.h"
 #include "src/transformation/set_position.h"
+#include "src/transformation/stack.h"
 #include "src/transformation_delete.h"
 #include "src/transformation_move.h"
 #include "src/vm/public/constant_expression.h"

@@ -28,6 +28,7 @@ extern "C" {
 #include "src/shapes.h"
 #include "src/substring.h"
 #include "src/terminal.h"
+#include "src/transformation/stack.h"
 #include "src/transformation_delete.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/environment.h"

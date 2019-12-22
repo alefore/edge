@@ -48,6 +48,7 @@
 #include "src/terminal.h"
 #include "src/transformation.h"
 #include "src/transformation/set_position.h"
+#include "src/transformation/stack.h"
 #include "src/transformation_delete.h"
 #include "src/transformation_move.h"
 #include "src/wstring.h"
@@ -713,6 +714,7 @@ class HardRedrawCommand : public Command {
   }
 };
 
+// TODO: Move to a separate file.
 class SwitchCaseTransformation : public Transformation {
  public:
   SwitchCaseTransformation(Modifiers modifiers) : modifiers_(modifiers) {}

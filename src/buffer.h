@@ -85,6 +85,7 @@ class OpenBuffer {
 
   OpenBuffer(EditorState* editor_state, const wstring& name);
   OpenBuffer(Options options);
+  ~OpenBuffer();
 
   EditorState* editor() const;
 
