@@ -92,6 +92,24 @@ void Modifiers::Register(vm::Environment* environment) {
   environment->DefineType(L"Modifiers", std::move(modifiers_type));
 }
 
+std::wstring Modifiers::Serialize() const {
+  std::wstring output = L"Modifiers()";
+  if (direction == BACKWARDS) {
+    output += L".set_backwards()";
+  }
+  // TODO: Handle other structures.
+  if (structure == StructureLine()) {
+    output += L".set_line()";
+  }
+  if (repetitions != 1) {
+    output += L".set_repetitions(" + std::to_wstring(repetitions) + L")";
+  }
+  if (boundary_end == LIMIT_NEIGHBOR) {
+    output += L".set_boundary_end_neigbhr()";
+  }
+  return output;
+}
+
 }  // namespace editor
 namespace vm {
 /* static */

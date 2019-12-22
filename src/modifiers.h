@@ -29,6 +29,8 @@ std::ostream& operator<<(std::ostream& os, const BufferPosition& bp);
 struct Modifiers {
   static void Register(vm::Environment* environment);
 
+  std::wstring Serialize() const;
+
   enum StructureRange {
     ENTIRE_STRUCTURE,
     FROM_BEGINNING_TO_CURRENT_POSITION,
