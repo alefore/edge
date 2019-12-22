@@ -50,6 +50,18 @@ std::ostream& operator<<(std::ostream& os, const DeleteOptions& options) {
   return os;
 }
 
+std::wstring DeleteOptions::Serialize() const {
+  std::wstring output = L"DeleteTransformationBuilder()";
+  output += L".set_modifiers(" + modifiers.Serialize() + L")";
+  if (!copy_to_paste_buffer) {
+    output += L".set_copy_to_paste_buffer(false)";
+  }
+  if (line_end_behavior != LineEndBehavior::kDelete) {
+    output += L".set_line_end_behavior(\"stop\")";
+  }
+  return output;
+}
+
 namespace {
 class DeleteCharactersTransformation : public Transformation {
  public:
@@ -349,6 +361,8 @@ class DeleteLinesTransformation : public Transformation {
 class DeleteTransformation : public Transformation {
  public:
   DeleteTransformation(DeleteOptions options) : options_(options) {}
+
+  std::wstring Serialize() const { return options_.Serialize() + L".build()"; }
 
   void Apply(Result* result) const {
     CHECK(result != nullptr);

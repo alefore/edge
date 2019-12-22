@@ -9,6 +9,8 @@ namespace afc::editor {
 using std::unique_ptr;
 
 struct DeleteOptions {
+  std::wstring Serialize() const;
+
   Modifiers modifiers;
   bool copy_to_paste_buffer = true;
 
