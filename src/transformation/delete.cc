@@ -173,9 +173,10 @@ class DeleteCharactersTransformation : public Transformation {
       insert_options.final_position = options_.modifiers.direction == FORWARDS
                                           ? InsertOptions::FinalPosition::kStart
                                           : InsertOptions::FinalPosition::kEnd;
-      result->undo_stack->PushFront(TransformationAtPosition(
-          result->cursor,
-          NewInsertBufferTransformation(std::move(insert_options))));
+      result->undo_stack->PushFront(
+          NewInsertBufferTransformation(std::move(insert_options)));
+      result->undo_stack->PushFront(
+          NewSetPositionTransformation(result->cursor));
     }
 
     if (result->mode == Transformation::Result::Mode::kPreview) {
@@ -340,8 +341,8 @@ class DeleteLinesTransformation : public Transformation {
       }
       DVLOG(6) << "Modifiers for line: " << delete_options.modifiers;
       DVLOG(6) << "Position for line: " << position;
-      stack.PushBack(TransformationAtPosition(
-          position, DeleteCharactersTransformation::New(delete_options)));
+      stack.PushBack(NewSetPositionTransformation(position));
+      stack.PushBack(DeleteCharactersTransformation::New(delete_options));
     }
     if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS ||
         result->mode == Transformation::Result::Mode::kPreview) {
@@ -391,9 +392,9 @@ class DeleteTransformation : public Transformation {
         delete_options.modifiers.structure_range =
             Modifiers::FROM_CURRENT_POSITION_TO_END;
         delete_options.copy_to_paste_buffer = options_.copy_to_paste_buffer;
-        stack.PushBack(TransformationAtPosition(
-            range.begin, std::make_unique<DeleteLinesTransformation>(
-                             std::move(delete_options))));
+        stack.PushBack(NewSetPositionTransformation(range.begin));
+        stack.PushBack(std::make_unique<DeleteLinesTransformation>(
+            std::move(delete_options)));
         if (options_.modifiers.delete_type == Modifiers::DELETE_CONTENTS &&
             result->mode == Transformation::Result::Mode::kFinal) {
           range.end.line--;
@@ -414,8 +415,8 @@ class DeleteTransformation : public Transformation {
     delete_options.modifiers.delete_type = options_.modifiers.delete_type;
     LOG(INFO) << "Deleting characters at: " << range.begin << ": "
               << options_.modifiers.repetitions;
-    stack.PushBack(TransformationAtPosition(
-        range.begin, DeleteCharactersTransformation::New(delete_options)));
+    stack.PushBack(NewSetPositionTransformation(range.begin));
+    stack.PushBack(DeleteCharactersTransformation::New(delete_options));
     if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS) {
       stack.PushBack(NewSetPositionTransformation(adjusted_original_cursor));
     } else {
