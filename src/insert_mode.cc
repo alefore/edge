@@ -753,12 +753,13 @@ void DefaultScrollBehavior::Right(EditorState*, OpenBuffer* buffer) {
 }
 
 void DefaultScrollBehavior::Begin(EditorState*, OpenBuffer* buffer) {
-  buffer->ApplyToCursors(NewGotoColumnTransformation(ColumnNumber(0)));
+  buffer->ApplyToCursors(
+      NewGotoPositionTransformation(std::nullopt, ColumnNumber(0)));
 }
 
 void DefaultScrollBehavior::End(EditorState*, OpenBuffer* buffer) {
-  buffer->ApplyToCursors(
-      NewGotoColumnTransformation(std::numeric_limits<ColumnNumber>::max()));
+  buffer->ApplyToCursors(NewGotoPositionTransformation(
+      std::nullopt, std::numeric_limits<ColumnNumber>::max()));
 }
 
 std::unique_ptr<Command> NewFindCompletionCommand() {

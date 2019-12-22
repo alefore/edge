@@ -10,6 +10,7 @@
 #include "src/line.h"
 #include "src/modifiers.h"
 #include "src/structure.h"
+#include "src/transformation/noop.h"
 
 namespace afc {
 namespace editor {
@@ -101,8 +102,9 @@ std::unique_ptr<Transformation> NewInsertBufferTransformation(
 // If column is greater than the length of the line, goes to the end of the
 // line.
 unique_ptr<Transformation> NewGotoColumnTransformation(ColumnNumber column);
+unique_ptr<Transformation> NewGotoPositionTransformation(LineColumn position);
 unique_ptr<Transformation> NewGotoPositionTransformation(
-    const LineColumn& position);
+    std::optional<LineNumber>, ColumnNumber position);
 
 // Goes to a given position and applies a transformation.
 unique_ptr<Transformation> TransformationAtPosition(

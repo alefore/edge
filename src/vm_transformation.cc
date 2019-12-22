@@ -68,14 +68,16 @@ void RegisterTransformations(EditorState* editor,
   environment->Define(
       L"TransformationGoToColumn",
       NewCallback(std::function<Transformation*(int)>([](int column) {
-        return NewGotoColumnTransformation(ColumnNumber(column)).release();
+        return NewGotoPositionTransformation(std::nullopt, ColumnNumber(column))
+            .release();
       })));
 
   environment->Define(
       L"TransformationGoToPosition",
       NewCallback(
           std::function<Transformation*(LineColumn)>([](LineColumn position) {
-            return NewGotoPositionTransformation(position).release();
+            return NewGotoPositionTransformation(position.line, position.column)
+                .release();
           })));
 
   environment->Define(L"TransformationDelete",

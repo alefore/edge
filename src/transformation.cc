@@ -10,53 +10,33 @@
 
 namespace afc::editor {
 namespace {
-
-class GotoColumnTransformation : public Transformation {
- public:
-  GotoColumnTransformation(ColumnNumber column) : column_(column) {}
-
-  void Apply(Result* result) const override {
-    CHECK(result != nullptr);
-    CHECK(result->buffer != nullptr);
-    auto line = result->buffer->LineAt(result->cursor.line);
-    if (line == nullptr) {
-      return;
-    }
-
-    result->undo_stack->PushFront(
-        NewGotoColumnTransformation(result->cursor.column));
-    result->cursor.column = std::min(column_, line->EndColumn());
-    result->success = true;
-  }
-
-  std::unique_ptr<Transformation> Clone() const override {
-    return NewGotoColumnTransformation(column_);
-  }
-
- private:
-  const ColumnNumber column_;
-};
-
 class GotoPositionTransformation : public Transformation {
  public:
-  GotoPositionTransformation(const LineColumn& position)
-      : position_(position) {}
+  GotoPositionTransformation(std::optional<LineNumber> line,
+                             ColumnNumber column)
+      : line_(line), column_(column) {}
 
   void Apply(Result* result) const override {
     CHECK(result != nullptr);
     CHECK(result->buffer != nullptr);
-    result->undo_stack->PushFront(
-        NewGotoPositionTransformation(result->cursor));
-    result->cursor = position_;
+    result->undo_stack->PushFront(NewGotoPositionTransformation(
+        line_.has_value() ? std::optional<LineNumber>(result->cursor.line)
+                          : std::nullopt,
+        result->cursor.column));
+    if (line_.has_value()) {
+      result->cursor.line = line_.value();
+    }
+    result->cursor.column = column_;
     result->success = true;
   }
 
   std::unique_ptr<Transformation> Clone() const override {
-    return NewGotoPositionTransformation(position_);
+    return NewGotoPositionTransformation(line_, column_);
   }
 
  private:
-  const LineColumn position_;
+  const std::optional<LineNumber> line_;
+  const ColumnNumber column_;
 };
 
 class InsertBufferTransformation : public Transformation {
@@ -302,14 +282,16 @@ unique_ptr<Transformation> NewInsertBufferTransformation(
       std::move(insert_options));
 }
 
-std::unique_ptr<Transformation> NewGotoColumnTransformation(
-    ColumnNumber column) {
-  return std::make_unique<GotoColumnTransformation>(column);
+// TODO: Get rid of this, just have everyone call the other directly.
+std::unique_ptr<Transformation> NewGotoPositionTransformation(
+    LineColumn position) {
+  return std::make_unique<GotoPositionTransformation>(position.line,
+                                                      position.column);
 }
 
 std::unique_ptr<Transformation> NewGotoPositionTransformation(
-    const LineColumn& position) {
-  return std::make_unique<GotoPositionTransformation>(position);
+    std::optional<LineNumber> line, ColumnNumber column) {
+  return std::make_unique<GotoPositionTransformation>(line, column);
 }
 
 std::unique_ptr<Transformation> ComposeTransformation(
