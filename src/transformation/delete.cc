@@ -263,101 +263,48 @@ class DeleteCharactersTransformation : public Transformation {
   const DeleteOptions options_;
 };
 
-class DeleteLinesTransformation : public Transformation {
- public:
-  DeleteLinesTransformation(DeleteOptions options) : options_(options) {}
+// May also call the callback in the line (EdgeLineDeleteHandler).
+//
+// TODO: Move the EdgeLineDeleteHandler logic to happen in DeleteCharacter?
+size_t ComputeLineDeletion(LineColumn position,
+                           Modifiers::DeleteType delete_type,
+                           OpenBuffer* buffer,
+                           Transformation::Result::Mode mode) {
+  CHECK(buffer != nullptr);
+  buffer->AdjustLineColumn(&position);
+  CHECK_GE(buffer->contents()->size(), position.line.ToDelta());
 
-  void Apply(Result* result) const {
-    CHECK(result->buffer != nullptr);
-    result->buffer->AdjustLineColumn(&result->cursor);
-    const LineColumn adjusted_original_cursor = result->cursor;
-    CHECK_GE(result->buffer->contents()->size(), result->cursor.line.ToDelta());
-    size_t repetitions =
-        min(options_.modifiers.repetitions,
-            static_cast<size_t>((result->buffer->contents()->size() -
-                                 result->cursor.line.ToDelta())
-                                    .line_delta));
-    auto delete_buffer = std::make_shared<OpenBuffer>(result->buffer->editor(),
-                                                      OpenBuffer::kPasteBuffer);
+  LOG(INFO) << "Erasing line " << position.line << " in a buffer with size "
+            << buffer->contents()->size();
 
-    LOG(INFO) << "Erasing lines " << repetitions << " starting at line "
-              << result->cursor.line << " in a buffer with size "
-              << result->buffer->contents()->size()
-              << " with modifiers: " << options_.modifiers;
-
-    bool forwards = options_.modifiers.structure_range !=
-                    Modifiers::FROM_BEGINNING_TO_CURRENT_POSITION;
-    bool backwards = options_.modifiers.structure_range !=
-                     Modifiers::FROM_CURRENT_POSITION_TO_END;
-
-    TransformationStack stack;
-
-    LineNumber line = result->cursor.line;
-    for (size_t i = 0; i < repetitions; i++) {
-      auto contents = result->buffer->LineAt(line + LineNumberDelta(i));
-      DVLOG(5) << "Erasing line: " << contents->ToString();
-      ColumnNumber start = backwards ? ColumnNumber(0) : result->cursor.column;
-      ColumnNumber end =
-          forwards ? contents->EndColumn() : result->cursor.column;
-      if (start.IsZero() && end == contents->EndColumn() &&
-          options_.modifiers.delete_type == Modifiers::DELETE_CONTENTS &&
-          result->mode == Transformation::Result::Mode::kFinal) {
-        auto target_buffer = result->buffer->GetBufferFromCurrentLine();
-        if (target_buffer.get() != result->buffer && target_buffer != nullptr) {
-          target_buffer->editor()->CloseBuffer(target_buffer.get());
-        }
-
-        if (result->buffer->LineAt(result->cursor.line) != nullptr) {
-          Value* callback = result->buffer->LineAt(result->cursor.line)
-                                ->environment()
-                                ->Lookup(L"EdgeLineDeleteHandler",
-                                         VMType::Function({VMType::Void()}));
-          if (callback != nullptr) {
-            LOG(INFO) << "Running EdgeLineDeleteHandler.";
-            std::shared_ptr<Expression> expr = vm::NewFunctionCall(
-                vm::NewConstantExpression(std::make_unique<Value>(*callback)),
-                {});
-            Evaluate(
-                expr.get(), result->buffer->environment(),
-                [expr](Value::Ptr) {},
-                [work_queue = target_buffer->work_queue()](
-                    std::function<void()> callback) {
-                  work_queue->Schedule(callback);
-                });
-          }
-        }
-      }
-      DeleteOptions delete_options;
-      delete_options.copy_to_paste_buffer = options_.copy_to_paste_buffer;
-      delete_options.modifiers.delete_type = options_.modifiers.delete_type;
-      delete_options.modifiers.repetitions =
-          (end - start +
-           ColumnNumberDelta(end == contents->EndColumn() ? 1 : 0))
-              .column_delta;
-      LineColumn position(line, start);
-      if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS ||
-          result->mode == Transformation::Result::Mode::kPreview) {
-        position.line += LineNumberDelta(i);
-      }
-      DVLOG(6) << "Modifiers for line: " << delete_options.modifiers;
-      DVLOG(6) << "Position for line: " << position;
-      stack.PushBack(NewSetPositionTransformation(position));
-      stack.PushBack(DeleteCharactersTransformation::New(delete_options));
+  const auto contents = buffer->LineAt(position.line);
+  DVLOG(5) << "Erasing line: " << contents->ToString();
+  if (position.column.IsZero() && delete_type == Modifiers::DELETE_CONTENTS &&
+      mode == Transformation::Result::Mode::kFinal) {
+    auto target_buffer = buffer->GetBufferFromCurrentLine();
+    if (target_buffer.get() != buffer && target_buffer != nullptr) {
+      target_buffer->editor()->CloseBuffer(target_buffer.get());
     }
-    if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS ||
-        result->mode == Transformation::Result::Mode::kPreview) {
-      stack.PushBack(NewSetPositionTransformation(adjusted_original_cursor));
+
+    if (contents != nullptr) {
+      Value* callback = contents->environment()->Lookup(
+          L"EdgeLineDeleteHandler", VMType::Function({VMType::Void()}));
+      if (callback != nullptr) {
+        LOG(INFO) << "Running EdgeLineDeleteHandler.";
+        std::shared_ptr<Expression> expr = vm::NewFunctionCall(
+            vm::NewConstantExpression(std::make_unique<Value>(*callback)), {});
+        Evaluate(
+            expr.get(), buffer->environment(), [expr](Value::Ptr) {},
+            [work_queue =
+                 target_buffer->work_queue()](std::function<void()> callback) {
+              work_queue->Schedule(callback);
+            });
+      }
     }
-    stack.Apply(result);
   }
-
-  unique_ptr<Transformation> Clone() const override {
-    return std::make_unique<DeleteLinesTransformation>(options_);
-  }
-
- private:
-  const DeleteOptions options_;
-};
+  return (contents->EndColumn() - position.column + ColumnNumberDelta(1))
+      .column_delta;
+}
 
 class DeleteTransformation : public Transformation {
  public:
@@ -371,7 +318,6 @@ class DeleteTransformation : public Transformation {
 
     result->buffer->AdjustLineColumn(&result->cursor);
     const LineColumn adjusted_original_cursor = result->cursor;
-
     Range range =
         result->buffer->FindPartialRange(options_.modifiers, result->cursor);
     LOG(INFO) << "Starting at " << result->cursor << ", bound region at "
@@ -384,45 +330,34 @@ class DeleteTransformation : public Transformation {
 
     TransformationStack stack;
     stack.PushBack(NewSetPositionTransformation(range.begin));
+    DeleteOptions delete_options;
+    delete_options.modifiers.repetitions = 0;
+    delete_options.copy_to_paste_buffer = options_.copy_to_paste_buffer;
+    delete_options.modifiers.delete_type = options_.modifiers.delete_type;
+
     if (range.begin.line < range.end.line) {
       LOG(INFO) << "Deleting superfluous lines (from " << range << ")";
       while (range.begin.line < range.end.line) {
-        DeleteOptions delete_options;
-        delete_options.modifiers.delete_type = options_.modifiers.delete_type;
-        delete_options.modifiers.structure_range =
-            Modifiers::FROM_CURRENT_POSITION_TO_END;
-        delete_options.copy_to_paste_buffer = options_.copy_to_paste_buffer;
-        stack.PushBack(NewSetPositionTransformation(range.begin));
-        stack.PushBack(std::make_unique<DeleteLinesTransformation>(
-            std::move(delete_options)));
-        if (options_.modifiers.delete_type == Modifiers::DELETE_CONTENTS &&
-            result->mode == Transformation::Result::Mode::kFinal) {
-          range.end.line--;
-        } else {
-          range.begin.line++;
-          range.begin.column = ColumnNumber(0);
-        }
+        delete_options.modifiers.repetitions +=
+            ComputeLineDeletion(range.begin, options_.modifiers.delete_type,
+                                result->buffer, result->mode);
+        range.begin.line++;
+        range.begin.column = ColumnNumber(0);
       }
       range.end.column += range.begin.column.ToDelta();
     }
 
     CHECK_LE(range.begin, range.end);
     CHECK_LE(range.begin.column, range.end.column);
-    DeleteOptions delete_options;
-    delete_options.copy_to_paste_buffer = options_.copy_to_paste_buffer;
-    delete_options.modifiers.repetitions =
+    delete_options.modifiers.repetitions +=
         (range.end.column - range.begin.column).column_delta;
-    delete_options.modifiers.delete_type = options_.modifiers.delete_type;
     LOG(INFO) << "Deleting characters at: " << range.begin << ": "
               << options_.modifiers.repetitions;
-    stack.PushBack(NewSetPositionTransformation(range.begin));
     stack.PushBack(DeleteCharactersTransformation::New(delete_options));
-    if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS) {
+    if (options_.modifiers.direction == BACKWARDS &&
+        (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS ||
+         result->mode == Transformation::Result::Mode::kPreview)) {
       stack.PushBack(NewSetPositionTransformation(adjusted_original_cursor));
-    } else {
-      stack.PushBack(std::make_unique<RunIfModeTransformation>(
-          Transformation::Result::Mode::kPreview,
-          NewSetPositionTransformation(adjusted_original_cursor)));
     }
     stack.Apply(result);
   }
