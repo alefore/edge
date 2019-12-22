@@ -6,9 +6,9 @@
 #include "src/buffer_variables.h"
 #include "src/editor.h"
 #include "src/lazy_string_append.h"
+#include "src/transformation/delete.h"
 #include "src/transformation/set_position.h"
 #include "src/transformation/stack.h"
-#include "src/transformation_delete.h"
 
 namespace afc::editor {
 namespace {

@@ -6,9 +6,9 @@
 #include "src/char_buffer.h"
 #include "src/modifiers.h"
 #include "src/transformation.h"
+#include "src/transformation/delete.h"
 #include "src/transformation/noop.h"
 #include "src/transformation/set_position.h"
-#include "src/transformation_delete.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/types.h"
 
@@ -66,14 +66,6 @@ void RegisterTransformations(EditorState* editor,
   using vm::VMType;
   auto transformation = std::make_unique<ObjectType>(L"Transformation");
 
-  environment->Define(L"TransformationDelete",
-                      NewCallback(std::function<Transformation*(Modifiers*)>(
-                          [](Modifiers* modifiers) {
-                            DeleteOptions options;
-                            options.modifiers = *modifiers;
-                            return NewDeleteTransformation(options).release();
-                          })));
-
   environment->DefineType(L"Transformation", std::move(transformation));
 
   auto insert_text_builder = std::make_unique<ObjectType>(L"InsertTextBuilder");
@@ -114,8 +106,9 @@ void RegisterTransformations(EditorState* editor,
 
   environment->DefineType(L"InsertTextBuilder", std::move(insert_text_builder));
 
-  RegisterSetPositionTransformation(environment);
+  RegisterDeleteTransformation(environment);
   RegisterNoopTransformation(environment);
+  RegisterSetPositionTransformation(environment);
 }
 }  // namespace editor
 }  // namespace afc

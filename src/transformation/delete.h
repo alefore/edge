@@ -2,9 +2,9 @@
 
 #include "src/editor.h"
 #include "src/transformation.h"
+#include "src/vm/public/environment.h"
 
-namespace afc {
-namespace editor {
+namespace afc::editor {
 
 using std::unique_ptr;
 
@@ -18,7 +18,7 @@ struct DeleteOptions {
 
 std::ostream& operator<<(std::ostream& os, const DeleteOptions& options);
 
-unique_ptr<Transformation> NewDeleteTransformation(DeleteOptions options);
+std::unique_ptr<Transformation> NewDeleteTransformation(DeleteOptions options);
 
-}  // namespace editor
-}  // namespace afc
+void RegisterDeleteTransformation(vm::Environment* environment);
+}  // namespace afc::editor

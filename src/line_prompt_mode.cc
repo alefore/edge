@@ -17,7 +17,7 @@
 #include "src/insert_mode.h"
 #include "src/predictor.h"
 #include "src/terminal.h"
-#include "src/transformation_delete.h"
+#include "src/transformation/delete.h"
 #include "src/wstring.h"
 
 namespace afc {

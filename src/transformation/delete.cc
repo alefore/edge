@@ -1,4 +1,4 @@
-#include "src/transformation_delete.h"
+#include "src/transformation/delete.h"
 
 #include <glog/logging.h>
 
@@ -15,6 +15,7 @@
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/environment.h"
 #include "src/vm/public/function_call.h"
+#include "src/vm_transformation.h"
 #include "src/wstring.h"
 
 namespace afc {
@@ -402,5 +403,14 @@ std::unique_ptr<Transformation> NewDeleteTransformation(DeleteOptions options) {
   return std::make_unique<DeleteTransformation>(options);
 }
 
+void RegisterDeleteTransformation(vm::Environment* environment) {
+  environment->Define(L"TransformationDelete",
+                      NewCallback(std::function<Transformation*(Modifiers*)>(
+                          [](Modifiers* modifiers) {
+                            DeleteOptions options;
+                            options.modifiers = *modifiers;
+                            return NewDeleteTransformation(options).release();
+                          })));
+}
 }  // namespace editor
 }  // namespace afc

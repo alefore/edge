@@ -5,7 +5,7 @@
 #include "src/command_with_modifiers.h"
 #include "src/editor.h"
 #include "src/terminal.h"
-#include "src/transformation_delete.h"
+#include "src/transformation/delete.h"
 
 namespace afc {
 namespace editor {

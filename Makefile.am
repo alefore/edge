@@ -146,6 +146,8 @@ src/time.cc \
 src/time.h \
 src/tracker.cc \
 src/tracker.h \
+src/transformation/delete.cc \
+src/transformation/delete.h \
 src/transformation/noop.cc \
 src/transformation/noop.h \
 src/transformation/set_position.cc \
@@ -154,7 +156,6 @@ src/transformation/stack.cc \
 src/transformation/stack.h \
 src/transformation.cc \
 src/transformation.h \
-src/transformation_delete.cc \
 src/transformation_move.cc \
 src/vertical_split_output_producer.cc \
 src/vertical_split_output_producer.h \
