@@ -264,6 +264,8 @@ std::wstring LineNumber::ToUserString() const {
   return std::to_wstring(line + 1);
 }
 
+std::wstring LineNumber::Serialize() const { return std::to_wstring(line); }
+
 LineNumber LineNumber::next() const {
   if (line == std::numeric_limits<size_t>::max()) {
     return *this;
@@ -401,6 +403,8 @@ std::wstring ColumnNumber::ToUserString() const {
   return std::to_wstring(column + 1);
 }
 
+std::wstring ColumnNumber::Serialize() const { return std::to_wstring(column); }
+
 ColumnNumber ColumnNumber::MinusHandlingOverflow(
     const ColumnNumberDelta& value) const {
   return this->ToDelta() > value ? *this - value : ColumnNumber(0);
@@ -525,6 +529,10 @@ bool LineColumn::operator!=(const LineColumn& other) const {
 
 std::wstring LineColumn::ToString() const {
   return std::to_wstring(line.line) + L" " + std::to_wstring(column.column);
+}
+
+std::wstring LineColumn::Serialize() const {
+  return L"LineColumn(" + line.Serialize() + L", " + column.Serialize() + L")";
 }
 
 /* static */ Range Range::InLine(LineNumber line, ColumnNumber column,

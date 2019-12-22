@@ -30,6 +30,15 @@ class SetPositionTransformation : public Transformation {
   SetPositionTransformation(std::optional<LineNumber> line, ColumnNumber column)
       : line_(line), column_(column) {}
 
+  std::wstring Serialize() const {
+    if (line_.has_value()) {
+      return L"SetPositionTransformation(" + line_.value().Serialize() + L", " +
+             column_.Serialize() + L")";
+    } else {
+      return L"SetColumnTransformation(" + column_.Serialize() + L")";
+    }
+  }
+
   void Apply(Result* result) const override {
     CHECK(result != nullptr);
     CHECK(result->buffer != nullptr);
