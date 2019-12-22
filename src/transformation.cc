@@ -8,9 +8,8 @@
 #include "src/lazy_string_append.h"
 #include "src/transformation_delete.h"
 
+namespace afc::editor {
 namespace {
-
-using namespace afc::editor;
 
 class GotoColumnTransformation : public Transformation {
  public:
@@ -122,15 +121,6 @@ class InsertBufferTransformation : public Transformation {
  private:
   InsertOptions options_;
   size_t buffer_to_insert_length_;
-};
-
-class NoopTransformation : public Transformation {
- public:
-  void Apply(Result*) const override {}
-
-  unique_ptr<Transformation> Clone() const override {
-    return NewNoopTransformation();
-  }
 };
 
 class DeleteSuffixSuperfluousCharacters : public Transformation {
@@ -297,9 +287,6 @@ class StructureTransformation : public Transformation {
 
 }  // namespace
 
-namespace afc {
-namespace editor {
-
 Transformation::Result::Result(OpenBuffer* buffer)
     : buffer(buffer),
       success(true),
@@ -323,10 +310,6 @@ std::unique_ptr<Transformation> NewGotoColumnTransformation(
 std::unique_ptr<Transformation> NewGotoPositionTransformation(
     const LineColumn& position) {
   return std::make_unique<GotoPositionTransformation>(position);
-}
-
-std::unique_ptr<Transformation> NewNoopTransformation() {
-  return std::make_unique<NoopTransformation>();
 }
 
 std::unique_ptr<Transformation> ComposeTransformation(
@@ -395,5 +378,4 @@ void TransformationStack::Apply(Result* result) const {
   }
 }
 
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

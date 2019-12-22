@@ -146,7 +146,10 @@ src/time.cc \
 src/time.h \
 src/tracker.cc \
 src/tracker.h \
+src/transformation/noop.cc \
+src/transformation/noop.h \
 src/transformation.cc \
+src/transformation.h \
 src/transformation_delete.cc \
 src/transformation_move.cc \
 src/vertical_split_output_producer.cc \

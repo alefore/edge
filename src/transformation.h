@@ -104,8 +104,6 @@ unique_ptr<Transformation> NewGotoColumnTransformation(ColumnNumber column);
 unique_ptr<Transformation> NewGotoPositionTransformation(
     const LineColumn& position);
 
-unique_ptr<Transformation> NewNoopTransformation();
-
 // Goes to a given position and applies a transformation.
 unique_ptr<Transformation> TransformationAtPosition(
     const LineColumn& position, unique_ptr<Transformation> transformation);

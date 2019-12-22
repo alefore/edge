@@ -44,6 +44,7 @@ extern "C" {
 #include "src/time.h"
 #include "src/tracker.h"
 #include "src/transformation.h"
+#include "src/transformation/noop.h"
 #include "src/transformation_delete.h"
 #include "src/viewers.h"
 #include "src/vm/public/callbacks.h"
