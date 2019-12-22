@@ -436,14 +436,16 @@ void RegisterDeleteTransformation(vm::Environment* environment) {
 
   builder->AddField(
       L"set_modifiers",
-      NewCallback(std::function<std::shared_ptr<DeleteOptions>(
-                      std::shared_ptr<DeleteOptions>, Modifiers*)>(
-          [](std::shared_ptr<DeleteOptions> options, Modifiers* modifiers) {
-            CHECK(options != nullptr);
-            CHECK(modifiers != nullptr);
-            options->modifiers = *modifiers;
-            return options;
-          })));
+      NewCallback(
+          std::function<std::shared_ptr<DeleteOptions>(
+              std::shared_ptr<DeleteOptions>, std::shared_ptr<Modifiers>)>(
+              [](std::shared_ptr<DeleteOptions> options,
+                 std::shared_ptr<Modifiers> modifiers) {
+                CHECK(options != nullptr);
+                CHECK(modifiers != nullptr);
+                options->modifiers = *modifiers;
+                return options;
+              })));
 
   builder->AddField(
       L"set_copy_to_paste_buffer",

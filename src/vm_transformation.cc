@@ -76,10 +76,12 @@ void RegisterTransformations(EditorState* editor,
 
   insert_text_builder->AddField(
       L"set_modifiers",
-      NewCallback(std::function<void(InsertOptions*, Modifiers*)>(
-          [editor](InsertOptions* options, Modifiers* modifiers) {
-            options->modifiers = *modifiers;
-          })));
+      NewCallback(
+          std::function<void(InsertOptions*, std::shared_ptr<Modifiers>)>(
+              [editor](InsertOptions* options,
+                       std::shared_ptr<Modifiers> modifiers) {
+                options->modifiers = *modifiers;
+              })));
 
   insert_text_builder->AddField(
       L"set_position",
