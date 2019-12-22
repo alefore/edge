@@ -31,7 +31,8 @@ void DeleteCurrentLine() {
   modifiers.set_line();
   modifiers.set_repetitions(repetitions());
   modifiers.set_boundary_end_neighbor();
-  buffer.ApplyTransformation(TransformationDelete(modifiers));
+  buffer.ApplyTransformation(
+      DeleteTransformationBuilder().set_modifiers(modifiers).build());
 
   buffer.PopTransformationStack();
   set_repetitions(1);
@@ -62,7 +63,8 @@ void HandleKeyboardControlU() {
     // Edit: Delete to the beginning of line.
     modifiers.set_line();
   }
-  buffer.ApplyTransformation(TransformationDelete(modifiers));
+  buffer.ApplyTransformation(
+      DeleteTransformationBuilder().set_modifiers(modifiers).build());
   buffer.PopTransformationStack();
 }
 

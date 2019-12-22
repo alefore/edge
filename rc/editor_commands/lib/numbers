@@ -48,7 +48,8 @@ void AddToIntegerAtPosition(LineColumn position, int delta) {
 
   Modifiers modifiers = Modifiers();
   modifiers.set_repetitions(integer.size());
-  buffer.ApplyTransformation(TransformationDelete(modifiers));
+  buffer.ApplyTransformation(
+      DeleteTransformationBuilder().set_modifiers(modifiers).build());
 
   InsertTextBuilder insertion = InsertTextBuilder();
   insertion.set_text((integer.toint() + delta).tostring());

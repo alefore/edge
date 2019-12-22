@@ -68,6 +68,7 @@ VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(Value* value) {
 
 /* static */ Value::Ptr VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
     std::shared_ptr<editor::OpenBuffer> value) {
+  // TODO: Use the aliasing shared_ptr constructor instead.
   return Value::NewObject(
       L"Buffer",
       shared_ptr<void>(value.get(), [value](void*) { /* Nothing. */ }));

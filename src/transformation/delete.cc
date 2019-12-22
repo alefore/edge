@@ -21,24 +21,25 @@
 namespace afc {
 namespace vm {
 template <>
-struct VMTypeMapper<editor::DeleteOptions*> {
-  static editor::DeleteOptions* get(Value* value) {
+struct VMTypeMapper<std::shared_ptr<editor::DeleteOptions>> {
+  static std::shared_ptr<editor::DeleteOptions> get(Value* value) {
     CHECK(value != nullptr);
     CHECK(value->type.type == VMType::OBJECT_TYPE);
     CHECK(value->type.object_type == L"DeleteTransformationBuilder");
     CHECK(value->user_value != nullptr);
-    return static_cast<editor::DeleteOptions*>(value->user_value.get());
+    return std::static_pointer_cast<editor::DeleteOptions>(value->user_value);
   }
-  static Value::Ptr New(editor::DeleteOptions* value) {
+  static Value::Ptr New(std::shared_ptr<editor::DeleteOptions> value) {
+    // TODO: Use the aliasing shared_ptr constructor instead?
     return Value::NewObject(L"DeleteTransformationBuilder",
-                            std::shared_ptr<void>(value, [](void* v) {
-                              delete static_cast<editor::DeleteOptions*>(v);
+                            std::shared_ptr<void>(value.get(), [value](void*) {
+                              /* Noting. */
                             }));
   }
   static const VMType vmtype;
 };
 
-const VMType VMTypeMapper<editor::DeleteOptions*>::vmtype =
+const VMType VMTypeMapper<std::shared_ptr<editor::DeleteOptions>>::vmtype =
     VMType::ObjectType(L"DeleteTransformationBuilder");
 }  // namespace vm
 namespace editor {
@@ -428,26 +429,39 @@ std::unique_ptr<Transformation> NewDeleteTransformation(DeleteOptions options) {
 void RegisterDeleteTransformation(vm::Environment* environment) {
   auto builder = std::make_unique<ObjectType>(L"DeleteTransformationBuilder");
 
-  environment->Define(L"DeleteTransformationBuilder",
-                      vm::NewCallback(std::function<DeleteOptions*()>(
-                          []() { return new DeleteOptions(); })));
+  environment->Define(
+      L"DeleteTransformationBuilder",
+      vm::NewCallback(std::function<std::shared_ptr<DeleteOptions>()>(
+          []() { return std::make_shared<DeleteOptions>(); })));
 
-  builder->AddField(L"set_modifiers",
-                    NewCallback(std::function<void(DeleteOptions*, Modifiers*)>(
-                        [](DeleteOptions* options, Modifiers* modifiers) {
-                          options->modifiers = *modifiers;
-                        })));
+  builder->AddField(
+      L"set_modifiers",
+      NewCallback(std::function<std::shared_ptr<DeleteOptions>(
+                      std::shared_ptr<DeleteOptions>, Modifiers*)>(
+          [](std::shared_ptr<DeleteOptions> options, Modifiers* modifiers) {
+            CHECK(options != nullptr);
+            CHECK(modifiers != nullptr);
+            options->modifiers = *modifiers;
+            return options;
+          })));
 
-  builder->AddField(L"set_copy_to_paste_buffer",
-                    vm::NewCallback(std::function<void(DeleteOptions*, bool)>(
-                        [](DeleteOptions* options, bool copy_to_paste_buffer) {
-                          options->copy_to_paste_buffer = copy_to_paste_buffer;
-                        })));
+  builder->AddField(
+      L"set_copy_to_paste_buffer",
+      vm::NewCallback(std::function<std::shared_ptr<DeleteOptions>(
+                          std::shared_ptr<DeleteOptions>, bool)>(
+          [](std::shared_ptr<DeleteOptions> options,
+             bool copy_to_paste_buffer) {
+            CHECK(options != nullptr);
+            options->copy_to_paste_buffer = copy_to_paste_buffer;
+            return options;
+          })));
 
   builder->AddField(
       L"set_line_end_behavior",
-      vm::NewCallback(std::function<void(DeleteOptions*, std::wstring)>(
-          [](DeleteOptions* options, std::wstring value) {
+      vm::NewCallback(std::function<std::shared_ptr<DeleteOptions>(
+                          std::shared_ptr<DeleteOptions>, std::wstring)>(
+          [](std::shared_ptr<DeleteOptions> options, std::wstring value) {
+            CHECK(options != nullptr);
             if (value == L"stop") {
               options->line_end_behavior =
                   DeleteOptions::LineEndBehavior::kStop;
@@ -455,21 +469,19 @@ void RegisterDeleteTransformation(vm::Environment* environment) {
               options->line_end_behavior =
                   DeleteOptions::LineEndBehavior::kDelete;
             }
+            return options;
           })));
 
   builder->AddField(
-      L"build", vm::NewCallback(std::function<Transformation*(DeleteOptions*)>(
-                    [](DeleteOptions* options) {
-                      return NewDeleteTransformation(*options).release();
-                    })));
+      L"build",
+      vm::NewCallback(
+          std::function<Transformation*(std::shared_ptr<DeleteOptions>)>(
+              [](std::shared_ptr<DeleteOptions> options) {
+                CHECK(options != nullptr);
+                return NewDeleteTransformation(*options).release();
+              })));
 
-  environment->Define(L"TransformationDelete",
-                      NewCallback(std::function<Transformation*(Modifiers*)>(
-                          [](Modifiers* modifiers) {
-                            DeleteOptions options;
-                            options.modifiers = *modifiers;
-                            return NewDeleteTransformation(options).release();
-                          })));
+  environment->DefineType(L"DeleteTransformationBuilder", std::move(builder));
 }
 }  // namespace editor
 }  // namespace afc
