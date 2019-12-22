@@ -160,6 +160,7 @@ src/viewers.cc \
 src/viewers.h \
 src/vm_transformation.cc \
 src/vm_transformation.h \
+src/vm/public/optional.h \
 src/vm/public/set.h \
 src/vm/public/vector.h \
 src/vm/internal/callbacks.cc \
