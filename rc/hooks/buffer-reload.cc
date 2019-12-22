@@ -16,16 +16,16 @@
 void DiffMode() { buffer.set_tree_parser("diff"); }
 
 void GoToBeginningOfLine() {
-  buffer.ApplyTransformation(TransformationGoToColumn(0));
+  buffer.ApplyTransformation(SetColumnTransformation(0));
 }
 
 void GoToEndOfLine() {
-  buffer.ApplyTransformation(TransformationGoToColumn(999999999999));
+  buffer.ApplyTransformation(SetColumnTransformation(999999999999));
 }
 
 void DeleteCurrentLine() {
   buffer.PushTransformationStack();
-  buffer.ApplyTransformation(TransformationGoToColumn(0));
+  buffer.ApplyTransformation(SetColumnTransformation(0));
 
   Modifiers modifiers = Modifiers();
   modifiers.set_line();

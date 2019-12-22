@@ -9,18 +9,16 @@ namespace {
 class SetPositionTransformation : public Transformation {
  public:
   static void Register(vm::Environment* environment) {
-    // TODO: Rename `SetPosition` (rather than `GoToPosition`).
     environment->Define(
-        L"TransformationGoToColumn",
+        L"SetColumnTransformation",
         vm::NewCallback(std::function<Transformation*(int)>([](int column) {
           return NewSetPositionTransformation(std::nullopt,
                                               ColumnNumber(column))
               .release();
         })));
 
-    // TODO: Rename `SetPosition` (rather than `GoToPosition`).
     environment->Define(
-        L"TransformationGoToPosition",
+        L"SetPositionTransformation",
         vm::NewCallback(
             std::function<Transformation*(LineColumn)>([](LineColumn position) {
               return NewSetPositionTransformation(position.line,

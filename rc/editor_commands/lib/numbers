@@ -44,7 +44,7 @@ void AddToIntegerAtPosition(LineColumn position, int delta) {
   buffer.PushTransformationStack();
 
   string integer = IntegerAtPosition(position);
-  buffer.ApplyTransformation(TransformationGoToPosition(position));
+  buffer.ApplyTransformation(SetPositionTransformation(position));
 
   Modifiers modifiers = Modifiers();
   modifiers.set_repetitions(integer.size());

@@ -1047,12 +1047,12 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
                 NewCppCommand(editor_state->environment(),
                               L"// Navigate: Move to the end of line.\n"
                               L"CurrentBuffer().ApplyTransformation("
-                              L"TransformationGoToColumn(999999999999));"));
+                              L"SetColumnTransformation(999999999999));"));
   commands->Add({Terminal::CTRL_A},
                 NewCppCommand(editor_state->environment(),
                               L"// Navigate: Move to the beginning of line.\n"
                               L"CurrentBuffer().ApplyTransformation("
-                              L"TransformationGoToColumn(0));"));
+                              L"SetColumnTransformation(0));"));
   commands->Add({Terminal::CTRL_K},
                 NewCppCommand(editor_state->environment(),
                               L"// Edit: Delete to end of line.\n"
