@@ -19,6 +19,28 @@
 #include "src/wstring.h"
 
 namespace afc {
+namespace vm {
+template <>
+struct VMTypeMapper<editor::DeleteOptions*> {
+  static editor::DeleteOptions* get(Value* value) {
+    CHECK(value != nullptr);
+    CHECK(value->type.type == VMType::OBJECT_TYPE);
+    CHECK(value->type.object_type == L"DeleteTransformationBuilder");
+    CHECK(value->user_value != nullptr);
+    return static_cast<editor::DeleteOptions*>(value->user_value.get());
+  }
+  static Value::Ptr New(editor::DeleteOptions* value) {
+    return Value::NewObject(L"DeleteTransformationBuilder",
+                            std::shared_ptr<void>(value, [](void* v) {
+                              delete static_cast<editor::DeleteOptions*>(v);
+                            }));
+  }
+  static const VMType vmtype;
+};
+
+const VMType VMTypeMapper<editor::DeleteOptions*>::vmtype =
+    VMType::ObjectType(L"DeleteTransformationBuilder");
+}  // namespace vm
 namespace editor {
 
 std::ostream& operator<<(std::ostream& os, const DeleteOptions& options) {
@@ -404,6 +426,43 @@ std::unique_ptr<Transformation> NewDeleteTransformation(DeleteOptions options) {
 }
 
 void RegisterDeleteTransformation(vm::Environment* environment) {
+  auto builder = std::make_unique<ObjectType>(L"DeleteTransformationBuilder");
+
+  environment->Define(L"DeleteTransformationBuilder",
+                      vm::NewCallback(std::function<DeleteOptions*()>(
+                          []() { return new DeleteOptions(); })));
+
+  builder->AddField(L"set_modifiers",
+                    NewCallback(std::function<void(DeleteOptions*, Modifiers*)>(
+                        [](DeleteOptions* options, Modifiers* modifiers) {
+                          options->modifiers = *modifiers;
+                        })));
+
+  builder->AddField(L"set_copy_to_paste_buffer",
+                    vm::NewCallback(std::function<void(DeleteOptions*, bool)>(
+                        [](DeleteOptions* options, bool copy_to_paste_buffer) {
+                          options->copy_to_paste_buffer = copy_to_paste_buffer;
+                        })));
+
+  builder->AddField(
+      L"set_line_end_behavior",
+      vm::NewCallback(std::function<void(DeleteOptions*, std::wstring)>(
+          [](DeleteOptions* options, std::wstring value) {
+            if (value == L"stop") {
+              options->line_end_behavior =
+                  DeleteOptions::LineEndBehavior::kStop;
+            } else if (value == L"delete") {
+              options->line_end_behavior =
+                  DeleteOptions::LineEndBehavior::kDelete;
+            }
+          })));
+
+  builder->AddField(
+      L"build", vm::NewCallback(std::function<Transformation*(DeleteOptions*)>(
+                    [](DeleteOptions* options) {
+                      return NewDeleteTransformation(*options).release();
+                    })));
+
   environment->Define(L"TransformationDelete",
                       NewCallback(std::function<Transformation*(Modifiers*)>(
                           [](Modifiers* modifiers) {
