@@ -55,31 +55,39 @@ void Modifiers::Register(vm::Environment* environment) {
 
   modifiers_type->AddField(
       L"set_backwards",
-      vm::NewCallback(std::function<void(std::shared_ptr<Modifiers>)>(
-          [](std::shared_ptr<Modifiers> output) {
-            output->direction = BACKWARDS;
-          })));
+      vm::NewCallback(
+          std::function<std::shared_ptr<Modifiers>(std::shared_ptr<Modifiers>)>(
+              [](std::shared_ptr<Modifiers> output) {
+                output->direction = BACKWARDS;
+                return output;
+              })));
 
   modifiers_type->AddField(
       L"set_line",
-      vm::NewCallback(std::function<void(std::shared_ptr<Modifiers>)>(
-          [](std::shared_ptr<Modifiers> output) {
-            output->structure = StructureLine();
-          })));
+      vm::NewCallback(
+          std::function<std::shared_ptr<Modifiers>(std::shared_ptr<Modifiers>)>(
+              [](std::shared_ptr<Modifiers> output) {
+                output->structure = StructureLine();
+                return output;
+              })));
 
   modifiers_type->AddField(
       L"set_repetitions",
-      vm::NewCallback(std::function<void(std::shared_ptr<Modifiers>, int)>(
+      vm::NewCallback(std::function<std::shared_ptr<Modifiers>(
+                          std::shared_ptr<Modifiers>, int)>(
           [](std::shared_ptr<Modifiers> output, int repetitions) {
             output->repetitions = repetitions;
+            return output;
           })));
 
   modifiers_type->AddField(
       L"set_boundary_end_neighbor",
-      vm::NewCallback(std::function<void(std::shared_ptr<Modifiers>)>(
-          [](std::shared_ptr<Modifiers> output) {
-            output->boundary_end = LIMIT_NEIGHBOR;
-          })));
+      vm::NewCallback(
+          std::function<std::shared_ptr<Modifiers>(std::shared_ptr<Modifiers>)>(
+              [](std::shared_ptr<Modifiers> output) {
+                output->boundary_end = LIMIT_NEIGHBOR;
+                return output;
+              })));
 
   environment->DefineType(L"Modifiers", std::move(modifiers_type));
 }

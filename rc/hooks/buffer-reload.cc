@@ -27,12 +27,13 @@ void DeleteCurrentLine() {
   buffer.PushTransformationStack();
   buffer.ApplyTransformation(SetColumnTransformation(0));
 
-  Modifiers modifiers = Modifiers();
-  modifiers.set_line();
-  modifiers.set_repetitions(repetitions());
-  modifiers.set_boundary_end_neighbor();
   buffer.ApplyTransformation(
-      DeleteTransformationBuilder().set_modifiers(modifiers).build());
+      DeleteTransformationBuilder()
+          .set_modifiers(Modifiers()
+                             .set_line()
+                             .set_repetitions(repetitions())
+                             .set_boundary_end_neighbor())
+          .build());
 
   buffer.PopTransformationStack();
   set_repetitions(1);
