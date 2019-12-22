@@ -99,13 +99,6 @@ struct InsertOptions {
 std::unique_ptr<Transformation> NewInsertBufferTransformation(
     InsertOptions options);
 
-// If column is greater than the length of the line, goes to the end of the
-// line.
-unique_ptr<Transformation> NewGotoColumnTransformation(ColumnNumber column);
-unique_ptr<Transformation> NewGotoPositionTransformation(LineColumn position);
-unique_ptr<Transformation> NewGotoPositionTransformation(
-    std::optional<LineNumber>, ColumnNumber position);
-
 // Goes to a given position and applies a transformation.
 unique_ptr<Transformation> TransformationAtPosition(
     const LineColumn& position, unique_ptr<Transformation> transformation);

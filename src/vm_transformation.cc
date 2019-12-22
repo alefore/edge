@@ -6,6 +6,7 @@
 #include "src/char_buffer.h"
 #include "src/modifiers.h"
 #include "src/transformation.h"
+#include "src/transformation/goto_position.h"
 #include "src/transformation/noop.h"
 #include "src/transformation_delete.h"
 #include "src/vm/public/callbacks.h"
@@ -65,21 +66,6 @@ void RegisterTransformations(EditorState* editor,
   using vm::VMType;
   auto transformation = std::make_unique<ObjectType>(L"Transformation");
 
-  environment->Define(
-      L"TransformationGoToColumn",
-      NewCallback(std::function<Transformation*(int)>([](int column) {
-        return NewGotoPositionTransformation(std::nullopt, ColumnNumber(column))
-            .release();
-      })));
-
-  environment->Define(
-      L"TransformationGoToPosition",
-      NewCallback(
-          std::function<Transformation*(LineColumn)>([](LineColumn position) {
-            return NewGotoPositionTransformation(position.line, position.column)
-                .release();
-          })));
-
   environment->Define(L"TransformationDelete",
                       NewCallback(std::function<Transformation*(Modifiers*)>(
                           [](Modifiers* modifiers) {
@@ -128,6 +114,7 @@ void RegisterTransformations(EditorState* editor,
 
   environment->DefineType(L"InsertTextBuilder", std::move(insert_text_builder));
 
+  RegisterGotoPositionTransformation(environment);
   RegisterNoopTransformation(environment);
 }
 }  // namespace editor

@@ -47,6 +47,7 @@
 #include "src/substring.h"
 #include "src/terminal.h"
 #include "src/transformation.h"
+#include "src/transformation/goto_position.h"
 #include "src/transformation_delete.h"
 #include "src/transformation_move.h"
 #include "src/wstring.h"

@@ -10,6 +10,7 @@
 #include "src/editor.h"
 #include "src/line_marks.h"
 #include "src/transformation.h"
+#include "src/transformation/goto_position.h"
 
 namespace afc {
 namespace editor {

@@ -6,39 +6,11 @@
 #include "src/buffer_variables.h"
 #include "src/editor.h"
 #include "src/lazy_string_append.h"
+#include "src/transformation/goto_position.h"
 #include "src/transformation_delete.h"
 
 namespace afc::editor {
 namespace {
-class GotoPositionTransformation : public Transformation {
- public:
-  GotoPositionTransformation(std::optional<LineNumber> line,
-                             ColumnNumber column)
-      : line_(line), column_(column) {}
-
-  void Apply(Result* result) const override {
-    CHECK(result != nullptr);
-    CHECK(result->buffer != nullptr);
-    result->undo_stack->PushFront(NewGotoPositionTransformation(
-        line_.has_value() ? std::optional<LineNumber>(result->cursor.line)
-                          : std::nullopt,
-        result->cursor.column));
-    if (line_.has_value()) {
-      result->cursor.line = line_.value();
-    }
-    result->cursor.column = column_;
-    result->success = true;
-  }
-
-  std::unique_ptr<Transformation> Clone() const override {
-    return NewGotoPositionTransformation(line_, column_);
-  }
-
- private:
-  const std::optional<LineNumber> line_;
-  const ColumnNumber column_;
-};
-
 class InsertBufferTransformation : public Transformation {
  public:
   InsertBufferTransformation(InsertOptions options)
@@ -280,18 +252,6 @@ unique_ptr<Transformation> NewInsertBufferTransformation(
     InsertOptions insert_options) {
   return std::make_unique<InsertBufferTransformation>(
       std::move(insert_options));
-}
-
-// TODO: Get rid of this, just have everyone call the other directly.
-std::unique_ptr<Transformation> NewGotoPositionTransformation(
-    LineColumn position) {
-  return std::make_unique<GotoPositionTransformation>(position.line,
-                                                      position.column);
-}
-
-std::unique_ptr<Transformation> NewGotoPositionTransformation(
-    std::optional<LineNumber> line, ColumnNumber column) {
-  return std::make_unique<GotoPositionTransformation>(line, column);
 }
 
 std::unique_ptr<Transformation> ComposeTransformation(

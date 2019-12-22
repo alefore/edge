@@ -9,6 +9,7 @@
 #include "src/lazy_string_append.h"
 #include "src/modifiers.h"
 #include "src/transformation.h"
+#include "src/transformation/goto_position.h"
 #include "src/transformation_move.h"
 #include "src/vm/public/constant_expression.h"
 #include "src/vm/public/environment.h"
