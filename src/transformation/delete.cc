@@ -122,160 +122,6 @@ std::shared_ptr<OpenBuffer> GetDeletedTextBuffer(
   return delete_buffer;
 }
 
-class DeleteCharactersTransformation : public Transformation {
- public:
-  static std::unique_ptr<Transformation> New(LineColumn range_begin,
-                                             DeleteOptions options) {
-    return std::make_unique<DeleteCharactersTransformation>(range_begin,
-                                                            options);
-  }
-
-  DeleteCharactersTransformation(LineColumn range_begin, DeleteOptions options)
-      : range_begin_(range_begin), options_(options) {}
-
-  void Apply(Result* result) const override {
-    CHECK(result != nullptr);
-    CHECK(result->buffer != nullptr);
-    LOG(INFO) << "Starting DeleteCharactersTransformation: " << options_
-              << ", cursor: " << result->cursor;
-    if (options_.modifiers.repetitions == 0) {
-      VLOG(5) << "No repetitions.";
-      return;
-    }
-    result->buffer->AdjustLineColumn(&result->cursor);
-    const LineColumn adjusted_original_cursor = result->cursor;
-
-    NewSetPositionTransformation(range_begin_)->Apply(result);
-    result->buffer->AdjustLineColumn(&result->cursor);
-    const auto original_position = result->cursor;
-    if (options_.modifiers.direction == BACKWARDS) {
-      for (size_t i = 0; i < options_.modifiers.repetitions; i++) {
-        result->cursor = result->buffer->PositionBefore(result->cursor);
-      }
-    }
-
-    if (result->buffer->LineAt(result->cursor.line) == nullptr) {
-      LOG(INFO) << "Can't make progress: Empty line.";
-      result->made_progress = false;
-      return;
-    }
-
-    size_t chars_erased;
-    LineNumber line_end;
-    if (options_.line_end_behavior == DeleteOptions::LineEndBehavior::kDelete) {
-      line_end = SkipLinesToErase(
-          result->buffer,
-          result->cursor.column.column + options_.modifiers.repetitions,
-          result->cursor.line, &chars_erased);
-    } else {
-      line_end = result->cursor.line;
-      chars_erased =
-          result->buffer->LineAt(result->cursor.line)->EndColumn().column + 1;
-    }
-    LOG(INFO) << "Erasing from line " << result->cursor.line << " to line "
-              << line_end << " would erase " << chars_erased << " characters.";
-    chars_erased -= result->cursor.column.column;
-
-    // The amount of characters that should be erased from the current line. If
-    // the line is the current line, this already includes characters in the
-    // prefix.
-    ColumnNumber chars_erase_line =
-        result->buffer->LineAt(line_end)->EndColumn() + ColumnNumberDelta(1) -
-        min(result->buffer->LineAt(line_end)->EndColumn().ToDelta(),
-            (options_.modifiers.repetitions < chars_erased
-                 ? ColumnNumberDelta(chars_erased -
-                                     options_.modifiers.repetitions)
-                 : ColumnNumberDelta()));
-    if (chars_erase_line > result->buffer->LineAt(line_end)->EndColumn()) {
-      LOG(INFO) << "Adjusting for end of buffer.";
-      CHECK_EQ(chars_erase_line, result->buffer->LineAt(line_end)->EndColumn() +
-                                     ColumnNumberDelta(1));
-      chars_erase_line = ColumnNumber(0);
-      if (line_end >= result->buffer->EndLine() ||
-          options_.line_end_behavior == DeleteOptions::LineEndBehavior::kStop) {
-        chars_erase_line = result->buffer->LineAt(line_end)->EndColumn();
-      } else {
-        ++line_end;
-      }
-    }
-    LOG(INFO) << "Characters to erase from current line: " << chars_erase_line
-              << ", options: " << options_ << ", chars_erased: " << chars_erased
-              << ", actual length: "
-              << result->buffer->LineAt(line_end)->EndColumn().ToDelta();
-
-    result->success = chars_erased >= options_.modifiers.repetitions;
-    result->made_progress =
-        chars_erase_line.ToDelta() + ColumnNumberDelta(chars_erased) >
-        ColumnNumberDelta(0);
-
-    shared_ptr<OpenBuffer> delete_buffer = GetDeletedTextBuffer(
-        result->buffer, result->cursor, line_end, chars_erase_line);
-    if (options_.copy_to_paste_buffer &&
-        result->mode == Transformation::Result::Mode::kFinal) {
-      VLOG(5) << "Preparing delete buffer.";
-      InsertOptions insert_options;
-      insert_options.buffer_to_insert = delete_buffer;
-      result->delete_buffer->ApplyToCursors(TransformationAtPosition(
-          result->delete_buffer->position(),
-          NewInsertBufferTransformation(std::move(insert_options))));
-    }
-
-    if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS &&
-        result->mode == Transformation::Result::Mode::kFinal) {
-      LOG(INFO) << "Not actually deleting region.";
-      result->cursor = original_position;
-      return;
-    }
-
-    LOG(INFO) << "Storing new line (at position " << line_end << ").";
-    result->buffer->DeleteRange(Range(
-        result->cursor, LineColumn(line_end, ColumnNumber(chars_erase_line))));
-
-    result->modified_buffer = true;
-
-    {
-      InsertOptions insert_options;
-      insert_options.buffer_to_insert = delete_buffer;
-      insert_options.final_position = options_.modifiers.direction == FORWARDS
-                                          ? InsertOptions::FinalPosition::kStart
-                                          : InsertOptions::FinalPosition::kEnd;
-      result->undo_stack->PushFront(
-          NewInsertBufferTransformation(std::move(insert_options)));
-      result->undo_stack->PushFront(
-          NewSetPositionTransformation(result->cursor));
-    }
-
-    if (result->mode == Transformation::Result::Mode::kPreview) {
-      LOG(INFO) << "Inserting preview at: " << result->cursor << " "
-                << delete_buffer->contents()->CountCharacters()
-                << " options: " << options_.modifiers;
-      InsertOptions insert_options;
-      insert_options.modifiers_set = {LineModifier::UNDERLINE,
-                                      LineModifier::RED};
-      insert_options.buffer_to_insert = delete_buffer;
-      insert_options.final_position =
-          options_.modifiers.direction == BACKWARDS
-              ? InsertOptions::FinalPosition::kEnd
-              : InsertOptions::FinalPosition::kStart;
-      NewInsertBufferTransformation(std::move(insert_options))->Apply(result);
-    }
-
-    if (options_.modifiers.direction == BACKWARDS &&
-        (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS ||
-         result->mode == Transformation::Result::Mode::kPreview)) {
-      NewSetPositionTransformation(adjusted_original_cursor)->Apply(result);
-    }
-  }
-
-  unique_ptr<Transformation> Clone() const override {
-    return DeleteCharactersTransformation::New(range_begin_, options_);
-  }
-
- private:
-  const LineColumn range_begin_;
-  const DeleteOptions options_;
-};
-
 // May also call the callback in the line (EdgeLineDeleteHandler).
 //
 // TODO: Move the EdgeLineDeleteHandler logic to happen in DeleteCharacter?
@@ -330,6 +176,8 @@ class DeleteTransformation : public Transformation {
     CHECK(result->buffer != nullptr);
 
     result->buffer->AdjustLineColumn(&result->cursor);
+    const LineColumn adjusted_original_cursor = result->cursor;
+
     Range range =
         result->buffer->FindPartialRange(options_.modifiers, result->cursor);
     LOG(INFO) << "Starting at " << result->cursor << ", bound region at "
@@ -341,15 +189,12 @@ class DeleteTransformation : public Transformation {
 
     CHECK_LE(range.begin, range.end);
 
-    DeleteOptions delete_options;
-    delete_options.modifiers.repetitions = 0;
-    delete_options.copy_to_paste_buffer = options_.copy_to_paste_buffer;
-    delete_options.modifiers.delete_type = options_.modifiers.delete_type;
+    size_t repetitions = 0;
 
     if (range.begin.line < range.end.line) {
       LOG(INFO) << "Deleting superfluous lines (from " << range << ")";
       while (range.begin.line < range.end.line) {
-        delete_options.modifiers.repetitions +=
+        repetitions +=
             ComputeLineDeletion(range.begin, options_.modifiers.delete_type,
                                 result->buffer, result->mode);
         range.begin.line++;
@@ -360,12 +205,114 @@ class DeleteTransformation : public Transformation {
 
     CHECK_LE(range.begin, range.end);
     CHECK_LE(range.begin.column, range.end.column);
-    delete_options.modifiers.repetitions +=
-        (range.end.column - range.begin.column).column_delta;
+    repetitions += (range.end.column - range.begin.column).column_delta;
     LOG(INFO) << "Deleting characters at: " << range.begin << ": "
-              << options_.modifiers.repetitions;
-    DeleteCharactersTransformation::New(original_range_begin, delete_options)
-        ->Apply(result);
+              << repetitions;
+
+    if (repetitions == 0) {
+      VLOG(5) << "No repetitions.";
+      return;
+    }
+
+    result->buffer->AdjustLineColumn(&result->cursor);
+    const auto original_position = result->cursor;
+    NewSetPositionTransformation(original_range_begin)->Apply(result);
+    result->buffer->AdjustLineColumn(&result->cursor);
+    if (result->buffer->LineAt(result->cursor.line) == nullptr) {
+      LOG(INFO) << "Can't make progress: Empty line.";
+      result->made_progress = false;
+      return;
+    }
+
+    size_t chars_erased;
+    LineNumber line_end = SkipLinesToErase(
+        result->buffer, result->cursor.column.column + repetitions,
+        result->cursor.line, &chars_erased);
+    LOG(INFO) << "Erasing from line " << result->cursor.line << " to line "
+              << line_end << " would erase " << chars_erased << " characters.";
+    chars_erased -= result->cursor.column.column;
+
+    // The amount of characters that should be erased from the current line. If
+    // the line is the current line, this already includes characters in the
+    // prefix.
+    ColumnNumber chars_erase_line =
+        result->buffer->LineAt(line_end)->EndColumn() + ColumnNumberDelta(1) -
+        min(result->buffer->LineAt(line_end)->EndColumn().ToDelta(),
+            (repetitions < chars_erased
+                 ? ColumnNumberDelta(chars_erased - repetitions)
+                 : ColumnNumberDelta()));
+    if (chars_erase_line > result->buffer->LineAt(line_end)->EndColumn()) {
+      LOG(INFO) << "Adjusting for end of buffer.";
+      CHECK_EQ(chars_erase_line, result->buffer->LineAt(line_end)->EndColumn() +
+                                     ColumnNumberDelta(1));
+      chars_erase_line = ColumnNumber(0);
+      if (line_end >= result->buffer->EndLine()) {
+        chars_erase_line = result->buffer->LineAt(line_end)->EndColumn();
+      } else {
+        ++line_end;
+      }
+    }
+    LOG(INFO) << "Characters to erase from current line: " << chars_erase_line
+              << ", chars_erased: " << chars_erased << ", actual length: "
+              << result->buffer->LineAt(line_end)->EndColumn().ToDelta();
+
+    result->success = chars_erased >= repetitions;
+    result->made_progress =
+        chars_erase_line.ToDelta() + ColumnNumberDelta(chars_erased) >
+        ColumnNumberDelta(0);
+
+    shared_ptr<OpenBuffer> delete_buffer = GetDeletedTextBuffer(
+        result->buffer, result->cursor, line_end, chars_erase_line);
+    if (options_.copy_to_paste_buffer &&
+        result->mode == Transformation::Result::Mode::kFinal) {
+      VLOG(5) << "Preparing delete buffer.";
+      InsertOptions insert_options;
+      insert_options.buffer_to_insert = delete_buffer;
+      result->delete_buffer->ApplyToCursors(TransformationAtPosition(
+          result->delete_buffer->position(),
+          NewInsertBufferTransformation(std::move(insert_options))));
+    }
+
+    if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS &&
+        result->mode == Transformation::Result::Mode::kFinal) {
+      LOG(INFO) << "Not actually deleting region.";
+      result->cursor = original_position;
+      return;
+    }
+
+    LOG(INFO) << "Storing new line (at position " << line_end << ").";
+    result->buffer->DeleteRange(Range(
+        result->cursor, LineColumn(line_end, ColumnNumber(chars_erase_line))));
+
+    result->modified_buffer = true;
+
+    {
+      InsertOptions insert_options;
+      insert_options.buffer_to_insert = delete_buffer;
+      insert_options.final_position = options_.modifiers.direction == FORWARDS
+                                          ? InsertOptions::FinalPosition::kStart
+                                          : InsertOptions::FinalPosition::kEnd;
+      result->undo_stack->PushFront(
+          NewInsertBufferTransformation(std::move(insert_options)));
+      result->undo_stack->PushFront(
+          NewSetPositionTransformation(result->cursor));
+    }
+
+    if (result->mode == Transformation::Result::Mode::kPreview) {
+      LOG(INFO) << "Inserting preview at: " << result->cursor << " "
+                << delete_buffer->contents()->CountCharacters();
+      InsertOptions insert_options;
+      insert_options.modifiers_set = {LineModifier::UNDERLINE,
+                                      LineModifier::RED};
+      insert_options.buffer_to_insert = delete_buffer;
+      insert_options.final_position = InsertOptions::FinalPosition::kStart;
+      NewInsertBufferTransformation(std::move(insert_options))->Apply(result);
+    }
+
+    if (options_.modifiers.direction == BACKWARDS &&
+        result->mode == Transformation::Result::Mode::kPreview) {
+      NewSetPositionTransformation(adjusted_original_cursor)->Apply(result);
+    }
   }
 
   unique_ptr<Transformation> Clone() const override {
@@ -375,7 +322,6 @@ class DeleteTransformation : public Transformation {
  private:
   const DeleteOptions options_;
 };
-
 }  // namespace
 
 std::unique_ptr<Transformation> NewDeleteTransformation(DeleteOptions options) {
