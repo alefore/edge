@@ -1,6 +1,7 @@
 #include "src/transformation/insert.h"
 
 #include "src/char_buffer.h"
+#include "src/server.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/stack.h"
 #include "src/vm_transformation.h"
@@ -36,6 +37,8 @@ class InsertBufferTransformation : public Transformation {
         buffer_to_insert_length_(buffer_to_insert_length) {
     CHECK(options_.buffer_to_insert != nullptr);
   }
+
+  std::wstring Serialize() const { return options_.Serialize() + L".build()"; }
 
   void Apply(Result* result) const override {
     CHECK(result != nullptr);
@@ -97,6 +100,18 @@ class InsertBufferTransformation : public Transformation {
 };
 }  // namespace
 
+std::wstring InsertOptions::Serialize() const {
+  std::wstring output = L"InsertTransformationBuilder()";
+  output +=
+      L".set_text(" +
+      CppEscapeString(buffer_to_insert->LineAt(LineNumber(0))->ToString()) +
+      L")";
+  output += L".set_modifiers(" + modifiers.Serialize() + L")";
+  if (position.has_value()) {
+    output += L".set_position(" + position.value().Serialize() + L")";
+  }
+  return output;
+}
 std::unique_ptr<Transformation> NewInsertBufferTransformation(
     InsertOptions insert_options) {
   size_t buffer_to_insert_length =

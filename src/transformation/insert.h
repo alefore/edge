@@ -8,6 +8,8 @@
 
 namespace afc::editor {
 struct InsertOptions {
+  std::wstring Serialize() const;
+
   std::shared_ptr<const OpenBuffer> buffer_to_insert;
 
   Modifiers modifiers;
@@ -31,6 +33,7 @@ struct InsertOptions {
 
 std::unique_ptr<Transformation> NewInsertBufferTransformation(
     InsertOptions options);
-void RegisterInsertTransformation(EditorState* editor, vm::Environment* environment);
+void RegisterInsertTransformation(EditorState* editor,
+                                  vm::Environment* environment);
 }  // namespace afc::editor
 #endif  // __AFC_EDITOR_TRANSFORMATION_INSERT_H__
