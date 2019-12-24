@@ -51,10 +51,10 @@ void AddToIntegerAtPosition(LineColumn position, int delta) {
   buffer.ApplyTransformation(
       DeleteTransformationBuilder().set_modifiers(modifiers).build());
 
-  InsertTextBuilder insertion = InsertTextBuilder();
-  insertion.set_text((integer.toint() + delta).tostring());
-  insertion.set_position(position);
-  buffer.ApplyTransformation(insertion.build());
+  buffer.ApplyTransformation(InsertTransformationBuilder()
+                                 .set_position(position)
+                                 .set_text((integer.toint() + delta).tostring())
+                                 .build());
 
   buffer.PopTransformationStack();
 }

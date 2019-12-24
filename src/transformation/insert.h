@@ -31,5 +31,6 @@ struct InsertOptions {
 
 std::unique_ptr<Transformation> NewInsertBufferTransformation(
     InsertOptions options);
+void RegisterInsertTransformation(EditorState* editor, vm::Environment* environment);
 }  // namespace afc::editor
 #endif  // __AFC_EDITOR_TRANSFORMATION_INSERT_H__

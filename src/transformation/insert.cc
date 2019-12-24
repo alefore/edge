@@ -1,18 +1,35 @@
 #include "src/transformation/insert.h"
 
+#include "src/char_buffer.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/stack.h"
 #include "src/vm_transformation.h"
 
-namespace afc::editor {
+namespace afc {
+namespace vm {
+template <>
+struct VMTypeMapper<std::shared_ptr<editor::InsertOptions>> {
+  static std::shared_ptr<editor::InsertOptions> get(Value* value) {
+    CHECK(value != nullptr);
+    CHECK(value->type.type == VMType::OBJECT_TYPE);
+    CHECK(value->type.object_type == L"InsertTransformationBuilder");
+    CHECK(value->user_value != nullptr);
+    return std::static_pointer_cast<editor::InsertOptions>(value->user_value);
+  }
+  static Value::Ptr New(std::shared_ptr<editor::InsertOptions> value) {
+    return Value::NewObject(L"InsertTransformationBuilder",
+                            std::shared_ptr<void>(value, value.get()));
+  }
+  static const VMType vmtype;
+};
+
+const VMType VMTypeMapper<std::shared_ptr<editor::InsertOptions>>::vmtype =
+    VMType::ObjectType(L"InsertTransformationBuilder");
+}  // namespace vm
+namespace editor {
 namespace {
 class InsertBufferTransformation : public Transformation {
  public:
-  InsertBufferTransformation(InsertOptions options)
-      : InsertBufferTransformation(
-            std::move(options),
-            options_.buffer_to_insert->contents()->CountCharacters()) {}
-
   InsertBufferTransformation(InsertOptions options,
                              size_t buffer_to_insert_length)
       : options_(std::move(options)),
@@ -82,7 +99,69 @@ class InsertBufferTransformation : public Transformation {
 
 std::unique_ptr<Transformation> NewInsertBufferTransformation(
     InsertOptions insert_options) {
-  return std::make_unique<InsertBufferTransformation>(
-      std::move(insert_options));
+  size_t buffer_to_insert_length =
+      insert_options.buffer_to_insert->contents()->CountCharacters();
+  return std::make_unique<InsertBufferTransformation>(std::move(insert_options),
+                                                      buffer_to_insert_length);
 }
-}  // namespace afc::editor
+
+void RegisterInsertTransformation(EditorState* editor,
+                                  vm::Environment* environment) {
+  auto builder = std::make_unique<ObjectType>(L"InsertTransformationBuilder");
+
+  environment->Define(
+      L"InsertTransformationBuilder",
+      vm::NewCallback(std::function<std::shared_ptr<InsertOptions>()>(
+          [] { return std::make_shared<InsertOptions>(); })));
+
+  builder->AddField(
+      L"set_text",
+      vm::NewCallback(std::function<std::shared_ptr<InsertOptions>(
+                          std::shared_ptr<InsertOptions>, wstring)>(
+          [editor](std::shared_ptr<InsertOptions> options, wstring text) {
+            CHECK(options != nullptr);
+            auto buffer_to_insert =
+                std::make_shared<OpenBuffer>(editor, L"- text inserted");
+            // TODO: Handle line breaks in text?
+            buffer_to_insert->AppendToLastLine(NewLazyString(std::move(text)));
+            options->buffer_to_insert = buffer_to_insert;
+            return options;
+          })));
+
+  builder->AddField(
+      L"set_modifiers",
+      vm::NewCallback(
+          std::function<std::shared_ptr<InsertOptions>(
+              std::shared_ptr<InsertOptions>, std::shared_ptr<Modifiers>)>(
+              [editor](std::shared_ptr<InsertOptions> options,
+                       std::shared_ptr<Modifiers> modifiers) {
+                CHECK(options != nullptr);
+                CHECK(modifiers != nullptr);
+
+                options->modifiers = *modifiers;
+                return options;
+              })));
+
+  builder->AddField(
+      L"set_position",
+      NewCallback(std::function<std::shared_ptr<InsertOptions>(
+                      std::shared_ptr<InsertOptions>, LineColumn)>(
+          [editor](std::shared_ptr<InsertOptions> options,
+                   LineColumn position) {
+            CHECK(options != nullptr);
+            options->position = position;
+            return options;
+          })));
+
+  builder->AddField(
+      L"build",
+      NewCallback(
+          std::function<Transformation*(std::shared_ptr<InsertOptions>)>(
+              [editor](std::shared_ptr<InsertOptions> options) {
+                return NewInsertBufferTransformation(*options).release();
+              })));
+
+  environment->DefineType(L"InsertTransformationBuilder", std::move(builder));
+}
+}  // namespace editor
+}  // namespace afc
