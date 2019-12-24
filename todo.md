@@ -48,6 +48,8 @@ Add "pipe" command: select the region (similar to delete: line, paragraph, buffe
 
   * Make sure that the section with the actual cursor is shown.
 
+  * s+ and s-: Should support multiple cursors.
+
 ### Autocomplete
 
 Add an AutoComplete mode that autocompletes based on the path.
