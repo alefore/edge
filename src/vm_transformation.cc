@@ -39,9 +39,8 @@ Value::Ptr VMTypeMapper<editor::Transformation*>::New(
 namespace editor {
 void RegisterTransformations(EditorState* editor,
                              vm::Environment* environment) {
-  auto transformation = std::make_unique<vm::ObjectType>(L"Transformation");
-
-  environment->DefineType(L"Transformation", std::move(transformation));
+  environment->DefineType(L"Transformation",
+                          std::make_unique<vm::ObjectType>(L"Transformation"));
 
   RegisterInsertTransformation(editor, environment);
   RegisterDeleteTransformation(environment);
