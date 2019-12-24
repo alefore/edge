@@ -30,11 +30,8 @@ struct VMTypeMapper<std::shared_ptr<editor::DeleteOptions>> {
     return std::static_pointer_cast<editor::DeleteOptions>(value->user_value);
   }
   static Value::Ptr New(std::shared_ptr<editor::DeleteOptions> value) {
-    // TODO: Use the aliasing shared_ptr constructor instead?
     return Value::NewObject(L"DeleteTransformationBuilder",
-                            std::shared_ptr<void>(value.get(), [value](void*) {
-                              /* Noting. */
-                            }));
+                            std::shared_ptr<void>(value, value.get()));
   }
   static const VMType vmtype;
 };
@@ -43,7 +40,6 @@ const VMType VMTypeMapper<std::shared_ptr<editor::DeleteOptions>>::vmtype =
     VMType::ObjectType(L"DeleteTransformationBuilder");
 }  // namespace vm
 namespace editor {
-
 std::ostream& operator<<(std::ostream& os, const DeleteOptions& options) {
   os << "[DeleteOptions: copy_to_paste_buffer:" << options.copy_to_paste_buffer
      << ", modifiers:" << options.modifiers << "]";

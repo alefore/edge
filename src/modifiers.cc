@@ -125,11 +125,8 @@ VMTypeMapper<std::shared_ptr<editor::Modifiers>>::get(Value* value) {
 /* static */
 Value::Ptr VMTypeMapper<std::shared_ptr<editor::Modifiers>>::New(
     std::shared_ptr<editor::Modifiers> value) {
-  // TODO: Use aliasing constructor.
   return Value::NewObject(L"Modifiers",
-                          std::shared_ptr<void>(value.get(), [value](void*) {
-                            /* Noting. */
-                          }));
+                          std::shared_ptr<void>(value, value.get()));
 }
 
 const VMType VMTypeMapper<std::shared_ptr<editor::Modifiers>>::vmtype =
