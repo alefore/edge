@@ -148,6 +148,8 @@ src/tracker.cc \
 src/tracker.h \
 src/transformation/delete.cc \
 src/transformation/delete.h \
+src/transformation/insert.cc \
+src/transformation/insert.h \
 src/transformation/noop.cc \
 src/transformation/noop.h \
 src/transformation/set_position.cc \

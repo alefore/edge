@@ -18,6 +18,7 @@
 #include "src/predictor.h"
 #include "src/terminal.h"
 #include "src/transformation/delete.h"
+#include "src/transformation/insert.h"
 #include "src/wstring.h"
 
 namespace afc {

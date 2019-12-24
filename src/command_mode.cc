@@ -48,6 +48,7 @@
 #include "src/terminal.h"
 #include "src/transformation.h"
 #include "src/transformation/delete.h"
+#include "src/transformation/insert.h"
 #include "src/transformation/set_position.h"
 #include "src/transformation/stack.h"
 #include "src/transformation_move.h"

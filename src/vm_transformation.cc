@@ -7,6 +7,7 @@
 #include "src/modifiers.h"
 #include "src/transformation.h"
 #include "src/transformation/delete.h"
+#include "src/transformation/insert.h"
 #include "src/transformation/noop.h"
 #include "src/transformation/set_position.h"
 #include "src/vm/public/callbacks.h"
