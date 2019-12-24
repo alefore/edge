@@ -39,20 +39,16 @@ class InsertBufferTransformation : public Transformation {
 
     size_t chars_inserted =
         buffer_to_insert_length_ * options_.modifiers.repetitions;
-    DeleteOptions delete_options;
-    delete_options.modifiers.repetitions = chars_inserted;
-    delete_options.copy_to_paste_buffer = false;
     result->undo_stack->PushFront(TransformationAtPosition(
-        start_position, NewDeleteTransformation(delete_options)));
+        start_position,
+        NewDeleteTransformation(GetCharactersDeleteOptions(chars_inserted))));
 
     if (options_.modifiers.insertion == Modifiers::REPLACE) {
       Result current_result(result->buffer);
-      DeleteOptions delete_options;
-      delete_options.modifiers.repetitions = chars_inserted;
-      delete_options.copy_to_paste_buffer = false;
+      DeleteOptions delete_options = GetCharactersDeleteOptions(chars_inserted);
       delete_options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
-      TransformationAtPosition(position,
-                               NewDeleteTransformation(delete_options))
+      TransformationAtPosition(
+          position, NewDeleteTransformation(std::move(delete_options)))
           ->Apply(&current_result);
       result->undo_stack->PushFront(std::move(current_result.undo_stack));
     }
@@ -72,6 +68,13 @@ class InsertBufferTransformation : public Transformation {
   }
 
  private:
+  static DeleteOptions GetCharactersDeleteOptions(size_t repetitions) {
+    DeleteOptions output;
+    output.modifiers.repetitions = repetitions;
+    output.copy_to_paste_buffer = false;
+    return output;
+  }
+
   const InsertOptions options_;
   const size_t buffer_to_insert_length_;
 };
