@@ -9,9 +9,14 @@ namespace {
 class InsertBufferTransformation : public Transformation {
  public:
   InsertBufferTransformation(InsertOptions options)
+      : InsertBufferTransformation(
+            std::move(options),
+            options_.buffer_to_insert->contents()->CountCharacters()) {}
+
+  InsertBufferTransformation(InsertOptions options,
+                             size_t buffer_to_insert_length)
       : options_(std::move(options)),
-        buffer_to_insert_length_(
-            options_.buffer_to_insert->contents()->CountCharacters()) {
+        buffer_to_insert_length_(buffer_to_insert_length) {
     CHECK(options_.buffer_to_insert != nullptr);
   }
 
@@ -62,12 +67,13 @@ class InsertBufferTransformation : public Transformation {
   }
 
   unique_ptr<Transformation> Clone() const override {
-    return NewInsertBufferTransformation(options_);
+    return std::make_unique<InsertBufferTransformation>(
+        options_, buffer_to_insert_length_);
   }
 
  private:
-  InsertOptions options_;
-  size_t buffer_to_insert_length_;
+  const InsertOptions options_;
+  const size_t buffer_to_insert_length_;
 };
 }  // namespace
 
