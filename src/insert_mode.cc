@@ -23,6 +23,7 @@ extern "C" {
 #include "src/substring.h"
 #include "src/terminal.h"
 #include "src/transformation.h"
+#include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/insert.h"
 #include "src/transformation/set_position.h"
@@ -36,28 +37,19 @@ extern "C" {
 
 namespace afc::editor {
 namespace {
-class NewLineTransformation : public Transformation {
-  void Apply(Result* result) const override {
-    CHECK(result != nullptr);
-    result->buffer->AdjustLineColumn(&result->cursor);
-    const ColumnNumber column = result->cursor.column;
-    auto line = result->buffer->LineAt(result->cursor.line);
-    if (line == nullptr) {
-      result->made_progress = false;
+class NewLineTransformation : public CompositeTransformation {
+  std::wstring Serialize() const override { return L"NewLineTransformation()"; }
+  void Apply(Input input) const override {
+    const ColumnNumber column = input.position.column;
+    auto line = input.buffer->LineAt(input.position.line);
+    if (line == nullptr) return;
+    if (input.buffer->Read(buffer_variables::atomic_lines) &&
+        column != ColumnNumber(0) && column != line->EndColumn())
       return;
-    }
-
-    if (result->buffer->Read(buffer_variables::atomic_lines) &&
-        column != ColumnNumber(0) && column != line->EndColumn()) {
-      result->made_progress = false;
-      return;
-    }
-
     const wstring& line_prefix_characters(
-        result->buffer->Read(buffer_variables::line_prefix_characters));
-    ColumnNumber prefix_end = ColumnNumber(0);
-    if (line != nullptr &&
-        !result->buffer->Read(buffer_variables::paste_mode)) {
+        input.buffer->Read(buffer_variables::line_prefix_characters));
+    ColumnNumber prefix_end;
+    if (!input.buffer->Read(buffer_variables::paste_mode)) {
       while (prefix_end < column &&
              (line_prefix_characters.find(line->get(prefix_end)) !=
               line_prefix_characters.npos)) {
@@ -65,49 +57,43 @@ class NewLineTransformation : public Transformation {
       }
     }
 
-    auto transformation = std::make_unique<TransformationStack>();
     {
-      auto buffer_to_insert = std::make_shared<OpenBuffer>(
-          result->buffer->editor(), L"- text inserted");
+      auto buffer_to_insert =
+          std::make_shared<OpenBuffer>(input.editor, L"- text inserted");
       buffer_to_insert->AppendRawLine(std::make_shared<Line>(
           Line::Options(*line).DeleteSuffix(prefix_end)));
       InsertOptions insert_options;
       insert_options.buffer_to_insert = buffer_to_insert;
-      transformation->PushBack(
-          NewInsertBufferTransformation(std::move(insert_options)));
+      input.push(NewInsertBufferTransformation(std::move(insert_options)));
     }
 
-    transformation->PushBack(NewSetPositionTransformation(result->cursor));
-    transformation->PushBack(NewDeleteSuffixSuperfluousCharacters());
-
-    transformation->PushBack(NewSetPositionTransformation(
-        LineColumn(result->cursor.line + LineNumberDelta(1), prefix_end)));
-    return transformation->Apply(result);
+    input.push(NewSetPositionTransformation(input.position));
+    input.push(NewDeleteSuffixSuperfluousCharacters());
+    input.push(NewSetPositionTransformation(
+        LineColumn(input.position.line + LineNumberDelta(1), prefix_end)));
   }
 
-  unique_ptr<Transformation> Clone() const override {
+  unique_ptr<CompositeTransformation> Clone() const override {
     return std::make_unique<NewLineTransformation>();
   }
 };
 
-class InsertEmptyLineTransformation : public Transformation {
+class InsertEmptyLineTransformation : public CompositeTransformation {
  public:
   InsertEmptyLineTransformation(Direction direction) : direction_(direction) {}
-
-  void Apply(Result* result) const override {
-    CHECK(result != nullptr);
-    CHECK(result->buffer != nullptr);
+  std::wstring Serialize() const override { return L""; }
+  void Apply(Input input) const override {
     if (direction_ == BACKWARDS) {
-      result->cursor.line++;
+      ++input.position.line;
     }
-    result->cursor.column = ColumnNumber(0);
-    result->buffer->AdjustLineColumn(&result->cursor);
-    return ComposeTransformation(std::make_unique<NewLineTransformation>(),
-                                 NewSetPositionTransformation(result->cursor))
-        ->Apply(result);
+    input.push(
+        NewSetPositionTransformation(input.position.line, ColumnNumber(0)));
+    input.push(NewTransformation(Modifiers(),
+                                 std::make_unique<NewLineTransformation>()));
+    input.push(NewSetPositionTransformation(input.position));
   }
 
-  std::unique_ptr<Transformation> Clone() const override {
+  std::unique_ptr<CompositeTransformation> Clone() const override {
     return std::make_unique<InsertEmptyLineTransformation>(direction_);
   }
 
@@ -817,7 +803,8 @@ void EnterInsertMode(InsertModeOptions options) {
   if (!options.new_line_handler) {
     auto buffer = options.buffer;
     options.new_line_handler = [buffer, editor_state]() {
-      buffer->ApplyToCursors(std::make_unique<NewLineTransformation>());
+      buffer->ApplyToCursors(NewTransformation(
+          Modifiers(), std::make_unique<NewLineTransformation>()));
     };
   }
 
@@ -844,9 +831,9 @@ void EnterInsertMode(InsertModeOptions options) {
     options.buffer->CheckPosition();
     options.buffer->PushTransformationStack();
     options.buffer->PushTransformationStack();
-    options.buffer->ApplyToCursors(
-        std::make_unique<InsertEmptyLineTransformation>(
-            editor_state->direction()));
+    options.buffer->ApplyToCursors(NewTransformation(
+        Modifiers(), std::make_unique<InsertEmptyLineTransformation>(
+                         editor_state->direction())));
     EnterInsertCharactersMode(options);
   }
   editor_state->ResetDirection();

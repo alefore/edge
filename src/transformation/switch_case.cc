@@ -2,6 +2,7 @@
 
 #include "src/buffer.h"
 #include "src/char_buffer.h"
+#include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/insert.h"
 #include "src/transformation/set_position.h"
@@ -10,26 +11,21 @@
 
 namespace afc::editor {
 namespace {
-class SwitchCaseTransformation : public Transformation {
+class SwitchCaseTransformation : public CompositeTransformation {
  public:
-  SwitchCaseTransformation(Modifiers modifiers)
-      : modifiers_(std::move(modifiers)) {}
+  std::wstring Serialize() const override {
+    return L"SwitchCaseTransformation();";
+  }
 
-  void Apply(Result* result) const override {
-    CHECK(result != nullptr);
-    CHECK(result->buffer != nullptr);
-    result->buffer->AdjustLineColumn(&result->cursor);
-    Range range = result->buffer->FindPartialRange(modifiers_, result->cursor);
-    CHECK_LE(range.begin, range.end);
-    TransformationStack stack;
-    stack.PushBack(NewSetPositionTransformation(range.begin));
-    auto buffer_to_insert = std::make_shared<OpenBuffer>(
-        result->buffer->editor(), L"- text inserted");
-    VLOG(5) << "Switch Case Transformation at " << result->cursor << ": "
-            << result->buffer->editor()->modifiers() << ": Range: " << range;
-    LineColumn i = range.begin;
-    while (i < range.end) {
-      auto line = result->buffer->LineAt(i.line);
+  void Apply(Input input) const override {
+    input.push(NewSetPositionTransformation(input.range.begin));
+    auto buffer_to_insert =
+        std::make_shared<OpenBuffer>(input.editor, L"- text inserted");
+    VLOG(5) << "Switch Case Transformation at " << input.position << ": "
+            << input.modifiers << ": Range: " << input.range;
+    LineColumn i = input.range.begin;
+    while (i < input.range.end) {
+      auto line = input.buffer->LineAt(i.line);
       if (line == nullptr) {
         break;
       }
@@ -48,38 +44,34 @@ class SwitchCaseTransformation : public Transformation {
     options.copy_to_paste_buffer = false;
     options.modifiers.repetitions =
         buffer_to_insert->contents()->CountCharacters();
-    stack.PushBack(std::make_unique<TransformationWithMode>(
+    input.push(std::make_unique<TransformationWithMode>(
         Transformation::Result::Mode::kFinal,
         NewDeleteTransformation(options)));
 
-    auto original_position = result->cursor;
     InsertOptions insert_options;
     insert_options.buffer_to_insert = buffer_to_insert;
-    if (modifiers_.direction == BACKWARDS) {
+    if (input.modifiers.direction == BACKWARDS) {
       insert_options.final_position = InsertOptions::FinalPosition::kStart;
     }
-    if (result->mode == Transformation::Result::Mode::kPreview) {
+    if (input.mode == Transformation::Result::Mode::kPreview) {
       insert_options.modifiers_set = {LineModifier::UNDERLINE,
                                       LineModifier::BLUE};
     }
-    stack.PushBack(NewInsertBufferTransformation(std::move(insert_options)));
-    if (result->mode == Transformation::Result::Mode::kPreview) {
-      stack.PushBack(NewSetPositionTransformation(original_position));
+    input.push(NewInsertBufferTransformation(std::move(insert_options)));
+    if (input.mode == Transformation::Result::Mode::kPreview) {
+      input.push(NewSetPositionTransformation(input.position));
     }
-    stack.Apply(result);
   }
 
-  std::unique_ptr<Transformation> Clone() const override {
-    return std::make_unique<SwitchCaseTransformation>(modifiers_);
+  std::unique_ptr<CompositeTransformation> Clone() const override {
+    return std::make_unique<SwitchCaseTransformation>();
   }
-
- private:
-  const Modifiers modifiers_;
 };
 }  // namespace
 
 std::unique_ptr<Transformation> NewSwitchCaseTransformation(
     Modifiers modifiers) {
-  return std::make_unique<SwitchCaseTransformation>(std::move(modifiers));
+  return NewTransformation(std::move(modifiers),
+                           std::make_unique<SwitchCaseTransformation>());
 }
 }  // namespace afc::editor

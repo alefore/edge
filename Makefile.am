@@ -146,6 +146,8 @@ src/time.cc \
 src/time.h \
 src/tracker.cc \
 src/tracker.h \
+src/transformation/composite.cc \
+src/transformation/composite.h \
 src/transformation/delete.cc \
 src/transformation/delete.h \
 src/transformation/insert.cc \
