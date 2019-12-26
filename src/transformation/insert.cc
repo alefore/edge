@@ -137,8 +137,11 @@ void RegisterInsertTransformation(EditorState* editor,
             CHECK(options != nullptr);
             auto buffer_to_insert =
                 std::make_shared<OpenBuffer>(editor, L"- text inserted");
-            // TODO: Handle line breaks in text?
-            buffer_to_insert->AppendToLastLine(NewLazyString(std::move(text)));
+            if (!text.empty()) {
+              buffer_to_insert->AppendLazyString(
+                  NewLazyString(std::move(text)));
+              buffer_to_insert->EraseLines(LineNumber(0), LineNumber(1));
+            }
             options->buffer_to_insert = buffer_to_insert;
             return options;
           })));
