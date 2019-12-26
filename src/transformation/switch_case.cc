@@ -12,7 +12,8 @@ namespace afc::editor {
 namespace {
 class SwitchCaseTransformation : public Transformation {
  public:
-  SwitchCaseTransformation(Modifiers modifiers) : modifiers_(modifiers) {}
+  SwitchCaseTransformation(Modifiers modifiers)
+      : modifiers_(std::move(modifiers)) {}
 
   void Apply(Result* result) const override {
     CHECK(result != nullptr);
@@ -27,34 +28,28 @@ class SwitchCaseTransformation : public Transformation {
     VLOG(5) << "Switch Case Transformation at " << result->cursor << ": "
             << result->buffer->editor()->modifiers() << ": Range: " << range;
     LineColumn i = range.begin;
+    DeleteOptions options;
+    options.copy_to_paste_buffer = false;
+    options.modifiers.repetitions = 0;
     while (i < range.end) {
       auto line = result->buffer->LineAt(i.line);
       if (line == nullptr) {
         break;
       }
-      if (i.column >= line->EndColumn()) {
-        // Switch to the next line.
-        i = LineColumn(i.line + LineNumberDelta(1));
-        DeleteOptions options;
-        options.copy_to_paste_buffer = false;
-        stack.PushBack(std::make_unique<TransformationWithMode>(
-            Transformation::Result::Mode::kFinal,
-            NewDeleteTransformation(options)));
+      if (i.column >= line->EndColumn()) {  // Switch to the next line.
         buffer_to_insert->AppendEmptyLine();
-        continue;
+        i = LineColumn(i.line + LineNumberDelta(1));
+      } else {
+        wchar_t c = line->get(i.column);
+        buffer_to_insert->AppendToLastLine(
+            NewLazyString(wstring(1, iswupper(c) ? towlower(c) : towupper(c))));
+        i.column++;
       }
-      wchar_t c = line->get(i.column);
-      buffer_to_insert->AppendToLastLine(
-          NewLazyString(wstring(1, iswupper(c) ? towlower(c) : towupper(c))));
-      DeleteOptions options;
-      options.copy_to_paste_buffer = false;
-      stack.PushBack(std::make_unique<TransformationWithMode>(
-          Transformation::Result::Mode::kFinal,
-          NewDeleteTransformation(options)));
-
-      // Increment i.
-      i.column++;
+      options.modifiers.repetitions++;
     }
+    stack.PushBack(std::make_unique<TransformationWithMode>(
+        Transformation::Result::Mode::kFinal,
+        NewDeleteTransformation(options)));
     auto original_position = result->cursor;
     InsertOptions insert_options;
     insert_options.buffer_to_insert = buffer_to_insert;
