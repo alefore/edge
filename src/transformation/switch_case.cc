@@ -28,9 +28,6 @@ class SwitchCaseTransformation : public Transformation {
     VLOG(5) << "Switch Case Transformation at " << result->cursor << ": "
             << result->buffer->editor()->modifiers() << ": Range: " << range;
     LineColumn i = range.begin;
-    DeleteOptions options;
-    options.copy_to_paste_buffer = false;
-    options.modifiers.repetitions = 0;
     while (i < range.end) {
       auto line = result->buffer->LineAt(i.line);
       if (line == nullptr) {
@@ -45,11 +42,16 @@ class SwitchCaseTransformation : public Transformation {
             NewLazyString(wstring(1, iswupper(c) ? towlower(c) : towupper(c))));
         i.column++;
       }
-      options.modifiers.repetitions++;
     }
+
+    DeleteOptions options;
+    options.copy_to_paste_buffer = false;
+    options.modifiers.repetitions =
+        buffer_to_insert->contents()->CountCharacters();
     stack.PushBack(std::make_unique<TransformationWithMode>(
         Transformation::Result::Mode::kFinal,
         NewDeleteTransformation(options)));
+
     auto original_position = result->cursor;
     InsertOptions insert_options;
     insert_options.buffer_to_insert = buffer_to_insert;
