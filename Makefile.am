@@ -156,6 +156,8 @@ src/transformation/set_position.cc \
 src/transformation/set_position.h \
 src/transformation/stack.cc \
 src/transformation/stack.h \
+src/transformation/switch_case.cc \
+src/transformation/switch_case.h \
 src/transformation.cc \
 src/transformation.h \
 src/transformation_move.cc \
