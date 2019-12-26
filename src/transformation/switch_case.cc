@@ -40,13 +40,12 @@ class SwitchCaseTransformation : public CompositeTransformation {
       }
     }
 
-    DeleteOptions options;
-    options.copy_to_paste_buffer = false;
-    options.modifiers.repetitions =
+    DeleteOptions delete_options;
+    delete_options.copy_to_paste_buffer = false;
+    delete_options.modifiers.repetitions =
         buffer_to_insert->contents()->CountCharacters();
-    input.push(std::make_unique<TransformationWithMode>(
-        Transformation::Result::Mode::kFinal,
-        NewDeleteTransformation(options)));
+    delete_options.mode = Transformation::Result::Mode::kFinal;
+    input.push(NewDeleteTransformation(std::move(delete_options)));
 
     InsertOptions insert_options;
     insert_options.buffer_to_insert = buffer_to_insert;

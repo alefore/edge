@@ -172,6 +172,8 @@ class DeleteTransformation : public Transformation {
     CHECK(result != nullptr);
     CHECK(result->buffer != nullptr);
 
+    const auto mode = options_.mode.value_or(result->mode);
+
     result->buffer->AdjustLineColumn(&result->cursor);
     const LineColumn adjusted_original_cursor = result->cursor;
 
@@ -191,9 +193,8 @@ class DeleteTransformation : public Transformation {
     if (range.begin.line < range.end.line) {
       LOG(INFO) << "Deleting superfluous lines (from " << range << ")";
       while (range.begin.line < range.end.line) {
-        repetitions +=
-            ComputeLineDeletion(range.begin, options_.modifiers.delete_type,
-                                result->buffer, result->mode);
+        repetitions += ComputeLineDeletion(
+            range.begin, options_.modifiers.delete_type, result->buffer, mode);
         range.begin.line++;
         range.begin.column = ColumnNumber(0);
       }
@@ -261,7 +262,7 @@ class DeleteTransformation : public Transformation {
     shared_ptr<OpenBuffer> delete_buffer = GetDeletedTextBuffer(
         result->buffer, result->cursor, line_end, chars_erase_line);
     if (options_.copy_to_paste_buffer &&
-        result->mode == Transformation::Result::Mode::kFinal) {
+        mode == Transformation::Result::Mode::kFinal) {
       VLOG(5) << "Preparing delete buffer.";
       InsertOptions insert_options;
       insert_options.buffer_to_insert = delete_buffer;
@@ -271,7 +272,7 @@ class DeleteTransformation : public Transformation {
     }
 
     if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS &&
-        result->mode == Transformation::Result::Mode::kFinal) {
+        mode == Transformation::Result::Mode::kFinal) {
       LOG(INFO) << "Not actually deleting region.";
       result->cursor = original_position;
       return;
@@ -295,7 +296,7 @@ class DeleteTransformation : public Transformation {
           NewSetPositionTransformation(result->cursor));
     }
 
-    if (result->mode == Transformation::Result::Mode::kPreview) {
+    if (mode == Transformation::Result::Mode::kPreview) {
       LOG(INFO) << "Inserting preview at: " << result->cursor << " "
                 << delete_buffer->contents()->CountCharacters();
       InsertOptions insert_options;
@@ -307,7 +308,7 @@ class DeleteTransformation : public Transformation {
     }
 
     if (options_.modifiers.direction == BACKWARDS &&
-        result->mode == Transformation::Result::Mode::kPreview) {
+        mode == Transformation::Result::Mode::kPreview) {
       NewSetPositionTransformation(adjusted_original_cursor)->Apply(result);
     }
   }

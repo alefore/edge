@@ -1,6 +1,7 @@
 #ifndef __AFC_EDITOR_TRANSFORMATION_STACK_H__
 #define __AFC_EDITOR_TRANSFORMATION_STACK_H__
 
+#include <list>
 #include <memory>
 
 #include "src/transformation.h"
