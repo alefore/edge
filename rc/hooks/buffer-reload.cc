@@ -41,11 +41,11 @@ void DeleteCurrentLine() {
 
 void HandleKeyboardControlU() {
   buffer.PushTransformationStack();
-  Modifiers modifiers = Modifiers();
+  auto modifiers = Modifiers();
   modifiers.set_backwards();
 
   if (buffer.contents_type() == "path") {
-    LineColumn position = buffer.position();
+    auto position = buffer.position();
     string line = buffer.line(position.line());
     int column = position.column();
     if (column > 1 && line.substr(column - 1, 1) == "/") {
@@ -273,7 +273,7 @@ buffer.AddBinding("s-", "Numbers: Decrement the number under the cursor.",
                   DecrementNumber);
 
 void RunLocalShell() {
-  ForkCommandOptions options = ForkCommandOptions();
+  auto options = ForkCommandOptions();
   options.set_command("sh -l");
   string path = buffer.path();
   if (!path.empty()) {
