@@ -19,6 +19,9 @@ class AssignExpression : public Expression {
       : symbol_(std::move(symbol)), value_(std::move(value)) {}
 
   std::vector<VMType> Types() override { return value_->Types(); }
+  std::unordered_set<VMType> ReturnTypes() const override {
+    return value_->ReturnTypes();
+  }
 
   void Evaluate(Trampoline* trampoline, const VMType& type) override {
     auto expression = value_;

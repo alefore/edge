@@ -512,6 +512,19 @@ unique_ptr<Expression> ResultsFromCompilation(Compilation* compilation,
 
 }  // namespace
 
+std::optional<std::unordered_set<VMType>> CombineReturnTypes(
+    std::unordered_set<VMType> a, std::unordered_set<VMType> b,
+    std::wstring* error) {
+  if (a.empty()) return b;
+  if (b.empty()) return a;
+  if (a != b) {
+    *error = L"Incompatible types found: `" + a.cbegin()->ToString() +
+             L"` and `" + b.cbegin()->ToString() + L"`.";
+    return std::nullopt;
+  }
+  return a;
+}
+
 unique_ptr<Expression> CompileFile(const string& path, Environment* environment,
                                    wstring* error_description) {
   Compilation compilation;

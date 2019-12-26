@@ -87,13 +87,22 @@ statement(OUT) ::= function_declaration_params(FUNC)
         std::make_shared<Environment>(compilation->environment);
     compilation->environment = compilation->environment->parent_environment();
 
-    compilation->environment->Define(
-        FUNC->name,
-        NewFunctionValue(
-            FUNC->name, FUNC->type, FUNC->argument_names, std::move(body),
-            std::move(function_environment)));
+    std::vector<VMType> argument_types(FUNC->type.type_arguments.cbegin() + 1,
+                                       FUNC->type.type_arguments.cend());
 
-    OUT = NewVoidExpression().release();
+    std::wstring error;
+    auto value = NewFunctionValue(
+        FUNC->name, *FUNC->type.type_arguments.cbegin(), argument_types,
+        FUNC->argument_names, std::move(body), std::move(function_environment),
+        &error);
+
+    if (value == nullptr) {
+      compilation->errors.push_back(error);
+      OUT = nullptr;
+    } else {
+      compilation->environment->Define(FUNC->name, std::move(value));
+      OUT = NewVoidExpression().release();
+    }
   }
 }
 

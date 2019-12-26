@@ -15,7 +15,12 @@ class ReturnExpression : public Expression {
  public:
   ReturnExpression(std::shared_ptr<Expression> expr) : expr_(std::move(expr)) {}
 
-  std::vector<VMType> Types() { return expr_->Types(); }
+  std::vector<VMType> Types() override { return expr_->Types(); }
+
+  std::unordered_set<VMType> ReturnTypes() const override {
+    auto types = expr_->Types();
+    return {types.cbegin(), types.cend()};
+  }
 
   void Evaluate(Trampoline* trampoline, const VMType&) override {
     auto expr = expr_;
@@ -42,14 +47,6 @@ std::unique_ptr<Expression> NewReturnExpression(
     return nullptr;
   }
 
-  CHECK(!compilation->return_types.empty());
-  const VMType& expected_type = compilation->return_types.back();
-  if (!expr->SupportsType(expected_type)) {
-    compilation->errors.push_back(L"Expected return type of " +
-                                  expected_type.ToString() + L" but found " +
-                                  TypesToString(expr->Types()));
-    return nullptr;
-  }
   return std::make_unique<ReturnExpression>(std::move(expr));
 }
 

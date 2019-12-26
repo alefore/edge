@@ -18,6 +18,12 @@ BinaryOperator::BinaryOperator(
 
 std::vector<VMType> BinaryOperator::Types() { return {type_}; }
 
+std::unordered_set<VMType> BinaryOperator::ReturnTypes() const {
+  // TODO(easy): Should take b into account. That means changing cpp.y to be
+  // able to handle errors here.
+  return a_->ReturnTypes();
+}
+
 void BinaryOperator::Evaluate(Trampoline* trampoline, const VMType& type) {
   CHECK(type_ == type);
   trampoline->Bounce(

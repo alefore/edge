@@ -17,6 +17,7 @@ class ConstantExpression : public Expression {
   }
 
   std::vector<VMType> Types() { return {value_->type}; }
+  std::unordered_set<VMType> ReturnTypes() const override { return {}; }
 
   void Evaluate(Trampoline* trampoline, const VMType& type) {
     CHECK(type == value_->type);

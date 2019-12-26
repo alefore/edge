@@ -8,10 +8,33 @@
 
 namespace afc::vm {
 std::unique_ptr<Value> NewFunctionValue(
-    std::wstring name, VMType type, std::vector<std::wstring> argument_names,
-    std::unique_ptr<Expression> body,
-    std::shared_ptr<Environment> environment) {
-  auto output = std::make_unique<Value>(type);
+    std::wstring name, VMType expected_return_type,
+    std::vector<VMType> argument_types,
+    std::vector<std::wstring> argument_names, std::unique_ptr<Expression> body,
+    std::shared_ptr<Environment> environment, std::wstring* error) {
+  auto deduced_types = body->ReturnTypes();
+  if (deduced_types.empty()) {
+    deduced_types.insert(VMType::Void());
+  }
+  if (deduced_types.size() > 1) {
+    *error = L"Found multiple return types: ";
+    std::wstring separator;
+    for (const auto& type : deduced_types) {
+      *error += separator + L"`" + type.ToString() + L"`";
+      separator = L", ";
+    }
+    return nullptr;
+  } else if (deduced_types.find(expected_return_type) == deduced_types.end()) {
+    *error = L"Expected a return type of `" + expected_return_type.ToString() +
+             L"` but found `" + deduced_types.cbegin()->ToString() + L"`.";
+    return nullptr;
+  }
+
+  auto output = std::make_unique<Value>(VMType::FUNCTION);
+  output->type.type_arguments.push_back(expected_return_type);
+  for (auto& argument_type : argument_types) {
+    output->type.type_arguments.push_back(argument_type);
+  }
   output->callback =
       [name, body = std::shared_ptr<Expression>(std::move(body)), environment,
        argument_names](vector<unique_ptr<Value>> args, Trampoline* trampoline) {

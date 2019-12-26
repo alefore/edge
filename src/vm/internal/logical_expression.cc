@@ -21,6 +21,7 @@ class LogicalExpression : public Expression {
         expr_b_(std::move(expr_b)) {}
 
   std::vector<VMType> Types() override { return {VMType::Bool()}; }
+  std::unordered_set<VMType> ReturnTypes() const override { return {}; }
 
   void Evaluate(Trampoline* trampoline, const VMType& type) override {
     auto identity = identity_;

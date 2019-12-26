@@ -2,6 +2,7 @@
 #define __AFC_VM_BINARY_OPERATOR_H__
 
 #include <memory>
+
 #include "../public/vm.h"
 
 namespace afc {
@@ -19,6 +20,7 @@ class BinaryOperator : public Expression {
                  function<void(const Value&, const Value&, Value*)> callback);
 
   std::vector<VMType> Types() override;
+  std::unordered_set<VMType> ReturnTypes() const override;
 
   void Evaluate(Trampoline* evaluation, const VMType& type) override;
 
