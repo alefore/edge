@@ -6,45 +6,43 @@
 #include "src/buffer_variables.h"
 #include "src/editor.h"
 #include "src/lazy_string_append.h"
+#include "src/transformation/composite.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/set_position.h"
 #include "src/transformation/stack.h"
 
 namespace afc::editor {
 namespace {
-class DeleteSuffixSuperfluousCharacters : public Transformation {
+class DeleteSuffixSuperfluousCharacters : public CompositeTransformation {
  public:
-  void Apply(Result* result) const override {
-    CHECK(result != nullptr);
-    CHECK(result->buffer != nullptr);
-    const wstring& superfluous_characters(result->buffer->Read(
-        buffer_variables::line_suffix_superfluous_characters));
-    const auto line = result->buffer->LineAt(result->cursor.line);
-    if (line == nullptr) {
-      result->made_progress = false;
-      return;
-    }
+  std::wstring Serialize() const override {
+    return L"DeleteSuffixSuperfluousCharacters()";
+  }
+
+  void Apply(Input input) const override {
+    const wstring& superfluous_characters = input.buffer->Read(
+        buffer_variables::line_suffix_superfluous_characters);
+    const auto line = input.buffer->LineAt(input.position.line);
+    if (line == nullptr) return;
     ColumnNumber column = line->EndColumn();
     while (column > ColumnNumber(0) &&
            superfluous_characters.find(
                line->get(column - ColumnNumberDelta(1))) != string::npos) {
       --column;
     }
-    if (column == line->EndColumn()) {
-      return;
-    }
+    if (column == line->EndColumn()) return;
     CHECK_LT(column, line->EndColumn());
+    input.push(NewSetPositionTransformation(std::nullopt, column));
+
     DeleteOptions delete_options;
     delete_options.modifiers.repetitions =
         (line->EndColumn() - column).column_delta;
     delete_options.copy_to_paste_buffer = false;
-    return TransformationAtPosition(LineColumn(result->cursor.line, column),
-                                    NewDeleteTransformation(delete_options))
-        ->Apply(result);
+    input.push(NewDeleteTransformation(delete_options));
   }
 
-  unique_ptr<Transformation> Clone() const override {
-    return NewDeleteSuffixSuperfluousCharacters();
+  std::unique_ptr<CompositeTransformation> Clone() const override {
+    return std::make_unique<DeleteSuffixSuperfluousCharacters>();
   }
 };
 
@@ -108,7 +106,8 @@ unique_ptr<Transformation> TransformationAtPosition(
 }
 
 std::unique_ptr<Transformation> NewDeleteSuffixSuperfluousCharacters() {
-  return std::make_unique<DeleteSuffixSuperfluousCharacters>();
+  return NewTransformation(
+      Modifiers(), std::make_unique<DeleteSuffixSuperfluousCharacters>());
 }
 
 std::unique_ptr<Transformation> NewApplyRepetitionsTransformation(
