@@ -14,11 +14,10 @@ namespace vm {
 
 namespace {
 
-// TODO(easy): Don't pass symbol by const reference.
 class VariableLookup : public Expression {
  public:
-  VariableLookup(const wstring& symbol, std::vector<VMType> types)
-      : symbol_(symbol), types_(types) {}
+  VariableLookup(std::wstring symbol, std::vector<VMType> types)
+      : symbol_(std::move(symbol)), types_(types) {}
 
   std::vector<VMType> Types() override { return types_; }
   std::unordered_set<VMType> ReturnTypes() const override { return {}; }
@@ -38,14 +37,14 @@ class VariableLookup : public Expression {
   }
 
  private:
-  const wstring symbol_;
+  const std::wstring symbol_;
   const std::vector<VMType> types_;
 };
 
 }  // namespace
 
 std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
-                                              const wstring& symbol) {
+                                              std::wstring symbol) {
   std::vector<Value*> result;
   compilation->environment->PolyLookup(symbol, &result);
   if (result.empty()) {
@@ -59,7 +58,7 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
       types.push_back(v->type);
     }
   }
-  return std::make_unique<VariableLookup>(symbol, types);
+  return std::make_unique<VariableLookup>(std::move(symbol), types);
 }
 
 }  // namespace vm

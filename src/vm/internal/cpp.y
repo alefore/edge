@@ -309,7 +309,8 @@ expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
 expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
   OUT = NewAssignExpression(
             compilation, NAME->str, NewBinaryExpression(
-                compilation, NewVariableLookup(compilation, NAME->str),
+                compilation,
+                NewVariableLookup(compilation, NAME->str),
                 std::unique_ptr<Expression>(VALUE),
                 [](wstring a, wstring b) { return a + b; },
                 [](int a, int b) { return a + b; },
@@ -322,7 +323,8 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
 expr(OUT) ::= SYMBOL(NAME) MINUS_EQ expr(VALUE). {
   OUT = NewAssignExpression(
             compilation, NAME->str, NewBinaryExpression(
-                compilation, NewVariableLookup(compilation, NAME->str),
+                compilation,
+                NewVariableLookup(compilation, NAME->str),
                 std::unique_ptr<Expression>(VALUE),
                 nullptr,
                 [](int a, int b) { return a - b; },
@@ -335,7 +337,8 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_EQ expr(VALUE). {
 expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
   OUT = NewAssignExpression(
             compilation, NAME->str, NewBinaryExpression(
-                compilation, NewVariableLookup(compilation, NAME->str),
+                compilation,
+                NewVariableLookup(compilation, NAME->str),
                 std::unique_ptr<Expression>(VALUE),
                 nullptr,
                 [](int a, int b) { return a * b; },
@@ -354,7 +357,8 @@ expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
 expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
   OUT = NewAssignExpression(
             compilation, NAME->str, NewBinaryExpression(
-                compilation, NewVariableLookup(compilation, NAME->str),
+                compilation,
+                NewVariableLookup(compilation, NAME->str),
                 std::unique_ptr<Expression>(VALUE),
                 nullptr,
                 [](int a, int b) { return a / b; },
@@ -820,7 +824,7 @@ string(OUT) ::= string(A) STRING(B). {
 
 expr(OUT) ::= SYMBOL(S). {
   assert(S->type.type == VMType::VM_SYMBOL);
-  OUT = NewVariableLookup(compilation, S->str).release();
+  OUT = NewVariableLookup(compilation, std::move(S->str)).release();
   delete S;
 }
 

@@ -14,7 +14,7 @@ class Compilation;
 class Expression;
 
 unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
-                                         const wstring& symbol);
+                                         wstring symbol);
 
 }  // namespace vm
 }  // namespace afc
