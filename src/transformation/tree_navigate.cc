@@ -17,35 +17,33 @@ class TreeNavigate : public CompositeTransformation {
     const ParseTree* tree = root.get();
     auto next_position = input.position;
     Seek(*input.buffer->contents(), &next_position).Once();
+
     while (true) {
+      // Find the first relevant child at the current level.
       size_t child = 0;
       while (child < tree->children().size() &&
              (tree->children()[child].range().end <= input.position ||
               tree->children()[child].children().empty())) {
         child++;
       }
-      if (child < tree->children().size()) {
-        bool descend = false;
-        auto candidate = &tree->children()[child];
-        if (tree->range().begin < input.position) {
-          descend = true;
-        } else if (tree->range().end == next_position) {
-          descend = candidate->range().end == next_position;
-        }
 
-        if (descend) {
-          tree = candidate;
-          continue;
-        }
+      if (child >= tree->children().size()) {
+        break;
       }
 
-      auto last_position = tree->range().end;
-      Seek(*input.buffer->contents(), &last_position).Backwards().Once();
-      input.push(NewSetPositionTransformation(input.position == last_position
-                                                  ? tree->range().begin
-                                                  : last_position));
-      return;
+      auto candidate = &tree->children()[child];
+      if (tree->range().begin >= input.position &&
+          (tree->range().end != next_position ||
+           candidate->range().end != next_position)) {
+        break;
+      }
+      tree = candidate;
     }
+
+    auto last_position = tree->range().end;
+    Seek(*input.buffer->contents(), &last_position).Backwards().Once();
+    input.push(NewSetPositionTransformation(
+        input.position == last_position ? tree->range().begin : last_position));
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {
