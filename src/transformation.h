@@ -88,27 +88,6 @@ unique_ptr<Transformation> NewDeleteSuffixSuperfluousCharacters();
 unique_ptr<Transformation> NewApplyRepetitionsTransformation(
     size_t repetitions, unique_ptr<Transformation> transformation);
 
-class RunIfModeTransformation : public Transformation {
- public:
-  RunIfModeTransformation(Transformation::Result::Mode mode,
-                          std::unique_ptr<Transformation> delegate)
-      : mode_(mode), delegate_(std::move(delegate)) {}
-
-  void Apply(Result* result) const override {
-    if (result->mode == mode_) {
-      delegate_->Apply(result);
-    }
-  }
-
-  std::unique_ptr<Transformation> Clone() const override {
-    return std::make_unique<RunIfModeTransformation>(mode_, delegate_->Clone());
-  }
-
- private:
-  const Transformation::Result::Mode mode_;
-  const std::unique_ptr<Transformation> delegate_;
-};
-
 class TransformationWithMode : public Transformation {
  public:
   TransformationWithMode(Transformation::Result::Mode mode,
