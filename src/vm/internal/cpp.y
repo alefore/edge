@@ -88,7 +88,7 @@ statement(OUT) ::= function_declaration_params(FUNC)
 
     unique_ptr<Value> value(new Value(FUNC->type));
     auto name = FUNC->name;
-    value->callback = [compilation, return_type, name,
+    value->callback = [return_type, name,
                        body = std::shared_ptr<Expression>(BODY),
                        func_environment, argument_names](
         vector<unique_ptr<Value>> args, Trampoline* trampoline) {
