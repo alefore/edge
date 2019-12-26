@@ -91,31 +91,6 @@ class ApplyRepetitionsTransformation : public Transformation {
   unique_ptr<Transformation> delegate_;
 };
 
-class DirectionTransformation : public Transformation {
- public:
-  DirectionTransformation(Direction direction,
-                          unique_ptr<Transformation> delegate)
-      : direction_(direction), delegate_(std::move(delegate)) {}
-
-  void Apply(Result* result) const override {
-    CHECK(result != nullptr);
-    CHECK(result->buffer != nullptr);
-    auto editor_state = result->buffer->editor();
-    auto original_direction = editor_state->direction();
-    editor_state->set_direction(direction_);
-    delegate_->Apply(result);
-    editor_state->set_direction(original_direction);
-  }
-
-  unique_ptr<Transformation> Clone() const override {
-    return NewDirectionTransformation(direction_, delegate_->Clone());
-  }
-
- private:
-  Direction direction_;
-  unique_ptr<Transformation> delegate_;
-};
-
 class StructureTransformation : public Transformation {
  public:
   StructureTransformation(Structure* structure,
@@ -173,12 +148,6 @@ std::unique_ptr<Transformation> NewApplyRepetitionsTransformation(
     size_t repetitions, unique_ptr<Transformation> transformation) {
   return std::make_unique<ApplyRepetitionsTransformation>(
       repetitions, std::move(transformation));
-}
-
-std::unique_ptr<Transformation> NewDirectionTransformation(
-    Direction direction, std::unique_ptr<Transformation> transformation) {
-  return std::make_unique<DirectionTransformation>(direction,
-                                                   std::move(transformation));
 }
 
 std::unique_ptr<Transformation> NewStructureTransformation(
