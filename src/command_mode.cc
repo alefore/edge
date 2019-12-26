@@ -52,6 +52,7 @@
 #include "src/transformation/set_position.h"
 #include "src/transformation/stack.h"
 #include "src/transformation/switch_case.h"
+#include "src/transformation/tree_navigate.h"
 #include "src/transformation_move.h"
 #include "src/wstring.h"
 
@@ -722,58 +723,6 @@ std::unique_ptr<Transformation> ApplySwitchCaseCommand(EditorState*,
   return NewSwitchCaseTransformation(modifiers);
 }
 
-class TreeNavigate : public Transformation {
-  void Apply(Result* result) const override {
-    CHECK(result != nullptr);
-    CHECK(result->buffer != nullptr);
-    auto root = result->buffer->parse_tree();
-    if (root == nullptr) {
-      result->success = false;
-      return;
-    }
-    const ParseTree* tree = root.get();
-    auto next_position = result->cursor;
-    Seek(*result->buffer->contents(), &next_position).Once();
-    while (true) {
-      size_t child = 0;
-      while (child < tree->children().size() &&
-             (tree->children()[child].range().end <= result->cursor ||
-              tree->children()[child].children().empty())) {
-        child++;
-      }
-      if (child < tree->children().size()) {
-        bool descend = false;
-        auto candidate = &tree->children()[child];
-        if (tree->range().begin < result->cursor) {
-          descend = true;
-        } else if (tree->range().end == next_position) {
-          descend = candidate->range().end == next_position;
-        }
-
-        if (descend) {
-          tree = candidate;
-          continue;
-        }
-      }
-
-      auto last_position = tree->range().end;
-      Seek(*result->buffer->contents(), &last_position).Backwards().Once();
-
-      auto original_cursor = result->cursor;
-      result->cursor = result->cursor < tree->range().begin ||
-                               result->cursor == last_position
-                           ? tree->range().begin
-                           : last_position;
-      result->success = original_cursor != result->cursor;
-      return;
-    }
-  }
-
-  std::unique_ptr<Transformation> Clone() const override {
-    return std::make_unique<TreeNavigate>();
-  }
-};
-
 class TreeNavigateCommand : public Command {
  public:
   wstring Description() const override {
@@ -784,7 +733,7 @@ class TreeNavigateCommand : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->ApplyToCurrentBuffer(std::make_unique<TreeNavigate>());
+    editor_state->ApplyToCurrentBuffer(NewTreeNavigateTransformation());
   }
 };
 

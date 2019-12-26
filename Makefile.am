@@ -160,6 +160,8 @@ src/transformation/stack.cc \
 src/transformation/stack.h \
 src/transformation/switch_case.cc \
 src/transformation/switch_case.h \
+src/transformation/tree_navigate.cc \
+src/transformation/tree_navigate.h \
 src/transformation.cc \
 src/transformation.h \
 src/transformation_move.cc \
