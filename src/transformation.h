@@ -83,11 +83,6 @@ unique_ptr<Transformation> TransformationAtPosition(
 // line.
 unique_ptr<Transformation> NewDeleteSuffixSuperfluousCharacters();
 
-// Returns a transformation that sets the number of repetitions to a given
-// value, calls a delegate and then restores the original number.
-unique_ptr<Transformation> NewSetRepetitionsTransformation(
-    size_t repetitions, unique_ptr<Transformation> transformation);
-
 // Returns a transformation that repeats another transformation a given number
 // of times.
 unique_ptr<Transformation> NewApplyRepetitionsTransformation(

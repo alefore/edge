@@ -48,31 +48,6 @@ class DeleteSuffixSuperfluousCharacters : public Transformation {
   }
 };
 
-class SetRepetitionsTransformation : public Transformation {
- public:
-  SetRepetitionsTransformation(int repetitions,
-                               unique_ptr<Transformation> delegate)
-      : repetitions_(repetitions), delegate_(std::move(delegate)) {}
-
-  void Apply(Result* result) const override {
-    CHECK(result != nullptr);
-    CHECK(result->buffer != nullptr);
-    auto editor_state = result->buffer->editor();
-    auto original_repetitions = editor_state->repetitions();
-    editor_state->set_repetitions(repetitions_);
-    delegate_->Apply(result);
-    editor_state->set_repetitions(original_repetitions);
-  }
-
-  unique_ptr<Transformation> Clone() const override {
-    return NewSetRepetitionsTransformation(repetitions_, delegate_->Clone());
-  }
-
- private:
-  size_t repetitions_;
-  unique_ptr<Transformation> delegate_;
-};
-
 class ApplyRepetitionsTransformation : public Transformation {
  public:
   ApplyRepetitionsTransformation(int repetitions,
@@ -192,12 +167,6 @@ unique_ptr<Transformation> TransformationAtPosition(
 
 std::unique_ptr<Transformation> NewDeleteSuffixSuperfluousCharacters() {
   return std::make_unique<DeleteSuffixSuperfluousCharacters>();
-}
-
-std::unique_ptr<Transformation> NewSetRepetitionsTransformation(
-    size_t repetitions, std::unique_ptr<Transformation> transformation) {
-  return std::make_unique<SetRepetitionsTransformation>(
-      repetitions, std::move(transformation));
 }
 
 std::unique_ptr<Transformation> NewApplyRepetitionsTransformation(
