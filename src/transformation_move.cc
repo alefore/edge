@@ -28,7 +28,6 @@ class MoveTransformation : public Transformation {
             << result->buffer->Read(buffer_variables::name) << " "
             << modifiers_;
     auto editor_state = result->buffer->editor();
-    auto root = result->buffer->parse_tree();
     LineColumn position;
     // TODO: Move to Structure.
     auto structure = modifiers_.structure;
