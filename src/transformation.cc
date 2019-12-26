@@ -90,39 +90,6 @@ class ApplyRepetitionsTransformation : public Transformation {
   size_t repetitions_;
   unique_ptr<Transformation> delegate_;
 };
-
-class StructureTransformation : public Transformation {
- public:
-  StructureTransformation(Structure* structure,
-                          Modifiers::StructureRange structure_range,
-                          unique_ptr<Transformation> delegate)
-      : structure_(structure),
-        structure_range_(structure_range),
-        delegate_(std::move(delegate)) {}
-
-  void Apply(Result* result) const override {
-    CHECK(result != nullptr);
-    CHECK(result->buffer != nullptr);
-    auto editor_state = result->buffer->editor();
-    auto original_structure = editor_state->structure();
-    auto original_structure_range = editor_state->structure_range();
-    editor_state->set_structure(structure_);
-    editor_state->set_structure_range(structure_range_);
-    delegate_->Apply(result);
-    editor_state->set_structure(original_structure);
-    editor_state->set_structure_range(original_structure_range);
-  }
-
-  unique_ptr<Transformation> Clone() const override {
-    return NewStructureTransformation(structure_, structure_range_,
-                                      delegate_->Clone());
-  }
-
- private:
-  Structure* const structure_;
-  const Modifiers::StructureRange structure_range_;
-  const std::unique_ptr<Transformation> delegate_;
-};
 }  // namespace
 
 Transformation::Result::Result(OpenBuffer* buffer)
@@ -149,12 +116,4 @@ std::unique_ptr<Transformation> NewApplyRepetitionsTransformation(
   return std::make_unique<ApplyRepetitionsTransformation>(
       repetitions, std::move(transformation));
 }
-
-std::unique_ptr<Transformation> NewStructureTransformation(
-    Structure* structure, Modifiers::StructureRange structure_range,
-    std::unique_ptr<Transformation> transformation) {
-  return std::make_unique<StructureTransformation>(structure, structure_range,
-                                                   std::move(transformation));
-}
-
 }  // namespace afc::editor

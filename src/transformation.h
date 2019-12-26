@@ -88,10 +88,6 @@ unique_ptr<Transformation> NewDeleteSuffixSuperfluousCharacters();
 unique_ptr<Transformation> NewApplyRepetitionsTransformation(
     size_t repetitions, unique_ptr<Transformation> transformation);
 
-unique_ptr<Transformation> NewStructureTransformation(
-    Structure* structure, Modifiers::StructureRange structure_modifier,
-    unique_ptr<Transformation> transformation);
-
 class RunIfModeTransformation : public Transformation {
  public:
   RunIfModeTransformation(Transformation::Result::Mode mode,
