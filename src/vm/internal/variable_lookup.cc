@@ -48,7 +48,7 @@ std::unique_ptr<Expression> NewVariableLookup(Compilation* compilation,
   std::vector<Value*> result;
   compilation->environment->PolyLookup(symbol, &result);
   if (result.empty()) {
-    compilation->AddError(L"Variable not found: \"" + symbol + L"\"");
+    compilation->AddError(L"Variable not found: `" + symbol + L"`");
     return nullptr;
   }
   std::vector<VMType> types;
