@@ -175,6 +175,8 @@ src/vm/public/optional.h \
 src/vm/public/set.h \
 src/vm/public/vector.h \
 src/vm/internal/callbacks.cc \
+src/vm/internal/lambda.cc \
+src/vm/internal/lambda.h \
 src/vm/internal/vm.cc \
 src/vm/internal/value.cc \
 src/vm/internal/string.cc \

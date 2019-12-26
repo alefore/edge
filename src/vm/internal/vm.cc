@@ -19,6 +19,7 @@
 #include "binary_operator.h"
 #include "compilation.h"
 #include "if_expression.h"
+#include "lambda.h"
 #include "logical_expression.h"
 #include "negate_expression.h"
 #include "return_expression.h"

@@ -78,45 +78,22 @@ statement(OUT) ::= function_declaration_params(FUNC)
   if (FUNC == nullptr || BODY == nullptr) {
     OUT = nullptr;
   } else {
-    shared_ptr<Environment> func_environment(compilation->environment);
-    compilation->environment = compilation->environment->parent_environment();
+    std::unique_ptr<Expression> body(BODY);
+    BODY = nullptr;
 
-    VMType return_type = compilation->return_types.back();
     compilation->return_types.pop_back();
 
-    const vector<wstring> argument_names(FUNC->argument_names);
+    auto function_environment =
+        std::make_shared<Environment>(compilation->environment);
+    compilation->environment = compilation->environment->parent_environment();
 
-    unique_ptr<Value> value(new Value(FUNC->type));
-    auto name = FUNC->name;
-    value->callback = [name, body = std::shared_ptr<Expression>(BODY),
-                       func_environment, argument_names](
-        vector<unique_ptr<Value>> args, Trampoline* trampoline) {
-      CHECK_EQ(args.size(), argument_names.size())
-          << "Invalid number of arguments for function: " << name;
-      for (size_t i = 0; i < args.size(); i++) {
-        func_environment->Define(argument_names[i], std::move(args[i]));
-      }
-      trampoline->SetReturnContinuation(
-          [original_trampoline = *trampoline](std::unique_ptr<Value> value,
-                                              Trampoline* trampoline) {
-            CHECK(value != nullptr);
-            // We have to make a copy because assigning to *trampoline may
-            // delete us (and thus deletes original_trampoline as it is being
-            // read).
-            Trampoline tmp_copy = original_trampoline;
-            *trampoline = tmp_copy;
-            trampoline->Return(std::move(value));
-          });
-      trampoline->SetEnvironment(func_environment.get());
-      trampoline->Bounce(
-          body.get(), body->Types()[0],
-          [body](Value::Ptr value, Trampoline* trampoline) {
-            trampoline->Return(std::move(value));
-          });
-    };
-    compilation->environment->Define(FUNC->name, std::move(value));
+    compilation->environment->Define(
+        FUNC->name,
+        NewFunctionValue(
+            FUNC->name, FUNC->type, FUNC->argument_names, std::move(body),
+            std::move(function_environment)));
+
     OUT = NewVoidExpression().release();
-    BODY = nullptr;
   }
 }
 
