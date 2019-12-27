@@ -18,14 +18,18 @@ int InsertSpacesAtBeginningOfLine() {
   int desired_column = buffer.position().column();
   int start_column = GetBeginningOfCurrentLine();
 
-  buffer.set_position(LineColumn(line, 0));
+  buffer.ApplyTransformation(SetColumnTransformation(0));
 
   if (start_column > desired_column) {
-    buffer.DeleteCharacters(start_column - desired_column);
+    buffer.ApplyTransformation(DeleteTransformationBuilder()
+                                   .set_modifiers(Modifiers().set_repetitions(
+                                       start_column - desired_column))
+                                   .build());
   }
 
   while (start_column < desired_column) {
-    buffer.InsertText(" ");
+    buffer.ApplyTransformation(
+        InsertTransformationBuilder().set_text(" ").build());
     start_column = start_column + 1;
   }
 

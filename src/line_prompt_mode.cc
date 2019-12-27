@@ -17,7 +17,8 @@
 #include "src/insert_mode.h"
 #include "src/predictor.h"
 #include "src/terminal.h"
-#include "src/transformation_delete.h"
+#include "src/transformation/delete.h"
+#include "src/transformation/insert.h"
 #include "src/wstring.h"
 
 namespace afc {
@@ -278,8 +279,8 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
   insert_mode_options.editor_state = editor_state;
   insert_mode_options.buffer = buffer;
 
-  insert_mode_options.modify_listener = [editor_state, original_buffer, buffer,
-                                         status, options]() {
+  insert_mode_options.modify_handler = [editor_state, original_buffer, buffer,
+                                        status, options]() {
     editor_state->set_current_buffer(original_buffer);
     options.change_notifier(buffer);
   };
@@ -339,6 +340,8 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
     predict_options.editor_state = editor_state;
     predict_options.predictor = options.predictor;
     predict_options.source_buffer = options.source_buffer;
+    predict_options.input_buffer = buffer;
+    predict_options.input_selection_structure = StructureLine();
     predict_options.status = status;
     predict_options.callback = [editor_state, options, original_buffer, buffer,
                                 status, input](PredictResults results) {
@@ -386,7 +389,7 @@ void Prompt(EditorState* editor_state, PromptOptions options) {
 
   EnterInsertMode(insert_mode_options);
   status->set_prompt(options.prompt, buffer);
-  insert_mode_options.modify_listener();
+  insert_mode_options.modify_handler();
 }
 
 std::unique_ptr<Command> NewLinePromptCommand(

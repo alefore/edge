@@ -48,6 +48,8 @@ Add "pipe" command: select the region (similar to delete: line, paragraph, buffe
 
   * Make sure that the section with the actual cursor is shown.
 
+  * s+ and s-: Should support multiple cursors.
+
 ### Autocomplete
 
 Add an AutoComplete mode that autocompletes based on the path.
@@ -127,6 +129,8 @@ Automatically adjust the width of the view to fit the screen.
 ## VM
 
 Create a hook for start of the editor, so that we can do more expensive things (without having to evaluate them for each buffer reload).
+
+LineNumber and LineColumn types should be exposed to extensions?
 
 Add support for templates, so that we can do "vector<string>".
 

@@ -47,8 +47,13 @@
 #include "src/substring.h"
 #include "src/terminal.h"
 #include "src/transformation.h"
-#include "src/transformation_delete.h"
-#include "src/transformation_move.h"
+#include "src/transformation/delete.h"
+#include "src/transformation/insert.h"
+#include "src/transformation/move.h"
+#include "src/transformation/set_position.h"
+#include "src/transformation/stack.h"
+#include "src/transformation/switch_case.h"
+#include "src/transformation/tree_navigate.h"
 #include "src/wstring.h"
 
 namespace afc {
@@ -712,130 +717,11 @@ class HardRedrawCommand : public Command {
   }
 };
 
-class SwitchCaseTransformation : public Transformation {
- public:
-  SwitchCaseTransformation(Modifiers modifiers) : modifiers_(modifiers) {}
-
-  void Apply(OpenBuffer* buffer, Result* result) const override {
-    buffer->AdjustLineColumn(&result->cursor);
-    Range range = buffer->FindPartialRange(modifiers_, result->cursor);
-    CHECK_LE(range.begin, range.end);
-    TransformationStack stack;
-    stack.PushBack(NewGotoPositionTransformation(range.begin));
-    auto buffer_to_insert =
-        std::make_shared<OpenBuffer>(buffer->editor(), L"- text inserted");
-    VLOG(5) << "Switch Case Transformation at " << result->cursor << ": "
-            << buffer->editor()->modifiers() << ": Range: " << range;
-    LineColumn i = range.begin;
-    while (i < range.end) {
-      auto line = buffer->LineAt(i.line);
-      if (line == nullptr) {
-        break;
-      }
-      if (i.column >= line->EndColumn()) {
-        // Switch to the next line.
-        i = LineColumn(i.line + LineNumberDelta(1));
-        DeleteOptions options;
-        options.copy_to_paste_buffer = false;
-        stack.PushBack(std::make_unique<TransformationWithMode>(
-            Transformation::Result::Mode::kFinal,
-            NewDeleteTransformation(options)));
-        buffer_to_insert->AppendEmptyLine();
-        continue;
-      }
-      wchar_t c = line->get(i.column);
-      buffer_to_insert->AppendToLastLine(
-          NewLazyString(wstring(1, iswupper(c) ? towlower(c) : towupper(c))));
-      DeleteOptions options;
-      options.copy_to_paste_buffer = false;
-      stack.PushBack(std::make_unique<TransformationWithMode>(
-          Transformation::Result::Mode::kFinal,
-          NewDeleteTransformation(options)));
-
-      // Increment i.
-      i.column++;
-    }
-    auto original_position = result->cursor;
-    InsertOptions insert_options;
-    insert_options.buffer_to_insert = buffer_to_insert;
-    if (modifiers_.direction == BACKWARDS) {
-      insert_options.final_position = InsertOptions::FinalPosition::kStart;
-    }
-    if (result->mode == Transformation::Result::Mode::kPreview) {
-      insert_options.modifiers_set = {LineModifier::UNDERLINE,
-                                      LineModifier::BLUE};
-    }
-    stack.PushBack(NewInsertBufferTransformation(std::move(insert_options)));
-    if (result->mode == Transformation::Result::Mode::kPreview) {
-      stack.PushBack(NewGotoPositionTransformation(original_position));
-    }
-    stack.Apply(buffer, result);
-  }
-
-  std::unique_ptr<Transformation> Clone() const override {
-    return std::make_unique<SwitchCaseTransformation>(modifiers_);
-  }
-
- private:
-  const Modifiers modifiers_;
-};
-
-std::unique_ptr<Transformation> ApplySwitchCaseCommand(
-    EditorState* editor_state, OpenBuffer* buffer, Modifiers modifiers) {
-  CHECK(editor_state != nullptr);
-  CHECK(buffer != nullptr);
-  return std::make_unique<SwitchCaseTransformation>(modifiers);
+std::unique_ptr<Transformation> ApplySwitchCaseCommand(EditorState*,
+                                                       OpenBuffer*,
+                                                       Modifiers modifiers) {
+  return NewSwitchCaseTransformation(modifiers);
 }
-
-class TreeNavigate : public Transformation {
-  void Apply(OpenBuffer* buffer, Result* result) const override {
-    auto root = buffer->parse_tree();
-    if (root == nullptr) {
-      result->success = false;
-      return;
-    }
-    const ParseTree* tree = root.get();
-    auto next_position = result->cursor;
-    Seek(*buffer->contents(), &next_position).Once();
-    while (true) {
-      size_t child = 0;
-      while (child < tree->children().size() &&
-             (tree->children()[child].range().end <= result->cursor ||
-              tree->children()[child].children().empty())) {
-        child++;
-      }
-      if (child < tree->children().size()) {
-        bool descend = false;
-        auto candidate = &tree->children()[child];
-        if (tree->range().begin < result->cursor) {
-          descend = true;
-        } else if (tree->range().end == next_position) {
-          descend = candidate->range().end == next_position;
-        }
-
-        if (descend) {
-          tree = candidate;
-          continue;
-        }
-      }
-
-      auto last_position = tree->range().end;
-      Seek(*buffer->contents(), &last_position).Backwards().Once();
-
-      auto original_cursor = result->cursor;
-      result->cursor = result->cursor < tree->range().begin ||
-                               result->cursor == last_position
-                           ? tree->range().begin
-                           : last_position;
-      result->success = original_cursor != result->cursor;
-      return;
-    }
-  }
-
-  std::unique_ptr<Transformation> Clone() const override {
-    return std::make_unique<TreeNavigate>();
-  }
-};
 
 class TreeNavigateCommand : public Command {
  public:
@@ -847,7 +733,7 @@ class TreeNavigateCommand : public Command {
   wstring Category() const override { return L"Navigate"; }
 
   void ProcessInput(wint_t, EditorState* editor_state) {
-    editor_state->ApplyToCurrentBuffer(std::make_unique<TreeNavigate>());
+    editor_state->ApplyToCurrentBuffer(NewTreeNavigateTransformation());
   }
 };
 
@@ -1042,35 +928,33 @@ std::unique_ptr<MapModeCommands> NewCommandMode(EditorState* editor_state) {
                 NewCppCommand(editor_state->environment(),
                               L"// Navigate: Move to the end of line.\n"
                               L"CurrentBuffer().ApplyTransformation("
-                              L"TransformationGoToColumn(999999999999));"));
+                              L"SetColumnTransformation(999999999999));"));
   commands->Add({Terminal::CTRL_A},
                 NewCppCommand(editor_state->environment(),
                               L"// Navigate: Move to the beginning of line.\n"
                               L"CurrentBuffer().ApplyTransformation("
-                              L"TransformationGoToColumn(0));"));
-  commands->Add({Terminal::CTRL_K},
-                NewCppCommand(editor_state->environment(),
-                              L"// Edit: Delete to end of line.\n"
-                              L"{\n"
-                              L"Modifiers modifiers = Modifiers();\n"
-                              L"modifiers.set_line();\n"
-                              L"CurrentBuffer().ApplyTransformation("
-                              L"TransformationDelete(modifiers));\n"
-                              L"}"));
+                              L"SetColumnTransformation(0));"));
+  commands->Add(
+      {Terminal::CTRL_K},
+      NewCppCommand(editor_state->environment(),
+                    L"// Edit: Delete to end of line.\n"
+                    L"CurrentBuffer().ApplyTransformation("
+                    L"    DeleteTransformationBuilder()\n"
+                    L"        .set_modifiers(Modifiers().set_line())\n"
+                    L"        .build());\n"));
   commands->Add({Terminal::CTRL_D},
                 NewCppCommand(editor_state->environment(),
                               L"// Edit: Delete current character.\n"
                               L"CurrentBuffer().ApplyTransformation("
-                              L"TransformationDelete(Modifiers()));\n"));
-  commands->Add({Terminal::BACKSPACE},
-                NewCppCommand(editor_state->environment(),
-                              L"// Edit: Delete previous character.\n"
-                              L"{\n"
-                              L"Modifiers modifiers = Modifiers();\n"
-                              L"modifiers.set_backwards();\n"
-                              L"CurrentBuffer().ApplyTransformation("
-                              L"TransformationDelete(modifiers));\n"
-                              L"}"));
+                              L"DeleteTransformationBuilder().build());\n"));
+  commands->Add(
+      {Terminal::BACKSPACE},
+      NewCppCommand(editor_state->environment(),
+                    L"// Edit: Delete previous character.\n"
+                    L"CurrentBuffer().ApplyTransformation("
+                    L"    DeleteTransformationBuilder()\n"
+                    L"        .set_modifiers(Modifiers().set_backwards())\n"
+                    L"        .build());\n"));
   commands->Add({Terminal::DOWN_ARROW}, std::make_unique<LineDown>());
   commands->Add({Terminal::UP_ARROW}, std::make_unique<LineUp>());
   commands->Add({Terminal::LEFT_ARROW}, std::make_unique<MoveBackwards>());

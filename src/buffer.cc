@@ -44,7 +44,10 @@ extern "C" {
 #include "src/time.h"
 #include "src/tracker.h"
 #include "src/transformation.h"
-#include "src/transformation_delete.h"
+#include "src/transformation/delete.h"
+#include "src/transformation/insert.h"
+#include "src/transformation/noop.h"
+#include "src/transformation/stack.h"
 #include "src/viewers.h"
 #include "src/vm/public/callbacks.h"
 #include "src/vm/public/constant_expression.h"
@@ -66,9 +69,7 @@ VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::get(Value* value) {
 
 /* static */ Value::Ptr VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::New(
     std::shared_ptr<editor::OpenBuffer> value) {
-  return Value::NewObject(
-      L"Buffer",
-      shared_ptr<void>(value.get(), [value](void*) { /* Nothing. */ }));
+  return Value::NewObject(L"Buffer", shared_ptr<void>(value, value.get()));
 }
 
 const VMType VMTypeMapper<std::shared_ptr<editor::OpenBuffer>>::vmtype =
@@ -580,6 +581,8 @@ OpenBuffer::OpenBuffer(Options options)
     EvaluateFile(state_path, [](std::unique_ptr<Value>) {});
   }
 }
+
+OpenBuffer::~OpenBuffer() = default;
 
 EditorState* OpenBuffer::editor() const { return options_.editor; }
 
@@ -1407,12 +1410,11 @@ void OpenBuffer::DestroyOtherCursors() {
 }
 
 Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
-                                   const LineColumn& initial_position) {
+                                   LineColumn position) {
   Range output;
   const auto forward = modifiers.direction;
   const auto backward = ReverseDirection(forward);
 
-  LineColumn position = initial_position;
   position.line = min(contents_.EndLine(), position.line);
   if (position.column > LineAt(position.line)->EndColumn()) {
     if (Read(buffer_variables::extend_lines)) {
@@ -1857,7 +1859,7 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
     CHECK(!transformations_past_.empty());
   } else {
     transformations_past_.push_back(
-        std::make_unique<Transformation::Result>(editor()));
+        std::make_unique<Transformation::Result>(this));
   }
 
   transformations_past_.back()->undo_stack->PushFront(
@@ -1893,7 +1895,7 @@ LineColumn OpenBuffer::Apply(unique_ptr<Transformation> transformation) {
   CHECK(transformation != nullptr);
   CHECK(!transformations_past_.empty());
 
-  transformation->Apply(this, transformations_past_.back().get());
+  transformation->Apply(transformations_past_.back().get());
   CHECK(!transformations_past_.empty());
 
   auto delete_buffer = transformations_past_.back()->delete_buffer;
@@ -1921,7 +1923,7 @@ void OpenBuffer::RepeatLastTransformation() {
 void OpenBuffer::PushTransformationStack() {
   if (last_transformation_stack_.empty()) {
     transformations_past_.push_back(
-        std::make_unique<Transformation::Result>(editor()));
+        std::make_unique<Transformation::Result>(this));
   }
   last_transformation_stack_.emplace_back(
       std::make_unique<TransformationStack>());
@@ -1951,8 +1953,8 @@ void OpenBuffer::Undo(UndoMode undo_mode) {
   for (size_t i = 0; i < editor()->repetitions(); i++) {
     bool modified_buffer = false;
     while (!modified_buffer && !source->empty()) {
-      target->emplace_back(std::make_unique<Transformation::Result>(editor()));
-      source->back()->undo_stack->Apply(this, target->back().get());
+      target->emplace_back(std::make_unique<Transformation::Result>(this));
+      source->back()->undo_stack->Apply(target->back().get());
       source->pop_back();
       modified_buffer =
           target->back()->modified_buffer || undo_mode == ONLY_UNDO_THE_LAST;

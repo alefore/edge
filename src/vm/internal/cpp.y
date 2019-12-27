@@ -78,46 +78,29 @@ statement(OUT) ::= function_declaration_params(FUNC)
   if (FUNC == nullptr || BODY == nullptr) {
     OUT = nullptr;
   } else {
-    shared_ptr<Environment> func_environment(compilation->environment);
+    std::unique_ptr<Expression> body(BODY);
+    BODY = nullptr;
+
+    auto function_environment =
+        std::make_shared<Environment>(compilation->environment);
     compilation->environment = compilation->environment->parent_environment();
 
-    VMType return_type = compilation->return_types.back();
-    compilation->return_types.pop_back();
+    std::vector<VMType> argument_types(FUNC->type.type_arguments.cbegin() + 1,
+                                       FUNC->type.type_arguments.cend());
 
-    const vector<wstring> argument_names(FUNC->argument_names);
+    std::wstring error;
+    auto value = NewFunctionValue(
+        FUNC->name, *FUNC->type.type_arguments.cbegin(), argument_types,
+        FUNC->argument_names, std::move(body), std::move(function_environment),
+        &error);
 
-    unique_ptr<Value> value(new Value(FUNC->type));
-    auto name = FUNC->name;
-    value->callback = [compilation, return_type, name,
-                       body = std::shared_ptr<Expression>(BODY),
-                       func_environment, argument_names](
-        vector<unique_ptr<Value>> args, Trampoline* trampoline) {
-      CHECK_EQ(args.size(), argument_names.size())
-          << "Invalid number of arguments for function: " << name;
-      for (size_t i = 0; i < args.size(); i++) {
-        func_environment->Define(argument_names[i], std::move(args[i]));
-      }
-      trampoline->SetReturnContinuation(
-          [original_trampoline = *trampoline](std::unique_ptr<Value> value,
-                                              Trampoline* trampoline) {
-            CHECK(value != nullptr);
-            // We have to make a copy because assigning to *trampoline may
-            // delete us (and thus deletes original_trampoline as it is being
-            // read).
-            Trampoline tmp_copy = original_trampoline;
-            *trampoline = tmp_copy;
-            trampoline->Return(std::move(value));
-          });
-      trampoline->SetEnvironment(func_environment.get());
-      trampoline->Bounce(
-          body.get(), body->Types()[0],
-          [body](Value::Ptr value, Trampoline* trampoline) {
-            trampoline->Return(std::move(value));
-          });
-    };
-    compilation->environment->Define(FUNC->name, std::move(value));
-    OUT = NewVoidExpression().release();
-    BODY = nullptr;
+    if (value == nullptr) {
+      compilation->errors.push_back(error);
+      OUT = nullptr;
+    } else {
+      compilation->environment->Define(FUNC->name, std::move(value));
+      OUT = NewVoidExpression().release();
+    }
   }
 }
 
@@ -229,7 +212,6 @@ function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME) LPAREN
       compilation->environment->Define(
           NAME->str, unique_ptr<Value>(new Value(OUT->type)));
       compilation->environment = new Environment(compilation->environment);
-      compilation->return_types.push_back(*return_type_def);
       for (pair<VMType, wstring> arg : *ARGS) {
         compilation->environment
             ->Define(arg.second, unique_ptr<Value>(new Value(arg.first)));
@@ -324,7 +306,8 @@ expr(OUT) ::= SYMBOL(NAME) EQ expr(VALUE). {
 expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
   OUT = NewAssignExpression(
             compilation, NAME->str, NewBinaryExpression(
-                compilation, NewVariableLookup(compilation, NAME->str),
+                compilation,
+                NewVariableLookup(compilation, NAME->str),
                 std::unique_ptr<Expression>(VALUE),
                 [](wstring a, wstring b) { return a + b; },
                 [](int a, int b) { return a + b; },
@@ -337,7 +320,8 @@ expr(OUT) ::= SYMBOL(NAME) PLUS_EQ expr(VALUE). {
 expr(OUT) ::= SYMBOL(NAME) MINUS_EQ expr(VALUE). {
   OUT = NewAssignExpression(
             compilation, NAME->str, NewBinaryExpression(
-                compilation, NewVariableLookup(compilation, NAME->str),
+                compilation,
+                NewVariableLookup(compilation, NAME->str),
                 std::unique_ptr<Expression>(VALUE),
                 nullptr,
                 [](int a, int b) { return a - b; },
@@ -350,7 +334,8 @@ expr(OUT) ::= SYMBOL(NAME) MINUS_EQ expr(VALUE). {
 expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
   OUT = NewAssignExpression(
             compilation, NAME->str, NewBinaryExpression(
-                compilation, NewVariableLookup(compilation, NAME->str),
+                compilation,
+                NewVariableLookup(compilation, NAME->str),
                 std::unique_ptr<Expression>(VALUE),
                 nullptr,
                 [](int a, int b) { return a * b; },
@@ -369,7 +354,8 @@ expr(OUT) ::= SYMBOL(NAME) TIMES_EQ expr(VALUE). {
 expr(OUT) ::= SYMBOL(NAME) DIVIDE_EQ expr(VALUE). {
   OUT = NewAssignExpression(
             compilation, NAME->str, NewBinaryExpression(
-                compilation, NewVariableLookup(compilation, NAME->str),
+                compilation,
+                NewVariableLookup(compilation, NAME->str),
                 std::unique_ptr<Expression>(VALUE),
                 nullptr,
                 [](int a, int b) { return a / b; },
@@ -835,7 +821,7 @@ string(OUT) ::= string(A) STRING(B). {
 
 expr(OUT) ::= SYMBOL(S). {
   assert(S->type.type == VMType::VM_SYMBOL);
-  OUT = NewVariableLookup(compilation, S->str).release();
+  OUT = NewVariableLookup(compilation, std::move(S->str)).release();
   delete S;
 }
 

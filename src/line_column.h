@@ -107,6 +107,7 @@ struct LineNumber {
   // Starts counting from 1 (i.e. LineNumber(5).ToUserString() evaluates to
   // L"6").
   std::wstring ToUserString() const;
+  std::wstring Serialize() const;
 
   LineNumber next() const;
   LineNumber previous() const;
@@ -155,6 +156,7 @@ struct ColumnNumber {
   // Starts counting from 1 (i.e. ColumnNumber(5).ToUserString() evaluates to
   // L"6").
   std::wstring ToUserString() const;
+  std::wstring Serialize() const;
 
   // a.MinusHadlingOverflow(value) is equivalent to `a - value` if `a` is
   // greater than or equal to `value` (and `ColumnNumber(0)` otherwise).
@@ -226,6 +228,7 @@ struct LineColumn {
   bool operator!=(const LineColumn& other) const;
 
   std::wstring ToString() const;
+  std::wstring Serialize() const;
 
   bool operator==(const LineColumn& rhs) const {
     return line == rhs.line && column == rhs.column;

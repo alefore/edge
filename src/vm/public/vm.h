@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -95,11 +96,28 @@ class Expression {
  public:
   virtual ~Expression() {}
   virtual std::vector<VMType> Types() = 0;
+  // If the expression can cause a `return` statement to be evaluated, this
+  // should return the type. Most expressions will return an empty set.
+  // Expressions that combine sub-expressions should use `CombineReturnTypes`.
+  //
+  // This is a container (rather than a single value) because the expression
+  // could ambiguously refer to a function that has multiple (polymorphic)
+  // definitions, as in:
+  //
+  //   void Foo();
+  //   void Foo(int);
+  //   X GetFoo() { return Foo; }
+  //
+  // In this case, the evaluation of the body of `GetFoo` will reflect that the
+  // expression could return multiple values (and, depending on the type `X`,
+  // one will be selected).
+  virtual std::unordered_set<VMType> ReturnTypes() const = 0;
 
   bool SupportsType(const VMType& type) {
     auto types = Types();
     return std::find(types.begin(), types.end(), type) != types.end();
   }
+
   bool IsBool() { return SupportsType(VMType::Bool()); }
   bool IsInteger() { return SupportsType(VMType::Integer()); };
   bool IsDouble() { return SupportsType(VMType::Double()); };
@@ -116,17 +134,18 @@ class Expression {
   virtual void Evaluate(Trampoline* evaluation, const VMType& type) = 0;
 };
 
+// Combine the return types of two sub-expressions (see Expression::ReturnType).
+// If there's an error, a string will be stored in `error` describing it.
+std::optional<std::unordered_set<VMType>> CombineReturnTypes(
+    std::unordered_set<VMType> a, std::unordered_set<VMType> b,
+    std::wstring* error);
+
 unique_ptr<Expression> CompileFile(const string& path, Environment* environment,
                                    wstring* error_description);
 
 unique_ptr<Expression> CompileString(const wstring& str,
                                      Environment* environment,
                                      wstring* error_description);
-
-unique_ptr<Expression> CompileString(const wstring& str,
-                                     Environment* environment,
-                                     wstring* error_description,
-                                     const VMType& return_type);
 
 // Caller must make sure expr lives until consumer runs. `yield_callback` is an
 // optional function that must ensure that the callback it receives will run

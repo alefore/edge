@@ -88,8 +88,7 @@ void SetVariableHandler(const wstring& input_name, EditorState* editor_state) {
     auto var = buffer_variables::IntStruct()->find_variable(name);
     if (var != nullptr) {
       options.initial_value = std::to_wstring(buffer->Read(var));
-      options.handler = [var, buffer](const wstring& input,
-                                      EditorState* editor_state) {
+      options.handler = [var, buffer](const wstring& input, EditorState*) {
         try {
           buffer->Set(var, stoi(input));
         } catch (const std::invalid_argument& ia) {

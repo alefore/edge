@@ -71,6 +71,8 @@ class FunctionCall : public Expression {
 
   std::vector<VMType> Types() override { return types_; }
 
+  std::unordered_set<VMType> ReturnTypes() const override { return {}; }
+
   void Evaluate(Trampoline* trampoline, const VMType& type) {
     DVLOG(3) << "Function call evaluation starts.";
     auto args_types = args_;
@@ -242,6 +244,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
             delegate_(delegate) {}
 
       std::vector<VMType> Types() override { return {*type_}; }
+      std::unordered_set<VMType> ReturnTypes() const override { return {}; }
 
       std::unique_ptr<Expression> Clone() override {
         return std::make_unique<BindObjectExpression>(obj_expr_->Clone(),

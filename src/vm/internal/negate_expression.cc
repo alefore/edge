@@ -16,6 +16,9 @@ class NegateExpression : public Expression {
       : negate_(negate), expr_(std::move(expr)) {}
 
   std::vector<VMType> Types() override { return expr_->Types(); }
+  std::unordered_set<VMType> ReturnTypes() const override {
+    return expr_->ReturnTypes();
+  }
 
   void Evaluate(Trampoline* trampoline, const VMType&) override {
     auto negate = negate_;

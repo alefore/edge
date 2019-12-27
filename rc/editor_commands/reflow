@@ -21,9 +21,12 @@ void FoldNextLineWhilePrefixIs(string prefix) {
                                   buffer.paragraph_line_prefix_characters()) ==
                             GetPrefix(buffer.line(line + 1),
                                       buffer.line_prefix_characters()))) {
-    buffer.set_position(LineColumn(line, buffer.line(line).size()));
+    buffer.ApplyTransformation(
+        SetPositionTransformation(LineColumn(line, buffer.line(line).size())));
     if (buffer.position().column() > prefix.size()) {
-      buffer.InsertText(" ");  // To avoid a space in the first line.
+      // Avoid a space in the first line:
+      buffer.ApplyTransformation(
+          InsertTransformationBuilder().set_text(" ").build());
     }
     int prefix_to_delete =
         buffer.line(line + 1).find_first_not_of(" ", prefix.size());
@@ -34,9 +37,11 @@ void FoldNextLineWhilePrefixIs(string prefix) {
 
 // Deletes length characters starting at start and breaks the line.
 void BreakAt(string prefix, int start, int length) {
-  buffer.set_position(LineColumn(buffer.position().line(), start));
+  buffer.ApplyTransformation(
+      SetPositionTransformation(LineColumn(buffer.position().line(), start)));
   buffer.DeleteCharacters(length);
-  buffer.InsertText("\n" + prefix);
+  buffer.ApplyTransformation(
+      InsertTransformationBuilder().set_text("\n" + prefix).build());
 }
 
 void BreakLine(string prefix, int line_width) {
@@ -84,14 +89,16 @@ LineColumn starting_position = buffer.position();
 
 // This is in case the first line in the paragraph has spaces that should be
 // removed.
-buffer.set_position(LineColumn(starting_position.line(), prefix.size()));
-buffer.InsertText("\n" + prefix);
-buffer.set_position(starting_position);
+buffer.ApplyTransformation(SetPositionTransformation(
+    LineColumn(starting_position.line(), prefix.size())));
+buffer.ApplyTransformation(
+    InsertTransformationBuilder().set_text("\n" + prefix).build());
+buffer.ApplyTransformation(SetPositionTransformation(starting_position));
 
 FoldNextLineWhilePrefixIs(prefix);
-buffer.set_position(starting_position);
+buffer.ApplyTransformation(SetPositionTransformation(starting_position));
 
 BreakLine(prefix, buffer.line_width());
-buffer.set_position(starting_position);
+buffer.ApplyTransformation(SetPositionTransformation(starting_position));
 
 buffer.PopTransformationStack();

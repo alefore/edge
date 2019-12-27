@@ -115,6 +115,8 @@ void AdjustPath(const std::shared_ptr<OpenBuffer>& buffer) {
   if (auto buffer = options.editor_state->current_buffer(); buffer != nullptr) {
     options.source_buffer = buffer;
   }
+  options.input_buffer = buffer;
+  options.input_selection_structure = StructureLine();
   Predict(std::move(options));
   DrawPath(buffer, line, std::nullopt);
 }

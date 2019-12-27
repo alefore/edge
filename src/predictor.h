@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "src/status.h"
+#include "src/structure.h"
 
 namespace afc {
 namespace editor {
@@ -77,6 +78,12 @@ struct PredictOptions {
   EditorState* editor_state;
   Predictor predictor;
   Status* status;
+
+  // The buffer that contains the input to use for the prediction.
+  std::shared_ptr<OpenBuffer> input_buffer;
+
+  Structure* input_selection_structure = StructureLine();
+
   // Given to the predictor (see `PredictorInput::source_buffer`).
   std::shared_ptr<OpenBuffer> source_buffer;
 
@@ -95,6 +102,8 @@ void EmptyPredictor(PredictorInput input);
 
 Predictor PrecomputedPredictor(const vector<wstring>& predictions,
                                wchar_t separator);
+
+Predictor DictionaryPredictor(std::shared_ptr<OpenBuffer> dictionary);
 
 // Buffer must be a buffer given to a predictor by `Predict`. Registers a new
 // size of a prefix that has a match.

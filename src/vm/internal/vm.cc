@@ -19,6 +19,7 @@
 #include "binary_operator.h"
 #include "compilation.h"
 #include "if_expression.h"
+#include "lambda.h"
 #include "logical_expression.h"
 #include "negate_expression.h"
 #include "return_expression.h"
@@ -511,35 +512,39 @@ unique_ptr<Expression> ResultsFromCompilation(Compilation* compilation,
 
 }  // namespace
 
+std::optional<std::unordered_set<VMType>> CombineReturnTypes(
+    std::unordered_set<VMType> a, std::unordered_set<VMType> b,
+    std::wstring* error) {
+  if (a.empty()) return b;
+  if (b.empty()) return a;
+  if (a != b) {
+    *error = L"Incompatible types found: `" + a.cbegin()->ToString() +
+             L"` and `" + b.cbegin()->ToString() + L"`.";
+    return std::nullopt;
+  }
+  return a;
+}
+
 unique_ptr<Expression> CompileFile(const string& path, Environment* environment,
                                    wstring* error_description) {
   Compilation compilation;
   compilation.directory = CppDirname(path);
   compilation.expr = nullptr;
   compilation.environment = environment;
-  compilation.return_types = {VMType::Void()};
 
   CompileFile(path, &compilation, GetParser(&compilation).get());
 
   return ResultsFromCompilation(&compilation, error_description);
 }
 
-unique_ptr<Expression> CompileString(const wstring& str,
-                                     Environment* environment,
-                                     wstring* error_description) {
-  return CompileString(str, environment, error_description, VMType::Void());
-}
-
-unique_ptr<Expression> CompileString(const wstring& str,
-                                     Environment* environment,
-                                     wstring* error_description,
-                                     const VMType& return_type) {
+std::unique_ptr<Expression> CompileString(const std::wstring& str,
+                                          Environment* environment,
+                                          std::wstring* error_description) {
   std::wstringstream instr(str, std::ios_base::in);
   Compilation compilation;
   compilation.directory = ".";
   compilation.expr = nullptr;
   compilation.environment = environment;
-  compilation.return_types = {return_type};
 
   CompileStream(instr, &compilation, GetParser(&compilation).get());
 

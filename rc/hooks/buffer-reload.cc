@@ -16,24 +16,24 @@
 void DiffMode() { buffer.set_tree_parser("diff"); }
 
 void GoToBeginningOfLine() {
-  buffer.set_position(LineColumn(buffer.position().line(), 0));
+  buffer.ApplyTransformation(SetColumnTransformation(0));
 }
 
 void GoToEndOfLine() {
-  int current_line = buffer.position().line();
-  buffer.set_position(
-      LineColumn(buffer.position().line(), buffer.line(current_line).size()));
+  buffer.ApplyTransformation(SetColumnTransformation(999999999999));
 }
 
 void DeleteCurrentLine() {
   buffer.PushTransformationStack();
-  buffer.ApplyTransformation(TransformationGoToColumn(0));
+  buffer.ApplyTransformation(SetColumnTransformation(0));
 
-  Modifiers modifiers = Modifiers();
-  modifiers.set_line();
-  modifiers.set_repetitions(repetitions());
-  modifiers.set_boundary_end_neighbor();
-  buffer.ApplyTransformation(TransformationDelete(modifiers));
+  buffer.ApplyTransformation(
+      DeleteTransformationBuilder()
+          .set_modifiers(Modifiers()
+                             .set_line()
+                             .set_repetitions(repetitions())
+                             .set_boundary_end_neighbor())
+          .build());
 
   buffer.PopTransformationStack();
   set_repetitions(1);
@@ -41,11 +41,11 @@ void DeleteCurrentLine() {
 
 void HandleKeyboardControlU() {
   buffer.PushTransformationStack();
-  Modifiers modifiers = Modifiers();
+  auto modifiers = Modifiers();
   modifiers.set_backwards();
 
   if (buffer.contents_type() == "path") {
-    LineColumn position = buffer.position();
+    auto position = buffer.position();
     string line = buffer.line(position.line());
     int column = position.column();
     if (column > 1 && line.substr(column - 1, 1) == "/") {
@@ -64,7 +64,8 @@ void HandleKeyboardControlU() {
     // Edit: Delete to the beginning of line.
     modifiers.set_line();
   }
-  buffer.ApplyTransformation(TransformationDelete(modifiers));
+  buffer.ApplyTransformation(
+      DeleteTransformationBuilder().set_modifiers(modifiers).build());
   buffer.PopTransformationStack();
 }
 
@@ -272,7 +273,7 @@ buffer.AddBinding("s-", "Numbers: Decrement the number under the cursor.",
                   DecrementNumber);
 
 void RunLocalShell() {
-  ForkCommandOptions options = ForkCommandOptions();
+  auto options = ForkCommandOptions();
   options.set_command("sh -l");
   string path = buffer.path();
   if (!path.empty()) {

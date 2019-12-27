@@ -8,7 +8,8 @@
 #include "src/command_mode.h"
 #include "src/editor.h"
 #include "src/transformation.h"
-#include "src/transformation_move.h"
+#include "src/transformation/composite.h"
+#include "src/transformation/set_position.h"
 
 namespace afc {
 namespace editor {
@@ -16,38 +17,38 @@ namespace editor {
 using std::shared_ptr;
 using std::unique_ptr;
 
-class FindTransformation : public Transformation {
+class FindTransformation : public CompositeTransformation {
  public:
-  FindTransformation(wchar_t c, Modifiers modifiers)
-      : c_(c), modifiers_(modifiers) {}
+  FindTransformation(wchar_t c) : c_(c) {}
 
-  void Apply(OpenBuffer* buffer, Result* result) const override {
-    for (size_t i = 0; i < modifiers_.repetitions; i++) {
-      if (!SeekOnce(buffer, result)) {
-        result->success = false;
-        return;
-      }
-      result->made_progress = true;
+  std::wstring Serialize() const override { return L"FindTransformation();"; }
+  void Apply(Input input) const override {
+    auto line = input.buffer->LineAt(input.position.line);
+    if (line == nullptr) return;
+    ColumnNumber column = min(input.position.column, line->EndColumn());
+    for (size_t i = 0; i < input.modifiers.repetitions; i++) {
+      auto candidate = SeekOnce(*line, column, input.modifiers);
+      if (!candidate.has_value()) break;
+      column = candidate.value();
+    }
+    if (column != input.position.column) {
+      input.push(NewSetPositionTransformation(std::nullopt, column));
     }
   }
 
-  std::unique_ptr<Transformation> Clone() const override {
-    return std::make_unique<FindTransformation>(c_, modifiers_);
+  std::unique_ptr<CompositeTransformation> Clone() const override {
+    return std::make_unique<FindTransformation>(c_);
   }
 
  private:
-  bool SeekOnce(OpenBuffer* buffer, Result* result) const {
-    auto line = buffer->LineAt(result->cursor.line);
-    if (line == nullptr) {
-      return false;
-    }
+  std::optional<ColumnNumber> SeekOnce(const Line& line, ColumnNumber column,
+                                       const Modifiers& modifiers) const {
     ColumnNumberDelta direction;
     ColumnNumberDelta times;
-    ColumnNumber column = min(result->cursor.column, line->EndColumn());
-    switch (modifiers_.direction) {
+    switch (modifiers.direction) {
       case FORWARDS:
         direction = ColumnNumberDelta(1);
-        times = line->EndColumn() - column;
+        times = line.EndColumn() - column;
         break;
       case BACKWARDS:
         direction = ColumnNumberDelta(-1);
@@ -57,25 +58,23 @@ class FindTransformation : public Transformation {
 
     CHECK_GE(times, ColumnNumberDelta(0));
     for (size_t i = 1; i < static_cast<size_t>(times.column_delta); i++) {
-      if (line->get(column + direction * i) == static_cast<wint_t>(c_)) {
-        result->cursor.column = column + direction * i;
-        return true;
+      if (line.get(column + direction * i) == static_cast<wint_t>(c_)) {
+        return column + direction * i;
       }
     }
-    return false;
+    return std::nullopt;
   }
 
   const wchar_t c_;
-  const Modifiers modifiers_;
-};
+};  // namespace editor
 
 class FindMode : public EditorMode {
   void ProcessInput(wint_t c, EditorState* editor_state) {
     editor_state->PushCurrentPosition();
     auto buffer = editor_state->current_buffer();
     if (buffer != nullptr) {
-      buffer->ApplyToCursors(
-          std::make_unique<FindTransformation>(c, editor_state->modifiers()));
+      buffer->ApplyToCursors(NewTransformation(
+          editor_state->modifiers(), std::make_unique<FindTransformation>(c)));
       buffer->ResetMode();
     }
     editor_state->ResetRepetitions();

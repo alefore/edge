@@ -24,9 +24,9 @@ vector<ColumnNumber> GetMatches(const wstring& line,
                                 const RegexPattern& pattern) {
   size_t start = 0;
   vector<ColumnNumber> output;
-  while (true) {
+  while (start < line.size()) {
     size_t match = wstring::npos;
-    wstring line_substr = line.substr(min(start, line.size()));
+    wstring line_substr = line.substr(start);
 
     std::wsmatch pattern_match;
     std::regex_search(line_substr, pattern_match, pattern);
@@ -39,6 +39,7 @@ vector<ColumnNumber> GetMatches(const wstring& line,
     output.push_back(ColumnNumber(start + match));
     start += match + 1;
   }
+  return output;
 }
 
 struct SearchResults {

@@ -1,5 +1,8 @@
 #include "lib/strings"
 
+SetString shell_prompt_help_programs_man = SetString();
+shell_prompt_help_programs_man.insert("look");
+
 SetString shell_prompt_help_programs = SetString();
 shell_prompt_help_programs.insert("apt-get");
 shell_prompt_help_programs.insert("blaze");
@@ -51,6 +54,8 @@ git_sub_commands.insert("tag");
 
 SetString hg_sub_commands = SetString();
 hg_sub_commands.insert("amend");
+hg_sub_commands.insert("checkout");
+hg_sub_commands.insert("co");
 hg_sub_commands.insert("commit");
 hg_sub_commands.insert("diff");
 hg_sub_commands.insert("xl");
@@ -75,6 +80,9 @@ string HelpCommandFor(string command) { return command + " --help"; }
 
 string GetShellPromptContextProgram(string input) {
   string base_command = BaseCommand(input);
+  if (shell_prompt_help_programs_man.contains(base_command)) {
+    return "man " + base_command;
+  }
   string sub_command = "";
   if (base_command == "blaze") {
     sub_command = LookUpSubCommand(blaze_sub_commands, input);

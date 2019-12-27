@@ -29,6 +29,8 @@ std::ostream& operator<<(std::ostream& os, const BufferPosition& bp);
 struct Modifiers {
   static void Register(vm::Environment* environment);
 
+  std::wstring Serialize() const;
+
   enum StructureRange {
     ENTIRE_STRUCTURE,
     FROM_BEGINNING_TO_CURRENT_POSITION,
@@ -136,9 +138,9 @@ ostream& operator<<(ostream& os, const Modifiers& m);
 }  // namespace editor
 namespace vm {
 template <>
-struct VMTypeMapper<editor::Modifiers*> {
-  static editor::Modifiers* get(Value* value);
-  static Value::Ptr New(editor::Modifiers* value);
+struct VMTypeMapper<std::shared_ptr<editor::Modifiers>> {
+  static std::shared_ptr<editor::Modifiers> get(Value* value);
+  static Value::Ptr New(std::shared_ptr<editor::Modifiers> value);
   static const VMType vmtype;
 };
 }  // namespace vm

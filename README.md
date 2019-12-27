@@ -13,7 +13,7 @@ running and which may or may not have a full terminal (pts).
 
 * Extensibility:
 
-  * Edge uses a simplified verison of C++ as its extension language. Extensions
+  * Edge uses a simplified version of C++ as its extension language. Extensions
     are interpreted (type errors are detected statically) and the language uses
     garbage collection. See
     [buffer-reload.cc](https://github.com/alefore/edge/blob/master/rc/hooks/buffer-reload.cc)
@@ -44,7 +44,7 @@ running and which may or may not have a full terminal (pts).
   an action.
 
   * Edge reads buffers asynchronously and never blocks while performing IO
-    operations (module a few exceptions that we would like to fix).
+    operations (modulo a few exceptions that we would like to fix).
 
   * Edge doesn't block while executing extensions. Changes are shown to the
     buffer as they are applied (unless extensions explicitly bundle changes

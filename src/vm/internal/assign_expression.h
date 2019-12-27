@@ -15,7 +15,7 @@ class Expression;
 
 // Declares a new variable of a given type and gives it an initial value.
 unique_ptr<Expression> NewAssignExpression(Compilation* compilation,
-                                           const wstring& type, wstring symbol,
+                                           wstring type, wstring symbol,
                                            unique_ptr<Expression> value);
 
 // Returns an expression that assigns a given value to an existing variable.

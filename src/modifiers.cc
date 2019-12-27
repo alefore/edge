@@ -49,54 +49,87 @@ Modifiers::Boundary IncrementBoundary(Modifiers::Boundary boundary) {
 void Modifiers::Register(vm::Environment* environment) {
   auto modifiers_type = std::make_unique<vm::ObjectType>(L"Modifiers");
 
-  environment->Define(L"Modifiers", vm::NewCallback(std::function<Modifiers*()>(
-                                        []() { return new Modifiers(); })));
+  environment->Define(
+      L"Modifiers", vm::NewCallback(std::function<std::shared_ptr<Modifiers>()>(
+                        []() { return std::make_shared<Modifiers>(); })));
 
   modifiers_type->AddField(
       L"set_backwards",
-      vm::NewCallback(std::function<void(Modifiers*)>(
-          [](Modifiers* output) { output->direction = BACKWARDS; })));
+      vm::NewCallback(
+          std::function<std::shared_ptr<Modifiers>(std::shared_ptr<Modifiers>)>(
+              [](std::shared_ptr<Modifiers> output) {
+                output->direction = BACKWARDS;
+                return output;
+              })));
 
   modifiers_type->AddField(
       L"set_line",
-      vm::NewCallback(std::function<void(Modifiers*)>(
-          [](Modifiers* output) { output->structure = StructureLine(); })));
+      vm::NewCallback(
+          std::function<std::shared_ptr<Modifiers>(std::shared_ptr<Modifiers>)>(
+              [](std::shared_ptr<Modifiers> output) {
+                output->structure = StructureLine();
+                return output;
+              })));
 
-  modifiers_type->AddField(L"set_repetitions",
-                           vm::NewCallback(std::function<void(Modifiers*, int)>(
-                               [](Modifiers* output, int repetitions) {
-                                 output->repetitions = repetitions;
-                               })));
+  modifiers_type->AddField(
+      L"set_repetitions",
+      vm::NewCallback(std::function<std::shared_ptr<Modifiers>(
+                          std::shared_ptr<Modifiers>, int)>(
+          [](std::shared_ptr<Modifiers> output, int repetitions) {
+            output->repetitions = repetitions;
+            return output;
+          })));
 
   modifiers_type->AddField(
       L"set_boundary_end_neighbor",
-      vm::NewCallback(std::function<void(Modifiers*)>(
-          [](Modifiers* output) { output->boundary_end = LIMIT_NEIGHBOR; })));
+      vm::NewCallback(
+          std::function<std::shared_ptr<Modifiers>(std::shared_ptr<Modifiers>)>(
+              [](std::shared_ptr<Modifiers> output) {
+                output->boundary_end = LIMIT_NEIGHBOR;
+                return output;
+              })));
 
   environment->DefineType(L"Modifiers", std::move(modifiers_type));
+}
+
+std::wstring Modifiers::Serialize() const {
+  std::wstring output = L"Modifiers()";
+  if (direction == BACKWARDS) {
+    output += L".set_backwards()";
+  }
+  // TODO: Handle other structures.
+  if (structure == StructureLine()) {
+    output += L".set_line()";
+  }
+  if (repetitions != 1) {
+    output += L".set_repetitions(" + std::to_wstring(repetitions) + L")";
+  }
+  if (boundary_end == LIMIT_NEIGHBOR) {
+    output += L".set_boundary_end_neigbhr()";
+  }
+  return output;
 }
 
 }  // namespace editor
 namespace vm {
 /* static */
-editor::Modifiers* VMTypeMapper<editor::Modifiers*>::get(Value* value) {
+std::shared_ptr<editor::Modifiers>
+VMTypeMapper<std::shared_ptr<editor::Modifiers>>::get(Value* value) {
   CHECK(value != nullptr);
   CHECK(value->type.type == VMType::OBJECT_TYPE);
   CHECK(value->type.object_type == L"Modifiers");
   CHECK(value->user_value != nullptr);
-  return static_cast<editor::Modifiers*>(value->user_value.get());
+  return std::static_pointer_cast<editor::Modifiers>(value->user_value);
 }
 
 /* static */
-Value::Ptr VMTypeMapper<editor::Modifiers*>::New(editor::Modifiers* value) {
-  return Value::NewObject(
-      L"Modifiers",
-      shared_ptr<void>(new editor::Modifiers(*value), [](void* v) {
-        delete static_cast<editor::Modifiers*>(v);
-      }));
+Value::Ptr VMTypeMapper<std::shared_ptr<editor::Modifiers>>::New(
+    std::shared_ptr<editor::Modifiers> value) {
+  return Value::NewObject(L"Modifiers",
+                          std::shared_ptr<void>(value, value.get()));
 }
 
-const VMType VMTypeMapper<editor::Modifiers*>::vmtype =
+const VMType VMTypeMapper<std::shared_ptr<editor::Modifiers>>::vmtype =
     VMType::ObjectType(L"Modifiers");
 }  // namespace vm
 }  // namespace afc

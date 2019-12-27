@@ -44,16 +44,17 @@ void AddToIntegerAtPosition(LineColumn position, int delta) {
   buffer.PushTransformationStack();
 
   string integer = IntegerAtPosition(position);
-  buffer.ApplyTransformation(TransformationGoToPosition(position));
+  buffer.ApplyTransformation(SetPositionTransformation(position));
 
   Modifiers modifiers = Modifiers();
   modifiers.set_repetitions(integer.size());
-  buffer.ApplyTransformation(TransformationDelete(modifiers));
+  buffer.ApplyTransformation(
+      DeleteTransformationBuilder().set_modifiers(modifiers).build());
 
-  InsertTextBuilder insertion = InsertTextBuilder();
-  insertion.set_text((integer.toint() + delta).tostring());
-  insertion.set_position(position);
-  buffer.ApplyTransformation(insertion.build());
+  buffer.ApplyTransformation(InsertTransformationBuilder()
+                                 .set_position(position)
+                                 .set_text((integer.toint() + delta).tostring())
+                                 .build());
 
   buffer.PopTransformationStack();
 }

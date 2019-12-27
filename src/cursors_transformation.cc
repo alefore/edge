@@ -5,7 +5,7 @@
 #include "src/buffer.h"
 #include "src/editor.h"
 #include "src/lazy_string_append.h"
-#include "src/transformation_delete.h"
+#include "src/transformation/delete.h"
 
 namespace afc {
 namespace editor {
@@ -16,9 +16,9 @@ class SetCursorsTransformation : public Transformation {
   SetCursorsTransformation(CursorsSet cursors, LineColumn active)
       : cursors_(std::move(cursors)), active_(active) {}
 
-  void Apply(OpenBuffer* buffer, Result* result) const override {
-    CHECK(buffer != nullptr);
+  void Apply(Result* result) const override {
     CHECK(result != nullptr);
+    CHECK(result->buffer != nullptr);
     vector<LineColumn> positions = {active_};
     bool skipped = false;
     for (const auto& cursor : cursors_) {
@@ -28,7 +28,7 @@ class SetCursorsTransformation : public Transformation {
         positions.push_back(cursor);
       }
     }
-    buffer->set_active_cursors(positions);
+    result->buffer->set_active_cursors(positions);
   }
 
   unique_ptr<Transformation> Clone() const override {

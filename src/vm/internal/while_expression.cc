@@ -23,6 +23,10 @@ class WhileExpression : public Expression {
 
   std::vector<VMType> Types() { return {VMType::Void()}; }
 
+  std::unordered_set<VMType> ReturnTypes() const override {
+    return body_->ReturnTypes();
+  }
+
   void Evaluate(Trampoline* trampoline, const VMType&) override {
     DVLOG(4) << "Evaluating condition...";
     Iterate(trampoline, condition_, body_);

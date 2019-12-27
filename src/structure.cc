@@ -7,7 +7,7 @@
 #include "src/buffer_variables.h"
 #include "src/parse_tree.h"
 #include "src/seek.h"
-#include "src/transformation_delete.h"
+#include "src/transformation/delete.h"
 
 namespace afc {
 namespace editor {
