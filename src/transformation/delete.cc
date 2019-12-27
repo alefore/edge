@@ -114,7 +114,7 @@ void HandleLineDeletion(LineColumn position, OpenBuffer* buffer) {
 
 class DeleteTransformation : public Transformation {
  public:
-  DeleteTransformation(DeleteOptions options) : options_(options) {}
+  DeleteTransformation(DeleteOptions options) : options_(std::move(options)) {}
 
   std::wstring Serialize() const { return options_.Serialize() + L".build()"; }
 
