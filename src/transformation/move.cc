@@ -1,4 +1,4 @@
-#include "src/transformation_move.h"
+#include "src/transformation/move.h"
 
 #include <glog/logging.h>
 
@@ -13,11 +13,8 @@
 #include "src/transformation/composite.h"
 #include "src/transformation/set_position.h"
 
-namespace afc {
-namespace editor {
-
+namespace afc::editor {
 namespace {
-
 class MoveCursorTransformation : public Transformation {
   void Apply(Result* result) const override {
     // Handles repetitions.
@@ -160,13 +157,10 @@ class MoveTransformation : public CompositeTransformation {
     return std::nullopt;
   }
 };
-
 }  // namespace
 
 std::unique_ptr<Transformation> NewMoveTransformation(
     const Modifiers& modifiers) {
   return NewTransformation(modifiers, std::make_unique<MoveTransformation>());
 }
-
-}  // namespace editor
-}  // namespace afc
+}  // namespace afc::editor

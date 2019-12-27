@@ -10,7 +10,6 @@
 #include "src/transformation.h"
 #include "src/transformation/composite.h"
 #include "src/transformation/set_position.h"
-#include "src/transformation_move.h"
 
 namespace afc {
 namespace editor {

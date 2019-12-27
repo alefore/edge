@@ -152,6 +152,8 @@ src/transformation/delete.cc \
 src/transformation/delete.h \
 src/transformation/insert.cc \
 src/transformation/insert.h \
+src/transformation/move.cc \
+src/transformation/move.h \
 src/transformation/noop.cc \
 src/transformation/noop.h \
 src/transformation/set_position.cc \
@@ -164,7 +166,6 @@ src/transformation/tree_navigate.cc \
 src/transformation/tree_navigate.h \
 src/transformation.cc \
 src/transformation.h \
-src/transformation_move.cc \
 src/vertical_split_output_producer.cc \
 src/vertical_split_output_producer.h \
 src/viewers.cc \

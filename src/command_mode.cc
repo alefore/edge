@@ -49,11 +49,11 @@
 #include "src/transformation.h"
 #include "src/transformation/delete.h"
 #include "src/transformation/insert.h"
+#include "src/transformation/move.h"
 #include "src/transformation/set_position.h"
 #include "src/transformation/stack.h"
 #include "src/transformation/switch_case.h"
 #include "src/transformation/tree_navigate.h"
-#include "src/transformation_move.h"
 #include "src/wstring.h"
 
 namespace afc {
