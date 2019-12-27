@@ -85,8 +85,8 @@ class ApplyRepetitionsTransformation : public Transformation {
   }
 
  private:
-  size_t repetitions_;
-  unique_ptr<Transformation> delegate_;
+  const size_t repetitions_;
+  const std::unique_ptr<Transformation> delegate_;
 };
 }  // namespace
 
