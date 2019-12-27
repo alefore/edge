@@ -125,13 +125,8 @@ class DeleteTransformation : public Transformation {
     const auto mode = options_.mode.value_or(result->mode);
 
     result->buffer->AdjustLineColumn(&result->cursor);
-    const LineColumn adjusted_original_cursor = result->cursor;
-
     Range range =
         result->buffer->FindPartialRange(options_.modifiers, result->cursor);
-    LOG(INFO) << "Starting at " << result->cursor << ", bound region at "
-              << range;
-
     range.begin = min(range.begin, result->cursor);
     range.end = max(range.end, result->cursor);
 
@@ -160,9 +155,8 @@ class DeleteTransformation : public Transformation {
       VLOG(5) << "Preparing delete buffer.";
       InsertOptions insert_options;
       insert_options.buffer_to_insert = delete_buffer;
-      result->delete_buffer->ApplyToCursors(TransformationAtPosition(
-          result->delete_buffer->position(),
-          NewInsertBufferTransformation(std::move(insert_options))));
+      result->delete_buffer->ApplyToCursors(
+          NewInsertBufferTransformation(std::move(insert_options)));
     }
 
     if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS &&
