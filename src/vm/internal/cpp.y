@@ -81,8 +81,6 @@ statement(OUT) ::= function_declaration_params(FUNC)
     std::unique_ptr<Expression> body(BODY);
     BODY = nullptr;
 
-    compilation->return_types.pop_back();
-
     auto function_environment =
         std::make_shared<Environment>(compilation->environment);
     compilation->environment = compilation->environment->parent_environment();
@@ -214,7 +212,6 @@ function_declaration_params(OUT) ::= SYMBOL(RETURN_TYPE) SYMBOL(NAME) LPAREN
       compilation->environment->Define(
           NAME->str, unique_ptr<Value>(new Value(OUT->type)));
       compilation->environment = new Environment(compilation->environment);
-      compilation->return_types.push_back(*return_type_def);
       for (pair<VMType, wstring> arg : *ARGS) {
         compilation->environment
             ->Define(arg.second, unique_ptr<Value>(new Value(arg.first)));

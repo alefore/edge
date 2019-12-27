@@ -531,29 +531,20 @@ unique_ptr<Expression> CompileFile(const string& path, Environment* environment,
   compilation.directory = CppDirname(path);
   compilation.expr = nullptr;
   compilation.environment = environment;
-  compilation.return_types = {VMType::Void()};
 
   CompileFile(path, &compilation, GetParser(&compilation).get());
 
   return ResultsFromCompilation(&compilation, error_description);
 }
 
-unique_ptr<Expression> CompileString(const wstring& str,
-                                     Environment* environment,
-                                     wstring* error_description) {
-  return CompileString(str, environment, error_description, VMType::Void());
-}
-
-unique_ptr<Expression> CompileString(const wstring& str,
-                                     Environment* environment,
-                                     wstring* error_description,
-                                     const VMType& return_type) {
+std::unique_ptr<Expression> CompileString(const std::wstring& str,
+                                          Environment* environment,
+                                          std::wstring* error_description) {
   std::wstringstream instr(str, std::ios_base::in);
   Compilation compilation;
   compilation.directory = ".";
   compilation.expr = nullptr;
   compilation.environment = environment;
-  compilation.return_types = {return_type};
 
   CompileStream(instr, &compilation, GetParser(&compilation).get());
 

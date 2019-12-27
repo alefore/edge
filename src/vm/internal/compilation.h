@@ -1,12 +1,12 @@
 #ifndef __AFC_VM_COMPILATION_H__
 #define __AFC_VM_COMPILATION_H__
 
+#include <glog/logging.h>
+
 #include <list>
 #include <memory>
 #include <string>
 #include <vector>
-
-#include <glog/logging.h>
 
 namespace afc {
 namespace vm {
@@ -36,8 +36,6 @@ struct Compilation {
   unique_ptr<Expression> expr;
   vector<wstring> errors;
 
-  // A stack: we push_back when starting compilation of a new function.
-  list<VMType> return_types;
   Environment* environment;
   wstring last_token;
 };

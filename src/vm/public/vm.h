@@ -147,11 +147,6 @@ unique_ptr<Expression> CompileString(const wstring& str,
                                      Environment* environment,
                                      wstring* error_description);
 
-unique_ptr<Expression> CompileString(const wstring& str,
-                                     Environment* environment,
-                                     wstring* error_description,
-                                     const VMType& return_type);
-
 // Caller must make sure expr lives until consumer runs. `yield_callback` is an
 // optional function that must ensure that the callback it receives will run
 // in the future.
