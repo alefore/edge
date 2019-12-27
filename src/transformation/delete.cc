@@ -92,26 +92,24 @@ LineNumber SkipLinesToErase(const OpenBuffer* buffer, size_t chars_to_erase,
   }
 }
 
-// If modifiers is null, the original modifiers (from the input buffer) are
-// used. Otherwise, they're overridden by modifiers.
-std::shared_ptr<OpenBuffer> GetDeletedTextBuffer(
-    OpenBuffer* buffer, LineColumn begin, LineNumber line_end,
-    ColumnNumber chars_erase_line) {
-  LOG(INFO) << "Preparing deleted text buffer: " << begin << " to " << line_end
-            << ", chars_erase_line: " << chars_erase_line;
+// Copy to a new buffer the contents of `range`.
+std::shared_ptr<OpenBuffer> GetDeletedTextBuffer(const OpenBuffer* buffer,
+                                                 Range range) {
+  LOG(INFO) << "Preparing deleted text buffer: " << range;
   auto delete_buffer =
       std::make_shared<OpenBuffer>(buffer->editor(), OpenBuffer::kPasteBuffer);
-  Line::Options first_line(*buffer->LineAt(begin.line));
-  if (begin.line == line_end) {
-    first_line.DeleteSuffix(chars_erase_line);
+  Line::Options first_line(*buffer->LineAt(range.begin.line));
+  if (range.begin.line == range.end.line) {
+    CHECK_GE(range.end.column, range.begin.column);
+    first_line.DeleteSuffix(range.end.column);
   }
-  first_line.DeleteCharacters(ColumnNumber(0), begin.column.ToDelta());
+  first_line.DeleteCharacters(ColumnNumber(0), range.begin.column.ToDelta());
   delete_buffer->AppendToLastLine(Line(std::move(first_line)));
 
-  for (LineNumber i = begin.line.next(); i <= line_end; ++i) {
+  for (LineNumber i = range.begin.line.next(); i <= range.end.line; ++i) {
     Line::Options replacement(*buffer->LineAt(i));
-    if (i == line_end) {
-      replacement.DeleteSuffix(chars_erase_line);
+    if (i == range.end.line) {
+      replacement.DeleteSuffix(range.end.column);
     }
     delete_buffer->AppendRawLine(std::make_shared<Line>(replacement));
   }
@@ -260,7 +258,8 @@ class DeleteTransformation : public Transformation {
         ColumnNumberDelta(0);
 
     shared_ptr<OpenBuffer> delete_buffer = GetDeletedTextBuffer(
-        result->buffer, result->cursor, line_end, chars_erase_line);
+        result->buffer,
+        Range(result->cursor, LineColumn(line_end, chars_erase_line)));
     if (options_.copy_to_paste_buffer &&
         mode == Transformation::Result::Mode::kFinal) {
       VLOG(5) << "Preparing delete buffer.";
