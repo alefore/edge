@@ -1410,12 +1410,11 @@ void OpenBuffer::DestroyOtherCursors() {
 }
 
 Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
-                                   const LineColumn& initial_position) {
+                                   LineColumn position) {
   Range output;
   const auto forward = modifiers.direction;
   const auto backward = ReverseDirection(forward);
 
-  LineColumn position = initial_position;
   position.line = min(contents_.EndLine(), position.line);
   if (position.column > LineAt(position.line)->EndColumn()) {
     if (Read(buffer_variables::extend_lines)) {

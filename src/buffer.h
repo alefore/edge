@@ -229,8 +229,7 @@ class OpenBuffer {
   void DestroyCursor();
   void DestroyOtherCursors();
 
-  Range FindPartialRange(const Modifiers& modifiers,
-                         const LineColumn& position);
+  Range FindPartialRange(const Modifiers& modifiers, LineColumn position);
 
   // If there's a buffer associated with the current line (looking up the
   // "buffer" variable in the line's environment), returns it. Returns nullptr
