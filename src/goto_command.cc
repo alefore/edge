@@ -10,6 +10,8 @@
 #include "src/editor.h"
 #include "src/lazy_string_functional.h"
 #include "src/transformation.h"
+#include "src/transformation/composite.h"
+#include "src/transformation/set_position.h"
 
 namespace afc {
 namespace editor {
@@ -53,20 +55,19 @@ size_t ComputePosition(size_t prefix_len, size_t suffix_start, size_t elements,
   }
 }
 
-class GotoCharTransformation : public Transformation {
+class GotoCharTransformation : public CompositeTransformation {
  public:
   GotoCharTransformation(int calls) : calls_(calls) {}
 
-  void Apply(Result* result) const override {
-    CHECK(result != nullptr);
-    CHECK(result->buffer != nullptr);
+  std::wstring Serialize() const override {
+    return L"GotoCharTransformation()";
+  }
+
+  void Apply(Input input) const override {
     const wstring& line_prefix_characters =
-        result->buffer->Read(buffer_variables::line_prefix_characters);
-    const auto& line = result->buffer->LineAt(result->cursor.line);
-    if (line == nullptr) {
-      result->success = false;
-      return;
-    }
+        input.buffer->Read(buffer_variables::line_prefix_characters);
+    const auto& line = input.buffer->LineAt(input.position.line);
+    if (line == nullptr) return;
     ColumnNumber start =
         FindFirstColumnWithPredicate(*line->contents(), [&](ColumnNumber,
                                                             wchar_t c) {
@@ -78,16 +79,15 @@ class GotoCharTransformation : public Transformation {
                 line->get(end - ColumnNumberDelta(1))) != string::npos)) {
       end--;
     }
-    auto editor = result->buffer->editor();
+    auto editor = input.buffer->editor();
     ColumnNumber column = ColumnNumber(ComputePosition(
         start.column, end.column, line->EndColumn().column, editor->direction(),
         editor->repetitions(), editor->structure_range(), calls_));
     CHECK_LE(column, line->EndColumn());
-    result->made_progress = result->cursor.column != column;
-    result->cursor.column = column;
+    input.push(NewSetPositionTransformation(std::nullopt, column));
   }
 
-  std::unique_ptr<Transformation> Clone() const override {
+  std::unique_ptr<CompositeTransformation> Clone() const override {
     return std::make_unique<GotoCharTransformation>(calls_);
   }
 
@@ -117,7 +117,8 @@ class GotoCommand : public Command {
     // TODO: Move this to Structure.
     auto structure = editor_state->structure();
     if (structure == StructureChar()) {
-      buffer->ApplyToCursors(std::make_unique<GotoCharTransformation>(calls_));
+      buffer->ApplyToCursors(NewTransformation(
+          Modifiers(), std::make_unique<GotoCharTransformation>(calls_)));
     } else if (structure == StructureSymbol()) {
       LineColumn position(buffer->position().line);
       buffer->AdjustLineColumn(&position);
