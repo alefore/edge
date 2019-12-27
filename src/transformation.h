@@ -14,7 +14,6 @@
 namespace afc::editor {
 class OpenBuffer;
 struct LineColumn;
-
 class TransformationStack;
 
 class Transformation {
@@ -23,7 +22,7 @@ class Transformation {
     Result(OpenBuffer* buffer);
 
     // The buffer that the transformation should modify.
-    OpenBuffer* buffer = nullptr;
+    OpenBuffer* const buffer;
 
     // Input parameter.
     enum class Mode {
@@ -38,16 +37,16 @@ class Transformation {
 
     // Did the transformation run to completion?  If it only run partially, this
     // should be false.
-    bool success;
+    bool success = true;
 
     // Did the transformation actually make any progress?  Some transformations
     // succeed without actually having any effect; we use this to stop iterating
     // them needlessly.
-    bool made_progress;
+    bool made_progress = false;
 
     // This the transformation made any actual changes to the contents of the
     // buffer?
-    bool modified_buffer;
+    bool modified_buffer = false;
 
     // Transformation that will undo any changes done by this one.
     std::unique_ptr<TransformationStack> undo_stack;

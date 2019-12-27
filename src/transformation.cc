@@ -92,9 +92,6 @@ class ApplyRepetitionsTransformation : public Transformation {
 
 Transformation::Result::Result(OpenBuffer* buffer)
     : buffer(buffer),
-      success(true),
-      made_progress(false),
-      modified_buffer(false),
       undo_stack(std::make_unique<TransformationStack>()),
       delete_buffer(std::make_shared<OpenBuffer>(buffer->editor(),
                                                  OpenBuffer::kPasteBuffer)) {}
