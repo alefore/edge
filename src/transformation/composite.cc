@@ -16,6 +16,7 @@ class Adapter : public Transformation {
   void Apply(Result* result) const override {
     TransformationStack stack;
     CompositeTransformation::Input input;
+    input.original_position = result->cursor;
     input.position = result->cursor;
     result->buffer->AdjustLineColumn(&input.position);
     input.editor = result->buffer->editor();

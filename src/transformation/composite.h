@@ -19,6 +19,8 @@ class CompositeTransformation {
   virtual std::wstring Serialize() const = 0;
 
   struct Input {
+    LineColumn original_position;
+    // Adjusted to ensure that it is within the length of the current line.
     LineColumn position;
     Range range;
     EditorState* editor;

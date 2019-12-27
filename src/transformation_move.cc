@@ -10,6 +10,7 @@
 #include "src/editor.h"
 #include "src/line_marks.h"
 #include "src/transformation.h"
+#include "src/transformation/composite.h"
 #include "src/transformation/set_position.h"
 
 namespace afc {
@@ -17,75 +18,80 @@ namespace editor {
 
 namespace {
 
-class MoveTransformation : public Transformation {
- public:
-  MoveTransformation(const Modifiers& modifiers) : modifiers_(modifiers) {}
-
+class MoveCursorTransformation : public Transformation {
   void Apply(Result* result) const override {
-    CHECK(result != nullptr);
-    CHECK(result->buffer != nullptr);
+    // Handles repetitions.
+    auto active_cursors = result->buffer->active_cursors();
+    if (result->cursor != *active_cursors->active()) {
+      LOG(INFO) << "Skipping cursor.";
+      return;
+    }
+
+    LineColumn next_cursor = result->buffer->FindNextCursor(result->cursor);
+    if (next_cursor == result->cursor) {
+      LOG(INFO) << "Cursor didn't move.";
+      return;
+    }
+
+    VLOG(5) << "Moving cursor from " << result->cursor << " to " << next_cursor;
+
+    auto next_it = active_cursors->find(next_cursor);
+    CHECK(next_it != active_cursors->end());
+    active_cursors->erase(next_it);
+    active_cursors->insert(result->cursor);
+    result->cursor = next_cursor;
+  }
+  std::unique_ptr<Transformation> Clone() const override {
+    return std::unique_ptr<MoveCursorTransformation>();
+  }
+};
+
+class MoveTransformation : public CompositeTransformation {
+ public:
+  MoveTransformation() {}
+
+  std::wstring Serialize() const override { return L"MoveTransformation()"; }
+
+  void Apply(Input input) const override {
+    CHECK(input.buffer != nullptr);
     VLOG(1) << "Move Transformation starts: "
-            << result->buffer->Read(buffer_variables::name) << " "
-            << modifiers_;
-    auto editor_state = result->buffer->editor();
-    LineColumn position;
+            << input.buffer->Read(buffer_variables::name) << " "
+            << input.modifiers;
+    std::optional<LineColumn> position;
     // TODO: Move to Structure.
-    auto structure = modifiers_.structure;
+    auto structure = input.modifiers.structure;
     if (structure == StructureLine()) {
-      position = MoveLine(result->buffer, result->cursor);
+      position =
+          MoveLine(input.buffer, input.original_position, input.modifiers);
     } else if (structure == StructureChar() || structure == StructureTree() ||
                structure == StructureSymbol() || structure == StructureWord()) {
-      position = MoveRange(result->buffer, result->cursor);
+      CHECK_LE(input.range.begin, input.range.end);
+      position = input.modifiers.direction == FORWARDS ? input.range.end
+                                                       : input.range.begin;
     } else if (structure == StructureMark()) {
-      position = MoveMark(result->buffer, result->cursor);
+      position =
+          MoveMark(input.buffer, input.original_position, input.modifiers);
     } else if (structure == StructureCursor()) {
-      // Handles repetitions.
-      auto active_cursors = result->buffer->active_cursors();
-      if (result->cursor != *active_cursors->active()) {
-        LOG(INFO) << "Skipping cursor.";
-        return;
-      }
+      input.push(std::make_unique<MoveCursorTransformation>());
 
-      LineColumn next_cursor = result->buffer->FindNextCursor(result->cursor);
-      if (next_cursor == result->cursor) {
-        LOG(INFO) << "Cursor didn't move.";
-        return;
-      }
-
-      VLOG(5) << "Moving cursor from " << result->cursor << " to "
-              << next_cursor;
-
-      auto next_it = active_cursors->find(next_cursor);
-      CHECK(next_it != active_cursors->end());
-      active_cursors->erase(next_it);
-      active_cursors->insert(result->cursor);
-      result->cursor = next_cursor;
-
-      editor_state->ResetRepetitions();
-      editor_state->ResetStructure();
-      editor_state->ResetDirection();
       return;
     } else {
-      result->buffer->status()->SetWarningText(L"Unhandled structure: " +
-                                               structure->ToString());
-      editor_state->ResetRepetitions();
-      editor_state->ResetStructure();
-      editor_state->ResetDirection();
+      input.buffer->status()->SetWarningText(L"Unhandled structure: " +
+                                             structure->ToString());
       return;
     }
-    LOG(INFO) << "Move from " << result->cursor << " to " << position << " "
-              << modifiers_;
-    NewSetPositionTransformation(position)->Apply(result);
-    if (modifiers_.repetitions > 1) {
-      editor_state->PushPosition(result->cursor);
+    if (position.has_value()) {
+      LOG(INFO) << "Move from " << input.original_position << " to "
+                << position.value() << " " << input.modifiers;
+      input.push(NewSetPositionTransformation(position.value()));
+      if (input.modifiers.repetitions > 1) {
+        input.editor->PushPosition(position.value());
+      }
     }
-    editor_state->ResetRepetitions();
-    editor_state->ResetStructure();
-    editor_state->ResetDirection();
   }
 
-  unique_ptr<Transformation> Clone() const override {
-    return NewMoveTransformation(modifiers_);
+  std::unique_ptr<CompositeTransformation> Clone() const override {
+    return std::make_unique<MoveTransformation>();
   }
 
  private:
@@ -123,10 +129,11 @@ class MoveTransformation : public Transformation {
     return it->second.target;
   }
 
-  LineColumn MoveLine(OpenBuffer* buffer, LineColumn position) const {
-    int direction = (modifiers_.direction == BACKWARDS ? -1 : 1);
-    size_t repetitions = modifiers_.repetitions;
-    if (modifiers_.direction == BACKWARDS && repetitions > position.line.line) {
+  LineColumn MoveLine(const OpenBuffer* buffer, LineColumn position,
+                      const Modifiers& modifiers) const {
+    int direction = (modifiers.direction == BACKWARDS ? -1 : 1);
+    size_t repetitions = modifiers.repetitions;
+    if (modifiers.direction == BACKWARDS && repetitions > position.line.line) {
       position.line = LineNumber(0);
     } else {
       position.line += LineNumberDelta(direction * repetitions);
@@ -135,36 +142,30 @@ class MoveTransformation : public Transformation {
     return position;
   }
 
-  LineColumn MoveRange(OpenBuffer* buffer, LineColumn position) const {
-    Range range = buffer->FindPartialRange(modifiers_, position);
-    CHECK_LE(range.begin, range.end);
-    return modifiers_.direction == FORWARDS ? range.end : range.begin;
-  }
-
-  LineColumn MoveMark(OpenBuffer* buffer, LineColumn position) const {
+  std::optional<LineColumn> MoveMark(const OpenBuffer* buffer,
+                                     LineColumn position,
+                                     const Modifiers& modifiers) const {
     const multimap<size_t, LineMarks::Mark>* marks = buffer->GetLineMarks();
 
-    switch (modifiers_.direction) {
+    switch (modifiers.direction) {
       case FORWARDS:
         return GetMarkPosition(marks->begin(), marks->end(), position,
-                               modifiers_);
+                               modifiers);
         break;
       case BACKWARDS:
         return GetMarkPosition(marks->rbegin(), marks->rend(), position,
-                               modifiers_);
+                               modifiers);
     }
     CHECK(false);
-    return LineColumn();
+    return std::nullopt;
   }
-
-  const Modifiers modifiers_;
 };
 
 }  // namespace
 
 std::unique_ptr<Transformation> NewMoveTransformation(
     const Modifiers& modifiers) {
-  return std::make_unique<MoveTransformation>(modifiers);
+  return NewTransformation(modifiers, std::make_unique<MoveTransformation>());
 }
 
 }  // namespace editor
