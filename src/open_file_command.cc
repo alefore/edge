@@ -50,7 +50,10 @@ void DrawPath(const std::shared_ptr<OpenBuffer>& buffer,
   CHECK(buffer != nullptr);
   auto status = buffer->editor()->status();
   CHECK(status != nullptr);
-  CHECK(status->GetType() == Status::Type::kPrompt);
+  if (status->GetType() != Status::Type::kPrompt) {
+    LOG(INFO) << "No longer in prompt mode, ignoring call to `DrawPath`.";
+    return;
+  }
 
   CHECK_EQ(buffer->lines_size(), LineNumberDelta(1));
   auto line = buffer->LineAt(LineNumber(0));
