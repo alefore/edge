@@ -424,7 +424,9 @@ class OpenBuffer {
   };
   static int UpdateSyntaxDataZoom(SyntaxDataZoomInput input);
 
-  LineColumn Apply(unique_ptr<Transformation> transformation);
+  Transformation::Result Apply(unique_ptr<Transformation> transformation,
+                               LineColumn position,
+                               Transformation::Result::Mode mode);
   void UpdateTreeParser();
 
   void ProcessCommandInput(shared_ptr<LazyString> str);
@@ -485,8 +487,8 @@ class OpenBuffer {
 
   // When a transformation is done, we append its result to
   // transformations_past_, so that it can be undone.
-  list<unique_ptr<Transformation::Result>> transformations_past_;
-  list<unique_ptr<Transformation::Result>> transformations_future_;
+  std::list<std::unique_ptr<TransformationStack>> undo_past_;
+  std::list<std::unique_ptr<TransformationStack>> undo_future_;
 
   list<unique_ptr<Value>> keyboard_text_transformers_;
   Environment environment_;
