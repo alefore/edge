@@ -1938,8 +1938,6 @@ void OpenBuffer::PopTransformationStack() {
   }
 }
 
-void OpenBuffer::Undo() { Undo(SKIP_IRRELEVANT); };
-
 void OpenBuffer::Undo(UndoMode undo_mode) {
   list<unique_ptr<Transformation::Result>>* source;
   list<unique_ptr<Transformation::Result>>* target;
@@ -1951,13 +1949,13 @@ void OpenBuffer::Undo(UndoMode undo_mode) {
     target = &transformations_past_;
   }
   for (size_t i = 0; i < editor()->repetitions(); i++) {
-    bool modified_buffer = false;
-    while (!modified_buffer && !source->empty()) {
+    bool done = false;
+    while (!done && !source->empty()) {
       target->emplace_back(std::make_unique<Transformation::Result>(this));
       source->back()->undo_stack->Apply(target->back().get());
       source->pop_back();
-      modified_buffer =
-          target->back()->modified_buffer || undo_mode == ONLY_UNDO_THE_LAST;
+      done = target->back()->modified_buffer ||
+             undo_mode == OpenBuffer::UndoMode::kOnlyOne;
     }
     if (source->empty()) {
       return;

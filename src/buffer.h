@@ -262,13 +262,14 @@ class OpenBuffer {
     return !last_transformation_stack_.empty();
   }
 
-  enum UndoMode {
-    // Default mode. Don't count transformations that didn't modify the buffer.
-    SKIP_IRRELEVANT,
-    // Count every transformation (even those that don't modify the buffer).
-    ONLY_UNDO_THE_LAST,
+  enum class UndoMode {
+    // Iterate the history, undoing transformations, until the buffer is
+    // actually modified.
+    kLoop,
+    // Only undo the last transformation (whether or not that causes any
+    // modifications).
+    kOnlyOne
   };
-  void Undo();
   void Undo(UndoMode undo_mode);
 
   void set_filter(unique_ptr<Value> filter);

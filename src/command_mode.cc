@@ -184,7 +184,7 @@ class UndoCommand : public Command {
     if (buffer == nullptr) {
       return;
     }
-    buffer->Undo();
+    buffer->Undo(OpenBuffer::UndoMode::kLoop);
     editor_state->ResetRepetitions();
     editor_state->ResetDirection();
   }
