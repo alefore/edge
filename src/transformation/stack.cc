@@ -13,14 +13,13 @@ void TransformationStack::PushFront(
   stack_.push_front(std::move(transformation));
 }
 
-void TransformationStack::Apply(Result* result) const {
+void TransformationStack::Apply(const Input& input, Result* result) const {
   CHECK(result != nullptr);
   for (auto& it : stack_) {
     Result it_result(result->buffer);
-    it_result.mode = result->mode;
     it_result.delete_buffer = result->delete_buffer;
     it_result.cursor = result->cursor;
-    it->Apply(&it_result);
+    it->Apply(input, &it_result);
     result->cursor = it_result.cursor;
     if (it_result.modified_buffer) {
       result->modified_buffer = true;

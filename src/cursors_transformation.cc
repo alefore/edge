@@ -16,7 +16,7 @@ class SetCursorsTransformation : public Transformation {
   SetCursorsTransformation(CursorsSet cursors, LineColumn active)
       : cursors_(std::move(cursors)), active_(active) {}
 
-  void Apply(Result* result) const override {
+  void Apply(const Input&, Result* result) const override {
     CHECK(result != nullptr);
     CHECK(result->buffer != nullptr);
     vector<LineColumn> positions = {active_};

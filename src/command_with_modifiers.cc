@@ -18,7 +18,7 @@ class CommandWithModifiersMode : public EditorMode {
         buffer_(editor_state->current_buffer()),
         handler_(std::move(handler)) {
     CHECK(buffer_ != nullptr);
-    RunHandler(editor_state, Transformation::Result::Mode::kPreview);
+    RunHandler(editor_state, Transformation::Input::Mode::kPreview);
   }
 
   void ProcessInput(wint_t c, EditorState* editor_state) override {
@@ -32,7 +32,7 @@ class CommandWithModifiersMode : public EditorMode {
 
       default:
         if (!ApplyChar(c, nullptr)) {
-          RunHandler(editor_state, Transformation::Result::Mode::kFinal);
+          RunHandler(editor_state, Transformation::Input::Mode::kFinal);
           buffer_->ResetMode();
           buffer_->status()->Reset();
           editor_state->status()->Reset();
@@ -41,14 +41,14 @@ class CommandWithModifiersMode : public EditorMode {
           }
         } else {
           modifiers_string_.push_back(c);
-          RunHandler(editor_state, Transformation::Result::Mode::kPreview);
+          RunHandler(editor_state, Transformation::Input::Mode::kPreview);
         }
     }
   }
 
  private:
   void RunHandler(EditorState* editor_state,
-                  Transformation::Result::Mode apply_mode) {
+                  Transformation::Input::Mode apply_mode) {
     Modifiers modifiers = BuildModifiers();
     buffer_->ApplyToCursors(handler_(editor_state, buffer_.get(), modifiers),
                             modifiers.cursors_affected, apply_mode);

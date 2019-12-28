@@ -16,7 +16,7 @@
 namespace afc::editor {
 namespace {
 class MoveCursorTransformation : public Transformation {
-  void Apply(Result* result) const override {
+  void Apply(const Input&, Result* result) const override {
     // Handles repetitions.
     auto active_cursors = result->buffer->active_cursors();
     if (result->cursor != *active_cursors->active()) {

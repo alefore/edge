@@ -253,7 +253,7 @@ class OpenBuffer {
   void ApplyToCursors(unique_ptr<Transformation> transformation);
   void ApplyToCursors(unique_ptr<Transformation> transformation,
                       Modifiers::CursorsAffected cursors_affected,
-                      Transformation::Result::Mode mode);
+                      Transformation::Input::Mode mode);
   void RepeatLastTransformation();
 
   void PushTransformationStack();
@@ -426,7 +426,7 @@ class OpenBuffer {
 
   Transformation::Result Apply(unique_ptr<Transformation> transformation,
                                LineColumn position,
-                               Transformation::Result::Mode mode);
+                               Transformation::Input::Mode mode);
   void UpdateTreeParser();
 
   void ProcessCommandInput(shared_ptr<LazyString> str);

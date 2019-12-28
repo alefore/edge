@@ -18,12 +18,7 @@ class TransformationStack;
 
 class Transformation {
  public:
-  struct Result {
-    Result(OpenBuffer* buffer);
-
-    // The buffer that the transformation should modify.
-    OpenBuffer* const buffer;
-
+  struct Input {
     // Input parameter.
     enum class Mode {
       // Just preview what this transformation would do. Don't apply any
@@ -34,6 +29,13 @@ class Transformation {
     };
     // Input parameter.
     Mode mode = Mode::kFinal;
+  };
+
+  struct Result {
+    Result(OpenBuffer* buffer);
+
+    // The buffer that the transformation should modify.
+    OpenBuffer* const buffer;
 
     // Did the transformation run to completion?  If it only run partially, this
     // should be false.
@@ -61,7 +63,7 @@ class Transformation {
   };
 
   virtual ~Transformation() {}
-  virtual void Apply(Result* result) const = 0;
+  virtual void Apply(const Input& input, Result* result) const = 0;
   virtual std::unique_ptr<Transformation> Clone() const = 0;
 };
 

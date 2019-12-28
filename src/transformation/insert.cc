@@ -40,7 +40,7 @@ class InsertBufferTransformation : public Transformation {
 
   std::wstring Serialize() const { return options_.Serialize() + L".build()"; }
 
-  void Apply(Result* result) const override {
+  void Apply(const Input& input, Result* result) const override {
     CHECK(result != nullptr);
     CHECK(result->buffer != nullptr);
     LineColumn position = options_.position.has_value()
@@ -69,7 +69,7 @@ class InsertBufferTransformation : public Transformation {
       delete_options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
       TransformationAtPosition(
           position, NewDeleteTransformation(std::move(delete_options)))
-          ->Apply(&current_result);
+          ->Apply(input, &current_result);
       result->undo_stack->PushFront(std::move(current_result.undo_stack));
     }
 

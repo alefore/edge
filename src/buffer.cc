@@ -129,7 +129,7 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, LineNumber line,
                              Trampoline* trampoline) {
   if ((line + LineNumberDelta(1)).ToDelta() >= buffer->lines_size()) {
     buffer->Apply(std::unique_ptr<Transformation>(transformation),
-                  buffer->position(), Transformation::Result::Mode::kFinal);
+                  buffer->position(), Transformation::Input::Mode::kFinal);
     trampoline->Return(Value::NewVoid());
     return;
   }
@@ -319,7 +319,7 @@ int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
                     buffer->ApplyToCursors(
                         NewDeleteTransformation(options),
                         Modifiers::AFFECT_ONLY_CURRENT_CURSOR,
-                        Transformation::Result::Mode::kPreview);
+                        Transformation::Input::Mode::kPreview);
                     buffer->PopTransformationStack();
                   }
                 })
@@ -1846,12 +1846,12 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
                  Read(buffer_variables::multiple_cursors)
                      ? Modifiers::AFFECT_ALL_CURSORS
                      : Modifiers::AFFECT_ONLY_CURRENT_CURSOR,
-                 Transformation::Result::Mode::kFinal);
+                 Transformation::Input::Mode::kFinal);
 }
 
 void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
                                 Modifiers::CursorsAffected cursors_affected,
-                                Transformation::Result::Mode mode) {
+                                Transformation::Input::Mode mode) {
   CHECK(transformation != nullptr);
 
   undo_future_.clear();
@@ -1884,13 +1884,14 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
 
 Transformation::Result OpenBuffer::Apply(
     unique_ptr<Transformation> transformation, LineColumn position,
-    Transformation::Result::Mode mode) {
+    Transformation::Input::Mode mode) {
   CHECK(transformation != nullptr);
 
   Transformation::Result result(this);
   result.cursor = position;
-  result.mode = mode;
-  transformation->Apply(&result);
+  Transformation::Input input;
+  input.mode = mode;
+  transformation->Apply(input, &result);
 
   auto delete_buffer = result.delete_buffer;
   CHECK(delete_buffer != nullptr);
@@ -1954,7 +1955,7 @@ void OpenBuffer::Undo(UndoMode undo_mode) {
     while (!done && !source->empty()) {
       Transformation::Result result(this);
       result.cursor = position();
-      source->back()->Apply(&result);
+      source->back()->Apply(Transformation::Input(), &result);
       target->emplace_back(std::move(result.undo_stack));
       source->pop_back();
       done =

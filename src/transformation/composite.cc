@@ -13,14 +13,14 @@ class Adapter : public Transformation {
       : modifiers_(std::move(modifiers)),
         composite_transformation_(std::move(composite_transformation)) {}
 
-  void Apply(Result* result) const override {
+  void Apply(const Input& transformation_input, Result* result) const override {
     TransformationStack stack;
     CompositeTransformation::Input input;
     input.original_position = result->cursor;
     input.position = result->cursor;
     result->buffer->AdjustLineColumn(&input.position);
     input.editor = result->buffer->editor();
-    input.mode = result->mode;
+    input.mode = transformation_input.mode;
     input.range = result->buffer->FindPartialRange(modifiers_, input.position);
     input.modifiers = modifiers_;
     input.buffer = result->buffer;
@@ -28,7 +28,7 @@ class Adapter : public Transformation {
       stack.PushBack(std::move(transformation));
     };
     composite_transformation_->Apply(std::move(input));
-    stack.Apply(result);
+    stack.Apply(transformation_input, result);
   }
 
   std::unique_ptr<Transformation> Clone() const override {

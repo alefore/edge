@@ -52,15 +52,14 @@ class ApplyRepetitionsTransformation : public Transformation {
                                  unique_ptr<Transformation> delegate)
       : repetitions_(repetitions), delegate_(std::move(delegate)) {}
 
-  void Apply(Result* result) const override {
+  void Apply(const Input& input, Result* result) const override {
     CHECK(result != nullptr);
     CHECK(result->buffer != nullptr);
     for (size_t i = 0; i < repetitions_; i++) {
       Result current_result(result->buffer);
       current_result.delete_buffer = result->delete_buffer;
       current_result.cursor = result->cursor;
-      current_result.mode = result->mode;
-      delegate_->Apply(&current_result);
+      delegate_->Apply(input, &current_result);
       result->cursor = current_result.cursor;
       if (current_result.modified_buffer) {
         result->modified_buffer = true;

@@ -44,7 +44,7 @@ class SwitchCaseTransformation : public CompositeTransformation {
     delete_options.copy_to_paste_buffer = false;
     delete_options.modifiers.repetitions =
         buffer_to_insert->contents()->CountCharacters();
-    delete_options.mode = Transformation::Result::Mode::kFinal;
+    delete_options.mode = Transformation::Input::Mode::kFinal;
     input.push(NewDeleteTransformation(std::move(delete_options)));
 
     InsertOptions insert_options;
@@ -52,12 +52,12 @@ class SwitchCaseTransformation : public CompositeTransformation {
     if (input.modifiers.direction == BACKWARDS) {
       insert_options.final_position = InsertOptions::FinalPosition::kStart;
     }
-    if (input.mode == Transformation::Result::Mode::kPreview) {
+    if (input.mode == Transformation::Input::Mode::kPreview) {
       insert_options.modifiers_set = {LineModifier::UNDERLINE,
                                       LineModifier::BLUE};
     }
     input.push(NewInsertBufferTransformation(std::move(insert_options)));
-    if (input.mode == Transformation::Result::Mode::kPreview) {
+    if (input.mode == Transformation::Input::Mode::kPreview) {
       input.push(NewSetPositionTransformation(input.position));
     }
   }
