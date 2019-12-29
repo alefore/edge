@@ -19,7 +19,7 @@ class TransformationStack;
 class Transformation {
  public:
   struct Input {
-    Input(OpenBuffer* buffer);
+    explicit Input(OpenBuffer* buffer);
 
     // Input parameter.
     enum class Mode {
@@ -37,7 +37,7 @@ class Transformation {
   };
 
   struct Result {
-    Result(OpenBuffer* buffer);
+    explicit Result(OpenBuffer* buffer);
 
     // Did the transformation run to completion?  If it only run partially, this
     // should be false.
