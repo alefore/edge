@@ -34,10 +34,15 @@ class Transformation {
 
     // The buffer that the transformation should modify.
     OpenBuffer* const buffer;
+
+    // Where should the transformation be applied?
+    LineColumn position;
   };
 
   struct Result {
     explicit Result(OpenBuffer* buffer);
+    Result(Result&&);
+    ~Result();
 
     // Did the transformation run to completion?  If it only run partially, this
     // should be false.
@@ -59,13 +64,12 @@ class Transformation {
     // appended, the buffer will replace the previous paste buffer.
     std::shared_ptr<OpenBuffer> delete_buffer;
 
-    // Input and ouput parameter: where should the transformation be applied and
-    // where does the cursor end up afterwards.
-    LineColumn cursor;
+    // Where should the cursor move to after the transformation?
+    LineColumn position;
   };
 
   virtual ~Transformation() {}
-  virtual void Apply(const Input& input, Result* result) const = 0;
+  virtual Result Apply(const Input& input) const = 0;
   virtual std::unique_ptr<Transformation> Clone() const = 0;
 };
 

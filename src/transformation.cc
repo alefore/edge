@@ -52,31 +52,33 @@ class ApplyRepetitionsTransformation : public Transformation {
                                  unique_ptr<Transformation> delegate)
       : repetitions_(repetitions), delegate_(std::move(delegate)) {}
 
-  void Apply(const Input& input, Result* result) const override {
-    CHECK(result != nullptr);
+  Result Apply(const Input& input) const override {
     CHECK(input.buffer != nullptr);
+    Result output(input.buffer);
+    output.position = input.position;
     for (size_t i = 0; i < repetitions_; i++) {
-      Result current_result(input.buffer);
-      current_result.delete_buffer = result->delete_buffer;
-      current_result.cursor = result->cursor;
-      delegate_->Apply(input, &current_result);
-      result->cursor = current_result.cursor;
-      if (current_result.modified_buffer) {
-        result->modified_buffer = true;
-      }
-      result->undo_stack->PushFront(std::move(current_result.undo_stack));
-      if (!current_result.success) {
-        result->success = false;
-        LOG(INFO) << "Application " << i << " didn't succeed, giving up.";
-        break;
-      }
+      Input current_input(input.buffer);
+      current_input.mode = input.mode;
+      current_input.position = output.position;
+      auto current_result = delegate_->Apply(current_input);
+
+      output.position = current_result.position;
+      output.undo_stack->PushFront(std::move(current_result.undo_stack));
+      output.modified_buffer |= current_result.modified_buffer;
+      // TODO(easy): Handle delete_buffer.
       if (current_result.made_progress) {
-        result->made_progress = true;
+        output.made_progress = true;
       } else {
         LOG(INFO) << "Application " << i << " didn't make progress, giving up.";
         break;
       }
+      if (!current_result.success) {
+        output.success = false;
+        LOG(INFO) << "Application " << i << " didn't succeed, giving up.";
+        break;
+      }
     }
+    return output;
   }
 
   unique_ptr<Transformation> Clone() const override {
@@ -95,6 +97,9 @@ Transformation::Result::Result(OpenBuffer* buffer)
     : undo_stack(std::make_unique<TransformationStack>()),
       delete_buffer(std::make_shared<OpenBuffer>(buffer->editor(),
                                                  OpenBuffer::kPasteBuffer)) {}
+
+Transformation::Result::Result(Result&&) = default;
+Transformation::Result::~Result() = default;
 
 unique_ptr<Transformation> TransformationAtPosition(
     const LineColumn& position, unique_ptr<Transformation> transformation) {

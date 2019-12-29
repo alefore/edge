@@ -118,23 +118,24 @@ class DeleteTransformation : public Transformation {
 
   std::wstring Serialize() const { return options_.Serialize() + L".build()"; }
 
-  void Apply(const Input& original_input, Result* result) const {
-    CHECK(result != nullptr);
-
+  Result Apply(const Input& original_input) const {
     Input input = original_input;
     CHECK(input.buffer != nullptr);
     input.mode = options_.mode.value_or(input.mode);
 
-    input.buffer->AdjustLineColumn(&result->cursor);
+    Result output(input.buffer);
+    output.position = input.position;
+
+    input.buffer->AdjustLineColumn(&output.position);
     Range range =
-        input.buffer->FindPartialRange(options_.modifiers, result->cursor);
-    range.begin = min(range.begin, result->cursor);
-    range.end = max(range.end, result->cursor);
+        input.buffer->FindPartialRange(options_.modifiers, output.position);
+    range.begin = min(range.begin, output.position);
+    range.end = max(range.end, output.position);
 
     CHECK_LE(range.begin, range.end);
     if (range.IsEmpty()) {
       VLOG(5) << "No repetitions.";
-      return;
+      return output;
     }
 
     if (options_.modifiers.delete_type == Modifiers::DELETE_CONTENTS &&
@@ -147,8 +148,8 @@ class DeleteTransformation : public Transformation {
       }
     }
 
-    result->success = true;
-    result->made_progress = true;
+    output.success = true;
+    output.made_progress = true;
 
     InsertOptions insert_options;
     insert_options.buffer_to_insert =
@@ -160,33 +161,38 @@ class DeleteTransformation : public Transformation {
     if (options_.copy_to_paste_buffer &&
         input.mode == Transformation::Input::Mode::kFinal) {
       VLOG(5) << "Preparing delete buffer.";
-      result->delete_buffer->ApplyToCursors(
+      output.delete_buffer->ApplyToCursors(
           NewInsertBufferTransformation(insert_options));
     }
 
     if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS &&
         input.mode == Transformation::Input::Mode::kFinal) {
       LOG(INFO) << "Not actually deleting region.";
-      return;
+      return output;
     }
 
     input.buffer->DeleteRange(range);
-    NewSetPositionTransformation(range.begin)->Apply(input, result);
-    result->modified_buffer = true;
+    output.undo_stack->PushFront(std::move(
+        NewSetPositionTransformation(range.begin)->Apply(input).undo_stack));
+    output.position = range.begin;
+    output.modified_buffer = true;
 
-    result->undo_stack->PushFront(
-        NewInsertBufferTransformation(insert_options));
-    result->undo_stack->PushFront(NewSetPositionTransformation(result->cursor));
+    output.undo_stack->PushFront(NewInsertBufferTransformation(insert_options));
+    output.undo_stack->PushFront(NewSetPositionTransformation(range.begin));
 
-    if (input.mode != Transformation::Input::Mode::kPreview) return;
-    LOG(INFO) << "Inserting preview at: " << result->cursor;
+    if (input.mode != Transformation::Input::Mode::kPreview) return output;
+    LOG(INFO) << "Inserting preview at: " << range.begin;
     insert_options.modifiers_set = {
         LineModifier::UNDERLINE,
         options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS
             ? LineModifier::GREEN
             : LineModifier::RED};
-    NewInsertBufferTransformation(std::move(insert_options))
-        ->Apply(input, result);
+    input.position = range.begin;
+    auto insert_result =
+        NewInsertBufferTransformation(std::move(insert_options))->Apply(input);
+    output.undo_stack->PushFront(std::move(insert_result.undo_stack));
+    output.position = insert_result.position;
+    return output;
   }
 
   unique_ptr<Transformation> Clone() const override {

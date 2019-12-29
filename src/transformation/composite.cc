@@ -13,12 +13,12 @@ class Adapter : public Transformation {
       : modifiers_(std::move(modifiers)),
         composite_transformation_(std::move(composite_transformation)) {}
 
-  void Apply(const Input& transformation_input, Result* result) const override {
+  Result Apply(const Input& transformation_input) const override {
     TransformationStack stack;
     CompositeTransformation::Input input;
     input.buffer = transformation_input.buffer;
-    input.original_position = result->cursor;
-    input.position = result->cursor;
+    input.original_position = transformation_input.position;
+    input.position = transformation_input.position;
     input.buffer->AdjustLineColumn(&input.position);
     input.editor = input.buffer->editor();
     input.mode = transformation_input.mode;
@@ -29,7 +29,7 @@ class Adapter : public Transformation {
       stack.PushBack(std::move(transformation));
     };
     composite_transformation_->Apply(std::move(input));
-    stack.Apply(transformation_input, result);
+    return stack.Apply(transformation_input);
   }
 
   std::unique_ptr<Transformation> Clone() const override {

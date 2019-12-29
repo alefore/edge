@@ -1872,26 +1872,25 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
     CursorsSet* cursors = active_cursors();
     CHECK(cursors != nullptr);
     cursors_tracker_.ApplyTransformationToCursors(
-        cursors, [this, &transformation, mode](LineColumn old_position) {
-          return Apply(transformation->Clone(), old_position, mode).cursor;
+        cursors, [this, &transformation, mode](LineColumn position) {
+          return Apply(transformation->Clone(), position, mode).position;
         });
   } else {
     VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
     active_cursors()->MoveCurrentCursor(
-        Apply(transformation->Clone(), position(), mode).cursor);
+        Apply(transformation->Clone(), position(), mode).position);
   }
 }
 
 Transformation::Result OpenBuffer::Apply(
-    unique_ptr<Transformation> transformation, LineColumn position,
+    std::unique_ptr<Transformation> transformation, LineColumn position,
     Transformation::Input::Mode mode) {
   CHECK(transformation != nullptr);
 
-  Transformation::Result result(this);
-  result.cursor = position;
   Transformation::Input input(this);
   input.mode = mode;
-  transformation->Apply(input, &result);
+  input.position = position;
+  Transformation::Result result = transformation->Apply(input);
 
   auto delete_buffer = result.delete_buffer;
   CHECK(delete_buffer != nullptr);
@@ -1953,9 +1952,9 @@ void OpenBuffer::Undo(UndoMode undo_mode) {
   for (size_t i = 0; i < editor()->repetitions(); i++) {
     bool done = false;
     while (!done && !source->empty()) {
-      Transformation::Result result(this);
-      result.cursor = position();
-      source->back()->Apply(Transformation::Input(this), &result);
+      Transformation::Input input(this);
+      input.position = position();
+      auto result = source->back()->Apply(input);
       target->emplace_back(std::move(result.undo_stack));
       source->pop_back();
       done =

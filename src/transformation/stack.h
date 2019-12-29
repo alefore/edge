@@ -12,7 +12,7 @@ class TransformationStack : public Transformation {
   void PushBack(std::unique_ptr<Transformation> transformation);
   void PushFront(std::unique_ptr<Transformation> transformation);
 
-  void Apply(const Input& input, Result* result) const override;
+  Result Apply(const Input& input) const override;
 
   std::unique_ptr<Transformation> Clone() const override;
 
