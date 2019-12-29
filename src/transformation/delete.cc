@@ -120,14 +120,14 @@ class DeleteTransformation : public Transformation {
 
   void Apply(const Input& original_input, Result* result) const {
     CHECK(result != nullptr);
-    CHECK(result->buffer != nullptr);
 
     Input input = original_input;
+    CHECK(input.buffer != nullptr);
     input.mode = options_.mode.value_or(input.mode);
 
-    result->buffer->AdjustLineColumn(&result->cursor);
+    input.buffer->AdjustLineColumn(&result->cursor);
     Range range =
-        result->buffer->FindPartialRange(options_.modifiers, result->cursor);
+        input.buffer->FindPartialRange(options_.modifiers, result->cursor);
     range.begin = min(range.begin, result->cursor);
     range.end = max(range.end, result->cursor);
 
@@ -143,7 +143,7 @@ class DeleteTransformation : public Transformation {
       for (LineColumn delete_position = range.begin;
            delete_position.line < range.end.line;
            delete_position = LineColumn(delete_position.line.next())) {
-        HandleLineDeletion(delete_position, result->buffer);
+        HandleLineDeletion(delete_position, input.buffer);
       }
     }
 
@@ -152,7 +152,7 @@ class DeleteTransformation : public Transformation {
 
     InsertOptions insert_options;
     insert_options.buffer_to_insert =
-        GetDeletedTextBuffer(*result->buffer, range);
+        GetDeletedTextBuffer(*input.buffer, range);
     insert_options.final_position = options_.modifiers.direction == FORWARDS
                                         ? InsertOptions::FinalPosition::kStart
                                         : InsertOptions::FinalPosition::kEnd;
@@ -170,7 +170,7 @@ class DeleteTransformation : public Transformation {
       return;
     }
 
-    result->buffer->DeleteRange(range);
+    input.buffer->DeleteRange(range);
     NewSetPositionTransformation(range.begin)->Apply(input, result);
     result->modified_buffer = true;
 

@@ -16,14 +16,15 @@ class Adapter : public Transformation {
   void Apply(const Input& transformation_input, Result* result) const override {
     TransformationStack stack;
     CompositeTransformation::Input input;
+    input.buffer = transformation_input.buffer;
     input.original_position = result->cursor;
     input.position = result->cursor;
-    result->buffer->AdjustLineColumn(&input.position);
-    input.editor = result->buffer->editor();
+    input.buffer->AdjustLineColumn(&input.position);
+    input.editor = input.buffer->editor();
     input.mode = transformation_input.mode;
-    input.range = result->buffer->FindPartialRange(modifiers_, input.position);
+    input.range = transformation_input.buffer->FindPartialRange(modifiers_,
+                                                                input.position);
     input.modifiers = modifiers_;
-    input.buffer = result->buffer;
     input.push = [&](std::unique_ptr<Transformation> transformation) {
       stack.PushBack(std::move(transformation));
     };

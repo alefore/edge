@@ -19,6 +19,8 @@ class TransformationStack;
 class Transformation {
  public:
   struct Input {
+    Input(OpenBuffer* buffer);
+
     // Input parameter.
     enum class Mode {
       // Just preview what this transformation would do. Don't apply any
@@ -29,13 +31,13 @@ class Transformation {
     };
     // Input parameter.
     Mode mode = Mode::kFinal;
+
+    // The buffer that the transformation should modify.
+    OpenBuffer* const buffer;
   };
 
   struct Result {
     Result(OpenBuffer* buffer);
-
-    // The buffer that the transformation should modify.
-    OpenBuffer* const buffer;
 
     // Did the transformation run to completion?  If it only run partially, this
     // should be false.

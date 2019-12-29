@@ -42,14 +42,14 @@ class InsertBufferTransformation : public Transformation {
 
   void Apply(const Input& input, Result* result) const override {
     CHECK(result != nullptr);
-    CHECK(result->buffer != nullptr);
+    CHECK(input.buffer != nullptr);
     LineColumn position = options_.position.has_value()
                               ? options_.position.value()
                               : result->cursor;
-    result->buffer->AdjustLineColumn(&position);
+    input.buffer->AdjustLineColumn(&position);
     LineColumn start_position = position;
     for (size_t i = 0; i < options_.modifiers.repetitions; i++) {
-      position = result->buffer->InsertInPosition(
+      position = input.buffer->InsertInPosition(
           *options_.buffer_to_insert, position, options_.modifiers_set);
     }
 
@@ -64,7 +64,7 @@ class InsertBufferTransformation : public Transformation {
         NewDeleteTransformation(GetCharactersDeleteOptions(chars_inserted))));
 
     if (options_.modifiers.insertion == Modifiers::REPLACE) {
-      Result current_result(result->buffer);
+      Result current_result(input.buffer);
       DeleteOptions delete_options = GetCharactersDeleteOptions(chars_inserted);
       delete_options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
       TransformationAtPosition(

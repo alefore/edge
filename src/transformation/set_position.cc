@@ -42,7 +42,6 @@ class SetPositionTransformation : public Transformation {
 
   void Apply(const Input&, Result* result) const override {
     CHECK(result != nullptr);
-    CHECK(result->buffer != nullptr);
     result->undo_stack->PushFront(NewSetPositionTransformation(
         line_.has_value() ? std::optional<LineNumber>(result->cursor.line)
                           : std::nullopt,

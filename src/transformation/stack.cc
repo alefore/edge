@@ -16,7 +16,7 @@ void TransformationStack::PushFront(
 void TransformationStack::Apply(const Input& input, Result* result) const {
   CHECK(result != nullptr);
   for (auto& it : stack_) {
-    Result it_result(result->buffer);
+    Result it_result(input.buffer);
     it_result.delete_buffer = result->delete_buffer;
     it_result.cursor = result->cursor;
     it->Apply(input, &it_result);

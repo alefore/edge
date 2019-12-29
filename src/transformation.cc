@@ -54,9 +54,9 @@ class ApplyRepetitionsTransformation : public Transformation {
 
   void Apply(const Input& input, Result* result) const override {
     CHECK(result != nullptr);
-    CHECK(result->buffer != nullptr);
+    CHECK(input.buffer != nullptr);
     for (size_t i = 0; i < repetitions_; i++) {
-      Result current_result(result->buffer);
+      Result current_result(input.buffer);
       current_result.delete_buffer = result->delete_buffer;
       current_result.cursor = result->cursor;
       delegate_->Apply(input, &current_result);
@@ -89,9 +89,10 @@ class ApplyRepetitionsTransformation : public Transformation {
 };
 }  // namespace
 
+Transformation::Input::Input(OpenBuffer* buffer) : buffer(buffer) {}
+
 Transformation::Result::Result(OpenBuffer* buffer)
-    : buffer(buffer),
-      undo_stack(std::make_unique<TransformationStack>()),
+    : undo_stack(std::make_unique<TransformationStack>()),
       delete_buffer(std::make_shared<OpenBuffer>(buffer->editor(),
                                                  OpenBuffer::kPasteBuffer)) {}
 

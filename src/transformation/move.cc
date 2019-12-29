@@ -16,15 +16,15 @@
 namespace afc::editor {
 namespace {
 class MoveCursorTransformation : public Transformation {
-  void Apply(const Input&, Result* result) const override {
+  void Apply(const Input& input, Result* result) const override {
     // Handles repetitions.
-    auto active_cursors = result->buffer->active_cursors();
+    auto active_cursors = input.buffer->active_cursors();
     if (result->cursor != *active_cursors->active()) {
       LOG(INFO) << "Skipping cursor.";
       return;
     }
 
-    LineColumn next_cursor = result->buffer->FindNextCursor(result->cursor);
+    LineColumn next_cursor = input.buffer->FindNextCursor(result->cursor);
     if (next_cursor == result->cursor) {
       LOG(INFO) << "Cursor didn't move.";
       return;

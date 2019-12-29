@@ -1889,7 +1889,7 @@ Transformation::Result OpenBuffer::Apply(
 
   Transformation::Result result(this);
   result.cursor = position;
-  Transformation::Input input;
+  Transformation::Input input(this);
   input.mode = mode;
   transformation->Apply(input, &result);
 
@@ -1955,7 +1955,7 @@ void OpenBuffer::Undo(UndoMode undo_mode) {
     while (!done && !source->empty()) {
       Transformation::Result result(this);
       result.cursor = position();
-      source->back()->Apply(Transformation::Input(), &result);
+      source->back()->Apply(Transformation::Input(this), &result);
       target->emplace_back(std::move(result.undo_stack));
       source->pop_back();
       done =
