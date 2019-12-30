@@ -28,9 +28,7 @@ class SetCursorsTransformation : public Transformation {
       }
     }
     input.buffer->set_active_cursors(positions);
-    Result output(input.buffer);
-    output.position = input.position;
-    return output;
+    return Result(input.position);
   }
 
   unique_ptr<Transformation> Clone() const override {

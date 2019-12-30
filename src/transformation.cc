@@ -54,8 +54,7 @@ class ApplyRepetitionsTransformation : public Transformation {
 
   Result Apply(const Input& input) const override {
     CHECK(input.buffer != nullptr);
-    Result output(input.buffer);
-    output.position = input.position;
+    Result output(input.position);
     for (size_t i = 0; i < repetitions_; i++) {
       Input current_input(input.buffer);
       current_input.mode = input.mode;
@@ -65,7 +64,9 @@ class ApplyRepetitionsTransformation : public Transformation {
       output.position = current_result.position;
       output.undo_stack->PushFront(std::move(current_result.undo_stack));
       output.modified_buffer |= current_result.modified_buffer;
-      // TODO(easy): Handle delete_buffer.
+      if (current_result.delete_buffer != nullptr) {
+        output.delete_buffer = current_result.delete_buffer;
+      }
       if (current_result.made_progress) {
         output.made_progress = true;
       } else {
@@ -93,10 +94,8 @@ class ApplyRepetitionsTransformation : public Transformation {
 
 Transformation::Input::Input(OpenBuffer* buffer) : buffer(buffer) {}
 
-Transformation::Result::Result(OpenBuffer* buffer)
-    : undo_stack(std::make_unique<TransformationStack>()),
-      delete_buffer(std::make_shared<OpenBuffer>(buffer->editor(),
-                                                 OpenBuffer::kPasteBuffer)) {}
+Transformation::Result::Result(LineColumn position)
+    : undo_stack(std::make_unique<TransformationStack>()), position(position) {}
 
 Transformation::Result::Result(Result&&) = default;
 Transformation::Result::~Result() = default;

@@ -1892,16 +1892,10 @@ Transformation::Result OpenBuffer::Apply(
   input.position = position;
   Transformation::Result result = transformation->Apply(input);
 
-  auto delete_buffer = result.delete_buffer;
-  CHECK(delete_buffer != nullptr);
-  if ((delete_buffer->contents()->size() > LineNumberDelta(1) ||
-       delete_buffer->LineAt(LineNumber(0))->EndColumn() > ColumnNumber(0)) &&
+  if (result.delete_buffer != nullptr &&
       Read(buffer_variables::delete_into_paste_buffer)) {
-    auto insert_result = editor()->buffers()->insert(
-        make_pair(delete_buffer->Read(buffer_variables::name), delete_buffer));
-    if (!insert_result.second) {
-      insert_result.first->second = delete_buffer;
-    }
+    (*editor()->buffers())[result.delete_buffer->Read(buffer_variables::name)] =
+        result.delete_buffer;
   }
 
   if (result.modified_buffer) {

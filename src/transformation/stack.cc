@@ -14,8 +14,7 @@ void TransformationStack::PushFront(
 }
 
 Transformation::Result TransformationStack::Apply(const Input& input) const {
-  Result output(input.buffer);
-  output.position = input.position;
+  Result output(input.position);
   for (auto& it : stack_) {
     Input it_input(input.buffer);
     it_input.position = output.position;

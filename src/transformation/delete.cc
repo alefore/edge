@@ -123,9 +123,7 @@ class DeleteTransformation : public Transformation {
     CHECK(input.buffer != nullptr);
     input.mode = options_.mode.value_or(input.mode);
 
-    Result output(input.buffer);
-    output.position = input.position;
-
+    Result output(input.position);
     input.buffer->AdjustLineColumn(&output.position);
     Range range =
         input.buffer->FindPartialRange(options_.modifiers, output.position);
@@ -151,19 +149,18 @@ class DeleteTransformation : public Transformation {
     output.success = true;
     output.made_progress = true;
 
-    InsertOptions insert_options;
-    insert_options.buffer_to_insert =
-        GetDeletedTextBuffer(*input.buffer, range);
-    insert_options.final_position = options_.modifiers.direction == FORWARDS
-                                        ? InsertOptions::FinalPosition::kStart
-                                        : InsertOptions::FinalPosition::kEnd;
-
+    auto delete_buffer = GetDeletedTextBuffer(*input.buffer, range);
     if (options_.copy_to_paste_buffer &&
         input.mode == Transformation::Input::Mode::kFinal) {
       VLOG(5) << "Preparing delete buffer.";
-      output.delete_buffer->ApplyToCursors(
-          NewInsertBufferTransformation(insert_options));
+      output.delete_buffer = delete_buffer;
     }
+
+    InsertOptions insert_options;
+    insert_options.buffer_to_insert = std::move(delete_buffer);
+    insert_options.final_position = options_.modifiers.direction == FORWARDS
+                                        ? InsertOptions::FinalPosition::kStart
+                                        : InsertOptions::FinalPosition::kEnd;
 
     if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS &&
         input.mode == Transformation::Input::Mode::kFinal) {

@@ -40,7 +40,7 @@ class Transformation {
   };
 
   struct Result {
-    explicit Result(OpenBuffer* buffer);
+    Result(LineColumn position);
     Result(Result&&);
     ~Result();
 
@@ -60,8 +60,7 @@ class Transformation {
     // Transformation that will undo any changes done by this one.
     std::unique_ptr<TransformationStack> undo_stack;
 
-    // Any text deleted will be appended to this buffer.  If any text at all is
-    // appended, the buffer will replace the previous paste buffer.
+    // If set to a buffer, it will replace the previous paste buffer.
     std::shared_ptr<OpenBuffer> delete_buffer;
 
     // Where should the cursor move to after the transformation?

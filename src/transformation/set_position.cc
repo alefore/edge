@@ -41,13 +41,11 @@ class SetPositionTransformation : public Transformation {
   }
 
   Result Apply(const Input& input) const override {
-    Result result(input.buffer);
+    Result result(LineColumn(line_.value_or(input.position.line), column_));
     result.undo_stack->PushFront(NewSetPositionTransformation(
         line_.has_value() ? std::optional<LineNumber>(input.position.line)
                           : std::nullopt,
         input.position.column));
-    result.position.line = line_.value_or(input.position.line);
-    result.position.column = column_;
     return result;
   }
 
