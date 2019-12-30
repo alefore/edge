@@ -155,12 +155,6 @@ class DeleteTransformation : public Transformation {
       output.delete_buffer = delete_buffer;
     }
 
-    InsertOptions insert_options;
-    insert_options.buffer_to_insert = std::move(delete_buffer);
-    insert_options.final_position = options_.modifiers.direction == FORWARDS
-                                        ? InsertOptions::FinalPosition::kStart
-                                        : InsertOptions::FinalPosition::kEnd;
-
     if (options_.modifiers.delete_type == Modifiers::PRESERVE_CONTENTS &&
         input.mode == Transformation::Input::Mode::kFinal) {
       LOG(INFO) << "Not actually deleting region.";
@@ -168,11 +162,15 @@ class DeleteTransformation : public Transformation {
     }
 
     input.buffer->DeleteRange(range);
-    output.undo_stack->PushFront(std::move(
-        NewSetPositionTransformation(range.begin)->Apply(input).undo_stack));
-    output.position = range.begin;
     output.modified_buffer = true;
 
+    output.MergeFrom(NewSetPositionTransformation(range.begin)->Apply(input));
+
+    InsertOptions insert_options;
+    insert_options.buffer_to_insert = std::move(delete_buffer);
+    insert_options.final_position = options_.modifiers.direction == FORWARDS
+                                        ? InsertOptions::FinalPosition::kStart
+                                        : InsertOptions::FinalPosition::kEnd;
     output.undo_stack->PushFront(NewInsertBufferTransformation(insert_options));
     output.undo_stack->PushFront(NewSetPositionTransformation(range.begin));
 
@@ -184,10 +182,8 @@ class DeleteTransformation : public Transformation {
             ? LineModifier::GREEN
             : LineModifier::RED};
     input.position = range.begin;
-    auto insert_result =
-        NewInsertBufferTransformation(std::move(insert_options))->Apply(input);
-    output.undo_stack->PushFront(std::move(insert_result.undo_stack));
-    output.position = insert_result.position;
+    output.MergeFrom(
+        NewInsertBufferTransformation(std::move(insert_options))->Apply(input));
     return output;
   }
 

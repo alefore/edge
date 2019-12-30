@@ -16,22 +16,11 @@ void TransformationStack::PushFront(
 Transformation::Result TransformationStack::Apply(const Input& input) const {
   Result output(input.position);
   for (auto& it : stack_) {
-    Input it_input(input.buffer);
-    it_input.position = output.position;
-    it_input.mode = input.mode;
-    Result it_result = it->Apply(it_input);
-    output.position = it_result.position;
-    output.undo_stack->PushFront(std::move(it_result.undo_stack));
-    if (it_result.modified_buffer) {
-      output.modified_buffer = true;
-    }
-    if (it_result.made_progress) {
-      output.made_progress = true;
-    }
-    if (!it_result.success) {
-      output.success = false;
-      break;
-    }
+    Input sub_input(input.buffer);
+    sub_input.position = output.position;
+    sub_input.mode = input.mode;
+    output.MergeFrom(it->Apply(sub_input));
+    if (!output.success) break;
   }
   return output;
 }

@@ -59,22 +59,14 @@ class ApplyRepetitionsTransformation : public Transformation {
       Input current_input(input.buffer);
       current_input.mode = input.mode;
       current_input.position = output.position;
-      auto current_result = delegate_->Apply(current_input);
-
-      output.position = current_result.position;
-      output.undo_stack->PushFront(std::move(current_result.undo_stack));
-      output.modified_buffer |= current_result.modified_buffer;
-      if (current_result.delete_buffer != nullptr) {
-        output.delete_buffer = current_result.delete_buffer;
-      }
-      if (current_result.made_progress) {
-        output.made_progress = true;
-      } else {
+      auto result = delegate_->Apply(current_input);
+      bool made_progress = result.made_progress;
+      output.MergeFrom(std::move(result));
+      if (!made_progress) {
         LOG(INFO) << "Application " << i << " didn't make progress, giving up.";
         break;
       }
-      if (!current_result.success) {
-        output.success = false;
+      if (!output.success) {
         LOG(INFO) << "Application " << i << " didn't succeed, giving up.";
         break;
       }
@@ -99,6 +91,17 @@ Transformation::Result::Result(LineColumn position)
 
 Transformation::Result::Result(Result&&) = default;
 Transformation::Result::~Result() = default;
+
+void Transformation::Result::MergeFrom(Result sub_result) {
+  success &= sub_result.success;
+  made_progress |= sub_result.made_progress;
+  modified_buffer |= sub_result.modified_buffer;
+  undo_stack->PushFront(std::move(sub_result.undo_stack));
+  if (sub_result.delete_buffer != nullptr) {
+    delete_buffer = std::move(sub_result.delete_buffer);
+  }
+  position = std::move(sub_result.position);
+}
 
 unique_ptr<Transformation> TransformationAtPosition(
     const LineColumn& position, unique_ptr<Transformation> transformation) {

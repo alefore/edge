@@ -60,12 +60,10 @@ class InsertBufferTransformation : public Transformation {
       DeleteOptions delete_options = GetCharactersDeleteOptions(chars_inserted);
       delete_options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
       delete_options.copy_to_paste_buffer = false;
-      result.undo_stack->PushFront(
-          std::move(TransformationAtPosition(
-                        result.position,
-                        NewDeleteTransformation(std::move(delete_options)))
-                        ->Apply(input)
-                        .undo_stack));
+      result.MergeFrom(TransformationAtPosition(
+                           result.position,
+                           NewDeleteTransformation(std::move(delete_options)))
+                           ->Apply(input));
     }
 
     if (options_.final_position == InsertOptions::FinalPosition::kStart &&
