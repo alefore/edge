@@ -40,18 +40,13 @@ class SetPositionTransformation : public Transformation {
     }
   }
 
-  void Apply(Result* result) const override {
-    CHECK(result != nullptr);
-    CHECK(result->buffer != nullptr);
-    result->undo_stack->PushFront(NewSetPositionTransformation(
-        line_.has_value() ? std::optional<LineNumber>(result->cursor.line)
+  Result Apply(const Input& input) const override {
+    Result result(LineColumn(line_.value_or(input.position.line), column_));
+    result.undo_stack->PushFront(NewSetPositionTransformation(
+        line_.has_value() ? std::optional<LineNumber>(input.position.line)
                           : std::nullopt,
-        result->cursor.column));
-    if (line_.has_value()) {
-      result->cursor.line = line_.value();
-    }
-    result->cursor.column = column_;
-    result->success = true;
+        input.position.column));
+    return result;
   }
 
   std::unique_ptr<Transformation> Clone() const override {

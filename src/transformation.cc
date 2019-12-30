@@ -52,32 +52,26 @@ class ApplyRepetitionsTransformation : public Transformation {
                                  unique_ptr<Transformation> delegate)
       : repetitions_(repetitions), delegate_(std::move(delegate)) {}
 
-  void Apply(Result* result) const override {
-    CHECK(result != nullptr);
-    CHECK(result->buffer != nullptr);
+  Result Apply(const Input& input) const override {
+    CHECK(input.buffer != nullptr);
+    Result output(input.position);
     for (size_t i = 0; i < repetitions_; i++) {
-      Result current_result(result->buffer);
-      current_result.delete_buffer = result->delete_buffer;
-      current_result.cursor = result->cursor;
-      current_result.mode = result->mode;
-      delegate_->Apply(&current_result);
-      result->cursor = current_result.cursor;
-      if (current_result.modified_buffer) {
-        result->modified_buffer = true;
-      }
-      result->undo_stack->PushFront(std::move(current_result.undo_stack));
-      if (!current_result.success) {
-        result->success = false;
-        LOG(INFO) << "Application " << i << " didn't succeed, giving up.";
-        break;
-      }
-      if (current_result.made_progress) {
-        result->made_progress = true;
-      } else {
+      Input current_input(input.buffer);
+      current_input.mode = input.mode;
+      current_input.position = output.position;
+      auto result = delegate_->Apply(current_input);
+      bool made_progress = result.made_progress;
+      output.MergeFrom(std::move(result));
+      if (!made_progress) {
         LOG(INFO) << "Application " << i << " didn't make progress, giving up.";
         break;
       }
+      if (!output.success) {
+        LOG(INFO) << "Application " << i << " didn't succeed, giving up.";
+        break;
+      }
     }
+    return output;
   }
 
   unique_ptr<Transformation> Clone() const override {
@@ -90,11 +84,24 @@ class ApplyRepetitionsTransformation : public Transformation {
 };
 }  // namespace
 
-Transformation::Result::Result(OpenBuffer* buffer)
-    : buffer(buffer),
-      undo_stack(std::make_unique<TransformationStack>()),
-      delete_buffer(std::make_shared<OpenBuffer>(buffer->editor(),
-                                                 OpenBuffer::kPasteBuffer)) {}
+Transformation::Input::Input(OpenBuffer* buffer) : buffer(buffer) {}
+
+Transformation::Result::Result(LineColumn position)
+    : undo_stack(std::make_unique<TransformationStack>()), position(position) {}
+
+Transformation::Result::Result(Result&&) = default;
+Transformation::Result::~Result() = default;
+
+void Transformation::Result::MergeFrom(Result sub_result) {
+  success &= sub_result.success;
+  made_progress |= sub_result.made_progress;
+  modified_buffer |= sub_result.modified_buffer;
+  undo_stack->PushFront(std::move(sub_result.undo_stack));
+  if (sub_result.delete_buffer != nullptr) {
+    delete_buffer = std::move(sub_result.delete_buffer);
+  }
+  position = std::move(sub_result.position);
+}
 
 unique_ptr<Transformation> TransformationAtPosition(
     const LineColumn& position, unique_ptr<Transformation> transformation) {

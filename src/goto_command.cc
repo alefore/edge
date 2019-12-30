@@ -120,8 +120,7 @@ class GotoCommand : public Command {
       buffer->ApplyToCursors(NewTransformation(
           Modifiers(), std::make_unique<GotoCharTransformation>(calls_)));
     } else if (structure == StructureSymbol()) {
-      LineColumn position(buffer->position().line);
-      buffer->AdjustLineColumn(&position);
+      LineColumn position(buffer->AdjustLineColumn(buffer->position()).line);
       if (editor_state->direction() == BACKWARDS) {
         position.column = buffer->LineAt(position.line)->EndColumn();
       }

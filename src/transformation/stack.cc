@@ -13,27 +13,16 @@ void TransformationStack::PushFront(
   stack_.push_front(std::move(transformation));
 }
 
-void TransformationStack::Apply(Result* result) const {
-  CHECK(result != nullptr);
+Transformation::Result TransformationStack::Apply(const Input& input) const {
+  Result output(input.position);
   for (auto& it : stack_) {
-    Result it_result(result->buffer);
-    it_result.mode = result->mode;
-    it_result.delete_buffer = result->delete_buffer;
-    it_result.cursor = result->cursor;
-    it->Apply(&it_result);
-    result->cursor = it_result.cursor;
-    if (it_result.modified_buffer) {
-      result->modified_buffer = true;
-    }
-    if (it_result.made_progress) {
-      result->made_progress = true;
-    }
-    result->undo_stack->PushFront(std::move(it_result.undo_stack));
-    if (!it_result.success) {
-      result->success = false;
-      break;
-    }
+    Input sub_input(input.buffer);
+    sub_input.position = output.position;
+    sub_input.mode = input.mode;
+    output.MergeFrom(it->Apply(sub_input));
+    if (!output.success) break;
   }
+  return output;
 }
 
 std::unique_ptr<Transformation> TransformationStack::Clone() const {

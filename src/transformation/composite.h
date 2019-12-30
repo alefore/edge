@@ -26,7 +26,7 @@ class CompositeTransformation {
     EditorState* editor;
     const OpenBuffer* buffer;
     Modifiers modifiers;
-    Transformation::Result::Mode mode;
+    Transformation::Input::Mode mode;
     std::function<void(std::unique_ptr<Transformation> transformation)> push;
   };
   virtual void Apply(Input input) const = 0;

@@ -128,7 +128,8 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, LineNumber line,
                              TransformationStack* transformation,
                              Trampoline* trampoline) {
   if ((line + LineNumberDelta(1)).ToDelta() >= buffer->lines_size()) {
-    buffer->Apply(std::unique_ptr<Transformation>(transformation));
+    buffer->Apply(std::unique_ptr<Transformation>(transformation),
+                  buffer->position(), Transformation::Input::Mode::kFinal);
     trampoline->Return(Value::NewVoid());
     return;
   }
@@ -318,7 +319,7 @@ int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
                     buffer->ApplyToCursors(
                         NewDeleteTransformation(options),
                         Modifiers::AFFECT_ONLY_CURRENT_CURSOR,
-                        Transformation::Result::Mode::kPreview);
+                        Transformation::Input::Mode::kPreview);
                     buffer->PopTransformationStack();
                   }
                 })
@@ -790,8 +791,8 @@ void OpenBuffer::ClearContents(
   }
   last_transformation_ = NewNoopTransformation();
   last_transformation_stack_.clear();
-  transformations_past_.clear();
-  transformations_future_.clear();
+  undo_past_.clear();
+  undo_future_.clear();
 }
 
 void OpenBuffer::AppendEmptyLine() {
@@ -1202,11 +1203,12 @@ LineColumn OpenBuffer::InsertInPosition(
   return LineColumn(last_line, column);
 }
 
-void OpenBuffer::AdjustLineColumn(LineColumn* output) const {
+LineColumn OpenBuffer::AdjustLineColumn(LineColumn position) const {
   CHECK_GT(contents_.size(), LineNumberDelta(0));
-  output->line = min(output->line, contents_.EndLine());
-  CHECK(LineAt(output->line) != nullptr);
-  output->column = min(LineAt(output->line)->EndColumn(), output->column);
+  position.line = min(position.line, contents_.EndLine());
+  CHECK(LineAt(position.line) != nullptr);
+  position.column = min(LineAt(position.line)->EndColumn(), position.column);
+  return position;
 }
 
 void OpenBuffer::MaybeAdjustPositionCol() {
@@ -1845,72 +1847,66 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
                  Read(buffer_variables::multiple_cursors)
                      ? Modifiers::AFFECT_ALL_CURSORS
                      : Modifiers::AFFECT_ONLY_CURRENT_CURSOR,
-                 Transformation::Result::Mode::kFinal);
+                 Transformation::Input::Mode::kFinal);
 }
 
 void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
                                 Modifiers::CursorsAffected cursors_affected,
-                                Transformation::Result::Mode mode) {
+                                Transformation::Input::Mode mode) {
   CHECK(transformation != nullptr);
+
+  undo_future_.clear();
 
   if (!last_transformation_stack_.empty()) {
     CHECK(last_transformation_stack_.back() != nullptr);
     last_transformation_stack_.back()->PushBack(transformation->Clone());
-    CHECK(!transformations_past_.empty());
+    CHECK(!undo_past_.empty());
   } else {
-    transformations_past_.push_back(
-        std::make_unique<Transformation::Result>(this));
+    undo_past_.push_back(std::make_unique<TransformationStack>());
   }
 
-  transformations_past_.back()->undo_stack->PushFront(
+  undo_past_.back()->PushFront(
       NewSetCursorsTransformation(*active_cursors(), position()));
-
-  transformations_past_.back()->mode = mode;
 
   if (cursors_affected == Modifiers::AFFECT_ALL_CURSORS) {
     CursorsSet single_cursor;
     CursorsSet* cursors = active_cursors();
     CHECK(cursors != nullptr);
     cursors_tracker_.ApplyTransformationToCursors(
-        cursors, [this, &transformation, mode](LineColumn old_position) {
-          transformations_past_.back()->cursor = old_position;
-          auto new_position = Apply(transformation->Clone());
-          return new_position;
+        cursors, [this, &transformation, mode](LineColumn position) {
+          return Apply(transformation->Clone(), position, mode);
         });
   } else {
-    transformations_past_.back()->cursor = position();
-    auto new_position = Apply(transformation->Clone());
     VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
-    active_cursors()->MoveCurrentCursor(new_position);
-  }
-
-  transformations_future_.clear();
-  if (transformations_past_.back()->modified_buffer) {
-    options_.editor->StartHandlingInterrupts();
-    last_transformation_ = std::move(transformation);
+    active_cursors()->MoveCurrentCursor(
+        Apply(transformation->Clone(), position(), mode));
   }
 }
 
-LineColumn OpenBuffer::Apply(unique_ptr<Transformation> transformation) {
+LineColumn OpenBuffer::Apply(std::unique_ptr<Transformation> transformation,
+                             LineColumn position,
+                             Transformation::Input::Mode mode) {
   CHECK(transformation != nullptr);
-  CHECK(!transformations_past_.empty());
 
-  transformation->Apply(transformations_past_.back().get());
-  CHECK(!transformations_past_.empty());
+  Transformation::Input input(this);
+  input.mode = mode;
+  input.position = position;
+  Transformation::Result result = transformation->Apply(input);
 
-  auto delete_buffer = transformations_past_.back()->delete_buffer;
-  CHECK(delete_buffer != nullptr);
-  if ((delete_buffer->contents()->size() > LineNumberDelta(1) ||
-       delete_buffer->LineAt(LineNumber(0))->EndColumn() > ColumnNumber(0)) &&
+  if (result.delete_buffer != nullptr &&
       Read(buffer_variables::delete_into_paste_buffer)) {
-    auto insert_result = editor()->buffers()->insert(
-        make_pair(delete_buffer->Read(buffer_variables::name), delete_buffer));
-    if (!insert_result.second) {
-      insert_result.first->second = delete_buffer;
-    }
+    (*editor()->buffers())[result.delete_buffer->Read(buffer_variables::name)] =
+        result.delete_buffer;
   }
 
-  return transformations_past_.back()->cursor;
+  if (result.modified_buffer) {
+    editor()->StartHandlingInterrupts();
+    last_transformation_ = std::move(transformation);
+  }
+
+  CHECK(!undo_past_.empty());
+  undo_past_.back()->PushFront(std::move(result.undo_stack));
+  return result.position;
 }
 
 void OpenBuffer::RepeatLastTransformation() {
@@ -1922,8 +1918,7 @@ void OpenBuffer::RepeatLastTransformation() {
 
 void OpenBuffer::PushTransformationStack() {
   if (last_transformation_stack_.empty()) {
-    transformations_past_.push_back(
-        std::make_unique<Transformation::Result>(this));
+    undo_past_.push_back(std::make_unique<TransformationStack>());
   }
   last_transformation_stack_.emplace_back(
       std::make_unique<TransformationStack>());
@@ -1938,26 +1933,26 @@ void OpenBuffer::PopTransformationStack() {
   }
 }
 
-void OpenBuffer::Undo() { Undo(SKIP_IRRELEVANT); };
-
 void OpenBuffer::Undo(UndoMode undo_mode) {
-  list<unique_ptr<Transformation::Result>>* source;
-  list<unique_ptr<Transformation::Result>>* target;
+  std::list<std::unique_ptr<TransformationStack>>* source;
+  std::list<std::unique_ptr<TransformationStack>>* target;
   if (editor()->direction() == FORWARDS) {
-    source = &transformations_past_;
-    target = &transformations_future_;
+    source = &undo_past_;
+    target = &undo_future_;
   } else {
-    source = &transformations_future_;
-    target = &transformations_past_;
+    source = &undo_future_;
+    target = &undo_past_;
   }
   for (size_t i = 0; i < editor()->repetitions(); i++) {
-    bool modified_buffer = false;
-    while (!modified_buffer && !source->empty()) {
-      target->emplace_back(std::make_unique<Transformation::Result>(this));
-      source->back()->undo_stack->Apply(target->back().get());
+    bool done = false;
+    while (!done && !source->empty()) {
+      Transformation::Input input(this);
+      input.position = position();
+      auto result = source->back()->Apply(input);
+      target->emplace_back(std::move(result.undo_stack));
       source->pop_back();
-      modified_buffer =
-          target->back()->modified_buffer || undo_mode == ONLY_UNDO_THE_LAST;
+      done =
+          result.modified_buffer || undo_mode == OpenBuffer::UndoMode::kOnlyOne;
     }
     if (source->empty()) {
       return;

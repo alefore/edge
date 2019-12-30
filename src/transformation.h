@@ -18,11 +18,8 @@ class TransformationStack;
 
 class Transformation {
  public:
-  struct Result {
-    Result(OpenBuffer* buffer);
-
-    // The buffer that the transformation should modify.
-    OpenBuffer* const buffer;
+  struct Input {
+    explicit Input(OpenBuffer* buffer);
 
     // Input parameter.
     enum class Mode {
@@ -34,6 +31,20 @@ class Transformation {
     };
     // Input parameter.
     Mode mode = Mode::kFinal;
+
+    // The buffer that the transformation should modify.
+    OpenBuffer* const buffer;
+
+    // Where should the transformation be applied?
+    LineColumn position;
+  };
+
+  struct Result {
+    Result(LineColumn position);
+    Result(Result&&);
+    ~Result();
+
+    void MergeFrom(Result result);
 
     // Did the transformation run to completion?  If it only run partially, this
     // should be false.
@@ -51,17 +62,15 @@ class Transformation {
     // Transformation that will undo any changes done by this one.
     std::unique_ptr<TransformationStack> undo_stack;
 
-    // Any text deleted will be appended to this buffer.  If any text at all is
-    // appended, the buffer will replace the previous paste buffer.
+    // If set to a buffer, it will replace the previous paste buffer.
     std::shared_ptr<OpenBuffer> delete_buffer;
 
-    // Input and ouput parameter: where should the transformation be applied and
-    // where does the cursor end up afterwards.
-    LineColumn cursor;
+    // Where should the cursor move to after the transformation?
+    LineColumn position;
   };
 
   virtual ~Transformation() {}
-  virtual void Apply(Result* result) const = 0;
+  virtual Result Apply(const Input& input) const = 0;
   virtual std::unique_ptr<Transformation> Clone() const = 0;
 };
 

@@ -190,9 +190,10 @@ class OpenBuffer {
   LineColumn InsertInPosition(const OpenBuffer& insertion,
                               const LineColumn& position,
                               const std::optional<LineModifierSet>& modifiers);
-  // Checks that line column is in the expected range (between 0 and the length
-  // of the current line).
-  void AdjustLineColumn(LineColumn* output) const;
+  // Returns a copy of position, but ensuring that it is in the expected range
+  // (i.e., that the line is valid, and that the column fits the length of the
+  // line).
+  LineColumn AdjustLineColumn(LineColumn position) const;
 
   // If the current cursor is in a valid line (i.e., it isn't past the last
   // line), adjusts the column to not be beyond the length of the line.
@@ -253,7 +254,7 @@ class OpenBuffer {
   void ApplyToCursors(unique_ptr<Transformation> transformation);
   void ApplyToCursors(unique_ptr<Transformation> transformation,
                       Modifiers::CursorsAffected cursors_affected,
-                      Transformation::Result::Mode mode);
+                      Transformation::Input::Mode mode);
   void RepeatLastTransformation();
 
   void PushTransformationStack();
@@ -262,13 +263,14 @@ class OpenBuffer {
     return !last_transformation_stack_.empty();
   }
 
-  enum UndoMode {
-    // Default mode. Don't count transformations that didn't modify the buffer.
-    SKIP_IRRELEVANT,
-    // Count every transformation (even those that don't modify the buffer).
-    ONLY_UNDO_THE_LAST,
+  enum class UndoMode {
+    // Iterate the history, undoing transformations, until the buffer is
+    // actually modified.
+    kLoop,
+    // Only undo the last transformation (whether or not that causes any
+    // modifications).
+    kOnlyOne
   };
-  void Undo();
   void Undo(UndoMode undo_mode);
 
   void set_filter(unique_ptr<Value> filter);
@@ -423,7 +425,8 @@ class OpenBuffer {
   };
   static int UpdateSyntaxDataZoom(SyntaxDataZoomInput input);
 
-  LineColumn Apply(unique_ptr<Transformation> transformation);
+  LineColumn Apply(unique_ptr<Transformation> transformation,
+                   LineColumn position, Transformation::Input::Mode mode);
   void UpdateTreeParser();
 
   void ProcessCommandInput(shared_ptr<LazyString> str);
@@ -484,8 +487,8 @@ class OpenBuffer {
 
   // When a transformation is done, we append its result to
   // transformations_past_, so that it can be undone.
-  list<unique_ptr<Transformation::Result>> transformations_past_;
-  list<unique_ptr<Transformation::Result>> transformations_future_;
+  std::list<std::unique_ptr<TransformationStack>> undo_past_;
+  std::list<std::unique_ptr<TransformationStack>> undo_future_;
 
   list<unique_ptr<Value>> keyboard_text_transformers_;
   Environment environment_;

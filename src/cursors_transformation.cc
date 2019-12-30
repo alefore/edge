@@ -16,9 +16,8 @@ class SetCursorsTransformation : public Transformation {
   SetCursorsTransformation(CursorsSet cursors, LineColumn active)
       : cursors_(std::move(cursors)), active_(active) {}
 
-  void Apply(Result* result) const override {
-    CHECK(result != nullptr);
-    CHECK(result->buffer != nullptr);
+  Result Apply(const Input& input) const override {
+    CHECK(input.buffer != nullptr);
     vector<LineColumn> positions = {active_};
     bool skipped = false;
     for (const auto& cursor : cursors_) {
@@ -28,7 +27,8 @@ class SetCursorsTransformation : public Transformation {
         positions.push_back(cursor);
       }
     }
-    result->buffer->set_active_cursors(positions);
+    input.buffer->set_active_cursors(positions);
+    return Result(input.position);
   }
 
   unique_ptr<Transformation> Clone() const override {

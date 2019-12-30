@@ -40,46 +40,40 @@ class InsertBufferTransformation : public Transformation {
 
   std::wstring Serialize() const { return options_.Serialize() + L".build()"; }
 
-  void Apply(Result* result) const override {
-    CHECK(result != nullptr);
-    CHECK(result->buffer != nullptr);
-    LineColumn position = options_.position.has_value()
-                              ? options_.position.value()
-                              : result->cursor;
-    result->buffer->AdjustLineColumn(&position);
-    LineColumn start_position = position;
+  Result Apply(const Input& input) const override {
+    CHECK(input.buffer != nullptr);
+    Result result(input.buffer->AdjustLineColumn(
+        options_.position.value_or(input.position)));
+    LineColumn start_position = result.position;
     for (size_t i = 0; i < options_.modifiers.repetitions; i++) {
-      position = result->buffer->InsertInPosition(
-          *options_.buffer_to_insert, position, options_.modifiers_set);
-    }
-
-    if (!options_.position.has_value()) {
-      result->cursor = position;
+      result.position = input.buffer->InsertInPosition(
+          *options_.buffer_to_insert, result.position, options_.modifiers_set);
     }
 
     size_t chars_inserted =
         buffer_to_insert_length_ * options_.modifiers.repetitions;
-    result->undo_stack->PushFront(TransformationAtPosition(
+    result.undo_stack->PushFront(TransformationAtPosition(
         start_position,
         NewDeleteTransformation(GetCharactersDeleteOptions(chars_inserted))));
 
     if (options_.modifiers.insertion == Modifiers::REPLACE) {
-      Result current_result(result->buffer);
       DeleteOptions delete_options = GetCharactersDeleteOptions(chars_inserted);
       delete_options.line_end_behavior = DeleteOptions::LineEndBehavior::kStop;
-      TransformationAtPosition(
-          position, NewDeleteTransformation(std::move(delete_options)))
-          ->Apply(&current_result);
-      result->undo_stack->PushFront(std::move(current_result.undo_stack));
+      delete_options.copy_to_paste_buffer = false;
+      result.MergeFrom(TransformationAtPosition(
+                           result.position,
+                           NewDeleteTransformation(std::move(delete_options)))
+                           ->Apply(input));
     }
 
     if (options_.final_position == InsertOptions::FinalPosition::kStart &&
         !options_.position.has_value()) {
-      result->cursor = start_position;
+      result.position = start_position;
     }
 
-    result->modified_buffer = true;
-    result->made_progress = true;
+    result.modified_buffer = true;
+    result.made_progress = true;
+    return result;
   }
 
   unique_ptr<Transformation> Clone() const override {
