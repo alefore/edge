@@ -1874,18 +1874,18 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
     CHECK(cursors != nullptr);
     cursors_tracker_.ApplyTransformationToCursors(
         cursors, [this, &transformation, mode](LineColumn position) {
-          return Apply(transformation->Clone(), position, mode).position;
+          return Apply(transformation->Clone(), position, mode);
         });
   } else {
     VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
     active_cursors()->MoveCurrentCursor(
-        Apply(transformation->Clone(), position(), mode).position);
+        Apply(transformation->Clone(), position(), mode));
   }
 }
 
-Transformation::Result OpenBuffer::Apply(
-    std::unique_ptr<Transformation> transformation, LineColumn position,
-    Transformation::Input::Mode mode) {
+LineColumn OpenBuffer::Apply(std::unique_ptr<Transformation> transformation,
+                             LineColumn position,
+                             Transformation::Input::Mode mode) {
   CHECK(transformation != nullptr);
 
   Transformation::Input input(this);
@@ -1905,9 +1905,8 @@ Transformation::Result OpenBuffer::Apply(
   }
 
   CHECK(!undo_past_.empty());
-  undo_past_.back()->PushFront(result.undo_stack->Clone());
-
-  return result;
+  undo_past_.back()->PushFront(std::move(result.undo_stack));
+  return result.position;
 }
 
 void OpenBuffer::RepeatLastTransformation() {

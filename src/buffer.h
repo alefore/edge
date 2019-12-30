@@ -425,9 +425,8 @@ class OpenBuffer {
   };
   static int UpdateSyntaxDataZoom(SyntaxDataZoomInput input);
 
-  Transformation::Result Apply(unique_ptr<Transformation> transformation,
-                               LineColumn position,
-                               Transformation::Input::Mode mode);
+  LineColumn Apply(unique_ptr<Transformation> transformation,
+                   LineColumn position, Transformation::Input::Mode mode);
   void UpdateTreeParser();
 
   void ProcessCommandInput(shared_ptr<LazyString> str);
