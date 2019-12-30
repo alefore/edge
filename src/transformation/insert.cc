@@ -42,9 +42,8 @@ class InsertBufferTransformation : public Transformation {
 
   Result Apply(const Input& input) const override {
     CHECK(input.buffer != nullptr);
-    Result result(options_.position.has_value() ? options_.position.value()
-                                                : input.position);
-    input.buffer->AdjustLineColumn(&result.position);
+    Result result(input.buffer->AdjustLineColumn(
+        options_.position.value_or(input.position)));
     LineColumn start_position = result.position;
     for (size_t i = 0; i < options_.modifiers.repetitions; i++) {
       result.position = input.buffer->InsertInPosition(

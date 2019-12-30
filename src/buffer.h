@@ -190,9 +190,10 @@ class OpenBuffer {
   LineColumn InsertInPosition(const OpenBuffer& insertion,
                               const LineColumn& position,
                               const std::optional<LineModifierSet>& modifiers);
-  // Checks that line column is in the expected range (between 0 and the length
-  // of the current line).
-  void AdjustLineColumn(LineColumn* output) const;
+  // Returns a copy of position, but ensuring that it is in the expected range
+  // (i.e., that the line is valid, and that the column fits the length of the
+  // line).
+  LineColumn AdjustLineColumn(LineColumn position) const;
 
   // If the current cursor is in a valid line (i.e., it isn't past the last
   // line), adjusts the column to not be beyond the length of the line.

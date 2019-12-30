@@ -1203,11 +1203,12 @@ LineColumn OpenBuffer::InsertInPosition(
   return LineColumn(last_line, column);
 }
 
-void OpenBuffer::AdjustLineColumn(LineColumn* output) const {
+LineColumn OpenBuffer::AdjustLineColumn(LineColumn position) const {
   CHECK_GT(contents_.size(), LineNumberDelta(0));
-  output->line = min(output->line, contents_.EndLine());
-  CHECK(LineAt(output->line) != nullptr);
-  output->column = min(LineAt(output->line)->EndColumn(), output->column);
+  position.line = min(position.line, contents_.EndLine());
+  CHECK(LineAt(position.line) != nullptr);
+  position.column = min(LineAt(position.line)->EndColumn(), position.column);
+  return position;
 }
 
 void OpenBuffer::MaybeAdjustPositionCol() {

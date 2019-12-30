@@ -18,8 +18,7 @@ class Adapter : public Transformation {
     CompositeTransformation::Input input;
     input.buffer = transformation_input.buffer;
     input.original_position = transformation_input.position;
-    input.position = transformation_input.position;
-    input.buffer->AdjustLineColumn(&input.position);
+    input.position = input.buffer->AdjustLineColumn(input.original_position);
     input.editor = input.buffer->editor();
     input.mode = transformation_input.mode;
     input.range = transformation_input.buffer->FindPartialRange(modifiers_,

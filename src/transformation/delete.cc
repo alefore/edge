@@ -85,7 +85,7 @@ std::shared_ptr<OpenBuffer> GetDeletedTextBuffer(const OpenBuffer& buffer,
 // Calls the callbacks in the line (EdgeLineDeleteHandler).
 void HandleLineDeletion(LineColumn position, OpenBuffer* buffer) {
   CHECK(buffer != nullptr);
-  buffer->AdjustLineColumn(&position);
+  position = buffer->AdjustLineColumn(position);
   CHECK_GE(buffer->contents()->size(), position.line.ToDelta());
 
   LOG(INFO) << "Erasing line " << position.line << " in a buffer with size "
@@ -123,8 +123,7 @@ class DeleteTransformation : public Transformation {
     CHECK(input.buffer != nullptr);
     input.mode = options_.mode.value_or(input.mode);
 
-    Result output(input.position);
-    input.buffer->AdjustLineColumn(&output.position);
+    Result output(input.buffer->AdjustLineColumn(input.position));
     Range range =
         input.buffer->FindPartialRange(options_.modifiers, output.position);
     range.begin = min(range.begin, output.position);
