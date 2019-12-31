@@ -1417,7 +1417,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
   output.end = modifiers.direction == FORWARDS ? max(position, output.begin)
                                                : min(position, output.begin);
   bool move_start = true;
-  for (size_t i = 0; i < modifiers.repetitions - 1; i++) {
+  for (size_t i = 1; i < modifiers.repetitions; i++) {
     LineColumn position = output.end;
     if (!modifiers.structure->SeekToLimit(this, forward, &output.end)) {
       move_start = false;
@@ -1429,6 +1429,7 @@ Range OpenBuffer::FindPartialRange(const Modifiers& modifiers,
     }
   }
 
+  LOG(INFO) << "After repetitions: " << output;
   switch (modifiers.boundary_end) {
     case Modifiers::CURRENT_POSITION:
       break;
