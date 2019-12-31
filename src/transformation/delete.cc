@@ -123,6 +123,9 @@ class DeleteTransformation : public Transformation {
     CHECK(input.buffer != nullptr);
     input.mode = options_.mode.value_or(input.mode);
 
+    // TODO: I think there's a bug with Modifiers with 0 repetitions. Perhaps
+    // the bug is in OpenBuffer::FindPartialRange returning a bad output.
+    // Investigate and fix?
     Result output(input.buffer->AdjustLineColumn(input.position));
     Range range =
         input.buffer->FindPartialRange(options_.modifiers, output.position);
