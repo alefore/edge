@@ -30,7 +30,10 @@ void FoldNextLineWhilePrefixIs(string prefix) {
     }
     int prefix_to_delete =
         buffer.line(line + 1).find_first_not_of(" ", prefix.size());
-    buffer.DeleteCharacters(1 + prefix_to_delete);
+    buffer.ApplyTransformation(
+        DeleteTransformationBuilder()
+            .set_modifiers(Modifiers().set_repetitions(1 + prefix_to_delete))
+            .build());
     first_line = false;
   }
 }
@@ -39,7 +42,10 @@ void FoldNextLineWhilePrefixIs(string prefix) {
 void BreakAt(string prefix, int start, int length) {
   buffer.ApplyTransformation(
       SetPositionTransformation(LineColumn(buffer.position().line(), start)));
-  buffer.DeleteCharacters(length);
+  buffer.ApplyTransformation(
+      DeleteTransformationBuilder()
+          .set_modifiers(Modifiers().set_repetitions(length))
+          .build());
   buffer.ApplyTransformation(
       InsertTransformationBuilder().set_text("\n" + prefix).build());
 }
