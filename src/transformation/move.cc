@@ -50,7 +50,7 @@ class MoveTransformation : public CompositeTransformation {
 
   std::wstring Serialize() const override { return L"MoveTransformation()"; }
 
-  void Apply(Input input) const override {
+  Output Apply(Input input) const override {
     CHECK(input.buffer != nullptr);
     VLOG(1) << "Move Transformation starts: "
             << input.buffer->Read(buffer_variables::name) << " "
@@ -70,22 +70,22 @@ class MoveTransformation : public CompositeTransformation {
       position =
           MoveMark(input.buffer, input.original_position, input.modifiers);
     } else if (structure == StructureCursor()) {
-      input.push(std::make_unique<MoveCursorTransformation>());
-
-      return;
+      return Output(std::make_unique<MoveCursorTransformation>());
     } else {
       input.buffer->status()->SetWarningText(L"Unhandled structure: " +
                                              structure->ToString());
-      return;
+      return Output();
     }
-    if (position.has_value()) {
-      LOG(INFO) << "Move from " << input.original_position << " to "
-                << position.value() << " " << input.modifiers;
-      input.push(NewSetPositionTransformation(position.value()));
-      if (input.modifiers.repetitions > 1) {
-        input.editor->PushPosition(position.value());
-      }
+    if (!position.has_value()) {
+      return Output();
     }
+    if (input.modifiers.repetitions > 1) {
+      input.editor->PushPosition(position.value());
+    }
+
+    LOG(INFO) << "Move from " << input.original_position << " to "
+              << position.value() << " " << input.modifiers;
+    return Output::SetPosition(position.value());
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {

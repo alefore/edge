@@ -39,13 +39,13 @@ namespace afc::editor {
 namespace {
 class NewLineTransformation : public CompositeTransformation {
   std::wstring Serialize() const override { return L"NewLineTransformation()"; }
-  void Apply(Input input) const override {
+  Output Apply(Input input) const override {
     const ColumnNumber column = input.position.column;
     auto line = input.buffer->LineAt(input.position.line);
-    if (line == nullptr) return;
+    if (line == nullptr) return Output();
     if (input.buffer->Read(buffer_variables::atomic_lines) &&
         column != ColumnNumber(0) && column != line->EndColumn())
-      return;
+      return Output();
     const wstring& line_prefix_characters(
         input.buffer->Read(buffer_variables::line_prefix_characters));
     ColumnNumber prefix_end;
@@ -57,6 +57,7 @@ class NewLineTransformation : public CompositeTransformation {
       }
     }
 
+    Output output;
     {
       auto buffer_to_insert =
           std::make_shared<OpenBuffer>(input.editor, L"- text inserted");
@@ -64,13 +65,14 @@ class NewLineTransformation : public CompositeTransformation {
           Line::Options(*line).DeleteSuffix(prefix_end)));
       InsertOptions insert_options;
       insert_options.buffer_to_insert = buffer_to_insert;
-      input.push(NewInsertBufferTransformation(std::move(insert_options)));
+      output.Push(NewInsertBufferTransformation(std::move(insert_options)));
     }
 
-    input.push(NewSetPositionTransformation(input.position));
-    input.push(NewDeleteSuffixSuperfluousCharacters());
-    input.push(NewSetPositionTransformation(
+    output.Push(NewSetPositionTransformation(input.position));
+    output.Push(NewDeleteSuffixSuperfluousCharacters());
+    output.Push(NewSetPositionTransformation(
         LineColumn(input.position.line + LineNumberDelta(1), prefix_end)));
+    return output;
   }
 
   unique_ptr<CompositeTransformation> Clone() const override {
@@ -82,15 +84,15 @@ class InsertEmptyLineTransformation : public CompositeTransformation {
  public:
   InsertEmptyLineTransformation(Direction direction) : direction_(direction) {}
   std::wstring Serialize() const override { return L""; }
-  void Apply(Input input) const override {
+  Output Apply(Input input) const override {
     if (direction_ == BACKWARDS) {
       ++input.position.line;
     }
-    input.push(
-        NewSetPositionTransformation(input.position.line, ColumnNumber(0)));
-    input.push(NewTransformation(Modifiers(),
-                                 std::make_unique<NewLineTransformation>()));
-    input.push(NewSetPositionTransformation(input.position));
+    Output output = Output::SetPosition(LineColumn(input.position.line));
+    output.Push(NewTransformation(Modifiers(),
+                                  std::make_unique<NewLineTransformation>()));
+    output.Push(NewSetPositionTransformation(input.position));
+    return output;
   }
 
   std::unique_ptr<CompositeTransformation> Clone() const override {
