@@ -370,57 +370,9 @@ int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
                      }));
 
   buffer->AddField(
-      L"DeleteCharacters",
-      vm::NewCallback(std::function<void(std::shared_ptr<OpenBuffer>, int)>(
-          [](std::shared_ptr<OpenBuffer> buffer, int count) {
-            DeleteOptions options;
-            options.modifiers.repetitions = count;
-            buffer->ApplyToCursors(NewDeleteTransformation(options));
-          })));
-
-  buffer->AddField(
       L"Reload",
       vm::NewCallback(std::function<void(std::shared_ptr<OpenBuffer>)>(
           [](std::shared_ptr<OpenBuffer> buffer) { buffer->Reload(); })));
-
-  buffer->AddField(
-      L"InsertText",
-      vm::NewCallback(std::function<void(std::shared_ptr<OpenBuffer>, wstring)>(
-          [](std::shared_ptr<OpenBuffer> buffer, wstring text) {
-            if (text.empty()) {
-              return;  // Optimization.
-            }
-            if (buffer->fd() != nullptr) {
-              auto str = ToByteString(text);
-              LOG(INFO) << "Insert text: " << str.size();
-              if (write(buffer->fd()->fd(), str.c_str(), str.size()) == -1) {
-                buffer->editor()->status()->SetWarningText(
-                    L"Write failed: " + FromByteString(strerror(errno)));
-              }
-              return;
-            }
-            auto buffer_to_insert =
-                std::make_shared<OpenBuffer>(buffer->editor(), L"tmp buffer");
-
-            // getline will silently eat the last (empty) line.
-            std::wistringstream text_stream(text + L"\n");
-            std::wstring line;
-            bool insert_separator = false;
-            while (std::getline(text_stream, line, wchar_t('\n'))) {
-              if (insert_separator) {
-                buffer_to_insert->AppendEmptyLine();
-              } else {
-                insert_separator = true;
-              }
-              buffer_to_insert->AppendToLastLine(
-                  NewLazyString(std::move(line)));
-            }
-
-            InsertOptions insert_options;
-            insert_options.buffer_to_insert = std::move(buffer_to_insert);
-            buffer->ApplyToCursors(
-                NewInsertBufferTransformation(std::move(insert_options)));
-          })));
 
   buffer->AddField(
       L"Save",
