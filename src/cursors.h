@@ -10,6 +10,7 @@
 #include <set>
 #include <vector>
 
+#include "src/continuation.h"
 #include "src/line_column.h"
 
 namespace afc {
@@ -162,8 +163,12 @@ class CursorsTracker {
   // position.
   void AdjustCursors(Transformation transformation);
 
-  void ApplyTransformationToCursors(
-      CursorsSet* cursors, std::function<LineColumn(LineColumn)> callback);
+  // Iterate over all cursors, running callback for each of them. callback
+  // receives the cursor's position and must notify the receiver with the
+  // position to which the cursor moves.
+  DelayedValue<bool> ApplyTransformationToCursors(
+      CursorsSet* cursors,
+      std::function<DelayedValue<LineColumn>(LineColumn)> callback);
 
   // Push current cursors into cursors_stack_ and returns size of stack.
   size_t Push();

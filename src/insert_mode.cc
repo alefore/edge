@@ -233,7 +233,6 @@ class AutocompleteMode : public EditorMode {
         ComposeTransformation(
             NewDeleteTransformation(delete_options),
             NewInsertBufferTransformation(std::move(insert_options)))));
-
     word_length_ = ColumnNumberDelta(insert->size());
   }
 
@@ -422,20 +421,24 @@ class InsertMode : public EditorMode {
       case Terminal::ESCAPE:
         ResetScrollBehavior();
         buffer->MaybeAdjustPositionCol();
-        buffer->ApplyToCursors(NewDeleteSuffixSuperfluousCharacters());
-        buffer->PopTransformationStack();
-        editor_state->set_repetitions(editor_state->repetitions() - 1);
-        buffer->RepeatLastTransformation();
-        buffer->PopTransformationStack();
-        editor_state->PushCurrentPosition();
-        buffer->status()->Reset();
-        editor_state->status()->Reset();
-        CHECK(options_.escape_handler);
-        options_.escape_handler();  // Probably deletes us.
-        editor_state->ResetRepetitions();
-        editor_state->ResetInsertionModifier();
-        editor_state->current_buffer()->ResetMode();
-        editor_state->set_keyboard_redirect(nullptr);
+        buffer->ApplyToCursors(NewDeleteSuffixSuperfluousCharacters())
+            .AddListener([buffer, editor_state, this](bool) {
+              buffer->PopTransformationStack();
+              editor_state->set_repetitions(editor_state->repetitions() - 1);
+              buffer->RepeatLastTransformation().AddListener(
+                  [buffer, editor_state, this](bool) {
+                    buffer->PopTransformationStack();
+                    editor_state->PushCurrentPosition();
+                    buffer->status()->Reset();
+                    editor_state->status()->Reset();
+                    CHECK(options_.escape_handler);
+                    options_.escape_handler();  // Probably deletes us.
+                    editor_state->ResetRepetitions();
+                    editor_state->ResetInsertionModifier();
+                    editor_state->current_buffer()->ResetMode();
+                    editor_state->set_keyboard_redirect(nullptr);
+                  });
+            });
         return;
 
       case Terminal::UP_ARROW:
@@ -473,8 +476,8 @@ class InsertMode : public EditorMode {
           delete_options.modifiers.direction = BACKWARDS;
         }
         delete_options.copy_to_paste_buffer = false;
-        buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
-        options_.modify_handler();
+        buffer->ApplyToCursors(NewDeleteTransformation(delete_options))
+            .AddListener([this](bool) { options_.modify_handler(); });
       }
         return;
 
@@ -515,8 +518,8 @@ class InsertMode : public EditorMode {
         delete_options.modifiers.boundary_begin = Modifiers::CURRENT_POSITION;
         delete_options.modifiers.boundary_end = Modifiers::LIMIT_CURRENT;
         delete_options.copy_to_paste_buffer = false;
-        buffer->ApplyToCursors(NewDeleteTransformation(delete_options));
-        options_.modify_handler();
+        buffer->ApplyToCursors(NewDeleteTransformation(delete_options))
+            .AddListener([this](bool) { options_.modify_handler(); });
         return;
       }
 

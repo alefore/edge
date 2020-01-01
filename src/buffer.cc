@@ -21,6 +21,7 @@ extern "C" {
 #include "src/buffer_variables.h"
 #include "src/char_buffer.h"
 #include "src/command_with_modifiers.h"
+#include "src/continuation.h"
 #include "src/cpp_parse_tree.h"
 #include "src/cursors_transformation.h"
 #include "src/dirname.h"
@@ -128,9 +129,12 @@ void OpenBuffer::EvaluateMap(OpenBuffer* buffer, LineNumber line,
                              TransformationStack* transformation,
                              Trampoline* trampoline) {
   if ((line + LineNumberDelta(1)).ToDelta() >= buffer->lines_size()) {
-    buffer->Apply(std::unique_ptr<Transformation>(transformation),
-                  buffer->position(), Transformation::Input::Mode::kFinal);
-    trampoline->Return(Value::NewVoid());
+    buffer
+        ->Apply(std::unique_ptr<Transformation>(transformation),
+                buffer->position(), Transformation::Input::Mode::kFinal)
+        .AddListener([trampoline](const Transformation::Result&) {
+          trampoline->Return(Value::NewVoid());
+        });
     return;
   }
   wstring current_line = buffer->LineAt(line)->ToString();
@@ -262,12 +266,19 @@ int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
 
   buffer->AddField(
       L"ApplyTransformation",
-      vm::NewCallback(
-          std::function<void(std::shared_ptr<OpenBuffer>, Transformation*)>(
-              [](std::shared_ptr<OpenBuffer> buffer,
-                 Transformation* transformation) {
-                buffer->ApplyToCursors(transformation->Clone());
-              })));
+      Value::NewFunction(
+          {VMType::Void(), VMType::ObjectType(buffer.get()),
+           vm::VMTypeMapper<editor::Transformation*>::vmtype},
+          [](std::vector<std::unique_ptr<Value>> args, Trampoline* trampoline) {
+            CHECK_EQ(args.size(), 2);
+            auto buffer = static_cast<OpenBuffer*>(args[0]->user_value.get());
+            auto transformation =
+                static_cast<Transformation*>(args[1]->user_value.get());
+            buffer->ApplyToCursors(transformation->Clone())
+                .AddListener([trampoline](bool) {
+                  trampoline->Return(Value::NewVoid());
+                });
+          }));
 
   buffer->AddField(
       L"Map", Value::NewFunction(
@@ -319,8 +330,10 @@ int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
                     buffer->ApplyToCursors(
                         NewDeleteTransformation(options),
                         Modifiers::AFFECT_ONLY_CURRENT_CURSOR,
-                        Transformation::Input::Mode::kPreview);
-                    buffer->PopTransformationStack();
+                        Transformation::Input::Mode::kPreview,
+                        [buffer] () {
+                      buffer->PopTransformationStack();
+                    });
                   }
                 })
                 ->ProcessInput(L'\n', editor_state);
@@ -1795,17 +1808,19 @@ void OpenBuffer::Set(const EdgeVariable<double>* variable, double value) {
   double_variables_.Set(variable, value);
 }
 
-void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation) {
-  ApplyToCursors(std::move(transformation),
-                 Read(buffer_variables::multiple_cursors)
-                     ? Modifiers::AFFECT_ALL_CURSORS
-                     : Modifiers::AFFECT_ONLY_CURRENT_CURSOR,
-                 Transformation::Input::Mode::kFinal);
+DelayedValue<bool> OpenBuffer::ApplyToCursors(
+    unique_ptr<Transformation> transformation) {
+  return ApplyToCursors(std::move(transformation),
+                        Read(buffer_variables::multiple_cursors)
+                            ? Modifiers::AFFECT_ALL_CURSORS
+                            : Modifiers::AFFECT_ONLY_CURRENT_CURSOR,
+                        Transformation::Input::Mode::kFinal);
 }
 
-void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
-                                Modifiers::CursorsAffected cursors_affected,
-                                Transformation::Input::Mode mode) {
+DelayedValue<bool> OpenBuffer::ApplyToCursors(
+    unique_ptr<Transformation> transformation,
+    Modifiers::CursorsAffected cursors_affected,
+    Transformation::Input::Mode mode) {
   CHECK(transformation != nullptr);
 
   undo_future_.clear();
@@ -1825,20 +1840,28 @@ void OpenBuffer::ApplyToCursors(unique_ptr<Transformation> transformation,
     CursorsSet single_cursor;
     CursorsSet* cursors = active_cursors();
     CHECK(cursors != nullptr);
-    cursors_tracker_.ApplyTransformationToCursors(
+    return cursors_tracker_.ApplyTransformationToCursors(
         cursors, [this, &transformation, mode](LineColumn position) {
-          return Apply(transformation->Clone(), position, mode);
+          return DelayedValue<LineColumn>::Transform(
+              Apply(transformation->Clone(), position, mode),
+              [](const Transformation::Result& result) {
+                return result.position;
+              });
         });
   } else {
     VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
-    active_cursors()->MoveCurrentCursor(
-        Apply(transformation->Clone(), position(), mode));
+    return DelayedValue<bool>::Transform(
+        Apply(transformation->Clone(), position(), mode),
+        [this](const Transformation::Result& result) {
+          active_cursors()->MoveCurrentCursor(result.position);
+          return true;
+        });
   }
 }
 
-LineColumn OpenBuffer::Apply(std::unique_ptr<Transformation> transformation,
-                             LineColumn position,
-                             Transformation::Input::Mode mode) {
+DelayedValue<typename Transformation::Result> OpenBuffer::Apply(
+    std::unique_ptr<Transformation> transformation, LineColumn position,
+    Transformation::Input::Mode mode) {
   CHECK(transformation != nullptr);
 
   Transformation::Input input(this);
@@ -1859,13 +1882,14 @@ LineColumn OpenBuffer::Apply(std::unique_ptr<Transformation> transformation,
 
   CHECK(!undo_past_.empty());
   undo_past_.back()->PushFront(std::move(result.undo_stack));
-  return result.position;
+
+  return DelayedValue<Transformation::Result>(std::move(result));
 }
 
-void OpenBuffer::RepeatLastTransformation() {
+DelayedValue<bool> OpenBuffer::RepeatLastTransformation() {
   int repetitions = options_.editor->repetitions();
   options_.editor->ResetRepetitions();
-  ApplyToCursors(NewApplyRepetitionsTransformation(
+  return ApplyToCursors(NewApplyRepetitionsTransformation(
       repetitions, last_transformation_->Clone()));
 }
 

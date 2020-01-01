@@ -251,11 +251,11 @@ class OpenBuffer {
   wstring TransformKeyboardText(wstring input);
   bool AddKeyboardTextTransformer(unique_ptr<Value> transformer);
 
-  void ApplyToCursors(unique_ptr<Transformation> transformation);
-  void ApplyToCursors(unique_ptr<Transformation> transformation,
-                      Modifiers::CursorsAffected cursors_affected,
-                      Transformation::Input::Mode mode);
-  void RepeatLastTransformation();
+  DelayedValue<bool> ApplyToCursors(unique_ptr<Transformation> transformation);
+  DelayedValue<bool> ApplyToCursors(unique_ptr<Transformation> transformation,
+                                    Modifiers::CursorsAffected cursors_affected,
+                                    Transformation::Input::Mode mode);
+  DelayedValue<bool> RepeatLastTransformation();
 
   void PushTransformationStack();
   void PopTransformationStack();
@@ -425,8 +425,9 @@ class OpenBuffer {
   };
   static int UpdateSyntaxDataZoom(SyntaxDataZoomInput input);
 
-  LineColumn Apply(unique_ptr<Transformation> transformation,
-                   LineColumn position, Transformation::Input::Mode mode);
+  DelayedValue<Transformation::Result> Apply(
+      unique_ptr<Transformation> transformation, LineColumn position,
+      Transformation::Input::Mode mode);
   void UpdateTreeParser();
 
   void ProcessCommandInput(shared_ptr<LazyString> str);
