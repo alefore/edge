@@ -27,10 +27,6 @@ extern "C" {
 namespace afc::editor {
 namespace {
 
-using afc::editor::EditorState;
-using afc::editor::Line;
-using afc::editor::OpenBuffer;
-using afc::editor::Predictor;
 using std::cout;
 using std::function;
 using std::min;
@@ -42,6 +38,13 @@ const wchar_t* kLongestPrefixEnvironmentVariable = L"predictor_longest_prefix";
 const wchar_t* kLongestDirectoryMatchEnvironmentVariable =
     L"predictor_longest_directory_match";
 const wchar_t* kExactMatchEnvironmentVariable = L"predictor_exact_match";
+
+void SignalEndOfFile(OpenBuffer* buffer,
+                     ValueReceiver<PredictorOutput> receiver) {
+  buffer->EndOfFile();
+  buffer->AddEndOfFileObserver(
+      [receiver = std::move(receiver)]() { receiver.Set(PredictorOutput()); });
+}
 
 void HandleEndOfFile(std::shared_ptr<OpenBuffer> predictions_buffer,
                      std::function<void(PredictResults)> consumer) {
@@ -195,16 +198,16 @@ void Predict(PredictOptions options) {
         if (shared_predictions_buffer == nullptr) return;
         CHECK_EQ(shared_predictions_buffer.get(), buffer);
 
-        options.predictor(
-            {.editor = options.editor_state,
-             .input = std::move(input),
-             .predictions = buffer,
-             .callback =
-                 [options, shared_predictions_buffer] {
-                   shared_predictions_buffer->set_current_cursor(LineColumn());
-                   HandleEndOfFile(shared_predictions_buffer, options.callback);
-                 },
-             .source_buffer = options.source_buffer});
+        options
+            .predictor({.editor = options.editor_state,
+                        .input = std::move(input),
+                        .predictions = buffer,
+                        .source_buffer = options.source_buffer})
+            .AddListener(
+                [options, shared_predictions_buffer](const PredictorOutput&) {
+                  shared_predictions_buffer->set_current_cursor(LineColumn());
+                  HandleEndOfFile(shared_predictions_buffer, options.callback);
+                });
       };
   predictions_buffer = std::make_shared<OpenBuffer>(std::move(buffer_options));
   *weak_predictions_buffer = predictions_buffer;
@@ -319,7 +322,7 @@ void ScanDirectory(DIR* dir, const std::wregex& noise_regex,
   });
 }
 
-void FilePredictor(PredictorInput predictor_input) {
+DelayedValue<PredictorOutput> FilePredictor(PredictorInput predictor_input) {
   LOG(INFO) << "Generating predictions for: " << predictor_input.input;
   struct AsyncInput {
     OpenBuffer::LockFunction get_buffer;
@@ -327,7 +330,7 @@ void FilePredictor(PredictorInput predictor_input) {
     vector<wstring> search_paths;
     ResolvePathOptions resolve_path_options;
     std::wregex noise_regex;
-    std::function<void()> callback;
+    ValueReceiver<PredictorOutput> output_receiver;
   };
 
   AsyncProcessor<AsyncInput, int>::Options options;
@@ -366,15 +369,16 @@ void FilePredictor(PredictorInput predictor_input) {
                     input.path.substr(0, descend_results.valid_prefix_length),
                     input.get_buffer);
     }
-    input.get_buffer([callback = input.callback](OpenBuffer* buffer) {
+    input.get_buffer([output_receiver = std::move(input.output_receiver)](
+                         OpenBuffer* buffer) {
       LOG(INFO) << "Signaling end of file.";
-      buffer->EndOfFile();
-      buffer->AddEndOfFileObserver(callback);
+      SignalEndOfFile(buffer, std::move(output_receiver));
     });
     return 0;
   };
   static AsyncProcessor<AsyncInput, int> async_processor(std::move(options));
 
+  Future<PredictorOutput> future;
   AsyncInput input{
       .get_buffer = predictor_input.predictions->GetLockFunction(),
       .path = predictor_input.editor->expand_path(predictor_input.input),
@@ -384,14 +388,16 @@ void FilePredictor(PredictorInput predictor_input) {
                          ? std::wregex(predictor_input.source_buffer->Read(
                                buffer_variables::directory_noise))
                          : std::wregex(),
-      .callback = std::move(predictor_input.callback)};
+      .output_receiver = future.Receiver()};
   GetSearchPaths(predictor_input.editor, &input.search_paths);
   async_processor.Push(std::move(input));
+  return future.Value();
 }
 
-void EmptyPredictor(PredictorInput input) {
-  input.predictions->EndOfFile();
-  input.predictions->AddEndOfFileObserver(std::move(input.callback));
+DelayedValue<PredictorOutput> EmptyPredictor(PredictorInput input) {
+  Future<PredictorOutput> future;
+  SignalEndOfFile(input.predictions, future.Receiver());
+  return future.Value();
 }
 
 namespace {
@@ -444,8 +450,9 @@ Predictor PrecomputedPredictor(const vector<wstring>& predictions,
         break;
       }
     }
-    input.predictions->EndOfFile();
-    input.predictions->AddEndOfFileObserver(std::move(input.callback));
+    Future<PredictorOutput> future;
+    SignalEndOfFile(input.predictions, future.Receiver());
+    return future.Value();
   };
 }
 
@@ -496,8 +503,9 @@ Predictor DictionaryPredictor(std::shared_ptr<const OpenBuffer> dictionary) {
       input.predictions->AppendToLastLine(*line_contents);
       input.predictions->AppendRawLine(std::make_shared<Line>(Line::Options()));
     }
-    input.predictions->EndOfFile();
-    input.predictions->AddEndOfFileObserver(std::move(input.callback));
+    Future<PredictorOutput> future;
+    SignalEndOfFile(input.predictions, future.Receiver());
+    return future.Value();
   };
 }
 

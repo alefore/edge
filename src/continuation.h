@@ -59,7 +59,7 @@ enum class ValueReceiverSetResult { kAccepted, kRejected };
 template <typename Type>
 class ValueReceiver {
  public:
-  ValueReceiverSetResult Set(Type value) {
+  ValueReceiverSetResult Set(Type value) const {
     if (data_->value.has_value()) {
       return ValueReceiverSetResult::kRejected;
     }

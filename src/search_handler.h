@@ -18,7 +18,7 @@ class EditorState;
 class OpenBuffer;
 struct LineColumn;
 
-void SearchHandlerPredictor(PredictorInput input);
+DelayedValue<PredictorOutput> SearchHandlerPredictor(PredictorInput input);
 
 struct SearchOptions {
   // The buffer in which to search.
