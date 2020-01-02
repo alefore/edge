@@ -68,6 +68,25 @@ class CompositeTransformation {
 
 std::unique_ptr<Transformation> NewTransformation(
     Modifiers modifiers, std::unique_ptr<CompositeTransformation> composite);
-}  // namespace afc::editor
 
+void RegisterCompositeTransformation(vm::Environment* environment);
+}  // namespace afc::editor
+namespace afc::vm {
+template <>
+struct VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Output>> {
+  static std::shared_ptr<editor::CompositeTransformation::Output> get(
+      Value* value);
+  static Value::Ptr New(
+      std::shared_ptr<editor::CompositeTransformation::Output> value);
+  static const VMType vmtype;
+};
+template <>
+struct VMTypeMapper<std::shared_ptr<editor::CompositeTransformation::Input>> {
+  static std::shared_ptr<editor::CompositeTransformation::Input> get(
+      Value* value);
+  static Value::Ptr New(
+      std::shared_ptr<editor::CompositeTransformation::Input> value);
+  static const VMType vmtype;
+};
+}  // namespace afc::vm
 #endif  // __AFC_EDITOR_TRANSFORMATION_COMPOSITE_H__

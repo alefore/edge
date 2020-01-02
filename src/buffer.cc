@@ -275,8 +275,9 @@ int OpenBuffer::UpdateSyntaxDataZoom(SyntaxDataZoomInput input) {
             auto transformation =
                 static_cast<Transformation*>(args[1]->user_value.get());
             buffer->ApplyToCursors(transformation->Clone())
-                .AddListener([trampoline](bool) {
-                  trampoline->Return(Value::NewVoid());
+                .AddListener([resume = trampoline->Interrupt()](bool) {
+                  LOG(INFO) << "ApplyTransformation returning.";
+                  resume(Value::NewVoid());
                 });
           }));
 
@@ -1111,7 +1112,7 @@ bool OpenBuffer::EvaluateFile(
   return true;
 }
 
-WorkQueue* OpenBuffer::work_queue() { return &work_queue_; }
+WorkQueue* OpenBuffer::work_queue() const { return &work_queue_; }
 
 void OpenBuffer::ExecutePendingWork() { work_queue_.Execute(); }
 WorkQueue::State OpenBuffer::GetPendingWorkState() const {
@@ -1143,7 +1144,7 @@ LineColumn OpenBuffer::InsertInPosition(
     const OpenBuffer& buffer, const LineColumn& input_position,
     const std::optional<LineModifierSet>& modifiers) {
   VLOG(5) << "InsertInPosition: " << input_position << " "
-          << (modifiers.has_value() ? modifiers.value().size() : -1);
+          << (modifiers.has_value() ? modifiers.value().size() : 1);
   auto blocker = cursors_tracker_.DelayTransformations();
   LineColumn position = input_position;
   if (position.line > contents_.EndLine()) {
@@ -1574,7 +1575,7 @@ wstring OpenBuffer::TransformKeyboardText(wstring input) {
     vector<Value::Ptr> args;
     args.push_back(Value::NewString(std::move(input)));
     Call(
-        t.get(), std::move(args),
+        *t, std::move(args),
         [&input](Value::Ptr value) { input = std::move(value->str); },
         [work_queue = work_queue()](std::function<void()> callback) {
           work_queue->Schedule(std::move(callback));
@@ -1809,7 +1810,7 @@ void OpenBuffer::Set(const EdgeVariable<double>* variable, double value) {
 }
 
 futures::DelayedValue<bool> OpenBuffer::ApplyToCursors(
-    unique_ptr<Transformation> transformation) {
+    std::unique_ptr<Transformation> transformation) {
   return ApplyToCursors(std::move(transformation),
                         Read(buffer_variables::multiple_cursors)
                             ? Modifiers::AFFECT_ALL_CURSORS
@@ -1818,7 +1819,7 @@ futures::DelayedValue<bool> OpenBuffer::ApplyToCursors(
 }
 
 futures::DelayedValue<bool> OpenBuffer::ApplyToCursors(
-    unique_ptr<Transformation> transformation,
+    std::unique_ptr<Transformation> transformation,
     Modifiers::CursorsAffected cursors_affected,
     Transformation::Input::Mode mode) {
   CHECK(transformation != nullptr);
@@ -1851,7 +1852,7 @@ futures::DelayedValue<bool> OpenBuffer::ApplyToCursors(
   } else {
     VLOG(6) << "Adjusting default cursor (!multiple_cursors).";
     return futures::DelayedValue<bool>::Transform(
-        Apply(transformation->Clone(), position(), mode),
+        Apply(std::move(transformation), position(), mode),
         [this](const Transformation::Result& result) {
           active_cursors()->MoveCurrentCursor(result.position);
           return futures::ImmediateValue(true);
@@ -1965,7 +1966,7 @@ bool OpenBuffer::IsLineFiltered(LineNumber line_number) {
   bool filtered;
   vector<Value::Ptr> args;
   args.push_back(Value::NewString(old_line.ToString()));
-  Call(filter_.get(), std::move(args),
+  Call(*filter_, std::move(args),
        [&filtered](Value::Ptr value) { filtered = value->boolean; });
 
   auto new_line = std::make_shared<Line>(old_line);

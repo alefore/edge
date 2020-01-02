@@ -22,11 +22,10 @@ class AppendExpression : public Expression {
   }
 
   void Evaluate(Trampoline* trampoline, const VMType& type) override {
-    trampoline->Bounce(
-        e0_.get(), e0_->Types()[0],
-        [e0 = e0_, e1 = e1_, type](Value::Ptr, Trampoline* trampoline) {
-          e1->Evaluate(trampoline, type);
-        });
+    trampoline->Bounce(e0_.get(), e0_->Types()[0],
+                       [e1 = e1_, type](Value::Ptr, Trampoline* trampoline) {
+                         e1->Evaluate(trampoline, type);
+                       });
   }
 
   std::unique_ptr<Expression> Clone() override {

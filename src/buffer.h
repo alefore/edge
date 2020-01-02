@@ -298,7 +298,7 @@ class OpenBuffer {
   bool EvaluateFile(const wstring& path,
                     std::function<void(std::unique_ptr<Value>)> consumer);
 
-  WorkQueue* work_queue();
+  WorkQueue* work_queue() const;
   void ExecutePendingWork();
   WorkQueue::State GetPendingWorkState() const;
 

@@ -259,11 +259,11 @@ buffer.AddBinding("aR", "Frames: Show all open buffers",
                   editor.SetHorizontalSplitsWithAllBuffers);
 
 void IncrementNumber() {
-  AddToIntegerAtPosition(buffer.position(), repetitions());
+  AddToIntegerTransformation(repetitions());
   set_repetitions(1);
 }
 void DecrementNumber() {
-  AddToIntegerAtPosition(buffer.position(), -repetitions());
+  AddToIntegerTransformation(-repetitions());
   set_repetitions(1);
 }
 

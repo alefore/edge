@@ -274,7 +274,7 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
     };
 
     CHECK(field->type.type == VMType::FUNCTION);
-    CHECK_GE(field->type.type_arguments.size(), 2);
+    CHECK_GE(field->type.type_arguments.size(), 2ul);
     CHECK_EQ(field->type.type_arguments[1], type);
 
     return std::make_unique<BindObjectExpression>(object->Clone(), field);
@@ -285,9 +285,10 @@ std::unique_ptr<Expression> NewMethodLookup(Compilation* compilation,
   return nullptr;
 }
 
-void Call(Value* func, vector<Value::Ptr> args,
+void Call(const Value& func, vector<Value::Ptr> args,
           std::function<void(Value::Ptr)> consumer,
           std::function<void(std::function<void()>)> yield_callback) {
+  CHECK_EQ(func.type.type, VMType::FUNCTION);
   std::vector<std::unique_ptr<Expression>> args_expr;
   for (auto& a : args) {
     args_expr.push_back(NewConstantExpression(std::move(a)));
@@ -295,7 +296,7 @@ void Call(Value* func, vector<Value::Ptr> args,
   // TODO: Use unique_ptr and capture by std::move.
   std::shared_ptr<Expression> function_expr =
       NewFunctionCall(NewConstantExpression(Value::NewFunction(
-                          func->type.type_arguments, func->callback)),
+                          func.type.type_arguments, func.callback)),
                       std::move(args_expr));
   Evaluate(
       function_expr.get(), nullptr,
